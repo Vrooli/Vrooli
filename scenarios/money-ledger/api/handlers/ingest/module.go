@@ -11,6 +11,7 @@ import (
 	"github.com/vrooli/api-core/database"
 	ingestpb "github.com/vrooli/vrooli/packages/proto/gen/go/money-ledger/v1/ingest"
 	ingestconnect "github.com/vrooli/vrooli/packages/proto/gen/go/money-ledger/v1/ingest/ingest_v1connect"
+	"google.golang.org/protobuf/types/known/timestamppb"
 	"money-ledger/internal/ingest"
 	"money-ledger/internal/module"
 )
@@ -76,12 +77,39 @@ func (s *Service) ImportFile(ctx context.Context, req *connect.Request[ingestpb.
 	return connect.NewResponse(&ingestpb.ImportFileResponse{Receipt: r}), nil
 }
 
+func (s *Service) ImportOperatorInputs(ctx context.Context, req *connect.Request[ingestpb.OperatorImportRequest]) (*connect.Response[ingestpb.OperatorImportResponse], error) {
+	mode := ingest.OperatorSourceModeOperator
+	if req.Msg.SourceMode == ingestpb.SourceMode_SOURCE_MODE_FIXTURE {
+		mode = ingest.OperatorSourceModeFixture
+	}
+	report, err := s.store.ImportOperatorInputsSource(ctx, req.Msg.SourcePath, mode, req.Msg.Apply, req.Msg.AdapterId, req.Msg.BookId, req.Msg.AccountId)
+	if err != nil && report == nil {
+		return nil, invalid(err)
+	}
+	response := &ingestpb.OperatorImportResponse{}
+	if report != nil {
+		response.Read, response.Written, response.Findings, response.Applied = int32(report.Read), int32(report.Written), int32(report.Findings), report.Applied
+		for _, field := range report.Fields {
+			out := &ingestpb.OperatorInputField{Path: field.Path, Status: field.Status, Written: field.Written, Unit: field.Unit, WindowDays: int32(field.WindowDays), Kind: field.Kind, Reason: field.Reason}
+			if field.ObservedAt != nil {
+				out.ObservedAt = timestamppb.New(*field.ObservedAt)
+			}
+			response.Fields = append(response.Fields, out)
+		}
+	}
+	if err != nil {
+		return connect.NewResponse(response), invalid(err)
+	}
+	return connect.NewResponse(response), nil
+}
+
 var Endpoints = []module.EndpointDescriptor{
 	ep("ingest_register", "/vrooli.money_ledger.v1.ingest.IngestService/RegisterAdapter", "Register a money adapter"),
 	ep("ingest_list", "/vrooli.money_ledger.v1.ingest.IngestService/ListAdapters", "List money adapters"),
 	ep("ingest_event", "/vrooli.money_ledger.v1.ingest.IngestService/IngestEvent", "Admit one typed money event"),
 	ep("ingest_run", "/vrooli.money_ledger.v1.ingest.IngestService/RunAdapter", "Run an adapter and report availability"),
 	ep("ingest_file", "/vrooli.money_ledger.v1.ingest.IngestService/ImportFile", "Import a CSV through the adapter door"),
+	ep("ingest_operator_inputs", "/vrooli.money_ledger.v1.ingest.IngestService/ImportOperatorInputs", "Rehearse or apply operator financial inputs"),
 }
 
 func ep(key, path, summary string) module.EndpointDescriptor {

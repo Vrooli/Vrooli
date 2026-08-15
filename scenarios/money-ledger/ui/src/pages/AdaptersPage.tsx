@@ -13,18 +13,18 @@ export function AdaptersPage() {
   return (
     <ExperienceSurface surfaceId="adapters" state={unavailable ? "partial" : fixture === "empty" ? "empty" : "ready"} data-testid={selectors.pages.adapters} aria-labelledby="adapters-heading" className="flex flex-col gap-4">
       <h2 id="adapters-heading" className="text-2xl font-semibold">{t(strings.pages.adapters.title)}</h2>
-      <Card data-testid={selectors.pages.adapterList}>
+      <Card data-testid={selectors.pages.adapterList} role="list">
         <CardHeader><CardTitle>{t(strings.pages.adapters.cardTitle)}</CardTitle></CardHeader>
         <CardContent>
           <p className="text-app-muted-foreground">{t(strings.pages.adapters.description)}</p>
-          <div data-testid={selectors.pages.manualAdapterEntry} className="mt-4 rounded-md border p-3">{t(strings.pages.adapters.manualAdapter)}</div>
-          <p data-testid={selectors.pages.adapterAvailability} className="mt-3">{unavailable ? t(strings.pages.adapters.unavailable) : t(strings.pages.adapters.available)}</p>
-          <p data-testid={selectors.pages.failureReason} className="text-sm text-app-muted-foreground">{t(strings.pages.adapters.failureReason)}</p>
-          <p data-testid={selectors.pages.lastSuccessAge} className="text-sm text-app-muted-foreground">{t(strings.pages.adapters.lastSuccessAge)}</p>
-          <p data-testid={selectors.pages.missingImpact} className="text-sm text-app-muted-foreground">{t(strings.pages.adapters.missingImpact)}</p>
-          <p data-testid={selectors.pages.credentialGap} className="text-sm text-app-muted-foreground">{t(strings.pages.adapters.credentialGap)}</p>
+          <div data-testid={selectors.pages.manualAdapterEntry} role="listitem" className="mt-4 rounded-md border p-3">{t(strings.pages.adapters.manualAdapter)}</div>
+          <p data-testid={selectors.pages.adapterAvailability} role="status" className="mt-3">{unavailable ? t(strings.pages.adapters.unavailable) : t(strings.pages.adapters.available)}</p>
+          <p data-testid={selectors.pages.failureReason} role="note" className="text-sm text-app-muted-foreground">{t(strings.pages.adapters.failureReason)}</p>
+          <p data-testid={selectors.pages.lastSuccessAge} role="status" className="text-sm text-app-muted-foreground">{t(strings.pages.adapters.lastSuccessAge)}</p>
+          <p data-testid={selectors.pages.missingImpact} role="note" className="text-sm text-app-muted-foreground">{t(strings.pages.adapters.missingImpact)}</p>
+          <p data-testid={selectors.pages.credentialGap} role="alert" className="text-sm text-app-muted-foreground">{t(strings.pages.adapters.credentialGap)}</p>
           {adapters.data?.adapters.map((adapter) => <p key={adapter.id} className="text-sm">{adapter.name} · {adapter.enabled ? t(strings.pages.adapters.available) : t(strings.pages.adapters.unavailable)}</p>)}
-          {fixture === "empty" && <p data-testid={selectors.pages.emptyGuidance} className="mt-3 rounded-md border border-dashed p-3 text-app-muted-foreground">{t(strings.pages.adapters.emptyGuidance)}</p>}
+          <p data-testid={selectors.pages.adaptersEmptyGuidance} role="note" className={fixture === "empty" ? "mt-3 rounded-md border border-dashed p-3 text-app-muted-foreground" : "sr-only"}>{t(strings.pages.adapters.emptyGuidance)}</p>
         </CardContent>
       </Card>
     </ExperienceSurface>

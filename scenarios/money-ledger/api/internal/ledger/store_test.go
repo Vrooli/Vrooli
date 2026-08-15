@@ -167,6 +167,21 @@ func TestGoalVerdictRequiresItsDeclaredSustainWindow(t *testing.T) { // [REQ:POS
 	require.EqualValues(t, 2, verdicts[0].SustainedPeriods)
 }
 
+func TestGoalSupportsRatioAndMetricComparandWithExplicitUnits(t *testing.T) { // [REQ:POS-002]
+	s, ctx := testStore(t)
+	b, err := s.CreateBook(ctx, "Operating", "USD")
+	require.NoError(t, err)
+	ratio, err := s.DeclareGoal(ctx, b.Id, &ledgerpb.Goal{Name: "services capacity", Metric: "services_capacity", Comparator: "<=", ThresholdRatio: 0.3, SustainPeriods: 3, SustainPeriodUnit: ledgerpb.SustainPeriodUnit_WEEK, BufferMultiple: 1})
+	require.NoError(t, err)
+	require.Equal(t, ledgerpb.SustainPeriodUnit_WEEK, ratio.SustainPeriodUnit)
+	comparand, err := s.DeclareGoal(ctx, b.Id, &ledgerpb.Goal{Name: "services trap", Metric: "services_revenue", Comparator: ">", ComparandMetric: "subscription_revenue", SustainPeriods: 2, SustainPeriodUnit: ledgerpb.SustainPeriodUnit_MONTH, BufferMultiple: 1})
+	require.NoError(t, err)
+	require.Equal(t, "subscription_revenue", comparand.ComparandMetric)
+	verdicts, err := s.ListGoals(ctx, b.Id)
+	require.NoError(t, err)
+	require.Len(t, verdicts, 2)
+}
+
 func TestJournalWriteBoundaryHasOnePostingWriter(t *testing.T) { // [REQ:CTR-001] [REQ:CTR-005]
 	_, file, _, ok := runtime.Caller(0)
 	require.True(t, ok)

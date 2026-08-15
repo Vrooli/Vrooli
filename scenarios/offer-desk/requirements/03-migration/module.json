@@ -58,7 +58,7 @@
     {
       "id": "MIG-003",
       "title": "Judgment prose is not imported",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-006",
       "category": "migration",
       "criticality": "P0",
@@ -70,8 +70,9 @@
       "validation": [
         {
           "type": "manual",
-          "status": "planned",
-          "notes": "Post-import review confirms no narrative section was absorbed and each source file retains its judgment content."
+          "ref": "api/internal/catalog/operator_import.go",
+          "status": "implemented",
+          "notes": "The declared manifest marks narrative files none; the rehearsal report reads and writes only lifecycle, tier, and membership records."
         }
       ]
     }

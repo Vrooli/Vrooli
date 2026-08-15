@@ -81,6 +81,10 @@ It is invisible until a scenario's experience contract is real enough to be chec
 
 **Filed:** against `template-manager` (`react-vite` v1.6.5), not against this scenario. Do not patch the shell here — a per-scenario fix hides the defect from every future generation.
 
+### 2026-08-15 — capability-gap plan execution
+
+The current plan is repairing the importer, runtime integration, projection, evaluation condition, and experience coverage. The red-bar tests in `importer_test.go` prove the status-shape and silent-default defects before repair. Protected-tree input digests are recorded in `PROGRESS.md`; no source or team file is in scope for edits.
+
 ## Architecture Drift
 
 Use this section for deferred findings from `screaming-architecture-audit`.
@@ -121,3 +125,39 @@ execution provider times out without returning a findings payload. Static-only
 UI-health reports zero required findings, and direct experience validation reports
 zero findings. The protected-tree end hashes are recorded in `PROGRESS.md`; no
 historical start hash was available from Phase 1.
+
+### 2026-08-15 — capability-gap plan rehearsal boundaries
+
+The catalog rehearsal is read-only against a copy of `docs/monetization/` and
+does not authorize source retirement. The narrative files remain deliberately
+unreplaced judgment prose; the sufficiency dossier names that boundary. The
+cross-scenario journey gap is filed as Swarm Manager backlog item
+`idea/experience-manager-cross-scenario-journeys` because the legacy issue
+tracker is no longer available.
+
+If the shared Test Genie `ui-health` provider again times out without a findings
+payload, record it as the same infrastructure boundary only after all scenario
+phases and direct experience validation pass.
+
+The 2026-08-15 comprehensive rerun `20260815-072053-feebd711` passed 20/21
+phases. CLI contracts passed after the importer flags were bound to
+`source-path` and `source-mode`; the mobile tap-target and safe-area floor
+findings are absent from this final run after the template/shell fix. The sole
+remaining failure is experience reconciliation: 18 bindings are unresolved,
+20 captures join zero bindings, and 16 claims cannot be proven from the
+captured accessibility tree. `ui-health` itself completed with runtime render
+success and only advisory debt. Do not promote the experience claims until the
+capture provider can observe and reconcile the declared running surfaces.
+
+The following requirements remain intentionally planned because this plan stops
+before adoption or broader cross-scenario product work: `COMP-001` (per-offer
+compliance review dates), `BOOK-001` (independent offer-book scoping), and
+`GATE-007` (triggers reading another scenario's live state). The cross-scenario
+journey contract is separately tracked as Swarm Manager item
+`idea/experience-manager-cross-scenario-journeys`.
+
+The post-fix run `20260815-090238-1e5e8a8f` passed experience reconciliation and
+all product-side phases (20/21 overall). The remaining `ui-health` failure is a
+provider `missing_dependency` result with zero findings; the ui-health API,
+code-facts, and qdrant were subsequently confirmed healthy. This remains a
+shared Test Genie/provider boundary rather than Offer Desk product debt.

@@ -45,7 +45,7 @@ describe("ledger page empty and degraded states", () => {
     renderWithProviders(<AccountsPage />);
 
     expect(screen.getByTestId("page-accounts")).toHaveAttribute("data-experience-state", "empty");
-    expect(screen.getByTestId("position-empty-guidance")).toBeVisible();
+    expect(screen.getByTestId("accounts-empty-guidance")).toBeVisible();
     expect(screen.getByTestId("account-balance-basis")).toBeVisible();
     expect(screen.getByTestId("account-transfer-pair")).toBeVisible();
   });
@@ -66,7 +66,7 @@ describe("ledger page empty and degraded states", () => {
     renderWithProviders(<StatementsPage />);
 
     expect(screen.getByTestId("page-statements")).toHaveAttribute("data-experience-state", "empty");
-    expect(screen.getByTestId("position-empty-guidance")).toBeVisible();
+    expect(screen.getByTestId("statement-empty-guidance")).toBeVisible();
     expect(screen.getByTestId("statement-coverage")).toBeVisible();
     expect(screen.getByTestId("statement-export")).toBeEnabled();
   });

@@ -39,3 +39,24 @@ func TestImportTreeRejectsLiveOrUnscopedRoots(t *testing.T) {
 	_, err := s.ImportTree(context.Background(), t.TempDir(), "operator")
 	require.ErrorContains(t, err, "fixture root")
 }
+
+func TestImportedStatusRecognizesCorpusShapes(t *testing.T) { // [REQ:MIG-001]
+	for _, tc := range []struct {
+		name string
+		body string
+		want string
+	}{
+		{name: "list item", body: "- **Status:** active (currently sold)\n", want: "ACTIVE"},
+		{name: "inline bold", body: "**Status: candidate. Revisit when triggered.**\n", want: "CANDIDATE"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got := importedStatus(tc.body)
+			require.Equal(t, tc.want, got.String())
+		})
+	}
+}
+
+func TestUnrecognizedStatusIsNotSilentlyIdea(t *testing.T) { // [REQ:MIG-002]
+	got := importedStatus("**Status:** maybe\n")
+	require.NotEqual(t, "IDEA", got.String())
+}

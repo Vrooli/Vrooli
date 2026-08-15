@@ -148,6 +148,10 @@
       "testId": "account-table",
       "selector": "[data-testid=\"account-table\"]"
     },
+    "pages.accountsEmptyGuidance": {
+      "testId": "accounts-empty-guidance",
+      "selector": "[data-testid=\"accounts-empty-guidance\"]"
+    },
     "pages.balanceBasis": {
       "testId": "account-balance-basis",
       "selector": "[data-testid=\"account-balance-basis\"]"
@@ -188,6 +192,10 @@
       "testId": "adapter-row-manual",
       "selector": "[data-testid=\"adapter-row-manual\"]"
     },
+    "pages.adaptersEmptyGuidance": {
+      "testId": "adapter-empty-guidance",
+      "selector": "[data-testid=\"adapter-empty-guidance\"]"
+    },
     "pages.eventTable": {
       "testId": "journal-table",
       "selector": "[data-testid=\"journal-table\"]"
@@ -220,6 +228,10 @@
       "testId": "journal-manual-entry",
       "selector": "[data-testid=\"journal-manual-entry\"]"
     },
+    "pages.journalEmptyGuidance": {
+      "testId": "journal-empty-guidance",
+      "selector": "[data-testid=\"journal-empty-guidance\"]"
+    },
     "pages.statementFigures": {
       "testId": "statement-figures",
       "selector": "[data-testid=\"statement-figures\"]"
@@ -247,6 +259,10 @@
     "pages.exportAction": {
       "testId": "statement-export",
       "selector": "[data-testid=\"statement-export\"]"
+    },
+    "pages.statementsEmptyGuidance": {
+      "testId": "statement-empty-guidance",
+      "selector": "[data-testid=\"statement-empty-guidance\"]"
     },
     "errorBoundary.root": {
       "testId": "error-boundary-root",

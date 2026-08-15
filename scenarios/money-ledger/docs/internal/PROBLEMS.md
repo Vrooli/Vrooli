@@ -101,6 +101,10 @@ Offer Desk records this for the catalog import. It applies here for the same rea
 
 The default-alive rule (three consecutive months, 1.25 buffer), the services-capacity guardrail (30% for three consecutive weeks) and the services-trap signal (two consecutive months) are the clearest instances of the defect this scenario exists to remove. They must land as declared goals under `POS-002`. Copying them into a settings page description, a comment, or a README would reproduce the original problem inside the replacement — and would be nearly invisible in review, because the text would look like documentation rather than state.
 
+### 2026-08-15 — capability-gap plan execution
+
+The current plan is repairing the operator importer, non-monetary measures, goal expressiveness, staleness, and the paired board contract. The red-bar `TestOperatorInputsImportPreservesPendingAsAbsent` proves the importer currently writes time, hours, and MRR as postings. Protected-tree input digests are recorded in `PROGRESS.md`; no source or team file is in scope for edits.
+
 ## Architecture Drift
 
 Use this section for deferred findings from `screaming-architecture-audit`.
@@ -140,3 +144,42 @@ remaining failure is not a Money Ledger finding: the shared Test Genie
 Static-only UI-health reports zero required findings, and direct experience
 validation reports zero findings. The protected-tree end hashes are recorded in
 `PROGRESS.md`; no historical start hash was available from Phase 1.
+
+### 2026-08-15 — capability-gap plan rehearsal boundaries
+
+The protected-source start digests are now recorded in `PROGRESS.md` and must
+match the final audit. The operator-input rehearsal is intentionally against a
+copy: the source is non-regenerable and the adoption/cutover decision is outside
+this plan. The current live source has no populated values; the populated and
+stale synthetic copies prove classification and freshness without changing the
+protected source. Future commerce-adapter, tax-category, reconciliation, and
+currency requirements remain planned by design.
+
+The shared Test Genie `ui-health` provider boundary remains an external
+validation concern if it recurs; direct scenario UI suites and the newly
+scaffolded page cases are the product-side evidence.
+
+The 2026-08-15 comprehensive run `20260815-065204-650333b7` passed 18/21
+phases. Its contract failure was fixed in the CLI manifest by binding
+`source-path` and `source-mode` to the generated proto fields. The remaining
+`ui-health` timeout and experience capture errors are Test Genie capture
+infrastructure boundaries: the scenario source contains the declared
+selectors, but the provider returned no UI findings payload and joined no
+bindings in its captured accessibility tree. The requirements validator still
+passes; this is not evidence to promote the page claims without a working
+capture provider.
+
+The following requirements remain intentionally planned because this plan stops
+before adoption and upstream commerce integration: `POS-005` (commerce adapter),
+`POS-006` (deductibility categories), `REC-001` (reconciliation), `VAL-001`
+(valuation accounts), `ADP-001` (adapter extraction trigger), `LOT-001`
+(acquisition lots), `RCR-001` (projected basis), `CAT-001` (category rules),
+`ATT-001` (evidence attachments), and `CUR-001` (separate currencies). Their
+implementation requires the future adapters, reconciliation, valuation, or
+adoption work explicitly outside this plan.
+
+The post-fix run `20260815-092007-13e9dfb6` passed experience reconciliation and
+all product-side phases (20/21 overall). The remaining `ui-health` failure is a
+provider `missing_dependency` result with zero findings; the ui-health API,
+code-facts, and qdrant were subsequently confirmed healthy. This remains a
+shared Test Genie/provider boundary rather than scenario UI debt.

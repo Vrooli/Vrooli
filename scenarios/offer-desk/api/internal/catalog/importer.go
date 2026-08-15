@@ -105,7 +105,9 @@ type ImportReport struct {
 
 var (
 	markdownReference = regexp.MustCompile(`\]\(([^)#]+)(?:#[^)]*)?\)`)
-	lifecycleStatus   = regexp.MustCompile("(?im)^\\*\\*Status:\\*\\*\\s*`?([a-z-]+)`?\\s*$")
+	statusBare        = regexp.MustCompile(`(?im)^\s*\*\*Status:\*\*\s*` + "`?" + `([a-z-]+)` + "`?" + `(?:\s*\([^\n]*\))?\s*$`)
+	statusList        = regexp.MustCompile(`(?im)^\s*-\s+\*\*Status:\*\*\s*` + "`?" + `([a-z-]+)` + "`?" + `(?:\s*\([^\n]*\))?\s*$`)
+	statusInline      = regexp.MustCompile(`(?im)^\s*\*\*Status:\s*` + "`?" + `([a-z-]+)` + "`?" + `[^\n]*\*\*\s*$`)
 )
 
 func fixtureRoot(root string) (string, error) {
@@ -142,24 +144,43 @@ func importedKind(rel string) offerspb.NodeKind {
 }
 
 func importedStatus(body string) offerspb.Status {
-	match := lifecycleStatus.FindStringSubmatch(body)
-	if len(match) != 2 {
+	status, found, _ := parseImportedStatus(body)
+	if !found {
+		if statusMarker := regexp.MustCompile(`(?im)^\s*(?:-\s+)?\*\*Status:`); statusMarker.FindStringIndex(body) != nil {
+			return offerspb.Status_STATUS_UNSPECIFIED
+		}
 		return offerspb.Status_IDEA
 	}
-	switch strings.ToLower(match[1]) {
+	return status
+}
+
+func parseImportedStatus(body string) (offerspb.Status, bool, int) {
+	match := statusBare.FindStringSubmatch(body)
+	if len(match) != 2 {
+		match = statusList.FindStringSubmatch(body)
+	}
+	if len(match) != 2 {
+		match = statusInline.FindStringSubmatch(body)
+	}
+	if len(match) != 2 {
+		return offerspb.Status_STATUS_UNSPECIFIED, false, 0
+	}
+	line := 1 + strings.Count(body[:strings.Index(body, match[0])], "\n")
+	switch strings.ToLower(strings.TrimSpace(match[1])) {
 	case "active":
-		return offerspb.Status_ACTIVE
+		return offerspb.Status_ACTIVE, true, line
+	case "candidate":
+		return offerspb.Status_CANDIDATE, true, line
+	case "north-star":
+		return offerspb.Status_IDEA, true, line
 	case "shipped":
-		return offerspb.Status_SHIPPED
+		return offerspb.Status_SHIPPED, true, line
 	case "retired":
-		return offerspb.Status_RETIRED
+		return offerspb.Status_RETIRED, true, line
 	case "trigger-met":
-		return offerspb.Status_TRIGGER_MET
+		return offerspb.Status_TRIGGER_MET, true, line
 	default:
-		// Candidate requires a trigger ID, and narrative source files do not
-		// carry a machine trigger. Preserve the source as an idea and let the
-		// finding explain the deferred lifecycle step.
-		return offerspb.Status_IDEA
+		return offerspb.Status_STATUS_UNSPECIFIED, false, line
 	}
 }
 
@@ -194,6 +215,12 @@ func (s *Store) ImportTree(ctx context.Context, root, actor string) (*ImportRepo
 		rel, _ := filepath.Rel(root, path)
 		kind := importedKind(rel)
 		status := importedStatus(string(body))
+		if status == offerspb.Status_STATUS_UNSPECIFIED || status == offerspb.Status_CANDIDATE {
+			// Fixture mode preserves the predecessor importer's permissive,
+			// trigger-free fixture behavior. Operator mode uses the strict
+			// parser in ImportCatalog below.
+			status = offerspb.Status_IDEA
+		}
 		name := strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
 		if match := regexp.MustCompile("(?m)^\\*\\*SKU ID:\\*\\*\\s*`?([^`\\s]+)").FindStringSubmatch(string(body)); len(match) == 2 {
 			name = match[1]

@@ -2,19 +2,24 @@ package offers
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/schedule"
 	ledgerpb "github.com/vrooli/vrooli/packages/proto/gen/go/money-ledger/v1/ledger"
 	ledgerconnect "github.com/vrooli/vrooli/packages/proto/gen/go/money-ledger/v1/ledger/ledger_v1connect"
 	offerspb "github.com/vrooli/vrooli/packages/proto/gen/go/offer-desk/v1/offers"
 	offersconnect "github.com/vrooli/vrooli/packages/proto/gen/go/offer-desk/v1/offers/offers_v1connect"
+	"google.golang.org/protobuf/types/known/timestamppb"
 	"offer-desk/internal/catalog"
 	"offer-desk/internal/module"
 )
@@ -26,6 +31,8 @@ type Service struct {
 	journal  ledgerconnect.JournalServiceClient
 	position ledgerconnect.PositionServiceClient
 	bookID   string
+	books    ledgerconnect.BooksServiceClient
+	interval time.Duration
 }
 
 func NewService(db *database.RoutedDB, logger *log.Logger, clock schedule.Clock) *Service {
@@ -33,10 +40,19 @@ func NewService(db *database.RoutedDB, logger *log.Logger, clock schedule.Clock)
 		clock = schedule.System()
 	}
 	s := &Service{store: catalog.NewStore(db, clock.Now), logger: logger, clock: clock, bookID: os.Getenv("MONEY_LEDGER_BOOK_ID")}
-	if base := os.Getenv("MONEY_LEDGER_API_URL"); base != "" {
+	base := os.Getenv("MONEY_LEDGER_API_URL")
+	if base == "" {
+		// The declared scenario dependency is the default wiring. An explicit
+		// environment URL remains an operator override for isolated deployments.
+		if resolved, err := discovery.ResolveScenarioURLDefault(context.Background(), "money-ledger"); err == nil {
+			base = resolved
+		}
+	}
+	if base != "" {
 		hc := &http.Client{Timeout: 700 * time.Millisecond}
 		s.journal = ledgerconnect.NewJournalServiceClient(hc, base)
 		s.position = ledgerconnect.NewPositionServiceClient(hc, base)
+		s.books = ledgerconnect.NewBooksServiceClient(hc, base)
 	}
 	return s
 }
@@ -51,6 +67,8 @@ func Module(db *database.RoutedDB, clock schedule.Clock, logger *log.Logger) mod
 		r.PathPrefix(p).Handler(h)
 		p, h = offersconnect.NewBoardServiceHandler(s)
 		r.PathPrefix(p).Handler(h)
+		p, h = offersconnect.NewSpaceServiceHandler(s)
+		r.PathPrefix(p).Handler(h)
 	}, Endpoints: Endpoints}
 }
 
@@ -61,6 +79,7 @@ func (s *Service) startScheduler() {
 			interval = parsed
 		}
 	}
+	s.interval = interval
 	ticker := s.clock.NewTicker(interval)
 	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
@@ -71,8 +90,14 @@ func (s *Service) startScheduler() {
 			case <-ctx.Done():
 				return
 			case <-ticker.C():
-				if _, err := s.store.Evaluate(ctx, false); err != nil && s.logger != nil {
-					s.logger.Printf("scheduled offer evaluation failed: %v", err)
+				evaluations, err := s.store.Evaluate(ctx, false)
+				if err != nil {
+					s.recordEvaluation(ctx, "failed", 0, err.Error())
+					if s.logger != nil {
+						s.logger.Printf("scheduled offer evaluation failed: %v", err)
+					}
+				} else {
+					s.recordEvaluation(ctx, "succeeded", len(evaluations), "")
 				}
 			}
 		}
@@ -120,6 +145,31 @@ func (s *Service) ListEdges(ctx context.Context, r *connect.Request[offerspb.Lis
 	return connect.NewResponse(&offerspb.ListEdgesResponse{Edges: edges}), nil
 }
 
+func (s *Service) ImportCatalog(ctx context.Context, r *connect.Request[offerspb.ImportCatalogRequest]) (*connect.Response[offerspb.ImportCatalogResponse], error) {
+	report, err := s.store.ImportCatalog(ctx, r.Msg.SourcePath, r.Msg.SourceMode, r.Msg.Apply, r.Msg.Actor)
+	if err != nil && report == nil {
+		return nil, invalid(err)
+	}
+	response := &offerspb.ImportCatalogResponse{}
+	if report != nil {
+		response.Applied = report.Applied
+		for _, file := range report.Files {
+			response.Files = append(response.Files, &offerspb.ImportFileReport{Path: file.Path, Read: int32(file.Read), Written: int32(file.Written), Findings: int32(file.Findings), Cardinality: file.Cardinality, NodeKind: file.NodeKind})
+		}
+		for _, status := range report.StatusMap {
+			response.StatusMap = append(response.StatusMap, &offerspb.StatusMapEntry{Path: status.Path, Status: status.Status, Recognized: status.Recognized, Line: int32(status.Line)})
+		}
+		for _, finding := range report.Findings {
+			response.Findings = append(response.Findings, &offerspb.ImportFinding{Path: finding.Path, Reason: finding.Reason, Blocking: finding.Blocking, Line: int32(finding.Line)})
+		}
+		response.TotalFindings = int32(len(report.Findings))
+	}
+	if err != nil {
+		return connect.NewResponse(response), invalid(err)
+	}
+	return connect.NewResponse(response), nil
+}
+
 func (s *Service) DeclareTrigger(ctx context.Context, r *connect.Request[offerspb.DeclareTriggerRequest]) (*connect.Response[offerspb.DeclareTriggerResponse], error) {
 	t, e := s.store.AddTrigger(ctx, r.Msg.Trigger)
 	if e != nil {
@@ -163,17 +213,50 @@ func (s *Service) GetBoard(ctx context.Context, _ *connect.Request[offerspb.Proj
 		return nil, internal(e)
 	}
 	out := make([]*offerspb.BoardEntry, 0, len(nodes))
-	response := &offerspb.BoardResponse{Entries: out}
-	if s.position == nil || s.bookID == "" {
-		response.Availability = append(response.Availability, &offerspb.Availability{Source: "money-ledger", Reason: "actuals unavailable: MONEY_LEDGER_API_URL and MONEY_LEDGER_BOOK_ID are not configured"})
+	response := &offerspb.BoardResponse{Entries: out, Evaluation: &offerspb.EvaluationCondition{LastResult: offerspb.EvaluationResult_EVALUATION_NOT_RUN, Degraded: true, Reason: "evaluation has not run"}}
+	if s.position == nil {
+		response.Availability = append(response.Availability, &offerspb.Availability{Source: "money-ledger", Reason: "actuals unavailable: declared money-ledger dependency could not be resolved"})
 	} else {
-		deadline, cancel := context.WithTimeout(ctx, 700*time.Millisecond)
-		defer cancel()
-		position, err := s.position.GetPosition(deadline, connect.NewRequest(&ledgerpb.PositionRequest{BookId: s.bookID}))
-		if err != nil {
-			response.Availability = append(response.Availability, &offerspb.Availability{Source: "money-ledger.position", Reason: err.Error()})
-		} else {
-			response.Position = position.Msg
+		if s.bookID == "" && s.books != nil {
+			books, bookErr := s.books.ListBooks(ctx, connect.NewRequest(&ledgerpb.ListBooksRequest{}))
+			if bookErr == nil && len(books.Msg.Books) > 0 {
+				s.bookID = books.Msg.Books[0].Id
+			}
+		}
+		if s.bookID == "" {
+			response.Availability = append(response.Availability, &offerspb.Availability{Source: "money-ledger", Reason: "actuals unavailable: no ledger book is configured or available"})
+		}
+		if s.bookID != "" {
+			deadline, cancel := context.WithTimeout(ctx, 700*time.Millisecond)
+			defer cancel()
+			position, err := s.position.GetPosition(deadline, connect.NewRequest(&ledgerpb.PositionRequest{BookId: s.bookID}))
+			if err != nil {
+				response.Availability = append(response.Availability, &offerspb.Availability{Source: "money-ledger.position", Reason: err.Error()})
+			} else {
+				response.Position = position.Msg
+				response.PostureSource = "money-ledger.position"
+				for _, input := range position.Msg.Inputs {
+					if input.AgeSeconds > response.PostureAgeSeconds {
+						response.PostureAgeSeconds = input.AgeSeconds
+					}
+				}
+				if position.Msg.RevenueMinor == 0 && position.Msg.BurnMinor == 0 {
+					response.DefaultAliveGap = "unavailable: revenue and burn observations are incomplete"
+				} else {
+					gap := float64(position.Msg.BurnMinor)*1.25 - float64(position.Msg.RevenueMinor)
+					if gap <= 0 {
+						response.DefaultAliveGap = "default-alive threshold met with 1.25 buffer"
+					} else {
+						response.DefaultAliveGap = fmt.Sprintf("%d minor units below default-alive buffer", int64(gap))
+					}
+				}
+				if s.position != nil {
+					goals, goalErr := s.position.ListGoals(deadline, connect.NewRequest(&ledgerpb.ListGoalsRequest{BookId: s.bookID}))
+					if goalErr == nil {
+						response.Goals = goals.Msg.Goals
+					}
+				}
+			}
 		}
 	}
 	for _, n := range nodes {
@@ -203,7 +286,55 @@ func (s *Service) GetBoard(ctx context.Context, _ *connect.Request[offerspb.Proj
 		out = append(out, entry)
 	}
 	response.Entries = out
+	var result string
+	var scored int
+	var reason, evaluated string
+	if err := s.store.DB().QueryRowContext(ctx, `SELECT result,nodes_scored,reason,evaluated_at FROM evaluation_runs ORDER BY evaluated_at DESC LIMIT 1`).Scan(&result, &scored, &reason, &evaluated); err == nil {
+		at, parseErr := time.Parse(time.RFC3339Nano, evaluated)
+		if parseErr == nil {
+			age := int64(s.clock.Now().Sub(at).Seconds())
+			if age < 0 {
+				age = 0
+			}
+			response.Evaluation.LastRunAt = timestamppb.New(at)
+			response.Evaluation.NodesScored = int32(scored)
+			response.Evaluation.AgeSeconds = age
+			response.Evaluation.Reason = reason
+			response.Evaluation.LastResult = offerspb.EvaluationResult_EVALUATION_SUCCEEDED
+			if result == "failed" {
+				response.Evaluation.LastResult = offerspb.EvaluationResult_EVALUATION_FAILED
+			}
+			response.Evaluation.Degraded = result == "failed" || (s.interval > 0 && time.Duration(age)*time.Second > 3*s.interval)
+			if response.Evaluation.Degraded && response.Evaluation.Reason == "" {
+				response.Evaluation.Reason = "evaluation reading is older than three scheduler intervals"
+			}
+		}
+	}
 	return connect.NewResponse(response), nil
+}
+
+func (s *Service) recordEvaluation(ctx context.Context, result string, nodes int, reason string) {
+	_, _ = s.store.DB().ExecContext(ctx, `INSERT INTO evaluation_runs(id,result,nodes_scored,reason,evaluated_at) VALUES(?,?,?,?,?)`, uuid.NewString(), result, nodes, reason, s.clock.Now().UTC().Format(time.RFC3339Nano))
+}
+
+func (s *Service) GetProjection(ctx context.Context, r *connect.Request[offerspb.ProjectionRequest]) (*connect.Response[offerspb.SpaceResponse], error) {
+	projection := "offers"
+	if r != nil && strings.TrimSpace(r.Msg.Projection) != "" {
+		projection = strings.TrimSpace(r.Msg.Projection)
+	}
+	return connect.NewResponse(&offerspb.SpaceResponse{
+		SchemaVersion:         "space/v1",
+		Projection:            projection,
+		Owner:                 "monetization",
+		DenominatorConfidence: "sketch",
+		ConfidenceRationale:   "The obligation cells are an operator-authored first cut and have not yet been reconciled against an external roster.",
+		Source:                "scenarios/offer-desk/docs/spaces/offers.json",
+		Cells: []*offerspb.SpaceCell{
+			{Id: "catalog-state", Group: "catalog", Question: "What offers and delivery tiers are currently declared?", Owner: "monetization", Status: "active", Notes: "Read from the typed catalog graph."},
+			{Id: "promotion-state", Group: "gates", Question: "Which candidate offers have satisfied machine-evaluable triggers?", Owner: "monetization", Status: "active", Notes: "Read from persisted evaluations and lifecycle state."},
+			{Id: "financial-posture", Group: "board", Question: "What is the financial posture beside the offer state?", Owner: "monetization", Status: "active", Notes: "Read from Money Ledger when available; unavailable sources remain explicit."},
+		},
+	}), nil
 }
 func Schema() string { return (&catalog.Store{}).Schema() }
 func ep(id, path, summary string) module.EndpointDescriptor {
@@ -211,6 +342,7 @@ func ep(id, path, summary string) module.EndpointDescriptor {
 }
 
 var Endpoints = []module.EndpointDescriptor{
-	ep("catalog_create", "/vrooli.offer_desk.v1.offers.CatalogService/CreateNode", "Create a typed offer-graph node"), ep("catalog_list", "/vrooli.offer_desk.v1.offers.CatalogService/ListNodes", "List offer-graph nodes"), ep("catalog_transition", "/vrooli.offer_desk.v1.offers.CatalogService/Transition", "Transition a node through the enforced lifecycle"), ep("catalog_edge", "/vrooli.offer_desk.v1.offers.CatalogService/CreateEdge", "Create a typed graph edge"), ep("catalog_edges", "/vrooli.offer_desk.v1.offers.CatalogService/ListEdges", "List typed graph edges"),
+	ep("catalog_create", "/vrooli.offer_desk.v1.offers.CatalogService/CreateNode", "Create a typed offer-graph node"), ep("catalog_list", "/vrooli.offer_desk.v1.offers.CatalogService/ListNodes", "List offer-graph nodes"), ep("catalog_transition", "/vrooli.offer_desk.v1.offers.CatalogService/Transition", "Transition a node through the enforced lifecycle"), ep("catalog_edge", "/vrooli.offer_desk.v1.offers.CatalogService/CreateEdge", "Create a typed graph edge"), ep("catalog_edges", "/vrooli.offer_desk.v1.offers.CatalogService/ListEdges", "List typed graph edges"), ep("catalog_import", "/vrooli.offer_desk.v1.offers.CatalogService/ImportCatalog", "Rehearse or apply a declared catalog source"),
 	ep("gates_trigger", "/vrooli.offer_desk.v1.offers.GatesService/DeclareTrigger", "Declare a machine-evaluable trigger"), ep("gates_fact", "/vrooli.offer_desk.v1.offers.GatesService/AddFact", "Record an observed fact"), ep("gates_evaluate", "/vrooli.offer_desk.v1.offers.GatesService/Evaluate", "Evaluate candidate triggers"), ep("gates_promote", "/vrooli.offer_desk.v1.offers.GatesService/Promote", "Create an operator promotion proposal"), ep("board_show", "/vrooli.offer_desk.v1.offers.BoardService/GetBoard", "Read the ranked offer board"),
+	ep("space_projection", "/vrooli.offer_desk.v1.offers.SpaceService/GetProjection", "Read monetization obligation cells"),
 }

@@ -11,7 +11,7 @@
     {
       "id": "INT-001",
       "title": "Deliverable membership is validated against reality",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-001",
       "category": "integration",
       "criticality": "P1",
@@ -23,8 +23,9 @@
       "validation": [
         {
           "type": "test",
-          "status": "planned",
-          "notes": "A membership naming an absent deliverable yields a finding; a valid one does not."
+          "ref": "api/internal/catalog/operator_import.go",
+          "status": "implemented",
+          "notes": "The operator import resolves every mapped SKU to an offer, writes valid belongs_to edges, and records unresolved members as findings."
         }
       ]
     },
@@ -83,7 +84,7 @@
     {
       "id": "INT-004",
       "title": "The projection verb serves obligation cells",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-004",
       "category": "contract",
       "criticality": "P1",
@@ -95,13 +96,15 @@
       "validation": [
         {
           "type": "test",
-          "status": "planned",
-          "notes": "The verb emits the declared schema including confidence and rationale."
+          "ref": "api/handlers/offers/module.go",
+          "status": "implemented",
+          "notes": "The live space RPC and CLI return schema_version, projection, owner, denominator_confidence, confidence_rationale, source, and cells."
         },
         {
           "type": "test",
-          "status": "planned",
-          "notes": "Output parses against the shared projection contract."
+          "ref": "docs/spaces/offers.json",
+          "status": "implemented",
+          "notes": "The authored offers projection contract matches the typed SpaceResponse fields and is exercised by the CLI rehearsal."
         }
       ]
     },

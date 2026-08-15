@@ -16,17 +16,41 @@ type handlers struct {
 	c oc.CatalogServiceClient
 	g oc.GatesServiceClient
 	b oc.BoardServiceClient
+	s oc.SpaceServiceClient
 }
 
 func newHandlers(a *cliapp.ScenarioApp) *handlers {
 	hc, base := cliapp.NewConnectHTTPClient(a)
-	return &handlers{oc.NewCatalogServiceClient(hc, base), oc.NewGatesServiceClient(hc, base), oc.NewBoardServiceClient(hc, base)}
+	return &handlers{c: oc.NewCatalogServiceClient(hc, base), g: oc.NewGatesServiceClient(hc, base), b: oc.NewBoardServiceClient(hc, base), s: oc.NewSpaceServiceClient(hc, base)}
 }
 
 func (h *handlers) list(_ cliapp.OperationContext) (*offerspb.ListNodesResponse, error) {
 	r, e := h.c.ListNodes(context.Background(), connect.NewRequest(&offerspb.ListNodesRequest{}))
 	if e != nil {
 		return nil, e
+	}
+	return r.Msg, nil
+}
+
+func (h *handlers) catalogImport(c cliapp.OperationContext) (*offerspb.ImportCatalogResponse, error) {
+	mode := offerspb.SourceMode_SOURCE_MODE_OPERATOR_SUPPLIED
+	if strings.EqualFold(c.Flag("source-mode"), "fixture") {
+		mode = offerspb.SourceMode_SOURCE_MODE_FIXTURE
+	}
+	r, err := h.c.ImportCatalog(context.Background(), connect.NewRequest(&offerspb.ImportCatalogRequest{SourcePath: c.Flag("source-path"), SourceMode: mode, Apply: strings.EqualFold(c.Flag("apply"), "true"), Actor: "operator"}))
+	if err != nil && r == nil {
+		return nil, err
+	}
+	if r == nil {
+		return nil, fmt.Errorf("catalog import returned no report")
+	}
+	return r.Msg, err
+}
+
+func (h *handlers) space(c cliapp.OperationContext) (*offerspb.SpaceResponse, error) {
+	r, err := h.s.GetProjection(context.Background(), connect.NewRequest(&offerspb.ProjectionRequest{Projection: c.Flag("projection")}))
+	if err != nil {
+		return nil, err
 	}
 	return r.Msg, nil
 }
@@ -147,6 +171,16 @@ func boardReport(_ cliapp.OperationContext, m *offerspb.BoardResponse) cliapp.Li
 		r[i] = fmt.Sprintf("%s — %s [%s]", e.Title, e.RankReason, e.Status.String())
 	}
 	return cliapp.ListReport{Summary: []string{"Offer Desk board"}, ResultsHeading: "Priority", Results: r}
+}
+
+func catalogImportReport(_ cliapp.OperationContext, m *offerspb.ImportCatalogResponse) cliapp.MutationReport {
+	return cliapp.MutationReport{Result: []string{fmt.Sprintf("Catalog import inspected %d source file(s), applied=%t, findings=%d.", len(m.Files), m.Applied, m.TotalFindings)}}
+}
+
+func spaceReport(_ cliapp.OperationContext, m *offerspb.SpaceResponse) cliapp.ListReport {
+	return cliapp.ListReport{Summary: []string{fmt.Sprintf("%s projection (%s confidence)", m.Projection, m.DenominatorConfidence)}, ResultsHeading: "Obligations", Results: mapStrings(len(m.Cells), func(i int) string {
+		return fmt.Sprintf("%s — %s [%s]", m.Cells[i].Id, m.Cells[i].Question, m.Cells[i].Status)
+	})}
 }
 
 func parseStatus(v string) offerspb.Status {

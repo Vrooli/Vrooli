@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "money-ledger",
   "generator": "v1.0.0",
-  "manifest_hash": "f47c680202903a86771b80e985fef4e7642f9402c649e88f1d24df18a18ca855",
+  "manifest_hash": "626cf63c87d6e04b36e2b1d246966903d84f428217c504d4b81874a1947d7e33",
   "commands": [
     {
       "path": "ingest adapter-register",
@@ -43,6 +43,14 @@
       "group": "ingest",
       "command": "file-import",
       "binding": "IngestService.ImportFile",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "ingest operator-import",
+      "group": "ingest",
+      "command": "operator-import",
+      "binding": "IngestService.ImportOperatorInputs",
       "declared_primitive": "proto_mutation",
       "observed_primitive": "proto_mutation"
     },

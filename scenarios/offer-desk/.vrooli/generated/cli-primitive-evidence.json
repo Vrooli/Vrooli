@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "offer-desk",
   "generator": "v1.0.0",
-  "manifest_hash": "2122948136c97af58061364fdcc380736681cbb25325607c06734318f03afda3",
+  "manifest_hash": "afa5fc397d79528f94c2a999002c0a9d557afe9d8da3373576a67dc9e0ac220a",
   "commands": [
     {
       "path": "offers board-show",
@@ -37,6 +37,14 @@
       "binding": "CatalogService.ListEdges",
       "declared_primitive": "proto_list",
       "observed_primitive": "proto_list"
+    },
+    {
+      "path": "offers catalog-import",
+      "group": "offers",
+      "command": "catalog-import",
+      "binding": "CatalogService.ImportCatalog",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
     },
     {
       "path": "offers catalog-list",
@@ -85,6 +93,14 @@
       "binding": "GatesService.DeclareTrigger",
       "declared_primitive": "proto_mutation",
       "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "offers space",
+      "group": "offers",
+      "command": "space",
+      "binding": "SpaceService.GetProjection",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
     }
   ]
 }

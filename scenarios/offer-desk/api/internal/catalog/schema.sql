@@ -8,3 +8,5 @@ CREATE TABLE IF NOT EXISTS catalog_audit (id TEXT PRIMARY KEY, node_id TEXT NOT 
 CREATE TABLE IF NOT EXISTS migration_findings (id TEXT PRIMARY KEY, node_id TEXT NOT NULL, source_file TEXT NOT NULL, reference TEXT NOT NULL, reason TEXT NOT NULL, created_at TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS evaluations_node_time ON evaluations(node_id,evaluated_at);
 CREATE INDEX IF NOT EXISTS migration_findings_node ON migration_findings(node_id,source_file);
+CREATE TABLE IF NOT EXISTS evaluation_runs (id TEXT PRIMARY KEY, result TEXT NOT NULL, nodes_scored INTEGER NOT NULL, reason TEXT NOT NULL DEFAULT '', evaluated_at TEXT NOT NULL);
+CREATE INDEX IF NOT EXISTS evaluation_runs_time ON evaluation_runs(evaluated_at);

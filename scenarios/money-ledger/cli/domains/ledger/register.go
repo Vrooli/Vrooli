@@ -45,10 +45,11 @@ func ledgerBindings(h *handlers) map[string]cliapp.PrimitiveHandler {
 
 func ingestBindings(h *handlers) map[string]cliapp.PrimitiveHandler {
 	return map[string]cliapp.PrimitiveHandler{
-		"IngestService.ListAdapters":    cliapp.ProtoList(h.adaptersList, adaptersReport),
-		"IngestService.RegisterAdapter": cliapp.ProtoMutation(h.adapterRegister, adapterRegisterReport),
-		"IngestService.IngestEvent":     cliapp.ProtoMutation(h.ingestEvent, ingestReport),
-		"IngestService.RunAdapter":      cliapp.ProtoList(h.adapterRun, runReport),
-		"IngestService.ImportFile":      cliapp.ProtoMutation(h.fileImport, fileImportReport),
+		"IngestService.ListAdapters":         cliapp.ProtoList(h.adaptersList, adaptersReport),
+		"IngestService.RegisterAdapter":      cliapp.ProtoMutation(h.adapterRegister, adapterRegisterReport),
+		"IngestService.IngestEvent":          cliapp.ProtoMutation(h.ingestEvent, ingestReport),
+		"IngestService.RunAdapter":           cliapp.ProtoList(h.adapterRun, runReport),
+		"IngestService.ImportFile":           cliapp.ProtoMutation(h.fileImport, fileImportReport),
+		"IngestService.ImportOperatorInputs": cliapp.ProtoMutation(h.operatorImport, operatorImportReport),
 	}
 }

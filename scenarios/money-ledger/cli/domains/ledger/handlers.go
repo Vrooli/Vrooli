@@ -80,6 +80,21 @@ func (h *handlers) fileImport(c cliapp.OperationContext) (*ingestpb.ImportFileRe
 	return r.Msg, nil
 }
 
+func (h *handlers) operatorImport(c cliapp.OperationContext) (*ingestpb.OperatorImportResponse, error) {
+	mode := ingestpb.SourceMode_SOURCE_MODE_OPERATOR_SUPPLIED
+	if strings.EqualFold(c.Flag("source-mode"), "fixture") {
+		mode = ingestpb.SourceMode_SOURCE_MODE_FIXTURE
+	}
+	r, err := h.clientI.ImportOperatorInputs(context.Background(), connect.NewRequest(&ingestpb.OperatorImportRequest{SourcePath: c.Flag("source-path"), SourceMode: mode, Apply: strings.EqualFold(c.Flag("apply"), "true"), AdapterId: c.Flag("adapter-id"), BookId: c.Flag("book-id"), AccountId: c.Flag("account-id")}))
+	if err != nil && r == nil {
+		return nil, err
+	}
+	if r == nil {
+		return nil, fmt.Errorf("operator import returned no report")
+	}
+	return r.Msg, err
+}
+
 func (h *handlers) booksList(_ cliapp.OperationContext) (*ledgerpb.ListBooksResponse, error) {
 	r, e := h.clientB.ListBooks(context.Background(), connect.NewRequest(&ledgerpb.ListBooksRequest{}))
 	if e != nil {
@@ -169,12 +184,23 @@ func (h *handlers) goals(c cliapp.OperationContext) (*ledgerpb.ListGoalsResponse
 }
 
 func (h *handlers) goalDeclare(c cliapp.OperationContext) (*ledgerpb.DeclareGoalResponse, error) {
-	g := &ledgerpb.Goal{BookId: c.Flag("book-id"), Name: c.Flag("name"), Metric: c.Flag("metric"), Comparator: c.Flag("comparator"), ThresholdMinor: parseInt(c.Flag("threshold-minor")), SustainPeriods: int32(parseInt(c.Flag("sustain-periods"))), BufferMultiple: parseFloat(c.Flag("buffer-multiple"))}
+	g := &ledgerpb.Goal{BookId: c.Flag("book-id"), Name: c.Flag("name"), Metric: c.Flag("metric"), Comparator: c.Flag("comparator"), ThresholdMinor: parseInt(c.Flag("threshold-minor")), ThresholdRatio: parseFloat(c.Flag("threshold-ratio")), ComparandMetric: c.Flag("comparand-metric"), SustainPeriods: int32(parseInt(c.Flag("sustain-periods"))), SustainPeriodUnit: parsePeriodUnit(c.Flag("sustain-period-unit")), BufferMultiple: parseFloat(c.Flag("buffer-multiple"))}
 	r, e := h.clientP.DeclareGoal(context.Background(), connect.NewRequest(&ledgerpb.DeclareGoalRequest{Goal: g}))
 	if e != nil {
 		return nil, e
 	}
 	return r.Msg, nil
+}
+
+func parsePeriodUnit(v string) ledgerpb.SustainPeriodUnit {
+	switch strings.ToLower(strings.TrimSpace(v)) {
+	case "day", "days":
+		return ledgerpb.SustainPeriodUnit_DAY
+	case "week", "weeks":
+		return ledgerpb.SustainPeriodUnit_WEEK
+	default:
+		return ledgerpb.SustainPeriodUnit_MONTH
+	}
 }
 
 func booksListReport(_ cliapp.OperationContext, m *ledgerpb.ListBooksResponse) cliapp.ListReport {
@@ -256,6 +282,10 @@ func runReport(_ cliapp.OperationContext, m *ingestpb.RunAdapterResponse) cliapp
 
 func fileImportReport(_ cliapp.OperationContext, m *ingestpb.ImportFileResponse) cliapp.MutationReport {
 	return cliapp.MutationReport{Result: []string{fmt.Sprintf("Imported %d row(s), wrote %d, skipped %d.", m.Receipt.Read, m.Receipt.Written, m.Receipt.SkippedDuplicates)}}
+}
+
+func operatorImportReport(_ cliapp.OperationContext, m *ingestpb.OperatorImportResponse) cliapp.MutationReport {
+	return cliapp.MutationReport{Result: []string{fmt.Sprintf("Inspected %d operator fields, applied=%t, findings=%d.", m.Read, m.Applied, m.Findings)}}
 }
 func parseInt(v string) int64     { var n int64; _, _ = fmt.Sscan(v, &n); return n }
 func parseFloat(v string) float64 { var n float64; _, _ = fmt.Sscan(v, &n); return n }

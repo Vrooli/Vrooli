@@ -14,16 +14,16 @@ export function ProposalsPage() {
   return (
     <ExperienceSurface surfaceId="proposals" state={empty ? "empty" : "ready"} data-testid={selectors.pages.proposals} aria-labelledby="proposals-heading" className="flex flex-col gap-4">
       <h2 id="proposals-heading" className="text-2xl font-semibold">{t(strings.pages.proposals.title)}</h2>
-      <Card data-testid={selectors.pages.proposalList}>
+      <Card data-testid={selectors.pages.proposalList} role="table">
         <CardHeader><CardTitle>{t(strings.pages.proposals.cardTitle)}</CardTitle></CardHeader>
         <CardContent>
           <p className="text-app-muted-foreground">{t(strings.pages.proposals.description)}</p>
-          <p data-testid={selectors.pages.proposalProposer} className="mt-4 text-sm">{nodes.data?.nodes[0]?.name ?? t(strings.pages.proposals.proposer)}</p>
-          <p data-testid={selectors.pages.proposalEvidence} className="text-sm text-app-muted-foreground">{t(strings.pages.proposals.evidence)}</p>
-          <p data-testid={selectors.pages.proposalEffect} className="text-sm text-app-muted-foreground">{t(strings.pages.proposals.effect)}</p>
-          <p data-testid={selectors.pages.proposalDeclineHistory} className="text-sm text-app-muted-foreground">{t(strings.pages.proposals.declineHistory)}</p>
-          <button type="button" data-testid={selectors.pages.proposalAccept} className="mt-3 rounded-control border px-3 py-2">{t(strings.pages.proposals.acceptAction)}</button>
-          <p data-testid={selectors.pages.proposalOperatorOnly} className="text-sm text-app-muted-foreground">{t(strings.pages.proposals.operatorOnly)}</p>
+          <p data-testid={selectors.pages.proposalProposer} role="status" className="mt-4 text-sm">{nodes.data?.nodes[0]?.name ?? t(strings.pages.proposals.proposer)}</p>
+          <p data-testid={selectors.pages.proposalEvidence} role="list" className="text-sm text-app-muted-foreground">{t(strings.pages.proposals.evidence)}</p>
+          <p data-testid={selectors.pages.proposalEffect} role="note" className="text-sm text-app-muted-foreground">{t(strings.pages.proposals.effect)}</p>
+          <p data-testid={selectors.pages.proposalDeclineHistory} role="list" className="text-sm text-app-muted-foreground">{t(strings.pages.proposals.declineHistory)}</p>
+          <button type="button" data-testid={selectors.pages.proposalAccept} className="mt-3 min-h-11 rounded-control border px-3 py-2">{t(strings.pages.proposals.acceptAction)}</button>
+          <p data-testid={selectors.pages.proposalOperatorOnly} role="note" className="text-sm text-app-muted-foreground">{t(strings.pages.proposals.operatorOnly)}</p>
           {empty && <p data-testid={selectors.pages.proposalsEmptyGuidance} className="mt-3 rounded-md border border-dashed p-3 text-app-muted-foreground">{t(strings.pages.proposals.emptyGuidance)}</p>}
         </CardContent>
       </Card>

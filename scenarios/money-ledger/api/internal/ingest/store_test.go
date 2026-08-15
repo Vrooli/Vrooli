@@ -68,10 +68,17 @@ func TestOperatorInputsImportPreservesPendingAsAbsent(t *testing.T) { // [REQ:CT
 	report, err := s.ImportOperatorInputs(ctx, data, "operator-inputs", book.Id, account.Id)
 	require.NoError(t, err)
 	require.Equal(t, len(operatorPaths), report.Read)
-	require.Equal(t, len(operatorPaths)-1, report.Written)
+	require.Equal(t, 7, report.Written)
+	require.Equal(t, 1, report.Findings)
 	var count int
 	require.NoError(t, s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM postings`).Scan(&count))
 	require.Equal(t, report.Written, count)
+	var measures int
+	require.NoError(t, s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM operator_measures`).Scan(&measures))
+	require.Equal(t, 4, measures)
+	var rejected int
+	require.NoError(t, s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM operator_input_findings`).Scan(&rejected))
+	require.Equal(t, 1, rejected)
 }
 
 func TestOperatorInputsFixtureImportCarriesSourceProvenance(t *testing.T) { // [REQ:CTR-006]
@@ -84,10 +91,41 @@ func TestOperatorInputsFixtureImportCarriesSourceProvenance(t *testing.T) { // [
 	require.NoError(t, err)
 	report, err := s.ImportOperatorInputsFile(ctx, "testdata/operator-inputs.json", "operator-inputs", book.Id, account.Id)
 	require.NoError(t, err)
-	require.Equal(t, len(operatorPaths)-1, report.Written)
+	require.Equal(t, 7, report.Written)
 	var description string
 	require.NoError(t, s.db.QueryRowContext(ctx, `SELECT description FROM postings ORDER BY occurred_at LIMIT 1`).Scan(&description))
 	require.Contains(t, description, "testdata/operator-inputs.json")
+}
+
+func TestOperatorInputStalenessIsReportedAndNotPosted(t *testing.T) { // [REQ:POS-004]
+	s, ctx := newIngestStore(t)
+	book, err := s.journal.CreateBook(ctx, "Operating", "USD")
+	require.NoError(t, err)
+	account, err := s.journal.CreateAccount(ctx, book.Id, "Cash", "cash")
+	require.NoError(t, err)
+	_, err = s.RegisterAdapter(ctx, &ingestpb.Adapter{Id: "operator-inputs", Name: "Operator inputs", Kind: ingestpb.AdapterKind_ADAPTER_KIND_MANUAL, Enabled: true})
+	require.NoError(t, err)
+	field := func(value any, status, updated string) map[string]any {
+		return map[string]any{"value": value, "status": status, "updatedAt": updated}
+	}
+	pending := field(nil, "pending-operator", "")
+	root := map[string]any{
+		"cash":            field(1000, "current", "2020-01-01T00:00:00Z"),
+		"monthlyBurn":     map[string]any{"aiApi": pending, "infrastructure": pending, "saas": pending, "tooling": pending},
+		"timeAllocation":  map[string]any{"windowDays": 7, "product": pending, "services": pending, "ops": pending},
+		"servicesRevenue": map[string]any{"leadGen": pending, "doneForYou": pending, "consulting": pending},
+		"servicesTime":    map[string]any{"activeLineCount": 0, "hoursThisWindow": pending},
+		"subscriptions":   map[string]any{"mrr": pending},
+	}
+	data, err := json.Marshal(root)
+	require.NoError(t, err)
+	report, err := s.ImportOperatorInputs(ctx, data, "operator-inputs", book.Id, account.Id)
+	require.NoError(t, err)
+	require.Equal(t, "stale", report.Fields[0].Status)
+	require.False(t, report.Fields[0].Written)
+	var count int
+	require.NoError(t, s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM postings`).Scan(&count))
+	require.Zero(t, count)
 }
 
 func TestFileImportReportsMalformedInputWithoutWriting(t *testing.T) { // [REQ:CTR-003]

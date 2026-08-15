@@ -492,17 +492,26 @@ func (s *Store) DeclareGoal(ctx context.Context, bookID string, g *ledgerpb.Goal
 	if strings.TrimSpace(g.Comparator) == "" {
 		return nil, errors.New("goal comparator is required")
 	}
+	if g.SustainPeriodUnit == ledgerpb.SustainPeriodUnit_SUSTAIN_PERIOD_UNIT_UNSPECIFIED {
+		g.SustainPeriodUnit = ledgerpb.SustainPeriodUnit_MONTH
+	}
+	if g.ThresholdRatio < 0 || g.ThresholdRatio > 1 {
+		return nil, errors.New("goal threshold_ratio must be between 0 and 1")
+	}
+	if g.ThresholdRatio == 0 && strings.TrimSpace(g.ComparandMetric) == "" && g.ThresholdMinor == 0 {
+		return nil, errors.New("goal must declare a threshold, ratio, or comparand metric")
+	}
 	var exists int
 	if err := s.db.QueryRowContext(ctx, `SELECT 1 FROM books WHERE id=?`, bookID).Scan(&exists); err != nil {
 		return nil, fmt.Errorf("book %q not found: %w", bookID, err)
 	}
 	g.Id = uuid.NewString()
-	_, err := s.db.ExecContext(ctx, `INSERT INTO goals(id,book_id,name,metric,comparator,threshold_minor,sustain_periods,buffer_multiple) VALUES(?,?,?,?,?,?,?,?)`, g.Id, bookID, g.Name, g.Metric, g.Comparator, g.ThresholdMinor, g.SustainPeriods, g.BufferMultiple)
+	_, err := s.db.ExecContext(ctx, `INSERT INTO goals(id,book_id,name,metric,comparator,threshold_minor,sustain_periods,buffer_multiple,threshold_ratio,comparand_metric,sustain_period_unit) VALUES(?,?,?,?,?,?,?,?,?,?,?)`, g.Id, bookID, g.Name, g.Metric, g.Comparator, g.ThresholdMinor, g.SustainPeriods, g.BufferMultiple, g.ThresholdRatio, g.ComparandMetric, int32(g.SustainPeriodUnit))
 	return g, err
 }
 
 func (s *Store) ListGoals(ctx context.Context, bookID string) ([]*ledgerpb.GoalVerdict, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT id,name,metric,comparator,threshold_minor,sustain_periods,buffer_multiple FROM goals WHERE book_id=? ORDER BY name`, bookID)
+	rows, err := s.db.QueryContext(ctx, `SELECT id,name,metric,comparator,threshold_minor,sustain_periods,buffer_multiple,threshold_ratio,comparand_metric,sustain_period_unit FROM goals WHERE book_id=? ORDER BY name`, bookID)
 	if err != nil {
 		return nil, err
 	}
@@ -510,10 +519,12 @@ func (s *Store) ListGoals(ctx context.Context, bookID string) ([]*ledgerpb.GoalV
 	goals := make([]*ledgerpb.Goal, 0)
 	for rows.Next() {
 		var g ledgerpb.Goal
-		if err := rows.Scan(&g.Id, &g.Name, &g.Metric, &g.Comparator, &g.ThresholdMinor, &g.SustainPeriods, &g.BufferMultiple); err != nil {
+		var unit int32
+		if err := rows.Scan(&g.Id, &g.Name, &g.Metric, &g.Comparator, &g.ThresholdMinor, &g.SustainPeriods, &g.BufferMultiple, &g.ThresholdRatio, &g.ComparandMetric, &unit); err != nil {
 			_ = rows.Close()
 			return nil, err
 		}
+		g.SustainPeriodUnit = ledgerpb.SustainPeriodUnit(unit)
 		goals = append(goals, &g)
 	}
 	if err := rows.Err(); err != nil {
@@ -530,27 +541,75 @@ func (s *Store) ListGoals(ctx context.Context, bookID string) ([]*ledgerpb.GoalV
 		if positionErr != nil {
 			return nil, positionErr
 		}
-		value := position.CashMinor
-		switch strings.ToLower(g.Metric) {
-		case "revenue", "income":
-			value = position.RevenueMinor
-		case "expense":
-			value = position.ExpenseMinor
-		case "burn":
-			value = position.BurnMinor
-		case "runway":
-			value = int64(position.RunwayMonths)
+		value, valueLabel := s.goalMetricValue(ctx, bookID, position, g.Metric)
+		observedLabel := valueLabel
+		threshold := float64(g.ThresholdMinor)
+		if g.ThresholdRatio > 0 {
+			threshold = g.ThresholdRatio
+		}
+		if g.ComparandMetric != "" {
+			comparand, _ := s.goalMetricValue(ctx, bookID, position, g.ComparandMetric)
+			if g.BufferMultiple > 0 {
+				comparand *= g.BufferMultiple
+			}
+			value = value - comparand
+			observedLabel = fmt.Sprintf("%.4g", value)
+			threshold = 0
 		}
 		sustained, sustainErr := s.sustainedGoalPeriods(ctx, bookID, g)
 		if sustainErr != nil {
 			return nil, sustainErr
 		}
-		out = append(out, &ledgerpb.GoalVerdict{Goal: g, Met: sustained >= g.SustainPeriods, SustainedPeriods: sustained, RequiredPeriods: g.SustainPeriods, Explanation: fmt.Sprintf("read-time %s=%d; required %s %d for %d sustained period(s)", g.Metric, value, g.Comparator, g.ThresholdMinor, g.SustainPeriods)})
+		out = append(out, &ledgerpb.GoalVerdict{Goal: g, Met: sustained >= g.SustainPeriods, SustainedPeriods: sustained, RequiredPeriods: g.SustainPeriods, PeriodUnit: g.SustainPeriodUnit, Explanation: fmt.Sprintf("read-time %s=%s; required %s %.4g for %d sustained %s period(s)", g.Metric, observedLabel, g.Comparator, threshold, g.SustainPeriods, strings.ToLower(g.SustainPeriodUnit.String()))})
 	}
 	return out, nil
 }
 
 func (s *Store) sustainedGoalPeriods(ctx context.Context, bookID string, goal *ledgerpb.Goal) (int32, error) {
+	if goal.Metric == "services_capacity" || goal.SustainPeriodUnit == ledgerpb.SustainPeriodUnit_WEEK {
+		rows, err := s.db.QueryContext(ctx, `SELECT strftime('%Y-%W',observed_at),value FROM operator_measures WHERE path='timeAllocation.services' AND status NOT IN ('stale','pending-operator') ORDER BY observed_at DESC`)
+		if err != nil {
+			return 0, err
+		}
+		defer rows.Close()
+		weeks := map[string]float64{}
+		for rows.Next() {
+			var week string
+			var value float64
+			if err := rows.Scan(&week, &value); err != nil {
+				return 0, err
+			}
+			if _, ok := weeks[week]; !ok {
+				if value > 1 {
+					value /= 100
+				}
+				weeks[week] = value
+			}
+		}
+		if err := rows.Err(); err != nil {
+			return 0, err
+		}
+		keys := make([]string, 0, len(weeks))
+		for key := range weeks {
+			keys = append(keys, key)
+		}
+		sort.Sort(sort.Reverse(sort.StringSlice(keys)))
+		var sustained int32
+		threshold := goal.ThresholdRatio
+		if threshold == 0 {
+			threshold = float64(goal.ThresholdMinor) / 100
+		}
+		for _, key := range keys {
+			if !compareGoalFloat(weeks[key], goal.Comparator, threshold) {
+				break
+			}
+			sustained++
+			if sustained >= goal.SustainPeriods {
+				break
+			}
+		}
+		return sustained, nil
+	}
 	rows, err := s.db.QueryContext(ctx, `SELECT substr(p.occurred_at,1,7), lower(a.kind), COALESCE(SUM(p.amount_minor),0) FROM postings p JOIN accounts a ON a.id=p.account_id WHERE p.book_id=? GROUP BY substr(p.occurred_at,1,7), lower(a.kind)`, bookID)
 	if err != nil {
 		return 0, err
@@ -589,16 +648,34 @@ func (s *Store) sustainedGoalPeriods(ctx context.Context, bookID string, goal *l
 	var sustained int32
 	for _, key := range keys {
 		v := months[key]
-		value := v.cash
+		// A cash-only observation cannot prove a revenue-versus-burn rule.
+		// Treating both absent measures as zero would turn an unknown posture
+		// into a passing default-alive verdict.
+		if strings.EqualFold(goal.Metric, "revenue") && strings.EqualFold(goal.ComparandMetric, "burn") && v.revenue == 0 && v.expense == 0 {
+			break
+		}
+		value := float64(v.cash)
 		switch strings.ToLower(goal.Metric) {
 		case "revenue", "income":
-			value = v.revenue
+			value = float64(v.revenue)
 		case "expense":
-			value = v.expense
+			value = float64(v.expense)
 		case "burn":
-			value = v.expense - v.revenue
+			value = float64(v.expense - v.revenue)
 		}
-		if !compareGoal(value, goal.Comparator, goal.ThresholdMinor) {
+		threshold := float64(goal.ThresholdMinor)
+		if goal.ComparandMetric != "" {
+			comparand := float64(v.expense - v.revenue)
+			if strings.EqualFold(goal.ComparandMetric, "revenue") {
+				comparand = float64(v.revenue)
+			}
+			if strings.EqualFold(goal.ComparandMetric, "burn") && goal.BufferMultiple > 0 {
+				comparand *= goal.BufferMultiple
+			}
+			value -= comparand
+			threshold = 0
+		}
+		if !compareGoalFloat(value, goal.Comparator, threshold) {
 			break
 		}
 		sustained++
@@ -609,7 +686,7 @@ func (s *Store) sustainedGoalPeriods(ctx context.Context, bookID string, goal *l
 	return sustained, nil
 }
 
-func compareGoal(value int64, comparator string, threshold int64) bool {
+func compareGoalFloat(value float64, comparator string, threshold float64) bool {
 	switch strings.TrimSpace(comparator) {
 	case ">":
 		return value > threshold
@@ -621,5 +698,35 @@ func compareGoal(value int64, comparator string, threshold int64) bool {
 		return value <= threshold
 	default:
 		return false
+	}
+}
+
+func (s *Store) goalMetricValue(ctx context.Context, bookID string, position *ledgerpb.PositionResponse, metric string) (float64, string) {
+	switch strings.ToLower(strings.TrimSpace(metric)) {
+	case "revenue", "income":
+		return float64(position.RevenueMinor), fmt.Sprintf("%d", position.RevenueMinor)
+	case "expense":
+		return float64(position.ExpenseMinor), fmt.Sprintf("%d", position.ExpenseMinor)
+	case "burn":
+		return float64(position.BurnMinor), fmt.Sprintf("%d", position.BurnMinor)
+	case "runway":
+		return position.RunwayMonths, fmt.Sprintf("%.2f months", position.RunwayMonths)
+	case "services_capacity":
+		var value float64
+		_ = s.db.QueryRowContext(ctx, `SELECT COALESCE(value,0) FROM operator_measures WHERE path='timeAllocation.services' ORDER BY observed_at DESC,id DESC LIMIT 1`).Scan(&value)
+		if value > 1 {
+			value /= 100
+		}
+		return value, fmt.Sprintf("%.4f", value)
+	case "services_revenue", "subscription_revenue":
+		var value float64
+		needle := "services"
+		if strings.Contains(strings.ToLower(metric), "subscription") {
+			needle = "subscription"
+		}
+		_ = s.db.QueryRowContext(ctx, `SELECT COALESCE(SUM(p.amount_minor),0) FROM postings p WHERE p.book_id=? AND lower(p.category) LIKE '%'||?||'%'`, bookID, needle).Scan(&value)
+		return value, fmt.Sprintf("%.0f", value)
+	default:
+		return float64(position.CashMinor), fmt.Sprintf("%d", position.CashMinor)
 	}
 }

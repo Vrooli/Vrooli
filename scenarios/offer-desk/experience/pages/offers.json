@@ -231,7 +231,7 @@
   "elements": [
     {
       "id": "offer-graph",
-      "role": "img",
+      "role": "image",
       "description": "Directed graph of the offer and its typed edges. One rendering of the data, never the only one."
     },
     {

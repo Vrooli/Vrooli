@@ -75,6 +75,8 @@ export const strings = {
       parseErrorDetail: "pages.triggers.parseErrorDetail",
       dryRunAction: "pages.triggers.dryRunAction",
       dryRunVerdict: "pages.triggers.dryRunVerdict",
+      dryRunUnknownVerdict: "pages.triggers.dryRunUnknownVerdict",
+      dryRunUnsatisfiedVerdict: "pages.triggers.dryRunUnsatisfiedVerdict",
       factTrace: "pages.triggers.factTrace",
       missingFact: "pages.triggers.missingFact",
       factRegistry: "pages.triggers.factRegistry",

@@ -19,25 +19,25 @@
       "id": "journal",
       "path": "pages/journal.json",
       "title": "Journal",
-      "status": "draft"
+      "status": "active"
     },
     {
       "id": "accounts",
       "path": "pages/accounts.json",
       "title": "Books & Accounts",
-      "status": "draft"
+      "status": "active"
     },
     {
       "id": "adapters",
       "path": "pages/adapters.json",
       "title": "Adapters",
-      "status": "draft"
+      "status": "active"
     },
     {
       "id": "statements",
       "path": "pages/statements.json",
       "title": "Statements",
-      "status": "draft"
+      "status": "active"
     },
     {
       "id": "settings",
@@ -51,31 +51,31 @@
       "id": "record-a-source-with-no-api",
       "path": "journeys/record-a-source-with-no-api.json",
       "title": "Record a source with no API",
-      "status": "draft"
+      "status": "active"
     },
     {
       "id": "learn-a-figure-is-incomplete",
       "path": "journeys/learn-a-figure-is-incomplete.json",
       "title": "Learn a figure is incomplete",
-      "status": "draft"
+      "status": "active"
     },
     {
       "id": "correct-a-mistake",
       "path": "journeys/correct-a-mistake.json",
       "title": "Correct a mistake",
-      "status": "draft"
+      "status": "active"
     },
     {
       "id": "record-a-source-with-no-api-mobile",
       "path": "journeys/record-a-source-with-no-api-mobile.json",
       "title": "Record a source with no API on mobile",
-      "status": "draft"
+      "status": "active"
     },
     {
       "id": "first-run",
       "path": "journeys/first-run.json",
       "title": "Start a new Money Ledger",
-      "status": "draft"
+      "status": "active"
     }
   ]
 }

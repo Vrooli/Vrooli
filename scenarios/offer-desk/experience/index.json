@@ -19,19 +19,19 @@
       "id": "offers",
       "path": "pages/offers.json",
       "title": "Offers",
-      "status": "draft"
+      "status": "active"
     },
     {
       "id": "triggers",
       "path": "pages/triggers.json",
       "title": "Triggers",
-      "status": "draft"
+      "status": "active"
     },
     {
       "id": "proposals",
       "path": "pages/proposals.json",
       "title": "Proposals",
-      "status": "draft"
+      "status": "active"
     },
     {
       "id": "settings",
@@ -45,25 +45,25 @@
       "id": "author-a-trigger",
       "path": "journeys/author-a-trigger.json",
       "title": "Author a trigger",
-      "status": "draft"
+      "status": "active"
     },
     {
       "id": "disposition-a-fired-trigger",
       "path": "journeys/disposition-a-fired-trigger.json",
       "title": "Disposition a fired trigger",
-      "status": "draft"
+      "status": "active"
     },
     {
       "id": "learn-from-a-refusal",
       "path": "journeys/learn-from-a-refusal.json",
       "title": "Learn from a refusal",
-      "status": "draft"
+      "status": "active"
     },
     {
       "id": "first-run",
       "path": "journeys/first-run.json",
       "title": "Start a new Offer Desk",
-      "status": "draft"
+      "status": "active"
     }
   ]
 }
