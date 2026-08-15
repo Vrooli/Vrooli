@@ -205,6 +205,10 @@ func NewService(repo Repository, driver SSHDriver, issuer CodeIssuer, confirmer 
 var _ Service = (*service)(nil)
 
 func (s *service) Start(ctx context.Context, in StartInput) (Decision, error) {
+	if len(in.SetupPassphrase) > 0 {
+		zeroBytes(in.SetupPassphrase)
+		return Decision{}, ErrInvalid{Field: "setup_passphrase", Reason: "credential-store protection is resolved by vrooli-onboarding on the target after bootstrap"}
+	}
 	host := trimField(in.Host)
 	if host == "" {
 		zeroBytes(in.Password)

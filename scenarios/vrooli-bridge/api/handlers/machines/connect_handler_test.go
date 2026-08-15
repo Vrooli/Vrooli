@@ -77,6 +77,45 @@ func (f fakeRepairer) Repair(context.Context, internalmachines.Machine) (string,
 	return f.opID, f.attemptID, f.err
 }
 
+type fakeEnrollmentStarter struct {
+	in internalonboard.StartInput
+}
+
+func (f *fakeEnrollmentStarter) StartMachineEnrollment(_ context.Context, _ string, in internalonboard.StartInput) (internalonboard.MachineEnrollmentDecision, error) {
+	f.in = in
+	return internalonboard.MachineEnrollmentDecision{
+		Decision: internalonboard.Decision{OpID: "op-1"},
+		Attempt:  internalonboard.EnrollmentAttempt{ID: "attempt-1"},
+	}, nil
+}
+
+type fakeTrustReader struct {
+	trust internalmachines.TrustRecord
+}
+
+func (f fakeTrustReader) GetTrust(context.Context, string) (internalmachines.TrustRecord, error) {
+	return f.trust, nil
+}
+
+func TestMachineRepairerUsesPersistedSSHTrust(t *testing.T) {
+	starter := &fakeEnrollmentStarter{}
+	repairer := machineRepairer{
+		service: starter,
+		trust:   fakeTrustReader{trust: internalmachines.TrustRecord{SSHUser: "matthalloran8", SSHPort: 2222}},
+	}
+
+	opID, attemptID, err := repairer.Repair(context.Background(), internalmachines.Machine{
+		ID:       "m1",
+		Locators: []internalmachines.Locator{{Kind: "hostname", Value: "mini.local"}},
+	})
+	require.NoError(t, err)
+	require.Equal(t, "op-1", opID)
+	require.Equal(t, "attempt-1", attemptID)
+	require.Equal(t, "mini.local", starter.in.Host)
+	require.Equal(t, 2222, starter.in.Port)
+	require.Equal(t, "matthalloran8", starter.in.User)
+}
+
 type fakeAttemptReader struct {
 	attempts []internalonboard.EnrollmentAttempt
 	machine  string

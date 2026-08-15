@@ -53,7 +53,7 @@ vi.mock("@vrooli/audio-capture-browser", async (importOriginal) => {
 });
 
 import { buildVoiceStreamWsUrl } from "../../api/voice";
-import { TurnJournal } from "@vrooli/audio-capture-browser";
+import { PCM_WIRE_BATCH_FLUSH_MS, TurnJournal } from "@vrooli/audio-capture-browser";
 import { PcmVoiceStreamProvider } from "./PcmVoiceStreamProvider";
 
 class FakeWebSocket {
@@ -109,7 +109,12 @@ describe("PcmVoiceStreamProvider", () => {
     expect(ws?.url).toContain("protocol_version=2");
 
     core.frame?.(new Float32Array([0.1]), 48_000);
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    // Capture frames are coalesced into ~100 ms wire batches, so a single
+    // sub-batch frame is journaled and sent when the batch timer fires, not on
+    // the next microtask. Waiting past PCM_WIRE_BATCH_FLUSH_MS asserts the
+    // shipped contract; asserting immediacy would be asserting the pre-batching
+    // implementation, which is why this went red once the suite could run.
+    await new Promise((resolve) => setTimeout(resolve, PCM_WIRE_BATCH_FLUSH_MS * 2));
 
     expect(core.append).toHaveBeenCalledOnce();
     expect(ws?.send).toHaveBeenCalledWith(expect.any(ArrayBuffer));

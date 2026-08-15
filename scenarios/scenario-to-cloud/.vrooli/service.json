@@ -47,6 +47,34 @@
       "range": "20000-24999"
     }
   },
+  "hostTools": [
+    {
+      "name": "qemu",
+      "required": true,
+      "reason": "The disposable local-QEMU provider needs a real Linux VM for fresh-host validation.",
+      "when": [
+        "setup",
+        "test"
+      ],
+      "platforms": [
+        "linux"
+      ],
+      "notes": "Install through Vrooli host requirements; do not use an ad-hoc package-manager command."
+    },
+    {
+      "name": "cloud-localds",
+      "required": true,
+      "reason": "The disposable local-QEMU provider uses cloud-init to provision the VM user and SSH key.",
+      "when": [
+        "setup",
+        "test"
+      ],
+      "platforms": [
+        "linux"
+      ],
+      "notes": "Install through Vrooli host requirements; do not use an ad-hoc package-manager command."
+    }
+  ],
   "lifecycle": {
     "version": "2.0.0",
     "health": {
@@ -210,6 +238,11 @@
         "enabled": true,
         "required": true,
         "description": "Provides dependency analysis for manifest generation"
+      },
+      "agent-manager": {
+        "enabled": true,
+        "required": false,
+        "description": "Optional investigation and task orchestration backend"
       }
     }
   },

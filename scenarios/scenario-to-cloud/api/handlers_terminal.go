@@ -339,7 +339,7 @@ func getSSHAgentAuth() ssh.AuthMethod {
 		return nil
 	}
 
-	conn, err := net.Dial("unix", socket)
+	conn, err := net.Dial("unix", socket) // #nosec G704 -- SSH_AUTH_SOCK is a local operator-session agent socket; this never accepts a network target.
 	if err != nil {
 		log.Printf("Terminal: failed to connect to SSH agent: %v", err)
 		return nil

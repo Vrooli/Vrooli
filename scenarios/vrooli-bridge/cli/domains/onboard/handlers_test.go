@@ -218,6 +218,21 @@ func TestConnect_TrustedReconnectDoesNotPrompt(t *testing.T) {
 	require.Empty(t, svc.startReq.SshPassword)
 }
 
+func TestConnect_RejectsRetiredSetupPassphraseIntake(t *testing.T) {
+	svc := &fakeOnboard{
+		preflightResp: &onboardv1.PreflightOnboardingResponse{Decision: onboardv1.ConnectDecision_CONNECT_DECISION_RECONNECT, MachineId: "machine-trusted", Host: "minimouse.local", Port: 22, User: "matthalloran8", ClientKeyFingerprint: "SHA256:client", PasswordRequired: false, Message: "trusted"},
+		startResp:     &onboardv1.StartOnboardingResponse{OpId: "op-connect", Host: "minimouse.local", Port: 22, User: "matthalloran8"},
+		waitResp:      &onboardv1.WaitOnboardingResponse{Op: terminalConnectResponse().Op},
+		getResps:      []*onboardv1.GetOnboardingResponse{terminalConnectResponse()},
+	}
+	core := clitest.NewTestApp(t, connectAPI(svc))
+	h := newHandlers(core)
+	h.password = passwordSource{stdin: strings.NewReader("store-passphrase\n"), lookupEnv: func(string) (string, bool) { return "", false }, isTerminal: func() bool { return false }, readSecret: func() ([]byte, error) { t.Fatal("trusted reconnect must not prompt"); return nil, nil }, prompt: io.Discard}
+	ctx, _ := cliapptest.NewCapturedRunContext(core, startSchema(), cliapptest.TestRunContextOptions{Flags: map[string]string{"host": "minimouse.local", "user": "matthalloran8", "setup-passphrase-stdin": "true"}})
+
+	require.ErrorContains(t, h.preflightConnect(ctx), "retired")
+}
+
 // envPassword is an injected password source that yields a fixed secret via the
 // env path and fails the test if the interactive prompt is ever reached.
 func envPassword(t *testing.T, secret string) passwordSource {

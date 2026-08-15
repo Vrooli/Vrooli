@@ -96,21 +96,20 @@ func (s *Service) TriggerInvestigation(ctx context.Context, req TriggerInvestiga
 	}
 
 	// Start background investigation
-	go s.runInvestigation(inv.ID, deployment, req.AutoFix, req.Note, req.IncludeContexts)
+	go s.runInvestigation(context.WithoutCancel(ctx), inv.ID, deployment, req.AutoFix, req.Note, req.IncludeContexts)
 
 	return inv, nil
 }
 
 // runInvestigation executes the investigation in the background.
 func (s *Service) runInvestigation(
+	ctx context.Context,
 	invID string,
 	deployment *domain.Deployment,
 	autoFix bool,
 	note string,
 	includeContexts []string,
 ) {
-	ctx := context.Background()
-
 	// Update status to running
 	if err := s.repo.UpdateInvestigationStatus(ctx, invID, domain.InvestigationStatusRunning); err != nil {
 		log.Printf("[investigation] failed to update status to running: %v", err)
@@ -420,20 +419,19 @@ func (s *Service) ApplyFixes(ctx context.Context, req ApplyFixesRequest) (*domai
 	}
 
 	// Start background fix application
-	go s.runFixApplication(fixInv.ID, originalInv, deployment, req)
+	go s.runFixApplication(context.WithoutCancel(ctx), fixInv.ID, originalInv, deployment, req)
 
 	return fixInv, nil
 }
 
 // runFixApplication executes the fix application in the background.
 func (s *Service) runFixApplication(
+	ctx context.Context,
 	fixInvID string,
 	originalInv *domain.Investigation,
 	deployment *domain.Deployment,
 	req ApplyFixesRequest,
 ) {
-	ctx := context.Background()
-
 	// Update status to running
 	if err := s.repo.UpdateInvestigationStatus(ctx, fixInvID, domain.InvestigationStatusRunning); err != nil {
 		log.Printf("[fix-application] failed to update status to running: %v", err)

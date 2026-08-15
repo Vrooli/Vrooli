@@ -1,5 +1,5 @@
 import { renderWithQueryClient } from "./test-utils";
-import { expectNoA11yViolations } from "./test-utils/a11y";
+import { expectNoA11yViolations } from "@vrooli/api-base/testing";
 import App from "./App";
 
 describe("App accessibility", () => {

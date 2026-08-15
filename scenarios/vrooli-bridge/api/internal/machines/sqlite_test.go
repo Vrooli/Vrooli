@@ -69,6 +69,43 @@ func TestMachineCreateAndNodeLineage(t *testing.T) {
 	require.Equal(t, "corr-2", current.CorrelationID)
 }
 
+func TestLinkNodeReconcilesStaleArchivedOwner(t *testing.T) {
+	d, clk := newDB(t)
+	repo := machines.NewSQLiteRepository(d, clk)
+	ctx := context.Background()
+	archived, err := repo.Create(ctx, machines.CreateInput{ID: "machine-archived", Locators: []machines.Locator{{Kind: "hostname", Value: "old.local"}}})
+	require.NoError(t, err)
+	_, err = repo.LinkNode(ctx, archived.ID, "node-retry", "old-correlation")
+	require.NoError(t, err)
+	_, err = repo.Archive(ctx, archived.ID, archived.Version)
+	require.NoError(t, err)
+	target, err := repo.Create(ctx, machines.CreateInput{ID: "machine-active", Locators: []machines.Locator{{Kind: "hostname", Value: "new.local"}}})
+	require.NoError(t, err)
+	linked, err := repo.LinkNode(ctx, target.ID, "node-retry", "new-correlation")
+	require.NoError(t, err)
+	require.Equal(t, target.ID, linked.ID)
+	var archivedCurrent, targetCurrent int
+	require.NoError(t, d.QueryRowContext(ctx, "SELECT COUNT(*) FROM machine_node_lineage WHERE machine_id=? AND node_id='node-retry' AND is_current=1", archived.ID).Scan(&archivedCurrent))
+	require.NoError(t, d.QueryRowContext(ctx, "SELECT COUNT(*) FROM machine_node_lineage WHERE machine_id=? AND node_id='node-retry' AND is_current=1", target.ID).Scan(&targetCurrent))
+	require.Equal(t, 0, archivedCurrent)
+	require.Equal(t, 1, targetCurrent)
+}
+
+func TestLinkNodeRejectsActiveOwnerConflict(t *testing.T) {
+	d, clk := newDB(t)
+	repo := machines.NewSQLiteRepository(d, clk)
+	ctx := context.Background()
+	owner, err := repo.Create(ctx, machines.CreateInput{ID: "machine-owner", Locators: []machines.Locator{{Kind: "hostname", Value: "owner.local"}}})
+	require.NoError(t, err)
+	_, err = repo.LinkNode(ctx, owner.ID, "node-owned", "owner-correlation")
+	require.NoError(t, err)
+	target, err := repo.Create(ctx, machines.CreateInput{ID: "machine-target", Locators: []machines.Locator{{Kind: "hostname", Value: "target.local"}}})
+	require.NoError(t, err)
+	_, err = repo.LinkNode(ctx, target.ID, "node-owned", "target-correlation")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "currently linked to active machine")
+}
+
 func TestMachineCreateIsIdempotentForRepeatedEnrollmentLocator(t *testing.T) {
 	d, clk := newDB(t)
 	repo := machines.NewSQLiteRepository(d, clk)

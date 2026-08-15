@@ -25,7 +25,7 @@ export function GlossaryPanel() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-xl font-semibold sm:text-2xl">Glossary</h1>
-          <p className="mt-1 text-sm text-slate-300">
+          <p className="mt-1 text-sm text-muted">
             Look up Vrooli terms and concepts
           </p>
         </div>
@@ -48,7 +48,7 @@ export function GlossaryPanel() {
 
       {/* Results count */}
       {!isLoading && entries.length > 0 && (
-        <p className="mt-3 text-xs text-slate-300" aria-live="polite" data-testid="glossary-count">
+        <p className="mt-3 text-xs text-muted" aria-live="polite" data-testid="glossary-count">
           {entries.length} term{entries.length !== 1 ? "s" : ""}{searchTerm ? ` matching "${searchTerm}"` : ""}
         </p>
       )}
@@ -56,28 +56,28 @@ export function GlossaryPanel() {
       {/* Content */}
       <div className={entries.length > 0 ? "mt-2" : "mt-6"}>
         {isLoading ? (
-          <div data-testid="glossary-loading" className="flex items-center justify-center py-12 text-slate-300" aria-live="polite">
+          <div data-testid="glossary-loading" className="flex items-center justify-center py-12 text-muted" aria-live="polite">
             <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" />
             <StatusBadge className="ml-2 text-sm">Loading glossary...</StatusBadge>
           </div>
         ) : entries.length === 0 ? (
-          <div data-testid="glossary-empty" className="flex flex-col items-center justify-center py-12 text-slate-300">
+          <div data-testid="glossary-empty" className="flex flex-col items-center justify-center py-12 text-muted">
             <BookOpen className="h-8 w-8" aria-hidden="true" />
             <p className="mt-3 text-sm font-medium">No matching terms found</p>
             {searchTerm ? (
-              <p className="mt-1 text-xs text-slate-300">
+              <p className="mt-1 text-xs text-muted">
                 Try a different search term or{" "}
                 <Button variant="ghost"
                   type="button"
                   onClick={() => { setSearchTerm(""); searchRef.current?.focus(); }}
-                  className="text-emerald-400 underline underline-offset-2 hover:text-emerald-300 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500"
+                  className="text-primary underline underline-offset-2 hover:text-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-focus"
                 >
                   clear the search
                 </Button>
                 .
               </p>
             ) : (
-              <p className="mt-1 text-xs text-slate-300">
+              <p className="mt-1 text-xs text-muted">
                 Complete the setup wizard to populate the glossary.
               </p>
             )}
@@ -88,15 +88,15 @@ export function GlossaryPanel() {
               <div
                 key={entry.term}
                 data-testid={`glossary-entry-${entry.term}`}
-                className="rounded-lg border border-white/5 bg-white/[0.02] p-4 transition-colors hover:bg-white/5"
+                className="rounded-lg border border-muted bg-surface-elevated/[0.02] p-4 transition-colors hover:bg-surface-muted"
               >
                 <dt className="flex items-baseline gap-2">
-                  <span className="font-medium text-slate-100">{entry.term}</span>
-                  <span className="rounded bg-white/10 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-slate-300">
+                  <span className="font-medium text-foreground">{entry.term}</span>
+                  <span className="rounded bg-surface-subtle px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-muted">
                     {entry.category}
                   </span>
                 </dt>
-                <dd className="mt-1.5 text-sm leading-relaxed text-slate-300">
+                <dd className="mt-1.5 text-sm leading-relaxed text-muted">
                   {entry.description}
                 </dd>
               </div>

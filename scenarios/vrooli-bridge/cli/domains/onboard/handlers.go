@@ -59,12 +59,12 @@ func (h *handlers) preflightConnect(ctx cliapp.RunContext) error {
 
 	password := ""
 	credSource := credentialNone
+	setupPassphraseStdin := ctx.BoolFlag("setup-passphrase-stdin")
+	if setupPassphraseStdin {
+		return fmt.Errorf("--setup-passphrase-stdin is retired: the target setup queues credential-store protection for vrooli-onboarding")
+	}
+	fromStdin := ctx.BoolFlag("password-stdin")
 	if preflight.Msg.PasswordRequired {
-		fromStdin := ctx.BoolFlag("password-stdin")
-		setupPassphraseStdin := ctx.BoolFlag("setup-passphrase-stdin")
-		if setupPassphraseStdin && !fromStdin {
-			return fmt.Errorf("--setup-passphrase-stdin requires --password-stdin")
-		}
 		var resolveErr error
 		if setupPassphraseStdin {
 			password, resolveErr = h.password.resolveLine()
@@ -89,14 +89,6 @@ func (h *handlers) preflightConnect(ctx cliapp.RunContext) error {
 		}
 	}
 
-	setupPassphrase := ""
-	if ctx.BoolFlag("setup-passphrase-stdin") {
-		var passErr error
-		setupPassphrase, passErr = h.password.resolveLine()
-		if passErr != nil {
-			return passErr
-		}
-	}
 	revision := strings.TrimSpace(ctx.Flag("revision"))
 	if revision == "" {
 		revision = defaultRevision
@@ -107,7 +99,7 @@ func (h *handlers) preflightConnect(ctx cliapp.RunContext) error {
 	}
 	startResp, err := h.client.StartOnboarding(context.Background(), connect.NewRequest(&onboardv1.StartOnboardingRequest{
 		MachineId: preflight.Msg.MachineId, Host: preflight.Msg.Host, Port: preflight.Msg.Port, User: preflight.Msg.User,
-		SshPassword: password, SetupPassphrase: setupPassphrase, NodeName: ctx.Flag("name"), TargetRevision: revision,
+		SshPassword: password, NodeName: ctx.Flag("name"), TargetRevision: revision,
 		RepoUrl: ctx.Flag("repo-url"), CheckoutDir: ctx.Flag("checkout-dir"), ControlPlaneUrl: ctx.Flag("control-plane-url"),
 		ReachabilityMode: strings.TrimSpace(ctx.Flag("reachability-mode")), VerifyTimeoutSeconds: int32(parseInt(ctx.Flag("verify-timeout"))),
 		SkipSetup: ctx.BoolFlag("skip-setup"), SkipPrereqs: ctx.BoolFlag("skip-prereqs"), ProvisionSudo: resolveProvisionSudo(ctx),
@@ -163,7 +155,10 @@ func connectDecisionLabel(decision onboardv1.ConnectDecision) string {
 }
 
 func newHandlers(core *cliapp.ScenarioApp) *handlers {
-	httpClient, baseURL := session.NewConnectHTTPClient(core)
+	// Onboarding RPCs include server-owned waits that may legitimately span
+	// many minutes. Keep this domain attached long enough to reattach and
+	// render the durable terminal result instead of timing out locally.
+	httpClient, baseURL := session.NewConnectHTTPClientWithTimeout(core, 2*time.Hour)
 	return &handlers{
 		core:     core,
 		client:   onboardconnect.NewOnboardServiceClient(httpClient, baseURL),
@@ -215,32 +210,17 @@ func (h *handlers) start(ctx cliapp.RunContext) error {
 	// available if that key is genuinely missing or revoked.
 	fromStdin := ctx.BoolFlag("password-stdin")
 	setupPassphraseStdin := ctx.BoolFlag("setup-passphrase-stdin")
-	if setupPassphraseStdin && !fromStdin {
-		return fmt.Errorf("--setup-passphrase-stdin requires --password-stdin so both secrets can be read from one protected pipe")
+	if setupPassphraseStdin {
+		return fmt.Errorf("--setup-passphrase-stdin is retired: the target setup queues credential-store protection for vrooli-onboarding")
 	}
 	var password string
 	var credSource credentialSource
-	if setupPassphraseStdin {
-		password, err = h.password.resolveLine()
-		credSource = credentialFromStdin
-	} else {
-		password, credSource, err = h.password.resolve(user, host, fromStdin, ctx.BoolFlag("prompt-password"))
-	}
+	password, credSource, err = h.password.resolve(user, host, fromStdin, ctx.BoolFlag("prompt-password"))
 	if err != nil {
 		return err
 	}
 	if preflight.Msg.PasswordRequired && strings.TrimSpace(password) == "" {
 		return fmt.Errorf("SSH password is required for %s; use --password-stdin, --prompt-password, or $%s", connectDecisionLabel(decision), sshPasswordEnvVar)
-	}
-	setupPassphrase := ""
-	if setupPassphraseStdin {
-		setupPassphrase, err = h.password.resolveLine()
-		if err != nil {
-			return err
-		}
-		if strings.TrimSpace(setupPassphrase) == "" {
-			return fmt.Errorf("setup credential-store passphrase from stdin must not be empty")
-		}
 	}
 	revision := strings.TrimSpace(ctx.Flag("revision"))
 	if revision == "" {
@@ -258,7 +238,6 @@ func (h *handlers) start(ctx cliapp.RunContext) error {
 		Port:                 int32(port),
 		User:                 user,
 		SshPassword:          password,
-		SetupPassphrase:      setupPassphrase,
 		NodeName:             ctx.Flag("name"),
 		TargetRevision:       revision,
 		RepoUrl:              ctx.Flag("repo-url"),

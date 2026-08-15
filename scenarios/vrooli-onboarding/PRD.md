@@ -16,7 +16,7 @@
 - [x] OT-P0-005 | Deployment-tier parity | While the wizard runs from a desktop bundle, every step shall resolve its data from the bundled catalog and no step shall return an error.
 - [x] OT-P0-006 | Apply and completion | When the operator confirms setup, the system shall install opted-in host tools, apply opted-in safeguards, enable selected resources, start selected scenarios, report a per-item result, and record a durable completion marker.
 - [x] OT-P0-007 | Credential provisioning without disclosure | If a credential value is submitted, then the system shall relay it to the credential authority and shall not write it to operator state, logs, URLs, browser storage, or any response body.
-- [ ] OT-P0-008 | Surface parity across UI, CLI, and API | The wizard shall be completable through the UI, an interactive CLI, and a non-interactive CLI or API call, and the three shall produce identical operator state for identical choices.
+- [x] OT-P0-008 | Surface parity across UI, CLI, and API | The wizard shall be completable through the UI, an interactive CLI, and a non-interactive CLI or API call, and the three shall produce identical operator state for identical choices.
 
 ### 🟠 P1 – Should have post-launch
 - [x] OT-P1-001 | Actionable readiness report | The readiness report should probe declared credentials, host tools, host safeguards, and resource reachability, and should name a remediation for every item that is not ready.
@@ -24,7 +24,7 @@
 - [x] OT-P1-003 | Descriptor-complete credential guidance | Each credential card should present the declared purpose and the obtain link carried by the credential descriptor.
 - [ ] OT-P1-004 | Remote and headless onboarding | The non-interactive surface should let vrooli-bridge and scenario-to-cloud configure a remote host or VPS with no hand-edited file.
 - [x] OT-P1-005 | Deployment union export | The wizard should export the union of scenarios, resources, tools, and safeguards implied by a selection, for bundle, VPS, and bridge targets to consume.
-- [ ] OT-P1-006 | Accessible, themed operator experience | The wizard should meet WCAG 2.1 AA, should be operable by keyboard alone, and should render correctly in light and dark themes.
+- [x] OT-P1-006 | Accessible, themed operator experience | The wizard should meet WCAG 2.1 AA, should be operable by keyboard alone, and should render correctly in light and dark themes.
 - [x] OT-P1-007 | Declared-surface honesty | The published endpoint, CLI, and requirement contracts should match the running code, and drift should fail a test rather than wait for review.
 
 ### 🟢 P2 – Future / expansion

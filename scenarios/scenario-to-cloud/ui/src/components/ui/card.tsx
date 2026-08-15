@@ -36,9 +36,9 @@ interface CardTitleProps extends React.HTMLAttributes<HTMLHeadingElement> {
 
 export function CardTitle({ className, children, ...props }: CardTitleProps) {
   return (
-    <h3 className={cn("text-lg font-semibold text-slate-50", className)} {...props}>
+    <h2 className={cn("text-lg font-semibold text-slate-50", className)} {...props}>
       {children}
-    </h3>
+    </h2>
   );
 }
 

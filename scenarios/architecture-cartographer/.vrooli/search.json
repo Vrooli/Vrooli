@@ -4,6 +4,7 @@
   "providers": [
     {
       "provider_id": "architecture-cartographer.domain-map",
+      "lifecycle": "production",
       "provider_group": "architecture-cartographer",
       "bucket": "BUCKET_KNOW",
       "type": "domain",

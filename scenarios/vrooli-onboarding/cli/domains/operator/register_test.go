@@ -5,21 +5,19 @@ import (
 	"path/filepath"
 	"testing"
 
-	clitest "vrooli-onboarding/cli/internal/testutil"
+	clitest "github.com/vrooli/cli-core/cliapptest"
 
 	"github.com/vrooli/cli-core/cliapp"
+	localtest "vrooli-onboarding/cli/internal/testutil"
 )
 
 func TestRegisterAndPatchValidation(t *testing.T) {
 	group := Register(&cliapp.ScenarioApp{})
-	if group.Name != "operator" || len(group.Subcommands) != 5 {
+	if group.Name != "operator" || len(group.Subcommands) != 4 {
 		t.Fatalf("unexpected operator group: %+v", group)
 	}
 	if err := group.Subcommands[1].Run([]string{"--body-file", "missing.json"}); err == nil {
 		t.Fatal("missing patch file should fail")
-	}
-	if err := group.Subcommands[2].Run(nil); err == nil {
-		t.Fatal("missing safeguard flags should fail")
 	}
 }
 
@@ -37,19 +35,16 @@ func TestCommandsUseV2ReadAndPatchRoutes(t *testing.T) {
 		t.Fatal(err)
 	}
 	patchPath := filepath.Join(t.TempDir(), "patch.json")
-	if err := clitest.WriteJSON(patchPath, map[string]any{"scenarios": map[string]any{"demo": map[string]any{"enabled": true}}}); err != nil {
+	if err := localtest.WriteJSON(patchPath, map[string]any{"scenarios": map[string]any{"demo": map[string]any{"enabled": true}}}); err != nil {
 		t.Fatal(err)
 	}
 	if err := group.Subcommands[1].Run([]string{"--body-file", patchPath, "--json"}); err != nil {
 		t.Fatal(err)
 	}
-	if err := group.Subcommands[2].Run([]string{"--name", "safe", "--key", "mode", "--value-json", `"strict"`, "--json"}); err != nil {
+	if err := group.Subcommands[2].Run([]string{"--json"}); err != nil {
 		t.Fatal(err)
 	}
 	if err := group.Subcommands[3].Run([]string{"--json"}); err != nil {
-		t.Fatal(err)
-	}
-	if err := group.Subcommands[4].Run([]string{"--json"}); err != nil {
 		t.Fatal(err)
 	}
 }

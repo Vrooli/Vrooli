@@ -21,9 +21,9 @@ describe("StepWelcome", () => {
 
   it("shows 3 info cards for wizard steps", () => {
     render(<StepWelcome />);
-    expect(screen.getByText("Select Resources")).toBeInTheDocument();
-    expect(screen.getByText("Review Configuration")).toBeInTheDocument();
-    expect(screen.getByText("Generate Config")).toBeInTheDocument();
+    expect(screen.getByText("Select Scenarios")).toBeInTheDocument();
+    expect(screen.getByText("Review Permissions")).toBeInTheDocument();
+    expect(screen.getByText("Apply and Verify")).toBeInTheDocument();
   });
 
   it("shows Get Started hint text", () => {
@@ -42,6 +42,6 @@ describe("StepWelcome", () => {
   it("has proper text contrast (slate-200 for body text)", () => {
     render(<StepWelcome />);
     const description = screen.getByText(/guide you through configuring/i);
-    expect(description.className).toContain("text-slate-200");
+    expect(description.className).toContain("text-foreground");
   });
 });

@@ -64,7 +64,7 @@ type SecretOperationResponse struct {
 
 // SecretKeyValidationRegex is the regex pattern for valid secret keys.
 // Keys must start with uppercase letter and contain only uppercase letters, numbers, and underscores.
-const SecretKeyValidationRegex = `^[A-Z][A-Z0-9_]*$`
+const SecretKeyValidationRegex = `^[A-Z][A-Z0-9_]*$` // #nosec G101 -- this is a validation pattern, never a secret.
 
 // ReservedKeyPrefixes are prefixes that cannot be used for manual secrets.
 var ReservedKeyPrefixes = []string{"VROOLI_INTERNAL_", "_"}

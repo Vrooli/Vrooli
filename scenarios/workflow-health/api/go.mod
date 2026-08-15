@@ -55,3 +55,9 @@ replace github.com/vrooli/vrooli => ../../..
 replace github.com/vrooli/repo-contract-go => ../../../packages/repo-contract-go
 
 replace github.com/vrooli/searchregister-go => ../../../packages/searchregister-go
+
+replace github.com/vrooli/binaryfetch => ../../../packages/binaryfetch
+
+replace github.com/vrooli/platform-go => ../../../packages/platform-go
+
+replace github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime => ../../scenario-to-desktop/runtime

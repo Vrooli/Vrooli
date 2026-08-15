@@ -5,20 +5,44 @@ import (
 	"encoding/json"
 	"net/http"
 	"path/filepath"
+	"sync"
 	"testing"
+	"time"
 )
 
 type recordingApplyExecutor struct {
+	mu     sync.Mutex
 	calls  []string
 	failOn string
 }
 
 func (e *recordingApplyExecutor) call(kind, name string) error {
+	e.mu.Lock()
+	defer e.mu.Unlock()
 	e.calls = append(e.calls, kind+":"+name)
 	if e.failOn == kind+":"+name {
 		return context.Canceled
 	}
 	return nil
+}
+
+func (e *recordingApplyExecutor) snapshotCalls() []string {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	return append([]string(nil), e.calls...)
+}
+
+func waitApplyTerminal(t *testing.T, id string) applyRun {
+	t.Helper()
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		if run, ok := applyRunSnapshot(id); ok && run.Status != "pending" && run.Status != "applying" {
+			return run
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	t.Fatalf("apply run %s did not reach a terminal state", id)
+	return applyRun{}
 }
 
 func (e *recordingApplyExecutor) InstallTool(_ context.Context, name string) error {
@@ -53,20 +77,29 @@ func TestV2ApplyOrdersDependenciesAndIsIdempotent(t *testing.T) {
 	if w.Code != http.StatusAccepted {
 		t.Fatalf("apply status = %d: %s", w.Code, w.Body.String())
 	}
-	if len(fake.calls) != 2 || fake.calls[0] != "resource:postgres" || fake.calls[1] != "scenario:alpha" {
-		t.Fatalf("calls = %#v", fake.calls)
+	var first applyRun
+	if err := json.Unmarshal(w.Body.Bytes(), &first); err != nil {
+		t.Fatal(err)
+	}
+	waitApplyTerminal(t, first.ID)
+	calls := fake.snapshotCalls()
+	if len(calls) != 2 || calls[0] != "resource:postgres" || calls[1] != "scenario:alpha" {
+		t.Fatalf("calls = %#v", calls)
 	}
 
 	w = doRequest(t, NewServer(), http.MethodPost, "/api/v2/apply", "{}")
 	if w.Code != http.StatusAccepted {
 		t.Fatalf("second apply status = %d: %s", w.Code, w.Body.String())
 	}
-	if len(fake.calls) != 2 || !containsJSONString(w.Body.Bytes(), "already_satisfied") {
-		t.Fatalf("second apply calls/body = %#v / %s", fake.calls, w.Body.String())
+	if len(fake.snapshotCalls()) != 2 {
+		t.Fatalf("second apply issued mutating calls: %#v", fake.snapshotCalls())
 	}
 	var second applyRun
 	if err := json.Unmarshal(w.Body.Bytes(), &second); err != nil {
 		t.Fatal(err)
+	}
+	if second.Status != "already_satisfied" || !containsJSONString(w.Body.Bytes(), "already_satisfied") {
+		t.Fatalf("second apply = %s", w.Body.String())
 	}
 	status := doGet(t, NewServer(), "/api/v2/apply/"+second.ID)
 	if status.Code != http.StatusOK || !containsJSONString(status.Body.Bytes(), "already_satisfied") {
@@ -91,10 +124,27 @@ func TestV2ApplySkipsDependentAfterFailure(t *testing.T) {
 	t.Cleanup(func() { onboardingApplyExecutor = previous })
 
 	w := doRequest(t, NewServer(), http.MethodPost, "/api/v2/apply", "{}")
-	if w.Code != http.StatusAccepted || !containsJSONString(w.Body.Bytes(), "partially_applied") || !containsJSONString(w.Body.Bytes(), "blocked") {
+	if w.Code != http.StatusAccepted {
 		t.Fatalf("apply = %d: %s", w.Code, w.Body.String())
 	}
-	if len(fake.calls) != 1 {
-		t.Fatalf("dependent scenario was executed: %#v", fake.calls)
+	var run applyRun
+	if err := json.Unmarshal(w.Body.Bytes(), &run); err != nil {
+		t.Fatal(err)
 	}
+	terminal := waitApplyTerminal(t, run.ID)
+	if terminal.Status != "partially_applied" || !containsJSONString(mustJSON(t, terminal), "blocked") {
+		t.Fatalf("apply = %#v", terminal)
+	}
+	if calls := fake.snapshotCalls(); len(calls) != 1 {
+		t.Fatalf("dependent scenario was executed: %#v", calls)
+	}
+}
+
+func mustJSON(t *testing.T, value any) []byte {
+	t.Helper()
+	data, err := json.Marshal(value)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return data
 }

@@ -13,6 +13,9 @@ func TestNewAppConstructs(t *testing.T) {
 	if app == nil || app.core == nil || app.core.CLI == nil {
 		t.Fatal("NewApp() returned an incomplete app")
 	}
+	if got := app.core.APIPrefix(); got != "/api" {
+		t.Fatalf("API prefix = %q, want /api for the v2 onboarding routes", got)
+	}
 }
 
 func TestRunVersion(t *testing.T) {

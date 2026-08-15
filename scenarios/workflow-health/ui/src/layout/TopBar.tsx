@@ -23,15 +23,15 @@ export function TopBar() {
   return (
     <header
       data-testid={selectors.layout.topBar}
-      className="flex shrink-0 items-center justify-between gap-4 border-b border-app-border bg-app-surface px-4 py-3"
+      className="flex min-w-0 shrink-0 flex-wrap items-center justify-between gap-3 border-b border-app-border bg-app-surface px-4 py-3"
     >
       <h1
         data-testid={selectors.app.title}
-        className="text-lg font-semibold text-app-foreground"
+        className="min-w-0 truncate text-lg font-semibold text-app-foreground"
       >
         {t(strings.app.title)}
       </h1>
-      <div className="flex items-center gap-3">
+      <div className="flex min-w-0 flex-wrap items-center justify-end gap-3">
         <div
           role="group"
           aria-label={t(strings.locale.switcherLabel)}

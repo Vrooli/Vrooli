@@ -63,6 +63,8 @@ func (h *connectHandler) DispatchJob(ctx context.Context, req *connect.Request[d
 			Verb:           req.Msg.Verb,
 			Args:           req.Msg.Args,
 			TimeoutSeconds: req.Msg.TimeoutSeconds,
+			DeviceID:       req.Msg.DeviceId,
+			LeaseToken:     req.Msg.LeaseToken,
 		},
 	})
 	if err != nil {

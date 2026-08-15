@@ -8,9 +8,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	clitest "vrooli-onboarding/cli/internal/testutil"
+	clitest "github.com/vrooli/cli-core/cliapptest"
 
 	"github.com/vrooli/cli-core/cliapp"
+	localtest "vrooli-onboarding/cli/internal/testutil"
 )
 
 func TestRegisterAndSelectionErrors(t *testing.T) {
@@ -39,7 +40,7 @@ func TestDeclarativeWizardApplyExportAndStatus(t *testing.T) {
 		_, _ = w.Write([]byte(`{"status":"ready","credentials":[],"hosts":[]}`))
 	}))
 	selectionPath := filepath.Join(t.TempDir(), "selection.json")
-	if err := clitest.WriteJSON(selectionPath, Selection{Scenarios: []string{"demo"}, Apply: true}); err != nil {
+	if err := localtest.WriteJSON(selectionPath, Selection{Scenarios: []string{"demo"}, Apply: true}); err != nil {
 		t.Fatal(err)
 	}
 	group := Register(core)
@@ -58,7 +59,7 @@ func TestDeclarativeWizardApplyExportAndStatus(t *testing.T) {
 	}
 }
 
-func TestInteractiveWizardWalksAllEightSteps(t *testing.T) {
+func TestInteractiveWizardWalksAllNineSteps(t *testing.T) {
 	core := clitest.NewTestApp(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/api/v1/v2/scenarios":
@@ -71,7 +72,7 @@ func TestInteractiveWizardWalksAllEightSteps(t *testing.T) {
 			_, _ = w.Write([]byte(`{"status":"ready","credentials":[],"hosts":[]}`))
 		}
 	}))
-	input := "demo\nollama\n\n\n\n\n demo\n\n\n"
+	input := "\ndemo\nollama\n\n\n\n\n demo\nyes\n\n"
 	reader, writer, err := os.Pipe()
 	if err != nil {
 		t.Fatal(err)
@@ -83,6 +84,52 @@ func TestInteractiveWizardWalksAllEightSteps(t *testing.T) {
 	t.Cleanup(func() { os.Stdin = oldStdin; _ = reader.Close() })
 	if err := runWizard(core, []string{"--interactive"}); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestInteractiveWizardProvisionsCredentialsAndReviewsPlan(t *testing.T) {
+	var provisioned bool
+	var reviewedPlan bool
+	core := clitest.NewTestApp(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/v1/v2/scenarios":
+			_, _ = w.Write([]byte(`{"scenarios":[{"name":"demo"}]}`))
+		case "/api/v1/v2/resources":
+			_, _ = w.Write([]byte(`{"optional":[],"standalone":[]}`))
+		case "/api/v1/v2/credentials":
+			_, _ = w.Write([]byte(`{"credentials":[{"logical_id":"demo","field":"api_key","label":"Demo key","required":true,"status":"missing"}]}`))
+		case "/api/v1/v2/host-requirements":
+			_, _ = w.Write([]byte(`{"tools":[{"name":"git","required":true,"risk":"low","privilege":"user"}],"safeguards":[{"name":"safe","required":false,"risk":"medium","privilege":"elevated"}]}`))
+		case "/api/v1/v2/credentials/provision":
+			provisioned = true
+			_, _ = w.Write([]byte(`{"status":"provisioned"}`))
+		case "/api/v1/v2/apply/plan":
+			reviewedPlan = true
+			_, _ = w.Write([]byte(`{"items":[{"kind":"tool","name":"git","required":true}]}`))
+		case "/api/v1/v2/apply":
+			_, _ = w.Write([]byte(`{"run_id":"run-1","status":"applied","items":[{"name":"git","outcome":"applied"}]}`))
+		default:
+			_, _ = w.Write([]byte(`{"status":"ready","credentials":[],"hosts":[]}`))
+		}
+	}))
+	input := "\ndemo\n\n\nsecret\n\n\n\n\nyes\n\n"
+	reader, writer, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _ = io.WriteString(writer, input)
+	_ = writer.Close()
+	oldStdin := os.Stdin
+	os.Stdin = reader
+	t.Cleanup(func() { os.Stdin = oldStdin; _ = reader.Close() })
+	if err := runWizard(core, []string{"--interactive"}); err != nil {
+		t.Fatal(err)
+	}
+	if !provisioned {
+		t.Fatal("interactive wizard must provision missing credentials through the authority")
+	}
+	if !reviewedPlan {
+		t.Fatal("interactive wizard must review the API-produced apply plan")
 	}
 }
 

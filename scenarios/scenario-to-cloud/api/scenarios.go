@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"sort"
 	"strings"
@@ -414,17 +415,21 @@ func (s *Server) fetchDependenciesFromAnalyzer(ctx context.Context, scenarioID s
 	if err != nil {
 		return nil, fmt.Errorf("failed to discover analyzer URL: %w", err)
 	}
+	baseURL, err = httputil.ValidateServiceBaseURL(baseURL)
+	if err != nil {
+		return nil, fmt.Errorf("invalid analyzer service URL: %w", err)
+	}
 
 	// Call the analyzer API
-	url := fmt.Sprintf("%s/api/v1/analyze/%s", strings.TrimSuffix(baseURL, "/"), scenarioID)
+	endpoint := fmt.Sprintf("%s/api/v1/analyze/%s", baseURL, url.PathEscape(scenarioID))
 
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", endpoint, nil) // #nosec G704 -- endpoint is composed from a validated discovery URL and a path-escaped scenario identifier.
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
 	client := &http.Client{Timeout: 5 * time.Second}
-	resp, err := client.Do(req)
+	resp, err := client.Do(req) // #nosec G704 -- request target is the validated scenario-dependency-analyzer service.
 	if err != nil {
 		return nil, fmt.Errorf("analyzer request failed: %w", err)
 	}

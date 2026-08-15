@@ -102,6 +102,14 @@ func TestRuns_WaitExitsByVerdict(t *testing.T) {
 	require.Error(t, hf.wait(failCtx), "a failing run exits non-zero")
 }
 
+func TestRuns_WaitUsesLongPollTransport(t *testing.T) {
+	core := clitest.NewTestApp(t, connectAPI(&fakeRuns{}))
+	h := newHandlers(core)
+	if h.waitClient == nil {
+		t.Fatal("wait client should be initialized separately from the standard client")
+	}
+}
+
 // [REQ:BRG-P0-005] abort round-trips and the server records the id.
 func TestRuns_Abort(t *testing.T) {
 	svc := &fakeRuns{}

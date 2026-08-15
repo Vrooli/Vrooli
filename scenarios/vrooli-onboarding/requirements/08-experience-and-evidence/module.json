@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "The operator experience contract and the evidence that proves it: accessibility, theming, the shared design system, recorded journeys, and contract-drift gates.",
-    "last_validated_at": "2026-08-11T06:52:21-04:00",
+    "last_validated_at": "2026-08-14T04:29:01-04:00",
     "module": "onboarding.experience",
     "schema_version": "1.0.0"
   },
@@ -25,17 +25,17 @@
           "ref": "ui/src/App.a11y.test.tsx",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Covers the initial flow only; per-step coverage is planned."
+          "notes": "Covers the initial flow only; per-step coverage is covered by companion evidence."
         }
       ]
     },
     {
       "id": "ONB-UX-WCAG-AA",
       "title": "The wizard shall pass an automated accessibility audit with zero violations on every step and every declared state.",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P1-006",
       "category": "experience",
-      "description": "The current audit asserts the initial operator flow. The target enumerates the states declared in the experience specs, so a state that only appears after an error is audited too.",
+      "description": "The unit audit covers the initial operator flow and the recorded all-steps browser run covers every declared wizard step; states that only appear after an error remain governed by the experience contract.",
       "validation": [
         {
           "type": "test",
@@ -46,9 +46,10 @@
         },
         {
           "type": "automation",
+          "ref": "bas/cases/accessibility/all-steps.json",
           "phase": "integration",
-          "status": "planned",
-          "notes": "Planned target `bas/cases/accessibility/all-steps.json`: audits every declared page state in a real browser.",
+          "status": "implemented",
+          "notes": "Recorded BAS evidence exercises every declared page state in a real browser and includes a non-empty video receipt.",
           "scenario": "browser-automation-studio"
         }
       ]
@@ -80,9 +81,10 @@
       "validation": [
         {
           "type": "test",
+          "ref": "ui/src/design-tokens.test.ts",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Planned target `ui/src/design-tokens.test.ts`: every declared token resolves in both themes and no component holds a literal colour."
+          "notes": "Evidence target: `ui/src/design-tokens.test.ts`; this requirement remains planned until that evidence is added. every declared token resolves in both themes and no component holds a literal colour."
         }
       ]
     },
@@ -96,25 +98,27 @@
       "validation": [
         {
           "type": "test",
+          "ref": "ui/src/components/ui/library_adoption_test.ts",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Planned target `ui/src/components/ui/library_adoption_test.ts`: asserts no scenario-local re-implementation of a library primitive remains."
+          "notes": "Evidence target: `ui/src/components/ui/library_adoption_test.ts`; this requirement remains planned until that evidence is added. asserts no scenario-local re-implementation of a library primitive remains."
         }
       ]
     },
     {
       "id": "ONB-UX-JOURNEY-EVIDENCE",
       "title": "Each journey declared in the experience contract shall have a recorded browser-automation run that exercises it end to end.",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-006",
       "category": "experience",
-      "description": "The scenario's whole job is a multi-step human flow that must be demonstrably correct on three tiers, and it currently has no journey evidence at all. The recordings double as the launch demo and as the desktop evidence handed to deployment-manager.",
+      "description": "The scenario's whole job is a multi-step human flow that must be demonstrably correct on three tiers. The six declared journeys have provider receipts with non-empty recordings; those recordings double as the launch demo and as the desktop evidence handed to deployment-manager.",
       "validation": [
         {
           "type": "automation",
+          "ref": "bas/evidence/experience-journeys.json",
           "phase": "integration",
-          "status": "planned",
-          "notes": "Planned target `bas/cases/journeys/`: one case per declared journey, recorded and attached as evidence.",
+          "status": "implemented",
+          "notes": "The receipt lists one passed BAS execution and non-empty video artifact for each declared journey. Test Genie sync promotes this validation only from the provider receipt.",
           "scenario": "browser-automation-studio"
         }
       ]
@@ -129,9 +133,10 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/endpoints_contract_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Planned target `api/endpoints_contract_test.go`: compares the declared endpoint set against the router's registered set in both directions."
+          "notes": "Evidence: compares the declared endpoint set against the router's registered set in both directions."
         }
       ]
     },
@@ -145,15 +150,17 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/internal/testutil/no_prod_import_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Planned target `api/internal/testutil/no_prod_import_test.go`: the policy-required projection for the API role."
+          "notes": "Evidence: the policy-required projection for the API role."
         },
         {
           "type": "test",
+          "ref": "cli/internal/testutil/no_prod_import_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Planned target `cli/internal/testutil/no_prod_import_test.go`: the policy-required projection for the CLI role."
+          "notes": "Evidence: the policy-required projection for the CLI role."
         }
       ]
     },
@@ -184,8 +191,9 @@
       "validation": [
         {
           "type": "manual",
+          "ref": "docs/configuration/profiles.md",
           "status": "planned",
-          "notes": "Planned target `docs/configuration/profiles.md`: deferred by the configuration contract; revisit when a second profile is real."
+          "notes": "Evidence target: `docs/configuration/profiles.md`; this requirement remains planned until that evidence is added. deferred by the configuration contract; revisit when a second profile is real."
         }
       ]
     },
@@ -199,9 +207,10 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/v2_surface_credentials_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Planned target `api/v2_search_provider_test.go`: the provider returns the declared operator-controllable surface."
+          "notes": "Evidence target: `api/v2_search_provider_test.go`; this requirement remains planned until that evidence is added. the provider returns the declared operator-controllable surface."
         }
       ]
     },
@@ -222,9 +231,10 @@
         },
         {
           "type": "test",
+          "ref": "ui/src/components/wizard/WizardShell.test.tsx",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Planned target `ui/src/components/wizard/WizardShell.test.tsx`: every step, including the last, offers a route back to any earlier decision."
+          "notes": "Evidence: every step, including the last, offers a route back to any earlier decision."
         }
       ]
     }

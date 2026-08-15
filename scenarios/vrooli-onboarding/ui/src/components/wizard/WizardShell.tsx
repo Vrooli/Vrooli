@@ -27,20 +27,20 @@ export function WizardShell({
   children,
 }: WizardShellProps) {
   return (
-    <div className="flex min-h-full flex-col bg-slate-950 text-slate-50" data-testid="wizard-shell">
+    <div className="flex min-h-full flex-col bg-surface text-foreground" data-testid="wizard-shell">
       {/* Step indicator */}
-      <section className="border-b border-white/10 bg-white/5 px-2 py-2 sm:px-6 sm:py-4" aria-label="Wizard progress">
+      <section className="border-b border-muted bg-surface-muted px-2 py-2 sm:px-6 sm:py-4" aria-label="Wizard progress">
         <div className="mx-auto max-w-3xl">
           {/* Mobile: compact current-step label + dot indicators */}
           <div className="flex items-center justify-between sm:hidden mb-2">
-            <span className="text-xs font-medium text-slate-50">
+            <span className="text-xs font-medium text-foreground">
               Step {currentStep + 1}: {STEP_LABELS[currentStep]}
             </span>
-            <span className="text-xs text-slate-300">
+            <span className="text-xs text-muted">
               {currentStep + 1}/{STEP_LABELS.length}
             </span>
           </div>
-          <div className="flex items-center justify-center gap-2 sm:hidden mb-2" aria-label="Step progress" role="list">
+          <div className="flex max-w-full flex-wrap items-center justify-center gap-2 sm:hidden mb-2" aria-label="Step progress" role="list">
             {STEP_LABELS.map((label, i) => {
               const isCompleted = i < currentStep;
               const isClickable = isCompleted && onGoToStep;
@@ -48,22 +48,21 @@ export function WizardShell({
                 <Button variant="ghost"
                   key={label}
                   type="button"
-                  role="listitem"
-                  className="h-2 w-2 rounded-[50%] bg-emerald-500 transition-colors cursor-pointer hover:bg-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50"
-                  aria-label={`Go back to ${label} (completed)`}
-                  onClick={() => onGoToStep(i)}
-                />
+                                  className="h-11 w-11 shrink-0 rounded-full bg-transparent p-0 transition-colors cursor-pointer hover:bg-surface-subtle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus/50"
+                                  aria-label={`Go back to ${label} (completed)`}
+                                  onClick={() => onGoToStep(i)}
+                                ><span aria-hidden="true" className="h-2 w-2 rounded-full bg-primary" /></Button>
               ) : (
                 <div
                   key={label}
                   role="listitem"
                   className={cn(
-                    "h-2 w-2 rounded-[50%] transition-colors",
+                    "h-2 w-2 rounded-full transition-colors",
                     isCompleted
-                      ? "bg-emerald-500"
+                      ? "bg-primary"
                       : i === currentStep
-                        ? "bg-slate-50"
-                        : "bg-white/20"
+                        ? "bg-foreground"
+                        : "bg-border-muted"
                   )}
                   aria-label={`${label}${isCompleted ? " (completed)" : i === currentStep ? " (current)" : ""}`}
                 />
@@ -81,14 +80,14 @@ export function WizardShell({
                   <Button variant="ghost"
                     type="button"
                     className={cn(
-                      "flex h-8 w-8 items-center justify-center rounded-[50%] text-sm font-medium transition-colors",
+                      "flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium transition-colors",
                       isCompleted
-                        ? "bg-emerald-500 text-white"
+                        ? "bg-primary text-foreground"
                         : i === currentStep
-                          ? "bg-slate-50 text-slate-900"
-                          : "bg-white/10 text-slate-300",
+                          ? "bg-foreground text-foreground-strong"
+                          : "bg-surface-subtle text-muted",
                       isClickable
-                        ? "cursor-pointer hover:bg-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50"
+                        ? "cursor-pointer hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus/50"
                         : "cursor-default"
                     )}
                     data-testid={`step-indicator-${i}`}
@@ -103,16 +102,16 @@ export function WizardShell({
 					{label}{isCompleted ? " (completed)" : i === currentStep ? " (current)" : ""}
 				  </span>
 				  {i < STEP_LABELS.length - 1 && (
-					<div className="mx-1 h-px w-4 bg-white/10 lg:mx-2 lg:w-6" aria-hidden="true" />
+					<div className="mx-1 h-px w-4 bg-surface-subtle lg:mx-2 lg:w-6" aria-hidden="true" />
                   )}
                 </li>
               );
             })}
           </ol>
           {/* Progress bar */}
-          <div className="h-1 w-full rounded-[50%] bg-white/10" role="progressbar" aria-valuenow={currentStep} aria-valuemin={0} aria-valuemax={STEP_LABELS.length - 1} aria-label="Wizard progress">
+          <div className="h-1 w-full rounded-full bg-surface-subtle" role="progressbar" aria-valuenow={currentStep} aria-valuemin={0} aria-valuemax={STEP_LABELS.length - 1} aria-label="Wizard progress">
             <div
-              className="h-1 rounded-[50%] bg-emerald-500 transition-all duration-300"
+              className="h-1 rounded-full bg-primary transition-all duration-300"
               style={{ width: `${(currentStep / (STEP_LABELS.length - 1)) * 100}%` }}
               data-testid="progress-bar"
             />
@@ -126,7 +125,7 @@ export function WizardShell({
       </div>
 
       {/* Navigation - sticky on mobile for thumb access */}
-      <div className="sticky bottom-0 border-t border-white/10 bg-slate-950/95 backdrop-blur-sm px-3 py-2.5 sm:static sm:bg-white/5 sm:px-6 sm:py-4" style={{ paddingBottom: "max(0.625rem, env(safe-area-inset-bottom))" }}>
+      <div className="sticky bottom-0 border-t border-muted bg-surface/95 backdrop-blur-sm px-3 py-2.5 sm:static sm:bg-surface-muted sm:px-6 sm:py-4" style={{ paddingBottom: "max(0.625rem, env(safe-area-inset-bottom))" }}>
         <div className="mx-auto flex max-w-3xl items-center justify-between">
           <div>
             {showPrev && currentStep > 0 && (

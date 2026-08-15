@@ -20,6 +20,7 @@ func TestCredentialProvisionDoesNotDiscloseValue(t *testing.T) {
 	t.Cleanup(func() { credentialProvisionCommand = previous })
 
 	request := httptest.NewRequest(http.MethodPost, "/api/v2/credentials/provision", strings.NewReader(`{"logical_id":"vrooli/demo","field":"api-key","value":"`+secret+`"}`))
+	request.RemoteAddr = "127.0.0.1:12345"
 	response := httptest.NewRecorder()
 	NewServer().Handler().ServeHTTP(response, request)
 	if response.Code != http.StatusCreated {

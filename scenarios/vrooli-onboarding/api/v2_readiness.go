@@ -66,6 +66,12 @@ type readinessItem struct {
 	Remediation string `json:"remediation,omitempty"`
 }
 
+type releaseAuthorityStatus struct {
+	Configured       bool   `json:"configured"`
+	TrustAnchorMatch bool   `json:"trust_anchor_match"`
+	Provider         string `json:"provider"`
+}
+
 type hostReadiness struct {
 	readinessItem
 	Kind     string `json:"kind"`
@@ -74,6 +80,47 @@ type hostReadiness struct {
 
 var credentialStatusCommand = func(ctx context.Context, logicalID, field string) ([]byte, error) {
 	return onboardingStatusJSON(ctx, logicalID, field)
+}
+
+var releaseAuthorityStatusCommand = func(ctx context.Context, root string) ([]byte, error) {
+	command := exec.CommandContext(ctx, "vrooli", "release-authority", "status", "--format", "json")
+	command.Dir = root
+	return command.Output()
+}
+
+func releaseAuthorityReadiness(root string) readinessItem {
+	item := readinessItem{
+		Name:        "release-authority",
+		Status:      "unsupported",
+		Detail:      "release authority status is unavailable",
+		Remediation: "Run `vrooli release-authority init` after the native secure store is available.",
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	output, err := releaseAuthorityStatusCommand(ctx, root)
+	if err != nil {
+		return item
+	}
+	var status releaseAuthorityStatus
+	if err := json.Unmarshal(output, &status); err != nil {
+		item.Detail = "release authority returned an invalid status response"
+		return item
+	}
+	if !status.Configured {
+		item.Status = "missing"
+		item.Detail = "no managed release key is configured"
+		return item
+	}
+	if !status.TrustAnchorMatch {
+		item.Status = "degraded"
+		item.Detail = "managed release key exists but the repository trust anchor is not synchronized"
+		item.Remediation = "Run `vrooli release-authority init --replace-trust-anchor` after reviewing the trust-root change."
+		return item
+	}
+	item.Status = "ready"
+	item.Detail = "managed release key and repository trust anchor are synchronized"
+	item.Remediation = ""
+	return item
 }
 
 func selectedScenarioModels() ([]ScenarioReadModel, error) {
@@ -258,6 +305,9 @@ func (s *Server) handleV2Readiness(w http.ResponseWriter, r *http.Request) {
 	for _, host := range response.Hosts {
 		response.Status = lessReady(response.Status, host.Status)
 	}
+	releaseItem := releaseAuthorityReadiness(root)
+	response.Integrations = append(response.Integrations, releaseItem)
+	response.Status = lessReady(response.Status, releaseItem.Status)
 	writeJSON(w, http.StatusOK, response)
 }
 

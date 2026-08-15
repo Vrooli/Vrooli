@@ -4,13 +4,13 @@ import { forwardRef } from "react";
 import { cn } from "../../lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center rounded-full text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50 disabled:pointer-events-none disabled:opacity-60",
+  "inline-flex items-center justify-center rounded-full text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border/50 disabled:pointer-events-none disabled:opacity-60",
   {
     variants: {
       variant: {
-        default: "bg-slate-50 text-slate-900 hover:bg-white",
-        outline: "border border-white/30 text-white hover:bg-white/10",
-        ghost: "text-slate-300 hover:bg-white/10 hover:text-white"
+        default: "bg-foreground text-foreground-strong hover:bg-surface-elevated",
+        outline: "border border-muted text-foreground hover:bg-surface-subtle",
+        ghost: "text-muted hover:bg-surface-subtle hover:text-foreground"
       },
       size: {
         default: "h-11 px-5",
@@ -33,5 +33,5 @@ export interface ButtonProps
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button({ className, variant, size, asChild = false, ...props }, ref) {
   const Comp = asChild ? Slot : "button";
 
-  return <Comp ref={ref} role="button" className={cn(buttonVariants({ variant, size, className }))} {...props} />;
+  return <Comp ref={ref} className={cn(buttonVariants({ variant, size, className }))} {...props} />;
 });

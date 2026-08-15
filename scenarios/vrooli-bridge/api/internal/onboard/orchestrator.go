@@ -484,9 +484,6 @@ func buildBootstrapArgsForScopes(in StartInput, wtSourceDir, wtDigest string, ar
 	if in.IncludeOptional {
 		args = append(args, "--include-optional")
 	}
-	if len(in.SetupPassphrase) > 0 {
-		args = append(args, "--credential-passphrase-stdin")
-	}
 	return args
 }
 

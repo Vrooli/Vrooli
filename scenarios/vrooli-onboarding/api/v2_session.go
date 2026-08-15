@@ -24,10 +24,7 @@ func (s *Server) handleV2Session(w http.ResponseWriter, r *http.Request) {
 		if state.Session != nil {
 			step = state.Session.Step
 		}
-		first := step
-		if state.Completion == nil {
-			first = 0
-		}
+		first := firstUnsatisfiedStep(state)
 		writeJSON(w, http.StatusOK, sessionResponse{Step: step, FirstUnsatisfiedStep: first, Completion: state.Completion != nil})
 		return
 	}
@@ -38,8 +35,8 @@ func (s *Server) handleV2Session(w http.ResponseWriter, r *http.Request) {
 	if !decodeJSONBody(w, r, &request) {
 		return
 	}
-	if request.Step < 0 || request.Step > 7 {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "step must be between 0 and 7"})
+	if request.Step < 0 || request.Step >= len(onboardingSteps) {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "step is outside the onboarding step model"})
 		return
 	}
 	patch, _ := json.Marshal(map[string]any{"session": operatorstate.Session{Step: request.Step}})
@@ -48,5 +45,5 @@ func (s *Server) handleV2Session(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
 		return
 	}
-	writeJSON(w, http.StatusOK, sessionResponse{Step: state.Session.Step, FirstUnsatisfiedStep: request.Step, Completion: state.Completion != nil})
+	writeJSON(w, http.StatusOK, sessionResponse{Step: state.Session.Step, FirstUnsatisfiedStep: firstUnsatisfiedStep(state), Completion: state.Completion != nil})
 }

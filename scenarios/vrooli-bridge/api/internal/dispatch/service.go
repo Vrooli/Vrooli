@@ -3,7 +3,13 @@ package dispatch
 import (
 	"context"
 	"errors"
+	"strings"
+	"time"
 )
+
+func isDeviceScoped(verb string) bool {
+	return strings.HasPrefix(strings.TrimSpace(verb), "device-control ")
+}
 
 // DefaultTimeoutSeconds is applied when a dispatch passes timeout_seconds <= 0,
 // so a job always carries a finite wall-clock budget the node aborts on.
@@ -28,6 +34,7 @@ type service struct {
 	manifest       []string
 	outputs        map[string][]ArtifactOutput
 	defaultTimeout int64
+	leases         DeviceLeaseStore
 }
 
 // Option customises the service (manifest override, default timeout).
@@ -51,6 +58,15 @@ func WithDefaultTimeout(seconds int64) Option {
 	}
 }
 
+// WithDeviceLeaseStore supplies the bridge-owned short-lived lease record.
+func WithDeviceLeaseStore(store DeviceLeaseStore) Option {
+	return func(s *service) {
+		if store != nil {
+			s.leases = store
+		}
+	}
+}
+
 // NewService constructs the production Service.
 func NewService(nodes NodeReader, presence Presence, runsCtl RunController, sink AuditSink, pusher JobPusher, opts ...Option) Service {
 	s := &service{
@@ -62,6 +78,7 @@ func NewService(nodes NodeReader, presence Presence, runsCtl RunController, sink
 		manifest:       DefaultManifest,
 		outputs:        defaultManifestOutputs,
 		defaultTimeout: DefaultTimeoutSeconds,
+		leases:         NewMemoryDeviceLeaseStore(),
 	}
 	for _, opt := range opts {
 		opt(s)
@@ -75,6 +92,17 @@ var _ Service = (*service)(nil)
 func (s *service) Dispatch(ctx context.Context, in DispatchInput) (Decision, error) {
 	job := in.Job.trimmed()
 	in.Job = job
+
+	if isDeviceScoped(job.Verb) {
+		if job.DeviceID == "" || job.LeaseToken == "" {
+			s.auditReject(ctx, in, "device-scoped dispatch requires a device_id and held lease_token")
+			return Decision{}, ErrDeviceLeaseRequired{DeviceID: job.DeviceID}
+		}
+		if !s.leases.Held(job.DeviceID, job.LeaseToken, time.Now().UTC()) {
+			s.auditReject(ctx, in, "device-scoped dispatch requires a held lease")
+			return Decision{}, ErrDeviceLeaseNotHeld{DeviceID: job.DeviceID}
+		}
+	}
 
 	// 1. Resolve the target node.
 	node, err := s.nodes.GetTarget(ctx, job.NodeID)

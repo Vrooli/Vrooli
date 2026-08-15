@@ -33,3 +33,9 @@ The provider reports a typed readiness error when QEMU or the provisioning
 inputs are missing. This is intentional: a container is not an equivalent
 fresh-host proof because it cannot validate systemd, host-bound credential
 wraps, or the privilege broker.
+
+`instance create` creates a copy-on-write `disk.qcow2` inside the requested
+work directory and boots that owned disk. The source image is never mutated by
+snapshot, reset, or destroy. Destroy stops the VM and removes the owned disk
+and cloud-init artifacts; the source image remains available for the next
+fresh-host run.

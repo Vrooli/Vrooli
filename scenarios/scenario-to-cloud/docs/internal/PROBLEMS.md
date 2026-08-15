@@ -1,5 +1,12 @@
 # Problems / Risks
 
+## Work ladder
+
+- Rung: W0
+- Evidence: `swarm-manager goals list --json` returned no goal whose name, title, or description names `scenario-to-cloud`; the active user-owned Plan Manager execution `one-privileged-moment-one-interactive-surface-a-cross` is the authoritative work item for this change but is not represented in the swarm-manager goal store.
+- Blocker: W0 contract-to-goal comparison is not independently verifiable through the swarm-manager gate; continue under the explicit Plan Manager objective and do not claim the scenario contract is independently reconciled.
+- Measured: 2026-08-14
+
 ## Open Issues
 
 - **Packager contract not implemented yet**: deployment-manager docs reference scenario-to-cloud as a stub; API/CLI contract needs to be finalized and implemented.

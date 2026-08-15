@@ -17,6 +17,7 @@ package dispatch
 import (
 	"fmt"
 	"strings"
+	"time"
 )
 
 // Job is the typed unit of work. `Verb` is the space-joined vrooli command
@@ -30,6 +31,8 @@ type Job struct {
 	Verb           string
 	Args           []string
 	TimeoutSeconds int64
+	DeviceID       string
+	LeaseToken     string
 }
 
 // trimmed returns a copy with surrounding whitespace stripped from the scalar
@@ -39,6 +42,8 @@ func (j Job) trimmed() Job {
 	out.NodeID = strings.TrimSpace(j.NodeID)
 	out.Scenario = strings.TrimSpace(j.Scenario)
 	out.Verb = strings.TrimSpace(j.Verb)
+	out.DeviceID = strings.TrimSpace(j.DeviceID)
+	out.LeaseToken = strings.TrimSpace(j.LeaseToken)
 	out.Args = trimAll(j.Args)
 	return out
 }
@@ -76,6 +81,16 @@ type DispatchInput struct {
 	Actor  string
 	Job    Job
 	DryRun bool
+}
+
+// DeviceLeaseStore is the bridge-side authorization record for a device
+// scoped dispatch. Device-control remains authoritative for lease lifecycle
+// semantics; bridge only answers whether the presented lease is currently
+// held for the requested device and has not expired.
+type DeviceLeaseStore interface {
+	Hold(deviceID, token, actor string, expiresAt time.Time) error
+	Release(deviceID, token string)
+	Held(deviceID, token string, now time.Time) bool
 }
 
 // trimAll trims each element and drops empties.
@@ -163,4 +178,19 @@ type ErrDeliveryFailed struct{ NodeID string }
 
 func (e ErrDeliveryFailed) Error() string {
 	return fmt.Sprintf("job could not be delivered to node %q", e.NodeID)
+}
+
+type ErrDeviceLeaseRequired struct{ DeviceID string }
+
+func (e ErrDeviceLeaseRequired) Error() string {
+	return "device-scoped dispatch requires a device_id and held lease_token"
+}
+
+type ErrDeviceLeaseNotHeld struct{ DeviceID string }
+
+func (e ErrDeviceLeaseNotHeld) Error() string {
+	if e.DeviceID == "" {
+		return "device-scoped dispatch requires a held lease"
+	}
+	return fmt.Sprintf("device-scoped dispatch for device %q requires a held lease", e.DeviceID)
 }

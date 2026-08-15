@@ -16,15 +16,15 @@ func (r *Repository) CreateInstance(ctx context.Context, value instance.Instance
 	}
 	if value.ID == "" {
 		row := r.db.QueryRowContext(ctx, `
-			INSERT INTO cloud_instances (name, provider, state, image, workdir, pid, command, created_at, updated_at, last_error)
-			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
-			RETURNING id`, value.Name, value.Provider, value.State, value.Image, value.Workdir, value.PID, command, value.CreatedAt, value.UpdatedAt, value.LastError)
+			INSERT INTO cloud_instances (name, provider, state, image, workdir, address, ssh_port, profile, pid, command, created_at, updated_at, last_error)
+			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+			RETURNING id`, value.Name, value.Provider, value.State, value.Image, value.Workdir, value.Address, value.SSHPort, value.Profile, value.PID, command, value.CreatedAt, value.UpdatedAt, value.LastError)
 		if err := row.Scan(&value.ID); err != nil {
 			return instance.Instance{}, fmt.Errorf("create instance: %w", err)
 		}
 		return value, nil
 	}
-	_, err = r.db.ExecContext(ctx, `INSERT INTO cloud_instances (id,name,provider,state,image,workdir,pid,command,created_at,updated_at,last_error) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`, value.ID, value.Name, value.Provider, value.State, value.Image, value.Workdir, value.PID, command, value.CreatedAt, value.UpdatedAt, value.LastError)
+	_, err = r.db.ExecContext(ctx, `INSERT INTO cloud_instances (id,name,provider,state,image,workdir,address,ssh_port,profile,pid,command,created_at,updated_at,last_error) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`, value.ID, value.Name, value.Provider, value.State, value.Image, value.Workdir, value.Address, value.SSHPort, value.Profile, value.PID, command, value.CreatedAt, value.UpdatedAt, value.LastError)
 	if err != nil {
 		return instance.Instance{}, fmt.Errorf("create instance: %w", err)
 	}
@@ -34,7 +34,7 @@ func (r *Repository) CreateInstance(ctx context.Context, value instance.Instance
 func (r *Repository) GetInstance(ctx context.Context, id string) (*instance.Instance, error) {
 	var value instance.Instance
 	var command []byte
-	err := r.db.QueryRowContext(ctx, `SELECT id,name,provider,state,image,workdir,pid,command,created_at,updated_at,last_error FROM cloud_instances WHERE id=$1`, id).Scan(&value.ID, &value.Name, &value.Provider, &value.State, &value.Image, &value.Workdir, &value.PID, &command, &value.CreatedAt, &value.UpdatedAt, &value.LastError)
+	err := r.db.QueryRowContext(ctx, `SELECT id,name,provider,state,image,workdir,address,ssh_port,profile,pid,command,created_at,updated_at,last_error FROM cloud_instances WHERE id=$1`, id).Scan(&value.ID, &value.Name, &value.Provider, &value.State, &value.Image, &value.Workdir, &value.Address, &value.SSHPort, &value.Profile, &value.PID, &command, &value.CreatedAt, &value.UpdatedAt, &value.LastError)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}

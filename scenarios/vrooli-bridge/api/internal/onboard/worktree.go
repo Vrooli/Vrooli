@@ -23,9 +23,11 @@ import (
 // tracked files (committed state) PLUS modified-but-uncommitted PLUS
 // untracked-but-not-gitignored files. That is the operator's actual working state
 // minus ignored build junk — the whole point of the mode is that uncommitted work
-// onboards without a commit. The .git directory is deliberately NOT shipped; the
-// node builds from a plain checkout and its provenance is the base HEAD + digest
-// the op records, not an on-node git history.
+// onboards without a commit. Required offline source inputs, such as the Proto
+// vendor snapshots, are explicitly unignored and checked by the source-closure
+// validator below. The .git directory is deliberately NOT shipped; the node
+// builds from a plain checkout and its provenance is the base HEAD + digest the
+// op records, not an on-node git history.
 type gitWorkingTreeSource struct {
 	repoDir string
 	run     func(ctx context.Context, dir, name string, args ...string) ([]byte, error)
@@ -43,6 +45,14 @@ func NewWorkingTreeSource(repoDir string) WorkingTreeSource {
 }
 
 var _ WorkingTreeSource = (*gitWorkingTreeSource)(nil)
+
+// offlineProtoSourceRoots are source inputs to the repository's offline Buf
+// workspace. Unlike dist/ and node_modules/, these files cannot be regenerated
+// without contacting BSR, so a working-tree ship must include them.
+var offlineProtoSourceRoots = []string{
+	"packages/proto/vendor/googleapis",
+	"packages/proto/vendor/protovalidate",
+}
 
 // execGit runs one command capturing stdout; stderr rides the error.
 func execGit(ctx context.Context, dir, name string, args ...string) ([]byte, error) {
@@ -91,6 +101,9 @@ func (g *gitWorkingTreeSource) Snapshot(ctx context.Context) (WorkingTreeSnapsho
 	// git ls-files can list the same path twice (once tracked, once as an "other")
 	// only in edge cases; dedupe + sort so the digest is deterministic regardless.
 	files = dedupeSorted(files)
+	if err := validateWorkingTreeSourceClosure(root, files); err != nil {
+		return WorkingTreeSnapshot{}, err
+	}
 
 	digest, err := digestFiles(root, files)
 	if err != nil {
@@ -103,6 +116,71 @@ func (g *gitWorkingTreeSource) Snapshot(ctx context.Context) (WorkingTreeSnapsho
 		RepoDir:  root,
 		Files:    files,
 	}, nil
+}
+
+// validateWorkingTreeSourceClosure fails before any SSH transfer when the
+// working-tree enumeration omits required offline Proto inputs. This catches a
+// global-ignore regression or an incomplete local vendor snapshot at the
+// control plane, where the remediation is clear, instead of producing a late
+// remote buf/validate/validate.proto error.
+func validateWorkingTreeSourceClosure(root string, files []string) error {
+	protoRoot := filepath.Join(root, "packages", "proto")
+	if _, err := os.Stat(filepath.Join(protoRoot, "buf.yaml")); os.IsNotExist(err) {
+		// A non-Vrooli repository is allowed through this generic source seam;
+		// the production Bridge control plane always has packages/proto/buf.yaml.
+		return nil
+	} else if err != nil {
+		return fmt.Errorf("inspect Proto workspace: %w", err)
+	}
+
+	listed := make(map[string]struct{}, len(files))
+	for _, rel := range files {
+		listed[filepath.ToSlash(rel)] = struct{}{}
+	}
+	var missing []string
+	for _, relRoot := range offlineProtoSourceRoots {
+		absRoot := filepath.Join(root, filepath.FromSlash(relRoot))
+		info, err := os.Stat(absRoot)
+		if os.IsNotExist(err) {
+			missing = append(missing, relRoot+"/")
+			continue
+		}
+		if err != nil {
+			return fmt.Errorf("inspect required Proto source %s: %w", relRoot, err)
+		}
+		if !info.IsDir() {
+			missing = append(missing, relRoot+"/ (directory required)")
+			continue
+		}
+		err = filepath.WalkDir(absRoot, func(path string, entry os.DirEntry, walkErr error) error {
+			if walkErr != nil {
+				return walkErr
+			}
+			if entry.IsDir() {
+				return nil
+			}
+			rel, err := filepath.Rel(root, path)
+			if err != nil {
+				return err
+			}
+			if _, ok := listed[filepath.ToSlash(rel)]; !ok {
+				missing = append(missing, filepath.ToSlash(rel))
+			}
+			return nil
+		})
+		if err != nil {
+			return fmt.Errorf("inspect required Proto source %s: %w", relRoot, err)
+		}
+	}
+	if len(missing) == 0 {
+		return nil
+	}
+	const maxReported = 8
+	detail := missing
+	if len(detail) > maxReported {
+		detail = append(append([]string(nil), detail[:maxReported]...), fmt.Sprintf("... and %d more", len(missing)-maxReported))
+	}
+	return fmt.Errorf("working-tree source is incomplete: required offline Proto inputs were not enumerated: %s; restore packages/proto/vendor/googleapis and packages/proto/vendor/protovalidate (run 'cd packages/proto && make refresh-vendor' only when a BSR refresh is intended)", strings.Join(detail, ", "))
 }
 
 // splitNUL splits git's NUL-terminated output into non-empty entries.

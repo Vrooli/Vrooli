@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "The same wizard on every deployment tier: local repository, desktop bundle, and remote host reached through vrooli-bridge or scenario-to-cloud.",
-    "last_validated_at": "2026-08-11T03:50:54-04:00",
+    "last_validated_at": "2026-08-14T04:29:01-04:00",
     "module": "onboarding.tiers",
     "schema_version": "1.0.0"
   },
@@ -12,7 +12,7 @@
       "status": "complete",
       "prd_ref": "OT-P0-005",
       "category": "tiers",
-      "description": "Compositional claim for the tier domain. It is false today: a desktop bundle carries only the scenario and resource catalogs, so the host and validation steps fail on first launch with no operator input, because a system-required peer declares a host tool whose manifest the bundle does not ship.",
+      "description": "Compositional claim for the tier domain. The desktop bundle now carries the complete manifest-derived catalog and the browser-validated wizard resolves every declared step without an error.",
       "children": [
         "ONB-TIER-BUNDLE-CATALOG",
         "ONB-TIER-NO-STEP-ERROR",
@@ -21,9 +21,10 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/v2_bundle_mode_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Planned target `api/v2_bundle_mode_test.go`: boots the API with only the bundle root set and exercises every V2 endpoint."
+          "notes": "Evidence: boots the API with only the bundle root set and exercises every V2 endpoint."
         }
       ]
     },
@@ -37,9 +38,10 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/v2_bundle_mode_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Planned target `api/v2_bundle_mode_test.go`: host requirements resolve from a bundle fixture containing tool and safeguard manifests."
+          "notes": "Evidence: host requirements resolve from a bundle fixture containing tool and safeguard manifests."
         }
       ]
     },
@@ -53,9 +55,10 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/v2_bundle_mode_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Planned target `api/v2_bundle_mode_test.go`: an absent catalog yields a typed degraded response, not a 500."
+          "notes": "Evidence: an absent catalog yields a typed degraded response, not a 500."
         }
       ]
     },
@@ -72,9 +75,17 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/v2_bundle_mode_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Planned target `scenarios/scenario-to-desktop/runtime/bundle/catalog_test.go`: a bundle fixture missing the tool catalog fails the declared-path check."
+          "notes": "The onboarding bundle fixture exercises the catalog read models and the desktop runtime catalog contract separately fails closed when a declared catalog path is missing."
+        },
+        {
+          "type": "automation",
+          "ref": "bas/evidence/bundle-tier.json",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Recorded BAS bundle-tier evidence proves the BUNDLE_ROOT-only browser walk and HTTP-200 V2 endpoint sweep."
         }
       ]
     },
@@ -101,16 +112,17 @@
       "status": "planned",
       "prd_ref": "OT-P1-004",
       "category": "tiers",
-      "description": "Bridge owns reaching the machine and holding the connection; onboarding owns deciding what runs there. Neither references the other today, which is why remote configuration currently means editing JSON over SSH.",
+      "description": "Bridge owns reaching the machine and holding the connection through the canonical `vrooli-bridge onboard connect --host \u003chost\u003e --user \u003cuser\u003e` workflow; onboarding owns deciding what runs there. The identity-only handoff joins the two authorities without exposing operator-state internals. First touch may consume one SSH password, while reconnect reuses durable Bridge trust without prompting; real remote apply remains deployment evidence to be earned.",
       "depends_on": [
         "ONB-CLI-NONINTERACTIVE"
       ],
       "validation": [
         {
           "type": "test",
+          "ref": "../vrooli-bridge/api/internal/onboarding/client_test.go",
           "phase": "integration",
           "status": "planned",
-          "notes": "Planned target `scenarios/vrooli-bridge/api/internal/onboarding/onboarding_test.go`: bridge drives a selection document against a fake remote and reads back a green readiness report."
+          "notes": "Evidence target: `scenarios/vrooli-bridge/api/internal/onboarding/client_test.go`; this requirement remains planned until a real remote target is available. The focused Bridge client tests cover capability-shaped selection transfer and authoritative readiness handling, but do not substitute for a real VPS run."
         }
       ]
     },
@@ -127,9 +139,10 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/closure_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Planned target `api/v2_union_test.go`: the union for a two-scenario selection excludes unrelated catalog members."
+          "notes": "Evidence target: `api/v2_union_test.go`; this requirement remains planned until that evidence is added. the union for a two-scenario selection excludes unrelated catalog members."
         }
       ]
     }

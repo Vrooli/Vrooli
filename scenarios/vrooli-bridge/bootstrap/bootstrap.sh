@@ -387,6 +387,14 @@ profile_hash() {
 # through to `vrooli setup`'s own defaults.
 compose_setup_args() {
   local a=""
+  # Darwin keeps the setup process under the operator so Homebrew and the
+  # native credential session remain usable. When first-touch already proved
+  # passwordless sudo, let individual elevated host requirements use sudo
+  # without opening a prompt. Hosts without that proof retain the default
+  # fail-closed skip policy and report the blocked items to onboarding.
+  if [ "$OS" = "darwin" ] && have_passwordless_sudo; then
+    a="${a} --sudo-mode ask"
+  fi
   [ -n "$SETUP_ENVIRONMENT" ] && a="${a} --environment ${SETUP_ENVIRONMENT}"
   [ -n "$SETUP_RESOURCES" ]   && a="${a} --resources ${SETUP_RESOURCES}"
   [ -n "$SETUP_SCENARIOS" ]   && a="${a} --scenarios ${SETUP_SCENARIOS}"
@@ -590,6 +598,9 @@ step_setup() {
     [ -n "$SETUP_RESOURCES" ] && cmd+=(--resources "$SETUP_RESOURCES")
     [ -n "$SETUP_SCENARIOS" ] && cmd+=(--scenarios "$SETUP_SCENARIOS")
     [ "$INCLUDE_OPTIONAL" -eq 1 ] && cmd+=(--include-optional)
+    if [ "$OS" = "darwin" ] && have_passwordless_sudo; then
+      cmd+=(--sudo-mode ask)
+    fi
     cmd+=(--result-file "$setup_result")
   else
     cmd=(make -C "$CHECKOUT_DIR" setup "SETUP_ARGS=${setup_args} --result-file=${setup_result}")
@@ -763,6 +774,9 @@ step_finalize_setup() {
   [ -n "$SETUP_RESOURCES" ] && cmd+=(--resources "$SETUP_RESOURCES")
   [ -n "$SETUP_SCENARIOS" ] && cmd+=(--scenarios "$SETUP_SCENARIOS")
   [ "$INCLUDE_OPTIONAL" -eq 1 ] && cmd+=(--include-optional)
+  if [ "$OS" = "darwin" ] && have_passwordless_sudo; then
+    cmd+=(--sudo-mode ask)
+  fi
   [ "$CREDENTIAL_PASSPHRASE_STDIN" -eq 1 ] && cmd+=(--credential-passphrase-stdin)
   cmd+=(--result-file "$setup_result")
   if ( cd "$CHECKOUT_DIR" && "${cmd[@]}" ) >"$out" 2>&1; then

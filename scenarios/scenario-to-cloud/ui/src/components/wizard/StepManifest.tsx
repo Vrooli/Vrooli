@@ -10,6 +10,7 @@ import { AutoFixPanel } from "./AutoFixPanel";
 import { AnnotatedCodeBlock, type LineAnnotation } from "../ui/annotated-code-block";
 import { mapJsonPathsToLines } from "../../lib/jsonPathToLine";
 import { selectors } from "../../consts/selectors";
+import { useManifestKeyboardShortcuts } from "../../hooks/useManifestKeyboardShortcuts";
 import type { useDeployment } from "../../hooks/useDeployment";
 import {
   listScenarios,
@@ -31,7 +32,8 @@ function getPortFromConfig(config: PortConfig): number | null {
   if (config.port) return config.port;
   if (config.range) {
     const match = config.range.match(/^(\d+)/);
-    if (match) return parseInt(match[1], 10);
+    const portText = match?.[1];
+    if (portText) return parseInt(portText, 10);
   }
   return null;
 }
@@ -76,35 +78,7 @@ export function StepManifest({ deployment }: StepManifestProps) {
   const [showResetMenu, setShowResetMenu] = useState(false);
   const resetMenuRef = useRef<HTMLDivElement>(null);
 
-  // Keyboard shortcuts for undo/redo
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Only handle when not typing in an input/textarea (except our JSON editor)
-      const target = e.target as HTMLElement;
-      const isEditorTextarea = target.getAttribute("data-testid") === selectors.manifest.input;
-      const isInputElement = target.tagName === "INPUT" || (target.tagName === "TEXTAREA" && !isEditorTextarea);
-
-      if (isInputElement) return;
-
-      if ((e.ctrlKey || e.metaKey) && e.key === "z") {
-        if (e.shiftKey) {
-          e.preventDefault();
-          redo();
-        } else {
-          e.preventDefault();
-          undo();
-        }
-      }
-      // Also support Ctrl+Y for redo
-      if ((e.ctrlKey || e.metaKey) && e.key === "y") {
-        e.preventDefault();
-        redo();
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [undo, redo]);
+  useManifestKeyboardShortcuts(undo, redo);
 
   // Close reset menu when clicking outside
   useEffect(() => {
@@ -711,7 +685,7 @@ export function StepManifest({ deployment }: StepManifestProps) {
                   {/* Dependencies info */}
                   {isFetchingDependencies && (
                     <p className="text-xs text-slate-400 flex items-center gap-1">
-                      <div className="h-3 w-3 animate-spin rounded-full border border-slate-500 border-t-transparent" />
+                      <span className="inline-block h-3 w-3 animate-spin rounded-full border border-slate-500 border-t-transparent" />
                       Fetching dependencies...
                     </p>
                   )}

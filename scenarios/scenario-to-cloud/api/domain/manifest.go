@@ -20,7 +20,7 @@ type CloudManifest struct {
 }
 
 // CloudflareAPITokenKey is the env var name used for DNS-01 issuance via Cloudflare.
-const CloudflareAPITokenKey = "CLOUDFLARE_API_TOKEN"
+const CloudflareAPITokenKey = "CLOUDFLARE_API_TOKEN" // #nosec G101 -- this is an environment-variable name, never a credential value.
 
 // ManifestTarget specifies where to deploy.
 type ManifestTarget struct {

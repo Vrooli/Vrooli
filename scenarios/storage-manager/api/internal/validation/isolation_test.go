@@ -155,6 +155,17 @@ func main() { roots := filerouting.New(paths); _ = roots.Pick(ctx, class); devro
 	}
 }
 
+func TestFileRoutedSeamsSkipGeneratedEmptyRegistry(t *testing.T) {
+	ac := isoCtx(t, `package main
+import "os"
+func main() { _ = os.WriteFile("state.json", nil, 0o644) }
+`, nil, "go")
+	writeFile(t, filepath.Join(ac.ScenarioDir, "bas", "registry.json"), `{"note":"AUTO-GENERATED","scenario":"demo"}`)
+	if (isoFileRoutedSeams{}).Applies(ac) {
+		t.Fatal("a generated registry with no workflows must not require mutating file seams")
+	}
+}
+
 func TestFileRoutedSeamsDetectsUndeclaredDirectFilePersistence(t *testing.T) {
 	ac := isoCtx(t, `package main
 import "os"

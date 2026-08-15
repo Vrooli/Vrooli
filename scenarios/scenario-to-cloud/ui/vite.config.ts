@@ -1,22 +1,39 @@
-import { defineConfig } from "vite";
+import { defineConfig, type UserConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
-export default defineConfig({
-  base: './',  // Required for tunnel/proxy contexts
-  plugins: [react()],
-  test: {
-    globals: true,
-    environment: 'jsdom',
-    coverage: {
-      provider: 'v8',
-      reporter: ['json-summary', 'json', 'text'],
-      reportOnFailure: true,
-      thresholds: {
-        lines: 0,
-        functions: 0,
-        branches: 0,
-        statements: 0
-      }
-    }
-  }
+// INTEROP-CRITICAL: base and profile aliases must remain safe in embedded,
+// tunneled, and desktop-hosted surfaces.
+export default defineConfig(({ mode }): UserConfig => {
+  const isProfile = mode === "profile";
+  return {
+    base: "./",
+    plugins: [react()],
+    resolve: isProfile
+      ? { alias: { "react-dom/client": "react-dom/profiling", "react-dom$": "react-dom/profiling" } }
+      : undefined,
+    esbuild: isProfile ? { keepNames: true } : undefined,
+    test: {
+      globals: true,
+      environment: "jsdom",
+      setupFiles: ["./src/test-setup.ts"],
+      coverage: {
+        provider: "v8",
+        reporter: ["text", "json-summary", "json"],
+        reportOnFailure: true,
+        include: ["src/**/*.{ts,tsx}"],
+        exclude: [
+          "src/**/*.test.{ts,tsx}",
+          "src/**/*.spec.{ts,tsx}",
+          "src/**/*.d.ts",
+          "src/main.tsx",
+          "src/test-setup.ts",
+          "src/test-utils/**",
+          "src/consts/strings.generated.ts",
+          "src/i18n/locales/**",
+          "src/**/generated/**",
+        ],
+        thresholds: { lines: 85, functions: 85, branches: 85, statements: 85 },
+      },
+    },
+  };
 });

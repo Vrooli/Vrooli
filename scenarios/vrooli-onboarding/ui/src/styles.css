@@ -2,13 +2,13 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  color-scheme: dark;
-}
+:root { color-scheme: light dark; }
 
 body {
 	font-family: var(--font-sans);
   margin: 0;
+  background: var(--color-surface);
+  color: var(--color-foreground);
 }
 
 /* Wizard step entrance animation */
@@ -52,11 +52,11 @@ body {
   width: 2.5ch;
   margin-right: 1em;
   text-align: right;
-  color: rgb(148 163 184 / 0.4);
+  color: var(--color-muted);
   user-select: none;
 }
 html {
-  background: var(--color-background);
+  background: var(--color-surface);
   height: 100%;
 }
 

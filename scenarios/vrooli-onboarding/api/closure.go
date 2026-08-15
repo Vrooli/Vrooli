@@ -107,6 +107,10 @@ func sortedDependencyNames(required, optional map[string]dependencySpec) []strin
 }
 
 func resolveClosure(root string, models []ScenarioReadModel) (closureResult, error) {
+	return resolveClosureForState(root, models, OperatorState{})
+}
+
+func resolveClosureForState(root string, models []ScenarioReadModel, state OperatorState) (closureResult, error) {
 	scenarios := map[string]*closureMember{}
 	resources := map[string]*closureMember{}
 	visiting := map[string]bool{}
@@ -146,6 +150,11 @@ func resolveClosure(root string, models []ScenarioReadModel) (closureResult, err
 			if !dependencyEnabled(spec) {
 				continue
 			}
+			if !spec.Required {
+				if choice, ok := state.Resources[depName]; ok && choice.Enabled != nil && !*choice.Enabled {
+					continue
+				}
+			}
 			appendClosureMember(resources, depName, closureProvenance{Kind: dependencyKind(spec), From: name}, spec.Required, false)
 		}
 		for _, depName := range sortedDependencyNames(manifest.Dependencies.Scenarios, manifest.OptionalDependencies.Scenarios) {
@@ -173,6 +182,24 @@ func resolveClosure(root string, models []ScenarioReadModel) (closureResult, err
 		if err := visit(model.Name, closureProvenance{Kind: "selected"}, true); err != nil {
 			return closureResult{}, err
 		}
+	}
+	// Standalone resources are operator choices rather than scenario closure
+	// members. Include only explicit enablement, preserving required resources
+	// already discovered above.
+	for name, choice := range state.Resources {
+		if choice.Enabled == nil || !*choice.Enabled {
+			continue
+		}
+		if _, exists := resources[name]; exists {
+			continue
+		}
+		if _, err := os.Stat(filepath.Join(root, "resources", name, "resource.json")); err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+			return closureResult{}, err
+		}
+		appendClosureMember(resources, name, closureProvenance{Kind: "operator_enabled", From: "operator-state"}, false, true)
 	}
 
 	result := closureResult{

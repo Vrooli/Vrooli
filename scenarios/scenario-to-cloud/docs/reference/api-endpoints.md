@@ -107,7 +107,7 @@ Validate that a VPS host is reachable via SSH.
 
 ## Manifest
 
-> [CODE: api/manifest/]
+> [CODE: api/manifest/validator.go]
 
 ### POST /manifest/validate
 
@@ -571,7 +571,7 @@ Free disk space on the VPS by running cleanup actions.
 
 ## Secrets
 
-> [CODE: api/secrets/]
+> [CODE: api/secrets/handlers.go]
 
 ### GET /secrets/{scenario}
 
@@ -654,7 +654,8 @@ Execute VPS inspection (check processes, logs, health).
 
 ## Deployments
 
-> [CODE: api/handlers_deployment.go, api/deployment/orchestrator.go]
+> [CODE: api/handlers_deployment.go]
+> [CODE: api/deployment/orchestrator.go]
 
 ### GET /deployments
 
@@ -845,7 +846,8 @@ Start a previously stopped deployment.
 
 ## Live State Inspection
 
-> [CODE: api/handlers_live_state.go, api/vps/live_state.go]
+> [CODE: api/handlers_live_state.go]
+> [CODE: api/vps/live_state.go]
 
 ### GET /deployments/{id}/live-state
 
@@ -1388,7 +1390,10 @@ Force TLS certificate renewal on the VPS.
 
 ## SSH Key Management
 
-> [CODE: api/ssh/handlers.go, api/ssh/keys.go, api/ssh/keys_generate.go, api/ssh/keys_copy.go]
+> [CODE: api/ssh/handlers.go]
+> [CODE: api/ssh/keys.go]
+> [CODE: api/ssh/keys_generate.go]
+> [CODE: api/ssh/keys_copy.go]
 
 ### GET /ssh/keys
 
@@ -1528,7 +1533,7 @@ Copy an SSH public key to a remote server's `authorized_keys` (uses password aut
   "port": 22,
   "user": "root",
   "key_path": "/home/user/.ssh/id_ed25519",
-  "password": "server-password"
+  "password": "<provided through the secure password input channel>"
 }
 ```
 
@@ -1549,7 +1554,7 @@ Copy an SSH public key to a remote server's `authorized_keys` (uses password aut
 
 ## Investigation (Legacy)
 
-> [CODE: api/investigation/] — Legacy endpoints, kept for backward compatibility. Prefer the unified [Tasks](#tasks) endpoints.
+> [CODE: api/investigation/service.go] — Legacy endpoints, kept for backward compatibility. Prefer the unified [Tasks](#tasks) endpoints.
 
 ### POST /deployments/{id}/investigate
 
@@ -1634,7 +1639,8 @@ Check if the agent-manager integration is available.
 
 ## Tasks (Unified)
 
-> [CODE: api/handlers_tasks.go, api/tasks/]
+> [CODE: api/handlers_tasks.go]
+> [CODE: api/tasks/service.go]
 
 Unified task endpoints that replace the legacy investigation API.
 

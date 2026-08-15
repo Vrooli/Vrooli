@@ -45,6 +45,7 @@ export interface V2ScenarioResponse {
   scenarios: V2Scenario[];
   count: number;
 }
+export interface V2Recommendation { profile: string; scenarios: string[]; resources: string[]; explanation: string; }
 
 export interface ClosureMember {
   name: string;
@@ -84,11 +85,18 @@ export interface V2ApplyResponse {
   status: string;
   items: Array<{ id: string; kind: string; name: string; outcome: string; error?: string; remediation?: string }>;
 }
+export interface V2ApplyPlanResponse {
+  items: Array<{ id: string; kind: string; name: string; dependencies?: string[]; required: boolean }>;
+}
+export interface V2SessionResponse { step: number; first_unsatisfied_step: number; completion: boolean; }
+export interface OperatorInputRequest { id: string; kind: "secret" | "choice" | "confirm"; title: string; description?: string; default?: string; options?: string[]; unblocks?: string[]; validation?: string; required: boolean; }
+export interface OperatorInputQueue { version: number; updated_at: string; requests: OperatorInputRequest[]; }
+export interface CredentialStoreStatus { initialized: boolean; active: boolean; entries: number; unlocked?: boolean; active_wrap?: string; active_key_store?: string; host_bound_blocked?: string; }
 export interface CredentialDiagnosis {
   provider?: { backend?: string; condition?: string; explanation?: string; fix?: string; write_condition?: string; write_fix?: string; native_storage_caveat?: string };
 }
 export interface ReadinessItem { name: string; status: "ready" | "degraded" | "missing" | "unsupported" | "deferred"; detail?: string; remediation?: string; kind?: "tool" | "safeguard"; required?: boolean; }
-export interface HostRequirement { name: string; required: boolean; reason: string; notes?: string; description?: string; risk?: "low" | "medium" | "high"; privilege?: "none" | "user" | "elevated"; bundling?: "vendorable" | "host-required" | "prohibited"; platforms?: string[]; commands?: string[]; status: "required" | "optional" | "opted_in"; }
+export interface HostRequirement { name: string; required: boolean; reason: string; notes?: string; description?: string; risk?: "low" | "medium" | "high"; privilege?: "none" | "user" | "elevated"; bundling?: "vendorable" | "host-required" | "prohibited"; platforms?: string[]; commands?: string[]; config_schema?: Record<string, any>; config?: Record<string, unknown>; status: "required" | "optional" | "opted_in"; }
 export interface V2HostRequirementsResponse { tools: HostRequirement[]; safeguards: HostRequirement[]; }
 
 export interface OperatorState {
@@ -97,7 +105,7 @@ export interface OperatorState {
   scenarios?: Record<string, { enabled?: boolean; auto_restart?: boolean }>;
   resources?: Record<string, { enabled?: boolean }>;
   host_tools?: Record<string, { opted_in?: boolean }>;
-  host_safeguards?: Record<string, { opted_in?: boolean }>;
+  host_safeguards?: Record<string, { opted_in?: boolean; config?: Record<string, unknown> }>;
 }
 
 export type OperatorStatePatch = Partial<Pick<OperatorState, "scenarios" | "resources" | "host_tools" | "host_safeguards">> & {
@@ -106,7 +114,7 @@ export type OperatorStatePatch = Partial<Pick<OperatorState, "scenarios" | "reso
 };
 
 /** Labels for each wizard step, in order. */
-export const STEP_LABELS = ["Welcome", "Scenarios", "Resources", "Credentials", "Integrations", "Host", "Operating Mode", "Validation"] as const;
+export const STEP_LABELS = ["Welcome", "Scenarios", "Resources", "Credentials", "Integrations", "Host", "Operating Mode", "Apply", "Validation"] as const;
 
 /** Stable deep links for every wizard step. They are also the browser history contract. */
 export const STEP_PATHS = [
@@ -117,6 +125,7 @@ export const STEP_PATHS = [
   "/setup/integrations",
   "/setup/host",
   "/setup/operating-mode",
+  "/setup/apply",
   "/setup/validation",
 ] as const;
 

@@ -45,7 +45,42 @@
  * initialised. The pattern above is hoisting-safe and preserves every
  * non-overridden export of `./api/health` via `importOriginal()`.
  */
-export { renderWithProviders } from "@vrooli/api-base/testing";
+import {
+  renderWithProviders as renderWithSharedProviders,
+  type ProviderRenderOptions,
+  type ProviderRenderResult,
+} from "@vrooli/api-base/testing";
+import type { ReactElement, ReactNode } from "react";
+import { createElement } from "react";
+import { i18n } from "../i18n";
+import { SessionProvider } from "../features/session/SessionProvider";
+import { ThemeProvider } from "../theme/ThemeProvider";
+
+/**
+ * Bridge's canonical test renderer. The shared renderer owns the generic
+ * QueryClient/router plumbing; bridge adds the providers that are part of its
+ * application contract and binds tests to the same i18n singleton as App.
+ */
+export function renderWithProviders(
+  ui: ReactElement,
+  options: ProviderRenderOptions = {},
+): ProviderRenderResult {
+  const scenarioProviders = options.extraProviders;
+  return renderWithSharedProviders(ui, {
+    ...options,
+    i18n,
+    extraProviders: (children: ReactNode) =>
+      createElement(
+        SessionProvider,
+        null,
+        createElement(
+          ThemeProvider,
+          null,
+          scenarioProviders ? scenarioProviders(children) : children,
+        ),
+      ),
+  });
+}
 export type { ProviderRenderOptions, ProviderRenderResult } from "@vrooli/api-base/testing";
 export { seedSession } from "./session";
 export { interp } from "./interp";

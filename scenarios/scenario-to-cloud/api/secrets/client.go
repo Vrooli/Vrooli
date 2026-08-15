@@ -13,6 +13,7 @@ import (
 	"unicode"
 
 	"scenario-to-cloud/domain"
+	"scenario-to-cloud/internal/httputil"
 
 	"github.com/vrooli/api-core/discovery"
 )
@@ -89,7 +90,7 @@ func NewClient() *Client {
 func (c *Client) resolveBaseURL(ctx context.Context) (string, error) {
 	// Check for explicit environment override
 	if envURL := strings.TrimSpace(os.Getenv("SECRETS_MANAGER_URL")); envURL != "" {
-		return strings.TrimSuffix(envURL, "/"), nil
+		return httputil.ValidateServiceBaseURL(envURL)
 	}
 
 	// Use service discovery
@@ -98,7 +99,7 @@ func (c *Client) resolveBaseURL(ctx context.Context) (string, error) {
 		return "", fmt.Errorf("resolve secrets-manager URL: %w", err)
 	}
 
-	return strings.TrimSuffix(baseURL, "/"), nil
+	return httputil.ValidateServiceBaseURL(baseURL)
 }
 
 // HealthCheck verifies that secrets-manager is reachable and healthy.
@@ -156,13 +157,13 @@ func (c *Client) FetchBundleSecrets(ctx context.Context, scenario, tier string, 
 	q.Set("include_optional", "false")
 	u.RawQuery = q.Encode()
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil) // #nosec G704 -- URL is built from the validated secrets-manager service base and path-escaped scenario input.
 	if err != nil {
 		return nil, fmt.Errorf("create secrets request: %w", err)
 	}
 	req.Header.Set("Accept", "application/json")
 
-	resp, err := c.httpClient.Do(req)
+	resp, err := c.httpClient.Do(req) // #nosec G704 -- request target is the validated secrets-manager service.
 	if err != nil {
 		return nil, fmt.Errorf("secrets-manager request failed: %w", err)
 	}

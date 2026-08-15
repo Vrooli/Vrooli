@@ -42,6 +42,11 @@ type ManifestCommand struct {
 type ManifestArchitecture struct {
 	Primitive string                      `json:"primitive,omitempty"`
 	Exception *ManifestArchitectureExcept `json:"exception,omitempty"`
+	// PrimaryField names the repeated response field that should become the
+	// program-runtime Handle rows when a response declares multiple lists.
+	// It is intentionally an architecture concern: the command contract, not
+	// JSON field order, owns the meaning of a list-shaped result.
+	PrimaryField string `json:"primary_field,omitempty"`
 }
 
 // ManifestArchitectureExcept is a special-case exception declared on an

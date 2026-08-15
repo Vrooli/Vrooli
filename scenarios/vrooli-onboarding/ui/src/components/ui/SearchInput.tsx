@@ -35,7 +35,7 @@ export const SearchInput = forwardRef<SearchInputHandle, SearchInputProps>(
 
     return (
       <div className="relative">
-        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-300" aria-hidden="true" />
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" aria-hidden="true" />
         <input
           ref={inputRef}
           data-testid={testId}
@@ -44,11 +44,11 @@ export const SearchInput = forwardRef<SearchInputHandle, SearchInputProps>(
           value={value}
           onChange={(e) => onChange(e.target.value)}
           aria-label={ariaLabel}
-          className="w-full rounded-lg border border-white/10 bg-white/5 py-2.5 pl-10 pr-10 text-sm text-slate-200 placeholder-slate-300 transition-colors focus:border-emerald-500/50 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+          className="w-full rounded-lg border border-muted bg-surface-muted py-2.5 pl-10 pr-10 text-sm text-foreground placeholder-slate-300 transition-colors focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-focus/20"
         />
         {busy && (
           <div className="absolute right-3 top-1/2 -translate-y-1/2" data-testid={busyTestId}>
-            <Loader2 className="h-4 w-4 animate-spin text-slate-300" aria-hidden="true" />
+            <Loader2 className="h-4 w-4 animate-spin text-muted" aria-hidden="true" />
             <span className="sr-only">Searching...</span>
           </div>
         )}
@@ -56,7 +56,7 @@ export const SearchInput = forwardRef<SearchInputHandle, SearchInputProps>(
           <button
             type="button"
             onClick={clear}
-            className="absolute right-3 top-1/2 -translate-y-1/2 rounded p-0.5 text-slate-300 hover:text-slate-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500"
+            className="absolute right-3 top-1/2 -translate-y-1/2 rounded p-0.5 text-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-focus"
             aria-label="Clear search"
             data-testid={clearTestId}
           >

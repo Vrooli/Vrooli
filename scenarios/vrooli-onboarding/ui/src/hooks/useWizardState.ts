@@ -1,13 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { fetchOperatorState, saveOperatorState } from "../lib/api";
+import { fetchOperatorState, fetchV2Recommendation, fetchV2Session, saveOperatorState, saveV2SessionStep } from "../lib/api";
 import type { OperatorState, OperatorStatePatch } from "../types";
 import { STEP_PATHS, TOTAL_STEPS } from "../types";
 
 function stepForPath(pathname: string) {
-  // Apply is a durable deep-link alias for the validation step. Keeping it as
-  // an alias lets evidence and deployment surfaces name the commitment phase
-  // without creating a second source of wizard state.
-  if (pathname === "/setup/apply") return TOTAL_STEPS - 1;
   const index = STEP_PATHS.indexOf(pathname as (typeof STEP_PATHS)[number]);
   return index >= 0 ? index : 0;
 }
@@ -21,10 +17,20 @@ export function useWizardState() {
 
   // V2 re-entry loads durable operator choices, not database-backed progress.
   useEffect(() => {
-    fetchOperatorState()
-      .then((state) => {
+    Promise.all([fetchOperatorState(), fetchV2Recommendation()])
+      .then(([state, recommendation]) => {
         setOperatorState(state);
-        setSelectedScenarios(new Set(Object.entries(state.scenarios ?? {}).filter(([, choice]) => choice.enabled).map(([name]) => name)));
+        const selected = new Set(Object.entries(state.scenarios ?? {}).filter(([, choice]) => choice.enabled).map(([name]) => name));
+        const recommendedScenarios = recommendation?.scenarios ?? [];
+        if (selected.size === 0 && recommendedScenarios.length > 0) {
+          recommendedScenarios.forEach((name) => selected.add(name));
+          const patch = {
+            active_profile: recommendation?.profile ?? "starter",
+            scenarios: Object.fromEntries(recommendedScenarios.map((name) => [name, { enabled: true }])) as Record<string, { enabled: boolean }>,
+          };
+          saveOperatorState(patch).then(setOperatorState).catch(() => undefined);
+        }
+        setSelectedScenarios(selected);
       })
       .catch(() => {
         // An unconfigured installation has no operator-state document yet.
@@ -44,7 +50,18 @@ export function useWizardState() {
       window.history[replace ? "replaceState" : "pushState"]({}, "", path);
     }
     setCurrentStep(step);
+    void saveV2SessionStep(step).catch(() => undefined);
   }, []);
+
+  useEffect(() => {
+    if (window.location.pathname === "/" || window.location.pathname === "/setup") {
+      fetchV2Session().then((session) => {
+        if (Number.isInteger(session.first_unsatisfied_step) && session.first_unsatisfied_step >= 0) {
+          moveToStep(session.first_unsatisfied_step, true);
+        }
+      }).catch(() => undefined);
+    }
+  }, [moveToStep]);
 
   const persistOperatorState = useCallback((patch: OperatorStatePatch) => {
     setOperatorState((previous) => {
@@ -80,6 +97,10 @@ export function useWizardState() {
     persistOperatorState({ [kind]: { [name]: { opted_in: optedIn } } });
   }, [operatorState, persistOperatorState]);
 
+  const setHostConfig = useCallback((kind: "host_tools" | "host_safeguards", name: string, config: Record<string, unknown>) => {
+    persistOperatorState({ [kind]: { [name]: { config } } });
+  }, [persistOperatorState]);
+
   const setResourceEnabled = useCallback((name: string, enabled: boolean) => {
     persistOperatorState({ resources: { [name]: { enabled } } });
   }, [persistOperatorState]);
@@ -101,7 +122,7 @@ export function useWizardState() {
   const startOver = useCallback(() => {
     moveToStep(0, true);
     setSelectedScenarios(new Set());
-  }, []);
+  }, [moveToStep]);
 
   // Move focus to step content when step changes (accessibility)
   useEffect(() => {
@@ -128,6 +149,7 @@ export function useWizardState() {
     toggleScenario,
     setScenarioAutoRestart,
     setHostOptIn,
+    setHostConfig,
     setResourceEnabled,
     goNext,
     goPrev,

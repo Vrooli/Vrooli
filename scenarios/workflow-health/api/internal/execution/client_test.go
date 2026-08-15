@@ -137,14 +137,14 @@ func TestExecuteAdhocStartsAsyncThenReturnsTerminalExecutionDetails(t *testing.T
 	}
 }
 
-func TestExecuteAdhocCarriesElectronTargetAndValidationContext(t *testing.T) {
+func TestExecuteAdhocCarriesAppTargetAndValidationContext(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.Handle(apiconnect.WorkflowsServiceExecuteAdhocWorkflowProcedure, connect.NewUnaryHandler(
 		apiconnect.WorkflowsServiceExecuteAdhocWorkflowProcedure,
 		func(_ context.Context, req *connect.Request[basexecution.ExecuteAdhocRequest]) (*connect.Response[basexecution.ExecuteAdhocResponse], error) {
-			target := req.Msg.GetOptions().GetElectronTarget()
-			if target.GetTargetId() != "target-1" || target.GetRendererId() != "renderer-1" || target.GetCdpTransport() != "loopback-authenticated" {
-				t.Fatalf("electron target = %+v", target)
+			target := req.Msg.GetOptions().GetAppTarget()
+			if target.GetTargetKind() != "electron" || target.GetTargetId() != "target-1" || target.GetRendererId() != "renderer-1" || target.GetCdpTransport() != "loopback-authenticated" {
+				t.Fatalf("app target = %+v", target)
 			}
 			validation := req.Msg.GetOptions().GetValidationContext()
 			if validation.GetIsolationLeaseId() != "lease-1" || validation.GetWorkflowId() != "workflow-1" {

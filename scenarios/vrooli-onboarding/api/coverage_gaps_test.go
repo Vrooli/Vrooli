@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -124,7 +125,7 @@ func TestControlPlaneExecutorUsesDeclaredCommands(t *testing.T) {
 	if err := (controlPlaneExecutor{}).InstallTool(context.Background(), "git"); err != nil {
 		t.Fatal(err)
 	}
-	if strings.Join(got, " ") != "vrooli host install git --json" {
+	if strings.Join(got, " ") != "vrooli host install git --json --sudo-mode error" {
 		t.Fatalf("command = %q", got)
 	}
 	for _, action := range []func(context.Context) error{
@@ -141,6 +142,50 @@ func TestControlPlaneExecutorUsesDeclaredCommands(t *testing.T) {
 	}
 	if err := (controlPlaneExecutor{}).InstallTool(context.Background(), "git"); err == nil {
 		t.Fatal("control-plane failure should be returned")
+	}
+}
+
+func TestPrivilegedApplyUsesProvisionedGrantAndAuditsInvocation(t *testing.T) {
+	var got []string
+	previousCommand := controlPlaneCommand
+	previousExecutable := controlPlaneExecutable
+	previousStatePath := operatorStatePath
+	root := t.TempDir()
+	controlPlaneExecutable = func(string) (string, error) { return "/usr/local/bin/vrooli", nil }
+	controlPlaneCommand = func(ctx context.Context, name string, args ...string) *exec.Cmd {
+		got = append([]string{name}, args...)
+		return exec.CommandContext(ctx, "true")
+	}
+	operatorStatePath = func() (string, error) { return filepath.Join(root, "operator-state.json"), nil }
+	t.Cleanup(func() {
+		controlPlaneCommand = previousCommand
+		controlPlaneExecutable = previousExecutable
+		operatorStatePath = previousStatePath
+	})
+	if err := (controlPlaneExecutor{}).InstallToolPrivileged(context.Background(), "qemu"); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Join(got, " ") != "sudo -n /usr/local/bin/vrooli host install qemu --json --sudo-mode error" {
+		t.Fatalf("granted command = %q", got)
+	}
+	audit, err := os.ReadFile(filepath.Join(root, "audit", "onboarding-privileged.jsonl"))
+	if err != nil || !strings.Contains(string(audit), `"outcome":"applied"`) || !strings.Contains(string(audit), `"qemu"`) {
+		t.Fatalf("audit = %s, err=%v", audit, err)
+	}
+}
+
+func TestPrivilegedApplyReturnsTypedNeedsElevationWhenGrantIsMissing(t *testing.T) {
+	previousCommand := controlPlaneCommand
+	previousExecutable := controlPlaneExecutable
+	controlPlaneExecutable = func(string) (string, error) { return "/usr/local/bin/vrooli", nil }
+	controlPlaneCommand = func(ctx context.Context, name string, args ...string) *exec.Cmd {
+		return exec.CommandContext(ctx, "sh", "-c", "echo 'sudo: a password is required' >&2; exit 1")
+	}
+	t.Cleanup(func() { controlPlaneCommand = previousCommand; controlPlaneExecutable = previousExecutable })
+	err := (controlPlaneExecutor{}).ApplySafeguardPrivileged(context.Background(), "clock")
+	var typed *needsElevationError
+	if !errors.As(err, &typed) || !strings.Contains(typed.Error(), "sudo vrooli setup") {
+		t.Fatalf("error = %v, want typed needs-elevation result", err)
 	}
 }
 

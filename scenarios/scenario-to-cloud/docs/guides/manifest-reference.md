@@ -1,7 +1,7 @@
 # Manifest Reference
 
 > [CODE: api/domain/manifest.go] — CloudManifest type definition
-> [CODE: api/manifest/] — Validation and normalization logic
+> [CODE: api/manifest/validator.go] — Validation and normalization logic
 
 Complete reference for the deployment manifest configuration.
 

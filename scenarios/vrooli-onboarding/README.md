@@ -35,25 +35,26 @@ Manifests declare **what exists**. Operator state records **what this install ch
 
 All five produce identical operator state for identical choices. That is a tested claim (`ONB-PARITY-IDENTICAL-STATE`), not a convention — it holds because all of them write through one service.
 
-## The eight steps
+## The nine steps
 
 | # | Step | Operator decides | Derived from |
 |---|---|---|---|
-| 1 | Scenarios | Which capabilities this install runs | Scenario manifests; system-required entries are locked on |
-| 2 | Resources | Which optional resources to add | Transitive closure of the scenario selection |
-| 3 | Credentials | Which declared credentials to provision | Credential descriptors on selected manifests |
-| 4 | Integrations | *(deferred)* | Owned by integration-hub; no placeholder bindings |
-| 5 | Host | Which tools and safeguards to consent to | `hostTools` / `hostSafeguards` on selected manifests |
-| 6 | Operating mode | Which scenarios stay running | `runtime.kind` and `runtime.auto_restart_default` |
-| 7 | Apply | Confirmation to change the host | The committed selection |
-| 8 | Validation | Whether to continue degraded | Live probes over credentials, tools, safeguards, resources |
+| 1 | Welcome | Whether to begin setup | The onboarding step model |
+| 2 | Scenarios | Which capabilities this install runs | Scenario manifests; system-required entries are locked on |
+| 3 | Resources | Which optional resources to add | Transitive closure of the scenario selection |
+| 4 | Credentials | Which declared credentials to provision | Credential descriptors on selected manifests |
+| 5 | Integrations | *(deferred)* | Owned by integration-hub; no placeholder bindings |
+| 6 | Host | Which tools and safeguards to consent to | `hostTools` / `hostSafeguards` on selected manifests |
+| 7 | Operating mode | Which scenarios stay running | `runtime.kind` and `runtime.auto_restart_default` |
+| 8 | Apply | Confirmation to change the host | The committed selection |
+| 9 | Validation | Whether to continue degraded | Live probes over credentials, tools, safeguards, resources |
 
-Steps 1–6 record intent. Step 7 is where intent becomes host state. Step 8 is where the install is proven. Re-entry resumes at the first unsatisfied step.
+Steps 1–7 record intent. Step 8 is where intent becomes host state. Step 9 is where the install is proven. Re-entry resumes at the first unsatisfied step.
 
 ## Architecture
 
 - **Go API** (`api/`) — manifest read models, the readiness composer, the apply engine, and a thin relay to the credential authority. It holds no inventory of scenarios, resources, tools, or safeguards in code.
-- **React + TypeScript UI** (`ui/`) — the eight-step wizard plus a health dashboard and glossary. Renders through the shared component library and design tokens, in light and dark themes.
+- **React + TypeScript UI** (`ui/`) — the nine-step wizard plus a health dashboard and glossary. Renders through shared primitives and semantic design tokens in light and dark themes.
 - **Go CLI** (`cli/`) — interactive and non-interactive wizard, credentials, host requirements, readiness with a machine-readable exit code.
 - **Control-plane state service** (`internal/operatorstate/`) — the single writer for `.vrooli/operator-state.json` and the single evaluator for the configuration resolution order. Onboarding is a client of it, not the owner.
 

@@ -13,13 +13,21 @@ the contract, not the flag list.
 ## The wizard
 
 ```bash
-vrooli-onboarding wizard run --interactive     # same eight-step flow used by the UI
+vrooli-onboarding wizard run --interactive     # same nine-step flow used by the UI
+vrooli-onboarding wizard run --accept-recommendation --non-interactive # apply the explicit starter profile
 vrooli-onboarding wizard status                # step pointer + which steps are satisfied
 vrooli-onboarding wizard apply --selection "<file>"   # non-interactive, no prompts
 vrooli-onboarding wizard export --output "<file>"     # current selection as a selection document
 ```
 
-The interactive wizard walks the same eight steps in the same order, with the
+`wizard run` without a mode is a read-only catalog response for compatibility
+with scripts that only need to inspect scenarios. `--non-interactive` never
+guesses: it returns `needs_input` unless `--accept-recommendation` explicitly
+authorizes the manifest-derived starter profile. If bootstrap has queued a
+typed operator input, resolve it through the onboarding UI/API first; the
+declarative CLI does not accept passphrases or other secrets as flags.
+
+The interactive wizard walks the same nine steps in the same order, with the
 same derived consequences and the same locked system set. The presentation
 differs; the decisions do not.
 
@@ -58,10 +66,18 @@ consume to decide what to ship.
 vrooli-onboarding credentials list               # descriptors + configured status, never values
 printf '%s' "$VALUE" | vrooli-onboarding credentials provision --logical-id <id> --field <field>
 vrooli-onboarding credentials doctor             # backend condition and its fix
+vrooli-onboarding store status                   # metadata-only encrypted-store status
+printf '%s' "$PASSPHRASE" | vrooli-onboarding store init
+printf '%s' "$PASSPHRASE" | vrooli-onboarding store unlock
+printf '%s\n%s\n' "$CURRENT" "$NEW" | vrooli-onboarding store change-passphrase
+printf '%s' "$PASSPHRASE" | vrooli-onboarding store rewrap
 ```
 
 A value is read from standard input only. A value-bearing flag is **rejected**,
 not warned about — argv is visible in the process table and in shell history.
+The store commands follow the same rule for passphrases. Backend selection is
+metadata-only: `vrooli-onboarding store select --backend native` (or
+`encrypted-file`) never accepts a secret.
 
 `secrets-manager` owns credential lifecycle beyond provisioning: listing
 declarations, keyring inspect and repair, and recovery-bundle export and

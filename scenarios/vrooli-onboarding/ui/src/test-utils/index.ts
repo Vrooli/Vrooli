@@ -1,2 +1,2 @@
-export { renderWithProviders } from "./renderWithProviders";
-export type { ProviderRenderOptions } from "./renderWithProviders";
+export { renderWithProviders } from "@vrooli/api-base/testing";
+export type { ProviderRenderOptions } from "@vrooli/api-base/testing";

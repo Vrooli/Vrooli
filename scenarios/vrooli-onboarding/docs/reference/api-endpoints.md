@@ -28,6 +28,7 @@ every request. None is cached, and none has independent storage.
 | GET | `/api/v2/readiness` | Composed readiness over credentials, host tools, host safeguards, and resource reachability, with a remediation on every non-ready item |
 | GET | `/api/v2/surface` | Every operator-controllable decision the current catalog declares, with its type, schema, risk, privilege, and default. Drives generic form rendering and configuration discovery |
 | GET | `/api/v2/union` | The union of scenarios, resources, tools, and safeguards a target must carry to run the current selection |
+| POST | `/api/v2/handoff` | Resolve the effective capability-shaped selection for vrooli-bridge from node identity; returns no operator-state internals or credential values |
 
 `/api/v2/union` is what bundle packaging, VPS provisioning, and vrooli-bridge
 read to decide what to ship. It is the same computation the wizard's rollup

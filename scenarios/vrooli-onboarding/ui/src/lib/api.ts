@@ -1,5 +1,5 @@
 import { resolveApiBase, buildApiUrl } from "@vrooli/api-base";
-import type { Resource, ResourceHealthResponse, GlossaryResponse, OperatorState, OperatorStatePatch, V2ScenarioResponse, V2ReadinessResponse, V2HostRequirementsResponse, V2ClosureResponse, V2ResourceResponse, V2ApplyResponse } from "../types";
+import type { Resource, ResourceHealthResponse, GlossaryResponse, OperatorState, OperatorStatePatch, V2ScenarioResponse, V2Recommendation, V2ReadinessResponse, V2HostRequirementsResponse, V2ClosureResponse, V2ResourceResponse, V2ApplyResponse, V2ApplyPlanResponse, V2SessionResponse, OperatorInputQueue, CredentialStoreStatus } from "../types";
 
 // Simple! Just specify if you want the /api/v1 suffix
 const API_BASE = resolveApiBase({ appendSuffix: true });
@@ -29,6 +29,11 @@ export function fetchV2Scenarios() {
   return typedFetch<V2ScenarioResponse>(url, { cache: "no-store" });
 }
 
+export function fetchV2Recommendation() {
+  const url = buildApiUrl("/v2/recommendation", { baseUrl: API_BASE.replace(/\/v1$/, "") });
+  return typedFetch<V2Recommendation>(url, { cache: "no-store" });
+}
+
 export function fetchV2Readiness() {
   const url = buildApiUrl("/v2/readiness", { baseUrl: API_BASE.replace(/\/v1$/, "") });
   return typedFetch<V2ReadinessResponse>(url, { cache: "no-store" });
@@ -53,9 +58,68 @@ export function provisionCredential(input: { logical_id: string; field: string; 
   return typedFetch<{ status: "provisioned"; logical_id: string; field: string }>(url, { method: "POST", body: JSON.stringify(input) });
 }
 
-export function applyOnboarding() {
+export function applyOnboarding(signal?: AbortSignal) {
   const url = buildApiUrl("/v2/apply", { baseUrl: API_BASE.replace(/\/v1$/, "") });
-  return typedFetch<V2ApplyResponse>(url, { method: "POST", body: "{}" });
+  return typedFetch<V2ApplyResponse>(url, { method: "POST", body: "{}", signal });
+}
+
+export function fetchV2ApplyPlan() {
+  const url = buildApiUrl("/v2/apply/plan", { baseUrl: API_BASE.replace(/\/v1$/, "") });
+  return typedFetch<V2ApplyPlanResponse>(url, { cache: "no-store" });
+}
+
+export function fetchV2ApplyStatus(runID: string, signal?: AbortSignal) {
+  const url = buildApiUrl(`/v2/apply/${encodeURIComponent(runID)}`, { baseUrl: API_BASE.replace(/\/v1$/, "") });
+  return typedFetch<V2ApplyResponse>(url, { cache: "no-store", signal });
+}
+
+export function fetchV2Session() {
+  const url = buildApiUrl("/v2/session", { baseUrl: API_BASE.replace(/\/v1$/, "") });
+  return typedFetch<V2SessionResponse>(url, { cache: "no-store" });
+}
+
+export function fetchOperatorInputs() {
+  const url = buildApiUrl("/v2/operator-inputs", { baseUrl: API_BASE.replace(/\/v1$/, "") });
+  return typedFetch<OperatorInputQueue>(url, { cache: "no-store" });
+}
+
+export function fetchCredentialStoreStatus() {
+  const url = buildApiUrl("/v2/credentials/store/status", { baseUrl: API_BASE.replace(/\/v1$/, "") });
+  return typedFetch<CredentialStoreStatus>(url, { cache: "no-store" });
+}
+
+function credentialStoreMutation<T>(path: string, body: unknown) {
+  const url = buildApiUrl(path, { baseUrl: API_BASE.replace(/\/v1$/, "") });
+  return typedFetch<T>(url, { method: "POST", body: JSON.stringify(body) });
+}
+
+export function selectCredentialBackend(backend: "native" | "encrypted-file") {
+  return credentialStoreMutation<{ status: string; backend: string }>("/v2/credentials/store/select", { backend, reason: "selected through onboarding" });
+}
+export function reselectCredentialBackend() {
+  return credentialStoreMutation<{ from: string; to: string; attempted: string[]; verified: string[]; failed?: string[]; committed: boolean }>("/v2/credentials/store/reselect", {});
+}
+export function initializeCredentialStore(passphrase: string) {
+  return credentialStoreMutation<CredentialStoreStatus>("/v2/credentials/store/init", { passphrase });
+}
+export function unlockCredentialStore(passphrase: string) {
+  return credentialStoreMutation<{ status: string; active_wrap: string }>("/v2/credentials/store/unlock", { passphrase });
+}
+export function changeCredentialStorePassphrase(current_passphrase: string, new_passphrase: string) {
+  return credentialStoreMutation<{ status: string }>("/v2/credentials/store/change-passphrase", { current_passphrase, new_passphrase });
+}
+export function rewrapCredentialStore(passphrase: string) {
+  return credentialStoreMutation<{ status: string; provider: string; key_store: string }>("/v2/credentials/store/rewrap", { passphrase });
+}
+
+export function resolveOperatorInputs(answers: Array<{ request_id: string; value: string }>) {
+  const url = buildApiUrl("/v2/operator-inputs/resolve", { baseUrl: API_BASE.replace(/\/v1$/, "") });
+  return typedFetch<{ status: string; configuration_pending: boolean }>(url, { method: "POST", body: JSON.stringify(answers) });
+}
+
+export function saveV2SessionStep(step: number) {
+  const url = buildApiUrl("/v2/session/step", { baseUrl: API_BASE.replace(/\/v1$/, "") });
+  return typedFetch<V2SessionResponse>(url, { method: "POST", body: JSON.stringify({ step }) });
 }
 
 export function fetchOperatorState() {

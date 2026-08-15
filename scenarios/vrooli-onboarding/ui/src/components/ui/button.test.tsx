@@ -34,7 +34,7 @@ describe("Button", () => {
   it("applies default variant classes", () => {
     render(<Button>Default</Button>);
     const btn = screen.getByRole("button");
-    expect(btn.className).toContain("bg-slate-50");
+    expect(btn.className).toContain("bg-foreground");
   });
 
   it("applies outline variant classes", () => {
@@ -67,7 +67,7 @@ describe("Button", () => {
         <a href="/test">Link</a>
       </Button>,
     );
-    const link = screen.getByRole("button");
+    const link = screen.getByRole("link");
     expect(link.tagName).toBe("A");
     expect(link).toHaveAttribute("href", "/test");
   });

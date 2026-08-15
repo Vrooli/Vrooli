@@ -9,6 +9,7 @@ import (
 	"testing"
 )
 
+// TestInventoryQdrantCollectionsReadsSentinelAndNeverWrites [REQ:REQ-P1-018]
 func TestInventoryQdrantCollectionsReadsSentinelAndNeverWrites(t *testing.T) {
 	const collection = "architecture-cartographer-domain-map"
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

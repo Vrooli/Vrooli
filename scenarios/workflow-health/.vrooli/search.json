@@ -4,6 +4,7 @@
   "providers": [
     {
       "provider_id": "workflow-health.workflows",
+      "lifecycle": "production",
       "provider_group": "workflow-health",
       "bucket": "BUCKET_DO",
       "type": "workflow.flow",
@@ -97,6 +98,7 @@
     },
     {
       "provider_id": "workflow-health.tests",
+      "lifecycle": "production",
       "provider_group": "workflow-health",
       "bucket": "BUCKET_REUSE",
       "type": "workflow.test",
@@ -182,6 +184,7 @@
     },
     {
       "provider_id": "workflow-health.fragments",
+      "lifecycle": "production",
       "provider_group": "workflow-health",
       "bucket": "BUCKET_REUSE",
       "type": "workflow.fragment",

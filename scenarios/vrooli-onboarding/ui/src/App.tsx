@@ -8,6 +8,7 @@ import { StepIntegrationsDeferred } from "./components/wizard/StepIntegrationsDe
 import { StepHostRequirements } from "./components/wizard/StepHostRequirements";
 import { StepOperatingMode } from "./components/wizard/StepOperatingMode";
 import { StepReadiness } from "./components/wizard/StepReadiness";
+import { StepApply } from "./components/wizard/StepApply";
 import { HealthDashboard } from "./components/dashboard/HealthDashboard";
 import { GlossaryPanel } from "./components/glossary/GlossaryPanel";
 import { useGlobalKeyboardShortcuts } from "./hooks/useGlobalKeyboardShortcuts";
@@ -43,6 +44,7 @@ export default function App() {
     toggleScenario,
     setScenarioAutoRestart,
     setHostOptIn,
+    setHostConfig,
     setResourceEnabled,
     goNext,
     goPrev,
@@ -88,11 +90,11 @@ export default function App() {
   });
 
   return (
-    <div className="min-h-full bg-slate-950 text-slate-50">
+    <div className="min-h-full bg-surface text-foreground">
       {/* Skip to content link for screen readers */}
       <a
         href="#main-content"
-        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-lg focus:bg-emerald-500 focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-white focus:outline-none"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-lg focus:bg-primary focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-foreground focus:outline-none"
         data-testid="skip-to-content"
       >
         Skip to main content
@@ -103,7 +105,7 @@ export default function App() {
         role="navigation"
         data-testid="app-nav"
         aria-label="Main navigation"
-        className="sticky top-0 z-50 border-b border-white/10 bg-slate-950/95 backdrop-blur-sm"
+        className="sticky top-0 z-50 border-b border-muted bg-surface/95 backdrop-blur-sm"
       >
         <div className="mx-auto flex max-w-5xl items-center gap-0.5 px-2 py-1.5 sm:gap-1 sm:px-6 sm:py-3" role="tablist" aria-label="Application views">
           {NAV_ITEMS.map((item, idx) => (
@@ -121,21 +123,21 @@ export default function App() {
               tabIndex={view === item.id ? 0 : -1}
               className={cn(
                 "inline-flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-sm font-medium transition-colors sm:gap-2 sm:px-3",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus/50",
                 view === item.id
-                  ? "bg-white/10 text-white"
-                  : "text-slate-300 hover:bg-white/5 hover:text-slate-100"
+                  ? "bg-surface-subtle text-foreground"
+                  : "text-muted hover:bg-surface-muted hover:text-foreground"
               )}
             >
               {item.icon}
               <span className="hidden sm:inline">{item.label}</span>
               <span className="text-xs sm:hidden">{item.label.split(" ")[0]}</span>
-              <kbd className="hidden lg:inline-flex ml-1 h-4 min-w-4 items-center justify-center rounded bg-white/5 px-1 text-[9px] font-mono text-slate-300/60" aria-hidden="true">
+              <kbd className="hidden lg:inline-flex ml-1 h-4 min-w-4 items-center justify-center rounded bg-surface-muted px-1 text-[9px] font-mono text-muted/60" aria-hidden="true">
                 Alt+{idx + 1}
               </kbd>
               {item.id === "wizard" && selectedScenarios.size > 0 && (
                 <span
-                  className="ml-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-emerald-500/20 px-1 text-[10px] font-medium text-emerald-400"
+                  className="ml-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-primary/20 px-1 text-[10px] font-medium text-primary"
                   aria-label={`${selectedScenarios.size} scenarios selected`}
                   data-testid="nav-wizard-badge"
                 >
@@ -176,9 +178,10 @@ export default function App() {
               {currentStep === 2 && <StepDerivedResources selected={selectedScenarios} operatorState={operatorState} onToggle={setResourceEnabled} />}
               {currentStep === 3 && <StepReadiness title="Credentials" />}
               {currentStep === 4 && <StepIntegrationsDeferred />}
-              {currentStep === 5 && <StepHostRequirements onTool={(name, value) => setHostOptIn("host_tools", name, value)} onSafeguard={(name, value) => setHostOptIn("host_safeguards", name, value)} />}
+              {currentStep === 5 && <StepHostRequirements onTool={(name, value) => setHostOptIn("host_tools", name, value)} onSafeguard={(name, value) => setHostOptIn("host_safeguards", name, value)} onHostConfig={setHostConfig} />}
               {currentStep === 6 && <StepOperatingMode selected={selectedScenarios} overrides={operatorState?.scenarios} onAutoRestart={setScenarioAutoRestart} />}
-              {currentStep === 7 && <StepReadiness title="Validation" />}
+              {currentStep === 7 && <StepApply />}
+              {currentStep === 8 && <StepReadiness title="Validation" />}
               </div>
             </WizardShell>
           )}

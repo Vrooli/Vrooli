@@ -52,7 +52,7 @@ describe("WizardShell", () => {
     const progressBar = screen.getByRole("progressbar");
     expect(progressBar).toHaveAttribute("aria-valuenow", "2");
     expect(progressBar).toHaveAttribute("aria-valuemin", "0");
-    expect(progressBar).toHaveAttribute("aria-valuemax", "7");
+    expect(progressBar).toHaveAttribute("aria-valuemax", "8");
   });
 
   it("shows Next button by default", () => {
@@ -111,7 +111,7 @@ describe("WizardShell", () => {
 
   it("renders mobile step counter", () => {
     render(<WizardShell {...defaultProps} currentStep={2}>Content</WizardShell>);
-    expect(screen.getByText("3/8")).toBeInTheDocument();
+    expect(screen.getByText("3/9")).toBeInTheDocument();
   });
 
   it("renders mobile dot progress indicators", () => {
@@ -119,7 +119,7 @@ describe("WizardShell", () => {
     const mobileProgress = screen.getByRole("list", { name: /step progress/i });
     expect(mobileProgress).toBeInTheDocument();
     const dots = mobileProgress.querySelectorAll("[role='listitem']");
-    expect(dots).toHaveLength(8);
+    expect(dots).toHaveLength(9);
   });
 
   it("makes completed step indicators clickable when onGoToStep is provided", () => {
@@ -164,8 +164,8 @@ describe("WizardShell", () => {
   it("progress bar width reflects step position", () => {
     render(<WizardShell {...defaultProps} currentStep={1}>Content</WizardShell>);
     const progressFill = screen.getByTestId("progress-bar");
-    // Step 1 of 8 steps (0-indexed): 1/7 * 100 ≈ 14.29%
-    expect(progressFill.style.width).toMatch(/14\.2/);
+    // Step 1 of 9 steps (0-indexed): 1/8 * 100 = 12.5%
+    expect(progressFill.style.width).toBe("12.5%");
   });
 
   it("shows step number for non-completed future steps", () => {
@@ -182,7 +182,7 @@ describe("WizardShell", () => {
   });
 
   it("progress bar width is 100% on the final V2 step", () => {
-    render(<WizardShell {...defaultProps} currentStep={7}>Content</WizardShell>);
+    render(<WizardShell {...defaultProps} currentStep={8}>Content</WizardShell>);
     const progressFill = screen.getByTestId("progress-bar");
     expect(progressFill.style.width).toBe("100%");
   });

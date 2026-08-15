@@ -19,13 +19,15 @@ type hostRequirement struct {
 }
 type hostItem struct {
 	hostRequirement
-	Description string   `json:"description,omitempty"`
-	Risk        string   `json:"risk,omitempty"`
-	Privilege   string   `json:"privilege,omitempty"`
-	Bundling    string   `json:"bundling,omitempty"`
-	Platforms   []string `json:"platforms,omitempty"`
-	Commands    []string `json:"commands,omitempty"`
-	Status      string   `json:"status"`
+	Description  string         `json:"description,omitempty"`
+	Risk         string         `json:"risk,omitempty"`
+	Privilege    string         `json:"privilege,omitempty"`
+	Bundling     string         `json:"bundling,omitempty"`
+	Platforms    []string       `json:"platforms,omitempty"`
+	Commands     []string       `json:"commands,omitempty"`
+	ConfigSchema map[string]any `json:"config_schema,omitempty"`
+	Config       map[string]any `json:"config,omitempty"`
+	Status       string         `json:"status"`
 }
 type hostRequirementsResponse struct {
 	Tools      []hostItem `json:"tools"`
@@ -97,12 +99,13 @@ func hostItems(root, kind string, requirements map[string]hostRequirement, choic
 			return nil, err
 		}
 		var meta struct {
-			Description string   `json:"description"`
-			Risk        string   `json:"risk"`
-			Privilege   string   `json:"privilege"`
-			Bundling    string   `json:"bundling"`
-			Platforms   []string `json:"platforms"`
-			Commands    []string `json:"commands"`
+			Description string         `json:"description"`
+			Risk        string         `json:"risk"`
+			Privilege   string         `json:"privilege"`
+			Bundling    string         `json:"bundling"`
+			Platforms   []string       `json:"platforms"`
+			Commands    []string       `json:"commands"`
+			Config      map[string]any `json:"config"`
 		}
 		if err := json.Unmarshal(data, &meta); err != nil {
 			return nil, err
@@ -113,7 +116,7 @@ func hostItems(root, kind string, requirements map[string]hostRequirement, choic
 		} else if choice, ok := choices[name]; ok && choice.OptedIn != nil && *choice.OptedIn {
 			status = "opted_in"
 		}
-		items = append(items, hostItem{hostRequirement: requirement, Description: meta.Description, Risk: meta.Risk, Privilege: meta.Privilege, Bundling: meta.Bundling, Platforms: meta.Platforms, Commands: meta.Commands, Status: status})
+		items = append(items, hostItem{hostRequirement: requirement, Description: meta.Description, Risk: meta.Risk, Privilege: meta.Privilege, Bundling: meta.Bundling, Platforms: meta.Platforms, Commands: meta.Commands, ConfigSchema: meta.Config, Config: choices[name].Config, Status: status})
 	}
 	sort.Slice(items, func(i, j int) bool { return items[i].Name < items[j].Name })
 	return items, nil

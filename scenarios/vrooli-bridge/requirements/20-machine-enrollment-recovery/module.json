@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Durable Machine intent, immutable enrollment recovery, trust, and capability-policy invariants.",
-    "last_validated_at": "2026-08-13T00:01:49-04:00",
+    "last_validated_at": "2026-08-14T01:05:15-04:00",
     "module": "machine-enrollment-recovery",
     "priority": "P0",
     "schema_version": "1.0.0"
@@ -80,14 +80,14 @@
           "type": "test",
           "ref": "api/internal/onboard/service_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Durable orchestration tests assert final key-only verification and fail-closed behavior; live restart evidence remains a final qualification step."
         },
         {
           "type": "test",
           "ref": "cli/domains/onboard/handlers_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "CLI tests assert first-touch prompting, trusted reconnect without prompting, and server-owned Machine resolution."
         },
         {
@@ -102,7 +102,7 @@
     {
       "id": "BRG-MEC-005",
       "title": "Connection identity and credential fail-closed behavior",
-      "status": "in_progress",
+      "status": "complete",
       "category": "security",
       "description": "Preflight returns explicit first-touch, reconnect, recovery-required, ambiguous, and host-key-review decisions. A no-password request cannot start first touch or recovery, and passwords never appear in durable records or process arguments.",
       "validation": [
@@ -117,7 +117,7 @@
           "type": "test",
           "ref": "cli/domains/onboard/handlers_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "CLI request captures verify credential-safe intake and trusted reconnect behavior."
         }
       ]

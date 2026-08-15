@@ -12,3 +12,7 @@
 # Shared @vrooli/* packages are consumed via file: references (see package.json).
 packages:
   - .
+
+# Supply-chain cooldown: refuse dependency versions published less than 7 days
+# ago. This is required by the dependency-health gate for every pnpm surface.
+minimumReleaseAge: 10080

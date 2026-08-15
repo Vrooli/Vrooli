@@ -100,8 +100,9 @@ export function SSHKeySetup({
       const response = await listSSHKeys();
       setKeys(response.keys);
       // Auto-select first key if none selected
-      if (!selectedKeyPath && response.keys.length > 0) {
-        onKeyPathChange(response.keys[0].path);
+      const firstKey = response.keys[0];
+      if (!selectedKeyPath && firstKey) {
+        onKeyPathChange(firstKey.path);
       }
     } catch (e) {
       setKeysError(e instanceof Error ? e.message : "Failed to load SSH keys");

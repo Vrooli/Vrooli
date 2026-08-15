@@ -81,7 +81,7 @@ describe("useWizardState", () => {
 
     act(() => result.current.toggleScenario("scenario-a"));
     expect(result.current.selectedScenarios.has("scenario-a")).toBe(true);
-    await waitFor(() => expect(globalThis.fetch).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(globalThis.fetch).toHaveBeenCalledTimes(4));
   });
 
   it("startOver resets navigation and local selections", () => {

@@ -19,7 +19,7 @@ derivation, and the operator's unit of choice is their own use case.
 
 ## Step sequence
 
-Eight steps. Re-enterable from any step, resuming at the first unsatisfied one.
+Nine steps including the welcome surface. Re-enterable from any step, resuming at the first unsatisfied one.
 
 ```mermaid
 stateDiagram-v2
@@ -132,6 +132,32 @@ Contract:
 - On a host with no graphical session — a VPS, a CI runner, a headless bundle
   host — no native store exists. The step leads with the encrypted-file-store
   initialization instead of reporting a failure.
+
+#### Deferred operator input
+
+Bootstrap is allowed to run without a controlling terminal. When it reaches a
+decision that only an operator can make — most importantly the encrypted
+credential-store passphrase — it writes a typed, mode-`0600` request to the
+operator-input queue and returns a configuration-pending result. The request
+contains its kind, explanation, default, validation contract, and the work it
+unblocks; it never contains a secret or a prompt-specific implementation.
+
+The UI resolves the queue through `POST /api/v2/operator-inputs/resolve`. The
+interactive CLI reads the same queue and submits the same answer document. Both
+surfaces keep secret values in memory only, and the API applies the credential
+store change before removing the request. A failed apply leaves the request in
+place so a later onboarding session can retry it. Non-interactive callers must
+surface `needs_input` and resume through onboarding; they must not invent a
+second passphrase channel.
+
+The Credentials step also exposes the metadata-only store status and the
+following control-plane operations through the onboarding API and `store` CLI
+group: backend selection, verified reselect/migration, initialization, unlock,
+passphrase change, rewrap, and empty-backend retirement. Reselect derives the
+complete manifest-backed inventory, copies values, verifies destination
+read-back, and commits the new authority only after the whole migration
+succeeds. These operations delegate to securestore; onboarding does not
+maintain a second encrypted-store implementation.
 
 ### 4 — Integrations *(deferred)*
 
@@ -253,9 +279,20 @@ Contract:
 
 ## Cross-cutting contracts
 
+### Starter recommendation and input parity
+
+`GET /api/v2/recommendation` returns the manifest-derived `starter` profile:
+system-required scenarios plus the transitive resources they require. It is a
+default, not an authorization decision. The UI and interactive CLI prefill it;
+the operator can replace optional choices before applying. The declarative CLI
+can accept it explicitly with `wizard run --accept-recommendation`, while
+`--non-interactive` reports `needs_input` unless that explicit acceptance was
+provided. All three surfaces then write the same field-scoped operator-state
+patch and use the same apply/readiness APIs.
+
 ### Surface parity
 
-The same eight steps exist in the UI, the interactive CLI, and the
+The same nine steps exist in the UI, the interactive CLI, and the
 non-interactive selection document. Identical choices produce byte-identical
 operator state, because all three write through one service rather than three
 code paths kept in step by review.
@@ -271,7 +308,7 @@ flowchart TD
   R -->|"repo root set"| A["Repository catalog<br/>state: .vrooli/operator-state.json"]
   R -->|"bundle root set"| B["Bundle catalog<br/>state: app-data storage root"]
   R -->|"neither"| C["Typed degraded state<br/>names the missing catalog"]
-  A --> D["Same eight steps"]
+  A --> D["Same nine steps"]
   B --> D
   C --> E["Step renders an actionable message,<br/>never an unhandled error"]
 ```

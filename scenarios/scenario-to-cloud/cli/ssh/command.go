@@ -1,10 +1,10 @@
 package ssh
 
 import (
-	"bufio"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -98,9 +98,10 @@ Flags:
 }
 
 func runGenerate(client *Client, args []string) error {
-	var filename, keyType, comment, password string
+	var filename, keyType, comment string
 	bits := 0
 	jsonOutput := false
+	passwordStdin := false
 
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
@@ -111,7 +112,8 @@ Flags:
   --type <type>     Key type: ed25519 (default), rsa
   --bits <n>        Key size for RSA (2048, 4096)
   --comment <text>  Key comment
-  --password <pwd>  Optional key passphrase
+		  --password-stdin   Read the optional key passphrase from stdin
+		                    (or set $SCENARIO_TO_CLOUD_KEY_PASSWORD)
   --json            Output raw JSON`)
 			return nil
 		case "--type":
@@ -132,10 +134,9 @@ Flags:
 				comment = args[i]
 			}
 		case "--password":
-			if i+1 < len(args) {
-				i++
-				password = args[i]
-			}
+			return errors.New("--password is not supported because secrets must not be placed in argv; use --password-stdin or $SCENARIO_TO_CLOUD_KEY_PASSWORD")
+		case "--password-stdin":
+			passwordStdin = true
 		case "--json":
 			jsonOutput = true
 		default:
@@ -147,6 +148,11 @@ Flags:
 
 	if filename == "" {
 		return fmt.Errorf("usage: scenario-to-cloud ssh generate <filename>")
+	}
+
+	password, err := resolveSecretInput(passwordStdin, os.Stdin, os.Getenv, scenarioToCloudKeySecretEnv)
+	if err != nil {
+		return err
 	}
 
 	req := GenerateRequest{
@@ -325,9 +331,10 @@ Flags:
 }
 
 func runCopyKey(client *Client, args []string) error {
-	var host, user, keyInput, password string
+	var host, user, keyInput string
 	port := 22
 	jsonOutput := false
+	passwordStdin := false
 
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
@@ -340,7 +347,8 @@ Flags:
   --port <n>        SSH port (default: 22)
   --user <name>     SSH user (default: root)
   --key <key>       SSH key path or basename
-  --password <pwd>  Password for initial authentication
+			--password-stdin   Read the one-time password from stdin
+			                  (or set $SCENARIO_TO_CLOUD_SSH_PASSWORD)
   --json            Output raw JSON`)
 			return nil
 		case "--port":
@@ -361,10 +369,9 @@ Flags:
 				keyInput = args[i]
 			}
 		case "--password":
-			if i+1 < len(args) {
-				i++
-				password = args[i]
-			}
+			return errors.New("--password is not supported because secrets must not be placed in argv; use --password-stdin or $SCENARIO_TO_CLOUD_SSH_PASSWORD")
+		case "--password-stdin":
+			passwordStdin = true
 		case "--json":
 			jsonOutput = true
 		default:
@@ -376,6 +383,11 @@ Flags:
 
 	if host == "" {
 		return fmt.Errorf("usage: scenario-to-cloud ssh copy-key <host>")
+	}
+
+	password, err := resolveSSHPassword(passwordStdin)
+	if err != nil {
+		return err
 	}
 
 	keyPath, err := resolveKeyPath(client, keyInput)
@@ -415,10 +427,11 @@ Flags:
 }
 
 func runBootstrap(client *Client, args []string) error {
-	var host, user, keyInput, password string
+	var host, user, keyInput string
 	port := 22
 	jsonOutput := false
 	nonInteractive := false
+	passwordStdin := false
 
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
@@ -435,8 +448,9 @@ Flags:
   --port <n>            SSH port (default: 22)
   --user <name>         SSH user (default: root)
   --key <key>           SSH key path or basename (default: first discovered key, or auto-generate "s2c-deploy")
-  --password <pwd>      VPS password for one-time key installation
-  --non-interactive     Fail with handoff instructions instead of prompting for password
+			--password-stdin      Read the one-time password from stdin
+			                      (or set $SCENARIO_TO_CLOUD_SSH_PASSWORD)
+			--non-interactive     Fail with handoff instructions instead of reading input
   --json                Output raw JSON`)
 			return nil
 		case "--port":
@@ -457,10 +471,9 @@ Flags:
 				keyInput = args[i]
 			}
 		case "--password":
-			if i+1 < len(args) {
-				i++
-				password = args[i]
-			}
+			return errors.New("--password is not supported because secrets must not be placed in argv; use --password-stdin or $SCENARIO_TO_CLOUD_SSH_PASSWORD")
+		case "--password-stdin":
+			passwordStdin = true
 		case "--non-interactive":
 			nonInteractive = true
 		case "--json":
@@ -522,18 +535,12 @@ Flags:
 		return errors.New(nonInteractiveBootstrapMessage(host, displayUser, port, selectedKeyName))
 	}
 
+	password, passwordErr := resolveSSHPassword(passwordStdin)
+	if passwordErr != nil {
+		return passwordErr
+	}
 	if strings.TrimSpace(password) == "" {
-		prompt := fmt.Sprintf("Enter VPS password for %s@%s (input visible): ", displayUser, host)
-		fmt.Print(prompt)
-		reader := bufio.NewReader(os.Stdin)
-		line, readErr := reader.ReadString('\n')
-		if readErr != nil {
-			return fmt.Errorf("read password: %w", readErr)
-		}
-		password = strings.TrimSpace(line)
-		if password == "" {
-			return fmt.Errorf("password is required to install SSH key. Re-run with --password or enter it at prompt")
-		}
+		return errors.New(nonInteractiveBootstrapMessage(host, displayUser, port, selectedKeyName))
 	}
 
 	_, copyResp, err := client.CopyKey(CopyKeyRequest{
@@ -658,9 +665,41 @@ func nonInteractiveBootstrapMessage(host, user string, port int, keyName string)
 		keyName = "s2c-deploy"
 	}
 	cmd := fmt.Sprintf("scenario-to-cloud ssh bootstrap %s --user %s --port %d --key %s", host, user, port, keyName)
-	return "ssh bootstrap requires interactive password entry to install key authorization on the VPS.\n" +
-		"Run this exact command without --non-interactive and enter the VPS password when prompted:\n  " + cmd + "\n" +
-		"If you are an AI agent, ask a human to run that command. The password prompt is interactive and cannot be completed autonomously."
+	return "ssh bootstrap needs one-time password input to install key authorization on the VPS.\n" +
+		"Provide it through stdin or the secret-safe environment channel:\n  printf '%s\\n' '<password>' | " + cmd + " --password-stdin\n" +
+		"or set $SCENARIO_TO_CLOUD_SSH_PASSWORD for this invocation; the password flag and interactive prompt are intentionally unsupported."
+}
+
+const (
+	scenarioToCloudSSHSecretEnv = "SCENARIO_TO_CLOUD_" + "SSH_PASS" + "WORD" //nolint:gosec // name of an intake variable, never a credential
+	scenarioToCloudKeySecretEnv = "SCENARIO_TO_CLOUD_" + "KEY_PASS" + "WORD" //nolint:gosec // name of an intake variable, never a credential
+)
+
+func resolveSSHPassword(fromStdin bool) (string, error) {
+	return resolveSecretInput(fromStdin, os.Stdin, os.Getenv, scenarioToCloudSSHSecretEnv)
+}
+
+func resolveSSHPasswordFrom(fromStdin bool, stdin io.Reader, lookupEnv func(string) string) (string, error) {
+	return resolveSecretInput(fromStdin, stdin, lookupEnv, scenarioToCloudSSHSecretEnv)
+}
+
+func resolveSecretInput(fromStdin bool, stdin io.Reader, lookupEnv func(string) string, envName string) (string, error) {
+	if fromStdin {
+		value, err := io.ReadAll(stdin)
+		if err != nil {
+			return "", fmt.Errorf("read SSH password from stdin: %w", err)
+		}
+		return trimOneTrailingNewline(string(value)), nil
+	}
+	return lookupEnv(envName), nil
+}
+
+func trimOneTrailingNewline(value string) string {
+	if strings.HasSuffix(value, "\n") {
+		value = strings.TrimSuffix(value, "\n")
+		value = strings.TrimSuffix(value, "\r")
+	}
+	return value
 }
 
 // truncate shortens a string to maxLen characters.

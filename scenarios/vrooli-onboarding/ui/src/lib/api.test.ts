@@ -5,7 +5,7 @@ vi.mock("@vrooli/api-base", () => ({
   buildApiUrl: (path: string, options: { baseUrl: string }) => `${options.baseUrl}${path}`,
 }));
 
-import { applyOnboarding, fetchOperatorState, fetchV2Closure, fetchV2HostRequirements, fetchV2Resources, fetchV2Readiness, fetchV2Scenarios, provisionCredential, saveOperatorState } from "./api";
+import { applyOnboarding, changeCredentialStorePassphrase, fetchCredentialStoreStatus, fetchHealth, fetchGlossary, fetchOperatorInputs, fetchOperatorState, fetchResourceHealth, fetchResources, fetchV2ApplyPlan, fetchV2ApplyStatus, fetchV2Closure, fetchV2HostRequirements, fetchV2Recommendation, fetchV2Resources, fetchV2Readiness, fetchV2Scenarios, fetchV2Session, initializeCredentialStore, provisionCredential, reselectCredentialBackend, resolveOperatorInputs, rewrapCredentialStore, saveOperatorState, saveV2SessionStep, selectCredentialBackend, unlockCredentialStore } from "./api";
 
 function mockFetch(body: unknown, ok = true, status = 200) {
   globalThis.fetch = vi.fn().mockResolvedValue({ ok, status, json: () => Promise.resolve(body) });
@@ -53,6 +53,46 @@ describe("onboarding V2 API client", () => {
 		await applyOnboarding();
 		expect(globalThis.fetch).toHaveBeenCalledWith("http://localhost:9999/api/v2/apply", expect.objectContaining({ method: "POST", body: "{}" }));
 	});
+
+  it("covers the read and mutation surfaces without exposing secrets", async () => {
+    mockFetch({ status: "ok", service: "onboarding", timestamp: "now" });
+    await fetchHealth();
+    mockFetch({ scenarios: [], resources: [] });
+    await fetchV2Recommendation();
+    mockFetch({ run_id: "apply-1", status: "applied", items: [] });
+    await fetchV2ApplyPlan();
+    await fetchV2ApplyStatus("run/1");
+    mockFetch({ version: 1, current_step: 1 });
+    await fetchV2Session();
+    await saveV2SessionStep(2);
+    mockFetch({ version: 1, updated_at: "now", requests: [] });
+    await fetchOperatorInputs();
+    mockFetch({ initialized: false, active: false, entries: 0 });
+    await fetchCredentialStoreStatus();
+    mockFetch({ status: "selected", backend: "native" });
+    await selectCredentialBackend("native");
+    mockFetch({ from: "encrypted-file", to: "native", attempted: [], verified: [], committed: true });
+    await reselectCredentialBackend();
+    mockFetch({ status: "initialized", initialized: true, active: true, entries: 0 });
+    await initializeCredentialStore("secret");
+    mockFetch({ status: "unlocked", active_wrap: "encrypted-file" });
+    await unlockCredentialStore("secret");
+    mockFetch({ status: "changed" });
+    await changeCredentialStorePassphrase("old", "new");
+    mockFetch({ status: "rewrapped", provider: "native", key_store: "keychain" });
+    await rewrapCredentialStore("secret");
+    mockFetch({ status: "resolved", configuration_pending: false });
+    await resolveOperatorInputs([{ request_id: "choice", value: "yes" }]);
+    mockFetch({ resources: [] });
+    await fetchResources();
+    mockFetch([]);
+    await fetchResources();
+    mockFetch({ resources: [] });
+    await fetchResourceHealth();
+    mockFetch({ entries: [] });
+    await fetchGlossary("credential store");
+    expect(globalThis.fetch).toHaveBeenLastCalledWith("http://localhost:9999/api/v1/glossary?q=credential%20store", expect.objectContaining({ cache: "no-store" }));
+  });
 
   it("persists operator state through its dedicated endpoint", async () => {
     const patch = { scenarios: { alpha: { enabled: true } } };

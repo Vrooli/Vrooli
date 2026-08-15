@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-08-11T12:31:20-04:00"
+    "last_validated_at": "2026-08-14T06:44:27-04:00"
   },
   "requirements": [
     {
       "id": "STC-P0-001",
       "title": "Cloud manifest export contract",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-001",
       "category": "manifest",
       "description": "A deployment-manager export defines target type (vps), scenario id, dependency graph snapshot, bundle inclusions, fixed port overrides, and domain/caddy config.",
@@ -20,21 +20,21 @@
           "type": "test",
           "ref": "api/manifest_contract_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "API-side manifest normalization + validation contract."
         },
         {
           "type": "test",
           "ref": "ui/src/App.test.tsx",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "UI validates a manifest and renders the result."
         },
         {
           "type": "test",
           "ref": "cli/main_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "CLI can post a manifest to /api/v1/manifest/validate."
         }
       ]

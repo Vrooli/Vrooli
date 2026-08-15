@@ -52,6 +52,7 @@ func writeFixtureFile(t *testing.T, path, content string) {
 	}
 }
 
+// [REQ:ONB-TIER-BUNDLE-COMPLETENESS]
 func TestV2BundleModeServesAllCatalogReadModels(t *testing.T) {
 	bundle, storageRoot := writeBundleFixture(t, true)
 	t.Setenv("VROOLI_ROOT", "")
@@ -77,6 +78,20 @@ func TestV2BundleModeServesAllCatalogReadModels(t *testing.T) {
 	}
 	if len(body.Resources) != 1 || body.Resources[0].Name != "demo" {
 		t.Fatalf("resource read model = %#v", body.Resources)
+	}
+}
+
+func TestV2BundleModeUsesBundleLocalAppDataWithOnlyBundleRoot(t *testing.T) {
+	bundle, _ := writeBundleFixture(t, true)
+	t.Setenv("VROOLI_ROOT", "")
+	t.Setenv("VROOLI_STORAGE_ROOT", "")
+	t.Setenv("BUNDLE_ROOT", bundle)
+
+	for _, endpoint := range []string{"/api/v2/scenarios", "/api/v2/resources", "/api/v2/host-requirements", "/api/v2/readiness", "/api/v2/closure", "/api/v2/union", "/api/v2/credentials", "/api/v2/surface", "/api/v2/session"} {
+		w := doGet(t, NewServer(), endpoint)
+		if w.Code != http.StatusOK {
+			t.Fatalf("GET %s status = %d: %s", endpoint, w.Code, w.Body.String())
+		}
 	}
 }
 

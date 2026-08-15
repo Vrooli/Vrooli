@@ -31,6 +31,8 @@ func ToConnectError(err error) error {
 		needsUpdate ErrNodeNeedsUpdate
 		kind        ErrUnsupportedNodeKind
 		delivery    ErrDeliveryFailed
+		leaseReq    ErrDeviceLeaseRequired
+		leaseHeld   ErrDeviceLeaseNotHeld
 	)
 	switch {
 	case errors.As(err, &invalid):
@@ -51,6 +53,10 @@ func ToConnectError(err error) error {
 		return connect.NewError(connect.CodeFailedPrecondition, needsUpdate)
 	case errors.As(err, &kind):
 		return connect.NewError(connect.CodeFailedPrecondition, kind)
+	case errors.As(err, &leaseReq):
+		return connect.NewError(connect.CodeFailedPrecondition, leaseReq)
+	case errors.As(err, &leaseHeld):
+		return connect.NewError(connect.CodeFailedPrecondition, leaseHeld)
 	case errors.As(err, &delivery):
 		return connect.NewError(connect.CodeUnavailable, delivery)
 	default:
@@ -71,8 +77,11 @@ func IsRejection(err error) bool {
 		offline     ErrNodeOffline
 		needsUpdate ErrNodeNeedsUpdate
 		kind        ErrUnsupportedNodeKind
+		leaseReq    ErrDeviceLeaseRequired
+		leaseHeld   ErrDeviceLeaseNotHeld
 	)
 	return errors.As(err, &invalid) || errors.As(err, &notInMan) || errors.As(err, &outOfScope) ||
 		errors.As(err, &unsafe) || errors.As(err, &notFound) || errors.As(err, &revoked) ||
-		errors.As(err, &offline) || errors.As(err, &needsUpdate) || errors.As(err, &kind)
+		errors.As(err, &offline) || errors.As(err, &needsUpdate) || errors.As(err, &kind) ||
+		errors.As(err, &leaseReq) || errors.As(err, &leaseHeld)
 }

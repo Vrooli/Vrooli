@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	clitest "vrooli-onboarding/cli/internal/testutil"
+	clitest "github.com/vrooli/cli-core/cliapptest"
 )
 
 func TestControlCommandsReadApplyAndExport(t *testing.T) {

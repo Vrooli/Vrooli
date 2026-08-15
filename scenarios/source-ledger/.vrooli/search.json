@@ -4,6 +4,7 @@
   "providers": [
     {
       "provider_id": "source-ledger.agent-memory",
+      "lifecycle": "production",
       "provider_group": "source-ledger",
       "bucket": "BUCKET_KNOW",
       "type": "record",
@@ -60,6 +61,7 @@
     },
     {
       "provider_id": "source-ledger.scopes",
+      "lifecycle": "production",
       "provider_group": "source-ledger",
       "bucket": "BUCKET_KNOW",
       "type": "record",

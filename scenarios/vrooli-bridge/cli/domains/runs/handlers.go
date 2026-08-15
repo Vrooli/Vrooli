@@ -17,15 +17,18 @@ import (
 )
 
 type handlers struct {
-	core   *cliapp.ScenarioApp
-	client runsconnect.RunsServiceClient
+	core       *cliapp.ScenarioApp
+	client     runsconnect.RunsServiceClient
+	waitClient runsconnect.RunsServiceClient
 }
 
 func newHandlers(core *cliapp.ScenarioApp) *handlers {
 	httpClient, baseURL := session.NewConnectHTTPClient(core)
+	waitHTTPClient, waitBaseURL := session.NewConnectHTTPClientWithTimeout(core, 2*time.Hour)
 	return &handlers{
-		core:   core,
-		client: runsconnect.NewRunsServiceClient(httpClient, baseURL),
+		core:       core,
+		client:     runsconnect.NewRunsServiceClient(httpClient, baseURL),
+		waitClient: runsconnect.NewRunsServiceClient(waitHTTPClient, waitBaseURL),
 	}
 }
 
@@ -80,7 +83,7 @@ func (h *handlers) list(ctx cliapp.RunContext) error {
 // exits non-zero, mirroring test-genie's wait verb.
 func (h *handlers) wait(ctx cliapp.RunContext) error {
 	id := ctx.Positional("id")
-	resp, err := h.client.WaitRun(context.Background(), connect.NewRequest(&runsv1.WaitRunRequest{
+	resp, err := h.waitClient.WaitRun(context.Background(), connect.NewRequest(&runsv1.WaitRunRequest{
 		Id:             id,
 		TimeoutSeconds: parseInt64(ctx.Flag("timeout")),
 	}))

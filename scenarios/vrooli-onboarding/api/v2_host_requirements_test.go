@@ -30,10 +30,10 @@ func TestV2HostRequirementsDerivesMetadataAndSavedOptIn(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(root, "internal", "tools", "demo-tool", "tool.json"), []byte(`{"name":"demo_tool","description":"Demo tool","commands":["true"],"platforms":["linux"],"privilege":"user","bundling":"host-required"}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(root, "internal", "safeguards", "demo-safeguard", "safeguard.json"), []byte(`{"name":"demo_safeguard","description":"Demo safeguard","risk":"high","platforms":["linux"],"privilege":"elevated","bundling":"prohibited"}`), 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(root, "internal", "safeguards", "demo-safeguard", "safeguard.json"), []byte(`{"name":"demo_safeguard","description":"Demo safeguard","risk":"high","platforms":["linux"],"privilege":"elevated","bundling":"prohibited","config":{"type":"object","required":["target"],"properties":{"target":{"type":"string","description":"collector target"}}}}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(root, ".vrooli", "operator-state.json"), []byte(`{"version":"1.0.0","scenarios":{"alpha":{"enabled":true}},"host_safeguards":{"demo_safeguard":{"opted_in":true}}}`), 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(root, ".vrooli", "operator-state.json"), []byte(`{"version":"1.0.0","scenarios":{"alpha":{"enabled":true}},"host_safeguards":{"demo_safeguard":{"opted_in":true,"config":{"target":"collector.example:6666"}}}}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -42,9 +42,12 @@ func TestV2HostRequirementsDerivesMetadataAndSavedOptIn(t *testing.T) {
 		t.Fatalf("status = %d: %s", w.Code, w.Body.String())
 	}
 	body := w.Body.String()
-	for _, want := range []string{`"name":"demo_tool"`, `"status":"required"`, `"privilege":"user"`, `"bundling":"host-required"`, `"name":"demo_safeguard"`, `"status":"opted_in"`, `"risk":"high"`} {
+	for _, want := range []string{`"name":"demo_tool"`, `"status":"required"`, `"privilege":"user"`, `"bundling":"host-required"`, `"name":"demo_safeguard"`, `"status":"opted_in"`, `"risk":"high"`, `"config_schema"`, `"target"`} {
 		if !strings.Contains(body, want) {
 			t.Errorf("response missing %s: %s", want, body)
 		}
+	}
+	if !strings.Contains(body, `"config":{"target":"collector.example:6666"}`) {
+		t.Fatalf("response did not expose saved safeguard configuration: %s", body)
 	}
 }

@@ -1,7 +1,7 @@
 import { resolveApiBase, buildApiUrl } from "@vrooli/api-base";
 
 // Simple! Just specify if you want the /api/v1 suffix
-const API_BASE = resolveApiBase({ appendSuffix: true });
+export const API_BASE = resolveApiBase({ appendSuffix: true });
 
 export async function fetchHealth() {
   const url = buildApiUrl("/health", { baseUrl: API_BASE });
@@ -572,7 +572,7 @@ export async function findInProgressDeployment(
   }
 
   // Return most recent (list is already sorted by created_at desc from API)
-  return inProgress[0];
+  return inProgress[0] ?? null;
 }
 
 export async function createDeployment(

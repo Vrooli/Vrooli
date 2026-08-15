@@ -216,6 +216,35 @@ func TestGitWorkingTreeSource_Snapshot_UsesGitEnumeration(t *testing.T) {
 	}
 }
 
+func TestValidateWorkingTreeSourceClosureAcceptsOfflineProtoInputs(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "packages/proto/buf.yaml", "modules:\n  - path: schemas\n")
+	writeFile(t, root, "packages/proto/vendor/googleapis/google/api/annotations.proto", "syntax = \"proto3\";\n")
+	writeFile(t, root, "packages/proto/vendor/protovalidate/buf/validate/validate.proto", "syntax = \"proto3\";\n")
+	files := []string{
+		"packages/proto/buf.yaml",
+		"packages/proto/vendor/googleapis/google/api/annotations.proto",
+		"packages/proto/vendor/protovalidate/buf/validate/validate.proto",
+	}
+	if err := validateWorkingTreeSourceClosure(root, files); err != nil {
+		t.Fatalf("validateWorkingTreeSourceClosure: %v", err)
+	}
+}
+
+func TestValidateWorkingTreeSourceClosureRejectsOmittedOfflineProtoInput(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "packages/proto/buf.yaml", "modules:\n  - path: schemas\n")
+	writeFile(t, root, "packages/proto/vendor/googleapis/google/api/annotations.proto", "syntax = \"proto3\";\n")
+	writeFile(t, root, "packages/proto/vendor/protovalidate/buf/validate/validate.proto", "syntax = \"proto3\";\n")
+	err := validateWorkingTreeSourceClosure(root, []string{
+		"packages/proto/buf.yaml",
+		"packages/proto/vendor/googleapis/google/api/annotations.proto",
+	})
+	if err == nil || !strings.Contains(err.Error(), "vendor/protovalidate/buf/validate/validate.proto") {
+		t.Fatalf("error = %v, want omitted protovalidate input", err)
+	}
+}
+
 func writeFile(t *testing.T, root, rel, content string) {
 	t.Helper()
 	p := filepath.Join(root, rel)

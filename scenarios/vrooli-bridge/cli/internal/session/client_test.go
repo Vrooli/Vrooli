@@ -11,6 +11,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliapp"
@@ -139,5 +140,32 @@ func TestClientRecoversStaleSavedTokenThroughLocalBinding(t *testing.T) {
 	}
 	if core.Config.Token != "local-access" || core.Config.RefreshToken != "local-refresh" {
 		t.Fatalf("local session not persisted: %#v", core.Config)
+	}
+}
+
+func TestClientWithTimeoutAppliesExplicitTransportDeadline(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		time.Sleep(50 * time.Millisecond)
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer srv.Close()
+
+	core, err := cliapp.NewStandardScenarioApp(cliapp.StandardScenarioOptions{
+		Name: "bridge-test", Version: "0.0.0", DefaultAPIBase: srv.URL, AllowAnonymous: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	core.ConfigFile = &cliutil.ConfigFile{Path: filepath.Join(t.TempDir(), "config.json")}
+	core.Config.APIBase = srv.URL
+	core.Config.Token = "test-access"
+
+	transportClient, _ := NewConnectHTTPClientWithTimeout(core, 10*time.Millisecond)
+	req, err := http.NewRequest(http.MethodGet, srv.URL+"/api/v1/example", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := transportClient.Do(req); err == nil {
+		t.Fatal("expected explicit transport timeout")
 	}
 }

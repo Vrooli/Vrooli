@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"testing"
 
+	clitest "github.com/vrooli/cli-core/cliapptest"
 	"vrooli-onboarding/cli/internal/support"
-	clitest "vrooli-onboarding/cli/internal/testutil"
 
 	"github.com/vrooli/cli-core/cliapp"
 )

@@ -371,6 +371,28 @@ func (s *sqliteRepository) LinkNode(ctx context.Context, id, node, correlation s
 		return Machine{}, fmt.Errorf("begin machine lineage transaction: %w", e)
 	}
 	defer func() { _ = tx.Rollback() }()
+	// A retry may encounter a stale current lineage left on an archived or
+	// removed Machine by an older enrollment attempt. It is safe to supersede
+	// that historical row while linking the node to the active target. Never
+	// steal a node from another active Machine: that remains an explicit merge
+	// or operator-repair decision and must fail closed.
+	var conflictingMachineID, conflictingLifecycle string
+	conflictErr := tx.QueryRowContext(ctx, `
+		SELECT l.machine_id,m.lifecycle
+		FROM machine_node_lineage l
+		JOIN machines m ON m.id=l.machine_id
+		WHERE l.node_id=? AND l.is_current=1 AND l.machine_id<>?
+		LIMIT 1`, node, id).Scan(&conflictingMachineID, &conflictingLifecycle)
+	if conflictErr == nil {
+		if conflictingLifecycle == string(LifecycleActive) {
+			return Machine{}, fmt.Errorf("node %q is currently linked to active machine %q", node, conflictingMachineID)
+		}
+		if _, e = tx.ExecContext(ctx, "UPDATE machine_node_lineage SET is_current=0,superseded_at=? WHERE machine_id=? AND node_id=? AND is_current=1", now.Format(machineTimeFormat), conflictingMachineID, node); e != nil {
+			return Machine{}, fmt.Errorf("supersede stale node lineage: %w", e)
+		}
+	} else if !errors.Is(conflictErr, sql.ErrNoRows) {
+		return Machine{}, fmt.Errorf("check existing node lineage owner: %w", conflictErr)
+	}
 	if _, e = tx.ExecContext(ctx, "UPDATE machine_node_lineage SET is_current=0,superseded_at=? WHERE machine_id=? AND is_current=1", now.Format(machineTimeFormat), id); e != nil {
 		return Machine{}, fmt.Errorf("supersede current node: %w", e)
 	}

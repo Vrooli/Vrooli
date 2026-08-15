@@ -27,7 +27,21 @@ type client struct {
 // NewConnectHTTPClient returns the standard bridge CLI transport with one
 // transparent owner-token renewal on an unauthenticated response.
 func NewConnectHTTPClient(app *cliapp.ScenarioApp) (connect.HTTPClient, string) {
-	base, baseURL := cliapp.NewConnectHTTPClient(app)
+	return NewConnectHTTPClientWithTimeout(app, 0)
+}
+
+// NewConnectHTTPClientWithTimeout is NewConnectHTTPClient with an explicit
+// transport timeout. Long-running Bridge workflows (such as onboarding) use
+// this to keep the client attached while the server-owned operation blocks.
+// A zero timeout preserves cli-core's normal application-configured timeout.
+func NewConnectHTTPClientWithTimeout(app *cliapp.ScenarioApp, timeout time.Duration) (connect.HTTPClient, string) {
+	var base connect.HTTPClient
+	var baseURL string
+	if timeout > 0 {
+		base, baseURL = cliapp.NewConnectHTTPClientWithTimeout(app, timeout)
+	} else {
+		base, baseURL = cliapp.NewConnectHTTPClient(app)
+	}
 	return &client{app: app, base: base, baseURL: baseURL, exchange: ExchangeLocal}, baseURL
 }
 

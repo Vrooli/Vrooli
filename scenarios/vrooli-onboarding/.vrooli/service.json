@@ -17,7 +17,7 @@
     "parent": "vrooli",
     "name": "vrooli-onboarding",
     "displayName": "Vrooli Onboarding",
-    "description": "Central configuration hub guiding users through Vrooli resource setup with guided flows, secret validation, and health visualization",
+    "description": "Manifest-derived onboarding for scenario selection, resource closure, credential readiness, host consent, supervised apply, and validation",
     "version": "0.0.1",
     "type": "business-application",
     "category": "ai_tools",

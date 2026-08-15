@@ -127,21 +127,20 @@ func (s *Service) TriggerTask(ctx context.Context, req domain.CreateTaskRequest)
 	}
 
 	// Start background task
-	go s.runTask(inv.ID, deployment, &req, handler, sourceFindings)
+	go s.runTask(context.WithoutCancel(ctx), inv.ID, deployment, &req, handler, sourceFindings)
 
 	return inv, nil
 }
 
 // runTask executes the task in the background.
 func (s *Service) runTask(
+	ctx context.Context,
 	invID string,
 	deployment *domain.Deployment,
 	req *domain.CreateTaskRequest,
 	handler TaskHandler,
 	sourceFindings *string,
 ) {
-	ctx := context.Background()
-
 	// Update status to running
 	if err := s.repo.UpdateInvestigationStatus(ctx, invID, domain.InvestigationStatusRunning); err != nil {
 		log.Printf("[task] failed to update status to running: %v", err)

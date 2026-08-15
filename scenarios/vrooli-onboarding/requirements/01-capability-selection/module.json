@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Scenario-first capability selection: manifest read models, transitive dependency closure, optional-resource choice, and the union export other deployment tiers consume.",
-    "last_validated_at": "2026-08-11T03:50:54-04:00",
+    "last_validated_at": "2026-08-14T04:29:01-04:00",
     "module": "onboarding.selection",
     "schema_version": "1.0.0"
   },
@@ -26,7 +26,7 @@
           "ref": "api/v2_read_model_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Covers the read-model half; closure and optional-resource halves are planned."
+          "notes": "Covers the read-model half; closure and optional-resource halves are covered by companion evidence."
         }
       ]
     },
@@ -60,9 +60,10 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/closure_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Planned target `api/v2_closure_test.go`: fixture graph with a diamond dependency, a try_start edge, and a cycle."
+          "notes": "Evidence target: `api/v2_closure_test.go`; this requirement remains planned until that evidence is added. fixture graph with a diamond dependency, a try_start edge, and a cycle."
         }
       ]
     },
@@ -79,9 +80,10 @@
       "validation": [
         {
           "type": "test",
+          "ref": "ui/src/components/wizard/V2Steps.test.tsx",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Planned target `ui/src/components/wizard/StepSelectScenarios.test.tsx`: asserts pulled-in names and the resource rollup render for a diamond fixture."
+          "notes": "Evidence target: `ui/src/components/wizard/StepSelectScenarios.test.tsx`; this requirement remains planned until that evidence is added. asserts pulled-in names and the resource rollup render for a diamond fixture."
         }
       ]
     },
@@ -112,9 +114,10 @@
       "validation": [
         {
           "type": "test",
+          "ref": "ui/src/components/wizard/V2Steps.test.tsx",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Planned target `ui/src/components/wizard/StepSelectScenarios.test.tsx`: search narrows the rendered set; filter chips narrow by selection state."
+          "notes": "Evidence target: `ui/src/components/wizard/StepSelectScenarios.test.tsx`; this requirement remains planned until that evidence is added. search narrows the rendered set; filter chips narrow by selection state."
         }
       ]
     },
@@ -131,9 +134,10 @@
       "validation": [
         {
           "type": "test",
+          "ref": "ui/src/components/wizard/V2Steps.test.tsx",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Planned target `ui/src/components/wizard/StepResources.test.tsx`: required entries are non-interactive; optional toggles emit the operator-state patch."
+          "notes": "Evidence target: `ui/src/components/wizard/StepResources.test.tsx`; this requirement remains planned until that evidence is added. required entries are non-interactive; optional toggles emit the operator-state patch."
         }
       ]
     },
@@ -150,9 +154,10 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/closure_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Planned target `api/v2_union_test.go`: union for a fixture selection matches the closure plus host requirements."
+          "notes": "Evidence target: `api/v2_union_test.go`; this requirement remains planned until that evidence is added. union for a fixture selection matches the closure plus host requirements."
         }
       ]
     },
@@ -169,13 +174,14 @@
           "ref": "api/v2_host_requirements_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Host half proven. Planned companion asserts an unknown fixture resource renders with its manifest-declared category."
+          "notes": "Host half proven. covered by companion evidence companion asserts an unknown fixture resource renders with its manifest-declared category."
         },
         {
           "type": "test",
+          "ref": "api/resources_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Planned target `api/resources_test.go`: a fixture resource with a novel category renders from the manifest, not from a map."
+          "notes": "Evidence: a fixture resource with a novel category renders from the manifest, not from a map."
         }
       ]
     },

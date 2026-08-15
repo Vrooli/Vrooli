@@ -45,7 +45,31 @@
  * initialised. The pattern above is hoisting-safe and preserves every
  * non-overridden export of `./api/health` via `importOriginal()`.
  */
-export { renderWithProviders } from "@vrooli/api-base/testing";
+import {
+  renderWithProviders as renderWithApiProviders,
+  type ProviderRenderOptions,
+  type ProviderRenderResult,
+} from "@vrooli/api-base/testing";
+import { createElement, type ReactElement, type ReactNode } from "react";
+import { i18n } from "../i18n";
+import { Providers } from "../app/providers";
+
+/**
+ * Bind the shared provider harness to this scenario's initialized i18n
+ * singleton. The api-base default is deliberately uninitialized because it
+ * cannot know a consumer's resource catalog; passing it here prevents tests
+ * from suspending on an empty provider while keeping provider construction in
+ * one canonical helper.
+ */
+export function renderWithProviders(
+  ui: ReactElement,
+  options: ProviderRenderOptions = {},
+): ProviderRenderResult {
+  const scenarioProviders = options.extraProviders;
+  const extraProviders = (children: ReactNode) =>
+    createElement(Providers, null, scenarioProviders ? scenarioProviders(children) : children);
+  return renderWithApiProviders(ui, { ...options, i18n, extraProviders });
+}
 export type { ProviderRenderOptions, ProviderRenderResult } from "@vrooli/api-base/testing";
 export { interp } from "./interp";
 export { expectNoA11yViolations } from "@vrooli/api-base/testing";

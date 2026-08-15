@@ -17,12 +17,12 @@
 Operational targets are tracked via `requirements/` modules and auto-updated by the test suite.
 
 ### 🔴 P0 – Must ship for viability
-- [ ] OT-P0-001 | Cloud Manifest Export | Export a deployment manifest from deployment-manager that fully defines the cloud bundle + target config for one scenario.
-- [ ] OT-P0-002 | Mini-Vrooli Bundle Build | Build a tarball containing only required Vrooli core + required scenarios/resources (from analyzer) + all `packages/`, plus `vrooli-autoheal`.
-- [ ] OT-P0-003 | VPS Preflight | Validate SSH/DNS/ports/OS/network and fail fast with actionable errors before copying artifacts.
-- [ ] OT-P0-004 | VPS Install + Setup | Copy bundle to the VPS, run Vrooli setup, and write minimal config needed for this deployment mode.
-- [ ] OT-P0-005 | Deploy + Start | Start required resources, start the scenario with fixed ports (UI 3000, API 3001, WS 3002), and verify health via HTTPS.
-- [ ] OT-P0-006 | Inspect + Logs | Provide a standard way to fetch status + logs over SSH for the deployed scenario/resources.
+- [x] OT-P0-001 | Cloud Manifest Export | Export a deployment manifest from deployment-manager that fully defines the cloud bundle + target config for one scenario.
+- [x] OT-P0-002 | Mini-Vrooli Bundle Build | Build a tarball containing only required Vrooli core + required scenarios/resources (from analyzer) + all `packages/`, plus `vrooli-autoheal`.
+- [x] OT-P0-003 | VPS Preflight | Validate SSH/DNS/ports/OS/network and fail fast with actionable errors before copying artifacts.
+- [x] OT-P0-004 | VPS Install + Setup | Copy bundle to the VPS, run Vrooli setup, and write minimal config needed for this deployment mode.
+- [x] OT-P0-005 | Deploy + Start | Start required resources, start the scenario with fixed ports (UI 3000, API 3001, WS 3002), and verify health via HTTPS.
+- [x] OT-P0-006 | Inspect + Logs | Provide a standard way to fetch status + logs over SSH for the deployed scenario/resources.
 
 ### 🟠 P1 – Should have post-launch
 - [x] OT-P1-001 | Multi-Environment Profiles | Support multiple environment configs (staging/prod) with separate domains/targets.

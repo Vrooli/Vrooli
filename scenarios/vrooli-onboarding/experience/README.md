@@ -58,10 +58,13 @@ shared-library components. The component specs land together with the
 shared-library adoption that gives them specimens to reference
 (`ONB-UX-DESIGN-SYSTEM`).
 
-**BAS cases.** Each declared journey needs a recorded browser-automation run
-carrying the spec entry id in its labels (`ONB-UX-JOURNEY-EVIDENCE`). Those
-recordings are also the launch demo and the desktop evidence handed to
-deployment-manager.
+**BAS cases.** Each declared journey carries the spec entry id in its labels
+(`ONB-UX-JOURNEY-EVIDENCE`). The six recorded runs are exported as
+`bas/evidence/experience-journeys.json`; each receipt includes the BAS run id,
+video artifact path, byte count, and SHA-256. Those recordings are also the
+launch demo and the desktop evidence handed to deployment-manager. The
+accessibility matrix remains a separate gate until its all-steps run is
+recorded.
 
 ## Order of work
 

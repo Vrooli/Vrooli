@@ -136,7 +136,7 @@ func routesFromSource(path string) ([]route, error) {
 			return true
 		}
 		handleName, ok := handle.Fun.(*ast.SelectorExpr)
-		if !ok || handleName.Sel.Name != "HandleFunc" {
+		if !ok || (handleName.Sel.Name != "HandleFunc" && handleName.Sel.Name != "Handle") {
 			return true
 		}
 		pathLiteral, ok := handle.Args[0].(*ast.BasicLit)

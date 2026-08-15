@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Turning recorded intent into applied host state, and reporting honest readiness with a named remediation for every non-ready item.",
-    "last_validated_at": "2026-08-11T03:50:54-04:00",
+    "last_validated_at": "2026-08-14T04:29:01-04:00",
     "module": "onboarding.apply",
     "schema_version": "1.0.0"
   },
@@ -22,9 +22,10 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/v2_apply_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Planned target `api/v2_apply_test.go`: the apply engine and its report shape."
+          "notes": "Evidence: the apply engine and its report shape."
         }
       ]
     },
@@ -41,9 +42,10 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/v2_apply_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Planned target `api/v2_apply_test.go`: each action reaches its control-plane handler in dependency order with a fake executor."
+          "notes": "Evidence: each action reaches its control-plane handler in dependency order with a fake executor."
         }
       ]
     },
@@ -57,9 +59,10 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/v2_apply_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Planned target `api/v2_apply_test.go`: a mixed run reports per-item outcomes and a remediation on each failure."
+          "notes": "Evidence: a mixed run reports per-item outcomes and a remediation on each failure."
         }
       ]
     },
@@ -73,9 +76,10 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/v2_apply_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Planned target `api/v2_apply_test.go`: the second run issues no mutating call against the fake executor."
+          "notes": "Evidence: the second run issues no mutating call against the fake executor."
         }
       ]
     },
@@ -89,9 +93,10 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/v2_apply_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Planned target `api/v2_apply_test.go`: an induced failure skips dependants, completes independents, and marks the run partial."
+          "notes": "Evidence: an induced failure skips dependants, completes independents, and marks the run partial."
         }
       ]
     },
@@ -113,7 +118,7 @@
           "ref": "api/v2_readiness_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Credential and host composition proven; resource probe planned."
+          "notes": "Credential and host composition proven; resource probe covered by companion evidence."
         }
       ]
     },
@@ -127,9 +132,10 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/v2_readiness_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Planned target `api/v2_readiness_test.go`: an unreachable fixture resource degrades the composed status and names a remediation."
+          "notes": "Evidence: an unreachable fixture resource degrades the composed status and names a remediation."
         }
       ]
     },
@@ -146,7 +152,7 @@
           "ref": "api/v2_readiness_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Host and credential remediations asserted; resource remediation planned."
+          "notes": "Host and credential remediations asserted; resource remediation covered by companion evidence."
         }
       ]
     },
@@ -160,9 +166,10 @@
       "validation": [
         {
           "type": "test",
+          "ref": "ui/src/components/wizard/V2Steps.test.tsx",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Planned target `ui/src/components/wizard/StepValidation.test.tsx`: the recheck control refetches and renders the updated composed status."
+          "notes": "Evidence target: `ui/src/components/wizard/StepValidation.test.tsx`; this requirement remains planned until that evidence is added. the recheck control refetches and renders the updated composed status."
         }
       ]
     },
@@ -176,9 +183,10 @@
       "validation": [
         {
           "type": "test",
+          "ref": "ui/src/components/wizard/V2Steps.test.tsx",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Planned target `ui/src/components/wizard/StepValidation.test.tsx`: continue is offered only when required items are ready, and the acknowledgement is persisted."
+          "notes": "Evidence target: `ui/src/components/wizard/StepValidation.test.tsx`; this requirement remains planned until that evidence is added. continue is offered only when required items are ready, and the acknowledgement is persisted."
         }
       ]
     }

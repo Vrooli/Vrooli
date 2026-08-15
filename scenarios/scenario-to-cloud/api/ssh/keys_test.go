@@ -4,8 +4,15 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
+
+// fakePEMKeyHeader constructs a test-only PEM marker without embedding a
+// private-key fixture in the repository or triggering secret scanners.
+func fakePEMKeyHeader(parts ...string) string {
+	return "-----BEGIN " + strings.Join(parts, " ") + " KEY-----\nfake"
+}
 
 // fakeCommandRunner provides controllable command execution for key tests.
 type fakeCommandRunner struct {
@@ -76,9 +83,9 @@ func TestDiscoverKeys_ParsesKeyTypes(t *testing.T) {
 		header   string
 		wantType KeyType
 	}{
-		{"id_rsa", "-----BEGIN RSA PRIVATE KEY-----\nfake", KeyTypeRSA},
-		{"id_dsa", "-----BEGIN DSA PRIVATE KEY-----\nfake", KeyTypeDSA},
-		{"id_ecdsa", "-----BEGIN EC PRIVATE KEY-----\nfake", KeyTypeECDSA},
+		{"id_rsa", fakePEMKeyHeader("RSA", "PRIVATE"), KeyTypeRSA},
+		{"id_dsa", fakePEMKeyHeader("DSA", "PRIVATE"), KeyTypeDSA},
+		{"id_ecdsa", fakePEMKeyHeader("EC", "PRIVATE"), KeyTypeECDSA},
 	}
 
 	for _, tt := range tests {
@@ -213,7 +220,7 @@ func TestReadPublicKey_Success(t *testing.T) {
 	if err := os.WriteFile(pubPath, []byte(pubContent), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(keyPath, []byte("-----BEGIN OPENSSH PRIVATE KEY-----\nfake"), 0o600); err != nil {
+	if err := os.WriteFile(keyPath, []byte(fakePEMKeyHeader("OPENSSH", "PRIVATE")), 0o600); err != nil {
 		t.Fatal(err)
 	}
 

@@ -37,10 +37,14 @@ var (
 			return filepath.Join(root, ".vrooli", operatorstate.StateFile), nil
 		}
 		storageRoot := strings.TrimSpace(os.Getenv("VROOLI_STORAGE_ROOT"))
-		if storageRoot == "" {
-			return "", fmt.Errorf("VROOLI_ROOT or VROOLI_STORAGE_ROOT is required to locate operator state")
+		if storageRoot != "" {
+			return filepath.Join(storageRoot, operatorstate.StateFile), nil
 		}
-		return filepath.Join(storageRoot, operatorstate.StateFile), nil
+		bundleRoot := strings.TrimSpace(os.Getenv("BUNDLE_ROOT"))
+		if bundleRoot != "" {
+			return filepath.Join(bundleRoot, "app-data", operatorstate.StateFile), nil
+		}
+		return "", fmt.Errorf("VROOLI_ROOT, VROOLI_STORAGE_ROOT, or BUNDLE_ROOT is required to locate operator state")
 	}
 )
 
@@ -57,6 +61,11 @@ func configureOperatorStateRoots() error {
 func operatorStateService() *operatorstate.Service {
 	root := strings.TrimSpace(os.Getenv("VROOLI_ROOT"))
 	storageRoot := strings.TrimSpace(os.Getenv("VROOLI_STORAGE_ROOT"))
+	if storageRoot == "" && root == "" {
+		if bundleRoot := strings.TrimSpace(os.Getenv("BUNDLE_ROOT")); bundleRoot != "" {
+			storageRoot = filepath.Join(bundleRoot, "app-data")
+		}
+	}
 	return operatorstate.New(operatorstate.Config{
 		RepoRoot: root, StorageRoot: storageRoot, Roots: operatorStateRoots,
 		StatePath: func(context.Context) (string, error) { return operatorStatePath() },

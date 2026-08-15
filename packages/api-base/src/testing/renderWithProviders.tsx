@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { type RenderOptions, type RenderResult, render } from "@testing-library/react";
-import type { ReactElement, ReactNode } from "react";
+import type { ComponentType, ReactElement, ReactNode } from "react";
 import { I18nextProvider } from "react-i18next";
 import { createInstance, type i18n as I18nInstance } from "i18next";
 import { MemoryRouter } from "react-router-dom";
@@ -24,7 +24,11 @@ export interface ProviderRenderOptions extends Omit<RenderOptions, "wrapper"> {
   initialEntries?: string[];
   withoutRouter?: boolean;
   /** Backwards-compatible inverse alias for withoutRouter. */
-  withRouter?: boolean;
+	withRouter?: boolean;
+	/** Backwards-compatible single route alias used by scenario suites. */
+	route?: string;
+	/** Backwards-compatible scenario wrapper alias. */
+	wrapper?: ComponentType<{ children: ReactNode }>;
   withoutI18n?: boolean;
   /** Additional providers owned by the consuming scenario. */
   extraProviders?: TestProvider;
@@ -90,24 +94,27 @@ export function renderWithProviders(
     routerEntries,
     initialIndex,
     withoutRouter = false,
-    withRouter,
+		withRouter,
+		route,
+		wrapper: LegacyWrapper,
     withoutI18n = false,
     extraProviders = configuredProviders,
     i18n = defaultI18n,
     ...rest
   } = options;
-  const resolvedRouterEntries = routerEntries ?? initialEntries ?? ["/"];
+	const resolvedRouterEntries = routerEntries ?? initialEntries ?? (route ? [route] : ["/"]);
   const resolvedWithoutRouter = withRouter === undefined ? withoutRouter : !withRouter;
 
   const Wrapper = ({ children }: { children: ReactNode }) => {
-    const providerTree = extraProviders ? extraProviders(children) : children;
-    const routed = resolvedWithoutRouter ? providerTree : (
+		const providerTree = extraProviders ? extraProviders(children) : children;
+		const wrapped = LegacyWrapper ? <LegacyWrapper>{providerTree}</LegacyWrapper> : providerTree;
+		const routed = resolvedWithoutRouter ? wrapped : (
       <MemoryRouter
         initialEntries={resolvedRouterEntries}
         initialIndex={initialIndex}
         future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
       >
-        {providerTree}
+			{wrapped}
       </MemoryRouter>
     );
     const localized = withoutI18n ? routed : (

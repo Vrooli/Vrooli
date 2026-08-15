@@ -28,11 +28,14 @@ import (
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
+	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/devrouting"
 	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
+	_ "modernc.org/sqlite"
 
 	vpspreflight "scenario-to-cloud/vps/preflight"
 )
@@ -48,7 +51,7 @@ type Config struct {
 type Server struct {
 	config           *Config
 	router           *mux.Router
-	db               *sql.DB
+	db               *database.RoutedDB
 	repo             *persistence.Repository
 	progressHub      *deployment.Hub
 	agentSvc         *agentmanager.AgentService
@@ -77,6 +80,21 @@ type Server struct {
 	instanceProvider instance.Provider
 }
 
+// devRoutingMux adapts gorilla/mux's fluent registration API to api-core's
+// intentionally tiny mounting interface. Mount is important here: Connect
+// RPC handlers own a service-prefix subtree rather than one exact path.
+type devRoutingMux struct {
+	router *mux.Router
+}
+
+func (m devRoutingMux) Handle(pattern string, handler http.Handler) {
+	m.router.Handle(pattern, handler)
+}
+
+func (m devRoutingMux) Mount(pattern string, handler http.Handler) {
+	m.router.PathPrefix(pattern).Handler(handler)
+}
+
 // NewServer initializes configuration, database, and routes
 func NewServer() (*Server, error) {
 	cfg := &Config{
@@ -84,8 +102,11 @@ func NewServer() (*Server, error) {
 	}
 
 	// Connect to database
-	db, err := database.Connect(context.Background(), database.Config{
+	db, err := database.Open(context.Background(), database.Config{
 		Driver: database.DriverPostgres,
+		// Test Genie provisions an isolated SQLite lease for routed workflow
+		// runs; production traffic remains on PostgreSQL.
+		TestDriver: database.DriverSQLite,
 	})
 	if err != nil {
 		return nil, err
@@ -93,10 +114,23 @@ func NewServer() (*Server, error) {
 
 	// Initialize repository and schema
 	repo := persistence.NewRepository(db)
+	// Keep the api-core schema contract active even though this scenario still
+	// owns a migration-rich repository schema. This also makes the routed
+	// primary/test-pool boundary explicit to storage-health.
+	if err := database.EnsureSchemas(context.Background(), db.Primary()); err != nil {
+		db.Close()
+		return nil, err
+	}
 	if err := repo.InitSchema(context.Background()); err != nil {
 		db.Close()
 		return nil, err
 	}
+	db.SetTestPoolInitializer(func(ctx context.Context, pool *sql.DB) error {
+		if err := database.EnsureSchemas(ctx, pool); err != nil {
+			return err
+		}
+		return repo.InitSchemaOnDialect(ctx, pool, database.DriverSQLite)
+	})
 
 	progressHub := deployment.NewHub()
 
@@ -186,7 +220,11 @@ func NewServer() (*Server, error) {
 func (s *Server) setupRoutes() {
 	s.router.Use(loggingMiddleware)
 	// Health endpoint at both root (for infrastructure) and /api/v1 (for clients)
-	healthHandler := health.Handler(health.DB(s.db))
+	var healthDB *sql.DB
+	if s.db != nil {
+		healthDB = s.db.Primary()
+	}
+	healthHandler := health.Handler(health.DB(healthDB))
 	s.router.HandleFunc("/health", healthHandler).Methods("GET")
 
 	api := s.router.PathPrefix("/api/v1").Subrouter()
@@ -310,11 +348,31 @@ func (s *Server) setupRoutes() {
 
 	// New unified task endpoints
 	s.registerTaskRoutes(api)
+
+	// Test-genie uses a leased shadow pool in development. The registration is
+	// deliberately dev-only inside api-core and is never exposed in production.
+	if s.db != nil {
+		devrouting.Register(devRoutingMux{router: s.router}, s.db)
+	}
 }
 
 // Router returns the HTTP handler for use with server.Run
 func (s *Server) Router() http.Handler {
-	return handlers.RecoveryHandler()(s.router)
+	return apihttp.TestModeMiddleware(handlers.RecoveryHandler()(securityHeadersMiddleware(s.router)))
+}
+
+// securityHeadersMiddleware centralizes the baseline browser boundary for
+// every API response. HSTS is included because the API is also deployed
+// behind the HTTPS edge; local development remains functional because this
+// header is only honored by browsers after a secure response.
+func securityHeadersMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("X-Frame-Options", "DENY")
+		w.Header().Set("X-XSS-Protection", "0")
+		w.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+		next.ServeHTTP(w, r)
+	})
 }
 
 func (s *Server) log(msg string, fields map[string]interface{}) {

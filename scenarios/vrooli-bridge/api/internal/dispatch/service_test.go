@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"vrooli-bridge/internal/dispatch"
 	"vrooli-bridge/internal/dispatch/mocks"
@@ -205,4 +206,43 @@ func TestDispatch_AuditFailClosed(t *testing.T) {
 	require.Error(t, err, "dispatch refuses when it cannot audit")
 	require.Equal(t, []string{"run-1"}, runsCtl.Aborted, "the un-auditable run is aborted")
 	require.Empty(t, pusher.PushedJobs(), "nothing is pushed when audit fails closed")
+}
+
+func TestDispatch_DeviceScopedVerbWithoutHeldLease_IsRefusedAndAudited(t *testing.T) {
+	store := dispatch.NewMemoryDeviceLeaseStore()
+	nodes := &mocks.FakeNodeReader{Nodes: map[string]dispatch.TargetNode{
+		"n1": {ID: "n1", Scopes: []string{"vrooli-bridge:write"}},
+	}}
+	presence := &mocks.FakePresence{Online: map[string]bool{"n1": true}}
+	runsCtl := &mocks.FakeRunController{NextRunID: "run-device"}
+	sink := &mocks.FakeAuditSink{}
+	pusher := &mocks.FakeJobPusher{}
+	svc := dispatch.NewService(nodes, presence, runsCtl, sink, pusher, dispatch.WithDeviceLeaseStore(store))
+
+	_, err := svc.Dispatch(context.Background(), dispatch.DispatchInput{Actor: "owner", Job: dispatch.Job{
+		NodeID: "n1", Scenario: "device-control", Verb: "device-control actuate", DeviceID: "phone-1", LeaseToken: "missing",
+	}})
+	var lease dispatch.ErrDeviceLeaseNotHeld
+	require.ErrorAs(t, err, &lease)
+	require.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(dispatch.ToConnectError(err)))
+	require.Empty(t, runsCtl.Created)
+	require.Empty(t, pusher.PushedJobs())
+	require.Len(t, sink.Recorded(), 1)
+	require.False(t, sink.Recorded()[0].Accepted)
+	require.Contains(t, sink.Recorded()[0].Detail, "held lease")
+}
+
+func TestDispatch_DeviceScopedVerbWithBridgeLeaseIsAccepted(t *testing.T) {
+	store := dispatch.NewMemoryDeviceLeaseStore()
+	require.NoError(t, store.Hold("phone-1", "lease-1", "owner", time.Now().UTC().Add(time.Minute)))
+	nodes := &mocks.FakeNodeReader{Nodes: map[string]dispatch.TargetNode{
+		"n1": {ID: "n1", Scopes: []string{"vrooli-bridge:write"}},
+	}}
+	sink := &mocks.FakeAuditSink{}
+	svc := dispatch.NewService(nodes, &mocks.FakePresence{Online: map[string]bool{"n1": true}}, &mocks.FakeRunController{NextRunID: "run-device"}, sink, &mocks.FakeJobPusher{}, dispatch.WithDeviceLeaseStore(store))
+	_, err := svc.Dispatch(context.Background(), dispatch.DispatchInput{Actor: "owner", Job: dispatch.Job{
+		NodeID: "n1", Scenario: "device-control", Verb: "device-control actuate", DeviceID: "phone-1", LeaseToken: "lease-1",
+	}})
+	require.NoError(t, err)
+	require.True(t, sink.Recorded()[0].Accepted)
 }

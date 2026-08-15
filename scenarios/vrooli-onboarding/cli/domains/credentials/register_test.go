@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	clitest "vrooli-onboarding/cli/internal/testutil"
+	clitest "github.com/vrooli/cli-core/cliapptest"
 )
 
 func TestRegisterExposesSafeCredentialCommands(t *testing.T) {

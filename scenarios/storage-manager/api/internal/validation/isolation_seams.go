@@ -2,6 +2,7 @@ package validation
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"go/ast"
 	"go/parser"
@@ -218,7 +219,28 @@ func (isoFileRoutedSeams) Applies(ac AnalyzerContext) bool {
 
 func isoObserverOnly(ac AnalyzerContext) bool {
 	registry := ReadFile(filepath.Join(ac.ScenarioDir, "bas", "registry.json"))
-	return strings.Contains(registry, `"execution_mode": "observer"`)
+	if strings.Contains(registry, `"execution_mode": "observer"`) {
+		return true
+	}
+	// test-genie generates a metadata-only registry when a scenario declares no
+	// BAS workflows. That is equivalent to observer-only for this analyzer: no
+	// mutating browser path exists that could write an application file. Keep
+	// malformed or missing registries fail-closed rather than inferring safety.
+	var document map[string]json.RawMessage
+	if strings.TrimSpace(registry) == "" || json.Unmarshal([]byte(registry), &document) != nil {
+		return false
+	}
+	for _, key := range []string{"workflows", "cases", "flows"} {
+		value, present := document[key]
+		if !present {
+			continue
+		}
+		var entries []json.RawMessage
+		if json.Unmarshal(value, &entries) != nil || len(entries) > 0 {
+			return false
+		}
+	}
+	return true
 }
 
 // isoUsesFilePersistence catches Go APIs whose storage declaration is absent

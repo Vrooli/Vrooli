@@ -1729,7 +1729,7 @@
             { "name": "no-provision-sudo", "bool": true, "description": "Opt out of passwordless sudo" },
             { "name": "source", "description": "pinned or working-tree" },
             { "name": "password-stdin", "bool": true, "description": "Read the one-time SSH password from stdin" },
-            { "name": "setup-passphrase-stdin", "bool": true, "description": "Read setup passphrase as the second stdin line" }
+            { "name": "setup-passphrase-stdin", "bool": true, "description": "Read the credential-store passphrase from stdin; on SSH recovery, use --password-stdin too so the SSH password is the first line" }
           ],
           "binding": { "kind": "connect-rpc", "service": "OnboardService", "method": "PreflightOnboarding" },
           "governance": { "effect": "write", "run_eligible": false, "permissions": ["network:internal"] }

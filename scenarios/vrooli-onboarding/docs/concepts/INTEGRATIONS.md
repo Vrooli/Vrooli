@@ -20,9 +20,11 @@
 ## The bridge boundary
 
 vrooli-bridge owns reaching a machine and holding the connection. Onboarding owns
-deciding what runs there. The boundary between them is deliberately narrow: a
-declarative selection document in, a readiness report and a machine-readable exit
-code out.
+deciding what runs there. Bridge sends node identity to `POST /api/v2/handoff`;
+onboarding returns the effective capability-shaped selection, without exposing
+operator-state internals or credential values. Bridge transfers that selection
+through its private remote temporary-file path, then runs the onboarding CLI and
+reads back the authoritative readiness report and machine-readable exit code.
 
 Keeping it narrow is what lets the same surface serve a VPS, a LAN machine, and a
 CI runner without bridge learning anything about scenarios or onboarding learning

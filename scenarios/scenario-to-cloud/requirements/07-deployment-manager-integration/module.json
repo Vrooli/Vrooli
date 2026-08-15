@@ -1,16 +1,15 @@
 {
-  "module_id": "deployment-manager-integration",
-  "title": "Deployment-Manager Integration",
-  "priority": "P0",
-  "description": "Define the invocation contract from deployment-manager to scenario-to-cloud (mirrors scenario-to-desktop integration pattern).",
+  "_metadata": {
+    "last_validated_at": "2026-08-14T06:44:27-04:00"
+  },
   "requirements": [
     {
       "id": "STC-P0-007",
-      "category": "integration",
-      "prd_ref": "OT-P0-001",
       "title": "Packager API surface for deploy-manager",
+      "status": "complete",
+      "prd_ref": "OT-P0-001",
+      "category": "integration",
       "description": "Expose a minimal API for: validate(plan), build bundle, deploy over SSH, and check status/logs. Must be callable from deployment-manager orchestration.",
-      "status": "in_progress",
       "tags": [
         "deployment-manager",
         "api",
@@ -19,16 +18,16 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/deployment_manager_contract_test.go",
           "phase": "unit",
           "status": "implemented",
-          "ref": "api/deployment_manager_contract_test.go",
           "notes": "Validates validate+plan endpoints exist for deployment-manager orchestration."
         },
         {
           "type": "test",
+          "ref": "api/bundle_build_contract_test.go",
           "phase": "unit",
           "status": "implemented",
-          "ref": "api/bundle_build_contract_test.go",
           "notes": "Validates bundle-build endpoint exists and returns an artifact."
         }
       ]

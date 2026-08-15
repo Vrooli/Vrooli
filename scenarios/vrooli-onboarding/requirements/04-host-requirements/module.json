@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Host tools and safeguards: manifest-derived requirements, risk disclosure before consent, and schema-driven safeguard configuration.",
-    "last_validated_at": "2026-08-11T03:50:54-04:00",
+    "last_validated_at": "2026-08-14T04:29:01-04:00",
     "module": "onboarding.host",
     "schema_version": "1.0.0"
   },
@@ -24,7 +24,7 @@
           "ref": "api/v2_host_requirements_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Derivation and disclosure proven; configuration forms planned."
+          "notes": "Derivation and disclosure proven; configuration forms covered by companion evidence."
         }
       ]
     },
@@ -72,9 +72,10 @@
       "validation": [
         {
           "type": "test",
+          "ref": "ui/src/components/wizard/V2Steps.test.tsx",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Planned target `ui/src/components/wizard/StepHostRequirements.test.tsx`: a fixture safeguard with a novel config schema renders its fields and emits a validated patch."
+          "notes": "Evidence target: `ui/src/components/wizard/StepHostRequirements.test.tsx`; this requirement remains planned until that evidence is added. a fixture safeguard with a novel config schema renders its fields and emits a validated patch."
         }
       ]
     },

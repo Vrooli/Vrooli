@@ -167,6 +167,9 @@ func doRequest(t *testing.T, srv *Server, method, path, body string) *httptest.R
 	} else {
 		req = httptest.NewRequest(method, path, nil)
 	}
+	// Test requests represent the local browser/CLI caller. Remote-boundary
+	// tests construct an explicit non-loopback RemoteAddr instead.
+	req.RemoteAddr = "127.0.0.1:12345"
 	w := httptest.NewRecorder()
 	srv.router.ServeHTTP(w, req)
 	return w

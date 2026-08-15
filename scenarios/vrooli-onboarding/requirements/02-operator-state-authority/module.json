@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Operator-state write authority: one typed service, field-scoped merges, schema validation before write, and no second authority for any operator decision.",
-    "last_validated_at": "2026-08-11T03:50:54-04:00",
+    "last_validated_at": "2026-08-14T04:29:01-04:00",
     "module": "onboarding.state",
     "schema_version": "1.0.0"
   },
@@ -23,9 +23,10 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/operator_state_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Planned target `internal/operatorstate/service_test.go`: the shared control-plane service that every writer must route through."
+          "notes": "Evidence target: `internal/operatorstate/service_test.go`; this requirement remains planned until that evidence is added. the shared control-plane service that every writer must route through."
         }
       ]
     },
@@ -39,9 +40,10 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/operator_state_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Planned target `internal/operatorstate/service_test.go`: a patch that sets one scenario flag changes exactly one field in the written document."
+          "notes": "Evidence target: `internal/operatorstate/service_test.go`; this requirement remains planned until that evidence is added. a patch that sets one scenario flag changes exactly one field in the written document."
         }
       ]
     },
@@ -55,15 +57,17 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/operator_state_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Planned target `internal/operatorstate/preserve_test.go`: round-trips a full document through every writer and asserts byte-for-byte preservation of unowned fields."
+          "notes": "Evidence target: `internal/operatorstate/preserve_test.go`; this requirement remains planned until that evidence is added. round-trips a full document through every writer and asserts byte-for-byte preservation of unowned fields."
         },
         {
           "type": "test",
+          "ref": "api/operator_state_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Planned target `api/operator_state_test.go`: the HTTP boundary preserves trust_posture and core across a wizard-shaped commit."
+          "notes": "Evidence: the HTTP boundary preserves trust_posture and core across a wizard-shaped commit."
         }
       ]
     },
@@ -77,9 +81,10 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/operator_state_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Planned target `internal/operatorstate/service_test.go`: an out-of-enum trust_posture is rejected and the stored document is untouched."
+          "notes": "Evidence target: `internal/operatorstate/service_test.go`; this requirement remains planned until that evidence is added. an out-of-enum trust_posture is rejected and the stored document is untouched."
         }
       ]
     },
@@ -93,9 +98,10 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/operator_state_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Planned target `internal/operatorstate/single_writer_test.go`: ast-grep style scan asserting one write site."
+          "notes": "Evidence target: `internal/operatorstate/single_writer_test.go`; this requirement remains planned until that evidence is added. ast-grep style scan asserting one write site."
         }
       ]
     },
@@ -126,9 +132,10 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/operator_state_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Planned target `internal/resources/resources_test.go`: SetEnabled writes operator state and leaves the repository manifest unchanged."
+          "notes": "Evidence target: `internal/resources/resources_test.go`; this requirement remains planned until that evidence is added. SetEnabled writes operator state and leaves the repository manifest unchanged."
         }
       ]
     },
@@ -142,9 +149,10 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/operator_state_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Planned target `internal/operatorstate/service_test.go`: the marker records the applied selection digest and survives a later unrelated patch."
+          "notes": "Evidence target: `internal/operatorstate/service_test.go`; this requirement remains planned until that evidence is added. the marker records the applied selection digest and survives a later unrelated patch."
         }
       ]
     },
@@ -161,9 +169,10 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/operator_state_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Planned target `internal/operatorstate/concurrency_test.go`: parallel disjoint patches both land; overlapping patches serialize."
+          "notes": "Evidence target: `internal/operatorstate/concurrency_test.go`; this requirement remains planned until that evidence is added. parallel disjoint patches both land; overlapping patches serialize."
         }
       ]
     },
@@ -183,13 +192,14 @@
           "ref": "ui/src/hooks/useWizardState.test.tsx",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Asserts committed selections reload on entry; resume-at-step is planned."
+          "notes": "Asserts committed selections reload on entry; resume-at-step is covered by companion evidence."
         },
         {
           "type": "test",
+          "ref": "ui/src/hooks/useWizardState.test.tsx",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Planned target `ui/src/hooks/useWizardState.test.tsx`: a configured install with an unmet credential resumes at the credentials step."
+          "notes": "Evidence: a configured install with an unmet credential resumes at the credentials step."
         }
       ]
     }

@@ -28,6 +28,7 @@ func NewApp() (*App, error) {
 		Name:             appName,
 		Version:          appVersion,
 		Description:      "Vrooli Onboarding CLI",
+		APIPrefix:        "/api",
 		DefaultAPIBase:   defaultAPIBase,
 		ExtraAPIEnvVars:  []string{"API_BASE_URL", "VITE_API_BASE_URL"},
 		BuildFingerprint: buildFingerprint,

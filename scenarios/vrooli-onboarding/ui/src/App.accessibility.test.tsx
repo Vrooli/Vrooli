@@ -115,10 +115,10 @@ describe("App - Accessibility", () => {
     expect(tab0).toHaveAttribute("aria-selected", "true");
   });
 
-  it("nav buttons have improved contrast (text-slate-300 for inactive)", () => {
+  it("nav buttons have improved contrast (text-muted for inactive)", () => {
     renderApp();
     const [, tab1] = getTabs();
-    expect(tab1.className).toContain("text-slate-300");
+    expect(tab1.className).toContain("text-muted");
   });
 
   it("each view has an h1 heading for page-has-heading-one", () => {

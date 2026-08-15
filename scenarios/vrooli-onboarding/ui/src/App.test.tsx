@@ -54,14 +54,14 @@ describe("App - Wizard Navigation", () => {
   it("renders step announcement for screen readers", () => {
     renderApp();
     const announcement = screen.getByTestId("step-announcement");
-    expect(announcement).toHaveTextContent("Step 1 of 8");
+    expect(announcement).toHaveTextContent("Step 1 of 9");
     expect(announcement).toHaveAttribute("aria-live", "assertive");
   });
 
   it("updates step announcement on navigation", () => {
     renderApp();
     fireEvent.click(screen.getByTestId("wizard-next")); // go to step 2
-    expect(screen.getByTestId("step-announcement")).toHaveTextContent("Step 2 of 8");
+    expect(screen.getByTestId("step-announcement")).toHaveTextContent("Step 2 of 9");
   });
 });
 

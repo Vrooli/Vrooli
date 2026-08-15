@@ -4,7 +4,8 @@
   "providers": [
     {
       "provider_id": "swarm-manager.initiative",
-      "lifecycle": "production",
+      "lifecycle": "experimental",
+      "declared_at": "2026-08-13T20:38:00Z",
       "provider_group": "swarm-manager",
       "bucket": "BUCKET_STATE",
       "type": "initiative",

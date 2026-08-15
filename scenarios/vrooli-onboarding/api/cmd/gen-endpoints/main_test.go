@@ -10,8 +10,9 @@ import (
 func TestRoutesFromSourceFindsEveryMethod(t *testing.T) {
 	dir := t.TempDir()
 	source := `package main
-func register(router interface{ HandleFunc(string, any) route }) {
+func register(router interface{ HandleFunc(string, any) route; Handle(string, any) route }) {
   router.HandleFunc("/health", nil).Methods("GET")
+  router.Handle("/protected", nil).Methods("POST")
   router.HandleFunc("/items/{id}", nil).Methods("GET", "POST")
 }`
 	path := filepath.Join(dir, "main.go")
@@ -22,7 +23,7 @@ func register(router interface{ HandleFunc(string, any) route }) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(routes) != 3 || routes[1] != (route{Path: "/items/{id}", Method: "GET"}) || routes[2].Method != "POST" {
+	if len(routes) != 4 || routes[1] != (route{Path: "/protected", Method: "POST"}) || routes[3].Method != "POST" {
 		t.Fatalf("routes = %#v", routes)
 	}
 }

@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Credential provisioning and readiness: descriptor-complete guidance, a disclosure-free relay boundary, backend diagnosis, and recovery coverage.",
-    "last_validated_at": "2026-08-11T03:50:54-04:00",
+    "last_validated_at": "2026-08-14T04:29:01-04:00",
     "module": "onboarding.credentials",
     "schema_version": "1.0.0"
   },
@@ -24,7 +24,7 @@
           "ref": "api/v2_credentials_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Relay half proven; disclosure and guidance halves planned."
+          "notes": "Relay half proven; disclosure and guidance halves covered by companion evidence."
         }
       ]
     },
@@ -62,9 +62,10 @@
         },
         {
           "type": "test",
+          "ref": "api/v2_credentials_disclosure_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Planned target `api/v2_credentials_disclosure_test.go`: captures logs, the request line, and the written operator-state document, and asserts none contains the submitted value."
+          "notes": "Evidence: captures logs, the request line, and the written operator-state document, and asserts none contains the submitted value."
         }
       ]
     },
@@ -78,15 +79,17 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/v2_readiness_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Planned target `api/v2_readiness_test.go`: the readiness projection carries description and obtain_url through from the descriptor."
+          "notes": "Evidence: the readiness projection carries description and obtain_url through from the descriptor."
         },
         {
           "type": "test",
+          "ref": "ui/src/components/wizard/V2Steps.test.tsx",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Planned target `ui/src/components/wizard/StepCredentials.test.tsx`: the card renders the purpose text and an obtain link pointing at the declared URL."
+          "notes": "Evidence target: `ui/src/components/wizard/StepCredentials.test.tsx`; this requirement remains planned until that evidence is added. the card renders the purpose text and an obtain link pointing at the declared URL."
         }
       ]
     },
@@ -134,9 +137,10 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/v2_readiness_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Planned target `api/v2_readiness_test.go`: a no-session backend yields the store-init remediation rather than a generic unsupported state."
+          "notes": "Evidence: a no-session backend yields the store-init remediation rather than a generic unsupported state."
         }
       ]
     }

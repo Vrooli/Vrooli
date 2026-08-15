@@ -39,12 +39,41 @@ func TestV2ReadinessReportsOnlyMetadata(t *testing.T) {
 		return []byte(`{"identity":"vrooli/demo","field":"api-key","configured":true,"provider":"native-secure-store"}`), nil
 	}
 	t.Cleanup(func() { credentialStatusCommand = prior })
+	releasePrior := releaseAuthorityStatusCommand
+	releaseAuthorityStatusCommand = func(context.Context, string) ([]byte, error) {
+		return []byte(`{"configured":true,"trust_anchor_match":true,"provider":"native-secure-store"}`), nil
+	}
+	t.Cleanup(func() { releaseAuthorityStatusCommand = releasePrior })
 	w := doGet(t, NewServer(), "/api/v2/readiness")
 	if w.Code != http.StatusOK {
 		t.Fatalf("status = %d: %s", w.Code, w.Body.String())
 	}
-	if body := w.Body.String(); !strings.Contains(body, `"status":"ready"`) || !strings.Contains(body, `"logical_id":"vrooli/demo"`) || strings.Contains(body, "secret-value") {
+	if body := w.Body.String(); !strings.Contains(body, `"status":"ready"`) || !strings.Contains(body, `"logical_id":"vrooli/demo"`) || !strings.Contains(body, `"name":"release-authority"`) || strings.Contains(body, "secret-value") {
 		t.Fatalf("readiness response = %s", body)
+	}
+}
+
+func TestReleaseAuthorityReadinessNamesRemediation(t *testing.T) {
+	prior := releaseAuthorityStatusCommand
+	t.Cleanup(func() { releaseAuthorityStatusCommand = prior })
+	cases := []struct {
+		name   string
+		output string
+		status string
+		want   string
+	}{
+		{name: "missing", output: `{"configured":false}`, status: "missing", want: "vrooli release-authority init"},
+		{name: "mismatched", output: `{"configured":true,"trust_anchor_match":false}`, status: "degraded", want: "--replace-trust-anchor"},
+		{name: "ready", output: `{"configured":true,"trust_anchor_match":true}`, status: "ready", want: "synchronized"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			releaseAuthorityStatusCommand = func(context.Context, string) ([]byte, error) { return []byte(tc.output), nil }
+			item := releaseAuthorityReadiness(t.TempDir())
+			if item.Status != tc.status || !strings.Contains(item.Detail+item.Remediation, tc.want) {
+				t.Fatalf("item = %+v, want status %q and %q", item, tc.status, tc.want)
+			}
+		})
 	}
 }
 

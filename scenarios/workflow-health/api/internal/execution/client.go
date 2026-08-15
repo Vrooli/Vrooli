@@ -87,8 +87,14 @@ func (c *ConnectClient) ExecuteAdhoc(ctx context.Context, req ExecuteRequest) (*
 	}
 	if req.Options.ElectronTarget != nil {
 		target := req.Options.ElectronTarget
-		basReq.Options.ElectronTarget = &basexecution.ElectronTarget{
-			TargetId: target.TargetID, CdpEndpoint: target.CDPEndpoint,
+		// The public BAS contract generalized the legacy electron_target field
+		// to app_target so Android WebView and future target adapters can share
+		// the same validation seam. Keep workflow-health's internal name for
+		// compatibility with its desktop validation API, but emit the current
+		// typed contract at the provider boundary.
+		basReq.Options.AppTarget = &basexecution.AppTarget{
+			TargetKind: "electron",
+			TargetId:   target.TargetID, CdpEndpoint: target.CDPEndpoint,
 			RendererId: target.RendererID, RendererUrl: target.RendererURL,
 			RendererTitle: target.RendererTitle, ScenarioName: target.ScenarioName,
 			ArtifactDigest: target.ArtifactDigest, ContextId: target.ContextID,

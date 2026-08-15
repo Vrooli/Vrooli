@@ -37,8 +37,8 @@ func TestV2SessionRejectsInvalidStepAndCatalogSurfaceDegrades(t *testing.T) {
 	t.Setenv("VROOLI_ROOT", root)
 	t.Setenv("BUNDLE_ROOT", "")
 	writeFixtureFile(t, filepath.Join(root, ".vrooli", "operator-state.json"), `{"version":"1.0.0","updated_at":"2026-08-11T00:00:00Z"}`)
-	w := doRequest(t, NewServer(), http.MethodPost, "/api/v2/session/step", `{"step":8}`)
-	if w.Code != http.StatusBadRequest || !strings.Contains(w.Body.String(), "between 0 and 7") {
+	w := doRequest(t, NewServer(), http.MethodPost, "/api/v2/session/step", `{"step":9}`)
+	if w.Code != http.StatusBadRequest || !strings.Contains(w.Body.String(), "outside the onboarding step model") {
 		t.Fatalf("invalid session = %d: %s", w.Code, w.Body.String())
 	}
 	w = doGet(t, NewServer(), "/api/v2/surface")

@@ -2,7 +2,9 @@ package machines
 
 import (
 	"context"
+	"fmt"
 	"log"
+	"strings"
 
 	internalmachines "vrooli-bridge/internal/machines"
 	"vrooli-bridge/internal/module"
@@ -26,7 +28,7 @@ func Module(db *database.RoutedDB, clk schedule.Clock, sshSvc *ssh.Service, regi
 	svc := internalmachines.NewService(repo)
 	audit, _ := repo.(auditAppender)
 	attempts, _ := internalonboard.NewSQLiteRepository(db, clk).(attemptReader)
-	path, handler := machinesconnect.NewMachineServiceHandler(NewConnectHandler(Deps{Service: svc, Attempts: attempts, Projection: composedProjection{registry: registrySvc, presence: presenceHub}, Audit: audit, HostKeyResetter: sshSvc, NodeRevoker: nodeRevoker{registry: registrySvc, pairing: pairingSvc, presence: presenceHub}, Repairer: machineRepairer{service: onboardSvc}, Logger: logger}))
+	path, handler := machinesconnect.NewMachineServiceHandler(NewConnectHandler(Deps{Service: svc, Attempts: attempts, Projection: composedProjection{registry: registrySvc, presence: presenceHub}, Audit: audit, HostKeyResetter: sshSvc, NodeRevoker: nodeRevoker{registry: registrySvc, pairing: pairingSvc, presence: presenceHub}, Repairer: machineRepairer{service: onboardSvc, trust: svc}, Logger: logger}))
 	return module.Module{
 		Name:      "machines",
 		Mount:     func(r *mux.Router) { connectx.RegisterServices(r, connectx.ServiceMount{Path: path, Handler: handler}) },
@@ -34,11 +36,32 @@ func Module(db *database.RoutedDB, clk schedule.Clock, sshSvc *ssh.Service, regi
 	}
 }
 
-type machineRepairer struct{ service internalonboard.Service }
+type machineTrustReader interface {
+	GetTrust(context.Context, string) (internalmachines.TrustRecord, error)
+}
+
+type machineEnrollmentStarter interface {
+	StartMachineEnrollment(context.Context, string, internalonboard.StartInput) (internalonboard.MachineEnrollmentDecision, error)
+}
+
+type machineRepairer struct {
+	service machineEnrollmentStarter
+	trust   machineTrustReader
+}
 
 func (r machineRepairer) Repair(ctx context.Context, machine internalmachines.Machine) (string, string, error) {
 	if r.service == nil {
 		return "", "", internalmachines.ErrInvalid{Field: "repair", Reason: "onboarding service unavailable"}
+	}
+	if r.trust == nil {
+		return "", "", internalmachines.ErrInvalid{Field: "repair", Reason: "machine trust unavailable"}
+	}
+	trusted, err := r.trust.GetTrust(ctx, machine.ID)
+	if err != nil {
+		return "", "", internalmachines.ErrInvalid{Field: "repair", Reason: fmt.Sprintf("machine trust unavailable: %v", err)}
+	}
+	if strings.TrimSpace(trusted.SSHUser) == "" {
+		return "", "", internalmachines.ErrInvalid{Field: "repair", Reason: "machine trust has no SSH user"}
 	}
 	host := ""
 	for _, locator := range machine.Locators {
@@ -50,8 +73,12 @@ func (r machineRepairer) Repair(ctx context.Context, machine internalmachines.Ma
 	if host == "" {
 		return "", "", internalmachines.ErrInvalid{Field: "repair", Reason: "machine has no hostname, IP, or SSH locator"}
 	}
+	port := trusted.SSHPort
+	if port == 0 {
+		port = 22
+	}
 	decision, err := r.service.StartMachineEnrollment(ctx, machine.ID, internalonboard.StartInput{
-		MachineID: machine.ID, Host: host, Port: 22, User: "root", NodeName: machine.ID,
+		MachineID: machine.ID, Host: host, Port: port, User: trusted.SSHUser, NodeName: machine.ID,
 		TargetRevision: "@cp", ProvisionSudo: true,
 	})
 	if err != nil {

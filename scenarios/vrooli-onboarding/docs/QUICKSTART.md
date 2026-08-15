@@ -7,7 +7,8 @@ cd scenarios/vrooli-onboarding
 make start
 ```
 
-Open the lifecycle-managed UI, then work the eight steps:
+Open the lifecycle-managed UI, then work the nine steps (including welcome and
+resume state):
 
 1. **Scenarios** — search the catalog and pick the capabilities you want. System
    capabilities stay locked on. Each choice names what it pulls in.
@@ -27,7 +28,8 @@ already decided is lost or read-only.
 ## In a terminal
 
 ```bash
-vrooli-onboarding wizard run      # same capability flow used by the UI
+vrooli-onboarding wizard run --interactive      # same capability flow used by the UI
+vrooli-onboarding wizard run --accept-recommendation --non-interactive # explicit starter profile
 vrooli-onboarding wizard status   # readiness and committed state as JSON/text
 ```
 

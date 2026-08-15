@@ -2,6 +2,7 @@ package aisearch
 
 import "testing"
 
+// TestPlanEmbeddingRetargetClassifiesIncompatibleShape [REQ:REQ-P1-018]
 func TestPlanEmbeddingRetargetClassifiesIncompatibleShape(t *testing.T) {
 	plan := PlanEmbeddingRetarget(
 		EmbeddingMetadata{Role: "embedding.default", Model: "old-model", Dimensions: fixtureEmbeddingDimensions, PolicySchemaVersion: "old"},
