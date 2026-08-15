@@ -1,0 +1,27 @@
+{
+  "$schema": "../../../../.vrooli/schemas/safeguard.schema.json",
+  "name": "onboarding_apply_privileges",
+  "description": "Install the literal, per-host sudoers grant that lets onboarding apply selected elevated host requirements without a second prompt.",
+  "handler": "onboarding_apply_privileges",
+  "platforms": ["linux", "macos"],
+  "risk": "high",
+  "privilege": "elevated",
+  "bundling": "prohibited",
+  "capability": "developer-utility",
+  "capability_role": "primary",
+  "storage": {
+    "entries": {
+      "sudoers": {
+        "rung": "pinned",
+        "path": {"linux": "/etc/sudoers.d/vrooli-onboarding-apply", "macos": "/etc/sudoers.d/vrooli-onboarding-apply", "windows": null},
+        "kind": "file",
+        "class": "config",
+        "sensitive": true,
+        "rationale": "The grant is setup-managed host policy and contains only exact selected control-plane argv."
+      }
+    },
+    "rationale": "The grant is host policy, never scenario data."
+  },
+  "verificationCheck": {"files": ["/etc/sudoers.d/vrooli-onboarding-apply"]},
+  "deployment": {"profiles": {"desktop": {"linux": {"support": "unsupported", "mode": "manual", "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."}, "macos": {"support": "unsupported", "mode": "manual", "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."}, "windows": {"support": "unsupported", "mode": "manual", "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."}}}}
+}

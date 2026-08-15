@@ -438,7 +438,7 @@ func executeOptionsFromProto(opts *basexecution.ExecuteWorkflowOptions) *workflo
 	if !opts.GetRequiresVideo() &&
 		!opts.GetRequiresTrace() &&
 		!opts.GetRequiresHar() &&
-		!opts.GetFrameStreaming() && opts.GetElectronTarget() == nil && opts.GetValidationContext() == nil {
+		!opts.GetFrameStreaming() && opts.GetAppTarget() == nil && opts.GetValidationContext() == nil {
 		return nil
 	}
 	out := &workflowservice.ExecuteOptions{
@@ -453,13 +453,13 @@ func executeOptionsFromProto(opts *basexecution.ExecuteWorkflowOptions) *workflo
 	if opts.FrameStreamingFps != nil {
 		out.FrameStreamingFPS = int(opts.GetFrameStreamingFps())
 	}
-	if target := opts.GetElectronTarget(); target != nil {
-		out.ElectronTarget = &autodriver.ElectronTarget{
+	if target := opts.GetAppTarget(); target != nil {
+		out.AppTarget = &autodriver.AppTarget{
 			TargetID: target.GetTargetId(), CDPEndpoint: target.GetCdpEndpoint(),
 			RendererID: target.GetRendererId(), RendererURL: target.GetRendererUrl(),
 			RendererTitle: target.GetRendererTitle(), ScenarioName: target.GetScenarioName(),
 			ArtifactDigest: target.GetArtifactDigest(), ContextID: target.GetContextId(),
-			CDPTransport: target.GetCdpTransport(),
+			CDPTransport: target.GetCdpTransport(), TargetKind: target.GetTargetKind(),
 		}
 	}
 	if validationContext := opts.GetValidationContext(); validationContext != nil {

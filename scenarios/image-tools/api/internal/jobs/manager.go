@@ -14,8 +14,25 @@ import (
 // Runner executes a job's actual work. It runs under a server-lifetime context
 // (jobCtx) that is canceled only by Cancel or server shutdown — never by a
 // client disconnect. emit reports progress (0..100) + a message; the manager
-// persists and streams it. The returned ref is the output (blob key / path).
-type Runner func(jobCtx context.Context, job Job, emit func(progress int, message string)) (ref string, err error)
+// persists and streams it.
+type Runner func(jobCtx context.Context, job Job, emit func(progress int, message string)) (Result, error)
+
+// Result is what a Runner produces.
+//
+// It is a struct rather than a bare ref string because a backend learns facts
+// while running that nothing downstream can reconstruct afterwards: which model
+// actually served the request, which tier it ran on, and what the route cost.
+// Those were assembled by the AI backends and then dropped one stack frame
+// later, so a caller could be billed for a cloud generation with no record of
+// the charge anywhere in the system.
+type Result struct {
+	// Ref is the output reference (blob key / path).
+	Ref string
+	// Meta carries the backend's own record of the run, keyed by the backend's
+	// vocabulary. It is persisted with the job and served on the wire, so a
+	// caller reads what happened rather than what it asked for.
+	Meta map[string]string
+}
 
 // Manager errors.
 var (
@@ -116,6 +133,9 @@ func (m *Manager) Start(ctx context.Context) error {
 	m.started = true
 	m.mu.Unlock()
 
+	if err := m.st.migrate(m.baseCtx); err != nil {
+		return err
+	}
 	if err := m.recover(); err != nil {
 		return err
 	}
@@ -313,7 +333,7 @@ func (m *Manager) execute(entry *jobEntry) {
 		m.emit(entry, StateRunning, progress, message)
 	}
 
-	ref, err := m.runner(jobCtx, snapshot, emit)
+	result, err := m.runner(jobCtx, snapshot, emit)
 
 	entry.mu.Lock()
 	fin := m.clock.Now()
@@ -328,7 +348,8 @@ func (m *Manager) execute(entry *jobEntry) {
 	default:
 		entry.job.State = StateSucceeded
 		entry.job.Progress = 100
-		entry.job.ResultRef = ref
+		entry.job.ResultRef = result.Ref
+		entry.job.Meta = result.Meta
 	}
 	final := entry.job
 	entry.mu.Unlock()

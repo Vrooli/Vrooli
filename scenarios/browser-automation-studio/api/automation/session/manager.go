@@ -197,7 +197,7 @@ func (m *Manager) buildRequest(spec Spec) *driver.CreateSessionRequest {
 		ReuseMode:         spec.ReuseMode,
 		Labels:            spec.Labels,
 		BrowserProfile:    spec.BrowserProfile,
-		ElectronTarget:    spec.ElectronTarget,
+		AppTarget:         spec.AppTarget,
 		ValidationContext: spec.ValidationContext,
 	}
 

@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"encoding/xml"
 	"errors"
 	"fmt"
@@ -14,6 +15,7 @@ import (
 	_ "image/png"
 	"io"
 	"net"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -50,6 +52,7 @@ func (p *commandProcess) Start() error {
 	p.stdin = stdin
 	return p.cmd.Start()
 }
+
 func (p *commandProcess) Interrupt() error {
 	if p.stdin == nil {
 		return fmt.Errorf("process has not started")
@@ -57,6 +60,7 @@ func (p *commandProcess) Interrupt() error {
 	_, err := p.stdin.Write([]byte{3})
 	return err
 }
+
 func (p *commandProcess) Kill() error {
 	if p.cmd.Process == nil {
 		return fmt.Errorf("process has not started")
@@ -73,7 +77,7 @@ type commandRunner struct{}
 const wirelessADBPort = "5555"
 
 func (commandRunner) Run(ctx context.Context, name string, args ...string) ([]byte, error) {
-	return exec.CommandContext(ctx, name, args...).Output()
+	return exec.CommandContext(ctx, name, args...).CombinedOutput()
 }
 
 func (commandRunner) Start(name string, args ...string) (Process, error) {
@@ -105,18 +109,25 @@ type Adapter struct {
 	transport      string
 	recordingMu    sync.Mutex
 	recordings     map[string]activeRecording
+	rendererID     func(context.Context, string) (string, error)
+}
+
+func newAdapter(runner Runner, serial string) *Adapter {
+	return &Adapter{runner: runner, serial: serial, identitySerial: serial, transport: transportForSerial(serial), recordings: map[string]activeRecording{}, rendererID: discoverWebViewRendererID}
 }
 
 func New() *Adapter {
 	serial := strings.TrimSpace(os.Getenv("ANDROID_SERIAL"))
-	return &Adapter{runner: commandRunner{}, serial: serial, identitySerial: serial, transport: transportForSerial(serial), recordings: map[string]activeRecording{}}
+	return newAdapter(commandRunner{}, serial)
 }
+
 func NewWithRunner(r Runner, serial string) *Adapter {
-	return &Adapter{runner: r, serial: serial, identitySerial: serial, transport: transportForSerial(serial), recordings: map[string]activeRecording{}}
+	return newAdapter(r, serial)
 }
+
 func (a *Adapter) ForDevice(serial string) strategy.Strategy {
 	serial = strings.TrimSpace(serial)
-	return &Adapter{runner: a.runner, serial: serial, identitySerial: serial, transport: transportForSerial(serial), recordings: map[string]activeRecording{}}
+	return &Adapter{runner: a.runner, serial: serial, identitySerial: serial, transport: transportForSerial(serial), recordings: map[string]activeRecording{}, rendererID: a.rendererID}
 }
 
 // RestoreWireless rebuilds an endpoint-bound adapter after the control
@@ -128,7 +139,7 @@ func (a *Adapter) RestoreWireless(endpoint string) strategy.Strategy {
 	if identity == "" {
 		identity = a.serial
 	}
-	return &Adapter{runner: a.runner, serial: identity, identitySerial: identity, endpoint: strings.TrimSpace(endpoint), transport: "wireless", recordings: map[string]activeRecording{}}
+	return &Adapter{runner: a.runner, serial: identity, identitySerial: identity, endpoint: strings.TrimSpace(endpoint), transport: "wireless", recordings: map[string]activeRecording{}, rendererID: a.rendererID}
 }
 
 func (a *Adapter) StartRecording(_ context.Context, class strategy.ClaimClass) (strategy.RecordingHandle, error) {
@@ -348,8 +359,10 @@ func maxPositiveInt(a, b int) int {
 	return b
 }
 
-var androidVideoLumaPattern = regexp.MustCompile(`lavfi\.signalstats\.YAVG=([0-9]+(?:\.[0-9]+)?)`)
-var androidVideoMaxLumaPattern = regexp.MustCompile(`lavfi\.signalstats\.YMAX=([0-9]+(?:\.[0-9]+)?)`)
+var (
+	androidVideoLumaPattern    = regexp.MustCompile(`lavfi\.signalstats\.YAVG=([0-9]+(?:\.[0-9]+)?)`)
+	androidVideoMaxLumaPattern = regexp.MustCompile(`lavfi\.signalstats\.YMAX=([0-9]+(?:\.[0-9]+)?)`)
+)
 
 func nativeVideoVisible(raw []byte) bool {
 	file, err := os.CreateTemp("", "device-control-native-content-*.mp4")
@@ -601,6 +614,154 @@ func isIPv4(value string) bool {
 	return ip != nil && ip.To4() != nil
 }
 func (a *Adapter) ID() string { return "android-adb" }
+
+// AttachWebView discovers the debugging socket owned by packageName and asks
+// adb to allocate a local TCP forward. This is intentionally implemented at
+// the Android strategy boundary: callers above device-control never execute
+// adb and never need to know the device's abstract socket naming convention.
+func (a *Adapter) AttachWebView(ctx context.Context, packageName string) (strategy.WebViewEndpoint, error) {
+	packageName = strings.TrimSpace(packageName)
+	if packageName == "" {
+		return strategy.WebViewEndpoint{}, fmt.Errorf("webview attach requires an application package")
+	}
+	if !regexp.MustCompile(`^[A-Za-z0-9_][A-Za-z0-9_.]*$`).MatchString(packageName) {
+		return strategy.WebViewEndpoint{}, fmt.Errorf("webview attach rejected invalid package %q", packageName)
+	}
+	socket, err := a.webViewSocket(ctx, packageName)
+	if err != nil {
+		return strategy.WebViewEndpoint{}, err
+	}
+	forward := "localabstract:" + socket
+	allocated, err := a.runner.Run(ctx, "adb", a.args("forward", "tcp:0", forward)...)
+	if err != nil {
+		return strategy.WebViewEndpoint{}, fmt.Errorf("forward WebView socket %q: %w", socket, err)
+	}
+	port, err := forwardedPort(allocated, socket)
+	if err != nil {
+		listing, listErr := a.runner.Run(ctx, "adb", a.args("forward", "--list")...)
+		if listErr == nil {
+			port, err = forwardedPort(listing, socket)
+		}
+	}
+	if err != nil {
+		return strategy.WebViewEndpoint{}, err
+	}
+	cdpEndpoint := fmt.Sprintf("http://127.0.0.1:%d", port)
+	readRendererID := a.rendererID
+	if readRendererID == nil {
+		readRendererID = discoverWebViewRendererID
+	}
+	rendererID, err := readRendererID(ctx, cdpEndpoint)
+	if err != nil {
+		return strategy.WebViewEndpoint{}, fmt.Errorf("discover WebView renderer for %q: %w", packageName, err)
+	}
+	return strategy.WebViewEndpoint{Package: packageName, Socket: socket, CDPEndpoint: cdpEndpoint, RendererID: rendererID, Transport: "adb-forward"}, nil
+}
+
+func (a *Adapter) webViewSocket(ctx context.Context, packageName string) (string, error) {
+	var lastErr error
+	for attempt := 0; attempt < 20; attempt++ {
+		pids, err := a.runner.Run(ctx, "adb", a.args("shell", "pidof", packageName)...)
+		if err != nil {
+			lastErr = fmt.Errorf("find WebView process for %q: %w", packageName, err)
+		} else {
+			pid := strings.Fields(string(pids))
+			if len(pid) > 0 && regexp.MustCompile(`^\d+$`).MatchString(pid[0]) {
+				sockets, socketErr := a.runner.Run(ctx, "adb", a.args("shell", "cat", "/proc/net/unix")...)
+				if socketErr != nil {
+					lastErr = fmt.Errorf("list Android WebView sockets: %w", socketErr)
+				} else if socket, socketErr := webViewSocketForPID(sockets, pid[0]); socketErr == nil {
+					return socket, nil
+				} else {
+					lastErr = fmt.Errorf("find WebView socket for %q: %w", packageName, socketErr)
+				}
+			} else {
+				lastErr = fmt.Errorf("application %q has no running process", packageName)
+			}
+		}
+		if attempt == 19 {
+			break
+		}
+		select {
+		case <-ctx.Done():
+			return "", ctx.Err()
+		case <-time.After(250 * time.Millisecond):
+		}
+	}
+	return "", lastErr
+}
+
+func discoverWebViewRendererID(ctx context.Context, endpoint string) (string, error) {
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, strings.TrimRight(endpoint, "/")+"/json/list", nil)
+	if err != nil {
+		return "", err
+	}
+	client := &http.Client{Timeout: 5 * time.Second}
+	response, err := client.Do(request)
+	if err != nil {
+		return "", err
+	}
+	defer response.Body.Close()
+	if response.StatusCode < 200 || response.StatusCode >= 300 {
+		return "", fmt.Errorf("CDP target listing returned %s", response.Status)
+	}
+	var targets []struct {
+		ID   string `json:"id"`
+		Type string `json:"type"`
+	}
+	if err := json.NewDecoder(response.Body).Decode(&targets); err != nil {
+		return "", fmt.Errorf("decode CDP target listing: %w", err)
+	}
+	for _, target := range targets {
+		if strings.EqualFold(target.Type, "page") && strings.TrimSpace(target.ID) != "" {
+			return strings.TrimSpace(target.ID), nil
+		}
+	}
+	return "", fmt.Errorf("CDP target listing contained no page renderer")
+}
+
+func webViewSocketForPID(data []byte, pid string) (string, error) {
+	for _, line := range strings.Split(string(data), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) == 0 {
+			continue
+		}
+		name := strings.TrimPrefix(fields[len(fields)-1], "@")
+		if strings.HasPrefix(name, "webview_devtools_remote_") && strings.Contains(name, "_"+pid) {
+			return name, nil
+		}
+	}
+	return "", fmt.Errorf("no webview_devtools_remote socket matched process %s", pid)
+}
+
+func forwardedPort(output []byte, socket string) (int, error) {
+	remote := "localabstract:" + socket
+	portPattern := regexp.MustCompile(`(?:^|\s)(?:tcp:)?([1-9][0-9]{1,4})(?:\s|$)`)
+	for _, line := range strings.Split(string(output), "\n") {
+		if strings.Contains(line, remote) {
+			fields := strings.Fields(line)
+			for _, field := range fields {
+				if match := portPattern.FindStringSubmatch(" " + field + " "); len(match) == 2 {
+					port, _ := strconv.Atoi(match[1])
+					if port > 0 && port <= 65535 {
+						return port, nil
+					}
+				}
+			}
+		}
+	}
+	if match := portPattern.FindStringSubmatch(" " + strings.TrimSpace(string(output)) + " "); len(match) == 2 {
+		port, _ := strconv.Atoi(match[1])
+		if port > 0 && port <= 65535 {
+			return port, nil
+		}
+	}
+	// Some adb versions do not print the allocated port for tcp:0. The list
+	// command is the authoritative fallback and keeps the allocation owned by
+	// this adapter.
+	return 0, fmt.Errorf("adb did not report a local port for WebView socket %q", socket)
+}
+
 func (a *Adapter) args(args ...string) []string {
 	selector := a.serial
 	if a.endpoint != "" {
@@ -736,6 +897,9 @@ func (a *Adapter) Describe(ctx context.Context) (strategy.Declaration, error) {
 	_, recordingErr := a.runner.Run(ctx, "adb", a.args("shell", "screenrecord", "--help")...)
 	caps[strategy.CapNativeRecording] = strategy.ProbeCapability(strategy.CapNativeRecording, recordingErr == nil, "adb screenrecord is unavailable on this device image", "Install a device image with screenrecord support", "adb shell screenrecord --help")
 	caps[strategy.CapScreenRecording] = caps[strategy.CapNativeRecording]
+	sockets, socketErr := a.runner.Run(ctx, "adb", a.args("shell", "cat", "/proc/net/unix")...)
+	hasWebViewSocket := socketErr == nil && strings.Contains(string(sockets), "webview_devtools_remote")
+	caps[strategy.CapWebViewAttach] = strategy.ProbeCapability(strategy.CapWebViewAttach, hasWebViewSocket, "No running Android WebView exposes a debuggable socket", "Launch the target WebView with debugging enabled, then probe again", "adb shell cat /proc/net/unix")
 	d := strategy.Declaration{StrategyID: a.ID(), Description: "Android phones and emulators through ADB", Status: strategy.StatusAvailable, Capabilities: caps, Promotable: true, EvidenceClass: "release-grade", MinimumUsefulFPS: 5}
 	d = strategy.WithSupportedHostOS(d, "linux", "darwin", "windows")
 	d.Tiers = strategy.Tiers(d)
@@ -1402,6 +1566,9 @@ func (a *Adapter) Actuate(ctx context.Context, event strategy.Actuation) error {
 			return fmt.Errorf("unsupported adb action %q", event.Action)
 		}
 		out, err := a.runner.Run(ctx, "adb", a.args(args...)...)
+		if err != nil && len(out) > 0 {
+			return fmt.Errorf("adb %s: %w: %s", event.Action, err, strings.TrimSpace(string(out)))
+		}
 		if err == nil && event.Output != nil && event.Action == "device-logs" {
 			*event.Output = out
 		}

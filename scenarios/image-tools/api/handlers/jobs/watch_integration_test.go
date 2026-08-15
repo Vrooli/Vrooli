@@ -32,9 +32,9 @@ func TestWatchJobStreamsToTerminal(t *testing.T) {
 
 	mgr := internaljobs.New(d, internaljobs.Config{
 		Clock: schedule.System(),
-		Runner: func(_ context.Context, job internaljobs.Job, emit func(int, string)) (string, error) {
+		Runner: func(_ context.Context, job internaljobs.Job, emit func(int, string)) (internaljobs.Result, error) {
 			emit(50, "halfway")
-			return "out/" + job.ID, nil
+			return internaljobs.Result{Ref: "out/" + job.ID}, nil
 		},
 	})
 	ctx, cancel := context.WithCancel(context.Background())
@@ -101,8 +101,10 @@ func TestWatchJobUnknownIsNotFound(t *testing.T) {
 		t.Fatalf("ensure schemas: %v", err)
 	}
 	mgr := internaljobs.New(d, internaljobs.Config{
-		Clock:  schedule.System(),
-		Runner: func(context.Context, internaljobs.Job, func(int, string)) (string, error) { return "", nil },
+		Clock: schedule.System(),
+		Runner: func(context.Context, internaljobs.Job, func(int, string)) (internaljobs.Result, error) {
+			return internaljobs.Result{}, nil
+		},
 	})
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

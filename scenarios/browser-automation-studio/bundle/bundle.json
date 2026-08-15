@@ -74,12 +74,20 @@
           "CGO_ENABLED": "0"
         }
       },
-      "env": {
-        "API_PORT": "${browser-automation-studio-api.api}",
-        "BAS_DB_BACKEND": "sqlite",
-        "BAS_SQLITE_PATH": "${data}/data/api/browser-automation-studio.sqlite",
-        "VROOLI_LIFECYCLE_MANAGED": "true"
-      },
+    "env": {
+      "API_PORT": "${browser-automation-studio-api.api}",
+    "BAS_DB_BACKEND": "sqlite",
+    "BAS_SQLITE_PATH": "${data}/data/api/browser-automation-studio.sqlite",
+    "BAS_SCREENSHOT_STORAGE": "local",
+    "BAS_SIDECAR_ENABLED": "true",
+      "BAS_SIDECAR_DRIVER_DIR": "playwright-driver",
+      "VROOLI_LIFECYCLE_MANAGED": "true"
+    },
+    "assets": [
+      {
+        "path": "playwright-driver"
+      }
+    ],
       "data_dirs": [
         "data/api"
       ],

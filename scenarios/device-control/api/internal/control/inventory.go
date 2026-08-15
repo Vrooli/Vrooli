@@ -32,34 +32,82 @@ func (s *Service) Devices(ctx context.Context) []Device {
 		hostNodeID, _ = os.Hostname()
 	}
 	seen := map[string]bool{}
+	promotedEndpoints := make(map[string]string, len(s.transportStates))
+	for id, state := range s.transportStates {
+		if endpoint := strings.TrimSpace(state.Endpoint); endpoint != "" {
+			promotedEndpoints[endpoint] = id
+		}
+	}
 	for _, d := range declarations {
 		enumerating := false
-		if item, ok := s.registry.Get(d.StrategyID); ok {
+		if base, ok := s.registry.Get(d.StrategyID); ok {
+			// Enumerate the unscoped adapter as well as any promoted transport
+			// adapters. A promoted wireless phone must stay endpoint-bound for
+			// its verbs, but it must not hide a concurrently running emulator
+			// from the host inventory.
+			type inventoryStrategy struct {
+				strategy strategy.Strategy
+				promoted bool
+			}
+			items := []inventoryStrategy{{strategy: base}}
 			for deviceID, promoted := range s.transportStrategies {
 				if device, exists := s.devices.Get(deviceID); exists && device.StrategyID == d.StrategyID && promoted != nil {
-					item = promoted
-					break
+					items = append(items, inventoryStrategy{strategy: promoted, promoted: true})
 				}
 			}
-			// A promoted wireless adapter is endpoint-bound. Its capability
-			// declaration can differ from the base adapter, which is probed
-			// without a device selector after a service restart. Use the
-			// effective adapter declaration for devices it enumerates so a
-			// reachable wireless phone is not reported with stale USB
-			// capability results.
-			if effective, err := item.Describe(ctx); err == nil {
-				d = effective
-			}
-			if enumerator, ok := item.(strategy.Enumerator); ok {
-				enumerating = true
-				if discovered, err := enumerator.Enumerate(ctx); err == nil {
-					for _, discoveredDevice := range discovered {
-						item := devicedomain.Record{ID: discoveredDevice.ID, Name: discoveredDevice.Model, Kind: "physical", Serial: discoveredDevice.Serial, Model: discoveredDevice.Model, OSVersion: discoveredDevice.OSVersion, StrategyID: discoveredDevice.StrategyID, Status: discoveredDevice.Health, Health: discoveredDevice.Health, HealthReason: discoveredDevice.HealthReason, HostNodeID: hostNodeID, Transport: discoveredDevice.Transport, ObservedAt: discoveredDevice.ObservedAt, Capabilities: mapCaps(d)}
-						if item.Name == "" {
-							item.Name = item.Serial
+			for _, candidate := range items {
+				item := candidate.strategy
+				// A promoted wireless adapter is endpoint-bound. Its capability
+				// declaration can differ from the base adapter, so use the
+				// effective declaration for the devices it enumerates.
+				declaration := d
+				// Android capability probing performs several bounded ADB probes
+				// (including screen recording and WebView discovery). Keep the
+				// inventory request bounded, but allow a cold emulator or a
+				// wireless phone enough time to answer the complete declaration;
+				// truncating it makes an otherwise usable target look capability-
+				// empty to delivery ramps.
+				probeCtx, cancel := context.WithTimeout(ctx, 8*time.Second)
+				effective, err := item.Describe(probeCtx)
+				cancel()
+				if err == nil {
+					declaration = effective
+				}
+				if enumerator, ok := item.(strategy.Enumerator); ok {
+					enumerating = true
+					if discovered, err := enumerator.Enumerate(ctx); err == nil {
+						for _, discoveredDevice := range discovered {
+							if !candidate.promoted {
+								if promotedID, duplicate := promotedEndpoints[strings.TrimSpace(discoveredDevice.Serial)]; duplicate {
+									seen[promotedID] = true
+									continue
+								}
+							}
+							deviceDeclaration := declaration
+							// An ADB strategy can enumerate several devices, but its
+							// declaration probes whichever serial the adapter owns. Use
+							// a device-scoped adapter for the unpromoted inventory so
+							// emulator capabilities are not inherited from a phone (or
+							// vice versa). Promoted transports retain their endpoint-
+							// bound declaration above.
+							if !candidate.promoted {
+								if scoped, scopedOK := item.(strategy.DeviceScoped); scopedOK && strings.TrimSpace(discoveredDevice.Serial) != "" {
+									deviceStrategy := scoped.ForDevice(discoveredDevice.Serial)
+									probeCtx, probeCancel := context.WithTimeout(ctx, 8*time.Second)
+									effective, describeErr := deviceStrategy.Describe(probeCtx)
+									probeCancel()
+									if describeErr == nil {
+										deviceDeclaration = effective
+									}
+								}
+							}
+							record := devicedomain.Record{ID: discoveredDevice.ID, Name: discoveredDevice.Model, Kind: adbDeviceKind(discoveredDevice.Serial), Serial: discoveredDevice.Serial, Model: discoveredDevice.Model, OSVersion: discoveredDevice.OSVersion, StrategyID: discoveredDevice.StrategyID, Status: discoveredDevice.Health, Health: discoveredDevice.Health, HealthReason: discoveredDevice.HealthReason, HostNodeID: hostNodeID, Transport: discoveredDevice.Transport, ObservedAt: discoveredDevice.ObservedAt, Capabilities: mapCaps(deviceDeclaration)}
+							if record.Name == "" {
+								record.Name = record.Serial
+							}
+							s.devices.Upsert(record)
+							seen[record.ID] = true
 						}
-						s.devices.Upsert(item)
-						seen[item.ID] = true
 					}
 				}
 			}
@@ -83,7 +131,7 @@ func (s *Service) Devices(ctx context.Context) []Device {
 	})
 	out := make([]Device, 0)
 	for _, item := range s.devices.List() {
-		if seen[item.ID] || item.Kind == "physical" {
+		if seen[item.ID] || item.Kind == "physical" || item.Kind == "emulator" {
 			out = append(out, deviceFromRecord(item))
 		}
 	}
@@ -189,6 +237,13 @@ func (s *Service) Devices(ctx context.Context) []Device {
 		s.devices.Upsert(recordFromDevice(out[i]))
 	}
 	return out
+}
+
+func adbDeviceKind(serial string) string {
+	if strings.HasPrefix(strings.ToLower(strings.TrimSpace(serial)), "emulator-") {
+		return "emulator"
+	}
+	return "physical"
 }
 
 // ForgetDevice removes a retained identity only when the owner explicitly

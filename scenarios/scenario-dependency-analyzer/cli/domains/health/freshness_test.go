@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -175,26 +176,122 @@ func TestCheckGoFreshnessApplyReportsCleanAfterVerifiedTidy(t *testing.T) {
 	}
 }
 
-func TestCheckGoFreshnessApplyKeepsStaleWhenPostApplyVerificationStillDiffs(t *testing.T) {
-	root := filepath.Clean("/repo")
-	surface := goSurface{
+// unsortedGoSum is the real shape of the defect: every hash the module needs is
+// present, but two lines sit after the last entry instead of in sorted place.
+// `go mod tidy` rewrites go.sum only when the hash SET changes, so it leaves
+// this untouched forever while `tidy -diff` keeps reporting a diff.
+const unsortedGoSum = `connectrpc.com/connect v1.19.2 h1:aaa=
+connectrpc.com/connect v1.19.2/go.mod h1:bbb=
+gopkg.in/yaml.v3 v3.0.1 h1:ccc=
+gopkg.in/yaml.v3 v3.0.1/go.mod h1:ddd=
+github.com/creack/pty/v2 v2.0.1 h1:eee=
+github.com/creack/pty/v2 v2.0.1/go.mod h1:fff=
+`
+
+func newGoSumSurface(t *testing.T, contents string) (string, goSurface) {
+	t.Helper()
+	root := t.TempDir()
+	surfaceDir := filepath.Join(root, "scenarios", "demo", "api")
+	if err := os.MkdirAll(surfaceDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(surfaceDir, "go.sum"), []byte(contents), 0o644); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+	return root, goSurface{
 		scenario: "demo",
 		surface:  "api",
-		goMod:    filepath.Join(root, "scenarios", "demo", "api", "go.mod"),
+		goMod:    filepath.Join(surfaceDir, "go.mod"),
 	}
+}
+
+func TestCheckGoFreshnessApplyForcesGoSumRewriteWhenTidyCannotConverge(t *testing.T) {
+	root, surface := newGoSumSurface(t, unsortedGoSum)
+	sorted := strings.Join(sortedGoSumLines([]byte(unsortedGoSum)), "\n") + "\n"
+
+	calls := stubRunGo(t, []stubGoCall{
+		{args: []string{"mod", "tidy", "-diff"}, diff: "diff --git a/go.sum b/go.sum\n"},
+		// The real defect: tidy succeeds and writes nothing.
+		{args: []string{"mod", "tidy"}, clean: true},
+		{args: []string{"mod", "tidy", "-diff"}, diff: "diff --git a/go.sum b/go.sum\n"},
+		// After go.sum is removed, tidy regenerates it sorted.
+		{args: []string{"mod", "tidy"}, clean: true, do: func(dir string) {
+			if err := os.WriteFile(filepath.Join(dir, "go.sum"), []byte(sorted), 0o644); err != nil {
+				t.Fatalf("regenerate go.sum: %v", err)
+			}
+		}},
+		{args: []string{"mod", "tidy", "-diff"}, clean: true},
+	})
+
+	got := checkGoFreshness(context.Background(), root, surface, nil, freshnessRequest{apply: true})
+
+	if got.Status != "clean" {
+		t.Fatalf("status = %q, want clean after the forced go.sum rewrite; report=%+v", got.Status, got)
+	}
+	if len(got.DiffPaths) != 0 {
+		t.Fatalf("diff paths = %#v, want cleared after the forced rewrite", got.DiffPaths)
+	}
+	if *calls != 5 {
+		t.Fatalf("go calls = %d, want detect/apply/verify/rewrite/verify", *calls)
+	}
+	after, err := os.ReadFile(filepath.Join(filepath.Dir(surface.goMod), "go.sum"))
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+	if string(after) != sorted {
+		t.Fatalf("go.sum = %q, want the sorted rewrite", string(after))
+	}
+}
+
+func TestCheckGoFreshnessApplyKeepsStaleWhenRewriteStillDiffs(t *testing.T) {
+	root, surface := newGoSumSurface(t, unsortedGoSum)
+
 	stubRunGo(t, []stubGoCall{
 		{args: []string{"mod", "tidy", "-diff"}, diff: "diff --git a/go.sum b/go.sum\n"},
 		{args: []string{"mod", "tidy"}, clean: true},
+		{args: []string{"mod", "tidy", "-diff"}, diff: "diff --git a/go.sum b/go.sum\n"},
+		{args: []string{"mod", "tidy"}, clean: true, do: func(dir string) {
+			if err := os.WriteFile(filepath.Join(dir, "go.sum"), []byte(unsortedGoSum), 0o644); err != nil {
+				t.Fatalf("regenerate go.sum: %v", err)
+			}
+		}},
 		{args: []string{"mod", "tidy", "-diff"}, diff: "diff --git a/go.mod b/go.mod\n"},
 	})
 
 	got := checkGoFreshness(context.Background(), root, surface, nil, freshnessRequest{apply: true})
 
 	if got.Status != "stale" {
-		t.Fatalf("status = %q, want stale when post-apply verification still diffs; report=%+v", got.Status, got)
+		t.Fatalf("status = %q, want stale when the rewrite still diffs; report=%+v", got.Status, got)
 	}
 	if !reflect.DeepEqual(got.DiffPaths, []string{"scenarios/demo/api/go.mod"}) {
-		t.Fatalf("diff paths = %#v, want verified post-apply diff paths", got.DiffPaths)
+		t.Fatalf("diff paths = %#v, want verified post-rewrite diff paths", got.DiffPaths)
+	}
+}
+
+// The repair reorders; it must never change what the module depends on.
+func TestForceGoSumRewriteRestoresOriginalWhenHashSetChanges(t *testing.T) {
+	_, surface := newGoSumSurface(t, unsortedGoSum)
+	surfaceDir := filepath.Dir(surface.goMod)
+
+	stubRunGo(t, []stubGoCall{
+		{args: []string{"mod", "tidy"}, clean: true, do: func(dir string) {
+			dropped := "connectrpc.com/connect v1.19.2 h1:aaa=\n"
+			if err := os.WriteFile(filepath.Join(dir, "go.sum"), []byte(dropped), 0o644); err != nil {
+				t.Fatalf("regenerate go.sum: %v", err)
+			}
+		}},
+	})
+
+	err := forceGoSumRewrite(context.Background(), surfaceDir)
+	if err == nil {
+		t.Fatal("forceGoSumRewrite returned nil, want an error when the hash set changes")
+	}
+	after, readErr := os.ReadFile(filepath.Join(surfaceDir, "go.sum"))
+	if readErr != nil {
+		t.Fatalf("ReadFile: %v", readErr)
+	}
+	if string(after) != unsortedGoSum {
+		t.Fatalf("go.sum = %q, want the original restored byte-for-byte", string(after))
 	}
 }
 
@@ -349,13 +446,17 @@ type stubGoCall struct {
 	diff  string
 	clean bool
 	err   error
+	// do runs before the call returns, with the surface directory the real
+	// command would have run in. Lets a stubbed `go mod tidy` write go.sum the
+	// way the real one would.
+	do func(dir string)
 }
 
 func stubRunGo(t *testing.T, calls []stubGoCall) *int {
 	t.Helper()
 	count := 0
 	previous := runGoCommand
-	runGoCommand = func(_ context.Context, _ string, args ...string) (string, bool, error) {
+	runGoCommand = func(_ context.Context, dir string, args ...string) (string, bool, error) {
 		if count >= len(calls) {
 			t.Fatalf("unexpected go call %d with args %#v", count+1, args)
 		}
@@ -363,6 +464,9 @@ func stubRunGo(t *testing.T, calls []stubGoCall) *int {
 		count++
 		if !reflect.DeepEqual(args, call.args) {
 			t.Fatalf("go call %d args = %#v, want %#v", count, args, call.args)
+		}
+		if call.do != nil {
+			call.do(dir)
 		}
 		return call.diff, call.clean, call.err
 	}

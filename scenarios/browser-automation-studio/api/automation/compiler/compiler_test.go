@@ -128,6 +128,30 @@ func TestCompileWorkflowWithScenarioRootResolvesGeneratedScenarioPort(t *testing
 	}
 }
 
+func TestCompileWorkflowDefersTargetOwnedScenarioURLResolution(t *testing.T) {
+	route := "/"
+	workflow := makeTestWorkflow(uuid.New(), "android-flow", []*basworkflows.WorkflowNodeV2{{
+		Id: "navigate",
+		Action: &basactions.ActionDefinition{
+			Type: basactions.ActionType_ACTION_TYPE_NAVIGATE,
+			Params: &basactions.ActionDefinition_Navigate{Navigate: &basactions.NavigateParams{
+				DestinationType: ptr(basactions.NavigateDestinationType_NAVIGATE_DESTINATION_TYPE_SCENARIO),
+				Scenario:        ptr("not-running"),
+				ScenarioPath:    &route,
+			}},
+		},
+	}}, nil)
+
+	plan, err := CompileWorkflowWithOptions(workflow, &CompileOptions{DeferScenarioURLResolution: true})
+	if err != nil {
+		t.Fatalf("CompileWorkflowWithOptions: %v", err)
+	}
+	navigate := plan.Steps[0].Action.GetNavigate()
+	if navigate.GetUrl() != "" || navigate.GetScenario() != "not-running" {
+		t.Fatalf("deferred navigate = %+v, want typed scenario destination without URL", navigate)
+	}
+}
+
 // ptr is a helper to create pointers to primitive values
 func ptr[T any](v T) *T {
 	return &v

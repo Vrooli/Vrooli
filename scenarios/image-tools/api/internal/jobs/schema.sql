@@ -12,6 +12,10 @@ CREATE TABLE IF NOT EXISTS jobs (
   message           TEXT NOT NULL DEFAULT '',
   error             TEXT NOT NULL DEFAULT '',
   result_ref        TEXT NOT NULL DEFAULT '',
+  -- meta is the backend's JSON record of the run (model, tier, cost_usd). A
+  -- column rather than a side table: it is written once with the terminal
+  -- state, read whole, and never queried by key.
+  meta              TEXT NOT NULL DEFAULT '',
   payload           BLOB,
   estimated_seconds INTEGER NOT NULL DEFAULT 0,
   created_at        TEXT NOT NULL,

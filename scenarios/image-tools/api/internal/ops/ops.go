@@ -91,6 +91,7 @@ var registry = func() map[string]Op {
 		{Name: "convert", Category: CategoryFormat, Summary: "Convert to another image format", run: pixel(convertClone)},
 		{Name: "compress", Category: CategoryFormat, Summary: "Re-encode at a quality or to a target file size", run: compressRun},
 		{Name: "overlay", Category: CategoryCompose, Summary: "Composite a watermark image or text", run: pixel(Overlay)},
+		{Name: "composite", Category: CategoryCompose, Summary: "Merge an ordered stack of depth plates into one raster", run: pixel(Composite)},
 		{Name: "metadata", Category: CategoryMetadata, Summary: "Read, strip, or auto-orient image metadata", run: metadataRun},
 	}
 	m := make(map[string]Op, len(ops))
@@ -112,14 +113,36 @@ func Names() []string {
 
 func tier2(name string) RunFunc {
 	return pixel(func(img image.Image, p *Params) (image.Image, error) {
-		return treatments.Tier2(img, name, treatments.Params{Normalize: p.Normalize, Seed: p.Seed, Angle: p.Angle, Spacing: p.Spacing, Radius: p.Radius, BladeCount: p.BladeCount, Distance: p.Distance, Amplitude: p.Amplitude, Threshold: p.Threshold, Curve: p.Curve, BlockSize: p.BlockSize, Axis: p.Axis})
+		tp := treatments.Params{Normalize: p.Normalize, Seed: p.Seed, Angle: p.Angle, Spacing: p.Spacing, Radius: p.Radius, BladeCount: p.BladeCount, Distance: p.Distance, Amplitude: p.Amplitude, Threshold: p.Threshold, Curve: p.Curve, BlockSize: p.BlockSize, Axis: p.Axis}
+		knockoutFrom(p, &tp)
+		return treatments.Tier2(treatments.ReserveBefore(img, tp), name, tp)
 	})
 }
 
 func treatment(fn func(image.Image, treatments.Params) (image.Image, error)) RunFunc {
 	return pixel(func(img image.Image, p *Params) (image.Image, error) {
-		return fn(img, treatments.Params{Normalize: p.Normalize, Dark: p.Dark, Light: p.Light, Mid: p.Mid, MidLow: p.MidLow, MidHigh: p.MidHigh, Levels: p.Levels, LPI: p.LPI, Angle: p.Angle, Dot: p.Dot, Seed: p.Seed, Amount: p.Amount, Contrast: p.ContrastMultiplier, ScrimColor: p.ScrimColor, Direction: p.Direction, Opacity: p.Opacity})
+		tp := treatments.Params{
+			Normalize: p.Normalize, Dark: p.Dark, Light: p.Light, Mid: p.Mid, MidLow: p.MidLow, MidHigh: p.MidHigh, Levels: p.Levels, LPI: p.LPI, Angle: p.Angle, Dot: p.Dot, Seed: p.Seed, Amount: p.Amount, Contrast: p.ContrastMultiplier, ScrimColor: p.ScrimColor, Direction: p.Direction, Opacity: p.Opacity,
+			RegionX: p.RegionX, RegionY: p.RegionY, RegionWidth: p.RegionWidth, RegionHeight: p.RegionHeight, RegionFeather: p.RegionFeather,
+		}
+		knockoutFrom(p, &tp)
+		return fn(treatments.ReserveBefore(img, tp), tp)
 	})
+}
+
+// knockoutFrom carries the reserved area across.
+//
+// Both wrappers lift before the operation AND pass the same bounds through, and
+// the second half matters as much as the first: the lift decides what the
+// operation reads, and the bounds let an operation that auto-levels know the
+// white it is looking at was put there deliberately. Without them a
+// normalizing screen would treat the knockout as the picture's new highlight
+// and rescale the real subject down to make room for it.
+func knockoutFrom(p *Params, tp *treatments.Params) {
+	tp.KnockoutX, tp.KnockoutY = p.KnockoutX, p.KnockoutY
+	tp.KnockoutWidth, tp.KnockoutHeight = p.KnockoutWidth, p.KnockoutHeight
+	tp.KnockoutFeather = p.KnockoutFeather
+	tp.KnockoutSolid = p.KnockoutSolid
 }
 
 // List returns the operation catalog in stable order (for discovery).

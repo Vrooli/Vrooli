@@ -125,7 +125,7 @@ func (e *SimpleExecutor) executePlanStep(ctx context.Context, req Request, execC
 
 	instruction := planStepToInstruction(step)
 	var rewriteErr error
-	instruction, rewriteErr = rewriteElectronScenarioNavigation(instruction, spec.ElectronTarget)
+	instruction, rewriteErr = rewriteAppTargetScenarioNavigation(instruction, spec.AppTarget)
 	if rewriteErr != nil {
 		return contracts.StepOutcome{}, session, rewriteErr
 	}

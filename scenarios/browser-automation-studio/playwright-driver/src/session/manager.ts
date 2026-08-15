@@ -1,4 +1,4 @@
-import type { SessionSpec, SessionState, SessionPhase, SessionCloseResult, ElectronTargetSpec } from '../types';
+import type { SessionSpec, SessionState, SessionPhase, SessionCloseResult, AppTargetSpec } from '../types';
 import path from 'node:path';
 import type { Config } from '../config';
 import { logger, metrics, SessionNotFoundError, ResourceLimitError, scopedLog, LogContext } from '../utils';
@@ -17,7 +17,7 @@ import { PerformanceTracer, injectWebVitalsObserver, AccessibilitySnapshotter } 
 import { countActiveSessions, inspectSession, listSessions, summarizeSessions, type SessionInfo, type SessionListEntry, type SessionSummary } from './session-inspection';
 import { resetSessionState } from './session-reset';
 import { teardownSessionResources } from './session-teardown';
-import { selectElectronPage, validateElectronTargetCapabilities, validateElectronTargetSpec, verifyElectronRenderer } from './electron-target';
+import { selectAppTargetPage, validateAppTargetCapabilities, validateAppTargetSpec, verifyAppTargetRenderer } from './electron-target';
 
 /**
  * SessionManager - Browser Session Lifecycle Management
@@ -265,8 +265,8 @@ export class SessionManager {
       );
     }
 
-    if (spec.electron_target) {
-      return this.startElectronSessionInternal(spec, spec.electron_target);
+    if (spec.app_target) {
+      return this.startAppTargetSessionInternal(spec, spec.app_target);
     }
 
     // Create new session
@@ -527,12 +527,12 @@ export class SessionManager {
   }
 
   /** Attach the normal workflow/session machinery to an owned desktop target. */
-  private async startElectronSessionInternal(
+  private async startAppTargetSessionInternal(
     spec: SessionSpec,
-    target: ElectronTargetSpec
+    target: AppTargetSpec
   ): Promise<SessionCreationResult> {
-    validateElectronTargetSpec(target);
-    validateElectronTargetCapabilities(spec.required_capabilities);
+    validateAppTargetSpec(target);
+    validateAppTargetCapabilities(spec.required_capabilities);
     const validationContext = spec.validation_context;
     if (!validationContext) {
       throw new Error('Electron validation context is required');
@@ -554,8 +554,8 @@ export class SessionManager {
     if (!validationContext.isolation_lease_id?.trim()) {
       throw new Error('Electron validation context requires an isolation lease');
     }
-    await verifyElectronRenderer(target);
-    const browser = await this.browserManager.connectOverCDP(target.cdp_endpoint);
+    await verifyAppTargetRenderer(target);
+    const browser = await this.browserManager.connectOverCDP(target.cdp_endpoint, target.target_kind === 'android-webview');
     let sessionId = '';
     try {
       const contexts = browser.contexts();
@@ -568,7 +568,7 @@ export class SessionManager {
       if (extraHeaders && Object.keys(extraHeaders).length > 0) {
         await context.setExtraHTTPHeaders(extraHeaders);
       }
-      const page = await selectElectronPage(context.pages(), target);
+      const page = await selectAppTargetPage(context.pages(), target);
       sessionId = uuidv4();
       const createdAt = new Date();
       const recordingInitializer = createRecordingContextInitializer({ logger });

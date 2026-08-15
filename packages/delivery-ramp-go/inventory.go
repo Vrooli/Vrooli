@@ -13,10 +13,15 @@ import (
 // capabilities than this initial set; the spine only assigns meaning to names
 // it requires for a journey or validation cell.
 const (
-	CapabilityCDP            = "cdp"
-	CapabilityNativeWindow   = "native-window"
-	CapabilityProcessMetrics = "process-metrics"
-	CapabilityOfflineNetwork = "offline-network"
+	CapabilityCDP             = "cdp"
+	CapabilityNativeWindow    = "native-window"
+	CapabilityProcessMetrics  = "process-metrics"
+	CapabilityOfflineNetwork  = "offline-network"
+	CapabilityAndroidSDK      = "android-sdk"
+	CapabilityAndroidEmulator = "android-emulator"
+	CapabilityAndroidWebView  = "android-webview"
+	CapabilityScreenRecording = "screen-recording"
+	CapabilityDeviceControl   = "device-control"
 )
 
 // Target is a capability observation for one validation destination. It is

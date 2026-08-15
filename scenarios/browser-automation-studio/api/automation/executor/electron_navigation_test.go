@@ -22,7 +22,7 @@ func TestRewriteElectronScenarioNavigationUsesAdmittedRendererOrigin(t *testing.
 		},
 	}
 
-	rewritten, err := rewriteElectronScenarioNavigation(instruction, &driver.ElectronTarget{
+	rewritten, err := rewriteAppTargetScenarioNavigation(instruction, &driver.AppTarget{
 		RendererURL:  "http://127.0.0.1:24100/",
 		ScenarioName: "scenario-to-desktop",
 	})
@@ -47,7 +47,7 @@ func TestRewriteElectronScenarioNavigationLeavesOtherDestinationsUntouched(t *te
 		},
 	}
 
-	rewritten, err := rewriteElectronScenarioNavigation(instruction, &driver.ElectronTarget{
+	rewritten, err := rewriteAppTargetScenarioNavigation(instruction, &driver.AppTarget{
 		RendererURL:  "http://127.0.0.1:24100/",
 		ScenarioName: "scenario-to-desktop",
 	})
@@ -71,7 +71,7 @@ func TestRewriteElectronScenarioNavigationKeepsAdmittedFileRenderer(t *testing.T
 		}},
 	}}
 
-	rewritten, err := rewriteElectronScenarioNavigation(instruction, &driver.ElectronTarget{RendererURL: "file:///tmp/controlled/index.html", ScenarioName: "controlled-scenario"})
+	rewritten, err := rewriteAppTargetScenarioNavigation(instruction, &driver.AppTarget{RendererURL: "file:///tmp/controlled/index.html", ScenarioName: "controlled-scenario"})
 	if err != nil {
 		t.Fatalf("rewrite file renderer navigation: %v", err)
 	}

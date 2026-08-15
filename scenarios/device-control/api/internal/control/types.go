@@ -37,7 +37,8 @@ func deviceFromRecord(record devicedomain.Record) Device {
 }
 
 type (
-	AttachedDevice struct {
+	WebViewAttachment = strategy.WebViewEndpoint
+	AttachedDevice    struct {
 		ID, Name, HostNodeID, Kind, Transport, Serial, OSVersion, TrustState, Reachability, HealthReason string
 	}
 	AttachedReader interface {

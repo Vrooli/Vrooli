@@ -67,6 +67,18 @@ func translateParams(operation string, pb *opsv1.OpParams) (*internalops.Params,
 		if v := pb.GetOverlay(); v != nil {
 			p.Text, p.Position, p.Opacity, p.Color, p.FontSize = v.GetText(), v.GetPosition(), v.GetOpacity(), v.GetColor(), v.GetFontSize()
 		}
+	case "composite":
+		if v := pb.GetComposite(); v != nil {
+			p.Width, p.Height, p.Background = int(v.GetWidth()), int(v.GetHeight()), v.GetBackground()
+			for _, plate := range v.GetPlates() {
+				p.Plates = append(p.Plates, internalops.PlateSpec{
+					Name:    plate.GetName(),
+					Depth:   int(plate.GetDepth()),
+					Blend:   plate.GetBlend(),
+					Opacity: plate.GetOpacity(),
+				})
+			}
+		}
 	case "metadata":
 		if v := pb.GetMetadata(); v != nil {
 			p.StripAll, p.StripGPS, p.AutoOrient = v.GetStripAll(), v.GetStripGps(), v.GetAutoOrient()
@@ -101,6 +113,9 @@ func translateParams(operation string, pb *opsv1.OpParams) (*internalops.Params,
 	case "scrim":
 		if v := pb.GetScrim(); v != nil {
 			p.ScrimColor, p.Opacity, p.Direction = v.GetColor(), v.GetOpacity(), v.GetDirection()
+			p.RegionX, p.RegionY = v.GetRegionX(), v.GetRegionY()
+			p.RegionWidth, p.RegionHeight = v.GetRegionWidth(), v.GetRegionHeight()
+			p.RegionFeather = v.GetRegionFeather()
 		}
 	case "line_screen":
 		if v := pb.GetLineScreen(); v != nil {
@@ -162,6 +177,18 @@ func translateParams(operation string, pb *opsv1.OpParams) (*internalops.Params,
 		}
 	default:
 		return nil, fmt.Errorf("unknown operation %q", operation)
+	}
+	// Read after the switch, not inside it: the reserve is a sibling of the
+	// oneof and applies to whichever case was set, so every colour operation
+	// gets it without seventeen copies of the same four lines. The registry
+	// decides what to do with it — the colour operations honour it and the
+	// geometry ones ignore it, because a resize moves the frame out from under
+	// the rectangle.
+	if k := pb.GetKnockout(); k != nil {
+		p.KnockoutX, p.KnockoutY = k.GetX(), k.GetY()
+		p.KnockoutWidth, p.KnockoutHeight = k.GetWidth(), k.GetHeight()
+		p.KnockoutFeather = k.GetFeather()
+		p.KnockoutSolid = k.GetSolid()
 	}
 	return p, nil
 }

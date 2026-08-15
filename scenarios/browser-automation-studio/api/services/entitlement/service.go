@@ -2,11 +2,9 @@ package entitlement
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
-	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -14,6 +12,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/config"
 	credentialclient "github.com/vrooli/vrooli/packages/credentialclient-go"
+	entitlementclient "github.com/vrooli/vrooli/packages/entitlementclient-go"
 )
 
 const accessTokenContextKey contextKey = "subscription_access_token"
@@ -35,6 +34,13 @@ func accessTokenFromContext(ctx context.Context) string {
 	return strings.TrimSpace(token)
 }
 
+// AccessTokenFromContext exposes the request-scoped consumer token to other
+// BAS adapters that must call the trusted authority. It never returns a
+// refresh credential or a persisted secret.
+func AccessTokenFromContext(ctx context.Context) string {
+	return accessTokenFromContext(ctx)
+}
+
 // Service provides entitlement checking and feature gating.
 type Service struct {
 	cfg        config.EntitlementConfig
@@ -44,10 +50,6 @@ type Service struct {
 	// Cache
 	cacheMu sync.RWMutex
 	cache   map[string]*Entitlement
-
-	// Offline tracking
-	lastSuccessfulFetch time.Time
-	offlineMu           sync.RWMutex
 
 	// API source override (for dev mode)
 	apiSourceMu     sync.RWMutex
@@ -64,10 +66,9 @@ func NewService(cfg config.EntitlementConfig, log *logrus.Logger) *Service {
 		httpClient: &http.Client{
 			Timeout: cfg.RequestTimeout,
 		},
-		cache:               make(map[string]*Entitlement),
-		lastSuccessfulFetch: time.Now(), // Assume online at startup
-		apiSource:           "production",
-		localPort:           15000, // Default LPBS API port range start
+		cache:     make(map[string]*Entitlement),
+		apiSource: "production",
+		localPort: 15000, // Default LPBS API port range start
 	}
 }
 
@@ -75,6 +76,22 @@ func NewService(cfg config.EntitlementConfig, log *logrus.Logger) *Service {
 // The resolver keeps only the short-lived access token in memory.
 func (s *Service) SetSessionResolver(resolver *credentialclient.ConsumerSessionResolver) {
 	s.sessionResolver = resolver
+}
+
+// ResolveAccessToken returns the request-scoped or credential-session consumer
+// token. It is intentionally short-lived and is never persisted by BAS.
+func (s *Service) ResolveAccessToken(ctx context.Context, serviceURL string) (string, error) {
+	if token := accessTokenFromContext(ctx); token != "" {
+		return token, nil
+	}
+	if s.sessionResolver == nil {
+		return "", ErrAccessTokenRequired
+	}
+	access, err := s.sessionResolver.ResolveAt(ctx, serviceURL)
+	if err != nil {
+		return "", err
+	}
+	return access.AccessToken, nil
 }
 
 // SetApiSource sets the API source for entitlement verification.
@@ -129,8 +146,6 @@ func (s *Service) GetEntitlement(ctx context.Context, userIdentity string) (*Ent
 
 	// Cache the result
 	s.setCached(userIdentity, ent)
-	s.markOnline()
-
 	return ent, nil
 }
 
@@ -143,13 +158,16 @@ func (s *Service) CanExecuteWorkflow(ctx context.Context, userIdentity string, c
 		return false
 	}
 
-	limit := s.getTierLimit(ent.Tier)
+	limit, ok := limitValue(ent.Limits, "workflow_executions")
+	if !ok {
+		return false
+	}
 	if limit < 0 {
 		// Unlimited
 		return true
 	}
 
-	return currentMonthCount < limit
+	return int64(currentMonthCount) < limit
 }
 
 // GetRemainingExecutions returns how many executions the user has remaining this month.
@@ -160,12 +178,15 @@ func (s *Service) GetRemainingExecutions(ctx context.Context, userIdentity strin
 		return 0
 	}
 
-	limit := s.getTierLimit(ent.Tier)
+	limit, ok := limitValue(ent.Limits, "workflow_executions")
+	if !ok {
+		return 0
+	}
 	if limit < 0 {
 		return -1
 	}
 
-	remaining := limit - currentMonthCount
+	remaining := int(limit) - currentMonthCount
 	if remaining < 0 {
 		return 0
 	}
@@ -252,87 +273,41 @@ func (s *Service) fetchEntitlement(ctx context.Context, userIdentity string) (*E
 		}
 	}
 	if accessTokenFromContext(ctx) == "" {
-		if s.sessionResolver == nil {
-			return nil, ErrAccessTokenRequired
-		}
-		access, err := s.sessionResolver.ResolveAt(ctx, serviceURL)
+		accessToken, err := s.ResolveAccessToken(ctx, serviceURL)
 		if err != nil {
 			return nil, err
 		}
-		ctx = WithAccessToken(ctx, access.AccessToken)
+		ctx = WithAccessToken(ctx, accessToken)
 	}
 
-	// Build request URL
-	reqURL, err := url.Parse(serviceURL)
+	lease, err := entitlementclient.NewClient(serviceURL, nil, s.httpClient).GetWithAccess(ctx, userIdentity, accessTokenFromContext(ctx))
 	if err != nil {
-		return nil, fmt.Errorf("invalid service URL: %w", err)
-	}
-	reqURL.Path = strings.TrimSuffix(reqURL.Path, "/") + "/api/v1/entitlements"
-	query := reqURL.Query()
-	// LPBS binds this query identity to the verified bearer-token identity.
-	// Sending it prevents BAS from turning a caller-controlled requested user
-	// into an entitlement lookup for the cached shared session.
-	query.Set("user", userIdentity)
-	reqURL.RawQuery = query.Encode()
-	// Create request
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL.String(), nil)
-	if err != nil {
-		return nil, fmt.Errorf("create request: %w", err)
-	}
-	req.Header.Set("Accept", "application/json")
-	req.Header.Set("Authorization", "Bearer "+accessTokenFromContext(ctx))
-
-	// Execute request
-	resp, err := s.httpClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("request failed: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
-			return nil, fmt.Errorf("%w: status %d", ErrEntitlementUnauthorized, resp.StatusCode)
+		if errors.Is(err, entitlementclient.ErrLeaseUnauthorized) {
+			return nil, fmt.Errorf("%w: %v", ErrEntitlementUnauthorized, err)
 		}
-		if resp.StatusCode >= http.StatusInternalServerError {
-			return nil, fmt.Errorf("%w: status %d", ErrEntitlementUnavailable, resp.StatusCode)
-		}
-		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+		return nil, fmt.Errorf("%w: %v", ErrEntitlementUnavailable, err)
 	}
 
-	// Parse response
-	var entResp entitlementResponse
-	if err := json.NewDecoder(resp.Body).Decode(&entResp); err != nil {
-		return nil, fmt.Errorf("decode response: %w", err)
-	}
-	if entResp.Credits != nil && strings.TrimSpace(entResp.Credits.CustomerEmail) != "" &&
-		!strings.EqualFold(strings.TrimSpace(entResp.Credits.CustomerEmail), userIdentity) {
-		return nil, fmt.Errorf("%w: authority identity does not match requested identity", ErrEntitlementUnauthorized)
-	}
-	if entResp.Subscription != nil && strings.TrimSpace(entResp.Subscription.UserIdentity) != "" &&
-		!strings.EqualFold(strings.TrimSpace(entResp.Subscription.UserIdentity), userIdentity) {
-		return nil, fmt.Errorf("%w: authority subscription identity does not match requested identity", ErrEntitlementUnauthorized)
-	}
-	if (entResp.Credits == nil || strings.TrimSpace(entResp.Credits.CustomerEmail) == "") &&
-		(entResp.Subscription == nil || strings.TrimSpace(entResp.Subscription.UserIdentity) == "") {
-		return nil, fmt.Errorf("%w: authority response did not establish identity", ErrEntitlementUnauthorized)
-	}
-
-	// Convert to our entitlement type
+	// Convert the verified, signed lease to the local entitlement type. The
+	// signed not_after is the hard offline boundary; cache TTL only controls
+	// how often BAS refreshes while the lease remains valid.
 	now := time.Now()
 	ent := &Entitlement{
-		UserIdentity:      userIdentity,
-		Status:            Status(entResp.Status),
-		Tier:              Tier(strings.ToLower(entResp.PlanTier)),
-		PriceID:           entResp.PriceID,
-		Features:          entResp.Features,
-		BillingCycleStart: entResp.BillingCycleStart,
+		UserIdentity:      lease.UserIdentity,
+		Status:            Status(lease.Status),
+		Tier:              Tier(strings.ToLower(lease.PlanTier)),
+		PriceID:           lease.PriceID,
+		Features:          lease.Features,
+		Limits:            lease.Limits,
+		BillingCycleStart: lease.BillingCycleStart,
 		FetchedAt:         now,
-		ExpiresAt:         now.Add(s.cfg.CacheTTL),
+		ExpiresAt:         lease.NotAfter,
 	}
 
-	// Handle credits if present
-	if entResp.Credits != nil {
-		ent.Credits = entResp.Credits.BalanceCredits
+	if balance, ok := lease.Credits.(map[string]interface{}); ok {
+		if value, ok := balance["balance_credits"].(float64); ok {
+			ent.Credits = int64(value)
+		}
 	}
 
 	// Normalize tier
@@ -360,39 +335,6 @@ func (s *Service) setCached(userIdentity string, ent *Entitlement) {
 	s.cacheMu.Lock()
 	s.cache[userIdentity] = ent
 	s.cacheMu.Unlock()
-}
-
-// markOnline records a successful fetch.
-func (s *Service) markOnline() {
-	s.offlineMu.Lock()
-	s.lastSuccessfulFetch = time.Now()
-	s.offlineMu.Unlock()
-}
-
-// withinOfflineGrace returns true if we're within the offline grace period.
-func (s *Service) withinOfflineGrace() bool {
-	s.offlineMu.RLock()
-	last := s.lastSuccessfulFetch
-	s.offlineMu.RUnlock()
-	return time.Since(last) < s.cfg.OfflineGracePeriod
-}
-
-// defaultEntitlement returns the default (free tier) entitlement.
-func (s *Service) defaultEntitlement(userIdentity string) *Entitlement {
-	now := time.Now()
-	return &Entitlement{
-		UserIdentity: userIdentity,
-		Status:       StatusInactive,
-		Tier:         Tier(s.cfg.DefaultTier),
-		FetchedAt:    now,
-		ExpiresAt:    now.Add(s.cfg.CacheTTL),
-	}
-}
-
-// TierLimit returns the execution limit for a tier.
-// Returns -1 for unlimited.
-func (s *Service) TierLimit(tier Tier) int {
-	return s.getTierLimit(tier)
 }
 
 // TierRequiresWatermark checks if a tier requires watermarked exports.
@@ -441,22 +383,27 @@ func (s *Service) MinTierWithoutWatermark() Tier {
 // GetAICreditsLimit returns the AI credits limit for a tier.
 // Returns -1 for unlimited, 0 for no access.
 func (s *Service) GetAICreditsLimit(tier Tier) int {
-	if limit, ok := s.cfg.AICreditsLimits[string(tier)]; ok {
-		return limit
+	// Tier-only lookups cannot be authoritative. Callers handling a real
+	// entitlement must use GetAICreditsLimitForEntitlement so the signed lease
+	// remains the sole source of limits.
+	return 0
+}
+
+// GetAICreditsLimitForEntitlement reads the signed lease limit when present.
+// The tier fallback exists only for legacy test overrides without a lease.
+func (s *Service) GetAICreditsLimitForEntitlement(ent *Entitlement) int {
+	if ent != nil {
+		if value, ok := limitValue(ent.Limits, "ai_credits"); ok {
+			return int(value)
+		}
+		return 0
 	}
-	// Default to 0 (no access) if tier not found
 	return 0
 }
 
 // MinTierForAICredits returns the lowest tier that grants AI credits access.
 func (s *Service) MinTierForAICredits() Tier {
-	for _, tier := range []Tier{TierFree, TierSolo, TierPro, TierStudio, TierBusiness} {
-		limit := s.GetAICreditsLimit(tier)
-		if limit != 0 { // Either has credits or unlimited
-			return tier
-		}
-	}
-	return ""
+	return s.MinTierForAI()
 }
 
 func minTierFromList(tiers []string) Tier {
@@ -473,17 +420,13 @@ func minTierFromList(tiers []string) Tier {
 	return selected
 }
 
-// getTierLimit returns the execution limit for a tier.
-// Returns -1 for unlimited.
-func (s *Service) getTierLimit(tier Tier) int {
-	if limit, ok := s.cfg.TierLimits[string(tier)]; ok {
-		return limit
+func limitValue(limits []entitlementclient.Limit, key string) (int64, bool) {
+	for _, limit := range limits {
+		if strings.EqualFold(limit.Key, key) {
+			return limit.Value, true
+		}
 	}
-	// Default to free tier limit if tier not found
-	if limit, ok := s.cfg.TierLimits["free"]; ok {
-		return limit
-	}
-	return 50 // Hardcoded fallback
+	return 0, false
 }
 
 // tierRequiresWatermark checks if a tier requires watermarked exports.

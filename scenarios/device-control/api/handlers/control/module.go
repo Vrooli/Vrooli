@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"device-control/internal/conformance"
 	internal "device-control/internal/control"
 	internalflows "device-control/internal/flows"
 	"device-control/internal/module"
@@ -26,6 +25,7 @@ func Module(s *internal.Service) module.Module {
 		r.HandleFunc("/api/v1/devices", h.listDevices).Methods(http.MethodGet)
 		r.HandleFunc("/api/v1/devices/{id}", h.forgetDevice).Methods(http.MethodDelete)
 		r.HandleFunc("/api/v1/devices/{id}/state", h.deviceState).Methods(http.MethodGet)
+		r.HandleFunc("/api/v1/devices/{id}/webview/attach", h.attachWebView).Methods(http.MethodPost)
 		r.HandleFunc("/api/v1/auth/profiles", h.listAuthProfiles).Methods(http.MethodGet)
 		r.HandleFunc("/api/v1/auth/profiles", h.createAuthProfile).Methods(http.MethodPost)
 		r.HandleFunc("/api/v1/auth/profiles/{id}", h.getAuthProfile).Methods(http.MethodGet)
@@ -46,6 +46,9 @@ func Module(s *internal.Service) module.Module {
 		r.HandleFunc("/api/v1/sessions/acquire", h.acquire).Methods(http.MethodPost)
 		r.HandleFunc("/api/v1/sessions/{id}/kill", h.kill).Methods(http.MethodPost)
 		r.HandleFunc("/api/v1/sessions/{id}/release", h.release).Methods(http.MethodPost)
+		r.HandleFunc("/api/v1/sessions/{id}/validate", h.validateLease).Methods(http.MethodPost)
+		r.HandleFunc("/api/v1/recordings/start", h.startExternalRecording).Methods(http.MethodPost)
+		r.HandleFunc("/api/v1/recordings/stop", h.stopExternalRecording).Methods(http.MethodPost)
 		r.HandleFunc("/api/v1/flows/validate", h.validateFlow).Methods(http.MethodPost)
 		r.HandleFunc("/api/v1/flows/run", h.runFlow).Methods(http.MethodPost)
 		r.HandleFunc("/api/v1/flows/{id}/export", h.exportFlow).Methods(http.MethodGet)
@@ -89,6 +92,26 @@ func (h *handler) deviceState(w http.ResponseWriter, r *http.Request) {
 	write(w, http.StatusOK, state)
 }
 
+type webViewAttachRequest struct {
+	Actor      string `json:"actor"`
+	LeaseToken string `json:"lease_token"`
+	Package    string `json:"package"`
+}
+
+func (h *handler) attachWebView(w http.ResponseWriter, r *http.Request) {
+	var in webViewAttachRequest
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid_request", err.Error())
+		return
+	}
+	endpoint, err := h.service.AttachWebView(r.Context(), mux.Vars(r)["id"], in.Actor, in.LeaseToken, in.Package)
+	if err != nil {
+		writeError(w, http.StatusConflict, leaseErrorCode(err), err.Error())
+		return
+	}
+	write(w, http.StatusOK, map[string]any{"endpoint": endpoint})
+}
+
 func (h *handler) forgetDevice(w http.ResponseWriter, r *http.Request) {
 	if !h.service.ForgetDeviceContext(r.Context(), mux.Vars(r)["id"]) {
 		writeError(w, http.StatusNotFound, "device_not_found", "unknown device "+mux.Vars(r)["id"])
@@ -120,14 +143,13 @@ type connectRequest struct {
 }
 
 type androidConformanceRequest struct {
-	Fixture    conformance.Fixture `json:"fixture"`
-	DeviceID   string              `json:"device_id"`
-	Actor      string              `json:"actor"`
-	LeaseToken string              `json:"lease_token,omitempty"`
+	DeviceID   string `json:"device_id"`
+	Actor      string `json:"actor"`
+	LeaseToken string `json:"lease_token,omitempty"`
 }
 
 func (h *handler) androidConformancePlan(w http.ResponseWriter, _ *http.Request) {
-	write(w, http.StatusOK, h.service.AndroidConformancePlan())
+	write(w, http.StatusOK, h.service.AndroidCapabilitySelfTestPlan())
 }
 
 func (h *handler) runAndroidConformance(w http.ResponseWriter, r *http.Request) {
@@ -136,7 +158,7 @@ func (h *handler) runAndroidConformance(w http.ResponseWriter, r *http.Request) 
 		writeError(w, http.StatusBadRequest, "invalid_request", err.Error())
 		return
 	}
-	result, err := h.service.RunAndroidConformance(r.Context(), in.Fixture, in.DeviceID, in.Actor, in.LeaseToken)
+	result, err := h.service.RunAndroidCapabilitySelfTest(r.Context(), in.DeviceID, in.Actor, in.LeaseToken)
 	if err != nil {
 		if strings.HasPrefix(err.Error(), "unknown device ") {
 			writeError(w, http.StatusBadRequest, "unknown_device", err.Error())
@@ -207,6 +229,41 @@ type acquireRequest struct {
 	TTLSeconds int    `json:"ttl_seconds"`
 }
 
+type externalRecordingRequest struct {
+	DeviceID   string `json:"device_id"`
+	Actor      string `json:"actor"`
+	LeaseToken string `json:"lease_token"`
+	HandleID   string `json:"handle_id,omitempty"`
+}
+
+func (h *handler) startExternalRecording(w http.ResponseWriter, r *http.Request) {
+	var in externalRecordingRequest
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid_request", err.Error())
+		return
+	}
+	handle, err := h.service.StartExternalRecording(r.Context(), in.DeviceID, in.Actor, in.LeaseToken)
+	if err != nil {
+		writeError(w, http.StatusConflict, leaseErrorCode(err), err.Error())
+		return
+	}
+	write(w, http.StatusOK, map[string]any{"handle": handle})
+}
+
+func (h *handler) stopExternalRecording(w http.ResponseWriter, r *http.Request) {
+	var in externalRecordingRequest
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid_request", err.Error())
+		return
+	}
+	result, err := h.service.StopExternalRecording(r.Context(), in.DeviceID, in.Actor, in.LeaseToken, in.HandleID)
+	if err != nil {
+		writeError(w, http.StatusConflict, leaseErrorCode(err), err.Error())
+		return
+	}
+	write(w, http.StatusOK, result)
+}
+
 func (h *handler) acquire(w http.ResponseWriter, r *http.Request) {
 	var in acquireRequest
 	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
@@ -241,6 +298,22 @@ func (h *handler) release(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	write(w, http.StatusOK, map[string]any{"session": publicSession(s)})
+}
+
+func (h *handler) validateLease(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		DeviceID   string `json:"device_id"`
+		LeaseToken string `json:"lease_token"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid_request", err.Error())
+		return
+	}
+	if err := h.service.ValidateLease(r.Context(), in.DeviceID, in.LeaseToken); err != nil {
+		writeError(w, http.StatusConflict, leaseErrorCode(err), err.Error())
+		return
+	}
+	write(w, http.StatusOK, map[string]any{"valid": true})
 }
 
 type flowRequest struct {
@@ -405,6 +478,7 @@ func writeError(w http.ResponseWriter, status int, code, message string) {
 var Endpoints = []module.EndpointDescriptor{
 	{ID: "devices_list", Path: "/api/v1/devices", Method: "GET", Summary: "List devices and probed capabilities", Category: "devices", RESTException: &module.RESTException{Reason: module.RESTReasonThirdPartyShape}},
 	{ID: "devices_state", Path: "/api/v1/devices/{id}/state", Method: "GET", Summary: "Read live device state", Category: "devices", RESTException: &module.RESTException{Reason: module.RESTReasonThirdPartyShape}},
+	{ID: "webview_attach", Path: "/api/v1/devices/{id}/webview/attach", Method: "POST", Summary: "Attach to an application WebView under a device lease", Category: "devices", RESTException: &module.RESTException{Reason: module.RESTReasonThirdPartyShape}},
 	{ID: "auth_profiles_list", Path: "/api/v1/auth/profiles", Method: "GET", Summary: "List authentication profiles", Category: "auth", RESTException: &module.RESTException{Reason: module.RESTReasonThirdPartyShape}},
 	{ID: "auth_profile_create", Path: "/api/v1/auth/profiles", Method: "POST", Summary: "Create a reference-only authentication profile", Category: "auth", RESTException: &module.RESTException{Reason: module.RESTReasonThirdPartyShape}},
 	{ID: "auth_profile_get", Path: "/api/v1/auth/profiles/{id}", Method: "GET", Summary: "Inspect an authentication profile", Category: "auth", RESTException: &module.RESTException{Reason: module.RESTReasonThirdPartyShape}},

@@ -50,6 +50,19 @@ func createTestDB(t *testing.T) *sql.DB {
 			duration_ms INTEGER DEFAULT 0,
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 		);
+
+		CREATE TABLE usage_outbox (
+			operation_id TEXT PRIMARY KEY,
+			user_identity TEXT NOT NULL,
+			payload TEXT NOT NULL,
+			status TEXT NOT NULL DEFAULT 'pending',
+			attempts INTEGER NOT NULL DEFAULT 0,
+			next_attempt_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			last_error TEXT,
+			delivered_at TIMESTAMP,
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+		);
 	`
 
 	_, err = db.Exec(schema)

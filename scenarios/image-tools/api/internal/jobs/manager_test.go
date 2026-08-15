@@ -33,9 +33,9 @@ func startManager(t *testing.T, cfg Config) *Manager {
 
 func TestSubmitWaitSuccess(t *testing.T) {
 	m := startManager(t, Config{
-		Runner: func(ctx context.Context, j Job, emit func(int, string)) (string, error) {
+		Runner: func(ctx context.Context, j Job, emit func(int, string)) (Result, error) {
 			emit(50, "halfway")
-			return "out/result.png", nil
+			return Result{Ref: "out/result.png"}, nil
 		},
 	})
 	job, err := m.Submit(context.Background(), Spec{Operation: "resize", Lane: LaneCPU, EstimatedSeconds: 3})
@@ -56,8 +56,8 @@ func TestSubmitWaitSuccess(t *testing.T) {
 
 func TestSubmitWaitFailure(t *testing.T) {
 	m := startManager(t, Config{
-		Runner: func(ctx context.Context, j Job, emit func(int, string)) (string, error) {
-			return "", errors.New("boom")
+		Runner: func(ctx context.Context, j Job, emit func(int, string)) (Result, error) {
+			return Result{}, errors.New("boom")
 		},
 	})
 	job, _ := m.Submit(context.Background(), Spec{Operation: "upscale", Lane: LaneCPU})
@@ -74,13 +74,13 @@ func TestCancelRunningJob(t *testing.T) {
 	release := make(chan struct{})
 	started := make(chan struct{})
 	m := startManager(t, Config{
-		Runner: func(ctx context.Context, j Job, emit func(int, string)) (string, error) {
+		Runner: func(ctx context.Context, j Job, emit func(int, string)) (Result, error) {
 			close(started)
 			select {
 			case <-ctx.Done():
-				return "", ctx.Err()
+				return Result{}, ctx.Err()
 			case <-release:
-				return "done", nil
+				return Result{Ref: "done"}, nil
 			}
 		},
 	})
@@ -103,11 +103,11 @@ func TestCancelQueuedJob(t *testing.T) {
 	// Occupy the single GPU worker so the second GPU job stays queued.
 	block := make(chan struct{})
 	m := startManager(t, Config{
-		Runner: func(ctx context.Context, j Job, emit func(int, string)) (string, error) {
+		Runner: func(ctx context.Context, j Job, emit func(int, string)) (Result, error) {
 			if j.Operation == "blocker" {
 				<-block
 			}
-			return "ok", nil
+			return Result{Ref: "ok"}, nil
 		},
 	})
 	blocker, _ := m.Submit(context.Background(), Spec{Operation: "blocker", Lane: LaneGPU})
@@ -136,7 +136,7 @@ func TestGPUSerialized(t *testing.T) {
 	gate := make(chan struct{})
 	m := startManager(t, Config{
 		CPUWorkers: 4,
-		Runner: func(ctx context.Context, j Job, emit func(int, string)) (string, error) {
+		Runner: func(ctx context.Context, j Job, emit func(int, string)) (Result, error) {
 			c := atomic.AddInt32(&concurrent, 1)
 			mu.Lock()
 			if c > maxConcurrent {
@@ -145,7 +145,7 @@ func TestGPUSerialized(t *testing.T) {
 			mu.Unlock()
 			<-gate
 			atomic.AddInt32(&concurrent, -1)
-			return "ok", nil
+			return Result{Ref: "ok"}, nil
 		},
 	})
 	ids := make([]string, 3)
@@ -174,11 +174,11 @@ func TestCPUConcurrent(t *testing.T) {
 	gate := make(chan struct{})
 	m := startManager(t, Config{
 		CPUWorkers: n,
-		Runner: func(ctx context.Context, j Job, emit func(int, string)) (string, error) {
+		Runner: func(ctx context.Context, j Job, emit func(int, string)) (Result, error) {
 			atomic.AddInt32(&running, 1)
 			reached <- struct{}{}
 			<-gate
-			return "ok", nil
+			return Result{Ref: "ok"}, nil
 		},
 	})
 	ids := make([]string, n)
@@ -207,9 +207,9 @@ func TestCPUConcurrent(t *testing.T) {
 func TestWaitGiveUpDoesNotCancelJob(t *testing.T) {
 	release := make(chan struct{})
 	m := startManager(t, Config{
-		Runner: func(ctx context.Context, j Job, emit func(int, string)) (string, error) {
+		Runner: func(ctx context.Context, j Job, emit func(int, string)) (Result, error) {
 			<-release
-			return "survived", nil
+			return Result{Ref: "survived"}, nil
 		},
 	})
 	job, _ := m.Submit(context.Background(), Spec{Operation: "slow", Lane: LaneCPU})
@@ -233,11 +233,11 @@ func TestWaitGiveUpDoesNotCancelJob(t *testing.T) {
 func TestProgressSubscribe(t *testing.T) {
 	gate := make(chan struct{})
 	m := startManager(t, Config{
-		Runner: func(ctx context.Context, j Job, emit func(int, string)) (string, error) {
+		Runner: func(ctx context.Context, j Job, emit func(int, string)) (Result, error) {
 			emit(25, "quarter")
 			<-gate
 			emit(75, "three-quarter")
-			return "ok", nil
+			return Result{Ref: "ok"}, nil
 		},
 	})
 	job, _ := m.Submit(context.Background(), Spec{Operation: "x", Lane: LaneCPU})
@@ -281,7 +281,7 @@ func TestRecoveryMarksOrphansFailed(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	m := New(d, Config{Runner: func(context.Context, Job, func(int, string)) (string, error) { return "", nil }})
+	m := New(d, Config{Runner: func(context.Context, Job, func(int, string)) (Result, error) { return Result{}, nil }})
 	if err := m.Start(context.Background()); err != nil {
 		t.Fatal(err)
 	}
@@ -297,8 +297,66 @@ func TestRecoveryMarksOrphansFailed(t *testing.T) {
 }
 
 func TestSubmitBeforeStart(t *testing.T) {
-	m := New(newJobsDB(t), Config{Runner: func(context.Context, Job, func(int, string)) (string, error) { return "", nil }})
+	m := New(newJobsDB(t), Config{Runner: func(context.Context, Job, func(int, string)) (Result, error) { return Result{}, nil }})
 	if _, err := m.Submit(context.Background(), Spec{Operation: "x"}); !errors.Is(err, ErrNotStarted) {
 		t.Fatalf("want ErrNotStarted, got %v", err)
+	}
+}
+
+// A backend's record of the run has to survive the trip through the store, or
+// the cost of a cloud generation is knowable only inside the goroutine that
+// paid for it. This asserts the round trip rather than the in-memory hand-off:
+// Get reads back through SQLite, which is where the fact would be lost.
+func TestRunRecordSurvivesTheStore(t *testing.T) {
+	m := startManager(t, Config{
+		Runner: func(ctx context.Context, j Job, emit func(int, string)) (Result, error) {
+			return Result{Ref: "out/gen.png", Meta: map[string]string{
+				"model":    "openrouter-image",
+				"tier":     "byok-cloud",
+				"cost_usd": "0.042",
+			}}, nil
+		},
+	})
+	job, err := m.Submit(context.Background(), Spec{Operation: "text_to_image", Lane: LaneGPU})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := m.Wait(context.Background(), job.ID); err != nil {
+		t.Fatal(err)
+	}
+	persisted, err := m.Get(context.Background(), job.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := persisted.Meta["cost_usd"]; got != "0.042" {
+		t.Fatalf("cost_usd = %q, want 0.042 (run record: %v)", got, persisted.Meta)
+	}
+	if got := persisted.Meta["model"]; got != "openrouter-image" {
+		t.Fatalf("model = %q, want openrouter-image", got)
+	}
+}
+
+// A runner that reports nothing must leave no record, so a caller can tell
+// "this route cost nothing" from "nobody reported a cost". Recording an empty
+// map as {} would erase that distinction at the first read.
+func TestARunnerThatReportsNothingLeavesNoRecord(t *testing.T) {
+	m := startManager(t, Config{
+		Runner: func(ctx context.Context, j Job, emit func(int, string)) (Result, error) {
+			return Result{Ref: "out/resize.png"}, nil
+		},
+	})
+	job, err := m.Submit(context.Background(), Spec{Operation: "resize", Lane: LaneCPU})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := m.Wait(context.Background(), job.ID); err != nil {
+		t.Fatal(err)
+	}
+	persisted, err := m.Get(context.Background(), job.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if persisted.Meta != nil {
+		t.Fatalf("meta = %v, want nil for a runner that reported nothing", persisted.Meta)
 	}
 }

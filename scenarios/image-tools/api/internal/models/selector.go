@@ -233,12 +233,6 @@ func (r *Registry) SelectCandidates(req SelectRequest, isEnabled EnabledFunc) ([
 	return out, nil
 }
 
-// rankBest returns the highest-ranked model per the documented comparator.
-// runnable is assumed non-empty.
-func (r *Registry) rankBest(runnable []Model, req SelectRequest) Model {
-	return r.rankCandidates(runnable, req)[0]
-}
-
 // rankCandidates returns all candidates in descending preference order.
 func (r *Registry) rankCandidates(runnable []Model, req SelectRequest) []Model {
 	type scored struct {

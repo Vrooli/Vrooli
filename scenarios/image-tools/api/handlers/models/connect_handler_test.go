@@ -313,3 +313,42 @@ func containsStr(ss []string, want string) bool {
 	}
 	return false
 }
+
+// SelectModel is a preview of the run a caller is about to submit, so it has to
+// be given the run's routing policy. Without it the preview answered with the
+// local default for a caller routing to the BYOK rung — and a caller that sizes
+// its request from the previewed model then sizes it from a model that was
+// never going to serve it. That is not hypothetical: a Backdrop Studio
+// frontier-tier render reached OpenRouter having been sized against sd-1.5's
+// 768px cap, which OpenRouter does not have.
+func TestSelectModelHonoursTheCallersRoutingPolicy(t *testing.T) {
+	h, _ := newTestHandler(t, cpuOnlyHost)
+	ctx := context.Background()
+	const op = "text_to_image"
+
+	local, err := h.SelectModel(ctx, connect.NewRequest(&modelsv1.SelectModelRequest{Operation: op}))
+	if err != nil {
+		t.Fatalf("select local: %v", err)
+	}
+	byok, err := h.SelectModel(ctx, connect.NewRequest(&modelsv1.SelectModelRequest{
+		Operation: op, QualityPolicy: "quality", AllowByok: true,
+	}))
+	if err != nil {
+		t.Fatalf("select byok: %v", err)
+	}
+	if local.Msg.GetModel().GetId() == byok.Msg.GetModel().GetId() {
+		t.Fatalf("both policies previewed %q; the routing policy is not reaching the selector",
+			local.Msg.GetModel().GetId())
+	}
+	if got := byok.Msg.GetModel().GetBackend(); got != "openrouter" {
+		t.Fatalf("BYOK-permitted selection chose backend %q, want the cloud rung", got)
+	}
+	// And the geometry travels with the choice, which is the fact the caller
+	// actually needs: a cloud entry declares none, because the provider owns it.
+	if g := byok.Msg.GetModel().GetGeometry(); g.GetNativeWidth() != 0 || g.GetNativeHeight() != 0 {
+		t.Fatalf("cloud model reported a native geometry %v; the provider owns it", g)
+	}
+	if g := local.Msg.GetModel().GetGeometry(); g.GetNativeWidth() == 0 || g.GetSizeQuantum() == 0 {
+		t.Fatalf("local model reported no geometry %v; the caller has nothing to size from", g)
+	}
+}

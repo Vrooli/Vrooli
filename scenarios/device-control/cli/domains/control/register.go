@@ -153,15 +153,15 @@ func AgentGroup(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 
 func ConformanceGroup(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 	return cliapp.SubcommandGroup{Name: "conformance", Description: "Run governed physical-device conformance plans", NeedsAPI: true, Subcommands: []cliapp.Command{
-		command("plan", "Show the Android physical conformance chapters", cliapp.ArgSchema{}, func(ctx cliapp.RunContext) error {
+		command("plan", "Show the Android device capability self-test chapters", cliapp.ArgSchema{}, func(ctx cliapp.RunContext) error {
 			b, e := core.Request(http.MethodGet, "/conformance/android", nil, nil)
 			if e != nil {
 				return e
 			}
 			return emit(ctx, b, "Android conformance plan")
 		}),
-		command("run", "Run the Android physical conformance plan", cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "device", Required: true, Description: "device id"}, {Name: "apk", Required: true, Description: "hello-mobile APK path"}, {Name: "package", Required: true, Description: "fixture package name"}, {Name: "deep-link", Required: true, Description: "fixture canonical deep link"}, {Name: "actor", Default: "cli", Description: "audit actor"}, {Name: "lease", Description: "held lease token"}}}, func(ctx cliapp.RunContext) error {
-			body := map[string]any{"device_id": ctx.Flag("device"), "actor": ctx.Flag("actor"), "fixture": map[string]string{"id": "hello-mobile", "package_name": ctx.Flag("package"), "apk_path": ctx.Flag("apk"), "deep_link": ctx.Flag("deep-link")}}
+		command("run", "Run the Android device capability self-test", cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "device", Required: true, Description: "device id"}, {Name: "actor", Default: "cli", Description: "audit actor"}, {Name: "lease", Description: "held lease token"}}}, func(ctx cliapp.RunContext) error {
+			body := map[string]any{"device_id": ctx.Flag("device"), "actor": ctx.Flag("actor")}
 			if lease := ctx.Flag("lease"); lease != "" {
 				body["lease_token"] = lease
 			}

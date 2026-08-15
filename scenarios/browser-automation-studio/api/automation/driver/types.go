@@ -101,10 +101,11 @@ type ArtifactPaths struct {
 	AccessibilityDir string `json:"accessibility_dir,omitempty"`
 }
 
-// ElectronTarget is an already-running, target-owned renderer that the
+// AppTarget is an already-running, target-owned renderer that the
 // Playwright driver may attach to during a validation run. The target owns
 // process launch and cleanup; BAS only owns workflow execution.
-type ElectronTarget struct {
+type AppTarget struct {
+	TargetKind     string `json:"target_kind,omitempty"`
 	TargetID       string `json:"target_id"`
 	CDPEndpoint    string `json:"cdp_endpoint"`
 	RendererID     string `json:"renderer_id"`
@@ -162,7 +163,7 @@ type CreateSessionRequest struct {
 
 	// Electron validation mode attaches to an existing target instead of
 	// launching a second browser.
-	ElectronTarget    *ElectronTarget    `json:"electron_target,omitempty"`
+	AppTarget         *AppTarget         `json:"app_target,omitempty"`
 	ValidationContext *ValidationContext `json:"validation_context,omitempty"`
 }
 

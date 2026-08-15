@@ -3,7 +3,7 @@ import type { HandlerInstruction } from '../types';
 import { getNavigateParams } from '../types';
 import { normalizeError } from '../utils';
 import { resolveTimeoutFromContext } from './behavior-utils';
-import type { ElectronTargetSpec } from '../types/session';
+import type { AppTargetSpec } from '../types/session';
 import path from 'node:path';
 import { applyInteractionState } from '../session/interaction-state';
 
@@ -64,7 +64,7 @@ export interface UrlValidationResult {
  */
 export function validateNavigationUrl(
   url: string,
-  electronTarget?: ElectronTargetSpec
+  electronTarget?: AppTargetSpec
 ): UrlValidationResult {
   // CHECK 1: Empty URL
   const trimmedUrl = url.trim();
@@ -119,7 +119,7 @@ export function validateNavigationUrl(
   return { valid: true, normalized: trimmedUrl };
 }
 
-function isAdmittedFileRenderer(url: string, target?: ElectronTargetSpec): boolean {
+function isAdmittedFileRenderer(url: string, target?: AppTargetSpec): boolean {
   if (!target || !target.renderer_url.startsWith('file:')) return false;
   try {
     const admitted = new URL(target.renderer_url);

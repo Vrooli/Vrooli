@@ -111,7 +111,7 @@ export async function handleSessionStart(
       storage_state: request.storage_state,
       browser_profile: request.browser_profile,
       fake_media: request.fake_media,
-      electron_target: request.electron_target,
+      app_target: request.app_target,
       validation_context: request.validation_context,
     };
 

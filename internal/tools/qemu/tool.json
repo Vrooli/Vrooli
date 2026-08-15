@@ -1,0 +1,19 @@
+{
+  "$schema": "../../../.vrooli/schemas/tool.schema.json",
+  "name": "qemu",
+  "description": "QEMU/KVM system emulator used by the disposable fresh-host validation lane",
+  "commands": ["qemu-system-x86_64", "qemu-img"],
+  "versionArgs": ["--version"],
+  "defaultPackage": "qemu-system-x86",
+  "packages": {
+    "apt": "qemu-system-x86",
+    "apt-get": "qemu-system-x86",
+    "dnf": "qemu-system-x86-core",
+    "pacman": "qemu-desktop"
+  },
+  "installHint": "Install QEMU/KVM and ensure /dev/kvm is accessible to the invoking user before creating a disposable VM.",
+  "platforms": ["linux"],
+  "bundling": "host-required",
+  "capability": "headless-gui",
+  "capability_role": "primary"
+}

@@ -40,6 +40,16 @@ func domainToProto(m internalmodels.Model, v modelView) *modelsv1.Model {
 		Enabled:          v.enabled,
 		Custom:           v.custom,
 		Install:          installToProto(v.install),
+		Geometry:         geometryToProto(m.Geometry()),
+	}
+}
+
+func geometryToProto(g internalmodels.Geometry) *modelsv1.Geometry {
+	return &modelsv1.Geometry{
+		NativeWidth:  int32(g.NativeWidth),
+		NativeHeight: int32(g.NativeHeight),
+		SizeQuantum:  int32(g.SizeQuantum),
+		MaxEdge:      int32(g.MaxEdge),
 	}
 }
 

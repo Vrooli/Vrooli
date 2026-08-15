@@ -34,6 +34,7 @@ func TestRegistryCoversReq01(t *testing.T) {
 		"dither_diffusion", "dither_ordered", "duotone", "filter", "flip", "grain",
 		"halftone", "metadata", "overlay", "posterize", "resize", "rotate", "scrim", "thumbnail",
 		"line_screen", "stipple", "engraving", "aberration", "bloom", "curve", "defocus", "motion_blur", "ascii_mosaic", "pixel_sort", "displacement",
+		"composite",
 	}
 	for _, n := range want {
 		if !Has(n) {

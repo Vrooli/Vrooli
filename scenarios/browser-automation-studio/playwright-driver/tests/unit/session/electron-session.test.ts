@@ -29,7 +29,7 @@ describe('Electron-backed SessionManager sessions', () => {
       viewport: { width: 1280, height: 720 },
       reuse_mode: 'fresh',
       browser_profile: { extra_headers: { 'X-Vrooli-Test-Mode': '1' } },
-      electron_target: {
+      app_target: {
         target_id: 'target-1',
         cdp_endpoint: 'http://127.0.0.1:43123',
         renderer_id: 'renderer-1',

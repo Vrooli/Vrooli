@@ -128,7 +128,7 @@ func (e *PlaywrightEngine) StartSession(ctx context.Context, spec SessionSpec) (
 		BrowserProfile:    spec.BrowserProfile,
 		StorageState:      spec.StorageState,
 		FakeMicrophoneWav: spec.FakeMicrophoneWav,
-		ElectronTarget:    spec.ElectronTarget,
+		AppTarget:         spec.AppTarget,
 		ValidationContext: spec.ValidationContext,
 	}
 

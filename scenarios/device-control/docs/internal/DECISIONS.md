@@ -33,6 +33,7 @@ Known unresolved issues belong in [`PROBLEMS.md`](PROBLEMS.md).
 | D-010 | 2026-08-10 | A capability gap report is a successful response, not an error. | Never — making it an error would hide the scenario's most common honest answer. |
 | D-011 | 2026-08-10 | Errors carry identifiers and reasons, never device content. | Never — this is a redaction bypass, not a style preference. |
 | D-012 | 2026-08-10 | Every declared capability is exercisable by some flow construct. | Never — an unexercisable capability is an unfalsifiable claim. |
+| D-013 | 2026-08-13 | Android generated-app conformance belongs to scenario-to-android; device-control retains only the provider-neutral device capability self-test. | The delivery ramp needs to vary its chapter set without changing the device strategy, while device-control must prove install, permissions, screenshot, and recording independently of a fixture. | Revisit when a device capability cannot be self-tested without an application supplied by a delivery ramp. |
 
 ## Decision Details
 

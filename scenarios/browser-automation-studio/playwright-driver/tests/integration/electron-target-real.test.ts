@@ -4,8 +4,8 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { spawn, type ChildProcess } from 'node:child_process';
 import { playwrightProvider } from '../../src/playwright';
-import { selectElectronPage, verifyElectronRenderer } from '../../src/session/electron-target';
-import type { ElectronTargetSpec } from '../../src/types';
+import { selectAppTargetPage, verifyAppTargetRenderer } from '../../src/session/electron-target';
+import type { AppTargetSpec } from '../../src/types';
 
 type DiscoveredRenderer = {
   id: string;
@@ -137,7 +137,7 @@ describe('Electron target attachment (real AppImage)', () => {
       );
 
       const renderer = await waitForRenderer(endpoint);
-      const target: ElectronTargetSpec = {
+      const target: AppTargetSpec = {
         target_id: 'real-electron-target',
         cdp_endpoint: endpoint,
         renderer_id: renderer.id,
@@ -149,12 +149,12 @@ describe('Electron target attachment (real AppImage)', () => {
         cdp_transport: 'loopback-authenticated',
       };
 
-      await verifyElectronRenderer(target);
+      await verifyAppTargetRenderer(target);
       browser = await playwrightProvider.chromium.connectOverCDP(endpoint);
       const contexts = browser.contexts();
       expect(contexts).toHaveLength(1);
       const pages = contexts[0]?.pages() ?? [];
-      const page = await selectElectronPage(pages, target);
+      const page = await selectAppTargetPage(pages, target);
       expect(await page.title()).toEqual(expect.any(String));
       expect(await page.locator('h1').textContent()).toBe('Hello Desktop');
 

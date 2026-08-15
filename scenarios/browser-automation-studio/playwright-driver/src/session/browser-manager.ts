@@ -40,6 +40,7 @@ import {
   type HostAudioCapability,
 } from './audio';
 import { BrowserPool } from './browser-pool';
+import { createAndroidCDPProxy } from './android-cdp-proxy';
 
 // =============================================================================
 // Types
@@ -181,8 +182,17 @@ export class BrowserManager {
   }
 
   /** Connect to a browser owned by a controlled desktop target. */
-  async connectOverCDP(endpoint: string): Promise<Browser> {
-    return playwrightProvider.chromium.connectOverCDP(endpoint);
+  async connectOverCDP(endpoint: string, androidWebView = false): Promise<Browser> {
+    if (!androidWebView) return playwrightProvider.chromium.connectOverCDP(endpoint);
+    const proxy = await createAndroidCDPProxy(endpoint);
+    try {
+      const browser = await playwrightProvider.chromium.connectOverCDP(proxy.endpoint);
+      browser.on('disconnected', () => { void proxy.close(); });
+      return browser;
+    } catch (error) {
+      await proxy.close();
+      throw error;
+    }
   }
 
   /**

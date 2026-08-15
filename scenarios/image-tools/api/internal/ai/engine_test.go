@@ -123,7 +123,8 @@ func runJob(t *testing.T, eng *Engine, op string, pl Payload) (string, error) {
 	if runner == nil {
 		t.Fatalf("no runner for %q", op)
 	}
-	return runner(context.Background(), internaljobs.Job{Operation: op, Payload: raw}, func(int, string) {})
+	result, err := runner(context.Background(), internaljobs.Job{Operation: op, Payload: raw}, func(int, string) {})
+	return result.Ref, err
 }
 
 // storeInput writes bytes under a key in the store (helper for image-input ops).

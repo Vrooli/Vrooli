@@ -149,7 +149,6 @@ Keep inner timeouts smaller than outers to get actionable errors.
 | `BAS_ENTITLEMENT_CACHE_TTL_MS` | Cache TTL | `300000` |
 | `BAS_ENTITLEMENT_REQUEST_TIMEOUT_MS` | Request timeout | `5000` |
 | `BAS_ENTITLEMENT_OFFLINE_GRACE_PERIOD_MS` | Offline grace period | `86400000` |
-| `BAS_ENTITLEMENT_TIER_LIMITS_JSON` | Monthly execution limits JSON | `{"free":50,"solo":200,"pro":-1,"studio":-1,"business":-1}` |
 | `BAS_ENTITLEMENT_WATERMARK_TIERS` | Watermarked tiers | `free,solo` |
 | `BAS_ENTITLEMENT_AI_TIERS` | AI access tiers | `pro,studio,business` |
 | `BAS_ENTITLEMENT_RECORDING_TIERS` | Recording access tiers | `solo,pro,studio,business` |

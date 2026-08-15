@@ -453,6 +453,22 @@ func checkGoFreshness(ctx context.Context, root string, surface goSurface, impac
 				item.Error = "go mod tidy post-apply verification failed: " + err.Error()
 				return item
 			}
+			if !clean {
+				// `go mod tidy` succeeded and the surface is still stale, so
+				// another tidy cannot fix it either (see forceGoSumRewrite).
+				// Force one full rewrite, then verify again.
+				if err := forceGoSumRewrite(ctx, surfaceRoot); err != nil {
+					item.Status = "error"
+					item.Error = "go.sum forced rewrite failed: " + err.Error()
+					return item
+				}
+				diff, clean, err = runGoCommand(ctx, surfaceRoot, "mod", "tidy", "-diff")
+				if err != nil {
+					item.Status = "error"
+					item.Error = "go mod tidy post-rewrite verification failed: " + err.Error()
+					return item
+				}
+			}
 			if clean {
 				item.Status = "clean"
 				item.DiffPaths = nil
@@ -470,6 +486,78 @@ func checkGoFreshness(ctx context.Context, root string, surface goSurface, impac
 		}
 	}
 	return item
+}
+
+// forceGoSumRewrite repairs a go.sum that `go mod tidy` cannot converge.
+//
+// `go mod tidy` rewrites go.sum only when the set of hashes changes. A go.sum
+// holding exactly the right hashes in the wrong order therefore survives every
+// tidy untouched — tidy exits 0, writes nothing, and `tidy -diff` keeps
+// reporting a diff against its canonical sorted form. Without this, `--apply`
+// reports that surface stale forever while advertising an automatic fix.
+//
+// Removing go.sum forces tidy to regenerate it from go.mod, which writes it
+// sorted. The regenerated file must carry the same hash set as the original: a
+// set that changed would mean a real dependency change, which freshness repair
+// must never make on its own. If it differs — or anything else fails — the
+// original file is restored and the caller reports an error.
+func forceGoSumRewrite(ctx context.Context, surfaceRoot string) error {
+	goSum := filepath.Join(surfaceRoot, "go.sum")
+	info, err := os.Stat(goSum)
+	if err != nil {
+		return fmt.Errorf("stat go.sum: %w", err)
+	}
+	original, err := os.ReadFile(goSum)
+	if err != nil {
+		return fmt.Errorf("read go.sum: %w", err)
+	}
+	restore := func() {
+		_ = os.WriteFile(goSum, original, info.Mode().Perm())
+	}
+	if err := os.Remove(goSum); err != nil {
+		return fmt.Errorf("remove go.sum: %w", err)
+	}
+	if _, _, err := runGoCommand(ctx, surfaceRoot, "mod", "tidy"); err != nil {
+		restore()
+		return fmt.Errorf("go mod tidy after go.sum removal: %w", err)
+	}
+	rewritten, err := os.ReadFile(goSum)
+	if err != nil {
+		restore()
+		return fmt.Errorf("read regenerated go.sum: %w", err)
+	}
+	if !sameGoSumEntries(original, rewritten) {
+		restore()
+		return fmt.Errorf("regenerated go.sum changed the hash set; restored the original")
+	}
+	return nil
+}
+
+// sameGoSumEntries reports whether two go.sum files carry the same hash lines,
+// ignoring order and blank lines. Order is exactly what this repair changes.
+func sameGoSumEntries(a, b []byte) bool {
+	left, right := sortedGoSumLines(a), sortedGoSumLines(b)
+	if len(left) != len(right) {
+		return false
+	}
+	for i := range left {
+		if left[i] != right[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func sortedGoSumLines(data []byte) []string {
+	fields := strings.Split(string(data), "\n")
+	out := make([]string, 0, len(fields))
+	for _, line := range fields {
+		if line = strings.TrimSpace(line); line != "" {
+			out = append(out, line)
+		}
+	}
+	sort.Strings(out)
+	return out
 }
 
 const maxImpactedByPaths = 20

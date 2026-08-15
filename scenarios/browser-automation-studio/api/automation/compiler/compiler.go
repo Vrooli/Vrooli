@@ -58,6 +58,12 @@ type CompileOptions struct {
 	// ScenarioRoot identifies the physical root for the scenario under test.
 	// It is used only when a navigate destination names that same scenario.
 	ScenarioRoot string
+	// DeferScenarioURLResolution preserves typed scenario navigation for a
+	// target-owned renderer. The target executor will resolve it against the
+	// renderer's admitted origin after the target is attached. Normal browser
+	// executions must leave this false so missing scenario ports fail at compile
+	// time.
+	DeferScenarioURLResolution bool
 }
 
 // EdgeRef references an outgoing connection from a node.
@@ -538,6 +544,7 @@ type planner struct {
 	incomingCount        map[string]int
 	selectorManifestRoot string
 	scenarioRoot         string
+	deferScenarioURLs    bool
 }
 
 func newPlanner(def flowDefinition, opts *CompileOptions) *planner {
@@ -549,6 +556,7 @@ func newPlanner(def flowDefinition, opts *CompileOptions) *planner {
 	if opts != nil {
 		scenarioRoot = strings.TrimSpace(opts.ScenarioRoot)
 	}
+	deferScenarioURLs := opts != nil && opts.DeferScenarioURLResolution
 
 	p := &planner{
 		definition:           def,
@@ -558,6 +566,7 @@ func newPlanner(def flowDefinition, opts *CompileOptions) *planner {
 		incomingCount:        make(map[string]int),
 		selectorManifestRoot: manifestRoot,
 		scenarioRoot:         scenarioRoot,
+		deferScenarioURLs:    deferScenarioURLs,
 	}
 
 	for idx, node := range def.Nodes {
@@ -813,8 +822,13 @@ func (p *planner) buildSteps() ([]ExecutionStep, error) {
 		// Resolve navigate node URLs from destinationType: "scenario" format
 		if action.GetType() == basactions.ActionType_ACTION_TYPE_NAVIGATE {
 			logrus.WithField("node_id", nodeID).Debug("buildSteps: resolving navigate URL")
-			if err := resolveNavigateURL(&step, p.scenarioRoot); err != nil {
-				return nil, fmt.Errorf("failed to resolve navigate URL for node %s: %w", nodeID, err)
+			deferResolution := p.deferScenarioURLs && hasTypedScenarioDestination(action)
+			if !deferResolution {
+				if err := resolveNavigateURL(&step, p.scenarioRoot); err != nil {
+					return nil, fmt.Errorf("failed to resolve navigate URL for node %s: %w", nodeID, err)
+				}
+			} else {
+				logrus.WithField("node_id", nodeID).Debug("buildSteps: deferring target-owned scenario URL resolution")
 			}
 			logrus.WithField("node_id", nodeID).Debug("buildSteps: navigate URL resolved")
 		}
@@ -842,6 +856,18 @@ func (p *planner) buildSteps() ([]ExecutionStep, error) {
 	}
 
 	return steps, nil
+}
+
+func hasTypedScenarioDestination(action *basactions.ActionDefinition) bool {
+	if action == nil || action.GetType() != basactions.ActionType_ACTION_TYPE_NAVIGATE {
+		return false
+	}
+	navigate := action.GetNavigate()
+	if navigate == nil || strings.TrimSpace(navigate.GetUrl()) != "" {
+		return false
+	}
+	return navigate.GetDestinationType() == basactions.NavigateDestinationType_NAVIGATE_DESTINATION_TYPE_SCENARIO ||
+		strings.TrimSpace(navigate.GetScenario()) != ""
 }
 
 func (p *planner) topologicalOrder() []string {

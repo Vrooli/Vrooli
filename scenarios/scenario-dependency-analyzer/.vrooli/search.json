@@ -4,6 +4,7 @@
   "providers": [
     {
       "provider_id": "scenario-dependency-analyzer.dependencies",
+      "lifecycle": "production",
       "provider_group": "scenario-dependency-analyzer",
       "bucket": "BUCKET_REUSE",
       "type": "dependency",
@@ -230,6 +231,7 @@
     },
     {
       "provider_id": "scenario-dependency-analyzer.scenarios",
+      "lifecycle": "production",
       "provider_group": "scenario-dependency-analyzer",
       "bucket": "BUCKET_REUSE",
       "type": "scenarios",
@@ -485,7 +487,8 @@
       }
     },
     {
-      "provider_id": "scenario-dependency-analyzer.resources",
+    "provider_id": "scenario-dependency-analyzer.resources",
+    "lifecycle": "experimental",
       "provider_group": "scenario-dependency-analyzer",
       "bucket": "BUCKET_REUSE",
       "type": "resources",

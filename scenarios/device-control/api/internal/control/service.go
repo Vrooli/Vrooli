@@ -44,7 +44,15 @@ type Service struct {
 	anchors             *internalflows.AnchorStore
 	runs                map[string]RunResult
 	flowRuns            map[string]Flow
+	externalRecordings  map[string]externalRecording
 	auth                *authdomain.Store
+}
+
+type externalRecording struct {
+	DeviceID string
+	Actor    string
+	Recorder strategy.SessionRecorder
+	Handle   strategy.RecordingHandle
 }
 
 type transportState struct {
@@ -65,7 +73,7 @@ func New(registry *strategyregistry.Registry) *Service {
 		dir = configured
 	}
 	authStore, _ := authdomain.NewStore(nil, nil)
-	return &Service{registry: registry, sessions: map[string]Session{}, audits: []Audit{}, agents: map[string]AgentRun{}, devices: devicedomain.NewStore(), artifacts: map[string]string{}, artifactKinds: map[string]string{}, evidenceDir: dir, activeCancels: map[string]context.CancelFunc{}, transportStrategies: map[string]strategy.Strategy{}, transportStates: map[string]transportState{}, anchors: internalflows.NewAnchorStore(), runs: map[string]RunResult{}, flowRuns: map[string]Flow{}, auth: authStore}
+	return &Service{registry: registry, sessions: map[string]Session{}, audits: []Audit{}, agents: map[string]AgentRun{}, devices: devicedomain.NewStore(), artifacts: map[string]string{}, artifactKinds: map[string]string{}, evidenceDir: dir, activeCancels: map[string]context.CancelFunc{}, transportStrategies: map[string]strategy.Strategy{}, transportStates: map[string]transportState{}, anchors: internalflows.NewAnchorStore(), runs: map[string]RunResult{}, flowRuns: map[string]Flow{}, externalRecordings: map[string]externalRecording{}, auth: authStore}
 }
 
 func NewWithAttached(registry *strategyregistry.Registry, reader AttachedReader) *Service {
@@ -375,6 +383,13 @@ func (s *Service) sessionForLease(_ context.Context, deviceID, token string) (Se
 		}
 	}
 	return Session{}, fmt.Errorf("lease token is invalid or no longer held")
+}
+
+// ValidateLease is the narrow public validation seam for long-running
+// delivery ramps. It deliberately returns no session or token material.
+func (s *Service) ValidateLease(ctx context.Context, deviceID, token string) error {
+	_, err := s.sessionForLease(ctx, deviceID, token)
+	return err
 }
 
 func (s *Service) finishContext(ctx context.Context, id, state, reason string) (Session, error) {

@@ -2,6 +2,8 @@ package entitlement
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -9,7 +11,9 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
+	"github.com/vrooli/api-core/consumeridentity"
 	"github.com/vrooli/browser-automation-studio/config"
+	entitlementclient "github.com/vrooli/vrooli/packages/entitlementclient-go"
 )
 
 // createTestService creates a service instance for testing.
@@ -20,25 +24,10 @@ func createTestService(t *testing.T) *Service {
 	log.SetLevel(logrus.ErrorLevel)
 
 	cfg := config.EntitlementConfig{
-		RequestTimeout:     5 * time.Second,
-		CacheTTL:           5 * time.Minute,
-		OfflineGracePeriod: 5 * time.Hour,
-		DefaultTier:        "free",
-		ServiceURL:         "https://vrooli.com",
-		TierLimits: map[string]int{
-			"free":     50,
-			"solo":     200,
-			"pro":      -1,
-			"studio":   -1,
-			"business": -1,
-		},
-		AICreditsLimits: map[string]int{
-			"free":     10,
-			"solo":     50,
-			"pro":      -1,
-			"studio":   -1,
-			"business": -1,
-		},
+		RequestTimeout: 5 * time.Second,
+		CacheTTL:       5 * time.Minute,
+		DefaultTier:    "free",
+		ServiceURL:     "https://vrooli.com",
 		WatermarkTiers: []string{"free"},
 		AITiers:        []string{"solo", "pro", "studio", "business"},
 		RecordingTiers: []string{"pro", "studio", "business"},
@@ -47,8 +36,33 @@ func createTestService(t *testing.T) *Service {
 	return NewService(cfg, log)
 }
 
+func signedLeaseFixture(t *testing.T, identity, tier string) (string, []byte) {
+	t.Helper()
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const keyID = "test-lease-key"
+	payload := entitlementclient.Payload{UserIdentity: identity, Status: "active", PlanTier: tier, Credits: map[string]any{"balance_credits": float64(41)}, NotAfter: time.Now().Add(time.Hour)}
+	lease, err := entitlementclient.Sign(payload, keyID, key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	keys := consumeridentity.NewKeySet(consumeridentity.PublicKey{ID: keyID, Key: &key.PublicKey})
+	jwks, err := keys.JWKS()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return lease, jwks
+}
+
 func TestGetEntitlementBindsAuthorityQueryAndResponseIdentity(t *testing.T) {
+	lease, jwks := signedLeaseFixture(t, "alice@example.com", "pro")
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/.well-known/jwks.json" {
+			w.Write(jwks)
+			return
+		}
 		if got := r.URL.Query().Get("user"); got != "alice@example.com" {
 			t.Fatalf("authority query user = %q", got)
 		}
@@ -56,7 +70,7 @@ func TestGetEntitlementBindsAuthorityQueryAndResponseIdentity(t *testing.T) {
 			t.Fatalf("authorization = %q", got)
 		}
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"status":"active","plan_tier":"pro","credits":{"customer_email":"alice@example.com","balance_credits":41},"subscription":{"user_identity":"alice@example.com"}}`))
+		_, _ = w.Write([]byte(`{"lease":"` + lease + `"}`))
 	}))
 	defer server.Close()
 	svc := createTestService(t)
@@ -73,9 +87,14 @@ func TestGetEntitlementBindsAuthorityQueryAndResponseIdentity(t *testing.T) {
 }
 
 func TestGetEntitlementRejectsAuthorityIdentityMismatchWithoutCredits(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	lease, jwks := signedLeaseFixture(t, "bob@example.com", "business")
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"status":"active","plan_tier":"business","subscription":{"user_identity":"bob@example.com"}}`))
+		if r.URL.Path == "/.well-known/jwks.json" {
+			w.Write(jwks)
+			return
+		}
+		_, _ = w.Write([]byte(`{"lease":"` + lease + `"}`))
 	}))
 	defer server.Close()
 	svc := createTestService(t)
@@ -83,7 +102,7 @@ func TestGetEntitlementRejectsAuthorityIdentityMismatchWithoutCredits(t *testing
 	svc.httpClient = server.Client()
 
 	_, err := svc.GetEntitlement(WithAccessToken(context.Background(), "opaque-access"), "alice@example.com")
-	if err == nil || !strings.Contains(err.Error(), "authority subscription identity does not match") {
+	if err == nil || !strings.Contains(err.Error(), "unauthorized") {
 		t.Fatalf("mismatch error = %v", err)
 	}
 }
@@ -91,7 +110,7 @@ func TestGetEntitlementRejectsAuthorityIdentityMismatchWithoutCredits(t *testing
 func TestGetEntitlementRejectsAuthorityResponseWithoutIdentity(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"status":"active","plan_tier":"business"}`))
+		_, _ = w.Write([]byte(`{"lease":""}`))
 	}))
 	defer server.Close()
 	svc := createTestService(t)
@@ -99,7 +118,7 @@ func TestGetEntitlementRejectsAuthorityResponseWithoutIdentity(t *testing.T) {
 	svc.httpClient = server.Client()
 
 	_, err := svc.GetEntitlement(WithAccessToken(context.Background(), "opaque-access"), "alice@example.com")
-	if err == nil || !strings.Contains(err.Error(), "authority response did not establish identity") {
+	if err == nil || !strings.Contains(err.Error(), "malformed lease response") {
 		t.Fatalf("missing identity error = %v", err)
 	}
 }
@@ -333,41 +352,6 @@ func TestInvalidateCache_NoopForNonexistent(t *testing.T) {
 }
 
 // ============================================================================
-// GetTierLimit Tests
-// ============================================================================
-
-func TestTierLimit_Free(t *testing.T) {
-	svc := createTestService(t)
-
-	limit := svc.TierLimit(TierFree)
-
-	if limit != 50 {
-		t.Errorf("expected free tier limit 50, got %d", limit)
-	}
-}
-
-func TestTierLimit_Solo(t *testing.T) {
-	svc := createTestService(t)
-
-	limit := svc.TierLimit(TierSolo)
-
-	if limit != 200 {
-		t.Errorf("expected solo tier limit 200, got %d", limit)
-	}
-}
-
-func TestTierLimit_Pro(t *testing.T) {
-	svc := createTestService(t)
-
-	limit := svc.TierLimit(TierPro)
-
-	// Pro should be unlimited (-1)
-	if limit != -1 {
-		t.Errorf("expected pro tier limit -1 (unlimited), got %d", limit)
-	}
-}
-
-// ============================================================================
 // TierRequiresWatermark Tests
 // ============================================================================
 
@@ -444,52 +428,6 @@ func TestTierCanUseRecording_Pro(t *testing.T) {
 }
 
 // ============================================================================
-// GetAICreditsLimit Tests
-// ============================================================================
-
-func TestGetAICreditsLimit_Free(t *testing.T) {
-	svc := createTestService(t)
-
-	limit := svc.GetAICreditsLimit(TierFree)
-
-	if limit != 10 {
-		t.Errorf("expected free tier AI credits limit 10, got %d", limit)
-	}
-}
-
-func TestGetAICreditsLimit_Solo(t *testing.T) {
-	svc := createTestService(t)
-
-	limit := svc.GetAICreditsLimit(TierSolo)
-
-	if limit != 50 {
-		t.Errorf("expected solo tier AI credits limit 50, got %d", limit)
-	}
-}
-
-func TestGetAICreditsLimit_Pro(t *testing.T) {
-	svc := createTestService(t)
-
-	limit := svc.GetAICreditsLimit(TierPro)
-
-	// Pro should be unlimited (-1)
-	if limit != -1 {
-		t.Errorf("expected pro tier AI credits limit -1 (unlimited), got %d", limit)
-	}
-}
-
-func TestGetAICreditsLimit_UnknownTier(t *testing.T) {
-	svc := createTestService(t)
-
-	limit := svc.GetAICreditsLimit(Tier("unknown"))
-
-	// Unknown tier should return 0 (no access)
-	if limit != 0 {
-		t.Errorf("expected unknown tier AI credits limit 0, got %d", limit)
-	}
-}
-
-// ============================================================================
 // MinTier Tests
 // ============================================================================
 
@@ -534,9 +472,10 @@ func TestMinTierForAICredits(t *testing.T) {
 
 	minTier := svc.MinTierForAICredits()
 
-	// Free tier has 10 credits (not 0), so free should be the minimum
-	if minTier != TierFree {
-		t.Errorf("expected min tier for AI credits to be 'free', got %q", minTier)
+	// Tier-specific credit values are supplied by the signed lease; the
+	// feature threshold remains the manifest-backed AI threshold.
+	if minTier != TierSolo {
+		t.Errorf("expected min tier for AI credits to follow AI access, got %q", minTier)
 	}
 }
 

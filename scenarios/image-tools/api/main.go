@@ -385,16 +385,16 @@ func main() {
 
 	// The model-download runner: a durable CPU-lane job that fetches + verifies a
 	// model's weights, emitting progress. ModelsService.InstallModel submits it.
-	dispatcher.Register(internalmodels.InstallJobOperation, func(jobCtx context.Context, job internaljobs.Job, emit func(progress int, message string)) (string, error) {
+	dispatcher.Register(internalmodels.InstallJobOperation, func(jobCtx context.Context, job internaljobs.Job, emit func(progress int, message string)) (internaljobs.Result, error) {
 		var p internalmodels.InstallPayload
 		if err := json.Unmarshal(job.Payload, &p); err != nil {
-			return "", fmt.Errorf("decode install payload: %w", err)
+			return internaljobs.Result{}, fmt.Errorf("decode install payload: %w", err)
 		}
 		rec, err := installer.Install(jobCtx, p.ModelID, emit)
 		if err != nil {
-			return "", err
+			return internaljobs.Result{}, err
 		}
-		return rec.Path, nil
+		return internaljobs.Result{Ref: rec.Path}, nil
 	})
 
 	// Adapter management mirrors model management: the Installer owns checksummed
@@ -440,16 +440,16 @@ func main() {
 	// The adapter-download runner: a durable CPU-lane job that fetches + verifies
 	// an adapter's weights, emitting progress. AdaptersService.InstallAdapter
 	// submits it.
-	dispatcher.Register(internaladapters.InstallJobOperation, func(jobCtx context.Context, job internaljobs.Job, emit func(progress int, message string)) (string, error) {
+	dispatcher.Register(internaladapters.InstallJobOperation, func(jobCtx context.Context, job internaljobs.Job, emit func(progress int, message string)) (internaljobs.Result, error) {
 		var p internaladapters.InstallPayload
 		if err := json.Unmarshal(job.Payload, &p); err != nil {
-			return "", fmt.Errorf("decode adapter install payload: %w", err)
+			return internaljobs.Result{}, fmt.Errorf("decode adapter install payload: %w", err)
 		}
 		rec, err := adapterInstaller.Install(jobCtx, p.AdapterID, emit)
 		if err != nil {
-			return "", err
+			return internaljobs.Result{}, err
 		}
-		return rec.Path, nil
+		return internaljobs.Result{Ref: rec.Path}, nil
 	})
 
 	// On-demand host-tool backend provisioning. The durable job shells
@@ -457,21 +457,21 @@ func main() {
 	// capabilities uses for host inventory) so a missing generative backend can
 	// be installed from the product with live progress and client-cancel safety.
 	backendEnsurer := internalhosttool.NewEnsurer()
-	dispatcher.Register(internalhosttool.EnsureJobOperation, func(jobCtx context.Context, job internaljobs.Job, emit func(progress int, message string)) (string, error) {
+	dispatcher.Register(internalhosttool.EnsureJobOperation, func(jobCtx context.Context, job internaljobs.Job, emit func(progress int, message string)) (internaljobs.Result, error) {
 		var p internalhosttool.EnsurePayload
 		if err := json.Unmarshal(job.Payload, &p); err != nil {
-			return "", fmt.Errorf("decode ensure payload: %w", err)
+			return internaljobs.Result{}, fmt.Errorf("decode ensure payload: %w", err)
 		}
 		emit(5, "downloading "+p.Tool)
 		st, err := backendEnsurer.Ensure(jobCtx, p.Tool)
 		if err != nil {
-			return "", fmt.Errorf("ensure backend %q: %w", p.Tool, err)
+			return internaljobs.Result{}, fmt.Errorf("ensure backend %q: %w", p.Tool, err)
 		}
 		if !st.GetOk() {
-			return "", fmt.Errorf("ensure backend %q: %s", p.Tool, strings.Join(st.GetNotes(), "; "))
+			return internaljobs.Result{}, fmt.Errorf("ensure backend %q: %s", p.Tool, strings.Join(st.GetNotes(), "; "))
 		}
 		emit(100, st.GetExecutionState())
-		return st.GetCommand(), nil
+		return internaljobs.Result{Ref: st.GetCommand()}, nil
 	})
 
 	// Backend provider registry: register the standalone AI backends and enforce

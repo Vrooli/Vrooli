@@ -3,7 +3,9 @@ package jobs
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -24,13 +26,26 @@ type store struct {
 
 func newStore(db SQLExecutor) *store { return &store{db: db} }
 
+// migrate adds columns to an install created before they existed. SQLite has no
+// ADD COLUMN IF NOT EXISTS, so a duplicate-column error is the steady state
+// rather than a failure. Without this a running install keeps the old table —
+// CREATE TABLE IF NOT EXISTS is a no-op there — and every insert fails on the
+// column count.
+func (s *store) migrate(ctx context.Context) error {
+	_, err := s.db.ExecContext(ctx, `ALTER TABLE jobs ADD COLUMN meta TEXT NOT NULL DEFAULT ''`)
+	if err != nil && !strings.Contains(strings.ToLower(err.Error()), "duplicate column") {
+		return fmt.Errorf("jobs: migrate schema: %w", err)
+	}
+	return nil
+}
+
 const insertJobSQL = `
-INSERT INTO jobs (id, operation, lane, state, progress, message, error, result_ref, payload, estimated_seconds, created_at, started_at, finished_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+INSERT INTO jobs (id, operation, lane, state, progress, message, error, result_ref, meta, payload, estimated_seconds, created_at, started_at, finished_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
 func (s *store) insert(ctx context.Context, j Job) error {
 	_, err := s.db.ExecContext(ctx, insertJobSQL,
-		j.ID, j.Operation, string(j.Lane), string(j.State), j.Progress, j.Message, j.Error, j.ResultRef,
+		j.ID, j.Operation, string(j.Lane), string(j.State), j.Progress, j.Message, j.Error, j.ResultRef, encodeMeta(j.Meta),
 		j.Payload, j.EstimatedSeconds, j.CreatedAt.Format(jobTimeFormat), formatTimePtr(j.StartedAt), formatTimePtr(j.FinishedAt),
 	)
 	if err != nil {
@@ -40,12 +55,12 @@ func (s *store) insert(ctx context.Context, j Job) error {
 }
 
 const updateJobSQL = `
-UPDATE jobs SET state=?, progress=?, message=?, error=?, result_ref=?, started_at=?, finished_at=?
+UPDATE jobs SET state=?, progress=?, message=?, error=?, result_ref=?, meta=?, started_at=?, finished_at=?
 WHERE id=?`
 
 func (s *store) update(ctx context.Context, j Job) error {
 	_, err := s.db.ExecContext(ctx, updateJobSQL,
-		string(j.State), j.Progress, j.Message, j.Error, j.ResultRef,
+		string(j.State), j.Progress, j.Message, j.Error, j.ResultRef, encodeMeta(j.Meta),
 		formatTimePtr(j.StartedAt), formatTimePtr(j.FinishedAt), j.ID,
 	)
 	if err != nil {
@@ -54,7 +69,34 @@ func (s *store) update(ctx context.Context, j Job) error {
 	return nil
 }
 
-const selectJobColumns = `id, operation, lane, state, progress, message, error, result_ref, payload, estimated_seconds, created_at, started_at, finished_at`
+const selectJobColumns = `id, operation, lane, state, progress, message, error, result_ref, meta, payload, estimated_seconds, created_at, started_at, finished_at`
+
+// encodeMeta stores an absent map as the empty string rather than "{}" so a row
+// that carries no backend record is distinguishable from one that carries an
+// empty record, which is the same distinction ai.MetaCostUSD is written to
+// preserve: "cost nothing" and "nobody reported a cost" are different facts.
+func encodeMeta(meta map[string]string) string {
+	if len(meta) == 0 {
+		return ""
+	}
+	encoded, err := json.Marshal(meta)
+	if err != nil {
+		// Unreachable: a map[string]string always marshals.
+		return ""
+	}
+	return string(encoded)
+}
+
+func decodeMeta(raw string) map[string]string {
+	if strings.TrimSpace(raw) == "" {
+		return nil
+	}
+	var meta map[string]string
+	if err := json.Unmarshal([]byte(raw), &meta); err != nil {
+		return nil
+	}
+	return meta
+}
 
 func (s *store) get(ctx context.Context, id string) (Job, error) {
 	row := s.db.QueryRowContext(ctx, "SELECT "+selectJobColumns+" FROM jobs WHERE id=?", id)
@@ -112,16 +154,18 @@ func scanJob(sc scanner) (Job, error) {
 		lane, state           string
 		createdAt             string
 		startedAt, finishedAt string
+		meta                  string
 		payload               []byte
 	)
 	if err := sc.Scan(
-		&j.ID, &j.Operation, &lane, &state, &j.Progress, &j.Message, &j.Error, &j.ResultRef,
+		&j.ID, &j.Operation, &lane, &state, &j.Progress, &j.Message, &j.Error, &j.ResultRef, &meta,
 		&payload, &j.EstimatedSeconds, &createdAt, &startedAt, &finishedAt,
 	); err != nil {
 		return Job{}, fmt.Errorf("jobs: scan: %w", err)
 	}
 	j.Lane = Lane(lane)
 	j.State = State(state)
+	j.Meta = decodeMeta(meta)
 	j.Payload = payload
 	t, err := time.Parse(jobTimeFormat, createdAt)
 	if err != nil {

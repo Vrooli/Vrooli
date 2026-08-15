@@ -3,6 +3,7 @@ package engine
 import (
 	"context"
 	"encoding/json"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
@@ -46,8 +47,12 @@ type SessionSpec struct {
 	// microphone. Requires a dedicated browser instance (Chromium launch flag).
 	FakeMicrophoneWav string
 
-	ElectronTarget    *driver.ElectronTarget
+	AppTarget         *driver.AppTarget
 	ValidationContext *driver.ValidationContext
+	// RecordingStartAt and RecordingID are supplied by the target ramp. BAS
+	// annotates each WebView step with an offset but never owns the recording.
+	RecordingStartAt *time.Time
+	RecordingID      string
 }
 
 // AutomationEngine exposes engine capabilities and produces engine sessions.

@@ -27,6 +27,8 @@ package entitlement
 import (
 	"strings"
 	"time"
+
+	entitlementclient "github.com/vrooli/vrooli/packages/entitlementclient-go"
 )
 
 const (
@@ -82,6 +84,10 @@ type Entitlement struct {
 	// Features is a list of feature flags enabled for this subscription.
 	Features []string `json:"features,omitempty"`
 
+	// Limits are copied from the signed LPBS lease and are the authoritative
+	// client-side view for local-capacity gates.
+	Limits []entitlementclient.Limit `json:"limits,omitempty"`
+
 	// Credits is the user's credit balance (for future use).
 	Credits int64 `json:"credits,omitempty"`
 
@@ -103,7 +109,7 @@ func (e *Entitlement) IsActive() bool {
 
 // IsExpired returns true if this cached entitlement has expired.
 func (e *Entitlement) IsExpired() bool {
-	return time.Now().After(e.ExpiresAt)
+	return !time.Now().Before(e.ExpiresAt)
 }
 
 // HasFeature checks if a specific feature flag is enabled.
@@ -194,6 +200,7 @@ func ParseTier(value string) (Tier, bool) {
 
 // entitlementResponse matches the response from landing-page-business-suite /api/v1/entitlements.
 type entitlementResponse struct {
+	Lease             string                `json:"lease"`
 	Status            string                `json:"status"`
 	PlanTier          string                `json:"plan_tier"`
 	PriceID           string                `json:"price_id"`

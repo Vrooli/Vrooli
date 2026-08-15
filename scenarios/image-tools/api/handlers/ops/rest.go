@@ -96,6 +96,26 @@ func (h *Deps) runHandler(w http.ResponseWriter, r *http.Request) {
 			params.OverlayImage = overlay
 		}
 	}
+	if operation == "composite" {
+		// Plate pixels arrive as `plate0`, `plate1`, … parts, positionally
+		// matched to the declared plate list. A stack of full-size rasters does
+		// not belong in a JSON parameter, and the positional pairing is checked
+		// here rather than deeper: a plate declared with no bytes is a caller
+		// mistake, and reporting it at the edge names which index is missing.
+		for i := range params.Plates {
+			field := fmt.Sprintf("plate%d", i)
+			plate, present := h.readOptionalImagePart(w, r, field)
+			if !present {
+				httpx.WriteError(w, http.StatusBadRequest, httpx.CodeInvalidRequest,
+					fmt.Sprintf("composite declares %d plate(s); part %q is missing", len(params.Plates), field))
+				return
+			}
+			if plate == nil {
+				return // a read error was already written
+			}
+			params.Plates[i].Image = plate
+		}
+	}
 
 	res, runErr := internalops.Execute(operation, inputBytes, params)
 	if runErr != nil {

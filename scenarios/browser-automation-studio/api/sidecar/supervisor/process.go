@@ -267,21 +267,23 @@ func (p *NodeProcess) resolveDriverDir() (string, error) {
 		return p.driverDir, nil
 	}
 
-	// Try to resolve relative to the API binary location
-	// The API binary is typically at: <scenario>/api/browser-automation-studio-api
-	// So we go up one level to get to <scenario>/
+	// Try to resolve relative to the API binary location. Development builds
+	// place the API at <scenario>/api/<binary>, while desktop bundles place it
+	// at <bundle>/bin/api/<binary> and stage the driver at <bundle>/<driver>.
+	// Check both layouts so the same sidecar supervisor owns the driver in each
+	// tier.
 	if execPath, err := os.Executable(); err == nil {
-		// Get the directory containing the executable (api/)
 		execDir := filepath.Dir(execPath)
-		// Go up one level to the scenario root
-		scenarioRoot := filepath.Dir(execDir)
-		// Construct the full path
-		candidatePath := filepath.Join(scenarioRoot, p.driverDir)
-		if absPath, err := filepath.Abs(candidatePath); err == nil {
-			// Check if this path exists
-			if _, err := os.Stat(absPath); err == nil {
-				p.log.WithField("path", absPath).Debug("Resolved driver directory relative to executable")
-				return absPath, nil
+		candidates := []string{
+			filepath.Join(filepath.Dir(execDir), p.driverDir),
+			filepath.Join(filepath.Dir(filepath.Dir(execDir)), p.driverDir),
+		}
+		for _, candidatePath := range candidates {
+			if absPath, err := filepath.Abs(candidatePath); err == nil {
+				if info, err := os.Stat(absPath); err == nil && info.IsDir() {
+					p.log.WithField("path", absPath).Debug("Resolved driver directory relative to executable")
+					return absPath, nil
+				}
 			}
 		}
 	}

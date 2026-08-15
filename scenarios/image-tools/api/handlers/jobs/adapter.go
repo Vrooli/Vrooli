@@ -20,6 +20,7 @@ func domainToProto(j internaljobs.Job) *jobsv1.Job {
 		Message:          j.Message,
 		Error:            j.Error,
 		ResultRef:        j.ResultRef,
+		ResultMeta:       j.Meta,
 		EstimatedSeconds: int32(j.EstimatedSeconds),
 		CreatedAt:        timeToProto(&j.CreatedAt),
 		StartedAt:        timeToProto(j.StartedAt),

@@ -171,13 +171,14 @@ type AssertionSpec struct {
 }
 
 type JourneyStepSpec struct {
-	ID        string          `json:"id"`
-	Purpose   string          `json:"purpose"`
-	Action    string          `json:"action"`
-	Capture   bool            `json:"capture"`
-	Readiness ReadinessPolicy `json:"readiness"`
-	Settle    SettlePolicy    `json:"settle"`
-	Assertion *AssertionSpec  `json:"assertion,omitempty"`
+	ID        string            `json:"id"`
+	Purpose   string            `json:"purpose"`
+	Action    string            `json:"action"`
+	Arguments map[string]string `json:"arguments,omitempty"`
+	Capture   bool              `json:"capture"`
+	Readiness ReadinessPolicy   `json:"readiness"`
+	Settle    SettlePolicy      `json:"settle"`
+	Assertion *AssertionSpec    `json:"assertion,omitempty"`
 }
 
 type JourneyPlan struct {

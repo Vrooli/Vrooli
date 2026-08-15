@@ -448,6 +448,9 @@ func (s *Service) execute(ctx context.Context, flow Flow, deviceID, actor string
 					permission = value
 				}
 				value := step.Target
+				if argumentValue, ok := step.Arguments["value"].(string); ok && argumentValue != "" {
+					value = argumentValue
+				}
 				if step.Kind == "package-state" {
 					value, _ = step.Arguments["expected"].(string)
 				}

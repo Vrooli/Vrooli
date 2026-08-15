@@ -160,6 +160,7 @@ func (c *Client) Execute(ctx context.Context, request CellRequest) CellResult {
 
 func nodeTarget(node *registryv1.Node) deliveryramp.Target {
 	capabilities := make([]string, 0, len(node.Capabilities))
+	android := false
 	for _, raw := range node.Capabilities {
 		normalized := strings.ToLower(strings.TrimSpace(raw))
 		if strings.HasSuffix(normalized, "cdp") || normalized == "desktop" {
@@ -173,20 +174,40 @@ func nodeTarget(node *registryv1.Node) deliveryramp.Target {
 			capabilities = append(capabilities, deliveryramp.CapabilityProcessMetrics)
 		case "offline-network", "desktop.offline-network":
 			capabilities = append(capabilities, deliveryramp.CapabilityOfflineNetwork)
+		case "android", "adb", "android-adb", "android.device-control":
+			android = true
+			capabilities = append(capabilities, deliveryramp.CapabilityDeviceControl)
+		case "android-webview", "android.webview":
+			android = true
+			capabilities = append(capabilities, deliveryramp.CapabilityAndroidWebView)
+		case "android-emulator", "android.emulator":
+			android = true
+			capabilities = append(capabilities, deliveryramp.CapabilityAndroidEmulator)
+		case "screen-recording", "android.screen-recording":
+			android = true
+			capabilities = append(capabilities, deliveryramp.CapabilityScreenRecording)
 		}
 	}
-	available := node.Online && node.Status == registryv1.NodeStatus_NODE_STATUS_ONLINE
+	available := node.Online && node.Status == registryv1.NodeStatus_NODE_STATUS_ONLINE && len(capabilities) > 0 && hasDispatchScope(node.Scopes)
 	reason := "bridge node is offline or not dispatchable"
-	if available && len(capabilities) == 0 {
-		reason = "bridge node is online but declares no desktop capability"
+	if node.Online && node.Status == registryv1.NodeStatus_NODE_STATUS_ONLINE && len(capabilities) == 0 {
+		reason = "bridge node is online but declares no supported capability"
 		available = false
+	} else if node.Online && node.Status == registryv1.NodeStatus_NODE_STATUS_ONLINE && !hasDispatchScope(node.Scopes) {
+		reason = "bridge node is online but lacks an authorized scenario-test dispatch scope"
+	} else if available && android {
+		reason = "bridge node is online and authorized; Android evidence remains target-owned"
 	} else if available {
-		reason = "bridge node is online; desktop evidence remains target-owned"
+		reason = "bridge node is online and authorized; desktop evidence remains target-owned"
+	}
+	platform, deviceKind, missing, nextAction := "desktop", "desktop", "bridge desktop capability", "register a bridge node with the required desktop capability"
+	if android {
+		platform, deviceKind, missing, nextAction = "android", "physical", "bridge Android capability", "register a bridge node with Android device-control and screen-recording capabilities"
 	}
 	return deliveryramp.Target{
-		ID: "bridge:" + node.Id, Label: node.Name, Platform: "desktop", DeviceKind: "desktop", Capabilities: capabilities,
+		ID: "bridge:" + node.Id, Label: node.Name, Platform: platform, DeviceKind: deviceKind, Capabilities: capabilities,
 		NodeID: node.Id, OS: node.Os, Architecture: node.Arch, Mode: "remote", Reason: reason,
-		Available: available, MissingCapability: "bridge desktop capability", NextAction: "register a bridge node with the required desktop capability",
+		Available: available, MissingCapability: missing, NextAction: nextAction,
 		Transport: deliveryramp.Transport{Kind: deliveryramp.TransportBridge, ID: node.Id, Trust: "bridge", Available: available, Reason: reason},
 		Health:    deliveryramp.TargetHealth{Status: bridgeHealth(node, available), Reason: reason},
 		BridgeTrust: &deliveryramp.BridgeTrust{

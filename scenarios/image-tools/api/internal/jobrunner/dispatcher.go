@@ -25,7 +25,7 @@ var ErrNoRunner = errors.New("jobrunner: no handler registered for operation")
 
 // OpRunner executes one operation's work. It matches the internal/jobs.Runner
 // shape so a handler can be the body of a job directly.
-type OpRunner func(ctx context.Context, job internaljobs.Job, emit func(progress int, message string)) (ref string, err error)
+type OpRunner func(ctx context.Context, job internaljobs.Job, emit func(progress int, message string)) (internaljobs.Result, error)
 
 // Dispatcher routes a job to the handler registered for its operation.
 type Dispatcher struct {
@@ -62,12 +62,12 @@ func (d *Dispatcher) Operations() []string {
 
 // Run implements internal/jobs.Runner: it looks up the handler for the job's
 // operation and executes it, or returns ErrNoRunner.
-func (d *Dispatcher) Run(ctx context.Context, job internaljobs.Job, emit func(progress int, message string)) (string, error) {
+func (d *Dispatcher) Run(ctx context.Context, job internaljobs.Job, emit func(progress int, message string)) (internaljobs.Result, error) {
 	d.mu.RLock()
 	run, ok := d.handlers[job.Operation]
 	d.mu.RUnlock()
 	if !ok {
-		return "", fmt.Errorf("%w: %q", ErrNoRunner, job.Operation)
+		return internaljobs.Result{}, fmt.Errorf("%w: %q", ErrNoRunner, job.Operation)
 	}
 	return run(ctx, job, emit)
 }

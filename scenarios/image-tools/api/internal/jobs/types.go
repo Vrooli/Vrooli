@@ -61,14 +61,18 @@ type Spec struct {
 
 // Job is the persisted, observable record of a submitted unit of work.
 type Job struct {
-	ID               string
-	Operation        string
-	Lane             Lane
-	State            State
-	Progress         int    // 0..100
-	Message          string // latest progress / status message
-	Error            string // failure detail when State == failed
-	ResultRef        string // output ref (blob key / path) when succeeded
+	ID        string
+	Operation string
+	Lane      Lane
+	State     State
+	Progress  int    // 0..100
+	Message   string // latest progress / status message
+	Error     string // failure detail when State == failed
+	ResultRef string // output ref (blob key / path) when succeeded
+	// Meta is the backend's record of the run: which model served it, which
+	// tier it ran on, what the route cost. Set only on success, and only by
+	// backends that report it. See Result.Meta.
+	Meta             map[string]string
 	Payload          []byte
 	EstimatedSeconds int
 	CreatedAt        time.Time

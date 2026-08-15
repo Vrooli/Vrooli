@@ -133,6 +133,22 @@ type SemanticResolver interface {
 	ResolveSemantic(context.Context, string) (SemanticResult, error)
 }
 
+// WebViewAttacher exposes the device-owned debugging socket and port-forward
+// seam used by a browser automation client. The client never receives an adb
+// command or a device socket name that it can reinterpret; it receives only
+// the bounded local CDP endpoint selected under the device lease.
+type WebViewAttacher interface {
+	AttachWebView(context.Context, string) (WebViewEndpoint, error)
+}
+
+type WebViewEndpoint struct {
+	Package     string `json:"package"`
+	Socket      string `json:"socket"`
+	CDPEndpoint string `json:"cdp_endpoint"`
+	RendererID  string `json:"renderer_id"`
+	Transport   string `json:"transport"`
+}
+
 type SemanticResult struct {
 	Bounds     []float64 `json:"bounds"`
 	Confidence float64   `json:"confidence"`

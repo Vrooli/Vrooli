@@ -1,7 +1,10 @@
 package main
 
 import (
+	"archive/tar"
 	"archive/zip"
+	"bytes"
+	"compress/gzip"
 	"crypto/sha256"
 	"encoding/hex"
 	"net/http"
@@ -15,6 +18,7 @@ import (
 func TestInstallDownloadsAndValidatesPlatformTools(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	t.Setenv("PATH", t.TempDir())
+	t.Setenv("ANDROID_SDK_SKIP_COMPONENTS", "1")
 	archivePath := filepath.Join(t.TempDir(), "platform-tools.zip")
 	file, err := os.Create(archivePath)
 	if err != nil {
@@ -64,5 +68,40 @@ func TestInstallRejectsChecksumMismatch(t *testing.T) {
 	t.Setenv("ANDROID_PLATFORM_TOOLS_SHA256", strings.Repeat("0", 64))
 	if err := install(); err == nil {
 		t.Fatal("expected install failure")
+	}
+}
+
+func TestInstallArchiveExtractsTarGzToolchain(t *testing.T) {
+	var archive bytes.Buffer
+	compressed := gzip.NewWriter(&archive)
+	writer := tar.NewWriter(compressed)
+	contents := []byte("#!/bin/sh\necho jdk\n")
+	if err := writer.WriteHeader(&tar.Header{Name: "jdk-17/bin/javac", Mode: 0o700, Size: int64(len(contents))}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := writer.Write(contents); err != nil {
+		t.Fatal(err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := compressed.Close(); err != nil {
+		t.Fatal(err)
+	}
+	digest := sha256.Sum256(archive.Bytes())
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write(archive.Bytes())
+	}))
+	defer server.Close()
+	destination := filepath.Join(t.TempDir(), "jdk-17")
+	if err := installArchive(server.URL, hex.EncodeToString(digest[:]), destination, "JDK 17", "", "tar.gz"); err != nil {
+		t.Fatal(err)
+	}
+	installed, err := os.ReadFile(filepath.Join(destination, "bin", "javac"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(installed) != string(contents) {
+		t.Fatalf("unexpected extracted toolchain: %q", installed)
 	}
 }

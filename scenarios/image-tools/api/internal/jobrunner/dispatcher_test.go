@@ -18,19 +18,19 @@ func TestDispatcherUnregisteredOperationFailsCleanly(t *testing.T) {
 
 func TestDispatcherRoutesToRegisteredHandler(t *testing.T) {
 	d := New()
-	d.Register("resize", func(_ context.Context, job internaljobs.Job, emit func(int, string)) (string, error) {
+	d.Register("resize", func(_ context.Context, job internaljobs.Job, emit func(int, string)) (internaljobs.Result, error) {
 		emit(50, "halfway")
-		return "out/" + job.ID, nil
+		return internaljobs.Result{Ref: "out/" + job.ID}, nil
 	})
 
 	var gotProgress int
-	ref, err := d.Run(context.Background(), internaljobs.Job{ID: "j1", Operation: "resize"}, func(p int, _ string) {
+	result, err := d.Run(context.Background(), internaljobs.Job{ID: "j1", Operation: "resize"}, func(p int, _ string) {
 		gotProgress = p
 	})
 	if err != nil {
 		t.Fatalf("run: %v", err)
 	}
-	if ref != "out/j1" {
+	if ref := result.Ref; ref != "out/j1" {
 		t.Fatalf("ref = %q, want out/j1", ref)
 	}
 	if gotProgress != 50 {
@@ -40,11 +40,15 @@ func TestDispatcherRoutesToRegisteredHandler(t *testing.T) {
 
 func TestDispatcherDuplicateRegistrationPanics(t *testing.T) {
 	d := New()
-	d.Register("resize", func(context.Context, internaljobs.Job, func(int, string)) (string, error) { return "", nil })
+	d.Register("resize", func(context.Context, internaljobs.Job, func(int, string)) (internaljobs.Result, error) {
+		return internaljobs.Result{}, nil
+	})
 	defer func() {
 		if recover() == nil {
 			t.Fatal("expected panic on duplicate registration")
 		}
 	}()
-	d.Register("resize", func(context.Context, internaljobs.Job, func(int, string)) (string, error) { return "", nil })
+	d.Register("resize", func(context.Context, internaljobs.Job, func(int, string)) (internaljobs.Result, error) {
+		return internaljobs.Result{}, nil
+	})
 }

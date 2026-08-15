@@ -25,7 +25,7 @@ func TestEveryEmittedParameterSurvivesTheWire(t *testing.T) {
 		"dither_ordered":   `{"ditherOrdered":{"dark":"#1B3FD8","light":"#EDE6D2","normalize":true}}`,
 		"dither_diffusion": `{"ditherDiffusion":{"dark":"#1B3FD8","light":"#EDE6D2","normalize":true}}`,
 		"grain":            `{"grain":{"seed":11,"amount":0.05,"contrastMultiplier":1.0}}`,
-		"scrim":            `{"scrim":{"color":"#1B3FD8","opacity":0.55,"direction":"left"}}`,
+		"scrim":            `{"scrim":{"color":"#1B3FD8","opacity":0.55,"direction":"left","regionX":0.06,"regionY":0.1,"regionWidth":0.42,"regionHeight":0.3,"regionFeather":0.08}}`,
 		"line_screen":      `{"lineScreen":{"spacing":6,"angle":45,"dark":"#1B3FD8","light":"#EDE6D2","normalize":true}}`,
 		"stipple":          `{"stipple":{"spacing":7,"seed":19,"dark":"#1B3FD8","light":"#EDE6D2","normalize":true}}`,
 		"engraving":        `{"engraving":{"spacing":7,"dark":"#1B3FD8","light":"#EDE6D2","normalize":true}}`,
@@ -37,6 +37,7 @@ func TestEveryEmittedParameterSurvivesTheWire(t *testing.T) {
 		"curve":            `{"curve":{"exponent":1.4}}`,
 		"defocus":          `{"defocus":{"radius":8,"bladeCount":6}}`,
 		"motion_blur":      `{"motionBlur":{"distance":24,"angle":20}}`,
+		"composite":        `{"composite":{"width":1440,"height":720,"background":"#EDE6D2","plates":[{"name":"sky","depth":0,"blend":"normal","opacity":1},{"name":"ink","depth":1,"blend":"multiply","opacity":0.85},{"name":"glow","depth":2,"blend":"screen","opacity":0.4}]}}`,
 	}
 	for op, raw := range cases {
 		op, raw := op, raw
@@ -105,5 +106,78 @@ func TestBrandInksReachTheTier2Screens(t *testing.T) {
 		if p.Dark != "#1B3FD8" || p.Light != "#EDE6D2" {
 			t.Errorf("%s: brand inks did not reach the engine (dark=%q light=%q)", tc.op, p.Dark, p.Light)
 		}
+	}
+}
+
+// The compositor's plate list has to survive the wire with every field intact,
+// not merely parse. A plate whose blend or depth was dropped in translation
+// composites into a different picture and nothing downstream can see it — which
+// is the same class of defect this file exists to catch.
+func TestEveryCompositePlateFieldReachesTheEngine(t *testing.T) {
+	const raw = `{"composite":{"width":1440,"height":720,"background":"#EDE6D2","plates":[` +
+		`{"name":"sky","depth":0,"blend":"normal","opacity":1},` +
+		`{"name":"ink","depth":1,"blend":"multiply","opacity":0.85},` +
+		`{"name":"glow","depth":2,"blend":"screen","opacity":0.4}]}}`
+
+	pb := &opsv1.OpParams{}
+	if err := protojson.Unmarshal([]byte(raw), pb); err != nil {
+		t.Fatalf("composite params rejected at the wire: %v", err)
+	}
+	p, err := translateParams("composite", pb)
+	if err != nil {
+		t.Fatalf("translate: %v", err)
+	}
+	if p.Width != 1440 || p.Height != 720 {
+		t.Fatalf("geometry %dx%d, want 1440x720", p.Width, p.Height)
+	}
+	if p.Background != "#EDE6D2" {
+		t.Fatalf("background %q, want #EDE6D2", p.Background)
+	}
+	if len(p.Plates) != 3 {
+		t.Fatalf("%d plates reached the engine, want 3", len(p.Plates))
+	}
+	for i, want := range []struct {
+		name    string
+		depth   int
+		blend   string
+		opacity float64
+	}{
+		{"sky", 0, "normal", 1},
+		{"ink", 1, "multiply", 0.85},
+		{"glow", 2, "screen", 0.4},
+	} {
+		got := p.Plates[i]
+		if got.Name != want.name || got.Depth != want.depth || got.Blend != want.blend || got.Opacity != want.opacity {
+			t.Fatalf("plate %d reached the engine as %+v, want %+v", i, got, want)
+		}
+	}
+}
+
+// A region-scoped scrim's geometry has to survive the wire with every field
+// intact. A scrim whose region was dropped in translation silently becomes the
+// whole-frame gradient it was meant to replace — dimming the entire picture to
+// fix one corner, which is the behaviour the region exists to end.
+func TestTheScrimRegionReachesTheEngine(t *testing.T) {
+	const raw = `{"scrim":{"color":"#1B3FD8","opacity":0.55,"direction":"left",` +
+		`"regionX":0.06,"regionY":0.1,"regionWidth":0.42,"regionHeight":0.3,"regionFeather":0.08}}`
+	pb := &opsv1.OpParams{}
+	if err := protojson.Unmarshal([]byte(raw), pb); err != nil {
+		t.Fatalf("scrim params rejected at the wire: %v", err)
+	}
+	p, err := translateParams("scrim", pb)
+	if err != nil {
+		t.Fatalf("translate: %v", err)
+	}
+	for name, got := range map[string]float64{
+		"region_x": p.RegionX, "region_y": p.RegionY,
+		"region_width": p.RegionWidth, "region_height": p.RegionHeight,
+		"region_feather": p.RegionFeather,
+	} {
+		if got == 0 {
+			t.Fatalf("%s did not reach the engine; the scrim would silently cover the whole frame", name)
+		}
+	}
+	if p.RegionWidth != 0.42 || p.RegionHeight != 0.3 {
+		t.Fatalf("scrim region reached the engine as %gx%g, want 0.42x0.3", p.RegionWidth, p.RegionHeight)
 	}
 }

@@ -321,7 +321,7 @@ func Lane(string) internaljobs.Lane { return internaljobs.LaneGPU }
 // OpRunner is the per-operation execution function the dispatcher registers. It
 // matches both jobrunner.OpRunner and jobs.Runner structurally (an unnamed func
 // type is assignable to either named type).
-type OpRunner = func(ctx context.Context, job internaljobs.Job, emit func(progress int, message string)) (string, error)
+type OpRunner = func(ctx context.Context, job internaljobs.Job, emit func(progress int, message string)) (internaljobs.Result, error)
 
 // BuildRunners returns one runner per AI op, ready to register on the
 // dispatcher. Each runner materializes inputs, selects + executes the backend,
@@ -330,24 +330,24 @@ func (e *Engine) BuildRunners() map[string]OpRunner {
 	runners := make(map[string]OpRunner, len(catalog))
 	for _, name := range Names() {
 		op := name
-		runners[op] = func(ctx context.Context, job internaljobs.Job, emit func(progress int, message string)) (string, error) {
+		runners[op] = func(ctx context.Context, job internaljobs.Job, emit func(progress int, message string)) (internaljobs.Result, error) {
 			return e.run(ctx, op, job, emit)
 		}
 	}
 	return runners
 }
 
-func (e *Engine) run(ctx context.Context, op string, job internaljobs.Job, emit func(progress int, message string)) (string, error) {
+func (e *Engine) run(ctx context.Context, op string, job internaljobs.Job, emit func(progress int, message string)) (internaljobs.Result, error) {
 	var pl Payload
 	if err := json.Unmarshal(job.Payload, &pl); err != nil {
-		return "", fmt.Errorf("ai: decode payload: %w", err)
+		return internaljobs.Result{}, fmt.Errorf("ai: decode payload: %w", err)
 	}
 	model, ok := e.effectiveRegistry(ctx).ByID(pl.ModelID)
 	if !ok {
-		return "", fmt.Errorf("ai: model %q not in registry", pl.ModelID)
+		return internaljobs.Result{}, fmt.Errorf("ai: model %q not in registry", pl.ModelID)
 	}
 	if !e.deps.ModelInstalled(model.ID) {
-		return "", fmt.Errorf("%w: %q", ErrModelNotInstalled, model.ID)
+		return internaljobs.Result{}, fmt.Errorf("%w: %q", ErrModelNotInstalled, model.ID)
 	}
 
 	bsel, err := e.deps.Backends.SelectProvider(ctx, backends.SelectRequest{
@@ -358,7 +358,7 @@ func (e *Engine) run(ctx context.Context, op string, job internaljobs.Job, emit 
 		RequireAdapters: len(pl.Adapters) > 0,
 	})
 	if err != nil {
-		return "", err
+		return internaljobs.Result{}, err
 	}
 
 	// Capacity arbitration (plan §7 Phase 7): when the selected tier is GPU, make
@@ -389,7 +389,7 @@ func (e *Engine) run(ctx context.Context, op string, job internaljobs.Job, emit 
 					RequireAdapters: len(pl.Adapters) > 0,
 				})
 				if err != nil {
-					return "", err
+					return internaljobs.Result{}, err
 				}
 			}
 		}
@@ -398,13 +398,13 @@ func (e *Engine) run(ctx context.Context, op string, job internaljobs.Job, emit 
 
 	tmpDir, err := os.MkdirTemp("", "imgtools-ai-*")
 	if err != nil {
-		return "", fmt.Errorf("ai: temp dir: %w", err)
+		return internaljobs.Result{}, fmt.Errorf("ai: temp dir: %w", err)
 	}
 	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	inputs, err := e.materializeInputs(ctx, tmpDir, pl)
 	if err != nil {
-		return "", err
+		return internaljobs.Result{}, err
 	}
 	// Materialize each conditioning adapter's control/reference image (ControlNet /
 	// IP-Adapter) from its blob key to a local file, rewriting the key in place so
@@ -412,7 +412,7 @@ func (e *Engine) run(ctx context.Context, op string, job internaljobs.Job, emit 
 	// image and pass through untouched.
 	pl.Adapters, err = e.materializeAdapterImages(ctx, tmpDir, pl.Adapters)
 	if err != nil {
-		return "", err
+		return internaljobs.Result{}, err
 	}
 
 	variations := pl.Variations
@@ -420,10 +420,15 @@ func (e *Engine) run(ctx context.Context, op string, job internaljobs.Job, emit 
 		variations = 1
 	}
 	outKeys := make([]string, 0, variations)
+	// meta is the backend's own record of the run — the model that served it,
+	// the tier it ran on and what the route cost. It is carried out of the
+	// engine rather than dropped at persistOutput, because a caller billed for
+	// a cloud generation has no other way to learn the charge.
+	var meta map[string]string
 	for i := 0; i < variations; i++ {
 		select {
 		case <-ctx.Done():
-			return "", ctx.Err()
+			return internaljobs.Result{}, ctx.Err()
 		default:
 		}
 		// Map this variation's in-flight progress into its slice of the 5–90%
@@ -444,9 +449,22 @@ func (e *Engine) run(ctx context.Context, op string, job internaljobs.Job, emit 
 			}
 			emit(lo+int(frac*float64(hi-lo)), message)
 		}
-		key, err := e.runOnce(ctx, op, model, bsel, tmpDir, inputs, pl, i, progress)
+		key, runMeta, err := e.runOnce(ctx, op, model, bsel, tmpDir, inputs, pl, i, progress)
 		if err != nil {
-			return "", err
+			return internaljobs.Result{}, err
+		}
+		// The first variation's record is the job's record: every variation runs
+		// the same model on the same tier, and a per-variation cost is summed
+		// below rather than overwritten.
+		if i == 0 {
+			// Copied, not aliased: the accumulator below writes to it, and the
+			// map belongs to the provider that produced it.
+			meta = make(map[string]string, len(runMeta))
+			for k, v := range runMeta {
+				meta[k] = v
+			}
+		} else if cost, ok := parseCostUSD(runMeta); ok {
+			addCostUSD(meta, cost)
 		}
 		outKeys = append(outKeys, key)
 		emit(hi, fmt.Sprintf("produced %d/%d", i+1, variations))
@@ -462,7 +480,7 @@ func (e *Engine) run(ctx context.Context, op string, job internaljobs.Job, emit 
 	if len(outKeys) > 1 {
 		emit(98, fmt.Sprintf("variations: %v", outKeys))
 	}
-	return primary, nil
+	return internaljobs.Result{Ref: primary, Meta: meta}, nil
 }
 
 func modelVRAMClaimBytes(model models.Model) int64 {
@@ -546,7 +564,7 @@ func (e *Engine) fetchToFile(ctx context.Context, dir, name, key string) (string
 	return path, nil
 }
 
-func (e *Engine) runOnce(ctx context.Context, op string, model models.Model, bsel backends.Selection, tmpDir string, in inputFiles, pl Payload, variation int, progress func(frac float64, message string)) (string, error) {
+func (e *Engine) runOnce(ctx context.Context, op string, model models.Model, bsel backends.Selection, tmpDir string, in inputFiles, pl Payload, variation int, progress func(frac float64, message string)) (string, map[string]string, error) {
 	outPath := filepath.Join(tmpDir, fmt.Sprintf("out-%d.png", variation))
 	params := map[string]string{}
 	for k, v := range pl.Params {
@@ -571,9 +589,13 @@ func (e *Engine) runOnce(ctx context.Context, op string, model models.Model, bse
 	}
 	res, err := bsel.Provider.Execute(ctx, req)
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
-	return e.persistOutput(ctx, outPath, res.Meta)
+	key, err := e.persistOutput(ctx, outPath, res.Meta)
+	if err != nil {
+		return "", nil, err
+	}
+	return key, res.Meta, nil
 }
 
 func collectInputs(in inputFiles) []string {

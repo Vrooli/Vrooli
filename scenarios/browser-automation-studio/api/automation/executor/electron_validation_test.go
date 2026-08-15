@@ -6,7 +6,7 @@ import (
 
 func TestExtractElectronValidationRequiresLeaseBoundContext(t *testing.T) {
 	metadata := map[string]any{
-		"electron_target": map[string]any{
+		"app_target": map[string]any{
 			"target_id":       "target-1",
 			"cdp_endpoint":    "http://127.0.0.1:43123",
 			"renderer_id":     "renderer-1",

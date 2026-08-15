@@ -48,8 +48,14 @@ func (m *EntitlementMiddleware) InjectEntitlement(next http.Handler) http.Handle
 			userIdentity = m.resolveStoredUserIdentity(r.Context())
 		}
 
-		// Add to context even if empty (handlers can check)
-		ctx := entitlement.WithUserIdentity(r.Context(), userIdentity)
+		// Carry the consumer access token through the request context. The
+		// entitlement authority derives the authoritative identity from this
+		// token; request headers are only a lookup hint for the local cache.
+		ctx := r.Context()
+		if token := bearerToken(r.Header.Get("Authorization")); token != "" {
+			ctx = entitlement.WithAccessToken(ctx, token)
+		}
+		ctx = entitlement.WithUserIdentity(ctx, userIdentity)
 
 		overrideTier := m.resolveOverrideTier(r.Context())
 		if overrideTier != "" {
@@ -61,12 +67,13 @@ func (m *EntitlementMiddleware) InjectEntitlement(next http.Handler) http.Handle
 
 		// Fetch and inject entitlement for authenticated users
 		if userIdentity != "" {
-			ent, err := m.service.GetEntitlement(r.Context(), userIdentity)
+			ent, err := m.service.GetEntitlement(ctx, userIdentity)
 			if err != nil {
 				m.log.WithError(err).WithField("user", userIdentity).Debug("Failed to get entitlement")
 				// Continue without entitlement - handlers will use defaults
 			} else {
 				ctx = entitlement.WithEntitlement(ctx, ent)
+				ctx = entitlement.WithUserIdentity(ctx, ent.UserIdentity)
 			}
 		}
 
@@ -153,8 +160,10 @@ func (m *EntitlementMiddleware) RequireRecordingAccess(next http.Handler) http.H
 	})
 }
 
-// resolveUserIdentity extracts the user identity from the request.
-// Checks in order: X-User-Email header, user query parameter, Authorization header.
+// resolveUserIdentity extracts a local lookup hint from the request. The hint
+// is never trusted as billing identity: a fetched signed lease replaces it in
+// the request context, and LPBS independently derives identity from the bearer
+// token for Class A operations.
 func resolveUserIdentity(r *http.Request) string {
 	// 1. Check X-User-Email header (standard for our apps)
 	if email := strings.TrimSpace(r.Header.Get("X-User-Email")); email != "" {
@@ -174,21 +183,30 @@ func resolveUserIdentity(r *http.Request) string {
 	return ""
 }
 
+func bearerToken(authorization string) string {
+	const prefix = "Bearer "
+	if !strings.HasPrefix(authorization, prefix) {
+		return ""
+	}
+	return strings.TrimSpace(strings.TrimPrefix(authorization, prefix))
+}
+
 func (m *EntitlementMiddleware) entitlementsEnabled(ctx context.Context) bool {
-	// Entitlements are always enabled - check if we have one from context (override or fetched)
-	return entitlement.FromContext(ctx) != nil
+	// Entitlement enforcement is fail-closed. A missing lease is not an
+	// entitlement, and must not turn a protected route into an unprotected one.
+	return true
 }
 
 func (m *EntitlementMiddleware) canUseAI(ctx context.Context, userIdentity string) bool {
 	if ent := entitlement.FromContext(ctx); ent != nil {
-		return m.service.TierCanUseAI(ent.Tier)
+		return m.service.CanUseAIWithEntitlement(ent)
 	}
 	return m.service.CanUseAI(ctx, userIdentity)
 }
 
 func (m *EntitlementMiddleware) canUseRecording(ctx context.Context, userIdentity string) bool {
 	if ent := entitlement.FromContext(ctx); ent != nil {
-		return m.service.TierCanUseRecording(ent.Tier)
+		return m.service.CanUseRecordingWithEntitlement(ent)
 	}
 	return m.service.CanUseRecording(ctx, userIdentity)
 }

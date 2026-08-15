@@ -80,6 +80,35 @@ func TestDiscoverMapsBridgeIdentityAndCapabilities(t *testing.T) {
 	}
 }
 
+func TestDiscoverReturnsUnavailableTargetWhenNoBridgeNodeAdvertisesCapability(t *testing.T) {
+	client := NewClientForTesting(fakeRegistry{nodes: nil}, nil, nil)
+	targets, err := client.Discover(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(targets) != 1 || targets[0].Available || targets[0].Reason == "" || targets[0].NextAction == "" {
+		t.Fatalf("empty bridge inventory = %#v", targets)
+	}
+}
+
+func TestDiscoverMapsAuthorizedAndroidBridgeNode(t *testing.T) {
+	client := NewClientForTesting(fakeRegistry{nodes: []*registryv1.Node{{
+		Id: "android-1", Name: "Android bridge", Os: "linux", Arch: "amd64", Online: true,
+		Status:       registryv1.NodeStatus_NODE_STATUS_ONLINE,
+		Capabilities: []string{"android-adb", "android-webview", "screen-recording"}, Scopes: []string{"scenario test"},
+	}}}, nil, nil)
+	targets, err := client.Discover(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(targets) != 1 || targets[0].Platform != "android" || targets[0].DeviceKind != "physical" || !targets[0].Available {
+		t.Fatalf("Android bridge target = %#v", targets)
+	}
+	if !targets[0].Supports("device-control") || !targets[0].Supports("android-webview") || !targets[0].Supports("screen-recording") {
+		t.Fatalf("Android capabilities = %#v", targets[0].Capabilities)
+	}
+}
+
 func TestExecuteNeverClaimsDesktopPassWithoutTargetEvidence(t *testing.T) {
 	dispatcher := &fakeDispatcher{}
 	client := NewClientForTesting(nil, dispatcher, fakeRuns{status: runsv1.RunStatus_RUN_STATUS_PASSED})

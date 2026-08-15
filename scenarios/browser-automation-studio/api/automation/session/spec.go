@@ -70,10 +70,10 @@ type Spec struct {
 	// Anti-detection and human-like behavior configuration
 	BrowserProfile *sessionprofilepersistence.BrowserProfile
 
-	// ElectronTarget and ValidationContext are required together for an
+	// AppTarget and ValidationContext are required together for an
 	// Electron validation session. The driver attaches to the target; it does
 	// not own the desktop process.
-	ElectronTarget    *driver.ElectronTarget
+	AppTarget         *driver.AppTarget
 	ValidationContext *driver.ValidationContext
 }
 

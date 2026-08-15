@@ -251,9 +251,15 @@ func (h *connectHandler) SelectModel(ctx context.Context, req *connect.Request[m
 		}
 	}
 	sel, err := h.deps.Registry.Select(internalmodels.SelectRequest{
-		Operation:  req.Msg.GetOperation(),
-		Host:       host,
-		OverrideID: override,
+		Operation: req.Msg.GetOperation(),
+		Host:      host,
+		// The caller's routing policy, so the preview resolves the model a
+		// submit with the same policy would resolve. Without it a BYOK-routed
+		// caller was previewed the local default's identity and geometry, and
+		// sized its request from a model that was never going to draw it.
+		QualityPolicy: req.Msg.GetQualityPolicy(),
+		AllowBYOK:     req.Msg.GetAllowByok(),
+		OverrideID:    override,
 	}, h.deps.Registry.EnabledWithOverlay(overlay))
 	if err != nil {
 		return nil, selectError(err)

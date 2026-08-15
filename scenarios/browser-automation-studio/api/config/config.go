@@ -501,12 +501,6 @@ type EntitlementConfig struct {
 	// Env: BAS_ENTITLEMENT_SERVICE_URL (default: "")
 	ServiceURL string
 
-	// ServiceSecret is the shared secret for service-to-service authentication with LPBS.
-	// Used for reporting usage data via POST /api/v1/usage/report.
-	// Generate with: openssl rand -base64 32
-	// Env: BAS_LPBS_SERVICE_SECRET (default: "")
-	ServiceSecret string
-
 	// CacheTTL is how long to cache entitlement responses before re-checking.
 	// Tradeoff: Higher = fewer network calls, slower to reflect subscription changes.
 	// Lower = more responsive to upgrades/downgrades, more API load.
@@ -518,25 +512,9 @@ type EntitlementConfig struct {
 	// Env: BAS_ENTITLEMENT_REQUEST_TIMEOUT_MS (default: 5000)
 	RequestTimeout time.Duration
 
-	// OfflineGracePeriod is how long to allow operations when the entitlement service is unreachable.
-	// Uses cached entitlements during this period; after expiry, falls back to free tier.
-	// Env: BAS_ENTITLEMENT_OFFLINE_GRACE_PERIOD_MS (default: 18000000, 5 hours)
-	OfflineGracePeriod time.Duration
-
 	// DefaultTier is the tier to use when no subscription is found or service is unavailable.
 	// Env: BAS_ENTITLEMENT_DEFAULT_TIER (default: "free")
 	DefaultTier string
-
-	// TierLimits defines the execution limits per tier per calendar month.
-	// Parsed from JSON: {"free": 50, "solo": 200, "pro": -1, "studio": -1, "business": -1}
-	// -1 means unlimited. These can be overridden via BAS_ENTITLEMENT_TIER_LIMITS_JSON.
-	TierLimits map[string]int
-
-	// AICreditsLimits defines the AI credits limit per tier per calendar month.
-	// Parsed from JSON: {"free": 0, "solo": 50, "pro": 500, "studio": 2000, "business": -1}
-	// -1 means unlimited. 0 means no access.
-	// Env: BAS_ENTITLEMENT_AI_CREDITS_LIMITS_JSON
-	AICreditsLimits map[string]int
 
 	// WatermarkTiers lists tiers that should have watermarks applied to exports.
 	// Env: BAS_ENTITLEMENT_WATERMARK_TIERS (default: "free,solo")
@@ -747,17 +725,13 @@ func loadFromEnv() *Config {
 			CORSMaxAge:       parseInt("BAS_HTTP_CORS_MAX_AGE", 300),
 		},
 		Entitlement: EntitlementConfig{
-			ServiceURL:         parseString("BAS_ENTITLEMENT_SERVICE_URL", ""),
-			ServiceSecret:      parseString("BAS_LPBS_SERVICE_SECRET", ""),
-			CacheTTL:           parseDurationMs("BAS_ENTITLEMENT_CACHE_TTL_MS", 300000),
-			RequestTimeout:     parseDurationMs("BAS_ENTITLEMENT_REQUEST_TIMEOUT_MS", 5000),
-			OfflineGracePeriod: parseDurationMs("BAS_ENTITLEMENT_OFFLINE_GRACE_PERIOD_MS", 18000000),
-			DefaultTier:        parseString("BAS_ENTITLEMENT_DEFAULT_TIER", "free"),
-			TierLimits:         parseTierLimits("BAS_ENTITLEMENT_TIER_LIMITS_JSON"),
-			AICreditsLimits:    parseAICreditsLimits("BAS_ENTITLEMENT_AI_CREDITS_LIMITS_JSON"),
-			WatermarkTiers:     parseStringList("BAS_ENTITLEMENT_WATERMARK_TIERS", "free,solo"),
-			AITiers:            parseStringList("BAS_ENTITLEMENT_AI_TIERS", "solo,pro,studio,business"),
-			RecordingTiers:     parseStringList("BAS_ENTITLEMENT_RECORDING_TIERS", "solo,pro,studio,business"),
+			ServiceURL:     parseString("BAS_ENTITLEMENT_SERVICE_URL", ""),
+			CacheTTL:       parseDurationMs("BAS_ENTITLEMENT_CACHE_TTL_MS", 300000),
+			RequestTimeout: parseDurationMs("BAS_ENTITLEMENT_REQUEST_TIMEOUT_MS", 5000),
+			DefaultTier:    parseString("BAS_ENTITLEMENT_DEFAULT_TIER", "free"),
+			WatermarkTiers: parseStringList("BAS_ENTITLEMENT_WATERMARK_TIERS", "free,solo"),
+			AITiers:        parseStringList("BAS_ENTITLEMENT_AI_TIERS", "solo,pro,studio,business"),
+			RecordingTiers: parseStringList("BAS_ENTITLEMENT_RECORDING_TIERS", "solo,pro,studio,business"),
 		},
 		Performance: PerformanceConfig{
 			Enabled:            parseBool("BAS_PERF_ENABLED", true),
@@ -927,10 +901,6 @@ func (c *Config) Validate() error {
 			return fmt.Errorf("Entitlement.RequestTimeout must be positive, got %v", c.Entitlement.RequestTimeout)
 		}
 	}
-	if c.Entitlement.TierLimits == nil {
-		return fmt.Errorf("Entitlement.TierLimits cannot be nil")
-	}
-
 	// Performance validation
 	if c.Performance.LogSummaryInterval < 0 {
 		return fmt.Errorf("Performance.LogSummaryInterval must be non-negative, got %d", c.Performance.LogSummaryInterval)
@@ -1029,101 +999,5 @@ func parseStringList(envVar string, defaultVal string) []string {
 			result = append(result, trimmed)
 		}
 	}
-	return result
-}
-
-// parseTierLimits parses tier limits from JSON or returns defaults.
-// JSON format: {"free": 50, "solo": 200, "pro": -1}
-// -1 means unlimited.
-func parseTierLimits(envVar string) map[string]int {
-	defaults := map[string]int{
-		"free":     50,
-		"solo":     200,
-		"pro":      -1, // unlimited
-		"studio":   -1, // unlimited
-		"business": -1, // unlimited
-	}
-
-	value := strings.TrimSpace(os.Getenv(envVar))
-	if value == "" {
-		return defaults
-	}
-
-	// Try to parse as JSON
-	result := make(map[string]int)
-	// Simple JSON parsing without importing encoding/json to keep config lightweight
-	// Format: {"key": value, "key2": value2}
-	value = strings.Trim(value, "{}")
-	if value == "" {
-		return defaults
-	}
-
-	pairs := strings.Split(value, ",")
-	for _, pair := range pairs {
-		parts := strings.SplitN(pair, ":", 2)
-		if len(parts) != 2 {
-			continue
-		}
-		key := strings.Trim(strings.TrimSpace(parts[0]), "\"'")
-		valStr := strings.TrimSpace(parts[1])
-		if val, err := strconv.Atoi(valStr); err == nil {
-			result[key] = val
-		}
-	}
-
-	// Merge with defaults (defaults take precedence for missing keys)
-	for k, v := range defaults {
-		if _, exists := result[k]; !exists {
-			result[k] = v
-		}
-	}
-
-	return result
-}
-
-// parseAICreditsLimits parses AI credits limits from JSON or returns defaults.
-// JSON format: {"free": 0, "solo": 50, "pro": 500, "studio": 2000, "business": -1}
-// -1 means unlimited. 0 means no access.
-func parseAICreditsLimits(envVar string) map[string]int {
-	defaults := map[string]int{
-		"free":     0,    // No AI access
-		"solo":     50,   // Basic usage
-		"pro":      500,  // Power users
-		"studio":   2000, // Teams
-		"business": -1,   // Unlimited
-	}
-
-	value := strings.TrimSpace(os.Getenv(envVar))
-	if value == "" {
-		return defaults
-	}
-
-	// Try to parse as JSON
-	result := make(map[string]int)
-	value = strings.Trim(value, "{}")
-	if value == "" {
-		return defaults
-	}
-
-	pairs := strings.Split(value, ",")
-	for _, pair := range pairs {
-		parts := strings.SplitN(pair, ":", 2)
-		if len(parts) != 2 {
-			continue
-		}
-		key := strings.Trim(strings.TrimSpace(parts[0]), "\"'")
-		valStr := strings.TrimSpace(parts[1])
-		if val, err := strconv.Atoi(valStr); err == nil {
-			result[key] = val
-		}
-	}
-
-	// Merge with defaults (defaults take precedence for missing keys)
-	for k, v := range defaults {
-		if _, exists := result[k]; !exists {
-			result[k] = v
-		}
-	}
-
 	return result
 }

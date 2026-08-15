@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"net"
 	"net/http"
@@ -228,15 +230,10 @@ func main() {
 		DB:             db.Routed,
 		Logger:         log,
 		EntitlementSvc: entitlementSvc,
-		// LPBS integration for centralized usage reporting
-		LPBSURL:    cfg.Entitlement.ServiceURL,
-		LPBSSecret: cfg.Entitlement.ServiceSecret,
+		LPBSURL:        cfg.Entitlement.ServiceURL,
 	})
-	if cfg.Entitlement.ServiceURL != "" && cfg.Entitlement.ServiceSecret != "" {
-		log.Info("✅ Unified credits service initialized with LPBS reporting")
-	} else {
-		log.Info("✅ Unified credits service initialized (LPBS reporting disabled - no secret configured)")
-	}
+	creditService.StartOutboxDrainer(context.Background(), 10*time.Second)
+	log.Info("✅ Unified credits service initialized with durable LPBS usage outbox")
 
 	// Initialize entitlement handler (uses unified credit service)
 
@@ -623,6 +620,101 @@ func main() {
 		// Health endpoint under /api/v1 for consistency
 		r.Get("/health", healthHandler)
 
+		// This loopback-only bridge is enabled for the scenario-to-desktop
+		// evidence process. The smoke environment marker is preferred, while the
+		// peer check keeps the local validation route usable against a lifecycle-
+		// managed BAS process that was not launched by scenario-to-desktop.
+		r.Get("/internal/monetization/journey", func(w http.ResponseWriter, req *http.Request) {
+			if os.Getenv("SMOKE_TEST_DEMO") != "1" && os.Getenv("SMOKE_TEST") != "1" && !isLoopbackPeer(req.RemoteAddr) {
+				http.NotFound(w, req)
+				return
+			}
+			operation := strings.TrimSpace(req.URL.Query().Get("operation"))
+			respond := func(result map[string]string) {
+				w.Header().Set("Content-Type", "application/json")
+				_ = json.NewEncoder(w).Encode(result)
+			}
+			switch operation {
+			case "tampered_class_a":
+				if err := repo.SetSetting(req.Context(), entitlement.OverrideTierSettingKey, string(entitlement.TierBusiness)); err != nil {
+					http.Error(w, "persist local entitlement override: "+err.Error(), http.StatusInternalServerError)
+					return
+				}
+				// Class A authority is LPBS, not the optional provider-chain URL.
+				// Keeping this provider-neutral prevents a bundled app from
+				// accidentally sending the boundary probe to a legacy Vrooli
+				// endpoint when the configured entitlement authority is local.
+				baseURL := strings.TrimRight(cfg.Entitlement.ServiceURL, "/")
+				if baseURL == "" {
+					baseURL = strings.TrimRight(cfg.AIProvider.VrooliAPIURL, "/")
+				}
+				token := entitlement.AccessTokenFromContext(req.Context())
+				if token == "" && subscriptionResolver != nil {
+					access, resolveErr := subscriptionResolver.ResolveAt(req.Context(), baseURL)
+					if resolveErr == nil {
+						token = access.AccessToken
+					}
+				}
+				if baseURL == "" || token == "" {
+					http.Error(w, "LPBS authority or consumer access token unavailable", http.StatusServiceUnavailable)
+					return
+				}
+				// Use LPBS's provider-neutral role contract so this conformance
+				// probe never smuggles a concrete model policy across the boundary.
+				body, _ := json.Marshal(map[string]any{
+					"role":     "chat.default",
+					"messages": []map[string]string{{"role": "user", "content": "desktop monetization boundary probe"}},
+					"metadata": map[string]string{"app_bundle_key": "browser-automation-studio", "operation": "desktop.monetization.boundary"},
+				})
+				request, err := http.NewRequestWithContext(req.Context(), http.MethodPost, baseURL+"/api/v1/ai/inference", bytes.NewReader(body))
+				if err != nil {
+					http.Error(w, err.Error(), http.StatusInternalServerError)
+					return
+				}
+				request.Header.Set("Content-Type", "application/json")
+				request.Header.Set("Authorization", "Bearer "+token)
+				response, err := (&http.Client{Timeout: 20 * time.Second}).Do(request) // #nosec G704 -- baseURL is operator-configured LPBS authority.
+				if err != nil {
+					http.Error(w, "LPBS Class A probe: "+err.Error(), http.StatusBadGateway)
+					return
+				}
+				defer response.Body.Close()
+				if response.StatusCode == http.StatusPaymentRequired || response.StatusCode == http.StatusForbidden {
+					respond(map[string]string{"observed": "class_a=refused", "route": fmt.Sprintf("lpbs-http-%d", response.StatusCode)})
+					return
+				}
+				if response.StatusCode >= http.StatusOK && response.StatusCode < http.StatusMultipleChoices {
+					respond(map[string]string{"observed": "class_a=allowed", "route": "lpbs"})
+					return
+				}
+				http.Error(w, fmt.Sprintf("LPBS Class A probe returned unexpected HTTP %d", response.StatusCode), http.StatusBadGateway)
+			case "class_b_local":
+				// Remove the forged local override before evaluating Class B. This
+				// proves the local-capacity operation is running under the real
+				// signed plan, not merely under the patched business tier.
+				if err := repo.SetSetting(req.Context(), entitlement.OverrideTierSettingKey, ""); err != nil {
+					http.Error(w, "clear local entitlement override: "+err.Error(), http.StatusInternalServerError)
+					return
+				}
+				user := entitlement.UserIdentityFromContext(req.Context())
+				ent, err := entitlementSvc.GetEntitlement(req.Context(), user)
+				if err != nil {
+					http.Error(w, "resolve signed plan for Class B probe: "+err.Error(), http.StatusServiceUnavailable)
+					return
+				}
+				// The journey must pass both the signed feature gate and the
+				// signed Class B workflow meter. A local tier override cannot
+				// manufacture either authority.
+				if entitlementSvc.CanUseRecordingWithEntitlement(ent) && entitlementSvc.CanExecuteWorkflow(req.Context(), user, 0) {
+					respond(map[string]string{"observed": "class_b=allowed", "route": "local-capacity"})
+					return
+				}
+				respond(map[string]string{"observed": "class_b=refused", "route": "local-capacity"})
+			default:
+				http.Error(w, "unknown monetization journey operation", http.StatusBadRequest)
+			}
+		})
+
 		// Project CRUD + project-scoped workflow operations are owned by
 		// ProjectsService (Connect-RPC); see handlers/projects/.
 		// RESTException: GET /projects/{id}/files/* streams arbitrary file
@@ -846,6 +938,17 @@ func main() {
 	}); err != nil {
 		log.WithError(err).Fatal("Server error")
 	}
+}
+
+func isLoopbackPeer(remoteAddr string) bool {
+	peer := strings.TrimSpace(remoteAddr)
+	if host, _, err := net.SplitHostPort(peer); err == nil {
+		peer = host
+	} else {
+		peer = strings.Trim(peer, "[]")
+	}
+	ip := net.ParseIP(peer)
+	return ip != nil && ip.IsLoopback()
 }
 
 func resolveProjectRoot() (string, error) {

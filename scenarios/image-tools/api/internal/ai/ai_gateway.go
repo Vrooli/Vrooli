@@ -31,6 +31,32 @@ const aiGatewayScenario = "ai-gateway"
 // a contract nobody can see.
 const MetaCostUSD = "cost_usd"
 
+// parseCostUSD reads the cost a backend reported. The second return separates
+// "reported nothing" from "reported zero", which is the same distinction the
+// writer above is careful to preserve.
+func parseCostUSD(meta map[string]string) (float64, bool) {
+	raw, ok := meta[MetaCostUSD]
+	if !ok {
+		return 0, false
+	}
+	cost, err := strconv.ParseFloat(strings.TrimSpace(raw), 64)
+	if err != nil {
+		return 0, false
+	}
+	return cost, true
+}
+
+// addCostUSD accumulates one more variation's charge onto a run record. A
+// request for four variations is four backend calls and four charges; recording
+// only the first would understate a cloud bill by the variation count.
+func addCostUSD(meta map[string]string, extra float64) {
+	if meta == nil {
+		return
+	}
+	running, _ := parseCostUSD(meta)
+	meta[MetaCostUSD] = strconv.FormatFloat(running+extra, 'f', -1, 64)
+}
+
 // mediaGenerationRequest is the provider-neutral request image-tools sends to
 // AI Gateway. The output path remains owned by image-tools: Gateway writes only
 // to this caller-supplied path for the duration of the request and stores no
@@ -78,13 +104,6 @@ func newAIGatewayMediaClient() *aiGatewayMediaClient {
 			return discovery.ResolveScenarioURLDefault(ctx, aiGatewayScenario)
 		},
 	}
-}
-
-func newAIGatewayMediaClientWithResolver(resolve func(context.Context) (string, error), httpClient *http.Client) *aiGatewayMediaClient {
-	if httpClient == nil {
-		httpClient = &http.Client{Timeout: 10 * time.Minute}
-	}
-	return &aiGatewayMediaClient{httpClient: httpClient, resolve: resolve}
 }
 
 func (c *aiGatewayMediaClient) Generate(ctx context.Context, req mediaGenerationRequest) (mediaGenerationResult, error) {

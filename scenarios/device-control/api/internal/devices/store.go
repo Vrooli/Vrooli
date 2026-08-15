@@ -51,7 +51,7 @@ func (s *Store) MarkAbsentExcept(now time.Time, present map[string]bool, reason 
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for id, record := range s.records {
-		if record.Kind != "physical" || present[id] {
+		if (record.Kind != "physical" && record.Kind != "emulator") || present[id] {
 			continue
 		}
 		record.Status = "unreachable"

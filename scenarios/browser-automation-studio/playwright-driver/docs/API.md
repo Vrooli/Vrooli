@@ -50,7 +50,8 @@ Create a new browser automation session.
     "tabs": false,
     "iframes": true
   },
-  "electron_target": {  // optional; attach to a scenario-to-desktop target
+  "app_target": {  // optional; attach to a target-owned Electron or Android WebView
+    "target_kind": "electron", // "electron" or "android-webview"
     "target_id": "target-opaque-id",
     "cdp_endpoint": "http://127.0.0.1:43123",
     "renderer_id": "renderer-opaque-id",
@@ -70,8 +71,9 @@ Create a new browser automation session.
 }
 ```
 
-When `electron_target` is present, BAS connects to the already-running,
-scenario-to-desktop-owned Electron app. The endpoint must be an explicit
+When `app_target` is present, BAS connects to the already-running,
+target-owned renderer. Electron targets use the scenario-to-desktop-owned app;
+Android WebView targets use the generated app's renderer. The endpoint must be an explicit
 numeric loopback HTTP endpoint with no credentials or query data. BAS verifies
 the renderer identity through `/json/list`, requires the target's context ID,
 reuses the normal workflow and

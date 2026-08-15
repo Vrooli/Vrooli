@@ -3,7 +3,6 @@ package control
 import (
 	"context"
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
@@ -23,9 +22,8 @@ type ConformanceChapterResult struct {
 	Evidence    []evidence.Reference `json:"evidence,omitempty"`
 }
 
-type AndroidConformanceResult struct {
+type AndroidCapabilitySelfTestResult struct {
 	PlanID        string                     `json:"plan_id"`
-	Fixture       conformance.Fixture        `json:"fixture"`
 	DeviceID      string                     `json:"device_id"`
 	Serial        string                     `json:"serial,omitempty"`
 	HostNodeID    string                     `json:"host_node_id,omitempty"`
@@ -37,19 +35,22 @@ type AndroidConformanceResult struct {
 	Verdict       *commonv1.TargetVerdict    `json:"verdict,omitempty"`
 }
 
-func (s *Service) AndroidConformancePlan() conformance.Plan { return conformance.AndroidPlan() }
+func (s *Service) AndroidCapabilitySelfTestPlan() conformance.Plan {
+	return conformance.AndroidCapabilityPlan()
+}
 
-func (s *Service) RunAndroidConformance(ctx context.Context, fixture conformance.Fixture, deviceID, actor, leaseToken string) (AndroidConformanceResult, error) {
-	plan := conformance.AndroidPlan()
-	result := AndroidConformanceResult{PlanID: plan.ID, Fixture: fixture, DeviceID: deviceID, RunID: fmt.Sprintf("%s-%d", plan.ID, time.Now().UTC().UnixNano()), Disposition: "not_run", Chapters: make([]ConformanceChapterResult, 0, len(plan.Chapters))}
-	// Conformance is a standalone operator command. Refresh the bridge and
-	// strategy inventory before resolving the requested identity so a service
-	// restart or a newly attached phone does not require a preceding `device
-	// list` call to make the device leasable.
+func (s *Service) RunAndroidCapabilitySelfTest(ctx context.Context, deviceID, actor, leaseToken string) (AndroidCapabilitySelfTestResult, error) {
+	plan := conformance.AndroidCapabilityPlan()
+	result := AndroidCapabilitySelfTestResult{PlanID: plan.ID, DeviceID: deviceID, RunID: fmt.Sprintf("%s-%d", plan.ID, time.Now().UTC().UnixNano()), Disposition: "not_run", Chapters: make([]ConformanceChapterResult, 0, len(plan.Chapters))}
 	_ = s.Devices(ctx)
-	// Bind identity before any fail-closed validation so an unavailable run is
-	// still attributable to the requested physical serial and host node.
-	if record, ok := s.devices.Get(deviceID); ok {
+	record, found := s.devices.Get(deviceID)
+	if !found {
+		result.Disposition = "unavailable"
+		result.Reason = fmt.Sprintf("Android target %s is not present in device-control inventory", deviceID)
+		result.Verdict = conformanceVerdict(result, nil)
+		return result, nil
+	}
+	if found {
 		result.Serial = record.Serial
 		result.HostNodeID = record.HostNodeID
 		if item, exists := s.registry.Get(record.StrategyID); exists {
@@ -57,9 +58,9 @@ func (s *Service) RunAndroidConformance(ctx context.Context, fixture conformance
 				result.EvidenceClass = declaration.EvidenceClass
 			}
 		}
-		if record.Kind != "" && record.Kind != "physical" {
+		if record.Kind != "" && record.Kind != "physical" && record.Kind != "emulator" {
 			result.Disposition = "unavailable"
-			result.Reason = fmt.Sprintf("Android physical conformance requires a physical device; %s is %s", deviceID, record.Kind)
+			result.Reason = fmt.Sprintf("Android capability self-test requires an Android device or emulator; %s is %s", deviceID, record.Kind)
 			result.Verdict = conformanceVerdict(result, nil)
 			return result, nil
 		}
@@ -69,14 +70,9 @@ func (s *Service) RunAndroidConformance(ctx context.Context, fixture conformance
 		result.Verdict = conformanceVerdict(result, nil)
 		return result, nil
 	}
-	if err := fixture.Validate(); err != nil {
-		result.Disposition, result.Reason = "unavailable", err.Error()
-		result.Verdict = conformanceVerdict(result, nil)
-		return result, nil
-	}
-	if _, err := os.Stat(fixture.APKPath); err != nil {
+	if _, ok := s.strategyForDevice(deviceID); !ok {
 		result.Disposition = "unavailable"
-		result.Reason = fmt.Sprintf("hello-mobile fixture APK is unavailable at %s: %v", fixture.APKPath, err)
+		result.Reason = fmt.Sprintf("device-control strategy for %s is unavailable", deviceID)
 		result.Verdict = conformanceVerdict(result, nil)
 		return result, nil
 	}
@@ -101,7 +97,7 @@ func (s *Service) RunAndroidConformance(ctx context.Context, fixture conformance
 	for _, chapter := range plan.Chapters {
 		chapterResult := ConformanceChapterResult{ID: chapter.ID, Purpose: chapter.Purpose, Expected: chapter.Expected, Disposition: "not_run"}
 		chapterStarted := time.Now()
-		flowResult, runErr := s.execute(ctx, chapter.Flow(fixture), deviceID, actor, session, false)
+		flowResult, runErr := s.execute(ctx, chapter.Flow(), deviceID, actor, session, false)
 		chapterResult.DurationMS = time.Since(chapterStarted).Milliseconds()
 		if runErr != nil {
 			chapterResult.Disposition, chapterResult.Message = "failed", runErr.Error()
@@ -131,7 +127,7 @@ func (s *Service) RunAndroidConformance(ctx context.Context, fixture conformance
 	return result, nil
 }
 
-func conformanceVerdict(result AndroidConformanceResult, refs []evidence.Reference) *commonv1.TargetVerdict {
+func conformanceVerdict(result AndroidCapabilitySelfTestResult, refs []evidence.Reference) *commonv1.TargetVerdict {
 	disposition := commonv1.Disposition_DISPOSITION_FAILED
 	if result.Disposition == "passed" {
 		disposition = commonv1.Disposition_DISPOSITION_PASSED
@@ -140,11 +136,15 @@ func conformanceVerdict(result AndroidConformanceResult, refs []evidence.Referen
 	for _, ref := range refs {
 		protoRefs = append(protoRefs, &commonv1.EvidenceRef{Producer: ref.Producer, ArtifactId: ref.ID, Kind: ref.Kind, Checksum: ref.Checksum, SizeBytes: ref.SizeBytes, CreatedAt: timestamppb.New(ref.CreatedAt)})
 	}
-	detail := fmt.Sprintf("fixture=%s device_id=%s serial=%s host_node_id=%s disposition=%s", result.Fixture.ID, result.DeviceID, result.Serial, result.HostNodeID, result.Disposition)
+	detail := fmt.Sprintf("device_id=%s serial=%s host_node_id=%s disposition=%s", result.DeviceID, result.Serial, result.HostNodeID, result.Disposition)
 	if result.Reason != "" {
 		detail += " reason=" + result.Reason
 	}
-	target := &commonv1.EvidenceTarget{Ramp: "device-control", Platform: "android", Os: "Android", DeviceKind: commonv1.DeviceKind_DEVICE_KIND_PHYSICAL}
+	deviceKind := commonv1.DeviceKind_DEVICE_KIND_PHYSICAL
+	if strings.HasPrefix(strings.ToLower(strings.TrimSpace(result.Serial)), "emulator-") {
+		deviceKind = commonv1.DeviceKind_DEVICE_KIND_EMULATOR
+	}
+	target := &commonv1.EvidenceTarget{Ramp: "device-control", Platform: "android", Os: "Android", DeviceKind: deviceKind}
 	if strings.TrimSpace(result.HostNodeID) != "" {
 		node := result.HostNodeID
 		target.BridgeNodeId = &node

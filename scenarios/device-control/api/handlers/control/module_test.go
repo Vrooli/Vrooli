@@ -102,11 +102,11 @@ func TestAndroidConformancePlanAndUnavailableRunAreExplicit(t *testing.T) {
 		Chapters []any  `json:"chapters"`
 	}
 	require.NoError(t, json.Unmarshal(planResponse.Body.Bytes(), &plan))
-	require.Equal(t, "android-physical-conformance-v1", plan.ID)
-	require.Len(t, plan.Chapters, 12)
+	require.Equal(t, "android-device-capability-self-test-v1", plan.ID)
+	require.Len(t, plan.Chapters, 5)
 
 	runResponse := httptest.NewRecorder()
-	router.ServeHTTP(runResponse, httptest.NewRequest(http.MethodPost, "/api/v1/conformance/android/run", strings.NewReader(`{"device_id":"phone-1","actor":"operator","fixture":{"id":"hello-mobile","package_name":"com.example.hello","apk_path":"/missing/hello.apk","deep_link":"hello://home"}}`)))
+	router.ServeHTTP(runResponse, httptest.NewRequest(http.MethodPost, "/api/v1/conformance/android/run", strings.NewReader(`{"device_id":"phone-1","actor":"operator"}`)))
 	require.Equal(t, http.StatusOK, runResponse.Code)
 	var result struct {
 		Disposition string `json:"disposition"`
@@ -118,7 +118,7 @@ func TestAndroidConformancePlanAndUnavailableRunAreExplicit(t *testing.T) {
 	}
 	require.NoError(t, json.Unmarshal(runResponse.Body.Bytes(), &result))
 	require.Equal(t, "unavailable", result.Disposition)
-	require.Contains(t, result.Reason, "hello-mobile fixture APK is unavailable")
+	require.Contains(t, result.Reason, "not present in device-control inventory")
 	require.NotEmpty(t, result.Verdict.Disposition)
 	require.Contains(t, result.Verdict.Detail, "device_id=phone-1")
 }

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 
+	platform "github.com/vrooli/platform-go"
 	"github.com/vrooli/vrooli/internal/hostinventory"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
@@ -31,7 +32,12 @@ var (
 		return hostinventory.CollectPlatformFacts(context.Background())
 	}
 	runFn     = hostreqkit.RunPrivilegedCommand
-	runUserFn = hostreqkit.RunAsInvokingUserWithSession
+	runUserFn = func(name string, args []string, opts hostreqkit.EnsureOptions) error {
+		return platform.RunAsInvokingUserInSession(context.Background(), name, args, platform.IdentityCommandOptions{
+			Stdout: opts.Stdout,
+			Stderr: opts.Stderr,
+		})
+	}
 )
 
 type handler struct{ manifest hostreqkit.SafeguardManifest }

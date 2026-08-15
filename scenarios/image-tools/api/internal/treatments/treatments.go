@@ -50,15 +50,50 @@ type Params struct {
 	ScrimColor       string
 	Direction        string
 	Opacity          float64
-	Spacing          float64
-	Radius           int
-	BladeCount       int
-	Distance         int
-	Amplitude        float64
-	Threshold        float64
-	Curve            float64
-	BlockSize        int
-	Axis             string
+	// RegionX/Y/Width/Height scope a scrim to the area copy actually occupies,
+	// as fractions of the frame. Zero width or height means the whole-frame
+	// directional gradient, which is what a scrim was before this.
+	RegionX, RegionY          float64
+	RegionWidth, RegionHeight float64
+	// RegionFeather is how far the pool eases out past the region, as a
+	// fraction of the SHORT edge so its softness is the same shape on a hero
+	// and on a phone. Zero takes a default rather than a hard rectangle: a
+	// visible box is worse than no scrim, because a reader sees the box before
+	// they read the headline.
+	RegionFeather float64
+	// KnockoutX/Y/Width/Height reserve an area the screen must not print, as
+	// fractions of the frame — the printer's term for the hole left in an ink
+	// layer so something else can sit there. Zero width or height means no
+	// knockout, which is what every treatment was before this.
+	//
+	// It is honoured by lifting the area to the top of the tonal ramp BEFORE
+	// the operation runs, not by repairing the result afterwards. A screen
+	// reads tone: fed white it lays no ink and returns its own paper colour, so
+	// the area comes out as the same cream or blue the rest of the picture is
+	// printed on. Repairing afterwards would put the untreated source back
+	// instead, and an area of raw grey in the middle of a duotone reads as a
+	// fault rather than as paper.
+	KnockoutX, KnockoutY          float64
+	KnockoutWidth, KnockoutHeight float64
+	// KnockoutFeather is how far the reserve eases back into the picture, as a
+	// fraction of the SHORT edge, for the same reason RegionFeather is. It also
+	// does load-bearing work a scrim's feather does not: operations that read
+	// neighbouring pixels (defocus, motion blur, displacement) drag ink inward
+	// from beyond the edge, and the feather is the margin that absorbs it
+	// before it reaches the copy.
+	KnockoutFeather float64
+	// KnockoutSolid cuts the reserve the other way: full ink instead of none.
+	// See the proto's Knockout.solid for why both directions exist.
+	KnockoutSolid bool
+	Spacing       float64
+	Radius        int
+	BladeCount    int
+	Distance      int
+	Amplitude     float64
+	Threshold     float64
+	Curve         float64
+	BlockSize     int
+	Axis          string
 	// Normalize stretches the source's tonal range onto the full ink ramp
 	// before mapping (a p1–p99 auto-level). It makes a low-contrast source use
 	// the whole ramp instead of a sliver of it. It is off by default because it
@@ -170,16 +205,27 @@ func colorOr(value string, fallback color.NRGBA) color.NRGBA {
 // given source. With Normalize set it first measures the source's p1–p99
 // lightness span and stretches that onto 0..1, so a low-contrast source still
 // uses the whole ink ramp. The returned function is pure and allocation-free.
-func toneMapper(src *image.NRGBA, normalize bool) func(color.NRGBA) float64 {
-	if !normalize {
+func toneMapper(src *image.NRGBA, p Params) func(color.NRGBA) float64 {
+	if !p.Normalize {
 		return lightness
 	}
 	const buckets = 1024
 	var hist [buckets]int
 	total := 0
 	b := src.Bounds()
+	reserved := knockoutMask(src, p)
 	for y := b.Min.Y; y < b.Max.Y; y++ {
 		for x := b.Min.X; x < b.Max.X; x++ {
+			// The knockout is excluded from the histogram because it is not part
+			// of the picture: it is white this package put there a moment ago.
+			// Counted, it would raise the frame's p99 and auto-levelling would
+			// darken the real subject to make room for a highlight that is
+			// really a hole. The larger the reserved area, the worse it gets —
+			// so the failure would be at its worst on exactly the layouts that
+			// reserve most for their copy.
+			if reserved != nil && reserved(x, y) {
+				continue
+			}
 			idx := int(lightness(src.NRGBAAt(x, y)) * (buckets - 1))
 			hist[idx]++
 			total++
@@ -245,7 +291,7 @@ func Duotone(src image.Image, p Params) (image.Image, error) {
 		low, high = 0.42, 0.58
 	}
 	out := clone(src)
-	tone := toneMapper(out, p.Normalize)
+	tone := toneMapper(out, p)
 	for y := 0; y < out.Bounds().Dy(); y++ {
 		for x := 0; x < out.Bounds().Dx(); x++ {
 			c := out.NRGBAAt(x, y)
@@ -276,7 +322,7 @@ func Posterize(src image.Image, p Params) (image.Image, error) {
 		return nil, err
 	}
 	out := clone(src)
-	tone := toneMapper(out, p.Normalize)
+	tone := toneMapper(out, p)
 	n := float64(p.Levels - 1)
 	for y := 0; y < out.Bounds().Dy(); y++ {
 		for x := 0; x < out.Bounds().Dx(); x++ {
@@ -303,7 +349,7 @@ func Halftone(src image.Image, p Params) (image.Image, error) {
 		return nil, err
 	}
 	in := clone(src)
-	tone := toneMapper(in, p.Normalize)
+	tone := toneMapper(in, p)
 	out := image.NewNRGBA(in.Bounds())
 	draw.Draw(out, out.Bounds(), &image.Uniform{C: light}, image.Point{}, draw.Src)
 	// LPI is lines across the image width, which is what makes the screen
@@ -358,7 +404,7 @@ func ditherInk(src image.Image, p Params, diffusion bool) (image.Image, error) {
 		return nil, err
 	}
 	out := clone(src)
-	tone := toneMapper(out, p.Normalize)
+	tone := toneMapper(out, p)
 	w, h := out.Bounds().Dx(), out.Bounds().Dy()
 	if diffusion {
 		values := make([]float64, w*h)
@@ -475,6 +521,27 @@ func Scrim(src image.Image, p Params) (image.Image, error) {
 	}
 	out := clone(src)
 	w, h := out.Bounds().Dx(), out.Bounds().Dy()
+	// A region-scoped scrim shades only where copy actually sits.
+	//
+	// The whole-frame gradient is the right tool for setting a mood and the
+	// wrong one for making a headline readable: it dims a picture chosen for
+	// its beauty everywhere in order to fix one corner. Measured over this
+	// catalog on 2026-08-13, twenty-one of twenty-four reserved regions cannot
+	// reach their contrast threshold at any position with any of their style's
+	// own inks — a pictorial backdrop has light and dark pixels nearly
+	// everywhere, so dark type meets a dot and light type meets the paper.
+	// Shading the region is what every design system that puts type on
+	// photography actually does.
+	regionScoped := p.RegionWidth > 0 && p.RegionHeight > 0
+	// The falloff is a fraction of the SHORT edge, so the pool's softness is
+	// the same shape on a hero and on a phone. Zero would give a visible
+	// rectangle, which is worse than no scrim: a reader sees the box before
+	// they read the headline.
+	feather := p.RegionFeather
+	if regionScoped && feather <= 0 {
+		feather = 0.08
+	}
+	shortEdge := math.Min(float64(w), float64(h))
 	for y := 0; y < h; y++ {
 		for x := 0; x < w; x++ {
 			t := float64(y) / math.Max(1, float64(h-1))
@@ -486,6 +553,15 @@ func Scrim(src image.Image, p Params) (image.Image, error) {
 			}
 			if strings.EqualFold(p.Direction, "top") {
 				t = 1 - t
+			}
+			if regionScoped {
+				// Inside the region the scrim is at full strength; outside it
+				// falls to nothing across the feather. The directional gradient
+				// is deliberately NOT applied here — a pool that is strong on
+				// one side of the copy and weak on the other makes a headline
+				// half-legible, which is the failure mode a whole-frame scrim
+				// already has.
+				t = regionFalloff(float64(x), float64(y), float64(w), float64(h), p, feather*shortEdge)
 			}
 			if t < 0 {
 				t = 0
@@ -499,6 +575,165 @@ func Scrim(src image.Image, p Params) (image.Image, error) {
 		}
 	}
 	return out, nil
+}
+
+// regionFalloff is 1 inside the reserved region and eases to 0 across the
+// feather outside it, using a smoothstep so the pool has no visible edge.
+//
+// Distance is measured to the rectangle rather than to its centre, so a wide
+// region gets a wide pool rather than an ellipse — copy fills its box, and a
+// scrim shaped like something else leaves a corner of the headline unshaded.
+func regionFalloff(x, y, w, h float64, p Params, feather float64) float64 {
+	x0, y0 := p.RegionX*w, p.RegionY*h
+	x1, y1 := (p.RegionX+p.RegionWidth)*w, (p.RegionY+p.RegionHeight)*h
+	dx := math.Max(0, math.Max(x0-x, x-x1))
+	dy := math.Max(0, math.Max(y0-y, y-y1))
+	d := math.Hypot(dx, dy)
+	if d <= 0 {
+		return 1
+	}
+	if feather <= 0 || d >= feather {
+		return 0
+	}
+	e := 1 - d/feather
+	return e * e * (3 - 2*e)
+}
+
+// knockoutFalloff returns how strongly each pixel is reserved: 1 in the core, 0
+// outside the feather, eased between. Nil when nothing is reserved, so the
+// common path allocates and tests nothing.
+//
+// It is the single definition of the reserved shape, shared by the lift, the
+// tone mapper's exclusion and the displacement's damping. Three copies of the
+// same rectangle-and-feather arithmetic would eventually disagree, and the ones
+// that disagreed would be reserving different areas of the same picture — a
+// difference invisible in anything except a contrast measurement taken at the
+// exact spot where they diverged.
+func knockoutFalloff(src *image.NRGBA, p Params) func(x, y int) float64 {
+	if p.KnockoutWidth <= 0 || p.KnockoutHeight <= 0 {
+		return nil
+	}
+	b := src.Bounds()
+	fw, fh := float64(b.Dx()), float64(b.Dy())
+	feather := p.KnockoutFeather
+	if feather <= 0 {
+		feather = 0.08
+	}
+	reach := feather * math.Min(fw, fh)
+	// regionFalloff reads the Region fields, so the knockout borrows them here.
+	// Copied by value — the caller's Params are not touched, and a style may
+	// legitimately declare both a scrim region and a knockout that do not
+	// coincide.
+	shape := Params{
+		RegionX: p.KnockoutX, RegionY: p.KnockoutY,
+		RegionWidth: p.KnockoutWidth, RegionHeight: p.KnockoutHeight,
+	}
+	return func(x, y int) float64 {
+		return regionFalloff(float64(x-b.Min.X), float64(y-b.Min.Y), fw, fh, shape, reach)
+	}
+}
+
+// knockoutMask reports which pixels the knockout lifted enough to disqualify
+// them as evidence of what the picture's tonal range is.
+//
+// The half-lift threshold is deliberately loose. A pixel in the outer feather
+// is still mostly the picture and belongs in the histogram; a pixel past
+// halfway is mostly white this package added, and a tone mapper that believes
+// it is measuring a real highlight there will act on that belief.
+func knockoutMask(src *image.NRGBA, p Params) func(x, y int) bool {
+	falloff := knockoutFalloff(src, p)
+	if falloff == nil {
+		return nil
+	}
+	return func(x, y int) bool { return falloff(x, y) > 0.5 }
+}
+
+// cellIsReserved reports whether any pixel of a block-quantised cell falls in
+// reserved space. Checks the border and the centre rather than every pixel: a
+// knockout is a rectangle and a cell is a rectangle, so the two meet at an edge
+// or a corner if they meet at all, and a cell entirely inside a knockout has its
+// centre inside it.
+func cellIsReserved(bx, by, cw, ch, w, h int, reserved func(x, y int) bool) bool {
+	x1, y1 := bx+cw-1, by+ch-1
+	if x1 >= w {
+		x1 = w - 1
+	}
+	if y1 >= h {
+		y1 = h - 1
+	}
+	if reserved(bx+(x1-bx)/2, by+(y1-by)/2) {
+		return true
+	}
+	for x := bx; x <= x1; x++ {
+		if reserved(x, by) || reserved(x, y1) {
+			return true
+		}
+	}
+	for y := by; y <= y1; y++ {
+		if reserved(bx, y) || reserved(x1, y) {
+			return true
+		}
+	}
+	return false
+}
+
+// ReserveBefore drives the reserved area to one end of the tonal ramp so the
+// operation that runs next lays either no ink there or as much as it can.
+//
+// Returns src unchanged when no knockout is declared, so a caller can apply it
+// unconditionally and pay nothing for the styles that do not reserve anything.
+//
+// The lift goes all the way to white rather than nearly there. Nearly is what
+// this mechanism was first built as, and it does not work: a screen fed 0.94
+// still lays a sparse pattern of FULL-strength dots, and one dot is enough to
+// decide worst-pixel contrast for the whole area. The difference between a
+// knockout and a light patch is not a matter of degree.
+//
+// White is safe as an intermediate because it is input to a tone mapper, not
+// output: the operation maps it to whatever its own paper is. It would not be
+// safe as a final pixel, which is why this runs before the operation and has no
+// counterpart that runs after.
+func ReserveBefore(src image.Image, p Params) image.Image {
+	if p.KnockoutWidth <= 0 || p.KnockoutHeight <= 0 {
+		return src
+	}
+	in := clone(src)
+	falloff := knockoutFalloff(in, p)
+	b := in.Bounds()
+	w, h := b.Dx(), b.Dy()
+	// White for a knockout, black for a solid: the two ends of the ramp the
+	// operation reads. Neither is the colour that comes out — the operation maps
+	// the extreme it is fed onto its own paper or its own heaviest ink, which is
+	// why this runs before the operation and has no counterpart that runs after.
+	//
+	// A painted counterpart was built and removed. It guaranteed a true solid for
+	// the discrete screens, which cannot reach one by tone, and it did so by
+	// laying a flat rectangle of ink over the finished picture — which is what a
+	// flat rectangle of ink does to a picture. The perceptual gate scored the
+	// result at 0.116 subject survival against a 0.600 floor and refused four
+	// styles that had been rendering correctly. A reserve has to be part of the
+	// picture, not a patch over it.
+	extreme := color.NRGBA{R: 255, G: 255, B: 255, A: 255}
+	if p.KnockoutSolid {
+		extreme = color.NRGBA{R: 0, G: 0, B: 0, A: 255}
+	}
+	for y := 0; y < h; y++ {
+		for x := 0; x < w; x++ {
+			t := falloff(b.Min.X+x, b.Min.Y+y)
+			if t <= 0 {
+				continue
+			}
+			// Alpha is carried from the source rather than from paper: a
+			// knockout says where ink may not go, not that the layer becomes
+			// opaque there. Lifting alpha would fill the hole a transparent
+			// plate is deliberately leaving for the plate beneath it.
+			c := in.NRGBAAt(b.Min.X+x, b.Min.Y+y)
+			lifted := mix(c, extreme, t)
+			lifted.A = c.A
+			in.SetNRGBA(b.Min.X+x, b.Min.Y+y, lifted)
+		}
+	}
+	return in
 }
 
 // Tier2 applies the reusable breadth operations. Each operation is seeded (or
@@ -552,7 +787,7 @@ func lineScreen(in *image.NRGBA, p Params) *image.NRGBA {
 	angle := p.Angle
 	dark := colorOr(p.Dark, color.NRGBA{R: 31, G: 35, B: 45, A: 255})
 	light := colorOr(p.Light, color.NRGBA{R: 244, G: 238, B: 220, A: 255})
-	tone := toneMapper(in, p.Normalize)
+	tone := toneMapper(in, p)
 	out := image.NewNRGBA(in.Bounds())
 	for y := 0; y < in.Bounds().Dy(); y++ {
 		for x := 0; x < in.Bounds().Dx(); x++ {
@@ -583,7 +818,7 @@ func stipple(in *image.NRGBA, p Params) *image.NRGBA {
 	}
 	dark := colorOr(p.Dark, color.NRGBA{R: 22, G: 25, B: 35, A: 255})
 	light := colorOr(p.Light, color.NRGBA{R: 246, G: 242, B: 232, A: 255})
-	tone := toneMapper(in, p.Normalize)
+	tone := toneMapper(in, p)
 	out := image.NewNRGBA(in.Bounds())
 	draw.Draw(out, out.Bounds(), &image.Uniform{C: light}, image.Point{}, draw.Src)
 	state := uint64(p.Seed) + 0x9e3779b97f4a7c15
@@ -602,6 +837,16 @@ func stipple(in *image.NRGBA, p Params) *image.NRGBA {
 			}
 			l := tone(in.NRGBAAt(x, y))
 			radius := (1 - l) * spacing * .46
+			// A dot too small to draw is not drawn, the same rule engraving
+			// applies to a hatch line too thin to draw. Without it the bounds
+			// below always include their own centre, so every cell deposited one
+			// full-strength pixel no matter how light the tone under it — paper
+			// came out as a regular grid of ink, and the highlights of every
+			// stippled picture were carrying about fifteen percent more ink than
+			// the tone called for.
+			if 2*radius < minInkWidth {
+				continue
+			}
 			for yy := -int(radius) - 1; yy <= int(radius)+1; yy++ {
 				for xx := -int(radius) - 1; xx <= int(radius)+1; xx++ {
 					if float64(xx*xx+yy*yy) <= radius*radius {
@@ -622,7 +867,7 @@ func stipple(in *image.NRGBA, p Params) *image.NRGBA {
 func engraving(in *image.NRGBA, p Params) *image.NRGBA {
 	dark := colorOr(p.Dark, color.NRGBA{R: 31, G: 35, B: 45, A: 255})
 	light := colorOr(p.Light, color.NRGBA{R: 244, G: 238, B: 220, A: 255})
-	tone := toneMapper(in, p.Normalize)
+	tone := toneMapper(in, p)
 	out := image.NewNRGBA(in.Bounds())
 	draw.Draw(out, out.Bounds(), &image.Uniform{C: light}, image.Point{}, draw.Src)
 	spacing := p.Spacing
@@ -853,15 +1098,26 @@ func asciiMosaic(in *image.NRGBA, p Params) *image.NRGBA {
 	}
 	dark := colorOr(p.Dark, color.NRGBA{R: 22, G: 26, B: 36, A: 255})
 	light := colorOr(p.Light, color.NRGBA{R: 244, G: 240, B: 226, A: 255})
-	tone := toneMapper(in, p.Normalize)
+	tone := toneMapper(in, p)
 	masks := asciiGlyphMasks()
 
 	w, h := in.Bounds().Dx(), in.Bounds().Dy()
 	out := image.NewNRGBA(in.Bounds())
 	draw.Draw(out, out.Bounds(), &image.Uniform{C: light}, image.Point{}, draw.Src)
+	reserved := knockoutMask(in, p)
 
 	for by := 0; by < h; by += ch {
 		for bx := 0; bx < w; bx += cw {
+			// A glyph is atomic: it prints whole or not at all, so a cell that
+			// overlaps reserved space at any point must not print. Averaging the
+			// cell's tone instead would let a cell straddling the edge read as
+			// dark — most of it lies outside — and stamp a dense glyph whose
+			// ink lands inside. The reserve therefore rounds outward to whole
+			// cells here, which is the same accommodation any block-quantised
+			// treatment has to make.
+			if reserved != nil && cellIsReserved(bx, by, cw, ch, w, h, reserved) {
+				continue
+			}
 			var total float64
 			var n int
 			for y := by; y < by+ch && y < h; y++ {
@@ -997,10 +1253,25 @@ func displacement(in *image.NRGBA, p Params) *image.NRGBA {
 	freqY := 2 * math.Pi / wavelength
 	freqX := freqY * displacementAxisRatio
 	out := image.NewNRGBA(in.Bounds())
+	// Displacement is the one treatment a knockout cannot hold on its own. The
+	// others decide a pixel from the tone at that pixel, so lifting the area is
+	// enough; this one FETCHES a pixel from somewhere else, and the somewhere
+	// else is outside the reserve and full of ink. The feather is no defence
+	// because the warp steps over it in a single hop.
+	//
+	// So the reserve attenuates the warp itself, easing back to the full
+	// amplitude outside. Coming to rest rather than stopping dead matters: an
+	// abrupt end to a wave reads as a tear in the picture, which is more
+	// conspicuous than the wave would have been.
+	settle := knockoutFalloff(in, p)
 	for y := 0; y < in.Bounds().Dy(); y++ {
 		for x := 0; x < in.Bounds().Dx(); x++ {
-			dx := int(math.Sin(float64(y)*freqY) * amp)
-			dy := int(math.Cos(float64(x)*freqX) * amp * .45)
+			scale := 1.0
+			if settle != nil {
+				scale = 1 - settle(x, y)
+			}
+			dx := int(math.Sin(float64(y)*freqY) * amp * scale)
+			dy := int(math.Cos(float64(x)*freqX) * amp * .45 * scale)
 			out.SetNRGBA(x, y, sample(in, x+dx, y+dy))
 		}
 	}

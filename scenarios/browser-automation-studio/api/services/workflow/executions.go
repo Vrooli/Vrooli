@@ -99,10 +99,10 @@ type ExecuteOptions struct {
 	// settles and writes the normalized accessibility.json
 	// (bas-accessibility-snapshot/v1) into the execution's artifact root.
 	RequiresAccessibility bool
-	// ElectronTarget attaches the workflow to a target-owned Electron
+	// AppTarget attaches the workflow to a target-owned Electron
 	// renderer. ValidationContext must be provided with it; the context binds
 	// the workflow to its artifact, target, and leased test storage.
-	ElectronTarget    *autodriver.ElectronTarget
+	AppTarget         *autodriver.AppTarget
 	ValidationContext *autodriver.ValidationContext
 }
 
@@ -518,6 +518,9 @@ func (s *WorkflowService) executeWorkflowAsyncWithOptions(ctx context.Context, w
 	if projectRoot != "" {
 		compileCtx = autocompiler.WithProjectRoot(ctx, projectRoot)
 	}
+	if opts != nil && opts.AppTarget != nil {
+		compileCtx = autocompiler.WithDeferScenarioURLResolution(compileCtx, true)
+	}
 
 	plan, _, err := autoexecutor.BuildContractsPlan(compileCtx, executionID, workflow)
 	if err != nil {
@@ -561,7 +564,7 @@ func (s *WorkflowService) executeWorkflowAsyncWithOptions(ctx context.Context, w
 		}
 		plan.Metadata["requiresAccessibility"] = true
 	}
-	if opts != nil && opts.ElectronTarget != nil {
+	if opts != nil && opts.AppTarget != nil {
 		if opts.ValidationContext == nil || strings.TrimSpace(opts.ValidationContext.IsolationLeaseID) == "" {
 			execIndex.Status = database.ExecutionStatusFailed
 			execIndex.ErrorMessage = "Electron target requires a lease-bound validation context"
@@ -574,7 +577,7 @@ func (s *WorkflowService) executeWorkflowAsyncWithOptions(ctx context.Context, w
 		if plan.Metadata == nil {
 			plan.Metadata = make(map[string]any)
 		}
-		plan.Metadata["electron_target"] = opts.ElectronTarget
+		plan.Metadata["app_target"] = opts.AppTarget
 		plan.Metadata["validation_context"] = opts.ValidationContext
 	}
 

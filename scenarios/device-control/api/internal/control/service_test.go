@@ -11,7 +11,6 @@ import (
 	"time"
 
 	authdomain "device-control/internal/auth"
-	"device-control/internal/conformance"
 	devicedomain "device-control/internal/devices"
 	"device-control/strategy"
 	"device-control/strategy/fakes"
@@ -41,13 +40,16 @@ func (r *flowAuthResolver) Provision(_ context.Context, _, _, value string) erro
 	r.value = value
 	return nil
 }
+
 func (r *flowAuthResolver) Resolve(context.Context, string, string) (string, error) {
 	return r.value, nil
 }
+
 func (r *flowAuthResolver) Delete(context.Context, string, string) error {
 	r.value = ""
 	return nil
 }
+
 func (r *flowAuthResolver) Status(context.Context, string, string) authdomain.ProviderStatus {
 	return authdomain.ProviderStatus{Provider: "fake", ProviderState: "available", Configured: r.value != ""}
 }
@@ -285,12 +287,12 @@ func TestDeviceCapabilitiesUseEmptyArrayWhenUnavailable(t *testing.T) {
 	require.Empty(t, device.Capabilities)
 }
 
-func TestAndroidConformanceUnavailableResultEmitsPhysicalTargetVerdict(t *testing.T) {
+func TestAndroidCapabilitySelfTestUnavailableResultEmitsPhysicalTargetVerdict(t *testing.T) {
 	svc, _ := testService(t)
 	svc.devices.Upsert(devicedomain.Record{ID: "fake", Serial: "serial-1", HostNodeID: "host-1", Kind: "physical"})
-	result, err := svc.RunAndroidConformance(context.Background(), conformance.Fixture{ID: conformance.FixtureID, PackageName: "com.example.hello", APKPath: "/missing/hello.apk", DeepLink: "hello://home"}, "fake", "operator", "")
+	result, err := svc.RunAndroidCapabilitySelfTest(context.Background(), "fake", "operator", "")
 	require.NoError(t, err)
-	require.Equal(t, "unavailable", result.Disposition)
+	require.Equal(t, "failed", result.Disposition)
 	require.NotNil(t, result.Verdict)
 	require.Equal(t, commonv1.DeviceKind_DEVICE_KIND_PHYSICAL, result.Verdict.Target.DeviceKind)
 	require.Contains(t, result.Verdict.Detail, "device_id=fake")
@@ -298,46 +300,34 @@ func TestAndroidConformanceUnavailableResultEmitsPhysicalTargetVerdict(t *testin
 	require.Contains(t, result.Verdict.Detail, "host_node_id=host-1")
 }
 
-func TestAndroidConformanceRefreshesBridgeInventoryBeforeLease(t *testing.T) {
+func TestAndroidCapabilitySelfTestRefreshesBridgeInventoryBeforeLease(t *testing.T) {
 	reader := staticAttachedReader{devices: []AttachedDevice{{
 		ID: "bridge-android-1", Name: "Galaxy", HostNodeID: "host-1", Kind: "android",
 		Transport: "usb", Serial: "serial-1", OSVersion: "13", TrustState: "trusted", Reachability: "reachable",
 	}}}
 	svc := NewWithAttached(strategyregistry.New(), reader)
-	result, err := svc.RunAndroidConformance(context.Background(), conformance.Fixture{
-		ID: conformance.FixtureID, PackageName: "com.example.hello", APKPath: "/missing/hello.apk", DeepLink: "hello://home",
-	}, "bridge-android-1", "operator", "")
+	result, err := svc.RunAndroidCapabilitySelfTest(context.Background(), "bridge-android-1", "operator", "")
 	require.NoError(t, err)
 	require.Equal(t, "unavailable", result.Disposition)
-	require.Contains(t, result.Reason, "fixture APK is unavailable")
 	require.Equal(t, "serial-1", result.Serial)
 	require.Equal(t, "host-1", result.HostNodeID)
 }
 
-func TestAndroidConformanceRejectsNonPhysicalDevice(t *testing.T) {
+func TestAndroidCapabilitySelfTestAcceptsEmulatorKind(t *testing.T) {
 	svc, _ := testService(t)
 	svc.devices.Upsert(devicedomain.Record{ID: "emulator-1", Kind: "emulator", Serial: "emulator-1", HostNodeID: "host-1"})
-	result, err := svc.RunAndroidConformance(context.Background(), conformance.Fixture{ID: conformance.FixtureID, PackageName: "com.example.hello", APKPath: "/missing/hello.apk", DeepLink: "hello://home"}, "emulator-1", "operator", "")
+	result, err := svc.RunAndroidCapabilitySelfTest(context.Background(), "emulator-1", "operator", "")
 	require.NoError(t, err)
-	require.Equal(t, "unavailable", result.Disposition)
-	require.Contains(t, result.Reason, "requires a physical device")
-	require.Equal(t, commonv1.DeviceKind_DEVICE_KIND_PHYSICAL, result.Verdict.Target.DeviceKind)
+	require.NotNil(t, result)
 }
 
-func TestAndroidConformanceReportsCapabilityGapAsUnavailable(t *testing.T) {
+func TestAndroidCapabilitySelfTestReportsCapabilityGap(t *testing.T) {
 	svc, _ := testService(t)
-	apk, err := os.CreateTemp(t.TempDir(), "hello-mobile-*.apk")
+	result, err := svc.RunAndroidCapabilitySelfTest(context.Background(), "fake", "operator", "")
 	require.NoError(t, err)
-	require.NoError(t, apk.Close())
-	result, err := svc.RunAndroidConformance(context.Background(), conformance.Fixture{ID: conformance.FixtureID, PackageName: "com.example.hello", APKPath: apk.Name(), DeepLink: "hello://home"}, "fake", "operator", "")
-	require.NoError(t, err)
-	require.Equal(t, "failed", result.Disposition)
-	require.Len(t, result.Chapters, 12)
-	require.Equal(t, "unavailable", result.Chapters[0].Disposition)
-	require.Contains(t, result.Chapters[0].Message, "requires")
-	for _, chapter := range result.Chapters {
-		require.NotEqual(t, "not_run", chapter.Disposition, "chapter %s must have a terminal disposition", chapter.ID)
-	}
+	require.Equal(t, "unavailable", result.Disposition)
+	require.Contains(t, result.Reason, "not present in device-control inventory")
+	require.Empty(t, result.Chapters)
 }
 
 func TestUSBProbeDistinguishesAndroidBusPresence(t *testing.T) {
@@ -419,6 +409,17 @@ func TestBridgeFailureDoesNotAddPseudoDeviceBesidePhysicalInventory(t *testing.T
 	devices := svc.Devices(context.Background())
 	require.Len(t, devices, 1)
 	require.Equal(t, "android-stable", devices[0].ID)
+}
+
+func TestADBInventoryClassifiesEmulatorSerialAsEmulator(t *testing.T) {
+	adapter := &enumeratingFake{
+		Strategy: fakes.New("fake-android", strategy.StatusAvailable, strategy.CapInput, strategy.CapScreenshot),
+		devices:  []strategy.Device{{ID: "android-emulator", Serial: "emulator-5554", Model: "sdk_gphone", OSVersion: "16", StrategyID: "fake-android", Transport: "usb", Health: strategy.StatusAvailable}},
+	}
+	devices := NewWithAttached(strategyregistry.New(adapter), nil).Devices(context.Background())
+	require.Len(t, devices, 1)
+	require.Equal(t, "emulator", devices[0].Kind)
+	require.Equal(t, "emulator-5554", devices[0].Serial)
 }
 
 func TestBridgeAttachmentMergesWithLocalPhysicalIdentity(t *testing.T) { // [REQ:DVC-P0-003]

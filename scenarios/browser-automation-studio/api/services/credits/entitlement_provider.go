@@ -45,6 +45,10 @@ type EntitlementProvider interface {
 	CanUseAIWithEntitlement(ent *entitlement.Entitlement) bool
 }
 
+type entitlementLeaseLimits interface {
+	GetAICreditsLimitForEntitlement(*entitlement.Entitlement) int
+}
+
 // DefaultEntitlementProvider wraps the real entitlement.Service.
 // This is the production implementation used when no mock is injected.
 type DefaultEntitlementProvider struct {
@@ -70,6 +74,13 @@ func (p *DefaultEntitlementProvider) GetAICreditsLimit(tier entitlement.Tier) in
 		return -1 // Unlimited if no service
 	}
 	return p.svc.GetAICreditsLimit(tier)
+}
+
+func (p *DefaultEntitlementProvider) GetAICreditsLimitForEntitlement(ent *entitlement.Entitlement) int {
+	if p.svc == nil {
+		return -1
+	}
+	return p.svc.GetAICreditsLimitForEntitlement(ent)
 }
 
 // CanUseAIWithEntitlement checks AI access via the real service.

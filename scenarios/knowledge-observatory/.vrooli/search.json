@@ -4,6 +4,7 @@
   "providers": [
     {
       "provider_id": "knowledge-observatory.docs",
+      "lifecycle": "production",
       "provider_group": "knowledge-observatory",
       "bucket": "BUCKET_KNOW",
       "type": "doc",

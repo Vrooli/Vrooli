@@ -91,7 +91,7 @@ export interface SessionSpec {
    * Target-backed sessions attach to the existing renderer and never launch
    * or terminate the desktop application.
    */
-  electron_target?: ElectronTargetSpec;
+  app_target?: AppTargetSpec;
   /** Run-bound identity used to prove the Electron session belongs to one cell. */
   validation_context?: ValidationContextSpec;
 }
@@ -106,7 +106,10 @@ export interface ValidationContextSpec {
   isolation_lease_id: string;
 }
 
-export interface ElectronTargetSpec {
+export type AppTargetKind = 'electron' | 'android-webview';
+
+export interface AppTargetSpec {
+  target_kind?: AppTargetKind;
   target_id: string;
   cdp_endpoint: string;
   renderer_id: string;
@@ -438,7 +441,7 @@ export interface StartSessionRequest {
    * Optional: Deterministic fake media devices (see SessionSpec.fake_media).
    */
   fake_media?: SessionSpec['fake_media'];
-  electron_target?: SessionSpec['electron_target'];
+  app_target?: SessionSpec['app_target'];
   validation_context?: SessionSpec['validation_context'];
 }
 

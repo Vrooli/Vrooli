@@ -65,7 +65,25 @@ type Params struct {
 	Seed               int64   `json:"seed,omitempty"`
 	ContrastMultiplier float64 `json:"contrast_multiplier,omitempty"`
 	ScrimColor         string  `json:"scrim_color,omitempty"`
-	Direction          string  `json:"direction,omitempty"`
+	// Scrim region, as fractions of the frame. Zero width or height leaves the
+	// whole-frame directional gradient a scrim has always been.
+	RegionX       float64 `json:"region_x,omitempty"`
+	RegionY       float64 `json:"region_y,omitempty"`
+	RegionWidth   float64 `json:"region_width,omitempty"`
+	RegionHeight  float64 `json:"region_height,omitempty"`
+	RegionFeather float64 `json:"region_feather,omitempty"`
+	// Knockout reserves an area no colour treatment may print into, as fractions
+	// of the frame. Zero width or height means no knockout. Honoured by every
+	// operation in the colour category and by none in the geometry category: a
+	// resize or a crop moves the frame under the rectangle, so a knockout
+	// declared against the old frame would reserve the wrong part of the new one.
+	KnockoutX       float64 `json:"knockout_x,omitempty"`
+	KnockoutY       float64 `json:"knockout_y,omitempty"`
+	KnockoutWidth   float64 `json:"knockout_width,omitempty"`
+	KnockoutHeight  float64 `json:"knockout_height,omitempty"`
+	KnockoutFeather float64 `json:"knockout_feather,omitempty"`
+	KnockoutSolid   bool    `json:"knockout_solid,omitempty"`
+	Direction       string  `json:"direction,omitempty"`
 	// Normalize auto-levels the source's p1-p99 tonal range onto the full ink
 	// ramp before mapping, so a low-contrast source still uses the whole ramp.
 	// It makes the result depend on whole-image statistics; see treatments.Params.
@@ -106,6 +124,11 @@ type Params struct {
 	// OverlayImage is raw bytes of an image to composite (watermark). Carried in
 	// the job payload; set by the handler from a second multipart part.
 	OverlayImage []byte `json:"overlay_image,omitempty"`
+
+	// Composite. Plates carry their own pixels, set by the handler from the
+	// `plate0`, `plate1`, … multipart parts rather than from JSON: a stack of
+	// full-size rasters does not belong in a parameter document.
+	Plates []PlateSpec `json:"plates,omitempty"`
 
 	// Metadata.
 	StripAll   bool `json:"strip_all,omitempty"`

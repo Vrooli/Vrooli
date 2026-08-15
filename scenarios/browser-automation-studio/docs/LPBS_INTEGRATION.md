@@ -64,7 +64,6 @@ claims and reject mismatched query/header identities.
 | Variable | Description | Example |
 |----------|-------------|---------|
 | `BAS_ENTITLEMENT_SERVICE_URL` | LPBS service base URL for hosted or local authority | `http://localhost:15000` or `https://vrooli.com` |
-| `BAS_LPBS_SERVICE_SECRET` | Optional service credential for legacy usage reporting | Must match the LPBS service secret; never a consumer JWT |
 | `LPBS_METERED_INFERENCE_URL` | AI Gateway's LPBS metered inference authority | LPBS base URL |
 | `APP_BUNDLE_KEY` | App identifier for usage records | `browser-automation-studio` (default) |
 
@@ -239,8 +238,9 @@ curl "http://localhost:15000/api/v1/usage/summary?user_identity=test@example.com
 
 Check:
 1. LPBS is running: `curl http://localhost:15000/api/v1/usage/health`
-2. Secret matches: `LPBS_SECRET` == `LPBS_SERVICE_SECRET`
-3. Network connectivity between services
+2. The shared consumer session can resolve a short-lived LPBS access token.
+3. Network connectivity between services. Reports remain in BAS's durable
+   `usage_outbox` until LPBS acknowledges them.
 
 ### Usage not appearing in LPBS
 

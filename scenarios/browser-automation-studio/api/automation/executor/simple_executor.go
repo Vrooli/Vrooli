@@ -211,7 +211,7 @@ func (e *SimpleExecutor) Execute(ctx context.Context, req Request) (err error) {
 		BrowserProfile:    req.BrowserProfile,
 		StorageState:      req.StorageState,
 		FakeMicrophoneWav: fakeMicrophoneWav,
-		ElectronTarget:    electronTarget,
+		AppTarget:         electronTarget,
 		ValidationContext: validationContext,
 	}
 
@@ -364,7 +364,7 @@ func (e *SimpleExecutor) runPlan(ctx context.Context, req Request, execCtx execu
 		}
 		instruction = e.interpolateInstruction(instruction, execState)
 		instrStepType = InstructionStepType(instruction) // Refresh after interpolation
-		instruction, err = rewriteElectronScenarioNavigation(instruction, spec.ElectronTarget)
+		instruction, err = rewriteAppTargetScenarioNavigation(instruction, spec.AppTarget)
 		if err != nil {
 			return session, err
 		}
@@ -1340,11 +1340,11 @@ func extractFakeMicrophoneWav(metadata map[string]any) string {
 // Plans are persisted as JSON-shaped metadata, so decode through JSON rather
 // than relying on map type assertions that only work for in-process callers.
 // A target without its run-bound context is rejected before session creation.
-func extractElectronValidation(metadata map[string]any) (*driver.ElectronTarget, *driver.ValidationContext, error) {
+func extractElectronValidation(metadata map[string]any) (*driver.AppTarget, *driver.ValidationContext, error) {
 	if metadata == nil {
 		return nil, nil, nil
 	}
-	rawTarget, targetOK := metadata["electron_target"]
+	rawTarget, targetOK := metadata["app_target"]
 	if !targetOK {
 		rawTarget, targetOK = metadata["electronTarget"]
 	}
@@ -1359,7 +1359,7 @@ func extractElectronValidation(metadata map[string]any) (*driver.ElectronTarget,
 		return nil, nil, fmt.Errorf("electron target requires a validation context")
 	}
 
-	var target driver.ElectronTarget
+	var target driver.AppTarget
 	if err := decodeExecutionMetadata(rawTarget, &target); err != nil {
 		return nil, nil, fmt.Errorf("decode electron target: %w", err)
 	}

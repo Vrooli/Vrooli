@@ -17,6 +17,7 @@ import (
 )
 
 type projectRootContextKey struct{}
+type deferScenarioURLResolutionContextKey struct{}
 
 // WithProjectRoot attaches a project root to the context for selector resolution.
 func WithProjectRoot(ctx context.Context, projectRoot string) context.Context {
@@ -39,6 +40,24 @@ func projectRootFromContext(ctx context.Context) string {
 	return ""
 }
 
+// WithDeferScenarioURLResolution marks compilation for a target-owned
+// renderer. Typed scenario destinations remain intact until the executor can
+// resolve them against that renderer's admitted origin.
+func WithDeferScenarioURLResolution(ctx context.Context, enabled bool) context.Context {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return context.WithValue(ctx, deferScenarioURLResolutionContextKey{}, enabled)
+}
+
+func deferScenarioURLResolutionFromContext(ctx context.Context) bool {
+	if ctx == nil {
+		return false
+	}
+	enabled, _ := ctx.Value(deferScenarioURLResolutionContextKey{}).(bool)
+	return enabled
+}
+
 // CompileWorkflowToContracts compiles a workflow directly to contracts.ExecutionPlan.
 // This is the preferred entry point for callers who need the canonical ExecutionPlan type.
 // It internally calls CompileWorkflow and performs the type conversion.
@@ -55,6 +74,12 @@ func CompileWorkflowToContracts(ctx context.Context, executionID uuid.UUID, work
 		if filepath.Base(filepath.Clean(projectRoot)) == "bas" {
 			opts.ScenarioRoot = filepath.Dir(filepath.Clean(projectRoot))
 		}
+	}
+	if deferScenarioURLResolutionFromContext(ctx) {
+		if opts == nil {
+			opts = &CompileOptions{}
+		}
+		opts.DeferScenarioURLResolution = true
 	}
 
 	plan, err := CompileWorkflowWithOptions(workflow, opts)
