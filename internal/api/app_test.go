@@ -16,15 +16,15 @@ import (
 
 	"github.com/gorilla/mux"
 
+	testkitgo "github.com/vrooli/repo-contract-go/repocontracttest"
 	"github.com/vrooli/vrooli/internal/control"
 	"github.com/vrooli/vrooli/internal/hostsession"
 	"github.com/vrooli/vrooli/internal/logx"
 	"github.com/vrooli/vrooli/internal/maintenance"
+	testresource "github.com/vrooli/vrooli/internal/resources/resourcestest"
 	"github.com/vrooli/vrooli/internal/scenario"
+	testscenario "github.com/vrooli/vrooli/internal/scenario/scenariotest"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
-	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
-	testresource "github.com/vrooli/vrooli/packages/testkit-go/resourcefixture"
-	testscenario "github.com/vrooli/vrooli/packages/testkit-go/scenariofixture"
 )
 
 // writeAPITestRegistryRuntime seeds an authoritative registry runtime for the

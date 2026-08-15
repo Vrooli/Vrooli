@@ -16,6 +16,7 @@ import (
 
 	"github.com/vrooli/cli-core/cliutil"
 	"github.com/vrooli/vrooli/internal/logx"
+	"github.com/vrooli/vrooli/internal/packagegov"
 	"github.com/vrooli/vrooli/internal/scenario"
 )
 
@@ -407,6 +408,9 @@ func uiBundleFreshnessArtifact(appRoot, repoRoot string, check scenario.Conditio
 	}
 
 	keyInputs := uiBuildKeyInputs(deps)
+	for key, value := range sharedPackageFreshnessKeyInputs(repoRoot, uiDir) {
+		keyInputs[key] = value
+	}
 
 	return artifactFreshness{
 		Target:       defaultIfEmpty(check.BundlePath, "ui/dist/index.html"),
@@ -422,6 +426,33 @@ func uiBundleFreshnessArtifact(appRoot, repoRoot string, check scenario.Conditio
 			CaseInsensitive: deps.volumeCaseInsensitive(bundlePath),
 		},
 	}
+}
+
+// sharedPackageFreshnessKeyInputs adds the digest of each governed package's
+// declared lifecycle outputs to the consuming UI's freshness contract. A
+// file: dependency is copied by pnpm, so the package source directory alone is
+// not a sufficient identity for the installed consumer.
+func sharedPackageFreshnessKeyInputs(repoRoot, uiDir string) map[string]string {
+	inputs := make(map[string]string)
+	dependencies, err := sharedPackageDependencies(repoRoot, filepath.Join(uiDir, "package.json"))
+	if err != nil {
+		return inputs
+	}
+	for _, dependency := range dependencies {
+		commands := append(append([]packagegov.CommandSpec{}, dependency.Generation...), dependency.Build...)
+		for index, command := range commands {
+			digest, err := sharedPackageOutputDigest(dependency.Root, command.Outputs)
+			if err != nil {
+				digest = "error"
+			}
+			name := command.Name
+			if strings.TrimSpace(name) == "" {
+				name = fmt.Sprintf("lifecycle-%d", index)
+			}
+			inputs["shared_package:"+dependency.Name+":"+name] = digest
+		}
+	}
+	return inputs
 }
 
 func uiFileDependencyFreshnessInputs(repoRoot, sourceDir, dependencyName, dependencyRoot string, deps hostProbeDeps) []string {

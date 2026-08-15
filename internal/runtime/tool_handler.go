@@ -163,9 +163,13 @@ func (h toolHandler) inspectPackage(host hostreqkit.Host, requirement hostreqspe
 		return status
 	}
 
-	version := hostreqkit.ReadVersion(command, h.manifest.VersionArgs)
+	version, probeErr := hostreqkit.ReadVersionErr(command, h.manifest.VersionArgs)
 	if version != "" {
 		status.Version = version
+	}
+	if version == "" && probeErr != nil && strings.TrimSpace(h.manifest.Version) != "" {
+		h.versionProbeUnavailable(&status, probeErr)
+		return status
 	}
 	if !h.versionSatisfied(&status) {
 		return status
@@ -201,8 +205,16 @@ func (h toolHandler) inspectFetch(host hostreqkit.Host, requirement hostreqspec.
 	if installed {
 		status.ExecutionState = hostreqkit.ExecutionAlreadyPresent
 		status.InstallSupported = false
-		if version := h.readFetchVersion(command); version != "" {
+		version, probeErr := h.readFetchVersion(command)
+		if version != "" {
 			status.Version = version
+		}
+		if version == "" && probeErr != nil && strings.TrimSpace(h.manifest.Version) != "" {
+			// The probe never ran, so there is no observed version to compare.
+			// Reinstalling would re-fetch the same working tool and fail the
+			// same way, so this must not be routed through the mismatch branch.
+			h.versionProbeUnavailable(&status, probeErr)
+			return status
 		}
 		if !h.versionSatisfied(&status) {
 			// A verified release target can converge an incompatible command on
@@ -312,7 +324,12 @@ func (h toolHandler) applyPackage(host hostreqkit.Host, status hostreqkit.ItemSt
 	status.Installed = installed
 	if installed {
 		status.ExecutionState = hostreqkit.ExecutionInstalled
-		status.Version = hostreqkit.ReadVersion(commandName, h.manifest.VersionArgs)
+		version, probeErr := hostreqkit.ReadVersionErr(commandName, h.manifest.VersionArgs)
+		status.Version = version
+		if version == "" && probeErr != nil && strings.TrimSpace(h.manifest.Version) != "" {
+			h.versionProbeUnavailable(&status, probeErr)
+			return status, nil
+		}
 		if !h.versionSatisfied(&status) {
 			return status, nil
 		}
@@ -401,8 +418,13 @@ func (h toolHandler) applyFetch(host hostreqkit.Host, status hostreqkit.ItemStat
 	status.Installed = installed
 	if installed {
 		status.ExecutionState = hostreqkit.ExecutionInstalled
-		if version := h.readFetchVersion(command); version != "" {
+		version, probeErr := h.readFetchVersion(command)
+		if version != "" {
 			status.Version = version
+		}
+		if version == "" && probeErr != nil && strings.TrimSpace(h.manifest.Version) != "" {
+			h.versionProbeUnavailable(&status, probeErr)
+			return status, nil
 		}
 		if !h.versionSatisfied(&status) {
 			return status, nil
@@ -540,15 +562,45 @@ func shellSingleQuote(s string) string {
 }
 
 // readFetchVersion reads a fetched tool's version, trying the bare command (when
-// ~/.vrooli/bin is on PATH) then the explicit ~/.vrooli/bin path.
-func (h toolHandler) readFetchVersion(command string) string {
+// ~/.vrooli/bin is on PATH) then the explicit ~/.vrooli/bin path. It reports the
+// last probe error when no candidate produced a version so the caller can tell
+// "this tool is the wrong release" from "the version probe could not run here".
+func (h toolHandler) readFetchVersion(command string) (string, error) {
+	var probeErr error
 	binDir, err := userLocalBinDir()
 	if err == nil {
-		if version := hostreqkit.ReadVersion(localFetchCommandPath(binDir, command), h.manifest.VersionArgs); version != "" {
-			return version
+		version, readErr := hostreqkit.ReadVersionErr(localFetchCommandPath(binDir, command), h.manifest.VersionArgs)
+		if version != "" {
+			return version, nil
 		}
+		probeErr = readErr
 	}
-	return hostreqkit.ReadVersion(command, h.manifest.VersionArgs)
+	version, readErr := hostreqkit.ReadVersionErr(command, h.manifest.VersionArgs)
+	if version != "" {
+		return version, nil
+	}
+	// The managed launcher is the candidate this runtime installed and controls,
+	// so its failure is the diagnostic worth reporting. The bare-command fallback
+	// commonly fails with a plain "not found in $PATH", which explains nothing
+	// about why the managed probe did not run.
+	if probeErr == nil {
+		probeErr = readErr
+	}
+	return "", probeErr
+}
+
+// versionProbeUnavailable records a present tool whose version probe could not
+// run. The requirement stays unsatisfied — an unverifiable pin must never be
+// reported as met — but it is marked as an environment blocker so the operator
+// is not offered an install that would download the same working tool again.
+func (h toolHandler) versionProbeUnavailable(status *hostreqkit.ItemStatus, probeErr error) {
+	status.Installed = false
+	status.ExecutionState = hostreqkit.ExecutionPending
+	status.InstallSupported = false
+	status.BlockingReason = hostreqkit.BlockingProbeFailed
+	status.Notes = append(status.Notes, fmt.Sprintf(
+		"version probe failed, so the required %s pin could not be verified: %v; the tool is installed and this is a host environment fault, not a missing install",
+		strings.TrimSpace(h.manifest.Version), probeErr))
 }
 
 // resolveFetchCommand reports whether any candidate command is available, on

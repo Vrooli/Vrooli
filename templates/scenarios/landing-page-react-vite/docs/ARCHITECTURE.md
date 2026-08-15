@@ -127,7 +127,7 @@ api/
 │   └── download_service     # Entitlement gating
 ├── auth.go                  # Session middleware
 ├── logging.go               # Structured logging
-└── initialization/
+└── api/internal/<domain>/
     └── postgres/
         ├── schema.sql       # Database DDL
         └── seed.sql         # Initial data

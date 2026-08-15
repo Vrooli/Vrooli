@@ -87,6 +87,12 @@ func renderSetupRequirementResult(w io.Writer, opts Options, report vrooliruntim
 		label,
 		displaySelection(report.Environment, displaySelection(opts.Environment, defaultEnvironment)),
 	)
+	_, _ = fmt.Fprintf(
+		w,
+		"[INFO]    Selection: resources=%s scenarios=%s\n",
+		displaySelection(opts.Resources, "enabled"),
+		displaySelection(opts.Scenarios, "none"),
+	)
 	mode := renderModeGrouped
 	if opts.Verbose {
 		mode = renderModeVerbose

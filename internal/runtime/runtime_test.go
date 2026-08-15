@@ -243,6 +243,31 @@ func TestMissingRequiredErrorIncludesToolInstallRemediation(t *testing.T) {
 	}
 }
 
+func TestMissingRequiredErrorOmitsInstallRemediationForProbeFailures(t *testing.T) {
+	err := missingRequiredError(Report{
+		Environment:     "development",
+		MissingRequired: []string{"go"},
+		Tools: []ToolStatus{{
+			Name:           "go",
+			Kind:           hostreq.KindTool,
+			Command:        "go",
+			Required:       true,
+			ExecutionState: hostreqkit.ExecutionPending,
+			BlockingReason: hostreqkit.BlockingProbeFailed,
+			Notes:          []string{"version probe failed, so the required 1.25.12 pin could not be verified: exit status 1: go: cannot determine current directory: stat .: permission denied"},
+		}},
+	}, EnsureOptions{})
+	if err == nil {
+		t.Fatal("expected missing host requirement error")
+	}
+	if strings.Contains(err.Error(), "vrooli host install") {
+		t.Fatalf("missing requirement error = %q, want no install remediation for an environment fault an install cannot repair", err)
+	}
+	if !strings.Contains(err.Error(), "cannot determine current directory") {
+		t.Fatalf("missing requirement error = %q, want the underlying probe failure surfaced", err)
+	}
+}
+
 func TestInspectRequirementsMarksUnknownHandlerUnsupported(t *testing.T) {
 	report, err := InspectRequirements("development", hostreq.Resolution{
 		Tools: []hostreq.ResolvedRequirement{
@@ -582,14 +607,7 @@ func TestRegistryContainsUniqueToolAndSafeguardHandlers(t *testing.T) {
 	}
 	toolNames := reg.names(hostreq.KindTool)
 	expectedTools := []string{
-		"Xvfb", "agy", "ast-grep", "bats", "buf", "claude", "cloudflared", "codex", "curl",
-		"docker", "ffmpeg", "git", "go", "grok", "helm", "iopaint", "java", "jq", "k6", "kdump-tools", "kopia",
-		"llama-cpp", "lychee",
-		"mcelog", "node", "openbox", "opencode", "pnpm", "protoc", "protoc-gen-connect-go",
-		"protoc-gen-es", "protoc-gen-go",
-		"python", "quint", "rasdaemon", "realesrgan-ncnn-vulkan", "rembg", "sd", "sd-gpu",
-		"secret-tool", "stripe", "tmux", "uv", "vault", "websockify",
-		"x11vnc", "xdotool", "yq",
+		"Xvfb", "agy", "apt-cache", "apt-get", "ast-grep", "bats", "buf", "claude", "cloud-localds", "cloudflared", "codex", "curl", "dnf", "docker", "dpkg-query", "ffmpeg", "git", "go", "grok", "helm", "iopaint", "java", "journalctl", "jq", "k6", "kdump-tools", "kopia", "launchctl", "llama-cpp", "log", "lychee", "mcelog", "node", "openbox", "opencode", "pacman", "pnpm", "powershell.exe", "protoc", "protoc-gen-connect-go", "protoc-gen-es", "protoc-gen-go", "python", "qemu", "quint", "rasdaemon", "realesrgan-ncnn-vulkan", "rembg", "resolvectl", "rpm", "schtasks", "sd", "sd-gpu", "secret-tool", "stripe", "systemctl", "timedatectl", "tmux", "uv", "vault", "vrooli", "websockify", "x11vnc", "xdotool", "yq",
 	}
 	if len(toolNames) != len(expectedTools) {
 		t.Fatalf("tool count = %d, want %d; got %v", len(toolNames), len(expectedTools), toolNames)
@@ -605,8 +623,8 @@ func TestRegistryContainsUniqueToolAndSafeguardHandlers(t *testing.T) {
 
 	safeguardNames := reg.names(hostreq.KindSafeguard)
 	expectedSafeguards := []string{
-		"clock", "cloudflared_recovery_privileges", "crashkernel_reserve", "dns_resolution", "docker_host_firewall",
-		"edac_modules", "host_hardening", "kernel_config", "login_keyring_unlock", "model_policy_drift", "nat_protection", "netconsole",
+		"autoheal_recovery_privileges", "clock", "cloudflared_recovery_privileges", "crashkernel_reserve", "dns_resolution", "docker_host_firewall",
+		"edac_modules", "host_hardening", "kernel_config", "login_keyring_unlock", "model_policy_drift", "nat_protection", "netconsole", "onboarding_apply_privileges",
 		"nvidia_driver",
 		"ollama_resource_controls",
 		"pstore_native", "pstore_observability", "pstore_ramoops", "remote_desktop_access", "remote_session_protection", "tcp_tuning",

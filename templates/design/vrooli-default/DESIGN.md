@@ -259,6 +259,31 @@ Buttons that start asynchronous work should acknowledge the click immediately, s
 
 Use inline feedback near the action when the user needs to continue working in context. Use toasts only for transient confirmation or background results. Use alert panels for failures that need reading, retry, or escalation. Error messages should explain what happened, what is still safe, and the next available action without exposing stack traces, secrets, raw tokens, or irrelevant internals.
 
+## UX-State Contract
+
+Every major surface declares the lifecycle states that users can encounter:
+`idle`, `pending`, `success`, `loading`, `saving`, `syncing`, `refreshing`,
+`empty`, `partial`, `stale`, `validation-error`, `request-error`, `retrying`,
+`permission-denied`, and `offline`. A scenario may add a more specific state,
+but it must keep the generic state legible and actionable. The state must be
+represented in the accessibility tree with a role, name, status, or alert that
+explains what changed and what the user can do next.
+
+Experience-manager's state coverage check uses this section as the contract
+source. Pages that do not encounter a state may omit it with a documented
+reason in their experience spec; a blank or silent state is never an omission
+reason.
+
+## Baseline Capture Matrix
+
+The default machine-evidence run uses a bounded covering set of at most 12
+captures per active surface. It includes every declared viewport, light and
+dark desktop coverage, English and Arabic direction coverage, both motion
+preferences, and rest/hover/focus-visible/pressed interaction states. The
+matrix is a covering set rather than a Cartesian product so capture cost stays
+predictable; a claim scoped to an additional axis opts into the smallest
+targets needed for that claim.
+
 ## Request Lifecycle
 
 For every network call, long-running local task, file operation, generation step, or resource mutation, design the lifecycle deliberately: idle, pending, success, failure, retrying, and disabled/unavailable. Slow operations should show progress, skeletons, spinners, streaming output, or queued status appropriate to the surface. If exact progress is unknown, show an indeterminate but visible pending state with stable layout.

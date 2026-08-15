@@ -181,8 +181,10 @@
             "path": "experience/index.json"
           },
           {
-            "kind": "file_exists",
-            "path": "experience/pages/dashboard.json"
+            "kind": "json_min_entries",
+            "path": "experience/index.json",
+            "query": "pages",
+            "minCount": 1
           },
           {
             "kind": "json_min_entries",
@@ -395,32 +397,60 @@
       "ui/src/features/notes",
       "ui/src/pages/NotesPage.tsx",
       "experience/pages/notes.json",
+      "bas/cases/experience-spec/notes.json",
       "proto/v1/notes"
     ],
     "jsonPrune": [
       {
         "file": "ui/src/i18n/locales/en.json",
-        "keys": ["notes", "pages.notes", "layout.nav.notes"]
+        "keys": [
+          "notes",
+          "pages.notes",
+          "layout.nav.notes"
+        ]
       },
       {
         "file": "ui/src/i18n/locales/ar.json",
-        "keys": ["notes", "pages.notes", "layout.nav.notes"]
+        "keys": [
+          "notes",
+          "pages.notes",
+          "layout.nav.notes"
+        ]
       },
       {
         "file": "ui/src/i18n/locales/ja.json",
-        "keys": ["notes", "pages.notes", "layout.nav.notes"]
+        "keys": [
+          "notes",
+          "pages.notes",
+          "layout.nav.notes"
+        ]
       },
       {
         "file": "cli/manifest.json",
         "arrayMatch": [
-          { "path": "groups", "where": { "name": "notes" } },
-          { "path": "measures.domains", "where": { "domain": "notes" } }
+          {
+            "path": "groups",
+            "where": {
+              "name": "notes"
+            }
+          },
+          {
+            "path": "measures.domains",
+            "where": {
+              "domain": "notes"
+            }
+          }
         ]
       },
       {
         "file": "experience/index.json",
         "arrayMatch": [
-          { "path": "pages", "where": { "id": "notes" } }
+          {
+            "path": "pages",
+            "where": {
+              "id": "notes"
+            }
+          }
         ]
       }
     ]

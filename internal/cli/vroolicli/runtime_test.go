@@ -11,14 +11,14 @@ import (
 	"strings"
 	"testing"
 
+	testkitgo "github.com/vrooli/repo-contract-go/repocontracttest"
 	"github.com/vrooli/vrooli/internal/buildinfo"
 	"github.com/vrooli/vrooli/internal/cli/rootcli"
 	"github.com/vrooli/vrooli/internal/cliinstall"
 	"github.com/vrooli/vrooli/internal/hostinventory"
 	"github.com/vrooli/vrooli/internal/scenario"
+	testscenario "github.com/vrooli/vrooli/internal/scenario/scenariotest"
 	"github.com/vrooli/vrooli/internal/scenarioexec"
-	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
-	testscenario "github.com/vrooli/vrooli/packages/testkit-go/scenariofixture"
 )
 
 func newRuntimeTestApp(t *testing.T, root string) *App {

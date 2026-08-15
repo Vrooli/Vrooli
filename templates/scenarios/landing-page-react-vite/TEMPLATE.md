@@ -9,7 +9,7 @@ landing-page-react-vite/
 ├── api/                         # Go backend copied into each generated scenario
 │   ├── *_handlers.go             # HTTP surfaces (auth, variants, downloads, metrics, etc.)
 │   ├── *_service.go              # Domain + DB integration seams
-│   └── initialization/           # Scenario bootstrap + migrations
+│   └── api/internal/<domain>/           # Scenario bootstrap + migrations
 ├── .vrooli/                     # Source of truth for AI/runtime configs
 │   ├── variant_space.json        # Axis definitions agents must respect
 │   ├── styling.json              # Tone, palette, CTA, and typography guardrails
@@ -39,44 +39,44 @@ Read those five files together before attempting copy or styling overrides. They
 
 ## Customization Workflow
 
-1. **Pick axes + styling context**  
-   - Update (or reference) `.vrooli/variant_space.json` to confirm persona/JTBD/conversion style constraints.  
+1. **Pick axes + styling context**
+   - Update (or reference) `.vrooli/variant_space.json` to confirm persona/JTBD/conversion style constraints.
    - Align tone and palette with `.vrooli/styling.json`. If you need a different look, copy a pack from `.vrooli/style-packs/` or author a new one using the schema described in `docs/DESIGN_SYSTEM.md`.
 
-2. **Author or tweak variant payloads**  
-   - Control edits go in `.vrooli/variants/control.json`.  
-   - Offline/health-check payloads live in `.vrooli/variants/fallback.json`.  
+2. **Author or tweak variant payloads**
+   - Control edits go in `.vrooli/variants/control.json`.
+   - Offline/health-check payloads live in `.vrooli/variants/fallback.json`.
    - Each payload must satisfy `.vrooli/schemas/variant.schema.json`, so keep `section_type`, `axes`, and downloads consistent.
 
-3. **Render + preview sections**  
-   - `ui/src/surfaces/public-landing/routes/PublicLanding.tsx` converts `LandingSection` entries into React components using the shared registry (see below).  
+3. **Render + preview sections**
+   - `ui/src/surfaces/public-landing/routes/PublicLanding.tsx` converts `LandingSection` entries into React components using the shared registry (see below).
    - Section components read `styling.json`-inspired props (color tokens, CTA treatments) via hooks/utilities under `ui/src/shared`.
 
-4. **Persist runtime expectations**  
-   - Backend tables enforce `section_type` constraints via `initialization/postgres/schema.sql`.  
+4. **Persist runtime expectations**
+   - Backend tables enforce `section_type` constraints via `api/internal/<domain>/schema.sql`.
    - When adding a new type, update the schema, JSON schema, TS types, and the section registry in a single PR so generated scenarios stay coherent.
 
 ## Adding or Updating Section Types
 
 All section components now live in `ui/src/surfaces/public-landing/sections`. Each section exports a React component that accepts `content` plus any bespoke props (e.g., `pricingOverview`) and registers itself with the renderer.
 
-1. **Create the component**  
-   - Add `CountdownSection.tsx` under `ui/src/surfaces/public-landing/sections`.  
+1. **Create the component**
+   - Add `CountdownSection.tsx` under `ui/src/surfaces/public-landing/sections`.
    - Mirror the existing pattern (props interface + `useMetrics` for CTA events).
 
-2. **Register it for rendering**  
+2. **Register it for rendering**
    - Update the `SECTION_COMPONENTS` map in `PublicLanding.tsx` so the renderer picks it up automatically. No more multi-case switch blocks.
 
-3. **Update shared types**  
-   - Extend `SectionType` in `ui/src/shared/api/types.ts`.  
+3. **Update shared types**
+   - Extend `SectionType` in `ui/src/shared/api/types.ts`.
    - Ensure `LandingSection` fixture data includes the new `section_type`.
 
-4. **Lock down schemas + DB**  
-   - Update `.vrooli/schemas/sections/<name>.schema.json` with validated content.  
-   - Append the type to the CHECK constraint in `initialization/postgres/schema.sql`.  
+4. **Lock down schemas + DB**
+   - Update `.vrooli/schemas/sections/<name>.schema.json` with validated content.
+   - Append the type to the CHECK constraint in `api/internal/<domain>/schema.sql`.
    - Reference it in `.vrooli/schemas/variant.schema.json` so variant payloads validate.
 
-5. **Seed / fallback data**  
+5. **Seed / fallback data**
    - Populate `.vrooli/variants/*.json` entries (control + fallback) with at least one instance of the new section for smoke testing.
 
 ### Section Component Pattern
@@ -107,12 +107,12 @@ export function CountdownSection({ content }: CountdownSectionProps) {
 | --- | --- |
 | React implementation | `ui/src/surfaces/public-landing/sections/*Section.tsx` |
 | Renderer wiring | `ui/src/surfaces/public-landing/routes/PublicLanding.tsx` (`SECTION_COMPONENTS`) |
-| Schema / validation | `.vrooli/schemas/sections/*.json`, `.vrooli/schemas/variant.schema.json`, `initialization/postgres/schema.sql` |
+| Schema / validation | `.vrooli/schemas/sections/*.json`, `.vrooli/schemas/variant.schema.json`, `api/internal/<domain>/schema.sql` |
 | Types + fixtures | `ui/src/shared/api/types.ts`, `.vrooli/variants/*.json`, `.vrooli/variant_space.json` if new axes interplay |
 
 ### Section Coverage Status
 
-- **Implemented**: hero, features, pricing, cta, testimonials, faq, footer, video, download rail.  
+- **Implemented**: hero, features, pricing, cta, testimonials, faq, footer, video, download rail.
 - **Download installs**: The `/admin/downloads` settings page lets operators curate multiple apps, attach App Store / Google Play links, and define per-platform installers + instructions that the public download rail renders.
 - **Schema-only (needs React implementation before use)**: benefits, social-proof, lead-form, preview.
 

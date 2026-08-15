@@ -15,10 +15,10 @@ import (
 	"testing"
 
 	"github.com/vrooli/cli-core/cliutil"
+	testkitgo "github.com/vrooli/repo-contract-go/repocontracttest"
+	testresource "github.com/vrooli/vrooli/internal/resources/resourcestest"
 	"github.com/vrooli/vrooli/internal/scenario"
-	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
-	testresource "github.com/vrooli/vrooli/packages/testkit-go/resourcefixture"
-	testscenario "github.com/vrooli/vrooli/packages/testkit-go/scenariofixture"
+	testscenario "github.com/vrooli/vrooli/internal/scenario/scenariotest"
 )
 
 // mustManager constructs a Manager and fails the test on error. NewManager now

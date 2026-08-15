@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vrooli.local/schemas/monetization.schema.json",
+  "title": "Vrooli monetization declaration",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "bundle_key", "features", "meters"],
+  "properties": {
+    "version": { "type": "integer", "const": 1 },
+    "bundle_key": { "type": "string", "minLength": 1 },
+    "features": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/feature" }
+    },
+    "meters": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/meter" }
+    }
+  },
+  "$defs": {
+    "path": { "type": "string", "minLength": 1 },
+    "feature": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "class", "enforcement_paths"],
+      "properties": {
+        "key": { "type": "string", "minLength": 1 },
+        "class": { "type": "string", "enum": ["A", "B"] },
+        "enforcement_paths": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/path" } }
+      }
+    },
+    "meter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["limit_key", "class", "enforcement_paths"],
+      "properties": {
+        "limit_key": { "type": "string", "minLength": 1 },
+        "class": { "type": "string", "enum": ["A", "B"] },
+        "enforcement_paths": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/path" } }
+      }
+    }
+  }
+}

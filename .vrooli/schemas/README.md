@@ -49,6 +49,9 @@ The most important source-of-truth rule is:
 - `space-definition.schema.json`
   Defines the cross-scenario coverage-space *denominator* contract (`space-definition/v1`). Each projection owner (search-hub=Answer, test-genie=Validate, prompt-manager=Guide) emits its curated space doc as schema-valid JSON via the `space --projection <p> --json` verb (shared impl: `packages/api-core/spacecli` + parser `packages/api-core/spacedoc`). Consumed by `meta-optimization-manager` to compute coverage — the denominator only; the live numerator is never carried here.
 
+- `monetization.schema.json`
+  Defines a scenario's `.vrooli/monetization.json` — the declaration of its paid surface: `bundle_key`, gated `features[]`, and `meters[]`. Each surface uses class `A` for cost-bearing work or `B` for local-capacity work and names one or more `enforcement_paths`. The file's **presence is the applicability trigger** for the `monetization-conformance` Test Genie phase, provided by `landing-page-business-suite`; the phase also becomes applicable when a scenario is *detected* to touch LPBS, so deleting the file produces a failing run rather than a skipped one. Engineering contract: [`docs/concepts/PAID_FEATURES.md`](../../docs/concepts/PAID_FEATURES.md). Pricing, tiers, and bundle membership remain operator canon under `docs/monetization/` and are never authored here.
+
 - `scenario-ui-manifest.schema.json`
   Defines `templates/scenarios/<id>/ui/manifest.json` (and any scenario-level overrides) — the contract that declares where UI building blocks (`layout-shell`, `page`, `ui-primitive`, etc.) live inside a scenario's UI source tree. Owned by the template the scenario was generated from. Consumed by `react-component-library`'s adoptions resolver to compute canonical filesystem paths for adopted components. `$id: scenario-ui-manifest/v1`.
 

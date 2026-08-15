@@ -117,6 +117,7 @@ func defaultEncryptedStore() Store {
 		return Absent(fmt.Sprintf("cannot resolve the credential store path: %v", err))
 	}
 	return newEncryptedStore(filepath.Clean(path),
+		newNativeWrapProvider(),
 		newHostBoundProvider(),
 		passphraseProvider{source: passphraseSource},
 	)

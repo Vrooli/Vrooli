@@ -13,22 +13,16 @@ const (
 	CommandList       CommandID = "list"
 	CommandInfo       CommandID = "info"
 	CommandDependents CommandID = "dependents"
-	CommandValidate   CommandID = "validate"
 	CommandBuild      CommandID = "build"
 	CommandGenerate   CommandID = "generate"
 	CommandTest       CommandID = "test"
 	CommandRefresh    CommandID = "refresh"
-	CommandAudit      CommandID = "audit"
 )
 
 type (
 	ListRequest       struct{}
 	InfoRequest       struct{ Name string }
 	DependentsRequest struct{ Name string }
-	ValidateRequest   struct {
-		Name string
-		All  bool
-	}
 )
 
 type RunRequest struct {
@@ -36,15 +30,11 @@ type RunRequest struct {
 	Action string
 }
 type RefreshRequest struct {
-	Name      string
-	Target    string
-	NoRestart bool
+	Name        string
+	Target      string
+	NoRestart   bool
+	Interactive bool
 }
-type AuditRequest struct {
-	Name string
-	All  bool
-}
-
 type ListResponse struct {
 	Packages []packagegov.Package `json:"packages"`
 }
@@ -53,10 +43,6 @@ type DependentsResponse struct {
 	PackageName string                       `json:"package_name"`
 	Dependents  []packagegov.Dependent       `json:"dependents"`
 	Issues      []packagegov.ValidationIssue `json:"issues,omitempty"`
-}
-
-type ValidateResponse struct {
-	Report packagegov.ValidationReport `json:"report"`
 }
 
 type RunResponse struct {
@@ -75,10 +61,6 @@ type RefreshItem struct {
 type RefreshResponse struct {
 	PackageName string        `json:"package_name"`
 	Items       []RefreshItem `json:"items"`
-}
-
-type AuditResponse struct {
-	Report packagegov.AuditReport `json:"report"`
 }
 
 func CommandSpecs() []commandtree.Spec[CommandID] {
@@ -103,19 +85,6 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 				Options:     []commandtree.OptionArg{commandtree.JSONOption()},
 			},
 			Handler: CommandDependents,
-		},
-		{
-			Name:    string(CommandValidate),
-			Summary: "Validate package manifests and package adoption policy",
-			Group:   "Package Governance",
-			Args: commandtree.ArgSchema{
-				Positionals: []commandtree.PositionalArg{{Name: "package"}},
-				Options: []commandtree.OptionArg{
-					{Name: "--all", Description: "Validate every governed package"},
-					commandtree.JSONOption(),
-				},
-			},
-			Handler: CommandValidate,
 		},
 		{
 			Name:    string(CommandBuild),
@@ -158,23 +127,11 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 				},
 				Options: []commandtree.OptionArg{
 					{Name: "--no-restart", Description: "Do not restart affected consumers after refresh"},
+					{Name: "--restart", Description: "Explicitly restart affected consumers (interactive operator action)"},
 					commandtree.JSONOption(),
 				},
 			},
 			Handler: CommandRefresh,
-		},
-		{
-			Name:    string(CommandAudit),
-			Summary: "Report governance drift and unsupported package adoption",
-			Group:   "Package Governance",
-			Args: commandtree.ArgSchema{
-				Positionals: []commandtree.PositionalArg{{Name: "package"}},
-				Options: []commandtree.OptionArg{
-					{Name: "--all", Description: "Audit every governed package"},
-					commandtree.JSONOption(),
-				},
-			},
-			Handler: CommandAudit,
 		},
 	}
 }
@@ -216,21 +173,6 @@ func ParseDependentsRequest(args []string) (DependentsRequest, error) {
 	return DependentsRequest{Name: parsed.Positionals[0]}, nil
 }
 
-func ParseValidateRequest(args []string) (ValidateRequest, error) {
-	parsed, err := commandtree.ParseArgs("package validate", commandHelpText(CommandValidate), commandSpec(CommandValidate).Args, args)
-	if err != nil {
-		return ValidateRequest{}, err
-	}
-	req := ValidateRequest{All: parsed.HasFlag("--all")}
-	if len(parsed.Positionals) == 1 {
-		req.Name = parsed.Positionals[0]
-	}
-	if !req.All && req.Name == "" {
-		req.All = true
-	}
-	return req, nil
-}
-
 func ParseRunRequest(action string, args []string) (RunRequest, error) {
 	commandID := CommandBuild
 	if action == string(CommandGenerate) {
@@ -256,27 +198,13 @@ func ParseRefreshRequest(args []string) (RefreshRequest, error) {
 		return RefreshRequest{}, err
 	}
 	req := RefreshRequest{
-		Name:      parsed.Positionals[0],
-		Target:    "all",
-		NoRestart: parsed.HasFlag("--no-restart"),
+		Name:        parsed.Positionals[0],
+		Target:      "all",
+		NoRestart:   parsed.HasFlag("--no-restart") || !parsed.HasFlag("--restart"),
+		Interactive: parsed.HasFlag("--restart"),
 	}
 	if len(parsed.Positionals) > 1 {
 		req.Target = parsed.Positionals[1]
-	}
-	return req, nil
-}
-
-func ParseAuditRequest(args []string) (AuditRequest, error) {
-	parsed, err := commandtree.ParseArgs("package audit", commandHelpText(CommandAudit), commandSpec(CommandAudit).Args, args)
-	if err != nil {
-		return AuditRequest{}, err
-	}
-	req := AuditRequest{All: parsed.HasFlag("--all")}
-	if len(parsed.Positionals) == 1 {
-		req.Name = parsed.Positionals[0]
-	}
-	if req.Name == "" {
-		req.All = true
 	}
 	return req, nil
 }

@@ -5,12 +5,12 @@ import (
 	"slices"
 	"testing"
 
+	testkitgo "github.com/vrooli/repo-contract-go/repocontracttest"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
+	testresource "github.com/vrooli/vrooli/internal/resources/resourcestest"
 	"github.com/vrooli/vrooli/internal/scenario"
-	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
-	testresource "github.com/vrooli/vrooli/packages/testkit-go/resourcefixture"
-	testscenario "github.com/vrooli/vrooli/packages/testkit-go/scenariofixture"
+	testscenario "github.com/vrooli/vrooli/internal/scenario/scenariotest"
 )
 
 func TestValidateReportsRootOverreachWithoutScanningUnrelatedScenarioSources(t *testing.T) {
@@ -31,12 +31,11 @@ func TestValidateReportsRootOverreachWithoutScanningUnrelatedScenarioSources(t *
 		},
 	})
 	testresource.WriteResourceManifest(t, root, "beta", manifestpkg.ResourceManifest{
-		Name:            "beta",
-		Driver:          "external-cli",
-		Binary:          "beta",
-		PortabilityTier: "full",
-		Privilege:       hostreqspec.PrivilegeUser,
-		Bundling:        hostreqspec.BundlingHostRequired,
+		Name:      "beta",
+		Driver:    "external-cli",
+		Binary:    "beta",
+		Privilege: hostreqspec.PrivilegeUser,
+		Bundling:  hostreqspec.BundlingHostRequired,
 	})
 	report, err := Validate(root, home)
 	if err != nil {
@@ -51,7 +50,7 @@ func TestValidateReportsResourceWithoutDeploymentClassification(t *testing.T) {
 	home := t.TempDir()
 	testscenario.WriteProjectService(t, root, scenario.ServiceManifest{Service: scenario.ServiceMetadata{Name: "vrooli"}})
 	testresource.WriteResourceManifest(t, root, "unclassified", manifestpkg.ResourceManifest{
-		Name: "unclassified", Driver: "external-cli", Binary: "unclassified", PortabilityTier: "full",
+		Name: "unclassified", Driver: "external-cli", Binary: "unclassified",
 	})
 
 	report, err := Validate(root, home)
@@ -69,7 +68,6 @@ func TestCurrentRepoPhase4DeclarationsPresent(t *testing.T) {
 	assertManifestContainsTool(t, filepath.Join(root, ".vrooli", "service.json"), "jq")
 	assertManifestContainsTool(t, filepath.Join(root, ".vrooli", "service.json"), "java")
 	assertManifestContainsTool(t, filepath.Join(root, ".vrooli", "service.json"), "quint")
-	assertManifestContainsTool(t, filepath.Join(root, "resources", "searxng", "resource.json"), "yq")
 	assertManifestContainsTool(t, filepath.Join(root, "resources", "codex", "resource.json"), "yq")
 	assertManifestContainsTool(t, filepath.Join(root, "scenarios", "web-console", ".vrooli", "service.json"), "tmux")
 	assertManifestContainsTool(t, filepath.Join(root, "scenarios", "scenario-to-desktop", ".vrooli", "service.json"), "Xvfb")

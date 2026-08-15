@@ -48,20 +48,6 @@ func RenderDependents(w io.Writer, format cliout.Format, resp DependentsResponse
 	return nil
 }
 
-func RenderValidate(w io.Writer, format cliout.Format, resp ValidateResponse) error {
-	if format == cliout.FormatJSON {
-		return writePackageJSON(w, PackageValidateResponse(resp))
-	}
-	if len(resp.Report.Issues) == 0 {
-		_, _ = fmt.Fprintln(w, "package governance validation passed")
-		return nil
-	}
-	for _, issue := range resp.Report.Issues {
-		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", issue.Severity, issue.Code, filepath.ToSlash(issue.Path), issue.Message)
-	}
-	return nil
-}
-
 func RenderRun(w io.Writer, format cliout.Format, resp RunResponse) error {
 	if format == cliout.FormatJSON {
 		return writePackageJSON(w, PackageRunResponse(resp))
@@ -88,25 +74,6 @@ func RenderRefresh(w io.Writer, format cliout.Format, resp RefreshResponse) erro
 			classText = strings.Join(parts, ",")
 		}
 		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", item.Consumer, classText, item.Action, item.Status)
-	}
-	return nil
-}
-
-func RenderAudit(w io.Writer, format cliout.Format, resp AuditResponse) error {
-	if format == cliout.FormatJSON {
-		return writePackageJSON(w, PackageAuditResponse(resp))
-	}
-	_, _ = fmt.Fprintf(w, "scan: %d scanned, %d skipped, %d bytes", resp.Report.ScanStats.FilesScanned, resp.Report.ScanStats.FilesSkipped, resp.Report.ScanStats.BytesScanned)
-	if resp.Report.ScanStats.BudgetExceeded {
-		_, _ = fmt.Fprint(w, " (budget exceeded)")
-	}
-	_, _ = fmt.Fprintln(w)
-	if len(resp.Report.Issues) == 0 {
-		_, _ = fmt.Fprintln(w, "package governance audit passed")
-		return nil
-	}
-	for _, issue := range resp.Report.Issues {
-		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", issue.Severity, issue.Code, filepath.ToSlash(issue.Path), issue.Message)
 	}
 	return nil
 }

@@ -22,11 +22,10 @@ func WriteList(w io.Writer, format cliout.Format, items []resources.Resource, fa
 			cliout.BoolLabel(item.Enabled),
 			item.ControlMode,
 			item.Driver,
-			item.PortabilityTier,
 			cliout.BoolLabel(item.Registered),
 		})
 	}
-	if err := cliout.RenderTable(w, []string{"Name", "Enabled", "Control", "Driver", "Portability", "Registered"}, rows); err != nil {
+	if err := cliout.RenderTable(w, []string{"Name", "Enabled", "Control", "Driver", "Registered"}, rows); err != nil {
 		return err
 	}
 	if len(failures) > 0 {
@@ -82,7 +81,6 @@ func WriteStatus(w io.Writer, format cliout.Format, item resources.Status) error
 		{"Enabled", cliout.BoolLabel(item.Resource.Enabled)},
 		{"Control", item.Resource.ControlMode},
 		{"Driver", item.Resource.Driver},
-		{"Portability", item.Resource.PortabilityTier},
 		{"Installed", cliout.BoolLabel(item.Installed)},
 		{"Running", cliout.BoolLabel(item.Running)},
 	}

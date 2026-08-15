@@ -521,7 +521,7 @@
       "name": "buf",
       "notes": "Pinned to v1.37.0; installed via internal/tools/buf Go handler (no shell installer). See docs/development/proto.md.",
       "reason": "Drive packages/proto codegen, lint, and breaking-change checks; also gates template validation",
-      "required": false,
+      "required": true,
       "when": [
         "setup",
         "develop"
@@ -534,7 +534,7 @@
       "name": "protoc-gen-go",
       "notes": "Pinned alongside packages/proto/buf.gen.yaml; installed via `go install`.",
       "reason": "Local protoc plugin for Go codegen; replaces the BSR remote plugin so packages/proto generates offline",
-      "required": false,
+      "required": true,
       "when": [
         "setup",
         "develop"
@@ -547,7 +547,7 @@
       "name": "protoc-gen-connect-go",
       "notes": "Pinned alongside packages/proto/buf.gen.yaml; installed via `go install`.",
       "reason": "Local Connect-RPC protoc plugin for Go service codegen; keeps packages/proto generation offline",
-      "required": false,
+      "required": true,
       "when": [
         "setup",
         "develop"
@@ -560,7 +560,7 @@
       "name": "protoc-gen-es",
       "notes": "Pinned alongside packages/proto/buf.gen.yaml; installed via npm into ~/.cache/vrooli/protoc-plugins/node.",
       "reason": "Local protoc plugin for TypeScript/JavaScript codegen; replaces the BSR remote plugin",
-      "required": false,
+      "required": true,
       "when": [
         "setup",
         "develop"
@@ -573,7 +573,7 @@
       "name": "protoc",
       "notes": "v25+ required for both --python_out and --pyi_out built-ins.",
       "reason": "Provides built-in Python and pyi codegen invoked by buf via protoc_builtin; replaces the BSR remote python/pyi plugins",
-      "required": false,
+      "required": true,
       "when": [
         "setup",
         "develop"

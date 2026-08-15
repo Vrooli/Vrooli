@@ -8,8 +8,10 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"connectrpc.com/connect"
@@ -21,9 +23,12 @@ import (
 )
 
 const (
-	ScenarioName   = "structure-health"
-	TargetID       = "repo"
-	DefaultTimeout = 10 * time.Second
+	ScenarioName = "structure-health"
+	TargetID     = "repo"
+	// Validation is one shared RPC per declared repository target. Keep the
+	// caller deadline large enough for a complete fleet traversal; per-request
+	// HTTP work is still bounded by this same context.
+	DefaultTimeout = 2 * time.Minute
 )
 
 // ErrUnavailable identifies a missing or unreachable structure-health
@@ -84,40 +89,135 @@ func (p Provider) Validate(ctx context.Context, root string) (contractapp.Valida
 		httpClient = &http.Client{Timeout: timeout}
 	}
 	client := scenariovalidationconnect.NewScenarioValidationServiceClient(httpClient, baseURL)
-	response, err := client.ValidateTarget(callCtx, connect.NewRequest(&scenariovalidationv1.ValidateTargetRequest{
-		Target: &commonv1.ValidationTarget{
-			Kind: commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_PROJECT,
-			Id:   TargetID,
-			Root: root,
-		},
-		Path: root,
-	}))
-	if err != nil {
-		return contractapp.ValidationOutput{}, fmt.Errorf("%w: validate %s:%s: %v", ErrUnavailable, ScenarioName, TargetID, err)
+	targets := enumerateTargets(root)
+	responses := make([]*scenariovalidationv1.ValidateTargetResponse, len(targets))
+	jobs := make(chan int)
+	workers := 8
+	if len(targets) < workers {
+		workers = len(targets)
 	}
-	if response == nil || response.Msg == nil {
-		return contractapp.ValidationOutput{}, fmt.Errorf("%w: %s returned an empty validation response", ErrUnavailable, ScenarioName)
+	var firstErr error
+	var errMu sync.Mutex
+	var wg sync.WaitGroup
+	for worker := 0; worker < workers; worker++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for index := range jobs {
+				target := targets[index]
+				response, targetErr := client.ValidateTarget(callCtx, connect.NewRequest(&scenariovalidationv1.ValidateTargetRequest{
+					Target: &commonv1.ValidationTarget{Kind: target.kind, Id: target.id, Root: target.root},
+					Path:   target.root,
+				}))
+				if targetErr != nil {
+					errMu.Lock()
+					if firstErr == nil {
+						firstErr = fmt.Errorf("%w: validate %s:%s: %v", ErrUnavailable, ScenarioName, target.id, targetErr)
+						cancel()
+					}
+					errMu.Unlock()
+					continue
+				}
+				if response == nil || response.Msg == nil {
+					errMu.Lock()
+					if firstErr == nil {
+						firstErr = fmt.Errorf("%w: %s returned an empty validation response for %s:%s", ErrUnavailable, ScenarioName, target.kind, target.id)
+						cancel()
+					}
+					errMu.Unlock()
+					continue
+				}
+				responses[index] = response.Msg
+			}
+		}()
 	}
-	return outputFromResponse(root, response.Msg), nil
+	for index := range targets {
+		jobs <- index
+	}
+	close(jobs)
+	wg.Wait()
+	if firstErr != nil {
+		return contractapp.ValidationOutput{}, firstErr
+	}
+	return outputFromResponses(root, responses), nil
+}
+
+type validationTarget struct {
+	kind commonv1.ValidationTargetKind
+	id   string
+	root string
+}
+
+func enumerateTargets(root string) []validationTarget {
+	var out []validationTarget
+	addDirs := func(kind commonv1.ValidationTargetKind, base string) {
+		entries, _ := os.ReadDir(filepath.Join(root, base))
+		for _, entry := range entries {
+			if entry.IsDir() {
+				out = append(out, validationTarget{kind: kind, id: entry.Name(), root: filepath.Join(root, base, entry.Name())})
+			}
+		}
+	}
+	addDirs(commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_SCENARIO, "scenarios")
+	addDirs(commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_RESOURCE, "resources")
+	addDirs(commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_TOOL, filepath.Join("internal", "tools"))
+	addDirs(commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_SAFEGUARD, filepath.Join("internal", "safeguards"))
+	addDirs(commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_TEAM, "docs")
+	addDirs(commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_PACKAGE, "packages")
+	for _, base := range []string{"cmd", "internal"} {
+		out = append(out, validationTarget{kind: commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_CONTROL_PLANE, id: base, root: filepath.Join(root, base)})
+	}
+	out = append(out,
+		validationTarget{kind: commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_DOCS, id: "docs", root: filepath.Join(root, "docs")},
+		validationTarget{kind: commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_PROJECT, id: TargetID, root: root},
+	)
+	return out
 }
 
 func outputFromResponse(root string, response *scenariovalidationv1.ValidateTargetResponse) contractapp.ValidationOutput {
+	return outputFromResponses(root, []*scenariovalidationv1.ValidateTargetResponse{response})
+}
+
+func outputFromResponses(root string, responses []*scenariovalidationv1.ValidateTargetResponse) contractapp.ValidationOutput {
 	checks := make([]contractapp.CheckResult, 0, len(projectChecks))
 	failures := map[string][]string{}
-	if assessment := response.GetAssessment(); assessment != nil {
-		for _, finding := range assessment.GetFindings() {
-			if finding == nil {
-				continue
+	var structuralFindings []contractapp.StructuralFinding
+	success := true
+	for _, response := range responses {
+		if response == nil {
+			continue
+		}
+		if response.GetStatus() != scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED {
+			success = false
+		}
+		if assessment := response.GetAssessment(); assessment != nil {
+			for _, finding := range assessment.GetFindings() {
+				if finding == nil {
+					continue
+				}
+				if finding.GetSeverity() == "error" || finding.GetSeverity() == "critical" {
+					success = false
+				}
+				target := response.GetTarget()
+				kind, id := "", ""
+				if target != nil {
+					kind = strings.TrimPrefix(strings.ToLower(target.GetKind().String()), "validation_target_kind_")
+					id = target.GetId()
+				}
+				structuralFindings = append(structuralFindings, contractapp.StructuralFinding{
+					Code: finding.GetCode(), Severity: finding.GetSeverity(), TargetKind: kind,
+					TargetID: id, Location: finding.GetLocation(), Message: finding.GetMessage(), Remediation: finding.GetRemediation(),
+				})
+				name := checkName(finding.GetCode())
+				if name == "" {
+					name = finding.GetCode()
+				}
+				message := strings.TrimSpace(finding.GetMessage())
+				if message == "" {
+					message = "structure-health reported a finding"
+				}
+				failures[name] = append(failures[name], message)
 			}
-			name := checkName(finding.GetCode())
-			if name == "" {
-				name = finding.GetCode()
-			}
-			message := strings.TrimSpace(finding.GetMessage())
-			if message == "" {
-				message = "structure-health reported a finding"
-			}
-			failures[name] = append(failures[name], message)
 		}
 	}
 	for _, check := range projectChecks {
@@ -142,7 +242,6 @@ func outputFromResponse(root string, response *scenariovalidationv1.ValidateTarg
 		schemaPassed = false
 		schemaMessage = strings.Join(messages, "; ")
 	}
-	success := response.GetStatus() == scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED
 	return contractapp.ValidationOutput{
 		Success: success,
 		Root:    root,
@@ -153,6 +252,7 @@ func outputFromResponse(root string, response *scenariovalidationv1.ValidateTarg
 			Success:      success,
 			Checks:       checks,
 		},
+		Findings: structuralFindings,
 	}
 }
 
@@ -170,7 +270,6 @@ var projectChecks = []projectCheck{
 	{name: "excluded_legacy_rules_and_paths", code: "PROJECT_EXCLUDED_LEGACY"},
 	{name: "profile_roots_within_canonical_layout", code: "PROJECT_PROFILE_ROOTS"},
 	{name: "bundle_profile_policy", code: "PROJECT_BUNDLE_PROFILE"},
-	{name: "docs_alignment", code: "PROJECT_DOCS_ALIGNMENT"},
 	{name: "resource_schema_artifacts", code: "PROJECT_RESOURCE_ARTIFACTS"},
 }
 

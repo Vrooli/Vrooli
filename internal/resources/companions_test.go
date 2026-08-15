@@ -11,11 +11,11 @@ import (
 	"testing"
 	"time"
 
+	testkitgo "github.com/vrooli/repo-contract-go/repocontracttest"
 	"github.com/vrooli/vrooli/internal/process"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
-	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
-	testresource "github.com/vrooli/vrooli/packages/testkit-go/resourcefixture"
-	testscenario "github.com/vrooli/vrooli/packages/testkit-go/scenariofixture"
+	testresource "github.com/vrooli/vrooli/internal/resources/resourcestest"
+	testscenario "github.com/vrooli/vrooli/internal/scenario/scenariotest"
 )
 
 // TestStartCompanionsDormant proves the supervisor is a no-op (byte-identical)

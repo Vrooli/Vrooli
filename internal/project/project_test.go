@@ -8,16 +8,16 @@ import (
 	"testing"
 	"time"
 
+	testkitgo "github.com/vrooli/repo-contract-go/repocontracttest"
 	"github.com/vrooli/vrooli/internal/hostreqcheck"
 	"github.com/vrooli/vrooli/internal/lifecycle"
 	"github.com/vrooli/vrooli/internal/maintenance"
 	"github.com/vrooli/vrooli/internal/process"
+	testprocess "github.com/vrooli/vrooli/internal/process/processtest"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
+	testresource "github.com/vrooli/vrooli/internal/resources/resourcestest"
 	"github.com/vrooli/vrooli/internal/scenario"
-	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
-	testprocess "github.com/vrooli/vrooli/packages/testkit-go/processfixture"
-	testresource "github.com/vrooli/vrooli/packages/testkit-go/resourcefixture"
-	testscenario "github.com/vrooli/vrooli/packages/testkit-go/scenariofixture"
+	testscenario "github.com/vrooli/vrooli/internal/scenario/scenariotest"
 )
 
 // AI_CHECK: GO_MIGRATION_TEST_QUALITY=3 | LAST: 2026-04-13
@@ -40,11 +40,10 @@ func TestStatusAggregatesResourcesAndScenarios(t *testing.T) {
 		}),
 	))
 	testresource.WriteResourceManifest(t, root, "redis", manifestpkg.ResourceManifest{
-		Name:            "redis",
-		Driver:          "external-cli",
-		Binary:          "resource-redis",
-		PortabilityTier: "full",
-		Platforms:       manifestpkg.ResourcePlatforms{Linux: "supported"},
+		Name:      "redis",
+		Driver:    "external-cli",
+		Binary:    "resource-redis",
+		Platforms: manifestpkg.ResourcePlatforms{Linux: "supported"},
 	})
 	testresource.WriteExternalCLIResourceFixture(t, root, "redis", "#!/usr/bin/env bash\nexit 0\n")
 	testprocess.WriteScenarioProcessRecord(t, home, "alpha", "start-api", process.Record{
@@ -324,11 +323,10 @@ func TestStatusSupportsResourceAndScenarioFilters(t *testing.T) {
 		}),
 	))
 	testresource.WriteResourceManifest(t, root, "redis", manifestpkg.ResourceManifest{
-		Name:            "redis",
-		Driver:          "external-cli",
-		Binary:          "resource-redis",
-		PortabilityTier: "full",
-		Platforms:       manifestpkg.ResourcePlatforms{Linux: "supported"},
+		Name:      "redis",
+		Driver:    "external-cli",
+		Binary:    "resource-redis",
+		Platforms: manifestpkg.ResourcePlatforms{Linux: "supported"},
 	})
 	testresource.WriteExternalCLIResourceFixture(t, root, "redis", "#!/usr/bin/env bash\nexit 0\n")
 	testprocess.WriteScenarioProcessRecord(t, home, "alpha", "start-api", process.Record{

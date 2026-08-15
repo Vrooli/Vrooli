@@ -27,7 +27,9 @@ func credentialsStore(ctx *CommandContext, args []string, input io.Reader) error
 			"  vrooli credentials store unlock < passphrase\n"+
 			"  vrooli credentials store lock\n"+
 			"  vrooli credentials store change-passphrase < current-passphrase\\nnew-passphrase\n"+
-			"  vrooli credentials store rewrap < passphrase\n\n"+
+			"  vrooli credentials store rewrap < passphrase\n"+
+			"  vrooli credentials store reselect [--format json]\n"+
+			"  vrooli credentials store retire --backend encrypted-file\n\n"+
 			"The encrypted store is the credential backend on a host with no native one.\n"+
 			"A host whose TPM is reachable needs no passphrase and no unlock; supply one on\n"+
 			"standard input for any host that has no host-bound wrap.")
@@ -46,9 +48,79 @@ func credentialsStore(ctx *CommandContext, args []string, input io.Reader) error
 		return credentialsStoreChangePassphrase(ctx, args[1:], input)
 	case "rewrap":
 		return credentialsStoreRewrap(ctx, args[1:], input)
+	case "reselect":
+		return credentialsStoreReselect(ctx, args[1:])
+	case "retire":
+		return credentialsStoreRetire(ctx, args[1:])
 	default:
 		return fmt.Errorf("unknown credentials store command %q", args[0])
 	}
+}
+
+func credentialsStoreReselect(ctx *CommandContext, args []string) error {
+	format, err := storeFormatFlag("credentials store reselect", args)
+	if err != nil {
+		return err
+	}
+	entries, err := credentialMigrationEntries(ctx.Root)
+	if err != nil {
+		return err
+	}
+	receipt, err := securestore.ReselectBackend(entries)
+	if format == "json" {
+		encodeErr := json.NewEncoder(ctx.Stdout).Encode(receipt)
+		if err != nil {
+			return err
+		}
+		return encodeErr
+	}
+	if err != nil {
+		return err
+	}
+	if receipt.From == receipt.To {
+		_, err = fmt.Fprintf(ctx.Stdout, "Credential backend %s is already selected; no migration was needed.\n", receipt.To)
+		return err
+	}
+	_, err = fmt.Fprintf(ctx.Stdout, "Credential backend reselected from %s to %s; verified %d credential(s).\n",
+		receipt.From, receipt.To, len(receipt.Verified))
+	return err
+}
+
+func credentialsStoreRetire(ctx *CommandContext, args []string) error {
+	fs := flag.NewFlagSet("credentials store retire", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	backend := ""
+	fs.StringVar(&backend, "backend", "", "backend to retire")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if len(fs.Args()) != 0 || strings.TrimSpace(backend) == "" {
+		return fmt.Errorf("credentials store retire requires --backend encrypted-file")
+	}
+	if err := securestore.RetireEmptyBackend(backend); err != nil {
+		return err
+	}
+	_, err := fmt.Fprintf(ctx.Stdout, "Retired the empty %s credential backend.\n", backend)
+	return err
+}
+
+func credentialMigrationEntries(root string) ([]securestore.MigrationEntry, error) {
+	entries, err := collectCredentialEntries(root)
+	if err != nil {
+		return nil, err
+	}
+	seen := map[string]bool{}
+	migrated := make([]securestore.MigrationEntry, 0, len(entries))
+	for _, entry := range entries {
+		key := entry.LogicalID + ":" + entry.Field
+		name := "vrooli.credentials.v1/" + key
+		if entry.LogicalID == "" || entry.Field == "" || seen[name] {
+			continue
+		}
+		seen[name] = true
+		migrated = append(migrated, securestore.MigrationEntry{Service: "vrooli.credentials.v1", Key: key})
+	}
+	return migrated, nil
 }
 
 // storePassphrase reads a passphrase from standard input. Unlike a credential
@@ -127,6 +199,8 @@ func writeStoreStatus(ctx *CommandContext, status securestore.StoreStatus) {
 	switch {
 	case status.ActiveWrap == "host-bound":
 		fmt.Fprintf(ctx.Stdout, "  Unlock kept: not needed — the host-bound wrap opens this store with no human action\n")
+	case status.ActiveWrap == "native-wrap":
+		fmt.Fprintf(ctx.Stdout, "  Unlock kept: not needed — the native platform wrap opens this store with no human action\n")
 	case status.UnlockCache != "":
 		fmt.Fprintf(ctx.Stdout, "  Unlock kept: %s (session tmpfs; gone at logout)\n", status.UnlockCache)
 	default:
@@ -170,6 +244,10 @@ func keyStoreCaveat(keyStore string) string {
 		return " — values are readable with a text editor; file mode is the only protection"
 	case "encrypted-keyring":
 		return " — the keyring file is not readable as a plaintext GKeyFile"
+	case "keychain":
+		return " — protected by the macOS login Keychain"
+	case "dpapi":
+		return " — protected by the Windows user-bound DPAPI"
 	default:
 		return ""
 	}

@@ -1,6 +1,7 @@
 package scenariohandlers
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -424,8 +425,20 @@ func BuildHandlers[C any](deps HandlerDeps[C]) map[CommandID]rootcli.Handler[C] 
 			default:
 				return fmt.Errorf("scenario screenshot: unsupported operating system %q", runtime.GOOS)
 			}
-			if err := exec.Command(command, commandArgs...).Run(); err != nil {
-				return fmt.Errorf("scenario screenshot: capture failed: %w", err)
+			// Capture stderr. Both backends explain a refusal there and say
+			// nothing on stdout, so discarding it reduces every failure to a
+			// bare "exit status 1" — including the two that actually happen:
+			// macOS denying screencapture without a Screen Recording grant or
+			// outside a GUI login session, and gnome-screenshot with no
+			// reachable display.
+			var stderr bytes.Buffer
+			capture := exec.Command(command, commandArgs...)
+			capture.Stderr = &stderr
+			if err := capture.Run(); err != nil {
+				if detail := strings.TrimSpace(stderr.String()); detail != "" {
+					return fmt.Errorf("scenario screenshot: %s failed: %w: %s", command, err, detail)
+				}
+				return fmt.Errorf("scenario screenshot: %s failed with no diagnostic output: %w", command, err)
 			}
 			if _, err := os.Stat(req.Output); err != nil {
 				return fmt.Errorf("scenario screenshot: capture did not create %q: %w", req.Output, err)

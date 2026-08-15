@@ -9,9 +9,10 @@ import (
 	"path/filepath"
 	"strings"
 	"{{SCENARIO_ID}}/internal/capabilities"
-	"{{SCENARIO_ID}}/internal/clock"
 	"{{SCENARIO_ID}}/internal/modules"
 	"{{SCENARIO_ID}}/internal/server"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
@@ -150,10 +151,10 @@ func main() {
 	fileRoots := filerouting.New(primaryFileRoots)
 
 	srv := server.New(
-		server.Deps{Clock: clock.System{}, Logger: log.Default()},
+		server.Deps{Clock: schedule.System(), Logger: log.Default()},
 		healthH.Module(db, "{{SCENARIO_ID}}-api", "1.0.0"),
 		capsH.Module(capabilities.NewRegistry()),
-		notesH.Module(db, clock.System{}, log.Default()), // EXAMPLE-DOMAIN:notes
+		notesH.Module(db, schedule.System(), log.Default()), // EXAMPLE-DOMAIN:notes
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development
@@ -168,7 +169,7 @@ func main() {
 	// auto-execution path POSTs <prefix>/execute. The notes domain owns the
 	// one reference measure (notes.count); a real multi-domain scenario
 	// registers each domain's measures on one shared registry here.
-	notesMeasures, err := notesH.MeasuresHandler(db, clock.System{})
+	notesMeasures, err := notesH.MeasuresHandler(db, schedule.System())
 	if err != nil {
 		log.Fatalf("measures registry: %v", err)
 	}

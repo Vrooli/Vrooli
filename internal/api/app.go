@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/connectx"
 
 	"github.com/vrooli/vrooli/internal/bootstrap"
 	"github.com/vrooli/vrooli/internal/control"
@@ -20,6 +21,7 @@ import (
 	"github.com/vrooli/vrooli/internal/resources"
 	"github.com/vrooli/vrooli/internal/shell"
 	"github.com/vrooli/vrooli/internal/vroolierr"
+	cliv1connect "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1/cliv1connect"
 )
 
 type RunningScenario struct {
@@ -225,6 +227,8 @@ func (a *App) ensureScenarioExists(name string) error {
 
 func (a *App) Router() http.Handler {
 	r := mux.NewRouter()
+	controlPath, controlHandler := cliv1connect.NewScenarioControlPlaneServiceHandler(&scenarioControlPlaneHandler{app: a})
+	connectx.RegisterServices(r, connectx.ServiceMount{Path: controlPath, Handler: controlHandler})
 	r.HandleFunc("/health", a.HealthCheck).Methods("GET")
 	r.HandleFunc("/metrics/processes", a.ProcessMetricsHandler).Methods("GET")
 	r.HandleFunc("/apps", a.ListApps).Methods("GET")

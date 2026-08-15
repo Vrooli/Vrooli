@@ -9,7 +9,8 @@ import (
 	measures "github.com/vrooli/measures-go"
 
 	mocks "{{SCENARIO_ID}}/internal/notes/mocks"
-	clockmocks "{{SCENARIO_ID}}/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 )
 
 // TestNotesCountDeclarationIsFullTier pins the contract measures-health grades:
@@ -36,7 +37,7 @@ func TestNotesCountDeclarationIsFullTier(t *testing.T) {
 // deterministically, and that mandatory provenance is stamped.
 func TestRegisterNotesCountServesAnswer(t *testing.T) {
 	now := time.Date(2026, 5, 6, 12, 0, 0, 0, time.UTC)
-	clk := clockmocks.NewFakeClock(now)
+	clk := scheduletest.New(now)
 	svc := &mocks.FakeService{CountOut: 9}
 
 	reg := measures.NewRegistry(measures.WithClock(clk.Now))
@@ -62,7 +63,7 @@ func TestRegisterNotesCountServesAnswer(t *testing.T) {
 // must never abstain on a defaulted canonical param.
 func TestRegisterNotesCountDefaultsWindow(t *testing.T) {
 	now := time.Date(2026, 5, 6, 12, 0, 0, 0, time.UTC)
-	clk := clockmocks.NewFakeClock(now)
+	clk := scheduletest.New(now)
 	svc := &mocks.FakeService{CountOut: 2}
 
 	reg := measures.NewRegistry(measures.WithClock(clk.Now))

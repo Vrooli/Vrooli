@@ -18,10 +18,23 @@ type Report struct {
 }
 
 type ValidationOutput struct {
-	Success bool            `json:"success"`
-	Root    string          `json:"root"`
-	Schema  ValidationCheck `json:"schema"`
-	Report  Report          `json:"report"`
+	Success  bool                `json:"success"`
+	Root     string              `json:"root"`
+	Schema   ValidationCheck     `json:"schema"`
+	Report   Report              `json:"report"`
+	Findings []StructuralFinding `json:"findings,omitempty"`
+}
+
+// StructuralFinding preserves machine-actionable provider evidence while the
+// control plane transports the Structure Health verdict.
+type StructuralFinding struct {
+	Code        string `json:"code"`
+	Severity    string `json:"severity"`
+	TargetKind  string `json:"target_kind"`
+	TargetID    string `json:"target_id"`
+	Location    string `json:"location"`
+	Message     string `json:"message"`
+	Remediation string `json:"remediation"`
 }
 
 type ValidationCheck struct {

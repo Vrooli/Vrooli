@@ -3,12 +3,13 @@ package middleware_test
 import (
 	"bytes"
 	"landing-page-react-vite-api/internal/middleware"
-	"landing-page-react-vite-api/internal/testutil/mocks"
 	"log"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
+
+	"github.com/vrooli/api-core/scheduletest"
 
 	"github.com/stretchr/testify/require"
 )
@@ -22,7 +23,7 @@ import (
 // and assert on a fuzzy match — flaky on loaded CI, undefined on
 // fast hardware.
 func TestLoggingMiddleware_LogsDuration(t *testing.T) {
-	clk := mocks.NewFakeClock(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
 	buf := &bytes.Buffer{}
 	logger := log.New(buf, "", 0)
 
@@ -47,7 +48,7 @@ func TestLoggingMiddleware_LogsDuration(t *testing.T) {
 // always pass a logger; this guard exists for the case where a
 // scenario forgets to wire it during early bring-up.
 func TestLoggingMiddleware_NilLoggerDefaults(t *testing.T) {
-	clk := mocks.NewFakeClock(time.Time{})
+	clk := scheduletest.New(time.Time{})
 	mw := middleware.NewLoggingMiddleware(clk, nil)
 	handler := mw(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)

@@ -9,8 +9,8 @@ import (
 
 	"github.com/vrooli/vrooli/internal/hostsession"
 	"github.com/vrooli/vrooli/internal/scenario"
+	testscenario "github.com/vrooli/vrooli/internal/scenario/scenariotest"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
-	testscenario "github.com/vrooli/vrooli/packages/testkit-go/scenariofixture"
 )
 
 // TestDetailSelectsAddressedVariant proves that resolving a "name@variant"

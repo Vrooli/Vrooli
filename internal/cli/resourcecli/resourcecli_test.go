@@ -14,11 +14,10 @@ func TestWriteStatusHumanIncludesCoreMetadata(t *testing.T) {
 	healthy := false
 	status := resources.Status{
 		Resource: resources.Resource{
-			Name:            "fixture",
-			Enabled:         true,
-			ControlMode:     "manifest-native",
-			Driver:          "external-cli",
-			PortabilityTier: "partial",
+			Name:        "fixture",
+			Enabled:     true,
+			ControlMode: "manifest-native",
+			Driver:      "external-cli",
 		},
 		Installed:  true,
 		Running:    false,

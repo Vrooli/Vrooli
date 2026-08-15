@@ -32,6 +32,7 @@ const (
 	// providerPassphrase is the floor: every host has an operator with a
 	// memory, even when it has no TPM and no systemd.
 	providerPassphrase = "passphrase"
+	providerNativeWrap = "native-wrap"
 
 	// keyStoreTPM2 means the wrap is protected by the host's TPM, so possession
 	// of the disk alone does not open it.
@@ -43,6 +44,8 @@ const (
 	// keyStorePassphrase means the wrap opens only with what the operator
 	// remembers.
 	keyStorePassphrase = "operator-passphrase"
+	keyStoreKeychain   = "keychain"
+	keyStoreDPAPI      = "dpapi"
 
 	pbkdf2Iterations = credentialpolicy.RecoveryPBKDF2Iterations
 	pbkdf2SaltLen    = 32
@@ -147,6 +150,68 @@ type passphraseParams struct {
 	KDF        string `json:"kdf"`
 	Iterations int    `json:"iterations"`
 	Salt       string `json:"salt"`
+}
+
+// nativeWrapProvider keeps the encrypted-file data key inside the platform's
+// native per-user secret facility. It is deliberately separate from the
+// native credential value store: this provider lets a host retain one
+// encrypted-file authority while still opening it unattended after reboot.
+type nativeWrapProvider struct{}
+
+func newNativeWrapProvider() nativeWrapProvider { return nativeWrapProvider{} }
+func (nativeWrapProvider) Name() string         { return providerNativeWrap }
+
+func (nativeWrapProvider) Available() (string, error) {
+	keyStore, err := nativeWrapAvailable()
+	if err != nil {
+		return "", err
+	}
+	const canary = "vrooli-native-wrap-probe"
+	sealed, err := nativeWrapProtect([]byte(canary))
+	if err != nil {
+		return "", err
+	}
+	opened, err := nativeWrapUnprotect(sealed)
+	if err != nil {
+		return "", err
+	}
+	if !bytes.Equal(opened, []byte(canary)) {
+		return "", fmt.Errorf("%w: native wrap round-trip did not return its canary", errKeyProviderUnavailable)
+	}
+	return keyStore, nil
+}
+
+func (nativeWrapProvider) Wrap(dataKey []byte) (wrappedKey, error) {
+	keyStore, err := nativeWrapAvailable()
+	if err != nil {
+		return wrappedKey{}, err
+	}
+	ciphertext, err := nativeWrapProtect(dataKey)
+	if err != nil {
+		return wrappedKey{}, err
+	}
+	return wrappedKey{Provider: providerNativeWrap, KeyStore: keyStore, Ciphertext: base64.StdEncoding.EncodeToString(ciphertext)}, nil
+}
+
+func (nativeWrapProvider) Unwrap(wrap wrappedKey) ([]byte, error) {
+	if err := checkWrapProvider(wrap, providerNativeWrap); err != nil {
+		return nil, err
+	}
+	if _, err := nativeWrapAvailable(); err != nil {
+		return nil, err
+	}
+	ciphertext, err := base64.StdEncoding.DecodeString(wrap.Ciphertext)
+	if err != nil {
+		return nil, fmt.Errorf("%w: native wrap is not valid base64", errSealedCorrupt)
+	}
+	dataKey, err := nativeWrapUnprotect(ciphertext)
+	if err != nil {
+		return nil, err
+	}
+	if len(dataKey) != dataKeyLen {
+		return nil, fmt.Errorf("%w: native wrap returned %d bytes, want %d", errSealedCorrupt, len(dataKey), dataKeyLen)
+	}
+	return dataKey, nil
 }
 
 // passphraseProvider derives the key-encryption key from what the operator

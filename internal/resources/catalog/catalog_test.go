@@ -4,9 +4,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
-	testresource "github.com/vrooli/vrooli/packages/testkit-go/resourcefixture"
-	testscenario "github.com/vrooli/vrooli/packages/testkit-go/scenariofixture"
+	testkitgo "github.com/vrooli/repo-contract-go/repocontracttest"
+	testresource "github.com/vrooli/vrooli/internal/resources/resourcestest"
+	testscenario "github.com/vrooli/vrooli/internal/scenario/scenariotest"
 )
 
 func TestDiscoverReportContinuesAfterInvalidResourceManifest(t *testing.T) {
@@ -49,5 +49,32 @@ func TestDiscoverOneDoesNotDependOnGlobalResourceDiscovery(t *testing.T) {
 	}
 	if item == nil || item.Name != "redis" {
 		t.Fatalf("item = %#v", item)
+	}
+}
+
+func TestOperatorStateOverridesProjectResourceEnabledDefault(t *testing.T) {
+	fixture := testkitgo.NewRepoFixture(t)
+	fixture.WriteRepoContract(t)
+	testscenario.WriteProjectResourceConfig(t, fixture.Root, "redis", true)
+	testresource.WriteExternalCLIResourceFixture(t, fixture.Root, "redis", "#!/usr/bin/env bash\nexit 0\n")
+	testkitgo.WriteFile(t, filepath.Join(fixture.Root, ".vrooli", "operator-state.json"), `{
+  "$schema": ".vrooli/schemas/operator-state.schema.json",
+  "version": "1.0.0",
+  "updated_at": "2026-08-12T00:00:00Z",
+  "resources": {"redis": {"enabled": false}}
+}`)
+
+	item, err := New(fixture.Root).DiscoverOne("redis", DiscoverOptions{})
+	if err != nil {
+		t.Fatalf("DiscoverOne(redis): %v", err)
+	}
+	if item == nil {
+		t.Fatal("DiscoverOne(redis) returned nil")
+	}
+	if item.Enabled {
+		t.Fatalf("resource remained enabled despite operator-state override: %#v", item)
+	}
+	if item.Config.Enabled {
+		t.Fatalf("config remained enabled despite operator-state override: %#v", item.Config)
 	}
 }

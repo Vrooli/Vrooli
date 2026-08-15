@@ -982,6 +982,7 @@ func (app *App) buildTopLevelHandlerMap() map[topcli.CommandID]rootcli.Handler[*
 			Stdout:       commandStdout,
 			OutputFormat: projectOutputFormat,
 		}),
+		topcli.CommandCapability:       func(ctx *CommandContext, args []string) error { return app.runCapabilityCommand(ctx, args) },
 		topcli.CommandCredentials:      func(ctx *CommandContext, args []string) error { return ctx.app.runCredentialsCommand(ctx, args) },
 		topcli.CommandReleaseAuthority: func(ctx *CommandContext, args []string) error { return ctx.app.runReleaseAuthorityCommand(ctx, args) },
 		topcli.CommandLifecycle:        projectcli.LifecycleHandler(commandStdout, func(ctx *CommandContext, args []string) error { return ctx.app.runLifecycleProtectCommand(ctx, args) }),

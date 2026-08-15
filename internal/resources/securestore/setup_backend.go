@@ -1,6 +1,9 @@
 package securestore
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 // BackendSetupStatus is the metadata-safe result of setup's authority choice.
 // It never contains credential values or passphrases.
@@ -36,8 +39,32 @@ func EnsureSetupBackend() (BackendSetupStatus, error) {
 	} else if found {
 		return inspectSelectedBackend(backend)
 	}
+	return ensureSetupBackend(diagnoseNativeForSetupFn())
+}
 
-	native := diagnoseNativeForSetupFn()
+// EnsureSetupBackendWithNativeDiagnosis is used by elevated setup after it
+// has run the native probe through the invoking operator's session seam. The
+// diagnosis is metadata-only; no credential value crosses this boundary.
+func EnsureSetupBackendWithNativeDiagnosis(native Diagnosis) (BackendSetupStatus, error) {
+	return ensureSetupBackend(native)
+}
+
+func ensureSetupBackend(native Diagnosis) (BackendSetupStatus, error) {
+	if backend, found, err := selectedBackendForSetupFn(); err != nil {
+		return BackendSetupStatus{}, err
+	} else if found {
+		// Elevated setup already diagnosed the native adapter through the
+		// invoking operator's session. Reusing that diagnosis is essential on a
+		// rerun: probing a persisted native authority from the root process can
+		// address root's keyring/session and report a false outage. The selected
+		// authority remains sticky; this only keeps its readiness observation in
+		// the correct identity.
+		if backend == BackendNative && strings.TrimSpace(native.Adapter) != "" {
+			return inspectSelectedBackendWithDiagnosis(backend, native)
+		}
+		return inspectSelectedBackend(backend)
+	}
+
 	if native.Writable {
 		if err := selectBackendForSetupFn(BackendNative, "native backend passed setup write/read/delete readiness"); err != nil {
 			return BackendSetupStatus{}, err
@@ -70,9 +97,15 @@ func EnsureSetupBackend() (BackendSetupStatus, error) {
 }
 
 func inspectSelectedBackend(backend string) (BackendSetupStatus, error) {
+	return inspectSelectedBackendWithDiagnosis(backend, diagnoseSelectedForSetupFn())
+}
+
+func inspectSelectedBackendWithDiagnosis(backend string, diagnosis Diagnosis) (BackendSetupStatus, error) {
 	status := BackendSetupStatus{SelectedBackend: backend, SelectionPersisted: true}
-	diagnosis := diagnoseSelectedForSetupFn()
 	status.Ready = diagnosis.Available && diagnosis.Writable
+	status.NativeAdapter = diagnosis.Adapter
+	status.NativeCondition = diagnosis.Condition
+	status.NativeWritable = diagnosis.Writable
 	status.Explanation = diagnosis.Explanation
 	status.OperatorAction = diagnosis.WriteFix
 	if backend == BackendEncryptedFile && diagnosis.Condition == "absent" {

@@ -4,17 +4,17 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"github.com/vrooli/api-core/apihttptest"
+	db "github.com/vrooli/api-core/databasetest"
 	"io"
 	"log"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"testing"
-
 	"{{SCENARIO_ID}}/handlers/notes"
-	"{{SCENARIO_ID}}/internal/clock"
-	"{{SCENARIO_ID}}/internal/testutil/assertx"
-	"{{SCENARIO_ID}}/internal/testutil/db"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"
@@ -37,7 +37,7 @@ func TestAttachmentsHandlerUploadSuccess(t *testing.T) {
 	router.ServeHTTP(rw, req)
 
 	require.Equal(t, http.StatusCreated, rw.Code, "body=%s", rw.Body.String())
-	got := assertx.MustUnmarshalProto[notesv1.UploadAttachmentResponse](t, rw.Body.Bytes())
+	got := apihttptest.MustUnmarshalProto[notesv1.UploadAttachmentResponse](t, rw.Body.Bytes())
 	require.NotNil(t, got.Attachment)
 	require.Equal(t, noteID, got.Attachment.NoteId)
 	require.Equal(t, "application/octet-stream", got.Attachment.MimeType)
@@ -117,8 +117,8 @@ func newAttachmentsRouter(t *testing.T) (*mux.Router, *trackingBlobStore, string
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(internalnotes.Schema),
 	))
-	repo := internalnotes.NewSQLiteRepository(d, clock.System{})
-	attachmentRepo := internalnotes.NewSQLiteAttachmentsRepository(d, clock.System{})
+	repo := internalnotes.NewSQLiteRepository(d, schedule.System())
+	attachmentRepo := internalnotes.NewSQLiteAttachmentsRepository(d, schedule.System())
 	created, err := repo.Create(context.Background(), internalnotes.Note{Title: "upload target"})
 	require.NoError(t, err)
 

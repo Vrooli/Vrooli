@@ -7,17 +7,17 @@ import (
 	"strings"
 	"testing"
 
+	testkitgo "github.com/vrooli/repo-contract-go/repocontracttest"
 	"github.com/vrooli/vrooli/internal/bootstrap"
 	"github.com/vrooli/vrooli/internal/lifecycle"
 	packagegov "github.com/vrooli/vrooli/internal/packagegov"
+	testpackage "github.com/vrooli/vrooli/internal/packagegov/packagegovtest"
+	testresource "github.com/vrooli/vrooli/internal/resources/resourcestest"
 	"github.com/vrooli/vrooli/internal/scenario"
-	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
-	testpackage "github.com/vrooli/vrooli/packages/testkit-go/packagefixture"
-	testresource "github.com/vrooli/vrooli/packages/testkit-go/resourcefixture"
-	testscenario "github.com/vrooli/vrooli/packages/testkit-go/scenariofixture"
+	testscenario "github.com/vrooli/vrooli/internal/scenario/scenariotest"
 )
 
-func TestListInfoDependentsValidateAndAudit(t *testing.T) {
+func TestListInfoAndDependents(t *testing.T) {
 	fixture := testkitgo.NewRepoFixture(t)
 	fixture.WriteRepoContract(t)
 	testpackage.WritePackageManifest(t, fixture.Root, "alpha", testpackage.PackageManifest(
@@ -63,22 +63,6 @@ func TestListInfoDependentsValidateAndAudit(t *testing.T) {
 	}
 	if len(report.Dependents) != 1 || report.Dependents[0].ConsumerName != "demo" {
 		t.Fatalf("dependents = %#v", report.Dependents)
-	}
-
-	validateReport, err := svc.Validate("")
-	if err != nil {
-		t.Fatalf("Validate: %v", err)
-	}
-	if len(validateReport.Issues) != 0 {
-		t.Fatalf("validate report = %#v", validateReport)
-	}
-
-	auditReport, err := svc.Audit("")
-	if err != nil {
-		t.Fatalf("Audit: %v", err)
-	}
-	if len(auditReport.Issues) != 0 {
-		t.Fatalf("audit report = %#v", auditReport)
 	}
 }
 
@@ -437,7 +421,7 @@ func TestRefreshRestartsRunningScenario(t *testing.T) {
 		}
 	})
 
-	resp, err := svc.Refresh(RefreshRequest{PackageName: "alpha", Target: "demo"})
+	resp, err := svc.Refresh(RefreshRequest{PackageName: "alpha", Target: "demo", Interactive: true})
 	if err != nil {
 		t.Fatalf("Refresh: %v", err)
 	}

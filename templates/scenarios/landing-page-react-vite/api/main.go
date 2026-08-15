@@ -8,11 +8,12 @@ package main
 
 import (
 	"context"
-	"landing-page-react-vite-api/internal/clock"
 	"landing-page-react-vite-api/internal/modules"
 	"landing-page-react-vite-api/internal/server"
 	"landing-page-react-vite-api/internal/variantspace"
 	"log"
+
+	"github.com/vrooli/api-core/schedule"
 
 	// Register the PostgreSQL driver so database.Connect's sql.Open("postgres", …)
 	// and PingContext succeed in the production binary. Without this blank import
@@ -131,7 +132,7 @@ func main() {
 	landingConfigService := landingconfigsvc.NewService(variantService, contentService, planService, downloadService, brandingService)
 
 	srv := server.New(
-		server.Deps{Clock: clock.System{}, Logger: log.Default()},
+		server.Deps{Clock: schedule.System(), Logger: log.Default()},
 		healthH.Module(db, serviceName, version),
 		brandingH.Module(brandingService, log.Default()),
 		variantH.Module(variantService, log.Default()),

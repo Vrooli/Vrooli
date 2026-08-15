@@ -3,10 +3,12 @@ package projectstate
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 	"unicode"
 
 	repocontract "github.com/vrooli/repo-contract-go"
@@ -83,9 +85,20 @@ func (l Locator) SetupStateDir() string {
 	return l.setupStateDir
 }
 
-func (l Locator) SetupCompletePath() string {
-	return filepath.Join(l.SetupStateDir(), ".setup-complete")
+// BootstrapCompletePath is written by the elevated, non-interactive setup
+// phase. It is intentionally distinct from configuration completion, which is
+// owned by onboarding.
+func (l Locator) BootstrapCompletePath() string {
+	return filepath.Join(l.SetupStateDir(), ".bootstrap-complete")
 }
+
+func (l Locator) ConfigurationCompletePath() string {
+	return filepath.Join(l.SetupStateDir(), ".configuration-complete")
+}
+
+// SetupCompletePath remains as a source-compatible alias for callers that
+// only need to know whether bootstrap ran. New code should name the phase.
+func (l Locator) SetupCompletePath() string { return l.BootstrapCompletePath() }
 
 func (l Locator) ResourcesPopulatedPath() string {
 	return filepath.Join(l.SetupStateDir(), ".resources-populated")
@@ -96,7 +109,15 @@ func (l Locator) ResourcePopulatedPath(resource string) string {
 }
 
 func (l Locator) HasSetupComplete() bool {
-	return fileExists(l.SetupCompletePath())
+	return l.HasBootstrapComplete()
+}
+
+func (l Locator) HasBootstrapComplete() bool {
+	return fileExists(l.BootstrapCompletePath())
+}
+
+func (l Locator) HasConfigurationComplete() bool {
+	return fileExists(l.ConfigurationCompletePath())
 }
 
 func (l Locator) HasResourcesPopulated() bool {
@@ -147,4 +168,31 @@ func safeMarkerName(value string) string {
 func fileExists(path string) bool {
 	_, err := os.Stat(path)
 	return err == nil
+}
+
+// MarkConfigurationComplete records the second half of first run after
+// onboarding has applied and validated the operator's choices. It never
+// overwrites the bootstrap marker.
+func MarkConfigurationComplete(home, root, selectionDigest string) error {
+	locator, err := NewLocator(home, root)
+	if err != nil {
+		return err
+	}
+	if !locator.HasBootstrapComplete() {
+		return fmt.Errorf("cannot mark configuration complete before bootstrap completion")
+	}
+	if _, err := config.EnsureOwnedDir(locator.SetupStateDir()); err != nil {
+		return err
+	}
+	payload := map[string]any{
+		"completed_at":     time.Now().UTC().Format(time.RFC3339),
+		"phase":            "configuration_complete",
+		"project_key":      locator.ProjectKey(),
+		"selection_digest": strings.TrimSpace(selectionDigest),
+	}
+	data, err := json.MarshalIndent(payload, "", "  ")
+	if err != nil {
+		return err
+	}
+	return config.WriteOwnedFile(locator.ConfigurationCompletePath(), append(data, '\n'), 0o644)
 }

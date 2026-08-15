@@ -134,7 +134,7 @@ func TestSQLiteStoreExpireStaleStartingLeasesLeavesRunningLeasesForSupervisorMig
 		t.Fatalf("CreateLease(running) error = %v", err)
 	}
 
-	expired, err := store.ExpireStaleStartingLeases(ctx, clk.Now().Add(time.Minute+time.Nanosecond))
+	expired, err := store.ExpireStaleStartingLeases(ctx, clk.Now().Add(time.Minute+time.Nanosecond), StartingLeaseGuard{})
 	if err != nil {
 		t.Fatalf("ExpireStaleStartingLeases() error = %v", err)
 	}
@@ -147,6 +147,140 @@ func TestSQLiteStoreExpireStaleStartingLeasesLeavesRunningLeasesForSupervisorMig
 	}
 	if afterRunning.Status != StatusRunning {
 		t.Fatalf("running status = %q, want %q", afterRunning.Status, StatusRunning)
+	}
+}
+
+// A cold setup phase legitimately outruns the heartbeat TTL. The sweep must
+// leave that lease alone, because the owner is alive and still building: reaping
+// it makes the owner's next lease write fail and rolls back a healthy start.
+func TestSQLiteStoreExpireStaleStartingLeasesSparesLiveOwner(t *testing.T) {
+	ctx := context.Background()
+	clk := newFixedClock(time.Date(2026, 5, 8, 12, 0, 0, 0, time.UTC))
+	store := newTestStore(t, clk)
+
+	livePID := 4242
+	starting, err := store.CreateLease(ctx, Instance{
+		InstanceID: "inst-slow-setup",
+		Scenario:   "web-console",
+		Phase:      "setup",
+		OwnerPID:   &livePID,
+		HostBootID: "boot-1",
+	}, 30*time.Second)
+	if err != nil {
+		t.Fatalf("CreateLease() error = %v", err)
+	}
+
+	guard := StartingLeaseGuard{
+		CurrentBootID: "boot-1",
+		PIDRunning:    func(pid int) bool { return pid == livePID },
+	}
+	// Far past the deadline — a 92s UI build against a 30s TTL.
+	expired, err := store.ExpireStaleStartingLeases(ctx, clk.Now().Add(92*time.Second), guard)
+	if err != nil {
+		t.Fatalf("ExpireStaleStartingLeases() error = %v", err)
+	}
+	if len(expired) != 0 {
+		t.Fatalf("expired = %#v, want live starter left untouched", expired)
+	}
+
+	after, err := store.GetInstance(ctx, starting.InstanceID)
+	if err != nil {
+		t.Fatalf("GetInstance() error = %v", err)
+	}
+	if after.Status != StatusStarting {
+		t.Fatalf("status = %q, want %q so the owner can still heartbeat", after.Status, StatusStarting)
+	}
+
+	// The owner must still be able to renew after the sweep ran.
+	if _, err := store.HeartbeatLease(ctx, after.InstanceID, after.Generation, 30*time.Second); err != nil {
+		t.Fatalf("HeartbeatLease() after sweep error = %v, want the live start to keep its lease", err)
+	}
+}
+
+func TestSQLiteStoreExpireStaleStartingLeasesReapsAbandonedOwners(t *testing.T) {
+	ctx := context.Background()
+	clk := newFixedClock(time.Date(2026, 5, 8, 12, 0, 0, 0, time.UTC))
+
+	deadPID := 999001
+	otherBootPID := 999002
+	cases := []struct {
+		name        string
+		instance    Instance
+		wantTrigger string
+	}{
+		{
+			name:        "owner pid dead",
+			instance:    Instance{InstanceID: "inst-dead", Scenario: "alpha", OwnerPID: &deadPID, HostBootID: "boot-1"},
+			wantTrigger: "owner_pid_dead",
+		},
+		{
+			name:        "previous host boot",
+			instance:    Instance{InstanceID: "inst-reboot", Scenario: "beta", OwnerPID: &otherBootPID, HostBootID: "boot-0"},
+			wantTrigger: "boot_id_mismatch",
+		},
+		{
+			name:        "owner pid missing",
+			instance:    Instance{InstanceID: "inst-nopid", Scenario: "gamma", HostBootID: "boot-1"},
+			wantTrigger: "owner_pid_missing",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			store := newTestStore(t, clk)
+			if _, err := store.CreateLease(ctx, tc.instance, 30*time.Second); err != nil {
+				t.Fatalf("CreateLease() error = %v", err)
+			}
+			guard := StartingLeaseGuard{
+				CurrentBootID: "boot-1",
+				PIDRunning:    func(int) bool { return false },
+			}
+			expired, err := store.ExpireStaleStartingLeases(ctx, clk.Now().Add(time.Minute), guard)
+			if err != nil {
+				t.Fatalf("ExpireStaleStartingLeases() error = %v", err)
+			}
+			if len(expired) != 1 {
+				t.Fatalf("expired = %#v, want the abandoned lease reaped", expired)
+			}
+			if expired[0].Status != StatusExpired {
+				t.Fatalf("status = %q, want %q", expired[0].Status, StatusExpired)
+			}
+			if want := staleStartingStopReason(tc.wantTrigger); expired[0].StopReason != want {
+				t.Fatalf("stop_reason = %q, want %q", expired[0].StopReason, want)
+			}
+		})
+	}
+}
+
+// Without a liveness probe the sweep cannot prove any owner dead, so it must not
+// condemn a lease on elapsed time alone.
+func TestStaleStartingTriggerZeroGuardProtectsLeasesWithOwners(t *testing.T) {
+	pid := 1234
+	now := time.Date(2026, 5, 8, 12, 0, 0, 0, time.UTC)
+	deadline := now.Add(-time.Minute)
+	instance := Instance{
+		Status:              StatusStarting,
+		OwnerPID:            &pid,
+		HostBootID:          "boot-1",
+		HeartbeatDeadlineAt: &deadline,
+	}
+	if trigger, ok := StaleStartingTrigger(instance, StartingLeaseGuard{}, now); ok {
+		t.Fatalf("StaleStartingTrigger() = %q, true; want protected under a zero guard", trigger)
+	}
+}
+
+func TestStaleStartingTriggerIgnoresLeasesBeforeDeadline(t *testing.T) {
+	pid := 1234
+	now := time.Date(2026, 5, 8, 12, 0, 0, 0, time.UTC)
+	deadline := now.Add(time.Minute)
+	instance := Instance{
+		Status:              StatusStarting,
+		OwnerPID:            &pid,
+		HeartbeatDeadlineAt: &deadline,
+	}
+	guard := StartingLeaseGuard{PIDRunning: func(int) bool { return false }}
+	if trigger, ok := StaleStartingTrigger(instance, guard, now); ok {
+		t.Fatalf("StaleStartingTrigger() = %q, true; want no reap before the deadline", trigger)
 	}
 }
 

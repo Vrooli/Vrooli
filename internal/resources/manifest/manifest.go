@@ -33,7 +33,6 @@ var AllowedDrivers = []string{
 }
 
 var (
-	AllowedPortabilityTiers      = []string{"full", "partial", "platform-specific"}
 	AllowedPlatformSupportStates = []string{"supported", "partial", "unsupported"}
 	AllowedGPUProbes             = []string{"nvidia"}
 	AllowedHealthCheckKinds      = []string{"readiness", "liveness"}
@@ -54,10 +53,10 @@ type ResourceManifest struct {
 	VersionArgs           []string                     `json:"version_args,omitempty"`
 	Endpoint              string                       `json:"endpoint,omitempty"`
 	Credentials           ResourceCredentials          `json:"credentials,omitempty"`
-	PortabilityTier       string                       `json:"portability_tier,omitempty"`
 	Privilege             hostreqspec.Privilege        `json:"privilege"`
 	Bundling              hostreqspec.Bundling         `json:"bundling"`
 	Category              string                       `json:"category,omitempty"`
+	Requirements          ResourceRequirements         `json:"requirements"`
 	Platforms             ResourcePlatforms            `json:"platforms,omitempty"`
 	Dependencies          []string                     `json:"dependencies,omitempty"`
 	Ports                 []ResourcePort               `json:"ports,omitempty"`
@@ -92,6 +91,23 @@ type ResourceManifest struct {
 	// for dynamic env values the static fields cannot express — e.g.
 	// hardware-aware model selection for whisper.
 	RuntimeEnvCommand *ResourceRuntimeEnvCommand `json:"runtime_env_command,omitempty"`
+}
+
+// ResourceRequirements is the authored resource footprint consumed by
+// deployability resolution. It intentionally contains no readiness verdict.
+type ResourceRequirements struct {
+	Class            string  `json:"class"`
+	Weight           float64 `json:"weight"`
+	RAMMB            float64 `json:"ram_mb,omitempty"`
+	DiskMB           float64 `json:"disk_mb,omitempty"`
+	CPUCores         float64 `json:"cpu_cores,omitempty"`
+	GPU              bool    `json:"gpu,omitempty"`
+	Network          string  `json:"network,omitempty"`
+	StorageMBPerUser float64 `json:"storage_mb_per_user,omitempty"`
+	StartupTimeMS    float64 `json:"startup_time_ms,omitempty"`
+	Bucket           string  `json:"bucket,omitempty"`
+	Source           string  `json:"source"`
+	Confidence       string  `json:"confidence"`
 }
 
 // ResourceDeployment is the resource-owned, target-specific delivery claim.
@@ -240,18 +256,31 @@ type ResourceEnvironmentExports struct {
 }
 
 type ResourceOrchestration struct {
-	StartupOrder            int      `json:"startup_order,omitempty"`
-	StartupTimeoutSeconds   int      `json:"startup_timeout_seconds,omitempty"`
-	StartupTimeEstimate     string   `json:"startup_time_estimate,omitempty"`
-	Dependencies            []string `json:"dependencies,omitempty"`
-	OptionalDependencies    []string `json:"optional_dependencies,omitempty"`
-	RecoveryAttempts        int      `json:"recovery_attempts,omitempty"`
-	RecoveryStrategy        string   `json:"recovery_strategy,omitempty"`
-	RecoveryWaitSeconds     int      `json:"recovery_wait_seconds,omitempty"`
-	RecoveryDelaySeconds    int      `json:"recovery_delay_seconds,omitempty"`
-	HealthCheckRetries      int      `json:"health_check_retries,omitempty"`
-	HealthCheckDelaySeconds int      `json:"health_check_delay_seconds,omitempty"`
-	Priority                string   `json:"priority,omitempty"`
+	StartupOrder            int                    `json:"startup_order,omitempty"`
+	StartupTimeoutSeconds   int                    `json:"startup_timeout_seconds,omitempty"`
+	StartupTimeEstimate     string                 `json:"startup_time_estimate,omitempty"`
+	StartupBudget           *ResourceStartupBudget `json:"startup_budget,omitempty"`
+	Dependencies            []string               `json:"dependencies,omitempty"`
+	OptionalDependencies    []string               `json:"optional_dependencies,omitempty"`
+	RecoveryAttempts        int                    `json:"recovery_attempts,omitempty"`
+	RecoveryStrategy        string                 `json:"recovery_strategy,omitempty"`
+	RecoveryWaitSeconds     int                    `json:"recovery_wait_seconds,omitempty"`
+	RecoveryDelaySeconds    int                    `json:"recovery_delay_seconds,omitempty"`
+	HealthCheckRetries      int                    `json:"health_check_retries,omitempty"`
+	HealthCheckDelaySeconds int                    `json:"health_check_delay_seconds,omitempty"`
+	Priority                string                 `json:"priority,omitempty"`
+}
+
+// ResourceStartupBudget describes an optional driver-owned readiness budget
+// that grows with a measured unit count. The declared lifecycle timeout remains
+// the floor; a driver may raise it when it can observe the unit count without
+// guessing. Keeping this contract in the manifest lets resource authors state
+// why a timeout grows while leaving the actual observation to the driver.
+type ResourceStartupBudget struct {
+	Kind           string `json:"kind,omitempty"`
+	BaseSeconds    int    `json:"base_seconds,omitempty"`
+	PerUnitSeconds int    `json:"per_unit_seconds,omitempty"`
+	MaxSeconds     int    `json:"max_seconds,omitempty"`
 }
 
 type ResourceDerivedTemplate struct {
@@ -317,12 +346,6 @@ func Validate(manifest ResourceManifest) error {
 	}
 	if !slices.Contains(AllowedDrivers, strings.TrimSpace(manifest.Driver)) {
 		return fmt.Errorf("driver %q is invalid", manifest.Driver)
-	}
-	if strings.TrimSpace(manifest.PortabilityTier) == "" {
-		return fmt.Errorf("portability_tier is required")
-	}
-	if !slices.Contains(AllowedPortabilityTiers, strings.TrimSpace(manifest.PortabilityTier)) {
-		return fmt.Errorf("portability_tier %q is invalid", manifest.PortabilityTier)
 	}
 	if err := validatePlatforms(manifest.Platforms); err != nil {
 		return err

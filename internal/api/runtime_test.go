@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"testing"
 
+	testkitgo "github.com/vrooli/repo-contract-go/repocontracttest"
 	"github.com/vrooli/vrooli/internal/control"
-	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
 )
 
 func TestResolveRepoRootCanonicalizesContractDescendantOverride(t *testing.T) {

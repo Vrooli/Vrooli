@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/vrooli/vrooli/internal/hostreqkit"
+	"github.com/vrooli/vrooli/internal/operatorinput"
 	"github.com/vrooli/vrooli/internal/runtime"
 )
 
@@ -22,6 +23,7 @@ const (
 	SetupStatusFailed  = "failed"
 
 	SetupCategorySuccess                    = "success"
+	SetupCategoryConfigurationPending       = "configuration_pending"
 	SetupCategoryUnsupportedPlatform        = "unsupported_platform"
 	SetupCategoryRequiredRequirementBlocked = "required_requirement_blocked"
 	SetupCategoryInvalidConfiguration       = "invalid_configuration"
@@ -33,13 +35,14 @@ const (
 // setup output remains on stdout/stderr; this document is deliberately written
 // to a separate caller-provided path so automation never has to parse prose.
 type SetupResult struct {
-	Version             string   `json:"version"`
-	Status              string   `json:"status"`
-	Category            string   `json:"category"`
-	Stage               string   `json:"stage"`
-	Retryable           bool     `json:"retryable"`
-	BlockedRequirements []string `json:"blocked_requirements,omitempty"`
-	Remediation         string   `json:"remediation"`
+	Version              string   `json:"version"`
+	Status               string   `json:"status"`
+	Category             string   `json:"category"`
+	Stage                string   `json:"stage"`
+	Retryable            bool     `json:"retryable"`
+	BlockedRequirements  []string `json:"blocked_requirements,omitempty"`
+	Remediation          string   `json:"remediation"`
+	ConfigurationPending bool     `json:"configuration_pending,omitempty"`
 }
 
 func setupTerminalResult(stage string, report runtime.Report, runErr error) SetupResult {
@@ -49,6 +52,11 @@ func setupTerminalResult(stage string, report runtime.Report, runErr error) Setu
 		result.Category = SetupCategorySuccess
 		result.Stage = "complete"
 		result.Remediation = "Setup completed successfully."
+		if pending, err := operatorinput.Load(); err == nil && len(pending.Requests) > 0 {
+			result.Category = SetupCategoryConfigurationPending
+			result.ConfigurationPending = true
+			result.Remediation = "Bootstrap completed. Continue in vrooli-onboarding to answer the pending operator inputs."
+		}
 		return result
 	}
 
@@ -73,7 +81,7 @@ func setupTerminalResult(stage string, report runtime.Report, runErr error) Setu
 		result.Category = SetupCategoryInvalidConfiguration
 		result.Retryable = false
 		result.Remediation = "Correct the project or setup configuration, then run setup again."
-	case "filesystem", "credentials", "resources", "cli", "finalize":
+	case "filesystem", "bootstrap", "requirements", "generated-packages", "credentials", "privilege-broker", "git", "resources", "cli", "finalize":
 		result.Category = SetupCategoryPartialState
 		result.Retryable = true
 		result.Remediation = "Setup may have completed some steps. Correct the reported condition and re-run; setup is designed to converge."

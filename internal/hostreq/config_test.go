@@ -9,7 +9,7 @@ import (
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 	"github.com/vrooli/vrooli/internal/scenario"
-	testscenario "github.com/vrooli/vrooli/packages/testkit-go/scenariofixture"
+	testscenario "github.com/vrooli/vrooli/internal/scenario/scenariotest"
 )
 
 func TestResolveSafeguardConfigAppliesDefaultsAndOperatorOverrides(t *testing.T) {

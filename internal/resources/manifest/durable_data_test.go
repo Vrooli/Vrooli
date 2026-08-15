@@ -9,12 +9,11 @@ import (
 // tests layer a block onto, so each case isolates durable_data behavior.
 func baseExternalCLI() ResourceManifest {
 	return ResourceManifest{
-		Name:            "claude-code",
-		CLI:             validCLI("resource-claude-code"),
-		Driver:          "external-cli",
-		Binary:          "claude",
-		PortabilityTier: "partial",
-		Platforms:       ResourcePlatforms{Linux: "supported", MacOS: "supported", Windows: "partial"},
+		Name:      "claude-code",
+		CLI:       validCLI("resource-claude-code"),
+		Driver:    "external-cli",
+		Binary:    "claude",
+		Platforms: ResourcePlatforms{Linux: "supported", MacOS: "supported", Windows: "partial"},
 	}
 }
 

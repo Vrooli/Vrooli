@@ -9,7 +9,7 @@ import { afterEach, describe, it } from 'vitest';
 import { cleanup } from '@testing-library/react';
 import { renderWithProviders as render } from '../../test-utils';
 
-import { expectNoA11yViolations } from '../../test-utils/a11y';
+import { expectNoA11yViolations } from "@vrooli/api-base/testing";
 import { Button } from './button';
 
 describe('Button accessibility', () => {

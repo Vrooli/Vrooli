@@ -13,7 +13,7 @@ func currentHost() Host {
 		SupportsDevelop: true,
 		SupportsSysctl:  facts.SupportsSysctl,
 		SupportsSystemd: facts.SupportsSystemd,
-		Notes: []string{"Windows uses native process, lock, and SCM lifecycle backends; host-tool availability remains capability-driven."},
+		Notes:           []string{"Windows uses native process, lock, and SCM lifecycle backends; host-tool availability remains capability-driven."},
 	}
 }
 

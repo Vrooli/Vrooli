@@ -402,6 +402,14 @@ func missingRequiredToolInstallCommands(report Report) []string {
 		if !tool.Required || requirementSatisfied(tool) {
 			continue
 		}
+		// A tool whose version probe could not execute is present and blocked by
+		// the environment, not by a bad install. Offering the install command
+		// here sends the operator into a re-download loop that ends in exactly
+		// the same failure. Every other blocker keeps the remediation, including
+		// a broken payload, which an install does repair.
+		if tool.BlockingReason == hostreqkit.BlockingProbeFailed {
+			continue
+		}
 		commands = append(commands, "vrooli host install "+tool.Name)
 	}
 	return commands

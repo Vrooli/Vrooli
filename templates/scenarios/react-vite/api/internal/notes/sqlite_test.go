@@ -3,12 +3,12 @@ package notes_test
 import (
 	"context"
 	"errors"
+	db "github.com/vrooli/api-core/databasetest"
 	"testing"
 	"time"
-
 	"{{SCENARIO_ID}}/internal/notes"
-	"{{SCENARIO_ID}}/internal/testutil/db"
-	"{{SCENARIO_ID}}/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/scheduletest"
 
 	"github.com/stretchr/testify/require"
 
@@ -29,7 +29,7 @@ func newSchemaDB(t *testing.T) *testRepo {
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(notes.Schema),
 	))
-	clk := mocks.NewFakeClock(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC))
+	clk := scheduletest.New(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC))
 	return &testRepo{
 		repo:        notes.NewSQLiteRepository(d, clk),
 		attachments: notes.NewSQLiteAttachmentsRepository(d, clk),
@@ -40,7 +40,7 @@ func newSchemaDB(t *testing.T) *testRepo {
 type testRepo struct {
 	repo        notes.Repository
 	attachments notes.AttachmentsRepository
-	clock       *mocks.FakeClock
+	clock       *scheduletest.FakeClock
 }
 
 // TestSQLiteRepository_CreateAndGetRoundTrip pins the canonical

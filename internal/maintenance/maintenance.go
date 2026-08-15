@@ -12,6 +12,7 @@ import (
 
 	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/control"
+	"github.com/vrooli/vrooli/internal/hostsession"
 	"github.com/vrooli/vrooli/internal/network"
 	"github.com/vrooli/vrooli/internal/portspec"
 	"github.com/vrooli/vrooli/internal/process"
@@ -155,7 +156,15 @@ func (c *Controller) CleanStaleLocks() (control.StopReport, error) {
 	if store != nil {
 		defer closeStore()
 		now := time.Now().UTC()
-		expiredLeases, err := store.ExpireStaleStartingLeases(ctx, now)
+		// The guard is what keeps this sweep from reaping a live start. Setup
+		// phases routinely outrun the heartbeat TTL, and every `--clean-stale`
+		// start runs this sweep, so without owner-liveness the fleet reaps its
+		// own in-flight starts whenever two of them overlap.
+		guard := scenarioruntime.StartingLeaseGuard{PIDRunning: newPIDLivenessMemo(processIsRunning)}
+		if host, hostErr := (hostsession.DefaultProvider{}).Current(ctx, ""); hostErr == nil {
+			guard.CurrentBootID = host.BootID
+		}
+		expiredLeases, err := store.ExpireStaleStartingLeases(ctx, now, guard)
 		if err != nil {
 			return control.StopReport{}, err
 		}

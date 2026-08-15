@@ -106,32 +106,6 @@ func packageValidationIssueProto(i packagegov.ValidationIssue) *cliv1.PackageVal
 	}
 }
 
-func packageValidationReportProto(r packagegov.ValidationReport) *cliv1.PackageValidationReport {
-	out := &cliv1.PackageValidationReport{}
-	for _, p := range r.Packages {
-		out.Packages = append(out.Packages, packageInfoProto(p))
-	}
-	for _, i := range r.Issues {
-		out.Issues = append(out.Issues, packageValidationIssueProto(i))
-	}
-	return out
-}
-
-func packageAuditScanStatsProto(stats packagegov.ScanStats) *cliv1.PackageAuditScanStats {
-	skipped := make(map[string]int64, len(stats.SkippedByReason))
-	for reason, count := range stats.SkippedByReason {
-		skipped[reason] = int64(count)
-	}
-	return &cliv1.PackageAuditScanStats{
-		FilesVisited:    int64(stats.FilesVisited),
-		FilesScanned:    int64(stats.FilesScanned),
-		FilesSkipped:    int64(stats.FilesSkipped),
-		BytesScanned:    stats.BytesScanned,
-		SkippedByReason: skipped,
-		BudgetExceeded:  stats.BudgetExceeded,
-	}
-}
-
 // PackageListResponse maps a ListResponse onto the wire contract
 // (`vrooli package list --json`).
 func PackageListResponse(resp ListResponse) *cliv1.PackageListResponse {
@@ -170,15 +144,6 @@ func PackageDependentsResponse(resp DependentsResponse) *cliv1.PackageDependents
 	return &cliv1.PackageDependentsResponse{Success: true, Dependents: dep}
 }
 
-// PackageValidateResponse maps a ValidateResponse onto the wire contract
-// (`vrooli package validate --json`).
-func PackageValidateResponse(resp ValidateResponse) *cliv1.PackageValidateResponse {
-	return &cliv1.PackageValidateResponse{
-		Success: true,
-		Report:  packageValidationReportProto(resp.Report),
-	}
-}
-
 // PackageRunResponse maps a RunResponse onto the wire contract
 // (`vrooli package build|generate|test [<name>] --json`).
 func PackageRunResponse(resp RunResponse) *cliv1.PackageRunResponse {
@@ -209,19 +174,6 @@ func PackageRefreshResponse(resp RefreshResponse) *cliv1.PackageRefreshResponse 
 		})
 	}
 	return &cliv1.PackageRefreshResponse{Success: true, Refresh: result}
-}
-
-// PackageAuditResponse maps an AuditResponse onto the wire contract
-// (`vrooli package audit --json`).
-func PackageAuditResponse(resp AuditResponse) *cliv1.PackageAuditResponse {
-	audit := &cliv1.PackageAuditReport{
-		Validation: packageValidationReportProto(resp.Report.Validation),
-		ScanStats:  packageAuditScanStatsProto(resp.Report.ScanStats),
-	}
-	for _, i := range resp.Report.Issues {
-		audit.Issues = append(audit.Issues, packageValidationIssueProto(i))
-	}
-	return &cliv1.PackageAuditResponse{Success: true, Audit: audit}
 }
 
 // writePackageJSON marshals a package wire-contract message and writes it.

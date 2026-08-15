@@ -454,9 +454,14 @@ WHERE instance_id = ? AND status IN (?, ?)`,
 	return out, nil
 }
 
-func (s *SQLiteStore) ExpireStaleStartingLeases(ctx context.Context, at time.Time) ([]Instance, error) {
+// ExpireStaleStartingLeases reaps leases stuck in status='starting'. A lease is
+// only a candidate once its heartbeat deadline has elapsed, and only condemned
+// when the guard can show the starter is gone (see StaleStartingTrigger) — a
+// live owner mid-setup keeps its lease no matter how long the build runs.
+func (s *SQLiteStore) ExpireStaleStartingLeases(ctx context.Context, at time.Time, guard StartingLeaseGuard) ([]Instance, error) {
 	at = at.UTC()
 	var expired []Instance
+	var reasons []string
 	err := s.withTx(ctx, func(tx *sql.Tx) error {
 		rows, err := tx.QueryContext(ctx, instanceSelectSQL+`
 WHERE status = ? AND heartbeat_deadline_at IS NOT NULL AND heartbeat_deadline_at <= ?
@@ -465,30 +470,46 @@ ORDER BY scenario ASC, generation DESC`,
 		if err != nil {
 			return fmt.Errorf("list stale starting runtime leases: %w", err)
 		}
-		expired, err = scanInstances(rows)
+		candidates, err := scanInstances(rows)
 		if closeErr := rows.Close(); closeErr != nil && err == nil {
 			err = closeErr
 		}
 		if err != nil {
 			return err
 		}
+		expired = expired[:0]
+		reasons = reasons[:0]
+		for _, candidate := range candidates {
+			trigger, ok := StaleStartingTrigger(candidate, guard, at)
+			if !ok {
+				continue
+			}
+			expired = append(expired, candidate)
+			reasons = append(reasons, trigger)
+		}
 		if len(expired) == 0 {
 			return nil
 		}
-		result, err := tx.ExecContext(ctx, `
+		// Expire by explicit (instance_id, generation) rather than by re-running
+		// the deadline predicate, so a row that changed under us fails loudly
+		// instead of being swept up by a broad UPDATE.
+		for i, instance := range expired {
+			result, err := tx.ExecContext(ctx, `
 UPDATE runtime_instances
 SET status = ?, updated_at = ?, stop_reason = ?
-WHERE status = ? AND heartbeat_deadline_at IS NOT NULL AND heartbeat_deadline_at <= ?`,
-			StatusExpired, formatTime(s.now()), "stale startup lease", StatusStarting, formatTime(at))
-		if err != nil {
-			return fmt.Errorf("expire stale starting runtime leases: %w", err)
-		}
-		affected, err := result.RowsAffected()
-		if err != nil {
-			return fmt.Errorf("inspect stale starting runtime lease expiry: %w", err)
-		}
-		if int(affected) != len(expired) {
-			return ErrStaleGeneration
+WHERE instance_id = ? AND generation = ? AND status = ?`,
+				StatusExpired, formatTime(s.now()), staleStartingStopReason(reasons[i]),
+				instance.InstanceID, instance.Generation, StatusStarting)
+			if err != nil {
+				return fmt.Errorf("expire stale starting runtime lease %s: %w", instance.InstanceID, err)
+			}
+			affected, err := result.RowsAffected()
+			if err != nil {
+				return fmt.Errorf("inspect stale starting runtime lease expiry %s: %w", instance.InstanceID, err)
+			}
+			if affected == 0 {
+				return ErrStaleGeneration
+			}
 		}
 		return nil
 	})
@@ -498,9 +519,16 @@ WHERE status = ? AND heartbeat_deadline_at IS NOT NULL AND heartbeat_deadline_at
 	for i := range expired {
 		expired[i].Status = StatusExpired
 		expired[i].UpdatedAt = s.now()
-		expired[i].StopReason = "stale startup lease"
+		expired[i].StopReason = staleStartingStopReason(reasons[i])
 	}
 	return expired, nil
+}
+
+func staleStartingStopReason(trigger string) string {
+	if strings.TrimSpace(trigger) == "" {
+		return staleStartingStopReasonPrefix
+	}
+	return staleStartingStopReasonPrefix + " (" + trigger + ")"
 }
 
 func (s *SQLiteStore) ListPortClaims(ctx context.Context, filter PortClaimFilter) ([]PortClaim, error) {

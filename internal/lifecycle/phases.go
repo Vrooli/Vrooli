@@ -106,6 +106,17 @@ func (r *Runner) RunPhaseDetailed(name, phaseName string, opts PhaseOptions) (Ph
 		r.logError("Failed to load scenario for phase", err, logx.AttrScenario, name, logx.AttrPhase, phaseName)
 		return PhaseResult{}, err
 	}
+	release, err := r.acquireScenarioLock(item.Slug)
+	if err != nil {
+		wrapped := fmt.Errorf("scenario %q phase %q blocked by concurrent lifecycle operation: %w", item.Slug, phaseName, err)
+		r.logError("Scenario phase blocked by concurrent lifecycle operation", wrapped,
+			logx.AttrScenario, item.Slug,
+			logx.AttrPhase, phaseName,
+			logx.AttrOperation, "phase",
+		)
+		return PhaseResult{}, wrapped
+	}
+	defer release()
 
 	if phaseRequiresBootstrap(phaseName) {
 		ready := make(map[string]struct{})
@@ -206,6 +217,11 @@ func (r *Runner) ExecutePhaseDetailed(item scenario.Scenario, phaseName string, 
 	if !phaseDefined(phase) {
 		r.logDebug("Scenario phase empty; treating as undefined", logx.AttrScenario, item.Slug, logx.AttrPhase, phaseName)
 		return undefinedPhaseResult(item.Slug, phaseName), nil
+	}
+	if phaseName == "setup" {
+		if err := r.provisionSharedPackages(item, env, logWriter, childWriter); err != nil {
+			return PhaseResult{}, err
+		}
 	}
 
 	result := PhaseResult{
@@ -423,6 +439,7 @@ func (r *Runner) startTrackedProcess(item scenario.Scenario, phase string, step 
 	cmd := shell.BashCommand(step.Run, shell.Spec{
 		Dir:    sourceDir,
 		Env:    stepEnv,
+		Stdin:  strings.NewReader(""),
 		Stdout: file,
 		Stderr: file,
 	})
@@ -486,6 +503,7 @@ func (r *Runner) runForegroundStep(item scenario.Scenario, phase, command string
 	cmd := shell.BashCommand(command, shell.Spec{
 		Dir:    sourceDir,
 		Env:    stepEnv,
+		Stdin:  strings.NewReader(""),
 		Stdout: logWriter,
 		Stderr: logWriter,
 	})

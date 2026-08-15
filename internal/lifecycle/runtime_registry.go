@@ -142,6 +142,69 @@ func (s *runtimeRegistrySession) setPhase(ctx context.Context, phase string) err
 	return nil
 }
 
+// leaseRenewalWarning builds the pump's error sink for one phase. Renewal
+// failures are surfaced rather than swallowed: they are the early signal that
+// something reaped the lease out from under a live start.
+func (r *Runner) leaseRenewalWarning(item scenario.Scenario, phase string) func(error) {
+	return func(err error) {
+		r.logWarn("Failed to renew scenario runtime lease during phase",
+			logx.AttrScenario, item.Slug,
+			logx.AttrPhase, phase,
+			logx.AttrError, err,
+		)
+	}
+}
+
+// leaseHeartbeatInterval renews well inside the TTL so a single slow or failed
+// renewal never lets the lease lapse. Overridden in tests.
+var leaseHeartbeatInterval = scenarioruntime.DefaultHeartbeatTTL / 3
+
+// keepLeaseAlive runs fn while renewing the runtime lease on a ticker.
+//
+// Phases are the long pole of a start: a cold setup builds the whole UI and can
+// run for minutes, and nothing inside ExecutePhaseDetailed touches the registry.
+// Without this pump the lease sits at its creation deadline for the entire
+// phase, so it is already past due the moment the phase ends — which both makes
+// the lease a lie about liveness and hands any concurrent `--clean-stale` sweep
+// a live start to reap.
+//
+// The returned pump is stopped AND joined before keepLeaseAlive returns, so the
+// caller regains exclusive access to the session; that serialization is what
+// makes it safe for the pump to write s.instance without a lock.
+func (s *runtimeRegistrySession) keepLeaseAlive(ctx context.Context, onError func(error), fn func() error) error {
+	if !s.enabled {
+		return fn()
+	}
+	interval := leaseHeartbeatInterval
+	if interval <= 0 {
+		interval = time.Second
+	}
+	done := make(chan struct{})
+	exited := make(chan struct{})
+	go func() {
+		defer close(exited)
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-done:
+				return
+			case <-ticker.C:
+				// A failed renewal is reported but never aborts the phase: the
+				// post-phase heartbeat is the authoritative gate, and a
+				// transient store error should not discard minutes of build.
+				if err := s.heartbeat(ctx); err != nil && onError != nil {
+					onError(err)
+				}
+			}
+		}
+	}()
+	err := fn()
+	close(done)
+	<-exited
+	return err
+}
+
 func (s *runtimeRegistrySession) heartbeat(ctx context.Context) error {
 	if !s.enabled {
 		return nil

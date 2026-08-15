@@ -31,7 +31,9 @@ type EnvReader interface {
 	Getenv(key string) string
 }
 
-type Clock interface {
+type Clock = TimeSource
+
+type TimeSource interface {
 	Now() time.Time
 }
 
@@ -286,6 +288,10 @@ func (c Collector) collectMemory(snap *Snapshot, observedAt time.Time) {
 }
 
 func (c Collector) collectNvidiaGPUs(ctx context.Context, snap *Snapshot, observedAt time.Time) {
+	if snap.OS != "linux" && snap.OS != "darwin" && snap.OS != "windows" {
+		snap.ProbeStatuses["nvidia_gpu"] = "unsupported"
+		return
+	}
 	path, err := c.Commands.LookPath("nvidia-smi")
 	snap.RuntimeTools["nvidia-smi"] = Tool{Present: err == nil, Path: path}
 	if err != nil {

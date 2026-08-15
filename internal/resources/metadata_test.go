@@ -7,9 +7,9 @@ import (
 	"testing"
 
 	repocontract "github.com/vrooli/repo-contract-go"
+	testkitgo "github.com/vrooli/repo-contract-go/repocontracttest"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
-	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
-	testresource "github.com/vrooli/vrooli/packages/testkit-go/resourcefixture"
+	testresource "github.com/vrooli/vrooli/internal/resources/resourcestest"
 )
 
 func TestLoadPortRegistryReadsTypedJSON(t *testing.T) {
@@ -40,10 +40,9 @@ func TestLoadResourceEnvironmentIgnoresRetiredFileStores(t *testing.T) {
 		ReservedRanges: map[string]string{},
 	})
 	testresource.WriteResourceManifest(t, root, "postgres", manifestpkg.ResourceManifest{
-		Name:            "postgres",
-		Driver:          "docker-service",
-		PortabilityTier: "full",
-		Ports:           []manifestpkg.ResourcePort{{Name: "postgresql", Container: 5432, Host: 5433}},
+		Name:   "postgres",
+		Driver: "docker-service",
+		Ports:  []manifestpkg.ResourcePort{{Name: "postgresql", Container: 5432, Host: 5433}},
 		Runtime: manifestpkg.ResourceRuntime{
 			Image: "postgres:16-alpine",
 			Env: map[string]string{
@@ -62,11 +61,10 @@ func TestLoadResourceEnvironmentIgnoresRetiredFileStores(t *testing.T) {
 		},
 	})
 	writeEnvManifestFixture(t, root, "fixturehttp", manifestpkg.ResourceManifest{
-		Name:            "fixturehttp",
-		Driver:          "docker-service",
-		PortabilityTier: "full",
-		Ports:           []manifestpkg.ResourcePort{{Name: "http", Container: 3000, Host: 4110}},
-		Runtime:         manifestpkg.ResourceRuntime{Image: "example/fixturehttp:1.0.0"},
+		Name:    "fixturehttp",
+		Driver:  "docker-service",
+		Ports:   []manifestpkg.ResourcePort{{Name: "http", Container: 3000, Host: 4110}},
+		Runtime: manifestpkg.ResourceRuntime{Image: "example/fixturehttp:1.0.0"},
 		EnvironmentExports: manifestpkg.ResourceEnvironmentExports{
 			Static:         map[string]string{"FIXTUREHTTP_HOST": "localhost"},
 			FromPorts:      map[string]string{"FIXTUREHTTP_PORT": "http"},
@@ -144,10 +142,9 @@ func TestLoadResourceEnvironmentKeepsManifestRuntimeValuesOverRetiredStores(t *t
 		ReservedRanges: map[string]string{},
 	})
 	writeEnvManifestFixture(t, root, "postgres", manifestpkg.ResourceManifest{
-		Name:            "postgres",
-		Driver:          "docker-service",
-		PortabilityTier: "full",
-		Ports:           []manifestpkg.ResourcePort{{Name: "postgresql", Container: 5432, Host: 5433}},
+		Name:   "postgres",
+		Driver: "docker-service",
+		Ports:  []manifestpkg.ResourcePort{{Name: "postgresql", Container: 5432, Host: 5433}},
 		Runtime: manifestpkg.ResourceRuntime{
 			Image: "postgres:16-alpine",
 			Env: map[string]string{
@@ -254,11 +251,10 @@ func TestLoadResourceEnvironmentSupportsNativeDerivedURLs(t *testing.T) {
 		ReservedRanges: map[string]string{},
 	})
 	writeEnvManifestFixture(t, root, "redis", manifestpkg.ResourceManifest{
-		Name:            "redis",
-		Driver:          "docker-service",
-		PortabilityTier: "full",
-		Ports:           []manifestpkg.ResourcePort{{Name: "redis", Container: 6379, Host: 6380}},
-		Runtime:         manifestpkg.ResourceRuntime{Image: "redis:7-alpine"},
+		Name:    "redis",
+		Driver:  "docker-service",
+		Ports:   []manifestpkg.ResourcePort{{Name: "redis", Container: 6379, Host: 6380}},
+		Runtime: manifestpkg.ResourceRuntime{Image: "redis:7-alpine"},
 		EnvironmentExports: manifestpkg.ResourceEnvironmentExports{
 			Static:         map[string]string{"REDIS_HOST": "localhost", "REDIS_DB": "0"},
 			FromPorts:      map[string]string{"REDIS_PORT": "redis"},
@@ -270,9 +266,8 @@ func TestLoadResourceEnvironmentSupportsNativeDerivedURLs(t *testing.T) {
 		},
 	})
 	writeEnvManifestFixture(t, root, "qdrant", manifestpkg.ResourceManifest{
-		Name:            "qdrant",
-		Driver:          "docker-service",
-		PortabilityTier: "full",
+		Name:   "qdrant",
+		Driver: "docker-service",
 		Ports: []manifestpkg.ResourcePort{
 			{Name: "http", Container: 6333, Host: 6333},
 			{Name: "grpc", Container: 6334, Host: 6334},
@@ -289,11 +284,10 @@ func TestLoadResourceEnvironmentSupportsNativeDerivedURLs(t *testing.T) {
 		},
 	})
 	writeEnvManifestFixture(t, root, "ollama", manifestpkg.ResourceManifest{
-		Name:            "ollama",
-		Driver:          "docker-service",
-		PortabilityTier: "partial",
-		Ports:           []manifestpkg.ResourcePort{{Name: "http", Container: 11434, Host: 11434}},
-		Runtime:         manifestpkg.ResourceRuntime{Image: "ollama/ollama:1.0.0"},
+		Name:    "ollama",
+		Driver:  "docker-service",
+		Ports:   []manifestpkg.ResourcePort{{Name: "http", Container: 11434, Host: 11434}},
+		Runtime: manifestpkg.ResourceRuntime{Image: "ollama/ollama:1.0.0"},
 		EnvironmentExports: manifestpkg.ResourceEnvironmentExports{
 			Static:    map[string]string{"OLLAMA_HOST": "localhost"},
 			FromPorts: map[string]string{"OLLAMA_PORT": "http"},
@@ -304,9 +298,8 @@ func TestLoadResourceEnvironmentSupportsNativeDerivedURLs(t *testing.T) {
 		},
 	})
 	writeEnvManifestFixture(t, root, "minio", manifestpkg.ResourceManifest{
-		Name:            "minio",
-		Driver:          "docker-service",
-		PortabilityTier: "full",
+		Name:   "minio",
+		Driver: "docker-service",
 		Ports: []manifestpkg.ResourcePort{
 			{Name: "api", Container: 9000, Host: 9000},
 			{Name: "console", Container: 9001, Host: 9001},
@@ -332,11 +325,10 @@ func TestLoadResourceEnvironmentSupportsNativeDerivedURLs(t *testing.T) {
 		},
 	})
 	writeEnvManifestFixture(t, root, "vault", manifestpkg.ResourceManifest{
-		Name:            "vault",
-		Driver:          "docker-service",
-		PortabilityTier: "full",
-		Ports:           []manifestpkg.ResourcePort{{Name: "http", Container: 8200, Host: 8200}},
-		Runtime:         manifestpkg.ResourceRuntime{Image: "hashicorp/vault:1.17"},
+		Name:    "vault",
+		Driver:  "docker-service",
+		Ports:   []manifestpkg.ResourcePort{{Name: "http", Container: 8200, Host: 8200}},
+		Runtime: manifestpkg.ResourceRuntime{Image: "hashicorp/vault:1.17"},
 		EnvironmentExports: manifestpkg.ResourceEnvironmentExports{
 			Static:    map[string]string{"VAULT_HOST": "localhost", "VAULT_TOKEN": "myroot"},
 			FromPorts: map[string]string{"VAULT_PORT": "http"},
@@ -347,9 +339,8 @@ func TestLoadResourceEnvironmentSupportsNativeDerivedURLs(t *testing.T) {
 		},
 	})
 	writeEnvManifestFixture(t, root, "timeseries-fixture", manifestpkg.ResourceManifest{
-		Name:            "timeseries-fixture",
-		Driver:          "docker-service",
-		PortabilityTier: "full",
+		Name:   "timeseries-fixture",
+		Driver: "docker-service",
 		Ports: []manifestpkg.ResourcePort{
 			{Name: "http", Container: 9000, Host: 9009},
 			{Name: "postgresql", Container: 8812, Host: 8812},
@@ -382,11 +373,10 @@ func TestLoadResourceEnvironmentSupportsNativeDerivedURLs(t *testing.T) {
 		},
 	})
 	writeEnvManifestFixture(t, root, "searxng", manifestpkg.ResourceManifest{
-		Name:            "searxng",
-		Driver:          "docker-service",
-		PortabilityTier: "full",
-		Ports:           []manifestpkg.ResourcePort{{Name: "http", Container: 8080, Host: 8280}},
-		Runtime:         manifestpkg.ResourceRuntime{Image: "searxng/searxng:1.0.0"},
+		Name:    "searxng",
+		Driver:  "docker-service",
+		Ports:   []manifestpkg.ResourcePort{{Name: "http", Container: 8080, Host: 8280}},
+		Runtime: manifestpkg.ResourceRuntime{Image: "searxng/searxng:1.0.0"},
 		EnvironmentExports: manifestpkg.ResourceEnvironmentExports{
 			Static:    map[string]string{"SEARXNG_SERVICE_HOST": "localhost"},
 			FromPorts: map[string]string{"SEARXNG_PORT": "http"},
@@ -397,11 +387,10 @@ func TestLoadResourceEnvironmentSupportsNativeDerivedURLs(t *testing.T) {
 		},
 	})
 	writeEnvManifestFixture(t, root, "unstructured-io", manifestpkg.ResourceManifest{
-		Name:            "unstructured-io",
-		Driver:          "docker-service",
-		PortabilityTier: "full",
-		Ports:           []manifestpkg.ResourcePort{{Name: "http", Container: 8000, Host: 11450}},
-		Runtime:         manifestpkg.ResourceRuntime{Image: "downloads.unstructured.io/unstructured-api:1.0.0"},
+		Name:    "unstructured-io",
+		Driver:  "docker-service",
+		Ports:   []manifestpkg.ResourcePort{{Name: "http", Container: 8000, Host: 11450}},
+		Runtime: manifestpkg.ResourceRuntime{Image: "downloads.unstructured.io/unstructured-api:1.0.0"},
 		EnvironmentExports: manifestpkg.ResourceEnvironmentExports{
 			Static:    map[string]string{"UNSTRUCTURED_HOST": "localhost"},
 			FromPorts: map[string]string{"UNSTRUCTURED_PORT": "http"},
@@ -468,10 +457,9 @@ func TestLoadResourceEnvironmentSupportsNativeNonDockerContracts(t *testing.T) {
 	home := t.TempDir()
 
 	writeEnvManifestFixture(t, root, "fixturecli", manifestpkg.ResourceManifest{
-		Name:            "fixturecli",
-		Driver:          "external-cli",
-		Binary:          "resource-fixturecli",
-		PortabilityTier: "full",
+		Name:   "fixturecli",
+		Driver: "external-cli",
+		Binary: "resource-fixturecli",
 		EnvironmentExports: manifestpkg.ResourceEnvironmentExports{
 			Static: map[string]string{
 				"FIXTURECLI_PATH":         "resource-fixturecli",
@@ -484,10 +472,9 @@ func TestLoadResourceEnvironmentSupportsNativeNonDockerContracts(t *testing.T) {
 		},
 	})
 	writeEnvManifestFixture(t, root, "openrouter", manifestpkg.ResourceManifest{
-		Name:            "openrouter",
-		Driver:          "cloud-api",
-		Endpoint:        "https://openrouter.ai/api/v1/models",
-		PortabilityTier: "full",
+		Name:     "openrouter",
+		Driver:   "cloud-api",
+		Endpoint: "https://openrouter.ai/api/v1/models",
 		EnvironmentExports: manifestpkg.ResourceEnvironmentExports{
 			Static:         map[string]string{"OPENROUTER_API_BASE": "https://openrouter.ai/api/v1"},
 			FromRuntimeEnv: []string{"OPENROUTER_API_KEY"},
@@ -498,11 +485,10 @@ func TestLoadResourceEnvironmentSupportsNativeNonDockerContracts(t *testing.T) {
 		},
 	})
 	writeEnvManifestFixture(t, root, "home-assistant", manifestpkg.ResourceManifest{
-		Name:            "home-assistant",
-		Driver:          "compose-service",
-		ComposeFile:     "compose.yaml",
-		PortabilityTier: "partial",
-		Ports:           []manifestpkg.ResourcePort{{Name: "http", Container: 8123, Host: 8123}},
+		Name:        "home-assistant",
+		Driver:      "compose-service",
+		ComposeFile: "compose.yaml",
+		Ports:       []manifestpkg.ResourcePort{{Name: "http", Container: 8123, Host: 8123}},
 		EnvironmentExports: manifestpkg.ResourceEnvironmentExports{
 			Static:         map[string]string{"HOME_ASSISTANT_HOST": "localhost", "HOME_ASSISTANT_CONTAINER_NAME": "home-assistant"},
 			FromPorts:      map[string]string{"HOME_ASSISTANT_PORT": "http"},
@@ -514,11 +500,10 @@ func TestLoadResourceEnvironmentSupportsNativeNonDockerContracts(t *testing.T) {
 		},
 	})
 	writeEnvManifestFixture(t, root, "whisper", manifestpkg.ResourceManifest{
-		Name:            "whisper",
-		Driver:          "compose-service",
-		ComposeFile:     "docker/docker-compose.yml",
-		PortabilityTier: "partial",
-		Ports:           []manifestpkg.ResourcePort{{Name: "http", Container: 9000, Host: 8090}},
+		Name:        "whisper",
+		Driver:      "compose-service",
+		ComposeFile: "docker/docker-compose.yml",
+		Ports:       []manifestpkg.ResourcePort{{Name: "http", Container: 9000, Host: 8090}},
 		EnvironmentExports: manifestpkg.ResourceEnvironmentExports{
 			Static:    map[string]string{"WHISPER_HOST": "localhost"},
 			FromPorts: map[string]string{"WHISPER_PORT": "http"},
@@ -530,11 +515,10 @@ func TestLoadResourceEnvironmentSupportsNativeNonDockerContracts(t *testing.T) {
 		},
 	})
 	writeEnvManifestFixture(t, root, "kokoro", manifestpkg.ResourceManifest{
-		Name:            "kokoro",
-		Driver:          "compose-service",
-		ComposeFile:     "docker/docker-compose.yml",
-		PortabilityTier: "partial",
-		Ports:           []manifestpkg.ResourcePort{{Name: "http", Container: 8880, Host: 8880}},
+		Name:        "kokoro",
+		Driver:      "compose-service",
+		ComposeFile: "docker/docker-compose.yml",
+		Ports:       []manifestpkg.ResourcePort{{Name: "http", Container: 8880, Host: 8880}},
 		EnvironmentExports: manifestpkg.ResourceEnvironmentExports{
 			Static:    map[string]string{"KOKORO_HOST": "localhost"},
 			FromPorts: map[string]string{"KOKORO_PORT": "http"},
@@ -545,11 +529,10 @@ func TestLoadResourceEnvironmentSupportsNativeNonDockerContracts(t *testing.T) {
 		},
 	})
 	writeEnvManifestFixture(t, root, "fixtureexec", manifestpkg.ResourceManifest{
-		Name:            "fixtureexec",
-		Driver:          "compose-service",
-		ComposeFile:     "compose.yaml",
-		PortabilityTier: "full",
-		Ports:           []manifestpkg.ResourcePort{{Name: "http", Container: 9999, Host: 9999}},
+		Name:        "fixtureexec",
+		Driver:      "compose-service",
+		ComposeFile: "compose.yaml",
+		Ports:       []manifestpkg.ResourcePort{{Name: "http", Container: 9999, Host: 9999}},
 		EnvironmentExports: manifestpkg.ResourceEnvironmentExports{
 			Static:         map[string]string{"FIXTUREEXEC_HOST": "localhost"},
 			FromPorts:      map[string]string{"FIXTUREEXEC_PORT": "http"},
@@ -560,10 +543,9 @@ func TestLoadResourceEnvironmentSupportsNativeNonDockerContracts(t *testing.T) {
 		},
 	})
 	writeEnvManifestFixture(t, root, "claude-code", manifestpkg.ResourceManifest{
-		Name:            "claude-code",
-		Driver:          "external-cli",
-		Binary:          "claude",
-		PortabilityTier: "partial",
+		Name:   "claude-code",
+		Driver: "external-cli",
+		Binary: "claude",
 		EnvironmentExports: manifestpkg.ResourceEnvironmentExports{
 			Static: map[string]string{
 				"CLAUDE_CODE_PATH": "claude",
@@ -572,19 +554,17 @@ func TestLoadResourceEnvironmentSupportsNativeNonDockerContracts(t *testing.T) {
 		},
 	})
 	writeEnvManifestFixture(t, root, "codex", manifestpkg.ResourceManifest{
-		Name:            "codex",
-		Driver:          "external-cli",
-		Binary:          "codex",
-		PortabilityTier: "partial",
+		Name:   "codex",
+		Driver: "external-cli",
+		Binary: "codex",
 		EnvironmentExports: manifestpkg.ResourceEnvironmentExports{
 			Static: map[string]string{"CODEX_PATH": "codex"},
 		},
 	})
 	writeEnvManifestFixture(t, root, "opencode", manifestpkg.ResourceManifest{
-		Name:            "opencode",
-		Driver:          "external-cli",
-		Binary:          "opencode",
-		PortabilityTier: "partial",
+		Name:   "opencode",
+		Driver: "external-cli",
+		Binary: "opencode",
 		EnvironmentExports: manifestpkg.ResourceEnvironmentExports{
 			Static: map[string]string{"OPENCODE_PATH": "opencode"},
 			Derived: map[string]manifestpkg.ResourceDerivedTemplate{
@@ -818,10 +798,9 @@ func TestActualNonDockerResourceManifestsResolveNativeExports(t *testing.T) {
 func writePostgresManifestFixture(t *testing.T, root string) {
 	t.Helper()
 	writeEnvManifestFixture(t, root, "postgres", manifestpkg.ResourceManifest{
-		Name:            "postgres",
-		Driver:          "docker-service",
-		PortabilityTier: "full",
-		Ports:           []manifestpkg.ResourcePort{{Name: "postgresql", Container: 5432, Host: 5433}},
+		Name:   "postgres",
+		Driver: "docker-service",
+		Ports:  []manifestpkg.ResourcePort{{Name: "postgresql", Container: 5432, Host: 5433}},
 		Runtime: manifestpkg.ResourceRuntime{
 			Image: "postgres:16-alpine",
 			Env: map[string]string{

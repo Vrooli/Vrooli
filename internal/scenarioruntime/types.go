@@ -116,7 +116,9 @@ func IsDiscoverablePortClaimStatus(status string) bool {
 
 // Clock is the time seam for repository operations. Production uses the real
 // clock; tests provide fixed or manually advanced clocks.
-type Clock interface {
+type Clock = TimeSource
+
+type TimeSource interface {
 	Now() time.Time
 }
 
@@ -377,7 +379,7 @@ type HealthRepository interface {
 }
 
 type CleanupRepository interface {
-	ExpireStaleStartingLeases(ctx context.Context, at time.Time) ([]Instance, error)
+	ExpireStaleStartingLeases(ctx context.Context, at time.Time, guard StartingLeaseGuard) ([]Instance, error)
 	ExpireInstance(ctx context.Context, instanceID string, reason string) (Instance, error)
 	ExpirePortClaim(ctx context.Context, claimID string) (PortClaim, error)
 }

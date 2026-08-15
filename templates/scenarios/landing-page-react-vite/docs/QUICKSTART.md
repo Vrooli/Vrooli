@@ -22,7 +22,7 @@ Before starting, ensure you have:
 If Vrooli isn't set up yet:
 ```bash
 cd ~/Vrooli
-./scripts/manage.sh setup --yes yes
+vrooli setup --yes yes
 ```
 
 ---
@@ -76,8 +76,8 @@ export DATABASE_URL="postgres://postgres:postgres@localhost:5432/landing_dev"
 ### Step 4: Initialize Database
 
 ```bash
-psql $DATABASE_URL -f initialization/postgres/schema.sql
-psql $DATABASE_URL -f initialization/postgres/seed.sql  # Optional demo data
+psql $DATABASE_URL -f api/internal/<domain>/schema.sql
+psql $DATABASE_URL -f api/internal/<domain>/seed.sql  # Optional demo data
 ```
 
 ### Step 5: Start the API

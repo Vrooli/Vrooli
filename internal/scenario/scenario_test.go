@@ -11,8 +11,8 @@ import (
 	"strings"
 	"testing"
 
+	testkitgo "github.com/vrooli/repo-contract-go/repocontracttest"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
-	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
 )
 
 // AI_CHECK: GO_MIGRATION_TEST_QUALITY=6 | LAST: 2026-04-13

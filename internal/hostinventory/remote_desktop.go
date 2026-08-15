@@ -21,7 +21,7 @@ type RemoteDesktopCommandRunner interface {
 // value is returned by the inventory layer's policy decisions.
 func ProbeRemoteDesktopCredentials(ctx context.Context, commands RemoteDesktopCommandRunner, sessionEnv []string) ([]byte, error) {
 	args := append(append([]string{}, sessionEnv...), "grdctl", "status")
-	return boundedCommand(commands, ctx, "env", args...)
+	return boundedCommand(ctx, commands, "env", args...)
 }
 
 // ClassifyRemoteDesktop lets consumers reuse the same authority while keeping
@@ -45,17 +45,6 @@ func ClassifyRemoteDesktopWithDisplayAndUser(ctx context.Context, osName string,
 	return classifyRemoteDesktopWithDisplayAndUser(ctx, osName, supportsSystemd, displayAttached, sessionUser, commands)
 }
 
-// classifyRemoteDesktop is the only local provider classifier. Its output is
-// deliberately a complete observation set so callers can apply policy without
-// knowing which command or service implements a provider.
-func classifyRemoteDesktop(ctx context.Context, c Collector, osName string) RemoteDesktopCapability {
-	return classifyRemoteDesktopWithDisplayAndUser(ctx, osName, detectSystemd(c), false, "", c.Commands)
-}
-
-func classifyRemoteDesktopWith(ctx context.Context, osName string, systemd bool, commands RemoteDesktopCommandRunner) RemoteDesktopCapability {
-	return classifyRemoteDesktopWithDisplayAndUser(ctx, osName, systemd, false, "", commands)
-}
-
 func classifyRemoteDesktopWithDisplay(ctx context.Context, osName string, systemd, displayAttached bool, commands RemoteDesktopCommandRunner) RemoteDesktopCapability {
 	return classifyRemoteDesktopWithDisplayAndUser(ctx, osName, systemd, displayAttached, "", commands)
 }
@@ -68,8 +57,8 @@ func classifyRemoteDesktopWithDisplayAndUser(ctx context.Context, osName string,
 		daemonSystem, daemonUser := daemonModes(ctx, commands)
 		var systemEnabled, systemActive string
 		if systemd {
-			systemEnabled = boundedValue(commands, ctx, "systemctl", "is-enabled", "gnome-remote-desktop.service")
-			systemActive = boundedValue(commands, ctx, "systemctl", "is-active", "gnome-remote-desktop.service")
+			systemEnabled = boundedValue(ctx, commands, "systemctl", "is-enabled", "gnome-remote-desktop.service")
+			systemActive = boundedValue(ctx, commands, "systemctl", "is-active", "gnome-remote-desktop.service")
 			providers = append(providers, RemoteDesktopProvider{
 				Name:           "gnome-system",
 				Present:        systemEnabled == "enabled" || systemEnabled == "static" || systemActive == "active" || daemonSystem,
@@ -95,17 +84,17 @@ func classifyRemoteDesktopWithDisplayAndUser(ctx context.Context, osName string,
 		providers = append(providers, gnomeHeadless)
 		xrdpPresent := false
 		if systemd {
-			output, err = boundedCommand(commands, ctx, "systemctl", "list-unit-files", "xrdp.service")
+			output, err = boundedCommand(ctx, commands, "systemctl", "list-unit-files", "xrdp.service")
 			xrdpPresent = err == nil && strings.Contains(string(output), "xrdp.service")
 		}
 		providers = append(providers, RemoteDesktopProvider{
 			Name:           "xrdp",
 			Present:        xrdpPresent,
-			Active:         xrdpPresent && boundedValue(commands, ctx, "systemctl", "is-active", "xrdp.service") == "active",
+			Active:         xrdpPresent && boundedValue(ctx, commands, "systemctl", "is-active", "xrdp.service") == "active",
 			ProbeSucceeded: xrdpPresent,
 		})
 	case "windows":
-		output, err := boundedCommand(commands, ctx, "sc.exe", "query", "TermService")
+		output, err := boundedCommand(ctx, commands, "sc.exe", "query", "TermService")
 		text := string(output)
 		providers = append(providers, RemoteDesktopProvider{
 			Name:           "windows-termservice",
@@ -114,7 +103,7 @@ func classifyRemoteDesktopWithDisplayAndUser(ctx context.Context, osName string,
 			ProbeSucceeded: err == nil,
 		})
 	case "darwin", "macos":
-		_, err := boundedCommand(commands, ctx, "launchctl", "print", "system/com.apple.screensharing")
+		_, err := boundedCommand(ctx, commands, "launchctl", "print", "system/com.apple.screensharing")
 		providers = append(providers, RemoteDesktopProvider{
 			Name:           "macos-screen-sharing",
 			Present:        err == nil,
@@ -140,13 +129,13 @@ func classifyRemoteDesktopWithDisplayAndUser(ctx context.Context, osName string,
 }
 
 func daemonModes(ctx context.Context, commands RemoteDesktopCommandRunner) (system, user bool) {
-	output, err := boundedCommand(commands, ctx, "pgrep", "-a", "-f", "gnome-remote-desktop-daemon")
+	output, err := boundedCommand(ctx, commands, "pgrep", "-a", "-f", "gnome-remote-desktop-daemon")
 	if err != nil || strings.TrimSpace(string(output)) == "" {
 		// Older/minimal command seams may expose only the matching PID. It
 		// cannot distinguish system from user mode, so use it only as a
 		// user-mode presence fallback; complete rows above remain authoritative
 		// whenever they are available.
-		legacy, legacyErr := boundedCommand(commands, ctx, "pgrep", "-f", "gnome-remote-desktop-daemon")
+		legacy, legacyErr := boundedCommand(ctx, commands, "pgrep", "-f", "gnome-remote-desktop-daemon")
 		if legacyErr == nil && strings.TrimSpace(string(legacy)) != "" {
 			return false, true
 		}
@@ -181,7 +170,7 @@ func userUnitState(ctx context.Context, commands RemoteDesktopCommandRunner, ses
 	if sessionUser == "" {
 		return false, false
 	}
-	uid := boundedValue(commands, ctx, "id", "-u", sessionUser)
+	uid := boundedValue(ctx, commands, "id", "-u", sessionUser)
 	if uid == "" {
 		return false, false
 	}
@@ -190,20 +179,20 @@ func userUnitState(ctx context.Context, commands RemoteDesktopCommandRunner, ses
 		"DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/" + uid + "/bus",
 		"systemctl", "--user",
 	}
-	enabled = boundedValue(commands, ctx, "env", append(append([]string{}, env...), "is-enabled", "gnome-remote-desktop.service")...) == "enabled"
-	active = boundedValue(commands, ctx, "env", append(append([]string{}, env...), "is-active", "gnome-remote-desktop.service")...) == "active"
+	enabled = boundedValue(ctx, commands, "env", append(append([]string{}, env...), "is-enabled", "gnome-remote-desktop.service")...) == "enabled"
+	active = boundedValue(ctx, commands, "env", append(append([]string{}, env...), "is-active", "gnome-remote-desktop.service")...) == "active"
 	return enabled, active
 }
 
 func remoteDesktopStatus(ctx context.Context, commands RemoteDesktopCommandRunner, sessionUser string) ([]byte, error) {
 	if strings.TrimSpace(sessionUser) == "" {
-		return boundedCommand(commands, ctx, "grdctl", "status")
+		return boundedCommand(ctx, commands, "grdctl", "status")
 	}
-	uid := boundedValue(commands, ctx, "id", "-u", sessionUser)
+	uid := boundedValue(ctx, commands, "id", "-u", sessionUser)
 	if uid == "" {
 		return nil, context.Canceled
 	}
-	return boundedCommand(commands, ctx, "env",
+	return boundedCommand(ctx, commands, "env",
 		"XDG_RUNTIME_DIR=/run/user/"+uid,
 		"DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/"+uid+"/bus",
 		"grdctl", "status")
@@ -222,14 +211,14 @@ func remoteDesktopMode(provider string) string {
 	}
 }
 
-func boundedCommand(commands RemoteDesktopCommandRunner, parent context.Context, name string, args ...string) ([]byte, error) {
+func boundedCommand(parent context.Context, commands RemoteDesktopCommandRunner, name string, args ...string) ([]byte, error) {
 	ctx, cancel := context.WithTimeout(parent, remoteDesktopProbeTimeout)
 	defer cancel()
 	return commands.Run(ctx, name, args...)
 }
 
-func boundedValue(commands RemoteDesktopCommandRunner, parent context.Context, name string, args ...string) string {
-	output, err := boundedCommand(commands, parent, name, args...)
+func boundedValue(parent context.Context, commands RemoteDesktopCommandRunner, name string, args ...string) string {
+	output, err := boundedCommand(parent, commands, name, args...)
 	if err != nil {
 		return ""
 	}

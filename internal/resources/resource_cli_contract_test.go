@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
+	testkitgo "github.com/vrooli/repo-contract-go/repocontracttest"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
-	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
 )
 
 func TestEnabledResourcesDeclareExplicitCLIContract(t *testing.T) {

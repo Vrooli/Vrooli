@@ -61,6 +61,8 @@ type Runner struct {
 	sinks []ProgressSink
 }
 
+const lifecycleEnvironmentEnv = "VROOLI_ENVIRONMENT"
+
 type lifecycleLogContext struct {
 	Scenario  string
 	Operation string
@@ -310,10 +312,14 @@ func newRunnerWithDeps(root, home string, stdout, stderr io.Writer, deps lifecyc
 	if len(logger) > 0 && logger[0] != nil {
 		baseLogger = logger[0]
 	}
+	environment := strings.TrimSpace(os.Getenv(lifecycleEnvironmentEnv))
+	if environment == "" {
+		environment = "development"
+	}
 	return &Runner{
 		Root:        filepath.Clean(root),
 		Home:        filepath.Clean(home),
-		Environment: hostreq.NormalizeEnvironment(""),
+		Environment: hostreq.NormalizeEnvironment(environment),
 		Out:         stdout,
 		Err:         stderr,
 		Ports:       manager,
@@ -452,6 +458,12 @@ func (r *Runner) Start(name string, opts StartOptions) (Result, error) {
 		attach := r.attachToInFlightStart(item, err)
 		if attach.takeOver {
 			if attempt+1 >= maxTakeoverAttempts {
+				// Name the holder: "abandoned" alone sent operators hunting for a
+				// dead process when a live one was holding the lock the whole time.
+				var busy *ScenarioBusyError
+				if errors.As(err, &busy) && busy.HolderPID > 0 {
+					return Result{}, fmt.Errorf("start %q: %d successive takeover attempts failed; lock still held by pid %d", key.Slug(), maxTakeoverAttempts, busy.HolderPID)
+				}
 				return Result{}, fmt.Errorf("start %q: %d successive in-flight starts were abandoned; giving up takeover", key.Slug(), maxTakeoverAttempts)
 			}
 			continue
@@ -663,8 +675,11 @@ func (r *Runner) executeStart(item scenario.Scenario, opts StartOptions, forceSe
 		if err := runtimeSession.setPhase(context.Background(), "setup"); err != nil {
 			return Result{}, err
 		}
-		if _, err := r.runWithLifecycleLog(startLifecycleLogContext(item.Slug, opts.Operation, "setup"), func(logWriter, childWriter io.Writer) error {
-			_, err := r.ExecutePhaseDetailed(item, "setup", env.EnvVars, nil, logWriter, childWriter)
+		if err := runtimeSession.keepLeaseAlive(context.Background(), r.leaseRenewalWarning(item, "setup"), func() error {
+			_, err := r.runWithLifecycleLog(startLifecycleLogContext(item.Slug, opts.Operation, "setup"), func(logWriter, childWriter io.Writer) error {
+				_, err := r.ExecutePhaseDetailed(item, "setup", env.EnvVars, nil, logWriter, childWriter)
+				return err
+			})
 			return err
 		}); err != nil {
 			return Result{}, err
@@ -685,8 +700,11 @@ func (r *Runner) executeStart(item scenario.Scenario, opts StartOptions, forceSe
 	if err := runtimeSession.setPhase(context.Background(), "develop"); err != nil {
 		return Result{}, err
 	}
-	if _, err := r.runWithLifecycleLog(startLifecycleLogContext(item.Slug, opts.Operation, "develop"), func(logWriter, childWriter io.Writer) error {
-		_, err := r.ExecutePhaseDetailed(item, "develop", env.EnvVars, nil, logWriter, childWriter)
+	if err := runtimeSession.keepLeaseAlive(context.Background(), r.leaseRenewalWarning(item, "develop"), func() error {
+		_, err := r.runWithLifecycleLog(startLifecycleLogContext(item.Slug, opts.Operation, "develop"), func(logWriter, childWriter io.Writer) error {
+			_, err := r.ExecutePhaseDetailed(item, "develop", env.EnvVars, nil, logWriter, childWriter)
+			return err
+		})
 		return err
 	}); err != nil {
 		return Result{}, err

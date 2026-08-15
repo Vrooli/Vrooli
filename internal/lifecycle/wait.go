@@ -272,6 +272,16 @@ type attachResult struct {
 }
 
 func (r *Runner) attachToInFlightStart(item scenario.Scenario, busyErr error) attachResult {
+	// The lock holder is the authority on whether a competing operation is live.
+	// Start-operation records are written per top-level invocation, so a
+	// dependency-driven start holds the lock without writing one for this
+	// scenario — and the newest record on file may then be a terminal corpse
+	// from an unrelated earlier run. Reading that corpse as "the holder died"
+	// makes every caller attempt a takeover it can never win: the lock stays
+	// held by a live process, the retry loop burns its attempts, and the
+	// scenario becomes permanently unstartable while the holder works.
+	holderLive := busyLockHolderProvenLive(busyErr)
+
 	// Grace: the lock holder creates its record just after taking the lock;
 	// give it a moment to appear before concluding "not a start".
 	var found, abandoned bool
@@ -280,7 +290,7 @@ func (r *Runner) attachToInFlightStart(item scenario.Scenario, busyErr error) at
 		if err != nil {
 			return false, err
 		}
-		if ok && view.Status == scenarioruntime.StartOperationStatusAbandoned {
+		if ok && !holderLive && view.Status == scenarioruntime.StartOperationStatusAbandoned {
 			// The record claims running but its initiator is dead (or it was
 			// explicitly abandoned): take over rather than waiting on a corpse.
 			abandoned = true

@@ -61,7 +61,6 @@ func TestValidateBlueprintsRejectsFilenameMismatch(t *testing.T) {
   "when_to_use": ["Fixture use"],
   "integration_kind": "external-cli",
   "platform_support": {
-    "portability_tier": "full",
     "notes": "Fixture notes",
     "linux": "supported",
     "macos": "supported",
@@ -95,7 +94,6 @@ func TestValidateBlueprintsRejectsMissingRequiredFields(t *testing.T) {
   "when_to_use": [],
   "integration_kind": "external-cli",
   "platform_support": {
-    "portability_tier": "full",
     "notes": "Fixture notes",
     "linux": "supported",
     "macos": "supported",
@@ -129,7 +127,6 @@ func TestValidateBlueprintsRejectsTemplateRuleMismatch(t *testing.T) {
   "when_to_use": ["Fixture use"],
   "integration_kind": "cloud-api",
   "platform_support": {
-    "portability_tier": "full",
     "notes": "Fixture notes",
     "linux": "supported",
     "macos": "supported",

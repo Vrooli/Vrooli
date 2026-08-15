@@ -13,11 +13,11 @@ import (
 	"github.com/vrooli/vrooli/internal/hostsession"
 	"github.com/vrooli/vrooli/internal/lifecycle"
 	"github.com/vrooli/vrooli/internal/process"
+	testprocess "github.com/vrooli/vrooli/internal/process/processtest"
 	"github.com/vrooli/vrooli/internal/scenario"
+	testscenario "github.com/vrooli/vrooli/internal/scenario/scenariotest"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
 	"github.com/vrooli/vrooli/internal/vroolierr"
-	testprocess "github.com/vrooli/vrooli/packages/testkit-go/processfixture"
-	testscenario "github.com/vrooli/vrooli/packages/testkit-go/scenariofixture"
 )
 
 // AI_CHECK: GO_MIGRATION_TEST_QUALITY=1 | LAST: 2026-04-11

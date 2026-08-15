@@ -19,13 +19,20 @@ func TestParseRefreshRequestCapturesTargetAndNoRestart(t *testing.T) {
 	}
 }
 
-func TestParseValidateRequestDefaultsToAll(t *testing.T) {
-	req, err := ParseValidateRequest(nil)
+func TestParseRefreshRequestDefaultsToNoRestartForNonInteractiveCallers(t *testing.T) {
+	req, err := ParseRefreshRequest([]string{"proto"})
 	if err != nil {
-		t.Fatalf("ParseValidateRequest: %v", err)
+		t.Fatalf("ParseRefreshRequest: %v", err)
 	}
-	if !req.All || req.Name != "" {
-		t.Fatalf("req = %+v", req)
+	if !req.NoRestart || req.Interactive {
+		t.Fatalf("default refresh request = %+v", req)
+	}
+	req, err = ParseRefreshRequest([]string{"proto", "--restart"})
+	if err != nil {
+		t.Fatalf("ParseRefreshRequest --restart: %v", err)
+	}
+	if req.NoRestart || !req.Interactive {
+		t.Fatalf("explicit restart request = %+v", req)
 	}
 }
 
@@ -36,12 +43,6 @@ func TestParseRunRequestAllowsAllForTestLifecycle(t *testing.T) {
 	}
 	if req.Name != "" || req.Action != "test" {
 		t.Fatalf("req = %+v", req)
-	}
-}
-
-func TestParseAuditRequestRejectsUnknownFlag(t *testing.T) {
-	if _, err := ParseAuditRequest([]string{"--bogus"}); err == nil || !strings.Contains(err.Error(), "unknown option for package audit") {
-		t.Fatalf("ParseAuditRequest error = %v", err)
 	}
 }
 

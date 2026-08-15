@@ -2,6 +2,7 @@ package packagegov
 
 import (
 	"fmt"
+	"path/filepath"
 	"regexp"
 )
 
@@ -12,7 +13,6 @@ const (
 	KindGeneratedTypeScript PackageKind = "generated_typescript"
 	KindGoRuntime           PackageKind = "go_runtime"
 	KindGoCLI               PackageKind = "go_cli"
-	KindGoTestkit           PackageKind = "go_testkit"
 	KindInternalPlatform    PackageKind = "internal_platform"
 	KindSchemaOrContract    PackageKind = "schema_or_contract"
 )
@@ -51,8 +51,9 @@ const (
 )
 
 type CommandSpec struct {
-	Name string   `json:"name"`
-	Run  []string `json:"run"`
+	Name    string   `json:"name"`
+	Run     []string `json:"run"`
+	Outputs []string `json:"outputs,omitempty"`
 }
 
 type Manifest struct {
@@ -69,10 +70,16 @@ type ManifestEntry struct {
 	Language          string            `json:"language,omitempty"`
 	ModuleIdentifiers []string          `json:"module_identifiers,omitempty"`
 	GeneratedOutputs  []GeneratedOutput `json:"generated_outputs,omitempty"`
+	ModuleBoundary    *ModuleBoundary   `json:"module_boundary,omitempty"`
 	Adoption          AdoptionPolicy    `json:"adoption"`
 	Lifecycle         LifecyclePolicy   `json:"lifecycle"`
 	Refresh           RefreshPolicy     `json:"refresh"`
 	Docs              []string          `json:"docs,omitempty"`
+}
+
+type ModuleBoundary struct {
+	Status string `json:"status"`
+	Reason string `json:"reason"`
 }
 
 type GeneratedOutput struct {
@@ -147,3 +154,18 @@ func (m Manifest) ValidateBasics() error {
 }
 
 var semverPattern = regexp.MustCompile(`^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$`)
+
+func normalizeIssues(issues []ValidationIssue) []ValidationIssue {
+	out := make([]ValidationIssue, 0, len(issues))
+	seen := make(map[string]struct{}, len(issues))
+	for _, issue := range issues {
+		issue.Path = filepath.Clean(issue.Path)
+		key := issue.Severity + "\x00" + issue.Code + "\x00" + issue.Path + "\x00" + issue.Message + "\x00" + issue.PackageName
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		out = append(out, issue)
+	}
+	return out
+}

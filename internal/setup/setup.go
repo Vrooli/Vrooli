@@ -22,6 +22,7 @@ import (
 	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/dockerhost"
 	"github.com/vrooli/vrooli/internal/hostreq"
+	"github.com/vrooli/vrooli/internal/hostreqspec"
 	"github.com/vrooli/vrooli/internal/lifecycle"
 	"github.com/vrooli/vrooli/internal/orchestrator"
 	"github.com/vrooli/vrooli/internal/ports"
@@ -30,6 +31,7 @@ import (
 	"github.com/vrooli/vrooli/internal/projectstate"
 	"github.com/vrooli/vrooli/internal/resources"
 	vrooliruntime "github.com/vrooli/vrooli/internal/runtime"
+	onboardingapplyprivileges "github.com/vrooli/vrooli/internal/safeguards/onboarding-apply-privileges"
 	"github.com/vrooli/vrooli/internal/scenario"
 	"github.com/vrooli/vrooli/internal/scenarioexec"
 	"github.com/vrooli/vrooli/internal/shell"
@@ -43,6 +45,8 @@ const (
 )
 
 var inspectDockerHealthFn = dockerhost.InspectHealth
+
+var launchOnboardingAsOperatorFn = launchOnboardingAsOperator
 
 type Options struct {
 	DryRun bool
@@ -223,6 +227,14 @@ func (s *setupService) RunSetupWithOptions(root, home string, opts Options, stdo
 		return err
 	}
 	requirements = bootstrapAwareRequirements(requirements)
+	// The onboarding apply API runs later and cannot safely open an interactive
+	// sudo prompt. During this setup pass, provision one literal grant for the
+	// elevated host items selected by the same resolution.
+	executable, executableErr := s.deps.osExecutable()
+	if executableErr != nil {
+		return fmt.Errorf("resolve executable for onboarding apply grant: %w", executableErr)
+	}
+	requirements = addOnboardingApplyPrivilegeRequirement(requirements, executable)
 	ensureOptions := vrooliruntime.EnsureOptions{
 		Environment:       opts.Environment,
 		SudoMode:          opts.SudoMode,
@@ -235,12 +247,14 @@ func (s *setupService) RunSetupWithOptions(root, home string, opts Options, stdo
 	}
 	if !opts.DryRun {
 		stage = "bootstrap"
+		_, _ = fmt.Fprintln(stdout, "[INFO]    Checking bootstrap tools (git, go)...")
 		if err := s.deps.ensureBootstrapTools(home, ensureOptions); err != nil {
 			return err
 		}
 	}
 
 	stage = "requirements"
+	_, _ = fmt.Fprintln(stdout, "[INFO]    Applying selected host requirements...")
 	report, ensureErr := s.deps.ensureRequirements(ensureOptions, requirements)
 	terminalReport = report
 	renderSetupRequirementResult(stdout, opts, report)
@@ -251,11 +265,17 @@ func (s *setupService) RunSetupWithOptions(root, home string, opts Options, stdo
 		_, _ = fmt.Fprintln(stdout, "[INFO]    Dry-run mode skips git configuration, resource installation, and setup completion markers")
 		return nil
 	}
+	stage = "generated-packages"
+	_, _ = fmt.Fprintln(stdout, "[INFO]    Generating repository packages needed by the control plane...")
+	if err := lifecycle.ProvisionGeneratedPackages(root, home, stdout, stdout); err != nil {
+		return fmt.Errorf("provision generated packages: %w", err)
+	}
 	if opts.BootstrapOnly {
 		_, _ = fmt.Fprintln(stdout, "[INFO]    Bootstrap-only setup applied host requirements; native CLI finalization is still required")
 		return nil
 	}
 	stage = "credentials"
+	_, _ = fmt.Fprintln(stdout, "[INFO]    Configuring the credential backend...")
 	if opts.CredentialPassphraseStdin {
 		passphrase, readErr := readCredentialPassphraseStdin()
 		if readErr != nil {
@@ -268,7 +288,7 @@ func (s *setupService) RunSetupWithOptions(root, home string, opts Options, stdo
 		return err
 	}
 	stage = "privilege-broker"
-	executable, executableErr := s.deps.osExecutable()
+	_, _ = fmt.Fprintln(stdout, "[INFO]    Installing the privilege broker...")
 	if executableErr != nil {
 		return fmt.Errorf("resolve executable for privilege broker: %w", executableErr)
 	}
@@ -278,18 +298,26 @@ func (s *setupService) RunSetupWithOptions(root, home string, opts Options, stdo
 	}
 	renderPrivilegeBrokerStatus(stdout, brokerStatus)
 	stage = "git"
+	_, _ = fmt.Fprintln(stdout, "[INFO]    Configuring Git defaults...")
 	if err := configureGit(root); err != nil {
 		return err
 	}
 	stage = "resources"
+	_, _ = fmt.Fprintln(stdout, "[INFO]    Reconciling selected resources...")
 	if err := s.maybeInstallResources(root, home, opts, stdout, stderr); err != nil {
 		return err
 	}
 	stage = "cli"
-	if err := s.deps.syncResourceSchema(root); err != nil {
-		return err
+	if strings.TrimSpace(opts.Resources) == "none" {
+		_, _ = fmt.Fprintln(stdout, "[INFO]    Skipping resource CLI schema synchronization (resources=none)")
+	} else {
+		_, _ = fmt.Fprintln(stdout, "[INFO]    Synchronizing resource CLI schemas...")
+		if err := s.deps.syncResourceSchema(root); err != nil {
+			return err
+		}
 	}
 	stage = "finalize"
+	_, _ = fmt.Fprintln(stdout, "[INFO]    Refreshing the bootstrap and selected scenario CLIs...")
 	cliManager, err := s.deps.newCLIInstallManager(root, home)
 	if err != nil {
 		return err
@@ -309,7 +337,11 @@ func (s *setupService) RunSetupWithOptions(root, home string, opts Options, stdo
 	}
 	if err := s.maybeOpenOnboarding(root, home, stdout, stderr); err != nil {
 		_, _ = fmt.Fprintf(stderr, "[WARN]    Unable to auto-open onboarding: %v\n", err)
+		_, _ = fmt.Fprintln(stdout, "[ACTION]  Continue configuration with: vrooli scenario open vrooli-onboarding")
+		_, _ = fmt.Fprintln(stdout, "[ACTION]  Or use the onboarding CLI/API to resolve pending operator inputs.")
 	}
+	_, _ = fmt.Fprintln(stdout, "[INFO]    Setup completed successfully.")
+	_, _ = fmt.Fprintln(stdout, "[INFO]    Bootstrap setup completed; configuration remains pending until onboarding reports completion.")
 	return nil
 }
 
@@ -415,6 +447,36 @@ func bootstrapAwareRequirements(resolution hostreq.Resolution) hostreq.Resolutio
 		ordered = append(ordered, byName[name])
 	}
 	resolution.Tools = ordered
+	return resolution
+}
+
+func addOnboardingApplyPrivilegeRequirement(resolution hostreq.Resolution, executable string) hostreq.Resolution {
+	tools := make([]string, 0)
+	for _, requirement := range resolution.Tools {
+		if requirement.Privilege == hostreqspec.PrivilegeElevated {
+			tools = append(tools, requirement.Name)
+		}
+	}
+	safeguards := make([]string, 0)
+	for _, requirement := range resolution.Safeguards {
+		if requirement.Privilege == hostreqspec.PrivilegeElevated {
+			safeguards = append(safeguards, requirement.Name)
+		}
+	}
+	if len(tools) == 0 && len(safeguards) == 0 {
+		return resolution
+	}
+	grant := hostreq.ResolvedRequirement{
+		Name:       "onboarding_apply_privileges",
+		Kind:       hostreq.KindSafeguard,
+		Required:   true,
+		Privilege:  hostreqspec.PrivilegeElevated,
+		Platforms:  []string{"linux", "macos"},
+		Config:     onboardingapplyprivileges.ConfigForRequirements(executable, tools, safeguards),
+		Reasons:    []string{"Allow onboarding apply to execute selected elevated host requirements without a second prompt"},
+		Provenance: []hostreq.Provenance{{Kind: "root", Name: "vrooli-setup", Path: "internal/setup/setup.go", Source: "internal/setup/setup.go"}},
+	}
+	resolution.Safeguards = append([]hostreq.ResolvedRequirement{grant}, resolution.Safeguards...)
 	return resolution
 }
 
@@ -539,6 +601,9 @@ func recoverHostToolPATH(home string) {
 }
 
 func RunBuild(root, home string, stdout, stderr io.Writer) error {
+	if err := lifecycle.ProvisionGeneratedPackages(root, home, stdout, stdout); err != nil {
+		return fmt.Errorf("provision generated packages: %w", err)
+	}
 	buildDir := filepath.Join(config.RepoConfigDir(root), "build")
 	if err := os.MkdirAll(buildDir, 0o755); err != nil {
 		return err
@@ -819,18 +884,11 @@ type resourceRunner interface {
 }
 
 func enabledResourceNames(root string) ([]string, error) {
-	servicePath := filepath.Join(config.RepoConfigDir(root), "service.json")
-	manifest, err := scenario.ReadService(servicePath)
+	home, err := config.HomeDir()
 	if err != nil {
 		return nil, err
 	}
-	names := make([]string, 0, len(manifest.Dependencies.Resources))
-	for name, dependency := range manifest.Dependencies.Resources {
-		if dependency.Enabled {
-			names = append(names, name)
-		}
-	}
-	return names, nil
+	return resources.NewController(root, home).EnabledResourceNames()
 }
 
 func syncResourceSchemaArtifacts(root string) error {
@@ -856,7 +914,7 @@ func setupNeeded(home, root, slug string) bool {
 	if err != nil {
 		return true
 	}
-	return !locator.HasSetupComplete()
+	return !locator.HasBootstrapComplete()
 }
 
 func (s *setupService) applyDotEnv(root string) error {
@@ -1108,7 +1166,10 @@ func onboardingScenarioExists(root string) bool {
 }
 
 func onboardingAlreadyHandled(prefs onboardingPreferences) bool {
-	if prefs.Completed || prefs.Skipped || prefs.PromptedAt != "" {
+	// PromptedAt is telemetry, not completion. A browser may have failed to
+	// open, or the operator may have closed onboarding before applying. The
+	// next setup run must offer the continuation again.
+	if prefs.Completed || prefs.Skipped {
 		return true
 	}
 	return prefs.AutoOpen != nil && !*prefs.AutoOpen
@@ -1163,22 +1224,21 @@ func saveOnboardingPreferences(path string, doc map[string]json.RawMessage, pref
 }
 
 func launchDetachedOnboarding(root, executable string) error {
+	return launchOnboardingAsOperatorFn(root, executable)
+}
+
+func launchOnboardingAsOperator(root, executable string) error {
 	devNull, err := os.OpenFile(os.DevNull, os.O_RDWR, 0)
 	if err != nil {
 		return err
 	}
 	defer devNull.Close()
 
-	cmd := exec.Command(executable, "scenario", "start", onboardingSlug)
-	cmd.Dir = root
-	cmd.Env = os.Environ()
-	cmd.Stdin = devNull
-	cmd.Stdout = devNull
-	cmd.Stderr = devNull
-	if err := platform.ConfigureCommand(cmd, platform.ProcessOptions{Detached: true}); err != nil {
-		return err
-	}
-	return cmd.Start()
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	return platform.RunAsInvokingUserInSession(ctx, executable,
+		[]string{"scenario", "start", onboardingSlug},
+		platform.IdentityCommandOptions{Dir: root, Stdin: devNull, Stdout: devNull, Stderr: devNull})
 }
 
 func (s *setupService) resolveOnboardingURL(executable string) (string, error) {
@@ -1216,6 +1276,7 @@ func markComplete(home, root string) error {
 	payload := map[string]any{
 		"setup_version": "2.0.0",
 		"completed_at":  time.Now().Format(time.RFC3339),
+		"phase":         "bootstrap_complete",
 		"project_key":   locator.ProjectKey(),
 		"root":          locator.Root(),
 	}
@@ -1224,7 +1285,7 @@ func markComplete(home, root string) error {
 		return err
 	}
 	data = append(data, '\n')
-	return config.WriteOwnedFile(locator.SetupCompletePath(), data, 0o644)
+	return config.WriteOwnedFile(locator.BootstrapCompletePath(), data, 0o644)
 }
 
 // runSetupStatus runs an inspection-only pass and prints the grouped overview.
@@ -1247,6 +1308,9 @@ func (s *setupService) runSetupStatus(root, home string, opts Options, stdout io
 		return err
 	}
 	requirements = bootstrapAwareRequirements(requirements)
+	if executable, executableErr := s.deps.osExecutable(); executableErr == nil {
+		requirements = addOnboardingApplyPrivilegeRequirement(requirements, executable)
+	}
 	report, err := s.deps.inspectRequirements(opts.Environment, requirements)
 	if err != nil {
 		return err
@@ -1304,6 +1368,9 @@ func (s *setupService) runSetupExplain(root, home string, opts Options, stdout i
 		return err
 	}
 	requirements = bootstrapAwareRequirements(requirements)
+	if executable, executableErr := s.deps.osExecutable(); executableErr == nil {
+		requirements = addOnboardingApplyPrivilegeRequirement(requirements, executable)
+	}
 	report, err := s.deps.inspectRequirements(opts.Environment, requirements)
 	if err != nil {
 		return err

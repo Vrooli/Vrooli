@@ -38,8 +38,8 @@ filesystem path for a new file given just the component's name and slot.
 A component library that publishes `"slot": "layout-nav"` and ships
 `SidebarShell` knows — without any per-scenario configuration — that the file
 should land at `ui/src/layout/SidebarShell.tsx`. Override the slot's `dir` in
-a scenario-level overlay if you've reorganized; the resolver will pick up the
-new path automatically.
+a scenario-level overlay if you've reorganized; the resolver merges that
+overlay before computing the new path.
 
 ## Component Canon
 
@@ -93,14 +93,14 @@ is removed by `template-manager detemplate {{SCENARIO_ID}}`.
 
 - **Add a slot.** Add an entry to `ui/manifest.json`. Keep its `dir` inside
   `ui/src/` and pick a pattern that matches your file-naming convention. The
-  schema (`scenario-ui-manifest/v1`) does not enum-restrict slot names — open
+  schema (`scenario-ui-manifest/v2`) does not enum-restrict slot names — open
   set on purpose.
 - **Override a slot in a single scenario.** Drop a partial manifest at
-  `.vrooli/ui-manifest.json` in the scenario root; the resolver will read it
-  as an overlay over the template manifest. (Overlay support tracked in
-  scenarios/react-component-library's PRD.)
+  `.vrooli/ui-manifest.json` in the scenario root; the resolver merges it over
+  the template manifest. The overlay may override existing slots, but it may
+  not invent new slot names.
 - **Add a `postApply` action** (auto barrel-export, route-register,
-  i18n-merge). Reserved for a future schema bump (`scenario-ui-manifest/v2`).
+  i18n-merge). Reserve this for a future schema revision.
   Document the intent in the consuming scenario's PRD until then.
 
 ## Cross-References

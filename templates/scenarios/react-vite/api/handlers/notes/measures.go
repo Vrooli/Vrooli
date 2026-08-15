@@ -7,8 +7,9 @@ import (
 	"strconv"
 	"time"
 
-	"{{SCENARIO_ID}}/internal/clock"
 	internalnotes "{{SCENARIO_ID}}/internal/notes"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/vrooli/api-core/database"
 	measures "github.com/vrooli/measures-go"
@@ -63,7 +64,7 @@ func notesCountDeclaration() measures.MeasureDeclaration {
 // features/notes it deletes this file and the one mount line, with no central
 // residue. A real multi-domain scenario registers each domain's measures on a
 // single shared registry instead.
-func MeasuresHandler(db *database.RoutedDB, clk clock.Clock) (http.Handler, error) {
+func MeasuresHandler(db *database.RoutedDB, clk schedule.Clock) (http.Handler, error) {
 	svc := internalnotes.NewService(internalnotes.NewSQLiteRepository(db, clk))
 	reg := measures.NewRegistry(measures.WithClock(clk.Now))
 	if err := registerNotesCount(reg, svc, clk); err != nil {
@@ -76,7 +77,7 @@ func MeasuresHandler(db *database.RoutedDB, clk clock.Clock) (http.Handler, erro
 // The compute func resolves the canonical time_window token deterministically
 // (no LLM, explicit UTC) and counts via the same service method the CountNotes
 // RPC uses, stamping mandatory provenance describing the executed range.
-func registerNotesCount(reg *measures.Registry, svc internalnotes.Service, clk clock.Clock) error {
+func registerNotesCount(reg *measures.Registry, svc internalnotes.Service, clk schedule.Clock) error {
 	decl := notesCountDeclaration()
 	return reg.Register(decl, func(ctx context.Context, req measures.MeasureRequest) (measures.MeasureResult, error) {
 		token := measures.TimeWindowToken(req.Params["window"])

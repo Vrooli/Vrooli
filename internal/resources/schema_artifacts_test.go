@@ -8,9 +8,9 @@ import (
 	"testing"
 
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
+	testresource "github.com/vrooli/vrooli/internal/resources/resourcestest"
 	"github.com/vrooli/vrooli/internal/scenario"
-	testresource "github.com/vrooli/vrooli/packages/testkit-go/resourcefixture"
-	testscenario "github.com/vrooli/vrooli/packages/testkit-go/scenariofixture"
+	testscenario "github.com/vrooli/vrooli/internal/scenario/scenariotest"
 )
 
 func TestSyncAndValidateSchemaArtifacts(t *testing.T) {

@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
-	testresource "github.com/vrooli/vrooli/packages/testkit-go/resourcefixture"
-	testscenario "github.com/vrooli/vrooli/packages/testkit-go/scenariofixture"
+	testresource "github.com/vrooli/vrooli/internal/resources/resourcestest"
+	testscenario "github.com/vrooli/vrooli/internal/scenario/scenariotest"
 )
 
 func TestValidateResourcesRejectsRepoLocalDataVolumeSourcesWithoutLegacyMarker(t *testing.T) {
@@ -14,10 +14,9 @@ func TestValidateResourcesRejectsRepoLocalDataVolumeSourcesWithoutLegacyMarker(t
 	home := t.TempDir()
 	testscenario.WriteProjectResourceConfig(t, root, "fixture", true)
 	testresource.WriteResourceManifest(t, root, "fixture", manifestpkg.ResourceManifest{
-		Name:            "fixture",
-		Driver:          "docker-service",
-		Template:        "docker-service",
-		PortabilityTier: "full",
+		Name:     "fixture",
+		Driver:   "docker-service",
+		Template: "docker-service",
 		Runtime: manifestpkg.ResourceRuntime{
 			Image: "fixture:1.0.0",
 			Volumes: []manifestpkg.ResourceVolume{
@@ -46,10 +45,9 @@ func TestValidateResourcesRejectsRepoLocalResourceInstanceSourcesWithoutLegacyMa
 	home := t.TempDir()
 	testscenario.WriteProjectResourceConfig(t, root, "postgres", true)
 	testresource.WriteResourceManifest(t, root, "postgres", manifestpkg.ResourceManifest{
-		Name:            "postgres",
-		Driver:          "docker-service",
-		Template:        "docker-service",
-		PortabilityTier: "full",
+		Name:     "postgres",
+		Driver:   "docker-service",
+		Template: "docker-service",
 		Runtime: manifestpkg.ResourceRuntime{
 			Image: "postgres:16-alpine",
 			Volumes: []manifestpkg.ResourceVolume{
@@ -81,7 +79,6 @@ func TestValidateResourcesAllowsExplicitLegacyRepoDataVolumeSources(t *testing.T
 		Name:                  "fixture",
 		Driver:                "docker-service",
 		Template:              "docker-service",
-		PortabilityTier:       "full",
 		LegacyRepoDataAllowed: true,
 		Runtime: manifestpkg.ResourceRuntime{
 			Image: "fixture:1.0.0",
@@ -105,10 +102,9 @@ func TestValidateResourcesAllowsStorageContextVariablesInDerivedExports(t *testi
 	home := t.TempDir()
 	testscenario.WriteProjectResourceConfig(t, root, "fixture", true)
 	testresource.WriteResourceManifest(t, root, "fixture", manifestpkg.ResourceManifest{
-		Name:            "fixture",
-		Driver:          "external-cli",
-		Binary:          "fixture-cli",
-		PortabilityTier: "full",
+		Name:   "fixture",
+		Driver: "external-cli",
+		Binary: "fixture-cli",
 		EnvironmentExports: manifestpkg.ResourceEnvironmentExports{
 			Derived: map[string]manifestpkg.ResourceDerivedTemplate{
 				"FIXTURE_DATA_DIR":  {Template: "${VROOLI_DATA}/fixture"},

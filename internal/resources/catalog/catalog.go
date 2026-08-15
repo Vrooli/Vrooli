@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -8,6 +9,7 @@ import (
 	"sort"
 
 	"github.com/vrooli/vrooli/internal/discovery"
+	"github.com/vrooli/vrooli/internal/operatorstate"
 	"github.com/vrooli/vrooli/internal/repocontractmeta"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 )
@@ -21,19 +23,18 @@ type ConfigEntry struct {
 }
 
 type Resource struct {
-	Name            string      `json:"name"`
-	Path            string      `json:"path"`
-	Exists          bool        `json:"exists"`
-	Registered      bool        `json:"registered"`
-	Enabled         bool        `json:"enabled"`
-	Required        bool        `json:"required"`
-	HasCLI          bool        `json:"has_cli"`
-	Config          ConfigEntry `json:"config"`
-	ControlMode     string      `json:"control_mode,omitempty"`
-	Driver          string      `json:"driver,omitempty"`
-	Template        string      `json:"template,omitempty"`
-	PortabilityTier string      `json:"portability_tier,omitempty"`
-	ManifestPath    string      `json:"manifest_path,omitempty"`
+	Name         string      `json:"name"`
+	Path         string      `json:"path"`
+	Exists       bool        `json:"exists"`
+	Registered   bool        `json:"registered"`
+	Enabled      bool        `json:"enabled"`
+	Required     bool        `json:"required"`
+	HasCLI       bool        `json:"has_cli"`
+	Config       ConfigEntry `json:"config"`
+	ControlMode  string      `json:"control_mode,omitempty"`
+	Driver       string      `json:"driver,omitempty"`
+	Template     string      `json:"template,omitempty"`
+	ManifestPath string      `json:"manifest_path,omitempty"`
 }
 
 type DiscoverOptions struct {
@@ -132,7 +133,6 @@ func (s *Service) DiscoverReport(opts DiscoverOptions) (discovery.Report[Resourc
 		if hasManifest {
 			item.Driver = manifest.Driver
 			item.Template = manifest.Template
-			item.PortabilityTier = manifest.PortabilityTier
 			item.ManifestPath = manifestPath
 			item.ControlMode = "manifest-native"
 		}
@@ -181,7 +181,6 @@ func (s *Service) DiscoverOne(name string, opts DiscoverOptions) (*Resource, err
 		}
 		item.Driver = manifest.Driver
 		item.Template = manifest.Template
-		item.PortabilityTier = manifest.PortabilityTier
 		item.ManifestPath = manifestPath
 		item.ControlMode = "manifest-native"
 	}
@@ -206,10 +205,27 @@ func (s *Service) ReadConfigEntries() (map[string]ConfigEntry, error) {
 	if err := json.Unmarshal(data, &payload); err != nil {
 		return nil, err
 	}
-	if payload.Dependencies.Resources == nil {
-		return map[string]ConfigEntry{}, nil
+	entries := payload.Dependencies.Resources
+	if entries == nil {
+		entries = map[string]ConfigEntry{}
 	}
-	return payload.Dependencies.Resources, nil
+
+	// The project manifest supplies defaults. Per-install operator choices are
+	// authoritative once present, so resource enable/disable changes are
+	// visible to every catalog consumer, including `vrooli resource status`.
+	state, err := operatorstate.New(operatorstate.Config{RepoRoot: s.Root}).Effective(context.Background())
+	if err != nil {
+		return nil, fmt.Errorf("read operator state: %w", err)
+	}
+	for name, choice := range state.Resources {
+		if choice.Enabled == nil {
+			continue
+		}
+		entry := entries[name]
+		entry.Enabled = *choice.Enabled
+		entries[name] = entry
+	}
+	return entries, nil
 }
 
 func (s *Service) FilesystemNames() ([]string, error) {

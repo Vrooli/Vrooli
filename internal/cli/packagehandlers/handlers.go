@@ -90,27 +90,6 @@ func buildCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[rootcli.Ha
 			},
 			packagecli.RenderDependents,
 		),
-		packagecli.CommandValidate: rootcli.BindGlobalCommand(deps.Stdout,
-			func(ctx C, args []string) (packagecli.ValidateRequest, error) {
-				return packagecli.ParseValidateRequest(args)
-			},
-			func(ctx C, req packagecli.ValidateRequest) (cliout.Format, packagecli.ValidateResponse, error) {
-				format, err := deps.OutputFormat(ctx)
-				if err != nil {
-					return "", packagecli.ValidateResponse{}, err
-				}
-				name := req.Name
-				if req.All {
-					name = ""
-				}
-				report, err := packageapp.Service{Root: deps.Root(ctx)}.Validate(name)
-				if err != nil {
-					return "", packagecli.ValidateResponse{}, err
-				}
-				return format, packagecli.ValidateResponse{Report: report}, nil
-			},
-			packagecli.RenderValidate,
-		),
 		packagecli.CommandBuild: rootcli.BindGlobalCommand(deps.Stdout,
 			func(ctx C, args []string) (packagecli.RunRequest, error) {
 				return packagecli.ParseRunRequest("build", args)
@@ -175,6 +154,7 @@ func buildCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[rootcli.Ha
 					PackageName: req.Name,
 					Target:      req.Target,
 					NoRestart:   req.NoRestart,
+					Interactive: req.Interactive,
 				})
 				if err != nil {
 					return "", packagecli.RefreshResponse{}, err
@@ -185,25 +165,6 @@ func buildCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[rootcli.Ha
 				}, nil
 			},
 			packagecli.RenderRefresh,
-		),
-		packagecli.CommandAudit: rootcli.BindGlobalCommand(deps.Stdout,
-			func(ctx C, args []string) (packagecli.AuditRequest, error) { return packagecli.ParseAuditRequest(args) },
-			func(ctx C, req packagecli.AuditRequest) (cliout.Format, packagecli.AuditResponse, error) {
-				format, err := deps.OutputFormat(ctx)
-				if err != nil {
-					return "", packagecli.AuditResponse{}, err
-				}
-				name := req.Name
-				if req.All {
-					name = ""
-				}
-				report, err := packageapp.Service{Root: deps.Root(ctx)}.Audit(name)
-				if err != nil {
-					return "", packagecli.AuditResponse{}, err
-				}
-				return format, packagecli.AuditResponse{Report: report}, nil
-			},
-			packagecli.RenderAudit,
 		),
 	}
 

@@ -61,8 +61,13 @@
         "lifecycle": {
           "type": "string",
           "enum": ["production", "fixture", "experimental"],
-          "default": "production",
-          "description": "Provider lifecycle policy. production participates in automatic routing; fixture is validation/support data reachable only through an explicit selector; experimental is callable explicitly while its evidence is being established. This is a registrant-declared generic policy with no scenario-name special-casing."
+          "default": "experimental",
+          "description": "Provider lifecycle policy. production participates in automatic routing only with live evidence; fixture is validation/support data reachable only through an explicit selector; experimental is callable explicitly while its evidence is being established. Omitting lifecycle is fail-safe and therefore experimental. This is a registrant-declared generic policy with no scenario-name special-casing."
+        },
+        "declared_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Optional RFC3339 declaration timestamp. Search Hub records the first registration time when omitted and uses it to age incubating providers."
         },
         "endpoint": {
           "$ref": "#/definitions/endpoint",

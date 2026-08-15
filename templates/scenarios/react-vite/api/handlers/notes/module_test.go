@@ -2,12 +2,14 @@ package notes_test
 
 import (
 	"context"
+	db "github.com/vrooli/api-core/databasetest"
 	"io"
 	"log"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"{{SCENARIO_ID}}/handlers/notes"
 
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"
@@ -16,11 +18,10 @@ import (
 
 	notesconnect "github.com/vrooli/vrooli/packages/proto/gen/go/{{SCENARIO_ID}}/v1/notes/notes_v1connect"
 
-	"{{SCENARIO_ID}}/handlers/notes"
-	"{{SCENARIO_ID}}/internal/clock"
 	localdb "{{SCENARIO_ID}}/internal/database"
 	internalnotes "{{SCENARIO_ID}}/internal/notes"
-	"{{SCENARIO_ID}}/internal/testutil/db"
+
+	"github.com/vrooli/api-core/schedule"
 )
 
 func TestModule_Shape(t *testing.T) {
@@ -30,7 +31,7 @@ func TestModule_Shape(t *testing.T) {
 		apidb.SchemaProviderFunc(internalnotes.Schema),
 	))
 
-	m := notes.ModuleWithBlobStore(apidb.NewFromPrimary(d), clock.System{}, blobstore.NewMemoryBlobStore(), log.New(io.Discard, "", 0))
+	m := notes.ModuleWithBlobStore(apidb.NewFromPrimary(d), schedule.System(), blobstore.NewMemoryBlobStore(), log.New(io.Discard, "", 0))
 
 	require.Equal(t, "notes", m.Name)
 	require.NotNil(t, m.Mount, "Mount closure must be set")
@@ -46,7 +47,7 @@ func TestModule_RoutesAreReachable(t *testing.T) {
 		apidb.SchemaProviderFunc(internalnotes.Schema),
 	))
 
-	m := notes.ModuleWithBlobStore(apidb.NewFromPrimary(d), clock.System{}, blobstore.NewMemoryBlobStore(), log.New(io.Discard, "", 0))
+	m := notes.ModuleWithBlobStore(apidb.NewFromPrimary(d), schedule.System(), blobstore.NewMemoryBlobStore(), log.New(io.Discard, "", 0))
 	r := mux.NewRouter()
 	m.Mount(r)
 

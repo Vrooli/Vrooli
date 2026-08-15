@@ -5,13 +5,13 @@ import (
 	"strings"
 	"testing"
 
+	testkitgo "github.com/vrooli/repo-contract-go/repocontracttest"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
+	testresource "github.com/vrooli/vrooli/internal/resources/resourcestest"
 	"github.com/vrooli/vrooli/internal/scenario"
-	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
-	testresource "github.com/vrooli/vrooli/packages/testkit-go/resourcefixture"
-	testscenario "github.com/vrooli/vrooli/packages/testkit-go/scenariofixture"
+	testscenario "github.com/vrooli/vrooli/internal/scenario/scenariotest"
 )
 
 func TestResolveMergesRootScenarioAndResourceDeclarations(t *testing.T) {
@@ -41,10 +41,9 @@ func TestResolveMergesRootScenarioAndResourceDeclarations(t *testing.T) {
 		},
 	})
 	testresource.WriteResourceManifest(t, root, "alpha-resource", manifestpkg.ResourceManifest{
-		Name:            "alpha-resource",
-		Driver:          "external-cli",
-		Binary:          "alpha",
-		PortabilityTier: "full",
+		Name:   "alpha-resource",
+		Driver: "external-cli",
+		Binary: "alpha",
 		HostTools: []hostreqspec.Declaration{
 			{Name: "docker", Required: false, Reason: "resource docker", When: []string{"develop"}},
 			{Name: "sqlite", Required: true, Reason: "resource sqlite", Manual: true},
@@ -117,18 +116,16 @@ func TestResolveHonorsSelectorsAndFilters(t *testing.T) {
 		HostTools: []hostreqspec.Declaration{{Name: "buf", Required: true, Reason: "beta buf"}},
 	})
 	testresource.WriteResourceManifest(t, root, "alpha-resource", manifestpkg.ResourceManifest{
-		Name:            "alpha-resource",
-		Driver:          "external-cli",
-		Binary:          "alpha",
-		PortabilityTier: "full",
-		HostTools:       []hostreqspec.Declaration{{Name: "sqlite", Required: true, Reason: "alpha sqlite"}},
+		Name:      "alpha-resource",
+		Driver:    "external-cli",
+		Binary:    "alpha",
+		HostTools: []hostreqspec.Declaration{{Name: "sqlite", Required: true, Reason: "alpha sqlite"}},
 	})
 	testresource.WriteResourceManifest(t, root, "beta-resource", manifestpkg.ResourceManifest{
-		Name:            "beta-resource",
-		Driver:          "external-cli",
-		Binary:          "beta",
-		PortabilityTier: "full",
-		HostTools:       []hostreqspec.Declaration{{Name: "helm", Required: true, Reason: "beta helm"}},
+		Name:      "beta-resource",
+		Driver:    "external-cli",
+		Binary:    "beta",
+		HostTools: []hostreqspec.Declaration{{Name: "helm", Required: true, Reason: "beta helm"}},
 	})
 
 	resolution, err := Resolve(root, home, ResolveOptions{

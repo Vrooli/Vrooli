@@ -5,7 +5,9 @@ import (
 	"errors"
 	"io"
 	"os"
+	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -220,6 +222,103 @@ func TestStartAttachesAndReturnsOwnersFailure(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "owner failed") {
 		t.Fatalf("error = %v, want owner's failure detail", err)
+	}
+}
+
+// seedAbandonedStartOperation stores a terminal abandoned record, the corpse a
+// Ctrl-C'd start leaves behind ("start interrupted (signal)").
+func seedAbandonedStartOperation(t *testing.T, store *scenarioruntime.SQLiteStore, scenarioName string, pid int) {
+	t.Helper()
+	op := seedRunningStartOperation(t, store, scenarioName, pid)
+	op.Status = scenarioruntime.StartOperationStatusAbandoned
+	op.Error = "start interrupted (signal)"
+	finished := time.Now().UTC()
+	op.FinishedAt = &finished
+	if _, err := store.UpdateStartOperation(context.Background(), op); err != nil {
+		t.Fatalf("abandon start operation: %v", err)
+	}
+}
+
+// writeLockHolderPID pre-seeds the advisory lock file with a holder PID, the way
+// a live holder does after it acquires the lock.
+func writeLockHolderPID(t *testing.T, home, scenarioName string, pid int) {
+	t.Helper()
+	lockDir := filepath.Join(home, scenarioLockDirName)
+	if err := os.MkdirAll(lockDir, 0o755); err != nil {
+		t.Fatalf("mkdir lock dir: %v", err)
+	}
+	path := filepath.Join(lockDir, "scenario-"+sanitizeScenarioName(scenarioName)+".lock")
+	if err := os.WriteFile(path, []byte(strconv.Itoa(pid)+"\n"), 0o644); err != nil {
+		t.Fatalf("write lock holder: %v", err)
+	}
+}
+
+// Regression: a dependency-driven start holds the lock without writing a
+// start-operation record for the scenario, so the newest record on file can be a
+// terminal corpse from an unrelated earlier run. Reading that corpse as "the
+// owner died" made every caller attempt a takeover it could never win — the live
+// holder kept the lock, the retry loop burned its attempts, and the scenario
+// became permanently unstartable. The live holder must win over the stale record.
+func TestStartDoesNotTakeOverWhenLockHolderIsLive(t *testing.T) {
+	const holderPID = 4242
+	runner, _, home := newWaitTestRunner(t, func(int) bool { return false }) // record initiator is dead
+	store := openWaitTestStore(t, home)
+	seedAbandonedStartOperation(t, store, "alpha", 999999)
+	writeLockHolderPID(t, home, "alpha", holderPID)
+
+	origAlive := scenarioLockHolderAlive
+	defer func() { scenarioLockHolderAlive = origAlive }()
+	scenarioLockHolderAlive = func(pid int) bool { return pid == holderPID }
+
+	origLock := lockFileFn
+	defer func() { lockFileFn = origLock }()
+	flockAttempts := 0
+	lockFileFn = func(_ *os.File, nonBlocking bool) (func(), error) {
+		if !nonBlocking {
+			return func() {}, nil
+		}
+		flockAttempts++
+		return nil, platform.ErrLockUnavailable // the live holder never lets go
+	}
+
+	_, err := runner.Start("alpha", StartOptions{})
+	if !errors.Is(err, ErrScenarioBusy) {
+		t.Fatalf("error = %v, want ErrScenarioBusy naming the live holder", err)
+	}
+	if !strings.Contains(err.Error(), strconv.Itoa(holderPID)) {
+		t.Fatalf("error = %v, want the live holder pid %d reported", err, holderPID)
+	}
+	if flockAttempts != 1 {
+		t.Fatalf("flock attempts = %d, want 1: a proven-live holder must not burn takeover retries", flockAttempts)
+	}
+}
+
+// The busy error must carry the holder identity so callers can reason about it
+// (and so operators are not sent hunting for a dead process).
+func TestAcquireScenarioLockReportsHolderPID(t *testing.T) {
+	const holderPID = 5150
+	runner, _, home := newWaitTestRunner(t, func(int) bool { return true })
+	writeLockHolderPID(t, home, "alpha", holderPID)
+
+	origLock := lockFileFn
+	defer func() { lockFileFn = origLock }()
+	lockFileFn = func(_ *os.File, nonBlocking bool) (func(), error) {
+		if !nonBlocking {
+			return func() {}, nil
+		}
+		return nil, platform.ErrLockUnavailable
+	}
+
+	_, err := runner.acquireScenarioLock("alpha")
+	var busy *ScenarioBusyError
+	if !errors.As(err, &busy) {
+		t.Fatalf("error = %v, want *ScenarioBusyError", err)
+	}
+	if busy.HolderPID != holderPID {
+		t.Fatalf("HolderPID = %d, want %d", busy.HolderPID, holderPID)
+	}
+	if !errors.Is(err, ErrScenarioBusy) {
+		t.Fatalf("error = %v, want it to still satisfy errors.Is(ErrScenarioBusy)", err)
 	}
 }
 

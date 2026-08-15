@@ -10,6 +10,7 @@ import (
 	"sync"
 
 	platform "github.com/vrooli/platform-go"
+	"github.com/vrooli/vrooli/internal/process"
 )
 
 // scenarioLockDirName is the subdirectory under Home where per-scenario
@@ -23,9 +24,48 @@ import (
 const scenarioLockDirName = ".vrooli/state/locks"
 
 // ErrScenarioBusy is returned when another vrooli process already holds
-// the lifecycle lock for the requested scenario. Surfaces to users as
-// "another invocation is already running for this scenario."
-var ErrScenarioBusy = errors.New("scenario is already being started, stopped, or restarted")
+// the lifecycle lock for the requested scenario. The wrapped error includes
+// the lock holder PID whenever it can be read from the lock file.
+var ErrScenarioBusy = errors.New("scenario lifecycle operation is already running")
+
+// ScenarioBusyError carries the identity of the process that actually holds the
+// lock. The holder — not any start-operation record — is the authority on
+// whether a competing lifecycle operation is still live: records are per
+// top-level invocation, so a dependency-driven start holds the lock without
+// writing one, and a stale terminal record must never be read as evidence about
+// the current holder.
+type ScenarioBusyError struct {
+	Scenario  string
+	HolderPID int // 0 when the holder could not be read
+}
+
+func (e *ScenarioBusyError) Error() string {
+	if e.HolderPID > 0 {
+		return fmt.Sprintf("%s: %q (held by pid %d)", ErrScenarioBusy.Error(), e.Scenario, e.HolderPID)
+	}
+	return fmt.Sprintf("%s: %q", ErrScenarioBusy.Error(), e.Scenario)
+}
+
+func (e *ScenarioBusyError) Unwrap() error { return ErrScenarioBusy }
+
+// scenarioLockHolderAlive reports whether the process holding a busy lock is
+// still running. Overridden in tests.
+var scenarioLockHolderAlive = func(pid int) bool { return process.IsPIDRunning(pid) }
+
+// busyLockHolderProvenLive reports whether the busy error names a holder we can
+// positively show is still running.
+//
+// Only positive proof counts. An unreadable holder is not evidence of anything,
+// so it leaves the caller's existing judgment intact; a readable, live holder is
+// hard evidence that no takeover can ever succeed, because flock(2) releases on
+// process death — a lock that stays busy is a lock someone alive is holding.
+func busyLockHolderProvenLive(err error) bool {
+	var busy *ScenarioBusyError
+	if !errors.As(err, &busy) || busy.HolderPID <= 0 {
+		return false
+	}
+	return scenarioLockHolderAlive(busy.HolderPID)
+}
 
 // lockFileFn is the platform seam used to take the advisory lock. Tests
 // override it to simulate contention without taking real kernel locks.
@@ -63,7 +103,8 @@ func scenarioMutex(key string) *sync.Mutex {
 // It blocks at the in-process layer (so two goroutines in the same process
 // serialize) and uses flock(2) LOCK_EX|LOCK_NB at the file layer (so two
 // different OS processes get a fast-fail with ErrScenarioBusy rather than
-// blocking).
+// blocking). Higher-level start callers may attach to the recorded operation;
+// direct phase/stop callers surface the owner details immediately.
 //
 // The returned release closure must be invoked exactly once when the
 // caller is finished. Deferring it is the expected pattern.
@@ -97,10 +138,7 @@ func (r *Runner) acquireScenarioLock(name string) (func(), error) {
 		_ = f.Close()
 		mu.Unlock()
 		if errors.Is(err, platform.ErrLockUnavailable) {
-			if holder > 0 {
-				return nil, fmt.Errorf("%w: %q (held by pid %d)", ErrScenarioBusy, name, holder)
-			}
-			return nil, fmt.Errorf("%w: %q", ErrScenarioBusy, name)
+			return nil, &ScenarioBusyError{Scenario: name, HolderPID: holder}
 		}
 		return nil, fmt.Errorf("acquire scenario lock %s: %w", lockPath, err)
 	}

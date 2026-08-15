@@ -8,7 +8,7 @@ import (
 	"time"
 
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
-	testresource "github.com/vrooli/vrooli/packages/testkit-go/resourcefixture"
+	testresource "github.com/vrooli/vrooli/internal/resources/resourcestest"
 )
 
 func TestDeprecateResourceArchivesAndRemovesActiveState(t *testing.T) {

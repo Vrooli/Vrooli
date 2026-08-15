@@ -694,7 +694,7 @@ func waitForManagedServiceHealth(parent context.Context, controller *Controller,
 	if len(manifest.HealthChecks) == 0 {
 		return nil
 	}
-	seconds := manifest.Lifecycle.StartTimeoutSeconds
+	seconds := managedServiceStartTimeoutSeconds(controller, manifest)
 	if seconds <= 0 {
 		seconds = 60
 	}
@@ -714,6 +714,50 @@ func waitForManagedServiceHealth(parent context.Context, controller *Controller,
 		case <-time.After(100 * time.Millisecond):
 		}
 	}
+}
+
+// managedServiceStartTimeoutSeconds returns the authored lifecycle timeout,
+// raised only when the manifest declares a driver-supported observed budget.
+// The Qdrant collection directory is available before process start, so the
+// managed-service driver can account for restore/readiness work without
+// turning a fixed timeout into an unbounded wait. If the data root or its
+// collection count cannot be read, the declared floor is retained.
+func managedServiceStartTimeoutSeconds(controller *Controller, manifest ResourceManifest) int {
+	seconds := manifest.Lifecycle.StartTimeoutSeconds
+	budget := manifest.Orchestration.StartupBudget
+	if controller == nil || budget == nil || budget.Kind != "qdrant_collection_count" {
+		return seconds
+	}
+	env := resourceEnvForResource(controller.Root, controller.Home, manifest.Name)
+	dataRoot := ""
+	for _, entry := range env {
+		key, value, ok := strings.Cut(entry, "=")
+		if ok && key == "RESOURCE_DATA_DIR" {
+			dataRoot = value
+			break
+		}
+	}
+	if strings.TrimSpace(dataRoot) == "" {
+		return seconds
+	}
+	entries, err := os.ReadDir(filepath.Join(dataRoot, "collections"))
+	if err != nil {
+		return seconds
+	}
+	count := 0
+	for _, entry := range entries {
+		if entry.IsDir() {
+			count++
+		}
+	}
+	derived := budget.BaseSeconds + count*budget.PerUnitSeconds
+	if budget.MaxSeconds > 0 && derived > budget.MaxSeconds {
+		derived = budget.MaxSeconds
+	}
+	if derived > seconds {
+		return derived
+	}
+	return seconds
 }
 
 func managedServiceDriverError(resource, operation, category string, err error) *Error {

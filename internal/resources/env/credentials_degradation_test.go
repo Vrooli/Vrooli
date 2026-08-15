@@ -492,9 +492,6 @@ func writeResourceManifest(t *testing.T, root, name string, manifest map[string]
 	}
 	// Every resource manifest must declare a CLI; these fixtures care only
 	// about credentials, so the block is minimal but real.
-	if _, declared := manifest["portability_tier"]; !declared {
-		manifest["portability_tier"] = "full"
-	}
 	if _, declared := manifest["cli"]; !declared {
 		manifest["cli"] = map[string]any{
 			"enabled":      true,

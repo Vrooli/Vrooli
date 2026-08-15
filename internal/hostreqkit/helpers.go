@@ -223,14 +223,33 @@ func DetectFirstAvailable(candidates []string) string {
 }
 
 func ReadVersion(command string, args []string) string {
+	version, _ := ReadVersionErr(command, args)
+	return version
+}
+
+// ReadVersionErr reads a tool's version line and reports why the probe failed
+// when it did. Callers that pin an exact release need this distinction: a probe
+// that ran and printed a different release is a genuine version mismatch, while
+// a probe that could not execute at all says nothing about the installed
+// version. Collapsing the second case into an empty string makes a broken host
+// environment look like a wrong or missing tool, and sends the operator to an
+// install command that cannot fix it. The returned error carries the command's
+// combined output, which is where tools explain themselves (for example the Go
+// toolchain's "cannot determine current directory" when the working directory
+// is unreadable).
+func ReadVersionErr(command string, args []string) (string, error) {
 	if command == "" || len(args) == 0 {
-		return ""
+		return "", nil
 	}
 	output, err := CombinedOutputFn(command, args...)
 	if err != nil {
-		return ""
+		detail := FirstLine(strings.TrimSpace(string(output)))
+		if detail == "" {
+			return "", err
+		}
+		return "", fmt.Errorf("%w: %s", err, detail)
 	}
-	return FirstLine(strings.TrimSpace(string(output)))
+	return FirstLine(strings.TrimSpace(string(output))), nil
 }
 
 // VersionMatches reports whether a version-command line contains expected as a
@@ -281,6 +300,21 @@ func RunPrivilegedCommand(sudoMode, command string, args []string, opts EnsureOp
 		return err
 	}
 	return RunCommandFn(command, args, opts)
+}
+
+// RunPrivilegedCommandWithOutput is the context-free command seam used by
+// callers that already own their executor and need to preserve stdout. The
+// elevation decision stays in hostreqkit, so scenario code never constructs
+// a sudo invocation itself.
+func RunPrivilegedCommandWithOutput(sudoMode, command string, args []string, run func(string, ...string) ([]byte, error)) ([]byte, error) {
+	command, args, err := WithSudo(sudoMode, command, args)
+	if err != nil {
+		return nil, err
+	}
+	if command == "sudo" {
+		args = append([]string{"-n"}, args...)
+	}
+	return run(command, args...)
 }
 
 // RunPrivilegedCommandWithStdin is the stdin-fed sibling of

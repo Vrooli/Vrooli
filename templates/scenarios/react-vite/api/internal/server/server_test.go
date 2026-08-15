@@ -1,15 +1,15 @@
 package server_test
 
 import (
+	httpx "github.com/vrooli/api-core/servertest"
 	"io"
 	"log"
 	"net/http"
 	"testing"
-
-	"{{SCENARIO_ID}}/internal/clock"
 	"{{SCENARIO_ID}}/internal/module"
 	"{{SCENARIO_ID}}/internal/server"
-	"{{SCENARIO_ID}}/internal/testutil/httpx"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"
@@ -91,7 +91,7 @@ func TestServer_NewRequiresClock(t *testing.T) {
 
 func newTestDeps() server.Deps {
 	return server.Deps{
-		Clock:  clock.System{},
+		Clock:  schedule.System(),
 		Logger: log.New(io.Discard, "", 0),
 	}
 }

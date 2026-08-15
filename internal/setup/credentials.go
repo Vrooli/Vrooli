@@ -2,26 +2,44 @@ package setup
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 
+	platform "github.com/vrooli/platform-go"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
+	"github.com/vrooli/vrooli/internal/operatorinput"
 	"github.com/vrooli/vrooli/internal/resources/securestore"
 )
 
 var (
 	credentialStoreExecutableFn = os.Executable
-	runCredentialStoreFn        = hostreqkit.RunAsInvokingUserWithInput
+	runCredentialStoreFn        = runCredentialStoreAsOperator
+	runCredentialDoctorFn       = runCredentialDoctorAsOperator
 )
+
+// runCredentialStoreAsOperator is the only production credential-store
+// command path. The platform seam restores the invoking user's native session
+// (launchd on macOS, the user bus on Linux) before touching a keyring.
+func runCredentialStoreAsOperator(name string, args []string, input string, opts hostreqkit.EnsureOptions) error {
+	return platform.RunAsInvokingUserInSessionWithInput(context.Background(), name, args, []byte(input), platform.IdentityCommandOptions{
+		Stdout: opts.Stdout,
+		Stderr: opts.Stderr,
+	})
+}
 
 func configureCredentialBackend(stdout, stderr io.Writer) error {
 	return configureCredentialBackendWithPassphrase(stdout, stderr, "")
 }
 
 func configureCredentialBackendWithPassphrase(stdout, stderr io.Writer, passphrase string) error {
-	status, err := securestore.EnsureSetupBackend()
+	executable, err := credentialStoreExecutableFn()
+	if err != nil {
+		return fmt.Errorf("resolve Vrooli executable for credential diagnosis: %w", err)
+	}
+	status, err := securestore.EnsureSetupBackendWithNativeDiagnosis(nativeCredentialDiagnosis(executable))
 	if err != nil {
 		return fmt.Errorf("configure credential backend: %w", err)
 	}
@@ -61,6 +79,32 @@ func configureCredentialBackendWithPassphrase(stdout, stderr io.Writer, passphra
 		_, _ = fmt.Fprintf(stdout, "[WARN]    Credential next step: %s\n", status.OperatorAction)
 	}
 	return nil
+}
+
+func runCredentialDoctorAsOperator(executable string) ([]byte, error) {
+	return platform.RunAsInvokingUserInSessionOutput(context.Background(), "env", []string{
+		"VROOLI_CREDENTIAL_BACKEND=native", executable, "credentials", "doctor", "--check-writes", "--format", "json",
+	}, platform.IdentityCommandOptions{Stderr: io.Discard})
+}
+
+func nativeCredentialDiagnosis(executable string) securestore.Diagnosis {
+	output, err := runCredentialDoctorFn(executable)
+	if err == nil {
+		var response struct {
+			Provider securestore.Diagnosis `json:"provider"`
+		}
+		if decodeErr := json.Unmarshal(output, &response); decodeErr == nil && response.Provider.Adapter != "" {
+			return response.Provider
+		}
+	}
+	// A direct diagnosis remains useful for non-elevated callers and for
+	// platforms whose session runner is typed unsupported. Elevated setup must
+	// not fall back to probing the root account: that is the original identity
+	// bug this seam closes.
+	if !hostreqkit.RunningAsRootFn() {
+		return securestore.DiagnoseNativeWritable()
+	}
+	return securestore.Diagnosis{Platform: "unknown", Adapter: "native", Condition: "unavailable", WriteCondition: "unavailable", Explanation: "operator-session native probe failed; run onboarding in the invoking user's session"}
 }
 
 func initializeEncryptedBackendWithPassphrase(stdout io.Writer, passphrase string, initialized bool) error {
@@ -114,24 +158,34 @@ func initializeEncryptedBackend(stdout, stderr io.Writer) error {
 		}
 	}
 
-	passphrase, err := promptForSetupPassphrase(stdout, stderr, description.Initialized)
-	if err != nil {
+	// Setup is Phase A and is deliberately non-interactive. The request is
+	// resolved by vrooli-onboarding, which can render the same typed input in
+	// its browser, CLI, or API surface. Keeping this producer here means a
+	// headless `sudo vrooli setup` exits with an actionable pending state rather
+	// than opening a hidden terminal prompt.
+	if err := enqueueCredentialStoreInput(description.Initialized, stdout); err != nil {
 		return err
 	}
-	if description.Initialized {
-		if err := runCredentialStoreFn(executable,
-			[]string{"credentials", "store", "unlock"}, passphrase,
-			commandOptions(stdout, stderr)); err != nil {
-			return fmt.Errorf("unlock encrypted credential store: %w", err)
-		}
-		maybeAddHostBoundWrap(executable)
-		return nil
+	return nil
+}
+
+func enqueueCredentialStoreInput(initialized bool, stdout io.Writer) error {
+	request := operatorinput.Request{
+		ID:          "credential-store-passphrase",
+		Kind:        operatorinput.KindSecret,
+		Title:       "Protect the encrypted credential store",
+		Description: "Choose one passphrase in vrooli-onboarding; it is never printed or placed in a command argument.",
+		Unblocks:    []string{"credential-store-initialization", "unattended-credential-access"},
+		Validation:  "non-empty",
+		Required:    true,
 	}
-	if err := runCredentialStoreFn(executable,
-		[]string{"credentials", "store", "init", "--format", "json"}, passphrase,
-		commandOptions(stdout, stderr)); err != nil {
-		return fmt.Errorf("initialize encrypted credential store: %w", err)
+	if initialized {
+		request.Description = "Enter the existing encrypted-store passphrase in vrooli-onboarding; it is never printed or placed in a command argument."
 	}
+	if err := operatorinput.Enqueue(request); err != nil {
+		return fmt.Errorf("credential store needs operator input and queueing it failed: %w", err)
+	}
+	_, _ = fmt.Fprintln(stdout, "[PENDING] Credential-store protection will be completed by vrooli-onboarding (credential-store-passphrase).")
 	return nil
 }
 

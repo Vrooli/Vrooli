@@ -36,11 +36,10 @@ func resourceCatalogMessage(item resources.Resource) *cliv1.Resource {
 			Required:    item.Config.Required,
 			Description: item.Config.Description,
 		},
-		ControlMode:     item.ControlMode,
-		Driver:          item.Driver,
-		Template:        item.Template,
-		PortabilityTier: item.PortabilityTier,
-		ManifestPath:    item.ManifestPath,
+		ControlMode:  item.ControlMode,
+		Driver:       item.Driver,
+		Template:     item.Template,
+		ManifestPath: item.ManifestPath,
 	}
 }
 

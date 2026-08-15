@@ -506,6 +506,44 @@ func TestApplyFetch_DirLayoutDryRunNotesOptDir(t *testing.T) {
 	}
 }
 
+// A pinned tool whose version probe cannot execute — the Go toolchain refuses to
+// start when the working directory is unreadable, for instance — must not be
+// reported as a version mismatch. The observed version is unknown, not wrong,
+// and re-fetching the identical working release cannot change the outcome.
+func TestFetchToolUnrunnableVersionProbeIsNotAMismatch(t *testing.T) {
+	withFacts(t, hostreqspec.CapabilityFacts{Arch: "amd64"})
+	withArch(t, "amd64")
+	binDir := withUserBin(t)
+	withoutCommandOnPath(t)
+
+	manifest := dirReleaseManifest(fetchTestTool)
+	manifest.Version = "1.25.12"
+	h := toolHandler{manifest: manifest}
+
+	const probeFailure = "go: cannot determine current directory: stat .: permission denied"
+	if err := writeFile(binDir+"/"+fetchTestTool, []byte("#!/bin/sh\necho '"+probeFailure+"' >&2\nexit 1\n")); err != nil {
+		t.Fatal(err)
+	}
+
+	status := h.Inspect(hostreqkit.Host{OS: "linux"}, resolved(fetchTestTool))
+
+	if status.Installed {
+		t.Fatalf("status = %+v, want an unverifiable pin to stay unsatisfied", status)
+	}
+	if status.InstallSupported {
+		t.Fatalf("status = %+v, want no install remediation for a probe the environment broke", status)
+	}
+	if status.BlockingReason != hostreqkit.BlockingProbeFailed {
+		t.Fatalf("blocking reason = %q, want %q", status.BlockingReason, hostreqkit.BlockingProbeFailed)
+	}
+	if notesContain(status.Notes, "version mismatch") {
+		t.Fatalf("status notes = %v, want no version-mismatch claim when nothing was observed", status.Notes)
+	}
+	if !notesContain(status.Notes, probeFailure) {
+		t.Fatalf("status notes = %v, want the underlying probe failure surfaced", status.Notes)
+	}
+}
+
 func TestFetchToolExactVersionMismatchIsRepairable(t *testing.T) {
 	withFacts(t, hostreqspec.CapabilityFacts{Arch: "amd64"})
 	withArch(t, "amd64")

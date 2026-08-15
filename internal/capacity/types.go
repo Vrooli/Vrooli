@@ -183,7 +183,9 @@ func ParsePriorityTier(name string) int {
 
 // Clock is the time seam for store operations. Production uses the real clock;
 // tests provide fixed or manually advanced clocks. Mirrors scenarioruntime.
-type Clock interface {
+type Clock = TimeSource
+
+type TimeSource interface {
 	Now() time.Time
 }
 

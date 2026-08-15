@@ -1,14 +1,15 @@
 package server_test
 
 import (
+	httpx "github.com/vrooli/api-core/servertest"
 	"io"
-	"landing-page-react-vite-api/internal/clock"
 	"landing-page-react-vite-api/internal/module"
 	"landing-page-react-vite-api/internal/server"
-	"landing-page-react-vite-api/internal/testutil/httpx"
 	"log"
 	"net/http"
 	"testing"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"
@@ -90,7 +91,7 @@ func TestServer_NewRequiresClock(t *testing.T) {
 
 func newTestDeps() server.Deps {
 	return server.Deps{
-		Clock:  clock.System{},
+		Clock:  schedule.System(),
 		Logger: log.New(io.Discard, "", 0),
 	}
 }

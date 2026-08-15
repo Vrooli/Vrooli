@@ -40,6 +40,7 @@ type RefreshRequest struct {
 	PackageName string
 	Target      string
 	NoRestart   bool
+	Interactive bool
 }
 
 type RefreshItem struct {
@@ -83,14 +84,6 @@ func (s Service) Dependents(name string) (packagegov.Package, packagegov.Discove
 	return item, report, nil
 }
 
-func (s Service) Validate(name string) (packagegov.ValidationReport, error) {
-	return packagegov.Validate(s.Root, name)
-}
-
-func (s Service) Audit(name string) (packagegov.AuditReport, error) {
-	return packagegov.Audit(s.Root, name)
-}
-
 func (s Service) Build(name string) (RunResponse, error) {
 	return s.runLifecycle(name, "build")
 }
@@ -104,6 +97,7 @@ func (s Service) Test(name string) (RunResponse, error) {
 }
 
 func (s Service) Refresh(req RefreshRequest) (RefreshResponse, error) {
+	noRestart := req.NoRestart || !req.Interactive
 	item, err := s.Info(req.PackageName)
 	if err != nil {
 		return RefreshResponse{}, err
@@ -185,7 +179,7 @@ func (s Service) Refresh(req RefreshRequest) (RefreshResponse, error) {
 				return RefreshResponse{}, err
 			}
 			status = "setup_only"
-			if wasRunning && !req.NoRestart && item.Manifest.Package.Refresh.RestartRunningConsumers {
+			if wasRunning && !noRestart && item.Manifest.Package.Refresh.RestartRunningConsumers {
 				if _, err := service.StartDetailed(action.ConsumerName, lifecycle.StartOptions{}); err != nil {
 					return RefreshResponse{}, err
 				}
@@ -211,7 +205,7 @@ func (s Service) Refresh(req RefreshRequest) (RefreshResponse, error) {
 				status = "not_running"
 				break
 			}
-			if req.NoRestart || !item.Manifest.Package.Refresh.RestartRunningConsumers {
+			if noRestart || !item.Manifest.Package.Refresh.RestartRunningConsumers {
 				status = "running_not_restarted"
 				break
 			}

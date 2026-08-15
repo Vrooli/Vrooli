@@ -66,10 +66,9 @@ func TestValidateRejectsMissingRequiredFields(t *testing.T) {
 
 func TestValidateRejectsInvalidDriver(t *testing.T) {
 	err := Validate(ResourceManifest{
-		Name:            "redis",
-		CLI:             validCLI("resource-redis"),
-		Driver:          "legacy-adapter",
-		PortabilityTier: "partial",
+		Name:   "redis",
+		CLI:    validCLI("resource-redis"),
+		Driver: "legacy-adapter",
 	})
 	if err == nil || !strings.Contains(err.Error(), "driver") {
 		t.Fatalf("Validate() error = %v", err)
@@ -78,12 +77,11 @@ func TestValidateRejectsInvalidDriver(t *testing.T) {
 
 func TestValidateAcceptsExternalCLIManifest(t *testing.T) {
 	err := Validate(ResourceManifest{
-		Name:            "redis",
-		CLI:             validCLI("resource-redis"),
-		Driver:          "external-cli",
-		Binary:          "redis-server",
-		PortabilityTier: "full",
-		Platforms:       ResourcePlatforms{Linux: "supported", MacOS: "partial", Windows: "unsupported"},
+		Name:      "redis",
+		CLI:       validCLI("resource-redis"),
+		Driver:    "external-cli",
+		Binary:    "redis-server",
+		Platforms: ResourcePlatforms{Linux: "supported", MacOS: "partial", Windows: "unsupported"},
 	})
 	if err != nil {
 		t.Fatalf("Validate(): %v", err)
@@ -92,12 +90,11 @@ func TestValidateAcceptsExternalCLIManifest(t *testing.T) {
 
 func TestValidateAcceptsNativeCLIManifest(t *testing.T) {
 	err := Validate(ResourceManifest{
-		Name:            "fixturecli",
-		CLI:             validCLI("resource-fixturecli"),
-		Driver:          "native-cli",
-		Binary:          "resource-fixturecli",
-		PortabilityTier: "full",
-		Platforms:       ResourcePlatforms{Linux: "supported", MacOS: "supported", Windows: "supported"},
+		Name:      "fixturecli",
+		CLI:       validCLI("resource-fixturecli"),
+		Driver:    "native-cli",
+		Binary:    "resource-fixturecli",
+		Platforms: ResourcePlatforms{Linux: "supported", MacOS: "supported", Windows: "supported"},
 	})
 	if err != nil {
 		t.Fatalf("Validate(): %v", err)
@@ -106,11 +103,10 @@ func TestValidateAcceptsNativeCLIManifest(t *testing.T) {
 
 func TestValidateManagedServiceRequiresFailClosedProviderPolicy(t *testing.T) {
 	base := ResourceManifest{
-		Name:            "fixture-service",
-		CLI:             validCLI("resource-fixture-service"),
-		Driver:          "managed-service",
-		PortabilityTier: "full",
-		Platforms:       ResourcePlatforms{Linux: "supported", MacOS: "supported", Windows: "supported"},
+		Name:      "fixture-service",
+		CLI:       validCLI("resource-fixture-service"),
+		Driver:    "managed-service",
+		Platforms: ResourcePlatforms{Linux: "supported", MacOS: "supported", Windows: "supported"},
 	}
 	if err := Validate(base); err == nil || !strings.Contains(err.Error(), "managed_service is required") {
 		t.Fatalf("missing policy error = %v", err)
@@ -136,11 +132,10 @@ func TestValidateManagedServiceRequiresFailClosedProviderPolicy(t *testing.T) {
 
 func TestValidateManagedServiceRejectsInvalidEnvironmentKey(t *testing.T) {
 	manifest := ResourceManifest{
-		Name:            "fixture-service",
-		CLI:             validCLI("resource-fixture-service"),
-		Driver:          "managed-service",
-		PortabilityTier: "full",
-		Platforms:       ResourcePlatforms{Linux: "supported", MacOS: "supported", Windows: "supported"},
+		Name:      "fixture-service",
+		CLI:       validCLI("resource-fixture-service"),
+		Driver:    "managed-service",
+		Platforms: ResourcePlatforms{Linux: "supported", MacOS: "supported", Windows: "supported"},
 		ManagedService: &ResourceManagedService{ProviderPolicy: resourcedeployment.ProviderPolicy{
 			TargetDefaults: map[resourcedeployment.ProviderTarget]resourcedeployment.ProviderMode{
 				resourcedeployment.ProviderTargetControlPlane:  resourcedeployment.ProviderManagedPrivate,
@@ -160,7 +155,7 @@ func TestValidateRejectsDeploymentModeOutsideArchetypeBaseline(t *testing.T) {
 	err := Validate(ResourceManifest{
 		Name:   "fixture",
 		CLI:    validCLI("resource-fixture"),
-		Driver: "external-cli", Binary: "fixture", PortabilityTier: "full",
+		Driver: "external-cli", Binary: "fixture",
 		Deployment: ResourceDeployment{Profiles: map[string]ResourceDeploymentProfile{
 			"desktop": {
 				Linux:   &ResourceDeploymentTarget{Support: "conditional", Mode: "remote-service", Architectures: []string{"amd64"}, Evidence: []string{"test"}},
@@ -176,13 +171,12 @@ func TestValidateRejectsDeploymentModeOutsideArchetypeBaseline(t *testing.T) {
 
 func TestValidateRejectsUnknownDeploymentTargetRequirement(t *testing.T) {
 	manifest := ResourceManifest{
-		Name:            "fixture",
-		CLI:             validCLI("resource-fixture"),
-		Driver:          "external-cli",
-		Binary:          "fixture",
-		PortabilityTier: "full",
-		Privilege:       "user",
-		Bundling:        "host-required",
+		Name:      "fixture",
+		CLI:       validCLI("resource-fixture"),
+		Driver:    "external-cli",
+		Binary:    "fixture",
+		Privilege: "user",
+		Bundling:  "host-required",
 		Deployment: ResourceDeployment{Profiles: map[string]ResourceDeploymentProfile{
 			"desktop": {
 				Linux: &ResourceDeploymentTarget{
@@ -201,13 +195,12 @@ func TestValidateRejectsUnknownDeploymentTargetRequirement(t *testing.T) {
 
 func TestValidateRejectsDuplicateDeploymentTargetRequirement(t *testing.T) {
 	manifest := ResourceManifest{
-		Name:            "fixture",
-		CLI:             validCLI("resource-fixture"),
-		Driver:          "external-cli",
-		Binary:          "fixture",
-		PortabilityTier: "full",
-		Privilege:       "user",
-		Bundling:        "host-required",
+		Name:      "fixture",
+		CLI:       validCLI("resource-fixture"),
+		Driver:    "external-cli",
+		Binary:    "fixture",
+		Privilege: "user",
+		Bundling:  "host-required",
 		Deployment: ResourceDeployment{Profiles: map[string]ResourceDeploymentProfile{
 			"desktop": {
 				Linux: &ResourceDeploymentTarget{
@@ -226,12 +219,11 @@ func TestValidateRejectsDuplicateDeploymentTargetRequirement(t *testing.T) {
 
 func TestValidateAppliesDefaultCLIArtifacts(t *testing.T) {
 	manifest := ResourceManifest{
-		Name:            "redis",
-		CLI:             validCLI("resource-redis"),
-		Driver:          "external-cli",
-		Binary:          "redis-server",
-		PortabilityTier: "full",
-		Platforms:       ResourcePlatforms{Linux: "supported", MacOS: "partial", Windows: "unsupported"},
+		Name:      "redis",
+		CLI:       validCLI("resource-redis"),
+		Driver:    "external-cli",
+		Binary:    "redis-server",
+		Platforms: ResourcePlatforms{Linux: "supported", MacOS: "partial", Windows: "unsupported"},
 	}
 	if err := Validate(manifest); err != nil {
 		t.Fatalf("Validate(): %v", err)
@@ -256,7 +248,6 @@ func TestValidateAcceptsLegacyRepoDataMarker(t *testing.T) {
 		Name:                  "legacy-proxy",
 		CLI:                   validCLI("resource-legacy-proxy"),
 		Driver:                "docker-service",
-		PortabilityTier:       "full",
 		LegacyRepoDataAllowed: true,
 		Runtime: ResourceRuntime{
 			Image: "ghcr.io/example/legacy-proxy:1.2.3",
@@ -269,10 +260,9 @@ func TestValidateAcceptsLegacyRepoDataMarker(t *testing.T) {
 
 func TestValidateEnforcesPinnedDockerImage(t *testing.T) {
 	base := ResourceManifest{
-		Name:            "pinned",
-		CLI:             validCLI("resource-pinned"),
-		Driver:          "docker-service",
-		PortabilityTier: "full",
+		Name:   "pinned",
+		CLI:    validCLI("resource-pinned"),
+		Driver: "docker-service",
 	}
 
 	for _, ok := range []string{
@@ -305,12 +295,11 @@ func TestValidateEnforcesPinnedDockerImage(t *testing.T) {
 
 func TestValidateRejectsProfileContradictingUnsupportedPlatform(t *testing.T) {
 	m := ResourceManifest{
-		Name:            "contradiction",
-		CLI:             validCLI("resource-contradiction"),
-		Driver:          "compose-service",
-		ComposeFile:     "docker/docker-compose.yml",
-		PortabilityTier: "platform-specific",
-		Platforms:       ResourcePlatforms{Linux: "supported", MacOS: "unsupported", Windows: "unsupported"},
+		Name:        "contradiction",
+		CLI:         validCLI("resource-contradiction"),
+		Driver:      "compose-service",
+		ComposeFile: "docker/docker-compose.yml",
+		Platforms:   ResourcePlatforms{Linux: "supported", MacOS: "unsupported", Windows: "unsupported"},
 		Deployment: ResourceDeployment{
 			Profiles: map[string]ResourceDeploymentProfile{
 				"desktop": {
@@ -338,11 +327,10 @@ func TestValidateRejectsProfileContradictingUnsupportedPlatform(t *testing.T) {
 
 func TestValidateHealthCheckKind(t *testing.T) {
 	base := ResourceManifest{
-		Name:            "healthy",
-		CLI:             validCLI("resource-healthy"),
-		Driver:          "compose-service",
-		ComposeFile:     "docker/docker-compose.yml",
-		PortabilityTier: "full",
+		Name:        "healthy",
+		CLI:         validCLI("resource-healthy"),
+		Driver:      "compose-service",
+		ComposeFile: "docker/docker-compose.yml",
 	}
 
 	for _, kind := range []string{"", "readiness", "liveness"} {
@@ -371,7 +359,6 @@ func TestResourceCredentialsUnmarshalAcceptsCanonicalDescriptors(t *testing.T) {
 		},
 		"driver": "cloud-api",
 		"endpoint": "https://openrouter.ai/api/v1/models",
-		"portability_tier": "full",
 		"credentials": {"descriptors": [{
 			"logical_id": "vrooli/openrouter", "field": "api-key",
 			"env": "OPENROUTER_API_KEY", "label": "OpenRouter API Key",
@@ -389,9 +376,8 @@ func TestResourceCredentialsUnmarshalAcceptsCanonicalDescriptors(t *testing.T) {
 
 func TestValidateRejectsMissingCLIBlock(t *testing.T) {
 	err := Validate(ResourceManifest{
-		Name:            "fixture",
-		Driver:          "manual",
-		PortabilityTier: "full",
+		Name:   "fixture",
+		Driver: "manual",
 	})
 	if err == nil || !strings.Contains(err.Error(), "cli is required") {
 		t.Fatalf("Validate() error = %v", err)
@@ -404,8 +390,7 @@ func TestValidateAcceptsExplicitDisabledCLIBlock(t *testing.T) {
 		CLI: &scenario.CLIConfig{
 			Enabled: false,
 		},
-		Driver:          "manual",
-		PortabilityTier: "full",
+		Driver: "manual",
 	})
 	if err != nil {
 		t.Fatalf("Validate(): %v", err)
@@ -414,11 +399,10 @@ func TestValidateAcceptsExplicitDisabledCLIBlock(t *testing.T) {
 
 func TestValidateMemoryLimit(t *testing.T) {
 	base := ResourceManifest{
-		Name:            "ollama",
-		CLI:             validCLI("resource-ollama"),
-		Driver:          "docker-service",
-		PortabilityTier: "full",
-		Runtime:         ResourceRuntime{Image: "ollama/ollama:0.30.10"},
+		Name:    "ollama",
+		CLI:     validCLI("resource-ollama"),
+		Driver:  "docker-service",
+		Runtime: ResourceRuntime{Image: "ollama/ollama:0.30.10"},
 	}
 
 	for _, ok := range []string{"", "12g", "8192m", "536870912", "1B", "4G", "  2g  "} {
@@ -448,8 +432,7 @@ func TestValidateRejectsUnsupportedCLIAdapter(t *testing.T) {
 				Kind: "script",
 			},
 		},
-		Driver:          "manual",
-		PortabilityTier: "full",
+		Driver: "manual",
 	})
 	if err == nil {
 		t.Fatal("Validate() accepted unsupported CLI adapter")

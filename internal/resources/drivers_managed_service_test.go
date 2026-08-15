@@ -64,6 +64,31 @@ func TestManagedServiceDriverRunsVerifiedPrivateLifecycle(t *testing.T) {
 	}
 }
 
+func TestManagedServiceStartTimeoutDerivesQdrantCollectionBudget(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("VROOLI_RESOURCE_STORAGE_ROOT", filepath.Join(root, "runtime"))
+	collections := filepath.Join(root, "runtime", "data", "vrooli", "resources", "qdrant", "collections")
+	if err := os.MkdirAll(collections, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 40; i++ {
+		if err := os.Mkdir(filepath.Join(collections, fmt.Sprintf("collection-%02d", i)), 0o700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	manifest := ResourceManifest{
+		Name:      "qdrant",
+		Lifecycle: ResourceLifecycle{StartTimeoutSeconds: 90},
+		Orchestration: ResourceOrchestration{StartupBudget: &ResourceStartupBudget{
+			Kind: "qdrant_collection_count", BaseSeconds: 30, PerUnitSeconds: 2, MaxSeconds: 600,
+		}},
+	}
+	got := managedServiceStartTimeoutSeconds(NewController(root, filepath.Join(root, "home")), manifest)
+	if got != 110 {
+		t.Fatalf("derived timeout = %d, want 110 seconds for 40 collections", got)
+	}
+}
+
 // TestManagedVaultArtifactIntegration exercises the actual signed Vault server
 // when a release staging job supplies a verified artifact compatible with the
 // host that runs this test. It remains opt-in for ordinary unit test runs
@@ -424,10 +449,9 @@ func TestWriteManagedServiceConfigRendersOnlyResourceRuntimePaths(t *testing.T) 
 
 func managedServiceTestManifest(checksum string) ResourceManifest {
 	return ResourceManifest{
-		Name:            "fixture-service",
-		Driver:          "managed-service",
-		PortabilityTier: "full",
-		Platforms:       ResourcePlatforms{Linux: "supported", MacOS: "supported", Windows: "supported"},
+		Name:      "fixture-service",
+		Driver:    "managed-service",
+		Platforms: ResourcePlatforms{Linux: "supported", MacOS: "supported", Windows: "supported"},
 		ManagedService: &resourcedeployment.ManagedService{
 			ProviderPolicy: resourcedeployment.ProviderPolicy{
 				TargetDefaults: map[resourcedeployment.ProviderTarget]resourcedeployment.ProviderMode{

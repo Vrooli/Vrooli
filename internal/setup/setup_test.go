@@ -11,18 +11,19 @@ import (
 	"testing"
 	"time"
 
+	testkitgo "github.com/vrooli/repo-contract-go/repocontracttest"
 	"github.com/vrooli/vrooli/internal/dockerhost"
 	"github.com/vrooli/vrooli/internal/hostreq"
 	hostreqspec "github.com/vrooli/vrooli/internal/hostreqspec"
+	"github.com/vrooli/vrooli/internal/operatorinput"
 	"github.com/vrooli/vrooli/internal/projectstate"
 	"github.com/vrooli/vrooli/internal/resources"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
+	testresource "github.com/vrooli/vrooli/internal/resources/resourcestest"
 	vrooliruntime "github.com/vrooli/vrooli/internal/runtime"
 	"github.com/vrooli/vrooli/internal/scenario"
+	testscenario "github.com/vrooli/vrooli/internal/scenario/scenariotest"
 	"github.com/vrooli/vrooli/internal/shell"
-	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
-	testresource "github.com/vrooli/vrooli/packages/testkit-go/resourcefixture"
-	testscenario "github.com/vrooli/vrooli/packages/testkit-go/scenariofixture"
 )
 
 // AI_CHECK: GO_MIGRATION_TEST_QUALITY=4 | LAST: 2026-04-16
@@ -186,8 +187,21 @@ func TestRunSetupUsesNativeRuntimeAndMarksComplete(t *testing.T) {
 		return manager, nil
 	}
 
-	if err := svc.RunSetupWithOptions(root, home, Options{Resources: "none"}, io.Discard, io.Discard); err != nil {
+	stdout := &strings.Builder{}
+	if err := svc.RunSetupWithOptions(root, home, Options{Resources: "none"}, stdout, io.Discard); err != nil {
 		t.Fatalf("RunSetupWithOptions: %v", err)
+	}
+	for _, expected := range []string{
+		"[INFO]    Checking bootstrap tools (git, go)...",
+		"[INFO]    Applying selected host requirements...",
+		"[INFO]    Generating repository packages needed by the control plane...",
+		"[INFO]    Configuring the credential backend...",
+		"[INFO]    Refreshing the bootstrap and selected scenario CLIs...",
+		"[INFO]    Setup completed successfully.",
+	} {
+		if !strings.Contains(stdout.String(), expected) {
+			t.Fatalf("setup output missing %q:\n%s", expected, stdout.String())
+		}
 	}
 	if runtimeCalls != 1 {
 		t.Fatalf("ensureRequirements calls = %d, want 1", runtimeCalls)
@@ -198,8 +212,8 @@ func TestRunSetupUsesNativeRuntimeAndMarksComplete(t *testing.T) {
 	if !markCompleteCalled {
 		t.Fatal("expected markCompleteFn to be called")
 	}
-	if !schemaSyncCalled {
-		t.Fatal("expected syncResourceSchemaFn to be called")
+	if schemaSyncCalled {
+		t.Fatal("did not expect syncResourceSchemaFn for resources=none")
 	}
 	if manager.installEnabledResourceCalls != 0 {
 		t.Fatalf("InstallEnabledResourceCLIs calls = %d, want 0 for resources=none", manager.installEnabledResourceCalls)
@@ -225,6 +239,68 @@ func TestRunSetupUsesNativeRuntimeAndMarksComplete(t *testing.T) {
 	}
 	if _, err := os.Stat(locator.SetupStateDir()); err != nil {
 		t.Fatalf("expected user-home setup state dir: %v", err)
+	}
+}
+
+func TestRunSetupWritesConfigurationPendingResultForQueuedInput(t *testing.T) {
+	svc := stubSetupDeps(t)
+
+	root := t.TempDir()
+	home := t.TempDir()
+	resultPath := filepath.Join(t.TempDir(), "setup-result.json")
+	projectScenario := writeProjectFixture(t, root)
+	t.Setenv("HOME", home)
+	t.Cleanup(func() { _ = operatorinput.Replace(nil) })
+	if err := operatorinput.Replace(nil); err != nil {
+		t.Fatalf("clear operator-input queue: %v", err)
+	}
+
+	svc.deps.currentHost = func() vrooliruntime.Host {
+		return vrooliruntime.Host{SupportsSetup: true, SupportsDevelop: true}
+	}
+	svc.deps.loadProject = func(string) (scenario.Scenario, error) { return projectScenario, nil }
+	svc.deps.resolveHostRequirements = func(string, string, hostreq.ResolveOptions) (hostreq.Resolution, error) {
+		return hostreq.Resolution{}, nil
+	}
+	svc.deps.inspectRequirements = func(environment string, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
+		return vrooliruntime.Report{Environment: environment}, nil
+	}
+	svc.deps.ensureRequirements = func(opts vrooliruntime.EnsureOptions, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
+		return vrooliruntime.Report{Environment: opts.Environment}, nil
+	}
+	svc.deps.configureCredentialBackend = func(stdout, stderr io.Writer) error {
+		return operatorinput.Enqueue(operatorinput.Request{
+			ID:       "credential-store-passphrase",
+			Kind:     operatorinput.KindSecret,
+			Title:    "Protect the encrypted credential store",
+			Required: true,
+		})
+	}
+	svc.deps.newCLIInstallManager = func(root, home string) (cliInstallManager, error) {
+		return &stubCLIInstallManager{}, nil
+	}
+
+	if err := svc.RunSetupWithOptions(root, home, Options{Resources: "none", ResultPath: resultPath}, io.Discard, io.Discard); err != nil {
+		t.Fatalf("RunSetupWithOptions: %v", err)
+	}
+
+	var result SetupResult
+	data, err := os.ReadFile(resultPath)
+	if err != nil {
+		t.Fatalf("read setup result: %v", err)
+	}
+	if err := json.Unmarshal(data, &result); err != nil {
+		t.Fatalf("decode setup result: %v", err)
+	}
+	if result.Status != SetupStatusSuccess || result.Category != SetupCategoryConfigurationPending || !result.ConfigurationPending || result.Stage != "complete" {
+		t.Fatalf("setup result = %#v, want successful configuration-pending result", result)
+	}
+	queue, err := operatorinput.Load()
+	if err != nil {
+		t.Fatalf("load operator-input queue: %v", err)
+	}
+	if len(queue.Requests) != 1 || queue.Requests[0].ID != "credential-store-passphrase" {
+		t.Fatalf("operator-input queue = %#v, want one credential-store request", queue.Requests)
 	}
 }
 
@@ -324,6 +400,26 @@ func TestRecoverHostToolPATHFindsOffPathGo(t *testing.T) {
 	}
 	if !strings.Contains(os.Getenv("PATH"), goBin) {
 		t.Fatalf("recovered PATH does not include %q: %s", goBin, os.Getenv("PATH"))
+	}
+}
+
+func TestRecoverHostToolPATHDoesNotDuplicateVrooliBin(t *testing.T) {
+	home := t.TempDir()
+	bin := filepath.Join(home, ".vrooli", "bin")
+	if err := os.MkdirAll(bin, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", filepath.Join(home, "go", "bin"))
+
+	recoverHostToolPATH(home)
+	first := os.Getenv("PATH")
+	recoverHostToolPATH(home)
+	second := os.Getenv("PATH")
+	if first != second {
+		t.Fatalf("repeated PATH recovery changed PATH: first=%q second=%q", first, second)
+	}
+	if got := strings.Count(second, bin); got != 1 {
+		t.Fatalf("~/.vrooli/bin appears %d times in PATH %q, want once", got, second)
 	}
 }
 
@@ -1067,6 +1163,14 @@ func TestMaybeOpenOnboardingPersistsPromptedState(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 	writeOnboardingScenarioFixture(t, root)
+	previousLaunch := launchOnboardingAsOperatorFn
+	launchOnboardingAsOperatorFn = func(gotRoot, gotExecutable string) error {
+		if gotRoot != root || gotExecutable != "/bin/true" {
+			t.Fatalf("onboarding launch = (%q, %q), want (%q, %q)", gotRoot, gotExecutable, root, "/bin/true")
+		}
+		return nil
+	}
+	t.Cleanup(func() { launchOnboardingAsOperatorFn = previousLaunch })
 
 	svc.deps.osExecutable = func() (string, error) { return "/bin/true", nil }
 	svc.deps.onboardingPortCommandRunner = func(ctx context.Context, name string, args ...string) ([]byte, error) {
@@ -1159,6 +1263,12 @@ func TestMaybeOpenOnboardingRespectsPersistentAutoOpenOptOut(t *testing.T) {
 	}
 	if opened {
 		t.Fatal("expected persistent auto_open=false to skip onboarding")
+	}
+}
+
+func TestOnboardingPromptTelemetryDoesNotLatchContinuation(t *testing.T) {
+	if onboardingAlreadyHandled(onboardingPreferences{PromptedAt: "2026-08-13T18:00:00Z"}) {
+		t.Fatal("prompt telemetry must not suppress a later onboarding continuation")
 	}
 }
 

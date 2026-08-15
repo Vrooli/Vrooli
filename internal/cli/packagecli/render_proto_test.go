@@ -140,31 +140,6 @@ func TestPackageDependentsJSONContract(t *testing.T) {
 	}
 }
 
-func TestPackageValidateJSONContract(t *testing.T) {
-	resp := ValidateResponse{Report: packagegov.ValidationReport{
-		Packages: []packagegov.Package{samplePackage()},
-		Issues: []packagegov.ValidationIssue{
-			{Severity: "error", Code: "missing_field", Message: "bad", Path: "x", PackageName: "proto"},
-		},
-	}}
-	var buf bytes.Buffer
-	if err := RenderValidate(&buf, cliout.FormatJSON, resp); err != nil {
-		t.Fatalf("RenderValidate: %v", err)
-	}
-	var got map[string]any
-	if err := json.Unmarshal(buf.Bytes(), &got); err != nil {
-		t.Fatalf("invalid JSON: %v\n%s", err, buf.String())
-	}
-	report := got["report"].(map[string]any)
-	issues := report["issues"].([]any)
-	if len(issues) != 1 {
-		t.Fatalf("issues: %v", issues)
-	}
-	if issues[0].(map[string]any)["package_name"] != "proto" {
-		t.Errorf("package_name: %v", issues[0])
-	}
-}
-
 func TestPackageRunJSONContract(t *testing.T) {
 	var buf bytes.Buffer
 	if err := RenderRun(&buf, cliout.FormatJSON, RunResponse{PackageName: "proto", Action: "build"}); err != nil {
@@ -212,46 +187,5 @@ func TestPackageRefreshJSONContract(t *testing.T) {
 	}
 	if classes, ok := item["consumer_classes"].([]any); !ok || len(classes) != 2 {
 		t.Errorf("consumer_classes: %v", item["consumer_classes"])
-	}
-}
-
-func TestPackageAuditJSONContract(t *testing.T) {
-	resp := AuditResponse{Report: packagegov.AuditReport{
-		Validation: packagegov.ValidationReport{Packages: []packagegov.Package{samplePackage()}},
-		Issues:     []packagegov.ValidationIssue{{Severity: "warning", Code: "docs_drift", Message: "stale"}},
-		ScanStats: packagegov.ScanStats{
-			FilesVisited:    4,
-			FilesScanned:    2,
-			FilesSkipped:    2,
-			BytesScanned:    128,
-			SkippedByReason: map[string]int{"runtime-data-dir": 1, "output-dir": 1},
-		},
-	}}
-	var buf bytes.Buffer
-	if err := RenderAudit(&buf, cliout.FormatJSON, resp); err != nil {
-		t.Fatalf("RenderAudit: %v", err)
-	}
-	var got map[string]any
-	if err := json.Unmarshal(buf.Bytes(), &got); err != nil {
-		t.Fatalf("invalid JSON: %v\n%s", err, buf.String())
-	}
-	if got["success"] != true {
-		t.Errorf("success: %v", got["success"])
-	}
-	audit := got["audit"].(map[string]any)
-	validation := audit["validation"].(map[string]any)
-	if _, ok := validation["packages"].([]any); !ok {
-		t.Errorf("validation.packages missing: %v", validation)
-	}
-	if len(audit["issues"].([]any)) != 1 {
-		t.Errorf("audit issues: %v", audit["issues"])
-	}
-	stats := audit["scan_stats"].(map[string]any)
-	if stats["files_scanned"] != "2" || stats["bytes_scanned"] != "128" {
-		t.Errorf("scan_stats mismatch: %v", stats)
-	}
-	skipped := stats["skipped_by_reason"].(map[string]any)
-	if skipped["runtime-data-dir"] != "1" {
-		t.Errorf("skipped_by_reason mismatch: %v", skipped)
 	}
 }

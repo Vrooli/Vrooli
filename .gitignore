@@ -66,6 +66,13 @@ scenarios/*/coverage/
 scenarios/*/ui/coverage/
 # Test Genie file-determined phase results are runtime cache state, not source.
 scenarios/*/phase-cache/
+# protogen staging trees (packages/proto/protogen/generator.go). Generation
+# stages a full copy of the generated fleet beside packages/proto and publishes
+# from it; a failed run deliberately retains its tree for inspection. Retention
+# is bounded by stageRetention, but the trees must never be commit candidates.
+packages/.proto-gen-stage-*/
+packages/.proto-gen-verify-*/
+packages/.proto-descriptor-*/
 templates/scenarios/*/coverage/
 templates/scenarios/*/ui/coverage/
 *.lcov
@@ -413,6 +420,9 @@ db.sqlite3-journal
 
 # Flask stuff:
 instance/
+# scenario-to-cloud's api/instance is source code, not a Flask runtime folder.
+!scenarios/scenario-to-cloud/api/instance/
+!scenarios/scenario-to-cloud/api/instance/**
 .webassets-cache
 
 # PostgreSQL instance configurations - SECURITY CRITICAL

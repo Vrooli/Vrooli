@@ -777,6 +777,104 @@ func TestCleanStaleLocksExpiresAbandonedRegistryReservations(t *testing.T) {
 	}
 }
 
+// Regression: a scenario whose setup phase outruns the 30s lease TTL is still a
+// live start. Every `--clean-stale` start runs this sweep, so if the sweep
+// condemns it on elapsed time alone, concurrent starts reap each other and the
+// victim's next lease write aborts and rolls back a healthy start.
+func TestCleanStaleLocksSparesLiveStartingLeaseWithElapsedDeadline(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	ctx := context.Background()
+
+	store, err := scenarioruntime.NewSQLiteStore(ctx, scenarioruntime.Config{HomeDir: home})
+	if err != nil {
+		t.Fatalf("NewSQLiteStore: %v", err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+
+	ownerPID := os.Getpid() // this test process: unambiguously alive
+	instance := scenarioruntime.Instance{
+		InstanceID: "inst-slow-setup",
+		Scenario:   "web-console",
+		Phase:      "setup",
+		OwnerPID:   &ownerPID,
+	}
+	host, hostErr := hostsession.DefaultProvider{}.Current(ctx, "")
+	if hostErr == nil {
+		instance.HostBootID = host.BootID
+	}
+	// A TTL already elapsed by the time the sweep runs, exactly like a 92s UI
+	// build against the 30s default.
+	starting, err := store.CreateLease(ctx, instance, time.Nanosecond)
+	if err != nil {
+		t.Fatalf("CreateLease(starting): %v", err)
+	}
+
+	stubListenerSnapshot(t, true, nil)
+	if _, err := NewController(root, home).CleanStaleLocks(); err != nil {
+		t.Fatalf("CleanStaleLocks: %v", err)
+	}
+
+	after, err := store.GetInstance(ctx, starting.InstanceID)
+	if err != nil {
+		t.Fatalf("GetInstance: %v", err)
+	}
+	if after.Status != scenarioruntime.StatusStarting {
+		t.Fatalf("status = %q (stop_reason %q), want the live start left in %q",
+			after.Status, after.StopReason, scenarioruntime.StatusStarting)
+	}
+	// The owner must still be able to complete its start after the sweep.
+	if _, err := store.HeartbeatLease(ctx, after.InstanceID, after.Generation, 30*time.Second); err != nil {
+		t.Fatalf("HeartbeatLease after sweep = %v, want the live start to keep its lease", err)
+	}
+}
+
+// The sweep must still reap a starting lease whose owner is gone, or genuinely
+// abandoned starts would leak their rows and port claims forever.
+func TestCleanStaleLocksExpiresStartingLeaseWithDeadOwner(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	ctx := context.Background()
+
+	store, err := scenarioruntime.NewSQLiteStore(ctx, scenarioruntime.Config{HomeDir: home})
+	if err != nil {
+		t.Fatalf("NewSQLiteStore: %v", err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+
+	deadPID := 4000000 // above pid_max: cannot be live
+	instance := scenarioruntime.Instance{
+		InstanceID: "inst-abandoned",
+		Scenario:   "alpha",
+		Phase:      "setup",
+		OwnerPID:   &deadPID,
+	}
+	host, hostErr := hostsession.DefaultProvider{}.Current(ctx, "")
+	if hostErr == nil {
+		instance.HostBootID = host.BootID
+	}
+	starting, err := store.CreateLease(ctx, instance, time.Nanosecond)
+	if err != nil {
+		t.Fatalf("CreateLease(starting): %v", err)
+	}
+
+	stubListenerSnapshot(t, true, nil)
+	if _, err := NewController(root, home).CleanStaleLocks(); err != nil {
+		t.Fatalf("CleanStaleLocks: %v", err)
+	}
+
+	after, err := store.GetInstance(ctx, starting.InstanceID)
+	if err != nil {
+		t.Fatalf("GetInstance: %v", err)
+	}
+	if after.Status != scenarioruntime.StatusExpired {
+		t.Fatalf("status = %q, want %q for an abandoned starter", after.Status, scenarioruntime.StatusExpired)
+	}
+	if after.StopReason == "" {
+		t.Fatal("stop_reason is empty, want the reap trigger recorded for forensics")
+	}
+}
+
 func TestCleanStaleLocksExpiresPreviousBootRegistryInstanceAndClaims(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()

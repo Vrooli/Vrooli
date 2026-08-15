@@ -34,11 +34,10 @@ type Blueprint struct {
 }
 
 type BlueprintPlatformSupport struct {
-	PortabilityTier string `json:"portability_tier"`
-	Notes           string `json:"notes"`
-	Linux           string `json:"linux"`
-	MacOS           string `json:"macos"`
-	Windows         string `json:"windows"`
+	Notes   string `json:"notes"`
+	Linux   string `json:"linux"`
+	MacOS   string `json:"macos"`
+	Windows string `json:"windows"`
 }
 
 type BlueprintReference struct {
@@ -289,9 +288,6 @@ func validateBlueprintSuggestedTemplate(integrationKind, suggestedTemplate strin
 }
 
 func validatePlatformSupport(item BlueprintPlatformSupport) error {
-	if !isAllowedValue(item.PortabilityTier, []string{"full", "partial", "platform-specific"}) {
-		return fmt.Errorf("platform_support.portability_tier %q is invalid", item.PortabilityTier)
-	}
 	if strings.TrimSpace(item.Notes) == "" {
 		return fmt.Errorf("platform_support.notes is required")
 	}

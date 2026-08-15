@@ -17,19 +17,18 @@ func TestWriteListJSONContract(t *testing.T) {
 	items := []resources.Resource{
 		// A fully-populated resource.
 		{
-			Name:            "redis",
-			Path:            "/r/redis",
-			Exists:          true,
-			Registered:      true,
-			Enabled:         true,
-			Required:        true,
-			HasCLI:          true,
-			Config:          resources.ConfigEntry{Enabled: true, Required: true, Description: "cache"},
-			ControlMode:     "manifest-native",
-			Driver:          "compose-service",
-			Template:        "compose-service",
-			PortabilityTier: "full",
-			ManifestPath:    "/r/redis/resource.json",
+			Name:         "redis",
+			Path:         "/r/redis",
+			Exists:       true,
+			Registered:   true,
+			Enabled:      true,
+			Required:     true,
+			HasCLI:       true,
+			Config:       resources.ConfigEntry{Enabled: true, Required: true, Description: "cache"},
+			ControlMode:  "manifest-native",
+			Driver:       "compose-service",
+			Template:     "compose-service",
+			ManifestPath: "/r/redis/resource.json",
 		},
 		// A sparse resource: every optional field empty. EmitUnpopulated means
 		// the contract is fully specified — these still appear, as "" / false.

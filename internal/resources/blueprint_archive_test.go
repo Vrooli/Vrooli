@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
+	testkitgo "github.com/vrooli/repo-contract-go/repocontracttest"
 )
 
 func TestArchiveResourceToBlueprintArchivesAndRemovesActiveState(t *testing.T) {
@@ -239,7 +239,6 @@ func writeBlueprintArchiveFixture(t *testing.T, root, name string) {
   "when_to_use": ["Testing archive lifecycle"],
   "integration_kind": "docker-service",
   "platform_support": {
-    "portability_tier": "partial",
     "notes": "Fixture",
     "linux": "supported",
     "macos": "supported",

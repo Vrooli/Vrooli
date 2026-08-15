@@ -106,7 +106,7 @@ func DescribeStore() (StoreStatus, error) {
 	// A store the host-bound wrap opens needs no unlock and therefore never
 	// writes one. Naming a location it does not use would tell an operator to
 	// go looking for a file that is not there.
-	if status.ActiveWrap == providerHostBound {
+	if status.ActiveWrap == providerHostBound || status.ActiveWrap == providerNativeWrap {
 		status.UnlockCache = ""
 	}
 	return status, nil
@@ -170,7 +170,10 @@ func RewrapStore(passphrase string) (WrapInfo, error) {
 	if passphrase != "" {
 		SetPassphrase(passphrase)
 	}
-	wrap, err := encrypted.addWrap(newHostBoundProvider())
+	wrap, err := encrypted.addWrap(newNativeWrapProvider())
+	if err != nil {
+		wrap, err = encrypted.addWrap(newHostBoundProvider())
+	}
 	if err != nil {
 		return WrapInfo{}, err
 	}

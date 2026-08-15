@@ -5,13 +5,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	internalcontrol "github.com/vrooli/vrooli/internal/control"
 	"github.com/vrooli/vrooli/internal/discovery"
+	"github.com/vrooli/vrooli/internal/operatorstate"
 	catalogpkg "github.com/vrooli/vrooli/internal/resources/catalog"
 	resourcecontrol "github.com/vrooli/vrooli/internal/resources/control"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
@@ -148,42 +151,82 @@ func (c *Controller) RunResourceCLI(name string, args []string, stdout, stderr i
 }
 
 func (c *Controller) SetEnabled(name string, enabled bool) error {
-	configPath := filepath.Join(c.Root, filepath.FromSlash(resourceConfigPath))
-	data, err := os.ReadFile(configPath)
+	patch := map[string]any{"resources": map[string]any{name: map[string]any{"enabled": enabled}}}
+	data, err := json.Marshal(patch)
 	if err != nil {
 		return err
 	}
-
-	var payload map[string]any
-	if err := json.Unmarshal(data, &payload); err != nil {
-		return err
-	}
-
-	dependencies := ensureObject(payload, "dependencies")
-	resources := ensureObject(dependencies, "resources")
-	entryValue, ok := resources[name]
-	var entry map[string]any
-	if ok {
-		if typed, typedOK := entryValue.(map[string]any); typedOK {
-			entry = typed
-		}
-	}
-	if entry == nil {
-		entry = map[string]any{}
-	}
-	entry["enabled"] = enabled
-	resources[name] = entry
-
-	updated, err := json.MarshalIndent(payload, "", "  ")
-	if err != nil {
-		return err
-	}
-	updated = append(updated, '\n')
-	return os.WriteFile(configPath, updated, 0o644)
+	service := operatorstate.New(operatorstate.Config{RepoRoot: c.Root})
+	_, err = service.Apply(context.Background(), data)
+	return err
 }
 
 func (c *Controller) readConfigEntries() (map[string]ConfigEntry, error) {
-	return catalogpkg.New(c.Root).ReadConfigEntries()
+	entries, err := catalogpkg.New(c.Root).ReadConfigEntries()
+	if err != nil {
+		return nil, err
+	}
+	if err := c.seedOperatorState(entries); err != nil {
+		return nil, err
+	}
+	return entries, nil
+}
+
+// EnabledResourceNames returns the effective resource choices after the
+// one-time repository-to-operator-state adoption. Operator state is the
+// mutable authority; callers must not read service.json directly after this
+// boundary.
+func (c *Controller) EnabledResourceNames() ([]string, error) {
+	if _, err := c.readConfigEntries(); err != nil {
+		return nil, err
+	}
+	doc, err := operatorstate.New(operatorstate.Config{RepoRoot: c.Root}).Load(context.Background())
+	if err != nil {
+		return nil, err
+	}
+	names := make([]string, 0, len(doc.Resources))
+	for name, choice := range doc.Resources {
+		if choice.Enabled != nil && *choice.Enabled {
+			names = append(names, name)
+		}
+	}
+	sort.Strings(names)
+	return names, nil
+}
+
+// seedOperatorState adopts legacy repository enabled values once. The
+// repository manifest remains readable for migration, but after adoption the
+// operator-state document is the only mutable authority.
+func (c *Controller) seedOperatorState(entries map[string]ConfigEntry) error {
+	if len(entries) == 0 {
+		return nil
+	}
+	service := operatorstate.New(operatorstate.Config{RepoRoot: c.Root})
+	doc, err := service.Load(context.Background())
+	if err != nil {
+		return err
+	}
+	patchResources := make(map[string]any)
+	for name, entry := range entries {
+		if _, exists := doc.Resources[name]; exists {
+			continue
+		}
+		patchResources[name] = map[string]any{"enabled": entry.Enabled}
+	}
+	if len(patchResources) == 0 {
+		return nil
+	}
+	patch, err := json.Marshal(map[string]any{"resources": patchResources})
+	if err != nil {
+		return err
+	}
+	if _, err := service.Apply(context.Background(), patch); err != nil {
+		return fmt.Errorf("seed resource choices into operator state: %w", err)
+	}
+	for name := range patchResources {
+		log.Printf("adopted resources.%s.enabled from .vrooli/service.json into operator state", name)
+	}
+	return nil
 }
 
 func (c *Controller) statusForResource(item Resource, fast bool) (Status, error) {

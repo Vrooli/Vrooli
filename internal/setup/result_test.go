@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/vrooli/vrooli/internal/hostreqkit"
+	"github.com/vrooli/vrooli/internal/operatorinput"
 	"github.com/vrooli/vrooli/internal/runtime"
 )
 
@@ -38,7 +39,7 @@ func TestSetupTerminalResultCategories(t *testing.T) {
 		{name: "network or checksum failure", stage: "requirements", report: requiredBlockedReport(hostreqkit.BlockingNone), err: errors.New("checksum mismatch"), category: SetupCategoryRequiredRequirementBlocked, retryable: true},
 		{name: "invalid configuration", stage: "resolution", err: errors.New("invalid selector"), category: SetupCategoryInvalidConfiguration},
 		{name: "partial state", stage: "resources", err: errors.New("resource install failed"), category: SetupCategoryPartialState, retryable: true},
-		{name: "transient bootstrap", stage: "bootstrap", err: errors.New("network unavailable"), category: SetupCategoryTransientFailure, retryable: true},
+		{name: "partial bootstrap", stage: "bootstrap", err: errors.New("network unavailable"), category: SetupCategoryPartialState, retryable: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -50,6 +51,26 @@ func TestSetupTerminalResultCategories(t *testing.T) {
 				t.Fatalf("blocked requirements = %#v", result.BlockedRequirements)
 			}
 		})
+	}
+}
+
+func TestSetupTerminalResultReportsConfigurationPendingWhenInputIsQueued(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	if err := operatorinput.Replace([]operatorinput.Request{{
+		ID:       "credential-store-passphrase",
+		Kind:     operatorinput.KindSecret,
+		Title:    "Credential-store passphrase",
+		Required: true,
+	}}); err != nil {
+		t.Fatalf("queue operator input: %v", err)
+	}
+
+	result := setupTerminalResult("finalize", runtime.Report{}, nil)
+	if result.Status != SetupStatusSuccess || result.Category != SetupCategoryConfigurationPending {
+		t.Fatalf("result = %#v, want successful configuration-pending result", result)
+	}
+	if !result.ConfigurationPending || result.Stage != "complete" {
+		t.Fatalf("result = %#v, want configuration_pending=true and complete stage", result)
 	}
 }
 

@@ -12,6 +12,7 @@ import (
 	"github.com/vrooli/vrooli/internal/hostreq"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/safeguards"
+	autohealrecoveryprivileges "github.com/vrooli/vrooli/internal/safeguards/autoheal-recovery-privileges"
 	"github.com/vrooli/vrooli/internal/safeguards/clock"
 	cloudflaredrecoveryprivileges "github.com/vrooli/vrooli/internal/safeguards/cloudflared-recovery-privileges"
 	crashkernelreserve "github.com/vrooli/vrooli/internal/safeguards/crashkernel-reserve"
@@ -26,6 +27,7 @@ import (
 	"github.com/vrooli/vrooli/internal/safeguards/netconsole"
 	nvidiadriver "github.com/vrooli/vrooli/internal/safeguards/nvidia-driver"
 	ollamaresourcecontrols "github.com/vrooli/vrooli/internal/safeguards/ollama-resource-controls"
+	onboardingapplyprivileges "github.com/vrooli/vrooli/internal/safeguards/onboarding-apply-privileges"
 	pstorenative "github.com/vrooli/vrooli/internal/safeguards/pstore-native"
 	pstoreobservability "github.com/vrooli/vrooli/internal/safeguards/pstore-observability"
 	pstoreramoops "github.com/vrooli/vrooli/internal/safeguards/pstore-ramoops"
@@ -73,6 +75,8 @@ var customToolHandlers = map[string]func(hostreqkit.ToolManifest) hostreqkit.Han
 // TestSafeguardManifestsReferenceRegisteredHandlers.
 var customSafeguardHandlers = map[string]func(hostreqkit.SafeguardManifest) hostreqkit.Handler{
 	"clock":                           clock.NewHandler,
+	"autoheal_recovery_privileges":    autohealrecoveryprivileges.NewHandler,
+	"onboarding_apply_privileges":     onboardingapplyprivileges.NewHandler,
 	"model_policy_drift":              modelpolicydrift.NewHandler,
 	"cloudflared_recovery_privileges": cloudflaredrecoveryprivileges.NewHandler,
 	"crashkernel_reserve":             crashkernelreserve.NewHandler,

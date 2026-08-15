@@ -41,7 +41,7 @@ func TestRunManifestNativeReturnsDriverErrorWithoutFallback(t *testing.T) {
 			}, nil
 		},
 		LoadManifestFn: func(path string) (manifestpkg.ResourceManifest, error) {
-			return manifestpkg.ResourceManifest{Name: "redis", Driver: "external-cli", Binary: "redis", PortabilityTier: "full"}, nil
+			return manifestpkg.ResourceManifest{Name: "redis", Driver: "external-cli", Binary: "redis"}, nil
 		},
 		DriverRunFn: func(ctx context.Context, item catalogpkg.Resource, manifest manifestpkg.ResourceManifest, operation string, args []string, stdout, stderr io.Writer) error {
 			return &vroolierr.Error{Code: ErrorCodeCommandUnavailable, Category: "Driver", Message: "driver unavailable"}

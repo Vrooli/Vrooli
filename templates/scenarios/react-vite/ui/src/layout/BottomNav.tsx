@@ -1,4 +1,8 @@
-import { BarChart3, Home, Settings } from "lucide-react";
+import {
+  BarChart3, // EXAMPLE-DOMAIN:notes
+  Home,
+  Settings,
+} from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 import { BottomNav as CanonicalBottomNav, type BottomNavItem } from "../components/ui/bottom-nav";
@@ -42,8 +46,10 @@ export function BottomNav() {
 function iconForItem(item: NavItem) {
   const iconClass = "h-5 w-5";
   switch (item.key) {
+    // EXAMPLE-DOMAIN:notes START
     case "notes":
       return <BarChart3 aria-hidden className={iconClass} />;
+    // EXAMPLE-DOMAIN:notes END
     case "settings":
       return <Settings aria-hidden className={iconClass} />;
     case "dashboard":

@@ -10,6 +10,9 @@
 # Scenarios stay fully isolated — own package.json, own pnpm-lock.yaml, own
 # node_modules — so dependency upgrades here never affect other scenarios.
 # Shared @vrooli/* packages are consumed via file: references (see package.json).
+# The control plane provisions each referenced packages/* lifecycle output
+# before this install. Keep package exports pointed at compiled dist/ files;
+# never add a Vite alias into packages/*/src as an install workaround.
 packages:
   - .
 

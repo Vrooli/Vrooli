@@ -1,0 +1,263 @@
+{
+  "$schema": ".vrooli/schemas/cli-manifest.schema.json",
+  "name": "vrooli",
+  "description": "Governed project CLI for the Vrooli control plane and scenario fleet.",
+  "groups": [
+    {
+      "name": "scenario",
+      "description": "Inspect and manage the Vrooli scenario fleet.",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List scenarios known to the Vrooli control plane.",
+          "flags": [
+            {
+              "name": "include-ports",
+              "bool": true,
+              "bind": {
+                "field": "include_ports"
+              },
+              "description": "Include currently allocated runtime ports."
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ScenarioControlPlaneService",
+            "method": "ListScenarios"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "semantics": {
+            "kind": "query",
+            "verdict": {
+              "path": "success",
+              "pass": "true",
+              "fail": "false"
+            }
+          }
+        },
+        {
+          "name": "status",
+          "description": "Read one scenario's runtime and manifest status.",
+          "positionals": [
+            {
+              "name": "name",
+              "required": true,
+              "bind": {
+                "field": "name"
+              },
+              "description": "Scenario name."
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ScenarioControlPlaneService",
+            "method": "GetScenarioStatus"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "semantics": {
+            "kind": "verify",
+            "verdict": {
+              "path": "success",
+              "pass": "true",
+              "fail": "false"
+            }
+          }
+        },
+        {
+          "name": "logs",
+          "description": "Read a bounded tail of one scenario's lifecycle log.",
+          "positionals": [
+            {
+              "name": "name",
+              "required": true,
+              "bind": {
+                "field": "name"
+              },
+              "description": "Scenario name."
+            }
+          ],
+          "flags": [
+            {
+              "name": "tail-lines",
+              "bind": {
+                "field": "tail_lines"
+              },
+              "description": "Maximum number of log lines to return."
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ScenarioControlPlaneService",
+            "method": "GetScenarioLogs"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "start",
+          "description": "Start one scenario through the managed lifecycle.",
+          "positionals": [
+            {
+              "name": "name",
+              "required": true,
+              "bind": {
+                "field": "name"
+              },
+              "description": "Scenario name."
+            }
+          ],
+          "flags": [
+            {
+              "name": "timeout-seconds",
+              "bind": {
+                "field": "timeout_seconds"
+              },
+              "description": "Lifecycle start ceiling in seconds."
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ScenarioControlPlaneService",
+            "method": "StartScenario"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ],
+            "requires_confirmation": true
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "stop",
+          "description": "Stop one scenario through the managed lifecycle.",
+          "positionals": [
+            {
+              "name": "name",
+              "required": true,
+              "bind": {
+                "field": "name"
+              },
+              "description": "Scenario name."
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ScenarioControlPlaneService",
+            "method": "StopScenario"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ],
+            "requires_confirmation": true
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "restart",
+          "description": "Restart one scenario through the managed lifecycle.",
+          "positionals": [
+            {
+              "name": "name",
+              "required": true,
+              "bind": {
+                "field": "name"
+              },
+              "description": "Scenario name."
+            }
+          ],
+          "flags": [
+            {
+              "name": "timeout-seconds",
+              "bind": {
+                "field": "timeout_seconds"
+              },
+              "description": "Lifecycle restart ceiling in seconds."
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ScenarioControlPlaneService",
+            "method": "RestartScenario"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ],
+            "requires_confirmation": true
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "setup",
+          "description": "Run one scenario's governed setup phase.",
+          "positionals": [
+            {
+              "name": "name",
+              "required": true,
+              "bind": {
+                "field": "name"
+              },
+              "description": "Scenario name."
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ScenarioControlPlaneService",
+            "method": "SetupScenario"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ],
+            "requires_confirmation": true
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        }
+      ]
+    }
+  ]
+}

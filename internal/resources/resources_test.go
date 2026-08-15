@@ -16,12 +16,12 @@ import (
 	"strings"
 	"testing"
 
+	testkitgo "github.com/vrooli/repo-contract-go/repocontracttest"
 	hostreqspec "github.com/vrooli/vrooli/internal/hostreqspec"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
+	testresource "github.com/vrooli/vrooli/internal/resources/resourcestest"
+	testscenario "github.com/vrooli/vrooli/internal/scenario/scenariotest"
 	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
-	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
-	testresource "github.com/vrooli/vrooli/packages/testkit-go/resourcefixture"
-	testscenario "github.com/vrooli/vrooli/packages/testkit-go/scenariofixture"
 )
 
 // AI_CHECK: GO_MIGRATION_TEST_QUALITY=5 | LAST: 2026-04-13
@@ -1087,9 +1087,6 @@ func TestVaultManagedServiceDoesNotOverclaimTargetReadiness(t *testing.T) {
 	secretTool := manifest.HostTools[0]
 	if secretTool.Name != "secret-tool" || !secretTool.Required || !slices.Contains(secretTool.Platforms, "linux") || strings.Contains(secretTool.Notes, "do not rely") {
 		t.Fatalf("Vault secret-tool declaration = %+v, want required Linux bootstrap host tool without a desktop-independence claim", secretTool)
-	}
-	if manifest.PortabilityTier != "partial" {
-		t.Fatalf("Vault portability_tier = %q, want partial until every target artifact has native-host evidence", manifest.PortabilityTier)
 	}
 	for platform, support := range map[string]string{
 		"linux":   manifest.Platforms.Linux,

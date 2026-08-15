@@ -236,8 +236,7 @@ func TestWriteBlueprintListJSONContract(t *testing.T) {
 			Category:    "storage",
 			Status:      "validated",
 			PlatformSupport: resources.BlueprintPlatformSupport{
-				PortabilityTier: "full",
-				Linux:           "supported",
+				Linux: "supported",
 			},
 			References: []resources.BlueprintReference{{Kind: "doc", Value: "u"}},
 		},
@@ -257,10 +256,6 @@ func TestWriteBlueprintListJSONContract(t *testing.T) {
 	bp := bps[0].(map[string]any)
 	if bp["display_name"] != "Redis Cache" {
 		t.Errorf("display_name snake_case: %v", bp["display_name"])
-	}
-	ps := bp["platform_support"].(map[string]any)
-	if ps["portability_tier"] != "full" {
-		t.Errorf("platform_support.portability_tier: %v", ps)
 	}
 }
 

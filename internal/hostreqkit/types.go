@@ -103,6 +103,11 @@ const (
 	BlockingManual BlockingReason = "manual"
 	// BlockingNeedsMaintenanceWindow marks a deliberately withheld live change
 	// while a remote desktop server is active.
+	// BlockingProbeFailed means the tool is present but its version probe could
+	// not execute, so the pinned release can be neither confirmed nor refuted.
+	// The blocker is the host environment the probe ran in, not the tool, and
+	// no install or reinstall changes it.
+	BlockingProbeFailed                 BlockingReason = "probe_failed"
 	BlockingNeedsMaintenanceWindow      BlockingReason = "maintenance_window"
 	BlockingCredentialStoreLocked       BlockingReason = "credential_store_locked"
 	BlockingCredentialStoreUnresponsive BlockingReason = "credential_store_unresponsive"

@@ -98,6 +98,44 @@ func TestCollectLinuxSnapshot(t *testing.T) {
 	}
 }
 
+func TestCollectGPUReportsAbsentNvidiaDevice(t *testing.T) {
+	c := Collector{
+		Commands: fakeCommandRunner{},
+		GOOS:     "linux",
+		GOARCH:   "amd64",
+	}
+
+	got, err := c.CollectGPUFacts(context.Background())
+	if err != nil {
+		t.Fatalf("CollectGPUFacts() error = %v", err)
+	}
+	if got.ProbeStatuses["nvidia_gpu"] != "not_present" {
+		t.Fatalf("nvidia_gpu status = %q, want not_present", got.ProbeStatuses["nvidia_gpu"])
+	}
+	if len(got.GPUs) != 0 {
+		t.Fatalf("GPUs = %#v, want none", got.GPUs)
+	}
+}
+
+func TestCollectGPUReportsUnsupportedPlatform(t *testing.T) {
+	c := Collector{
+		Commands: fakeCommandRunner{},
+		GOOS:     "plan9",
+		GOARCH:   "amd64",
+	}
+
+	got, err := c.CollectGPUFacts(context.Background())
+	if err != nil {
+		t.Fatalf("CollectGPUFacts() error = %v", err)
+	}
+	if got.ProbeStatuses["nvidia_gpu"] != "unsupported" {
+		t.Fatalf("nvidia_gpu status = %q, want unsupported", got.ProbeStatuses["nvidia_gpu"])
+	}
+	if len(got.GPUs) != 0 {
+		t.Fatalf("GPUs = %#v, want none", got.GPUs)
+	}
+}
+
 func TestCollectPlatformFactsWaylandPolicyUsesOneDistinguishingInputPerCase(t *testing.T) {
 	// Each case varies exactly one host input so independent policy signals
 	// cannot mask one another.

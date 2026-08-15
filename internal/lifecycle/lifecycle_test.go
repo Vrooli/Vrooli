@@ -21,21 +21,21 @@ import (
 	"time"
 
 	"github.com/vrooli/cli-core/cliutil"
+	testkitgo "github.com/vrooli/repo-contract-go/repocontracttest"
 	"github.com/vrooli/vrooli/internal/hostreqrun"
 	"github.com/vrooli/vrooli/internal/network"
+	testpackage "github.com/vrooli/vrooli/internal/packagegov/packagegovtest"
 	"github.com/vrooli/vrooli/internal/process"
 	"github.com/vrooli/vrooli/internal/projectstate"
 	"github.com/vrooli/vrooli/internal/resources"
 	resourcecontrol "github.com/vrooli/vrooli/internal/resources/control"
 	resourcemanifest "github.com/vrooli/vrooli/internal/resources/manifest"
+	testresource "github.com/vrooli/vrooli/internal/resources/resourcestest"
 	vrooliruntime "github.com/vrooli/vrooli/internal/runtime"
 	"github.com/vrooli/vrooli/internal/runtimesupervisor"
 	"github.com/vrooli/vrooli/internal/scenario"
+	testscenario "github.com/vrooli/vrooli/internal/scenario/scenariotest"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
-	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
-	testpackage "github.com/vrooli/vrooli/packages/testkit-go/packagefixture"
-	testresource "github.com/vrooli/vrooli/packages/testkit-go/resourcefixture"
-	testscenario "github.com/vrooli/vrooli/packages/testkit-go/scenariofixture"
 )
 
 // AI_CHECK: GO_MIGRATION_TEST_QUALITY=9 | LAST: 2026-04-13
@@ -2809,5 +2809,16 @@ func TestRunnerHostRequirementEnforcementUsesRunnerEnvironment(t *testing.T) {
 	}
 	if captured.Environment != "production" {
 		t.Fatalf("Environment = %q, want production", captured.Environment)
+	}
+}
+
+func TestNewRunnerUsesEnvironmentOverrideForScenarioPreflight(t *testing.T) {
+	t.Setenv(lifecycleEnvironmentEnv, "production")
+	runner, err := NewRunner(t.TempDir(), t.TempDir(), io.Discard, io.Discard)
+	if err != nil {
+		t.Fatalf("NewRunner: %v", err)
+	}
+	if runner.Environment != "production" {
+		t.Fatalf("Environment = %q, want production", runner.Environment)
 	}
 }

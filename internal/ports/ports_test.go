@@ -18,9 +18,9 @@ import (
 	"github.com/vrooli/vrooli/internal/process"
 	"github.com/vrooli/vrooli/internal/resources"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
+	testresource "github.com/vrooli/vrooli/internal/resources/resourcestest"
 	"github.com/vrooli/vrooli/internal/scenario"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
-	testresource "github.com/vrooli/vrooli/packages/testkit-go/resourcefixture"
 )
 
 // AI_CHECK: GO_MIGRATION_TEST_QUALITY=4 | LAST: 2026-05-11
@@ -1590,11 +1590,10 @@ func ensureTypedResourceMetadata(t *testing.T, root string) {
 		return
 	}
 	testresource.WriteResourceManifest(t, root, "postgres", manifestpkg.ResourceManifest{
-		Name:            "postgres",
-		Driver:          "docker-service",
-		Template:        "docker-service",
-		PortabilityTier: "full",
-		Ports:           []manifestpkg.ResourcePort{{Name: "postgresql", Container: 5432, Host: 5433}},
+		Name:     "postgres",
+		Driver:   "docker-service",
+		Template: "docker-service",
+		Ports:    []manifestpkg.ResourcePort{{Name: "postgresql", Container: 5432, Host: 5433}},
 		Runtime: manifestpkg.ResourceRuntime{
 			Image: "postgres:16-alpine",
 			Env: map[string]string{
