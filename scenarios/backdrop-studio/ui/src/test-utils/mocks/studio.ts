@@ -1,5 +1,7 @@
 import { vi } from "vitest";
 
+import { QualityTier } from "@vrooli/proto-types/backdrop-studio/v1/shared/shared_pb";
+
 import type { Candidate, Style, Surface } from "../../api/studio";
 
 /**
@@ -36,6 +38,13 @@ export function makeStyle(overrides: Partial<Style> = {}): Style {
     treatmentParams: { halftone: '{"lpi":72}' },
     inks: { "$brand.primary": "#1b3fbf" },
     parentId: "",
+    // Procedural is the honest default for a mock of the common case: it is
+    // what every style seeded before the tier existed actually was.
+    qualityTier: QualityTier.PROCEDURAL,
+    // No plate spec: the common case is a style that ships one plate carrying
+    // the whole picture, which is what every style drew before the plate model
+    // existed and what forty of the forty-four still draw.
+    plateSpec: [],
     ...overrides,
   };
 }

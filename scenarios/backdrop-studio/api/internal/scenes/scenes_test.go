@@ -182,3 +182,55 @@ func TestScenesScaleWithSize(t *testing.T) {
 		}
 	}
 }
+
+// TestQuietZoneClearsTheWorstPixelForEveryGenerator is the measurement the
+// catalog-wide legibility lane could not make.
+//
+// Legibility is decided by the WORST pixel under the copy, not the mean, so a
+// quiet zone that lifts the average while leaving one dark mark behind has done
+// nothing for the only reader who matters. Averaging hides exactly the failure
+// this mechanism exists to prevent, so this asserts on the extreme.
+//
+// Per generator, because "the quiet zone works" was never a property of the
+// zone: it is a property of what each generator draws underneath it. A smooth
+// field lifts cleanly; a generator that lays opaque marks after the ground is
+// established may keep its darkest mark whatever the ground beneath it does.
+func TestQuietZoneClearsTheWorstPixelForEveryGenerator(t *testing.T) {
+	zone := QuietZone{X: 0.06, Y: 0.10, Width: 0.42, Height: 0.34, TowardLight: true}
+	for _, preset := range Presets {
+		t.Run(preset, func(t *testing.T) {
+			base := render(t, Request{Preset: preset, Width: 320, Height: 200, Seed: 11})
+			lifted := render(t, Request{Preset: preset, Width: 320, Height: 200, Seed: 11, Quiet: &zone})
+			before, after := worstInZone(t, base.PNG, zone), worstInZone(t, lifted.PNG, zone)
+			if after <= before {
+				t.Fatalf("quiet zone did not lift the worst pixel: before=%.3f after=%.3f", before, after)
+			}
+			// 0.90 rather than the 0.94 the lift asks for: feathering means the
+			// zone's own edge is legitimately below full lift, and the worst
+			// pixel may sit on it.
+			if after < 0.90 {
+				t.Errorf("worst pixel under the copy is %.3f, too dark to carry dark type (was %.3f)", after, before)
+			}
+		})
+	}
+}
+
+// worstInZone reports the darkest luminance inside the zone.
+func worstInZone(t *testing.T, raw []byte, zone QuietZone) float64 {
+	t.Helper()
+	img := decode(t, raw)
+	b := img.Bounds()
+	fw, fh := float64(b.Dx()), float64(b.Dy())
+	x0, y0 := int(zone.X*fw), int(zone.Y*fh)
+	x1, y1 := int((zone.X+zone.Width)*fw), int((zone.Y+zone.Height)*fh)
+	worst := 1.0
+	for y := y0; y < y1; y++ {
+		for x := x0; x < x1; x++ {
+			i := img.PixOffset(x, y)
+			if v := lum(img.Pix[i], img.Pix[i+1], img.Pix[i+2]); v < worst {
+				worst = v
+			}
+		}
+	}
+	return worst
+}

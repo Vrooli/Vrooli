@@ -2,6 +2,7 @@ package imageengine
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -36,7 +37,7 @@ func TestClientApplyRunsTheOrderedImageToolsChain(t *testing.T) {
 	defer server.Close()
 
 	client := &Client{HTTPClient: server.Client(), Resolve: func(context.Context) (string, error) { return server.URL, nil }}
-	out, err := client.Apply(context.Background(), []byte{1, 2}, []string{"duotone", "grain"}, nil, map[string]string{"$brand.primary": "#123456"})
+	out, err := client.Apply(context.Background(), ApplyRequest{Input: []byte{1, 2}, Treatments: []string{"duotone", "grain"}, Palette: map[string]string{"$brand.primary": "#123456"}})
 	require.NoError(t, err)
 	require.Equal(t, []byte{1, 2, 1, 2}, out)
 	require.Equal(t, []string{"/api/v1/ops/duotone", "/api/v1/ops/grain"}, operations)
@@ -44,9 +45,9 @@ func TestClientApplyRunsTheOrderedImageToolsChain(t *testing.T) {
 
 func TestClientApplyRefusesMissingInputsAndUnresolvedTreatmentNames(t *testing.T) {
 	client := &Client{Resolve: func(context.Context) (string, error) { return "http://example.test", nil }}
-	_, err := client.Apply(context.Background(), nil, []string{"grain"}, nil, nil)
+	_, err := client.Apply(context.Background(), ApplyRequest{Treatments: []string{"grain"}})
 	require.ErrorContains(t, err, "input image is empty")
-	_, err = client.Apply(context.Background(), []byte{1}, []string{"$brand.primary"}, nil, nil)
+	_, err = client.Apply(context.Background(), ApplyRequest{Input: []byte{1}, Treatments: []string{"$brand.primary"}})
 	require.ErrorContains(t, err, "invalid treatment")
 }
 
@@ -99,13 +100,12 @@ func TestUnresolvedBrandSlotFailsClosed(t *testing.T) {
 	defer server.Close()
 	client := &Client{HTTPClient: server.Client(), Resolve: func(context.Context) (string, error) { return server.URL, nil }}
 
-	_, err := client.Apply(
-		context.Background(),
-		[]byte{1, 2},
-		[]string{"duotone"},
-		map[string]string{"duotone": `{"dark":"$brand.primary","light":"#ffffff"}`},
-		map[string]string{"$brand.background": "#ffffff"}, // primary is absent
-	)
+	_, err := client.Apply(context.Background(), ApplyRequest{
+		Input:      []byte{1, 2},
+		Treatments: []string{"duotone"},
+		Params:     map[string]string{"duotone": `{"dark":"$brand.primary","light":"#ffffff"}`},
+		Palette:    map[string]string{"$brand.background": "#ffffff"}, // primary is absent
+	})
 
 	var unresolved *UnresolvedSlotError
 	require.ErrorAs(t, err, &unresolved, "an unbindable slot must be a typed error, never a literal on the wire")
@@ -121,9 +121,67 @@ func TestResolvedBrandSlotReachesTheWire(t *testing.T) {
 	raw, err := ResolveParams("duotone", `{"dark":"$brand.primary","light":"$brand.background"}`, map[string]string{
 		"$brand.primary":    "#1B3FBF",
 		"$brand.background": "#F5EFDC",
-	})
+	}, nil)
 	require.NoError(t, err)
 	require.Contains(t, raw, "#1B3FBF")
 	require.Contains(t, raw, "#F5EFDC")
 	require.NotContains(t, raw, "$brand.")
+}
+
+// TestReservedSpaceReachesEveryOperationOnTheWire pins the half of the knockout
+// that lives in this package: the rectangle has to arrive, on every operation in
+// the chain, as a sibling of the operation's own parameters.
+//
+// Asserted against the bytes actually sent rather than against the struct that
+// produced them, because the failure this guards is precisely a field that is
+// set, validated and then not transmitted. That has happened once already in
+// this client — a routing policy was carried on the request type, checked, and
+// never written to the wire, and every unit test passed because the fake on the
+// other side answered the same way with or without it.
+func TestReservedSpaceReachesEveryOperationOnTheWire(t *testing.T) {
+	var sent []map[string]any
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		require.NoError(t, r.ParseMultipartForm(1<<20))
+		var decoded map[string]any
+		require.NoError(t, json.Unmarshal([]byte(r.FormValue("params")), &decoded))
+		sent = append(sent, decoded)
+		_, _ = w.Write([]byte{1, 2})
+	}))
+	defer server.Close()
+
+	client := &Client{HTTPClient: server.Client(), Resolve: func(context.Context) (string, error) { return server.URL, nil }}
+	_, err := client.Apply(context.Background(), ApplyRequest{
+		Input:      []byte{1, 2},
+		Treatments: []string{"duotone", "dither_ordered", "grain"},
+		Reserve:    &Knockout{X: 0.06, Y: 0.1, Width: 0.42, Height: 0.34, Feather: 0.09},
+	})
+	require.NoError(t, err)
+	require.Len(t, sent, 3, "every operation in the chain is a separate request")
+
+	for i, params := range sent {
+		reserve, ok := params["knockout"].(map[string]any)
+		require.Truef(t, ok, "operation %d sent no knockout: %v", i, params)
+		require.InDelta(t, 0.06, reserve["x"], 1e-9)
+		require.InDelta(t, 0.42, reserve["width"], 1e-9)
+		require.InDelta(t, 0.09, reserve["feather"], 1e-9)
+	}
+}
+
+// TestNoReserveSendsNoKnockout keeps the common case honest. A style that
+// reserves nothing must send nothing: an always-present zero rectangle would
+// read downstream as a declaration rather than an absence, and the two have to
+// stay distinguishable for image-tools to skip the work entirely.
+func TestNoReserveSendsNoKnockout(t *testing.T) {
+	var params map[string]any
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		require.NoError(t, r.ParseMultipartForm(1<<20))
+		require.NoError(t, json.Unmarshal([]byte(r.FormValue("params")), &params))
+		_, _ = w.Write([]byte{1})
+	}))
+	defer server.Close()
+
+	client := &Client{HTTPClient: server.Client(), Resolve: func(context.Context) (string, error) { return server.URL, nil }}
+	_, err := client.Apply(context.Background(), ApplyRequest{Input: []byte{1}, Treatments: []string{"grain"}})
+	require.NoError(t, err)
+	require.NotContains(t, params, "knockout")
 }

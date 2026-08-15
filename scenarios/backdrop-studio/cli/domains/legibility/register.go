@@ -1,14 +1,16 @@
 package legibility
 
 import (
-	"connectrpc.com/connect"
 	"context"
 	"fmt"
+	"os"
+	"strconv"
+
+	"connectrpc.com/connect"
+
 	"github.com/vrooli/cli-core/cliapp"
 	v1 "github.com/vrooli/vrooli/packages/proto/gen/go/backdrop-studio/v1/legibility"
 	connectv1 "github.com/vrooli/vrooli/packages/proto/gen/go/backdrop-studio/v1/legibility/legibility_v1connect"
-	"os"
-	"strconv"
 )
 
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {

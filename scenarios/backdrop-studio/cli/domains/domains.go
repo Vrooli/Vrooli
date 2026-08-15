@@ -3,6 +3,7 @@ package domains
 import (
 	"backdrop-studio/cli/domains/catalog"
 	"backdrop-studio/cli/domains/compose"
+	"backdrop-studio/cli/domains/generators"
 	"backdrop-studio/cli/domains/legibility"
 	"backdrop-studio/cli/domains/release"
 	"backdrop-studio/cli/domains/render"
@@ -53,6 +54,10 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 	if err != nil {
 		return nil, err
 	}
+	generatorsGroup, err := generators.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
 	composeGroup, err := compose.Register(core, manifest)
 	if err != nil {
 		return nil, err
@@ -69,5 +74,5 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 	if err != nil {
 		return nil, err
 	}
-	return []cliapp.SubcommandGroup{surfacesGroup, catalogGroup, scaffoldGroup, composeGroup, renderGroup, legibilityGroup, releaseGroup}, nil
+	return []cliapp.SubcommandGroup{surfacesGroup, catalogGroup, scaffoldGroup, generatorsGroup, composeGroup, renderGroup, legibilityGroup, releaseGroup}, nil
 }

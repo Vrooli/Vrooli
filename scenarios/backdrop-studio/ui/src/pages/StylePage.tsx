@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
-import { isModelBacked, parseProvenance, parseQuality, permittedSurfaces } from "../api/studio";
+import { parseProvenance, parseQuality, permittedSurfaces, qualityTierOf } from "../api/studio";
+import { qualityTierString } from "../consts/qualityTier";
 import { ExperienceSurface } from "../components/experience/ExperienceSurface";
 import { MockupPreview } from "../components/studio/MockupPreview";
 import { QualityMeters } from "../components/studio/QualityMeters";
@@ -105,11 +106,7 @@ export function StylePage() {
           </h2>
           <div className="flex items-center gap-2">
             <StatusBadge>{style.strategy}</StatusBadge>
-            <StatusBadge>
-              {isModelBacked(style)
-                ? t(strings.pages.catalog.metered)
-                : t(strings.pages.catalog.free)}
-            </StatusBadge>
+            <StatusBadge>{t(qualityTierString(qualityTierOf(style)))}</StatusBadge>
           </div>
         </div>
         <p className="text-app-muted-foreground">

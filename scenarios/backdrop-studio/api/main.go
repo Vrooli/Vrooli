@@ -11,12 +11,13 @@ import (
 
 	"backdrop-studio/internal/capabilities"
 	internalcatalog "backdrop-studio/internal/catalog"
-	"backdrop-studio/internal/clock"
 	"backdrop-studio/internal/imageengine"
 	"backdrop-studio/internal/modules"
 	internalrelease "backdrop-studio/internal/release"
 	internalrender "backdrop-studio/internal/render"
 	"backdrop-studio/internal/server"
+
+	"github.com/vrooli/api-core/schedule"
 
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
@@ -31,6 +32,7 @@ import (
 	capsH "backdrop-studio/handlers/capabilities"
 	catalogH "backdrop-studio/handlers/catalog"
 	composeH "backdrop-studio/handlers/compose"
+	generatorsH "backdrop-studio/handlers/generators"
 	healthH "backdrop-studio/handlers/health"
 	legibilityH "backdrop-studio/handlers/legibility"
 	releaseH "backdrop-studio/handlers/release"
@@ -148,7 +150,11 @@ func main() {
 		log.Fatalf("catalog seed failed: %v", err)
 	}
 	imageClient := imageengine.NewClient()
-	renderStore := internalrender.NewStoreWithGenerator(imageClient, imageClient)
+	// The render store reaches authored generators through the catalog, which
+	// is the single authority on what a generator is. A style bound to one that
+	// is absent or unvalidated is refused by name rather than substituted.
+	renderStore := internalrender.NewStoreWithGenerator(imageClient, imageClient).
+		WithGeneratorStore(internalcatalog.NewStore(db.Primary()))
 	// The release path's asset-studio capability. It resolves lazily so a
 	// scenario that is not running becomes a named missing capability at the
 	// moment of release rather than a startup failure — and so a model-backed
@@ -170,7 +176,7 @@ func main() {
 	fileRoots := filerouting.New(primaryFileRoots)
 
 	srv := server.New(
-		server.Deps{Clock: clock.System{}, Logger: log.Default()},
+		server.Deps{Clock: schedule.System(), Logger: log.Default()},
 		healthH.Module(db, "backdrop-studio-api", "1.0.0", internalcatalog.NewStore(db.Primary()).AppliedSeedVersion),
 		capsH.Module(capabilities.NewRegistry()),
 		catalogH.Module(db.Primary()),
@@ -179,6 +185,7 @@ func main() {
 		legibilityH.Module(),
 		releaseH.Module(releaseStore),
 		scaffoldH.Module(db.Primary()),
+		generatorsH.Module(db.Primary()),
 		surfacesH.Module(db.Primary()),
 	)
 

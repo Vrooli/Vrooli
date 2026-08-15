@@ -23,6 +23,7 @@ import (
 	capsH "backdrop-studio/handlers/capabilities"
 	catalogH "backdrop-studio/handlers/catalog"
 	composeH "backdrop-studio/handlers/compose"
+	generatorsH "backdrop-studio/handlers/generators"
 	legibilityH "backdrop-studio/handlers/legibility"
 	releaseH "backdrop-studio/handlers/release"
 	renderH "backdrop-studio/handlers/render"
@@ -36,6 +37,7 @@ import (
 	localdb "backdrop-studio/internal/database"
 	catalogv1 "github.com/vrooli/vrooli/packages/proto/gen/go/backdrop-studio/v1/catalog"
 	composev1 "github.com/vrooli/vrooli/packages/proto/gen/go/backdrop-studio/v1/compose"
+	generatorsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/backdrop-studio/v1/generators"
 	legibilityv1 "github.com/vrooli/vrooli/packages/proto/gen/go/backdrop-studio/v1/legibility"
 	releasev1 "github.com/vrooli/vrooli/packages/proto/gen/go/backdrop-studio/v1/release"
 	renderv1 "github.com/vrooli/vrooli/packages/proto/gen/go/backdrop-studio/v1/render"
@@ -53,6 +55,7 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out = append(out, capsH.Endpoints...)
 	out = append(out, catalogH.Endpoints...)
 	out = append(out, composeH.Endpoints...)
+	out = append(out, generatorsH.Endpoints...)
 	out = append(out, renderH.Endpoints...)
 	out = append(out, legibilityH.Endpoints...)
 	out = append(out, releaseH.Endpoints...)
@@ -86,6 +89,7 @@ func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
 		{Module: "catalog", File: catalogv1.File_backdrop_studio_v1_catalog_catalog_proto},
 		{Module: "compose", File: composev1.File_backdrop_studio_v1_compose_compose_proto},
+		{Module: "generators", File: generatorsv1.File_backdrop_studio_v1_generators_generators_proto},
 		{Module: "render", File: renderv1.File_backdrop_studio_v1_render_render_proto},
 		{Module: "legibility", File: legibilityv1.File_backdrop_studio_v1_legibility_legibility_proto},
 		{Module: "release", File: releasev1.File_backdrop_studio_v1_release_release_proto},

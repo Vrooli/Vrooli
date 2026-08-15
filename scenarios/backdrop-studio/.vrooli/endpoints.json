@@ -103,6 +103,30 @@
       "category": "compose"
     },
     {
+      "id": "generators_author",
+      "path": "/vrooli.backdrop_studio.v1.generators.GeneratorsService/AuthorGenerator",
+      "method": "POST",
+      "summary": "Author a vector generator through a model",
+      "description": "",
+      "category": "generators"
+    },
+    {
+      "id": "generators_list",
+      "path": "/vrooli.backdrop_studio.v1.generators.GeneratorsService/ListGenerators",
+      "method": "POST",
+      "summary": "List stored authored generators",
+      "description": "",
+      "category": "generators"
+    },
+    {
+      "id": "generators_delete",
+      "path": "/vrooli.backdrop_studio.v1.generators.GeneratorsService/DeleteGenerator",
+      "method": "POST",
+      "summary": "Delete an authored generator",
+      "description": "",
+      "category": "generators"
+    },
+    {
       "id": "render_submit",
       "path": "/vrooli.backdrop_studio.v1.render.RenderService/Submit",
       "method": "POST",

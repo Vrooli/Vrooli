@@ -253,8 +253,382 @@ one became so.
 - **Hardcoded routing sent every model-backed render to a paid cloud provider.**
   `qualityPolicy:"quality"` + `allowByok:true` resolved to
   `openrouter-image/byok-cloud` while an installed `sd-1.5` on local GPU served
-  the same request in ~15s. Now local-first (`balanced`, `local_only`, BYOK off,
-  batch priority with reclaim).
+  the same request in ~15s. Local-first constants fixed the leak but replaced it
+  with the opposite limit: a style needing more than the installed local model
+  set could not be made at all. **Closed 2026-08-13** by the capability router
+  (`internal/render/routing.go`, decision D-015): the lane is a declared
+  `quality_tier` on the style, the tier is a ceiling on spend as well as a floor
+  on capability, and every candidate records the lane, model, execution tier and
+  cost it was served by.
+- **Depth-graded screens are the repair for the raster styles, and the vector
+  styles are the only plated ones.** Phase 8 of the output-quality plan asks for
+  a seed version giving each plated style "a coarser screen on its far plane and
+  a finer screen on its near plane". Applied to the four styles that currently
+  declare plates, that instruction would undo the reason those styles exist.
+
+  All four are vector. They declare empty treatment chains deliberately: tone is
+  carried by line density, and putting a screen over line work is precisely the
+  defect the 2026-08-13 verdict pass diagnosed in seven of eight below-bar
+  styles. Screening the colonnade's arcade plate would produce dots in the shape
+  of an arch — the same failure, one layer down.
+
+  **So no screens were applied, and the mechanism is in place for when the
+  styles that need it exist.** Per-plate chains resolve, a plate inherits the
+  style's chain unless it declares one, each plate is scored by the perceptual
+  gate against its own source, and the screen-resolution rule extends to plates.
+  `TestSeededPlateScreensResolveFinerThanTheGateSamples` reports that no plate
+  declares a ruling rather than passing silently, because a rule that passes
+  vacuously reads as coverage.
+
+  The styles that would gain from depth-graded screens are the raster horizon
+  and terrain ones, whose depth cue really was flattened away — and they cannot
+  declare plates until the raster generators are separated. The instruction is
+  right; its subject does not exist yet.
+
+- **Two vector styles were shipping a picture with a whole depth plane missing,
+  and nothing refused them.**
+
+  `radiant-orb` and `halftone-horizon` each draw FOUR depth planes. The styles
+  built on them, `pale-moon` and `tidal-halftone`, named THREE plates and did
+  not merge the fourth into any of them, so the frontmost plane was never
+  composited and never reached the delivered image. `pale-moon` shipped without
+  its ground; `tidal-halftone` shipped without its SEA, which is the subject of
+  the picture.
+
+  This is not a limit of the plate model. `maxPlates` is 3 and `colonnade` also
+  draws four planes, carrying two of them on one plate — exactly the
+  accommodation the model provides. These two omitted rather than merged.
+
+  It was invisible to every existing test for a specific and instructive reason.
+  The flatten-equivalence proof compares the generator's own planes against the
+  generator's own flat document, and BOTH of those are complete — the defect
+  lives in the STYLE's plate spec, which that proof never consults. So the
+  strongest structural guarantee in the plate model was, by construction, unable
+  to see a missing layer.
+
+  Found by a legibility measurement reading a reserved region as uniform blank
+  paper at 0.911 across the whole rectangle. A halftone of an ocean is not
+  uniform anything; the region was blank because the sea was not there.
+
+  Seed v13 merges them back. `TestEveryDeclaredPlaneReachesAPlate` now refuses
+  the class, and was confirmed to catch it by reverting the seed and watching it
+  name both styles and both dropped planes.
+
+- **A reserve cut into a moving plate is legible for exactly one frame.**
+
+  The vector reserve worked at rest immediately and failed the moment the page
+  scrolled: `tidal-halftone` measured **8.15 at rest and 1.00 at half a screen
+  of scroll**, and the Phase 10 parallax gate refused the render outright.
+
+  Two distinct causes, and the first fix exposed the second. The reserve slides
+  with the plate it is cut into, so it has to be a VOLUME — extended downward by
+  that plate's whole travel. And reserving only the frontmost plate leaves the
+  plate behind it showing wherever the front one has slid away; that plate is
+  usually the ground, a full sheet of opaque paper that does not move at all.
+  Both are recorded in D-021.
+
+  The gate that caught this was built in Phase 10 for a different reason and had
+  never refused anything before. It is worth noting what would have shipped
+  without it: a backdrop that measures 8.15 in every still evidence artifact this
+  repo produces, and is illegible as soon as a reader scrolls.
+
+- **CORRECTION: every reserved-copy legibility number reported before this
+  entry was produced by a measurement that searched the wrong rectangle.**
+
+  `legibility.cropBounds` computed the search area's top edge as `y * r.Y` — a
+  multiply where the three terms beside it add, against an origin that is always
+  zero. So the top edge was pinned to the top of the FRAME however far down the
+  copy actually sat, and every region was measured as though it began at y=0.
+  The band above the copy was swept into the worst-pixel search and its darkest
+  ink was returned as the headline's contrast.
+
+  The error ran in the direction that hides work: a region measured taller than
+  it is can only score lower, never higher. So a repair could be complete and
+  still be reported as a failure — which is exactly what happened. Two styles
+  appeared to respond to the generator quiet zone while twenty-one did not, and
+  **the two were the ones whose copy sits at the top of the frame**, the only
+  place where the defect was harmless. That pattern was visible in the data and
+  read as a fact about treatment chains rather than as a fact about the ruler.
+
+  Withdrawn: "2 of 24 pass", "3 of 24 pass", "the other twenty-one sit between
+  1.00 and 2.60", and the reading that only pure tone-mapping chains could hold
+  a clearing. `survey-relief` at 8.00 stands — it was measured over a region
+  that starts near the top, and the conclusion drawn from it (a generator that
+  composes around its copy beats any post-process) is still the one the current
+  data supports.
+
+  `cropBounds` is shared with `legibility.FindPlacements`, so placement search
+  was scoring candidates over the same wrong rectangle and is repaired by the
+  same fix.
+
+  Two tests now pin the search geometry, and it is worth saying why neither
+  existed before. Every test in the package built a picture, measured it, and
+  checked the number — and a fixture that is uniform above the copy scores
+  identically whether the top edge is right or wrong. The defect was only
+  visible against a picture whose bands DIFFER, which is every real backdrop and
+  none of the fixtures. The new tests assert on the search AREA instead: ink
+  strictly outside the region and paper strictly inside it, then the reverse
+  with one dark pixel in each corner to catch a search that is too small.
+
+- **Reserved-copy legibility, measured through the real engine: 20 of 23
+  measured styles pass, ratios 8.57 to 19.82 against a 4.50 bar.**
+
+  `integration/legibility_test.go` submits each style through the really running
+  API and measures the picture that comes back. `docs/evidence/legibility/reserved-copy.md`
+  carries the table; `make integration-evidence` reproduces it.
+
+  Four mechanisms, and it took all four. The raster generators open a clearing
+  (`scenes.QuietZone`); the treatment chain honours it (`Knockout`, D-020); the
+  vector generators cut their own, in both polarities and as a volume (D-021);
+  and the ruler that had been measuring the wrong rectangle was repaired. The
+  first two looked ineffective until the fourth landed, which is recorded above.
+
+  The three failures are model-backed styles — `guided-botanical`,
+  `guided-industrial`, `synth-celestial` — and all three declare LIGHT copy. The
+  treatment reserve serves dark copy only, and D-022 records why on measurement
+  rather than on principle: a solid large enough to give light copy dark ground
+  cost `synth-celestial` its perceptual floor, 0.707 subject survival against a
+  declared 0.800, and refused three styles that had been rendering correctly. The
+  gate is right; the reserve gave way.
+
+  Their answer is compositional, as it was for the vector lane. A model-backed
+  style should have the darkness where the copy goes put there by the
+  conditioning or a derived plate, which costs no subject survival because it is
+  the subject. That belongs with the model lane's plate work.
+
+  Styles that did not render on this host are listed as not-measured rather than
+  counted as passes.
+
+- **CORRECTION, same day: the legibility numbers below were measured through the
+  unit suite's FAKE executor and are not yet confirmed against the real engine.**
+
+  The fake applies one fixed duotone whatever treatment chain it is handed, so a
+  scrim, a halftone and a bloom all come back as the same picture. Every figure
+  in the entry that follows is therefore a real measurement of the generator
+  output for UNTREATED styles and a measurement of the fake for treated ones.
+  The tell was a scrim polarity flip that produced byte-identical ratios: a
+  black scrim and a white scrim cannot both leave a number unchanged, so nothing
+  was being applied.
+
+  This repo already records the rule that was broken — a style's exact bytes
+  have to make a round trip through a running `image-tools` before anything is
+  claimed about them. It was applied to renders and not to the measurement OF
+  renders.
+
+  `integration/legibility_test.go` now measures each style through the really
+  running API and writes `docs/evidence/legibility/reserved-copy.md`, so the
+  number is reproducible rather than asserted. Until it has run, treat the
+  counts below as UNVERIFIED. What is unaffected: the capabilities are
+  independently tested, and the two placement repairs in seed v12 —
+  `ember-mesh` and `feature-band-mesh` — were verified against real renders at
+  their predicted ratios.
+
+- **ZERO of the twenty styles that declare an overlay region keep their declared
+  text colour legible.** Measured 2026-08-13 over the settled catalog, rendering
+  each style at `web.hero` and running worst-pixel contrast on its own declared
+  regions with its own declared text colour and threshold.
+
+  Twenty styles declare an overlay region. **None passes.** The best is
+  `ember-mesh` at 2.81 against a 4.50 threshold. Eight sit at or below 1.20 —
+  `swiss-contour` and `terrazzo-truchet` at 1.00, `store-tile-truchet` at 1.01,
+  `engraved-colonnade` at 1.03 — which is type the same colour as the thing it
+  sits on. Fifteen more styles declare no overlay region at all, so nothing was
+  measured for them.
+
+  **The render path has never checked this.** `internal/legibility` exists and
+  works; it is reachable only through a standalone RPC that nothing in the
+  render or release path calls. So a reserved region has been, in practice, a
+  decorative annotation: the catalog says where copy goes and what colour it is,
+  and no gate has ever confirmed the copy would be readable there.
+
+  This matters more than it first sounds. The whole point of a reserved region
+  is that a designer can drop a headline on the backdrop without editing it, and
+  that is one half of the written bar — "a designer would put it on a paying
+  customer's landing page without editing it". A backdrop that reads beautifully
+  and cannot carry its own declared copy has not met it.
+
+  **The parallax-sweep gate deliberately does not enforce this.** It refuses a
+  MOTION-INDUCED failure — legible at rest, illegible somewhere in the sweep —
+  because enforcing rest inside a motion feature would refuse the entire catalog
+  under the wrong banner, and because repairing twenty styles' regions is
+  catalog-maturation work with its own phase. The delta rule is tested; this
+  entry is the record of what the delta is being measured against.
+
+  **The repair is per style and is art direction**, not a threshold change: move
+  the region to a quiet part of the composition, change the declared text
+  colour, or add the scrim the amendment already computes. The gate reports a
+  scrim opacity for every failure, so the mechanical option exists — but a scrim
+  over a picture chosen for its beauty is the last resort, not the first.
+
+  **Which repair each style needs was then measured.** `legibility.FindPlacements`
+  holds a region's size — the author's decision, since a headline needs the room
+  it needs — and sweeps its position over a 5x5 grid, reporting worst-pixel
+  contrast at each. Searching by hand across twenty styles is how a catalog ends
+  up with regions nobody checked; the search is a measurement even though the
+  choice is not, which is why the function reports every passing placement and
+  chooses none.
+
+  With the DECLARED text colour, only **three of twenty-four** measured regions
+  can be fixed by moving them: `ember-mesh` 2.81 → 4.83, `feature-band-mesh`
+  2.15 → 5.65, `pale-moon` 3.67 → 6.57. The rest cannot be repaired by placement
+  at any position in the frame.
+
+  **The reason is visible in the numbers.** Eight styles cluster at exactly 1.18
+  and several more at 1.00-1.10 - a ratio that flat across a whole frame means
+  the type is the same tone as the picture EVERYWHERE, not that it landed badly.
+
+  **Every text colour was then tried, and none is enough.** The search was
+  re-run over each style's own three ink slots plus pure black and pure white,
+  at every grid position. Flipping to the ink roughly doubles the best ratio -
+  `engraved-colonnade-vector` 1.01 to 4.49, `demoscene-terrain` 1.18 to 2.21,
+  `survey-relief` 1.18 to 2.17, `swiss-contour` 1.10 to 2.07 - and **not one
+  crosses the 4.50 threshold.** The best of all twenty-one lands at 4.49, a
+  hundredth short.
+
+  **That is a structural result, not a tuning failure.** Worst-pixel contrast
+  asks about the LEAST legible pixel in the region, and a pictorial backdrop has
+  both light and dark pixels nearly everywhere: a halftone has white paper and
+  black dots in every square inch, so dark type meets a dot and light type meets
+  the paper, and either way one pixel ruins the ratio. No colour and no position
+  can fix that, because the picture is doing what it was designed to do.
+
+  **So the repair is one of two things, and both are real work.**
+
+  Either a *localised* scrim - a gradient behind the reserved region only, which
+  is what every design system that puts type on photography actually does. The
+  existing `scrim` operation is directional over the whole frame, so a
+  region-scoped one is a new capability in `image-tools`.
+
+  Or a generator-drawn quiet zone: the generator leaves the reserved region
+  genuinely flat, rather than the style declaring a region over whatever the
+  generator happened to draw. That is what `survey-relief`'s repair already did
+  by keeping its upper-left open, and what the perceptual gate's `reserved_quiet`
+  metric measures - but only the four vector styles have a generator that knows
+  about their region at all.
+
+  The three styles fixable by placement should be moved regardless; that is a
+  seed edit with measured before-and-after numbers and no new capability.
+
+- **A per-plate chain is not the same picture as the same chain applied once,
+  and `normalize` is why.** Measured 2026-08-13 with the plate path isolated
+  from the art direction: `city-pop-horizon` rendered flat scores
+  `subject_survival 0.990`; the same style with the SAME chain declared on every
+  plate scores **0.640**, against a 0.800 floor. Two styles with different
+  chains both landed on exactly 0.640, which is what pointed at the path rather
+  than at the grading.
+
+  **The cause is per-layer normalization.** `posterize`, `duotone` and the
+  screens take `normalize: true`, which maps the input's own tonal range onto
+  the full ink ramp. Applied to a whole scene that range spans sky to
+  foreground; applied to a plate it spans only that layer. So each plate is
+  stretched against its own narrow range and the composite is three
+  independently re-stretched bands — a different picture, and a legitimately
+  different one, but not the one the style declared.
+
+  **Consequences worth stating before anyone builds on this.** The chain a plate
+  inherits from its style is exactly the case that fails: adding a plate spec to
+  a treated style silently changes what it looks like, and the change is subtle
+  enough that a reviewer would not catch it. Depth-graded chains remain the
+  right idea — the mechanism is built, validated and tested — but an author
+  using them has to know that each plate normalizes alone.
+
+  **The proper repair is a normalization range that spans the stack**, so a
+  plate's screen maps against the composite's tonal range rather than its own.
+  That needs an explicit range parameter on the image-tools operations, which is
+  a wire change in the scenario that owns them.
+
+  **Seed v11 was written and then reverted.** It gave the three
+  source-similarity-1.000 horizon styles depth-graded chains — band count for
+  city-pop, grain for riso, bloom radius for solar-bloom. The gate refused two
+  of the three, and the diagnosis above says the refusal is about the path and
+  not the grading. Shipping art direction that cannot be verified, over a
+  mechanism with a known distortion, would have put three styles into the
+  catalog whose appearance nobody had checked.
+
+- **No text inference role routes on this host, so generator authoring cannot
+  reach a model here.** Measured 2026-08-13 with `RoutingService.PreviewRoute`.
+  `author.generator` is refused with `role_not_exposed` on both candidates —
+  and so is the pre-existing `classify.fast`, while `extract.structured` reaches
+  openrouter and then fails `capability_mismatch`. This is a provider-policy
+  state, not a defect in the authoring lane: ai-gateway matches the *logical*
+  role name against what each provider's policy exposes, and openrouter's
+  exposed set contains `code.default` but no gateway logical role by that name.
+
+  **The role catalog entry was corrected once already.** Its first version named
+  a `resource_role` no provider exposes at all; the candidates now point at
+  `code.default` (openrouter) and `code.local` (ollama), both verified present
+  in `ListProviderRoles`. That fixes the catalog half. The other half — exposing
+  a logical role through provider policy — lives in the resource scenarios,
+  which are outside this plan's change boundary.
+
+  **What this means for the lane:** it is built, tested and wired end to end,
+  and on this host it refuses by name. That is the designed behaviour and the
+  same class of limit Phase 4's own risk register anticipates. Every validation
+  path is proven against a fake client, because authoring costs money and a
+  rejection path that can only be exercised by spending is a rejection path
+  nobody tests.
+
+- **The render matrix renders one geometry, and a style can fail on the others.**
+  Found 2026-08-13 by submitting `survey-relief` at each seeded surface rather
+  than at the matrix's 1440x900. It passed there and was refused by the
+  perceptual gate on six of the twelve surfaces its placements permit —
+  frequency modulation 0.028 against a 0.030 floor at `web.hero` (2:1), tonal
+  occupancy 0.277 against a 0.40 floor at `web.section-band` (3.4:1), and four
+  more between them. Not systemic: the other three vector generators and the
+  raster styles checked alongside it pass on the same band surfaces.
+
+  **Half repaired.** The height field applied a hardcoded `1.7` aspect
+  correction, so hills were round on a 1.7:1 frame and progressively flatter and
+  sparser on everything else — a wide plate was the same land stretched rather
+  than more land. Distance is now measured in short-edge units so a hill is
+  round in pixels at any frame shape, and the summit count scales with the
+  frame's area, placed on a golden-ratio sequence clear of the overlay band.
+  `web.hero` — the flagship surface, and the one this found — now passes, and
+  `TestARelieFieldGrowsWithTheFrame` pins the composition rule.
+
+  **Still below bar on the wide, short bands**: `web.section-band` (3.4:1),
+  `web.footer-wash` (4:1), `web.pricing-band` (2.8:1),
+  `social.profile-banner` (3:1), `email.header` (2.5:1) and `social.og-card`
+  (1.9:1, at 0.394 against 0.400). The remaining cause is stroke weight: it is a
+  fraction of the short edge, so on a 1440x360 wash the pen is 0.4px and a
+  drawing that is nothing but line work nearly vanishes.
+
+  **An attempted fix was reverted, deliberately.** Scaling the pen to the
+  geometric mean of the two edges cleared all five band surfaces and broke four
+  others — `web.error-page` (the matrix's own geometry) fell to exactly 0.030 on
+  frequency modulation, and the portrait frames followed, because thicker lines
+  fill a tall frame more uniformly. Six surfaces passed before and six after: the
+  failures moved rather than reduced. That is the signature of tuning to a metric
+  instead of designing a picture, which is the failure this plan exists to fix,
+  so the change was reverted rather than kept for the appearance of progress.
+
+  What this needs is art direction across the aspect range — a plate that
+  composes differently on a band, not the same plate with a heavier pen — and it
+  belongs with the catalog-maturation work. **The gate is meanwhile doing its
+  job**: nothing below bar ships, and each refusal names the metric and the
+  bound it missed.
+
+  **The matrix's single geometry is the wider gap, and it is not closed.**
+  `make integration-evidence` still renders every style at one shape, so this
+  class of defect stays invisible to it. The check that found this one was
+  manual. Widening the matrix to a few extreme aspects — the 4:1 wash, the 2:1
+  hero, the 0.46:1 mobile hero — is the fix.
+
+- **A generation was sized from a model that was never going to draw it.**
+  Found on the live wire 2026-08-13, after the router landed and before it
+  shipped. `op-art-interior` at the frontier tier really reached OpenRouter, but
+  the canvas had been sized from `sd-1.5`: the geometry probe sent
+  `ModelsService.SelectModel` no routing policy, so image-tools previewed the
+  local default and answered with its 512px native edge and 768px cap. The
+  generation went out at 768x512 to a provider with no such limit.
+
+  The probe was right to ask and image-tools was right to answer; the question
+  was incomplete. `SelectModelRequest` now carries `quality_policy` and
+  `allow_byok`, which is what makes its own documented claim — "preview which
+  enabled model would run" — true. `TestTheGeometryProbeIsAskedTheServedLanesQuestion`
+  pins it. Worth noting how it was caught: every unit test passed, because the
+  fake answered the same geometry regardless of policy. Only a real submit
+  against a really running image-tools showed it.
 - **A field named `image_png` could carry JPEG.** The cloud provider returned
   2048x2048 JPEG; generated sources are now normalised to PNG through
   image-tools' `convert` op before the treatment chain.

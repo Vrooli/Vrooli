@@ -3,15 +3,665 @@
   "name": "backdrop-studio",
   "description": "Backdrop Studio command metadata for surfaces, catalog, scaffold, composition, rendering, legibility, and release.",
   "groups": [
-    {"name":"surfaces","description":"Inspect declared output surfaces","commands":[{"name":"list","description":"List pixel geometries and permitted placements","binding":{"kind":"connect-rpc","service":"SurfacesService","method":"ListSurfaces"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"architecture":{"primitive":"proto_list"}}]},
-    {"name":"catalog","description":"Browse classified backdrop styles","commands":[{"name":"list","description":"List styles by axis","flags":[{"name":"axis","local_only":true,"description":"Axis filter such as treatment=halftone"}],"binding":{"kind":"connect-rpc","service":"CatalogService","method":"ListStyles"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"architecture":{"primitive":"proto_list"}}]},
-    {"name":"scaffold","description":"Render deterministic composition scaffolds","commands":[{"name":"list","description":"List seeded scene presets","binding":{"kind":"connect-rpc","service":"ScaffoldService","method":"ListPresets"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"architecture":{"primitive":"proto_list"}},{"name":"render","description":"Render a seeded scaffold PNG","flags":[{"name":"preset","required":true,"description":"Preset id"},{"name":"width","description":"Output width"},{"name":"height","description":"Output height"},{"name":"seed","description":"Deterministic seed"},{"name":"conditioner","description":"depth or edge"},{"name":"params-json","description":"Preset parameter JSON"}],"binding":{"kind":"connect-rpc","service":"ScaffoldService","method":"Render"},"governance":{"effect":"write","run_eligible":true,"permissions":["network:internal"]},"architecture":{"primitive":"proto_mutation"}}]},
-    {"name":"compose","description":"Inspect plans and compose supplied screenshots","commands":[{"name":"plan","description":"Resolve a style plan without execution","flags":[{"name":"style","required":true,"description":"Style id","bind_waiver":"CLI handler converts the public style id and adjacent flags into the structured catalog.Style request."},{"name":"strategy","description":"Declared strategy"},{"name":"treatments","description":"Comma-separated treatment chain"},{"name":"placement","description":"Placement id"}],"binding":{"kind":"connect-rpc","service":"ComposeService","method":"ResolvePlan"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"architecture":{"primitive":"operational"}},{"name":"device-frame","description":"Compose a supplied screenshot into a declared surface","flags":[{"name":"backdrop","required":true,"description":"Backdrop PNG path","bind":{"field":"backdrop_png"}},{"name":"screenshot","required":true,"description":"Application screenshot PNG path","bind":{"field":"screenshot_png"}},{"name":"surface","required":true,"description":"Target surface id","bind":{"field":"surface_id"}},{"name":"arrangement","description":"Device arrangement"},{"name":"caption","description":"Caption preview"},{"name":"width","required":true,"description":"Target width"},{"name":"height","required":true,"description":"Target height"},{"name":"output","required":true,"description":"Output PNG path","local_only":true}],"binding":{"kind":"connect-rpc","service":"ComposeService","method":"ComposeDeviceFrame"},"governance":{"effect":"write","run_eligible":true,"permissions":["network:internal","filesystem:write"]},"architecture":{"primitive":"proto_mutation"}}]},
-    {"name":"render","description":"Submit, inspect, and select reproducible candidates","commands":[{"name":"submit","description":"Submit a render job","flags":[{"name":"style","required":true,"description":"Style id","bind_waiver":"CLI handler converts the public style id and adjacent flags into the structured catalog.Style request."},{"name":"strategy","description":"Declared strategy"},{"name":"subject","description":"Procedural subject"},{"name":"treatments","description":"Comma-separated treatment chain"},{"name":"placement","description":"Placement id"},{"name":"seed","description":"Deterministic seed"},{"name":"candidate-count","description":"Number of candidates"},{"name":"surface","description":"Delivery surface id; defaults to the first surface the style's placements permit","bind":{"field":"surface_id","kind":"raw_string"}},{"name":"brand","description":"Brand id whose palette binds the style's ink slots","bind":{"field":"brand_id","kind":"raw_string"}},{"name":"brand-token","description":"Bind one ink slot directly: <slot>=<value> (repeat for several)","bind":{"field":"brand_tokens"},"bind_waiver":"The flag is repeated once per slot and the handler folds the <slot>=<value> pairs into the brand_tokens map; a generic string binding cannot express a repeated key/value flag."}],"binding":{"kind":"connect-rpc","service":"RenderService","method":"Submit"},"governance":{"effect":"write","run_eligible":true,"permissions":["network:internal"]},"architecture":{"primitive":"proto_mutation"}},{"name":"get","description":"Inspect a render job and its candidates","positionals":[{"name":"job-id","required":true,"description":"Job id"}],"binding":{"kind":"connect-rpc","service":"RenderService","method":"GetJob"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"architecture":{"primitive":"proto_list"}},{"name":"candidates","description":"List render candidates","positionals":[{"name":"job-id","required":true,"description":"Job id"}],"binding":{"kind":"connect-rpc","service":"RenderService","method":"ListCandidates"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"architecture":{"primitive":"proto_list"}},{"name":"select","description":"Record explicit candidate selection","positionals":[{"name":"job-id","required":true,"description":"Job id"},{"name":"candidate-id","required":true,"description":"Candidate id"}],"flags":[{"name":"actor","required":true,"description":"Selecting operator or agent"}],"binding":{"kind":"connect-rpc","service":"RenderService","method":"SelectCandidate"},"governance":{"effect":"write","run_eligible":true,"permissions":["network:internal"]},"architecture":{"primitive":"proto_mutation"}}]},
-    {"name":"legibility","description":"Measure minimum overlay contrast","commands":[{"name":"measure","description":"Measure worst-pixel contrast from a PNG","flags":[{"name":"image","required":true,"description":"PNG path","bind":{"field":"image_png"}},{"name":"threshold","description":"Minimum ratio"},{"name":"placement","description":"Placement crop"}],"binding":{"kind":"connect-rpc","service":"LegibilityService","method":"Measure"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"architecture":{"primitive":"operational"}}]},
-    {"name":"release","description":"Release procedural candidates and fetch references","commands":[{"name":"create","description":"Release a selected candidate","flags":[{"name":"candidate","required":true,"description":"Candidate id","bind":{"field":"candidate_id"}},{"name":"style","required":true,"description":"Style id","bind":{"field":"style_id"}},{"name":"strategy","required":true,"description":"Declared strategy"},{"name":"surface","required":true,"description":"Surface id","bind":{"field":"surface_id"}},{"name":"width","required":true,"description":"Actual width"},{"name":"height","required":true,"description":"Actual height"},{"name":"placement","required":true,"description":"Placement"},{"name":"alt-text","description":"Operator-authored alt text"},{"name":"decorative","description":"Explicitly mark decorative"}],"binding":{"kind":"connect-rpc","service":"ReleaseService","method":"Release"},"governance":{"effect":"write","run_eligible":true,"permissions":["network:internal"]},"architecture":{"primitive":"proto_mutation"}},{"name":"get","description":"Fetch released backdrop metadata without image bytes","positionals":[{"name":"id","required":true,"description":"Released backdrop id"}],"binding":{"kind":"connect-rpc","service":"ReleaseService","method":"GetReference"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"architecture":{"primitive":"proto_list"}}]}
+    {
+      "name": "surfaces",
+      "description": "Inspect declared output surfaces",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List pixel geometries and permitted placements",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SurfacesService",
+            "method": "ListSurfaces"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        }
+      ]
+    },
+    {
+      "name": "catalog",
+      "description": "Browse classified backdrop styles",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List styles by axis",
+          "flags": [
+            {
+              "name": "axis",
+              "local_only": true,
+              "description": "Axis filter such as treatment=halftone"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CatalogService",
+            "method": "ListStyles"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        }
+      ]
+    },
+    {
+      "name": "scaffold",
+      "description": "Render deterministic composition scaffolds",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List seeded scene presets",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ScaffoldService",
+            "method": "ListPresets"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "render",
+          "description": "Render a seeded scaffold PNG",
+          "flags": [
+            {
+              "name": "preset",
+              "required": true,
+              "description": "Preset id"
+            },
+            {
+              "name": "width",
+              "description": "Output width"
+            },
+            {
+              "name": "height",
+              "description": "Output height"
+            },
+            {
+              "name": "seed",
+              "description": "Deterministic seed"
+            },
+            {
+              "name": "conditioner",
+              "description": "depth or edge"
+            },
+            {
+              "name": "params-json",
+              "description": "Preset parameter JSON"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ScaffoldService",
+            "method": "Render"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        }
+      ]
+    },
+    {
+      "name": "generators",
+      "description": "Author, list and remove model-authored vector generators",
+      "commands": [
+        {
+          "name": "author",
+          "description": "Ask a model for a vector generator, validate it, and optionally store it",
+          "flags": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Generator id; may not shadow a built-in preset"
+            },
+            {
+              "name": "brief",
+              "required": true,
+              "description": "The art direction, in your words"
+            },
+            {
+              "name": "store",
+              "description": "Store it when validation passes (default: preview only)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "GeneratorsService",
+            "method": "AuthorGenerator"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "network:external"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "list",
+          "description": "List stored authored generators",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "GeneratorsService",
+            "method": "ListGenerators"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "delete",
+          "description": "Remove an authored generator",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Generator id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "GeneratorsService",
+            "method": "DeleteGenerator"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        }
+      ]
+    },
+    {
+      "name": "compose",
+      "description": "Inspect plans and compose supplied screenshots",
+      "commands": [
+        {
+          "name": "plan",
+          "description": "Resolve a style plan without execution",
+          "flags": [
+            {
+              "name": "style",
+              "required": true,
+              "description": "Style id",
+              "bind_waiver": "CLI handler converts the public style id and adjacent flags into the structured catalog.Style request."
+            },
+            {
+              "name": "strategy",
+              "description": "Declared strategy"
+            },
+            {
+              "name": "treatments",
+              "description": "Comma-separated treatment chain"
+            },
+            {
+              "name": "placement",
+              "description": "Placement id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ComposeService",
+            "method": "ResolvePlan"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "operational"
+          }
+        },
+        {
+          "name": "device-frame",
+          "description": "Compose a supplied screenshot into a declared surface",
+          "flags": [
+            {
+              "name": "backdrop",
+              "required": true,
+              "description": "Backdrop PNG path",
+              "bind": {
+                "field": "backdrop_png"
+              }
+            },
+            {
+              "name": "screenshot",
+              "required": true,
+              "description": "Application screenshot PNG path",
+              "bind": {
+                "field": "screenshot_png"
+              }
+            },
+            {
+              "name": "surface",
+              "required": true,
+              "description": "Target surface id",
+              "bind": {
+                "field": "surface_id"
+              }
+            },
+            {
+              "name": "arrangement",
+              "description": "Device arrangement"
+            },
+            {
+              "name": "caption",
+              "description": "Caption preview"
+            },
+            {
+              "name": "width",
+              "required": true,
+              "description": "Target width"
+            },
+            {
+              "name": "height",
+              "required": true,
+              "description": "Target height"
+            },
+            {
+              "name": "output",
+              "required": true,
+              "description": "Output PNG path",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ComposeService",
+            "method": "ComposeDeviceFrame"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        }
+      ]
+    },
+    {
+      "name": "render",
+      "description": "Submit, inspect, and select reproducible candidates",
+      "commands": [
+        {
+          "name": "submit",
+          "description": "Submit a render job",
+          "flags": [
+            {
+              "name": "style",
+              "required": true,
+              "description": "Style id",
+              "bind_waiver": "CLI handler converts the public style id and adjacent flags into the structured catalog.Style request."
+            },
+            {
+              "name": "strategy",
+              "description": "Declared strategy"
+            },
+            {
+              "name": "subject",
+              "description": "Procedural subject"
+            },
+            {
+              "name": "treatments",
+              "description": "Comma-separated treatment chain"
+            },
+            {
+              "name": "placement",
+              "description": "Placement id"
+            },
+            {
+              "name": "seed",
+              "description": "Deterministic seed"
+            },
+            {
+              "name": "candidate-count",
+              "description": "Number of candidates"
+            },
+            {
+              "name": "surface",
+              "description": "Delivery surface id; defaults to the first surface the style's placements permit",
+              "bind": {
+                "field": "surface_id",
+                "kind": "raw_string"
+              }
+            },
+            {
+              "name": "brand",
+              "description": "Brand id whose palette binds the style's ink slots",
+              "bind": {
+                "field": "brand_id",
+                "kind": "raw_string"
+              }
+            },
+            {
+              "name": "brand-token",
+              "description": "Bind one ink slot directly: <slot>=<value> (repeat for several)",
+              "bind": {
+                "field": "brand_tokens"
+              },
+              "bind_waiver": "The flag is repeated once per slot and the handler folds the <slot>=<value> pairs into the brand_tokens map; a generic string binding cannot express a repeated key/value flag."
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RenderService",
+            "method": "Submit"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "get",
+          "description": "Inspect a render job and its candidates",
+          "positionals": [
+            {
+              "name": "job-id",
+              "required": true,
+              "description": "Job id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RenderService",
+            "method": "GetJob"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "candidates",
+          "description": "List render candidates",
+          "positionals": [
+            {
+              "name": "job-id",
+              "required": true,
+              "description": "Job id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RenderService",
+            "method": "ListCandidates"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "select",
+          "description": "Record explicit candidate selection",
+          "positionals": [
+            {
+              "name": "job-id",
+              "required": true,
+              "description": "Job id"
+            },
+            {
+              "name": "candidate-id",
+              "required": true,
+              "description": "Candidate id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "actor",
+              "required": true,
+              "description": "Selecting operator or agent"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RenderService",
+            "method": "SelectCandidate"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        }
+      ]
+    },
+    {
+      "name": "legibility",
+      "description": "Measure minimum overlay contrast",
+      "commands": [
+        {
+          "name": "measure",
+          "description": "Measure worst-pixel contrast from a PNG",
+          "flags": [
+            {
+              "name": "image",
+              "required": true,
+              "description": "PNG path",
+              "bind": {
+                "field": "image_png"
+              }
+            },
+            {
+              "name": "threshold",
+              "description": "Minimum ratio"
+            },
+            {
+              "name": "placement",
+              "description": "Placement crop"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "LegibilityService",
+            "method": "Measure"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "operational"
+          }
+        }
+      ]
+    },
+    {
+      "name": "release",
+      "description": "Release procedural candidates and fetch references",
+      "commands": [
+        {
+          "name": "create",
+          "description": "Release a selected candidate",
+          "flags": [
+            {
+              "name": "candidate",
+              "required": true,
+              "description": "Candidate id",
+              "bind": {
+                "field": "candidate_id"
+              }
+            },
+            {
+              "name": "style",
+              "required": true,
+              "description": "Style id",
+              "bind": {
+                "field": "style_id"
+              }
+            },
+            {
+              "name": "strategy",
+              "required": true,
+              "description": "Declared strategy"
+            },
+            {
+              "name": "surface",
+              "required": true,
+              "description": "Surface id",
+              "bind": {
+                "field": "surface_id"
+              }
+            },
+            {
+              "name": "width",
+              "required": true,
+              "description": "Actual width"
+            },
+            {
+              "name": "height",
+              "required": true,
+              "description": "Actual height"
+            },
+            {
+              "name": "placement",
+              "required": true,
+              "description": "Placement"
+            },
+            {
+              "name": "alt-text",
+              "description": "Operator-authored alt text"
+            },
+            {
+              "name": "decorative",
+              "description": "Explicitly mark decorative"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ReleaseService",
+            "method": "Release"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "get",
+          "description": "Fetch released backdrop metadata without image bytes",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Released backdrop id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ReleaseService",
+            "method": "GetReference"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        }
+      ]
+    }
   ],
-  "measures":{"domains":[]},
-  "exceptions":[],
-  "omitted":[{"service":"CatalogService","method":"CreateStyle","reason":"Style creation is reserved for the Backdrop Studio workbench API; the CLI exposes read-only catalog discovery."}]
+  "measures": {
+    "domains": []
+  },
+  "exceptions": [],
+  "omitted": [
+    {
+      "service": "CatalogService",
+      "method": "CreateStyle",
+      "reason": "Style creation is reserved for the Backdrop Studio workbench API; the CLI exposes read-only catalog discovery."
+    }
+  ]
 }

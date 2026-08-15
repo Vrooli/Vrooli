@@ -67,14 +67,15 @@ func TestImageEngineExecutorAgainstRunningImageTools(t *testing.T) {
 	source := solidPNG(t, 64, 64)
 
 	t.Run("resolved palette round-trips", func(t *testing.T) {
-		out, err := client.Apply(ctx, source,
-			[]string{"duotone", "grain"},
-			map[string]string{
+		out, err := client.Apply(ctx, imageengine.ApplyRequest{
+			Input:      source,
+			Treatments: []string{"duotone", "grain"},
+			Params: map[string]string{
 				"duotone": `{"dark":"$brand.primary","light":"$brand.background","normalize":true}`,
 				"grain":   `{"amount":0.05,"contrast_multiplier":1.02,"seed":3}`,
 			},
-			map[string]string{"$brand.primary": "#1B3FBF", "$brand.background": "#F5EFDC"},
-		)
+			Palette: map[string]string{"$brand.primary": "#1B3FBF", "$brand.background": "#F5EFDC"},
+		})
 		require.NoError(t, err, "the production executor must complete a real chain")
 		width, height, decodeErr := integration.DecodePNG(out)
 		require.NoError(t, decodeErr)
@@ -83,11 +84,11 @@ func TestImageEngineExecutorAgainstRunningImageTools(t *testing.T) {
 	})
 
 	t.Run("unresolved slot never reaches the service", func(t *testing.T) {
-		_, err := client.Apply(ctx, source,
-			[]string{"duotone"},
-			map[string]string{"duotone": `{"dark":"$brand.primary","light":"#ffffff"}`},
-			nil,
-		)
+		_, err := client.Apply(ctx, imageengine.ApplyRequest{
+			Input:      source,
+			Treatments: []string{"duotone"},
+			Params:     map[string]string{"duotone": `{"dark":"$brand.primary","light":"#ffffff"}`},
+		})
 		var unresolved *imageengine.UnresolvedSlotError
 		require.ErrorAs(t, err, &unresolved,
 			"an unbindable slot must fail here, not as a 422 from image-tools")
@@ -97,11 +98,12 @@ func TestImageEngineExecutorAgainstRunningImageTools(t *testing.T) {
 		// `screen_angle` is not a field on HalftoneParams. protojson rejects
 		// unknown fields, so this must surface as an error naming the operation
 		// rather than silently rendering defaults.
-		_, err := client.Apply(ctx, source,
-			[]string{"halftone"},
-			map[string]string{"halftone": `{"lpi":90,"screen_angle":15}`},
-			map[string]string{"$brand.primary": "#111827", "$brand.background": "#ffffff"},
-		)
+		_, err := client.Apply(ctx, imageengine.ApplyRequest{
+			Input:      source,
+			Treatments: []string{"halftone"},
+			Params:     map[string]string{"halftone": `{"lpi":90,"screen_angle":15}`},
+			Palette:    map[string]string{"$brand.primary": "#111827", "$brand.background": "#ffffff"},
+		})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "halftone")
 	})

@@ -9,6 +9,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 
 	"github.com/vrooli/api-core/discovery"
@@ -18,11 +19,46 @@ import (
 // must send every treatment to image-tools; Backdrop Studio deliberately has no
 // local pixel implementation.
 type Executor interface {
-	// params carries per-style overrides keyed by op name, merged over the
+	Apply(ctx context.Context, req ApplyRequest) ([]byte, error)
+}
+
+// ApplyRequest is one treatment chain run against one image.
+//
+// A struct rather than a parameter list because the two map arguments were
+// already adjacent and interchangeable at every call site — a transposition
+// would have compiled and produced a picture that was merely wrong.
+type ApplyRequest struct {
+	Input      []byte
+	Treatments []string
+	// Params carries per-style overrides keyed by op name, merged over the
 	// palette-derived defaults. A style that names an op without parameters
 	// still gets a sensible default; a style that wants a specific screen can
 	// state it.
-	Apply(ctx context.Context, input []byte, treatments []string, params map[string]string, palette map[string]string) ([]byte, error)
+	Params  map[string]string
+	Palette map[string]string
+	// Reserve is space the chain must leave as paper, applied to every
+	// operation in it rather than to any one of them. Nil reserves nothing.
+	//
+	// It belongs to the chain and not to a treatment because it describes the
+	// picture being made — where the headline goes — and not the screen making
+	// it. A chain that reserved space in its first operation and printed over it
+	// in its second would have reserved nothing at all.
+	Reserve *Knockout
+}
+
+// Knockout is space that must come out as paper, in fractions of the frame.
+//
+// Relative, so one declaration survives every delivery size: the same style
+// renders a phone hero and a billboard, and a reserve stated in pixels would be
+// correct for exactly one of them.
+type Knockout struct {
+	X, Y, Width, Height float64
+	// Feather is the easing margin, as a fraction of the SHORT edge. Zero takes
+	// image-tools' default rather than a hard rectangle.
+	Feather float64
+	// Solid cuts the reserve the other way: the chain lays full ink there
+	// instead of none, which is what light copy needs to sit against.
+	Solid bool
 }
 
 // GenerationRequest is the inference contract. Concrete model identity stays
@@ -81,10 +117,181 @@ type GenerationResult struct {
 	ModelID string
 	// Tier is where it ran — "local-gpu", "local-cpu" or "byok-cloud".
 	Tier string
+	// CostUSD is what image-tools' backend reported the route cost. Reported
+	// separately from CostReported because zero is a measurement on a local
+	// lane and an absence on a backend that says nothing.
+	CostUSD float64
+	// CostReported distinguishes "this route cost nothing" from "nobody
+	// reported a cost". A frontier render whose charge went unrecorded must not
+	// be presented as free.
+	CostReported bool
 }
 
 type Generator interface {
 	Generate(context.Context, GenerationRequest) (GenerationResult, error)
+}
+
+// ModelGeometry is the canvas the model that would serve an operation can
+// actually draw well.
+//
+// Backdrop Studio asks for this rather than knowing it. It used to carry three
+// constants named for Stable Diffusion 1.5 — a 512px native edge, a 64px latent
+// stride, a 768px cap — and apply them to whichever model image-tools selected,
+// which on an SDXL or FLUX host throws away half the trained resolution and
+// quantises to a stride the model does not use. Model configuration is
+// image-tools' by charter (OT-P0-004), so the fact is fetched from the scenario
+// that owns it.
+type ModelGeometry struct {
+	// ModelID is the model the selector would use for this operation on this
+	// host — the same choice a submit would make.
+	ModelID string
+	// NativeWidth and NativeHeight are the resolution the model was trained at.
+	// Zero means the model declares none, which is the honest answer for a
+	// cloud route where the provider owns geometry.
+	NativeWidth, NativeHeight int
+	// SizeQuantum is the stride both axes must be a multiple of. 1 means none.
+	SizeQuantum int
+	// MaxEdge caps the long axis; zero means uncapped.
+	MaxEdge int
+}
+
+// Declared reports whether the model states a native resolution.
+func (g ModelGeometry) Declared() bool { return g.NativeWidth > 0 && g.NativeHeight > 0 }
+
+// Fit maps a delivery size onto the model's drawable canvas: the delivery
+// aspect preserved as far as the model holds it, the short edge at native
+// resolution, both axes on the latent stride. A model with no declared
+// geometry gets the delivery size back — the provider decides.
+func (g ModelGeometry) Fit(deliveryW, deliveryH int) (int, int) {
+	if deliveryW <= 0 || deliveryH <= 0 {
+		return g.NativeWidth, g.NativeHeight
+	}
+	if !g.Declared() {
+		return g.snap(deliveryW), g.snap(deliveryH)
+	}
+	aspect := float64(deliveryW) / float64(deliveryH)
+	width, height := g.NativeWidth, g.NativeHeight
+	if aspect >= 1 {
+		width = int(float64(g.NativeHeight) * aspect)
+		if g.MaxEdge > 0 && width > g.MaxEdge {
+			width = g.MaxEdge
+		}
+	} else {
+		height = int(float64(g.NativeWidth) / aspect)
+		if g.MaxEdge > 0 && height > g.MaxEdge {
+			height = g.MaxEdge
+		}
+	}
+	return g.snap(width), g.snap(height)
+}
+
+func (g ModelGeometry) snap(v int) int {
+	if g.SizeQuantum <= 1 {
+		return v
+	}
+	if v < g.SizeQuantum {
+		return g.SizeQuantum
+	}
+	return (v / g.SizeQuantum) * g.SizeQuantum
+}
+
+// GeometryProbe answers what canvas a generation should be drawn on. It is a
+// separate interface from Generator so a caller can size a request without
+// being able to spend a model call, and so a unit fake stays small.
+type GeometryProbe interface {
+	ModelGeometry(ctx context.Context, req GeometryRequest) (ModelGeometry, error)
+}
+
+// GeometryRequest asks what canvas a specific route would draw on.
+//
+// The routing policy is part of the question, not a detail of a later call.
+// Model selection depends on it, so a probe that omitted it previewed a
+// different run than the one it stood in for: a frontier-lane render was shown
+// the local default model's 512px native edge and asked a cloud provider for
+// 768x512, having sized its request from a model that was never going to draw
+// it.
+type GeometryRequest struct {
+	Operation                     string
+	QualityPolicy, FallbackPolicy string
+	AllowBYOK                     bool
+}
+
+// selectModelResponse decodes image-tools' ModelsService.SelectModel. The
+// Connect edge serialises with camelCase JSON names.
+type selectModelResponse struct {
+	Model struct {
+		ID       string `json:"id"`
+		Geometry struct {
+			NativeWidth  int `json:"nativeWidth"`
+			NativeHeight int `json:"nativeHeight"`
+			SizeQuantum  int `json:"sizeQuantum"`
+			MaxEdge      int `json:"maxEdge"`
+		} `json:"geometry"`
+	} `json:"model"`
+}
+
+// ModelGeometry asks image-tools which model would serve an operation on this
+// host and what canvas it draws well.
+//
+// SelectModel is a preview: it runs the same selection a submit would and
+// executes nothing, which is exactly the question "how big should I ask for?"
+// needs answered before spending a generation.
+func (c *Client) ModelGeometry(ctx context.Context, req GeometryRequest) (ModelGeometry, error) {
+	operation := strings.TrimSpace(req.Operation)
+	if operation == "" {
+		return ModelGeometry{}, fmt.Errorf("image-tools: model geometry needs an operation")
+	}
+	resolve := c.Resolve
+	if resolve == nil {
+		return ModelGeometry{}, fmt.Errorf("image-tools: URL resolver is not configured")
+	}
+	base, err := resolve(ctx)
+	if err != nil {
+		return ModelGeometry{}, fmt.Errorf("image-tools: resolve scenario: %w", err)
+	}
+	httpClient := c.HTTPClient
+	if httpClient == nil {
+		httpClient = http.DefaultClient
+	}
+	body, _ := json.Marshal(map[string]any{
+		"operation":     operation,
+		"qualityPolicy": req.QualityPolicy,
+		"allowByok":     req.AllowBYOK,
+	})
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost,
+		strings.TrimRight(base, "/")+"/vrooli.image_tools.v1.models.ModelsService/SelectModel", bytes.NewReader(body))
+	if err != nil {
+		return ModelGeometry{}, err
+	}
+	request.Header.Set("Content-Type", "application/json")
+	resp, err := httpClient.Do(request)
+	if err != nil {
+		return ModelGeometry{}, fmt.Errorf("image-tools: select model for %q: %w", operation, err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		detail, _ := io.ReadAll(io.LimitReader(resp.Body, 8<<10))
+		return ModelGeometry{}, fmt.Errorf("image-tools: no model serves %q on this host: %s: %s",
+			operation, resp.Status, strings.TrimSpace(string(detail)))
+	}
+	var decoded selectModelResponse
+	if err := json.NewDecoder(resp.Body).Decode(&decoded); err != nil {
+		return ModelGeometry{}, fmt.Errorf("image-tools: decode model selection: %w", err)
+	}
+	if decoded.Model.ID == "" {
+		return ModelGeometry{}, fmt.Errorf("image-tools: model selection for %q named no model", operation)
+	}
+	quantum := decoded.Model.Geometry.SizeQuantum
+	if quantum <= 0 {
+		quantum = 1
+	}
+	return ModelGeometry{
+		ModelID:      decoded.Model.ID,
+		NativeWidth:  decoded.Model.Geometry.NativeWidth,
+		NativeHeight: decoded.Model.Geometry.NativeHeight,
+		SizeQuantum:  quantum,
+		MaxEdge:      decoded.Model.Geometry.MaxEdge,
+	}, nil
 }
 
 // submitGenerationResponse decodes image-tools' REST submit edge.
@@ -108,8 +315,17 @@ type waitGenerationResponse struct {
 		State     string `json:"state"`
 		ResultRef string `json:"resultRef"`
 		Error     string `json:"error"`
+		// ResultMeta is the backend's own record of the run. `cost_usd` is the
+		// only place a cloud charge is ever stated: it is learned while the job
+		// runs and exists nowhere else afterwards.
+		ResultMeta map[string]string `json:"resultMeta"`
 	} `json:"job"`
 }
+
+// metaCostUSD is image-tools' key for what a route cost. It is image-tools'
+// vocabulary, not this scenario's, which is why it is a named constant here
+// rather than a literal at the read site.
+const metaCostUSD = "cost_usd"
 
 // Client calls image-tools' synchronous deterministic operation edge. The
 // resolver is injectable so unit tests can exercise the transport without
@@ -132,11 +348,11 @@ func NewClient() *Client {
 // defaults. Without overrides every style naming "halftone" rendered the same
 // screen at the same line frequency, so the catalog could name an art direction
 // but never express one.
-func (c *Client) Apply(ctx context.Context, input []byte, treatments []string, overrides map[string]string, palette map[string]string) ([]byte, error) {
-	if len(input) == 0 {
+func (c *Client) Apply(ctx context.Context, req ApplyRequest) ([]byte, error) {
+	if len(req.Input) == 0 {
 		return nil, fmt.Errorf("image-tools: input image is empty")
 	}
-	if len(treatments) == 0 {
+	if len(req.Treatments) == 0 {
 		return nil, fmt.Errorf("image-tools: treatment chain is empty")
 	}
 	resolve := c.Resolve
@@ -152,13 +368,13 @@ func (c *Client) Apply(ctx context.Context, input []byte, treatments []string, o
 	if httpClient == nil {
 		httpClient = http.DefaultClient
 	}
-	result := append([]byte(nil), input...)
-	for _, treatment := range treatments {
+	result := append([]byte(nil), req.Input...)
+	for _, treatment := range req.Treatments {
 		treatment = strings.TrimSpace(treatment)
 		if treatment == "" || strings.HasPrefix(treatment, "$brand.") {
 			return nil, fmt.Errorf("image-tools: invalid treatment %q", treatment)
 		}
-		params, paramsErr := mergedParams(treatment, overrides[treatment], palette)
+		params, paramsErr := mergedParams(treatment, req.Params[treatment], req.Palette, req.Reserve)
 		if paramsErr != nil {
 			return nil, paramsErr
 		}
@@ -296,7 +512,13 @@ func (c *Client) Generate(ctx context.Context, req GenerationRequest) (Generatio
 	if len(output) == 0 {
 		return GenerationResult{}, fmt.Errorf("image-tools inference returned an empty image")
 	}
-	return GenerationResult{PNG: output, ModelID: submitted.ModelID, Tier: submitted.Tier}, nil
+	result := GenerationResult{PNG: output, ModelID: submitted.ModelID, Tier: submitted.Tier}
+	if raw, ok := waited.Job.ResultMeta[metaCostUSD]; ok {
+		if cost, parseErr := strconv.ParseFloat(strings.TrimSpace(raw), 64); parseErr == nil {
+			result.CostUSD, result.CostReported = cost, true
+		}
+	}
+	return result, nil
 }
 
 // ToPNG re-encodes bytes as PNG through image-tools.
@@ -326,6 +548,38 @@ func (c *Client) ToPNG(ctx context.Context, input []byte) ([]byte, error) {
 		httpClient = http.DefaultClient
 	}
 	return run(ctx, httpClient, strings.TrimRight(baseURL, "/"), "convert", input, `{"convert":{"format":"png"}}`)
+}
+
+// RasterizeSVG turns a vector generator's document into pixels.
+//
+// It goes through image-tools rather than being done here for the same reason
+// every other pixel operation does: OT-P0-004 gives image-tools sole ownership
+// of raster implementation, and this scenario owns art direction. The practical
+// consequence is that image-tools' rasterizer choice — which of its two
+// backends serves a document, and whether it refuses one it cannot draw
+// faithfully — is made once, in the scenario that owns pixels, rather than
+// separately by every caller that happens to generate SVG.
+//
+// The `convert` operation is the right edge for it: image-tools detects SVG by
+// content sniff on decode, so this is "decode these bytes and give me a PNG",
+// which is exactly what a rasterization is.
+func (c *Client) RasterizeSVG(ctx context.Context, svg []byte) ([]byte, error) {
+	if len(svg) == 0 {
+		return nil, fmt.Errorf("image-tools: cannot rasterize an empty vector document")
+	}
+	resolve := c.Resolve
+	if resolve == nil {
+		return nil, fmt.Errorf("image-tools: URL resolver is not configured")
+	}
+	baseURL, err := resolve(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("image-tools: resolve scenario: %w", err)
+	}
+	httpClient := c.HTTPClient
+	if httpClient == nil {
+		httpClient = http.DefaultClient
+	}
+	return run(ctx, httpClient, strings.TrimRight(baseURL, "/"), "convert", svg, `{"convert":{"format":"png"}}`)
 }
 
 // Resize scales bytes to an exact geometry through image-tools.
@@ -421,8 +675,8 @@ func (e *UnresolvedSlotError) Error() string {
 // $brand.* slots bound against the supplied palette. Callers use it to assert
 // on what will actually go over the wire rather than on the catalog's stored
 // intent.
-func ResolveParams(operation, override string, palette map[string]string) (string, error) {
-	return mergedParams(operation, override, palette)
+func ResolveParams(operation, override string, palette map[string]string, reserve *Knockout) (string, error) {
+	return mergedParams(operation, override, palette, reserve)
 }
 
 // mergedParams overlays a style's op parameters onto the palette-derived
@@ -435,32 +689,49 @@ func ResolveParams(operation, override string, palette map[string]string) (strin
 // with `422 invalid color "$brand.primary"` — that single fall-open made ten of
 // sixteen seeded styles unrenderable from the CLI, and no unit test could see
 // it because they all resolved against a bound brand.
-func mergedParams(operation, override string, palette map[string]string) (string, error) {
+func mergedParams(operation, override string, palette map[string]string, reserve *Knockout) (string, error) {
 	base, err := paramsFor(operation, palette)
 	if err != nil {
 		return "", err
 	}
-	if strings.TrimSpace(override) == "" {
+	if strings.TrimSpace(override) == "" && reserve == nil {
 		return base, nil
 	}
-	var baseObj map[string]map[string]any
+	var baseObj map[string]any
 	if err := json.Unmarshal([]byte(base), &baseObj); err != nil || baseObj[operation] == nil {
-		baseObj = map[string]map[string]any{operation: {}}
+		baseObj = map[string]any{operation: map[string]any{}}
 	}
-	var over map[string]any
-	if err := json.Unmarshal([]byte(override), &over); err != nil {
-		return "", fmt.Errorf("image-tools: operation %q parameters are not a JSON object: %w", operation, err)
+	opObj, ok := baseObj[operation].(map[string]any)
+	if !ok {
+		opObj = map[string]any{}
+		baseObj[operation] = opObj
 	}
-	for k, v := range over {
-		if sv, ok := v.(string); ok && strings.HasPrefix(sv, "$brand.") {
-			resolved, ok := palette[sv]
-			if !ok || strings.TrimSpace(resolved) == "" {
-				return "", &UnresolvedSlotError{Slot: sv, Operation: operation, Field: k}
-			}
-			baseObj[operation][k] = resolved
-			continue
+	// The reserve sits beside the operation, not inside it: OpParams declares
+	// `knockout` as a sibling of the operation oneof, so one rectangle covers
+	// whichever operation this is.
+	if reserve != nil && reserve.Width > 0 && reserve.Height > 0 {
+		baseObj["knockout"] = map[string]any{
+			"x": reserve.X, "y": reserve.Y,
+			"width": reserve.Width, "height": reserve.Height,
+			"feather": reserve.Feather, "solid": reserve.Solid,
 		}
-		baseObj[operation][k] = v
+	}
+	if strings.TrimSpace(override) != "" {
+		var over map[string]any
+		if err := json.Unmarshal([]byte(override), &over); err != nil {
+			return "", fmt.Errorf("image-tools: operation %q parameters are not a JSON object: %w", operation, err)
+		}
+		for k, v := range over {
+			if sv, ok := v.(string); ok && strings.HasPrefix(sv, "$brand.") {
+				resolved, ok := palette[sv]
+				if !ok || strings.TrimSpace(resolved) == "" {
+					return "", &UnresolvedSlotError{Slot: sv, Operation: operation, Field: k}
+				}
+				opObj[k] = resolved
+				continue
+			}
+			opObj[k] = v
+		}
 	}
 	out, err := json.Marshal(baseObj)
 	if err != nil {
@@ -555,4 +826,104 @@ var spatialDefaults = map[string]string{
 	"defocus": `"radius_rel":0.0056,`,
 	// ~10px smear.
 	"motion_blur": `"distance_rel":0.014,`,
+}
+
+// PlateSource is one layer handed to the compositor.
+type PlateSource struct {
+	Name    string
+	Depth   int
+	Blend   string
+	Opacity float64
+	PNG     []byte
+}
+
+// Composite merges an ordered plate stack into one raster through image-tools.
+//
+// It goes through image-tools for the same reason every other pixel operation
+// does: OT-P0-004 gives that scenario sole ownership of raster implementation.
+// The plates ride as `plate0`, `plate1`, … multipart parts positionally matched
+// to the declared list, because a stack of full-size rasters does not belong in
+// a JSON parameter.
+func (c *Client) Composite(ctx context.Context, plates []PlateSource, width, height int, background string) ([]byte, error) {
+	if len(plates) == 0 {
+		return nil, fmt.Errorf("image-tools: composite needs at least one plate")
+	}
+	resolve := c.Resolve
+	if resolve == nil {
+		return nil, fmt.Errorf("image-tools: URL resolver is not configured")
+	}
+	baseURL, err := resolve(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("image-tools: resolve scenario: %w", err)
+	}
+	httpClient := c.HTTPClient
+	if httpClient == nil {
+		httpClient = http.DefaultClient
+	}
+
+	declared := make([]map[string]any, 0, len(plates))
+	for _, plate := range plates {
+		if len(plate.PNG) == 0 {
+			return nil, fmt.Errorf("image-tools: composite plate %q carries no image", plate.Name)
+		}
+		declared = append(declared, map[string]any{
+			"name": plate.Name, "depth": plate.Depth, "blend": plate.Blend, "opacity": plate.Opacity,
+		})
+	}
+	params, _ := json.Marshal(map[string]any{"composite": map[string]any{
+		"plates": declared, "width": width, "height": height, "background": background,
+	}})
+
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	// The `file` part is the op edge's required input. The compositor reads its
+	// layers from the plate parts, so the first plate doubles as the nominal
+	// input rather than sending the same bytes twice under two names.
+	part, err := writer.CreateFormFile("file", "plate0.png")
+	if err != nil {
+		return nil, fmt.Errorf("image-tools: create composite input: %w", err)
+	}
+	if _, err := part.Write(plates[0].PNG); err != nil {
+		return nil, fmt.Errorf("image-tools: write composite input: %w", err)
+	}
+	for i, plate := range plates {
+		field := fmt.Sprintf("plate%d", i)
+		platePart, partErr := writer.CreateFormFile(field, field+".png")
+		if partErr != nil {
+			return nil, fmt.Errorf("image-tools: create %s: %w", field, partErr)
+		}
+		if _, err := platePart.Write(plate.PNG); err != nil {
+			return nil, fmt.Errorf("image-tools: write %s: %w", field, err)
+		}
+	}
+	if err := writer.WriteField("params", string(params)); err != nil {
+		return nil, fmt.Errorf("image-tools: write composite params: %w", err)
+	}
+	if err := writer.Close(); err != nil {
+		return nil, fmt.Errorf("image-tools: close composite request: %w", err)
+	}
+
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost,
+		strings.TrimRight(baseURL, "/")+"/api/v1/ops/composite?output=bytes", &body)
+	if err != nil {
+		return nil, fmt.Errorf("image-tools: create composite request: %w", err)
+	}
+	request.Header.Set("Content-Type", writer.FormDataContentType())
+	resp, err := httpClient.Do(request)
+	if err != nil {
+		return nil, fmt.Errorf("image-tools: execute composite: %w", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		detail, _ := io.ReadAll(io.LimitReader(resp.Body, 8<<10))
+		return nil, fmt.Errorf("image-tools: composite returned %s: %s", resp.Status, strings.TrimSpace(string(detail)))
+	}
+	out, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("image-tools: read composite result: %w", err)
+	}
+	if len(out) == 0 {
+		return nil, fmt.Errorf("image-tools: composite returned an empty image")
+	}
+	return out, nil
 }

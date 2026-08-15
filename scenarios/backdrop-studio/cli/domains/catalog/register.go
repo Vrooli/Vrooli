@@ -9,6 +9,7 @@ import (
 	"github.com/vrooli/cli-core/cliapp"
 	v1 "github.com/vrooli/vrooli/packages/proto/gen/go/backdrop-studio/v1/catalog"
 	connectv1 "github.com/vrooli/vrooli/packages/proto/gen/go/backdrop-studio/v1/catalog/catalog_v1connect"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/backdrop-studio/v1/shared"
 )
 
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
@@ -47,7 +48,7 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		func(_ cliapp.OperationContext, msg *v1.ListStylesResponse) cliapp.ListReport {
 			rows := make([]string, 0, len(msg.GetStyles()))
 			for _, s := range msg.GetStyles() {
-				rows = append(rows, fmt.Sprintf("%s v%d role=%s subject=%s strategy=%s treatments=%v placements=%v", s.GetId(), s.GetVersion(), s.GetRole(), s.GetSubject(), s.GetStrategy(), s.GetTreatments(), s.GetPlacements()))
+				rows = append(rows, fmt.Sprintf("%s v%d role=%s subject=%s strategy=%s tier=%s treatments=%v placements=%v", s.GetId(), s.GetVersion(), s.GetRole(), s.GetSubject(), s.GetStrategy(), qualityTierLabel(s.GetQualityTier()), s.GetTreatments(), s.GetPlacements()))
 			}
 			return cliapp.ListReport{Summary: []string{fmt.Sprintf("%d styles.", len(rows))}, ResultsHeading: "Styles", Results: rows}
 		},
@@ -59,4 +60,19 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		return cliapp.SubcommandGroup{}, fmt.Errorf("catalog: load from manifest: %w", err)
 	}
 	return group, nil
+}
+
+// qualityTierLabel renders the declared tier in the catalog's own vocabulary
+// rather than the enum's. The tier decides whether a style can be rendered
+// offline and whether rendering it costs money, so it belongs in the listing an
+// operator reads before choosing one.
+func qualityTierLabel(tier sharedv1.QualityTier) string {
+	switch tier {
+	case sharedv1.QualityTier_QUALITY_TIER_LOCAL_MODEL:
+		return "local_model"
+	case sharedv1.QualityTier_QUALITY_TIER_FRONTIER_MODEL:
+		return "frontier_model"
+	default:
+		return "procedural"
+	}
 }

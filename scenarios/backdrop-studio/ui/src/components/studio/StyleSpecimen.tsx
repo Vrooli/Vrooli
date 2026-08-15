@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 
-import { isModelBacked, representativeSurface, type Style, type Surface } from "../../api/studio";
+import { qualityTierOf, representativeSurface, type Style, type Surface } from "../../api/studio";
+import { qualityTierString } from "../../consts/qualityTier";
 import { strings } from "../../consts/strings";
 import { useRender, useObjectURL } from "../../hooks/useStudio";
 import { useTranslation } from "../../i18n";
@@ -29,7 +30,7 @@ export function StyleSpecimen({
 }) {
   const { t } = useTranslation();
   const surface = representativeSurface(style, surfaces);
-  const metered = isModelBacked(style);
+  const tier = qualityTierOf(style);
   const request = surface
     ? { styleId: style.id, surfaceId: surface.id, placement: style.placements[0], seed }
     : null;
@@ -85,7 +86,7 @@ export function StyleSpecimen({
           </p>
         </div>
         <StatusBadge>
-          {metered ? t(strings.pages.catalog.metered) : t(strings.pages.catalog.free)}
+          {t(qualityTierString(tier))}
         </StatusBadge>
       </div>
 

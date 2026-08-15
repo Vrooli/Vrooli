@@ -6,10 +6,12 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
 
 	"backdrop-studio/internal/imageengine"
 	"backdrop-studio/internal/scenes"
+	"backdrop-studio/internal/vector"
 )
 
 type Surface struct {
@@ -91,6 +93,24 @@ type Style struct {
 	// parameter and covered by neither is a hard error, never a literal on the
 	// wire.
 	Inks map[string]string `json:"inks,omitempty"`
+
+	// QualityTier is the bar this style's SOURCE must meet, which the render
+	// path's capability router resolves to a serving lane. Empty means
+	// `procedural`, which is what every style in seed versions 1 through 7
+	// actually was — the field is new, the behaviour it describes is not.
+	//
+	// It lives on the style because the style is the only place that knows. A
+	// Truchet tiling never needs a diffusion model; a colonnade with a statue
+	// and a sea behind it always does. A global switch was rejected because it
+	// forces one cost profile onto a catalog whose styles differ genuinely.
+	QualityTier string `json:"quality_tier,omitempty"`
+	// PlateSpec declares the depth layers this style draws. Empty means one
+	// plate — the whole picture — which is what every style drew before the
+	// plate model existed and what most still draw. It is stored as declared
+	// rather than derived from the generator so a style can ship fewer plates
+	// than its generator separates, which is the common case for a style whose
+	// art direction wants the sea and the shore as one mass.
+	PlateSpec []PlateSpec `json:"plate_spec,omitempty"`
 
 	// Origin distinguishes rows this binary ships from rows an operator
 	// authored. Seed upgrades rewrite the former and never touch the latter.
@@ -202,6 +222,140 @@ func knownBrandSlot(slot string) bool {
 	return false
 }
 
+// Quality tiers. They are the string form of the proto enum, and they are
+// declared here because the store is what a seed file and an operator write
+// against.
+const (
+	TierProcedural    = "procedural"
+	TierLocalModel    = "local_model"
+	TierFrontierModel = "frontier_model"
+)
+
+// PlateSpec is one declared depth layer.
+type PlateSpec struct {
+	Name  string `json:"name"`
+	Depth int    `json:"depth"`
+	Blend string `json:"blend,omitempty"`
+	// Planes are the generator planes this plate merges, in the generator's own
+	// depth order. Empty means the single plane whose name matches Name.
+	//
+	// The indirection is what lets a style ship fewer plates than its generator
+	// separates. The colonnade draws four planes and this plan caps a stack at
+	// three, and the choice between them is an art-direction one: distance and
+	// headland are both "the far ground" and move together, so merging them
+	// loses no parallax, while dropping either would lose a layer of the
+	// picture. Without this a cap would be enforced by deleting content.
+	Planes     []string `json:"planes,omitempty"`
+	Opacity    float64  `json:"opacity,omitempty"`
+	Treatments []string `json:"treatments,omitempty"`
+	// TreatmentParams are this plate's own parameters, keyed by operation name
+	// and overlaid on the style's.
+	//
+	// Depth-grading is exactly a parameter difference: a coarser screen on the
+	// far plane and a finer one on the near is the same operation at two
+	// rulings. Without per-plate parameters, two plates naming `halftone`
+	// necessarily got the same ruling, so per-plate CHAINS could express "screen
+	// this layer and not that one" but never "screen both, differently" — which
+	// is the depth cue.
+	TreatmentParams map[string]string `json:"treatment_params,omitempty"`
+	// Motion is how this layer moves. Absent means it does not, which is the
+	// honest default: a plate with no declared parallax is one the art
+	// direction has not decided about, and guessing a factor would invent
+	// depth the author did not choose.
+	Motion *MotionProfile `json:"motion,omitempty"`
+}
+
+// MotionProfile is a plate's declared movement. It mirrors internal/motion's
+// shape rather than importing it, so the catalog stays the authority on what a
+// style declares and the motion package stays the authority on how it renders.
+type MotionProfile struct {
+	Parallax         float64 `json:"parallax"`
+	Ambient          string  `json:"ambient,omitempty"`
+	AmbientSeconds   float64 `json:"ambient_seconds,omitempty"`
+	AmbientAmplitude float64 `json:"ambient_amplitude,omitempty"`
+}
+
+// EffectiveTreatmentParams overlays a plate's parameters on the style's.
+//
+// The style's entry is the default and the plate's the override, per operation:
+// a style that tunes `grain` once should not have to repeat it on every plate
+// to also tune `halftone` on one.
+func (p PlateSpec) EffectiveTreatmentParams(style map[string]string) map[string]string {
+	if len(p.TreatmentParams) == 0 {
+		return style
+	}
+	merged := make(map[string]string, len(style)+len(p.TreatmentParams))
+	for op, params := range style {
+		merged[op] = params
+	}
+	for op, params := range p.TreatmentParams {
+		merged[op] = params
+	}
+	return merged
+}
+
+// SourcePlanes are the generator planes a declared plate is built from.
+func (p PlateSpec) SourcePlanes() []string {
+	if len(p.Planes) == 0 {
+		return []string{p.Name}
+	}
+	return p.Planes
+}
+
+// Blend modes a plate may declare. They mirror image-tools' compositor exactly:
+// a mode this catalog could name and that scenario could not run would be a
+// contract that only looks complete.
+const (
+	BlendNormal   = "normal"
+	BlendMultiply = "multiply"
+	BlendScreen   = "screen"
+)
+
+// EffectivePlateSpec is the stack a style actually renders.
+//
+// A style declaring none renders as one plate carrying the whole picture, at
+// full opacity, blended normally — which is exactly what it did before plates
+// existed. Materialising that default here rather than branching at each use
+// site is what makes the single-plate path provably identical: there is one
+// assembly path, and the old behaviour is a stack of length one.
+func (v Style) EffectivePlateSpec() []PlateSpec {
+	if len(v.PlateSpec) == 0 {
+		return []PlateSpec{{Name: "composite", Depth: 0, Blend: BlendNormal, Opacity: 1, Treatments: v.Treatments}}
+	}
+	out := make([]PlateSpec, 0, len(v.PlateSpec))
+	for _, plate := range v.PlateSpec {
+		if strings.TrimSpace(plate.Blend) == "" {
+			plate.Blend = BlendNormal
+		}
+		if plate.Opacity == 0 {
+			plate.Opacity = 1
+		}
+		// A plate that declares no chain inherits the style's. Without the
+		// default, adding a plate spec to a treated style would silently strip
+		// the treatment from every plate — the style's own chain would apply to
+		// nothing, and a screened style would ship as an untreated one.
+		//
+		// A plate that wants NO treatment over an inherited chain says so with
+		// an explicit empty list in JSON, which decodes to a non-nil empty
+		// slice and is distinguishable from an absent key.
+		if plate.Treatments == nil {
+			plate.Treatments = v.Treatments
+		}
+		out = append(out, plate)
+	}
+	sort.SliceStable(out, func(i, j int) bool { return out[i].Depth < out[j].Depth })
+	return out
+}
+
+// EffectiveQualityTier resolves the tier a style is served at, treating an
+// unset tier as procedural.
+func (v Style) EffectiveQualityTier() string {
+	if strings.TrimSpace(v.QualityTier) == "" {
+		return TierProcedural
+	}
+	return v.QualityTier
+}
+
 func validateStyle(v *Style) error {
 	valid := func(axis, value string, allowed map[string]bool) error {
 		if !allowed[value] {
@@ -215,7 +369,18 @@ func validateStyle(v *Style) error {
 	if err := valid("role", v.Role, map[string]bool{"ambient": true, "focal": true, "evidential": true}); err != nil {
 		return err
 	}
-	if err := valid("strategy", v.Strategy, map[string]bool{"procedural": true, "procedural-treated": true, "guided": true, "synthesized": true}); err != nil {
+	// `vector` is the third generator family. It sits beside the two procedural
+	// strategies rather than replacing them: a mesh gradient is a raster idea
+	// and a burin cut is a vector one, and neither is the other's fallback.
+	if err := valid("strategy", v.Strategy, map[string]bool{"procedural": true, "procedural-treated": true, "vector": true, "vector-treated": true, "guided": true, "synthesized": true}); err != nil {
+		return err
+	}
+	// An empty tier is the procedural default rather than an error, so every
+	// style seeded before the field existed keeps describing itself correctly.
+	if v.QualityTier == "" {
+		v.QualityTier = TierProcedural
+	}
+	if err := valid("quality_tier", v.QualityTier, map[string]bool{TierProcedural: true, TierLocalModel: true, TierFrontierModel: true}); err != nil {
 		return err
 	}
 	if err := valid("subject", v.Subject, map[string]bool{"non_representational": true, "horizon": true, "statuary_architecture": true, "interior": true, "botanical": true, "industrial": true, "atmospheric": true, "celestial": true, "aquatic": true, "geological": true, "textile_material": true, "cartographic": true, "figure": true, "object_metaphor": true}); err != nil {
@@ -233,7 +398,11 @@ func validateStyle(v *Style) error {
 	// `procedural-treated` style with no treatment is a mislabelled
 	// `procedural` one, and a model-backed style with none has no chain to
 	// validate.
-	if len(v.Treatments) == 0 && v.Strategy != "procedural" {
+	// `vector` joins `procedural` in being legal with an empty chain, and for
+	// the same reason: the generator draws a finished picture. A burin cut is
+	// finished when the burin stops, and putting a screen over line work is how
+	// the raster lane produced texture with no picture under it.
+	if len(v.Treatments) == 0 && v.Strategy != "procedural" && v.Strategy != "vector" {
 		return fmt.Errorf("catalog: strategy %q must declare at least one treatment", v.Strategy)
 	}
 	// Restricted to the operations image-tools actually implements. The
@@ -259,6 +428,12 @@ func validateStyle(v *Style) error {
 			return err
 		}
 	}
+	// A plate spec is checked as a whole rather than per entry, because the
+	// mistakes that matter are relational: two plates claiming one depth, a
+	// blend nothing can run, a treatment the engine does not implement.
+	if err := validatePlateSpec(v.ID, v.PlateSpec, validTreatments); err != nil {
+		return err
+	}
 	validPlacements := map[string]bool{"full_bleed": true, "split_panel": true, "framed_inset": true, "corner_bleed": true, "type_mask": true, "device_center": true, "caption_above_device": true, "caption_below_device": true, "caption_only": true, "feature_graphic": true}
 	for _, p := range v.Placements {
 		if err := valid("placement", p, validPlacements); err != nil {
@@ -280,6 +455,14 @@ func validateStyle(v *Style) error {
 		}
 		if r.Kind != "overlay" && r.Kind != "occlusion" {
 			return fmt.Errorf("catalog: invalid region %d kind %q", i, r.Kind)
+		}
+	}
+	if v.Strategy == "vector" || v.Strategy == "vector-treated" {
+		if v.Generation != nil {
+			return fmt.Errorf("catalog: strategy %q cannot carry a generation block", v.Strategy)
+		}
+		if v.Scaffold != nil && v.Scaffold.Conditioner != "" {
+			return fmt.Errorf("catalog: strategy %q cannot declare a scaffold conditioner: there is no model to condition", v.Strategy)
 		}
 	}
 	if v.Strategy == "procedural" || v.Strategy == "procedural-treated" {
@@ -385,6 +568,9 @@ func (s *Store) CreateStyle(ctx context.Context, v Style) error {
 	if err := ValidateSubjectCoherence(v); err != nil {
 		return err
 	}
+	if err := ValidateTierCoherence(v); err != nil {
+		return err
+	}
 	return s.insertStyle(ctx, v, OriginOperator, 0)
 }
 
@@ -393,6 +579,141 @@ func styleVersion(v Style) int {
 		return 1
 	}
 	return v.Version
+}
+
+// validatePlateSpec refuses a stack that could not composite.
+//
+// Every rule here is one the compositor would otherwise discover at render
+// time, when the only honest response is to fail a picture someone asked for.
+// A catalog that accepts a stack nothing can merge is worse than a smaller one.
+func validatePlateSpec(styleID string, spec []PlateSpec, validTreatments map[string]bool) error {
+	if len(spec) == 0 {
+		return nil
+	}
+	if len(spec) > maxPlates {
+		return fmt.Errorf("catalog: style %q declares %d plates; the compositor takes at most %d", styleID, len(spec), maxPlates)
+	}
+	depths := map[int]string{}
+	names := map[string]bool{}
+	// sources tracks which plate claimed each generator plane. A plane in two
+	// plates would be drawn twice, which composites to a different picture than
+	// the generator drew and is never what an author meant.
+	sources := map[string]string{}
+	for _, plate := range spec {
+		name := strings.TrimSpace(plate.Name)
+		if name == "" {
+			return fmt.Errorf("catalog: style %q declares a plate with no name; a plate names what it depicts", styleID)
+		}
+		if names[name] {
+			return fmt.Errorf("catalog: style %q declares two plates named %q", styleID, name)
+		}
+		names[name] = true
+		if other, taken := depths[plate.Depth]; taken {
+			return fmt.Errorf("catalog: style %q gives plates %q and %q the same depth %d; the stack order would be arbitrary",
+				styleID, other, name, plate.Depth)
+		}
+		depths[plate.Depth] = name
+		switch strings.TrimSpace(plate.Blend) {
+		case "", BlendNormal, BlendMultiply, BlendScreen:
+		default:
+			return fmt.Errorf("catalog: style %q plate %q declares blend %q; the compositor runs %q, %q and %q",
+				styleID, name, plate.Blend, BlendNormal, BlendMultiply, BlendScreen)
+		}
+		if plate.Opacity < 0 || plate.Opacity > 1 {
+			return fmt.Errorf("catalog: style %q plate %q declares opacity %g; it must be between 0 and 1", styleID, name, plate.Opacity)
+		}
+		for _, treatment := range plate.Treatments {
+			if !validTreatments[treatment] {
+				return fmt.Errorf("catalog: style %q plate %q names treatment %q, which no engine operation implements", styleID, name, treatment)
+			}
+		}
+		if plate.Motion != nil {
+			if plate.Motion.Parallax < 0 || plate.Motion.Parallax > 1 {
+				return fmt.Errorf("catalog: style %q plate %q declares parallax %g; it is a fraction of the viewport's travel and must be between 0 and 1",
+					styleID, name, plate.Motion.Parallax)
+			}
+			switch strings.TrimSpace(plate.Motion.Ambient) {
+			case "", "drift", "sway", "breathe":
+			default:
+				return fmt.Errorf("catalog: style %q plate %q declares ambient %q; the emitter renders %q, %q and %q",
+					styleID, name, plate.Motion.Ambient, "drift", "sway", "breathe")
+			}
+			if plate.Motion.Ambient != "" {
+				// A loop a reader can time is a distraction rather than an
+				// atmosphere, and one they can measure against the frame is a
+				// wobble rather than a breath.
+				if plate.Motion.AmbientSeconds < 8 {
+					return fmt.Errorf("catalog: style %q plate %q loops every %gs; an ambient motion a reader can time reads as a distraction, so the floor is 8s",
+						styleID, name, plate.Motion.AmbientSeconds)
+				}
+				if plate.Motion.AmbientAmplitude <= 0 || plate.Motion.AmbientAmplitude > 0.05 {
+					return fmt.Errorf("catalog: style %q plate %q declares ambient amplitude %g; it is a fraction of the short edge and above 0.05 the picture wobbles rather than breathes",
+						styleID, name, plate.Motion.AmbientAmplitude)
+				}
+			}
+		}
+		for operation := range plate.TreatmentParams {
+			if !validTreatments[operation] {
+				return fmt.Errorf("catalog: style %q plate %q parameterises %q, which no engine operation implements", styleID, name, operation)
+			}
+			declared := false
+			for _, treatment := range plate.Treatments {
+				if treatment == operation {
+					declared = true
+				}
+			}
+			// Parameters for an operation this plate does not run are dead
+			// weight that reads as intent. An author who tuned a ruling and
+			// then removed the screen should learn it here, not by wondering
+			// why the picture never changed.
+			if !declared && len(plate.Treatments) > 0 {
+				return fmt.Errorf("catalog: style %q plate %q parameterises %q but does not run it", styleID, name, operation)
+			}
+		}
+		for _, source := range plate.Planes {
+			if strings.TrimSpace(source) == "" {
+				return fmt.Errorf("catalog: style %q plate %q lists an empty source plane", styleID, name)
+			}
+			if claimed, taken := sources[source]; taken {
+				return fmt.Errorf("catalog: style %q gives generator plane %q to both %q and %q; a plane belongs to one plate",
+					styleID, source, claimed, name)
+			}
+			sources[source] = name
+		}
+	}
+	return nil
+}
+
+// maxPlates is the ceiling this plan sets on a stack. It is a plan boundary
+// rather than a technical limit — the field is typed as a list so raising it
+// needs no migration — and it exists so the first plate work cannot quietly
+// become an unbounded layer editor.
+const maxPlates = 3
+
+// ValidateTierCoherence proves a style's quality tier and its strategy agree.
+//
+// A model-backed strategy at the procedural tier declares that it needs no
+// model while having nothing but a prompt — there is no picture to ship. A
+// generator-drawn strategy at a model tier declares a spend authorisation
+// nothing will ever use. It is this pairing that makes "a procedural style
+// never reaches a model" a shape the catalog cannot express, rather than a
+// behaviour a later edit could regress.
+//
+// Like ValidateSubjectCoherence, it is judged over the settled catalog rather
+// than per seed version: the field postdates most of the shipped versions, and
+// a shipped seed value is never edited in place.
+func ValidateTierCoherence(v Style) error {
+	tier := v.EffectiveQualityTier()
+	modelBacked := v.Strategy == "guided" || v.Strategy == "synthesized"
+	if modelBacked && tier == TierProcedural {
+		return fmt.Errorf("catalog: style %q has strategy %q, which is drawn by a model, but declares the %q tier; declare %q or %q",
+			v.ID, v.Strategy, TierProcedural, TierLocalModel, TierFrontierModel)
+	}
+	if !modelBacked && tier != TierProcedural {
+		return fmt.Errorf("catalog: style %q has strategy %q, which is drawn in-process, but declares the %q tier; a generator reaches no model",
+			v.ID, v.Strategy, tier)
+	}
+	return nil
 }
 
 // ValidateSubjectCoherence proves a procedural style names a subject some
@@ -412,29 +733,33 @@ func styleVersion(v Style) int {
 // still choose differently, and over the final seeded state, where a stale row
 // that no later version corrected is a real defect.
 func ValidateSubjectCoherence(v Style) error {
-	if v.Strategy != "procedural" && v.Strategy != "procedural-treated" {
-		return nil
-	}
 	declared := ""
 	if v.Scaffold != nil {
 		declared = v.Scaffold.Preset
 	}
-	if _, err := scenes.ResolvePreset(v.Subject, declared); err != nil {
-		return fmt.Errorf("catalog: style %q: %w", v.ID, err)
+	switch v.Strategy {
+	case "procedural", "procedural-treated":
+		if _, err := scenes.ResolvePreset(v.Subject, declared); err != nil {
+			return fmt.Errorf("catalog: style %q: %w", v.ID, err)
+		}
+	case "vector", "vector-treated":
+		if _, err := vector.ResolvePreset(v.Subject, declared); err != nil {
+			return fmt.Errorf("catalog: style %q: %w", v.ID, err)
+		}
 	}
 	return nil
 }
 
 func (s *Store) insertStyle(ctx context.Context, v Style, origin string, seedVersion int) error {
-	_, err := s.db.ExecContext(ctx, `INSERT INTO backdrop_styles(id,name,version,role,subject,lineage,strategy,treatments,placements,regions,contrast_threshold,scaffold,generation,parent_id,treatment_params,inks,quality,origin,seed_version,released) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,0)`,
-		v.ID, v.Name, styleVersion(v), v.Role, v.Subject, v.Lineage, v.Strategy, mustJSON(v.Treatments), mustJSON(v.Placements), mustJSON(v.Regions), v.ContrastThreshold, mustJSON(v.Scaffold), mustJSON(v.Generation), v.ParentID, mustJSON(v.TreatmentParams), mustJSON(v.Inks), mustJSON(v.Quality), origin, seedVersion)
+	_, err := s.db.ExecContext(ctx, `INSERT INTO backdrop_styles(id,name,version,role,subject,lineage,strategy,treatments,placements,regions,contrast_threshold,scaffold,generation,parent_id,treatment_params,inks,quality,quality_tier,plate_spec,origin,seed_version,released) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,0)`,
+		v.ID, v.Name, styleVersion(v), v.Role, v.Subject, v.Lineage, v.Strategy, mustJSON(v.Treatments), mustJSON(v.Placements), mustJSON(v.Regions), v.ContrastThreshold, mustJSON(v.Scaffold), mustJSON(v.Generation), v.ParentID, mustJSON(v.TreatmentParams), mustJSON(v.Inks), mustJSON(v.Quality), v.EffectiveQualityTier(), mustJSON(v.PlateSpec), origin, seedVersion)
 	return err
 }
 
 func mustJSON(v any) string { b, _ := json.Marshal(v); return string(b) }
 
 func (s *Store) ListStyles(ctx context.Context, role, subject, treatment, lineage, placement string) ([]Style, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT id,name,version,role,subject,lineage,strategy,treatments,placements,regions,contrast_threshold,scaffold,generation,parent_id,treatment_params,inks,quality,origin FROM backdrop_styles ORDER BY id`)
+	rows, err := s.db.QueryContext(ctx, `SELECT id,name,version,role,subject,lineage,strategy,treatments,placements,regions,contrast_threshold,scaffold,generation,parent_id,treatment_params,inks,quality,quality_tier,plate_spec,origin FROM backdrop_styles ORDER BY id`)
 	if err != nil {
 		return nil, err
 	}
@@ -442,8 +767,8 @@ func (s *Store) ListStyles(ctx context.Context, role, subject, treatment, lineag
 	var out []Style
 	for rows.Next() {
 		var v Style
-		var ts, ps, rs, scaffold, generation, tparams, inks, quality string
-		if err := rows.Scan(&v.ID, &v.Name, &v.Version, &v.Role, &v.Subject, &v.Lineage, &v.Strategy, &ts, &ps, &rs, &v.ContrastThreshold, &scaffold, &generation, &v.ParentID, &tparams, &inks, &quality, &v.Origin); err != nil {
+		var ts, ps, rs, scaffold, generation, tparams, inks, quality, plateSpec string
+		if err := rows.Scan(&v.ID, &v.Name, &v.Version, &v.Role, &v.Subject, &v.Lineage, &v.Strategy, &ts, &ps, &rs, &v.ContrastThreshold, &scaffold, &generation, &v.ParentID, &tparams, &inks, &quality, &v.QualityTier, &plateSpec, &v.Origin); err != nil {
 			return nil, err
 		}
 		_ = json.Unmarshal([]byte(ts), &v.Treatments)
@@ -462,6 +787,9 @@ func (s *Store) ListStyles(ctx context.Context, role, subject, treatment, lineag
 		if generation != "null" && generation != "" {
 			v.Generation = &GenerationBlock{}
 			_ = json.Unmarshal([]byte(generation), v.Generation)
+		}
+		if plateSpec != "null" && plateSpec != "" {
+			_ = json.Unmarshal([]byte(plateSpec), &v.PlateSpec)
 		}
 		if quality != "null" && quality != "" {
 			v.Quality = &Quality{}

@@ -69,13 +69,15 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		}
 		return resp.Msg, nil
 	}, func(_ cliapp.OperationContext, msg *v1.RenderJob) cliapp.MutationReport {
-		geometry := ""
+		geometry, routing := "", ""
 		if len(msg.GetCandidates()) > 0 {
-			geometry = fmt.Sprintf(" at %dx%d", msg.GetCandidates()[0].GetWidth(), msg.GetCandidates()[0].GetHeight())
+			first := msg.GetCandidates()[0]
+			geometry = fmt.Sprintf(" at %dx%d", first.GetWidth(), first.GetHeight())
+			routing = " " + routingSummary(first.GetRouting())
 		}
 		return cliapp.MutationReport{Result: []string{fmt.Sprintf(
-			"Render %s completed with %d candidate(s) on surface %s%s; path=%s.",
-			msg.GetId(), len(msg.GetCandidates()), msg.GetSurfaceId(), geometry, msg.GetExecutionPath())}}
+			"Render %s completed with %d candidate(s) on surface %s%s; path=%s.%s",
+			msg.GetId(), len(msg.GetCandidates()), msg.GetSurfaceId(), geometry, msg.GetExecutionPath(), routing)}}
 	})
 	get := cliapp.ProtoList(func(ctx cliapp.OperationContext) (*v1.RenderJob, error) {
 		resp, err := client.GetJob(context.Background(), connect.NewRequest(&v1.GetJobRequest{JobId: ctx.Positional("job-id")}))
@@ -86,7 +88,7 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 	}, func(_ cliapp.OperationContext, msg *v1.RenderJob) cliapp.ListReport {
 		rows := []string{}
 		for _, c := range msg.GetCandidates() {
-			rows = append(rows, fmt.Sprintf("%s %dx%d seed=%d treated=%t", c.GetId(), c.GetWidth(), c.GetHeight(), c.GetSeed(), c.GetTreatmentApplied()))
+			rows = append(rows, fmt.Sprintf("%s %dx%d seed=%d treated=%t %s", c.GetId(), c.GetWidth(), c.GetHeight(), c.GetSeed(), c.GetTreatmentApplied(), routingSummary(c.GetRouting())))
 		}
 		return cliapp.ListReport{Summary: []string{fmt.Sprintf("Job %s status=%s selected=%s", msg.GetId(), msg.GetStatus(), msg.GetSelectedCandidateId())}, ResultsHeading: "Candidates", Results: rows}
 	})
@@ -99,7 +101,7 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 	}, func(_ cliapp.OperationContext, msg *v1.ListCandidatesResponse) cliapp.ListReport {
 		rows := make([]string, 0, len(msg.GetCandidates()))
 		for _, c := range msg.GetCandidates() {
-			rows = append(rows, fmt.Sprintf("%s %dx%d seed=%d treated=%t", c.GetId(), c.GetWidth(), c.GetHeight(), c.GetSeed(), c.GetTreatmentApplied()))
+			rows = append(rows, fmt.Sprintf("%s %dx%d seed=%d treated=%t %s", c.GetId(), c.GetWidth(), c.GetHeight(), c.GetSeed(), c.GetTreatmentApplied(), routingSummary(c.GetRouting())))
 		}
 		return cliapp.ListReport{Summary: []string{fmt.Sprintf("%d candidate(s).", len(rows))}, ResultsHeading: "Candidates", Results: rows}
 	})
@@ -117,4 +119,27 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		return cliapp.SubcommandGroup{}, fmt.Errorf("render: load manifest: %w", err)
 	}
 	return group, nil
+}
+
+// routingSummary is the one-line answer to "what drew this and what did it
+// cost". A candidate's lane, model and charge exist only on the job record — no
+// later inspection can recover them — so the CLI states them rather than making
+// an operator read provenance JSON to find out whether a render was billed.
+func routingSummary(r *sharedv1.RoutingRecord) string {
+	if r == nil {
+		return "lane=unrecorded"
+	}
+	out := "lane=" + r.GetServedLane()
+	if model := r.GetModelId(); model != "" {
+		out += " model=" + model
+	}
+	if tier := r.GetExecutionTier(); tier != "" {
+		out += " ran-on=" + tier
+	}
+	// A charge is printed only when a backend reported one. Printing $0.00 for
+	// a route nobody measured would turn an unknown into a claim it was free.
+	if cost := r.GetCostUsd(); cost > 0 {
+		out += fmt.Sprintf(" cost=$%.4f", cost)
+	}
+	return out
 }

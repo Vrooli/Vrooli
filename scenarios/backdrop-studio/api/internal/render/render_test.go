@@ -10,9 +10,8 @@ import (
 	"image/color"
 	"image/png"
 	"math"
-	"os"
-	"path/filepath"
 	"sort"
+	"strconv"
 	"testing"
 
 	"backdrop-studio/internal/catalog"
@@ -35,21 +34,24 @@ const (
 )
 
 type fakeExecutor struct {
-	calls      int
-	lastParams map[string]string
+	calls               int
+	lastParams          map[string]string
+	lastReserve         *imageengine.Knockout
+	lastGeometryRequest imageengine.GeometryRequest
 }
 
 // Apply mimics what image-tools really does: it returns a decodable PNG of the
 // same geometry, visibly different from its input. Returning arbitrary bytes
 // here would let the render path record a size it never measured, which is the
 // defect the recorded-geometry assertions exist to catch.
-func (f *fakeExecutor) Apply(_ context.Context, input []byte, treatments []string, params, _ map[string]string) ([]byte, error) {
-	f.lastParams = params
+func (f *fakeExecutor) Apply(_ context.Context, req imageengine.ApplyRequest) ([]byte, error) {
+	f.lastParams = req.Params
+	f.lastReserve = req.Reserve
 	f.calls++
-	if len(treatments) == 0 {
+	if len(req.Treatments) == 0 {
 		return nil, fmt.Errorf("expected treatment chain")
 	}
-	src, err := png.Decode(bytes.NewReader(input))
+	src, err := png.Decode(bytes.NewReader(req.Input))
 	if err != nil {
 		return nil, fmt.Errorf("fake executor: input is not a PNG: %w", err)
 	}
@@ -86,6 +88,23 @@ func (f *fakeExecutor) Apply(_ context.Context, input []byte, treatments []strin
 			out.SetNRGBA(x, y, color.NRGBA{R: mix(0), G: mix(1), B: mix(2), A: uint8(a >> 8)})
 		}
 	}
+	// Reserved space comes out as the ramp's light ink, because that is what the
+	// real chain does: image-tools lifts the area before each operation, and an
+	// operation fed white returns its own paper. A fake that ignored the reserve
+	// would report the same contrast whether or not it was sent — which is how
+	// an earlier catalog-wide legibility measurement came to be taken through a
+	// fake that silently discarded the parameter under test.
+	if r := req.Reserve; r != nil && r.Width > 0 && r.Height > 0 {
+		x0, y0 := bounds.Min.X+int(r.X*float64(bounds.Dx())), bounds.Min.Y+int(r.Y*float64(bounds.Dy()))
+		x1, y1 := bounds.Min.X+int((r.X+r.Width)*float64(bounds.Dx())), bounds.Min.Y+int((r.Y+r.Height)*float64(bounds.Dy()))
+		paper := color.NRGBA{R: uint8(light[0]), G: uint8(light[1]), B: uint8(light[2]), A: 255}
+		for y := y0; y < y1 && y < bounds.Max.Y; y++ {
+			for x := x0; x < x1 && x < bounds.Max.X; x++ {
+				paper.A = out.NRGBAAt(x, y).A
+				out.SetNRGBA(x, y, paper)
+			}
+		}
+	}
 	var buf bytes.Buffer
 	if err := png.Encode(&buf, out); err != nil {
 		return nil, err
@@ -97,6 +116,73 @@ func (f *fakeExecutor) Apply(_ context.Context, input []byte, treatments []strin
 // for. The fake is already PNG-only, so this is the identity.
 func (f *fakeExecutor) ToPNG(_ context.Context, in []byte) ([]byte, error) { return in, nil }
 
+// RasterizeSVG stands in for image-tools' vector rasterizer.
+//
+// It does not parse SVG — that is the point of it being a fake — but it does
+// have to be a *plausible* stand-in, because a fake that is not is what makes
+// every test above it a test of fiction. Two properties are load-bearing. It
+// returns the geometry the document declares, so the render path's measured
+// dimensions are real. And it returns a full tonal range with coherent
+// structure, because the perceptual gate scores what comes back: a fake that
+// returned a flat fill would fail every vector style for a flatness the real
+// rasterizer does not produce, and one that returned noise would pass styles
+// the real one would refuse.
+func (f *fakeExecutor) RasterizeSVG(_ context.Context, svg []byte) ([]byte, error) {
+	if len(svg) == 0 {
+		return nil, fmt.Errorf("fake executor: cannot rasterize an empty document")
+	}
+	width, height := declaredSVGSize(svg)
+	if width <= 0 || height <= 0 {
+		return nil, fmt.Errorf("fake executor: document declares no usable geometry")
+	}
+	// The content is derived from the document's own bytes, so two different
+	// generators rasterize to two different pictures and the distinctness and
+	// determinism assertions above this fake mean something.
+	seed := sha256.Sum256(svg)
+	base := float64(seed[0])/255*0.4 + 0.1
+	img := image.NewNRGBA(image.Rect(0, 0, width, height))
+	for y := 0; y < height; y++ {
+		fy := float64(y) / float64(height)
+		for x := 0; x < width; x++ {
+			fx := float64(x) / float64(width)
+			// A vertical ramp plus a low-frequency modulation: a full tonal
+			// range with real large-scale composition, which is what a vector
+			// generator's output actually has.
+			v := base + 0.55*fy + 0.30*math.Sin((fx*3.1+base*6)*math.Pi)*math.Cos(fy*2.3*math.Pi)
+			l := uint8(math.Max(0, math.Min(255, v*255)))
+			img.SetNRGBA(x, y, color.NRGBA{R: l, G: uint8(float64(l) * 0.94), B: uint8(float64(l) * 0.82), A: 255})
+		}
+	}
+	var buf bytes.Buffer
+	if err := png.Encode(&buf, img); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+// declaredSVGSize reads the width and height attributes the vector generators
+// always emit.
+func declaredSVGSize(svg []byte) (int, int) {
+	read := func(attr string) int {
+		marker := attr + `="`
+		at := bytes.Index(svg, []byte(marker))
+		if at < 0 {
+			return 0
+		}
+		rest := svg[at+len(marker):]
+		end := bytes.IndexByte(rest, '"')
+		if end < 0 {
+			return 0
+		}
+		n, err := strconv.Atoi(string(rest[:end]))
+		if err != nil {
+			return 0
+		}
+		return n
+	}
+	return read("width"), read("height")
+}
+
 // Resize mirrors image-tools' cover-fill resize so a model-backed render in a
 // unit test reaches the surface geometry the production path reaches.
 func (f *fakeExecutor) Resize(_ context.Context, in []byte, width, height int) ([]byte, error) {
@@ -106,6 +192,90 @@ func (f *fakeExecutor) Resize(_ context.Context, in []byte, width, height int) (
 	}
 	out := image.NewRGBA(image.Rect(0, 0, width, height))
 	drawScaled(out, out.Bounds(), src)
+	var buf bytes.Buffer
+	if err := png.Encode(&buf, out); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+// The geometry the fake executor reports, shaped like a real registry answer:
+// a square native edge, a latent stride, and a cap at 1.5x native. A fake that
+// is not a plausible stand-in makes every test above it a test of fiction.
+const (
+	fakeNativeEdge  = 512
+	fakeSizeQuantum = 64
+	fakeMaxEdge     = 768
+)
+
+// ModelGeometry answers the capability probe. It is on the executor rather than
+// the generator for the same reason the production seam is: a caller may need
+// to size a request without being able to spend a model call.
+func (f *fakeExecutor) ModelGeometry(_ context.Context, req imageengine.GeometryRequest) (imageengine.ModelGeometry, error) {
+	if req.Operation == "" {
+		return imageengine.ModelGeometry{}, fmt.Errorf("fake executor: geometry needs an operation")
+	}
+	f.lastGeometryRequest = req
+	// A BYOK route resolves the cloud entry, which declares no native
+	// geometry — the provider owns it. Answering the local default here
+	// regardless of policy is the very defect the routing fields exist to
+	// close, so the fake must not do it either.
+	if req.AllowBYOK {
+		return imageengine.ModelGeometry{ModelID: "fake/byok-cloud", SizeQuantum: 1}, nil
+	}
+	return imageengine.ModelGeometry{
+		ModelID:      "fake/local-gpu",
+		NativeWidth:  fakeNativeEdge,
+		NativeHeight: fakeNativeEdge,
+		SizeQuantum:  fakeSizeQuantum,
+		MaxEdge:      fakeMaxEdge,
+	}, nil
+}
+
+// Composite mirrors image-tools' compositor closely enough that the render
+// path's plate wiring is proven rather than assumed: it really merges the
+// plates, honours depth order and opacity, and returns one raster at the
+// requested geometry. What the real compositor produces pixel-for-pixel is
+// proven in image-tools' own suite; what this proves is that the right plates,
+// in the right order, reach it.
+func (f *fakeExecutor) Composite(_ context.Context, plates []imageengine.PlateSource, width, height int, _ string) ([]byte, error) {
+	if len(plates) == 0 {
+		return nil, fmt.Errorf("fake executor: composite needs at least one plate")
+	}
+	if width <= 0 || height <= 0 {
+		return nil, fmt.Errorf("fake executor: composite needs positive geometry (got %dx%d)", width, height)
+	}
+	ordered := append([]imageengine.PlateSource(nil), plates...)
+	sort.SliceStable(ordered, func(i, j int) bool { return ordered[i].Depth < ordered[j].Depth })
+	out := image.NewNRGBA(image.Rect(0, 0, width, height))
+	for _, plate := range ordered {
+		if len(plate.PNG) == 0 {
+			return nil, fmt.Errorf("fake executor: plate %q carries no image", plate.Name)
+		}
+		src, err := png.Decode(bytes.NewReader(plate.PNG))
+		if err != nil {
+			return nil, fmt.Errorf("fake executor: decode plate %q: %w", plate.Name, err)
+		}
+		scaled := image.NewNRGBA(out.Bounds())
+		drawScaled(scaled, scaled.Bounds(), src)
+		for y := 0; y < height; y++ {
+			for x := 0; x < width; x++ {
+				s := scaled.NRGBAAt(x, y)
+				alpha := float64(s.A) / 255 * plate.Opacity
+				if alpha <= 0 {
+					continue
+				}
+				d := out.NRGBAAt(x, y)
+				blend := func(dv, sv uint8) uint8 {
+					return uint8(float64(sv)*alpha + float64(dv)*(1-alpha))
+				}
+				out.SetNRGBA(x, y, color.NRGBA{
+					R: blend(d.R, s.R), G: blend(d.G, s.G), B: blend(d.B, s.B),
+					A: uint8(alpha*255 + float64(d.A)*(1-alpha)),
+				})
+			}
+		}
+	}
 	var buf bytes.Buffer
 	if err := png.Encode(&buf, out); err != nil {
 		return nil, err
@@ -160,7 +330,7 @@ func TestSubmitIsReproducibleAndRequiresSelection(t *testing.T) {
 func TestModelBackedLanesSubmitConditioningAndAlwaysTreat(t *testing.T) {
 	gen := &fakeGenerator{}
 	store := NewStoreWithGenerator(&fakeExecutor{}, gen)
-	style := catalog.Style{ID: "guided", Strategy: "guided", Subject: "horizon", Placements: []string{"full_bleed"}, Treatments: []string{"duotone"}, Scaffold: &catalog.ScaffoldBinding{Preset: "horizon", Conditioner: "edge"}, Generation: &catalog.GenerationBlock{PromptTemplate: "quiet horizon"}}
+	style := catalog.Style{ID: "guided", Strategy: "guided", QualityTier: catalog.TierLocalModel, Subject: "horizon", Placements: []string{"full_bleed"}, Treatments: []string{"duotone"}, Scaffold: &catalog.ScaffoldBinding{Preset: "horizon", Conditioner: "edge"}, Generation: &catalog.GenerationBlock{PromptTemplate: "quiet horizon"}}
 	job, err := store.SubmitWithContext(context.Background(), Request{Style: style, Surface: testSurface, Placement: "full_bleed", Seed: 11, Count: 1})
 	require.NoError(t, err)
 	require.Equal(t, 1, gen.calls)
@@ -179,7 +349,7 @@ func TestModelBackedLanesSubmitConditioningAndAlwaysTreat(t *testing.T) {
 }
 
 func TestModelBackedLaneRefusesWithoutInferenceCapability(t *testing.T) {
-	style := catalog.Style{ID: "guided", Strategy: "guided", Subject: "horizon", Placements: []string{"full_bleed"}, Treatments: []string{"duotone"}, Scaffold: &catalog.ScaffoldBinding{Preset: "horizon", Conditioner: "depth"}, Generation: &catalog.GenerationBlock{PromptTemplate: "quiet horizon"}}
+	style := catalog.Style{ID: "guided", Strategy: "guided", QualityTier: catalog.TierLocalModel, Subject: "horizon", Placements: []string{"full_bleed"}, Treatments: []string{"duotone"}, Scaffold: &catalog.ScaffoldBinding{Preset: "horizon", Conditioner: "depth"}, Generation: &catalog.GenerationBlock{PromptTemplate: "quiet horizon"}}
 	_, err := NewStore(&fakeExecutor{}).SubmitWithContext(context.Background(), Request{Style: style, Surface: testSurface, Placement: "full_bleed", Seed: 1, Count: 1})
 	require.ErrorContains(t, err, "inference capability")
 }
@@ -220,55 +390,26 @@ func TestContactSheetAndPlacementPreviewAreLabeledAndPerViewport(t *testing.T) {
 	require.Equal(t, "mobile", previews[1].Viewport)
 	require.True(t, previews[0].Passes)
 	require.False(t, previews[2].Passes)
-	if dir := os.Getenv("EVIDENCE_DIR"); dir != "" {
-		require.NoError(t, os.MkdirAll(dir, 0o755))
-		realSheet, err := ContactSheet([]SheetCell{
-			{RowLabel: "SUBJECT", ColumnLabel: "HORIZON", PNG: scenePNG(t, "horizon", 7)},
-			{RowLabel: "SUBJECT", ColumnLabel: "ARCADE", PNG: scenePNG(t, "arcade", 7)},
-			{RowLabel: "SUBJECT", ColumnLabel: "TERRAIN", PNG: scenePNG(t, "terrain", 7)},
-			{RowLabel: "SUBJECT", ColumnLabel: "FIELD", PNG: scenePNG(t, "field", 7)},
-		}, 4)
-		require.NoError(t, err)
-		realPreviews, err := PreviewPlacements(scenePNG(t, "horizon", 7), []string{"full_bleed", "split_panel"},
-			func(_ []byte, placement string) (float64, bool) { return 4.5, placement == "full_bleed" })
-		require.NoError(t, err)
-		require.NoError(t, os.WriteFile(filepath.Join(dir, "contact-sheet.png"), realSheet, 0o644))
-		require.NoError(t, os.WriteFile(filepath.Join(dir, "placement-preview-desktop.png"), realPreviews[0].PNG, 0o644))
-		require.NoError(t, os.WriteFile(filepath.Join(dir, "placement-preview-mobile.png"), realPreviews[1].PNG, 0o644))
-	}
 }
 
-func TestWritePhaseEvidenceWhenRequested(t *testing.T) {
-	dir := os.Getenv("EVIDENCE_DIR")
-	if dir == "" {
-		t.Skip("evidence output is opt-in")
-	}
-	require.NoError(t, os.MkdirAll(dir, 0o755))
-
-	// Procedural output is the one lane that can be evidenced end to end
-	// without a model, so it is evidenced honestly and at delivery size.
-	for _, preset := range scenes.Presets {
-		require.NoError(t, os.WriteFile(
-			filepath.Join(dir, "scene-"+preset+".png"), scenePNG(t, preset, 7), 0o644))
-	}
-
-	// Conditioning scaffolds are written as what they are: model INPUT. The
-	// previous version of this test wrote the same scaffold bytes twice, once
-	// as "guided-conditioning-scaffold.png" and once as
-	// "guided-lane-reference.png", which filed the lane's input as its output.
-	// A guided or synthesized lane reference cannot be produced without a real
-	// generator, so none is emitted rather than fabricating one.
-	for _, preset := range []string{"field", "horizon"} {
-		sc, err := scaffold.Render(scaffold.Request{
-			Preset: preset, Conditioner: "edge",
-			Width: scaffoldWidth, Height: scaffoldHeight, Seed: 42,
-			Regions: []scaffold.Region{{X: .08, Y: .1, Width: .5, Height: .3}},
-		})
-		require.NoError(t, err)
-		require.NoError(t, os.WriteFile(
-			filepath.Join(dir, "conditioning-input-"+preset+".png"), sc.PNG, 0o644))
-	}
-}
+// The EVIDENCE_DIR writers that used to live here are gone, and the nine
+// artifacts they wrote into docs/evidence/procedural/ are deleted.
+//
+// None of them was unreproducible — that is what made them worth removing
+// rather than merely regenerating. Each had a second producer for a fact this
+// scenario already evidences somewhere else, and the two producers drifted, so
+// the tree carried two answers to one question with nothing to say which was
+// current. `scene-*.png` duplicated docs/evidence/scenes/ — written by
+// scenes.TestGeneratorSheetEvidence for all thirteen presets at hero geometry,
+// where this writer had stopped at the four presets that existed when it was
+// written. `contact-sheet.png` duplicated the catalog sheets. The two
+// placement previews were a picture of a build nobody could identify: the
+// mobile one still showed the elliptical sun from before drawScaled was
+// corrected, which EVIDENCE.md cites as its own cautionary tale. The
+// conditioning inputs had a producer and no consumer.
+//
+// Placement evidence returns when composePlacement draws all ten placements
+// rather than four; it is rebuilt there, against the mockups, not restored here.
 
 // TestCandidateNeverEqualsItsInput is the regression gate for the defect the
 // 2026-08-11 audit found in the shipped evidence: guided-lane-reference.png was
@@ -291,13 +432,13 @@ func TestCandidateNeverEqualsItsInput(t *testing.T) {
 			return s
 		}},
 		{name: "guided", withGen: true, scaffold: true, mutate: func(s catalog.Style) catalog.Style {
-			s.ID, s.Strategy = "guided", "guided"
+			s.ID, s.Strategy, s.QualityTier = "guided", "guided", catalog.TierLocalModel
 			s.Scaffold = &catalog.ScaffoldBinding{Preset: "horizon", Conditioner: "depth"}
 			s.Generation = &catalog.GenerationBlock{PromptTemplate: "quiet horizon"}
 			return s
 		}},
 		{name: "synthesized", withGen: true, mutate: func(s catalog.Style) catalog.Style {
-			s.ID, s.Strategy = "synth", "synthesized"
+			s.ID, s.Strategy, s.QualityTier = "synth", "synthesized", catalog.TierLocalModel
 			s.Generation = &catalog.GenerationBlock{PromptTemplate: "quiet horizon"}
 			return s
 		}},
@@ -574,7 +715,7 @@ func TestModelBackedCandidateReachesSurfaceGeometry(t *testing.T) {
 	generator := &fakeGenerator{}
 	store := NewStoreWithGenerator(&fakeExecutor{}, generator)
 	style := catalog.Style{
-		ID: "synth", Strategy: "synthesized", Subject: "figure",
+		ID: "synth", Strategy: "synthesized", QualityTier: catalog.TierLocalModel, Subject: "figure",
 		Placements: []string{"full_bleed"}, Treatments: []string{"duotone"},
 		Generation: &catalog.GenerationBlock{PromptTemplate: "a quiet figure"},
 	}
@@ -598,8 +739,8 @@ func TestModelBackedCandidateReachesSurfaceGeometry(t *testing.T) {
 			// not for the delivery size.
 			require.LessOrEqual(t, generator.last.Width, 1024, "the model must draw near native resolution")
 			require.LessOrEqual(t, generator.last.Height, 1024)
-			require.Zero(t, generator.last.Width%sdSizeQuantum, "the canvas must land on the latent stride")
-			require.Zero(t, generator.last.Height%sdSizeQuantum)
+			require.Zero(t, generator.last.Width%fakeSizeQuantum, "the canvas must land on the latent stride the model reported")
+			require.Zero(t, generator.last.Height%fakeSizeQuantum)
 
 			// Provenance names both sizes and the routing that produced them.
 			require.Contains(t, candidate.ProvenanceJSON, "generation_native_size")
@@ -617,7 +758,7 @@ func TestRoutingIsLocalFirst(t *testing.T) {
 	generator := &fakeGenerator{}
 	store := NewStoreWithGenerator(&fakeExecutor{}, generator)
 	style := catalog.Style{
-		ID: "synth", Strategy: "synthesized", Subject: "figure",
+		ID: "synth", Strategy: "synthesized", QualityTier: catalog.TierLocalModel, Subject: "figure",
 		Placements: []string{"full_bleed"}, Treatments: []string{"duotone"},
 		Generation: &catalog.GenerationBlock{PromptTemplate: "a quiet figure"},
 	}

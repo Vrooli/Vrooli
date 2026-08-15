@@ -2,6 +2,7 @@ import { createClient } from "@connectrpc/connect";
 import { CatalogService } from "@vrooli/proto-types/backdrop-studio/v1/catalog/catalog_pb";
 import { RenderService } from "@vrooli/proto-types/backdrop-studio/v1/render/render_pb";
 import { SurfacesService } from "@vrooli/proto-types/backdrop-studio/v1/surfaces/surfaces_pb";
+import { QualityTier } from "@vrooli/proto-types/backdrop-studio/v1/shared/shared_pb";
 import type { Style } from "@vrooli/proto-types/backdrop-studio/v1/shared/shared_pb";
 import type { Candidate, RenderJob } from "@vrooli/proto-types/backdrop-studio/v1/render/render_pb";
 import type { Surface } from "@vrooli/proto-types/backdrop-studio/v1/surfaces/surfaces_pb";
@@ -155,6 +156,29 @@ export function parseProvenance(candidate: Candidate): Record<string, unknown> |
  */
 export function isModelBacked(style: Style): boolean {
   return style.strategy === "guided" || style.strategy === "synthesized";
+}
+
+/**
+ * The three answers an operator needs before picking a style, in the order they
+ * matter: can I render this offline, does it need a GPU, and does it cost money.
+ *
+ * A two-way metered/free split could not express the middle case, which is the
+ * common one on a local-first host: a style that reaches a locally installed
+ * diffusion model is free at the margin but unavailable on a box with no model
+ * set. Conflating it with a frontier style that bills per render told an
+ * operator the wrong thing in both directions.
+ */
+export type QualityTierLabel = "procedural" | "local_model" | "frontier_model";
+
+export function qualityTierOf(style: Style): QualityTierLabel {
+  switch (style.qualityTier) {
+    case QualityTier.LOCAL_MODEL:
+      return "local_model";
+    case QualityTier.FRONTIER_MODEL:
+      return "frontier_model";
+    default:
+      return "procedural";
+  }
 }
 
 /** Surfaces whose permitted placements intersect the style's. */

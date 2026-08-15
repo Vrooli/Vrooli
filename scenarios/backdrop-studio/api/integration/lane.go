@@ -21,10 +21,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"image"
-	// Registering the PNG decoder is what lets DecodePNG measure a candidate
-	// without every caller remembering to import it.
-	_ "image/png"
+	// The PNG decoder is used directly by MeanPixelDifference and registered
+	// for image.Decode, so callers measuring a candidate need not import it.
+	"image/png"
 	"io"
+	"math"
+	"mime/multipart"
 	"net/http"
 	"sort"
 	"strings"
@@ -207,6 +209,22 @@ type Candidate struct {
 	ExecutionPath  string `json:"executionPath"`
 	ProvenanceJSON string `json:"provenanceJson"`
 	QualityJSON    string `json:"qualityJson"`
+	// Plates is the depth stack this candidate was assembled from, back to
+	// front. Empty for a style that declares none; ImagePNG is always their
+	// flat composite either way.
+	Plates []Plate `json:"plates"`
+}
+
+// Plate is one depth layer of a candidate, as the wire reports it. The pixels
+// deliberately do not travel — a three-plate candidate at store geometry is
+// tens of megabytes — so this is the declaration, and the composite above is
+// what a consumer reads when it just wants a picture.
+type Plate struct {
+	Name       string   `json:"name"`
+	Depth      int32    `json:"depth"`
+	Blend      string   `json:"blend"`
+	Opacity    float64  `json:"opacity"`
+	Treatments []string `json:"treatments"`
 }
 
 // RenderJob is the Submit response.
@@ -304,6 +322,35 @@ type Style struct {
 	Treatments []string          `json:"treatments"`
 	Placements []string          `json:"placements"`
 	Inks       map[string]string `json:"inks"`
+	// PlateSpec is the depth stack this style declares. Empty means one plate
+	// carrying the whole picture.
+	PlateSpec []PlateSpec `json:"plateSpec"`
+	// Regions are the reserved areas, including where overlay copy sits and
+	// what colour it is declared to be.
+	Regions []ReservedRegion `json:"regions"`
+	// ContrastThreshold is the style's own legibility bar. Zero means the 4.50
+	// default, which is WCAG AA for body text.
+	ContrastThreshold float64 `json:"contrastThreshold"`
+}
+
+// ReservedRegion is a declared area of the frame, as the wire reports it.
+type ReservedRegion struct {
+	X         float64 `json:"x"`
+	Y         float64 `json:"y"`
+	Width     float64 `json:"width"`
+	Height    float64 `json:"height"`
+	Kind      string  `json:"kind"`
+	TextColor string  `json:"textColor"`
+}
+
+// PlateSpec is a style's declaration of one depth layer, as the wire reports it.
+type PlateSpec struct {
+	Name       string   `json:"name"`
+	Depth      int32    `json:"depth"`
+	Blend      string   `json:"blend"`
+	Planes     []string `json:"planes"`
+	Opacity    float64  `json:"opacity"`
+	Treatments []string `json:"treatments"`
 }
 
 type catalogListResponse struct {
@@ -446,4 +493,140 @@ func (e Environment) do(req *http.Request, out any) error {
 		return fmt.Errorf("%s %s: decode response: %w (body %.400s)", req.Method, req.URL.Path, err, body)
 	}
 	return nil
+}
+
+// CompositePlate is one layer handed to image-tools' compositor by the lane.
+type CompositePlate struct {
+	Name    string
+	Depth   int
+	Blend   string
+	Opacity float64
+	PNG     []byte
+}
+
+// Rasterize turns an SVG document into pixels through the running image-tools.
+//
+// It is the lane's own call rather than a render submission because the
+// flatten-equivalence check needs to rasterize things a style never ships — one
+// depth plane on its own — and going through a render would require a style
+// per plane.
+func (e Environment) Rasterize(ctx context.Context, svg []byte) ([]byte, error) {
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	part, err := writer.CreateFormFile("file", "document.svg")
+	if err != nil {
+		return nil, err
+	}
+	if _, err := part.Write(svg); err != nil {
+		return nil, err
+	}
+	if err := writer.WriteField("params", `{"convert":{"format":"png"}}`); err != nil {
+		return nil, err
+	}
+	if err := writer.Close(); err != nil {
+		return nil, err
+	}
+	return e.postMultipart(ctx, e.ImageToolsURL+"/api/v1/ops/convert?output=bytes", writer.FormDataContentType(), &body)
+}
+
+// Composite merges plates through the running image-tools compositor.
+func (e Environment) Composite(ctx context.Context, plates []CompositePlate, width, height int) ([]byte, error) {
+	if len(plates) == 0 {
+		return nil, fmt.Errorf("integration: composite needs at least one plate")
+	}
+	declared := make([]map[string]any, 0, len(plates))
+	for _, plate := range plates {
+		declared = append(declared, map[string]any{
+			"name": plate.Name, "depth": plate.Depth, "blend": plate.Blend, "opacity": plate.Opacity,
+		})
+	}
+	params, _ := json.Marshal(map[string]any{"composite": map[string]any{
+		"plates": declared, "width": width, "height": height,
+	}})
+
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	base, err := writer.CreateFormFile("file", "plate0.png")
+	if err != nil {
+		return nil, err
+	}
+	if _, err := base.Write(plates[0].PNG); err != nil {
+		return nil, err
+	}
+	for i, plate := range plates {
+		field := fmt.Sprintf("plate%d", i)
+		part, partErr := writer.CreateFormFile(field, field+".png")
+		if partErr != nil {
+			return nil, partErr
+		}
+		if _, err := part.Write(plate.PNG); err != nil {
+			return nil, err
+		}
+	}
+	if err := writer.WriteField("params", string(params)); err != nil {
+		return nil, err
+	}
+	if err := writer.Close(); err != nil {
+		return nil, err
+	}
+	return e.postMultipart(ctx, e.ImageToolsURL+"/api/v1/ops/composite?output=bytes", writer.FormDataContentType(), &body)
+}
+
+func (e Environment) postMultipart(ctx context.Context, url, contentType string, body io.Reader) ([]byte, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, body)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", contentType)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		detail, _ := io.ReadAll(io.LimitReader(resp.Body, 8<<10))
+		return nil, fmt.Errorf("integration: %s returned %s: %s", url, resp.Status, strings.TrimSpace(string(detail)))
+	}
+	return io.ReadAll(resp.Body)
+}
+
+// MeanPixelDifference is the mean absolute per-channel difference between two
+// PNGs, normalised to 0..1. Two pictures that differ only by encoder round-trip
+// score near zero; two different pictures do not.
+func MeanPixelDifference(t testingT, a, b []byte) float64 {
+	t.Helper()
+	left, err := png.Decode(bytes.NewReader(a))
+	if err != nil {
+		t.Fatalf("decode first image: %v", err)
+	}
+	right, err := png.Decode(bytes.NewReader(b))
+	if err != nil {
+		t.Fatalf("decode second image: %v", err)
+	}
+	lb, rb := left.Bounds(), right.Bounds()
+	if lb.Dx() != rb.Dx() || lb.Dy() != rb.Dy() {
+		t.Fatalf("geometry differs: %v vs %v", lb, rb)
+	}
+	total, samples := 0.0, 0.0
+	for y := 0; y < lb.Dy(); y++ {
+		for x := 0; x < lb.Dx(); x++ {
+			lr, lg, lbl, _ := left.At(lb.Min.X+x, lb.Min.Y+y).RGBA()
+			rr, rg, rbl, _ := right.At(rb.Min.X+x, rb.Min.Y+y).RGBA()
+			total += math.Abs(float64(lr)-float64(rr)) / 65535
+			total += math.Abs(float64(lg)-float64(rg)) / 65535
+			total += math.Abs(float64(lbl)-float64(rbl)) / 65535
+			samples += 3
+		}
+	}
+	if samples == 0 {
+		return 0
+	}
+	return total / samples
+}
+
+// testingT is the narrow slice of *testing.T this helper needs, so the lane
+// package does not import testing into production code paths.
+type testingT interface {
+	Helper()
+	Fatalf(format string, args ...any)
 }

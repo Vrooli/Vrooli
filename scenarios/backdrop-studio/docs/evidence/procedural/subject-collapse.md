@@ -88,10 +88,22 @@ the resolution test; the first `caustics` rendered as speckle; the first
 
 ## Reproduce
 
+One command per new generator, so every PNG beside this file is named by one of
+them:
+
 ```
-backdrop-studio render submit --style tidal-caustic --placement full_bleed --seed 7 --surface web.hero
-backdrop-studio render submit --style silk-drift    --placement full_bleed --seed 7 --surface web.hero
-backdrop-studio render submit --style glaze-mosaic  --placement full_bleed --seed 7 --surface web.hero
+backdrop-studio render submit --style tidal-caustic   --placement full_bleed --seed 7 --surface web.hero   # caustics
+backdrop-studio render submit --style silk-drift      --placement full_bleed --seed 7 --surface web.hero   # flow
+backdrop-studio render submit --style glaze-mosaic    --placement full_bleed --seed 7 --surface web.hero   # voronoi
+backdrop-studio render submit --style memphis-weave   --placement full_bleed --seed 7 --surface web.hero   # reaction
+backdrop-studio render submit --style vaporwave-drift --placement full_bleed --seed 7 --surface web.hero   # flow
 ```
 
-The PNGs beside this file are those renders.
+The list previously named three of the five PNGs present, so two artifacts sat
+beside a record that did not claim them. That is the same defect this file's
+own subject is about, one level up: a record that describes less than it ships.
+
+These are **historical**, recorded at seed v7 on 2026-08-12 and not regenerated.
+They are what the four new generators drew at the moment the subject-collapse
+repair landed. The current state of any of these styles is in the catalog
+contact sheets, which `make integration-evidence` rewrites.

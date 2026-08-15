@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"backdrop-studio/internal/catalog"
+	"backdrop-studio/internal/imageengine"
 	"backdrop-studio/internal/perceptual"
 
 	"github.com/stretchr/testify/require"
@@ -23,8 +24,8 @@ import (
 // picture in it.
 type moireExecutor struct{}
 
-func (moireExecutor) Apply(_ context.Context, input []byte, _ []string, _, _ map[string]string) ([]byte, error) {
-	src, err := png.Decode(bytes.NewReader(input))
+func (moireExecutor) Apply(_ context.Context, req imageengine.ApplyRequest) ([]byte, error) {
+	src, err := png.Decode(bytes.NewReader(req.Input))
 	if err != nil {
 		return nil, err
 	}

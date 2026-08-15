@@ -51,8 +51,10 @@ func TestTheKnownBadCaseStillFails(t *testing.T) {
 			"$brand.background": "#f4eedc",
 		},
 	}
-	treated, err := imageengine.NewClient().Apply(ctx, source, style.Treatments,
-		style.TreatmentParams, style.EffectivePalette(nil))
+	treated, err := imageengine.NewClient().Apply(ctx, imageengine.ApplyRequest{
+		Input: source, Treatments: style.Treatments,
+		Params: style.TreatmentParams, Palette: style.EffectivePalette(nil),
+	})
 	require.NoError(t, err, "the pre-plan parameters must still be legal on the wire")
 
 	src, err := decodePNG(source)
@@ -100,8 +102,10 @@ func TestTheRepairedStyleClearsItsBar(t *testing.T) {
 			"$brand.background": "#f4eedc",
 		},
 	}
-	treated, err := imageengine.NewClient().Apply(ctx, source, style.Treatments,
-		style.TreatmentParams, style.EffectivePalette(nil))
+	treated, err := imageengine.NewClient().Apply(ctx, imageengine.ApplyRequest{
+		Input: source, Treatments: style.Treatments,
+		Params: style.TreatmentParams, Palette: style.EffectivePalette(nil),
+	})
 	require.NoError(t, err)
 
 	src, err := decodePNG(source)

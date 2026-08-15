@@ -93,7 +93,19 @@ func cropBounds(bounds image.Rectangle, r Region, placement string) (int, int, i
 		x = w * .08
 		w = w * .72
 	}
-	return int(x + r.X*w), int(y * r.Y), max(int(x+(r.X+r.Width)*w), int(x)+1), max(int(y+(r.Y+r.Height)*h), int(y)+1)
+	// y + r.Y*h, matching the x term beside it. This read `y * r.Y` — a multiply
+	// where every other term adds, against an origin that is always zero — so
+	// the top edge was pinned to the top of the FRAME however far down the copy
+	// actually sat. Every region was measured as though it began at y=0, which
+	// swept the whole band above the copy into the worst-pixel search and
+	// returned that band's darkest ink as the headline's contrast.
+	//
+	// The reading was wrong in the direction that hides work: a region measured
+	// taller than it is can only score lower, so a repair could be complete and
+	// still report failure. Two styles appeared to respond to a generator quiet
+	// zone here while twenty-one did not, and the two were the ones whose copy
+	// sits at the top of the frame — the only place the defect was harmless.
+	return int(x + r.X*w), int(y + r.Y*h), max(int(x+(r.X+r.Width)*w), int(x)+1), max(int(y+(r.Y+r.Height)*h), int(y)+1)
 }
 
 func max(a, b int) int {

@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"backdrop-studio/internal/testutil/db"
 	"github.com/stretchr/testify/require"
+	db "github.com/vrooli/api-core/databasetest"
 )
 
 func testStore(t *testing.T) *Store {
@@ -59,11 +59,15 @@ func TestSeededStylesCarryTheirOwnParameters(t *testing.T) {
 
 	for _, s := range styles {
 		if len(s.Treatments) == 0 {
-			// A `procedural` style ships the scene as drawn, so it has no
-			// treatment to parameterise. Its art direction lives entirely in
-			// the generator parameters, which the distinctness lint checks.
-			require.Equal(t, "procedural", s.Strategy,
-				"style %q declares no treatments but is not a `procedural` style", s.ID)
+			// `procedural` and `vector` ship what the generator drew, so they
+			// have no treatment to parameterise. Their art direction lives
+			// entirely in the generator parameters, which the distinctness lint
+			// checks. Both are legal here for the same reason: a mesh gradient
+			// is finished when the generator finishes, and a burin cut is
+			// finished when the burin stops — putting a screen over either adds
+			// a mechanical texture the look exists to avoid.
+			require.Containsf(t, []string{"procedural", "vector"}, s.Strategy,
+				"style %q declares no treatments but is not a `procedural` or `vector` style", s.ID)
 			require.NotEmptyf(t, s.Scaffold, "style %q has neither treatments nor a generator binding, so nothing decides what it looks like", s.ID)
 			continue
 		}
@@ -175,7 +179,14 @@ func TestStylePackRoundTrips(t *testing.T) {
 	require.NoError(t, err)
 	styles, err := ImportStylePack(raw)
 	require.NoError(t, err)
-	require.Equal(t, []Style{style}, styles)
+	// Import normalises the same defaults a write does, so the round trip
+	// returns the style as the catalog would actually store it rather than
+	// exactly as it was handed over. An unset tier reads back as `procedural`
+	// for the same reason an unset contrast threshold reads back as 4.5: the
+	// default states what the style already is.
+	expected := style
+	expected.QualityTier = TierProcedural
+	require.Equal(t, []Style{expected}, styles)
 }
 
 // TestCreateStyleRejectsParametersTheEngineWillNotAccept pins validation at the
@@ -254,4 +265,182 @@ func TestImportStylePackRejectsBadParameters(t *testing.T) {
 	}]}`)
 	_, err := ImportStylePack(pack)
 	require.ErrorContains(t, err, "not accepted by image-tools")
+}
+
+// A plate spec is refused for the relational mistakes, not just the obvious
+// ones. Each of these would otherwise be discovered by the compositor at render
+// time, when the only honest response is to fail a picture someone asked for.
+func TestThePlateSpecRefusesAStackThatCouldNotComposite(t *testing.T) {
+	base := func(spec []PlateSpec) Style {
+		return Style{
+			ID: "layered", Name: "Layered", Role: "ambient", Subject: "horizon",
+			Lineage: "bauhaus", Strategy: "procedural", Placements: []string{"full_bleed"},
+			PlateSpec: spec,
+		}
+	}
+	for name, tc := range map[string]struct {
+		spec []PlateSpec
+		want string
+	}{
+		"two plates at one depth": {
+			spec: []PlateSpec{{Name: "sky", Depth: 0, Opacity: 1}, {Name: "sea", Depth: 0, Opacity: 1}},
+			want: "same depth",
+		},
+		"two plates with one name": {
+			spec: []PlateSpec{{Name: "sky", Depth: 0, Opacity: 1}, {Name: "sky", Depth: 1, Opacity: 1}},
+			want: "two plates named",
+		},
+		"a plate with no name": {
+			spec: []PlateSpec{{Name: "  ", Depth: 0, Opacity: 1}},
+			want: "no name",
+		},
+		"a blend the compositor cannot run": {
+			spec: []PlateSpec{{Name: "sky", Depth: 0, Blend: "overlay", Opacity: 1}},
+			want: "the compositor runs",
+		},
+		"an opacity outside 0..1": {
+			spec: []PlateSpec{{Name: "sky", Depth: 0, Opacity: 1.4}},
+			want: "between 0 and 1",
+		},
+		"a treatment no engine implements": {
+			spec: []PlateSpec{{Name: "sky", Depth: 0, Opacity: 1, Treatments: []string{"caustics"}}},
+			want: "no engine operation implements",
+		},
+		"more plates than the plan permits": {
+			spec: []PlateSpec{
+				{Name: "a", Depth: 0, Opacity: 1},
+				{Name: "b", Depth: 1, Opacity: 1},
+				{Name: "c", Depth: 2, Opacity: 1},
+				{Name: "d", Depth: 3, Opacity: 1},
+			},
+			want: "at most",
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			style := base(tc.spec)
+			require.ErrorContains(t, validateStyle(&style), tc.want)
+		})
+	}
+}
+
+// And a legal stack is accepted, so the refusals above are discriminating
+// rather than a blanket rejection of the field.
+func TestALegalPlateSpecIsAccepted(t *testing.T) {
+	style := Style{
+		ID: "layered", Name: "Layered", Role: "ambient", Subject: "horizon",
+		Lineage: "bauhaus", Strategy: "procedural", Placements: []string{"full_bleed"},
+		PlateSpec: []PlateSpec{
+			{Name: "sky", Depth: 0, Blend: BlendNormal, Opacity: 1},
+			{Name: "sea", Depth: 1, Blend: BlendMultiply, Opacity: 0.9, Treatments: []string{"halftone"}},
+			{Name: "shore", Depth: 2, Blend: BlendScreen, Opacity: 0.6},
+		},
+	}
+	require.NoError(t, validateStyle(&style))
+}
+
+// A plate spec has to survive storage, or a style that declared a stack reads
+// back as a flat one and renders a different picture than it says.
+func TestAPlateSpecRoundTripsThroughTheStore(t *testing.T) {
+	store := NewStore(freshDB(t))
+	ctx := context.Background()
+	require.NoError(t, store.Seed(ctx))
+
+	style := Style{
+		ID: "operator-layered", Name: "Operator Layered", Role: "ambient", Subject: "horizon",
+		Lineage: "bauhaus", Strategy: "procedural", Placements: []string{"full_bleed"},
+		PlateSpec: []PlateSpec{
+			{Name: "sky", Depth: 0, Blend: BlendNormal, Opacity: 1},
+			{Name: "sea", Depth: 1, Blend: BlendMultiply, Opacity: 0.9, Treatments: []string{"halftone"}},
+		},
+	}
+	require.NoError(t, store.CreateStyle(ctx, style))
+
+	styles, err := store.ListStyles(ctx, "", "", "", "", "")
+	require.NoError(t, err)
+	var read Style
+	for _, s := range styles {
+		if s.ID == style.ID {
+			read = s
+		}
+	}
+	require.Equal(t, style.PlateSpec, read.PlateSpec)
+}
+
+// A plate may merge several generator planes, and no plane may belong to two
+// plates. The first is what lets a style ship fewer plates than its generator
+// separates; the second is what stops a plane being drawn twice, which
+// composites to a different picture than the generator drew.
+func TestAPlateMayMergePlanesButAPlaneBelongsToOnePlate(t *testing.T) {
+	base := func(spec []PlateSpec) Style {
+		return Style{
+			ID: "layered", Name: "Layered", Role: "ambient", Subject: "horizon",
+			Lineage: "bauhaus", Strategy: "procedural", Placements: []string{"full_bleed"},
+			PlateSpec: spec,
+		}
+	}
+	merged := base([]PlateSpec{
+		{Name: "distance", Depth: 0, Blend: BlendNormal, Opacity: 1, Planes: []string{"sea", "headland"}},
+		{Name: "arcade", Depth: 1, Blend: BlendNormal, Opacity: 1},
+	})
+	require.NoError(t, validateStyle(&merged))
+
+	doubled := base([]PlateSpec{
+		{Name: "far", Depth: 0, Blend: BlendNormal, Opacity: 1, Planes: []string{"sea", "headland"}},
+		{Name: "near", Depth: 1, Blend: BlendNormal, Opacity: 1, Planes: []string{"headland"}},
+	})
+	require.ErrorContains(t, validateStyle(&doubled), "belongs to one plate")
+
+	empty := base([]PlateSpec{{Name: "far", Depth: 0, Blend: BlendNormal, Opacity: 1, Planes: []string{" "}}})
+	require.ErrorContains(t, validateStyle(&empty), "empty source plane")
+}
+
+// A plate that names no planes sources the one plane matching its own name.
+// Every plate spec in the catalog relies on this default.
+func TestAPlateWithNoPlaneListSourcesItsOwnName(t *testing.T) {
+	require.Equal(t, []string{"canopy"}, PlateSpec{Name: "canopy"}.SourcePlanes())
+	require.Equal(t, []string{"sea", "headland"}, PlateSpec{Name: "distance", Planes: []string{"sea", "headland"}}.SourcePlanes())
+}
+
+// Per-plate parameters are what makes depth-grading expressible: the same
+// operation at two rulings, one per layer. Per-plate chains alone can say
+// "screen this layer and not that one" but never "screen both, differently" —
+// and the second is the depth cue.
+func TestPerPlateParametersOverlayTheStyles(t *testing.T) {
+	plate := PlateSpec{
+		Name: "sea", Treatments: []string{"halftone", "grain"},
+		TreatmentParams: map[string]string{"halftone": `{"lpi":96}`},
+	}
+	style := map[string]string{"halftone": `{"lpi":180}`, "grain": `{"amount":0.05}`}
+
+	merged := plate.EffectiveTreatmentParams(style)
+	require.Equal(t, `{"lpi":96}`, merged["halftone"], "the plate's parameters win for the operation it tunes")
+	require.Equal(t, `{"amount":0.05}`, merged["grain"], "the style's parameters survive for operations the plate does not tune")
+	require.Equal(t, `{"lpi":180}`, style["halftone"], "the style's own map must not be mutated")
+
+	// A plate that tunes nothing gets the style's map unchanged.
+	require.Equal(t, style, PlateSpec{Name: "sky"}.EffectiveTreatmentParams(style))
+}
+
+// Parameters for an operation a plate does not run are dead weight that reads
+// as intent. An author who tuned a ruling and then removed the screen should
+// learn it here, not by wondering why the picture never changed.
+func TestAPlateMayNotParameteriseATreatmentItDoesNotRun(t *testing.T) {
+	style := Style{
+		ID: "layered", Name: "Layered", Role: "ambient", Subject: "horizon",
+		Lineage: "bauhaus", Strategy: "procedural", Placements: []string{"full_bleed"},
+		PlateSpec: []PlateSpec{
+			{
+				Name: "sky", Depth: 0, Opacity: 1, Treatments: []string{"grain"},
+				TreatmentParams: map[string]string{"halftone": `{"lpi":96}`},
+			},
+			{Name: "sea", Depth: 1, Opacity: 1},
+		},
+	}
+	require.ErrorContains(t, validateStyle(&style), "does not run it")
+
+	unknown := style
+	unknown.PlateSpec = []PlateSpec{
+		{Name: "sky", Depth: 0, Opacity: 1, Treatments: []string{"caustics"}},
+	}
+	require.ErrorContains(t, validateStyle(&unknown), "no engine operation implements")
 }

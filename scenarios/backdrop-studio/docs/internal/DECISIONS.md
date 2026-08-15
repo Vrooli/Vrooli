@@ -325,3 +325,352 @@ costing trust.
 per-seed evidence (rather than per-style) becomes worth keeping. Both would
 change the growth from bounded to unbounded, which is the property this decision
 rests on.
+
+## D-015 — A quality tier is a floor on capability and a ceiling on spend
+
+**Decided 2026-08-13.** Which lane draws a picture used to be two constants in
+`internal/render/render.go`: every model-backed style got the same policy pair,
+so a style that needed more than the installed local model set simply could not
+be made, and a style that needed nothing could not say so. The choice is now a
+declared `quality_tier` on the style, and `internal/render/routing.go` is the one
+place that turns a tier into a lane.
+
+**The tier binds in both directions, and both halves are load-bearing.**
+
+As a *floor on capability*: a procedural generator does not draw a photographic
+interior. Serving a `frontier_model` style from a local checkpoint would ship a
+picture wearing a label it did not earn, and every consumer downstream — the
+release path, the disclosure record, an operator reading the verdict ledger —
+would believe it.
+
+As a *ceiling on spend*: a style authorises the money its tier costs and no more.
+This is the direction with a recorded incident behind it. The predecessor of the
+current constants hardcoded `("quality", "any", BYOK on)` and billed every
+model-backed render to a cloud provider while an installed local GPU served the
+same request in about fifteen seconds — billable, slower, and silent. So a lane
+above the declared tier is never tried, not even when the declared lane fails.
+
+Together these mean exactly one lane serves a tier. The ladder is still walked
+cheapest-first and every lane it passes is recorded on the job with the reason it
+did not serve, so an operator reads the escalation rather than only its result. A
+tier no lane can meet is a typed `LaneRefusedError` naming the tier and every
+lane tried, mapped to `FailedPrecondition` — because the fix is an install, a
+credential, or a catalog edit, and none of those is a retry.
+
+**The catalog cannot express the disagreement.** `ValidateTierCoherence` refuses
+a model-backed strategy at the procedural tier and a generator strategy at a
+model tier. That is what makes "a procedural style never reaches a model" a shape
+rather than a behaviour a later edit could regress — the render-path test asserts
+the rule, and the store makes the violating style unwritable.
+
+**Judged over the settled catalog, not per seed version**, exactly like
+`ValidateSubjectCoherence`. The field postdates most shipped seed versions and a
+shipped seed value is never edited in place, so v1's `guided-botanical` is
+allowed to predate the tier and v9 is where it acquires one.
+
+**Revisit when** a tier gains a lane that is genuinely interchangeable with
+another at the same rank — two frontier providers, say. The walk already supports
+it; the one-lane-per-tier outcome is a consequence of the current ladder, not an
+assumption baked into its shape.
+
+## D-016 — Generation geometry is asked for, never assumed
+
+**Decided 2026-08-13.** `sdNativeEdge`, `sdSizeQuantum` and `sdMaxEdge` are
+deleted. They were named for Stable Diffusion 1.5 and applied to whichever model
+`image-tools` selected, which on an SDXL or FLUX host throws away half the
+trained resolution and quantises to a stride the model does not use.
+
+The deeper problem was ownership: `OT-P0-004` gives `image-tools` sole ownership
+of model configuration, so three numbers describing a model family lived in the
+scenario least able to notice when they stopped being true. They are now facts on
+`image-tools`' registry, served on `Model.geometry`, and read through
+`ModelsService.SelectModel` — a preview that runs the same selection a submit
+would and executes nothing, which is precisely the question "how big should I ask
+for?" needs answered before spending a generation.
+
+`imageengine.GeometryProbe` is a separate interface from `Generator` so a caller
+can size a request without being able to spend a model call. An engine that
+cannot answer is an error, not a fallback constant: falling back is how three
+SD-1.5 numbers came to size generations on hosts running other architectures.
+
+## D-017 — Text generation reaches `ai-gateway` directly; D-006 governs pixels
+
+**Decided 2026-08-13.** Authoring a vector generator asks a model to write
+source code. That request goes straight to `ai-gateway`'s `ExecuteRoute` with a
+role, and does not pass through `image-tools`.
+
+**This does not weaken D-006.** That decision routes *image* inference through
+`image-tools`, and its reason is specific: image generation has a local lane, so
+calling the gateway directly would duplicate `image-tools`' host probing and
+tier selection and produce a second, divergent answer to "what can this machine
+do right now".
+
+None of that applies to text. `image-tools`' AI catalog is generation and
+enhancement of pixels; it serves no text at all. There is no local lane to
+duplicate and no host-capability question to answer twice. Routing a text
+request through an image scenario to reach a text model would be indirection
+with nothing behind it.
+
+**What this still owes D-006 is its consequence.** The model that answers is
+recorded on the generator, so an asset drawn by an authored generator can name
+both the model that wrote the generator and the model — if any — that drew the
+pixels.
+
+**A role, never a model slug.** `ai-gateway`'s conformance policy refuses a
+concrete model name in a runtime surface, and the reason is not bureaucratic: a
+slug here would have to be edited whenever the provider catalog moved, by
+someone who does not know what this scenario needs. `author.generator` was added
+to `ai-gateway`'s inference-role catalog and says what is needed — long-form
+code authoring, hosted-first because the local candidates in that catalog are
+sized for short schema-constrained values.
+
+## D-018 — An authored generator is a template, and the envelope is not the author's to write
+
+**Decided 2026-08-13.** A model cannot add a Go function to a running binary, so
+an authored generator is a `text/template` producing SVG *marks*. The document
+element, the depth plane and the ink substitution are added around its output by
+`internal/vector`.
+
+**The expressive difference is real and is stated rather than papered over.** A
+template cannot trace marching-squares iso-lines; the four hand-written
+generators remain the shipping lane. What a template can do is compose — arrange,
+repeat, scale and vary marks across a frame — which is what most art directions
+actually are.
+
+**Keeping the envelope means an authored generator cannot opt out of the
+guarantees a hand-written one has.** A generator that emitted its own `<svg>`
+could set a viewBox disagreeing with the requested size, skip the depth planes
+the plate model reads, or place an `<image>` where validation did not look.
+
+**Validation is a precondition of storage, not of rendering.** A stored
+generator is one a later code path may reasonably assume was checked, so the
+checks run before the row exists: the template parses, every parameter it reads
+is declared with a range that contains its default, two renders of one seed are
+byte-identical, the composition survives a four-fold size reduction, an unbound
+palette is refused rather than written into the document, the id does not shadow
+a built-in preset, and the marks contain no script, external reference, remote
+URL, data URI, event handler or entity declaration.
+
+**The active-content check runs on the author's marks, not the wrapped
+document** — the envelope legitimately carries `xmlns="http://www.w3.org/2000/svg"`,
+and a remote-URL check over the whole document refuses every generator ever
+written, including a correct one. It is a deny list, which is normally the weaker
+choice; the alternative is a second SVG implementation in a scenario that owns no
+rasterizer. It is paired with two structural controls that do not depend on it:
+the author never writes the document element, and the template function surface
+is closed and arithmetic-only.
+
+**Arithmetic helpers coerce int and float.** `range $i := seq 12` yields an int,
+so `mul .W $i` — the obvious thing to write — would otherwise fail with a type
+error. The plan's stated risk for this work is that authored generators fail
+validation often enough to be useless, and a paid round trip spent on a type
+error rather than on the art direction is the largest avoidable part of that.
+
+## D-019 — A candidate is a plate stack whose flat composite is never optional
+
+**Decided 2026-08-13.** A backdrop is not flat. A colonnade sits in front of a
+sea which sits in front of a sky, and the generators already know that — the
+vector family draws each as its own SVG group. Flattening at the moment of
+render threw the separation away, so a consumer wanting parallax had to infer
+depth from a picture that no longer contained it.
+
+A candidate now carries an ordered `Plate` list. **`image_png` stays the
+deliverable and is always present**, and that is the load-bearing half of this
+decision: every consumer in this system decodes one image, and a stack that
+could not be flattened would be a contract change rather than a capability.
+
+**One assembly path, not two.** A style declaring no plate spec renders as a
+stack of length one carrying the whole picture, materialised by
+`EffectivePlateSpec`. There is no flat branch beside a stacked branch, because
+two paths is how the flat one comes to differ from the stacked one in a way
+nobody notices.
+
+**The single-plate path does not call the compositor.** It applies the chain and
+returns those exact bytes as both the composite and the plate. That is what
+makes "an existing style is byte-identical to its pre-plate output" a property
+rather than a hope: a PNG that round-trips through a second encoder is not
+guaranteed to be the same bytes even when it is the same picture, and a golden
+would catch that drift a release too late.
+
+**Three blend modes, and the set is not arbitrary.** Normal is placement.
+Multiply is how ink sits on paper, which is what every screen and duotone in
+this system models. Screen is how light adds, which is what a glow or a star
+field needs. A mode outside the set is refused by name at both ends — the
+catalog will not store it and the compositor will not run it — rather than
+approximated with the nearest one, because substituting a blend silently changes
+what a picture depicts.
+
+**Depth is explicit, not list position.** A caller reordering a stack should not
+have to rebuild the list, and two plates silently claiming one layer is a
+mistake worth keeping visible: the catalog refuses it and the compositor sorts
+stably so the picture never depends on map or slice order.
+
+**Plate pixels do not travel on the job record.** A three-plate candidate at
+store geometry is tens of megabytes, and inlining them would make every list
+call expensive for a field most callers ignore.
+
+**A style declaring a stack nothing can fill is refused by name.** Until a
+generator emits its layers, a multi-plate style is an error rather than a
+silently flattened picture — a style that says it draws a sky behind a colonnade
+and delivers one flat picture is the substitution this whole plan exists to
+remove.
+
+**Three plates is a plan boundary, not a technical limit.** The field is typed
+as a list so raising it needs no migration; the cap exists so the first plate
+work cannot quietly become an unbounded layer editor.
+
+## D-020 — Reserved space is a knockout the whole chain honours, applied before each operation
+
+A style declares where its copy sits. Every colour treatment in its chain
+reserves that area, and reserves it by lifting the area to the top of the tonal
+ramp **before** the operation runs.
+
+**Why a knockout and not a scrim.** A scrim shades the picture where the copy
+sits, so it fights the picture: it dims something chosen for its beauty in order
+to rescue one corner, and on a screened backdrop it barely works anyway. A
+knockout is what a printer actually does — a hole left in an ink layer so
+something else can occupy the space — and it is what the reference art does. In
+the halftone-flower and arcade posters this catalog is measured against, the
+screen simply stops where the type goes.
+
+**Why before and not after.** A repair applied afterwards has to invent a colour
+to paint the area, and the only honest candidate is the untreated source: raw
+grey in the middle of a duotone, which reads as a fault rather than as paper.
+Fed white beforehand, a tone-driven operation lays no ink AND returns its own
+paper — the same cream or blue the rest of the picture is printed on. The
+mechanism produces the right colour instead of guessing it.
+
+**Why the whole ramp and not nearly.** The first attempt lifted to 0.94 and
+failed on every screened style. A screen fed 0.94 still lays a sparse pattern of
+FULL-strength dots, and one dot decides worst-pixel contrast for the entire
+area. Measured against a 0.941 patch: ordered dither 0.000, stipple 0.099, ASCII
+mosaic 0.102, line screen 0.137. A knockout differs from a light patch in kind,
+not in degree.
+
+**Why it is a sibling of the operation and not a field on each.** `OpParams`
+carries `knockout` next to the operation oneof, and `ops.treatment`/`ops.tier2`
+apply it at one seam. Reserving space is a property of the picture being made,
+not of the treatment making it: the author states the rectangle once and every
+operation in the chain honours the same one. Five fields repeated across
+seventeen parameter messages guarantees that some of them eventually differ.
+
+**Geometry operations are excluded, deliberately.** A resize or a crop moves the
+frame out from under the rectangle, so a reserve declared against the old frame
+would name the wrong part of the new one.
+
+**What it does not cover, and cannot.** A style with an empty treatment chain
+never reaches the knockout, because there is no operation to reserve anything
+in. Those styles have to compose around their copy in the generator, which is
+what `survey-relief` does and why it is the only untreated style that keeps its
+copy legible. Post-processing loses to composition; where there is no
+post-processing at all, composition is the only move left.
+
+**Consequences accepted.** Three treatments had to change to make the reserve
+mean anything, and two of the three were carrying defects of their own:
+
+- `stipple` deposited one full-strength pixel per cell however light the tone
+  above it, because its dot bounds always covered their own centre. Every
+  stippled highlight in the catalog was carrying about fifteen percent more ink
+  than the tone called for. It now applies the rule `engraving` already applied:
+  a mark too small to draw is not drawn.
+- `ascii_mosaic` is block-quantised, so a cell straddling the edge read as dark
+  and stamped a dense glyph whose ink landed inside. A glyph prints whole or not
+  at all, so the reserve rounds outward to whole cells there.
+- `displacement` fetches a pixel from elsewhere rather than deciding it from the
+  tone in place, so lifting the area cannot hold it and the feather cannot
+  either — the warp steps over the margin in one hop. The reserve damps the warp
+  itself, easing back to full amplitude outside, because a wave that stops dead
+  reads as a tear.
+
+The tone mapper also excludes reserved space from its auto-level histogram. The
+lift is white this package added, not a highlight the picture has; counted, it
+becomes the new p99 and every real tone compresses downward to make room for it.
+The distortion would scale with the area reserved, so it would be worst on
+exactly the layouts that reserve most for their copy.
+
+## D-021 — The vector lane reserves space itself, in both polarities, as a volume on every plane
+
+A vector style declares no treatments, so the knockout of D-020 has nothing to
+attach to: there is no operation in which to reserve anything. The generator
+reserves the space itself, in its own document.
+
+**Both polarities, because a generator owns its ink as well as its paper.** Dark
+copy gets a knockout — the plate carries no ink and the copy sits on paper.
+Light copy gets a solid — the plate carries full ink and the copy sits on the
+ink. D-020's treatment reserve can only lift toward paper, so it serves one of
+the two and correctly refuses the other; here both are available and both are
+used. `engraved-colonnade-vector` is served by a knockout, `pale-moon` and
+`tidal-halftone` by solids.
+
+**Emitted as SVG, not composed mark by mark.** A reserve is a property of the
+plate — an area carrying no ink, or full ink — not a decision each mark makes
+for itself. It also has to work for a generator whose subject is a single shape
+the size of the picture, where "do not draw here" means nothing. This is not the
+scrim that was tried and abandoned: a scrim is translucent, the picture shows
+through, and against a catalog sitting near 1.0 everywhere it repaired nothing.
+A reserve is opaque, so what the copy sits on is decided entirely by the reserve.
+
+**A volume, not a rectangle.** The copy is laid out in the page and does not
+move; the plate the reserve is cut into does. Cut to the copy's own rectangle,
+the reserve slides out from under the copy on the first scroll. That is measured
+rather than supposed: `tidal-halftone` scored **8.15 at rest and 1.00 half a
+screen later**, and the Phase 10 parallax gate refused it. The reserve therefore
+extends downward by the frontmost plate's whole travel — downward only, because
+plates translate upward as the page scrolls, so the material that would arrive
+over the copy is the material below it.
+
+**On every plane, not only the frontmost.** Reserving the front plate alone buys
+exactly one frame of legibility, the one nobody scrolls: wherever the front
+plate's reserve has slid off the copy, the plate behind is showing, and the plate
+behind is usually the ground — a full sheet of opaque paper that does not move at
+all. Repeating the reserve costs nothing in the flat picture, since the reserves
+are identical and opaque and only the frontmost is seen, and it preserves
+flatten-equivalence: source-over is associative, so N stacked reserves in one
+document and N plane rasters each carrying one composite to the same pixels.
+
+**The rectangle is derived, never declared.** `vectorQuietZone` reads the style's
+`regions`, the same source `quietZone` and `reservedSpace` read. Three lanes, one
+statement of where the copy goes. An author maintaining it three times would
+change one of them, and a reserve cut where the copy is not is invisible to every
+test that does not measure contrast where the copy actually sits.
+
+## D-022 — A treatment reserve serves dark copy only; light copy is served by composition
+
+image-tools can cut a reserve either way. `Knockout.solid` drives the area to the
+BOTTOM of the tonal ramp before the operation runs, mirroring the knockout that
+drives it to the top, and it is built, tested and reachable by any caller.
+Backdrop Studio uses only the knockout.
+
+**Because the solid costs more picture than the quality bar allows.** It was
+wired for light copy and withdrawn on measurement: `synth-celestial` fell to
+0.707 subject survival against its own declared 0.800 floor, and three styles
+that had been rendering correctly were refused outright. Reserving a third of a
+frame as flat ink is a large claim on a picture. A knockout gets away with the
+same claim only because paper is where a screen was already leaving gaps —
+removing ink is a smaller change to a picture than adding it.
+
+**The gate is right and the reserve is what gives way.** Loosening a quality
+floor so a legibility number passes trades a measured defect for an unmeasured
+one. This work has already made that mistake once, tuning a pen weight until a
+perceptual score moved, and had to revert it when the failures turned out to
+have moved rather than reduced.
+
+**A second limit, measured, that bounds any future attempt.** A discrete screen
+cannot lay a solid at all. Its mark is sub-cell, so coverage is capped below one
+however hard it is driven: at full tone, halftone, line screen, stipple,
+engraving and ASCII mosaic all leave between 0.93 and 1.00 paper showing.
+Ordered dither is NOT in that set, and the difference is the whole rule — a
+dither's mark is the pixel, so at full tone every pixel turns and the area goes
+genuinely solid. Sub-cell marks cap; per-pixel marks do not.
+
+**So light copy is served by composition.** The vector lane cuts its own solids
+(D-021) and pays nothing for them, because there the generator owns the ink and
+makes the ground dark as part of the drawing rather than as a claim laid over
+it. For a model-backed style the same reasoning puts the reserve in the
+conditioning or in a derived plate rather than in a post-hoc treatment: a
+picture whose own darkness falls where the copy goes costs no subject survival
+at all, because it is the subject.
+
+This is the same finding this work keeps arriving at from different directions.
+Post-processing loses to composition; where a picture must be changed rather
+than merely masked, the change belongs in whatever drew it.

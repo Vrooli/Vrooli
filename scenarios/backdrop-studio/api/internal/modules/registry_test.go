@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"backdrop-studio/internal/modules"
-	"backdrop-studio/internal/testutil/db"
+	db "github.com/vrooli/api-core/databasetest"
 
 	"github.com/stretchr/testify/require"
 

@@ -151,6 +151,26 @@ func TestCatalogContactSheetEvidence(t *testing.T) {
 		_, _, decodeErr := integration.DecodePNG(raw)
 		require.NoErrorf(t, decodeErr, "style %q returned bytes that are not a PNG", style.ID)
 
+		// The full-resolution render, for the written verdict.
+		//
+		// A sheet cell is 640x320. Every quality failure this scenario has
+		// actually shipped — a screen that erased its subject, a glyph mosaic
+		// with a hard edge, a smear that averaged two inks to grey — survives
+		// downscaling as something that looks fine, which is exactly how
+		// `cyanotype-arcade` came to be recorded as "arches, columns, statue
+		// and canopy all read through the dot density" while the delivered
+		// picture has no arch in it. A verdict is written against the file a
+		// visitor would see, so the file has to exist at that size.
+		//
+		// It is opt-in and writes outside the repository by default, because
+		// delivery-resolution PNGs of the whole catalog are ~34 MB and
+		// DECISIONS.md D-014 keeps them out of git deliberately.
+		if renderDir := os.Getenv("BACKDROP_STUDIO_STYLE_RENDER_DIR"); renderDir != "" {
+			require.NoError(t, os.MkdirAll(renderDir, 0o755))
+			name := fmt.Sprintf("%s--%s--%dx%d.png", style.ID, familyOf(style), surface.Width, surface.Height)
+			require.NoError(t, os.WriteFile(filepath.Join(renderDir, name), raw, 0o644))
+		}
+
 		chain := strings.Join(style.Treatments, "+")
 		if chain == "" {
 			chain = "untreated"

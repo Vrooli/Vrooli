@@ -89,7 +89,7 @@ func TestTreatmentGalleryEvidence(t *testing.T) {
 			// A nil palette is the cold-install case: the treatment renders
 			// from the scenario's declared default inks, which is what a
 			// reader of the gallery should be looking at.
-			treated, applyErr := client.Apply(ctx, source, []string{op}, nil, nil)
+			treated, applyErr := client.Apply(ctx, imageengine.ApplyRequest{Input: source, Treatments: []string{op}})
 			require.NoErrorf(t, applyErr, "%s failed through the real wire", op)
 
 			w, h, decodeErr := integration.DecodePNG(treated)

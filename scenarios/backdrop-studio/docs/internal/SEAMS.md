@@ -205,9 +205,9 @@ and use matrix/trace helpers from the relevant testutil package.
 | | |
 |---|---|
 | **Seam** | The image-tools treatment boundary — the only raster seam this scenario has |
-| **Interface** | `internal/imageengine/client.go::Executor` (`Apply(ctx, input, treatments, params, palette) ([]byte, error)`) |
+| **Interface** | `internal/imageengine/client.go::Executor` (`Apply(ctx, ApplyRequest) ([]byte, error)`) |
 | **Production wiring** | `main.go` constructs `imageengine.NewClient()` and passes it to `render.NewStoreWithGenerator`. The client posts multipart to image-tools' REST run edge. |
-| **Test fake** | `internal/render/render_test.go`'s in-package stub executor records the chain and returns canned bytes. |
+| **Test fake** | `internal/render/render_test.go`'s in-package stub executor records the chain and returns a plausible duotone of the right geometry. It also honours `ApplyRequest.Reserve`, because a fake that ignored the reserve would report the same contrast whether or not it was sent — which is how a catalog-wide legibility measurement once came to be taken through a fake that silently discarded the parameter under test. |
 | **Real run** | `integration/render_lane_test.go::TestEverySeededStyleRendersThroughRunningImageTools` — every seeded style, both palette states. |
 | **Why it exists** | Backdrop Studio owns no pixel implementation by charter; `image-tools` owns every pixel operation. The seam keeps that boundary enforceable rather than aspirational. **It is also the seam that failed:** the fake accepts any parameters, so twelve styles whose parameters image-tools rejects passed every unit test. A fake below the wire can only prove the caller's logic, never the contract — which is why the real run above is mandatory, not optional. |
 
@@ -221,6 +221,39 @@ and use matrix/trace helpers from the relevant testutil package.
 | **Test fake** | `internal/render/render_test.go`'s stub generator returns a fixed PNG. |
 | **Real run** | The integration lane renders `guided-botanical` and `constructivist-figure` when an image model is installed, and skips with a named reason when none is. |
 | **Why it exists** | Generation is slow, GPU-bound and non-deterministic across model versions; unit tests cannot depend on it. **The cost of having only a fake:** the fake answered with the field name `jobId` while the real edge emits `job_id`, so every real generation silently lost its job id and the 2026-08-12 audit recorded a working capability as missing. The fake now mirrors the real wire names, and the lane proves it. |
+
+### imageengine.GeometryProbe (what canvas a model draws well)
+
+| | |
+|---|---|
+| **Seam** | Sizing a generation for the model that will actually serve it |
+| **Interface** | `internal/imageengine/client.go::GeometryProbe` (`ModelGeometry(ctx, GeometryRequest) (ModelGeometry, error)`) |
+| **Production wiring** | The same `imageengine.Client`; it calls image-tools' `ModelsService.SelectModel`, a preview that runs the same selection a submit would and executes nothing. |
+| **Test fake** | `internal/render/render_test.go`'s executor answers an SD-shaped geometry for the local lane and *no declared geometry* for a BYOK route, because a fake that answers the same thing regardless of policy is what let the real defect through. |
+| **Real run** | The integration lane sizes every model-backed render through it; verified live at `512x512/64/768` for the local lane and `openrouter-image` with no declared geometry for the frontier lane. |
+| **Why it exists** | This scenario owns art direction and by charter (`OT-P0-004`) owns no model configuration, yet it was carrying three constants named for Stable Diffusion 1.5 and applying them to whichever model the selector chose. **The cost of having only a constant:** on an SDXL or FLUX host it discarded half the trained resolution and quantised to a stride the model does not use, and nothing could correct it when the installed model set changed. **The cost of a policy-blind probe:** the first version sent no routing policy, so a frontier-tier render reached OpenRouter having been sized against sd-1.5's 768px cap. The request carries the lane's policy for that reason. |
+
+### authoring.Client (a model that writes a generator)
+
+| | |
+|---|---|
+| **Seam** | Asking a model to author a vector generator |
+| **Interface** | `internal/vector/authoring/authoring.go::Client` (`Author(ctx, prompt) (text, modelID, error)`) |
+| **Production wiring** | `authoring.GatewayClient` calls `ai-gateway`'s `RoutingService.ExecuteRoute` with `REQUEST_KIND_TEXT_GENERATION` and the `author.generator` role, resolving the gateway lazily so an absent scenario is a named missing capability when someone authors rather than a startup failure for everyone who does not. |
+| **Test fake** | The authoring tests validate hand-written generators directly; the flow test substitutes a client returning a fixed JSON answer. |
+| **Real run** | `backdrop-studio generators author --id … --brief …` against a running `ai-gateway`, which prints every validation check and stores only on `--store`. |
+| **Why it exists** | This is the only place the scenario talks to `ai-gateway` directly, and the seam is what keeps that honest: no provider URL, credential or model name lives here, and the model that answers is returned rather than assumed. It is an interface rather than a concrete client because authoring costs money and every rejection path has to be testable without spending any. See D-017 for why text does not route through `image-tools` and D-018 for what the returned generator must satisfy. |
+
+### render.GeneratorStore (authored generators at render time)
+
+| | |
+|---|---|
+| **Seam** | Resolving a style's binding to a model-authored generator |
+| **Interface** | `internal/render/render.go::GeneratorStore` (`AuthoredGenerator(ctx, id)`) |
+| **Production wiring** | `catalog.Store`, bound in `main.go`. The catalog is the single authority on what a generator is; the render store keeps one job. |
+| **Test fake** | A map from id to generator in `internal/render/authored_test.go`. |
+| **Real run** | The integration lane renders any seeded style bound to a stored generator; with none stored, the built-in vector lane is untouched. |
+| **Why it exists** | A built-in preset is compiled in and always resolvable; an authored one may have been created on another install or deleted since. Without the seam the render path would have to hold a database handle to answer "does this generator exist", and a style bound to a missing id would either panic or silently fall back to a built-in — which is the substitution the whole vector family's subject rules exist to prevent. It refuses by name instead. |
 
 ### release.Publisher (asset hand-off)
 

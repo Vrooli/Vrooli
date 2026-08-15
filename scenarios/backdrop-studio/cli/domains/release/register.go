@@ -1,14 +1,16 @@
 package release
 
 import (
-	"connectrpc.com/connect"
 	"context"
 	"fmt"
+	"strconv"
+	"strings"
+
+	"connectrpc.com/connect"
+
 	"github.com/vrooli/cli-core/cliapp"
 	v1 "github.com/vrooli/vrooli/packages/proto/gen/go/backdrop-studio/v1/release"
 	connectv1 "github.com/vrooli/vrooli/packages/proto/gen/go/backdrop-studio/v1/release/release_v1connect"
-	"strconv"
-	"strings"
 )
 
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {

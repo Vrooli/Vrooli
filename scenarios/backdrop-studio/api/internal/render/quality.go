@@ -28,6 +28,28 @@ func (e *QualityRejectedError) Error() string {
 // scoreCandidate measures the treated candidate against the source it was made
 // from, at the style's effective bar.
 func scoreCandidate(source, treated []byte, style catalog.Style) (perceptual.Verdict, error) {
+	return score(source, treated, style, reservedRegions(style))
+}
+
+// scorePlate judges one depth layer against its own source.
+//
+// It measures everything scoreCandidate does EXCEPT reserved quiet, and the
+// omission is a correctness fix rather than a relaxation. Reserved quiet is the
+// texture inside the overlay region divided by the texture across the whole
+// frame — and a plate is mostly transparent, so the denominator collapses and
+// the ratio explodes wherever the region overlaps the band the layer draws in.
+// `city-pop-horizon`'s headlands plate measured 2.594 against a 1.600 ceiling
+// while the composite it belongs to sits comfortably under.
+//
+// The deeper reason is that the question has no meaning per layer: overlay text
+// sits on the FINISHED picture, and whether its ground is quiet is a property
+// of the stack, not of one plate in it. The composite is still scored with its
+// regions, so the rule itself is not weakened — it is asked where it applies.
+func scorePlate(source, treated []byte, style catalog.Style) (perceptual.Verdict, error) {
+	return score(source, treated, style, nil)
+}
+
+func score(source, treated []byte, style catalog.Style, regions []perceptual.Region) (perceptual.Verdict, error) {
 	src, err := decodeImage(source)
 	if err != nil {
 		return perceptual.Verdict{}, fmt.Errorf("decode source: %w", err)
@@ -37,7 +59,7 @@ func scoreCandidate(source, treated []byte, style catalog.Style) (perceptual.Ver
 		return perceptual.Verdict{}, fmt.Errorf("decode treated candidate: %w", err)
 	}
 	bar := style.EffectiveQuality()
-	return perceptual.Score(src, out, reservedRegions(style), perceptual.Thresholds{
+	return perceptual.Score(src, out, regions, perceptual.Thresholds{
 		MinSubjectSurvival:     bar.MinSubjectSurvival,
 		MinTonalOccupancy:      bar.MinTonalOccupancy,
 		MinFrequencyModulation: bar.MinFrequencyModulation,

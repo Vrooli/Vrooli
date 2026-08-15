@@ -1,0 +1,62 @@
+/* Backdrop Studio motion descriptor for "engraved-colonnade-vector".
+ *
+ * Plate images plus transforms — no video, no GIF, no runtime library.
+ * The flat composite is the ground of the stack and what a reduced-motion
+ * viewer sees; every layer above it is additive, so a consumer that loads
+ * only the composite gets a complete picture.
+ *
+ * Drive the parallax by setting --scroll on the root element to the page's
+ * scroll offset in pixels. With no --scroll the layers rest at zero, which
+ * is the composite's own composition.
+ */
+
+.engraved-colonnade-vector {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  --scroll: 0px;
+  background-image: url("composite.png");
+  background-size: cover;
+  background-position: center;
+}
+
+.engraved-colonnade-vector__layer {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  will-change: transform;
+}
+
+.engraved-colonnade-vector__layer--distance {
+  background-image: url("distance.png");
+  z-index: 1;
+}
+
+.engraved-colonnade-vector__layer--arcade {
+  background-image: url("arcade.png");
+  z-index: 2;
+}
+
+.engraved-colonnade-vector__layer--canopy {
+  background-image: url("canopy.png");
+  z-index: 3;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .engraved-colonnade-vector__layer--distance {
+    transform: translate3d(0, calc(var(--scroll) * -0.04), 0);
+  }
+  .engraved-colonnade-vector__layer--arcade {
+    transform: translate3d(0, calc(var(--scroll) * -0.22), 0);
+  }
+  .engraved-colonnade-vector__layer--canopy {
+    transform: translate3d(0, calc(var(--scroll) * -0.46), 0);
+    animation: engraved-colonnade-vector-canopy 26s ease-in-out infinite alternate;
+  }
+
+  @keyframes engraved-colonnade-vector-canopy {
+    from { transform: translate3d(0, calc(var(--scroll) * -0.46), 0) rotate(-0.024deg); }
+    to   { transform: translate3d(0, calc(var(--scroll) * -0.46), 0) rotate(0.024deg); }
+  }
+}

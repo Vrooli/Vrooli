@@ -147,6 +147,9 @@ func (s *Store) Seed(ctx context.Context) error {
 		if err := ValidateSubjectCoherence(style); err != nil {
 			return fmt.Errorf("catalog: the seeded catalog is not coherent after applying every version: %w", err)
 		}
+		if err := ValidateTierCoherence(style); err != nil {
+			return fmt.Errorf("catalog: the seeded catalog is not coherent after applying every version: %w", err)
+		}
 	}
 	return nil
 }
@@ -165,6 +168,15 @@ func (s *Store) migrate(ctx context.Context) error {
 		`ALTER TABLE backdrop_styles ADD COLUMN treatment_params TEXT NOT NULL DEFAULT '{}'`,
 		`ALTER TABLE backdrop_styles ADD COLUMN quality TEXT NOT NULL DEFAULT 'null'`,
 		`ALTER TABLE backdrop_styles ADD COLUMN inks TEXT NOT NULL DEFAULT '{}'`,
+		// The default is the honest answer for every row that predates the
+		// column: each one was drawn in-process by a generator, which is
+		// exactly what the procedural tier means. Backfilling it as unknown
+		// would make the router refuse styles that have always worked.
+		`ALTER TABLE backdrop_styles ADD COLUMN quality_tier TEXT NOT NULL DEFAULT 'procedural'`,
+		// An empty spec is the honest answer for every row that predates the
+		// column: it drew one plate carrying the whole picture, which is what
+		// EffectivePlateSpec materialises from an absent declaration.
+		`ALTER TABLE backdrop_styles ADD COLUMN plate_spec TEXT NOT NULL DEFAULT '[]'`,
 		`ALTER TABLE backdrop_styles ADD COLUMN origin TEXT NOT NULL DEFAULT 'seed'`,
 		`ALTER TABLE backdrop_styles ADD COLUMN seed_version INTEGER NOT NULL DEFAULT 0`,
 		`ALTER TABLE backdrop_surfaces ADD COLUMN origin TEXT NOT NULL DEFAULT 'seed'`,
@@ -235,8 +247,8 @@ func (s *Store) upsertStyle(ctx context.Context, v Style, version int) error {
 		// their art direction, which is a worse outcome than a stale row.
 		return nil
 	}
-	_, err = s.db.ExecContext(ctx, `UPDATE backdrop_styles SET name=?,version=?,role=?,subject=?,lineage=?,strategy=?,treatments=?,placements=?,regions=?,contrast_threshold=?,scaffold=?,generation=?,parent_id=?,treatment_params=?,inks=?,quality=?,seed_version=? WHERE id=? AND origin=?`,
-		v.Name, styleVersion(v), v.Role, v.Subject, v.Lineage, v.Strategy, mustJSON(v.Treatments), mustJSON(v.Placements), mustJSON(v.Regions), v.ContrastThreshold, mustJSON(v.Scaffold), mustJSON(v.Generation), v.ParentID, mustJSON(v.TreatmentParams), mustJSON(v.Inks), mustJSON(v.Quality), version, v.ID, OriginSeed)
+	_, err = s.db.ExecContext(ctx, `UPDATE backdrop_styles SET name=?,version=?,role=?,subject=?,lineage=?,strategy=?,treatments=?,placements=?,regions=?,contrast_threshold=?,scaffold=?,generation=?,parent_id=?,treatment_params=?,inks=?,quality=?,quality_tier=?,plate_spec=?,seed_version=? WHERE id=? AND origin=?`,
+		v.Name, styleVersion(v), v.Role, v.Subject, v.Lineage, v.Strategy, mustJSON(v.Treatments), mustJSON(v.Placements), mustJSON(v.Regions), v.ContrastThreshold, mustJSON(v.Scaffold), mustJSON(v.Generation), v.ParentID, mustJSON(v.TreatmentParams), mustJSON(v.Inks), mustJSON(v.Quality), v.EffectiveQualityTier(), mustJSON(v.PlateSpec), version, v.ID, OriginSeed)
 	return err
 }
 

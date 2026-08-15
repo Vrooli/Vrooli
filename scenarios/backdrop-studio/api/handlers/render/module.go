@@ -77,6 +77,14 @@ func (h *handler) Submit(ctx context.Context, req *connect.Request[render_v1.Sub
 			// image — so this is a precondition failure, not a transient one.
 			return nil, connect.NewError(connect.CodeFailedPrecondition, rejected)
 		}
+		var refused *internalrender.LaneRefusedError
+		if errors.As(err, &refused) {
+			// No lane on this host meets the style's declared tier. A retry
+			// changes nothing: the operator has to install a model, configure a
+			// gateway credential, or change the style's tier — which is a
+			// precondition, not a bad request.
+			return nil, connect.NewError(connect.CodeFailedPrecondition, refused)
+		}
 		var unresolved *imageengine.UnresolvedSlotError
 		if errors.As(err, &unresolved) {
 			// Neither a bound brand nor the style itself defines this ink, so
@@ -234,7 +242,67 @@ func toProto(job internalrender.Job) *render_v1.RenderJob {
 }
 
 func candidateProto(c internalrender.Candidate) *render_v1.Candidate {
-	return &render_v1.Candidate{Id: c.ID, JobId: c.JobID, ImagePng: c.PNG, Width: int32(c.Width), Height: int32(c.Height), Strategy: c.Strategy, ExecutionPath: c.ExecutionPath, TreatmentApplied: c.TreatmentApplied, Seed: c.Seed, ConditioningSubmitted: c.ConditioningSubmitted, DisclosureRequired: c.DisclosureRequired, Prompt: c.Prompt, ProvenanceJson: c.ProvenanceJSON, QualityJson: c.QualityJSON}
+	return &render_v1.Candidate{Id: c.ID, JobId: c.JobID, ImagePng: c.PNG, Width: int32(c.Width), Height: int32(c.Height), Strategy: c.Strategy, ExecutionPath: c.ExecutionPath, TreatmentApplied: c.TreatmentApplied, Seed: c.Seed, ConditioningSubmitted: c.ConditioningSubmitted, DisclosureRequired: c.DisclosureRequired, Prompt: c.Prompt, ProvenanceJson: c.ProvenanceJSON, QualityJson: c.QualityJSON, Routing: routingProto(c.Routing), Plates: platesProto(c.Plates)}
+}
+
+// platesProto carries the depth stack onto the wire.
+//
+// The pixels deliberately do not travel: a three-plate candidate at store
+// geometry is tens of megabytes, and a job record that inlined them would make
+// every list call expensive for a field most callers ignore. `image_png` on the
+// candidate is the flat composite of exactly these plates, which is what a
+// consumer reads when it just wants a picture.
+func platesProto(plates []internalrender.Plate) []*shared_v1.Plate {
+	if len(plates) == 0 {
+		return nil
+	}
+	out := make([]*shared_v1.Plate, 0, len(plates))
+	for _, plate := range plates {
+		out = append(out, &shared_v1.Plate{
+			Name:       plate.Name,
+			Depth:      int32(plate.Depth),
+			Blend:      plate.Blend,
+			Opacity:    plate.Opacity,
+			Treatments: append([]string(nil), plate.Treatments...),
+		})
+	}
+	return out
+}
+
+// routingProto carries the lane record onto the wire. The attempted lanes and
+// their reasons travel as two aligned lists so an operator reading a job sees
+// the escalation, not only its result.
+func routingProto(r internalrender.Routing) *shared_v1.RoutingRecord {
+	if r.ServedLane == "" {
+		return nil
+	}
+	out := &shared_v1.RoutingRecord{
+		DeclaredTier:  qualityTierToProto(r.DeclaredTier),
+		ServedLane:    r.ServedLane,
+		ModelId:       r.ModelID,
+		ExecutionTier: r.ExecutionTier,
+		CostUsd:       r.CostUSD,
+	}
+	for _, attempt := range r.Attempts {
+		out.AttemptedLanes = append(out.AttemptedLanes, attempt.Lane)
+		out.AttemptDetails = append(out.AttemptDetails, attempt.Detail)
+	}
+	return out
+}
+
+// qualityTierToProto is duplicated from the catalog handler deliberately: the
+// two modules map the same enum for different messages, and importing one
+// handler package into another to share four lines would couple two wire edges
+// that have no other reason to know about each other.
+func qualityTierToProto(tier string) shared_v1.QualityTier {
+	switch tier {
+	case catalog.TierLocalModel:
+		return shared_v1.QualityTier_QUALITY_TIER_LOCAL_MODEL
+	case catalog.TierFrontierModel:
+		return shared_v1.QualityTier_QUALITY_TIER_FRONTIER_MODEL
+	default:
+		return shared_v1.QualityTier_QUALITY_TIER_PROCEDURAL
+	}
 }
 
 var Endpoints = []module.EndpointDescriptor{
