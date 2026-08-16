@@ -203,7 +203,8 @@ func (h *Handlers) Generate(args []string) error {
 	if err != nil {
 		return err
 	}
-	if err := validateContextWindow(text, *maxTokens, selected); err != nil {
+	budget := effectiveMaxTokens(*maxTokens, selected)
+	if err := validateContextWindow(text, budget, selected); err != nil {
 		return err
 	}
 	var formatJSON json.RawMessage
@@ -232,8 +233,8 @@ func (h *Handlers) Generate(args []string) error {
 		numGPU := 0
 		req.NumGPU = &numGPU
 	}
-	if *maxTokens > 0 {
-		req.NumPredict = maxTokens
+	if budget > 0 {
+		req.NumPredict = &budget
 	}
 	if *temperature >= 0 {
 		req.Temperature = temperature
@@ -277,7 +278,8 @@ func (h *Handlers) Chat(args []string) error {
 	if err != nil {
 		return err
 	}
-	if err := validateContextWindow(*system+"\n"+text, *maxTokens, selected); err != nil {
+	budget := effectiveMaxTokens(*maxTokens, selected)
+	if err := validateContextWindow(*system+"\n"+text, budget, selected); err != nil {
 		return err
 	}
 
@@ -293,8 +295,8 @@ func (h *Handlers) Chat(args []string) error {
 	}
 	messages = append(messages, ensure.ChatMessage{Role: "user", Content: text})
 	req := ensure.ChatRequest{Model: selected.Ref, Messages: messages, Think: think}
-	if *maxTokens > 0 {
-		req.NumPredict = maxTokens
+	if budget > 0 {
+		req.NumPredict = &budget
 	}
 	if *temperature >= 0 {
 		req.Temperature = temperature
@@ -322,6 +324,24 @@ type selectedModel struct {
 	Source              string
 	ContextWindowTokens int
 	InputModalities     []policy.Modality
+	// RoleMaxTokens is the resolved role's declared output cap, or nil when the
+	// role declares none (or when the caller bypassed roles with --model).
+	RoleMaxTokens *int
+}
+
+// effectiveMaxTokens resolves the output cap: an explicit --max-tokens wins, an
+// absent flag falls through to the role's declared cap, and absent both the
+// request carries no num_predict at all and generation is bounded only by the
+// context window. Resolving before validateContextWindow matters — the guard
+// must reserve the budget that will actually be sent, not the flag alone.
+func effectiveMaxTokens(flag int, selected selectedModel) int {
+	if flag > 0 {
+		return flag
+	}
+	if selected.RoleMaxTokens != nil {
+		return *selected.RoleMaxTokens
+	}
+	return 0
 }
 
 func (h *Handlers) resolveModelSelection(model, role, requiredCapability string) (selectedModel, error) {
@@ -372,11 +392,17 @@ func (h *Handlers) resolveModelSelection(model, role, requiredCapability string)
 	if !hasCapability(modelPolicy.Capabilities, requiredCapability) {
 		return selectedModel{}, fmt.Errorf("role %q resolves to %q without %s capability", role, ref, requiredCapability)
 	}
+	var roleMaxTokens *int
+	if declared, ok := p.Roles[role]; ok && declared.MaxTokens != nil {
+		value := *declared.MaxTokens
+		roleMaxTokens = &value
+	}
 	return selectedModel{
 		Ref:                 ref,
 		Source:              "role",
 		ContextWindowTokens: modelPolicy.ContextWindowTokens,
 		InputModalities:     append([]policy.Modality{}, modelPolicy.Modalities.Input...),
+		RoleMaxTokens:       roleMaxTokens,
 	}, nil
 }
 

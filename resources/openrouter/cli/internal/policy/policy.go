@@ -34,7 +34,71 @@ type Role struct {
 	Description           string           `json:"description"`
 	Preference            int              `json:"preference"`
 	RequestDefaults       *RequestDefaults `json:"request_defaults,omitempty"`
-	Provenance            Provenance       `json:"provenance"`
+	// SamplingSupport declares how this role's models treat an explicit
+	// sampling control, per parameter. See SamplingSupportState.
+	SamplingSupport map[string]SamplingSupportState `json:"sampling_support,omitempty"`
+	Provenance      Provenance                      `json:"provenance"`
+}
+
+// SamplingSupportState is a declared, never-probed statement of how a role's
+// upstream provider treats an explicit sampling control.
+//
+// Declaration rather than probing is load-bearing, not a convenience. There are
+// three real states and only one is detectable at runtime: a rejection surfaces
+// as an error, but a provider that accepts a control and silently discards it
+// is indistinguishable at the call site from one that honours it. A probe would
+// report success and be wrong.
+//
+// Declare from first-party provider documentation. An aggregator's
+// supported_parameters metadata is not evidence — it is known to contradict
+// upstream vendors' own migration guidance.
+type SamplingSupportState string
+
+const (
+	// SamplingHonored means the provider applies the value.
+	SamplingHonored SamplingSupportState = "honored"
+	// SamplingIgnored means the provider accepts the field and discards it.
+	SamplingIgnored SamplingSupportState = "ignored"
+	// SamplingRejected means the provider fails the request when the field is
+	// present. A consumer must omit the control or route elsewhere.
+	SamplingRejected SamplingSupportState = "rejected"
+	// SamplingUnknown means the support state is not established. Consumers
+	// treat it as SamplingIgnored: best effort, no promise.
+	SamplingUnknown SamplingSupportState = "unknown"
+)
+
+// samplingSupportStates is the closed value vocabulary. samplingParameters is
+// the closed key vocabulary: an unrecognised key would otherwise degrade
+// silently to "undeclared", which is the exact failure this declaration exists
+// to prevent.
+var (
+	samplingSupportStates = map[SamplingSupportState]struct{}{
+		SamplingHonored: {}, SamplingIgnored: {}, SamplingRejected: {}, SamplingUnknown: {},
+	}
+	samplingParameters = map[string]struct{}{
+		"temperature": {}, "top_p": {}, "top_k": {}, "seed": {},
+	}
+)
+
+// SupportFor reports the declared state for one parameter. An absent
+// declaration is SamplingUnknown, never an error: a role that says nothing has
+// made no promise.
+func (r Role) SupportFor(parameter string) SamplingSupportState {
+	if state, ok := r.SamplingSupport[strings.TrimSpace(parameter)]; ok {
+		return state
+	}
+	return SamplingUnknown
+}
+
+func validateSamplingSupport(errs *[]error, path string, support map[string]SamplingSupportState) {
+	for parameter, state := range support {
+		if _, ok := samplingParameters[strings.TrimSpace(parameter)]; !ok {
+			*errs = append(*errs, fmt.Errorf("%s key %q is not a known sampling parameter", path, parameter))
+		}
+		if _, ok := samplingSupportStates[state]; !ok {
+			*errs = append(*errs, fmt.Errorf("%s.%s %q is not an allowed support state", path, parameter, state))
+		}
+	}
 }
 
 // RequestDefaults is the bounded, role-owned request lever the resource hands to
@@ -246,26 +310,29 @@ type ResolveResolution struct {
 // resolve`. Consumers build chat/image request payloads from it and never read
 // the policy file directly.
 type ResolvedPolicyModel struct {
-	SchemaVersion         string                `json:"schema_version"`
-	Role                  string                `json:"role,omitempty"`
-	Source                string                `json:"source"`
-	Model                 string                `json:"model"`
-	Endpoint              string                `json:"endpoint"`
-	Fallbacks             []string              `json:"fallbacks,omitempty"`
-	RequiredCapabilities  []string              `json:"required_capabilities,omitempty"`
-	PreferredCapabilities []string              `json:"preferred_capabilities,omitempty"`
-	Capabilities          []string              `json:"capabilities"`
-	Modalities            Modalities            `json:"modalities"`
-	CoordinateConvention  string                `json:"coordinate_convention,omitempty"`
-	Endpoints             []string              `json:"endpoints"`
-	ContextWindowTokens   int                   `json:"context_window_tokens,omitempty"`
-	DefaultEligible       bool                  `json:"default_eligible"`
-	Pricing               *Pricing              `json:"pricing,omitempty"`
-	RequestDefaults       *RequestDefaults      `json:"request_defaults,omitempty"`
-	Provider              string                `json:"provider,omitempty"`
-	Family                string                `json:"family,omitempty"`
-	RoleProvenance        *Provenance           `json:"role_provenance,omitempty"`
-	Provenance            map[string]Provenance `json:"provenance,omitempty"`
+	SchemaVersion         string           `json:"schema_version"`
+	Role                  string           `json:"role,omitempty"`
+	Source                string           `json:"source"`
+	Model                 string           `json:"model"`
+	Endpoint              string           `json:"endpoint"`
+	Fallbacks             []string         `json:"fallbacks,omitempty"`
+	RequiredCapabilities  []string         `json:"required_capabilities,omitempty"`
+	PreferredCapabilities []string         `json:"preferred_capabilities,omitempty"`
+	Capabilities          []string         `json:"capabilities"`
+	Modalities            Modalities       `json:"modalities"`
+	CoordinateConvention  string           `json:"coordinate_convention,omitempty"`
+	Endpoints             []string         `json:"endpoints"`
+	ContextWindowTokens   int              `json:"context_window_tokens,omitempty"`
+	DefaultEligible       bool             `json:"default_eligible"`
+	Pricing               *Pricing         `json:"pricing,omitempty"`
+	RequestDefaults       *RequestDefaults `json:"request_defaults,omitempty"`
+	// SamplingSupport is role-owned, so it is populated only by ResolveRole. A
+	// direct model reference has no role to declare it.
+	SamplingSupport map[string]SamplingSupportState `json:"sampling_support,omitempty"`
+	Provider        string                          `json:"provider,omitempty"`
+	Family          string                          `json:"family,omitempty"`
+	RoleProvenance  *Provenance                     `json:"role_provenance,omitempty"`
+	Provenance      map[string]Provenance           `json:"provenance,omitempty"`
 }
 
 func LoadFile(path string) (Policy, error) {
@@ -392,6 +459,7 @@ func (p Policy) ResolveRole(roleName string) (ResolvedPolicyModel, error) {
 	resolved.RequiredCapabilities = append([]string{}, role.RequiredCapabilities...)
 	resolved.PreferredCapabilities = append([]string{}, role.PreferredCapabilities...)
 	resolved.RequestDefaults = role.RequestDefaults
+	resolved.SamplingSupport = copySamplingSupport(role.SamplingSupport)
 	roleProvenance := role.Provenance
 	resolved.RoleProvenance = &roleProvenance
 	return resolved, nil
@@ -540,6 +608,7 @@ func (p Policy) Validate() error {
 			p.validateRoleModel(&errs, path+" fallback "+fb, fb, role)
 		}
 		role.RequestDefaults.validate(path+".request_defaults", &errs)
+		validateSamplingSupport(&errs, path+".sampling_support", role.SamplingSupport)
 		validateProvenance(&errs, path+".provenance", role.Provenance, sourceKinds)
 	}
 
@@ -624,6 +693,17 @@ func contains(values []string, target string) bool {
 		}
 	}
 	return false
+}
+
+func copySamplingSupport(in map[string]SamplingSupportState) map[string]SamplingSupportState {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make(map[string]SamplingSupportState, len(in))
+	for k, v := range in {
+		out[k] = v
+	}
+	return out
 }
 
 func copyProvenanceMap(in map[string]Provenance) map[string]Provenance {

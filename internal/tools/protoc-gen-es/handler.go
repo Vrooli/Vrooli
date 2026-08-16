@@ -26,6 +26,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/vrooli/vrooli/internal/cliinstall"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 )
@@ -121,6 +122,11 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 	if err := ensureSymlinkOnPath(prefix, opts); err != nil {
 		status.Notes = append(status.Notes, "post-install symlink: "+err.Error())
 	}
+	if err := recordNPMToolInstall(prefix); err != nil {
+		status.ExecutionState = hostreqkit.ExecutionFailed
+		status.Notes = append(status.Notes, "record install inventory: "+err.Error())
+		return status, nil
+	}
 
 	status.Command, status.Installed = hostreqkit.ResolveCommandForInvokingUser(h.manifest.Commands)
 	if !status.Installed {
@@ -131,6 +137,20 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 	status.ExecutionState = hostreqkit.ExecutionInstalled
 	status.Version = hostreqkit.ReadVersion(status.Command, h.manifest.VersionArgs)
 	return status, nil
+}
+
+func recordNPMToolInstall(prefix string) error {
+	home, err := hostreqkit.InvokingUserHomeDir()
+	if err != nil {
+		return err
+	}
+	link := filepath.Join(home, ".local", "bin", pluginBinName)
+	source := filepath.Join(prefix, "node_modules", ".bin", pluginBinName)
+	return cliinstall.RecordToolArtifacts(home,
+		cliinstall.InstallEntry{Scope: cliinstall.ScopeRuntime, Kind: cliinstall.EntryDirectory, Path: prefix, Prefix: prefix},
+		cliinstall.InstallEntry{Scope: cliinstall.ScopeRuntime, Kind: cliinstall.EntryFile, Path: source, Prefix: filepath.Dir(source)},
+		cliinstall.InstallEntry{Scope: cliinstall.ScopeRuntime, Kind: cliinstall.EntryFile, Path: link, Prefix: home},
+	)
 }
 
 func (h handler) versionRef() string {

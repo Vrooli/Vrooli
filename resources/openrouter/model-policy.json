@@ -12,6 +12,9 @@
         "temperature": 0.7,
         "max_tokens": 2048
       },
+      "sampling_support": {
+        "temperature": "unknown"
+      },
       "provenance": {
         "source_kind": "chatgpt_survey",
         "confidence": "medium",
@@ -30,6 +33,9 @@
       "request_defaults": {
         "temperature": 0.7,
         "max_tokens": 4096
+      },
+      "sampling_support": {
+        "temperature": "ignored"
       },
       "provenance": {
         "source_kind": "chatgpt_survey",
@@ -50,6 +56,9 @@
         "temperature": 0.7,
         "max_tokens": 4096
       },
+      "sampling_support": {
+        "temperature": "ignored"
+      },
       "provenance": {
         "source_kind": "chatgpt_survey",
         "confidence": "medium",
@@ -69,6 +78,9 @@
         "temperature": 0.3,
         "max_tokens": 2048
       },
+      "sampling_support": {
+        "temperature": "ignored"
+      },
       "provenance": {
         "source_kind": "chatgpt_survey",
         "confidence": "medium",
@@ -87,6 +99,9 @@
       "request_defaults": {
         "temperature": 0.0,
         "max_tokens": 512
+      },
+      "sampling_support": {
+        "temperature": "ignored"
       },
       "provenance": {
         "source_kind": "chatgpt_survey",
@@ -108,6 +123,9 @@
         "max_tokens": 512,
         "response_format": "json_schema"
       },
+      "sampling_support": {
+        "temperature": "ignored"
+      },
       "provenance": {
         "source_kind": "manual_policy",
         "confidence": "medium",
@@ -128,6 +146,9 @@
         "max_tokens": 4096,
         "response_format": "json_object"
       },
+      "sampling_support": {
+        "temperature": "ignored"
+      },
       "provenance": {
         "source_kind": "chatgpt_survey",
         "confidence": "medium",
@@ -146,6 +167,9 @@
       "request_defaults": {
         "temperature": 0.0,
         "max_tokens": 512
+      },
+      "sampling_support": {
+        "temperature": "unknown"
       },
       "provenance": {
         "source_kind": "chatgpt_survey",
@@ -166,6 +190,9 @@
         "temperature": 0.1,
         "max_tokens": 8192
       },
+      "sampling_support": {
+        "temperature": "unknown"
+      },
       "provenance": {
         "source_kind": "chatgpt_survey",
         "confidence": "medium",
@@ -185,11 +212,58 @@
         "temperature": 0.2,
         "max_tokens": 8192
       },
+      "sampling_support": {
+        "temperature": "ignored"
+      },
       "provenance": {
         "source_kind": "chatgpt_survey",
         "confidence": "medium",
         "source": "ChatGPT 2026-06-30 OpenRouter list-price survey, agent.tools default/fallbacks",
         "observed_at": "2026-06-30",
+        "sample_count": 0
+      }
+    },
+    "write.default": {
+      "model": "google/gemini-3.7-flash",
+      "fallbacks": ["z-ai/glm-5.2", "minimax/minimax-m3"],
+      "endpoint": "chat",
+      "required_capabilities": ["chat"],
+      "description": "Hosted natural-prose writing role: marketing copy, blog and technical writing, and creative drafts. Chosen for quality per dollar rather than for sampling control.",
+      "preference": 70,
+      "request_defaults": {
+        "temperature": 0.9,
+        "max_tokens": 8192
+      },
+      "sampling_support": {
+        "temperature": "ignored"
+      },
+      "provenance": {
+        "source_kind": "manual_policy",
+        "confidence": "low",
+        "source": "AI Gateway sampling-and-write-roles plan 2026-08-16. The ignored declaration comes from first-party Gemini 3.x documentation, deliberately not from OpenRouter supported_parameters metadata, which is known to contradict upstream vendors.",
+        "observed_at": "2026-08-16",
+        "sample_count": 0
+      }
+    },
+    "write.diverse": {
+      "model": "anthropic/claude-fable-5",
+      "fallbacks": ["google/gemini-3.7-flash"],
+      "endpoint": "chat",
+      "required_capabilities": ["chat"],
+      "description": "Diversity-controlled prose: one request returns k candidate drafts. Frontier-tier because candidate variety scales with model capability, not with sampling settings, so a cheaper rung would underperform on the technique this role exists to serve.",
+      "preference": 80,
+      "request_defaults": {
+        "temperature": 1.0,
+        "max_tokens": 16384
+      },
+      "sampling_support": {
+        "temperature": "rejected"
+      },
+      "provenance": {
+        "source_kind": "manual_policy",
+        "confidence": "low",
+        "source": "AI Gateway sampling-and-write-roles plan 2026-08-16. Anthropic models from Opus 4.7 onward reject sampling parameters with a 400, so the declared temperature is never sent; the fallback also does not honor it. Declared at the weakest link across model and fallbacks.",
+        "observed_at": "2026-08-16",
         "sample_count": 0
       }
     },
@@ -327,6 +401,68 @@
     }
   },
   "models": {
+    "google/gemini-3.7-flash": {
+      "provider": "google",
+      "family": "gemini",
+      "capabilities": ["chat", "text_input", "text_output", "tools", "structured_output", "long_context", "vision", "document"],
+      "modalities": {
+        "input": ["text", "image"],
+        "output": ["text"]
+      },
+      "endpoints": ["chat"],
+      "context_window_tokens": 1000000,
+      "default_eligible": true,
+      "pricing": {
+        "unit": "per_mtok",
+        "input_per_mtok": 0.375,
+        "output_per_mtok": 1.875
+      },
+      "use_case_notes": "Flash-tier model with frontier-adjacent creative-writing quality; best quality-per-dollar prose rung. Accepts temperature and silently discards it (first-party Gemini 3.x behavior), so it cannot serve a temperature-controlled experiment.",
+      "caveats": [
+        "Gemini 3.x accepts sampling parameters and ignores them; a runtime probe would report success and be wrong.",
+        "Creative-writing placement rests on a wide-confidence-interval leaderboard sample and should be treated as provisional."
+      ],
+      "provenance": {
+        "catalog": {
+          "source_kind": "chatgpt_survey",
+          "confidence": "low",
+          "source": "AI Gateway sampling-and-write-roles plan 2026-08-16 model survey; list price and leaderboard placement not re-verified against the live OpenRouter catalog",
+          "observed_at": "2026-08-16",
+          "sample_count": 0
+        }
+      }
+    },
+    "anthropic/claude-fable-5": {
+      "provider": "anthropic",
+      "family": "claude",
+      "capabilities": ["chat", "text_input", "text_output", "tools", "structured_output", "long_context", "code", "vision"],
+      "modalities": {
+        "input": ["text", "image"],
+        "output": ["text"]
+      },
+      "endpoints": ["chat"],
+      "context_window_tokens": 200000,
+      "default_eligible": false,
+      "pricing": {
+        "unit": "per_mtok",
+        "input_per_mtok": 10.0,
+        "output_per_mtok": 50.0
+      },
+      "use_case_notes": "Frontier prose rung for the diversity lane, where candidate variety scales with model capability rather than with sampling settings.",
+      "caveats": [
+        "Rejects sampling parameters with a 400. Any role naming it must declare temperature support as rejected so the control is never sent.",
+        "Expensive per token; reserve for the k-candidate lane rather than ordinary single-draft writing."
+      ],
+      "provenance": {
+        "catalog": {
+          "source_kind": "chatgpt_survey",
+          "confidence": "low",
+          "source": "AI Gateway sampling-and-write-roles plan 2026-08-16 model survey; first-party Anthropic pricing, availability on this account not verified",
+          "observed_at": "2026-08-16",
+          "sample_count": 0
+        }
+      }
+    },
     "bytedance-seed/seed-2.0-mini": {
       "provider": "bytedance-seed",
       "family": "seed",
@@ -835,6 +971,8 @@
       "rerank.llm_fallback",
       "code.default",
       "agent.tools",
+      "write.default",
+      "write.diverse",
       "image.generate.fast",
       "image.generate.default",
       "image.generate.quality",

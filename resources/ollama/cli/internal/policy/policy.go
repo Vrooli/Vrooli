@@ -26,7 +26,72 @@ type Role struct {
 	Description          string            `json:"description"`
 	Preference           int               `json:"preference"`
 	SamplingDefaults     *SamplingDefaults `json:"sampling_defaults,omitempty"`
-	Provenance           Provenance        `json:"provenance"`
+	// SamplingSupport declares how this role's models treat an explicit
+	// sampling control, per parameter. See SamplingSupportState.
+	SamplingSupport map[string]SamplingSupportState `json:"sampling_support,omitempty"`
+	// MaxTokens is the role-owned output cap applied when a caller passes no
+	// --max-tokens. Without it a local caller who sends nothing is uncapped:
+	// num_predict is omitted from the request and generation is bounded only by
+	// the context window. Omission remains valid and means exactly that.
+	MaxTokens  *int       `json:"max_tokens,omitempty"`
+	Provenance Provenance `json:"provenance"`
+}
+
+// SamplingSupportState is a declared, never-probed statement of how a role's
+// provider treats an explicit sampling control.
+//
+// Declaration rather than probing is load-bearing, not a convenience: a
+// provider that accepts a control and silently discards it is indistinguishable
+// at the call site from one that honours it, so a successful call is not
+// evidence of support. Declare conservatively — SamplingIgnored is the safe
+// default and SamplingHonored requires first-party evidence.
+type SamplingSupportState string
+
+const (
+	// SamplingHonored means the provider applies the value.
+	SamplingHonored SamplingSupportState = "honored"
+	// SamplingIgnored means the provider accepts the field and discards it.
+	SamplingIgnored SamplingSupportState = "ignored"
+	// SamplingRejected means the provider fails the request when the field is
+	// present. A consumer must omit the control or route elsewhere.
+	SamplingRejected SamplingSupportState = "rejected"
+	// SamplingUnknown means the support state is not established. Consumers
+	// treat it as SamplingIgnored: best effort, no promise.
+	SamplingUnknown SamplingSupportState = "unknown"
+)
+
+// samplingSupportStates is the closed value vocabulary. samplingParameters is
+// the closed key vocabulary: an unrecognised key would otherwise degrade
+// silently to "undeclared", which is the exact failure this declaration exists
+// to prevent.
+var (
+	samplingSupportStates = map[SamplingSupportState]struct{}{
+		SamplingHonored: {}, SamplingIgnored: {}, SamplingRejected: {}, SamplingUnknown: {},
+	}
+	samplingParameters = map[string]struct{}{
+		"temperature": {}, "top_p": {}, "top_k": {}, "seed": {},
+	}
+)
+
+// SupportFor reports the declared state for one parameter. An absent
+// declaration is SamplingUnknown, never an error: a role that says nothing has
+// made no promise.
+func (r Role) SupportFor(parameter string) SamplingSupportState {
+	if state, ok := r.SamplingSupport[strings.TrimSpace(parameter)]; ok {
+		return state
+	}
+	return SamplingUnknown
+}
+
+func validateSamplingSupport(errs *[]error, path string, support map[string]SamplingSupportState) {
+	for parameter, state := range support {
+		if _, ok := samplingParameters[strings.TrimSpace(parameter)]; !ok {
+			*errs = append(*errs, fmt.Errorf("%s key %q is not a known sampling parameter", path, parameter))
+		}
+		if _, ok := samplingSupportStates[state]; !ok {
+			*errs = append(*errs, fmt.Errorf("%s.%s %q is not an allowed support state", path, parameter, state))
+		}
+	}
 }
 
 // SamplingDefaults is an optional, bounded per-role sampling lever. It is the
@@ -63,6 +128,9 @@ const (
 	maxTopP        = 1.0
 	minTopK        = 0
 	maxTopK        = 1000
+	// minMaxTokens mirrors the OpenRouter policy envelope so the two resources
+	// reject the same misconfiguration. A cap below 1 is not a cap.
+	minMaxTokens = 1
 )
 
 // Resolve clamps the declared sampling into the safe envelope. A nil receiver
@@ -275,25 +343,29 @@ type ResolvedModel struct {
 }
 
 type ResolvedPolicyModel struct {
-	SchemaVersion        string                `json:"schema_version"`
-	Role                 string                `json:"role,omitempty"`
-	Source               string                `json:"source"`
-	Model                string                `json:"model"`
-	Fallbacks            []string              `json:"fallbacks,omitempty"`
-	RequiredCapabilities []string              `json:"required_capabilities,omitempty"`
-	Capabilities         []string              `json:"capabilities"`
-	Modalities           Modalities            `json:"modalities"`
-	CoordinateConvention string                `json:"coordinate_convention,omitempty"`
-	ContextWindowTokens  int                   `json:"context_window_tokens,omitempty"`
-	EmbeddingDimensions  int                   `json:"embedding_dimensions,omitempty"`
-	DiskSizeGBEstimate   float64               `json:"disk_size_gb_estimate"`
-	RAMGBEstimate        float64               `json:"ram_gb_estimate"`
-	VRAMGBEstimate       float64               `json:"vram_gb_estimate"`
-	DefaultEligible      bool                  `json:"default_eligible"`
-	SamplingDefaults     *SamplingDefaults     `json:"sampling_defaults,omitempty"`
-	Sampling             *Sampling             `json:"sampling,omitempty"`
-	RoleProvenance       *Provenance           `json:"role_provenance,omitempty"`
-	Provenance           map[string]Provenance `json:"provenance,omitempty"`
+	SchemaVersion        string            `json:"schema_version"`
+	Role                 string            `json:"role,omitempty"`
+	Source               string            `json:"source"`
+	Model                string            `json:"model"`
+	Fallbacks            []string          `json:"fallbacks,omitempty"`
+	RequiredCapabilities []string          `json:"required_capabilities,omitempty"`
+	Capabilities         []string          `json:"capabilities"`
+	Modalities           Modalities        `json:"modalities"`
+	CoordinateConvention string            `json:"coordinate_convention,omitempty"`
+	ContextWindowTokens  int               `json:"context_window_tokens,omitempty"`
+	EmbeddingDimensions  int               `json:"embedding_dimensions,omitempty"`
+	DiskSizeGBEstimate   float64           `json:"disk_size_gb_estimate"`
+	RAMGBEstimate        float64           `json:"ram_gb_estimate"`
+	VRAMGBEstimate       float64           `json:"vram_gb_estimate"`
+	DefaultEligible      bool              `json:"default_eligible"`
+	SamplingDefaults     *SamplingDefaults `json:"sampling_defaults,omitempty"`
+	Sampling             *Sampling         `json:"sampling,omitempty"`
+	// SamplingSupport and MaxTokens are role-owned, so they are populated only
+	// by ResolveRole. A direct model reference has no role to declare them.
+	SamplingSupport map[string]SamplingSupportState `json:"sampling_support,omitempty"`
+	MaxTokens       *int                            `json:"max_tokens,omitempty"`
+	RoleProvenance  *Provenance                     `json:"role_provenance,omitempty"`
+	Provenance      map[string]Provenance           `json:"provenance,omitempty"`
 }
 
 func LoadFile(path string) (Policy, error) {
@@ -468,6 +540,11 @@ func (p Policy) ResolveRole(roleName string) (ResolvedPolicyModel, error) {
 	resolved.SamplingDefaults = role.SamplingDefaults
 	sampling := role.SamplingDefaults.Resolve()
 	resolved.Sampling = &sampling
+	resolved.SamplingSupport = copySamplingSupport(role.SamplingSupport)
+	if role.MaxTokens != nil {
+		maxTokens := *role.MaxTokens
+		resolved.MaxTokens = &maxTokens
+	}
 	roleProvenance := role.Provenance
 	resolved.RoleProvenance = &roleProvenance
 	return resolved, nil
@@ -550,6 +627,10 @@ func (p Policy) Validate() error {
 		if role.Preference <= 0 {
 			errs = append(errs, fmt.Errorf("roles.%s.preference must be positive", name))
 		}
+		if role.MaxTokens != nil && *role.MaxTokens < minMaxTokens {
+			errs = append(errs, fmt.Errorf("roles.%s.max_tokens %d must be >= %d", name, *role.MaxTokens, minMaxTokens))
+		}
+		validateSamplingSupport(&errs, "roles."+name+".sampling_support", role.SamplingSupport)
 		validateProvenance(&errs, "roles."+name+".provenance", role.Provenance, sourceKinds)
 	}
 	for name, model := range p.Models {
@@ -644,6 +725,17 @@ func set(values []string) map[string]struct{} {
 		if value != "" {
 			out[value] = struct{}{}
 		}
+	}
+	return out
+}
+
+func copySamplingSupport(in map[string]SamplingSupportState) map[string]SamplingSupportState {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make(map[string]SamplingSupportState, len(in))
+	for k, v := range in {
+		out[k] = v
 	}
 	return out
 }

@@ -21,6 +21,9 @@
       "required_capabilities": ["generate", "chat"],
       "description": "Small local chat/generation role for low-latency or low-memory scenario paths.",
       "preference": 20,
+      "sampling_support": {
+        "temperature": "honored"
+      },
       "provenance": {
         "source_kind": "manual_policy",
         "confidence": "medium",
@@ -39,6 +42,9 @@
         "temperature": 0.7,
         "top_p": 0.95
       },
+      "sampling_support": {
+        "temperature": "honored"
+      },
       "provenance": {
         "source_kind": "manual_policy",
         "confidence": "medium",
@@ -53,6 +59,9 @@
       "required_capabilities": ["generate", "chat", "summarize"],
       "description": "Default summarization and distillation role for text-heavy scenario outputs.",
       "preference": 40,
+      "sampling_support": {
+        "temperature": "honored"
+      },
       "provenance": {
         "source_kind": "manual_policy",
         "confidence": "medium",
@@ -67,6 +76,9 @@
       "required_capabilities": ["generate", "rerank"],
       "description": "LLM fallback reranking role used when the dedicated reranker resource is unavailable.",
       "preference": 50,
+      "sampling_support": {
+        "temperature": "honored"
+      },
       "provenance": {
         "source_kind": "manual_policy",
         "confidence": "medium",
@@ -81,6 +93,9 @@
       "required_capabilities": ["generate", "classify"],
       "description": "Small local generation role for structured routing/classification decisions.",
       "preference": 55,
+      "sampling_support": {
+        "temperature": "honored"
+      },
       "provenance": {
         "source_kind": "manual_policy",
         "confidence": "medium",
@@ -100,11 +115,36 @@
         "top_p": 0.9,
         "top_k": 40
       },
+      "sampling_support": {
+        "temperature": "honored"
+      },
       "provenance": {
         "source_kind": "manual_policy",
         "confidence": "medium",
         "source": "ChatGPT 2026-06-23 best-available local-model survey, mapped to existing roles (balanced coding)",
         "observed_at": "2026-06-23",
+        "sample_count": 0
+      }
+    },
+    "write.default": {
+      "model": "gemma4:12b",
+      "fallbacks": ["qwen3.5:9b", "qwen3.5:4b"],
+      "required_capabilities": ["generate", "chat"],
+      "description": "Local natural-prose writing role for marketing copy, blog prose, technical writing, and creative drafts.",
+      "preference": 70,
+      "sampling_defaults": {
+        "temperature": 0.9,
+        "top_p": 0.95
+      },
+      "sampling_support": {
+        "temperature": "honored"
+      },
+      "max_tokens": 8192,
+      "provenance": {
+        "source_kind": "manual_policy",
+        "confidence": "medium",
+        "source": "AI Gateway sampling-and-write-roles plan 2026-08-16; fallback order keeps 32768-context models ahead of any 8192-context model so a large-k profile stays locally servable",
+        "observed_at": "2026-08-16",
         "sample_count": 0
       }
     },
@@ -114,6 +154,9 @@
       "required_capabilities": ["generate", "chat", "vision"],
       "description": "Local-first visual understanding role selected from the host capability ladder; callers supply image input through the gateway envelope.",
       "preference": 65,
+      "sampling_support": {
+        "temperature": "honored"
+      },
       "provenance": {
         "source_kind": "manual_policy",
         "confidence": "medium",
@@ -599,7 +642,8 @@
       "rerank.llm_fallback",
       "classify.routing",
       "code.local",
-      "vision.default"
+      "vision.default",
+      "write.default"
     ],
     "direct_model_exception_required_fields": ["reason", "owner", "review_after"],
     "provenance_required": true,

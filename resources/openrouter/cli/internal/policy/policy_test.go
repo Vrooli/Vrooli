@@ -107,6 +107,12 @@ func TestValidateRejections(t *testing.T) {
 		"out of range temperature": func(s string) string {
 			return strings.Replace(s, `"temperature": 0.7,`, `"temperature": 9.9,`, 1)
 		},
+		"unknown sampling support state": func(s string) string {
+			return strings.Replace(s, `"sampling_support": {"temperature": "honored"},`, `"sampling_support": {"temperature": "probably"},`, 1)
+		},
+		"unknown sampling support parameter": func(s string) string {
+			return strings.Replace(s, `"sampling_support": {"temperature": "honored"},`, `"sampling_support": {"temperatue": "honored"},`, 1)
+		},
 	}
 	for name, mutate := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -209,3 +215,24 @@ func TestResolveGeneratePrecedence(t *testing.T) {
 }
 
 func floatPtr(v float64) *float64 { return &v }
+
+func TestResolveRoleCarriesSamplingSupport(t *testing.T) {
+	t.Parallel()
+
+	p, err := policy.LoadFile(writeFixture(t, policytest.FixturePolicyJSON))
+	if err != nil {
+		t.Fatal(err)
+	}
+	resolved, err := p.ResolveRole("chat.default")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := resolved.SamplingSupport["temperature"]; got != policy.SamplingHonored {
+		t.Fatalf("sampling_support[temperature] = %q, want %q", got, policy.SamplingHonored)
+	}
+	// A role that declares nothing must resolve to "unknown", not to an error
+	// and not to a fabricated promise.
+	if got := p.Roles["image.generate.logo"].SupportFor("temperature"); got != policy.SamplingUnknown {
+		t.Fatalf("undeclared support = %q, want %q", got, policy.SamplingUnknown)
+	}
+}

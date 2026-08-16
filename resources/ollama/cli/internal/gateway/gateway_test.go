@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -443,4 +444,134 @@ func policyEnv(t *testing.T) map[string]string {
 		t.Fatalf("policy path: %v", err)
 	}
 	return map[string]string{"OLLAMA_MODEL_POLICY_PATH": path}
+}
+
+// policyEnvWithRoleMaxTokens copies the shipped policy and declares an output
+// cap on one role, so the role-owned cap can be exercised without waiting for a
+// role that ships one.
+func policyEnvWithRoleMaxTokens(t *testing.T, role string, maxTokens int) map[string]string {
+	t.Helper()
+	source, err := filepath.Abs(filepath.Join("..", "..", "..", "model-policy.json"))
+	if err != nil {
+		t.Fatalf("policy path: %v", err)
+	}
+	raw, err := os.ReadFile(source)
+	if err != nil {
+		t.Fatalf("read policy: %v", err)
+	}
+	var document map[string]any
+	if err := json.Unmarshal(raw, &document); err != nil {
+		t.Fatalf("parse policy: %v", err)
+	}
+	roles, ok := document["roles"].(map[string]any)
+	if !ok {
+		t.Fatal("policy has no roles object")
+	}
+	entry, ok := roles[role].(map[string]any)
+	if !ok {
+		t.Fatalf("policy has no role %q", role)
+	}
+	entry["max_tokens"] = maxTokens
+	patched, err := json.Marshal(document)
+	if err != nil {
+		t.Fatalf("encode policy: %v", err)
+	}
+	path := filepath.Join(t.TempDir(), "model-policy.json")
+	if err := os.WriteFile(path, patched, 0o600); err != nil {
+		t.Fatalf("write policy: %v", err)
+	}
+	return map[string]string{"OLLAMA_MODEL_POLICY_PATH": path}
+}
+
+// Without a role-owned cap a caller who sends nothing is uncapped: num_predict
+// is omitted and generation is bounded only by the context window.
+func TestGenerateOmitsNumPredictWhenNeitherFlagNorRoleDeclaresCap(t *testing.T) {
+	var seen ensure.GenerateRequest
+	client := &fakeClient{
+		generate: func(_ context.Context, in ensure.GenerateRequest) (ensure.GenerateResponse, error) {
+			seen = in
+			return ensure.GenerateResponse{Response: "ok"}, nil
+		},
+	}
+	h, _, _ := newHandlers(t, client, policyEnv(t))
+	if err := h.Generate([]string{"--role", "chat.default", "--prompt", "hi"}); err != nil {
+		t.Fatalf("Generate: %v", err)
+	}
+	if seen.NumPredict != nil {
+		t.Fatalf("num_predict = %d, want omitted", *seen.NumPredict)
+	}
+}
+
+func TestGenerateAppliesRoleMaxTokensWhenFlagAbsent(t *testing.T) {
+	var seen ensure.GenerateRequest
+	client := &fakeClient{
+		generate: func(_ context.Context, in ensure.GenerateRequest) (ensure.GenerateResponse, error) {
+			seen = in
+			return ensure.GenerateResponse{Response: "ok"}, nil
+		},
+	}
+	h, _, _ := newHandlers(t, client, policyEnvWithRoleMaxTokens(t, "chat.default", 1234))
+	if err := h.Generate([]string{"--role", "chat.default", "--prompt", "hi"}); err != nil {
+		t.Fatalf("Generate: %v", err)
+	}
+	if seen.NumPredict == nil || *seen.NumPredict != 1234 {
+		t.Fatalf("num_predict = %v, want 1234", seen.NumPredict)
+	}
+}
+
+func TestGenerateExplicitMaxTokensOverridesRoleCap(t *testing.T) {
+	var seen ensure.GenerateRequest
+	client := &fakeClient{
+		generate: func(_ context.Context, in ensure.GenerateRequest) (ensure.GenerateResponse, error) {
+			seen = in
+			return ensure.GenerateResponse{Response: "ok"}, nil
+		},
+	}
+	h, _, _ := newHandlers(t, client, policyEnvWithRoleMaxTokens(t, "chat.default", 1234))
+	if err := h.Generate([]string{"--role", "chat.default", "--prompt", "hi", "--max-tokens", "77"}); err != nil {
+		t.Fatalf("Generate: %v", err)
+	}
+	if seen.NumPredict == nil || *seen.NumPredict != 77 {
+		t.Fatalf("num_predict = %v, want 77", seen.NumPredict)
+	}
+}
+
+// The context guard must reserve the budget that will actually be sent. A role
+// cap large enough to overflow the window is refused by name, not silently
+// truncated by the server sliding its context window.
+func TestGenerateRoleMaxTokensReachesContextWindowGuard(t *testing.T) {
+	var called bool
+	client := &fakeClient{
+		generate: func(context.Context, ensure.GenerateRequest) (ensure.GenerateResponse, error) {
+			called = true
+			return ensure.GenerateResponse{}, nil
+		},
+	}
+	h, _, _ := newHandlers(t, client, policyEnvWithRoleMaxTokens(t, "chat.default", 40000))
+	err := h.Generate([]string{"--role", "chat.default", "--prompt", "hi"})
+	if err == nil || !strings.Contains(err.Error(), "exceeds context window") {
+		t.Fatalf("expected context window error, got %v", err)
+	}
+	if called {
+		t.Fatal("Generate called upstream after context window rejection")
+	}
+}
+
+func TestChatAppliesRoleMaxTokensWhenFlagAbsent(t *testing.T) {
+	var seen ensure.ChatRequest
+	client := &fakeClient{
+		chat: func(_ context.Context, in ensure.ChatRequest) (ensure.ChatResponse, error) {
+			seen = in
+			var response ensure.ChatResponse
+			response.Message.Content = "ok"
+			return response, nil
+		},
+	}
+	h, _, _ := newHandlers(t, client, policyEnvWithRoleMaxTokens(t, "summarize.default", 4321))
+	if err := h.Chat([]string{"--role", "summarize.default", "--prompt", "hi"}); err != nil {
+		t.Fatalf("Chat: %v", err)
+	}
+	if seen.NumPredict == nil || *seen.NumPredict != 4321 {
+		t.Fatalf("num_predict = %v, want 4321", seen.NumPredict)
+	}
 }

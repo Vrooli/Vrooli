@@ -14,6 +14,7 @@ const FixturePolicyJSON = `{
       "description": "default chat",
       "preference": 10,
       "request_defaults": {"temperature": 0.7, "max_tokens": 1024},
+      "sampling_support": {"temperature": "honored"},
       "provenance": {"source_kind": "manual_policy", "confidence": "high", "source": "fixture", "observed_at": "2026-06-30", "sample_count": 0}
     },
     "image.generate.logo": {

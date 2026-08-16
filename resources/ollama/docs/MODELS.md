@@ -32,6 +32,35 @@ resource-ollama models inventory --json        # named sizes/digests + policy re
 - Use the Ollama API for ad-hoc local experimentation; anything a scenario
   depends on belongs in the policy.
 
+### Role-owned request levers
+
+Besides the model, a role may declare three request levers. All are optional and
+omission is a documented state, not an oversight.
+
+| Key | Effect when the caller sends nothing |
+|---|---|
+| `sampling_defaults` | clamped temperature/top_p/top_k written into runtime config |
+| `max_tokens` | becomes the request's `num_predict` |
+| `sampling_support` | declares how the role's models treat an explicit control |
+
+`--max-tokens` and `--temperature` override the role. `--temperature` uses `-1`
+as its "unset" sentinel because `0.0` is a legitimate, meaningful temperature,
+so "absent" cannot be encoded as a zero value.
+
+**Without a role `max_tokens`, a caller who sends nothing is uncapped**:
+`num_predict` is omitted from the request and generation is bounded only by the
+model's context window. That is a real state, not a bug — but a role that wants
+a ceiling has to say so. The resolved budget (flag, else role cap, else nothing)
+is what `validateContextWindow` reserves, so the guard refuses by name rather
+than letting the server slide its context window and truncate the prompt
+silently.
+
+`sampling_support` takes `honored`, `ignored`, `rejected`, or `unknown` per
+parameter; an absent key means `unknown`, which consumers treat as `ignored`.
+These are **declarations, never probes**: a provider that accepts a control and
+silently discards it is indistinguishable at the call site from one that honours
+it, so a successful call is not evidence of support.
+
 ## Model management
 
 ```bash

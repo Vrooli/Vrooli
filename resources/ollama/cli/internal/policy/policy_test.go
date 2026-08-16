@@ -233,3 +233,54 @@ func TestResolveRole_CarriesClampedSampling(t *testing.T) {
 		t.Fatalf("embedding.default should have no pinned sampling, got %+v", emb.Sampling)
 	}
 }
+
+func TestValidateRejectsUnknownSamplingSupport(t *testing.T) {
+	base := func() Policy {
+		return Policy{
+			SchemaVersion: "test",
+			Roles: map[string]Role{
+				"chat.default": {
+					Model:                "known:latest",
+					RequiredCapabilities: []string{"generate"},
+					Preference:           1,
+					Provenance:           testProvenance("manual_policy"),
+				},
+			},
+			Models:      map[string]Model{"known:latest": testModel()},
+			Constraints: Constraints{ProvenanceSourceKinds: []string{"manual_policy", "static_estimate"}, ModalityVocabulary: []string{"text"}},
+			Provenance:  map[string]Provenance{"policy": testProvenance("manual_policy")},
+		}
+	}
+
+	badState := base()
+	role := badState.Roles["chat.default"]
+	role.SamplingSupport = map[string]SamplingSupportState{"temperature": "probably"}
+	badState.Roles["chat.default"] = role
+	if err := badState.Validate(); err == nil || !strings.Contains(err.Error(), `is not an allowed support state`) {
+		t.Fatalf("expected support-state rejection, got %v", err)
+	}
+
+	// A typo'd key must fail load rather than degrade silently to "undeclared",
+	// which would be a wrong declaration wearing a valid-looking policy.
+	badKey := base()
+	role = badKey.Roles["chat.default"]
+	role.SamplingSupport = map[string]SamplingSupportState{"temperatue": SamplingHonored}
+	badKey.Roles["chat.default"] = role
+	if err := badKey.Validate(); err == nil || !strings.Contains(err.Error(), `is not a known sampling parameter`) {
+		t.Fatalf("expected unknown-parameter rejection, got %v", err)
+	}
+
+	// A cap below 1 is not a cap.
+	badCap := base()
+	role = badCap.Roles["chat.default"]
+	role.MaxTokens = iptr(0)
+	badCap.Roles["chat.default"] = role
+	if err := badCap.Validate(); err == nil || !strings.Contains(err.Error(), "max_tokens 0 must be >= 1") {
+		t.Fatalf("expected max_tokens rejection, got %v", err)
+	}
+
+	// An undeclared role reports unknown, never an error.
+	if got := base().Roles["chat.default"].SupportFor("temperature"); got != SamplingUnknown {
+		t.Fatalf("undeclared support = %q, want %q", got, SamplingUnknown)
+	}
+}
