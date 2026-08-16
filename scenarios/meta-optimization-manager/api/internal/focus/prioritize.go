@@ -2,6 +2,7 @@ package focus
 
 import (
 	"fmt"
+	"math"
 	"strings"
 
 	"github.com/vrooli/api-core/spacedoc"
@@ -22,6 +23,17 @@ import (
 // priority = impact × importance. The weights are coefficients, not truth; they
 // rank, they do not score correctness.
 func scoreWithInsights(g Gap, insights map[string]ProviderInsight) (impact, importance, priority float64, rationale string) {
+	if g.CauseKey != "" {
+		count := g.AffectedCellCount
+		if count <= 0 {
+			count = len(g.AffectedCellIDs)
+		}
+		leverage := math.Min(1, float64(count)/32)
+		impact = 0.9 + 0.1*leverage
+		importance = 1.0
+		priority = impact + 0.2 + 0.2*leverage
+		return impact, importance, priority, fmt.Sprintf("shared cause=%s recovers %d cell(s); leverage=%.2f; rank=%.2f", g.CauseKey, count, leverage, priority)
+	}
 	impact = impactWeight(g.Status)
 	importance = importanceWeight(g)
 	operational, operationalReason := providerWeight(g, insights)

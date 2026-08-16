@@ -4,10 +4,12 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/registry"
+	"google.golang.org/protobuf/types/known/durationpb"
 
 	"search-hub/internal/registry"
 )
@@ -35,6 +37,11 @@ func validActive() *registryv1.ProviderDescriptor {
 			TitleField:  "name",
 			ScoreField:  "score",
 			ScoreScale:  registryv1.ScoreScale_SCORE_SCALE_COSINE_0_1,
+		},
+		StatusEndpoint: &registryv1.Endpoint{
+			Kind: &registryv1.Endpoint_HttpJson{HttpJson: &registryv1.HttpJsonEndpoint{
+				ScenarioId: "cli-health", Path: "/status",
+			}},
 		},
 	}
 }
@@ -73,6 +80,7 @@ func TestNormalizeDefaults(t *testing.T) {
 	require.Equal(t, registryv1.ProviderState_PROVIDER_STATE_ACTIVE, d.State)
 	require.Equal(t, registryv1.Scope_SCOPE_PROJECT, d.Scope)
 	require.Equal(t, registryv1.Lifecycle_LIFECYCLE_PRODUCTION, d.Lifecycle)
+	require.Equal(t, registry.DefaultFreshnessBudget, d.GetFreshnessBudget().AsDuration())
 	require.Equal(t, "cli-health.commands", d.ProviderId, "identity fields trimmed")
 }
 
@@ -129,6 +137,26 @@ func TestValidateActiveFailures(t *testing.T) {
 			require.Equal(t, tc.wantField, invalid.Field)
 		})
 	}
+}
+
+func TestValidateRejectsNegativeFreshnessBudget(t *testing.T) {
+	d := validActive()
+	d.FreshnessBudget = durationpb.New(-time.Hour)
+	registry.Normalize(d)
+	err := registry.Validate(d)
+	var invalid registry.ErrInvalidDescriptor
+	require.ErrorAs(t, err, &invalid)
+	require.Equal(t, "freshness_budget", invalid.Field)
+}
+
+func TestValidateProductionRegistrationRequiresStatusEndpoint(t *testing.T) {
+	d := validActive()
+	d.StatusEndpoint = nil
+	registry.Normalize(d)
+	err := registry.ValidateProductionRegistration(d)
+	var invalid registry.ErrInvalidDescriptor
+	require.ErrorAs(t, err, &invalid)
+	require.Equal(t, "status_endpoint", invalid.Field)
 }
 
 func TestValidateCapabilityGap(t *testing.T) {

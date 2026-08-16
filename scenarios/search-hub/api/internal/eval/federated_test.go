@@ -20,6 +20,15 @@ import (
 type fakeFederatedQuery struct {
 	responses map[string]*routingv1.QueryResponse
 	errors    map[string]error
+	snapshot  *evalv1.ConfigSnapshot
+}
+
+type fakeRoutability struct {
+	status *routingv1.StatusResponse
+}
+
+func (f fakeRoutability) Status(context.Context) (*routingv1.StatusResponse, error) {
+	return f.status, nil
 }
 
 func (f fakeFederatedQuery) Query(_ context.Context, req *routingv1.QueryRequest) (*routingv1.QueryResponse, error) {
@@ -27,6 +36,10 @@ func (f fakeFederatedQuery) Query(_ context.Context, req *routingv1.QueryRequest
 		return nil, err
 	}
 	return f.responses[req.GetQuery()], nil
+}
+
+func (f fakeFederatedQuery) Snapshot(context.Context) *evalv1.ConfigSnapshot {
+	return f.snapshot
 }
 
 func federatedHit(provider, id string, score float64) *routingv1.SearchHit {
@@ -49,6 +62,7 @@ func TestFederatedRunnerLabelsRoutingRankMarginAndDegradation(t *testing.T) {
 			"misrouted": {CorporaSearched: []string{"sibling"}, Ranked: []*routingv1.SearchHit{federatedHit("sibling", "wanted", 0.9)}},
 			"sibling":   {CorporaSearched: []string{"sibling"}, Ranked: []*routingv1.SearchHit{federatedHit("sibling", "answer", 0.9)}},
 			"thin":      {CorporaSearched: []string{"owner.leaf"}, Ranked: []*routingv1.SearchHit{federatedHit("owner.leaf", "wanted", 0.8), federatedHit("owner.leaf", "other", 0.795)}},
+			"empty":     {CorporaSearched: []string{"owner.leaf"}},
 		},
 		errors: map[string]error{"degraded": errors.New("routing timeout")},
 	}).Run(context.Background(), federatedSuite(
@@ -56,6 +70,7 @@ func TestFederatedRunnerLabelsRoutingRankMarginAndDegradation(t *testing.T) {
 		&evalv1.EvalCase{CaseId: "misrouted", Query: "misrouted", ExpectIds: []string{"wanted"}},
 		&evalv1.EvalCase{CaseId: "sibling", Query: "sibling", ExpectIds: []string{"wanted"}},
 		&evalv1.EvalCase{CaseId: "thin", Query: "thin", ExpectIds: []string{"wanted"}, ExpectMinMargin: 0.02},
+		&evalv1.EvalCase{CaseId: "empty", Query: "empty", ExpectIds: []string{"wanted"}},
 		&evalv1.EvalCase{CaseId: "degraded", Query: "degraded", ExpectIds: []string{"wanted"}},
 	), "baseline", 10)
 	require.NoError(t, err)
@@ -67,14 +82,103 @@ func TestFederatedRunnerLabelsRoutingRankMarginAndDegradation(t *testing.T) {
 	require.Equal(t, "met", got["met"].GetOutcome())
 	require.True(t, got["met"].GetProviderRouted())
 	require.InDelta(t, 0.5, got["met"].GetMargin(), 1e-9)
-	require.Equal(t, "misrouted", got["misrouted"].GetOutcome())
-	require.Contains(t, got["misrouted"].GetOutcomeReason(), `expected provider "owner.leaf" absent from corpora_searched`)
-	require.Equal(t, "answered_by_sibling", got["sibling"].GetOutcome())
-	require.Contains(t, got["sibling"].GetOutcomeReason(), `expected provider "owner.leaf" absent from corpora_searched`)
+	require.Equal(t, "answered_by_sibling", got["misrouted"].GetOutcome())
+	require.False(t, got["misrouted"].GetProviderRouted())
+	require.Equal(t, "misrouted", got["sibling"].GetOutcome())
+	require.False(t, got["sibling"].GetProviderRouted())
+	require.Equal(t, "no_result", got["empty"].GetOutcome())
 	require.Equal(t, "thin_margin", got["thin"].GetOutcome())
 	require.Equal(t, "error", got["degraded"].GetOutcome())
 	require.Equal(t, "routing timeout", got["degraded"].GetOutcomeReason())
 	require.True(t, run.GetDegraded())
+}
+
+func TestFederatedRunnerGradesNegativesAndCapturesConfig(t *testing.T) {
+	query := fakeFederatedQuery{
+		responses: map[string]*routingv1.QueryResponse{
+			"negative": {
+				CorporaSearched: []string{"owner.leaf"},
+				Ranked:          []*routingv1.SearchHit{federatedHit("owner.leaf", "irrelevant", 0.2)},
+				SelectorLeg:     "llm",
+				RerankerLeg:     "cross-encoder:bge",
+			},
+			"positive": {
+				CorporaSearched: []string{"owner.leaf"},
+				Ranked:          []*routingv1.SearchHit{federatedHit("owner.leaf", "wanted", 0.9)},
+				SelectorLeg:     "llm",
+				RerankerLeg:     "cross-encoder:bge",
+			},
+		},
+		snapshot: &evalv1.ConfigSnapshot{RerankerLeg: "cross-encoder:bge", EmbedModel: "nomic-embed-text", IndexedCount: 42},
+	}
+	run, err := newFederatedRunner(query).Run(context.Background(), federatedSuite(
+		&evalv1.EvalCase{CaseId: "negative", Query: "negative", ExpectNoStrongHit: true, ExpectMaxScore: 0.3},
+		&evalv1.EvalCase{CaseId: "positive", Query: "positive", ExpectIds: []string{"wanted"}, ExpectWithinTopK: 1},
+	), "phase-3", 10)
+	require.NoError(t, err)
+	require.Equal(t, "met", run.GetResults()[0].GetOutcome())
+	require.Equal(t, "llm", run.GetConfig().GetSelectorLeg())
+	require.Equal(t, "cross-encoder:bge", run.GetConfig().GetRerankerLeg())
+	require.Equal(t, "nomic-embed-text", run.GetConfig().GetEmbedModel())
+	require.Equal(t, int32(42), run.GetConfig().GetIndexedCount())
+	require.Equal(t, int32(2), run.GetAggregate().GetGradedCases())
+}
+
+func TestFederatedRunnerDoesNotDiscardGradeableDegradedResponses(t *testing.T) {
+	run, err := newFederatedRunner(fakeFederatedQuery{responses: map[string]*routingv1.QueryResponse{
+		"degraded-hit": {
+			CorporaSearched: []string{"owner.leaf"},
+			Ranked:          []*routingv1.SearchHit{federatedHit("owner.leaf", "wanted", 0.9), federatedHit("owner.leaf", "other", 0.1)},
+			Degraded:        true,
+			RoutingExplanation: []string{
+				"reranker down; lexical leg served the response",
+			},
+		},
+	}}).Run(context.Background(), federatedSuite(&evalv1.EvalCase{
+		CaseId: "degraded-hit", Query: "degraded-hit", ExpectIds: []string{"wanted"}, ExpectWithinTopK: 1,
+	}), "phase-3", 10)
+	require.NoError(t, err)
+	require.True(t, run.GetDegraded())
+	require.Equal(t, "met", run.GetResults()[0].GetOutcome())
+	require.Equal(t, int32(1), run.GetAggregate().GetGradedCases())
+	require.Equal(t, float64(1), run.GetAggregate().GetPassRate())
+}
+
+func TestFederatedRunnerExcludesPolicyWithheldOwnersFromRoutingQuality(t *testing.T) {
+	query := fakeFederatedQuery{responses: map[string]*routingv1.QueryResponse{
+		"eligible": {
+			CorporaSearched: []string{"eligible.leaf"},
+			Ranked:          []*routingv1.SearchHit{federatedHit("eligible.leaf", "wanted", 0.9), federatedHit("eligible.leaf", "other", 0.1)},
+		},
+	}}
+	runner := eval.NewFederatedRunnerWithRoutability(
+		fakeResolver{},
+		query,
+		scheduletest.New(time.Date(2026, 6, 4, 12, 0, 0, 0, time.UTC)),
+		func() string { return "policy-aware-federated-fixed" },
+		fakeRoutability{status: &routingv1.StatusResponse{Providers: []*routingv1.ProviderHealth{
+			{ProviderId: "eligible.leaf", AutomaticEligible: true},
+			{ProviderId: "withheld.leaf", AutomaticExclusionReason: "stale index: age=48h exceeds freshness budget=24h"},
+		}}},
+	)
+	run, err := runner.Run(context.Background(), &evalv1.EvalSuite{
+		SuiteId: eval.RouterSuiteID,
+		Cases: []*evalv1.EvalCase{
+			{CaseId: "eligible", Query: "eligible", ExpectedProviderId: "eligible.leaf", ExpectIds: []string{"wanted"}, ExpectWithinTopK: 1},
+			{CaseId: "withheld", Query: "withheld", ExpectedProviderId: "withheld.leaf", ExpectIds: []string{"unavailable"}, ExpectWithinTopK: 1},
+		},
+	}, "policy-aware", 10)
+	require.NoError(t, err)
+	results := map[string]*evalv1.CaseResult{}
+	for _, result := range run.GetResults() {
+		results[result.GetCaseId()] = result
+	}
+	require.Equal(t, "met", results["eligible"].GetOutcome())
+	require.Equal(t, "unavailable", results["withheld"].GetOutcome())
+	require.Contains(t, results["withheld"].GetOutcomeReason(), "stale index")
+	require.EqualValues(t, 1, run.GetAggregate().GetGradedCases())
+	require.EqualValues(t, 1, run.GetAggregate().GetUnavailableCases())
+	require.Equal(t, 1.0, run.GetAggregate().GetRoutingPrecision())
 }
 
 func TestFederatedRunnerUsesDefaultMarginAndRejectsUnknownProvider(t *testing.T) {

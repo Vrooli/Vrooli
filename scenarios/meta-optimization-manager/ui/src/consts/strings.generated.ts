@@ -14,12 +14,11 @@
 export const strings = {
   app: {
     title: "app.title",
-    eyebrow: "app.eyebrow",
-    description: "app.description",
   },
   layout: {
     sidebarLabel: "layout.sidebarLabel",
     bottomNavLabel: "layout.bottomNavLabel",
+    mainContentLabel: "layout.mainContentLabel",
     nav: {
       dashboard: "layout.nav.dashboard",
       focus: "layout.nav.focus",

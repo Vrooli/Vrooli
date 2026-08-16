@@ -52,6 +52,9 @@ var _ = func() any {
 
 func (h *connectHandler) RegisterProvider(ctx context.Context, req *connect.Request[registryv1.RegisterProviderRequest]) (*connect.Response[registryv1.RegisterProviderResponse], error) {
 	desc := req.Msg.GetDescriptor_()
+	if err := internalregistry.ValidateProductionRegistration(desc); err != nil {
+		return nil, toConnectError(err)
+	}
 	var prior []*registryv1.ProviderDescriptor
 	if existing, listErr := h.deps.Store.List(ctx, internalregistry.ListFilter{State: int32(registryv1.ProviderState_PROVIDER_STATE_ACTIVE)}); listErr == nil {
 		prior = existing

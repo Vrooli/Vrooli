@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "OT-P1-001 — empirical local-model readiness trials.",
-    "last_validated_at": "2026-07-10T10:50:06-04:00",
+    "last_validated_at": "2026-08-16T01:05:30-04:00",
     "module": "trials",
     "prd_ref": "PRD.md",
     "priority": "P1",
@@ -26,7 +26,7 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "API: Runner seam-tested with a faked agent-manager CommandRunner (sequence + metric parse + step-error → VerdictError); Evaluator tested (oracle pass/fail, negative abstention, agent-judge fallback); Service idempotency + orchestration; target api/internal/trials."
         },
         {
@@ -46,7 +46,7 @@
     {
       "id": "MOM-TRIALS-002",
       "title": "tracks % of Guide tasks with a live empirical gate",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P1-001",
       "category": "trials",
       "description": "Each Guide-space task category maps to zero or more empirical gates; the trials domain computes and reports gate coverage over the Guide space as a recursive readiness metric.",
@@ -59,13 +59,13 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "API: gate-coverage computation over the Guide space; target api/internal/trials."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "CLI: trials coverage output; target cli/domains/trials."
         }
       ]
@@ -73,7 +73,7 @@
     {
       "id": "MOM-TRIALS-003",
       "title": "list the task suite and inspect a run with its sandbox diff",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P1-001",
       "category": "trials",
       "description": "`trials list` enumerates the task suite generated from the Guide space, and `trials show \u003crun-id\u003e` returns one run with its verdict, tokens, wall-time, and the agent-manager sandbox diff reference that attributes changed files to that run.",
@@ -87,13 +87,13 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "API: ListTrialTasks from the Guide space + GetTrialRun with sandbox diff ref; target api/internal/trials."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "CLI: trials list/show; target cli/domains/trials."
         }
       ]

@@ -51,7 +51,8 @@ export function configureTestProviders(provider: TestProvider | undefined): void
   configuredProviders = provider;
 }
 
-const defaultI18n = createInstance({
+const defaultI18n = createInstance();
+void defaultI18n.init({
   initImmediate: false,
   lng: "cimode",
   fallbackLng: false,

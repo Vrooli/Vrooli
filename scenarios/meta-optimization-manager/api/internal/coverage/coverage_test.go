@@ -179,10 +179,11 @@ func TestListCellsFilters(t *testing.T) {
 }
 
 func TestExplainCell(t *testing.T) {
-	join := JoinResult{Available: true, Evidence: map[string][]SignalEvidence{
+	join := JoinResult{Available: true, Statuses: map[string]spacedoc.CellStatus{"1": spacedoc.StatusInReach}, OwnerResolved: map[string]bool{"1": true, "2": true}, Evidence: map[string][]SignalEvidence{
 		"1": {
 			{Signal: "active", Verdict: "held", Evidence: "ui-health.surfaces is ACTIVE"},
 			{Signal: "reachable", Verdict: "held", Evidence: "reachable"},
+			{Signal: "corpus_eval_fresh", Verdict: "held", Evidence: "fresh provider_direct eval run run-1"},
 			{Signal: "eval_fresh", Verdict: "held", Evidence: "fresh non-degraded eval run run-1"},
 		},
 	}}
@@ -198,10 +199,10 @@ func TestExplainCell(t *testing.T) {
 	if cell.Question != "Surfaces" || len(cell.Citations) == 0 {
 		t.Errorf("cell = %+v", cell)
 	}
-	if len(cell.SignalEvidence) != 3 {
+	if len(cell.SignalEvidence) != 4 {
 		t.Fatalf("signal evidence = %+v", cell.SignalEvidence)
 	}
-	for _, signal := range []string{"active", "reachable", "eval_fresh"} {
+	for _, signal := range []string{"active", "reachable", "corpus_eval_fresh", "eval_fresh"} {
 		found := false
 		for _, note := range cell.Notes {
 			if strings.Contains(note, "answer signal "+signal) {
@@ -266,6 +267,71 @@ func TestValidateBaseDocsCleanGuide(t *testing.T) {
 	}
 	if !rep.OK {
 		t.Errorf("expected ok=true, issues=%+v", rep.Issues)
+	}
+}
+
+func TestValidateBaseDocsAnswerChargesOnlyCorpusGate(t *testing.T) {
+	join := JoinResult{Available: true, Statuses: map[string]spacedoc.CellStatus{"1": spacedoc.StatusInReach}, OwnerResolved: map[string]bool{"1": true, "2": true}, Evidence: map[string][]SignalEvidence{
+		"1": {
+			{Signal: "active", Verdict: "held", Evidence: "provider active"},
+			{Signal: "reachable", Verdict: "held", Evidence: "provider reachable"},
+			{Signal: "corpus_eval_fresh", Verdict: "held", Evidence: "direct pass"},
+			{Signal: "eval_fresh", Verdict: "did_not_hold", Evidence: "federated routing recall below threshold"},
+		},
+	}}
+	svc := NewService(Deps{
+		Reader: fakeReader{defs: map[Projection]*spacedoc.SpaceDefinition{ProjectionAnswer: answerDef()}},
+		Joiner: staticJoiner{join},
+		Clock:  fixedClock{},
+	})
+	report, err := svc.ValidateBaseDocs(context.Background(), ProjectionAnswer)
+	if err != nil {
+		t.Fatal(err)
+	}
+	foundRouterDebt := false
+	for _, issue := range report.Issues {
+		if issue.Code == "eval_gate_unmet" || issue.Code == "corpus_quality_debt" {
+			t.Fatalf("federated quality debt must not charge the provider corpus gate: %+v", issue)
+		}
+		if issue.Code != "router_quality_debt" {
+			continue
+		}
+		foundRouterDebt = true
+	}
+	if !foundRouterDebt {
+		t.Fatal("expected federated quality debt warning")
+	}
+}
+
+func TestValidateBaseDocsAnswerReportsCorpusGate(t *testing.T) {
+	join := JoinResult{Available: true, Statuses: map[string]spacedoc.CellStatus{"1": spacedoc.StatusInReach}, OwnerResolved: map[string]bool{"1": true, "2": true}, Evidence: map[string][]SignalEvidence{
+		"1": {
+			{Signal: "active", Verdict: "held", Evidence: "provider active"},
+			{Signal: "reachable", Verdict: "held", Evidence: "provider reachable"},
+			{Signal: "corpus_eval_fresh", Verdict: "did_not_hold", Evidence: "direct pass rate below threshold"},
+			{Signal: "eval_fresh", Verdict: "held", Evidence: "federated pass"},
+		},
+	}}
+	svc := NewService(Deps{
+		Reader: fakeReader{defs: map[Projection]*spacedoc.SpaceDefinition{ProjectionAnswer: answerDef()}},
+		Joiner: staticJoiner{join},
+		Clock:  fixedClock{},
+	})
+	report, err := svc.ValidateBaseDocs(context.Background(), ProjectionAnswer)
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, issue := range report.Issues {
+		if issue.Code == "eval_gate_unmet" {
+			t.Fatalf("direct corpus debt must use the explicit quality-debt code: %+v", issue)
+		}
+		if issue.Code == "corpus_quality_debt" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("expected direct corpus failure to remain visible as quality debt: %+v", report.Issues)
 	}
 }
 

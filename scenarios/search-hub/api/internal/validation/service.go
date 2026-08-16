@@ -1270,7 +1270,7 @@ func degradedRate(suite *evalv1.EvalSuite, run *evalv1.EvalRun) (float64, bool) 
 
 func isGradedOutcome(outcome string) bool {
 	switch outcome {
-	case "met", "below_expectation", "above_expectation", "unexpected_hit", "answered_by_sibling", "misrouted", "thin_margin":
+	case "met", "below_expectation", "above_expectation", "unexpected_hit", "answered_by_sibling", "misrouted", "no_result", "thin_margin":
 		return true
 	default:
 		return false

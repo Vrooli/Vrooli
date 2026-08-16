@@ -385,8 +385,12 @@ func runGenerate(app *cliapp.ResourceApp, args []string, stdout io.Writer, stdin
 	fs.StringVar(&promptFlag, "prompt", "", "Prompt text to send")
 	fs.StringVar(&promptFile, "prompt-file", "", "Read prompt text from a file")
 	fs.BoolVar(&jsonOutput, "json", false, "Print raw OpenRouter response JSON")
-	fs.Float64Var(&temperature, "temperature", 0.7, "Sampling temperature")
-	fs.IntVar(&maxTokens, "max-tokens", 0, "Maximum completion tokens")
+	// -1 is the "unset" sentinel, mirroring resource-ollama's gateway flags. An
+	// absent flag falls through to the resolved role's request_defaults, and an
+	// absent default omits the parameter from the request entirely rather than
+	// pinning a resource-invented value the role never asked for.
+	fs.Float64Var(&temperature, "temperature", -1, "Sampling temperature; omitted when < 0 and the role declares no default")
+	fs.IntVar(&maxTokens, "max-tokens", 0, "Maximum completion tokens; omitted when <= 0 and the role declares no default")
 	fs.StringVar(&responseFormat, "response-format", "", "OpenAI-compatible response_format JSON object")
 	fs.BoolVar(&inputJSONStdin, "input-json-stdin", false, "Read {prompt,images:[{media_type,data_b64}]} from stdin")
 	if err := fs.Parse(args); err != nil {
@@ -443,7 +447,11 @@ func runGenerate(app *cliapp.ResourceApp, args []string, stdout io.Writer, stdin
 		}
 		responseFormatJSON = json.RawMessage(responseFormat)
 	}
-	body, err := health.Generate(context.Background(), http.DefaultClient, runtime, creds, model, prompt, temperature, maxTokens, responseFormatJSON, images)
+	// The role's request_defaults are the policy authority for sampling and the
+	// output cap. Applying them here — not only in validation — is what makes a
+	// declared per-role temperature real on the generate path.
+	effectiveTemperature, effectiveMaxTokens := resolvedPolicy.RequestDefaults.ResolveGenerate(temperature, maxTokens)
+	body, err := health.Generate(context.Background(), http.DefaultClient, runtime, creds, model, prompt, effectiveTemperature, effectiveMaxTokens, responseFormatJSON, images)
 	if err != nil {
 		return err
 	}
@@ -660,6 +668,11 @@ func printGenerateUsage(stdout io.Writer) {
 	fmt.Fprintln(stdout, "Model selection: --role is resolved through `resource-openrouter policy`; absent both --role and")
 	fmt.Fprintln(stdout, "--model the resource default role is used. Prompt input can come from --prompt, --prompt-file,")
 	fmt.Fprintln(stdout, "trailing args, or stdin.")
+	fmt.Fprintln(stdout)
+	fmt.Fprintln(stdout, "Sampling: --temperature defaults to the -1 \"unset\" sentinel. Absent the flag the resolved role's")
+	fmt.Fprintln(stdout, "request_defaults.temperature applies; absent that too, the parameter is omitted from the request so")
+	fmt.Fprintln(stdout, "the upstream provider's own default applies. --max-tokens follows the same precedence with 0 as its")
+	fmt.Fprintln(stdout, "sentinel. This resource never invents a sampling value the role did not declare.")
 }
 
 func firstNonEmpty(values ...string) string {

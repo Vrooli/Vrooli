@@ -79,6 +79,9 @@ type Gap struct {
 	Recurrence         int
 	AvailabilityReason string
 	ConditionStatus    string
+	CauseKey           string
+	AffectedCellIDs    []string
+	AffectedCellCount  int
 	MaturityFindings   []MaturityFinding
 	Notes              []string
 	Approaches         []string
@@ -111,6 +114,27 @@ type ConditionInstrumentation struct {
 type ConditionReport struct {
 	Gaps            []Gap
 	Instrumentation ConditionInstrumentation
+}
+
+// RouterQualityFinding is the small cross-domain read model for the coverage
+// self-honesty signal. Coverage owns validation; focus only groups its
+// router-quality findings into an actionable shared cause.
+type RouterQualityFinding struct {
+	Projection Projection
+	CellID     string
+	Owner      string
+	Message    string
+	Locator    string
+}
+
+// SubstrateObservation is an operator-facing health fact for a shared search
+// dependency. Focus reports unhealthy observations; it does not remediate
+// resources or own their lifecycle.
+type SubstrateObservation struct {
+	Name    string
+	Healthy bool
+	Reason  string
+	Locator string
 }
 
 // FocusItem is a ranked next-best gap: the gap plus its impact × importance

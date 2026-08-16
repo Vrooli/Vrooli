@@ -7,6 +7,7 @@ import (
 	internalcoverage "meta-optimization-manager/internal/coverage"
 
 	"connectrpc.com/connect"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	coveragev1 "github.com/vrooli/vrooli/packages/proto/gen/go/meta-optimization-manager/v1/coverage"
@@ -45,20 +46,32 @@ func (h *connectHandler) GetStatus(ctx context.Context, req *connect.Request[cov
 	}
 	for _, pc := range status.Projections {
 		resp.Projections = append(resp.Projections, &coveragev1.ProjectionCoverage{
-			Projection:            projToProto(pc.Projection),
-			NowCount:              int32(pc.NowCount),
-			InReachCount:          int32(pc.InReachCount),
-			MissingCount:          int32(pc.MissingCount),
-			TotalCells:            int32(pc.TotalCells),
-			CoverageRatio:         pc.CoverageRatio,
-			DenominatorConfidence: confToProto(pc.DenominatorConfidence),
-			ConfidenceRationale:   pc.ConfidenceRationale,
-			Available:             pc.Available,
-			UnavailableReason:     pc.UnavailableReason,
+			Projection:                   projToProto(pc.Projection),
+			NowCount:                     int32(pc.NowCount),
+			InReachCount:                 int32(pc.InReachCount),
+			MissingCount:                 int32(pc.MissingCount),
+			TotalCells:                   int32(pc.TotalCells),
+			CoverageRatio:                proto.Float64(pc.CoverageRatio),
+			DenominatorConfidence:        confToProto(pc.DenominatorConfidence),
+			ConfidenceRationale:          pc.ConfidenceRationale,
+			Available:                    pc.Available,
+			UnavailableReason:            pc.UnavailableReason,
+			CorpusCapableNowCount:        int32(pc.CorpusCapableNowCount),
+			CorpusCapableTotalCells:      int32(pc.CorpusCapableTotalCells),
+			CorpusCapableRatio:           proto.Float64(pc.CorpusCapableRatio),
+			EndToEndAnswerableNowCount:   int32(pc.EndToEndAnswerableNowCount),
+			EndToEndAnswerableTotalCells: int32(pc.EndToEndAnswerableTotalCells),
+			EndToEndAnswerableRatio:      proto.Float64(pc.EndToEndAnswerableRatio),
 		})
 		for _, condition := range pc.ConditionCounts {
 			resp.Projections[len(resp.Projections)-1].ConditionCounts = append(resp.Projections[len(resp.Projections)-1].ConditionCounts, &coveragev1.ConditionCount{Condition: string(condition.Condition), Count: int32(condition.Count)})
 		}
+	}
+	for _, delta := range status.Deltas {
+		resp.Deltas = append(resp.Deltas, &coveragev1.ProjectionDelta{
+			Projection: projToProto(delta.Projection), PreviousRatio: delta.PreviousRatio,
+			CurrentRatio: delta.CurrentRatio, Delta: delta.Delta,
+		})
 	}
 	if t := status.LatestTrialTrend; t != nil {
 		resp.LatestTrialTrend = &coveragev1.EmpiricalTrendPoint{

@@ -1,13 +1,12 @@
 {
   "_comment": "このファイルには2種類の補間があります。(1) 生成時: Meta-Optimization Manager のような大文字スネークケースのプレースホルダーは、`vrooli scenario generate` がシナリオビルド前に置換します。実行時にはリテラル表示値として扱われます。(2) 実行時: {{count}} のようなトークンは i18next の補間で、`t(key, { count })` によりレンダー時に置換されます。アンダースコアで始まるキー（このキーのような）はセンチネルで、コード生成・パリティテスト・未使用キー監査からスキップされます。",
   "app": {
-    "title": "Meta-Optimization Manager",
-    "eyebrow": "シナリオテンプレート",
-    "description": "このスターター UI は意図的に最小限です。Tailwind + shadcn のスタイル規約と API 接続を維持しながら、シナリオ固有の体験に置き換えてください。"
+    "title": "Meta-Optimization Manager"
   },
   "layout": {
     "sidebarLabel": "メインナビゲーション",
     "bottomNavLabel": "メインナビゲーション",
+    "mainContentLabel": "メインコンテンツ",
     "nav": {
       "dashboard": "ダッシュボード",
       "focus": "Focus",

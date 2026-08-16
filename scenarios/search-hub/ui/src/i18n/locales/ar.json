@@ -102,8 +102,6 @@
     "grouped": "حسب المزوّد",
     "degraded": "متدهور",
     "groupEmpty": "لا تطابق",
-    "score": "النتيجة {{value}}",
-    "rerank": "إعادة الترتيب {{value}}",
     "weak": "ضعيف",
     "confidenceStrong": "قوي{{regime}}",
     "confidenceWeak": "ضعيف{{regime}}",

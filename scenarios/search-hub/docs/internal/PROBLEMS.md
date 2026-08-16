@@ -666,6 +666,31 @@ substrate itself (storage-steer §6) for when a scenario crosses to real users.
 knowledge-observatory}/docs/`; bug `knw-1780935292042898963`; plan §7 Phase 8 +
 §13 DoD.
 
+## Federated evaluation vocabulary boundary
+
+### 2026-08-15 — Phase-3 outcome vocabulary is intentionally not backfilled
+
+Federated runs created before the retrieval-correctness stabilization may contain
+the older labels `answered_by_sibling` for any non-owner response and `misrouted`
+for an empty result. Those immutable rows remain historical evidence and are not
+rewritten. Runs created after the phase-3 grader repair use the explicit boundary:
+
+- `answered_by_sibling` means the expected result was returned by a sibling and
+  `provider_routed=false`.
+- `misrouted` means a non-owner provider returned a result without the expected
+  result.
+- `no_result` means the query produced no hits, regardless of why the route was
+  incomplete.
+- negative cases with `expect_no_strong_hit` are graded against their declared
+  score ceiling in the provider-direct tier; federated grading treats them as
+  no-target safety cases and excludes them from retrieval-recall's positive-case
+  denominator.
+
+The stored run config now also captures the selector leg, active reranker leg,
+embedding model (or an explicit `mixed:`/`unknown` value), and aggregate indexed
+count. This makes a later score change attributable without pretending that old
+rows carried substrate evidence they did not record.
+
 ## Architecture Drift
 
 ### 2026-08-13 — Code Facts natural-language retrieval remains unavailable
@@ -704,6 +729,63 @@ a migration handoff with a planned retirement path back into
 | Area | Drift | Maturity Impact | Real Fix |
 |---|---|---|---|
 | _None yet._ |  |  |  |
+
+### 2026-08-16 — Router precision is policy-aware; no candidate promotion
+
+**Outcome:** The guarded `router.routing` comparison now grades only cases whose
+owners were eligible for automatic routing at the comparison snapshot. Cases
+with stale indexes, non-production lifecycle, or insufficient evaluation
+evidence remain in the immutable run as `unavailable` rather than being
+counted as selector misses.
+
+**Evidence:** With `lexical-cross-encoder` restored as the incumbent, the
+policy-aware comparison measured `159/177 = 0.8983` routing precision and
+`0.2373` pass rate for the incumbent. The semantic candidate also measured
+`159/177 = 0.8983` routing precision but only `0.0565` pass rate and `0.0629`
+retrieval recall; its paired confidence interval lower bound was `0.0000`, so
+it did not clear significance. Lexical fallback likewise did not clear the
+guard. The comparison reuses one eligibility snapshot across arms, and all 36
+policy-withheld cases remain visible as unavailable.
+
+**Decision:** Keep the measured lexical-cross-encoder incumbent active, retain
+the semantic candidate and lexical fallback as explicit named arms, and preserve
+the generic bounded lexical-evidence fusion that repairs concrete
+declaration/code queries. Use persisted eval evidence and provider-owner
+remediation to expand the eligible denominator over time; do not silently count
+withheld providers as routing failures or promote a candidate without
+significance.
+
+**Owner:** Search Hub plus provider owners.
+
+**Refs:** `search-hub://eval-run/1a2f2c73-8c0b-4bcd-9081-70378f7dee37`,
+`search-hub://eval-run/bda4979c-84e1-4fbb-a594-e9ff7c731f78`,
+`search-hub://eval-run/2438517f-8f61-4036-93fc-a8059936f8eb`, plan Phase 6.
+
+**Follow-up:** A generic top-three dense/lexical evidence union improved the
+semantic arm's retrieval signal in a second comparison, but it still failed
+the held-out routing-precision guard (`0.8580`, paired delta mean `-0.0511`,
+95% CI lower `-0.0966`). The lexical-cross-encoder remains active. The
+follow-up run IDs are `9ca1d3d7-e9e0-4972-8644-5affa74fc454`,
+`a87985bb-d2f7-4279-8597-62db2aaf3a56`, and
+`5ca31a63-9c00-45d4-899a-bdbca268f500`.
+
+### 2026-08-16 — Reranker metrics port collision resolved
+
+**Symptom:** The reranker could serve HTTP on 11453 but fail readiness when
+MinIO occupied TEI's default Prometheus port 9000.
+
+**Root cause:** The existing resource manifest did not declare TEI's auxiliary
+metrics listener, so the managed service inherited a host-port collision.
+
+**Workaround:** The reranker resource now declares metrics on 11454 and passes
+that allocated port to TEI; restart it through `vrooli resource start reranker`.
+
+**Real fix:** Retain the manifest-owned auxiliary port and include it in
+resource lifecycle validation on future host profiles.
+
+**Owner:** reranker resource.
+
+**Refs:** `resources/reranker/resource.json`, `vrooli resource validate reranker`.
 
 ## Cross-references
 

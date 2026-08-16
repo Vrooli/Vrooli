@@ -47,10 +47,29 @@ unavailable response restarts the decay window. `fixture` and `experimental`
 provider lifecycle values are explicit-only routing states.
 
 The latest fresh, non-degraded eval run is also a routing-quality gate. A
-provider is withheld from automatic routing when a case tagged `gibberish`
-scores at or above the run's strongest real-case score. This junk-leak verdict
+provider is withheld from automatic routing only when a case tagged `gibberish`
+exceeds the run's strongest real-case score by the configured margin. An exact
+tie or sub-margin difference is not sufficient evidence. This junk-leak verdict
 names the run as evidence; explicit provider selection remains available for
 repair and diagnosis.
+
+### Data-defined retrieval ladder
+
+Bare queries use the strategy named by `api/internal/routing/strategies.json`.
+The measured production incumbent is a deterministic lexical provider shortlist
+followed by cross-encoder provider selection and a bounded six-leaf fan-out.
+The semantic provider-description ladder ranks the full eligible leaf set and
+keeps a bounded dense/lexical evidence union as an explicit guarded candidate;
+lexical-only remains the zero-dependency fallback. Strategy arms are compared
+through `EvalService.CompareStrategies`; a held-out pass is necessary but not
+sufficient for promotion, which also requires a statistically significant
+paired improvement. Rejected experimental arms remain named and inspectable,
+but never silently become production behavior.
+
+The selector is provider-agnostic. It ranks descriptor data, filters lifecycle,
+freshness, evidence, quality, and demotion state, and preserves provenance in
+the response. Multi-owner answer cells are therefore served by generic bounded
+fan-out; they are not recognized through query-specific provider branches.
 
 Scenario address resolution is cached briefly by scenario and port key, with
 failure invalidation so a re-reported endpoint is reached promptly. Fan-out

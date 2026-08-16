@@ -84,7 +84,14 @@ func Probe(ctx context.Context, client HTTPClient, runtime resourceenv.Runtime, 
 }
 
 // Generate performs a direct OpenRouter chat completion request.
-func Generate(ctx context.Context, client HTTPClient, runtime resourceenv.Runtime, creds auth.Credentials, model, prompt string, temperature float64, maxTokens int, responseFormat json.RawMessage, images []ImageInput) ([]byte, error) {
+//
+// temperature is a pointer because "unset" is a real, load-bearing state:
+// OpenRouter omits an absent parameter rather than substituting a default, and
+// several upstream families reject the field outright. A nil temperature is
+// therefore omitted from the wire body entirely, letting the upstream provider
+// apply its own default; a non-nil pointer to 0 is an explicit deterministic
+// request and is serialised.
+func Generate(ctx context.Context, client HTTPClient, runtime resourceenv.Runtime, creds auth.Credentials, model, prompt string, temperature *float64, maxTokens int, responseFormat json.RawMessage, images []ImageInput) ([]byte, error) {
 	if client == nil {
 		client = http.DefaultClient
 	}
@@ -98,7 +105,7 @@ func Generate(ctx context.Context, client HTTPClient, runtime resourceenv.Runtim
 			Role    string `json:"role"`
 			Content any    `json:"content"`
 		} `json:"messages"`
-		Temperature    float64         `json:"temperature"`
+		Temperature    *float64        `json:"temperature,omitempty"`
 		MaxTokens      int             `json:"max_tokens,omitempty"`
 		ResponseFormat json.RawMessage `json:"response_format,omitempty"`
 	}{

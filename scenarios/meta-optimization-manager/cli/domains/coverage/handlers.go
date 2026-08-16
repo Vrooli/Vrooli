@@ -47,6 +47,9 @@ func (h *handlers) status(ctx cliapp.RunContext) error {
 	if t := resp.Msg.GetLatestTrialTrend(); t != nil {
 		summary = append(summary, fmt.Sprintf("Latest trial trend: success=%.0f%% tokens=%d.", t.GetSuccessRate()*100, t.GetMedianTokens()))
 	}
+	for _, delta := range resp.Msg.GetDeltas() {
+		summary = append(summary, fmt.Sprintf("Coverage delta %s: %+.1f points.", projectionLabel(delta.GetProjection()), delta.GetDelta()*100))
+	}
 	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
 		Summary:        summary,
 		ResultsHeading: "Projections",
@@ -185,6 +188,11 @@ func formatProjection(pc *coveragev1.ProjectionCoverage) string {
 		// denominator (authored cell count) is still real, so surface it.
 		return fmt.Sprintf("%s: — (denominator=%d, confidence=%s) [UNAVAILABLE: %s]",
 			label, pc.GetTotalCells(), confidenceLabel(pc.GetDenominatorConfidence()), pc.GetUnavailableReason())
+	}
+	if pc.GetProjection() == sharedv1.Projection_PROJECTION_ANSWER {
+		return fmt.Sprintf("answer: corpus-capable %.0f%% (%d/%d); end-to-end-answerable %.0f%% (%d/%d) — confidence=%s",
+			pc.GetCorpusCapableRatio()*100, pc.GetCorpusCapableNowCount(), pc.GetCorpusCapableTotalCells(),
+			pc.GetEndToEndAnswerableRatio()*100, pc.GetEndToEndAnswerableNowCount(), pc.GetEndToEndAnswerableTotalCells(), confidenceLabel(pc.GetDenominatorConfidence()))
 	}
 	return fmt.Sprintf("%s: %.0f%% NOW (%d/%d) — in_reach=%d missing=%d — confidence=%s",
 		label, pc.GetCoverageRatio()*100, pc.GetNowCount(), pc.GetTotalCells(),

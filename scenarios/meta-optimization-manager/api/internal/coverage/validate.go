@@ -238,6 +238,13 @@ func validateLiveDrift(ctx context.Context, s *service, p Projection, def *space
 			continue
 		}
 		if eff, ok := join.Statuses[c.ID]; ok && eff != spacedoc.StatusNow {
+			if p == ProjectionAnswer {
+				issue := answerDriftIssue(c, join.Evidence[c.ID])
+				if issue != nil {
+					report.add(*issue)
+					continue
+				}
+			}
 			report.add(BaseDocIssue{
 				Projection: p,
 				Code:       "missing_provider",
@@ -247,6 +254,31 @@ func validateLiveDrift(ctx context.Context, s *service, p Projection, def *space
 			})
 		}
 	}
+}
+
+func answerDriftIssue(c spacedoc.Cell, evidence []SignalEvidence) *BaseDocIssue {
+	for _, signal := range evidence {
+		if signal.Signal != "active" || signal.Verdict == "held" {
+			continue
+		}
+		return &BaseDocIssue{Projection: ProjectionAnswer, Code: "missing_provider", Message: fmt.Sprintf("cell %s owner %q is not an ACTIVE registered provider", c.ID, c.Owner), Location: c.ID, Severity: SeverityError}
+	}
+	for _, signal := range evidence {
+		if signal.Signal == "reachable" && signal.Verdict != "held" {
+			return &BaseDocIssue{Projection: ProjectionAnswer, Code: "provider_not_live", Message: fmt.Sprintf("cell %s owner %q is registered but not live: %s", c.ID, c.Owner, signal.Evidence), Location: c.ID, Severity: SeverityError}
+		}
+	}
+	for _, signal := range evidence {
+		if signal.Signal == "corpus_eval_fresh" && signal.Verdict != "held" {
+			return &BaseDocIssue{Projection: ProjectionAnswer, Code: "corpus_quality_debt", Message: fmt.Sprintf("cell %s owner %q has direct corpus quality debt: %s", c.ID, c.Owner, signal.Evidence), Location: c.ID, Severity: SeverityWarn}
+		}
+	}
+	for _, signal := range evidence {
+		if signal.Signal == "eval_fresh" && signal.Verdict != "held" {
+			return &BaseDocIssue{Projection: ProjectionAnswer, Code: "router_quality_debt", Message: fmt.Sprintf("cell %s owner %q has federated router quality debt: %s", c.ID, c.Owner, signal.Evidence), Location: c.ID, Severity: SeverityWarn}
+		}
+	}
+	return nil
 }
 
 // skillCount counts the guiding skills named in a Guide row's owner cell. Skills

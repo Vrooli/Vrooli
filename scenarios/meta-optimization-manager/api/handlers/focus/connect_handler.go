@@ -131,6 +131,9 @@ func gapToProto(g internalfocus.Gap) *focusv1.Gap {
 		ProviderIds:        g.ProviderIDs,
 		ConditionStatus:    g.ConditionStatus,
 		MaturityFindings:   maturityFindingsToProto(g.MaturityFindings),
+		CauseKey:           g.CauseKey,
+		AffectedCellIds:    g.AffectedCellIDs,
+		AffectedCellCount:  int32(g.AffectedCellCount),
 	}
 }
 

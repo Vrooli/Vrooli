@@ -20,7 +20,13 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-const statusProbeTimeout = 2 * time.Second
+const (
+	statusCacheTTL          = 5 * time.Second
+	statusProbeDefault      = 2 * time.Second
+	statusProbeFloor        = 250 * time.Millisecond
+	statusProbeCeiling      = 2 * time.Second
+	statusProbeLatencyScale = 2
+)
 
 // Status reports federation health (Phase 7): per-provider reachability plus
 // whether the classifier and reranker models are available. It lists the ACTIVE
@@ -33,6 +39,14 @@ const statusProbeTimeout = 2 * time.Second
 // error only on a registry read failure.
 func (r *Router) Status(ctx context.Context) (*routingv1.StatusResponse, error) {
 	r.providerBreakers.restore(ctx)
+	r.statusMu.Lock()
+	if r.statusCache != nil && time.Since(r.statusCacheAt) < statusCacheTTL {
+		cached := proto.Clone(r.statusCache).(*routingv1.StatusResponse)
+		r.statusMu.Unlock()
+		return cached, nil
+	}
+	r.statusMu.Unlock()
+
 	active, err := r.deps.Lister.List(ctx, internalregistry.ListFilter{
 		State: int32(registryv1.ProviderState_PROVIDER_STATE_ACTIVE),
 	})
@@ -40,19 +54,32 @@ func (r *Router) Status(ctx context.Context) (*routingv1.StatusResponse, error) 
 		return nil, fmt.Errorf("list providers: %w", err)
 	}
 
-	// Provider status probes are independent. Running them concurrently keeps
-	// the typed readiness read bounded by the slowest provider rather than the
-	// sum of every unavailable provider's probe timeout. The result slice keeps
-	// registry order stable for deterministic operator output.
+	// Provider status probes are independent, but the worker pool is bounded by
+	// the same concurrency factor as query fan-out. This keeps a fleet-sized
+	// status read from creating an unbounded goroutine/probe burst.
 	health := make([]*routingv1.ProviderHealth, len(active))
-	var wg sync.WaitGroup
-	for i, p := range active {
-		wg.Add(1)
-		go func(i int, p *registryv1.ProviderDescriptor) {
-			defer wg.Done()
-			health[i] = r.providerHealth(ctx, p)
-		}(i, p)
+	workerCount := r.deps.Concurrency
+	if workerCount <= 0 {
+		workerCount = r.factors.Concurrency
 	}
+	if workerCount > len(active) {
+		workerCount = len(active)
+	}
+	jobs := make(chan int)
+	var wg sync.WaitGroup
+	for worker := 0; worker < workerCount; worker++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for i := range jobs {
+				health[i] = r.providerHealth(ctx, active[i])
+			}
+		}()
+	}
+	for i := range active {
+		jobs <- i
+	}
+	close(jobs)
 	wg.Wait()
 	resp := &routingv1.StatusResponse{Providers: health}
 	resp.ActiveStrategy = r.strategy.Name
@@ -107,6 +134,10 @@ func (r *Router) Status(ctx context.Context) (*routingv1.StatusResponse, error) 
 	resp.CircuitOpenShare = open
 	resp.CircuitOpenQuorum = CircuitOpenQuorumThreshold
 	resp.FederationDegraded = breached
+	r.statusMu.Lock()
+	r.statusCache = proto.Clone(resp).(*routingv1.StatusResponse)
+	r.statusCacheAt = time.Now()
+	r.statusMu.Unlock()
 	return resp, nil
 }
 
@@ -146,6 +177,11 @@ func activeRerankerLeg(ctx context.Context, reranker Reranker) string {
 // latency or turn Search Hub into the owner of provider corpus state.
 func (r *Router) providerHealth(ctx context.Context, p *registryv1.ProviderDescriptor) *routingv1.ProviderHealth {
 	h := &routingv1.ProviderHealth{ProviderId: p.GetProviderId(), AutomaticEligible: true, Stuck: proto.Bool(false), Lifecycle: lifecycleName(p.GetLifecycle()), DeclaredAt: p.GetDeclaredAt()}
+	budget := effectiveFreshnessBudget(p)
+	h.FreshnessBudget = budget.String()
+	if tuning := p.GetTuning(); tuning != nil {
+		h.EmbeddingModel = tuning.GetEmbedModel()
+	}
 	h.RecoveryState = "healthy"
 	h.CircuitState = "closed"
 	if reason := strings.TrimSpace(p.GetJunkLeakOptOutReason()); reason != "" {
@@ -164,11 +200,11 @@ func (r *Router) providerHealth(ctx context.Context, p *registryv1.ProviderDescr
 					h.AutomaticExclusionReason = "evidence: " + reason
 				}
 			}
-			if evidence.Fresh && !evidence.Degraded && evidence.GibberishLeak && !h.QualityGateOptedOut {
+			if evidence.Fresh && !evidence.Degraded && QualityJunkLeak(evidence.MaxGibberishScore, evidence.MeanStrongTop1) && !h.QualityGateOptedOut {
 				h.AutomaticEligible = false
 				h.QualityWithheld = true
 				h.QualityEvidenceRunId = evidence.RunID
-				h.QualityWithheldReason = fmt.Sprintf("withheld (junk leak): gibberish=%.3f >= strongest real=%.3f", evidence.MaxGibberishScore, evidence.MeanStrongTop1)
+				h.QualityWithheldReason = fmt.Sprintf("withheld (junk leak): gibberish=%.3f exceeds strongest real=%.3f by at least %.3f", evidence.MaxGibberishScore, evidence.MeanStrongTop1, QualityJunkLeakMargin)
 				h.AutomaticExclusionReason = h.QualityWithheldReason + "; run=" + evidence.RunID
 			}
 		}
@@ -236,8 +272,22 @@ func (r *Router) providerHealth(ctx context.Context, p *registryv1.ProviderDescr
 	h.IndexAge, h.PointCount, lastIndexedAt = r.probeIndexStatus(ctx, p)
 	if !lastIndexedAt.IsZero() {
 		h.LastIndexedAt = timestamppb.New(lastIndexedAt)
+		age := r.deps.Now().Sub(lastIndexedAt)
+		if age > budget {
+			h.AutomaticEligible = false
+			h.AutomaticExclusionReason = fmt.Sprintf("stale index: age=%s exceeds freshness budget=%s", age.Round(time.Second), budget)
+		}
 	}
 	return h
+}
+
+func effectiveFreshnessBudget(p *registryv1.ProviderDescriptor) time.Duration {
+	if p != nil && p.GetFreshnessBudget() != nil {
+		if budget := p.GetFreshnessBudget().AsDuration(); budget > 0 {
+			return budget
+		}
+	}
+	return internalregistry.DefaultFreshnessBudget
 }
 
 func incubatingNextAction(evidence EvalQualityEvidence) string {
@@ -301,8 +351,10 @@ func (r *Router) probeIndexStatus(ctx context.Context, p *registryv1.ProviderDes
 	if body == "" {
 		body = "{}"
 	}
-	probeCtx, cancel := context.WithTimeout(ctx, statusProbeTimeout)
+	probeCtx, cancel := context.WithTimeout(ctx, r.statusProbeTimeout(p.GetProviderId()))
 	defer cancel()
+	started := time.Now()
+	defer func() { r.observeStatusProbe(p.GetProviderId(), time.Since(started)) }()
 	url := strings.TrimRight(base, "/") + hj.GetPath()
 	req, err := http.NewRequestWithContext(probeCtx, httpMethod(hj.GetMethod()), url, bytes.NewReader([]byte(body)))
 	if err != nil {
@@ -342,6 +394,36 @@ func (r *Router) probeIndexStatus(ctx context.Context, p *registryv1.ProviderDes
 		age = 0
 	}
 	return age.Round(time.Second).String(), pointCount, timestamp
+}
+
+func (r *Router) statusProbeTimeout(providerID string) time.Duration {
+	r.statusMu.Lock()
+	latency := r.probeLatencies[providerID]
+	r.statusMu.Unlock()
+	if latency <= 0 {
+		return statusProbeDefault
+	}
+	timeout := time.Duration(statusProbeLatencyScale) * latency
+	if timeout < statusProbeFloor {
+		return statusProbeFloor
+	}
+	if timeout > statusProbeCeiling {
+		return statusProbeCeiling
+	}
+	return timeout
+}
+
+func (r *Router) observeStatusProbe(providerID string, latency time.Duration) {
+	if latency <= 0 {
+		return
+	}
+	r.statusMu.Lock()
+	defer r.statusMu.Unlock()
+	if previous := r.probeLatencies[providerID]; previous > 0 {
+		r.probeLatencies[providerID] = (previous + latency) / 2
+	} else {
+		r.probeLatencies[providerID] = latency
+	}
 }
 
 func httpMethod(method registryv1.HttpMethod) string {

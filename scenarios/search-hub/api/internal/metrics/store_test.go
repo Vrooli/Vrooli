@@ -145,7 +145,7 @@ func TestSharedSubstrateDegradationIsNotChargedToProviders(t *testing.T) {
 	require.NoError(t, store.Record(ctx, metrics.Sample{
 		QueryHash: "substrate",
 		ProviderResults: map[string]metrics.ProviderResult{
-			"provider.cross-encoder": {Degraded: true, DegradeReason: "reranker_absent"},
+			"provider.cross-encoder": {Degraded: true, DegradeReason: "reranker_down"},
 			"provider.corpus":        {Degraded: true, DegradeReason: "timeout"},
 		},
 		Degraded:  true,
@@ -163,7 +163,23 @@ func TestSharedSubstrateDegradationIsNotChargedToProviders(t *testing.T) {
 	require.Equal(t, int64(1), usage["provider.corpus"].DegradedCount)
 	require.Equal(t, []metrics.ProviderDegradationReason{{Reason: "timeout", Count: 1}}, usage["provider.corpus"].DegradationReasons)
 	require.Equal(t, int64(1), got.SubstrateDegradedLegs)
-	require.Equal(t, []metrics.ProviderDegradationReason{{Reason: "reranker_absent", Count: 1}}, got.SubstrateDegradationReasons)
+	require.Equal(t, []metrics.ProviderDegradationReason{{Reason: "reranker_down", Count: 1}}, got.SubstrateDegradationReasons)
+}
+
+func TestSelectionSubstrateDegradationUsesCurrentVocabulary(t *testing.T) {
+	store, _ := newStore(t)
+	require.NoError(t, store.Record(context.Background(), metrics.Sample{
+		QueryHash:             "selection-substrate",
+		ResponseDegradeReason: "reranker_down,zero_result",
+		Degraded:              true,
+	}))
+
+	got, err := store.Insights(context.Background(), 0)
+	require.NoError(t, err)
+	require.Equal(t, []metrics.ProviderDegradationReason{{Reason: "reranker_down", Count: 1}}, got.SubstrateDegradationReasons)
+	for _, reason := range got.SubstrateDegradationReasons {
+		require.NotEqual(t, "reranker_absent", reason.Reason)
+	}
 }
 
 func TestInsightsWindowFiltersOldRows(t *testing.T) {

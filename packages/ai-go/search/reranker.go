@@ -311,23 +311,35 @@ func envOr(key, def string) string {
 // Name identifies the active reranker for StatusReport / SearchResponse.
 func (r *CrossEncoderReranker) Name() string { return "cross-encoder:" + r.model }
 
-// Available probes the resource's /health endpoint (fast, local).
+// Available probes the resource health endpoint. Text Embeddings Inference
+// releases expose /info rather than /health, so a 404 on the conventional
+// probe is retried against /info; treating a healthy TEI process as down would
+// incorrectly force every router query onto lexical degradation.
 func (r *CrossEncoderReranker) Available(ctx context.Context) bool {
 	if r.http == nil || r.baseURL == "" {
 		return false
 	}
 	probeCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
-	req, err := http.NewRequestWithContext(probeCtx, http.MethodGet, r.baseURL+"/health", nil)
-	if err != nil {
-		return false
+	for _, endpoint := range []string{"/health", "/info"} {
+		req, err := http.NewRequestWithContext(probeCtx, http.MethodGet, r.baseURL+endpoint, nil)
+		if err != nil {
+			return false
+		}
+		resp, err := r.http.Do(req)
+		if err != nil {
+			return false
+		}
+		status := resp.StatusCode
+		_ = resp.Body.Close()
+		if status == http.StatusOK {
+			return true
+		}
+		if status != http.StatusNotFound {
+			return false
+		}
 	}
-	resp, err := r.http.Do(req)
-	if err != nil {
-		return false
-	}
-	defer resp.Body.Close()
-	return resp.StatusCode == http.StatusOK
+	return false
 }
 
 type teiRerankRequest struct {

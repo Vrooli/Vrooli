@@ -96,10 +96,11 @@
       "bundle_artifact": "reranker_${os}_${arch}"
     },
     "attach_health_path": "/health",
-    "arguments": [
-      "--model-id=${RERANKER_MODEL}",
-      "--port=${RESOURCE_PORT_HTTP}",
-      "--hostname=127.0.0.1",
+      "arguments": [
+        "--model-id=${RERANKER_MODEL}",
+        "--port=${RESOURCE_PORT_HTTP}",
+        "--prometheus-port=${RESOURCE_PORT_METRICS}",
+        "--hostname=127.0.0.1",
       "--huggingface-hub-cache=${RESOURCE_DATA_DIR}/model-cache"
     ],
     "environment_file": "active.env",
@@ -207,6 +208,11 @@
       "name": "http",
       "container": 80,
       "host": 11453
+    },
+    {
+      "name": "metrics",
+      "container": 9000,
+      "host": 11454
     }
   ],
   "orchestration": {

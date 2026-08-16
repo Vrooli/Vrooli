@@ -35,10 +35,33 @@ func TestLoadActiveStrategyUsesEmbeddedData(t *testing.T) {
 		t.Fatalf("LoadActiveStrategy() error = %v", err)
 	}
 	if strategy.Name != "lexical-cross-encoder" {
-		t.Fatalf("active strategy = %q, want lexical-cross-encoder", strategy.Name)
+		t.Fatalf("active strategy = %q, want measured lexical-cross-encoder incumbent", strategy.Name)
 	}
 	if len(strategy.Stages) != 2 || strategy.Stages[0].Kind != StageLexical || strategy.Stages[1].Kind != StageCrossEncoder {
 		t.Fatalf("active stages = %+v, want lexical then cross_encoder", strategy.Stages)
+	}
+	if got := strategyIntParam(strategy, StageCrossEncoder, "fanout_width", 0); got != 6 {
+		t.Fatalf("active fanout width = %d, want 6", got)
+	}
+	catalog, err := LoadStrategyCatalog()
+	if err != nil {
+		t.Fatalf("LoadStrategyCatalog() error = %v", err)
+	}
+	var semantic RetrievalStrategy
+	for _, candidate := range catalog {
+		if candidate.Name == "semantic-cross-encoder" {
+			semantic = candidate
+			break
+		}
+	}
+	if semantic.Name == "" || len(semantic.Stages) != 3 || semantic.Stages[1].Kind != StageEmbedding || strategyStringParam(semantic, StageEmbedding, "candidate_scope", "") != "all" {
+		t.Fatalf("semantic candidate = %+v, want all-leaf embedding candidate", semantic)
+	}
+	if got := strategyIntParam(semantic, StageEmbedding, "evidence_width", 0); got != 6 {
+		t.Fatalf("semantic evidence width = %d, want 6", got)
+	}
+	if got := strategyStringParam(semantic, StageEmbedding, "evidence_scope", ""); got != "all" {
+		t.Fatalf("semantic evidence scope = %q, want all", got)
 	}
 	if factors.MaxFanoutWidth != 6 || factors.Concurrency != 8 {
 		t.Fatalf("router factors = %+v", factors)

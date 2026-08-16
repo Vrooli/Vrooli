@@ -34,6 +34,18 @@ type countingDescriptionEmbedder struct {
 	failed map[string]bool
 }
 
+type segmentAwareDescriptionEmbedder struct{}
+
+func (segmentAwareDescriptionEmbedder) Available(context.Context) bool { return true }
+
+func (segmentAwareDescriptionEmbedder) Embed(_ context.Context, text string) ([]float64, error) {
+	text = strings.ToLower(text)
+	if text == "needle" || strings.Contains(text, "needle responsibility") {
+		return []float64{1, 0}, nil
+	}
+	return []float64{0, 1}, nil
+}
+
 func (e *countingDescriptionEmbedder) Available(context.Context) bool { return true }
 
 func (e *countingDescriptionEmbedder) Embed(_ context.Context, text string) ([]float64, error) {
@@ -73,6 +85,160 @@ func TestEmbeddingDescriptionIndexShortlistsAndNamesOmissions(t *testing.T) {
 	require.Equal(t, 2, result.Returned)
 	require.Equal(t, []string{"commands", "records"}, []string{shortlist[0].ProviderID, shortlist[1].ProviderID})
 	require.Equal(t, []string{"web"}, result.Omitted)
+}
+
+func TestEmbeddingDescriptionIndexRanksTheFullCandidateScope(t *testing.T) {
+	index := NewEmbeddingDescriptionIndex(fixtureDescriptionEmbedder{})
+	profiles := []ProviderProfile{
+		{ProviderID: "records", Description: "project memory and history"},
+		{ProviderID: "commands", Description: "code and command evidence"},
+		{ProviderID: "web", Description: "external web facts"},
+	}
+	shortlist, result := index.Shortlist(context.Background(), "external web facts", profiles, len(profiles))
+	require.True(t, result.Available)
+	require.Equal(t, 3, result.Returned)
+	require.Equal(t, []string{"web", "commands", "records"}, []string{shortlist[0].ProviderID, shortlist[1].ProviderID, shortlist[2].ProviderID})
+	require.Empty(t, result.Omitted)
+}
+
+func TestEmbeddingDescriptionIndexUsesTheBestDescriptionSegment(t *testing.T) {
+	index := NewEmbeddingDescriptionIndex(segmentAwareDescriptionEmbedder{})
+	profiles := []ProviderProfile{
+		{ProviderID: "target", Description: "needle responsibility. unrelated context"},
+		{ProviderID: "other", Description: "unrelated context"},
+	}
+
+	shortlist, result := index.Shortlist(context.Background(), "needle", profiles, 1)
+
+	require.True(t, result.Available)
+	require.Equal(t, []string{"target"}, []string{shortlist[0].ProviderID})
+}
+
+func TestDescriptionEmbeddingSegmentsCarryRegistryContext(t *testing.T) {
+	segments := descriptionEmbeddingSegments(ProviderProfile{
+		ProviderID:  "knowledge-observatory.docs",
+		Type:        "doc",
+		Group:       "knowledge-observatory",
+		Description: "Project guides. Searchable references.",
+	})
+
+	require.Equal(t, []string{
+		"provider: knowledge-observatory.docs; type: doc; group: knowledge-observatory; description: Project guides",
+		"provider: knowledge-observatory.docs; type: doc; group: knowledge-observatory; description: Searchable references",
+	}, segments)
+}
+
+func TestFuseProviderRankingsKeepsConsensusAndFallbackSignals(t *testing.T) {
+	semantic := []ProviderProfile{{ProviderID: "semantic"}, {ProviderID: "shared"}, {ProviderID: "other"}}
+	lexical := []ProviderProfile{{ProviderID: "shared"}, {ProviderID: "lexical"}, {ProviderID: "other"}}
+	fused := fuseProviderRankings(semantic, lexical)
+	require.Equal(t, []string{"shared", "other", "semantic", "lexical"}, []string{fused[0].ProviderID, fused[1].ProviderID, fused[2].ProviderID, fused[3].ProviderID})
+}
+
+func TestBoundedProviderEvidenceUnionRetainsBothTopWindows(t *testing.T) {
+	semantic := []ProviderProfile{{ProviderID: "dense-1"}, {ProviderID: "dense-2"}, {ProviderID: "dense-3"}}
+	lexical := []ProviderProfile{{ProviderID: "exact-1"}, {ProviderID: "exact-2"}, {ProviderID: "exact-3"}}
+
+	union := boundedProviderEvidenceUnion(semantic, lexical, 2)
+
+	require.ElementsMatch(t, []string{"dense-1", "dense-2", "exact-1", "exact-2"}, profileIDs(union))
+}
+
+func TestGuardedSemanticSelectionPreservesLexicalFloorAndAllowsStrongParaphrase(t *testing.T) {
+	semantic := []ProviderProfile{
+		{ProviderID: "semantic-win"},
+		{ProviderID: "semantic-other"},
+		{ProviderID: "semantic-third"},
+	}
+	lexical := []ProviderProfile{
+		{ProviderID: "lexical-one"},
+		{ProviderID: "lexical-two"},
+		{ProviderID: "lexical-three"},
+	}
+	picked := []ProviderProfile{
+		{ProviderID: "semantic-win"},
+		{ProviderID: "lexical-two"},
+		{ProviderID: "lexical-one"},
+	}
+
+	selected := guardedSemanticProviderSelection("", picked, semantic, lexical, 3, nil)
+
+	require.Equal(t, []string{"semantic-win", "lexical-two", "lexical-one"}, profileIDs(selected))
+}
+
+func TestGuardedSemanticSelectionFallsBackToTheLexicalFloor(t *testing.T) {
+	semantic := []ProviderProfile{
+		{ProviderID: "semantic-one"},
+		{ProviderID: "semantic-two"},
+		{ProviderID: "semantic-three"},
+		{ProviderID: "semantic-four"},
+	}
+	lexical := []ProviderProfile{{ProviderID: "lexical-one"}, {ProviderID: "lexical-two"}}
+	picked := []ProviderProfile{{ProviderID: "semantic-four"}, {ProviderID: "lexical-one"}}
+
+	selected := guardedSemanticProviderSelection("", picked, semantic, lexical, 2, nil)
+
+	require.Equal(t, []string{"lexical-one", "lexical-two"}, profileIDs(selected))
+}
+
+func TestGuardedSemanticSelectionKeepsCrossEncoderOrderForLexicalFloor(t *testing.T) {
+	semantic := []ProviderProfile{
+		{ProviderID: "semantic-one"},
+		{ProviderID: "semantic-two"},
+	}
+	lexical := []ProviderProfile{
+		{ProviderID: "lexical-one"},
+		{ProviderID: "lexical-two"},
+		{ProviderID: "lexical-three"},
+	}
+	picked := []ProviderProfile{
+		{ProviderID: "lexical-two"},
+		{ProviderID: "lexical-one"},
+		{ProviderID: "semantic-two"},
+	}
+
+	selected := guardedSemanticProviderSelection("", picked, semantic, lexical, 3, nil)
+
+	require.Equal(t, []string{"lexical-two", "lexical-one", "lexical-three"}, profileIDs(selected))
+}
+
+func TestGuardedSemanticSelectionRequiresCrossEncoderScoreAdvantage(t *testing.T) {
+	semantic := []ProviderProfile{{ProviderID: "semantic-win"}}
+	lexical := []ProviderProfile{{ProviderID: "lexical-one"}, {ProviderID: "lexical-two"}}
+	picked := []ProviderProfile{semantic[0], lexical[0]}
+	scores := map[string]float64{
+		"semantic-win": 0.72,
+		"lexical-one":  0.81,
+		"lexical-two":  0.73,
+	}
+
+	selected := guardedSemanticProviderSelection("", picked, semantic, lexical, 2, scores)
+
+	require.Equal(t, []string{"lexical-one", "lexical-two"}, profileIDs(selected))
+}
+
+func TestGuardedSemanticSelectionRejectsLexicallyUnrelatedReplacement(t *testing.T) {
+	semantic := []ProviderProfile{{ProviderID: "memory", Type: "record", Description: "prior coding-agent work"}}
+	lexical := []ProviderProfile{
+		{ProviderID: "docs", Type: "doc", Description: "project documentation and layers guide"},
+		{ProviderID: "code", Type: "code", Description: "project documentation implementation reference"},
+	}
+	picked := []ProviderProfile{{ProviderID: "memory"}, {ProviderID: "docs"}}
+	scores := map[string]float64{"memory": 0.9, "docs": 0.4, "code": 0.3}
+
+	selected := guardedSemanticProviderSelection("project documentation layers", picked, semantic, lexical, 2, scores)
+
+	require.Equal(t, []string{"docs", "code"}, profileIDs(selected))
+}
+
+func TestLexicalCompatibilityAllowsNearlyMatchingSameType(t *testing.T) {
+	lexical := []ProviderProfile{
+		{ProviderID: "docs-primary", Type: "doc", Description: "project documentation guide layers"},
+		{ProviderID: "docs-secondary", Type: "doc", Description: "project documentation reference"},
+	}
+	candidate := ProviderProfile{ProviderID: "docs-semantic", Type: "doc", Description: "project guides"}
+
+	require.True(t, lexicalCompatibilityWithFloor("project documentation layers", candidate, lexical))
 }
 
 // TestDescriptionIndexUnavailableUsesBoundedFallbackReason [REQ:REQ-P0-014]

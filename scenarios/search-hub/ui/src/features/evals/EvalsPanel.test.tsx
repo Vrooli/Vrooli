@@ -16,6 +16,7 @@ import {
 } from "@vrooli/proto-types/search-hub/v1/eval/eval_pb";
 
 import { renderWithProviders } from "../../test-utils";
+import { strings } from "../../consts/strings";
 
 vi.mock("../../api/evals", () => ({
   listSuites: vi.fn(),
@@ -174,7 +175,7 @@ describe("EvalsPanel", () => {
     renderWithProviders(<EvalsPanel />);
 
     expect(await screen.findByTestId(selectors.evals.runRow({ runId: "run-untagged" }))).toBeInTheDocument();
-    expect(screen.getByLabelText("evals.untagged")).toBeInTheDocument();
+    expect(screen.getByLabelText(strings.evals.untagged)).toBeInTheDocument();
   });
 
   it("keeps the two newest selections when comparing three runs", async () => {

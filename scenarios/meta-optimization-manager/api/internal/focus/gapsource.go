@@ -30,6 +30,102 @@ type GapSource interface {
 	DerivedGaps(ctx context.Context) ([]Gap, error)
 }
 
+type routerQualityGapSource struct {
+	reader func(context.Context) ([]RouterQualityFinding, error)
+}
+
+// NewRouterQualityGapSource adapts coverage's router_quality_debt findings to
+// the focus condition axis without importing the coverage implementation into
+// the focus domain.
+func NewRouterQualityGapSource(reader func(context.Context) ([]RouterQualityFinding, error)) GapSource {
+	return &routerQualityGapSource{reader: reader}
+}
+
+func (s *routerQualityGapSource) Axis() Axis { return AxisEmpirical }
+
+func (s *routerQualityGapSource) DerivedGaps(ctx context.Context) ([]Gap, error) {
+	if s == nil || s.reader == nil {
+		return nil, fmt.Errorf("router quality reader is not configured")
+	}
+	findings, err := s.reader(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("router quality evidence unavailable: %w", err)
+	}
+	out := make([]Gap, 0, len(findings))
+	for _, finding := range findings {
+		cellID := strings.TrimSpace(finding.CellID)
+		if cellID == "" {
+			continue
+		}
+		projection := finding.Projection
+		if projection == "" {
+			projection = ProjectionAnswer
+		}
+		owner := strings.TrimSpace(finding.Owner)
+		providers := []string{}
+		if owner != "" {
+			providers = providerIDs(owner)
+		}
+		locator := strings.TrimSpace(finding.Locator)
+		if locator == "" {
+			locator = "coverage://validate-docs/" + string(projection) + "/" + cellID
+		}
+		out = append(out, Gap{
+			ID: string(projection) + "/router-quality/" + cellID, Axis: AxisEmpirical,
+			Projection: projection, Title: "shared Search Hub router quality debt",
+			SourceCellID: cellID, ProviderIDs: providers, EvidenceSource: "coverage",
+			EvidenceLocator: locator, ConditionStatus: "degraded",
+			CauseKey: "search-hub/router_quality_debt",
+			Notes:    []string{finding.Message},
+		})
+	}
+	return out, nil
+}
+
+type substrateGapSource struct {
+	reader func(context.Context) ([]SubstrateObservation, error)
+}
+
+// NewSubstrateGapSource exposes shared resource failures as named condition
+// gaps. It is observational only: control-plane lifecycle owns remediation.
+func NewSubstrateGapSource(reader func(context.Context) ([]SubstrateObservation, error)) GapSource {
+	return &substrateGapSource{reader: reader}
+}
+
+func (s *substrateGapSource) Axis() Axis { return AxisEmpirical }
+
+func (s *substrateGapSource) DerivedGaps(ctx context.Context) ([]Gap, error) {
+	if s == nil || s.reader == nil {
+		return nil, fmt.Errorf("substrate health reader is not configured")
+	}
+	observations, err := s.reader(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("substrate health unavailable: %w", err)
+	}
+	out := make([]Gap, 0, len(observations))
+	for _, observation := range observations {
+		name := strings.TrimSpace(observation.Name)
+		if name == "" || observation.Healthy {
+			continue
+		}
+		reason := strings.TrimSpace(observation.Reason)
+		if reason == "" {
+			reason = "health check failed"
+		}
+		locator := strings.TrimSpace(observation.Locator)
+		if locator == "" {
+			locator = "search-hub://health/" + name
+		}
+		out = append(out, Gap{
+			ID: "condition/substrate/" + name, Axis: AxisEmpirical,
+			Title: "shared search substrate is unhealthy", ProviderIDs: []string{name},
+			EvidenceSource: "search-hub", EvidenceLocator: locator,
+			ConditionStatus: "degraded", Notes: []string{reason},
+		})
+	}
+	return out, nil
+}
+
 // conditionGapSource turns observed serving degradation into empirical focus
 // items. It is intentionally derived from the existing Search Hub insight
 // seam, so no provider or projection list is authored in Meta-Optimization
@@ -37,6 +133,94 @@ type GapSource interface {
 type conditionGapSource struct {
 	reader     ProviderInsights
 	population func(context.Context) (map[string]struct{}, error)
+}
+
+// IncubatingProvider is the transport-neutral adoption read model supplied by
+// Search Hub's federation status surface.
+type IncubatingProvider struct {
+	ProviderID string
+	DeclaredAt string
+	NextAction string
+}
+
+type FederationHealthFinding struct {
+	ID       string
+	Kind     string
+	Value    string
+	Evidence string
+}
+
+type FederationHealthReader interface {
+	FederationHealth(context.Context) ([]FederationHealthFinding, error)
+}
+
+type federationHealthGapSource struct {
+	reader FederationHealthReader
+}
+
+func NewFederationHealthGapSource(reader FederationHealthReader) GapSource {
+	return &federationHealthGapSource{reader: reader}
+}
+
+func (s *federationHealthGapSource) Axis() Axis { return AxisEmpirical }
+
+func (s *federationHealthGapSource) DerivedGaps(ctx context.Context) ([]Gap, error) {
+	if s == nil || s.reader == nil {
+		return nil, fmt.Errorf("federation health reader is not configured")
+	}
+	findings, err := s.reader.FederationHealth(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("federation health unavailable: %w", err)
+	}
+	out := make([]Gap, 0, len(findings))
+	for _, finding := range findings {
+		id := strings.TrimSpace(finding.ID)
+		if id == "" {
+			continue
+		}
+		out = append(out, Gap{ID: "condition/federation/" + id, Axis: AxisEmpirical, Title: "search-hub federation health needs attention", ProviderIDs: []string{id}, EvidenceSource: "search-hub", EvidenceLocator: "search-hub://federation/" + id, ConditionStatus: "degraded", Notes: []string{"kind=" + finding.Kind, "value=" + finding.Value, finding.Evidence}})
+	}
+	return out, nil
+}
+
+type incubatingGapSource struct {
+	reader func(context.Context) ([]IncubatingProvider, error)
+}
+
+func NewIncubatingGapSource(reader func(context.Context) ([]IncubatingProvider, error)) GapSource {
+	return &incubatingGapSource{reader: reader}
+}
+
+func (s *incubatingGapSource) Axis() Axis { return AxisEmpirical }
+
+func (s *incubatingGapSource) DerivedGaps(ctx context.Context) ([]Gap, error) {
+	if s == nil || s.reader == nil {
+		return nil, fmt.Errorf("incubating provider reader is not configured")
+	}
+	providers, err := s.reader(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("incubating provider evidence unavailable: %w", err)
+	}
+	out := make([]Gap, 0, len(providers))
+	for _, provider := range providers {
+		id := strings.TrimSpace(provider.ProviderID)
+		if id == "" {
+			continue
+		}
+		next := strings.TrimSpace(provider.NextAction)
+		if next == "" {
+			next = "establish a reviewed suite and recent passing evidence"
+		}
+		out = append(out, Gap{
+			ID: "condition/incubating/" + id, Axis: AxisEmpirical,
+			Title:       "provider is incubating and needs adoption evidence",
+			ProviderIDs: []string{id}, EvidenceSource: "search-hub",
+			EvidenceLocator: "search-hub://incubating/" + id,
+			ConditionStatus: "degraded",
+			Notes:           []string{"declared_at=" + provider.DeclaredAt, "next_action=" + next},
+		})
+	}
+	return out, nil
 }
 
 func NewConditionGapSource(reader ProviderInsights) GapSource {

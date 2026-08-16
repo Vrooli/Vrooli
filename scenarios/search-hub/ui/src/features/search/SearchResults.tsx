@@ -86,7 +86,7 @@ function GroupBlock({ group }: { group: ProviderResultGroup }) {
 function HitRow({ hit }: { hit: SearchHit }) {
   const { t } = useTranslation();
   const title = hit.title.trim() || hit.id;
-  const locations = (hit.locations ?? []).map((location) => location.trim()).filter(Boolean);
+  const locations = hit.locations.map((location) => location.trim()).filter(Boolean);
   const provenancePath = locations[0] ?? (hit.path.trim() || hit.id);
   const confidenceText = confidenceLabel(hit);
 
@@ -118,11 +118,12 @@ function HitRow({ hit }: { hit: SearchHit }) {
   );
 
   function confidenceLabel(hit: SearchHit) {
-    const regime = hit.confidence?.regime?.trim();
-    if (!hit.confidence) {
+    const confidence = hit.confidence;
+    if (!confidence) {
       return t(strings.search.confidenceUnknown);
     }
-    return t(hit.confidence.weak ? strings.search.confidenceWeak : strings.search.confidenceStrong, {
+    const regime = confidence.regime.trim();
+    return t(confidence.weak ? strings.search.confidenceWeak : strings.search.confidenceStrong, {
       regime: regime ? `/${regime}` : "",
     });
   }

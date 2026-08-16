@@ -46,52 +46,56 @@ export function ReadinessBoard() {
     <div className="flex flex-col gap-4">
       <h3 className="text-lg font-semibold">{t(strings.pages.dashboard.projectionHeading)}</h3>
       <div className="grid gap-4 md:grid-cols-3">
-        {projections.map((p) => (
-          <article
-            key={projectionLabel(p.projection)}
-            data-testid={selectors.readiness.projection}
-            className="rounded-panel border border-app-border bg-app-surface p-4"
-          >
-            <p className="text-xs uppercase tracking-wide text-app-muted-foreground">
-              {projectionLabel(p.projection)}
-            </p>
-            <p className="mt-1 text-3xl font-semibold">
-              {p.available ? (
-                <>
-                  {pct(p.coverageRatio)}
-                  <span className="ms-1 text-sm font-normal text-app-muted-foreground">
-                    % {t(strings.pages.dashboard.coverageLabel)}
+        {projections.map((p) => {
+          const hasCoverageRatio = p.available && p.coverageRatio !== undefined;
+
+          return (
+            <article
+              key={projectionLabel(p.projection)}
+              data-testid={selectors.readiness.projection}
+              className="rounded-panel border border-app-border bg-app-surface p-4"
+            >
+              <p className="text-xs uppercase tracking-wide text-app-muted-foreground">
+                {projectionLabel(p.projection)}
+              </p>
+              <p className="mt-1 text-3xl font-semibold">
+                {hasCoverageRatio ? (
+                  <>
+                    {pct(p.coverageRatio ?? 0)}
+                    <span className="ms-1 text-sm font-normal text-app-muted-foreground">
+                      % {t(strings.pages.dashboard.coverageLabel)}
+                    </span>
+                  </>
+                ) : (
+                  // The live numerator join failed; a coverage % here would read
+                  // as "measured" when it was not. Show a dash; the honest reason
+                  // renders below.
+                  <span className="text-app-muted-foreground" title={p.unavailableReason}>
+                    {"—"}
                   </span>
-                </>
-              ) : (
-                // The live numerator join failed; a coverage % here would read
-                // as "measured" when it was not. Show a dash; the honest reason
-                // renders below.
-                <span className="text-app-muted-foreground" title={p.unavailableReason}>
-                  {"—"}
-                </span>
+                )}
+              </p>
+              {hasCoverageRatio && (
+                <p className="mt-2 text-sm text-app-muted-foreground">
+                  {t(strings.pages.dashboard.cellsLabel, {
+                    now: p.nowCount,
+                    total: p.totalCells,
+                    inReach: p.inReachCount,
+                    missing: p.missingCount,
+                  })}
+                </p>
               )}
-            </p>
-            {p.available && (
-              <p className="mt-2 text-sm text-app-muted-foreground">
-                {t(strings.pages.dashboard.cellsLabel, {
-                  now: p.nowCount,
-                  total: p.totalCells,
-                  inReach: p.inReachCount,
-                  missing: p.missingCount,
-                })}
+              <p className="mt-1 text-xs text-app-muted-foreground">
+                {t(strings.pages.dashboard.confidenceLabel)}: {confidenceLabel(p.denominatorConfidence)}
               </p>
-            )}
-            <p className="mt-1 text-xs text-app-muted-foreground">
-              {t(strings.pages.dashboard.confidenceLabel)}: {confidenceLabel(p.denominatorConfidence)}
-            </p>
-            {!p.available && (
-              <p className="mt-2 text-xs text-amber-500">
-                {t(strings.pages.dashboard.unavailableReason, { reason: p.unavailableReason })}
-              </p>
-            )}
-          </article>
-        ))}
+              {!hasCoverageRatio && (
+                <p className="mt-2 text-xs text-amber-500">
+                  {t(strings.pages.dashboard.unavailableReason, { reason: p.unavailableReason })}
+                </p>
+              )}
+            </article>
+          );
+        })}
       </div>
       <TrialTrend trend={data?.latestTrialTrend} />
     </div>

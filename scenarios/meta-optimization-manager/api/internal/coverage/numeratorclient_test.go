@@ -35,8 +35,8 @@ import (
 
 func TestRecomputeAnswer(t *testing.T) {
 	out, evidence := recomputeAnswer(answerDef().Cells, []answerProviderEvidence{
-		{ProviderID: "ui-health.surfaces", Active: true, Reachable: true, FreshEval: true, ReachabilityEvidence: "reachable", EvalEvidence: "run-1"},
-		{ProviderID: "code-facts", Active: true, Reachable: true, FreshEval: true, ReachabilityEvidence: "reachable", EvalEvidence: "run-2"},
+		{ProviderID: "ui-health.surfaces", Active: true, Reachable: true, FreshEval: true, CorpusCapable: true, ReachabilityEvidence: "reachable", EvalEvidence: "run-1", CorpusEvalEvidence: "direct-run-1"},
+		{ProviderID: "code-facts", Active: true, Reachable: true, FreshEval: true, CorpusCapable: true, ReachabilityEvidence: "reachable", EvalEvidence: "run-2", CorpusEvalEvidence: "direct-run-2"},
 	})
 	if out["1"] != spacedoc.StatusNow {
 		t.Errorf("cell1 (live provider) = %v, want now", out["1"])
@@ -44,16 +44,16 @@ func TestRecomputeAnswer(t *testing.T) {
 	if st, ok := out["2"]; ok && st == spacedoc.StatusNow {
 		t.Errorf("cell2 (provider not live) must not be promoted to now: %v", st)
 	}
-	if len(evidence["1"]) != 3 {
-		t.Fatalf("answer evidence = %+v, want all three signals", evidence["1"])
+	if len(evidence["1"]) != 4 {
+		t.Fatalf("answer evidence = %+v, want tiered signals", evidence["1"])
 	}
 }
 
 func TestRecomputeAnswerDriftDowngrade(t *testing.T) {
 	// Authored-NOW cell 1, but its provider is not reachable -> honest downgrade.
 	out, _ := recomputeAnswer(answerDef().Cells, []answerProviderEvidence{{
-		ProviderID: "ui-health.surfaces", Active: true, Reachable: false, FreshEval: true,
-		ReachabilityEvidence: "ui-health.surfaces reachability=\"unreachable\"", EvalEvidence: "run-1",
+		ProviderID: "ui-health.surfaces", Active: true, Reachable: false, FreshEval: true, CorpusCapable: true,
+		ReachabilityEvidence: "ui-health.surfaces reachability=\"unreachable\"", EvalEvidence: "run-1", CorpusEvalEvidence: "direct-run-1",
 	}})
 	if out["1"] != spacedoc.StatusInReach {
 		t.Errorf("authored-NOW with unreachable provider should downgrade to in_reach, got %v", out["1"])
@@ -63,9 +63,9 @@ func TestRecomputeAnswerDriftDowngrade(t *testing.T) {
 func TestRecomputeAnswerThreeSignalTable(t *testing.T) {
 	cells := []spacedoc.Cell{{ID: "now", Owner: "provider.one", Status: spacedoc.StatusMissing}, {ID: "stale", Owner: "provider.two", Status: spacedoc.StatusNow}, {ID: "down", Owner: "provider.three", Status: spacedoc.StatusNow}, {ID: "gap", Owner: "provider.four", Status: spacedoc.StatusMissing}, {ID: "authored", Owner: "missing.provider", Status: spacedoc.StatusInReach}, {ID: "authored-now", Owner: "missing.provider-now", Status: spacedoc.StatusNow}}
 	providers := []answerProviderEvidence{
-		{ProviderID: "provider.one", Active: true, Reachable: true, FreshEval: true, ReachabilityEvidence: "reachable", EvalEvidence: "fresh run"},
-		{ProviderID: "provider.two", Active: true, Reachable: true, FreshEval: false, ReachabilityEvidence: "reachable", EvalEvidence: "no non-degraded eval run in the last 30d"},
-		{ProviderID: "provider.three", Active: true, Reachable: false, FreshEval: true, ReachabilityEvidence: "unreachable", EvalEvidence: "fresh run"},
+		{ProviderID: "provider.one", Active: true, Reachable: true, FreshEval: true, CorpusCapable: true, ReachabilityEvidence: "reachable", EvalEvidence: "fresh run", CorpusEvalEvidence: "fresh direct run"},
+		{ProviderID: "provider.two", Active: true, Reachable: true, FreshEval: false, CorpusCapable: true, ReachabilityEvidence: "reachable", EvalEvidence: "no non-degraded eval run in the last 30d", CorpusEvalEvidence: "fresh direct run"},
+		{ProviderID: "provider.three", Active: true, Reachable: false, FreshEval: true, CorpusCapable: true, ReachabilityEvidence: "unreachable", EvalEvidence: "fresh run", CorpusEvalEvidence: "fresh direct run"},
 	}
 	out, evidence := recomputeAnswer(cells, providers)
 	if out["now"] != spacedoc.StatusNow {
@@ -87,9 +87,33 @@ func TestRecomputeAnswerThreeSignalTable(t *testing.T) {
 		t.Errorf("unresolved authored NOW must not remain NOW, got %v", out["authored-now"])
 	}
 	for _, id := range []string{"now", "stale", "down", "gap", "authored", "authored-now"} {
-		if len(evidence[id]) != 3 {
-			t.Errorf("cell %s evidence = %+v, want all three signals", id, evidence[id])
+		if len(evidence[id]) != 4 {
+			t.Errorf("cell %s evidence = %+v, want tiered signals", id, evidence[id])
 		}
+	}
+}
+
+func TestRecomputeAnswerCompoundOwnerRequiresAllProviders(t *testing.T) {
+	cells := []spacedoc.Cell{{ID: "compound", Owner: "provider.one + provider.two", Status: spacedoc.StatusNow}}
+	providers := []answerProviderEvidence{
+		{ProviderID: "provider.one", Active: true, Reachable: true, FreshEval: true, CorpusCapable: true, Condition: ConditionOK},
+		{ProviderID: "provider.two", Active: true, Reachable: true, FreshEval: false, CorpusCapable: true, Condition: ConditionDegraded},
+	}
+	out, evidence := recomputeAnswer(cells, providers)
+	if out["compound"] != spacedoc.StatusInReach {
+		t.Fatalf("compound owner with one stale provider = %v, want in_reach", out["compound"])
+	}
+	if got := len(evidence["compound"]); got != 4 {
+		t.Fatalf("compound evidence count = %d, want tiered signals", got)
+	}
+}
+
+func TestIsStarterSuite(t *testing.T) {
+	if !isStarterSuite("ui-health.surfaces.starter") || !isStarterSuite("UI-HEALTH.SURFACES.STARTER") {
+		t.Error("expected .starter suffix to identify migration scaffolding")
+	}
+	if isStarterSuite("ui-health.surfaces.primary") || isStarterSuite("starter.ui-health.surfaces") {
+		t.Error("only a terminal .starter suffix is non-authoritative")
 	}
 }
 

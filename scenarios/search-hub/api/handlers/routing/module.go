@@ -15,6 +15,7 @@ import (
 	"context"
 	"log"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -27,6 +28,7 @@ import (
 	"github.com/vrooli/api-core/schedule"
 
 	"github.com/gorilla/mux"
+	aisearch "github.com/vrooli/ai-go/search"
 	"github.com/vrooli/api-core/connectx"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/discovery"
@@ -77,6 +79,7 @@ func NewRouter(db *database.RoutedDB, clk schedule.Clock, logger *log.Logger, re
 		Reranker:                  internalrouting.NewDefaultRerankerChain(),
 		Recorder:                  recorder,
 		EvalQuality:               newEvalQualityReader(db, clk),
+		DescriptionIndex:          newProviderDescriptionIndex(),
 		DemotionStore:             internalmetrics.NewSQLiteDemotionStore(db, clk),
 		Logger:                    logger,
 		Strategy:                  &activeStrategy,
@@ -98,6 +101,23 @@ func NewRouter(db *database.RoutedDB, clk schedule.Clock, logger *log.Logger, re
 		AutoRouteExternal: autoRouteExternalEnabled(),
 	})
 	return router
+}
+
+func newProviderDescriptionIndex() internalrouting.ProviderDescriptionIndex {
+	model := strings.TrimSpace(os.Getenv("SEARCH_HUB_DESCRIPTION_EMBED_MODEL"))
+	if model == "" {
+		model = aisearch.DefaultEmbedModel
+	}
+	cachePath := strings.TrimSpace(os.Getenv("SEARCH_HUB_DESCRIPTION_INDEX_CACHE"))
+	if cachePath == "" {
+		if dataDir := strings.TrimSpace(os.Getenv("SCENARIO_DATA_DIR")); dataDir != "" {
+			cachePath = filepath.Join(dataDir, "provider-description-index.json")
+		}
+	}
+	return internalrouting.NewPersistentEmbeddingDescriptionIndex(aisearch.NewEmbedderForConfig(aisearch.Config{
+		EmbedModel:      model,
+		EmbedTaskPrefix: true,
+	}), cachePath)
 }
 
 // StartRecoveryProbes starts the low-rate, unattended zero-yield recovery
@@ -191,7 +211,7 @@ func (r *evalQualityReader) LatestProviderEval(ctx context.Context, providerID s
 	if aggregate != nil {
 		evidence.MeanStrongTop1 = aggregate.GetMeanStrongTop1()
 		evidence.MaxGibberishScore = aggregate.GetMaxGibberishScore()
-		evidence.GibberishLeak = evidence.MeanStrongTop1 > 0 && evidence.MaxGibberishScore >= evidence.MeanStrongTop1
+		evidence.GibberishLeak = internalrouting.QualityJunkLeak(evidence.MaxGibberishScore, evidence.MeanStrongTop1)
 	}
 	evidence.RecentPassingRun = hasRecentPassingDirectRun(runs, r.now())
 	if validator, ok := r.store.(internaleval.CorpusValidationReader); ok {

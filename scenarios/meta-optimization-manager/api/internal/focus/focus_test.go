@@ -401,6 +401,31 @@ func TestFocusRankingUsesProviderTelemetry(t *testing.T) {
 	}
 }
 
+func TestFocusRollsUpSharedRouterCauseAndRanksItByLeverage(t *testing.T) {
+	gaps := []Gap{
+		{ID: "answer/1/router-quality/1", Axis: AxisEmpirical, Projection: ProjectionAnswer, SourceCellID: "1", CauseKey: "search-hub/router_quality_debt"},
+		{ID: "answer/2/router-quality/2", Axis: AxisEmpirical, Projection: ProjectionAnswer, SourceCellID: "2", CauseKey: "search-hub/router_quality_debt"},
+		{ID: "answer/3/router-quality/3", Axis: AxisEmpirical, Projection: ProjectionAnswer, SourceCellID: "3", CauseKey: "search-hub/router_quality_debt"},
+		{ID: "answer/missing", Projection: ProjectionAnswer, Status: spacedoc.StatusMissing},
+	}
+	result, err := NewService(Deps{Source: &fakeSource{gaps: gaps}}).GetFocus(context.Background(), 10, "")
+	if err != nil {
+		t.Fatalf("GetFocus: %v", err)
+	}
+	if len(result.Items) != 2 {
+		t.Fatalf("shared cause should replace its three cell findings: %+v", result.Items)
+	}
+	if result.Items[0].Gap.CauseKey != "search-hub/router_quality_debt" {
+		t.Fatalf("shared cause did not rank first: %+v", result.Items)
+	}
+	if result.Items[0].Gap.AffectedCellCount != 3 || len(result.Items[0].Gap.AffectedCellIDs) != 3 {
+		t.Fatalf("affected cells not retained: %+v", result.Items[0].Gap)
+	}
+	if result.Items[0].Priority <= result.Items[1].Priority {
+		t.Fatalf("shared cause should outrank one missing cell: %+v", result.Items)
+	}
+}
+
 func TestFocusRanksConditionDegradationAlongsideCoverage(t *testing.T) {
 	condition := fakeProviderInsights{signals: []ProviderInsight{{
 		ProviderID: "answer.provider", TimesRouted: 100, DegradationRate: 1,

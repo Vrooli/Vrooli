@@ -45,8 +45,33 @@
  * initialised. The pattern above is hoisting-safe and preserves every
  * non-overridden export of `./api/health` via `importOriginal()`.
  */
-export { renderWithProviders } from "@vrooli/api-base/testing";
-export type { ProviderRenderOptions, ProviderRenderResult } from "@vrooli/api-base/testing";
+import { createElement, type ReactElement } from "react";
+import {
+  renderWithProviders as renderWithApiBaseProviders,
+  type ProviderRenderOptions,
+  type ProviderRenderResult,
+} from "@vrooli/api-base/testing";
+import { i18n } from "../i18n";
+import { ThemeProvider } from "../theme/ThemeProvider";
+
+/**
+ * Render with the scenario's initialized i18n singleton. The shared helper
+ * supplies a safe initialized fallback, but component tests must observe the
+ * same locale changes as the application and test setup.
+ */
+export function renderWithProviders(
+  ui: ReactElement,
+  options: ProviderRenderOptions = {},
+): ProviderRenderResult {
+  return renderWithApiBaseProviders(ui, {
+    ...options,
+    i18n: options.i18n ?? i18n,
+    extraProviders:
+      options.extraProviders ?? ((children) => createElement(ThemeProvider, undefined, children)),
+  });
+}
+
+export type { ProviderRenderOptions, ProviderRenderResult };
 export { interp } from "./interp";
 export { expectNoA11yViolations } from "@vrooli/api-base/testing";
 // Note: HealthResponse is the *generated proto type* re-exported by

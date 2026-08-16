@@ -99,8 +99,6 @@
     "grouped": "プロバイダー別",
     "degraded": "劣化",
     "groupEmpty": "一致なし",
-    "score": "スコア {{value}}",
-    "rerank": "再ランク {{value}}",
     "weak": "弱い",
     "confidenceStrong": "強い{{regime}}",
     "confidenceWeak": "弱い{{regime}}",

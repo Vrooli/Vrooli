@@ -121,17 +121,23 @@ type AdherenceReader interface {
 
 // ProjectionCoverage is the computed coverage for one projection.
 type ProjectionCoverage struct {
-	Projection            Projection
-	NowCount              int
-	InReachCount          int
-	MissingCount          int
-	TotalCells            int
-	CoverageRatio         float64 // now/total in [0,1]; computed live, never persisted
-	DenominatorConfidence spacedoc.DenominatorConfidence
-	ConfidenceRationale   string
-	Available             bool   // false when the owner's space verb / registry was unreachable
-	UnavailableReason     string // honest reason when Available is false
-	ConditionCounts       []ConditionCount
+	Projection                   Projection
+	NowCount                     int
+	InReachCount                 int
+	MissingCount                 int
+	TotalCells                   int
+	CoverageRatio                float64 // now/total in [0,1]; computed live, never persisted
+	DenominatorConfidence        spacedoc.DenominatorConfidence
+	ConfidenceRationale          string
+	Available                    bool   // false when the owner's space verb / registry was unreachable
+	UnavailableReason            string // honest reason when Available is false
+	ConditionCounts              []ConditionCount
+	CorpusCapableNowCount        int
+	CorpusCapableTotalCells      int
+	CorpusCapableRatio           float64
+	EndToEndAnswerableNowCount   int
+	EndToEndAnswerableTotalCells int
+	EndToEndAnswerableRatio      float64
 }
 
 // EmpiricalTrendPoint is the latest trials trend surfaced on the scoreboard.
@@ -156,6 +162,14 @@ type Status struct {
 	DeterminismChecked  bool
 	Deterministic       bool
 	DeterminismEvidence string
+	Deltas              []ProjectionDelta
+}
+
+type ProjectionDelta struct {
+	Projection    Projection
+	PreviousRatio float64
+	CurrentRatio  float64
+	Delta         float64
 }
 
 // Severity grades a base-document-integrity issue.

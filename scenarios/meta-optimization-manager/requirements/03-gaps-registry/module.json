@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "OT-P0-003 — honest gaps registry with qualitative notes/approaches.",
-    "last_validated_at": "2026-07-10T10:50:06-04:00",
+    "last_validated_at": "2026-08-16T01:05:30-04:00",
     "module": "gaps-registry",
     "prd_ref": "PRD.md",
     "priority": "P0",
@@ -24,13 +24,13 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "API: SQLite store round-trips notes/approaches; target api/internal/gaps."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "CLI: gaps list/filter output; target cli/domains/gaps."
         },
         {
@@ -44,7 +44,7 @@
     {
       "id": "MOM-GAPS-002",
       "title": "append explored approaches to a gap (the store-our-thinking write verb)",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-003",
       "category": "focus",
       "description": "`gaps note \u003cid\u003e --add \"\u003capproach\u003e\"` appends an explored-but-unbuilt idea/approach to a gap, and `gaps show \u003cid\u003e` returns the full gap with its accumulated notes/approaches. The one focus write verb; lets the team durably store thinking on a known gap without implementing it.",
@@ -57,13 +57,13 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "API: AddGapNote appends + GetGap round-trips; target api/internal/gaps."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "CLI: gaps note/show; target cli/domains/gaps."
         }
       ]

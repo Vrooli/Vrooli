@@ -47,11 +47,11 @@ column doubles as the gap registry.
 
 | # | Question (Entity · Archetype) | Owner (provider) | Status | Basis | Notes / approach |
 |---|---|---|---|---|---|
-| 1 | Surfaces · Inventory — "What surfaces (API/CLI/UI) does X expose?" | `ui-health.surfaces` + `cli-health.commands` | NOW (UI, CLI) / IN-REACH (API) | DERIVED | UI + CLI live; API surface evidence remains a documented limitation, not an owner token. |
+| 1 | Surfaces · Inventory — "What surfaces (API/CLI/UI) does X expose?" | `ui-health.surfaces` + `cli-health.commands` | NOW (UI, CLI) / IN-REACH (API) | DERIVED | Multi-owner route: the generic six-leaf bounded fan-out has been live-verified to return both UI and CLI leaves for the surfaces query; API surface evidence remains a documented limitation, not an owner token. |
 | 2 | Domains · Inventory + Anatomy — "What domains does X have and what does each own?" | `architecture-cartographer.domain-map` | NOW | DERIVED / VALIDATED | **First-slice provider, live.** Semantic search over the derived domain map (`ExtractDomains` responsibility/purpose/glossary) — term-agnostic: "how does authoring work in plan-manager" → `plan-manager/authoring`. |
 | 3 | Doc-set · Conformance — "Do X's docs match its code? Where's the drift?" | `architecture-cartographer.domain-map` | IN-REACH | VALIDATED / CONTRADICTED | Cartographer's registered domain-map leaf is the current architectural substrate; drift detectors remain a documented limitation. |
 | 4 | Requirements/maturity · State — "What's X's maturity rung + requirements status?" | _(none)_ | MISSING | DERIVED | The completeness scorer is not a registered search leaf; this row remains an explicit capability gap. |
-| 5 | Dependencies · Connection — "What resources + scenarios does X depend on?" | `scenario-dependency-analyzer.scenarios` + `scenario-dependency-analyzer.resources` | NOW (active) | DERIVED | Both registered leaves are live and federated. |
+| 5 | Dependencies · Connection — "What resources + scenarios does X depend on?" | `scenario-dependency-analyzer.scenarios` + `scenario-dependency-analyzer.resources` | NOW (active) | DERIVED | Multi-owner route: the generic bounded fan-out preserves both scenario and resource leaves when eligible; lifecycle/freshness gates can withhold either owner and are reported by federation status. |
 | 6 | Test suite · Verification / State — "How is X tested; which phases are red and why?" | `workflow-health.tests` | IN-REACH | DERIVED | The registered workflow-test corpus is the current searchable test substrate; fleet health remains an external signal. |
 
 ### G2 — Within-scenario
@@ -95,7 +95,7 @@ column doubles as the gap registry.
 | 31 | Scenario graph · Connection — "What does X depend on; where is X used (reverse)?" | `scenario-dependency-analyzer.scenarios` | NOW (active) | DERIVED | Live federated leaf over the interface graph: per scenario, depends-on (forward edges) + used-by (reverse edges). `SearchInterfaceGraph`. |
 | 32 | ⭐ Dependency rationale · Provenance — "Why does this cross-scenario dependency exist?" | _(none)_ | MISSING (query) | DECLARED_UNVERIFIED | Rationale stored in governance records, not queryable. |
 | 33 | Resource usage · Connection — "Which scenarios use resource Y?" | `scenario-dependency-analyzer.resources` | NOW (active) | DERIVED | Live federated leaf: a fleet `service.json` scan inverted to resource → consuming-scenarios. `SearchResourceUsage`. |
-| 34 | Capability map · Inventory — "Which scenario provides capability X / where should I build Y?" | `business-health.intent` + `prompt-manager.skill` | NOW | DERIVED | Semantic capability lookup over intent plus the registered skills corpus. |
+| 34 | Capability map · Inventory — "Which scenario provides capability X / where should I build Y?" | `business-health.intent` + `prompt-manager.skill` | NOW | DERIVED | Multi-owner route: semantic capability lookup spans both registered corpora when their status/evidence gates are healthy; withheld or incubating owners remain explicit in federation status. |
 | 35 | Package deps · Connection — "What approved packages does the fleet use; security gaps?" | `scenario-dependency-analyzer.dependencies` | NOW (active) | DERIVED | Already live. |
 | 36 | Federation · Inventory / State — "Which providers are registered; what's federation health?" | `measures-health.measures` | NOW | DERIVED | The registered measures leaf carries fleet telemetry; Search Hub's registry/status remains the control-plane source. |
 

@@ -2,9 +2,15 @@ package registry
 
 import (
 	"strings"
+	"time"
 
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/registry"
+	"google.golang.org/protobuf/types/known/durationpb"
 )
+
+// DefaultFreshnessBudget is the conservative age allowed for an indexed
+// provider that has not declared a narrower serving budget.
+const DefaultFreshnessBudget = 24 * time.Hour
 
 // Normalize applies the descriptor's defaults in place before validation and
 // persistence: an unspecified state becomes ACTIVE, an unspecified scope
@@ -23,6 +29,9 @@ func Normalize(d *registryv1.ProviderDescriptor) {
 	}
 	if d.Scope == registryv1.Scope_SCOPE_UNSPECIFIED {
 		d.Scope = registryv1.Scope_SCOPE_PROJECT
+	}
+	if d.FreshnessBudget == nil || d.FreshnessBudget.AsDuration() == 0 {
+		d.FreshnessBudget = durationpb.New(DefaultFreshnessBudget)
 	}
 	if d.StatusEndpoint != nil && strings.TrimSpace(d.IndexTimestampField) == "" {
 		d.IndexTimestampField = "last_indexed_at"
@@ -68,7 +77,11 @@ func Validate(d *registryv1.ProviderDescriptor) error {
 	default:
 		return ErrInvalidDescriptor{Field: "lifecycle", Reason: "must be LIFECYCLE_PRODUCTION, LIFECYCLE_FIXTURE, or LIFECYCLE_EXPERIMENTAL"}
 	}
-
+	if d.FreshnessBudget != nil {
+		if err := d.FreshnessBudget.CheckValid(); err != nil || d.FreshnessBudget.AsDuration() < 0 {
+			return ErrInvalidDescriptor{Field: "freshness_budget", Reason: "must be a non-negative duration"}
+		}
+	}
 	switch d.State {
 	case registryv1.ProviderState_PROVIDER_STATE_CAPABILITY_GAP:
 		if strings.TrimSpace(d.IntendedHome) == "" {
@@ -84,6 +97,20 @@ func Validate(d *registryv1.ProviderDescriptor) error {
 		if err := validateResultMapping(d.ResultMapping); err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+// ValidateProductionRegistration applies the live registration contract. The
+// general descriptor validator remains compatible with legacy persisted and
+// fixture rows so they can be inspected and migrated; a new production row
+// must expose status telemetry before it can enter the registry.
+func ValidateProductionRegistration(d *registryv1.ProviderDescriptor) error {
+	if d == nil {
+		return ErrInvalidDescriptor{Field: "descriptor", Reason: "required"}
+	}
+	if d.GetLifecycle() == registryv1.Lifecycle_LIFECYCLE_PRODUCTION && d.GetStatusEndpoint() == nil {
+		return ErrInvalidDescriptor{Field: "status_endpoint", Reason: "required for a production provider so freshness can gate automatic routing"}
 	}
 	return nil
 }

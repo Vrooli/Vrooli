@@ -11,35 +11,27 @@
   },
   "strategies": [
     {
-      "name": "current",
-      "description": "Current Search Hub pipeline: indexed description shortlist, LLM classifier, bounded provider fan-out, and shared reranker chain.",
+      "name": "semantic-cross-encoder",
+      "description": "Guarded semantic candidate: provider-description ranking over every eligible leaf, followed by cross-encoder selection and bounded fan-out.",
       "stages": [
-        {"kind": "lexical", "params": {"role": "provider_description_fallback"}},
-        {"kind": "embedding", "params": {"role": "provider_description_shortlist"}},
-        {"kind": "cross_encoder", "params": {"role": "shared_reranker_primary"}},
-        {"kind": "llm", "params": {"role": "routing_classifier_and_reranker_fallback"}}
+        {"kind": "lexical", "params": {"role": "provider_description_fallback", "shortlist_width": 6}},
+        {"kind": "embedding", "params": {"role": "provider_description_shortlist", "candidate_scope": "all", "evidence_scope": "all", "fusion": "reciprocal_rank", "selection_policy": "lexical_guarded", "evidence_width": 6}},
+        {"kind": "cross_encoder", "params": {"selection": "provider_pick", "fanout_width": 6}}
       ]
     },
     {
       "name": "lexical-cross-encoder",
-      "description": "Measured target: lexical provider shortlist followed by cross-encoder selection.",
+      "description": "Named fallback: lexical provider shortlist followed by cross-encoder selection.",
       "stages": [
         {"kind": "lexical", "params": {"shortlist_width": 6}},
-        {"kind": "cross_encoder", "params": {"selection": "provider_pick"}}
+        {"kind": "cross_encoder", "params": {"selection": "provider_pick", "fanout_width": 6}}
       ]
     },
     {
       "name": "lexical-fallback",
-      "description": "Zero-dependency fallback: lexical provider shortlist returning its top candidate.",
+      "description": "Zero-dependency fallback: lexical provider shortlist with bounded fan-out.",
       "stages": [
         {"kind": "lexical", "params": {"shortlist_width": 6}}
-      ]
-    },
-    {
-      "name": "llm-classifier",
-      "description": "Retained comparison row for the incumbent LLM classifier path.",
-      "stages": [
-        {"kind": "llm", "params": {"role": "routing_classifier"}}
       ]
     }
   ]

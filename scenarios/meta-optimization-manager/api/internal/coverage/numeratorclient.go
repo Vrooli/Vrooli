@@ -32,10 +32,11 @@ import (
 // substrate spawned the owner's CLI with a 30s timeout, so one slow/hung owner
 // (e.g. test-genie health aggregating its fleet ledger) stalled the whole
 // scoreboard for ~30s. Reads are now a single typed Connect-RPC call resolved
-// through api-core/discovery; they should return sub-second. The short deadline
-// turns a slow/unreachable owner into a fast, honest per-projection UNAVAILABLE
-// instead of a board-wide hang.
-const numeratorDeadline = 3 * time.Second
+// through api-core/discovery. Search Hub's status and eval aggregation can
+// legitimately take several seconds while it probes a live provider fleet, so
+// this remains bounded without making ordinary board reads intermittently
+// disappear as UNAVAILABLE.
+const numeratorDeadline = 10 * time.Second
 
 // answerEvalFreshnessWindow is deliberately explicit and shared by every
 // Answer join. A run older than this is historical evidence, not current
@@ -263,89 +264,78 @@ func (j *apiNumeratorJoiner) joinAnswer(ctx context.Context, base string, cells 
 			}
 		}
 	}
-	return JoinResult{Available: true, Statuses: statuses, Evidence: evidence, Conditions: conditions, OwnerResolved: resolved}
+	corpusNow, endToEndNow := answerCoverageCounts(cells, providerEvidence)
+	return JoinResult{
+		Available: true, Statuses: statuses, Evidence: evidence, Conditions: conditions, OwnerResolved: resolved,
+		AnswerCorpusCapableNowCount: corpusNow, AnswerCorpusCapableTotalCells: len(cells),
+		AnswerEndToEndNowCount: endToEndNow, AnswerEndToEndTotalCells: len(cells),
+	}
 }
 
 func ownerForAnswer() string { return "search-hub" }
 
 type evalFreshness struct {
-	Fresh     bool
-	Available bool
-	Evidence  string
+	Fresh            bool
+	Available        bool
+	Evidence         string
+	RoutingPrecision float64
+	RetrievalRecall  float64
+	RatesAvailable   bool
 }
 
-type evalSuiteFreshness struct {
+type evalPair struct {
+	// Embedded compatibility view preserves the historical end-to-end fields
+	// for callers/tests while the named pair makes both evidence tiers explicit.
+	evalFreshness
+	Corpus    evalFreshness
+	Federated evalFreshness
+}
+
+type evalSuitePair struct {
 	ProviderID string
 	SuiteID    string
-	Freshness  evalFreshness
+	Pair       evalPair
 	Err        error
 }
 
-func (j *apiNumeratorJoiner) freshEvalByProvider(ctx context.Context, client evalconnect.EvalServiceClient, suites []*evalv1.EvalSuite) (map[string]evalFreshness, error) {
-	results := make(chan evalSuiteFreshness, len(suites))
+func (j *apiNumeratorJoiner) freshEvalByProvider(ctx context.Context, client evalconnect.EvalServiceClient, suites []*evalv1.EvalSuite) (map[string]evalPair, error) {
+	results := make(chan evalSuitePair, len(suites))
 	var wg sync.WaitGroup
 	for _, suite := range suites {
 		if suite == nil || strings.TrimSpace(suite.GetProviderId()) == "" {
+			continue
+		}
+		if isStarterSuite(suite.GetSuiteId()) {
+			// Starter suites are migration scaffolding. They may remain visible
+			// in Search Hub for explicit inspection, but a one-case scaffold must
+			// never veto a provider's production readiness evidence.
 			continue
 		}
 		suite := suite
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			resp, err := client.ListRuns(ctx, connect.NewRequest(&evalv1.ListRunsRequest{SuiteId: suite.GetSuiteId(), Limit: 20}))
-			if err != nil {
-				results <- evalSuiteFreshness{ProviderID: suite.GetProviderId(), SuiteID: suite.GetSuiteId(), Err: err}
-				return
-			}
-			current := evalFreshness{Available: true, Evidence: "no graded eval run in the last 30d (graded_cases=0)"}
-			var unavailableReason string
-			for _, run := range resp.Msg.GetRuns() {
-				if run == nil {
-					continue
+			pair := evalPair{}
+			for _, tier := range []string{"provider_direct", "federated"} {
+				resp, err := client.ListRuns(ctx, connect.NewRequest(&evalv1.ListRunsRequest{SuiteId: suite.GetSuiteId(), Limit: 20, Tier: tier}))
+				if err != nil {
+					results <- evalSuitePair{ProviderID: suite.GetProviderId(), SuiteID: suite.GetSuiteId(), Err: err}
+					return
 				}
-				at, parseErr := time.Parse(time.RFC3339Nano, run.GetCreatedAt())
-				if parseErr != nil {
-					continue
-				}
-				age := time.Since(at)
-				if age >= 0 && age <= answerEvalFreshnessWindow {
-					graded := gradedCases(run)
-					if graded == 0 {
-						if reason := strings.TrimSpace(run.GetUnavailableReason()); reason != "" {
-							unavailableReason = reason
-						} else if len(run.GetUnavailableCases()) > 0 {
-							unavailableReason = run.GetUnavailableCases()[0].GetReason()
-						} else if run.GetDegraded() {
-							unavailableReason = run.GetDegradedReason()
-						}
-						continue
-					}
-					indexed := run.GetConfig().GetIndexedCount()
-					passRate := 0.0
-					if graded > 0 {
-						passRate = float64(runMetCases(run)) / float64(graded)
-					}
-					current.Evidence = fmt.Sprintf("suite %s: latest graded eval run %s pass_rate=%.2f graded_cases=%d indexed_count=%d", suite.GetSuiteId(), run.GetRunId(), passRate, graded, indexed)
-					if graded > 0 && passRate >= answerEvalMinimumPassRate {
-						current.Fresh = true
-					}
-					if indexed == 0 {
-						current.Evidence += " (instrumentation note: indexed_count not reported)"
-					}
-					break
+				freshness := evaluateEvalRuns(suite.GetSuiteId(), tier, resp.Msg.GetRuns())
+				if tier == "provider_direct" {
+					pair.Corpus = freshness
+				} else {
+					pair.Federated = freshness
 				}
 			}
-			if !current.Fresh && unavailableReason != "" {
-				current.Available = false
-				current.Evidence = fmt.Sprintf("UNAVAILABLE: suite %s has no graded eval run in the last 30d; reason: %s", suite.GetSuiteId(), unavailableReason)
-			}
-			results <- evalSuiteFreshness{ProviderID: suite.GetProviderId(), SuiteID: suite.GetSuiteId(), Freshness: current}
+			results <- evalSuitePair{ProviderID: suite.GetProviderId(), SuiteID: suite.GetSuiteId(), Pair: pair}
 		}()
 	}
 	wg.Wait()
 	close(results)
 
-	byProvider := make(map[string][]evalSuiteFreshness, len(suites))
+	byProvider := make(map[string][]evalSuitePair, len(suites))
 	for result := range results {
 		if result.Err != nil {
 			return nil, result.Err
@@ -353,30 +343,82 @@ func (j *apiNumeratorJoiner) freshEvalByProvider(ctx context.Context, client eva
 		byProvider[result.ProviderID] = append(byProvider[result.ProviderID], result)
 	}
 
-	out := make(map[string]evalFreshness, len(byProvider))
+	out := make(map[string]evalPair, len(byProvider))
 	for providerID, providerResults := range byProvider {
 		sort.Slice(providerResults, func(i, k int) bool {
 			return providerResults[i].SuiteID < providerResults[k].SuiteID
 		})
-		aggregate := evalFreshness{Fresh: true, Available: true}
+		aggregate := evalPair{Corpus: evalFreshness{Fresh: true, Available: true}, Federated: evalFreshness{Fresh: true, Available: true}}
 		for _, result := range providerResults {
-			if !result.Freshness.Available {
-				aggregate = result.Freshness
-				break
-			}
-			if !result.Freshness.Fresh {
-				// Worst-suite-wins: the first failing suite in stable suite
-				// order decides both the verdict and the evidence.
-				aggregate = result.Freshness
-				break
-			}
-			// If every suite is fresh, the final suite is the deterministic
-			// deciding evidence for the all-suites fold.
-			aggregate.Evidence = result.Freshness.Evidence
+			aggregate.Corpus = foldEvalFreshness(aggregate.Corpus, result.Pair.Corpus)
+			aggregate.Federated = foldEvalFreshness(aggregate.Federated, result.Pair.Federated)
 		}
+		aggregate.evalFreshness = aggregate.Federated
 		out[providerID] = aggregate
 	}
 	return out, nil
+}
+
+func isStarterSuite(suiteID string) bool {
+	return strings.HasSuffix(strings.ToLower(strings.TrimSpace(suiteID)), ".starter")
+}
+
+func foldEvalFreshness(current, candidate evalFreshness) evalFreshness {
+	// Results are sorted by suite id. A failing suite is retained as the
+	// deterministic provider verdict; a passing suite becomes the latest
+	// evidence only when every suite seen so far has passed.
+	if current.Evidence != "" && (!current.Available || !current.Fresh) {
+		return current
+	}
+	return candidate
+}
+
+func evaluateEvalRuns(suiteID, tier string, runs []*evalv1.EvalRun) evalFreshness {
+	current := evalFreshness{Available: true, Evidence: "no graded " + tier + " eval run in the last 30d (graded_cases=0)"}
+	var unavailableReason string
+	for _, run := range runs {
+		if run == nil {
+			continue
+		}
+		at, parseErr := time.Parse(time.RFC3339Nano, run.GetCreatedAt())
+		age := time.Since(at)
+		if parseErr != nil || age < 0 || age > answerEvalFreshnessWindow {
+			continue
+		}
+		graded := gradedCases(run)
+		if graded == 0 {
+			if reason := strings.TrimSpace(run.GetUnavailableReason()); reason != "" {
+				unavailableReason = reason
+			} else if len(run.GetUnavailableCases()) > 0 {
+				unavailableReason = run.GetUnavailableCases()[0].GetReason()
+			} else if run.GetDegraded() {
+				unavailableReason = run.GetDegradedReason()
+			}
+			continue
+		}
+		indexed := run.GetConfig().GetIndexedCount()
+		passRate := float64(runMetCases(run)) / float64(graded)
+		aggregate := run.GetAggregate()
+		current.Evidence = fmt.Sprintf("suite %s: latest %s eval run %s pass_rate=%.2f graded_cases=%d indexed_count=%d", suiteID, tier, run.GetRunId(), passRate, graded, indexed)
+		if aggregate != nil && aggregate.RoutingPrecision != nil && aggregate.RetrievalRecall != nil {
+			current.RatesAvailable = true
+			current.RoutingPrecision = aggregate.GetRoutingPrecision()
+			current.RetrievalRecall = aggregate.GetRetrievalRecall()
+			current.Evidence += fmt.Sprintf(" routing_precision=%.3f retrieval_recall=%.3f", current.RoutingPrecision, current.RetrievalRecall)
+			current.Fresh = current.RoutingPrecision >= answerEvalMinimumRoutingPrecision && current.RetrievalRecall >= answerEvalMinimumRetrievalRecall
+		} else {
+			current.Fresh = passRate >= answerEvalMinimumPassRate
+		}
+		if indexed == 0 {
+			current.Evidence += " (instrumentation note: indexed_count not reported)"
+		}
+		return current
+	}
+	if unavailableReason != "" {
+		current.Available = false
+		current.Evidence = fmt.Sprintf("UNAVAILABLE: suite %s has no graded %s eval run in the last 30d; reason: %s", suiteID, tier, unavailableReason)
+	}
+	return current
 }
 
 func gradedCases(run *evalv1.EvalRun) int32 {
@@ -412,7 +454,7 @@ func runMetCases(run *evalv1.EvalRun) int32 {
 	return count
 }
 
-func answerEvidence(resp *registryv1.ListProvidersResponse, status *routingv1.StatusResponse, fresh map[string]evalFreshness) []answerProviderEvidence {
+func answerEvidence(resp *registryv1.ListProvidersResponse, status *routingv1.StatusResponse, fresh map[string]evalPair) []answerProviderEvidence {
 	reachable := make(map[string]*routingv1.ProviderHealth)
 	if status != nil {
 		for _, health := range status.GetProviders() {
@@ -442,11 +484,24 @@ func answerEvidence(resp *registryv1.ListProvidersResponse, status *routingv1.St
 			condition = ConditionDegraded
 		}
 		eval := fresh[id]
-		if eval.Evidence == "" {
-			eval.Evidence = "no graded eval run in the last 30d (graded_cases=0)"
+		if eval.Federated.Evidence == "" {
+			eval.Federated.Evidence = "no graded federated eval run in the last 30d (graded_cases=0)"
+		}
+		if eval.Corpus.Evidence == "" {
+			eval.Corpus.Evidence = "no graded provider_direct eval run in the last 30d (graded_cases=0)"
 		}
 		active := provider.GetState() != registryv1.ProviderState_PROVIDER_STATE_CAPABILITY_GAP
-		out = append(out, answerProviderEvidence{ProviderID: id, Active: active, Reachable: reach, FreshEval: eval.Fresh, EvalAvailable: eval.Available, Condition: condition, ReachabilityEvidence: reachEvidence, EvalEvidence: eval.Evidence})
+		if !eval.Federated.Available || !eval.Federated.Fresh || (eval.Federated.RatesAvailable && (eval.Federated.RoutingPrecision < answerEvalMinimumRoutingPrecision || eval.Federated.RetrievalRecall < answerEvalMinimumRetrievalRecall)) {
+			condition = ConditionDegraded
+		}
+		out = append(out, answerProviderEvidence{
+			ProviderID: id, Active: active, Reachable: reach,
+			FreshEval: eval.Federated.Fresh, CorpusCapable: eval.Corpus.Fresh,
+			EvalAvailable: eval.Federated.Available, Condition: condition,
+			ReachabilityEvidence: reachEvidence, EvalEvidence: eval.Federated.Evidence,
+			CorpusEvalEvidence: eval.Corpus.Evidence, RoutingPrecision: eval.Federated.RoutingPrecision,
+			RetrievalRecall: eval.Federated.RetrievalRecall, RatesAvailable: eval.Federated.RatesAvailable,
+		})
 	}
 	return out
 }

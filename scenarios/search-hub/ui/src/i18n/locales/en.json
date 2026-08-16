@@ -102,8 +102,6 @@
     "grouped": "by-provider",
     "degraded": "degraded",
     "groupEmpty": "No matches",
-    "score": "score {{value}}",
-    "rerank": "rerank {{value}}",
     "weak": "weak",
     "confidenceStrong": "strong{{regime}}",
     "confidenceWeak": "weak{{regime}}",

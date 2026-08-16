@@ -2,6 +2,7 @@ package coverage
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"time"
 
@@ -46,7 +47,11 @@ type JoinResult struct {
 	Conditions map[string]ConditionVerdict
 	// OwnerResolved records whether denominator owner tokens resolved to exact
 	// registered leaf IDs. It separates an authoring error from reachability.
-	OwnerResolved map[string]bool
+	OwnerResolved                 map[string]bool
+	AnswerCorpusCapableNowCount   int
+	AnswerCorpusCapableTotalCells int
+	AnswerEndToEndNowCount        int
+	AnswerEndToEndTotalCells      int
 }
 
 // guideHealthyScore is the prompt-manager graph health-score threshold at or
@@ -70,11 +75,21 @@ type answerProviderEvidence struct {
 	Active               bool
 	Reachable            bool
 	FreshEval            bool
+	CorpusCapable        bool
 	EvalAvailable        bool
 	Condition            ConditionVerdict
 	ReachabilityEvidence string
 	EvalEvidence         string
+	CorpusEvalEvidence   string
+	RoutingPrecision     float64
+	RetrievalRecall      float64
+	RatesAvailable       bool
 }
+
+const (
+	answerEvalMinimumRoutingPrecision = 0.85
+	answerEvalMinimumRetrievalRecall  = 0.80
+)
 
 // recomputeAnswer re-derives each Answer cell from the three independent
 // runtime signals required by the readiness contract: an ACTIVE declaration,
@@ -88,24 +103,15 @@ func recomputeAnswer(cells []spacedoc.Cell, providers []answerProviderEvidence) 
 		if len(toks) == 0 {
 			continue // no provider to join against — keep authored status
 		}
-		var matched *answerProviderEvidence
-		for _, t := range toks {
-			for i := range providers {
-				candidate := &providers[i]
-				if matchesProviderToken(t, candidate.ProviderID) {
-					if matched == nil || (candidate.Active && candidate.Reachable && candidate.FreshEval) {
-						matched = candidate
-					}
-				}
-			}
-		}
-		if matched == nil {
+		matched := matchAnswerProviders(toks, providers)
+		if len(matched) != len(toks) {
 			// The declared provider did not resolve to an ACTIVE descriptor. A
 			// capability gap or unresolved owner must never be promoted and an
 			// authored status remains the only honest answer.
 			evidence[c.ID] = []SignalEvidence{
 				{Signal: "active", Verdict: "did_not_hold", Evidence: "declared provider is not in the ACTIVE registry (unresolved or capability gap)"},
 				{Signal: "reachable", Verdict: "not_evaluated", Evidence: "provider is not ACTIVE"},
+				{Signal: "corpus_eval_fresh", Verdict: "not_evaluated", Evidence: "provider is not ACTIVE"},
 				{Signal: "eval_fresh", Verdict: "not_evaluated", Evidence: "provider is not ACTIVE"},
 			}
 			if c.Status == spacedoc.StatusNow {
@@ -117,16 +123,23 @@ func recomputeAnswer(cells []spacedoc.Cell, providers []answerProviderEvidence) 
 			}
 			continue
 		}
-		evalVerdict := verdict(matched.FreshEval)
-		if !matched.EvalAvailable {
+		evalVerdict := verdict(allAnswerProviders(matched, func(p answerProviderEvidence) bool { return p.FreshEval }))
+		if !allAnswerProviders(matched, func(p answerProviderEvidence) bool { return p.EvalAvailable }) {
 			evalVerdict = "unavailable"
 		}
 		evidence[c.ID] = []SignalEvidence{
-			{Signal: "active", Verdict: verdict(matched.Active), Evidence: matched.ProviderID + " is " + boolWord(matched.Active, "ACTIVE", "not ACTIVE")},
-			{Signal: "reachable", Verdict: verdict(matched.Reachable), Evidence: matched.ReachabilityEvidence},
-			{Signal: "eval_fresh", Verdict: evalVerdict, Evidence: matched.EvalEvidence},
+			{Signal: "active", Verdict: verdict(allAnswerProviders(matched, func(p answerProviderEvidence) bool { return p.Active })), Evidence: answerProviderEvidenceText(matched, "active")},
+			{Signal: "reachable", Verdict: verdict(allAnswerProviders(matched, func(p answerProviderEvidence) bool { return p.Reachable })), Evidence: answerProviderEvidenceText(matched, "reachable")},
+			{Signal: "corpus_eval_fresh", Verdict: verdict(allAnswerProviders(matched, func(p answerProviderEvidence) bool { return p.CorpusCapable })), Evidence: answerProviderEvidenceText(matched, "corpus")},
+			{Signal: "eval_fresh", Verdict: evalVerdict, Evidence: answerProviderEvidenceText(matched, "eval")},
 		}
-		if matched.Active && matched.Reachable && matched.FreshEval {
+		if allAnswerProviders(matched, func(p answerProviderEvidence) bool { return p.RatesAvailable }) {
+			evidence[c.ID] = append(evidence[c.ID],
+				SignalEvidence{Signal: "routing_precision", Verdict: verdict(allAnswerProviders(matched, func(p answerProviderEvidence) bool { return p.RoutingPrecision >= answerEvalMinimumRoutingPrecision })), Evidence: answerRateEvidence(matched, "routing")},
+				SignalEvidence{Signal: "retrieval_recall", Verdict: verdict(allAnswerProviders(matched, func(p answerProviderEvidence) bool { return p.RetrievalRecall >= answerEvalMinimumRetrievalRecall })), Evidence: answerRateEvidence(matched, "recall")},
+			)
+		}
+		if allAnswerProviders(matched, func(p answerProviderEvidence) bool { return p.Active && p.Reachable && p.FreshEval }) {
 			out[c.ID] = spacedoc.StatusNow
 		} else if c.Status == spacedoc.StatusNow {
 			// Authored NOW but one or more runtime signals is absent: honest
@@ -137,6 +150,78 @@ func recomputeAnswer(cells []spacedoc.Cell, providers []answerProviderEvidence) 
 		// keeps its authored status (no overlay entry).
 	}
 	return out, evidence
+}
+
+func matchAnswerProviders(tokens []string, providers []answerProviderEvidence) []answerProviderEvidence {
+	out := make([]answerProviderEvidence, 0, len(tokens))
+	for _, token := range tokens {
+		for _, provider := range providers {
+			if matchesProviderToken(token, provider.ProviderID) {
+				out = append(out, provider)
+				break
+			}
+		}
+	}
+	return out
+}
+
+func allAnswerProviders(providers []answerProviderEvidence, predicate func(answerProviderEvidence) bool) bool {
+	if len(providers) == 0 {
+		return false
+	}
+	for _, provider := range providers {
+		if !predicate(provider) {
+			return false
+		}
+	}
+	return true
+}
+
+func answerProviderEvidenceText(providers []answerProviderEvidence, kind string) string {
+	parts := make([]string, 0, len(providers))
+	for _, provider := range providers {
+		var value string
+		switch kind {
+		case "active":
+			value = provider.ProviderID + " is " + boolWord(provider.Active, "ACTIVE", "not ACTIVE")
+		case "reachable":
+			value = provider.ReachabilityEvidence
+		case "corpus":
+			value = provider.CorpusEvalEvidence
+		default:
+			value = provider.EvalEvidence
+		}
+		parts = append(parts, value)
+	}
+	return strings.Join(parts, "; ")
+}
+
+func answerRateEvidence(providers []answerProviderEvidence, kind string) string {
+	parts := make([]string, 0, len(providers))
+	for _, provider := range providers {
+		value := provider.RoutingPrecision
+		minimum := answerEvalMinimumRoutingPrecision
+		if kind == "recall" {
+			value = provider.RetrievalRecall
+			minimum = answerEvalMinimumRetrievalRecall
+		}
+		parts = append(parts, fmt.Sprintf("%s=%.3f (minimum %.2f)", provider.ProviderID, value, minimum))
+	}
+	return strings.Join(parts, "; ")
+}
+
+func answerCoverageCounts(cells []spacedoc.Cell, providers []answerProviderEvidence) (int, int) {
+	corpus, endToEnd := 0, 0
+	for _, cell := range cells {
+		matched := matchAnswerProviders(providerTokens(cell.Owner), providers)
+		if allAnswerProviders(matched, func(p answerProviderEvidence) bool { return p.Active && p.Reachable && p.CorpusCapable }) {
+			corpus++
+		}
+		if allAnswerProviders(matched, func(p answerProviderEvidence) bool { return p.Active && p.Reachable && p.FreshEval }) {
+			endToEnd++
+		}
+	}
+	return corpus, endToEnd
 }
 
 func matchesProviderToken(token, providerID string) bool {

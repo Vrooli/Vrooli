@@ -49,7 +49,7 @@
       "path": "/vrooli.meta_optimization_manager.v1.convergence.ConvergenceService/GetConvergenceStatus",
       "method": "POST",
       "summary": "Convergence status",
-      "description": "Returns per-template four-lens fitness + gold-star reference health across all templates (OT-P1-002). Computed live; persists a dated audit record for the trend.",
+      "description": "Returns per-template four-lens fitness + gold-star generated-golden health across all templates (OT-P1-002). Computed live; persists a dated audit record for the trend.",
       "category": "convergence",
       "response": {
         "type": "object",
@@ -78,7 +78,7 @@
       "path": "/vrooli.meta_optimization_manager.v1.convergence.ConvergenceService/ListReferences",
       "method": "POST",
       "summary": "List reference health",
-      "description": "Returns gold-star reference-scenario health + eligibility (stale-from-template, clean-on-all-tools, ≥60d stability, breadth), optionally filtered by eligibility.",
+      "description": "Returns gold-star generated-golden health + eligibility (stale-from-template, clean-on-all-tools, ≥60d stability, breadth), optionally filtered by eligibility.",
       "category": "convergence",
       "response": {
         "type": "object",
@@ -230,6 +230,34 @@
       }
     },
     {
+      "id": "focus_list_condition",
+      "path": "/vrooli.meta_optimization_manager.v1.focus.FocusService/ListCondition",
+      "method": "POST",
+      "summary": "Observed condition findings",
+      "description": "Lists condition findings derived from serving telemetry.",
+      "category": "focus",
+      "response": {
+        "type": "object",
+        "properties": {
+          "gaps": "array<Gap>"
+        }
+      }
+    },
+    {
+      "id": "focus_explain_condition",
+      "path": "/vrooli.meta_optimization_manager.v1.focus.FocusService/ExplainCondition",
+      "method": "POST",
+      "summary": "Explain condition leg",
+      "description": "Explains one provider leg's observed condition evidence.",
+      "category": "focus",
+      "response": {
+        "type": "object",
+        "properties": {
+          "gap": "Gap"
+        }
+      }
+    },
+    {
       "id": "trials_list_tasks",
       "path": "/vrooli.meta_optimization_manager.v1.trials.TrialsService/ListTrialTasks",
       "method": "POST",
@@ -248,7 +276,7 @@
       "path": "/vrooli.meta_optimization_manager.v1.trials.TrialsService/RunTrials",
       "method": "POST",
       "summary": "Run trials (explicit invocation)",
-      "description": "Dispatches a task or suite through agent-manager's sandboxed runner (run create --run-mode sandboxed, runner=opencode + a local model), evaluates the produced diff against the fixture oracle, and records the runs (OT-P1-001). EXPLICIT INVOCATION ONLY — never auto-runs; always sandboxed.",
+      "description": "Reconciles MoM's declared role-only profile, then dispatches a task or suite through Agent Manager's sandboxed runner, evaluates the produced diff against the fixture oracle, and records the runs (OT-P1-001). EXPLICIT INVOCATION ONLY — never auto-runs; always sandboxed.",
       "category": "trials",
       "response": {
         "type": "object",

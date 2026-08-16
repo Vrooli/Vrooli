@@ -55,6 +55,29 @@ type staticResolver struct {
 	errs map[string]error
 }
 
+type orderedDescriptionIndex struct {
+	order []string
+	seen  int
+}
+
+func (i *orderedDescriptionIndex) Shortlist(_ context.Context, _ string, profiles []routing.ProviderProfile, limit int) ([]routing.ProviderProfile, routing.DescriptionIndexResult) {
+	i.seen = len(profiles)
+	byID := make(map[string]routing.ProviderProfile, len(profiles))
+	for _, profile := range profiles {
+		byID[profile.ProviderID] = profile
+	}
+	result := make([]routing.ProviderProfile, 0, len(profiles))
+	for _, id := range i.order {
+		if profile, ok := byID[id]; ok {
+			result = append(result, profile)
+		}
+	}
+	if limit > 0 && len(result) > limit {
+		result = result[:limit]
+	}
+	return result, routing.DescriptionIndexResult{Available: true, Total: len(profiles), Returned: len(result)}
+}
+
 func (s staticResolver) ResolveScenarioURL(_ context.Context, scenarioID string) (string, error) {
 	if err, ok := s.errs[scenarioID]; ok {
 		return "", err
@@ -208,9 +231,35 @@ func TestQueryAutomaticallyUsesModelFreeRouting(t *testing.T) {
 	})
 	resp, err := r.Query(context.Background(), &routingv1.QueryRequest{Query: "restart a scenario", Explain: true})
 	require.NoError(t, err)
-	require.Len(t, resp.GetGroups(), 1)
-	require.Equal(t, "cli-health.commands", resp.GetGroups()[0].GetProviderId())
+	require.Len(t, resp.GetGroups(), 3)
+	require.ElementsMatch(t, []string{"cli-health.commands", "ui-health.surfaces", "swarm-manager.records"}, resp.GetCorporaSearched())
 	require.Contains(t, strings.Join(resp.GetRoutingExplanation(), "\n"), "no LLM classifier")
+}
+
+func TestSemanticStrategyRanksEveryEligibleLeafBeforeBoundedSelection(t *testing.T) {
+	index := &orderedDescriptionIndex{order: []string{"swarm-manager.records", "cli-health.commands", "ui-health.surfaces"}}
+	strategy := routing.RetrievalStrategy{
+		Name: "semantic-test",
+		Stages: []routing.RetrievalStage{
+			{Kind: routing.StageEmbedding, Params: map[string]interface{}{"candidate_scope": "all"}},
+			{Kind: routing.StageCrossEncoder, Params: map[string]interface{}{"fanout_width": float64(2)}},
+		},
+	}
+	r := routing.NewRouter(routing.Deps{
+		Lister: threeProviderLister(), Resolver: threeProviderResolver(), Doer: threeProviderDoer(),
+		DescriptionIndex: index, Strategy: &strategy, RouterFactors: &routing.RouterFactorValues{
+			MaxFanoutWidth: 2, WidenThreshold: 0.45, PerProviderTimeout: 4 * time.Second,
+			Concurrency: 8, QueryBudget: 25 * time.Second, ZeroYieldMinimumRoutes: 5,
+			DemotionWindow: 15 * time.Minute,
+		},
+	})
+
+	resp, err := r.Query(context.Background(), &routingv1.QueryRequest{Query: "where are the records", Explain: true})
+	require.NoError(t, err)
+	require.Equal(t, 3, index.seen, "semantic selection must rank every eligible leaf before fan-out")
+	require.Len(t, resp.GetGroups(), 2, "the active strategy still applies its bounded fan-out")
+	require.Contains(t, resp.GetCorporaSearched(), "swarm-manager.records")
+	require.Contains(t, strings.Join(resp.GetRoutingExplanation(), "\n"), "semantic provider-description index ranked 3 eligible leaves")
 }
 
 func TestQueryReturnsPartialResultsWhenDeadlineLeavesProviderPending(t *testing.T) {
@@ -520,16 +569,18 @@ func TestAutoRouteDoesNotCacheProviderSelections(t *testing.T) {
 	require.Equal(t, first.GetGroups()[0].GetProviderId(), second.GetGroups()[0].GetProviderId())
 }
 
-func TestAutoRouteLexicalFallbackReturnsOneBoundedProvider(t *testing.T) {
+func TestAutoRouteLexicalFallbackUsesBoundedFanout(t *testing.T) {
 	r := routing.NewRouter(routing.Deps{
 		Lister: threeProviderLister(), Resolver: threeProviderResolver(), Doer: threeProviderDoer(),
 	})
 
 	resp, err := r.Query(context.Background(), &routingv1.QueryRequest{Query: "something vague", Explain: true})
 	require.NoError(t, err)
-	require.Len(t, resp.GetGroups(), 1, "model-free fallback is bounded to one lexical candidate")
+	require.Len(t, resp.GetGroups(), 3, "model-free fallback uses the router's bounded provider set")
 	require.True(t, resp.GetDegraded(), "missing cross-encoder is visible as a strategy fallback")
-	require.Contains(t, strings.Join(resp.GetRoutingExplanation(), "\n"), "cross-encoder provider pick unavailable")
+	require.Equal(t, "lexical", resp.GetSelectorLeg())
+	require.Contains(t, strings.Join(resp.GetRoutingExplanation(), "\n"), "cross-encoder and LLM provider picks unavailable")
+	require.Contains(t, strings.Join(resp.GetRoutingExplanation(), "\n"), "bounded automatic fan-out width=6")
 }
 
 func TestAutoRouteCrossEncoderErrorFallsBackToLexical(t *testing.T) {
@@ -539,9 +590,30 @@ func TestAutoRouteCrossEncoderErrorFallsBackToLexical(t *testing.T) {
 
 	resp, err := r.Query(context.Background(), &routingv1.QueryRequest{Query: "anything", Explain: true})
 	require.NoError(t, err, "a cross-encoder failure never fails the query")
-	require.Len(t, resp.GetGroups(), 1)
+	require.Len(t, resp.GetGroups(), 3)
 	require.True(t, resp.GetDegraded(), "cross-encoder selection failure flags the response degraded")
-	require.Contains(t, strings.Join(resp.GetRoutingExplanation(), "\n"), "cross-encoder provider pick unavailable")
+	require.Equal(t, "lexical", resp.GetSelectorLeg())
+	require.Contains(t, strings.Join(resp.GetRoutingExplanation(), "\n"), "cross-encoder and LLM provider picks unavailable")
+}
+
+func TestAutomaticFanoutFusesMultipleProviderGroups(t *testing.T) {
+	rr := &fakeReranker{scoreByID: map[string]float64{
+		"scenario restart": 0.4,
+		"s.tsx":            0.7,
+		"pt-1":             0.9,
+	}}
+	r := routing.NewRouter(routing.Deps{
+		Lister: threeProviderLister(), Resolver: threeProviderResolver(), Doer: threeProviderDoer(), Reranker: rr,
+	})
+
+	resp, err := r.Query(context.Background(), &routingv1.QueryRequest{Query: "restart a scenario", Explain: true})
+	require.NoError(t, err)
+	require.Len(t, resp.GetGroups(), 3)
+	require.True(t, resp.GetReranked(), "bounded multi-provider routing must use cross-provider fusion")
+	require.Equal(t, "rerank_score", resp.GetOrderedBy())
+	require.NotEqual(t, "none", resp.GetRerankerLeg())
+	require.Len(t, resp.GetRanked(), 3)
+	require.Contains(t, strings.Join(resp.GetRoutingExplanation(), "\n"), "reranked 3 candidate")
 }
 
 func TestExplicitSelectorBypassesClassifier(t *testing.T) {

@@ -44,7 +44,7 @@ The projections are the **coverage axis**: enumerable supply, measured as `now /
 | **Condition** | per-leg verdict + instrumentation coverage | Does the capability that exists still *work*? | the contributor legs backing every `NOW` cell |
 | **Empirical** | trend over observed runs, no denominator | What *happens* when agents work? | `trials` (experimental, causal, expensive) |
 
-**Condition is defined in full by [`CONDITION-MODEL.md`](CONDITION-MODEL.md)** and is not restated here. Two properties of it matter to this file: its population is *derived* from this file's live numerator (the legs behind every `NOW` cell), so it can never drift out of sync with coverage; and by default a degraded leg does **not** change its cell's coverage status, because folding condition into supply makes both numbers unreadable. `test-genie` reports provider failure rate and pending autofix beside coverage; only a sustained failure streak promotes a coverage downgrade.
+**Condition is defined in full by [`CONDITION-MODEL.md`](CONDITION-MODEL.md)** and is not restated here. Two properties of it matter to this file: its population is *derived* from this file's live numerator (the legs behind every `NOW` cell), so it can never drift out of sync with coverage; and a degraded leg is reported beside coverage rather than silently changing the supply denominator. For Answer, failed quality signals now make the cell condition `degraded` even when the authored coverage status remains `IN-REACH`; only the explicit status rule promotes or downgrades supply.
 
 `trials` is experimental: a fixed task suite, a deterministic oracle, everything else held constant — so it answers a *counterfactual* ("**could** a local model do this?") that observational data structurally cannot, since local models are not run on real work. Observational friction evidence (agent-manager investigations, and later program-runtime telemetry) is the complementary half: broad, cheap, real-distribution, but confounded.
 
@@ -88,14 +88,14 @@ keeps its authored denominator status: "can't resolve" is not fabricated as
 
 The numerator is read **live over typed API↔API calls**, not CLI shell-outs:
 each owner's API base URL is resolved through `api-core/discovery` and called via
-a typed Connect-RPC client, concurrently, each bounded by a short ~3s deadline
+a typed Connect-RPC client, concurrently, each bounded by a short 10s deadline
 (`numeratorDeadline`, `api/internal/coverage/numeratorclient.go`). A slow or
 unreachable owner degrades to an honest per-projection `UNAVAILABLE` rather than
 stalling the board.
 
 | Projection | Owner RPC | Live join rule |
 |---|---|---|
-| **Answer** | search-hub `RegistryService.ListProviders` | A declared provider match yields `NOW`. An authored-`NOW` cell whose provider is absent downgrades to `IN-REACH`; other unresolved cells keep authored status. |
+| **Answer** | search-hub registry, routing status, and tiered eval evidence | The headline reports two labelled numerators: **corpus-capable** from `provider_direct` evidence and **end-to-end-answerable** from `federated` evidence. Compound-owner cells require every named provider to satisfy the tier's signal. |
 | **Validate** | test-genie `RunsService.GetSelfHealth` (`skip_conformance=true`) | A provider is `NOW` when it exists in the catalog. Ledger failures and pending autofix are reported beside coverage as a condition verdict; only the named sustained-failure threshold crosses the promotion boundary. Authored concerns are accompanied by a generated provider/capability tier from descriptor declarations. |
 | **Guide** | prompt-manager `GraphService.GetHealthScores` | Resolve the Guide row's skill ids against the graph health scores. `NOW` requires **all** referenced skills to be present and at/above `guideHealthyScore`; any partially resolved or unhealthy row is `IN-REACH`; fully unresolved rows keep authored status. |
 | **Act** | `program-runtime` | `BindingRegistryService.ResolveActCells` returns live callable verdicts. If the owner is unavailable, the join returns `UNAVAILABLE` with an honest reason and preserves authored statuses. |
@@ -114,22 +114,30 @@ fan-out on the board deadline.
 ### Answer readiness is a three-signal join
 
 Answer coverage is intentionally stricter than descriptor existence. A cell is
-`NOW` only when its provider has all three independent runtime signals:
+`NOW` only when every named provider has all three independent runtime signals:
 
 1. **Active:** the provider is declared and active in Search Hub's registry.
 2. **Reachable:** Search Hub's status probe reports a resolved, non-degraded
    endpoint for that provider.
-3. **Fresh evaluation:** the provider has a recent non-degraded eval run within
-   the 30-day freshness window.
+3. **Fresh evaluation:** the provider has a recent passing **federated** eval run within
+   the 30-day freshness window. The direct and federated tiers are queried
+   independently; a terminal `.starter` suite is migration scaffolding and
+   cannot veto a provider's production evidence.
 
-An authored `NOW` cell missing one signal is downgraded to `IN-REACH`; an
-authored non-`NOW` capability-gap status is preserved while its evidence remains
-visible. If the typed owner RPC is unavailable, the projection is `UNAVAILABLE`
-and its ratio/confidence are omitted. Every Answer cell exposes the three
-verdicts in `explain-cell`, so a headline can be audited to evidence rather than
-inferred from a boolean provider match.
+The headline also reports **corpus-capable** coverage from a recent
+`provider_direct` run. It is deliberately not substituted for the
+end-to-end number: a healthy corpus can still be unreachable or misrouted by
+the federation layer. An authored `NOW` cell missing one signal is downgraded
+to `IN-REACH`; an authored non-`NOW` capability-gap status is preserved while
+its evidence remains visible. Direct corpus failures and federated router
+failures remain visible as separate quality-debt warnings in `validate-docs`;
+they do not masquerade as a provider-document `eval_gate_unmet` error. If the
+typed owner RPC is unavailable, the
+projection is `UNAVAILABLE` and both ratios are omitted. Every Answer cell
+exposes the tiered signals in `explain-cell`, so a headline can be audited to
+evidence rather than inferred from a boolean provider match.
 
-The method is versioned as `answer-active-reachable-fresh-eval-v2`. Each uncached
+The method is versioned as `answer-tiered-corpus-end-to-end-v3`. Each uncached
 Answer read computes the join twice and exposes whether the effective coverage
 matched; a mismatch is evidence of a determinism defect, not a reason to choose
 one sample. Changing the

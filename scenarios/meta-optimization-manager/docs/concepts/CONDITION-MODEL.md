@@ -104,7 +104,7 @@ Freshness catches the failure mode where every request succeeds and every answer
 | `exercise.distinct_callers` | Number of distinct callers. Separates "load-bearing for many" from "one caller's private path." |
 | `exercise.last_invoked_at` | Timestamp of the most recent invocation, or explicitly never. |
 
-Exercise is the cheapest family to source and the one with no existing coverage anywhere. It is also the input to an existing policy: `path:docs/agent-system/DEPRECATION_POLICY.md` sets staleness windows for skills, agents, and teams but currently resolves them by *reference-grep and heartbeat presence*. Exercise signals replace that proxy with measured invocation, and extend the same policy to providers, phases, and bindings, which have no staleness rule today.
+Exercise is the cheapest family to source and the one with no existing coverage anywhere. It is also intended to complement the existing agent deprecation policy, which sets staleness windows for skills, agents, and teams but currently resolves them by *reference-grep and heartbeat presence*. Exercise signals replace that proxy with measured invocation, and extend the same policy to providers, phases, and bindings, which have no staleness rule today.
 
 ## Status Vocabulary
 

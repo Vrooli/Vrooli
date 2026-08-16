@@ -57,12 +57,22 @@ func TestFederatedRatesPreserveMeasuredZeroAndUnset(t *testing.T) {
 				{CaseId: "b", Outcome: "unavailable"},
 			},
 		},
+		{
+			name: "negative cases excluded from retrieval recall",
+			results: []*evalv1.CaseResult{
+				{CaseId: "negative", Outcome: "met", ProviderRouted: true, ExpectedRank: 0},
+				{CaseId: "positive", Outcome: "met", ProviderRouted: true, ExpectedRank: 1},
+			},
+			precision: float64p(1), recall: float64p(1),
+		},
 	}
 
 	suite := &evalv1.EvalSuite{Cases: []*evalv1.EvalCase{
 		{CaseId: "a", ExpectWithinTopK: 1},
 		{CaseId: "b", ExpectWithinTopK: 2},
 		{CaseId: "c", ExpectWithinTopK: 1},
+		{CaseId: "negative", ExpectNoStrongHit: true, ExpectMaxScore: 0.3},
+		{CaseId: "positive", ExpectWithinTopK: 1, ExpectIds: []string{"wanted"}},
 	}}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

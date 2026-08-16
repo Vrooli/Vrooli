@@ -94,6 +94,35 @@ func (d *RequestDefaults) validate(path string, errs *[]error) {
 	validateEnum(errs, path+".quality", d.Quality, allowedQualities)
 }
 
+// ResolveGenerate resolves the three-way precedence for the chat-request levers
+// the role owns: an explicit flag wins, an absent flag falls through to the
+// role's declared request_defaults, and an absent default leaves the parameter
+// off the wire so the upstream provider's own default applies. temperatureFlag
+// carries the -1 "unset" sentinel and maxTokensFlag carries 0, mirroring
+// resource-ollama's gateway flags. A nil receiver (the role declared no
+// request_defaults) is valid and resolves to "flag or nothing".
+//
+// This lives beside the policy shape rather than in the command layer because
+// "what a role declares" and "what a caller may override" are one decision, and
+// splitting them is how request_defaults became dead configuration on the
+// generate path in the first place.
+func (d *RequestDefaults) ResolveGenerate(temperatureFlag float64, maxTokensFlag int) (*float64, int) {
+	var temperature *float64
+	switch {
+	case temperatureFlag >= 0:
+		value := temperatureFlag
+		temperature = &value
+	case d != nil && d.Temperature != nil:
+		value := *d.Temperature
+		temperature = &value
+	}
+	maxTokens := maxTokensFlag
+	if maxTokens <= 0 && d != nil && d.MaxTokens != nil {
+		maxTokens = *d.MaxTokens
+	}
+	return temperature, maxTokens
+}
+
 func validateEnum(errs *[]error, path, value string, allowed map[string]struct{}) {
 	value = strings.TrimSpace(value)
 	if value == "" {

@@ -4,6 +4,14 @@ export type ThemeChoice = "light" | "dark" | "system";
 
 const STORAGE_KEY = "vrooli.theme";
 
+function getMatchMedia(): ((query: string) => MediaQueryList) | undefined {
+  if (typeof window === "undefined") return undefined;
+  const candidate: unknown = window.matchMedia;
+  if (typeof candidate !== "function") return undefined;
+  const matchMedia = candidate as (query: string) => MediaQueryList;
+  return (query: string) => matchMedia.call(window, query);
+}
+
 interface ThemeContextValue {
   /** The user's stated choice (light/dark/system). */
   choice: ThemeChoice;
@@ -25,8 +33,9 @@ const readStoredChoice = (): ThemeChoice => {
 
 const resolveChoice = (choice: ThemeChoice): "light" | "dark" => {
   if (choice === "light" || choice === "dark") return choice;
-  if (typeof window === "undefined" || !window.matchMedia) return "light";
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  const matchMedia = getMatchMedia();
+  if (!matchMedia) return "light";
+  return matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 };
 
 const applyTheme = (resolved: "light" | "dark", choice: ThemeChoice) => {
@@ -55,9 +64,10 @@ export function ThemeProvider({ children, initialChoice }: ThemeProviderProps) {
   }, [resolved, choice]);
 
   useEffect(() => {
-    if (typeof window === "undefined" || !window.matchMedia) return undefined;
+    const matchMedia = getMatchMedia();
+    if (!matchMedia) return undefined;
     if (choice !== "system") return undefined;
-    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const mq = matchMedia("(prefers-color-scheme: dark)");
     const handler = () => setResolved(mq.matches ? "dark" : "light");
     mq.addEventListener("change", handler);
     return () => mq.removeEventListener("change", handler);

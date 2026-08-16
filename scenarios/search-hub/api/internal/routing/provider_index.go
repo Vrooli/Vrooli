@@ -39,6 +39,7 @@ type descriptionVector struct {
 	Description string                     `json:"description"`
 	Fingerprint string                     `json:"fingerprint"`
 	Vector      []float64                  `json:"vector"`
+	Vectors     [][]float64                `json:"vectors,omitempty"`
 	Metadata    aisearch.EmbeddingMetadata `json:"metadata"`
 }
 
@@ -74,16 +75,11 @@ func (i *EmbeddingDescriptionIndex) Shortlist(ctx context.Context, query string,
 	if limit <= 0 {
 		limit = defaultMaxFanoutWidth
 	}
-	if len(profiles) <= limit {
-		result.Available = true
-		result.Returned = len(profiles)
-		return append([]ProviderProfile(nil), profiles...), result
-	}
 	if i == nil || i.embedder == nil {
 		return fallbackDescriptionProfiles(query, profiles, limit, "routing_index_unavailable"), unavailableDescriptionIndexResult(query, profiles, limit)
 	}
 
-	queryVector, err := i.embedder.Embed(ctx, query)
+	queryVector, err := embedDescriptionQuery(ctx, i.embedder, query)
 	if err != nil || len(queryVector) == 0 {
 		return fallbackDescriptionProfiles(query, profiles, limit, "routing_index_unavailable"), unavailableDescriptionIndexResult(query, profiles, limit)
 	}
@@ -99,7 +95,7 @@ func (i *EmbeddingDescriptionIndex) Shortlist(ctx context.Context, query string,
 		if !ok {
 			continue
 		}
-		scored = append(scored, scoredProfile{profile: profile, score: cosine(queryVector, entry.Vector)})
+		scored = append(scored, scoredProfile{profile: profile, score: descriptionVectorScore(queryVector, entry)})
 	}
 	i.mu.Unlock()
 	if len(scored) == 0 {
@@ -150,18 +146,24 @@ func (i *EmbeddingDescriptionIndex) refresh(ctx context.Context, profiles []Prov
 	refreshed := make(map[string]descriptionVector, len(profiles))
 	for _, profile := range profiles {
 		fingerprint := profileFingerprint([]ProviderProfile{profile})
-		if entry, ok := previous[profile.ProviderID]; ok && entry.Fingerprint == fingerprint && embeddingMetadataCompatible(entry.Metadata, currentEmbeddingMetadata(entry.Vector)) {
+		if entry, ok := previous[profile.ProviderID]; ok && entry.Fingerprint == fingerprint && len(entry.Vectors) > 0 && embeddingMetadataCompatible(entry.Metadata, currentEmbeddingMetadata(entry.Vector)) {
 			refreshed[profile.ProviderID] = entry
 			continue
 		}
-		text := strings.TrimSpace(strings.Join([]string{profile.ProviderID, profile.Type, profile.Group, profile.Description}, " — "))
-		vector, err := i.embedder.Embed(ctx, text)
-		if err != nil || len(vector) == 0 {
+		vectors := make([][]float64, 0)
+		for _, text := range descriptionEmbeddingSegments(profile) {
+			vector, err := embedDescriptionDocument(ctx, i.embedder, text)
+			if err != nil || len(vector) == 0 {
+				continue
+			}
+			vectors = append(vectors, vector)
+		}
+		if len(vectors) == 0 {
 			continue
 		}
 		refreshed[profile.ProviderID] = descriptionVector{
 			ID: profile.ProviderID, Description: profile.Description, Fingerprint: fingerprint,
-			Vector: vector, Metadata: currentEmbeddingMetadata(vector),
+			Vector: vectors[0], Vectors: vectors, Metadata: currentEmbeddingMetadata(vectors[0]),
 		}
 	}
 	i.mu.Lock()
@@ -175,6 +177,20 @@ func (i *EmbeddingDescriptionIndex) refresh(ctx context.Context, profiles []Prov
 	i.persistLocked()
 	i.mu.Unlock()
 	return nil
+}
+
+func embedDescriptionQuery(ctx context.Context, embedder aisearch.Embedder, query string) ([]float64, error) {
+	if taskEmbedder, ok := embedder.(aisearch.TaskEmbedder); ok {
+		return taskEmbedder.EmbedQuery(ctx, query)
+	}
+	return embedder.Embed(ctx, query)
+}
+
+func embedDescriptionDocument(ctx context.Context, embedder aisearch.Embedder, document string) ([]float64, error) {
+	if taskEmbedder, ok := embedder.(aisearch.TaskEmbedder); ok {
+		return taskEmbedder.EmbedDocument(ctx, document)
+	}
+	return embedder.Embed(ctx, document)
 }
 
 func fallbackDescriptionProfiles(query string, profiles []ProviderProfile, limit int, _ string) []ProviderProfile {
@@ -234,7 +250,69 @@ func profileFingerprint(profiles []ProviderProfile) string {
 	return b.String()
 }
 
-const descriptionIndexPolicyVersion = "1"
+// Version 4 records the task-prefixed Nomic recipe plus sentence-level
+// description segments enriched with registry identity context. Bumping this value is
+// intentional: vectors generated with the legacy symmetric recipe must never
+// be compared with task-prefixed query vectors or the prior description-only
+// representation after a restart.
+const descriptionIndexPolicyVersion = "4"
+
+// descriptionEmbeddingSegments keeps each registered routing description's
+// distinct route examples and responsibilities searchable without storing
+// provider-specific rules in the router. Each sentence carries the registry
+// identity context so queries that name a provider family, leaf type, or
+// scenario can match the same declared routing vocabulary used by the lexical
+// fallback. A single long embedding can dilute a decisive sentence; scoring
+// the best segment preserves the descriptor's natural-language intent while
+// remaining bounded by the registry data.
+func descriptionEmbeddingSegments(profile ProviderProfile) []string {
+	description := strings.TrimSpace(profile.Description)
+	if description == "" {
+		return nil
+	}
+	parts := strings.FieldsFunc(description, func(r rune) bool {
+		return r == '.' || r == '!' || r == '?' || r == '\n'
+	})
+	segments := make([]string, 0, len(parts))
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if len([]rune(part)) >= 12 {
+			segments = append(segments, part)
+		}
+	}
+	if len(segments) == 0 {
+		segments = []string{description}
+	}
+	context := make([]string, 0, 4)
+	if id := strings.TrimSpace(profile.ProviderID); id != "" {
+		context = append(context, "provider: "+id)
+	}
+	if typ := strings.TrimSpace(profile.Type); typ != "" {
+		context = append(context, "type: "+typ)
+	}
+	if group := strings.TrimSpace(profile.Group); group != "" {
+		context = append(context, "group: "+group)
+	}
+	identity := strings.Join(context, "; ")
+	if identity == "" {
+		return segments
+	}
+	enriched := make([]string, 0, len(segments))
+	for _, segment := range segments {
+		enriched = append(enriched, identity+"; description: "+segment)
+	}
+	return enriched
+}
+
+func descriptionVectorScore(query []float64, entry descriptionVector) float64 {
+	best := cosine(query, entry.Vector)
+	for _, vector := range entry.Vectors {
+		if score := cosine(query, vector); score > best {
+			best = score
+		}
+	}
+	return best
+}
 
 func currentEmbeddingMetadata(vector []float64) aisearch.EmbeddingMetadata {
 	model := strings.TrimSpace(os.Getenv("SEARCH_HUB_DESCRIPTION_EMBED_MODEL"))

@@ -8,12 +8,12 @@ The cross-cutting model these domains share — the attestation contract, the en
 
 ## Domain Inventory
 
-| Domain | Responsibility | Operational targets |
-|--------|----------------|---------------------|
-| **coverage** | Read each projection's denominator (via the owner's `space --projection` verb) joined against the live registries; compute per-projection coverage + denominator-confidence; validate base-document integrity; synthesize the readiness scoreboard. | OT-P0-001, OT-P0-004, OT-P2-002 |
-| **convergence** | Measure the upstream generators: per-template fitness counts, gold-star generated-golden health/staleness, and the convergence trend. Surfaces numbers + candidates only. | OT-P1-002 |
-| **focus** | Maintain the gaps registry (qualitative notes/approaches) and rank gaps by impact × importance across all projections, convergence, and named empirical friction sources including program-runtime. | OT-P0-002, OT-P0-003 |
-| **trials** | Run the empirical local-model gate via agent-manager's sandboxed runner, evaluate the diff against a fixture oracle, record success/tokens/time history; track Guide-gate coverage. | OT-P1-001 |
+| Domain | Source Paths | Responsibility | Operational targets |
+|--------|--------------|----------------|---------------------|
+| **coverage** | `api/internal/coverage`, `api/handlers/coverage` | Read each projection's denominator (via the owner's `space --projection` verb) joined against the live registries; compute per-projection coverage + denominator-confidence; validate base-document integrity; synthesize the readiness scoreboard. | OT-P0-001, OT-P0-004, OT-P2-002 |
+| **convergence** | `api/internal/convergence`, `api/handlers/convergence` | Measure the upstream generators: per-template fitness counts, gold-star generated-golden health/staleness, and the convergence trend. Surfaces numbers + candidates only. | OT-P1-002 |
+| **focus** | `api/internal/focus`, `api/handlers/focus` | Maintain the gaps registry (qualitative notes/approaches) and rank gaps by impact × importance across all projections, convergence, and named empirical friction sources including program-runtime. | OT-P0-002, OT-P0-003 |
+| **trials** | `api/internal/trials`, `api/handlers/trials` | Run the empirical local-model gate via agent-manager's sandboxed runner, evaluate the diff against a fixture oracle, record success/tokens/time history; track Guide-gate coverage. | OT-P1-001 |
 
 ## Domain Details
 

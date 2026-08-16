@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "OT-P0-004 — validate the three space-definition documents themselves.",
-    "last_validated_at": "2026-07-10T10:50:06-04:00",
+    "last_validated_at": "2026-08-16T01:05:30-04:00",
     "module": "base-doc-integrity",
     "prd_ref": "PRD.md",
     "priority": "P0",
@@ -24,7 +24,7 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "API: a known-stale reference is detected; target api/internal/coverage/basedoc."
         },
         {
@@ -38,7 +38,7 @@
     {
       "id": "MOM-BASEDOC-002",
       "title": "flag Guide rows that do not map to exactly one skill",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-004",
       "category": "coverage",
       "description": "The Guide space allows multiple skills per row but the integrity check flags rows whose skill count is not exactly one, pushing the grid toward one-skill-per-row alignment.",
@@ -51,13 +51,13 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "API: rows with 0 or \u003e1 skills are flagged; target api/internal/coverage/basedoc."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "CLI: integrity findings surfaced; target cli/domains/coverage."
         }
       ]

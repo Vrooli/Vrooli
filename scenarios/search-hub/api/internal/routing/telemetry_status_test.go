@@ -14,6 +14,7 @@ import (
 
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/registry"
 	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/routing"
+	"google.golang.org/protobuf/types/known/durationpb"
 
 	"search-hub/internal/routing"
 )
@@ -142,7 +143,7 @@ func TestQueryRecordsZeroResultAndDegraded(t *testing.T) {
 
 func TestResponseDegradeReasonClassifiesCoexistingCauses(t *testing.T) {
 	groups := []*routingv1.ProviderResultGroup{{ProviderId: "down", Degraded: true}}
-	require.Equal(t, "classifier,reranker_absent,provider_leg,zero_result",
+	require.Equal(t, "classifier,reranker_down,provider_leg,zero_result",
 		routing.ResponseDegradeReason(true, true, groups, 0))
 }
 
@@ -213,6 +214,33 @@ func TestStatusProbesProvidersConcurrently(t *testing.T) {
 	require.Equal(t, 2, maxActive, "both provider probes should overlap")
 }
 
+func TestStatusBoundsProbeConcurrencyAndCachesWarmReads(t *testing.T) {
+	providers := make([]*registryv1.ProviderDescriptor, 0, 4)
+	for i := 0; i < 4; i++ {
+		p := providerWithStatus("")
+		p.ProviderId = "cli-health.commands-" + string(rune('a'+i))
+		providers = append(providers, p)
+	}
+	doer := &parallelStatusDoer{delay: 40 * time.Millisecond}
+	r := routing.NewRouter(routing.Deps{
+		Lister:   &fakeLister{providers: providers},
+		Resolver: staticResolver{urls: map[string]string{"cli-health": "http://cli-health.test"}},
+		Doer:     doer, Concurrency: 2,
+	})
+	_, err := r.Status(context.Background())
+	require.NoError(t, err)
+	doer.mu.Lock()
+	maxActive := doer.maxActive
+	doer.mu.Unlock()
+	require.LessOrEqual(t, maxActive, 2, "status probes must respect router concurrency")
+	_, err = r.Status(context.Background())
+	require.NoError(t, err)
+	doer.mu.Lock()
+	maxActive = doer.maxActive
+	doer.mu.Unlock()
+	require.LessOrEqual(t, maxActive, 2)
+}
+
 func TestStatusReportsProbedIndexAgeAndPointCount(t *testing.T) {
 	now := time.Date(2026, 8, 12, 8, 0, 0, 0, time.UTC)
 	doer := &statusDoer{body: `{"last_indexed_at":"2026-08-12T07:30:00Z","point_count":42}`}
@@ -233,6 +261,27 @@ func TestStatusReportsProbedIndexAgeAndPointCount(t *testing.T) {
 	require.Equal(t, int64(42), h.GetPointCount())
 	require.Equal(t, "2026-08-12T07:30:00Z", h.GetLastIndexedAt().AsTime().Format(time.RFC3339))
 	require.Equal(t, 1, doer.statusCalls)
+}
+
+func TestStatusExcludesProviderPastFreshnessBudget(t *testing.T) {
+	now := time.Date(2026, 8, 12, 8, 0, 0, 0, time.UTC)
+	doer := &statusDoer{body: `{"last_indexed_at":"2026-08-12T07:30:00Z","point_count":42}`}
+	p := providerWithStatus(doer.body)
+	p.Lifecycle = registryv1.Lifecycle_LIFECYCLE_PRODUCTION
+	p.FreshnessBudget = durationpb.New(15 * time.Minute)
+	r := routing.NewRouter(routing.Deps{
+		Lister:   &fakeLister{providers: []*registryv1.ProviderDescriptor{p}},
+		Resolver: staticResolver{urls: map[string]string{"cli-health": "http://cli-health.test"}},
+		Doer:     doer, Now: func() time.Time { return now },
+	})
+
+	st, err := r.Status(context.Background())
+	require.NoError(t, err)
+	h := st.GetProviders()[0]
+	require.False(t, h.GetAutomaticEligible())
+	require.Contains(t, h.GetAutomaticExclusionReason(), "stale index")
+	require.Contains(t, h.GetAutomaticExclusionReason(), "15m0s")
+	require.Equal(t, "15m0s", h.GetFreshnessBudget())
 }
 
 func TestStatusReportsExplicitIndexAgeAbsence(t *testing.T) {

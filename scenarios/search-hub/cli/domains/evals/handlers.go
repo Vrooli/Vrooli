@@ -15,12 +15,19 @@ import (
 	evalconnect "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/eval/eval_v1connect"
 
 	"github.com/vrooli/cli-core/cliapp"
+	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/routing"
+	routingconnect "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/routing/routing_v1connect"
 )
 
 // runSuiteTimeout bounds a single `evals run` invocation. It is generous because
 // the LLM reranker leg scores each case's shortlist with a local model; the
 // cross-encoder and rerank-off legs finish in well under a second.
 const runSuiteTimeout = 10 * time.Minute
+
+// compareStrategiesTimeout bounds the guarded multi-arm router benchmark. It
+// evaluates the composed 213-case suite once per strategy and must outlive
+// the default command HTTP timeout.
+const compareStrategiesTimeout = 45 * time.Minute
 
 // sweepTimeout bounds a full `evals sweep`: it runs the suite once per arm and,
 // on the index-time tier, reindexes the provider per arm — so it can run for many
@@ -54,7 +61,25 @@ func (h *handlers) compareStrategiesCall(ctx cliapp.OperationContext) (*evalv1.C
 			names = append(names, name)
 		}
 	}
-	resp, err := h.client.CompareStrategies(context.Background(), connect.NewRequest(&evalv1.CompareStrategiesRequest{
+	if len(names) == 0 {
+		httpClient, baseURL := cliapp.NewConnectHTTPClientWithTimeout(h.core, 30*time.Second)
+		statusClient := routingconnect.NewRoutingServiceClient(httpClient, baseURL)
+		status, err := statusClient.Status(context.Background(), connect.NewRequest(&routingv1.StatusRequest{}))
+		if err != nil {
+			return nil, cliapp.WrapAPIError("list retrieval strategies", err, nil)
+		}
+		if status == nil || status.Msg == nil {
+			return nil, fmt.Errorf("server returned no routing strategies")
+		}
+		for _, strategy := range status.Msg.GetStrategies() {
+			if strategy != nil && strings.TrimSpace(strategy.GetName()) != "" {
+				names = append(names, strategy.GetName())
+			}
+		}
+	}
+	httpClient, baseURL := cliapp.NewConnectHTTPClientWithTimeout(h.core, compareStrategiesTimeout)
+	client := evalconnect.NewEvalServiceClient(httpClient, baseURL)
+	resp, err := client.CompareStrategies(context.Background(), connect.NewRequest(&evalv1.CompareStrategiesRequest{
 		SuiteId: "router.routing", StrategyNames: names, Apply: ctx.BoolFlag("apply"), Limit: 10,
 	}))
 	if err != nil {
@@ -670,8 +695,8 @@ func formatConfig(c *evalv1.ConfigSnapshot) string {
 	if c == nil {
 		return "config: (none captured)"
 	}
-	return fmt.Sprintf("config: reranker=%s rerank_enabled=%t embed_model=%s indexed=%d",
-		emptyDash(c.GetRerankerLeg()), c.GetRerankEnabled(), emptyDash(c.GetEmbedModel()), c.GetIndexedCount())
+	return fmt.Sprintf("config: selector_leg=%s rerank_leg=%s rerank_enabled=%t embed_model=%s indexed=%d",
+		emptyDash(c.GetSelectorLeg()), emptyDash(c.GetRerankerLeg()), c.GetRerankEnabled(), emptyDash(c.GetEmbedModel()), c.GetIndexedCount())
 }
 
 func formatCaseResults(r *evalv1.EvalRun) []string {

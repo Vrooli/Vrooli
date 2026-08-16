@@ -35,6 +35,44 @@ downloads). The default role exported to scenarios is `OPENROUTER_DEFAULT_ROLE`
 To retarget a role (e.g. a model was retired and `ensure` warns it is missing
 from the live catalog), edit `model-policy.json` only — one file, with provenance.
 
+### Request defaults and the "unset" sentinel
+
+A role's `request_defaults.temperature` and `request_defaults.max_tokens` are
+applied on the `generate` path, with this precedence:
+
+1. An explicit `--temperature` / `--max-tokens` flag wins.
+2. Absent the flag, the resolved role's `request_defaults` value applies.
+3. Absent both, the parameter is **omitted from the request entirely** and the
+   upstream provider's own default applies.
+
+`--temperature` uses `-1` as its "unset" sentinel and `--max-tokens` uses `0`,
+mirroring `resource-ollama gateway generate|chat`. This is why the sentinel is
+needed at all: `0.0` is a legitimate, meaningful temperature (deterministic
+sampling), so "absent" cannot be encoded as a zero value. An explicit
+`--temperature 0` is serialised; an absent flag with no role default is not.
+
+This resource never invents a sampling value a role did not declare. OpenRouter
+omits absent parameters rather than substituting its own, and several upstream
+families reject the field outright, so "unset" has to stay expressible.
+
+### Declared sampling support
+
+Each role may declare `sampling_support`, a per-parameter statement of how the
+role's models treat an explicit control:
+
+| Value | Meaning |
+|---|---|
+| `honored` | the provider applies the value |
+| `ignored` | the provider accepts the field and silently drops it |
+| `rejected` | the provider fails the request when the field is present |
+| `unknown` | not established; treated as `ignored` (best effort, no promise) |
+
+Absent the key the value is `unknown`. These are **declarations, not probes**: a
+provider that accepts and silently ignores a control is indistinguishable at the
+call site from one that honours it, so a runtime probe would report success and
+be wrong. Declare conservatively — `honored` requires first-party evidence, and
+provider-aggregator `supported_parameters` metadata is not that evidence.
+
 ## Operator Checklist
 
 - Keep OpenRouter endpoint and credential wiring declared in `resource.json`.

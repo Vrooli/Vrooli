@@ -83,6 +83,7 @@ func (s *service) GetFocus(ctx context.Context, limit int, projection Projection
 	if liveErr != nil {
 		degraded = append(degraded, fmt.Errorf("live focus data unavailable: %w", liveErr))
 	}
+	gaps = rollupSharedCauses(gaps)
 	providerSignals := map[string]ProviderInsight{}
 	if s.insights == nil {
 		degraded = append(degraded, errors.New("search-hub insights unavailable: provider insights reader is not configured"))
@@ -124,6 +125,79 @@ func (s *service) GetFocus(ctx context.Context, limit int, projection Projection
 		result.DegradedReason = errors.Join(degraded...).Error()
 	}
 	return result, nil
+}
+
+// rollupSharedCauses replaces multiple cell-level findings with one
+// actionable cause item when they carry the same explicit cause key. The
+// explicit key is supplied by the producer that understands the failure
+// signal; focus never guesses that unrelated provider failures share a cause.
+func rollupSharedCauses(gaps []Gap) []Gap {
+	groups := make(map[string][]Gap)
+	for _, gap := range gaps {
+		key := strings.TrimSpace(gap.CauseKey)
+		if key == "" {
+			continue
+		}
+		groups[key] = append(groups[key], gap)
+	}
+	if len(groups) == 0 {
+		return gaps
+	}
+	rolled := make([]Gap, 0, len(gaps))
+	seen := make(map[string]struct{}, len(groups))
+	for _, gap := range gaps {
+		key := strings.TrimSpace(gap.CauseKey)
+		if key == "" {
+			rolled = append(rolled, gap)
+			continue
+		}
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		members := groups[key]
+		if len(members) < 2 {
+			rolled = append(rolled, members[0])
+			continue
+		}
+		rolled = append(rolled, sharedCauseGap(key, members))
+	}
+	return rolled
+}
+
+func sharedCauseGap(key string, members []Gap) Gap {
+	cellIDs := make([]string, 0, len(members))
+	providers := make([]string, 0)
+	seenCells := map[string]struct{}{}
+	seenProviders := map[string]struct{}{}
+	for _, member := range members {
+		cellID := member.SourceCellID
+		if cellID == "" {
+			cellID = member.ID
+		}
+		if _, ok := seenCells[cellID]; !ok {
+			seenCells[cellID] = struct{}{}
+			cellIDs = append(cellIDs, cellID)
+		}
+		for _, provider := range member.ProviderIDs {
+			if _, ok := seenProviders[provider]; ok {
+				continue
+			}
+			seenProviders[provider] = struct{}{}
+			providers = append(providers, provider)
+		}
+	}
+	sort.Strings(cellIDs)
+	sort.Strings(providers)
+	slug := strings.NewReplacer("/", "-", " ", "-").Replace(key)
+	return Gap{
+		ID: "cause/" + slug, Axis: AxisEmpirical, Projection: ProjectionAnswer,
+		Title: "shared cause: " + key, Global: true, ProviderIDs: providers,
+		EvidenceSource: "focus", EvidenceLocator: "focus://cause/" + key,
+		ConditionStatus: "degraded", CauseKey: key, AffectedCellIDs: cellIDs,
+		AffectedCellCount: len(cellIDs), Recurrence: len(cellIDs),
+		Notes: []string{fmt.Sprintf("affects %d denominator cell(s)", len(cellIDs))},
+	}
 }
 
 // ListGaps returns the merged registry, filtered.

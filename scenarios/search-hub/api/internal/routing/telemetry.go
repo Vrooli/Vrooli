@@ -78,7 +78,7 @@ func ResponseDegradeReasonWithReranker(classifierFailed, rerankerFailed bool, re
 	}
 	if rerankerFailed {
 		if rerankerReason == "" {
-			rerankerReason = "reranker_absent"
+			rerankerReason = "reranker_down"
 		}
 		reasons = append(reasons, rerankerReason)
 	} else if rerankerReason != "" {
@@ -107,7 +107,7 @@ func ResponseDegradeReasonWithSelection(selectionFallback, rerankerFailed bool, 
 	}
 	if rerankerFailed {
 		if rerankerReason == "" {
-			rerankerReason = "reranker_absent"
+			rerankerReason = "reranker_down"
 		}
 		reasons = append(reasons, rerankerReason)
 	} else if rerankerReason != "" {
@@ -198,10 +198,12 @@ func classifyDegradeReason(note string) string {
 		return "unreachable"
 	case strings.Contains(note, "http "):
 		return "http_error"
-	case strings.Contains(note, "reranker_degraded_to_llm"):
-		return "reranker_degraded_to_llm"
-	case strings.Contains(note, "reranker_absent"), strings.Contains(note, "reranker"):
-		return "reranker_absent"
+	case strings.Contains(note, "reranker_budget_exhausted"):
+		return "reranker_budget_exhausted"
+	case strings.Contains(note, "reranker_circuit_open"):
+		return "reranker_circuit_open"
+	case strings.Contains(note, "reranker_down"), strings.Contains(note, "reranker"):
+		return "reranker_down"
 	default:
 		return "other"
 	}

@@ -218,6 +218,23 @@ func TestCrossEncoderRerankerAvailable(t *testing.T) {
 	}
 }
 
+func TestCrossEncoderRerankerAvailableAcceptsTEIInfoWhenHealthIsMissing(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/health":
+			w.WriteHeader(http.StatusNotFound)
+		case "/info":
+			w.WriteHeader(http.StatusOK)
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer server.Close()
+	if !NewCrossEncoderRerankerWithClient(server.URL, server.Client()).Available(context.Background()) {
+		t.Fatal("expected TEI /info fallback to report healthy")
+	}
+}
+
 func TestResolveRerankerURL(t *testing.T) {
 	cases := []struct {
 		name string

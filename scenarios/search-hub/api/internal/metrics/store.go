@@ -827,29 +827,48 @@ ORDER BY count DESC, p.degrade_reason ASC`
 	return out, nil
 }
 
-const sharedSubstrateReasonSQL = `p.degrade_reason IN ('reranker_absent', 'reranker_unavailable', 'reranker_degraded_to_llm')`
-
-func isSharedSubstrateReason(reason string) bool {
-	switch strings.ToLower(strings.TrimSpace(reason)) {
-	case "reranker_absent", "reranker_unavailable", "reranker_degraded_to_llm":
-		return true
-	default:
-		return false
-	}
-}
+const sharedSubstrateReasonSQL = `p.degrade_reason IN ('reranker_down', 'reranker_budget_exhausted', 'reranker_circuit_open')`
 
 func (s *sqliteStore) substrateDegradation(ctx context.Context, filter telemetryFilter) ([]ProviderDegradationReason, int64, error) {
-	q := `
-SELECT p.degrade_reason, COUNT(*) AS count
+	providerQuery := `
+SELECT p.degrade_reason AS reason, COUNT(*) AS count
 FROM query_telemetry_provider p`
-	args := make([]any, 0, len(filter.providerArgs))
+	providerArgs := make([]any, 0, len(filter.providerArgs))
 	where := ` WHERE p.degraded = 1 AND ` + sharedSubstrateReasonSQL
 	if filter.providerJoin != "" {
-		q += ` JOIN query_telemetry t ON t.id = p.query_id`
+		providerQuery += ` JOIN query_telemetry t ON t.id = p.query_id`
 		where += filter.providerAndWhere
-		args = append(args, filter.providerArgs...)
+		providerArgs = append(providerArgs, filter.providerArgs...)
 	}
-	q += where + ` GROUP BY p.degrade_reason ORDER BY count DESC, p.degrade_reason ASC`
+	providerQuery += where + ` GROUP BY p.degrade_reason`
+
+	queryWhere := filter.queryWhere
+	if queryWhere == "" {
+		queryWhere = " WHERE "
+	} else {
+		queryWhere += " AND "
+	}
+	queryEvents := `
+SELECT 'reranker_down' AS reason, COUNT(*) AS count
+FROM query_telemetry t` + queryWhere + `instr(',' || t.response_degrade_reason || ',', ',reranker_down,') > 0
+UNION ALL
+SELECT 'reranker_budget_exhausted' AS reason, COUNT(*) AS count
+FROM query_telemetry t` + queryWhere + `instr(',' || t.response_degrade_reason || ',', ',reranker_budget_exhausted,') > 0
+UNION ALL
+SELECT 'reranker_circuit_open' AS reason, COUNT(*) AS count
+FROM query_telemetry t` + queryWhere + `instr(',' || t.response_degrade_reason || ',', ',reranker_circuit_open,') > 0`
+
+	q := `
+SELECT reason, SUM(count) AS count
+FROM (` + providerQuery + `
+UNION ALL
+` + queryEvents + `) substrate_events
+GROUP BY reason
+HAVING SUM(count) > 0
+ORDER BY count DESC, reason ASC`
+	args := append(providerArgs, filter.queryArgs...)
+	args = append(args, filter.queryArgs...)
+	args = append(args, filter.queryArgs...)
 
 	rows, err := s.db.QueryContext(ctx, q, args...)
 	if err != nil {

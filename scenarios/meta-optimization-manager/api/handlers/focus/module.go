@@ -5,7 +5,9 @@ package focus
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"sort"
@@ -34,6 +36,8 @@ import (
 	metricsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/metrics/metrics_v1connect"
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/registry"
 	registryconnect "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/registry/registry_v1connect"
+	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/routing"
+	routingconnect "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/routing/routing_v1connect"
 )
 
 // Module returns the focus domain's contribution to the API: the generated
@@ -45,6 +49,7 @@ func Module(db *database.RoutedDB, clk schedule.Clock, logger *log.Logger) modul
 	trialsRepo := internaltrials.NewSQLiteRepository(db, clk)
 	spaceReader := internalcoverage.NewSpaceReader()
 	actJoiner := internalcoverage.NewNumeratorJoiner()
+	coverageService := internalcoverage.NewService(internalcoverage.Deps{Reader: spaceReader, Joiner: actJoiner, Clock: clk})
 	insights := searchHubInsightsReader{
 		resolver: discovery.NewResolver(discovery.ResolverConfig{}),
 		http:     &http.Client{Timeout: 3 * time.Second},
@@ -76,10 +81,59 @@ func Module(db *database.RoutedDB, clk schedule.Clock, logger *log.Logger) modul
 		return population, nil
 	}
 	programConditionReader := internalfocus.NewProgramRuntimeConditionReader(conditionPopulation)
+	substrateSource := internalfocus.NewSubstrateGapSource(searchHubSubstrateReader(insights).Read)
 	conditionSource := internalfocus.NewMultiGapSource([]internalfocus.NamedGapSource{
 		{Name: "search-hub", Source: internalfocus.NewConditionGapSourceWithPopulation(insights, conditionPopulation)},
+		{Name: "search-hub-incubating", Source: internalfocus.NewIncubatingGapSource(func(ctx context.Context) ([]internalfocus.IncubatingProvider, error) {
+			base, err := insights.resolver.ResolveScenarioURLDefault(ctx, "search-hub")
+			if err != nil {
+				return nil, err
+			}
+			resp, err := routingconnect.NewRoutingServiceClient(insights.http, base).Status(ctx, connect.NewRequest(&routingv1.StatusRequest{}))
+			if err != nil {
+				return nil, err
+			}
+			out := make([]internalfocus.IncubatingProvider, 0, len(resp.Msg.GetIncubating()))
+			for _, provider := range resp.Msg.GetIncubating() {
+				if provider == nil {
+					continue
+				}
+				out = append(out, internalfocus.IncubatingProvider{ProviderID: provider.GetProviderId(), DeclaredAt: provider.GetDeclaredAt(), NextAction: provider.GetNextAction()})
+			}
+			return out, nil
+		})},
+		{Name: "search-hub-federation", Source: internalfocus.NewFederationHealthGapSource(insights)},
 		{Name: "condition/program-runtime", Source: internalfocus.NewProgramRuntimeConditionGapSource(programConditionReader)},
 		{Name: "maturity", Source: internalfocus.NewMaturityGapSource(searchHubMaturityReader{resolver: insights.resolver, http: maturityHTTP})},
+		{Name: "search-hub-router-quality", Source: internalfocus.NewRouterQualityGapSource(func(ctx context.Context) ([]internalfocus.RouterQualityFinding, error) {
+			report, err := coverageService.ValidateBaseDocs(ctx, internalcoverage.ProjectionAnswer)
+			if err != nil {
+				return nil, err
+			}
+			definition, err := spaceReader.Read(ctx, internalcoverage.ProjectionAnswer)
+			if err != nil {
+				return nil, err
+			}
+			owners := make(map[string]string, len(definition.Cells))
+			for _, cell := range definition.Cells {
+				owners[cell.ID] = cell.Owner
+			}
+			findings := make([]internalfocus.RouterQualityFinding, 0)
+			for _, issue := range report.Issues {
+				if issue.Code != "router_quality_debt" {
+					continue
+				}
+				cellID := strings.TrimSpace(issue.Location)
+				findings = append(findings, internalfocus.RouterQualityFinding{
+					Projection: internalfocus.ProjectionAnswer,
+					CellID:     cellID,
+					Owner:      owners[cellID], Message: issue.Message,
+					Locator: "coverage://validate-docs/answer/" + cellID,
+				})
+			}
+			return findings, nil
+		})},
+		{Name: "search-hub-substrate", Source: substrateSource},
 	})
 	svc := internalfocus.NewService(internalfocus.Deps{
 		Source: internalfocus.NewMultiGapSource([]internalfocus.NamedGapSource{
@@ -113,6 +167,72 @@ func Module(db *database.RoutedDB, clk schedule.Clock, logger *log.Logger) modul
 		},
 		Endpoints: Endpoints,
 	}
+}
+
+type searchHubSubstrateReader struct {
+	resolver interface {
+		ResolveScenarioURLDefault(context.Context, string) (string, error)
+	}
+	http connect.HTTPClient
+}
+
+type healthDependency struct {
+	Connected bool   `json:"connected"`
+	Error     string `json:"error"`
+}
+
+type searchHubHealth struct {
+	Dependencies map[string]healthDependency `json:"dependencies"`
+}
+
+func (r searchHubSubstrateReader) Read(ctx context.Context) ([]internalfocus.SubstrateObservation, error) {
+	if r.resolver == nil || r.http == nil {
+		return nil, fmt.Errorf("search-hub substrate reader is not configured")
+	}
+	base, err := r.resolver.ResolveScenarioURLDefault(ctx, "search-hub")
+	if err != nil {
+		return nil, err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, strings.TrimRight(base, "/")+"/health", nil)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := r.http.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("search-hub health returned HTTP %d", resp.StatusCode)
+	}
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	if err != nil {
+		return nil, err
+	}
+	var health searchHubHealth
+	if err := json.Unmarshal(body, &health); err != nil {
+		return nil, fmt.Errorf("decode search-hub health: %w", err)
+	}
+	out := make([]internalfocus.SubstrateObservation, 0, 3)
+	for _, name := range []string{"ollama", "qdrant"} {
+		dependency, ok := health.Dependencies[name]
+		reason := strings.TrimSpace(dependency.Error)
+		if !ok {
+			reason = "dependency was not reported by search-hub health"
+		}
+		out = append(out, internalfocus.SubstrateObservation{Name: name, Healthy: ok && dependency.Connected, Reason: reason, Locator: "search-hub://health/" + name})
+	}
+	routingStatus, err := routingconnect.NewRoutingServiceClient(r.http, base).Status(ctx, connect.NewRequest(&routingv1.StatusRequest{}))
+	if err != nil {
+		out = append(out, internalfocus.SubstrateObservation{Name: "reranker", Reason: "routing status unavailable: " + err.Error(), Locator: "search-hub://routing/status"})
+		return out, nil
+	}
+	rerankerReason := ""
+	if !routingStatus.Msg.GetRerankerAvailable() {
+		rerankerReason = "reranker leg unavailable"
+	}
+	out = append(out, internalfocus.SubstrateObservation{Name: "reranker", Healthy: routingStatus.Msg.GetRerankerAvailable(), Reason: rerankerReason, Locator: "search-hub://routing/status"})
+	return out, nil
 }
 
 type searchHubMaturityReader struct {
@@ -284,6 +404,44 @@ func (r searchHubInsightsReader) Insights(ctx context.Context) ([]internalfocus.
 			TimesRouted:     provider.GetTimesRouted(),
 			DegradationRate: provider.GetDegradationRate(),
 		})
+	}
+	return out, nil
+}
+
+func (r searchHubInsightsReader) FederationHealth(ctx context.Context) ([]internalfocus.FederationHealthFinding, error) {
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+	base, err := r.resolver.ResolveScenarioURLDefault(ctx, "search-hub")
+	if err != nil {
+		return nil, err
+	}
+	status, err := routingconnect.NewRoutingServiceClient(r.http, base).Status(ctx, connect.NewRequest(&routingv1.StatusRequest{}))
+	if err != nil {
+		return nil, err
+	}
+	insights, err := metricsconnect.NewMetricsServiceClient(r.http, base).Insights(ctx, connect.NewRequest(&metricsv1.InsightsRequest{WindowDays: 7}))
+	if err != nil {
+		return nil, err
+	}
+	out := make([]internalfocus.FederationHealthFinding, 0)
+	for _, provider := range status.Msg.GetProviders() {
+		if provider == nil {
+			continue
+		}
+		if provider.GetStuck() {
+			out = append(out, internalfocus.FederationHealthFinding{ID: provider.GetProviderId(), Kind: "stuck_provider", Value: "true", Evidence: provider.GetRecoveryState()})
+		}
+		if provider.GetTimesRouted() >= 5 && provider.GetTotalHits() == 0 {
+			out = append(out, internalfocus.FederationHealthFinding{ID: provider.GetProviderId(), Kind: "zero_yield", Value: fmt.Sprintf("routes=%d hits=0", provider.GetTimesRouted()), Evidence: "provider has routed repeatedly without a hit"})
+		}
+	}
+	if insights.Msg.GetLatencyP95Ms() > 2000 {
+		out = append(out, internalfocus.FederationHealthFinding{ID: "fleet-latency", Kind: "p95_latency_ms", Value: fmt.Sprintf("%d", insights.Msg.GetLatencyP95Ms()), Evidence: "7-day federation p95 exceeds 2000ms budget"})
+	}
+	for _, provider := range insights.Msg.GetProviders() {
+		if provider != nil && provider.GetDegradationRate() > 0.25 {
+			out = append(out, internalfocus.FederationHealthFinding{ID: provider.GetProviderId(), Kind: "degradation_rate", Value: fmt.Sprintf("%.3f", provider.GetDegradationRate()), Evidence: "7-day provider degradation exceeds 25% budget"})
+		}
 	}
 	return out, nil
 }

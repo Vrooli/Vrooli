@@ -17,6 +17,12 @@ type fakeEvalQuality struct {
 	evidence routing.EvalQualityEvidence
 }
 
+func TestQualityJunkLeakRequiresARealMargin(t *testing.T) {
+	require.False(t, routing.QualityJunkLeak(0.566, 0.566), "an exact tie must not withhold a provider")
+	require.False(t, routing.QualityJunkLeak(0.575, 0.566), "a sub-margin difference must not withhold a provider")
+	require.True(t, routing.QualityJunkLeak(0.576, 0.566), "the configured margin must be observable")
+}
+
 func (f fakeEvalQuality) LatestProviderEval(context.Context, string) (routing.EvalQualityEvidence, error) {
 	return f.evidence, nil
 }

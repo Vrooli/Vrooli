@@ -1,13 +1,12 @@
 {
   "_comment": "Two interpolation surfaces live in this file. (1) Generator-time: tokens like Meta-Optimization Manager are uppercase-snake-case placeholders replaced by `vrooli scenario generate` before the scenario is built — they appear as literal display values at runtime. (2) Runtime: tokens like {{count}} are i18next interpolation, replaced by `t(key, { count })` at render time. Keys that start with an underscore (like this one) are sentinels — skipped by the codegen, parity test, and unused-key audit.",
   "app": {
-    "title": "Meta-Optimization Manager",
-    "eyebrow": "Fleet-readiness control plane",
-    "description": "Measures local-coding-agent readiness across the Answer / Validate / Guide projections, ranks the next-best gaps, tracks template/reference convergence, and runs the empirical local-model gate."
+    "title": "Meta-Optimization Manager"
   },
   "layout": {
     "sidebarLabel": "Primary navigation",
     "bottomNavLabel": "Primary navigation (mobile)",
+    "mainContentLabel": "Main content",
     "nav": {
       "dashboard": "Readiness",
       "focus": "Focus",

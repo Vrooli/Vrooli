@@ -138,3 +138,74 @@ func TestRealPolicyValid(t *testing.T) {
 		}
 	}
 }
+
+func TestResolveGeneratePrecedence(t *testing.T) {
+	t.Parallel()
+
+	roleTemperature := 0.0
+	roleMaxTokens := 512
+	defaults := &policy.RequestDefaults{Temperature: &roleTemperature, MaxTokens: &roleMaxTokens}
+
+	cases := []struct {
+		name            string
+		defaults        *policy.RequestDefaults
+		temperatureFlag float64
+		maxTokensFlag   int
+		wantTemperature *float64
+		wantMaxTokens   int
+	}{
+		{
+			name:            "absent flag adopts the role default",
+			defaults:        defaults,
+			temperatureFlag: -1,
+			maxTokensFlag:   0,
+			wantTemperature: floatPtr(0),
+			wantMaxTokens:   512,
+		},
+		{
+			name:            "explicit flag overrides the role default",
+			defaults:        defaults,
+			temperatureFlag: 1.2,
+			maxTokensFlag:   4096,
+			wantTemperature: floatPtr(1.2),
+			wantMaxTokens:   4096,
+		},
+		{
+			name:            "no flag and no default omits the parameter",
+			defaults:        nil,
+			temperatureFlag: -1,
+			maxTokensFlag:   0,
+			wantTemperature: nil,
+			wantMaxTokens:   0,
+		},
+		{
+			name:            "explicit zero is a request, not an absence",
+			defaults:        nil,
+			temperatureFlag: 0,
+			maxTokensFlag:   0,
+			wantTemperature: floatPtr(0),
+			wantMaxTokens:   0,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			gotTemperature, gotMaxTokens := tc.defaults.ResolveGenerate(tc.temperatureFlag, tc.maxTokensFlag)
+			switch {
+			case tc.wantTemperature == nil && gotTemperature != nil:
+				t.Fatalf("temperature = %v, want unset", *gotTemperature)
+			case tc.wantTemperature != nil && gotTemperature == nil:
+				t.Fatalf("temperature = unset, want %v", *tc.wantTemperature)
+			case tc.wantTemperature != nil && *gotTemperature != *tc.wantTemperature:
+				t.Fatalf("temperature = %v, want %v", *gotTemperature, *tc.wantTemperature)
+			}
+			if gotMaxTokens != tc.wantMaxTokens {
+				t.Fatalf("max_tokens = %d, want %d", gotMaxTokens, tc.wantMaxTokens)
+			}
+		})
+	}
+}
+
+func floatPtr(v float64) *float64 { return &v }

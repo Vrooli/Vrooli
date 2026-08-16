@@ -114,8 +114,6 @@ export const strings = {
     grouped: "search.grouped",
     degraded: "search.degraded",
     groupEmpty: "search.groupEmpty",
-    score: "search.score",
-    rerank: "search.rerank",
     weak: "search.weak",
     confidenceStrong: "search.confidenceStrong",
     confidenceWeak: "search.confidenceWeak",

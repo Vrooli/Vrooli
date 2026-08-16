@@ -13,13 +13,7 @@ import (
 	"github.com/vrooli/api-core/spacedoc"
 )
 
-// snapshotTTL bounds how stale a cached scoreboard may be before GetStatus
-// recomputes. Short by design: the numerator is live, the cache only absorbs
-// bursts (e.g. a UI poll). Keep small so the board never lies about a just-fixed
-// gap for long.
-const snapshotTTL = 30 * time.Second
-
-const coverageMethodVersion = "answer-active-reachable-fresh-eval-v2"
+const coverageMethodVersion = "answer-tiered-corpus-end-to-end-v3"
 
 // TrendProvider supplies the latest empirical trials trend for the scoreboard.
 // The trials domain (Phase 4) implements it; until then GetStatus surfaces no
@@ -76,11 +70,13 @@ var _ Service = (*service)(nil)
 // (or UNSPECIFIED) computes all three.
 func (s *service) GetStatus(ctx context.Context, projection Projection) (Status, error) {
 	all := projection == "" || projection == spacedoc.Projection("")
+	now := s.clock.Now().UTC()
+	var previous Status
+	var havePrevious bool
 	if all && s.snaps != nil {
-		if snap, ok := s.snaps.Latest(ctx, snapshotTTL, s.clock.Now()); ok {
-			if snap.CoverageMethodVersion == coverageMethodVersion {
-				return snap, nil
-			}
+		previous, havePrevious = s.snaps.Latest(ctx, 365*24*time.Hour, now)
+		if havePrevious && previous.CoverageMethodVersion != coverageMethodVersion {
+			havePrevious = false
 		}
 	}
 
@@ -98,7 +94,7 @@ func (s *service) GetStatus(ctx context.Context, projection Projection) (Status,
 	// Total board latency is the slowest single projection, capped by the
 	// per-owner read deadlines — not the serial sum that let one ~30s hang stall
 	// the whole scoreboard.
-	out := Status{ComputedAt: s.clock.Now().UTC(), CoverageMethodVersion: coverageMethodVersion}
+	out := Status{ComputedAt: now, CoverageMethodVersion: coverageMethodVersion}
 	out.Projections = make([]ProjectionCoverage, len(targets))
 	var wg sync.WaitGroup
 	for i, p := range targets {
@@ -125,6 +121,17 @@ func (s *service) GetStatus(ctx context.Context, projection Projection) (Status,
 	if s.trend != nil {
 		if t, ok := s.trend.LatestTrend(ctx); ok {
 			out.LatestTrialTrend = t
+		}
+	}
+	if havePrevious {
+		previousByProjection := make(map[Projection]ProjectionCoverage, len(previous.Projections))
+		for _, pc := range previous.Projections {
+			previousByProjection[pc.Projection] = pc
+		}
+		for _, pc := range out.Projections {
+			if old, ok := previousByProjection[pc.Projection]; ok {
+				out.Deltas = append(out.Deltas, ProjectionDelta{Projection: pc.Projection, PreviousRatio: old.CoverageRatio, CurrentRatio: pc.CoverageRatio, Delta: pc.CoverageRatio - old.CoverageRatio})
+			}
 		}
 	}
 	if all && s.snaps != nil {
@@ -176,6 +183,18 @@ func (s *service) coverageFor(ctx context.Context, p Projection) ProjectionCover
 	}
 	if pc.Available && pc.TotalCells > 0 {
 		pc.CoverageRatio = float64(pc.NowCount) / float64(pc.TotalCells)
+	}
+	if p == ProjectionAnswer && pc.Available {
+		pc.CorpusCapableNowCount = join.AnswerCorpusCapableNowCount
+		pc.CorpusCapableTotalCells = join.AnswerCorpusCapableTotalCells
+		pc.EndToEndAnswerableNowCount = join.AnswerEndToEndNowCount
+		pc.EndToEndAnswerableTotalCells = join.AnswerEndToEndTotalCells
+		if pc.CorpusCapableTotalCells > 0 {
+			pc.CorpusCapableRatio = float64(pc.CorpusCapableNowCount) / float64(pc.CorpusCapableTotalCells)
+		}
+		if pc.EndToEndAnswerableTotalCells > 0 {
+			pc.EndToEndAnswerableRatio = float64(pc.EndToEndAnswerableNowCount) / float64(pc.EndToEndAnswerableTotalCells)
+		}
 	}
 	return pc
 }

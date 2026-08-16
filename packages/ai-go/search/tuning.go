@@ -3,6 +3,7 @@ package aisearch
 import (
 	"fmt"
 	"strings"
+	"time"
 )
 
 // tuning.go is the single source of truth for the search *tuning factors* — the
@@ -67,6 +68,10 @@ const (
 	// IndexTime factors change the embedded/indexed representation, so moving one
 	// requires a reindex (the recipe-aware drift hash triggers it automatically).
 	IndexTime FactorTier = "index_time"
+	// Router factors shape federated provider selection and its bounded runtime
+	// budget. They do not change provider indexes, but they are still first-class
+	// tuning data because changing one changes routing evidence and latency.
+	Router FactorTier = "router"
 )
 
 // FactorKind is the value domain of a factor (so a sweep knows how to enumerate
@@ -74,11 +79,39 @@ const (
 type FactorKind string
 
 const (
-	FactorBool  FactorKind = "bool"
-	FactorEnum  FactorKind = "enum"
-	FactorInt   FactorKind = "int"
-	FactorFloat FactorKind = "float"
+	FactorBool     FactorKind = "bool"
+	FactorEnum     FactorKind = "enum"
+	FactorInt      FactorKind = "int"
+	FactorFloat    FactorKind = "float"
+	FactorDuration FactorKind = "duration"
 )
+
+// Router factor defaults are kept in the shared taxonomy package so the
+// control plane and Search Hub cannot grow a second set of router constants.
+// Duration values are represented as time.Duration in Go and as strings in the
+// strategy document (for example, "4s" and "15m").
+const (
+	DefaultRouterMaxFanoutWidth               = 6
+	DefaultRouterWidenThreshold               = 0.45
+	DefaultRouterPerProviderTimeout           = 4 * time.Second
+	DefaultRouterConcurrency                  = 8
+	DefaultRouterQueryBudget                  = 25 * time.Second
+	DefaultRouterZeroYieldMinimumRoutes int64 = 5
+	DefaultRouterDemotionWindow               = 15 * time.Minute
+)
+
+// RouterFactorKeys is the closed list used by the drift test and by strategy
+// loading. Adding a router constant without adding a taxonomy row is a test
+// failure, rather than an undocumented production behavior change.
+var RouterFactorKeys = []string{
+	"max_fanout_width",
+	"widen_threshold",
+	"per_provider_timeout",
+	"concurrency",
+	"query_budget",
+	"zero_yield_minimum_routes",
+	"demotion_window",
+}
 
 // Factor describes one tuning knob. It is the row of the control-surface
 // "dashboard": key, cost tier, value domain, default, and the tradeoff that
@@ -148,6 +181,34 @@ var Factors = []Factor{
 	{
 		Key: "floor_hard_floor", Tier: QueryTime, Kind: FactorFloat, Min: 0, Max: 1, Default: 0.0,
 		Tradeoff: "absolute garbage floor; 0 = let the package pick the regime default. A non-zero value overrides it (cosine regimes want a real floor; fused regimes want 0).",
+	},
+	{
+		Key: "max_fanout_width", Tier: Router, Kind: FactorInt, Min: 1, Max: 128, Default: DefaultRouterMaxFanoutWidth,
+		Tradeoff: "bounds automatic provider fan-out; widening improves recall under classifier uncertainty but spends resolver, network, and rerank budget.",
+	},
+	{
+		Key: "widen_threshold", Tier: Router, Kind: FactorFloat, Min: 0, Max: 1, Default: DefaultRouterWidenThreshold,
+		Tradeoff: "confidence floor for retaining a narrow classifier selection; lowering widens more often for recall, while raising reduces fan-out at the risk of silent misses. The historical 0.45 was calibrated for qwen3:1.7b and must be re-measured when the classifier changes.",
+	},
+	{
+		Key: "per_provider_timeout", Tier: Router, Kind: FactorDuration, Default: DefaultRouterPerProviderTimeout,
+		Tradeoff: "maximum wait for one provider leg; a longer bound tolerates cold providers but consumes the shared query budget and increases partial-result latency.",
+	},
+	{
+		Key: "concurrency", Tier: Router, Kind: FactorInt, Min: 1, Max: 128, Default: DefaultRouterConcurrency,
+		Tradeoff: "parallel provider legs reduce wall-clock latency but increase burst load and contention on local inference and provider APIs.",
+	},
+	{
+		Key: "query_budget", Tier: Router, Kind: FactorDuration, Default: DefaultRouterQueryBudget,
+		Tradeoff: "total federated deadline; raising it allows more complete cold/degraded responses but delays an honest partial result and competes with the CLI transport timeout.",
+	},
+	{
+		Key: "zero_yield_minimum_routes", Tier: Router, Kind: FactorInt, Min: 1, Max: 1000, Default: DefaultRouterZeroYieldMinimumRoutes,
+		Tradeoff: "successful empty responses required before automatic demotion; a higher count avoids false lockouts but lets persistently useless providers consume more traffic.",
+	},
+	{
+		Key: "demotion_window", Tier: Router, Kind: FactorDuration, Default: DefaultRouterDemotionWindow,
+		Tradeoff: "automatic-routing exclusion before a recovery probe; a longer window protects latency from bad leaves but delays a repaired provider's return.",
 	},
 }
 

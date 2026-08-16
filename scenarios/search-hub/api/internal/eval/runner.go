@@ -109,6 +109,18 @@ func (r *Runner) RunWith(ctx context.Context, suite *evalv1.EvalSuite, tag strin
 
 	effLimit := effectiveLimit(suite, limit)
 	snapshot := r.client.Snapshot(ctx, desc)
+	if snapshot == nil {
+		snapshot = &evalv1.ConfigSnapshot{}
+	}
+	if snapshot.GetSelectorLeg() == "" {
+		snapshot.SelectorLeg = "provider_direct"
+	}
+	if snapshot.GetRerankerLeg() == "" {
+		snapshot.RerankerLeg = "unknown"
+	}
+	if snapshot.GetEmbedModel() == "" {
+		snapshot.EmbedModel = "unknown"
+	}
 
 	results := make([]*evalv1.CaseResult, 0, len(suite.GetCases()))
 	latencies := make([]int64, 0, len(suite.GetCases()))
@@ -304,7 +316,7 @@ func aggregate(suite *evalv1.EvalSuite, results []*evalv1.CaseResult, latencies 
 			agg.Below++
 			agg.GradedCases++
 			graded = true
-		case "above_expectation", "unexpected_hit", "answered_by_sibling", "misrouted", "thin_margin":
+		case "above_expectation", "unexpected_hit", "answered_by_sibling", "misrouted", "no_result", "thin_margin":
 			// These are evaluated outcomes even though they are not counted as
 			// successful or below-floor positive cases.
 			agg.GradedCases++

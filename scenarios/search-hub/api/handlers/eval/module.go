@@ -14,6 +14,8 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -34,6 +36,7 @@ import (
 	aisearch "github.com/vrooli/ai-go/search"
 	evalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/eval"
 	evalconnect "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/eval/eval_v1connect"
+	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/registry"
 	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/routing"
 	routingconnect "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/routing/routing_v1connect"
 
@@ -70,9 +73,13 @@ func ModuleWithRoutability(db *database.RoutedDB, clk schedule.Clock, logger *lo
 	if strategyErr != nil {
 		panic(strategyErr)
 	}
-	client := newHTTPProviderClient(newScenarioResolver(), httpc.NewDefault())
+	routingClient := newRoutingQueryClient()
+	client := &providerClientWithSubstrate{
+		ProviderClient: newHTTPProviderClient(newScenarioResolver(), httpc.NewDefault()),
+		substrate:      routingClient,
+	}
 	runner := internaleval.NewRunner(resolver, client, clk, uuid.NewString)
-	federated := internaleval.NewFederatedRunner(resolver, newRoutingQueryClient(), clk, uuid.NewString)
+	federated := internaleval.NewFederatedRunnerWithRoutability(resolver, routingClient, clk, uuid.NewString, routability)
 	validator := internaleval.NewValidator(resolver, client)
 
 	// One registry-side control client drives BOTH the sweep's index-time tier +
@@ -136,8 +143,46 @@ type routingQueryClient struct {
 	http     connect.HTTPClient
 }
 
-func newRoutingQueryClient() internaleval.QueryClient {
+func newRoutingQueryClient() *routingQueryClient {
 	return &routingQueryClient{resolver: newScenarioResolver(), http: &http.Client{Timeout: 30 * time.Second}}
+}
+
+// providerClientWithSubstrate keeps provider-direct runs honest about the
+// shared substrate. Provider status remains authoritative when it exposes a
+// field; routing status fills the otherwise-unknown reranker/embed/index
+// fields so every stored run explains the configuration it was evaluated
+// under, even for providers whose status endpoint is intentionally minimal.
+type providerClientWithSubstrate struct {
+	internaleval.ProviderClient
+	substrate *routingQueryClient
+}
+
+func (c *providerClientWithSubstrate) Snapshot(ctx context.Context, descriptor *registryv1.ProviderDescriptor) *evalv1.ConfigSnapshot {
+	snapshot := c.ProviderClient.Snapshot(ctx, descriptor)
+	if snapshot == nil {
+		snapshot = &evalv1.ConfigSnapshot{}
+	}
+	if strings.TrimSpace(snapshot.SelectorLeg) == "" {
+		snapshot.SelectorLeg = "provider_direct"
+	}
+	live := c.substrate.Snapshot(ctx)
+	if snapshot.RerankerLeg == "" || snapshot.RerankerLeg == "unknown" || snapshot.RerankerLeg == "none" {
+		snapshot.RerankerLeg = live.GetRerankerLeg()
+		snapshot.RerankEnabled = live.GetRerankEnabled()
+	}
+	if snapshot.EmbedModel == "" || snapshot.EmbedModel == "unknown" {
+		snapshot.EmbedModel = live.GetEmbedModel()
+	}
+	if snapshot.IndexedCount <= 0 && live.GetIndexedCount() > 0 {
+		snapshot.IndexedCount = live.GetIndexedCount()
+	}
+	if strings.TrimSpace(snapshot.RerankerLeg) == "" {
+		snapshot.RerankerLeg = "unknown"
+	}
+	if strings.TrimSpace(snapshot.EmbedModel) == "" {
+		snapshot.EmbedModel = "unknown"
+	}
+	return snapshot
 }
 
 func (c *routingQueryClient) Query(ctx context.Context, req *routingv1.QueryRequest) (*routingv1.QueryResponse, error) {
@@ -161,6 +206,57 @@ func (c *routingQueryClient) Query(ctx context.Context, req *routingv1.QueryRequ
 		return nil, err
 	}
 	return rpcResponse.Msg, nil
+}
+
+// Snapshot reads the same typed routing status surface used by operators. It
+// records the active reranker and the aggregate indexed population, while the
+// provider health rows expose each provider's declared embedding model. A
+// mixed model fleet is recorded explicitly instead of pretending one model
+// governed the run.
+func (c *routingQueryClient) Snapshot(ctx context.Context) *evalv1.ConfigSnapshot {
+	snapshot := &evalv1.ConfigSnapshot{
+		SelectorLeg: "unknown",
+		RerankerLeg: "unknown",
+		EmbedModel:  "unknown",
+	}
+	base, err := c.resolver.ResolveScenarioURL(ctx, "search-hub")
+	if err != nil {
+		return snapshot
+	}
+	status, err := routingconnect.NewRoutingServiceClient(c.http, base).Status(ctx, connect.NewRequest(&routingv1.StatusRequest{}))
+	if err != nil || status == nil || status.Msg == nil {
+		return snapshot
+	}
+	snapshot.RerankerLeg = strings.TrimSpace(status.Msg.GetRerankerLeg())
+	if snapshot.RerankerLeg == "" {
+		snapshot.RerankerLeg = "none"
+	}
+	snapshot.RerankEnabled = status.Msg.GetRerankerAvailable()
+	models := make(map[string]struct{})
+	var indexed int64
+	for _, provider := range status.Msg.GetProviders() {
+		indexed += provider.GetPointCount()
+		if model := strings.TrimSpace(provider.GetEmbeddingModel()); model != "" {
+			models[model] = struct{}{}
+		}
+	}
+	if indexed > int64(1<<31-1) {
+		indexed = int64(1<<31 - 1)
+	}
+	snapshot.IndexedCount = int32(indexed)
+	if len(models) > 0 {
+		values := make([]string, 0, len(models))
+		for model := range models {
+			values = append(values, model)
+		}
+		sort.Strings(values)
+		if len(values) == 1 {
+			snapshot.EmbedModel = values[0]
+		} else {
+			snapshot.EmbedModel = "mixed:" + strings.Join(values, ",")
+		}
+	}
+	return snapshot
 }
 
 // Schema re-exports internaleval.Schema so the modules registry collects both

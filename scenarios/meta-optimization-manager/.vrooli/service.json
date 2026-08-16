@@ -236,6 +236,14 @@
         "description": "Owns the Guide projection denominator (`prompt-manager space --projection guide`) and the live numerator (`graph health`). Also the trials task suite source.",
         "degraded_behavior": "Guide-projection coverage is reported unavailable; the other projections still compute."
       },
+      "program-runtime": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Owns the Act projection numerator and typed program/friction condition data consumed by focus.",
+        "degraded_behavior": "Act coverage and program-runtime focus signals are reported unavailable with an honest reason; other projections still compute."
+      },
       "scenario-completeness-scoring": {
         "type": "scenario",
         "enabled": true,

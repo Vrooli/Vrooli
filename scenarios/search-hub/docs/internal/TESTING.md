@@ -1020,6 +1020,33 @@ fallback ordering, and isolated failed-entry drops. Long-running validation is
 owned by Test Genie; start a run with `vrooli scenario test <name>` and block
 once with `test-genie runs wait --json <name> <run-id>`.
 
+For retrieval-correctness work, preserve the measurement boundary: collect the
+declared baseline before editing, keep the reranker and Qdrant healthy, and do
+not run a comparison concurrently with catalog changes. Use the guarded
+comparison surface and retain its run IDs:
+
+```bash
+curl --fail-with-body --silent --show-error --max-time 1800 \
+  -H 'Content-Type: application/json' -H 'Connect-Protocol-Version: 1' \
+  --data '{"suiteId":"router.routing","strategyNames":["semantic-cross-encoder","lexical-cross-encoder","lexical-fallback"],"apply":false,"limit":10}' \
+  http://localhost:19157/vrooli.search_hub.v1.eval.EvalService/CompareStrategies
+```
+
+Promotion is valid only when the returned arm holds the held-out gate and the
+paired significance guard passes. A failed or incomparable comparison is
+evidence to record, not a reason to edit the active strategy by hand.
+
+The operational eviction drill is also part of the validation contract:
+
+1. Stop the reranker with `vrooli resource stop reranker` and call
+   `meta-optimization-manager focus next --json`; the condition surface must
+   name `condition/substrate/reranker` and identify the reranker leg.
+2. Restore it with `vrooli resource start reranker`, wait for the managed
+   resource to report healthy, then call focus again; the substrate item must
+   disappear and a healthy Search Hub must not set `degraded`.
+3. Keep the resource running for the final Search Hub suite and record its
+   active reranker leg in the evidence.
+
 ## Common patterns and anti-patterns
 
 | ✅ DO | ❌ DON'T |

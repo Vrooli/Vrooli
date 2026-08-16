@@ -51,15 +51,25 @@ func (h *connectHandler) CompareStrategies(ctx context.Context, req *connect.Req
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("comparison must include active strategy %q", active))
 	}
 	routable := make(map[string]struct{})
+	exclusions := make(map[string]string)
 	if h.deps.Routability != nil {
 		status, statusErr := h.deps.Routability.Status(ctx)
 		if statusErr != nil {
 			return nil, connect.NewError(connect.CodeInternal, errors.New("internal error"))
 		}
 		for _, provider := range status.GetProviders() {
-			if provider != nil && provider.GetAutomaticEligible() {
-				routable[provider.GetProviderId()] = struct{}{}
+			if provider == nil || provider.GetProviderId() == "" {
+				continue
 			}
+			if provider.GetAutomaticEligible() {
+				routable[provider.GetProviderId()] = struct{}{}
+				continue
+			}
+			reason := strings.TrimSpace(provider.GetAutomaticExclusionReason())
+			if reason == "" {
+				reason = "automatic eligibility policy withheld the provider"
+			}
+			exclusions[provider.GetProviderId()] = reason
 		}
 	} else {
 		activeProviders, listErr := h.deps.Registry.List(ctx, internalregistry.ListFilter{State: int32(registryv1.ProviderState_PROVIDER_STATE_ACTIVE)})
@@ -69,6 +79,8 @@ func (h *connectHandler) CompareStrategies(ctx context.Context, req *connect.Req
 		for _, provider := range activeProviders {
 			if provider != nil && provider.GetEndpoint() != nil && provider.GetLifecycle() == registryv1.Lifecycle_LIFECYCLE_PRODUCTION {
 				routable[provider.GetProviderId()] = struct{}{}
+			} else if provider != nil && provider.GetProviderId() != "" {
+				exclusions[provider.GetProviderId()] = "provider is not production-eligible"
 			}
 		}
 	}
@@ -76,7 +88,15 @@ func (h *connectHandler) CompareStrategies(ctx context.Context, req *connect.Req
 	runs := make(map[string]*evalv1.EvalRun, len(names))
 	for _, name := range names {
 		tag := "strategy-compare:" + name
-		run, runErr := strategyRunner.RunWithStrategy(ctx, suite, tag, req.Msg.GetLimit(), name)
+		var run *evalv1.EvalRun
+		var runErr error
+		if snapshotRunner, ok := strategyRunner.(interface {
+			RunWithStrategyAndExclusions(context.Context, *evalv1.EvalSuite, string, int32, string, map[string]string) (*evalv1.EvalRun, error)
+		}); ok {
+			run, runErr = snapshotRunner.RunWithStrategyAndExclusions(ctx, suite, tag, req.Msg.GetLimit(), name, exclusions)
+		} else {
+			run, runErr = strategyRunner.RunWithStrategy(ctx, suite, tag, req.Msg.GetLimit(), name)
+		}
 		if runErr != nil {
 			return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("strategy %q: %w", name, runErr))
 		}
@@ -213,7 +233,7 @@ func resultByCase(run *evalv1.EvalRun, id string) *evalv1.CaseResult {
 
 func strategyGradeable(outcome string) bool {
 	switch outcome {
-	case "met", "below_expectation", "above_expectation", "unexpected_hit", "answered_by_sibling", "misrouted", "thin_margin":
+	case "met", "below_expectation", "above_expectation", "unexpected_hit", "answered_by_sibling", "misrouted", "no_result", "thin_margin":
 		return true
 	default:
 		return false

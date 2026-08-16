@@ -14,8 +14,10 @@ import (
 	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/routing"
 )
 
-type generateFn func(ctx context.Context, role, prompt string, maxTokens int) ([]byte, error)
-type availFn func(ctx context.Context) bool
+type (
+	generateFn func(ctx context.Context, role, prompt string, maxTokens int) ([]byte, error)
+	availFn    func(ctx context.Context) bool
+)
 
 // Salvage regexes recover a rerank decision from output that failed strict JSON
 // decoding (small models occasionally wrap or malform the array). rerankObjRe

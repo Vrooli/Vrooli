@@ -22,7 +22,7 @@ func TestFactorTaxonomyConsistency(t *testing.T) {
 			t.Errorf("duplicate factor key %q", f.Key)
 		}
 		got[f.Key] = true
-		if f.Tier != QueryTime && f.Tier != IndexTime {
+		if f.Tier != QueryTime && f.Tier != IndexTime && f.Tier != Router {
 			t.Errorf("factor %q has invalid tier %q", f.Key, f.Tier)
 		}
 		if strings.TrimSpace(f.Tradeoff) == "" {
@@ -40,6 +40,9 @@ func TestFactorTaxonomyConsistency(t *testing.T) {
 			if f.Max != 0 && f.Min > f.Max {
 				t.Errorf("factor %q has min>max (%g>%g)", f.Key, f.Min, f.Max)
 			}
+		case FactorDuration:
+			// Duration defaults are typed time.Duration values. The taxonomy
+			// only needs to guarantee that a concrete default exists.
 		case FactorBool:
 		default:
 			t.Errorf("factor %q has unknown kind %q", f.Key, f.Kind)
@@ -51,8 +54,39 @@ func TestFactorTaxonomyConsistency(t *testing.T) {
 		}
 	}
 	for k := range got {
+		if row, ok := FactorByKey(k); ok && row.Tier == Router {
+			continue
+		}
 		if !wantKeys[k] {
 			t.Errorf("Factors has a row %q with no matching TuningConfig field", k)
+		}
+	}
+}
+
+func TestRouterFactorTaxonomyConsistency(t *testing.T) {
+	rows := map[string]Factor{}
+	for _, f := range Factors {
+		if f.Tier == Router {
+			rows[f.Key] = f
+		}
+	}
+	if len(rows) != len(RouterFactorKeys) {
+		t.Fatalf("router factor rows=%d, keys=%d", len(rows), len(RouterFactorKeys))
+	}
+	for _, key := range RouterFactorKeys {
+		row, ok := rows[key]
+		if !ok {
+			t.Errorf("router factor %q has no taxonomy row", key)
+			continue
+		}
+		if row.Tier != Router {
+			t.Errorf("router factor %q has tier %q", key, row.Tier)
+		}
+		if strings.TrimSpace(row.Tradeoff) == "" {
+			t.Errorf("router factor %q has no tradeoff", key)
+		}
+		if row.Default == nil {
+			t.Errorf("router factor %q has no default", key)
 		}
 	}
 }
