@@ -120,4 +120,5 @@ identifies a customer, SKU, revenue line, or monetization hypothesis.
 - [`../../PRD.md`](../../PRD.md) — product requirements
 - [`GO-TO-MARKET.md`](GO-TO-MARKET.md) — channel and launch plan
 - [`../operations/OBSERVABILITY.md`](../operations/OBSERVABILITY.md) — telemetry needed for business validation
-- Project-level monetization strategy: `path:docs/monetization/README.md`.
+- Project-level monetization strategy is maintained in the repository-level
+  business strategy; this scenario has no separate monetization capability.

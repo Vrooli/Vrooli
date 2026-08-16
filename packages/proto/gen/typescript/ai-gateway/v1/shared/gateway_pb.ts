@@ -10,7 +10,88 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file ai-gateway/v1/shared/gateway.proto.
  */
 export const file_ai_gateway_v1_shared_gateway: GenFile = /*@__PURE__*/
-  fileDesc("CiJhaS1nYXRld2F5L3YxL3NoYXJlZC9nYXRld2F5LnByb3RvEht2cm9vbGkuYWlfZ2F0ZXdheS52MS5zaGFyZWQivwEKCkF0dGFjaG1lbnQSNwoIbW9kYWxpdHkYASABKA4yJS52cm9vbGkuYWlfZ2F0ZXdheS52MS5zaGFyZWQuTW9kYWxpdHkSEgoKbWVkaWFfdHlwZRgCIAEoCRINCgV3aWR0aBgDIAEoDRIOCgZoZWlnaHQYBCABKA0SDQoFYnl0ZXMYBSABKAQSFgoMaW5saW5lX2J5dGVzGAYgASgMSAASEwoJcmVmZXJlbmNlGAcgASgJSABCCQoHcGF5bG9hZCKJBAoOR2F0ZXdheVJlcXVlc3QSNgoEa2luZBgBIAEoDjIoLnZyb29saS5haV9nYXRld2F5LnYxLnNoYXJlZC5SZXF1ZXN0S2luZBIMCgRyb2xlGAIgASgJEjUKB3Byb2ZpbGUYAyABKA4yJC52cm9vbGkuYWlfZ2F0ZXdheS52MS5zaGFyZWQuUHJvZmlsZRJACg1wcml2YWN5X2NsYXNzGAQgASgOMikudnJvb2xpLmFpX2dhdGV3YXkudjEuc2hhcmVkLlByaXZhY3lDbGFzcxIRCglvcGVyYXRpb24YBSABKAkSEAoIc2NlbmFyaW8YBiABKAkSEgoKdGltZW91dF9tcxgHIAEoBRIUCgxtYXhfY29zdF91c2QYCCABKAESGQoRbWF4X291dHB1dF90b2tlbnMYCSABKAUSEgoKcmVxdWVzdF9pZBgKIAEoCRJLCghtZXRhZGF0YRgLIAMoCzI5LnZyb29saS5haV9nYXRld2F5LnYxLnNoYXJlZC5HYXRld2F5UmVxdWVzdC5NZXRhZGF0YUVudHJ5EjwKC2F0dGFjaG1lbnRzGAwgAygLMicudnJvb2xpLmFpX2dhdGV3YXkudjEuc2hhcmVkLkF0dGFjaG1lbnQaLwoNTWV0YWRhdGFFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIj8KD1ZhbGlkYXRpb25Jc3N1ZRINCgVmaWVsZBgBIAEoCRIMCgRjb2RlGAIgASgJEg8KB21lc3NhZ2UYAyABKAkq3AEKC1JlcXVlc3RLaW5kEhwKGFJFUVVFU1RfS0lORF9VTlNQRUNJRklFRBAAEiAKHFJFUVVFU1RfS0lORF9URVhUX0dFTkVSQVRJT04QARIfChtSRVFVRVNUX0tJTkRfVEVYVF9FTUJFRERJTkcQAhImCiJSRVFVRVNUX0tJTkRfU1RSVUNUVVJFRF9FWFRSQUNUSU9OEAMSIQodUkVRVUVTVF9LSU5EX0lNQUdFX0dFTkVSQVRJT04QBBIhCh1SRVFVRVNUX0tJTkRfVklERU9fR0VORVJBVElPThAFKp0BCgxQcml2YWN5Q2xhc3MSHQoZUFJJVkFDWV9DTEFTU19VTlNQRUNJRklFRBAAEhgKFFBSSVZBQ1lfQ0xBU1NfUFVCTElDEAESGgoWUFJJVkFDWV9DTEFTU19JTlRFUk5BTBACEh4KGlBSSVZBQ1lfQ0xBU1NfQ09ORklERU5USUFMEAMSGAoUUFJJVkFDWV9DTEFTU19TRUNSRVQQBCq/AQoHUHJvZmlsZRIXChNQUk9GSUxFX1VOU1BFQ0lGSUVEEAASFgoSUFJPRklMRV9MT0NBTF9PTkxZEAESFwoTUFJPRklMRV9MT0NBTF9GSVJTVBACEhcKE1BST0ZJTEVfUkVNT1RFX09OTFkQAxIZChVQUk9GSUxFX1FVQUxJVFlfRklSU1QQBBIXChNQUk9GSUxFX0NIRUFQX0ZJUlNUEAUSHQoZUFJPRklMRV9QUklWQUNZX1NFTlNJVElWRRAGKogBCghNb2RhbGl0eRIYChRNT0RBTElUWV9VTlNQRUNJRklFRBAAEhEKDU1PREFMSVRZX1RFWFQQARISCg5NT0RBTElUWV9JTUFHRRACEhMKD01PREFMSVRZX1ZFQ1RPUhADEhIKDk1PREFMSVRZX1ZJREVPEAQSEgoOTU9EQUxJVFlfQVVESU8QBUJPWk1naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2FpLWdhdGV3YXkvdjEvc2hhcmVkO3NoYXJlZF92MWIGcHJvdG8z");
+  fileDesc("CiJhaS1nYXRld2F5L3YxL3NoYXJlZC9nYXRld2F5LnByb3RvEht2cm9vbGkuYWlfZ2F0ZXdheS52MS5zaGFyZWQiPAoQU2FtcGxpbmdDb250cm9scxIYCgt0ZW1wZXJhdHVyZRgBIAEoAUgAiAEBQg4KDF90ZW1wZXJhdHVyZSKFAgoPQXBwbGllZFNldHRpbmdzEh0KEHRlbXBlcmF0dXJlX3NlbnQYASABKAFIAIgBARJJChN0ZW1wZXJhdHVyZV9zdXBwb3J0GAIgASgOMiwudnJvb2xpLmFpX2dhdGV3YXkudjEuc2hhcmVkLlNhbXBsaW5nU3VwcG9ydBIjChttYXhfb3V0cHV0X3Rva2Vuc19lZmZlY3RpdmUYAyABKAUSTgoYbWF4X291dHB1dF90b2tlbnNfc291cmNlGAQgASgOMiwudnJvb2xpLmFpX2dhdGV3YXkudjEuc2hhcmVkLk91dHB1dENhcFNvdXJjZUITChFfdGVtcGVyYXR1cmVfc2VudCK/AQoKQXR0YWNobWVudBI3Cghtb2RhbGl0eRgBIAEoDjIlLnZyb29saS5haV9nYXRld2F5LnYxLnNoYXJlZC5Nb2RhbGl0eRISCgptZWRpYV90eXBlGAIgASgJEg0KBXdpZHRoGAMgASgNEg4KBmhlaWdodBgEIAEoDRINCgVieXRlcxgFIAEoBBIWCgxpbmxpbmVfYnl0ZXMYBiABKAxIABITCglyZWZlcmVuY2UYByABKAlIAEIJCgdwYXlsb2FkIsoECg5HYXRld2F5UmVxdWVzdBI2CgRraW5kGAEgASgOMigudnJvb2xpLmFpX2dhdGV3YXkudjEuc2hhcmVkLlJlcXVlc3RLaW5kEgwKBHJvbGUYAiABKAkSNQoHcHJvZmlsZRgDIAEoDjIkLnZyb29saS5haV9nYXRld2F5LnYxLnNoYXJlZC5Qcm9maWxlEkAKDXByaXZhY3lfY2xhc3MYBCABKA4yKS52cm9vbGkuYWlfZ2F0ZXdheS52MS5zaGFyZWQuUHJpdmFjeUNsYXNzEhEKCW9wZXJhdGlvbhgFIAEoCRIQCghzY2VuYXJpbxgGIAEoCRISCgp0aW1lb3V0X21zGAcgASgFEhQKDG1heF9jb3N0X3VzZBgIIAEoARIZChFtYXhfb3V0cHV0X3Rva2VucxgJIAEoBRISCgpyZXF1ZXN0X2lkGAogASgJEksKCG1ldGFkYXRhGAsgAygLMjkudnJvb2xpLmFpX2dhdGV3YXkudjEuc2hhcmVkLkdhdGV3YXlSZXF1ZXN0Lk1ldGFkYXRhRW50cnkSPAoLYXR0YWNobWVudHMYDCADKAsyJy52cm9vbGkuYWlfZ2F0ZXdheS52MS5zaGFyZWQuQXR0YWNobWVudBI/CghzYW1wbGluZxgNIAEoCzItLnZyb29saS5haV9nYXRld2F5LnYxLnNoYXJlZC5TYW1wbGluZ0NvbnRyb2xzGi8KDU1ldGFkYXRhRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASI/Cg9WYWxpZGF0aW9uSXNzdWUSDQoFZmllbGQYASABKAkSDAoEY29kZRgCIAEoCRIPCgdtZXNzYWdlGAMgASgJKtwBCgtSZXF1ZXN0S2luZBIcChhSRVFVRVNUX0tJTkRfVU5TUEVDSUZJRUQQABIgChxSRVFVRVNUX0tJTkRfVEVYVF9HRU5FUkFUSU9OEAESHwobUkVRVUVTVF9LSU5EX1RFWFRfRU1CRURESU5HEAISJgoiUkVRVUVTVF9LSU5EX1NUUlVDVFVSRURfRVhUUkFDVElPThADEiEKHVJFUVVFU1RfS0lORF9JTUFHRV9HRU5FUkFUSU9OEAQSIQodUkVRVUVTVF9LSU5EX1ZJREVPX0dFTkVSQVRJT04QBSqdAQoMUHJpdmFjeUNsYXNzEh0KGVBSSVZBQ1lfQ0xBU1NfVU5TUEVDSUZJRUQQABIYChRQUklWQUNZX0NMQVNTX1BVQkxJQxABEhoKFlBSSVZBQ1lfQ0xBU1NfSU5URVJOQUwQAhIeChpQUklWQUNZX0NMQVNTX0NPTkZJREVOVElBTBADEhgKFFBSSVZBQ1lfQ0xBU1NfU0VDUkVUEAQqvwEKB1Byb2ZpbGUSFwoTUFJPRklMRV9VTlNQRUNJRklFRBAAEhYKElBST0ZJTEVfTE9DQUxfT05MWRABEhcKE1BST0ZJTEVfTE9DQUxfRklSU1QQAhIXChNQUk9GSUxFX1JFTU9URV9PTkxZEAMSGQoVUFJPRklMRV9RVUFMSVRZX0ZJUlNUEAQSFwoTUFJPRklMRV9DSEVBUF9GSVJTVBAFEh0KGVBST0ZJTEVfUFJJVkFDWV9TRU5TSVRJVkUQBiqIAQoITW9kYWxpdHkSGAoUTU9EQUxJVFlfVU5TUEVDSUZJRUQQABIRCg1NT0RBTElUWV9URVhUEAESEgoOTU9EQUxJVFlfSU1BR0UQAhITCg9NT0RBTElUWV9WRUNUT1IQAxISCg5NT0RBTElUWV9WSURFTxAEEhIKDk1PREFMSVRZX0FVRElPEAUqrAEKD1NhbXBsaW5nU3VwcG9ydBIgChxTQU1QTElOR19TVVBQT1JUX1VOU1BFQ0lGSUVEEAASHAoYU0FNUExJTkdfU1VQUE9SVF9IT05PUkVEEAESHAoYU0FNUExJTkdfU1VQUE9SVF9JR05PUkVEEAISHQoZU0FNUExJTkdfU1VQUE9SVF9SRUpFQ1RFRBADEhwKGFNBTVBMSU5HX1NVUFBPUlRfVU5LTk9XThAEKpoBCg9PdXRwdXRDYXBTb3VyY2USIQodT1VUUFVUX0NBUF9TT1VSQ0VfVU5TUEVDSUZJRUQQABIdChlPVVRQVVRfQ0FQX1NPVVJDRV9SRVFVRVNUEAESIQodT1VUUFVUX0NBUF9TT1VSQ0VfUk9MRV9QT0xJQ1kQAhIiCh5PVVRQVVRfQ0FQX1NPVVJDRV9OT05FX0lNUE9TRUQQA0JPWk1naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2FpLWdhdGV3YXkvdjEvc2hhcmVkO3NoYXJlZF92MWIGcHJvdG8z");
+
+/**
+ * SamplingControls is the caller's explicit request for non-default sampling.
+ * An absent message means "use the role's declared sampling", which is itself
+ * allowed to be absent, in which case the provider resource's own policy
+ * default applies. A present-but-unhonourable control is an error, never a
+ * silent downgrade: see INFERENCE_ERROR_CODE_UNSUPPORTED_SAMPLING.
+ *
+ * @generated from message vrooli.ai_gateway.v1.shared.SamplingControls
+ */
+export type SamplingControls = Message<"vrooli.ai_gateway.v1.shared.SamplingControls"> & {
+  /**
+   * temperature is optional so an explicit 0.0 (deterministic) is
+   * distinguishable from unset. A role must declare itself overridable before a
+   * caller may set this; sending it to a role that has not is a request defect.
+   * @default the role's declared sampling, else the resource policy default
+   *
+   * Field 2 is reserved for `seed` and field 3 for `top_p` when a provider
+   * resource can honour them. Do not reuse these numbers for anything else.
+   *
+   * @generated from field: optional double temperature = 1;
+   */
+  temperature?: number | undefined;
+};
+
+/**
+ * Describes the message vrooli.ai_gateway.v1.shared.SamplingControls.
+ * Use `create(SamplingControlsSchema)` to create a new message.
+ */
+export const SamplingControlsSchema: GenMessage<SamplingControls> = /*@__PURE__*/
+  messageDesc(file_ai_gateway_v1_shared_gateway, 0);
+
+/**
+ * AppliedSettings reports what the gateway actually did, so a caller can record
+ * provenance that is true rather than provenance that echoes its own request.
+ * It deliberately has no single "applied temperature" field: for a provider
+ * that accepts and silently ignores the control, such a field would have to lie
+ * in exactly the case the caller most needs the truth.
+ *
+ * @generated from message vrooli.ai_gateway.v1.shared.AppliedSettings
+ */
+export type AppliedSettings = Message<"vrooli.ai_gateway.v1.shared.AppliedSettings"> & {
+  /**
+   * temperature_sent is the value passed to the provider, absent when the
+   * gateway omitted the control. It is NOT proof the provider honoured it.
+   *
+   * @generated from field: optional double temperature_sent = 1;
+   */
+  temperatureSent?: number | undefined;
+
+  /**
+   * temperature_support is the resolved role's policy declaration. A caller
+   * comparing two candidate sets must treat differing support states as
+   * differing conditions even when temperature_sent matches.
+   *
+   * @generated from field: vrooli.ai_gateway.v1.shared.SamplingSupport temperature_support = 2;
+   */
+  temperatureSupport: SamplingSupport;
+
+  /**
+   * max_output_tokens_effective is the cap the gateway imposed, and
+   * max_output_tokens_source names where it came from. Zero with source
+   * OUTPUT_CAP_SOURCE_NONE_IMPOSED means no cap was sent.
+   * @unit tokens
+   *
+   * @generated from field: int32 max_output_tokens_effective = 3;
+   */
+  maxOutputTokensEffective: number;
+
+  /**
+   * @generated from field: vrooli.ai_gateway.v1.shared.OutputCapSource max_output_tokens_source = 4;
+   */
+  maxOutputTokensSource: OutputCapSource;
+};
+
+/**
+ * Describes the message vrooli.ai_gateway.v1.shared.AppliedSettings.
+ * Use `create(AppliedSettingsSchema)` to create a new message.
+ */
+export const AppliedSettingsSchema: GenMessage<AppliedSettings> = /*@__PURE__*/
+  messageDesc(file_ai_gateway_v1_shared_gateway, 1);
 
 /**
  * Attachment carries ephemeral caller input across the gateway boundary. The
@@ -69,7 +150,7 @@ export type Attachment = Message<"vrooli.ai_gateway.v1.shared.Attachment"> & {
  * Use `create(AttachmentSchema)` to create a new message.
  */
 export const AttachmentSchema: GenMessage<Attachment> = /*@__PURE__*/
-  messageDesc(file_ai_gateway_v1_shared_gateway, 0);
+  messageDesc(file_ai_gateway_v1_shared_gateway, 2);
 
 /**
  * GatewayRequest is the caller-owned provider-neutral request envelope.
@@ -138,6 +219,14 @@ export type GatewayRequest = Message<"vrooli.ai_gateway.v1.shared.GatewayRequest
    * @generated from field: repeated vrooli.ai_gateway.v1.shared.Attachment attachments = 12;
    */
   attachments: Attachment[];
+
+  /**
+   * sampling is the caller's explicit sampling request. Absent means the
+   * resolved role's declared sampling applies.
+   *
+   * @generated from field: vrooli.ai_gateway.v1.shared.SamplingControls sampling = 13;
+   */
+  sampling?: SamplingControls | undefined;
 };
 
 /**
@@ -145,7 +234,7 @@ export type GatewayRequest = Message<"vrooli.ai_gateway.v1.shared.GatewayRequest
  * Use `create(GatewayRequestSchema)` to create a new message.
  */
 export const GatewayRequestSchema: GenMessage<GatewayRequest> = /*@__PURE__*/
-  messageDesc(file_ai_gateway_v1_shared_gateway, 1);
+  messageDesc(file_ai_gateway_v1_shared_gateway, 3);
 
 /**
  * @generated from message vrooli.ai_gateway.v1.shared.ValidationIssue
@@ -172,7 +261,7 @@ export type ValidationIssue = Message<"vrooli.ai_gateway.v1.shared.ValidationIss
  * Use `create(ValidationIssueSchema)` to create a new message.
  */
 export const ValidationIssueSchema: GenMessage<ValidationIssue> = /*@__PURE__*/
-  messageDesc(file_ai_gateway_v1_shared_gateway, 2);
+  messageDesc(file_ai_gateway_v1_shared_gateway, 4);
 
 /**
  * RequestKind identifies the provider-neutral AI operation a caller needs.
@@ -355,4 +444,108 @@ export enum Modality {
  */
 export const ModalitySchema: GenEnum<Modality> = /*@__PURE__*/
   enumDesc(file_ai_gateway_v1_shared_gateway, 3);
+
+/**
+ * SamplingSupport states how a resolved role's provider treats an explicit
+ * sampling control. It is read from resource policy and never probed: a
+ * provider that accepts a control and silently discards it is indistinguishable
+ * at the call site from one that honours it, so a successful call is not
+ * evidence of support.
+ *
+ * @generated from enum vrooli.ai_gateway.v1.shared.SamplingSupport
+ */
+export enum SamplingSupport {
+  /**
+   * SAMPLING_SUPPORT_UNSPECIFIED means no role was resolved for this call, so
+   * there is no declaration to report. It is distinct from
+   * SAMPLING_SUPPORT_UNKNOWN, which is a resolved role that declared nothing.
+   *
+   * @generated from enum value: SAMPLING_SUPPORT_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * SAMPLING_SUPPORT_HONORED means the provider applies the value. Declaring it
+   * requires first-party provider evidence.
+   *
+   * @generated from enum value: SAMPLING_SUPPORT_HONORED = 1;
+   */
+  HONORED = 1,
+
+  /**
+   * SAMPLING_SUPPORT_IGNORED means the provider accepts the field and silently
+   * discards it. The call succeeds and the control has no effect.
+   *
+   * @generated from enum value: SAMPLING_SUPPORT_IGNORED = 2;
+   */
+  IGNORED = 2,
+
+  /**
+   * SAMPLING_SUPPORT_REJECTED means the provider fails the request when the
+   * field is present.
+   *
+   * @generated from enum value: SAMPLING_SUPPORT_REJECTED = 3;
+   */
+  REJECTED = 3,
+
+  /**
+   * SAMPLING_SUPPORT_UNKNOWN means the resolved role declared no support state.
+   * The gateway treats it as IGNORED: best effort, no promise.
+   * @default treated as SAMPLING_SUPPORT_IGNORED
+   *
+   * @generated from enum value: SAMPLING_SUPPORT_UNKNOWN = 4;
+   */
+  UNKNOWN = 4,
+}
+
+/**
+ * Describes the enum vrooli.ai_gateway.v1.shared.SamplingSupport.
+ */
+export const SamplingSupportSchema: GenEnum<SamplingSupport> = /*@__PURE__*/
+  enumDesc(file_ai_gateway_v1_shared_gateway, 4);
+
+/**
+ * OutputCapSource names where the output cap the gateway imposed came from. It
+ * reports only what the gateway knows: a provider's own internal default is not
+ * visible from here and is never guessed.
+ *
+ * @generated from enum vrooli.ai_gateway.v1.shared.OutputCapSource
+ */
+export enum OutputCapSource {
+  /**
+   * @generated from enum value: OUTPUT_CAP_SOURCE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * OUTPUT_CAP_SOURCE_REQUEST means the caller set max_output_tokens.
+   *
+   * @generated from enum value: OUTPUT_CAP_SOURCE_REQUEST = 1;
+   */
+  REQUEST = 1,
+
+  /**
+   * OUTPUT_CAP_SOURCE_ROLE_POLICY means the resolved resource role declared the
+   * cap and the caller sent none.
+   *
+   * @generated from enum value: OUTPUT_CAP_SOURCE_ROLE_POLICY = 2;
+   */
+  ROLE_POLICY = 2,
+
+  /**
+   * OUTPUT_CAP_SOURCE_NONE_IMPOSED means the gateway sent no cap at all. The
+   * provider's own default applies and is not observable from here. This is
+   * distinct from "there is a cap we cannot see" — the gateway genuinely
+   * imposed nothing.
+   *
+   * @generated from enum value: OUTPUT_CAP_SOURCE_NONE_IMPOSED = 3;
+   */
+  NONE_IMPOSED = 3,
+}
+
+/**
+ * Describes the enum vrooli.ai_gateway.v1.shared.OutputCapSource.
+ */
+export const OutputCapSourceSchema: GenEnum<OutputCapSource> = /*@__PURE__*/
+  enumDesc(file_ai_gateway_v1_shared_gateway, 5);
 

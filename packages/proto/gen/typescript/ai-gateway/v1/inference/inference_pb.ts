@@ -4,7 +4,7 @@
 
 import type { GenEnum, GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
 import { enumDesc, fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
-import type { Attachment, Profile } from "../shared/gateway_pb";
+import type { AppliedSettings, Attachment, Profile, SamplingControls } from "../shared/gateway_pb";
 import { file_ai_gateway_v1_shared_gateway } from "../shared/gateway_pb";
 import type { Message } from "@bufbuild/protobuf";
 
@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file ai-gateway/v1/inference/inference.proto.
  */
 export const file_ai_gateway_v1_inference_inference: GenFile = /*@__PURE__*/
-  fileDesc("CidhaS1nYXRld2F5L3YxL2luZmVyZW5jZS9pbmZlcmVuY2UucHJvdG8SHnZyb29saS5haV9nYXRld2F5LnYxLmluZmVyZW5jZSJJCgVVc2FnZRIUCgxpbnB1dF90b2tlbnMYASABKAMSFQoNb3V0cHV0X3Rva2VucxgCIAEoAxITCgtjb3N0X21pY3JvcxgDIAEoAyJ2Cg5JbmZlcmVuY2VFcnJvchJACgRjb2RlGAEgASgOMjIudnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLkluZmVyZW5jZUVycm9yQ29kZRIPCgdtZXNzYWdlGAIgASgJEhEKCWNvbnN0cnVjdBgDIAEoCSJgCgRUdXJuEgwKBHJvbGUYASABKAkSDAoEdGV4dBgCIAEoCRI8CgthdHRhY2htZW50cxgDIAMoCzInLnZyb29saS5haV9nYXRld2F5LnYxLnNoYXJlZC5BdHRhY2htZW50Iv4BCgpSdW5SZXF1ZXN0Eg4KBnNvdXJjZRgBIAEoCRITCgtzY2hlbWFfanNvbhgCIAEoCRITCgtpbnN0cnVjdGlvbhgDIAEoCRIMCgRyb2xlGAQgASgJEjMKBXR1cm5zGAUgAygLMiQudnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLlR1cm4SPAoLYXR0YWNobWVudHMYBiADKAsyJy52cm9vbGkuYWlfZ2F0ZXdheS52MS5zaGFyZWQuQXR0YWNobWVudBI1Cgdwcm9maWxlGAcgASgOMiQudnJvb2xpLmFpX2dhdGV3YXkudjEuc2hhcmVkLlByb2ZpbGUiygEKC1J1blJlc3BvbnNlEhIKCnZhbHVlX2pzb24YASABKAkSEAoIcHJvdmlkZXIYAiABKAkSDQoFbW9kZWwYAyABKAkSEQoJdmFsaWRhdGVkGAQgASgIEjQKBXVzYWdlGAUgASgLMiUudnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLlVzYWdlEj0KBWVycm9yGAYgASgLMi4udnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLkluZmVyZW5jZUVycm9yIh4KDFJ1bkJhdGNoSXRlbRIOCgZzb3VyY2UYASABKAkihgEKD1J1bkJhdGNoUmVxdWVzdBI7CgVpdGVtcxgBIAMoCzIsLnZyb29saS5haV9nYXRld2F5LnYxLmluZmVyZW5jZS5SdW5CYXRjaEl0ZW0SEwoLc2NoZW1hX2pzb24YAiABKAkSEwoLaW5zdHJ1Y3Rpb24YAyABKAkSDAoEcm9sZRgEIAEoCSKGAQoQUnVuQmF0Y2hSZXNwb25zZRI8CgdyZXN1bHRzGAEgAygLMisudnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLlJ1blJlc3BvbnNlEjQKBXVzYWdlGAIgASgLMiUudnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLlVzYWdlKo0CChJJbmZlcmVuY2VFcnJvckNvZGUSJAogSU5GRVJFTkNFX0VSUk9SX0NPREVfVU5TUEVDSUZJRUQQABIkCiBJTkZFUkVOQ0VfRVJST1JfQ09ERV9VTkFWQUlMQUJMRRABEigKJElORkVSRU5DRV9FUlJPUl9DT0RFX0lOVkFMSURfUkVRVUVTVBACEisKJ0lORkVSRU5DRV9FUlJPUl9DT0RFX1VOU1VQUE9SVEVEX1NDSEVNQRADEioKJklORkVSRU5DRV9FUlJPUl9DT0RFX1ZBTElEQVRJT05fRkFJTEVEEAQSKAokSU5GRVJFTkNFX0VSUk9SX0NPREVfUFJPVklERVJfRkFJTEVEEAUy4QEKEEluZmVyZW5jZVNlcnZpY2USXgoDUnVuEioudnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLlJ1blJlcXVlc3QaKy52cm9vbGkuYWlfZ2F0ZXdheS52MS5pbmZlcmVuY2UuUnVuUmVzcG9uc2USbQoIUnVuQmF0Y2gSLy52cm9vbGkuYWlfZ2F0ZXdheS52MS5pbmZlcmVuY2UuUnVuQmF0Y2hSZXF1ZXN0GjAudnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLlJ1bkJhdGNoUmVzcG9uc2VCVVpTZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9haS1nYXRld2F5L3YxL2luZmVyZW5jZTtpbmZlcmVuY2VfdjFiBnByb3RvMw", [file_ai_gateway_v1_shared_gateway]);
+  fileDesc("CidhaS1nYXRld2F5L3YxL2luZmVyZW5jZS9pbmZlcmVuY2UucHJvdG8SHnZyb29saS5haV9nYXRld2F5LnYxLmluZmVyZW5jZSJJCgVVc2FnZRIUCgxpbnB1dF90b2tlbnMYASABKAMSFQoNb3V0cHV0X3Rva2VucxgCIAEoAxITCgtjb3N0X21pY3JvcxgDIAEoAyJ2Cg5JbmZlcmVuY2VFcnJvchJACgRjb2RlGAEgASgOMjIudnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLkluZmVyZW5jZUVycm9yQ29kZRIPCgdtZXNzYWdlGAIgASgJEhEKCWNvbnN0cnVjdBgDIAEoCSJgCgRUdXJuEgwKBHJvbGUYASABKAkSDAoEdGV4dBgCIAEoCRI8CgthdHRhY2htZW50cxgDIAMoCzInLnZyb29saS5haV9nYXRld2F5LnYxLnNoYXJlZC5BdHRhY2htZW50ItoCCgpSdW5SZXF1ZXN0Eg4KBnNvdXJjZRgBIAEoCRITCgtzY2hlbWFfanNvbhgCIAEoCRITCgtpbnN0cnVjdGlvbhgDIAEoCRIMCgRyb2xlGAQgASgJEjMKBXR1cm5zGAUgAygLMiQudnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLlR1cm4SPAoLYXR0YWNobWVudHMYBiADKAsyJy52cm9vbGkuYWlfZ2F0ZXdheS52MS5zaGFyZWQuQXR0YWNobWVudBI1Cgdwcm9maWxlGAcgASgOMiQudnJvb2xpLmFpX2dhdGV3YXkudjEuc2hhcmVkLlByb2ZpbGUSPwoIc2FtcGxpbmcYCCABKAsyLS52cm9vbGkuYWlfZ2F0ZXdheS52MS5zaGFyZWQuU2FtcGxpbmdDb250cm9scxIZChFtYXhfb3V0cHV0X3Rva2VucxgJIAEoBSKJAgoLUnVuUmVzcG9uc2USEgoKdmFsdWVfanNvbhgBIAEoCRIQCghwcm92aWRlchgCIAEoCRINCgVtb2RlbBgDIAEoCRIRCgl2YWxpZGF0ZWQYBCABKAgSNAoFdXNhZ2UYBSABKAsyJS52cm9vbGkuYWlfZ2F0ZXdheS52MS5pbmZlcmVuY2UuVXNhZ2USPQoFZXJyb3IYBiABKAsyLi52cm9vbGkuYWlfZ2F0ZXdheS52MS5pbmZlcmVuY2UuSW5mZXJlbmNlRXJyb3ISPQoHYXBwbGllZBgHIAEoCzIsLnZyb29saS5haV9nYXRld2F5LnYxLnNoYXJlZC5BcHBsaWVkU2V0dGluZ3MiHgoMUnVuQmF0Y2hJdGVtEg4KBnNvdXJjZRgBIAEoCSKGAQoPUnVuQmF0Y2hSZXF1ZXN0EjsKBWl0ZW1zGAEgAygLMiwudnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLlJ1bkJhdGNoSXRlbRITCgtzY2hlbWFfanNvbhgCIAEoCRITCgtpbnN0cnVjdGlvbhgDIAEoCRIMCgRyb2xlGAQgASgJIoYBChBSdW5CYXRjaFJlc3BvbnNlEjwKB3Jlc3VsdHMYASADKAsyKy52cm9vbGkuYWlfZ2F0ZXdheS52MS5pbmZlcmVuY2UuUnVuUmVzcG9uc2USNAoFdXNhZ2UYAiABKAsyJS52cm9vbGkuYWlfZ2F0ZXdheS52MS5pbmZlcmVuY2UuVXNhZ2UqvAIKEkluZmVyZW5jZUVycm9yQ29kZRIkCiBJTkZFUkVOQ0VfRVJST1JfQ09ERV9VTlNQRUNJRklFRBAAEiQKIElORkVSRU5DRV9FUlJPUl9DT0RFX1VOQVZBSUxBQkxFEAESKAokSU5GRVJFTkNFX0VSUk9SX0NPREVfSU5WQUxJRF9SRVFVRVNUEAISKwonSU5GRVJFTkNFX0VSUk9SX0NPREVfVU5TVVBQT1JURURfU0NIRU1BEAMSKgomSU5GRVJFTkNFX0VSUk9SX0NPREVfVkFMSURBVElPTl9GQUlMRUQQBBIoCiRJTkZFUkVOQ0VfRVJST1JfQ09ERV9QUk9WSURFUl9GQUlMRUQQBRItCilJTkZFUkVOQ0VfRVJST1JfQ09ERV9VTlNVUFBPUlRFRF9TQU1QTElORxAGMuEBChBJbmZlcmVuY2VTZXJ2aWNlEl4KA1J1bhIqLnZyb29saS5haV9nYXRld2F5LnYxLmluZmVyZW5jZS5SdW5SZXF1ZXN0GisudnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLlJ1blJlc3BvbnNlEm0KCFJ1bkJhdGNoEi8udnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLlJ1bkJhdGNoUmVxdWVzdBowLnZyb29saS5haV9nYXRld2F5LnYxLmluZmVyZW5jZS5SdW5CYXRjaFJlc3BvbnNlQlVaU2dpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vYWktZ2F0ZXdheS92MS9pbmZlcmVuY2U7aW5mZXJlbmNlX3YxYgZwcm90bzM", [file_ai_gateway_v1_shared_gateway]);
 
 /**
  * Usage is the provider-reported accounting for one inference operation.
@@ -150,6 +150,29 @@ export type RunRequest = Message<"vrooli.ai_gateway.v1.inference.RunRequest"> & 
    * @generated from field: vrooli.ai_gateway.v1.shared.Profile profile = 7;
    */
   profile: Profile;
+
+  /**
+   * sampling is the caller's explicit sampling request. It is honoured only by
+   * roles that declare themselves overridable; sending it to a deterministic
+   * role is INFERENCE_ERROR_CODE_INVALID_REQUEST, not a silent override.
+   * @default the role's declared sampling
+   *
+   * @generated from field: vrooli.ai_gateway.v1.shared.SamplingControls sampling = 8;
+   */
+  sampling?: SamplingControls | undefined;
+
+  /**
+   * max_output_tokens bounds the response the gateway asks the provider for.
+   * It is request-level rather than role-level because the budget depends on
+   * caller data a role cannot know — one role serves a single draft and a
+   * twenty-candidate set, and sizing for either breaks the other. It is
+   * bidirectional: a caller may send a tighter cap than the role default.
+   * @default the resolved resource role's declared cap, else no cap
+   * @unit tokens
+   *
+   * @generated from field: int32 max_output_tokens = 9;
+   */
+  maxOutputTokens: number;
 };
 
 /**
@@ -192,6 +215,16 @@ export type RunResponse = Message<"vrooli.ai_gateway.v1.inference.RunResponse"> 
    * @generated from field: vrooli.ai_gateway.v1.inference.InferenceError error = 6;
    */
   error?: InferenceError | undefined;
+
+  /**
+   * applied reports what the gateway actually sent and what the resolved role
+   * declares, so provenance records fact rather than the caller's own request.
+   * It is populated on every return path including errors: a refused or
+   * truncated call is exactly when a caller needs to know the cap.
+   *
+   * @generated from field: vrooli.ai_gateway.v1.shared.AppliedSettings applied = 7;
+   */
+  applied?: AppliedSettings | undefined;
 };
 
 /**
@@ -308,6 +341,20 @@ export enum InferenceErrorCode {
    * @generated from enum value: INFERENCE_ERROR_CODE_PROVIDER_FAILED = 5;
    */
   PROVIDER_FAILED = 5,
+
+  /**
+   * INFERENCE_ERROR_CODE_UNSUPPORTED_SAMPLING means the caller asked for a
+   * sampling control that no remaining candidate's provider can honour. It
+   * names the offending control in `construct` (e.g. "sampling.temperature").
+   * A caller-supplied control is a promise the gateway keeps or refuses; it is
+   * never silently downgraded, matching how a rejected schema is never
+   * degraded to unconstrained generation. A role-declared default that cannot
+   * be honoured is omitted silently instead, because the role author expressed
+   * a preference while the caller made no promise.
+   *
+   * @generated from enum value: INFERENCE_ERROR_CODE_UNSUPPORTED_SAMPLING = 6;
+   */
+  UNSUPPORTED_SAMPLING = 6,
 }
 
 /**

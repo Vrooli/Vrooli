@@ -16,8 +16,9 @@ message Availability {
 
 message Book { string id = 1; string name = 2; string currency = 3; google.protobuf.Timestamp created_at = 4; }
 message Account { string id = 1; string book_id = 2; string name = 3; string kind = 4; google.protobuf.Timestamp created_at = 5; }
-message Goal { string id = 1; string name = 2; string metric = 3; string comparator = 4; int64 threshold_minor = 5; int32 sustain_periods = 6; double buffer_multiple = 7; string book_id = 8; }
-message GoalVerdict { Goal goal = 1; bool met = 2; int32 sustained_periods = 3; string explanation = 4; int32 required_periods = 5; }
+enum SustainPeriodUnit { SUSTAIN_PERIOD_UNIT_UNSPECIFIED = 0; DAY = 1; WEEK = 2; MONTH = 3; }
+message Goal { string id = 1; string name = 2; string metric = 3; string comparator = 4; int64 threshold_minor = 5; int32 sustain_periods = 6; double buffer_multiple = 7; string book_id = 8; double threshold_ratio = 9; string comparand_metric = 10; SustainPeriodUnit sustain_period_unit = 11; }
+message GoalVerdict { Goal goal = 1; bool met = 2; int32 sustained_periods = 3; string explanation = 4; int32 required_periods = 5; SustainPeriodUnit period_unit = 6; }
 
 message CreateBookRequest { string name = 1; string currency = 2; }
 message CreateBookResponse { Book book = 1; }

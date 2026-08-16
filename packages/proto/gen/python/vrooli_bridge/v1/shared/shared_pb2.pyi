@@ -25,6 +25,15 @@ class RunEventKind(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     RUN_EVENT_KIND_STATUS: _ClassVar[RunEventKind]
     RUN_EVENT_KIND_EXIT: _ClassVar[RunEventKind]
     RUN_EVENT_KIND_ARTIFACT_REF: _ClassVar[RunEventKind]
+
+class RelayResponseKind(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    RELAY_RESPONSE_KIND_UNSPECIFIED: _ClassVar[RelayResponseKind]
+    RELAY_RESPONSE_KIND_ACCEPTED: _ClassVar[RelayResponseKind]
+    RELAY_RESPONSE_KIND_DATA: _ClassVar[RelayResponseKind]
+    RELAY_RESPONSE_KIND_COMPLETED: _ClassVar[RelayResponseKind]
+    RELAY_RESPONSE_KIND_FAILED: _ClassVar[RelayResponseKind]
+    RELAY_RESPONSE_KIND_TERMINATED: _ClassVar[RelayResponseKind]
 COMPATIBILITY_STATUS_UNSPECIFIED: CompatibilityStatus
 COMPATIBILITY_STATUS_OK: CompatibilityStatus
 COMPATIBILITY_STATUS_NEEDS_UPDATE: CompatibilityStatus
@@ -34,6 +43,12 @@ RUN_EVENT_KIND_LOG: RunEventKind
 RUN_EVENT_KIND_STATUS: RunEventKind
 RUN_EVENT_KIND_EXIT: RunEventKind
 RUN_EVENT_KIND_ARTIFACT_REF: RunEventKind
+RELAY_RESPONSE_KIND_UNSPECIFIED: RelayResponseKind
+RELAY_RESPONSE_KIND_ACCEPTED: RelayResponseKind
+RELAY_RESPONSE_KIND_DATA: RelayResponseKind
+RELAY_RESPONSE_KIND_COMPLETED: RelayResponseKind
+RELAY_RESPONSE_KIND_FAILED: RelayResponseKind
+RELAY_RESPONSE_KIND_TERMINATED: RelayResponseKind
 
 class HealthSnapshot(_message.Message):
     __slots__ = ("toolchain_present", "disk_headroom_bytes", "container_runtime_up", "details", "reported_at")
@@ -99,6 +114,24 @@ class DeliveryAck(_message.Message):
     op_id: str
     received_at: _timestamp_pb2.Timestamp
     def __init__(self, frame_id: _Optional[str] = ..., run_id: _Optional[str] = ..., op_id: _Optional[str] = ..., received_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+
+class RelayResponse(_message.Message):
+    __slots__ = ("correlation_id", "kind", "sequence", "data", "reason", "exit_code", "total_bytes")
+    CORRELATION_ID_FIELD_NUMBER: _ClassVar[int]
+    KIND_FIELD_NUMBER: _ClassVar[int]
+    SEQUENCE_FIELD_NUMBER: _ClassVar[int]
+    DATA_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    EXIT_CODE_FIELD_NUMBER: _ClassVar[int]
+    TOTAL_BYTES_FIELD_NUMBER: _ClassVar[int]
+    correlation_id: str
+    kind: RelayResponseKind
+    sequence: int
+    data: bytes
+    reason: str
+    exit_code: int
+    total_bytes: int
+    def __init__(self, correlation_id: _Optional[str] = ..., kind: _Optional[_Union[RelayResponseKind, str]] = ..., sequence: _Optional[int] = ..., data: _Optional[bytes] = ..., reason: _Optional[str] = ..., exit_code: _Optional[int] = ..., total_bytes: _Optional[int] = ...) -> None: ...
 
 class SessionFrame(_message.Message):
     __slots__ = ("session_id", "frame")

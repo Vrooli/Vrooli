@@ -42,6 +42,9 @@ type Gap struct {
 	ProviderIds        []string               `protobuf:"bytes,15,rep,name=provider_ids,json=providerIds,proto3" json:"provider_ids,omitempty"`                               // owning Search Hub leaves/groups used for ranking
 	ConditionStatus    string                 `protobuf:"bytes,16,opt,name=condition_status,json=conditionStatus,proto3" json:"condition_status,omitempty"`                   // observed condition verdict for empirical condition gaps
 	MaturityFindings   []*MaturityFinding     `protobuf:"bytes,17,rep,name=maturity_findings,json=maturityFindings,proto3" json:"maturity_findings,omitempty"`                // structured blocking evidence from Search Hub
+	CauseKey           string                 `protobuf:"bytes,18,opt,name=cause_key,json=causeKey,proto3" json:"cause_key,omitempty"`                                        // stable shared-cause identity for a rolled-up finding
+	AffectedCellIds    []string               `protobuf:"bytes,19,rep,name=affected_cell_ids,json=affectedCellIds,proto3" json:"affected_cell_ids,omitempty"`                 // denominator cells recovered by the cause
+	AffectedCellCount  int32                  `protobuf:"varint,20,opt,name=affected_cell_count,json=affectedCellCount,proto3" json:"affected_cell_count,omitempty"`          // explicit count for compact consumers
 	unknownFields      protoimpl.UnknownFields
 	sizeCache          protoimpl.SizeCache
 }
@@ -193,6 +196,27 @@ func (x *Gap) GetMaturityFindings() []*MaturityFinding {
 		return x.MaturityFindings
 	}
 	return nil
+}
+
+func (x *Gap) GetCauseKey() string {
+	if x != nil {
+		return x.CauseKey
+	}
+	return ""
+}
+
+func (x *Gap) GetAffectedCellIds() []string {
+	if x != nil {
+		return x.AffectedCellIds
+	}
+	return nil
+}
+
+func (x *Gap) GetAffectedCellCount() int32 {
+	if x != nil {
+		return x.AffectedCellCount
+	}
+	return 0
 }
 
 // MaturityFinding is one blocking Search Hub rule with enough context to
@@ -1040,7 +1064,7 @@ var File_meta_optimization_manager_v1_focus_focus_proto protoreflect.FileDescrip
 
 const file_meta_optimization_manager_v1_focus_focus_proto_rawDesc = "" +
 	"\n" +
-	".meta-optimization-manager/v1/focus/focus.proto\x12)vrooli.meta_optimization_manager.v1.focus\x1a/meta-optimization-manager/v1/shared/model.proto\"\x8b\x06\n" +
+	".meta-optimization-manager/v1/focus/focus.proto\x12)vrooli.meta_optimization_manager.v1.focus\x1a/meta-optimization-manager/v1/shared/model.proto\"\x84\a\n" +
 	"\x03Gap\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12V\n" +
 	"\n" +
@@ -1066,7 +1090,10 @@ const file_meta_optimization_manager_v1_focus_focus_proto_rawDesc = "" +
 	"\x13availability_reason\x18\x0e \x01(\tR\x12availabilityReason\x12!\n" +
 	"\fprovider_ids\x18\x0f \x03(\tR\vproviderIds\x12)\n" +
 	"\x10condition_status\x18\x10 \x01(\tR\x0fconditionStatus\x12g\n" +
-	"\x11maturity_findings\x18\x11 \x03(\v2:.vrooli.meta_optimization_manager.v1.focus.MaturityFindingR\x10maturityFindings\"\xc1\x01\n" +
+	"\x11maturity_findings\x18\x11 \x03(\v2:.vrooli.meta_optimization_manager.v1.focus.MaturityFindingR\x10maturityFindings\x12\x1b\n" +
+	"\tcause_key\x18\x12 \x01(\tR\bcauseKey\x12*\n" +
+	"\x11affected_cell_ids\x18\x13 \x03(\tR\x0faffectedCellIds\x12.\n" +
+	"\x13affected_cell_count\x18\x14 \x01(\x05R\x11affectedCellCount\"\xc1\x01\n" +
 	"\x0fMaturityFinding\x12\x12\n" +
 	"\x04code\x18\x01 \x01(\tR\x04code\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\x12\x1a\n" +

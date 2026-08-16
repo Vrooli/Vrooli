@@ -48,6 +48,9 @@ const (
 	// IngestServiceImportFileProcedure is the fully-qualified name of the IngestService's ImportFile
 	// RPC.
 	IngestServiceImportFileProcedure = "/vrooli.money_ledger.v1.ingest.IngestService/ImportFile"
+	// IngestServiceImportOperatorInputsProcedure is the fully-qualified name of the IngestService's
+	// ImportOperatorInputs RPC.
+	IngestServiceImportOperatorInputsProcedure = "/vrooli.money_ledger.v1.ingest.IngestService/ImportOperatorInputs"
 )
 
 // IngestServiceClient is a client for the vrooli.money_ledger.v1.ingest.IngestService service.
@@ -57,6 +60,7 @@ type IngestServiceClient interface {
 	IngestEvent(context.Context, *connect.Request[ingest.IngestEventRequest]) (*connect.Response[ingest.IngestEventResponse], error)
 	RunAdapter(context.Context, *connect.Request[ingest.RunAdapterRequest]) (*connect.Response[ingest.RunAdapterResponse], error)
 	ImportFile(context.Context, *connect.Request[ingest.ImportFileRequest]) (*connect.Response[ingest.ImportFileResponse], error)
+	ImportOperatorInputs(context.Context, *connect.Request[ingest.OperatorImportRequest]) (*connect.Response[ingest.OperatorImportResponse], error)
 }
 
 // NewIngestServiceClient constructs a client for the vrooli.money_ledger.v1.ingest.IngestService
@@ -100,16 +104,23 @@ func NewIngestServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithSchema(ingestServiceMethods.ByName("ImportFile")),
 			connect.WithClientOptions(opts...),
 		),
+		importOperatorInputs: connect.NewClient[ingest.OperatorImportRequest, ingest.OperatorImportResponse](
+			httpClient,
+			baseURL+IngestServiceImportOperatorInputsProcedure,
+			connect.WithSchema(ingestServiceMethods.ByName("ImportOperatorInputs")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // ingestServiceClient implements IngestServiceClient.
 type ingestServiceClient struct {
-	registerAdapter *connect.Client[ingest.RegisterAdapterRequest, ingest.RegisterAdapterResponse]
-	listAdapters    *connect.Client[ingest.ListAdaptersRequest, ingest.ListAdaptersResponse]
-	ingestEvent     *connect.Client[ingest.IngestEventRequest, ingest.IngestEventResponse]
-	runAdapter      *connect.Client[ingest.RunAdapterRequest, ingest.RunAdapterResponse]
-	importFile      *connect.Client[ingest.ImportFileRequest, ingest.ImportFileResponse]
+	registerAdapter      *connect.Client[ingest.RegisterAdapterRequest, ingest.RegisterAdapterResponse]
+	listAdapters         *connect.Client[ingest.ListAdaptersRequest, ingest.ListAdaptersResponse]
+	ingestEvent          *connect.Client[ingest.IngestEventRequest, ingest.IngestEventResponse]
+	runAdapter           *connect.Client[ingest.RunAdapterRequest, ingest.RunAdapterResponse]
+	importFile           *connect.Client[ingest.ImportFileRequest, ingest.ImportFileResponse]
+	importOperatorInputs *connect.Client[ingest.OperatorImportRequest, ingest.OperatorImportResponse]
 }
 
 // RegisterAdapter calls vrooli.money_ledger.v1.ingest.IngestService.RegisterAdapter.
@@ -137,6 +148,11 @@ func (c *ingestServiceClient) ImportFile(ctx context.Context, req *connect.Reque
 	return c.importFile.CallUnary(ctx, req)
 }
 
+// ImportOperatorInputs calls vrooli.money_ledger.v1.ingest.IngestService.ImportOperatorInputs.
+func (c *ingestServiceClient) ImportOperatorInputs(ctx context.Context, req *connect.Request[ingest.OperatorImportRequest]) (*connect.Response[ingest.OperatorImportResponse], error) {
+	return c.importOperatorInputs.CallUnary(ctx, req)
+}
+
 // IngestServiceHandler is an implementation of the vrooli.money_ledger.v1.ingest.IngestService
 // service.
 type IngestServiceHandler interface {
@@ -145,6 +161,7 @@ type IngestServiceHandler interface {
 	IngestEvent(context.Context, *connect.Request[ingest.IngestEventRequest]) (*connect.Response[ingest.IngestEventResponse], error)
 	RunAdapter(context.Context, *connect.Request[ingest.RunAdapterRequest]) (*connect.Response[ingest.RunAdapterResponse], error)
 	ImportFile(context.Context, *connect.Request[ingest.ImportFileRequest]) (*connect.Response[ingest.ImportFileResponse], error)
+	ImportOperatorInputs(context.Context, *connect.Request[ingest.OperatorImportRequest]) (*connect.Response[ingest.OperatorImportResponse], error)
 }
 
 // NewIngestServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -184,6 +201,12 @@ func NewIngestServiceHandler(svc IngestServiceHandler, opts ...connect.HandlerOp
 		connect.WithSchema(ingestServiceMethods.ByName("ImportFile")),
 		connect.WithHandlerOptions(opts...),
 	)
+	ingestServiceImportOperatorInputsHandler := connect.NewUnaryHandler(
+		IngestServiceImportOperatorInputsProcedure,
+		svc.ImportOperatorInputs,
+		connect.WithSchema(ingestServiceMethods.ByName("ImportOperatorInputs")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.money_ledger.v1.ingest.IngestService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case IngestServiceRegisterAdapterProcedure:
@@ -196,6 +219,8 @@ func NewIngestServiceHandler(svc IngestServiceHandler, opts ...connect.HandlerOp
 			ingestServiceRunAdapterHandler.ServeHTTP(w, r)
 		case IngestServiceImportFileProcedure:
 			ingestServiceImportFileHandler.ServeHTTP(w, r)
+		case IngestServiceImportOperatorInputsProcedure:
+			ingestServiceImportOperatorInputsHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -223,4 +248,8 @@ func (UnimplementedIngestServiceHandler) RunAdapter(context.Context, *connect.Re
 
 func (UnimplementedIngestServiceHandler) ImportFile(context.Context, *connect.Request[ingest.ImportFileRequest]) (*connect.Response[ingest.ImportFileResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.money_ledger.v1.ingest.IngestService.ImportFile is not implemented"))
+}
+
+func (UnimplementedIngestServiceHandler) ImportOperatorInputs(context.Context, *connect.Request[ingest.OperatorImportRequest]) (*connect.Response[ingest.OperatorImportResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.money_ledger.v1.ingest.IngestService.ImportOperatorInputs is not implemented"))
 }

@@ -15,7 +15,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file money-ledger/v1/ingest/ingest.proto.
  */
 export const file_money_ledger_v1_ingest_ingest: GenFile = /*@__PURE__*/
-  fileDesc("CiNtb25leS1sZWRnZXIvdjEvaW5nZXN0L2luZ2VzdC5wcm90bxIddnJvb2xpLm1vbmV5X2xlZGdlci52MS5pbmdlc3Qi3gEKB0FkYXB0ZXISEwoCaWQYASABKAlCB7pIBHICEAESFQoEbmFtZRgCIAEoCUIHukgEcgIQARJECgRraW5kGAMgASgOMioudnJvb2xpLm1vbmV5X2xlZGdlci52MS5pbmdlc3QuQWRhcHRlcktpbmRCCrpIB4IBBBABIAASDwoHZW5hYmxlZBgEIAEoCBIzCg9sYXN0X3N1Y2Nlc3NfYXQYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhsKE2F2YWlsYWJpbGl0eV9yZWFzb24YBiABKAkihQIKB1JlY2VpcHQSCgoCaWQYASABKAkSEgoKYWRhcHRlcl9pZBgCIAEoCRIoCgRmcm9tGAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBImCgJ0bxgEIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASDAoEcmVhZBgFIAEoBRIPCgd3cml0dGVuGAYgASgFEhoKEnNraXBwZWRfZHVwbGljYXRlcxgHIAEoBRIOCgZzdGF0dXMYCCABKAkSDQoFZXJyb3IYCSABKAkSLgoKY3JlYXRlZF9hdBgKIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAieQoMQXZhaWxhYmlsaXR5EhsKCmFkYXB0ZXJfaWQYASABKAlCB7pIBHICEAESFwoGcmVhc29uGAIgASgJQge6SARyAhABEjMKD2xhc3Rfc3VjY2Vzc19hdBgDIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiWQoWUmVnaXN0ZXJBZGFwdGVyUmVxdWVzdBI/CgdhZGFwdGVyGAEgASgLMiYudnJvb2xpLm1vbmV5X2xlZGdlci52MS5pbmdlc3QuQWRhcHRlckIGukgDyAEBIlIKF1JlZ2lzdGVyQWRhcHRlclJlc3BvbnNlEjcKB2FkYXB0ZXIYASABKAsyJi52cm9vbGkubW9uZXlfbGVkZ2VyLnYxLmluZ2VzdC5BZGFwdGVyIhUKE0xpc3RBZGFwdGVyc1JlcXVlc3QiUAoUTGlzdEFkYXB0ZXJzUmVzcG9uc2USOAoIYWRhcHRlcnMYASADKAsyJi52cm9vbGkubW9uZXlfbGVkZ2VyLnYxLmluZ2VzdC5BZGFwdGVyIlYKEkluZ2VzdEV2ZW50UmVxdWVzdBJACgVldmVudBgBIAEoCzIpLnZyb29saS5tb25leV9sZWRnZXIudjEuc2hhcmVkLk1vbmV5RXZlbnRCBrpIA8gBASKaAQoTSW5nZXN0RXZlbnRSZXNwb25zZRI3Cgdwb3N0aW5nGAEgASgLMiYudnJvb2xpLm1vbmV5X2xlZGdlci52MS5zaGFyZWQuUG9zdGluZxIRCglkdXBsaWNhdGUYAiABKAgSNwoHcmVjZWlwdBgDIAEoCzImLnZyb29saS5tb25leV9sZWRnZXIudjEuaW5nZXN0LlJlY2VpcHQiggEKEVJ1bkFkYXB0ZXJSZXF1ZXN0EhsKCmFkYXB0ZXJfaWQYASABKAlCB7pIBHICEAESKAoEZnJvbRgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASJgoCdG8YAyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIpABChJSdW5BZGFwdGVyUmVzcG9uc2USNwoHcmVjZWlwdBgBIAEoCzImLnZyb29saS5tb25leV9sZWRnZXIudjEuaW5nZXN0LlJlY2VpcHQSQQoMYXZhaWxhYmlsaXR5GAIgAygLMisudnJvb2xpLm1vbmV5X2xlZGdlci52MS5pbmdlc3QuQXZhaWxhYmlsaXR5IpgBChFJbXBvcnRGaWxlUmVxdWVzdBIbCgphZGFwdGVyX2lkGAEgASgJQge6SARyAhABEhQKA2NzdhgCIAEoDEIHukgEegIQARIoCgRmcm9tGAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBImCgJ0bxgEIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiTQoSSW1wb3J0RmlsZVJlc3BvbnNlEjcKB3JlY2VpcHQYASABKAsyJi52cm9vbGkubW9uZXlfbGVkZ2VyLnYxLmluZ2VzdC5SZWNlaXB0KngKC0FkYXB0ZXJLaW5kEhwKGEFEQVBURVJfS0lORF9VTlNQRUNJRklFRBAAEhcKE0FEQVBURVJfS0lORF9NQU5VQUwQARIVChFBREFQVEVSX0tJTkRfRklMRRACEhsKF0FEQVBURVJfS0lORF9BR0dSRUdBVE9SEAMy5wQKDUluZ2VzdFNlcnZpY2USgAEKD1JlZ2lzdGVyQWRhcHRlchI1LnZyb29saS5tb25leV9sZWRnZXIudjEuaW5nZXN0LlJlZ2lzdGVyQWRhcHRlclJlcXVlc3QaNi52cm9vbGkubW9uZXlfbGVkZ2VyLnYxLmluZ2VzdC5SZWdpc3RlckFkYXB0ZXJSZXNwb25zZRJ3CgxMaXN0QWRhcHRlcnMSMi52cm9vbGkubW9uZXlfbGVkZ2VyLnYxLmluZ2VzdC5MaXN0QWRhcHRlcnNSZXF1ZXN0GjMudnJvb2xpLm1vbmV5X2xlZGdlci52MS5pbmdlc3QuTGlzdEFkYXB0ZXJzUmVzcG9uc2USdAoLSW5nZXN0RXZlbnQSMS52cm9vbGkubW9uZXlfbGVkZ2VyLnYxLmluZ2VzdC5Jbmdlc3RFdmVudFJlcXVlc3QaMi52cm9vbGkubW9uZXlfbGVkZ2VyLnYxLmluZ2VzdC5Jbmdlc3RFdmVudFJlc3BvbnNlEnEKClJ1bkFkYXB0ZXISMC52cm9vbGkubW9uZXlfbGVkZ2VyLnYxLmluZ2VzdC5SdW5BZGFwdGVyUmVxdWVzdBoxLnZyb29saS5tb25leV9sZWRnZXIudjEuaW5nZXN0LlJ1bkFkYXB0ZXJSZXNwb25zZRJxCgpJbXBvcnRGaWxlEjAudnJvb2xpLm1vbmV5X2xlZGdlci52MS5pbmdlc3QuSW1wb3J0RmlsZVJlcXVlc3QaMS52cm9vbGkubW9uZXlfbGVkZ2VyLnYxLmluZ2VzdC5JbXBvcnRGaWxlUmVzcG9uc2VCUVpPZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9tb25leS1sZWRnZXIvdjEvaW5nZXN0O2luZ2VzdF92MWIGcHJvdG8z", [file_buf_validate_validate, file_google_protobuf_timestamp, file_money_ledger_v1_shared_ledger_types]);
+  fileDesc("CiNtb25leS1sZWRnZXIvdjEvaW5nZXN0L2luZ2VzdC5wcm90bxIddnJvb2xpLm1vbmV5X2xlZGdlci52MS5pbmdlc3Qi3gEKB0FkYXB0ZXISEwoCaWQYASABKAlCB7pIBHICEAESFQoEbmFtZRgCIAEoCUIHukgEcgIQARJECgRraW5kGAMgASgOMioudnJvb2xpLm1vbmV5X2xlZGdlci52MS5pbmdlc3QuQWRhcHRlcktpbmRCCrpIB4IBBBABIAASDwoHZW5hYmxlZBgEIAEoCBIzCg9sYXN0X3N1Y2Nlc3NfYXQYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhsKE2F2YWlsYWJpbGl0eV9yZWFzb24YBiABKAkihQIKB1JlY2VpcHQSCgoCaWQYASABKAkSEgoKYWRhcHRlcl9pZBgCIAEoCRIoCgRmcm9tGAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBImCgJ0bxgEIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASDAoEcmVhZBgFIAEoBRIPCgd3cml0dGVuGAYgASgFEhoKEnNraXBwZWRfZHVwbGljYXRlcxgHIAEoBRIOCgZzdGF0dXMYCCABKAkSDQoFZXJyb3IYCSABKAkSLgoKY3JlYXRlZF9hdBgKIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAieQoMQXZhaWxhYmlsaXR5EhsKCmFkYXB0ZXJfaWQYASABKAlCB7pIBHICEAESFwoGcmVhc29uGAIgASgJQge6SARyAhABEjMKD2xhc3Rfc3VjY2Vzc19hdBgDIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiWQoWUmVnaXN0ZXJBZGFwdGVyUmVxdWVzdBI/CgdhZGFwdGVyGAEgASgLMiYudnJvb2xpLm1vbmV5X2xlZGdlci52MS5pbmdlc3QuQWRhcHRlckIGukgDyAEBIlIKF1JlZ2lzdGVyQWRhcHRlclJlc3BvbnNlEjcKB2FkYXB0ZXIYASABKAsyJi52cm9vbGkubW9uZXlfbGVkZ2VyLnYxLmluZ2VzdC5BZGFwdGVyIhUKE0xpc3RBZGFwdGVyc1JlcXVlc3QiUAoUTGlzdEFkYXB0ZXJzUmVzcG9uc2USOAoIYWRhcHRlcnMYASADKAsyJi52cm9vbGkubW9uZXlfbGVkZ2VyLnYxLmluZ2VzdC5BZGFwdGVyIlYKEkluZ2VzdEV2ZW50UmVxdWVzdBJACgVldmVudBgBIAEoCzIpLnZyb29saS5tb25leV9sZWRnZXIudjEuc2hhcmVkLk1vbmV5RXZlbnRCBrpIA8gBASKaAQoTSW5nZXN0RXZlbnRSZXNwb25zZRI3Cgdwb3N0aW5nGAEgASgLMiYudnJvb2xpLm1vbmV5X2xlZGdlci52MS5zaGFyZWQuUG9zdGluZxIRCglkdXBsaWNhdGUYAiABKAgSNwoHcmVjZWlwdBgDIAEoCzImLnZyb29saS5tb25leV9sZWRnZXIudjEuaW5nZXN0LlJlY2VpcHQiggEKEVJ1bkFkYXB0ZXJSZXF1ZXN0EhsKCmFkYXB0ZXJfaWQYASABKAlCB7pIBHICEAESKAoEZnJvbRgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASJgoCdG8YAyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIpABChJSdW5BZGFwdGVyUmVzcG9uc2USNwoHcmVjZWlwdBgBIAEoCzImLnZyb29saS5tb25leV9sZWRnZXIudjEuaW5nZXN0LlJlY2VpcHQSQQoMYXZhaWxhYmlsaXR5GAIgAygLMisudnJvb2xpLm1vbmV5X2xlZGdlci52MS5pbmdlc3QuQXZhaWxhYmlsaXR5IpgBChFJbXBvcnRGaWxlUmVxdWVzdBIbCgphZGFwdGVyX2lkGAEgASgJQge6SARyAhABEhQKA2NzdhgCIAEoDEIHukgEegIQARIoCgRmcm9tGAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBImCgJ0bxgEIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiTQoSSW1wb3J0RmlsZVJlc3BvbnNlEjcKB3JlY2VpcHQYASABKAsyJi52cm9vbGkubW9uZXlfbGVkZ2VyLnYxLmluZ2VzdC5SZWNlaXB0IrUBChJPcGVyYXRvcklucHV0RmllbGQSDAoEcGF0aBgBIAEoCRIOCgZzdGF0dXMYAiABKAkSDwoHd3JpdHRlbhgDIAEoCBIMCgR1bml0GAQgASgJEhMKC3dpbmRvd19kYXlzGAUgASgFEi8KC29ic2VydmVkX2F0GAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIMCgRraW5kGAcgASgJEg4KBnJlYXNvbhgIIAEoCSK0AQoVT3BlcmF0b3JJbXBvcnRSZXF1ZXN0EhMKC3NvdXJjZV9wYXRoGAEgASgJEj4KC3NvdXJjZV9tb2RlGAIgASgOMikudnJvb2xpLm1vbmV5X2xlZGdlci52MS5pbmdlc3QuU291cmNlTW9kZRINCgVhcHBseRgDIAEoCBISCgphZGFwdGVyX2lkGAQgASgJEg8KB2Jvb2tfaWQYBSABKAkSEgoKYWNjb3VudF9pZBgGIAEoCSKdAQoWT3BlcmF0b3JJbXBvcnRSZXNwb25zZRJBCgZmaWVsZHMYASADKAsyMS52cm9vbGkubW9uZXlfbGVkZ2VyLnYxLmluZ2VzdC5PcGVyYXRvcklucHV0RmllbGQSDAoEcmVhZBgCIAEoBRIPCgd3cml0dGVuGAMgASgFEhAKCGZpbmRpbmdzGAQgASgFEg8KB2FwcGxpZWQYBSABKAgqeAoLQWRhcHRlcktpbmQSHAoYQURBUFRFUl9LSU5EX1VOU1BFQ0lGSUVEEAASFwoTQURBUFRFUl9LSU5EX01BTlVBTBABEhUKEUFEQVBURVJfS0lORF9GSUxFEAISGwoXQURBUFRFUl9LSU5EX0FHR1JFR0FUT1IQAyplCgpTb3VyY2VNb2RlEhsKF1NPVVJDRV9NT0RFX1VOU1BFQ0lGSUVEEAASFwoTU09VUkNFX01PREVfRklYVFVSRRABEiEKHVNPVVJDRV9NT0RFX09QRVJBVE9SX1NVUFBMSUVEEAIy7QUKDUluZ2VzdFNlcnZpY2USgAEKD1JlZ2lzdGVyQWRhcHRlchI1LnZyb29saS5tb25leV9sZWRnZXIudjEuaW5nZXN0LlJlZ2lzdGVyQWRhcHRlclJlcXVlc3QaNi52cm9vbGkubW9uZXlfbGVkZ2VyLnYxLmluZ2VzdC5SZWdpc3RlckFkYXB0ZXJSZXNwb25zZRJ3CgxMaXN0QWRhcHRlcnMSMi52cm9vbGkubW9uZXlfbGVkZ2VyLnYxLmluZ2VzdC5MaXN0QWRhcHRlcnNSZXF1ZXN0GjMudnJvb2xpLm1vbmV5X2xlZGdlci52MS5pbmdlc3QuTGlzdEFkYXB0ZXJzUmVzcG9uc2USdAoLSW5nZXN0RXZlbnQSMS52cm9vbGkubW9uZXlfbGVkZ2VyLnYxLmluZ2VzdC5Jbmdlc3RFdmVudFJlcXVlc3QaMi52cm9vbGkubW9uZXlfbGVkZ2VyLnYxLmluZ2VzdC5Jbmdlc3RFdmVudFJlc3BvbnNlEnEKClJ1bkFkYXB0ZXISMC52cm9vbGkubW9uZXlfbGVkZ2VyLnYxLmluZ2VzdC5SdW5BZGFwdGVyUmVxdWVzdBoxLnZyb29saS5tb25leV9sZWRnZXIudjEuaW5nZXN0LlJ1bkFkYXB0ZXJSZXNwb25zZRJxCgpJbXBvcnRGaWxlEjAudnJvb2xpLm1vbmV5X2xlZGdlci52MS5pbmdlc3QuSW1wb3J0RmlsZVJlcXVlc3QaMS52cm9vbGkubW9uZXlfbGVkZ2VyLnYxLmluZ2VzdC5JbXBvcnRGaWxlUmVzcG9uc2USgwEKFEltcG9ydE9wZXJhdG9ySW5wdXRzEjQudnJvb2xpLm1vbmV5X2xlZGdlci52MS5pbmdlc3QuT3BlcmF0b3JJbXBvcnRSZXF1ZXN0GjUudnJvb2xpLm1vbmV5X2xlZGdlci52MS5pbmdlc3QuT3BlcmF0b3JJbXBvcnRSZXNwb25zZUJRWk9naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL21vbmV5LWxlZGdlci92MS9pbmdlc3Q7aW5nZXN0X3YxYgZwcm90bzM", [file_buf_validate_validate, file_google_protobuf_timestamp, file_money_ledger_v1_shared_ledger_types]);
 
 /**
  * @generated from message vrooli.money_ledger.v1.ingest.Adapter
@@ -362,6 +362,137 @@ export const ImportFileResponseSchema: GenMessage<ImportFileResponse> = /*@__PUR
   messageDesc(file_money_ledger_v1_ingest_ingest, 12);
 
 /**
+ * @generated from message vrooli.money_ledger.v1.ingest.OperatorInputField
+ */
+export type OperatorInputField = Message<"vrooli.money_ledger.v1.ingest.OperatorInputField"> & {
+  /**
+   * @generated from field: string path = 1;
+   */
+  path: string;
+
+  /**
+   * @generated from field: string status = 2;
+   */
+  status: string;
+
+  /**
+   * @generated from field: bool written = 3;
+   */
+  written: boolean;
+
+  /**
+   * @generated from field: string unit = 4;
+   */
+  unit: string;
+
+  /**
+   * @generated from field: int32 window_days = 5;
+   */
+  windowDays: number;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp observed_at = 6;
+   */
+  observedAt?: Timestamp | undefined;
+
+  /**
+   * @generated from field: string kind = 7;
+   */
+  kind: string;
+
+  /**
+   * @generated from field: string reason = 8;
+   */
+  reason: string;
+};
+
+/**
+ * Describes the message vrooli.money_ledger.v1.ingest.OperatorInputField.
+ * Use `create(OperatorInputFieldSchema)` to create a new message.
+ */
+export const OperatorInputFieldSchema: GenMessage<OperatorInputField> = /*@__PURE__*/
+  messageDesc(file_money_ledger_v1_ingest_ingest, 13);
+
+/**
+ * @generated from message vrooli.money_ledger.v1.ingest.OperatorImportRequest
+ */
+export type OperatorImportRequest = Message<"vrooli.money_ledger.v1.ingest.OperatorImportRequest"> & {
+  /**
+   * @generated from field: string source_path = 1;
+   */
+  sourcePath: string;
+
+  /**
+   * @generated from field: vrooli.money_ledger.v1.ingest.SourceMode source_mode = 2;
+   */
+  sourceMode: SourceMode;
+
+  /**
+   * @generated from field: bool apply = 3;
+   */
+  apply: boolean;
+
+  /**
+   * @generated from field: string adapter_id = 4;
+   */
+  adapterId: string;
+
+  /**
+   * @generated from field: string book_id = 5;
+   */
+  bookId: string;
+
+  /**
+   * @generated from field: string account_id = 6;
+   */
+  accountId: string;
+};
+
+/**
+ * Describes the message vrooli.money_ledger.v1.ingest.OperatorImportRequest.
+ * Use `create(OperatorImportRequestSchema)` to create a new message.
+ */
+export const OperatorImportRequestSchema: GenMessage<OperatorImportRequest> = /*@__PURE__*/
+  messageDesc(file_money_ledger_v1_ingest_ingest, 14);
+
+/**
+ * @generated from message vrooli.money_ledger.v1.ingest.OperatorImportResponse
+ */
+export type OperatorImportResponse = Message<"vrooli.money_ledger.v1.ingest.OperatorImportResponse"> & {
+  /**
+   * @generated from field: repeated vrooli.money_ledger.v1.ingest.OperatorInputField fields = 1;
+   */
+  fields: OperatorInputField[];
+
+  /**
+   * @generated from field: int32 read = 2;
+   */
+  read: number;
+
+  /**
+   * @generated from field: int32 written = 3;
+   */
+  written: number;
+
+  /**
+   * @generated from field: int32 findings = 4;
+   */
+  findings: number;
+
+  /**
+   * @generated from field: bool applied = 5;
+   */
+  applied: boolean;
+};
+
+/**
+ * Describes the message vrooli.money_ledger.v1.ingest.OperatorImportResponse.
+ * Use `create(OperatorImportResponseSchema)` to create a new message.
+ */
+export const OperatorImportResponseSchema: GenMessage<OperatorImportResponse> = /*@__PURE__*/
+  messageDesc(file_money_ledger_v1_ingest_ingest, 15);
+
+/**
  * @generated from enum vrooli.money_ledger.v1.ingest.AdapterKind
  */
 export enum AdapterKind {
@@ -391,6 +522,32 @@ export enum AdapterKind {
  */
 export const AdapterKindSchema: GenEnum<AdapterKind> = /*@__PURE__*/
   enumDesc(file_money_ledger_v1_ingest_ingest, 0);
+
+/**
+ * @generated from enum vrooli.money_ledger.v1.ingest.SourceMode
+ */
+export enum SourceMode {
+  /**
+   * @generated from enum value: SOURCE_MODE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: SOURCE_MODE_FIXTURE = 1;
+   */
+  FIXTURE = 1,
+
+  /**
+   * @generated from enum value: SOURCE_MODE_OPERATOR_SUPPLIED = 2;
+   */
+  OPERATOR_SUPPLIED = 2,
+}
+
+/**
+ * Describes the enum vrooli.money_ledger.v1.ingest.SourceMode.
+ */
+export const SourceModeSchema: GenEnum<SourceMode> = /*@__PURE__*/
+  enumDesc(file_money_ledger_v1_ingest_ingest, 1);
 
 /**
  * @generated from service vrooli.money_ledger.v1.ingest.IngestService
@@ -435,6 +592,14 @@ export const IngestService: GenService<{
     methodKind: "unary";
     input: typeof ImportFileRequestSchema;
     output: typeof ImportFileResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.money_ledger.v1.ingest.IngestService.ImportOperatorInputs
+   */
+  importOperatorInputs: {
+    methodKind: "unary";
+    input: typeof OperatorImportRequestSchema;
+    output: typeof OperatorImportResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_money_ledger_v1_ingest_ingest, 0);

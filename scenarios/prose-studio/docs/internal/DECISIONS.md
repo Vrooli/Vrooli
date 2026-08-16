@@ -33,6 +33,18 @@ Known unresolved issues belong in [`PROBLEMS.md`](PROBLEMS.md).
 | 2026-08-16 | **D-010 — "Human-sounding" means prose quality with machine-generation disclosure preserved, explicitly not detector evasion.** | Detector evasion is a permanently moving target, conflicts with disclosure obligations, and would change what the scenario optimises. | Disclosure is carried on every candidate at birth as a constant. No target, verb, or interface copy is framed in terms of a detector score. Detector *methodology* is still mined for measurable properties of machine text, because those are legitimate quality signals. | Never. |
 | 2026-08-16 | **D-011 — The declaration validator ships at P0; the `prose-conformance` test-genie phase wrapper ships at P1.** Operator decision. | The validation logic and the phase packaging are separable. The phase contract requires a North Star, a gated L0–L4 ladder with per-rung capability summaries and next-unlock statements, a runtime-computed assessment, and structured remediation docs — days of work whose value depends on the validator being stable first. | A consumer can check its declarations at P0 over RPC and CLI. What waits is only *automatic* invocation during that consumer's own suite. Known trap for the P1 work: maturity ladders start at max, so a phase emitting nothing reports "complete" unless its rungs declare a clean requirement. | The validator is stable and a second consumer has declarations worth gating a build on. |
 
+## Acceptance Evidence
+
+On 2026-08-16, the live routed-model signal ran through ai-gateway with the same
+query and k=3 for both lanes. `direct` routed to `gemma4:12b` through Ollama
+and measured diversity `0.5116337190702418`; `vs_standard` routed to
+`anthropic/claude-fable-5` through OpenRouter and measured diversity
+`0.7406874592131234`. Both used the same lexical token 1–3 gram
+cosine/Jaccard basis and profile output cap of 1024 tokens. Because the roles
+route to different models, this is evidence that the signal is operational,
+not a causal model-controlled comparison; future acceptance runs must report
+within-model comparisons before claiming a strategy effect.
+
 ## Superseded Decisions
 
 | Date | Superseded Decision | Replacement | Details |

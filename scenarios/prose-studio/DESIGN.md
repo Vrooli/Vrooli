@@ -169,7 +169,7 @@ this scenario's primary user is an operator making a **comparison** decision
 under time pressure, not a reader enjoying a page. The calm, dense, neutral
 surface is what lets prose itself carry the only visual interest on screen.
 
-Three adaptations follow from that, and each is binding for this scenario:
+The following adaptations follow from that, and each is binding for this scenario:
 
 1. **No candidate ever renders a quality score, and no candidate list carries a
    default sort by any quality proxy.** This is a design rule, not only a product
@@ -200,8 +200,12 @@ evidence a sighted reader uses. Candidate cards are fully keyboard-traversable
 with pin and reject reachable without a pointer.
 
 On mobile the board becomes a stepwise panel sequence that preserves comparison
-context, rather than a shrunken grid — comparing two long passages in a narrow
+context, rather than a shrunken grid — comparing long passages in a narrow
 column is the one thing this UI must not degrade into.
+
+The dark shell is the browser chrome color of record
+(`brand-manager:theme-color-token-override`): the operator surfaces use a
+dark status strip in both themes so the shell remains visually pinned.
 
 ## How To Read This Document
 

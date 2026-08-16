@@ -60,6 +60,30 @@ message DeliveryAck {
   google.protobuf.Timestamp received_at = 4;
 }
 
+// RelayResponse is one bounded response chunk or terminal outcome for the
+// channel relay. It lives in shared because the channel envelope and the
+// presence response RPC both carry the same authenticated payload.
+enum RelayResponseKind {
+  RELAY_RESPONSE_KIND_UNSPECIFIED = 0;
+  RELAY_RESPONSE_KIND_ACCEPTED = 1;
+  RELAY_RESPONSE_KIND_DATA = 2;
+  RELAY_RESPONSE_KIND_COMPLETED = 3;
+  RELAY_RESPONSE_KIND_FAILED = 4;
+  RELAY_RESPONSE_KIND_TERMINATED = 5;
+}
+
+message RelayResponse {
+  string correlation_id = 1;
+  RelayResponseKind kind = 2;
+  uint64 sequence = 3;
+  bytes data = 4;
+  string reason = 5;
+  int32 exit_code = 6;
+  uint64 total_bytes = 7;
+
+  reserved 8 to 15;
+}
+
 // SessionFrame is the node-facing envelope shared by the channel push and
 // presence report domains. The byte-transparent session.Frame remains owned
 // by the session contract; this envelope carries its authenticated identity

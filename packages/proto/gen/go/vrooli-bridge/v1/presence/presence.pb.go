@@ -289,6 +289,94 @@ func (x *ReportSessionFrameResponse) GetAccepted() bool {
 	return false
 }
 
+type ReportRelayResponseRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Response      *shared.RelayResponse  `protobuf:"bytes,1,opt,name=response,proto3" json:"response,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReportRelayResponseRequest) Reset() {
+	*x = ReportRelayResponseRequest{}
+	mi := &file_vrooli_bridge_v1_presence_presence_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReportRelayResponseRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReportRelayResponseRequest) ProtoMessage() {}
+
+func (x *ReportRelayResponseRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_vrooli_bridge_v1_presence_presence_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReportRelayResponseRequest.ProtoReflect.Descriptor instead.
+func (*ReportRelayResponseRequest) Descriptor() ([]byte, []int) {
+	return file_vrooli_bridge_v1_presence_presence_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *ReportRelayResponseRequest) GetResponse() *shared.RelayResponse {
+	if x != nil {
+		return x.Response
+	}
+	return nil
+}
+
+type ReportRelayResponseResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Accepted      bool                   `protobuf:"varint,1,opt,name=accepted,proto3" json:"accepted,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReportRelayResponseResponse) Reset() {
+	*x = ReportRelayResponseResponse{}
+	mi := &file_vrooli_bridge_v1_presence_presence_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReportRelayResponseResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReportRelayResponseResponse) ProtoMessage() {}
+
+func (x *ReportRelayResponseResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_vrooli_bridge_v1_presence_presence_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReportRelayResponseResponse.ProtoReflect.Descriptor instead.
+func (*ReportRelayResponseResponse) Descriptor() ([]byte, []int) {
+	return file_vrooli_bridge_v1_presence_presence_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *ReportRelayResponseResponse) GetAccepted() bool {
+	if x != nil {
+		return x.Accepted
+	}
+	return false
+}
+
 var File_vrooli_bridge_v1_presence_presence_proto protoreflect.FileDescriptor
 
 const file_vrooli_bridge_v1_presence_presence_proto_rawDesc = "" +
@@ -305,11 +393,16 @@ const file_vrooli_bridge_v1_presence_presence_proto_rawDesc = "" +
 	"\x19ReportSessionFrameRequest\x12B\n" +
 	"\x05frame\x18\x01 \x01(\v2,.vrooli.vrooli_bridge.v1.shared.SessionFrameR\x05frame\"8\n" +
 	"\x1aReportSessionFrameResponse\x12\x1a\n" +
-	"\baccepted\x18\x01 \x01(\bR\baccepted2\xbb\x03\n" +
+	"\baccepted\x18\x01 \x01(\bR\baccepted\"g\n" +
+	"\x1aReportRelayResponseRequest\x12I\n" +
+	"\bresponse\x18\x01 \x01(\v2-.vrooli.vrooli_bridge.v1.shared.RelayResponseR\bresponse\"9\n" +
+	"\x1bReportRelayResponseResponse\x12\x1a\n" +
+	"\baccepted\x18\x01 \x01(\bR\baccepted2\xd0\x04\n" +
 	"\x0fPresenceService\x12\x86\x01\n" +
 	"\x0fReportHeartbeat\x128.vrooli.vrooli_bridge.v1.presence.ReportHeartbeatRequest\x1a9.vrooli.vrooli_bridge.v1.presence.ReportHeartbeatResponse\x12\x8c\x01\n" +
 	"\x11ReportDeliveryAck\x12:.vrooli.vrooli_bridge.v1.presence.ReportDeliveryAckRequest\x1a;.vrooli.vrooli_bridge.v1.presence.ReportDeliveryAckResponse\x12\x8f\x01\n" +
-	"\x12ReportSessionFrame\x12;.vrooli.vrooli_bridge.v1.presence.ReportSessionFrameRequest\x1a<.vrooli.vrooli_bridge.v1.presence.ReportSessionFrameResponseBVZTgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/presence;presence_v1b\x06proto3"
+	"\x12ReportSessionFrame\x12;.vrooli.vrooli_bridge.v1.presence.ReportSessionFrameRequest\x1a<.vrooli.vrooli_bridge.v1.presence.ReportSessionFrameResponse\x12\x92\x01\n" +
+	"\x13ReportRelayResponse\x12<.vrooli.vrooli_bridge.v1.presence.ReportRelayResponseRequest\x1a=.vrooli.vrooli_bridge.v1.presence.ReportRelayResponseResponseBVZTgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/presence;presence_v1b\x06proto3"
 
 var (
 	file_vrooli_bridge_v1_presence_presence_proto_rawDescOnce sync.Once
@@ -323,35 +416,41 @@ func file_vrooli_bridge_v1_presence_presence_proto_rawDescGZIP() []byte {
 	return file_vrooli_bridge_v1_presence_presence_proto_rawDescData
 }
 
-var file_vrooli_bridge_v1_presence_presence_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_vrooli_bridge_v1_presence_presence_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_vrooli_bridge_v1_presence_presence_proto_goTypes = []any{
-	(*ReportHeartbeatRequest)(nil),     // 0: vrooli.vrooli_bridge.v1.presence.ReportHeartbeatRequest
-	(*ReportHeartbeatResponse)(nil),    // 1: vrooli.vrooli_bridge.v1.presence.ReportHeartbeatResponse
-	(*ReportDeliveryAckRequest)(nil),   // 2: vrooli.vrooli_bridge.v1.presence.ReportDeliveryAckRequest
-	(*ReportDeliveryAckResponse)(nil),  // 3: vrooli.vrooli_bridge.v1.presence.ReportDeliveryAckResponse
-	(*ReportSessionFrameRequest)(nil),  // 4: vrooli.vrooli_bridge.v1.presence.ReportSessionFrameRequest
-	(*ReportSessionFrameResponse)(nil), // 5: vrooli.vrooli_bridge.v1.presence.ReportSessionFrameResponse
-	(*shared.Heartbeat)(nil),           // 6: vrooli.vrooli_bridge.v1.shared.Heartbeat
-	(shared.CompatibilityStatus)(0),    // 7: vrooli.vrooli_bridge.v1.shared.CompatibilityStatus
-	(*shared.DeliveryAck)(nil),         // 8: vrooli.vrooli_bridge.v1.shared.DeliveryAck
-	(*shared.SessionFrame)(nil),        // 9: vrooli.vrooli_bridge.v1.shared.SessionFrame
+	(*ReportHeartbeatRequest)(nil),      // 0: vrooli.vrooli_bridge.v1.presence.ReportHeartbeatRequest
+	(*ReportHeartbeatResponse)(nil),     // 1: vrooli.vrooli_bridge.v1.presence.ReportHeartbeatResponse
+	(*ReportDeliveryAckRequest)(nil),    // 2: vrooli.vrooli_bridge.v1.presence.ReportDeliveryAckRequest
+	(*ReportDeliveryAckResponse)(nil),   // 3: vrooli.vrooli_bridge.v1.presence.ReportDeliveryAckResponse
+	(*ReportSessionFrameRequest)(nil),   // 4: vrooli.vrooli_bridge.v1.presence.ReportSessionFrameRequest
+	(*ReportSessionFrameResponse)(nil),  // 5: vrooli.vrooli_bridge.v1.presence.ReportSessionFrameResponse
+	(*ReportRelayResponseRequest)(nil),  // 6: vrooli.vrooli_bridge.v1.presence.ReportRelayResponseRequest
+	(*ReportRelayResponseResponse)(nil), // 7: vrooli.vrooli_bridge.v1.presence.ReportRelayResponseResponse
+	(*shared.Heartbeat)(nil),            // 8: vrooli.vrooli_bridge.v1.shared.Heartbeat
+	(shared.CompatibilityStatus)(0),     // 9: vrooli.vrooli_bridge.v1.shared.CompatibilityStatus
+	(*shared.DeliveryAck)(nil),          // 10: vrooli.vrooli_bridge.v1.shared.DeliveryAck
+	(*shared.SessionFrame)(nil),         // 11: vrooli.vrooli_bridge.v1.shared.SessionFrame
+	(*shared.RelayResponse)(nil),        // 12: vrooli.vrooli_bridge.v1.shared.RelayResponse
 }
 var file_vrooli_bridge_v1_presence_presence_proto_depIdxs = []int32{
-	6, // 0: vrooli.vrooli_bridge.v1.presence.ReportHeartbeatRequest.heartbeat:type_name -> vrooli.vrooli_bridge.v1.shared.Heartbeat
-	7, // 1: vrooli.vrooli_bridge.v1.presence.ReportHeartbeatResponse.compatibility:type_name -> vrooli.vrooli_bridge.v1.shared.CompatibilityStatus
-	8, // 2: vrooli.vrooli_bridge.v1.presence.ReportDeliveryAckRequest.ack:type_name -> vrooli.vrooli_bridge.v1.shared.DeliveryAck
-	9, // 3: vrooli.vrooli_bridge.v1.presence.ReportSessionFrameRequest.frame:type_name -> vrooli.vrooli_bridge.v1.shared.SessionFrame
-	0, // 4: vrooli.vrooli_bridge.v1.presence.PresenceService.ReportHeartbeat:input_type -> vrooli.vrooli_bridge.v1.presence.ReportHeartbeatRequest
-	2, // 5: vrooli.vrooli_bridge.v1.presence.PresenceService.ReportDeliveryAck:input_type -> vrooli.vrooli_bridge.v1.presence.ReportDeliveryAckRequest
-	4, // 6: vrooli.vrooli_bridge.v1.presence.PresenceService.ReportSessionFrame:input_type -> vrooli.vrooli_bridge.v1.presence.ReportSessionFrameRequest
-	1, // 7: vrooli.vrooli_bridge.v1.presence.PresenceService.ReportHeartbeat:output_type -> vrooli.vrooli_bridge.v1.presence.ReportHeartbeatResponse
-	3, // 8: vrooli.vrooli_bridge.v1.presence.PresenceService.ReportDeliveryAck:output_type -> vrooli.vrooli_bridge.v1.presence.ReportDeliveryAckResponse
-	5, // 9: vrooli.vrooli_bridge.v1.presence.PresenceService.ReportSessionFrame:output_type -> vrooli.vrooli_bridge.v1.presence.ReportSessionFrameResponse
-	7, // [7:10] is the sub-list for method output_type
-	4, // [4:7] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	8,  // 0: vrooli.vrooli_bridge.v1.presence.ReportHeartbeatRequest.heartbeat:type_name -> vrooli.vrooli_bridge.v1.shared.Heartbeat
+	9,  // 1: vrooli.vrooli_bridge.v1.presence.ReportHeartbeatResponse.compatibility:type_name -> vrooli.vrooli_bridge.v1.shared.CompatibilityStatus
+	10, // 2: vrooli.vrooli_bridge.v1.presence.ReportDeliveryAckRequest.ack:type_name -> vrooli.vrooli_bridge.v1.shared.DeliveryAck
+	11, // 3: vrooli.vrooli_bridge.v1.presence.ReportSessionFrameRequest.frame:type_name -> vrooli.vrooli_bridge.v1.shared.SessionFrame
+	12, // 4: vrooli.vrooli_bridge.v1.presence.ReportRelayResponseRequest.response:type_name -> vrooli.vrooli_bridge.v1.shared.RelayResponse
+	0,  // 5: vrooli.vrooli_bridge.v1.presence.PresenceService.ReportHeartbeat:input_type -> vrooli.vrooli_bridge.v1.presence.ReportHeartbeatRequest
+	2,  // 6: vrooli.vrooli_bridge.v1.presence.PresenceService.ReportDeliveryAck:input_type -> vrooli.vrooli_bridge.v1.presence.ReportDeliveryAckRequest
+	4,  // 7: vrooli.vrooli_bridge.v1.presence.PresenceService.ReportSessionFrame:input_type -> vrooli.vrooli_bridge.v1.presence.ReportSessionFrameRequest
+	6,  // 8: vrooli.vrooli_bridge.v1.presence.PresenceService.ReportRelayResponse:input_type -> vrooli.vrooli_bridge.v1.presence.ReportRelayResponseRequest
+	1,  // 9: vrooli.vrooli_bridge.v1.presence.PresenceService.ReportHeartbeat:output_type -> vrooli.vrooli_bridge.v1.presence.ReportHeartbeatResponse
+	3,  // 10: vrooli.vrooli_bridge.v1.presence.PresenceService.ReportDeliveryAck:output_type -> vrooli.vrooli_bridge.v1.presence.ReportDeliveryAckResponse
+	5,  // 11: vrooli.vrooli_bridge.v1.presence.PresenceService.ReportSessionFrame:output_type -> vrooli.vrooli_bridge.v1.presence.ReportSessionFrameResponse
+	7,  // 12: vrooli.vrooli_bridge.v1.presence.PresenceService.ReportRelayResponse:output_type -> vrooli.vrooli_bridge.v1.presence.ReportRelayResponseResponse
+	9,  // [9:13] is the sub-list for method output_type
+	5,  // [5:9] is the sub-list for method input_type
+	5,  // [5:5] is the sub-list for extension type_name
+	5,  // [5:5] is the sub-list for extension extendee
+	0,  // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_vrooli_bridge_v1_presence_presence_proto_init() }
@@ -365,7 +464,7 @@ func file_vrooli_bridge_v1_presence_presence_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_vrooli_bridge_v1_presence_presence_proto_rawDesc), len(file_vrooli_bridge_v1_presence_presence_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   6,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

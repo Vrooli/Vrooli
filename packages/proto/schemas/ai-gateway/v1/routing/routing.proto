@@ -111,6 +111,14 @@ message RouteEvidence {
   string attachment_sha256 = 32;
   bool attachments_redacted = 33;
   repeated AttachmentDimension attachment_dimensions = 34;
+
+  // sampling_temperature is the temperature the gateway sent to the selected
+  // provider, absent when it sent none. sampling_temperature_support is the
+  // selected role's policy declaration. Both are recorded because neither is
+  // sufficient alone: a provider that accepts and silently ignores the control
+  // makes a sent value alone a misleading record of the route's conditions.
+  optional double sampling_temperature = 35;
+  vrooli.ai_gateway.v1.shared.SamplingSupport sampling_temperature_support = 36;
 }
 
 // AttachmentDimension is the metadata retained for evidence. It deliberately
@@ -129,6 +137,10 @@ message ExecuteRouteResponse {
   RouteEvidence evidence = 3;
   string output_text = 4;
   repeated string policy_reasons = 5;
+  // applied reports what the gateway actually sent and what the selected role
+  // declares, so provenance records fact rather than the caller's own request.
+  // It is populated on every return path including failures.
+  vrooli.ai_gateway.v1.shared.AppliedSettings applied = 6;
 }
 
 // MediaExecutionStatus is the durable lifecycle of a provider-neutral media

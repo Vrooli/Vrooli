@@ -1770,11 +1770,24 @@ func (x *RunGateRequest) GetGate() string {
 }
 
 type GateFinding struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Code          string                 `protobuf:"bytes,1,opt,name=code,proto3" json:"code,omitempty"`
-	Message       string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
-	AssetId       string                 `protobuf:"bytes,3,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
-	Severity      string                 `protobuf:"bytes,4,opt,name=severity,proto3" json:"severity,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Code  string                 `protobuf:"bytes,1,opt,name=code,proto3" json:"code,omitempty"`
+	// What is wrong.
+	Message string `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
+	AssetId string `protobuf:"bytes,3,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
+	// "error" when the gate is declared blocking in catalog/config.json,
+	// "warning" otherwise. Never inferred from the finding itself.
+	Severity string `protobuf:"bytes,4,opt,name=severity,proto3" json:"severity,omitempty"`
+	// Repository-relative path of the defect, empty when the gate inspects a
+	// declaration rather than a file.
+	File string `protobuf:"bytes,5,opt,name=file,proto3" json:"file,omitempty"`
+	// 1-indexed line within file; 0 when the gate cannot resolve one.
+	Line int32 `protobuf:"varint,6,opt,name=line,proto3" json:"line,omitempty"`
+	// What to do about it, and why it matters. Carried separately from message
+	// so a consumer can act without re-deriving the fix.
+	Remediation string `protobuf:"bytes,7,opt,name=remediation,proto3" json:"remediation,omitempty"`
+	// Repository-relative doc path giving the fuller rule context.
+	DocsRef       string `protobuf:"bytes,8,opt,name=docs_ref,json=docsRef,proto3" json:"docs_ref,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1833,6 +1846,34 @@ func (x *GateFinding) GetAssetId() string {
 func (x *GateFinding) GetSeverity() string {
 	if x != nil {
 		return x.Severity
+	}
+	return ""
+}
+
+func (x *GateFinding) GetFile() string {
+	if x != nil {
+		return x.File
+	}
+	return ""
+}
+
+func (x *GateFinding) GetLine() int32 {
+	if x != nil {
+		return x.Line
+	}
+	return 0
+}
+
+func (x *GateFinding) GetRemediation() string {
+	if x != nil {
+		return x.Remediation
+	}
+	return ""
+}
+
+func (x *GateFinding) GetDocsRef() string {
+	if x != nil {
+		return x.DocsRef
 	}
 	return ""
 }
@@ -2034,12 +2075,16 @@ const file_react_component_library_v1_catalog_catalog_proto_rawDesc = "" +
 	"\x04rows\x18\x01 \x03(\v26.vrooli.react_component_library.v1.catalog.CoverageRowR\x04rows\x12V\n" +
 	"\bmaturity\x18\x02 \x01(\v2:.vrooli.react_component_library.v1.catalog.MaturitySummaryR\bmaturity\"$\n" +
 	"\x0eRunGateRequest\x12\x12\n" +
-	"\x04gate\x18\x01 \x01(\tR\x04gate\"r\n" +
+	"\x04gate\x18\x01 \x01(\tR\x04gate\"\xd7\x01\n" +
 	"\vGateFinding\x12\x12\n" +
 	"\x04code\x18\x01 \x01(\tR\x04code\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\x12\x19\n" +
 	"\basset_id\x18\x03 \x01(\tR\aassetId\x12\x1a\n" +
-	"\bseverity\x18\x04 \x01(\tR\bseverity\"\xa2\x01\n" +
+	"\bseverity\x18\x04 \x01(\tR\bseverity\x12\x12\n" +
+	"\x04file\x18\x05 \x01(\tR\x04file\x12\x12\n" +
+	"\x04line\x18\x06 \x01(\x05R\x04line\x12 \n" +
+	"\vremediation\x18\a \x01(\tR\vremediation\x12\x19\n" +
+	"\bdocs_ref\x18\b \x01(\tR\adocsRef\"\xa2\x01\n" +
 	"\x0fRunGateResponse\x12\x12\n" +
 	"\x04gate\x18\x01 \x01(\tR\x04gate\x12R\n" +
 	"\bfindings\x18\x02 \x03(\v26.vrooli.react_component_library.v1.catalog.GateFindingR\bfindings\x12'\n" +

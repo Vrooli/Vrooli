@@ -14,7 +14,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file vrooli-bridge/v1/shared/shared.proto.
  */
 export const file_vrooli_bridge_v1_shared_shared: GenFile = /*@__PURE__*/
-  fileDesc("CiR2cm9vbGktYnJpZGdlL3YxL3NoYXJlZC9zaGFyZWQucHJvdG8SHnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnNoYXJlZCKVAgoOSGVhbHRoU25hcHNob3QSGQoRdG9vbGNoYWluX3ByZXNlbnQYASABKAgSGwoTZGlza19oZWFkcm9vbV9ieXRlcxgCIAEoAxIcChRjb250YWluZXJfcnVudGltZV91cBgDIAEoCBJMCgdkZXRhaWxzGAQgAygLMjsudnJvb2xpLnZyb29saV9icmlkZ2UudjEuc2hhcmVkLkhlYWx0aFNuYXBzaG90LkRldGFpbHNFbnRyeRIvCgtyZXBvcnRlZF9hdBgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAaLgoMRGV0YWlsc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEimwEKCUhlYXJ0YmVhdBIPCgdub2RlX2lkGAEgASgJEhAKCHNlcXVlbmNlGAIgASgEEj4KBmhlYWx0aBgDIAEoCzIuLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnNoYXJlZC5IZWFsdGhTbmFwc2hvdBIrCgdzZW50X2F0GAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCLkAQoIUnVuRXZlbnQSDgoGcnVuX2lkGAEgASgJEjoKBGtpbmQYAiABKA4yLC52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5zaGFyZWQuUnVuRXZlbnRLaW5kEhAKCHNlcXVlbmNlGAMgASgEEhEKCWxvZ19jaHVuaxgEIAEoCRIOCgZzdGF0dXMYBSABKAkSEQoJZXhpdF9jb2RlGAYgASgFEhQKDGFydGlmYWN0X3JlZhgHIAEoCRIuCgplbWl0dGVkX2F0GAggASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCJvCgtEZWxpdmVyeUFjaxIQCghmcmFtZV9pZBgBIAEoCRIOCgZydW5faWQYAiABKAkSDQoFb3BfaWQYAyABKAkSLwoLcmVjZWl2ZWRfYXQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIlkKDFNlc3Npb25GcmFtZRISCgpzZXNzaW9uX2lkGAEgASgJEjUKBWZyYW1lGAIgASgLMiYudnJvb2xpLnZyb29saV9icmlkZ2UudjEuc2Vzc2lvbi5GcmFtZSqmAQoTQ29tcGF0aWJpbGl0eVN0YXR1cxIkCiBDT01QQVRJQklMSVRZX1NUQVRVU19VTlNQRUNJRklFRBAAEhsKF0NPTVBBVElCSUxJVFlfU1RBVFVTX09LEAESJQohQ09NUEFUSUJJTElUWV9TVEFUVVNfTkVFRFNfVVBEQVRFEAISJQohQ09NUEFUSUJJTElUWV9TVEFUVVNfSU5DT01QQVRJQkxFEAMqmwEKDFJ1bkV2ZW50S2luZBIeChpSVU5fRVZFTlRfS0lORF9VTlNQRUNJRklFRBAAEhYKElJVTl9FVkVOVF9LSU5EX0xPRxABEhkKFVJVTl9FVkVOVF9LSU5EX1NUQVRVUxACEhcKE1JVTl9FVkVOVF9LSU5EX0VYSVQQAxIfChtSVU5fRVZFTlRfS0lORF9BUlRJRkFDVF9SRUYQBEJSWlBnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3Zyb29saS1icmlkZ2UvdjEvc2hhcmVkO3NoYXJlZF92MWIGcHJvdG8z", [file_google_protobuf_timestamp, file_vrooli_bridge_v1_session_session]);
+  fileDesc("CiR2cm9vbGktYnJpZGdlL3YxL3NoYXJlZC9zaGFyZWQucHJvdG8SHnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnNoYXJlZCKVAgoOSGVhbHRoU25hcHNob3QSGQoRdG9vbGNoYWluX3ByZXNlbnQYASABKAgSGwoTZGlza19oZWFkcm9vbV9ieXRlcxgCIAEoAxIcChRjb250YWluZXJfcnVudGltZV91cBgDIAEoCBJMCgdkZXRhaWxzGAQgAygLMjsudnJvb2xpLnZyb29saV9icmlkZ2UudjEuc2hhcmVkLkhlYWx0aFNuYXBzaG90LkRldGFpbHNFbnRyeRIvCgtyZXBvcnRlZF9hdBgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAaLgoMRGV0YWlsc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEimwEKCUhlYXJ0YmVhdBIPCgdub2RlX2lkGAEgASgJEhAKCHNlcXVlbmNlGAIgASgEEj4KBmhlYWx0aBgDIAEoCzIuLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnNoYXJlZC5IZWFsdGhTbmFwc2hvdBIrCgdzZW50X2F0GAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCLkAQoIUnVuRXZlbnQSDgoGcnVuX2lkGAEgASgJEjoKBGtpbmQYAiABKA4yLC52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5zaGFyZWQuUnVuRXZlbnRLaW5kEhAKCHNlcXVlbmNlGAMgASgEEhEKCWxvZ19jaHVuaxgEIAEoCRIOCgZzdGF0dXMYBSABKAkSEQoJZXhpdF9jb2RlGAYgASgFEhQKDGFydGlmYWN0X3JlZhgHIAEoCRIuCgplbWl0dGVkX2F0GAggASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCJvCgtEZWxpdmVyeUFjaxIQCghmcmFtZV9pZBgBIAEoCRIOCgZydW5faWQYAiABKAkSDQoFb3BfaWQYAyABKAkSLwoLcmVjZWl2ZWRfYXQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIsYBCg1SZWxheVJlc3BvbnNlEhYKDmNvcnJlbGF0aW9uX2lkGAEgASgJEj8KBGtpbmQYAiABKA4yMS52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5zaGFyZWQuUmVsYXlSZXNwb25zZUtpbmQSEAoIc2VxdWVuY2UYAyABKAQSDAoEZGF0YRgEIAEoDBIOCgZyZWFzb24YBSABKAkSEQoJZXhpdF9jb2RlGAYgASgFEhMKC3RvdGFsX2J5dGVzGAcgASgESgQICBAQIlkKDFNlc3Npb25GcmFtZRISCgpzZXNzaW9uX2lkGAEgASgJEjUKBWZyYW1lGAIgASgLMiYudnJvb2xpLnZyb29saV9icmlkZ2UudjEuc2Vzc2lvbi5GcmFtZSqmAQoTQ29tcGF0aWJpbGl0eVN0YXR1cxIkCiBDT01QQVRJQklMSVRZX1NUQVRVU19VTlNQRUNJRklFRBAAEhsKF0NPTVBBVElCSUxJVFlfU1RBVFVTX09LEAESJQohQ09NUEFUSUJJTElUWV9TVEFUVVNfTkVFRFNfVVBEQVRFEAISJQohQ09NUEFUSUJJTElUWV9TVEFUVVNfSU5DT01QQVRJQkxFEAMqmwEKDFJ1bkV2ZW50S2luZBIeChpSVU5fRVZFTlRfS0lORF9VTlNQRUNJRklFRBAAEhYKElJVTl9FVkVOVF9LSU5EX0xPRxABEhkKFVJVTl9FVkVOVF9LSU5EX1NUQVRVUxACEhcKE1JVTl9FVkVOVF9LSU5EX0VYSVQQAxIfChtSVU5fRVZFTlRfS0lORF9BUlRJRkFDVF9SRUYQBCrfAQoRUmVsYXlSZXNwb25zZUtpbmQSIwofUkVMQVlfUkVTUE9OU0VfS0lORF9VTlNQRUNJRklFRBAAEiAKHFJFTEFZX1JFU1BPTlNFX0tJTkRfQUNDRVBURUQQARIcChhSRUxBWV9SRVNQT05TRV9LSU5EX0RBVEEQAhIhCh1SRUxBWV9SRVNQT05TRV9LSU5EX0NPTVBMRVRFRBADEh4KGlJFTEFZX1JFU1BPTlNFX0tJTkRfRkFJTEVEEAQSIgoeUkVMQVlfUkVTUE9OU0VfS0lORF9URVJNSU5BVEVEEAVCUlpQZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby92cm9vbGktYnJpZGdlL3YxL3NoYXJlZDtzaGFyZWRfdjFiBnByb3RvMw", [file_google_protobuf_timestamp, file_vrooli_bridge_v1_session_session]);
 
 /**
  * @generated from message vrooli.vrooli_bridge.v1.shared.HealthSnapshot
@@ -174,6 +174,53 @@ export const DeliveryAckSchema: GenMessage<DeliveryAck> = /*@__PURE__*/
   messageDesc(file_vrooli_bridge_v1_shared_shared, 3);
 
 /**
+ * @generated from message vrooli.vrooli_bridge.v1.shared.RelayResponse
+ */
+export type RelayResponse = Message<"vrooli.vrooli_bridge.v1.shared.RelayResponse"> & {
+  /**
+   * @generated from field: string correlation_id = 1;
+   */
+  correlationId: string;
+
+  /**
+   * @generated from field: vrooli.vrooli_bridge.v1.shared.RelayResponseKind kind = 2;
+   */
+  kind: RelayResponseKind;
+
+  /**
+   * @generated from field: uint64 sequence = 3;
+   */
+  sequence: bigint;
+
+  /**
+   * @generated from field: bytes data = 4;
+   */
+  data: Uint8Array;
+
+  /**
+   * @generated from field: string reason = 5;
+   */
+  reason: string;
+
+  /**
+   * @generated from field: int32 exit_code = 6;
+   */
+  exitCode: number;
+
+  /**
+   * @generated from field: uint64 total_bytes = 7;
+   */
+  totalBytes: bigint;
+};
+
+/**
+ * Describes the message vrooli.vrooli_bridge.v1.shared.RelayResponse.
+ * Use `create(RelayResponseSchema)` to create a new message.
+ */
+export const RelayResponseSchema: GenMessage<RelayResponse> = /*@__PURE__*/
+  messageDesc(file_vrooli_bridge_v1_shared_shared, 4);
+
+/**
  * SessionFrame is the node-facing envelope shared by the channel push and
  * presence report domains. The byte-transparent session.Frame remains owned
  * by the session contract; this envelope carries its authenticated identity
@@ -198,7 +245,7 @@ export type SessionFrame = Message<"vrooli.vrooli_bridge.v1.shared.SessionFrame"
  * Use `create(SessionFrameSchema)` to create a new message.
  */
 export const SessionFrameSchema: GenMessage<SessionFrame> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_shared_shared, 4);
+  messageDesc(file_vrooli_bridge_v1_shared_shared, 5);
 
 /**
  * @generated from enum vrooli.vrooli_bridge.v1.shared.CompatibilityStatus
@@ -266,4 +313,49 @@ export enum RunEventKind {
  */
 export const RunEventKindSchema: GenEnum<RunEventKind> = /*@__PURE__*/
   enumDesc(file_vrooli_bridge_v1_shared_shared, 1);
+
+/**
+ * RelayResponse is one bounded response chunk or terminal outcome for the
+ * channel relay. It lives in shared because the channel envelope and the
+ * presence response RPC both carry the same authenticated payload.
+ *
+ * @generated from enum vrooli.vrooli_bridge.v1.shared.RelayResponseKind
+ */
+export enum RelayResponseKind {
+  /**
+   * @generated from enum value: RELAY_RESPONSE_KIND_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: RELAY_RESPONSE_KIND_ACCEPTED = 1;
+   */
+  ACCEPTED = 1,
+
+  /**
+   * @generated from enum value: RELAY_RESPONSE_KIND_DATA = 2;
+   */
+  DATA = 2,
+
+  /**
+   * @generated from enum value: RELAY_RESPONSE_KIND_COMPLETED = 3;
+   */
+  COMPLETED = 3,
+
+  /**
+   * @generated from enum value: RELAY_RESPONSE_KIND_FAILED = 4;
+   */
+  FAILED = 4,
+
+  /**
+   * @generated from enum value: RELAY_RESPONSE_KIND_TERMINATED = 5;
+   */
+  TERMINATED = 5,
+}
+
+/**
+ * Describes the enum vrooli.vrooli_bridge.v1.shared.RelayResponseKind.
+ */
+export const RelayResponseKindSchema: GenEnum<RelayResponseKind> = /*@__PURE__*/
+  enumDesc(file_vrooli_bridge_v1_shared_shared, 2);
 

@@ -41,3 +41,15 @@ class ReportSessionFrameResponse(_message.Message):
     ACCEPTED_FIELD_NUMBER: _ClassVar[int]
     accepted: bool
     def __init__(self, accepted: _Optional[bool] = ...) -> None: ...
+
+class ReportRelayResponseRequest(_message.Message):
+    __slots__ = ("response",)
+    RESPONSE_FIELD_NUMBER: _ClassVar[int]
+    response: _shared_pb2.RelayResponse
+    def __init__(self, response: _Optional[_Union[_shared_pb2.RelayResponse, _Mapping]] = ...) -> None: ...
+
+class ReportRelayResponseResponse(_message.Message):
+    __slots__ = ("accepted",)
+    ACCEPTED_FIELD_NUMBER: _ClassVar[int]
+    accepted: bool
+    def __init__(self, accepted: _Optional[bool] = ...) -> None: ...

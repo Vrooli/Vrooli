@@ -439,8 +439,12 @@ type InsightsResponse struct {
 	RecentSampleCount  int64 `protobuf:"varint,19,opt,name=recent_sample_count,json=recentSampleCount,proto3" json:"recent_sample_count,omitempty"`
 	RecentLatencyP50Ms int64 `protobuf:"varint,20,opt,name=recent_latency_p50_ms,json=recentLatencyP50Ms,proto3" json:"recent_latency_p50_ms,omitempty"`
 	RecentLatencyP95Ms int64 `protobuf:"varint,21,opt,name=recent_latency_p95_ms,json=recentLatencyP95Ms,proto3" json:"recent_latency_p95_ms,omitempty"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+	// Shared retrieval substrate degradation is reported separately from corpus
+	// provider degradation so a reranker outage is not charged to every leaf.
+	SubstrateDegradationReasons []*ProviderDegradationReason `protobuf:"bytes,22,rep,name=substrate_degradation_reasons,json=substrateDegradationReasons,proto3" json:"substrate_degradation_reasons,omitempty"`
+	SubstrateDegradedLegs       int64                        `protobuf:"varint,23,opt,name=substrate_degraded_legs,json=substrateDegradedLegs,proto3" json:"substrate_degraded_legs,omitempty"`
+	unknownFields               protoimpl.UnknownFields
+	sizeCache                   protoimpl.SizeCache
 }
 
 func (x *InsightsResponse) Reset() {
@@ -620,6 +624,20 @@ func (x *InsightsResponse) GetRecentLatencyP95Ms() int64 {
 	return 0
 }
 
+func (x *InsightsResponse) GetSubstrateDegradationReasons() []*ProviderDegradationReason {
+	if x != nil {
+		return x.SubstrateDegradationReasons
+	}
+	return nil
+}
+
+func (x *InsightsResponse) GetSubstrateDegradedLegs() int64 {
+	if x != nil {
+		return x.SubstrateDegradedLegs
+	}
+	return 0
+}
+
 var File_search_hub_v1_metrics_metrics_proto protoreflect.FileDescriptor
 
 const file_search_hub_v1_metrics_metrics_proto_rawDesc = "" +
@@ -659,7 +677,7 @@ const file_search_hub_v1_metrics_metrics_proto_rawDesc = "" +
 	"\x0eprovider_group\x18\x01 \x01(\tR\rproviderGroup\x12#\n" +
 	"\ractive_leaves\x18\x02 \x01(\x05R\factiveLeaves\x12\x14\n" +
 	"\x05share\x18\x03 \x01(\x01R\x05share\x12\x16\n" +
-	"\x06reason\x18\x04 \x01(\tR\x06reason\"\xc5\b\n" +
+	"\x06reason\x18\x04 \x01(\tR\x06reason\"\xfa\t\n" +
 	"\x10InsightsResponse\x12#\n" +
 	"\rtotal_queries\x18\x01 \x01(\x03R\ftotalQueries\x12.\n" +
 	"\x13zero_result_queries\x18\x02 \x01(\x03R\x11zeroResultQueries\x12(\n" +
@@ -683,7 +701,9 @@ const file_search_hub_v1_metrics_metrics_proto_rawDesc = "" +
 	"\x11sample_sufficient\x18\x12 \x01(\bR\x10sampleSufficient\x12.\n" +
 	"\x13recent_sample_count\x18\x13 \x01(\x03R\x11recentSampleCount\x121\n" +
 	"\x15recent_latency_p50_ms\x18\x14 \x01(\x03R\x12recentLatencyP50Ms\x121\n" +
-	"\x15recent_latency_p95_ms\x18\x15 \x01(\x03R\x12recentLatencyP95Ms2{\n" +
+	"\x15recent_latency_p95_ms\x18\x15 \x01(\x03R\x12recentLatencyP95Ms\x12{\n" +
+	"\x1dsubstrate_degradation_reasons\x18\x16 \x03(\v27.vrooli.search_hub.v1.metrics.ProviderDegradationReasonR\x1bsubstrateDegradationReasons\x126\n" +
+	"\x17substrate_degraded_legs\x18\x17 \x01(\x03R\x15substrateDegradedLegs2{\n" +
 	"\x0eMetricsService\x12i\n" +
 	"\bInsights\x12-.vrooli.search_hub.v1.metrics.InsightsRequest\x1a..vrooli.search_hub.v1.metrics.InsightsResponseBQZOgithub.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/metrics;metrics_v1b\x06proto3"
 
@@ -713,13 +733,14 @@ var file_search_hub_v1_metrics_metrics_proto_depIdxs = []int32{
 	1, // 1: vrooli.search_hub.v1.metrics.InsightsResponse.providers:type_name -> vrooli.search_hub.v1.metrics.ProviderUtilization
 	3, // 2: vrooli.search_hub.v1.metrics.InsightsResponse.retirement_candidates:type_name -> vrooli.search_hub.v1.metrics.ProviderRetirementCandidate
 	4, // 3: vrooli.search_hub.v1.metrics.InsightsResponse.group_advisories:type_name -> vrooli.search_hub.v1.metrics.ProviderGroupAdvisory
-	0, // 4: vrooli.search_hub.v1.metrics.MetricsService.Insights:input_type -> vrooli.search_hub.v1.metrics.InsightsRequest
-	5, // 5: vrooli.search_hub.v1.metrics.MetricsService.Insights:output_type -> vrooli.search_hub.v1.metrics.InsightsResponse
-	5, // [5:6] is the sub-list for method output_type
-	4, // [4:5] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	2, // 4: vrooli.search_hub.v1.metrics.InsightsResponse.substrate_degradation_reasons:type_name -> vrooli.search_hub.v1.metrics.ProviderDegradationReason
+	0, // 5: vrooli.search_hub.v1.metrics.MetricsService.Insights:input_type -> vrooli.search_hub.v1.metrics.InsightsRequest
+	5, // 6: vrooli.search_hub.v1.metrics.MetricsService.Insights:output_type -> vrooli.search_hub.v1.metrics.InsightsResponse
+	6, // [6:7] is the sub-list for method output_type
+	5, // [5:6] is the sub-list for method input_type
+	5, // [5:5] is the sub-list for extension type_name
+	5, // [5:5] is the sub-list for extension extendee
+	0, // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_search_hub_v1_metrics_metrics_proto_init() }

@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Own kernel session lifecycle: creation, grants, kernel state persistence across submissions, ceilings, reclamation, and optional sandbox binding.",
-    "last_validated_at": "2026-08-14T02:32:54-04:00",
+    "last_validated_at": "2026-08-16T11:20:00-04:00",
     "module": "sessions",
     "prd_ref": "PRD.md",
     "priority": "P0",
@@ -11,7 +11,7 @@
     {
       "id": "PRT-P0-004",
       "title": "Session-persistent kernel state",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-004",
       "category": "sessions.state",
       "criticality": "P0",
@@ -25,13 +25,13 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Target `api/internal/sessions/manager_test.go::TestVariablesSurviveSubmissionBoundary` (tag the test [REQ:PRT-P0-004]). A handle bound in one submission is referenceable by name in a later submission on the same session."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Target `api/internal/sessions/manager_test.go::TestSessionsAreIsolatedFromEachOther` (tag the test [REQ:PRT-P0-004]). State bound in one session is not reachable from another, so concurrent agents cannot observe each other."
         }
       ]
@@ -39,7 +39,7 @@
     {
       "id": "PRT-P1-004",
       "title": "Sandbox composition",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-004",
       "category": "sessions.sandbox",
       "criticality": "P1",
@@ -52,13 +52,13 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Target `api/internal/sessions/manager_test.go::TestSessionBindsToSandboxWorkspace` and `api/internal/sessions/manager_test.go::TestSessionRejectsUnknownSandboxWorkspace` (tagged [REQ:PRT-P1-004]). A declared workspace is resolved before persistence and an unknown workspace is rejected with ErrInvalidWorkspace."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Target `api/internal/programs/runner_test.go::TestSubprocessRunnerUsesResolvedWorkspaceRoot` (tag the test [REQ:PRT-P1-004]). A session kernel's cwd is the resolved workspace root and the external workspace is not removed during runner cleanup."
         }
       ]
@@ -66,7 +66,7 @@
     {
       "id": "PRT-P1-005",
       "title": "Bounded session lifecycle",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-005",
       "category": "sessions.limits",
       "criticality": "P1",
@@ -80,13 +80,13 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Target `api/internal/sessions/manager_test.go::TestReclaimsIdleSessionWithStatedReason` (tag the test [REQ:PRT-P1-005]). An idle session past its ceiling is reclaimed and the reclamation reason is readable afterward."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Target `api/internal/sessions/manager_test.go::TestEnforcesWallClockAndMemoryCeilings` (tag the test [REQ:PRT-P1-005]). Wall-clock and memory ceilings terminate a session deterministically rather than degrading the host."
         }
       ]
@@ -140,7 +140,7 @@
     {
       "id": "PRT-P2-003",
       "title": "Named durable workspaces",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P2-003",
       "category": "sessions.named",
       "criticality": "P2",
@@ -153,7 +153,7 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Target `api/internal/sessions/manager_test.go::TestNamedSessionSurvivesAcrossAgentRuns` (tag the test [REQ:PRT-P2-003]). A named session is resumable by a later agent run with its accumulated state intact."
         }
       ]

@@ -163,6 +163,12 @@ message ScenarioStartOperation {
   // Single sanctioned re-check cadence for agents: 0 when terminal (stop
   // checking), 30 when the ETA is unknown, else remaining clamped to [5, 60].
   int32 recommended_next_check_seconds = 18;
+
+  // Orchestrating process recorded on the operation; 0 when the record
+  // carries none. This is the process a competing lifecycle call reports as
+  // the lock holder, so a reader can tie an in-flight operation to the
+  // "already running (held by pid N)" error without inspecting the host.
+  int32 initiator_pid = 19;
 }
 
 // ScenarioStartOperationStep is one recorded step of a start operation.

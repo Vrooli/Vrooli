@@ -18,10 +18,19 @@ class AdapterKind(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ADAPTER_KIND_MANUAL: _ClassVar[AdapterKind]
     ADAPTER_KIND_FILE: _ClassVar[AdapterKind]
     ADAPTER_KIND_AGGREGATOR: _ClassVar[AdapterKind]
+
+class SourceMode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    SOURCE_MODE_UNSPECIFIED: _ClassVar[SourceMode]
+    SOURCE_MODE_FIXTURE: _ClassVar[SourceMode]
+    SOURCE_MODE_OPERATOR_SUPPLIED: _ClassVar[SourceMode]
 ADAPTER_KIND_UNSPECIFIED: AdapterKind
 ADAPTER_KIND_MANUAL: AdapterKind
 ADAPTER_KIND_FILE: AdapterKind
 ADAPTER_KIND_AGGREGATOR: AdapterKind
+SOURCE_MODE_UNSPECIFIED: SourceMode
+SOURCE_MODE_FIXTURE: SourceMode
+SOURCE_MODE_OPERATOR_SUPPLIED: SourceMode
 
 class Adapter(_message.Message):
     __slots__ = ("id", "name", "kind", "enabled", "last_success_at", "availability_reason")
@@ -143,3 +152,53 @@ class ImportFileResponse(_message.Message):
     RECEIPT_FIELD_NUMBER: _ClassVar[int]
     receipt: Receipt
     def __init__(self, receipt: _Optional[_Union[Receipt, _Mapping]] = ...) -> None: ...
+
+class OperatorInputField(_message.Message):
+    __slots__ = ("path", "status", "written", "unit", "window_days", "observed_at", "kind", "reason")
+    PATH_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    WRITTEN_FIELD_NUMBER: _ClassVar[int]
+    UNIT_FIELD_NUMBER: _ClassVar[int]
+    WINDOW_DAYS_FIELD_NUMBER: _ClassVar[int]
+    OBSERVED_AT_FIELD_NUMBER: _ClassVar[int]
+    KIND_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    path: str
+    status: str
+    written: bool
+    unit: str
+    window_days: int
+    observed_at: _timestamp_pb2.Timestamp
+    kind: str
+    reason: str
+    def __init__(self, path: _Optional[str] = ..., status: _Optional[str] = ..., written: _Optional[bool] = ..., unit: _Optional[str] = ..., window_days: _Optional[int] = ..., observed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., kind: _Optional[str] = ..., reason: _Optional[str] = ...) -> None: ...
+
+class OperatorImportRequest(_message.Message):
+    __slots__ = ("source_path", "source_mode", "apply", "adapter_id", "book_id", "account_id")
+    SOURCE_PATH_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_MODE_FIELD_NUMBER: _ClassVar[int]
+    APPLY_FIELD_NUMBER: _ClassVar[int]
+    ADAPTER_ID_FIELD_NUMBER: _ClassVar[int]
+    BOOK_ID_FIELD_NUMBER: _ClassVar[int]
+    ACCOUNT_ID_FIELD_NUMBER: _ClassVar[int]
+    source_path: str
+    source_mode: SourceMode
+    apply: bool
+    adapter_id: str
+    book_id: str
+    account_id: str
+    def __init__(self, source_path: _Optional[str] = ..., source_mode: _Optional[_Union[SourceMode, str]] = ..., apply: _Optional[bool] = ..., adapter_id: _Optional[str] = ..., book_id: _Optional[str] = ..., account_id: _Optional[str] = ...) -> None: ...
+
+class OperatorImportResponse(_message.Message):
+    __slots__ = ("fields", "read", "written", "findings", "applied")
+    FIELDS_FIELD_NUMBER: _ClassVar[int]
+    READ_FIELD_NUMBER: _ClassVar[int]
+    WRITTEN_FIELD_NUMBER: _ClassVar[int]
+    FINDINGS_FIELD_NUMBER: _ClassVar[int]
+    APPLIED_FIELD_NUMBER: _ClassVar[int]
+    fields: _containers.RepeatedCompositeFieldContainer[OperatorInputField]
+    read: int
+    written: int
+    findings: int
+    applied: bool
+    def __init__(self, fields: _Optional[_Iterable[_Union[OperatorInputField, _Mapping]]] = ..., read: _Optional[int] = ..., written: _Optional[int] = ..., findings: _Optional[int] = ..., applied: _Optional[bool] = ...) -> None: ...

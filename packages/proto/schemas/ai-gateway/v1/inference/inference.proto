@@ -22,6 +22,15 @@ enum InferenceErrorCode {
   INFERENCE_ERROR_CODE_UNSUPPORTED_SCHEMA = 3;
   INFERENCE_ERROR_CODE_VALIDATION_FAILED = 4;
   INFERENCE_ERROR_CODE_PROVIDER_FAILED = 5;
+  // INFERENCE_ERROR_CODE_UNSUPPORTED_SAMPLING means the caller asked for a
+  // sampling control that no remaining candidate's provider can honour. It
+  // names the offending control in `construct` (e.g. "sampling.temperature").
+  // A caller-supplied control is a promise the gateway keeps or refuses; it is
+  // never silently downgraded, matching how a rejected schema is never
+  // degraded to unconstrained generation. A role-declared default that cannot
+  // be honoured is omitted silently instead, because the role author expressed
+  // a preference while the caller made no promise.
+  INFERENCE_ERROR_CODE_UNSUPPORTED_SAMPLING = 6;
 }
 
 // InferenceError is a typed failure returned inside a response. It is kept
@@ -53,6 +62,19 @@ message RunRequest {
   // profile carries the caller's locality stance. The gateway still owns
   // provider selection and never accepts a concrete model or credential.
   vrooli.ai_gateway.v1.shared.Profile profile = 7;
+  // sampling is the caller's explicit sampling request. It is honoured only by
+  // roles that declare themselves overridable; sending it to a deterministic
+  // role is INFERENCE_ERROR_CODE_INVALID_REQUEST, not a silent override.
+  // @default the role's declared sampling
+  vrooli.ai_gateway.v1.shared.SamplingControls sampling = 8;
+  // max_output_tokens bounds the response the gateway asks the provider for.
+  // It is request-level rather than role-level because the budget depends on
+  // caller data a role cannot know — one role serves a single draft and a
+  // twenty-candidate set, and sizing for either breaks the other. It is
+  // bidirectional: a caller may send a tighter cap than the role default.
+  // @default the resolved resource role's declared cap, else no cap
+  // @unit tokens
+  int32 max_output_tokens = 9;
 }
 
 message RunResponse {
@@ -62,6 +84,11 @@ message RunResponse {
   bool validated = 4;
   Usage usage = 5;
   InferenceError error = 6;
+  // applied reports what the gateway actually sent and what the resolved role
+  // declares, so provenance records fact rather than the caller's own request.
+  // It is populated on every return path including errors: a refused or
+  // truncated call is exactly when a caller needs to know the cap.
+  vrooli.ai_gateway.v1.shared.AppliedSettings applied = 7;
 }
 
 message RunBatchItem {

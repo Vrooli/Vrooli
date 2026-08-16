@@ -455,8 +455,15 @@ type RouteEvidence struct {
 	AttachmentSha256     string                 `protobuf:"bytes,32,opt,name=attachment_sha256,json=attachmentSha256,proto3" json:"attachment_sha256,omitempty"`
 	AttachmentsRedacted  bool                   `protobuf:"varint,33,opt,name=attachments_redacted,json=attachmentsRedacted,proto3" json:"attachments_redacted,omitempty"`
 	AttachmentDimensions []*AttachmentDimension `protobuf:"bytes,34,rep,name=attachment_dimensions,json=attachmentDimensions,proto3" json:"attachment_dimensions,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	// sampling_temperature is the temperature the gateway sent to the selected
+	// provider, absent when it sent none. sampling_temperature_support is the
+	// selected role's policy declaration. Both are recorded because neither is
+	// sufficient alone: a provider that accepts and silently ignores the control
+	// makes a sent value alone a misleading record of the route's conditions.
+	SamplingTemperature        *float64               `protobuf:"fixed64,35,opt,name=sampling_temperature,json=samplingTemperature,proto3,oneof" json:"sampling_temperature,omitempty"`
+	SamplingTemperatureSupport shared.SamplingSupport `protobuf:"varint,36,opt,name=sampling_temperature_support,json=samplingTemperatureSupport,proto3,enum=vrooli.ai_gateway.v1.shared.SamplingSupport" json:"sampling_temperature_support,omitempty"`
+	unknownFields              protoimpl.UnknownFields
+	sizeCache                  protoimpl.SizeCache
 }
 
 func (x *RouteEvidence) Reset() {
@@ -727,6 +734,20 @@ func (x *RouteEvidence) GetAttachmentDimensions() []*AttachmentDimension {
 	return nil
 }
 
+func (x *RouteEvidence) GetSamplingTemperature() float64 {
+	if x != nil && x.SamplingTemperature != nil {
+		return *x.SamplingTemperature
+	}
+	return 0
+}
+
+func (x *RouteEvidence) GetSamplingTemperatureSupport() shared.SamplingSupport {
+	if x != nil {
+		return x.SamplingTemperatureSupport
+	}
+	return shared.SamplingSupport(0)
+}
+
 // AttachmentDimension is the metadata retained for evidence. It deliberately
 // has no payload field, so persisted route evidence cannot contain image bytes.
 type AttachmentDimension struct {
@@ -812,6 +833,10 @@ type ExecuteRouteResponse struct {
 	Evidence      *RouteEvidence            `protobuf:"bytes,3,opt,name=evidence,proto3" json:"evidence,omitempty"`
 	OutputText    string                    `protobuf:"bytes,4,opt,name=output_text,json=outputText,proto3" json:"output_text,omitempty"`
 	PolicyReasons []string                  `protobuf:"bytes,5,rep,name=policy_reasons,json=policyReasons,proto3" json:"policy_reasons,omitempty"`
+	// applied reports what the gateway actually sent and what the selected role
+	// declares, so provenance records fact rather than the caller's own request.
+	// It is populated on every return path including failures.
+	Applied       *shared.AppliedSettings `protobuf:"bytes,6,opt,name=applied,proto3" json:"applied,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -877,6 +902,13 @@ func (x *ExecuteRouteResponse) GetOutputText() string {
 func (x *ExecuteRouteResponse) GetPolicyReasons() []string {
 	if x != nil {
 		return x.PolicyReasons
+	}
+	return nil
+}
+
+func (x *ExecuteRouteResponse) GetApplied() *shared.AppliedSettings {
+	if x != nil {
+		return x.Applied
 	}
 	return nil
 }
@@ -2090,7 +2122,7 @@ const file_ai_gateway_v1_routing_routing_proto_rawDesc = "" +
 	"\x13ExecuteRouteRequest\x12E\n" +
 	"\arequest\x18\x01 \x01(\v2+.vrooli.ai_gateway.v1.shared.GatewayRequestR\arequest\x12\x1d\n" +
 	"\n" +
-	"input_text\x18\x02 \x01(\tR\tinputText\"\xc0\v\n" +
+	"input_text\x18\x02 \x01(\tR\tinputText\"\x81\r\n" +
 	"\rRouteEvidence\x12\x19\n" +
 	"\bevent_id\x18\x01 \x01(\tR\aeventId\x12\x1d\n" +
 	"\n" +
@@ -2130,21 +2162,25 @@ const file_ai_gateway_v1_routing_routing_proto_rawDesc = "" +
 	"\x10attachment_bytes\x18\x1f \x01(\x03R\x0fattachmentBytes\x12+\n" +
 	"\x11attachment_sha256\x18  \x01(\tR\x10attachmentSha256\x121\n" +
 	"\x14attachments_redacted\x18! \x01(\bR\x13attachmentsRedacted\x12f\n" +
-	"\x15attachment_dimensions\x18\" \x03(\v21.vrooli.ai_gateway.v1.routing.AttachmentDimensionR\x14attachmentDimensions\"\xbb\x01\n" +
+	"\x15attachment_dimensions\x18\" \x03(\v21.vrooli.ai_gateway.v1.routing.AttachmentDimensionR\x14attachmentDimensions\x126\n" +
+	"\x14sampling_temperature\x18# \x01(\x01H\x00R\x13samplingTemperature\x88\x01\x01\x12n\n" +
+	"\x1csampling_temperature_support\x18$ \x01(\x0e2,.vrooli.ai_gateway.v1.shared.SamplingSupportR\x1asamplingTemperatureSupportB\x17\n" +
+	"\x15_sampling_temperature\"\xbb\x01\n" +
 	"\x13AttachmentDimension\x12A\n" +
 	"\bmodality\x18\x01 \x01(\x0e2%.vrooli.ai_gateway.v1.shared.ModalityR\bmodality\x12\x1d\n" +
 	"\n" +
 	"media_type\x18\x02 \x01(\tR\tmediaType\x12\x14\n" +
 	"\x05width\x18\x03 \x01(\rR\x05width\x12\x16\n" +
 	"\x06height\x18\x04 \x01(\rR\x06height\x12\x14\n" +
-	"\x05bytes\x18\x05 \x01(\x04R\x05bytes\"\x83\x02\n" +
+	"\x05bytes\x18\x05 \x01(\x04R\x05bytes\"\xcb\x02\n" +
 	"\x14ExecuteRouteResponse\x12\x14\n" +
 	"\x05valid\x18\x01 \x01(\bR\x05valid\x12D\n" +
 	"\x06issues\x18\x02 \x03(\v2,.vrooli.ai_gateway.v1.shared.ValidationIssueR\x06issues\x12G\n" +
 	"\bevidence\x18\x03 \x01(\v2+.vrooli.ai_gateway.v1.routing.RouteEvidenceR\bevidence\x12\x1f\n" +
 	"\voutput_text\x18\x04 \x01(\tR\n" +
 	"outputText\x12%\n" +
-	"\x0epolicy_reasons\x18\x05 \x03(\tR\rpolicyReasons\"I\n" +
+	"\x0epolicy_reasons\x18\x05 \x03(\tR\rpolicyReasons\x12F\n" +
+	"\aapplied\x18\x06 \x01(\v2,.vrooli.ai_gateway.v1.shared.AppliedSettingsR\aapplied\"I\n" +
 	"\n" +
 	"MediaInput\x12\x1c\n" +
 	"\treference\x18\x01 \x01(\tR\treference\x12\x1d\n" +
@@ -2298,8 +2334,10 @@ var file_ai_gateway_v1_routing_routing_proto_goTypes = []any{
 	(*shared.ValidationIssue)(nil),       // 29: vrooli.ai_gateway.v1.shared.ValidationIssue
 	(shared.Profile)(0),                  // 30: vrooli.ai_gateway.v1.shared.Profile
 	(shared.PrivacyClass)(0),             // 31: vrooli.ai_gateway.v1.shared.PrivacyClass
-	(shared.Modality)(0),                 // 32: vrooli.ai_gateway.v1.shared.Modality
-	(shared.RequestKind)(0),              // 33: vrooli.ai_gateway.v1.shared.RequestKind
+	(shared.SamplingSupport)(0),          // 32: vrooli.ai_gateway.v1.shared.SamplingSupport
+	(shared.Modality)(0),                 // 33: vrooli.ai_gateway.v1.shared.Modality
+	(*shared.AppliedSettings)(nil),       // 34: vrooli.ai_gateway.v1.shared.AppliedSettings
+	(shared.RequestKind)(0),              // 35: vrooli.ai_gateway.v1.shared.RequestKind
 }
 var file_ai_gateway_v1_routing_routing_proto_depIdxs = []int32{
 	28, // 0: vrooli.ai_gateway.v1.routing.PreviewRouteRequest.request:type_name -> vrooli.ai_gateway.v1.shared.GatewayRequest
@@ -2309,48 +2347,50 @@ var file_ai_gateway_v1_routing_routing_proto_depIdxs = []int32{
 	30, // 4: vrooli.ai_gateway.v1.routing.RouteEvidence.profile:type_name -> vrooli.ai_gateway.v1.shared.Profile
 	31, // 5: vrooli.ai_gateway.v1.routing.RouteEvidence.privacy_class:type_name -> vrooli.ai_gateway.v1.shared.PrivacyClass
 	6,  // 6: vrooli.ai_gateway.v1.routing.RouteEvidence.attachment_dimensions:type_name -> vrooli.ai_gateway.v1.routing.AttachmentDimension
-	32, // 7: vrooli.ai_gateway.v1.routing.AttachmentDimension.modality:type_name -> vrooli.ai_gateway.v1.shared.Modality
-	29, // 8: vrooli.ai_gateway.v1.routing.ExecuteRouteResponse.issues:type_name -> vrooli.ai_gateway.v1.shared.ValidationIssue
-	5,  // 9: vrooli.ai_gateway.v1.routing.ExecuteRouteResponse.evidence:type_name -> vrooli.ai_gateway.v1.routing.RouteEvidence
-	28, // 10: vrooli.ai_gateway.v1.routing.SubmitMediaRequest.request:type_name -> vrooli.ai_gateway.v1.shared.GatewayRequest
-	8,  // 11: vrooli.ai_gateway.v1.routing.SubmitMediaRequest.inputs:type_name -> vrooli.ai_gateway.v1.routing.MediaInput
-	0,  // 12: vrooli.ai_gateway.v1.routing.MediaExecution.status:type_name -> vrooli.ai_gateway.v1.routing.MediaExecutionStatus
-	5,  // 13: vrooli.ai_gateway.v1.routing.MediaExecution.route_evidence:type_name -> vrooli.ai_gateway.v1.routing.RouteEvidence
-	9,  // 14: vrooli.ai_gateway.v1.routing.MediaExecution.outputs:type_name -> vrooli.ai_gateway.v1.routing.MediaOutput
-	11, // 15: vrooli.ai_gateway.v1.routing.SubmitMediaResponse.execution:type_name -> vrooli.ai_gateway.v1.routing.MediaExecution
-	11, // 16: vrooli.ai_gateway.v1.routing.GetMediaExecutionResponse.execution:type_name -> vrooli.ai_gateway.v1.routing.MediaExecution
-	11, // 17: vrooli.ai_gateway.v1.routing.WaitMediaExecutionResponse.execution:type_name -> vrooli.ai_gateway.v1.routing.MediaExecution
-	11, // 18: vrooli.ai_gateway.v1.routing.CancelMediaExecutionResponse.execution:type_name -> vrooli.ai_gateway.v1.routing.MediaExecution
-	11, // 19: vrooli.ai_gateway.v1.routing.RetryMediaExecutionResponse.execution:type_name -> vrooli.ai_gateway.v1.routing.MediaExecution
-	5,  // 20: vrooli.ai_gateway.v1.routing.ListRouteEvidenceResponse.events:type_name -> vrooli.ai_gateway.v1.routing.RouteEvidence
-	5,  // 21: vrooli.ai_gateway.v1.routing.GetRouteEvidenceResponse.event:type_name -> vrooli.ai_gateway.v1.routing.RouteEvidence
-	33, // 22: vrooli.ai_gateway.v1.routing.ProviderHealth.kind:type_name -> vrooli.ai_gateway.v1.shared.RequestKind
-	25, // 23: vrooli.ai_gateway.v1.routing.ListProviderHealthResponse.items:type_name -> vrooli.ai_gateway.v1.routing.ProviderHealth
-	2,  // 24: vrooli.ai_gateway.v1.routing.RoutingService.PreviewRoute:input_type -> vrooli.ai_gateway.v1.routing.PreviewRouteRequest
-	4,  // 25: vrooli.ai_gateway.v1.routing.RoutingService.ExecuteRoute:input_type -> vrooli.ai_gateway.v1.routing.ExecuteRouteRequest
-	10, // 26: vrooli.ai_gateway.v1.routing.RoutingService.SubmitMedia:input_type -> vrooli.ai_gateway.v1.routing.SubmitMediaRequest
-	13, // 27: vrooli.ai_gateway.v1.routing.RoutingService.GetMediaExecution:input_type -> vrooli.ai_gateway.v1.routing.GetMediaExecutionRequest
-	15, // 28: vrooli.ai_gateway.v1.routing.RoutingService.WaitMediaExecution:input_type -> vrooli.ai_gateway.v1.routing.WaitMediaExecutionRequest
-	17, // 29: vrooli.ai_gateway.v1.routing.RoutingService.CancelMediaExecution:input_type -> vrooli.ai_gateway.v1.routing.CancelMediaExecutionRequest
-	19, // 30: vrooli.ai_gateway.v1.routing.RoutingService.RetryMediaExecution:input_type -> vrooli.ai_gateway.v1.routing.RetryMediaExecutionRequest
-	21, // 31: vrooli.ai_gateway.v1.routing.RoutingService.ListRouteEvidence:input_type -> vrooli.ai_gateway.v1.routing.ListRouteEvidenceRequest
-	23, // 32: vrooli.ai_gateway.v1.routing.RoutingService.GetRouteEvidence:input_type -> vrooli.ai_gateway.v1.routing.GetRouteEvidenceRequest
-	26, // 33: vrooli.ai_gateway.v1.routing.RoutingService.ListProviderHealth:input_type -> vrooli.ai_gateway.v1.routing.ListProviderHealthRequest
-	3,  // 34: vrooli.ai_gateway.v1.routing.RoutingService.PreviewRoute:output_type -> vrooli.ai_gateway.v1.routing.PreviewRouteResponse
-	7,  // 35: vrooli.ai_gateway.v1.routing.RoutingService.ExecuteRoute:output_type -> vrooli.ai_gateway.v1.routing.ExecuteRouteResponse
-	12, // 36: vrooli.ai_gateway.v1.routing.RoutingService.SubmitMedia:output_type -> vrooli.ai_gateway.v1.routing.SubmitMediaResponse
-	14, // 37: vrooli.ai_gateway.v1.routing.RoutingService.GetMediaExecution:output_type -> vrooli.ai_gateway.v1.routing.GetMediaExecutionResponse
-	16, // 38: vrooli.ai_gateway.v1.routing.RoutingService.WaitMediaExecution:output_type -> vrooli.ai_gateway.v1.routing.WaitMediaExecutionResponse
-	18, // 39: vrooli.ai_gateway.v1.routing.RoutingService.CancelMediaExecution:output_type -> vrooli.ai_gateway.v1.routing.CancelMediaExecutionResponse
-	20, // 40: vrooli.ai_gateway.v1.routing.RoutingService.RetryMediaExecution:output_type -> vrooli.ai_gateway.v1.routing.RetryMediaExecutionResponse
-	22, // 41: vrooli.ai_gateway.v1.routing.RoutingService.ListRouteEvidence:output_type -> vrooli.ai_gateway.v1.routing.ListRouteEvidenceResponse
-	24, // 42: vrooli.ai_gateway.v1.routing.RoutingService.GetRouteEvidence:output_type -> vrooli.ai_gateway.v1.routing.GetRouteEvidenceResponse
-	27, // 43: vrooli.ai_gateway.v1.routing.RoutingService.ListProviderHealth:output_type -> vrooli.ai_gateway.v1.routing.ListProviderHealthResponse
-	34, // [34:44] is the sub-list for method output_type
-	24, // [24:34] is the sub-list for method input_type
-	24, // [24:24] is the sub-list for extension type_name
-	24, // [24:24] is the sub-list for extension extendee
-	0,  // [0:24] is the sub-list for field type_name
+	32, // 7: vrooli.ai_gateway.v1.routing.RouteEvidence.sampling_temperature_support:type_name -> vrooli.ai_gateway.v1.shared.SamplingSupport
+	33, // 8: vrooli.ai_gateway.v1.routing.AttachmentDimension.modality:type_name -> vrooli.ai_gateway.v1.shared.Modality
+	29, // 9: vrooli.ai_gateway.v1.routing.ExecuteRouteResponse.issues:type_name -> vrooli.ai_gateway.v1.shared.ValidationIssue
+	5,  // 10: vrooli.ai_gateway.v1.routing.ExecuteRouteResponse.evidence:type_name -> vrooli.ai_gateway.v1.routing.RouteEvidence
+	34, // 11: vrooli.ai_gateway.v1.routing.ExecuteRouteResponse.applied:type_name -> vrooli.ai_gateway.v1.shared.AppliedSettings
+	28, // 12: vrooli.ai_gateway.v1.routing.SubmitMediaRequest.request:type_name -> vrooli.ai_gateway.v1.shared.GatewayRequest
+	8,  // 13: vrooli.ai_gateway.v1.routing.SubmitMediaRequest.inputs:type_name -> vrooli.ai_gateway.v1.routing.MediaInput
+	0,  // 14: vrooli.ai_gateway.v1.routing.MediaExecution.status:type_name -> vrooli.ai_gateway.v1.routing.MediaExecutionStatus
+	5,  // 15: vrooli.ai_gateway.v1.routing.MediaExecution.route_evidence:type_name -> vrooli.ai_gateway.v1.routing.RouteEvidence
+	9,  // 16: vrooli.ai_gateway.v1.routing.MediaExecution.outputs:type_name -> vrooli.ai_gateway.v1.routing.MediaOutput
+	11, // 17: vrooli.ai_gateway.v1.routing.SubmitMediaResponse.execution:type_name -> vrooli.ai_gateway.v1.routing.MediaExecution
+	11, // 18: vrooli.ai_gateway.v1.routing.GetMediaExecutionResponse.execution:type_name -> vrooli.ai_gateway.v1.routing.MediaExecution
+	11, // 19: vrooli.ai_gateway.v1.routing.WaitMediaExecutionResponse.execution:type_name -> vrooli.ai_gateway.v1.routing.MediaExecution
+	11, // 20: vrooli.ai_gateway.v1.routing.CancelMediaExecutionResponse.execution:type_name -> vrooli.ai_gateway.v1.routing.MediaExecution
+	11, // 21: vrooli.ai_gateway.v1.routing.RetryMediaExecutionResponse.execution:type_name -> vrooli.ai_gateway.v1.routing.MediaExecution
+	5,  // 22: vrooli.ai_gateway.v1.routing.ListRouteEvidenceResponse.events:type_name -> vrooli.ai_gateway.v1.routing.RouteEvidence
+	5,  // 23: vrooli.ai_gateway.v1.routing.GetRouteEvidenceResponse.event:type_name -> vrooli.ai_gateway.v1.routing.RouteEvidence
+	35, // 24: vrooli.ai_gateway.v1.routing.ProviderHealth.kind:type_name -> vrooli.ai_gateway.v1.shared.RequestKind
+	25, // 25: vrooli.ai_gateway.v1.routing.ListProviderHealthResponse.items:type_name -> vrooli.ai_gateway.v1.routing.ProviderHealth
+	2,  // 26: vrooli.ai_gateway.v1.routing.RoutingService.PreviewRoute:input_type -> vrooli.ai_gateway.v1.routing.PreviewRouteRequest
+	4,  // 27: vrooli.ai_gateway.v1.routing.RoutingService.ExecuteRoute:input_type -> vrooli.ai_gateway.v1.routing.ExecuteRouteRequest
+	10, // 28: vrooli.ai_gateway.v1.routing.RoutingService.SubmitMedia:input_type -> vrooli.ai_gateway.v1.routing.SubmitMediaRequest
+	13, // 29: vrooli.ai_gateway.v1.routing.RoutingService.GetMediaExecution:input_type -> vrooli.ai_gateway.v1.routing.GetMediaExecutionRequest
+	15, // 30: vrooli.ai_gateway.v1.routing.RoutingService.WaitMediaExecution:input_type -> vrooli.ai_gateway.v1.routing.WaitMediaExecutionRequest
+	17, // 31: vrooli.ai_gateway.v1.routing.RoutingService.CancelMediaExecution:input_type -> vrooli.ai_gateway.v1.routing.CancelMediaExecutionRequest
+	19, // 32: vrooli.ai_gateway.v1.routing.RoutingService.RetryMediaExecution:input_type -> vrooli.ai_gateway.v1.routing.RetryMediaExecutionRequest
+	21, // 33: vrooli.ai_gateway.v1.routing.RoutingService.ListRouteEvidence:input_type -> vrooli.ai_gateway.v1.routing.ListRouteEvidenceRequest
+	23, // 34: vrooli.ai_gateway.v1.routing.RoutingService.GetRouteEvidence:input_type -> vrooli.ai_gateway.v1.routing.GetRouteEvidenceRequest
+	26, // 35: vrooli.ai_gateway.v1.routing.RoutingService.ListProviderHealth:input_type -> vrooli.ai_gateway.v1.routing.ListProviderHealthRequest
+	3,  // 36: vrooli.ai_gateway.v1.routing.RoutingService.PreviewRoute:output_type -> vrooli.ai_gateway.v1.routing.PreviewRouteResponse
+	7,  // 37: vrooli.ai_gateway.v1.routing.RoutingService.ExecuteRoute:output_type -> vrooli.ai_gateway.v1.routing.ExecuteRouteResponse
+	12, // 38: vrooli.ai_gateway.v1.routing.RoutingService.SubmitMedia:output_type -> vrooli.ai_gateway.v1.routing.SubmitMediaResponse
+	14, // 39: vrooli.ai_gateway.v1.routing.RoutingService.GetMediaExecution:output_type -> vrooli.ai_gateway.v1.routing.GetMediaExecutionResponse
+	16, // 40: vrooli.ai_gateway.v1.routing.RoutingService.WaitMediaExecution:output_type -> vrooli.ai_gateway.v1.routing.WaitMediaExecutionResponse
+	18, // 41: vrooli.ai_gateway.v1.routing.RoutingService.CancelMediaExecution:output_type -> vrooli.ai_gateway.v1.routing.CancelMediaExecutionResponse
+	20, // 42: vrooli.ai_gateway.v1.routing.RoutingService.RetryMediaExecution:output_type -> vrooli.ai_gateway.v1.routing.RetryMediaExecutionResponse
+	22, // 43: vrooli.ai_gateway.v1.routing.RoutingService.ListRouteEvidence:output_type -> vrooli.ai_gateway.v1.routing.ListRouteEvidenceResponse
+	24, // 44: vrooli.ai_gateway.v1.routing.RoutingService.GetRouteEvidence:output_type -> vrooli.ai_gateway.v1.routing.GetRouteEvidenceResponse
+	27, // 45: vrooli.ai_gateway.v1.routing.RoutingService.ListProviderHealth:output_type -> vrooli.ai_gateway.v1.routing.ListProviderHealthResponse
+	36, // [36:46] is the sub-list for method output_type
+	26, // [26:36] is the sub-list for method input_type
+	26, // [26:26] is the sub-list for extension type_name
+	26, // [26:26] is the sub-list for extension extendee
+	0,  // [0:26] is the sub-list for field type_name
 }
 
 func init() { file_ai_gateway_v1_routing_routing_proto_init() }
@@ -2358,6 +2398,7 @@ func file_ai_gateway_v1_routing_routing_proto_init() {
 	if File_ai_gateway_v1_routing_routing_proto != nil {
 		return
 	}
+	file_ai_gateway_v1_routing_routing_proto_msgTypes[4].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

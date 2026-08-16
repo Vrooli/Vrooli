@@ -1,28 +1,13 @@
-# experience/ - UX Contract
+# Experience contract — Prose Studio
 
-This folder is the scenario's generated **experience contract**. It is the
-design-first sibling of `requirements/`: requirements say what the scenario
-does, while `experience/` says what the UI must communicate.
+The experience contract describes four operator surfaces and the states they
+must communicate: Variation Board, Style Library, Document Workspace, and
+Declaration Registry. Requirements describe behavior; these specs describe
+what an operator can perceive and operate.
 
-The template starts at **L0** on purpose. Each page spec declares identity,
-route, purpose, and operational-target linkage only. As the product becomes
-real, raise the depth:
+The central interaction rule is non-negotiable: candidates are not ordered by
+a quality proxy, do not carry a per-card quality score, and show measurements
+as a feature vector. A human can choose `none of these` to trigger negative
+conditioning. Every disabled action states its specific cause inline.
 
-- L1: add communication priorities.
-- L2: add elements, claims, and bindings.
-- L3: add explicit states.
-- L4: add journeys that connect pages.
-
-Use `experience-manager spec validate prose-studio --json` after edits.
-Machine-tier claims should only be added when the UI has stable selectors and
-the claim can be checked by the experience phase. Manual claims need
-attestations with expiry; aspirational claims are useful intent but never gate.
-
-The generated `notes` page is part of the removable example domain. Running
-`template-manager detemplate prose-studio` removes its page spec and registry
-entry with the rest of the notes example.
-
-The Notes example also demonstrates the generated semantic foundation: its
-`notes` region is bound to `data-experience-surface="notes"` and reports the
-canonical lifecycle vocabulary. Keep this boundary for every independently
-meaningful async region; passive UI primitives inherit their parent state.
+Validate changes with `experience-manager spec validate prose-studio --json`.

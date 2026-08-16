@@ -11,7 +11,7 @@ import { file_money_ledger_v1_ledger_ledger } from "../../../money-ledger/v1/led
  * Describes the file offer-desk/v1/offers/offers.proto.
  */
 export const file_offer_desk_v1_offers_offers = /*@__PURE__*/
-  fileDesc("CiFvZmZlci1kZXNrL3YxL29mZmVycy9vZmZlcnMucHJvdG8SG3Zyb29saS5vZmZlcl9kZXNrLnYxLm9mZmVycyLpAQoETm9kZRIKCgJpZBgBIAEoCRIzCgRraW5kGAIgASgOMiUudnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLk5vZGVLaW5kEgwKBG5hbWUYAyABKAkSMwoGc3RhdHVzGAQgASgOMiMudnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLlN0YXR1cxISCgp0cmlnZ2VyX2lkGAUgASgJEi4KCmNyZWF0ZWRfYXQYBiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhkKEWFjdHVhbF9hY2NvdW50X2lkGAcgASgJInAKBEVkZ2USCgoCaWQYASABKAkSDwoHZnJvbV9pZBgCIAEoCRINCgV0b19pZBgDIAEoCRIMCgRraW5kGAQgASgJEhwKFGludGVuZGVkX3ByaWNlX21pbm9yGAUgASgDEhAKCGN1cnJlbmN5GAYgASgJIkcKDVRyaWdnZXJDbGF1c2USEQoJZmFjdF9uYW1lGAEgASgJEhAKCG9wZXJhdG9yGAIgASgJEhEKCXRocmVzaG9sZBgDIAEoASKBAQoERmFjdBIMCgRuYW1lGAEgASgJEg0KBXZhbHVlGAIgASgBEi8KC29ic2VydmVkX2F0GAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIYChBzdGFsZV9hZnRlcl9kYXlzGAQgASgFEhEKCWRpbWVuc2lvbhgFIAEoCSL1AQoHVHJpZ2dlchIKCgJpZBgBIAEoCRIPCgdub2RlX2lkGAIgASgJEhEKCWZhY3RfbmFtZRgDIAEoCRIQCghvcGVyYXRvchgEIAEoCRIRCgl0aHJlc2hvbGQYBSABKAESEgoKZXhwcmVzc2lvbhgGIAEoCRI7CgdjbGF1c2VzGAcgAygLMioudnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLlRyaWdnZXJDbGF1c2USRAoLY29tcG9zaXRpb24YCCABKA4yLy52cm9vbGkub2ZmZXJfZGVzay52MS5vZmZlcnMuVHJpZ2dlckNvbXBvc2l0aW9uIugBCgpFdmFsdWF0aW9uEgoKAmlkGAEgASgJEg8KB25vZGVfaWQYAiABKAkSNQoHdmVyZGljdBgDIAEoDjIkLnZyb29saS5vZmZlcl9kZXNrLnYxLm9mZmVycy5WZXJkaWN0EhEKCWZhY3RfbmFtZRgEIAEoCRITCgtleHBsYW5hdGlvbhgFIAEoCRIwCgxldmFsdWF0ZWRfYXQYBiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhgKEGZhY3RfYWdlX3NlY29uZHMYByABKAMSEgoKZmFjdF9uYW1lcxgIIAMoCSKFAQoIUHJvcG9zYWwSCgoCaWQYASABKAkSDwoHbm9kZV9pZBgCIAEoCRINCgVhY3RvchgDIAEoCRI9ChByZXF1ZXN0ZWRfc3RhdHVzGAQgASgOMiMudnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLlN0YXR1cxIOCgZyZWFzb24YBSABKAkiYwoMQXZhaWxhYmlsaXR5Eg4KBnNvdXJjZRgBIAEoCRIOCgZyZWFzb24YAiABKAkSMwoPbGFzdF9zdWNjZXNzX2F0GAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCLoAQoKQm9hcmRFbnRyeRIPCgdub2RlX2lkGAEgASgJEg0KBXRpdGxlGAIgASgJEhMKC3JhbmtfcmVhc29uGAMgASgJEjMKBnN0YXR1cxgEIAEoDjIjLnZyb29saS5vZmZlcl9kZXNrLnYxLm9mZmVycy5TdGF0dXMSFAoMYWN0dWFsX21pbm9yGAUgASgDEhkKEWFjdHVhbHNfYXZhaWxhYmxlGAYgASgIEj8KDGF2YWlsYWJpbGl0eRgHIAMoCzIpLnZyb29saS5vZmZlcl9kZXNrLnYxLm9mZmVycy5BdmFpbGFiaWxpdHkizQEKDUJvYXJkUmVzcG9uc2USOAoHZW50cmllcxgBIAMoCzInLnZyb29saS5vZmZlcl9kZXNrLnYxLm9mZmVycy5Cb2FyZEVudHJ5EkEKCHBvc2l0aW9uGAIgASgLMi8udnJvb2xpLm1vbmV5X2xlZGdlci52MS5sZWRnZXIuUG9zaXRpb25SZXNwb25zZRI/CgxhdmFpbGFiaWxpdHkYAyADKAsyKS52cm9vbGkub2ZmZXJfZGVzay52MS5vZmZlcnMuQXZhaWxhYmlsaXR5IroBChFDcmVhdGVOb2RlUmVxdWVzdBIzCgRraW5kGAEgASgOMiUudnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLk5vZGVLaW5kEgwKBG5hbWUYAiABKAkSMwoGc3RhdHVzGAMgASgOMiMudnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLlN0YXR1cxISCgp0cmlnZ2VyX2lkGAQgASgJEhkKEWFjdHVhbF9hY2NvdW50X2lkGAUgASgJIkUKEkNyZWF0ZU5vZGVSZXNwb25zZRIvCgRub2RlGAEgASgLMiEudnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLk5vZGUifAoQTGlzdE5vZGVzUmVxdWVzdBIzCgRraW5kGAEgASgOMiUudnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLk5vZGVLaW5kEjMKBnN0YXR1cxgCIAEoDjIjLnZyb29saS5vZmZlcl9kZXNrLnYxLm9mZmVycy5TdGF0dXMiRQoRTGlzdE5vZGVzUmVzcG9uc2USMAoFbm9kZXMYASADKAsyIS52cm9vbGkub2ZmZXJfZGVzay52MS5vZmZlcnMuTm9kZSJoChFUcmFuc2l0aW9uUmVxdWVzdBIPCgdub2RlX2lkGAEgASgJEjMKBnN0YXR1cxgCIAEoDjIjLnZyb29saS5vZmZlcl9kZXNrLnYxLm9mZmVycy5TdGF0dXMSDQoFYWN0b3IYAyABKAkiRQoSVHJhbnNpdGlvblJlc3BvbnNlEi8KBG5vZGUYASABKAsyIS52cm9vbGkub2ZmZXJfZGVzay52MS5vZmZlcnMuTm9kZSJMChFDcmVhdGVFZGdlUmVxdWVzdBI3CgRlZGdlGAEgASgLMiEudnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLkVkZ2VCBrpIA8gBASJFChJDcmVhdGVFZGdlUmVzcG9uc2USLwoEZWRnZRgBIAEoCzIhLnZyb29saS5vZmZlcl9kZXNrLnYxLm9mZmVycy5FZGdlIlYKFURlY2xhcmVUcmlnZ2VyUmVxdWVzdBI9Cgd0cmlnZ2VyGAEgASgLMiQudnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLlRyaWdnZXJCBrpIA8gBASJPChZEZWNsYXJlVHJpZ2dlclJlc3BvbnNlEjUKB3RyaWdnZXIYASABKAsyJC52cm9vbGkub2ZmZXJfZGVzay52MS5vZmZlcnMuVHJpZ2dlciJJCg5BZGRGYWN0UmVxdWVzdBI3CgRmYWN0GAEgASgLMiEudnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLkZhY3RCBrpIA8gBASJCCg9BZGRGYWN0UmVzcG9uc2USLwoEZmFjdBgBIAEoCzIhLnZyb29saS5vZmZlcl9kZXNrLnYxLm9mZmVycy5GYWN0IiIKD0V2YWx1YXRlUmVxdWVzdBIPCgdkcnlfcnVuGAEgASgIIlAKEEV2YWx1YXRlUmVzcG9uc2USPAoLZXZhbHVhdGlvbnMYASADKAsyJy52cm9vbGkub2ZmZXJfZGVzay52MS5vZmZlcnMuRXZhbHVhdGlvbiI+Cg5Qcm9tb3RlUmVxdWVzdBIPCgdub2RlX2lkGAEgASgJEg0KBWFjdG9yGAIgASgJEgwKBHJvbGUYAyABKAkiSgoPUHJvbW90ZVJlc3BvbnNlEjcKCHByb3Bvc2FsGAEgASgLMiUudnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLlByb3Bvc2FsIiMKEExpc3RBdWRpdFJlcXVlc3QSDwoHbm9kZV9pZBgBIAEoCSIkChFMaXN0QXVkaXRSZXNwb25zZRIPCgdlbnRyaWVzGAEgAygJIiMKEExpc3RFZGdlc1JlcXVlc3QSDwoHbm9kZV9pZBgBIAEoCSJFChFMaXN0RWRnZXNSZXNwb25zZRIwCgVlZGdlcxgBIAMoCzIhLnZyb29saS5vZmZlcl9kZXNrLnYxLm9mZmVycy5FZGdlIhMKEVByb2plY3Rpb25SZXF1ZXN0Km0KCE5vZGVLaW5kEhkKFU5PREVfS0lORF9VTlNQRUNJRklFRBAAEgkKBU9GRkVSEAESCwoHVkFSSUFOVBACEgsKB0NIQU5ORUwQAxIQCgxSRVZFTlVFX0xJTkUQBBIPCgtERUxJVkVSQUJMRRAFKnAKBlN0YXR1cxIWChJTVEFUVVNfVU5TUEVDSUZJRUQQABIICgRJREVBEAESDQoJQ0FORElEQVRFEAISDwoLVFJJR0dFUl9NRVQQAxIKCgZBQ1RJVkUQBBILCgdTSElQUEVEEAUSCwoHUkVUSVJFRBAGKk8KB1ZlcmRpY3QSFwoTVkVSRElDVF9VTlNQRUNJRklFRBAAEg0KCVNBVElTRklFRBABEg8KC1VOU0FUSVNGSUVEEAISCwoHVU5LTk9XThADKksKElRyaWdnZXJDb21wb3NpdGlvbhIjCh9UUklHR0VSX0NPTVBPU0lUSU9OX1VOU1BFQ0lGSUVEEAASBwoDQUxMEAESBwoDQU5ZEAIytQQKDkNhdGFsb2dTZXJ2aWNlEm0KCkNyZWF0ZU5vZGUSLi52cm9vbGkub2ZmZXJfZGVzay52MS5vZmZlcnMuQ3JlYXRlTm9kZVJlcXVlc3QaLy52cm9vbGkub2ZmZXJfZGVzay52MS5vZmZlcnMuQ3JlYXRlTm9kZVJlc3BvbnNlEmoKCUxpc3ROb2RlcxItLnZyb29saS5vZmZlcl9kZXNrLnYxLm9mZmVycy5MaXN0Tm9kZXNSZXF1ZXN0Gi4udnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLkxpc3ROb2Rlc1Jlc3BvbnNlEm0KClRyYW5zaXRpb24SLi52cm9vbGkub2ZmZXJfZGVzay52MS5vZmZlcnMuVHJhbnNpdGlvblJlcXVlc3QaLy52cm9vbGkub2ZmZXJfZGVzay52MS5vZmZlcnMuVHJhbnNpdGlvblJlc3BvbnNlEm0KCkNyZWF0ZUVkZ2USLi52cm9vbGkub2ZmZXJfZGVzay52MS5vZmZlcnMuQ3JlYXRlRWRnZVJlcXVlc3QaLy52cm9vbGkub2ZmZXJfZGVzay52MS5vZmZlcnMuQ3JlYXRlRWRnZVJlc3BvbnNlEmoKCUxpc3RFZGdlcxItLnZyb29saS5vZmZlcl9kZXNrLnYxLm9mZmVycy5MaXN0RWRnZXNSZXF1ZXN0Gi4udnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLkxpc3RFZGdlc1Jlc3BvbnNlMr4DCgxHYXRlc1NlcnZpY2USeQoORGVjbGFyZVRyaWdnZXISMi52cm9vbGkub2ZmZXJfZGVzay52MS5vZmZlcnMuRGVjbGFyZVRyaWdnZXJSZXF1ZXN0GjMudnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLkRlY2xhcmVUcmlnZ2VyUmVzcG9uc2USZAoHQWRkRmFjdBIrLnZyb29saS5vZmZlcl9kZXNrLnYxLm9mZmVycy5BZGRGYWN0UmVxdWVzdBosLnZyb29saS5vZmZlcl9kZXNrLnYxLm9mZmVycy5BZGRGYWN0UmVzcG9uc2USZwoIRXZhbHVhdGUSLC52cm9vbGkub2ZmZXJfZGVzay52MS5vZmZlcnMuRXZhbHVhdGVSZXF1ZXN0Gi0udnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLkV2YWx1YXRlUmVzcG9uc2USZAoHUHJvbW90ZRIrLnZyb29saS5vZmZlcl9kZXNrLnYxLm9mZmVycy5Qcm9tb3RlUmVxdWVzdBosLnZyb29saS5vZmZlcl9kZXNrLnYxLm9mZmVycy5Qcm9tb3RlUmVzcG9uc2UydgoMQm9hcmRTZXJ2aWNlEmYKCEdldEJvYXJkEi4udnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLlByb2plY3Rpb25SZXF1ZXN0GioudnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLkJvYXJkUmVzcG9uc2VCT1pNZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9vZmZlci1kZXNrL3YxL29mZmVycztvZmZlcnNfdjFiBnByb3RvMw", [file_google_protobuf_timestamp, file_buf_validate_validate, file_money_ledger_v1_ledger_ledger]);
+  fileDesc("CiFvZmZlci1kZXNrL3YxL29mZmVycy9vZmZlcnMucHJvdG8SG3Zyb29saS5vZmZlcl9kZXNrLnYxLm9mZmVycyLpAQoETm9kZRIKCgJpZBgBIAEoCRIzCgRraW5kGAIgASgOMiUudnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLk5vZGVLaW5kEgwKBG5hbWUYAyABKAkSMwoGc3RhdHVzGAQgASgOMiMudnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLlN0YXR1cxISCgp0cmlnZ2VyX2lkGAUgASgJEi4KCmNyZWF0ZWRfYXQYBiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhkKEWFjdHVhbF9hY2NvdW50X2lkGAcgASgJInAKBEVkZ2USCgoCaWQYASABKAkSDwoHZnJvbV9pZBgCIAEoCRINCgV0b19pZBgDIAEoCRIMCgRraW5kGAQgASgJEhwKFGludGVuZGVkX3ByaWNlX21pbm9yGAUgASgDEhAKCGN1cnJlbmN5GAYgASgJIkcKDVRyaWdnZXJDbGF1c2USEQoJZmFjdF9uYW1lGAEgASgJEhAKCG9wZXJhdG9yGAIgASgJEhEKCXRocmVzaG9sZBgDIAEoASKBAQoERmFjdBIMCgRuYW1lGAEgASgJEg0KBXZhbHVlGAIgASgBEi8KC29ic2VydmVkX2F0GAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIYChBzdGFsZV9hZnRlcl9kYXlzGAQgASgFEhEKCWRpbWVuc2lvbhgFIAEoCSL1AQoHVHJpZ2dlchIKCgJpZBgBIAEoCRIPCgdub2RlX2lkGAIgASgJEhEKCWZhY3RfbmFtZRgDIAEoCRIQCghvcGVyYXRvchgEIAEoCRIRCgl0aHJlc2hvbGQYBSABKAESEgoKZXhwcmVzc2lvbhgGIAEoCRI7CgdjbGF1c2VzGAcgAygLMioudnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLlRyaWdnZXJDbGF1c2USRAoLY29tcG9zaXRpb24YCCABKA4yLy52cm9vbGkub2ZmZXJfZGVzay52MS5vZmZlcnMuVHJpZ2dlckNvbXBvc2l0aW9uIugBCgpFdmFsdWF0aW9uEgoKAmlkGAEgASgJEg8KB25vZGVfaWQYAiABKAkSNQoHdmVyZGljdBgDIAEoDjIkLnZyb29saS5vZmZlcl9kZXNrLnYxLm9mZmVycy5WZXJkaWN0EhEKCWZhY3RfbmFtZRgEIAEoCRITCgtleHBsYW5hdGlvbhgFIAEoCRIwCgxldmFsdWF0ZWRfYXQYBiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhgKEGZhY3RfYWdlX3NlY29uZHMYByABKAMSEgoKZmFjdF9uYW1lcxgIIAMoCSJgCg9Qcm9wb3NhbERlY2xpbmUSDQoFYWN0b3IYASABKAkSDgoGcmVhc29uGAIgASgJEi4KCmNyZWF0ZWRfYXQYAyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIpgCCghQcm9wb3NhbBIKCgJpZBgBIAEoCRIPCgdub2RlX2lkGAIgASgJEg0KBWFjdG9yGAMgASgJEj0KEHJlcXVlc3RlZF9zdGF0dXMYBCABKA4yIy52cm9vbGkub2ZmZXJfZGVzay52MS5vZmZlcnMuU3RhdHVzEg4KBnJlYXNvbhgFIAEoCRIuCgpjcmVhdGVkX2F0GAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBJFCg9kZWNsaW5lX2hpc3RvcnkYByADKAsyLC52cm9vbGkub2ZmZXJfZGVzay52MS5vZmZlcnMuUHJvcG9zYWxEZWNsaW5lEhoKEmV2aWRlbmNlX3JlZmVyZW5jZRgIIAEoCSJjCgxBdmFpbGFiaWxpdHkSDgoGc291cmNlGAEgASgJEg4KBnJlYXNvbhgCIAEoCRIzCg9sYXN0X3N1Y2Nlc3NfYXQYAyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIugBCgpCb2FyZEVudHJ5Eg8KB25vZGVfaWQYASABKAkSDQoFdGl0bGUYAiABKAkSEwoLcmFua19yZWFzb24YAyABKAkSMwoGc3RhdHVzGAQgASgOMiMudnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLlN0YXR1cxIUCgxhY3R1YWxfbWlub3IYBSABKAMSGQoRYWN0dWFsc19hdmFpbGFibGUYBiABKAgSPwoMYXZhaWxhYmlsaXR5GAcgAygLMikudnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLkF2YWlsYWJpbGl0eSLXAQoTRXZhbHVhdGlvbkNvbmRpdGlvbhIvCgtsYXN0X3J1bl9hdBgBIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASQgoLbGFzdF9yZXN1bHQYAiABKA4yLS52cm9vbGkub2ZmZXJfZGVzay52MS5vZmZlcnMuRXZhbHVhdGlvblJlc3VsdBIUCgxub2Rlc19zY29yZWQYAyABKAUSEwoLYWdlX3NlY29uZHMYBCABKAMSEAoIZGVncmFkZWQYBSABKAgSDgoGcmVhc29uGAYgASgJIp4DCg1Cb2FyZFJlc3BvbnNlEjgKB2VudHJpZXMYASADKAsyJy52cm9vbGkub2ZmZXJfZGVzay52MS5vZmZlcnMuQm9hcmRFbnRyeRJBCghwb3NpdGlvbhgCIAEoCzIvLnZyb29saS5tb25leV9sZWRnZXIudjEubGVkZ2VyLlBvc2l0aW9uUmVzcG9uc2USPwoMYXZhaWxhYmlsaXR5GAMgAygLMikudnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLkF2YWlsYWJpbGl0eRJECgpldmFsdWF0aW9uGAQgASgLMjAudnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLkV2YWx1YXRpb25Db25kaXRpb24SOQoFZ29hbHMYBSADKAsyKi52cm9vbGkubW9uZXlfbGVkZ2VyLnYxLmxlZGdlci5Hb2FsVmVyZGljdBIZChFkZWZhdWx0X2FsaXZlX2dhcBgGIAEoCRIWCg5wb3N0dXJlX3NvdXJjZRgHIAEoCRIbChNwb3N0dXJlX2FnZV9zZWNvbmRzGAggASgDIroBChFDcmVhdGVOb2RlUmVxdWVzdBIzCgRraW5kGAEgASgOMiUudnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLk5vZGVLaW5kEgwKBG5hbWUYAiABKAkSMwoGc3RhdHVzGAMgASgOMiMudnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLlN0YXR1cxISCgp0cmlnZ2VyX2lkGAQgASgJEhkKEWFjdHVhbF9hY2NvdW50X2lkGAUgASgJIkUKEkNyZWF0ZU5vZGVSZXNwb25zZRIvCgRub2RlGAEgASgLMiEudnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLk5vZGUifAoQTGlzdE5vZGVzUmVxdWVzdBIzCgRraW5kGAEgASgOMiUudnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLk5vZGVLaW5kEjMKBnN0YXR1cxgCIAEoDjIjLnZyb29saS5vZmZlcl9kZXNrLnYxLm9mZmVycy5TdGF0dXMiRQoRTGlzdE5vZGVzUmVzcG9uc2USMAoFbm9kZXMYASADKAsyIS52cm9vbGkub2ZmZXJfZGVzay52MS5vZmZlcnMuTm9kZSJoChFUcmFuc2l0aW9uUmVxdWVzdBIPCgdub2RlX2lkGAEgASgJEjMKBnN0YXR1cxgCIAEoDjIjLnZyb29saS5vZmZlcl9kZXNrLnYxLm9mZmVycy5TdGF0dXMSDQoFYWN0b3IYAyABKAkiRQoSVHJhbnNpdGlvblJlc3BvbnNlEi8KBG5vZGUYASABKAsyIS52cm9vbGkub2ZmZXJfZGVzay52MS5vZmZlcnMuTm9kZSJMChFDcmVhdGVFZGdlUmVxdWVzdBI3CgRlZGdlGAEgASgLMiEudnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLkVkZ2VCBrpIA8gBASJFChJDcmVhdGVFZGdlUmVzcG9uc2USLwoEZWRnZRgBIAEoCzIhLnZyb29saS5vZmZlcl9kZXNrLnYxLm9mZmVycy5FZGdlIlYKFURlY2xhcmVUcmlnZ2VyUmVxdWVzdBI9Cgd0cmlnZ2VyGAEgASgLMiQudnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLlRyaWdnZXJCBrpIA8gBASJPChZEZWNsYXJlVHJpZ2dlclJlc3BvbnNlEjUKB3RyaWdnZXIYASABKAsyJC52cm9vbGkub2ZmZXJfZGVzay52MS5vZmZlcnMuVHJpZ2dlciJJCg5BZGRGYWN0UmVxdWVzdBI3CgRmYWN0GAEgASgLMiEudnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLkZhY3RCBrpIA8gBASJCCg9BZGRGYWN0UmVzcG9uc2USLwoEZmFjdBgBIAEoCzIhLnZyb29saS5vZmZlcl9kZXNrLnYxLm9mZmVycy5GYWN0IiIKD0V2YWx1YXRlUmVxdWVzdBIPCgdkcnlfcnVuGAEgASgIIlAKEEV2YWx1YXRlUmVzcG9uc2USPAoLZXZhbHVhdGlvbnMYASADKAsyJy52cm9vbGkub2ZmZXJfZGVzay52MS5vZmZlcnMuRXZhbHVhdGlvbiI+Cg5Qcm9tb3RlUmVxdWVzdBIPCgdub2RlX2lkGAEgASgJEg0KBWFjdG9yGAIgASgJEgwKBHJvbGUYAyABKAkiSgoPUHJvbW90ZVJlc3BvbnNlEjcKCHByb3Bvc2FsGAEgASgLMiUudnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLlByb3Bvc2FsIlwKFExpc3RQcm9wb3NhbHNSZXF1ZXN0Eg8KB25vZGVfaWQYASABKAkSMwoGc3RhdHVzGAIgASgOMiMudnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLlN0YXR1cyJRChVMaXN0UHJvcG9zYWxzUmVzcG9uc2USOAoJcHJvcG9zYWxzGAEgAygLMiUudnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLlByb3Bvc2FsIiMKEExpc3RBdWRpdFJlcXVlc3QSDwoHbm9kZV9pZBgBIAEoCSIkChFMaXN0QXVkaXRSZXNwb25zZRIPCgdlbnRyaWVzGAEgAygJIiMKEExpc3RFZGdlc1JlcXVlc3QSDwoHbm9kZV9pZBgBIAEoCSJFChFMaXN0RWRnZXNSZXNwb25zZRIwCgVlZGdlcxgBIAMoCzIhLnZyb29saS5vZmZlcl9kZXNrLnYxLm9mZmVycy5FZGdlIicKEVByb2plY3Rpb25SZXF1ZXN0EhIKCnByb2plY3Rpb24YASABKAkihwEKFEltcG9ydENhdGFsb2dSZXF1ZXN0EhMKC3NvdXJjZV9wYXRoGAEgASgJEjwKC3NvdXJjZV9tb2RlGAIgASgOMicudnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLlNvdXJjZU1vZGUSDQoFYXBwbHkYAyABKAgSDQoFYWN0b3IYBCABKAkioAEKEEltcG9ydEZpbGVSZXBvcnQSDAoEcGF0aBgBIAEoCRIMCgRyZWFkGAIgASgFEg8KB3dyaXR0ZW4YAyABKAUSEAoIZmluZGluZ3MYBCABKAUSEwoLY2FyZGluYWxpdHkYBSABKAkSOAoJbm9kZV9raW5kGAYgASgOMiUudnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLk5vZGVLaW5kInUKDlN0YXR1c01hcEVudHJ5EgwKBHBhdGgYASABKAkSMwoGc3RhdHVzGAIgASgOMiMudnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLlN0YXR1cxISCgpyZWNvZ25pemVkGAMgASgIEgwKBGxpbmUYBCABKAUiTQoNSW1wb3J0RmluZGluZxIMCgRwYXRoGAEgASgJEg4KBnJlYXNvbhgCIAEoCRIQCghibG9ja2luZxgDIAEoCBIMCgRsaW5lGAQgASgFIv0BChVJbXBvcnRDYXRhbG9nUmVzcG9uc2USPAoFZmlsZXMYASADKAsyLS52cm9vbGkub2ZmZXJfZGVzay52MS5vZmZlcnMuSW1wb3J0RmlsZVJlcG9ydBI/CgpzdGF0dXNfbWFwGAIgAygLMisudnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLlN0YXR1c01hcEVudHJ5EjwKCGZpbmRpbmdzGAMgAygLMioudnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLkltcG9ydEZpbmRpbmcSFgoOdG90YWxfZmluZGluZ3MYBCABKAUSDwoHYXBwbGllZBgFIAEoCCJmCglTcGFjZUNlbGwSCgoCaWQYASABKAkSDQoFZ3JvdXAYAiABKAkSEAoIcXVlc3Rpb24YAyABKAkSDQoFb3duZXIYBCABKAkSDgoGc3RhdHVzGAUgASgJEg0KBW5vdGVzGAYgASgJIs8BCg1TcGFjZVJlc3BvbnNlEhYKDnNjaGVtYV92ZXJzaW9uGAEgASgJEhIKCnByb2plY3Rpb24YAiABKAkSDQoFb3duZXIYAyABKAkSHgoWZGVub21pbmF0b3JfY29uZmlkZW5jZRgEIAEoCRIcChRjb25maWRlbmNlX3JhdGlvbmFsZRgFIAEoCRIOCgZzb3VyY2UYBiABKAkSNQoFY2VsbHMYByADKAsyJi52cm9vbGkub2ZmZXJfZGVzay52MS5vZmZlcnMuU3BhY2VDZWxsKm0KCE5vZGVLaW5kEhkKFU5PREVfS0lORF9VTlNQRUNJRklFRBAAEgkKBU9GRkVSEAESCwoHVkFSSUFOVBACEgsKB0NIQU5ORUwQAxIQCgxSRVZFTlVFX0xJTkUQBBIPCgtERUxJVkVSQUJMRRAFKnAKBlN0YXR1cxIWChJTVEFUVVNfVU5TUEVDSUZJRUQQABIICgRJREVBEAESDQoJQ0FORElEQVRFEAISDwoLVFJJR0dFUl9NRVQQAxIKCgZBQ1RJVkUQBBILCgdTSElQUEVEEAUSCwoHUkVUSVJFRBAGKk8KB1ZlcmRpY3QSFwoTVkVSRElDVF9VTlNQRUNJRklFRBAAEg0KCVNBVElTRklFRBABEg8KC1VOU0FUSVNGSUVEEAISCwoHVU5LTk9XThADKmUKClNvdXJjZU1vZGUSGwoXU09VUkNFX01PREVfVU5TUEVDSUZJRUQQABIXChNTT1VSQ0VfTU9ERV9GSVhUVVJFEAESIQodU09VUkNFX01PREVfT1BFUkFUT1JfU1VQUExJRUQQAip+ChBFdmFsdWF0aW9uUmVzdWx0EiEKHUVWQUxVQVRJT05fUkVTVUxUX1VOU1BFQ0lGSUVEEAASGAoURVZBTFVBVElPTl9TVUNDRUVERUQQARIVChFFVkFMVUFUSU9OX0ZBSUxFRBACEhYKEkVWQUxVQVRJT05fTk9UX1JVThADKksKElRyaWdnZXJDb21wb3NpdGlvbhIjCh9UUklHR0VSX0NPTVBPU0lUSU9OX1VOU1BFQ0lGSUVEEAASBwoDQUxMEAESBwoDQU5ZEAIyrQUKDkNhdGFsb2dTZXJ2aWNlEm0KCkNyZWF0ZU5vZGUSLi52cm9vbGkub2ZmZXJfZGVzay52MS5vZmZlcnMuQ3JlYXRlTm9kZVJlcXVlc3QaLy52cm9vbGkub2ZmZXJfZGVzay52MS5vZmZlcnMuQ3JlYXRlTm9kZVJlc3BvbnNlEmoKCUxpc3ROb2RlcxItLnZyb29saS5vZmZlcl9kZXNrLnYxLm9mZmVycy5MaXN0Tm9kZXNSZXF1ZXN0Gi4udnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLkxpc3ROb2Rlc1Jlc3BvbnNlEm0KClRyYW5zaXRpb24SLi52cm9vbGkub2ZmZXJfZGVzay52MS5vZmZlcnMuVHJhbnNpdGlvblJlcXVlc3QaLy52cm9vbGkub2ZmZXJfZGVzay52MS5vZmZlcnMuVHJhbnNpdGlvblJlc3BvbnNlEm0KCkNyZWF0ZUVkZ2USLi52cm9vbGkub2ZmZXJfZGVzay52MS5vZmZlcnMuQ3JlYXRlRWRnZVJlcXVlc3QaLy52cm9vbGkub2ZmZXJfZGVzay52MS5vZmZlcnMuQ3JlYXRlRWRnZVJlc3BvbnNlEmoKCUxpc3RFZGdlcxItLnZyb29saS5vZmZlcl9kZXNrLnYxLm9mZmVycy5MaXN0RWRnZXNSZXF1ZXN0Gi4udnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLkxpc3RFZGdlc1Jlc3BvbnNlEnYKDUltcG9ydENhdGFsb2cSMS52cm9vbGkub2ZmZXJfZGVzay52MS5vZmZlcnMuSW1wb3J0Q2F0YWxvZ1JlcXVlc3QaMi52cm9vbGkub2ZmZXJfZGVzay52MS5vZmZlcnMuSW1wb3J0Q2F0YWxvZ1Jlc3BvbnNlMrYECgxHYXRlc1NlcnZpY2USeQoORGVjbGFyZVRyaWdnZXISMi52cm9vbGkub2ZmZXJfZGVzay52MS5vZmZlcnMuRGVjbGFyZVRyaWdnZXJSZXF1ZXN0GjMudnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLkRlY2xhcmVUcmlnZ2VyUmVzcG9uc2USZAoHQWRkRmFjdBIrLnZyb29saS5vZmZlcl9kZXNrLnYxLm9mZmVycy5BZGRGYWN0UmVxdWVzdBosLnZyb29saS5vZmZlcl9kZXNrLnYxLm9mZmVycy5BZGRGYWN0UmVzcG9uc2USZwoIRXZhbHVhdGUSLC52cm9vbGkub2ZmZXJfZGVzay52MS5vZmZlcnMuRXZhbHVhdGVSZXF1ZXN0Gi0udnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLkV2YWx1YXRlUmVzcG9uc2USZAoHUHJvbW90ZRIrLnZyb29saS5vZmZlcl9kZXNrLnYxLm9mZmVycy5Qcm9tb3RlUmVxdWVzdBosLnZyb29saS5vZmZlcl9kZXNrLnYxLm9mZmVycy5Qcm9tb3RlUmVzcG9uc2USdgoNTGlzdFByb3Bvc2FscxIxLnZyb29saS5vZmZlcl9kZXNrLnYxLm9mZmVycy5MaXN0UHJvcG9zYWxzUmVxdWVzdBoyLnZyb29saS5vZmZlcl9kZXNrLnYxLm9mZmVycy5MaXN0UHJvcG9zYWxzUmVzcG9uc2UydgoMQm9hcmRTZXJ2aWNlEmYKCEdldEJvYXJkEi4udnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLlByb2plY3Rpb25SZXF1ZXN0GioudnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLkJvYXJkUmVzcG9uc2UyewoMU3BhY2VTZXJ2aWNlEmsKDUdldFByb2plY3Rpb24SLi52cm9vbGkub2ZmZXJfZGVzay52MS5vZmZlcnMuUHJvamVjdGlvblJlcXVlc3QaKi52cm9vbGkub2ZmZXJfZGVzay52MS5vZmZlcnMuU3BhY2VSZXNwb25zZUJPWk1naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL29mZmVyLWRlc2svdjEvb2ZmZXJzO29mZmVyc192MWIGcHJvdG8z", [file_google_protobuf_timestamp, file_buf_validate_validate, file_money_ledger_v1_ledger_ledger]);
 
 /**
  * Describes the message vrooli.offer_desk.v1.offers.Node.
@@ -56,179 +56,256 @@ export const EvaluationSchema = /*@__PURE__*/
   messageDesc(file_offer_desk_v1_offers_offers, 5);
 
 /**
+ * Describes the message vrooli.offer_desk.v1.offers.ProposalDecline.
+ * Use `create(ProposalDeclineSchema)` to create a new message.
+ */
+export const ProposalDeclineSchema = /*@__PURE__*/
+  messageDesc(file_offer_desk_v1_offers_offers, 6);
+
+/**
  * Describes the message vrooli.offer_desk.v1.offers.Proposal.
  * Use `create(ProposalSchema)` to create a new message.
  */
 export const ProposalSchema = /*@__PURE__*/
-  messageDesc(file_offer_desk_v1_offers_offers, 6);
+  messageDesc(file_offer_desk_v1_offers_offers, 7);
 
 /**
  * Describes the message vrooli.offer_desk.v1.offers.Availability.
  * Use `create(AvailabilitySchema)` to create a new message.
  */
 export const AvailabilitySchema = /*@__PURE__*/
-  messageDesc(file_offer_desk_v1_offers_offers, 7);
+  messageDesc(file_offer_desk_v1_offers_offers, 8);
 
 /**
  * Describes the message vrooli.offer_desk.v1.offers.BoardEntry.
  * Use `create(BoardEntrySchema)` to create a new message.
  */
 export const BoardEntrySchema = /*@__PURE__*/
-  messageDesc(file_offer_desk_v1_offers_offers, 8);
+  messageDesc(file_offer_desk_v1_offers_offers, 9);
+
+/**
+ * Describes the message vrooli.offer_desk.v1.offers.EvaluationCondition.
+ * Use `create(EvaluationConditionSchema)` to create a new message.
+ */
+export const EvaluationConditionSchema = /*@__PURE__*/
+  messageDesc(file_offer_desk_v1_offers_offers, 10);
 
 /**
  * Describes the message vrooli.offer_desk.v1.offers.BoardResponse.
  * Use `create(BoardResponseSchema)` to create a new message.
  */
 export const BoardResponseSchema = /*@__PURE__*/
-  messageDesc(file_offer_desk_v1_offers_offers, 9);
+  messageDesc(file_offer_desk_v1_offers_offers, 11);
 
 /**
  * Describes the message vrooli.offer_desk.v1.offers.CreateNodeRequest.
  * Use `create(CreateNodeRequestSchema)` to create a new message.
  */
 export const CreateNodeRequestSchema = /*@__PURE__*/
-  messageDesc(file_offer_desk_v1_offers_offers, 10);
+  messageDesc(file_offer_desk_v1_offers_offers, 12);
 
 /**
  * Describes the message vrooli.offer_desk.v1.offers.CreateNodeResponse.
  * Use `create(CreateNodeResponseSchema)` to create a new message.
  */
 export const CreateNodeResponseSchema = /*@__PURE__*/
-  messageDesc(file_offer_desk_v1_offers_offers, 11);
+  messageDesc(file_offer_desk_v1_offers_offers, 13);
 
 /**
  * Describes the message vrooli.offer_desk.v1.offers.ListNodesRequest.
  * Use `create(ListNodesRequestSchema)` to create a new message.
  */
 export const ListNodesRequestSchema = /*@__PURE__*/
-  messageDesc(file_offer_desk_v1_offers_offers, 12);
+  messageDesc(file_offer_desk_v1_offers_offers, 14);
 
 /**
  * Describes the message vrooli.offer_desk.v1.offers.ListNodesResponse.
  * Use `create(ListNodesResponseSchema)` to create a new message.
  */
 export const ListNodesResponseSchema = /*@__PURE__*/
-  messageDesc(file_offer_desk_v1_offers_offers, 13);
+  messageDesc(file_offer_desk_v1_offers_offers, 15);
 
 /**
  * Describes the message vrooli.offer_desk.v1.offers.TransitionRequest.
  * Use `create(TransitionRequestSchema)` to create a new message.
  */
 export const TransitionRequestSchema = /*@__PURE__*/
-  messageDesc(file_offer_desk_v1_offers_offers, 14);
+  messageDesc(file_offer_desk_v1_offers_offers, 16);
 
 /**
  * Describes the message vrooli.offer_desk.v1.offers.TransitionResponse.
  * Use `create(TransitionResponseSchema)` to create a new message.
  */
 export const TransitionResponseSchema = /*@__PURE__*/
-  messageDesc(file_offer_desk_v1_offers_offers, 15);
+  messageDesc(file_offer_desk_v1_offers_offers, 17);
 
 /**
  * Describes the message vrooli.offer_desk.v1.offers.CreateEdgeRequest.
  * Use `create(CreateEdgeRequestSchema)` to create a new message.
  */
 export const CreateEdgeRequestSchema = /*@__PURE__*/
-  messageDesc(file_offer_desk_v1_offers_offers, 16);
+  messageDesc(file_offer_desk_v1_offers_offers, 18);
 
 /**
  * Describes the message vrooli.offer_desk.v1.offers.CreateEdgeResponse.
  * Use `create(CreateEdgeResponseSchema)` to create a new message.
  */
 export const CreateEdgeResponseSchema = /*@__PURE__*/
-  messageDesc(file_offer_desk_v1_offers_offers, 17);
+  messageDesc(file_offer_desk_v1_offers_offers, 19);
 
 /**
  * Describes the message vrooli.offer_desk.v1.offers.DeclareTriggerRequest.
  * Use `create(DeclareTriggerRequestSchema)` to create a new message.
  */
 export const DeclareTriggerRequestSchema = /*@__PURE__*/
-  messageDesc(file_offer_desk_v1_offers_offers, 18);
+  messageDesc(file_offer_desk_v1_offers_offers, 20);
 
 /**
  * Describes the message vrooli.offer_desk.v1.offers.DeclareTriggerResponse.
  * Use `create(DeclareTriggerResponseSchema)` to create a new message.
  */
 export const DeclareTriggerResponseSchema = /*@__PURE__*/
-  messageDesc(file_offer_desk_v1_offers_offers, 19);
+  messageDesc(file_offer_desk_v1_offers_offers, 21);
 
 /**
  * Describes the message vrooli.offer_desk.v1.offers.AddFactRequest.
  * Use `create(AddFactRequestSchema)` to create a new message.
  */
 export const AddFactRequestSchema = /*@__PURE__*/
-  messageDesc(file_offer_desk_v1_offers_offers, 20);
+  messageDesc(file_offer_desk_v1_offers_offers, 22);
 
 /**
  * Describes the message vrooli.offer_desk.v1.offers.AddFactResponse.
  * Use `create(AddFactResponseSchema)` to create a new message.
  */
 export const AddFactResponseSchema = /*@__PURE__*/
-  messageDesc(file_offer_desk_v1_offers_offers, 21);
+  messageDesc(file_offer_desk_v1_offers_offers, 23);
 
 /**
  * Describes the message vrooli.offer_desk.v1.offers.EvaluateRequest.
  * Use `create(EvaluateRequestSchema)` to create a new message.
  */
 export const EvaluateRequestSchema = /*@__PURE__*/
-  messageDesc(file_offer_desk_v1_offers_offers, 22);
+  messageDesc(file_offer_desk_v1_offers_offers, 24);
 
 /**
  * Describes the message vrooli.offer_desk.v1.offers.EvaluateResponse.
  * Use `create(EvaluateResponseSchema)` to create a new message.
  */
 export const EvaluateResponseSchema = /*@__PURE__*/
-  messageDesc(file_offer_desk_v1_offers_offers, 23);
+  messageDesc(file_offer_desk_v1_offers_offers, 25);
 
 /**
  * Describes the message vrooli.offer_desk.v1.offers.PromoteRequest.
  * Use `create(PromoteRequestSchema)` to create a new message.
  */
 export const PromoteRequestSchema = /*@__PURE__*/
-  messageDesc(file_offer_desk_v1_offers_offers, 24);
+  messageDesc(file_offer_desk_v1_offers_offers, 26);
 
 /**
  * Describes the message vrooli.offer_desk.v1.offers.PromoteResponse.
  * Use `create(PromoteResponseSchema)` to create a new message.
  */
 export const PromoteResponseSchema = /*@__PURE__*/
-  messageDesc(file_offer_desk_v1_offers_offers, 25);
+  messageDesc(file_offer_desk_v1_offers_offers, 27);
+
+/**
+ * Describes the message vrooli.offer_desk.v1.offers.ListProposalsRequest.
+ * Use `create(ListProposalsRequestSchema)` to create a new message.
+ */
+export const ListProposalsRequestSchema = /*@__PURE__*/
+  messageDesc(file_offer_desk_v1_offers_offers, 28);
+
+/**
+ * Describes the message vrooli.offer_desk.v1.offers.ListProposalsResponse.
+ * Use `create(ListProposalsResponseSchema)` to create a new message.
+ */
+export const ListProposalsResponseSchema = /*@__PURE__*/
+  messageDesc(file_offer_desk_v1_offers_offers, 29);
 
 /**
  * Describes the message vrooli.offer_desk.v1.offers.ListAuditRequest.
  * Use `create(ListAuditRequestSchema)` to create a new message.
  */
 export const ListAuditRequestSchema = /*@__PURE__*/
-  messageDesc(file_offer_desk_v1_offers_offers, 26);
+  messageDesc(file_offer_desk_v1_offers_offers, 30);
 
 /**
  * Describes the message vrooli.offer_desk.v1.offers.ListAuditResponse.
  * Use `create(ListAuditResponseSchema)` to create a new message.
  */
 export const ListAuditResponseSchema = /*@__PURE__*/
-  messageDesc(file_offer_desk_v1_offers_offers, 27);
+  messageDesc(file_offer_desk_v1_offers_offers, 31);
 
 /**
  * Describes the message vrooli.offer_desk.v1.offers.ListEdgesRequest.
  * Use `create(ListEdgesRequestSchema)` to create a new message.
  */
 export const ListEdgesRequestSchema = /*@__PURE__*/
-  messageDesc(file_offer_desk_v1_offers_offers, 28);
+  messageDesc(file_offer_desk_v1_offers_offers, 32);
 
 /**
  * Describes the message vrooli.offer_desk.v1.offers.ListEdgesResponse.
  * Use `create(ListEdgesResponseSchema)` to create a new message.
  */
 export const ListEdgesResponseSchema = /*@__PURE__*/
-  messageDesc(file_offer_desk_v1_offers_offers, 29);
+  messageDesc(file_offer_desk_v1_offers_offers, 33);
 
 /**
  * Describes the message vrooli.offer_desk.v1.offers.ProjectionRequest.
  * Use `create(ProjectionRequestSchema)` to create a new message.
  */
 export const ProjectionRequestSchema = /*@__PURE__*/
-  messageDesc(file_offer_desk_v1_offers_offers, 30);
+  messageDesc(file_offer_desk_v1_offers_offers, 34);
+
+/**
+ * Describes the message vrooli.offer_desk.v1.offers.ImportCatalogRequest.
+ * Use `create(ImportCatalogRequestSchema)` to create a new message.
+ */
+export const ImportCatalogRequestSchema = /*@__PURE__*/
+  messageDesc(file_offer_desk_v1_offers_offers, 35);
+
+/**
+ * Describes the message vrooli.offer_desk.v1.offers.ImportFileReport.
+ * Use `create(ImportFileReportSchema)` to create a new message.
+ */
+export const ImportFileReportSchema = /*@__PURE__*/
+  messageDesc(file_offer_desk_v1_offers_offers, 36);
+
+/**
+ * Describes the message vrooli.offer_desk.v1.offers.StatusMapEntry.
+ * Use `create(StatusMapEntrySchema)` to create a new message.
+ */
+export const StatusMapEntrySchema = /*@__PURE__*/
+  messageDesc(file_offer_desk_v1_offers_offers, 37);
+
+/**
+ * Describes the message vrooli.offer_desk.v1.offers.ImportFinding.
+ * Use `create(ImportFindingSchema)` to create a new message.
+ */
+export const ImportFindingSchema = /*@__PURE__*/
+  messageDesc(file_offer_desk_v1_offers_offers, 38);
+
+/**
+ * Describes the message vrooli.offer_desk.v1.offers.ImportCatalogResponse.
+ * Use `create(ImportCatalogResponseSchema)` to create a new message.
+ */
+export const ImportCatalogResponseSchema = /*@__PURE__*/
+  messageDesc(file_offer_desk_v1_offers_offers, 39);
+
+/**
+ * Describes the message vrooli.offer_desk.v1.offers.SpaceCell.
+ * Use `create(SpaceCellSchema)` to create a new message.
+ */
+export const SpaceCellSchema = /*@__PURE__*/
+  messageDesc(file_offer_desk_v1_offers_offers, 40);
+
+/**
+ * Describes the message vrooli.offer_desk.v1.offers.SpaceResponse.
+ * Use `create(SpaceResponseSchema)` to create a new message.
+ */
+export const SpaceResponseSchema = /*@__PURE__*/
+  messageDesc(file_offer_desk_v1_offers_offers, 41);
 
 /**
  * Describes the enum vrooli.offer_desk.v1.offers.NodeKind.
@@ -267,10 +344,34 @@ export const Verdict = /*@__PURE__*/
   tsEnum(VerdictSchema);
 
 /**
+ * Describes the enum vrooli.offer_desk.v1.offers.SourceMode.
+ */
+export const SourceModeSchema = /*@__PURE__*/
+  enumDesc(file_offer_desk_v1_offers_offers, 3);
+
+/**
+ * @generated from enum vrooli.offer_desk.v1.offers.SourceMode
+ */
+export const SourceMode = /*@__PURE__*/
+  tsEnum(SourceModeSchema);
+
+/**
+ * Describes the enum vrooli.offer_desk.v1.offers.EvaluationResult.
+ */
+export const EvaluationResultSchema = /*@__PURE__*/
+  enumDesc(file_offer_desk_v1_offers_offers, 4);
+
+/**
+ * @generated from enum vrooli.offer_desk.v1.offers.EvaluationResult
+ */
+export const EvaluationResult = /*@__PURE__*/
+  tsEnum(EvaluationResultSchema);
+
+/**
  * Describes the enum vrooli.offer_desk.v1.offers.TriggerComposition.
  */
 export const TriggerCompositionSchema = /*@__PURE__*/
-  enumDesc(file_offer_desk_v1_offers_offers, 3);
+  enumDesc(file_offer_desk_v1_offers_offers, 5);
 
 /**
  * @generated from enum vrooli.offer_desk.v1.offers.TriggerComposition
@@ -295,4 +396,10 @@ export const GatesService = /*@__PURE__*/
  */
 export const BoardService = /*@__PURE__*/
   serviceDesc(file_offer_desk_v1_offers_offers, 2);
+
+/**
+ * @generated from service vrooli.offer_desk.v1.offers.SpaceService
+ */
+export const SpaceService = /*@__PURE__*/
+  serviceDesc(file_offer_desk_v1_offers_offers, 3);
 

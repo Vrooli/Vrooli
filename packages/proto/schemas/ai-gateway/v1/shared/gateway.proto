@@ -52,6 +52,84 @@ enum Modality {
   MODALITY_AUDIO = 5;
 }
 
+// SamplingSupport states how a resolved role's provider treats an explicit
+// sampling control. It is read from resource policy and never probed: a
+// provider that accepts a control and silently discards it is indistinguishable
+// at the call site from one that honours it, so a successful call is not
+// evidence of support.
+enum SamplingSupport {
+  // SAMPLING_SUPPORT_UNSPECIFIED means no role was resolved for this call, so
+  // there is no declaration to report. It is distinct from
+  // SAMPLING_SUPPORT_UNKNOWN, which is a resolved role that declared nothing.
+  SAMPLING_SUPPORT_UNSPECIFIED = 0;
+  // SAMPLING_SUPPORT_HONORED means the provider applies the value. Declaring it
+  // requires first-party provider evidence.
+  SAMPLING_SUPPORT_HONORED = 1;
+  // SAMPLING_SUPPORT_IGNORED means the provider accepts the field and silently
+  // discards it. The call succeeds and the control has no effect.
+  SAMPLING_SUPPORT_IGNORED = 2;
+  // SAMPLING_SUPPORT_REJECTED means the provider fails the request when the
+  // field is present.
+  SAMPLING_SUPPORT_REJECTED = 3;
+  // SAMPLING_SUPPORT_UNKNOWN means the resolved role declared no support state.
+  // The gateway treats it as IGNORED: best effort, no promise.
+  // @default treated as SAMPLING_SUPPORT_IGNORED
+  SAMPLING_SUPPORT_UNKNOWN = 4;
+}
+
+// SamplingControls is the caller's explicit request for non-default sampling.
+// An absent message means "use the role's declared sampling", which is itself
+// allowed to be absent, in which case the provider resource's own policy
+// default applies. A present-but-unhonourable control is an error, never a
+// silent downgrade: see INFERENCE_ERROR_CODE_UNSUPPORTED_SAMPLING.
+message SamplingControls {
+  // temperature is optional so an explicit 0.0 (deterministic) is
+  // distinguishable from unset. A role must declare itself overridable before a
+  // caller may set this; sending it to a role that has not is a request defect.
+  // @default the role's declared sampling, else the resource policy default
+  optional double temperature = 1;
+  // Field 2 is reserved for `seed` and field 3 for `top_p` when a provider
+  // resource can honour them. Do not reuse these numbers for anything else.
+}
+
+// OutputCapSource names where the output cap the gateway imposed came from. It
+// reports only what the gateway knows: a provider's own internal default is not
+// visible from here and is never guessed.
+enum OutputCapSource {
+  OUTPUT_CAP_SOURCE_UNSPECIFIED = 0;
+  // OUTPUT_CAP_SOURCE_REQUEST means the caller set max_output_tokens.
+  OUTPUT_CAP_SOURCE_REQUEST = 1;
+  // OUTPUT_CAP_SOURCE_ROLE_POLICY means the resolved resource role declared the
+  // cap and the caller sent none.
+  OUTPUT_CAP_SOURCE_ROLE_POLICY = 2;
+  // OUTPUT_CAP_SOURCE_NONE_IMPOSED means the gateway sent no cap at all. The
+  // provider's own default applies and is not observable from here. This is
+  // distinct from "there is a cap we cannot see" — the gateway genuinely
+  // imposed nothing.
+  OUTPUT_CAP_SOURCE_NONE_IMPOSED = 3;
+}
+
+// AppliedSettings reports what the gateway actually did, so a caller can record
+// provenance that is true rather than provenance that echoes its own request.
+// It deliberately has no single "applied temperature" field: for a provider
+// that accepts and silently ignores the control, such a field would have to lie
+// in exactly the case the caller most needs the truth.
+message AppliedSettings {
+  // temperature_sent is the value passed to the provider, absent when the
+  // gateway omitted the control. It is NOT proof the provider honoured it.
+  optional double temperature_sent = 1;
+  // temperature_support is the resolved role's policy declaration. A caller
+  // comparing two candidate sets must treat differing support states as
+  // differing conditions even when temperature_sent matches.
+  SamplingSupport temperature_support = 2;
+  // max_output_tokens_effective is the cap the gateway imposed, and
+  // max_output_tokens_source names where it came from. Zero with source
+  // OUTPUT_CAP_SOURCE_NONE_IMPOSED means no cap was sent.
+  // @unit tokens
+  int32 max_output_tokens_effective = 3;
+  OutputCapSource max_output_tokens_source = 4;
+}
+
 // Attachment carries ephemeral caller input across the gateway boundary. The
 // gateway may resolve and forward it during one request, but never persists
 // the payload. References are opaque application-owned identifiers, never
@@ -84,6 +162,9 @@ message GatewayRequest {
   string request_id = 10;
   map<string, string> metadata = 11;
   repeated Attachment attachments = 12;
+  // sampling is the caller's explicit sampling request. Absent means the
+  // resolved role's declared sampling applies.
+  SamplingControls sampling = 13;
 }
 
 message ValidationIssue {

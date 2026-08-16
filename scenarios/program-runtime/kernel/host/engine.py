@@ -464,7 +464,7 @@ class _InferenceSurface:
         self._run = BridgeBinding("ai-gateway/inference/run", "read", session_id, bridge_url, invocations)
         self._run_batch = BridgeBinding("ai-gateway/inference/run-batch", "read", session_id, bridge_url, invocations)
 
-    def _invoke(self, role: str, source: str, schema: Any = None, instruction: str = "", *, turns: Any = None, attachments: Any = None, profile: str | None = None) -> Any:
+    def _invoke(self, role: str, source: str, schema: Any = None, instruction: str = "", *, turns: Any = None, attachments: Any = None, profile: str | None = None, temperature: float | None = None, max_output_tokens: int | None = None) -> Any:
         if schema is None:
             schema_json = ""
         elif isinstance(schema, str):
@@ -480,6 +480,13 @@ class _InferenceSurface:
             kwargs["attachments"] = attachments
         if profile is not None:
             kwargs["profile"] = profile
+        # `is not None` rather than truthiness: 0.0 is a meaningful temperature
+        # (deterministic sampling), so it must not be swallowed as "unset". Omitting
+        # the key entirely is what lets the role's own declared sampling apply.
+        if temperature is not None:
+            kwargs["sampling"] = {"temperature": float(temperature)}
+        if max_output_tokens is not None:
+            kwargs["max_output_tokens"] = int(max_output_tokens)
         return self._run(**kwargs)
 
     def classify(self, source: str, schema: Any = None, instruction: str = "", *, turns: Any = None, attachments: Any = None, profile: str | None = None) -> Any:
@@ -490,6 +497,11 @@ class _InferenceSurface:
 
     def judge(self, source: str, schema: Any = None, instruction: str = "", *, turns: Any = None, attachments: Any = None, profile: str | None = None) -> Any:
         return self._invoke("judge.default", source, schema, instruction, turns=turns, attachments=attachments, profile=profile)
+
+    def write(self, source: str, schema: Any = None, instruction: str = "", *, turns: Any = None, attachments: Any = None, profile: str | None = None, temperature: float | None = None, max_output_tokens: int | None = None) -> Any:
+        """Natural-prose generation. Unlike classify/extract/judge this role is
+        overridable, so `temperature` is accepted here and refused there."""
+        return self._invoke("write.default", source, schema, instruction, turns=turns, attachments=attachments, profile=profile, temperature=temperature, max_output_tokens=max_output_tokens)
 
     def batch(self, sources: Iterable[Any], schema: Any = None, instruction: str = "", role: str = "classify.fast") -> Any:
         if schema is None:

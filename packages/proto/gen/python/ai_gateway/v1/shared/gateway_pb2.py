@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\"ai-gateway/v1/shared/gateway.proto\x12\x1bvrooli.ai_gateway.v1.shared\"\x82\x02\n\nAttachment\x12\x41\n\x08modality\x18\x01 \x01(\x0e\x32%.vrooli.ai_gateway.v1.shared.ModalityR\x08modality\x12\x1d\n\nmedia_type\x18\x02 \x01(\tR\tmediaType\x12\x14\n\x05width\x18\x03 \x01(\rR\x05width\x12\x16\n\x06height\x18\x04 \x01(\rR\x06height\x12\x14\n\x05\x62ytes\x18\x05 \x01(\x04R\x05\x62ytes\x12#\n\x0cinline_bytes\x18\x06 \x01(\x0cH\x00R\x0binlineBytes\x12\x1e\n\treference\x18\x07 \x01(\tH\x00R\treferenceB\t\n\x07payload\"\x97\x05\n\x0eGatewayRequest\x12<\n\x04kind\x18\x01 \x01(\x0e\x32(.vrooli.ai_gateway.v1.shared.RequestKindR\x04kind\x12\x12\n\x04role\x18\x02 \x01(\tR\x04role\x12>\n\x07profile\x18\x03 \x01(\x0e\x32$.vrooli.ai_gateway.v1.shared.ProfileR\x07profile\x12N\n\rprivacy_class\x18\x04 \x01(\x0e\x32).vrooli.ai_gateway.v1.shared.PrivacyClassR\x0cprivacyClass\x12\x1c\n\toperation\x18\x05 \x01(\tR\toperation\x12\x1a\n\x08scenario\x18\x06 \x01(\tR\x08scenario\x12\x1d\n\ntimeout_ms\x18\x07 \x01(\x05R\ttimeoutMs\x12 \n\x0cmax_cost_usd\x18\x08 \x01(\x01R\nmaxCostUsd\x12*\n\x11max_output_tokens\x18\t \x01(\x05R\x0fmaxOutputTokens\x12\x1d\n\nrequest_id\x18\n \x01(\tR\trequestId\x12U\n\x08metadata\x18\x0b \x03(\x0b\x32\x39.vrooli.ai_gateway.v1.shared.GatewayRequest.MetadataEntryR\x08metadata\x12I\n\x0b\x61ttachments\x18\x0c \x03(\x0b\x32\'.vrooli.ai_gateway.v1.shared.AttachmentR\x0b\x61ttachments\x1a;\n\rMetadataEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n\x05value\x18\x02 \x01(\tR\x05value:\x02\x38\x01\"U\n\x0fValidationIssue\x12\x14\n\x05\x66ield\x18\x01 \x01(\tR\x05\x66ield\x12\x12\n\x04\x63ode\x18\x02 \x01(\tR\x04\x63ode\x12\x18\n\x07message\x18\x03 \x01(\tR\x07message*\xdc\x01\n\x0bRequestKind\x12\x1c\n\x18REQUEST_KIND_UNSPECIFIED\x10\x00\x12 \n\x1cREQUEST_KIND_TEXT_GENERATION\x10\x01\x12\x1f\n\x1bREQUEST_KIND_TEXT_EMBEDDING\x10\x02\x12&\n\"REQUEST_KIND_STRUCTURED_EXTRACTION\x10\x03\x12!\n\x1dREQUEST_KIND_IMAGE_GENERATION\x10\x04\x12!\n\x1dREQUEST_KIND_VIDEO_GENERATION\x10\x05*\x9d\x01\n\x0cPrivacyClass\x12\x1d\n\x19PRIVACY_CLASS_UNSPECIFIED\x10\x00\x12\x18\n\x14PRIVACY_CLASS_PUBLIC\x10\x01\x12\x1a\n\x16PRIVACY_CLASS_INTERNAL\x10\x02\x12\x1e\n\x1aPRIVACY_CLASS_CONFIDENTIAL\x10\x03\x12\x18\n\x14PRIVACY_CLASS_SECRET\x10\x04*\xbf\x01\n\x07Profile\x12\x17\n\x13PROFILE_UNSPECIFIED\x10\x00\x12\x16\n\x12PROFILE_LOCAL_ONLY\x10\x01\x12\x17\n\x13PROFILE_LOCAL_FIRST\x10\x02\x12\x17\n\x13PROFILE_REMOTE_ONLY\x10\x03\x12\x19\n\x15PROFILE_QUALITY_FIRST\x10\x04\x12\x17\n\x13PROFILE_CHEAP_FIRST\x10\x05\x12\x1d\n\x19PROFILE_PRIVACY_SENSITIVE\x10\x06*\x88\x01\n\x08Modality\x12\x18\n\x14MODALITY_UNSPECIFIED\x10\x00\x12\x11\n\rMODALITY_TEXT\x10\x01\x12\x12\n\x0eMODALITY_IMAGE\x10\x02\x12\x13\n\x0fMODALITY_VECTOR\x10\x03\x12\x12\n\x0eMODALITY_VIDEO\x10\x04\x12\x12\n\x0eMODALITY_AUDIO\x10\x05\x42OZMgithub.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/shared;shared_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\"ai-gateway/v1/shared/gateway.proto\x12\x1bvrooli.ai_gateway.v1.shared\"I\n\x10SamplingControls\x12%\n\x0btemperature\x18\x01 \x01(\x01H\x00R\x0btemperature\x88\x01\x01\x42\x0e\n\x0c_temperature\"\xdb\x02\n\x0f\x41ppliedSettings\x12.\n\x10temperature_sent\x18\x01 \x01(\x01H\x00R\x0ftemperatureSent\x88\x01\x01\x12]\n\x13temperature_support\x18\x02 \x01(\x0e\x32,.vrooli.ai_gateway.v1.shared.SamplingSupportR\x12temperatureSupport\x12=\n\x1bmax_output_tokens_effective\x18\x03 \x01(\x05R\x18maxOutputTokensEffective\x12\x65\n\x18max_output_tokens_source\x18\x04 \x01(\x0e\x32,.vrooli.ai_gateway.v1.shared.OutputCapSourceR\x15maxOutputTokensSourceB\x13\n\x11_temperature_sent\"\x82\x02\n\nAttachment\x12\x41\n\x08modality\x18\x01 \x01(\x0e\x32%.vrooli.ai_gateway.v1.shared.ModalityR\x08modality\x12\x1d\n\nmedia_type\x18\x02 \x01(\tR\tmediaType\x12\x14\n\x05width\x18\x03 \x01(\rR\x05width\x12\x16\n\x06height\x18\x04 \x01(\rR\x06height\x12\x14\n\x05\x62ytes\x18\x05 \x01(\x04R\x05\x62ytes\x12#\n\x0cinline_bytes\x18\x06 \x01(\x0cH\x00R\x0binlineBytes\x12\x1e\n\treference\x18\x07 \x01(\tH\x00R\treferenceB\t\n\x07payload\"\xe2\x05\n\x0eGatewayRequest\x12<\n\x04kind\x18\x01 \x01(\x0e\x32(.vrooli.ai_gateway.v1.shared.RequestKindR\x04kind\x12\x12\n\x04role\x18\x02 \x01(\tR\x04role\x12>\n\x07profile\x18\x03 \x01(\x0e\x32$.vrooli.ai_gateway.v1.shared.ProfileR\x07profile\x12N\n\rprivacy_class\x18\x04 \x01(\x0e\x32).vrooli.ai_gateway.v1.shared.PrivacyClassR\x0cprivacyClass\x12\x1c\n\toperation\x18\x05 \x01(\tR\toperation\x12\x1a\n\x08scenario\x18\x06 \x01(\tR\x08scenario\x12\x1d\n\ntimeout_ms\x18\x07 \x01(\x05R\ttimeoutMs\x12 \n\x0cmax_cost_usd\x18\x08 \x01(\x01R\nmaxCostUsd\x12*\n\x11max_output_tokens\x18\t \x01(\x05R\x0fmaxOutputTokens\x12\x1d\n\nrequest_id\x18\n \x01(\tR\trequestId\x12U\n\x08metadata\x18\x0b \x03(\x0b\x32\x39.vrooli.ai_gateway.v1.shared.GatewayRequest.MetadataEntryR\x08metadata\x12I\n\x0b\x61ttachments\x18\x0c \x03(\x0b\x32\'.vrooli.ai_gateway.v1.shared.AttachmentR\x0b\x61ttachments\x12I\n\x08sampling\x18\r \x01(\x0b\x32-.vrooli.ai_gateway.v1.shared.SamplingControlsR\x08sampling\x1a;\n\rMetadataEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n\x05value\x18\x02 \x01(\tR\x05value:\x02\x38\x01\"U\n\x0fValidationIssue\x12\x14\n\x05\x66ield\x18\x01 \x01(\tR\x05\x66ield\x12\x12\n\x04\x63ode\x18\x02 \x01(\tR\x04\x63ode\x12\x18\n\x07message\x18\x03 \x01(\tR\x07message*\xdc\x01\n\x0bRequestKind\x12\x1c\n\x18REQUEST_KIND_UNSPECIFIED\x10\x00\x12 \n\x1cREQUEST_KIND_TEXT_GENERATION\x10\x01\x12\x1f\n\x1bREQUEST_KIND_TEXT_EMBEDDING\x10\x02\x12&\n\"REQUEST_KIND_STRUCTURED_EXTRACTION\x10\x03\x12!\n\x1dREQUEST_KIND_IMAGE_GENERATION\x10\x04\x12!\n\x1dREQUEST_KIND_VIDEO_GENERATION\x10\x05*\x9d\x01\n\x0cPrivacyClass\x12\x1d\n\x19PRIVACY_CLASS_UNSPECIFIED\x10\x00\x12\x18\n\x14PRIVACY_CLASS_PUBLIC\x10\x01\x12\x1a\n\x16PRIVACY_CLASS_INTERNAL\x10\x02\x12\x1e\n\x1aPRIVACY_CLASS_CONFIDENTIAL\x10\x03\x12\x18\n\x14PRIVACY_CLASS_SECRET\x10\x04*\xbf\x01\n\x07Profile\x12\x17\n\x13PROFILE_UNSPECIFIED\x10\x00\x12\x16\n\x12PROFILE_LOCAL_ONLY\x10\x01\x12\x17\n\x13PROFILE_LOCAL_FIRST\x10\x02\x12\x17\n\x13PROFILE_REMOTE_ONLY\x10\x03\x12\x19\n\x15PROFILE_QUALITY_FIRST\x10\x04\x12\x17\n\x13PROFILE_CHEAP_FIRST\x10\x05\x12\x1d\n\x19PROFILE_PRIVACY_SENSITIVE\x10\x06*\x88\x01\n\x08Modality\x12\x18\n\x14MODALITY_UNSPECIFIED\x10\x00\x12\x11\n\rMODALITY_TEXT\x10\x01\x12\x12\n\x0eMODALITY_IMAGE\x10\x02\x12\x13\n\x0fMODALITY_VECTOR\x10\x03\x12\x12\n\x0eMODALITY_VIDEO\x10\x04\x12\x12\n\x0eMODALITY_AUDIO\x10\x05*\xac\x01\n\x0fSamplingSupport\x12 \n\x1cSAMPLING_SUPPORT_UNSPECIFIED\x10\x00\x12\x1c\n\x18SAMPLING_SUPPORT_HONORED\x10\x01\x12\x1c\n\x18SAMPLING_SUPPORT_IGNORED\x10\x02\x12\x1d\n\x19SAMPLING_SUPPORT_REJECTED\x10\x03\x12\x1c\n\x18SAMPLING_SUPPORT_UNKNOWN\x10\x04*\x9a\x01\n\x0fOutputCapSource\x12!\n\x1dOUTPUT_CAP_SOURCE_UNSPECIFIED\x10\x00\x12\x1d\n\x19OUTPUT_CAP_SOURCE_REQUEST\x10\x01\x12!\n\x1dOUTPUT_CAP_SOURCE_ROLE_POLICY\x10\x02\x12\"\n\x1eOUTPUT_CAP_SOURCE_NONE_IMPOSED\x10\x03\x42OZMgithub.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/shared;shared_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -34,20 +34,28 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._serialized_options = b'ZMgithub.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/shared;shared_v1'
   _globals['_GATEWAYREQUEST_METADATAENTRY']._loaded_options = None
   _globals['_GATEWAYREQUEST_METADATAENTRY']._serialized_options = b'8\001'
-  _globals['_REQUESTKIND']._serialized_start=1082
-  _globals['_REQUESTKIND']._serialized_end=1302
-  _globals['_PRIVACYCLASS']._serialized_start=1305
-  _globals['_PRIVACYCLASS']._serialized_end=1462
-  _globals['_PROFILE']._serialized_start=1465
-  _globals['_PROFILE']._serialized_end=1656
-  _globals['_MODALITY']._serialized_start=1659
-  _globals['_MODALITY']._serialized_end=1795
-  _globals['_ATTACHMENT']._serialized_start=68
-  _globals['_ATTACHMENT']._serialized_end=326
-  _globals['_GATEWAYREQUEST']._serialized_start=329
-  _globals['_GATEWAYREQUEST']._serialized_end=992
-  _globals['_GATEWAYREQUEST_METADATAENTRY']._serialized_start=933
-  _globals['_GATEWAYREQUEST_METADATAENTRY']._serialized_end=992
-  _globals['_VALIDATIONISSUE']._serialized_start=994
-  _globals['_VALIDATIONISSUE']._serialized_end=1079
+  _globals['_REQUESTKIND']._serialized_start=1582
+  _globals['_REQUESTKIND']._serialized_end=1802
+  _globals['_PRIVACYCLASS']._serialized_start=1805
+  _globals['_PRIVACYCLASS']._serialized_end=1962
+  _globals['_PROFILE']._serialized_start=1965
+  _globals['_PROFILE']._serialized_end=2156
+  _globals['_MODALITY']._serialized_start=2159
+  _globals['_MODALITY']._serialized_end=2295
+  _globals['_SAMPLINGSUPPORT']._serialized_start=2298
+  _globals['_SAMPLINGSUPPORT']._serialized_end=2470
+  _globals['_OUTPUTCAPSOURCE']._serialized_start=2473
+  _globals['_OUTPUTCAPSOURCE']._serialized_end=2627
+  _globals['_SAMPLINGCONTROLS']._serialized_start=67
+  _globals['_SAMPLINGCONTROLS']._serialized_end=140
+  _globals['_APPLIEDSETTINGS']._serialized_start=143
+  _globals['_APPLIEDSETTINGS']._serialized_end=490
+  _globals['_ATTACHMENT']._serialized_start=493
+  _globals['_ATTACHMENT']._serialized_end=751
+  _globals['_GATEWAYREQUEST']._serialized_start=754
+  _globals['_GATEWAYREQUEST']._serialized_end=1492
+  _globals['_GATEWAYREQUEST_METADATAENTRY']._serialized_start=1433
+  _globals['_GATEWAYREQUEST_METADATAENTRY']._serialized_end=1492
+  _globals['_VALIDATIONISSUE']._serialized_start=1494
+  _globals['_VALIDATIONISSUE']._serialized_end=1579
 # @@protoc_insertion_point(module_scope)

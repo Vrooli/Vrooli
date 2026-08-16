@@ -150,9 +150,22 @@ message RunGateRequest {
 }
 message GateFinding {
   string code = 1;
+  // What is wrong.
   string message = 2;
   string asset_id = 3;
+  // "error" when the gate is declared blocking in catalog/config.json,
+  // "warning" otherwise. Never inferred from the finding itself.
   string severity = 4;
+  // Repository-relative path of the defect, empty when the gate inspects a
+  // declaration rather than a file.
+  string file = 5;
+  // 1-indexed line within file; 0 when the gate cannot resolve one.
+  int32 line = 6;
+  // What to do about it, and why it matters. Carried separately from message
+  // so a consumer can act without re-deriving the fix.
+  string remediation = 7;
+  // Repository-relative doc path giving the fuller rule context.
+  string docs_ref = 8;
 }
 message RunGateResponse {
   string gate = 1;

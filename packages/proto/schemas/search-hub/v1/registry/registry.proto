@@ -1,5 +1,7 @@
 syntax = "proto3";
 
+import "google/protobuf/duration.proto";
+
 package vrooli.search_hub.v1.registry;
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/registry;registry_v1";
@@ -19,8 +21,10 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v
 // holds NO corpus content and NO vectors, and contains zero provider-specific
 // code. Adding a provider is one RegisterProvider call, never a router change.
 //
-// The descriptor's `description` is natural-language and is what the classifier
-// reads to route. The descriptor's `result_mapping` is the declarative spec
+// The descriptor's `description` is natural-language routing context. An
+// optional `routing_profile` supplies positive answer-space and intent facets
+// for semantic routing without requiring provider-specific router code. The
+// descriptor's `result_mapping` is the declarative spec
 // that maps a provider's heterogeneous response onto the unified SearchHit —
 // this is what makes "a new provider = a registry row" true.
 //
@@ -228,6 +232,16 @@ message Tuning {
   string rerank_preference = 9;
 }
 
+// Declarative, provider-agnostic routing facets. Positive fields are semantic
+// evidence; exclusions are retained for lexical/policy diagnostics and are
+// never embedded as positive route text.
+message RoutingProfile {
+  repeated string answer_spaces = 1;
+  repeated string intents = 2;
+  repeated string positive_examples = 3;
+  repeated string exclusions = 4;
+}
+
 // The unit of registration: one (corpus, type) leaf.
 message ProviderDescriptor {
   // Unique leaf id, e.g. "cli-health.commands".
@@ -237,8 +251,8 @@ message ProviderDescriptor {
   Bucket bucket = 3;
   // The --type token, e.g. "command", "doc", "record".
   string type = 4;
-  // Natural-language description of what this corpus holds — the classifier
-  // routes on this; the router never hardcodes routing knowledge.
+  // Natural-language description of what this corpus holds. The router uses
+  // it as fallback routing context when routing_profile is absent.
   string description = 5;
   Endpoint endpoint = 6;
   ResultMapping result_mapping = 7;
@@ -281,6 +295,12 @@ message ProviderDescriptor {
   // RFC3339 timestamp first registered/declared by the owning scenario. Used
   // to make experimental providers age-visible without scenario knowledge.
   string declared_at = 20;
+  // Maximum acceptable age of the provider's indexed corpus for automatic
+  // routing. A zero value uses Search Hub's conservative default.
+  google.protobuf.Duration freshness_budget = 21;
+  // Optional structured routing facets. Providers without this profile use
+  // their description as the semantic representation.
+  RoutingProfile routing_profile = 22;
 }
 
 message EvalMinimum {

@@ -2,6 +2,9 @@ syntax = "proto3";
 
 package vrooli.search_hub.v1.eval;
 
+import "search-hub/v1/routing/routing.proto";
+import "search-hub/v1/shared/routing_trace.proto";
+
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/eval;eval_v1";
 
 // =============================================================================
@@ -128,6 +131,9 @@ message ConfigSnapshot {
   // rerank-blend, floor near 0) | "cosine" (single-leg dense, a real floor). A
   // descriptive label so a historical run records which floor band was in force.
   string floor_regime = 9;
+  // Stable provider-selection leg that produced the routing decision:
+  // "cross_encoder", "llm", "lexical", or an explicit evaluation label.
+  string selector_leg = 10;
 }
 
 message CaseResult {
@@ -147,6 +153,10 @@ message CaseResult {
   bool provider_routed = 7;
   double margin = 8;
   string outcome_reason = 9;
+  // Automatic-routing stage evidence copied from QueryResponse. The expected
+  // provider remains CaseResult.expected_provider_id so the trace is
+  // immutable evidence and cannot become part of the routing decision.
+  vrooli.search_hub.v1.shared.RoutingTrace routing_trace = 10;
 }
 
 message UnavailableCase {
@@ -205,6 +215,10 @@ service EvalService {
   // (optionally) write back a statistically-significant winning tuning. Each arm
   // is one stored, tagged EvalRun. See SweepRequest/SweepResult.
   rpc Sweep(SweepRequest) returns (SweepResponse);
+  // Compare registered retrieval strategies against the composed router suite.
+  // Each arm is persisted as an immutable tagged federated run before guards
+  // decide whether a proposed winner is eligible for write-back.
+  rpc CompareStrategies(CompareStrategiesRequest) returns (CompareStrategiesResponse);
   // Propose machine-generated golden cases for a suite by sampling the
   // provider's index and inverting each sampled item to a natural-language
   // query (+ optional hard negatives), de-duped against the existing corpus.
@@ -261,6 +275,9 @@ message RunSuiteRequest {
   int32 limit = 3;
   // "provider_direct" (default) or "federated".
   string tier = 4;
+  // Optional registered retrieval strategy for a federated comparison arm.
+  // Empty means the active strategy. Provider-direct runs reject this field.
+  string strategy_name = 5;
 }
 
 message RunSuiteResponse {
@@ -270,6 +287,42 @@ message RunSuiteResponse {
   // operator running a suite sees, alongside the result, whether the corpus the
   // result rests on is thin/negative-less. Never affects the run or its labels.
   repeated AdequacyWarning adequacy = 2;
+}
+
+message CompareStrategiesRequest {
+  string suite_id = 1;
+  repeated string strategy_names = 2;
+  bool apply = 3;
+  int32 limit = 4;
+}
+
+message CompareStrategiesResponse {
+  string suite_id = 1;
+  string active_strategy = 2;
+  repeated StrategyComparisonArm arms = 3;
+  bool applied = 4;
+  string writeback_reason = 5;
+}
+
+message StrategyComparisonArm {
+  string strategy_name = 1;
+  string run_id = 2;
+  EvalAggregate aggregate = 3;
+  int32 all_denominator = 4;
+  int32 all_routed = 5;
+  double all_routing_precision = 6;
+  int32 routable_denominator = 7;
+  int32 routable_routed = 8;
+  double routable_routing_precision = 9;
+  int32 top1 = 10;
+  int32 top3 = 11;
+  int32 top6 = 12;
+  bool heldout_holds = 13;
+  string heldout_reason = 14;
+  bool significant = 15;
+  string significance_reason = 16;
+  bool accepted = 17;
+  string rejection_reason = 18;
 }
 
 enum ReferentialOutcome {

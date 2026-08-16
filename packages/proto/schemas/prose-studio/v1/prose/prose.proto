@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package vrooli.prose_studio.v1.prose;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/prose-studio/v1/prose;prose_v1";
+
+// Prose Studio keeps its public payloads JSON-shaped so new data records and
+// registry kinds can be added without a schema redeploy. The envelope still
+// gives every operation a governed Connect-RPC method, generated clients, and
+// full CLI parity. The JSON object carried in each field is validated by the
+// API before it reaches the domain service.
+message JsonRequest { string json = 1; }
+message JsonResponse { string json = 1; }
+
+service ProseStudioService {
+  rpc Registry(JsonRequest) returns (JsonResponse);
+  rpc CreateStyle(JsonRequest) returns (JsonResponse);
+  rpc ResolveProfile(JsonRequest) returns (JsonResponse);
+  rpc Generate(JsonRequest) returns (JsonResponse);
+  rpc Reroll(JsonRequest) returns (JsonResponse);
+  rpc SessionAction(JsonRequest) returns (JsonResponse);
+  rpc ReindexDeclarations(JsonRequest) returns (JsonResponse);
+  rpc ValidateDeclarations(JsonRequest) returns (JsonResponse);
+  rpc CreateDocument(JsonRequest) returns (JsonResponse);
+  rpc AssembleDocument(JsonRequest) returns (JsonResponse);
+  rpc Conformance(JsonRequest) returns (JsonResponse);
+}

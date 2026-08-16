@@ -57,6 +57,15 @@ message ProjectionCoverage {
   bool available = 9;
   string unavailable_reason = 10;
   repeated ConditionCount condition_counts = 11;
+  // Answer-only labelled pair: corpus-capable uses provider_direct evidence;
+  // end-to-end-answerable uses federated routing evidence. The legacy
+  // coverage_ratio remains the end-to-end ratio for compatibility.
+  int32 corpus_capable_now_count = 12;
+  int32 corpus_capable_total_cells = 13;
+  optional double corpus_capable_ratio = 14;
+  int32 end_to_end_answerable_now_count = 15;
+  int32 end_to_end_answerable_total_cells = 16;
+  optional double end_to_end_answerable_ratio = 17;
 }
 
 message ConditionCount {

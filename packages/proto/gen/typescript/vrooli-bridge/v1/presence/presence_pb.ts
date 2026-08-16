@@ -4,7 +4,7 @@
 
 import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
 import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
-import type { CompatibilityStatus, DeliveryAck, Heartbeat, SessionFrame } from "../shared/shared_pb";
+import type { CompatibilityStatus, DeliveryAck, Heartbeat, RelayResponse, SessionFrame } from "../shared/shared_pb";
 import { file_vrooli_bridge_v1_shared_shared } from "../shared/shared_pb";
 import type { Message } from "@bufbuild/protobuf";
 
@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file vrooli-bridge/v1/presence/presence.proto.
  */
 export const file_vrooli_bridge_v1_presence_presence: GenFile = /*@__PURE__*/
-  fileDesc("Cih2cm9vbGktYnJpZGdlL3YxL3ByZXNlbmNlL3ByZXNlbmNlLnByb3RvEiB2cm9vbGkudnJvb2xpX2JyaWRnZS52MS5wcmVzZW5jZSJWChZSZXBvcnRIZWFydGJlYXRSZXF1ZXN0EjwKCWhlYXJ0YmVhdBgBIAEoCzIpLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnNoYXJlZC5IZWFydGJlYXQiZQoXUmVwb3J0SGVhcnRiZWF0UmVzcG9uc2USSgoNY29tcGF0aWJpbGl0eRgBIAEoDjIzLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnNoYXJlZC5Db21wYXRpYmlsaXR5U3RhdHVzIlQKGFJlcG9ydERlbGl2ZXJ5QWNrUmVxdWVzdBI4CgNhY2sYASABKAsyKy52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5zaGFyZWQuRGVsaXZlcnlBY2siLQoZUmVwb3J0RGVsaXZlcnlBY2tSZXNwb25zZRIQCghhY2NlcHRlZBgBIAEoCCJYChlSZXBvcnRTZXNzaW9uRnJhbWVSZXF1ZXN0EjsKBWZyYW1lGAEgASgLMiwudnJvb2xpLnZyb29saV9icmlkZ2UudjEuc2hhcmVkLlNlc3Npb25GcmFtZSIuChpSZXBvcnRTZXNzaW9uRnJhbWVSZXNwb25zZRIQCghhY2NlcHRlZBgBIAEoCDK7AwoPUHJlc2VuY2VTZXJ2aWNlEoYBCg9SZXBvcnRIZWFydGJlYXQSOC52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5wcmVzZW5jZS5SZXBvcnRIZWFydGJlYXRSZXF1ZXN0GjkudnJvb2xpLnZyb29saV9icmlkZ2UudjEucHJlc2VuY2UuUmVwb3J0SGVhcnRiZWF0UmVzcG9uc2USjAEKEVJlcG9ydERlbGl2ZXJ5QWNrEjoudnJvb2xpLnZyb29saV9icmlkZ2UudjEucHJlc2VuY2UuUmVwb3J0RGVsaXZlcnlBY2tSZXF1ZXN0GjsudnJvb2xpLnZyb29saV9icmlkZ2UudjEucHJlc2VuY2UuUmVwb3J0RGVsaXZlcnlBY2tSZXNwb25zZRKPAQoSUmVwb3J0U2Vzc2lvbkZyYW1lEjsudnJvb2xpLnZyb29saV9icmlkZ2UudjEucHJlc2VuY2UuUmVwb3J0U2Vzc2lvbkZyYW1lUmVxdWVzdBo8LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnByZXNlbmNlLlJlcG9ydFNlc3Npb25GcmFtZVJlc3BvbnNlQlZaVGdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vdnJvb2xpLWJyaWRnZS92MS9wcmVzZW5jZTtwcmVzZW5jZV92MWIGcHJvdG8z", [file_vrooli_bridge_v1_shared_shared]);
+  fileDesc("Cih2cm9vbGktYnJpZGdlL3YxL3ByZXNlbmNlL3ByZXNlbmNlLnByb3RvEiB2cm9vbGkudnJvb2xpX2JyaWRnZS52MS5wcmVzZW5jZSJWChZSZXBvcnRIZWFydGJlYXRSZXF1ZXN0EjwKCWhlYXJ0YmVhdBgBIAEoCzIpLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnNoYXJlZC5IZWFydGJlYXQiZQoXUmVwb3J0SGVhcnRiZWF0UmVzcG9uc2USSgoNY29tcGF0aWJpbGl0eRgBIAEoDjIzLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnNoYXJlZC5Db21wYXRpYmlsaXR5U3RhdHVzIlQKGFJlcG9ydERlbGl2ZXJ5QWNrUmVxdWVzdBI4CgNhY2sYASABKAsyKy52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5zaGFyZWQuRGVsaXZlcnlBY2siLQoZUmVwb3J0RGVsaXZlcnlBY2tSZXNwb25zZRIQCghhY2NlcHRlZBgBIAEoCCJYChlSZXBvcnRTZXNzaW9uRnJhbWVSZXF1ZXN0EjsKBWZyYW1lGAEgASgLMiwudnJvb2xpLnZyb29saV9icmlkZ2UudjEuc2hhcmVkLlNlc3Npb25GcmFtZSIuChpSZXBvcnRTZXNzaW9uRnJhbWVSZXNwb25zZRIQCghhY2NlcHRlZBgBIAEoCCJdChpSZXBvcnRSZWxheVJlc3BvbnNlUmVxdWVzdBI/CghyZXNwb25zZRgBIAEoCzItLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnNoYXJlZC5SZWxheVJlc3BvbnNlIi8KG1JlcG9ydFJlbGF5UmVzcG9uc2VSZXNwb25zZRIQCghhY2NlcHRlZBgBIAEoCDLQBAoPUHJlc2VuY2VTZXJ2aWNlEoYBCg9SZXBvcnRIZWFydGJlYXQSOC52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5wcmVzZW5jZS5SZXBvcnRIZWFydGJlYXRSZXF1ZXN0GjkudnJvb2xpLnZyb29saV9icmlkZ2UudjEucHJlc2VuY2UuUmVwb3J0SGVhcnRiZWF0UmVzcG9uc2USjAEKEVJlcG9ydERlbGl2ZXJ5QWNrEjoudnJvb2xpLnZyb29saV9icmlkZ2UudjEucHJlc2VuY2UuUmVwb3J0RGVsaXZlcnlBY2tSZXF1ZXN0GjsudnJvb2xpLnZyb29saV9icmlkZ2UudjEucHJlc2VuY2UuUmVwb3J0RGVsaXZlcnlBY2tSZXNwb25zZRKPAQoSUmVwb3J0U2Vzc2lvbkZyYW1lEjsudnJvb2xpLnZyb29saV9icmlkZ2UudjEucHJlc2VuY2UuUmVwb3J0U2Vzc2lvbkZyYW1lUmVxdWVzdBo8LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLnByZXNlbmNlLlJlcG9ydFNlc3Npb25GcmFtZVJlc3BvbnNlEpIBChNSZXBvcnRSZWxheVJlc3BvbnNlEjwudnJvb2xpLnZyb29saV9icmlkZ2UudjEucHJlc2VuY2UuUmVwb3J0UmVsYXlSZXNwb25zZVJlcXVlc3QaPS52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5wcmVzZW5jZS5SZXBvcnRSZWxheVJlc3BvbnNlUmVzcG9uc2VCVlpUZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby92cm9vbGktYnJpZGdlL3YxL3ByZXNlbmNlO3ByZXNlbmNlX3YxYgZwcm90bzM", [file_vrooli_bridge_v1_shared_shared]);
 
 /**
  * @generated from message vrooli.vrooli_bridge.v1.presence.ReportHeartbeatRequest
@@ -122,6 +122,40 @@ export const ReportSessionFrameResponseSchema: GenMessage<ReportSessionFrameResp
   messageDesc(file_vrooli_bridge_v1_presence_presence, 5);
 
 /**
+ * @generated from message vrooli.vrooli_bridge.v1.presence.ReportRelayResponseRequest
+ */
+export type ReportRelayResponseRequest = Message<"vrooli.vrooli_bridge.v1.presence.ReportRelayResponseRequest"> & {
+  /**
+   * @generated from field: vrooli.vrooli_bridge.v1.shared.RelayResponse response = 1;
+   */
+  response?: RelayResponse | undefined;
+};
+
+/**
+ * Describes the message vrooli.vrooli_bridge.v1.presence.ReportRelayResponseRequest.
+ * Use `create(ReportRelayResponseRequestSchema)` to create a new message.
+ */
+export const ReportRelayResponseRequestSchema: GenMessage<ReportRelayResponseRequest> = /*@__PURE__*/
+  messageDesc(file_vrooli_bridge_v1_presence_presence, 6);
+
+/**
+ * @generated from message vrooli.vrooli_bridge.v1.presence.ReportRelayResponseResponse
+ */
+export type ReportRelayResponseResponse = Message<"vrooli.vrooli_bridge.v1.presence.ReportRelayResponseResponse"> & {
+  /**
+   * @generated from field: bool accepted = 1;
+   */
+  accepted: boolean;
+};
+
+/**
+ * Describes the message vrooli.vrooli_bridge.v1.presence.ReportRelayResponseResponse.
+ * Use `create(ReportRelayResponseResponseSchema)` to create a new message.
+ */
+export const ReportRelayResponseResponseSchema: GenMessage<ReportRelayResponseResponse> = /*@__PURE__*/
+  messageDesc(file_vrooli_bridge_v1_presence_presence, 7);
+
+/**
  * =============================================================================
  * PRESENCE DOMAIN — dial-out heartbeat intake (OT-P0-003)
  * =============================================================================
@@ -176,6 +210,18 @@ export const PresenceService: GenService<{
     methodKind: "unary";
     input: typeof ReportSessionFrameRequestSchema;
     output: typeof ReportSessionFrameResponseSchema;
+  },
+  /**
+   * ReportRelayResponse carries bounded relay data and its terminal outcome
+   * from a node-agent. It is node-facing and authenticated with the same
+   * per-node proof as heartbeat and session frames.
+   *
+   * @generated from rpc vrooli.vrooli_bridge.v1.presence.PresenceService.ReportRelayResponse
+   */
+  reportRelayResponse: {
+    methodKind: "unary";
+    input: typeof ReportRelayResponseRequestSchema;
+    output: typeof ReportRelayResponseResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_vrooli_bridge_v1_presence_presence, 0);

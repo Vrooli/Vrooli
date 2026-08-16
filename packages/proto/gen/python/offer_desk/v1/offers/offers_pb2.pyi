@@ -38,6 +38,19 @@ class Verdict(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     UNSATISFIED: _ClassVar[Verdict]
     UNKNOWN: _ClassVar[Verdict]
 
+class SourceMode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    SOURCE_MODE_UNSPECIFIED: _ClassVar[SourceMode]
+    SOURCE_MODE_FIXTURE: _ClassVar[SourceMode]
+    SOURCE_MODE_OPERATOR_SUPPLIED: _ClassVar[SourceMode]
+
+class EvaluationResult(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    EVALUATION_RESULT_UNSPECIFIED: _ClassVar[EvaluationResult]
+    EVALUATION_SUCCEEDED: _ClassVar[EvaluationResult]
+    EVALUATION_FAILED: _ClassVar[EvaluationResult]
+    EVALUATION_NOT_RUN: _ClassVar[EvaluationResult]
+
 class TriggerComposition(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     TRIGGER_COMPOSITION_UNSPECIFIED: _ClassVar[TriggerComposition]
@@ -60,6 +73,13 @@ VERDICT_UNSPECIFIED: Verdict
 SATISFIED: Verdict
 UNSATISFIED: Verdict
 UNKNOWN: Verdict
+SOURCE_MODE_UNSPECIFIED: SourceMode
+SOURCE_MODE_FIXTURE: SourceMode
+SOURCE_MODE_OPERATOR_SUPPLIED: SourceMode
+EVALUATION_RESULT_UNSPECIFIED: EvaluationResult
+EVALUATION_SUCCEEDED: EvaluationResult
+EVALUATION_FAILED: EvaluationResult
+EVALUATION_NOT_RUN: EvaluationResult
 TRIGGER_COMPOSITION_UNSPECIFIED: TriggerComposition
 ALL: TriggerComposition
 ANY: TriggerComposition
@@ -162,19 +182,35 @@ class Evaluation(_message.Message):
     fact_names: _containers.RepeatedScalarFieldContainer[str]
     def __init__(self, id: _Optional[str] = ..., node_id: _Optional[str] = ..., verdict: _Optional[_Union[Verdict, str]] = ..., fact_name: _Optional[str] = ..., explanation: _Optional[str] = ..., evaluated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., fact_age_seconds: _Optional[int] = ..., fact_names: _Optional[_Iterable[str]] = ...) -> None: ...
 
+class ProposalDecline(_message.Message):
+    __slots__ = ("actor", "reason", "created_at")
+    ACTOR_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    actor: str
+    reason: str
+    created_at: _timestamp_pb2.Timestamp
+    def __init__(self, actor: _Optional[str] = ..., reason: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+
 class Proposal(_message.Message):
-    __slots__ = ("id", "node_id", "actor", "requested_status", "reason")
+    __slots__ = ("id", "node_id", "actor", "requested_status", "reason", "created_at", "decline_history", "evidence_reference")
     ID_FIELD_NUMBER: _ClassVar[int]
     NODE_ID_FIELD_NUMBER: _ClassVar[int]
     ACTOR_FIELD_NUMBER: _ClassVar[int]
     REQUESTED_STATUS_FIELD_NUMBER: _ClassVar[int]
     REASON_FIELD_NUMBER: _ClassVar[int]
+    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    DECLINE_HISTORY_FIELD_NUMBER: _ClassVar[int]
+    EVIDENCE_REFERENCE_FIELD_NUMBER: _ClassVar[int]
     id: str
     node_id: str
     actor: str
     requested_status: Status
     reason: str
-    def __init__(self, id: _Optional[str] = ..., node_id: _Optional[str] = ..., actor: _Optional[str] = ..., requested_status: _Optional[_Union[Status, str]] = ..., reason: _Optional[str] = ...) -> None: ...
+    created_at: _timestamp_pb2.Timestamp
+    decline_history: _containers.RepeatedCompositeFieldContainer[ProposalDecline]
+    evidence_reference: str
+    def __init__(self, id: _Optional[str] = ..., node_id: _Optional[str] = ..., actor: _Optional[str] = ..., requested_status: _Optional[_Union[Status, str]] = ..., reason: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., decline_history: _Optional[_Iterable[_Union[ProposalDecline, _Mapping]]] = ..., evidence_reference: _Optional[str] = ...) -> None: ...
 
 class Availability(_message.Message):
     __slots__ = ("source", "reason", "last_success_at")
@@ -204,15 +240,41 @@ class BoardEntry(_message.Message):
     availability: _containers.RepeatedCompositeFieldContainer[Availability]
     def __init__(self, node_id: _Optional[str] = ..., title: _Optional[str] = ..., rank_reason: _Optional[str] = ..., status: _Optional[_Union[Status, str]] = ..., actual_minor: _Optional[int] = ..., actuals_available: _Optional[bool] = ..., availability: _Optional[_Iterable[_Union[Availability, _Mapping]]] = ...) -> None: ...
 
+class EvaluationCondition(_message.Message):
+    __slots__ = ("last_run_at", "last_result", "nodes_scored", "age_seconds", "degraded", "reason")
+    LAST_RUN_AT_FIELD_NUMBER: _ClassVar[int]
+    LAST_RESULT_FIELD_NUMBER: _ClassVar[int]
+    NODES_SCORED_FIELD_NUMBER: _ClassVar[int]
+    AGE_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    DEGRADED_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    last_run_at: _timestamp_pb2.Timestamp
+    last_result: EvaluationResult
+    nodes_scored: int
+    age_seconds: int
+    degraded: bool
+    reason: str
+    def __init__(self, last_run_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., last_result: _Optional[_Union[EvaluationResult, str]] = ..., nodes_scored: _Optional[int] = ..., age_seconds: _Optional[int] = ..., degraded: _Optional[bool] = ..., reason: _Optional[str] = ...) -> None: ...
+
 class BoardResponse(_message.Message):
-    __slots__ = ("entries", "position", "availability")
+    __slots__ = ("entries", "position", "availability", "evaluation", "goals", "default_alive_gap", "posture_source", "posture_age_seconds")
     ENTRIES_FIELD_NUMBER: _ClassVar[int]
     POSITION_FIELD_NUMBER: _ClassVar[int]
     AVAILABILITY_FIELD_NUMBER: _ClassVar[int]
+    EVALUATION_FIELD_NUMBER: _ClassVar[int]
+    GOALS_FIELD_NUMBER: _ClassVar[int]
+    DEFAULT_ALIVE_GAP_FIELD_NUMBER: _ClassVar[int]
+    POSTURE_SOURCE_FIELD_NUMBER: _ClassVar[int]
+    POSTURE_AGE_SECONDS_FIELD_NUMBER: _ClassVar[int]
     entries: _containers.RepeatedCompositeFieldContainer[BoardEntry]
     position: _ledger_pb2.PositionResponse
     availability: _containers.RepeatedCompositeFieldContainer[Availability]
-    def __init__(self, entries: _Optional[_Iterable[_Union[BoardEntry, _Mapping]]] = ..., position: _Optional[_Union[_ledger_pb2.PositionResponse, _Mapping]] = ..., availability: _Optional[_Iterable[_Union[Availability, _Mapping]]] = ...) -> None: ...
+    evaluation: EvaluationCondition
+    goals: _containers.RepeatedCompositeFieldContainer[_ledger_pb2.GoalVerdict]
+    default_alive_gap: str
+    posture_source: str
+    posture_age_seconds: int
+    def __init__(self, entries: _Optional[_Iterable[_Union[BoardEntry, _Mapping]]] = ..., position: _Optional[_Union[_ledger_pb2.PositionResponse, _Mapping]] = ..., availability: _Optional[_Iterable[_Union[Availability, _Mapping]]] = ..., evaluation: _Optional[_Union[EvaluationCondition, _Mapping]] = ..., goals: _Optional[_Iterable[_Union[_ledger_pb2.GoalVerdict, _Mapping]]] = ..., default_alive_gap: _Optional[str] = ..., posture_source: _Optional[str] = ..., posture_age_seconds: _Optional[int] = ...) -> None: ...
 
 class CreateNodeRequest(_message.Message):
     __slots__ = ("kind", "name", "status", "trigger_id", "actual_account_id")
@@ -328,6 +390,20 @@ class PromoteResponse(_message.Message):
     proposal: Proposal
     def __init__(self, proposal: _Optional[_Union[Proposal, _Mapping]] = ...) -> None: ...
 
+class ListProposalsRequest(_message.Message):
+    __slots__ = ("node_id", "status")
+    NODE_ID_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    node_id: str
+    status: Status
+    def __init__(self, node_id: _Optional[str] = ..., status: _Optional[_Union[Status, str]] = ...) -> None: ...
+
+class ListProposalsResponse(_message.Message):
+    __slots__ = ("proposals",)
+    PROPOSALS_FIELD_NUMBER: _ClassVar[int]
+    proposals: _containers.RepeatedCompositeFieldContainer[Proposal]
+    def __init__(self, proposals: _Optional[_Iterable[_Union[Proposal, _Mapping]]] = ...) -> None: ...
+
 class ListAuditRequest(_message.Message):
     __slots__ = ("node_id",)
     NODE_ID_FIELD_NUMBER: _ClassVar[int]
@@ -353,5 +429,107 @@ class ListEdgesResponse(_message.Message):
     def __init__(self, edges: _Optional[_Iterable[_Union[Edge, _Mapping]]] = ...) -> None: ...
 
 class ProjectionRequest(_message.Message):
-    __slots__ = ()
-    def __init__(self) -> None: ...
+    __slots__ = ("projection",)
+    PROJECTION_FIELD_NUMBER: _ClassVar[int]
+    projection: str
+    def __init__(self, projection: _Optional[str] = ...) -> None: ...
+
+class ImportCatalogRequest(_message.Message):
+    __slots__ = ("source_path", "source_mode", "apply", "actor")
+    SOURCE_PATH_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_MODE_FIELD_NUMBER: _ClassVar[int]
+    APPLY_FIELD_NUMBER: _ClassVar[int]
+    ACTOR_FIELD_NUMBER: _ClassVar[int]
+    source_path: str
+    source_mode: SourceMode
+    apply: bool
+    actor: str
+    def __init__(self, source_path: _Optional[str] = ..., source_mode: _Optional[_Union[SourceMode, str]] = ..., apply: _Optional[bool] = ..., actor: _Optional[str] = ...) -> None: ...
+
+class ImportFileReport(_message.Message):
+    __slots__ = ("path", "read", "written", "findings", "cardinality", "node_kind")
+    PATH_FIELD_NUMBER: _ClassVar[int]
+    READ_FIELD_NUMBER: _ClassVar[int]
+    WRITTEN_FIELD_NUMBER: _ClassVar[int]
+    FINDINGS_FIELD_NUMBER: _ClassVar[int]
+    CARDINALITY_FIELD_NUMBER: _ClassVar[int]
+    NODE_KIND_FIELD_NUMBER: _ClassVar[int]
+    path: str
+    read: int
+    written: int
+    findings: int
+    cardinality: str
+    node_kind: NodeKind
+    def __init__(self, path: _Optional[str] = ..., read: _Optional[int] = ..., written: _Optional[int] = ..., findings: _Optional[int] = ..., cardinality: _Optional[str] = ..., node_kind: _Optional[_Union[NodeKind, str]] = ...) -> None: ...
+
+class StatusMapEntry(_message.Message):
+    __slots__ = ("path", "status", "recognized", "line")
+    PATH_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    RECOGNIZED_FIELD_NUMBER: _ClassVar[int]
+    LINE_FIELD_NUMBER: _ClassVar[int]
+    path: str
+    status: Status
+    recognized: bool
+    line: int
+    def __init__(self, path: _Optional[str] = ..., status: _Optional[_Union[Status, str]] = ..., recognized: _Optional[bool] = ..., line: _Optional[int] = ...) -> None: ...
+
+class ImportFinding(_message.Message):
+    __slots__ = ("path", "reason", "blocking", "line")
+    PATH_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    BLOCKING_FIELD_NUMBER: _ClassVar[int]
+    LINE_FIELD_NUMBER: _ClassVar[int]
+    path: str
+    reason: str
+    blocking: bool
+    line: int
+    def __init__(self, path: _Optional[str] = ..., reason: _Optional[str] = ..., blocking: _Optional[bool] = ..., line: _Optional[int] = ...) -> None: ...
+
+class ImportCatalogResponse(_message.Message):
+    __slots__ = ("files", "status_map", "findings", "total_findings", "applied")
+    FILES_FIELD_NUMBER: _ClassVar[int]
+    STATUS_MAP_FIELD_NUMBER: _ClassVar[int]
+    FINDINGS_FIELD_NUMBER: _ClassVar[int]
+    TOTAL_FINDINGS_FIELD_NUMBER: _ClassVar[int]
+    APPLIED_FIELD_NUMBER: _ClassVar[int]
+    files: _containers.RepeatedCompositeFieldContainer[ImportFileReport]
+    status_map: _containers.RepeatedCompositeFieldContainer[StatusMapEntry]
+    findings: _containers.RepeatedCompositeFieldContainer[ImportFinding]
+    total_findings: int
+    applied: bool
+    def __init__(self, files: _Optional[_Iterable[_Union[ImportFileReport, _Mapping]]] = ..., status_map: _Optional[_Iterable[_Union[StatusMapEntry, _Mapping]]] = ..., findings: _Optional[_Iterable[_Union[ImportFinding, _Mapping]]] = ..., total_findings: _Optional[int] = ..., applied: _Optional[bool] = ...) -> None: ...
+
+class SpaceCell(_message.Message):
+    __slots__ = ("id", "group", "question", "owner", "status", "notes")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    GROUP_FIELD_NUMBER: _ClassVar[int]
+    QUESTION_FIELD_NUMBER: _ClassVar[int]
+    OWNER_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    NOTES_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    group: str
+    question: str
+    owner: str
+    status: str
+    notes: str
+    def __init__(self, id: _Optional[str] = ..., group: _Optional[str] = ..., question: _Optional[str] = ..., owner: _Optional[str] = ..., status: _Optional[str] = ..., notes: _Optional[str] = ...) -> None: ...
+
+class SpaceResponse(_message.Message):
+    __slots__ = ("schema_version", "projection", "owner", "denominator_confidence", "confidence_rationale", "source", "cells")
+    SCHEMA_VERSION_FIELD_NUMBER: _ClassVar[int]
+    PROJECTION_FIELD_NUMBER: _ClassVar[int]
+    OWNER_FIELD_NUMBER: _ClassVar[int]
+    DENOMINATOR_CONFIDENCE_FIELD_NUMBER: _ClassVar[int]
+    CONFIDENCE_RATIONALE_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_FIELD_NUMBER: _ClassVar[int]
+    CELLS_FIELD_NUMBER: _ClassVar[int]
+    schema_version: str
+    projection: str
+    owner: str
+    denominator_confidence: str
+    confidence_rationale: str
+    source: str
+    cells: _containers.RepeatedCompositeFieldContainer[SpaceCell]
+    def __init__(self, schema_version: _Optional[str] = ..., projection: _Optional[str] = ..., owner: _Optional[str] = ..., denominator_confidence: _Optional[str] = ..., confidence_rationale: _Optional[str] = ..., source: _Optional[str] = ..., cells: _Optional[_Iterable[_Union[SpaceCell, _Mapping]]] = ...) -> None: ...

@@ -31,6 +31,15 @@ const (
 	InferenceErrorCode_INFERENCE_ERROR_CODE_UNSUPPORTED_SCHEMA InferenceErrorCode = 3
 	InferenceErrorCode_INFERENCE_ERROR_CODE_VALIDATION_FAILED  InferenceErrorCode = 4
 	InferenceErrorCode_INFERENCE_ERROR_CODE_PROVIDER_FAILED    InferenceErrorCode = 5
+	// INFERENCE_ERROR_CODE_UNSUPPORTED_SAMPLING means the caller asked for a
+	// sampling control that no remaining candidate's provider can honour. It
+	// names the offending control in `construct` (e.g. "sampling.temperature").
+	// A caller-supplied control is a promise the gateway keeps or refuses; it is
+	// never silently downgraded, matching how a rejected schema is never
+	// degraded to unconstrained generation. A role-declared default that cannot
+	// be honoured is omitted silently instead, because the role author expressed
+	// a preference while the caller made no promise.
+	InferenceErrorCode_INFERENCE_ERROR_CODE_UNSUPPORTED_SAMPLING InferenceErrorCode = 6
 )
 
 // Enum value maps for InferenceErrorCode.
@@ -42,14 +51,16 @@ var (
 		3: "INFERENCE_ERROR_CODE_UNSUPPORTED_SCHEMA",
 		4: "INFERENCE_ERROR_CODE_VALIDATION_FAILED",
 		5: "INFERENCE_ERROR_CODE_PROVIDER_FAILED",
+		6: "INFERENCE_ERROR_CODE_UNSUPPORTED_SAMPLING",
 	}
 	InferenceErrorCode_value = map[string]int32{
-		"INFERENCE_ERROR_CODE_UNSPECIFIED":        0,
-		"INFERENCE_ERROR_CODE_UNAVAILABLE":        1,
-		"INFERENCE_ERROR_CODE_INVALID_REQUEST":    2,
-		"INFERENCE_ERROR_CODE_UNSUPPORTED_SCHEMA": 3,
-		"INFERENCE_ERROR_CODE_VALIDATION_FAILED":  4,
-		"INFERENCE_ERROR_CODE_PROVIDER_FAILED":    5,
+		"INFERENCE_ERROR_CODE_UNSPECIFIED":          0,
+		"INFERENCE_ERROR_CODE_UNAVAILABLE":          1,
+		"INFERENCE_ERROR_CODE_INVALID_REQUEST":      2,
+		"INFERENCE_ERROR_CODE_UNSUPPORTED_SCHEMA":   3,
+		"INFERENCE_ERROR_CODE_VALIDATION_FAILED":    4,
+		"INFERENCE_ERROR_CODE_PROVIDER_FAILED":      5,
+		"INFERENCE_ERROR_CODE_UNSUPPORTED_SAMPLING": 6,
 	}
 )
 
@@ -280,9 +291,22 @@ type RunRequest struct {
 	Attachments []*shared.Attachment   `protobuf:"bytes,6,rep,name=attachments,proto3" json:"attachments,omitempty"`
 	// profile carries the caller's locality stance. The gateway still owns
 	// provider selection and never accepts a concrete model or credential.
-	Profile       shared.Profile `protobuf:"varint,7,opt,name=profile,proto3,enum=vrooli.ai_gateway.v1.shared.Profile" json:"profile,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Profile shared.Profile `protobuf:"varint,7,opt,name=profile,proto3,enum=vrooli.ai_gateway.v1.shared.Profile" json:"profile,omitempty"`
+	// sampling is the caller's explicit sampling request. It is honoured only by
+	// roles that declare themselves overridable; sending it to a deterministic
+	// role is INFERENCE_ERROR_CODE_INVALID_REQUEST, not a silent override.
+	// @default the role's declared sampling
+	Sampling *shared.SamplingControls `protobuf:"bytes,8,opt,name=sampling,proto3" json:"sampling,omitempty"`
+	// max_output_tokens bounds the response the gateway asks the provider for.
+	// It is request-level rather than role-level because the budget depends on
+	// caller data a role cannot know — one role serves a single draft and a
+	// twenty-candidate set, and sizing for either breaks the other. It is
+	// bidirectional: a caller may send a tighter cap than the role default.
+	// @default the resolved resource role's declared cap, else no cap
+	// @unit tokens
+	MaxOutputTokens int32 `protobuf:"varint,9,opt,name=max_output_tokens,json=maxOutputTokens,proto3" json:"max_output_tokens,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *RunRequest) Reset() {
@@ -364,14 +388,33 @@ func (x *RunRequest) GetProfile() shared.Profile {
 	return shared.Profile(0)
 }
 
+func (x *RunRequest) GetSampling() *shared.SamplingControls {
+	if x != nil {
+		return x.Sampling
+	}
+	return nil
+}
+
+func (x *RunRequest) GetMaxOutputTokens() int32 {
+	if x != nil {
+		return x.MaxOutputTokens
+	}
+	return 0
+}
+
 type RunResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	ValueJson     string                 `protobuf:"bytes,1,opt,name=value_json,json=valueJson,proto3" json:"value_json,omitempty"`
-	Provider      string                 `protobuf:"bytes,2,opt,name=provider,proto3" json:"provider,omitempty"`
-	Model         string                 `protobuf:"bytes,3,opt,name=model,proto3" json:"model,omitempty"`
-	Validated     bool                   `protobuf:"varint,4,opt,name=validated,proto3" json:"validated,omitempty"`
-	Usage         *Usage                 `protobuf:"bytes,5,opt,name=usage,proto3" json:"usage,omitempty"`
-	Error         *InferenceError        `protobuf:"bytes,6,opt,name=error,proto3" json:"error,omitempty"`
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	ValueJson string                 `protobuf:"bytes,1,opt,name=value_json,json=valueJson,proto3" json:"value_json,omitempty"`
+	Provider  string                 `protobuf:"bytes,2,opt,name=provider,proto3" json:"provider,omitempty"`
+	Model     string                 `protobuf:"bytes,3,opt,name=model,proto3" json:"model,omitempty"`
+	Validated bool                   `protobuf:"varint,4,opt,name=validated,proto3" json:"validated,omitempty"`
+	Usage     *Usage                 `protobuf:"bytes,5,opt,name=usage,proto3" json:"usage,omitempty"`
+	Error     *InferenceError        `protobuf:"bytes,6,opt,name=error,proto3" json:"error,omitempty"`
+	// applied reports what the gateway actually sent and what the resolved role
+	// declares, so provenance records fact rather than the caller's own request.
+	// It is populated on every return path including errors: a refused or
+	// truncated call is exactly when a caller needs to know the cap.
+	Applied       *shared.AppliedSettings `protobuf:"bytes,7,opt,name=applied,proto3" json:"applied,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -444,6 +487,13 @@ func (x *RunResponse) GetUsage() *Usage {
 func (x *RunResponse) GetError() *InferenceError {
 	if x != nil {
 		return x.Error
+	}
+	return nil
+}
+
+func (x *RunResponse) GetApplied() *shared.AppliedSettings {
+	if x != nil {
+		return x.Applied
 	}
 	return nil
 }
@@ -631,7 +681,7 @@ const file_ai_gateway_v1_inference_inference_proto_rawDesc = "" +
 	"\x04Turn\x12\x12\n" +
 	"\x04role\x18\x01 \x01(\tR\x04role\x12\x12\n" +
 	"\x04text\x18\x02 \x01(\tR\x04text\x12I\n" +
-	"\vattachments\x18\x03 \x03(\v2'.vrooli.ai_gateway.v1.shared.AttachmentR\vattachments\"\xc2\x02\n" +
+	"\vattachments\x18\x03 \x03(\v2'.vrooli.ai_gateway.v1.shared.AttachmentR\vattachments\"\xb9\x03\n" +
 	"\n" +
 	"RunRequest\x12\x16\n" +
 	"\x06source\x18\x01 \x01(\tR\x06source\x12\x1f\n" +
@@ -641,7 +691,9 @@ const file_ai_gateway_v1_inference_inference_proto_rawDesc = "" +
 	"\x04role\x18\x04 \x01(\tR\x04role\x12:\n" +
 	"\x05turns\x18\x05 \x03(\v2$.vrooli.ai_gateway.v1.inference.TurnR\x05turns\x12I\n" +
 	"\vattachments\x18\x06 \x03(\v2'.vrooli.ai_gateway.v1.shared.AttachmentR\vattachments\x12>\n" +
-	"\aprofile\x18\a \x01(\x0e2$.vrooli.ai_gateway.v1.shared.ProfileR\aprofile\"\xff\x01\n" +
+	"\aprofile\x18\a \x01(\x0e2$.vrooli.ai_gateway.v1.shared.ProfileR\aprofile\x12I\n" +
+	"\bsampling\x18\b \x01(\v2-.vrooli.ai_gateway.v1.shared.SamplingControlsR\bsampling\x12*\n" +
+	"\x11max_output_tokens\x18\t \x01(\x05R\x0fmaxOutputTokens\"\xc7\x02\n" +
 	"\vRunResponse\x12\x1d\n" +
 	"\n" +
 	"value_json\x18\x01 \x01(\tR\tvalueJson\x12\x1a\n" +
@@ -649,7 +701,8 @@ const file_ai_gateway_v1_inference_inference_proto_rawDesc = "" +
 	"\x05model\x18\x03 \x01(\tR\x05model\x12\x1c\n" +
 	"\tvalidated\x18\x04 \x01(\bR\tvalidated\x12;\n" +
 	"\x05usage\x18\x05 \x01(\v2%.vrooli.ai_gateway.v1.inference.UsageR\x05usage\x12D\n" +
-	"\x05error\x18\x06 \x01(\v2..vrooli.ai_gateway.v1.inference.InferenceErrorR\x05error\"&\n" +
+	"\x05error\x18\x06 \x01(\v2..vrooli.ai_gateway.v1.inference.InferenceErrorR\x05error\x12F\n" +
+	"\aapplied\x18\a \x01(\v2,.vrooli.ai_gateway.v1.shared.AppliedSettingsR\aapplied\"&\n" +
 	"\fRunBatchItem\x12\x16\n" +
 	"\x06source\x18\x01 \x01(\tR\x06source\"\xac\x01\n" +
 	"\x0fRunBatchRequest\x12B\n" +
@@ -660,14 +713,15 @@ const file_ai_gateway_v1_inference_inference_proto_rawDesc = "" +
 	"\x04role\x18\x04 \x01(\tR\x04role\"\x96\x01\n" +
 	"\x10RunBatchResponse\x12E\n" +
 	"\aresults\x18\x01 \x03(\v2+.vrooli.ai_gateway.v1.inference.RunResponseR\aresults\x12;\n" +
-	"\x05usage\x18\x02 \x01(\v2%.vrooli.ai_gateway.v1.inference.UsageR\x05usage*\x8d\x02\n" +
+	"\x05usage\x18\x02 \x01(\v2%.vrooli.ai_gateway.v1.inference.UsageR\x05usage*\xbc\x02\n" +
 	"\x12InferenceErrorCode\x12$\n" +
 	" INFERENCE_ERROR_CODE_UNSPECIFIED\x10\x00\x12$\n" +
 	" INFERENCE_ERROR_CODE_UNAVAILABLE\x10\x01\x12(\n" +
 	"$INFERENCE_ERROR_CODE_INVALID_REQUEST\x10\x02\x12+\n" +
 	"'INFERENCE_ERROR_CODE_UNSUPPORTED_SCHEMA\x10\x03\x12*\n" +
 	"&INFERENCE_ERROR_CODE_VALIDATION_FAILED\x10\x04\x12(\n" +
-	"$INFERENCE_ERROR_CODE_PROVIDER_FAILED\x10\x052\xe1\x01\n" +
+	"$INFERENCE_ERROR_CODE_PROVIDER_FAILED\x10\x05\x12-\n" +
+	")INFERENCE_ERROR_CODE_UNSUPPORTED_SAMPLING\x10\x062\xe1\x01\n" +
 	"\x10InferenceService\x12^\n" +
 	"\x03Run\x12*.vrooli.ai_gateway.v1.inference.RunRequest\x1a+.vrooli.ai_gateway.v1.inference.RunResponse\x12m\n" +
 	"\bRunBatch\x12/.vrooli.ai_gateway.v1.inference.RunBatchRequest\x1a0.vrooli.ai_gateway.v1.inference.RunBatchResponseBUZSgithub.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference;inference_v1b\x06proto3"
@@ -687,17 +741,19 @@ func file_ai_gateway_v1_inference_inference_proto_rawDescGZIP() []byte {
 var file_ai_gateway_v1_inference_inference_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
 var file_ai_gateway_v1_inference_inference_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_ai_gateway_v1_inference_inference_proto_goTypes = []any{
-	(InferenceErrorCode)(0),   // 0: vrooli.ai_gateway.v1.inference.InferenceErrorCode
-	(*Usage)(nil),             // 1: vrooli.ai_gateway.v1.inference.Usage
-	(*InferenceError)(nil),    // 2: vrooli.ai_gateway.v1.inference.InferenceError
-	(*Turn)(nil),              // 3: vrooli.ai_gateway.v1.inference.Turn
-	(*RunRequest)(nil),        // 4: vrooli.ai_gateway.v1.inference.RunRequest
-	(*RunResponse)(nil),       // 5: vrooli.ai_gateway.v1.inference.RunResponse
-	(*RunBatchItem)(nil),      // 6: vrooli.ai_gateway.v1.inference.RunBatchItem
-	(*RunBatchRequest)(nil),   // 7: vrooli.ai_gateway.v1.inference.RunBatchRequest
-	(*RunBatchResponse)(nil),  // 8: vrooli.ai_gateway.v1.inference.RunBatchResponse
-	(*shared.Attachment)(nil), // 9: vrooli.ai_gateway.v1.shared.Attachment
-	(shared.Profile)(0),       // 10: vrooli.ai_gateway.v1.shared.Profile
+	(InferenceErrorCode)(0),         // 0: vrooli.ai_gateway.v1.inference.InferenceErrorCode
+	(*Usage)(nil),                   // 1: vrooli.ai_gateway.v1.inference.Usage
+	(*InferenceError)(nil),          // 2: vrooli.ai_gateway.v1.inference.InferenceError
+	(*Turn)(nil),                    // 3: vrooli.ai_gateway.v1.inference.Turn
+	(*RunRequest)(nil),              // 4: vrooli.ai_gateway.v1.inference.RunRequest
+	(*RunResponse)(nil),             // 5: vrooli.ai_gateway.v1.inference.RunResponse
+	(*RunBatchItem)(nil),            // 6: vrooli.ai_gateway.v1.inference.RunBatchItem
+	(*RunBatchRequest)(nil),         // 7: vrooli.ai_gateway.v1.inference.RunBatchRequest
+	(*RunBatchResponse)(nil),        // 8: vrooli.ai_gateway.v1.inference.RunBatchResponse
+	(*shared.Attachment)(nil),       // 9: vrooli.ai_gateway.v1.shared.Attachment
+	(shared.Profile)(0),             // 10: vrooli.ai_gateway.v1.shared.Profile
+	(*shared.SamplingControls)(nil), // 11: vrooli.ai_gateway.v1.shared.SamplingControls
+	(*shared.AppliedSettings)(nil),  // 12: vrooli.ai_gateway.v1.shared.AppliedSettings
 }
 var file_ai_gateway_v1_inference_inference_proto_depIdxs = []int32{
 	0,  // 0: vrooli.ai_gateway.v1.inference.InferenceError.code:type_name -> vrooli.ai_gateway.v1.inference.InferenceErrorCode
@@ -705,20 +761,22 @@ var file_ai_gateway_v1_inference_inference_proto_depIdxs = []int32{
 	3,  // 2: vrooli.ai_gateway.v1.inference.RunRequest.turns:type_name -> vrooli.ai_gateway.v1.inference.Turn
 	9,  // 3: vrooli.ai_gateway.v1.inference.RunRequest.attachments:type_name -> vrooli.ai_gateway.v1.shared.Attachment
 	10, // 4: vrooli.ai_gateway.v1.inference.RunRequest.profile:type_name -> vrooli.ai_gateway.v1.shared.Profile
-	1,  // 5: vrooli.ai_gateway.v1.inference.RunResponse.usage:type_name -> vrooli.ai_gateway.v1.inference.Usage
-	2,  // 6: vrooli.ai_gateway.v1.inference.RunResponse.error:type_name -> vrooli.ai_gateway.v1.inference.InferenceError
-	6,  // 7: vrooli.ai_gateway.v1.inference.RunBatchRequest.items:type_name -> vrooli.ai_gateway.v1.inference.RunBatchItem
-	5,  // 8: vrooli.ai_gateway.v1.inference.RunBatchResponse.results:type_name -> vrooli.ai_gateway.v1.inference.RunResponse
-	1,  // 9: vrooli.ai_gateway.v1.inference.RunBatchResponse.usage:type_name -> vrooli.ai_gateway.v1.inference.Usage
-	4,  // 10: vrooli.ai_gateway.v1.inference.InferenceService.Run:input_type -> vrooli.ai_gateway.v1.inference.RunRequest
-	7,  // 11: vrooli.ai_gateway.v1.inference.InferenceService.RunBatch:input_type -> vrooli.ai_gateway.v1.inference.RunBatchRequest
-	5,  // 12: vrooli.ai_gateway.v1.inference.InferenceService.Run:output_type -> vrooli.ai_gateway.v1.inference.RunResponse
-	8,  // 13: vrooli.ai_gateway.v1.inference.InferenceService.RunBatch:output_type -> vrooli.ai_gateway.v1.inference.RunBatchResponse
-	12, // [12:14] is the sub-list for method output_type
-	10, // [10:12] is the sub-list for method input_type
-	10, // [10:10] is the sub-list for extension type_name
-	10, // [10:10] is the sub-list for extension extendee
-	0,  // [0:10] is the sub-list for field type_name
+	11, // 5: vrooli.ai_gateway.v1.inference.RunRequest.sampling:type_name -> vrooli.ai_gateway.v1.shared.SamplingControls
+	1,  // 6: vrooli.ai_gateway.v1.inference.RunResponse.usage:type_name -> vrooli.ai_gateway.v1.inference.Usage
+	2,  // 7: vrooli.ai_gateway.v1.inference.RunResponse.error:type_name -> vrooli.ai_gateway.v1.inference.InferenceError
+	12, // 8: vrooli.ai_gateway.v1.inference.RunResponse.applied:type_name -> vrooli.ai_gateway.v1.shared.AppliedSettings
+	6,  // 9: vrooli.ai_gateway.v1.inference.RunBatchRequest.items:type_name -> vrooli.ai_gateway.v1.inference.RunBatchItem
+	5,  // 10: vrooli.ai_gateway.v1.inference.RunBatchResponse.results:type_name -> vrooli.ai_gateway.v1.inference.RunResponse
+	1,  // 11: vrooli.ai_gateway.v1.inference.RunBatchResponse.usage:type_name -> vrooli.ai_gateway.v1.inference.Usage
+	4,  // 12: vrooli.ai_gateway.v1.inference.InferenceService.Run:input_type -> vrooli.ai_gateway.v1.inference.RunRequest
+	7,  // 13: vrooli.ai_gateway.v1.inference.InferenceService.RunBatch:input_type -> vrooli.ai_gateway.v1.inference.RunBatchRequest
+	5,  // 14: vrooli.ai_gateway.v1.inference.InferenceService.Run:output_type -> vrooli.ai_gateway.v1.inference.RunResponse
+	8,  // 15: vrooli.ai_gateway.v1.inference.InferenceService.RunBatch:output_type -> vrooli.ai_gateway.v1.inference.RunBatchResponse
+	14, // [14:16] is the sub-list for method output_type
+	12, // [12:14] is the sub-list for method input_type
+	12, // [12:12] is the sub-list for extension type_name
+	12, // [12:12] is the sub-list for extension extendee
+	0,  // [0:12] is the sub-list for field type_name
 }
 
 func init() { file_ai_gateway_v1_inference_inference_proto_init() }

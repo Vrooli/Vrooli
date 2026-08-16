@@ -70,4 +70,10 @@ describe("ThemeProvider", () => {
 
     matchMediaSpy.mockRestore();
   });
+
+  it("fails clearly when consumed without its provider", () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    expect(() => renderHook(() => useTheme())).toThrow(/inside <ThemeProvider>/);
+    consoleError.mockRestore();
+  });
 });

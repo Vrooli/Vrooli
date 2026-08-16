@@ -75,7 +75,7 @@ class ProviderGroupAdvisory(_message.Message):
     def __init__(self, provider_group: _Optional[str] = ..., active_leaves: _Optional[int] = ..., share: _Optional[float] = ..., reason: _Optional[str] = ...) -> None: ...
 
 class InsightsResponse(_message.Message):
-    __slots__ = ("total_queries", "zero_result_queries", "zero_result_rate", "degraded_queries", "reranked_queries", "latency_p50_ms", "latency_p95_ms", "providers", "retirement_candidates", "group_advisories", "resolver_cache_hits", "resolver_cache_misses", "resolver_cache_hit_rate", "window_from", "window_to", "sample_count", "minimum_sample_count", "sample_sufficient", "recent_sample_count", "recent_latency_p50_ms", "recent_latency_p95_ms")
+    __slots__ = ("total_queries", "zero_result_queries", "zero_result_rate", "degraded_queries", "reranked_queries", "latency_p50_ms", "latency_p95_ms", "providers", "retirement_candidates", "group_advisories", "resolver_cache_hits", "resolver_cache_misses", "resolver_cache_hit_rate", "window_from", "window_to", "sample_count", "minimum_sample_count", "sample_sufficient", "recent_sample_count", "recent_latency_p50_ms", "recent_latency_p95_ms", "substrate_degradation_reasons", "substrate_degraded_legs")
     TOTAL_QUERIES_FIELD_NUMBER: _ClassVar[int]
     ZERO_RESULT_QUERIES_FIELD_NUMBER: _ClassVar[int]
     ZERO_RESULT_RATE_FIELD_NUMBER: _ClassVar[int]
@@ -97,6 +97,8 @@ class InsightsResponse(_message.Message):
     RECENT_SAMPLE_COUNT_FIELD_NUMBER: _ClassVar[int]
     RECENT_LATENCY_P50_MS_FIELD_NUMBER: _ClassVar[int]
     RECENT_LATENCY_P95_MS_FIELD_NUMBER: _ClassVar[int]
+    SUBSTRATE_DEGRADATION_REASONS_FIELD_NUMBER: _ClassVar[int]
+    SUBSTRATE_DEGRADED_LEGS_FIELD_NUMBER: _ClassVar[int]
     total_queries: int
     zero_result_queries: int
     zero_result_rate: float
@@ -118,4 +120,6 @@ class InsightsResponse(_message.Message):
     recent_sample_count: int
     recent_latency_p50_ms: int
     recent_latency_p95_ms: int
-    def __init__(self, total_queries: _Optional[int] = ..., zero_result_queries: _Optional[int] = ..., zero_result_rate: _Optional[float] = ..., degraded_queries: _Optional[int] = ..., reranked_queries: _Optional[int] = ..., latency_p50_ms: _Optional[int] = ..., latency_p95_ms: _Optional[int] = ..., providers: _Optional[_Iterable[_Union[ProviderUtilization, _Mapping]]] = ..., retirement_candidates: _Optional[_Iterable[_Union[ProviderRetirementCandidate, _Mapping]]] = ..., group_advisories: _Optional[_Iterable[_Union[ProviderGroupAdvisory, _Mapping]]] = ..., resolver_cache_hits: _Optional[int] = ..., resolver_cache_misses: _Optional[int] = ..., resolver_cache_hit_rate: _Optional[float] = ..., window_from: _Optional[str] = ..., window_to: _Optional[str] = ..., sample_count: _Optional[int] = ..., minimum_sample_count: _Optional[int] = ..., sample_sufficient: _Optional[bool] = ..., recent_sample_count: _Optional[int] = ..., recent_latency_p50_ms: _Optional[int] = ..., recent_latency_p95_ms: _Optional[int] = ...) -> None: ...
+    substrate_degradation_reasons: _containers.RepeatedCompositeFieldContainer[ProviderDegradationReason]
+    substrate_degraded_legs: int
+    def __init__(self, total_queries: _Optional[int] = ..., zero_result_queries: _Optional[int] = ..., zero_result_rate: _Optional[float] = ..., degraded_queries: _Optional[int] = ..., reranked_queries: _Optional[int] = ..., latency_p50_ms: _Optional[int] = ..., latency_p95_ms: _Optional[int] = ..., providers: _Optional[_Iterable[_Union[ProviderUtilization, _Mapping]]] = ..., retirement_candidates: _Optional[_Iterable[_Union[ProviderRetirementCandidate, _Mapping]]] = ..., group_advisories: _Optional[_Iterable[_Union[ProviderGroupAdvisory, _Mapping]]] = ..., resolver_cache_hits: _Optional[int] = ..., resolver_cache_misses: _Optional[int] = ..., resolver_cache_hit_rate: _Optional[float] = ..., window_from: _Optional[str] = ..., window_to: _Optional[str] = ..., sample_count: _Optional[int] = ..., minimum_sample_count: _Optional[int] = ..., sample_sufficient: _Optional[bool] = ..., recent_sample_count: _Optional[int] = ..., recent_latency_p50_ms: _Optional[int] = ..., recent_latency_p95_ms: _Optional[int] = ..., substrate_degradation_reasons: _Optional[_Iterable[_Union[ProviderDegradationReason, _Mapping]]] = ..., substrate_degraded_legs: _Optional[int] = ...) -> None: ...

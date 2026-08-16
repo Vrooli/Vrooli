@@ -16,12 +16,14 @@ class InferenceErrorCode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     INFERENCE_ERROR_CODE_UNSUPPORTED_SCHEMA: _ClassVar[InferenceErrorCode]
     INFERENCE_ERROR_CODE_VALIDATION_FAILED: _ClassVar[InferenceErrorCode]
     INFERENCE_ERROR_CODE_PROVIDER_FAILED: _ClassVar[InferenceErrorCode]
+    INFERENCE_ERROR_CODE_UNSUPPORTED_SAMPLING: _ClassVar[InferenceErrorCode]
 INFERENCE_ERROR_CODE_UNSPECIFIED: InferenceErrorCode
 INFERENCE_ERROR_CODE_UNAVAILABLE: InferenceErrorCode
 INFERENCE_ERROR_CODE_INVALID_REQUEST: InferenceErrorCode
 INFERENCE_ERROR_CODE_UNSUPPORTED_SCHEMA: InferenceErrorCode
 INFERENCE_ERROR_CODE_VALIDATION_FAILED: InferenceErrorCode
 INFERENCE_ERROR_CODE_PROVIDER_FAILED: InferenceErrorCode
+INFERENCE_ERROR_CODE_UNSUPPORTED_SAMPLING: InferenceErrorCode
 
 class Usage(_message.Message):
     __slots__ = ("input_tokens", "output_tokens", "cost_micros")
@@ -54,7 +56,7 @@ class Turn(_message.Message):
     def __init__(self, role: _Optional[str] = ..., text: _Optional[str] = ..., attachments: _Optional[_Iterable[_Union[_gateway_pb2.Attachment, _Mapping]]] = ...) -> None: ...
 
 class RunRequest(_message.Message):
-    __slots__ = ("source", "schema_json", "instruction", "role", "turns", "attachments", "profile")
+    __slots__ = ("source", "schema_json", "instruction", "role", "turns", "attachments", "profile", "sampling", "max_output_tokens")
     SOURCE_FIELD_NUMBER: _ClassVar[int]
     SCHEMA_JSON_FIELD_NUMBER: _ClassVar[int]
     INSTRUCTION_FIELD_NUMBER: _ClassVar[int]
@@ -62,6 +64,8 @@ class RunRequest(_message.Message):
     TURNS_FIELD_NUMBER: _ClassVar[int]
     ATTACHMENTS_FIELD_NUMBER: _ClassVar[int]
     PROFILE_FIELD_NUMBER: _ClassVar[int]
+    SAMPLING_FIELD_NUMBER: _ClassVar[int]
+    MAX_OUTPUT_TOKENS_FIELD_NUMBER: _ClassVar[int]
     source: str
     schema_json: str
     instruction: str
@@ -69,23 +73,27 @@ class RunRequest(_message.Message):
     turns: _containers.RepeatedCompositeFieldContainer[Turn]
     attachments: _containers.RepeatedCompositeFieldContainer[_gateway_pb2.Attachment]
     profile: _gateway_pb2.Profile
-    def __init__(self, source: _Optional[str] = ..., schema_json: _Optional[str] = ..., instruction: _Optional[str] = ..., role: _Optional[str] = ..., turns: _Optional[_Iterable[_Union[Turn, _Mapping]]] = ..., attachments: _Optional[_Iterable[_Union[_gateway_pb2.Attachment, _Mapping]]] = ..., profile: _Optional[_Union[_gateway_pb2.Profile, str]] = ...) -> None: ...
+    sampling: _gateway_pb2.SamplingControls
+    max_output_tokens: int
+    def __init__(self, source: _Optional[str] = ..., schema_json: _Optional[str] = ..., instruction: _Optional[str] = ..., role: _Optional[str] = ..., turns: _Optional[_Iterable[_Union[Turn, _Mapping]]] = ..., attachments: _Optional[_Iterable[_Union[_gateway_pb2.Attachment, _Mapping]]] = ..., profile: _Optional[_Union[_gateway_pb2.Profile, str]] = ..., sampling: _Optional[_Union[_gateway_pb2.SamplingControls, _Mapping]] = ..., max_output_tokens: _Optional[int] = ...) -> None: ...
 
 class RunResponse(_message.Message):
-    __slots__ = ("value_json", "provider", "model", "validated", "usage", "error")
+    __slots__ = ("value_json", "provider", "model", "validated", "usage", "error", "applied")
     VALUE_JSON_FIELD_NUMBER: _ClassVar[int]
     PROVIDER_FIELD_NUMBER: _ClassVar[int]
     MODEL_FIELD_NUMBER: _ClassVar[int]
     VALIDATED_FIELD_NUMBER: _ClassVar[int]
     USAGE_FIELD_NUMBER: _ClassVar[int]
     ERROR_FIELD_NUMBER: _ClassVar[int]
+    APPLIED_FIELD_NUMBER: _ClassVar[int]
     value_json: str
     provider: str
     model: str
     validated: bool
     usage: Usage
     error: InferenceError
-    def __init__(self, value_json: _Optional[str] = ..., provider: _Optional[str] = ..., model: _Optional[str] = ..., validated: _Optional[bool] = ..., usage: _Optional[_Union[Usage, _Mapping]] = ..., error: _Optional[_Union[InferenceError, _Mapping]] = ...) -> None: ...
+    applied: _gateway_pb2.AppliedSettings
+    def __init__(self, value_json: _Optional[str] = ..., provider: _Optional[str] = ..., model: _Optional[str] = ..., validated: _Optional[bool] = ..., usage: _Optional[_Union[Usage, _Mapping]] = ..., error: _Optional[_Union[InferenceError, _Mapping]] = ..., applied: _Optional[_Union[_gateway_pb2.AppliedSettings, _Mapping]] = ...) -> None: ...
 
 class RunBatchItem(_message.Message):
     __slots__ = ("source",)

@@ -14,7 +14,7 @@ describe("api/health.fetchHealth", () => {
     vi.unstubAllGlobals();
   });
 
-  it("requests /health with cache: 'no-store'", async () => {
+	it("requests /health with cache: 'no-store'", async () => {
     fetchSpy.mockResolvedValueOnce(
       new Response('{"status":"healthy","service":"x","timestamp":"t","readiness":true}', {
         status: 200,
@@ -26,9 +26,14 @@ describe("api/health.fetchHealth", () => {
     expect(fetchSpy).toHaveBeenCalledTimes(1);
     const [url, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
     expect(url).toMatch(/\/health$/);
-    expect(init).toMatchObject({
-      method: "GET",
-      cache: "no-store",
-    });
-  });
+		expect(init).toMatchObject({
+	      method: "GET",
+	      cache: "no-store",
+	});
+});
+
+it("rejects non-OK health responses", async () => {
+	fetchSpy.mockResolvedValueOnce(new Response('{"error":"down"}', { status: 503 }));
+	await expect(fetchHealth()).rejects.toBeDefined();
+});
 });

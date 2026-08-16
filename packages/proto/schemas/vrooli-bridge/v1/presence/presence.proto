@@ -36,6 +36,11 @@ service PresenceService {
   // ReportSessionFrame carries node PTY output and terminal lifecycle events
   // back over the node's mutually-authenticated Connect channel.
   rpc ReportSessionFrame(ReportSessionFrameRequest) returns (ReportSessionFrameResponse);
+
+  // ReportRelayResponse carries bounded relay data and its terminal outcome
+  // from a node-agent. It is node-facing and authenticated with the same
+  // per-node proof as heartbeat and session frames.
+  rpc ReportRelayResponse(ReportRelayResponseRequest) returns (ReportRelayResponseResponse);
 }
 
 message ReportHeartbeatRequest {
@@ -62,5 +67,13 @@ message ReportSessionFrameRequest {
 }
 
 message ReportSessionFrameResponse {
+  bool accepted = 1;
+}
+
+message ReportRelayResponseRequest {
+  vrooli.vrooli_bridge.v1.shared.RelayResponse response = 1;
+}
+
+message ReportRelayResponseResponse {
   bool accepted = 1;
 }

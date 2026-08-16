@@ -1,3 +1,6 @@
+import datetime
+
+from google.protobuf import duration_pb2 as _duration_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
@@ -172,8 +175,20 @@ class Tuning(_message.Message):
     rerank_preference: str
     def __init__(self, engine: _Optional[str] = ..., embed_model: _Optional[str] = ..., embed_task_prefix: _Optional[bool] = ..., rerank_enabled: _Optional[bool] = ..., rerank_blend: _Optional[bool] = ..., rerank_shortlist: _Optional[int] = ..., floor: _Optional[_Union[FloorConfig, _Mapping]] = ..., hybrid_fusion: _Optional[str] = ..., rerank_preference: _Optional[str] = ...) -> None: ...
 
+class RoutingProfile(_message.Message):
+    __slots__ = ("answer_spaces", "intents", "positive_examples", "exclusions")
+    ANSWER_SPACES_FIELD_NUMBER: _ClassVar[int]
+    INTENTS_FIELD_NUMBER: _ClassVar[int]
+    POSITIVE_EXAMPLES_FIELD_NUMBER: _ClassVar[int]
+    EXCLUSIONS_FIELD_NUMBER: _ClassVar[int]
+    answer_spaces: _containers.RepeatedScalarFieldContainer[str]
+    intents: _containers.RepeatedScalarFieldContainer[str]
+    positive_examples: _containers.RepeatedScalarFieldContainer[str]
+    exclusions: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, answer_spaces: _Optional[_Iterable[str]] = ..., intents: _Optional[_Iterable[str]] = ..., positive_examples: _Optional[_Iterable[str]] = ..., exclusions: _Optional[_Iterable[str]] = ...) -> None: ...
+
 class ProviderDescriptor(_message.Message):
-    __slots__ = ("provider_id", "provider_group", "bucket", "type", "description", "endpoint", "result_mapping", "query_hint", "status_endpoint", "scope", "state", "intended_home", "reindex_endpoint", "config_endpoint", "tuning", "lifecycle", "tests_minimum", "junk_leak_opt_out_reason", "index_timestamp_field", "declared_at")
+    __slots__ = ("provider_id", "provider_group", "bucket", "type", "description", "endpoint", "result_mapping", "query_hint", "status_endpoint", "scope", "state", "intended_home", "reindex_endpoint", "config_endpoint", "tuning", "lifecycle", "tests_minimum", "junk_leak_opt_out_reason", "index_timestamp_field", "declared_at", "freshness_budget", "routing_profile")
     PROVIDER_ID_FIELD_NUMBER: _ClassVar[int]
     PROVIDER_GROUP_FIELD_NUMBER: _ClassVar[int]
     BUCKET_FIELD_NUMBER: _ClassVar[int]
@@ -194,6 +209,8 @@ class ProviderDescriptor(_message.Message):
     JUNK_LEAK_OPT_OUT_REASON_FIELD_NUMBER: _ClassVar[int]
     INDEX_TIMESTAMP_FIELD_FIELD_NUMBER: _ClassVar[int]
     DECLARED_AT_FIELD_NUMBER: _ClassVar[int]
+    FRESHNESS_BUDGET_FIELD_NUMBER: _ClassVar[int]
+    ROUTING_PROFILE_FIELD_NUMBER: _ClassVar[int]
     provider_id: str
     provider_group: str
     bucket: Bucket
@@ -214,7 +231,9 @@ class ProviderDescriptor(_message.Message):
     junk_leak_opt_out_reason: str
     index_timestamp_field: str
     declared_at: str
-    def __init__(self, provider_id: _Optional[str] = ..., provider_group: _Optional[str] = ..., bucket: _Optional[_Union[Bucket, str]] = ..., type: _Optional[str] = ..., description: _Optional[str] = ..., endpoint: _Optional[_Union[Endpoint, _Mapping]] = ..., result_mapping: _Optional[_Union[ResultMapping, _Mapping]] = ..., query_hint: _Optional[str] = ..., status_endpoint: _Optional[_Union[Endpoint, _Mapping]] = ..., scope: _Optional[_Union[Scope, str]] = ..., state: _Optional[_Union[ProviderState, str]] = ..., intended_home: _Optional[str] = ..., reindex_endpoint: _Optional[_Union[Endpoint, _Mapping]] = ..., config_endpoint: _Optional[_Union[Endpoint, _Mapping]] = ..., tuning: _Optional[_Union[Tuning, _Mapping]] = ..., lifecycle: _Optional[_Union[Lifecycle, str]] = ..., tests_minimum: _Optional[_Union[EvalMinimum, _Mapping]] = ..., junk_leak_opt_out_reason: _Optional[str] = ..., index_timestamp_field: _Optional[str] = ..., declared_at: _Optional[str] = ...) -> None: ...
+    freshness_budget: _duration_pb2.Duration
+    routing_profile: RoutingProfile
+    def __init__(self, provider_id: _Optional[str] = ..., provider_group: _Optional[str] = ..., bucket: _Optional[_Union[Bucket, str]] = ..., type: _Optional[str] = ..., description: _Optional[str] = ..., endpoint: _Optional[_Union[Endpoint, _Mapping]] = ..., result_mapping: _Optional[_Union[ResultMapping, _Mapping]] = ..., query_hint: _Optional[str] = ..., status_endpoint: _Optional[_Union[Endpoint, _Mapping]] = ..., scope: _Optional[_Union[Scope, str]] = ..., state: _Optional[_Union[ProviderState, str]] = ..., intended_home: _Optional[str] = ..., reindex_endpoint: _Optional[_Union[Endpoint, _Mapping]] = ..., config_endpoint: _Optional[_Union[Endpoint, _Mapping]] = ..., tuning: _Optional[_Union[Tuning, _Mapping]] = ..., lifecycle: _Optional[_Union[Lifecycle, str]] = ..., tests_minimum: _Optional[_Union[EvalMinimum, _Mapping]] = ..., junk_leak_opt_out_reason: _Optional[str] = ..., index_timestamp_field: _Optional[str] = ..., declared_at: _Optional[str] = ..., freshness_budget: _Optional[_Union[datetime.timedelta, _duration_pb2.Duration, _Mapping]] = ..., routing_profile: _Optional[_Union[RoutingProfile, _Mapping]] = ...) -> None: ...
 
 class EvalMinimum(_message.Message):
     __slots__ = ("reviewed_positive", "negative", "required_tags")

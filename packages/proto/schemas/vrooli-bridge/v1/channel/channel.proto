@@ -182,6 +182,40 @@ message AbortJob {
   reserved 3 to 15;
 }
 
+// RelayRequest is a short-lived, typed request carried over the node's already
+// authenticated outbound channel. The node executes the command through its
+// local Vrooli transport and reports bounded response chunks over the signed
+// node-to-control-plane channel; it never accepts a shell string or a direct
+// inbound connection.
+message RelayRequest {
+  // Caller-owned correlation id. It is not a durable run id and is scoped to
+  // this relay call only.
+  string correlation_id = 1;
+
+  // The local scenario and governed command to invoke, plus typed arguments.
+  string scenario = 2;
+  string command = 3;
+  repeated string args = 4;
+
+  // Finite execution budget. Zero uses the node's relay default.
+  int64 timeout_seconds = 5;
+
+  // Maximum aggregate response bytes. The node terminates the call with a
+  // named limit reason rather than truncating silently.
+  uint64 max_response_bytes = 6;
+
+  reserved 7 to 15;
+}
+
+// RelayCancel terminates an in-flight relay request. It is separate from
+// AbortJob because a relay correlation id is not a durable run id.
+message RelayCancel {
+  string correlation_id = 1;
+  string reason = 2;
+
+  reserved 3 to 15;
+}
+
 // RunEvent streams a durable run's progress back to the control plane (node →
 // control plane, OT-P0-005). The runs domain proxies these to the block-once
 // wait verb so a re-attaching client sees the same stream.
@@ -200,6 +234,8 @@ message ServerFrame {
     ControlPing ping = 4;
     AbortJob abort = 5;
     shared.SessionFrame session = 7;
+    RelayRequest relay = 8;
+    RelayCancel relay_cancel = 9;
   }
 }
 
@@ -237,5 +273,6 @@ message NodeFrame {
     shared.RunEvent run_event = 3;
     shared.DeliveryAck delivery_ack = 4;
     shared.SessionFrame session = 5;
+    shared.RelayResponse relay_response = 6;
   }
 }

@@ -363,8 +363,13 @@ type ScenarioStartOperation struct {
 	// Single sanctioned re-check cadence for agents: 0 when terminal (stop
 	// checking), 30 when the ETA is unknown, else remaining clamped to [5, 60].
 	RecommendedNextCheckSeconds int32 `protobuf:"varint,18,opt,name=recommended_next_check_seconds,json=recommendedNextCheckSeconds,proto3" json:"recommended_next_check_seconds,omitempty"`
-	unknownFields               protoimpl.UnknownFields
-	sizeCache                   protoimpl.SizeCache
+	// Orchestrating process recorded on the operation; 0 when the record
+	// carries none. This is the process a competing lifecycle call reports as
+	// the lock holder, so a reader can tie an in-flight operation to the
+	// "already running (held by pid N)" error without inspecting the host.
+	InitiatorPid  int32 `protobuf:"varint,19,opt,name=initiator_pid,json=initiatorPid,proto3" json:"initiator_pid,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ScenarioStartOperation) Reset() {
@@ -519,6 +524,13 @@ func (x *ScenarioStartOperation) GetEtaSeconds() int32 {
 func (x *ScenarioStartOperation) GetRecommendedNextCheckSeconds() int32 {
 	if x != nil {
 		return x.RecommendedNextCheckSeconds
+	}
+	return 0
+}
+
+func (x *ScenarioStartOperation) GetInitiatorPid() int32 {
+	if x != nil {
+		return x.InitiatorPid
 	}
 	return 0
 }
@@ -2760,7 +2772,7 @@ const file_cli_v1_scenario_status_proto_rawDesc = "" +
 	"\n" +
 	"PortsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\x05R\x05value:\x028\x01\"\xac\x05\n" +
+	"\x05value\x18\x02 \x01(\x05R\x05value:\x028\x01\"\xd1\x05\n" +
 	"\x16ScenarioStartOperation\x12!\n" +
 	"\foperation_id\x18\x01 \x01(\tR\voperationId\x12\x1a\n" +
 	"\bscenario\x18\x02 \x01(\tR\bscenario\x12\x18\n" +
@@ -2783,7 +2795,8 @@ const file_cli_v1_scenario_status_proto_rawDesc = "" +
 	"\teta_known\x18\x10 \x01(\bR\betaKnown\x12\x1f\n" +
 	"\veta_seconds\x18\x11 \x01(\x05R\n" +
 	"etaSeconds\x12C\n" +
-	"\x1erecommended_next_check_seconds\x18\x12 \x01(\x05R\x1brecommendedNextCheckSeconds\"\x82\x01\n" +
+	"\x1erecommended_next_check_seconds\x18\x12 \x01(\x05R\x1brecommendedNextCheckSeconds\x12#\n" +
+	"\rinitiator_pid\x18\x13 \x01(\x05R\finitiatorPid\"\x82\x01\n" +
 	"\x1aScenarioStartOperationStep\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x16\n" +
 	"\x06status\x18\x02 \x01(\tR\x06status\x12\x1d\n" +

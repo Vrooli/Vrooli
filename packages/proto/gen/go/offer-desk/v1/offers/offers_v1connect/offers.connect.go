@@ -27,6 +27,8 @@ const (
 	GatesServiceName = "vrooli.offer_desk.v1.offers.GatesService"
 	// BoardServiceName is the fully-qualified name of the BoardService service.
 	BoardServiceName = "vrooli.offer_desk.v1.offers.BoardService"
+	// SpaceServiceName is the fully-qualified name of the SpaceService service.
+	SpaceServiceName = "vrooli.offer_desk.v1.offers.SpaceService"
 )
 
 // These constants are the fully-qualified names of the RPCs defined in this package. They're
@@ -52,6 +54,9 @@ const (
 	// CatalogServiceListEdgesProcedure is the fully-qualified name of the CatalogService's ListEdges
 	// RPC.
 	CatalogServiceListEdgesProcedure = "/vrooli.offer_desk.v1.offers.CatalogService/ListEdges"
+	// CatalogServiceImportCatalogProcedure is the fully-qualified name of the CatalogService's
+	// ImportCatalog RPC.
+	CatalogServiceImportCatalogProcedure = "/vrooli.offer_desk.v1.offers.CatalogService/ImportCatalog"
 	// GatesServiceDeclareTriggerProcedure is the fully-qualified name of the GatesService's
 	// DeclareTrigger RPC.
 	GatesServiceDeclareTriggerProcedure = "/vrooli.offer_desk.v1.offers.GatesService/DeclareTrigger"
@@ -61,8 +66,14 @@ const (
 	GatesServiceEvaluateProcedure = "/vrooli.offer_desk.v1.offers.GatesService/Evaluate"
 	// GatesServicePromoteProcedure is the fully-qualified name of the GatesService's Promote RPC.
 	GatesServicePromoteProcedure = "/vrooli.offer_desk.v1.offers.GatesService/Promote"
+	// GatesServiceListProposalsProcedure is the fully-qualified name of the GatesService's
+	// ListProposals RPC.
+	GatesServiceListProposalsProcedure = "/vrooli.offer_desk.v1.offers.GatesService/ListProposals"
 	// BoardServiceGetBoardProcedure is the fully-qualified name of the BoardService's GetBoard RPC.
 	BoardServiceGetBoardProcedure = "/vrooli.offer_desk.v1.offers.BoardService/GetBoard"
+	// SpaceServiceGetProjectionProcedure is the fully-qualified name of the SpaceService's
+	// GetProjection RPC.
+	SpaceServiceGetProjectionProcedure = "/vrooli.offer_desk.v1.offers.SpaceService/GetProjection"
 )
 
 // CatalogServiceClient is a client for the vrooli.offer_desk.v1.offers.CatalogService service.
@@ -72,6 +83,7 @@ type CatalogServiceClient interface {
 	Transition(context.Context, *connect.Request[offers.TransitionRequest]) (*connect.Response[offers.TransitionResponse], error)
 	CreateEdge(context.Context, *connect.Request[offers.CreateEdgeRequest]) (*connect.Response[offers.CreateEdgeResponse], error)
 	ListEdges(context.Context, *connect.Request[offers.ListEdgesRequest]) (*connect.Response[offers.ListEdgesResponse], error)
+	ImportCatalog(context.Context, *connect.Request[offers.ImportCatalogRequest]) (*connect.Response[offers.ImportCatalogResponse], error)
 }
 
 // NewCatalogServiceClient constructs a client for the vrooli.offer_desk.v1.offers.CatalogService
@@ -115,16 +127,23 @@ func NewCatalogServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(catalogServiceMethods.ByName("ListEdges")),
 			connect.WithClientOptions(opts...),
 		),
+		importCatalog: connect.NewClient[offers.ImportCatalogRequest, offers.ImportCatalogResponse](
+			httpClient,
+			baseURL+CatalogServiceImportCatalogProcedure,
+			connect.WithSchema(catalogServiceMethods.ByName("ImportCatalog")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // catalogServiceClient implements CatalogServiceClient.
 type catalogServiceClient struct {
-	createNode *connect.Client[offers.CreateNodeRequest, offers.CreateNodeResponse]
-	listNodes  *connect.Client[offers.ListNodesRequest, offers.ListNodesResponse]
-	transition *connect.Client[offers.TransitionRequest, offers.TransitionResponse]
-	createEdge *connect.Client[offers.CreateEdgeRequest, offers.CreateEdgeResponse]
-	listEdges  *connect.Client[offers.ListEdgesRequest, offers.ListEdgesResponse]
+	createNode    *connect.Client[offers.CreateNodeRequest, offers.CreateNodeResponse]
+	listNodes     *connect.Client[offers.ListNodesRequest, offers.ListNodesResponse]
+	transition    *connect.Client[offers.TransitionRequest, offers.TransitionResponse]
+	createEdge    *connect.Client[offers.CreateEdgeRequest, offers.CreateEdgeResponse]
+	listEdges     *connect.Client[offers.ListEdgesRequest, offers.ListEdgesResponse]
+	importCatalog *connect.Client[offers.ImportCatalogRequest, offers.ImportCatalogResponse]
 }
 
 // CreateNode calls vrooli.offer_desk.v1.offers.CatalogService.CreateNode.
@@ -152,6 +171,11 @@ func (c *catalogServiceClient) ListEdges(ctx context.Context, req *connect.Reque
 	return c.listEdges.CallUnary(ctx, req)
 }
 
+// ImportCatalog calls vrooli.offer_desk.v1.offers.CatalogService.ImportCatalog.
+func (c *catalogServiceClient) ImportCatalog(ctx context.Context, req *connect.Request[offers.ImportCatalogRequest]) (*connect.Response[offers.ImportCatalogResponse], error) {
+	return c.importCatalog.CallUnary(ctx, req)
+}
+
 // CatalogServiceHandler is an implementation of the vrooli.offer_desk.v1.offers.CatalogService
 // service.
 type CatalogServiceHandler interface {
@@ -160,6 +184,7 @@ type CatalogServiceHandler interface {
 	Transition(context.Context, *connect.Request[offers.TransitionRequest]) (*connect.Response[offers.TransitionResponse], error)
 	CreateEdge(context.Context, *connect.Request[offers.CreateEdgeRequest]) (*connect.Response[offers.CreateEdgeResponse], error)
 	ListEdges(context.Context, *connect.Request[offers.ListEdgesRequest]) (*connect.Response[offers.ListEdgesResponse], error)
+	ImportCatalog(context.Context, *connect.Request[offers.ImportCatalogRequest]) (*connect.Response[offers.ImportCatalogResponse], error)
 }
 
 // NewCatalogServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -199,6 +224,12 @@ func NewCatalogServiceHandler(svc CatalogServiceHandler, opts ...connect.Handler
 		connect.WithSchema(catalogServiceMethods.ByName("ListEdges")),
 		connect.WithHandlerOptions(opts...),
 	)
+	catalogServiceImportCatalogHandler := connect.NewUnaryHandler(
+		CatalogServiceImportCatalogProcedure,
+		svc.ImportCatalog,
+		connect.WithSchema(catalogServiceMethods.ByName("ImportCatalog")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.offer_desk.v1.offers.CatalogService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case CatalogServiceCreateNodeProcedure:
@@ -211,6 +242,8 @@ func NewCatalogServiceHandler(svc CatalogServiceHandler, opts ...connect.Handler
 			catalogServiceCreateEdgeHandler.ServeHTTP(w, r)
 		case CatalogServiceListEdgesProcedure:
 			catalogServiceListEdgesHandler.ServeHTTP(w, r)
+		case CatalogServiceImportCatalogProcedure:
+			catalogServiceImportCatalogHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -240,12 +273,17 @@ func (UnimplementedCatalogServiceHandler) ListEdges(context.Context, *connect.Re
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.offer_desk.v1.offers.CatalogService.ListEdges is not implemented"))
 }
 
+func (UnimplementedCatalogServiceHandler) ImportCatalog(context.Context, *connect.Request[offers.ImportCatalogRequest]) (*connect.Response[offers.ImportCatalogResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.offer_desk.v1.offers.CatalogService.ImportCatalog is not implemented"))
+}
+
 // GatesServiceClient is a client for the vrooli.offer_desk.v1.offers.GatesService service.
 type GatesServiceClient interface {
 	DeclareTrigger(context.Context, *connect.Request[offers.DeclareTriggerRequest]) (*connect.Response[offers.DeclareTriggerResponse], error)
 	AddFact(context.Context, *connect.Request[offers.AddFactRequest]) (*connect.Response[offers.AddFactResponse], error)
 	Evaluate(context.Context, *connect.Request[offers.EvaluateRequest]) (*connect.Response[offers.EvaluateResponse], error)
 	Promote(context.Context, *connect.Request[offers.PromoteRequest]) (*connect.Response[offers.PromoteResponse], error)
+	ListProposals(context.Context, *connect.Request[offers.ListProposalsRequest]) (*connect.Response[offers.ListProposalsResponse], error)
 }
 
 // NewGatesServiceClient constructs a client for the vrooli.offer_desk.v1.offers.GatesService
@@ -283,6 +321,12 @@ func NewGatesServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(gatesServiceMethods.ByName("Promote")),
 			connect.WithClientOptions(opts...),
 		),
+		listProposals: connect.NewClient[offers.ListProposalsRequest, offers.ListProposalsResponse](
+			httpClient,
+			baseURL+GatesServiceListProposalsProcedure,
+			connect.WithSchema(gatesServiceMethods.ByName("ListProposals")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -292,6 +336,7 @@ type gatesServiceClient struct {
 	addFact        *connect.Client[offers.AddFactRequest, offers.AddFactResponse]
 	evaluate       *connect.Client[offers.EvaluateRequest, offers.EvaluateResponse]
 	promote        *connect.Client[offers.PromoteRequest, offers.PromoteResponse]
+	listProposals  *connect.Client[offers.ListProposalsRequest, offers.ListProposalsResponse]
 }
 
 // DeclareTrigger calls vrooli.offer_desk.v1.offers.GatesService.DeclareTrigger.
@@ -314,12 +359,18 @@ func (c *gatesServiceClient) Promote(ctx context.Context, req *connect.Request[o
 	return c.promote.CallUnary(ctx, req)
 }
 
+// ListProposals calls vrooli.offer_desk.v1.offers.GatesService.ListProposals.
+func (c *gatesServiceClient) ListProposals(ctx context.Context, req *connect.Request[offers.ListProposalsRequest]) (*connect.Response[offers.ListProposalsResponse], error) {
+	return c.listProposals.CallUnary(ctx, req)
+}
+
 // GatesServiceHandler is an implementation of the vrooli.offer_desk.v1.offers.GatesService service.
 type GatesServiceHandler interface {
 	DeclareTrigger(context.Context, *connect.Request[offers.DeclareTriggerRequest]) (*connect.Response[offers.DeclareTriggerResponse], error)
 	AddFact(context.Context, *connect.Request[offers.AddFactRequest]) (*connect.Response[offers.AddFactResponse], error)
 	Evaluate(context.Context, *connect.Request[offers.EvaluateRequest]) (*connect.Response[offers.EvaluateResponse], error)
 	Promote(context.Context, *connect.Request[offers.PromoteRequest]) (*connect.Response[offers.PromoteResponse], error)
+	ListProposals(context.Context, *connect.Request[offers.ListProposalsRequest]) (*connect.Response[offers.ListProposalsResponse], error)
 }
 
 // NewGatesServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -353,6 +404,12 @@ func NewGatesServiceHandler(svc GatesServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(gatesServiceMethods.ByName("Promote")),
 		connect.WithHandlerOptions(opts...),
 	)
+	gatesServiceListProposalsHandler := connect.NewUnaryHandler(
+		GatesServiceListProposalsProcedure,
+		svc.ListProposals,
+		connect.WithSchema(gatesServiceMethods.ByName("ListProposals")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.offer_desk.v1.offers.GatesService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case GatesServiceDeclareTriggerProcedure:
@@ -363,6 +420,8 @@ func NewGatesServiceHandler(svc GatesServiceHandler, opts ...connect.HandlerOpti
 			gatesServiceEvaluateHandler.ServeHTTP(w, r)
 		case GatesServicePromoteProcedure:
 			gatesServicePromoteHandler.ServeHTTP(w, r)
+		case GatesServiceListProposalsProcedure:
+			gatesServiceListProposalsHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -386,6 +445,10 @@ func (UnimplementedGatesServiceHandler) Evaluate(context.Context, *connect.Reque
 
 func (UnimplementedGatesServiceHandler) Promote(context.Context, *connect.Request[offers.PromoteRequest]) (*connect.Response[offers.PromoteResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.offer_desk.v1.offers.GatesService.Promote is not implemented"))
+}
+
+func (UnimplementedGatesServiceHandler) ListProposals(context.Context, *connect.Request[offers.ListProposalsRequest]) (*connect.Response[offers.ListProposalsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.offer_desk.v1.offers.GatesService.ListProposals is not implemented"))
 }
 
 // BoardServiceClient is a client for the vrooli.offer_desk.v1.offers.BoardService service.
@@ -456,4 +519,74 @@ type UnimplementedBoardServiceHandler struct{}
 
 func (UnimplementedBoardServiceHandler) GetBoard(context.Context, *connect.Request[offers.ProjectionRequest]) (*connect.Response[offers.BoardResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.offer_desk.v1.offers.BoardService.GetBoard is not implemented"))
+}
+
+// SpaceServiceClient is a client for the vrooli.offer_desk.v1.offers.SpaceService service.
+type SpaceServiceClient interface {
+	GetProjection(context.Context, *connect.Request[offers.ProjectionRequest]) (*connect.Response[offers.SpaceResponse], error)
+}
+
+// NewSpaceServiceClient constructs a client for the vrooli.offer_desk.v1.offers.SpaceService
+// service. By default, it uses the Connect protocol with the binary Protobuf Codec, asks for
+// gzipped responses, and sends uncompressed requests. To use the gRPC or gRPC-Web protocols, supply
+// the connect.WithGRPC() or connect.WithGRPCWeb() options.
+//
+// The URL supplied here should be the base URL for the Connect or gRPC server (for example,
+// http://api.acme.com or https://acme.com/grpc).
+func NewSpaceServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) SpaceServiceClient {
+	baseURL = strings.TrimRight(baseURL, "/")
+	spaceServiceMethods := offers.File_offer_desk_v1_offers_offers_proto.Services().ByName("SpaceService").Methods()
+	return &spaceServiceClient{
+		getProjection: connect.NewClient[offers.ProjectionRequest, offers.SpaceResponse](
+			httpClient,
+			baseURL+SpaceServiceGetProjectionProcedure,
+			connect.WithSchema(spaceServiceMethods.ByName("GetProjection")),
+			connect.WithClientOptions(opts...),
+		),
+	}
+}
+
+// spaceServiceClient implements SpaceServiceClient.
+type spaceServiceClient struct {
+	getProjection *connect.Client[offers.ProjectionRequest, offers.SpaceResponse]
+}
+
+// GetProjection calls vrooli.offer_desk.v1.offers.SpaceService.GetProjection.
+func (c *spaceServiceClient) GetProjection(ctx context.Context, req *connect.Request[offers.ProjectionRequest]) (*connect.Response[offers.SpaceResponse], error) {
+	return c.getProjection.CallUnary(ctx, req)
+}
+
+// SpaceServiceHandler is an implementation of the vrooli.offer_desk.v1.offers.SpaceService service.
+type SpaceServiceHandler interface {
+	GetProjection(context.Context, *connect.Request[offers.ProjectionRequest]) (*connect.Response[offers.SpaceResponse], error)
+}
+
+// NewSpaceServiceHandler builds an HTTP handler from the service implementation. It returns the
+// path on which to mount the handler and the handler itself.
+//
+// By default, handlers support the Connect, gRPC, and gRPC-Web protocols with the binary Protobuf
+// and JSON codecs. They also support gzip compression.
+func NewSpaceServiceHandler(svc SpaceServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
+	spaceServiceMethods := offers.File_offer_desk_v1_offers_offers_proto.Services().ByName("SpaceService").Methods()
+	spaceServiceGetProjectionHandler := connect.NewUnaryHandler(
+		SpaceServiceGetProjectionProcedure,
+		svc.GetProjection,
+		connect.WithSchema(spaceServiceMethods.ByName("GetProjection")),
+		connect.WithHandlerOptions(opts...),
+	)
+	return "/vrooli.offer_desk.v1.offers.SpaceService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case SpaceServiceGetProjectionProcedure:
+			spaceServiceGetProjectionHandler.ServeHTTP(w, r)
+		default:
+			http.NotFound(w, r)
+		}
+	})
+}
+
+// UnimplementedSpaceServiceHandler returns CodeUnimplemented from all methods.
+type UnimplementedSpaceServiceHandler struct{}
+
+func (UnimplementedSpaceServiceHandler) GetProjection(context.Context, *connect.Request[offers.ProjectionRequest]) (*connect.Response[offers.SpaceResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.offer_desk.v1.offers.SpaceService.GetProjection is not implemented"))
 }

@@ -7,7 +7,7 @@ import { enumDesc, fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf
 import type { Timestamp } from "@bufbuild/protobuf/wkt";
 import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
 import { file_buf_validate_validate } from "../../../buf/validate/validate_pb";
-import type { PositionResponse } from "../../../money-ledger/v1/ledger/ledger_pb";
+import type { GoalVerdict, PositionResponse } from "../../../money-ledger/v1/ledger/ledger_pb";
 import { file_money_ledger_v1_ledger_ledger } from "../../../money-ledger/v1/ledger/ledger_pb";
 import type { Message } from "@bufbuild/protobuf";
 
@@ -15,7 +15,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file offer-desk/v1/offers/offers.proto.
  */
 export const file_offer_desk_v1_offers_offers: GenFile = /*@__PURE__*/
-  fileDesc("CiFvZmZlci1kZXNrL3YxL29mZmVycy9vZmZlcnMucHJvdG8SG3Zyb29saS5vZmZlcl9kZXNrLnYxLm9mZmVycyLpAQoETm9kZRIKCgJpZBgBIAEoCRIzCgRraW5kGAIgASgOMiUudnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLk5vZGVLaW5kEgwKBG5hbWUYAyABKAkSMwoGc3RhdHVzGAQgASgOMiMudnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLlN0YXR1cxISCgp0cmlnZ2VyX2lkGAUgASgJEi4KCmNyZWF0ZWRfYXQYBiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhkKEWFjdHVhbF9hY2NvdW50X2lkGAcgASgJInAKBEVkZ2USCgoCaWQYASABKAkSDwoHZnJvbV9pZBgCIAEoCRINCgV0b19pZBgDIAEoCRIMCgRraW5kGAQgASgJEhwKFGludGVuZGVkX3ByaWNlX21pbm9yGAUgASgDEhAKCGN1cnJlbmN5GAYgASgJIkcKDVRyaWdnZXJDbGF1c2USEQoJZmFjdF9uYW1lGAEgASgJEhAKCG9wZXJhdG9yGAIgASgJEhEKCXRocmVzaG9sZBgDIAEoASKBAQoERmFjdBIMCgRuYW1lGAEgASgJEg0KBXZhbHVlGAIgASgBEi8KC29ic2VydmVkX2F0GAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIYChBzdGFsZV9hZnRlcl9kYXlzGAQgASgFEhEKCWRpbWVuc2lvbhgFIAEoCSL1AQoHVHJpZ2dlchIKCgJpZBgBIAEoCRIPCgdub2RlX2lkGAIgASgJEhEKCWZhY3RfbmFtZRgDIAEoCRIQCghvcGVyYXRvchgEIAEoCRIRCgl0aHJlc2hvbGQYBSABKAESEgoKZXhwcmVzc2lvbhgGIAEoCRI7CgdjbGF1c2VzGAcgAygLMioudnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLlRyaWdnZXJDbGF1c2USRAoLY29tcG9zaXRpb24YCCABKA4yLy52cm9vbGkub2ZmZXJfZGVzay52MS5vZmZlcnMuVHJpZ2dlckNvbXBvc2l0aW9uIugBCgpFdmFsdWF0aW9uEgoKAmlkGAEgASgJEg8KB25vZGVfaWQYAiABKAkSNQoHdmVyZGljdBgDIAEoDjIkLnZyb29saS5vZmZlcl9kZXNrLnYxLm9mZmVycy5WZXJkaWN0EhEKCWZhY3RfbmFtZRgEIAEoCRITCgtleHBsYW5hdGlvbhgFIAEoCRIwCgxldmFsdWF0ZWRfYXQYBiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhgKEGZhY3RfYWdlX3NlY29uZHMYByABKAMSEgoKZmFjdF9uYW1lcxgIIAMoCSKFAQoIUHJvcG9zYWwSCgoCaWQYASABKAkSDwoHbm9kZV9pZBgCIAEoCRINCgVhY3RvchgDIAEoCRI9ChByZXF1ZXN0ZWRfc3RhdHVzGAQgASgOMiMudnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLlN0YXR1cxIOCgZyZWFzb24YBSABKAkiYwoMQXZhaWxhYmlsaXR5Eg4KBnNvdXJjZRgBIAEoCRIOCgZyZWFzb24YAiABKAkSMwoPbGFzdF9zdWNjZXNzX2F0GAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCLoAQoKQm9hcmRFbnRyeRIPCgdub2RlX2lkGAEgASgJEg0KBXRpdGxlGAIgASgJEhMKC3JhbmtfcmVhc29uGAMgASgJEjMKBnN0YXR1cxgEIAEoDjIjLnZyb29saS5vZmZlcl9kZXNrLnYxLm9mZmVycy5TdGF0dXMSFAoMYWN0dWFsX21pbm9yGAUgASgDEhkKEWFjdHVhbHNfYXZhaWxhYmxlGAYgASgIEj8KDGF2YWlsYWJpbGl0eRgHIAMoCzIpLnZyb29saS5vZmZlcl9kZXNrLnYxLm9mZmVycy5BdmFpbGFiaWxpdHkizQEKDUJvYXJkUmVzcG9uc2USOAoHZW50cmllcxgBIAMoCzInLnZyb29saS5vZmZlcl9kZXNrLnYxLm9mZmVycy5Cb2FyZEVudHJ5EkEKCHBvc2l0aW9uGAIgASgLMi8udnJvb2xpLm1vbmV5X2xlZGdlci52MS5sZWRnZXIuUG9zaXRpb25SZXNwb25zZRI/CgxhdmFpbGFiaWxpdHkYAyADKAsyKS52cm9vbGkub2ZmZXJfZGVzay52MS5vZmZlcnMuQXZhaWxhYmlsaXR5IroBChFDcmVhdGVOb2RlUmVxdWVzdBIzCgRraW5kGAEgASgOMiUudnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLk5vZGVLaW5kEgwKBG5hbWUYAiABKAkSMwoGc3RhdHVzGAMgASgOMiMudnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLlN0YXR1cxISCgp0cmlnZ2VyX2lkGAQgASgJEhkKEWFjdHVhbF9hY2NvdW50X2lkGAUgASgJIkUKEkNyZWF0ZU5vZGVSZXNwb25zZRIvCgRub2RlGAEgASgLMiEudnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLk5vZGUifAoQTGlzdE5vZGVzUmVxdWVzdBIzCgRraW5kGAEgASgOMiUudnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLk5vZGVLaW5kEjMKBnN0YXR1cxgCIAEoDjIjLnZyb29saS5vZmZlcl9kZXNrLnYxLm9mZmVycy5TdGF0dXMiRQoRTGlzdE5vZGVzUmVzcG9uc2USMAoFbm9kZXMYASADKAsyIS52cm9vbGkub2ZmZXJfZGVzay52MS5vZmZlcnMuTm9kZSJoChFUcmFuc2l0aW9uUmVxdWVzdBIPCgdub2RlX2lkGAEgASgJEjMKBnN0YXR1cxgCIAEoDjIjLnZyb29saS5vZmZlcl9kZXNrLnYxLm9mZmVycy5TdGF0dXMSDQoFYWN0b3IYAyABKAkiRQoSVHJhbnNpdGlvblJlc3BvbnNlEi8KBG5vZGUYASABKAsyIS52cm9vbGkub2ZmZXJfZGVzay52MS5vZmZlcnMuTm9kZSJMChFDcmVhdGVFZGdlUmVxdWVzdBI3CgRlZGdlGAEgASgLMiEudnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLkVkZ2VCBrpIA8gBASJFChJDcmVhdGVFZGdlUmVzcG9uc2USLwoEZWRnZRgBIAEoCzIhLnZyb29saS5vZmZlcl9kZXNrLnYxLm9mZmVycy5FZGdlIlYKFURlY2xhcmVUcmlnZ2VyUmVxdWVzdBI9Cgd0cmlnZ2VyGAEgASgLMiQudnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLlRyaWdnZXJCBrpIA8gBASJPChZEZWNsYXJlVHJpZ2dlclJlc3BvbnNlEjUKB3RyaWdnZXIYASABKAsyJC52cm9vbGkub2ZmZXJfZGVzay52MS5vZmZlcnMuVHJpZ2dlciJJCg5BZGRGYWN0UmVxdWVzdBI3CgRmYWN0GAEgASgLMiEudnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLkZhY3RCBrpIA8gBASJCCg9BZGRGYWN0UmVzcG9uc2USLwoEZmFjdBgBIAEoCzIhLnZyb29saS5vZmZlcl9kZXNrLnYxLm9mZmVycy5GYWN0IiIKD0V2YWx1YXRlUmVxdWVzdBIPCgdkcnlfcnVuGAEgASgIIlAKEEV2YWx1YXRlUmVzcG9uc2USPAoLZXZhbHVhdGlvbnMYASADKAsyJy52cm9vbGkub2ZmZXJfZGVzay52MS5vZmZlcnMuRXZhbHVhdGlvbiI+Cg5Qcm9tb3RlUmVxdWVzdBIPCgdub2RlX2lkGAEgASgJEg0KBWFjdG9yGAIgASgJEgwKBHJvbGUYAyABKAkiSgoPUHJvbW90ZVJlc3BvbnNlEjcKCHByb3Bvc2FsGAEgASgLMiUudnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLlByb3Bvc2FsIiMKEExpc3RBdWRpdFJlcXVlc3QSDwoHbm9kZV9pZBgBIAEoCSIkChFMaXN0QXVkaXRSZXNwb25zZRIPCgdlbnRyaWVzGAEgAygJIiMKEExpc3RFZGdlc1JlcXVlc3QSDwoHbm9kZV9pZBgBIAEoCSJFChFMaXN0RWRnZXNSZXNwb25zZRIwCgVlZGdlcxgBIAMoCzIhLnZyb29saS5vZmZlcl9kZXNrLnYxLm9mZmVycy5FZGdlIhMKEVByb2plY3Rpb25SZXF1ZXN0Km0KCE5vZGVLaW5kEhkKFU5PREVfS0lORF9VTlNQRUNJRklFRBAAEgkKBU9GRkVSEAESCwoHVkFSSUFOVBACEgsKB0NIQU5ORUwQAxIQCgxSRVZFTlVFX0xJTkUQBBIPCgtERUxJVkVSQUJMRRAFKnAKBlN0YXR1cxIWChJTVEFUVVNfVU5TUEVDSUZJRUQQABIICgRJREVBEAESDQoJQ0FORElEQVRFEAISDwoLVFJJR0dFUl9NRVQQAxIKCgZBQ1RJVkUQBBILCgdTSElQUEVEEAUSCwoHUkVUSVJFRBAGKk8KB1ZlcmRpY3QSFwoTVkVSRElDVF9VTlNQRUNJRklFRBAAEg0KCVNBVElTRklFRBABEg8KC1VOU0FUSVNGSUVEEAISCwoHVU5LTk9XThADKksKElRyaWdnZXJDb21wb3NpdGlvbhIjCh9UUklHR0VSX0NPTVBPU0lUSU9OX1VOU1BFQ0lGSUVEEAASBwoDQUxMEAESBwoDQU5ZEAIytQQKDkNhdGFsb2dTZXJ2aWNlEm0KCkNyZWF0ZU5vZGUSLi52cm9vbGkub2ZmZXJfZGVzay52MS5vZmZlcnMuQ3JlYXRlTm9kZVJlcXVlc3QaLy52cm9vbGkub2ZmZXJfZGVzay52MS5vZmZlcnMuQ3JlYXRlTm9kZVJlc3BvbnNlEmoKCUxpc3ROb2RlcxItLnZyb29saS5vZmZlcl9kZXNrLnYxLm9mZmVycy5MaXN0Tm9kZXNSZXF1ZXN0Gi4udnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLkxpc3ROb2Rlc1Jlc3BvbnNlEm0KClRyYW5zaXRpb24SLi52cm9vbGkub2ZmZXJfZGVzay52MS5vZmZlcnMuVHJhbnNpdGlvblJlcXVlc3QaLy52cm9vbGkub2ZmZXJfZGVzay52MS5vZmZlcnMuVHJhbnNpdGlvblJlc3BvbnNlEm0KCkNyZWF0ZUVkZ2USLi52cm9vbGkub2ZmZXJfZGVzay52MS5vZmZlcnMuQ3JlYXRlRWRnZVJlcXVlc3QaLy52cm9vbGkub2ZmZXJfZGVzay52MS5vZmZlcnMuQ3JlYXRlRWRnZVJlc3BvbnNlEmoKCUxpc3RFZGdlcxItLnZyb29saS5vZmZlcl9kZXNrLnYxLm9mZmVycy5MaXN0RWRnZXNSZXF1ZXN0Gi4udnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLkxpc3RFZGdlc1Jlc3BvbnNlMr4DCgxHYXRlc1NlcnZpY2USeQoORGVjbGFyZVRyaWdnZXISMi52cm9vbGkub2ZmZXJfZGVzay52MS5vZmZlcnMuRGVjbGFyZVRyaWdnZXJSZXF1ZXN0GjMudnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLkRlY2xhcmVUcmlnZ2VyUmVzcG9uc2USZAoHQWRkRmFjdBIrLnZyb29saS5vZmZlcl9kZXNrLnYxLm9mZmVycy5BZGRGYWN0UmVxdWVzdBosLnZyb29saS5vZmZlcl9kZXNrLnYxLm9mZmVycy5BZGRGYWN0UmVzcG9uc2USZwoIRXZhbHVhdGUSLC52cm9vbGkub2ZmZXJfZGVzay52MS5vZmZlcnMuRXZhbHVhdGVSZXF1ZXN0Gi0udnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLkV2YWx1YXRlUmVzcG9uc2USZAoHUHJvbW90ZRIrLnZyb29saS5vZmZlcl9kZXNrLnYxLm9mZmVycy5Qcm9tb3RlUmVxdWVzdBosLnZyb29saS5vZmZlcl9kZXNrLnYxLm9mZmVycy5Qcm9tb3RlUmVzcG9uc2UydgoMQm9hcmRTZXJ2aWNlEmYKCEdldEJvYXJkEi4udnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLlByb2plY3Rpb25SZXF1ZXN0GioudnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLkJvYXJkUmVzcG9uc2VCT1pNZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9vZmZlci1kZXNrL3YxL29mZmVycztvZmZlcnNfdjFiBnByb3RvMw", [file_google_protobuf_timestamp, file_buf_validate_validate, file_money_ledger_v1_ledger_ledger]);
+  fileDesc("CiFvZmZlci1kZXNrL3YxL29mZmVycy9vZmZlcnMucHJvdG8SG3Zyb29saS5vZmZlcl9kZXNrLnYxLm9mZmVycyLpAQoETm9kZRIKCgJpZBgBIAEoCRIzCgRraW5kGAIgASgOMiUudnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLk5vZGVLaW5kEgwKBG5hbWUYAyABKAkSMwoGc3RhdHVzGAQgASgOMiMudnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLlN0YXR1cxISCgp0cmlnZ2VyX2lkGAUgASgJEi4KCmNyZWF0ZWRfYXQYBiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhkKEWFjdHVhbF9hY2NvdW50X2lkGAcgASgJInAKBEVkZ2USCgoCaWQYASABKAkSDwoHZnJvbV9pZBgCIAEoCRINCgV0b19pZBgDIAEoCRIMCgRraW5kGAQgASgJEhwKFGludGVuZGVkX3ByaWNlX21pbm9yGAUgASgDEhAKCGN1cnJlbmN5GAYgASgJIkcKDVRyaWdnZXJDbGF1c2USEQoJZmFjdF9uYW1lGAEgASgJEhAKCG9wZXJhdG9yGAIgASgJEhEKCXRocmVzaG9sZBgDIAEoASKBAQoERmFjdBIMCgRuYW1lGAEgASgJEg0KBXZhbHVlGAIgASgBEi8KC29ic2VydmVkX2F0GAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIYChBzdGFsZV9hZnRlcl9kYXlzGAQgASgFEhEKCWRpbWVuc2lvbhgFIAEoCSL1AQoHVHJpZ2dlchIKCgJpZBgBIAEoCRIPCgdub2RlX2lkGAIgASgJEhEKCWZhY3RfbmFtZRgDIAEoCRIQCghvcGVyYXRvchgEIAEoCRIRCgl0aHJlc2hvbGQYBSABKAESEgoKZXhwcmVzc2lvbhgGIAEoCRI7CgdjbGF1c2VzGAcgAygLMioudnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLlRyaWdnZXJDbGF1c2USRAoLY29tcG9zaXRpb24YCCABKA4yLy52cm9vbGkub2ZmZXJfZGVzay52MS5vZmZlcnMuVHJpZ2dlckNvbXBvc2l0aW9uIugBCgpFdmFsdWF0aW9uEgoKAmlkGAEgASgJEg8KB25vZGVfaWQYAiABKAkSNQoHdmVyZGljdBgDIAEoDjIkLnZyb29saS5vZmZlcl9kZXNrLnYxLm9mZmVycy5WZXJkaWN0EhEKCWZhY3RfbmFtZRgEIAEoCRITCgtleHBsYW5hdGlvbhgFIAEoCRIwCgxldmFsdWF0ZWRfYXQYBiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhgKEGZhY3RfYWdlX3NlY29uZHMYByABKAMSEgoKZmFjdF9uYW1lcxgIIAMoCSJgCg9Qcm9wb3NhbERlY2xpbmUSDQoFYWN0b3IYASABKAkSDgoGcmVhc29uGAIgASgJEi4KCmNyZWF0ZWRfYXQYAyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIpgCCghQcm9wb3NhbBIKCgJpZBgBIAEoCRIPCgdub2RlX2lkGAIgASgJEg0KBWFjdG9yGAMgASgJEj0KEHJlcXVlc3RlZF9zdGF0dXMYBCABKA4yIy52cm9vbGkub2ZmZXJfZGVzay52MS5vZmZlcnMuU3RhdHVzEg4KBnJlYXNvbhgFIAEoCRIuCgpjcmVhdGVkX2F0GAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBJFCg9kZWNsaW5lX2hpc3RvcnkYByADKAsyLC52cm9vbGkub2ZmZXJfZGVzay52MS5vZmZlcnMuUHJvcG9zYWxEZWNsaW5lEhoKEmV2aWRlbmNlX3JlZmVyZW5jZRgIIAEoCSJjCgxBdmFpbGFiaWxpdHkSDgoGc291cmNlGAEgASgJEg4KBnJlYXNvbhgCIAEoCRIzCg9sYXN0X3N1Y2Nlc3NfYXQYAyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIugBCgpCb2FyZEVudHJ5Eg8KB25vZGVfaWQYASABKAkSDQoFdGl0bGUYAiABKAkSEwoLcmFua19yZWFzb24YAyABKAkSMwoGc3RhdHVzGAQgASgOMiMudnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLlN0YXR1cxIUCgxhY3R1YWxfbWlub3IYBSABKAMSGQoRYWN0dWFsc19hdmFpbGFibGUYBiABKAgSPwoMYXZhaWxhYmlsaXR5GAcgAygLMikudnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLkF2YWlsYWJpbGl0eSLXAQoTRXZhbHVhdGlvbkNvbmRpdGlvbhIvCgtsYXN0X3J1bl9hdBgBIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASQgoLbGFzdF9yZXN1bHQYAiABKA4yLS52cm9vbGkub2ZmZXJfZGVzay52MS5vZmZlcnMuRXZhbHVhdGlvblJlc3VsdBIUCgxub2Rlc19zY29yZWQYAyABKAUSEwoLYWdlX3NlY29uZHMYBCABKAMSEAoIZGVncmFkZWQYBSABKAgSDgoGcmVhc29uGAYgASgJIp4DCg1Cb2FyZFJlc3BvbnNlEjgKB2VudHJpZXMYASADKAsyJy52cm9vbGkub2ZmZXJfZGVzay52MS5vZmZlcnMuQm9hcmRFbnRyeRJBCghwb3NpdGlvbhgCIAEoCzIvLnZyb29saS5tb25leV9sZWRnZXIudjEubGVkZ2VyLlBvc2l0aW9uUmVzcG9uc2USPwoMYXZhaWxhYmlsaXR5GAMgAygLMikudnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLkF2YWlsYWJpbGl0eRJECgpldmFsdWF0aW9uGAQgASgLMjAudnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLkV2YWx1YXRpb25Db25kaXRpb24SOQoFZ29hbHMYBSADKAsyKi52cm9vbGkubW9uZXlfbGVkZ2VyLnYxLmxlZGdlci5Hb2FsVmVyZGljdBIZChFkZWZhdWx0X2FsaXZlX2dhcBgGIAEoCRIWCg5wb3N0dXJlX3NvdXJjZRgHIAEoCRIbChNwb3N0dXJlX2FnZV9zZWNvbmRzGAggASgDIroBChFDcmVhdGVOb2RlUmVxdWVzdBIzCgRraW5kGAEgASgOMiUudnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLk5vZGVLaW5kEgwKBG5hbWUYAiABKAkSMwoGc3RhdHVzGAMgASgOMiMudnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLlN0YXR1cxISCgp0cmlnZ2VyX2lkGAQgASgJEhkKEWFjdHVhbF9hY2NvdW50X2lkGAUgASgJIkUKEkNyZWF0ZU5vZGVSZXNwb25zZRIvCgRub2RlGAEgASgLMiEudnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLk5vZGUifAoQTGlzdE5vZGVzUmVxdWVzdBIzCgRraW5kGAEgASgOMiUudnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLk5vZGVLaW5kEjMKBnN0YXR1cxgCIAEoDjIjLnZyb29saS5vZmZlcl9kZXNrLnYxLm9mZmVycy5TdGF0dXMiRQoRTGlzdE5vZGVzUmVzcG9uc2USMAoFbm9kZXMYASADKAsyIS52cm9vbGkub2ZmZXJfZGVzay52MS5vZmZlcnMuTm9kZSJoChFUcmFuc2l0aW9uUmVxdWVzdBIPCgdub2RlX2lkGAEgASgJEjMKBnN0YXR1cxgCIAEoDjIjLnZyb29saS5vZmZlcl9kZXNrLnYxLm9mZmVycy5TdGF0dXMSDQoFYWN0b3IYAyABKAkiRQoSVHJhbnNpdGlvblJlc3BvbnNlEi8KBG5vZGUYASABKAsyIS52cm9vbGkub2ZmZXJfZGVzay52MS5vZmZlcnMuTm9kZSJMChFDcmVhdGVFZGdlUmVxdWVzdBI3CgRlZGdlGAEgASgLMiEudnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLkVkZ2VCBrpIA8gBASJFChJDcmVhdGVFZGdlUmVzcG9uc2USLwoEZWRnZRgBIAEoCzIhLnZyb29saS5vZmZlcl9kZXNrLnYxLm9mZmVycy5FZGdlIlYKFURlY2xhcmVUcmlnZ2VyUmVxdWVzdBI9Cgd0cmlnZ2VyGAEgASgLMiQudnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLlRyaWdnZXJCBrpIA8gBASJPChZEZWNsYXJlVHJpZ2dlclJlc3BvbnNlEjUKB3RyaWdnZXIYASABKAsyJC52cm9vbGkub2ZmZXJfZGVzay52MS5vZmZlcnMuVHJpZ2dlciJJCg5BZGRGYWN0UmVxdWVzdBI3CgRmYWN0GAEgASgLMiEudnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLkZhY3RCBrpIA8gBASJCCg9BZGRGYWN0UmVzcG9uc2USLwoEZmFjdBgBIAEoCzIhLnZyb29saS5vZmZlcl9kZXNrLnYxLm9mZmVycy5GYWN0IiIKD0V2YWx1YXRlUmVxdWVzdBIPCgdkcnlfcnVuGAEgASgIIlAKEEV2YWx1YXRlUmVzcG9uc2USPAoLZXZhbHVhdGlvbnMYASADKAsyJy52cm9vbGkub2ZmZXJfZGVzay52MS5vZmZlcnMuRXZhbHVhdGlvbiI+Cg5Qcm9tb3RlUmVxdWVzdBIPCgdub2RlX2lkGAEgASgJEg0KBWFjdG9yGAIgASgJEgwKBHJvbGUYAyABKAkiSgoPUHJvbW90ZVJlc3BvbnNlEjcKCHByb3Bvc2FsGAEgASgLMiUudnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLlByb3Bvc2FsIlwKFExpc3RQcm9wb3NhbHNSZXF1ZXN0Eg8KB25vZGVfaWQYASABKAkSMwoGc3RhdHVzGAIgASgOMiMudnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLlN0YXR1cyJRChVMaXN0UHJvcG9zYWxzUmVzcG9uc2USOAoJcHJvcG9zYWxzGAEgAygLMiUudnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLlByb3Bvc2FsIiMKEExpc3RBdWRpdFJlcXVlc3QSDwoHbm9kZV9pZBgBIAEoCSIkChFMaXN0QXVkaXRSZXNwb25zZRIPCgdlbnRyaWVzGAEgAygJIiMKEExpc3RFZGdlc1JlcXVlc3QSDwoHbm9kZV9pZBgBIAEoCSJFChFMaXN0RWRnZXNSZXNwb25zZRIwCgVlZGdlcxgBIAMoCzIhLnZyb29saS5vZmZlcl9kZXNrLnYxLm9mZmVycy5FZGdlIicKEVByb2plY3Rpb25SZXF1ZXN0EhIKCnByb2plY3Rpb24YASABKAkihwEKFEltcG9ydENhdGFsb2dSZXF1ZXN0EhMKC3NvdXJjZV9wYXRoGAEgASgJEjwKC3NvdXJjZV9tb2RlGAIgASgOMicudnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLlNvdXJjZU1vZGUSDQoFYXBwbHkYAyABKAgSDQoFYWN0b3IYBCABKAkioAEKEEltcG9ydEZpbGVSZXBvcnQSDAoEcGF0aBgBIAEoCRIMCgRyZWFkGAIgASgFEg8KB3dyaXR0ZW4YAyABKAUSEAoIZmluZGluZ3MYBCABKAUSEwoLY2FyZGluYWxpdHkYBSABKAkSOAoJbm9kZV9raW5kGAYgASgOMiUudnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLk5vZGVLaW5kInUKDlN0YXR1c01hcEVudHJ5EgwKBHBhdGgYASABKAkSMwoGc3RhdHVzGAIgASgOMiMudnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLlN0YXR1cxISCgpyZWNvZ25pemVkGAMgASgIEgwKBGxpbmUYBCABKAUiTQoNSW1wb3J0RmluZGluZxIMCgRwYXRoGAEgASgJEg4KBnJlYXNvbhgCIAEoCRIQCghibG9ja2luZxgDIAEoCBIMCgRsaW5lGAQgASgFIv0BChVJbXBvcnRDYXRhbG9nUmVzcG9uc2USPAoFZmlsZXMYASADKAsyLS52cm9vbGkub2ZmZXJfZGVzay52MS5vZmZlcnMuSW1wb3J0RmlsZVJlcG9ydBI/CgpzdGF0dXNfbWFwGAIgAygLMisudnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLlN0YXR1c01hcEVudHJ5EjwKCGZpbmRpbmdzGAMgAygLMioudnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLkltcG9ydEZpbmRpbmcSFgoOdG90YWxfZmluZGluZ3MYBCABKAUSDwoHYXBwbGllZBgFIAEoCCJmCglTcGFjZUNlbGwSCgoCaWQYASABKAkSDQoFZ3JvdXAYAiABKAkSEAoIcXVlc3Rpb24YAyABKAkSDQoFb3duZXIYBCABKAkSDgoGc3RhdHVzGAUgASgJEg0KBW5vdGVzGAYgASgJIs8BCg1TcGFjZVJlc3BvbnNlEhYKDnNjaGVtYV92ZXJzaW9uGAEgASgJEhIKCnByb2plY3Rpb24YAiABKAkSDQoFb3duZXIYAyABKAkSHgoWZGVub21pbmF0b3JfY29uZmlkZW5jZRgEIAEoCRIcChRjb25maWRlbmNlX3JhdGlvbmFsZRgFIAEoCRIOCgZzb3VyY2UYBiABKAkSNQoFY2VsbHMYByADKAsyJi52cm9vbGkub2ZmZXJfZGVzay52MS5vZmZlcnMuU3BhY2VDZWxsKm0KCE5vZGVLaW5kEhkKFU5PREVfS0lORF9VTlNQRUNJRklFRBAAEgkKBU9GRkVSEAESCwoHVkFSSUFOVBACEgsKB0NIQU5ORUwQAxIQCgxSRVZFTlVFX0xJTkUQBBIPCgtERUxJVkVSQUJMRRAFKnAKBlN0YXR1cxIWChJTVEFUVVNfVU5TUEVDSUZJRUQQABIICgRJREVBEAESDQoJQ0FORElEQVRFEAISDwoLVFJJR0dFUl9NRVQQAxIKCgZBQ1RJVkUQBBILCgdTSElQUEVEEAUSCwoHUkVUSVJFRBAGKk8KB1ZlcmRpY3QSFwoTVkVSRElDVF9VTlNQRUNJRklFRBAAEg0KCVNBVElTRklFRBABEg8KC1VOU0FUSVNGSUVEEAISCwoHVU5LTk9XThADKmUKClNvdXJjZU1vZGUSGwoXU09VUkNFX01PREVfVU5TUEVDSUZJRUQQABIXChNTT1VSQ0VfTU9ERV9GSVhUVVJFEAESIQodU09VUkNFX01PREVfT1BFUkFUT1JfU1VQUExJRUQQAip+ChBFdmFsdWF0aW9uUmVzdWx0EiEKHUVWQUxVQVRJT05fUkVTVUxUX1VOU1BFQ0lGSUVEEAASGAoURVZBTFVBVElPTl9TVUNDRUVERUQQARIVChFFVkFMVUFUSU9OX0ZBSUxFRBACEhYKEkVWQUxVQVRJT05fTk9UX1JVThADKksKElRyaWdnZXJDb21wb3NpdGlvbhIjCh9UUklHR0VSX0NPTVBPU0lUSU9OX1VOU1BFQ0lGSUVEEAASBwoDQUxMEAESBwoDQU5ZEAIyrQUKDkNhdGFsb2dTZXJ2aWNlEm0KCkNyZWF0ZU5vZGUSLi52cm9vbGkub2ZmZXJfZGVzay52MS5vZmZlcnMuQ3JlYXRlTm9kZVJlcXVlc3QaLy52cm9vbGkub2ZmZXJfZGVzay52MS5vZmZlcnMuQ3JlYXRlTm9kZVJlc3BvbnNlEmoKCUxpc3ROb2RlcxItLnZyb29saS5vZmZlcl9kZXNrLnYxLm9mZmVycy5MaXN0Tm9kZXNSZXF1ZXN0Gi4udnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLkxpc3ROb2Rlc1Jlc3BvbnNlEm0KClRyYW5zaXRpb24SLi52cm9vbGkub2ZmZXJfZGVzay52MS5vZmZlcnMuVHJhbnNpdGlvblJlcXVlc3QaLy52cm9vbGkub2ZmZXJfZGVzay52MS5vZmZlcnMuVHJhbnNpdGlvblJlc3BvbnNlEm0KCkNyZWF0ZUVkZ2USLi52cm9vbGkub2ZmZXJfZGVzay52MS5vZmZlcnMuQ3JlYXRlRWRnZVJlcXVlc3QaLy52cm9vbGkub2ZmZXJfZGVzay52MS5vZmZlcnMuQ3JlYXRlRWRnZVJlc3BvbnNlEmoKCUxpc3RFZGdlcxItLnZyb29saS5vZmZlcl9kZXNrLnYxLm9mZmVycy5MaXN0RWRnZXNSZXF1ZXN0Gi4udnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLkxpc3RFZGdlc1Jlc3BvbnNlEnYKDUltcG9ydENhdGFsb2cSMS52cm9vbGkub2ZmZXJfZGVzay52MS5vZmZlcnMuSW1wb3J0Q2F0YWxvZ1JlcXVlc3QaMi52cm9vbGkub2ZmZXJfZGVzay52MS5vZmZlcnMuSW1wb3J0Q2F0YWxvZ1Jlc3BvbnNlMrYECgxHYXRlc1NlcnZpY2USeQoORGVjbGFyZVRyaWdnZXISMi52cm9vbGkub2ZmZXJfZGVzay52MS5vZmZlcnMuRGVjbGFyZVRyaWdnZXJSZXF1ZXN0GjMudnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLkRlY2xhcmVUcmlnZ2VyUmVzcG9uc2USZAoHQWRkRmFjdBIrLnZyb29saS5vZmZlcl9kZXNrLnYxLm9mZmVycy5BZGRGYWN0UmVxdWVzdBosLnZyb29saS5vZmZlcl9kZXNrLnYxLm9mZmVycy5BZGRGYWN0UmVzcG9uc2USZwoIRXZhbHVhdGUSLC52cm9vbGkub2ZmZXJfZGVzay52MS5vZmZlcnMuRXZhbHVhdGVSZXF1ZXN0Gi0udnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLkV2YWx1YXRlUmVzcG9uc2USZAoHUHJvbW90ZRIrLnZyb29saS5vZmZlcl9kZXNrLnYxLm9mZmVycy5Qcm9tb3RlUmVxdWVzdBosLnZyb29saS5vZmZlcl9kZXNrLnYxLm9mZmVycy5Qcm9tb3RlUmVzcG9uc2USdgoNTGlzdFByb3Bvc2FscxIxLnZyb29saS5vZmZlcl9kZXNrLnYxLm9mZmVycy5MaXN0UHJvcG9zYWxzUmVxdWVzdBoyLnZyb29saS5vZmZlcl9kZXNrLnYxLm9mZmVycy5MaXN0UHJvcG9zYWxzUmVzcG9uc2UydgoMQm9hcmRTZXJ2aWNlEmYKCEdldEJvYXJkEi4udnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLlByb2plY3Rpb25SZXF1ZXN0GioudnJvb2xpLm9mZmVyX2Rlc2sudjEub2ZmZXJzLkJvYXJkUmVzcG9uc2UyewoMU3BhY2VTZXJ2aWNlEmsKDUdldFByb2plY3Rpb24SLi52cm9vbGkub2ZmZXJfZGVzay52MS5vZmZlcnMuUHJvamVjdGlvblJlcXVlc3QaKi52cm9vbGkub2ZmZXJfZGVzay52MS5vZmZlcnMuU3BhY2VSZXNwb25zZUJPWk1naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL29mZmVyLWRlc2svdjEvb2ZmZXJzO29mZmVyc192MWIGcHJvdG8z", [file_google_protobuf_timestamp, file_buf_validate_validate, file_money_ledger_v1_ledger_ledger]);
 
 /**
  * @generated from message vrooli.offer_desk.v1.offers.Node
@@ -275,6 +275,33 @@ export const EvaluationSchema: GenMessage<Evaluation> = /*@__PURE__*/
   messageDesc(file_offer_desk_v1_offers_offers, 5);
 
 /**
+ * @generated from message vrooli.offer_desk.v1.offers.ProposalDecline
+ */
+export type ProposalDecline = Message<"vrooli.offer_desk.v1.offers.ProposalDecline"> & {
+  /**
+   * @generated from field: string actor = 1;
+   */
+  actor: string;
+
+  /**
+   * @generated from field: string reason = 2;
+   */
+  reason: string;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp created_at = 3;
+   */
+  createdAt?: Timestamp | undefined;
+};
+
+/**
+ * Describes the message vrooli.offer_desk.v1.offers.ProposalDecline.
+ * Use `create(ProposalDeclineSchema)` to create a new message.
+ */
+export const ProposalDeclineSchema: GenMessage<ProposalDecline> = /*@__PURE__*/
+  messageDesc(file_offer_desk_v1_offers_offers, 6);
+
+/**
  * @generated from message vrooli.offer_desk.v1.offers.Proposal
  */
 export type Proposal = Message<"vrooli.offer_desk.v1.offers.Proposal"> & {
@@ -302,6 +329,21 @@ export type Proposal = Message<"vrooli.offer_desk.v1.offers.Proposal"> & {
    * @generated from field: string reason = 5;
    */
   reason: string;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp created_at = 6;
+   */
+  createdAt?: Timestamp | undefined;
+
+  /**
+   * @generated from field: repeated vrooli.offer_desk.v1.offers.ProposalDecline decline_history = 7;
+   */
+  declineHistory: ProposalDecline[];
+
+  /**
+   * @generated from field: string evidence_reference = 8;
+   */
+  evidenceReference: string;
 };
 
 /**
@@ -309,7 +351,7 @@ export type Proposal = Message<"vrooli.offer_desk.v1.offers.Proposal"> & {
  * Use `create(ProposalSchema)` to create a new message.
  */
 export const ProposalSchema: GenMessage<Proposal> = /*@__PURE__*/
-  messageDesc(file_offer_desk_v1_offers_offers, 6);
+  messageDesc(file_offer_desk_v1_offers_offers, 7);
 
 /**
  * @generated from message vrooli.offer_desk.v1.offers.Availability
@@ -336,7 +378,7 @@ export type Availability = Message<"vrooli.offer_desk.v1.offers.Availability"> &
  * Use `create(AvailabilitySchema)` to create a new message.
  */
 export const AvailabilitySchema: GenMessage<Availability> = /*@__PURE__*/
-  messageDesc(file_offer_desk_v1_offers_offers, 7);
+  messageDesc(file_offer_desk_v1_offers_offers, 8);
 
 /**
  * @generated from message vrooli.offer_desk.v1.offers.BoardEntry
@@ -383,7 +425,49 @@ export type BoardEntry = Message<"vrooli.offer_desk.v1.offers.BoardEntry"> & {
  * Use `create(BoardEntrySchema)` to create a new message.
  */
 export const BoardEntrySchema: GenMessage<BoardEntry> = /*@__PURE__*/
-  messageDesc(file_offer_desk_v1_offers_offers, 8);
+  messageDesc(file_offer_desk_v1_offers_offers, 9);
+
+/**
+ * @generated from message vrooli.offer_desk.v1.offers.EvaluationCondition
+ */
+export type EvaluationCondition = Message<"vrooli.offer_desk.v1.offers.EvaluationCondition"> & {
+  /**
+   * @generated from field: google.protobuf.Timestamp last_run_at = 1;
+   */
+  lastRunAt?: Timestamp | undefined;
+
+  /**
+   * @generated from field: vrooli.offer_desk.v1.offers.EvaluationResult last_result = 2;
+   */
+  lastResult: EvaluationResult;
+
+  /**
+   * @generated from field: int32 nodes_scored = 3;
+   */
+  nodesScored: number;
+
+  /**
+   * @generated from field: int64 age_seconds = 4;
+   */
+  ageSeconds: bigint;
+
+  /**
+   * @generated from field: bool degraded = 5;
+   */
+  degraded: boolean;
+
+  /**
+   * @generated from field: string reason = 6;
+   */
+  reason: string;
+};
+
+/**
+ * Describes the message vrooli.offer_desk.v1.offers.EvaluationCondition.
+ * Use `create(EvaluationConditionSchema)` to create a new message.
+ */
+export const EvaluationConditionSchema: GenMessage<EvaluationCondition> = /*@__PURE__*/
+  messageDesc(file_offer_desk_v1_offers_offers, 10);
 
 /**
  * @generated from message vrooli.offer_desk.v1.offers.BoardResponse
@@ -403,6 +487,31 @@ export type BoardResponse = Message<"vrooli.offer_desk.v1.offers.BoardResponse">
    * @generated from field: repeated vrooli.offer_desk.v1.offers.Availability availability = 3;
    */
   availability: Availability[];
+
+  /**
+   * @generated from field: vrooli.offer_desk.v1.offers.EvaluationCondition evaluation = 4;
+   */
+  evaluation?: EvaluationCondition | undefined;
+
+  /**
+   * @generated from field: repeated vrooli.money_ledger.v1.ledger.GoalVerdict goals = 5;
+   */
+  goals: GoalVerdict[];
+
+  /**
+   * @generated from field: string default_alive_gap = 6;
+   */
+  defaultAliveGap: string;
+
+  /**
+   * @generated from field: string posture_source = 7;
+   */
+  postureSource: string;
+
+  /**
+   * @generated from field: int64 posture_age_seconds = 8;
+   */
+  postureAgeSeconds: bigint;
 };
 
 /**
@@ -410,7 +519,7 @@ export type BoardResponse = Message<"vrooli.offer_desk.v1.offers.BoardResponse">
  * Use `create(BoardResponseSchema)` to create a new message.
  */
 export const BoardResponseSchema: GenMessage<BoardResponse> = /*@__PURE__*/
-  messageDesc(file_offer_desk_v1_offers_offers, 9);
+  messageDesc(file_offer_desk_v1_offers_offers, 11);
 
 /**
  * @generated from message vrooli.offer_desk.v1.offers.CreateNodeRequest
@@ -447,7 +556,7 @@ export type CreateNodeRequest = Message<"vrooli.offer_desk.v1.offers.CreateNodeR
  * Use `create(CreateNodeRequestSchema)` to create a new message.
  */
 export const CreateNodeRequestSchema: GenMessage<CreateNodeRequest> = /*@__PURE__*/
-  messageDesc(file_offer_desk_v1_offers_offers, 10);
+  messageDesc(file_offer_desk_v1_offers_offers, 12);
 
 /**
  * @generated from message vrooli.offer_desk.v1.offers.CreateNodeResponse
@@ -464,7 +573,7 @@ export type CreateNodeResponse = Message<"vrooli.offer_desk.v1.offers.CreateNode
  * Use `create(CreateNodeResponseSchema)` to create a new message.
  */
 export const CreateNodeResponseSchema: GenMessage<CreateNodeResponse> = /*@__PURE__*/
-  messageDesc(file_offer_desk_v1_offers_offers, 11);
+  messageDesc(file_offer_desk_v1_offers_offers, 13);
 
 /**
  * @generated from message vrooli.offer_desk.v1.offers.ListNodesRequest
@@ -486,7 +595,7 @@ export type ListNodesRequest = Message<"vrooli.offer_desk.v1.offers.ListNodesReq
  * Use `create(ListNodesRequestSchema)` to create a new message.
  */
 export const ListNodesRequestSchema: GenMessage<ListNodesRequest> = /*@__PURE__*/
-  messageDesc(file_offer_desk_v1_offers_offers, 12);
+  messageDesc(file_offer_desk_v1_offers_offers, 14);
 
 /**
  * @generated from message vrooli.offer_desk.v1.offers.ListNodesResponse
@@ -503,7 +612,7 @@ export type ListNodesResponse = Message<"vrooli.offer_desk.v1.offers.ListNodesRe
  * Use `create(ListNodesResponseSchema)` to create a new message.
  */
 export const ListNodesResponseSchema: GenMessage<ListNodesResponse> = /*@__PURE__*/
-  messageDesc(file_offer_desk_v1_offers_offers, 13);
+  messageDesc(file_offer_desk_v1_offers_offers, 15);
 
 /**
  * @generated from message vrooli.offer_desk.v1.offers.TransitionRequest
@@ -530,7 +639,7 @@ export type TransitionRequest = Message<"vrooli.offer_desk.v1.offers.TransitionR
  * Use `create(TransitionRequestSchema)` to create a new message.
  */
 export const TransitionRequestSchema: GenMessage<TransitionRequest> = /*@__PURE__*/
-  messageDesc(file_offer_desk_v1_offers_offers, 14);
+  messageDesc(file_offer_desk_v1_offers_offers, 16);
 
 /**
  * @generated from message vrooli.offer_desk.v1.offers.TransitionResponse
@@ -547,7 +656,7 @@ export type TransitionResponse = Message<"vrooli.offer_desk.v1.offers.Transition
  * Use `create(TransitionResponseSchema)` to create a new message.
  */
 export const TransitionResponseSchema: GenMessage<TransitionResponse> = /*@__PURE__*/
-  messageDesc(file_offer_desk_v1_offers_offers, 15);
+  messageDesc(file_offer_desk_v1_offers_offers, 17);
 
 /**
  * @generated from message vrooli.offer_desk.v1.offers.CreateEdgeRequest
@@ -564,7 +673,7 @@ export type CreateEdgeRequest = Message<"vrooli.offer_desk.v1.offers.CreateEdgeR
  * Use `create(CreateEdgeRequestSchema)` to create a new message.
  */
 export const CreateEdgeRequestSchema: GenMessage<CreateEdgeRequest> = /*@__PURE__*/
-  messageDesc(file_offer_desk_v1_offers_offers, 16);
+  messageDesc(file_offer_desk_v1_offers_offers, 18);
 
 /**
  * @generated from message vrooli.offer_desk.v1.offers.CreateEdgeResponse
@@ -581,7 +690,7 @@ export type CreateEdgeResponse = Message<"vrooli.offer_desk.v1.offers.CreateEdge
  * Use `create(CreateEdgeResponseSchema)` to create a new message.
  */
 export const CreateEdgeResponseSchema: GenMessage<CreateEdgeResponse> = /*@__PURE__*/
-  messageDesc(file_offer_desk_v1_offers_offers, 17);
+  messageDesc(file_offer_desk_v1_offers_offers, 19);
 
 /**
  * @generated from message vrooli.offer_desk.v1.offers.DeclareTriggerRequest
@@ -598,7 +707,7 @@ export type DeclareTriggerRequest = Message<"vrooli.offer_desk.v1.offers.Declare
  * Use `create(DeclareTriggerRequestSchema)` to create a new message.
  */
 export const DeclareTriggerRequestSchema: GenMessage<DeclareTriggerRequest> = /*@__PURE__*/
-  messageDesc(file_offer_desk_v1_offers_offers, 18);
+  messageDesc(file_offer_desk_v1_offers_offers, 20);
 
 /**
  * @generated from message vrooli.offer_desk.v1.offers.DeclareTriggerResponse
@@ -615,7 +724,7 @@ export type DeclareTriggerResponse = Message<"vrooli.offer_desk.v1.offers.Declar
  * Use `create(DeclareTriggerResponseSchema)` to create a new message.
  */
 export const DeclareTriggerResponseSchema: GenMessage<DeclareTriggerResponse> = /*@__PURE__*/
-  messageDesc(file_offer_desk_v1_offers_offers, 19);
+  messageDesc(file_offer_desk_v1_offers_offers, 21);
 
 /**
  * @generated from message vrooli.offer_desk.v1.offers.AddFactRequest
@@ -632,7 +741,7 @@ export type AddFactRequest = Message<"vrooli.offer_desk.v1.offers.AddFactRequest
  * Use `create(AddFactRequestSchema)` to create a new message.
  */
 export const AddFactRequestSchema: GenMessage<AddFactRequest> = /*@__PURE__*/
-  messageDesc(file_offer_desk_v1_offers_offers, 20);
+  messageDesc(file_offer_desk_v1_offers_offers, 22);
 
 /**
  * @generated from message vrooli.offer_desk.v1.offers.AddFactResponse
@@ -649,7 +758,7 @@ export type AddFactResponse = Message<"vrooli.offer_desk.v1.offers.AddFactRespon
  * Use `create(AddFactResponseSchema)` to create a new message.
  */
 export const AddFactResponseSchema: GenMessage<AddFactResponse> = /*@__PURE__*/
-  messageDesc(file_offer_desk_v1_offers_offers, 21);
+  messageDesc(file_offer_desk_v1_offers_offers, 23);
 
 /**
  * @generated from message vrooli.offer_desk.v1.offers.EvaluateRequest
@@ -666,7 +775,7 @@ export type EvaluateRequest = Message<"vrooli.offer_desk.v1.offers.EvaluateReque
  * Use `create(EvaluateRequestSchema)` to create a new message.
  */
 export const EvaluateRequestSchema: GenMessage<EvaluateRequest> = /*@__PURE__*/
-  messageDesc(file_offer_desk_v1_offers_offers, 22);
+  messageDesc(file_offer_desk_v1_offers_offers, 24);
 
 /**
  * @generated from message vrooli.offer_desk.v1.offers.EvaluateResponse
@@ -683,7 +792,7 @@ export type EvaluateResponse = Message<"vrooli.offer_desk.v1.offers.EvaluateResp
  * Use `create(EvaluateResponseSchema)` to create a new message.
  */
 export const EvaluateResponseSchema: GenMessage<EvaluateResponse> = /*@__PURE__*/
-  messageDesc(file_offer_desk_v1_offers_offers, 23);
+  messageDesc(file_offer_desk_v1_offers_offers, 25);
 
 /**
  * @generated from message vrooli.offer_desk.v1.offers.PromoteRequest
@@ -710,7 +819,7 @@ export type PromoteRequest = Message<"vrooli.offer_desk.v1.offers.PromoteRequest
  * Use `create(PromoteRequestSchema)` to create a new message.
  */
 export const PromoteRequestSchema: GenMessage<PromoteRequest> = /*@__PURE__*/
-  messageDesc(file_offer_desk_v1_offers_offers, 24);
+  messageDesc(file_offer_desk_v1_offers_offers, 26);
 
 /**
  * @generated from message vrooli.offer_desk.v1.offers.PromoteResponse
@@ -727,7 +836,46 @@ export type PromoteResponse = Message<"vrooli.offer_desk.v1.offers.PromoteRespon
  * Use `create(PromoteResponseSchema)` to create a new message.
  */
 export const PromoteResponseSchema: GenMessage<PromoteResponse> = /*@__PURE__*/
-  messageDesc(file_offer_desk_v1_offers_offers, 25);
+  messageDesc(file_offer_desk_v1_offers_offers, 27);
+
+/**
+ * @generated from message vrooli.offer_desk.v1.offers.ListProposalsRequest
+ */
+export type ListProposalsRequest = Message<"vrooli.offer_desk.v1.offers.ListProposalsRequest"> & {
+  /**
+   * @generated from field: string node_id = 1;
+   */
+  nodeId: string;
+
+  /**
+   * @generated from field: vrooli.offer_desk.v1.offers.Status status = 2;
+   */
+  status: Status;
+};
+
+/**
+ * Describes the message vrooli.offer_desk.v1.offers.ListProposalsRequest.
+ * Use `create(ListProposalsRequestSchema)` to create a new message.
+ */
+export const ListProposalsRequestSchema: GenMessage<ListProposalsRequest> = /*@__PURE__*/
+  messageDesc(file_offer_desk_v1_offers_offers, 28);
+
+/**
+ * @generated from message vrooli.offer_desk.v1.offers.ListProposalsResponse
+ */
+export type ListProposalsResponse = Message<"vrooli.offer_desk.v1.offers.ListProposalsResponse"> & {
+  /**
+   * @generated from field: repeated vrooli.offer_desk.v1.offers.Proposal proposals = 1;
+   */
+  proposals: Proposal[];
+};
+
+/**
+ * Describes the message vrooli.offer_desk.v1.offers.ListProposalsResponse.
+ * Use `create(ListProposalsResponseSchema)` to create a new message.
+ */
+export const ListProposalsResponseSchema: GenMessage<ListProposalsResponse> = /*@__PURE__*/
+  messageDesc(file_offer_desk_v1_offers_offers, 29);
 
 /**
  * @generated from message vrooli.offer_desk.v1.offers.ListAuditRequest
@@ -744,7 +892,7 @@ export type ListAuditRequest = Message<"vrooli.offer_desk.v1.offers.ListAuditReq
  * Use `create(ListAuditRequestSchema)` to create a new message.
  */
 export const ListAuditRequestSchema: GenMessage<ListAuditRequest> = /*@__PURE__*/
-  messageDesc(file_offer_desk_v1_offers_offers, 26);
+  messageDesc(file_offer_desk_v1_offers_offers, 30);
 
 /**
  * @generated from message vrooli.offer_desk.v1.offers.ListAuditResponse
@@ -761,7 +909,7 @@ export type ListAuditResponse = Message<"vrooli.offer_desk.v1.offers.ListAuditRe
  * Use `create(ListAuditResponseSchema)` to create a new message.
  */
 export const ListAuditResponseSchema: GenMessage<ListAuditResponse> = /*@__PURE__*/
-  messageDesc(file_offer_desk_v1_offers_offers, 27);
+  messageDesc(file_offer_desk_v1_offers_offers, 31);
 
 /**
  * @generated from message vrooli.offer_desk.v1.offers.ListEdgesRequest
@@ -778,7 +926,7 @@ export type ListEdgesRequest = Message<"vrooli.offer_desk.v1.offers.ListEdgesReq
  * Use `create(ListEdgesRequestSchema)` to create a new message.
  */
 export const ListEdgesRequestSchema: GenMessage<ListEdgesRequest> = /*@__PURE__*/
-  messageDesc(file_offer_desk_v1_offers_offers, 28);
+  messageDesc(file_offer_desk_v1_offers_offers, 32);
 
 /**
  * @generated from message vrooli.offer_desk.v1.offers.ListEdgesResponse
@@ -795,12 +943,16 @@ export type ListEdgesResponse = Message<"vrooli.offer_desk.v1.offers.ListEdgesRe
  * Use `create(ListEdgesResponseSchema)` to create a new message.
  */
 export const ListEdgesResponseSchema: GenMessage<ListEdgesResponse> = /*@__PURE__*/
-  messageDesc(file_offer_desk_v1_offers_offers, 29);
+  messageDesc(file_offer_desk_v1_offers_offers, 33);
 
 /**
  * @generated from message vrooli.offer_desk.v1.offers.ProjectionRequest
  */
 export type ProjectionRequest = Message<"vrooli.offer_desk.v1.offers.ProjectionRequest"> & {
+  /**
+   * @generated from field: string projection = 1;
+   */
+  projection: string;
 };
 
 /**
@@ -808,7 +960,271 @@ export type ProjectionRequest = Message<"vrooli.offer_desk.v1.offers.ProjectionR
  * Use `create(ProjectionRequestSchema)` to create a new message.
  */
 export const ProjectionRequestSchema: GenMessage<ProjectionRequest> = /*@__PURE__*/
-  messageDesc(file_offer_desk_v1_offers_offers, 30);
+  messageDesc(file_offer_desk_v1_offers_offers, 34);
+
+/**
+ * @generated from message vrooli.offer_desk.v1.offers.ImportCatalogRequest
+ */
+export type ImportCatalogRequest = Message<"vrooli.offer_desk.v1.offers.ImportCatalogRequest"> & {
+  /**
+   * @generated from field: string source_path = 1;
+   */
+  sourcePath: string;
+
+  /**
+   * @generated from field: vrooli.offer_desk.v1.offers.SourceMode source_mode = 2;
+   */
+  sourceMode: SourceMode;
+
+  /**
+   * @generated from field: bool apply = 3;
+   */
+  apply: boolean;
+
+  /**
+   * @generated from field: string actor = 4;
+   */
+  actor: string;
+};
+
+/**
+ * Describes the message vrooli.offer_desk.v1.offers.ImportCatalogRequest.
+ * Use `create(ImportCatalogRequestSchema)` to create a new message.
+ */
+export const ImportCatalogRequestSchema: GenMessage<ImportCatalogRequest> = /*@__PURE__*/
+  messageDesc(file_offer_desk_v1_offers_offers, 35);
+
+/**
+ * @generated from message vrooli.offer_desk.v1.offers.ImportFileReport
+ */
+export type ImportFileReport = Message<"vrooli.offer_desk.v1.offers.ImportFileReport"> & {
+  /**
+   * @generated from field: string path = 1;
+   */
+  path: string;
+
+  /**
+   * @generated from field: int32 read = 2;
+   */
+  read: number;
+
+  /**
+   * @generated from field: int32 written = 3;
+   */
+  written: number;
+
+  /**
+   * @generated from field: int32 findings = 4;
+   */
+  findings: number;
+
+  /**
+   * @generated from field: string cardinality = 5;
+   */
+  cardinality: string;
+
+  /**
+   * @generated from field: vrooli.offer_desk.v1.offers.NodeKind node_kind = 6;
+   */
+  nodeKind: NodeKind;
+};
+
+/**
+ * Describes the message vrooli.offer_desk.v1.offers.ImportFileReport.
+ * Use `create(ImportFileReportSchema)` to create a new message.
+ */
+export const ImportFileReportSchema: GenMessage<ImportFileReport> = /*@__PURE__*/
+  messageDesc(file_offer_desk_v1_offers_offers, 36);
+
+/**
+ * @generated from message vrooli.offer_desk.v1.offers.StatusMapEntry
+ */
+export type StatusMapEntry = Message<"vrooli.offer_desk.v1.offers.StatusMapEntry"> & {
+  /**
+   * @generated from field: string path = 1;
+   */
+  path: string;
+
+  /**
+   * @generated from field: vrooli.offer_desk.v1.offers.Status status = 2;
+   */
+  status: Status;
+
+  /**
+   * @generated from field: bool recognized = 3;
+   */
+  recognized: boolean;
+
+  /**
+   * @generated from field: int32 line = 4;
+   */
+  line: number;
+};
+
+/**
+ * Describes the message vrooli.offer_desk.v1.offers.StatusMapEntry.
+ * Use `create(StatusMapEntrySchema)` to create a new message.
+ */
+export const StatusMapEntrySchema: GenMessage<StatusMapEntry> = /*@__PURE__*/
+  messageDesc(file_offer_desk_v1_offers_offers, 37);
+
+/**
+ * @generated from message vrooli.offer_desk.v1.offers.ImportFinding
+ */
+export type ImportFinding = Message<"vrooli.offer_desk.v1.offers.ImportFinding"> & {
+  /**
+   * @generated from field: string path = 1;
+   */
+  path: string;
+
+  /**
+   * @generated from field: string reason = 2;
+   */
+  reason: string;
+
+  /**
+   * @generated from field: bool blocking = 3;
+   */
+  blocking: boolean;
+
+  /**
+   * @generated from field: int32 line = 4;
+   */
+  line: number;
+};
+
+/**
+ * Describes the message vrooli.offer_desk.v1.offers.ImportFinding.
+ * Use `create(ImportFindingSchema)` to create a new message.
+ */
+export const ImportFindingSchema: GenMessage<ImportFinding> = /*@__PURE__*/
+  messageDesc(file_offer_desk_v1_offers_offers, 38);
+
+/**
+ * @generated from message vrooli.offer_desk.v1.offers.ImportCatalogResponse
+ */
+export type ImportCatalogResponse = Message<"vrooli.offer_desk.v1.offers.ImportCatalogResponse"> & {
+  /**
+   * @generated from field: repeated vrooli.offer_desk.v1.offers.ImportFileReport files = 1;
+   */
+  files: ImportFileReport[];
+
+  /**
+   * @generated from field: repeated vrooli.offer_desk.v1.offers.StatusMapEntry status_map = 2;
+   */
+  statusMap: StatusMapEntry[];
+
+  /**
+   * @generated from field: repeated vrooli.offer_desk.v1.offers.ImportFinding findings = 3;
+   */
+  findings: ImportFinding[];
+
+  /**
+   * @generated from field: int32 total_findings = 4;
+   */
+  totalFindings: number;
+
+  /**
+   * @generated from field: bool applied = 5;
+   */
+  applied: boolean;
+};
+
+/**
+ * Describes the message vrooli.offer_desk.v1.offers.ImportCatalogResponse.
+ * Use `create(ImportCatalogResponseSchema)` to create a new message.
+ */
+export const ImportCatalogResponseSchema: GenMessage<ImportCatalogResponse> = /*@__PURE__*/
+  messageDesc(file_offer_desk_v1_offers_offers, 39);
+
+/**
+ * @generated from message vrooli.offer_desk.v1.offers.SpaceCell
+ */
+export type SpaceCell = Message<"vrooli.offer_desk.v1.offers.SpaceCell"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string group = 2;
+   */
+  group: string;
+
+  /**
+   * @generated from field: string question = 3;
+   */
+  question: string;
+
+  /**
+   * @generated from field: string owner = 4;
+   */
+  owner: string;
+
+  /**
+   * @generated from field: string status = 5;
+   */
+  status: string;
+
+  /**
+   * @generated from field: string notes = 6;
+   */
+  notes: string;
+};
+
+/**
+ * Describes the message vrooli.offer_desk.v1.offers.SpaceCell.
+ * Use `create(SpaceCellSchema)` to create a new message.
+ */
+export const SpaceCellSchema: GenMessage<SpaceCell> = /*@__PURE__*/
+  messageDesc(file_offer_desk_v1_offers_offers, 40);
+
+/**
+ * @generated from message vrooli.offer_desk.v1.offers.SpaceResponse
+ */
+export type SpaceResponse = Message<"vrooli.offer_desk.v1.offers.SpaceResponse"> & {
+  /**
+   * @generated from field: string schema_version = 1;
+   */
+  schemaVersion: string;
+
+  /**
+   * @generated from field: string projection = 2;
+   */
+  projection: string;
+
+  /**
+   * @generated from field: string owner = 3;
+   */
+  owner: string;
+
+  /**
+   * @generated from field: string denominator_confidence = 4;
+   */
+  denominatorConfidence: string;
+
+  /**
+   * @generated from field: string confidence_rationale = 5;
+   */
+  confidenceRationale: string;
+
+  /**
+   * @generated from field: string source = 6;
+   */
+  source: string;
+
+  /**
+   * @generated from field: repeated vrooli.offer_desk.v1.offers.SpaceCell cells = 7;
+   */
+  cells: SpaceCell[];
+};
+
+/**
+ * Describes the message vrooli.offer_desk.v1.offers.SpaceResponse.
+ * Use `create(SpaceResponseSchema)` to create a new message.
+ */
+export const SpaceResponseSchema: GenMessage<SpaceResponse> = /*@__PURE__*/
+  messageDesc(file_offer_desk_v1_offers_offers, 41);
 
 /**
  * @generated from enum vrooli.offer_desk.v1.offers.NodeKind
@@ -929,6 +1345,63 @@ export const VerdictSchema: GenEnum<Verdict> = /*@__PURE__*/
   enumDesc(file_offer_desk_v1_offers_offers, 2);
 
 /**
+ * @generated from enum vrooli.offer_desk.v1.offers.SourceMode
+ */
+export enum SourceMode {
+  /**
+   * @generated from enum value: SOURCE_MODE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: SOURCE_MODE_FIXTURE = 1;
+   */
+  FIXTURE = 1,
+
+  /**
+   * @generated from enum value: SOURCE_MODE_OPERATOR_SUPPLIED = 2;
+   */
+  OPERATOR_SUPPLIED = 2,
+}
+
+/**
+ * Describes the enum vrooli.offer_desk.v1.offers.SourceMode.
+ */
+export const SourceModeSchema: GenEnum<SourceMode> = /*@__PURE__*/
+  enumDesc(file_offer_desk_v1_offers_offers, 3);
+
+/**
+ * @generated from enum vrooli.offer_desk.v1.offers.EvaluationResult
+ */
+export enum EvaluationResult {
+  /**
+   * @generated from enum value: EVALUATION_RESULT_UNSPECIFIED = 0;
+   */
+  EVALUATION_RESULT_UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: EVALUATION_SUCCEEDED = 1;
+   */
+  EVALUATION_SUCCEEDED = 1,
+
+  /**
+   * @generated from enum value: EVALUATION_FAILED = 2;
+   */
+  EVALUATION_FAILED = 2,
+
+  /**
+   * @generated from enum value: EVALUATION_NOT_RUN = 3;
+   */
+  EVALUATION_NOT_RUN = 3,
+}
+
+/**
+ * Describes the enum vrooli.offer_desk.v1.offers.EvaluationResult.
+ */
+export const EvaluationResultSchema: GenEnum<EvaluationResult> = /*@__PURE__*/
+  enumDesc(file_offer_desk_v1_offers_offers, 4);
+
+/**
  * @generated from enum vrooli.offer_desk.v1.offers.TriggerComposition
  */
 export enum TriggerComposition {
@@ -952,7 +1425,7 @@ export enum TriggerComposition {
  * Describes the enum vrooli.offer_desk.v1.offers.TriggerComposition.
  */
 export const TriggerCompositionSchema: GenEnum<TriggerComposition> = /*@__PURE__*/
-  enumDesc(file_offer_desk_v1_offers_offers, 3);
+  enumDesc(file_offer_desk_v1_offers_offers, 5);
 
 /**
  * @generated from service vrooli.offer_desk.v1.offers.CatalogService
@@ -998,6 +1471,14 @@ export const CatalogService: GenService<{
     input: typeof ListEdgesRequestSchema;
     output: typeof ListEdgesResponseSchema;
   },
+  /**
+   * @generated from rpc vrooli.offer_desk.v1.offers.CatalogService.ImportCatalog
+   */
+  importCatalog: {
+    methodKind: "unary";
+    input: typeof ImportCatalogRequestSchema;
+    output: typeof ImportCatalogResponseSchema;
+  },
 }> = /*@__PURE__*/
   serviceDesc(file_offer_desk_v1_offers_offers, 0);
 
@@ -1037,6 +1518,14 @@ export const GatesService: GenService<{
     input: typeof PromoteRequestSchema;
     output: typeof PromoteResponseSchema;
   },
+  /**
+   * @generated from rpc vrooli.offer_desk.v1.offers.GatesService.ListProposals
+   */
+  listProposals: {
+    methodKind: "unary";
+    input: typeof ListProposalsRequestSchema;
+    output: typeof ListProposalsResponseSchema;
+  },
 }> = /*@__PURE__*/
   serviceDesc(file_offer_desk_v1_offers_offers, 1);
 
@@ -1054,4 +1543,19 @@ export const BoardService: GenService<{
   },
 }> = /*@__PURE__*/
   serviceDesc(file_offer_desk_v1_offers_offers, 2);
+
+/**
+ * @generated from service vrooli.offer_desk.v1.offers.SpaceService
+ */
+export const SpaceService: GenService<{
+  /**
+   * @generated from rpc vrooli.offer_desk.v1.offers.SpaceService.GetProjection
+   */
+  getProjection: {
+    methodKind: "unary";
+    input: typeof ProjectionRequestSchema;
+    output: typeof SpaceResponseSchema;
+  },
+}> = /*@__PURE__*/
+  serviceDesc(file_offer_desk_v1_offers_offers, 3);
 

@@ -25,7 +25,7 @@ _sym_db = _symbol_database.Default()
 from meta_optimization_manager.v1.shared import model_pb2 as meta__optimization__manager_dot_v1_dot_shared_dot_model__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n.meta-optimization-manager/v1/focus/focus.proto\x12)vrooli.meta_optimization_manager.v1.focus\x1a/meta-optimization-manager/v1/shared/model.proto\"\x8b\x06\n\x03Gap\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12V\n\nprojection\x18\x02 \x01(\x0e\x32\x36.vrooli.meta_optimization_manager.v1.shared.ProjectionR\nprojection\x12\x14\n\x05title\x18\x03 \x01(\tR\x05title\x12N\n\x06status\x18\x04 \x01(\x0e\x32\x36.vrooli.meta_optimization_manager.v1.shared.CellStatusR\x06status\x12$\n\x0esource_cell_id\x18\x05 \x01(\tR\x0csourceCellId\x12\x16\n\x06global\x18\x06 \x01(\x08R\x06global\x12\x14\n\x05notes\x18\x07 \x03(\tR\x05notes\x12\x1e\n\napproaches\x18\x08 \x03(\tR\napproaches\x12\x1d\n\nfollow_ups\x18\t \x03(\tR\tfollowUps\x12G\n\x04\x61xis\x18\n \x01(\x0e\x32\x33.vrooli.meta_optimization_manager.v1.shared.GapAxisR\x04\x61xis\x12\x1e\n\nrecurrence\x18\x0b \x01(\x05R\nrecurrence\x12\'\n\x0f\x65vidence_source\x18\x0c \x01(\tR\x0e\x65videnceSource\x12)\n\x10\x65vidence_locator\x18\r \x01(\tR\x0f\x65videnceLocator\x12/\n\x13\x61vailability_reason\x18\x0e \x01(\tR\x12\x61vailabilityReason\x12!\n\x0cprovider_ids\x18\x0f \x03(\tR\x0bproviderIds\x12)\n\x10\x63ondition_status\x18\x10 \x01(\tR\x0f\x63onditionStatus\x12g\n\x11maturity_findings\x18\x11 \x03(\x0b\x32:.vrooli.meta_optimization_manager.v1.focus.MaturityFindingR\x10maturityFindings\"\xc1\x01\n\x0fMaturityFinding\x12\x12\n\x04\x63ode\x18\x01 \x01(\tR\x04\x63ode\x12\x18\n\x07message\x18\x02 \x01(\tR\x07message\x12\x1a\n\x08location\x18\x03 \x01(\tR\x08location\x12 \n\x0bremediation\x18\x04 \x01(\tR\x0bremediation\x12\x1b\n\tfix_class\x18\x05 \x01(\tR\x08\x66ixClass\x12%\n\x0erepair_command\x18\x06 \x01(\tR\rrepairCommand\"\xca\x01\n\tFocusItem\x12@\n\x03gap\x18\x01 \x01(\x0b\x32..vrooli.meta_optimization_manager.v1.focus.GapR\x03gap\x12\x16\n\x06impact\x18\x02 \x01(\x01R\x06impact\x12\x1e\n\nimportance\x18\x03 \x01(\x01R\nimportance\x12%\n\x0epriority_score\x18\x04 \x01(\x01R\rpriorityScore\x12\x1c\n\trationale\x18\x05 \x01(\tR\trationale\"\x7f\n\x0fGetFocusRequest\x12\x14\n\x05limit\x18\x01 \x01(\x05R\x05limit\x12V\n\nprojection\x18\x02 \x01(\x0e\x32\x36.vrooli.meta_optimization_manager.v1.shared.ProjectionR\nprojection\"\xa3\x01\n\x10GetFocusResponse\x12J\n\x05items\x18\x01 \x03(\x0b\x32\x34.vrooli.meta_optimization_manager.v1.focus.FocusItemR\x05items\x12\x1a\n\x08\x64\x65graded\x18\x02 \x01(\x08R\x08\x64\x65graded\x12\'\n\x0f\x64\x65graded_reason\x18\x03 \x01(\tR\x0e\x64\x65gradedReason\"\xd2\x01\n\x0fListGapsRequest\x12V\n\nprojection\x18\x01 \x01(\x0e\x32\x36.vrooli.meta_optimization_manager.v1.shared.ProjectionR\nprojection\x12\x17\n\x07\x63\x65ll_id\x18\x02 \x01(\tR\x06\x63\x65llId\x12N\n\x06status\x18\x03 \x01(\x0e\x32\x36.vrooli.meta_optimization_manager.v1.shared.CellStatusR\x06status\"V\n\x10ListGapsResponse\x12\x42\n\x04gaps\x18\x01 \x03(\x0b\x32..vrooli.meta_optimization_manager.v1.focus.GapR\x04gaps\"\x1f\n\rGetGapRequest\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\"R\n\x0eGetGapResponse\x12@\n\x03gap\x18\x01 \x01(\x0b\x32..vrooli.meta_optimization_manager.v1.focus.GapR\x03gap\"?\n\x11\x41\x64\x64GapNoteRequest\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x1a\n\x08\x61pproach\x18\x02 \x01(\tR\x08\x61pproach\"V\n\x12\x41\x64\x64GapNoteResponse\x12@\n\x03gap\x18\x01 \x01(\x0b\x32..vrooli.meta_optimization_manager.v1.focus.GapR\x03gap\"\x16\n\x14ListConditionRequest\"\xca\x01\n\x15ListConditionResponse\x12\x42\n\x04gaps\x18\x01 \x03(\x0b\x32..vrooli.meta_optimization_manager.v1.focus.GapR\x04gaps\x12m\n\x0finstrumentation\x18\x02 \x01(\x0b\x32\x43.vrooli.meta_optimization_manager.v1.focus.ConditionInstrumentationR\x0finstrumentation\"\x91\x02\n\x18\x43onditionInstrumentation\x12\x18\n\x07healthy\x18\x01 \x01(\x05R\x07healthy\x12\x1a\n\x08\x64\x65graded\x18\x02 \x01(\x05R\x08\x64\x65graded\x12\x18\n\x07\x64ormant\x18\x03 \x01(\x05R\x07\x64ormant\x12&\n\x0euninstrumented\x18\x04 \x01(\x05R\x0euninstrumented\x12 \n\x0bunavailable\x18\x05 \x01(\x05R\x0bunavailable\x12\"\n\x0cinstrumented\x18\x06 \x01(\x05R\x0cinstrumented\x12\x14\n\x05total\x18\x07 \x01(\x05R\x05total\x12!\n\x0c\x66iltered_out\x18\x08 \x01(\x05R\x0b\x66ilteredOut\":\n\x17\x45xplainConditionRequest\x12\x1f\n\x0bprovider_id\x18\x01 \x01(\tR\nproviderId\"\\\n\x18\x45xplainConditionResponse\x12@\n\x03gap\x18\x01 \x01(\x0b\x32..vrooli.meta_optimization_manager.v1.focus.GapR\x03gap2\xd8\x06\n\x0c\x46ocusService\x12\x83\x01\n\x08GetFocus\x12:.vrooli.meta_optimization_manager.v1.focus.GetFocusRequest\x1a;.vrooli.meta_optimization_manager.v1.focus.GetFocusResponse\x12\x83\x01\n\x08ListGaps\x12:.vrooli.meta_optimization_manager.v1.focus.ListGapsRequest\x1a;.vrooli.meta_optimization_manager.v1.focus.ListGapsResponse\x12}\n\x06GetGap\x12\x38.vrooli.meta_optimization_manager.v1.focus.GetGapRequest\x1a\x39.vrooli.meta_optimization_manager.v1.focus.GetGapResponse\x12\x89\x01\n\nAddGapNote\x12<.vrooli.meta_optimization_manager.v1.focus.AddGapNoteRequest\x1a=.vrooli.meta_optimization_manager.v1.focus.AddGapNoteResponse\x12\x92\x01\n\rListCondition\x12?.vrooli.meta_optimization_manager.v1.focus.ListConditionRequest\x1a@.vrooli.meta_optimization_manager.v1.focus.ListConditionResponse\x12\x9b\x01\n\x10\x45xplainCondition\x12\x42.vrooli.meta_optimization_manager.v1.focus.ExplainConditionRequest\x1a\x43.vrooli.meta_optimization_manager.v1.focus.ExplainConditionResponseB\\ZZgithub.com/vrooli/vrooli/packages/proto/gen/go/meta-optimization-manager/v1/focus;focus_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n.meta-optimization-manager/v1/focus/focus.proto\x12)vrooli.meta_optimization_manager.v1.focus\x1a/meta-optimization-manager/v1/shared/model.proto\"\x84\x07\n\x03Gap\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12V\n\nprojection\x18\x02 \x01(\x0e\x32\x36.vrooli.meta_optimization_manager.v1.shared.ProjectionR\nprojection\x12\x14\n\x05title\x18\x03 \x01(\tR\x05title\x12N\n\x06status\x18\x04 \x01(\x0e\x32\x36.vrooli.meta_optimization_manager.v1.shared.CellStatusR\x06status\x12$\n\x0esource_cell_id\x18\x05 \x01(\tR\x0csourceCellId\x12\x16\n\x06global\x18\x06 \x01(\x08R\x06global\x12\x14\n\x05notes\x18\x07 \x03(\tR\x05notes\x12\x1e\n\napproaches\x18\x08 \x03(\tR\napproaches\x12\x1d\n\nfollow_ups\x18\t \x03(\tR\tfollowUps\x12G\n\x04\x61xis\x18\n \x01(\x0e\x32\x33.vrooli.meta_optimization_manager.v1.shared.GapAxisR\x04\x61xis\x12\x1e\n\nrecurrence\x18\x0b \x01(\x05R\nrecurrence\x12\'\n\x0f\x65vidence_source\x18\x0c \x01(\tR\x0e\x65videnceSource\x12)\n\x10\x65vidence_locator\x18\r \x01(\tR\x0f\x65videnceLocator\x12/\n\x13\x61vailability_reason\x18\x0e \x01(\tR\x12\x61vailabilityReason\x12!\n\x0cprovider_ids\x18\x0f \x03(\tR\x0bproviderIds\x12)\n\x10\x63ondition_status\x18\x10 \x01(\tR\x0f\x63onditionStatus\x12g\n\x11maturity_findings\x18\x11 \x03(\x0b\x32:.vrooli.meta_optimization_manager.v1.focus.MaturityFindingR\x10maturityFindings\x12\x1b\n\tcause_key\x18\x12 \x01(\tR\x08\x63\x61useKey\x12*\n\x11\x61\x66\x66\x65\x63ted_cell_ids\x18\x13 \x03(\tR\x0f\x61\x66\x66\x65\x63tedCellIds\x12.\n\x13\x61\x66\x66\x65\x63ted_cell_count\x18\x14 \x01(\x05R\x11\x61\x66\x66\x65\x63tedCellCount\"\xc1\x01\n\x0fMaturityFinding\x12\x12\n\x04\x63ode\x18\x01 \x01(\tR\x04\x63ode\x12\x18\n\x07message\x18\x02 \x01(\tR\x07message\x12\x1a\n\x08location\x18\x03 \x01(\tR\x08location\x12 \n\x0bremediation\x18\x04 \x01(\tR\x0bremediation\x12\x1b\n\tfix_class\x18\x05 \x01(\tR\x08\x66ixClass\x12%\n\x0erepair_command\x18\x06 \x01(\tR\rrepairCommand\"\xca\x01\n\tFocusItem\x12@\n\x03gap\x18\x01 \x01(\x0b\x32..vrooli.meta_optimization_manager.v1.focus.GapR\x03gap\x12\x16\n\x06impact\x18\x02 \x01(\x01R\x06impact\x12\x1e\n\nimportance\x18\x03 \x01(\x01R\nimportance\x12%\n\x0epriority_score\x18\x04 \x01(\x01R\rpriorityScore\x12\x1c\n\trationale\x18\x05 \x01(\tR\trationale\"\x7f\n\x0fGetFocusRequest\x12\x14\n\x05limit\x18\x01 \x01(\x05R\x05limit\x12V\n\nprojection\x18\x02 \x01(\x0e\x32\x36.vrooli.meta_optimization_manager.v1.shared.ProjectionR\nprojection\"\xa3\x01\n\x10GetFocusResponse\x12J\n\x05items\x18\x01 \x03(\x0b\x32\x34.vrooli.meta_optimization_manager.v1.focus.FocusItemR\x05items\x12\x1a\n\x08\x64\x65graded\x18\x02 \x01(\x08R\x08\x64\x65graded\x12\'\n\x0f\x64\x65graded_reason\x18\x03 \x01(\tR\x0e\x64\x65gradedReason\"\xd2\x01\n\x0fListGapsRequest\x12V\n\nprojection\x18\x01 \x01(\x0e\x32\x36.vrooli.meta_optimization_manager.v1.shared.ProjectionR\nprojection\x12\x17\n\x07\x63\x65ll_id\x18\x02 \x01(\tR\x06\x63\x65llId\x12N\n\x06status\x18\x03 \x01(\x0e\x32\x36.vrooli.meta_optimization_manager.v1.shared.CellStatusR\x06status\"V\n\x10ListGapsResponse\x12\x42\n\x04gaps\x18\x01 \x03(\x0b\x32..vrooli.meta_optimization_manager.v1.focus.GapR\x04gaps\"\x1f\n\rGetGapRequest\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\"R\n\x0eGetGapResponse\x12@\n\x03gap\x18\x01 \x01(\x0b\x32..vrooli.meta_optimization_manager.v1.focus.GapR\x03gap\"?\n\x11\x41\x64\x64GapNoteRequest\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x1a\n\x08\x61pproach\x18\x02 \x01(\tR\x08\x61pproach\"V\n\x12\x41\x64\x64GapNoteResponse\x12@\n\x03gap\x18\x01 \x01(\x0b\x32..vrooli.meta_optimization_manager.v1.focus.GapR\x03gap\"\x16\n\x14ListConditionRequest\"\xca\x01\n\x15ListConditionResponse\x12\x42\n\x04gaps\x18\x01 \x03(\x0b\x32..vrooli.meta_optimization_manager.v1.focus.GapR\x04gaps\x12m\n\x0finstrumentation\x18\x02 \x01(\x0b\x32\x43.vrooli.meta_optimization_manager.v1.focus.ConditionInstrumentationR\x0finstrumentation\"\x91\x02\n\x18\x43onditionInstrumentation\x12\x18\n\x07healthy\x18\x01 \x01(\x05R\x07healthy\x12\x1a\n\x08\x64\x65graded\x18\x02 \x01(\x05R\x08\x64\x65graded\x12\x18\n\x07\x64ormant\x18\x03 \x01(\x05R\x07\x64ormant\x12&\n\x0euninstrumented\x18\x04 \x01(\x05R\x0euninstrumented\x12 \n\x0bunavailable\x18\x05 \x01(\x05R\x0bunavailable\x12\"\n\x0cinstrumented\x18\x06 \x01(\x05R\x0cinstrumented\x12\x14\n\x05total\x18\x07 \x01(\x05R\x05total\x12!\n\x0c\x66iltered_out\x18\x08 \x01(\x05R\x0b\x66ilteredOut\":\n\x17\x45xplainConditionRequest\x12\x1f\n\x0bprovider_id\x18\x01 \x01(\tR\nproviderId\"\\\n\x18\x45xplainConditionResponse\x12@\n\x03gap\x18\x01 \x01(\x0b\x32..vrooli.meta_optimization_manager.v1.focus.GapR\x03gap2\xd8\x06\n\x0c\x46ocusService\x12\x83\x01\n\x08GetFocus\x12:.vrooli.meta_optimization_manager.v1.focus.GetFocusRequest\x1a;.vrooli.meta_optimization_manager.v1.focus.GetFocusResponse\x12\x83\x01\n\x08ListGaps\x12:.vrooli.meta_optimization_manager.v1.focus.ListGapsRequest\x1a;.vrooli.meta_optimization_manager.v1.focus.ListGapsResponse\x12}\n\x06GetGap\x12\x38.vrooli.meta_optimization_manager.v1.focus.GetGapRequest\x1a\x39.vrooli.meta_optimization_manager.v1.focus.GetGapResponse\x12\x89\x01\n\nAddGapNote\x12<.vrooli.meta_optimization_manager.v1.focus.AddGapNoteRequest\x1a=.vrooli.meta_optimization_manager.v1.focus.AddGapNoteResponse\x12\x92\x01\n\rListCondition\x12?.vrooli.meta_optimization_manager.v1.focus.ListConditionRequest\x1a@.vrooli.meta_optimization_manager.v1.focus.ListConditionResponse\x12\x9b\x01\n\x10\x45xplainCondition\x12\x42.vrooli.meta_optimization_manager.v1.focus.ExplainConditionRequest\x1a\x43.vrooli.meta_optimization_manager.v1.focus.ExplainConditionResponseB\\ZZgithub.com/vrooli/vrooli/packages/proto/gen/go/meta-optimization-manager/v1/focus;focus_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -34,37 +34,37 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'ZZgithub.com/vrooli/vrooli/packages/proto/gen/go/meta-optimization-manager/v1/focus;focus_v1'
   _globals['_GAP']._serialized_start=143
-  _globals['_GAP']._serialized_end=922
-  _globals['_MATURITYFINDING']._serialized_start=925
-  _globals['_MATURITYFINDING']._serialized_end=1118
-  _globals['_FOCUSITEM']._serialized_start=1121
-  _globals['_FOCUSITEM']._serialized_end=1323
-  _globals['_GETFOCUSREQUEST']._serialized_start=1325
-  _globals['_GETFOCUSREQUEST']._serialized_end=1452
-  _globals['_GETFOCUSRESPONSE']._serialized_start=1455
-  _globals['_GETFOCUSRESPONSE']._serialized_end=1618
-  _globals['_LISTGAPSREQUEST']._serialized_start=1621
-  _globals['_LISTGAPSREQUEST']._serialized_end=1831
-  _globals['_LISTGAPSRESPONSE']._serialized_start=1833
-  _globals['_LISTGAPSRESPONSE']._serialized_end=1919
-  _globals['_GETGAPREQUEST']._serialized_start=1921
-  _globals['_GETGAPREQUEST']._serialized_end=1952
-  _globals['_GETGAPRESPONSE']._serialized_start=1954
-  _globals['_GETGAPRESPONSE']._serialized_end=2036
-  _globals['_ADDGAPNOTEREQUEST']._serialized_start=2038
-  _globals['_ADDGAPNOTEREQUEST']._serialized_end=2101
-  _globals['_ADDGAPNOTERESPONSE']._serialized_start=2103
-  _globals['_ADDGAPNOTERESPONSE']._serialized_end=2189
-  _globals['_LISTCONDITIONREQUEST']._serialized_start=2191
-  _globals['_LISTCONDITIONREQUEST']._serialized_end=2213
-  _globals['_LISTCONDITIONRESPONSE']._serialized_start=2216
-  _globals['_LISTCONDITIONRESPONSE']._serialized_end=2418
-  _globals['_CONDITIONINSTRUMENTATION']._serialized_start=2421
-  _globals['_CONDITIONINSTRUMENTATION']._serialized_end=2694
-  _globals['_EXPLAINCONDITIONREQUEST']._serialized_start=2696
-  _globals['_EXPLAINCONDITIONREQUEST']._serialized_end=2754
-  _globals['_EXPLAINCONDITIONRESPONSE']._serialized_start=2756
-  _globals['_EXPLAINCONDITIONRESPONSE']._serialized_end=2848
-  _globals['_FOCUSSERVICE']._serialized_start=2851
-  _globals['_FOCUSSERVICE']._serialized_end=3707
+  _globals['_GAP']._serialized_end=1043
+  _globals['_MATURITYFINDING']._serialized_start=1046
+  _globals['_MATURITYFINDING']._serialized_end=1239
+  _globals['_FOCUSITEM']._serialized_start=1242
+  _globals['_FOCUSITEM']._serialized_end=1444
+  _globals['_GETFOCUSREQUEST']._serialized_start=1446
+  _globals['_GETFOCUSREQUEST']._serialized_end=1573
+  _globals['_GETFOCUSRESPONSE']._serialized_start=1576
+  _globals['_GETFOCUSRESPONSE']._serialized_end=1739
+  _globals['_LISTGAPSREQUEST']._serialized_start=1742
+  _globals['_LISTGAPSREQUEST']._serialized_end=1952
+  _globals['_LISTGAPSRESPONSE']._serialized_start=1954
+  _globals['_LISTGAPSRESPONSE']._serialized_end=2040
+  _globals['_GETGAPREQUEST']._serialized_start=2042
+  _globals['_GETGAPREQUEST']._serialized_end=2073
+  _globals['_GETGAPRESPONSE']._serialized_start=2075
+  _globals['_GETGAPRESPONSE']._serialized_end=2157
+  _globals['_ADDGAPNOTEREQUEST']._serialized_start=2159
+  _globals['_ADDGAPNOTEREQUEST']._serialized_end=2222
+  _globals['_ADDGAPNOTERESPONSE']._serialized_start=2224
+  _globals['_ADDGAPNOTERESPONSE']._serialized_end=2310
+  _globals['_LISTCONDITIONREQUEST']._serialized_start=2312
+  _globals['_LISTCONDITIONREQUEST']._serialized_end=2334
+  _globals['_LISTCONDITIONRESPONSE']._serialized_start=2337
+  _globals['_LISTCONDITIONRESPONSE']._serialized_end=2539
+  _globals['_CONDITIONINSTRUMENTATION']._serialized_start=2542
+  _globals['_CONDITIONINSTRUMENTATION']._serialized_end=2815
+  _globals['_EXPLAINCONDITIONREQUEST']._serialized_start=2817
+  _globals['_EXPLAINCONDITIONREQUEST']._serialized_end=2875
+  _globals['_EXPLAINCONDITIONRESPONSE']._serialized_start=2877
+  _globals['_EXPLAINCONDITIONRESPONSE']._serialized_end=2969
+  _globals['_FOCUSSERVICE']._serialized_start=2972
+  _globals['_FOCUSSERVICE']._serialized_end=3828
 # @@protoc_insertion_point(module_scope)

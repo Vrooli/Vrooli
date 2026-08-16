@@ -196,3 +196,32 @@ def test_inference_facade_forwards_optional_profile_and_batch_shape():
     assert run.calls[0]["profile"] == {"locality": "local"}
     assert run.calls[0]["turns"][0]["text"] == "hi"
     assert batch.calls[0]["items"] == [{"source": "a"}, {"source": "b"}]
+
+
+def test_write_facade_carries_sampling_and_omits_it_when_unset():
+    class FakeBinding:
+        def __init__(self):
+            self.calls = []
+
+        def __call__(self, **kwargs):
+            self.calls.append(kwargs)
+            return Handle([kwargs])
+
+    run = FakeBinding()
+    surface = _InferenceSurface("session", "configured", [])
+    surface._run = run
+
+    surface.write("draft a paragraph")
+    assert run.calls[0]["role"] == "write.default"
+    # An absent temperature must stay off the request so the role's own declared
+    # sampling applies. Sending a default here would silently pin every call.
+    assert "sampling" not in run.calls[0]
+    assert "max_output_tokens" not in run.calls[0]
+
+    surface.write("draft a paragraph", temperature=1.2, max_output_tokens=4096)
+    assert run.calls[1]["sampling"] == {"temperature": 1.2}
+    assert run.calls[1]["max_output_tokens"] == 4096
+
+    # 0.0 is a meaningful deterministic request, not an absence.
+    surface.write("draft a paragraph", temperature=0.0)
+    assert run.calls[2]["sampling"] == {"temperature": 0.0}

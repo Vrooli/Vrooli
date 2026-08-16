@@ -6,6 +6,7 @@ import "common/v1/attestation.proto";
 import "common/v1/confidence.proto";
 import "google/protobuf/timestamp.proto";
 import "search-hub/v1/registry/registry.proto";
+import "search-hub/v1/shared/routing_trace.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/routing;routing_v1";
 
@@ -57,6 +58,10 @@ message QueryRequest {
   // Optional query-time corpus facet passed through {{scope_value}} to scoped
   // providers such as source-ledger's collapsed leaf.
   string scope = 9;
+  // Evaluation-only strategy override. Ordinary callers leave this unset and
+  // use the active strategy; the eval service supplies a registered strategy
+  // name when running a strategy comparison arm.
+  string strategy_name = 10;
 }
 
 // Per-request override of QUERY-TIME tuning factors only — index-time factors
@@ -199,6 +204,13 @@ message QueryResponse {
   // otherwise score. Consumers must use this field rather than guessing from
   // which score happens to be populated.
   string ordered_by = 12;
+  // Stable provider-selection leg: "cross_encoder", "llm", or "lexical".
+  // This is separate from reranker_leg because selection and result fusion may
+  // use different stages of the retrieval path.
+  string selector_leg = 13;
+  // Populated for federated routing evaluation; ordinary interactive queries
+  // omit this diagnostic payload.
+  shared.RoutingTrace routing_trace = 14;
 }
 
 message StatusRequest {}
@@ -223,6 +235,8 @@ message ProviderHealth {
   // sustained zero-yield evidence. Explicit queries can restore it.
   bool demoted = 6;
   string demotion_reason = 7;
+  // Durable graded-empty demotion evidence for the current demotion window;
+  // these counters reset on explicit or successful-hit recovery.
   int64 times_routed = 8;
   int64 total_hits = 9;
   // Resolution/reachability is intentionally separate from corpus age.
@@ -255,10 +269,18 @@ message ProviderHealth {
   string recovery_state = 22;
   string lifecycle = 23;
   string declared_at = 24;
+  // Index-time embedding model declared by this provider's tuning contract.
+  // Empty means the provider has no declared model (honest, not inferred).
+  string embedding_model = 25;
+  // Effective freshness budget used by the automatic-routing gate.
+  string freshness_budget = 26;
 }
 
 message StatusResponse {
   repeated ProviderHealth providers = 1;
+  // Durable breaker/accounting rows with no current registry descriptor. They
+  // remain visible for audit without being presented as active providers.
+  repeated ProviderHealth audit_providers = 11;
   bool classifier_available = 2;
   // false => degraded ranking mode (by-provider grouping only).
   bool reranker_available = 3;
@@ -268,4 +290,19 @@ message StatusResponse {
 	 repeated registry.IncubatingProvider incubating = 8;
   // Current shared reranker leg (cross-encoder, LLM fallback, or none).
   string reranker_leg = 7;
+  // Data-defined strategy catalog used by the router and comparison command.
+  string active_strategy = 9;
+  repeated RetrievalStrategyInfo strategies = 10;
+}
+
+message RetrievalStrategyInfo {
+  string name = 1;
+  string description = 2;
+  repeated RetrievalStageInfo stages = 3;
+}
+
+message RetrievalStageInfo {
+  string kind = 1;
+  // Canonical JSON object containing the stage's parameters.
+  string params_json = 2;
 }

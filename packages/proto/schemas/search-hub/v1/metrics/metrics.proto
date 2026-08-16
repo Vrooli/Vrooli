@@ -116,4 +116,8 @@ message InsightsResponse {
   int64 recent_sample_count = 19;
   int64 recent_latency_p50_ms = 20;
   int64 recent_latency_p95_ms = 21;
+  // Shared retrieval substrate degradation is reported separately from corpus
+  // provider degradation so a reranker outage is not charged to every leaf.
+  repeated ProviderDegradationReason substrate_degradation_reasons = 22;
+  int64 substrate_degraded_legs = 23;
 }

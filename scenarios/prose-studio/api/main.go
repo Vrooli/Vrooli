@@ -8,8 +8,11 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"prose-studio/internal/capabilities"
+	"time"
+
+	proseH "prose-studio/handlers/prose"
 	"prose-studio/internal/modules"
+	prose "prose-studio/internal/prose"
 	"prose-studio/internal/server"
 
 	"github.com/vrooli/api-core/schedule"
@@ -17,15 +20,14 @@ import (
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/devrouting"
+	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/filerouting"
 	"github.com/vrooli/api-core/preflight"
 	apiserver "github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
 	_ "modernc.org/sqlite"
 
-	capsH "prose-studio/handlers/capabilities"
 	healthH "prose-studio/handlers/health"
-	notesH "prose-studio/handlers/notes" // EXAMPLE-DOMAIN:notes
 )
 
 // sqliteDSN resolves the SQLite database file path and wraps it in a DSN
@@ -150,11 +152,29 @@ func main() {
 	}
 	fileRoots := filerouting.New(primaryFileRoots)
 
+	if strings.TrimSpace(os.Getenv("AI_GATEWAY_URL")) == "" {
+		resolveCtx, resolveCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		if gatewayURL, resolveErr := discovery.ResolveScenarioURLDefault(resolveCtx, "ai-gateway"); resolveErr == nil {
+			_ = os.Setenv("AI_GATEWAY_URL", strings.TrimRight(gatewayURL, "/"))
+		} else {
+			log.Printf("ai-gateway discovery unavailable; prose generation will fail closed: %v", resolveErr)
+		}
+		resolveCancel()
+	}
+	proseService := prose.New(db.Primary())
+	if declarationsRoot := findDeclarationsRoot(); declarationsRoot != "" {
+		if _, err := proseService.Reindex(context.Background(), declarationsRoot); err != nil {
+			// A malformed declaration is retained as invalid by Reindex and must
+			// never make the API unavailable. Unexpected filesystem failures are
+			// observable but remain non-fatal for the same startup guarantee.
+			log.Printf("prose declaration scan: %v", err)
+		}
+	}
+
 	srv := server.New(
 		server.Deps{Clock: schedule.System(), Logger: log.Default()},
 		healthH.Module(db, "prose-studio-api", "1.0.0"),
-		capsH.Module(capabilities.NewRegistry()),
-		notesH.Module(db, schedule.System(), log.Default()), // EXAMPLE-DOMAIN:notes
+		proseH.Module(proseService),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development
@@ -162,19 +182,6 @@ func main() {
 	// runtime test DB pool without restarting this scenario.
 	rootMux := http.NewServeMux()
 	devrouting.RegisterWithFileRoots(rootMux, db, fileRoots)
-
-	// EXAMPLE-DOMAIN:notes START
-	// /measures is the measures-go serve substrate: the central measures
-	// index (measures-health) harvests <prefix>/declarations and the
-	// auto-execution path POSTs <prefix>/execute. The notes domain owns the
-	// one reference measure (notes.count); a real multi-domain scenario
-	// registers each domain's measures on one shared registry here.
-	notesMeasures, err := notesH.MeasuresHandler(db, schedule.System())
-	if err != nil {
-		log.Fatalf("measures registry: %v", err)
-	}
-	rootMux.Handle("/measures/", http.StripPrefix("/measures", notesMeasures))
-	// EXAMPLE-DOMAIN:notes END
 
 	rootMux.Handle("/", srv.Handler())
 
@@ -188,5 +195,25 @@ func main() {
 		Cleanup: func(ctx context.Context) error { return db.Close() },
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
+	}
+}
+
+func findDeclarationsRoot() string {
+	if root := strings.TrimSpace(os.Getenv("PROSE_DECLARATIONS_ROOT")); root != "" {
+		return root
+	}
+	dir, err := os.Getwd()
+	if err != nil {
+		return ""
+	}
+	for {
+		if _, err := os.Stat(filepath.Join(dir, ".vrooli")); err == nil {
+			return dir
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return ""
+		}
+		dir = parent
 	}
 }

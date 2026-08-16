@@ -9,6 +9,7 @@ package routing_v1
 import (
 	v1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	registry "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/registry"
+	shared "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/shared"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
@@ -47,7 +48,11 @@ type QueryRequest struct {
 	ControlToken string `protobuf:"bytes,8,opt,name=control_token,json=controlToken,proto3" json:"control_token,omitempty"`
 	// Optional query-time corpus facet passed through {{scope_value}} to scoped
 	// providers such as source-ledger's collapsed leaf.
-	Scope         string `protobuf:"bytes,9,opt,name=scope,proto3" json:"scope,omitempty"`
+	Scope string `protobuf:"bytes,9,opt,name=scope,proto3" json:"scope,omitempty"`
+	// Evaluation-only strategy override. Ordinary callers leave this unset and
+	// use the active strategy; the eval service supplies a registered strategy
+	// name when running a strategy comparison arm.
+	StrategyName  string `protobuf:"bytes,10,opt,name=strategy_name,json=strategyName,proto3" json:"strategy_name,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -141,6 +146,13 @@ func (x *QueryRequest) GetControlToken() string {
 func (x *QueryRequest) GetScope() string {
 	if x != nil {
 		return x.Scope
+	}
+	return ""
+}
+
+func (x *QueryRequest) GetStrategyName() string {
+	if x != nil {
+		return x.StrategyName
 	}
 	return ""
 }
@@ -655,7 +667,14 @@ type QueryResponse struct {
 	// Ordering contract for ranked: rerank_score when reranking succeeded,
 	// otherwise score. Consumers must use this field rather than guessing from
 	// which score happens to be populated.
-	OrderedBy     string `protobuf:"bytes,12,opt,name=ordered_by,json=orderedBy,proto3" json:"ordered_by,omitempty"`
+	OrderedBy string `protobuf:"bytes,12,opt,name=ordered_by,json=orderedBy,proto3" json:"ordered_by,omitempty"`
+	// Stable provider-selection leg: "cross_encoder", "llm", or "lexical".
+	// This is separate from reranker_leg because selection and result fusion may
+	// use different stages of the retrieval path.
+	SelectorLeg string `protobuf:"bytes,13,opt,name=selector_leg,json=selectorLeg,proto3" json:"selector_leg,omitempty"`
+	// Populated for federated routing evaluation; ordinary interactive queries
+	// omit this diagnostic payload.
+	RoutingTrace  *shared.RoutingTrace `protobuf:"bytes,14,opt,name=routing_trace,json=routingTrace,proto3" json:"routing_trace,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -772,6 +791,20 @@ func (x *QueryResponse) GetOrderedBy() string {
 		return x.OrderedBy
 	}
 	return ""
+}
+
+func (x *QueryResponse) GetSelectorLeg() string {
+	if x != nil {
+		return x.SelectorLeg
+	}
+	return ""
+}
+
+func (x *QueryResponse) GetRoutingTrace() *shared.RoutingTrace {
+	if x != nil {
+		return x.RoutingTrace
+	}
+	return nil
 }
 
 type StatusRequest struct {
@@ -924,8 +957,10 @@ type ProviderHealth struct {
 	// sustained zero-yield evidence. Explicit queries can restore it.
 	Demoted        bool   `protobuf:"varint,6,opt,name=demoted,proto3" json:"demoted,omitempty"`
 	DemotionReason string `protobuf:"bytes,7,opt,name=demotion_reason,json=demotionReason,proto3" json:"demotion_reason,omitempty"`
-	TimesRouted    int64  `protobuf:"varint,8,opt,name=times_routed,json=timesRouted,proto3" json:"times_routed,omitempty"`
-	TotalHits      int64  `protobuf:"varint,9,opt,name=total_hits,json=totalHits,proto3" json:"total_hits,omitempty"`
+	// Durable graded-empty demotion evidence for the current demotion window;
+	// these counters reset on explicit or successful-hit recovery.
+	TimesRouted int64 `protobuf:"varint,8,opt,name=times_routed,json=timesRouted,proto3" json:"times_routed,omitempty"`
+	TotalHits   int64 `protobuf:"varint,9,opt,name=total_hits,json=totalHits,proto3" json:"total_hits,omitempty"`
 	// Resolution/reachability is intentionally separate from corpus age.
 	Reachability string `protobuf:"bytes,10,opt,name=reachability,proto3" json:"reachability,omitempty"`
 	// A computed age (for example "17m0s"), not_applicable reason, or
@@ -956,8 +991,13 @@ type ProviderHealth struct {
 	RecoveryState string `protobuf:"bytes,22,opt,name=recovery_state,json=recoveryState,proto3" json:"recovery_state,omitempty"`
 	Lifecycle     string `protobuf:"bytes,23,opt,name=lifecycle,proto3" json:"lifecycle,omitempty"`
 	DeclaredAt    string `protobuf:"bytes,24,opt,name=declared_at,json=declaredAt,proto3" json:"declared_at,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// Index-time embedding model declared by this provider's tuning contract.
+	// Empty means the provider has no declared model (honest, not inferred).
+	EmbeddingModel string `protobuf:"bytes,25,opt,name=embedding_model,json=embeddingModel,proto3" json:"embedding_model,omitempty"`
+	// Effective freshness budget used by the automatic-routing gate.
+	FreshnessBudget string `protobuf:"bytes,26,opt,name=freshness_budget,json=freshnessBudget,proto3" json:"freshness_budget,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *ProviderHealth) Reset() {
@@ -1151,10 +1191,27 @@ func (x *ProviderHealth) GetDeclaredAt() string {
 	return ""
 }
 
+func (x *ProviderHealth) GetEmbeddingModel() string {
+	if x != nil {
+		return x.EmbeddingModel
+	}
+	return ""
+}
+
+func (x *ProviderHealth) GetFreshnessBudget() string {
+	if x != nil {
+		return x.FreshnessBudget
+	}
+	return ""
+}
+
 type StatusResponse struct {
-	state               protoimpl.MessageState `protogen:"open.v1"`
-	Providers           []*ProviderHealth      `protobuf:"bytes,1,rep,name=providers,proto3" json:"providers,omitempty"`
-	ClassifierAvailable bool                   `protobuf:"varint,2,opt,name=classifier_available,json=classifierAvailable,proto3" json:"classifier_available,omitempty"`
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	Providers []*ProviderHealth      `protobuf:"bytes,1,rep,name=providers,proto3" json:"providers,omitempty"`
+	// Durable breaker/accounting rows with no current registry descriptor. They
+	// remain visible for audit without being presented as active providers.
+	AuditProviders      []*ProviderHealth `protobuf:"bytes,11,rep,name=audit_providers,json=auditProviders,proto3" json:"audit_providers,omitempty"`
+	ClassifierAvailable bool              `protobuf:"varint,2,opt,name=classifier_available,json=classifierAvailable,proto3" json:"classifier_available,omitempty"`
 	// false => degraded ranking mode (by-provider grouping only).
 	RerankerAvailable  bool                           `protobuf:"varint,3,opt,name=reranker_available,json=rerankerAvailable,proto3" json:"reranker_available,omitempty"`
 	CircuitOpenShare   float64                        `protobuf:"fixed64,4,opt,name=circuit_open_share,json=circuitOpenShare,proto3" json:"circuit_open_share,omitempty"`
@@ -1162,9 +1219,12 @@ type StatusResponse struct {
 	FederationDegraded bool                           `protobuf:"varint,6,opt,name=federation_degraded,json=federationDegraded,proto3" json:"federation_degraded,omitempty"`
 	Incubating         []*registry.IncubatingProvider `protobuf:"bytes,8,rep,name=incubating,proto3" json:"incubating,omitempty"`
 	// Current shared reranker leg (cross-encoder, LLM fallback, or none).
-	RerankerLeg   string `protobuf:"bytes,7,opt,name=reranker_leg,json=rerankerLeg,proto3" json:"reranker_leg,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	RerankerLeg string `protobuf:"bytes,7,opt,name=reranker_leg,json=rerankerLeg,proto3" json:"reranker_leg,omitempty"`
+	// Data-defined strategy catalog used by the router and comparison command.
+	ActiveStrategy string                   `protobuf:"bytes,9,opt,name=active_strategy,json=activeStrategy,proto3" json:"active_strategy,omitempty"`
+	Strategies     []*RetrievalStrategyInfo `protobuf:"bytes,10,rep,name=strategies,proto3" json:"strategies,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *StatusResponse) Reset() {
@@ -1200,6 +1260,13 @@ func (*StatusResponse) Descriptor() ([]byte, []int) {
 func (x *StatusResponse) GetProviders() []*ProviderHealth {
 	if x != nil {
 		return x.Providers
+	}
+	return nil
+}
+
+func (x *StatusResponse) GetAuditProviders() []*ProviderHealth {
+	if x != nil {
+		return x.AuditProviders
 	}
 	return nil
 }
@@ -1253,11 +1320,138 @@ func (x *StatusResponse) GetRerankerLeg() string {
 	return ""
 }
 
+func (x *StatusResponse) GetActiveStrategy() string {
+	if x != nil {
+		return x.ActiveStrategy
+	}
+	return ""
+}
+
+func (x *StatusResponse) GetStrategies() []*RetrievalStrategyInfo {
+	if x != nil {
+		return x.Strategies
+	}
+	return nil
+}
+
+type RetrievalStrategyInfo struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Description   string                 `protobuf:"bytes,2,opt,name=description,proto3" json:"description,omitempty"`
+	Stages        []*RetrievalStageInfo  `protobuf:"bytes,3,rep,name=stages,proto3" json:"stages,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RetrievalStrategyInfo) Reset() {
+	*x = RetrievalStrategyInfo{}
+	mi := &file_search_hub_v1_routing_routing_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RetrievalStrategyInfo) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RetrievalStrategyInfo) ProtoMessage() {}
+
+func (x *RetrievalStrategyInfo) ProtoReflect() protoreflect.Message {
+	mi := &file_search_hub_v1_routing_routing_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RetrievalStrategyInfo.ProtoReflect.Descriptor instead.
+func (*RetrievalStrategyInfo) Descriptor() ([]byte, []int) {
+	return file_search_hub_v1_routing_routing_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *RetrievalStrategyInfo) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *RetrievalStrategyInfo) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *RetrievalStrategyInfo) GetStages() []*RetrievalStageInfo {
+	if x != nil {
+		return x.Stages
+	}
+	return nil
+}
+
+type RetrievalStageInfo struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Kind  string                 `protobuf:"bytes,1,opt,name=kind,proto3" json:"kind,omitempty"`
+	// Canonical JSON object containing the stage's parameters.
+	ParamsJson    string `protobuf:"bytes,2,opt,name=params_json,json=paramsJson,proto3" json:"params_json,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RetrievalStageInfo) Reset() {
+	*x = RetrievalStageInfo{}
+	mi := &file_search_hub_v1_routing_routing_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RetrievalStageInfo) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RetrievalStageInfo) ProtoMessage() {}
+
+func (x *RetrievalStageInfo) ProtoReflect() protoreflect.Message {
+	mi := &file_search_hub_v1_routing_routing_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RetrievalStageInfo.ProtoReflect.Descriptor instead.
+func (*RetrievalStageInfo) Descriptor() ([]byte, []int) {
+	return file_search_hub_v1_routing_routing_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *RetrievalStageInfo) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *RetrievalStageInfo) GetParamsJson() string {
+	if x != nil {
+		return x.ParamsJson
+	}
+	return ""
+}
+
 var File_search_hub_v1_routing_routing_proto protoreflect.FileDescriptor
 
 const file_search_hub_v1_routing_routing_proto_rawDesc = "" +
 	"\n" +
-	"#search-hub/v1/routing/routing.proto\x12\x1cvrooli.search_hub.v1.routing\x1a\x1bcommon/v1/attestation.proto\x1a\x1acommon/v1/confidence.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a%search-hub/v1/registry/registry.proto\"\x9a\x02\n" +
+	"#search-hub/v1/routing/routing.proto\x12\x1cvrooli.search_hub.v1.routing\x1a\x1bcommon/v1/attestation.proto\x1a\x1acommon/v1/confidence.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a%search-hub/v1/registry/registry.proto\x1a(search-hub/v1/shared/routing_trace.proto\"\xbf\x02\n" +
 	"\fQueryRequest\x12\x14\n" +
 	"\x05query\x18\x01 \x01(\tR\x05query\x12\x14\n" +
 	"\x05types\x18\x02 \x03(\tR\x05types\x12\x10\n" +
@@ -1267,7 +1461,9 @@ const file_search_hub_v1_routing_routing_proto_rawDesc = "" +
 	"\aexplain\x18\x06 \x01(\bR\aexplain\x12K\n" +
 	"\toverrides\x18\a \x01(\v2-.vrooli.search_hub.v1.routing.SearchOverridesR\toverrides\x12#\n" +
 	"\rcontrol_token\x18\b \x01(\tR\fcontrolToken\x12\x14\n" +
-	"\x05scope\x18\t \x01(\tR\x05scope\"\x89\x03\n" +
+	"\x05scope\x18\t \x01(\tR\x05scope\x12#\n" +
+	"\rstrategy_name\x18\n" +
+	" \x01(\tR\fstrategyName\"\x89\x03\n" +
 	"\x0fSearchOverrides\x12*\n" +
 	"\x0ererank_enabled\x18\x01 \x01(\bH\x00R\rrerankEnabled\x88\x01\x01\x12&\n" +
 	"\frerank_blend\x18\x02 \x01(\bH\x01R\vrerankBlend\x88\x01\x01\x12.\n" +
@@ -1324,7 +1520,7 @@ const file_search_hub_v1_routing_routing_proto_rawDesc = "" +
 	"\bdegraded\x18\x04 \x01(\bR\bdegraded\x12\x12\n" +
 	"\x04note\x18\x05 \x01(\tR\x04note\x12\x1d\n" +
 	"\n" +
-	"latency_ms\x18\x06 \x01(\x03R\tlatencyMs\"\x8d\x04\n" +
+	"latency_ms\x18\x06 \x01(\x03R\tlatencyMs\"\x80\x05\n" +
 	"\rQueryResponse\x12?\n" +
 	"\x06ranked\x18\x01 \x03(\v2'.vrooli.search_hub.v1.routing.SearchHitR\x06ranked\x12I\n" +
 	"\x06groups\x18\x02 \x03(\v21.vrooli.search_hub.v1.routing.ProviderResultGroupR\x06groups\x12)\n" +
@@ -1340,7 +1536,9 @@ const file_search_hub_v1_routing_routing_proto_rawDesc = "" +
 	" \x01(\tR\vrerankerLeg\x124\n" +
 	"\x16routing_degrade_reason\x18\v \x01(\tR\x14routingDegradeReason\x12\x1d\n" +
 	"\n" +
-	"ordered_by\x18\f \x01(\tR\torderedBy\"\x0f\n" +
+	"ordered_by\x18\f \x01(\tR\torderedBy\x12!\n" +
+	"\fselector_leg\x18\r \x01(\tR\vselectorLeg\x12N\n" +
+	"\rrouting_trace\x18\x0e \x01(\v2).vrooli.search_hub.v1.shared.RoutingTraceR\froutingTrace\"\x0f\n" +
 	"\rStatusRequest\"3\n" +
 	"\x10RepromoteRequest\x12\x1f\n" +
 	"\vprovider_id\x18\x01 \x01(\tR\n" +
@@ -1349,7 +1547,7 @@ const file_search_hub_v1_routing_routing_proto_rawDesc = "" +
 	"\vprovider_id\x18\x01 \x01(\tR\n" +
 	"providerId\x12\x14\n" +
 	"\x05reset\x18\x02 \x01(\bR\x05reset\x12\x18\n" +
-	"\amessage\x18\x03 \x01(\tR\amessage\"\xc6\a\n" +
+	"\amessage\x18\x03 \x01(\tR\amessage\"\x9a\b\n" +
 	"\x0eProviderHealth\x12\x1f\n" +
 	"\vprovider_id\x18\x01 \x01(\tR\n" +
 	"providerId\x12\x1c\n" +
@@ -1378,10 +1576,13 @@ const file_search_hub_v1_routing_routing_proto_rawDesc = "" +
 	"\x0erecovery_state\x18\x16 \x01(\tR\rrecoveryState\x12\x1c\n" +
 	"\tlifecycle\x18\x17 \x01(\tR\tlifecycle\x12\x1f\n" +
 	"\vdeclared_at\x18\x18 \x01(\tR\n" +
-	"declaredAtB\b\n" +
-	"\x06_stuckJ\x04\b\x03\x10\x04\"\xc3\x03\n" +
+	"declaredAt\x12'\n" +
+	"\x0fembedding_model\x18\x19 \x01(\tR\x0eembeddingModel\x12)\n" +
+	"\x10freshness_budget\x18\x1a \x01(\tR\x0ffreshnessBudgetB\b\n" +
+	"\x06_stuckJ\x04\b\x03\x10\x04\"\x98\x05\n" +
 	"\x0eStatusResponse\x12J\n" +
-	"\tproviders\x18\x01 \x03(\v2,.vrooli.search_hub.v1.routing.ProviderHealthR\tproviders\x121\n" +
+	"\tproviders\x18\x01 \x03(\v2,.vrooli.search_hub.v1.routing.ProviderHealthR\tproviders\x12U\n" +
+	"\x0faudit_providers\x18\v \x03(\v2,.vrooli.search_hub.v1.routing.ProviderHealthR\x0eauditProviders\x121\n" +
 	"\x14classifier_available\x18\x02 \x01(\bR\x13classifierAvailable\x12-\n" +
 	"\x12reranker_available\x18\x03 \x01(\bR\x11rerankerAvailable\x12,\n" +
 	"\x12circuit_open_share\x18\x04 \x01(\x01R\x10circuitOpenShare\x12.\n" +
@@ -1390,7 +1591,20 @@ const file_search_hub_v1_routing_routing_proto_rawDesc = "" +
 	"\n" +
 	"incubating\x18\b \x03(\v21.vrooli.search_hub.v1.registry.IncubatingProviderR\n" +
 	"incubating\x12!\n" +
-	"\freranker_leg\x18\a \x01(\tR\vrerankerLeg2\xc5\x02\n" +
+	"\freranker_leg\x18\a \x01(\tR\vrerankerLeg\x12'\n" +
+	"\x0factive_strategy\x18\t \x01(\tR\x0eactiveStrategy\x12S\n" +
+	"\n" +
+	"strategies\x18\n" +
+	" \x03(\v23.vrooli.search_hub.v1.routing.RetrievalStrategyInfoR\n" +
+	"strategies\"\x97\x01\n" +
+	"\x15RetrievalStrategyInfo\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12 \n" +
+	"\vdescription\x18\x02 \x01(\tR\vdescription\x12H\n" +
+	"\x06stages\x18\x03 \x03(\v20.vrooli.search_hub.v1.routing.RetrievalStageInfoR\x06stages\"I\n" +
+	"\x12RetrievalStageInfo\x12\x12\n" +
+	"\x04kind\x18\x01 \x01(\tR\x04kind\x12\x1f\n" +
+	"\vparams_json\x18\x02 \x01(\tR\n" +
+	"paramsJson2\xc5\x02\n" +
 	"\x0eRoutingService\x12`\n" +
 	"\x05Query\x12*.vrooli.search_hub.v1.routing.QueryRequest\x1a+.vrooli.search_hub.v1.routing.QueryResponse\x12c\n" +
 	"\x06Status\x12+.vrooli.search_hub.v1.routing.StatusRequest\x1a,.vrooli.search_hub.v1.routing.StatusResponse\x12l\n" +
@@ -1408,7 +1622,7 @@ func file_search_hub_v1_routing_routing_proto_rawDescGZIP() []byte {
 	return file_search_hub_v1_routing_routing_proto_rawDescData
 }
 
-var file_search_hub_v1_routing_routing_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
+var file_search_hub_v1_routing_routing_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
 var file_search_hub_v1_routing_routing_proto_goTypes = []any{
 	(*QueryRequest)(nil),                // 0: vrooli.search_hub.v1.routing.QueryRequest
 	(*SearchOverrides)(nil),             // 1: vrooli.search_hub.v1.routing.SearchOverrides
@@ -1421,35 +1635,42 @@ var file_search_hub_v1_routing_routing_proto_goTypes = []any{
 	(*RepromoteResponse)(nil),           // 8: vrooli.search_hub.v1.routing.RepromoteResponse
 	(*ProviderHealth)(nil),              // 9: vrooli.search_hub.v1.routing.ProviderHealth
 	(*StatusResponse)(nil),              // 10: vrooli.search_hub.v1.routing.StatusResponse
-	nil,                                 // 11: vrooli.search_hub.v1.routing.MeasureHit.ParamsEntry
-	(*v1.AttestedAnswer)(nil),           // 12: common.v1.AttestedAnswer
-	(*v1.Confidence)(nil),               // 13: common.v1.Confidence
-	(*timestamppb.Timestamp)(nil),       // 14: google.protobuf.Timestamp
-	(*registry.IncubatingProvider)(nil), // 15: vrooli.search_hub.v1.registry.IncubatingProvider
+	(*RetrievalStrategyInfo)(nil),       // 11: vrooli.search_hub.v1.routing.RetrievalStrategyInfo
+	(*RetrievalStageInfo)(nil),          // 12: vrooli.search_hub.v1.routing.RetrievalStageInfo
+	nil,                                 // 13: vrooli.search_hub.v1.routing.MeasureHit.ParamsEntry
+	(*v1.AttestedAnswer)(nil),           // 14: common.v1.AttestedAnswer
+	(*v1.Confidence)(nil),               // 15: common.v1.Confidence
+	(*shared.RoutingTrace)(nil),         // 16: vrooli.search_hub.v1.shared.RoutingTrace
+	(*timestamppb.Timestamp)(nil),       // 17: google.protobuf.Timestamp
+	(*registry.IncubatingProvider)(nil), // 18: vrooli.search_hub.v1.registry.IncubatingProvider
 }
 var file_search_hub_v1_routing_routing_proto_depIdxs = []int32{
 	1,  // 0: vrooli.search_hub.v1.routing.QueryRequest.overrides:type_name -> vrooli.search_hub.v1.routing.SearchOverrides
 	3,  // 1: vrooli.search_hub.v1.routing.SearchHit.measure:type_name -> vrooli.search_hub.v1.routing.MeasureHit
-	12, // 2: vrooli.search_hub.v1.routing.SearchHit.attestation:type_name -> common.v1.AttestedAnswer
-	13, // 3: vrooli.search_hub.v1.routing.SearchHit.confidence:type_name -> common.v1.Confidence
-	11, // 4: vrooli.search_hub.v1.routing.MeasureHit.params:type_name -> vrooli.search_hub.v1.routing.MeasureHit.ParamsEntry
+	14, // 2: vrooli.search_hub.v1.routing.SearchHit.attestation:type_name -> common.v1.AttestedAnswer
+	15, // 3: vrooli.search_hub.v1.routing.SearchHit.confidence:type_name -> common.v1.Confidence
+	13, // 4: vrooli.search_hub.v1.routing.MeasureHit.params:type_name -> vrooli.search_hub.v1.routing.MeasureHit.ParamsEntry
 	2,  // 5: vrooli.search_hub.v1.routing.ProviderResultGroup.hits:type_name -> vrooli.search_hub.v1.routing.SearchHit
 	2,  // 6: vrooli.search_hub.v1.routing.QueryResponse.ranked:type_name -> vrooli.search_hub.v1.routing.SearchHit
 	4,  // 7: vrooli.search_hub.v1.routing.QueryResponse.groups:type_name -> vrooli.search_hub.v1.routing.ProviderResultGroup
-	14, // 8: vrooli.search_hub.v1.routing.ProviderHealth.last_indexed_at:type_name -> google.protobuf.Timestamp
-	9,  // 9: vrooli.search_hub.v1.routing.StatusResponse.providers:type_name -> vrooli.search_hub.v1.routing.ProviderHealth
-	15, // 10: vrooli.search_hub.v1.routing.StatusResponse.incubating:type_name -> vrooli.search_hub.v1.registry.IncubatingProvider
-	0,  // 11: vrooli.search_hub.v1.routing.RoutingService.Query:input_type -> vrooli.search_hub.v1.routing.QueryRequest
-	6,  // 12: vrooli.search_hub.v1.routing.RoutingService.Status:input_type -> vrooli.search_hub.v1.routing.StatusRequest
-	7,  // 13: vrooli.search_hub.v1.routing.RoutingService.Repromote:input_type -> vrooli.search_hub.v1.routing.RepromoteRequest
-	5,  // 14: vrooli.search_hub.v1.routing.RoutingService.Query:output_type -> vrooli.search_hub.v1.routing.QueryResponse
-	10, // 15: vrooli.search_hub.v1.routing.RoutingService.Status:output_type -> vrooli.search_hub.v1.routing.StatusResponse
-	8,  // 16: vrooli.search_hub.v1.routing.RoutingService.Repromote:output_type -> vrooli.search_hub.v1.routing.RepromoteResponse
-	14, // [14:17] is the sub-list for method output_type
-	11, // [11:14] is the sub-list for method input_type
-	11, // [11:11] is the sub-list for extension type_name
-	11, // [11:11] is the sub-list for extension extendee
-	0,  // [0:11] is the sub-list for field type_name
+	16, // 8: vrooli.search_hub.v1.routing.QueryResponse.routing_trace:type_name -> vrooli.search_hub.v1.shared.RoutingTrace
+	17, // 9: vrooli.search_hub.v1.routing.ProviderHealth.last_indexed_at:type_name -> google.protobuf.Timestamp
+	9,  // 10: vrooli.search_hub.v1.routing.StatusResponse.providers:type_name -> vrooli.search_hub.v1.routing.ProviderHealth
+	9,  // 11: vrooli.search_hub.v1.routing.StatusResponse.audit_providers:type_name -> vrooli.search_hub.v1.routing.ProviderHealth
+	18, // 12: vrooli.search_hub.v1.routing.StatusResponse.incubating:type_name -> vrooli.search_hub.v1.registry.IncubatingProvider
+	11, // 13: vrooli.search_hub.v1.routing.StatusResponse.strategies:type_name -> vrooli.search_hub.v1.routing.RetrievalStrategyInfo
+	12, // 14: vrooli.search_hub.v1.routing.RetrievalStrategyInfo.stages:type_name -> vrooli.search_hub.v1.routing.RetrievalStageInfo
+	0,  // 15: vrooli.search_hub.v1.routing.RoutingService.Query:input_type -> vrooli.search_hub.v1.routing.QueryRequest
+	6,  // 16: vrooli.search_hub.v1.routing.RoutingService.Status:input_type -> vrooli.search_hub.v1.routing.StatusRequest
+	7,  // 17: vrooli.search_hub.v1.routing.RoutingService.Repromote:input_type -> vrooli.search_hub.v1.routing.RepromoteRequest
+	5,  // 18: vrooli.search_hub.v1.routing.RoutingService.Query:output_type -> vrooli.search_hub.v1.routing.QueryResponse
+	10, // 19: vrooli.search_hub.v1.routing.RoutingService.Status:output_type -> vrooli.search_hub.v1.routing.StatusResponse
+	8,  // 20: vrooli.search_hub.v1.routing.RoutingService.Repromote:output_type -> vrooli.search_hub.v1.routing.RepromoteResponse
+	18, // [18:21] is the sub-list for method output_type
+	15, // [15:18] is the sub-list for method input_type
+	15, // [15:15] is the sub-list for extension type_name
+	15, // [15:15] is the sub-list for extension extendee
+	0,  // [0:15] is the sub-list for field type_name
 }
 
 func init() { file_search_hub_v1_routing_routing_proto_init() }
@@ -1465,7 +1686,7 @@ func file_search_hub_v1_routing_routing_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_search_hub_v1_routing_routing_proto_rawDesc), len(file_search_hub_v1_routing_routing_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   12,
+			NumMessages:   14,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

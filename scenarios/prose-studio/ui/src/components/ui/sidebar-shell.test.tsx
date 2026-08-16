@@ -43,4 +43,21 @@ describe("SidebarShell", () => {
 
     expect(onMobileClose).toHaveBeenCalledTimes(2);
   });
+
+  it("renders a closed responsive panel and an optional resize handle", () => {
+    renderWithProviders(
+      <SidebarShell
+        mode="responsive"
+        mobileOpen={false}
+        onMobileClose={() => undefined}
+        mobileLabel="Menu"
+        closeLabel="Close"
+        resizeHandleProps={{ "aria-label": "Resize" }}
+      >
+        <span>Navigation</span>
+      </SidebarShell>,
+    );
+    expect(screen.queryByTestId("sidebar-shell-backdrop")).not.toBeInTheDocument();
+    expect(screen.getByTestId("sidebar-shell-resize-handle")).toHaveAttribute("aria-label", "Resize");
+  });
 });

@@ -8,7 +8,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class Gap(_message.Message):
-    __slots__ = ("id", "projection", "title", "status", "source_cell_id", "notes", "approaches", "follow_ups", "axis", "recurrence", "evidence_source", "evidence_locator", "availability_reason", "provider_ids", "condition_status", "maturity_findings")
+    __slots__ = ("id", "projection", "title", "status", "source_cell_id", "notes", "approaches", "follow_ups", "axis", "recurrence", "evidence_source", "evidence_locator", "availability_reason", "provider_ids", "condition_status", "maturity_findings", "cause_key", "affected_cell_ids", "affected_cell_count")
     ID_FIELD_NUMBER: _ClassVar[int]
     PROJECTION_FIELD_NUMBER: _ClassVar[int]
     TITLE_FIELD_NUMBER: _ClassVar[int]
@@ -26,6 +26,9 @@ class Gap(_message.Message):
     PROVIDER_IDS_FIELD_NUMBER: _ClassVar[int]
     CONDITION_STATUS_FIELD_NUMBER: _ClassVar[int]
     MATURITY_FINDINGS_FIELD_NUMBER: _ClassVar[int]
+    CAUSE_KEY_FIELD_NUMBER: _ClassVar[int]
+    AFFECTED_CELL_IDS_FIELD_NUMBER: _ClassVar[int]
+    AFFECTED_CELL_COUNT_FIELD_NUMBER: _ClassVar[int]
     id: str
     projection: _model_pb2.Projection
     title: str
@@ -42,7 +45,10 @@ class Gap(_message.Message):
     provider_ids: _containers.RepeatedScalarFieldContainer[str]
     condition_status: str
     maturity_findings: _containers.RepeatedCompositeFieldContainer[MaturityFinding]
-    def __init__(self, id: _Optional[str] = ..., projection: _Optional[_Union[_model_pb2.Projection, str]] = ..., title: _Optional[str] = ..., status: _Optional[_Union[_model_pb2.CellStatus, str]] = ..., source_cell_id: _Optional[str] = ..., notes: _Optional[_Iterable[str]] = ..., approaches: _Optional[_Iterable[str]] = ..., follow_ups: _Optional[_Iterable[str]] = ..., axis: _Optional[_Union[_model_pb2.GapAxis, str]] = ..., recurrence: _Optional[int] = ..., evidence_source: _Optional[str] = ..., evidence_locator: _Optional[str] = ..., availability_reason: _Optional[str] = ..., provider_ids: _Optional[_Iterable[str]] = ..., condition_status: _Optional[str] = ..., maturity_findings: _Optional[_Iterable[_Union[MaturityFinding, _Mapping]]] = ..., **kwargs) -> None: ...
+    cause_key: str
+    affected_cell_ids: _containers.RepeatedScalarFieldContainer[str]
+    affected_cell_count: int
+    def __init__(self, id: _Optional[str] = ..., projection: _Optional[_Union[_model_pb2.Projection, str]] = ..., title: _Optional[str] = ..., status: _Optional[_Union[_model_pb2.CellStatus, str]] = ..., source_cell_id: _Optional[str] = ..., notes: _Optional[_Iterable[str]] = ..., approaches: _Optional[_Iterable[str]] = ..., follow_ups: _Optional[_Iterable[str]] = ..., axis: _Optional[_Union[_model_pb2.GapAxis, str]] = ..., recurrence: _Optional[int] = ..., evidence_source: _Optional[str] = ..., evidence_locator: _Optional[str] = ..., availability_reason: _Optional[str] = ..., provider_ids: _Optional[_Iterable[str]] = ..., condition_status: _Optional[str] = ..., maturity_findings: _Optional[_Iterable[_Union[MaturityFinding, _Mapping]]] = ..., cause_key: _Optional[str] = ..., affected_cell_ids: _Optional[_Iterable[str]] = ..., affected_cell_count: _Optional[int] = ..., **kwargs) -> None: ...
 
 class MaturityFinding(_message.Message):
     __slots__ = ("code", "message", "location", "remediation", "fix_class", "repair_command")

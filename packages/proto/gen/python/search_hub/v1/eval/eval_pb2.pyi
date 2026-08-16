@@ -1,3 +1,5 @@
+from search_hub.v1.routing import routing_pb2 as _routing_pb2
+from search_hub.v1.shared import routing_trace_pb2 as _routing_trace_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
@@ -101,7 +103,7 @@ class EvalRun(_message.Message):
     def __init__(self, run_id: _Optional[str] = ..., suite_id: _Optional[str] = ..., tag: _Optional[str] = ..., created_at: _Optional[str] = ..., config: _Optional[_Union[ConfigSnapshot, _Mapping]] = ..., results: _Optional[_Iterable[_Union[CaseResult, _Mapping]]] = ..., aggregate: _Optional[_Union[EvalAggregate, _Mapping]] = ..., tier: _Optional[str] = ..., degraded: _Optional[bool] = ..., degraded_reason: _Optional[str] = ..., unavailable_cases: _Optional[_Iterable[_Union[UnavailableCase, _Mapping]]] = ..., unavailable_reason: _Optional[str] = ...) -> None: ...
 
 class ConfigSnapshot(_message.Message):
-    __slots__ = ("rerank_enabled", "reranker_leg", "embed_model", "indexed_count", "provider_note", "embed_task_prefix", "rerank_blend", "engine", "floor_regime")
+    __slots__ = ("rerank_enabled", "reranker_leg", "embed_model", "indexed_count", "provider_note", "embed_task_prefix", "rerank_blend", "engine", "floor_regime", "selector_leg")
     RERANK_ENABLED_FIELD_NUMBER: _ClassVar[int]
     RERANKER_LEG_FIELD_NUMBER: _ClassVar[int]
     EMBED_MODEL_FIELD_NUMBER: _ClassVar[int]
@@ -111,6 +113,7 @@ class ConfigSnapshot(_message.Message):
     RERANK_BLEND_FIELD_NUMBER: _ClassVar[int]
     ENGINE_FIELD_NUMBER: _ClassVar[int]
     FLOOR_REGIME_FIELD_NUMBER: _ClassVar[int]
+    SELECTOR_LEG_FIELD_NUMBER: _ClassVar[int]
     rerank_enabled: bool
     reranker_leg: str
     embed_model: str
@@ -120,10 +123,11 @@ class ConfigSnapshot(_message.Message):
     rerank_blend: bool
     engine: str
     floor_regime: str
-    def __init__(self, rerank_enabled: _Optional[bool] = ..., reranker_leg: _Optional[str] = ..., embed_model: _Optional[str] = ..., indexed_count: _Optional[int] = ..., provider_note: _Optional[str] = ..., embed_task_prefix: _Optional[bool] = ..., rerank_blend: _Optional[bool] = ..., engine: _Optional[str] = ..., floor_regime: _Optional[str] = ...) -> None: ...
+    selector_leg: str
+    def __init__(self, rerank_enabled: _Optional[bool] = ..., reranker_leg: _Optional[str] = ..., embed_model: _Optional[str] = ..., indexed_count: _Optional[int] = ..., provider_note: _Optional[str] = ..., embed_task_prefix: _Optional[bool] = ..., rerank_blend: _Optional[bool] = ..., engine: _Optional[str] = ..., floor_regime: _Optional[str] = ..., selector_leg: _Optional[str] = ...) -> None: ...
 
 class CaseResult(_message.Message):
-    __slots__ = ("case_id", "top", "expected_rank", "observed_top_score", "outcome", "expected_provider_id", "provider_routed", "margin", "outcome_reason")
+    __slots__ = ("case_id", "top", "expected_rank", "observed_top_score", "outcome", "expected_provider_id", "provider_routed", "margin", "outcome_reason", "routing_trace")
     CASE_ID_FIELD_NUMBER: _ClassVar[int]
     TOP_FIELD_NUMBER: _ClassVar[int]
     EXPECTED_RANK_FIELD_NUMBER: _ClassVar[int]
@@ -133,6 +137,7 @@ class CaseResult(_message.Message):
     PROVIDER_ROUTED_FIELD_NUMBER: _ClassVar[int]
     MARGIN_FIELD_NUMBER: _ClassVar[int]
     OUTCOME_REASON_FIELD_NUMBER: _ClassVar[int]
+    ROUTING_TRACE_FIELD_NUMBER: _ClassVar[int]
     case_id: str
     top: _containers.RepeatedCompositeFieldContainer[ScoredHit]
     expected_rank: int
@@ -142,7 +147,8 @@ class CaseResult(_message.Message):
     provider_routed: bool
     margin: float
     outcome_reason: str
-    def __init__(self, case_id: _Optional[str] = ..., top: _Optional[_Iterable[_Union[ScoredHit, _Mapping]]] = ..., expected_rank: _Optional[int] = ..., observed_top_score: _Optional[float] = ..., outcome: _Optional[str] = ..., expected_provider_id: _Optional[str] = ..., provider_routed: _Optional[bool] = ..., margin: _Optional[float] = ..., outcome_reason: _Optional[str] = ...) -> None: ...
+    routing_trace: _routing_trace_pb2.RoutingTrace
+    def __init__(self, case_id: _Optional[str] = ..., top: _Optional[_Iterable[_Union[ScoredHit, _Mapping]]] = ..., expected_rank: _Optional[int] = ..., observed_top_score: _Optional[float] = ..., outcome: _Optional[str] = ..., expected_provider_id: _Optional[str] = ..., provider_routed: _Optional[bool] = ..., margin: _Optional[float] = ..., outcome_reason: _Optional[str] = ..., routing_trace: _Optional[_Union[_routing_trace_pb2.RoutingTrace, _Mapping]] = ...) -> None: ...
 
 class UnavailableCase(_message.Message):
     __slots__ = ("case_id", "reason")
@@ -229,16 +235,18 @@ class GetSuiteResponse(_message.Message):
     def __init__(self, suite: _Optional[_Union[EvalSuite, _Mapping]] = ..., adequacy: _Optional[_Iterable[_Union[AdequacyWarning, _Mapping]]] = ...) -> None: ...
 
 class RunSuiteRequest(_message.Message):
-    __slots__ = ("suite_id", "tag", "limit", "tier")
+    __slots__ = ("suite_id", "tag", "limit", "tier", "strategy_name")
     SUITE_ID_FIELD_NUMBER: _ClassVar[int]
     TAG_FIELD_NUMBER: _ClassVar[int]
     LIMIT_FIELD_NUMBER: _ClassVar[int]
     TIER_FIELD_NUMBER: _ClassVar[int]
+    STRATEGY_NAME_FIELD_NUMBER: _ClassVar[int]
     suite_id: str
     tag: str
     limit: int
     tier: str
-    def __init__(self, suite_id: _Optional[str] = ..., tag: _Optional[str] = ..., limit: _Optional[int] = ..., tier: _Optional[str] = ...) -> None: ...
+    strategy_name: str
+    def __init__(self, suite_id: _Optional[str] = ..., tag: _Optional[str] = ..., limit: _Optional[int] = ..., tier: _Optional[str] = ..., strategy_name: _Optional[str] = ...) -> None: ...
 
 class RunSuiteResponse(_message.Message):
     __slots__ = ("run", "adequacy")
@@ -247,6 +255,72 @@ class RunSuiteResponse(_message.Message):
     run: EvalRun
     adequacy: _containers.RepeatedCompositeFieldContainer[AdequacyWarning]
     def __init__(self, run: _Optional[_Union[EvalRun, _Mapping]] = ..., adequacy: _Optional[_Iterable[_Union[AdequacyWarning, _Mapping]]] = ...) -> None: ...
+
+class CompareStrategiesRequest(_message.Message):
+    __slots__ = ("suite_id", "strategy_names", "apply", "limit")
+    SUITE_ID_FIELD_NUMBER: _ClassVar[int]
+    STRATEGY_NAMES_FIELD_NUMBER: _ClassVar[int]
+    APPLY_FIELD_NUMBER: _ClassVar[int]
+    LIMIT_FIELD_NUMBER: _ClassVar[int]
+    suite_id: str
+    strategy_names: _containers.RepeatedScalarFieldContainer[str]
+    apply: bool
+    limit: int
+    def __init__(self, suite_id: _Optional[str] = ..., strategy_names: _Optional[_Iterable[str]] = ..., apply: _Optional[bool] = ..., limit: _Optional[int] = ...) -> None: ...
+
+class CompareStrategiesResponse(_message.Message):
+    __slots__ = ("suite_id", "active_strategy", "arms", "applied", "writeback_reason")
+    SUITE_ID_FIELD_NUMBER: _ClassVar[int]
+    ACTIVE_STRATEGY_FIELD_NUMBER: _ClassVar[int]
+    ARMS_FIELD_NUMBER: _ClassVar[int]
+    APPLIED_FIELD_NUMBER: _ClassVar[int]
+    WRITEBACK_REASON_FIELD_NUMBER: _ClassVar[int]
+    suite_id: str
+    active_strategy: str
+    arms: _containers.RepeatedCompositeFieldContainer[StrategyComparisonArm]
+    applied: bool
+    writeback_reason: str
+    def __init__(self, suite_id: _Optional[str] = ..., active_strategy: _Optional[str] = ..., arms: _Optional[_Iterable[_Union[StrategyComparisonArm, _Mapping]]] = ..., applied: _Optional[bool] = ..., writeback_reason: _Optional[str] = ...) -> None: ...
+
+class StrategyComparisonArm(_message.Message):
+    __slots__ = ("strategy_name", "run_id", "aggregate", "all_denominator", "all_routed", "all_routing_precision", "routable_denominator", "routable_routed", "routable_routing_precision", "top1", "top3", "top6", "heldout_holds", "heldout_reason", "significant", "significance_reason", "accepted", "rejection_reason")
+    STRATEGY_NAME_FIELD_NUMBER: _ClassVar[int]
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    AGGREGATE_FIELD_NUMBER: _ClassVar[int]
+    ALL_DENOMINATOR_FIELD_NUMBER: _ClassVar[int]
+    ALL_ROUTED_FIELD_NUMBER: _ClassVar[int]
+    ALL_ROUTING_PRECISION_FIELD_NUMBER: _ClassVar[int]
+    ROUTABLE_DENOMINATOR_FIELD_NUMBER: _ClassVar[int]
+    ROUTABLE_ROUTED_FIELD_NUMBER: _ClassVar[int]
+    ROUTABLE_ROUTING_PRECISION_FIELD_NUMBER: _ClassVar[int]
+    TOP1_FIELD_NUMBER: _ClassVar[int]
+    TOP3_FIELD_NUMBER: _ClassVar[int]
+    TOP6_FIELD_NUMBER: _ClassVar[int]
+    HELDOUT_HOLDS_FIELD_NUMBER: _ClassVar[int]
+    HELDOUT_REASON_FIELD_NUMBER: _ClassVar[int]
+    SIGNIFICANT_FIELD_NUMBER: _ClassVar[int]
+    SIGNIFICANCE_REASON_FIELD_NUMBER: _ClassVar[int]
+    ACCEPTED_FIELD_NUMBER: _ClassVar[int]
+    REJECTION_REASON_FIELD_NUMBER: _ClassVar[int]
+    strategy_name: str
+    run_id: str
+    aggregate: EvalAggregate
+    all_denominator: int
+    all_routed: int
+    all_routing_precision: float
+    routable_denominator: int
+    routable_routed: int
+    routable_routing_precision: float
+    top1: int
+    top3: int
+    top6: int
+    heldout_holds: bool
+    heldout_reason: str
+    significant: bool
+    significance_reason: str
+    accepted: bool
+    rejection_reason: str
+    def __init__(self, strategy_name: _Optional[str] = ..., run_id: _Optional[str] = ..., aggregate: _Optional[_Union[EvalAggregate, _Mapping]] = ..., all_denominator: _Optional[int] = ..., all_routed: _Optional[int] = ..., all_routing_precision: _Optional[float] = ..., routable_denominator: _Optional[int] = ..., routable_routed: _Optional[int] = ..., routable_routing_precision: _Optional[float] = ..., top1: _Optional[int] = ..., top3: _Optional[int] = ..., top6: _Optional[int] = ..., heldout_holds: _Optional[bool] = ..., heldout_reason: _Optional[str] = ..., significant: _Optional[bool] = ..., significance_reason: _Optional[str] = ..., accepted: _Optional[bool] = ..., rejection_reason: _Optional[str] = ...) -> None: ...
 
 class ValidateCorpusRequest(_message.Message):
     __slots__ = ("suite_id", "deep_k")

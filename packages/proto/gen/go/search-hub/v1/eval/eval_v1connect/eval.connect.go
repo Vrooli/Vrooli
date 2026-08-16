@@ -53,6 +53,9 @@ const (
 	EvalServiceCompareRunsProcedure = "/vrooli.search_hub.v1.eval.EvalService/CompareRuns"
 	// EvalServiceSweepProcedure is the fully-qualified name of the EvalService's Sweep RPC.
 	EvalServiceSweepProcedure = "/vrooli.search_hub.v1.eval.EvalService/Sweep"
+	// EvalServiceCompareStrategiesProcedure is the fully-qualified name of the EvalService's
+	// CompareStrategies RPC.
+	EvalServiceCompareStrategiesProcedure = "/vrooli.search_hub.v1.eval.EvalService/CompareStrategies"
 	// EvalServiceGenerateProcedure is the fully-qualified name of the EvalService's Generate RPC.
 	EvalServiceGenerateProcedure = "/vrooli.search_hub.v1.eval.EvalService/Generate"
 	// EvalServicePromoteCasesProcedure is the fully-qualified name of the EvalService's PromoteCases
@@ -83,6 +86,10 @@ type EvalServiceClient interface {
 	// (optionally) write back a statistically-significant winning tuning. Each arm
 	// is one stored, tagged EvalRun. See SweepRequest/SweepResult.
 	Sweep(context.Context, *connect.Request[eval.SweepRequest]) (*connect.Response[eval.SweepResponse], error)
+	// Compare registered retrieval strategies against the composed router suite.
+	// Each arm is persisted as an immutable tagged federated run before guards
+	// decide whether a proposed winner is eligible for write-back.
+	CompareStrategies(context.Context, *connect.Request[eval.CompareStrategiesRequest]) (*connect.Response[eval.CompareStrategiesResponse], error)
 	// Propose machine-generated golden cases for a suite by sampling the
 	// provider's index and inverting each sampled item to a natural-language
 	// query (+ optional hard negatives), de-duped against the existing corpus.
@@ -164,6 +171,12 @@ func NewEvalServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(evalServiceMethods.ByName("Sweep")),
 			connect.WithClientOptions(opts...),
 		),
+		compareStrategies: connect.NewClient[eval.CompareStrategiesRequest, eval.CompareStrategiesResponse](
+			httpClient,
+			baseURL+EvalServiceCompareStrategiesProcedure,
+			connect.WithSchema(evalServiceMethods.ByName("CompareStrategies")),
+			connect.WithClientOptions(opts...),
+		),
 		generate: connect.NewClient[eval.GenerateRequest, eval.GenerateResponse](
 			httpClient,
 			baseURL+EvalServiceGenerateProcedure,
@@ -187,18 +200,19 @@ func NewEvalServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 
 // evalServiceClient implements EvalServiceClient.
 type evalServiceClient struct {
-	registerSuite    *connect.Client[eval.RegisterSuiteRequest, eval.RegisterSuiteResponse]
-	listSuites       *connect.Client[eval.ListSuitesRequest, eval.ListSuitesResponse]
-	getSuite         *connect.Client[eval.GetSuiteRequest, eval.GetSuiteResponse]
-	runSuite         *connect.Client[eval.RunSuiteRequest, eval.RunSuiteResponse]
-	validateCorpus   *connect.Client[eval.ValidateCorpusRequest, eval.ValidateCorpusResponse]
-	listRuns         *connect.Client[eval.ListRunsRequest, eval.ListRunsResponse]
-	getRun           *connect.Client[eval.GetRunRequest, eval.GetRunResponse]
-	compareRuns      *connect.Client[eval.CompareRunsRequest, eval.CompareRunsResponse]
-	sweep            *connect.Client[eval.SweepRequest, eval.SweepResponse]
-	generate         *connect.Client[eval.GenerateRequest, eval.GenerateResponse]
-	promoteCases     *connect.Client[eval.PromoteCasesRequest, eval.PromoteCasesResponse]
-	reapOrphanSuites *connect.Client[eval.ReapOrphanSuitesRequest, eval.ReapOrphanSuitesResponse]
+	registerSuite     *connect.Client[eval.RegisterSuiteRequest, eval.RegisterSuiteResponse]
+	listSuites        *connect.Client[eval.ListSuitesRequest, eval.ListSuitesResponse]
+	getSuite          *connect.Client[eval.GetSuiteRequest, eval.GetSuiteResponse]
+	runSuite          *connect.Client[eval.RunSuiteRequest, eval.RunSuiteResponse]
+	validateCorpus    *connect.Client[eval.ValidateCorpusRequest, eval.ValidateCorpusResponse]
+	listRuns          *connect.Client[eval.ListRunsRequest, eval.ListRunsResponse]
+	getRun            *connect.Client[eval.GetRunRequest, eval.GetRunResponse]
+	compareRuns       *connect.Client[eval.CompareRunsRequest, eval.CompareRunsResponse]
+	sweep             *connect.Client[eval.SweepRequest, eval.SweepResponse]
+	compareStrategies *connect.Client[eval.CompareStrategiesRequest, eval.CompareStrategiesResponse]
+	generate          *connect.Client[eval.GenerateRequest, eval.GenerateResponse]
+	promoteCases      *connect.Client[eval.PromoteCasesRequest, eval.PromoteCasesResponse]
+	reapOrphanSuites  *connect.Client[eval.ReapOrphanSuitesRequest, eval.ReapOrphanSuitesResponse]
 }
 
 // RegisterSuite calls vrooli.search_hub.v1.eval.EvalService.RegisterSuite.
@@ -246,6 +260,11 @@ func (c *evalServiceClient) Sweep(ctx context.Context, req *connect.Request[eval
 	return c.sweep.CallUnary(ctx, req)
 }
 
+// CompareStrategies calls vrooli.search_hub.v1.eval.EvalService.CompareStrategies.
+func (c *evalServiceClient) CompareStrategies(ctx context.Context, req *connect.Request[eval.CompareStrategiesRequest]) (*connect.Response[eval.CompareStrategiesResponse], error) {
+	return c.compareStrategies.CallUnary(ctx, req)
+}
+
 // Generate calls vrooli.search_hub.v1.eval.EvalService.Generate.
 func (c *evalServiceClient) Generate(ctx context.Context, req *connect.Request[eval.GenerateRequest]) (*connect.Response[eval.GenerateResponse], error) {
 	return c.generate.CallUnary(ctx, req)
@@ -281,6 +300,10 @@ type EvalServiceHandler interface {
 	// (optionally) write back a statistically-significant winning tuning. Each arm
 	// is one stored, tagged EvalRun. See SweepRequest/SweepResult.
 	Sweep(context.Context, *connect.Request[eval.SweepRequest]) (*connect.Response[eval.SweepResponse], error)
+	// Compare registered retrieval strategies against the composed router suite.
+	// Each arm is persisted as an immutable tagged federated run before guards
+	// decide whether a proposed winner is eligible for write-back.
+	CompareStrategies(context.Context, *connect.Request[eval.CompareStrategiesRequest]) (*connect.Response[eval.CompareStrategiesResponse], error)
 	// Propose machine-generated golden cases for a suite by sampling the
 	// provider's index and inverting each sampled item to a natural-language
 	// query (+ optional hard negatives), de-duped against the existing corpus.
@@ -358,6 +381,12 @@ func NewEvalServiceHandler(svc EvalServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(evalServiceMethods.ByName("Sweep")),
 		connect.WithHandlerOptions(opts...),
 	)
+	evalServiceCompareStrategiesHandler := connect.NewUnaryHandler(
+		EvalServiceCompareStrategiesProcedure,
+		svc.CompareStrategies,
+		connect.WithSchema(evalServiceMethods.ByName("CompareStrategies")),
+		connect.WithHandlerOptions(opts...),
+	)
 	evalServiceGenerateHandler := connect.NewUnaryHandler(
 		EvalServiceGenerateProcedure,
 		svc.Generate,
@@ -396,6 +425,8 @@ func NewEvalServiceHandler(svc EvalServiceHandler, opts ...connect.HandlerOption
 			evalServiceCompareRunsHandler.ServeHTTP(w, r)
 		case EvalServiceSweepProcedure:
 			evalServiceSweepHandler.ServeHTTP(w, r)
+		case EvalServiceCompareStrategiesProcedure:
+			evalServiceCompareStrategiesHandler.ServeHTTP(w, r)
 		case EvalServiceGenerateProcedure:
 			evalServiceGenerateHandler.ServeHTTP(w, r)
 		case EvalServicePromoteCasesProcedure:
@@ -445,6 +476,10 @@ func (UnimplementedEvalServiceHandler) CompareRuns(context.Context, *connect.Req
 
 func (UnimplementedEvalServiceHandler) Sweep(context.Context, *connect.Request[eval.SweepRequest]) (*connect.Response[eval.SweepResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.search_hub.v1.eval.EvalService.Sweep is not implemented"))
+}
+
+func (UnimplementedEvalServiceHandler) CompareStrategies(context.Context, *connect.Request[eval.CompareStrategiesRequest]) (*connect.Response[eval.CompareStrategiesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.search_hub.v1.eval.EvalService.CompareStrategies is not implemented"))
 }
 
 func (UnimplementedEvalServiceHandler) Generate(context.Context, *connect.Request[eval.GenerateRequest]) (*connect.Response[eval.GenerateResponse], error) {

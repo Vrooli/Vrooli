@@ -80,7 +80,7 @@ class ExecuteRouteRequest(_message.Message):
     def __init__(self, request: _Optional[_Union[_gateway_pb2.GatewayRequest, _Mapping]] = ..., input_text: _Optional[str] = ...) -> None: ...
 
 class RouteEvidence(_message.Message):
-    __slots__ = ("event_id", "request_id", "scenario", "operation", "role", "profile", "privacy_class", "selected_provider", "selected_locality", "status", "policy_reasons", "failure_reasons", "fallback_used", "prompt_redacted", "response_redacted", "latency_ms", "created_at", "breaker_state", "failure_class", "rejection_reason", "capacity_verdict", "capacity_claim_id", "capacity_required_bytes", "capacity_granted_bytes", "capacity_reclaim_required", "input_tokens", "output_tokens", "cost_estimate", "selected_model", "image_count", "attachment_bytes", "attachment_sha256", "attachments_redacted", "attachment_dimensions")
+    __slots__ = ("event_id", "request_id", "scenario", "operation", "role", "profile", "privacy_class", "selected_provider", "selected_locality", "status", "policy_reasons", "failure_reasons", "fallback_used", "prompt_redacted", "response_redacted", "latency_ms", "created_at", "breaker_state", "failure_class", "rejection_reason", "capacity_verdict", "capacity_claim_id", "capacity_required_bytes", "capacity_granted_bytes", "capacity_reclaim_required", "input_tokens", "output_tokens", "cost_estimate", "selected_model", "image_count", "attachment_bytes", "attachment_sha256", "attachments_redacted", "attachment_dimensions", "sampling_temperature", "sampling_temperature_support")
     EVENT_ID_FIELD_NUMBER: _ClassVar[int]
     REQUEST_ID_FIELD_NUMBER: _ClassVar[int]
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
@@ -115,6 +115,8 @@ class RouteEvidence(_message.Message):
     ATTACHMENT_SHA256_FIELD_NUMBER: _ClassVar[int]
     ATTACHMENTS_REDACTED_FIELD_NUMBER: _ClassVar[int]
     ATTACHMENT_DIMENSIONS_FIELD_NUMBER: _ClassVar[int]
+    SAMPLING_TEMPERATURE_FIELD_NUMBER: _ClassVar[int]
+    SAMPLING_TEMPERATURE_SUPPORT_FIELD_NUMBER: _ClassVar[int]
     event_id: str
     request_id: str
     scenario: str
@@ -149,7 +151,9 @@ class RouteEvidence(_message.Message):
     attachment_sha256: str
     attachments_redacted: bool
     attachment_dimensions: _containers.RepeatedCompositeFieldContainer[AttachmentDimension]
-    def __init__(self, event_id: _Optional[str] = ..., request_id: _Optional[str] = ..., scenario: _Optional[str] = ..., operation: _Optional[str] = ..., role: _Optional[str] = ..., profile: _Optional[_Union[_gateway_pb2.Profile, str]] = ..., privacy_class: _Optional[_Union[_gateway_pb2.PrivacyClass, str]] = ..., selected_provider: _Optional[str] = ..., selected_locality: _Optional[str] = ..., status: _Optional[str] = ..., policy_reasons: _Optional[_Iterable[str]] = ..., failure_reasons: _Optional[_Iterable[str]] = ..., fallback_used: _Optional[bool] = ..., prompt_redacted: _Optional[bool] = ..., response_redacted: _Optional[bool] = ..., latency_ms: _Optional[int] = ..., created_at: _Optional[str] = ..., breaker_state: _Optional[str] = ..., failure_class: _Optional[str] = ..., rejection_reason: _Optional[str] = ..., capacity_verdict: _Optional[str] = ..., capacity_claim_id: _Optional[str] = ..., capacity_required_bytes: _Optional[int] = ..., capacity_granted_bytes: _Optional[int] = ..., capacity_reclaim_required: _Optional[bool] = ..., input_tokens: _Optional[int] = ..., output_tokens: _Optional[int] = ..., cost_estimate: _Optional[float] = ..., selected_model: _Optional[str] = ..., image_count: _Optional[int] = ..., attachment_bytes: _Optional[int] = ..., attachment_sha256: _Optional[str] = ..., attachments_redacted: _Optional[bool] = ..., attachment_dimensions: _Optional[_Iterable[_Union[AttachmentDimension, _Mapping]]] = ...) -> None: ...
+    sampling_temperature: float
+    sampling_temperature_support: _gateway_pb2.SamplingSupport
+    def __init__(self, event_id: _Optional[str] = ..., request_id: _Optional[str] = ..., scenario: _Optional[str] = ..., operation: _Optional[str] = ..., role: _Optional[str] = ..., profile: _Optional[_Union[_gateway_pb2.Profile, str]] = ..., privacy_class: _Optional[_Union[_gateway_pb2.PrivacyClass, str]] = ..., selected_provider: _Optional[str] = ..., selected_locality: _Optional[str] = ..., status: _Optional[str] = ..., policy_reasons: _Optional[_Iterable[str]] = ..., failure_reasons: _Optional[_Iterable[str]] = ..., fallback_used: _Optional[bool] = ..., prompt_redacted: _Optional[bool] = ..., response_redacted: _Optional[bool] = ..., latency_ms: _Optional[int] = ..., created_at: _Optional[str] = ..., breaker_state: _Optional[str] = ..., failure_class: _Optional[str] = ..., rejection_reason: _Optional[str] = ..., capacity_verdict: _Optional[str] = ..., capacity_claim_id: _Optional[str] = ..., capacity_required_bytes: _Optional[int] = ..., capacity_granted_bytes: _Optional[int] = ..., capacity_reclaim_required: _Optional[bool] = ..., input_tokens: _Optional[int] = ..., output_tokens: _Optional[int] = ..., cost_estimate: _Optional[float] = ..., selected_model: _Optional[str] = ..., image_count: _Optional[int] = ..., attachment_bytes: _Optional[int] = ..., attachment_sha256: _Optional[str] = ..., attachments_redacted: _Optional[bool] = ..., attachment_dimensions: _Optional[_Iterable[_Union[AttachmentDimension, _Mapping]]] = ..., sampling_temperature: _Optional[float] = ..., sampling_temperature_support: _Optional[_Union[_gateway_pb2.SamplingSupport, str]] = ...) -> None: ...
 
 class AttachmentDimension(_message.Message):
     __slots__ = ("modality", "media_type", "width", "height", "bytes")
@@ -166,18 +170,20 @@ class AttachmentDimension(_message.Message):
     def __init__(self, modality: _Optional[_Union[_gateway_pb2.Modality, str]] = ..., media_type: _Optional[str] = ..., width: _Optional[int] = ..., height: _Optional[int] = ..., bytes: _Optional[int] = ...) -> None: ...
 
 class ExecuteRouteResponse(_message.Message):
-    __slots__ = ("valid", "issues", "evidence", "output_text", "policy_reasons")
+    __slots__ = ("valid", "issues", "evidence", "output_text", "policy_reasons", "applied")
     VALID_FIELD_NUMBER: _ClassVar[int]
     ISSUES_FIELD_NUMBER: _ClassVar[int]
     EVIDENCE_FIELD_NUMBER: _ClassVar[int]
     OUTPUT_TEXT_FIELD_NUMBER: _ClassVar[int]
     POLICY_REASONS_FIELD_NUMBER: _ClassVar[int]
+    APPLIED_FIELD_NUMBER: _ClassVar[int]
     valid: bool
     issues: _containers.RepeatedCompositeFieldContainer[_gateway_pb2.ValidationIssue]
     evidence: RouteEvidence
     output_text: str
     policy_reasons: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, valid: _Optional[bool] = ..., issues: _Optional[_Iterable[_Union[_gateway_pb2.ValidationIssue, _Mapping]]] = ..., evidence: _Optional[_Union[RouteEvidence, _Mapping]] = ..., output_text: _Optional[str] = ..., policy_reasons: _Optional[_Iterable[str]] = ...) -> None: ...
+    applied: _gateway_pb2.AppliedSettings
+    def __init__(self, valid: _Optional[bool] = ..., issues: _Optional[_Iterable[_Union[_gateway_pb2.ValidationIssue, _Mapping]]] = ..., evidence: _Optional[_Union[RouteEvidence, _Mapping]] = ..., output_text: _Optional[str] = ..., policy_reasons: _Optional[_Iterable[str]] = ..., applied: _Optional[_Union[_gateway_pb2.AppliedSettings, _Mapping]] = ...) -> None: ...
 
 class MediaInput(_message.Message):
     __slots__ = ("reference", "media_type")

@@ -265,6 +265,275 @@ func (Modality) EnumDescriptor() ([]byte, []int) {
 	return file_ai_gateway_v1_shared_gateway_proto_rawDescGZIP(), []int{3}
 }
 
+// SamplingSupport states how a resolved role's provider treats an explicit
+// sampling control. It is read from resource policy and never probed: a
+// provider that accepts a control and silently discards it is indistinguishable
+// at the call site from one that honours it, so a successful call is not
+// evidence of support.
+type SamplingSupport int32
+
+const (
+	// SAMPLING_SUPPORT_UNSPECIFIED means no role was resolved for this call, so
+	// there is no declaration to report. It is distinct from
+	// SAMPLING_SUPPORT_UNKNOWN, which is a resolved role that declared nothing.
+	SamplingSupport_SAMPLING_SUPPORT_UNSPECIFIED SamplingSupport = 0
+	// SAMPLING_SUPPORT_HONORED means the provider applies the value. Declaring it
+	// requires first-party provider evidence.
+	SamplingSupport_SAMPLING_SUPPORT_HONORED SamplingSupport = 1
+	// SAMPLING_SUPPORT_IGNORED means the provider accepts the field and silently
+	// discards it. The call succeeds and the control has no effect.
+	SamplingSupport_SAMPLING_SUPPORT_IGNORED SamplingSupport = 2
+	// SAMPLING_SUPPORT_REJECTED means the provider fails the request when the
+	// field is present.
+	SamplingSupport_SAMPLING_SUPPORT_REJECTED SamplingSupport = 3
+	// SAMPLING_SUPPORT_UNKNOWN means the resolved role declared no support state.
+	// The gateway treats it as IGNORED: best effort, no promise.
+	// @default treated as SAMPLING_SUPPORT_IGNORED
+	SamplingSupport_SAMPLING_SUPPORT_UNKNOWN SamplingSupport = 4
+)
+
+// Enum value maps for SamplingSupport.
+var (
+	SamplingSupport_name = map[int32]string{
+		0: "SAMPLING_SUPPORT_UNSPECIFIED",
+		1: "SAMPLING_SUPPORT_HONORED",
+		2: "SAMPLING_SUPPORT_IGNORED",
+		3: "SAMPLING_SUPPORT_REJECTED",
+		4: "SAMPLING_SUPPORT_UNKNOWN",
+	}
+	SamplingSupport_value = map[string]int32{
+		"SAMPLING_SUPPORT_UNSPECIFIED": 0,
+		"SAMPLING_SUPPORT_HONORED":     1,
+		"SAMPLING_SUPPORT_IGNORED":     2,
+		"SAMPLING_SUPPORT_REJECTED":    3,
+		"SAMPLING_SUPPORT_UNKNOWN":     4,
+	}
+)
+
+func (x SamplingSupport) Enum() *SamplingSupport {
+	p := new(SamplingSupport)
+	*p = x
+	return p
+}
+
+func (x SamplingSupport) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (SamplingSupport) Descriptor() protoreflect.EnumDescriptor {
+	return file_ai_gateway_v1_shared_gateway_proto_enumTypes[4].Descriptor()
+}
+
+func (SamplingSupport) Type() protoreflect.EnumType {
+	return &file_ai_gateway_v1_shared_gateway_proto_enumTypes[4]
+}
+
+func (x SamplingSupport) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use SamplingSupport.Descriptor instead.
+func (SamplingSupport) EnumDescriptor() ([]byte, []int) {
+	return file_ai_gateway_v1_shared_gateway_proto_rawDescGZIP(), []int{4}
+}
+
+// OutputCapSource names where the output cap the gateway imposed came from. It
+// reports only what the gateway knows: a provider's own internal default is not
+// visible from here and is never guessed.
+type OutputCapSource int32
+
+const (
+	OutputCapSource_OUTPUT_CAP_SOURCE_UNSPECIFIED OutputCapSource = 0
+	// OUTPUT_CAP_SOURCE_REQUEST means the caller set max_output_tokens.
+	OutputCapSource_OUTPUT_CAP_SOURCE_REQUEST OutputCapSource = 1
+	// OUTPUT_CAP_SOURCE_ROLE_POLICY means the resolved resource role declared the
+	// cap and the caller sent none.
+	OutputCapSource_OUTPUT_CAP_SOURCE_ROLE_POLICY OutputCapSource = 2
+	// OUTPUT_CAP_SOURCE_NONE_IMPOSED means the gateway sent no cap at all. The
+	// provider's own default applies and is not observable from here. This is
+	// distinct from "there is a cap we cannot see" — the gateway genuinely
+	// imposed nothing.
+	OutputCapSource_OUTPUT_CAP_SOURCE_NONE_IMPOSED OutputCapSource = 3
+)
+
+// Enum value maps for OutputCapSource.
+var (
+	OutputCapSource_name = map[int32]string{
+		0: "OUTPUT_CAP_SOURCE_UNSPECIFIED",
+		1: "OUTPUT_CAP_SOURCE_REQUEST",
+		2: "OUTPUT_CAP_SOURCE_ROLE_POLICY",
+		3: "OUTPUT_CAP_SOURCE_NONE_IMPOSED",
+	}
+	OutputCapSource_value = map[string]int32{
+		"OUTPUT_CAP_SOURCE_UNSPECIFIED":  0,
+		"OUTPUT_CAP_SOURCE_REQUEST":      1,
+		"OUTPUT_CAP_SOURCE_ROLE_POLICY":  2,
+		"OUTPUT_CAP_SOURCE_NONE_IMPOSED": 3,
+	}
+)
+
+func (x OutputCapSource) Enum() *OutputCapSource {
+	p := new(OutputCapSource)
+	*p = x
+	return p
+}
+
+func (x OutputCapSource) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (OutputCapSource) Descriptor() protoreflect.EnumDescriptor {
+	return file_ai_gateway_v1_shared_gateway_proto_enumTypes[5].Descriptor()
+}
+
+func (OutputCapSource) Type() protoreflect.EnumType {
+	return &file_ai_gateway_v1_shared_gateway_proto_enumTypes[5]
+}
+
+func (x OutputCapSource) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use OutputCapSource.Descriptor instead.
+func (OutputCapSource) EnumDescriptor() ([]byte, []int) {
+	return file_ai_gateway_v1_shared_gateway_proto_rawDescGZIP(), []int{5}
+}
+
+// SamplingControls is the caller's explicit request for non-default sampling.
+// An absent message means "use the role's declared sampling", which is itself
+// allowed to be absent, in which case the provider resource's own policy
+// default applies. A present-but-unhonourable control is an error, never a
+// silent downgrade: see INFERENCE_ERROR_CODE_UNSUPPORTED_SAMPLING.
+type SamplingControls struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// temperature is optional so an explicit 0.0 (deterministic) is
+	// distinguishable from unset. A role must declare itself overridable before a
+	// caller may set this; sending it to a role that has not is a request defect.
+	// @default the role's declared sampling, else the resource policy default
+	Temperature   *float64 `protobuf:"fixed64,1,opt,name=temperature,proto3,oneof" json:"temperature,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SamplingControls) Reset() {
+	*x = SamplingControls{}
+	mi := &file_ai_gateway_v1_shared_gateway_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SamplingControls) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SamplingControls) ProtoMessage() {}
+
+func (x *SamplingControls) ProtoReflect() protoreflect.Message {
+	mi := &file_ai_gateway_v1_shared_gateway_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SamplingControls.ProtoReflect.Descriptor instead.
+func (*SamplingControls) Descriptor() ([]byte, []int) {
+	return file_ai_gateway_v1_shared_gateway_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *SamplingControls) GetTemperature() float64 {
+	if x != nil && x.Temperature != nil {
+		return *x.Temperature
+	}
+	return 0
+}
+
+// AppliedSettings reports what the gateway actually did, so a caller can record
+// provenance that is true rather than provenance that echoes its own request.
+// It deliberately has no single "applied temperature" field: for a provider
+// that accepts and silently ignores the control, such a field would have to lie
+// in exactly the case the caller most needs the truth.
+type AppliedSettings struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// temperature_sent is the value passed to the provider, absent when the
+	// gateway omitted the control. It is NOT proof the provider honoured it.
+	TemperatureSent *float64 `protobuf:"fixed64,1,opt,name=temperature_sent,json=temperatureSent,proto3,oneof" json:"temperature_sent,omitempty"`
+	// temperature_support is the resolved role's policy declaration. A caller
+	// comparing two candidate sets must treat differing support states as
+	// differing conditions even when temperature_sent matches.
+	TemperatureSupport SamplingSupport `protobuf:"varint,2,opt,name=temperature_support,json=temperatureSupport,proto3,enum=vrooli.ai_gateway.v1.shared.SamplingSupport" json:"temperature_support,omitempty"`
+	// max_output_tokens_effective is the cap the gateway imposed, and
+	// max_output_tokens_source names where it came from. Zero with source
+	// OUTPUT_CAP_SOURCE_NONE_IMPOSED means no cap was sent.
+	// @unit tokens
+	MaxOutputTokensEffective int32           `protobuf:"varint,3,opt,name=max_output_tokens_effective,json=maxOutputTokensEffective,proto3" json:"max_output_tokens_effective,omitempty"`
+	MaxOutputTokensSource    OutputCapSource `protobuf:"varint,4,opt,name=max_output_tokens_source,json=maxOutputTokensSource,proto3,enum=vrooli.ai_gateway.v1.shared.OutputCapSource" json:"max_output_tokens_source,omitempty"`
+	unknownFields            protoimpl.UnknownFields
+	sizeCache                protoimpl.SizeCache
+}
+
+func (x *AppliedSettings) Reset() {
+	*x = AppliedSettings{}
+	mi := &file_ai_gateway_v1_shared_gateway_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AppliedSettings) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AppliedSettings) ProtoMessage() {}
+
+func (x *AppliedSettings) ProtoReflect() protoreflect.Message {
+	mi := &file_ai_gateway_v1_shared_gateway_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AppliedSettings.ProtoReflect.Descriptor instead.
+func (*AppliedSettings) Descriptor() ([]byte, []int) {
+	return file_ai_gateway_v1_shared_gateway_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *AppliedSettings) GetTemperatureSent() float64 {
+	if x != nil && x.TemperatureSent != nil {
+		return *x.TemperatureSent
+	}
+	return 0
+}
+
+func (x *AppliedSettings) GetTemperatureSupport() SamplingSupport {
+	if x != nil {
+		return x.TemperatureSupport
+	}
+	return SamplingSupport_SAMPLING_SUPPORT_UNSPECIFIED
+}
+
+func (x *AppliedSettings) GetMaxOutputTokensEffective() int32 {
+	if x != nil {
+		return x.MaxOutputTokensEffective
+	}
+	return 0
+}
+
+func (x *AppliedSettings) GetMaxOutputTokensSource() OutputCapSource {
+	if x != nil {
+		return x.MaxOutputTokensSource
+	}
+	return OutputCapSource_OUTPUT_CAP_SOURCE_UNSPECIFIED
+}
+
 // Attachment carries ephemeral caller input across the gateway boundary. The
 // gateway may resolve and forward it during one request, but never persists
 // the payload. References are opaque application-owned identifiers, never
@@ -287,7 +556,7 @@ type Attachment struct {
 
 func (x *Attachment) Reset() {
 	*x = Attachment{}
-	mi := &file_ai_gateway_v1_shared_gateway_proto_msgTypes[0]
+	mi := &file_ai_gateway_v1_shared_gateway_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -299,7 +568,7 @@ func (x *Attachment) String() string {
 func (*Attachment) ProtoMessage() {}
 
 func (x *Attachment) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_gateway_v1_shared_gateway_proto_msgTypes[0]
+	mi := &file_ai_gateway_v1_shared_gateway_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -312,7 +581,7 @@ func (x *Attachment) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Attachment.ProtoReflect.Descriptor instead.
 func (*Attachment) Descriptor() ([]byte, []int) {
-	return file_ai_gateway_v1_shared_gateway_proto_rawDescGZIP(), []int{0}
+	return file_ai_gateway_v1_shared_gateway_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *Attachment) GetModality() Modality {
@@ -408,13 +677,16 @@ type GatewayRequest struct {
 	RequestId       string                 `protobuf:"bytes,10,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
 	Metadata        map[string]string      `protobuf:"bytes,11,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	Attachments     []*Attachment          `protobuf:"bytes,12,rep,name=attachments,proto3" json:"attachments,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// sampling is the caller's explicit sampling request. Absent means the
+	// resolved role's declared sampling applies.
+	Sampling      *SamplingControls `protobuf:"bytes,13,opt,name=sampling,proto3" json:"sampling,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GatewayRequest) Reset() {
 	*x = GatewayRequest{}
-	mi := &file_ai_gateway_v1_shared_gateway_proto_msgTypes[1]
+	mi := &file_ai_gateway_v1_shared_gateway_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -426,7 +698,7 @@ func (x *GatewayRequest) String() string {
 func (*GatewayRequest) ProtoMessage() {}
 
 func (x *GatewayRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_gateway_v1_shared_gateway_proto_msgTypes[1]
+	mi := &file_ai_gateway_v1_shared_gateway_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -439,7 +711,7 @@ func (x *GatewayRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GatewayRequest.ProtoReflect.Descriptor instead.
 func (*GatewayRequest) Descriptor() ([]byte, []int) {
-	return file_ai_gateway_v1_shared_gateway_proto_rawDescGZIP(), []int{1}
+	return file_ai_gateway_v1_shared_gateway_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *GatewayRequest) GetKind() RequestKind {
@@ -526,6 +798,13 @@ func (x *GatewayRequest) GetAttachments() []*Attachment {
 	return nil
 }
 
+func (x *GatewayRequest) GetSampling() *SamplingControls {
+	if x != nil {
+		return x.Sampling
+	}
+	return nil
+}
+
 type ValidationIssue struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Field         string                 `protobuf:"bytes,1,opt,name=field,proto3" json:"field,omitempty"`
@@ -537,7 +816,7 @@ type ValidationIssue struct {
 
 func (x *ValidationIssue) Reset() {
 	*x = ValidationIssue{}
-	mi := &file_ai_gateway_v1_shared_gateway_proto_msgTypes[2]
+	mi := &file_ai_gateway_v1_shared_gateway_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -549,7 +828,7 @@ func (x *ValidationIssue) String() string {
 func (*ValidationIssue) ProtoMessage() {}
 
 func (x *ValidationIssue) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_gateway_v1_shared_gateway_proto_msgTypes[2]
+	mi := &file_ai_gateway_v1_shared_gateway_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -562,7 +841,7 @@ func (x *ValidationIssue) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ValidationIssue.ProtoReflect.Descriptor instead.
 func (*ValidationIssue) Descriptor() ([]byte, []int) {
-	return file_ai_gateway_v1_shared_gateway_proto_rawDescGZIP(), []int{2}
+	return file_ai_gateway_v1_shared_gateway_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *ValidationIssue) GetField() string {
@@ -590,7 +869,16 @@ var File_ai_gateway_v1_shared_gateway_proto protoreflect.FileDescriptor
 
 const file_ai_gateway_v1_shared_gateway_proto_rawDesc = "" +
 	"\n" +
-	"\"ai-gateway/v1/shared/gateway.proto\x12\x1bvrooli.ai_gateway.v1.shared\"\x82\x02\n" +
+	"\"ai-gateway/v1/shared/gateway.proto\x12\x1bvrooli.ai_gateway.v1.shared\"I\n" +
+	"\x10SamplingControls\x12%\n" +
+	"\vtemperature\x18\x01 \x01(\x01H\x00R\vtemperature\x88\x01\x01B\x0e\n" +
+	"\f_temperature\"\xdb\x02\n" +
+	"\x0fAppliedSettings\x12.\n" +
+	"\x10temperature_sent\x18\x01 \x01(\x01H\x00R\x0ftemperatureSent\x88\x01\x01\x12]\n" +
+	"\x13temperature_support\x18\x02 \x01(\x0e2,.vrooli.ai_gateway.v1.shared.SamplingSupportR\x12temperatureSupport\x12=\n" +
+	"\x1bmax_output_tokens_effective\x18\x03 \x01(\x05R\x18maxOutputTokensEffective\x12e\n" +
+	"\x18max_output_tokens_source\x18\x04 \x01(\x0e2,.vrooli.ai_gateway.v1.shared.OutputCapSourceR\x15maxOutputTokensSourceB\x13\n" +
+	"\x11_temperature_sent\"\x82\x02\n" +
 	"\n" +
 	"Attachment\x12A\n" +
 	"\bmodality\x18\x01 \x01(\x0e2%.vrooli.ai_gateway.v1.shared.ModalityR\bmodality\x12\x1d\n" +
@@ -601,7 +889,7 @@ const file_ai_gateway_v1_shared_gateway_proto_rawDesc = "" +
 	"\x05bytes\x18\x05 \x01(\x04R\x05bytes\x12#\n" +
 	"\finline_bytes\x18\x06 \x01(\fH\x00R\vinlineBytes\x12\x1e\n" +
 	"\treference\x18\a \x01(\tH\x00R\treferenceB\t\n" +
-	"\apayload\"\x97\x05\n" +
+	"\apayload\"\xe2\x05\n" +
 	"\x0eGatewayRequest\x12<\n" +
 	"\x04kind\x18\x01 \x01(\x0e2(.vrooli.ai_gateway.v1.shared.RequestKindR\x04kind\x12\x12\n" +
 	"\x04role\x18\x02 \x01(\tR\x04role\x12>\n" +
@@ -618,7 +906,8 @@ const file_ai_gateway_v1_shared_gateway_proto_rawDesc = "" +
 	"request_id\x18\n" +
 	" \x01(\tR\trequestId\x12U\n" +
 	"\bmetadata\x18\v \x03(\v29.vrooli.ai_gateway.v1.shared.GatewayRequest.MetadataEntryR\bmetadata\x12I\n" +
-	"\vattachments\x18\f \x03(\v2'.vrooli.ai_gateway.v1.shared.AttachmentR\vattachments\x1a;\n" +
+	"\vattachments\x18\f \x03(\v2'.vrooli.ai_gateway.v1.shared.AttachmentR\vattachments\x12I\n" +
+	"\bsampling\x18\r \x01(\v2-.vrooli.ai_gateway.v1.shared.SamplingControlsR\bsampling\x1a;\n" +
 	"\rMetadataEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"U\n" +
@@ -653,7 +942,18 @@ const file_ai_gateway_v1_shared_gateway_proto_rawDesc = "" +
 	"\x0eMODALITY_IMAGE\x10\x02\x12\x13\n" +
 	"\x0fMODALITY_VECTOR\x10\x03\x12\x12\n" +
 	"\x0eMODALITY_VIDEO\x10\x04\x12\x12\n" +
-	"\x0eMODALITY_AUDIO\x10\x05BOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/shared;shared_v1b\x06proto3"
+	"\x0eMODALITY_AUDIO\x10\x05*\xac\x01\n" +
+	"\x0fSamplingSupport\x12 \n" +
+	"\x1cSAMPLING_SUPPORT_UNSPECIFIED\x10\x00\x12\x1c\n" +
+	"\x18SAMPLING_SUPPORT_HONORED\x10\x01\x12\x1c\n" +
+	"\x18SAMPLING_SUPPORT_IGNORED\x10\x02\x12\x1d\n" +
+	"\x19SAMPLING_SUPPORT_REJECTED\x10\x03\x12\x1c\n" +
+	"\x18SAMPLING_SUPPORT_UNKNOWN\x10\x04*\x9a\x01\n" +
+	"\x0fOutputCapSource\x12!\n" +
+	"\x1dOUTPUT_CAP_SOURCE_UNSPECIFIED\x10\x00\x12\x1d\n" +
+	"\x19OUTPUT_CAP_SOURCE_REQUEST\x10\x01\x12!\n" +
+	"\x1dOUTPUT_CAP_SOURCE_ROLE_POLICY\x10\x02\x12\"\n" +
+	"\x1eOUTPUT_CAP_SOURCE_NONE_IMPOSED\x10\x03BOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/shared;shared_v1b\x06proto3"
 
 var (
 	file_ai_gateway_v1_shared_gateway_proto_rawDescOnce sync.Once
@@ -667,30 +967,37 @@ func file_ai_gateway_v1_shared_gateway_proto_rawDescGZIP() []byte {
 	return file_ai_gateway_v1_shared_gateway_proto_rawDescData
 }
 
-var file_ai_gateway_v1_shared_gateway_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
-var file_ai_gateway_v1_shared_gateway_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_ai_gateway_v1_shared_gateway_proto_enumTypes = make([]protoimpl.EnumInfo, 6)
+var file_ai_gateway_v1_shared_gateway_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_ai_gateway_v1_shared_gateway_proto_goTypes = []any{
-	(RequestKind)(0),        // 0: vrooli.ai_gateway.v1.shared.RequestKind
-	(PrivacyClass)(0),       // 1: vrooli.ai_gateway.v1.shared.PrivacyClass
-	(Profile)(0),            // 2: vrooli.ai_gateway.v1.shared.Profile
-	(Modality)(0),           // 3: vrooli.ai_gateway.v1.shared.Modality
-	(*Attachment)(nil),      // 4: vrooli.ai_gateway.v1.shared.Attachment
-	(*GatewayRequest)(nil),  // 5: vrooli.ai_gateway.v1.shared.GatewayRequest
-	(*ValidationIssue)(nil), // 6: vrooli.ai_gateway.v1.shared.ValidationIssue
-	nil,                     // 7: vrooli.ai_gateway.v1.shared.GatewayRequest.MetadataEntry
+	(RequestKind)(0),         // 0: vrooli.ai_gateway.v1.shared.RequestKind
+	(PrivacyClass)(0),        // 1: vrooli.ai_gateway.v1.shared.PrivacyClass
+	(Profile)(0),             // 2: vrooli.ai_gateway.v1.shared.Profile
+	(Modality)(0),            // 3: vrooli.ai_gateway.v1.shared.Modality
+	(SamplingSupport)(0),     // 4: vrooli.ai_gateway.v1.shared.SamplingSupport
+	(OutputCapSource)(0),     // 5: vrooli.ai_gateway.v1.shared.OutputCapSource
+	(*SamplingControls)(nil), // 6: vrooli.ai_gateway.v1.shared.SamplingControls
+	(*AppliedSettings)(nil),  // 7: vrooli.ai_gateway.v1.shared.AppliedSettings
+	(*Attachment)(nil),       // 8: vrooli.ai_gateway.v1.shared.Attachment
+	(*GatewayRequest)(nil),   // 9: vrooli.ai_gateway.v1.shared.GatewayRequest
+	(*ValidationIssue)(nil),  // 10: vrooli.ai_gateway.v1.shared.ValidationIssue
+	nil,                      // 11: vrooli.ai_gateway.v1.shared.GatewayRequest.MetadataEntry
 }
 var file_ai_gateway_v1_shared_gateway_proto_depIdxs = []int32{
-	3, // 0: vrooli.ai_gateway.v1.shared.Attachment.modality:type_name -> vrooli.ai_gateway.v1.shared.Modality
-	0, // 1: vrooli.ai_gateway.v1.shared.GatewayRequest.kind:type_name -> vrooli.ai_gateway.v1.shared.RequestKind
-	2, // 2: vrooli.ai_gateway.v1.shared.GatewayRequest.profile:type_name -> vrooli.ai_gateway.v1.shared.Profile
-	1, // 3: vrooli.ai_gateway.v1.shared.GatewayRequest.privacy_class:type_name -> vrooli.ai_gateway.v1.shared.PrivacyClass
-	7, // 4: vrooli.ai_gateway.v1.shared.GatewayRequest.metadata:type_name -> vrooli.ai_gateway.v1.shared.GatewayRequest.MetadataEntry
-	4, // 5: vrooli.ai_gateway.v1.shared.GatewayRequest.attachments:type_name -> vrooli.ai_gateway.v1.shared.Attachment
-	6, // [6:6] is the sub-list for method output_type
-	6, // [6:6] is the sub-list for method input_type
-	6, // [6:6] is the sub-list for extension type_name
-	6, // [6:6] is the sub-list for extension extendee
-	0, // [0:6] is the sub-list for field type_name
+	4,  // 0: vrooli.ai_gateway.v1.shared.AppliedSettings.temperature_support:type_name -> vrooli.ai_gateway.v1.shared.SamplingSupport
+	5,  // 1: vrooli.ai_gateway.v1.shared.AppliedSettings.max_output_tokens_source:type_name -> vrooli.ai_gateway.v1.shared.OutputCapSource
+	3,  // 2: vrooli.ai_gateway.v1.shared.Attachment.modality:type_name -> vrooli.ai_gateway.v1.shared.Modality
+	0,  // 3: vrooli.ai_gateway.v1.shared.GatewayRequest.kind:type_name -> vrooli.ai_gateway.v1.shared.RequestKind
+	2,  // 4: vrooli.ai_gateway.v1.shared.GatewayRequest.profile:type_name -> vrooli.ai_gateway.v1.shared.Profile
+	1,  // 5: vrooli.ai_gateway.v1.shared.GatewayRequest.privacy_class:type_name -> vrooli.ai_gateway.v1.shared.PrivacyClass
+	11, // 6: vrooli.ai_gateway.v1.shared.GatewayRequest.metadata:type_name -> vrooli.ai_gateway.v1.shared.GatewayRequest.MetadataEntry
+	8,  // 7: vrooli.ai_gateway.v1.shared.GatewayRequest.attachments:type_name -> vrooli.ai_gateway.v1.shared.Attachment
+	6,  // 8: vrooli.ai_gateway.v1.shared.GatewayRequest.sampling:type_name -> vrooli.ai_gateway.v1.shared.SamplingControls
+	9,  // [9:9] is the sub-list for method output_type
+	9,  // [9:9] is the sub-list for method input_type
+	9,  // [9:9] is the sub-list for extension type_name
+	9,  // [9:9] is the sub-list for extension extendee
+	0,  // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_ai_gateway_v1_shared_gateway_proto_init() }
@@ -698,7 +1005,9 @@ func file_ai_gateway_v1_shared_gateway_proto_init() {
 	if File_ai_gateway_v1_shared_gateway_proto != nil {
 		return
 	}
-	file_ai_gateway_v1_shared_gateway_proto_msgTypes[0].OneofWrappers = []any{
+	file_ai_gateway_v1_shared_gateway_proto_msgTypes[0].OneofWrappers = []any{}
+	file_ai_gateway_v1_shared_gateway_proto_msgTypes[1].OneofWrappers = []any{}
+	file_ai_gateway_v1_shared_gateway_proto_msgTypes[2].OneofWrappers = []any{
 		(*Attachment_InlineBytes)(nil),
 		(*Attachment_Reference)(nil),
 	}
@@ -707,8 +1016,8 @@ func file_ai_gateway_v1_shared_gateway_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_ai_gateway_v1_shared_gateway_proto_rawDesc), len(file_ai_gateway_v1_shared_gateway_proto_rawDesc)),
-			NumEnums:      4,
-			NumMessages:   4,
+			NumEnums:      6,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

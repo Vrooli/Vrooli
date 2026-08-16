@@ -11,6 +11,8 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/offer-desk/v
 enum NodeKind { NODE_KIND_UNSPECIFIED = 0; OFFER = 1; VARIANT = 2; CHANNEL = 3; REVENUE_LINE = 4; DELIVERABLE = 5; }
 enum Status { STATUS_UNSPECIFIED = 0; IDEA = 1; CANDIDATE = 2; TRIGGER_MET = 3; ACTIVE = 4; SHIPPED = 5; RETIRED = 6; }
 enum Verdict { VERDICT_UNSPECIFIED = 0; SATISFIED = 1; UNSATISFIED = 2; UNKNOWN = 3; }
+enum SourceMode { SOURCE_MODE_UNSPECIFIED = 0; SOURCE_MODE_FIXTURE = 1; SOURCE_MODE_OPERATOR_SUPPLIED = 2; }
+enum EvaluationResult { EVALUATION_RESULT_UNSPECIFIED = 0; EVALUATION_SUCCEEDED = 1; EVALUATION_FAILED = 2; EVALUATION_NOT_RUN = 3; }
 
 message Node { string id = 1; NodeKind kind = 2; string name = 3; Status status = 4; string trigger_id = 5; google.protobuf.Timestamp created_at = 6; string actual_account_id = 7; }
 message Edge { string id = 1; string from_id = 2; string to_id = 3; string kind = 4; int64 intended_price_minor = 5; string currency = 6; }
@@ -19,10 +21,12 @@ message TriggerClause { string fact_name = 1; string operator = 2; double thresh
 message Fact { string name = 1; double value = 2; google.protobuf.Timestamp observed_at = 3; int32 stale_after_days = 4; string dimension = 5; }
 message Trigger { string id = 1; string node_id = 2; string fact_name = 3; string operator = 4; double threshold = 5; string expression = 6; repeated TriggerClause clauses = 7; TriggerComposition composition = 8; }
 message Evaluation { string id = 1; string node_id = 2; Verdict verdict = 3; string fact_name = 4; string explanation = 5; google.protobuf.Timestamp evaluated_at = 6; int64 fact_age_seconds = 7; repeated string fact_names = 8; }
-message Proposal { string id = 1; string node_id = 2; string actor = 3; Status requested_status = 4; string reason = 5; }
+message ProposalDecline { string actor = 1; string reason = 2; google.protobuf.Timestamp created_at = 3; }
+message Proposal { string id = 1; string node_id = 2; string actor = 3; Status requested_status = 4; string reason = 5; google.protobuf.Timestamp created_at = 6; repeated ProposalDecline decline_history = 7; string evidence_reference = 8; }
 message Availability { string source = 1; string reason = 2; google.protobuf.Timestamp last_success_at = 3; }
 message BoardEntry { string node_id = 1; string title = 2; string rank_reason = 3; Status status = 4; int64 actual_minor = 5; bool actuals_available = 6; repeated Availability availability = 7; }
-message BoardResponse { repeated BoardEntry entries = 1; vrooli.money_ledger.v1.ledger.PositionResponse position = 2; repeated Availability availability = 3; }
+message EvaluationCondition { google.protobuf.Timestamp last_run_at = 1; EvaluationResult last_result = 2; int32 nodes_scored = 3; int64 age_seconds = 4; bool degraded = 5; string reason = 6; }
+message BoardResponse { repeated BoardEntry entries = 1; vrooli.money_ledger.v1.ledger.PositionResponse position = 2; repeated Availability availability = 3; EvaluationCondition evaluation = 4; repeated vrooli.money_ledger.v1.ledger.GoalVerdict goals = 5; string default_alive_gap = 6; string posture_source = 7; int64 posture_age_seconds = 8; }
 
 message CreateNodeRequest { NodeKind kind = 1; string name = 2; Status status = 3; string trigger_id = 4; string actual_account_id = 5; }
 message CreateNodeResponse { Node node = 1; }
@@ -40,11 +44,20 @@ message EvaluateRequest { bool dry_run = 1; }
 message EvaluateResponse { repeated Evaluation evaluations = 1; }
 message PromoteRequest { string node_id = 1; string actor = 2; string role = 3; }
 message PromoteResponse { Proposal proposal = 1; }
+message ListProposalsRequest { string node_id = 1; Status status = 2; }
+message ListProposalsResponse { repeated Proposal proposals = 1; }
 message ListAuditRequest { string node_id = 1; }
 message ListAuditResponse { repeated string entries = 1; }
 message ListEdgesRequest { string node_id = 1; }
 message ListEdgesResponse { repeated Edge edges = 1; }
-message ProjectionRequest {}
+message ProjectionRequest { string projection = 1; }
+message ImportCatalogRequest { string source_path = 1; SourceMode source_mode = 2; bool apply = 3; string actor = 4; }
+message ImportFileReport { string path = 1; int32 read = 2; int32 written = 3; int32 findings = 4; string cardinality = 5; NodeKind node_kind = 6; }
+message StatusMapEntry { string path = 1; Status status = 2; bool recognized = 3; int32 line = 4; }
+message ImportFinding { string path = 1; string reason = 2; bool blocking = 3; int32 line = 4; }
+message ImportCatalogResponse { repeated ImportFileReport files = 1; repeated StatusMapEntry status_map = 2; repeated ImportFinding findings = 3; int32 total_findings = 4; bool applied = 5; }
+message SpaceCell { string id = 1; string group = 2; string question = 3; string owner = 4; string status = 5; string notes = 6; }
+message SpaceResponse { string schema_version = 1; string projection = 2; string owner = 3; string denominator_confidence = 4; string confidence_rationale = 5; string source = 6; repeated SpaceCell cells = 7; }
 
 service CatalogService {
   rpc CreateNode(CreateNodeRequest) returns (CreateNodeResponse);
@@ -52,11 +65,14 @@ service CatalogService {
   rpc Transition(TransitionRequest) returns (TransitionResponse);
   rpc CreateEdge(CreateEdgeRequest) returns (CreateEdgeResponse);
   rpc ListEdges(ListEdgesRequest) returns (ListEdgesResponse);
+  rpc ImportCatalog(ImportCatalogRequest) returns (ImportCatalogResponse);
 }
 service GatesService {
   rpc DeclareTrigger(DeclareTriggerRequest) returns (DeclareTriggerResponse);
   rpc AddFact(AddFactRequest) returns (AddFactResponse);
   rpc Evaluate(EvaluateRequest) returns (EvaluateResponse);
   rpc Promote(PromoteRequest) returns (PromoteResponse);
+  rpc ListProposals(ListProposalsRequest) returns (ListProposalsResponse);
 }
 service BoardService { rpc GetBoard(ProjectionRequest) returns (BoardResponse); }
+service SpaceService { rpc GetProjection(ProjectionRequest) returns (SpaceResponse); }

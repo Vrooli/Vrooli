@@ -49,7 +49,7 @@
           "completion": "required",
           "ownerSkills": ["scenario-generation"],
           "validation": {
-            "requiredHeadings": ["Initialization Protocol", "Architecture Rules", "Replacing The Example Domain"],
+            "requiredHeadings": ["Initialization Protocol", "Architecture Rules", "First vertical slice"],
             "forbiddenPlaceholders": ["[TODO]"]
           }
         },

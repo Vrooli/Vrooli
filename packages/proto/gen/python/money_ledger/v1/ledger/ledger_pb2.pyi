@@ -4,12 +4,24 @@ from google.protobuf import timestamp_pb2 as _timestamp_pb2
 from buf.validate import validate_pb2 as _validate_pb2
 from money_ledger.v1.shared import ledger_types_pb2 as _ledger_types_pb2
 from google.protobuf.internal import containers as _containers
+from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
 from collections.abc import Iterable as _Iterable, Mapping as _Mapping
 from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
+
+class SustainPeriodUnit(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    SUSTAIN_PERIOD_UNIT_UNSPECIFIED: _ClassVar[SustainPeriodUnit]
+    DAY: _ClassVar[SustainPeriodUnit]
+    WEEK: _ClassVar[SustainPeriodUnit]
+    MONTH: _ClassVar[SustainPeriodUnit]
+SUSTAIN_PERIOD_UNIT_UNSPECIFIED: SustainPeriodUnit
+DAY: SustainPeriodUnit
+WEEK: SustainPeriodUnit
+MONTH: SustainPeriodUnit
 
 class Availability(_message.Message):
     __slots__ = ("adapter_id", "reason", "last_success_at")
@@ -48,7 +60,7 @@ class Account(_message.Message):
     def __init__(self, id: _Optional[str] = ..., book_id: _Optional[str] = ..., name: _Optional[str] = ..., kind: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class Goal(_message.Message):
-    __slots__ = ("id", "name", "metric", "comparator", "threshold_minor", "sustain_periods", "buffer_multiple", "book_id")
+    __slots__ = ("id", "name", "metric", "comparator", "threshold_minor", "sustain_periods", "buffer_multiple", "book_id", "threshold_ratio", "comparand_metric", "sustain_period_unit")
     ID_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     METRIC_FIELD_NUMBER: _ClassVar[int]
@@ -57,6 +69,9 @@ class Goal(_message.Message):
     SUSTAIN_PERIODS_FIELD_NUMBER: _ClassVar[int]
     BUFFER_MULTIPLE_FIELD_NUMBER: _ClassVar[int]
     BOOK_ID_FIELD_NUMBER: _ClassVar[int]
+    THRESHOLD_RATIO_FIELD_NUMBER: _ClassVar[int]
+    COMPARAND_METRIC_FIELD_NUMBER: _ClassVar[int]
+    SUSTAIN_PERIOD_UNIT_FIELD_NUMBER: _ClassVar[int]
     id: str
     name: str
     metric: str
@@ -65,21 +80,26 @@ class Goal(_message.Message):
     sustain_periods: int
     buffer_multiple: float
     book_id: str
-    def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., metric: _Optional[str] = ..., comparator: _Optional[str] = ..., threshold_minor: _Optional[int] = ..., sustain_periods: _Optional[int] = ..., buffer_multiple: _Optional[float] = ..., book_id: _Optional[str] = ...) -> None: ...
+    threshold_ratio: float
+    comparand_metric: str
+    sustain_period_unit: SustainPeriodUnit
+    def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., metric: _Optional[str] = ..., comparator: _Optional[str] = ..., threshold_minor: _Optional[int] = ..., sustain_periods: _Optional[int] = ..., buffer_multiple: _Optional[float] = ..., book_id: _Optional[str] = ..., threshold_ratio: _Optional[float] = ..., comparand_metric: _Optional[str] = ..., sustain_period_unit: _Optional[_Union[SustainPeriodUnit, str]] = ...) -> None: ...
 
 class GoalVerdict(_message.Message):
-    __slots__ = ("goal", "met", "sustained_periods", "explanation", "required_periods")
+    __slots__ = ("goal", "met", "sustained_periods", "explanation", "required_periods", "period_unit")
     GOAL_FIELD_NUMBER: _ClassVar[int]
     MET_FIELD_NUMBER: _ClassVar[int]
     SUSTAINED_PERIODS_FIELD_NUMBER: _ClassVar[int]
     EXPLANATION_FIELD_NUMBER: _ClassVar[int]
     REQUIRED_PERIODS_FIELD_NUMBER: _ClassVar[int]
+    PERIOD_UNIT_FIELD_NUMBER: _ClassVar[int]
     goal: Goal
     met: bool
     sustained_periods: int
     explanation: str
     required_periods: int
-    def __init__(self, goal: _Optional[_Union[Goal, _Mapping]] = ..., met: _Optional[bool] = ..., sustained_periods: _Optional[int] = ..., explanation: _Optional[str] = ..., required_periods: _Optional[int] = ...) -> None: ...
+    period_unit: SustainPeriodUnit
+    def __init__(self, goal: _Optional[_Union[Goal, _Mapping]] = ..., met: _Optional[bool] = ..., sustained_periods: _Optional[int] = ..., explanation: _Optional[str] = ..., required_periods: _Optional[int] = ..., period_unit: _Optional[_Union[SustainPeriodUnit, str]] = ...) -> None: ...
 
 class CreateBookRequest(_message.Message):
     __slots__ = ("name", "currency")

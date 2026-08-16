@@ -50,8 +50,7 @@ Or check the URL directly:
 vrooli scenario port prose-studio UI_PORT
 ```
 
-You should see the example UI rendering live `/health` data and a
-worked example feature pane backed by the local SQLite store.
+You should see the four Prose Studio surfaces and the live `/health` status.
 
 ## 4 — Talk to the API
 
@@ -60,7 +59,7 @@ automatically):
 
 ```bash
 prose-studio status
-prose-studio <domain> <command>   # e.g. list/create commands for your domain
+prose-studio prose generate --json
 ```
 
 Or directly via HTTP:
@@ -70,23 +69,6 @@ API_PORT=$(vrooli scenario port prose-studio API_PORT)
 curl -s "http://localhost:${API_PORT}/health"
 # Proto-typed calls hit /vrooli.prose_studio.v1.<domain>.<Service>/<Method>
 ```
-
-<!-- EXAMPLE-DOMAIN:notes START -->
-The shipped worked-example `notes` domain illustrates the full shape —
-copy it, then remove it with `template-manager detemplate`:
-
-```bash
-prose-studio notes list
-prose-studio notes create --title "First note" --body "Hello"
-```
-
-```bash
-API_PORT=$(vrooli scenario port prose-studio API_PORT)
-curl -s -X POST "http://localhost:${API_PORT}/vrooli.prose_studio.v1.notes.NotesService/ListNotes" \
-  -H 'Content-Type: application/json' \
-  -d '{}'
-```
-<!-- EXAMPLE-DOMAIN:notes END -->
 
 ## 5 — Run the tests
 
@@ -130,7 +112,7 @@ common first-time issues are:
   add code.
 - Read [`internal/TESTING.md`](internal/TESTING.md) before writing
   your first non-trivial test.
-- Update `PRD.md` with your operational targets, then add requirement
-  modules under `requirements/`.
+- Keep `PRD.md`, the requirement modules, and the declaration examples aligned
+  when the governed contract changes.
 - Append a one-line entry to [`internal/PROGRESS.md`](internal/PROGRESS.md)
   whenever you land work, so future agents can replay the lifecycle.

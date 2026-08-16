@@ -41,8 +41,17 @@ type ProjectionCoverage struct {
 	Available         bool              `protobuf:"varint,9,opt,name=available,proto3" json:"available,omitempty"`
 	UnavailableReason string            `protobuf:"bytes,10,opt,name=unavailable_reason,json=unavailableReason,proto3" json:"unavailable_reason,omitempty"`
 	ConditionCounts   []*ConditionCount `protobuf:"bytes,11,rep,name=condition_counts,json=conditionCounts,proto3" json:"condition_counts,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// Answer-only labelled pair: corpus-capable uses provider_direct evidence;
+	// end-to-end-answerable uses federated routing evidence. The legacy
+	// coverage_ratio remains the end-to-end ratio for compatibility.
+	CorpusCapableNowCount        int32    `protobuf:"varint,12,opt,name=corpus_capable_now_count,json=corpusCapableNowCount,proto3" json:"corpus_capable_now_count,omitempty"`
+	CorpusCapableTotalCells      int32    `protobuf:"varint,13,opt,name=corpus_capable_total_cells,json=corpusCapableTotalCells,proto3" json:"corpus_capable_total_cells,omitempty"`
+	CorpusCapableRatio           *float64 `protobuf:"fixed64,14,opt,name=corpus_capable_ratio,json=corpusCapableRatio,proto3,oneof" json:"corpus_capable_ratio,omitempty"`
+	EndToEndAnswerableNowCount   int32    `protobuf:"varint,15,opt,name=end_to_end_answerable_now_count,json=endToEndAnswerableNowCount,proto3" json:"end_to_end_answerable_now_count,omitempty"`
+	EndToEndAnswerableTotalCells int32    `protobuf:"varint,16,opt,name=end_to_end_answerable_total_cells,json=endToEndAnswerableTotalCells,proto3" json:"end_to_end_answerable_total_cells,omitempty"`
+	EndToEndAnswerableRatio      *float64 `protobuf:"fixed64,17,opt,name=end_to_end_answerable_ratio,json=endToEndAnswerableRatio,proto3,oneof" json:"end_to_end_answerable_ratio,omitempty"`
+	unknownFields                protoimpl.UnknownFields
+	sizeCache                    protoimpl.SizeCache
 }
 
 func (x *ProjectionCoverage) Reset() {
@@ -150,6 +159,48 @@ func (x *ProjectionCoverage) GetConditionCounts() []*ConditionCount {
 		return x.ConditionCounts
 	}
 	return nil
+}
+
+func (x *ProjectionCoverage) GetCorpusCapableNowCount() int32 {
+	if x != nil {
+		return x.CorpusCapableNowCount
+	}
+	return 0
+}
+
+func (x *ProjectionCoverage) GetCorpusCapableTotalCells() int32 {
+	if x != nil {
+		return x.CorpusCapableTotalCells
+	}
+	return 0
+}
+
+func (x *ProjectionCoverage) GetCorpusCapableRatio() float64 {
+	if x != nil && x.CorpusCapableRatio != nil {
+		return *x.CorpusCapableRatio
+	}
+	return 0
+}
+
+func (x *ProjectionCoverage) GetEndToEndAnswerableNowCount() int32 {
+	if x != nil {
+		return x.EndToEndAnswerableNowCount
+	}
+	return 0
+}
+
+func (x *ProjectionCoverage) GetEndToEndAnswerableTotalCells() int32 {
+	if x != nil {
+		return x.EndToEndAnswerableTotalCells
+	}
+	return 0
+}
+
+func (x *ProjectionCoverage) GetEndToEndAnswerableRatio() float64 {
+	if x != nil && x.EndToEndAnswerableRatio != nil {
+		return *x.EndToEndAnswerableRatio
+	}
+	return 0
 }
 
 type ConditionCount struct {
@@ -1024,7 +1075,7 @@ var File_meta_optimization_manager_v1_coverage_coverage_proto protoreflect.FileD
 
 const file_meta_optimization_manager_v1_coverage_coverage_proto_rawDesc = "" +
 	"\n" +
-	"4meta-optimization-manager/v1/coverage/coverage.proto\x12,vrooli.meta_optimization_manager.v1.coverage\x1a\x1bcommon/v1/attestation.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a/meta-optimization-manager/v1/shared/model.proto\"\x97\x05\n" +
+	"4meta-optimization-manager/v1/coverage/coverage.proto\x12,vrooli.meta_optimization_manager.v1.coverage\x1a\x1bcommon/v1/attestation.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a/meta-optimization-manager/v1/shared/model.proto\"\xce\b\n" +
 	"\x12ProjectionCoverage\x12V\n" +
 	"\n" +
 	"projection\x18\x01 \x01(\x0e26.vrooli.meta_optimization_manager.v1.shared.ProjectionR\n" +
@@ -1040,8 +1091,16 @@ const file_meta_optimization_manager_v1_coverage_coverage_proto_rawDesc = "" +
 	"\tavailable\x18\t \x01(\bR\tavailable\x12-\n" +
 	"\x12unavailable_reason\x18\n" +
 	" \x01(\tR\x11unavailableReason\x12g\n" +
-	"\x10condition_counts\x18\v \x03(\v2<.vrooli.meta_optimization_manager.v1.coverage.ConditionCountR\x0fconditionCountsB\x11\n" +
-	"\x0f_coverage_ratio\"D\n" +
+	"\x10condition_counts\x18\v \x03(\v2<.vrooli.meta_optimization_manager.v1.coverage.ConditionCountR\x0fconditionCounts\x127\n" +
+	"\x18corpus_capable_now_count\x18\f \x01(\x05R\x15corpusCapableNowCount\x12;\n" +
+	"\x1acorpus_capable_total_cells\x18\r \x01(\x05R\x17corpusCapableTotalCells\x125\n" +
+	"\x14corpus_capable_ratio\x18\x0e \x01(\x01H\x01R\x12corpusCapableRatio\x88\x01\x01\x12C\n" +
+	"\x1fend_to_end_answerable_now_count\x18\x0f \x01(\x05R\x1aendToEndAnswerableNowCount\x12G\n" +
+	"!end_to_end_answerable_total_cells\x18\x10 \x01(\x05R\x1cendToEndAnswerableTotalCells\x12A\n" +
+	"\x1bend_to_end_answerable_ratio\x18\x11 \x01(\x01H\x02R\x17endToEndAnswerableRatio\x88\x01\x01B\x11\n" +
+	"\x0f_coverage_ratioB\x17\n" +
+	"\x15_corpus_capable_ratioB\x1e\n" +
+	"\x1c_end_to_end_answerable_ratio\"D\n" +
 	"\x0eConditionCount\x12\x1c\n" +
 	"\tcondition\x18\x01 \x01(\tR\tcondition\x12\x14\n" +
 	"\x05count\x18\x02 \x01(\x05R\x05count\"\xb7\x01\n" +

@@ -130,6 +130,67 @@ func (RunEventKind) EnumDescriptor() ([]byte, []int) {
 	return file_vrooli_bridge_v1_shared_shared_proto_rawDescGZIP(), []int{1}
 }
 
+// RelayResponse is one bounded response chunk or terminal outcome for the
+// channel relay. It lives in shared because the channel envelope and the
+// presence response RPC both carry the same authenticated payload.
+type RelayResponseKind int32
+
+const (
+	RelayResponseKind_RELAY_RESPONSE_KIND_UNSPECIFIED RelayResponseKind = 0
+	RelayResponseKind_RELAY_RESPONSE_KIND_ACCEPTED    RelayResponseKind = 1
+	RelayResponseKind_RELAY_RESPONSE_KIND_DATA        RelayResponseKind = 2
+	RelayResponseKind_RELAY_RESPONSE_KIND_COMPLETED   RelayResponseKind = 3
+	RelayResponseKind_RELAY_RESPONSE_KIND_FAILED      RelayResponseKind = 4
+	RelayResponseKind_RELAY_RESPONSE_KIND_TERMINATED  RelayResponseKind = 5
+)
+
+// Enum value maps for RelayResponseKind.
+var (
+	RelayResponseKind_name = map[int32]string{
+		0: "RELAY_RESPONSE_KIND_UNSPECIFIED",
+		1: "RELAY_RESPONSE_KIND_ACCEPTED",
+		2: "RELAY_RESPONSE_KIND_DATA",
+		3: "RELAY_RESPONSE_KIND_COMPLETED",
+		4: "RELAY_RESPONSE_KIND_FAILED",
+		5: "RELAY_RESPONSE_KIND_TERMINATED",
+	}
+	RelayResponseKind_value = map[string]int32{
+		"RELAY_RESPONSE_KIND_UNSPECIFIED": 0,
+		"RELAY_RESPONSE_KIND_ACCEPTED":    1,
+		"RELAY_RESPONSE_KIND_DATA":        2,
+		"RELAY_RESPONSE_KIND_COMPLETED":   3,
+		"RELAY_RESPONSE_KIND_FAILED":      4,
+		"RELAY_RESPONSE_KIND_TERMINATED":  5,
+	}
+)
+
+func (x RelayResponseKind) Enum() *RelayResponseKind {
+	p := new(RelayResponseKind)
+	*p = x
+	return p
+}
+
+func (x RelayResponseKind) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (RelayResponseKind) Descriptor() protoreflect.EnumDescriptor {
+	return file_vrooli_bridge_v1_shared_shared_proto_enumTypes[2].Descriptor()
+}
+
+func (RelayResponseKind) Type() protoreflect.EnumType {
+	return &file_vrooli_bridge_v1_shared_shared_proto_enumTypes[2]
+}
+
+func (x RelayResponseKind) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use RelayResponseKind.Descriptor instead.
+func (RelayResponseKind) EnumDescriptor() ([]byte, []int) {
+	return file_vrooli_bridge_v1_shared_shared_proto_rawDescGZIP(), []int{2}
+}
+
 type HealthSnapshot struct {
 	state              protoimpl.MessageState `protogen:"open.v1"`
 	ToolchainPresent   bool                   `protobuf:"varint,1,opt,name=toolchain_present,json=toolchainPresent,proto3" json:"toolchain_present,omitempty"`
@@ -445,6 +506,98 @@ func (x *DeliveryAck) GetReceivedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+type RelayResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	CorrelationId string                 `protobuf:"bytes,1,opt,name=correlation_id,json=correlationId,proto3" json:"correlation_id,omitempty"`
+	Kind          RelayResponseKind      `protobuf:"varint,2,opt,name=kind,proto3,enum=vrooli.vrooli_bridge.v1.shared.RelayResponseKind" json:"kind,omitempty"`
+	Sequence      uint64                 `protobuf:"varint,3,opt,name=sequence,proto3" json:"sequence,omitempty"`
+	Data          []byte                 `protobuf:"bytes,4,opt,name=data,proto3" json:"data,omitempty"`
+	Reason        string                 `protobuf:"bytes,5,opt,name=reason,proto3" json:"reason,omitempty"`
+	ExitCode      int32                  `protobuf:"varint,6,opt,name=exit_code,json=exitCode,proto3" json:"exit_code,omitempty"`
+	TotalBytes    uint64                 `protobuf:"varint,7,opt,name=total_bytes,json=totalBytes,proto3" json:"total_bytes,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RelayResponse) Reset() {
+	*x = RelayResponse{}
+	mi := &file_vrooli_bridge_v1_shared_shared_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RelayResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RelayResponse) ProtoMessage() {}
+
+func (x *RelayResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_vrooli_bridge_v1_shared_shared_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RelayResponse.ProtoReflect.Descriptor instead.
+func (*RelayResponse) Descriptor() ([]byte, []int) {
+	return file_vrooli_bridge_v1_shared_shared_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *RelayResponse) GetCorrelationId() string {
+	if x != nil {
+		return x.CorrelationId
+	}
+	return ""
+}
+
+func (x *RelayResponse) GetKind() RelayResponseKind {
+	if x != nil {
+		return x.Kind
+	}
+	return RelayResponseKind_RELAY_RESPONSE_KIND_UNSPECIFIED
+}
+
+func (x *RelayResponse) GetSequence() uint64 {
+	if x != nil {
+		return x.Sequence
+	}
+	return 0
+}
+
+func (x *RelayResponse) GetData() []byte {
+	if x != nil {
+		return x.Data
+	}
+	return nil
+}
+
+func (x *RelayResponse) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+func (x *RelayResponse) GetExitCode() int32 {
+	if x != nil {
+		return x.ExitCode
+	}
+	return 0
+}
+
+func (x *RelayResponse) GetTotalBytes() uint64 {
+	if x != nil {
+		return x.TotalBytes
+	}
+	return 0
+}
+
 // SessionFrame is the node-facing envelope shared by the channel push and
 // presence report domains. The byte-transparent session.Frame remains owned
 // by the session contract; this envelope carries its authenticated identity
@@ -459,7 +612,7 @@ type SessionFrame struct {
 
 func (x *SessionFrame) Reset() {
 	*x = SessionFrame{}
-	mi := &file_vrooli_bridge_v1_shared_shared_proto_msgTypes[4]
+	mi := &file_vrooli_bridge_v1_shared_shared_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -471,7 +624,7 @@ func (x *SessionFrame) String() string {
 func (*SessionFrame) ProtoMessage() {}
 
 func (x *SessionFrame) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_bridge_v1_shared_shared_proto_msgTypes[4]
+	mi := &file_vrooli_bridge_v1_shared_shared_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -484,7 +637,7 @@ func (x *SessionFrame) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SessionFrame.ProtoReflect.Descriptor instead.
 func (*SessionFrame) Descriptor() ([]byte, []int) {
-	return file_vrooli_bridge_v1_shared_shared_proto_rawDescGZIP(), []int{4}
+	return file_vrooli_bridge_v1_shared_shared_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *SessionFrame) GetSessionId() string {
@@ -536,7 +689,16 @@ const file_vrooli_bridge_v1_shared_shared_proto_rawDesc = "" +
 	"\x06run_id\x18\x02 \x01(\tR\x05runId\x12\x13\n" +
 	"\x05op_id\x18\x03 \x01(\tR\x04opId\x12;\n" +
 	"\vreceived_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
-	"receivedAt\"k\n" +
+	"receivedAt\"\x89\x02\n" +
+	"\rRelayResponse\x12%\n" +
+	"\x0ecorrelation_id\x18\x01 \x01(\tR\rcorrelationId\x12E\n" +
+	"\x04kind\x18\x02 \x01(\x0e21.vrooli.vrooli_bridge.v1.shared.RelayResponseKindR\x04kind\x12\x1a\n" +
+	"\bsequence\x18\x03 \x01(\x04R\bsequence\x12\x12\n" +
+	"\x04data\x18\x04 \x01(\fR\x04data\x12\x16\n" +
+	"\x06reason\x18\x05 \x01(\tR\x06reason\x12\x1b\n" +
+	"\texit_code\x18\x06 \x01(\x05R\bexitCode\x12\x1f\n" +
+	"\vtotal_bytes\x18\a \x01(\x04R\n" +
+	"totalBytesJ\x04\b\b\x10\x10\"k\n" +
 	"\fSessionFrame\x12\x1d\n" +
 	"\n" +
 	"session_id\x18\x01 \x01(\tR\tsessionId\x12<\n" +
@@ -551,7 +713,14 @@ const file_vrooli_bridge_v1_shared_shared_proto_rawDesc = "" +
 	"\x12RUN_EVENT_KIND_LOG\x10\x01\x12\x19\n" +
 	"\x15RUN_EVENT_KIND_STATUS\x10\x02\x12\x17\n" +
 	"\x13RUN_EVENT_KIND_EXIT\x10\x03\x12\x1f\n" +
-	"\x1bRUN_EVENT_KIND_ARTIFACT_REF\x10\x04BRZPgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/shared;shared_v1b\x06proto3"
+	"\x1bRUN_EVENT_KIND_ARTIFACT_REF\x10\x04*\xdf\x01\n" +
+	"\x11RelayResponseKind\x12#\n" +
+	"\x1fRELAY_RESPONSE_KIND_UNSPECIFIED\x10\x00\x12 \n" +
+	"\x1cRELAY_RESPONSE_KIND_ACCEPTED\x10\x01\x12\x1c\n" +
+	"\x18RELAY_RESPONSE_KIND_DATA\x10\x02\x12!\n" +
+	"\x1dRELAY_RESPONSE_KIND_COMPLETED\x10\x03\x12\x1e\n" +
+	"\x1aRELAY_RESPONSE_KIND_FAILED\x10\x04\x12\"\n" +
+	"\x1eRELAY_RESPONSE_KIND_TERMINATED\x10\x05BRZPgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/shared;shared_v1b\x06proto3"
 
 var (
 	file_vrooli_bridge_v1_shared_shared_proto_rawDescOnce sync.Once
@@ -565,34 +734,37 @@ func file_vrooli_bridge_v1_shared_shared_proto_rawDescGZIP() []byte {
 	return file_vrooli_bridge_v1_shared_shared_proto_rawDescData
 }
 
-var file_vrooli_bridge_v1_shared_shared_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_vrooli_bridge_v1_shared_shared_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_vrooli_bridge_v1_shared_shared_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
+var file_vrooli_bridge_v1_shared_shared_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_vrooli_bridge_v1_shared_shared_proto_goTypes = []any{
 	(CompatibilityStatus)(0),      // 0: vrooli.vrooli_bridge.v1.shared.CompatibilityStatus
 	(RunEventKind)(0),             // 1: vrooli.vrooli_bridge.v1.shared.RunEventKind
-	(*HealthSnapshot)(nil),        // 2: vrooli.vrooli_bridge.v1.shared.HealthSnapshot
-	(*Heartbeat)(nil),             // 3: vrooli.vrooli_bridge.v1.shared.Heartbeat
-	(*RunEvent)(nil),              // 4: vrooli.vrooli_bridge.v1.shared.RunEvent
-	(*DeliveryAck)(nil),           // 5: vrooli.vrooli_bridge.v1.shared.DeliveryAck
-	(*SessionFrame)(nil),          // 6: vrooli.vrooli_bridge.v1.shared.SessionFrame
-	nil,                           // 7: vrooli.vrooli_bridge.v1.shared.HealthSnapshot.DetailsEntry
-	(*timestamppb.Timestamp)(nil), // 8: google.protobuf.Timestamp
-	(*session.Frame)(nil),         // 9: vrooli.vrooli_bridge.v1.session.Frame
+	(RelayResponseKind)(0),        // 2: vrooli.vrooli_bridge.v1.shared.RelayResponseKind
+	(*HealthSnapshot)(nil),        // 3: vrooli.vrooli_bridge.v1.shared.HealthSnapshot
+	(*Heartbeat)(nil),             // 4: vrooli.vrooli_bridge.v1.shared.Heartbeat
+	(*RunEvent)(nil),              // 5: vrooli.vrooli_bridge.v1.shared.RunEvent
+	(*DeliveryAck)(nil),           // 6: vrooli.vrooli_bridge.v1.shared.DeliveryAck
+	(*RelayResponse)(nil),         // 7: vrooli.vrooli_bridge.v1.shared.RelayResponse
+	(*SessionFrame)(nil),          // 8: vrooli.vrooli_bridge.v1.shared.SessionFrame
+	nil,                           // 9: vrooli.vrooli_bridge.v1.shared.HealthSnapshot.DetailsEntry
+	(*timestamppb.Timestamp)(nil), // 10: google.protobuf.Timestamp
+	(*session.Frame)(nil),         // 11: vrooli.vrooli_bridge.v1.session.Frame
 }
 var file_vrooli_bridge_v1_shared_shared_proto_depIdxs = []int32{
-	7, // 0: vrooli.vrooli_bridge.v1.shared.HealthSnapshot.details:type_name -> vrooli.vrooli_bridge.v1.shared.HealthSnapshot.DetailsEntry
-	8, // 1: vrooli.vrooli_bridge.v1.shared.HealthSnapshot.reported_at:type_name -> google.protobuf.Timestamp
-	2, // 2: vrooli.vrooli_bridge.v1.shared.Heartbeat.health:type_name -> vrooli.vrooli_bridge.v1.shared.HealthSnapshot
-	8, // 3: vrooli.vrooli_bridge.v1.shared.Heartbeat.sent_at:type_name -> google.protobuf.Timestamp
-	1, // 4: vrooli.vrooli_bridge.v1.shared.RunEvent.kind:type_name -> vrooli.vrooli_bridge.v1.shared.RunEventKind
-	8, // 5: vrooli.vrooli_bridge.v1.shared.RunEvent.emitted_at:type_name -> google.protobuf.Timestamp
-	8, // 6: vrooli.vrooli_bridge.v1.shared.DeliveryAck.received_at:type_name -> google.protobuf.Timestamp
-	9, // 7: vrooli.vrooli_bridge.v1.shared.SessionFrame.frame:type_name -> vrooli.vrooli_bridge.v1.session.Frame
-	8, // [8:8] is the sub-list for method output_type
-	8, // [8:8] is the sub-list for method input_type
-	8, // [8:8] is the sub-list for extension type_name
-	8, // [8:8] is the sub-list for extension extendee
-	0, // [0:8] is the sub-list for field type_name
+	9,  // 0: vrooli.vrooli_bridge.v1.shared.HealthSnapshot.details:type_name -> vrooli.vrooli_bridge.v1.shared.HealthSnapshot.DetailsEntry
+	10, // 1: vrooli.vrooli_bridge.v1.shared.HealthSnapshot.reported_at:type_name -> google.protobuf.Timestamp
+	3,  // 2: vrooli.vrooli_bridge.v1.shared.Heartbeat.health:type_name -> vrooli.vrooli_bridge.v1.shared.HealthSnapshot
+	10, // 3: vrooli.vrooli_bridge.v1.shared.Heartbeat.sent_at:type_name -> google.protobuf.Timestamp
+	1,  // 4: vrooli.vrooli_bridge.v1.shared.RunEvent.kind:type_name -> vrooli.vrooli_bridge.v1.shared.RunEventKind
+	10, // 5: vrooli.vrooli_bridge.v1.shared.RunEvent.emitted_at:type_name -> google.protobuf.Timestamp
+	10, // 6: vrooli.vrooli_bridge.v1.shared.DeliveryAck.received_at:type_name -> google.protobuf.Timestamp
+	2,  // 7: vrooli.vrooli_bridge.v1.shared.RelayResponse.kind:type_name -> vrooli.vrooli_bridge.v1.shared.RelayResponseKind
+	11, // 8: vrooli.vrooli_bridge.v1.shared.SessionFrame.frame:type_name -> vrooli.vrooli_bridge.v1.session.Frame
+	9,  // [9:9] is the sub-list for method output_type
+	9,  // [9:9] is the sub-list for method input_type
+	9,  // [9:9] is the sub-list for extension type_name
+	9,  // [9:9] is the sub-list for extension extendee
+	0,  // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_vrooli_bridge_v1_shared_shared_proto_init() }
@@ -605,8 +777,8 @@ func file_vrooli_bridge_v1_shared_shared_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_vrooli_bridge_v1_shared_shared_proto_rawDesc), len(file_vrooli_bridge_v1_shared_shared_proto_rawDesc)),
-			NumEnums:      2,
-			NumMessages:   6,
+			NumEnums:      3,
+			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

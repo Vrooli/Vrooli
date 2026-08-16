@@ -320,16 +320,24 @@ class RunGateRequest(_message.Message):
     def __init__(self, gate: _Optional[str] = ...) -> None: ...
 
 class GateFinding(_message.Message):
-    __slots__ = ("code", "message", "asset_id", "severity")
+    __slots__ = ("code", "message", "asset_id", "severity", "file", "line", "remediation", "docs_ref")
     CODE_FIELD_NUMBER: _ClassVar[int]
     MESSAGE_FIELD_NUMBER: _ClassVar[int]
     ASSET_ID_FIELD_NUMBER: _ClassVar[int]
     SEVERITY_FIELD_NUMBER: _ClassVar[int]
+    FILE_FIELD_NUMBER: _ClassVar[int]
+    LINE_FIELD_NUMBER: _ClassVar[int]
+    REMEDIATION_FIELD_NUMBER: _ClassVar[int]
+    DOCS_REF_FIELD_NUMBER: _ClassVar[int]
     code: str
     message: str
     asset_id: str
     severity: str
-    def __init__(self, code: _Optional[str] = ..., message: _Optional[str] = ..., asset_id: _Optional[str] = ..., severity: _Optional[str] = ...) -> None: ...
+    file: str
+    line: int
+    remediation: str
+    docs_ref: str
+    def __init__(self, code: _Optional[str] = ..., message: _Optional[str] = ..., asset_id: _Optional[str] = ..., severity: _Optional[str] = ..., file: _Optional[str] = ..., line: _Optional[int] = ..., remediation: _Optional[str] = ..., docs_ref: _Optional[str] = ...) -> None: ...
 
 class RunGateResponse(_message.Message):
     __slots__ = ("gate", "findings", "inspected_files")

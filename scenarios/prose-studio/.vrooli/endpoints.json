@@ -45,216 +45,92 @@
       }
     },
     {
-      "id": "capabilities_describe",
-      "path": "/api/v1/capabilities/describe",
-      "method": "GET",
-      "summary": "Describe declared scenario dependencies and their current recovery actions.",
-      "category": "capabilities"
+      "id": "prose_registry",
+      "path": "/vrooli.prose_studio.v1.prose.ProseStudioService/Registry",
+      "method": "POST",
+      "summary": "List governed sampler, policy, metric, and transform kinds",
+      "description": "",
+      "category": "prose"
     },
     {
-      "id": "notes_list",
-      "path": "/vrooli.prose_studio.v1.notes.NotesService/ListNotes",
+      "id": "prose_create_style",
+      "path": "/vrooli.prose_studio.v1.prose.ProseStudioService/CreateStyle",
       "method": "POST",
-      "summary": "List notes",
-      "description": "Returns up to 100 notes ordered newest-first by created_at through the generated Connect-RPC Notes service.",
-      "category": "notes",
-      "response": {
-        "type": "object",
-        "properties": {
-          "notes": "array<Note>"
-        }
-      },
-      "errors": [
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "Repository read failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "List notes",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.prose_studio.v1.notes.NotesService/ListNotes -H 'Content-Type: application/json' -d '{}'"
-        }
-      ]
+      "summary": "Create a versioned writing style",
+      "description": "",
+      "category": "styles"
     },
     {
-      "id": "notes_create",
-      "path": "/vrooli.prose_studio.v1.notes.NotesService/CreateNote",
+      "id": "prose_resolve_profile",
+      "path": "/vrooli.prose_studio.v1.prose.ProseStudioService/ResolveProfile",
       "method": "POST",
-      "summary": "Create a note",
-      "description": "Persists a new note. Title is required and validated by notes.Service; body is optional.",
-      "category": "notes",
-      "request": {
-        "type": "object",
-        "properties": {
-          "body": "string",
-          "title": "string (required, non-whitespace)"
-        }
-      },
-      "response": {
-        "type": "object",
-        "properties": {
-          "note": "Note"
-        }
-      },
-      "errors": [
-        {
-          "status": 400,
-          "code": "invalid_argument",
-          "description": "Missing or whitespace-only title"
-        },
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "Repository write failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "Create note",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.prose_studio.v1.notes.NotesService/CreateNote -H 'Content-Type: application/json' -d '{\"title\":\"first\",\"body\":\"hello\"}'"
-        }
-      ]
+      "summary": "Resolve a profile and inspect its exact instruction",
+      "description": "",
+      "category": "profiles"
     },
     {
-      "id": "notes_get",
-      "path": "/vrooli.prose_studio.v1.notes.NotesService/GetNote",
+      "id": "prose_generate",
+      "path": "/vrooli.prose_studio.v1.prose.ProseStudioService/Generate",
       "method": "POST",
-      "summary": "Get a note by id",
-      "description": "Returns the note matching the request id through the generated Connect-RPC Notes service.",
-      "category": "notes",
-      "request": {
-        "type": "object",
-        "properties": {
-          "id": "string"
-        }
-      },
-      "response": {
-        "type": "object",
-        "properties": {
-          "note": "Note"
-        }
-      },
-      "errors": [
-        {
-          "status": 404,
-          "code": "not_found",
-          "description": "No note with that id exists"
-        },
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "Repository read failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "Get note",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.prose_studio.v1.notes.NotesService/GetNote -H 'Content-Type: application/json' -d '{\"id\":\"abc123\"}'"
-        }
-      ]
+      "summary": "Generate and measure a candidate set through ai-gateway",
+      "description": "",
+      "category": "generation"
     },
     {
-      "id": "notes_count",
-      "path": "/vrooli.prose_studio.v1.notes.NotesService/CountNotes",
+      "id": "prose_reroll",
+      "path": "/vrooli.prose_studio.v1.prose.ProseStudioService/Reroll",
       "method": "POST",
-      "summary": "Count notes in a time window",
-      "description": "Counts notes created within the requested canonical time window. Bound to the `notes count` measure (read-only, run-eligible) so search-hub can answer analytical questions like \"how many notes were created this week\".",
-      "category": "notes",
-      "request": {
-        "type": "object",
-        "properties": {
-          "window": "TimeWindow (vrooli.measures.v1; e.g. {\"token\":\"TIME_WINDOW_TOKEN_THIS_WEEK\"})"
-        }
-      },
-      "response": {
-        "type": "object",
-        "properties": {
-          "count": "int64 (notes created in the window)"
-        }
-      },
-      "errors": [
-        {
-          "status": 400,
-          "code": "invalid_argument",
-          "description": "Unresolvable or malformed time window"
-        },
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "Repository read failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "Count this week",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.prose_studio.v1.notes.NotesService/CountNotes -H 'Content-Type: application/json' -d '{\"window\":{\"token\":\"TIME_WINDOW_TOKEN_THIS_WEEK\"}}'"
-        }
-      ]
+      "summary": "Reroll a session with pinned and rejected context",
+      "description": "",
+      "category": "sessions"
     },
     {
-      "id": "notes_attach",
-      "path": "/api/v1/notes/{id}/attachments",
+      "id": "prose_session_action",
+      "path": "/vrooli.prose_studio.v1.prose.ProseStudioService/SessionAction",
       "method": "POST",
-      "summary": "Upload a note attachment",
-      "description": "Uploads opaque file bytes through the documented REST multipart exception and returns proto-typed attachment metadata.",
-      "category": "notes",
-      "request": {
-        "type": "multipart/form-data",
-        "properties": {
-          "file": "file (required)"
-        }
-      },
-      "response": {
-        "type": "UploadAttachmentResponse",
-        "properties": {
-          "attachment": "Attachment"
-        }
-      },
-      "errors": [
-        {
-          "status": 400,
-          "code": "invalid_request",
-          "description": "Missing file or invalid multipart upload"
-        },
-        {
-          "status": 404,
-          "code": "not_found",
-          "description": "No note with that id exists"
-        },
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "BlobStore or metadata persistence failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "Attach file",
-          "curl": "curl -X POST http://localhost:${API_PORT}/api/v1/notes/abc123/attachments -F file=@./example.png"
-        }
-      ],
-      "rest_exception": {
-        "reason": "multipart_upload",
-        "note": "Multipart/form-data request transport cannot be expressed in proto. The response payload is still the proto-typed UploadAttachmentResponse message.",
-        "proto_payloads": {
-          "request": {
-            "transport": "multipart/form-data",
-            "conformance": "transport_only"
-          },
-          "response": {
-            "proto_full_name": "vrooli.prose_studio.v1.notes.UploadAttachmentResponse",
-            "transport": "json",
-            "conformance": "protojson"
-          },
-          "error": {
-            "proto_full_name": "vrooli.prose_studio.v1.shared.ErrorEnvelope",
-            "transport": "json",
-            "conformance": "protojson"
-          }
-        }
-      }
+      "summary": "Pin, unpin, reject, refine, or abandon a session",
+      "description": "",
+      "category": "sessions"
+    },
+    {
+      "id": "prose_reindex_declarations",
+      "path": "/vrooli.prose_studio.v1.prose.ProseStudioService/ReindexDeclarations",
+      "method": "POST",
+      "summary": "Register consumer-owned declaration files",
+      "description": "",
+      "category": "declarations"
+    },
+    {
+      "id": "prose_validate_declarations",
+      "path": "/vrooli.prose_studio.v1.prose.ProseStudioService/ValidateDeclarations",
+      "method": "POST",
+      "summary": "Validate declarations without test-genie",
+      "description": "",
+      "category": "declarations"
+    },
+    {
+      "id": "prose_create_document",
+      "path": "/vrooli.prose_studio.v1.prose.ProseStudioService/CreateDocument",
+      "method": "POST",
+      "summary": "Create a section-composed document",
+      "description": "",
+      "category": "documents"
+    },
+    {
+      "id": "prose_assemble_document",
+      "path": "/vrooli.prose_studio.v1.prose.ProseStudioService/AssembleDocument",
+      "method": "POST",
+      "summary": "Assemble committed sections to ordered text",
+      "description": "",
+      "category": "documents"
+    },
+    {
+      "id": "prose_conformance",
+      "path": "/vrooli.prose_studio.v1.prose.ProseStudioService/Conformance",
+      "method": "POST",
+      "summary": "Report style targets and lexicon spans",
+      "description": "",
+      "category": "styles"
     }
   ]
 }
