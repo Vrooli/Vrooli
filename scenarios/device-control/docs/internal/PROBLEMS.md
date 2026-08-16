@@ -49,6 +49,30 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 ## Entries
 
+### 2026-08-15 — Physical Android proof requires a configured unlock profile
+
+**Symptom:** The Galaxy A03s is discoverable and accepts device-control
+operations, but the conformance `observe` step reports
+`visible surface unavailable` while the phone remains locked.
+
+**Root cause:** Android credential unlock is intentionally authority-backed.
+The prior stored profiles were revoked by an explicit cleanup operation, not
+by device loss or an Android failure. A new active profile is now provisioned
+and verified for the Galaxy A03s; its credential remains authority-held.
+
+**Workaround:** Set `ANDROID_AUTH_PROFILE_ID` to the active profile id when
+running the physical Android matrix. The journey invokes device-control's
+profile-backed unlock endpoint and verifies the postcondition before install.
+Do not treat wake-only or keyguard-visible recordings as product-surface proof.
+
+**Real fix:** Keep the profile active and rotate it through the credential
+authority when the device PIN changes. The conformance flow now supports this
+profile-backed unlock path without receiving the secret.
+
+**Owner:** Device owner / device-control authority owner.
+
+**Refs:** `api/internal/control/auth_service.go`, `api/strategy/androidadb/androidadb.go`, Android delivery ramp phase 10.
+
 ### 2026-08-13 — Galaxy A03s native screenrecord can capture a black display body
 
 **Symptom:** `adb screenrecord` can return a valid H.264/MP4 file while the
@@ -79,6 +103,24 @@ as native.
 **Refs:** `api/internal/evidence/recording.go`,
 `api/strategy/androidadb/androidadb.go`,
 `DVC-P0-012`, live flow `8f60f7cb-57c2-4739-ae88-eb3074035fb4`.
+
+### 2026-08-16 — Evidence redaction painted a false quarter-screen bar
+
+**Symptom:** Android screenshots and review recordings showed a large black
+band across the top of the portrait frame. The raw stored evidence already
+contained the band, so the web-console viewer was not the source of the issue.
+
+**Root cause:** `internal/evidence/redact.go` treated notification protection as
+a fixed top-quarter paint operation for every image and video. The policy did
+not first establish that an expanded notification surface existed.
+
+**Fix:** The producer now masks only the status-bar band by default. Detected
+or caller-supplied sensitive regions remain supported and are masked in
+addition to that band. A regression test proves portrait content below the
+status bar remains visible.
+
+**Refs:** `api/internal/evidence/redact.go`,
+`api/internal/evidence/redact_test.go`, user evidence from 2026-08-16.
 
 ### 2026-08-10 — Experience floor errors are inherited from the template shell
 
@@ -120,33 +162,6 @@ the capture environment rather than a confirmed CSS defect.
 
 ---
 
-### 2026-08-10 — `ai-gateway` visual-understanding route (resolved)
-
-**Symptom:** The `vision` resolution rung was blocked while `ai-gateway`
-accepted only text-oriented inference requests.
-
-**Resolution:** ai-gateway now accepts image attachments on the
-provider-neutral inference contract and exposes the `locate.visual` role.
-device-control calls that role through the generated Connect client and
-normalizes the result into flow evidence.
-
-**Unavailable behavior:** A missing route returns typed
-`vision_route_unavailable` evidence. If a caller has an existing visual
-anchor, the resolver may fall back to that lower rung. **Do not** add a
-direct provider client — that is the coupling `browser-automation-studio`
-already has in `playwright-driver/src/ai/vision-client/`, and taking it a
-second time would make the gateway boundary fictional (`D-005`).
-
-**Evidence:** Unit fixtures cover normalized responses, fallback, typed
-unavailability, and caller-owned downscaling. The live flow proof is recorded
-in the multimodal inference plan log.
-
-**Owner:** ai-gateway owns the inference route; device-control owns the
-caller contract and ladder behavior.
-
-**Refs:** `DECISIONS.md` `D-005`, `../concepts/INTEGRATIONS.md`,
-`SECURITY.md` (Security Gaps), `DVC-P0-007`.
-
 ## Architecture Drift
 
 Use this section for deferred findings from `screaming-architecture-audit`.
@@ -157,13 +172,6 @@ a migration handoff with a planned retirement path back into
 | Area | Drift | Maturity Impact | Real Fix |
 |---|---|---|---|
 | _None yet._ |  |  |  |
-
-## Resolved during the strategy-floor implementation
-
-The original redaction-policy, iOS-mirror non-promotability, and synthesized
-recording-threshold findings are resolved by `docs/concepts/REDACTION.md`, the
-producer-side `internal/evidence` verifier, the structural `evidence_class`
-and `promotable` strategy fields, and the 5 FPS usefulness threshold.
 
 ## Work ladder
 
@@ -181,9 +189,9 @@ and `promotable` strategy fields, and the 5 FPS usefulness threshold.
 
 ## Android physical conformance status
 
-- 2026-08-12: The scenario now exposes a provider-neutral, twelve-chapter Android physical conformance plan and emits a `common.v1.TargetVerdict` with `DEVICE_KIND_PHYSICAL`, evidence references, and a serial-bearing detail string. The API and CLI fail closed with `unavailable` when the fixture APK is absent.
-- `fixtures/hello-mobile.contract.json` records the shared fixture contract, and `scenario-to-android/fixtures/hello-mobile` now contains the buildable platform-only source project. The generated debug APK is intentionally ignored rather than committed; a build on 2026-08-12 produced the declared package `com.vrooli.hello.mobile`, but that artifact has not yet been installed on a physical device.
-- The conformance gate remains open until the fixture and two physical Android devices are available for the required chapter execution.
+- 2026-08-12: The scenario exposed a provider-neutral, twelve-chapter Android physical conformance plan and emitted a `common.v1.TargetVerdict` with `DEVICE_KIND_PHYSICAL`, evidence references, and a serial-bearing detail string. The API and CLI fail closed with `unavailable` when the fixture APK is absent.
+- Superseding evidence on 2026-08-15: final governed matrix run `run-b556ab488cfe12f571be7379` built package `com.vrooli.hellomobile` at target API 36, used the active profile-backed unlock path, installed and drove the physical Galaxy A03s, and retained a 181.88s decoded review recording, logcat, and start/end clock evidence. The `offline_transition` chapter is typed unavailable because the target lacks `network-control`; the required-cell gate therefore remains closed.
+- The conformance gate remains open until network control is implemented or the chapter is explicitly excluded from the required physical profile. All other executable chapters completed on hardware.
 - Targeted validation is green: API/CLI Go suites, UI 36-file/145-test suite, type-check, lint, managed build/restart, JSON/endpoint generation, the hello-mobile APK build/package inspection, and requirement structure validation. Comprehensive Test Genie evidence is currently degraded: run `20260812-183608-51052a99` found the initial undeclared CLI commands, run `20260812-184226-7d007c1d` found and exposed manifest schema errors, and run `20260812-185005-fbd1e28e` aborted because its legacy runner predates canonical terminal snapshots. These are recorded as infrastructure/contract findings, not treated as passing baseline evidence.
 
 ### 2026-08-12 — Cross-platform honesty and wireless seams implemented

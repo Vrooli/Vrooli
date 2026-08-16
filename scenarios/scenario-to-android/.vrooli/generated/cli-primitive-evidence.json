@@ -4,67 +4,103 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "scenario-to-android",
   "generator": "v1.0.0",
-  "manifest_hash": "bca9b240cb7b76be434da7e7c57c9eca6ee8dadc41830fe583d132b874e0fccc",
+  "manifest_hash": "4057fcc3dbfb17ece5b0ff0c86ec63777a62f2aaf4e11a07ce54b3948f2f7863",
   "commands": [
     {
       "path": "android build",
       "group": "android",
-      "command": "build"
+      "command": "build",
+      "binding": "."
+    },
+    {
+      "path": "android compare",
+      "group": "android",
+      "command": "compare",
+      "binding": "."
     },
     {
       "path": "android conformance-plan",
       "group": "android",
-      "command": "conformance-plan"
+      "command": "conformance-plan",
+      "binding": "."
     },
     {
       "path": "android distribution",
       "group": "android",
-      "command": "distribution"
+      "command": "distribution",
+      "binding": "."
     },
     {
       "path": "android evidence-paths",
       "group": "android",
-      "command": "evidence-paths"
+      "command": "evidence-paths",
+      "binding": "."
+    },
+    {
+      "path": "android generate",
+      "group": "android",
+      "command": "generate",
+      "binding": "."
     },
     {
       "path": "android matrix-catalog",
       "group": "android",
-      "command": "matrix-catalog"
+      "command": "matrix-catalog",
+      "binding": "."
     },
     {
       "path": "android matrix-create",
       "group": "android",
-      "command": "matrix-create"
+      "command": "matrix-create",
+      "binding": "."
     },
     {
       "path": "android matrix-list",
       "group": "android",
-      "command": "matrix-list"
+      "command": "matrix-list",
+      "binding": "."
     },
     {
       "path": "android matrix-rerun-failed",
       "group": "android",
-      "command": "matrix-rerun-failed"
+      "command": "matrix-rerun-failed",
+      "binding": "."
     },
     {
       "path": "android matrix-start",
       "group": "android",
-      "command": "matrix-start"
+      "command": "matrix-start",
+      "binding": "."
     },
     {
       "path": "android matrix-wait",
       "group": "android",
-      "command": "matrix-wait"
+      "command": "matrix-wait",
+      "binding": "."
     },
     {
       "path": "android readiness",
       "group": "android",
-      "command": "readiness"
+      "command": "readiness",
+      "binding": "."
+    },
+    {
+      "path": "android run",
+      "group": "android",
+      "command": "run",
+      "binding": "."
+    },
+    {
+      "path": "android signing-provision",
+      "group": "android",
+      "command": "signing-provision",
+      "binding": "."
     },
     {
       "path": "android targets",
       "group": "android",
-      "command": "targets"
+      "command": "targets",
+      "binding": "."
     }
   ]
 }

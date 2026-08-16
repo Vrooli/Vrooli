@@ -16,6 +16,7 @@ type Device struct {
 	Name         string                `json:"name"`
 	Kind         string                `json:"kind"`
 	Serial       string                `json:"serial,omitempty"`
+	Endpoint     string                `json:"endpoint,omitempty"`
 	Model        string                `json:"model,omitempty"`
 	OSVersion    string                `json:"os_version,omitempty"`
 	StrategyID   string                `json:"strategy_id"`
@@ -33,7 +34,7 @@ type Device struct {
 func deviceFromRecord(record devicedomain.Record) Device {
 	capabilities := make([]strategy.Capability, len(record.Capabilities))
 	copy(capabilities, record.Capabilities)
-	return Device{ID: record.ID, Name: record.Name, Kind: record.Kind, Serial: record.Serial, Model: record.Model, OSVersion: record.OSVersion, StrategyID: record.StrategyID, Status: record.Status, Health: record.Health, HealthReason: record.HealthReason, HostNodeID: record.HostNodeID, Transport: record.Transport, Capabilities: capabilities, ObservedAt: record.ObservedAt, FirstSeenAt: record.FirstSeenAt, LastSeenAt: record.LastSeenAt}
+	return Device{ID: record.ID, Name: record.Name, Kind: record.Kind, Serial: record.Serial, Endpoint: record.Endpoint, Model: record.Model, OSVersion: record.OSVersion, StrategyID: record.StrategyID, Status: record.Status, Health: record.Health, HealthReason: record.HealthReason, HostNodeID: record.HostNodeID, Transport: record.Transport, Capabilities: capabilities, ObservedAt: record.ObservedAt, FirstSeenAt: record.FirstSeenAt, LastSeenAt: record.LastSeenAt}
 }
 
 type (

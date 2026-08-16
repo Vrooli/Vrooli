@@ -19,8 +19,10 @@ type unlockRunner struct {
 }
 
 type restorationRunner struct {
-	locked bool
-	calls  []string
+	locked          bool
+	lockProbeCount  int
+	lockAfterProbes int
+	calls           []string
 }
 
 type failingUnlockRunner struct {
@@ -41,7 +43,9 @@ func (r *restorationRunner) Run(_ context.Context, name string, args ...string) 
 		r.locked = true
 	}
 	if strings.Contains(call, "dumpsys window") {
-		return []byte("mShowingLockscreen=" + strconv.FormatBool(r.locked)), nil
+		r.lockProbeCount++
+		locked := r.locked && r.lockProbeCount > r.lockAfterProbes
+		return []byte("mShowingLockscreen=" + strconv.FormatBool(locked)), nil
 	}
 	return nil, nil
 }
@@ -135,5 +139,16 @@ func TestRestoreStateReLocksDeviceThatStartedLocked(t *testing.T) {
 	err := adapter.RestoreState(context.Background(), strategy.DeviceState{LockState: "locked", Orientation: "portrait"})
 	require.NoError(t, err)
 	require.True(t, runner.locked)
+	require.Contains(t, strings.Join(runner.calls, "\n"), "KEYCODE_POWER")
+}
+
+func TestRestoreStateWaitsForAsynchronousKeyguardTransition(t *testing.T) {
+	runner := &restorationRunner{lockAfterProbes: 2}
+	adapter := NewWithRunner(runner, "serial-1")
+
+	err := adapter.RestoreState(context.Background(), strategy.DeviceState{LockState: "locked", Orientation: "portrait"})
+
+	require.NoError(t, err)
+	require.GreaterOrEqual(t, runner.lockProbeCount, 3)
 	require.Contains(t, strings.Join(runner.calls, "\n"), "KEYCODE_POWER")
 }

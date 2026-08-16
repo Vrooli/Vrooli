@@ -50,41 +50,6 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 ## Entries
 
-### 2026-08-10 — [Resolved] The `android-sdk` resource did not exist
-
-**Symptom:** `S2A-P0-006` depends on a governed `android-sdk` resource for SDK, platform-tools, emulator, and system images. No such resource exists in the repository, so `.vrooli/service.json` declares `dependencies.resources` as empty rather than naming a resource that lifecycle resolution would fail to find.
-
-**Root cause:** The resource was identified during design but has not been created. Probed on this host on 2026-08-10: `adb`, `emulator`, and `sdkmanager` are all absent; JDK 17.0.19 and `ffmpeg` are present; `/dev/kvm` exists and is writable by the owner's user.
-
-**Workaround:** The `targets` domain probes for the toolchain and reports `unavailable` with the acquisition next action. Nothing silently assumes a working SDK.
-
-**Real fix:** Create the `android-sdk` resource and declare it in `.vrooli/service.json`, replacing the `resources_rationale` note.
-
-**Owner:** unassigned.
-
-**Refs:** `docs/concepts/INTEGRATIONS.md`, `.vrooli/service.json`, `S2A-P0-006`.
-
-**Resolution (2026-08-13):** `resources/android-sdk` now installs the declared
-SDK components and owns AVD lifecycle. The scenario declares the resource and
-the resource-backed AVD was created and booted successfully on this host.
-
-### 2026-08-10 — [Resolved] The `hello-mobile` conformance fixture did not exist
-
-**Symptom:** `S2A-P0-012` requires the ramp to be provable end to end without depending on any product scenario's correctness. `hello-desktop` fills that role for the desktop ramp; there is no mobile equivalent.
-
-**Root cause:** Not yet built. It is shared with `scenario-to-ios`, so neither ramp owns it and it can fall between them.
-
-**Workaround:** None. Until it exists, conformance can only be exercised against a product scenario, which conflates two failure sources.
-
-**Real fix:** Create `hello-mobile` as a minimal self-contained fixture, mirroring `hello-desktop`'s shape and bundle metadata.
-
-**Owner:** unassigned — needs an explicit owner precisely because it is shared.
-
-**Refs:** `scenarios/hello-desktop/`, `S2A-P0-012`.
-
-**Resolution (2026-08-13):** `scenarios/hello-mobile` now supplies the
-deterministic UI bundle, selectors, BAS flow, and focused fixture tests.
-
 ### 2026-08-10 — Capture redaction policy is a cross-scenario gap
 
 **Symptom:** `S2A-P0-010` requires verified redaction before a capture is referenced in a verdict. The policy that states what is redacted, and who may view an unredacted capture, does not exist.

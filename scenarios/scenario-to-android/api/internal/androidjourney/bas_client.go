@@ -51,6 +51,9 @@ func (c HTTPBASClient) Execute(ctx context.Context, request BASRequest) (BASResu
 	if strings.TrimSpace(c.BaseURL) == "" {
 		return BASResult{}, fmt.Errorf("BAS URL is not configured")
 	}
+	if strings.TrimSpace(request.RendererURL) == "" {
+		return BASResult{}, fmt.Errorf("Android WebView renderer URL is not configured")
+	}
 	httpClient := c.Client
 	if httpClient == nil {
 		client := c.HTTP
@@ -64,7 +67,7 @@ func (c HTTPBASClient) Execute(ctx context.Context, request BASRequest) (BASResu
 		FlowDefinition:    flow,
 		WaitForCompletion: true,
 		Metadata:          &basexecution.ExecutionMetadata{Name: request.StepID, Description: "scenario-to-android Android WebView conformance"},
-		Options:           &basexecution.ExecuteWorkflowOptions{AppTarget: &basexecution.AppTarget{TargetKind: "android-webview", TargetId: request.TargetID, CdpEndpoint: request.CDPEndpoint, RendererId: request.RendererID, RendererUrl: "http://localhost/", ScenarioName: request.Scenario, ArtifactDigest: request.Artifact.ImmutableRef, ContextId: request.RunID, CdpTransport: "loopback-authenticated"}, ValidationContext: &basexecution.ValidationContext{ContextId: request.RunID, ScenarioName: request.Scenario, ArtifactDigest: request.Artifact.ImmutableRef, TargetId: request.TargetID, WorkflowId: request.RunID, IsolationLeaseId: request.IsolationLeaseID}},
+		Options:           &basexecution.ExecuteWorkflowOptions{AppTarget: &basexecution.AppTarget{TargetKind: "android-webview", TargetId: request.TargetID, CdpEndpoint: request.CDPEndpoint, RendererId: request.RendererID, RendererUrl: request.RendererURL, ScenarioName: request.Scenario, ArtifactDigest: request.Artifact.ImmutableRef, ContextId: request.RunID, CdpTransport: "loopback-authenticated"}, ValidationContext: &basexecution.ValidationContext{ContextId: request.RunID, ScenarioName: request.Scenario, ArtifactDigest: request.Artifact.ImmutableRef, TargetId: request.TargetID, WorkflowId: request.RunID, IsolationLeaseId: request.IsolationLeaseID}},
 	}))
 	if err != nil {
 		return BASResult{}, fmt.Errorf("execute BAS Android WebView flow: %w", err)

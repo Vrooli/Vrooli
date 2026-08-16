@@ -81,6 +81,7 @@ portable core of the flow vocabulary.
 | `device.record` | — *(see exception below)* | ✅ |
 | `device.install` | `app-lifecycle` | — |
 | `device.launch` | `app-lifecycle` | — |
+| `device.share` | `app-lifecycle` | — |
 | `device.stop` | `app-lifecycle` | — |
 | `device.uninstall` | `app-lifecycle` | — |
 | `device.permission` | `permission-control` | — |

@@ -12,6 +12,7 @@ import (
 
 type Record struct {
 	ID, Name, Kind, Serial, Model, OSVersion, StrategyID string
+	Endpoint                                             string
 	Status, Health, HealthReason, HostNodeID, Transport  string
 	Capabilities                                         []strategy.Capability
 	FirstSeenAt, LastSeenAt                              time.Time
@@ -28,6 +29,41 @@ func NewStore() *Store { return &Store{records: map[string]Record{}} }
 func (s *Store) Upsert(record Record) Record {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	now := record.ObservedAt
+	if now.IsZero() {
+		now = time.Now().UTC()
+	}
+	old, existed := s.records[record.ID]
+	if !existed || old.FirstSeenAt.IsZero() {
+		record.FirstSeenAt = now
+	} else {
+		record.FirstSeenAt = old.FirstSeenAt
+	}
+	record.LastSeenAt = now
+	record.ObservedAt = now
+	if len(record.Capabilities) == 0 {
+		record.Capabilities = old.Capabilities
+	}
+	s.records[record.ID] = clone(record)
+	return clone(record)
+}
+
+// UpsertIdentity writes a device under its hardware identity and removes
+// stale endpoint-keyed rows for the same physical target. A transport address
+// is deliberately treated as an alias, never as a second device.
+func (s *Store) UpsertIdentity(record Record) Record {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if record.Kind == "physical" && record.Serial != "" {
+		for id, existing := range s.records {
+			if id == record.ID || existing.Kind != "physical" {
+				continue
+			}
+			if existing.Serial == record.Serial || (record.Endpoint != "" && existing.Serial == record.Endpoint) {
+				delete(s.records, id)
+			}
+		}
+	}
 	now := record.ObservedAt
 	if now.IsZero() {
 		now = time.Now().UTC()

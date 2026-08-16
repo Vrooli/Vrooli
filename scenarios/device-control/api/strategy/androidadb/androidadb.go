@@ -89,12 +89,16 @@ type activeRecording struct {
 	process        Process
 	path           string
 	priorStayAwake bool
+	priorTimeout   string
+	priorDoze      bool
 	keepAliveStop  chan struct{}
 	keepAliveDone  chan struct{}
 	screenshotStop chan struct{}
 	screenshotDone chan struct{}
 	screenshots    *recordingScreenshots
 }
+
+const recordingScreenOffTimeout = "1800000"
 
 type recordingScreenshots struct {
 	mu     sync.Mutex
@@ -110,10 +114,11 @@ type Adapter struct {
 	recordingMu    sync.Mutex
 	recordings     map[string]activeRecording
 	rendererID     func(context.Context, string) (string, error)
+	rendererTarget func(context.Context, string) (string, string, error)
 }
 
 func newAdapter(runner Runner, serial string) *Adapter {
-	return &Adapter{runner: runner, serial: serial, identitySerial: serial, transport: transportForSerial(serial), recordings: map[string]activeRecording{}, rendererID: discoverWebViewRendererID}
+	return &Adapter{runner: runner, serial: serial, identitySerial: serial, transport: transportForSerial(serial), recordings: map[string]activeRecording{}, rendererTarget: discoverWebViewRenderer}
 }
 
 func New() *Adapter {
@@ -127,7 +132,7 @@ func NewWithRunner(r Runner, serial string) *Adapter {
 
 func (a *Adapter) ForDevice(serial string) strategy.Strategy {
 	serial = strings.TrimSpace(serial)
-	return &Adapter{runner: a.runner, serial: serial, identitySerial: serial, transport: transportForSerial(serial), recordings: map[string]activeRecording{}, rendererID: a.rendererID}
+	return &Adapter{runner: a.runner, serial: serial, identitySerial: serial, transport: transportForSerial(serial), recordings: map[string]activeRecording{}, rendererID: a.rendererID, rendererTarget: a.rendererTarget}
 }
 
 // RestoreWireless rebuilds an endpoint-bound adapter after the control
@@ -139,7 +144,7 @@ func (a *Adapter) RestoreWireless(endpoint string) strategy.Strategy {
 	if identity == "" {
 		identity = a.serial
 	}
-	return &Adapter{runner: a.runner, serial: identity, identitySerial: identity, endpoint: strings.TrimSpace(endpoint), transport: "wireless", recordings: map[string]activeRecording{}, rendererID: a.rendererID}
+	return &Adapter{runner: a.runner, serial: identity, identitySerial: identity, endpoint: strings.TrimSpace(endpoint), transport: "wireless", recordings: map[string]activeRecording{}, rendererID: a.rendererID, rendererTarget: a.rendererTarget}
 }
 
 func (a *Adapter) StartRecording(_ context.Context, class strategy.ClaimClass) (strategy.RecordingHandle, error) {
@@ -156,22 +161,33 @@ func (a *Adapter) StartRecording(_ context.Context, class strategy.ClaimClass) (
 	if err != nil {
 		return strategy.RecordingHandle{}, fmt.Errorf("read display keep-awake state: %w", err)
 	}
+	priorTimeout, err := a.readScreenOffTimeout(context.Background())
+	if err != nil {
+		return strategy.RecordingHandle{}, fmt.Errorf("read screen-off timeout: %w", err)
+	}
+	priorDoze, err := a.readDozeEnabled(context.Background())
+	if err != nil {
+		return strategy.RecordingHandle{}, fmt.Errorf("read doze state: %w", err)
+	}
 	if err := a.setStayAwake(context.Background(), true); err != nil {
 		return strategy.RecordingHandle{}, fmt.Errorf("keep display awake for recording: %w", err)
 	}
-	// Do not depend on an interactive PTY to deliver Ctrl-C. Some Android 13
-	// images accept the PTY command but leave a zero-byte file when the local
-	// adb wrapper is interrupted. A bounded native segment is allowed to close
-	// naturally; StopRecording waits for that trailer instead of publishing an
-	// incomplete file. The segment is short enough to keep stop bounded while
-	// remaining well below Android's three-minute screenrecord ceiling.
-	process, err := processRunner.Start("adb", append(a.args("shell", "screenrecord", "--time-limit", "30", "--bit-rate", "1000000", path))...)
+	if err := a.setDisplayRetention(context.Background(), recordingScreenOffTimeout, false); err != nil {
+		_ = a.setStayAwake(context.Background(), priorStayAwake)
+		return strategy.RecordingHandle{}, fmt.Errorf("retain display for recording: %w", err)
+	}
+	// Each caller-owned recording is chapter-scoped, so the native encoder has
+	// no artificial thirty-second ceiling. StopRecording sends the encoder its
+	// normal trailer signal before reading the artifact.
+	process, err := processRunner.Start("adb", a.args("shell", "screenrecord", "--bit-rate", "1000000", path)...)
 	if err != nil {
 		_ = a.setStayAwake(context.Background(), priorStayAwake)
+		_ = a.setDisplayRetention(context.Background(), priorTimeout, priorDoze)
 		return strategy.RecordingHandle{}, fmt.Errorf("start adb screenrecord: %w", err)
 	}
 	if err := process.Start(); err != nil {
 		_ = a.setStayAwake(context.Background(), priorStayAwake)
+		_ = a.setDisplayRetention(context.Background(), priorTimeout, priorDoze)
 		return strategy.RecordingHandle{}, fmt.Errorf("start screenrecord process: %w", err)
 	}
 	handle := strategy.RecordingHandle{ID: id, ClaimClass: class, StartedAt: time.Now().UTC()}
@@ -183,7 +199,7 @@ func (a *Adapter) StartRecording(_ context.Context, class strategy.ClaimClass) (
 	screenshots := &recordingScreenshots{}
 	go a.captureDisplaySamples(screenshotStop, screenshotDone, screenshots)
 	a.recordingMu.Lock()
-	a.recordings[id] = activeRecording{handle: handle, process: process, path: path, priorStayAwake: priorStayAwake, keepAliveStop: keepAliveStop, keepAliveDone: keepAliveDone, screenshotStop: screenshotStop, screenshotDone: screenshotDone, screenshots: screenshots}
+	a.recordings[id] = activeRecording{handle: handle, process: process, path: path, priorStayAwake: priorStayAwake, priorTimeout: priorTimeout, priorDoze: priorDoze, keepAliveStop: keepAliveStop, keepAliveDone: keepAliveDone, screenshotStop: screenshotStop, screenshotDone: screenshotDone, screenshots: screenshots}
 	a.recordingMu.Unlock()
 	return handle, nil
 }
@@ -211,10 +227,22 @@ func (a *Adapter) StopRecording(ctx context.Context, handle strategy.RecordingHa
 				retErr = errors.Join(retErr, restoreErr)
 			}
 		}
+		if err := a.setDisplayRetention(context.Background(), active.priorTimeout, active.priorDoze); err != nil {
+			restoreErr := fmt.Errorf("restore display retention: %w", err)
+			if retErr == nil {
+				retErr = restoreErr
+			} else {
+				retErr = errors.Join(retErr, restoreErr)
+			}
+		}
 	}()
-	// The recording was started with a bounded native segment. Let screenrecord
-	// close its MP4 trailer naturally; interrupting the host adb transport can
-	// leave the remote encoder with a zero-byte or otherwise unverifiable file.
+	// Ctrl-C sent to the local adb client is not consistently forwarded by
+	// Samsung's wireless transport. Signal the remote encoder first, then
+	// interrupt the host wrapper so the MP4 trailer is closed promptly.
+	_, _ = a.runner.Run(ctx, "adb", a.args("shell", "pkill", "-INT", "screenrecord")...)
+	if err := active.process.Interrupt(); err != nil {
+		_ = active.process.Kill()
+	}
 	wait := make(chan error, 1)
 	go func() { wait <- active.process.Wait() }()
 	var waitErr error
@@ -222,7 +250,7 @@ func (a *Adapter) StopRecording(ctx context.Context, handle strategy.RecordingHa
 	case waitErr = <-wait:
 	case <-ctx.Done():
 		_ = active.process.Kill()
-		waitErr = <-wait
+		<-wait
 		return strategy.RecordingArtifact{}, fmt.Errorf("stop screenrecord %q exceeded deadline: %w", handle.ID, ctx.Err())
 	}
 	if waitErr != nil {
@@ -273,18 +301,58 @@ func (a *Adapter) setStayAwake(ctx context.Context, enabled bool) error {
 	return err
 }
 
-// keepDisplayAwake refreshes Android's user-activity timer while a native
-// recording is active. Some Samsung Android images impose a short
-// WindowManager timeout even when the normal screen-off setting is long and
-// `svc power stayon` is enabled. KEYCODE_WAKEUP is non-visual when the
-// display is already awake, but it still refreshes the timer and wakes a
-// display that has just entered doze.
+func (a *Adapter) readScreenOffTimeout(ctx context.Context) (string, error) {
+	out, err := a.runner.Run(ctx, "adb", a.args("shell", "settings", "get", "system", "screen_off_timeout")...)
+	if err != nil || strings.TrimSpace(string(out)) == "" {
+		if err == nil {
+			err = errors.New("setting was empty")
+		}
+		return "", err
+	}
+	return strings.TrimSpace(string(out)), nil
+}
+
+func (a *Adapter) readDozeEnabled(ctx context.Context) (bool, error) {
+	out, err := a.runner.Run(ctx, "adb", a.args("shell", "dumpsys", "deviceidle")...)
+	if err != nil {
+		return false, err
+	}
+	text := string(out)
+	for _, key := range []string{"mDeepEnabled", "mLightEnabled"} {
+		if match := regexp.MustCompile(key + `=(true|false)`).FindStringSubmatch(text); len(match) == 2 {
+			return match[1] == "true", nil
+		}
+	}
+	return false, errors.New("dumpsys deviceidle did not report an enabled state")
+}
+
+func (a *Adapter) setDisplayRetention(ctx context.Context, timeout string, dozeEnabled bool) error {
+	if strings.TrimSpace(timeout) == "" {
+		return errors.New("screen-off timeout is empty")
+	}
+	if _, err := a.runner.Run(ctx, "adb", a.args("shell", "settings", "put", "system", "screen_off_timeout", timeout)...); err != nil {
+		return err
+	}
+	return a.setDoze(ctx, dozeEnabled)
+}
+
+func (a *Adapter) setDoze(ctx context.Context, enabled bool) error {
+	command := "disable"
+	if enabled {
+		command = "enable"
+	}
+	_, err := a.runner.Run(ctx, "adb", a.args("shell", "dumpsys", "deviceidle", command)...)
+	return err
+}
+
+// keepDisplayAwake refreshes the non-input stay-awake setting while a native
+// recording is active. Recording must never inject an unobserved input event.
 func (a *Adapter) keepDisplayAwake(stop <-chan struct{}, done chan<- struct{}) {
 	defer close(done)
 	touch := func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		_, _ = a.runner.Run(ctx, "adb", a.args("shell", "input", "keyevent", "224")...)
+		_ = a.setStayAwake(ctx, true)
 	}
 	touch()
 	ticker := time.NewTicker(1500 * time.Millisecond)
@@ -468,6 +536,10 @@ func (a *Adapter) ReconnectWireless(ctx context.Context) error {
 			lastErr = fmt.Errorf("connect wireless endpoint: %w", err)
 			continue
 		}
+		if err := a.waitForDevice(ctx, endpoint); err != nil {
+			lastErr = err
+			continue
+		}
 		if err := a.verifyWirelessEndpoint(ctx, endpoint); err != nil {
 			lastErr = err
 			continue
@@ -480,6 +552,18 @@ func (a *Adapter) ReconnectWireless(ctx context.Context) error {
 		return lastErr
 	}
 	return fmt.Errorf("no wireless ADB endpoint was discovered for the onboarded device")
+}
+
+func (a *Adapter) waitForDevice(ctx context.Context, endpoint string) error {
+	waitCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	if _, err := a.runner.Run(waitCtx, "adb", "-s", endpoint, "wait-for-device"); err != nil {
+		if errors.Is(waitCtx.Err(), context.DeadlineExceeded) {
+			return fmt.Errorf("wireless_reconnect_timeout: wait-for-device timed out for %s", endpoint)
+		}
+		return fmt.Errorf("wireless_reconnect_wait_failed: wait-for-device for %s: %w", endpoint, err)
+	}
+	return nil
 }
 
 func (a *Adapter) verifyWirelessEndpoint(ctx context.Context, endpoint string) error {
@@ -508,10 +592,12 @@ func wirelessEndpoints(output string) []string {
 	seen := make(map[string]bool)
 	for _, line := range strings.Split(output, "\n") {
 		fields := strings.Fields(strings.TrimSpace(line))
-		if len(fields) < 2 || !strings.Contains(fields[0], "_adb-tls-connect._tcp") {
-			continue
+		endpoint := ""
+		if len(fields) >= 3 && fields[1] == "_adb-tls-connect._tcp" {
+			endpoint = strings.TrimSpace(fields[2])
+		} else if len(fields) >= 2 && strings.Contains(fields[0], "_adb-tls-connect._tcp") {
+			endpoint = strings.TrimSpace(fields[1])
 		}
-		endpoint := strings.TrimSpace(fields[1])
 		if strings.Contains(endpoint, ":") && !seen[endpoint] {
 			seen[endpoint] = true
 			endpoints = append(endpoints, endpoint)
@@ -647,15 +733,23 @@ func (a *Adapter) AttachWebView(ctx context.Context, packageName string) (strate
 		return strategy.WebViewEndpoint{}, err
 	}
 	cdpEndpoint := fmt.Sprintf("http://127.0.0.1:%d", port)
-	readRendererID := a.rendererID
-	if readRendererID == nil {
-		readRendererID = discoverWebViewRendererID
+	var rendererID, rendererURL string
+	if a.rendererID != nil {
+		rendererID, err = a.rendererID(ctx, cdpEndpoint)
+	} else {
+		readRenderer := a.rendererTarget
+		if readRenderer == nil {
+			readRenderer = discoverWebViewRenderer
+		}
+		rendererID, rendererURL, err = readRenderer(ctx, cdpEndpoint)
 	}
-	rendererID, err := readRendererID(ctx, cdpEndpoint)
 	if err != nil {
 		return strategy.WebViewEndpoint{}, fmt.Errorf("discover WebView renderer for %q: %w", packageName, err)
 	}
-	return strategy.WebViewEndpoint{Package: packageName, Socket: socket, CDPEndpoint: cdpEndpoint, RendererID: rendererID, Transport: "adb-forward"}, nil
+	if strings.TrimSpace(rendererID) == "" || (a.rendererID == nil && strings.TrimSpace(rendererURL) == "") {
+		return strategy.WebViewEndpoint{}, fmt.Errorf("discover WebView renderer for %q returned incomplete identity", packageName)
+	}
+	return strategy.WebViewEndpoint{Package: packageName, Socket: socket, CDPEndpoint: cdpEndpoint, RendererID: rendererID, RendererURL: rendererURL, Transport: "adb-forward"}, nil
 }
 
 func (a *Adapter) webViewSocket(ctx context.Context, packageName string) (string, error) {
@@ -692,32 +786,41 @@ func (a *Adapter) webViewSocket(ctx context.Context, packageName string) (string
 }
 
 func discoverWebViewRendererID(ctx context.Context, endpoint string) (string, error) {
+	rendererID, _, err := discoverWebViewRenderer(ctx, endpoint)
+	return rendererID, err
+}
+
+func discoverWebViewRenderer(ctx context.Context, endpoint string) (string, string, error) {
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, strings.TrimRight(endpoint, "/")+"/json/list", nil)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	client := &http.Client{Timeout: 5 * time.Second}
 	response, err := client.Do(request)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	defer response.Body.Close()
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
-		return "", fmt.Errorf("CDP target listing returned %s", response.Status)
+		return "", "", fmt.Errorf("CDP target listing returned %s", response.Status)
 	}
 	var targets []struct {
 		ID   string `json:"id"`
 		Type string `json:"type"`
+		URL  string `json:"url"`
 	}
 	if err := json.NewDecoder(response.Body).Decode(&targets); err != nil {
-		return "", fmt.Errorf("decode CDP target listing: %w", err)
+		return "", "", fmt.Errorf("decode CDP target listing: %w", err)
 	}
 	for _, target := range targets {
 		if strings.EqualFold(target.Type, "page") && strings.TrimSpace(target.ID) != "" {
-			return strings.TrimSpace(target.ID), nil
+			if strings.TrimSpace(target.URL) == "" {
+				return "", "", fmt.Errorf("CDP page renderer %q omitted its URL", target.ID)
+			}
+			return strings.TrimSpace(target.ID), strings.TrimSpace(target.URL), nil
 		}
 	}
-	return "", fmt.Errorf("CDP target listing contained no page renderer")
+	return "", "", fmt.Errorf("CDP target listing contained no page renderer")
 }
 
 func webViewSocketForPID(data []byte, pid string) (string, error) {
@@ -771,6 +874,14 @@ func (a *Adapter) args(args ...string) []string {
 		return append([]string{"-s", selector}, args...)
 	}
 	return args
+}
+
+// shellQuote preserves spaces and shell metacharacters when adb serializes
+// arguments after the `shell` boundary. Intent string extras are user content
+// and must remain one remote argument rather than becoming an accidental
+// package or component token.
+func shellQuote(value string) string {
+	return "'" + strings.ReplaceAll(value, "'", "'\\''") + "'"
 }
 
 func (a *Adapter) connected(ctx context.Context) (bool, string) {
@@ -850,6 +961,26 @@ func (a *Adapter) Enumerate(ctx context.Context) ([]strategy.Device, error) {
 		default:
 			health, reason = strategy.HealthUnreachable, "device state is "+state
 		}
+		endpoint := serial
+		if state == "device" && strings.Contains(serial, ":") && !strings.HasPrefix(strings.ToLower(serial), "emulator-") {
+			selector := serial
+			if a.endpoint != "" && serial == a.endpoint {
+				selector = a.endpoint
+			}
+			resolved, resolveErr := a.runner.Run(ctx, "adb", "-s", selector, "shell", "getprop", "ro.serialno")
+			if resolveErr != nil || strings.TrimSpace(string(resolved)) == "" {
+				if a.identitySerial == "" || selector != a.endpoint {
+					// Do not mint a durable identity from a transport endpoint.
+					continue
+				}
+				identitySerial = a.identitySerial
+			} else {
+				identitySerial = strings.TrimSpace(string(resolved))
+			}
+		}
+		if a.endpoint != "" && serial == a.endpoint && a.identitySerial != "" {
+			identitySerial = a.identitySerial
+		}
 		digest := sha256.Sum256([]byte(identitySerial))
 		osVersion := ""
 		if state == "device" {
@@ -861,7 +992,7 @@ func (a *Adapter) Enumerate(ctx context.Context) ([]strategy.Device, error) {
 				osVersion = strings.TrimSpace(string(version))
 			}
 		}
-		devices = append(devices, strategy.Device{ID: "android-" + hex.EncodeToString(digest[:8]), Serial: identitySerial, Model: model, OSVersion: osVersion, StrategyID: a.ID(), Transport: transportForSerial(serial), Health: health, HealthReason: reason, ObservedAt: now})
+		devices = append(devices, strategy.Device{ID: "android-" + hex.EncodeToString(digest[:8]), Serial: identitySerial, Endpoint: endpoint, Model: model, OSVersion: osVersion, StrategyID: a.ID(), Transport: transportForSerial(serial), Health: health, HealthReason: reason, ObservedAt: now})
 	}
 	return devices, nil
 }
@@ -1149,10 +1280,7 @@ func (a *Adapter) RestoreState(ctx context.Context, state strategy.DeviceState) 
 			if _, err := a.runner.Run(ctx, "adb", a.args("shell", "input", "keyevent", "KEYCODE_POWER")...); err != nil {
 				return fmt.Errorf("restore locked keyguard: %w", err)
 			}
-			if err := waitForUnlockSettle(ctx, 750*time.Millisecond); err != nil {
-				return fmt.Errorf("settle restored keyguard: %w", err)
-			}
-			current, err = a.lockState(ctx)
+			current, err = a.waitForLockState(ctx, "locked", 5*time.Second)
 			if err != nil {
 				return fmt.Errorf("verify restored keyguard: %w", err)
 			}
@@ -1162,6 +1290,44 @@ func (a *Adapter) RestoreState(ctx context.Context, state strategy.DeviceState) 
 		}
 	}
 	return nil
+}
+
+// waitForLockState accounts for the asynchronous transition after a power
+// key. Android can report the old keyguard state for several probes while the
+// display and policy services settle. The deadline keeps teardown fail-closed
+// without turning a transient vendor delay into a false run failure.
+func (a *Adapter) waitForLockState(ctx context.Context, want string, timeout time.Duration) (string, error) {
+	if timeout <= 0 {
+		return "unknown", errors.New("keyguard confirmation timeout must be positive")
+	}
+	deadline := time.Now().Add(timeout)
+	var last string
+	var lastErr error
+	for {
+		current, err := a.lockState(ctx)
+		if err == nil {
+			last = current
+			lastErr = nil
+			if current == want {
+				return current, nil
+			}
+		} else {
+			lastErr = err
+		}
+		if time.Now().After(deadline) {
+			if lastErr != nil {
+				return last, fmt.Errorf("keyguard remained unconfirmed: %w", lastErr)
+			}
+			return last, fmt.Errorf("restored keyguard state is %q, want %q", last, want)
+		}
+		timer := time.NewTimer(150 * time.Millisecond)
+		select {
+		case <-timer.C:
+		case <-ctx.Done():
+			timer.Stop()
+			return last, ctx.Err()
+		}
+	}
 }
 
 func boolSetting(value bool) string {
@@ -1343,6 +1509,13 @@ func (a *Adapter) Actuate(ctx context.Context, event strategy.Actuation) error {
 			}
 			args = []string{"shell", "input", "swipe", strconv.Itoa(x), strconv.Itoa(y), strconv.Itoa(finalEndX), strconv.Itoa(finalEndY), strconv.Itoa(maxInt(event.Pointer.DurationMS, 300))}
 		}
+		if event.Pointer.Kind == "double-tap" {
+			if _, err = a.runner.Run(ctx, "adb", a.args(args...)...); err != nil {
+				return err
+			}
+			_, err = a.runner.Run(ctx, "adb", a.args(args...)...)
+			return err
+		}
 		_, err = a.runner.Run(ctx, "adb", a.args(args...)...)
 		return err
 	}
@@ -1499,6 +1672,18 @@ func (a *Adapter) Actuate(ctx context.Context, event strategy.Actuation) error {
 			if event.Package != "" {
 				args = append(args, "-p", event.Package)
 			}
+		case "share":
+			if strings.TrimSpace(event.Value) == "" {
+				return fmt.Errorf("share action requires text")
+			}
+			args = append(args, "shell", "am", "start", "-a", "android.intent.action.SEND", "-c", "android.intent.category.DEFAULT", "-t", "text/plain")
+			if event.Package != "" {
+				args = append(args, "-p", event.Package)
+			}
+			// Keep the package restriction before the string extra. Android's
+			// ActivityTaskManager shell parser can otherwise consume the first
+			// word of a multi-word extra as the package value.
+			args = append(args, "--es", "android.intent.extra.TEXT", shellQuote(event.Value))
 		case "semantic-target":
 			return fmt.Errorf("semantic-target is resolver-scoped; execute it through the flow resolver")
 		case "semantic-assert":
@@ -1556,10 +1741,25 @@ func (a *Adapter) Actuate(ctx context.Context, event strategy.Actuation) error {
 				if pidErr != nil || strings.TrimSpace(string(pid)) == "" {
 					return fmt.Errorf("device logs: package %q is not running", event.Package)
 				}
-				args = append(args, "logcat", "-d", "-v", "brief", "--pid", strings.TrimSpace(string(pid)))
+				args = append(args, "logcat", "-d", "-v", "epoch", "--pid", strings.TrimSpace(string(pid)))
 			} else {
-				args = append(args, "logcat", "-d", "-v", "brief")
+				args = append(args, "logcat", "-d", "-v", "epoch")
 			}
+		case "logcat-start":
+			args = append(args, "logcat", "-c")
+		case "logcat-stop":
+			args = append(args, "logcat", "-d", "-v", "epoch")
+		case "clock-sample":
+			args = append(args, "shell", "date", "+%s.%N")
+		case "screenshot":
+			args = append(args, "exec-out", "screencap", "-p")
+		case "clipboard-read":
+			args = append(args, "shell", "cmd", "clipboard", "get")
+		case "clipboard-write":
+			if event.Value == "" {
+				return fmt.Errorf("clipboard-write requires text")
+			}
+			args = append(args, "shell", "cmd", "clipboard", "set", event.Value)
 		case "screenrecord":
 			return fmt.Errorf("screenrecord is session-scoped; use recording-start and recording-stop")
 		default:
@@ -1569,7 +1769,7 @@ func (a *Adapter) Actuate(ctx context.Context, event strategy.Actuation) error {
 		if err != nil && len(out) > 0 {
 			return fmt.Errorf("adb %s: %w: %s", event.Action, err, strings.TrimSpace(string(out)))
 		}
-		if err == nil && event.Output != nil && event.Action == "device-logs" {
+		if err == nil && event.Output != nil && (event.Action == "device-logs" || event.Action == "logcat-stop" || event.Action == "clock-sample" || event.Action == "screenshot" || event.Action == "clipboard-read") {
 			*event.Output = out
 		}
 		return err
@@ -1655,17 +1855,6 @@ func findSemanticNode(tree []byte, target string) (map[string]string, error) {
 		return values, nil
 	}
 	return nil, fmt.Errorf("accessibility target %q was not found in the view hierarchy", target)
-}
-
-// resolveSemanticTarget resolves a stable Android accessibility identifier and
-// returns the center of its bounds. The XML is device-owned input; only the
-// four numeric bounds are carried into the bounded input verb.
-func resolveSemanticTarget(tree []byte, target string) (int, int, error) {
-	values, err := findSemanticNode(tree, target)
-	if err != nil {
-		return 0, 0, err
-	}
-	return semanticBounds(values, target)
 }
 
 func semanticBounds(values map[string]string, target string) (int, int, error) {

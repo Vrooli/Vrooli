@@ -51,6 +51,7 @@ func (c HTTPWebViewAttacher) AttachWebView(ctx context.Context, lease Lease, pac
 		Endpoint struct {
 			CDPEndpoint string `json:"cdp_endpoint"`
 			RendererID  string `json:"renderer_id"`
+			RendererURL string `json:"renderer_url"`
 		} `json:"endpoint"`
 	}
 	if err := json.NewDecoder(response.Body).Decode(&result); err != nil {
@@ -62,7 +63,10 @@ func (c HTTPWebViewAttacher) AttachWebView(ctx context.Context, lease Lease, pac
 	if strings.TrimSpace(result.Endpoint.RendererID) == "" {
 		return WebViewAttachment{}, fmt.Errorf("device-control WebView response omitted renderer_id")
 	}
-	return WebViewAttachment{CDPEndpoint: result.Endpoint.CDPEndpoint, RendererID: result.Endpoint.RendererID}, nil
+	if strings.TrimSpace(result.Endpoint.RendererURL) == "" {
+		return WebViewAttachment{}, fmt.Errorf("device-control WebView response omitted renderer_url")
+	}
+	return WebViewAttachment{CDPEndpoint: result.Endpoint.CDPEndpoint, RendererID: result.Endpoint.RendererID, RendererURL: result.Endpoint.RendererURL}, nil
 }
 
 func urlPathSegment(value string) string {

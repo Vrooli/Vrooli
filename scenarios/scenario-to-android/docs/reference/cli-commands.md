@@ -1,10 +1,10 @@
 # CLI Commands — Scenario to Android
 
-The scenario CLI is a thin Go wrapper over the API. Every command
-calls a single API endpoint and renders the result; there is no
-business logic in the CLI. If a command needs to make a decision the
-API doesn't expose, the correct fix is to add the API endpoint —
-**not** to compute it locally.
+The scenario CLI is a thin Go wrapper over the API. Most commands call a
+single API endpoint and render the result; the documented `android run`
+workflow is the deliberate orchestration exception that composes the
+server-owned build and validation-matrix lifecycle. The CLI does not own
+journey or device business logic.
 
 The CLI binary is built from `cli/`, installed by `make setup` to
 `~/.vrooli/bin/scenario-to-android`, and rebuilt automatically when its
@@ -57,11 +57,13 @@ The manifest's `governance` block (`effect`, `run_eligible`,
 to derive action certainty automatically; scenarios that adopt the
 manifest don't need hand-classified action-safety lists.
 
-`binding.kind` is currently `connect-rpc` only. REST-exception
-commands (for example, a multipart file-upload command whose request
-body carries opaque bytes) are appended to the loaded group outside the
-manifest path in the domain's `register.go` and documented in the
-manifest's `omitted[]` array.
+`binding.kind` is normally `connect-rpc`. A command may use the explicit
+`local` kind when it is a governed REST/durable-operation wrapper whose
+surface is intentionally hand-registered (the Android ramp uses this for
+target probing, artifact generation, and matrix lifecycle operations).
+REST-exception commands that are not suitable for either manifest binding
+are appended to the loaded group outside the manifest path in the domain's
+`register.go` and documented in the manifest's `omitted[]` array.
 
 For environment-variable precedence and CLI config-file shape, see
 [`configuration.md`](configuration.md).
@@ -147,16 +149,41 @@ The `android` group is the complete operator surface for target discovery,
 artifact creation, readiness, distribution, and durable validation runs:
 
 ```text
-targets · build · conformance-plan · readiness · distribution
-matrix-catalog · matrix-list · matrix-create · matrix-start
-matrix-wait · matrix-rerun-failed · evidence-paths
+targets · generate · build · signing-provision · conformance-plan · readiness · distribution
+matrix-catalog · matrix-list · matrix-create · matrix-start · matrix-wait
+compare · matrix-rerun-failed · evidence-paths · run
 ```
 
-`android build` reads `ANDROID_SOURCE_REF` and optional artifact settings from
-the environment, then calls `/api/v1/android/build`. Matrix lifecycle commands
-use `ANDROID_MATRIX_RUN_ID`; `matrix-create` uses
-`ANDROID_ARTIFACT_DIGEST`. `evidence-paths` refuses relative paths so the two
+`android generate` and `android build` read `ANDROID_SOURCE_REF` and optional
+artifact settings from the environment, then call `/api/v1/android/generate`
+or `/api/v1/android/build`. Matrix lifecycle commands use
+`ANDROID_MATRIX_RUN_ID`; `compare` additionally uses
+`ANDROID_PRIOR_MATRIX_RUN_ID`; `matrix-create` uses `ANDROID_ARTIFACT_DIGEST`.
+`evidence-paths` refuses relative paths so the two
 reviewable recording locations are always unambiguous.
+
+`android run` is the end-to-end operator command. It builds the requested
+source, uses the returned artifact path and checksum to create a normal-profile
+matrix for one available physical target, starts the server-owned run, waits for
+its terminal result, and returns the matrix report. This keeps the real-device
+proof independent of an unavailable local emulator; use `matrix-create` for the
+full catalog. It defaults the matrix scenario to `hello-mobile` when
+`ANDROID_ARTIFACT_SCENARIO` is unset and selects the sole available physical
+target unless `ANDROID_TARGET_ID` is supplied. It requires
+`ANDROID_SOURCE_REF`; the optional artifact environment variables are the same
+ones accepted by `android build`.
+
+`android signing-provision` generates an upload key with the governed `keytool`
+and stores its keystore, password, and alias through `secrets-manager`; it never
+prints key material. Set `ANDROID_SIGNING=required` for `android build` to
+produce release APK/AAB outputs. A missing or partially configured identity
+fails closed and names the signing rung instead of falling back to a local key.
+
+When a matrix cell completes a chaptered journey, its durable `report` object
+may include `review_recording_path`. This is an absolute, producer-owned path
+to the retained concatenated review copy for local operator inspection. It is
+intentionally separate from the reference-only evidence URI, which never
+contains a filesystem path or capture bytes.
 
 **`--json` is an output contract, never an operation selector.** Declare each
 command's `architecture.primitive` in the manifest (`proto_list` /

@@ -77,7 +77,11 @@ minimum is `degraded`, never silently treated as passed. Before publication,
 the producer also decodes a bounded sample outside the status/navigation bands
 and rejects a uniformly near-black body. A valid MP4 container is not proof
 that the device surface was captured. Device state changes are owned by the
-lease and restored in reverse order when a session ends.
+lease and restored in reverse order when a session ends. Android keyguard
+restoration uses a bounded confirmation window because the power transition is
+asynchronous. Android `share` dispatches a text SEND intent, optionally scoped
+to a package; multi-word text is shell-quoted at the ADB boundary, and an
+unscoped dispatch may be observed through the platform resolver.
 
 ## Flow Details
 

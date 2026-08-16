@@ -32,3 +32,14 @@ func TestStoreForgetRemovesOnlyExplicitlyRequestedIdentity(t *testing.T) {
 	require.True(t, found)
 	require.False(t, store.Forget("android-a"))
 }
+
+func TestStoreUpsertIdentityRemovesEndpointAlias(t *testing.T) {
+	store := NewStore()
+	store.Upsert(Record{ID: "android-old", Kind: "physical", Serial: "192.168.1.179:34483"})
+	got := store.UpsertIdentity(Record{ID: "android-stable", Kind: "physical", Serial: "R9TT608Q6MH", Endpoint: "192.168.1.179:34483"})
+	require.Equal(t, "android-stable", got.ID)
+	_, found := store.Get("android-old")
+	require.False(t, found)
+	_, found = store.Get("android-stable")
+	require.True(t, found)
+}

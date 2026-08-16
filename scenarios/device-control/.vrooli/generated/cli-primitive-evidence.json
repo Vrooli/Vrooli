@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "device-control",
   "generator": "v1.0.0",
-  "manifest_hash": "7f92fb6c7373d406a7ddabe93df9740921cfe39a732f8e7aa48e7a05a0eff909",
+  "manifest_hash": "68583b7ec19a0a3076161b5af12e162366f408dfb15473f0901f75fa26983c48",
   "commands": [
     {
       "path": "agent abort",

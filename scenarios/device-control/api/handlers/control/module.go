@@ -49,6 +49,7 @@ func Module(s *internal.Service) module.Module {
 		r.HandleFunc("/api/v1/sessions/{id}/validate", h.validateLease).Methods(http.MethodPost)
 		r.HandleFunc("/api/v1/recordings/start", h.startExternalRecording).Methods(http.MethodPost)
 		r.HandleFunc("/api/v1/recordings/stop", h.stopExternalRecording).Methods(http.MethodPost)
+		r.HandleFunc("/api/v1/recordings/concat", h.concatRecordings).Methods(http.MethodPost)
 		r.HandleFunc("/api/v1/flows/validate", h.validateFlow).Methods(http.MethodPost)
 		r.HandleFunc("/api/v1/flows/run", h.runFlow).Methods(http.MethodPost)
 		r.HandleFunc("/api/v1/flows/{id}/export", h.exportFlow).Methods(http.MethodGet)
@@ -178,8 +179,14 @@ func (h *handler) connectDevice(w http.ResponseWriter, r *http.Request) {
 	}
 	rungs := h.service.OnboardingLive(r.Context(), in.Kind)
 	next := ""
+	wirelessReady := false
 	for _, v := range rungs {
-		if v["status"] != "available" {
+		if v["id"] == "wireless-adb" && v["status"] == "available" {
+			wirelessReady = true
+		}
+	}
+	for _, v := range rungs {
+		if v["status"] != "available" && !(wirelessReady && v["id"] == "usb-bus") {
 			next = v["next_action"]
 			break
 		}
@@ -236,6 +243,13 @@ type externalRecordingRequest struct {
 	HandleID   string `json:"handle_id,omitempty"`
 }
 
+type reviewRecordingRequest struct {
+	DeviceID     string   `json:"device_id"`
+	Actor        string   `json:"actor"`
+	LeaseToken   string   `json:"lease_token"`
+	ReferenceIDs []string `json:"reference_ids"`
+}
+
 func (h *handler) startExternalRecording(w http.ResponseWriter, r *http.Request) {
 	var in externalRecordingRequest
 	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
@@ -257,6 +271,20 @@ func (h *handler) stopExternalRecording(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	result, err := h.service.StopExternalRecording(r.Context(), in.DeviceID, in.Actor, in.LeaseToken, in.HandleID)
+	if err != nil {
+		writeError(w, http.StatusConflict, leaseErrorCode(err), err.Error())
+		return
+	}
+	write(w, http.StatusOK, result)
+}
+
+func (h *handler) concatRecordings(w http.ResponseWriter, r *http.Request) {
+	var in reviewRecordingRequest
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid_request", err.Error())
+		return
+	}
+	result, err := h.service.FinalizeReviewRecording(r.Context(), in.DeviceID, in.Actor, in.LeaseToken, in.ReferenceIDs)
 	if err != nil {
 		writeError(w, http.StatusConflict, leaseErrorCode(err), err.Error())
 		return

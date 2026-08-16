@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"device-control/internal/capabilities"
+	internalflows "device-control/internal/flows"
 	"device-control/internal/modules"
 	"device-control/internal/server"
 
@@ -19,6 +20,7 @@ import (
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/devrouting"
+	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/filerouting"
 	"github.com/vrooli/api-core/preflight"
 	apiserver "github.com/vrooli/api-core/server"
@@ -27,6 +29,7 @@ import (
 
 	capsH "device-control/handlers/capabilities"
 	controlH "device-control/handlers/control"
+	flowsH "device-control/handlers/flows"
 	healthH "device-control/handlers/health"
 	"device-control/internal/control"
 	strategyregistry "device-control/strategy/registry"
@@ -152,6 +155,7 @@ func main() {
 		healthH.Module(db, "device-control-api", "1.0.0"),
 		capsH.Module(capabilities.NewRegistry()),
 		controlH.Module(controlService),
+		flowsH.Module(internalflows.NewResolver(internalflows.NewGateway(http.DefaultClient, discovery.ResolveScenarioURLDefault))),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development

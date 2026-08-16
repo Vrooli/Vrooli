@@ -74,7 +74,7 @@ func TestDeclaredAndroidStepsHaveExecutorImplementations(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, strategy.StatusAvailable, declaration.Status)
 	implemented := map[string]bool{}
-	for _, kind := range []string{"observe", "tap", "key", "wait", "swipe", "long-press", "double-tap", "drag", "fling", "scroll-to", "text", "semantic-target", "semantic-assert", "install", "launch", "stop", "uninstall", "clear-data", "package-state", "grant-permission", "revoke-permission", "device-logs", "screenrecord", "rotate", "network", "deep-link"} {
+	for _, kind := range []string{"observe", "tap", "key", "wait", "swipe", "long-press", "double-tap", "drag", "fling", "scroll-to", "text", "screen", "semantic-target", "semantic-assert", "install", "launch", "stop", "uninstall", "clear-data", "package-state", "grant-permission", "revoke-permission", "device-logs", "logcat-start", "logcat-stop", "clock-sample", "screenshot", "clipboard-read", "clipboard-write", "screenrecord", "rotate", "network", "deep-link", "share"} {
 		implemented[kind] = true
 	}
 	implemented["recording-start"] = true

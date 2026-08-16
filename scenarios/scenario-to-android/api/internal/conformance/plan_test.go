@@ -47,11 +47,17 @@ func TestAndroidPlanFlattensEveryChapterStepForMatrixExecution(t *testing.T) {
 	if len(journey.Steps) != count {
 		t.Fatalf("flattened %d steps, want %d", len(journey.Steps), count)
 	}
-	if journey.Steps[0].ID != "install_cold_start/install" || journey.Steps[3].Action != "bas-flow" {
+	if journey.Steps[0].ID != "install_cold_start/wake" || journey.Steps[5].Action != "bas-flow" {
 		t.Fatalf("chapter identity or BAS mapping was lost: %#v", journey.Steps[:3])
 	}
 	if journey.Steps[0].Assertion == nil || journey.Steps[0].Readiness.Timeout <= 0 {
 		t.Fatal("flattened step lost assertion/readiness policy")
+	}
+	if journey.Steps[0].Arguments["timeout_ms"] != "60000" {
+		t.Fatalf("wake step did not retain bounded device timeout: %#v", journey.Steps[0].Arguments)
+	}
+	if journey.Steps[2].Arguments["timeout_ms"] != "120000" {
+		t.Fatalf("install step did not retain wireless-install timeout: %#v", journey.Steps[2].Arguments)
 	}
 }
 

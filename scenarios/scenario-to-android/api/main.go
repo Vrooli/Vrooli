@@ -26,6 +26,8 @@ import (
 	"github.com/vrooli/api-core/preflight"
 	apiserver "github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
+	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
+	credentialclient "github.com/vrooli/vrooli/packages/credentialclient-go"
 	validationmatrix "github.com/vrooli/vrooli/packages/delivery-ramp-go/validationmatrix"
 	_ "modernc.org/sqlite"
 
@@ -114,6 +116,22 @@ func sqliteFileDSN(path string) (string, error) {
 	), nil
 }
 
+func repoRoot() string {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return ""
+	}
+	for dir := cwd; ; dir = filepath.Dir(dir) {
+		if st, err := os.Stat(filepath.Join(dir, "VISION.md")); err == nil && !st.IsDir() {
+			return dir
+		}
+		next := filepath.Dir(dir)
+		if next == dir {
+			return ""
+		}
+	}
+}
+
 func main() {
 	// Preflight checks must run first so the binary can re-exec itself
 	// after a stale-source rebuild before any listeners are opened.
@@ -173,12 +191,26 @@ func main() {
 	matrixService := validationmatrix.NewService(matrixStore, executors, matrixOptions...)
 	matrixService.RecoverStale()
 	matrixHandler := validationmatrix.NewHandler(matrixService)
+	var signingClient credentialclient.Client
+	if authority, authorityErr := credentialauthority.Default(); authorityErr != nil {
+		log.Printf("Android signing unavailable: credential authority unavailable: %v", authorityErr)
+	} else if client, clientErr := credentialclient.NewClient(credentialclient.ClientOptions{
+		Authority: authority,
+		Descriptors: func() ([]credentialclient.CredentialRef, error) {
+			return credentialclient.DiscoverDescriptors(repoRoot())
+		},
+	}); clientErr != nil {
+		log.Printf("Android signing unavailable: credential client unavailable: %v", clientErr)
+	} else {
+		signingClient = client
+	}
+	builder := androidbuild.Builder{Signing: signingClient}
 
 	srv := server.New(
 		server.Deps{Clock: schedule.System(), Logger: log.Default()},
 		healthH.Module(db, "scenario-to-android-api", "1.0.0"),
 		capsH.Module(capabilities.NewRegistry()),
-		rampH.Module([]*validationmatrix.Handler{matrixHandler}, androidbuild.Builder{}),
+		rampH.Module([]*validationmatrix.Handler{matrixHandler}, builder),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development

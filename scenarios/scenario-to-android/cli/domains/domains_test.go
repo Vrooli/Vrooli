@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/vrooli/cli-core/cliapp"
+	"scenario-to-android/cli/domains/android"
 )
 
 // TestCommandGroups exercises the flat-commands aggregator. The
@@ -38,6 +39,43 @@ func TestSubcommandGroups(t *testing.T) {
 		require.NotEmpty(t, g.Name, "group[%d].Name must be set", i)
 		require.NotEmpty(t, g.Subcommands, "group[%d] (%s) must register at least one subcommand", i, g.Name)
 	}
+	var android *cliapp.SubcommandGroup
+	for i := range got {
+		if got[i].Name == "android" {
+			android = &got[i]
+			break
+		}
+	}
+	require.NotNil(t, android, "android command group must be registered")
+	commands := make(map[string]bool, len(android.Subcommands))
+	for _, command := range android.Subcommands {
+		commands[command.Name] = true
+	}
+	require.True(t, commands["generate"], "android generate must be reachable from the CLI")
+	require.True(t, commands["compare"], "android compare must be reachable from the CLI")
+}
+
+func TestAndroidManifestMatchesRegisteredCommands(t *testing.T) {
+	manifest := readManifestForTest(t)
+	parsed, err := cliapp.ParseManifest(manifest)
+	require.NoError(t, err)
+
+	var declared []string
+	for _, group := range parsed.Groups {
+		if group.Name != "android" {
+			continue
+		}
+		for _, command := range group.Commands {
+			declared = append(declared, command.Name)
+		}
+	}
+
+	runtime := android.Register(nil)
+	registered := make([]string, 0, len(runtime.Subcommands))
+	for _, command := range runtime.Subcommands {
+		registered = append(registered, command.Name)
+	}
+	require.ElementsMatch(t, registered, declared, "the CLI manifest must declare every registered Android command exactly once")
 }
 
 // readManifestForTest reads cli/manifest.json from the parent cli/ directory

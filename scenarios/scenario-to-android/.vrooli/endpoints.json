@@ -105,6 +105,18 @@
       }
     },
     {
+      "id": "android_generate",
+      "path": "/api/v1/android/generate",
+      "method": "POST",
+      "summary": "Render a generated Android project without building artifacts",
+      "description": "",
+      "category": "ramp",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Operator generation control surface accepts a JSON request and returns a generated-project descriptor."
+      }
+    },
+    {
       "id": "android_build",
       "path": "/api/v1/android/build",
       "method": "POST",
@@ -114,6 +126,18 @@
       "rest_exception": {
         "reason": "ops_probe",
         "note": "Operator build control surface accepts a JSON request and returns an immutable artifact descriptor."
+      }
+    },
+    {
+      "id": "android_signing_provision",
+      "path": "/api/v1/android/signing/provision",
+      "method": "POST",
+      "summary": "Generate and store the Android upload key through secrets-manager",
+      "description": "",
+      "category": "ramp",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Provisioning returns metadata only; key material is never returned."
       }
     }
   ]

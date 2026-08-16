@@ -235,8 +235,32 @@
       }
     }
   },
-  "credentials": {},
   "environment": {
     "SQLITE_PATH": "${SCENARIO_DATA_DIR}/scenario-to-android.db"
+  },
+  "credentials": {
+    "descriptors": [
+      {
+        "logical_id": "vrooli/scenario-to-android/android-upload-signing-key",
+        "field": "keystore-base64",
+        "label": "Android upload keystore",
+        "description": "Base64 PKCS12 upload keystore held by the credential authority; resolved only in memory during signing.",
+        "required": false
+      },
+      {
+        "logical_id": "vrooli/scenario-to-android/android-upload-signing-key",
+        "field": "password",
+        "label": "Android upload keystore password",
+        "description": "Upload keystore password held by the credential authority.",
+        "required": false
+      },
+      {
+        "logical_id": "vrooli/scenario-to-android/android-upload-signing-key",
+        "field": "alias",
+        "label": "Android upload key alias",
+        "description": "Alias of the upload key inside the credential-authority-held keystore.",
+        "required": false
+      }
+    ]
   }
 }

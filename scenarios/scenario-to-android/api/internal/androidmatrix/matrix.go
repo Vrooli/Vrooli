@@ -8,9 +8,9 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/vrooli/api-core/discovery"
@@ -90,9 +90,20 @@ func (e Executor) Execute(ctx context.Context, request validationmatrix.CellRequ
 	if request.Cell == nil || request.Target == nil || !request.Target.GetAvailable() {
 		return validationmatrix.CellResult{Disposition: domainv1.ValidationDisposition_VALIDATION_DISPOSITION_UNAVAILABLE, Reason: "Android target is unavailable"}
 	}
-	artifact, err := androidArtifact(request.ArtifactDigest)
+	artifact, err := androidArtifact(request.ArtifactPath, request.ArtifactDigest)
 	if err != nil {
 		return validationmatrix.CellResult{Disposition: domainv1.ValidationDisposition_VALIDATION_DISPOSITION_UNAVAILABLE, Reason: err.Error()}
+	}
+	if request.Metadata != nil {
+		if packageName := strings.TrimSpace(request.Metadata["package_name"]); packageName != "" {
+			artifact.Metadata["package_name"] = packageName
+		}
+		if scenarioName := strings.TrimSpace(request.Metadata["scenario_name"]); scenarioName != "" {
+			artifact.Metadata["scenario_name"] = scenarioName
+		}
+		if profileID := strings.TrimSpace(request.Metadata["auth_profile_id"]); profileID != "" {
+			artifact.Metadata["auth_profile_id"] = profileID
+		}
 	}
 	deviceURL, err := resolveURL(ctx, "device-control", os.Getenv("DEVICE_CONTROL_URL"))
 	if err != nil {
@@ -121,30 +132,67 @@ func (e Executor) Execute(ctx context.Context, request validationmatrix.CellRequ
 		Actor:   "scenario-to-android",
 	}
 	result, runErr := driver.Execute(ctx, deliveryramp.DriverRequest{RunID: request.RunID, Cell: deliveryramp.Cell{ID: request.Cell.GetCellId(), Target: targetFromDescriptor(request.Target), ProfileID: request.Cell.GetEnvironmentProfile().String(), Required: request.Cell.GetRequired()}, Artifact: artifact, Plan: conformance.AndroidPlan().JourneyPlan()})
+	report := map[string]string{}
+	if result.ReviewRecordingPath != "" {
+		report["review_recording_path"] = result.ReviewRecordingPath
+	}
 	if runErr != nil {
-		return validationmatrix.CellResult{Disposition: domainv1.ValidationDisposition_VALIDATION_DISPOSITION_FAILED, Reason: runErr.Error()}
+		return validationmatrix.CellResult{Disposition: domainv1.ValidationDisposition_VALIDATION_DISPOSITION_FAILED, Reason: runErr.Error(), Evidence: journeyEvidence(result, request), Report: report}
 	}
 	evidence := journeyEvidence(result, request)
 	if result.Disposition != deliveryramp.DispositionPass {
-		return validationmatrix.CellResult{Disposition: domainv1.ValidationDisposition_VALIDATION_DISPOSITION_FAILED, Reason: string(result.Disposition), Evidence: evidence}
+		disposition := domainv1.ValidationDisposition_VALIDATION_DISPOSITION_FAILED
+		if result.Disposition == deliveryramp.DispositionUnavailable {
+			disposition = domainv1.ValidationDisposition_VALIDATION_DISPOSITION_UNAVAILABLE
+		} else if result.Disposition == deliveryramp.DispositionDegraded {
+			disposition = domainv1.ValidationDisposition_VALIDATION_DISPOSITION_DEGRADED
+		}
+		return validationmatrix.CellResult{Disposition: disposition, Reason: journeyFailureReason(result), Evidence: evidence, Report: report}
 	}
-	return validationmatrix.CellResult{Disposition: domainv1.ValidationDisposition_VALIDATION_DISPOSITION_PASS, Reason: "Android conformance journey completed", Evidence: evidence}
+	return validationmatrix.CellResult{Disposition: domainv1.ValidationDisposition_VALIDATION_DISPOSITION_PASS, Reason: "Android conformance journey completed", Evidence: evidence, Report: report}
 }
 
-func androidArtifact(digest string) (deliveryramp.Artifact, error) {
-	path := strings.TrimSpace(os.Getenv("ANDROID_ARTIFACT_PATH"))
+func journeyFailureReason(result deliveryramp.JourneyResult) string {
+	if strings.TrimSpace(result.DegradedReason) != "" {
+		return result.DegradedReason
+	}
+	for _, step := range result.Steps {
+		if strings.TrimSpace(step.Error) != "" {
+			return step.Error
+		}
+	}
+	if result.Disposition == deliveryramp.DispositionUnavailable {
+		for _, step := range result.Steps {
+			if strings.TrimSpace(step.DegradedReason) != "" {
+				return step.DegradedReason
+			}
+		}
+	}
+	return string(result.Disposition)
+}
+
+func androidArtifact(configuredPath, digest string) (deliveryramp.Artifact, error) {
+	path := strings.TrimSpace(configuredPath)
+	if path == "" {
+		path = strings.TrimSpace(os.Getenv("ANDROID_ARTIFACT_PATH"))
+	}
 	if path == "" {
 		return deliveryramp.Artifact{}, fmt.Errorf("ANDROID_ARTIFACT_PATH is required for an Android matrix run")
 	}
-	file, err := os.Open(path)
+	apk, err := os.ReadFile(path)
 	if err != nil {
-		return deliveryramp.Artifact{}, fmt.Errorf("open Android artifact: %w", err)
+		return deliveryramp.Artifact{}, fmt.Errorf("read Android artifact: %w", err)
 	}
-	defer file.Close()
+	aabPath := strings.Replace(path, string(filepath.Separator)+"apk"+string(filepath.Separator), string(filepath.Separator)+"bundle"+string(filepath.Separator), 1)
+	aabPath = strings.Replace(aabPath, "app-debug.apk", "app-debug.aab", 1)
+	aab, err := os.ReadFile(aabPath)
+	if err != nil {
+		return deliveryramp.Artifact{}, fmt.Errorf("read Android companion AAB: %w", err)
+	}
 	hash := sha256.New()
-	if _, err := io.Copy(hash, file); err != nil {
-		return deliveryramp.Artifact{}, fmt.Errorf("hash Android artifact: %w", err)
-	}
+	_, _ = hash.Write(apk)
+	_, _ = hash.Write([]byte("\x00"))
+	_, _ = hash.Write(aab)
 	actual := "sha256:" + hex.EncodeToString(hash.Sum(nil))
 	if strings.TrimSpace(digest) != actual {
 		return deliveryramp.Artifact{}, fmt.Errorf("Android artifact digest mismatch: matrix=%s file=%s", digest, actual)
@@ -166,11 +214,26 @@ func resolveURL(ctx context.Context, scenario, configured string) (string, error
 }
 
 func targetFromDescriptor(descriptor *domainv1.ValidationTargetDescriptor) deliveryramp.Target {
-	return deliveryramp.Target{ID: descriptor.GetTargetId(), Label: descriptor.GetDisplayName(), Platform: "android", Available: descriptor.GetAvailable(), DeviceKind: "android", Capabilities: capabilityNames(descriptor.GetCapabilities())}
+	targetID := descriptor.GetTargetId()
+	deviceKind := "physical"
+	mode := "physical"
+	if strings.HasPrefix(strings.ToLower(strings.TrimSpace(targetID)), "android:emulator:") || strings.HasPrefix(strings.ToLower(strings.TrimSpace(targetID)), "emulator-") {
+		deviceKind = "emulator"
+		mode = "emulator"
+	}
+	return deliveryramp.Target{ID: targetID, Label: descriptor.GetDisplayName(), Platform: "android", Available: descriptor.GetAvailable(), DeviceKind: deviceKind, Mode: mode, Capabilities: capabilityNames(descriptor.GetCapabilities())}
 }
 
 func journeyEvidence(result deliveryramp.JourneyResult, request validationmatrix.CellRequest) []*domainv1.LayeredEvidence {
 	evidence := make([]*domainv1.LayeredEvidence, 0)
+	if result.ReviewRecording != nil {
+		reference := *result.ReviewRecording
+		mediaType := reference.MediaType
+		if mediaType == "" {
+			mediaType = "video/mp4"
+		}
+		evidence = append(evidence, &domainv1.LayeredEvidence{Kind: domainv1.LayeredEvidence_KIND_DESKTOP_RUNTIME, EvidenceId: reference.ID, Uri: firstNonEmpty(reference.URI, "device-control://evidence/"+reference.ID), Sha256: reference.Checksum, MediaType: &mediaType, Redacted: reference.Redacted})
+	}
 	for _, step := range result.Steps {
 		for _, reference := range step.Evidence {
 			mediaType := reference.MediaType
@@ -183,6 +246,16 @@ func journeyEvidence(result deliveryramp.JourneyResult, request validationmatrix
 			}
 			evidence = append(evidence, &domainv1.LayeredEvidence{Kind: kind, EvidenceId: reference.ID, Uri: firstNonEmpty(reference.URI, "device-control://evidence/"+reference.ID), Sha256: reference.Checksum, MediaType: &mediaType, Redacted: reference.Redacted})
 		}
+	}
+	for _, sample := range []*deliveryramp.ClockOffsetSample{result.ClockOffsetStart, result.ClockOffsetEnd} {
+		if sample == nil || sample.Evidence.ID == "" {
+			continue
+		}
+		mediaType := sample.Evidence.MediaType
+		if mediaType == "" {
+			mediaType = "text/plain"
+		}
+		evidence = append(evidence, &domainv1.LayeredEvidence{Kind: domainv1.LayeredEvidence_KIND_MACHINE_ASSERTION, EvidenceId: sample.Evidence.ID, Uri: firstNonEmpty(sample.Evidence.URI, "device-control://evidence/"+sample.Evidence.ID), Sha256: sample.Evidence.Checksum, MediaType: &mediaType, Redacted: sample.Evidence.Redacted})
 	}
 	value := fmt.Sprintf("target=%s journey=%s run=%s", request.Target.GetTargetId(), request.Journey.JourneyID, request.RunID)
 	mediaType := "text/plain"

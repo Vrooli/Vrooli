@@ -17,6 +17,13 @@ import (
 )
 
 func (s *Service) Validate(ctx context.Context, flow Flow, strategyID string) GapReport {
+	// A device id may be supplied for preflight so validation sees the same
+	// promoted, endpoint-scoped adapter that execution will use. This matters
+	// for wireless devices: the registry's generic android-adb strategy has no
+	// live capabilities until it is bound to the device's restored transport.
+	if strat, ok := s.strategyForFlow(strategyID, flow.Transport); ok {
+		return validateAgainstDeclaration(ctx, flow, strat)
+	}
 	d, ok := s.strategyForDevice(strategyID)
 	if !ok {
 		return GapReport{Gaps: []string{"unknown strategy " + strategyID}}
@@ -362,6 +369,13 @@ func (s *Service) execute(ctx context.Context, flow Flow, deviceID, actor string
 			case "deep-link":
 				packageName, _ := step.Arguments["package"].(string)
 				stepErr = dispatch(stepctx, strategy.Actuation{Action: step.Kind, Value: step.Target, Package: packageName})
+			case "share":
+				packageName, _ := step.Arguments["package"].(string)
+				stepErr = dispatch(stepctx, strategy.Actuation{Action: step.Kind, Value: step.Target, Package: packageName})
+			case "screen":
+				stepErr = dispatch(stepctx, strategy.Actuation{Action: step.Kind, Value: step.Target})
+			case "logcat-start", "clipboard-write":
+				stepErr = dispatch(stepctx, strategy.Actuation{Action: step.Kind, Value: step.Target})
 			case "recording-start":
 				if !hasRecorder {
 					stepErr = fmt.Errorf("strategy does not support session-scoped recording")
@@ -392,14 +406,14 @@ func (s *Service) execute(ctx context.Context, flow Flow, deviceID, actor string
 				if stepErr == nil {
 					stepErr = storeRecording(step, artifact)
 				}
-			case "device-logs", "screenrecord":
+			case "device-logs", "logcat-stop", "clock-sample", "screenshot", "clipboard-read", "screenrecord":
 				var output []byte
 				packageName, _ := step.Arguments["package"].(string)
 				stepErr = dispatch(stepctx, strategy.Actuation{Action: step.Kind, Value: step.Target, Package: packageName, Output: &output})
 				if stepErr == nil && len(output) == 0 {
 					stepErr = fmt.Errorf("%s produced no output", step.Kind)
 				}
-				if stepErr == nil && step.Kind == "device-logs" {
+				if stepErr == nil && (step.Kind == "device-logs" || step.Kind == "logcat-stop" || step.Kind == "clock-sample") {
 					redacted, redactErr := evidence.RedactCapture(output, "text/plain", evidence.DefaultPolicy, flow.AllowUnredactedCapture, actor)
 					if redactErr != nil {
 						stepErr = redactErr
@@ -409,6 +423,23 @@ func (s *Service) execute(ctx context.Context, flow Flow, deviceID, actor string
 						if refErr != nil {
 							stepErr = refErr
 						} else if refErr = s.persistArtifact(ctx, id, redacted.Bytes, "log"); refErr != nil {
+							stepErr = refErr
+						} else {
+							result.Evidence = append(result.Evidence, ref)
+							redactionVerified = ref.RedactionVerified
+						}
+					}
+				}
+				if stepErr == nil && step.Kind == "screenshot" {
+					redacted, redactErr := evidence.RedactCapture(output, "image/png", evidence.DefaultPolicy, flow.AllowUnredactedCapture, actor)
+					if redactErr != nil {
+						stepErr = redactErr
+					} else {
+						id := uuid.NewString()
+						ref, refErr := evidence.NewReference(id, redacted.Bytes, redacted)
+						if refErr != nil {
+							stepErr = refErr
+						} else if refErr = s.persistArtifact(ctx, id, redacted.Bytes, "screenshot"); refErr != nil {
 							stepErr = refErr
 						} else {
 							result.Evidence = append(result.Evidence, ref)

@@ -29,7 +29,9 @@ func Module(matrixHandlers []*validationmatrix.Handler, builders ...androidbuild
 			r.HandleFunc("/api/v1/android/conformance-plan", conformancePlan).Methods(http.MethodGet)
 			r.HandleFunc("/api/v1/android/readiness", readiness).Methods(http.MethodGet)
 			r.HandleFunc("/api/v1/android/distribution", distribution).Methods(http.MethodGet)
+			r.HandleFunc("/api/v1/android/generate", generateHandler(builder)).Methods(http.MethodPost)
 			r.HandleFunc("/api/v1/android/build", builderHandler(builder)).Methods(http.MethodPost)
+			r.HandleFunc("/api/v1/android/signing/provision", provisionSigningHandler(builder)).Methods(http.MethodPost)
 			for _, handler := range matrixHandlers {
 				if handler != nil {
 					handler.RegisterRoutes(r)
@@ -41,7 +43,9 @@ func Module(matrixHandlers []*validationmatrix.Handler, builders ...androidbuild
 			rampEndpoint("android_conformance_plan", "/api/v1/android/conformance-plan", http.MethodGet, "Show the generated-app Android conformance contract"),
 			rampEndpoint("android_readiness", "/api/v1/android/readiness", http.MethodGet, "Show Google Android release readiness rungs"),
 			rampEndpoint("android_distribution", "/api/v1/android/distribution", http.MethodGet, "Show independent Android distribution channels"),
+			{ID: "android_generate", Path: "/api/v1/android/generate", Method: http.MethodPost, Summary: "Render a generated Android project without building artifacts", Category: "ramp", RESTException: &module.RESTException{Reason: module.RESTReasonOpsProbe, Note: "Operator generation control surface accepts a JSON request and returns a generated-project descriptor."}},
 			{ID: "android_build", Path: "/api/v1/android/build", Method: http.MethodPost, Summary: "Build a debug APK and AAB from a scenario web bundle", Category: "ramp", RESTException: &module.RESTException{Reason: module.RESTReasonOpsProbe, Note: "Operator build control surface accepts a JSON request and returns an immutable artifact descriptor."}},
+			{ID: "android_signing_provision", Path: "/api/v1/android/signing/provision", Method: http.MethodPost, Summary: "Generate and store the Android upload key through secrets-manager", Category: "ramp", RESTException: &module.RESTException{Reason: module.RESTReasonOpsProbe, Note: "Provisioning returns metadata only; key material is never returned."}},
 		},
 	}
 }
@@ -51,12 +55,15 @@ func rampEndpoint(id, path, method, summary string) module.EndpointDescriptor {
 }
 
 type buildRequest struct {
-	SourceRef   string `json:"source_ref"`
-	PackageName string `json:"package_name,omitempty"`
-	AppName     string `json:"app_name,omitempty"`
-	VersionName string `json:"version_name,omitempty"`
-	VersionCode string `json:"version_code,omitempty"`
-	TargetSDK   string `json:"target_sdk,omitempty"`
+	SourceRef       string `json:"source_ref"`
+	ScenarioName    string `json:"scenario_name,omitempty"`
+	PackageName     string `json:"package_name,omitempty"`
+	AppName         string `json:"app_name,omitempty"`
+	VersionName     string `json:"version_name,omitempty"`
+	VersionCode     string `json:"version_code,omitempty"`
+	TargetSDK       string `json:"target_sdk,omitempty"`
+	Signing         string `json:"signing,omitempty"`
+	SigningIdentity string `json:"signing_identity,omitempty"`
 }
 
 func builderHandler(builder androidbuild.Builder) http.HandlerFunc {
@@ -67,11 +74,14 @@ func builderHandler(builder androidbuild.Builder) http.HandlerFunc {
 			return
 		}
 		parameters := map[string]string{
-			"package_name": request.PackageName,
-			"app_name":     request.AppName,
-			"version_name": request.VersionName,
-			"version_code": request.VersionCode,
-			"target_sdk":   request.TargetSDK,
+			"scenario_name":    request.ScenarioName,
+			"package_name":     request.PackageName,
+			"app_name":         request.AppName,
+			"version_name":     request.VersionName,
+			"version_code":     request.VersionCode,
+			"target_sdk":       request.TargetSDK,
+			"signing":          request.Signing,
+			"signing_identity": request.SigningIdentity,
 		}
 		artifact, err := builder.Build(r.Context(), deliveryramp.BuildRequest{SourceRef: request.SourceRef, Parameters: parameters})
 		if err != nil {
@@ -79,6 +89,62 @@ func builderHandler(builder androidbuild.Builder) http.HandlerFunc {
 			return
 		}
 		writeJSON(w, artifact)
+	}
+}
+
+func provisionSigningHandler(builder androidbuild.Builder) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		identity := androidbuild.DefaultSigningIdentity
+		var request struct {
+			Identity string `json:"identity,omitempty"`
+		}
+		if r.Body != nil {
+			if err := json.NewDecoder(r.Body).Decode(&request); err != nil && err.Error() != "EOF" {
+				http.Error(w, "decode Android signing request: "+err.Error(), http.StatusBadRequest)
+				return
+			}
+		}
+		if request.Identity != "" {
+			identity = request.Identity
+		}
+		if builder.Signing == nil {
+			http.Error(w, "Android signing unavailable: secrets-manager credential client is not configured", http.StatusServiceUnavailable)
+			return
+		}
+		provisioner, ok := builder.Signing.(androidbuild.SigningProvisioner)
+		if !ok {
+			http.Error(w, "Android signing unavailable: configured credential client cannot provision", http.StatusServiceUnavailable)
+			return
+		}
+		if err := androidbuild.ProvisionSigningKey(r.Context(), provisioner, identity, "", builder.Run); err != nil {
+			http.Error(w, err.Error(), http.StatusUnprocessableEntity)
+			return
+		}
+		writeJSON(w, map[string]string{"identity": identity, "status": "configured", "provider": "secrets-manager", "material": "not-returned"})
+	}
+}
+
+func generateHandler(builder androidbuild.Builder) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var request buildRequest
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			http.Error(w, "decode Android generation request: "+err.Error(), http.StatusBadRequest)
+			return
+		}
+		parameters := map[string]string{
+			"scenario_name": request.ScenarioName,
+			"package_name":  request.PackageName,
+			"app_name":      request.AppName,
+			"version_name":  request.VersionName,
+			"version_code":  request.VersionCode,
+			"target_sdk":    request.TargetSDK,
+		}
+		project, err := builder.Generate(r.Context(), deliveryramp.BuildRequest{SourceRef: request.SourceRef, Parameters: parameters})
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusUnprocessableEntity)
+			return
+		}
+		writeJSON(w, project)
 	}
 }
 

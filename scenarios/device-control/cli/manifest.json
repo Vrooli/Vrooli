@@ -42,7 +42,7 @@
         {
           "name": "reconnect",
           "description": "Reconnect a promoted Android device over wireless ADB",
-          "positionals": [{ "name": "id", "required": true }],
+          "positionals": [{ "name": "id", "required": true, "bind": { "field": "device_id" } }],
           "binding": { "kind": "connect-rpc", "service": "DeviceService", "method": "ReconnectDevice" },
           "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
         },

@@ -110,8 +110,11 @@ type Frame struct {
 // Device is a discovered target. Its identity is separate from the strategy
 // implementation so reconnects do not reattribute audit history.
 type Device struct {
-	ID           string
-	Serial       string
+	ID     string
+	Serial string
+	// Endpoint is the current transport address (for example an mDNS wireless
+	// ADB endpoint). It is mutable and is never part of durable identity.
+	Endpoint     string
 	Model        string
 	OSVersion    string
 	StrategyID   string
@@ -146,6 +149,7 @@ type WebViewEndpoint struct {
 	Socket      string `json:"socket"`
 	CDPEndpoint string `json:"cdp_endpoint"`
 	RendererID  string `json:"renderer_id"`
+	RendererURL string `json:"renderer_url"`
 	Transport   string `json:"transport"`
 }
 
@@ -285,7 +289,7 @@ func StepKinds(d Declaration) []string {
 	}
 	steps := []string{"observe", "tap", "key", "wait"}
 	if d.Capabilities[CapInput].Status == StatusAvailable {
-		steps = append(steps, "swipe", "long-press", "double-tap", "drag", "fling", "scroll-to", "text")
+		steps = append(steps, "swipe", "long-press", "double-tap", "drag", "fling", "scroll-to", "text", "screen")
 	}
 	if d.Capabilities[CapMultiTouch].Status == StatusAvailable {
 		steps = append(steps, "pinch")
@@ -300,7 +304,13 @@ func StepKinds(d Declaration) []string {
 		steps = append(steps, "grant-permission", "revoke-permission")
 	}
 	if d.Capabilities[CapDeviceLogs].Status == StatusAvailable {
-		steps = append(steps, "device-logs")
+		steps = append(steps, "device-logs", "logcat-start", "logcat-stop", "clock-sample")
+	}
+	if d.Capabilities[CapScreenshot].Status == StatusAvailable {
+		steps = append(steps, "screenshot")
+	}
+	if d.Capabilities[CapClipboard].Status == StatusAvailable {
+		steps = append(steps, "clipboard-read", "clipboard-write")
 	}
 	if d.Capabilities[CapOrientation].Status == StatusAvailable {
 		steps = append(steps, "rotate")
@@ -309,7 +319,7 @@ func StepKinds(d Declaration) []string {
 		steps = append(steps, "network")
 	}
 	if d.Capabilities[CapAppLifecycle].Status == StatusAvailable {
-		steps = append(steps, "deep-link")
+		steps = append(steps, "deep-link", "share")
 	}
 	if d.Capabilities[CapScreenRecording].Status == StatusAvailable || d.Capabilities[CapNativeRecording].Status == StatusAvailable {
 		steps = append(steps, "screenrecord", "recording-start", "recording-stop")

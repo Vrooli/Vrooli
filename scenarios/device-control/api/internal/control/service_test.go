@@ -486,6 +486,25 @@ func TestFlowTransportDefaultsToUSBAndWirelessMustBeExplicit(t *testing.T) { // 
 	require.False(t, ok)
 }
 
+func TestValidateUsesPromotedWirelessDeviceStrategy(t *testing.T) {
+	db, err := sql.Open("sqlite", "file:control-test-wireless-validate-"+t.Name()+"?mode=memory&cache=shared")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = db.Close() })
+	generic := fakes.New("fake", strategy.StatusUnavailable, strategy.CapScreenshot)
+	svc, err := NewWithDB(strategyregistry.New(generic), db)
+	require.NoError(t, err)
+	svc.devices.Upsert(devicedomain.Record{ID: "wireless-device", Kind: "physical", Serial: "serial-1", StrategyID: "fake", Transport: "wireless"})
+	svc.transportStrategies["wireless-device"] = fakes.New("fake-wireless", strategy.StatusAvailable, strategy.CapScreenshot)
+
+	report := svc.Validate(context.Background(), Flow{
+		Transport: "wireless",
+		Steps:     []Step{{ID: "observe", Kind: "observe", RequiredCapabilities: []string{strategy.CapScreenshot}}},
+	}, "wireless-device")
+
+	require.True(t, report.Runnable)
+	require.Empty(t, report.Gaps)
+}
+
 func TestWirelessTransportStateSurvivesServiceReconstruction(t *testing.T) { // [REQ:DVC-P0-011]
 	svc, db := testService(t)
 	first := newPersistentWirelessStrategy()

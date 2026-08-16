@@ -49,10 +49,14 @@ type Result struct {
 	OptedOut bool     `json:"opted_out,omitempty"`
 }
 
+const statusBarMaskDivisor = 12
+
 // RedactCapture applies a deterministic producer-side policy to an encoded
-// screen capture. The status-bar band is always masked under the default
-// policy; this gives the evidence contract a real pixel transformation while
-// keeping the detector seam explicit for richer platform adapters.
+// screen capture. The status-bar band is masked under the default policy. The
+// mask is intentionally limited to that band; a fixed notification-sized
+// quarter-screen mask makes portrait evidence look broken when no notification
+// is present. Richer platform adapters can add detector-approved sensitive
+// regions through RedactCaptureWithRegions.
 func RedactCapture(raw []byte, mediaType string, p Policy, allowUnredacted bool, actor string) (Result, error) {
 	return RedactCaptureWithRegions(raw, mediaType, p, allowUnredacted, actor, nil)
 }
@@ -84,15 +88,9 @@ func RedactCaptureWithRegions(raw []byte, mediaType string, p Policy, allowUnred
 	}
 	regions := []Region{}
 	if p.PasswordFields || p.OneTimeCodes || p.CredentialPatterns || p.NotificationContent {
-		height := decoded.Bounds().Dy() / 12
+		height := decoded.Bounds().Dy() / statusBarMaskDivisor
 		if height > 0 {
 			regions = append(regions, Region{X0: decoded.Bounds().Min.X, Y0: decoded.Bounds().Min.Y, X1: decoded.Bounds().Max.X, Y1: decoded.Bounds().Min.Y + height})
-		}
-		if p.NotificationContent {
-			notificationHeight := decoded.Bounds().Dy() / 4
-			if notificationHeight > height {
-				regions = append(regions, Region{X0: decoded.Bounds().Min.X, Y0: decoded.Bounds().Min.Y, X1: decoded.Bounds().Max.X, Y1: decoded.Bounds().Min.Y + notificationHeight})
-			}
 		}
 	}
 	regions = append(regions, sensitive...)
@@ -104,7 +102,7 @@ func RedactCaptureWithRegions(raw []byte, mediaType string, p Policy, allowUnred
 		return Result{}, fmt.Errorf("capture redaction failed")
 	}
 	result.Rules = []string{"status_bar_identifiers"}
-	if p.NotificationContent {
+	if p.NotificationContent && len(sensitive) > 0 {
 		result.Rules = append(result.Rules, "notification_content")
 	}
 	if len(sensitive) > 0 {
@@ -126,9 +124,9 @@ func isMP4(raw []byte) bool {
 	return len(raw) >= 8 && string(raw[4:8]) == "ftyp"
 }
 
-// redactVideo uses the fixed producer-side status/notification band policy for
-// native recordings. The input/output files are owner-only temporary files and
-// are removed before returning; consumers receive only the resulting bytes.
+// redactVideo masks only the status-bar band for native recordings. The
+// input/output files are owner-only temporary files and are removed before
+// returning; consumers receive only the resulting bytes.
 func redactVideo(raw []byte, p Policy) (Result, error) {
 	input, err := os.CreateTemp("", "device-control-redact-*.mp4")
 	if err != nil {
@@ -154,7 +152,7 @@ func redactVideo(raw []byte, p Policy) (Result, error) {
 	outputPath := output.Name()
 	_ = output.Close()
 	defer os.Remove(outputPath)
-	cmd := exec.CommandContext(context.Background(), "ffmpeg", "-y", "-loglevel", "error", "-i", inputPath, "-vf", "drawbox=x=0:y=0:w=iw:h=ih/4:color=black:t=fill", "-c:v", "libx264", "-pix_fmt", "yuv420p", outputPath)
+	cmd := exec.CommandContext(context.Background(), "ffmpeg", "-y", "-loglevel", "error", "-i", inputPath, "-vf", fmt.Sprintf("drawbox=x=0:y=0:w=iw:h=ih/%d:color=black:t=fill", statusBarMaskDivisor), "-c:v", "libx264", "-pix_fmt", "yuv420p", outputPath)
 	if combined, err := cmd.CombinedOutput(); err != nil {
 		return Result{}, fmt.Errorf("redact native video: %w (%s)", err, strings.TrimSpace(string(combined)))
 	} else if len(combined) > 0 {
@@ -164,7 +162,7 @@ func redactVideo(raw []byte, p Policy) (Result, error) {
 	if err != nil {
 		return Result{}, fmt.Errorf("read redacted native video: %w", err)
 	}
-	return Result{Bytes: redacted, Verified: true, Policy: p, Regions: 1, Rules: []string{"status_bar_identifiers", "notification_content"}}, nil
+	return Result{Bytes: redacted, Verified: true, Policy: p, Regions: 1, Rules: []string{"status_bar_identifiers"}}, nil
 }
 
 func RedactFrame(raw []byte, p Policy) Result {

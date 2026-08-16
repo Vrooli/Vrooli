@@ -58,6 +58,20 @@ func TestEnumerateDerivesStableIdentityAndHealth(t *testing.T) {
 	require.Equal(t, devices[0].ID, second[0].ID)
 }
 
+func TestEnumerateKeysWirelessPhysicalDeviceByHardwareSerial(t *testing.T) {
+	runner := &scriptedRunner{responses: map[string][]byte{
+		"adb devices -l": []byte("List of devices attached\n192.168.1.179:34483\tdevice product:a03susq model:SM_A037U device:a03su\n"),
+		"adb -s 192.168.1.179:34483 shell getprop ro.serialno":              []byte("R9TT608Q6MH\n"),
+		"adb -s 192.168.1.179:34483 shell getprop ro.build.version.release": []byte("13\n"),
+	}}
+	devices, err := NewWithRunner(runner, "").Enumerate(context.Background())
+	require.NoError(t, err)
+	require.Len(t, devices, 1)
+	require.Equal(t, "R9TT608Q6MH", devices[0].Serial)
+	require.Equal(t, "192.168.1.179:34483", devices[0].Endpoint)
+	require.Equal(t, "android-024665203bca17fa", devices[0].ID)
+}
+
 func TestPromoteWirelessVerifiesSerialAndKeepsIdentity(t *testing.T) { // [REQ:DVC-P0-011]
 	runner := &scriptedRunner{responses: map[string][]byte{
 		"adb -s serial-1 tcpip 5555":                                      []byte("restarting in TCP mode port: 5555"),
@@ -108,6 +122,7 @@ func TestReconnectWirelessDiscoversRotatedTLSEndpoint(t *testing.T) {
 		"adb mdns services":                                   []byte("List of discovered mdns services\nadb-serial-1._adb-tls-connect._tcp 192.168.1.42:37123\n"),
 		"adb connect 192.168.1.179:5555":                      []byte("failed to connect"),
 		"adb connect 192.168.1.42:37123":                      []byte("connected to 192.168.1.42:37123"),
+		"adb -s 192.168.1.42:37123 wait-for-device":           []byte(""),
 		"adb -s 192.168.1.42:37123 shell getprop ro.serialno": []byte("serial-1\n"),
 		"adb devices -l":                                      []byte("List of devices attached\n192.168.1.42:37123\tdevice product:a03s model:SM_A037U\n"),
 		"adb -s 192.168.1.179:5555 shell getprop ro.serialno": []byte("\n"),
@@ -121,11 +136,24 @@ func TestReconnectWirelessDiscoversRotatedTLSEndpoint(t *testing.T) {
 	require.Equal(t, "wireless", restored.transport)
 }
 
+func TestReconnectWaitsForTransportBeforeReadingIdentity(t *testing.T) {
+	runner := &scriptedRunner{responses: map[string][]byte{
+		"adb connect 192.168.1.42:37123":                      []byte("connected"),
+		"adb -s 192.168.1.42:37123 wait-for-device":           []byte(""),
+		"adb -s 192.168.1.42:37123 shell getprop ro.serialno": []byte("serial-1\n"),
+		"adb devices -l": []byte("List of devices attached\n192.168.1.42:37123\tdevice\n"),
+	}}
+	adapter := NewWithRunner(runner, "serial-1").RestoreWireless("192.168.1.42:37123").(*Adapter)
+	require.NoError(t, adapter.ReconnectWireless(context.Background()))
+	require.Less(t, indexOfCall(runner.calls, "wait-for-device"), indexOfCall(runner.calls, "getprop ro.serialno"))
+}
+
 func TestWirelessEndpointsOnlyReturnsTLSConnectServices(t *testing.T) {
 	got := wirelessEndpoints("" +
 		"adb-serial-1._adb-tls-pairing._tcp 192.168.1.42:37123\n" +
 		"adb-serial-1._adb-tls-connect._tcp 192.168.1.42:37124\n")
 	require.Equal(t, []string{"192.168.1.42:37124"}, got)
+	require.Equal(t, []string{"192.168.1.42:37124"}, wirelessEndpoints("adb-R9TT _adb-tls-connect._tcp 192.168.1.42:37124\n"))
 }
 
 func TestLockStateParsesVendorKeyguardFormats(t *testing.T) {
@@ -163,6 +191,11 @@ func TestActuateTapTextAndLifecycleUseADBVerbs(t *testing.T) { // [REQ:DVC-P0-01
 	require.Contains(t, runner.calls[2], "shell am force-stop com.example.app")
 }
 
+func TestShellQuotePreservesIntentExtraBoundaries(t *testing.T) {
+	require.Equal(t, "'Hello Mobile share probe'", shellQuote("Hello Mobile share probe"))
+	require.Equal(t, "'operator'\\''s note'", shellQuote("operator's note"))
+}
+
 func TestAttachWebViewMatchesPackageProcessAndAllocatesCDPForward(t *testing.T) {
 	runner := &scriptedRunner{responses: map[string][]byte{
 		"adb -s serial-1 shell pidof com.example.hello":                            []byte("4321\n"),
@@ -190,7 +223,9 @@ func TestInstallReusesPackageDataForUpdateMigration(t *testing.T) {
 
 func TestActuateScreenrecordRequiresAndFillsOutputSink(t *testing.T) {
 	runner := &processRunner{scriptedRunner: &scriptedRunner{responses: map[string][]byte{
-		"adb -s serial-1 shell dumpsys power": []byte("mStayOn=false\n"),
+		"adb -s serial-1 shell dumpsys power":                          []byte("mStayOn=false\n"),
+		"adb -s serial-1 shell settings get system screen_off_timeout": []byte("60000\n"),
+		"adb -s serial-1 shell dumpsys deviceidle":                     []byte("mDeepEnabled=true\nmLightEnabled=true\n"),
 	}}, process: &scriptedProcess{}}
 	adapter := NewWithRunner(runner, "serial-1")
 	handle, err := adapter.StartRecording(context.Background(), strategy.ClaimAnimation)
@@ -201,10 +236,14 @@ func TestActuateScreenrecordRequiresAndFillsOutputSink(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, []byte("ftyp-video"), artifact.Bytes)
 	require.Equal(t, strategy.ClaimAnimation, artifact.ClaimClass)
-	require.False(t, runner.process.signaled)
+	require.True(t, runner.process.signaled)
 	require.Contains(t, strings.Join(runner.calls, "\n"), "shell svc power stayon true")
 	require.Contains(t, strings.Join(runner.calls, "\n"), "shell svc power stayon false")
-	require.Contains(t, strings.Join(runner.calls, "\n"), "shell input keyevent 224")
+	require.NotContains(t, strings.Join(runner.calls, "\n"), "shell input keyevent 224")
+	require.Contains(t, strings.Join(runner.calls, "\n"), "shell settings put system screen_off_timeout 1800000")
+	require.Contains(t, strings.Join(runner.calls, "\n"), "shell settings put system screen_off_timeout 60000")
+	require.Contains(t, strings.Join(runner.calls, "\n"), "shell dumpsys deviceidle disable")
+	require.Contains(t, strings.Join(runner.calls, "\n"), "shell dumpsys deviceidle enable")
 }
 
 func TestActuateConformanceControlsUseBoundedAndroidVerbs(t *testing.T) {
@@ -214,10 +253,41 @@ func TestActuateConformanceControlsUseBoundedAndroidVerbs(t *testing.T) {
 	require.NoError(t, adapter.Actuate(context.Background(), strategy.Actuation{Action: "network", Value: "offline"}))
 	require.NoError(t, adapter.Actuate(context.Background(), strategy.Actuation{Action: "network", Value: "online"}))
 	require.NoError(t, adapter.Actuate(context.Background(), strategy.Actuation{Action: "deep-link", Value: "hello-mobile://home", Package: "com.example.hello"}))
+	require.NoError(t, adapter.Actuate(context.Background(), strategy.Actuation{Action: "share", Value: "Hello Mobile share probe", Package: "com.example.hello"}))
 	require.Contains(t, strings.Join(runner.calls, "\n"), "settings put system user_rotation 1")
 	require.Contains(t, strings.Join(runner.calls, "\n"), "svc wifi disable")
 	require.Contains(t, strings.Join(runner.calls, "\n"), "svc data enable")
 	require.Contains(t, strings.Join(runner.calls, "\n"), "am start -a android.intent.action.VIEW -d hello-mobile://home -p com.example.hello")
+	require.Contains(t, strings.Join(runner.calls, "\n"), "am start -a android.intent.action.SEND -c android.intent.category.DEFAULT -t text/plain -p com.example.hello --es android.intent.extra.TEXT 'Hello Mobile share probe'")
+}
+
+func TestActuateObservationClipboardAndLogcatVerbsUseExactADBArguments(t *testing.T) {
+	runner := &scriptedRunner{responses: map[string][]byte{
+		"adb -s serial-1 exec-out screencap -p":               []byte("png"),
+		"adb -s serial-1 shell cmd clipboard get":             []byte("copied text\n"),
+		"adb -s serial-1 logcat -d -v epoch":                  []byte("08-15 12:00:00.000  1  1 I App: ready\n"),
+		"adb -s serial-1 shell date +%s.%N":                   []byte("1755259200.125000000\n"),
+		"adb -s serial-1 shell cmd clipboard set copied text": []byte(""),
+	}}
+	adapter := NewWithRunner(runner, "serial-1")
+	var screenshot, clipboard, logs, clock []byte
+	require.NoError(t, adapter.Actuate(context.Background(), strategy.Actuation{Action: "screenshot", Output: &screenshot}))
+	require.NoError(t, adapter.Actuate(context.Background(), strategy.Actuation{Action: "clipboard-write", Value: "copied text"}))
+	require.NoError(t, adapter.Actuate(context.Background(), strategy.Actuation{Action: "clipboard-read", Output: &clipboard}))
+	require.NoError(t, adapter.Actuate(context.Background(), strategy.Actuation{Action: "logcat-start"}))
+	require.NoError(t, adapter.Actuate(context.Background(), strategy.Actuation{Action: "logcat-stop", Output: &logs}))
+	require.NoError(t, adapter.Actuate(context.Background(), strategy.Actuation{Action: "clock-sample", Output: &clock}))
+	require.Equal(t, []byte("png"), screenshot)
+	require.Equal(t, []byte("copied text\n"), clipboard)
+	require.Contains(t, string(logs), "App: ready")
+	require.Contains(t, string(clock), "1755259200.125000000")
+	calls := strings.Join(runner.calls, "\n")
+	require.Contains(t, calls, "exec-out screencap -p")
+	require.Contains(t, calls, "shell cmd clipboard set copied text")
+	require.Contains(t, calls, "shell cmd clipboard get")
+	require.Contains(t, calls, "logcat -c")
+	require.Contains(t, calls, "logcat -d -v epoch")
+	require.Contains(t, calls, "shell date +%s.%N")
 }
 
 func TestSemanticTargetResolvesAccessibilityBoundsAndTapsCenter(t *testing.T) {
@@ -283,4 +353,13 @@ func TestPackageStateReportsExpectedInstallationState(t *testing.T) {
 
 	runner.responses["adb -s serial-1 shell pm list packages com.example.hello"] = nil
 	require.NoError(t, adapter.Actuate(context.Background(), strategy.Actuation{Action: "package-state", Package: "com.example.hello", Value: "absent"}))
+}
+
+func indexOfCall(calls []string, fragment string) int {
+	for i, call := range calls {
+		if strings.Contains(call, fragment) {
+			return i
+		}
+	}
+	return len(calls)
 }

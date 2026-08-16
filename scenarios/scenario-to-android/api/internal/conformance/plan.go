@@ -5,6 +5,7 @@ package conformance
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -40,6 +41,7 @@ type Step struct {
 	Kind                 string         `json:"kind"`
 	Reference            string         `json:"reference,omitempty"`
 	Target               string         `json:"target,omitempty"`
+	TimeoutMS            int64          `json:"timeout_ms"`
 	RequiredCapabilities []string       `json:"required_capabilities,omitempty"`
 	Arguments            map[string]any `json:"arguments,omitempty"`
 }
@@ -70,6 +72,9 @@ func (p Plan) JourneyPlan() deliveryramp.JourneyPlan {
 		for _, declared := range chapter.Steps {
 			action := declared.Reference
 			args := map[string]string{"chapter_id": chapter.ID, "target": declared.Target, "reference": declared.Reference}
+			if declared.TimeoutMS > 0 {
+				args["timeout_ms"] = strconv.FormatInt(declared.TimeoutMS, 10)
+			}
 			if len(declared.RequiredCapabilities) > 0 {
 				args["required_capabilities"] = strings.Join(declared.RequiredCapabilities, ",")
 			}
@@ -95,7 +100,7 @@ func (p Plan) JourneyPlan() deliveryramp.JourneyPlan {
 
 func AndroidPlan() Plan {
 	chapters := []Chapter{
-		chapter("install_cold_start", "Install and launch a generated app from a clean state.", "the first usable frame and app title are visible", []string{"app-lifecycle", "screenshot"}, step("install", "device", "install", "", "app-lifecycle"), step("launch", "device", "launch", "", "app-lifecycle"), step("observe", "device", "observe", "", "screenshot"), step("web-flow", "bas", "flow", "hello-mobile-smoke", "webview-attach")),
+		chapter("install_cold_start", "Install and launch a generated app from a clean state.", "the first usable frame and app title are visible", []string{"app-lifecycle", "screenshot"}, step("wake", "device", "screen", "wake", "input"), step("unlock", "device", "screen", "unlock", "input"), step("install", "device", "install", "", "app-lifecycle"), step("launch", "device", "launch", "", "app-lifecycle"), step("observe", "device", "observe", "", "screenshot"), step("web-flow", "bas", "flow", "hello-mobile-smoke", "webview-attach")),
 		chapter("permission_deny_grace", "Deny a runtime permission and relaunch.", "the app remains usable after denial", []string{"permissions", "app-lifecycle", "screenshot"}, step("deny", "device", "revoke-permission", "android.permission.POST_NOTIFICATIONS", "permissions"), step("launch", "device", "launch", "", "app-lifecycle"), step("web-flow", "bas", "flow", "hello-mobile-smoke", "webview-attach")),
 		chapter("background_resume", "Background and resume the generated app.", "the app returns with its state intact", []string{"input", "app-lifecycle", "screenshot"}, step("background", "device", "key", "KEYCODE_HOME", "input"), step("resume", "device", "launch", "", "app-lifecycle"), step("web-flow", "bas", "flow", "hello-mobile-smoke", "webview-attach")),
 		chapter("process_death_restore", "Force-stop and relaunch the generated app.", "persisted state is restored after process death", []string{"app-lifecycle", "screenshot"}, step("stop", "device", "stop", "", "app-lifecycle"), step("launch", "device", "launch", "", "app-lifecycle"), step("web-flow", "bas", "flow", "hello-mobile-smoke", "webview-attach")),
@@ -120,7 +125,22 @@ func chapter(id, purpose, expected string, required []string, steps ...Step) Cha
 }
 
 func step(id, kind, reference, target, capability string) Step {
-	return Step{ID: id, Kind: kind, Reference: reference, Target: target, RequiredCapabilities: []string{capability}}
+	return Step{ID: id, Kind: kind, Reference: reference, Target: target, TimeoutMS: actionTimeoutMS(reference), RequiredCapabilities: []string{capability}}
+}
+
+// actionTimeoutMS keeps individual device verbs bounded while allowing
+// wireless APK transfers enough time to complete on a real handset.
+func actionTimeoutMS(reference string) int64 {
+	switch reference {
+	case "install":
+		return 120000
+	case "launch", "stop", "uninstall", "package-state", "revoke-permission", "network", "rotate", "screen", "wake", "unlock", "key", "deep-link":
+		return 60000
+	case "observe", "clock-sample", "logcat-start", "logcat-stop":
+		return 45000
+	default:
+		return 60000
+	}
 }
 
 func (p Plan) Validate() error {
@@ -151,6 +171,9 @@ func (p Plan) Validate() error {
 		for _, current := range chapter.Steps {
 			if strings.TrimSpace(current.ID) == "" || strings.TrimSpace(current.Kind) == "" || len(current.RequiredCapabilities) == 0 {
 				return fmt.Errorf("conformance chapter %q has an incomplete step", chapter.ID)
+			}
+			if current.Kind == "device" && (current.TimeoutMS <= 0 || current.TimeoutMS > 10*60*1000) {
+				return fmt.Errorf("conformance chapter %q step %q has an invalid device timeout", chapter.ID, current.ID)
 			}
 			if current.Kind == "bas" && strings.TrimSpace(current.Target) == "" {
 				return fmt.Errorf("conformance chapter %q BAS step has no flow reference", chapter.ID)

@@ -101,11 +101,11 @@ func (s *Service) Devices(ctx context.Context) []Device {
 									}
 								}
 							}
-							record := devicedomain.Record{ID: discoveredDevice.ID, Name: discoveredDevice.Model, Kind: adbDeviceKind(discoveredDevice.Serial), Serial: discoveredDevice.Serial, Model: discoveredDevice.Model, OSVersion: discoveredDevice.OSVersion, StrategyID: discoveredDevice.StrategyID, Status: discoveredDevice.Health, Health: discoveredDevice.Health, HealthReason: discoveredDevice.HealthReason, HostNodeID: hostNodeID, Transport: discoveredDevice.Transport, ObservedAt: discoveredDevice.ObservedAt, Capabilities: mapCaps(deviceDeclaration)}
+							record := devicedomain.Record{ID: discoveredDevice.ID, Name: discoveredDevice.Model, Kind: adbDeviceKind(discoveredDevice.Serial), Serial: discoveredDevice.Serial, Endpoint: discoveredDevice.Endpoint, Model: discoveredDevice.Model, OSVersion: discoveredDevice.OSVersion, StrategyID: discoveredDevice.StrategyID, Status: discoveredDevice.Health, Health: discoveredDevice.Health, HealthReason: discoveredDevice.HealthReason, HostNodeID: hostNodeID, Transport: discoveredDevice.Transport, ObservedAt: discoveredDevice.ObservedAt, Capabilities: mapCaps(deviceDeclaration)}
 							if record.Name == "" {
 								record.Name = record.Serial
 							}
-							s.devices.Upsert(record)
+							s.devices.UpsertIdentity(record)
 							seen[record.ID] = true
 						}
 					}
@@ -372,6 +372,7 @@ func recordFromDevice(device Device) devicedomain.Record {
 		Model: device.Model, OSVersion: device.OSVersion, StrategyID: device.StrategyID,
 		Status: device.Status, Health: device.Health, HealthReason: device.HealthReason,
 		HostNodeID: device.HostNodeID, Transport: device.Transport, Capabilities: capabilities,
+		Endpoint:   device.Endpoint,
 		ObservedAt: device.ObservedAt, FirstSeenAt: device.FirstSeenAt, LastSeenAt: device.LastSeenAt,
 	}
 }
@@ -388,6 +389,7 @@ func (s *Service) Onboarding(kind string) []map[string]string {
 		return append(common,
 			map[string]string{"id": "android-sdk", "prerequisite": "android-sdk resource provides adb and platform-tools.", "owner": "scenario", "status": sdkStatus, "next_action": sdkNext},
 			map[string]string{"id": "usb-bus", "prerequisite": "An Android device is visible on the host USB bus.", "owner": "owner", "status": "unavailable", "next_action": "Connect a data-capable cable and set USB mode to File Transfer."},
+			map[string]string{"id": "wireless-adb", "prerequisite": "An Android device is visible through authorized wireless ADB.", "owner": "owner", "status": "unavailable", "next_action": "Enable Wireless debugging and authorize this host."},
 			map[string]string{"id": "usb-debugging", "prerequisite": "USB debugging is enabled and the device authorizes this host.", "owner": "owner", "status": "unavailable", "next_action": "Enable Developer Options and USB debugging, then accept the RSA prompt."})
 	}
 	if kind == "ios" {
@@ -426,6 +428,12 @@ func (s *Service) OnboardingLive(ctx context.Context, kind string) []map[string]
 			if device.Health != strategy.StatusAvailable {
 				status = "unavailable"
 				reason = device.HealthReason
+			}
+			for i := range rungs {
+				if rungs[i]["id"] == "wireless-adb" && device.Transport == "wireless" && status == "available" {
+					rungs[i]["status"] = "available"
+					rungs[i]["next_action"] = "No action required; authorized wireless ADB is reachable."
+				}
 			}
 			break
 		}
