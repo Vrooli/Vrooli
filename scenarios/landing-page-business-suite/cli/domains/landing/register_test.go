@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/vrooli/cli-core/cliapp"
-	testutil "github.com/vrooli/cli-core/cliapptest"
+testutil "landing-page-business-suite/cli/internal/testutil"
 	"landing-page-business-suite/cli/internal/support"
 )
 

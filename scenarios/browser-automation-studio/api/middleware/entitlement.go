@@ -57,14 +57,6 @@ func (m *EntitlementMiddleware) InjectEntitlement(next http.Handler) http.Handle
 		}
 		ctx = entitlement.WithUserIdentity(ctx, userIdentity)
 
-		overrideTier := m.resolveOverrideTier(r.Context())
-		if overrideTier != "" {
-			ent := m.service.BuildOverrideEntitlement(userIdentity, overrideTier)
-			ctx = entitlement.WithEntitlement(ctx, ent)
-			next.ServeHTTP(w, r.WithContext(ctx))
-			return
-		}
-
 		// Fetch and inject entitlement for authenticated users
 		if userIdentity != "" {
 			ent, err := m.service.GetEntitlement(ctx, userIdentity)
@@ -99,27 +91,6 @@ func (m *EntitlementMiddleware) RequireActiveSubscription(next http.Handler) htt
 
 		next.ServeHTTP(w, r)
 	})
-}
-
-// RequireTier returns middleware that requires at least the specified tier.
-func (m *EntitlementMiddleware) RequireTier(minTier entitlement.Tier) func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if !m.entitlementsEnabled(r.Context()) {
-				next.ServeHTTP(w, r)
-				return
-			}
-
-			ent := entitlement.FromContext(r.Context())
-			if ent == nil || !ent.Tier.AtLeast(minTier) {
-				writeEntitlementError(w, http.StatusForbidden, "TIER_REQUIRED",
-					"This feature requires "+string(minTier)+" tier or higher")
-				return
-			}
-
-			next.ServeHTTP(w, r)
-		})
-	}
 }
 
 // RequireAIAccess returns middleware that requires AI feature access.
@@ -220,21 +191,6 @@ func (m *EntitlementMiddleware) resolveStoredUserIdentity(ctx context.Context) s
 		return ""
 	}
 	return strings.TrimSpace(strings.ToLower(value))
-}
-
-func (m *EntitlementMiddleware) resolveOverrideTier(ctx context.Context) entitlement.Tier {
-	if m.settingsRepo == nil {
-		return ""
-	}
-	value, err := m.settingsRepo.GetSetting(ctx, entitlement.OverrideTierSettingKey)
-	if err != nil || value == "" {
-		return ""
-	}
-	tier, ok := entitlement.ParseTier(value)
-	if !ok {
-		return ""
-	}
-	return tier
 }
 
 // writeEntitlementError writes a standardized entitlement error response.

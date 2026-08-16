@@ -11,6 +11,7 @@ import { cn } from "../lib/classnames";
 import KeyComboPicker from "./KeyComboPicker";
 import VoiceMicButton from "./VoiceMicButton";
 import VoiceCommandSuggestion from "./VoiceCommandSuggestion";
+import InterimTranscriptOverlay from "./composer/InterimTranscriptOverlay";
 import AiSuggestBar from "./AiSuggestBar";
 import type { StartRecordingOpts, VoiceActivitySnapshot } from "../audio-integration";
 import type { CommandSuggestion } from "../audio-integration";
@@ -146,24 +147,18 @@ interface MobileToolbarProps {
   /** True when passive wake-word listening currently holds the mic. */
   voicePassive?: boolean;
   voiceTranscribing?: boolean;
-  /** True when a live mic lease is orphaned while the UI is idle (recovery). */
-  voiceStaleLiveMic?: boolean;
   voiceError?: string | null;
   /** 0–1 audio level for live mic visualization */
   voiceLevel?: number;
   voiceActivity?: VoiceActivitySnapshot;
+  /** Live, unsettled dictation text previewed under the caret. */
   voicePartialTranscript?: string;
   voiceBackend?: string;
-  voiceCanExportDiagnostic?: boolean;
-  onVoiceExportDiagnostic?: () => string | null;
   onVoiceStart?: (opts?: StartRecordingOpts) => void;
   onVoicePrepare?: () => void;
   onVoiceStop?: () => void;
   /** Exit passive wake-word listening (tapping the passive mic button). */
   onVoiceExitPassive?: () => void;
-  /** Release an orphaned live mic lease (stale-live-mic recovery). */
-  onVoiceReleaseMic?: () => void;
-  onVoiceCancel?: () => void;
   /** Current voice command suggestion awaiting confirmation. */
   voiceCommandSuggestion?: CommandSuggestion | null;
   /** Called when user confirms a voice command suggestion. */
@@ -205,20 +200,15 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
   voiceListening,
   voicePassive,
   voiceTranscribing,
-  voiceStaleLiveMic,
   voiceError,
   voiceLevel,
   voiceActivity,
   voicePartialTranscript,
   voiceBackend,
-  voiceCanExportDiagnostic,
-  onVoiceExportDiagnostic,
   onVoiceStart,
   onVoicePrepare,
   onVoiceStop,
   onVoiceExitPassive,
-  onVoiceReleaseMic,
-  onVoiceCancel,
   voiceCommandSuggestion,
   onVoiceCommandConfirm,
   onVoiceCommandDismiss,
@@ -439,6 +429,9 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
     // is kept visible during "sending" state; the ack resolution path
     // (below) decides whether to clear it.
     pendingSendRef.current = { draft: draftText };
+    // Snapshot the session too: the ack can settle after the user switches
+    // sessions, and the clear below must target the session we sent from.
+    const sentFrom = draft.getSessionId();
 
     const result = onInput(dataToSend, "toolbar-submit");
 
@@ -470,7 +463,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
 
     const finalizeSuccess = () => {
       pendingSendRef.current = null;
-      draft.reset();
+      draft.reset(sentFrom);
       showStatus("sent");
       if (viewMode === "messages") onSwitchToTerminal?.();
     };
@@ -573,7 +566,22 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
         <div className="flex min-w-0 flex-1 flex-col">
           {/* Uncontrolled: the DOM owns the value (mirrored into the shared
               draft), so typing and native backspace never re-render the toolbar. */}
-          <div className="relative flex min-w-0">
+          {/* The surface colour lives on the wrapper, not the textarea: the
+              interim mirror sits behind the textarea, so an opaque textarea
+              would paint over the very text it is meant to reveal. */}
+          <div className="relative flex min-w-0 rounded bg-wc-surface-input">
+            {/* Transparent border of the same width as the textarea's so the
+                mirror's content box lines up with the one it is drawing for. */}
+            <InterimTranscriptOverlay
+              draft={draft}
+              interim={voicePartialTranscript ?? ""}
+              textareaRef={textareaRef}
+              className={cn(
+                "rounded border border-transparent px-2 py-1 text-base text-wc-text-primary",
+                onExpandComposer && "pe-7",
+              )}
+              testId="mobile-interim-overlay"
+            />
             <textarea
               ref={textareaRef}
               data-testid="mobile-command-input"
@@ -587,8 +595,11 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
               rows={1}
               placeholder={t(strings.mobileToolbar.placeholder)}
               className={cn(
-                "min-w-0 flex-1 resize-none rounded border border-wc-default bg-wc-surface-input px-2 py-1 text-base text-wc-text-primary placeholder:text-wc-text-muted outline-none focus:border-wc-accent",
+                "relative z-10 min-w-0 flex-1 resize-none rounded border border-wc-default bg-transparent px-2 py-1 text-base caret-wc-text-primary placeholder:text-wc-text-muted outline-none focus:border-wc-accent",
                 "overflow-y-auto overflow-x-hidden",
+                // Hand the glyphs to the mirror while a hypothesis is on
+                // screen so settled and unsettled text cannot double up.
+                voicePartialTranscript ? "text-transparent" : "text-wc-text-primary",
                 // Reserve room for the corner expand icon so long text never
                 // slides under it.
                 onExpandComposer && "pe-7",
@@ -702,22 +713,14 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
               size="sm"
               isPassive={voicePassive ?? false}
               isTranscribing={voiceTranscribing ?? false}
-              staleLiveMic={voiceStaleLiveMic ?? false}
               error={voiceError ?? null}
               audioLevel={voiceLevel}
               voiceActivity={voiceActivity}
-              partialTranscript={voicePartialTranscript}
               backend={voiceBackend}
-              canExportDiagnostic={voiceCanExportDiagnostic}
-              onExportDiagnostic={onVoiceExportDiagnostic}
-              isTtsSpeaking={isTtsSpeaking}
               onPrepare={onVoicePrepare}
               onStart={onVoiceStart}
               onStop={onVoiceStop}
               onExitPassive={onVoiceExitPassive}
-              onReleaseMic={onVoiceReleaseMic}
-              onCancel={onVoiceCancel}
-              onTtsStop={onTtsStop}
               className="flex min-w-0 flex-1"
               buttonClassName="flex w-full items-center justify-center"
             />
@@ -849,22 +852,14 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
                 isListening={voiceListening ?? false}
                 size="lg"
                 isTranscribing={voiceTranscribing ?? false}
-                staleLiveMic={voiceStaleLiveMic ?? false}
                 error={voiceError ?? null}
                 audioLevel={voiceLevel}
                 voiceActivity={voiceActivity}
-                partialTranscript={voicePartialTranscript}
                 backend={voiceBackend}
-                canExportDiagnostic={voiceCanExportDiagnostic}
-                onExportDiagnostic={onVoiceExportDiagnostic}
-                isTtsSpeaking={isTtsSpeaking}
                 onPrepare={onVoicePrepare}
                 onStart={onVoiceStart}
                 onStop={onVoiceStop}
                 onExitPassive={onVoiceExitPassive}
-                onReleaseMic={onVoiceReleaseMic}
-                onCancel={onVoiceCancel}
-                onTtsStop={onTtsStop}
                 className="h-full w-full"
                 // Mic stretches to fill the remaining row width (its grid
                 // column is minmax(0,1fr)), making it as wide as fits without
@@ -972,22 +967,14 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
               size="sm"
               isPassive={voicePassive ?? false}
               isTranscribing={voiceTranscribing ?? false}
-              staleLiveMic={voiceStaleLiveMic ?? false}
               error={voiceError ?? null}
               audioLevel={voiceLevel}
               voiceActivity={voiceActivity}
-              partialTranscript={voicePartialTranscript}
               backend={voiceBackend}
-              canExportDiagnostic={voiceCanExportDiagnostic}
-              onExportDiagnostic={onVoiceExportDiagnostic}
-              isTtsSpeaking={isTtsSpeaking}
               onPrepare={onVoicePrepare}
               onStart={onVoiceStart}
               onStop={onVoiceStop}
               onExitPassive={onVoiceExitPassive}
-              onReleaseMic={onVoiceReleaseMic}
-              onCancel={onVoiceCancel}
-              onTtsStop={onTtsStop}
             />
           )}
         </div>

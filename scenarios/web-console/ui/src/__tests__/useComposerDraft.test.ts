@@ -112,3 +112,101 @@ describe("useComposerDraft", () => {
     expect(changes.at(-1)).toMatchObject({ value: "draft for B", reason: "set" });
   });
 });
+
+/**
+ * A draft belongs to the session it was typed in, so every write and clear must
+ * target THAT session — not whichever session happens to be active when the
+ * operation lands. Both race in practice: persistence is debounced, and a send
+ * only clears once its stdin_ack settles, which can arrive after a switch.
+ */
+describe("useComposerDraft — session ownership of writes and clears", () => {
+  beforeEach(() => {
+    try {
+      window.localStorage.clear();
+    } catch {
+      /* no-op */
+    }
+    vi.useFakeTimers();
+  });
+
+  const read = (id: string) => window.localStorage.getItem(`wc-mobile-draft-${id}`);
+
+  function setup(initial = "sess-a") {
+    const h = renderHook(({ id }) => useComposerDraft(id), { initialProps: { id: initial } });
+    // Fake timers defer React's passive effects; act() forces the flush.
+    const switchTo = (id: string) => act(() => { h.rerender({ id }); });
+    return { ...h, switchTo };
+  }
+
+  it("keeps a draft written just before switching away", () => {
+    const { result, switchTo } = setup();
+    act(() => result.current.setValue("text in A"));
+    act(() => { vi.advanceTimersByTime(DEBOUNCE_MS - 200); });
+    switchTo("sess-b");
+    act(() => { vi.advanceTimersByTime(DEBOUNCE_MS * 2); });
+    expect(read("sess-a")).toBe("text in A");
+  });
+
+  it("does not let typing in the new session drop the previous session's pending write", () => {
+    const { result, switchTo } = setup();
+    act(() => result.current.setValue("text in A"));
+    act(() => { vi.advanceTimersByTime(DEBOUNCE_MS - 200); });
+    switchTo("sess-b");
+    act(() => result.current.setValue("text in B"));
+    act(() => { vi.advanceTimersByTime(DEBOUNCE_MS * 2); });
+    expect(read("sess-a")).toBe("text in A");
+    expect(read("sess-b")).toBe("text in B");
+  });
+
+  it("does not let a send in the new session drop the previous session's pending write", () => {
+    const { result, switchTo } = setup();
+    act(() => result.current.setValue("text in A"));
+    act(() => { vi.advanceTimersByTime(DEBOUNCE_MS - 200); });
+    switchTo("sess-b");
+    act(() => result.current.reset());
+    act(() => { vi.advanceTimersByTime(DEBOUNCE_MS * 2); });
+    expect(read("sess-a")).toBe("text in A");
+  });
+
+  it("restores each session's own draft when switching back and forth", () => {
+    const { result, switchTo } = setup();
+    act(() => result.current.setValue("text in A"));
+    act(() => { vi.advanceTimersByTime(DEBOUNCE_MS - 200); });
+    switchTo("sess-b");
+    act(() => result.current.setValue("text in B"));
+    switchTo("sess-a");
+    expect(result.current.getValue()).toBe("text in A");
+    switchTo("sess-b");
+    expect(result.current.getValue()).toBe("text in B");
+  });
+
+  it("clears the session a send came from when its ack settles after a switch", () => {
+    window.localStorage.setItem("wc-mobile-draft-sess-b", "draft for B");
+    const { result, switchTo } = setup();
+    act(() => result.current.setValue("text in A"));
+    const sentFrom = result.current.getSessionId();
+    act(() => { vi.advanceTimersByTime(DEBOUNCE_MS * 2); });
+
+    switchTo("sess-b");
+    act(() => { vi.advanceTimersByTime(DEBOUNCE_MS * 2); });
+    expect(result.current.getValue()).toBe("draft for B");
+
+    // The late ack: finalizeSuccess() -> draft.reset(sentFrom)
+    act(() => result.current.reset(sentFrom));
+    act(() => { vi.advanceTimersByTime(DEBOUNCE_MS * 2); });
+
+    expect(read("sess-a")).toBeNull();
+    expect(read("sess-b")).toBe("draft for B");
+    expect(result.current.getValue()).toBe("draft for B");
+  });
+
+  it("still clears normally when the send settles in its own session", () => {
+    const { result } = setup();
+    act(() => result.current.setValue("text in A"));
+    const sentFrom = result.current.getSessionId();
+    act(() => { vi.advanceTimersByTime(DEBOUNCE_MS * 2); });
+    act(() => result.current.reset(sentFrom));
+    expect(result.current.getValue()).toBe("");
+    expect(read("sess-a")).toBeNull();
+  });
+});

@@ -1,6 +1,7 @@
 import { describe, expect, it, beforeEach, vi } from 'vitest';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter } from 'react-router-dom';
 import { renderWithProviders } from "@vrooli/api-base/testing";
 import { AppsManagement } from './AppsManagement';
 
@@ -62,7 +63,7 @@ function createAdminHomeState(
 }
 
 function renderPage() {
-  return renderWithProviders(<AppsManagement />, { route: '/admin/apps' });
+  return renderWithProviders(<MemoryRouter initialEntries={['/admin/apps']}><AppsManagement /></MemoryRouter>);
 }
 
 describe('AppsManagement', () => {

@@ -143,9 +143,9 @@
       "steps": [
         {
           "name": "start-api",
-          "run": "cd api && WC_BROADCAST_TRACE=1 ./web-console-api",
+          "run": "cd api && ./web-console-api",
           "background": true,
-          "description": "Start Go API server in background",
+          "description": "Start Go API server in background (export WC_BROADCAST_TRACE=1 before a restart to capture broadcast fingerprints; it logs every PTY frame and grows the log by gigabytes per day)",
           "condition": {
             "file_exists": "api/web-console-api"
           }
@@ -196,7 +196,7 @@
         },
         {
           "name": "start-api",
-          "run": "cd api && WC_BROADCAST_TRACE=1 ./web-console-api",
+          "run": "cd api && ./web-console-api",
           "background": true,
           "description": "Start Go API server"
         },

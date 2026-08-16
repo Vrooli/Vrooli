@@ -157,6 +157,16 @@ seed_file_preview_conversation() {
   printf '# FILEPREVIEW_SEED fixture\n\nHello from the markdown preview fixture.\n' > "${md_path}" || return 0
   printf '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><circle cx="5" cy="5" r="4"/></svg>\n' > "${svg_path}" || return 0
 
+  # Directory fixture for the directory-drilldown case: a directory holding one
+  # child directory and one markdown file, so the case can walk down two levels
+  # and back. The hidden entry proves the default listing filters dotfiles.
+  local dir_path="${fixture_dir}/preview-dir"
+  rm -rf "${dir_path}"
+  mkdir -p "${dir_path}/nested" || return 0
+  printf '# nested fixture\n\nInside the nested directory.\n' > "${dir_path}/nested/inner.md" || return 0
+  printf 'top level entry\n' > "${dir_path}/top.md" || return 0
+  printf 'SECRET=should-not-show-by-default\n' > "${dir_path}/.hidden-env" || return 0
+
   local session_id
   session_id="$(curl -sf --connect-timeout 1 --max-time 2 -X POST "${SESSIONS_RPC}/Create" \
     -H "Content-Type: application/json" \
@@ -173,7 +183,7 @@ seed_file_preview_conversation() {
     -o /dev/null || true
 
   # Assistant reply embeds absolute-path markdown links to the fixtures.
-  local reply="FILEPREVIEW_SEED here are the artifacts: [markdown fixture](${md_path}) and [svg fixture](${svg_path})."
+  local reply="FILEPREVIEW_SEED here are the artifacts: [markdown fixture](${md_path}) and [svg fixture](${svg_path}) and [directory fixture](${dir_path})."
   curl -sf --connect-timeout 1 --max-time 2 -X POST "${API_BASE}/hooks/stop" \
     -H "Content-Type: application/json" -H "X-Hook-Token: ${token}" \
     -d "{\"last_assistant_message\":\"${reply}\",\"session_id\":\"seed-filepreview-uuid\",\"web_console_session_id\":\"${session_id}\"}" \

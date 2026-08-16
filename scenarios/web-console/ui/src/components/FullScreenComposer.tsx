@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { DrawerShell } from "./DrawerShell";
 import { AttachmentPreviewTray, type ComposerAttachment } from "./composer/AttachmentPreviewTray";
+import InterimTranscriptOverlay from "./composer/InterimTranscriptOverlay";
 import { strings } from "../consts/strings";
 import { cn } from "../lib/classnames";
 import { composeComposerPayload } from "../lib/composerPayload";
@@ -28,6 +29,12 @@ interface FullScreenComposerProps {
 
   /** Mic control (VoiceMicButton) rendered by the parent so voice stays unmodified. */
   mic?: ReactNode;
+  /**
+   * Live, unsettled dictation text. Previewed under the caret with a dotted
+   * underline until the segment commits, at which point it arrives through the
+   * draft like any other text.
+   */
+  interimTranscript?: string;
 
   /** Staged image attachments. */
   attachments?: ComposerAttachment[];
@@ -62,6 +69,7 @@ export default function FullScreenComposer({
   subscribeInputSettled,
   onFocusTerminal,
   mic,
+  interimTranscript = "",
   attachments = [],
   onAttachFiles,
   onRemoveAttachment,
@@ -201,6 +209,9 @@ export default function FullScreenComposer({
     }
 
     const payload = composeComposerPayload(text, paths);
+    // Snapshot the session: the ack can settle after the user switches
+    // sessions, and the clear below must target the session we sent from.
+    const sentFrom = draft.getSessionId();
     const result = onInput(payload, "toolbar-submit");
 
     if (result.status === "rejected") {
@@ -218,7 +229,7 @@ export default function FullScreenComposer({
 
     setStatus("sending");
     const finalizeSuccess = () => {
-      draft.reset();
+      draft.reset(sentFrom);
       onClearAttachments?.();
       setStatus("idle");
       onClose();
@@ -261,19 +272,37 @@ export default function FullScreenComposer({
       avoidKeyboard
     >
       <div className="relative flex h-full flex-col">
-        <textarea
-          ref={textareaRef}
-          data-testid="composer-input"
-          defaultValue={draft.getValue()}
-          onChange={handleChange}
-          onSelect={(e) => draft.trackSelection(e.currentTarget)}
-          onBlur={(e) => draft.trackSelection(e.currentTarget)}
-          autoComplete="off"
-          autoCorrect="on"
-          spellCheck
-          placeholder={t(strings.composer.placeholder)}
-          className="min-h-0 flex-1 resize-none bg-transparent px-4 py-3 text-base text-wc-text-primary placeholder:text-wc-text-muted outline-none"
-        />
+        {/* The overlay is absolutely positioned against this box, so its
+            metrics must match the textarea's exactly — same padding, same
+            type scale, same leading. */}
+        <div className="relative flex min-h-0 flex-1 flex-col">
+          <InterimTranscriptOverlay
+            draft={draft}
+            interim={interimTranscript}
+            textareaRef={textareaRef}
+            className="px-4 py-3 text-base text-wc-text-primary"
+            testId="composer-interim-overlay"
+          />
+          <textarea
+            ref={textareaRef}
+            data-testid="composer-input"
+            defaultValue={draft.getValue()}
+            onChange={handleChange}
+            onSelect={(e) => draft.trackSelection(e.currentTarget)}
+            onBlur={(e) => draft.trackSelection(e.currentTarget)}
+            autoComplete="off"
+            autoCorrect="on"
+            spellCheck
+            placeholder={t(strings.composer.placeholder)}
+            className={cn(
+              "relative z-10 min-h-0 flex-1 resize-none bg-transparent px-4 py-3 text-base caret-wc-text-primary placeholder:text-wc-text-muted outline-none",
+              // Hand the glyphs to the mirror while a hypothesis is on screen,
+              // so settled and unsettled text are drawn by one element and
+              // cannot double up. The caret keeps its own colour.
+              interimTranscript ? "text-transparent" : "text-wc-text-primary",
+            )}
+          />
+        </div>
 
         {(status === "queued" || status === "failed") && errorMsg !== null && (
           <div

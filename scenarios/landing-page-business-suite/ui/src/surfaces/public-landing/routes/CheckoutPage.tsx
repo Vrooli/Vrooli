@@ -51,28 +51,28 @@ function classifyErrorState(err: unknown): ErrorState {
   }
   if (isApiError(err, 'server_error')) {
     return {
-      message: isApiError(err) ? err.userMessage : 'Our servers are experiencing issues. Please try again later.',
+      message: err.userMessage,
       type: 'server',
       retryable: true,
     };
   }
   if (isApiError(err, 'rate_limited')) {
     return {
-      message: isApiError(err) ? err.userMessage : 'Too many requests. Please wait a moment and try again.',
+      message: err.userMessage,
       type: 'server',
       retryable: true,
     };
   }
   if (isApiError(err, 'validation')) {
     return {
-      message: isApiError(err) ? err.userMessage : 'Invalid request. Please try again.',
+      message: err.userMessage,
       type: 'validation',
       retryable: false,
     };
   }
   if (isApiError(err, 'not_found')) {
     return {
-      message: isApiError(err) ? err.userMessage : 'Requested resource was not found.',
+      message: err.userMessage,
       type: 'validation',
       retryable: false,
     };
@@ -88,6 +88,8 @@ export function CheckoutPage() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const priceParam = params.get('price_id') || '';
+  const planParam = params.get('plan')?.trim().toLowerCase() || '';
+  const freeRequested = planParam === 'free';
 
   const [pricing, setPricing] = useState<PricingOverview | null>(null);
   const [loading, setLoading] = useState(true);
@@ -102,6 +104,10 @@ export function CheckoutPage() {
   useEffect(() => {
     const requestId = ++loadRequestRef.current;
     const loadPlans = async () => {
+      if (freeRequested) {
+        setLoading(false);
+        return;
+      }
       setLoading(true);
       setError(null);
       try {
@@ -123,7 +129,7 @@ export function CheckoutPage() {
         loadRequestRef.current += 1;
       }
     };
-  }, [loadAttemptKey]);
+  }, [freeRequested, loadAttemptKey]);
 
   const selectedPlan = useMemo<PlanOption | undefined>(() => {
     if (!pricing) return undefined;
@@ -131,11 +137,16 @@ export function CheckoutPage() {
     const yearlyPlans = Array.isArray(pricing.yearly) ? pricing.yearly : [];
     const candidates = [...monthlyPlans, ...yearlyPlans].filter((plan) => plan.display_enabled);
     if (priceParam) {
-      const match = candidates.find((plan) => plan.stripe_price_id === priceParam);
-      if (match) return match;
+      return candidates.find((plan) => plan.stripe_price_id === priceParam);
+    }
+    if (planParam) {
+      return candidates.find((plan) => (
+        plan.plan_tier.trim().toLowerCase() === planParam
+        || plan.plan_name.trim().toLowerCase() === planParam
+      ));
     }
     return candidates[0];
-  }, [pricing, priceParam]);
+  }, [planParam, pricing, priceParam]);
   const selectedPlanFeatures = useMemo(
     () => (selectedPlan ? getPlanFeatures(selectedPlan) : []),
     [selectedPlan],
@@ -144,7 +155,7 @@ export function CheckoutPage() {
   useEffect(() => {
     let cancelled = false;
     const startCheckout = async () => {
-      if (!selectedPlan || startedRef.current) return;
+      if (freeRequested || !selectedPlan || startedRef.current) return;
       startedRef.current = true;
       setSubmitting(true);
       setSessionError(null);
@@ -185,12 +196,55 @@ export function CheckoutPage() {
     return () => {
       cancelled = true;
     };
-  }, [selectedPlan, attemptKey]);
+  }, [attemptKey, freeRequested, selectedPlan]);
 
   if (loading) {
     return (
       <div className="min-h-full bg-slate-950 flex items-center justify-center text-white">
         <div className="animate-pulse text-lg">Loading pricing…</div>
+      </div>
+    );
+  }
+
+  if (freeRequested) {
+    return (
+      <div className="min-h-full bg-slate-950 flex items-center justify-center text-white px-6">
+        <Card className="max-w-xl bg-slate-900 border-emerald-500/30 text-white">
+          <CardHeader>
+            <CardTitle>Start with the free edition</CardTitle>
+            <CardDescription className="text-slate-300">
+              Free access does not require payment. Continue to the landing page to choose a download.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-3 sm:flex-row">
+            <Button onClick={() => { navigate('/#downloads-section'); }}>
+              View free downloads
+            </Button>
+            <Button variant="ghost" onClick={() => { navigate('/'); }}>
+              Back to landing
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (pricing && (priceParam || planParam) && !selectedPlan) {
+    return (
+      <div className="min-h-full bg-slate-950 flex items-center justify-center text-white px-6">
+        <Card className="max-w-xl bg-slate-900 border-rose-500/30 text-white">
+          <CardHeader>
+            <CardTitle>Plan unavailable</CardTitle>
+            <CardDescription className="text-slate-300">
+              The requested plan is not available. Choose a current plan from the landing page and try again.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button variant="ghost" onClick={() => { navigate('/'); }}>
+              Back to landing
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     );
   }

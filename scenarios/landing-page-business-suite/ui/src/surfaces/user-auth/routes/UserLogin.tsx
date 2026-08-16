@@ -12,6 +12,8 @@ interface AuthCallbackParams {
   redirect_uri: string;
   app: string;
   state: string;
+  code_challenge?: string;
+  code_challenge_method?: string;
 }
 
 export function isValidEmail(email: string): boolean {
@@ -37,6 +39,8 @@ export function UserLogin() {
     const redirectUri = searchParams.get('redirect_uri');
     const app = searchParams.get('app') || 'Vrooli';
     const state = searchParams.get('state') || '';
+    const codeChallenge = searchParams.get('code_challenge') || undefined;
+    const codeChallengeMethod = searchParams.get('code_challenge_method') || undefined;
 
     setAppName(app);
 
@@ -46,6 +50,8 @@ export function UserLogin() {
         redirect_uri: redirectUri,
         app,
         state,
+        ...(codeChallenge ? { code_challenge: codeChallenge } : {}),
+        ...(codeChallengeMethod ? { code_challenge_method: codeChallengeMethod } : {}),
       };
       sessionStorage.setItem(AUTH_CALLBACK_PARAMS_KEY, JSON.stringify(params));
     }

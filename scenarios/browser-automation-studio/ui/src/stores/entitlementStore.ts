@@ -14,14 +14,6 @@ import { entitlementClient } from '../api/entitlement';
 export type SubscriptionTier = 'free' | 'solo' | 'pro' | 'studio' | 'business';
 export type SubscriptionStatus = 'active' | 'trialing' | 'past_due' | 'canceled' | 'inactive';
 
-// API source types for dev mode switching
-export type ApiSource = 'production' | 'local' | 'disabled';
-
-export interface ApiSourceConfig {
-  source: ApiSource;
-  localPort: number;
-}
-
 // API response type (kept in snake_case for downstream consumer compatibility).
 export interface EntitlementStatusResponse {
   user_identity: string;
@@ -37,7 +29,6 @@ export interface EntitlementStatusResponse {
   can_use_ai: boolean;
   can_use_recording: boolean;
   entitlements_enabled: boolean;
-  override_tier?: SubscriptionTier;
 
   // AI Credits
   ai_credits_used: number;
@@ -92,14 +83,10 @@ export interface OperationLogPage {
 interface EntitlementState {
   userEmail: string;
   status: EntitlementStatusResponse | null;
-  overrideTier: SubscriptionTier | null;
   isLoading: boolean;
   error: string | null;
   lastFetched: Date | null;
   isOffline: boolean;
-
-  apiSource: ApiSource;
-  localApiPort: number;
 
   usageHistory: UsagePeriod[];
   historyLoading: boolean;
@@ -114,11 +101,6 @@ interface EntitlementState {
   clearUserEmail: () => Promise<void>;
   refreshEntitlement: () => Promise<void>;
   getUserEmail: () => Promise<string>;
-  setOverrideTier: (tier: SubscriptionTier | null) => Promise<void>;
-
-  getApiSource: () => Promise<void>;
-  setApiSource: (source: ApiSource, localPort?: number) => Promise<void>;
-
   fetchUsageHistory: (months?: number, offset?: number) => Promise<void>;
   fetchOperationLog: (month: string, category?: string, limit?: number, offset?: number) => Promise<void>;
   setSelectedPeriod: (month: string | null) => void;
@@ -219,7 +201,6 @@ const toStatus = (proto: EntitlementStatus | undefined): EntitlementStatusRespon
     can_use_ai: proto.canUseAi,
     can_use_recording: proto.canUseRecording,
     entitlements_enabled: proto.entitlementsEnabled,
-    override_tier: toMaybeTier(proto.overrideTier),
     ai_credits_used: proto.aiCreditsUsed,
     ai_credits_limit: proto.aiCreditsLimit,
     ai_credits_remaining: proto.aiCreditsRemaining,
@@ -283,14 +264,10 @@ const isNetworkLikeError = (err: unknown): boolean => {
 export const useEntitlementStore = create<EntitlementState>((set, get) => ({
   userEmail: '',
   status: null,
-  overrideTier: null,
   isLoading: false,
   error: null,
   lastFetched: null,
   isOffline: false,
-
-  apiSource: 'production' as ApiSource,
-  localApiPort: 15000,
 
   usageHistory: [],
   historyLoading: false,
@@ -312,7 +289,6 @@ export const useEntitlementStore = create<EntitlementState>((set, get) => ({
       set({
         status: data,
         userEmail: data.user_identity || '',
-        overrideTier: data.override_tier ?? null,
         isLoading: false,
         lastFetched: new Date(),
         isOffline: false,
@@ -348,7 +324,6 @@ export const useEntitlementStore = create<EntitlementState>((set, get) => ({
       set({
         status: data,
         userEmail: data.user_identity || '',
-        overrideTier: data.override_tier ?? null,
         isLoading: false,
         lastFetched: new Date(),
         isOffline: false,
@@ -365,7 +340,6 @@ export const useEntitlementStore = create<EntitlementState>((set, get) => ({
       set({
         userEmail: '',
         status: null,
-        overrideTier: null,
         isLoading: false,
         lastFetched: new Date(),
       });
@@ -392,7 +366,6 @@ export const useEntitlementStore = create<EntitlementState>((set, get) => ({
       set({
         status: data,
         userEmail: data.user_identity || '',
-        overrideTier: data.override_tier ?? null,
         isLoading: false,
         lastFetched: new Date(),
         isOffline: false,
@@ -414,46 +387,6 @@ export const useEntitlementStore = create<EntitlementState>((set, get) => ({
       return email;
     } catch {
       return '';
-    }
-  },
-
-  setOverrideTier: async (tier: SubscriptionTier | null) => {
-    set({ isLoading: true, error: null });
-    try {
-      await entitlementClient.setOverride({ tier: tier ?? '' });
-      await get().fetchStatus();
-    } catch (err) {
-      set({ error: messageFromError(err, 'Failed to set override tier'), isLoading: false });
-    }
-  },
-
-  getApiSource: async () => {
-    try {
-      const resp = await entitlementClient.getApiSource({});
-      set({
-        apiSource: (resp.source || 'production') as ApiSource,
-        localApiPort: resp.localPort || 15000,
-      });
-    } catch {
-      // Silently fall through — defaults are fine.
-    }
-  },
-
-  setApiSource: async (source: ApiSource, localPort?: number) => {
-    set({ isLoading: true, error: null });
-    try {
-      const resp = await entitlementClient.setApiSource({
-        source,
-        localPort: localPort ?? 0,
-      });
-      set({
-        apiSource: (resp.source || source) as ApiSource,
-        localApiPort: resp.localPort || get().localApiPort,
-        isLoading: false,
-      });
-      await get().fetchStatus();
-    } catch (err) {
-      set({ error: messageFromError(err, 'Failed to set API source'), isLoading: false });
     }
   },
 

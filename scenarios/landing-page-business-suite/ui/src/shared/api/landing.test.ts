@@ -49,6 +49,90 @@ describe('landing API', () => {
       expect(result).toMatchObject({ variant: { slug: 'control' }, fallback: false });
     });
 
+    it('normalizes protobuf JSON field names, enum values, and int64 strings', async () => {
+      landingConfigClient.getLandingConfig.mockResolvedValue({
+        variant: { id: '7', slug: 'control', name: 'Control', description: 'Public', axes: { persona: 'builder' } },
+        sections: [{ section_key: 'hero', section_type: 'hero', content: { title: 'Ship quietly' }, order: 1, enabled: true }],
+        pricing: {
+          bundle: { bundle_key: 'business_suite', name: 'Suite', stripe_product_id: 'prod_test', credits_per_usd: '1000000', display_credits_multiplier: 0.001, display_credits_label: 'credits', metadata: {} },
+          monthly: [{ plan_name: 'Pro', plan_tier: 'pro', billing_interval: 'BILLING_INTERVAL_MONTH', amount_cents: '7900', currency: 'usd', kind: 'PLAN_KIND_SUBSCRIPTION', display_enabled: true, stripe_price_id: 'price_pro', metadata: {} }],
+          yearly: [],
+          updated_at: '2026-01-01T00:00:00Z',
+        },
+        downloads: [{
+          bundle_key: 'business_suite', app_key: 'browser-automation-studio', name: 'Vrooli Ascension', metadata: {},
+          platforms: [{ id: '9', bundle_key: 'business_suite', app_key: 'browser-automation-studio', platform: 'linux', artifact_url: '/downloads/app.AppImage', release_version: '1.0.0', requires_entitlement: true, metadata: {} }],
+        }],
+        header: {
+          branding: { mode: 'logo_and_name', label: 'Suite' },
+          nav: { links: [{ id: 'pricing', type: 'section', label: 'Pricing', section_type: 'pricing', visible_on: { desktop: true, mobile: true }, children: [] }] },
+          ctas: { primary: { mode: 'inherit_hero', variant: 'solid' }, secondary: { mode: 'downloads', variant: 'ghost' } },
+          behavior: { sticky: true, hide_on_scroll: false },
+        },
+        branding: { site_name: 'Suite', coming_soon_enabled: false },
+        coupon_mappings: {},
+        intro_offers: [{ id: 'intro', duration: 'once', redeem_by: '0', times_redeemed: '0', valid: true, created: '1769716599', is_intro_coupon: true }],
+        fallback: false,
+      });
+
+      const result = await getLandingConfig();
+
+      expect(result.variant.id).toBe(7);
+      expect(result.sections[0]).toMatchObject({ key: 'hero', section_type: 'hero', content: { title: 'Ship quietly' } });
+      expect(result.pricing?.monthly[0]).toMatchObject({ billing_interval: 'month', amount_cents: 7900, kind: 'subscription' });
+      expect(result.downloads[0]?.platforms[0]).toMatchObject({ id: 9, artifact_url: '/downloads/app.AppImage', requires_entitlement: true });
+      expect(result.header.nav.links[0]).toMatchObject({ section_type: 'pricing', visible_on: { desktop: true, mobile: true } });
+      expect(result.intro_offers?.[0]).toMatchObject({ times_redeemed: 0, created: 1769716599, is_intro_coupon: true });
+      expect(result.intro_offers?.[0]?.redeem_by).toBeUndefined();
+    });
+
+    it('preserves optional landing fields and safely normalizes sparse payloads', async () => {
+      landingConfigClient.getLandingConfig.mockResolvedValue({
+        variant: { id: 2, slug: 'sparse', name: 'Sparse', axes: 'invalid' },
+        sections: [
+          { id: 3, key: 'hero', section_type: 'hero', content: {}, order: 0, enabled: false },
+          { section_type: 'footer', content: {}, order: 1 },
+        ],
+        pricing: {
+          bundle: { id: 4, bundle_key: 'suite', name: 'Suite', stripe_product_id: 'prod', credits_per_usd: 1, display_credits_multiplier: 1, display_credits_label: 'credits', metadata: 'invalid' },
+          monthly: [{
+            plan_name: 'Pro', plan_tier: 'pro', billing_interval: 'BILLING_INTERVAL_YEAR', amount_cents: '7900', currency: 'usd',
+            intro_enabled: true, intro_type: 'INTRO_PRICING_TYPE_FLAT_AMOUNT', intro_amount_cents: '500', intro_periods: '2',
+            intro_price_lookup_key: 'intro', stripe_price_id: 'price', monthly_included_credits: '10', one_time_bonus_credits: '2',
+            plan_rank: '1', bonus_type: 'none', kind: 'PLAN_KIND_CREDITS_TOPUP', is_variable_amount: true, display_enabled: true,
+            bundle_key: 'suite', display_weight: '3', metadata: 'invalid',
+          }],
+          yearly: [], updated_at: '2026-01-01T00:00:00Z',
+        },
+        downloads: [{
+          bundle_key: 'suite', app_key: 'app', name: 'App', install_steps: ['one', 2], storefronts: [{ store: 'direct', label: 'Direct', url: '/download', badge: 'Get it' }, { store: 'mirror', label: 'Mirror', url: '/mirror' }], metadata: { fields: { raw: 'value' } }, display_order: '1',
+          platforms: [
+            { id: 1, bundle_key: 'suite', app_key: 'app', platform: 'linux', artifact_url: '/app', artifact_source: 'direct', artifact_id: '2', release_version: '1', release_notes: 'notes', checksum: 'sha', requires_entitlement: true, metadata: { fields: 'raw' }, artifact_filename: 'app', artifact_size_bytes: 'invalid', artifact_count: '1' },
+            { bundle_key: 'suite', app_key: 'app', platform: 'windows', artifact_url: '/app.exe', metadata: 'invalid' },
+          ],
+        }],
+        header: {
+          branding: { mode: 'HEADER_BRANDING_MODE_NONE', label: 'Sparse', subtitle: 'Sub', mobile_preference: 'stacked' },
+          nav: { links: [{ id: 'custom', type: 'HEADER_NAV_LINK_TYPE_CUSTOM', label: 'Custom', section_id: '2', anchor: '#hero', href: '/hero', visible_on: { desktop: true, mobile: false }, children: [{ id: 'child', type: 'custom', label: 'Child' }] }] },
+          ctas: { primary: { mode: 'HEADER_CTA_MODE_CUSTOM', label: 'Go', href: '/go', variant: 'solid' }, secondary: { mode: 'HEADER_CTA_MODE_HIDDEN' } },
+          behavior: { sticky: true, hide_on_scroll: true },
+        },
+        branding: { site_name: 'Sparse', tagline: 'Tag', logo_url: '/logo', logo_icon_url: '/icon', favicon_url: '/fav', theme_primary_color: '#fff', theme_background_color: '#000', support_chat_url: '/chat', support_email: 'support@example.com', coming_soon_enabled: false, coming_soon_message: 'Soon' },
+        coupon_mappings: 'invalid',
+        intro_offers: [{ id: 'offer', name: 'Offer', amount_off: '10', percent_off: '5', currency: 'usd', duration: 'repeating', duration_in_months: '2', max_redemptions: '3', redeem_by: '10', times_redeemed: '0', valid: true, created: '1769716599', is_intro_coupon: true, intro_tier: 'pro' }],
+        fallback: false,
+      });
+
+      const result = await getLandingConfig();
+
+      expect(result.pricing?.bundle.id).toBe(4);
+      expect(result.pricing?.monthly[0]).toMatchObject({ billing_interval: 'year', intro_amount_cents: 500, plan_rank: 1, metadata: undefined });
+      expect(result.downloads[0]?.platforms[0]).toMatchObject({ artifact_id: 2, artifact_size_bytes: 0, artifact_count: 1 });
+      expect(result.downloads[0]?.storefronts[0]).toMatchObject({ badge: 'Get it' });
+      expect(result.header.nav.links[0]).toMatchObject({ section_id: 2, anchor: '#hero', children: [{ id: 'child' }] });
+      expect(result.intro_offers?.[0]).toMatchObject({ amount_off: 10, redeem_by: 10, duration_in_months: 2 });
+    });
+
     it('calls endpoint without variant param when not provided', async () => {
       await getLandingConfig();
       expect(landingConfigClient.getLandingConfig).toHaveBeenCalledWith({ variantSlug: undefined });
@@ -271,7 +355,7 @@ describe('landing API', () => {
       const protoResponse = {
         pricing: {
           bundle: { bundleKey: 'main', name: 'Main', stripeProductId: 'prod_123' },
-          monthly: [{ planName: 'Basic' }],
+          monthly: [{ planName: 'Basic' }, {}],
           yearly: [],
         },
       };
@@ -292,12 +376,12 @@ describe('landing API', () => {
             bundleKey: 'main',
             name: 'Main',
             stripeProductId: 'prod_123',
-            metadata: { source: { toJson: () => 'seeded' } },
+            metadata: { source: { toJson: () => 'seeded' }, plain: {} },
           },
           monthly: [
             {
               planName: 'Top up', planTier: 'credits', amountCents: '500', currency: 'usd',
-              kind: PlanKind.CREDITS_TOPUP,
+              kind: PlanKind.CREDITS_TOPUP, planRank: 1,
               billingInterval: BillingInterval.ONE_TIME,
               introType: IntroPricingType.PERCENTAGE,
               introAmountCents: '20', introPeriods: '2', metadata: { label: { toJson: () => 'popular' } },
@@ -322,7 +406,7 @@ describe('landing API', () => {
       expect(result.yearly).toEqual([expect.objectContaining({
         kind: 'supporter_contribution', billing_interval: 'year', intro_type: 'flat_amount',
       })]);
-      expect(result.bundle.metadata).toEqual({ source: 'seeded' });
+      expect(result.bundle.metadata).toEqual({ source: 'seeded', plain: null });
     });
 
     it('filters malformed numeric plans instead of exposing invalid prices to checkout', async () => {
@@ -330,7 +414,7 @@ describe('landing API', () => {
       const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
       fetchMock.mockResolvedValue(mockResponses.success({
         pricing: {
-          bundle: { bundleKey: 'main', name: 'Main', stripeProductId: 'prod_123' },
+          bundle: { bundleKey: 'main', name: 'Main', stripeProductId: 'prod_123', creditsPerUsd: 'not-a-number' },
           monthly: [{ planName: 'Broken', planTier: 'pro', amountCents: 'not-a-number', currency: 'usd' }],
           yearly: [],
         },

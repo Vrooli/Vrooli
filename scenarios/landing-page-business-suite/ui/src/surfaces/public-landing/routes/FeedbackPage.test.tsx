@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { Code, ConnectError } from '@connectrpc/connect';
 import { renderWithProviders } from "@vrooli/api-base/testing";
 import { createFeedback } from '../../../shared/api/feedback';
@@ -8,7 +9,7 @@ import { FeedbackPage } from './FeedbackPage';
 vi.mock('../../../shared/api/feedback', () => ({ createFeedback: vi.fn() }));
 
 function renderFeedbackPage() {
-  return renderWithProviders(<FeedbackPage />, { route: '/feedback' });
+  return renderWithProviders(<MemoryRouter initialEntries={['/feedback']}><FeedbackPage /></MemoryRouter>);
 }
 
 function completeForm() {

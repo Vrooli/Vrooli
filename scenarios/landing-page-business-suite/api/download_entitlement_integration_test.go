@@ -46,6 +46,8 @@ func setupDownloadEntitlementDB(t *testing.T) (*sql.DB, *DownloadAuthorizer) {
 			customer_id VARCHAR(255),
 			customer_email VARCHAR(255),
 			status VARCHAR(50) NOT NULL,
+			source VARCHAR(100) NOT NULL DEFAULT 'stripe',
+			external_subscription_id VARCHAR(255),
 			plan_tier VARCHAR(50),
 			price_id VARCHAR(255),
 			bundle_key VARCHAR(100),

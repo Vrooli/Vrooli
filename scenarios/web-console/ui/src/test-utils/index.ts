@@ -10,8 +10,8 @@ export {
   mockFetchError,
 } from "./mocks";
 export type { MockTerminal } from "./mocks";
-export { createTestQueryClient, renderWithProviders } from "./render";
-export { expectNoA11yViolations } from "./a11y";
+export { createTestQueryClient, renderWithProviders } from "@vrooli/api-base/testing";
+export { expectNoA11yViolations } from "@vrooli/api-base/testing";
 export { asMockedClient, type MockedConnectClient } from "./mockConnectClient";
 
 export type {

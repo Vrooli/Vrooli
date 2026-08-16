@@ -259,6 +259,13 @@
     "enableTitle": "Enable voice for this session",
     "dismiss": "Dismiss"
   },
+  "voiceRecovery": {
+    "regionLabel": "Voice input recovery",
+    "cancel": "Cancel transcription",
+    "releaseMic": "Release microphone",
+    "stopSpeech": "Stop speech",
+    "exportDiagnostic": "Export diagnostic"
+  },
   "voiceRejection": {
     "title": "Speech didn't match your voice",
     "explanatoryDetail": "{{reason}} (score {{score}} < threshold {{threshold}})",

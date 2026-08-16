@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import { ExecutionCard } from "./ExecutionCard";
 import { selectors } from "@constants/selectors";
+import { renderWithProviders } from "@/test-utils";
 
 describe("ExecutionCard", () => {
   it("exposes stable workflow identity for deterministic selection", () => {
-    render(
+    renderWithProviders(
       <ExecutionCard
         testId={selectors.executions.list.item}
         execution={{

@@ -435,6 +435,14 @@
       "category": "ai"
     },
     {
+      "id": "get-api-v1-auth-authorize",
+      "path": "/api/v1/auth/authorize",
+      "method": "GET",
+      "summary": "GET /api/v1/auth/authorize",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "auth"
+    },
+    {
       "id": "post-api-v1-auth-logout",
       "path": "/api/v1/auth/logout",
       "method": "POST",
@@ -463,6 +471,14 @@
       "path": "/api/v1/auth/refresh",
       "method": "POST",
       "summary": "POST /api/v1/auth/refresh",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "auth"
+    },
+    {
+      "id": "post-api-v1-auth-token",
+      "path": "/api/v1/auth/token",
+      "method": "POST",
+      "summary": "POST /api/v1/auth/token",
       "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
       "category": "auth"
     },
@@ -559,6 +575,30 @@
       "path": "/api/v1/usage/report",
       "method": "POST",
       "summary": "POST /api/v1/usage/report",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "usage"
+    },
+    {
+      "id": "post-api-v1-usage-reservations",
+      "path": "/api/v1/usage/reservations",
+      "method": "POST",
+      "summary": "POST /api/v1/usage/reservations",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "usage"
+    },
+    {
+      "id": "post-api-v1-usage-reservations-reservationid-finalize",
+      "path": "/api/v1/usage/reservations/{reservationID}/finalize",
+      "method": "POST",
+      "summary": "POST /api/v1/usage/reservations/{reservationID}/finalize",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "usage"
+    },
+    {
+      "id": "post-api-v1-usage-reservations-reservationid-release",
+      "path": "/api/v1/usage/reservations/{reservationID}/release",
+      "method": "POST",
+      "summary": "POST /api/v1/usage/reservations/{reservationID}/release",
       "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
       "category": "usage"
     },

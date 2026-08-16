@@ -1,11 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import { InlineExecutionHeader } from "./InlineExecutionHeader";
 import { selectors } from "@constants/selectors";
+import { renderWithProviders } from "@/test-utils";
 
 describe("InlineExecutionHeader", () => {
   it("renders an accessible liveness indicator alongside a terminal status", () => {
-    render(
+    renderWithProviders(
       <InlineExecutionHeader
         status="completed"
         onClose={vi.fn()}

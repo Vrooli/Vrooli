@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { renderWithProviders } from "@vrooli/api-base/testing";
 import { isValidEmail, UserLogin } from './UserLogin';
 import * as api from '../../../shared/api';
@@ -12,7 +13,7 @@ vi.mock('../../../shared/api', async () => {
 const requestMagicLink = vi.mocked(api.requestMagicLink);
 
 function renderLogin(route = '/auth/login') {
-  return renderWithProviders(<UserLogin />, { route });
+  return renderWithProviders(<MemoryRouter initialEntries={[route]}><UserLogin /></MemoryRouter>);
 }
 
 describe('UserLogin', () => {

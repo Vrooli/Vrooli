@@ -48,6 +48,7 @@ import { useComposerDraft } from "../hooks/useComposerDraft";
 import { useComposerAttachments } from "../hooks/useComposerAttachments";
 import { useComposerHotkey } from "../hooks/useComposerHotkey";
 import VoiceRejectionBanner from "./VoiceRejectionBanner";
+import VoiceRecoveryBanner from "./VoiceRecoveryBanner";
 import WorkspaceMinimap from "./WorkspaceMinimap";
 import SettingsModal from "./SettingsModal";
 import AppearanceModal from "./AppearanceModal";
@@ -1400,22 +1401,14 @@ export default function Workspace({ topSafeAreaReserved = false }: WorkspaceProp
         voiceListening={voiceInput.isListening}
         voicePassive={voiceInput.isPassive}
         voiceTranscribing={voiceInput.isTranscribing}
-        voiceStaleLiveMic={voiceInput.staleLiveMicLease}
         voiceError={voiceInput.error}
         voiceLevel={voiceInput.audioLevel}
         voiceActivity={voiceInput.voiceActivity}
-        voicePartialTranscript={voiceInput.partialTranscript}
         voiceBackend={voiceInput.backend}
-        voiceCanExportDiagnostic={voiceInput.turnDiagnostic !== null}
-        onVoiceExportDiagnostic={voiceInput.exportTurnDiagnostic}
         onVoicePrepare={voiceInput.prepareRecording}
         onVoiceStart={handleVoiceStart}
         onVoiceStop={handleVoiceStop}
         onVoiceExitPassive={voiceInput.exitPassiveMode}
-        onVoiceReleaseMic={voiceInput.releaseMicrophone}
-        onVoiceCancel={handleVoiceCancel}
-        isTtsSpeaking={isTtsSpeaking}
-        onTtsStop={handleTtsStop}
       />
 
       <TopSafeArea
@@ -1450,6 +1443,21 @@ export default function Workspace({ topSafeAreaReserved = false }: WorkspaceProp
             onDismiss={voiceInput.dismissRejection}
           />
         )}
+
+        {/* Voice error text and recovery actions. These used to render inside
+            the microphone button's own wrapper, which changed the control's
+            footprint mid-sentence; they are app chrome and belong here. */}
+        <VoiceRecoveryBanner
+          error={voiceInput.error}
+          isTranscribing={voiceInput.isTranscribing}
+          onCancel={handleVoiceCancel}
+          staleLiveMic={voiceInput.staleLiveMicLease}
+          onReleaseMic={voiceInput.releaseMicrophone}
+          isTtsSpeaking={isTtsSpeaking}
+          onTtsStop={handleTtsStop}
+          canExportDiagnostic={voiceInput.turnDiagnostic !== null}
+          onExportDiagnostic={voiceInput.exportTurnDiagnostic}
+        />
 
         {summarizeError && (
           <SummarizeErrorBanner
@@ -1796,20 +1804,15 @@ export default function Workspace({ topSafeAreaReserved = false }: WorkspaceProp
           voiceListening={voiceInput.isListening}
           voicePassive={voiceInput.isPassive}
           voiceTranscribing={voiceInput.isTranscribing}
-          voiceStaleLiveMic={voiceInput.staleLiveMicLease}
           voiceError={voiceInput.error}
           voiceLevel={voiceInput.audioLevel}
           voiceActivity={voiceInput.voiceActivity}
           voicePartialTranscript={voiceInput.partialTranscript}
           voiceBackend={voiceInput.backend}
-          voiceCanExportDiagnostic={voiceInput.turnDiagnostic !== null}
-          onVoiceExportDiagnostic={voiceInput.exportTurnDiagnostic}
           onVoicePrepare={voiceInput.prepareRecording}
           onVoiceStart={handleVoiceStart}
           onVoiceStop={handleVoiceStop}
           onVoiceExitPassive={voiceInput.exitPassiveMode}
-          onVoiceReleaseMic={voiceInput.releaseMicrophone}
-          onVoiceCancel={handleVoiceCancel}
           voiceCommandSuggestion={voiceInput.commandSuggestion}
           onVoiceCommandConfirm={handleVoiceCommandConfirm}
           onVoiceCommandDismiss={handleVoiceCommandDismiss}
@@ -1846,6 +1849,7 @@ export default function Workspace({ topSafeAreaReserved = false }: WorkspaceProp
         onInput={handleSendToTerminal}
         subscribeInputSettled={handleSubscribeInputSettled}
         onFocusTerminal={handleFocusTerminal}
+        interimTranscript={voiceInput.partialTranscript}
         attachments={composerAttachments.attachments}
         onAttachFiles={composerAttachments.addFiles}
         onRemoveAttachment={composerAttachments.removeFile}
@@ -1861,22 +1865,14 @@ export default function Workspace({ topSafeAreaReserved = false }: WorkspaceProp
             isListening={voiceInput.isListening}
             isPassive={voiceInput.isPassive}
             isTranscribing={voiceInput.isTranscribing}
-            staleLiveMic={voiceInput.staleLiveMicLease}
             error={voiceInput.error}
             audioLevel={voiceInput.audioLevel}
             voiceActivity={voiceInput.voiceActivity}
-            partialTranscript={voiceInput.partialTranscript}
             backend={voiceInput.backend}
-            canExportDiagnostic={voiceInput.turnDiagnostic !== null}
-            onExportDiagnostic={voiceInput.exportTurnDiagnostic}
-            isTtsSpeaking={isTtsSpeaking}
             onPrepare={voiceInput.prepareRecording}
             onStart={handleVoiceStart}
             onStop={handleVoiceStop}
             onExitPassive={voiceInput.exitPassiveMode}
-            onReleaseMic={voiceInput.releaseMicrophone}
-            onCancel={handleVoiceCancel}
-            onTtsStop={handleTtsStop}
             // In the composer the mic is a primary, high-frequency action, so
             // give it a large tap target: the wrapper is a flex box that
             // stretches to the row height (= send button height), the button

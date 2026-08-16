@@ -39,6 +39,25 @@ describe("matchProseFilePaths", () => {
     expect(paths("docs/plan.md has details")).toEqual(["docs/plan.md"]);
   });
 
+  // Directories are previewable, so a relative directory reference has to be
+  // linkable too. A trailing slash is the unambiguous signal that running
+  // prose never produces by accident.
+  it("matches an extensionless relative directory when it ends in a slash", () => {
+    expect(paths("evidence lives in docs/evidence/ now")).toEqual(["docs/evidence"]);
+    expect(paths("see scenarios/web-console/bas/ for cases")).toEqual(["scenarios/web-console/bas"]);
+  });
+
+  it("still rejects an extensionless relative directory without the slash", () => {
+    expect(paths("evidence lives in docs/evidence now")).toEqual([]);
+  });
+
+  it("does not let the trailing slash admit prose that merely contains one", () => {
+    // Single-segment bodies stay out regardless of the slash.
+    expect(paths("either and/or works")).toEqual([]);
+    expect(paths("we speak TCP/IP here")).toEqual([]);
+    expect(paths("read/write access")).toEqual([]);
+  });
+
   it("keeps :line suffixes", () => {
     expect(paths("bug at ui/src/App.tsx:42 here")).toEqual(["ui/src/App.tsx:42"]);
   });
@@ -91,6 +110,13 @@ describe("looksLikeInlineFileReference", () => {
     expect(looksLikeInlineFileReference("README.md")).toBe(true);
     expect(looksLikeInlineFileReference("package.json")).toBe(true);
     expect(looksLikeInlineFileReference("/etc/hosts")).toBe(true);
+  });
+
+  it("accepts an extensionless relative directory written with a trailing slash", () => {
+    expect(looksLikeInlineFileReference("docs/evidence/")).toBe(true);
+    expect(looksLikeInlineFileReference("scenarios/web-console/bas/")).toBe(true);
+    // Without the slash it stays out, exactly as before.
+    expect(looksLikeInlineFileReference("docs/evidence")).toBe(false);
   });
 
   it("rejects slashed prose, bare domains, and non-path tokens", () => {

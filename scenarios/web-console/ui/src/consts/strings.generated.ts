@@ -271,6 +271,13 @@ export const strings = {
     enableTitle: "enableAudioBanner.enableTitle",
     dismiss: "enableAudioBanner.dismiss",
   },
+  voiceRecovery: {
+    regionLabel: "voiceRecovery.regionLabel",
+    cancel: "voiceRecovery.cancel",
+    releaseMic: "voiceRecovery.releaseMic",
+    stopSpeech: "voiceRecovery.stopSpeech",
+    exportDiagnostic: "voiceRecovery.exportDiagnostic",
+  },
   voiceRejection: {
     title: "voiceRejection.title",
     explanatoryDetail: "voiceRejection.explanatoryDetail",

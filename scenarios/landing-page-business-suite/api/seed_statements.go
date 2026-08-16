@@ -10,7 +10,17 @@ const (
 		ON CONFLICT (id) DO NOTHING`
 	seedDownloadAppCountSQL = `SELECT COUNT(*) FROM download_apps`
 	seedDownloadAppSQL      = `INSERT INTO download_apps (bundle_key, app_key, name, tagline, description, install_overview, install_steps, storefronts, metadata, display_order)
-		VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8::jsonb,$9::jsonb,$10)`
+		VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8::jsonb,$9::jsonb,$10)
+		ON CONFLICT (bundle_key, app_key) DO UPDATE SET
+			name = EXCLUDED.name,
+			tagline = EXCLUDED.tagline,
+			description = EXCLUDED.description,
+			install_overview = EXCLUDED.install_overview,
+			install_steps = EXCLUDED.install_steps,
+			storefronts = EXCLUDED.storefronts,
+			metadata = EXCLUDED.metadata,
+			display_order = EXCLUDED.display_order,
+			updated_at = NOW()`
 	seedDownloadAssetSQL = `INSERT INTO download_assets (bundle_key, app_key, platform, artifact_url, release_version, release_notes, checksum, requires_entitlement, metadata, variant_key)
 		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,'default')
 		ON CONFLICT (bundle_key, app_key, platform, variant_key)

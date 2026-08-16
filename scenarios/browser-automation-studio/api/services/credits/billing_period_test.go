@@ -35,8 +35,8 @@ func (m *MockEntitlementProviderWithBillingCycle) GetEntitlement(ctx context.Con
 	return m.Entitlement, m.GetEntitlementError
 }
 
-func (m *MockEntitlementProviderWithBillingCycle) GetAICreditsLimit(tier entitlement.Tier) int {
-	return m.AICreditsLimit
+func (m *MockEntitlementProviderWithBillingCycle) LimitForEntitlement(_ *entitlement.Entitlement) (int, bool) {
+	return m.AICreditsLimit, true
 }
 
 func (m *MockEntitlementProviderWithBillingCycle) CanUseAIWithEntitlement(ent *entitlement.Entitlement) bool {

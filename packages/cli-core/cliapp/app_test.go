@@ -30,6 +30,32 @@ func TestParseGlobalFlags(t *testing.T) {
 	}
 }
 
+func TestAppRunWithWritersRoutesDeclarativeOutput(t *testing.T) {
+	app := NewApp(AppOptions{
+		Name: "demo",
+		Commands: []CommandGroup{{
+			Title: "Demo",
+			Commands: []Command{{
+				Name: "list",
+				Args: ArgSchema{},
+				RunCtx: func(ctx RunContext) error {
+					return RenderListReport(ctx.Stdout(), ListReport{Summary: []string{"captured"}})
+				},
+			}},
+		}},
+	})
+	var stdout, stderr bytes.Buffer
+	if err := app.RunWithWriters([]string{"list"}, &stdout, &stderr); err != nil {
+		t.Fatalf("RunWithWriters: %v", err)
+	}
+	if !strings.Contains(stdout.String(), "captured") {
+		t.Fatalf("expected declarative output in supplied stdout, got %q", stdout.String())
+	}
+	if stderr.Len() != 0 {
+		t.Fatalf("expected no stderr output, got %q", stderr.String())
+	}
+}
+
 func TestParseGlobalFlagsMissingValue(t *testing.T) {
 	global := GlobalOptions{}
 	_, err := ParseGlobalFlags([]string{"--api-base"}, &global, nil)
@@ -56,6 +82,27 @@ func TestParseGlobalFlagsInstanceMissingValue(t *testing.T) {
 	global := GlobalOptions{}
 	if _, err := ParseGlobalFlags([]string{"--instance"}, &global, nil); err == nil {
 		t.Fatalf("expected missing value error for --instance")
+	}
+}
+
+func TestParseGlobalFlagsNode(t *testing.T) {
+	global := GlobalOptions{}
+	remaining, err := ParseGlobalFlags([]string{"--node", "minimouse", "run"}, &global, nil)
+	if err != nil {
+		t.Fatalf("ParseGlobalFlags: %v", err)
+	}
+	if global.Node != "minimouse" {
+		t.Fatalf("expected node=minimouse, got %q", global.Node)
+	}
+	if len(remaining) != 1 || remaining[0] != "run" {
+		t.Fatalf("unexpected remaining args: %v", remaining)
+	}
+}
+
+func TestParseGlobalFlagsNodeMissingValue(t *testing.T) {
+	global := GlobalOptions{}
+	if _, err := ParseGlobalFlags([]string{"--node"}, &global, nil); err == nil {
+		t.Fatalf("expected missing value error for --node")
 	}
 }
 

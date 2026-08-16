@@ -7,9 +7,6 @@
 // the path itself rather than from the client platform, which would be the
 // wrong machine to ask.
 
-const WINDOWS_DRIVE = /^[A-Za-z]:$/;
-const WINDOWS_DRIVE_ROOT = /^[A-Za-z]:[\\/]?$/;
-
 /** Whether a path uses Windows separators or a drive/UNC prefix. */
 export function isWindowsPath(path: string): boolean {
   if (path.startsWith("\\\\")) return true; // UNC share
@@ -92,9 +89,4 @@ function accumulate(rootLabel: string, rootPath: string, segments: string[], sep
     crumbs.push({ label: segment, path: current });
   }
   return crumbs;
-}
-
-/** Whether a path names a filesystem root, which has no navigable parent. */
-export function isRootPath(path: string): boolean {
-  return path === "/" || WINDOWS_DRIVE.test(path) || WINDOWS_DRIVE_ROOT.test(path);
 }

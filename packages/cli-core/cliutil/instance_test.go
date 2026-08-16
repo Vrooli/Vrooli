@@ -1,6 +1,9 @@
 package cliutil
 
-import "testing"
+import (
+	"errors"
+	"testing"
+)
 
 func clearInstanceOverrides(t *testing.T) {
 	t.Helper()
@@ -31,6 +34,58 @@ func TestSplitInstance(t *testing.T) {
 		if base != tc.base || variant != tc.variant {
 			t.Errorf("SplitInstance(%q) = (%q,%q), want (%q,%q)", tc.in, base, variant, tc.base, tc.variant)
 		}
+	}
+}
+
+func TestSplitAddress(t *testing.T) {
+	cases := []struct {
+		name          string
+		input         string
+		wantNode      string
+		wantScenario  string
+		wantVariant   string
+		wantErrorCode string
+	}{
+		{name: "bare name", input: "web-search", wantScenario: "web-search"},
+		{name: "name with variant", input: "web-search@shadow", wantScenario: "web-search", wantVariant: "shadow"},
+		{name: "node with name", input: "minimouse/web-search", wantNode: "minimouse", wantScenario: "web-search"},
+		{name: "node with name and variant", input: "minimouse/web-search@shadow", wantNode: "minimouse", wantScenario: "web-search", wantVariant: "shadow"},
+		{name: "empty scenario after node", input: "minimouse/", wantErrorCode: "empty_scenario"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			node, scenario, variant, err := SplitAddress(tc.input)
+			if tc.wantErrorCode != "" {
+				if err == nil {
+					t.Fatalf("SplitAddress(%q) returned no error", tc.input)
+				}
+				var parseErr *AddressParseError
+				if !errors.As(err, &parseErr) {
+					t.Fatalf("SplitAddress(%q) error = %T, want *AddressParseError", tc.input, err)
+				}
+				if parseErr.Code != tc.wantErrorCode {
+					t.Fatalf("SplitAddress(%q) error code = %q, want %q", tc.input, parseErr.Code, tc.wantErrorCode)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("SplitAddress(%q): %v", tc.input, err)
+			}
+			if node != tc.wantNode || scenario != tc.wantScenario || variant != tc.wantVariant {
+				t.Fatalf("SplitAddress(%q) = (%q,%q,%q), want (%q,%q,%q)", tc.input, node, scenario, variant, tc.wantNode, tc.wantScenario, tc.wantVariant)
+			}
+		})
+	}
+}
+
+func TestSplitAddressDoesNotReadAmbientNodeState(t *testing.T) {
+	t.Setenv("VROOLI_NODE", "minimouse")
+	node, scenario, variant, err := SplitAddress("web-search")
+	if err != nil {
+		t.Fatalf("SplitAddress: %v", err)
+	}
+	if node != "" || scenario != "web-search" || variant != "" {
+		t.Fatalf("SplitAddress read ambient node state: (%q,%q,%q)", node, scenario, variant)
 	}
 }
 

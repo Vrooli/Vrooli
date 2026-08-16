@@ -29,7 +29,7 @@ require (
 	github.com/ncruces/go-strftime v1.0.0 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/vrooli/repo-contract-go v0.0.0 // indirect
-	golang.org/x/sys v0.44.0 // indirect
+	golang.org/x/sys v0.47.0 // indirect
 	modernc.org/libc v1.72.3 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect
@@ -39,7 +39,10 @@ replace github.com/vrooli/api-core => ../../../packages/api-core
 
 replace github.com/vrooli/platform-go => ../../../packages/platform-go
 
-require github.com/vrooli/cli-core v0.0.0 // indirect
+require (
+	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1 // indirect
+	github.com/vrooli/cli-core v0.0.0 // indirect
+)
 
 replace github.com/vrooli/cli-core => ../../../packages/cli-core
 

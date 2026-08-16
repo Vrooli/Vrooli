@@ -200,6 +200,22 @@ type JourneyEvent struct {
 	MonotonicStartMs int64     `json:"monotonic_start_ms"`
 	MonotonicEndMs   int64     `json:"monotonic_end_ms"`
 	Reason           string    `json:"reason,omitempty"`
+	Source           string    `json:"source,omitempty"`
+	DeviceTimestamp  float64   `json:"device_timestamp,omitempty"`
+	Raw              string    `json:"raw,omitempty"`
+}
+
+// ClockOffsetSample records a producer-owned host/device wall-clock
+// calibration. OffsetMs is host UTC minus the device clock; uncertainty is the
+// host-side request round-trip bound used to avoid presenting a transport
+// measurement as exact synchronization.
+type ClockOffsetSample struct {
+	CapturedAt    time.Time         `json:"captured_at"`
+	HostTime      time.Time         `json:"host_time"`
+	DeviceTime    time.Time         `json:"device_time"`
+	OffsetMs      int64             `json:"offset_ms"`
+	UncertaintyMs int64             `json:"uncertainty_ms"`
+	Evidence      EvidenceReference `json:"evidence,omitempty"`
 }
 
 type EvidenceReference struct {
@@ -220,6 +236,7 @@ type Geometry struct {
 
 type JourneyStep struct {
 	ID                 string              `json:"id,omitempty"`
+	ChapterID          string              `json:"chapter_id,omitempty"`
 	Name               string              `json:"name"`
 	Purpose            string              `json:"purpose,omitempty"`
 	Action             string              `json:"action"`
@@ -245,6 +262,8 @@ type JourneyStep struct {
 	MonotonicEndMs     int64               `json:"monotonic_end_ms"`
 	VideoStartOffsetMs *int64              `json:"video_start_offset_ms,omitempty"`
 	VideoEndOffsetMs   *int64              `json:"video_end_offset_ms,omitempty"`
+	VideoDisposition   StepDisposition     `json:"video_disposition,omitempty"`
+	VideoError         string              `json:"video_error,omitempty"`
 }
 
 type WorkflowArtifactReference struct {
@@ -329,6 +348,10 @@ type JourneyResult struct {
 	Disposition                  Disposition                 `json:"disposition"`
 	DegradedReason               string                      `json:"degraded_reason,omitempty"`
 	Events                       []JourneyEvent              `json:"events,omitempty"`
+	ClockOffsetStart             *ClockOffsetSample          `json:"clock_offset_start,omitempty"`
+	ClockOffsetEnd               *ClockOffsetSample          `json:"clock_offset_end,omitempty"`
+	ReviewRecording              *EvidenceReference          `json:"review_recording,omitempty"`
+	ReviewRecordingPath          string                      `json:"review_recording_path,omitempty"`
 	Steps                        []JourneyStep               `json:"steps"`
 	CreatedAt                    time.Time                   `json:"created_at"`
 	CompletedAt                  time.Time                   `json:"completed_at,omitempty"`

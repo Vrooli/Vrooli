@@ -214,7 +214,10 @@ export function useFilePreviewController(sessionId: string) {
       const previewId = current.model.previewId;
       const sort = options.sort ?? current.listing.sort;
       const showHidden = options.showHidden ?? current.listing.showHidden;
-      apply((s) => ({ ...s, status: "loadingListing" }));
+      // Clear loadingMore: a page fetch in flight right now will be discarded
+      // by the request-id guard and never gets to clear the flag itself, which
+      // would leave "Load more" disabled for good.
+      apply((s) => ({ ...s, status: "loadingListing", loadingMore: false }));
 
       void (async () => {
         try {

@@ -70,9 +70,7 @@ func seedDownloadDefaults(db StartupStore, downloads []delivery.App) error {
 	if err := db.QueryRow(seedDownloadAppCountSQL).Scan(&count); err != nil {
 		return fmt.Errorf("count download apps: %w", err)
 	}
-	if count > 0 {
-		return nil
-	}
+	_ = count // Existing rows are preserved; missing canonical limits are additive.
 
 	for idx, app := range downloads {
 		bundleKey := strings.TrimSpace(app.BundleKey)
@@ -130,13 +128,7 @@ func seedDownloadDefaults(db StartupStore, downloads []delivery.App) error {
 
 // seedTierLimitsDefaults seeds default subscription tier limits for the cost-based credit system.
 func seedTierLimitsDefaults(db StartupStore) error {
-	var count int
-	if err := db.QueryRow(seedTierLimitCountSQL).Scan(&count); err != nil {
-		return fmt.Errorf("count tier limits: %w", err)
-	}
-	if count > 0 {
-		return nil
-	}
+	const bundleKey = "business_suite"
 	tierLimits := []struct {
 		tierID       string
 		limitType    string
@@ -144,17 +136,29 @@ func seedTierLimitsDefaults(db StartupStore) error {
 		limitValue   int64
 		appBundleKey *string
 	}{
-		{"free", "cost_based", "ai_credits", 0, nil},
-		{"solo", "cost_based", "ai_credits", 500000000, nil},
-		{"pro", "cost_based", "ai_credits", 2000000000, nil},
-		{"studio", "cost_based", "ai_credits", 10000000000, nil},
-		{"business", "cost_based", "ai_credits", -1, nil},
+		{"free", "cost_based", "ai_credits", 0, stringPointer(bundleKey)},
+		{"solo", "cost_based", "ai_credits", 500000000, stringPointer(bundleKey)},
+		{"pro", "cost_based", "ai_credits", 2000000000, stringPointer(bundleKey)},
+		{"studio", "cost_based", "ai_credits", 10000000000, stringPointer(bundleKey)},
+		{"business", "cost_based", "ai_credits", -1, stringPointer(bundleKey)},
+		{"free", "count_based", "workflow_executions", 0, stringPointer(bundleKey)},
+		{"solo", "count_based", "workflow_executions", 100, stringPointer(bundleKey)},
+		{"pro", "count_based", "workflow_executions", 1000, stringPointer(bundleKey)},
+		{"studio", "count_based", "workflow_executions", 5000, stringPointer(bundleKey)},
+		{"business", "count_based", "workflow_executions", -1, stringPointer(bundleKey)},
+		{"free", "count_based", "voice_minutes", 0, stringPointer(bundleKey)},
+		{"solo", "count_based", "voice_minutes", 60, stringPointer(bundleKey)},
+		{"pro", "count_based", "voice_minutes", 600, stringPointer(bundleKey)},
+		{"studio", "count_based", "voice_minutes", 3000, stringPointer(bundleKey)},
+		{"business", "count_based", "voice_minutes", -1, stringPointer(bundleKey)},
 	}
 	for _, limit := range tierLimits {
 		if _, err := db.Exec(seedTierLimitSQL, limit.tierID, limit.limitType, limit.limitKey, limit.limitValue, limit.appBundleKey); err != nil {
 			return fmt.Errorf("seed tier limit %s/%s: %w", limit.tierID, limit.limitKey, err)
 		}
 	}
-	logStructured("tier_limits_seeded", map[string]interface{}{"level": "info", "count": len(tierLimits)})
+	logStructured("tier_limits_seeded", map[string]interface{}{"level": "info", "count": len(tierLimits), "bundle_key": bundleKey})
 	return nil
 }
+
+func stringPointer(value string) *string { return &value }

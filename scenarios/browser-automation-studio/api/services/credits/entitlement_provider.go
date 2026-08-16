@@ -36,17 +36,15 @@ type EntitlementProvider interface {
 	// Returns nil if no entitlement service is configured.
 	GetEntitlement(ctx context.Context, userIdentity string) (*entitlement.Entitlement, error)
 
-	// GetAICreditsLimit returns the AI credits limit for a tier.
-	// Returns -1 for unlimited, 0 for no access.
-	GetAICreditsLimit(tier entitlement.Tier) int
-
-	// CanUseAIWithEntitlement checks if the entitlement allows AI operations.
-	// Uses features array first (authoritative), falls back to tier config.
+	// CanUseAIWithEntitlement checks if the signed lease allows AI operations.
 	CanUseAIWithEntitlement(ent *entitlement.Entitlement) bool
 }
 
-type entitlementLeaseLimits interface {
-	GetAICreditsLimitForEntitlement(*entitlement.Entitlement) int
+// EntitlementLimitProvider is an optional test and integration seam for the
+// server-signed limit carried by an entitlement snapshot. It has no tier
+// fallback: false means the authority did not publish that limit.
+type EntitlementLimitProvider interface {
+	LimitForEntitlement(*entitlement.Entitlement) (int, bool)
 }
 
 // DefaultEntitlementProvider wraps the real entitlement.Service.
@@ -68,27 +66,20 @@ func (p *DefaultEntitlementProvider) GetEntitlement(ctx context.Context, userIde
 	return p.svc.GetEntitlement(ctx, userIdentity)
 }
 
-// GetAICreditsLimit returns the AI credits limit from the real service.
-func (p *DefaultEntitlementProvider) GetAICreditsLimit(tier entitlement.Tier) int {
-	if p.svc == nil {
-		return -1 // Unlimited if no service
-	}
-	return p.svc.GetAICreditsLimit(tier)
-}
-
-func (p *DefaultEntitlementProvider) GetAICreditsLimitForEntitlement(ent *entitlement.Entitlement) int {
-	if p.svc == nil {
-		return -1
-	}
-	return p.svc.GetAICreditsLimitForEntitlement(ent)
-}
-
 // CanUseAIWithEntitlement checks AI access via the real service.
 func (p *DefaultEntitlementProvider) CanUseAIWithEntitlement(ent *entitlement.Entitlement) bool {
 	if p.svc == nil {
 		return true // Allow if no service configured
 	}
 	return p.svc.CanUseAIWithEntitlement(ent)
+}
+
+func (p *DefaultEntitlementProvider) LimitForEntitlement(ent *entitlement.Entitlement) (int, bool) {
+	if ent == nil {
+		return 0, false
+	}
+	value, ok := ent.LimitValue("ai_credits")
+	return int(value), ok
 }
 
 // Compile-time check that DefaultEntitlementProvider implements EntitlementProvider.
@@ -117,7 +108,8 @@ type MockEntitlementProvider struct {
 	// GetEntitlementError is returned as the error from GetEntitlement.
 	GetEntitlementError error
 
-	// AICreditsLimit is returned by GetAICreditsLimit. Use -1 for unlimited, 0 for no access.
+	// AICreditsLimit is returned by the test-only signed-limit seam. Use -1 for
+	// unlimited, 0 for no access.
 	AICreditsLimit int
 
 	// CanUseAI is returned by CanUseAIWithEntitlement.
@@ -137,14 +129,13 @@ func (m *MockEntitlementProvider) GetEntitlement(ctx context.Context, userIdenti
 	return m.Entitlement, m.GetEntitlementError
 }
 
-// GetAICreditsLimit returns the configured mock limit.
-func (m *MockEntitlementProvider) GetAICreditsLimit(tier entitlement.Tier) int {
-	return m.AICreditsLimit
-}
-
 // CanUseAIWithEntitlement returns the configured mock value.
 func (m *MockEntitlementProvider) CanUseAIWithEntitlement(ent *entitlement.Entitlement) bool {
 	return m.CanUseAI
+}
+
+func (m *MockEntitlementProvider) LimitForEntitlement(_ *entitlement.Entitlement) (int, bool) {
+	return m.AICreditsLimit, true
 }
 
 // Compile-time check that MockEntitlementProvider implements EntitlementProvider.

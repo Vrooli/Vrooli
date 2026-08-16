@@ -239,7 +239,7 @@ func TestIntegration_LPBSUsageOutboxSurvivesServiceRestart(t *testing.T) {
 		LPBSAccessToken: access, AppBundleKey: "browser-automation-studio",
 	})
 	report := lpbsUsageReport{UserIdentity: "restart@example.com", LimitKey: "workflow_executions", UsageAmount: 1, Amount: 1, OperationID: "restart-operation", AppBundleKey: "browser-automation-studio"}
-	if err := first.enqueueLPBSReport(context.Background(), report); err != nil {
+	if err := first.monetizationOutbox.Enqueue(context.Background(), usageFromLPBSReport(report)); err != nil {
 		t.Fatalf("enqueue before restart: %v", err)
 	}
 
@@ -253,7 +253,7 @@ func TestIntegration_LPBSUsageOutboxSurvivesServiceRestart(t *testing.T) {
 		t.Fatalf("restart drain delivered=%d err=%v", delivered, err)
 	}
 	var status string
-	if err := db.QueryRow("SELECT status FROM usage_outbox WHERE operation_id = ?", report.OperationID).Scan(&status); err != nil {
+	if err := db.QueryRow("SELECT status FROM monetization_usage_outbox WHERE operation_id = ?", report.OperationID).Scan(&status); err != nil {
 		t.Fatalf("read durable outbox status: %v", err)
 	}
 	if status != "delivered" {

@@ -435,7 +435,7 @@
   "downloads": [
     {
       "bundle_key": "business_suite",
-      "app_key": "automation_studio",
+      "app_key": "browser-automation-studio",
       "name": "Vrooli Ascension",
       "tagline": "Desktop workflows, tests, and replay-as-movie exports",
       "description": "Desktop suite for visual workflows, replay-as-movie exports, and back-office automation.",
@@ -449,7 +449,7 @@
       "platforms": [
         {
           "bundle_key": "business_suite",
-          "app_key": "automation_studio",
+          "app_key": "browser-automation-studio",
           "platform": "windows",
           "artifact_url": "https://downloads.vrooli.local/business-suite/win/VrooliBusinessSuiteSetup.exe",
           "release_version": "1.0.0",
@@ -459,7 +459,7 @@
         },
         {
           "bundle_key": "business_suite",
-          "app_key": "automation_studio",
+          "app_key": "browser-automation-studio",
           "platform": "mac",
           "artifact_url": "https://downloads.vrooli.local/business-suite/mac/VrooliBusinessSuite.dmg",
           "release_version": "1.0.0",
@@ -469,7 +469,7 @@
         },
         {
           "bundle_key": "business_suite",
-          "app_key": "automation_studio",
+          "app_key": "browser-automation-studio",
           "platform": "linux",
           "artifact_url": "https://downloads.vrooli.local/business-suite/linux/vrooli-business-suite.tar.gz",
           "release_version": "1.0.0",
@@ -478,6 +478,28 @@
           "metadata": { "size_mb": 205 }
         }
       ]
+    },
+    {
+      "bundle_key": "business_suite",
+      "app_key": "landing-page-business-suite",
+      "name": "Silent Founder OS",
+      "tagline": "The subscription authority",
+      "description": "The hosted account and entitlement authority for the business suite.",
+      "install_overview": "Hosted service; no local installer.",
+      "install_steps": [],
+      "storefronts": [],
+      "platforms": []
+    },
+    {
+      "bundle_key": "business_suite",
+      "app_key": "web-console",
+      "name": "Vrooli Web Console",
+      "tagline": "The shared Vrooli workspace",
+      "description": "Web console with entitlement-aware voice capabilities.",
+      "install_overview": "Use the hosted web console.",
+      "install_steps": [],
+      "storefronts": [],
+      "platforms": []
     }
   ]
 }

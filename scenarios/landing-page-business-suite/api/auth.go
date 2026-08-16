@@ -54,7 +54,7 @@ func resolveSecret(key string) string {
 		return strings.TrimSpace(envx.Get(key))
 	}
 	switch key {
-	case "ADMIN_DEFAULT_PASSWORD", "SESSION_SECRET", "LPBS_API_KEY_ENCRYPTION_KEY", "LPBS_REMOTE_PROFILE_ENCRYPTION_KEY", "JWT_SECRET", "SENDGRID_API_KEY":
+	case "ADMIN_DEFAULT_PASSWORD", "SESSION_SECRET", "LPBS_API_KEY_ENCRYPTION_KEY", "LPBS_REMOTE_PROFILE_ENCRYPTION_KEY", "SENDGRID_API_KEY", "AUTH_MAGIC_LINK_BASE_URL":
 		// authority-backed operator credentials
 	default:
 		return resolveConfig(key)
@@ -74,6 +74,8 @@ func resolveSecret(key string) string {
 		field = "remote-profile-encryption-key"
 	case "ADMIN_DEFAULT_PASSWORD":
 		field = "admin-default-password"
+	case "AUTH_MAGIC_LINK_BASE_URL":
+		field = "auth-magic-link-base-url"
 	}
 	value, err := authority.Resolve(credentialauthority.Identity("vrooli/landing-page-business-suite"), field)
 	if err != nil {
@@ -156,7 +158,7 @@ func validateProductionCredentials() error {
 	if len([]rune(adminPassword)) < 12 {
 		return fmt.Errorf("ADMIN_DEFAULT_PASSWORD must be at least 12 characters in production")
 	}
-	magicLinkBaseURL := strings.TrimSpace(resolveConfig("AUTH_MAGIC_LINK_BASE_URL"))
+	magicLinkBaseURL := strings.TrimSpace(resolveSecret("AUTH_MAGIC_LINK_BASE_URL"))
 	if magicLinkBaseURL == "" {
 		return fmt.Errorf("AUTH_MAGIC_LINK_BASE_URL must be configured in production")
 	}

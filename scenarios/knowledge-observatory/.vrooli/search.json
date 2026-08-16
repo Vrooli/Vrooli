@@ -9,6 +9,12 @@
       "bucket": "BUCKET_KNOW",
       "type": "doc",
       "description": "Project documentation across every scenario and the repo root — READMEs, guides, concept docs, runbooks, plans — searchable semantically by what each doc explains (for example \"how does the lifecycle system work\", \"sandbox architecture\"). Route here to find an explanation, guide, or reference that has already been written.",
+      "routing_profile": {
+        "answer_spaces": ["documentation", "guide", "runbook", "reference"],
+        "intents": ["understand", "explain", "locate_reference", "follow_runbook"],
+        "positive_examples": ["how does this subsystem work", "where is the guide for this operation", "find the architecture reference"],
+        "exclusions": ["live implementation source", "service contract ownership", "current health state"]
+      },
       "scope": "SCOPE_PROJECT",
       "class": "local_index",
       "index_timestamp_field": "last_reconcile_at",

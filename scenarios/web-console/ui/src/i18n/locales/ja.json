@@ -255,6 +255,13 @@
     "enableTitle": "このセッションで音声を有効化",
     "dismiss": "閉じる"
   },
+  "voiceRecovery": {
+    "regionLabel": "音声入力の復旧",
+    "cancel": "文字起こしをキャンセル",
+    "releaseMic": "マイクを解放",
+    "stopSpeech": "読み上げを停止",
+    "exportDiagnostic": "診断情報を書き出す"
+  },
   "voiceRejection": {
     "title": "話者があなたの声と一致しませんでした",
     "explanatoryDetail": "{{reason}}(スコア {{score}} < しきい値 {{threshold}})",

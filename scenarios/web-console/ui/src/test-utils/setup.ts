@@ -2,6 +2,11 @@ import "@testing-library/jest-dom";
 import { cleanup } from "@testing-library/react";
 import { afterEach, beforeEach, vi } from "vitest";
 import { i18n } from "../i18n";
+import { configureTestProviders } from "@vrooli/api-base/testing";
+import { I18nextProvider } from "react-i18next";
+import { createElement } from "react";
+
+configureTestProviders((children) => createElement(I18nextProvider, { i18n }, children));
 
 // Default every test into i18next's `cimode` pseudo-locale. In cimode,
 // `t("app.title")` returns the *key* (`"app.title"`) rather than translated

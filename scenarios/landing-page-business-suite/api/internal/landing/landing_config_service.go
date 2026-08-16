@@ -481,7 +481,7 @@ var (
 		"downloads": [
 			{
 				"bundle_key": "business_suite",
-				"app_key": "automation_studio",
+				"app_key": "browser-automation-studio",
 				"name": "Vrooli Ascension",
 				"tagline": "Silent Founder OS \u00b7 Day-one value",
 				"description": "Desktop suite for visual browser automation, tests, and cinematic replays.",
@@ -502,7 +502,7 @@ var (
 				"platforms": [
 					{
 						"bundle_key": "business_suite",
-						"app_key": "automation_studio",
+						"app_key": "browser-automation-studio",
 						"platform": "windows",
 						"artifact_url": "https://downloads.vrooli.local/business-suite/win/VrooliBusinessSuiteSetup.exe",
 						"release_version": "1.0.0",
@@ -514,7 +514,7 @@ var (
 					},
 					{
 						"bundle_key": "business_suite",
-						"app_key": "automation_studio",
+						"app_key": "browser-automation-studio",
 						"platform": "mac",
 						"artifact_url": "https://downloads.vrooli.local/business-suite/mac/VrooliBusinessSuite.dmg",
 						"release_version": "1.0.0",
@@ -526,7 +526,7 @@ var (
 					},
 					{
 						"bundle_key": "business_suite",
-						"app_key": "automation_studio",
+						"app_key": "browser-automation-studio",
 						"platform": "linux",
 						"artifact_url": "https://downloads.vrooli.local/business-suite/linux/vrooli-business-suite.tar.gz",
 						"release_version": "1.0.0",

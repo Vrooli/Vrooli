@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { renderWithProviders } from "@vrooli/api-base/testing";
 import { CheckoutPage } from './CheckoutPage';
 import * as api from '../../../shared/api';
@@ -28,28 +29,46 @@ const pricing: PricingOverview = {
     display_credits_label: 'credits',
     environment: 'test',
   },
-  monthly: [{
-    plan_name: 'Solo Monthly',
-    plan_tier: 'solo',
-    billing_interval: 'month',
-    amount_cents: 3900,
-    currency: 'usd',
-    intro_enabled: false,
-    stripe_price_id: 'price_solo',
-    monthly_included_credits: 100,
-    one_time_bonus_credits: 0,
-    plan_rank: 1,
-    bonus_type: 'none',
-    display_enabled: true,
-    display_weight: 1,
-    metadata: {},
-  }],
+  monthly: [
+    {
+      plan_name: 'Solo Monthly',
+      plan_tier: 'solo',
+      billing_interval: 'month',
+      amount_cents: 3900,
+      currency: 'usd',
+      intro_enabled: false,
+      stripe_price_id: 'price_solo',
+      monthly_included_credits: 100,
+      one_time_bonus_credits: 0,
+      plan_rank: 1,
+      bonus_type: 'none',
+      display_enabled: true,
+      display_weight: 1,
+      metadata: { features: ['Fast setup'] },
+    },
+    {
+      plan_name: 'Pro Monthly',
+      plan_tier: 'pro',
+      billing_interval: 'month',
+      amount_cents: 9900,
+      currency: 'usd',
+      intro_enabled: false,
+      stripe_price_id: 'price_pro',
+      monthly_included_credits: 500,
+      one_time_bonus_credits: 0,
+      plan_rank: 2,
+      bonus_type: 'none',
+      display_enabled: true,
+      display_weight: 1,
+      metadata: {},
+    },
+  ],
   yearly: [],
   updated_at: '2026-01-01T00:00:00Z',
 };
 
 function renderCheckout(path = '/checkout?price_id=price_solo') {
-  return renderWithProviders(<CheckoutPage />, { route: path });
+  return renderWithProviders(<MemoryRouter initialEntries={[path]}><CheckoutPage /></MemoryRouter>);
 }
 
 describe('CheckoutPage', () => {
@@ -77,6 +96,35 @@ describe('CheckoutPage', () => {
     expect(await screen.findByText('Unable to Load Checkout')).toBeInTheDocument();
     expect(screen.getByText('Catalog unavailable')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Try Again' })).toBeInTheDocument();
+  });
+
+  it('uses the generic message for an unknown catalog failure', async () => {
+    getPlans.mockRejectedValue('catalog unavailable');
+    renderCheckout();
+
+    expect(await screen.findByText('Something went wrong. Please try again.')).toBeInTheDocument();
+  });
+
+  it('ignores a catalog response that settles after the page unmounts', async () => {
+    let resolvePlans!: (value: PricingOverview) => void;
+    getPlans.mockReturnValue(new Promise((resolve) => { resolvePlans = resolve; }));
+    const view = renderCheckout();
+    view.unmount();
+    resolvePlans(pricing);
+    await Promise.resolve();
+
+    expect(createCheckoutSession).not.toHaveBeenCalled();
+  });
+
+  it('ignores a catalog failure that settles after the page unmounts', async () => {
+    let rejectPlans!: (reason?: unknown) => void;
+    getPlans.mockReturnValue(new Promise((_resolve, reject) => { rejectPlans = reject; }));
+    const view = renderCheckout();
+    view.unmount();
+    rejectPlans(new Error('late catalog failure'));
+    await Promise.resolve();
+
+    expect(createCheckoutSession).not.toHaveBeenCalled();
   });
 
   it('distinguishes network failures and retries loading the catalog', async () => {
@@ -111,7 +159,7 @@ describe('CheckoutPage', () => {
   it('explains when no displayed plans can be checked out', async () => {
     getPlans.mockResolvedValue({ ...pricing, monthly: [{ ...pricing.monthly[0]!, display_enabled: false }] });
     renderCheckout();
-    expect(await screen.findByText('No active plans are available right now.')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Plan unavailable' })).toBeInTheDocument();
     expect(createCheckoutSession).not.toHaveBeenCalled();
   });
 
@@ -125,17 +173,43 @@ describe('CheckoutPage', () => {
     await waitFor(() => { expect(createCheckoutSession).toHaveBeenCalledTimes(2); });
   });
 
-  it('renders selected plan features and falls back to the first active plan', async () => {
+  it('does not update checkout state when session creation settles after unmount', async () => {
+    let resolveSession!: (value: Awaited<ReturnType<typeof api.createCheckoutSession>>) => void;
+    createCheckoutSession.mockReturnValue(new Promise((resolve) => { resolveSession = resolve; }));
+    const view = renderCheckout();
+    expect(await screen.findByRole('heading', { name: 'Solo Monthly', level: 2 })).toBeInTheDocument();
+    await waitFor(() => { expect(createCheckoutSession).toHaveBeenCalledTimes(1); });
+    view.unmount();
+    resolveSession({ url: 'https://checkout.example.test/session' });
+    await Promise.resolve();
+  });
+
+  it('renders selected plan features and refuses an unknown explicit price', async () => {
     getPlans.mockResolvedValue({
       ...pricing,
       monthly: [{ ...pricing.monthly[0]!, metadata: { features: ['Priority support', 42, 'Analytics'] } as unknown as typeof pricing.monthly[number]['metadata'] }],
     });
     renderCheckout('/checkout?price_id=missing');
 
-    expect(await screen.findByText('Priority support')).toBeInTheDocument();
-    expect(screen.getByText('Analytics')).toBeInTheDocument();
-    expect(screen.queryByText('42')).not.toBeInTheDocument();
-    expect(screen.getByText('$39 / month')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Plan unavailable' })).toBeInTheDocument();
+    expect(createCheckoutSession).not.toHaveBeenCalled();
+  });
+
+  it('resolves a named paid plan by tier instead of silently selecting the first plan', async () => {
+    renderCheckout('/checkout?plan=pro');
+
+    expect(await screen.findByRole('heading', { name: 'Pro Monthly', level: 2 })).toBeInTheDocument();
+    await waitFor(() => {
+      expect(createCheckoutSession).toHaveBeenCalledWith(expect.objectContaining({ price_id: 'price_pro' }));
+    });
+  });
+
+  it('keeps the free plan outside Stripe checkout', async () => {
+    renderCheckout('/checkout?plan=free');
+
+    expect(await screen.findByRole('heading', { name: 'Start with the free edition' })).toBeInTheDocument();
+    expect(getPlans).not.toHaveBeenCalled();
+    expect(createCheckoutSession).not.toHaveBeenCalled();
   });
 
   it('shows introductory pricing details and retries a retryable session error', async () => {
@@ -175,6 +249,23 @@ describe('CheckoutPage', () => {
     expect(screen.getByText('Custom / year')).toBeInTheDocument();
     expect(await screen.findByText('Choose a supported billing option')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Retry Checkout' })).toBeNull();
+  });
+
+  it('handles a catalog with non-array plan collections without selecting a plan', async () => {
+    getPlans.mockResolvedValue({ ...pricing, monthly: null as never, yearly: null as never });
+    renderCheckout('/checkout');
+
+    expect(await screen.findByText('No active plans are available right now.')).toBeInTheDocument();
+    expect(createCheckoutSession).not.toHaveBeenCalled();
+  });
+
+  it('renders the checkout shell without a selected plan when the catalog is empty', async () => {
+    getPlans.mockResolvedValue({ ...pricing, monthly: [], yearly: [] });
+    renderCheckout('/checkout');
+
+    expect(await screen.findByRole('heading', { name: 'Plan details' })).toBeInTheDocument();
+    expect(screen.getByText('No active plans are available right now.')).toBeInTheDocument();
+    expect(createCheckoutSession).not.toHaveBeenCalled();
   });
 
 });

@@ -131,6 +131,24 @@ func TestExecuteNeverClaimsDesktopPassWithoutTargetEvidence(t *testing.T) {
 	}
 }
 
+func TestExecuteCarriesAddressedCommandAndArguments(t *testing.T) {
+	dispatcher := &fakeDispatcher{}
+	client := NewClientForTesting(nil, dispatcher, fakeRuns{status: runsv1.RunStatus_RUN_STATUS_FAILED})
+	result := client.Execute(context.Background(), CellRequest{
+		Command: "scenario status", Args: []string{"--json"},
+		Cell: &domainv1.ValidationCell{ScenarioName: "demo", TargetId: "bridge:node-1"},
+	})
+	if result.Disposition != domainv1.ValidationDisposition_VALIDATION_DISPOSITION_FAILED {
+		t.Fatalf("disposition = %s, want failed", result.Disposition)
+	}
+	if dispatcher.request.GetVerb() != "scenario status" || dispatcher.request.GetScenario() != "demo" {
+		t.Fatalf("typed dispatch request = %#v", dispatcher.request)
+	}
+	if len(dispatcher.request.GetArgs()) != 1 || dispatcher.request.GetArgs()[0] != "--json" {
+		t.Fatalf("typed dispatch args = %v, want [--json]", dispatcher.request.GetArgs())
+	}
+}
+
 func TestExecuteMapsFailedAndAbortedRuns(t *testing.T) {
 	for _, tc := range []struct {
 		name   string

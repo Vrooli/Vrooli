@@ -321,6 +321,7 @@
             },
             {
               "name": "show-hidden",
+              "bool": true,
               "required": false,
               "description": "Include dot-prefixed entries"
             },

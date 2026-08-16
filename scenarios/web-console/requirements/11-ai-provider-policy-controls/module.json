@@ -1,83 +1,85 @@
 {
-  "description": "Provider priority, timeout, and fallback policy are configurable with surfaced provider health",
-  "module_id": "MOD-P1-011",
-  "prd_ref": "OT-P1-003",
-  "priority": "P1",
+  "_metadata": {
+    "last_validated_at": "2026-08-16T08:23:39-04:00"
+  },
   "requirements": [
     {
-      "category": "core",
-      "children": ["REQ-P1-003b"],
-      "description": "Provider configuration stored in-memory: priority order, per-provider timeout, max retries, and enabled/disabled toggle. API supports reading and updating provider config. Generation uses config-driven provider chain.",
       "id": "REQ-P1-003a",
-      "prd_ref": "OT-P1-003",
-      "status": "passed",
       "title": "Provider Configuration Storage",
-      "validation": [
-        {
-          "notes": "Test config CRUD and application — ai_provider_config_test.go (12 tests) + provider-health.test.ts (7 tests)",
-          "phase": "unit",
-          "ref": "api/ai_provider_config_test.go",
-          "status": "passing",
-          "type": "test"
-        },
-        {
-          "notes": "Provider behavior matches config — TestGenerateWithConfig_DisabledProvider verifies disabled providers are skipped",
-          "phase": "business",
-          "ref": "api/ai_provider_config_test.go:TestGenerateWithConfig_DisabledProvider",
-          "status": "passing",
-          "type": "test"
-        }
-      ]
-    },
-    {
-      "category": "ui",
-      "children": ["REQ-P1-003b-i"],
-      "description": "Provider health dashboard in drawer shows current status, success/error counts, latency, and enable/disable toggle. Auto-refreshes when drawer opens.",
-      "id": "REQ-P1-003b",
+      "status": "pending",
       "prd_ref": "OT-P1-003",
-      "status": "passed",
-      "title": "Provider Health Dashboard",
+      "category": "core",
+      "description": "Provider configuration stored in-memory: priority order, per-provider timeout, max retries, and enabled/disabled toggle. API supports reading and updating provider config. Generation uses config-driven provider chain.",
+      "children": [
+        "REQ-P1-003b"
+      ],
       "validation": [
         {
-          "notes": "Verify provider health monitoring display — ProviderHealthPanel component + provider-health.test.ts",
-          "phase": "integration",
-          "ref": "ui/src/__tests__/provider-health.test.ts",
-          "status": "passing",
-          "type": "test"
+          "type": "test",
+          "ref": "api/ai_provider_config_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Test config CRUD and application — ai_provider_config_test.go (12 tests) + provider-health.test.ts (7 tests)"
         },
         {
-          "notes": "Status updates <1s — BenchmarkGetHealth in ai_provider_config_test.go",
-          "phase": "performance",
-          "ref": "api/ai_provider_config_test.go:BenchmarkGetHealth",
-          "status": "passing",
-          "type": "test"
+          "type": "test",
+          "ref": "api/ai_provider_config_test.go:TestGenerateWithConfig_DisabledProvider",
+          "phase": "business",
+          "status": "failing",
+          "notes": "Provider behavior matches config — TestGenerateWithConfig_DisabledProvider verifies disabled providers are skipped"
         }
       ]
     },
     {
+      "id": "REQ-P1-003b",
+      "title": "Provider Health Dashboard",
+      "status": "complete",
+      "prd_ref": "OT-P1-003",
+      "category": "ui",
+      "description": "Provider health dashboard in drawer shows current status, success/error counts, latency, and enable/disable toggle. Auto-refreshes when drawer opens.",
+      "children": [
+        "REQ-P1-003b-i"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/src/__tests__/provider-health.test.ts",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Verify provider health monitoring display — ProviderHealthPanel component + provider-health.test.ts"
+        },
+        {
+          "type": "test",
+          "ref": "api/ai_provider_config_test.go:BenchmarkGetHealth",
+          "phase": "performance",
+          "status": "implemented",
+          "notes": "Status updates \u003c1s — BenchmarkGetHealth in ai_provider_config_test.go"
+        }
+      ]
+    },
+    {
+      "id": "REQ-P1-003b-i",
+      "title": "Auto-Refresh Health on Drawer Open",
+      "status": "pending",
+      "prd_ref": "OT-P1-003",
       "category": "ui",
       "description": "Provider health panel auto-refreshes data when the drawer opens, showing fresh status without manual intervention.",
-      "id": "REQ-P1-003b-i",
-      "prd_ref": "OT-P1-003",
-      "status": "passed",
-      "title": "Auto-Refresh Health on Drawer Open",
       "validation": [
         {
-          "notes": "ProviderHealthPanel component accepts open prop and refreshes on open",
-          "phase": "unit",
+          "type": "test",
           "ref": "ui/src/__tests__/provider-health.test.ts",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "ProviderHealthPanel component accepts open prop and refreshes on open"
         },
         {
-          "notes": "SettingsPage renders ProviderHealthPanel in AI Providers section",
-          "phase": "unit",
+          "type": "test",
           "ref": "ui/src/__tests__/settings-page.test.tsx",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "SettingsPage renders ProviderHealthPanel in AI Providers section"
         }
       ]
     }
-  ],
-  "title": "AI Provider Policy Controls"
+  ]
 }

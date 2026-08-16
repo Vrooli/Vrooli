@@ -4,6 +4,7 @@
   "providers": [
     {
       "provider_id": "measures-health.measures",
+      "lifecycle": "production",
       "provider_group": "measures-health",
       "bucket": "BUCKET_STATE",
       "type": "measure",

@@ -99,7 +99,12 @@ type ManagedService struct {
 	AttachHealthPath string            `json:"attach_health_path,omitempty"`
 	Arguments        []string          `json:"arguments,omitempty"`
 	Environment      map[string]string `json:"environment,omitempty"`
-	Config           *ServiceConfig    `json:"config,omitempty"`
+	// EnvironmentFile is an optional resource-owned, line-oriented KEY=VALUE
+	// file loaded from RESOURCE_DATA_DIR immediately before launch. It gives a
+	// resource a durable, non-shell model/config switch without granting the
+	// manifest arbitrary command or host-environment authority.
+	EnvironmentFile string         `json:"environment_file,omitempty"`
+	Config          *ServiceConfig `json:"config,omitempty"`
 }
 
 func (m ManagedService) ValidateAttachHealthPath() error {

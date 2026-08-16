@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-07-30T15:31:41-04:00"
+    "last_validated_at": "2026-08-16T11:54:35-04:00"
   },
   "requirements": [
     {
       "id": "AB-FALLBACK",
       "title": "Baked fallback variant",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-031",
       "description": "Ship a static fallback variant (hero/features/pricing/cta/download copy) that the UI renders whenever variant selection or section fetches fail, ensuring visitors always see a safe configuration even if the API is unavailable.",
       "validation": [
@@ -14,14 +14,14 @@
           "type": "test",
           "ref": "ui/src/app/providers/LandingVariantProvider.test.tsx",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Provider unit tests cover fallback activation when the landing config fetch errors or the slug is invalid."
         },
         {
           "type": "test",
           "ref": "api/landing_config_service_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "LandingConfigService test verifies that missing variants trigger the baked fallback response."
         }
       ]
@@ -29,7 +29,7 @@
     {
       "id": "AB-URL",
       "title": "URL variant selection",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-014",
       "description": "If variant_slug in URL, force that variant regardless of localStorage",
       "validation": [
@@ -37,7 +37,7 @@
           "type": "test",
           "ref": "ui/src/app/providers/LandingVariantProvider.test.tsx",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Frontend variant context fetches variant by slug from URL parameter. Tests verify URL takes priority over localStorage."
         }
       ]
@@ -45,7 +45,7 @@
     {
       "id": "AB-STORAGE",
       "title": "localStorage persistence",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-015",
       "description": "If no URL slug and localStorage has variant ID, reuse that variant",
       "validation": [
@@ -53,7 +53,7 @@
           "type": "test",
           "ref": "ui/src/app/providers/LandingVariantProvider.test.tsx",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Frontend VariantContext retrieves and stores variant in localStorage. Tests verify persistence across page reloads."
         }
       ]
@@ -61,7 +61,7 @@
     {
       "id": "AB-API",
       "title": "API weight-based selection",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-016",
       "description": "If neither URL nor localStorage, API selects variant by weight and frontend stores it in localStorage",
       "validation": [
@@ -69,7 +69,7 @@
           "type": "test",
           "ref": "ui/src/app/providers/LandingVariantProvider.test.tsx",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Frontend VariantContext calls /api/v1/variants/select and stores result in localStorage. Tests verify selection and storage."
         }
       ]
@@ -77,7 +77,7 @@
     {
       "id": "AB-CRUD",
       "title": "Variant CRUD operations",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-017",
       "description": "Admin can create, update weights, disable/archive, and hard delete variants (with confirmation)",
       "validation": [
@@ -85,7 +85,7 @@
           "type": "test",
           "ref": "api/variant_handlers_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "All CRUD API endpoints implemented: GET /variants, POST /variants, PATCH /variants/{slug}, DELETE /variants/{slug}"
         }
       ]
@@ -93,7 +93,7 @@
     {
       "id": "AB-ARCHIVE",
       "title": "Archived variant handling",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-018",
       "description": "Archived variants remain queryable for analytics but ineligible for random selection",
       "validation": [
@@ -101,7 +101,7 @@
           "type": "test",
           "ref": "api/variant_handlers_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Archive endpoint POST /variants/{slug}/archive implemented. SelectVariant excludes archived status."
         }
       ]

@@ -1,7 +1,8 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { selectors } from "@/constants/selectors";
+import { renderWithProviders } from "@/test-utils";
 import { WorkflowCreationDialog } from "./WorkflowCreationDialog";
 
 describe("WorkflowCreationDialog", () => {
@@ -16,7 +17,7 @@ describe("WorkflowCreationDialog", () => {
       updated_at: "2026-01-01T00:00:00Z",
     };
 
-    render(
+    renderWithProviders(
       <WorkflowCreationDialog
         isOpen
         onClose={onClose}

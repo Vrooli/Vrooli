@@ -22,6 +22,13 @@ export default defineConfig({
       },
     },
     setupFiles: ['./src/test-utils/setup.ts'],
+    // The shared audio package is a workspace file: link, so Vitest treats it
+    // as an external dependency and lets Node resolve it — which lands on its
+    // published dist/, whose emitted ESM uses extensionless relative imports
+    // Node cannot resolve. Inlining routes the import back through Vite, whose
+    // resolver probes extensions the same way the app bundle does. Without
+    // this, every test that touches the audio integration fails to collect.
+    server: { deps: { inline: [/@vrooli\/audio-capture-browser/] } },
     coverage: {
       provider: 'v8',
       reporter: ['json-summary', 'json', 'text'],

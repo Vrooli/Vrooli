@@ -39,6 +39,10 @@ import (
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
+	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
+	credentialclient "github.com/vrooli/vrooli/packages/credentialclient-go"
+	entitlementclient "github.com/vrooli/vrooli/packages/entitlementclient-go"
+	monetization "github.com/vrooli/vrooli/packages/monetization-go"
 	_ "modernc.org/sqlite"
 
 	aiH "web-console/handlers/ai"
@@ -316,6 +320,8 @@ type Server struct {
 	// Bridge federation adapter. Credentials stay in the server process.
 	remoteSessions      *remoteTerminalRegistry
 	remoteTargetCatalog func() []remoteTerminalTarget
+	monetization        *monetization.Gate
+	monetizationOutbox  *monetization.Outbox
 }
 
 // getSummarizeAutoPolicy returns the cached auto-summarize policy. The
@@ -472,6 +478,20 @@ func NewServer(db *database.RoutedDB) *Server {
 		remoteSessions:       &remoteTerminalRegistry{sessions: make(map[string]remoteTerminalSession)},
 		speechProcessor:      audioports.PassthroughSpeechTextProcessor{},
 	}
+	if authority, authorityErr := credentialauthority.Default(); authorityErr == nil {
+		if credentials, clientErr := credentialclient.NewClient(credentialclient.ClientOptions{Authority: authority}); clientErr == nil {
+			resolver := &credentialclient.ConsumerSessionResolver{Credentials: credentials, LPBSBaseURL: getEnvOrDefault("LPBS_URL", "http://localhost:15000")}
+			resolveToken := func(ctx context.Context, baseURL string) (string, error) {
+				access, err := resolver.ResolveAt(ctx, baseURL)
+				return access.AccessToken, err
+			}
+			srv.monetization = monetization.NewGate(entitlementclient.NewClient(resolver.LPBSBaseURL, resolveToken, &http.Client{Timeout: 15 * time.Second}), resolver, "business_suite")
+			store := &sqlMonetizationOutboxStore{db: db}
+			transport := &lpbsMonetizationTransport{baseURL: resolver.LPBSBaseURL, resolveToken: resolveToken, client: &http.Client{Timeout: 15 * time.Second}}
+			srv.monetizationOutbox = monetization.NewOutbox(store, transport)
+			go srv.drainMonetizationOutbox()
+		}
+	}
 	srv.systemContext = intai.DiscoverSystemContext(intai.DefaultLookPath)
 	log.Printf("system-context: os=%s/%s shell=%s tools-found=%d",
 		srv.systemContext.OS, srv.systemContext.Arch,
@@ -610,6 +630,8 @@ func (s *Server) setupRoutes() {
 	healthHandler := healthBuilder.Handler()
 	s.router.HandleFunc("/health", healthHandler).Methods("GET")
 	s.router.HandleFunc("/api/v1/health", healthHandler).Methods("GET")
+	voiceGate := monetizationGate{gate: s.monetization, outbox: s.monetizationOutbox}
+	s.router.HandleFunc("/api/v1/monetization/voice", voiceGate.voiceSynthesis).Methods(http.MethodPost)
 
 	// Sessions domain (CRUD, recovery, policy) — Connect-RPC.
 	sessionsH.Module(&sessionsH.Adapter{

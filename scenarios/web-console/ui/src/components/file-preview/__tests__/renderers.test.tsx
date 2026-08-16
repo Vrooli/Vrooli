@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 
 import { renderers, rendererForKind } from "../renderers";
-import type { PreviewKind, PreviewModel, PreviewTextContent } from "../types";
+import type { PreviewKind, PreviewModel, PreviewRendererProps, PreviewTextContent } from "../types";
 
 // Avoid pulling shiki/mermaid into jsdom for the markdown renderer smoke test.
 vi.mock("../../markdown", () => ({
@@ -20,8 +20,19 @@ const ALL_KINDS: PreviewKind[] = [
   "video",
   "csv",
   "diff",
+  "directory",
   "unsupported",
 ];
+
+// The directory-navigation half of the renderer contract. Every non-directory
+// renderer ignores these, which is what makes the contract additive.
+const navProps = {
+  listing: null,
+  onNavigate: () => {},
+  onLoadMore: () => {},
+  onListOptionsChange: () => {},
+  loadingMore: false,
+} satisfies Omit<PreviewRendererProps, "model" | "text" | "onError">;
 
 function model(overrides: Partial<PreviewModel> = {}): PreviewModel {
   return {
@@ -37,8 +48,10 @@ function model(overrides: Partial<PreviewModel> = {}): PreviewModel {
     canDownload: true,
     supportsRange: true,
     textContentAvailable: false,
+    listingAvailable: false,
     blobUrl: "/api/v1/sessions/s/file-previews/pv-1/blob",
     blobHref: "/api/v1/sessions/s/file-previews/pv-1/blob",
+    expiresMs: Date.now() + 60_000,
     warnings: [],
     ...overrides,
   };
@@ -62,7 +75,7 @@ describe("renderer registry", () => {
 describe("image renderer", () => {
   it("renders an img with alt text and blob src", () => {
     const Renderer = renderers.image;
-    render(<Renderer model={model({ basename: "logo.png", kind: "image", mimeType: "image/png" })} text={null} onError={() => {}} />);
+    render(<Renderer model={model({ basename: "logo.png", kind: "image", mimeType: "image/png" })} text={null} onError={() => {}} {...navProps} />);
     const img = screen.getByRole("img", { name: "logo.png" });
     expect(img).toHaveAttribute("src", "/api/v1/sessions/s/file-previews/pv-1/blob");
   });
@@ -72,7 +85,7 @@ describe("audio renderer", () => {
   it("renders an audio element with blob src", () => {
     const Renderer = renderers.audio;
     const { container } = render(
-      <Renderer model={model({ kind: "audio", mimeType: "audio/mpeg" })} text={null} onError={() => {}} />,
+      <Renderer model={model({ kind: "audio", mimeType: "audio/mpeg" })} text={null} onError={() => {}} {...navProps} />,
     );
     const audio = container.querySelector("audio");
     expect(audio).not.toBeNull();
@@ -84,7 +97,7 @@ describe("video renderer", () => {
   it("renders a video element with playsInline and blob src", () => {
     const Renderer = renderers.video;
     const { container } = render(
-      <Renderer model={model({ kind: "video", mimeType: "video/mp4" })} text={null} onError={() => {}} />,
+      <Renderer model={model({ kind: "video", mimeType: "video/mp4" })} text={null} onError={() => {}} {...navProps} />,
     );
     const video = container.querySelector("video");
     expect(video).not.toBeNull();
@@ -96,7 +109,7 @@ describe("pdf renderer", () => {
   it("renders an iframe pointed at the blob href", () => {
     const Renderer = renderers.pdf;
     const { container } = render(
-      <Renderer model={model({ kind: "pdf", mimeType: "application/pdf" })} text={null} onError={() => {}} />,
+      <Renderer model={model({ kind: "pdf", mimeType: "application/pdf" })} text={null} onError={() => {}} {...navProps} />,
     );
     const iframe = container.querySelector("iframe");
     expect(iframe).toHaveAttribute("src", "/api/v1/sessions/s/file-previews/pv-1/blob");
@@ -110,7 +123,7 @@ describe("csv renderer", () => {
       <Renderer
         model={model({ kind: "csv", resolvedPath: "/tmp/a.csv", textContentAvailable: true })}
         text={text("name,age\nAda,36\nGrace,45", "csv")}
-        onError={() => {}}
+        onError={() => {}} {...navProps}
       />,
     );
     expect(screen.getByTestId("file-preview-csv")).toBeInTheDocument();
@@ -127,7 +140,7 @@ describe("diff renderer", () => {
       <Renderer
         model={model({ kind: "diff", resolvedPath: "/tmp/a.diff", textContentAvailable: true })}
         text={text("@@ -1 +1 @@\n-old line\n+new line", "diff")}
-        onError={() => {}}
+        onError={() => {}} {...navProps}
       />,
     );
     expect(screen.getByTestId("file-preview-diff")).toBeInTheDocument();
@@ -143,7 +156,7 @@ describe("unsupported renderer", () => {
       <Renderer
         model={model({ kind: "unsupported", canPreview: false, mimeType: "application/zip" })}
         text={null}
-        onError={() => {}}
+        onError={() => {}} {...navProps}
       />,
     );
     expect(screen.getByTestId("file-preview-unsupported")).toBeInTheDocument();

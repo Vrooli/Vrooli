@@ -35,6 +35,7 @@ func (s *Server) setupRoutes() {
 	s.router.Use(loggingMiddleware)
 
 	registerHealthRoutes(s)
+	registerMonetizationJourneyRoute(s)
 	registerLandingRoutes(s)
 	registerAuthRoutes(s)
 	registerFixtureRoutes(s)
@@ -46,7 +47,7 @@ func (s *Server) setupRoutes() {
 	registerVariantRoutes(s)
 	registerContentRoutes(s)
 	registerMetricsRoutes(s)
-	monetization.RegisterRoutes(s.router)
+	monetization.RegisterRoutes(s.router, s.primaryDB(), s.planService.BundleKey)
 	registerFeedbackRoutes(s)
 	registerWaitlistRoutes(s)
 	registerCreditsRoutes(s)
@@ -127,6 +128,8 @@ func registerAuthRoutes(s *Server) {
 	deps := userAuthHandlerDependencies(s.userAuthService, s.magicLinkLimiter)
 	s.router.HandleFunc("/api/v1/auth/magic-link", userauthhttp.RequestMagicLink(deps)).Methods("POST")
 	s.router.HandleFunc("/api/v1/auth/verify", userauthhttp.VerifyMagicLink(deps)).Methods("GET")
+	s.router.HandleFunc("/api/v1/auth/authorize", userauthhttp.AuthorizeWithPKCE(deps, s.authorizationCodes)).Methods("GET")
+	s.router.HandleFunc("/api/v1/auth/token", userauthhttp.ExchangeAuthorizationCode(deps, s.authorizationCodes)).Methods("POST")
 	s.router.HandleFunc("/api/v1/auth/refresh", userauthhttp.RefreshTokens(deps)).Methods("POST")
 	// Protected auth endpoints (require user auth)
 	s.router.HandleFunc("/api/v1/auth/logout", s.requireUserAuth(userauthhttp.LogoutUser(deps))).Methods("POST")
@@ -151,6 +154,9 @@ func registerEntitlementRoute(s *Server) {
 		if err != nil {
 			writeJSONError(w, http.StatusServiceUnavailable, "entitlement service unavailable", ApiErrorTypeServerError)
 			return
+		}
+		if payload.SharedDecision().Warning {
+			w.Header().Set("X-Entitlement-Warning", "past_due")
 		}
 		lease, err := s.userAuthService.SignEntitlementLease(entitlementclient.Payload{
 			UserIdentity:      identity,

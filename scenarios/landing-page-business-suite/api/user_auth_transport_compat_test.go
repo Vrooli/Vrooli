@@ -41,10 +41,6 @@ func setAuthCookies(w http.ResponseWriter, pair *administration.TokenPair) {
 	userauthhttp.SetAuthCookies(w, pair, isSecureContext(), time.Now())
 }
 func clearAuthCookies(w http.ResponseWriter) { userauthhttp.ClearAuthCookies(w, isSecureContext()) }
-func redirectWithTokens(w http.ResponseWriter, r *http.Request, rawURL string, pair *administration.TokenPair) {
-	userauthhttp.RedirectWithTokens(w, r, rawURL, pair, userAuthHandlerDependencies(nil, nil))
-}
-
 func isSecureContext() bool {
 	return strings.HasPrefix(resolveSecret("AUTH_MAGIC_LINK_BASE_URL"), "https://")
 }

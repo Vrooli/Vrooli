@@ -14,6 +14,7 @@ import (
 
 	"github.com/vrooli/browser-automation-studio/services/credits"
 	entsvc "github.com/vrooli/browser-automation-studio/services/entitlement"
+	entitlementclient "github.com/vrooli/vrooli/packages/entitlementclient-go"
 	entitlementv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/entitlement"
 	entitlementconnect "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/entitlement/entitlementconnect"
 )
@@ -46,18 +47,9 @@ func (f *fakeSettings) SetSetting(_ context.Context, key, value string) error {
 }
 
 type fakeProvider struct {
-	ent            *entsvc.Entitlement
-	getErr         error
-	overrideTier   entsvc.Tier
-	invalidated    []string
-	apiSourceLast  string
-	apiPortLast    int
-	aiCreditsLimit int
-
-	tierWatermark map[entsvc.Tier]bool
-	tierAI        map[entsvc.Tier]bool
-	tierRecording map[entsvc.Tier]bool
-
+	ent               *entsvc.Entitlement
+	getErr            error
+	invalidated       []string
 	requiresWatermark bool
 	canUseAI          bool
 	canUseRecording   bool
@@ -67,31 +59,11 @@ func (f *fakeProvider) GetEntitlement(_ context.Context, _ string) (*entsvc.Enti
 	return f.ent, f.getErr
 }
 
-func (f *fakeProvider) BuildOverrideEntitlement(user string, tier entsvc.Tier) *entsvc.Entitlement {
-	f.overrideTier = tier
-	return &entsvc.Entitlement{UserIdentity: user, Status: entsvc.StatusActive, Tier: tier}
-}
-
 func (f *fakeProvider) InvalidateCache(user string) { f.invalidated = append(f.invalidated, user) }
-
-func (f *fakeProvider) SetApiSource(source string, port int) {
-	f.apiSourceLast = source
-	f.apiPortLast = port
-}
-
-func (f *fakeProvider) GetAICreditsLimit(_ entsvc.Tier) int { return f.aiCreditsLimit }
-
-func (f *fakeProvider) TierRequiresWatermark(t entsvc.Tier) bool { return f.tierWatermark[t] }
-func (f *fakeProvider) TierCanUseAI(t entsvc.Tier) bool          { return f.tierAI[t] }
-func (f *fakeProvider) TierCanUseRecording(t entsvc.Tier) bool   { return f.tierRecording[t] }
 
 func (f *fakeProvider) RequiresWatermark(context.Context, string) bool { return f.requiresWatermark }
 func (f *fakeProvider) CanUseAI(context.Context, string) bool          { return f.canUseAI }
 func (f *fakeProvider) CanUseRecording(context.Context, string) bool   { return f.canUseRecording }
-
-func (f *fakeProvider) MinTierForAI() entsvc.Tier            { return entsvc.TierPro }
-func (f *fakeProvider) MinTierForRecording() entsvc.Tier     { return entsvc.TierSolo }
-func (f *fakeProvider) MinTierWithoutWatermark() entsvc.Tier { return entsvc.TierPro }
 
 type fakeCredits struct {
 	usage         *credits.UsageSummary
@@ -184,11 +156,8 @@ func newDefaultProvider() *fakeProvider {
 			Status:       entsvc.StatusActive,
 			Tier:         entsvc.TierPro,
 			Features:     []string{"ai", "recording"},
+			Limits:       []entitlementclient.Limit{{Key: "ai_credits", Value: 100}},
 		},
-		aiCreditsLimit:    100,
-		tierWatermark:     map[entsvc.Tier]bool{entsvc.TierFree: true},
-		tierAI:            map[entsvc.Tier]bool{entsvc.TierPro: true, entsvc.TierStudio: true, entsvc.TierBusiness: true},
-		tierRecording:     map[entsvc.Tier]bool{entsvc.TierSolo: true, entsvc.TierPro: true, entsvc.TierStudio: true, entsvc.TierBusiness: true},
 		requiresWatermark: false,
 		canUseAI:          true,
 		canUseRecording:   true,
@@ -250,16 +219,16 @@ func TestGetStatus_AnonymousFallback(t *testing.T) {
 	require.Equal(t, "anonymous", resp.Msg.GetStatus().UserIdentity)
 }
 
-func TestGetStatus_OverrideTierWins(t *testing.T) {
+func TestGetStatus_IgnoresStaleLocalTierSetting(t *testing.T) {
 	prov := newDefaultProvider()
 	settings := newFakeSettings()
-	settings.store[entsvc.OverrideTierSettingKey] = string(entsvc.TierBusiness)
+	settings.store["entitlement_override_tier"] = entsvc.TierBusiness
 	client := newTestClient(t, clientDeps{provider: prov, settings: settings})
 
 	resp, err := client.GetStatus(context.Background(), connect.NewRequest(&entitlementv1.GetStatusRequest{User: "x"}))
 	require.NoError(t, err)
-	require.Equal(t, string(entsvc.TierBusiness), resp.Msg.GetStatus().Tier)
-	require.Equal(t, string(entsvc.TierBusiness), resp.Msg.GetStatus().OverrideTier)
+	require.Equal(t, entsvc.TierPro, resp.Msg.GetStatus().Tier)
+	require.Equal(t, "", resp.Msg.GetStatus().OverrideTier)
 }
 
 func TestGetStatus_ProviderErrorFallsBackToDefaultEntitlement(t *testing.T) {
@@ -422,127 +391,12 @@ func TestGetOperationLog_DefaultsLimit(t *testing.T) {
 	require.Equal(t, "claude", resp.Msg.Operations[0].Metadata.Fields["model"].GetStringValue())
 }
 
-// ---------------------------------------------------------------------------
-// Override
-// ---------------------------------------------------------------------------
-
-func TestGetOverride_EmptyByDefault(t *testing.T) {
+func TestRemovedLocalEntitlementControlsAreUnavailable(t *testing.T) {
 	client := newTestClient(t, clientDeps{provider: newDefaultProvider(), settings: newFakeSettings()})
-	resp, err := client.GetOverride(context.Background(), connect.NewRequest(&entitlementv1.GetOverrideRequest{}))
-	require.NoError(t, err)
-	require.Equal(t, "", resp.Msg.Tier)
-}
-
-func TestSetOverride_PersistsTier(t *testing.T) {
-	settings := newFakeSettings()
-	client := newTestClient(t, clientDeps{provider: newDefaultProvider(), settings: settings})
-	resp, err := client.SetOverride(context.Background(), connect.NewRequest(&entitlementv1.SetOverrideRequest{Tier: "PRO"}))
-	require.NoError(t, err)
-	require.Equal(t, string(entsvc.TierPro), resp.Msg.Tier)
-	require.Equal(t, string(entsvc.TierPro), settings.store[entsvc.OverrideTierSettingKey])
-}
-
-func TestSetOverride_EmptyClears(t *testing.T) {
-	settings := newFakeSettings()
-	settings.store[entsvc.OverrideTierSettingKey] = string(entsvc.TierPro)
-	client := newTestClient(t, clientDeps{provider: newDefaultProvider(), settings: settings})
-	resp, err := client.SetOverride(context.Background(), connect.NewRequest(&entitlementv1.SetOverrideRequest{Tier: ""}))
-	require.NoError(t, err)
-	require.Equal(t, "", resp.Msg.Tier)
-	require.Equal(t, "", settings.store[entsvc.OverrideTierSettingKey])
-}
-
-func TestSetOverride_RejectsUnknownTier(t *testing.T) {
-	client := newTestClient(t, clientDeps{provider: newDefaultProvider(), settings: newFakeSettings()})
-	_, err := client.SetOverride(context.Background(), connect.NewRequest(&entitlementv1.SetOverrideRequest{Tier: "platinum"}))
-	require.Error(t, err)
-	require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
-}
-
-func TestSetOverride_RequiresSettings(t *testing.T) {
-	client := newTestClient(t, clientDeps{provider: newDefaultProvider()})
-	_, err := client.SetOverride(context.Background(), connect.NewRequest(&entitlementv1.SetOverrideRequest{Tier: "pro"}))
-	require.Error(t, err)
-	require.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(err))
-}
-
-func TestClearOverride_RemovesValue(t *testing.T) {
-	settings := newFakeSettings()
-	settings.store[entsvc.OverrideTierSettingKey] = string(entsvc.TierPro)
-	client := newTestClient(t, clientDeps{provider: newDefaultProvider(), settings: settings})
-	_, err := client.ClearOverride(context.Background(), connect.NewRequest(&entitlementv1.ClearOverrideRequest{}))
-	require.NoError(t, err)
-	require.Equal(t, "", settings.store[entsvc.OverrideTierSettingKey])
-}
-
-// ---------------------------------------------------------------------------
-// API source
-// ---------------------------------------------------------------------------
-
-func TestGetApiSource_DefaultsToProduction(t *testing.T) {
-	client := newTestClient(t, clientDeps{provider: newDefaultProvider(), settings: newFakeSettings()})
-	resp, err := client.GetApiSource(context.Background(), connect.NewRequest(&entitlementv1.GetApiSourceRequest{}))
-	require.NoError(t, err)
-	require.Equal(t, "production", resp.Msg.Source)
-	require.Equal(t, int32(15000), resp.Msg.LocalPort)
-}
-
-func TestSetApiSource_PersistsAndPropagates(t *testing.T) {
-	prov := newDefaultProvider()
-	settings := newFakeSettings()
-	client := newTestClient(t, clientDeps{provider: prov, settings: settings})
-
-	resp, err := client.SetApiSource(context.Background(), connect.NewRequest(&entitlementv1.SetApiSourceRequest{Source: "LOCAL", LocalPort: 15123}))
-	require.NoError(t, err)
-	require.Equal(t, "local", resp.Msg.Source)
-	require.Equal(t, int32(15123), resp.Msg.LocalPort)
-	require.Equal(t, "local", settings.store[entsvc.ApiSourceSettingKey])
-	require.Equal(t, "15123", settings.store[entsvc.LocalApiPortSettingKey])
-	require.Equal(t, "local", prov.apiSourceLast)
-	require.Equal(t, 15123, prov.apiPortLast)
-}
-
-func TestSetApiSource_RejectsUnknown(t *testing.T) {
-	client := newTestClient(t, clientDeps{provider: newDefaultProvider(), settings: newFakeSettings()})
-	_, err := client.SetApiSource(context.Background(), connect.NewRequest(&entitlementv1.SetApiSourceRequest{Source: "staging"}))
-	require.Error(t, err)
-	require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
-}
-
-func TestControlPlaneGuardRecognizesOnlyLoopbackControlRequests(t *testing.T) {
-	for _, test := range []struct {
-		name string
-		peer string
-		want bool
-	}{
-		{name: "ipv4 loopback", peer: "127.0.0.1:8080", want: true},
-		{name: "ipv6 loopback", peer: "[::1]:8080", want: true},
-		{name: "remote", peer: "198.51.100.10:8080", want: false},
-		{name: "spoofed host is irrelevant", peer: "198.51.100.10:8080", want: false},
-	} {
-		t.Run(test.name, func(t *testing.T) {
-			if got := isLoopbackPeer(test.peer); got != test.want {
-				t.Fatalf("isLoopbackPeer(%q) = %v, want %v", test.peer, got, test.want)
-			}
-		})
-	}
-	if !isProtectedControlPath("/browser-automation-studio.v1.EntitlementService/SetOverride") {
-		t.Fatal("SetOverride must be protected")
-	}
-	if isProtectedControlPath("/browser-automation-studio.v1.EntitlementService/GetStatus") {
-		t.Fatal("GetStatus must remain available to authenticated remote clients")
-	}
-}
-
-func TestClearApiSource_ResetsToProduction(t *testing.T) {
-	prov := newDefaultProvider()
-	settings := newFakeSettings()
-	settings.store[entsvc.ApiSourceSettingKey] = "local"
-	client := newTestClient(t, clientDeps{provider: prov, settings: settings})
-
-	_, err := client.ClearApiSource(context.Background(), connect.NewRequest(&entitlementv1.ClearApiSourceRequest{}))
-	require.NoError(t, err)
-	require.Equal(t, "production", settings.store[entsvc.ApiSourceSettingKey])
-	require.Equal(t, "production", prov.apiSourceLast)
-	require.Equal(t, 0, prov.apiPortLast)
+	_, err := client.GetOverride(context.Background(), connect.NewRequest(&entitlementv1.GetOverrideRequest{}))
+	require.Equal(t, connect.CodeUnimplemented, connect.CodeOf(err))
+	_, err = client.SetOverride(context.Background(), connect.NewRequest(&entitlementv1.SetOverrideRequest{Tier: "pro"}))
+	require.Equal(t, connect.CodeUnimplemented, connect.CodeOf(err))
+	_, err = client.GetApiSource(context.Background(), connect.NewRequest(&entitlementv1.GetApiSourceRequest{}))
+	require.Equal(t, connect.CodeUnimplemented, connect.CodeOf(err))
 }

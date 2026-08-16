@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-	"net/url"
 	"strings"
 	"time"
 
@@ -93,10 +92,6 @@ func VerifyMagicLink(deps UserAuthDependencies) http.HandlerFunc {
 			return
 		}
 		SetAuthCookies(w, pair, deps.SecureCookies(), deps.Now())
-		if redirectURL := deps.ResolveSecret("AUTH_SUCCESS_REDIRECT_URL"); redirectURL != "" {
-			RedirectWithTokens(w, r, redirectURL, pair, deps)
-			return
-		}
 		writeJSON(w, tokenResponse(pair, user), deps, "encode_response_failed")
 	}
 }
@@ -178,22 +173,6 @@ func ClearAuthCookies(w http.ResponseWriter, secure bool) {
 	http.SetCookie(w, &http.Cookie{Name: "access_token", Value: "", Path: "/", MaxAge: -1, HttpOnly: true, Secure: secure, SameSite: http.SameSiteLaxMode})
 	// #nosec G124 -- deletion must exactly match the deployment-selected Secure attribute.
 	http.SetCookie(w, &http.Cookie{Name: "refresh_token", Value: "", Path: "/api/v1/auth", MaxAge: -1, HttpOnly: true, Secure: secure, SameSite: http.SameSiteLaxMode})
-}
-
-func RedirectWithTokens(w http.ResponseWriter, r *http.Request, redirectURL string, pair *admin.TokenPair, deps UserAuthDependencies) {
-	u, err := url.Parse(redirectURL)
-	if err != nil {
-		deps.LogError("invalid_redirect_url", map[string]any{"error": err.Error(), "redirect_url": redirectURL})
-		writeJSON(w, tokenResponse(pair, nil), deps, "encode_response_failed")
-		return
-	}
-	fragment := url.Values{}
-	fragment.Set("access_token", pair.AccessToken)
-	fragment.Set("refresh_token", pair.RefreshToken)
-	fragment.Set("expires_at", pair.ExpiresAt.Format(time.RFC3339))
-	fragment.Set("token_type", pair.TokenType)
-	u.Fragment = fragment.Encode()
-	http.Redirect(w, r, u.String(), http.StatusFound)
 }
 
 func FormatNullableTime(value *time.Time) any {

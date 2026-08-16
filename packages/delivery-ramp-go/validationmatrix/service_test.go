@@ -181,7 +181,7 @@ func TestServiceRunsBoundedCellsRetriesAndReportsProvenance(t *testing.T) {
 		if calls.Add(1) == 1 {
 			return CellResult{Disposition: domainv1.ValidationDisposition_VALIDATION_DISPOSITION_FAILED, Reason: "transient", Retryable: true}
 		}
-		return CellResult{Disposition: domainv1.ValidationDisposition_VALIDATION_DISPOSITION_PASS, Evidence: validEvidence()}
+		return CellResult{Disposition: domainv1.ValidationDisposition_VALIDATION_DISPOSITION_PASS, Evidence: validEvidence(), Report: map[string]string{"review_recording_path": "/var/lib/vrooli/evidence/review.mp4"}}
 	})}, WithReleaseReporter(reporter))
 	run, err := service.Create(baseSelection())
 	if err != nil {
@@ -199,6 +199,9 @@ func TestServiceRunsBoundedCellsRetriesAndReportsProvenance(t *testing.T) {
 	}
 	if completed.Cells[0].Attempts != 2 || completed.Cells[0].State != CellCompleted {
 		t.Fatalf("expected retry then completion: %+v", completed.Cells[0])
+	}
+	if completed.Cells[0].Report["review_recording_path"] != "/var/lib/vrooli/evidence/review.mp4" {
+		t.Fatalf("review report was not retained: %+v", completed.Cells[0].Report)
 	}
 	reporter.mu.Lock()
 	defer reporter.mu.Unlock()

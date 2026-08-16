@@ -103,6 +103,8 @@ func setupMonetizationHarness(t *testing.T, stripeServer *httptest.Server) *mone
 			customer_id VARCHAR(255),
 			customer_email VARCHAR(255),
 			status VARCHAR(50) NOT NULL,
+			source VARCHAR(100) NOT NULL DEFAULT 'stripe',
+			external_subscription_id VARCHAR(255),
 			plan_tier VARCHAR(50),
 			price_id VARCHAR(255),
 			bundle_key VARCHAR(100),
@@ -139,9 +141,12 @@ func setupMonetizationHarness(t *testing.T, stripeServer *httptest.Server) *mone
 			customer_email VARCHAR(255) NOT NULL,
 			amount_credits BIGINT NOT NULL,
 			transaction_type VARCHAR(50) NOT NULL,
+			source VARCHAR(100) NOT NULL DEFAULT 'stripe',
+			external_event_id VARCHAR(255),
 			stripe_event_id VARCHAR(255) UNIQUE,
 			metadata JSONB DEFAULT '{}'::jsonb,
-			created_at TIMESTAMP DEFAULT NOW()
+			created_at TIMESTAMP DEFAULT NOW(),
+			UNIQUE (source, external_event_id)
 		);
 		CREATE UNIQUE INDEX IF NOT EXISTS idx_credit_transactions_stripe_event_id
 		ON credit_transactions(stripe_event_id) WHERE stripe_event_id IS NOT NULL;

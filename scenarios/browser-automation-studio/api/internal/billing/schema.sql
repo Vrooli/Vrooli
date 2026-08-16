@@ -33,7 +33,7 @@ CREATE INDEX IF NOT EXISTS idx_operation_log_created ON operation_log(created_at
 
 -- Durable LPBS usage delivery. operation_id is the authority idempotency key;
 -- delivery retries never create a second usage record upstream.
-CREATE TABLE IF NOT EXISTS usage_outbox (
+CREATE TABLE IF NOT EXISTS monetization_usage_outbox (
     operation_id TEXT PRIMARY KEY,
     user_identity TEXT NOT NULL,
     payload TEXT NOT NULL,
@@ -46,5 +46,5 @@ CREATE TABLE IF NOT EXISTS usage_outbox (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX IF NOT EXISTS idx_usage_outbox_pending
-    ON usage_outbox(status, next_attempt_at);
+CREATE INDEX IF NOT EXISTS idx_monetization_usage_outbox_pending
+    ON monetization_usage_outbox(status, next_attempt_at);

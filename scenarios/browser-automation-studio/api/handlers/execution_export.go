@@ -213,13 +213,13 @@ func (h *Handler) PostExecutionExport(w http.ResponseWriter, r *http.Request) {
 
 	preview.Package = spec
 
-	// Enforce watermark requirements based on user's subscription tier.
-	// This ensures free/solo tier users always have the Vrooli watermark enabled.
+	// Enforce watermark requirements from the signed lease feature set. The
+	// local tier name is display data and is not an authorization ladder.
 	if h.entitlementService != nil {
 		ent := entitlement.FromContext(r.Context())
 		requiresWatermark := false
 		if ent != nil {
-			requiresWatermark = h.entitlementService.TierRequiresWatermark(ent.Tier)
+			requiresWatermark = !ent.HasFeature(entitlement.FeatureWatermarkFree)
 		} else {
 			// No entitlement in context - check via service (uses default tier)
 			userIdentity := entitlement.UserIdentityFromContext(r.Context())

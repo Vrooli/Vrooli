@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
-import { renderWithProviders } from "../test-utils/render";
+import { renderWithProviders } from "@vrooli/api-base/testing";
 import IntegrationsPanel from "../components/IntegrationsPanel";
 import { strings } from "../consts/strings";
 import { i18n } from "../i18n";

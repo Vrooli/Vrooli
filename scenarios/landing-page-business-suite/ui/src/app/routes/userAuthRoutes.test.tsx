@@ -1,4 +1,4 @@
-import { Routes } from 'react-router-dom';
+import { MemoryRouter, Routes } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { screen } from '@testing-library/react';
 import { renderWithProviders } from "@vrooli/api-base/testing";
@@ -15,7 +15,7 @@ vi.mock('../../shared/api', async () => {
 });
 
 function renderRoute(route: string) {
-  const routes = <Routes>{userAuthRoutes}</Routes>;
+  const routes = <MemoryRouter initialEntries={[route]}><Routes>{userAuthRoutes}</Routes></MemoryRouter>;
   if (route.startsWith('/admin/')) {
     window.history.replaceState({}, '', route);
     mockCheckAdminSession.mockResolvedValue({ authenticated: false, reset_enabled: false });

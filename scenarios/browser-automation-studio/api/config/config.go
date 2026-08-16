@@ -515,18 +515,6 @@ type EntitlementConfig struct {
 	// DefaultTier is the tier to use when no subscription is found or service is unavailable.
 	// Env: BAS_ENTITLEMENT_DEFAULT_TIER (default: "free")
 	DefaultTier string
-
-	// WatermarkTiers lists tiers that should have watermarks applied to exports.
-	// Env: BAS_ENTITLEMENT_WATERMARK_TIERS (default: "free,solo")
-	WatermarkTiers []string
-
-	// AITiers lists tiers that have access to AI-powered features.
-	// Env: BAS_ENTITLEMENT_AI_TIERS (default: "pro,studio,business")
-	AITiers []string
-
-	// RecordingTiers lists tiers that have access to live recording features.
-	// Env: BAS_ENTITLEMENT_RECORDING_TIERS (default: "solo,pro,studio,business")
-	RecordingTiers []string
 }
 
 // PerformanceConfig controls debug performance mode for frame streaming diagnostics.
@@ -729,9 +717,6 @@ func loadFromEnv() *Config {
 			CacheTTL:       parseDurationMs("BAS_ENTITLEMENT_CACHE_TTL_MS", 300000),
 			RequestTimeout: parseDurationMs("BAS_ENTITLEMENT_REQUEST_TIMEOUT_MS", 5000),
 			DefaultTier:    parseString("BAS_ENTITLEMENT_DEFAULT_TIER", "free"),
-			WatermarkTiers: parseStringList("BAS_ENTITLEMENT_WATERMARK_TIERS", "free,solo"),
-			AITiers:        parseStringList("BAS_ENTITLEMENT_AI_TIERS", "solo,pro,studio,business"),
-			RecordingTiers: parseStringList("BAS_ENTITLEMENT_RECORDING_TIERS", "solo,pro,studio,business"),
 		},
 		Performance: PerformanceConfig{
 			Enabled:            parseBool("BAS_PERF_ENABLED", true),

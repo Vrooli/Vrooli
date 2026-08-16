@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Loader2, CheckCircle, XCircle, RefreshCw } from 'lucide-react';
 import { AuthPageLayout } from '../../../shared/ui/AuthPageLayout';
-import { verifyMagicLink, isApiError, VerifyMagicLinkResponse } from '../../../shared/api';
+import { verifyMagicLink, isApiError } from '../../../shared/api';
 import { isRecord, safeParseJson } from '../../../shared/lib/utils';
 
 // Session storage key for auth callback params (set in UserLogin)
@@ -16,6 +16,8 @@ interface AuthCallbackParams {
   redirect_uri: string;
   app: string;
   state: string;
+  code_challenge?: string;
+  code_challenge_method?: string;
 }
 
 type VerifyStatus = 'verifying' | 'success' | 'error';
@@ -41,7 +43,15 @@ function parseAuthCallbackParams(raw: string): AuthCallbackParams | null {
   if (typeof redirect !== 'string' || typeof app !== 'string' || typeof state !== 'string') {
     return null;
   }
-  return { redirect_uri: redirect, app, state };
+  const challenge = parsed.code_challenge;
+  const challengeMethod = parsed.code_challenge_method;
+  return {
+    redirect_uri: redirect,
+    app,
+    state,
+    ...(typeof challenge === 'string' ? { code_challenge: challenge } : {}),
+    ...(typeof challengeMethod === 'string' ? { code_challenge_method: challengeMethod } : {}),
+  };
 }
 
 /**
@@ -73,23 +83,20 @@ export function isAllowedCallbackUrl(urlString: string): boolean {
 }
 
 /**
- * Build the redirect URL with tokens in the URL fragment.
- * Uses fragment (#) so tokens aren't sent to any servers in HTTP headers.
+ * Build the server authorization request. The magic-link token is sent only
+ * to LPBS, which exchanges it for a one-use PKCE code before redirecting to a
+ * native app. No access or refresh token enters a callback URL.
  */
-function buildRedirectUrl(baseUrl: string, tokens: VerifyMagicLinkResponse, state: string): string {
-  const url = new URL(baseUrl);
-
-  // Build fragment with tokens
-  const fragment = new URLSearchParams();
-  fragment.set('access_token', tokens.access_token);
-  fragment.set('refresh_token', tokens.refresh_token);
-  fragment.set('expires_at', tokens.expires_at);
-  fragment.set('token_type', tokens.token_type);
-  if (state) {
-    fragment.set('state', state);
+function buildAuthorizationUrl(token: string, params: AuthCallbackParams): string | null {
+  if (params.code_challenge_method !== 'S256' || !params.code_challenge) {
+    return null;
   }
-
-  url.hash = fragment.toString();
+  const url = new URL('/api/v1/auth/authorize', window.location.origin);
+  url.searchParams.set('token', token);
+  url.searchParams.set('redirect_uri', params.redirect_uri);
+  url.searchParams.set('code_challenge', params.code_challenge);
+  url.searchParams.set('code_challenge_method', params.code_challenge_method);
+  if (params.state) url.searchParams.set('state', params.state);
   return url.toString();
 }
 
@@ -114,8 +121,6 @@ export function VerifyMagicLink({ redirectTo = redirectBrowser }: { redirectTo?:
     setState({ status: 'verifying' });
 
     try {
-      const response = await verifyMagicLink(token);
-
       // Check for stored callback params
       const storedParams = sessionStorage.getItem(AUTH_CALLBACK_PARAMS_KEY);
 
@@ -129,9 +134,13 @@ export function VerifyMagicLink({ redirectTo = redirectBrowser }: { redirectTo?:
           // Clear stored params
           sessionStorage.removeItem(AUTH_CALLBACK_PARAMS_KEY);
 
-          // Validate callback URL
+          // Validate callback URL before sending the one-time magic-link token
+          // to the authorization endpoint.
           if (isAllowedCallbackUrl(params.redirect_uri)) {
-            const redirectUrl = buildRedirectUrl(params.redirect_uri, response, params.state);
+            const redirectUrl = buildAuthorizationUrl(token, params);
+            if (!redirectUrl) {
+              throw new Error('Native app authorization requires S256 PKCE');
+            }
             setRedirecting(true);
             setState({ status: 'success' });
 
@@ -145,6 +154,11 @@ export function VerifyMagicLink({ redirectTo = redirectBrowser }: { redirectTo?:
           console.error('Failed to parse stored auth params:', parseErr);
         }
       }
+
+      // Browser verification remains a same-origin JSON/cookie flow. Native
+      // callbacks must take the PKCE branch above; they never receive tokens
+      // through a claimable custom scheme.
+      await verifyMagicLink(token);
 
       // No valid callback URL - show success and redirect to home
       setState({ status: 'success' });

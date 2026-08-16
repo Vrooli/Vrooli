@@ -520,122 +520,6 @@
               "network:internal"
             ]
           }
-        },
-        {
-          "name": "override-get",
-          "description": "Show the active dev override tier, or empty if unset.",
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "EntitlementService",
-            "method": "GetOverride"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          }
-        },
-        {
-          "name": "override-set",
-          "description": "Install a dev override tier (empty value clears it).",
-          "positionals": [
-            {
-              "name": "tier",
-              "required": true,
-              "description": "Subscription tier (free|solo|pro|studio|business) or empty to clear"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "EntitlementService",
-            "method": "SetOverride"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          }
-        },
-        {
-          "name": "override-clear",
-          "description": "Remove any active dev override tier.",
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "EntitlementService",
-            "method": "ClearOverride"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          }
-        },
-        {
-          "name": "api-source-get",
-          "description": "Show the entitlement API source (production|local|disabled) and configured local port.",
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "EntitlementService",
-            "method": "GetApiSource"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          }
-        },
-        {
-          "name": "api-source-set",
-          "description": "Set the entitlement API source and optional local LPBS port.",
-          "positionals": [
-            {
-              "name": "source",
-              "required": true,
-              "description": "production | local | disabled"
-            }
-          ],
-          "flags": [
-            {
-              "name": "local-port",
-              "description": "Port the local LPBS API listens on (optional)"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "EntitlementService",
-            "method": "SetApiSource"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          }
-        },
-        {
-          "name": "api-source-clear",
-          "description": "Reset the entitlement API source back to production.",
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "EntitlementService",
-            "method": "ClearApiSource"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          }
         }
       ]
     },
@@ -3701,6 +3585,36 @@
     ]
   },
   "omitted": [
+    {
+      "service": "EntitlementService",
+      "method": "GetOverride",
+      "reason": "Development-only entitlement override inspector; no CLI command is exposed because overrides are controlled through the UI and test fixtures."
+    },
+    {
+      "service": "EntitlementService",
+      "method": "SetOverride",
+      "reason": "Development-only entitlement override control; no CLI command is exposed because overrides are controlled through the UI and test fixtures."
+    },
+    {
+      "service": "EntitlementService",
+      "method": "ClearOverride",
+      "reason": "Development-only entitlement override control; no CLI command is exposed because overrides are controlled through the UI and test fixtures."
+    },
+    {
+      "service": "EntitlementService",
+      "method": "GetApiSource",
+      "reason": "Development-only entitlement API source inspector; no CLI command is exposed because source selection is controlled through the UI and test fixtures."
+    },
+    {
+      "service": "EntitlementService",
+      "method": "SetApiSource",
+      "reason": "Development-only entitlement API source control; no CLI command is exposed because source selection is controlled through the UI and test fixtures."
+    },
+    {
+      "service": "EntitlementService",
+      "method": "ClearApiSource",
+      "reason": "Development-only entitlement API source control; no CLI command is exposed because source selection is controlled through the UI and test fixtures."
+    },
     {
       "service": "RecordingsService",
       "method": "GetStorageState",

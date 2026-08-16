@@ -16,6 +16,7 @@ import (
 	"github.com/sirupsen/logrus"
 	coredb "github.com/vrooli/api-core/database"
 	"github.com/vrooli/browser-automation-studio/services/entitlement"
+	monetization "github.com/vrooli/vrooli/packages/monetization-go"
 )
 
 // LPBSReporter is an interface for reporting usage to LPBS.
@@ -49,11 +50,12 @@ type Service struct {
 	costs               OperationCosts
 
 	// LPBS integration for centralized usage reporting
-	lpbsURL         string       // LPBS service URL for usage reporting
-	lpbsHTTPClient  *http.Client // HTTP client for LPBS requests
-	lpbsReporter    LPBSReporter // Optional: injectable reporter for testing
-	lpbsAccessToken func(context.Context) (string, error)
-	appBundleKey    string // App identifier for usage records
+	lpbsURL            string       // LPBS service URL for usage reporting
+	lpbsHTTPClient     *http.Client // HTTP client for LPBS requests
+	lpbsReporter       LPBSReporter // Optional: injectable reporter for testing
+	lpbsAccessToken    func(context.Context) (string, error)
+	appBundleKey       string // App identifier for usage records
+	monetizationOutbox *monetization.Outbox
 
 	// In-memory cache for fast lookups
 	cacheMu sync.RWMutex
@@ -152,7 +154,7 @@ func NewService(opts ServiceOptions) *Service {
 		entProvider = NewDefaultEntitlementProvider(opts.EntitlementSvc)
 	}
 
-	return &Service{
+	service := &Service{
 		db:                  opts.DB,
 		log:                 opts.Logger,
 		entitlementSvc:      opts.EntitlementSvc, // Keep for backward compat
@@ -165,6 +167,10 @@ func NewService(opts ServiceOptions) *Service {
 		appBundleKey:        appBundleKey,
 		cache:               make(map[string]*usageCache),
 	}
+	if service.db != nil && service.lpbsURL != "" {
+		service.monetizationOutbox = monetization.NewOutbox(&sqlUsageOutboxStore{db: service.db}, &lpbsUsageTransport{service: service})
+	}
+	return service
 }
 
 // getEntitlement retrieves the entitlement for a user, checking context first
@@ -696,10 +702,15 @@ func (s *Service) getUserCreditsLimit(ctx context.Context, userIdentity string) 
 		return -1, nil
 	}
 
-	if leaseLimits, ok := s.entitlementProvider.(entitlementLeaseLimits); ok {
-		return leaseLimits.GetAICreditsLimitForEntitlement(ent), nil
+	if limits, ok := s.entitlementProvider.(EntitlementLimitProvider); ok {
+		if limit, found := limits.LimitForEntitlement(ent); found {
+			return limit, nil
+		}
 	}
-	return s.entitlementProvider.GetAICreditsLimit(ent.Tier), nil
+	if limit, ok := ent.LimitValue("ai_credits"); ok {
+		return int(limit), nil
+	}
+	return 0, nil
 }
 
 // getRemainingCredits returns the remaining credits for a user.
@@ -1023,29 +1034,14 @@ func (s *Service) reportUsageToLPBS(ctx context.Context, userIdentity string, op
 		}
 		return
 	}
-	if err := s.enqueueLPBSReport(ctx, report); err != nil {
-		s.log.WithError(err).WithField("operation_id", operationID).Warn("lpbs: unable to persist usage outbox entry")
+	if s.monetizationOutbox != nil {
+		usage := usageFromLPBSReport(report)
+		if err := s.monetizationOutbox.Enqueue(ctx, usage); err != nil {
+			s.log.WithError(err).WithField("operation_id", operationID).Warn("lpbs: unable to persist shared usage outbox entry")
+		}
 		return
 	}
-	// Delivery is owned by the process drainer. Keeping the request path to a
-	// durable append means an unavailable LPBS cannot lose usage or add latency
-	// to the paid operation.
-}
-
-func (s *Service) enqueueLPBSReport(ctx context.Context, report lpbsUsageReport) error {
-	payload, err := json.Marshal(report)
-	if err != nil {
-		return fmt.Errorf("marshal outbox payload: %w", err)
-	}
-	_, err = s.db.ExecContext(ctx, `
-		INSERT INTO usage_outbox (operation_id, user_identity, payload, status, next_attempt_at)
-		VALUES (?, ?, ?, 'pending', CURRENT_TIMESTAMP)
-		ON CONFLICT(operation_id) DO NOTHING
-	`, report.OperationID, report.UserIdentity, string(payload))
-	if err != nil {
-		return fmt.Errorf("persist usage outbox: %w", err)
-	}
-	return nil
+	s.log.WithField("operation_id", operationID).Warn("lpbs: shared usage outbox is unavailable")
 }
 
 // DrainOutbox delivers pending reports using the current consumer session.
@@ -1055,54 +1051,10 @@ func (s *Service) DrainOutbox(ctx context.Context, max int) (int, error) {
 	if s.lpbsURL == "" || max <= 0 {
 		return 0, nil
 	}
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		return 0, fmt.Errorf("begin usage outbox drain: %w", err)
+	if s.monetizationOutbox == nil {
+		return 0, errors.New("shared usage outbox is unavailable")
 	}
-	defer func() { _ = tx.Rollback() }()
-	rows, err := tx.QueryContext(ctx, `
-		SELECT operation_id, payload FROM usage_outbox
-		WHERE status = 'pending'
-		ORDER BY created_at
-		LIMIT ?
-	`, max)
-	if err != nil {
-		return 0, fmt.Errorf("query usage outbox: %w", err)
-	}
-	defer rows.Close()
-	delivered := 0
-	for rows.Next() {
-		var operationID, raw string
-		if err := rows.Scan(&operationID, &raw); err != nil {
-			return delivered, fmt.Errorf("scan usage outbox: %w", err)
-		}
-		var report lpbsUsageReport
-		if err := json.Unmarshal([]byte(raw), &report); err != nil {
-			_ = markOutboxFailure(tx, ctx, operationID, err)
-			continue
-		}
-		accessToken, err := s.resolveLPBSAccess(ctx)
-		if err == nil {
-			requestCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-			err = s.sendLPBSReport(requestCtx, report, accessToken)
-			cancel()
-		}
-		if err != nil {
-			_ = markOutboxFailure(tx, ctx, operationID, err)
-			continue
-		}
-		if _, err := tx.ExecContext(ctx, `UPDATE usage_outbox SET status = 'delivered', delivered_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE operation_id = ?`, operationID); err != nil {
-			return delivered, fmt.Errorf("mark usage outbox delivered: %w", err)
-		}
-		delivered++
-	}
-	if err := rows.Err(); err != nil {
-		return delivered, err
-	}
-	if err := tx.Commit(); err != nil {
-		return delivered, fmt.Errorf("commit usage outbox drain: %w", err)
-	}
-	return delivered, nil
+	return s.monetizationOutbox.Drain(ctx, max)
 }
 
 func (s *Service) resolveLPBSAccess(ctx context.Context) (string, error) {
@@ -1113,19 +1065,6 @@ func (s *Service) resolveLPBSAccess(ctx context.Context) (string, error) {
 		return "", errors.New("entitlement session resolver is unavailable")
 	}
 	return s.entitlementSvc.ResolveAccessToken(ctx, s.lpbsURL)
-}
-
-type outboxStore interface {
-	ExecContext(context.Context, string, ...any) (sql.Result, error)
-}
-
-func markOutboxFailure(store outboxStore, ctx context.Context, operationID string, deliveryErr error) error {
-	_, err := store.ExecContext(ctx, `
-		UPDATE usage_outbox
-		SET attempts = attempts + 1, last_error = ?, next_attempt_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
-		WHERE operation_id = ?
-	`, deliveryErr.Error(), operationID)
-	return err
 }
 
 // StartOutboxDrainer starts the process-owned durable retry loop.

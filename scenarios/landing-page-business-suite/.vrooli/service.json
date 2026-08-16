@@ -274,6 +274,17 @@
             "default_hint": "Generate with: openssl rand -base64 32"
           },
           {
+            "secret_id": "AUTH_MAGIC_LINK_BASE_URL",
+            "logical_id": "vrooli/landing-page-business-suite",
+            "field": "auth-magic-link-base-url",
+            "env": "AUTH_MAGIC_LINK_BASE_URL",
+            "classification": "user",
+            "label": "Magic-link verification URL",
+            "description": "Absolute public URL for the /auth/verify magic-link route. Use HTTPS in production.",
+            "required": false,
+            "default_hint": "Local development may use the scenario UI URL; production requires an absolute HTTPS URL"
+          },
+          {
             "secret_id": "LPBS_SERVICE_SECRET",
             "logical_id": "vrooli/landing-page-business-suite",
             "field": "service-secret",
@@ -369,6 +380,14 @@
         "env": "LPBS_REMOTE_PROFILE_ENCRYPTION_KEY",
         "label": "Remote profile encryption key",
         "description": "Encrypts stored remote deployment profiles. Falls back to the API key encryption key when unset.",
+        "required": false
+      },
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
+        "field": "auth-magic-link-base-url",
+        "env": "AUTH_MAGIC_LINK_BASE_URL",
+        "label": "Magic-link verification URL",
+        "description": "Absolute public URL for the /auth/verify magic-link route. Production requires HTTPS.",
         "required": false
       },
       {

@@ -3,23 +3,18 @@ package deliveryramp
 import (
 	"context"
 	"time"
+
+	"github.com/vrooli/api-core/targetmodel"
 )
 
-type TransportKind string
+type TransportKind = targetmodel.TransportKind
 
 const (
-	TransportLocal  TransportKind = "local"
-	TransportBridge TransportKind = "bridge"
+	TransportLocal  = targetmodel.TransportLocal
+	TransportBridge = targetmodel.TransportBridge
 )
 
-type Transport struct {
-	Kind      TransportKind `json:"kind"`
-	ID        string        `json:"id"`
-	Trust     string        `json:"trust,omitempty"`
-	Endpoint  string        `json:"-"` // credentials and endpoints never enter evidence JSON
-	Available bool          `json:"available"`
-	Reason    string        `json:"reason,omitempty"`
-}
+type Transport = targetmodel.Transport
 
 type Cell struct {
 	ID         string `json:"id"`

@@ -356,12 +356,101 @@ func TestListDirectoryTruncatesPastScanCeiling(t *testing.T) {
 		t.Fatalf("scan exceeded the ceiling")
 	}
 
-	scanned, truncated, err := scanDirectory(root, false)
+	scanned, truncated, err := scanDirectory(root, false, MaxEntriesScanned)
 	if err != nil {
 		t.Fatalf("scan: %v", err)
 	}
 	if truncated || len(scanned) != 12 {
 		t.Fatalf("scan returned %d entries, truncated=%t", len(scanned), truncated)
+	}
+
+	// With a low ceiling the scan stops and says so.
+	scanned, truncated, err = scanDirectory(root, false, 5)
+	if err != nil {
+		t.Fatalf("scan: %v", err)
+	}
+	if !truncated || len(scanned) != 5 {
+		t.Fatalf("bounded scan returned %d entries, truncated=%t; want 5/true", len(scanned), truncated)
+	}
+}
+
+// The scan ceiling has to bound entries EXAMINED, not just entries kept.
+// A directory full of dotfiles yields almost nothing after the hidden filter,
+// so a ceiling applied only to the survivors would read the whole directory.
+func TestListDirectoryCeilingBoundsHiddenEntriesToo(t *testing.T) {
+	root, r := listRoot(t)
+	for i := 0; i < 40; i++ {
+		mustWrite(t, filepath.Join(root, fmt.Sprintf(".hidden%02d", i)), "x")
+	}
+	mustWrite(t, filepath.Join(root, "visible.txt"), "x")
+
+	r.MaxEntriesScanned = 10
+	res := mustList(t, r, root, ListOptions{})
+	if !res.Truncated {
+		t.Fatalf("a scan stopped by the ceiling must report truncation even when the hidden filter left few entries")
+	}
+	if len(res.Entries) > 10 {
+		t.Fatalf("entries = %d, want at most the ceiling", len(res.Entries))
+	}
+}
+
+// The same bound applies to counting a subdirectory's children.
+func TestListDirectoryChildCountBoundsHiddenEntriesToo(t *testing.T) {
+	root, r := listRoot(t)
+	sub := filepath.Join(root, "sub")
+	mustMkdir(t, sub)
+	for i := 0; i < childCountCeiling+50; i++ {
+		mustWrite(t, filepath.Join(sub, fmt.Sprintf(".h%04d", i)), "")
+	}
+
+	res := mustList(t, r, root, ListOptions{})
+	if got := entryByName(t, res, "sub").ChildCount; got != ChildCountUnknown {
+		t.Fatalf("child count = %d, want ChildCountUnknown once the examine budget is exceeded", got)
+	}
+}
+
+// Paging must keep working when the server downgraded the sort. The client
+// keeps sending the sort it asked for, so a token that recorded the *applied*
+// sort would reject every page after the first.
+func TestListDirectoryPagesThroughADowngradedSort(t *testing.T) {
+	root, r := listRoot(t)
+	const total = 12
+	for i := 0; i < total; i++ {
+		mustWrite(t, filepath.Join(root, fmt.Sprintf("f%02d.txt", i)), "x")
+	}
+	// Force the downgrade path without building a 5,001-entry directory.
+	r.StatSortLimit = 4
+
+	first, err := r.ListDirectory(root, ListOptions{Sort: SortSizeDesc, PageSize: 5})
+	if err != nil {
+		t.Fatalf("first page: %v", err)
+	}
+	if first.EffectiveSort != SortDirsFirstName {
+		t.Fatalf("effectiveSort = %q, want the downgrade", first.EffectiveSort)
+	}
+	if len(first.Warnings) == 0 {
+		t.Fatalf("a downgrade must be reported, not silent")
+	}
+	if first.NextPageToken == "" {
+		t.Fatalf("expected a continuation token")
+	}
+
+	// The client still says size_desc — exactly what the UI holds.
+	seen := append([]string(nil), names(first)...)
+	opts := ListOptions{Sort: SortSizeDesc, PageSize: 5, PageToken: first.NextPageToken}
+	for {
+		page, pErr := r.ListDirectory(root, opts)
+		if pErr != nil {
+			t.Fatalf("continuation page: %v", pErr)
+		}
+		seen = append(seen, names(page)...)
+		if page.NextPageToken == "" {
+			break
+		}
+		opts.PageToken = page.NextPageToken
+	}
+	if len(seen) != total {
+		t.Fatalf("saw %d entries across pages, want %d", len(seen), total)
 	}
 }
 

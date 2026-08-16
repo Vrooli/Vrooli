@@ -1,4 +1,5 @@
 import type {
+  DirectoryEntry,
   DirectorySort,
   PreviewKind,
   PreviewListing,
@@ -6,7 +7,14 @@ import type {
   PreviewTextContent,
 } from "../../api/filePreview";
 
-export type { DirectorySort, PreviewKind, PreviewListing, PreviewModel, PreviewTextContent };
+export type {
+  DirectoryEntry,
+  DirectorySort,
+  PreviewKind,
+  PreviewListing,
+  PreviewModel,
+  PreviewTextContent,
+};
 
 // PreviewStatus is the viewer state machine. Every open() walks
 // idle → resolving → (loadingText | loadingListing →) ready | unsupported |

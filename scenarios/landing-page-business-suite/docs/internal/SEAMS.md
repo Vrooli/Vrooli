@@ -26,7 +26,6 @@ This document reflects the current code; claims here have been verified against 
 | metricshttp.EventTracker | `api/handlers/metrics/waitlist.go` | `*metrics.Service` wired in `api/metrics_handlers.go` | `api/handlers/metrics/mocks.FakeEventTracker` | Exercise event-ingestion transport without a database. |
 | metricshttp.AnalyticsReader | `api/handlers/metrics/waitlist.go` | `*metrics.Service` wired in `api/metrics_handlers.go` | `api/handlers/metrics/mocks.FakeAnalyticsReader` | Exercise summary and variant transport without a database. |
 | feedback.Notifier | `api/handlers/feedback/connect.go` | `feedbackEmailNotifier` wired in `api/feedback_notifier.go` | `api/handlers/metrics/mocks.FakeFeedbackNotifier` | Keep generated feedback creation separate from branding/email delivery. |
-| clock.Clock | `api/internal/clock/clock.go` | `clock.System` | `api/internal/testutil/mocks.FakeClock` | Keep domain time-dependent IDs deterministic in tests. |
 | envx.Reader | `api/internal/envx/env.go` | `envx.System` | `api/internal/testutil/mocks.FakeEnvironment` | Isolate process configuration from business and startup logic. |
 | logx.Logger | `api/internal/logx/log.go` | `logx.System` | `api/internal/testutil/mocks.FakeLogger` | Keep structured logging substitutable in tests and composition. |
 | metrics.WaitlistStore | `api/internal/metrics/waitlist.go` | `*database.RoutedDB` in API composition | `api/internal/testutil/mocks.FakeWaitlistStore` | Route context-aware waitlist persistence to Test Genie’s lease-owned pool. |

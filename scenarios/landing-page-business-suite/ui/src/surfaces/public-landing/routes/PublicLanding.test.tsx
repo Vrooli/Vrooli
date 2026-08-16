@@ -534,4 +534,42 @@ describe('PublicLanding header rails', () => {
     expect(warn).toHaveBeenCalledWith('Unknown section type: unsupported');
     warn.mockRestore();
   });
+
+  it('preserves explicit anchors and fails closed for incomplete configured links', () => {
+    useLandingVariantMock.mockReturnValue({
+      variant: { slug: 'edge-cases', name: 'Edge Cases', status: 'active' },
+      config: {
+        variant: { id: 5, slug: 'edge-cases', name: 'Edge Cases' },
+        branding: { site_name: 'Edge Cases' },
+        sections: [{ id: 1, section_type: 'hero', order: 1, enabled: true, content: { title: 'Edge Hero' } }],
+        downloads: [],
+        fallback: false,
+        pricing: null,
+        header: {
+          branding: { mode: 'none', mobile_preference: 'auto' },
+          nav: { links: [
+            { id: 'direct', type: 'section', label: 'Direct', anchor: 'direct-anchor' },
+            { id: 'invalid', type: 'section', label: 'Invalid' },
+            { id: '', type: 'menu', label: 'More', children: [
+              { id: 'direct-child', type: 'section', label: 'Direct child', anchor: '#child-anchor' },
+              { id: 'section-child', type: 'section', label: 'Hero child', section_id: 1 },
+              { id: 'empty-child', type: 'custom', label: 'Empty child' },
+            ] },
+          ] },
+          ctas: { primary: { mode: 'custom', label: 'Incomplete' }, secondary: { mode: 'inherit_hero' } },
+          behavior: { sticky: false, hide_on_scroll: false },
+        },
+      },
+      loading: false, error: null, resolution: 'api_select', statusNote: null, lastUpdated: null, refresh: vi.fn(),
+    });
+
+    render(<BrowserRouter><PublicLanding /></BrowserRouter>);
+
+    expect(screen.getAllByRole('link', { name: 'Direct' })[0]).toHaveAttribute('href', '#direct-anchor');
+    expect(screen.queryByRole('link', { name: 'Invalid' })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'More · Direct child' })).toHaveAttribute('href', '#child-anchor');
+    expect(screen.getByRole('link', { name: 'More · Hero child' })).toHaveAttribute('href', '#hero-1');
+    expect(screen.getByRole('link', { name: 'More · Empty child' })).toHaveAttribute('href', '#');
+    expect(screen.queryByTestId('landing-nav-cta')).not.toBeInTheDocument();
+  });
 });

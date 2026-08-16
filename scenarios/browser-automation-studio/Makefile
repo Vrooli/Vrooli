@@ -77,7 +77,9 @@ fmt-go: ## Format Go code
 	fi
 
 fmt-ui: ## Format UI code
-	@true
+	@if [ -f ui/package.json ]; then \
+		cd ui && pnpm run lint:fix; \
+	fi
 
 lint: lint-go lint-ui ## Lint all code
 
@@ -92,7 +94,7 @@ lint-go: ## Lint Go code
 
 lint-ui: ## Lint and type-check the UI
 	@if [ -f ui/package.json ]; then \
-		cd ui && pnpm run lint && pnpm run typecheck; \
+		cd ui && pnpm run lint && pnpm run type-check; \
 	fi
 
 check: fmt lint test ## Run full quality gates

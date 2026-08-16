@@ -30,12 +30,14 @@ import type { PreviewRendererProps } from "../types";
 // SORT_OPTIONS is the ordering control. The two name sorts always work; the
 // size and date sorts may be downgraded by the server on a large directory,
 // which the toolbar reports rather than silently misrepresenting the order.
-const SORT_OPTIONS: ReadonlyArray<{ value: DirectorySort; label: string }> = [
+// `as const satisfies` keeps each label's literal key type — the string
+// registry is a typed union, so widening to `string` would break t().
+const SORT_OPTIONS = [
   { value: "dirs_first_name", label: strings.messagesFileViewer.directorySortDirsFirst },
   { value: "name", label: strings.messagesFileViewer.directorySortName },
   { value: "size_desc", label: strings.messagesFileViewer.directorySortSize },
   { value: "mtime_desc", label: strings.messagesFileViewer.directorySortMtime },
-];
+] as const satisfies ReadonlyArray<{ value: DirectorySort; label: string }>;
 
 // DirectoryPreview renders a directory as a navigable list. Every clickable
 // row calls the same onNavigate — files and directories alike — so the row has
@@ -52,7 +54,9 @@ export function DirectoryPreview({
   const { t } = useTranslation();
   const [query, setQuery] = useState("");
 
-  const entries = listing?.entries ?? [];
+  // Depend on listing?.entries rather than a defaulted local: `?? []` builds a
+  // fresh array each render, which would make the memo recompute every time.
+  const entries = useMemo(() => listing?.entries ?? [], [listing?.entries]);
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();
     if (!needle) return entries;
@@ -160,7 +164,10 @@ export function DirectoryPreview({
               <EntryRow
                 key={entry.name}
                 entry={entry}
-                onOpen={() => onNavigate(joinPath(model.resolvedPath, entry.name))}
+                // Join from the path the server actually listed, not the
+                // model's, so a row can never address a different directory
+                // than the one whose entries are on screen.
+                onOpen={() => onNavigate(joinPath(listing.resolvedPath || model.resolvedPath, entry.name))}
               />
             ))}
           </ul>
@@ -217,7 +224,8 @@ function EmptyState({ showHidden, onShowHidden }: { showHidden: boolean; onShowH
 function EntryRow({ entry, onOpen }: { entry: DirectoryEntry; onOpen: () => void }) {
   const { t } = useTranslation();
   const isDir = entry.entryType === "directory" || entry.kind === "directory";
-  const detail = entryDetail(entry, t);
+  const described = entryDetail(entry);
+  const detail = "literal" in described ? described.literal : t(described.key, described.params ?? {});
 
   const body = (
     <>
@@ -271,18 +279,30 @@ function EntryRow({ entry, onOpen }: { entry: DirectoryEntry; onOpen: () => void
   );
 }
 
-// entryDetail is the right-hand column: the fact that matters most for this
-// entry type, rather than a byte count that means nothing for a directory.
-function entryDetail(entry: DirectoryEntry, t: (key: string, opts?: Record<string, unknown>) => string): string {
-  if (entry.symlinkBroken) return t(strings.messagesFileViewer.directoryBrokenLink);
-  if (entry.entryType === "other") return t(strings.messagesFileViewer.directorySpecialFile);
-  if (!entry.canPreview) return t(strings.messagesFileViewer.directoryUnreadable);
+// EntryDetail describes the right-hand column: the fact that matters most for
+// this entry type, rather than a byte count that means nothing for a
+// directory. It is returned as a key plus params (never a translated string)
+// so the helper stays pure and independent of the i18n runtime.
+type EntryDetailKey =
+  | typeof strings.messagesFileViewer.directoryBrokenLink
+  | typeof strings.messagesFileViewer.directorySpecialFile
+  | typeof strings.messagesFileViewer.directoryUnreadable
+  | typeof strings.messagesFileViewer.directoryChildCount;
+
+type EntryDetail =
+  | { literal: string }
+  | { key: EntryDetailKey; params?: Record<string, unknown> };
+
+function entryDetail(entry: DirectoryEntry): EntryDetail {
+  if (entry.symlinkBroken) return { key: strings.messagesFileViewer.directoryBrokenLink };
+  if (entry.entryType === "other") return { key: strings.messagesFileViewer.directorySpecialFile };
+  if (!entry.canPreview) return { key: strings.messagesFileViewer.directoryUnreadable };
   if (entry.entryType === "directory") {
     return entry.childCount === null
-      ? ""
-      : t(strings.messagesFileViewer.directoryChildCount, { count: entry.childCount });
+      ? { literal: "" }
+      : { key: strings.messagesFileViewer.directoryChildCount, params: { count: entry.childCount } };
   }
-  return formatBytes(entry.sizeBytes);
+  return { literal: formatBytes(entry.sizeBytes) };
 }
 
 function EntryGlyph({ entry }: { entry: DirectoryEntry }) {

@@ -1,0 +1,23 @@
+{
+  "$schema": "https://schemas.vrooli.dev/monetization.schema.json",
+  "version": 2,
+  "bundle_key": "business_suite",
+  "app_key": "web-console",
+  "requires_entitlement": true,
+  "features": [
+    {
+      "key": "voice_synthesis",
+      "class": "B",
+      "min_plan_rank": 2,
+      "enforcement_paths": ["api/monetization.go"]
+    }
+  ],
+  "meters": [
+    {
+      "class": "B",
+      "limit_key": "voice_minutes",
+      "outbox": "api/monetization.go",
+      "enforcement_paths": ["api/monetization.go"]
+    }
+  ]
+}

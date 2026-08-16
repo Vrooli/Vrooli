@@ -63,6 +63,55 @@ func SplitInstance(name string) (string, string) {
 	return name, ""
 }
 
+// AddressParseError identifies a malformed [node/]scenario[@variant]
+// address. Codes are stable so callers can classify usage failures without
+// matching human-readable error text.
+type AddressParseError struct {
+	Code    string
+	Address string
+	Detail  string
+}
+
+func (e *AddressParseError) Error() string {
+	if e == nil {
+		return "invalid scenario address"
+	}
+	if e.Detail == "" {
+		return fmt.Sprintf("scenario address %q: %s", e.Address, e.Code)
+	}
+	return fmt.Sprintf("scenario address %q: %s", e.Address, e.Detail)
+}
+
+// SplitAddress parses the canonical cross-node address grammar:
+// [node/]scenario[@variant]. It is deliberately pure: no environment
+// variable or ambient routing state can select a node. The node is empty for
+// a local address, and the existing SplitInstance semantics remain unchanged
+// for the scenario and variant components.
+func SplitAddress(address string) (node, scenario, variant string, err error) {
+	original := strings.TrimSpace(address)
+	remaining := original
+	if separator := strings.IndexByte(remaining, '/'); separator >= 0 {
+		node = strings.TrimSpace(remaining[:separator])
+		remaining = strings.TrimSpace(remaining[separator+1:])
+		if node == "" {
+			return "", "", "", &AddressParseError{
+				Code:    "empty_node",
+				Address: original,
+				Detail:  "node prefix is empty",
+			}
+		}
+	}
+	scenario, variant = SplitInstance(remaining)
+	if scenario == "" {
+		return "", "", "", &AddressParseError{
+			Code:    "empty_scenario",
+			Address: original,
+			Detail:  "scenario name is empty",
+		}
+	}
+	return node, scenario, variant, nil
+}
+
 // BareScenarioName returns the scenario name with any "@variant" suffix removed.
 func BareScenarioName(name string) string {
 	base, _ := SplitInstance(name)

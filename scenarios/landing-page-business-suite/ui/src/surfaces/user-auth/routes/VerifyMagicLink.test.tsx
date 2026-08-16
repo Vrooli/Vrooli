@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { renderWithProviders } from "@vrooli/api-base/testing";
 import { VerifyMagicLink } from './VerifyMagicLink';
 import * as api from '../../../shared/api';
@@ -19,7 +20,7 @@ const validResponse: api.VerifyMagicLinkResponse = {
 };
 
 function renderVerify(token = 'valid-token', redirectTo?: (url: string) => void) {
-  return renderWithProviders(<VerifyMagicLink redirectTo={redirectTo} />, { route: `/auth/verify?token=${token}` });
+  return renderWithProviders(<MemoryRouter initialEntries={[`/auth/verify?token=${token}`]}><VerifyMagicLink redirectTo={redirectTo} /></MemoryRouter>);
 }
 
 describe('VerifyMagicLink', () => {
@@ -63,16 +64,24 @@ describe('VerifyMagicLink', () => {
     expect(window.location.href).not.toContain('access-token');
   });
 
-  it('sends trusted callback tokens in the URL fragment through the redirect seam', async () => {
+  it('sends a one-use PKCE authorization request instead of tokens through the callback', async () => {
     const redirectTo = vi.fn();
-    verifyMagicLink.mockResolvedValue(validResponse);
-    sessionStorage.setItem('auth_callback_params', JSON.stringify({ redirect_uri: 'vrooli://auth/callback', app: 'Desktop', state: 'nonce' }));
+    sessionStorage.setItem('auth_callback_params', JSON.stringify({
+      redirect_uri: 'http://127.0.0.1:43123/callback',
+      app: 'Desktop',
+      state: 'nonce',
+      code_challenge: 'challenge',
+      code_challenge_method: 'S256',
+    }));
     renderVerify('valid-token', redirectTo);
 
     expect(await screen.findByText('Signed in!')).toBeInTheDocument();
     expect(screen.getByText('Redirecting you back to the app...')).toBeInTheDocument();
-    expect(redirectTo).toHaveBeenCalledWith(expect.stringContaining('#access_token=access-token'));
-    expect(redirectTo).toHaveBeenCalledWith(expect.stringContaining('state=nonce'));
+    expect(verifyMagicLink).not.toHaveBeenCalled();
+    expect(redirectTo).toHaveBeenCalledWith(expect.stringContaining('/api/v1/auth/authorize'));
+    expect(redirectTo).toHaveBeenCalledWith(expect.stringContaining('code_challenge=challenge'));
+    expect(redirectTo).toHaveBeenCalledWith(expect.not.stringContaining('access-token'));
+    expect(redirectTo).toHaveBeenCalledWith(expect.not.stringContaining('refresh-token'));
     expect(sessionStorage.getItem('auth_callback_params')).toBeNull();
   });
 

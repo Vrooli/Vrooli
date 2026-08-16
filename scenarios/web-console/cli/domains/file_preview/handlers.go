@@ -3,6 +3,7 @@ package file_preview
 import (
 	"context"
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 
@@ -124,7 +125,7 @@ func (h *handlers) list(ctx cliapp.RunContext) error {
 		SessionId:  session,
 		PreviewId:  previewID,
 		Sort:       sort,
-		ShowHidden: ctx.Flag("show-hidden") != "",
+		ShowHidden: ctx.BoolFlag("show-hidden"),
 		PageSize:   pageSize,
 		PageToken:  ctx.Flag("page-token"),
 	}))
@@ -226,6 +227,12 @@ func parsePageSizeFlag(raw string) (int32, error) {
 	n, err := strconv.Atoi(trimmed)
 	if err != nil || n < 0 {
 		return 0, fmt.Errorf("--page-size must be a non-negative integer")
+	}
+	// int is 64-bit on the platforms we ship, so bound the value before
+	// narrowing it to the wire's int32. The server clamps to its own maximum
+	// anyway; this only keeps the conversion provably lossless.
+	if n > math.MaxInt32 {
+		n = math.MaxInt32
 	}
 	return int32(n), nil
 }

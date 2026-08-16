@@ -164,3 +164,22 @@ CREATE TABLE IF NOT EXISTS ai_provider_configs (
     timeout_sec INTEGER NOT NULL DEFAULT 30,
     max_retries INTEGER NOT NULL DEFAULT 0
 );
+
+-- Class B monetization events are recorded locally before delivery to LPBS.
+-- operation_id is the durable idempotency boundary shared with the billing
+-- authority, so a crash between send and acknowledgement cannot double-charge.
+CREATE TABLE IF NOT EXISTS monetization_usage_outbox (
+    operation_id TEXT PRIMARY KEY,
+    user_identity TEXT NOT NULL,
+    payload TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','delivered')),
+    attempts INTEGER NOT NULL DEFAULT 0,
+    next_attempt_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+    last_error TEXT,
+    delivered_at TEXT,
+    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+    updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_monetization_usage_outbox_pending
+    ON monetization_usage_outbox(status, next_attempt_at, created_at);

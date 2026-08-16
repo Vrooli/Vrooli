@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log"
+	"math"
 	"strings"
 
 	"connectrpc.com/connect"
@@ -144,11 +145,18 @@ func (h *connectHandler) ListDirectory(ctx context.Context, req *connect.Request
 		})
 	}
 
+	// The listing engine caps entries far below this, but narrowing to the
+	// wire's int32 should be lossless by construction, not by assumption.
+	totalEntries := res.TotalEntries
+	if totalEntries > math.MaxInt32 {
+		totalEntries = math.MaxInt32
+	}
+
 	return connect.NewResponse(&filepreviewv1.ListDirectoryResponse{
 		ResolvedPath:  res.ResolvedPath,
 		ParentPath:    res.ParentPath,
 		Entries:       entries,
-		TotalEntries:  int32(res.TotalEntries),
+		TotalEntries:  int32(totalEntries),
 		Truncated:     res.Truncated,
 		NextPageToken: res.NextPageToken,
 		EffectiveSort: sortToProto(res.EffectiveSort),

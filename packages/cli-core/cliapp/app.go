@@ -3,6 +3,7 @@ package cliapp
 import (
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"sort"
 	"strings"
@@ -153,6 +154,10 @@ type GlobalOptions struct {
 	// VROOLI_SHADOW_SCENARIOS, else live). An explicit "live" forces live even
 	// when the scenario is ambiently shadowed.
 	Instance string
+	// Node selects a connected node explicitly. Empty always means local; no
+	// environment variable or ambient routing signal can select a node.
+	// When an addressed command also contains a node/ prefix, that prefix wins.
+	Node string
 }
 
 // DefaultColorEnabled derives the default color setting from NO_COLOR.
@@ -168,6 +173,8 @@ type App struct {
 	commandLookup         map[string]Command
 	subcommandGroupLookup map[string]*SubcommandGroup
 	scenario              *ScenarioApp
+	stdout                io.Writer
+	stderr                io.Writer
 }
 
 // AttachScenario records the ScenarioApp so RunCtx-style handlers can call
@@ -191,6 +198,28 @@ func NewApp(opts AppOptions) *App {
 
 // Run parses global flags, routes to a command, and triggers stale checks when needed.
 func (a *App) Run(args []string) error {
+	return a.RunWithWriters(args, os.Stdout, os.Stderr)
+}
+
+// RunWithWriters is Run with explicit output streams. It lets an embedding
+// CLI preserve its own output contract while reusing cli-core dispatch. The
+// App is process-local and must not be run concurrently with another call.
+func (a *App) RunWithWriters(args []string, stdout, stderr io.Writer) error {
+	if stdout == nil {
+		stdout = io.Discard
+	}
+	if stderr == nil {
+		stderr = io.Discard
+	}
+	previousStdout, previousStderr := a.stdout, a.stderr
+	a.stdout, a.stderr = stdout, stderr
+	defer func() {
+		a.stdout, a.stderr = previousStdout, previousStderr
+	}()
+	return a.run(args)
+}
+
+func (a *App) run(args []string) error {
 	if len(args) == 0 {
 		a.PrintHelp()
 		return nil
@@ -313,7 +342,7 @@ func (a *App) runSubcommand(group *SubcommandGroup, args []string, originalArgs 
 // from the parser is caught here and converted to a help print with nil error.
 func (a *App) dispatchCommand(prefix string, cmd Command, cmdArgs []string) error {
 	if cmd.RunCtx != nil {
-		ctx, err := parseArgs(cmd.Args, cmdArgs, a.scenario, os.Stdout, os.Stderr)
+		ctx, err := parseArgs(cmd.Args, cmdArgs, a.scenario, a.stdoutWriter(), a.stderrWriter())
 		if err != nil {
 			if errors.Is(err, ErrHelpRequested) {
 				a.printCommandHelp(prefix, cmd)
@@ -350,49 +379,51 @@ func renderCommandError(prefix string, err error) error {
 
 // printSubcommandHelp prints help for a subcommand group.
 func (a *App) printSubcommandHelp(group *SubcommandGroup) {
-	fmt.Printf("%s %s - %s\n\n", a.opts.Name, group.Name, group.Description)
-	fmt.Printf("Usage:\n  %s %s <subcommand> [options]\n\n", a.opts.Name, group.Name)
-	fmt.Println("Subcommands:")
+	w := a.stdoutWriter()
+	fmt.Fprintf(w, "%s %s - %s\n\n", a.opts.Name, group.Name, group.Description)
+	fmt.Fprintf(w, "Usage:\n  %s %s <subcommand> [options]\n\n", a.opts.Name, group.Name)
+	fmt.Fprintln(w, "Subcommands:")
 	for _, cmd := range group.Subcommands {
-		fmt.Printf("  %-20s %s\n", cmd.Name, cmd.Description)
+		fmt.Fprintf(w, "  %-20s %s\n", cmd.Name, cmd.Description)
 	}
-	fmt.Println()
-	fmt.Printf("Run '%s %s <subcommand> --help' for subcommand-specific options.\n", a.opts.Name, group.Name)
+	fmt.Fprintln(w)
+	fmt.Fprintf(w, "Run '%s %s <subcommand> --help' for subcommand-specific options.\n", a.opts.Name, group.Name)
 }
 
 func (a *App) printCommandHelp(prefix string, cmd Command) {
 	if cmd.RunCtx != nil {
-		_ = renderHelp(prefix, cmd, os.Stdout)
+		_ = renderHelp(prefix, cmd, a.stdoutWriter())
 		return
 	}
 
+	w := a.stdoutWriter()
 	fullName := strings.TrimSpace(prefix + " " + cmd.Name)
 	title := strings.TrimSpace(fullName)
 	if cmd.Description != "" {
-		fmt.Printf("%s - %s\n\n", title, cmd.Description)
+		fmt.Fprintf(w, "%s - %s\n\n", title, cmd.Description)
 	} else {
-		fmt.Printf("%s\n\n", title)
+		fmt.Fprintf(w, "%s\n\n", title)
 	}
 
 	usage := strings.TrimSpace(cmd.Usage)
 	if usage == "" {
 		usage = fullName
 	}
-	fmt.Printf("Usage:\n  %s\n", usage)
+	fmt.Fprintf(w, "Usage:\n  %s\n", usage)
 
 	if len(cmd.Aliases) > 0 {
-		fmt.Printf("\nAliases:\n  %s\n", strings.Join(cmd.Aliases, ", "))
+		fmt.Fprintf(w, "\nAliases:\n  %s\n", strings.Join(cmd.Aliases, ", "))
 	}
 
 	if helpText := strings.TrimSpace(cmd.HelpText); helpText != "" {
-		fmt.Printf("\n%s\n", helpText)
+		fmt.Fprintf(w, "\n%s\n", helpText)
 	}
 	if cmd.DryRun == DryRunHeader {
-		fmt.Println("\nGlobal --dry-run: supported (canonical X-Dry-Run header).")
+		fmt.Fprintln(w, "\nGlobal --dry-run: supported (canonical X-Dry-Run header).")
 	} else if alternative := strings.TrimSpace(cmd.DryRunAlternative); alternative != "" {
-		fmt.Printf("\nGlobal --dry-run: unsupported; preview with '%s'.\n", alternative)
+		fmt.Fprintf(w, "\nGlobal --dry-run: unsupported; preview with '%s'.\n", alternative)
 	} else {
-		fmt.Println("\nGlobal --dry-run: unsupported.")
+		fmt.Fprintln(w, "\nGlobal --dry-run: unsupported.")
 	}
 }
 
@@ -403,35 +434,51 @@ func (a *App) SetStaleChecker(checker *cliutil.StaleChecker) {
 
 // PrintHelp renders grouped command help plus global options.
 func (a *App) PrintHelp() {
-	fmt.Printf("%s CLI\n\n", a.opts.Name)
-	fmt.Printf("Usage:\n  %s [global options] <command> [options]\n\n", a.opts.Name)
+	w := a.stdoutWriter()
+	fmt.Fprintf(w, "%s CLI\n\n", a.opts.Name)
+	fmt.Fprintf(w, "Usage:\n  %s [global options] <command> [options]\n\n", a.opts.Name)
 
-	fmt.Print("Global Options (must be placed BEFORE the command):\n")
-	fmt.Println("  --api-base <url>   Override API base URL (default: auto-detected)")
-	fmt.Println("  --instance <name>  Target a scenario variant (e.g. shadow); default: live")
-	fmt.Println("  --auto-start       Auto-start the scenario if not running")
-	fmt.Println("  --dry-run          Request dry-run only for commands that explicitly declare global support")
-	fmt.Println("  --no-color         Disable ANSI color output (or set NO_COLOR)")
-	fmt.Println("  --color            Force-enable ANSI color output")
-	fmt.Println()
+	fmt.Fprint(w, "Global Options (must be placed BEFORE the command):\n")
+	fmt.Fprintln(w, "  --api-base <url>   Override API base URL (default: auto-detected)")
+	fmt.Fprintln(w, "  --instance <name>  Target a scenario variant (e.g. shadow); default: live")
+	fmt.Fprintln(w, "  --node <name>      Target a connected node; address prefix wins; never selected implicitly")
+	fmt.Fprintln(w, "  --auto-start       Auto-start the scenario if not running")
+	fmt.Fprintln(w, "  --dry-run          Request dry-run only for commands that explicitly declare global support")
+	fmt.Fprintln(w, "  --no-color         Disable ANSI color output (or set NO_COLOR)")
+	fmt.Fprintln(w, "  --color            Force-enable ANSI color output")
+	fmt.Fprintln(w)
 
 	// Print subcommand groups first (these are the main features)
 	if len(a.opts.SubcommandGroups) > 0 {
-		fmt.Println("Command Groups (run '<group> help' for details):")
+		fmt.Fprintln(w, "Command Groups (run '<group> help' for details):")
 		for _, group := range a.opts.SubcommandGroups {
-			fmt.Printf("  %-20s %s\n", group.Name, group.Description)
+			fmt.Fprintf(w, "  %-20s %s\n", group.Name, group.Description)
 		}
-		fmt.Println()
+		fmt.Fprintln(w)
 	}
 
-	fmt.Println("Commands:")
+	fmt.Fprintln(w, "Commands:")
 	for _, group := range a.commandGroups() {
-		fmt.Printf("  %s\n", group.Title)
+		fmt.Fprintf(w, "  %s\n", group.Title)
 		for _, cmd := range group.Commands {
-			fmt.Printf("    %-28s %s\n", cmd.Name, cmd.Description)
+			fmt.Fprintf(w, "    %-28s %s\n", cmd.Name, cmd.Description)
 		}
-		fmt.Println()
+		fmt.Fprintln(w)
 	}
+}
+
+func (a *App) stdoutWriter() io.Writer {
+	if a.stdout != nil {
+		return a.stdout
+	}
+	return os.Stdout
+}
+
+func (a *App) stderrWriter() io.Writer {
+	if a.stderr != nil {
+		return a.stderr
+	}
+	return os.Stderr
 }
 
 func (a *App) commandGroups() []CommandGroup {
@@ -502,7 +549,7 @@ func (a *App) applyColor() {
 // instead of a bare "unknown option".
 func isGlobalFlagName(name string) bool {
 	switch name {
-	case "api-base", "instance", "auto-start", "dry-run", "no-color", "color":
+	case "api-base", "instance", "node", "auto-start", "dry-run", "no-color", "color":
 		return true
 	default:
 		return false
@@ -536,6 +583,12 @@ func ParseGlobalFlags(args []string, global *GlobalOptions, apiOverrideTarget *s
 				return nil, errors.New("missing value for --instance")
 			}
 			global.Instance = args[i+1]
+			i++
+		case "--node":
+			if i+1 >= len(args) {
+				return nil, errors.New("missing value for --node")
+			}
+			global.Node = args[i+1]
 			i++
 		case "--auto-start":
 			global.AutoStart = true

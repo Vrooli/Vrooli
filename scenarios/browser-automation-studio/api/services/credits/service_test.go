@@ -51,7 +51,7 @@ func createTestDB(t *testing.T) *sql.DB {
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 		);
 
-		CREATE TABLE usage_outbox (
+		CREATE TABLE monetization_usage_outbox (
 			operation_id TEXT PRIMARY KEY,
 			user_identity TEXT NOT NULL,
 			payload TEXT NOT NULL,

@@ -81,6 +81,13 @@ type Resolver struct {
 	ProjectRoot string
 	// MaxTextBytes caps inline text payloads (0 → DefaultMaxTextBytes).
 	MaxTextBytes int64
+	// StatSortLimit is the largest directory a stat-requiring sort may order
+	// (0 → StatSortLimit). Configurable so the downgrade path is testable
+	// without building a directory of thousands of files.
+	StatSortLimit int
+	// MaxEntriesScanned caps entries read from one directory
+	// (0 → MaxEntriesScanned).
+	MaxEntriesScanned int
 }
 
 func (r *Resolver) maxText() int64 {

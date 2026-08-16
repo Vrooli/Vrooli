@@ -120,6 +120,20 @@ func Descriptor(p aisearch.ProviderConfig) (*registryv1.ProviderDescriptor, erro
 			return nil, fmt.Errorf("marshal junk leak opt-out reason: %w", err)
 		}
 	}
+	if p.RoutingProfile.AnswerSpaces != nil || p.RoutingProfile.Intents != nil || p.RoutingProfile.PositiveExamples != nil || p.RoutingProfile.Exclusions != nil {
+		if err := p.RoutingProfile.Validate(); err != nil {
+			return nil, fmt.Errorf("provider %q: %w", p.ProviderID, err)
+		}
+		obj["routing_profile"], err = json.Marshal(map[string]any{
+			"answer_spaces":     p.RoutingProfile.AnswerSpaces,
+			"intents":           p.RoutingProfile.Intents,
+			"positive_examples": p.RoutingProfile.PositiveExamples,
+			"exclusions":        p.RoutingProfile.Exclusions,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("marshal routing_profile: %w", err)
+		}
+	}
 	// Descriptor sub-objects are already protojson; pass them through verbatim.
 	if len(p.Endpoint) > 0 {
 		obj["endpoint"] = p.Endpoint

@@ -199,6 +199,7 @@ const ALIASES = {
   '@utils': path.resolve(__dirname, './src/utils'),
   '@constants': path.resolve(__dirname, './src/constants'),
   '@lib': path.resolve(__dirname, './src/lib'),
+  '@components': path.resolve(__dirname, './src/components'),
 };
 
 export default defineConfig(({ mode }): UserConfig => {

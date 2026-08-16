@@ -29,6 +29,7 @@ import (
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 	corestorage "github.com/vrooli/api-core/storage"
+	authhandler "landing-page-business-suite-api/handlers/administration"
 	aihandler "landing-page-business-suite-api/handlers/intelligence"
 	"landing-page-business-suite-api/internal/administration"
 	"landing-page-business-suite-api/internal/analytics"
@@ -83,6 +84,7 @@ type Server struct {
 	remoteProfileService *administration.RemoteProfileService
 	// User authentication services
 	userAuthService       *administration.UserAuthService
+	authorizationCodes    *authhandler.AuthorizationCodeStore
 	userManagementService *administration.UserManagementService
 	magicLinkLimiter      *RateLimiter
 	// AI MeteredInferenceProvider service
@@ -252,7 +254,7 @@ func NewServer() (*Server, error) {
 		ConsumerSigningKeyID:  consumerKeyID,
 		ConsumerPreviousKeys:  previousConsumerKeys,
 		ConsumerClockSkew:     30 * time.Second,
-		BaseURL:               resolveConfig("AUTH_MAGIC_LINK_BASE_URL"),
+		BaseURL:               resolveSecret("AUTH_MAGIC_LINK_BASE_URL"),
 		AppName:               resolveConfig("EMAIL_FROM_NAME"),
 		Log:                   logStructured,
 		LogError:              logStructuredError,
@@ -320,6 +322,7 @@ func NewServer() (*Server, error) {
 		remoteProfileService: remoteProfileService,
 		// User authentication services
 		userAuthService:       userAuthService,
+		authorizationCodes:    authhandler.NewAuthorizationCodeStore(),
 		userManagementService: userManagementService,
 		magicLinkLimiter:      magicLinkLimiter,
 		// AI MeteredInferenceProvider service

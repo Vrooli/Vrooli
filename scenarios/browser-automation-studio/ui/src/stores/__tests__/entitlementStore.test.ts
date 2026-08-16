@@ -23,12 +23,6 @@ const refreshStatusMock = vi.fn();
 const getUsageMock = vi.fn();
 const getUsageHistoryMock = vi.fn();
 const getOperationLogMock = vi.fn();
-const getOverrideMock = vi.fn();
-const setOverrideMock = vi.fn();
-const clearOverrideMock = vi.fn();
-const getApiSourceMock = vi.fn();
-const setApiSourceMock = vi.fn();
-const clearApiSourceMock = vi.fn();
 
 vi.mock('../../api/entitlement', () => ({
   entitlementClient: {
@@ -40,16 +34,10 @@ vi.mock('../../api/entitlement', () => ({
     getUsage: (...a: unknown[]) => getUsageMock(...a),
     getUsageHistory: (...a: unknown[]) => getUsageHistoryMock(...a),
     getOperationLog: (...a: unknown[]) => getOperationLogMock(...a),
-    getOverride: (...a: unknown[]) => getOverrideMock(...a),
-    setOverride: (...a: unknown[]) => setOverrideMock(...a),
-    clearOverride: (...a: unknown[]) => clearOverrideMock(...a),
-    getApiSource: (...a: unknown[]) => getApiSourceMock(...a),
-    setApiSource: (...a: unknown[]) => setApiSourceMock(...a),
-    clearApiSource: (...a: unknown[]) => clearApiSourceMock(...a),
   },
 }));
 
-import { useEntitlementStore, isValidEmail, type ApiSource } from '../entitlementStore';
+import { useEntitlementStore, isValidEmail } from '../entitlementStore';
 
 const makeProtoStatus = (overrides: Record<string, unknown> = {}) => ({
   userIdentity: 'alice@example.com',
@@ -67,7 +55,6 @@ const makeProtoStatus = (overrides: Record<string, unknown> = {}) => ({
   canUseAi: true,
   canUseRecording: true,
   entitlementsEnabled: true,
-  overrideTier: '',
   aiCreditsUsed: 5,
   aiCreditsLimit: 100,
   aiCreditsRemaining: 95,
@@ -80,13 +67,10 @@ const resetStore = () => {
   useEntitlementStore.setState({
     userEmail: '',
     status: null,
-    overrideTier: null,
     isLoading: false,
     error: null,
     lastFetched: null,
     isOffline: false,
-    apiSource: 'production' as ApiSource,
-    localApiPort: 15000,
     usageHistory: [],
     historyLoading: false,
     selectedPeriod: null,
@@ -103,8 +87,6 @@ describe('entitlementStore (Connect-RPC)', () => {
     for (const m of [
       getStatusMock, getIdentityMock, setIdentityMock, clearIdentityMock, refreshStatusMock,
       getUsageMock, getUsageHistoryMock, getOperationLogMock,
-      getOverrideMock, setOverrideMock, clearOverrideMock,
-      getApiSourceMock, setApiSourceMock, clearApiSourceMock,
     ]) {
       m.mockReset();
     }
@@ -160,13 +142,6 @@ describe('entitlementStore (Connect-RPC)', () => {
       expect(isLoading).toBe(false);
     });
 
-    it('preserves override tier from proto response', async () => {
-      getStatusMock.mockResolvedValueOnce({ status: makeProtoStatus({ overrideTier: 'business' }) });
-      await act(async () => {
-        await useEntitlementStore.getState().fetchStatus();
-      });
-      expect(useEntitlementStore.getState().overrideTier).toBe('business');
-    });
   });
 
   describe('setUserEmail', () => {
@@ -256,60 +231,6 @@ describe('entitlementStore (Connect-RPC)', () => {
         result = await useEntitlementStore.getState().getUserEmail();
       });
       expect(result).toBe('');
-    });
-  });
-
-  describe('setOverrideTier', () => {
-    it('sends empty tier when null', async () => {
-      setOverrideMock.mockResolvedValueOnce({ tier: '' });
-      getStatusMock.mockResolvedValueOnce({ status: makeProtoStatus() });
-      await act(async () => {
-        await useEntitlementStore.getState().setOverrideTier(null);
-      });
-      expect(setOverrideMock).toHaveBeenCalledWith({ tier: '' });
-    });
-
-    it('sends tier string and refetches status', async () => {
-      setOverrideMock.mockResolvedValueOnce({ tier: 'business' });
-      getStatusMock.mockResolvedValueOnce({ status: makeProtoStatus({ overrideTier: 'business' }) });
-      await act(async () => {
-        await useEntitlementStore.getState().setOverrideTier('business');
-      });
-      expect(setOverrideMock).toHaveBeenCalledWith({ tier: 'business' });
-      expect(getStatusMock).toHaveBeenCalled();
-    });
-  });
-
-  describe('getApiSource / setApiSource', () => {
-    it('reads source + port from response', async () => {
-      getApiSourceMock.mockResolvedValueOnce({ source: 'local', localPort: 15123 });
-      await act(async () => {
-        await useEntitlementStore.getState().getApiSource();
-      });
-      const { apiSource, localApiPort } = useEntitlementStore.getState();
-      expect(apiSource).toBe('local');
-      expect(localApiPort).toBe(15123);
-    });
-
-    it('silently swallows errors during getApiSource', async () => {
-      getApiSourceMock.mockRejectedValueOnce(new Error('boom'));
-      await act(async () => {
-        await useEntitlementStore.getState().getApiSource();
-      });
-      const { apiSource } = useEntitlementStore.getState();
-      expect(apiSource).toBe('production'); // unchanged
-    });
-
-    it('setApiSource posts source + port and refetches', async () => {
-      setApiSourceMock.mockResolvedValueOnce({ source: 'local', localPort: 16000 });
-      getStatusMock.mockResolvedValueOnce({ status: makeProtoStatus() });
-      await act(async () => {
-        await useEntitlementStore.getState().setApiSource('local', 16000);
-      });
-      expect(setApiSourceMock).toHaveBeenCalledWith({ source: 'local', localPort: 16000 });
-      expect(useEntitlementStore.getState().apiSource).toBe('local');
-      expect(useEntitlementStore.getState().localApiPort).toBe(16000);
-      expect(getStatusMock).toHaveBeenCalled();
     });
   });
 

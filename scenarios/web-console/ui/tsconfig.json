@@ -22,6 +22,10 @@
     // ║  Removing them WILL cause crashes that are much harder to debug than     ║
     // ║  the type errors they produce at compile time.                           ║
     // ╚══════════════════════════════════════════════════════════════════════════╝
+    // Type-checking only. Vite owns the build; a bare `tsc` in this directory
+    // must never emit .js next to the sources, because vite resolves .js before
+    // .ts and would silently build the stale copies instead of the real ones.
+    "noEmit": true,
     "jsx": "react-jsx",
     "strict": true,
     "noUncheckedIndexedAccess": true,

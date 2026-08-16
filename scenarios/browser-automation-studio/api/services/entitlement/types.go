@@ -31,21 +31,14 @@ import (
 	entitlementclient "github.com/vrooli/vrooli/packages/entitlementclient-go"
 )
 
+// Legacy plan labels are display values only. Authorization uses PlanRank
+// from the verified LPBS lease and never compares these names locally.
 const (
-	OverrideTierSettingKey = "entitlement_override_tier"
-	ApiSourceSettingKey    = "entitlement_api_source"
-	LocalApiPortSettingKey = "entitlement_local_api_port"
-)
-
-// Tier represents a subscription tier with its capabilities.
-type Tier string
-
-const (
-	TierFree     Tier = "free"
-	TierSolo     Tier = "solo"
-	TierPro      Tier = "pro"
-	TierStudio   Tier = "studio"
-	TierBusiness Tier = "business"
+	TierFree     = "free"
+	TierSolo     = "solo"
+	TierPro      = "pro"
+	TierStudio   = "studio"
+	TierBusiness = "business"
 )
 
 // Status represents the subscription status.
@@ -76,7 +69,11 @@ type Entitlement struct {
 	Status Status `json:"status"`
 
 	// Tier is the subscription tier (free, solo, pro, studio, business).
-	Tier Tier `json:"tier"`
+	Tier string `json:"tier"`
+
+	// PlanRank is copied from the verified LPBS lease and is the only local
+	// value suitable for rank comparisons.
+	PlanRank int32 `json:"plan_rank"`
 
 	// PriceID is the Stripe price ID if subscribed.
 	PriceID string `json:"price_id,omitempty"`
@@ -122,6 +119,20 @@ func (e *Entitlement) HasFeature(feature string) bool {
 	return false
 }
 
+// LimitValue returns a server-signed limit from the lease snapshot. A missing
+// value is not inferred from a local plan or configuration table.
+func (e *Entitlement) LimitValue(key string) (int64, bool) {
+	if e == nil {
+		return 0, false
+	}
+	for _, limit := range e.Limits {
+		if strings.EqualFold(limit.Key, key) {
+			return limit.Value, true
+		}
+	}
+	return 0, false
+}
+
 // GetBillingPeriod returns start/end for the billing period containing t.
 // Falls back to calendar month if BillingCycleStart is 0 or invalid.
 func (e *Entitlement) GetBillingPeriod(t time.Time) (start, end time.Time) {
@@ -153,49 +164,6 @@ func (e *Entitlement) GetBillingPeriod(t time.Time) (start, end time.Time) {
 func (e *Entitlement) GetBillingMonth(t time.Time) string {
 	start, _ := e.GetBillingPeriod(t)
 	return start.Format("2006-01-02")
-}
-
-// TierOrder returns a numeric order for tier comparison.
-// Higher is better.
-func (t Tier) Order() int {
-	switch t {
-	case TierBusiness:
-		return 5
-	case TierStudio:
-		return 4
-	case TierPro:
-		return 3
-	case TierSolo:
-		return 2
-	case TierFree:
-		return 1
-	default:
-		return 0
-	}
-}
-
-// AtLeast returns true if this tier is at least as high as the given tier.
-func (t Tier) AtLeast(other Tier) bool {
-	return t.Order() >= other.Order()
-}
-
-// ParseTier normalizes a tier string into a Tier enum.
-func ParseTier(value string) (Tier, bool) {
-	normalized := strings.TrimSpace(strings.ToLower(value))
-	switch normalized {
-	case string(TierFree):
-		return TierFree, true
-	case string(TierSolo):
-		return TierSolo, true
-	case string(TierPro):
-		return TierPro, true
-	case string(TierStudio):
-		return TierStudio, true
-	case string(TierBusiness):
-		return TierBusiness, true
-	default:
-		return "", false
-	}
 }
 
 // entitlementResponse matches the response from landing-page-business-suite /api/v1/entitlements.

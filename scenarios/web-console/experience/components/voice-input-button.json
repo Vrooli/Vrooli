@@ -1,18 +1,22 @@
 {
-  "contract": {
-    "kind": "rcl-component-experience-contract",
-    "schema": "scenario-experience-spec/v1",
-    "provenance": "react-component-library/VoiceInputButton@4.0.0"
-  },
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-component",
+  "schemaVersion": "1.1.0",
   "component": {
     "id": "voice-input-button",
     "title": "VoiceInputButton",
-    "purpose": "Expose one fixed-footprint microphone control; consumers own errors and recovery actions."
+    "purpose": "Expose one fixed-footprint microphone control; consumers own errors and recovery actions.",
+    "storyRef": "../../../react-component-library/library/components/VoiceInputButton/versions/4.1.0/story.json"
   },
   "states": [
     { "id": "idle", "example": "idle", "description": "Ready to start voice input." },
+    { "id": "preparing", "example": "preparing", "description": "Microphone is preparing." },
     { "id": "recording", "example": "recording", "description": "Capturing microphone input." },
-    { "id": "error", "example": "error", "description": "Error state without an embedded recovery surface." }
+    { "id": "recovering", "example": "recovering", "description": "The action is recovering." },
+    { "id": "transcribing", "example": "transcribing", "description": "Audio is being transcribed." },
+    { "id": "unavailable", "example": "unavailable", "description": "Voice input is unavailable." },
+    { "id": "error", "example": "error", "description": "Error state without an embedded recovery surface." },
+    { "id": "timeout", "example": "timeout", "description": "Recording reaches its timeout variant." }
   ],
   "elements": [
     { "id": "voice-control", "role": "button", "description": "The only rendered control." }

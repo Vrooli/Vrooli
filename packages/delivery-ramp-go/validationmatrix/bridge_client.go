@@ -17,6 +17,7 @@ import (
 	"strings"
 
 	"connectrpc.com/connect"
+	"github.com/vrooli/api-core/targetmodel"
 	deliveryramp "github.com/vrooli/vrooli/packages/delivery-ramp-go"
 	domainv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain"
 	dispatchv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/dispatch"
@@ -123,11 +124,15 @@ func (c *Client) Execute(ctx context.Context, request CellRequest) CellResult {
 	if nodeID == "" {
 		return CellResult{Disposition: domainv1.ValidationDisposition_VALIDATION_DISPOSITION_REFUSED, Reason: "bridge target identity is malformed"}
 	}
+	command := strings.TrimSpace(request.Command)
+	if command == "" {
+		command = DefaultCommand
+	}
 	dispatched, err := c.dispatcher.DispatchJob(ctx, connect.NewRequest(&dispatchv1.DispatchJobRequest{
 		NodeId:   nodeID,
-		Verb:     "scenario test",
+		Verb:     command,
 		Scenario: request.Cell.GetScenarioName(),
-		Args:     nil,
+		Args:     append([]string(nil), request.Args...),
 	}))
 	if err != nil {
 		return CellResult{Disposition: domainv1.ValidationDisposition_VALIDATION_DISPOSITION_UNAVAILABLE, Reason: fmt.Sprintf("bridge dispatch unavailable: %v", err), Retryable: true}
@@ -189,16 +194,16 @@ func nodeTarget(node *registryv1.Node) deliveryramp.Target {
 		}
 	}
 	available := node.Online && node.Status == registryv1.NodeStatus_NODE_STATUS_ONLINE && len(capabilities) > 0 && hasDispatchScope(node.Scopes)
-	reason := "bridge node is offline or not dispatchable"
+	reason := targetmodel.ReasonBridgeOffline
 	if node.Online && node.Status == registryv1.NodeStatus_NODE_STATUS_ONLINE && len(capabilities) == 0 {
-		reason = "bridge node is online but declares no supported capability"
+		reason = targetmodel.ReasonBridgeNoCapability
 		available = false
 	} else if node.Online && node.Status == registryv1.NodeStatus_NODE_STATUS_ONLINE && !hasDispatchScope(node.Scopes) {
-		reason = "bridge node is online but lacks an authorized scenario-test dispatch scope"
+		reason = targetmodel.ReasonBridgeNoDispatchScope
 	} else if available && android {
-		reason = "bridge node is online and authorized; Android evidence remains target-owned"
+		reason = targetmodel.ReasonBridgeAuthorizedAndroid
 	} else if available {
-		reason = "bridge node is online and authorized; desktop evidence remains target-owned"
+		reason = targetmodel.ReasonBridgeAuthorizedDesktop
 	}
 	platform, deviceKind, missing, nextAction := "desktop", "desktop", "bridge desktop capability", "register a bridge node with the required desktop capability"
 	if android {

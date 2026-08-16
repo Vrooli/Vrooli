@@ -1,12 +1,11 @@
 package entitlement
 
 import (
-	"os"
-	"path/filepath"
 	"testing"
 
 	entitlementv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/entitlement"
 
+	"browser-automation-studio/cli/internal/testutil"
 	"github.com/vrooli/cli-core/cliapp"
 )
 
@@ -17,16 +16,6 @@ import (
 // Per-domain parity test added in Phase 4 of the BAS proto+Connect
 // migration (plans:bas-migration-to-proto-connect-rpc).
 func TestEntitlementManifestCoversEntitlementService(t *testing.T) {
-	manifest := readBASManifest(t)
+	manifest := testutil.ReadManifest(t)
 	cliapp.RequireProtoServiceCoverage(t, manifest, entitlementv1.File_browser_automation_studio_v1_entitlement_entitlement_proto, "EntitlementService")
-}
-
-func readBASManifest(t *testing.T) []byte {
-	t.Helper()
-	path := filepath.Join("..", "manifest.json")
-	raw, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatalf("read %s: %v", path, err)
-	}
-	return raw
 }

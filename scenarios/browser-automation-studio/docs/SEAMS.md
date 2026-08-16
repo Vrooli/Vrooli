@@ -1712,6 +1712,8 @@ Evidence owns the storage-independent contract for browser-captured material:
 
 **Status:** Strong.
 
+```
+
 ---
 
 ## Measures Ownership Boundary

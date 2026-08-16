@@ -63,28 +63,16 @@ interface FloatingToolbarProps {
   /** True when passive wake-word listening currently holds the mic. */
   voicePassive?: boolean;
   voiceTranscribing?: boolean;
-  /** True when a live mic lease is orphaned while the UI is idle (recovery). */
-  voiceStaleLiveMic?: boolean;
   voiceError?: string | null;
   /** 0–1 audio level for live mic visualization */
   voiceLevel?: number;
   voiceActivity?: VoiceActivitySnapshot;
-  voicePartialTranscript?: string;
   voiceBackend?: string;
-  voiceCanExportDiagnostic?: boolean;
-  onVoiceExportDiagnostic?: () => string | null;
   onVoiceStart?: (opts?: StartRecordingOpts) => void;
   onVoicePrepare?: () => void;
   onVoiceStop?: () => void;
   /** Exit passive wake-word listening (tapping the passive mic button). */
   onVoiceExitPassive?: () => void;
-  /** Release an orphaned live mic lease (stale-live-mic recovery). */
-  onVoiceReleaseMic?: () => void;
-  onVoiceCancel?: () => void;
-  /** Whether TTS is currently playing audio on the active pane. */
-  isTtsSpeaking?: boolean;
-  /** Stop TTS playback. */
-  onTtsStop?: () => void;
 }
 
 export default function FloatingToolbar({
@@ -102,22 +90,14 @@ export default function FloatingToolbar({
   voiceListening,
   voicePassive,
   voiceTranscribing,
-  voiceStaleLiveMic,
   voiceError,
   voiceLevel = 0,
   voiceActivity,
-  voicePartialTranscript,
   voiceBackend,
-  voiceCanExportDiagnostic,
-  onVoiceExportDiagnostic,
   onVoiceStart,
   onVoicePrepare,
   onVoiceStop,
   onVoiceExitPassive,
-  onVoiceReleaseMic,
-  onVoiceCancel,
-  isTtsSpeaking,
-  onTtsStop,
 }: FloatingToolbarProps) {
   const { t } = useTranslation();
   const plusButtonBehavior = useWorkspaceStore((s) => s.plusButtonBehavior);
@@ -292,22 +272,14 @@ export default function FloatingToolbar({
           isPassive={voicePassive ?? false}
           isTranscribing={voiceTranscribing ?? false}
           size="xs"
-          staleLiveMic={voiceStaleLiveMic ?? false}
           error={voiceError ?? null}
           audioLevel={voiceLevel}
           voiceActivity={voiceActivity}
-          partialTranscript={voicePartialTranscript}
           backend={voiceBackend}
-          canExportDiagnostic={voiceCanExportDiagnostic}
-          onExportDiagnostic={onVoiceExportDiagnostic}
-          isTtsSpeaking={isTtsSpeaking}
           onPrepare={onVoicePrepare}
           onStart={onVoiceStart}
           onStop={onVoiceStop}
           onExitPassive={onVoiceExitPassive}
-          onReleaseMic={onVoiceReleaseMic}
-          onCancel={onVoiceCancel}
-          onTtsStop={onTtsStop}
           className="hidden md:flex"
           buttonClassName="h-8 w-8"
         />

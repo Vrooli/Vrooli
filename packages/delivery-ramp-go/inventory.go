@@ -6,112 +6,36 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
-	"time"
+
+	"github.com/vrooli/api-core/targetmodel"
 )
 
-// Capability names are deliberately provider-neutral. A ramp may expose more
-// capabilities than this initial set; the spine only assigns meaning to names
-// it requires for a journey or validation cell.
+type (
+	Target           = targetmodel.Target
+	TargetHealth     = targetmodel.TargetHealth
+	BridgeTrust      = targetmodel.BridgeTrust
+	Inventory        = targetmodel.Inventory
+	SelectionRequest = targetmodel.SelectionRequest
+	Selection        = targetmodel.Selection
+)
+
 const (
-	CapabilityCDP             = "cdp"
-	CapabilityNativeWindow    = "native-window"
-	CapabilityProcessMetrics  = "process-metrics"
-	CapabilityOfflineNetwork  = "offline-network"
-	CapabilityAndroidSDK      = "android-sdk"
-	CapabilityAndroidEmulator = "android-emulator"
-	CapabilityAndroidWebView  = "android-webview"
-	CapabilityScreenRecording = "screen-recording"
-	CapabilityDeviceControl   = "device-control"
+	CapabilityCDP             = targetmodel.CapabilityCDP
+	CapabilityNativeWindow    = targetmodel.CapabilityNativeWindow
+	CapabilityProcessMetrics  = targetmodel.CapabilityProcessMetrics
+	CapabilityOfflineNetwork  = targetmodel.CapabilityOfflineNetwork
+	CapabilityAndroidSDK      = targetmodel.CapabilityAndroidSDK
+	CapabilityAndroidEmulator = targetmodel.CapabilityAndroidEmulator
+	CapabilityAndroidWebView  = targetmodel.CapabilityAndroidWebView
+	CapabilityScreenRecording = targetmodel.CapabilityScreenRecording
+	CapabilityDeviceControl   = targetmodel.CapabilityDeviceControl
 )
 
-// Target is a capability observation for one validation destination. It is
-// intentionally free of generated transport types so a ramp can implement a
-// Prober without importing another scenario's API.
-type Target struct {
-	ID                string       `json:"id"`
-	Ramp              string       `json:"ramp,omitempty"`
-	Label             string       `json:"label"`
-	Platform          string       `json:"platform"`
-	OS                string       `json:"os"`
-	Architecture      string       `json:"architecture"`
-	DeviceKind        string       `json:"device_kind"`
-	Transport         Transport    `json:"transport"`
-	NodeID            string       `json:"node_id,omitempty"`
-	Mode              string       `json:"mode,omitempty"`
-	Capabilities      []string     `json:"capabilities,omitempty"`
-	Available         bool         `json:"available"`
-	Reason            string       `json:"reason,omitempty"`
-	MissingCapability string       `json:"missing_capability,omitempty"`
-	NextAction        string       `json:"next_action,omitempty"`
-	Health            TargetHealth `json:"health"`
-	BridgeTrust       *BridgeTrust `json:"bridge_trust,omitempty"`
-}
-
-type TargetHealth struct {
-	Status string `json:"status"`
-	Reason string `json:"reason,omitempty"`
-}
-
-type BridgeTrust struct {
-	Registered         bool   `json:"registered"`
-	Online             bool   `json:"online"`
-	DispatchAuthorized bool   `json:"dispatch_authorized"`
-	Reason             string `json:"reason,omitempty"`
-}
-
-// Validate enforces the fail-closed inventory contract. An unavailable target
-// must tell the operator what is missing and what can recover it.
-func (t Target) Validate() error {
-	if strings.TrimSpace(t.ID) == "" {
-		return fmt.Errorf("target id is required")
-	}
-	if strings.TrimSpace(t.Platform) == "" {
-		return fmt.Errorf("target %q platform is required", t.ID)
-	}
-	if t.Transport.Kind != TransportLocal && t.Transport.Kind != TransportBridge {
-		return fmt.Errorf("target %q has invalid transport %q", t.ID, t.Transport.Kind)
-	}
-	if !t.Available {
-		if strings.TrimSpace(t.MissingCapability) == "" {
-			return fmt.Errorf("target %q is unavailable without a missing capability", t.ID)
-		}
-		if strings.TrimSpace(t.NextAction) == "" {
-			return fmt.Errorf("target %q is unavailable without a next action", t.ID)
-		}
-	}
-	return nil
-}
-
-func (t Target) Supports(capability string) bool {
-	wanted := strings.TrimSpace(capability)
-	if wanted == "" {
-		return false
-	}
-	for _, observed := range t.Capabilities {
-		if strings.EqualFold(strings.TrimSpace(observed), wanted) {
-			return true
-		}
-	}
-	return false
-}
-
-// Inventory is a point-in-time capability snapshot. The timestamp is
-// metadata, not evidence of execution on the target.
-type Inventory struct {
-	Targets  []Target  `json:"targets"`
-	Observed time.Time `json:"observed_at"`
-}
-
-func (i Inventory) Validate() error {
-	if len(i.Targets) == 0 {
-		return fmt.Errorf("inventory contains no targets")
-	}
-	for index, target := range i.Targets {
-		if err := target.Validate(); err != nil {
-			return fmt.Errorf("target %d: %w", index, err)
-		}
-	}
-	return nil
+// SelectTarget is the ramp-facing entry point to the shared target selector.
+// Keeping this adapter thin makes the ramp's selection contract explicit while
+// ensuring it cannot drift from bridge gate selection semantics.
+func SelectTarget(inventory Inventory, request SelectionRequest) Selection {
+	return targetmodel.Select(inventory, request)
 }
 
 // ProbeRequest scopes an inventory probe to the requirements of one cell.
@@ -159,14 +83,7 @@ func Discover(ctx context.Context, prober Prober, bridgeSources ...BridgeSource)
 }
 
 func UnavailableTarget(reason, missingCapability string) Target {
-	return Target{
-		ID: "bridge:unavailable", Label: "Bridge fleet", Platform: "desktop", DeviceKind: "desktop",
-		Mode: "remote", Transport: Transport{Kind: TransportBridge, ID: "bridge", Available: false, Reason: reason},
-		Available: false, Reason: reason, MissingCapability: missingCapability,
-		NextAction:  "restore bridge inventory and probe again",
-		Health:      TargetHealth{Status: "unavailable", Reason: reason},
-		BridgeTrust: &BridgeTrust{Reason: "bridge node identity was not verified"},
-	}
+	return targetmodel.UnavailableTarget(reason, missingCapability)
 }
 
 // TargetInventoryHandler owns serialization of the stable target inventory

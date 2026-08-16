@@ -70,14 +70,14 @@ func RunServiceAuthStatus(deps support.Dependencies, args []string) error {
 		})
 	}
 	if parsed.ServiceAuthConfigured {
-		report.NextSteps = []string{"landing-page-business-suite service-auth-status --json"}
+		report.NextSteps = []string{"landing-page-business-suite service-auth-status --json", "Verify the consumer session through the credential authority before retrying"}
 	} else {
 		report.Triage = append(report.Triage, cliapp.TriageGroup{
 			Heading: "Auth Gate",
 			Items:   []string{"[FAIL] service_auth: disabled"},
 		})
 		report.NextSteps = []string{
-			"scenario-to-cloud secrets set LPBS_SERVICE_SECRET --scenario landing-page-business-suite --generate hex:64 --targets scenario,deployment --domain <domain> --restart",
+			"vrooli credentials provision --identity vrooli/landing-page-business-suite --field consumer-signing-key",
 			"landing-page-business-suite service-auth-status --require-enabled",
 			"scenario-to-desktop deploy-target test <target-name> --require-service-auth",
 		}
@@ -316,12 +316,8 @@ func RunDeployReadiness(deps support.Dependencies, args []string) error {
 	}
 	checks = append(checks, serviceAuthCheck)
 	if !serviceAuthCheck.Passed {
-		domainArg := "<domain>"
-		if domain != "" {
-			domainArg = domain
-		}
 		nextSteps = append(nextSteps,
-			fmt.Sprintf("scenario-to-cloud secrets set LPBS_SERVICE_SECRET --scenario landing-page-business-suite --generate hex:64 --targets scenario,deployment --domain %s --restart", domainArg),
+			"vrooli credentials provision --identity vrooli/landing-page-business-suite --field consumer-signing-key",
 			"landing-page-business-suite service-auth-status --require-enabled",
 		)
 		if profileTag != "" {
@@ -389,7 +385,7 @@ func serviceAuthNotConfiguredError() error {
 		Status: []string{"Status: NOT READY"},
 		Triage: []cliapp.TriageGroup{{Heading: "Auth Gate", Items: []string{"[FAIL] service_auth: service auth is not configured"}}},
 		NextSteps: []string{
-			"Set shared secret (portable): scenario-to-cloud secrets set LPBS_SERVICE_SECRET --scenario landing-page-business-suite --generate hex:64 --targets scenario,deployment --domain <domain> --restart",
+			"Provision the LPBS consumer signing key through the credential authority, then restart the scenario",
 			"Verify LPBS runtime auth gate: landing-page-business-suite service-auth-status --require-enabled",
 			"Verify desktop deploy auth gate: scenario-to-desktop deploy-target test <target-name> --require-service-auth",
 		},

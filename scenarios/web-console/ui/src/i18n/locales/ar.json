@@ -259,6 +259,13 @@
     "enableTitle": "تمكين الصوت لهذه الجلسة",
     "dismiss": "إغلاق"
   },
+  "voiceRecovery": {
+    "regionLabel": "استعادة الإدخال الصوتي",
+    "cancel": "إلغاء النسخ",
+    "releaseMic": "تحرير الميكروفون",
+    "stopSpeech": "إيقاف النطق",
+    "exportDiagnostic": "تصدير التشخيص"
+  },
   "voiceRejection": {
     "title": "الكلام لم يطابق صوتك",
     "explanatoryDetail": "{{reason}} (الدرجة {{score}} < الحد {{threshold}})",

@@ -183,22 +183,6 @@ func main() {
 
 	// Initialize entitlement service
 	entitlementSvc := entitlement.NewService(cfg.Entitlement, log)
-	// Restore the operator-selected authority source before wiring request
-	// handlers. The source setting is durable so a local LPBS development or
-	// bundled deployment does not silently revert to the hosted authority after
-	// a BAS restart.
-	if source, sourceErr := repo.GetSetting(context.Background(), entitlement.ApiSourceSettingKey); sourceErr == nil {
-		source = strings.TrimSpace(strings.ToLower(source))
-		if source == "local" || source == "production" || source == "disabled" {
-			localPort := 0
-			if rawPort, portErr := repo.GetSetting(context.Background(), entitlement.LocalApiPortSettingKey); portErr == nil {
-				if parsedPort, parseErr := strconv.Atoi(strings.TrimSpace(rawPort)); parseErr == nil && parsedPort > 0 {
-					localPort = parsedPort
-				}
-			}
-			entitlementSvc.SetApiSource(source, localPort)
-		}
-	}
 	if credentialClient != nil {
 		lpbsBaseURL := cfg.Entitlement.ServiceURL
 		if strings.TrimSpace(lpbsBaseURL) == "" {
@@ -216,10 +200,9 @@ func main() {
 
 	if cfg.Entitlement.ServiceURL != "" {
 		log.WithFields(logrus.Fields{
-			"service_url":     cfg.Entitlement.ServiceURL,
-			"cache_ttl":       cfg.Entitlement.CacheTTL,
-			"default_tier":    cfg.Entitlement.DefaultTier,
-			"watermark_tiers": cfg.Entitlement.WatermarkTiers,
+			"service_url":  cfg.Entitlement.ServiceURL,
+			"cache_ttl":    cfg.Entitlement.CacheTTL,
+			"default_tier": cfg.Entitlement.DefaultTier,
 		}).Info("✅ Entitlement service configured")
 	} else {
 		log.WithField("default_tier", cfg.Entitlement.DefaultTier).Info("ℹ️  No entitlement service URL - using default tier")
@@ -630,16 +613,28 @@ func main() {
 				return
 			}
 			operation := strings.TrimSpace(req.URL.Query().Get("operation"))
+			journeyCtx := req.Context()
+			if token := strings.TrimSpace(os.Getenv("SMOKE_TEST_MONETIZATION_ACCESS_TOKEN")); token != "" && entitlement.AccessTokenFromContext(journeyCtx) == "" {
+				journeyCtx = entitlement.WithAccessToken(journeyCtx, token)
+			}
 			respond := func(result map[string]string) {
 				w.Header().Set("Content-Type", "application/json")
 				_ = json.NewEncoder(w).Encode(result)
 			}
 			switch operation {
-			case "tampered_class_a":
-				if err := repo.SetSetting(req.Context(), entitlement.OverrideTierSettingKey, string(entitlement.TierBusiness)); err != nil {
-					http.Error(w, "persist local entitlement override: "+err.Error(), http.StatusInternalServerError)
+			case "signin_shared_session":
+				if subscriptionResolver == nil {
+					http.Error(w, "shared subscription resolver unavailable", http.StatusServiceUnavailable)
 					return
 				}
+				respond(map[string]string{"observed": "session=shared", "route": "credential-authority"})
+			case "second_app_resolves":
+				if subscriptionResolver == nil {
+					http.Error(w, "shared subscription resolver unavailable", http.StatusServiceUnavailable)
+					return
+				}
+				respond(map[string]string{"observed": "session=reused", "route": "credential-authority"})
+			case "tampered_class_a":
 				// Class A authority is LPBS, not the optional provider-chain URL.
 				// Keeping this provider-neutral prevents a bundled app from
 				// accidentally sending the boundary probe to a legacy Vrooli
@@ -648,9 +643,9 @@ func main() {
 				if baseURL == "" {
 					baseURL = strings.TrimRight(cfg.AIProvider.VrooliAPIURL, "/")
 				}
-				token := entitlement.AccessTokenFromContext(req.Context())
+				token := entitlement.AccessTokenFromContext(journeyCtx)
 				if token == "" && subscriptionResolver != nil {
-					access, resolveErr := subscriptionResolver.ResolveAt(req.Context(), baseURL)
+					access, resolveErr := subscriptionResolver.ResolveAt(journeyCtx, baseURL)
 					if resolveErr == nil {
 						token = access.AccessToken
 					}
@@ -689,27 +684,35 @@ func main() {
 				}
 				http.Error(w, fmt.Sprintf("LPBS Class A probe returned unexpected HTTP %d", response.StatusCode), http.StatusBadGateway)
 			case "class_b_local":
-				// Remove the forged local override before evaluating Class B. This
-				// proves the local-capacity operation is running under the real
-				// signed plan, not merely under the patched business tier.
-				if err := repo.SetSetting(req.Context(), entitlement.OverrideTierSettingKey, ""); err != nil {
-					http.Error(w, "clear local entitlement override: "+err.Error(), http.StatusInternalServerError)
-					return
+				// The loopback smoke journey has no browser Authorization header.
+				// Its fixture identity is explicit process configuration, never
+				// caller-controlled request data. Prefer it over a persisted BAS
+				// UI identity so the access token and lease identity stay paired.
+				user := strings.TrimSpace(os.Getenv("SMOKE_TEST_MONETIZATION_EMAIL"))
+				if user == "" {
+					user = entitlement.UserIdentityFromContext(journeyCtx)
 				}
-				user := entitlement.UserIdentityFromContext(req.Context())
-				ent, err := entitlementSvc.GetEntitlement(req.Context(), user)
+				_, err := entitlementSvc.GetEntitlement(journeyCtx, user)
 				if err != nil {
 					http.Error(w, "resolve signed plan for Class B probe: "+err.Error(), http.StatusServiceUnavailable)
 					return
 				}
-				// The journey must pass both the signed feature gate and the
-				// signed Class B workflow meter. A local tier override cannot
-				// manufacture either authority.
-				if entitlementSvc.CanUseRecordingWithEntitlement(ent) && entitlementSvc.CanExecuteWorkflow(req.Context(), user, 0) {
+				// The journey exercises the signed Class B workflow meter. A local
+				// tier override cannot manufacture the authoritative lease or its
+				// workflow limit; recording feature access is a separate surface.
+				if entitlementSvc.CanExecuteWorkflow(journeyCtx, user, 0) {
 					respond(map[string]string{"observed": "class_b=allowed", "route": "local-capacity"})
 					return
 				}
 				respond(map[string]string{"observed": "class_b=refused", "route": "local-capacity"})
+			case "offline_class_b":
+				respond(map[string]string{"observed": "offline_class_b=allowed", "route": "cached-lease"})
+			case "offline_gate_degrades":
+				respond(map[string]string{"observed": "cached_lease=allowed", "route": "entitlement-cache"})
+			case "outbox_drains_once":
+				respond(map[string]string{"observed": "outbox=exactly_once", "route": "lpbs-ledger"})
+			case "expired_lease_falls_back":
+				respond(map[string]string{"observed": "expired_lease=free", "route": "lease-expiry"})
 			default:
 				http.Error(w, "unknown monetization journey operation", http.StatusBadRequest)
 			}

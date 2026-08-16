@@ -13,6 +13,11 @@ import (
 // does not affect this state; the service owns the work after Start returns.
 type RunState string
 
+// DefaultCommand preserves the existing validation entry point when a caller
+// does not provide an addressed command. Remote callers may supply any
+// manifest-governed command and its arguments through MatrixSelection.
+const DefaultCommand = "scenario test"
+
 const (
 	RunQueued    RunState = "queued"
 	RunRunning   RunState = "running"
@@ -87,7 +92,10 @@ type CatalogSnapshot struct {
 
 type MatrixSelection struct {
 	ScenarioName        string                                  `json:"scenario_name"`
+	Command             string                                  `json:"command,omitempty"`
+	CommandArgs         []string                                `json:"command_args,omitempty"`
 	ArtifactDigest      string                                  `json:"artifact_digest"`
+	ArtifactPath        string                                  `json:"artifact_path,omitempty"`
 	DeploymentMode      string                                  `json:"deployment_mode,omitempty"`
 	ReleaseProfile      string                                  `json:"release_profile,omitempty"`
 	IdempotencyKey      string                                  `json:"idempotency_key,omitempty"`
@@ -95,6 +103,7 @@ type MatrixSelection struct {
 	Targets             []TargetSelection                       `json:"targets"`
 	EnvironmentProfiles []domainv1.ValidationEnvironmentProfile `json:"environment_profiles"`
 	MaxConcurrency      int                                     `json:"max_concurrency"`
+	Metadata            map[string]string                       `json:"metadata,omitempty"`
 }
 
 func (s MatrixSelection) WithCatalog(ctx context.Context, catalog CatalogResolver) (MatrixSelection, error) {
@@ -129,6 +138,7 @@ type CellRecord struct {
 	StartedAt  time.Time                `json:"started_at,omitempty"`
 	UpdatedAt  time.Time                `json:"updated_at"`
 	TerminalAt time.Time                `json:"terminal_at,omitempty"`
+	Report     map[string]string        `json:"report,omitempty"`
 }
 
 type MatrixRow struct {
@@ -172,10 +182,25 @@ type ReleaseReportStatus struct {
 type CellRequest struct {
 	RunID          string
 	MatrixID       string
+	Command        string
+	Args           []string
 	ArtifactDigest string
+	ArtifactPath   string
 	Cell           *domainv1.ValidationCell
 	Journey        JourneySelection
 	Target         *domainv1.ValidationTargetDescriptor
+	Metadata       map[string]string
+}
+
+func cloneStringMap(values map[string]string) map[string]string {
+	if len(values) == 0 {
+		return nil
+	}
+	copyValues := make(map[string]string, len(values))
+	for key, value := range values {
+		copyValues[key] = value
+	}
+	return copyValues
 }
 
 type CellResult struct {
@@ -184,6 +209,7 @@ type CellResult struct {
 	Evidence    []*domainv1.LayeredEvidence
 	Retryable   bool
 	Identity    ExecutionIdentity
+	Report      map[string]string
 }
 
 type ExecutionIdentity struct {

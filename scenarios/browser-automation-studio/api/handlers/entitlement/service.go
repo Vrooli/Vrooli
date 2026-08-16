@@ -2,7 +2,6 @@ package entitlement
 
 import (
 	"context"
-	"strconv"
 	"strings"
 
 	"connectrpc.com/connect"
@@ -188,138 +187,46 @@ func (s *service) GetOperationLog(
 	return connect.NewResponse(operationLogPageToProto(page)), nil
 }
 
-// ---------------------------------------------------------------------------
-// Override
-// ---------------------------------------------------------------------------
-
 func (s *service) GetOverride(
-	ctx context.Context,
+	_ context.Context,
 	_ *connect.Request[entitlementv1.GetOverrideRequest],
 ) (*connect.Response[entitlementv1.GetOverrideResponse], error) {
-	tier := s.loadOverrideTier(ctx)
-	return connect.NewResponse(&entitlementv1.GetOverrideResponse{Tier: string(tier)}), nil
+	return nil, connect.NewError(connect.CodeUnimplemented, errLocalControlsRemoved)
 }
 
 func (s *service) SetOverride(
-	ctx context.Context,
-	req *connect.Request[entitlementv1.SetOverrideRequest],
+	_ context.Context,
+	_ *connect.Request[entitlementv1.SetOverrideRequest],
 ) (*connect.Response[entitlementv1.SetOverrideResponse], error) {
-	if s.deps.Settings == nil {
-		return nil, connect.NewError(connect.CodeFailedPrecondition, errSettingsUnavailable)
-	}
-	trimmed := strings.TrimSpace(strings.ToLower(req.Msg.GetTier()))
-	if trimmed == "" {
-		if err := s.deps.Settings.SetSetting(ctx, entsvc.OverrideTierSettingKey, ""); err != nil {
-			s.deps.Logger.WithError(err).Error("entitlement.SetOverride clear failed")
-			return nil, connect.NewError(connect.CodeInternal, err)
-		}
-		return connect.NewResponse(&entitlementv1.SetOverrideResponse{Tier: ""}), nil
-	}
-	tier, ok := entsvc.ParseTier(trimmed)
-	if !ok {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errInvalidTier)
-	}
-	if err := s.deps.Settings.SetSetting(ctx, entsvc.OverrideTierSettingKey, string(tier)); err != nil {
-		s.deps.Logger.WithError(err).Error("entitlement.SetOverride persist failed")
-		return nil, connect.NewError(connect.CodeInternal, err)
-	}
-	return connect.NewResponse(&entitlementv1.SetOverrideResponse{Tier: string(tier)}), nil
+	return nil, connect.NewError(connect.CodeUnimplemented, errLocalControlsRemoved)
 }
 
 func (s *service) ClearOverride(
-	ctx context.Context,
+	_ context.Context,
 	_ *connect.Request[entitlementv1.ClearOverrideRequest],
 ) (*connect.Response[entitlementv1.ClearOverrideResponse], error) {
-	if s.deps.Settings == nil {
-		return nil, connect.NewError(connect.CodeFailedPrecondition, errSettingsUnavailable)
-	}
-	if err := s.deps.Settings.SetSetting(ctx, entsvc.OverrideTierSettingKey, ""); err != nil {
-		s.deps.Logger.WithError(err).Error("entitlement.ClearOverride persist failed")
-		return nil, connect.NewError(connect.CodeInternal, err)
-	}
-	return connect.NewResponse(&entitlementv1.ClearOverrideResponse{}), nil
+	return nil, connect.NewError(connect.CodeUnimplemented, errLocalControlsRemoved)
 }
 
-// ---------------------------------------------------------------------------
-// API source
-// ---------------------------------------------------------------------------
-
 func (s *service) GetApiSource(
-	ctx context.Context,
+	_ context.Context,
 	_ *connect.Request[entitlementv1.GetApiSourceRequest],
 ) (*connect.Response[entitlementv1.ApiSourceConfig], error) {
-	source := defaultApiSource
-	localPort := int32(defaultLocalApiPort)
-	if s.deps.Settings != nil {
-		if saved, err := s.deps.Settings.GetSetting(ctx, entsvc.ApiSourceSettingKey); err == nil && saved != "" {
-			source = saved
-		}
-		if saved, err := s.deps.Settings.GetSetting(ctx, entsvc.LocalApiPortSettingKey); err == nil && saved != "" {
-			if port, ok := parsePositiveInt(saved); ok {
-				localPort = int32(port)
-			}
-		}
-	}
-	return connect.NewResponse(&entitlementv1.ApiSourceConfig{
-		Source:    source,
-		LocalPort: localPort,
-	}), nil
+	return nil, connect.NewError(connect.CodeUnimplemented, errApiSourceRemoved)
 }
 
 func (s *service) SetApiSource(
-	ctx context.Context,
-	req *connect.Request[entitlementv1.SetApiSourceRequest],
+	_ context.Context,
+	_ *connect.Request[entitlementv1.SetApiSourceRequest],
 ) (*connect.Response[entitlementv1.ApiSourceConfig], error) {
-	if s.deps.Settings == nil {
-		return nil, connect.NewError(connect.CodeFailedPrecondition, errSettingsUnavailable)
-	}
-	source := strings.TrimSpace(strings.ToLower(req.Msg.GetSource()))
-	if source != "production" && source != "local" && source != "disabled" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errInvalidApiSource)
-	}
-	if err := s.deps.Settings.SetSetting(ctx, entsvc.ApiSourceSettingKey, source); err != nil {
-		s.deps.Logger.WithError(err).Error("entitlement.SetApiSource persist source failed")
-		return nil, connect.NewError(connect.CodeInternal, err)
-	}
-	reqPort := int(req.Msg.GetLocalPort())
-	if reqPort > 0 {
-		if err := s.deps.Settings.SetSetting(ctx, entsvc.LocalApiPortSettingKey, strconv.Itoa(reqPort)); err != nil {
-			s.deps.Logger.WithError(err).Error("entitlement.SetApiSource persist port failed")
-			return nil, connect.NewError(connect.CodeInternal, err)
-		}
-	}
-	s.deps.Provider.SetApiSource(source, reqPort)
-
-	finalPort := reqPort
-	if finalPort == 0 {
-		if saved, err := s.deps.Settings.GetSetting(ctx, entsvc.LocalApiPortSettingKey); err == nil && saved != "" {
-			if port, ok := parsePositiveInt(saved); ok {
-				finalPort = port
-			}
-		}
-		if finalPort == 0 {
-			finalPort = defaultLocalApiPort
-		}
-	}
-	return connect.NewResponse(&entitlementv1.ApiSourceConfig{
-		Source:    source,
-		LocalPort: int32(finalPort),
-	}), nil
+	return nil, connect.NewError(connect.CodeUnimplemented, errApiSourceRemoved)
 }
 
 func (s *service) ClearApiSource(
-	ctx context.Context,
+	_ context.Context,
 	_ *connect.Request[entitlementv1.ClearApiSourceRequest],
 ) (*connect.Response[entitlementv1.ClearApiSourceResponse], error) {
-	if s.deps.Settings == nil {
-		return nil, connect.NewError(connect.CodeFailedPrecondition, errSettingsUnavailable)
-	}
-	if err := s.deps.Settings.SetSetting(ctx, entsvc.ApiSourceSettingKey, "production"); err != nil {
-		s.deps.Logger.WithError(err).Error("entitlement.ClearApiSource persist failed")
-		return nil, connect.NewError(connect.CodeInternal, err)
-	}
-	s.deps.Provider.SetApiSource("production", 0)
-	return connect.NewResponse(&entitlementv1.ClearApiSourceResponse{}), nil
+	return nil, connect.NewError(connect.CodeUnimplemented, errApiSourceRemoved)
 }
 
 // ---------------------------------------------------------------------------
@@ -330,8 +237,6 @@ const (
 	userIdentitySettingKey   = "user_identity"
 	defaultHistoryMonths     = 6
 	defaultOperationLogLimit = 20
-	defaultApiSource         = "production"
-	defaultLocalApiPort      = 15000
 )
 
 // resolveUserIdentity matches the legacy fallback chain:
@@ -361,21 +266,6 @@ func (s *service) resolveUserIdentityRaw(ctx context.Context, requested string) 
 	return strings.TrimSpace(requested)
 }
 
-func (s *service) loadOverrideTier(ctx context.Context) entsvc.Tier {
-	if s.deps.Settings == nil {
-		return ""
-	}
-	value, err := s.deps.Settings.GetSetting(ctx, entsvc.OverrideTierSettingKey)
-	if err != nil || value == "" {
-		return ""
-	}
-	tier, ok := entsvc.ParseTier(value)
-	if !ok {
-		return ""
-	}
-	return tier
-}
-
 // buildStatus assembles the full EntitlementStatus payload, replicating the
 // historical legacy/REST shape so wire compatibility for the UI is exact.
 func (s *service) buildStatus(ctx context.Context, user string) (*entitlementv1.EntitlementStatus, error) {
@@ -383,21 +273,14 @@ func (s *service) buildStatus(ctx context.Context, user string) (*entitlementv1.
 		user = "anonymous"
 	}
 
-	overrideTier := s.loadOverrideTier(ctx)
-	overrideActive := overrideTier != ""
-
 	var ent *entsvc.Entitlement
 	var err error
-	if overrideActive {
-		ent = s.deps.Provider.BuildOverrideEntitlement(user, overrideTier)
-	} else {
-		ent, err = s.deps.Provider.GetEntitlement(ctx, user)
-		if err != nil {
-			ent = &entsvc.Entitlement{
-				UserIdentity: user,
-				Status:       entsvc.StatusInactive,
-				Tier:         entsvc.TierFree,
-			}
+	ent, err = s.deps.Provider.GetEntitlement(ctx, user)
+	if err != nil {
+		ent = &entsvc.Entitlement{
+			UserIdentity: user,
+			Status:       entsvc.StatusInactive,
+			Tier:         "free",
 		}
 	}
 
@@ -410,7 +293,10 @@ func (s *service) buildStatus(ctx context.Context, user string) (*entitlementv1.
 	}
 
 	usedCount := 0
-	monthlyLimit := s.deps.Provider.GetAICreditsLimit(ent.Tier)
+	monthlyLimit := 0
+	if limit, found := ent.LimitValue("ai_credits"); found {
+		monthlyLimit = int(limit)
+	}
 	remaining := monthlyLimit
 	aiCreditsUsed := 0
 	aiRequestsCount := 0
@@ -427,18 +313,6 @@ func (s *service) buildStatus(ctx context.Context, user string) (*entitlementv1.
 		}
 	}
 
-	if overrideActive {
-		monthlyLimit = s.deps.Provider.GetAICreditsLimit(ent.Tier)
-		if monthlyLimit < 0 {
-			remaining = -1
-		} else {
-			remaining = monthlyLimit - usedCount
-			if remaining < 0 {
-				remaining = 0
-			}
-		}
-	}
-
 	status := &entitlementv1.EntitlementStatus{
 		UserIdentity:        user,
 		Status:              string(ent.Status),
@@ -449,9 +323,9 @@ func (s *service) buildStatus(ctx context.Context, user string) (*entitlementv1.
 		MonthlyLimit:        int32(monthlyLimit),
 		MonthlyUsed:         int32(usedCount),
 		MonthlyRemaining:    int32(remaining),
-		RequiresWatermark:   s.resolveRequiresWatermark(ctx, user, ent, overrideActive),
-		CanUseAi:            s.resolveCanUseAI(ctx, user, ent, overrideActive),
-		CanUseRecording:     s.resolveCanUseRecording(ctx, user, ent, overrideActive),
+		RequiresWatermark:   s.resolveRequiresWatermark(ctx, user),
+		CanUseAi:            s.resolveCanUseAI(ctx, user),
+		CanUseRecording:     s.resolveCanUseRecording(ctx, user),
 		EntitlementsEnabled: true,
 		AiCreditsUsed:       int32(aiCreditsUsed),
 		AiCreditsLimit:      int32(monthlyLimit),
@@ -459,58 +333,46 @@ func (s *service) buildStatus(ctx context.Context, user string) (*entitlementv1.
 		AiRequestsCount:     int32(aiRequestsCount),
 		AiResetDate:         aiResetDate,
 	}
-	if overrideActive {
-		status.OverrideTier = string(overrideTier)
-	}
 	return status, nil
 }
 
-func (s *service) resolveRequiresWatermark(ctx context.Context, user string, ent *entsvc.Entitlement, overrideActive bool) bool {
-	if overrideActive {
-		return s.deps.Provider.TierRequiresWatermark(ent.Tier)
-	}
+func (s *service) resolveRequiresWatermark(ctx context.Context, user string) bool {
 	return s.deps.Provider.RequiresWatermark(ctx, user)
 }
 
-func (s *service) resolveCanUseAI(ctx context.Context, user string, ent *entsvc.Entitlement, overrideActive bool) bool {
-	if overrideActive {
-		return s.deps.Provider.TierCanUseAI(ent.Tier)
-	}
+func (s *service) resolveCanUseAI(ctx context.Context, user string) bool {
 	return s.deps.Provider.CanUseAI(ctx, user)
 }
 
-func (s *service) resolveCanUseRecording(ctx context.Context, user string, ent *entsvc.Entitlement, overrideActive bool) bool {
-	if overrideActive {
-		return s.deps.Provider.TierCanUseRecording(ent.Tier)
-	}
+func (s *service) resolveCanUseRecording(ctx context.Context, user string) bool {
 	return s.deps.Provider.CanUseRecording(ctx, user)
 }
 
 func (s *service) buildFeatureAccess(ent *entsvc.Entitlement) []*entitlementv1.FeatureAccess {
-	canUseAI := s.deps.Provider.TierCanUseAI(ent.Tier)
-	canUseRecording := s.deps.Provider.TierCanUseRecording(ent.Tier)
-	requiresWatermark := s.deps.Provider.TierRequiresWatermark(ent.Tier)
+	canUseAI := ent.HasFeature(entsvc.FeatureAI)
+	canUseRecording := ent.HasFeature(entsvc.FeatureRecording)
+	requiresWatermark := !ent.HasFeature(entsvc.FeatureWatermarkFree)
 
 	return []*entitlementv1.FeatureAccess{
 		{
 			Id:           "ai",
 			Label:        "AI-Powered Features",
 			Description:  "Use AI to generate and edit workflows automatically",
-			RequiredTier: string(s.deps.Provider.MinTierForAI()),
+			RequiredTier: "signed lease",
 			HasAccess:    canUseAI,
 		},
 		{
 			Id:           "recording",
 			Label:        "Live Recording",
 			Description:  "Record browser interactions to create workflows",
-			RequiredTier: string(s.deps.Provider.MinTierForRecording()),
+			RequiredTier: "signed lease",
 			HasAccess:    canUseRecording,
 		},
 		{
 			Id:           "watermark-free",
 			Label:        "Watermark-Free Exports",
 			Description:  "Export videos and replays without watermarks",
-			RequiredTier: string(s.deps.Provider.MinTierWithoutWatermark()),
+			RequiredTier: "signed lease",
 			HasAccess:    !requiresWatermark,
 		},
 	}
@@ -590,12 +452,4 @@ func operationLogEntryToProto(e *credits.OperationLogEntry) *entitlementv1.Opera
 		}
 	}
 	return out
-}
-
-func parsePositiveInt(s string) (int, bool) {
-	n, err := strconv.Atoi(s)
-	if err != nil || n <= 0 {
-		return 0, false
-	}
-	return n, true
 }

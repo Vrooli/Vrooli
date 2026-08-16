@@ -37,21 +37,6 @@ func TestSetAndClearAuthCookiesPreserveSecurityAttributes(t *testing.T) {
 	}
 }
 
-func TestRedirectWithTokensUsesURLFragment(t *testing.T) {
-	pair := &admin.TokenPair{AccessToken: "access", RefreshToken: "refresh", ExpiresAt: time.Now().UTC(), TokenType: "Bearer"}
-	recorder := httptest.NewRecorder()
-	deps := UserAuthDependencies{LogError: func(string, map[string]any) {}}
-	RedirectWithTokens(recorder, httptest.NewRequest(http.MethodGet, "/", nil), "https://app.example.test/success", pair, deps)
-	response := recorder.Result()
-	if response.StatusCode != http.StatusFound {
-		t.Fatalf("status = %d", response.StatusCode)
-	}
-	location := response.Header.Get("Location")
-	if location == "" || !strings.Contains(location, "access_token=access") || !strings.Contains(location, "refresh_token=refresh") {
-		t.Fatalf("location = %q", location)
-	}
-}
-
 func TestFormatNullableTime(t *testing.T) {
 	if got := FormatNullableTime(nil); got != nil {
 		t.Fatalf("nil time = %v", got)

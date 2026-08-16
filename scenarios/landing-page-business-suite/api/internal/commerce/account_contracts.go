@@ -5,6 +5,7 @@ import (
 	"time"
 
 	entitlementclient "github.com/vrooli/vrooli/packages/entitlementclient-go"
+	monetization "github.com/vrooli/vrooli/packages/monetization-go"
 )
 
 import shared "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/shared"
@@ -23,6 +24,16 @@ type EntitlementPayload struct {
 	BillingCycleStart int                        `json:"billing_cycle_start,omitempty"`
 	Credits           *shared.CreditsBalance     `json:"credits,omitempty"`
 	Subscription      *shared.SubscriptionStatus `json:"subscription,omitempty"`
+}
+
+// SharedDecision exposes the same signed-lease status semantics used by
+// relying scenarios. LPBS remains the authority that creates the lease; it
+// does not maintain a second client-side tier ladder for consumers to copy.
+func (p *EntitlementPayload) SharedDecision() monetization.Decision {
+	if p == nil {
+		return monetization.StatusDecision(entitlementclient.Payload{}, "/pricing")
+	}
+	return monetization.StatusDecision(entitlementclient.Payload{Status: p.Status, PlanRank: p.PlanRank, Features: p.Features, Limits: p.Limits, NotAfter: p.NotAfter}, "/pricing")
 }
 
 type CreditsEnvelope struct {

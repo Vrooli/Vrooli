@@ -146,6 +146,22 @@ type pageToken struct {
 // pageTokenVersion guards against decoding a token from an older encoding.
 const pageTokenVersion uint8 = 1
 
+// statSortLimit is the configured stat-sort ceiling, or the package default.
+func (r *Resolver) statSortLimit() int {
+	if r.StatSortLimit > 0 {
+		return r.StatSortLimit
+	}
+	return StatSortLimit
+}
+
+// maxEntriesScanned is the configured scan ceiling, or the package default.
+func (r *Resolver) maxEntriesScanned() int {
+	if r.MaxEntriesScanned > 0 {
+		return r.MaxEntriesScanned
+	}
+	return MaxEntriesScanned
+}
+
 // ListDirectory returns one bounded, sorted page of resolvedPath's entries.
 // resolvedPath must come from a Target the resolver produced (in practice, via
 // an opaque preview id) — this function never resolves a raw client path.
@@ -194,7 +210,7 @@ func (r *Resolver) ListDirectory(resolvedPath string, opts ListOptions) (*ListRe
 		pageSize = MaxListPageSize
 	}
 
-	scanned, truncated, err := scanDirectory(resolvedPath, showHidden)
+	scanned, truncated, err := scanDirectory(resolvedPath, showHidden, r.maxEntriesScanned())
 	if err != nil {
 		return nil, err
 	}
@@ -210,16 +226,16 @@ func (r *Resolver) ListDirectory(resolvedPath string, opts ListOptions) (*ListRe
 	if truncated {
 		result.Warnings = append(result.Warnings, fmt.Sprintf(
 			"Directory has more than %d entries; only the first %d are listed.",
-			MaxEntriesScanned, MaxEntriesScanned))
+			r.maxEntriesScanned(), r.maxEntriesScanned()))
 	}
 
 	// An expensive sort degrades visibly rather than silently: above the
 	// threshold it would cost one stat per entry across the whole directory.
-	if requestedSort.needsStat() && len(scanned) > StatSortLimit {
+	if requestedSort.needsStat() && len(scanned) > r.statSortLimit() {
 		result.EffectiveSort = SortDirsFirstName
 		result.Warnings = append(result.Warnings, fmt.Sprintf(
 			"Sorting by size or date needs details for every entry and is limited to %d; sorted by name instead.",
-			StatSortLimit))
+			r.statSortLimit()))
 	}
 
 	if result.EffectiveSort.needsStat() {
@@ -245,8 +261,13 @@ func (r *Resolver) ListDirectory(resolvedPath string, opts ListOptions) (*ListRe
 	}
 
 	if end < len(scanned) {
+		// The token records the sort the client ASKED for, not the one applied.
+		// A downgrade is recomputed identically on every page (same directory,
+		// pinned by the mtime guard, so the same entry count), and the client
+		// keeps sending its own requested sort — storing the effective sort
+		// here would make every page after a downgrade fail the match check.
 		token, encErr := encodePageToken(pageToken{
-			Sort:       result.EffectiveSort,
+			Sort:       requestedSort,
 			ShowHidden: showHidden,
 			Offset:     end,
 			DirModTime: info.ModTime().UnixNano(),
@@ -288,7 +309,7 @@ func (s *scannedEntry) isDir() bool { return s.entry.IsDir() }
 
 // scanDirectory reads a directory in bounded chunks, applying the hidden
 // filter as it goes so memory stays proportional to what will be shown.
-func scanDirectory(dir string, showHidden bool) ([]scannedEntry, bool, error) {
+func scanDirectory(dir string, showHidden bool, maxEntries int) ([]scannedEntry, bool, error) {
 	f, err := os.Open(dir)
 	if err != nil {
 		if os.IsPermission(err) {
@@ -303,17 +324,25 @@ func scanDirectory(dir string, showHidden bool) ([]scannedEntry, bool, error) {
 
 	out := make([]scannedEntry, 0, scanChunkSize)
 	truncated := false
+	// examined counts every entry the OS handed back, including hidden ones the
+	// filter drops. The ceiling has to apply to that, not just to what survives
+	// the filter: a directory holding a million dotfiles and ten visible files
+	// would otherwise read all million while `out` stayed at ten.
+	examined := 0
 	for {
 		batch, readErr := f.ReadDir(scanChunkSize)
 		for _, de := range batch {
+			examined++
 			if !showHidden && entryHidden(de) {
 				continue
 			}
 			name := de.Name()
 			out = append(out, scannedEntry{name: name, lower: strings.ToLower(name), entry: de})
 		}
-		if len(out) >= MaxEntriesScanned {
-			out = out[:MaxEntriesScanned]
+		if examined >= maxEntries || len(out) >= maxEntries {
+			if len(out) > maxEntries {
+				out = out[:maxEntries]
+			}
 			truncated = true
 			break
 		}
@@ -482,16 +511,19 @@ func countChildren(dir string, showHidden bool) int64 {
 	}
 	defer f.Close()
 
-	var n int64
+	var n, examined int64
 	for {
 		batch, readErr := f.ReadDir(scanChunkSize)
 		for _, de := range batch {
+			examined++
 			if !showHidden && entryHidden(de) {
 				continue
 			}
 			n++
 		}
-		if n > childCountCeiling {
+		// Bound on entries examined as well as counted, so a directory full of
+		// hidden children cannot make a "cheap" count read the whole thing.
+		if n > childCountCeiling || examined > childCountCeiling {
 			return ChildCountUnknown
 		}
 		if readErr != nil {

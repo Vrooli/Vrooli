@@ -148,7 +148,7 @@ func requireProTier(ctx context.Context) error {
 	if ent == nil {
 		return nil
 	}
-	if !ent.Tier.AtLeast(entitlement.TierPro) {
+	if ent.PlanRank < 3 {
 		return connect.NewError(connect.CodePermissionDenied, errProTierRequired)
 	}
 	return nil

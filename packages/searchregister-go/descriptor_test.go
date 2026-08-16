@@ -21,6 +21,12 @@ const cliHealthSearchJSON = `{
     "bucket": "BUCKET_DO",
     "type": "command",
     "description": "Vrooli CLI commands searchable by what each does.",
+    "routing_profile": {
+      "answer_spaces": ["command"],
+      "intents": ["execute", "locate"],
+      "positive_examples": ["restart a scenario"],
+      "exclusions": ["scenario purpose"]
+    },
     "scope": "SCOPE_PROJECT",
     "index_timestamp_field": "index.last_reconcile_at",
     "endpoint": {
@@ -72,6 +78,10 @@ func TestDescriptorMapsAllDescriptorFields(t *testing.T) {
 	require.Equal(t, registryv1.Bucket_BUCKET_DO, d.GetBucket())
 	require.Equal(t, registryv1.Scope_SCOPE_PROJECT, d.GetScope())
 	require.Contains(t, d.GetDescription(), "Vrooli CLI commands")
+	require.Equal(t, []string{"command"}, d.GetRoutingProfile().GetAnswerSpaces())
+	require.Equal(t, []string{"execute", "locate"}, d.GetRoutingProfile().GetIntents())
+	require.Equal(t, []string{"restart a scenario"}, d.GetRoutingProfile().GetPositiveExamples())
+	require.Equal(t, []string{"scenario purpose"}, d.GetRoutingProfile().GetExclusions())
 
 	hj := d.GetEndpoint().GetHttpJson()
 	require.NotNil(t, hj)

@@ -51,6 +51,17 @@ func TestInventorySupportsCaseInsensitiveCapabilityLookup(t *testing.T) {
 	}
 }
 
+func TestRampSelectorUsesSharedTargetModel(t *testing.T) {
+	inventory := Inventory{Targets: []Target{
+		{ID: "node-b", Platform: "desktop", OS: "linux", Available: true, Transport: Transport{Kind: TransportBridge}},
+		{ID: "node-a", Platform: "desktop", OS: "linux", Available: true, Transport: Transport{Kind: TransportBridge}},
+	}}
+	selection := SelectTarget(inventory, SelectionRequest{OS: "linux"})
+	if !selection.Found || !selection.Available || selection.Target.ID != "node-a" {
+		t.Fatalf("ramp selection = %+v, want node-a from the shared deterministic selector", selection)
+	}
+}
+
 func TestDiscoverRejectsUnavailableTargetWithoutRecoveryDetails(t *testing.T) {
 	_, err := Discover(context.Background(), fakeProber{inventory: Inventory{Targets: []Target{{
 		ID: "local-linux-amd64", Platform: "desktop", Transport: Transport{Kind: TransportLocal}, Available: false,

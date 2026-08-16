@@ -401,10 +401,14 @@ func (s *Service) executeCell(ctx context.Context, runID string, record *CellRec
 	request := CellRequest{
 		RunID:          run.RunID,
 		MatrixID:       run.Matrix.GetMatrixId(),
+		Command:        run.Selection.Command,
+		Args:           append([]string(nil), run.Selection.CommandArgs...),
 		ArtifactDigest: run.Matrix.GetArtifactDigest(),
+		ArtifactPath:   run.Selection.ArtifactPath,
 		Cell:           record.Cell,
 		Journey:        journeySelection(run.Selection.Journeys, record.Cell.GetJourneyId()),
 		Target:         targetSelection(run.Selection.Targets, record.Cell.GetTargetId()),
+		Metadata:       cloneStringMap(run.Selection.Metadata),
 	}
 	for {
 		record.Attempts++
@@ -442,6 +446,7 @@ func (s *Service) executeCell(ctx context.Context, runID string, record *CellRec
 			current.Cell.Disposition = result.Disposition
 			current.Cell.Reason = stringPtr(strings.TrimSpace(result.Reason))
 			current.Cell.Evidence = append([]*domainv1.LayeredEvidence(nil), result.Evidence...)
+			current.Report = cloneReport(result.Report)
 			if result.Disposition == domainv1.ValidationDisposition_VALIDATION_DISPOSITION_PASS {
 				current.State = CellCompleted
 			} else {
@@ -604,6 +609,7 @@ func (s RerunSelector) valid() bool {
 
 func cloneSelection(selection MatrixSelection) MatrixSelection {
 	copy := selection
+	copy.CommandArgs = append([]string(nil), selection.CommandArgs...)
 	copy.Journeys = append([]JourneySelection(nil), selection.Journeys...)
 	copy.Targets = make([]TargetSelection, len(selection.Targets))
 	for i, target := range selection.Targets {
@@ -619,7 +625,19 @@ func cloneSelection(selection MatrixSelection) MatrixSelection {
 func cloneCellRecord(record *CellRecord) *CellRecord {
 	copy := *record
 	copy.Cell = proto.Clone(record.Cell).(*domainv1.ValidationCell)
+	copy.Report = cloneReport(record.Report)
 	return &copy
+}
+
+func cloneReport(report map[string]string) map[string]string {
+	if len(report) == 0 {
+		return nil
+	}
+	copy := make(map[string]string, len(report))
+	for key, value := range report {
+		copy[key] = value
+	}
+	return copy
 }
 
 func newID(prefix string) string {

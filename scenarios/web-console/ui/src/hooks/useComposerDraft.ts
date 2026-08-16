@@ -30,8 +30,16 @@ export interface ComposerDraft {
   trackSelection(el: HTMLTextAreaElement): void;
   /** Programmatically set the value (voice/session reload); `caret` defaults to end. */
   setValue(value: string, caret?: number): void;
-  /** Clear the draft and its persistence. */
-  reset(): void;
+  /**
+   * Clear the draft and its persistence. Defaults to the session the draft is
+   * currently bound to. Pass a session (from `getSessionId()` at the time the
+   * work started) for a clear that may land late — a send whose ack settles
+   * after the user switched sessions must clear the session it was sent from,
+   * never whatever session is now on screen.
+   */
+  reset(session?: string | null): void;
+  /** The session this draft is bound to right now. */
+  getSessionId(): string | null;
   /** Insert text at the caret (focused draft textarea, else last-known selection). */
   appendAtCaret(text: string): void;
   /** Subscribe to value changes. Returns an unsubscribe fn. */
@@ -53,7 +61,12 @@ export interface ComposerDraft {
  * bar) opt in via `subscribe`.
  */
 export function useComposerDraft(sessionId?: string | null): ComposerDraft {
-  const { readDraft, persistDraft, clearDraft } = useDraftPersistence(sessionId);
+  const { readDraft, persistDraft, flushDraft, clearDraft } = useDraftPersistence(sessionId);
+
+  // The session bound right now, readable from async callbacks that may fire
+  // after a switch. Tracked during render so it is never a render behind.
+  const sessionRef = useRef(sessionId);
+  sessionRef.current = sessionId;
 
   // Seed the mirror from persistence exactly once.
   const initialRef = useRef<string | null>(null);
@@ -94,10 +107,20 @@ export function useComposerDraft(sessionId?: string | null): ComposerDraft {
     notify({ value, caret: pos, reason: "set" });
   }, [persistDraft, notify]);
 
-  const reset = useCallback(() => {
+  const getSessionId = useCallback(() => sessionRef.current ?? null, []);
+
+  const reset = useCallback((session?: string | null) => {
+    const target = session === undefined ? sessionRef.current : session;
+    if (target !== sessionRef.current) {
+      // A late clear for a session we have since left (a send ack that settled
+      // after the switch). Drop only that session's stored draft — touching the
+      // live value here would wipe the draft of the session now on screen.
+      clearDraft(target);
+      return;
+    }
     valueRef.current = "";
     selectionRef.current = null;
-    clearDraft();
+    clearDraft(target);
     notify({ value: "", caret: 0, reason: "reset" });
   }, [clearDraft, notify]);
 
@@ -141,12 +164,17 @@ export function useComposerDraft(sessionId?: string | null): ComposerDraft {
   const prevSessionRef = useRef(sessionId);
   useEffect(() => {
     if (prevSessionRef.current === sessionId) return;
+    // Make the outgoing session's draft durable BEFORE loading the new one.
+    // Its last keystrokes may still be sitting in the debounce, and the user
+    // typing (or sending) in the session they just switched to would otherwise
+    // race it — which is how switching sessions lost the draft you left behind.
+    flushDraft(prevSessionRef.current, valueRef.current);
     prevSessionRef.current = sessionId;
     const draft = readDraft();
     valueRef.current = draft;
     selectionRef.current = null;
     notify({ value: draft, caret: draft.length, reason: "set" });
-  }, [sessionId, readDraft, notify]);
+  }, [sessionId, readDraft, notify, flushDraft]);
 
   const initialValue = initialRef.current ?? "";
   return useMemo(
@@ -157,9 +185,10 @@ export function useComposerDraft(sessionId?: string | null): ComposerDraft {
       trackSelection,
       setValue,
       reset,
+      getSessionId,
       appendAtCaret,
       subscribe,
     }),
-    [getValue, initialValue, handleChange, trackSelection, setValue, reset, appendAtCaret, subscribe],
+    [getValue, initialValue, handleChange, trackSelection, setValue, reset, getSessionId, appendAtCaret, subscribe],
   );
 }

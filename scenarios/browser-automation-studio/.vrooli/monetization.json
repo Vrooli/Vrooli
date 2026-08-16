@@ -1,7 +1,9 @@
 {
   "$schema": "../../../.vrooli/schemas/monetization.schema.json",
-  "version": 1,
-  "bundle_key": "browser-automation-studio",
+  "version": 2,
+  "bundle_key": "business_suite",
+  "app_key": "browser-automation-studio",
+  "requires_entitlement": true,
   "features": [
     {"key": "ai", "class": "A", "enforcement_paths": ["api/middleware/entitlement.go", "api/handlers/ai/ai_analysis.go", "api/services/ai/provider_vrooli.go"]},
     {"key": "recording", "class": "B", "enforcement_paths": ["api/middleware/entitlement.go"]},
@@ -9,6 +11,6 @@
   ],
   "meters": [
     {"limit_key": "ai_credits", "class": "A", "enforcement_paths": ["api/services/credits/service.go", "api/handlers/ai/ai_analysis.go"]},
-    {"limit_key": "workflow_executions", "class": "B", "enforcement_paths": ["api/services/entitlement/service.go", "api/services/credits/service.go"]}
+    {"limit_key": "workflow_executions", "class": "B", "outbox": "api/services/credits", "enforcement_paths": ["api/services/entitlement/service.go", "api/services/credits/service.go"]}
   ]
 }

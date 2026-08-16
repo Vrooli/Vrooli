@@ -11,8 +11,8 @@ describe('isAllowedCallbackUrl [REQ:AUTH-SECURITY]', () => {
       expect(isAllowedCallbackUrl('vrooli://anything/here')).toBe(true);
     });
 
-    it('allows vrooli:// with fragments', () => {
-      expect(isAllowedCallbackUrl('vrooli://auth/callback#token=abc')).toBe(true);
+    it('allows vrooli:// callbacks without making the callback a credential channel', () => {
+      expect(isAllowedCallbackUrl('vrooli://auth/callback')).toBe(true);
     });
 
     it('allows vrooli:// with query params', () => {

@@ -13,7 +13,7 @@
   ],
   "scripts": {
     "dev": "vrooli lifecycle protect -- npx vite",
-    "build": "pnpm run typecheck && npx vite build $([ \"$VROOLI_BUILD_MODE\" = profile ] && echo --mode profile) && node ./scripts/gzip-dist.mjs",
+    "build": "pnpm run type-check && npx vite build $([ \"$VROOLI_BUILD_MODE\" = profile ] && echo --mode profile) && node ./scripts/gzip-dist.mjs",
     "build:profile": "pnpm run typecheck && npx vite build --mode profile && node ./scripts/gzip-dist.mjs",
     "preview": "npx vite preview",
     "test": "bash ./scripts/run-vitest.sh",
@@ -26,6 +26,7 @@
     "test:coverage": "BAS_VITEST_SUITE=full bash ./scripts/run-vitest.sh --coverage",
     "test:ui": "vitest --ui",
     "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
     "type-check": "tsc --noEmit",
     "typecheck": "tsc --noEmit"
   },
@@ -58,6 +59,7 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-hot-toast": "^2.4.1",
+    "react-i18next": "15.1.1",
     "react-markdown": "^9.0.1",
     "react-router-dom": "^7.18.1",
     "react-split": "^2.0.14",
