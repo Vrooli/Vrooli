@@ -115,6 +115,8 @@ current product-owned command surface is:
 | `validation validate --scenario <scenario>` | `ScenarioValidationService.ValidateScenario` | Exercise the shared Test Genie provider contract. |
 | `validation preview-fix --scenario <scenario>` | `ScenarioValidationService.PreviewFix` | Preview deterministic conformance fixes, currently guidance-only. |
 | `validation apply-fix --scenario <scenario>` | `ScenarioValidationService.ApplyFix` | Call the explicit apply path, currently an API no-op until safe migrations exist. |
+| `inference run --role <role> --schema <path> --source <text>` | `InferenceService.Run` | Run one schema-constrained typed inference request. |
+| `inference run-batch --role <role> --schema <path> --items <path>` | `InferenceService.RunBatch` | Run an ordered batch against one prompt and schema. |
 
 Common gateway request flags on `gateway validate`, `routing preview`,
 and `routing execute`:
@@ -127,6 +129,33 @@ and `routing execute`:
 | `--privacy` | `public`, `internal`, `confidential`, or `secret` |
 | `--operation`, `--scenario`, `--request-id` | Metadata labels stored in route evidence |
 | `--timeout-ms`, `--max-cost-usd`, `--max-output-tokens` | Caller constraints passed to the API |
+
+### Sampling flags
+
+`inference run` accepts `--temperature` and `--max-output-tokens`. Both are
+optional, and **absent is not the same as zero**: `0.0` is a meaningful
+temperature (deterministic sampling), so the flag stays off the wire entirely
+when you do not pass it, and the role's declared sampling applies instead.
+
+| Caller sets `--temperature` on a role that … | Result |
+|---|---|
+| has not declared `overridable: true` | `INVALID_REQUEST`, construct `sampling.temperature` |
+| is overridable, but no candidate declares `honored` | `INFERENCE_ERROR_CODE_UNSUPPORTED_SAMPLING` |
+
+`inference run` prints an `applied=` line reporting `temperature_sent`,
+`temperature_support`, `max_output_tokens`, and `cap_source`. Read both
+temperature fields together: a value that was sent to a provider declaring
+`ignored` had no effect, and recording only the sent value would produce
+provenance that is false. See
+[`roles-profiles-policies.md`](roles-profiles-policies.md#sampling).
+
+**`routing execute` has no `--temperature` flag**, though the RPC accepts
+`request.sampling.temperature` and the routing service honours it. The manifest's
+argument resolver descends one envelope level, and `ExecuteRouteRequest` wraps
+`GatewayRequest`, which puts `request.sampling.temperature` one level out of
+reach. `inference run` is unaffected because `RunRequest` carries `sampling`
+directly. Routing-path sampling is therefore API-only until either the resolver
+descends further or a caller needs the flag enough to justify a JSON-valued one.
 
 Every command supports `--json`; proto-backed commands emit the
 proto JSON response shape in that mode.

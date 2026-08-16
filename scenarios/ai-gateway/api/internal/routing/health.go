@@ -37,6 +37,11 @@ const (
 	FailureExecution     FailureClass = "execution_error"
 	FailureCancellation  FailureClass = "cancellation"
 	FailureUnavailable   FailureClass = "unavailable"
+	// FailureUnsupportedSampling means a candidate was skipped because its
+	// resolved role does not honor the caller's explicit sampling control. It is
+	// never recorded against provider health: the provider failed nothing, and
+	// tripping a breaker over a policy mismatch would suppress a healthy route.
+	FailureUnsupportedSampling FailureClass = "unsupported_sampling"
 )
 
 // ClassifyProviderError maps a provider adapter error into a stable failure

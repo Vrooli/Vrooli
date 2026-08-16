@@ -98,6 +98,43 @@
           "notes": "Service-level: preview skips open breakers and probes half-open, execution falls back to a healthy provider, and breakers isolate by provider/role/kind."
         }
       ]
+    },
+    {
+      "id": "AIGW-PROVIDER-SAMPLING-SUPPORT",
+      "title": "Provider sampling capability is declared by the resource, never probed",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-002",
+      "category": "provider.execution",
+      "criticality": "P1",
+      "description": "Each resource role declares per-parameter sampling support as honored, ignored, rejected, or unknown, and the gateway reads that declaration rather than inferring capability from a successful call. A probe cannot work: only rejection is detectable, while a provider that accepts a control and silently discards it is indistinguishable at the call site from one that honours it. A caller-supplied control that no candidate declares honored must return UNSUPPORTED_SAMPLING; a role-declared default that cannot be honoured must be omitted silently and the call must proceed.",
+      "tags": [
+        "provider",
+        "sampling",
+        "resource-boundary"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/providers/adapter_test.go::TestAdapterResolveRoleDecodesSamplingSupportAndCap",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "The adapter decodes both resources' declaration shapes, defaults an absent declaration to unknown, and degrades an unfamiliar state to unknown instead of failing the route."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/inference/resource_repository_test.go::TestResourceRepositorySkipsUnhonouringCandidateAndContinues",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "A candidate that cannot honour the caller's control is skipped by name and the walk continues to one that can."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/inference/resource_repository_test.go::TestResourceRepositoryReportsOutputCapSource",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "The response reports what the gateway sent and where the output cap came from, distinguishing an imposed cap from none imposed."
+        }
+      ]
     }
   ]
 }

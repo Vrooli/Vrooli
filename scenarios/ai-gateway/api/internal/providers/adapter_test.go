@@ -156,3 +156,112 @@ func (f *fakeRunner) Run(_ context.Context, command Command) (Result, error) {
 	}
 	return Result{}, &CommandError{Code: "missing_fixture", Command: key, ExitCode: -1}
 }
+
+func TestAdapterOpenRouterCommandCarriesTemperatureOnlyWhenSet(t *testing.T) { // [REQ:AIGW-PROVIDER-CLI-ONLY]
+	adapter := Adapter{Provider: ProviderOpenRouter, CommandName: "resource-openrouter", Locality: "remote"}
+
+	deterministic := 0.0
+	command, err := adapter.executionCommand(ExecutionRequest{
+		Kind:        sharedv1.RequestKind_REQUEST_KIND_STRUCTURED_EXTRACTION,
+		Role:        "extract.structured",
+		InputText:   "source",
+		Temperature: &deterministic,
+	})
+	if err != nil {
+		t.Fatalf("executionCommand() error = %v", err)
+	}
+	if !strings.Contains(command.String(), "--temperature 0") {
+		t.Fatalf("explicit temperature missing from command: %s", command.String())
+	}
+
+	// Absent the flag the resource falls through to its own request_defaults.
+	// Passing a value the gateway does not have would make that fallback dead.
+	command, err = adapter.executionCommand(ExecutionRequest{
+		Kind:      sharedv1.RequestKind_REQUEST_KIND_STRUCTURED_EXTRACTION,
+		Role:      "extract.structured",
+		InputText: "source",
+	})
+	if err != nil {
+		t.Fatalf("executionCommand() error = %v", err)
+	}
+	if strings.Contains(command.String(), "--temperature") {
+		t.Fatalf("unset temperature must not reach the command: %s", command.String())
+	}
+}
+
+func TestAdapterResolveRoleDecodesSamplingSupportAndCap(t *testing.T) { // [REQ:AIGW-PROVIDER-CLI-ONLY]
+	cases := []struct {
+		name        string
+		provider    string
+		commandName string
+		stdout      string
+		wantSupport SamplingSupport
+		wantCap     int32
+	}{
+		{
+			name:        "ollama role-level cap and declaration",
+			provider:    ProviderOllama,
+			commandName: "resource-ollama",
+			stdout:      `{"role":"write.default","model":"gemma4:12b","sampling_support":{"temperature":"honored"},"max_tokens":8192}`,
+			wantSupport: SamplingHonored,
+			wantCap:     8192,
+		},
+		{
+			name:        "openrouter cap nested under request_defaults",
+			provider:    ProviderOpenRouter,
+			commandName: "resource-openrouter",
+			stdout:      `{"role":"write.default","model":"vendor/model","sampling_support":{"temperature":"ignored"},"request_defaults":{"max_tokens":16384}}`,
+			wantSupport: SamplingIgnored,
+			wantCap:     16384,
+		},
+		{
+			name:        "absent declaration is unknown, absent cap is zero",
+			provider:    ProviderOllama,
+			commandName: "resource-ollama",
+			stdout:      `{"role":"write.default","model":"gemma4:12b"}`,
+			wantSupport: SamplingUnknown,
+			wantCap:     0,
+		},
+		{
+			name:        "unfamiliar state degrades to unknown rather than failing the route",
+			provider:    ProviderOllama,
+			commandName: "resource-ollama",
+			stdout:      `{"role":"write.default","model":"gemma4:12b","sampling_support":{"temperature":"probably"}}`,
+			wantSupport: SamplingUnknown,
+			wantCap:     0,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			runner := &fakeRunner{results: map[string]Result{
+				tc.commandName + " policy resolve --role write.default --json": {Stdout: tc.stdout},
+			}}
+			resolved, err := (Adapter{Provider: tc.provider, CommandName: tc.commandName, Runner: runner}).
+				ResolveRole(context.Background(), "write.default")
+			if err != nil {
+				t.Fatalf("ResolveRole() error = %v", err)
+			}
+			if got := resolved.TemperatureSupport(); got != tc.wantSupport {
+				t.Fatalf("TemperatureSupport() = %q, want %q", got, tc.wantSupport)
+			}
+			if resolved.MaxOutputTokens != tc.wantCap {
+				t.Fatalf("MaxOutputTokens = %d, want %d", resolved.MaxOutputTokens, tc.wantCap)
+			}
+		})
+	}
+}
+
+// LPBS has no temperature field on its wire contract, so the gateway cannot
+// transmit the value even in principle. That is provider incapacity, and it
+// must not be reported as a merely undeclared preference.
+func TestAdapterMeteredRoleRejectsTemperature(t *testing.T) { // [REQ:AIGW-PROVIDER-CLI-ONLY]
+	resolved, err := (Adapter{Provider: ProviderMetered, Metered: &MeteredClient{}}).
+		ResolveRole(context.Background(), "write.default")
+	if err != nil {
+		t.Fatalf("ResolveRole() error = %v", err)
+	}
+	if got := resolved.TemperatureSupport(); got != SamplingRejected {
+		t.Fatalf("metered TemperatureSupport() = %q, want %q", got, SamplingRejected)
+	}
+}

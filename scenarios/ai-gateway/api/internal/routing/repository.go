@@ -54,8 +54,9 @@ breaker_state, failure_class, rejection_reason, capacity_verdict,
 capacity_claim_id, capacity_required_bytes, capacity_granted_bytes,
 capacity_reclaim_required, input_tokens, output_tokens, cost_estimate,
 selected_model, image_count, attachment_bytes, attachment_sha256,
-attachments_redacted, attachment_dimensions_json
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+attachments_redacted, attachment_dimensions_json,
+sampling_temperature, sampling_temperature_support
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		ev.GetEventId(),
 		ev.GetRequestId(),
 		ev.GetScenario(),
@@ -90,8 +91,20 @@ attachments_redacted, attachment_dimensions_json
 		ev.GetAttachmentSha256(),
 		boolInt(ev.GetAttachmentsRedacted()),
 		string(dimensions),
+		nullableFloat(ev.SamplingTemperature),
+		samplingSupportText(ev.GetSamplingTemperatureSupport()),
 	)
 	return err
+}
+
+// nullableFloat preserves the difference between "no temperature was sent" and
+// "0 was sent". Collapsing them would make an omitted control read as a
+// deterministic one in every later query.
+func nullableFloat(value *float64) any {
+	if value == nil {
+		return nil
+	}
+	return *value
 }
 
 func (r *SQLRepository) List(ctx context.Context, filter EvidenceFilter) ([]*routingv1.RouteEvidence, error) {
@@ -140,7 +153,7 @@ breaker_state, failure_class, rejection_reason, capacity_verdict, capacity_claim
 capacity_required_bytes, capacity_granted_bytes, capacity_reclaim_required,
 input_tokens, output_tokens, cost_estimate, selected_model, image_count,
 attachment_bytes, attachment_sha256, attachments_redacted,
-attachment_dimensions_json
+attachment_dimensions_json, sampling_temperature, sampling_temperature_support
 FROM route_events`
 
 type scanner interface {
@@ -153,6 +166,8 @@ func scanEvidence(s scanner) (*routingv1.RouteEvidence, error) {
 	var profile, privacy int32
 	var fallbackUsed, promptRedacted, responseRedacted, capacityReclaimRequired, attachmentsRedacted int
 	var dimensionsJSON string
+	var samplingTemperature sql.NullFloat64
+	var samplingSupport string
 	err := s.Scan(
 		&ev.EventId,
 		&ev.RequestId,
@@ -188,10 +203,16 @@ func scanEvidence(s scanner) (*routingv1.RouteEvidence, error) {
 		&ev.AttachmentSha256,
 		&attachmentsRedacted,
 		&dimensionsJSON,
+		&samplingTemperature,
+		&samplingSupport,
 	)
 	if err != nil {
 		return nil, err
 	}
+	if samplingTemperature.Valid {
+		ev.SamplingTemperature = &samplingTemperature.Float64
+	}
+	ev.SamplingTemperatureSupport = samplingSupportEnum(samplingSupport)
 	ev.Profile = profileEnum(profile)
 	ev.PrivacyClass = privacyEnum(privacy)
 	ev.FallbackUsed = fallbackUsed != 0

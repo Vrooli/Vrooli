@@ -81,6 +81,10 @@ type ProviderConfig struct {
 	Type          string `json:"type"`
 	Description   string `json:"description"`
 	Scope         string `json:"scope"`
+	// RoutingProfile is optional declarative evidence for semantic provider
+	// selection. Its positive fields are embedded; exclusions remain available
+	// to lexical/policy diagnostics and are never embedded as positive text.
+	RoutingProfile RoutingProfileConfig `json:"routing_profile,omitempty"`
 	// Class is the operability class (one of the Class* constants). Optional in
 	// this shared parser so capability-gap stubs and legacy descriptors still
 	// load; Search Hub requires it for active providers.
@@ -122,6 +126,43 @@ type ProviderConfig struct {
 	// Tests is the scenario's evaluation corpus — the SSOT for the suite that
 	// search-hub's eval store mirrors (see searchregister.RegisterCorpus).
 	Tests TestSuite `json:"tests"`
+}
+
+// RoutingProfileConfig describes the answer space and intent a provider leaf
+// serves without coupling the router to a scenario or provider identity.
+type RoutingProfileConfig struct {
+	AnswerSpaces     []string `json:"answer_spaces,omitempty"`
+	Intents          []string `json:"intents,omitempty"`
+	PositiveExamples []string `json:"positive_examples,omitempty"`
+	Exclusions       []string `json:"exclusions,omitempty"`
+}
+
+// Validate checks route facets as open vocabulary while rejecting values that
+// cannot contribute useful evidence or would make the profile ambiguous.
+func (p RoutingProfileConfig) Validate() error {
+	if len(p.AnswerSpaces) == 0 && len(p.Intents) == 0 && len(p.PositiveExamples) == 0 && len(p.Exclusions) > 0 {
+		return fmt.Errorf("routing_profile must declare at least one positive answer_space, intent, or positive_example")
+	}
+	for name, values := range map[string][]string{
+		"answer_spaces":     p.AnswerSpaces,
+		"intents":           p.Intents,
+		"positive_examples": p.PositiveExamples,
+		"exclusions":        p.Exclusions,
+	} {
+		seen := make(map[string]struct{}, len(values))
+		for index, value := range values {
+			value = strings.TrimSpace(value)
+			if value == "" {
+				return fmt.Errorf("routing_profile.%s[%d] must not be blank", name, index)
+			}
+			key := strings.ToLower(value)
+			if _, ok := seen[key]; ok {
+				return fmt.Errorf("routing_profile.%s[%d] duplicates %q", name, index, value)
+			}
+			seen[key] = struct{}{}
+		}
+	}
+	return nil
 }
 
 // PerformanceConfig is a provider's declared latency/reliability budget. The
@@ -560,6 +601,9 @@ func (f SearchFile) Validate() error {
 			return fmt.Errorf("search.json: provider %q: %w", p.ProviderID, err)
 		}
 		if err := p.Performance.Validate(); err != nil {
+			return fmt.Errorf("search.json: provider %q: %w", p.ProviderID, err)
+		}
+		if err := p.RoutingProfile.Validate(); err != nil {
 			return fmt.Errorf("search.json: provider %q: %w", p.ProviderID, err)
 		}
 		if p.ConfigWritable != nil && !*p.ConfigWritable && strings.TrimSpace(p.ConfigPinnedReason) == "" {

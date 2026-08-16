@@ -35,6 +35,13 @@ func FromContext(ctx cliapp.RunContext) (*sharedv1.GatewayRequest, error) {
 	if err != nil {
 		return nil, err
 	}
+	// GatewayRequest.sampling is deliberately not settable from the CLI. Every
+	// command that builds this message wraps it in an envelope (ExecuteRouteRequest,
+	// PreviewRouteRequest, …), and the manifest's argument resolver descends one
+	// envelope level, so `request.sampling.temperature` is one level out of reach.
+	// Rather than invent a JSON-blob flag for one scalar, the routing path takes
+	// sampling from API callers only; `ai-gateway inference run --temperature`
+	// covers the ergonomic case because RunRequest carries `sampling` directly.
 	return &sharedv1.GatewayRequest{
 		Kind:            kind,
 		Role:            ctx.Flag("role"),

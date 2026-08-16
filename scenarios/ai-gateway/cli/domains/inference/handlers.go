@@ -5,15 +5,35 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
 	"connectrpc.com/connect"
 	inferencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference"
 	inferenceconnect "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference/inference_v1connect"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/shared"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
+
+// appliedSummary renders what the gateway actually sent alongside what the role
+// declares. Both halves are printed because neither is sufficient alone: a
+// temperature that was sent to a provider declaring "ignored" had no effect,
+// and a caller reading only the sent value would record provenance that is
+// false.
+func appliedSummary(applied *sharedv1.AppliedSettings) string {
+	if applied == nil {
+		return ""
+	}
+	temperature := "omitted"
+	if applied.TemperatureSent != nil {
+		temperature = strconv.FormatFloat(applied.GetTemperatureSent(), 'g', -1, 64)
+	}
+	return fmt.Sprintf("temperature_sent=%s temperature_support=%s max_output_tokens=%d cap_source=%s",
+		temperature, applied.GetTemperatureSupport().String(),
+		applied.GetMaxOutputTokensEffective(), applied.GetMaxOutputTokensSource().String())
+}
 
 type handlers struct {
 	client inferenceconnect.InferenceServiceClient
@@ -28,6 +48,9 @@ func renderRun(ctx cliapp.RunContext, message proto.Message) error {
 	results := []string{fmt.Sprintf("validated=%t provider=%s model=%s input_tokens=%d output_tokens=%d cost_micros=%d", response.GetValidated(), response.GetProvider(), response.GetModel(), usage.GetInputTokens(), usage.GetOutputTokens(), usage.GetCostMicros())}
 	if value := strings.TrimSpace(response.GetValueJson()); value != "" {
 		results = append(results, "value="+value)
+	}
+	if applied := appliedSummary(response.GetApplied()); applied != "" {
+		results = append(results, "applied="+applied)
 	}
 	if failure := response.GetError(); failure != nil {
 		results = append(results, fmt.Sprintf("error=%s construct=%s message=%s", failure.GetCode().String(), failure.GetConstruct(), failure.GetMessage()))
@@ -70,12 +93,30 @@ func (h *handlers) run(ctx cliapp.RunContext) error {
 	if err != nil {
 		return fmt.Errorf("read --schema %q: %w", schemaPath, err)
 	}
-	resp, err := h.client.Run(context.Background(), connect.NewRequest(&inferencev1.RunRequest{
+	request := &inferencev1.RunRequest{
 		Source:      ctx.Flag("source"),
 		SchemaJson:  string(schema),
 		Instruction: ctx.Flag("instruction"),
 		Role:        ctx.Flag("role"),
-	}))
+	}
+	// An absent flag must stay absent rather than becoming an explicit 0: the
+	// role's declared sampling only applies when the caller sends nothing, and
+	// 0 is itself a meaningful temperature.
+	if raw := strings.TrimSpace(ctx.Flag("temperature")); raw != "" {
+		temperature, parseErr := strconv.ParseFloat(raw, 64)
+		if parseErr != nil {
+			return fmt.Errorf("--temperature %q must be a number: %w", raw, parseErr)
+		}
+		request.Sampling = &sharedv1.SamplingControls{Temperature: proto.Float64(temperature)}
+	}
+	if raw := strings.TrimSpace(ctx.Flag("max-output-tokens")); raw != "" {
+		maxOutputTokens, parseErr := strconv.ParseInt(raw, 10, 32)
+		if parseErr != nil {
+			return fmt.Errorf("--max-output-tokens %q must be an integer: %w", raw, parseErr)
+		}
+		request.MaxOutputTokens = int32(maxOutputTokens)
+	}
+	resp, err := h.client.Run(context.Background(), connect.NewRequest(request))
 	if err != nil {
 		return cliapp.WrapAPIError("run typed inference", err, nil)
 	}
@@ -86,6 +127,9 @@ func (h *handlers) run(ctx cliapp.RunContext) error {
 	results := []string{fmt.Sprintf("validated=%t provider=%s model=%s input_tokens=%d output_tokens=%d cost_micros=%d", resp.Msg.GetValidated(), resp.Msg.GetProvider(), resp.Msg.GetModel(), usage.GetInputTokens(), usage.GetOutputTokens(), usage.GetCostMicros())}
 	if value := strings.TrimSpace(resp.Msg.GetValueJson()); value != "" {
 		results = append(results, "value="+value)
+	}
+	if applied := appliedSummary(resp.Msg.GetApplied()); applied != "" {
+		results = append(results, "applied="+applied)
 	}
 	if failure := resp.Msg.GetError(); failure != nil {
 		results = append(results, fmt.Sprintf("error=%s construct=%s message=%s", failure.GetCode().String(), failure.GetConstruct(), failure.GetMessage()))

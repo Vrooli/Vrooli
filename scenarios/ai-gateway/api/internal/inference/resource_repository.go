@@ -12,11 +12,79 @@ import (
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/shared"
 )
 
-// Typed inference asks for a schema-shaped value, not prose, so it samples
-// deterministically. Without this, identical sources classify differently
-// between calls, which makes results unreproducible and defeats caching.
-// Providers whose CLI exposes no temperature control simply ignore it.
-var deterministicTemperature = 0.0
+// ErrRoleForbidsSampling reports a caller-supplied sampling control sent to a
+// role that has not declared itself overridable. It is a request defect, not
+// provider incapacity, and the two get different error codes: the caller asked
+// for something this role forbids, which no amount of re-routing would fix.
+var ErrRoleForbidsSampling = errors.New("role does not admit caller-supplied sampling")
+
+// ErrUnsupportedSampling reports that no remaining candidate's provider can
+// honour a caller-supplied control. A caller-explicit control is a promise the
+// gateway keeps or refuses; it is never silently downgraded, matching how a
+// rejected schema is never degraded to unconstrained generation.
+var ErrUnsupportedSampling = errors.New("no candidate can honor the requested sampling")
+
+// resolveTemperature applies the role/caller precedence for one candidate.
+//
+//	caller set + role overridable   -> caller value, but only if the candidate
+//	                                   declares "honored"
+//	caller set + role not overridable -> ErrRoleForbidsSampling
+//	role declares                   -> role value, omitted only when the
+//	                                   candidate declares "rejected"
+//	neither                         -> nil, the resource policy default applies
+//
+// The two paths deliberately draw the line in different places.
+//
+// A caller-supplied control is a promise, so only "honored" keeps it. "ignored"
+// fails the promise exactly as thoroughly as "rejected" does — the difference is
+// only whether the failure is visible — so both refuse the candidate.
+//
+// A role-declared default is a preference, and the question there is not "will
+// this be honoured" but "will sending it break the call". Only "rejected"
+// breaks it. So "ignored" and "unknown" are still sent: harmless where the
+// provider discards it, and correct where an undeclared provider turns out to
+// honour it after all. That is what treating "unknown" as best-effort means —
+// try it, rather than silently drop the role's stated intent. It also keeps a
+// deterministic role deterministic against a resource that has not yet
+// published its declaration.
+func resolveTemperature(request ProviderRequest, role InferenceRole, support providers.SamplingSupport) (*float64, error) {
+	if request.Temperature != nil {
+		if role.Sampling == nil || !role.Sampling.Overridable {
+			return nil, ErrRoleForbidsSampling
+		}
+		if support != providers.SamplingHonored {
+			return nil, ErrUnsupportedSampling
+		}
+		value := *request.Temperature
+		return &value, nil
+	}
+	if role.Sampling == nil || role.Sampling.Temperature == nil {
+		return nil, nil
+	}
+	if support == providers.SamplingRejected {
+		return nil, nil
+	}
+	value := *role.Sampling.Temperature
+	return &value, nil
+}
+
+// resolveOutputCap applies the caller/role precedence for the output budget and
+// reports where the answer came from. Reporting the source matters as much as
+// the number: "the gateway imposed nothing" and "the gateway imposed a cap you
+// cannot see" are different facts, and only the first is true here when both
+// the caller and the role are silent.
+func resolveOutputCap(request ProviderRequest, resolved providers.ResolvedRole) (int32, OutputCapSource) {
+	switch {
+	case request.MaxOutputTokens > 0:
+		return request.MaxOutputTokens, OutputCapRequest
+	case resolved.MaxOutputTokens > 0:
+		// The resource applies its own role cap when the gateway sends none, so
+		// this is a report of what will happen rather than a value to transmit.
+		return resolved.MaxOutputTokens, OutputCapRolePolicy
+	default:
+		return 0, OutputCapNoneImposed
+	}
+}
 
 type ResourceRepository struct {
 	catalog  RoleCatalog
@@ -40,6 +108,11 @@ func (r *ResourceRepository) Run(ctx context.Context, request ProviderRequest) (
 		return ProviderResult{}, fmt.Errorf("%w: inference role %q is not declared", ErrUnavailable, request.Role)
 	}
 	var failures []string
+	// samplingRefused records that at least one candidate was skipped purely
+	// because it could not honour a caller-supplied control. It changes the
+	// terminal error from "nothing worked" to the specific, actionable
+	// "nothing here can sample the way you asked".
+	var samplingRefused bool
 	for _, candidate := range definition.Candidates {
 		provider := strings.ToLower(strings.TrimSpace(candidate.Provider))
 		if request.Profile == sharedv1.Profile_PROFILE_REMOTE_ONLY && provider != providers.ProviderOpenRouter && provider != providers.ProviderMetered {
@@ -58,15 +131,38 @@ func (r *ResourceRepository) Run(ctx context.Context, request ProviderRequest) (
 			failures = append(failures, candidate.Provider+": "+err.Error())
 			continue
 		}
+		support := resolved.TemperatureSupport()
+		temperature, err := resolveTemperature(request, definition, support)
+		if err != nil {
+			if errors.Is(err, ErrRoleForbidsSampling) {
+				// A role that forbids overrides forbids them everywhere, so
+				// walking further candidates could only produce the same answer.
+				return ProviderResult{}, fmt.Errorf("%w: inference role %q declares no overridable sampling", ErrRoleForbidsSampling, request.Role)
+			}
+			samplingRefused = true
+			failures = append(failures, fmt.Sprintf("%s: temperature not honored by resolved role %s (%s)", candidate.Provider, candidate.ResourceRole, support))
+			continue
+		}
+		maxOutputTokens, capSource := resolveOutputCap(request, resolved)
+		applied := AppliedSettings{
+			TemperatureSent:       temperature,
+			TemperatureSupport:    support,
+			MaxOutputTokens:       maxOutputTokens,
+			MaxOutputTokensSource: capSource,
+		}
 		execution, err := adapter.Execute(ctx, providers.ExecutionRequest{
-			Kind:        sharedv1.RequestKind_REQUEST_KIND_STRUCTURED_EXTRACTION,
-			Role:        candidate.ResourceRole,
-			Profile:     request.Profile,
-			InputText:   providerPrompt(request, resolved.CoordinateConvention),
-			Timeout:     definition.Timeout(),
-			Temperature: &deterministicTemperature,
-			SchemaJSON:  providerSchema(request),
-			Attachments: requestAttachments(request),
+			Kind:      sharedv1.RequestKind_REQUEST_KIND_STRUCTURED_EXTRACTION,
+			Role:      candidate.ResourceRole,
+			Profile:   request.Profile,
+			InputText: providerPrompt(request, resolved.CoordinateConvention),
+			Timeout:   definition.Timeout(),
+			// Only a caller-supplied cap is transmitted. A role-declared cap is
+			// already the resource's own default, so re-sending it would turn a
+			// resource-owned decision into a gateway-owned one.
+			MaxOutputTokens: request.MaxOutputTokens,
+			Temperature:     temperature,
+			SchemaJSON:      providerSchema(request),
+			Attachments:     requestAttachments(request),
 		})
 		if err != nil {
 			failures = append(failures, candidate.Provider+": "+err.Error())
@@ -82,7 +178,11 @@ func (r *ResourceRepository) Run(ctx context.Context, request ProviderRequest) (
 			ValueJSON: value, Provider: resolved.Provider, Model: resolved.Model,
 			CoordinateConvention: resolved.CoordinateConvention,
 			InputTokens:          inputTokens, OutputTokens: outputTokens, CostMicros: costMicros,
+			Applied: applied,
 		}, nil
+	}
+	if samplingRefused {
+		return ProviderResult{}, fmt.Errorf("%w: no candidate for inference role %q honors an explicit temperature (%s)", ErrUnsupportedSampling, request.Role, strings.Join(failures, "; "))
 	}
 	return ProviderResult{}, fmt.Errorf("%w: no inference candidate completed for role %q (%s)", ErrUnavailable, request.Role, strings.Join(failures, "; "))
 }

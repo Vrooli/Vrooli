@@ -101,6 +101,65 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 **Refs:** `api/internal/testutil/no_prod_import_test.go`, `coverage/logs/*/tidiness.log`.
 
+### 2026-08-16 — `routing execute` has no `--temperature` flag
+
+**Symptom:** `RoutingService.ExecuteRoute` honours `request.sampling.temperature`
+and persists it to route evidence, but the CLI exposes no flag for it. Only API
+and program-runtime callers can set sampling on the routing path.
+
+**Root cause:** The manifest's argument resolver
+(`cliapp.ResolveArgField`) matches a flag name against the request message and
+then auto-descends exactly **one** envelope level. `ExecuteRouteRequest` wraps
+`GatewayRequest`, so `request.sampling.temperature` sits two levels down and no
+flag name reaches it. `bind.field` cannot help: its schema pattern
+(`^[a-z][a-z0-9_]*$`) forbids dotted paths, and the bind lookup runs against the
+top-level request message only. Declaring the flag anyway produces a hard
+`binding.arg_unmapped` error in the `contracts` phase. `inference run` is
+unaffected because `RunRequest` carries `sampling` directly, one level down.
+
+**Workaround:** Use `ai-gateway inference run --temperature` for typed inference,
+or call `ExecuteRoute` through the API for the routing path.
+
+**Real fix:** Either teach the resolver to descend a declared dotted path, or —
+if a caller actually needs the flag — add a JSON-valued `--sampling` flag whose
+name resolves to `request.sampling` under a stated `bind_waiver`. Neither is
+worth doing before a caller asks.
+
+**Owner:** unassigned.
+
+**Refs:** `packages/cli-core/cliapp/protobindings.go:157` (`ResolveArgField`),
+`scenarios/ai-gateway/cli/domains/internal/gatewayreq/request.go`,
+`.vrooli/schemas/cli-manifest.schema.json` (`$defs.Flag.bind.field`).
+
+### 2026-08-16 — Sampling declarations need a resource-CLI rebuild to take effect
+
+**Symptom:** After `sampling_support` and the ollama role `max_tokens` were added
+to resource policy, `resource-ollama policy resolve --role write.default --json`
+still omits both fields, so the gateway resolves every ollama role as
+`unknown` support and an uncapped role.
+
+**Root cause:** The installed `~/.vrooli/bin/resource-ollama` predates the struct
+change and drops fields it does not know. It cannot currently be rebuilt:
+`go build ./...` in `resources/ollama/cli` fails with `updates to go.mod needed`
+(`golang.org/x/sys` v0.44.0 → v0.47.0), and `vrooli resource install ollama`
+fails on the same build. The governed remedy does not reach here either —
+`scenario-dependency-analyzer deps install` resolves surfaces under
+`scenarios/` only and rejects a `resources/` path.
+
+**Workaround:** None needed for correctness. The role-declared sampling path
+deliberately sends its value on anything other than `rejected`, so an undeclared
+role still receives the role's temperature and deterministic roles stay
+deterministic. Only the reported `temperature_support` is less precise than it
+should be, and the ollama role cap is not yet applied.
+
+**Real fix:** Extend the dependency-analyzer surface vocabulary to cover
+`resources/<name>/cli`, then bump the drifted module and reinstall.
+
+**Owner:** unassigned (dependency governance).
+
+**Refs:** `resources/ollama/cli/go.mod`, `resources/openrouter/cli/go.mod`,
+`resources/ollama/cli/internal/policy/policy.go`.
+
 ## Architecture Drift
 
 Use this section for deferred findings from `screaming-architecture-audit`.

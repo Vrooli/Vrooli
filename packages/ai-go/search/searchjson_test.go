@@ -92,6 +92,27 @@ func TestParseSearchFile(t *testing.T) {
 	}
 }
 
+func TestRoutingProfileValidationIsOpenVocabularyAndPositiveOnly(t *testing.T) {
+	profile := RoutingProfileConfig{
+		AnswerSpaces:     []string{"service_contract"},
+		Intents:          []string{"locate"},
+		PositiveExamples: []string{"where is the RPC declared"},
+		Exclusions:       []string{"ordinary implementation"},
+	}
+	if err := profile.Validate(); err != nil {
+		t.Fatalf("valid routing profile rejected: %v", err)
+	}
+	duplicate := profile
+	duplicate.Intents = []string{"locate", " LOCATE "}
+	if err := duplicate.Validate(); err == nil || !strings.Contains(err.Error(), "routing_profile.intents") {
+		t.Fatalf("duplicate routing facet error = %v", err)
+	}
+	negativeOnly := RoutingProfileConfig{Exclusions: []string{"implementation"}}
+	if err := negativeOnly.Validate(); err == nil || !strings.Contains(err.Error(), "positive") {
+		t.Fatalf("negative-only routing profile error = %v", err)
+	}
+}
+
 func TestParseSearchFileRejectsBad(t *testing.T) {
 	cases := []struct {
 		name string

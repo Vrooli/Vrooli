@@ -86,6 +86,19 @@ block is a silent no-op, so `EnsureSchemas` runs a post-apply drift check that
 fails loudly and instructs a one-shot `ALTER TABLE ... ADD COLUMN` migration
 rather than recreating the table (route history is preserved).
 
+The 2026-08-16 sampling columns need that migration on any pre-existing
+`route_events` table:
+
+```sql
+ALTER TABLE route_events ADD COLUMN sampling_temperature REAL;
+ALTER TABLE route_events ADD COLUMN sampling_temperature_support TEXT NOT NULL DEFAULT '';
+```
+
+`sampling_temperature` is deliberately nullable while every neighbouring column
+is `NOT NULL DEFAULT`. "The gateway sent no temperature" and "the gateway sent
+0" are different facts, and storing the first as `0` would make an omitted
+control indistinguishable from a deterministic one in every later query.
+
 ## Retention And Privacy
 
 Route evidence and scan reports are useful because they are inspectable,

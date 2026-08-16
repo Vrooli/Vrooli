@@ -253,7 +253,7 @@ func (s *Service) Execute(ctx context.Context, req *sharedv1.GatewayRequest, inp
 		if err := s.repo.Create(ctx, ev); err != nil {
 			return nil, fmt.Errorf("persist blocked route evidence: %w", err)
 		}
-		return &routingv1.ExecuteRouteResponse{Valid: true, Evidence: ev, PolicyReasons: plan.policyReasons}, nil
+		return &routingv1.ExecuteRouteResponse{Valid: true, Evidence: ev, PolicyReasons: plan.policyReasons, Applied: appliedSettings(ev, req)}, nil
 	}
 
 	attempts := s.executionAttempts(plan)
@@ -287,6 +287,23 @@ func (s *Service) Execute(ctx context.Context, req *sharedv1.GatewayRequest, inp
 			}
 			continue
 		}
+		// Routing takes a caller-supplied role string and has no gateway-side role
+		// catalog, so there is no role-declared sampling here — only the caller's
+		// explicit request, which is a promise the gateway keeps or refuses.
+		temperature, samplingErr := requestedTemperature(req, resolvedRole)
+		if samplingErr != nil {
+			cancel()
+			// The provider is healthy; it simply cannot sample this way. Recording
+			// an outcome here would trip a circuit breaker over a policy mismatch
+			// and suppress a provider that has failed nothing.
+			lastFailureClass = FailureUnsupportedSampling
+			failures = append(failures, fmt.Sprintf("%s: temperature not honored by resolved role %s (%s)",
+				candidate.GetProvider(), candidate.GetRole(), resolvedRole.TemperatureSupport()))
+			if i == 0 && !plan.fallbackAllowed {
+				break
+			}
+			continue
+		}
 		// Hold an op-scoped capacity claim around a local execution attempt so the
 		// broker ledger shows the reservation as CLAIMED. Release is best-effort in
 		// all paths; a crash falls back to the claim's bounded TTL.
@@ -297,6 +314,7 @@ func (s *Service) Execute(ctx context.Context, req *sharedv1.GatewayRequest, inp
 			InputText:       input,
 			MaxOutputTokens: req.GetMaxOutputTokens(),
 			Timeout:         timeoutDuration(req.GetTimeoutMs()),
+			Temperature:     temperature,
 			Attachments:     req.GetAttachments(),
 		})
 		s.releaseCapacity(ctxExec, capEval)
@@ -323,6 +341,7 @@ func (s *Service) Execute(ctx context.Context, req *sharedv1.GatewayRequest, inp
 			ev.FailureClass = string(lastFailureClass)
 		}
 		ev.BreakerState = candidate.GetBreakerState()
+		applySamplingEvidence(ev, temperature, resolvedRole.TemperatureSupport())
 		applyCapacityEvidence(ev, candidate, capEval)
 		if err := s.repo.Create(ctx, ev); err != nil {
 			return nil, fmt.Errorf("persist successful route evidence: %w", err)
@@ -332,6 +351,7 @@ func (s *Service) Execute(ctx context.Context, req *sharedv1.GatewayRequest, inp
 			Evidence:      ev,
 			OutputText:    result.OutputText,
 			PolicyReasons: plan.policyReasons,
+			Applied:       appliedSettings(ev, req),
 		}, nil
 	}
 
@@ -340,7 +360,57 @@ func (s *Service) Execute(ctx context.Context, req *sharedv1.GatewayRequest, inp
 	if err := s.repo.Create(ctx, ev); err != nil {
 		return nil, fmt.Errorf("persist failed route evidence: %w", err)
 	}
-	return &routingv1.ExecuteRouteResponse{Valid: true, Evidence: ev, PolicyReasons: plan.policyReasons}, nil
+	return &routingv1.ExecuteRouteResponse{Valid: true, Evidence: ev, PolicyReasons: plan.policyReasons, Applied: appliedSettings(ev, req)}, nil
+}
+
+// requestedTemperature applies the caller's explicit control against one
+// candidate's declared support.
+//
+// Anything short of "honored" refuses the candidate. That is deliberate: the
+// caller made a promise-shaped request, and a provider that accepts the field
+// and discards it keeps the promise no better than one that rejects it — the
+// difference is only whether the failure is visible. Refusing both keeps the
+// gateway from returning output that silently ignored the caller's control.
+func requestedTemperature(req *sharedv1.GatewayRequest, resolved providers.ResolvedRole) (*float64, error) {
+	sampling := req.GetSampling()
+	if sampling == nil || sampling.Temperature == nil {
+		return nil, nil
+	}
+	if resolved.TemperatureSupport() != providers.SamplingHonored {
+		return nil, errUnsupportedSampling
+	}
+	value := sampling.GetTemperature()
+	return &value, nil
+}
+
+var errUnsupportedSampling = errors.New("resolved role does not honor an explicit temperature")
+
+func applySamplingEvidence(ev *routingv1.RouteEvidence, temperature *float64, support providers.SamplingSupport) {
+	if temperature != nil {
+		value := *temperature
+		ev.SamplingTemperature = &value
+	}
+	ev.SamplingTemperatureSupport = samplingSupportEnum(string(support))
+}
+
+// appliedSettings reports what the gateway actually did. The routing path never
+// substitutes a cap of its own, so the only cap it can report is the caller's:
+// zero means the gateway imposed nothing and the resource role's policy default
+// applies, which it deliberately does not guess at.
+func appliedSettings(ev *routingv1.RouteEvidence, req *sharedv1.GatewayRequest) *sharedv1.AppliedSettings {
+	applied := &sharedv1.AppliedSettings{
+		TemperatureSupport:       ev.GetSamplingTemperatureSupport(),
+		MaxOutputTokensEffective: req.GetMaxOutputTokens(),
+		MaxOutputTokensSource:    sharedv1.OutputCapSource_OUTPUT_CAP_SOURCE_NONE_IMPOSED,
+	}
+	if req.GetMaxOutputTokens() > 0 {
+		applied.MaxOutputTokensSource = sharedv1.OutputCapSource_OUTPUT_CAP_SOURCE_REQUEST
+	}
+	if ev.SamplingTemperature != nil {
+		value := ev.GetSamplingTemperature()
+		applied.TemperatureSent = &value
+	}
+	return applied
 }
 
 func (s *Service) ListEvidence(ctx context.Context, filter EvidenceFilter) ([]*routingv1.RouteEvidence, error) {
@@ -849,6 +919,41 @@ func newID(prefix string) string {
 		return fmt.Sprintf("%s-%d", prefix, time.Now().UnixNano())
 	}
 	return prefix + "-" + hex.EncodeToString(b[:])
+}
+
+// samplingSupportText and samplingSupportEnum store the declaration as text
+// rather than an ordinal. Route evidence is meant to be read by an operator
+// running ad-hoc queries, and its neighbouring columns (breaker_state,
+// failure_class, rejection_reason) are already stable lowercase strings for
+// exactly that reason.
+func samplingSupportText(support sharedv1.SamplingSupport) string {
+	switch support {
+	case sharedv1.SamplingSupport_SAMPLING_SUPPORT_HONORED:
+		return string(providers.SamplingHonored)
+	case sharedv1.SamplingSupport_SAMPLING_SUPPORT_IGNORED:
+		return string(providers.SamplingIgnored)
+	case sharedv1.SamplingSupport_SAMPLING_SUPPORT_REJECTED:
+		return string(providers.SamplingRejected)
+	case sharedv1.SamplingSupport_SAMPLING_SUPPORT_UNKNOWN:
+		return string(providers.SamplingUnknown)
+	default:
+		return ""
+	}
+}
+
+func samplingSupportEnum(text string) sharedv1.SamplingSupport {
+	switch providers.SamplingSupport(strings.TrimSpace(text)) {
+	case providers.SamplingHonored:
+		return sharedv1.SamplingSupport_SAMPLING_SUPPORT_HONORED
+	case providers.SamplingIgnored:
+		return sharedv1.SamplingSupport_SAMPLING_SUPPORT_IGNORED
+	case providers.SamplingRejected:
+		return sharedv1.SamplingSupport_SAMPLING_SUPPORT_REJECTED
+	case providers.SamplingUnknown:
+		return sharedv1.SamplingSupport_SAMPLING_SUPPORT_UNKNOWN
+	default:
+		return sharedv1.SamplingSupport_SAMPLING_SUPPORT_UNSPECIFIED
+	}
 }
 
 func profileEnum(v int32) sharedv1.Profile {

@@ -1015,7 +1015,16 @@
             {
               "name": "role",
               "required": true,
-              "description": "Inference role, such as classify.fast or extract.structured"
+              "description": "Inference role, such as classify.fast, extract.structured, or write.default"
+            },
+            {
+              "name": "temperature",
+              "description": "Explicit sampling temperature. Only roles that declare themselves overridable accept it; a deterministic role refuses with construct sampling.temperature. Absent, the role's declared sampling applies.",
+              "bind_waiver": "temperature maps onto the nested sampling.temperature field; bind.field accepts only a top-level snake_case name, so the handler builds the SamplingControls message"
+            },
+            {
+              "name": "max-output-tokens",
+              "description": "Explicit output cap. Absent, the resolved resource role's declared cap applies, and absent that the gateway imposes none."
             }
           ],
           "binding": {
@@ -1061,7 +1070,7 @@
             {
               "name": "role",
               "required": true,
-              "description": "Inference role, such as classify.fast or extract.structured"
+              "description": "Inference role, such as classify.fast, extract.structured, or write.default"
             }
           ],
           "binding": {

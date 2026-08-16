@@ -14,7 +14,7 @@ AI Gateway separates concepts that are currently easy to blur:
 | Provider model catalog | Resource | `llama3.2`, hosted provider slugs, context windows, embedding dimensions. | `resource-ollama`, `resource-openrouter` policy/model commands. |
 | Role mapping | Resource | `chat.default`, `summarize.default`, `embedding.default`. | Resource `model-policy.json` and resource policy CLI. |
 | Routing profile | AI Gateway | `local-first`, `privacy-sensitive`, `cheap-first`. | AI Gateway routing policy. |
-| Typed inference role | AI Gateway | `classify.fast`, `extract.structured`, schema subset, provider fallback order. | `config/inference-role-catalog.json`; candidates resolve through resource policy CLIs. |
+| Typed inference role | AI Gateway | `classify.fast`, `extract.structured`, `write.default`, schema subset, sampling stance, provider fallback order. | `config/inference-role-catalog.json`; candidates resolve through resource policy CLIs. |
 | Caller request | Scenario caller | "summarize this", "extract JSON", "embed these chunks". | Gateway API/CLI contract. |
 
 AI Gateway should display resource role policies and route through them,
@@ -56,12 +56,119 @@ a planning baseline, not an executable model catalog.
 
 Typed inference is the narrower execution contract layered on top of those
 provider roles. Its gateway-owned catalog selects `classify.fast`,
-`extract.structured`, and `locate.visual`, orders local and hosted candidates,
+`extract.structured`, `judge.default`, `locate.visual`, `author.generator`,
+`write.default`, and `write.diverse`, orders local and hosted candidates,
 and records the resolved provider/model in every response. The catalog does not
 edit resource policy or treat schema descriptions as caller instructions. The
 current local structured-extraction candidate deliberately uses Ollama's
 existing `chat.default` policy role until the resource exposes a dedicated
 extraction role; the gateway still enforces the JSON Schema subset locally.
+
+## Sampling
+
+Sampling is declared at two layers, and the split is the point: the gateway
+catalog declares *intent* (what this role should do and whether a caller may
+change it), and resource policy declares *capability* (whether the provider
+behind the role will actually apply the control).
+
+### Role-declared stance
+
+Each gateway inference role may declare:
+
+```json
+"sampling": { "temperature": 0.0, "overridable": false }
+```
+
+`overridable` defaults to false. A role is deterministic unless its author
+deliberately opened it, so adding a role never accidentally admits caller
+sampling.
+
+| Role | Stance | Why |
+|---|---|---|
+| `classify.fast` | `0.0`, closed | identical sources must classify identically |
+| `extract.structured` | `0.0`, closed | same |
+| `judge.default` | `0.0`, closed | a judge that drifts is not a judge |
+| `locate.visual` | `0.0`, closed | bounds must be reproducible |
+| `author.generator` | `0.2`, open | every generator is validated before storage, so variety costs a rejection rather than a bad artifact |
+| `write.default` | `0.9`, open | prose wants variety; the experimental sweep needs per-call control |
+| `write.diverse` | `1.0`, open | same, and the candidate-set lane pins temperature per call |
+
+### Declared provider support
+
+Resource roles declare, per parameter, how their provider treats an explicit
+control:
+
+| Value | Meaning |
+|---|---|
+| `honored` | the provider applies the value |
+| `ignored` | the provider accepts the field and silently discards it |
+| `rejected` | the provider fails the request when the field is present |
+| `unknown` | not established; treated as `ignored` |
+
+**These are declarations, never probes.** There are three real states and only
+one is detectable at runtime: a rejection surfaces as an error, but a provider
+that accepts a control and silently discards it is indistinguishable at the call
+site from one that honours it. A probe would report success and be wrong. Two
+live examples make this concrete rather than theoretical: Anthropic's newest
+models reject sampling parameters with a 400, while Gemini 3.x accepts
+`temperature` and documents that it ignores it.
+
+Declare from first-party provider documentation. An aggregator's
+`supported_parameters` metadata is not evidence — it is known to contradict
+upstream vendors' own migration guidance.
+
+### Precedence
+
+Resolved once, per candidate, in `ResourceRepository.Run`:
+
+| Caller | Role | Result |
+|---|---|---|
+| sets temperature | `overridable: true` | caller's value, but only on a candidate declaring `honored`; any other candidate is skipped and the walk continues |
+| sets temperature | closed | `INVALID_REQUEST`, construct `sampling.temperature` |
+| sends nothing | declares temperature | role's value, sent to every candidate except one declaring `rejected`, which **omits** it and still serves the request |
+| sends nothing | declares nothing | nothing sent; the resource role's own policy default applies |
+
+Rows 1 and 3 draw the line in different places, and the difference is the whole
+design.
+
+A caller-supplied control is a **promise**, so only `honored` keeps it.
+`ignored` fails that promise exactly as thoroughly as `rejected` does — the only
+difference is whether the failure is visible — so both refuse the candidate, and
+an exhausted walk refuses by name rather than returning output that quietly
+ignored the caller. That is the same rule the schema gate follows when it
+declines to degrade a rejected schema into unconstrained generation.
+
+A role-declared default is a **preference**, and the question there is not "will
+this be honoured" but "will sending it break the call". Only `rejected` breaks
+it. So `ignored` and `unknown` are still sent: harmless where the provider
+discards the value, and correct where an undeclared provider turns out to honour
+it. This is what treating `unknown` as best-effort means — try it, rather than
+silently drop the role's stated intent. It also keeps a deterministic role
+deterministic against a resource whose declaration has not shipped yet.
+
+Row 2 is `INVALID_REQUEST` rather than `UNSUPPORTED_SAMPLING` because the two
+failures need different fixes: a role that forbids overrides is a request defect
+the caller can correct, while provider incapacity is not something any request
+change would repair.
+
+### What the response reports
+
+`RunResponse.applied` and `ExecuteRouteResponse.applied` carry
+`temperature_sent`, `temperature_support`, `max_output_tokens_effective`, and
+`max_output_tokens_source`. There is deliberately **no single "applied
+temperature" field**: for a provider that accepts and silently ignores the
+control, such a field would have to lie in exactly the case the caller most
+needs the truth. A caller comparing two candidate sets must treat differing
+support states as differing conditions even when `temperature_sent` matches.
+
+`max_output_tokens_source` distinguishes `request`, `role_policy`, and
+`none_imposed`. The last is a real statement, not a gap: it means the gateway
+sent no cap at all, and the provider's own default applies unobserved. The
+gateway never guesses at a cap it did not impose.
+
+The routing path additionally persists `sampling_temperature` and
+`sampling_temperature_support` on route evidence. `sampling_temperature` is
+nullable so an omitted control stays distinguishable from a deterministic `0`.
 
 ### `locate.visual` coordinate contract
 

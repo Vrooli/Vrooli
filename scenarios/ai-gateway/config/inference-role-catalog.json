@@ -4,6 +4,7 @@
     "classify.fast": {
       "description": "Low-cost enum classification with a grammar-friendly local first candidate.",
       "timeout_ms": 45000,
+      "sampling": { "temperature": 0.0, "overridable": false },
       "candidates": [
         {
           "provider": "ollama",
@@ -29,6 +30,7 @@
     "extract.structured": {
       "description": "Schema-constrained extraction with a mid-size local first candidate.",
       "timeout_ms": 120000,
+      "sampling": { "temperature": 0.0, "overridable": false },
       "candidates": [
         {
           "provider": "ollama",
@@ -54,6 +56,7 @@
     "judge.default": {
       "description": "Deterministic rubric evaluation with a local-first candidate and hosted fallback.",
       "timeout_ms": 120000,
+      "sampling": { "temperature": 0.0, "overridable": false },
       "candidates": [
         {
           "provider": "ollama",
@@ -79,6 +82,7 @@
     "locate.visual": {
       "description": "Visual grounding that returns canonical target bounds and confidence without exposing provider coordinates.",
       "timeout_ms": 90000,
+      "sampling": { "temperature": 0.0, "overridable": false },
       "candidates": [
         {
           "provider": "ollama",
@@ -100,9 +104,62 @@
         }
       ]
     },
+    "write.default": {
+      "description": "Natural-prose generation: marketing copy, blog and technical writing, and creative drafts. Local-first, because BYOK local writing is the intended edge; a caller who needs frontier prose quality sets profile REMOTE_ONLY rather than the catalog reordering for everyone.",
+      "timeout_ms": 240000,
+      "sampling": { "temperature": 0.9, "overridable": true },
+      "candidates": [
+        {
+          "provider": "ollama",
+          "resource_role": "write.default",
+          "model": "policy-resolved",
+          "minimum_quantization": "Q4_K_M",
+          "reason": "Local prose keeps drafts on the host and is the BYOK path a self-hoster gets with no credential."
+        },
+        {
+          "provider": "openrouter",
+          "resource_role": "write.default",
+          "model": "policy-resolved",
+          "reason": "Hosted fallback where prose quality is the binding constraint; the model stays a resource policy decision."
+        },
+        {
+          "provider": "lpbs",
+          "resource_role": "write.default",
+          "model": "policy-resolved",
+          "reason": "Subscription-backed metered fallback when local and operator BYOK routes are unavailable."
+        }
+      ]
+    },
+    "write.diverse": {
+      "description": "Diversity-controlled prose generation: one request returns k candidate drafts with verbalized hints. Hosted-first, inverting write.default, because diversity gains are emergent with model capability \u2014 a small local rung would underperform on the technique this role exists to serve. Candidate count is carried by instruction; the schema subset cannot enforce it.",
+      "timeout_ms": 300000,
+      "sampling": { "temperature": 1.0, "overridable": true },
+      "candidates": [
+        {
+          "provider": "openrouter",
+          "resource_role": "write.diverse",
+          "model": "policy-resolved",
+          "reason": "A k-candidate response is neither short nor cheap, and diversity gain scales with model capability; this is the rung the technique is designed for."
+        },
+        {
+          "provider": "lpbs",
+          "resource_role": "write.diverse",
+          "model": "policy-resolved",
+          "reason": "Subscription-backed metered fallback, ordered ahead of the local rung because capability matters more than locality for this role specifically."
+        },
+        {
+          "provider": "ollama",
+          "resource_role": "write.default",
+          "model": "policy-resolved",
+          "minimum_quantization": "Q4_K_M",
+          "reason": "Local last resort so a host with no credential still gets candidates rather than a failure. Expect measurably lower diversity here; the role's own description says so."
+        }
+      ]
+    },
     "author.generator": {
       "description": "Long-form code authoring: a parameterized generator program returned as source, validated by the caller before it is ever run. Hosted-first, because the local candidate is sized for short answers and a generator is neither short nor schema-constrained.",
       "timeout_ms": 300000,
+      "sampling": { "temperature": 0.2, "overridable": true },
       "candidates": [
         {
           "provider": "openrouter",

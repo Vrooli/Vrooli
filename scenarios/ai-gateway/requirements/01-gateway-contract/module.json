@@ -60,6 +60,36 @@
           "notes": "Validates that callers cannot smuggle implicit embedding dimensions through provider-specific metadata; full embedding metadata response support remains in progress."
         }
       ]
+    },
+    {
+      "id": "AIGW-CONTRACT-SAMPLING",
+      "title": "Sampling is a declared role stance a caller may override only where the role allows",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-001",
+      "category": "gateway.contract",
+      "criticality": "P1",
+      "description": "The public request carries an optional temperature only. Absent, the role's declared sampling applies; present, it is admitted only by a role declaring overridable, and a role that forbids it must return INVALID_REQUEST with construct sampling.temperature rather than silently overriding or silently ignoring. An explicit 0.0 must stay distinguishable from unset on every surface, because 0.0 is a meaningful deterministic request.",
+      "tags": [
+        "contract",
+        "sampling",
+        "determinism"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/inference/resource_repository_test.go::TestResourceRepositoryRejectsCallerTemperatureOnDeterministicRole",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "A caller temperature sent to a role that has not declared itself overridable is refused by name, and the walk stops rather than trying other candidates that would refuse identically."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/inference/resource_repository_test.go::TestResourceRepositoryDeterministicRoleReachesOpenRouter",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "The determinism invariant holds on the hosted rung too: a role declaring temperature 0 reaches OpenRouter with it, which was previously false because the gateway never passed the flag."
+        }
+      ]
     }
   ]
 }

@@ -16,6 +16,7 @@ import (
 	"ai-gateway/internal/providers/mocks"
 	"ai-gateway/internal/routing"
 	testdb "github.com/vrooli/api-core/databasetest"
+	"google.golang.org/protobuf/proto"
 )
 
 func TestPreviewSelectsLocalFirstAndExplainsFallback(t *testing.T) { // [REQ:AIGW-ROUTE-PREVIEW] [REQ:AIGW-POLICY-CONSTRAINTS]
@@ -203,4 +204,101 @@ func newSchemaDB(t *testing.T) *sql.DB {
 	db := testdb.NewSQLite(t)
 	require.NoError(t, database.EnsureSchemas(context.Background(), db, database.SchemaProviderFunc(routing.Schema)))
 	return db
+}
+
+func TestExecuteSendsCallerTemperatureAndRecordsItInEvidence(t *testing.T) { // [REQ:AIGW-ROUTE-EVIDENCE]
+	runner := roleRunner()
+	runner.Results["resource-ollama policy resolve --role chat.default --json"] = providers.Result{
+		Stdout: `{"role":"chat.default","model":"qwen3.5:9b","sampling_support":{"temperature":"honored"}}`,
+	}
+	runner.Results["resource-ollama gateway generate --role chat.default --json --prompt-stdin --max-tokens 64 --temperature 1.1"] = providers.Result{Stdout: `{"response":"ok","eval_count":1}`}
+	db := newSchemaDB(t)
+	svc := routing.NewService(testAdapters(runner), routing.NewSQLRepository(db))
+
+	req := baseRequest(sharedv1.Profile_PROFILE_LOCAL_ONLY)
+	req.Sampling = &sharedv1.SamplingControls{Temperature: proto.Float64(1.1)}
+	resp, err := svc.Execute(context.Background(), req, "hello")
+	require.NoError(t, err)
+	require.Equal(t, "succeeded", resp.GetEvidence().GetStatus())
+	require.Equal(t, 1.1, resp.GetEvidence().GetSamplingTemperature())
+	require.Equal(t, sharedv1.SamplingSupport_SAMPLING_SUPPORT_HONORED, resp.GetEvidence().GetSamplingTemperatureSupport())
+	require.Equal(t, 1.1, resp.GetApplied().GetTemperatureSent())
+	require.Equal(t, sharedv1.SamplingSupport_SAMPLING_SUPPORT_HONORED, resp.GetApplied().GetTemperatureSupport())
+	require.Equal(t, sharedv1.OutputCapSource_OUTPUT_CAP_SOURCE_REQUEST, resp.GetApplied().GetMaxOutputTokensSource())
+
+	// The durable record must survive the round trip, not only the response.
+	events, err := svc.ListEvidence(context.Background(), routing.EvidenceFilter{Limit: 10})
+	require.NoError(t, err)
+	require.Len(t, events, 1)
+	require.Equal(t, 1.1, events[0].GetSamplingTemperature())
+	require.Equal(t, sharedv1.SamplingSupport_SAMPLING_SUPPORT_HONORED, events[0].GetSamplingTemperatureSupport())
+}
+
+// "No temperature was sent" must stay distinguishable from "0 was sent", or an
+// omitted control reads as a deterministic one in every later query.
+func TestExecuteRecordsAbsentTemperatureAsNullNotZero(t *testing.T) { // [REQ:AIGW-ROUTE-EVIDENCE]
+	runner := roleRunner()
+	runner.Results["resource-ollama gateway generate --role chat.default --json --prompt-stdin --max-tokens 64"] = providers.Result{Stdout: `{"response":"ok","eval_count":1}`}
+	db := newSchemaDB(t)
+	svc := routing.NewService(testAdapters(runner), routing.NewSQLRepository(db))
+
+	resp, err := svc.Execute(context.Background(), baseRequest(sharedv1.Profile_PROFILE_LOCAL_ONLY), "hello")
+	require.NoError(t, err)
+	require.Equal(t, "succeeded", resp.GetEvidence().GetStatus())
+	require.Nil(t, resp.GetEvidence().SamplingTemperature)
+	require.Nil(t, resp.GetApplied().TemperatureSent)
+
+	var stored sql.NullFloat64
+	require.NoError(t, db.QueryRow("SELECT sampling_temperature FROM route_events LIMIT 1").Scan(&stored))
+	require.False(t, stored.Valid, "an omitted control must persist as NULL, not 0")
+}
+
+// A candidate that cannot honor the caller's control is skipped, the walk
+// continues, and the skip never trips a circuit breaker: the provider failed
+// nothing.
+func TestExecuteSkipsCandidateThatCannotHonorRequestedTemperature(t *testing.T) { // [REQ:AIGW-ROUTE-EVIDENCE]
+	runner := roleRunner()
+	runner.Results["resource-ollama policy resolve --role chat.default --json"] = providers.Result{
+		Stdout: `{"role":"chat.default","model":"qwen3.5:9b","sampling_support":{"temperature":"ignored"}}`,
+	}
+	runner.Results["resource-openrouter policy resolve --role chat.default --json"] = providers.Result{
+		Stdout: `{"role":"chat.default","model":"vendor/model","sampling_support":{"temperature":"honored"}}`,
+	}
+	runner.Results["resource-openrouter generate --role chat.default --json --max-tokens 64 --temperature 1.1"] = providers.Result{
+		Stdout: `{"choices":[{"message":{"content":"ok"}}]}`,
+	}
+	db := newSchemaDB(t)
+	svc := routing.NewService(testAdapters(runner), routing.NewSQLRepository(db))
+
+	req := baseRequest(sharedv1.Profile_PROFILE_LOCAL_FIRST)
+	req.Sampling = &sharedv1.SamplingControls{Temperature: proto.Float64(1.1)}
+	resp, err := svc.Execute(context.Background(), req, "hello")
+	require.NoError(t, err)
+	require.Equal(t, "succeeded", resp.GetEvidence().GetStatus())
+	require.Equal(t, "openrouter", resp.GetEvidence().GetSelectedProvider())
+	require.Contains(t, strings.Join(resp.GetEvidence().GetFailureReasons(), " "), "temperature not honored")
+
+	health, err := svc.ListProviderHealth(context.Background())
+	require.NoError(t, err)
+	for _, row := range health {
+		require.NotEqual(t, "ollama", row.GetProvider(),
+			"a sampling mismatch must not be recorded against provider health")
+	}
+}
+
+func TestExecuteFailsWhenNoCandidateHonorsRequestedTemperature(t *testing.T) { // [REQ:AIGW-ROUTE-EVIDENCE]
+	runner := roleRunner()
+	runner.Results["resource-ollama policy resolve --role chat.default --json"] = providers.Result{
+		Stdout: `{"role":"chat.default","model":"qwen3.5:9b","sampling_support":{"temperature":"rejected"}}`,
+	}
+	db := newSchemaDB(t)
+	svc := routing.NewService(testAdapters(runner), routing.NewSQLRepository(db))
+
+	req := baseRequest(sharedv1.Profile_PROFILE_LOCAL_ONLY)
+	req.Sampling = &sharedv1.SamplingControls{Temperature: proto.Float64(1.1)}
+	resp, err := svc.Execute(context.Background(), req, "hello")
+	require.NoError(t, err)
+	require.Equal(t, "failed", resp.GetEvidence().GetStatus())
+	require.Equal(t, string(routing.FailureUnsupportedSampling), resp.GetEvidence().GetFailureClass())
+	require.Empty(t, resp.GetOutputText())
 }

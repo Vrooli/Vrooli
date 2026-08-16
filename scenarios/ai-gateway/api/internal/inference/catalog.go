@@ -31,7 +31,33 @@ type InferenceRole struct {
 	// varies by an order of magnitude between a short enum classification and a
 	// large structured extraction, so the bound is per role rather than global.
 	TimeoutMS int `json:"timeout_ms,omitempty"`
+	// Sampling declares this role's default sampling stance and whether a
+	// caller may override it. A role is deterministic unless its author
+	// deliberately opened it, so Overridable is false by default.
+	Sampling *RoleSampling `json:"sampling,omitempty"`
 }
+
+// RoleSampling is the role's own sampling stance. It replaces the global
+// determinism pin the repository used to carry: determinism is now a property a
+// role declares, which is what lets one catalog serve both a judge that must
+// never drift and a writing role that must.
+type RoleSampling struct {
+	// Temperature is the value the gateway sends when the caller sends none. A
+	// candidate whose provider cannot honour it omits the control and continues
+	// rather than failing: the role author expressed a preference, not a promise.
+	Temperature *float64 `json:"temperature,omitempty"`
+	// Overridable admits a caller-supplied temperature. When false, a caller
+	// that sends one gets INVALID_REQUEST — the role forbids it, which is a
+	// request defect and not provider incapacity.
+	Overridable bool `json:"overridable,omitempty"`
+}
+
+// Sampling bounds — the envelope both resource policies clamp into. A catalog
+// declaring outside it would be silently reshaped downstream, so it fails load.
+const (
+	MinRoleTemperature = 0.0
+	MaxRoleTemperature = 2.0
+)
 
 // Timeout resolves the declared per-role bound, falling back to
 // DefaultRoleTimeout when the catalog leaves it unset.
@@ -73,32 +99,49 @@ func (c RoleCatalog) Validate() error {
 		return fmt.Errorf("inference role catalog has no roles")
 	}
 	for role, definition := range c.Roles {
-		if strings.TrimSpace(role) == "" || len(definition.Candidates) == 0 {
-			return fmt.Errorf("inference role %q has no candidates", role)
+		if err := validateRole(role, definition); err != nil {
+			return err
 		}
-		if definition.TimeoutMS < 0 {
-			return fmt.Errorf("inference role %q timeout_ms must be positive", role)
+	}
+	return nil
+}
+
+func validateRole(role string, definition InferenceRole) error {
+	if strings.TrimSpace(role) == "" || len(definition.Candidates) == 0 {
+		return fmt.Errorf("inference role %q has no candidates", role)
+	}
+	if definition.TimeoutMS < 0 {
+		return fmt.Errorf("inference role %q timeout_ms must be positive", role)
+	}
+	if definition.Timeout() > MaxRoleTimeout {
+		return fmt.Errorf("inference role %q timeout_ms exceeds the %s maximum", role, MaxRoleTimeout)
+	}
+	if sampling := definition.Sampling; sampling != nil && sampling.Temperature != nil {
+		if *sampling.Temperature < MinRoleTemperature || *sampling.Temperature > MaxRoleTemperature {
+			return fmt.Errorf("inference role %q sampling.temperature %.3f is outside [%.1f,%.1f]",
+				role, *sampling.Temperature, MinRoleTemperature, MaxRoleTemperature)
 		}
-		if definition.Timeout() > MaxRoleTimeout {
-			return fmt.Errorf("inference role %q timeout_ms exceeds the %s maximum", role, MaxRoleTimeout)
-		}
-		seen := map[string]struct{}{}
-		for _, candidate := range definition.Candidates {
-			for field, value := range map[string]string{"provider": candidate.Provider, "resource_role": candidate.ResourceRole, "reason": candidate.Reason} {
-				if strings.TrimSpace(value) == "" {
-					return fmt.Errorf("inference role %q candidate %s is required", role, field)
-				}
+	}
+	return validateCandidates(role, definition.Candidates)
+}
+
+func validateCandidates(role string, candidates []Candidate) error {
+	seen := map[string]struct{}{}
+	for _, candidate := range candidates {
+		for field, value := range map[string]string{"provider": candidate.Provider, "resource_role": candidate.ResourceRole, "reason": candidate.Reason} {
+			if strings.TrimSpace(value) == "" {
+				return fmt.Errorf("inference role %q candidate %s is required", role, field)
 			}
-			provider := strings.ToLower(strings.TrimSpace(candidate.Provider))
-			if provider != "ollama" && provider != "openrouter" && provider != "lpbs" {
-				return fmt.Errorf("inference role %q candidate provider %q is unsupported", role, candidate.Provider)
-			}
-			key := provider + ":" + candidate.ResourceRole
-			if _, exists := seen[key]; exists {
-				return fmt.Errorf("inference role %q repeats candidate %q", role, key)
-			}
-			seen[key] = struct{}{}
 		}
+		provider := strings.ToLower(strings.TrimSpace(candidate.Provider))
+		if provider != "ollama" && provider != "openrouter" && provider != "lpbs" {
+			return fmt.Errorf("inference role %q candidate provider %q is unsupported", role, candidate.Provider)
+		}
+		key := provider + ":" + candidate.ResourceRole
+		if _, exists := seen[key]; exists {
+			return fmt.Errorf("inference role %q repeats candidate %q", role, key)
+		}
+		seen[key] = struct{}{}
 	}
 	return nil
 }

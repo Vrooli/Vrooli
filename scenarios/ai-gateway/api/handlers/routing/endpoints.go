@@ -25,7 +25,7 @@ var Endpoints = []module.EndpointDescriptor{
 		Description: "Executes a provider-neutral request through the selected resource command and persists redacted route evidence before returning provider output.",
 		Category:    "routing",
 		Request:     &module.Schema{Type: "ExecuteRouteRequest", Properties: map[string]string{"request": "GatewayRequest", "input_text": "string"}},
-		Response:    &module.Schema{Type: "ExecuteRouteResponse", Properties: map[string]string{"valid": "bool", "issues": "array<ValidationIssue>", "evidence": "RouteEvidence", "output_text": "string", "policy_reasons": "array<string>"}},
+		Response:    &module.Schema{Type: "ExecuteRouteResponse", Properties: map[string]string{"valid": "bool", "issues": "array<ValidationIssue>", "evidence": "RouteEvidence", "output_text": "string", "policy_reasons": "array<string>", "applied": "AppliedSettings"}},
 	},
 	{
 		ID:          "routing_submit_media",

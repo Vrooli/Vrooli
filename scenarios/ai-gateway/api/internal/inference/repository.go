@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"ai-gateway/internal/providers"
 	inferencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/shared"
 )
@@ -20,6 +21,15 @@ type ProviderRequest struct {
 	Profile     sharedv1.Profile
 	Turns       []*inferencev1.Turn
 	Attachments []*sharedv1.Attachment
+	// Temperature is the caller's explicit sampling request, or nil for "use
+	// the role's declared sampling". It is a plain pointer rather than the
+	// proto message so this package does not depend on proto shape for one
+	// scalar.
+	Temperature *float64
+	// MaxOutputTokens is the caller's explicit output cap, or 0 for "use the
+	// resolved resource role's declared cap". It is request-level because the
+	// budget depends on caller data a role cannot know.
+	MaxOutputTokens int32
 }
 
 type ProviderResult struct {
@@ -30,7 +40,48 @@ type ProviderResult struct {
 	InputTokens          int64
 	OutputTokens         int64
 	CostMicros           int64
+	// Applied records what the gateway actually sent and what the resolved role
+	// declares, so a caller records provenance that is true rather than
+	// provenance that echoes its own request.
+	Applied AppliedSettings
 }
+
+// AppliedSettings is the gateway's honest account of one execution. It
+// deliberately has no single "applied temperature": for a provider that accepts
+// and silently discards the control, such a field would have to lie in exactly
+// the case the caller most needs the truth. TemperatureSent and
+// TemperatureSupport are reported separately so the caller can combine them.
+type AppliedSettings struct {
+	// TemperatureSent is the value passed to the provider, nil when the gateway
+	// omitted the control. It is not proof the provider honoured it.
+	TemperatureSent *float64
+	// TemperatureSupport is the resolved role's policy declaration, or empty
+	// when no candidate resolved.
+	TemperatureSupport providers.SamplingSupport
+	// MaxOutputTokens is the cap the gateway imposed and MaxOutputTokensSource
+	// names where it came from. A zero cap with source OutputCapNoneImposed
+	// means the gateway genuinely sent nothing, which is a stronger statement
+	// than "unknown".
+	MaxOutputTokens       int32
+	MaxOutputTokensSource OutputCapSource
+}
+
+// OutputCapSource names where an imposed output cap came from. It reports only
+// what the gateway knows: a provider's own internal default is not visible from
+// here and is never guessed.
+type OutputCapSource string
+
+const (
+	// OutputCapUnspecified means no candidate resolved, so there is nothing to
+	// report.
+	OutputCapUnspecified OutputCapSource = ""
+	// OutputCapRequest means the caller set max_output_tokens.
+	OutputCapRequest OutputCapSource = "request"
+	// OutputCapRolePolicy means the resolved resource role declared the cap.
+	OutputCapRolePolicy OutputCapSource = "role_policy"
+	// OutputCapNoneImposed means the gateway sent no cap at all.
+	OutputCapNoneImposed OutputCapSource = "none_imposed"
+)
 
 type Repository interface {
 	Run(context.Context, ProviderRequest) (ProviderResult, error)

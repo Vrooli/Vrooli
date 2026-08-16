@@ -32,7 +32,17 @@ CREATE TABLE IF NOT EXISTS route_events (
   attachment_bytes INTEGER NOT NULL DEFAULT 0,
   attachment_sha256 TEXT NOT NULL DEFAULT '',
   attachments_redacted INTEGER NOT NULL DEFAULT 1,
-  attachment_dimensions_json TEXT NOT NULL DEFAULT '[]'
+  attachment_dimensions_json TEXT NOT NULL DEFAULT '[]',
+  -- sampling_temperature is nullable because "the gateway sent no temperature"
+  -- is a distinct, meaningful outcome from "the gateway sent 0". Recording it
+  -- as 0 would make an omitted control indistinguishable from a deterministic
+  -- one in every query that reads this column.
+  sampling_temperature REAL,
+  -- sampling_temperature_support is the selected role's policy declaration.
+  -- Both columns are stored because neither is sufficient alone: a provider
+  -- that accepts and silently ignores the control makes a sent value on its own
+  -- a misleading record of the route's conditions.
+  sampling_temperature_support TEXT NOT NULL DEFAULT ''
 );
 
 CREATE INDEX IF NOT EXISTS idx_route_events_created_at ON route_events(created_at DESC);

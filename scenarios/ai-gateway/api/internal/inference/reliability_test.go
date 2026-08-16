@@ -117,11 +117,11 @@ func (r *countingFailingRepository) calls() int {
 
 func TestRoleTimeoutReachesTheProviderCommand(t *testing.T) {
 	runner := &providermocks.FakeRunner{Results: map[string]providers.Result{
-		"resource-ollama policy resolve --role classify.routing --json":                                                                 {Stdout: `{"role":"classify.routing","model":"qwen3.5:4b"}`},
+		"resource-ollama policy resolve --role classify.routing --json":                                                                 {Stdout: `{"role":"classify.routing","model":"qwen3.5:4b","sampling_support":{"temperature":"honored"}}`},
 		"resource-ollama gateway generate --role classify.routing --json --prompt-stdin --temperature 0 --format {\"type\":\"string\"}": {Stdout: `{"response":"\"infra\"","eval_count":2}`},
 	}}
 	catalog := RoleCatalog{SchemaVersion: 1, Roles: map[string]InferenceRole{
-		"classify.fast": {TimeoutMS: 45000, Candidates: []Candidate{{Provider: "ollama", ResourceRole: "classify.routing", Reason: "test"}}},
+		"classify.fast": {TimeoutMS: 45000, Sampling: deterministicRoleSampling(), Candidates: []Candidate{{Provider: "ollama", ResourceRole: "classify.routing", Reason: "test"}}},
 	}}
 	repository, err := NewResourceRepository(catalog, []providers.Adapter{{Provider: providers.ProviderOllama, CommandName: "resource-ollama", Runner: runner}})
 	require.NoError(t, err)

@@ -147,9 +147,10 @@ returning provider output to the caller.
 | | |
 |---|---|
 | **Request** | `ExecuteRouteRequest { request: GatewayRequest, input_text: string }` |
-| **Response** | `ExecuteRouteResponse { valid: bool, issues: repeated ValidationIssue, evidence: RouteEvidence, output_text: string, policy_reasons: repeated string }` |
-| **Persistence** | Fails closed if route evidence cannot be recorded. Evidence stores redaction flags and attachment metadata (count, bytes, hash, dimensions), never raw prompt/response content or image bytes. |
-| **CLI** | `ai-gateway routing execute --role <role> --input <text> [--profile local-first]` |
+| **Response** | `ExecuteRouteResponse { valid: bool, issues: repeated ValidationIssue, evidence: RouteEvidence, output_text: string, policy_reasons: repeated string, applied: AppliedSettings }` |
+| **Sampling** | `request.sampling.temperature` is optional. A candidate whose resolved role does not declare `honored` support is skipped; when none remain the route fails with `failure_class=unsupported_sampling` rather than silently sampling another way. A skipped candidate is never recorded against provider health. |
+| **Persistence** | Fails closed if route evidence cannot be recorded. Evidence stores redaction flags and attachment metadata (count, bytes, hash, dimensions), never raw prompt/response content or image bytes. `sampling_temperature` is nullable so an omitted control stays distinguishable from a deterministic `0`. |
+| **CLI** | `ai-gateway routing execute --role <role> --input <text> [--profile local-first]` — the CLI exposes no sampling flag here; see cli-commands.md. |
 
 #### `POST /vrooli.ai_gateway.v1.routing.RoutingService/ListRouteEvidence`
 
@@ -215,6 +216,36 @@ CLI mirrors: `ai-gateway validation preview-fix --scenario <scenario>`
 and `ai-gateway validation apply-fix --scenario <scenario>` call the
 shared RPCs directly. Apply is currently a documented no-op response
 from the API.
+
+### Inference
+
+#### `POST /vrooli.ai_gateway.v1.inference.InferenceService/Run`
+
+Runs one schema-constrained typed inference request. The gateway submits
+the schema through the provider's native structured-output field and still
+validates the returned value locally.
+
+| | |
+|---|---|
+| **Request** | `RunRequest { source, schema_json, instruction, role, turns, attachments, profile, sampling: SamplingControls, max_output_tokens: int32 }` |
+| **Response** | `RunResponse { value_json, provider, model, validated, usage, error, applied: AppliedSettings }` |
+| **Sampling** | `sampling.temperature` is optional and honoured only by roles declaring `overridable: true`. A closed role refuses with `INVALID_REQUEST` and construct `sampling.temperature`; an overridable role whose candidates all decline returns `UNSUPPORTED_SAMPLING`. Absent the field, the role's declared sampling applies, and a candidate that cannot honour *that* omits it and proceeds. |
+| **Budget** | `max_output_tokens` is request-level because the budget depends on caller data a role cannot know — one role serves a single draft and a k-candidate set, so sizing for either breaks the other. It is bidirectional: a caller may send a tighter cap than the role default. |
+| **Reporting** | `applied` reports `temperature_sent`, `temperature_support`, `max_output_tokens_effective`, and `max_output_tokens_source` on **every** return path including errors — a refused or truncated call is exactly when a caller needs to know the cap. There is deliberately no single "applied temperature": it would have to lie for a provider that accepts and ignores the control. |
+| **CLI** | `ai-gateway inference run --role <role> --schema <path> --source <text> [--temperature <n>] [--max-output-tokens <n>]` |
+
+#### `POST /vrooli.ai_gateway.v1.inference.InferenceService/RunBatch`
+
+Runs an ordered batch of sources against one prompt and schema. Results
+preserve request order, including failed items, and each carries its own
+provider/model and usage accounting.
+
+| | |
+|---|---|
+| **Request** | `RunBatchRequest { items, schema_json, instruction, role }` |
+| **Response** | `RunBatchResponse { results: repeated RunResponse, usage }` |
+| **Sampling** | Intentionally absent. A batch is N inputs against one prompt; per-item sampling has no caller. |
+| **CLI** | `ai-gateway inference run-batch --role <role> --schema <path> --items <path>` |
 
 ---
 

@@ -61,8 +61,9 @@ type ExecutionRequest struct {
 	Timeout         time.Duration
 	// Temperature requests a specific sampling temperature. It is a pointer so
 	// that an explicit 0 (deterministic) is distinguishable from "unset, use
-	// the resource default". Only providers whose CLI exposes the control
-	// honour it; see Adapter.SupportsTemperature.
+	// the resource default". Whether the resolved role's provider actually
+	// applies it is a policy declaration, not something this request can know:
+	// see ResolvedRole.TemperatureSupport.
 	Temperature *float64
 	// SchemaJSON is passed through the provider's native structured-output
 	// request field. The gateway still validates the returned value locally.
@@ -82,6 +83,60 @@ type ResolvedRole struct {
 	CanonicalModel       string
 	Capabilities         []string
 	CoordinateConvention string
+	// SamplingSupport is the resource role's per-parameter declaration of how
+	// its provider treats an explicit sampling control. An absent entry means
+	// SamplingUnknown.
+	SamplingSupport map[string]SamplingSupport
+	// MaxOutputTokens is the cap the resource role declares for callers that
+	// send none, or 0 when the role declares none. Zero is not "unknown": it
+	// means the resource imposes nothing and the provider's own default applies.
+	MaxOutputTokens int32
+}
+
+// SamplingSupport states how a resolved role's provider treats an explicit
+// sampling control. It is read from resource policy and never probed.
+//
+// Probing cannot work, and that is the whole reason this is a declaration:
+// there are three real states and only one is detectable at runtime. A
+// rejection surfaces as an error, but a provider that accepts a control and
+// silently discards it is indistinguishable at the call site from one that
+// honours it — a probe would report success and be wrong.
+type SamplingSupport string
+
+const (
+	// SamplingUnknown means the role declared nothing. Callers treat it as
+	// SamplingIgnored: best effort, no promise.
+	SamplingUnknown SamplingSupport = "unknown"
+	// SamplingHonored means the provider applies the value.
+	SamplingHonored SamplingSupport = "honored"
+	// SamplingIgnored means the provider accepts the field and discards it.
+	SamplingIgnored SamplingSupport = "ignored"
+	// SamplingRejected means the provider fails the request when the field is
+	// present, so the gateway must omit it or route elsewhere.
+	SamplingRejected SamplingSupport = "rejected"
+)
+
+// TemperatureSupport reports how the resolved role's provider treats an
+// explicit temperature. It is read from resource policy, never probed.
+//
+// The metered provider is always SamplingRejected rather than SamplingUnknown,
+// and the distinction is real: LPBS has no temperature field on its wire
+// contract at all, so the gateway cannot transmit the value even in principle.
+// That is provider incapacity, not an undeclared preference.
+func (r ResolvedRole) TemperatureSupport() SamplingSupport {
+	if r.Provider == ProviderMetered {
+		return SamplingRejected
+	}
+	return r.samplingSupport("temperature")
+}
+
+func (r ResolvedRole) samplingSupport(parameter string) SamplingSupport {
+	switch state := r.SamplingSupport[parameter]; state {
+	case SamplingHonored, SamplingIgnored, SamplingRejected:
+		return state
+	default:
+		return SamplingUnknown
+	}
 }
 
 type rolePolicyReport struct {
@@ -178,18 +233,34 @@ func (a Adapter) ResolveRole(ctx context.Context, role string) (ResolvedRole, er
 	if err != nil {
 		return ResolvedRole{}, mapCommandError(a.Provider, err)
 	}
+	// The resources emit sampling and cap declarations alongside the model. The
+	// vocabulary differs by provider — ollama says sampling_defaults/max_tokens
+	// at role level, openrouter nests its cap under request_defaults — so both
+	// shapes are decoded here and normalised into ResolvedRole.
 	var response struct {
-		Role                 string   `json:"role"`
-		Model                string   `json:"model"`
-		Canonical            string   `json:"canonical_model"`
-		Capabilities         []string `json:"capabilities"`
-		CoordinateConvention string   `json:"coordinate_convention"`
+		Role                 string            `json:"role"`
+		Model                string            `json:"model"`
+		Canonical            string            `json:"canonical_model"`
+		Capabilities         []string          `json:"capabilities"`
+		CoordinateConvention string            `json:"coordinate_convention"`
+		SamplingSupport      map[string]string `json:"sampling_support"`
+		MaxTokens            *int32            `json:"max_tokens"`
+		RequestDefaults      *struct {
+			MaxTokens *int32 `json:"max_tokens"`
+		} `json:"request_defaults"`
 	}
 	if err := json.Unmarshal([]byte(result.Stdout), &response); err != nil {
 		return ResolvedRole{}, &CommandError{Code: "malformed_json", Command: a.command().String(), ExitCode: result.ExitCode, Stderr: result.Stderr, Err: err}
 	}
 	if strings.TrimSpace(response.Role) != role || strings.TrimSpace(response.Model) == "" {
 		return ResolvedRole{}, &CommandError{Code: "invalid_role_resolution", Command: a.command().String(), ExitCode: result.ExitCode, Err: fmt.Errorf("resource returned role %q and model %q for requested role %q", response.Role, response.Model, role)}
+	}
+	var maxOutputTokens int32
+	switch {
+	case response.MaxTokens != nil:
+		maxOutputTokens = *response.MaxTokens
+	case response.RequestDefaults != nil && response.RequestDefaults.MaxTokens != nil:
+		maxOutputTokens = *response.RequestDefaults.MaxTokens
 	}
 	return ResolvedRole{
 		Provider:             a.Provider,
@@ -198,7 +269,34 @@ func (a Adapter) ResolveRole(ctx context.Context, role string) (ResolvedRole, er
 		CanonicalModel:       response.Canonical,
 		Capabilities:         sortedUnique(response.Capabilities),
 		CoordinateConvention: strings.TrimSpace(response.CoordinateConvention),
+		SamplingSupport:      parseSamplingSupport(response.SamplingSupport),
+		MaxOutputTokens:      maxOutputTokens,
 	}, nil
+}
+
+// parseSamplingSupport normalises the resource's declared states. An
+// unrecognised value degrades to SamplingUnknown rather than failing the
+// resolution: the resources validate their own vocabulary on load, and a
+// gateway that refused to route on an unfamiliar string would turn a future
+// resource-side addition into a fleet outage.
+func parseSamplingSupport(declared map[string]string) map[string]SamplingSupport {
+	if len(declared) == 0 {
+		return nil
+	}
+	out := make(map[string]SamplingSupport, len(declared))
+	for parameter, state := range declared {
+		switch SamplingSupport(strings.ToLower(strings.TrimSpace(state))) {
+		case SamplingHonored:
+			out[parameter] = SamplingHonored
+		case SamplingIgnored:
+			out[parameter] = SamplingIgnored
+		case SamplingRejected:
+			out[parameter] = SamplingRejected
+		default:
+			out[parameter] = SamplingUnknown
+		}
+	}
+	return out
 }
 
 func (a Adapter) Smoke(ctx context.Context) SmokeResult {
@@ -354,6 +452,12 @@ func (a Adapter) openRouterExecutionCommand(req ExecutionRequest, role string, i
 	}
 	if req.MaxOutputTokens > 0 {
 		args = append(args, "--max-tokens", fmt.Sprintf("%d", req.MaxOutputTokens))
+	}
+	// Absent this flag the resource falls through to its role's declared
+	// request_defaults.temperature. Passing it only when the gateway actually
+	// has a value keeps that fallback reachable instead of pinning every call.
+	if req.Temperature != nil {
+		args = append(args, "--temperature", strconv.FormatFloat(*req.Temperature, 'g', -1, 64))
 	}
 	if strings.TrimSpace(req.SchemaJSON) != "" {
 		if !json.Valid([]byte(req.SchemaJSON)) {

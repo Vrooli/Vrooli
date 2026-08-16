@@ -7,7 +7,10 @@ import (
 	"strings"
 	"sync"
 
+	"ai-gateway/internal/providers"
 	inferencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/shared"
+	"google.golang.org/protobuf/proto"
 )
 
 var ErrUnavailable = errors.New("typed inference is unavailable")
@@ -63,17 +66,17 @@ func (s *Service) runWithSchema(ctx context.Context, request ProviderRequest, sc
 		}
 		result, err := s.repository.Run(ctx, attemptRequest)
 		response.Provider, response.Model = result.Provider, result.Model
+		// Applied is set before the error branch: a refused or truncated call is
+		// exactly when a caller needs to know what the gateway would have sent.
+		response.Applied = appliedSettings(result.Applied)
 		// Usage accumulates across attempts so a caller is billed for the work
 		// actually performed, not only for the attempt that happened to land.
 		addUsage(response.Usage, usage(result))
 		if err != nil {
 			// Provider failures are not retried here: the repository already
 			// walks every declared candidate before reporting one.
-			code := inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_PROVIDER_FAILED
-			if errors.Is(err, ErrUnavailable) {
-				code = inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_UNAVAILABLE
-			}
-			return withError(response, code, err.Error(), "")
+			code, construct := samplingErrorCode(err)
+			return withError(response, code, err.Error(), construct)
 		}
 		response.ValueJson = result.ValueJSON
 		if strings.TrimSpace(request.Role) == "locate.visual" {
@@ -182,4 +185,70 @@ func schemaConstruct(err error) string {
 		return schemaErr.Construct
 	}
 	return ""
+}
+
+// samplingConstruct names the offending control on a sampling refusal, matching
+// how UNSUPPORTED_SCHEMA names the offending keyword.
+const samplingConstruct = "sampling.temperature"
+
+// samplingErrorCode separates the two sampling failures, which look alike and
+// are not. A role that forbids overrides is a request defect the caller can fix
+// by not sending one; a provider that cannot honour the control is incapacity
+// no request change would repair. Collapsing them would tell the caller to fix
+// the wrong thing.
+func samplingErrorCode(err error) (inferencev1.InferenceErrorCode, string) {
+	switch {
+	case errors.Is(err, ErrRoleForbidsSampling):
+		return inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_INVALID_REQUEST, samplingConstruct
+	case errors.Is(err, ErrUnsupportedSampling):
+		return inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_UNSUPPORTED_SAMPLING, samplingConstruct
+	case errors.Is(err, ErrUnavailable):
+		return inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_UNAVAILABLE, ""
+	default:
+		return inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_PROVIDER_FAILED, ""
+	}
+}
+
+// appliedSettings projects the repository's account onto the wire. A support
+// state the gateway never resolved stays UNSPECIFIED rather than being reported
+// as a declared "unknown" — the two mean different things to a caller comparing
+// candidate sets.
+func appliedSettings(applied AppliedSettings) *sharedv1.AppliedSettings {
+	out := &sharedv1.AppliedSettings{
+		TemperatureSupport:       samplingSupportProto(applied.TemperatureSupport),
+		MaxOutputTokensEffective: applied.MaxOutputTokens,
+		MaxOutputTokensSource:    outputCapSourceProto(applied.MaxOutputTokensSource),
+	}
+	if applied.TemperatureSent != nil {
+		out.TemperatureSent = proto.Float64(*applied.TemperatureSent)
+	}
+	return out
+}
+
+func samplingSupportProto(support providers.SamplingSupport) sharedv1.SamplingSupport {
+	switch support {
+	case providers.SamplingHonored:
+		return sharedv1.SamplingSupport_SAMPLING_SUPPORT_HONORED
+	case providers.SamplingIgnored:
+		return sharedv1.SamplingSupport_SAMPLING_SUPPORT_IGNORED
+	case providers.SamplingRejected:
+		return sharedv1.SamplingSupport_SAMPLING_SUPPORT_REJECTED
+	case providers.SamplingUnknown:
+		return sharedv1.SamplingSupport_SAMPLING_SUPPORT_UNKNOWN
+	default:
+		return sharedv1.SamplingSupport_SAMPLING_SUPPORT_UNSPECIFIED
+	}
+}
+
+func outputCapSourceProto(source OutputCapSource) sharedv1.OutputCapSource {
+	switch source {
+	case OutputCapRequest:
+		return sharedv1.OutputCapSource_OUTPUT_CAP_SOURCE_REQUEST
+	case OutputCapRolePolicy:
+		return sharedv1.OutputCapSource_OUTPUT_CAP_SOURCE_ROLE_POLICY
+	case OutputCapNoneImposed:
+		return sharedv1.OutputCapSource_OUTPUT_CAP_SOURCE_NONE_IMPOSED
+	default:
+		return sharedv1.OutputCapSource_OUTPUT_CAP_SOURCE_UNSPECIFIED
+	}
 }
