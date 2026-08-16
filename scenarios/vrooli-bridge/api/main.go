@@ -29,6 +29,7 @@ import (
 	internalqueue "vrooli-bridge/internal/queue"
 	internalreadiness "vrooli-bridge/internal/readiness"
 	internalregistry "vrooli-bridge/internal/registry"
+	internalrelay "vrooli-bridge/internal/relay"
 	internalruns "vrooli-bridge/internal/runs"
 	"vrooli-bridge/internal/server"
 	internalsession "vrooli-bridge/internal/session"
@@ -64,6 +65,7 @@ import (
 	queueH "vrooli-bridge/handlers/queue"
 	readinessH "vrooli-bridge/handlers/readiness"
 	registryH "vrooli-bridge/handlers/registry"
+	relayH "vrooli-bridge/handlers/relay"
 	runsH "vrooli-bridge/handlers/runs"
 )
 
@@ -356,6 +358,8 @@ func main() {
 		Resolver:            authResolver,
 		JWKSGrace:           postureDefaults.JWKSCacheGrace,
 		BreakGlassPublicKey: breakGlassPublic,
+		BreakGlassAudience:  strings.TrimSpace(os.Getenv("VROOLI_BREAK_GLASS_AUDIENCE")),
+		BreakGlassTarget:    strings.TrimSpace(os.Getenv("VROOLI_BREAK_GLASS_TARGET")),
 	})
 
 	// The presence hub is the in-memory view of which nodes hold a dial-out
@@ -593,6 +597,15 @@ func main() {
 	// adapter — every cross-OS gate validation run flows through the same
 	// allowlist + per-node scopes + audit gate as any other job.
 	dispatchSvc := dispatchH.NewService(registrySvc, runsSvc, auditStore, presenceHub, scheduler)
+	// Relay reuses the same node reader, presence gate, manifest-derived
+	// admission, signed channel transport, and append-only audit sink. Its
+	// response broker is wired into the node-facing Presence RPC below, so a
+	// caller cancellation and a node terminal response share one correlation.
+	relayBroker := internalrelay.NewBroker()
+	relaySvc := relayH.NewService(
+		registrySvc, presenceHub, auditStore,
+		queueH.NewChannelRelayPusher(presenceHub, cpKeypair), relayBroker,
+	)
 
 	srv := server.New(
 		server.Deps{Clock: clk, Logger: logger},
@@ -613,13 +626,18 @@ func main() {
 		attachedH.Module(db.Primary(), logger, presenceHub),
 		channelH.Module(presenceHub, nodeLastSeen, nodeVerifier, logger,
 			channelH.WithDeliveryAckRecorder(runsSvc), channelH.WithAuditSink(auditStore),
-			channelH.WithSessionManager(sessionManager, authClient, registrySvc), channelH.WithSessionPush(pushSession)),
+			channelH.WithSessionManager(sessionManager, authClient, registrySvc), channelH.WithSessionPush(pushSession),
+			channelH.WithRelayResponseSink(relayBroker)),
 		pairingH.Module(pairingSvc, cpKeypair.PublicKeyBase64(), postureDefaults.NodeExecutionScopes, logger),
 		// dispatch (OT-P0-004): the allowlist gate. It reads node scopes
 		// (registrySvc), checks presence + protocol compatibility, creates durable
 		// runs (runsSvc), audits (auditStore), and submits typed jobs to the
 		// per-node scheduler (bounded concurrency on the channel-push path).
 		dispatchH.Module(dispatchSvc, logger),
+		// relay (OT-P1): owner-gated short-lived command calls. Admission is
+		// delegated to the same dispatch policy before the signed node frame is
+		// emitted; the response is bounded and correlated to this call.
+		relayH.Module(relaySvc, logger),
 		// runs (OT-P0-005): durable run lifecycle + node-facing event ingest.
 		runsH.Module(runsSvc, nodeVerifier, logger),
 		// queue (OT-P1-004): read-only control-plane view over the per-node

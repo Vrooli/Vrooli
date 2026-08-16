@@ -104,15 +104,26 @@ type commandArchObservation struct {
 // It also emits arch.claimed_maturity_violation when a top-level exceptions[]
 // entry names a command that is actually a normal manifest-bound proto command
 // (a false special-case claim — gating).
-func architectureStaticFindings(m *cliapp.Manifest, evidence ArchitectureEvidence, manifestPath string) []Finding {
+func architectureStaticFindings(m *cliapp.Manifest, evidence ArchitectureEvidence, manifestPath, target string) []Finding {
 	var findings []Finding
 
 	for _, g := range m.Groups {
 		for _, c := range g.Commands {
-			// Local commands are deliberately outside the Connect-RPC primitive
-			// contract. Requiring a proto primitive for them turns the honest
-			// migration posture (binding.kind=local) into false architecture debt.
+			// Scenario targets validate the scenario's existing CLI contract and
+			// intentionally leave local commands alone. The project target is the
+			// migration-governance gate: every local root command is explicit debt
+			// until it moves behind a typed proto binding.
 			if c.Binding.Kind != "connect-rpc" {
+				if isProjectTarget(target) {
+					label := groupCmd(g.Name, c.Name)
+					findings = append(findings, Finding{
+						Severity:   SeverityError,
+						Code:       CodeProjectCommandNotProtoBound,
+						Location:   commandLocation(manifestPath, g.Name, c.Name),
+						Message:    fmt.Sprintf("project command %q is not proto-bound (binding.kind=%q)", label, c.Binding.Kind),
+						Suggestion: "add a typed CLI proto method and register the command through cliapp.LoadFromManifest, or record the migration in the project CLI follow-up plan",
+					})
+				}
 				continue
 			}
 			obs := commandArchObservation{

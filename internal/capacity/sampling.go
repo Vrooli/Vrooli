@@ -46,7 +46,7 @@ func observedBytesForOwner(ctx context.Context, claim CapacityClaim, snapshot ho
 			continue
 		}
 		a := attr.Attribute(ctx, proc.PID)
-		for _, cand := range []string{a.OwnerID, NormalizeOwnerName(a.ContainerName), strings.TrimPrefix(a.ContainerName, "/")} {
+		for _, cand := range []string{a.OwnerID, NormalizeOwnerName(a.ContainerName), strings.TrimPrefix(a.ContainerName, "/"), NormalizeProcessOwner(proc.ProcessName)} {
 			cand = strings.TrimSpace(cand)
 			if cand == "" || cand == OwnerUnknown {
 				continue

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/vrooli/vrooli/internal/cliinstall"
 	"github.com/vrooli/vrooli/internal/dockerhost"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
@@ -19,6 +20,17 @@ func NewHandler(manifest hostreqkit.ToolManifest) hostreqkit.Handler {
 
 func (h handler) Name() string           { return h.manifest.Name }
 func (h handler) Kind() hostreqspec.Kind { return hostreqspec.KindTool }
+
+// ReconcilePresent lets the runtime perform the provider-ledger side effect
+// even when the Docker CLI/daemon is already healthy. Generic tools retain
+// their cheap already-present fast path; Docker needs this reconciliation so
+// the selected runtime endpoint is durable.
+func (h handler) ReconcilePresent(host hostreqkit.Host, status hostreqkit.ItemStatus, opts hostreqkit.EnsureOptions) (hostreqkit.ItemStatus, error) {
+	if opts.DryRun {
+		return status, nil
+	}
+	return h.Apply(host, status, opts)
+}
 
 func (h handler) Inspect(host hostreqkit.Host, requirement hostreqspec.ResolvedRequirement) hostreqkit.ItemStatus {
 	status := hostreqkit.BaseStatus(requirement)
@@ -44,7 +56,12 @@ func (h handler) Inspect(host hostreqkit.Host, requirement hostreqspec.ResolvedR
 	}
 
 	status.Version = hostreqkit.ReadVersion(status.Command, h.manifest.VersionArgs)
-	health := dockerhost.InspectHealth()
+	health := inspectHealthFn()
+	decision := resolveProvider(host, health)
+	status.SelectedProvider = decision.Provider
+	if decision.Reason != "" {
+		status.Notes = append(status.Notes, "container-runtime provider: "+decision.Provider+" ("+decision.Reason+")")
+	}
 	if health.InfoOK {
 		status.Installed = true
 		status.ExecutionState = hostreqkit.ExecutionAlreadyPresent
@@ -72,8 +89,15 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 		}
 	}
 
-	health := dockerhost.InspectHealth()
+	health := inspectHealthFn()
+	decision := resolveProvider(host, health)
+	status.SelectedProvider = decision.Provider
 	if health.InfoOK {
+		if err := recordRuntimeProvider(decision); err != nil {
+			status.ExecutionState = hostreqkit.ExecutionFailed
+			status.Notes = append(status.Notes, "record container-runtime provider: "+err.Error())
+			return status, nil
+		}
 		return markDockerHealthy(status, hostreqkit.ExecutionAlreadyPresent), nil
 	}
 	if health.PermissionDenied {
@@ -83,13 +107,34 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 		status.Notes = append(status.Notes, dockerHealthNotes(host, health)...)
 		return status, nil
 	}
+	if decision.Provider == ProviderOrbStack || decision.Provider == ProviderRancherDesktop || decision.Provider == ProviderDockerDesktop {
+		status.Installed = false
+		status.ExecutionState = hostreqkit.ExecutionManualActionRequired
+		status.BlockingReason = hostreqkit.BlockingManual
+		status.Notes = append(status.Notes, decision.ManualAction)
+		return status, nil
+	}
+	if decision.Provider == ProviderColima {
+		return h.ensureColima(host, status, opts, decision)
+	}
+	if decision.Provider == ProviderWindowsManual || decision.Provider == "" || (host.OS != "linux" && decision.Provider != ProviderRemoteDaemon) {
+		status.Installed = false
+		status.ExecutionState = hostreqkit.ExecutionManualActionRequired
+		status.BlockingReason = hostreqkit.BlockingManual
+		status.Notes = append(status.Notes, decision.ManualAction)
+		return status, nil
+	}
 	if host.OS != "linux" || !host.SupportsSystemd {
 		status.Installed = false
 		status.ExecutionState = hostreqkit.ExecutionManualActionRequired
 		status.BlockingReason = hostreqkit.BlockingManual
-		status.Notes = append(status.Notes, dockerHealthNotes(host, health)...)
+		status.Notes = append(status.Notes, "a Linux systemd Docker Engine is required for the selected repair path")
 		return status, nil
 	}
+	return h.repairLinuxDaemon(status, host, health, opts, decision)
+}
+
+func (h handler) repairLinuxDaemon(status hostreqkit.ItemStatus, host hostreqkit.Host, health dockerhost.Health, opts hostreqkit.EnsureOptions, decision ProviderDecision) (hostreqkit.ItemStatus, error) {
 	if opts.DryRun {
 		status.Installed = false
 		status.ExecutionState = hostreqkit.ExecutionWouldApply
@@ -124,14 +169,77 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 		}
 		return status, nil
 	}
-	health = dockerhost.InspectHealth()
+	health = inspectHealthFn()
 	if health.InfoOK {
+		decision.Ready = true
+		if err := recordRuntimeProvider(decision); err != nil {
+			status.Installed = false
+			status.ExecutionState = hostreqkit.ExecutionFailed
+			status.Notes = append(status.Notes, "record container-runtime provider: "+err.Error())
+			return status, nil
+		}
 		return markDockerHealthy(status, hostreqkit.ExecutionApplied), nil
 	}
 	status.Installed = false
 	status.ExecutionState = hostreqkit.ExecutionFailed
 	status.Notes = append(status.Notes, dockerHealthNotes(host, health)...)
 	return status, nil
+}
+
+func (h handler) ensureColima(host hostreqkit.Host, status hostreqkit.ItemStatus, opts hostreqkit.EnsureOptions, decision ProviderDecision) (hostreqkit.ItemStatus, error) {
+	colimaBefore := cliinstall.ObservedAbsent
+	colimaAction := cliinstall.ActionInstalled
+	if _, err := hostreqkit.LookPathFn("colima"); err == nil {
+		colimaBefore = cliinstall.ObservedPresent
+		colimaAction = cliinstall.ActionAdopted
+	} else {
+		command, args, installErr := hostreqkit.InstallCommand(host, "colima", opts.SudoMode)
+		if installErr != nil {
+			status.ExecutionState = hostreqkit.ExecutionUnsupported
+			status.SupportClass = hostreqkit.SupportUnsupported
+			status.Notes = append(status.Notes, "Colima cannot be installed automatically: "+installErr.Error())
+			return status, nil
+		}
+		if opts.DryRun {
+			status.ExecutionState = hostreqkit.ExecutionWouldApply
+			status.Notes = append(status.Notes, fmt.Sprintf("dry-run: would install Colima with %s %s and start it headlessly", command, strings.Join(args, " ")))
+			return status, nil
+		}
+		if err := hostreqkit.RunInstallCommandWithProvenance(command, args, opts, hostreqkit.InstallProvenanceRequest{
+			PackageManager: host.PackageManager,
+			PackageName:    "colima",
+			VersionCommand: "colima",
+			VersionArgs:    []string{"version"},
+		}); err != nil {
+			status.ExecutionState = hostreqkit.ExecutionFailed
+			status.Notes = append(status.Notes, "install Colima: "+err.Error())
+			return status, nil
+		}
+	}
+	if opts.DryRun {
+		status.ExecutionState = hostreqkit.ExecutionWouldApply
+		status.Notes = append(status.Notes, "dry-run: would start Colima with `colima start`")
+		return status, nil
+	}
+	if err := hostreqkit.RunCommandFn("colima", []string{"start"}, opts); err != nil {
+		status.ExecutionState = hostreqkit.ExecutionFailed
+		status.Notes = append(status.Notes, "start Colima: "+err.Error())
+		return status, nil
+	}
+	if health := inspectHealthFn(); !health.InfoOK {
+		status.ExecutionState = hostreqkit.ExecutionFailed
+		status.Notes = append(status.Notes, "Colima started but Docker is not reachable: "+dockerhost.DiagnosticLine(health.Detail))
+		return status, nil
+	}
+	decision.ObservedBefore = colimaBefore
+	decision.Action = colimaAction
+	decision.Ready = true
+	if err := recordRuntimeProvider(decision); err != nil {
+		status.ExecutionState = hostreqkit.ExecutionFailed
+		status.Notes = append(status.Notes, "record container-runtime provider: "+err.Error())
+		return status, nil
+	}
+	return markDockerHealthy(status, hostreqkit.ExecutionApplied), nil
 }
 
 func markDockerHealthy(status hostreqkit.ItemStatus, state hostreqkit.ExecutionState) hostreqkit.ItemStatus {
@@ -229,7 +337,7 @@ func dockerHealthNotes(host hostreqkit.Host, health dockerhost.Health) []string 
 	case host.OS == "linux" && host.SupportsSystemd:
 		notes = append(notes, "Re-run as `sudo vrooli setup` or pass --sudo-mode=ask to repair and start Docker")
 	case host.OS == "darwin" || host.OS == "windows":
-		notes = append(notes, "Start Docker Desktop, then re-run `vrooli setup`")
+		notes = append(notes, "Start a Docker-compatible container runtime, then re-run `vrooli setup`")
 	default:
 		notes = append(notes, "Start the Docker daemon, then re-run `vrooli setup`")
 	}

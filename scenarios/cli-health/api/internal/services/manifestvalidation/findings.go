@@ -18,27 +18,27 @@ const (
 
 // Finding codes — stable, machine-readable strings. Tooling filters by code.
 const (
-	CodeManifestMissing      = "manifest.missing"
-	CodeManifestRequired     = "manifest.required"
-	CodeManifestParseError   = "manifest.parse_error"
-	CodeManifestSchemaError  = "manifest.schema_error"
-	CodeProtoBuildFailed     = "proto.build_failed"
-	CodeBindingUnknownSvc    = "binding.unknown_service"
-	CodeBindingUnknownMethod = "binding.unknown_method"
-	CodeBindingDuplicate     = "binding.duplicate"
-	CodeBindingArgUnmapped   = "binding.arg_unmapped"
-	CodeBindingAmbiguousSvc  = "binding.ambiguous_service"
-	CodeBindingFieldCollision = "binding.field_collision"
-	CodeBindingControlFlagBound = "binding.control_flag_bound"
+	CodeManifestMissing                 = "manifest.missing"
+	CodeManifestRequired                = "manifest.required"
+	CodeManifestParseError              = "manifest.parse_error"
+	CodeManifestSchemaError             = "manifest.schema_error"
+	CodeProtoBuildFailed                = "proto.build_failed"
+	CodeBindingUnknownSvc               = "binding.unknown_service"
+	CodeBindingUnknownMethod            = "binding.unknown_method"
+	CodeBindingDuplicate                = "binding.duplicate"
+	CodeBindingArgUnmapped              = "binding.arg_unmapped"
+	CodeBindingAmbiguousSvc             = "binding.ambiguous_service"
+	CodeBindingFieldCollision           = "binding.field_collision"
+	CodeBindingControlFlagBound         = "binding.control_flag_bound"
 	CodeBindingRequiredFieldUnpopulated = "binding.required_field_unpopulated"
-	CodeBindingBindWhereRenameSuffices = "binding.bind_where_rename_suffices"
+	CodeBindingBindWhereRenameSuffices  = "binding.bind_where_rename_suffices"
 	// CodeBindingScalarBoundToMessage fires when a single CLI value targets a
 	// structured proto field with no structured decoder. The argument resolves,
 	// so callability checks pass, but protojson cannot build the message from a
 	// bare scalar and the call fails or silently drops the value at runtime.
 	CodeBindingScalarBoundToMessage = "binding.scalar_bound_to_message"
-	CodeProtoOrphanMethod    = "proto.orphan_method"
-	CodeOmissionOrphan       = "omission.orphan"
+	CodeProtoOrphanMethod           = "proto.orphan_method"
+	CodeOmissionOrphan              = "omission.orphan"
 
 	// Measure-block codes (Phase 2 of the measures plan). Static well-formedness
 	// only — coverage/expected/waived domain grading is measures-health's job.
@@ -53,11 +53,13 @@ const (
 	// statically. Degrades to a warning when the binary is simply absent in the
 	// run context (see the runtimeprobe seam) — never hard-fails a scenario whose
 	// CLI is not installed here.
-	CodeCLIBinaryUnrunnable        = "cli.binary_unrunnable"            // declared CLI surface but binary cannot be resolved in this run context
-	CodeCLIHelpFailed              = "cli.help_failed"                  // binary resolves but `--help` errors / produces nothing
-	CodeCLICommandUndeclared       = "cli.command_undeclared"           // runtime command surface diverges from the manifest
-	CodeCLIDiscoveryCoverage       = "cli.discovery_coverage_low"       // manifest does not cover the observed runtime surface
-	CodeOmissionContradictsCommand = "cli.omission_contradicts_command" // omission says a live command is absent
+	CodeCLIBinaryUnrunnable         = "cli.binary_unrunnable"            // declared CLI surface but binary cannot be resolved in this run context
+	CodeCLIHelpFailed               = "cli.help_failed"                  // binary resolves but `--help` errors / produces nothing
+	CodeCLICommandUndeclared        = "cli.command_undeclared"           // runtime command surface diverges from the manifest
+	CodeCLIDiscoveryCoverage        = "cli.discovery_coverage_low"       // manifest does not cover the observed runtime surface
+	CodeOmissionContradictsCommand  = "cli.omission_contradicts_command" // omission says a live command is absent
+	CodeProjectCLIEmpty             = "project.cli_empty"                // project target emitted no runtime commands
+	CodeProjectCommandNotProtoBound = "project.command_not_proto_bound"  // project command remains on the local binding path
 
 	// CLI entrypoint-structure codes. These are static Go checks over cli/main.go,
 	// scoped to the process boundary only. They do not replace architecture or

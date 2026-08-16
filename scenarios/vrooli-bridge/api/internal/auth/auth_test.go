@@ -98,10 +98,11 @@ func TestBreakGlassValidatorIsOfflineAndDistinct(t *testing.T) {
 	now := time.Unix(1000, 0).UTC()
 	token, err := trustposture.Issue(private, trustposture.BreakGlassClaims{
 		Subject: "owner-1", Audience: AuthExpectedAudience,
+		Target: "host-a",
 		Scopes: []string{"vrooli-bridge:read"}, IssuedAt: now.Unix(), ExpiresAt: now.Add(time.Minute).Unix(),
 	})
 	require.NoError(t, err)
-	c := NewClient(Config{Now: func() time.Time { return now }, BreakGlassPublicKey: public})
+	c := NewClient(Config{Now: func() time.Time { return now }, BreakGlassPublicKey: public, BreakGlassTarget: "host-a"})
 	id, err := c.ValidateBreakGlass(context.Background(), token)
 	require.NoError(t, err)
 	require.Equal(t, "owner-1", id.OwnerID)

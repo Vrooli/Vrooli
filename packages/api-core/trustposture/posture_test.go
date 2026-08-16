@@ -35,6 +35,18 @@ func TestDefaultsAreCompleteAndDefensive(t *testing.T) {
 	}
 }
 
+func TestPersonalDefaultsExcludeDestructiveBridgeScope(t *testing.T) {
+	d, err := DefaultsFor(Personal)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, scope := range d.NodeExecutionScopes {
+		if scope == "vrooli-bridge:destructive" {
+			t.Fatal("personal posture must not grant destructive bridge execution")
+		}
+	}
+}
+
 // Keeps the table test sensitive to accidental unit changes without making
 // the production policy depend on a test-only override.
 const DefaultsForTestTTL = time.Hour

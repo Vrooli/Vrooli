@@ -20,6 +20,35 @@ func TestAllowUsesDerivedScopeBindings(t *testing.T) {
 	}
 }
 
+func TestAllowUsesProjectCatalogVocabulary(t *testing.T) {
+	if err := Allow(Job{Verb: "scenario status"}, []string{"vrooli-bridge:read"}, DefaultManifest); err != nil {
+		t.Fatalf("cataloged project read command should be admitted: %v", err)
+	}
+	if err := Allow(Job{Verb: "scenario stop-all"}, []string{"vrooli-bridge:read", "vrooli-bridge:write"}, DefaultManifest); err == nil {
+		t.Fatal("cataloged destructive project command must require its destructive scope")
+	}
+	if err := Allow(Job{Verb: "scenario stop-all"}, []string{"vrooli-bridge:destructive"}, DefaultManifest); err != nil {
+		t.Fatalf("destructive scope should admit cataloged destructive command: %v", err)
+	}
+}
+
+func TestAllowPreservesMinimouseCurrentVerbScopes(t *testing.T) {
+	scopes := []string{
+		"vrooli-bridge:write",
+		"vrooli-bridge:session",
+		"scenario status*",
+		"scenario start*",
+		"scenario wait*",
+		"scenario logs*",
+		"scenario test*",
+	}
+	for _, verb := range []string{"scenario status", "scenario start", "scenario wait", "scenario logs", "scenario test", "scenario stop"} {
+		if err := Allow(Job{Verb: verb, Scenario: "web-search"}, scopes, DefaultManifest); err != nil {
+			t.Fatalf("minimouse scope should continue to admit %q: %v", verb, err)
+		}
+	}
+}
+
 func TestAllowDeviceControlVerbsAreExplicitlyGoverned(t *testing.T) {
 	if err := Allow(Job{Verb: "device-control observe", Scenario: "device-control"}, []string{"vrooli-bridge:read"}, DefaultManifest); err != nil {
 		t.Fatalf("read scope should authorize observation: %v", err)

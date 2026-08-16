@@ -4,9 +4,11 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/vrooli/api-core/scopecatalog"
+	"github.com/vrooli/api-core/targetmodel"
 	repocontract "github.com/vrooli/repo-contract-go"
 )
 
@@ -20,16 +22,24 @@ import (
 var dispatchManifestJSON []byte
 
 type manifestArtifact struct {
-	Entries []struct {
+	// DefaultGrants documents the effect-level grants a newly trusted node may
+	// receive. It is separate from the admitted vocabulary: all cataloged
+	// commands are known to Allow, while a node still needs the matching effect
+	// scope to execute one.
+	DefaultGrants []string `json:"default_grants"`
+	Bindings      []struct {
+		Verb   string `json:"verb"`
+		Effect string `json:"effect"`
+	} `json:"typed_bindings"`
+	Outputs []struct {
 		Verb    string `json:"verb"`
-		Effect  string `json:"effect"`
-		Outputs []struct {
+		Entries []struct {
 			Name       string `json:"name"`
 			MediaType  string `json:"media_type"`
 			OutputFlag string `json:"output_flag"`
 			MaxBytes   int64  `json:"max_bytes"`
-		} `json:"outputs"`
-	} `json:"entries"`
+		} `json:"entries"`
+	} `json:"outputs"`
 }
 
 // DefaultManifest is the constructor's immutable artifact input for the pure
@@ -54,21 +64,65 @@ func loadManifest() []string {
 	if err := json.Unmarshal(dispatchManifestJSON, &artifact); err != nil {
 		panic(fmt.Sprintf("decode dispatch manifest: %v", err))
 	}
-	result := make([]string, 0, len(artifact.Entries))
-	for _, entry := range artifact.Entries {
-		if trimmed := strings.TrimSpace(entry.Verb); trimmed != "" {
-			effect := strings.TrimSpace(entry.Effect)
-			if effect != string(scopecatalog.EffectRead) && effect != string(scopecatalog.EffectWrite) && effect != string(scopecatalog.EffectDestructive) {
-				panic(fmt.Sprintf("dispatch manifest entry %q has invalid governance effect %q", trimmed, effect))
-			}
-			required := "vrooli-bridge:" + effect
-			if !catalog.HasScope(required) {
-				panic(fmt.Sprintf("dispatch manifest entry %q requires missing derived scope %q", trimmed, required))
-			}
-			result = append(result, encodeManifestEntry(trimmed, []string{required}))
+	validateDefaultGrants(catalog, artifact.DefaultGrants)
+	bindings := make([]string, 0, len(artifact.Bindings))
+	overrides := make(map[string]struct{}, len(artifact.Bindings))
+	for _, entry := range artifact.Bindings {
+		trimmed := strings.TrimSpace(entry.Verb)
+		if trimmed == "" {
+			continue
+		}
+		effect := strings.TrimSpace(entry.Effect)
+		if effect != string(scopecatalog.EffectRead) && effect != string(scopecatalog.EffectWrite) && effect != string(scopecatalog.EffectDestructive) {
+			panic(fmt.Sprintf("dispatch manifest entry %q has invalid governance effect %q", trimmed, effect))
+		}
+		required := "vrooli-bridge:" + effect
+		if !catalog.HasScope(required) {
+			panic(fmt.Sprintf("dispatch manifest entry %q requires missing derived scope %q", trimmed, required))
+		}
+		overrides[trimmed] = struct{}{}
+		bindings = append(bindings, encodeManifestEntry(trimmed, []string{required}))
+	}
+
+	// Project CLI command names are the dispatch vocabulary. Their governance
+	// effects come from the same catalog used by agent-manager and posture
+	// validation, so adding a governed root command cannot silently leave the
+	// node admission surface stale.
+	result := make([]string, 0, len(catalog.Scopes)+len(artifact.Bindings))
+	for _, scope := range catalog.Scopes {
+		if scope.Scenario != scopecatalog.ProjectManifestIdentity || strings.TrimSpace(scope.Command) == "" {
+			continue
+		}
+		verb := strings.ReplaceAll(scope.Command, "/", " ")
+		if _, overridden := overrides[verb]; overridden {
+			continue
+		}
+		effect := string(scope.Effect)
+		required := "vrooli-bridge:" + effect
+		if !catalog.HasScope(required) {
+			panic(fmt.Sprintf("project command %q requires missing derived scope %q", scope.Command, required))
+		}
+		result = append(result, encodeManifestEntry(verb, []string{required}))
+	}
+	result = append(result, bindings...)
+	sort.Slice(result, func(i, j int) bool { return result[i] < result[j] })
+	return result
+}
+
+func validateDefaultGrants(catalog scopecatalog.Catalog, grants []string) {
+	for _, grant := range grants {
+		grant = strings.TrimSpace(grant)
+		if grant == "" {
+			panic("dispatch manifest contains an empty default grant")
+		}
+		if grant != string(scopecatalog.EffectRead) && grant != string(scopecatalog.EffectWrite) && grant != string(scopecatalog.EffectDestructive) {
+			panic(fmt.Sprintf("dispatch manifest contains invalid default grant %q", grant))
+		}
+		required := "vrooli-bridge:" + grant
+		if !catalog.HasScope(required) {
+			panic(fmt.Sprintf("dispatch default grant %q requires missing derived scope %q", grant, required))
 		}
 	}
-	return result
 }
 
 func loadManifestOutputs() map[string][]ArtifactOutput {
@@ -77,15 +131,15 @@ func loadManifestOutputs() map[string][]ArtifactOutput {
 		panic(fmt.Sprintf("decode dispatch manifest outputs: %v", err))
 	}
 	result := make(map[string][]ArtifactOutput)
-	for _, entry := range artifact.Entries {
-		verb := strings.TrimSpace(entry.Verb)
-		if verb == "" || len(entry.Outputs) == 0 {
+	for _, output := range artifact.Outputs {
+		verb := strings.TrimSpace(output.Verb)
+		if verb == "" || len(output.Entries) == 0 {
 			continue
 		}
-		for _, output := range entry.Outputs {
+		for _, entry := range output.Entries {
 			result[verb] = append(result[verb], ArtifactOutput{
-				Name: strings.TrimSpace(output.Name), MediaType: strings.TrimSpace(output.MediaType),
-				OutputFlag: strings.TrimSpace(output.OutputFlag), MaxBytes: output.MaxBytes,
+				Name: strings.TrimSpace(entry.Name), MediaType: strings.TrimSpace(entry.MediaType),
+				OutputFlag: strings.TrimSpace(entry.OutputFlag), MaxBytes: entry.MaxBytes,
 			})
 		}
 	}
@@ -196,14 +250,5 @@ func manifestEntryScopes(entry string) []string {
 // character — an interior `*` is treated literally, so a scope can never be
 // tricked into matching across the namespace boundary.
 func scopeMatches(scope, verb string) bool {
-	switch {
-	case scope == "":
-		return false
-	case scope == "*":
-		return true
-	case strings.HasSuffix(scope, "*"):
-		return strings.HasPrefix(verb, strings.TrimSuffix(scope, "*"))
-	default:
-		return scope == verb
-	}
+	return targetmodel.ScopeAllows([]string{scope}, verb)
 }

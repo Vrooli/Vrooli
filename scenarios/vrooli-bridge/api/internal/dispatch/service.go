@@ -114,17 +114,14 @@ func (s *service) Dispatch(ctx context.Context, in DispatchInput) (Decision, err
 		return Decision{}, err
 	}
 
-	// 2. A revoked node can run nothing.
-	if node.Revoked {
-		s.auditReject(ctx, in, "node revoked")
-		return Decision{}, ErrNodeRevoked{ID: job.NodeID}
-	}
-	if node.Kind != "" && node.Kind != "agent" {
-		s.auditReject(ctx, in, "node kind does not support agent dispatch")
-		return Decision{}, ErrUnsupportedNodeKind{ID: job.NodeID, Kind: node.Kind}
+	// 2. The shared admission gate — used by both durable dispatch and the
+	// short-lived channel relay so their decisions cannot drift.
+	if err := Admit(job, node, s.manifest); err != nil {
+		s.auditReject(ctx, in, err.Error())
+		return Decision{}, err
 	}
 
-	// 3. The allowlist gate — the heart of OT-P0-004. A rejection here is
+	// 3. The allowlist gate has completed. A rejection here is
 	//    audited and surfaced before any run is created or anything is pushed.
 	if err := Allow(job, node.Scopes, s.manifest); err != nil {
 		s.auditReject(ctx, in, err.Error())
@@ -196,6 +193,22 @@ func (s *service) Dispatch(ctx context.Context, in DispatchInput) (Decision, err
 	}
 
 	return Decision{RunID: runID, Job: job, Queued: queued}, nil
+}
+
+// Admit applies the complete node/job authorization decision without causing
+// side effects. Durable dispatch and channel relay both call this function so
+// a command receives the same typed refusal before either path can reach a
+// node. The manifest is explicit to keep tests and future manifest versions
+// deterministic.
+func Admit(job Job, node TargetNode, manifest []string) error {
+	job = job.trimmed()
+	if node.Revoked {
+		return ErrNodeRevoked{ID: job.NodeID}
+	}
+	if node.Kind != "" && node.Kind != "agent" {
+		return ErrUnsupportedNodeKind{ID: job.NodeID, Kind: node.Kind}
+	}
+	return Allow(job, node.Scopes, manifest)
 }
 
 // auditReject records a denied dispatch. It is best-effort: a rejection stands

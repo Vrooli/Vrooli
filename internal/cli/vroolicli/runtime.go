@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -33,6 +34,7 @@ import (
 	"github.com/vrooli/vrooli/internal/cli/rootcli"
 	"github.com/vrooli/vrooli/internal/cli/scenariocli"
 	"github.com/vrooli/vrooli/internal/cli/scenariohandlers"
+	"github.com/vrooli/vrooli/internal/cli/scenarioprimitives"
 	"github.com/vrooli/vrooli/internal/cli/topcli"
 	"github.com/vrooli/vrooli/internal/cliinstall"
 	"github.com/vrooli/vrooli/internal/cliout"
@@ -73,6 +75,7 @@ type Config struct {
 	EnsureResourceCLIFn   func(string, string, string) error
 	RunScenarioSubprocess func(scenarioexec.SubprocessSpec) error
 	ScenarioExecutableFn  func() (string, error)
+	NewUninstallerFn      func(string, string) (cliinstall.Uninstaller, error)
 }
 
 type App struct {
@@ -91,6 +94,7 @@ type App struct {
 	EnsureResourceCLIFn   func(string, string, string) error
 	RunScenarioSubprocess func(scenarioexec.SubprocessSpec) error
 	ScenarioExecutableFn  func() (string, error)
+	NewUninstallerFn      func(string, string) (cliinstall.Uninstaller, error)
 
 	registry *rootcli.Registry[*CommandContext]
 
@@ -136,6 +140,7 @@ func New(config Config) *App {
 		EnsureResourceCLIFn:   config.EnsureResourceCLIFn,
 		RunScenarioSubprocess: config.RunScenarioSubprocess,
 		ScenarioExecutableFn:  config.ScenarioExecutableFn,
+		NewUninstallerFn:      config.NewUninstallerFn,
 	}
 	if app.HomeDirFn == nil {
 		app.HomeDirFn = config.HomeDirFn
@@ -795,11 +800,25 @@ func (app *App) installRuntimeSupervisor(ctx *CommandContext, args []string) err
 	if err != nil {
 		return err
 	}
+	if err := cliinstall.RecordServiceInstall(home, cliinstall.ScopeRuntime, result.UnitPath, nativeServiceManager(), result.UnitName, result.Scope); err != nil {
+		return fmt.Errorf("record runtime supervisor install: %w", err)
+	}
 	if ctx.Globals.JSON {
 		return writeCliSupervisorServiceResultJSON(ctx.Stdout, result)
 	}
 	_, _ = fmt.Fprintf(ctx.Stdout, "Installed runtime supervisor service: %s\n", result.UnitPath)
 	return nil
+}
+
+func nativeServiceManager() string {
+	switch runtime.GOOS {
+	case "darwin":
+		return "launchd"
+	case "linux":
+		return "systemd"
+	default:
+		return runtime.GOOS
+	}
 }
 
 func (app *App) uninstallRuntimeSupervisor(ctx *CommandContext, args []string) error {
@@ -985,6 +1004,8 @@ func (app *App) buildTopLevelHandlerMap() map[topcli.CommandID]rootcli.Handler[*
 		topcli.CommandCapability:       func(ctx *CommandContext, args []string) error { return app.runCapabilityCommand(ctx, args) },
 		topcli.CommandCredentials:      func(ctx *CommandContext, args []string) error { return ctx.app.runCredentialsCommand(ctx, args) },
 		topcli.CommandReleaseAuthority: func(ctx *CommandContext, args []string) error { return ctx.app.runReleaseAuthorityCommand(ctx, args) },
+		topcli.CommandBreakGlass:       func(ctx *CommandContext, args []string) error { return ctx.app.runBreakGlassCommand(ctx, args) },
+		topcli.CommandUninstall:        func(ctx *CommandContext, args []string) error { return ctx.app.runUninstallCommand(ctx, args) },
 		topcli.CommandLifecycle:        projectcli.LifecycleHandler(commandStdout, func(ctx *CommandContext, args []string) error { return ctx.app.runLifecycleProtectCommand(ctx, args) }),
 	}
 	templateValidationCleanupHandler := projectcli.TemplateValidationCleanupHandler(commandStdout, projectOutputFormat, func(ctx *CommandContext, req projectcli.TemplateValidationCleanupRequest) (projectcli.TemplateValidationCleanupResponse, error) {
@@ -1156,7 +1177,7 @@ func projectTemplateValidationCleanupOptions(req projectcli.TemplateValidationCl
 }
 
 func (app *App) buildScenarioHandlerMap() map[scenariocli.CommandID]rootcli.Handler[*CommandContext] {
-	return scenariohandlers.BuildHandlers(scenariohandlers.HandlerDeps[*CommandContext]{
+	handlers := scenariohandlers.BuildHandlers(scenariohandlers.HandlerDeps[*CommandContext]{
 		Stdout:       commandStdout,
 		Stderr:       func(ctx *CommandContext) io.Writer { return ctx.Stderr },
 		Root:         func(ctx *CommandContext) string { return ctx.Root },
@@ -1188,6 +1209,9 @@ func (app *App) buildScenarioHandlerMap() map[scenariocli.CommandID]rootcli.Hand
 		RunSubprocess: func(ctx *CommandContext, spec scenarioexec.SubprocessSpec) error {
 			return ctx.app.RunScenarioSubprocess(spec)
 		},
+		RemoteScenarioCall: func(ctx *CommandContext, node, scenario string, jsonOutput bool) ([]byte, error) {
+			return ctx.app.remoteScenarioStatus(ctx, node, scenario, jsonOutput)
+		},
 		LocateTestGenieCLI: func(ctx *CommandContext) (string, error) {
 			home, err := ctx.HomeDir()
 			if err != nil {
@@ -1213,6 +1237,10 @@ func (app *App) buildScenarioHandlerMap() map[scenariocli.CommandID]rootcli.Hand
 			return ctx.app.CommandEnv(ctx.Root, ctx.Globals)
 		},
 	})
+	handlers[scenariocli.CommandList] = func(ctx *CommandContext, args []string) error {
+		return scenarioprimitives.Run(ctx.Root, append([]string{"list"}, args...), ctx.Globals.JSON, ctx.Stdout, ctx.Stderr)
+	}
+	return handlers
 }
 
 func primeRootEnv(root string) {

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"path/filepath"
 	"regexp"
 	"runtime"
 	"slices"
@@ -444,6 +445,12 @@ func Validate(manifest ResourceManifest) error {
 			}
 			if strings.ContainsRune(value, '\x00') {
 				return fmt.Errorf("managed_service.environment value for %q contains NUL", key)
+			}
+		}
+		if path := strings.TrimSpace(manifest.ManagedService.EnvironmentFile); path != "" {
+			clean := filepath.Clean(path)
+			if filepath.IsAbs(path) || clean == "." || clean == ".." || strings.HasPrefix(clean, ".."+string(filepath.Separator)) {
+				return fmt.Errorf("managed_service.environment_file must be a non-empty relative path under RESOURCE_DATA_DIR")
 			}
 		}
 	}

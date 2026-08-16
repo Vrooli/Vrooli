@@ -287,7 +287,7 @@ func TestLoadResourceEnvironmentSupportsNativeDerivedURLs(t *testing.T) {
 		Name:    "ollama",
 		Driver:  "docker-service",
 		Ports:   []manifestpkg.ResourcePort{{Name: "http", Container: 11434, Host: 11434}},
-		Runtime: manifestpkg.ResourceRuntime{Image: "ollama/ollama:1.0.0"},
+		Runtime: manifestpkg.ResourceRuntime{Image: "example/inference-service:1.0.0"},
 		EnvironmentExports: manifestpkg.ResourceEnvironmentExports{
 			Static:    map[string]string{"OLLAMA_HOST": "localhost"},
 			FromPorts: map[string]string{"OLLAMA_PORT": "http"},

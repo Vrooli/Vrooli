@@ -22,6 +22,7 @@ import (
 	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/dockerhost"
 	"github.com/vrooli/vrooli/internal/hostreq"
+	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 	"github.com/vrooli/vrooli/internal/lifecycle"
 	"github.com/vrooli/vrooli/internal/orchestrator"
@@ -44,7 +45,10 @@ const (
 	onboardingSkipEnv  = "VROOLI_SKIP_ONBOARDING"
 )
 
-var inspectDockerHealthFn = dockerhost.InspectHealth
+var (
+	inspectDockerHealthFn    = dockerhost.InspectHealth
+	ensureContainerRuntimeFn = vrooliruntime.EnsureTool
+)
 
 var launchOnboardingAsOperatorFn = launchOnboardingAsOperator
 
@@ -103,6 +107,7 @@ type setupDeps struct {
 	markComplete                func(string, string) error
 	syncResourceSchema          func(string) error
 	newCLIInstallManager        func(root, home string) (cliInstallManager, error)
+	recordProjectInstall        func(root, home string) error
 	resolveHostRequirements     func(root, home string, opts hostreq.ResolveOptions) (hostreq.Resolution, error)
 	inspectRequirements         func(environment string, resolution hostreq.Resolution) (vrooliruntime.Report, error)
 	ensureRequirements          func(opts vrooliruntime.EnsureOptions, resolution hostreq.Resolution) (vrooliruntime.Report, error)
@@ -135,6 +140,7 @@ func defaultSetupDeps() setupDeps {
 		newCLIInstallManager: func(root, home string) (cliInstallManager, error) {
 			return cliinstall.NewManager(root, home)
 		},
+		recordProjectInstall:    cliinstall.RecordProjectSetup,
 		resolveHostRequirements: hostreq.Resolve,
 		inspectRequirements:     vrooliruntime.InspectRequirements,
 		ensureRequirements:      vrooliruntime.EnsureRequirements,
@@ -331,6 +337,9 @@ func (s *setupService) RunSetupWithOptions(root, home string, opts Options, stdo
 	}
 	if err := installSelectedCLIs(cliManager, opts.Resources, opts.Scenarios); err != nil {
 		return err
+	}
+	if err := s.deps.recordProjectInstall(root, home); err != nil {
+		return fmt.Errorf("record project install inventory: %w", err)
 	}
 	if err := s.deps.markComplete(home, root); err != nil {
 		return err
@@ -562,42 +571,7 @@ func bootstrapToolSatisfied(status vrooliruntime.ItemStatus) bool {
 }
 
 func recoverHostToolPATH(home string) {
-	current := filepath.SplitList(os.Getenv("PATH"))
-	seen := make(map[string]struct{}, len(current))
-	for _, dir := range current {
-		seen[filepath.Clean(dir)] = struct{}{}
-	}
-	candidates := []string{
-		"/opt/homebrew/bin",
-		"/usr/local/go/bin",
-		"/usr/local/bin",
-		filepath.Join(home, "go", "bin"),
-		filepath.Join(home, ".local", "bin"),
-	}
-	if localAppData := strings.TrimSpace(os.Getenv("LOCALAPPDATA")); localAppData != "" {
-		candidates = append(candidates, filepath.Join(localAppData, "Microsoft", "WinGet", "Links"))
-	}
-	candidates = append(candidates, filepath.Join(home, "AppData", "Local", "Microsoft", "WinGet", "Links"))
-	if runtimeBin, err := repocontract.RuntimeHomeEntryPath(home, repocontract.HomeKeyBin); err == nil {
-		candidates = append(candidates, runtimeBin)
-	}
-	prepend := make([]string, 0, len(candidates))
-	for _, dir := range candidates {
-		clean := filepath.Clean(dir)
-		if _, ok := seen[clean]; ok {
-			continue
-		}
-		info, err := os.Stat(clean)
-		if err != nil || !info.IsDir() {
-			continue
-		}
-		prepend = append(prepend, clean)
-		seen[clean] = struct{}{}
-	}
-	if len(prepend) == 0 {
-		return
-	}
-	_ = os.Setenv("PATH", strings.Join(append(prepend, current...), string(os.PathListSeparator)))
+	_ = os.Setenv("PATH", hostreqkit.AugmentUserToolPath(home, os.Getenv("PATH"), os.Getenv("LOCALAPPDATA")))
 }
 
 func RunBuild(root, home string, stdout, stderr io.Writer) error {
@@ -809,7 +783,10 @@ func configureGit(root string) error {
 
 func (s *setupService) maybeInstallResources(root, home string, opts Options, stdout, stderr io.Writer) error {
 	selection := strings.TrimSpace(opts.Resources)
-	if selection == "" || selection == "none" {
+	if selection == "" {
+		selection = "enabled"
+	}
+	if selection == "none" {
 		return nil
 	}
 
@@ -819,7 +796,7 @@ func (s *setupService) maybeInstallResources(root, home string, opts Options, st
 		if err != nil {
 			return err
 		}
-		if err := preflightDockerResources(root, home, names); err != nil {
+		if err := preflightDockerResources(root, home, names, opts); err != nil {
 			return err
 		}
 		for _, name := range names {
@@ -838,7 +815,7 @@ func (s *setupService) maybeInstallResources(root, home string, opts Options, st
 		}
 		names = append(names, name)
 	}
-	if err := preflightDockerResources(root, home, names); err != nil {
+	if err := preflightDockerResources(root, home, names, opts); err != nil {
 		return err
 	}
 	for _, name := range names {
@@ -849,7 +826,7 @@ func (s *setupService) maybeInstallResources(root, home string, opts Options, st
 	return nil
 }
 
-func preflightDockerResources(root, home string, names []string) error {
+func preflightDockerResources(root, home string, names []string, setupOpts ...Options) error {
 	if len(names) == 0 {
 		return nil
 	}
@@ -868,15 +845,36 @@ func preflightDockerResources(root, home string, names []string) error {
 	if len(needsDocker) == 0 {
 		return nil
 	}
-	health := inspectDockerHealthFn()
-	if health.InfoOK {
+	if len(setupOpts) == 0 {
+		// Keep the narrow helper seam used by callers that only want to inspect
+		// readiness. The setup apply path below supplies Options and performs
+		// the provider ladder's repair/provisioning step.
+		health := inspectDockerHealthFn()
+		if health.InfoOK {
+			return nil
+		}
+		detail := strings.TrimSpace(health.Detail)
+		if detail == "" {
+			detail = "Docker daemon is not reachable"
+		}
+		return fmt.Errorf("selected resources require Docker (%s), but Docker is not healthy: %s", strings.Join(needsDocker, ", "), dockerhost.DiagnosticLine(detail))
+	}
+	applyOpts := setupOpts[0]
+	status, err := ensureContainerRuntimeFn("docker", vrooliruntime.EnsureOptions{
+		Environment: applyOpts.Environment, SudoMode: applyOpts.SudoMode, DryRun: applyOpts.DryRun,
+		AutoInstall: true, IncludeOptional: applyOpts.IncludeOptional, MaintenanceWindow: applyOpts.MaintenanceWindow,
+	})
+	if err != nil {
+		return fmt.Errorf("selected resources require Docker (%s), but container-runtime setup failed: %w", strings.Join(needsDocker, ", "), err)
+	}
+	if status.Installed || applyOpts.DryRun {
 		return nil
 	}
-	detail := strings.TrimSpace(health.Detail)
-	if detail == "" {
-		detail = "Docker daemon is not reachable"
+	detail := "container runtime is not ready"
+	if len(status.Notes) > 0 {
+		detail = status.Notes[len(status.Notes)-1]
 	}
-	return fmt.Errorf("selected resources require Docker (%s), but Docker is not healthy: %s", strings.Join(needsDocker, ", "), dockerhost.DiagnosticLine(detail))
+	return fmt.Errorf("selected resources require Docker (%s), but container-runtime setup did not complete (provider=%s, state=%s): %s", strings.Join(needsDocker, ", "), status.SelectedProvider, status.ExecutionState, detail)
 }
 
 type resourceRunner interface {

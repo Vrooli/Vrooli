@@ -2822,3 +2822,30 @@ func TestNewRunnerUsesEnvironmentOverrideForScenarioPreflight(t *testing.T) {
 		t.Fatalf("Environment = %q, want production", runner.Environment)
 	}
 }
+
+func TestLifecycleStepEnvAugmentsUserToolPath(t *testing.T) {
+	home := t.TempDir()
+	for _, relative := range []string{"go/bin", ".local/bin", "bin", ".vrooli/bin"} {
+		if err := os.MkdirAll(filepath.Join(home, relative), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	existing := strings.Join([]string{"/opt/homebrew/bin", "/usr/local/go/bin", "/usr/local/bin"}, string(os.PathListSeparator))
+	env := lifecycleStepEnv("setup", map[string]string{
+		"HOME": home,
+		"PATH": existing,
+	})
+	pathEntries := strings.Split(envValue(env, "PATH"), string(os.PathListSeparator))
+	wantPrefix := []string{
+		filepath.Join(home, "go", "bin"),
+		filepath.Join(home, ".local", "bin"),
+		filepath.Join(home, "bin"),
+		filepath.Join(home, ".vrooli", "bin"),
+	}
+	if len(pathEntries) < len(wantPrefix) || !strings.EqualFold(strings.Join(pathEntries[:len(wantPrefix)], "\x00"), strings.Join(wantPrefix, "\x00")) {
+		t.Fatalf("PATH prefix = %v, want %v", pathEntries, wantPrefix)
+	}
+	if got := envValue(env, "CI"); got != "true" {
+		t.Fatalf("CI = %q, want true", got)
+	}
+}

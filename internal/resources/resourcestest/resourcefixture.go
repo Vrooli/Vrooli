@@ -418,6 +418,13 @@ case "$cmd" in
       exit 1
     fi
     ;;
+  network)
+    if [[ "${1:-}" == "inspect" && -f "$state_file" ]]; then
+      exit 0
+    fi
+    echo "Error: No such network" >&2
+    exit 1
+    ;;
   inspect)
     if [[ -f "$state_file" ]]; then
       state="$(tr -d '\n' < "$state_file")"

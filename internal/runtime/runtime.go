@@ -46,6 +46,17 @@ func EnsureTool(name string, opts EnsureOptions) (ItemStatus, error) {
 	}
 	status := inspectRequirement(host, requirement)
 	if status.ExecutionState == hostreqkit.ExecutionAlreadyPresent {
+		if reconciler, ok := lookupHandler(requirement.Kind, requirement.Name); ok == nil && reconciler != nil {
+			if present, supported := reconciler.(interface {
+				ReconcilePresent(host Host, status ItemStatus, opts EnsureOptions) (ItemStatus, error)
+			}); supported {
+				updated, reconcileErr := present.ReconcilePresent(host, status, opts)
+				if reconcileErr != nil {
+					return status, reconcileErr
+				}
+				return annotateBlockingReason(updated), nil
+			}
+		}
 		return status, nil
 	}
 	updated, err := applyRequirement(host, status, opts)

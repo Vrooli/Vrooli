@@ -116,6 +116,9 @@ func (p *FilesystemArchitectureEvidence) manifestPath(ctx context.Context, scena
 	if root := scenarioPathFrom(ctx); root != "" {
 		return filepath.Join(root, "cli", "manifest.json"), nil
 	}
+	if isProjectTarget(scenario) {
+		return filepath.Join(p.RepoRoot, "cli", "manifest.json"), nil
+	}
 	path, err := repocontract.ScenarioCLIManifestPath(p.RepoRoot, scenario)
 	if err != nil {
 		return "", fmt.Errorf("resolve manifest path: %w", err)

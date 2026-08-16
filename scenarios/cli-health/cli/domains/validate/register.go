@@ -17,6 +17,7 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 	h := newHandlers(core)
 	bindings := map[string]cliapp.PrimitiveHandler{
 		"ScenarioValidationService.ValidateScenario": cliapp.ProtoListOutcome(h.scenarioCall, h.scenarioReport, h.scenarioOutcome),
+		"ScenarioValidationService.ValidateTarget":   cliapp.ProtoListOutcome(h.projectCall, h.projectReport, h.projectOutcome),
 	}
 	group, err := cliapp.LoadFromManifestPrimitives(manifest, GroupName, bindings)
 	if err != nil {

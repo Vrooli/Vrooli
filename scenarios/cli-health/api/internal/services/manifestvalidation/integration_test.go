@@ -8,7 +8,9 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/vrooli/cli-core/cliapp"
 	repocontract "github.com/vrooli/repo-contract-go"
 )
 
@@ -94,6 +96,80 @@ func TestIntegration_CLIHealthReachesVerifiedL4(t *testing.T) {
 		if archDebt[f.Code] {
 			t.Errorf("cli-health should be a verified-L4 reference adopter but has %s: %s @ %s", f.Code, f.Message, f.Location)
 		}
+	}
+}
+
+// TestIntegration_ProjectTargetUsesRootAssets proves that the project target
+// is not accidentally resolved as scenarios/repo: it loads cli/manifest.json,
+// builds packages/proto/schemas/cli, and applies the same binding checks while
+// preserving the project-specific architecture debt signal.
+func TestIntegration_ProjectTargetUsesRootAssets(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in -short mode")
+	}
+	requireBuf(t)
+
+	root := findRepoRoot(t)
+	svc := New(Deps{
+		Manifests:            NewFilesystemManifestLoader(root),
+		Schema:               NewJSONSchemaValidator(root),
+		Protos:               NewBufProtoLoader(root),
+		ArchitectureEvidence: NewFilesystemArchitectureEvidence(root),
+	})
+	report, err := svc.ValidateTarget(context.Background(), Target{Kind: TargetKindProject, ID: ProjectTargetID})
+	if err != nil {
+		t.Fatalf("ValidateTarget(project): %v", err)
+	}
+	if report.Scenario != ProjectTargetID {
+		t.Fatalf("project report scenario = %q, want %q", report.Scenario, ProjectTargetID)
+	}
+	for _, finding := range report.Findings {
+		switch finding.Code {
+		case CodeManifestRequired, CodeManifestMissing, CodeProtoBuildFailed,
+			CodeProtoOrphanMethod, CodeBindingUnknownSvc, CodeBindingUnknownMethod:
+			t.Errorf("root project assets did not reconcile: %s: %s", finding.Code, finding.Message)
+		}
+	}
+}
+
+// TestIntegration_ProjectTargetRuntimeSurface captures the live root CLI
+// observation when the control-plane executable is available. A missing local
+// executable is an environment degradation, not a project manifest failure.
+func TestIntegration_ProjectTargetRuntimeSurface(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in -short mode")
+	}
+	root := findRepoRoot(t)
+	probe := NewCLIRuntimeProbe(10 * time.Second)
+	obs, err := probe.Probe(context.Background(), ProjectTargetID)
+	if err != nil {
+		t.Fatalf("probe project CLI: %v", err)
+	}
+	if !obs.Resolved {
+		t.Skip("vrooli executable is not available on PATH")
+	}
+	if obs.HelpFailed {
+		t.Fatalf("project CLI help failed: %s", obs.HelpError)
+	}
+	if len(obs.Commands) == 0 {
+		t.Fatal("project CLI emitted no runtime commands")
+	}
+
+	loader := NewFilesystemManifestLoader(root)
+	raw, path, err := loader.Load(context.Background(), ProjectTargetID)
+	if err != nil {
+		t.Fatalf("load project manifest: %v", err)
+	}
+	manifest, err := cliapp.ParseManifest(raw)
+	if err != nil {
+		t.Fatalf("parse project manifest: %v", err)
+	}
+	findings := runtimeFindingsForTarget(obs, manifest, path, ProjectTargetID)
+	for _, finding := range findings {
+		t.Logf("project runtime finding: %s: %s @ %s", finding.Code, finding.Message, finding.Location)
+	}
+	if findingByCode(findings, CodeProjectCLIEmpty) != nil {
+		t.Fatal("non-empty project runtime surface was classified as empty")
 	}
 }
 

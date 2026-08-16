@@ -397,6 +397,27 @@ func TestRenderManagedServiceEnvironmentUsesResolvedPort(t *testing.T) {
 	}
 }
 
+func TestReadManagedServiceEnvironmentFileIsResourceOwnedAndOverridesDefaults(t *testing.T) {
+	root := t.TempDir()
+	dataRoot := filepath.Join(root, "data")
+	if err := os.MkdirAll(dataRoot, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dataRoot, "active.env"), []byte("# selected model\nRERANKER_MODEL=small-model\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	values, err := readManagedServiceEnvironmentFile("active.env", []string{"RESOURCE_DATA_DIR=" + dataRoot})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if values["RERANKER_MODEL"] != "small-model" {
+		t.Fatalf("RERANKER_MODEL = %q, want small-model", values["RERANKER_MODEL"])
+	}
+	if _, err := readManagedServiceEnvironmentFile("../active.env", []string{"RESOURCE_DATA_DIR=" + dataRoot}); err == nil {
+		t.Fatal("environment file traversal unexpectedly succeeded")
+	}
+}
+
 func TestManagedServiceArtifactPathUsesInstalledSignedArtifactStore(t *testing.T) {
 	root := t.TempDir()
 	home := filepath.Join(root, "home")

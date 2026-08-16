@@ -77,6 +77,12 @@ type Catalog struct {
 	ScenariosWithoutManifest    []string            `json:"scenarios_without_manifest,omitempty"`
 }
 
+// ProjectManifestIdentity is the stable scope namespace for the root CLI.
+// Scenario manifests use their own names, so the project CLI remains a
+// separate identity even when a scenario happens to expose similarly named
+// commands.
+const ProjectManifestIdentity = "vrooli"
+
 type manifest struct {
 	Name    string             `json:"name"`
 	Groups  []manifestGroup    `json:"groups"`
@@ -112,11 +118,12 @@ type manifestOmission struct {
 	Reason  string `json:"reason"`
 }
 
-// Build reads and schema-validates every scenario CLI manifest, deriving its
-// scopes and omitted-RPC defaults. The returned catalog is deterministic.
+// Build reads and schema-validates the project CLI manifest and every scenario
+// CLI manifest, deriving their scopes and omitted-RPC defaults. The returned
+// catalog is deterministic.
 func Build(repoRoot string) (Catalog, error) {
-	root := filepath.Join(repoRoot, "scenarios")
-	paths, err := manifestPaths(root)
+	scenariosRoot := filepath.Join(repoRoot, "scenarios")
+	paths, err := manifestPaths(repoRoot)
 	if err != nil {
 		return Catalog{}, err
 	}
@@ -146,10 +153,20 @@ func Build(repoRoot string) (Catalog, error) {
 		if strings.TrimSpace(m.Name) == "" {
 			return Catalog{}, fmt.Errorf("manifest %s has an empty name", path)
 		}
-		manifestScenarios[m.Name] = struct{}{}
+		if filepath.Clean(path) == filepath.Join(repoRoot, "cli", "manifest.json") {
+			// The root manifest's name is the public project CLI identity. Keep
+			// this explicit instead of inferring it from a filesystem directory,
+			// which prevents a scenario named "vrooli" from colliding with it.
+			m.Name = ProjectManifestIdentity
+		} else {
+			if m.Name == ProjectManifestIdentity {
+				return Catalog{}, fmt.Errorf("scenario manifest %s collides with project scope identity %q", path, ProjectManifestIdentity)
+			}
+			manifestScenarios[m.Name] = struct{}{}
+		}
 		deriveManifest(&catalog, m)
 	}
-	for _, scenario := range scenarioDirectories(root) {
+	for _, scenario := range scenarioDirectories(scenariosRoot) {
 		if _, ok := manifestScenarios[scenario]; !ok {
 			catalog.ScenariosWithoutManifest = append(catalog.ScenariosWithoutManifest, scenario)
 		}
@@ -249,8 +266,12 @@ func deriveManifest(catalog *Catalog, m manifest) {
 	}
 }
 
-func manifestPaths(root string) ([]string, error) {
-	var paths []string
+func manifestPaths(repoRoot string) ([]string, error) {
+	// Keep the project manifest in the same sorted input set as scenario
+	// manifests. Derivation order is therefore stable even though the final
+	// catalog is sorted independently for consumers.
+	root := filepath.Join(repoRoot, "scenarios")
+	paths := []string{filepath.Join(repoRoot, "cli", "manifest.json")}
 	err := filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
 		if err != nil {
 			return err

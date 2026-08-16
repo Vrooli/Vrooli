@@ -247,7 +247,7 @@ func (c *Controller) resourceControl() *resourcecontrol.Service {
 		IsDeprecatedFn:    c.IsDeprecated,
 		IsBlueprintArchFn: c.IsBlueprintArchived,
 		LoadManifestFn: func(path string) (ResourceManifest, error) {
-			return manifestpkg.Load(path)
+			return c.LoadManifest(path)
 		},
 		DriverStatusFn: func(ctx context.Context, item catalogpkg.Resource, manifest ResourceManifest, fast bool) (resourcecontrol.Status, error) {
 			driver, err := driverForManifest(manifest)

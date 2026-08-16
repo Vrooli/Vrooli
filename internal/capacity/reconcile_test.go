@@ -2,6 +2,8 @@ package capacity
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/vrooli/vrooli/internal/hostinventory"
@@ -112,5 +114,52 @@ func TestNormalizeOwnerName(t *testing.T) {
 		if got := NormalizeOwnerName(in); got != want {
 			t.Errorf("NormalizeOwnerName(%q) = %q, want %q", in, got, want)
 		}
+	}
+}
+
+func TestNormalizeProcessOwnerRecognizesNativeOllamaWorker(t *testing.T) {
+	if got := NormalizeProcessOwner("/opt/ollama/lib/ollama/llama-server"); got != "ollama" {
+		t.Fatalf("owner = %q, want ollama", got)
+	}
+	if got := NormalizeProcessOwner("/usr/bin/unrelated-worker"); got != "" {
+		t.Fatalf("unrelated owner = %q, want empty", got)
+	}
+}
+
+func TestNormalizeProcessOwnerRecognizesNativeRerankerWorker(t *testing.T) {
+	if got := NormalizeProcessOwner("/home/user/.vrooli/artifacts/reranker/1.7.4/reranker_linux_amd64"); got != "reranker" {
+		t.Fatalf("NormalizeProcessOwner(reranker artifact) = %q, want reranker", got)
+	}
+}
+
+func TestDeclaredGPUWithoutClaimFindingsCatchesIdleDeclaration(t *testing.T) {
+	root := t.TempDir()
+	resourceDir := filepath.Join(root, "resources", "ollama")
+	if err := os.MkdirAll(resourceDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	manifest := []byte(`{"name":"ollama","gpu":{"probe":"nvidia"}}`)
+	if err := os.WriteFile(filepath.Join(resourceDir, "resource.json"), manifest, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	findings, err := DeclaredGPUWithoutClaimFindings(root, nil)
+	if err != nil {
+		t.Fatalf("DeclaredGPUWithoutClaimFindings() error = %v", err)
+	}
+	if len(findings) != 1 {
+		t.Fatalf("findings = %+v, want one declaration finding", findings)
+	}
+	if got := findings[0]; got.Class != FindingDeclaredUnclaimed || got.OwnerID != "ollama" || got.Severity != "warn" {
+		t.Fatalf("finding = %+v, want declared_unclaimed ollama warn", got)
+	}
+
+	claim := CapacityClaim{OwnerKind: OwnerKindResource, OwnerID: "ollama", Status: StatusGranted}
+	findings, err = DeclaredGPUWithoutClaimFindings(root, []CapacityClaim{claim})
+	if err != nil {
+		t.Fatalf("claimed check error = %v", err)
+	}
+	if len(findings) != 0 {
+		t.Fatalf("findings with active claim = %+v, want none", findings)
 	}
 }

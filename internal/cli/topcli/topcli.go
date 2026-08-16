@@ -36,6 +36,8 @@ const (
 	CommandCapability       CommandID = "capability"
 	CommandCredentials      CommandID = "credentials"
 	CommandReleaseAuthority CommandID = "release-authority"
+	CommandBreakGlass       CommandID = "break-glass"
+	CommandUninstall        CommandID = "uninstall"
 )
 
 func CommandSpecs() []commandtree.Spec[CommandID] {
@@ -66,6 +68,8 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 		{Name: string(CommandCapability), Group: "Maintenance Commands", Summary: "Read the manifest-derived cross-platform capability ledger", Handler: CommandCapability, Suggestable: true},
 		{Name: string(CommandCredentials), Group: "Configuration Commands", Summary: "Provision and inspect credentials through the native secure-store authority", Handler: CommandCredentials, Suggestable: true},
 		{Name: string(CommandReleaseAuthority), Group: "Configuration Commands", Summary: "Create, inspect, and use the managed release signing authority", Handler: CommandReleaseAuthority, Suggestable: true},
+		{Name: string(CommandBreakGlass), Group: "Configuration Commands", Summary: "Provision and issue target-bound break-glass credentials", Handler: CommandBreakGlass, Suggestable: true},
+		{Name: string(CommandUninstall), Group: "Maintenance Commands", Summary: "Plan and apply removal of recorded Vrooli installation artifacts", Handler: CommandUninstall, Suggestable: true},
 		{Name: string(CommandLifecycle), Group: "Maintenance Commands", Summary: "Internal lifecycle command plumbing", Handler: CommandLifecycle, Hidden: true, Suggestable: false, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot}},
 	}
 }

@@ -112,9 +112,12 @@ type Client struct {
 	// context, so a control-plane AbortJob frame (OT-P1-004) stops the run's
 	// process instead of letting it run to completion as an ignored stale
 	// completion.
-	mu          sync.Mutex
-	runningJobs map[string]context.CancelFunc
-	sessions    map[string]*nodeSession
+	mu            sync.Mutex
+	runningJobs   map[string]context.CancelFunc
+	runningRelays map[string]*relayState
+	sessions      map[string]*nodeSession
+	relayReporter RelayResponseReporter
+	commandRunner exec.CommandRunner
 }
 
 // Option customises a Client (transport, sampler, clock, backoff) for tests and
@@ -152,6 +155,20 @@ func WithClock(now func() time.Time) Option { return func(c *Client) { c.now = n
 // WithBackoff overrides the reconnect backoff bounds.
 func WithBackoff(min, max time.Duration) Option {
 	return func(c *Client) { c.minBackoff, c.maxBackoff = min, max }
+}
+
+// RelayResponseReporter is the node-authenticated response transport seam.
+// Tests use a collector; production uses PresenceService.ReportRelayResponse.
+type RelayResponseReporter interface {
+	ReportRelayResponse(context.Context, *sharedv1.RelayResponse) error
+}
+
+func WithRelayResponseReporter(reporter RelayResponseReporter) Option {
+	return func(c *Client) { c.relayReporter = reporter }
+}
+
+func WithCommandRunner(runner exec.CommandRunner) Option {
+	return func(c *Client) { c.commandRunner = runner }
 }
 
 // NewClient constructs a channel client from resolved config. The PresenceService
@@ -389,6 +406,20 @@ func (c *Client) handleServerFrame(payload string) {
 		c.logger.Printf("channel: received job run_id=%q verb=%q scenario=%q", job.GetRunId(), job.GetVerb(), job.GetScenario())
 		go c.runJob(job)
 	}
+	if relayRequest := frame.GetRelay(); relayRequest != nil {
+		if c.cfg.PresenceOnly {
+			c.logger.Printf("channel: rejecting relay correlation_id=%q because agent is in presence-only posture", relayRequest.GetCorrelationId())
+			return
+		}
+		c.logger.Printf("channel: received relay correlation_id=%q command=%q scenario=%q", relayRequest.GetCorrelationId(), relayRequest.GetCommand(), relayRequest.GetScenario())
+		go c.runRelay(relayRequest)
+	}
+	if relayCancel := frame.GetRelayCancel(); relayCancel != nil {
+		c.logger.Printf("channel: received relay cancel correlation_id=%q reason=%q", relayCancel.GetCorrelationId(), relayCancel.GetReason())
+		if !c.cancelRelay(relayCancel.GetCorrelationId(), relayCancel.GetReason()) {
+			c.logger.Printf("channel: relay cancel for unknown or already-finished correlation_id=%q (ignored)", relayCancel.GetCorrelationId())
+		}
+	}
 	if prov := frame.GetProvision(); prov != nil {
 		if c.cfg.PresenceOnly {
 			c.logger.Printf("channel: rejecting provisioning op_id=%q because agent is in presence-only posture", prov.GetOpId())
@@ -485,6 +516,49 @@ func (c *Client) cancelJob(runID string) bool {
 	return true
 }
 
+type relayState struct {
+	cancel context.CancelFunc
+	reason string
+}
+
+func (c *Client) registerRelay(correlationID string, cancel context.CancelFunc) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.runningRelays == nil {
+		c.runningRelays = make(map[string]*relayState)
+	}
+	c.runningRelays[correlationID] = &relayState{cancel: cancel}
+}
+
+func (c *Client) unregisterRelay(correlationID string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	delete(c.runningRelays, correlationID)
+}
+
+func (c *Client) cancelRelay(correlationID, reason string) bool {
+	c.mu.Lock()
+	state := c.runningRelays[correlationID]
+	if state != nil {
+		state.reason = strings.TrimSpace(reason)
+	}
+	c.mu.Unlock()
+	if state == nil {
+		return false
+	}
+	state.cancel()
+	return true
+}
+
+func (c *Client) relayCancelReason(correlationID string) string {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if state := c.runningRelays[correlationID]; state != nil {
+		return state.reason
+	}
+	return ""
+}
+
 // runJob executes a pushed job via the non-privileged runner, streaming
 // status/log/exit RunEvents back to the control plane's RunsService (each call
 // signed with the node credential). It is launched in its own goroutine so a
@@ -506,12 +580,100 @@ func (c *Client) runJob(job *channelv1.JobPush) {
 
 	reporter := &runEventReporter{rpc: c.runsRPC, cred: c.cred, nodeID: c.cfg.NodeID, now: c.now}
 	uploader := &artifactUploader{rpc: c.artifactsRPC, cred: c.cred, nodeID: c.cfg.NodeID, now: c.now}
-	runner := exec.NewRunner(c.cfg.VrooliBin, c.cfg.WorkDir, reporter,
+	runnerOpts := []exec.Option{
 		exec.WithClock(c.now), exec.WithArtifactUploader(uploader),
-		exec.WithArtifactDir(filepath.Join(c.cfg.StateDir, "artifacts")))
+		exec.WithArtifactDir(filepath.Join(c.cfg.StateDir, "artifacts")),
+	}
+	if c.commandRunner != nil {
+		runnerOpts = append(runnerOpts, exec.WithCommandRunner(c.commandRunner))
+	}
+	runner := exec.NewRunner(c.cfg.VrooliBin, c.cfg.WorkDir, reporter,
+		runnerOpts...)
 	if err := runner.Execute(ctx, job); err != nil && base.Err() == nil {
 		c.logger.Printf("channel: run %q: reporting events failed: %v", job.GetRunId(), err)
 	}
+}
+
+// runRelay executes one short-lived typed command and sends bounded response
+// chunks back over the authenticated Presence RPC. The execution context is
+// registered before the process starts, so a signed RelayCancel reaches the
+// exact command and CommandContext terminates it.
+func (c *Client) runRelay(request *channelv1.RelayRequest) {
+	base := c.baseCtx
+	if base == nil {
+		base = context.Background()
+	}
+	ctx, cancel := context.WithCancel(base)
+	c.registerRelay(request.GetCorrelationId(), cancel)
+	defer func() {
+		cancel()
+		c.unregisterRelay(request.GetCorrelationId())
+	}()
+
+	reporter := c.relayReporter
+	if reporter == nil {
+		reporter = &relayResponseReporter{rpc: c.rpc, cred: c.cred, nodeID: c.cfg.NodeID, now: c.now}
+	}
+	reportCtx, stopReporting := context.WithTimeout(context.Background(), 10*time.Second)
+	defer stopReporting()
+	sequence := uint64(0)
+	var reportedBytes uint64
+	report := func(kind sharedv1.RelayResponseKind, data []byte, reason string, exitCode int32, total uint64) error {
+		sequence++
+		return reporter.ReportRelayResponse(reportCtx, &sharedv1.RelayResponse{
+			CorrelationId: request.GetCorrelationId(), Kind: kind, Sequence: sequence,
+			Data: append([]byte(nil), data...), Reason: reason, ExitCode: exitCode, TotalBytes: total,
+		})
+	}
+	if err := report(sharedv1.RelayResponseKind_RELAY_RESPONSE_KIND_ACCEPTED, nil, "", 0, 0); err != nil {
+		if base.Err() == nil {
+			c.logger.Printf("channel: relay %q acceptance report failed: %v", request.GetCorrelationId(), err)
+		}
+		return
+	}
+
+	maxBytes := request.GetMaxResponseBytes()
+	if maxBytes == 0 {
+		maxBytes = exec.DefaultRelayMaxResponseBytes
+	}
+	var reportErr error
+	runnerOpts := []exec.Option{exec.WithClock(c.now)}
+	if c.commandRunner != nil {
+		runnerOpts = append(runnerOpts, exec.WithCommandRunner(c.commandRunner))
+	}
+	runner := exec.NewRunner(c.cfg.VrooliBin, c.cfg.WorkDir, nil, runnerOpts...)
+	result := runner.ExecuteRelay(ctx, request, maxBytes, func(data []byte) {
+		if reportErr != nil {
+			return
+		}
+		reportedBytes += uint64(len(data))
+		reportErr = report(sharedv1.RelayResponseKind_RELAY_RESPONSE_KIND_DATA, data, "", 0, reportedBytes)
+		if reportErr != nil {
+			cancel()
+		}
+	})
+	if reportErr != nil {
+		if base.Err() == nil {
+			c.logger.Printf("channel: relay %q data report failed: %v", request.GetCorrelationId(), reportErr)
+		}
+		return
+	}
+	reason := result.Reason
+	if result.LimitExceeded {
+		reason = exec.RelayResponseLimitReason
+	}
+	if result.Cancelled {
+		if requested := c.relayCancelReason(request.GetCorrelationId()); requested != "" {
+			reason = requested
+		}
+		_ = report(sharedv1.RelayResponseKind_RELAY_RESPONSE_KIND_TERMINATED, nil, reason, int32(result.ExitCode), result.TotalBytes)
+		return
+	}
+	if result.ExitCode == 0 {
+		_ = report(sharedv1.RelayResponseKind_RELAY_RESPONSE_KIND_COMPLETED, nil, reason, 0, result.TotalBytes)
+		return
+	}
+	_ = report(sharedv1.RelayResponseKind_RELAY_RESPONSE_KIND_FAILED, nil, reason, int32(result.ExitCode), result.TotalBytes)
 }
 
 type artifactUploader struct {
@@ -578,6 +740,29 @@ type runEventReporter struct {
 	cred   *nodecred.Credential
 	nodeID string
 	now    func() time.Time
+}
+
+type relayResponseReporter struct {
+	rpc    presence_v1connect.PresenceServiceClient
+	cred   *nodecred.Credential
+	nodeID string
+	now    func() time.Time
+}
+
+var _ RelayResponseReporter = (*relayResponseReporter)(nil)
+
+func (r *relayResponseReporter) ReportRelayResponse(ctx context.Context, response *sharedv1.RelayResponse) error {
+	if r.rpc == nil {
+		return errors.New("presence relay response client is unavailable")
+	}
+	req := connect.NewRequest(&presencev1.ReportRelayResponseRequest{Response: response})
+	if r.cred != nil {
+		for k, v := range r.cred.Headers(r.nodeID, r.now().UTC()) {
+			req.Header().Set(k, v)
+		}
+	}
+	_, err := r.rpc.ReportRelayResponse(ctx, req)
+	return err
 }
 
 func (r *runEventReporter) Report(ctx context.Context, ev *sharedv1.RunEvent) error {

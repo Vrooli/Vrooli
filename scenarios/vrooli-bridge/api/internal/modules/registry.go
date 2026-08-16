@@ -38,6 +38,7 @@ import (
 	queueH "vrooli-bridge/handlers/queue"
 	readinessH "vrooli-bridge/handlers/readiness"
 	registryH "vrooli-bridge/handlers/registry"
+	relayH "vrooli-bridge/handlers/relay"
 	runsH "vrooli-bridge/handlers/runs"
 	internalattached "vrooli-bridge/internal/attached"
 	localdb "vrooli-bridge/internal/database"
@@ -58,6 +59,7 @@ import (
 	provisionv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/provision"
 	queuev1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/queue"
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/registry"
+	relayv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/relay"
 	runsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/runs"
 )
 
@@ -81,6 +83,7 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out = append(out, pairingH.Endpoints...)
 	out = append(out, provisionH.Endpoints...)
 	out = append(out, queueH.Endpoints...)
+	out = append(out, relayH.Endpoints...)
 	out = append(out, registryH.Endpoints...)
 	out = append(out, readinessH.Endpoints...)
 	out = append(out, runsH.Endpoints...)
@@ -123,6 +126,7 @@ func AllProtoFiles() []ProtoFileEntry {
 		{Module: "pairing", File: pairingv1.File_vrooli_bridge_v1_pairing_pairing_proto},
 		{Module: "provision", File: provisionv1.File_vrooli_bridge_v1_provision_provision_proto},
 		{Module: "queue", File: queuev1.File_vrooli_bridge_v1_queue_queue_proto},
+		{Module: "relay", File: relayv1.File_vrooli_bridge_v1_relay_relay_proto},
 		{Module: "registry", File: registryv1.File_vrooli_bridge_v1_registry_registry_proto},
 		{Module: "runs", File: runsv1.File_vrooli_bridge_v1_runs_runs_proto},
 	}

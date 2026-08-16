@@ -23,7 +23,12 @@ type StartOperationView struct {
 	Operation   string `json:"operation"`
 	// Status is running|succeeded|failed|abandoned. A stored "running" whose
 	// initiator PID is dead is reported abandoned.
-	Status            string                               `json:"status"`
+	Status string `json:"status"`
+	// InitiatorPID is the orchestrating process recorded on the operation, 0
+	// when the record carries none. Surfaced so a reader that sees an
+	// in-flight operation can name the same process the lock-contention error
+	// names (ScenarioBusyError.HolderPID) instead of hunting for it with ps.
+	InitiatorPID      int                                  `json:"initiator_pid,omitempty"`
 	Verdict           string                               `json:"verdict,omitempty"`
 	Error             string                               `json:"error,omitempty"`
 	CurrentStep       string                               `json:"current_step,omitempty"`
@@ -56,6 +61,40 @@ func (v StartOperationView) TransitionLine() string {
 		return fmt.Sprintf("%s: in-flight start in %s step", v.Scenario, v.CurrentStep)
 	}
 	return ""
+}
+
+// InFlightSummary renders the one-line description a status surface shows for
+// a lifecycle operation that is still running; "" when the operation is
+// terminal and nothing is in flight.
+//
+// Runtime status alone cannot express this. A scenario three seconds into a
+// start reports "stopped" exactly like one nobody is touching, so the operator
+// reaches for `scenario restart` and the per-scenario lock refuses it, naming
+// only a bare PID. Reporting the in-flight operation — and the same initiator
+// the ScenarioBusyError names — is what connects the two surfaces.
+func (v StartOperationView) InFlightSummary() string {
+	if v.Terminal() {
+		return ""
+	}
+	operation := v.Operation
+	if operation == "" {
+		operation = "start"
+	}
+	line := operation + " in progress"
+	if v.InitiatorPID > 0 {
+		line += fmt.Sprintf(" (pid %d)", v.InitiatorPID)
+	}
+	switch {
+	case v.DependencyCurrent != "":
+		line += fmt.Sprintf(" — dependency %s (%d/%d)", v.DependencyCurrent, v.DependencyIndex, v.DependencyTotal)
+	case v.CurrentStep != "":
+		line += fmt.Sprintf(" — %s step", v.CurrentStep)
+	}
+	line += fmt.Sprintf(", %ds elapsed", v.ElapsedSeconds)
+	if v.ETAKnown {
+		line += fmt.Sprintf(", ~%ds remaining", v.ETASeconds)
+	}
+	return line
 }
 
 // Terminal reports whether the viewed operation reached a final state
@@ -94,6 +133,9 @@ func EvaluateStartOperation(op scenarioruntime.StartOperation, isPIDRunning func
 		StartedAt:         op.StartedAt,
 		FinishedAt:        op.FinishedAt,
 		Steps:             op.Steps(),
+	}
+	if op.InitiatorPID != nil {
+		view.InitiatorPID = *op.InitiatorPID
 	}
 	end := now
 	if op.FinishedAt != nil {

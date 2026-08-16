@@ -7,16 +7,16 @@ import (
 	"testing"
 )
 
-// ollamaLikeManifest mirrors the docker-service ollama manifest closely enough to
+// inferenceLikeManifest mirrors a generic docker-service manifest closely enough to
 // exercise the host-port preflight (a single http port mapped 1:1).
-func ollamaLikeManifest(hostPort int) ResourceManifest {
+func inferenceLikeManifest(hostPort int) ResourceManifest {
 	return ResourceManifest{
-		Name:   "ollama",
+		Name:   "inference-service",
 		Driver: "docker-service",
 		Ports: []ResourcePort{
 			{Name: "http", Container: 11434, Host: hostPort},
 		},
-		Runtime: ResourceRuntime{Image: "ollama/ollama:0.30.10"},
+		Runtime: ResourceRuntime{Image: "example/inference-service:0.30.10"},
 	}
 }
 
@@ -29,7 +29,7 @@ func TestPreflightPortConflictFailsWhenHostOwnsPort(t *testing.T) {
 	defer listener.Close()
 
 	hostPort := listener.Addr().(*net.TCPAddr).Port
-	manifest := ollamaLikeManifest(hostPort)
+	manifest := inferenceLikeManifest(hostPort)
 
 	err = preflightPortConflict(manifest)
 	if err == nil {
@@ -37,7 +37,7 @@ func TestPreflightPortConflictFailsWhenHostOwnsPort(t *testing.T) {
 	}
 	msg := err.Error()
 	// The message must be actionable: name the resource, the port, and remediation.
-	for _, want := range []string{"ollama", strconv.Itoa(hostPort), "Docker container", "systemctl disable"} {
+	for _, want := range []string{"inference-service", strconv.Itoa(hostPort), "Docker container", "systemctl disable"} {
 		if !strings.Contains(msg, want) {
 			t.Errorf("error message missing %q; got: %s", want, msg)
 		}
@@ -55,14 +55,14 @@ func TestPreflightPortConflictPassesWhenPortFree(t *testing.T) {
 		t.Fatalf("close: %v", err)
 	}
 
-	manifest := ollamaLikeManifest(hostPort)
+	manifest := inferenceLikeManifest(hostPort)
 	if err := preflightPortConflict(manifest); err != nil {
 		t.Fatalf("expected no conflict for free port %d, got: %v", hostPort, err)
 	}
 }
 
 func TestPreflightPortConflictIgnoresPortlessManifest(t *testing.T) {
-	manifest := ResourceManifest{Name: "ollama", Driver: "docker-service"}
+	manifest := ResourceManifest{Name: "inference-service", Driver: "docker-service"}
 	if err := preflightPortConflict(manifest); err != nil {
 		t.Fatalf("expected no conflict for manifest without ports, got: %v", err)
 	}

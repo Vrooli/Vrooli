@@ -116,6 +116,39 @@ func TestValidateScenario_ManifestMissing_ProtoBearingIsError(t *testing.T) {
 	}
 }
 
+func TestValidateTarget_ProjectMissingManifestIsError(t *testing.T) {
+	svc := newServiceWith(
+		stubLoader{err: os.ErrNotExist},
+		stubSchema{},
+		stubProto{},
+	)
+	report, err := svc.ValidateTarget(context.Background(), Target{Kind: TargetKindProject, ID: ProjectTargetID})
+	if err != nil {
+		t.Fatalf("ValidateTarget: %v", err)
+	}
+	if report.Passed || findingByCode(report.Findings, CodeManifestRequired) == nil {
+		t.Fatalf("missing project manifest must be an error: %+v", report)
+	}
+	if findingByCode(report.Findings, CodeManifestMissing) != nil {
+		t.Fatalf("project target must not use the scenario warning: %+v", report.Findings)
+	}
+}
+
+func TestValidateTarget_ProjectUsesProjectPipeline(t *testing.T) {
+	svc := newServiceWith(
+		stubLoader{raw: []byte(validManifest), path: "cli/manifest.json"},
+		stubSchema{},
+		stubProto{surface: ProtoSurface{Services: []ProtoService{{Name: "Svc", Methods: []string{"Do"}}}}},
+	)
+	report, err := svc.ValidateTarget(context.Background(), Target{Kind: TargetKindProject, ID: ProjectTargetID})
+	if err != nil {
+		t.Fatalf("ValidateTarget: %v", err)
+	}
+	if report.Scenario != ProjectTargetID || findingByCode(report.Findings, CodeProtoOrphanMethod) != nil {
+		t.Fatalf("project target did not use the project pipeline: %+v", report)
+	}
+}
+
 func TestValidateScenario_ManifestParseError(t *testing.T) {
 	svc := newServiceWith(
 		stubLoader{raw: []byte("not json")},

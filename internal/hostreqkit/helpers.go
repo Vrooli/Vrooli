@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 	"github.com/vrooli/vrooli/internal/shell"
 )
@@ -208,6 +209,61 @@ func ResolveCommandForInvokingUser(candidates []string) (string, bool) {
 	return "", false
 }
 
+// AugmentUserToolPath returns currentPath with existing per-user tool
+// directories prepended in deterministic priority order. Lifecycle children
+// must receive the same tool search path that setup uses: setup may install
+// Go/npm-generated plugins into ~/.local/bin or ~/go/bin while the Vrooli
+// launcher itself lives under the repo-contract runtime home.
+//
+// The function is deliberately pure with respect to the process environment;
+// callers provide the effective home and PATH so an overridden lifecycle
+// environment cannot accidentally inherit the parent process's home.
+func AugmentUserToolPath(home, currentPath, localAppData string) string {
+	home = strings.TrimSpace(home)
+	if home == "" {
+		return currentPath
+	}
+
+	current := filepath.SplitList(currentPath)
+	seen := make(map[string]struct{}, len(current))
+	for _, dir := range current {
+		seen[filepath.Clean(dir)] = struct{}{}
+	}
+	candidates := []string{
+		"/opt/homebrew/bin",
+		"/usr/local/go/bin",
+		"/usr/local/bin",
+		filepath.Join(home, "go", "bin"),
+		filepath.Join(home, ".local", "bin"),
+		filepath.Join(home, "bin"),
+	}
+	if localAppData = strings.TrimSpace(localAppData); localAppData != "" {
+		candidates = append(candidates, filepath.Join(localAppData, "Microsoft", "WinGet", "Links"))
+	}
+	candidates = append(candidates, filepath.Join(home, "AppData", "Local", "Microsoft", "WinGet", "Links"))
+	if runtimeBin, err := repocontract.RuntimeHomeEntryPath(home, repocontract.HomeKeyBin); err == nil {
+		candidates = append(candidates, runtimeBin)
+	}
+
+	prepend := make([]string, 0, len(candidates))
+	for _, dir := range candidates {
+		clean := filepath.Clean(dir)
+		if _, ok := seen[clean]; ok {
+			continue
+		}
+		info, err := os.Stat(clean)
+		if err != nil || !info.IsDir() {
+			continue
+		}
+		prepend = append(prepend, clean)
+		seen[clean] = struct{}{}
+	}
+	if len(prepend) == 0 {
+		return currentPath
+	}
+	return strings.Join(append(prepend, current...), string(os.PathListSeparator))
+}
+
 func CommandAvailable(name string) bool {
 	_, err := LookPathFn(name)
 	return err == nil
@@ -291,7 +347,189 @@ func writerOrDiscard(w io.Writer) io.Writer {
 }
 
 func RunInstallCommand(command string, args []string, opts EnsureOptions) error {
+	if request, ok := inferredPackageInstall(command, args); ok && RecordPackageInstallFn != nil {
+		return RunInstallCommandWithProvenance(command, args, opts, request)
+	}
 	return RunCommandFn(command, args, opts)
+}
+
+func inferredPackageInstall(command string, args []string) (InstallProvenanceRequest, bool) {
+	manager := strings.ToLower(strings.TrimSpace(command))
+	if manager == "sudo" && len(args) > 0 {
+		manager = strings.ToLower(strings.TrimSpace(args[0]))
+		args = args[1:]
+	}
+	if manager == "env" {
+		for i, arg := range args {
+			candidate := strings.ToLower(strings.TrimSpace(arg))
+			if candidate == "apt-get" || candidate == "apt" || candidate == "dnf" || candidate == "yum" || candidate == "brew" || candidate == "winget" || candidate == "pacman" || candidate == "apk" {
+				manager = candidate
+				args = args[i+1:]
+				break
+			}
+		}
+	}
+	if manager == "homebrew" {
+		manager = "brew"
+	}
+	if manager != "apt" && manager != "apt-get" && manager != "dnf" && manager != "yum" && manager != "brew" && manager != "winget" && manager != "pacman" && manager != "apk" && manager != "choco" && manager != "scoop" {
+		return InstallProvenanceRequest{}, false
+	}
+	actionIndex := -1
+	for i, arg := range args {
+		if strings.EqualFold(strings.TrimSpace(arg), "install") || strings.EqualFold(strings.TrimSpace(arg), "add") || strings.EqualFold(strings.TrimSpace(arg), "-S") {
+			actionIndex = i
+			break
+		}
+	}
+	if actionIndex < 0 {
+		return InstallProvenanceRequest{}, false
+	}
+	for _, arg := range args[actionIndex+1:] {
+		arg = strings.TrimSpace(arg)
+		if arg == "" || strings.HasPrefix(arg, "-") {
+			continue
+		}
+		return InstallProvenanceRequest{PackageManager: manager, PackageName: arg}, true
+	}
+	return InstallProvenanceRequest{}, false
+}
+
+// InstallProvenanceRequest identifies the package install being executed.
+// Version probing is best-effort and conservative: a failed probe records
+// unknown rather than authorizing ownership.
+type InstallProvenanceRequest struct {
+	PackageManager string
+	PackageName    string
+	VersionCommand string
+	VersionArgs    []string
+	Shared         bool
+}
+
+type PackageObservation string
+
+const (
+	PackagePresent PackageObservation = "present"
+	PackageAbsent  PackageObservation = "absent"
+	PackageUnknown PackageObservation = "unknown"
+)
+
+type PackageAction string
+
+const (
+	PackageInstalled PackageAction = "installed"
+	PackageAdopted   PackageAction = "adopted"
+)
+
+type PackageInstallRecord struct {
+	Home           string
+	PackageManager string
+	PackageName    string
+	ObservedBefore PackageObservation
+	Action         PackageAction
+	VersionBefore  string
+	VersionAfter   string
+	OwningNode     string
+	Shared         bool
+}
+
+// RecordPackageInstallFn is registered by the control-plane ledger package.
+// Keeping the callback at this seam avoids a package cycle with config while
+// ensuring every package-manager command uses the same recorder.
+var RecordPackageInstallFn func(PackageInstallRecord) error
+
+// ProbePackageStateFn is injectable because package-manager state belongs to
+// the host seam, not to unit tests for individual tool handlers.
+var ProbePackageStateFn = probePackageState
+
+func RunInstallCommandWithProvenance(command string, args []string, opts EnsureOptions, request InstallProvenanceRequest) error {
+	if strings.TrimSpace(request.PackageManager) == "" || strings.TrimSpace(request.PackageName) == "" {
+		return RunCommandFn(command, args, opts)
+	}
+	observed, versionBefore, probeErr := ProbePackageStateFn(request.PackageManager, request.PackageName)
+	if probeErr != nil {
+		// A probe error is never evidence of absence. Preserve the install
+		// result, but make the resulting ledger entry unattributable so an
+		// uninstall cannot turn an operational failure into deletion authority.
+		observed = PackageUnknown
+		versionBefore = ""
+	}
+	if err := RunCommandFn(command, args, opts); err != nil {
+		return err
+	}
+	versionAfter := ""
+	if strings.TrimSpace(request.VersionCommand) != "" {
+		versionAfter, _ = ReadVersionErr(request.VersionCommand, request.VersionArgs)
+	}
+	action := PackageInstalled
+	if observed == PackagePresent {
+		action = PackageAdopted
+	}
+	home, err := InvokingUserHomeDir()
+	if err != nil {
+		return fmt.Errorf("install succeeded but provenance home is unavailable: %w", err)
+	}
+	node, _ := os.Hostname()
+	if RecordPackageInstallFn == nil {
+		return fmt.Errorf("install succeeded but package provenance recorder is unavailable")
+	}
+	if err := RecordPackageInstallFn(PackageInstallRecord{
+		Home: home, PackageManager: request.PackageManager, PackageName: request.PackageName,
+		ObservedBefore: observed, Action: action, VersionBefore: versionBefore,
+		VersionAfter: versionAfter, OwningNode: node, Shared: request.Shared,
+	}); err != nil {
+		return fmt.Errorf("install succeeded but package provenance could not be recorded: %w", err)
+	}
+	return nil
+}
+
+func RunPackageInstallCommand(command string, args []string, opts EnsureOptions, manager, packageName, versionCommand string, versionArgs []string) error {
+	return RunInstallCommandWithProvenance(command, args, opts, InstallProvenanceRequest{
+		PackageManager: manager,
+		PackageName:    packageName,
+		VersionCommand: versionCommand,
+		VersionArgs:    versionArgs,
+	})
+}
+
+func probePackageState(manager, packageName string) (PackageObservation, string, error) {
+	manager = strings.ToLower(strings.TrimSpace(manager))
+	packageName = strings.TrimSpace(packageName)
+	if packageName == "" {
+		return PackageUnknown, "", fmt.Errorf("package name is empty")
+	}
+	var command string
+	var args []string
+	switch manager {
+	case "brew", "homebrew":
+		command, args = "brew", []string{"list", "--versions", packageName}
+	case "apt", "apt-get":
+		command, args = "dpkg-query", []string{"-W", "-f=${Version}", packageName}
+	case "dnf", "yum":
+		command, args = manager, []string{"list", "installed", packageName}
+	case "winget":
+		command, args = "winget", []string{"list", "--id", packageName, "--exact"}
+	default:
+		return PackageUnknown, "", fmt.Errorf("unsupported package manager %q", manager)
+	}
+	if _, err := LookPathFn(command); err != nil {
+		return PackageUnknown, "", err
+	}
+	output, err := CombinedOutputFn(command, args...)
+	if err != nil {
+		// Package managers use a non-zero exit for a normal no-match result,
+		// but a blank or unrelated failure is not evidence of absence.
+		lower := strings.ToLower(string(output))
+		if strings.Contains(lower, "no such keg") || strings.Contains(lower, "not installed") || strings.Contains(lower, "no path found matching") || strings.Contains(lower, "no packages found") || strings.Contains(lower, "no matching packages") || strings.Contains(lower, "no installed package") {
+			return PackageAbsent, "", nil
+		}
+		return PackageUnknown, "", err
+	}
+	version := FirstLine(string(output))
+	if strings.TrimSpace(version) == "" {
+		return PackageAbsent, "", nil
+	}
+	return PackagePresent, version, nil
 }
 
 func RunPrivilegedCommand(sudoMode, command string, args []string, opts EnsureOptions) error {

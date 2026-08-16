@@ -537,6 +537,51 @@
       ]
     },
     {
+      "id": "presence_report_relay_response",
+      "path": "/vrooli.vrooli_bridge.v1.presence.PresenceService/ReportRelayResponse",
+      "method": "POST",
+      "summary": "Receive an authenticated relay response",
+      "description": "Node-facing: carries bounded relay output and its terminal outcome back to the waiting control-plane call.",
+      "category": "channel",
+      "request": {
+        "type": "object",
+        "properties": {
+          "response": "RelayResponse (correlation_id, kind, sequence, data, reason, exit_code, total_bytes)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "accepted": "boolean"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing relay correlation id or invalid response kind"
+        },
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Missing or invalid node proof"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Correlation does not belong to this node"
+        }
+      ]
+    },
+    {
+      "id": "channel_session_frame",
+      "path": "/vrooli.vrooli_bridge.v1.presence.PresenceService/ReportSessionFrame",
+      "method": "POST",
+      "summary": "Receive an authenticated node session frame",
+      "description": "Node-facing Connect-RPC for PTY output and session close events. Requires the node proof and binds the frame to its Bridge session.",
+      "category": "channel"
+    },
+    {
       "id": "dispatch_dispatch_job",
       "path": "/vrooli.vrooli_bridge.v1.dispatch.DispatchService/DispatchJob",
       "method": "POST",
@@ -1408,6 +1453,49 @@
       }
     },
     {
+      "id": "onboard_preflight_onboarding",
+      "path": "/vrooli.vrooli_bridge.v1.onboard.OnboardService/PreflightOnboarding",
+      "method": "POST",
+      "summary": "Classify a durable SSH connection before onboarding",
+      "description": "Resolves the durable Machine and reports first-touch, reconnect, recovery-required, ambiguity, or host-key-review. It never contacts or mutates the remote host and never treats an empty password as trust proof. Owner-gated.",
+      "category": "onboard",
+      "request": {
+        "type": "object",
+        "properties": {
+          "host": "string (required)",
+          "machine_id": "string",
+          "port": "int32",
+          "user": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "decision": "ConnectDecision",
+          "machine_id": "string",
+          "message": "string",
+          "password_required": "bool"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing or invalid SSH target"
+        },
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "The target requires explicit trust or host-key review"
+        }
+      ]
+    },
+    {
       "id": "onboard_start_onboarding",
       "path": "/vrooli.vrooli_bridge.v1.onboard.OnboardService/StartOnboarding",
       "method": "POST",
@@ -2230,6 +2318,63 @@
         {
           "name": "List one node's queue",
           "curl": "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.queue.QueueService/ListQueue -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{\"node_id\":\"abc123\"}'"
+        }
+      ]
+    },
+    {
+      "id": "relay_call",
+      "path": "/vrooli.vrooli_bridge.v1.relay.RelayService/Call",
+      "method": "POST",
+      "summary": "Run an admitted command through a node channel",
+      "description": "Owner-gated: applies the same manifest and node-scope admission as durable dispatch, sends a signed typed relay frame, and returns the bounded node response.",
+      "category": "relay",
+      "request": {
+        "type": "object",
+        "properties": {
+          "args": "array<string>",
+          "command": "string",
+          "max_response_bytes": "uint64",
+          "node_id": "string",
+          "scenario": "string",
+          "timeout_seconds": "int64"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "correlation_id": "string",
+          "data": "bytes",
+          "exit_code": "int32",
+          "outcome": "RelayCallOutcome",
+          "reason": "string",
+          "total_bytes": "uint64"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Invalid command or relay request"
+        },
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner authentication required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Command is outside the node's manifest scopes or contains an unsafe token"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Node is revoked, offline, incompatible, or unsupported"
+        },
+        {
+          "status": 429,
+          "code": "resource_exhausted",
+          "description": "Relay response exceeds the bounded byte limit"
         }
       ]
     },

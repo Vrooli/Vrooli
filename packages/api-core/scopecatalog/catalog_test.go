@@ -1,8 +1,10 @@
 package scopecatalog
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
 )
 
@@ -59,12 +61,20 @@ func TestMaterializeExpandsAndExcludesHumanOnlyScopes(t *testing.T) {
 }
 
 func TestBuildCatalog(t *testing.T) {
-	catalog, err := Build(repoRoot(t))
+	root := repoRoot(t)
+	catalog, err := Build(root)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if catalog.ManifestCount != 59 {
-		t.Fatalf("manifest count = %d, want 59", catalog.ManifestCount)
+	paths, err := manifestPaths(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if catalog.ManifestCount != len(paths) {
+		t.Fatalf("manifest count = %d, discovered paths = %d", catalog.ManifestCount, len(paths))
+	}
+	if len(paths) == 0 || paths[0] != filepath.Join(root, "cli", "manifest.json") {
+		t.Fatalf("project manifest is not the deterministic first catalog input: %v", paths)
 	}
 	if catalog.GovernedCommandCount < 1789 {
 		t.Fatalf("governed command count = %d, unexpectedly below recorded baseline", catalog.GovernedCommandCount)
@@ -75,6 +85,70 @@ func TestBuildCatalog(t *testing.T) {
 	t.Logf("scope catalog: manifests=%d governed_commands=%d rpc_scopes=%d omitted=%d most_restrictive_defaults=%d scenarios_without_manifest=%d", catalog.ManifestCount, catalog.GovernedCommandCount, catalog.RPCScopeCount, catalog.OmittedCount, catalog.MostRestrictiveDefaultCount, len(catalog.ScenariosWithoutManifest))
 	if len(catalog.Scopes) != catalog.GovernedCommandCount {
 		t.Fatalf("scope count = %d, governed commands = %d", len(catalog.Scopes), catalog.GovernedCommandCount)
+	}
+}
+
+func TestBuildIncludesProjectManifestWithoutScenarioCollision(t *testing.T) {
+	root := repoRoot(t)
+	catalog, err := Build(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var projectScopes int
+	for _, scope := range catalog.Scopes {
+		if scope.Scenario == ProjectManifestIdentity {
+			projectScopes++
+		}
+	}
+	rootManifest, err := os.ReadFile(filepath.Join(root, "cli", "manifest.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var projectDocument manifest
+	if err := json.Unmarshal(rootManifest, &projectDocument); err != nil {
+		t.Fatal(err)
+	}
+	expectedProjectScopes := 0
+	for _, group := range projectDocument.Groups {
+		for _, command := range group.Commands {
+			if command.Governance.Effect != "" {
+				expectedProjectScopes++
+			}
+		}
+	}
+	if projectScopes != expectedProjectScopes {
+		t.Fatalf("project scope count = %d, want one scope per governed root command (%d)", projectScopes, expectedProjectScopes)
+	}
+	if !catalog.HasScope(ProjectManifestIdentity+":read") || !catalog.HasScope(ProjectManifestIdentity+":write") || !catalog.HasScope(ProjectManifestIdentity+":destructive") {
+		t.Fatalf("project effect vocabulary missing from catalog")
+	}
+	for _, scope := range catalog.Scopes {
+		if scope.Scenario == ProjectManifestIdentity {
+			continue
+		}
+		if scope.Value == ProjectManifestIdentity+":"+string(scope.Effect) {
+			t.Fatalf("scenario scope collided with project namespace: %#v", scope)
+		}
+	}
+}
+
+func TestBuildOrderingIsDeterministic(t *testing.T) {
+	first, err := Build(repoRoot(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := Build(repoRoot(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(first, second) {
+		t.Fatal("scope catalog changed between identical builds")
+	}
+	for i := 1; i < len(first.Scopes); i++ {
+		if scopeKey(first.Scopes[i-1]) > scopeKey(first.Scopes[i]) {
+			t.Fatalf("scopes are not sorted at index %d", i)
+		}
 	}
 }
 

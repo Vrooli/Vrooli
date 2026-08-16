@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/cli-core/cliutil"
 	scenarioapp "github.com/vrooli/vrooli/internal/app/scenario"
 	"github.com/vrooli/vrooli/internal/cli/rootcli"
 	. "github.com/vrooli/vrooli/internal/cli/scenariocli" //nolint:revive // scenariohandlers is a thin glue layer over scenariocli; dot-import keeps wiring readable.
@@ -36,6 +37,10 @@ type HandlerDeps[C any] struct {
 	OpenURL            func(C, string) error
 	LaunchDetached     func(C, ...string) error
 	RunSubprocess      func(C, scenarioexec.SubprocessSpec) error
+	// RemoteScenarioCall is intentionally narrow: the parser owns the address
+	// grammar and this seam owns only an explicitly addressed status request.
+	// Local status remains on the existing ScenarioOperations path.
+	RemoteScenarioCall func(C, string, string, bool) ([]byte, error)
 	LocateTestGenieCLI func(C) (string, error)
 	// LocateBusinessHealthCLI resolves the business-health CLI, which owns
 	// the contract-side requirements verbs (validate, report, lint-prd,
@@ -107,6 +112,17 @@ func BuildHandlers[C any](deps HandlerDeps[C]) map[CommandID]rootcli.Handler[C] 
 				format, err := deps.OutputFormat(ctx)
 				if err != nil {
 					return "", StatusResponse{}, err
+				}
+				if node, scenario, variant, splitErr := cliutil.SplitAddress(req.Name); splitErr == nil && node != "" {
+					if deps.RemoteScenarioCall == nil {
+						return "", StatusResponse{}, fmt.Errorf("remote scenario status is not configured")
+					}
+					remoteScenario := scenario
+					if variant != "" {
+						remoteScenario += "@" + variant
+					}
+					payload, callErr := deps.RemoteScenarioCall(ctx, node, remoteScenario, req.JSON)
+					return format, StatusResponse{Raw: payload}, callErr
 				}
 				ops, err := deps.ScenarioOperations(ctx)
 				if err != nil {

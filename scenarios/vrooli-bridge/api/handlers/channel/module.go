@@ -38,6 +38,7 @@ func Module(hub *presence.Hub, lastSeen LastSeenRecorder, verifier *nodeauth.Ver
 		Verifier: heartbeatDeps.Verifier, Logger: heartbeatDeps.Logger,
 		DeliveryAckRecorder: heartbeatDeps.DeliveryAckRecorder, Audit: heartbeatDeps.Audit,
 		SessionManager: heartbeatDeps.SessionManager, SessionPush: heartbeatDeps.SessionPush,
+		RelayResponses: heartbeatDeps.RelayResponses,
 	}))
 	return module.Module{
 		Name: "channel",

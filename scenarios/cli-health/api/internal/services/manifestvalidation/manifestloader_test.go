@@ -55,3 +55,22 @@ func TestFilesystemManifestLoader_ExplicitPathMissingManifest(t *testing.T) {
 		t.Fatalf("err = %v, want os.ErrNotExist", err)
 	}
 }
+
+func TestFilesystemManifestLoader_ProjectTargetUsesRootManifest(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "cli"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	want := []byte(`{"name":"vrooli"}`)
+	if err := os.WriteFile(filepath.Join(root, "cli", "manifest.json"), want, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	raw, path, err := NewFilesystemManifestLoader(root).Load(context.Background(), ProjectTargetID)
+	if err != nil {
+		t.Fatalf("load project manifest: %v", err)
+	}
+	if string(raw) != string(want) || path != filepath.Join(root, "cli", "manifest.json") {
+		t.Fatalf("project manifest = %q at %q; want root cli/manifest.json", raw, path)
+	}
+}

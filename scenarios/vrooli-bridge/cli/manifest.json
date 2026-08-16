@@ -1069,6 +1069,26 @@
       ]
     },
     {
+      "name": "relay",
+      "description": "Call a command on a connected node through its signed outbound channel",
+      "commands": [
+        {
+          "name": "call",
+          "description": "Relay one typed command to a node and return its bounded response",
+          "flags": [
+            { "name": "node-id", "required": true, "description": "Target connected node id" },
+            { "name": "scenario", "required": true, "description": "Scenario the command operates on" },
+            { "name": "command", "required": true, "description": "Allowlisted command namespace, for example scenario status" },
+            { "name": "args", "description": "Comma-separated additional typed arguments" },
+            { "name": "timeout", "description": "Wall-clock budget in seconds (0 = server default)", "bind": { "field": "timeout_seconds" } },
+            { "name": "max-response-bytes", "description": "Maximum response bytes" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "RelayService", "method": "Call" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        }
+      ]
+    },
+    {
       "name": "fleet",
       "description": "Fleet-wide version rolls: pin the whole fleet (or a subset) to a target revision",
       "commands": [
@@ -2080,6 +2100,11 @@
       "service": "PresenceService",
       "method": "ReportDeliveryAck",
       "reason": "Node-facing dial-out RPC called by the node-agent after receiving a signed server frame, not an operator. There is no operator delivery-ack command; the agent reports receipt on the channel."
+    },
+    {
+      "service": "PresenceService",
+      "method": "ReportRelayResponse",
+      "reason": "Node-facing authenticated relay response called by the node-agent after executing a signed relay frame, not an operator. The owner-facing relay call is RelayService/Call."
     },
     {
       "service": "RunsService",

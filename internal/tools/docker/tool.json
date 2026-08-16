@@ -20,7 +20,7 @@
     "pacman": "docker",
     "apk": "docker"
   },
-  "installHint": "Install Docker Engine or Docker Desktop",
+  "installHint": "The container-runtime ladder adopts a healthy daemon or DOCKER_HOST, adopts an existing macOS runtime, or installs headless Colima when no provider is present",
   "platforms": [
     "linux",
     "macos",

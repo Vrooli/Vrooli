@@ -24,10 +24,11 @@ FAKEBIN="${WORKROOT}/bin"
 TOOLBIN="${WORKROOT}/toolbin"
 STATE="${WORKROOT}/state"
 CHECKOUT="${WORKROOT}/checkout"
+TEST_HOME="${WORKROOT}/home"
 FAKE_AGENT="${FAKEBIN}/fake-agent"
 FAKE_CLI="${FAKEBIN}/fake-cli"
 FAKE_VROOLI="${FAKEBIN}/fake-vrooli"
-mkdir -p "$FAKEBIN" "$TOOLBIN"
+mkdir -p "$FAKEBIN" "$TOOLBIN" "$TEST_HOME"
 
 PASS=0
 FAIL=0
@@ -239,7 +240,7 @@ FAKE_MAKE_LOG="${WORKROOT}/make.calls"
 
 run_bootstrap() { # run_bootstrap <stdout-file> [extra bootstrap args...]
   local out="$1"; shift
-  PATH="${FAKEBIN}:${TOOLBIN}:${PATH}" \
+  HOME="$TEST_HOME" PATH="${FAKEBIN}:${TOOLBIN}:${PATH}" \
   FAKE_MAKE_LOG="$FAKE_MAKE_LOG" \
   FAKE_SUDO_MODE="${FAKE_SUDO_MODE:-denied}" \
   FAKE_SETUP_NEEDS_SUDO="${FAKE_SETUP_NEEDS_SUDO:-}" \
@@ -279,6 +280,7 @@ check "run 1 toolchain detail says on PATH" "$(grep 'step=toolchain' "$OUT1" | g
 check "run 1 verify-online connected (step-ok)" "$(marker_is "$OUT1" step-ok verify-online && echo 0 || echo 1)"
 check "run 1 pinned control_plane.pub exists" "$([ -s "${STATE}/control_plane.pub" ] && echo 0 || echo 1)"
 check "run 1 recorded node id" "$([ -s "${STATE}/node_id" ] && echo 0 || echo 1)"
+check "run 1 writes install record" "$([ -s "${TEST_HOME}/.vrooli/state/install-record.json" ] && jq -e '.version == 1 and (.entries | length) > 0' "${TEST_HOME}/.vrooli/state/install-record.json" >/dev/null && echo 0 || echo 1)"
 
 echo "== run 2 (converge, must be no-op) =="
 run_bootstrap "$OUT2"; rc2=$?

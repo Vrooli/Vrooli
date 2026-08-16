@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Bridge host endpoint readiness and candidate LAN admission before onboarding work.",
-    "last_validated_at": "2026-08-14T01:05:15-04:00",
+    "last_validated_at": "2026-08-16T03:17:42-04:00",
     "module": "host-readiness",
     "prd_ref": "BRG-HR-001",
     "priority": "P0",
@@ -11,7 +11,7 @@
     {
       "id": "BRG-HR-001",
       "title": "Host readiness and candidate LAN admission",
-      "status": "complete",
+      "status": "in_progress",
       "category": "core",
       "description": "Bridge uses fixed port 18767 and a validated persisted LAN/tunnel/manual endpoint. Before source transfer, setup, or pairing-code issuance, the SSH-reachable candidate proves DNS, TCP, and HTTP health to that exact endpoint. Transport failures remain transport failures. On supported Linux hosts, an owner can inspect, confirm, apply, verify, and revoke only the exact UFW admission rule for the latest failed candidate through the setup-managed local privilege broker; absent/unsupported capability is explicit rather than fake-ready.",
       "validation": [
@@ -19,42 +19,42 @@
           "type": "test",
           "ref": "api/internal/onboard/admission_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "not_implemented",
           "notes": "Covers durable candidate admission before bootstrap."
         },
         {
           "type": "test",
           "ref": "api/internal/onboard/endpoint_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "not_implemented",
           "notes": "Covers endpoint validation."
         },
         {
           "type": "test",
           "ref": "api/internal/hostbroker/client_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "not_implemented",
           "notes": "Covers broker client and audit-safe execution seams."
         },
         {
           "type": "test",
           "ref": "api/handlers/readiness/module_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "not_implemented",
           "notes": "Covers readiness owner APIs and exact IP-scoped remediation."
         },
         {
           "type": "test",
           "ref": "../../internal/privilegebroker/policy_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "not_implemented",
           "notes": "Covers immutable typed broker policy."
         },
         {
           "type": "test",
           "ref": "../../internal/privilegebroker/broker_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "not_implemented",
           "notes": "Covers peer authorization and fixed UFW argv."
         },
         {
@@ -82,7 +82,7 @@
           "type": "manual",
           "ref": "docs/operations/RUNBOOK.md#lan-endpoint-and-admission",
           "phase": "business",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Requires a controlled Linux UFW qualification: intentional candidate block, setup-installed broker, exact-rule admission, successful fresh onboarding, exact-rule revocation, and proof the block returns. Do not modify production UFW without explicit target approval."
         }
       ]

@@ -33,6 +33,8 @@ func (l *FilesystemManifestLoader) Load(ctx context.Context, scenario string) ([
 	var path string
 	if root := scenarioPathFrom(ctx); root != "" {
 		path = filepath.Join(root, "cli", "manifest.json")
+	} else if isProjectTarget(scenario) {
+		path = filepath.Join(l.RepoRoot, "cli", "manifest.json")
 	} else {
 		p, err := repocontract.ScenarioCLIManifestPath(l.RepoRoot, scenario)
 		if err != nil {

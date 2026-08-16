@@ -402,7 +402,7 @@ func TestValidateMemoryLimit(t *testing.T) {
 		Name:    "ollama",
 		CLI:     validCLI("resource-ollama"),
 		Driver:  "docker-service",
-		Runtime: ResourceRuntime{Image: "ollama/ollama:0.30.10"},
+		Runtime: ResourceRuntime{Image: "example/inference-service:0.30.10"},
 	}
 
 	for _, ok := range []string{"", "12g", "8192m", "536870912", "1B", "4G", "  2g  "} {

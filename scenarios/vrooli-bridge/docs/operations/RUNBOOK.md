@@ -281,11 +281,11 @@ for qualification. See the canonical [platform support matrix](../../../../docs/
 **Docker is not an onboarding pre-step.** Nothing in pairing or coming
 ONLINE needs Docker — it matters only later, when a dispatched job runs a
 container workload. Docker is a `vrooli setup` requirement (the `docker`
-requirement), so setup — not onboarding — owns installing it. On macOS its
-daemon (Docker Desktop) runs **per GUI session**, so a headless mini must
-have Docker Desktop running in the auto-logged-in user's session before
-container workloads dispatch to it; it is never needed to bring the node
-ONLINE.
+requirement), so setup — not onboarding — owns provider reconciliation. On
+macOS the ladder first adopts a healthy local or remote daemon, then an
+existing OrbStack, Rancher Desktop, or Docker Desktop provider, and otherwise
+provisions/verifies headless Colima. A GUI session is required only when the
+selected provider requires one; it is never needed to bring the node ONLINE.
 
 **Then onboard from the control-plane host:**
 

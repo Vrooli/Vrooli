@@ -311,7 +311,8 @@
 //     no-op); REFUSES while activity_state=="active" (the whisper edge marks it —
 //     see the activity-source contract) as adopter-side defense in depth; the
 //     `--upshift` path recreates larger when idle + headroom returns.
-//   - ollama `degrade`: unloads the Nth resident model; idempotent; reported via
+//   - ollama `capacity degrade --to <model>`: unloads resident models until the
+//     requested model-policy rung; idempotent; reported via
 //     the planner package.
 //   - image-tools SD: existing in-process fp16→CPU resize on a non-grant verdict
 //     (verified, not re-built).

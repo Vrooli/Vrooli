@@ -31,7 +31,8 @@ func (osCommandRunner) Run(ctx context.Context, argv []string, dir string, onLog
 	// #nosec G204 — argv is a typed, validated token list (BuildArgv rejects
 	// shell metacharacters); the binary is operator-configured. This is the
 	// allowlisted-verb execution path, not a shell.
-	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...)
+	cmd := exec.Command(argv[0], argv[1:]...)
+	prepareCommand(cmd)
 	cmd.Dir = dir
 	// Native service managers intentionally provide a minimal PATH. The Vrooli
 	// CLI is often an absolute path in that environment, but its typed commands
@@ -52,14 +53,24 @@ func (osCommandRunner) Run(ctx context.Context, argv []string, dir string, onLog
 	if err := cmd.Start(); err != nil {
 		return startFailureExitCode, err
 	}
-
 	var wg sync.WaitGroup
 	wg.Add(2)
 	go streamLines(&wg, stdout, onLog)
 	go streamLines(&wg, stderr, onLog)
+
+	waitDone := make(chan error, 1)
+	go func() { waitDone <- cmd.Wait() }()
+	var waitErr error
+	select {
+	case waitErr = <-waitDone:
+	case <-ctx.Done():
+		terminateCommand(cmd)
+		waitErr = <-waitDone
+	}
+
 	wg.Wait()
 
-	err = cmd.Wait()
+	err = waitErr
 	if err == nil {
 		return 0, nil
 	}

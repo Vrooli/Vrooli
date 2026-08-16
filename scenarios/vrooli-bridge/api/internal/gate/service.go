@@ -2,11 +2,11 @@ package gate
 
 import (
 	"context"
-	"sort"
 	"strings"
 	"time"
 
 	"github.com/vrooli/api-core/schedule"
+	"github.com/vrooli/api-core/targetmodel"
 )
 
 // Service is the application-layer surface the gate handler depends on. It owns
@@ -108,48 +108,85 @@ func (s *service) Run(ctx context.Context, in RunInput) (RunDecision, error) {
 
 // selectAndDispatch picks the eligible node for one OS and (unless a dry-run)
 // dispatches its validation run.
-func (s *service) selectAndDispatch(ctx context.Context, os string, candidate *NodeRef, in RunInput, scenario, verb, revision string) OSResult {
-	if candidate == nil {
-		return OSResult{OS: os, Disposition: OSDispositionNoNode, Detail: "no eligible online node runs this OS"}
+func (s *service) selectAndDispatch(ctx context.Context, os string, candidate *targetmodel.Selection, in RunInput, scenario, verb, revision string) OSResult {
+	if candidate == nil || !candidate.Found || !candidate.Available {
+		detail := "no eligible online node runs this OS"
+		if candidate != nil && strings.TrimSpace(candidate.Reason) != "" {
+			detail = candidate.Reason
+		}
+		return OSResult{OS: os, Disposition: OSDispositionNoNode, Detail: detail}
 	}
 
 	if in.DryRun {
-		return OSResult{OS: os, NodeID: candidate.ID, Disposition: OSDispositionPending, Detail: "would dispatch validation run"}
+		return OSResult{OS: os, NodeID: candidate.Target.ID, Disposition: OSDispositionPending, Detail: "would dispatch validation run"}
 	}
 
 	runID, err := s.runner.Dispatch(ctx, DispatchRequest{
 		Actor:          in.Actor,
-		NodeID:         candidate.ID,
+		NodeID:         candidate.Target.ID,
 		Scenario:       scenario,
 		Verb:           verb,
 		Args:           in.Args,
 		TimeoutSeconds: in.TimeoutSeconds,
 	})
 	if err != nil {
-		return OSResult{OS: os, NodeID: candidate.ID, Disposition: OSDispositionDispatchFailed, Detail: err.Error()}
+		return OSResult{OS: os, NodeID: candidate.Target.ID, Disposition: OSDispositionDispatchFailed, Detail: err.Error()}
 	}
-	return OSResult{OS: os, NodeID: candidate.ID, RunID: runID, Disposition: OSDispositionPending, Detail: "validation run dispatched"}
+	return OSResult{OS: os, NodeID: candidate.Target.ID, RunID: runID, Disposition: OSDispositionPending, Detail: "validation run dispatched"}
 }
 
-// eligibleByOS picks, for each OS, the single eligible node that should validate
-// it: registered + not-revoked + online + protocol-compatible + matching OS. The
-// lowest node id wins for determinism when several nodes share an OS.
-func (s *service) eligibleByOS(all []NodeRef) map[string]*NodeRef {
-	sort.Slice(all, func(i, j int) bool { return all[i].ID < all[j].ID })
-	out := make(map[string]*NodeRef)
-	for i := range all {
-		n := all[i]
-		os := strings.ToLower(strings.TrimSpace(n.OS))
-		if os == "" || n.Revoked {
-			continue
+// eligibleByOS projects the bridge observations into the shared target model
+// and delegates deterministic selection to the same selector used by the ramp.
+// Presence remains a live bridge concern, so it overlays the durable inventory
+// before selection. The lowest target id wins when several targets share an OS.
+func (s *service) eligibleByOS(all []NodeRef) map[string]*targetmodel.Selection {
+	targets := make([]targetmodel.Target, 0, len(all))
+	oses := make([]string, 0, len(all))
+	for _, node := range all {
+		target := node.Target
+		if strings.TrimSpace(target.ID) == "" {
+			target = targetmodel.Target{
+				ID: node.ID, Platform: "desktop", OS: node.OS, Architecture: node.Arch,
+				DeviceKind: "desktop", Transport: targetmodel.Transport{Kind: targetmodel.TransportBridge, ID: node.ID, Available: true},
+				Available: true,
+			}
 		}
-		if !s.presence.IsOnline(n.ID) || !s.presence.Dispatchable(n.ID) {
-			continue
+		if strings.TrimSpace(target.OS) == "" {
+			target.OS = node.OS
 		}
-		if _, taken := out[os]; taken {
-			continue // lowest id already chosen (stable selection)
+		if strings.TrimSpace(target.Architecture) == "" {
+			target.Architecture = node.Arch
 		}
-		picked := n
+		if target.Transport.Kind == "" {
+			target.Transport.Kind = targetmodel.TransportBridge
+		}
+		if target.Transport.ID == "" {
+			target.Transport.ID = target.ID
+		}
+		if node.Revoked {
+			target.Revoked = true
+			target.Available = false
+			target.Reason = targetmodel.ReasonBridgeRevoked
+			target.MissingCapability = "bridge node authorization"
+			target.NextAction = "revoke the stale target and register an authorized node"
+		} else if target.BridgeTrust != nil && !target.BridgeTrust.DispatchAuthorized {
+			target.Available = false
+			target.Reason = targetmodel.ReasonBridgeNoDispatchScope
+			target.MissingCapability = "scenario-test dispatch scope"
+			target.NextAction = "grant the scenario-test dispatch scope to the registered node"
+		} else if !s.presence.IsOnline(target.ID) || !s.presence.Dispatchable(target.ID) {
+			target.Available = false
+			target.Reason = targetmodel.ReasonBridgeOffline
+			target.MissingCapability = "bridge dispatch reachability"
+			target.NextAction = "restore the node channel and protocol compatibility"
+		}
+		targets = append(targets, target)
+		oses = append(oses, target.OS)
+	}
+	selected := targetmodel.SelectByOS(targetmodel.Inventory{Targets: targets}, oses, targetmodel.SelectionRequest{TransportKinds: []targetmodel.TransportKind{targetmodel.TransportBridge}})
+	out := make(map[string]*targetmodel.Selection, len(selected))
+	for os, selection := range selected {
+		picked := selection
 		out[os] = &picked
 	}
 	return out

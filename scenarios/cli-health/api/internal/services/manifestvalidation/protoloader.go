@@ -79,6 +79,11 @@ func (l *BufProtoLoader) Load(ctx context.Context, scenario string) (ProtoSurfac
 	protoDir := filepath.Join(l.RepoRoot, "packages", "proto")
 	sharedContracts := loadSharedProtoContracts(l.RepoRoot)
 	subPath := filepath.Join("schemas", scenario)
+	ownPrefix := scenario + "/"
+	if isProjectTarget(scenario) {
+		subPath = filepath.Join("schemas", "cli")
+		ownPrefix = "cli/"
+	}
 
 	if _, err := os.Stat(filepath.Join(protoDir, subPath)); err != nil {
 		if os.IsNotExist(err) {
@@ -119,17 +124,16 @@ func (l *BufProtoLoader) Load(ctx context.Context, scenario string) (ProtoSurfac
 		return ProtoSurface{}, fmt.Errorf("unmarshal fdset: %w", err)
 	}
 
-	return surfaceFromFDSet(&fds, scenario, sharedContracts), nil
+	return surfaceFromFDSetWithPrefix(&fds, ownPrefix, sharedContracts), nil
 }
 
-// surfaceFromFDSet collects services declared in files that belong to the named
-// scenario (own) plus shared proto contracts (shared). We filter by file path
-// prefix so vendor/transitive deps (googleapis, protovalidate, errors common to
-// multiple scenarios) don't leak into the surface and produce spurious orphans.
-// A file under the scenario's own prefix is classified as own even if it also
-// matches a shared prefix, so shared services are own where they are defined.
-func surfaceFromFDSet(fds *descriptorpb.FileDescriptorSet, scenario string, sharedContracts []sharedProtoContract) ProtoSurface {
-	prefix := scenario + "/"
+// surfaceFromFDSetWithPrefix collects services declared in files under the
+// owning schema prefix (own) plus shared proto contracts (shared). We filter by
+// file path prefix so vendor/transitive deps (googleapis, protovalidate, errors
+// common to multiple scenarios) don't leak into the surface and produce
+// spurious orphans. A file under the owning prefix is classified as own even if
+// it also matches a shared prefix, so shared services are own where defined.
+func surfaceFromFDSetWithPrefix(fds *descriptorpb.FileDescriptorSet, prefix string, sharedContracts []sharedProtoContract) ProtoSurface {
 	var own, shared []ProtoService
 	requests := make(map[string]protoreflect.MessageDescriptor)
 	requestCandidates := make(map[string][]ProtoRequestCandidate)

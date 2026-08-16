@@ -134,7 +134,7 @@ func (d managedServiceDriver) Status(ctx context.Context, controller *Controller
 	status.Health = "running"
 	status.Message = "running"
 	if fast || len(manifest.HealthChecks) == 0 {
-		return status, nil
+		return d.withCompanionStatus(status, manifest)
 	}
 	health, err := controller.runResourceHealthChecks(ctx, manifest)
 	if err != nil {
@@ -154,6 +154,27 @@ func (d managedServiceDriver) Status(ctx context.Context, controller *Controller
 		if status.Message == "" {
 			status.Message = "unhealthy"
 		}
+	}
+	return d.withCompanionStatus(status, manifest)
+}
+
+func (d managedServiceDriver) withCompanionStatus(status Status, manifest ResourceManifest) (Status, error) {
+	companions, err := companionStatuses(manifest.Name, manifest.Companions)
+	if err != nil {
+		status.StatusCode = StatusCodeCommandError
+		status.Message = "companion status failed"
+		status.ProbeError = err.Error()
+		return status, nil
+	}
+	if len(companions) == 0 {
+		return status, nil
+	}
+	status.Raw = statusRawWithCompanions(status.Raw, companions)
+	if down := downCompanions(companions); len(down) > 0 {
+		healthy := false
+		status.Healthy = &healthy
+		status.Health = "unhealthy"
+		status.Message = companionDownMessage(manifest.Name, down)
 	}
 	return status, nil
 }
@@ -374,11 +395,21 @@ func (d managedServiceDriver) runPrivate(ctx context.Context, controller *Contro
 		if err := d.bootstrapPrivate(ctx, manifest, supervisor); err != nil {
 			return err
 		}
+		// Companions are part of the resource's readiness contract. Start them
+		// before the health wait so a companion that supplies capacity liveness
+		// can create/heartbeat the resource claim while the managed service is
+		// coming up. Waiting first deadlocks resources whose status is unhealthy
+		// while their required companion is down.
+		startCompanions(manifest.Name, manifest.Companions, manifest.Orchestration.RecoveryAttempts, os.Stderr)
 		if err := waitForManagedServiceHealth(ctx, controller, manifest); err != nil {
 			return err
 		}
-		return verifyManagedServiceRunning(supervisor)
+		if err := verifyManagedServiceRunning(supervisor); err != nil {
+			return err
+		}
+		return nil
 	case "restart":
+		stopCompanions(manifest.Name, manifest.Companions, os.Stderr)
 		stopCtx, cancel := managedServiceStopContext(ctx, manifest)
 		err := supervisor.Stop(stopCtx)
 		cancel()
@@ -391,11 +422,16 @@ func (d managedServiceDriver) runPrivate(ctx context.Context, controller *Contro
 		if err := d.bootstrapPrivate(ctx, manifest, supervisor); err != nil {
 			return err
 		}
+		startCompanions(manifest.Name, manifest.Companions, manifest.Orchestration.RecoveryAttempts, os.Stderr)
 		if err := waitForManagedServiceHealth(ctx, controller, manifest); err != nil {
 			return err
 		}
-		return verifyManagedServiceRunning(supervisor)
+		if err := verifyManagedServiceRunning(supervisor); err != nil {
+			return err
+		}
+		return nil
 	case "stop", "uninstall":
+		stopCompanions(manifest.Name, manifest.Companions, os.Stderr)
 		stopCtx, cancel := managedServiceStopContext(ctx, manifest)
 		defer cancel()
 		return supervisor.Stop(stopCtx)
@@ -444,6 +480,12 @@ func (d managedServiceDriver) startPrivateAt(controller *Controller, manifest Re
 		return err
 	}
 	env := resourceEnvForResource(controller.Root, controller.Home, manifest.Name)
+	// Expose only the verified artifact directory to the supervised process.
+	// Resources such as Ollama ship a native executable alongside runtime
+	// libraries; the manifest may point the service at that sibling directory
+	// without discovering arbitrary host binaries.
+	env = setEnvValue(env, "VROOLI_MANAGED_SERVICE_ARTIFACT", path)
+	env = setEnvValue(env, "RESOURCE_ARTIFACT_DIR", filepath.Dir(path))
 	for _, port := range manifest.Ports {
 		if port.Host > 0 {
 			env = setEnvValue(env, managedServicePortEnvName(port.Name), fmt.Sprintf("%d", port.Host))
@@ -453,6 +495,15 @@ func (d managedServiceDriver) startPrivateAt(controller *Controller, manifest Re
 		env = setEnvValue(env, key, value)
 	}
 	env = renderManagedServiceEnvironment(env, manifest.ManagedService.Environment)
+	if strings.TrimSpace(manifest.ManagedService.EnvironmentFile) != "" {
+		fileEnv, err := readManagedServiceEnvironmentFile(manifest.ManagedService.EnvironmentFile, env)
+		if err != nil {
+			return err
+		}
+		for key, value := range fileEnv {
+			env = setEnvValue(env, key, value)
+		}
+	}
 	if err := writeManagedServiceConfig(manifest, env); err != nil {
 		return err
 	}
@@ -463,6 +514,51 @@ func (d managedServiceDriver) startPrivateAt(controller *Controller, manifest Re
 	}
 	_, err = supervisor.Start(path, artifact, arguments, env, filepath.Dir(path))
 	return err
+}
+
+// readManagedServiceEnvironmentFile reads a resource-owned state file without
+// invoking a shell. It is intentionally a small KEY=VALUE format: comments and
+// blank lines are ignored, keys must be ordinary environment names, and the
+// file is resolved beneath RESOURCE_DATA_DIR.
+func readManagedServiceEnvironmentFile(relativePath string, env []string) (map[string]string, error) {
+	clean := filepath.Clean(strings.TrimSpace(relativePath))
+	if clean == "." || clean == ".." || strings.HasPrefix(clean, ".."+string(filepath.Separator)) || filepath.IsAbs(relativePath) {
+		return nil, fmt.Errorf("managed-service environment file must remain under RESOURCE_DATA_DIR")
+	}
+	values := managedServiceEnvValues(env)
+	root := strings.TrimSpace(values["RESOURCE_DATA_DIR"])
+	if root == "" {
+		return nil, fmt.Errorf("managed-service environment file requires RESOURCE_DATA_DIR")
+	}
+	path := filepath.Join(root, clean)
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("read managed-service environment file: %w", err)
+	}
+	result := make(map[string]string)
+	for lineNumber, line := range strings.Split(string(data), "\n") {
+		line = strings.TrimSpace(strings.TrimSuffix(line, "\r"))
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		key, value, ok := strings.Cut(line, "=")
+		key = strings.TrimSpace(key)
+		if !ok || !validManagedServiceEnvironmentKey(key) || strings.ContainsRune(value, '\x00') {
+			return nil, fmt.Errorf("invalid managed-service environment file entry on line %d", lineNumber+1)
+		}
+		result[key] = value
+	}
+	return result, nil
+}
+
+func validManagedServiceEnvironmentKey(key string) bool {
+	for index, r := range key {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9' && index > 0) || (r == '_' && index > 0) {
+			continue
+		}
+		return false
+	}
+	return key != ""
 }
 
 func (d managedServiceDriver) verifyArtifactAt(manifest ResourceManifest, path string) error {

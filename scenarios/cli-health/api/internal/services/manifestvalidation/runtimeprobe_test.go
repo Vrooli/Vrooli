@@ -108,6 +108,19 @@ func TestRuntimeProbe_BinaryUnresolvedDegradesToWarning(t *testing.T) {
 	}
 }
 
+func TestRuntimeProbe_ProjectEmptyHelpIsNotClean(t *testing.T) {
+	findings := runtimeFindingsForTarget(
+		RuntimeObservation{Resolved: true, Binary: "/usr/bin/vrooli"},
+		&cliapp.Manifest{},
+		"cli/manifest.json",
+		ProjectTargetID,
+	)
+	got := findingsWithCode(findings, CodeProjectCLIEmpty)
+	if len(got) != 1 || got[0].Severity != SeverityWarning {
+		t.Fatalf("empty project help must emit a required clean warning, got %+v", findings)
+	}
+}
+
 // Help broken (binary present) -> ERROR.
 func TestRuntimeProbe_HelpFailedIsError(t *testing.T) {
 	probe := &fakeProbe{obs: RuntimeObservation{Resolved: true, Binary: "/usr/bin/fixture", HelpFailed: true, HelpError: "exit status 1"}}

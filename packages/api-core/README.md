@@ -605,10 +605,12 @@ deleted, err := store.DeleteKey("API_KEY")
 # Scope catalog
 
 The `scopecatalog` package builds a deterministic authorization vocabulary from
-the `governance.effect` entries already present in scenario CLI manifests. It
+the `governance.effect` entries already present in the project and scenario CLI
+manifests. The root CLI uses the stable `vrooli` scope identity; scenario
+manifests retain their own identities and may not collide with it. It
 schema-validates each manifest, records connect-RPC and omitted-method
 coverage, and exposes `Catalog.WriteJSON` for build-time consumers. Building
-the catalog is read-only over `scenarios/`; no scenario registers a scope.
+the catalog is read-only over the repository; no scenario registers a scope.
 
 `Resolve` is deliberately pure and exact-match: held `*`, `<scenario>:*`, and
 `*:<effect>` wildcards are supported, while case differences and whitespace do

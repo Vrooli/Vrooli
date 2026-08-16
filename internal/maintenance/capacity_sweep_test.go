@@ -100,6 +100,66 @@ func TestSweepCapacityClaimsSensingDownNoExpiry(t *testing.T) {
 	}
 }
 
+// A resident claim that already has sampled GPU usage must be rescued when its
+// deadline lapses. This covers native model-server processes whose attribution
+// is process-name based rather than container based (the reranker is one such
+// resource); observed resident bytes are evidence to refresh, not a reason to
+// expire the claim.
+func TestSweepCapacityClaimsRefreshesObservedResident(t *testing.T) {
+	ctx := context.Background()
+	dbPath := filepath.Join(t.TempDir(), "capacity.db")
+	store, err := capacity.NewSQLiteStore(ctx, capacity.Config{DBPath: dbPath})
+	if err != nil {
+		t.Fatalf("NewSQLiteStore() error = %v", err)
+	}
+	observedAt := time.Now().UTC().Add(-time.Hour)
+	gpu := 0
+	created, err := store.CreateClaim(ctx, capacity.CapacityClaim{
+		OwnerKind:     capacity.OwnerKindResource,
+		OwnerID:       "reranker",
+		ResourceKind:  capacity.ResourceKindVRAM,
+		GPUIndex:      &gpu,
+		AmountBytes:   3 << 30,
+		Priority:      capacity.PriorityService,
+		ObservedBytes: 3 << 30,
+		ObservedAt:    &observedAt,
+	}, time.Nanosecond)
+	store.Close()
+	if err != nil {
+		t.Fatalf("CreateClaim() error = %v", err)
+	}
+	sweepAt := time.Now().UTC()
+
+	withCapacitySweepSeams(t, dbPath, hostinventory.Snapshot{GPUProcesses: []hostinventory.GPUProcess{{
+		GPUIndex: 0, PID: 1000, ProcessName: "reranker_linux_amd64", UsedBytes: 3 << 30,
+	}}}, nil, fakeMaintAttributor{}, sweepAt)
+
+	c := NewController(t.TempDir(), t.TempDir())
+	items, err := c.sweepCapacityClaims(ctx)
+	if err != nil {
+		t.Fatalf("sweepCapacityClaims() error = %v", err)
+	}
+	if len(items) != 0 {
+		t.Fatalf("items = %+v, want no expiry for observed reranker claim %s", items, created.ClaimID)
+	}
+
+	store, err = capacity.NewSQLiteStore(ctx, capacity.Config{DBPath: dbPath})
+	if err != nil {
+		t.Fatalf("reopen store error = %v", err)
+	}
+	defer store.Close()
+	got, err := store.GetClaim(ctx, created.ClaimID)
+	if err != nil {
+		t.Fatalf("GetClaim() error = %v", err)
+	}
+	if got.Status != capacity.StatusGranted {
+		t.Fatalf("status = %q, want granted", got.Status)
+	}
+	if got.HeartbeatDeadlineAt == nil || !got.HeartbeatDeadlineAt.After(sweepAt) {
+		t.Fatalf("heartbeat deadline = %v, want refreshed beyond sweep time", got.HeartbeatDeadlineAt)
+	}
+}
+
 // No ledger yet on the host → nothing to sweep, no error.
 func TestSweepCapacityClaimsNoLedgerIsNoop(t *testing.T) {
 	ctx := context.Background()

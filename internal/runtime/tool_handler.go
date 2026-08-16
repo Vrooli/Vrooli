@@ -12,8 +12,10 @@ import (
 
 	"github.com/vrooli/binaryfetch"
 	repocontract "github.com/vrooli/repo-contract-go"
+	"github.com/vrooli/vrooli/internal/cliinstall"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
+	dockertool "github.com/vrooli/vrooli/internal/tools/docker"
 )
 
 // runtimeArch reports the host architecture (Go GOARCH) used to select a
@@ -59,6 +61,29 @@ var userLocalOptDir = func(tool string) (string, error) {
 
 type toolHandler struct {
 	manifest hostreqkit.ToolManifest
+}
+
+func init() {
+	hostreqkit.RecordPackageInstallFn = func(record hostreqkit.PackageInstallRecord) error {
+		before := cliinstall.ObservedUnknown
+		if record.ObservedBefore == hostreqkit.PackagePresent {
+			before = cliinstall.ObservedPresent
+		} else if record.ObservedBefore == hostreqkit.PackageAbsent {
+			before = cliinstall.ObservedAbsent
+		}
+		action := cliinstall.ActionInstalled
+		if record.Action == hostreqkit.PackageAdopted {
+			action = cliinstall.ActionAdopted
+		}
+		return cliinstall.RecordPackageInstall(record.Home, record.PackageManager, record.PackageName, before, action, record.VersionBefore, record.VersionAfter, record.OwningNode, record.Shared)
+	}
+	dockertool.RecordRuntimeProviderFn = func(provider, endpoint, node string, before cliinstall.ObservedBefore, action cliinstall.InstallAction) error {
+		home, err := hostreqkit.InvokingUserHomeDir()
+		if err != nil {
+			return fmt.Errorf("resolve home for container-runtime provenance: %w", err)
+		}
+		return cliinstall.RecordContainerRuntime(home, provider, endpoint, node, before, action)
+	}
 }
 
 type toolInstallStrategy uint8
@@ -262,6 +287,13 @@ func (h toolHandler) unsupportedTargetNote(host hostreqkit.Host) string {
 
 func (h toolHandler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts hostreqkit.EnsureOptions) (hostreqkit.ItemStatus, error) {
 	if status.Installed {
+		if status.PackageName != "" && host.PackageManager != "" {
+			if err := recordAdoptedPackage(host, status); err != nil {
+				status.ExecutionState = hostreqkit.ExecutionFailed
+				status.Notes = append(status.Notes, err.Error())
+				return status, nil
+			}
+		}
 		status.ExecutionState = hostreqkit.ExecutionAlreadyPresent
 		return status, nil
 	}
@@ -284,6 +316,15 @@ func (h toolHandler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, o
 		return h.applyFetch(host, status, opts)
 	}
 	return h.applyPackage(host, status, opts)
+}
+
+func recordAdoptedPackage(host hostreqkit.Host, status hostreqkit.ItemStatus) error {
+	home, err := hostreqkit.InvokingUserHomeDir()
+	if err != nil {
+		return fmt.Errorf("record adopted package: resolve home: %w", err)
+	}
+	node, _ := os.Hostname()
+	return cliinstall.RecordPackageInstall(home, host.PackageManager, status.PackageName, cliinstall.ObservedPresent, cliinstall.ActionAdopted, status.Version, status.Version, node, false)
 }
 
 func (h toolHandler) applyPackage(host hostreqkit.Host, status hostreqkit.ItemStatus, opts hostreqkit.EnsureOptions) (hostreqkit.ItemStatus, error) {
@@ -313,7 +354,12 @@ func (h toolHandler) applyPackage(host hostreqkit.Host, status hostreqkit.ItemSt
 		status.Notes = append(status.Notes, fmt.Sprintf("dry-run: would run %s %s", command, strings.Join(args, " ")))
 		return status, nil
 	}
-	if err := hostreqkit.RunInstallCommand(command, args, opts); err != nil {
+	if err := hostreqkit.RunInstallCommandWithProvenance(command, args, opts, hostreqkit.InstallProvenanceRequest{
+		PackageManager: host.PackageManager,
+		PackageName:    status.PackageName,
+		VersionCommand: status.Command,
+		VersionArgs:    h.manifest.VersionArgs,
+	}); err != nil {
 		status.ExecutionState = hostreqkit.ExecutionFailed
 		status.Notes = append(status.Notes, err.Error())
 		return status, nil
@@ -341,6 +387,28 @@ func (h toolHandler) applyPackage(host hostreqkit.Host, status hostreqkit.ItemSt
 	status.ExecutionState = hostreqkit.ExecutionFailed
 	status.Notes = append(status.Notes, "install command completed but the tool is still not available on PATH")
 	return status, nil
+}
+
+func (h toolHandler) recordFetchedArtifacts(binDir, command string, dirLayout bool) error {
+	home, err := hostreqkit.InvokingUserHomeDir()
+	if err != nil {
+		return err
+	}
+	entries := []cliinstall.InstallEntry{{
+		Scope: cliinstall.ScopeRuntime, Kind: cliinstall.EntryBinary,
+		Path: filepath.Join(binDir, command), Prefix: binDir,
+	}}
+	if dirLayout {
+		optDir, err := userLocalOptDir(h.manifest.Name)
+		if err != nil {
+			return err
+		}
+		entries = append(entries, cliinstall.InstallEntry{
+			Scope: cliinstall.ScopeRuntime, Kind: cliinstall.EntryDirectory,
+			Path: optDir, Prefix: optDir,
+		})
+	}
+	return cliinstall.RecordToolArtifacts(home, entries...)
 }
 
 // applyFetch installs a url/release tool by fetching+verifying its binary into
@@ -417,6 +485,11 @@ func (h toolHandler) applyFetch(host hostreqkit.Host, status hostreqkit.ItemStat
 	status.Command = command
 	status.Installed = installed
 	if installed {
+		if err := h.recordFetchedArtifacts(binDir, binName, target.IsDir()); err != nil {
+			status.ExecutionState = hostreqkit.ExecutionFailed
+			status.Notes = append(status.Notes, "record install inventory: "+err.Error())
+			return status, nil
+		}
 		status.ExecutionState = hostreqkit.ExecutionInstalled
 		version, probeErr := h.readFetchVersion(command)
 		if version != "" {

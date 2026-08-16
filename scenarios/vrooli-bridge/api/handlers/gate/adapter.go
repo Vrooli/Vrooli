@@ -9,6 +9,7 @@ import (
 	"vrooli-bridge/internal/registry"
 	"vrooli-bridge/internal/runs"
 
+	"github.com/vrooli/api-core/targetmodel"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	gatev1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/gate"
@@ -104,9 +105,41 @@ func (a nodeListerAdapter) ListNodes(ctx context.Context) ([]gate.NodeRef, error
 	}
 	out := make([]gate.NodeRef, 0, len(nodes))
 	for _, n := range nodes {
-		out = append(out, gate.NodeRef{ID: n.ID, OS: n.OS, Arch: n.Arch, Revoked: n.Revoked()})
+		revoked := n.Revoked()
+		out = append(out, gate.NodeRef{
+			ID: n.ID, OS: n.OS, Arch: n.Arch, Revoked: revoked,
+			Target: targetmodel.Target{
+				ID: n.ID, Label: n.Name, Platform: "desktop", OS: n.OS, Architecture: n.Arch,
+				DeviceKind: "desktop", NodeID: n.ID, Capabilities: append([]string(nil), n.Capabilities...),
+				Transport: targetmodel.Transport{Kind: targetmodel.TransportBridge, ID: n.ID, Trust: "bridge", Available: true},
+				Available: !revoked, Reason: bridgeTargetReason(revoked, hasScenarioTestScope(n.Scopes)),
+				MissingCapability: "bridge dispatch reachability", NextAction: "restore the node channel and protocol compatibility",
+				Health:      targetmodel.TargetHealth{Status: "registered"},
+				BridgeTrust: &targetmodel.BridgeTrust{Registered: !revoked, DispatchAuthorized: hasScenarioTestScope(n.Scopes)},
+				Revoked:     revoked,
+			},
+		})
 	}
 	return out, nil
+}
+
+func bridgeTargetReason(revoked, dispatchAuthorized bool) string {
+	if revoked {
+		return targetmodel.ReasonBridgeRevoked
+	}
+	if !dispatchAuthorized {
+		return targetmodel.ReasonBridgeNoDispatchScope
+	}
+	return targetmodel.ReasonBridgeAuthorizedDesktop
+}
+
+func hasScenarioTestScope(scopes []string) bool {
+	for _, scope := range scopes {
+		if scope == "scenario test" || scope == "scenario test*" {
+			return true
+		}
+	}
+	return false
 }
 
 // runnerAdapter binds the gate Runner seam to the SHARED dispatch service (which

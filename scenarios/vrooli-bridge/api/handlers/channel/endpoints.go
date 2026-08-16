@@ -87,6 +87,21 @@ var Endpoints = []module.EndpointDescriptor{
 		},
 	},
 	{
+		ID:          "presence_report_relay_response",
+		Path:        presenceconnect.PresenceServiceReportRelayResponseProcedure,
+		Method:      "POST",
+		Summary:     "Receive an authenticated relay response",
+		Description: "Node-facing: carries bounded relay output and its terminal outcome back to the waiting control-plane call.",
+		Category:    "channel",
+		Request:     &module.Schema{Type: "object", Properties: map[string]string{"response": "RelayResponse (correlation_id, kind, sequence, data, reason, exit_code, total_bytes)"}},
+		Response:    &module.Schema{Type: "object", Properties: map[string]string{"accepted": "boolean"}},
+		Errors: []module.ErrorDesc{
+			{Status: 400, Code: "invalid_argument", Description: "Missing relay correlation id or invalid response kind"},
+			{Status: 401, Code: "unauthenticated", Description: "Missing or invalid node proof"},
+			{Status: 403, Code: "permission_denied", Description: "Correlation does not belong to this node"},
+		},
+	},
+	{
 		ID: "channel_session_frame", Path: presenceconnect.PresenceServiceReportSessionFrameProcedure, Method: "POST",
 		Summary: "Receive an authenticated node session frame", Description: "Node-facing Connect-RPC for PTY output and session close events. Requires the node proof and binds the frame to its Bridge session.", Category: "channel",
 	},

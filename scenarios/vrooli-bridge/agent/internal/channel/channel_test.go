@@ -102,6 +102,10 @@ func (f *fakeControlPlane) ReportSessionFrame(_ context.Context, _ *connect.Requ
 	return connect.NewResponse(&presencev1.ReportSessionFrameResponse{Accepted: true}), nil
 }
 
+func (f *fakeControlPlane) ReportRelayResponse(_ context.Context, _ *connect.Request[presencev1.ReportRelayResponseRequest]) (*connect.Response[presencev1.ReportRelayResponseResponse], error) {
+	return connect.NewResponse(&presencev1.ReportRelayResponseResponse{Accepted: true}), nil
+}
+
 func (f *fakeControlPlane) deliveryAckCount() int {
 	f.mu.Lock()
 	defer f.mu.Unlock()

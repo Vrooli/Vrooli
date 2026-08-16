@@ -3,6 +3,7 @@ package capacity
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"os/exec"
 	"strings"
@@ -155,6 +156,20 @@ func actuateDegrade(ctx context.Context, store ClaimRepository, exec ApplyExecut
 	}
 	degraded, err := store.DegradeClaim(ctx, claim.ClaimID, claim.Generation, action.ToStep, targetAmount)
 	if err != nil {
+		// A managed-service adopter commonly restarts during activation. Its
+		// lifecycle admission may expire the old claim while the process is down
+		// and create a replacement before the callback returns. Reconcile that
+		// replacement by owner/profile so a successful model switch cannot leave
+		// the broker claiming the old preferred footprint.
+		if errors.Is(err, ErrStaleGeneration) || errors.Is(err, ErrNotFound) {
+			if replacement, replacementErr := degradeReplacementClaim(ctx, store, claim, action.ToStep, targetAmount); replacementErr == nil {
+				degraded = replacement
+				outcome.Applied = true
+				outcome.FreedBytes = claim.AmountBytes - degraded.AmountBytes
+				outcome.Reason = "adopter resized and replacement claim was reconciled"
+				return true, nil
+			}
+		}
 		// The adopter resized but the ledger write lost a race; surface it, but the
 		// resource itself did step down so this is not a "strand". Report and move on.
 		outcome.Err = "adopter resized but ledger update failed: " + err.Error()
@@ -163,6 +178,34 @@ func actuateDegrade(ctx context.Context, store ClaimRepository, exec ApplyExecut
 	outcome.Applied = true
 	outcome.FreedBytes = claim.AmountBytes - degraded.AmountBytes
 	return true, nil
+}
+
+func degradeReplacementClaim(ctx context.Context, store ClaimRepository, original CapacityClaim, step string, amount int64) (CapacityClaim, error) {
+	candidates, err := store.ListClaims(ctx, ClaimFilter{
+		OwnerKind:    original.OwnerKind,
+		OwnerID:      original.OwnerID,
+		ResourceKind: original.ResourceKind,
+		Statuses:     ActiveClaimStatuses(),
+	})
+	if err != nil {
+		return CapacityClaim{}, err
+	}
+	for _, candidate := range candidates {
+		if candidate.ClaimID == original.ClaimID ||
+			candidate.PreferredBytes != original.PreferredBytes ||
+			candidate.FloorBytes != original.FloorBytes ||
+			candidate.GPUIndex == nil != (original.GPUIndex == nil) {
+			continue
+		}
+		if candidate.GPUIndex != nil && original.GPUIndex != nil && *candidate.GPUIndex != *original.GPUIndex {
+			continue
+		}
+		if _, ok := stepAmount(candidate.DegradeProfile, step); !ok || candidate.AmountBytes <= amount {
+			continue
+		}
+		return store.DegradeClaim(ctx, candidate.ClaimID, candidate.Generation, step, amount)
+	}
+	return CapacityClaim{}, ErrNotFound
 }
 
 // actuateUpshift applies a single request-upshift action — the symmetric

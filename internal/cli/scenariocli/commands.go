@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/vrooli/cli-core/cliutil"
 	"github.com/vrooli/vrooli/internal/cli/clipolicy"
 	"github.com/vrooli/vrooli/internal/cli/commandtree"
 	"github.com/vrooli/vrooli/internal/cliout"
@@ -23,16 +24,38 @@ func instanceOption() commandtree.OptionArg {
 	return commandtree.OptionArg{Name: "--instance", ValueName: "variant", Description: "Target a named instance/variant (e.g. shadow); equivalent to name@variant"}
 }
 
-// resolveInstanceArg folds a scenario-name argument and the --instance flag into
-// the canonical instance slug ("scenario" for live, "scenario@variant"
-// otherwise). It is the single CLI-side resolution point so downstream layers
-// receive one unambiguous identifier rather than re-splitting the name.
-func resolveInstanceArg(command, name, instanceFlag string) (string, error) {
-	key, err := scenarioruntime.ParseInstanceKey(name, instanceFlag)
+// nodeOption is the explicit node selector shared by every command that
+// already accepts --instance. A node/ prefix in the scenario address wins
+// over this flag. There is deliberately no ambient node environment signal.
+func nodeOption() commandtree.OptionArg {
+	return commandtree.OptionArg{Name: "--node", ValueName: "name", Description: "Target a connected node; address prefix wins; node is never selected implicitly"}
+}
+
+// resolveAddressArg resolves the instance axis and preserves the explicit
+// node axis in the canonical address string. Existing local callers receive
+// the same scenario[@variant] slug they received before node addressing was
+// added. A node prefix is authoritative when both forms are present.
+func resolveAddressArg(command, name, instanceFlag, nodeFlag string) (string, error) {
+	prefixNode, scenario, suffixVariant, err := cliutil.SplitAddress(name)
 	if err != nil {
 		return "", clipolicy.UsageErrorf("scenario "+command, "%s", err.Error())
 	}
-	return key.Slug(), nil
+	instanceName := scenario
+	if suffixVariant != "" {
+		instanceName += "@" + suffixVariant
+	}
+	key, err := scenarioruntime.ParseInstanceKey(instanceName, instanceFlag)
+	if err != nil {
+		return "", clipolicy.UsageErrorf("scenario "+command, "%s", err.Error())
+	}
+	node := strings.TrimSpace(prefixNode)
+	if node == "" {
+		node = strings.TrimSpace(nodeFlag)
+	}
+	if node == "" {
+		return key.Slug(), nil
+	}
+	return node + "/" + key.Slug(), nil
 }
 
 type CommandID string
@@ -73,7 +96,7 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 		},
 		{
 			Name: string(CommandStatus), Group: "Read-only Commands", Summary: "Show scenario runtime status", Handler: CommandStatus, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot},
-			Args: commandtree.ArgSchema{Positionals: []commandtree.PositionalArg{{Name: "scenario name"}}, Options: []commandtree.OptionArg{commandtree.JSONOption(), instanceOption()}},
+			Args: commandtree.ArgSchema{Positionals: []commandtree.PositionalArg{{Name: "scenario name"}}, Options: []commandtree.OptionArg{commandtree.JSONOption(), instanceOption(), nodeOption()}},
 		},
 		{
 			Name: string(CommandValidateEnv), Group: "Read-only Commands", Summary: "Validate resource-derived environment injection for a scenario", Handler: CommandValidateEnv, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot},
@@ -91,7 +114,7 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 			Name: string(CommandStart), Group: "Lifecycle and Utility Commands", Summary: "Start a scenario", Handler: CommandStart, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot},
 			Args: commandtree.ArgSchema{
 				Positionals: []commandtree.PositionalArg{{Name: "scenario name", Required: true, Repeatable: true}},
-				Options:     []commandtree.OptionArg{{Name: "--path", ValueName: "path"}, {Name: "--best-effort"}, {Name: "--clean-stale"}, {Name: "--open"}, {Name: "--timeout", ValueName: "seconds", Description: "Ceiling for the whole start (not the expected duration); on expiry exit 124 — the operation record stays honest and the next start/wait resumes"}, commandtree.JSONOption(), instanceOption()},
+				Options:     []commandtree.OptionArg{{Name: "--path", ValueName: "path"}, {Name: "--best-effort"}, {Name: "--clean-stale"}, {Name: "--open"}, {Name: "--timeout", ValueName: "seconds", Description: "Ceiling for the whole start (not the expected duration); on expiry exit 124 — the operation record stays honest and the next start/wait resumes"}, commandtree.JSONOption(), instanceOption(), nodeOption()},
 			},
 		},
 		{
@@ -106,7 +129,7 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 			Name: string(CommandRestart), Group: "Lifecycle and Utility Commands", Summary: "Restart a scenario", Handler: CommandRestart, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot},
 			Args: commandtree.ArgSchema{
 				Positionals: []commandtree.PositionalArg{{Name: "scenario name", Required: true}},
-				Options:     []commandtree.OptionArg{{Name: "--path", ValueName: "path"}, {Name: "--best-effort"}, {Name: "--clean-stale"}, {Name: "--open"}, {Name: "--timeout", ValueName: "seconds", Description: "Ceiling for the whole restart; on expiry exit 124 — the operation record stays honest and the next start/wait resumes"}, commandtree.JSONOption(), instanceOption()},
+				Options:     []commandtree.OptionArg{{Name: "--path", ValueName: "path"}, {Name: "--best-effort"}, {Name: "--clean-stale"}, {Name: "--open"}, {Name: "--timeout", ValueName: "seconds", Description: "Ceiling for the whole restart; on expiry exit 124 — the operation record stays honest and the next start/wait resumes"}, commandtree.JSONOption(), instanceOption(), nodeOption()},
 			},
 		},
 		{
@@ -117,12 +140,13 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 					{Name: "--timeout", ValueName: "seconds", Description: "Wait CEILING in seconds (not the expected duration); on expiry exit 124 and the start keeps running. Size it as ETA + 75% buffer."},
 					commandtree.JSONOption(),
 					instanceOption(),
+					nodeOption(),
 				},
 			},
 		},
 		{
 			Name: string(CommandStop), Group: "Lifecycle and Utility Commands", Summary: "Stop a running scenario", Handler: CommandStop, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot},
-			Args: commandtree.ArgSchema{Positionals: []commandtree.PositionalArg{{Name: "scenario name", Required: true}}, Options: []commandtree.OptionArg{commandtree.JSONOption(), instanceOption()}},
+			Args: commandtree.ArgSchema{Positionals: []commandtree.PositionalArg{{Name: "scenario name", Required: true}}, Options: []commandtree.OptionArg{commandtree.JSONOption(), instanceOption(), nodeOption()}},
 		},
 		{
 			Name: string(CommandStopAll), Group: "Lifecycle and Utility Commands", Summary: "Stop all running scenarios", Handler: CommandStopAll, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot},
@@ -145,7 +169,7 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 			Name: string(CommandPort), Group: "Lifecycle and Utility Commands", Summary: "Show running port assignments", Handler: CommandPort, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot},
 			Args: commandtree.ArgSchema{
 				Positionals: []commandtree.PositionalArg{{Name: "scenario name", Required: true}, {Name: "port name"}},
-				Options:     []commandtree.OptionArg{commandtree.JSONOption(), instanceOption(), {Name: "--path", ValueName: "path", Description: "Resolve a running scenario started from this physical scenario directory"}},
+				Options:     []commandtree.OptionArg{commandtree.JSONOption(), instanceOption(), nodeOption(), {Name: "--path", ValueName: "path", Description: "Resolve a running scenario started from this physical scenario directory"}},
 			},
 		},
 		{Name: string(CommandRequirements), Group: "Lifecycle and Utility Commands", Summary: "Manage scenario requirements", Handler: CommandRequirements, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot}},
@@ -331,9 +355,10 @@ func ParseScenarioStartArgs(defaultJSON bool, args []string) (ScenarioStartArgs,
 		}
 	}
 	instanceFlag := parsed.FlagValue("--instance")
+	nodeFlag := parsed.FlagValue("--node")
 	out.Names = make([]string, 0, len(parsed.Positionals))
 	for _, positional := range parsed.Positionals {
-		slug, err := resolveInstanceArg("start", positional, instanceFlag)
+		slug, err := resolveAddressArg("start", positional, instanceFlag, nodeFlag)
 		if err != nil {
 			return ScenarioStartArgs{}, err
 		}
@@ -384,7 +409,7 @@ func ParseStopRequest(globalsJSON bool, args []string) (StopRequest, error) {
 	if len(parsed.Positionals) == 0 {
 		return StopRequest{}, clipolicy.UsageErrorf("scenario stop", "scenario stop requires a scenario name")
 	}
-	slug, err := resolveInstanceArg("stop", parsed.Positionals[0], parsed.FlagValue("--instance"))
+	slug, err := resolveAddressArg("stop", parsed.Positionals[0], parsed.FlagValue("--instance"), parsed.FlagValue("--node"))
 	if err != nil {
 		return StopRequest{}, err
 	}
@@ -426,7 +451,7 @@ func ParseWaitRequest(globalsJSON bool, args []string) (WaitRequest, error) {
 	if len(parsed.Positionals) == 0 {
 		return WaitRequest{}, clipolicy.UsageErrorf("scenario wait", "scenario wait requires a scenario name")
 	}
-	slug, err := resolveInstanceArg("wait", parsed.Positionals[0], parsed.FlagValue("--instance"))
+	slug, err := resolveAddressArg("wait", parsed.Positionals[0], parsed.FlagValue("--instance"), parsed.FlagValue("--node"))
 	if err != nil {
 		return WaitRequest{}, err
 	}
@@ -460,11 +485,11 @@ func ParseStatusRequest(globalsJSON bool, args []string) (StatusRequest, error) 
 	}
 	name := ""
 	if len(parsed.Positionals) == 1 {
-		if name, err = resolveInstanceArg("status", parsed.Positionals[0], parsed.FlagValue("--instance")); err != nil {
+		if name, err = resolveAddressArg("status", parsed.Positionals[0], parsed.FlagValue("--instance"), parsed.FlagValue("--node")); err != nil {
 			return StatusRequest{}, err
 		}
-	} else if parsed.FlagValue("--instance") != "" {
-		return StatusRequest{}, clipolicy.UsageErrorf("scenario status", "scenario status --instance requires a scenario name")
+	} else if parsed.FlagValue("--instance") != "" || parsed.FlagValue("--node") != "" {
+		return StatusRequest{}, clipolicy.UsageErrorf("scenario status", "scenario status --instance/--node requires a scenario name")
 	}
 	return StatusRequest{Name: name, JSON: globalsJSON || parsed.HasFlag("--json")}, nil
 }
@@ -612,7 +637,7 @@ func ParsePortRequest(globalsJSON bool, args []string) (PortRequest, error) {
 	if err != nil {
 		return PortRequest{}, err
 	}
-	slug, err := resolveInstanceArg("port", parsed.Positionals[0], parsed.FlagValue("--instance"))
+	slug, err := resolveAddressArg("port", parsed.Positionals[0], parsed.FlagValue("--instance"), parsed.FlagValue("--node"))
 	if err != nil {
 		return PortRequest{}, err
 	}

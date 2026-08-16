@@ -4,6 +4,7 @@
   "providers": [
     {
       "provider_id": "cli-health.commands",
+      "lifecycle": "production",
       "provider_group": "cli-health",
       "bucket": "BUCKET_DO",
       "type": "command",

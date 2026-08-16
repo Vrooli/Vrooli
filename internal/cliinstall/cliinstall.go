@@ -454,7 +454,7 @@ func (m *Manager) ensure(ctx context.Context, item InstallableCLI) error {
 			return fingerprintErr
 		}
 		if current {
-			return nil
+			return m.recordInstalledCLI(item)
 		}
 	} else if err != nil && !os.IsNotExist(err) {
 		return err
@@ -611,7 +611,24 @@ func (m *Manager) install(ctx context.Context, item InstallableCLI) error {
 		ModulePath:  m.installMetadataSource(item),
 		Fingerprint: fingerprint,
 	}
-	return m.writeInstallMetadata(item, meta)
+	if err := m.writeInstallMetadata(item, meta); err != nil {
+		return err
+	}
+	return m.recordInstalledCLI(item)
+}
+
+func (m *Manager) recordInstalledCLI(item InstallableCLI) error {
+	path := m.InstalledBinaryPath(item)
+	if err := RecordInstallEntries(m.Home, InstallEntry{
+		Scope: ScopeRuntime, Kind: EntryBinary, Path: path, Prefix: m.InstallDir(),
+	}, InstallEntry{
+		Scope: ScopeRuntime, Kind: EntryFile, Path: m.InstallMetadataPath(item), Prefix: m.InstallDir(),
+	}, InstallEntry{
+		Scope: ScopeRuntime, Kind: EntryFile, Path: m.InstalledManifestPath(item), Prefix: m.InstallDir(),
+	}); err != nil {
+		return fmt.Errorf("record installed CLI %q: %w", item.Name, err)
+	}
+	return nil
 }
 
 func (m *Manager) installMetadataSource(item InstallableCLI) string {

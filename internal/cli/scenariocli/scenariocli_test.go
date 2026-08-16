@@ -10,9 +10,11 @@ import (
 	"time"
 
 	"github.com/vrooli/vrooli/internal/cliout"
+	"github.com/vrooli/vrooli/internal/lifecycle"
 	"github.com/vrooli/vrooli/internal/orchestrator"
 	"github.com/vrooli/vrooli/internal/process"
 	scenariomodel "github.com/vrooli/vrooli/internal/scenario"
+	"github.com/vrooli/vrooli/internal/scenarioruntime"
 )
 
 func TestRenderStatusResponseHumanSingleIncludesScenarioHeader(t *testing.T) {
@@ -523,6 +525,59 @@ func TestBuildScenarioStatusItemAndHumanWriters(t *testing.T) {
 	})
 	if !strings.Contains(statusOut.String(), "Health: running") || !strings.Contains(statusOut.String(), "Processes:") {
 		t.Fatalf("scenario status output = %s", statusOut.String())
+	}
+}
+
+func TestWriteStatusHumanReportsInFlightLifecycleOperation(t *testing.T) {
+	// The regression this guards: a scenario four seconds into someone else's
+	// start reports "stopped" — identical to a scenario nobody is touching —
+	// so the operator runs `scenario restart` and the per-scenario lock
+	// refuses it with a bare PID the status output never mentioned.
+	inFlight := &lifecycle.StartOperationView{
+		Scenario:       "alpha",
+		Operation:      "start",
+		Status:         scenarioruntime.StartOperationStatusRunning,
+		InitiatorPID:   3941220,
+		CurrentStep:    "setup",
+		ElapsedSeconds: 4,
+	}
+
+	var out bytes.Buffer
+	WriteStatusHuman(&out, StatusSingleOutput{
+		Scenario: StatusItemOutput{Name: "alpha", Status: "stopped", StartOperation: inFlight},
+		Info:     InfoScenarioData{Name: "alpha", Path: "/x"},
+		Runtime:  InfoRuntimeData{Status: "stopped"},
+	})
+	for _, want := range []string{"Status: stopped", "Lifecycle: start in progress", "pid 3941220", "setup step"} {
+		if !strings.Contains(out.String(), want) {
+			t.Fatalf("status output missing %q:\n%s", want, out.String())
+		}
+	}
+
+	// A terminal operation is history, not activity: reporting it as in
+	// flight would recreate the same confusion pointing the other way.
+	done := *inFlight
+	done.Status = scenarioruntime.StartOperationStatusSucceeded
+	var settled bytes.Buffer
+	WriteStatusHuman(&settled, StatusSingleOutput{
+		Scenario: StatusItemOutput{Name: "alpha", Status: "running", StartOperation: &done},
+		Info:     InfoScenarioData{Name: "alpha", Path: "/x"},
+		Runtime:  InfoRuntimeData{Status: "running"},
+	})
+	if strings.Contains(settled.String(), "Lifecycle:") {
+		t.Fatalf("terminal operation rendered as in flight:\n%s", settled.String())
+	}
+
+	// No record at all must stay silent rather than implying quiescence it
+	// cannot prove.
+	var bare bytes.Buffer
+	WriteStatusHuman(&bare, StatusSingleOutput{
+		Scenario: StatusItemOutput{Name: "alpha", Status: "stopped"},
+		Info:     InfoScenarioData{Name: "alpha", Path: "/x"},
+		Runtime:  InfoRuntimeData{Status: "stopped"},
+	})
+	if strings.Contains(bare.String(), "Lifecycle:") {
+		t.Fatalf("absent record rendered a lifecycle line:\n%s", bare.String())
 	}
 }
 

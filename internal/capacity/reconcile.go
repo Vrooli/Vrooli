@@ -41,7 +41,7 @@ func Reconcile(ctx context.Context, snapshot hostinventory.Snapshot, ledger []Ca
 			OwnerID:       observedOwnerLabel(a, proc),
 		}
 
-		claim, matched := matchClaim(active, a, proc.GPUIndex)
+		claim, matched := matchClaim(active, a, proc)
 		if !matched {
 			finding.Class = FindingUnclaimed
 			finding.Severity = "warn"
@@ -76,10 +76,10 @@ func Reconcile(ctx context.Context, snapshot hostinventory.Snapshot, ledger []Ca
 // attribution. Matching is intentionally loose (exact, or either name contains
 // the other) because container names and declared owner ids use different
 // conventions.
-func matchClaim(active []CapacityClaim, a Attribution, gpuIndex int) (CapacityClaim, bool) {
-	candidates := []string{a.OwnerID, NormalizeOwnerName(a.ContainerName), strings.TrimPrefix(a.ContainerName, "/")}
+func matchClaim(active []CapacityClaim, a Attribution, proc hostinventory.GPUProcess) (CapacityClaim, bool) {
+	candidates := []string{a.OwnerID, NormalizeOwnerName(a.ContainerName), strings.TrimPrefix(a.ContainerName, "/"), NormalizeProcessOwner(proc.ProcessName)}
 	for _, c := range active {
-		if !sameGPU(c.GPUIndex, &gpuIndex) {
+		if !sameGPU(c.GPUIndex, &proc.GPUIndex) {
 			continue
 		}
 		owner := strings.TrimSpace(c.OwnerID)
@@ -124,6 +124,9 @@ func observedOwnerLabel(a Attribution, proc hostinventory.GPUProcess) string {
 		return name
 	}
 	if proc.ProcessName != "" {
+		if owner := NormalizeProcessOwner(proc.ProcessName); owner != "" {
+			return owner
+		}
 		return proc.ProcessName
 	}
 	return OwnerUnknown

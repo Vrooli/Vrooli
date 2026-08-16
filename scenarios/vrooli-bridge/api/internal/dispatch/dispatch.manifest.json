@@ -1,15 +1,13 @@
 {
-  "source": "audited-typed-dispatch-bindings-with-catalog-scope-ceilings",
-  "entries": [
-    {"verb": "scenario test", "effect": "write"},
-    {"verb": "scenario start", "effect": "write"},
+  "source": "project-cli-catalog-with-typed-capability-bindings",
+  "default_grants": ["read", "write"],
+  "typed_bindings": [
     {"verb": "scenario wait", "effect": "write"},
-    {"verb": "scenario stop", "effect": "write"},
-    {"verb": "scenario status", "effect": "read"},
-    {"verb": "scenario logs", "effect": "read"},
-    {"verb": "scenario screenshot", "effect": "write", "outputs": [{"name": "screenshot.png", "media_type": "image/png", "output_flag": "--output", "max_bytes": 33554432}]},
     {"verb": "device-control observe", "effect": "read"},
     {"verb": "device-control actuate", "effect": "write"},
     {"verb": "device-control flow", "effect": "write"}
+  ],
+  "outputs": [
+    {"verb": "scenario screenshot", "entries": [{"name": "screenshot.png", "media_type": "image/png", "output_flag": "--output", "max_bytes": 33554432}]}
   ]
 }

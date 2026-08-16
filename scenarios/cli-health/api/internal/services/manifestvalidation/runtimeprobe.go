@@ -78,14 +78,28 @@ func NewCLIRuntimeProbe(timeout time.Duration) RuntimeProbe {
 }
 
 func (p cliRuntimeProbe) Probe(ctx context.Context, scenario string) (RuntimeObservation, error) {
-	bin := cliruntime.ResolveBinary(scenario, "")
+	binaryName := scenario
+	origin := scenario
+	if isProjectTarget(scenario) {
+		binaryName = ProjectCLIBinary
+		origin = ProjectCLIBinary
+	}
+	bin := cliruntime.ResolveBinary(binaryName, "")
 	if bin == "" {
 		return RuntimeObservation{Resolved: false}, nil
 	}
 	obs := RuntimeObservation{Resolved: true, Binary: bin}
 
+	maxDepth := cliruntime.DefaultHelpMaxDepth
+	if isProjectTarget(scenario) {
+		// The root manifest catalogs the control-plane command tree. The root
+		// CLI's immediate subcommands are the authority for this target; deeper
+		// trees belong to the scenario/resource command surfaces and would make
+		// a parent command look like a missing leaf after flattening.
+		maxDepth = 2
+	}
 	cmds := cliruntime.ParseHelpTree(ctx, cliruntime.ExecRunner(p.timeout), bin,
-		cliruntime.HelpTreeOptions{Origin: scenario, MaxDepth: cliruntime.DefaultHelpMaxDepth})
+		cliruntime.HelpTreeOptions{Origin: origin, MaxDepth: maxDepth})
 
 	// A single help-failed stub means the root `--help` did not run cleanly.
 	if len(cmds) == 1 && cmds[0].Source == cliruntime.SourceHelpFailed {
@@ -123,7 +137,7 @@ func hasCLISurface(m *cliapp.Manifest) bool {
 //   - root --help broken  -> error   (cli.help_failed): present but broken.
 //   - command divergence  -> error   (cli.command_undeclared): runtime surface
 //     diverges from the manifest SSOT (either direction).
-func runtimeFindings(obs RuntimeObservation, m *cliapp.Manifest, manifestPath string) []Finding {
+func runtimeFindingsForTarget(obs RuntimeObservation, m *cliapp.Manifest, manifestPath, target string) []Finding {
 	if !obs.Resolved {
 		return []Finding{{
 			Severity:   SeverityWarning,
@@ -146,7 +160,16 @@ func runtimeFindings(obs RuntimeObservation, m *cliapp.Manifest, manifestPath st
 			Suggestion: "run `<cli> --help` manually and fix the error so the CLI is introspectable",
 		}}
 	}
-	findings := commandSurfaceFindings(obs, m, manifestPath)
+	findings := commandSurfaceFindingsForTarget(obs, m, manifestPath, target)
+	if isProjectTarget(target) && len(obs.Commands) == 0 {
+		findings = append(findings, Finding{
+			Severity:   SeverityWarning,
+			Code:       CodeProjectCLIEmpty,
+			Location:   manifestPath,
+			Message:    "project CLI help emitted no registered commands, so project command coverage cannot be treated as clean",
+			Suggestion: "ensure the root vrooli CLI registers its command tree before validating the project target",
+		})
+	}
 	return append(findings, omissionContradictionFindings(obs, m, manifestPath)...)
 }
 
@@ -154,6 +177,10 @@ func runtimeFindings(obs RuntimeObservation, m *cliapp.Manifest, manifestPath st
 // the manifest's declared commands in both directions. Runtime-only groups are
 // contract gaps: ignoring them made a partial manifest look complete.
 func commandSurfaceFindings(obs RuntimeObservation, m *cliapp.Manifest, manifestPath string) []Finding {
+	return commandSurfaceFindingsForTarget(obs, m, manifestPath, "")
+}
+
+func commandSurfaceFindingsForTarget(obs RuntimeObservation, m *cliapp.Manifest, manifestPath, target string) []Finding {
 	// Commands declared as legitimate special cases in the manifest's top-level
 	// exceptions[] are not "undeclared": they live outside the binding path on
 	// purpose. Treat them like framework built-ins so declaring an exception
@@ -161,10 +188,7 @@ func commandSurfaceFindings(obs RuntimeObservation, m *cliapp.Manifest, manifest
 	declaredExceptions := exceptionCommandPaths(m)
 	manifestByGroup := map[string]map[string]bool{}
 	for _, g := range m.Groups {
-		group := g.Name
-		if g.Flat {
-			group = ""
-		}
+		group := runtimeManifestGroup(m, g.Name, g.Flat, target)
 		set := manifestByGroup[group]
 		if set == nil {
 			set = map[string]bool{}
@@ -204,6 +228,13 @@ func commandSurfaceFindings(obs RuntimeObservation, m *cliapp.Manifest, manifest
 		// Declared-but-missing: the manifest claims a command the binary's help
 		// tree does not expose under a group it otherwise does expose.
 		for _, name := range sortedKeys(declared) {
+			if isProjectTarget(target) && group == "" && projectParentCommand(m, name) {
+				// The root manifest catalogs parent commands as governance
+				// entries, but the flattened runtime observation reports the
+				// command's registered children. Parent absence is therefore not
+				// a manifest/runtime contradiction.
+				continue
+			}
 			if runtime[name] {
 				continue
 			}
@@ -239,6 +270,41 @@ func commandSurfaceFindings(obs RuntimeObservation, m *cliapp.Manifest, manifest
 		})
 	}
 	return findings
+}
+
+// runtimeManifestGroup maps governance-only synthetic groups back onto the
+// first runtime help-tree segment. The manifest can keep a primitive-only
+// group (for example scenario-primitives) without making the runtime surface
+// appear to contain a second, fictional command tree.
+func runtimeManifestGroup(m *cliapp.Manifest, name string, flat bool, target string) string {
+	if flat {
+		return ""
+	}
+	if !isProjectTarget(target) {
+		return name
+	}
+	// Primitive migration groups are source/governance partitions, not extra
+	// runtime help nodes. Other hyphenated groups (resource-archive,
+	// runtime-supervisor, credentials-store, ...) describe deeper help trees;
+	// flattening them at the project's bounded depth would falsely require
+	// grandchildren that were intentionally not probed.
+	if name == "scenario-primitives" {
+		return "scenario"
+	}
+	return name
+}
+
+func projectParentCommand(m *cliapp.Manifest, name string) bool {
+	name = normalizeCommandPath(name)
+	for _, g := range m.Groups {
+		if g.Name == name && !g.Flat {
+			return true
+		}
+		if strings.HasPrefix(g.Name, name+"-") {
+			return true
+		}
+	}
+	return false
 }
 
 var handRegisteredCommand = regexp.MustCompile(`(?i)hand-registered (?:as|through) ['\x60]([^'\x60]+)['\x60]`)

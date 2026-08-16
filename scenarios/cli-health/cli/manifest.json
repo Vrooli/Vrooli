@@ -42,6 +42,33 @@
           "architecture": {
             "primitive": "proto_list"
           }
+        },
+        {
+          "name": "project",
+          "description": "Validate the repository root CLI manifest and its project-level proto migration posture",
+          "flags": [
+            {
+              "name": "include-execution",
+              "bool": true,
+              "description": "Probe the installed root CLI runtime and reconcile its help surface with the manifest"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ScenarioValidationService",
+            "method": "ValidateTarget"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
         }
       ]
     },

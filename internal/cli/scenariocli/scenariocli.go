@@ -160,6 +160,10 @@ type StatusResponse struct {
 	Single   *StatusSingleOutput
 	List     []StatusItemOutput
 	Failures []discovery.Failure `json:"failures,omitempty"`
+	// Raw carries a response already rendered by an explicitly addressed
+	// remote node. It bypasses local status reconstruction while preserving
+	// the command's stdout contract.
+	Raw []byte `json:"-"`
 }
 
 type PortSingleOutput struct {
@@ -479,6 +483,10 @@ func RenderInfoResponse(w io.Writer, format cliout.Format, resp InfoOutput) erro
 }
 
 func RenderStatusResponse(w io.Writer, format cliout.Format, resp StatusResponse) error {
+	if len(resp.Raw) > 0 {
+		_, err := w.Write(resp.Raw)
+		return err
+	}
 	if resp.Single == nil {
 		if format == cliout.FormatJSON {
 			return writeScenarioStatusListJSON(w, resp.List, resp.Failures)
@@ -636,6 +644,14 @@ func WriteStatusHuman(w io.Writer, output StatusSingleOutput) {
 		_, _ = fmt.Fprintf(w, "Display name: %s\n", info.DisplayName)
 	}
 	_, _ = fmt.Fprintf(w, "Status: %s\n", status.Status)
+	// An in-flight lifecycle operation is reported next to the runtime status
+	// it contradicts: mid-start a scenario reads "stopped", and without this
+	// line the operator's next move is a restart the scenario lock refuses.
+	if op := status.StartOperation; op != nil {
+		if summary := op.InFlightSummary(); summary != "" {
+			_, _ = fmt.Fprintf(w, "Lifecycle: %s\n", summary)
+		}
+	}
 	if output.Scenario.Health != nil {
 		_, _ = fmt.Fprintf(w, "Health: %v\n", output.Scenario.Health)
 	}

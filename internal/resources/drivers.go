@@ -18,6 +18,7 @@ import (
 
 	"github.com/vrooli/cli-core/cliutil"
 	repocontract "github.com/vrooli/repo-contract-go"
+	"github.com/vrooli/vrooli/internal/cliinstall"
 	resourceenv "github.com/vrooli/vrooli/internal/resources/env"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	runtimeenv "github.com/vrooli/vrooli/internal/resources/runtime/env"
@@ -86,14 +87,6 @@ func (composeServiceDriver) Status(ctx context.Context, controller *Controller, 
 		StatusCode: StatusCodeOK,
 		Message:    "stopped",
 	}
-	mode := ""
-	if manifest.GPU != nil {
-		mode = "cpu"
-		if shouldUseGPU(ctx, manifest.GPU.Probe) {
-			mode = "gpu"
-		}
-	}
-
 	if err := ensureSupportedPlatform(manifest); err != nil {
 		status.StatusCode = StatusCodeUnsupportedPlatform
 		status.Message = err.Error()
@@ -303,6 +296,14 @@ func (d composeServiceDriver) Run(ctx context.Context, controller *Controller, i
 		}
 		return composeCommand(ctx, controller, manifest, io.Discard, stderr, "build")
 	case "start":
+		before, err := inspectComposeServices(ctx, controller, manifest)
+		if err != nil {
+			return err
+		}
+		networkBefore, err := inspectComposeNetwork(ctx, controller, manifest)
+		if err != nil {
+			return err
+		}
 		if running, err := composeFallbackContainerHealthy(ctx, controller, manifest); err != nil {
 			return err
 		} else if running {
@@ -312,12 +313,30 @@ func (d composeServiceDriver) Run(ctx context.Context, controller *Controller, i
 			return err
 		}
 		startCompanions(manifest.Name, manifest.Companions, manifest.Orchestration.RecoveryAttempts, stderr)
+		if len(before) == 0 {
+			if err := recordComposeArtifacts(ctx, controller, manifest, true, networkBefore); err != nil {
+				return err
+			}
+		}
 		return verifyComposeStartedGPU(ctx, controller, manifest, stderr)
 	case "restart":
+		before, err := inspectComposeServices(ctx, controller, manifest)
+		if err != nil {
+			return err
+		}
+		networkBefore, err := inspectComposeNetwork(ctx, controller, manifest)
+		if err != nil {
+			return err
+		}
 		if err := composeCommand(ctx, controller, manifest, io.Discard, stderr, "up", "-d", "--force-recreate"); err != nil {
 			return err
 		}
 		startCompanions(manifest.Name, manifest.Companions, manifest.Orchestration.RecoveryAttempts, stderr)
+		if len(before) == 0 {
+			if err := recordComposeArtifacts(ctx, controller, manifest, true, networkBefore); err != nil {
+				return err
+			}
+		}
 		return verifyComposeStartedGPU(ctx, controller, manifest, stderr)
 	case "stop":
 		stopCompanions(manifest.Name, manifest.Companions, stderr)
@@ -475,7 +494,7 @@ func appendOllamaProcessor(ctx context.Context, controller *Controller, manifest
 	}
 	raw["processor"] = processor
 	if hostGPU, ok := payload["host_nvidia_gpu"].(bool); ok && hostGPU {
-		if hasCPU, ok := payload["has_cpu_model"].(bool); ok && hasCPU {
+		if hasGPU, ok := payload["has_gpu_model"].(bool); ok && !hasGPU {
 			unhealthy := false
 			status.Healthy = &unhealthy
 			status.Health = "unhealthy"
@@ -516,7 +535,11 @@ func (d dockerServiceDriver) Run(ctx context.Context, controller *Controller, it
 		_, err = fmt.Fprintf(stdout, "%s: %s\n", item.Name, status.Message)
 		return err
 	case "install":
-		return ensureDockerImage(ctx, controller, manifest)
+		imageBefore := inspectDockerArtifact(ctx, controller, "image", manifest.Runtime.Image)
+		if err := ensureDockerImage(ctx, controller, manifest); err != nil {
+			return err
+		}
+		return recordDockerImageArtifact(controller, manifest, imageBefore)
 	case "start":
 		return startDockerService(ctx, controller, manifest, false, stderr)
 	case "restart":
@@ -704,6 +727,67 @@ func ensureDockerImage(ctx context.Context, controller *Controller, manifest Res
 	return dockerCommand(ctx, controller, io.Discard, io.Discard, "pull", manifest.Runtime.Image)
 }
 
+func inspectDockerArtifact(ctx context.Context, controller *Controller, kind, name string) cliinstall.ObservedBefore {
+	if strings.TrimSpace(name) == "" {
+		return cliinstall.ObservedUnknown
+	}
+	if _, err := dockerOutput(ctx, controller, kind, "inspect", name); err == nil {
+		return cliinstall.ObservedPresent
+	} else if isMissingDockerArtifact(err) {
+		return cliinstall.ObservedAbsent
+	}
+	return cliinstall.ObservedUnknown
+}
+
+func isMissingDockerArtifact(err error) bool {
+	message := strings.ToLower(strings.TrimSpace(err.Error()))
+	for _, marker := range []string{
+		"no such object",
+		"no such image",
+		"no such volume",
+		"no such network",
+		"no such container",
+		"not found",
+		"does not exist",
+	} {
+		if strings.Contains(message, marker) {
+			return true
+		}
+	}
+	return false
+}
+
+func inspectDockerVolumeArtifacts(ctx context.Context, controller *Controller, manifest ResourceManifest) map[string]cliinstall.ObservedBefore {
+	observed := make(map[string]cliinstall.ObservedBefore)
+	for _, volume := range manifest.Runtime.Volumes {
+		name := strings.TrimSpace(volume.Source)
+		if name == "" || filepath.IsAbs(name) || strings.HasPrefix(name, ".") || strings.Contains(name, "/") || strings.Contains(name, "\\") {
+			continue
+		}
+		observed[name] = inspectDockerArtifact(ctx, controller, "volume", name)
+	}
+	return observed
+}
+
+func recordDockerArtifact(controller *Controller, manifest ResourceManifest, kind cliinstall.InstallEntryKind, name string, before cliinstall.ObservedBefore, node string) error {
+	action := cliinstall.ActionInstalled
+	if before == cliinstall.ObservedPresent {
+		action = cliinstall.ActionAdopted
+	}
+	return cliinstall.RecordContainerArtifactWithProvenance(controller.Home, cliinstall.ScopeRuntime, kind, name, manifest.Name, node, false, before, action)
+}
+
+func recordDockerImageArtifact(controller *Controller, manifest ResourceManifest, before cliinstall.ObservedBefore) error {
+	if strings.TrimSpace(manifest.Runtime.Image) == "" {
+		return nil
+	}
+	node, _ := os.Hostname()
+	if err := recordDockerArtifact(controller, manifest, cliinstall.EntryImage, manifest.Runtime.Image, before, node); err != nil {
+		return fmt.Errorf("record resource %q image provenance: %w", manifest.Name, err)
+	}
+	return nil
+}
+
 func startDockerService(ctx context.Context, controller *Controller, manifest ResourceManifest, restart bool, warning io.Writer) error {
 	state, exists, err := inspectDockerContainer(ctx, controller, manifest)
 	if err != nil {
@@ -733,6 +817,8 @@ func startDockerService(ctx context.Context, controller *Controller, manifest Re
 			return nil
 		}
 	}
+	imageBefore := inspectDockerArtifact(ctx, controller, "image", manifest.Runtime.Image)
+	volumeBefore := inspectDockerVolumeArtifacts(ctx, controller, manifest)
 	if err := ensureDockerImage(ctx, controller, manifest); err != nil {
 		return err
 	}
@@ -784,7 +870,82 @@ func startDockerService(ctx context.Context, controller *Controller, manifest Re
 	if err := dockerCommand(ctx, controller, io.Discard, io.Discard, args...); err != nil {
 		return err
 	}
+	if err := recordDockerArtifacts(controller, manifest, imageBefore, volumeBefore); err != nil {
+		return err
+	}
 	return verifyStartedGPU(ctx, controller, manifest, warning)
+}
+
+func recordDockerArtifacts(controller *Controller, manifest ResourceManifest, imageBefore cliinstall.ObservedBefore, volumeBefore map[string]cliinstall.ObservedBefore) error {
+	node, _ := os.Hostname()
+	if strings.TrimSpace(manifest.Runtime.Image) != "" {
+		if err := recordDockerArtifact(controller, manifest, cliinstall.EntryImage, manifest.Runtime.Image, imageBefore, node); err != nil {
+			return fmt.Errorf("record resource %q image provenance: %w", manifest.Name, err)
+		}
+	}
+	if err := recordDockerArtifact(controller, manifest, cliinstall.EntryContainer, dockerContainerName(manifest), cliinstall.ObservedAbsent, node); err != nil {
+		return fmt.Errorf("record resource %q container provenance: %w", manifest.Name, err)
+	}
+	for _, volume := range manifest.Runtime.Volumes {
+		name := strings.TrimSpace(volume.Source)
+		if name == "" || filepath.IsAbs(name) || strings.HasPrefix(name, ".") || strings.Contains(name, "/") || strings.Contains(name, "\\") {
+			continue
+		}
+		before := cliinstall.ObservedUnknown
+		if observed, ok := volumeBefore[name]; ok {
+			before = observed
+		}
+		if err := recordDockerArtifact(controller, manifest, cliinstall.EntryVolume, name, before, node); err != nil {
+			return fmt.Errorf("record resource %q volume provenance: %w", manifest.Name, err)
+		}
+	}
+	return nil
+}
+
+func recordComposeArtifacts(ctx context.Context, controller *Controller, manifest ResourceManifest, recordServices, networkBefore bool) error {
+	// Compose owns its project network and may define several service
+	// containers. Read the names immediately after start, then freeze those
+	// names in the ledger; Apply never performs this discovery.
+	services, err := inspectComposeServices(ctx, controller, manifest)
+	if err != nil {
+		return fmt.Errorf("inspect resource %q containers for provenance: %w", manifest.Name, err)
+	}
+	node, _ := os.Hostname()
+	if recordServices && len(services) == 0 {
+		if err := cliinstall.RecordContainerArtifact(controller.Home, cliinstall.ScopeRuntime, cliinstall.EntryContainer, dockerContainerName(manifest), manifest.Name, node, false); err != nil {
+			return fmt.Errorf("record resource %q container provenance: %w", manifest.Name, err)
+		}
+	}
+	for _, service := range services {
+		if !recordServices {
+			break
+		}
+		if strings.TrimSpace(service.Name) == "" {
+			continue
+		}
+		if err := cliinstall.RecordContainerArtifact(controller.Home, cliinstall.ScopeRuntime, cliinstall.EntryContainer, service.Name, manifest.Name, node, false); err != nil {
+			return fmt.Errorf("record resource %q service container provenance: %w", manifest.Name, err)
+		}
+	}
+	network := composeProjectName(manifest) + "_default"
+	if !networkBefore {
+		if err := cliinstall.RecordContainerArtifact(controller.Home, cliinstall.ScopeRuntime, cliinstall.EntryNetwork, network, manifest.Name, node, false); err != nil {
+			return fmt.Errorf("record resource %q network provenance: %w", manifest.Name, err)
+		}
+	}
+	return nil
+}
+
+func inspectComposeNetwork(ctx context.Context, controller *Controller, manifest ResourceManifest) (bool, error) {
+	network := composeProjectName(manifest) + "_default"
+	_, err := dockerOutput(ctx, controller, "network", "inspect", network)
+	if err == nil {
+		return true, nil
+	}
+	if isMissingDockerArtifact(err) {
+		return false, nil
+	}
+	return false, fmt.Errorf("inspect resource %q network: %w", manifest.Name, err)
 }
 
 var gpuVerificationSleep = func(ctx context.Context, delay time.Duration) error {

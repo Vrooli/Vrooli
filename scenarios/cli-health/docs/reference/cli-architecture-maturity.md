@@ -126,6 +126,30 @@ the observed primitive per command to the declaration via
 A nil provider is still legal (empty evidence → everything unverified), but the
 production wiring always installs the filesystem provider.
 
+### Project target adoption
+
+The repository root is a first-class CLI Health target with the stable identity
+`repo`. Its manifest is `cli/manifest.json`, its proto surface is
+`packages/proto/schemas/cli`, and its runtime binary is the control-plane
+`vrooli` executable. Project runtime probing intentionally stops at the
+immediate help-tree leaves; deeper scenario/resource subtrees are validated by
+their owning group rather than being mistaken for root commands.
+
+The first migrated root command is `vrooli scenario list`. It is declared in
+the manifest's `scenario-primitives` governance group, assembled with
+`cliapp.LoadFromManifestPrimitives`, executed through
+`ScenarioControlPlaneService.ListScenarios`, and rendered by `cliapp.ProtoList`.
+Its evidence is recorded in the generated root artifact at
+`.vrooli/generated/cli-primitive-evidence.json`.
+
+The remainder of the root's declared primitive commands remains deliberately
+visible as `arch.primitive_unverified` debt until each handler is migrated.
+This is an honest L3 command-architecture result, not a claim that the root
+CLI has reached L4 by manifest declaration alone. The current root manifest
+contains 29 governance groups and 157 commands; project validation should show
+the migrated `scenario list` as verified while retaining the six unverified
+legacy scenario handlers as the next migration boundary.
+
 **Why the mature CLI is also the simpler one.** A primitive's operation callbacks
 receive a narrow `cliapp.OperationContext` (parsed flags/positionals, bindings,
 `Core()`) with **no** `JSON()`, no `Render*`, and no writers. An operation

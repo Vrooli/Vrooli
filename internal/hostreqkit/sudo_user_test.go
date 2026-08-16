@@ -2,6 +2,7 @@ package hostreqkit
 
 import (
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -323,5 +324,29 @@ func TestResolveCommandForInvokingUserMissesWhenAbsentEverywhere(t *testing.T) {
 
 	if _, ok := ResolveCommandForInvokingUser([]string{"protoc-gen-go"}); ok {
 		t.Fatalf("ResolveCommandForInvokingUser should miss when binary is absent")
+	}
+}
+
+func TestAugmentUserToolPathAddsManagedDirectoriesOnce(t *testing.T) {
+	home := t.TempDir()
+	for _, relative := range []string{"go/bin", ".local/bin", "bin"} {
+		if err := os.MkdirAll(filepath.Join(home, relative), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	existing := []string{"/opt/homebrew/bin", "/usr/local/go/bin", "/usr/local/bin", filepath.Join(home, "go", "bin")}
+	got := strings.Split(AugmentUserToolPath(home, strings.Join(existing, string(os.PathListSeparator)), ""), string(os.PathListSeparator))
+	wantPrefix := []string{filepath.Join(home, ".local", "bin"), filepath.Join(home, "bin")}
+	if len(got) < len(wantPrefix) || !strings.EqualFold(strings.Join(got[:len(wantPrefix)], "\x00"), strings.Join(wantPrefix, "\x00")) {
+		t.Fatalf("PATH prefix = %v, want %v", got, wantPrefix)
+	}
+	count := 0
+	for _, entry := range got {
+		if filepath.Clean(entry) == filepath.Join(home, "go", "bin") {
+			count++
+		}
+	}
+	if count != 1 {
+		t.Fatalf("go/bin appears %d times in PATH %v, want once", count, got)
 	}
 }

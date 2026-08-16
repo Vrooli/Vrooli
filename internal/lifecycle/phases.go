@@ -12,6 +12,7 @@ import (
 
 	"github.com/vrooli/platform-go"
 	"github.com/vrooli/vrooli/internal/config"
+	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/logx"
 	"github.com/vrooli/vrooli/internal/ports"
 	"github.com/vrooli/vrooli/internal/process"
@@ -516,6 +517,11 @@ func (r *Runner) runForegroundStep(item scenario.Scenario, phase, command string
 // stdin to answer such prompts, so fail deterministically instead.
 func lifecycleStepEnv(phase string, overrides map[string]string) []string {
 	stepEnv := mergeEnv(os.Environ(), overrides)
+	stepEnv = setEnvValue(stepEnv, "PATH", hostreqkit.AugmentUserToolPath(
+		envValue(stepEnv, "HOME"),
+		envValue(stepEnv, "PATH"),
+		envValue(stepEnv, "LOCALAPPDATA"),
+	))
 	stepEnv = setEnvValue(stepEnv, "LIFECYCLE_PHASE", phase)
 	stepEnv = setEnvValue(stepEnv, "VROOLI_LIFECYCLE_MANAGED", "true")
 	if phase == "setup" || phase == "test" {

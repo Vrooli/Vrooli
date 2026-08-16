@@ -128,6 +128,7 @@ func ScenarioStartOperationMessage(view *lifecycle.StartOperationView) *cliv1.Sc
 		EtaKnown:                    view.ETAKnown,
 		EtaSeconds:                  int32(view.ETASeconds),
 		RecommendedNextCheckSeconds: int32(view.RecommendedNextCheckSeconds),
+		InitiatorPid:                int32(view.InitiatorPID),
 	}
 }
 

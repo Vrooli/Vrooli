@@ -580,14 +580,14 @@ func singleResourceControlHandler[C any](deps HandlerDeps[C], action string) roo
 		if err := enforceResourceHostRequirements(ctx, deps, controller, args[0], action); err != nil {
 			return err
 		}
+		// Admit before launching the resource so a declared companion can find
+		// the manifest-derived claim on its first heartbeat. Admission is
+		// advisory and non-blocking; controller.Run remains the authority for
+		// the actual lifecycle action.
+		admitResourceCapacityCLI(controller.Root, args[0], action, deps.Stderr(ctx))
 		if err := controller.Run(args[0], []string{action}, deps.Stdout(ctx), deps.Stderr(ctx)); err != nil {
 			return err
 		}
-		// Record the advisory capacity claim for residents brought up directly via
-		// the standalone CLI (closes the resident-adoption gap: the lifecycle
-		// dependency-start path admits via the Runner, but `vrooli resource
-		// start|restart` did not, leaving operator-started residents unclaimed).
-		admitResourceCapacityCLI(controller.Root, args[0], action, deps.Stderr(ctx))
 		return nil
 	}
 }

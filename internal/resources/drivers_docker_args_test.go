@@ -17,12 +17,12 @@ func TestBuildDockerRunArgsAppendsMemoryLimit(t *testing.T) {
 		Name:   "ollama",
 		Driver: "docker-service",
 		Runtime: ResourceRuntime{
-			Image:       "ollama/ollama:0.11.7",
+			Image:       "example/inference-service:0.11.7",
 			MemoryLimit: "12g",
 		},
 	}
 
-	args, err := buildDockerRunArgs(context.Background(), controller, manifest, "ollama")
+	args, err := buildDockerRunArgs(context.Background(), controller, manifest, "inference-service")
 	if err != nil {
 		t.Fatalf("buildDockerRunArgs: %v", err)
 	}
@@ -64,10 +64,10 @@ func TestBuildDockerRunArgsPinsRuncForServiceWithoutGPUDeclaration(t *testing.T)
 	manifest := ResourceManifest{
 		Name:    "ollama",
 		Driver:  "docker-service",
-		Runtime: ResourceRuntime{Image: "ollama/ollama:0.30.10"},
+		Runtime: ResourceRuntime{Image: "example/inference-service:0.30.10"},
 	}
 
-	args, err := buildDockerRunArgs(context.Background(), controller, manifest, "ollama")
+	args, err := buildDockerRunArgs(context.Background(), controller, manifest, "inference-service")
 	if err != nil {
 		t.Fatalf("buildDockerRunArgs: %v", err)
 	}
@@ -112,11 +112,11 @@ func TestBuildDockerRunArgsUsesGPUOnlyWhenDeclaredAndAvailable(t *testing.T) {
 			Probe:        "nvidia",
 			EnvOverrides: map[string]string{"NVIDIA_VISIBLE_DEVICES": "all"},
 		},
-		Runtime: ResourceRuntime{Image: "ollama/ollama:0.30.10"},
+		Runtime: ResourceRuntime{Image: "example/inference-service:0.30.10"},
 	}
 	withStubGPUProbe(t, true)
 
-	args, err := buildDockerRunArgs(context.Background(), controller, manifest, "ollama")
+	args, err := buildDockerRunArgs(context.Background(), controller, manifest, "inference-service")
 	if err != nil {
 		t.Fatalf("buildDockerRunArgs: %v", err)
 	}

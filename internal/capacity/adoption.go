@@ -53,7 +53,7 @@ func AdoptObservedResidents(ctx context.Context, store ClaimRepository, snapshot
 		}
 		a := attr.Attribute(ctx, proc.PID)
 		// Already covered by an active claim → nothing to adopt.
-		if _, matched := matchClaim(activeVRAM, a, proc.GPUIndex); matched {
+		if _, matched := matchClaim(activeVRAM, a, proc); matched {
 			continue
 		}
 		name, spec, ok := resolveDeclaredOwner(a, loadSpec)

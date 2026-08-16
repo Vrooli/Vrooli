@@ -2,6 +2,7 @@ package capacity
 
 import (
 	"context"
+	"path/filepath"
 	"strings"
 )
 
@@ -14,6 +15,24 @@ type Attribution struct {
 	ContainerName string
 	OwnerKind     string
 	OwnerID       string
+}
+
+// NormalizeProcessOwner maps native managed-service worker names to their
+// resource owner. Native Ollama intentionally runs llama-server as a child
+// process, so cgroup/container attribution is unavailable even though the
+// resource has a valid claim. Keep this alias in the control-plane attribution
+// seam rather than teaching each resource consumer to recognize executables.
+func NormalizeProcessOwner(processName string) string {
+	base := strings.ToLower(filepath.Base(strings.TrimSpace(processName)))
+	switch base {
+	case "ollama", "llama-server":
+		return "ollama"
+	default:
+		if strings.HasPrefix(base, "reranker_") || base == "reranker" {
+			return "reranker"
+		}
+		return ""
+	}
 }
 
 // OwnerUnknown is the OwnerID used when attribution fails.

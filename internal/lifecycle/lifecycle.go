@@ -1751,6 +1751,16 @@ func setEnvValue(env []string, key, value string) []string {
 	return append(env, prefix+value)
 }
 
+func envValue(env []string, key string) string {
+	prefix := key + "="
+	for _, entry := range env {
+		if strings.HasPrefix(entry, prefix) {
+			return strings.TrimPrefix(entry, prefix)
+		}
+	}
+	return ""
+}
+
 func inferStepPort(manifest scenario.ServiceManifest, step string, env map[string]string) int {
 	key := scenario.InferPortEnvVar(manifest, step)
 	if key == "" {

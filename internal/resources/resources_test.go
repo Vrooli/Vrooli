@@ -1023,7 +1023,7 @@ func TestProjectPhase5ResourcesAreManifestNative(t *testing.T) {
 		"codex":           "external-cli",
 		"k6":              "external-cli",
 		"opencode":        "external-cli",
-		"ollama":          "docker-service",
+		"ollama":          "managed-service",
 		"unstructured-io": "docker-service",
 		"gemini":          "cloud-api",
 		"openrouter":      "cloud-api",
@@ -1320,6 +1320,10 @@ case "$cmd" in
       exit 0
     fi
     echo "Error: No such container" >&2
+    exit 1
+    ;;
+  network)
+    echo "Error: No such network" >&2
     exit 1
     ;;
 esac

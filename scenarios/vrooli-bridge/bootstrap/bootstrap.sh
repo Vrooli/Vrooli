@@ -41,11 +41,39 @@ readonly DEFAULT_REPO_URL="https://github.com/Vrooli/Vrooli.git"
 # The exact line the agent logs when the control plane accepts its dial-out
 # stream (HTTP 200). This is the node-local "connected/ONLINE" signal.
 readonly CONNECTED_MARKER="dial-out stream open"
+readonly INSTALL_RECORD_PATH="${HOME}/.vrooli/state/install-record.json"
 
 # --- output helpers ----------------------------------------------------------
 # Human logs -> stderr. Markers -> stdout.
 
 log() { printf '%s\n' "$*" >&2; }
+
+# record_install_artifact <scope> <kind> <path> <prefix> [manager] [name] [domain]
+# records only an artifact the bootstrap has just created or owns. It never
+# scans a host directory, so an unrecorded install remains an empty uninstall
+# inventory instead of becoming a guessed deletion set.
+record_install_artifact() {
+  local scope="$1" kind="$2" path="$3" prefix="$4" manager="${5:-}" name="${6:-}" domain="${7:-}"
+  [ -n "$path" ] || return 0
+  case "$path" in /*) ;; *) log "error: refusing to record non-absolute install path: ${path}"; return 1 ;; esac
+  mkdir -p "${INSTALL_RECORD_PATH%/*}"
+  local tmp
+  tmp="$(mktemp "${INSTALL_RECORD_PATH}.tmp.XXXXXX")"
+  if [ ! -s "$INSTALL_RECORD_PATH" ]; then
+    printf '{"version":1,"prefix":"%s","updated_at":"%s","entries":[]}\n' \
+      "$HOME/.vrooli" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >"$tmp"
+  else
+    cp "$INSTALL_RECORD_PATH" "$tmp"
+  fi
+  jq --arg scope "$scope" --arg kind "$kind" --arg path "$path" --arg prefix "$prefix" \
+    --arg manager "$manager" --arg name "$name" --arg domain "$domain" \
+    --arg updated "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+    '.version = 1 | .updated_at = $updated | .entries = ((.entries // []) + [{scope:$scope,kind:$kind,path:$path,prefix:$prefix} + (if $manager != "" then {service_manager:$manager} else {} end) + (if $name != "" then {service_name:$name} else {} end) + (if $domain != "" then {service_domain:$domain} else {} end)]) | .entries |= unique_by([.scope,.kind,.path] | join("\u0000"))' \
+    "$tmp" >"${tmp}.json"
+  mv "${tmp}.json" "$INSTALL_RECORD_PATH"
+  rm -f "$tmp"
+  chmod 600 "$INSTALL_RECORD_PATH" 2>/dev/null || true
+}
 
 # marker <event> [step] [detail]
 marker() {
@@ -918,6 +946,11 @@ step_provisioner_install() {
   local running
   running="$(printf '%s' "$result" | jq -r '.running // false')"
   [ "$running" = true ] || fail 1 "provisioning helper installed but is not running — inspect the ${PROVISIONER_UNIT_NAME} service"
+  record_install_artifact agent service \
+    "$(printf '%s' "$result" | jq -r '.unit_path // .unitPath // empty')" \
+    "$(printf '%s' "$result" | jq -r '.unit_path // .unitPath // empty' | xargs dirname)" \
+    "$( [ "$OS" = darwin ] && printf launchd || printf systemd )" \
+    "$(printf '%s' "$result" | jq -r '.unit_name // .unitName // empty')" || fail 1 "could not record privileged provisioning service install"
   step_ok "helper running as ${PROVISION_SERVICE_USER} (uid ${helper_uid}); runner uid ${runner_uid}; socket ${PROVISION_SOCKET}"
 }
 
@@ -940,6 +973,9 @@ step_service_install() {
       local desired
       desired="$("$AGENT_BIN" --print-service-unit "${cfg[@]}")"
       if [ "$desired" = "$(cat "$unit_path")" ]; then
+        record_install_artifact agent service "$unit_path" "${unit_path%/*}" \
+          "$( [ "$OS" = darwin ] && printf launchd || printf systemd )" \
+          "$(printf '%s' "$status_json" | jq -r '.unit_name // .unitName // empty')" || fail 1 "could not record existing node-agent service install"
         step_skip "service already installed, running, and up to date"
         return
       fi
@@ -951,6 +987,11 @@ step_service_install() {
   local running
   running="$(printf '%s' "$install_json" | jq -r '.running // false')"
   [ "$running" = "true" ] || fail 1 "service installed but not running — inspect: journalctl --user -u ${UNIT_NAME}"
+  record_install_artifact agent service \
+    "$(printf '%s' "$install_json" | jq -r '.unit_path // .unitPath // empty')" \
+    "$(printf '%s' "$install_json" | jq -r '.unit_path // .unitPath // empty' | xargs dirname)" \
+    "$( [ "$OS" = darwin ] && printf launchd || printf systemd )" \
+    "$(printf '%s' "$install_json" | jq -r '.unit_name // .unitName // empty')" || fail 1 "could not record node-agent service install"
   step_ok "service installed and running (presence-only=${PRESENCE_ONLY})"
 }
 
@@ -983,6 +1024,22 @@ step_autostart() {
     return
   fi
   fail 1 "could not enable linger for ${target_user} without an interactive password prompt (needed so the agent survives logout/reboot): provision passwordless sudo (onboard --provision-sudo) or run 'sudo loginctl enable-linger ${target_user}' as an admin and re-run"
+}
+
+step_record_install() {
+  step_start install-record "record bootstrap-owned artifacts"
+  record_install_artifact runtime directory "$CHECKOUT_DIR" "$CHECKOUT_DIR" || fail 1 "could not record bootstrap checkout"
+  if [ -n "$RUNTIME_VROOLI_BIN" ]; then
+    record_install_artifact runtime binary "$RUNTIME_VROOLI_BIN" "${RUNTIME_VROOLI_BIN%/*}" || fail 1 "could not record native Vrooli CLI"
+  fi
+  record_install_artifact agent directory "$STATE_DIR" "$STATE_DIR" || fail 1 "could not record bridge agent state"
+  if [ -n "$AGENT_BIN" ] && [[ "$AGENT_BIN" != "$CHECKOUT_DIR"/* ]]; then
+    record_install_artifact agent binary "$AGENT_BIN" "${AGENT_BIN%/*}" || fail 1 "could not record received agent binary"
+  fi
+  if [ -n "$BRIDGE_CLI" ] && [[ "$BRIDGE_CLI" != "$CHECKOUT_DIR"/* ]]; then
+    record_install_artifact agent binary "$BRIDGE_CLI" "${BRIDGE_CLI%/*}" || fail 1 "could not record received bridge CLI"
+  fi
+  step_ok "bootstrap-owned paths recorded at ${INSTALL_RECORD_PATH}"
 }
 
 # journal_channel_state — echoes the most recent channel lifecycle verdict from
@@ -1067,6 +1124,7 @@ main() {
   step_provisioner_install
   step_service_install
   step_autostart
+  step_record_install
   step_verify_online
   marker run-ok "" "node ${NODE_ID} paired and online"
   log "bootstrap complete: node ${NODE_ID} is paired, online, and set to auto-start."

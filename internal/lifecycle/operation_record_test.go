@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"runtime"
+	"strings"
 	"testing"
 	"time"
 
@@ -233,6 +234,75 @@ func TestEvaluateStartOperationAbandonsDeadInitiator(t *testing.T) {
 	view = EvaluateStartOperation(op, func(int) bool { return true }, now, nil)
 	if view.Status != scenarioruntime.StartOperationStatusAbandoned {
 		t.Fatalf("status = %q, want abandoned for unknown initiator", view.Status)
+	}
+}
+
+func TestEvaluateStartOperationSurfacesInitiatorPID(t *testing.T) {
+	now := time.Date(2026, 7, 1, 12, 1, 0, 0, time.UTC)
+	op := runningOperationFixture(now.Add(-time.Minute))
+
+	// The PID is the reader's link between an in-flight operation and the
+	// "already running (held by pid N)" lock error, so it must survive
+	// evaluation in both directions — live initiator and dead one.
+	view := EvaluateStartOperation(op, func(int) bool { return true }, now, nil)
+	if view.InitiatorPID != 12345 {
+		t.Fatalf("initiator pid = %d, want 12345", view.InitiatorPID)
+	}
+	view = EvaluateStartOperation(op, func(int) bool { return false }, now, nil)
+	if view.InitiatorPID != 12345 {
+		t.Fatalf("abandoned view dropped the initiator pid: %d", view.InitiatorPID)
+	}
+
+	op.InitiatorPID = nil
+	view = EvaluateStartOperation(op, func(int) bool { return true }, now, nil)
+	if view.InitiatorPID != 0 {
+		t.Fatalf("absent initiator pid = %d, want 0", view.InitiatorPID)
+	}
+}
+
+func TestInFlightSummaryReportsRunningOperationOnly(t *testing.T) {
+	now := time.Date(2026, 7, 1, 12, 1, 0, 0, time.UTC)
+	alive := func(int) bool { return true }
+
+	op := runningOperationFixture(now.Add(-time.Minute))
+	op.CurrentStep = startStepSetup
+	view := EvaluateStartOperation(op, alive, now, nil)
+	summary := view.InFlightSummary()
+	for _, want := range []string{"start in progress", "pid 12345", "setup step", "60s elapsed"} {
+		if !strings.Contains(summary, want) {
+			t.Fatalf("summary %q missing %q", summary, want)
+		}
+	}
+
+	// A dependency-step operation names the dependency instead of the step.
+	op.CurrentStep = startStepDependencies
+	op.DependencyCurrent = "postgres"
+	op.DependencyIndex = 2
+	op.DependencyTotal = 3
+	view = EvaluateStartOperation(op, alive, now, nil)
+	if summary := view.InFlightSummary(); !strings.Contains(summary, "dependency postgres (2/3)") {
+		t.Fatalf("summary %q missing dependency detail", summary)
+	}
+
+	// Terminal operations are not in flight and must render nothing: a
+	// succeeded corpse reported as activity is the same lie in reverse.
+	for _, status := range []string{
+		scenarioruntime.StartOperationStatusSucceeded,
+		scenarioruntime.StartOperationStatusFailed,
+		scenarioruntime.StartOperationStatusAbandoned,
+	} {
+		terminal := runningOperationFixture(now.Add(-time.Minute))
+		terminal.Status = status
+		if summary := EvaluateStartOperation(terminal, alive, now, nil).InFlightSummary(); summary != "" {
+			t.Fatalf("terminal %q rendered in-flight summary %q", status, summary)
+		}
+	}
+
+	// A running record whose initiator is dead evaluates to abandoned, so it
+	// must not be advertised as in flight either.
+	dead := runningOperationFixture(now.Add(-time.Minute))
+	if summary := EvaluateStartOperation(dead, func(int) bool { return false }, now, nil).InFlightSummary(); summary != "" {
+		t.Fatalf("dead-initiator record rendered in-flight summary %q", summary)
 	}
 }
 

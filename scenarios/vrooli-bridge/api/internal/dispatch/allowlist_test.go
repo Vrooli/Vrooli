@@ -47,6 +47,12 @@ func TestAllow_Matrix(t *testing.T) {
 			wantErr: dispatch.ErrVerbOutOfScope{},
 		},
 		{
+			name:    "cataloged destructive verb is out-of-scope with personal grants",
+			job:     dispatch.Job{Verb: "scenario stop-all"},
+			scopes:  []string{"vrooli-bridge:read", "vrooli-bridge:write"},
+			wantErr: dispatch.ErrVerbOutOfScope{},
+		},
+		{
 			name:    "a node with no scopes can run nothing",
 			job:     dispatch.Job{Verb: "scenario test"},
 			scopes:  nil,

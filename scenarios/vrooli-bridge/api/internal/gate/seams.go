@@ -3,16 +3,20 @@ package gate
 import (
 	"context"
 	"time"
+
+	"github.com/vrooli/api-core/targetmodel"
 )
 
 // NodeRef is the minimal node shape gate needs to select a validation target per
-// OS: its id, OS, and whether it is revoked. The handler adapter projects a
-// registry node down to this.
+// OS: its legacy registry identity plus the shared target observation. The
+// handler adapter projects a registry node down to this boundary; selection
+// itself is performed by targetmodel.
 type NodeRef struct {
 	ID      string
 	OS      string
 	Arch    string
 	Revoked bool
+	Target  targetmodel.Target
 }
 
 // NodeLister is the registry enumeration seam: the gate needs every registered

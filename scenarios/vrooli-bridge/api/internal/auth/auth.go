@@ -38,6 +38,7 @@ import (
 	"io"
 	"math/big"
 	"net/http"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -113,6 +114,7 @@ type Client struct {
 	maxJWKSGrace       time.Duration
 	breakGlassPublic   ed25519.PublicKey
 	breakGlassAudience string
+	breakGlassTarget   string
 }
 
 // Config configures the production Client.
@@ -125,6 +127,7 @@ type Config struct {
 	JWKSGrace           time.Duration
 	BreakGlassPublicKey []byte
 	BreakGlassAudience  string
+	BreakGlassTarget    string
 }
 
 // NewClient constructs the production Validator, filling defaults. A nil Doer
@@ -157,6 +160,11 @@ func NewClient(cfg Config) *Client {
 	if audience == "" {
 		audience = AuthExpectedAudience
 	}
+	target := strings.TrimSpace(cfg.BreakGlassTarget)
+	if target == "" {
+		target, _ = os.Hostname()
+		target = strings.TrimSpace(target)
+	}
 	var public ed25519.PublicKey
 	if len(cfg.BreakGlassPublicKey) == ed25519.PublicKeySize {
 		public = append(ed25519.PublicKey(nil), cfg.BreakGlassPublicKey...)
@@ -170,6 +178,7 @@ func NewClient(cfg Config) *Client {
 		maxJWKSGrace:       grace,
 		breakGlassPublic:   public,
 		breakGlassAudience: audience,
+		breakGlassTarget:   target,
 	}
 }
 
@@ -214,7 +223,10 @@ func (c *Client) ValidateBreakGlass(_ context.Context, token string) (Identity, 
 	if len(c.breakGlassPublic) != ed25519.PublicKeySize {
 		return Identity{}, ErrUnauthenticated
 	}
-	claims, err := trustposture.Verify(c.breakGlassPublic, strings.TrimSpace(token), c.breakGlassAudience, c.now())
+	if c.breakGlassTarget == "" {
+		return Identity{}, ErrUnauthenticated
+	}
+	claims, err := trustposture.Verify(c.breakGlassPublic, strings.TrimSpace(token), c.breakGlassAudience, c.breakGlassTarget, c.now())
 	if err != nil {
 		return Identity{}, ErrUnauthenticated
 	}

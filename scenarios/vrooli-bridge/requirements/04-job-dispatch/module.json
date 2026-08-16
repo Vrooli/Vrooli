@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Typed jobs validated against the scope-catalog-derived scenario-CLI manifest and registry-owned execution scopes; never raw shell. The typed scenario screenshot verb remains Mode A, uses the operator-configured vrooli binary, and returns a bounded authenticated run artifact when the target has a usable display session.",
-    "last_validated_at": "2026-08-14T01:05:15-04:00",
+    "last_validated_at": "2026-08-16T03:17:42-04:00",
     "module": "job-dispatch",
     "prd_ref": "OT-P0-004",
     "priority": "P0",
@@ -11,7 +11,7 @@
     {
       "id": "BRG-P0-004",
       "title": "Allowlisted Typed-Job Dispatch",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-004",
       "category": "security",
       "description": "The control plane dispatches typed jobs — {scenario, verb, args} validated against a manifest derived from scenario CLI governance — never raw shell strings. The node registry owns the execution scopes that intersect the derived manifest; a node with no execution scopes is presence-only. Typed output declarations are also manifest-controlled: the node writes only to a private generated path, uploads bounded bytes over authenticated node RPC, and the owner retrieves them through the owner-gated artifacts RPC. `vrooli-bridge:session` is reserved for a future interactive protocol and is not implemented here.",
@@ -20,21 +20,21 @@
           "type": "test",
           "ref": "api/internal/dispatch/allowlist_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "not_implemented",
           "notes": "A job whose verb is absent from the manifest or outside the node's scopes is rejected before reaching the node."
         },
         {
           "type": "test",
           "ref": "agent/internal/exec/typedjob_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "not_implemented",
           "notes": "The node-agent executes only typed verbs via the local vrooli CLI; it never constructs or runs an arbitrary shell string. Declared outputs are uploaded only after bounded file reads through the authenticated artifact seam."
         },
         {
           "type": "manual",
           "ref": "docs/internal/SECURITY.md#allowlist",
           "phase": "business",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Attempting a non-allowlisted verb on a node is denied and audited; an allowlisted verb succeeds."
         }
       ]

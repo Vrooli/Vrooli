@@ -39,7 +39,7 @@ func TestArchitectureStatic_VerifiedWhenEvidenceMatches(t *testing.T) {
 		"g1 list":   cliapp.PrimitiveProtoList,
 		"g1 create": cliapp.PrimitiveProtoMutation,
 	})
-	got := architectureStaticFindings(m, ev, "cli/manifest.json")
+	got := architectureStaticFindings(m, ev, "cli/manifest.json", "")
 	if len(got) != 0 {
 		t.Fatalf("verified-by-evidence manifest should be clean, got %+v", got)
 	}
@@ -50,7 +50,7 @@ func TestArchitectureStatic_DeclaredOnlyIsUnverifiedDebt(t *testing.T) {
 	// advisory not-yet-verified debt, never falsely clean. This is the core teeth
 	// of the follow-up — declaration alone no longer reaches top maturity.
 	m := manifestWith([]cliapp.ManifestCommand{cmd("list", "proto_list")}, nil)
-	got := architectureStaticFindings(m, ArchitectureEvidence{}, "cli/manifest.json")
+	got := architectureStaticFindings(m, ArchitectureEvidence{}, "cli/manifest.json", "")
 	f := findingByCode(got, CodeArchPrimitiveUnverif)
 	if f == nil {
 		t.Fatalf("expected primitive_unverified for declared-only command, got %+v", got)
@@ -65,7 +65,7 @@ func TestArchitectureStatic_MismatchIsGatingError(t *testing.T) {
 	// error, not advisory debt.
 	m := manifestWith([]cliapp.ManifestCommand{cmd("list", "proto_list")}, nil)
 	ev := evidence(map[string]cliapp.PrimitiveClass{"g1 list": cliapp.PrimitiveProtoMutation})
-	got := architectureStaticFindings(m, ev, "cli/manifest.json")
+	got := architectureStaticFindings(m, ev, "cli/manifest.json", "")
 	f := findingByCode(got, CodeArchPrimitiveMismatch)
 	if f == nil {
 		t.Fatalf("expected primitive_mismatch for contradictory evidence, got %+v", got)
@@ -80,7 +80,7 @@ func TestArchitectureStatic_PrimitiveUndeclared(t *testing.T) {
 	// undeclared finding.
 	m := manifestWith([]cliapp.ManifestCommand{cmd("list", "proto_list"), cmd("legacy", "")}, nil)
 	ev := evidence(map[string]cliapp.PrimitiveClass{"g1 list": cliapp.PrimitiveProtoList})
-	got := architectureStaticFindings(m, ev, "cli/manifest.json")
+	got := architectureStaticFindings(m, ev, "cli/manifest.json", "")
 	if len(got) != 1 || got[0].Code != CodeArchPrimitiveUndecl {
 		t.Fatalf("expected one primitive_undeclared, got %+v", got)
 	}
@@ -95,8 +95,21 @@ func TestArchitectureStatic_LocalCommandDoesNotRequireProtoPrimitive(t *testing.
 		Binding:    cliapp.ManifestBinding{Kind: "local"},
 		Governance: cliapp.ManifestGovernance{Effect: "read", RunEligible: true},
 	}}, nil)
-	if got := architectureStaticFindings(m, ArchitectureEvidence{}, "cli/manifest.json"); len(got) != 0 {
+	if got := architectureStaticFindings(m, ArchitectureEvidence{}, "cli/manifest.json", ""); len(got) != 0 {
 		t.Fatalf("local command must not create proto architecture debt: %+v", got)
+	}
+}
+
+func TestArchitectureStatic_ProjectLocalCommandIsMigrationError(t *testing.T) {
+	m := manifestWith([]cliapp.ManifestCommand{{
+		Name:       "status",
+		Binding:    cliapp.ManifestBinding{Kind: "local"},
+		Governance: cliapp.ManifestGovernance{Effect: "read", RunEligible: true},
+	}}, nil)
+	got := architectureStaticFindings(m, ArchitectureEvidence{}, "cli/manifest.json", ProjectTargetID)
+	f := findingByCode(got, CodeProjectCommandNotProtoBound)
+	if f == nil || f.Severity != SeverityError {
+		t.Fatalf("project local command must be a migration error, got %+v", got)
 	}
 }
 
@@ -112,7 +125,7 @@ func TestArchitectureStatic_DeclaredExceptionVerifiedByEvidence(t *testing.T) {
 		"g1 list": cliapp.PrimitiveProtoList,
 		"execute": cliapp.PrimitiveDurableRun,
 	})
-	got := architectureStaticFindings(m, ev, "cli/manifest.json")
+	got := architectureStaticFindings(m, ev, "cli/manifest.json", "")
 	if len(got) != 0 {
 		t.Fatalf("declared exception with matching evidence should be clean, got %+v", got)
 	}
@@ -124,7 +137,7 @@ func TestArchitectureStatic_DeclaredExceptionWithoutEvidenceIsUnverified(t *test
 		[]cliapp.ManifestException{{Command: "execute", Class: "durable_run", Reason: "server-owned run"}},
 	)
 	ev := evidence(map[string]cliapp.PrimitiveClass{"g1 list": cliapp.PrimitiveProtoList})
-	got := architectureStaticFindings(m, ev, "cli/manifest.json")
+	got := architectureStaticFindings(m, ev, "cli/manifest.json", "")
 	if findingByCode(got, CodeArchPrimitiveUnverif) == nil {
 		t.Fatalf("declared exception without matching evidence should be unverified, got %+v", got)
 	}
@@ -139,7 +152,7 @@ func TestArchitectureStatic_DeclaredExceptionMismatchedEvidenceIsGating(t *testi
 		"g1 list": cliapp.PrimitiveProtoList,
 		"execute": cliapp.PrimitiveStreaming,
 	})
-	got := architectureStaticFindings(m, ev, "cli/manifest.json")
+	got := architectureStaticFindings(m, ev, "cli/manifest.json", "")
 	if findingByCode(got, CodeArchPrimitiveMismatch) == nil {
 		t.Fatalf("declared exception with wrong evidence should be a mismatch, got %+v", got)
 	}
@@ -153,7 +166,7 @@ func TestArchitectureStatic_ClaimedViolationWhenExceptionNamesBoundCommand(t *te
 		[]cliapp.ManifestException{{Command: "g1 list", Class: "durable_run", Reason: "bogus"}},
 	)
 	ev := evidence(map[string]cliapp.PrimitiveClass{"g1 list": cliapp.PrimitiveProtoList})
-	got := architectureStaticFindings(m, ev, "cli/manifest.json")
+	got := architectureStaticFindings(m, ev, "cli/manifest.json", "")
 	if findingByCode(got, CodeArchClaimedViolation) == nil {
 		t.Fatalf("expected claimed_maturity_violation, got %+v", got)
 	}
@@ -231,18 +244,18 @@ func TestArchitectureStatic_PerCommandExceptionVerifiedByEvidence(t *testing.T) 
 
 	// Matching evidence -> verified, no finding.
 	ev := evidence(map[string]cliapp.PrimitiveClass{"g1 stream": cliapp.PrimitiveStreaming})
-	if got := architectureStaticFindings(m, ev, "cli/manifest.json"); len(got) != 0 {
+	if got := architectureStaticFindings(m, ev, "cli/manifest.json", ""); len(got) != 0 {
 		t.Fatalf("streaming exception verified by streaming primitive should be clean, got %+v", got)
 	}
 
 	// No evidence -> unverified debt.
-	if got := architectureStaticFindings(m, ArchitectureEvidence{}, "cli/manifest.json"); findingByCode(got, CodeArchPrimitiveUnverif) == nil {
+	if got := architectureStaticFindings(m, ArchitectureEvidence{}, "cli/manifest.json", ""); findingByCode(got, CodeArchPrimitiveUnverif) == nil {
 		t.Fatalf("declared exception without evidence should be unverified, got %+v", got)
 	}
 
 	// Wrong evidence -> mismatch error.
 	bad := evidence(map[string]cliapp.PrimitiveClass{"g1 stream": cliapp.PrimitiveUpload})
-	if got := architectureStaticFindings(m, bad, "cli/manifest.json"); findingByCode(got, CodeArchPrimitiveMismatch) == nil {
+	if got := architectureStaticFindings(m, bad, "cli/manifest.json", ""); findingByCode(got, CodeArchPrimitiveMismatch) == nil {
 		t.Fatalf("streaming exception satisfied by upload primitive should mismatch, got %+v", got)
 	}
 }
@@ -297,7 +310,7 @@ func TestArchitectureStatic_StaleArtifactIgnoresEvidenceAndWarns(t *testing.T) {
 		Status:       EvidenceArtifactStale,
 		ArtifactPath: "cli/primitive-evidence.json",
 	}
-	got := architectureStaticFindings(m, ev, "cli/manifest.json")
+	got := architectureStaticFindings(m, ev, "cli/manifest.json", "")
 	stale := findingByCode(got, CodeArchEvidenceStale)
 	if stale == nil || stale.Severity != SeverityWarning {
 		t.Fatalf("expected arch.evidence_stale warning, got %+v", got)
@@ -316,7 +329,7 @@ func TestArchitectureStatic_MalformedArtifactIsGatingErrorAndIgnored(t *testing.
 		ArtifactPath: "cli/primitive-evidence.json",
 		Detail:       "schema \"x/v9\" is not \"cli-primitive-evidence/v1\"",
 	}
-	got := architectureStaticFindings(m, ev, "cli/manifest.json")
+	got := architectureStaticFindings(m, ev, "cli/manifest.json", "")
 	mal := findingByCode(got, CodeArchEvidenceMalformed)
 	if mal == nil || mal.Severity != SeverityError {
 		t.Fatalf("expected arch.evidence_malformed error, got %+v", got)

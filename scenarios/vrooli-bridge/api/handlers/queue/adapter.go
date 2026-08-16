@@ -7,6 +7,7 @@ import (
 	"vrooli-bridge/internal/channelsign"
 	"vrooli-bridge/internal/presence"
 	"vrooli-bridge/internal/queue"
+	"vrooli-bridge/internal/relay"
 	"vrooli-bridge/internal/runs"
 
 	"github.com/google/uuid"
@@ -103,6 +104,55 @@ func (c channelCanceller) CancelJob(_ context.Context, nodeID, runID, reason str
 	}
 	c.hub.PushFrame(nodeID, frame.GetFrameId(), payload)
 	return nil
+}
+
+// channelRelayPusher carries the short-lived relay request over the same
+// signed, node-owned SSE channel as durable jobs. Keeping this adapter beside
+// the job pusher makes the wire translation single-purpose and ensures relay
+// frames are covered by the control-plane signature before they leave Bridge.
+type channelRelayPusher struct {
+	hub    *presence.Hub
+	signer channelsign.Signer
+}
+
+func NewChannelRelayPusher(hub *presence.Hub, signer channelsign.Signer) relay.Pusher {
+	return channelRelayPusher{hub: hub, signer: signer}
+}
+
+var _ relay.Pusher = channelRelayPusher{}
+
+func (p channelRelayPusher) Push(_ context.Context, nodeID string, request relay.Request) (int, error) {
+	frame := &channelv1.ServerFrame{
+		FrameId: uuid.NewString(),
+		Payload: &channelv1.ServerFrame_Relay{Relay: &channelv1.RelayRequest{
+			CorrelationId:    request.CorrelationID,
+			Scenario:         request.Scenario,
+			Command:          request.Command,
+			Args:             append([]string(nil), request.Args...),
+			TimeoutSeconds:   request.TimeoutSeconds,
+			MaxResponseBytes: request.MaxResponseBytes,
+		}},
+	}
+	payload, err := channelsign.Marshal(p.signer, frame)
+	if err != nil {
+		return 0, err
+	}
+	return p.hub.PushFrame(nodeID, frame.GetFrameId(), payload), nil
+}
+
+func (p channelRelayPusher) Cancel(_ context.Context, nodeID, correlationID, reason string) (int, error) {
+	frame := &channelv1.ServerFrame{
+		FrameId: uuid.NewString(),
+		Payload: &channelv1.ServerFrame_RelayCancel{RelayCancel: &channelv1.RelayCancel{
+			CorrelationId: correlationID,
+			Reason:        reason,
+		}},
+	}
+	payload, err := channelsign.Marshal(p.signer, frame)
+	if err != nil {
+		return 0, err
+	}
+	return p.hub.PushFrame(nodeID, frame.GetFrameId(), payload), nil
 }
 
 // runsAborter wraps the runs service for the queue.Aborter seam (abort a run

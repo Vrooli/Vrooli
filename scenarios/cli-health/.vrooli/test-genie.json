@@ -501,6 +501,17 @@
         "clean_requirement": "required",
         "recommended_skill_ids": ["cli-steer"]
       },
+      "project.cli_empty": {
+        "capability_id": "command_architecture",
+        "local_level_impact": "L0",
+        "global_impact": "evolvability_gap",
+        "dimension": "contracts",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "The project target emitted no registered commands, so an empty runtime surface must not pass command architecture by vacuity.",
+        "recommended_skill_ids": ["cli-steer"]
+      },
       "measure.invalid": {
         "capability_id": "measures_metadata",
         "local_level_impact": "L0",

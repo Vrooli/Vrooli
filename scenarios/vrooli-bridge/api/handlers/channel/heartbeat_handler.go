@@ -13,6 +13,7 @@ import (
 	"vrooli-bridge/internal/nodeauth"
 	"vrooli-bridge/internal/presence"
 	"vrooli-bridge/internal/registry"
+	"vrooli-bridge/internal/relay"
 	"vrooli-bridge/internal/runs"
 	"vrooli-bridge/internal/session"
 
@@ -49,7 +50,10 @@ type HeartbeatDeps struct {
 	SessionRegistry registry.Service
 	// SessionPush is the signed, node-facing session transport. It is kept as
 	// a callback so the channel handler does not own presence or signing state.
-	SessionPush func(context.Context, string, string, *sessionv1.Frame) error
+	SessionPush    func(context.Context, string, string, *sessionv1.Frame) error
+	RelayResponses interface {
+		Deliver(context.Context, string, relay.Response) error
+	}
 }
 
 // HeartbeatOption adds a production side effect without forcing focused
@@ -69,6 +73,13 @@ func WithAuditSink(sink audit.Sink) HeartbeatOption {
 
 func WithSessionPush(push func(context.Context, string, string, *sessionv1.Frame) error) HeartbeatOption {
 	return func(d *HeartbeatDeps) { d.SessionPush = push }
+}
+
+func WithRelayResponseSink(sink interface {
+	Deliver(context.Context, string, relay.Response) error
+},
+) HeartbeatOption {
+	return func(d *HeartbeatDeps) { d.RelayResponses = sink }
 }
 
 type heartbeatHandler struct {
@@ -183,6 +194,65 @@ func (h *heartbeatHandler) ReportDeliveryAck(ctx context.Context, req *connect.R
 		}
 	}
 	return connect.NewResponse(&presencev1.ReportDeliveryAckResponse{Accepted: true}), nil
+}
+
+// ReportRelayResponse accepts only a response authenticated by the node that
+// owns the correlation. The broker then performs the second binding check
+// (correlation -> node) before waking the waiting relay call.
+func (h *heartbeatHandler) ReportRelayResponse(ctx context.Context, req *connect.Request[presencev1.ReportRelayResponseRequest]) (*connect.Response[presencev1.ReportRelayResponseResponse], error) {
+	response := req.Msg.GetResponse()
+	if response == nil || response.GetCorrelationId() == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("relay response requires correlation_id"))
+	}
+	nodeID := req.Header().Get(nodeauth.HeaderNode)
+	if nodeID == "" {
+		return nil, connect.NewError(connect.CodeUnauthenticated, nodeauth.ErrMissingProof)
+	}
+	if h.deps.Verifier != nil {
+		proof, err := nodeauth.ParseHeaders(nodeID, req.Header().Get(nodeauth.HeaderTS), req.Header().Get(nodeauth.HeaderSig))
+		if err != nil {
+			return nil, connect.NewError(connect.CodeUnauthenticated, err)
+		}
+		if err := h.deps.Verifier.VerifyProof(ctx, proof); err != nil {
+			return nil, connect.NewError(connect.CodeUnauthenticated, err)
+		}
+	}
+	kind := relayResponseKind(response.GetKind())
+	if kind == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("relay response kind is required"))
+	}
+	if h.deps.RelayResponses == nil {
+		return nil, connect.NewError(connect.CodeUnavailable, errors.New("relay response transport unavailable"))
+	}
+	if err := h.deps.RelayResponses.Deliver(ctx, nodeID, relay.Response{
+		CorrelationID: response.GetCorrelationId(),
+		Kind:          kind,
+		Sequence:      response.GetSequence(),
+		Data:          append([]byte(nil), response.GetData()...),
+		Reason:        response.GetReason(),
+		ExitCode:      response.GetExitCode(),
+		TotalBytes:    response.GetTotalBytes(),
+	}); err != nil {
+		return nil, connect.NewError(connect.CodePermissionDenied, err)
+	}
+	return connect.NewResponse(&presencev1.ReportRelayResponseResponse{Accepted: true}), nil
+}
+
+func relayResponseKind(kind sharedv1.RelayResponseKind) string {
+	switch kind {
+	case sharedv1.RelayResponseKind_RELAY_RESPONSE_KIND_ACCEPTED:
+		return relay.KindAccepted
+	case sharedv1.RelayResponseKind_RELAY_RESPONSE_KIND_DATA:
+		return relay.KindData
+	case sharedv1.RelayResponseKind_RELAY_RESPONSE_KIND_COMPLETED:
+		return relay.KindCompleted
+	case sharedv1.RelayResponseKind_RELAY_RESPONSE_KIND_FAILED:
+		return relay.KindFailed
+	case sharedv1.RelayResponseKind_RELAY_RESPONSE_KIND_TERMINATED:
+		return relay.KindTerminated
+	default:
+		return ""
+	}
 }
 
 // ReportSessionFrame is the node-to-control-plane half of the interactive

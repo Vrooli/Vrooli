@@ -30,7 +30,11 @@ type Service struct {
 	OpenStore  func(ctx context.Context) (Store, error)
 	Source     engine.CapacitySource
 	Attributor engine.Attributor
-	Clock      func() time.Time
+	// Exec is the adopter callback used when enforce mode must reclaim idle
+	// lower-priority capacity. Nil uses the production resource-CLI executor;
+	// tests inject a recorder so broker actuation remains hermetic.
+	Exec  engine.ApplyExecutor
+	Clock func() time.Time
 	// SourceRoot is the Vrooli source root used to resolve a resource's declared
 	// capacity block for claim-on-observe adoption (§Phase 6). Empty falls back to
 	// the VROOLI_SOURCE_ROOT env the CLI sets; when neither resolves, adoption is a
@@ -234,14 +238,31 @@ func (s Service) Claim(ctx context.Context, req ClaimRequest) (ClaimOutput, erro
 	// A snapshot error is not fatal in advisory mode — we still record the claim,
 	// but we surface the sensing failure as a warning via a deny-ish verdict.
 	var verdict engine.Verdict
+	var ledger []engine.CapacityClaim
 	if snapErr != nil {
 		verdict = engine.Verdict{Kind: engine.VerdictGrant, GrantedBytes: req.PreferredBytes, Warnings: []string{"capacity sensing unavailable: " + snapErr.Error()}}
 	} else {
-		ledger, listErr := store.ListClaims(ctx, engine.ClaimFilter{ResourceKind: req.ResourceKind, Statuses: engine.ActiveClaimStatuses()})
+		var listErr error
+		ledger, listErr = store.ListClaims(ctx, engine.ClaimFilter{ResourceKind: req.ResourceKind, Statuses: engine.ActiveClaimStatuses()})
 		if listErr != nil {
 			return ClaimOutput{}, listErr
 		}
 		verdict = engine.Decide(engReq, snapshot, ledger, policy, s.now())
+	}
+	// A CLI claim is a broker admission too, not merely a ledger insert. In
+	// enforce mode, execute the declared adopter callbacks before recording the
+	// requester so a grant that depends on reclaiming idle capacity is real.
+	effective := policy.EffectiveEnforce(envEnforce())
+	if effective == engine.EnforceOn && verdict.Granted() && verdict.ReclaimBytes > 0 {
+		_, actuation, actErr := engine.EnforceReclaim(ctx, store, engReq.Priority, verdict, ledger, s.Exec, policy, effective, s.now())
+		if actErr != nil {
+			verdict.Warnings = append(verdict.Warnings, "capacity actuation error: "+actErr.Error())
+		}
+		for _, outcome := range actuation.Outcomes {
+			if outcome.Err != "" {
+				verdict.Warnings = append(verdict.Warnings, fmt.Sprintf("degrade of %q failed: %s", outcome.OwnerID, outcome.Err))
+			}
+		}
 	}
 
 	amount := req.PreferredBytes
@@ -274,7 +295,7 @@ func (s Service) Claim(ctx context.Context, req ClaimRequest) (ClaimOutput, erro
 	if err != nil {
 		return ClaimOutput{}, err
 	}
-	return ClaimOutput{Verdict: verdict, Claim: viewClaim(created, policy, s.now()), Enforce: policy.EffectiveEnforce(envEnforce())}, nil
+	return ClaimOutput{Verdict: verdict, Claim: viewClaim(created, policy, s.now()), Enforce: effective}, nil
 }
 
 // Ref identifies a single claim by ID, with the generation for guarded ops.
@@ -446,6 +467,11 @@ func (s Service) Reconcile(ctx context.Context) (ReconcileOutput, error) {
 		return ReconcileOutput{}, err
 	}
 	findings := engine.Reconcile(ctx, snapshot, ledger, s.attributor(), policy)
+	declared, err := engine.DeclaredGPUWithoutClaimFindings(s.sourceRoot(), ledger)
+	if err != nil {
+		return ReconcileOutput{}, err
+	}
+	findings = append(findings, declared...)
 	return ReconcileOutput{Findings: findings}, nil
 }
 

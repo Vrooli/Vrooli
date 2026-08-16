@@ -78,6 +78,31 @@ func TestValidate_ScenarioPassesThrough(t *testing.T) {
 	}
 }
 
+func TestValidateTarget_ProjectBypassesReservedScenarioGuard(t *testing.T) {
+	v := &stubValidator{}
+	h := NewConnectHandler(Deps{
+		Logger:        log.New(log.Writer(), "", 0),
+		Validator:     v,
+		ReservedNames: []string{"vrooli", "repo"},
+		MaturitySpec:  testMaturitySpec(),
+	})
+	resp, err := h.ValidateTarget(context.Background(), connect.NewRequest(&scenariovalidationv1.ValidateTargetRequest{
+		Target: &commonv1.ValidationTarget{
+			Kind: commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_PROJECT,
+			Id:   manifestvalidation.ProjectTargetID,
+		},
+	}))
+	if err != nil {
+		t.Fatalf("ValidateTarget project: %v", err)
+	}
+	if !v.called || resp.Msg.GetTarget().GetKind() != commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_PROJECT {
+		t.Fatalf("project target was not delegated: called=%v target=%v", v.called, resp.Msg.GetTarget())
+	}
+	if resp.Msg.GetStatus() != scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED {
+		t.Fatalf("status=%v; want PASSED", resp.Msg.GetStatus())
+	}
+}
+
 func TestBuildMaturityAssessmentMapsCLIFindings(t *testing.T) {
 	spec := testMaturitySpec()
 	report := manifestvalidation.Report{
@@ -133,6 +158,7 @@ func TestMaturitySpecCoversCLIHealthFindings(t *testing.T) {
 		manifestvalidation.CodeArchUnclassifiable,
 		manifestvalidation.CodeArchPrimitiveUndecl,
 		manifestvalidation.CodeArchPrimitiveUnverif,
+		manifestvalidation.CodeProjectCLIEmpty,
 		manifestvalidation.CodeArchPrimitiveMismatch,
 		manifestvalidation.CodeArchMetadataInvalid,
 		manifestvalidation.CodeArchClaimedViolation,

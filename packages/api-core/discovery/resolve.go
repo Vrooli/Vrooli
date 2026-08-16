@@ -45,6 +45,11 @@ type ResolverConfig struct {
 	CacheTTL time.Duration
 	// Now supplies time for deterministic cache tests. Nil uses time.Now.
 	Now func() time.Time
+
+	// TargetResolver and Relay provide the optional node transport. Leaving
+	// both nil preserves the local resolver and its exact CLI behavior.
+	TargetResolver TargetResolver
+	Relay          RelayTransport
 }
 
 // Resolver resolves scenario ports by shelling out to the Vrooli CLI. Successful
@@ -53,17 +58,19 @@ type ResolverConfig struct {
 // configured TTL.
 // If configured with a static base URL, it bypasses CLI discovery entirely.
 type Resolver struct {
-	vrooliPath    string
-	runner        CommandRunner
-	host          string
-	scheme        string
-	staticBaseURL string // When set, bypasses CLI discovery
-	cacheTTL      time.Duration
-	now           func() time.Time
-	cacheMu       sync.Mutex
-	cache         map[string]cachedPort
-	cacheHits     int64
-	cacheMisses   int64
+	vrooliPath     string
+	runner         CommandRunner
+	host           string
+	scheme         string
+	staticBaseURL  string // When set, bypasses CLI discovery
+	targetResolver TargetResolver
+	relay          RelayTransport
+	cacheTTL       time.Duration
+	now            func() time.Time
+	cacheMu        sync.Mutex
+	cache          map[string]cachedPort
+	cacheHits      int64
+	cacheMisses    int64
 }
 
 type cachedPort struct {
@@ -81,12 +88,17 @@ const defaultResolverCacheTTL = 2 * time.Second
 type ErrorKind string
 
 const (
-	ErrInvalidInput       ErrorKind = "invalid_input"
-	ErrVrooliNotFound     ErrorKind = "vrooli_not_found"
-	ErrScenarioNotRunning ErrorKind = "scenario_not_running"
-	ErrTimeout            ErrorKind = "timeout"
-	ErrInvalidPort        ErrorKind = "invalid_port"
-	ErrCommandFailed      ErrorKind = "command_failed"
+	ErrInvalidInput               ErrorKind = "invalid_input"
+	ErrVrooliNotFound             ErrorKind = "vrooli_not_found"
+	ErrScenarioNotRunning         ErrorKind = "scenario_not_running"
+	ErrTimeout                    ErrorKind = "timeout"
+	ErrInvalidPort                ErrorKind = "invalid_port"
+	ErrCommandFailed              ErrorKind = "command_failed"
+	ErrNodeOffline                ErrorKind = "node_offline"
+	ErrNodeOutOfScope             ErrorKind = "node_out_of_scope"
+	ErrNodeUnpaired               ErrorKind = "node_unpaired_or_revoked"
+	ErrRemoteTransportUnavailable ErrorKind = "remote_transport_unavailable"
+	ErrRemoteCallFailed           ErrorKind = "remote_call_failed"
 )
 
 // Error provides structured details about discovery failures.
@@ -94,6 +106,7 @@ type Error struct {
 	Kind     ErrorKind
 	Scenario string
 	PortKey  string
+	Node     string
 	Output   string
 	Err      error
 }
@@ -104,6 +117,9 @@ func (e *Error) Error() string {
 		string(e.Kind),
 		fmt.Sprintf("scenario=%q", e.Scenario),
 		fmt.Sprintf("port=%q", e.PortKey),
+	}
+	if e.Node != "" {
+		parts = append(parts, fmt.Sprintf("node=%q", e.Node))
 	}
 	if e.Output != "" {
 		parts = append(parts, fmt.Sprintf("output=%q", e.Output))
@@ -151,14 +167,16 @@ func NewResolver(cfg ResolverConfig) *Resolver {
 		now = time.Now
 	}
 	return &Resolver{
-		vrooliPath:    vrooliPath,
-		runner:        runner,
-		host:          host,
-		scheme:        scheme,
-		staticBaseURL: strings.TrimRight(cfg.StaticBaseURL, "/"),
-		cacheTTL:      cacheTTL,
-		now:           now,
-		cache:         make(map[string]cachedPort),
+		vrooliPath:     vrooliPath,
+		runner:         runner,
+		host:           host,
+		scheme:         scheme,
+		staticBaseURL:  strings.TrimRight(cfg.StaticBaseURL, "/"),
+		cacheTTL:       cacheTTL,
+		now:            now,
+		cache:          make(map[string]cachedPort),
+		targetResolver: cfg.TargetResolver,
+		relay:          cfg.Relay,
 	}
 }
 

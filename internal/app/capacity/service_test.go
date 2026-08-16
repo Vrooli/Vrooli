@@ -13,6 +13,7 @@ import (
 func testService(t *testing.T, snap hostinventory.Snapshot, attr engine.Attributor) Service {
 	t.Helper()
 	dbPath := filepath.Join(t.TempDir(), "capacity.db")
+	sourceRoot := t.TempDir()
 	clk := func() time.Time { return time.Date(2026, 6, 22, 12, 0, 0, 0, time.UTC) }
 	return Service{
 		OpenStore: func(ctx context.Context) (Store, error) {
@@ -21,6 +22,7 @@ func testService(t *testing.T, snap hostinventory.Snapshot, attr engine.Attribut
 		Source:     engine.StaticSource{Inventory: snap},
 		Attributor: attr,
 		Clock:      clk,
+		SourceRoot: sourceRoot,
 	}
 }
 
@@ -123,6 +125,61 @@ func TestServiceClaimDegradeInAdvisoryStillRecords(t *testing.T) {
 	}
 	if out.Claim.Status != engine.StatusDegraded {
 		t.Errorf("recorded status = %q, want degraded", out.Claim.Status)
+	}
+}
+
+type recordingApplyExecutor struct {
+	owner string
+	verb  string
+	argv  []string
+}
+
+func (r *recordingApplyExecutor) Apply(_ context.Context, owner, verb string, argv []string) error {
+	r.owner, r.verb, r.argv = owner, verb, append([]string(nil), argv...)
+	return nil
+}
+
+func TestServiceClaimEnforceActuatesIdleProfile(t *testing.T) {
+	ctx := context.Background()
+	dbPath := filepath.Join(t.TempDir(), "capacity.db")
+	now := time.Date(2026, 6, 22, 12, 0, 0, 0, time.UTC)
+	clk := func() time.Time { return now }
+	exec := &recordingApplyExecutor{}
+	svc := Service{
+		OpenStore: func(ctx context.Context) (Store, error) {
+			return engine.NewSQLiteStore(ctx, engine.Config{DBPath: dbPath, Clock: clockFunc(clk)})
+		},
+		Source: engine.StaticSource{Inventory: hostinventory.Snapshot{GPUs: []hostinventory.GPU{{
+			Index: 0, Name: "Test", Source: "nvidia-smi", VRAMBytes: uint64(gib(16)), VRAMUsedBytes: uint64(15*gib(1) + gib(1)/2),
+		}}}},
+		Exec:  exec,
+		Clock: clk,
+	}
+	profile := `{"steps":[{"label":"large","amount_bytes":1447034880},{"label":"small","amount_bytes":633339904}],"apply":{"verb":"models","argv":["activate","--model","{label}"]},"upshift":true}`
+	t.Setenv("VROOLI_CAPACITY_ENFORCE", engine.EnforceOn)
+	if _, err := svc.Claim(ctx, ClaimRequest{
+		OwnerKind: engine.OwnerKindResource, OwnerID: "reranker", ResourceKind: engine.ResourceKindVRAM,
+		PreferredBytes: 1447034880, FloorBytes: 633339904, PriorityTier: "service", YieldWhenIdle: true,
+		IdleGrace: time.Second, ProfileJSON: profile,
+	}); err != nil {
+		t.Fatalf("seed reranker claim: %v", err)
+	}
+	now = now.Add(2 * time.Second)
+	out, err := svc.Claim(ctx, ClaimRequest{
+		OwnerKind: engine.OwnerKindScenario, OwnerID: "interactive-request", ResourceKind: engine.ResourceKindVRAM,
+		PreferredBytes: 1600000000, FloorBytes: 1000000000, PriorityTier: "interactive",
+	})
+	if err != nil {
+		t.Fatalf("enforced claim: %v", err)
+	}
+	if out.Verdict.ReclaimBytes <= 0 {
+		t.Fatalf("verdict reclaim_bytes = %d, want positive", out.Verdict.ReclaimBytes)
+	}
+	if exec.owner != "reranker" || exec.verb != "models" || len(exec.argv) != 3 || exec.argv[0] != "activate" {
+		t.Fatalf("actuator call = %s %s %#v, want reranker models activate <profile-label>", exec.owner, exec.verb, exec.argv)
+	}
+	if exec.argv[1] != "--model" || exec.argv[2] != "small" {
+		t.Fatalf("actuator argv = %#v, want [activate --model small]", exec.argv)
 	}
 }
 

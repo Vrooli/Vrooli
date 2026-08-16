@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "cli-health",
   "generator": "v1.0.0",
-  "manifest_hash": "23a728c0c065507a8bcbde440d7a5d1ac792bf56389fd7c7504825720ecc21bd",
+  "manifest_hash": "d9b9b83fe92fd79e3236bd71e26d28f95c8d8337a1e1b962c627892ec79528e7",
   "commands": [
     {
       "path": "command validate",
@@ -53,6 +53,14 @@
       "binding": "SearchService.Status",
       "declared_primitive": "operational",
       "observed_primitive": "operational"
+    },
+    {
+      "path": "validate project",
+      "group": "validate",
+      "command": "project",
+      "binding": "ScenarioValidationService.ValidateTarget",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
     },
     {
       "path": "validate scenario",

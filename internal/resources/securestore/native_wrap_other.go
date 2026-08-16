@@ -11,6 +11,7 @@ func nativeWrapAvailable() (string, error) {
 func nativeWrapProtect([]byte) ([]byte, error) {
 	return nil, fmt.Errorf("%w: native key wrap is unavailable", errKeyProviderUnavailable)
 }
+
 func nativeWrapUnprotect([]byte) ([]byte, error) {
 	return nil, fmt.Errorf("%w: native key wrap is unavailable", errKeyProviderUnavailable)
 }

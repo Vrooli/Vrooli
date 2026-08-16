@@ -146,7 +146,10 @@ func (s *Service) ValidateScenario(ctx context.Context, scenario string) (Report
 	parse.End()
 
 	entrypoint := collector.Stage("entrypoint-structure")
-	mainFindings := entrypointFindings(path)
+	mainFindings := []Finding(nil)
+	if !isProjectTarget(scenario) {
+		mainFindings = entrypointFindings(path)
+	}
 	findings = append(findings, mainFindings...)
 	entrypoint.Gauge("findings", float64(len(mainFindings)))
 	entrypoint.End()
@@ -158,9 +161,9 @@ func (s *Service) ValidateScenario(ctx context.Context, scenario string) (Report
 		findings = append(findings, Finding{
 			Severity:   SeverityError,
 			Code:       CodeProtoBuildFailed,
-			Location:   fmt.Sprintf("packages/proto/schemas/%s", scenario),
+			Location:   protoSchemaRel(scenario),
 			Message:    protoErr.Error(),
-			Suggestion: "run `buf build --path packages/proto/schemas/" + scenario + "` from packages/proto to reproduce",
+			Suggestion: "run `buf build --path " + protoSchemaRel(scenario) + "` from packages/proto to reproduce",
 		})
 		return finalize(scenario, findings), nil
 	}
@@ -171,7 +174,7 @@ func (s *Service) ValidateScenario(ctx context.Context, scenario string) (Report
 	findings = append(findings, argumentFindings(m, surface, path)...)
 	findings = append(findings, semanticFindings(m, surface, path)...)
 	findings = append(findings, s.measureCheck(raw, path)...)
-	findings = append(findings, architectureStaticFindings(m, s.architectureEvidence(ctx, scenario), path)...)
+	findings = append(findings, architectureStaticFindings(m, s.architectureEvidence(ctx, scenario), path, scenario)...)
 	cross.Gauge("findings", float64(len(findings)))
 	cross.End()
 
@@ -194,7 +197,7 @@ func (s *Service) ValidateScenario(ctx context.Context, scenario string) (Report
 				Suggestion: "this is a probe-infrastructure degradation, not necessarily a scenario defect",
 			})
 		} else {
-			findings = append(findings, runtimeFindings(obs, m, path)...)
+			findings = append(findings, runtimeFindingsForTarget(obs, m, path, scenario)...)
 			findings = append(findings, architectureRuntimeFindings(m, obs, path)...)
 		}
 		probe.Gauge("findings", float64(len(findings)))
@@ -229,6 +232,24 @@ func (s *Service) architectureEvidence(ctx context.Context, scenario string) Arc
 // genuinely proto-less scenario (or one whose proto surface cannot even be
 // built) keeps the soft skip-with-warning.
 func (s *Service) missingManifest(ctx context.Context, scenario string) Report {
+	if isProjectTarget(scenario) {
+		return finalize(scenario, []Finding{
+			{
+				Severity:   SeverityError,
+				Code:       CodeManifestRequired,
+				Location:   defaultManifestRel(scenario),
+				Message:    "the project CLI has no cli/manifest.json — every root command must be catalogued for governance",
+				Suggestion: "add cli/manifest.json at the repository root and catalog every registered command",
+			},
+			{
+				Severity:   SeverityWarning,
+				Code:       CodeArchUnclassifiable,
+				Location:   defaultManifestRel(scenario),
+				Message:    "the project CLI has no manifest, so command architecture cannot be classified",
+				Suggestion: "add cli/manifest.json and declare each command's architecture.primitive or local governance binding",
+			},
+		})
+	}
 	if surface, protoErr := s.protos.Load(ctx, scenario); protoErr == nil && surface.HasAnyMethod() {
 		return finalize(scenario, []Finding{
 			{
@@ -405,9 +426,19 @@ func finalize(scenario string, findings []Finding) Report {
 }
 
 func defaultManifestRel(scenario string) string {
+	if isProjectTarget(scenario) {
+		return "cli/manifest.json"
+	}
 	rel, err := repocontract.ScenarioCLIManifestRepoRel("", scenario)
 	if err != nil {
 		return scenario
 	}
 	return rel
+}
+
+func protoSchemaRel(scenario string) string {
+	if isProjectTarget(scenario) {
+		return "packages/proto/schemas/cli"
+	}
+	return "packages/proto/schemas/" + scenario
 }

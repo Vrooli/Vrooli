@@ -924,6 +924,33 @@ func TestDockerIsDemandedOnlyBySelectedContainerResources(t *testing.T) {
 	}
 }
 
+func TestPreflightSelectedContainerResourceUsesRuntimeProviderLadder(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	testresource.WriteResourceManifest(t, root, "containerized", testresource.ResourceManifest(
+		"containerized",
+		testresource.WithResourceDriver("docker-service"),
+		testresource.WithResourceRuntime(manifestpkg.ResourceRuntime{Image: "fixture:1.0.0"}),
+	))
+
+	original := ensureContainerRuntimeFn
+	t.Cleanup(func() { ensureContainerRuntimeFn = original })
+	calls := 0
+	ensureContainerRuntimeFn = func(name string, opts vrooliruntime.EnsureOptions) (vrooliruntime.ItemStatus, error) {
+		calls++
+		if name != "docker" || !opts.AutoInstall {
+			t.Fatalf("provider ensure call = name %q opts %#v", name, opts)
+		}
+		return vrooliruntime.ItemStatus{Installed: true, SelectedProvider: "colima", ExecutionState: "applied"}, nil
+	}
+	if err := preflightDockerResources(root, home, []string{"containerized"}, Options{SudoMode: "ask"}); err != nil {
+		t.Fatalf("preflightDockerResources: %v", err)
+	}
+	if calls != 1 {
+		t.Fatalf("provider ensure calls = %d, want 1", calls)
+	}
+}
+
 func TestRunDevelopRunsSetupWhenNeededAndStartsNativeServices(t *testing.T) {
 	svc := stubSetupDeps(t)
 
@@ -1381,6 +1408,7 @@ func stubSetupDeps(t *testing.T) *setupService {
 	deps.syncResourceSchema = func(root string) error { return nil }
 	deps.ensureBootstrapTools = func(string, vrooliruntime.EnsureOptions) error { return nil }
 	deps.newCLIInstallManager = func(root, home string) (cliInstallManager, error) { return &stubCLIInstallManager{}, nil }
+	deps.recordProjectInstall = func(string, string) error { return nil }
 	// These tests exercise setup orchestration with isolated temporary homes;
 	// credential backend readiness is covered by the securestore tests and is
 	// deliberately not allowed to probe the developer's real keyring here.

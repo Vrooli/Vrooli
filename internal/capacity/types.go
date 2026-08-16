@@ -66,9 +66,10 @@ const (
 
 // Reconciliation finding classes.
 const (
-	FindingClaimed   = "claimed"
-	FindingUnclaimed = "unclaimed"
-	FindingOverClaim = "over_claim"
+	FindingClaimed           = "claimed"
+	FindingUnclaimed         = "unclaimed"
+	FindingOverClaim         = "over_claim"
+	FindingDeclaredUnclaimed = "declared_unclaimed"
 )
 
 // DefaultHeartbeatTTL bounds how long a claim survives without a heartbeat
@@ -315,7 +316,7 @@ func (v Verdict) Granted() bool {
 
 // Finding is one reconciliation result (plan §7 Phase 2 / doc.go).
 type Finding struct {
-	Class             string `json:"class"` // claimed | unclaimed | over_claim
+	Class             string `json:"class"` // claimed | unclaimed | over_claim | declared_unclaimed
 	OwnerID           string `json:"owner_id"`
 	OwnerKind         string `json:"owner_kind,omitempty"`
 	ResourceKind      string `json:"resource_kind"`

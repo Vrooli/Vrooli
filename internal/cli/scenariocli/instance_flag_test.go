@@ -21,6 +21,8 @@ func TestStartResolvesInstanceFlagAndSuffix(t *testing.T) {
 		{name: "flag equals suffix", args: []string{"alpha@shadow", "--instance", "shadow"}, want: []string{"alpha@shadow"}},
 		{name: "explicit live flag normalizes to bare", args: []string{"alpha", "--instance", "live"}, want: []string{"alpha"}},
 		{name: "multiple names share flag", args: []string{"alpha", "beta", "--instance", "shadow"}, want: []string{"alpha@shadow", "beta@shadow"}},
+		{name: "node flag", args: []string{"alpha", "--node", "minimouse"}, want: []string{"minimouse/alpha"}},
+		{name: "address node wins over flag", args: []string{"minimouse/alpha@shadow", "--node", "other"}, want: []string{"minimouse/alpha@shadow"}},
 		{name: "flag disagrees with suffix", args: []string{"alpha@shadow", "--instance", "live"}, wantErr: true},
 	}
 	for _, tc := range cases {
@@ -39,6 +41,26 @@ func TestStartResolvesInstanceFlagAndSuffix(t *testing.T) {
 				t.Fatalf("names = %v, want %v", req.Names, tc.want)
 			}
 		})
+	}
+}
+
+func TestNodeIsNeverSelectedFromEnvironment(t *testing.T) {
+	t.Setenv("VROOLI_NODE", "minimouse")
+	req, err := ParseStartRequest(false, []string{"alpha"})
+	if err != nil {
+		t.Fatalf("ParseStartRequest: %v", err)
+	}
+	if got := strings.Join(req.Names, ","); got != "alpha" {
+		t.Fatalf("names = %q, want alpha", got)
+	}
+}
+
+func TestNodeRequiresScenarioAddress(t *testing.T) {
+	if _, err := ParseStartRequest(false, []string{"minimouse/"}); err == nil {
+		t.Fatal("expected empty scenario after node prefix to fail")
+	}
+	if _, err := ParseStatusRequest(false, []string{"--node", "minimouse"}); err == nil {
+		t.Fatal("expected --node without a scenario name to fail")
 	}
 }
 

@@ -24,12 +24,13 @@ const (
 )
 
 // bootstrapSteps is the ordered step vocabulary the bootstrap script emits
-// (13 steps: `toolchain` verifies setup delivered go/pnpm before the build steps).
+// (14 steps: `toolchain` verifies setup delivered go/pnpm before the build steps,
+// and `install-record` freezes the bootstrap-owned uninstall footprint).
 // The orchestrator's own phase steps (ssh-setup, push-script, sync-tree,
 // verify-online-confirm) are NOT here — this is the remote script's vocabulary.
 var bootstrapSteps = []string{
 	"detect-os", "prereqs", "clone", "setup", "toolchain", "build-agent", "build-cli",
-	"node-key", "pair-redeem", "pin-verify", "service-install", "autostart", "verify-online",
+	"node-key", "pair-redeem", "pin-verify", "service-install", "autostart", "install-record", "verify-online",
 }
 
 // successMarkers builds the canonical full-success marker stream (run envelope +

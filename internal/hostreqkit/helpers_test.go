@@ -17,6 +17,8 @@ func stubLookups(t *testing.T) func() {
 	origRunCommand := RunCommandFn
 	origWriteTemp := WriteTempFileFn
 	origElevationFacts := ElevationFactsFn
+	origProbePackageState := ProbePackageStateFn
+	origRecordPackageInstall := RecordPackageInstallFn
 	return func() {
 		LookPathFn = origLookPath
 		ReadFileFn = origReadFile
@@ -24,6 +26,8 @@ func stubLookups(t *testing.T) func() {
 		RunCommandFn = origRunCommand
 		WriteTempFileFn = origWriteTemp
 		ElevationFactsFn = origElevationFacts
+		ProbePackageStateFn = origProbePackageState
+		RecordPackageInstallFn = origRecordPackageInstall
 	}
 }
 
@@ -271,6 +275,51 @@ func TestRunInstallCommandDelegates(t *testing.T) {
 	}
 	if !called {
 		t.Fatal("RunCommandFn not called")
+	}
+}
+
+func TestRunInstallCommandWithProvenanceRecordsProbeOutcomes(t *testing.T) {
+	restore := stubLookups(t)
+	defer restore()
+
+	var recorded []PackageInstallRecord
+	RecordPackageInstallFn = func(record PackageInstallRecord) error {
+		recorded = append(recorded, record)
+		return nil
+	}
+	LookPathFn = func(name string) (string, error) {
+		if name == "brew" {
+			return "/opt/homebrew/bin/brew", nil
+		}
+		return "", os.ErrNotExist
+	}
+	RunCommandFn = func(string, []string, EnsureOptions) error { return nil }
+	CombinedOutputFn = func(_ string, args ...string) ([]byte, error) {
+		switch args[len(args)-1] {
+		case "absent":
+			return []byte("Error: No such keg: absent\n"), errors.New("exit 1")
+		case "present":
+			return []byte("present 1.2.3\n"), nil
+		default:
+			return []byte("permission denied\n"), errors.New("exit 1")
+		}
+	}
+	for _, name := range []string{"absent", "present", "probe-failed"} {
+		if err := RunInstallCommandWithProvenance("brew", []string{"install", name}, EnsureOptions{}, InstallProvenanceRequest{PackageManager: "brew", PackageName: name}); err != nil {
+			t.Fatalf("record %s: %v", name, err)
+		}
+	}
+	if len(recorded) != 3 {
+		t.Fatalf("recorded %d packages, want 3", len(recorded))
+	}
+	if recorded[0].ObservedBefore != PackageAbsent || recorded[0].Action != PackageInstalled {
+		t.Fatalf("absent record = %#v", recorded[0])
+	}
+	if recorded[1].ObservedBefore != PackagePresent || recorded[1].Action != PackageAdopted {
+		t.Fatalf("present record = %#v", recorded[1])
+	}
+	if recorded[2].ObservedBefore != PackageUnknown {
+		t.Fatalf("failed probe record = %#v", recorded[2])
 	}
 }
 

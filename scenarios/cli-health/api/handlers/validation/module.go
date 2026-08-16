@@ -63,11 +63,12 @@ func Module(logger *log.Logger, repoRoot string, reservedNames []string) module.
 		environment = nil
 	}
 	connectPath, connectHandler := scenariovalidationconnect.NewScenarioValidationServiceHandler(assessment.Serve(NewConnectHandler(Deps{
-		Logger:        logger,
-		Validator:     validator,
-		ReservedNames: reservedNames,
-		MaturitySpec:  spec,
-		Environment:   environment,
+		Logger:          logger,
+		Validator:       validator,
+		TargetValidator: validator,
+		ReservedNames:   reservedNames,
+		MaturitySpec:    spec,
+		Environment:     environment,
 	}), describer))
 	return module.Module{
 		Name: "validation",
