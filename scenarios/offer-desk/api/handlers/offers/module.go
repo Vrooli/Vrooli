@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
-	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/discovery"
@@ -207,6 +206,14 @@ func (s *Service) Promote(ctx context.Context, r *connect.Request[offerspb.Promo
 	return connect.NewResponse(&offerspb.PromoteResponse{Proposal: p}), nil
 }
 
+func (s *Service) ListProposals(ctx context.Context, r *connect.Request[offerspb.ListProposalsRequest]) (*connect.Response[offerspb.ListProposalsResponse], error) {
+	proposals, err := s.store.ListProposals(ctx, r.Msg.NodeId, r.Msg.Status)
+	if err != nil {
+		return nil, internal(err)
+	}
+	return connect.NewResponse(&offerspb.ListProposalsResponse{Proposals: proposals}), nil
+}
+
 func (s *Service) GetBoard(ctx context.Context, _ *connect.Request[offerspb.ProjectionRequest]) (*connect.Response[offerspb.BoardResponse], error) {
 	nodes, e := s.store.ListNodes(ctx, offerspb.NodeKind_NODE_KIND_UNSPECIFIED, offerspb.Status_STATUS_UNSPECIFIED)
 	if e != nil {
@@ -286,35 +293,30 @@ func (s *Service) GetBoard(ctx context.Context, _ *connect.Request[offerspb.Proj
 		out = append(out, entry)
 	}
 	response.Entries = out
-	var result string
-	var scored int
-	var reason, evaluated string
-	if err := s.store.DB().QueryRowContext(ctx, `SELECT result,nodes_scored,reason,evaluated_at FROM evaluation_runs ORDER BY evaluated_at DESC LIMIT 1`).Scan(&result, &scored, &reason, &evaluated); err == nil {
-		at, parseErr := time.Parse(time.RFC3339Nano, evaluated)
-		if parseErr == nil {
-			age := int64(s.clock.Now().Sub(at).Seconds())
-			if age < 0 {
-				age = 0
-			}
-			response.Evaluation.LastRunAt = timestamppb.New(at)
-			response.Evaluation.NodesScored = int32(scored)
-			response.Evaluation.AgeSeconds = age
-			response.Evaluation.Reason = reason
-			response.Evaluation.LastResult = offerspb.EvaluationResult_EVALUATION_SUCCEEDED
-			if result == "failed" {
-				response.Evaluation.LastResult = offerspb.EvaluationResult_EVALUATION_FAILED
-			}
-			response.Evaluation.Degraded = result == "failed" || (s.interval > 0 && time.Duration(age)*time.Second > 3*s.interval)
-			if response.Evaluation.Degraded && response.Evaluation.Reason == "" {
-				response.Evaluation.Reason = "evaluation reading is older than three scheduler intervals"
-			}
+	result, scored, reason, at, evaluationErr := s.store.LatestEvaluation(ctx)
+	if evaluationErr == nil {
+		age := int64(s.clock.Now().Sub(at).Seconds())
+		if age < 0 {
+			age = 0
+		}
+		response.Evaluation.LastRunAt = timestamppb.New(at)
+		response.Evaluation.NodesScored = int32(scored)
+		response.Evaluation.AgeSeconds = age
+		response.Evaluation.Reason = reason
+		response.Evaluation.LastResult = offerspb.EvaluationResult_EVALUATION_SUCCEEDED
+		if result == "failed" {
+			response.Evaluation.LastResult = offerspb.EvaluationResult_EVALUATION_FAILED
+		}
+		response.Evaluation.Degraded = result == "failed" || (s.interval > 0 && time.Duration(age)*time.Second > 3*s.interval)
+		if response.Evaluation.Degraded && response.Evaluation.Reason == "" {
+			response.Evaluation.Reason = "evaluation reading is older than three scheduler intervals"
 		}
 	}
 	return connect.NewResponse(response), nil
 }
 
 func (s *Service) recordEvaluation(ctx context.Context, result string, nodes int, reason string) {
-	_, _ = s.store.DB().ExecContext(ctx, `INSERT INTO evaluation_runs(id,result,nodes_scored,reason,evaluated_at) VALUES(?,?,?,?,?)`, uuid.NewString(), result, nodes, reason, s.clock.Now().UTC().Format(time.RFC3339Nano))
+	_ = s.store.RecordEvaluation(ctx, result, nodes, reason, s.clock.Now())
 }
 
 func (s *Service) GetProjection(ctx context.Context, r *connect.Request[offerspb.ProjectionRequest]) (*connect.Response[offerspb.SpaceResponse], error) {
@@ -343,6 +345,6 @@ func ep(id, path, summary string) module.EndpointDescriptor {
 
 var Endpoints = []module.EndpointDescriptor{
 	ep("catalog_create", "/vrooli.offer_desk.v1.offers.CatalogService/CreateNode", "Create a typed offer-graph node"), ep("catalog_list", "/vrooli.offer_desk.v1.offers.CatalogService/ListNodes", "List offer-graph nodes"), ep("catalog_transition", "/vrooli.offer_desk.v1.offers.CatalogService/Transition", "Transition a node through the enforced lifecycle"), ep("catalog_edge", "/vrooli.offer_desk.v1.offers.CatalogService/CreateEdge", "Create a typed graph edge"), ep("catalog_edges", "/vrooli.offer_desk.v1.offers.CatalogService/ListEdges", "List typed graph edges"), ep("catalog_import", "/vrooli.offer_desk.v1.offers.CatalogService/ImportCatalog", "Rehearse or apply a declared catalog source"),
-	ep("gates_trigger", "/vrooli.offer_desk.v1.offers.GatesService/DeclareTrigger", "Declare a machine-evaluable trigger"), ep("gates_fact", "/vrooli.offer_desk.v1.offers.GatesService/AddFact", "Record an observed fact"), ep("gates_evaluate", "/vrooli.offer_desk.v1.offers.GatesService/Evaluate", "Evaluate candidate triggers"), ep("gates_promote", "/vrooli.offer_desk.v1.offers.GatesService/Promote", "Create an operator promotion proposal"), ep("board_show", "/vrooli.offer_desk.v1.offers.BoardService/GetBoard", "Read the ranked offer board"),
+	ep("gates_trigger", "/vrooli.offer_desk.v1.offers.GatesService/DeclareTrigger", "Declare a machine-evaluable trigger"), ep("gates_fact", "/vrooli.offer_desk.v1.offers.GatesService/AddFact", "Record an observed fact"), ep("gates_evaluate", "/vrooli.offer_desk.v1.offers.GatesService/Evaluate", "Evaluate candidate triggers"), ep("gates_promote", "/vrooli.offer_desk.v1.offers.GatesService/Promote", "Create an operator promotion proposal"), ep("gates_proposals", "/vrooli.offer_desk.v1.offers.GatesService/ListProposals", "List promotion proposals and decline history"), ep("board_show", "/vrooli.offer_desk.v1.offers.BoardService/GetBoard", "Read the ranked offer board"),
 	ep("space_projection", "/vrooli.offer_desk.v1.offers.SpaceService/GetProjection", "Read monetization obligation cells"),
 }

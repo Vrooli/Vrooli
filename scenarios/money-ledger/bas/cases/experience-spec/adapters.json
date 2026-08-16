@@ -35,7 +35,7 @@
         },
         "type": "ACTION_TYPE_WAIT",
         "wait": {
-          "selector": "[data-testid=\"adapter-failure-reason\"]",
+          "selector": "@selector/pages.failureReason",
           "state": "WAIT_STATE_VISIBLE",
           "timeout_ms": 15000
         }

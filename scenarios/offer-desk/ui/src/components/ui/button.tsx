@@ -32,7 +32,8 @@ const variantClasses: Record<ButtonVariant, string> = {
 };
 
 const sizeClasses: Record<ButtonSize, string> = {
-  sm: "min-h-9 px-3 text-sm",
+  // Compact typography still keeps the full 44px WCAG touch target.
+  sm: "min-h-11 px-3 text-sm",
   md: "min-h-11 px-4 text-sm",
   icon: "min-h-11 min-w-11 p-0",
 };

@@ -213,7 +213,7 @@
     },
     {
       "id": "proposer-identity",
-      "role": "status",
+      "role": "columnheader",
       "description": "Which actor authored the proposal, taken from the authenticated context rather than a request field."
     },
     {
@@ -229,7 +229,7 @@
     },
     {
       "id": "decline-history",
-      "role": "list",
+      "role": "columnheader",
       "name": "Previously declined",
       "description": "Prior declines for the same offer, so a repeated proposal is visible as repeated."
     },
@@ -248,6 +248,18 @@
       "id": "empty-guidance",
       "role": "note",
       "description": "Explains an empty proposal queue."
+    },
+    {
+      "id": "decline-action",
+      "role": "button",
+      "name": "Decline",
+      "description": "Declines a proposal with a required reason. Operator-only."
+    },
+    {
+      "id": "decline-reason",
+      "role": "textbox",
+      "name": "Decline reason",
+      "description": "The persistent reason attached to an operator decline."
     }
   ],
   "claims": [
@@ -337,6 +349,14 @@
         "awaiting-disposition"
       ],
       "rationale": "It is the operator's single most important action in the scenario."
+    },
+    {
+      "id": "decline-is-keyboard-reachable",
+      "type": "keyboard-reachable",
+      "statement": "The decline control and its reason field are keyboard reachable.",
+      "tier": "machine",
+      "elements": ["decline-action", "decline-reason"],
+      "states": ["awaiting-disposition", "operator-required"]
     }
   ],
   "bindings": {
@@ -364,6 +384,12 @@
       },
       "empty-guidance": {
         "testid": "proposals-empty-guidance"
+      },
+      "decline-action": {
+        "testid": "proposal-decline"
+      },
+      "decline-reason": {
+        "testid": "proposal-decline-reason"
       }
     }
   }

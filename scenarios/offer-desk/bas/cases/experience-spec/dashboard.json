@@ -41,6 +41,18 @@
         },
         "metadata": { "label": "Dashboard page visible" }
       }
+    },
+    {
+      "id": "wait-dashboard-evaluation-condition",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/pages.evaluationCondition",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": { "label": "Evaluation condition visible" }
+      }
     }
   ]
 }

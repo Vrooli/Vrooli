@@ -296,6 +296,30 @@
       "id": "empty-guidance",
       "role": "note",
       "description": "Explains what a trigger is and shows a worked example before asking for a first declaration."
+    },
+    {
+      "id": "trigger-declaration-form",
+      "role": "form",
+      "name": "Declare trigger",
+      "description": "Saves a machine-evaluable trigger after its declaration is checked."
+    },
+    {
+      "id": "fact-entry-form",
+      "role": "form",
+      "name": "Record fact",
+      "description": "Adds the observed fact that a trigger evaluation can use."
+    },
+    {
+      "id": "trigger-declaration-action",
+      "role": "button",
+      "name": "Declare trigger",
+      "description": "Submits the machine-evaluable trigger declaration."
+    },
+    {
+      "id": "fact-entry-action",
+      "role": "button",
+      "name": "Add fact",
+      "description": "Submits the observed fact."
     }
   ],
   "claims": [
@@ -422,6 +446,23 @@
         "dry-run-verdict"
       ],
       "rationale": "PRD accessibility rule, and three outcomes are harder to distinguish by colour than two — the unknown case is the one most likely to be lost."
+    },
+    {
+      "id": "trigger-forms-have-real-actions",
+      "type": "affordance-present",
+      "statement": "Trigger declaration and fact-entry forms expose named submit controls.",
+      "tier": "machine",
+      "elements": ["trigger-editor", "fact-entry-form"],
+      "params": { "affordances": ["trigger-declare", "trigger-add-fact"], "targetRole": "button" },
+      "states": ["default", "empty"]
+    },
+    {
+      "id": "trigger-declaration-is-keyboard-reachable",
+      "type": "keyboard-reachable",
+      "statement": "Trigger declaration and fact entry remain keyboard reachable.",
+      "tier": "machine",
+      "elements": ["trigger-declaration-action", "fact-entry-action"],
+      "states": ["default", "empty"]
     }
   ],
   "bindings": {
@@ -458,6 +499,18 @@
       },
       "empty-guidance": {
         "testid": "triggers-empty-guidance"
+      },
+      "trigger-declaration-form": {
+        "testid": "trigger-declare"
+      },
+      "fact-entry-form": {
+        "testid": "trigger-add-fact"
+      },
+      "trigger-declaration-action": {
+        "testid": "trigger-declare-action"
+      },
+      "fact-entry-action": {
+        "testid": "trigger-add-fact-action"
       }
     }
   }

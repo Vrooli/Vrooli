@@ -4,11 +4,11 @@ This document is the canonical map of product capabilities, bounded
 contexts, and ownership for this scenario. Keep it current whenever a
 domain is added, renamed, split, merged, or removed.
 
-`health` is the one real domain the scaffold ships. Add your scenario's
-domains to the inventory below as you build them. The scaffold also ships
-one clearly fenced worked example domain (never product scope) as a
-copyable reference; `template-manager detemplate <scenario>` removes every
-fenced example once your real domains are green.
+The shipped implementation has one persisted product domain, `catalog`, and
+one operator-facing composition domain, `operator-ui`. The API transport and
+shared UI primitives remain non-domains. The board and gate capabilities are
+implemented as slices of the catalog service rather than as undeclared runtime
+packages.
 
 ## Purpose Of This Document
 
@@ -29,8 +29,8 @@ belong in [`DATA.md`](DATA.md).
 |---|---|---|---|---|---|---|---|
 | health | Report runtime readiness and dependency reachability. | Expose API/database readiness and show the UI can read live backend state. | No product data. | reporting | query | HealthHandler | `api/handlers/health/`, `ui/src/features/health/`, `packages/proto/schemas/offer-desk/v1/shared/health.proto` |
 | catalog | Own the offer graph — typed nodes, typed edges, and the lifecycle the API enforces on them. | One place every sellable thing lives with a state that cannot be set illegally. | Nodes, edges, status history, audit entries. | crud | policy | Offer, Variant, Channel, RevenueLine, Deliverable, Edge | `api/internal/catalog/` |
-| gates | Own revisit triggers, their scheduled evaluation, the facts they evaluate against, promotion proposals, and the operator-only promotion boundary. | Turns two prose rules that nothing could enforce into a constraint and a scheduled evaluation. | Trigger declarations, facts (including dated market benchmarks), evaluation runs, proposals. | policy | scheduler | Trigger, Fact, Predicate, EvaluationRun, Proposal, StalenessWindow | `api/internal/gates/` |
-| board | Rank fired triggers, blocked offers, active offers earning nothing, and the operator's financial posture across independently-degrading sources. | The `monetization` team's single address — one surface a member reads instead of reconciling several by hand. | Nothing. Every entry is derived at read time. | reporting | integration | BoardEntry, GapSource, Availability, PostureRow | `api/internal/board/` |
+| offers | Provide the typed transport and composition boundary for catalog, gate, board, space, and Money Ledger reads. | Keep cross-domain orchestration at the service edge while persisted offer truth remains in `catalog`. | No independent product data; composes catalog-owned state and external ledger reads. | provider | integration, reporting | CatalogService, GatesService, BoardService, SpaceService | `api/handlers/offers/` |
+| operator-ui | Compose catalog, gate, board, proposal, and space projections into a responsive operator console. | Make lifecycle state, evidence, trigger freshness, proposal authority, and source degradation legible at the point of action. | Browser preferences only; no catalog or financial facts. | interface | query, review | Dashboard, Offer, Trigger, Proposal, Space | `ui/src/pages/`, `ui/src/layout/`, `ui/src/consts/` |
 
 ## Shared Concepts
 
@@ -96,7 +96,7 @@ piece into an owning domain instead of growing infrastructure.
 - **Audit**: every transition writes an append-only entry with actor, timestamp, prior status and reason. Corrections are new entries.
 - **Targets**: OT-P0-001, OT-P0-002, OT-P0-007. **Requirements**: GRAPH-001…GRAPH-004.
 
-### gates
+### Catalog capability slice: gates
 
 - **Owns**: trigger declarations, the fact registry they evaluate against, evaluation runs, and promotion proposals.
 - **Key rule**: a node cannot enter or remain in `candidate` without a parseable trigger. The source canon states this with the word "must" and nothing able to enforce it.
@@ -106,7 +106,7 @@ piece into an owning domain instead of growing infrastructure.
 - **Market benchmarks are facts** (`../internal/DECISIONS.md`, 2026-08-13). A competitor comp is a fact with an observation date and a dimension-derived staleness window — pricing 90d, retention and activation 180d, channel-cac 120d, everything else 365d. Past its window it becomes **unknown rather than false**, which is the behaviour this domain already guarantees and the reason benchmarks belong here rather than in a registry of their own. A trigger may therefore reference a comp directly, and a trigger resting on a stale comp reports the gap instead of firing on an old number.
 - **Targets**: OT-P0-003, OT-P0-004, OT-P0-005, OT-P1-005, OT-P2-004. **Requirements**: GATE-001…GATE-008 (GATE-007 lives in the console module, with the P2 target it serves).
 
-### board
+### Catalog capability slice: board
 
 - **Owns**: nothing. Every entry is computed at read time from catalog, gates, and two Money Ledger reads.
 - **Key rule**: each entry names its source, and a source that cannot be read becomes a visible availability entry while healthy sources continue to rank. An unavailable ledger is never rendered as zero earnings — that would be indistinguishable from an offer that genuinely earned nothing.
@@ -115,15 +115,27 @@ piece into an owning domain instead of growing infrastructure.
 - **Fallback is legal**: per the §5 degradation contract in `path:docs/agent-system/TARGET_MODEL.md`, the board makes the good path cheap and never makes the manual path illegal. A consumer that cannot reach the board reads `money-ledger` directly and says so.
 - **Targets**: OT-P1-002, OT-P1-003. **Requirements**: INT-002, INT-003, INT-005.
 
+### operator-ui
+
+- **Owns**: route composition, responsive presentation, operator-only
+  affordances, evidence labels, and explicit empty/degraded states.
+- **Does not own**: offer lifecycle truth, trigger evaluation, proposals, or
+  money-ledger figures.
+- **Surfaces**: `ui/src/pages/` and the shared shell in `ui/src/layout/`.
+
 ## Build Order
 
-`board` reads `catalog` and `gates`; `gates` reads `catalog`; nothing reads `board`, and no two domains read each other.
+The catalog capability slices share one persisted store and one service
+composition boundary. The operator UI reads the public API and never owns
+catalog, trigger, proposal, or financial state.
 
 ```
-catalog  →  gates  →  board
+catalog (graph + gates + board)  →  operator-ui
 ```
 
-Build `catalog` first as a full vertical slice, then `gates` — which is where the first genuinely new capability lives — then `board`. The migration importer belongs with `catalog` and must run only after that domain's lifecycle enforcement is green, because the importer's writes go through the same state machine.
+Build the catalog as one vertical slice across proto, API, CLI, and
+persistence; then compose it in the operator UI. The migration importer goes
+through the same catalog state machine.
 
 ## Deliberately Excluded
 

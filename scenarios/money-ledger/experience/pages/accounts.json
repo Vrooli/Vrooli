@@ -245,7 +245,7 @@
     },
     {
       "id": "transfer-pair",
-      "role": "link",
+      "role": "button",
       "description": "Links the two sides of an inter-book transfer so neither reads as unexplained money appearing or vanishing."
     },
     {

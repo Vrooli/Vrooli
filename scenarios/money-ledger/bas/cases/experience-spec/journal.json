@@ -35,12 +35,24 @@
         },
         "type": "ACTION_TYPE_WAIT",
         "wait": {
-          "selector": "[data-testid=\"journal-reverse\"]",
+          "selector": "@selector/pages.reverseAction",
           "state": "WAIT_STATE_VISIBLE",
           "timeout_ms": 15000
         }
       },
       "id": "wait-journal-primary-binding"
+    },
+    {
+      "action": {
+        "metadata": { "label": "Manual entry action visible" },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/pages.manualEntry",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        }
+      },
+      "id": "wait-journal-manual-entry"
     }
   ],
   "settings": {

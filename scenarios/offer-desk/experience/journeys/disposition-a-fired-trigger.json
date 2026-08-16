@@ -14,19 +14,23 @@
   "steps": [
     {
       "page": "dashboard",
-      "intent": "See that a trigger fired and which fact satisfied it, without hunting"
+      "intent": "See that a trigger fired and which fact satisfied it, without hunting",
+      "via": "fired-triggers"
     },
     {
       "page": "offers",
-      "intent": "Read the offer's declared trigger and its full status history before deciding"
+      "intent": "Read the offer's declared trigger and its full status history before deciding",
+      "via": "offer-table"
     },
     {
       "page": "proposals",
-      "intent": "Accept the promotion, or decline it with a reason that persists"
+      "intent": "Accept the promotion, or decline it with a reason that persists",
+      "via": "accept-action"
     },
     {
       "page": "dashboard",
-      "intent": "Confirm the entry has left the board, so the loop visibly closes"
+      "intent": "Confirm the entry has left the board, so the loop visibly closes",
+      "via": "board-ranking"
     }
   ]
 }

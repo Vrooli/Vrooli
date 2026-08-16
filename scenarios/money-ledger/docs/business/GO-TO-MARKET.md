@@ -27,6 +27,11 @@ Use this document to answer:
 - **Proof needed:** a demonstrable adapter outage in which the product shows a named gap
   where a competitor shows a stale figure or a zero. This is the single most important
   asset to produce, and it is a screen recording, not a paragraph.
+- **Product-side recording:** [`outage-demo-20260816.mp4`](../internal/evidence/outage-demo-20260816.mp4)
+  captures the Offer Desk board before the outage, while Money Ledger is stopped, and
+  after recovery. It proves the product-side named-unavailability behaviour; it is not
+  represented as a competitor comparison because no runnable alternative is part of
+  this repository.
 
 ## Where it sits against the alternatives
 
@@ -99,8 +104,10 @@ owns the channel registry.
 2. Build `books` + `journal`, then `ingest` with manual and file adapters.
 3. **Run Vrooli's own finances on it for a full month**, including at least one real
    adapter outage. No external claim before this.
-4. Produce the outage demo: the same moment rendered by this product and by an
-   alternative, side by side.
+4. Produce the comparative outage demo: the same moment rendered by this product and
+   by an alternative, side by side. The product-side recording above is the durable
+   first half; the alternative capture remains pending until an actual alternative
+   environment is available.
 5. Decide bundle membership through Offer Desk rather than asserting it here.
 6. Only then: channel assets, pricing research, and a landing surface.
 

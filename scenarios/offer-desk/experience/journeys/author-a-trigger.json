@@ -14,26 +14,31 @@
   "steps": [
     {
       "page": "offers",
-      "intent": "Open the offer that is waiting on something and see it has no machine-evaluable trigger"
+      "intent": "Open the offer that is waiting on something and see it has no machine-evaluable trigger",
+      "via": "offer-table"
     },
     {
       "page": "triggers",
       "state": "parse-error",
-      "intent": "Write the condition, and learn immediately where it does not parse and what the language admits"
+      "intent": "Write the condition, and learn immediately where it does not parse and what the language admits",
+      "via": "trigger-editor"
     },
     {
       "page": "triggers",
       "state": "dry-run-unknown",
-      "intent": "Dry-run it and discover a referenced fact does not exist yet — reported as unknown, not as unsatisfied"
+      "intent": "Dry-run it and discover a referenced fact does not exist yet — reported as unknown, not as unsatisfied",
+      "via": "dry-run-action"
     },
     {
       "page": "triggers",
       "state": "dry-run-unsatisfied",
-      "intent": "Supply the missing fact, dry-run again, and read a verdict that names every fact it used"
+      "intent": "Supply the missing fact, dry-run again, and read a verdict that names every fact it used",
+      "via": "fact-trace"
     },
     {
       "page": "offers",
-      "intent": "Confirm the offer now states what it is waiting on, in the form the condition was declared"
+      "intent": "Confirm the offer now states what it is waiting on, in the form the condition was declared",
+      "via": "waiting-on"
     }
   ]
 }

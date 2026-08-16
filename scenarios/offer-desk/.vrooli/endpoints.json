@@ -111,6 +111,14 @@
       "category": "offers"
     },
     {
+      "id": "catalog_import",
+      "path": "/vrooli.offer_desk.v1.offers.CatalogService/ImportCatalog",
+      "method": "POST",
+      "summary": "Rehearse or apply a declared catalog source",
+      "description": "",
+      "category": "offers"
+    },
+    {
       "id": "gates_trigger",
       "path": "/vrooli.offer_desk.v1.offers.GatesService/DeclareTrigger",
       "method": "POST",
@@ -143,10 +151,26 @@
       "category": "offers"
     },
     {
+      "id": "gates_proposals",
+      "path": "/vrooli.offer_desk.v1.offers.GatesService/ListProposals",
+      "method": "POST",
+      "summary": "List promotion proposals and decline history",
+      "description": "",
+      "category": "offers"
+    },
+    {
       "id": "board_show",
       "path": "/vrooli.offer_desk.v1.offers.BoardService/GetBoard",
       "method": "POST",
       "summary": "Read the ranked offer board",
+      "description": "",
+      "category": "offers"
+    },
+    {
+      "id": "space_projection",
+      "path": "/vrooli.offer_desk.v1.offers.SpaceService/GetProjection",
+      "method": "POST",
+      "summary": "Read monetization obligation cells",
       "description": "",
       "category": "offers"
     }

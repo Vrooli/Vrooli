@@ -13,16 +13,19 @@
   "steps": [
     {
       "page": "offers",
-      "intent": "Attempt a transition that the lifecycle forbids"
+      "intent": "Attempt a transition that the lifecycle forbids",
+      "via": "legal-transitions"
     },
     {
       "page": "offers",
       "state": "transition-refused",
-      "intent": "Read which rule refused it and which transitions are legal from this state"
+      "intent": "Read which rule refused it and which transitions are legal from this state",
+      "via": "refusal-reason"
     },
     {
       "page": "offers",
-      "intent": "Confirm the offer's state is unchanged after the refusal"
+      "intent": "Confirm the offer's state is unchanged after the refusal",
+      "via": "status-label"
     }
   ]
 }

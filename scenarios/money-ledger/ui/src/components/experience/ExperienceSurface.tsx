@@ -1,6 +1,7 @@
 import type { HTMLAttributes, ReactNode } from "react";
+import type { SurfaceState } from "../../hooks/useSurfaceState";
 
-export type ExperienceSurfaceState = "loading" | "ready" | "empty" | "partial" | "error" | "static";
+export type ExperienceSurfaceState = SurfaceState;
 
 interface ExperienceSurfaceProps extends HTMLAttributes<HTMLElement> {
   surfaceId: string;
@@ -18,15 +19,20 @@ export function ExperienceSurface({
   statusMessage,
   ...props
 }: ExperienceSurfaceProps) {
-  const live = state === "loading" || state === "partial" || state === "error";
+  const busy = ["loading", "saving", "syncing", "refreshing", "retrying"].includes(state);
+  const announces = ["success", "validation-error", "request-error"].includes(state);
   return (
     <section
       data-experience-surface={surfaceId}
       data-experience-state={state}
-      aria-busy={state === "loading" || undefined}
+      aria-busy={busy || undefined}
       {...props}
     >
-      {live && statusMessage ? <p role="status" aria-live="polite" className="sr-only">{statusMessage}</p> : null}
+      {announces && statusMessage ? (
+        <p role="status" aria-live="polite" className="sr-only" data-experience-announcement>
+          {statusMessage}
+        </p>
+      ) : null}
       {children}
     </section>
   );

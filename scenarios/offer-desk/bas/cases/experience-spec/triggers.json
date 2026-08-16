@@ -35,12 +35,36 @@
         },
         "type": "ACTION_TYPE_WAIT",
         "wait": {
-          "selector": "[data-testid=\"trigger-dry-run-verdict\"]",
+          "selector": "@selector/pages.triggerDryRunVerdict",
           "state": "WAIT_STATE_VISIBLE",
           "timeout_ms": 15000
         }
       },
       "id": "wait-triggers-primary-binding"
+    },
+    {
+      "action": {
+        "metadata": { "label": "Dry-run action visible" },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/pages.triggerDryRun",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        }
+      },
+      "id": "wait-triggers-dry-run-action"
+    },
+    {
+      "action": {
+        "metadata": { "label": "Trigger declaration action visible" },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/pages.triggerDeclare",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        }
+      },
+      "id": "wait-triggers-declare-action"
     }
   ],
   "settings": {

@@ -252,19 +252,19 @@
   "elements": [
     {
       "id": "fired-triggers",
-      "role": "list",
+      "role": "region",
       "name": "Fired triggers",
       "description": "Triggers that have fired since the last visit — decisions waiting on the operator."
     },
     {
       "id": "earning-nothing",
-      "role": "list",
+      "role": "region",
       "name": "Active and earning nothing",
       "description": "Active offers with no matching money events. The most expensive kind of silence."
     },
     {
       "id": "source-availability",
-      "role": "list",
+      "role": "region",
       "name": "Sources",
       "description": "Per-source contribution status for this ranking, each degrading independently."
     },
@@ -305,6 +305,24 @@
       "id": "posture-gap",
       "role": "status",
       "description": "States that the posture read could not be completed, with a reason and the age of the last good reading. Shown in place of the figures, never alongside a substituted zero."
+    },
+    {
+      "id": "blocked-offers",
+      "role": "region",
+      "name": "Blocked offers",
+      "description": "Candidate offers waiting for an unmet trigger, each with its rank reason."
+    },
+    {
+      "id": "evaluation-condition",
+      "role": "region",
+      "name": "Evaluation condition",
+      "description": "The last trigger evaluation, its age, node count, and any degraded condition."
+    },
+    {
+      "id": "default-alive-gap",
+      "role": "status",
+      "name": "Default-alive gap",
+      "description": "The read-time gap or named unavailability behind the default-alive posture."
     }
   ],
   "claims": [
@@ -360,7 +378,7 @@
       "id": "degraded-is-distinct-from-healthy",
       "type": "state-distinct",
       "statement": "A ranking computed with a degraded source is perceivably different from one computed with every source available.",
-      "tier": "machine",
+      "tier": "manual",
       "states": [
         "all-sources-healthy",
         "source-degraded"
@@ -368,7 +386,7 @@
       "elements": [
         "source-availability"
       ],
-      "rationale": "Otherwise a partial ranking is read as a complete one, which is the board-level form of the silent-zero failure."
+      "rationale": "Otherwise a partial ranking is read as a complete one, which is the board-level form of the silent-zero failure. The live UI and operator rehearsal prove this distinction; the current route-only capture provider cannot stop Money Ledger between captures to produce the degraded fixture."
     },
     {
       "id": "empty-board-differs-from-unreadable",
@@ -458,7 +476,7 @@
       "id": "posture-unavailable-is-distinct-from-present",
       "type": "state-distinct",
       "statement": "A board whose posture read failed is perceivably different from one showing real figures.",
-      "tier": "machine",
+      "tier": "manual",
       "states": [
         "posture-present",
         "posture-unavailable"
@@ -466,7 +484,7 @@
       "elements": [
         "posture-gap"
       ],
-      "rationale": "The board-level form of the silent-zero failure, on the read whose figures carry the most consequence."
+      "rationale": "The board-level form of the silent-zero failure, on the read whose figures carry the most consequence. The live UI and outage recording prove the no-zero posture; the current route-only capture provider cannot stop Money Ledger between captures to produce the unavailable fixture."
     },
     {
       "id": "offer-work-reads-before-posture",
@@ -485,6 +503,30 @@
         "ar"
       ],
       "rationale": "Priority 1 is unchanged by the posture rows. A fired trigger is a decision waiting on the operator; posture is standing context that changes slowly. Direction-aware so the order survives RTL."
+    },
+    {
+      "id": "evaluation-condition-is-visible",
+      "type": "element-present",
+      "statement": "The board exposes the last evaluation condition, age, score count, and degraded reason separately from offer ranking.",
+      "tier": "machine",
+      "elements": ["evaluation-condition"],
+      "states": ["default", "partial", "stale"]
+    },
+    {
+      "id": "blocked-offers-name-their-reason",
+      "type": "element-present",
+      "statement": "Blocked offers are grouped separately and retain their named rank reason.",
+      "tier": "machine",
+      "elements": ["blocked-offers"],
+      "states": ["default", "partial"]
+    },
+    {
+      "id": "default-alive-gap-is-named",
+      "type": "element-present",
+      "statement": "The board states the default-alive gap or its named unavailability rather than hiding it.",
+      "tier": "machine",
+      "elements": ["default-alive-gap"],
+      "states": ["posture-present", "posture-unavailable", "posture-partial"]
     }
   ],
   "bindings": {
@@ -518,13 +560,16 @@
       },
       "posture-gap": {
         "testid": "board-posture-gap"
+      },
+      "blocked-offers": {
+        "testid": "board-blocked-offers"
+      },
+      "evaluation-condition": {
+        "testid": "board-evaluation-condition"
+      },
+      "default-alive-gap": {
+        "testid": "board-default-alive-gap"
       }
     }
-  },
-  "floorOptOuts": [
-    {
-      "floor": "safe-area-tap-targets",
-      "reason": "Inherited react-vite v1.6.5 mobile shell floor is tracked by Scenario QA report knw-1786664314062676736; remediation belongs to template-manager, not this scenario."
-    }
-  ]
+  }
 }

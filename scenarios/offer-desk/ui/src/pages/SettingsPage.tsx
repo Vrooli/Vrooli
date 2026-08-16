@@ -4,6 +4,8 @@ import { strings } from "../consts/strings";
 import { SUPPORTED_LOCALES, getCurrentLocale, getLocaleConfig, setLocale, useTranslation } from "../i18n";
 import { useTheme, type ThemeChoice } from "../theme/ThemeProvider";
 import { ExperienceSurface } from "../components/experience/ExperienceSurface";
+import { fetchBoard } from "../api/offers";
+import { useQuery } from "@tanstack/react-query";
 
 const THEME_CHOICES: readonly ThemeChoice[] = ["light", "dark", "system"];
 const THEME_LABEL_KEYS = {
@@ -21,14 +23,16 @@ export function SettingsPage() {
   const { t } = useTranslation();
   const currentLocale = getCurrentLocale();
   const { choice, setTheme } = useTheme();
-  const fixture = new URLSearchParams(window.location.search).get("fixture");
-  const schedulePaused = fixture === "schedule-paused";
-  const ledgerDisconnected = fixture === "ledger-disconnected";
-
+  const board = useQuery({ queryKey: ["offer-board-settings"], queryFn: fetchBoard, retry: false });
+  const ledgerIssues = board.data?.availability.filter((item) => item.source.includes("money-ledger")) ?? [];
+  const ledgerConnected = !board.isError && Boolean(board.data?.position) && ledgerIssues.length === 0;
+  const ledgerReason = board.error instanceof Error
+    ? board.error.message
+    : ledgerIssues.map((item) => `${item.source}: ${item.reason}`).join("; ");
   return (
     <ExperienceSurface
       surfaceId="settings"
-      state="static"
+      state="ready"
       data-testid={selectors.pages.settings}
       aria-labelledby="settings-heading"
       className="flex flex-col gap-6"
@@ -39,11 +43,10 @@ export function SettingsPage() {
 
       <section data-testid="settings-evaluation-schedule" role="group" aria-label={t(strings.pages.dashboard.firedTriggers)} className="rounded-md border p-4">
         <h3 className="font-semibold">{t(strings.pages.dashboard.firedTriggers)}</h3>
-        <p>{t(strings.pages.dashboard.postureBasis)}</p>
+        <p>{t(strings.pages.dashboard.evaluationNotRun)}</p>
       </section>
-      <p data-testid="settings-schedule-paused" role="status" className={schedulePaused ? undefined : "sr-only"}>{t(strings.pages.dashboard.postureUnavailable)}</p>
-      <p data-testid="settings-ledger-connection" role="status" aria-label={t(strings.pages.dashboard.ledgerPosture)}>{ledgerDisconnected ? t(strings.pages.dashboard.postureUnavailable) : t(strings.pages.dashboard.postureBasis)}</p>
-      <p data-testid="settings-ledger-connection-reason" role="note" className={ledgerDisconnected ? undefined : "sr-only"}>{t(strings.pages.dashboard.boardUnavailable, { message: t(strings.pages.dashboard.postureUnavailable) })}</p>
+      <p data-testid="settings-ledger-connection" role="status" aria-label={t(strings.pages.dashboard.ledgerPosture)}>{ledgerConnected ? t(strings.pages.settings.ledgerConnected) : t(strings.pages.settings.ledgerDisconnected)}</p>
+      <p data-testid="settings-ledger-connection-reason" role={ledgerConnected ? "note" : "alert"} className={ledgerConnected ? "sr-only" : undefined}>{ledgerConnected ? t(strings.pages.dashboard.postureBasis) : t(strings.pages.settings.ledgerConnectionReason, { source: t(strings.pages.dashboard.ledgerPosture), reason: ledgerReason || t(strings.pages.dashboard.postureUnavailable) })}</p>
 
       <div className="flex flex-col gap-2">
         <h3 className="text-sm font-semibold uppercase text-app-muted-foreground">

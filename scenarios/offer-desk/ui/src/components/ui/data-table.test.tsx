@@ -50,6 +50,23 @@ describe("DataTable", () => {
     expect(screen.getByText(/Beta/)).toBeInTheDocument();
   });
 
+  it("exposes adopter hooks for the table, headers, and rows", () => {
+    renderWithProviders(
+      <DataTable
+        rows={rows}
+        columns={columns.map((column, index) => ({ ...column, headerTestId: index === 0 ? "name-header" : undefined }))}
+        getRowKey={(row) => row.id}
+        getRowTestId={(row) => `demo-row-${row.id}`}
+        caption="Hooked rows"
+        tableId="hooked-table"
+      />,
+    );
+
+    expect(screen.getByRole("table")).toHaveAttribute("id", "hooked-table");
+    expect(screen.getByTestId("name-header")).toBeInTheDocument();
+    expect(screen.getByTestId("demo-row-a")).toBeInTheDocument();
+  });
+
   it("sorts by a sortable column", async () => {
     const user = userEvent.setup();
     renderWithProviders(

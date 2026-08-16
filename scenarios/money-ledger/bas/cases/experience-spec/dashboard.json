@@ -41,6 +41,18 @@
         },
         "metadata": { "label": "Dashboard page visible" }
       }
+    },
+    {
+      "id": "wait-dashboard-runway",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/pages.runwayFigure",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": { "label": "Runway figure visible" }
+      }
     }
   ]
 }

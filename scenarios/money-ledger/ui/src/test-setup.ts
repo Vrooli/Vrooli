@@ -65,3 +65,19 @@ afterEach(() => {
 // its own beforeEach and restore it on teardown — opt-in override
 // rather than process-wide unwiring.
 vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
+
+// jsdom intentionally does not implement the browser download URL helpers.
+// Keep export tests focused on the generated payload and download intent.
+Object.defineProperty(URL, "createObjectURL", {
+  configurable: true,
+  value: vi.fn(() => "blob:money-ledger-test"),
+});
+Object.defineProperty(URL, "revokeObjectURL", {
+  configurable: true,
+  value: vi.fn(),
+});
+
+// jsdom does not implement navigation triggered by a download anchor. The
+// export behavior is asserted through the payload and intent, so suppress the
+// browser-only navigation side effect in the shared test environment.
+vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});

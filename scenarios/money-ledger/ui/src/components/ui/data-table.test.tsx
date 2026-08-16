@@ -47,7 +47,24 @@ describe("DataTable", () => {
 
     expect(screen.getByTestId("demo-table")).toBeInTheDocument();
     expect(screen.getByText(/Alpha/)).toBeInTheDocument();
-    expect(screen.getByText(/Beta/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Beta/).length).toBeGreaterThan(0);
+  });
+
+  it("exposes adopter hooks for the table, headers, and rows", () => {
+    renderWithProviders(
+      <DataTable
+        rows={rows}
+        columns={columns.map((column, index) => ({ ...column, headerTestId: index === 0 ? "name-header" : undefined }))}
+        getRowKey={(row) => row.id}
+        getRowTestId={(row) => `demo-row-${row.id}`}
+        caption="Hooked rows"
+        tableId="hooked-table"
+      />,
+    );
+
+    expect(screen.getByRole("table")).toHaveAttribute("id", "hooked-table");
+    expect(screen.getByTestId("name-header")).toBeInTheDocument();
+    expect(screen.getByTestId("demo-row-a")).toBeInTheDocument();
   });
 
   it("sorts by a sortable column", async () => {
@@ -107,5 +124,50 @@ describe("DataTable", () => {
       <DataTable<Row> rows={[]} columns={[{ id: "plain", header: "Plain", accessor: (row) => row.name }]} getRowKey={(row) => row.id} caption="Empty rows" emptyMessage="Nothing here" />,
     );
     expect(empty.getByText(/Nothing here/)).toBeInTheDocument();
+  });
+
+  it("searches rendered accessor content when a column has no searchValue", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(
+      <DataTable
+        rows={rows}
+        columns={[{ id: "rendered", header: "Rendered", accessor: (row) => <span>{row.name}</span> }]}
+        getRowKey={(row) => row.id}
+        caption="Rendered rows"
+        searchPlaceholder="Search rendered"
+      />,
+    );
+
+    await user.type(screen.getByPlaceholderText(/Search rendered/), "beta");
+    expect(screen.getAllByText(/Beta/).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/Alpha/)).not.toBeInTheDocument();
+  });
+
+  it("handles nested rendered values and inactive filters", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(
+      <DataTable
+        rows={rows}
+        columns={[{
+          id: "rendered",
+          header: "Rendered",
+          accessor: (row) => [row.name, null, false, <span key="count">{row.count}</span>],
+        }]}
+        getRowKey={(row) => row.id}
+        caption="Nested rows"
+        filters={[
+          { id: "alpha", label: "Alpha only", predicate: (row) => row.name === "Alpha" },
+          { id: "beta", label: "Beta only", predicate: (row) => row.name === "Beta" },
+        ]}
+        filterGroupLabel="Nested filters"
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /Beta only/ }));
+    const table = within(screen.getByRole("table"));
+    expect(table.getByText(/Beta/)).toBeInTheDocument();
+    expect(table.queryByText(/Alpha/)).not.toBeInTheDocument();
+    await user.type(screen.getByRole("searchbox"), "2");
+    expect(table.getByText(/Beta/)).toBeInTheDocument();
   });
 });

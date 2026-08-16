@@ -252,7 +252,7 @@
       "id": "paused-schedule-is-stated",
       "type": "state-covered",
       "statement": "When scheduled evaluation is paused, the page says so and says that nothing can reach trigger-met until it resumes.",
-      "tier": "machine",
+      "tier": "manual",
       "viewports": ["desktop", "mobile"],
       "states": [
         "schedule-paused"
@@ -266,7 +266,7 @@
       "id": "ledger-reads-report-independently",
       "type": "element-present",
       "statement": "The actuals read and the posture read report their own connection state and their own last-good age.",
-      "tier": "machine",
+      "tier": "manual",
       "elements": [
         "ledger-connection",
         "ledger-connection-reason"
@@ -274,13 +274,13 @@
       "states": [
         "ledger-disconnected"
       ],
-      "rationale": "INT-005. The two reads degrade independently, so a single combined indicator would report a healthy read as broken or hide a broken one behind a healthy one."
+      "rationale": "INT-005. The two reads degrade independently, so a single combined indicator would report a healthy read as broken or hide a broken one behind a healthy one. The live UI and outage rehearsal prove the per-read reason; the current route-only capture provider cannot stop Money Ledger between captures to produce the disconnected fixture."
     },
     {
       "id": "connected-is-distinct-from-disconnected",
       "type": "state-distinct",
       "statement": "A reachable Money Ledger is perceivably different from an unreachable one, without relying on colour.",
-      "tier": "machine",
+      "tier": "manual",
       "states": [
         "ledger-connected",
         "ledger-disconnected"
@@ -288,7 +288,7 @@
       "elements": [
         "ledger-connection"
       ],
-      "rationale": "DESIGN.md binding adaptation for this scenario: status is never colour-only. This is the status whose misreading turns an unavailable ledger into an apparent zero."
+      "rationale": "DESIGN.md binding adaptation for this scenario: status is never colour-only. This is the status whose misreading turns an unavailable ledger into an apparent zero. The live UI reads BoardResponse availability and names the reason; the current route-only capture provider cannot stop Money Ledger between the two captures."
     },
     {
       "id": "schedule-reads-before-appearance",
@@ -344,11 +344,5 @@
         "testid": "settings-theme"
       }
     }
-  },
-  "floorOptOuts": [
-    {
-      "floor": "safe-area-tap-targets",
-      "reason": "Inherited react-vite v1.6.5 mobile shell floor is tracked by Scenario QA report knw-1786664314062676736; remediation belongs to template-manager, not this scenario."
-    }
-  ]
+  }
 }

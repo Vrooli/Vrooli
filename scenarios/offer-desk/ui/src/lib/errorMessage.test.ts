@@ -25,4 +25,11 @@ describe("errorMessage", () => {
   it("falls back to ordinary error messages", () => {
     expect(errorMessage(new Error("boom"), i18n.t)).toBe("boom");
   });
+
+  it("normalizes unknown API codes and non-error values", () => {
+    const err = makeApiError("new_code", "server detail", 500);
+
+    expect(errorMessage(err, i18n.t)).toBe("An unknown error occurred.");
+    expect(errorMessage("plain value", i18n.t)).toBe("plain value");
+  });
 });

@@ -35,12 +35,24 @@
         },
         "type": "ACTION_TYPE_WAIT",
         "wait": {
-          "selector": "[data-testid=\"proposal-proposer\"]",
+          "selector": "@selector/pages.proposalProposer",
           "state": "WAIT_STATE_VISIBLE",
           "timeout_ms": 15000
         }
       },
       "id": "wait-proposals-primary-binding"
+    },
+    {
+      "action": {
+        "metadata": { "label": "Proposal accept action visible" },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/pages.proposalAccept",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        }
+      },
+      "id": "wait-proposals-accept-action"
     }
   ],
   "settings": {

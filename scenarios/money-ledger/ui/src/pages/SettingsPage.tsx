@@ -5,6 +5,9 @@ import { strings } from "../consts/strings";
 import { SUPPORTED_LOCALES, getCurrentLocale, getLocaleConfig, setLocale, useTranslation } from "../i18n";
 import { useTheme, type ThemeChoice } from "../theme/ThemeProvider";
 import { ExperienceSurface } from "../components/experience/ExperienceSurface";
+import { useQuery } from "@tanstack/react-query";
+import { configuredBookId, fetchBooks, fetchGoals } from "../api/ledger";
+import { formatCurrency } from "../i18n/format";
 
 const THEME_CHOICES: readonly ThemeChoice[] = ["light", "dark", "system"];
 const THEME_LABEL_KEYS = {
@@ -20,15 +23,17 @@ const THEME_LABEL_KEYS = {
  */
 export function SettingsPage() {
   const { t } = useTranslation();
-  const fixture = new URLSearchParams(window.location.search).get("fixture");
   const currentLocale = getCurrentLocale();
   const { choice, setTheme } = useTheme();
-  const goalsEmpty = fixture !== "goal-declared";
+  const books = useQuery({ queryKey: ["settings-books"], queryFn: fetchBooks, retry: false });
+  const bookId = configuredBookId() || books.data?.books[0]?.id || "";
+  const goals = useQuery({ queryKey: ["settings-goals", bookId], queryFn: () => fetchGoals(bookId), retry: false, enabled: Boolean(bookId) });
+  const goalRows = goals.data?.goals ?? [];
 
   return (
     <ExperienceSurface
       surfaceId="settings"
-      state="static"
+      state="ready"
       data-testid={selectors.pages.settings}
       aria-labelledby="settings-heading"
       className="flex flex-col gap-6"
@@ -40,15 +45,15 @@ export function SettingsPage() {
       <section className="rounded-md border p-4" aria-labelledby="settings-goals-heading">
         <h3 id="settings-goals-heading" className="font-semibold">{t(strings.pages.settings.goalsHeading)}</h3>
         <ul data-testid="settings-goal-list" aria-label={t(strings.pages.settings.goalsHeading)} className="mt-2 text-sm text-app-muted-foreground">
-          <li>{fixture === "goals-empty" ? t(strings.pages.settings.goalsEmpty) : t(strings.pages.settings.goalDescription)}</li>
+          {goalRows.length === 0 ? <li>{t(strings.pages.settings.goalsEmpty)}</li> : goalRows.map((verdict) => verdict.goal && <li key={verdict.goal.id}>{t(strings.pages.settings.goalSummary, { name: verdict.goal.name, threshold: formatCurrency(Number(verdict.goal.thresholdMinor) / 100, books.data?.books.find((book) => book.id === bookId)?.currency || "USD"), comparator: verdict.goal.comparator, periods: verdict.goal.sustainPeriods })}</li>)}
         </ul>
         <div className="mt-3 grid gap-2 sm:grid-cols-3">
-          <span data-testid="settings-goal-threshold" role="group" aria-label={t(strings.pages.settings.goalThreshold)} className="rounded border p-2 text-sm">{t(strings.pages.settings.goalThreshold)}</span>
-          <span data-testid="settings-goal-sustain-window" role="group" aria-label={t(strings.pages.settings.goalSustainWindow)} className="rounded border p-2 text-sm">{t(strings.pages.settings.goalSustainWindow)}</span>
-          <span data-testid="settings-goal-buffer" role="group" aria-label={t(strings.pages.settings.goalBuffer)} className="rounded border p-2 text-sm">{t(strings.pages.settings.goalBuffer)}</span>
+          <span data-testid="settings-goal-threshold" role="group" aria-label={t(strings.pages.settings.goalThreshold)} className="rounded border p-2 text-sm">{goalRows.length ? t(strings.pages.settings.goalThreshold) : t(strings.pages.settings.goalsEmpty)}</span>
+          <span data-testid="settings-goal-sustain-window" role="group" aria-label={t(strings.pages.settings.goalSustainWindow)} className="rounded border p-2 text-sm">{goalRows.length ? t(strings.pages.settings.goalSustainWindow) : t(strings.pages.settings.goalsEmpty)}</span>
+          <span data-testid="settings-goal-buffer" role="group" aria-label={t(strings.pages.settings.goalBuffer)} className="rounded border p-2 text-sm">{goalRows.length ? t(strings.pages.settings.goalBuffer) : t(strings.pages.settings.goalsEmpty)}</span>
         </div>
         <p data-testid="settings-goals-empty-guidance" role="note" className="mt-2 text-sm text-app-muted-foreground">
-          {goalsEmpty ? t(strings.pages.settings.goalsEmpty) : t(strings.pages.settings.goalDescription)}
+          {goalRows.length ? t(strings.pages.settings.goalDescription) : t(strings.pages.settings.goalsEmpty)}
         </p>
       </section>
 

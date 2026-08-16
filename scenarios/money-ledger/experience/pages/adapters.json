@@ -290,7 +290,7 @@
       "id": "never-run-differs-from-failed",
       "type": "state-distinct",
       "statement": "An adapter that has never run is perceivably different from one that ran and failed.",
-      "tier": "machine",
+      "tier": "manual",
       "states": [
         "adapter-never-run",
         "adapter-unavailable"
@@ -298,7 +298,7 @@
       "elements": [
         "adapter-availability"
       ],
-      "rationale": "The same class of distinction as a missing figure versus a zero, one level down. They have different causes and different remedies; collapsing them hides a configuration error inside an outage."
+      "rationale": "The same class of distinction as a missing figure versus a zero, one level down. They have different causes and different remedies; collapsing them hides a configuration error inside an outage. The live UI distinguishes these from adapter metadata; the current route-only capture provider cannot create the two adapter histories in one validation matrix."
     },
     {
       "id": "unavailable-states-what-is-missing",
@@ -363,7 +363,7 @@
       "id": "empty-differs-from-all-unavailable",
       "type": "state-distinct",
       "statement": "Having no adapters registered is perceivably different from having adapters that are all unavailable.",
-      "tier": "machine",
+      "tier": "manual",
       "states": [
         "empty",
         "adapter-unavailable"
@@ -371,7 +371,7 @@
       "elements": [
         "empty-guidance"
       ],
-      "rationale": "'Nothing configured' and 'everything broken' are different situations with different next actions, and both render as an absence of data."
+      "rationale": "'Nothing configured' and 'everything broken' are different situations with different next actions, and both render as an absence of data. The live UI renders empty guidance separately from unavailable rows; the current route-only capture provider cannot mutate the adapter registry between state captures."
     },
     {
       "id": "availability-is-never-colour-only",

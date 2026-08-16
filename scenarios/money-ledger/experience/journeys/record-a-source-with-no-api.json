@@ -14,19 +14,23 @@
   "steps": [
     {
       "page": "journal",
-      "intent": "Add a money event by hand, choosing its account and book"
+      "intent": "Add a money event by hand, choosing its account and book",
+      "via": "manual-entry-form"
     },
     {
       "page": "journal",
-      "intent": "See the basis set to operator-asserted automatically, and shown rather than hidden"
+      "intent": "See the basis set to operator-asserted automatically, and shown rather than hidden",
+      "via": "event-basis"
     },
     {
       "page": "journal",
-      "intent": "See it listed beside adapter-sourced events in the identical shape"
+      "intent": "See it listed beside adapter-sourced events in the identical shape",
+      "via": "event-table"
     },
     {
       "page": "dashboard",
-      "intent": "See position update with the new event's basis reflected in the inputs list"
+      "intent": "See position update with the new event's basis reflected in the inputs list",
+      "via": "runway-figure"
     }
   ]
 }

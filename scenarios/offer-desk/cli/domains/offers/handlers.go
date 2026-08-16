@@ -119,6 +119,14 @@ func (h *handlers) promote(c cliapp.OperationContext) (*offerspb.PromoteResponse
 	return r.Msg, nil
 }
 
+func (h *handlers) proposals(c cliapp.OperationContext) (*offerspb.ListProposalsResponse, error) {
+	r, e := h.g.ListProposals(context.Background(), connect.NewRequest(&offerspb.ListProposalsRequest{NodeId: c.Flag("node-id"), Status: parseFilterStatus(c.Flag("status"))}))
+	if e != nil {
+		return nil, e
+	}
+	return r.Msg, nil
+}
+
 func (h *handlers) board(_ cliapp.OperationContext) (*offerspb.BoardResponse, error) {
 	r, e := h.b.GetBoard(context.Background(), connect.NewRequest(&offerspb.ProjectionRequest{}))
 	if e != nil {
@@ -145,6 +153,13 @@ func evaluateReport(_ cliapp.OperationContext, m *offerspb.EvaluateResponse) cli
 
 func promoteReport(_ cliapp.OperationContext, m *offerspb.PromoteResponse) cliapp.MutationReport {
 	return cliapp.MutationReport{Result: []string{"Created proposal " + m.Proposal.Id + "; operator approval remains required."}}
+}
+
+func proposalsReport(_ cliapp.OperationContext, m *offerspb.ListProposalsResponse) cliapp.ListReport {
+	return cliapp.ListReport{Summary: []string{fmt.Sprintf("Found %d promotion proposal(s).", len(m.Proposals))}, ResultsHeading: "Proposals", Results: mapStrings(len(m.Proposals), func(i int) string {
+		p := m.Proposals[i]
+		return fmt.Sprintf("%s — %s requested by %s (%d decline(s)); evidence=%s", p.Id, p.RequestedStatus.String(), p.Actor, len(p.DeclineHistory), p.EvidenceReference)
+	})}
 }
 
 func edgeReport(_ cliapp.OperationContext, m *offerspb.CreateEdgeResponse) cliapp.MutationReport {
@@ -198,6 +213,13 @@ func parseStatus(v string) offerspb.Status {
 	default:
 		return offerspb.Status_IDEA
 	}
+}
+
+func parseFilterStatus(v string) offerspb.Status {
+	if strings.TrimSpace(v) == "" {
+		return offerspb.Status_STATUS_UNSPECIFIED
+	}
+	return parseStatus(v)
 }
 func parseFloat(v string) float64 { var n float64; _, _ = fmt.Sscan(v, &n); return n }
 func parseInt(v string) int64     { var n int64; _, _ = fmt.Sscan(v, &n); return n }

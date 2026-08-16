@@ -271,7 +271,7 @@
       "id": "incomplete-differs-from-complete",
       "type": "state-distinct",
       "statement": "A statement covering an incomplete period is perceivably different from one covering a complete period.",
-      "tier": "machine",
+      "tier": "manual",
       "states": [
         "default",
         "period-incomplete"
@@ -279,13 +279,13 @@
       "elements": [
         "coverage-note"
       ],
-      "rationale": "The honesty rule applied to the surface where a wrong number does the most external damage."
+      "rationale": "The honesty rule applied to the surface where a wrong number does the most external damage. The live UI reads actual postings for the selected period; the current route-only capture provider cannot make an adapter unavailable between state captures."
     },
     {
       "id": "empty-differs-from-unreadable",
       "type": "state-distinct",
       "statement": "A period with genuinely no events is perceivably different from a period whose sources could not be read.",
-      "tier": "machine",
+      "tier": "manual",
       "states": [
         "empty",
         "period-incomplete"
@@ -294,7 +294,7 @@
         "empty-guidance",
         "coverage-note"
       ],
-      "rationale": "'You earned nothing' and 'I could not tell what you earned' are opposite conclusions that both render as an absence of rows."
+      "rationale": "'You earned nothing' and 'I could not tell what you earned' are opposite conclusions that both render as an absence of rows. The live UI derives empty periods from postings and carries source coverage separately; the current route-only capture provider cannot create the unavailable-source state between captures."
     },
     {
       "id": "uncategorised-surfaces-before-export",

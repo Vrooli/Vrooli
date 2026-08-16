@@ -296,7 +296,7 @@
       "id": "no-goals-is-distinct-from-unmet-goals",
       "type": "state-distinct",
       "statement": "Having declared no goal is perceivably different from having goals that are currently unmet.",
-      "tier": "machine",
+      "tier": "manual",
       "states": [
         "goals-empty",
         "goal-declared"
@@ -304,7 +304,7 @@
       "elements": [
         "goals-empty-guidance"
       ],
-      "rationale": "The scenario's honesty rule applied to its own configuration. 'Nothing is being measured' and 'what is measured is failing' lead to opposite actions and would otherwise both render as an absence of green."
+      "rationale": "The scenario's honesty rule applied to its own configuration. 'Nothing is being measured' and 'what is measured is failing' lead to opposite actions and would otherwise both render as an absence of green. The live UI reads the goal list from the selected book; the current route-only capture provider cannot declare a goal between state captures."
     },
     {
       "id": "unparseable-goal-is-refused-at-write-time",
@@ -387,11 +387,5 @@
         "testid": "settings-theme"
       }
     }
-  },
-  "floorOptOuts": [
-    {
-      "floor": "safe-area-tap-targets",
-      "reason": "Inherited react-vite v1.6.5 mobile shell floor is tracked by Scenario QA report knw-1786664314062676736; remediation belongs to template-manager, not this scenario."
-    }
-  ]
+  }
 }

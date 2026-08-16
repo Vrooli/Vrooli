@@ -1,119 +1,60 @@
 # Quickstart — Offer Desk
 
-Get this scenario running locally in under five minutes. The lifecycle
-handles ports, environment variables, and dependencies — you should
-not need to set anything by hand.
+This is the first useful path for a new operator: start Offer Desk with Money
+Ledger, create one offer node, declare a trigger/fact, inspect the board, and
+exercise the agent/operator promotion boundary.
 
-## Prerequisites
+## Start
 
-- **Vrooli CLI** installed and on `PATH` (run `vrooli help` to confirm)
-- **Go** matching the versions declared in `api/go.mod` and `cli/go.mod`
-- **Node 20+ and pnpm 9+** for the UI bundle
-
-If `vrooli` is not on your `PATH`, run `make setup` from the workspace
-root (one level above this directory) once.
-
-## 1 — Setup
-
-From this scenario's directory:
+From the scenario directory:
 
 ```bash
 make setup
-```
-
-This runs the scenario's setup lifecycle: dependencies are prepared,
-the API/CLI/UI are built as needed, and the scenario CLI is installed.
-Keep the exact lifecycle steps in `.vrooli/service.json`; this guide is
-only the user-facing path.
-
-Run this once after generation, and again whenever dependencies change.
-
-## 2 — Start
-
-```bash
 make start
+make status
 ```
 
-This starts the API, UI, and any declared resources. The lifecycle
-allocates ports automatically and exposes them through scenario
-commands such as `make status` and `vrooli scenario port`.
+The lifecycle starts the declared Money Ledger dependency and owns ports and
+health checks. Open the reported UI port, or use `make open`.
 
-## 3 — Open
+## Create the first offer through the console
+
+1. Open **Offers** and create an offer node with a name and lifecycle status.
+2. Open **Triggers** and declare a trigger for that node.
+3. Record a fact with its freshness window, then run the dry-run evaluation.
+4. Open the **Dashboard**. Fired, blocked, and earning-nothing regions remain
+   separate; the posture card names Money Ledger source, age, and gaps.
+5. Try **Promote** from an agent role. The node stays non-active and a
+   proposal appears under **Proposals**. An operator can accept it, or decline
+   it with a durable reason.
+
+## Equivalent CLI path
 
 ```bash
-make open
+offer-desk offers catalog-create --name "First offer" --json
+offer-desk offers gates-trigger --node-id <node-id> --fact-name revenue \
+  --operator ">=" --threshold 100 --json
+offer-desk offers gates-fact --name revenue --value 125 --stale-after-days 30 --json
+offer-desk offers gates-evaluate --json
+offer-desk offers gates-promote --node-id <node-id> --actor agent --role agent --json
+offer-desk offers gates-proposals --node-id <node-id> --json
+offer-desk offers board-show --json
 ```
 
-Or check the URL directly:
+Use `catalog-import --source-path <copy> --source-mode <mode>` for a rehearsal
+copy. Dry-run first; malformed status or reference drift blocks apply and does
+not write the catalog. The board never renders unavailable actuals as zero.
+
+## Lifecycle and tests
 
 ```bash
-vrooli scenario port offer-desk UI_PORT
-```
-
-You should see the example UI rendering live `/health` data and a
-worked example feature pane backed by the local SQLite store.
-
-## 4 — Talk to the API
-
-Through the scenario CLI (preferred — uses the resolved port and token
-automatically):
-
-```bash
-offer-desk status
-offer-desk <domain> <command>   # e.g. list/create commands for your domain
-```
-
-Or directly via HTTP:
-
-```bash
-API_PORT=$(vrooli scenario port offer-desk API_PORT)
-curl -s "http://localhost:${API_PORT}/health"
-# Proto-typed calls hit /vrooli.offer_desk.v1.<domain>.<Service>/<Method>
-```
-
-## 5 — Run the tests
-
-```bash
+make logs
 make test
+make stop
 ```
 
-This runs the scenario test lifecycle. The current phase list and
-coverage expectations live in `.vrooli/testing.json`,
-`.github/workflows/test.yml`, and [`internal/TESTING.md`](internal/TESTING.md).
-
-## Common follow-up commands
-
-| Command | What it does |
-|---|---|
-| `make logs` | Tail API + UI logs (or `vrooli scenario logs`) |
-| `make status` | Show running surfaces and their ports |
-| `make stop` | Shut everything down cleanly |
-| `make restart` | `stop` then `start` (preferred over manually restarting individual surfaces) |
-
-For scenario-specific commands beyond the lifecycle, use the scenario
-CLI (`offer-desk --help`) — see
-[`reference/cli-commands.md`](reference/cli-commands.md).
-
-## Troubleshooting
-
-If anything misbehaves on first boot, check
-[`guides/troubleshooting.md`](guides/troubleshooting.md). The most
-common first-time issues are:
-
-- A previous scenario instance still holding ports — `make restart`
-- Stale build artifacts after editing source — `make setup` rebuilds
-- Missing `vrooli` CLI — run workspace-root `make setup`
-
-## Next steps
-
-- Read [`START-HERE.md`](START-HERE.md) before implementing product
-  behavior. It owns the first-session workflow after generation.
-- Read [`concepts/ARCHITECTURE.md`](concepts/ARCHITECTURE.md) for the
-  mental model: three surfaces, proto bridge, layered API, where to
-  add code.
-- Read [`internal/TESTING.md`](internal/TESTING.md) before writing
-  your first non-trivial test.
-- Update `PRD.md` with your operational targets, then add requirement
-  modules under `requirements/`.
-- Append a one-line entry to [`internal/PROGRESS.md`](internal/PROGRESS.md)
-  whenever you land work, so future agents can replay the lifecycle.
+For the comprehensive server-owned suite, use `vrooli scenario test
+offer-desk` and wait once on the returned run ID. See
+[`reference/cli-commands.md`](reference/cli-commands.md) and
+[`concepts/UI-ARCHITECTURE.md`](concepts/UI-ARCHITECTURE.md) for the complete
+surface contract.

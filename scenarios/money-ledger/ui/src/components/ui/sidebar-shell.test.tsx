@@ -43,4 +43,25 @@ describe("SidebarShell", () => {
 
     expect(onMobileClose).toHaveBeenCalledTimes(2);
   });
+
+  it("supports a closed responsive shell with an optional resize handle", () => {
+    renderWithProviders(
+      <SidebarShell
+        mode="responsive"
+        mobileOpen={false}
+        onMobileClose={vi.fn()}
+        mobileLabel="Menu"
+        closeLabel="Close"
+        width={280}
+        resizeHandleProps={{ "aria-label": "Resize navigation" }}
+      >
+        <span>Navigation</span>
+      </SidebarShell>,
+    );
+
+    expect(screen.getByTestId("sidebar-shell")).toHaveAttribute("data-mode", "responsive");
+    expect(screen.getByTestId("sidebar-shell")).toHaveAttribute("role", "complementary");
+    expect(screen.getByTestId("sidebar-shell-resize-handle")).toHaveAttribute("aria-label", "Resize navigation");
+    expect(screen.queryByTestId("sidebar-shell-backdrop")).not.toBeInTheDocument();
+  });
 });

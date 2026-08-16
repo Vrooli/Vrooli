@@ -48,6 +48,18 @@ func TestStoreIngestIsIdempotentAndReversalIsAppendOnly(t *testing.T) { // [REQ:
 	postings, err := s.ListPostings(ctx, a.Id, "", "", "", 100)
 	require.NoError(t, err)
 	require.Len(t, postings, 2)
+	var reversalListed *sharedpb.Posting
+	for _, posting := range postings {
+		if posting.Id == reversal.Id {
+			reversalListed = posting
+		}
+	}
+	require.NotNil(t, reversalListed)
+	require.Len(t, reversalListed.Audit, 1)
+	require.Equal(t, "operator", reversalListed.Audit[0].Actor)
+	require.NotEmpty(t, reversalListed.Audit[0].CreatedAt)
+	require.Contains(t, reversalListed.Audit[0].Reason, "reversing entry")
+	require.Equal(t, p1.Id, reversalListed.Audit[0].PriorValue)
 	position, err := s.Position(ctx, b.Id)
 	require.NoError(t, err)
 	require.EqualValues(t, 0, position.CashMinor)

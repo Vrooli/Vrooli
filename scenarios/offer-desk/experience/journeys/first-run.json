@@ -10,10 +10,10 @@
     "prd_refs": ["OT-P0-001", "OT-P0-003", "OT-P0-005"]
   },
   "steps": [
-    { "page": "dashboard", "state": "empty", "intent": "Understand that no offer graph or evaluated sources exist" },
-    { "page": "offers", "state": "empty", "intent": "Create the first offer node" },
-    { "page": "triggers", "state": "empty", "intent": "Declare the first machine-evaluable trigger" },
-    { "page": "dashboard", "state": "posture-unavailable", "intent": "Read the board with explicit source availability and no fabricated zero" },
-    { "page": "offers", "state": "promotion-blocked", "intent": "Understand that only an operator can activate the offer" }
+    { "page": "dashboard", "state": "empty", "intent": "Understand that no offer graph or evaluated sources exist", "via": "empty-guidance" },
+    { "page": "offers", "state": "empty", "intent": "Create the first offer node", "via": "offer-table" },
+    { "page": "triggers", "state": "empty", "intent": "Declare the first machine-evaluable trigger", "via": "trigger-editor" },
+    { "page": "dashboard", "state": "posture-unavailable", "intent": "Read the board with explicit source availability and no fabricated zero", "via": "source-availability" },
+    { "page": "offers", "state": "promotion-blocked", "intent": "Understand that only an operator can activate the offer", "via": "role-requirement" }
   ]
 }

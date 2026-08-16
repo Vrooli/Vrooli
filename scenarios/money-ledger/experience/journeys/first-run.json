@@ -10,10 +10,10 @@
     "prd_refs": ["OT-P0-001", "OT-P0-006"]
   },
   "steps": [
-    { "page": "dashboard", "state": "empty", "intent": "Understand that no books or events exist and position is undefined" },
-    { "page": "accounts", "state": "empty", "intent": "Create the first book and account" },
-    { "page": "adapters", "state": "empty", "intent": "Choose manual entry because no source adapter is configured" },
-    { "page": "journal", "state": "empty", "intent": "Record the first event and see its provenance and basis" },
-    { "page": "dashboard", "state": "position-complete", "intent": "Read the first position from the journal" }
+    { "page": "dashboard", "state": "empty", "intent": "Understand that no books or events exist and position is undefined", "via": "empty-guidance" },
+    { "page": "accounts", "state": "empty", "intent": "Create the first book and account", "via": "book-list" },
+    { "page": "adapters", "state": "empty", "intent": "Choose manual entry because no source adapter is configured", "via": "manual-adapter-entry" },
+    { "page": "journal", "state": "empty", "intent": "Record the first event and see its provenance and basis", "via": "manual-entry-form" },
+    { "page": "dashboard", "state": "position-complete", "intent": "Read the first position from the journal", "via": "runway-figure" }
   ]
 }

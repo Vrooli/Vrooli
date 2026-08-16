@@ -31,4 +31,16 @@ describe("api/health.fetchHealth", () => {
       cache: "no-store",
     });
   });
+
+  it("decodes the structured error envelope for non-2xx responses", async () => {
+    fetchSpy.mockResolvedValueOnce(
+      new Response('{"code":"unavailable","message":"Ledger is stopped"}', { status: 503 }),
+    );
+
+    await expect(fetchHealth()).rejects.toMatchObject({
+      name: "ApiError",
+      code: "unavailable",
+      status: 503,
+    });
+  });
 });

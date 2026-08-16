@@ -4,11 +4,11 @@ This document is the canonical map of product capabilities, bounded
 contexts, and ownership for this scenario. Keep it current whenever a
 domain is added, renamed, split, merged, or removed.
 
-`health` is the one real domain the scaffold ships. Add your scenario's
-domains to the inventory below as you build them. The scaffold also ships
-one clearly fenced worked example domain (never product scope) as a
-copyable reference; `template-manager detemplate <scenario>` removes every
-fenced example once your real domains are green.
+The shipped implementation has one persisted product domain, `ledger`, and
+one operator-facing composition domain, `operator-ui`. The API transport and
+shared UI primitives remain non-domains. This map follows the code that is
+actually shipped; the ledger capability slices below are not separate runtime
+packages or ownership boundaries.
 
 ## Purpose Of This Document
 
@@ -28,10 +28,9 @@ belong in [`DATA.md`](DATA.md).
 | Domain | Responsibility | Purpose | Owns Data | Primary Archetype | Secondary Traits | Glossary | Source Paths |
 |---|---|---|---|---|---|---|---|
 | health | Report runtime readiness and dependency reachability. | Expose API/database readiness and show the UI can read live backend state. | No product data. | reporting | query | HealthHandler | `api/handlers/health/`, `ui/src/features/health/`, `packages/proto/schemas/money-ledger/v1/shared/health.proto` |
-| books | Own accounting entities and the accounts inside them. | Personal and business money share one system without being mixed; a solo operator's finances genuinely overlap, so the separation is a boundary and a filter rather than a second installation. | Books, accounts, inter-book transfer links. | crud | policy | Book, Account, AccountKind, Transfer | `api/internal/books/` |
-| journal | Own money events as dated signed postings, the append-only audit trail, and the reversing-entry correction path. | One place every money event lands, in one shape, that cannot be edited after the fact. | Events, postings, audit entries, reversal links. | crud | policy | Event, Posting, Reversal, AuditEntry | `api/internal/journal/` |
-| ingest | Own the money-event contract and the adapters that satisfy it, including manual entry and file import. | Every source — an API, a file, a person typing a number — enters through exactly one door, which is what makes any upstream pluggable. | Adapter registrations, sync cursors, ingestion receipts. | integration | service | Adapter, MoneyEvent, Provenance, Basis, Cursor | `api/internal/ingest/` |
-| position | Compute balances, cash flow, runway, statements, and goal verdicts from the journal. Owns no financial facts. | Every figure is a query, so a stale number is structurally impossible. | Goal declarations and position snapshots only; never a balance. | reporting | policy | Position, Goal, Threshold, Runway, Statement | `api/internal/position/` |
+| ledger | Own the complete append-only money capability: books, accounts, postings, reversals, derived position, statements, runway, and goals. | Every source enters through one contract and every figure is derived from the immutable journal, so stale or fabricated numbers remain visible as caveats rather than becoming facts. | Books, accounts, postings, audit entries, and goals. | service | policy, reporting | Book, Account, Posting, Reversal, Position, Goal | `api/internal/ledger/`, `cli/domains/ledger/` |
+| ingest | Provide the adapter/provider boundary that admits manual and external money events into the ledger contract. | Keep volatile source credentials, cursors, receipts, and failure reasons at the edge while the ledger remains the financial authority. | Adapter registrations, sync cursors, ingestion receipts, and operator-input findings. | provider | integration, service | Adapter, MoneyEvent, Provenance, Basis, Cursor | `api/internal/ingest/`, `api/handlers/ingest/` |
+| operator-ui | Compose the ledger's API surfaces into the responsive operator console and preserve state, provenance, and correction affordances at the point of use. | A financial figure is useful only when its basis, age, missing source, and sanctioned correction path are visible beside it. | Browser preferences only; no financial facts. | interface | query, review | Dashboard, Journal, Statement, Goal, AdapterStatus | `ui/src/pages/`, `ui/src/layout/`, `ui/src/consts/` |
 
 ## Shared Concepts
 
@@ -88,28 +87,28 @@ piece into an owning domain instead of growing infrastructure.
 - Tests: handler, module, UI feature, and accessibility tests.
 - Related docs: [`../reference/api-endpoints.md`](../reference/api-endpoints.md).
 
-### books
+### Ledger capability slice: books
 
 - **Owns**: books (accounting entities), accounts, and the account-kind vocabulary. Every account belongs to exactly one book.
 - **Does not own**: any amount. A book knows its accounts; it does not know what is in them, because balances are derived (see `position`).
 - **Key rule**: money moving between books is an explicit paired posting — an owner draw or contribution — never two unrelated events. Without the pairing, money leaving one book vanishes and both books read wrong.
 - **Targets**: OT-P0-001. **Requirements**: JRNL-001, JRNL-002.
 
-### journal
+### Ledger capability slice: journal
 
 - **Owns**: the append-only event and posting store, the audit trail, and reversal links.
 - **Key rule**: nothing is ever edited or deleted. A correction is a new reversing entry that references what it reverses. This is what replaces the history and reviewability that version control provided before this state moved into a database.
 - **Shape decision**: postings are signed and account-scoped from the first commit — the double-entry *data shape* — while the accounting reporting UX is deliberately excluded. The shape is nearly free to adopt now and painful to retrofit; the reports are the opposite.
 - **Targets**: OT-P0-002, OT-P0-007. **Requirements**: JRNL-003, JRNL-004.
 
-### ingest
+### Ledger capability slice: ingest
 
 - **Owns**: the money-event contract, the adapter registry, per-adapter sync cursors, and ingestion receipts.
 - **Key rule**: an adapter may only emit events through the contract. It may not write a balance, alter a goal, or reach any other domain. Adapters are the most volatile part of the system — auth expires, APIs drift, syncs half-complete — so confining them to one verb keeps that volatility away from state.
 - **Deliberate design**: manual entry and file import are ordinary adapters with no special handling. Several real revenue sources have no API on any platform, so a design in which manual entry is a fallback fails for exactly those sources.
 - **Targets**: OT-P0-004, OT-P0-005, OT-P0-006, OT-P0-007, OT-P1-005. **Requirements**: CTR-001…CTR-005, POS-005.
 
-### position
+### Ledger capability slice: position
 
 - **Owns**: goal declarations and cached position snapshots. It owns no financial fact and no balance.
 - **Key rule**: every figure it returns names its inputs, each with a source and an age. A number without a basis is not reportable.
@@ -117,17 +116,31 @@ piece into an owning domain instead of growing infrastructure.
 - **Its main external consumer**: Offer Desk's `board` reads this domain for the `monetization` team's single address — per-offer actuals, plus runway, goal verdicts and the default-alive gap. Two consequences bind the read API. A partial position must remain **legibly partial to a caller**, because a caveat this domain attaches and a consumer cannot see is a caveat that will be dropped at the surface the operator actually reads. And a goal verdict must carry its sustain-window progress in the response rather than only in the UI, since the consumer renders the verdict and cannot re-derive the window.
 - **Targets**: OT-P1-001, OT-P1-002, OT-P1-003, OT-P1-004, OT-P1-006. **Requirements**: POS-001…POS-004, POS-006.
 
+### operator-ui
+
+- **Owns**: route composition, responsive presentation, provenance labels,
+  empty/degraded states, and operator correction affordances.
+- **Does not own**: books, postings, balances, goals, or adapter state.
+- **Key rule**: an unavailable or incomplete ledger source is rendered as an
+  explicit state with its reason and age; it is never converted to zero.
+- **Surfaces**: `ui/src/pages/` and the shared shell in `ui/src/layout/`.
+
 ## Build Order
 
-Domains that read other domains decide the order. `position` reads `journal`; `journal` reads `books`; `ingest` writes through `journal`. **No domain inside this scenario reads `position`**, and no two domains read each other.
+The ledger capability slices are one implementation domain, so their order is
+an internal build concern rather than a cross-domain dependency. Ingest writes
+through the journal admission method; position and statements read it. The
+operator UI reads the public API and never owns ledger state.
 
 `position` does have an external reader — Offer Desk's `board` reads it for the actuals join and for financial posture — but that is a consumer of this scenario's public read API, not an internal dependency, and it does not affect build order. The direction is one-way: nothing here reads Offer Desk (see [`INTEGRATIONS.md`](INTEGRATIONS.md) and `../internal/DECISIONS.md`, 2026-08-13).
 
 ```
-books  →  journal  →  { ingest (writes), position (reads) }
+ledger (books + journal + ingest + position)  →  operator-ui
 ```
 
-Build `books` and `journal` as one vertical slice, then `ingest` with the manual and file adapters, then `position`. Do not build every API, then every CLI, then every UI — finish one domain across proto, API, transport, CLI and UI before starting the next.
+Build the ledger as one vertical slice across proto, API, CLI, and persistence;
+then compose it in the operator UI. Do not create a second domain package for
+an implementation slice unless it acquires an independent ownership boundary.
 
 ## Deliberately Excluded
 

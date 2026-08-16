@@ -120,6 +120,14 @@ func legal(from offerspb.Status) string {
 }
 
 func (s *Store) Transition(ctx context.Context, id string, to offerspb.Status, actor string) (*offerspb.Node, error) {
+	declineReason := ""
+	if strings.HasPrefix(actor, "operator:decline:") {
+		declineReason = strings.TrimSpace(strings.TrimPrefix(actor, "operator:decline:"))
+		actor = "operator"
+		if declineReason == "" {
+			declineReason = "Operator declined the promotion and retired the node."
+		}
+	}
 	var n offerspb.Node
 	var k, st int32
 	var ts string
@@ -153,6 +161,9 @@ func (s *Store) Transition(ctx context.Context, id string, to offerspb.Status, a
 		return nil, err
 	}
 	_, err := s.db.ExecContext(ctx, `INSERT INTO catalog_audit(id,node_id,actor,prior_status,next_status,reason,created_at) VALUES(?,?,?,?,?,?,?)`, uuid.NewString(), id, actor, st, int32(to), "state transition", s.now().UTC().Format(time.RFC3339Nano))
+	if err == nil && to == offerspb.Status_RETIRED && declineReason != "" {
+		err = s.recordLatestProposalDecline(ctx, id, actor, declineReason)
+	}
 	n.Status = to
 	t, _ := time.Parse(time.RFC3339Nano, ts)
 	n.CreatedAt = timestamppb.New(t)
@@ -171,6 +182,7 @@ func (s *Store) ListEdges(ctx context.Context, nodeID string) ([]*offerspb.Edge,
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 	defer rows.Close()
 	var out []*offerspb.Edge
 	for rows.Next() {
@@ -412,7 +424,102 @@ func (s *Store) Proposal(ctx context.Context, nodeID, actor string, status offer
 	if actor == "" {
 		actor = "agent"
 	}
-	p := &offerspb.Proposal{Id: uuid.NewString(), NodeId: nodeID, Actor: actor, RequestedStatus: status, Reason: reason}
-	_, err := s.db.ExecContext(ctx, `INSERT INTO proposals(id,node_id,actor,requested_status,reason,created_at) VALUES(?,?,?,?,?,?)`, p.Id, p.NodeId, p.Actor, int32(p.RequestedStatus), p.Reason, s.now().UTC().Format(time.RFC3339Nano))
+	now := s.now().UTC()
+	p := &offerspb.Proposal{Id: uuid.NewString(), NodeId: nodeID, Actor: actor, RequestedStatus: status, Reason: reason, CreatedAt: timestamppb.New(now), EvidenceReference: "catalog/node/" + nodeID}
+	_, err := s.db.ExecContext(ctx, `INSERT INTO proposals(id,node_id,actor,requested_status,reason,created_at) VALUES(?,?,?,?,?,?)`, p.Id, p.NodeId, p.Actor, int32(p.RequestedStatus), p.Reason, now.Format(time.RFC3339Nano))
 	return p, err
+}
+
+func (s *Store) ListProposals(ctx context.Context, nodeID string, status offerspb.Status) ([]*offerspb.Proposal, error) {
+	query := `SELECT id,node_id,actor,requested_status,reason,created_at FROM proposals WHERE 1=1`
+	args := []any{}
+	if strings.TrimSpace(nodeID) != "" {
+		query += ` AND node_id=?`
+		args = append(args, nodeID)
+	}
+	if status != offerspb.Status_STATUS_UNSPECIFIED {
+		query += ` AND requested_status=?`
+		args = append(args, int32(status))
+	}
+	query += ` ORDER BY created_at DESC,id DESC`
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var proposals []*offerspb.Proposal
+	for rows.Next() {
+		var p offerspb.Proposal
+		var requested int32
+		var created string
+		if err := rows.Scan(&p.Id, &p.NodeId, &p.Actor, &requested, &p.Reason, &created); err != nil {
+			return nil, err
+		}
+		p.RequestedStatus = offerspb.Status(requested)
+		if parsed, parseErr := time.Parse(time.RFC3339Nano, created); parseErr == nil {
+			p.CreatedAt = timestamppb.New(parsed)
+		}
+		p.EvidenceReference = "catalog/node/" + p.NodeId
+		proposals = append(proposals, &p)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	for _, proposal := range proposals {
+		declines, declineErr := s.listProposalDeclines(ctx, proposal.Id)
+		if declineErr != nil {
+			return nil, declineErr
+		}
+		proposal.DeclineHistory = declines
+	}
+	return proposals, nil
+}
+
+func (s *Store) RecordEvaluation(ctx context.Context, result string, nodes int, reason string, evaluatedAt time.Time) error {
+	_, err := s.db.ExecContext(ctx, `INSERT INTO evaluation_runs(id,result,nodes_scored,reason,evaluated_at) VALUES(?,?,?,?,?)`, uuid.NewString(), result, nodes, reason, evaluatedAt.UTC().Format(time.RFC3339Nano))
+	return err
+}
+
+func (s *Store) LatestEvaluation(ctx context.Context) (string, int, string, time.Time, error) {
+	var result string
+	var scored int
+	var reason, evaluated string
+	if err := s.db.QueryRowContext(ctx, `SELECT result,nodes_scored,reason,evaluated_at FROM evaluation_runs ORDER BY evaluated_at DESC LIMIT 1`).Scan(&result, &scored, &reason, &evaluated); err != nil {
+		return "", 0, "", time.Time{}, err
+	}
+	at, err := time.Parse(time.RFC3339Nano, evaluated)
+	if err != nil {
+		return "", 0, "", time.Time{}, err
+	}
+	return result, scored, reason, at, nil
+}
+
+func (s *Store) listProposalDeclines(ctx context.Context, proposalID string) ([]*offerspb.ProposalDecline, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT actor,reason,created_at FROM proposal_declines WHERE proposal_id=? ORDER BY created_at,id`, proposalID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var declines []*offerspb.ProposalDecline
+	for rows.Next() {
+		var decline offerspb.ProposalDecline
+		var created string
+		if err := rows.Scan(&decline.Actor, &decline.Reason, &created); err != nil {
+			return nil, err
+		}
+		if parsed, parseErr := time.Parse(time.RFC3339Nano, created); parseErr == nil {
+			decline.CreatedAt = timestamppb.New(parsed)
+		}
+		declines = append(declines, &decline)
+	}
+	return declines, rows.Err()
+}
+
+func (s *Store) recordLatestProposalDecline(ctx context.Context, nodeID, actor, reason string) error {
+	var proposalID string
+	if err := s.db.QueryRowContext(ctx, `SELECT id FROM proposals WHERE node_id=? ORDER BY created_at DESC,id DESC LIMIT 1`, nodeID).Scan(&proposalID); err != nil {
+		return nil
+	}
+	_, err := s.db.ExecContext(ctx, `INSERT INTO proposal_declines(id,proposal_id,actor,reason,created_at) VALUES(?,?,?,?,?)`, uuid.NewString(), proposalID, actor, reason, s.now().UTC().Format(time.RFC3339Nano))
+	return err
 }

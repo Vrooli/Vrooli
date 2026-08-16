@@ -38,8 +38,9 @@ type SharedProviderTier string
 const (
 	// SharedProviderTierLocalVrooli is the locally running Tier-1 control plane.
 	SharedProviderTierLocalVrooli SharedProviderTier = "tier1-local-vrooli"
-	// SharedProviderTierDesktopPeer is another running desktop application's
-	// authenticated broker on this host.
+	// SharedProviderTierDesktopPeer is the precedence rank for an authenticated
+	// desktop-peer candidate. It names no transport; the node-axis resolver and
+	// vrooli-bridge own the actual relay route.
 	SharedProviderTierDesktopPeer SharedProviderTier = "tier2-desktop-peer"
 )
 

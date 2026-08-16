@@ -152,7 +152,7 @@ func (h *handlers) postingGet(c cliapp.OperationContext) (*ledgerpb.GetPostingRe
 }
 
 func (h *handlers) transfer(c cliapp.OperationContext) (*ledgerpb.TransferResponse, error) {
-	r, e := h.clientJ.Transfer(context.Background(), connect.NewRequest(&ledgerpb.TransferRequest{FromAccountId: c.Flag("from-account-id"), ToAccountId: c.Flag("to-account-id"), AmountMinor: parseInt(c.Flag("amount-minor")), Currency: c.Flag("currency"), ExternalId: c.Flag("external-id"), Description: c.Flag("description")}))
+	r, e := h.clientJ.Transfer(context.Background(), connect.NewRequest(&ledgerpb.TransferRequest{FromAccountId: c.Flag("from-account-id"), ToAccountId: c.Flag("to-account-id"), AmountMinor: parseInt(c.Flag("amount-minor")), Currency: c.Flag("currency"), ExternalId: c.Flag("external-id"), Description: c.Flag("description"), OccurredAt: timestamppb.Now()}))
 	if e != nil {
 		return nil, e
 	}

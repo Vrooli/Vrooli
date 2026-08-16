@@ -161,3 +161,14 @@ all product-side phases (20/21 overall). The remaining `ui-health` failure is a
 provider `missing_dependency` result with zero findings; the ui-health API,
 code-facts, and qdrant were subsequently confirmed healthy. This remains a
 shared Test Genie/provider boundary rather than Offer Desk product debt.
+
+### 2026-08-16 — current capture boundary
+
+The historical template floor report is retained for provenance. The current
+scenario shell now uses 44px compact controls, safe-area-aware bottom
+navigation, and table-local mobile scrolling; both UI suites and accessibility
+component tests pass. Direct `experience-manager spec validate` requests still
+hold the provider endpoint for its full two-minute client budget and return a
+timeout, so a fresh browser floor result cannot be honestly claimed here.
+Browser Automation Studio capture is also unavailable because its CLI rebuild
+is blocked by unrelated fleet-wide `golang.org/x/sys/unix` module drift.

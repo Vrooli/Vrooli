@@ -84,9 +84,17 @@
       "testId": "board-fired-triggers",
       "selector": "[data-testid=\"board-fired-triggers\"]"
     },
+    "pages.blockedOffers": {
+      "testId": "board-blocked-offers",
+      "selector": "[data-testid=\"board-blocked-offers\"]"
+    },
     "pages.earningNothing": {
       "testId": "board-earning-nothing",
       "selector": "[data-testid=\"board-earning-nothing\"]"
+    },
+    "pages.evaluationCondition": {
+      "testId": "board-evaluation-condition",
+      "selector": "[data-testid=\"board-evaluation-condition\"]"
     },
     "pages.sourceAvailability": {
       "testId": "board-source-availability",
@@ -119,6 +127,10 @@
     "pages.postureGap": {
       "testId": "board-posture-gap",
       "selector": "[data-testid=\"board-posture-gap\"]"
+    },
+    "pages.defaultAliveGap": {
+      "testId": "board-default-alive-gap",
+      "selector": "[data-testid=\"board-default-alive-gap\"]"
     },
     "pages.offers": {
       "testId": "page-offers",
@@ -184,6 +196,22 @@
       "testId": "offer-membership-finding",
       "selector": "[data-testid=\"offer-membership-finding\"]"
     },
+    "pages.offerCreateNode": {
+      "testId": "offer-create-node",
+      "selector": "[data-testid=\"offer-create-node\"]"
+    },
+    "pages.offerTransition": {
+      "testId": "offer-transition",
+      "selector": "[data-testid=\"offer-transition\"]"
+    },
+    "pages.offerCreateEdge": {
+      "testId": "offer-create-edge",
+      "selector": "[data-testid=\"offer-create-edge\"]"
+    },
+    "pages.offerChangeNotice": {
+      "testId": "offer-change-notice",
+      "selector": "[data-testid=\"offer-change-notice\"]"
+    },
     "pages.triggerEditor": {
       "testId": "trigger-editor",
       "selector": "[data-testid=\"trigger-editor\"]"
@@ -228,17 +256,53 @@
       "testId": "triggers-empty-guidance",
       "selector": "[data-testid=\"triggers-empty-guidance\"]"
     },
+    "pages.triggerDeclare": {
+      "testId": "trigger-declare",
+      "selector": "[data-testid=\"trigger-declare\"]"
+    },
+    "pages.triggerAddFact": {
+      "testId": "trigger-add-fact",
+      "selector": "[data-testid=\"trigger-add-fact\"]"
+    },
+    "pages.triggerDeclareAction": {
+      "testId": "trigger-declare-action",
+      "selector": "[data-testid=\"trigger-declare-action\"]"
+    },
+    "pages.triggerAddFactAction": {
+      "testId": "trigger-add-fact-action",
+      "selector": "[data-testid=\"trigger-add-fact-action\"]"
+    },
+    "pages.triggerChangeNotice": {
+      "testId": "trigger-change-notice",
+      "selector": "[data-testid=\"trigger-change-notice\"]"
+    },
     "pages.proposalList": {
       "testId": "proposal-list",
       "selector": "[data-testid=\"proposal-list\"]"
+    },
+    "pages.proposalTable": {
+      "testId": "proposal-table",
+      "selector": "[data-testid=\"proposal-table\"]"
     },
     "pages.proposalProposer": {
       "testId": "proposal-proposer",
       "selector": "[data-testid=\"proposal-proposer\"]"
     },
+    "pages.proposalRequestedStatus": {
+      "testId": "proposal-requested-status",
+      "selector": "[data-testid=\"proposal-requested-status\"]"
+    },
+    "pages.proposalReason": {
+      "testId": "proposal-reason",
+      "selector": "[data-testid=\"proposal-reason\"]"
+    },
     "pages.proposalEvidence": {
       "testId": "proposal-evidence",
       "selector": "[data-testid=\"proposal-evidence\"]"
+    },
+    "pages.proposalAge": {
+      "testId": "proposal-age",
+      "selector": "[data-testid=\"proposal-age\"]"
     },
     "pages.proposalEffect": {
       "testId": "proposal-effect",
@@ -251,6 +315,18 @@
     "pages.proposalAccept": {
       "testId": "proposal-accept",
       "selector": "[data-testid=\"proposal-accept\"]"
+    },
+    "pages.proposalDecline": {
+      "testId": "proposal-decline",
+      "selector": "[data-testid=\"proposal-decline\"]"
+    },
+    "pages.proposalDeclineReason": {
+      "testId": "proposal-decline-reason",
+      "selector": "[data-testid=\"proposal-decline-reason\"]"
+    },
+    "pages.proposalChangeNotice": {
+      "testId": "proposal-change-notice",
+      "selector": "[data-testid=\"proposal-change-notice\"]"
     },
     "pages.proposalOperatorOnly": {
       "testId": "proposal-operator-only",

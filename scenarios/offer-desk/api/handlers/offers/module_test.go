@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/databasetest"
@@ -74,6 +75,46 @@ func TestSchedulerPromotesSatisfiedCandidateWithoutManualEvaluate(t *testing.T) 
 		time.Sleep(5 * time.Millisecond)
 	}
 	t.Fatal("scheduler did not promote the satisfied candidate")
+}
+
+func TestAgentPromotionCreatesListableProposalWithoutActivatingNode(t *testing.T) { // [REQ:GATE-005]
+	clock := &drillClock{now: time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)}
+	s, ctx := testOfferService(t, clock)
+	node, err := s.store.CreateNode(ctx, offerspb.NodeKind_OFFER, "Proposal offer", offerspb.Status_IDEA, "", "")
+	require.NoError(t, err)
+
+	response, err := s.Promote(ctx, connect.NewRequest(&offerspb.PromoteRequest{NodeId: node.Id, Actor: "agent-7", Role: "agent"}))
+	require.NoError(t, err)
+	require.Equal(t, offerspb.Status_ACTIVE, response.Msg.Proposal.RequestedStatus)
+	require.NotEmpty(t, response.Msg.Proposal.CreatedAt)
+	require.NotEmpty(t, response.Msg.Proposal.EvidenceReference)
+
+	nodes, err := s.store.ListNodes(ctx, offerspb.NodeKind_NODE_KIND_UNSPECIFIED, offerspb.Status_STATUS_UNSPECIFIED)
+	require.NoError(t, err)
+	require.Len(t, nodes, 1)
+	require.NotEqual(t, offerspb.Status_ACTIVE, nodes[0].Status)
+
+	listed, err := s.ListProposals(ctx, connect.NewRequest(&offerspb.ListProposalsRequest{NodeId: node.Id}))
+	require.NoError(t, err)
+	require.Len(t, listed.Msg.Proposals, 1)
+	require.Equal(t, response.Msg.Proposal.Id, listed.Msg.Proposals[0].Id)
+}
+
+func TestOperatorRetirementRecordsProposalDeclineHistory(t *testing.T) { // [REQ:GATE-005]
+	clock := &drillClock{now: time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)}
+	s, ctx := testOfferService(t, clock)
+	node, err := s.store.CreateNode(ctx, offerspb.NodeKind_OFFER, "Declined offer", offerspb.Status_IDEA, "", "")
+	require.NoError(t, err)
+	_, err = s.store.Proposal(ctx, node.Id, "agent-7", offerspb.Status_ACTIVE, "ready for review")
+	require.NoError(t, err)
+	_, err = s.store.Transition(ctx, node.Id, offerspb.Status_RETIRED, "operator:decline:Not ready for this audience")
+	require.NoError(t, err)
+
+	listed, err := s.store.ListProposals(ctx, node.Id, offerspb.Status_STATUS_UNSPECIFIED)
+	require.NoError(t, err)
+	require.Len(t, listed, 1)
+	require.Len(t, listed[0].DeclineHistory, 1)
+	require.Equal(t, "operator", listed[0].DeclineHistory[0].Actor)
 }
 
 func TestBoardReportsLedgerUnavailableWithoutInventingActuals(t *testing.T) { // [REQ:INT-002] [REQ:INT-003] [REQ:INT-005]

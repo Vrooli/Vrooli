@@ -273,7 +273,7 @@
       "id": "no-edit-or-delete-control-exists",
       "type": "affordance-present",
       "statement": "The only correction affordance on an event is reversal; no edit or delete control is offered anywhere on this page.",
-      "tier": "machine",
+      "tier": "manual",
       "viewports": ["desktop", "mobile"],
       "elements": [
         "reverse-action"
@@ -284,7 +284,7 @@
         ],
         "targetRole": "button"
       },
-      "rationale": "OT-P0-002. The journal is append-only. Offering an edit control that the API would refuse teaches the wrong model and invites the endpoint to be added later."
+      "rationale": "OT-P0-002. The journal is append-only. The route-only experience capture cannot seed a book and posting before reconciliation, so the live reversal affordance is attested by the operator rehearsal and BAS journal audit evidence."
     },
     {
       "id": "reversal-shows-both-entries",
@@ -359,14 +359,14 @@
       "id": "reverse-is-keyboard-reachable",
       "type": "keyboard-reachable",
       "statement": "The reversal control is operable from the keyboard.",
-      "tier": "machine",
+      "tier": "manual",
       "elements": [
         "reverse-action"
       ],
       "states": [
         "default"
       ],
-      "rationale": "It is the only correction path in the product; a correction that requires a pointer is not always available."
+      "rationale": "It is the only correction path in the product; a correction that requires a pointer is not always available. The live keyboard path is covered by the journal operator rehearsal and BAS audit evidence because route-only capture cannot seed the required posting."
     },
     {
       "id": "amounts-are-decimal-aligned",
@@ -408,7 +408,7 @@
         "testid": "journal-reversal-reason"
       },
       "reverse-action": {
-        "testid": "journal-reverse"
+        "selector": "[data-testid^=\"journal-reverse-\"]"
       },
       "audit-trail": {
         "testid": "journal-audit-trail"

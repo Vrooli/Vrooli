@@ -46,6 +46,20 @@
       "status": "active"
     }
   ],
+  "components": [
+    {
+      "id": "form-section",
+      "path": "components/form-section.json",
+      "title": "Form Section",
+      "status": "active"
+    },
+    {
+      "id": "dirty-state-guard",
+      "path": "components/dirty-state-guard.json",
+      "title": "Dirty State Guard",
+      "status": "active"
+    }
+  ],
   "journeys": [
     {
       "id": "record-a-source-with-no-api",

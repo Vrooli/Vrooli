@@ -33,7 +33,7 @@ governance and release approval.
 | Bundled private runtime | Implemented for eligible, verified dependency plans |
 | Resource fallback | Implemented where the deployment plan declares a compatible fallback |
 | Shared provider selection | Implemented as a broker/lease seam; release evidence is environment dependent |
-| Tier 2 peer communication | Unsupported; the resolver candidate is not a peer protocol |
+| Tier 2 peer communication | The intended route is `[node/]scenario[@variant]` through the authenticated `vrooli-bridge` relay; full peer capability remains evidence-gated |
 | Linux native launch and interaction evidence | Primary validated path when the host tools are available |
 | Windows/macOS native runtime evidence | Must be produced on the target; package or compile success is not runtime proof |
 | Cloud API mode | Stub; do not use |
@@ -123,11 +123,12 @@ Shared resource use requires an authenticated broker decision, user consent, a
 scoped lease, and an expiry. The desktop runtime does not receive a root
 credential or provider lifecycle authority.
 
-Another desktop runtime is currently only a provider candidate. Do not document
-Tier 2 peer communication as supported until discovery, identity,
+Another desktop runtime is reached through the node-axis resolver and the
+authenticated `vrooli-bridge` relay for bounded scenario calls. Do not mark the
+full Tier 2 peer capability as supported until discovery, identity,
 authentication, capability negotiation, scoped authority, retry/timeout,
 cancellation, replay protection, failure isolation, and shutdown are defined
-and evidenced.
+and evidenced on both sides. The relay route is not desktop-session evidence.
 
 ## Release truth
 

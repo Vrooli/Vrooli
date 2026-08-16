@@ -1,119 +1,60 @@
 # Quickstart — Money Ledger
 
-Get this scenario running locally in under five minutes. The lifecycle
-handles ports, environment variables, and dependencies — you should
-not need to set anything by hand.
+This is the first useful path for a new operator: start the scenario, create a
+book/account, record one typed event, and inspect the resulting position.
 
-## Prerequisites
+## Start
 
-- **Vrooli CLI** installed and on `PATH` (run `vrooli help` to confirm)
-- **Go** matching the versions declared in `api/go.mod` and `cli/go.mod`
-- **Node 20+ and pnpm 9+** for the UI bundle
-
-If `vrooli` is not on your `PATH`, run `make setup` from the workspace
-root (one level above this directory) once.
-
-## 1 — Setup
-
-From this scenario's directory:
+From the scenario directory:
 
 ```bash
 make setup
-```
-
-This runs the scenario's setup lifecycle: dependencies are prepared,
-the API/CLI/UI are built as needed, and the scenario CLI is installed.
-Keep the exact lifecycle steps in `.vrooli/service.json`; this guide is
-only the user-facing path.
-
-Run this once after generation, and again whenever dependencies change.
-
-## 2 — Start
-
-```bash
 make start
+make status
 ```
 
-This starts the API, UI, and any declared resources. The lifecycle
-allocates ports automatically and exposes them through scenario
-commands such as `make status` and `vrooli scenario port`.
+Open the reported UI port, or use `make open`. The lifecycle owns ports and
+health checks; do not run the API or UI binaries directly.
 
-## 3 — Open
+## Record the first event through the console
+
+1. Open **Accounts** and create a book with an ISO currency such as `USD`.
+2. Create a cash account in that book.
+3. Open **Journal**, complete Date, Account, Signed amount (minor units),
+   Currency, Description, External event ID, and Basis, then choose **Record
+   event**.
+4. Return to **Dashboard**. The position/runway and goal surfaces show the
+   read-time result with currency, basis, source, and completeness.
+
+The journal is append-only. To correct the event, use its **Reverse posting**
+action and supply a reason; the original remains visible and linked.
+
+## Equivalent CLI path
 
 ```bash
-make open
+money-ledger ledger books-create --name Operating --currency USD --json
+money-ledger ledger accounts-create --book-id <book-id> --name Cash --kind cash --json
+money-ledger ingest adapter-register --id manual --name Manual --kind manual --json
+money-ledger ingest event-ingest --external-id first-event --adapter-id manual \
+  --account-id <account-id> --book-id <book-id> --amount-minor 125000 \
+  --currency USD --basis operator-asserted --description "First recorded event" --json
+money-ledger ledger position-show --book-id <book-id> --json
 ```
 
-Or check the URL directly:
+Repeat ingestion with the same external ID to receive a duplicate receipt,
+not a second posting. If an adapter is unavailable, the CLI and console show a
+named gap and `partial=true`; they never replace the missing value with zero.
+
+## Lifecycle and tests
 
 ```bash
-vrooli scenario port money-ledger UI_PORT
-```
-
-You should see the example UI rendering live `/health` data and a
-worked example feature pane backed by the local SQLite store.
-
-## 4 — Talk to the API
-
-Through the scenario CLI (preferred — uses the resolved port and token
-automatically):
-
-```bash
-money-ledger status
-money-ledger <domain> <command>   # e.g. list/create commands for your domain
-```
-
-Or directly via HTTP:
-
-```bash
-API_PORT=$(vrooli scenario port money-ledger API_PORT)
-curl -s "http://localhost:${API_PORT}/health"
-# Proto-typed calls hit /vrooli.money_ledger.v1.<domain>.<Service>/<Method>
-```
-
-## 5 — Run the tests
-
-```bash
+make logs
 make test
+make stop
 ```
 
-This runs the scenario test lifecycle. The current phase list and
-coverage expectations live in `.vrooli/testing.json`,
-`.github/workflows/test.yml`, and [`internal/TESTING.md`](internal/TESTING.md).
-
-## Common follow-up commands
-
-| Command | What it does |
-|---|---|
-| `make logs` | Tail API + UI logs (or `vrooli scenario logs`) |
-| `make status` | Show running surfaces and their ports |
-| `make stop` | Shut everything down cleanly |
-| `make restart` | `stop` then `start` (preferred over manually restarting individual surfaces) |
-
-For scenario-specific commands beyond the lifecycle, use the scenario
-CLI (`money-ledger --help`) — see
-[`reference/cli-commands.md`](reference/cli-commands.md).
-
-## Troubleshooting
-
-If anything misbehaves on first boot, check
-[`guides/troubleshooting.md`](guides/troubleshooting.md). The most
-common first-time issues are:
-
-- A previous scenario instance still holding ports — `make restart`
-- Stale build artifacts after editing source — `make setup` rebuilds
-- Missing `vrooli` CLI — run workspace-root `make setup`
-
-## Next steps
-
-- Read [`START-HERE.md`](START-HERE.md) before implementing product
-  behavior. It owns the first-session workflow after generation.
-- Read [`concepts/ARCHITECTURE.md`](concepts/ARCHITECTURE.md) for the
-  mental model: three surfaces, proto bridge, layered API, where to
-  add code.
-- Read [`internal/TESTING.md`](internal/TESTING.md) before writing
-  your first non-trivial test.
-- Update `PRD.md` with your operational targets, then add requirement
-  modules under `requirements/`.
-- Append a one-line entry to [`internal/PROGRESS.md`](internal/PROGRESS.md)
-  whenever you land work, so future agents can replay the lifecycle.
+For the comprehensive server-owned suite, use `vrooli scenario test
+money-ledger` and wait once on the returned run ID. See
+[`reference/cli-commands.md`](reference/cli-commands.md) and
+[`concepts/UI-ARCHITECTURE.md`](concepts/UI-ARCHITECTURE.md) for the complete
+surface contract.

@@ -14,16 +14,19 @@
     {
       "page": "dashboard",
       "state": "position-partial",
-      "intent": "See that the position is partial and which adapter is missing"
+      "intent": "See that the position is partial and which adapter is missing",
+      "via": "completeness-banner"
     },
     {
       "page": "adapters",
       "state": "adapter-unavailable",
-      "intent": "Read the failure reason and the age of the last successful sync"
+      "intent": "Read the failure reason and the age of the last successful sync",
+      "via": "failure-reason"
     },
     {
       "page": "dashboard",
-      "intent": "Confirm no figure anywhere reports zero on account of the outage"
+      "intent": "Confirm no figure anywhere reports zero on account of the outage",
+      "via": "runway-figure"
     }
   ]
 }

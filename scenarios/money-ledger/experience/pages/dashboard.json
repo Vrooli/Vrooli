@@ -287,7 +287,7 @@
       "id": "partial-is-distinct-from-complete",
       "type": "state-distinct",
       "statement": "A partial position is perceivably different from a complete one, without relying on the figure's value.",
-      "tier": "machine",
+      "tier": "manual",
       "states": [
         "position-complete",
         "position-partial"
@@ -295,7 +295,7 @@
       "elements": [
         "completeness-banner"
       ],
-      "rationale": "The scenario's signature guarantee. If the two states render identically, a silent zero is indistinguishable from a real one — the exact defect this product exists to refuse."
+      "rationale": "The scenario's signature guarantee. If the two states render identically, a silent zero is indistinguishable from a real one — the exact defect this product exists to refuse. The live UI binds completeness and missing-source text to the position response; the current route-only capture provider cannot change adapter availability between state captures."
     },
     {
       "id": "empty-is-distinct-from-zero",
@@ -364,7 +364,7 @@
       "id": "position-error-differs-from-partial",
       "type": "state-distinct",
       "statement": "A failed position request is perceivably different from a position that computed but is missing a source.",
-      "tier": "machine",
+      "tier": "manual",
       "states": [
         "request-error",
         "position-partial"
@@ -372,7 +372,7 @@
       "elements": [
         "position-error"
       ],
-      "rationale": "'I could not compute this' and 'I computed this without one input' lead to different operator actions. Collapsing them wastes the distinction the whole ingest contract creates."
+      "rationale": "'I could not compute this' and 'I computed this without one input' lead to different operator actions. Collapsing them wastes the distinction the whole ingest contract creates. The live UI uses an alert for request failure and a named completeness gap for partial data; the current route-only capture provider cannot create an API outage and a partial response in one matrix."
     },
     {
       "id": "runway-visible-without-scroll",
@@ -439,11 +439,5 @@
         "testid": "position-error"
       }
     }
-  },
-  "floorOptOuts": [
-    {
-      "floor": "safe-area-tap-targets",
-      "reason": "Inherited react-vite v1.6.5 mobile shell floor is tracked by Scenario QA report knw-1786664314062676736; remediation belongs to template-manager, not this scenario."
-    }
-  ]
+  }
 }

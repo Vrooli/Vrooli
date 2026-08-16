@@ -21,6 +21,7 @@ export interface DataTableColumn<Row> {
   sortValue?: (row: Row) => string | number;
   searchValue?: (row: Row) => string;
   className?: string;
+  headerTestId?: string;
 }
 
 export interface DataTableFilter<Row> {
@@ -43,12 +44,14 @@ export interface DataTableProps<Row> {
   // Applied to the rendered <table> as data-testid. A generic test hook that
   // adopters use to target the table without depending on markup structure.
   tableTestId?: string;
+  tableId?: string;
   // aria-label for the filter button group. Overrides filterLabel when set.
   // Restored in 1.1.2 after 1.1.x dropped it (adopter a11y regression).
   filterGroupLabel?: string;
   // Formats the aria-label of each sortable column's sort button. Restored in
   // 1.1.2 after 1.1.x dropped it (adopter a11y regression).
   sortLabel?: (header: string) => string;
+  getRowTestId?: (row: Row, index: number) => string;
 }
 
 type SortDirection = "asc" | "desc";
@@ -93,8 +96,10 @@ export function DataTable<Row>({
   filters = [],
   className,
   tableTestId,
+  tableId,
   filterGroupLabel,
   sortLabel = (header) => `Sort by ${header}`,
+  getRowTestId,
 }: DataTableProps<Row>) {
   const firstSortable = columns.find((column) => column.sortValue);
   const [query, setQuery] = useState("");
@@ -174,7 +179,7 @@ export function DataTable<Row>({
         )}
       </div>
       <div className="max-w-full overflow-x-auto">
-        <table data-testid={tableTestId} className="w-full table-fixed border-collapse text-left text-sm">
+        <table id={tableId} data-testid={tableTestId} className="w-full table-fixed border-collapse text-left text-sm">
           <caption className="sr-only">{caption}</caption>
           <thead className="bg-app-surface-muted text-xs uppercase text-app-muted-foreground">
             <tr>
@@ -182,7 +187,7 @@ export function DataTable<Row>({
                 const active = sortColumn === column.id;
                 const SortIcon = !column.sortValue ? null : active ? (sortDirection === "asc" ? ArrowUp : ArrowDown) : ChevronsUpDown;
                 return (
-                  <th key={column.id} scope="col" className={cn("px-3 py-3 font-semibold", column.className)}>
+                  <th key={column.id} data-testid={column.headerTestId} scope="col" className={cn("px-3 py-3 font-semibold", column.className)}>
                     {column.sortValue ? (
                       <button
                         type="button"
@@ -210,7 +215,7 @@ export function DataTable<Row>({
               </tr>
             ) : (
               filteredRows.map((row, index) => (
-                <tr key={getRowKey(row, index)} className="border-t border-app-border">
+                <tr key={getRowKey(row, index)} data-testid={getRowTestId?.(row, index)} className="border-t border-app-border">
                   {columns.map((column) => (
                     <td key={column.id} className={cn("break-words px-3 py-3 align-middle text-app-foreground", column.className)}>
                       {column.accessor(row)}

@@ -292,6 +292,24 @@
       "id": "membership-finding",
       "role": "note",
       "description": "Names a deliverable this offer claims that is absent from the live deliverable set, and what would resolve it."
+    },
+    {
+      "id": "offer-create-form",
+      "role": "form",
+      "name": "Create offer",
+      "description": "Creates a typed offer node without bypassing lifecycle validation."
+    },
+    {
+      "id": "offer-transition-form",
+      "role": "form",
+      "name": "Transition offer",
+      "description": "Requests a legal lifecycle transition and exposes the refusal when the request is invalid."
+    },
+    {
+      "id": "offer-edge-form",
+      "role": "form",
+      "name": "Create relationship",
+      "description": "Creates a typed relationship between offer nodes."
     }
   ],
   "claims": [
@@ -399,6 +417,23 @@
         "dangling-member"
       ],
       "rationale": "OT-P1-001. Silently dropping a dangling member makes the membership list look correct while it is wrong — the same class of failure as reporting a missing figure as zero."
+    },
+    {
+      "id": "offer-forms-have-real-actions",
+      "type": "affordance-present",
+      "statement": "Offer authoring forms expose their submit actions as real keyboard-operable controls.",
+      "tier": "machine",
+      "elements": ["offer-create-form", "offer-transition-form", "offer-edge-form"],
+      "params": { "affordances": ["create-node", "transition", "create-edge"], "targetRole": "button" },
+      "states": ["default", "empty"]
+    },
+    {
+      "id": "offer-promotion-is-keyboard-reachable",
+      "type": "keyboard-reachable",
+      "statement": "The offer promotion control is keyboard reachable.",
+      "tier": "machine",
+      "elements": ["promote-action"],
+      "states": ["default", "promotion-blocked"]
     }
   ],
   "bindings": {
@@ -438,6 +473,15 @@
       },
       "membership-finding": {
         "testid": "offer-membership-finding"
+      },
+      "offer-create-form": {
+        "testid": "offer-create-node"
+      },
+      "offer-transition-form": {
+        "testid": "offer-transition"
+      },
+      "offer-edge-form": {
+        "testid": "offer-create-edge"
       }
     }
   }

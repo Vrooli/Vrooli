@@ -5,6 +5,11 @@
     "last_updated": "2026-05-03T00:00:00Z"
   },
   "version": "1.0.0",
+  "phases": {
+    "ui-health": {
+      "timeout": "15m"
+    }
+  },
   "lint": {
     "handlers": {
       "go_module": {

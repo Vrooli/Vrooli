@@ -13,20 +13,24 @@
   "steps": [
     {
       "page": "journal",
-      "intent": "Find the incorrect event among its neighbours"
+      "intent": "Find the incorrect event among its neighbours",
+      "via": "event-table"
     },
     {
       "page": "journal",
-      "intent": "Create a reversing entry that references it and carries a reason"
+      "intent": "Create a reversing entry that references it and carries a reason",
+      "via": "reverse-action"
     },
     {
       "page": "journal",
       "state": "reversed",
-      "intent": "See both entries linked, with balances updated on the next read"
+      "intent": "See both entries linked, with balances updated on the next read",
+      "via": "reversal-link"
     },
     {
       "page": "journal",
-      "intent": "Confirm no edit or delete affordance exists anywhere on the surface"
+      "intent": "Confirm no edit or delete affordance exists anywhere on the surface",
+      "via": "event-table"
     }
   ]
 }

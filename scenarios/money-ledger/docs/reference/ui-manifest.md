@@ -1,67 +1,36 @@
-# UI Manifest Reference
+# Money Ledger UI surface reference
 
-Stable reference for the slots declared in
-`templates/scenarios/react-vite/ui/manifest.json`. Mirrors the file. Update
-both when adding or renaming a slot.
+This is a scenario reference, not a copy of the `react-vite` template
+manifest. The machine-readable selector contract is
+[`ui/src/consts/selectors.manifest.json`](../../ui/src/consts/selectors.manifest.json)
+and the experience contract is [`../../experience/index.json`](../../experience/index.json).
 
-## Contract
+## Surfaces
 
-| Field | Value |
-|---|---|
-| `kind` | `scenario-ui` |
-| `schema` | `scenario-ui-manifest/v1` |
-| `template` | `react-vite` |
-
-## Slots (v1)
-
-| Slot | `dir` | Path pattern | Requires `feature`? |
-|---|---|---|---|
-| `ui-primitive` | `ui/src/components/ui` | `{dir}/{kebab-name}.tsx` | no |
-| `shared-component` | `ui/src/components` | `{dir}/{ComponentName}.tsx` | no |
-| `layout-shell` | `ui/src/layout` | `{dir}/{ComponentName}.tsx` | no |
-| `layout-nav` | `ui/src/layout` | `{dir}/{ComponentName}.tsx` | no |
-| `page` | `ui/src/pages` | `{dir}/{ComponentName}.tsx` | no |
-| `feature` | `ui/src/features/{feature}` | `{dir}` (folder) | yes |
-| `feature-component` | `ui/src/features/{feature}` | `{dir}/{ComponentName}.tsx` | yes |
-| `hook` | `ui/src/hooks` | `{dir}/{camelName}.ts` | no |
-| `api-client` | `ui/src/api` | `{dir}/{camelName}.ts` | no |
-| `lib-util` | `ui/src/lib` | `{dir}/{camelName}.ts` | no |
-| `consts` | `ui/src/consts` | `{dir}/{camelName}.ts` | no |
-| `i18n-strings` | `ui/src/i18n/locales` | `{dir}/{locale}.json` | no |
-| `theme-token` | `ui/src/theme` | `{dir}/{kebab-name}.css` | no |
-| `test-util` | `ui/src/test-utils` | `{dir}/{camelName}.ts` | no |
-
-`defaults.slot` is `shared-component` — components that publish no slot resolve
-through this slot.
-
-## Path-Pattern Tokens
-
-| Token | Meaning | Example |
+| Route | Surface test ID | Primary evidence |
 |---|---|---|
-| `{dir}` | The slot's `dir` value. | `ui/src/components` |
-| `{ComponentName}` | PascalCase. | `Button`, `SidebarShell` |
-| `{componentName}` / `{camelName}` | camelCase. | `useGamepad`, `errorMessage` |
-| `{kebab-name}` | kebab-case. | `bottom-nav`, `error-boundary` |
-| `{feature}` | Feature folder; must be supplied when `requiresFeature: true`. | `health`, `<your-domain>` |
-| `{locale}` | Locale code. Only used by `i18n-strings`. | `en`, `ja`, `ar` |
+| `/` | `page-dashboard` | `position-runway`, completeness, goal verdicts, position delta |
+| `/accounts` | `page-accounts` | `account-table`, balance basis/gap, paired transfer form |
+| `/journal` | `page-journal` | `journal-table`, event basis/source, reversal action |
+| `/adapters` | `page-adapters` | adapter availability, failure reason, last-success age |
+| `/statements` | `page-statements` | period selector, category breakdown, coverage note, export |
+| `/settings` | `page-settings` | theme and locale controls, goal summary |
 
-## Resolution Order (Adoption Resolver)
+## Conventions
 
-1. **Explicit override** — caller supplied a path.
-2. **Template manifest** — this file resolves the slot and substitutes tokens.
-3. **Heuristic** — manifest missing or slot missing; scan `ui/src/` for a
-   matching directory name. Warning attached.
-4. **Fallback** — `ui/src/components/<ComponentName>.tsx`. Warning attached.
+- Use selector tokens from `selectors.ts`; do not bind workflows to incidental
+  CSS or text. Regenerate the BAS registry with `test-genie registry build`
+  after changing a case.
+- A money value is displayed with its currency code, tabular numerals, sign,
+  and visible basis/coverage. An unavailable value is textually unavailable,
+  never a synthetic zero.
+- Forms use native labels and controls. Async success/error messages use
+  status/alert semantics. Shared buttons and navigation retain the 44px mobile
+  target and safe-area padding.
 
-## Overlays
+## Component ownership
 
-Scenarios may override individual slot `dir` values inside
-`.vrooli/ui-manifest.json` in the scenario root. The overlay must not introduce
-new slot names — those live on the template manifest. (Overlay loader tracked
-in `scenarios/react-component-library/PRD.md`.)
-
-## Cross-References
-
-- Concept: [`UI-ARCHITECTURE.md`](../concepts/UI-ARCHITECTURE.md)
-- Schema: `.vrooli/schemas/scenario-ui-manifest.schema.json`
-- Resolver: `scenarios/react-component-library/api/internal/adoptions/pathresolver.go`
+Pages live under `ui/src/pages`; shell/navigation under `ui/src/layout`;
+shared controls under `ui/src/components`; API clients under `ui/src/api`;
+selectors under `ui/src/consts`. Product behavior remains in the page/API
+layer and is covered by the scenario experience contract.

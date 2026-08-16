@@ -35,12 +35,36 @@
         },
         "type": "ACTION_TYPE_WAIT",
         "wait": {
-          "selector": "[data-testid=\"offer-graph\"]",
+          "selector": "@selector/pages.offerGraph",
           "state": "WAIT_STATE_VISIBLE",
           "timeout_ms": 15000
         }
       },
       "id": "wait-offers-primary-binding"
+    },
+    {
+      "action": {
+        "metadata": { "label": "Offer table visible" },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/pages.offerTable",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        }
+      },
+      "id": "wait-offers-table"
+    },
+    {
+      "action": {
+        "metadata": { "label": "Offer creation action visible" },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/pages.offerCreateNode",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        }
+      },
+      "id": "wait-offers-create-action"
     }
   ],
   "settings": {

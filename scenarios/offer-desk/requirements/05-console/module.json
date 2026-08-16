@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "The operator console and the obligations that only appear once there are users.",
-    "last_validated_at": "2026-08-13T23:59:16-04:00",
+    "last_validated_at": "2026-08-16T00:41:42-04:00",
     "module": "console",
     "prd_ref": "PRD.md",
     "priority": "P2",
@@ -25,12 +25,12 @@
           "type": "test",
           "ref": "ui/src/pages/pages.test.tsx",
           "status": "implemented",
-          "notes": "Feature tests assert each state renders with its documented selector."
+        "notes": "`renders every ranked board entry and the default-alive gap` asserts two entries, named unavailable actuals, evaluation degradation, posture source/age, goal verdict, and the default-alive gap."
         },
         {
           "type": "test",
           "status": "implemented",
-          "notes": "BAS case walks the console and asserts the accessible names of status controls."
+        "notes": "`renders a refusal as an explicit request error with its remediation` asserts request-error state, alert semantics, refusal remedy, and audit trail."
         }
       ]
     },
@@ -51,7 +51,7 @@
           "type": "test",
           "ref": "ui/src/pages/pages.test.tsx",
           "status": "implemented",
-          "notes": "The control is absent or disabled for a non-operator role."
+        "notes": "`keeps an agent promotion non-active and renders the returned proposal` asserts the agent-role RPC payload, returned rationale, and unchanged ACTIVE status; the proposal acceptance test also asserts operator-role gating."
         }
       ]
     },

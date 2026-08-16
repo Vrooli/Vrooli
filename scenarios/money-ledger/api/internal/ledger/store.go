@@ -168,7 +168,8 @@ func (s *Store) Ingest(ctx context.Context, e *sharedpb.MoneyEvent, actor string
 		ft, _ := time.Parse(time.RFC3339Nano, fetched)
 		p.Event = &sharedpb.MoneyEvent{Id: p.Id, ExternalId: eventID, AdapterId: adapterID, AccountId: accountID, BookId: bookID, AmountMinor: amount, Currency: currency, OccurredAt: timestamppb.New(ot), FetchedAt: timestamppb.New(ft), Basis: sharedpb.Basis(basis), Description: desc, Category: cat}
 		p.ReversalOf, p.Actor = rev, act
-		return &p, true, nil
+		p.Audit, err = s.loadAudit(ctx, p.Id)
+		return &p, true, err
 	}
 	if !errors.Is(err, sql.ErrNoRows) {
 		return nil, false, err
@@ -185,7 +186,8 @@ func (s *Store) Ingest(ctx context.Context, e *sharedpb.MoneyEvent, actor string
 	if err := s.recordAudit(ctx, "posting", p.Id, actor, "ingested money event", ""); err != nil {
 		return nil, false, err
 	}
-	return &p, false, nil
+	p.Audit, err = s.loadAudit(ctx, p.Id)
+	return &p, false, err
 }
 
 func (s *Store) GetPosting(ctx context.Context, id string) (*sharedpb.Posting, error) {
@@ -269,7 +271,19 @@ func (s *Store) ListPostings(ctx context.Context, accountID, bookID, from, to st
 		p.Actor = actor
 		out = append(out, &p)
 	}
-	return out, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	for _, posting := range out {
+		posting.Audit, err = s.loadAudit(ctx, posting.Id)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return out, nil
 }
 
 func (s *Store) Reverse(ctx context.Context, id, reason, actor string) (*sharedpb.Posting, error) {
@@ -296,6 +310,10 @@ func (s *Store) Reverse(ctx context.Context, id, reason, actor string) (*sharedp
 		return nil, err
 	}
 	if err := s.recordAudit(ctx, "posting", p.Id, actor, "reversing entry: "+reason, id); err != nil {
+		return nil, err
+	}
+	p.Audit, err = s.loadAudit(ctx, p.Id)
+	if err != nil {
 		return nil, err
 	}
 	return p, nil
@@ -340,6 +358,12 @@ func (s *Store) Transfer(ctx context.Context, fromAccount, toAccount string, amo
 	}
 	if err := tx.Commit(); err != nil {
 		return nil, err
+	}
+	for _, posting := range posts {
+		posting.Audit, err = s.loadAudit(ctx, posting.Id)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return posts, nil
 }
