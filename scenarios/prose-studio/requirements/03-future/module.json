@@ -1,0 +1,85 @@
+{
+  "_metadata": {
+    "description": "Requirement stubs scaffolded from the P2 operational targets.",
+    "module": "P2-targets",
+    "priority": "P2",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "criticality": "P2",
+      "description": "The system may learn over durable configurations such as profiles, strategies, threshold values, and style versions using a binary per-round signal of whether anything was committed, never a per-candidate preference, and constrained to configurations whose measured set diversity clears a floor",
+      "id": "PS-P2-001",
+      "prd_ref": "OT-P2-001",
+      "status": "planned",
+      "title": "Configuration bandit",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PS-P2-001] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "The system may score candidates from measured external outcomes once publish or conversion telemetry exists, joined through a reserved outcome reference on the selection event",
+      "id": "PS-P2-002",
+      "prd_ref": "OT-P2-002",
+      "status": "planned",
+      "title": "Outcome-driven scoring",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PS-P2-002] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "The system may add embedding-based semantic diversity alongside the lexical tier once an embedding surface is available through ai-gateway",
+      "id": "PS-P2-003",
+      "prd_ref": "OT-P2-003",
+      "status": "planned",
+      "title": "Semantic diversity metrics",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PS-P2-003] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "The system may offer document-level candidate sets once cost and review burden are understood from real section-level usage",
+      "id": "PS-P2-004",
+      "prd_ref": "OT-P2-004",
+      "status": "planned",
+      "title": "Whole-document variation",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PS-P2-004] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "The system may accept an existing axis space from another scenario once that scenario chooses to migrate",
+      "id": "PS-P2-005",
+      "prd_ref": "OT-P2-005",
+      "status": "planned",
+      "title": "Consumer axis-space migration",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PS-P2-005] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    }
+  ]
+}

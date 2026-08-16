@@ -1,0 +1,460 @@
+{
+  "_metadata": {
+    "description": "Requirement stubs scaffolded from the P0 operational targets.",
+    "module": "P0-targets",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "criticality": "P0",
+      "description": "The system shall persist styles as versioned records carrying exemplars, directives, anti-patterns, lexicon, targets, and axis defaults; shall support single-parent extends with write-time cycle detection; shall merge by declared order without silently widening a target; and shall report a named resolution conflict identifying both contributing versions when merged targets have an empty intersection",
+      "id": "PS-P0-001",
+      "prd_ref": "OT-P0-001",
+      "status": "planned",
+      "title": "Style record and resolution",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PS-P0-001] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "The system shall freeze a style version the moment a committed output references it, shall refuse mutation by name, and shall direct the caller to create a new version",
+      "id": "PS-P0-002",
+      "prd_ref": "OT-P0-002",
+      "status": "planned",
+      "title": "Style version immutability",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PS-P0-002] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "The system shall validate arbitrary text against a style and return targets met or missed plus anti-pattern hits located by span",
+      "id": "PS-P0-003",
+      "prd_ref": "OT-P0-003",
+      "status": "planned",
+      "title": "Text conformance reporting",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PS-P0-003] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "The system shall persist generation profiles as versioned records covering style references, sampler, constraints, selection policy, measurement tiers, budget, and gateway role, and shall return both the fully merged effective configuration and the exact instruction text that will be sent, before sending it",
+      "id": "PS-P0-004",
+      "prd_ref": "OT-P0-004",
+      "status": "planned",
+      "title": "Profile record and inspectable resolution",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PS-P0-004] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "The system shall expose sampler strategy kinds, selection policy kinds, transform operations, and metrics through a registry returning each kind parameter schema, so a client renders a form for a kind it has never seen without a redeploy",
+      "id": "PS-P0-005",
+      "prd_ref": "OT-P0-005",
+      "status": "planned",
+      "title": "Introspectable kind registry",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PS-P0-005] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "The system shall ship a direct strategy and a verbalized-distribution strategy, carrying candidate count, probability threshold, and temperature stance as profile data rather than as code",
+      "id": "PS-P0-006",
+      "prd_ref": "OT-P0-006",
+      "status": "planned",
+      "title": "Sampler strategies",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PS-P0-006] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "The system shall record per candidate the profile version, style versions, strategy and parameters, provider, resolved model reference, that model declared context window, gateway role, temperature sent, temperature support, effective maximum output tokens and their source, token usage, and cost",
+      "id": "PS-P0-007",
+      "prd_ref": "OT-P0-007",
+      "status": "planned",
+      "title": "Candidate provenance",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PS-P0-007] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "The system shall attribute the full cost of a round across the entire candidate set and never solely to the committed candidate",
+      "id": "PS-P0-008",
+      "prd_ref": "OT-P0-008",
+      "status": "planned",
+      "title": "Whole-set cost attribution",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PS-P0-008] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "The system shall store the model verbalized ordering signal with a constant uncalibrated marker scoped as an ordinal within its own round, and shall enforce by static check that no selection policy or query reads, aggregates, averages, or thresholds it",
+      "id": "PS-P0-009",
+      "prd_ref": "OT-P0-009",
+      "status": "planned",
+      "title": "Uncalibrated hint containment",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PS-P0-009] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "The system shall compute the deterministic metric tier unconditionally when a candidate is created, per candidate and per set, covering compression ratio, self-repetition, lexical homogenization, distinct-n, burstiness, three readability grades, type-token ratio, and lexicon flags",
+      "id": "PS-P0-010",
+      "prd_ref": "OT-P0-010",
+      "status": "planned",
+      "title": "Deterministic measurement at birth",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PS-P0-010] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "The system shall evaluate hard constraints deterministically, mark violating candidates ineligible with a named reason, and retain them in the set rather than dropping them",
+      "id": "PS-P0-011",
+      "prd_ref": "OT-P0-011",
+      "status": "planned",
+      "title": "Constraint gating that retains",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PS-P0-011] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "The system shall ship first-eligible, uniform-random, rarest-above-threshold, coverage, and human-pick policies; shall default agent mode to rarest-above-threshold and human mode to coverage; and shall use first-eligible only as a measurement control",
+      "id": "PS-P0-012",
+      "prd_ref": "OT-P0-012",
+      "status": "planned",
+      "title": "Selection policies and defaults",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PS-P0-012] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "The system shall ship no judge-based ranker at any priority, and an inferential judge may act only as a pass or fail gate",
+      "id": "PS-P0-013",
+      "prd_ref": "OT-P0-013",
+      "status": "planned",
+      "title": "No taste-based ranking",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PS-P0-013] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "The system shall model a session as an append-only graph of rounds and candidates linked by derivation, mutating no record in place, and shall support generate, reroll, pin, unpin, reject, refine, commit, and abandon",
+      "id": "PS-P0-014",
+      "prd_ref": "OT-P0-014",
+      "status": "planned",
+      "title": "Session as append-only history",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PS-P0-014] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "The system shall regenerate only unpinned slots on reroll and shall condition explicitly on the pinned and rejected sets",
+      "id": "PS-P0-015",
+      "prd_ref": "OT-P0-015",
+      "status": "planned",
+      "title": "Reroll with negative conditioning",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PS-P0-015] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "The system shall expose a single-call generate verb returning one policy-decided result with candidates included only on request, implemented as a wrapper over the session path rather than as a second code path",
+      "id": "PS-P0-016",
+      "prd_ref": "OT-P0-016",
+      "status": "planned",
+      "title": "Single-call agent path",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PS-P0-016] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "The system shall carry machine-generation provenance on every candidate at birth as a constant, and shall frame no target, verb, or interface copy in terms of a detector score",
+      "id": "PS-P0-017",
+      "prd_ref": "OT-P0-017",
+      "status": "planned",
+      "title": "Machine-generation disclosure",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PS-P0-017] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "The system shall record a selection event for every commit with measurements snapshotted at choice time and the considered candidates retained, and nothing in this version shall read it",
+      "id": "PS-P0-018",
+      "prd_ref": "OT-P0-018",
+      "status": "planned",
+      "title": "Selection recording without learning",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PS-P0-018] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "The system shall take candidate sets at the outline level and the section level, shall not offer whole-document candidate sets, shall represent an outline as an ordinary candidate so outline variation reuses the sampling and selection stack, and shall give each section a full passage-level session",
+      "id": "PS-P0-019",
+      "prd_ref": "OT-P0-019",
+      "status": "planned",
+      "title": "Long-form composition level",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PS-P0-019] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "The system shall resolve a section profile by inheritance from its document, shall assemble section context from the outline, the committed text of prior sections, the declared intents of following sections, and the resolved profile, shall cap accumulation through a declared context policy, and shall record a context snapshot per section naming what it carried and what was summarized",
+      "id": "PS-P0-020",
+      "prd_ref": "OT-P0-020",
+      "status": "planned",
+      "title": "Section context and budget",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PS-P0-020] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "The system shall perform a static context-feasibility check at profile-validation time against the profile worst-case section, refusing a profile whose ceiling exceeds the resolved model declared context window, and shall perform a dynamic pre-call check per section",
+      "id": "PS-P0-021",
+      "prd_ref": "OT-P0-021",
+      "status": "planned",
+      "title": "Feasibility before work",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PS-P0-021] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "The system shall measure cross-section repetition and per-section style conformance, shall report style drift across a document, shall assemble a document as ordered text plus structure, and shall render to no presentation format",
+      "id": "PS-P0-022",
+      "prd_ref": "OT-P0-022",
+      "status": "planned",
+      "title": "Document coherence and assembly",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PS-P0-022] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "The system shall route all inference through ai-gateway, naming no model, holding no credential, and calling no vendor directly, and shall derive and send maximum output tokens per request from profile data rather than relying on a role default",
+      "id": "PS-P0-023",
+      "prd_ref": "OT-P0-023",
+      "status": "planned",
+      "title": "Gateway-only inference",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PS-P0-023] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "The system shall treat two candidate sets as comparable only when their effective sampling keys and their effective maximum-output-token values and sources match, enforced in the measurement layer rather than by convention",
+      "id": "PS-P0-024",
+      "prd_ref": "OT-P0-024",
+      "status": "planned",
+      "title": "Comparability enforcement",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PS-P0-024] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "A consuming scenario shall declare styles, profiles, and axis spaces as version-controlled files in its own scenario folder with a namespaced key and an ownership marker, and the system shall register them by startup scan plus an explicit reindex verb requiring no integration code from that consumer",
+      "id": "PS-P0-025",
+      "prd_ref": "OT-P0-025",
+      "status": "planned",
+      "title": "Consumer-owned declarations",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PS-P0-025] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "The system shall treat a declaration file as authority and its database row as a projection, shall refuse API writes to a declared record naming the file, shall version a declared record by its file content hash, shall register a malformed declaration as invalid without preventing startup, shall refuse two declarations claiming one key rather than resolving last-writer-wins, and shall mark a deleted declaration unregistered while keeping historical provenance resolvable",
+      "id": "PS-P0-026",
+      "prd_ref": "OT-P0-026",
+      "status": "planned",
+      "title": "File-as-authority",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PS-P0-026] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "The system shall expose the declaration validator over RPC and as a CLI verb so a consumer can check its declarations without invoking the test harness",
+      "id": "PS-P0-027",
+      "prd_ref": "OT-P0-027",
+      "status": "planned",
+      "title": "Standalone declaration validator",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PS-P0-027] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "The system shall expose Connect-RPC with full CLI verb parity and JSON output on every verb, and shall declare its tools and widgets with governance metadata so they are discoverable rather than merely present in code",
+      "id": "PS-P0-028",
+      "prd_ref": "OT-P0-028",
+      "status": "planned",
+      "title": "Programmatic surface",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PS-P0-028] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "The system shall ship a variation board, style library, document workspace, and declaration registry as production-quality UI with real loading, error, and empty states, shall show no per-card quality score, shall apply no default ordering by a quality proxy, shall state set diversity as one number with its basis named, shall make none-of-these a first-class action triggering a reroll with negative conditioning, and shall state the specific reason inline on every disabled control",
+      "id": "PS-P0-029",
+      "prd_ref": "OT-P0-029",
+      "status": "planned",
+      "title": "Operator surfaces",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PS-P0-029] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "The system shall publish its deterministic text metrics as a shared package created from the first commit, consumable without a runtime dependency on this scenario API",
+      "id": "PS-P0-030",
+      "prd_ref": "OT-P0-030",
+      "status": "planned",
+      "title": "Shared metrics package",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PS-P0-030] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    }
+  ]
+}

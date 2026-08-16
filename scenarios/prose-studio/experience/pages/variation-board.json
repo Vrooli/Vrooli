@@ -1,0 +1,346 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "variation-board",
+    "title": "Variation Board",
+    "routes": [
+      "/sessions/:sessionId"
+    ],
+    "purpose": "Let an operator compare a candidate set on evidence and converge it to one committed output, without the interface nudging the choice toward the most familiar option.",
+    "prd_refs": [
+      "OT-P0-012",
+      "OT-P0-013",
+      "OT-P0-029"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "What is actually different between these candidates"
+    },
+    {
+      "statement": "Which candidates are ineligible, and for exactly which named reason"
+    },
+    {
+      "statement": "How varied this set is overall, and on what basis that number is computed"
+    },
+    {
+      "statement": "What has already been pinned or rejected, and therefore what a reroll will change"
+    }
+  ],
+  "elements": [
+    {
+      "id": "candidate-card",
+      "role": "article",
+      "name": "Candidate",
+      "description": "One candidate. Text first and generously sized; measurements as a chip row beneath. Never a headline score."
+    },
+    {
+      "id": "measurement-chips",
+      "role": "list",
+      "name": "Measurements",
+      "description": "Reading grade, burstiness sparkline, lexicon flags, axis cell. Each carries text, never colour alone."
+    },
+    {
+      "id": "ineligibility-reason",
+      "role": "status",
+      "name": "Ineligibility reason",
+      "description": "The named constraint a candidate failed. Present on the card; the candidate is retained in the set, never hidden."
+    },
+    {
+      "id": "set-diversity",
+      "role": "status",
+      "name": "Set diversity",
+      "description": "One number for the whole set with its basis named inline. Never a bare figure."
+    },
+    {
+      "id": "pin-action",
+      "role": "button",
+      "name": "Pin",
+      "description": "Protects a candidate from the next reroll. Keyboard reachable without a pointer."
+    },
+    {
+      "id": "reject-action",
+      "role": "button",
+      "name": "Reject",
+      "description": "Records a rejection that becomes negative conditioning on reroll."
+    },
+    {
+      "id": "none-of-these-action",
+      "role": "button",
+      "name": "None of these",
+      "description": "First-class action. Rerolls the whole set conditioned against everything rejected so far."
+    },
+    {
+      "id": "commit-action",
+      "role": "button",
+      "name": "Commit",
+      "description": "Commits one candidate. States its reason inline whenever unavailable."
+    },
+    {
+      "id": "sort-control",
+      "role": "combobox",
+      "name": "Sort",
+      "description": "Explicit operator-chosen ordering. Defaults to generation order or axis cell, never to a quality proxy."
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "A returned candidate set at rest.",
+      "setup": {
+        "route": "/sessions/:sessionId"
+      }
+    },
+    {
+      "id": "generating",
+      "description": "A round is in flight; prior candidates stay visible and comparable.",
+      "setup": {
+        "route": "/sessions/:sessionId"
+      }
+    },
+    {
+      "id": "partial-ineligible",
+      "description": "Some candidates failed a hard constraint and are shown with their named reason rather than removed.",
+      "setup": {
+        "route": "/sessions/:sessionId"
+      }
+    },
+    {
+      "id": "all-ineligible",
+      "description": "Every candidate failed. The set is retained, commit is unavailable, and the blocking constraint is named.",
+      "setup": {
+        "route": "/sessions/:sessionId"
+      }
+    },
+    {
+      "id": "empty",
+      "description": "No round has been run yet for this session.",
+      "setup": {
+        "route": "/sessions/:sessionId"
+      }
+    },
+    {
+      "id": "budget-exceeded",
+      "description": "The per-session budget ceiling refused further generation, naming the ceiling.",
+      "setup": {
+        "route": "/sessions/:sessionId"
+      }
+    },
+    {
+      "id": "gateway-unavailable",
+      "description": "Inference is unreachable. Existing candidates remain readable and comparable; generation is refused by name.",
+      "setup": {
+        "route": "/sessions/:sessionId"
+      }
+    },
+    {
+      "id": "loading",
+      "description": "Data for this surface is in flight; skeleton structure is shown rather than a blank frame.",
+      "setup": {
+        "route": "/sessions/:sessionId"
+      }
+    },
+    {
+      "id": "partial",
+      "description": "Some data resolved and some did not; what resolved stays usable and what failed is named rather than silently omitted.",
+      "setup": {
+        "route": "/sessions/:sessionId"
+      }
+    },
+    {
+      "id": "stale",
+      "description": "Displayed data is known to be out of date relative to its source; the surface says so rather than presenting it as current.",
+      "setup": {
+        "route": "/sessions/:sessionId"
+      }
+    },
+    {
+      "id": "request-error",
+      "description": "The request failed; the specific cause is stated inline and the surface offers the action that retries it.",
+      "setup": {
+        "route": "/sessions/:sessionId"
+      }
+    }
+  ],
+  "claims": [
+    {
+      "id": "no-quality-score",
+      "type": "element-absent",
+      "statement": "No candidate card presents a single aggregate quality score anywhere in the set view.",
+      "tier": "aspirational",
+      "viewports": [
+        "desktop",
+        "mobile"
+      ],
+      "states": [
+        "default",
+        "partial-ineligible"
+      ],
+      "elements": [
+        "candidate-card",
+        "measurement-chips"
+      ],
+      "rationale": "The scenario's central design rule. A single number invites ranking, and ranking by taste re-imposes the typicality bias the whole scenario exists to counteract. A feature vector invites reading instead. (Tier: aspirational until the UI exists and accessibility captures can join these bindings; promote to machine at that point \u2014 the binding testids above are the contract the UI must satisfy.)"
+    },
+    {
+      "id": "no-default-quality-ordering",
+      "type": "state-distinct",
+      "statement": "The set carries no default ordering by any quality proxy; ordering is generation order or axis cell until the operator explicitly re-sorts.",
+      "tier": "aspirational",
+      "viewports": [
+        "desktop",
+        "mobile"
+      ],
+      "states": [
+        "default"
+      ],
+      "elements": [
+        "candidate-card",
+        "sort-control"
+      ],
+      "rationale": "Ordering is a nudge. Ordering by the model's own uncalibrated ordering signal would be a nudge derived from a number already declared meaningless. (Tier: aspirational until the UI exists and accessibility captures can join these bindings; promote to machine at that point \u2014 the binding testids above are the contract the UI must satisfy.)"
+    },
+    {
+      "id": "ineligible-retained-and-named",
+      "type": "state-distinct",
+      "statement": "An ineligible candidate is perceivably distinct from an eligible one and states its named failing constraint, rather than being absent from the set.",
+      "tier": "aspirational",
+      "viewports": [
+        "desktop",
+        "mobile"
+      ],
+      "states": [
+        "partial-ineligible",
+        "all-ineligible"
+      ],
+      "elements": [
+        "candidate-card",
+        "ineligibility-reason"
+      ],
+      "rationale": "Dropping ineligible candidates would hide the shape of the distribution and make a constraint look like a generation failure. (Tier: aspirational until the UI exists and accessibility captures can join these bindings; promote to machine at that point \u2014 the binding testids above are the contract the UI must satisfy.)"
+    },
+    {
+      "id": "diversity-states-its-basis",
+      "type": "element-present",
+      "statement": "Set diversity is always shown with the metric basis that produced it.",
+      "tier": "aspirational",
+      "viewports": [
+        "desktop",
+        "mobile"
+      ],
+      "states": [
+        "default"
+      ],
+      "elements": [
+        "set-diversity"
+      ],
+      "rationale": "A bare diversity number is not interpretable and invites comparison across sets that are not comparable. (Tier: aspirational until the UI exists and accessibility captures can join these bindings; promote to machine at that point \u2014 the binding testids above are the contract the UI must satisfy.)"
+    },
+    {
+      "id": "disabled-commit-states-reason",
+      "type": "state-distinct",
+      "statement": "Whenever commit is unavailable its specific cause is stated inline.",
+      "tier": "aspirational",
+      "viewports": [
+        "desktop",
+        "mobile"
+      ],
+      "states": [
+        "all-ineligible",
+        "budget-exceeded",
+        "empty"
+      ],
+      "elements": [
+        "commit-action"
+      ],
+      "rationale": "A dead control with no explanation is the failure this surface exists to prevent. (Tier: aspirational until the UI exists and accessibility captures can join these bindings; promote to machine at that point \u2014 the binding testids above are the contract the UI must satisfy.)"
+    },
+    {
+      "id": "sparkline-has-text-alternative",
+      "type": "element-present",
+      "statement": "Every sparkline carries a text alternative stating its underlying numbers.",
+      "tier": "aspirational",
+      "viewports": [
+        "desktop",
+        "mobile"
+      ],
+      "states": [
+        "default"
+      ],
+      "elements": [
+        "measurement-chips"
+      ],
+      "rationale": "Measurement is the product. A screen-reader user must compare candidates on the same evidence a sighted user sees. (Tier: aspirational until the UI exists and accessibility captures can join these bindings; promote to machine at that point \u2014 the binding testids above are the contract the UI must satisfy.)"
+    },
+    {
+      "id": "keyboard-converge",
+      "type": "keyboard-reachable",
+      "statement": "Pin, reject, and commit are reachable and operable by keyboard alone across the whole set.",
+      "tier": "aspirational",
+      "viewports": [
+        "desktop",
+        "mobile"
+      ],
+      "states": [
+        "default",
+        "partial-ineligible"
+      ],
+      "elements": [
+        "pin-action",
+        "reject-action",
+        "commit-action"
+      ],
+      "rationale": "Converging a set is the primary task; it must not require a pointer. (Tier: aspirational until the UI exists and accessibility captures can join these bindings; promote to machine at that point \u2014 the binding testids above are the contract the UI must satisfy.)"
+    },
+    {
+      "id": "mobile-preserves-comparison",
+      "type": "responsive-transform",
+      "statement": "On mobile the set becomes a stepwise panel sequence preserving comparison context rather than a shrunken grid.",
+      "tier": "aspirational",
+      "viewports": [
+        "desktop",
+        "mobile"
+      ],
+      "states": [
+        "default"
+      ],
+      "elements": [
+        "candidate-card"
+      ],
+      "rationale": "Comparing two long passages in a narrow column is the one degradation this surface must not accept."
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "candidate-card": {
+        "testid": "candidate-card"
+      },
+      "measurement-chips": {
+        "testid": "measurement-chips"
+      },
+      "ineligibility-reason": {
+        "testid": "ineligibility-reason"
+      },
+      "set-diversity": {
+        "testid": "set-diversity"
+      },
+      "pin-action": {
+        "testid": "pin-action"
+      },
+      "reject-action": {
+        "testid": "reject-action"
+      },
+      "none-of-these-action": {
+        "testid": "none-of-these-action"
+      },
+      "commit-action": {
+        "testid": "commit-action"
+      },
+      "sort-control": {
+        "testid": "sort-control"
+      }
+    }
+  }
+}

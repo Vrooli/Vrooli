@@ -1,0 +1,75 @@
+{
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-index",
+  "contract": {
+    "kind": "scenario-experience",
+    "schema": "scenario-experience-spec/v1"
+  },
+  "schemaVersion": "1.0.0",
+  "scenario": "prose-studio",
+  "description": "Experience contract for Prose Studio. The scenario's central UX rule is that the interface must not rank candidates by taste: no per-card quality score, no default ordering by a quality proxy, and measurements shown as a feature vector rather than a verdict. Every disabled control states its specific cause inline.",
+  "pages": [
+    {
+      "id": "dashboard",
+      "path": "pages/dashboard.json",
+      "title": "Dashboard",
+      "status": "active"
+    },
+    {
+      "id": "variation-board",
+      "path": "pages/variation-board.json",
+      "title": "Variation Board",
+      "status": "active"
+    },
+    {
+      "id": "style-library",
+      "path": "pages/style-library.json",
+      "title": "Style Library",
+      "status": "active"
+    },
+    {
+      "id": "document-workspace",
+      "path": "pages/document-workspace.json",
+      "title": "Document Workspace",
+      "status": "active"
+    },
+    {
+      "id": "declaration-registry",
+      "path": "pages/declaration-registry.json",
+      "title": "Declaration Registry",
+      "status": "active"
+    },
+    {
+      "id": "settings",
+      "path": "pages/settings.json",
+      "title": "Settings",
+      "status": "active"
+    },
+    {
+      "id": "notes",
+      "path": "pages/notes.json",
+      "title": "Notes",
+      "status": "active"
+    }
+  ],
+  "journeys": [
+    {
+      "id": "blog-post-from-declared-style",
+      "path": "journeys/blog-post-from-declared-style.json",
+      "title": "Produce a blog post from a consumer-declared style",
+      "status": "active"
+    },
+    {
+      "id": "diagnose-a-refused-profile",
+      "path": "journeys/diagnose-a-refused-profile.json",
+      "title": "Diagnose why a profile will not generate",
+      "status": "active"
+    },
+    {
+      "id": "converge-a-single-passage",
+      "path": "journeys/converge-a-single-passage.json",
+      "title": "Converge one passage without ranking by taste",
+      "status": "active"
+    }
+  ]
+}
