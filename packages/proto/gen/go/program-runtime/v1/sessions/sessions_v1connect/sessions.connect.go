@@ -42,6 +42,9 @@ const (
 	// SessionServiceListSessionsProcedure is the fully-qualified name of the SessionService's
 	// ListSessions RPC.
 	SessionServiceListSessionsProcedure = "/vrooli.program_runtime.v1.sessions.SessionService/ListSessions"
+	// SessionServiceListDelegationsProcedure is the fully-qualified name of the SessionService's
+	// ListDelegations RPC.
+	SessionServiceListDelegationsProcedure = "/vrooli.program_runtime.v1.sessions.SessionService/ListDelegations"
 	// SessionServiceDeleteSessionProcedure is the fully-qualified name of the SessionService's
 	// DeleteSession RPC.
 	SessionServiceDeleteSessionProcedure = "/vrooli.program_runtime.v1.sessions.SessionService/DeleteSession"
@@ -56,6 +59,7 @@ type SessionServiceClient interface {
 	CreateSession(context.Context, *connect.Request[sessions.CreateSessionRequest]) (*connect.Response[sessions.CreateSessionResponse], error)
 	GetSession(context.Context, *connect.Request[sessions.GetSessionRequest]) (*connect.Response[sessions.GetSessionResponse], error)
 	ListSessions(context.Context, *connect.Request[sessions.ListSessionsRequest]) (*connect.Response[sessions.ListSessionsResponse], error)
+	ListDelegations(context.Context, *connect.Request[sessions.ListDelegationsRequest]) (*connect.Response[sessions.ListDelegationsResponse], error)
 	DeleteSession(context.Context, *connect.Request[sessions.DeleteSessionRequest]) (*connect.Response[sessions.DeleteSessionResponse], error)
 	GrantSession(context.Context, *connect.Request[sessions.GrantSessionRequest]) (*connect.Response[sessions.GrantSessionResponse], error)
 }
@@ -90,6 +94,12 @@ func NewSessionServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(sessionServiceMethods.ByName("ListSessions")),
 			connect.WithClientOptions(opts...),
 		),
+		listDelegations: connect.NewClient[sessions.ListDelegationsRequest, sessions.ListDelegationsResponse](
+			httpClient,
+			baseURL+SessionServiceListDelegationsProcedure,
+			connect.WithSchema(sessionServiceMethods.ByName("ListDelegations")),
+			connect.WithClientOptions(opts...),
+		),
 		deleteSession: connect.NewClient[sessions.DeleteSessionRequest, sessions.DeleteSessionResponse](
 			httpClient,
 			baseURL+SessionServiceDeleteSessionProcedure,
@@ -107,11 +117,12 @@ func NewSessionServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 
 // sessionServiceClient implements SessionServiceClient.
 type sessionServiceClient struct {
-	createSession *connect.Client[sessions.CreateSessionRequest, sessions.CreateSessionResponse]
-	getSession    *connect.Client[sessions.GetSessionRequest, sessions.GetSessionResponse]
-	listSessions  *connect.Client[sessions.ListSessionsRequest, sessions.ListSessionsResponse]
-	deleteSession *connect.Client[sessions.DeleteSessionRequest, sessions.DeleteSessionResponse]
-	grantSession  *connect.Client[sessions.GrantSessionRequest, sessions.GrantSessionResponse]
+	createSession   *connect.Client[sessions.CreateSessionRequest, sessions.CreateSessionResponse]
+	getSession      *connect.Client[sessions.GetSessionRequest, sessions.GetSessionResponse]
+	listSessions    *connect.Client[sessions.ListSessionsRequest, sessions.ListSessionsResponse]
+	listDelegations *connect.Client[sessions.ListDelegationsRequest, sessions.ListDelegationsResponse]
+	deleteSession   *connect.Client[sessions.DeleteSessionRequest, sessions.DeleteSessionResponse]
+	grantSession    *connect.Client[sessions.GrantSessionRequest, sessions.GrantSessionResponse]
 }
 
 // CreateSession calls vrooli.program_runtime.v1.sessions.SessionService.CreateSession.
@@ -127,6 +138,11 @@ func (c *sessionServiceClient) GetSession(ctx context.Context, req *connect.Requ
 // ListSessions calls vrooli.program_runtime.v1.sessions.SessionService.ListSessions.
 func (c *sessionServiceClient) ListSessions(ctx context.Context, req *connect.Request[sessions.ListSessionsRequest]) (*connect.Response[sessions.ListSessionsResponse], error) {
 	return c.listSessions.CallUnary(ctx, req)
+}
+
+// ListDelegations calls vrooli.program_runtime.v1.sessions.SessionService.ListDelegations.
+func (c *sessionServiceClient) ListDelegations(ctx context.Context, req *connect.Request[sessions.ListDelegationsRequest]) (*connect.Response[sessions.ListDelegationsResponse], error) {
+	return c.listDelegations.CallUnary(ctx, req)
 }
 
 // DeleteSession calls vrooli.program_runtime.v1.sessions.SessionService.DeleteSession.
@@ -145,6 +161,7 @@ type SessionServiceHandler interface {
 	CreateSession(context.Context, *connect.Request[sessions.CreateSessionRequest]) (*connect.Response[sessions.CreateSessionResponse], error)
 	GetSession(context.Context, *connect.Request[sessions.GetSessionRequest]) (*connect.Response[sessions.GetSessionResponse], error)
 	ListSessions(context.Context, *connect.Request[sessions.ListSessionsRequest]) (*connect.Response[sessions.ListSessionsResponse], error)
+	ListDelegations(context.Context, *connect.Request[sessions.ListDelegationsRequest]) (*connect.Response[sessions.ListDelegationsResponse], error)
 	DeleteSession(context.Context, *connect.Request[sessions.DeleteSessionRequest]) (*connect.Response[sessions.DeleteSessionResponse], error)
 	GrantSession(context.Context, *connect.Request[sessions.GrantSessionRequest]) (*connect.Response[sessions.GrantSessionResponse], error)
 }
@@ -174,6 +191,12 @@ func NewSessionServiceHandler(svc SessionServiceHandler, opts ...connect.Handler
 		connect.WithSchema(sessionServiceMethods.ByName("ListSessions")),
 		connect.WithHandlerOptions(opts...),
 	)
+	sessionServiceListDelegationsHandler := connect.NewUnaryHandler(
+		SessionServiceListDelegationsProcedure,
+		svc.ListDelegations,
+		connect.WithSchema(sessionServiceMethods.ByName("ListDelegations")),
+		connect.WithHandlerOptions(opts...),
+	)
 	sessionServiceDeleteSessionHandler := connect.NewUnaryHandler(
 		SessionServiceDeleteSessionProcedure,
 		svc.DeleteSession,
@@ -194,6 +217,8 @@ func NewSessionServiceHandler(svc SessionServiceHandler, opts ...connect.Handler
 			sessionServiceGetSessionHandler.ServeHTTP(w, r)
 		case SessionServiceListSessionsProcedure:
 			sessionServiceListSessionsHandler.ServeHTTP(w, r)
+		case SessionServiceListDelegationsProcedure:
+			sessionServiceListDelegationsHandler.ServeHTTP(w, r)
 		case SessionServiceDeleteSessionProcedure:
 			sessionServiceDeleteSessionHandler.ServeHTTP(w, r)
 		case SessionServiceGrantSessionProcedure:
@@ -217,6 +242,10 @@ func (UnimplementedSessionServiceHandler) GetSession(context.Context, *connect.R
 
 func (UnimplementedSessionServiceHandler) ListSessions(context.Context, *connect.Request[sessions.ListSessionsRequest]) (*connect.Response[sessions.ListSessionsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.program_runtime.v1.sessions.SessionService.ListSessions is not implemented"))
+}
+
+func (UnimplementedSessionServiceHandler) ListDelegations(context.Context, *connect.Request[sessions.ListDelegationsRequest]) (*connect.Response[sessions.ListDelegationsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.program_runtime.v1.sessions.SessionService.ListDelegations is not implemented"))
 }
 
 func (UnimplementedSessionServiceHandler) DeleteSession(context.Context, *connect.Request[sessions.DeleteSessionRequest]) (*connect.Response[sessions.DeleteSessionResponse], error) {

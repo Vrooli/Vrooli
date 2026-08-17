@@ -31,7 +31,7 @@ PROGRAM_RUNNING: EventKind
 PROGRAM_CANCELLED: EventKind
 
 class ProgramEvent(_message.Message):
-    __slots__ = ("event_id", "occurred_at", "kind", "program_id", "session_id", "binding_id", "effect", "provenance", "failure_shape", "context_bytes", "reason", "failure_location")
+    __slots__ = ("event_id", "occurred_at", "kind", "program_id", "session_id", "binding_id", "effect", "provenance", "failure_shape", "context_bytes", "reason", "failure_location", "sequence")
     EVENT_ID_FIELD_NUMBER: _ClassVar[int]
     OCCURRED_AT_FIELD_NUMBER: _ClassVar[int]
     KIND_FIELD_NUMBER: _ClassVar[int]
@@ -44,6 +44,7 @@ class ProgramEvent(_message.Message):
     CONTEXT_BYTES_FIELD_NUMBER: _ClassVar[int]
     REASON_FIELD_NUMBER: _ClassVar[int]
     FAILURE_LOCATION_FIELD_NUMBER: _ClassVar[int]
+    SEQUENCE_FIELD_NUMBER: _ClassVar[int]
     event_id: str
     occurred_at: str
     kind: EventKind
@@ -56,7 +57,8 @@ class ProgramEvent(_message.Message):
     context_bytes: int
     reason: str
     failure_location: str
-    def __init__(self, event_id: _Optional[str] = ..., occurred_at: _Optional[str] = ..., kind: _Optional[_Union[EventKind, str]] = ..., program_id: _Optional[str] = ..., session_id: _Optional[str] = ..., binding_id: _Optional[str] = ..., effect: _Optional[str] = ..., provenance: _Optional[str] = ..., failure_shape: _Optional[str] = ..., context_bytes: _Optional[int] = ..., reason: _Optional[str] = ..., failure_location: _Optional[str] = ...) -> None: ...
+    sequence: int
+    def __init__(self, event_id: _Optional[str] = ..., occurred_at: _Optional[str] = ..., kind: _Optional[_Union[EventKind, str]] = ..., program_id: _Optional[str] = ..., session_id: _Optional[str] = ..., binding_id: _Optional[str] = ..., effect: _Optional[str] = ..., provenance: _Optional[str] = ..., failure_shape: _Optional[str] = ..., context_bytes: _Optional[int] = ..., reason: _Optional[str] = ..., failure_location: _Optional[str] = ..., sequence: _Optional[int] = ...) -> None: ...
 
 class ListEventsRequest(_message.Message):
     __slots__ = ("session_id", "kind")

@@ -174,20 +174,22 @@ class OperatorInputField(_message.Message):
     def __init__(self, path: _Optional[str] = ..., status: _Optional[str] = ..., written: _Optional[bool] = ..., unit: _Optional[str] = ..., window_days: _Optional[int] = ..., observed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., kind: _Optional[str] = ..., reason: _Optional[str] = ...) -> None: ...
 
 class OperatorImportRequest(_message.Message):
-    __slots__ = ("source_path", "source_mode", "apply", "adapter_id", "book_id", "account_id")
+    __slots__ = ("source_path", "source_mode", "apply", "adapter_id", "book_id", "account_id", "source_json")
     SOURCE_PATH_FIELD_NUMBER: _ClassVar[int]
     SOURCE_MODE_FIELD_NUMBER: _ClassVar[int]
     APPLY_FIELD_NUMBER: _ClassVar[int]
     ADAPTER_ID_FIELD_NUMBER: _ClassVar[int]
     BOOK_ID_FIELD_NUMBER: _ClassVar[int]
     ACCOUNT_ID_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_JSON_FIELD_NUMBER: _ClassVar[int]
     source_path: str
     source_mode: SourceMode
     apply: bool
     adapter_id: str
     book_id: str
     account_id: str
-    def __init__(self, source_path: _Optional[str] = ..., source_mode: _Optional[_Union[SourceMode, str]] = ..., apply: _Optional[bool] = ..., adapter_id: _Optional[str] = ..., book_id: _Optional[str] = ..., account_id: _Optional[str] = ...) -> None: ...
+    source_json: bytes
+    def __init__(self, source_path: _Optional[str] = ..., source_mode: _Optional[_Union[SourceMode, str]] = ..., apply: _Optional[bool] = ..., adapter_id: _Optional[str] = ..., book_id: _Optional[str] = ..., account_id: _Optional[str] = ..., source_json: _Optional[bytes] = ...) -> None: ...
 
 class OperatorImportResponse(_message.Message):
     __slots__ = ("fields", "read", "written", "findings", "applied")
@@ -202,3 +204,15 @@ class OperatorImportResponse(_message.Message):
     findings: int
     applied: bool
     def __init__(self, fields: _Optional[_Iterable[_Union[OperatorInputField, _Mapping]]] = ..., read: _Optional[int] = ..., written: _Optional[int] = ..., findings: _Optional[int] = ..., applied: _Optional[bool] = ...) -> None: ...
+
+class OperatorInputStatusRequest(_message.Message):
+    __slots__ = ("book_id",)
+    BOOK_ID_FIELD_NUMBER: _ClassVar[int]
+    book_id: str
+    def __init__(self, book_id: _Optional[str] = ...) -> None: ...
+
+class OperatorInputStatusResponse(_message.Message):
+    __slots__ = ("fields",)
+    FIELDS_FIELD_NUMBER: _ClassVar[int]
+    fields: _containers.RepeatedCompositeFieldContainer[OperatorInputField]
+    def __init__(self, fields: _Optional[_Iterable[_Union[OperatorInputField, _Mapping]]] = ...) -> None: ...

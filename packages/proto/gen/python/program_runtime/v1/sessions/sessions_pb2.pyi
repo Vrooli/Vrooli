@@ -96,6 +96,34 @@ class ListSessionsResponse(_message.Message):
     count: int
     def __init__(self, sessions: _Optional[_Iterable[_Union[Session, _Mapping]]] = ..., count: _Optional[int] = ...) -> None: ...
 
+class Delegation(_message.Message):
+    __slots__ = ("session_id", "execution_id", "owner", "workflow_key", "created_at", "last_status")
+    SESSION_ID_FIELD_NUMBER: _ClassVar[int]
+    EXECUTION_ID_FIELD_NUMBER: _ClassVar[int]
+    OWNER_FIELD_NUMBER: _ClassVar[int]
+    WORKFLOW_KEY_FIELD_NUMBER: _ClassVar[int]
+    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    LAST_STATUS_FIELD_NUMBER: _ClassVar[int]
+    session_id: str
+    execution_id: str
+    owner: str
+    workflow_key: str
+    created_at: str
+    last_status: str
+    def __init__(self, session_id: _Optional[str] = ..., execution_id: _Optional[str] = ..., owner: _Optional[str] = ..., workflow_key: _Optional[str] = ..., created_at: _Optional[str] = ..., last_status: _Optional[str] = ...) -> None: ...
+
+class ListDelegationsRequest(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class ListDelegationsResponse(_message.Message):
+    __slots__ = ("delegations", "count")
+    DELEGATIONS_FIELD_NUMBER: _ClassVar[int]
+    COUNT_FIELD_NUMBER: _ClassVar[int]
+    delegations: _containers.RepeatedCompositeFieldContainer[Delegation]
+    count: int
+    def __init__(self, delegations: _Optional[_Iterable[_Union[Delegation, _Mapping]]] = ..., count: _Optional[int] = ...) -> None: ...
+
 class DeleteSessionRequest(_message.Message):
     __slots__ = ("id", "reason")
     ID_FIELD_NUMBER: _ClassVar[int]

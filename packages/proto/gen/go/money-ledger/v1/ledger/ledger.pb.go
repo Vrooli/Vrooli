@@ -76,6 +76,64 @@ func (SustainPeriodUnit) EnumDescriptor() ([]byte, []int) {
 	return file_money_ledger_v1_ledger_ledger_proto_rawDescGZIP(), []int{0}
 }
 
+type AccountKind int32
+
+const (
+	AccountKind_ACCOUNT_KIND_UNSPECIFIED AccountKind = 0
+	AccountKind_ASSET                    AccountKind = 1
+	AccountKind_LIABILITY                AccountKind = 2
+	AccountKind_REVENUE                  AccountKind = 3
+	AccountKind_EXPENSE                  AccountKind = 4
+	AccountKind_EQUITY                   AccountKind = 5
+)
+
+// Enum value maps for AccountKind.
+var (
+	AccountKind_name = map[int32]string{
+		0: "ACCOUNT_KIND_UNSPECIFIED",
+		1: "ASSET",
+		2: "LIABILITY",
+		3: "REVENUE",
+		4: "EXPENSE",
+		5: "EQUITY",
+	}
+	AccountKind_value = map[string]int32{
+		"ACCOUNT_KIND_UNSPECIFIED": 0,
+		"ASSET":                    1,
+		"LIABILITY":                2,
+		"REVENUE":                  3,
+		"EXPENSE":                  4,
+		"EQUITY":                   5,
+	}
+)
+
+func (x AccountKind) Enum() *AccountKind {
+	p := new(AccountKind)
+	*p = x
+	return p
+}
+
+func (x AccountKind) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (AccountKind) Descriptor() protoreflect.EnumDescriptor {
+	return file_money_ledger_v1_ledger_ledger_proto_enumTypes[1].Descriptor()
+}
+
+func (AccountKind) Type() protoreflect.EnumType {
+	return &file_money_ledger_v1_ledger_ledger_proto_enumTypes[1]
+}
+
+func (x AccountKind) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use AccountKind.Descriptor instead.
+func (AccountKind) EnumDescriptor() ([]byte, []int) {
+	return file_money_ledger_v1_ledger_ledger_proto_rawDescGZIP(), []int{1}
+}
+
 type Availability struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	AdapterId     string                 `protobuf:"bytes,1,opt,name=adapter_id,json=adapterId,proto3" json:"adapter_id,omitempty"`
@@ -142,6 +200,7 @@ type Book struct {
 	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	Currency      string                 `protobuf:"bytes,3,opt,name=currency,proto3" json:"currency,omitempty"`
 	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	Archived      bool                   `protobuf:"varint,5,opt,name=archived,proto3" json:"archived,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -202,6 +261,13 @@ func (x *Book) GetCreatedAt() *timestamppb.Timestamp {
 		return x.CreatedAt
 	}
 	return nil
+}
+
+func (x *Book) GetArchived() bool {
+	if x != nil {
+		return x.Archived
+	}
+	return false
 }
 
 type Account struct {
@@ -293,6 +359,7 @@ type Goal struct {
 	ThresholdRatio    float64                `protobuf:"fixed64,9,opt,name=threshold_ratio,json=thresholdRatio,proto3" json:"threshold_ratio,omitempty"`
 	ComparandMetric   string                 `protobuf:"bytes,10,opt,name=comparand_metric,json=comparandMetric,proto3" json:"comparand_metric,omitempty"`
 	SustainPeriodUnit SustainPeriodUnit      `protobuf:"varint,11,opt,name=sustain_period_unit,json=sustainPeriodUnit,proto3,enum=vrooli.money_ledger.v1.ledger.SustainPeriodUnit" json:"sustain_period_unit,omitempty"`
+	Archived          bool                   `protobuf:"varint,12,opt,name=archived,proto3" json:"archived,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
@@ -402,6 +469,13 @@ func (x *Goal) GetSustainPeriodUnit() SustainPeriodUnit {
 		return x.SustainPeriodUnit
 	}
 	return SustainPeriodUnit_SUSTAIN_PERIOD_UNIT_UNSPECIFIED
+}
+
+func (x *Goal) GetArchived() bool {
+	if x != nil {
+		return x.Archived
+	}
+	return false
 }
 
 type GoalVerdict struct {
@@ -585,9 +659,10 @@ func (x *CreateBookResponse) GetBook() *Book {
 }
 
 type ListBooksRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	IncludeArchived bool                   `protobuf:"varint,1,opt,name=include_archived,json=includeArchived,proto3" json:"include_archived,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *ListBooksRequest) Reset() {
@@ -618,6 +693,13 @@ func (x *ListBooksRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use ListBooksRequest.ProtoReflect.Descriptor instead.
 func (*ListBooksRequest) Descriptor() ([]byte, []int) {
 	return file_money_ledger_v1_ledger_ledger_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *ListBooksRequest) GetIncludeArchived() bool {
+	if x != nil {
+		return x.IncludeArchived
+	}
+	return false
 }
 
 type ListBooksResponse struct {
@@ -668,7 +750,7 @@ type CreateAccountRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	BookId        string                 `protobuf:"bytes,1,opt,name=book_id,json=bookId,proto3" json:"book_id,omitempty"`
 	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Kind          string                 `protobuf:"bytes,3,opt,name=kind,proto3" json:"kind,omitempty"`
+	AccountKind   AccountKind            `protobuf:"varint,3,opt,name=account_kind,json=accountKind,proto3,enum=vrooli.money_ledger.v1.ledger.AccountKind" json:"account_kind,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -717,11 +799,11 @@ func (x *CreateAccountRequest) GetName() string {
 	return ""
 }
 
-func (x *CreateAccountRequest) GetKind() string {
+func (x *CreateAccountRequest) GetAccountKind() AccountKind {
 	if x != nil {
-		return x.Kind
+		return x.AccountKind
 	}
-	return ""
+	return AccountKind_ACCOUNT_KIND_UNSPECIFIED
 }
 
 type CreateAccountResponse struct {
@@ -1853,10 +1935,11 @@ func (x *DeclareGoalResponse) GetGoal() *Goal {
 }
 
 type ListGoalsRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	BookId        string                 `protobuf:"bytes,1,opt,name=book_id,json=bookId,proto3" json:"book_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	BookId          string                 `protobuf:"bytes,1,opt,name=book_id,json=bookId,proto3" json:"book_id,omitempty"`
+	IncludeArchived bool                   `protobuf:"varint,2,opt,name=include_archived,json=includeArchived,proto3" json:"include_archived,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *ListGoalsRequest) Reset() {
@@ -1894,6 +1977,13 @@ func (x *ListGoalsRequest) GetBookId() string {
 		return x.BookId
 	}
 	return ""
+}
+
+func (x *ListGoalsRequest) GetIncludeArchived() bool {
+	if x != nil {
+		return x.IncludeArchived
+	}
+	return false
 }
 
 type ListGoalsResponse struct {
@@ -1940,6 +2030,302 @@ func (x *ListGoalsResponse) GetGoals() []*GoalVerdict {
 	return nil
 }
 
+type ArchiveBookRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	BookId        string                 `protobuf:"bytes,1,opt,name=book_id,json=bookId,proto3" json:"book_id,omitempty"`
+	Actor         string                 `protobuf:"bytes,2,opt,name=actor,proto3" json:"actor,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ArchiveBookRequest) Reset() {
+	*x = ArchiveBookRequest{}
+	mi := &file_money_ledger_v1_ledger_ledger_proto_msgTypes[30]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ArchiveBookRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ArchiveBookRequest) ProtoMessage() {}
+
+func (x *ArchiveBookRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_money_ledger_v1_ledger_ledger_proto_msgTypes[30]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ArchiveBookRequest.ProtoReflect.Descriptor instead.
+func (*ArchiveBookRequest) Descriptor() ([]byte, []int) {
+	return file_money_ledger_v1_ledger_ledger_proto_rawDescGZIP(), []int{30}
+}
+
+func (x *ArchiveBookRequest) GetBookId() string {
+	if x != nil {
+		return x.BookId
+	}
+	return ""
+}
+
+func (x *ArchiveBookRequest) GetActor() string {
+	if x != nil {
+		return x.Actor
+	}
+	return ""
+}
+
+type ArchiveBookResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Book          *Book                  `protobuf:"bytes,1,opt,name=book,proto3" json:"book,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ArchiveBookResponse) Reset() {
+	*x = ArchiveBookResponse{}
+	mi := &file_money_ledger_v1_ledger_ledger_proto_msgTypes[31]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ArchiveBookResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ArchiveBookResponse) ProtoMessage() {}
+
+func (x *ArchiveBookResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_money_ledger_v1_ledger_ledger_proto_msgTypes[31]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ArchiveBookResponse.ProtoReflect.Descriptor instead.
+func (*ArchiveBookResponse) Descriptor() ([]byte, []int) {
+	return file_money_ledger_v1_ledger_ledger_proto_rawDescGZIP(), []int{31}
+}
+
+func (x *ArchiveBookResponse) GetBook() *Book {
+	if x != nil {
+		return x.Book
+	}
+	return nil
+}
+
+type ArchiveGoalRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	GoalId        string                 `protobuf:"bytes,1,opt,name=goal_id,json=goalId,proto3" json:"goal_id,omitempty"`
+	Actor         string                 `protobuf:"bytes,2,opt,name=actor,proto3" json:"actor,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ArchiveGoalRequest) Reset() {
+	*x = ArchiveGoalRequest{}
+	mi := &file_money_ledger_v1_ledger_ledger_proto_msgTypes[32]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ArchiveGoalRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ArchiveGoalRequest) ProtoMessage() {}
+
+func (x *ArchiveGoalRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_money_ledger_v1_ledger_ledger_proto_msgTypes[32]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ArchiveGoalRequest.ProtoReflect.Descriptor instead.
+func (*ArchiveGoalRequest) Descriptor() ([]byte, []int) {
+	return file_money_ledger_v1_ledger_ledger_proto_rawDescGZIP(), []int{32}
+}
+
+func (x *ArchiveGoalRequest) GetGoalId() string {
+	if x != nil {
+		return x.GoalId
+	}
+	return ""
+}
+
+func (x *ArchiveGoalRequest) GetActor() string {
+	if x != nil {
+		return x.Actor
+	}
+	return ""
+}
+
+type ArchiveGoalResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Goal          *Goal                  `protobuf:"bytes,1,opt,name=goal,proto3" json:"goal,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ArchiveGoalResponse) Reset() {
+	*x = ArchiveGoalResponse{}
+	mi := &file_money_ledger_v1_ledger_ledger_proto_msgTypes[33]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ArchiveGoalResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ArchiveGoalResponse) ProtoMessage() {}
+
+func (x *ArchiveGoalResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_money_ledger_v1_ledger_ledger_proto_msgTypes[33]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ArchiveGoalResponse.ProtoReflect.Descriptor instead.
+func (*ArchiveGoalResponse) Descriptor() ([]byte, []int) {
+	return file_money_ledger_v1_ledger_ledger_proto_rawDescGZIP(), []int{33}
+}
+
+func (x *ArchiveGoalResponse) GetGoal() *Goal {
+	if x != nil {
+		return x.Goal
+	}
+	return nil
+}
+
+type ReparentGoalRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	GoalId        string                 `protobuf:"bytes,1,opt,name=goal_id,json=goalId,proto3" json:"goal_id,omitempty"`
+	BookId        string                 `protobuf:"bytes,2,opt,name=book_id,json=bookId,proto3" json:"book_id,omitempty"`
+	Actor         string                 `protobuf:"bytes,3,opt,name=actor,proto3" json:"actor,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReparentGoalRequest) Reset() {
+	*x = ReparentGoalRequest{}
+	mi := &file_money_ledger_v1_ledger_ledger_proto_msgTypes[34]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReparentGoalRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReparentGoalRequest) ProtoMessage() {}
+
+func (x *ReparentGoalRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_money_ledger_v1_ledger_ledger_proto_msgTypes[34]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReparentGoalRequest.ProtoReflect.Descriptor instead.
+func (*ReparentGoalRequest) Descriptor() ([]byte, []int) {
+	return file_money_ledger_v1_ledger_ledger_proto_rawDescGZIP(), []int{34}
+}
+
+func (x *ReparentGoalRequest) GetGoalId() string {
+	if x != nil {
+		return x.GoalId
+	}
+	return ""
+}
+
+func (x *ReparentGoalRequest) GetBookId() string {
+	if x != nil {
+		return x.BookId
+	}
+	return ""
+}
+
+func (x *ReparentGoalRequest) GetActor() string {
+	if x != nil {
+		return x.Actor
+	}
+	return ""
+}
+
+type ReparentGoalResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Goal          *Goal                  `protobuf:"bytes,1,opt,name=goal,proto3" json:"goal,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReparentGoalResponse) Reset() {
+	*x = ReparentGoalResponse{}
+	mi := &file_money_ledger_v1_ledger_ledger_proto_msgTypes[35]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReparentGoalResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReparentGoalResponse) ProtoMessage() {}
+
+func (x *ReparentGoalResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_money_ledger_v1_ledger_ledger_proto_msgTypes[35]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReparentGoalResponse.ProtoReflect.Descriptor instead.
+func (*ReparentGoalResponse) Descriptor() ([]byte, []int) {
+	return file_money_ledger_v1_ledger_ledger_proto_rawDescGZIP(), []int{35}
+}
+
+func (x *ReparentGoalResponse) GetGoal() *Goal {
+	if x != nil {
+		return x.Goal
+	}
+	return nil
+}
+
 var File_money_ledger_v1_ledger_ledger_proto protoreflect.FileDescriptor
 
 const file_money_ledger_v1_ledger_ledger_proto_rawDesc = "" +
@@ -1949,20 +2335,21 @@ const file_money_ledger_v1_ledger_ledger_proto_rawDesc = "" +
 	"\n" +
 	"adapter_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tadapterId\x12\x1f\n" +
 	"\x06reason\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06reason\x12B\n" +
-	"\x0flast_success_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\rlastSuccessAt\"\x81\x01\n" +
+	"\x0flast_success_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\rlastSuccessAt\"\x9d\x01\n" +
 	"\x04Book\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1a\n" +
 	"\bcurrency\x18\x03 \x01(\tR\bcurrency\x129\n" +
 	"\n" +
-	"created_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\"\x95\x01\n" +
+	"created_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12\x1a\n" +
+	"\barchived\x18\x05 \x01(\bR\barchived\"\x95\x01\n" +
 	"\aAccount\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n" +
 	"\abook_id\x18\x02 \x01(\tR\x06bookId\x12\x12\n" +
 	"\x04name\x18\x03 \x01(\tR\x04name\x12\x12\n" +
 	"\x04kind\x18\x04 \x01(\tR\x04kind\x129\n" +
 	"\n" +
-	"created_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\"\xac\x03\n" +
+	"created_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\"\xc8\x03\n" +
 	"\x04Goal\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x16\n" +
@@ -1977,7 +2364,8 @@ const file_money_ledger_v1_ledger_ledger_proto_rawDesc = "" +
 	"\x0fthreshold_ratio\x18\t \x01(\x01R\x0ethresholdRatio\x12)\n" +
 	"\x10comparand_metric\x18\n" +
 	" \x01(\tR\x0fcomparandMetric\x12`\n" +
-	"\x13sustain_period_unit\x18\v \x01(\x0e20.vrooli.money_ledger.v1.ledger.SustainPeriodUnitR\x11sustainPeriodUnit\"\xa5\x02\n" +
+	"\x13sustain_period_unit\x18\v \x01(\x0e20.vrooli.money_ledger.v1.ledger.SustainPeriodUnitR\x11sustainPeriodUnit\x12\x1a\n" +
+	"\barchived\x18\f \x01(\bR\barchived\"\xa5\x02\n" +
 	"\vGoalVerdict\x127\n" +
 	"\x04goal\x18\x01 \x01(\v2#.vrooli.money_ledger.v1.ledger.GoalR\x04goal\x12\x10\n" +
 	"\x03met\x18\x02 \x01(\bR\x03met\x12+\n" +
@@ -1990,14 +2378,15 @@ const file_money_ledger_v1_ledger_ledger_proto_rawDesc = "" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1a\n" +
 	"\bcurrency\x18\x02 \x01(\tR\bcurrency\"M\n" +
 	"\x12CreateBookResponse\x127\n" +
-	"\x04book\x18\x01 \x01(\v2#.vrooli.money_ledger.v1.ledger.BookR\x04book\"\x12\n" +
-	"\x10ListBooksRequest\"N\n" +
+	"\x04book\x18\x01 \x01(\v2#.vrooli.money_ledger.v1.ledger.BookR\x04book\"=\n" +
+	"\x10ListBooksRequest\x12)\n" +
+	"\x10include_archived\x18\x01 \x01(\bR\x0fincludeArchived\"N\n" +
 	"\x11ListBooksResponse\x129\n" +
-	"\x05books\x18\x01 \x03(\v2#.vrooli.money_ledger.v1.ledger.BookR\x05books\"W\n" +
+	"\x05books\x18\x01 \x03(\v2#.vrooli.money_ledger.v1.ledger.BookR\x05books\"\x92\x01\n" +
 	"\x14CreateAccountRequest\x12\x17\n" +
 	"\abook_id\x18\x01 \x01(\tR\x06bookId\x12\x12\n" +
-	"\x04name\x18\x02 \x01(\tR\x04name\x12\x12\n" +
-	"\x04kind\x18\x03 \x01(\tR\x04kind\"Y\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12M\n" +
+	"\faccount_kind\x18\x03 \x01(\x0e2*.vrooli.money_ledger.v1.ledger.AccountKindR\vaccountKind\"Y\n" +
 	"\x15CreateAccountResponse\x12@\n" +
 	"\aaccount\x18\x01 \x01(\v2&.vrooli.money_ledger.v1.ledger.AccountR\aaccount\".\n" +
 	"\x13ListAccountsRequest\x12\x17\n" +
@@ -2085,20 +2474,46 @@ const file_money_ledger_v1_ledger_ledger_proto_rawDesc = "" +
 	"\x12DeclareGoalRequest\x12?\n" +
 	"\x04goal\x18\x01 \x01(\v2#.vrooli.money_ledger.v1.ledger.GoalB\x06\xbaH\x03\xc8\x01\x01R\x04goal\"N\n" +
 	"\x13DeclareGoalResponse\x127\n" +
-	"\x04goal\x18\x01 \x01(\v2#.vrooli.money_ledger.v1.ledger.GoalR\x04goal\"+\n" +
+	"\x04goal\x18\x01 \x01(\v2#.vrooli.money_ledger.v1.ledger.GoalR\x04goal\"V\n" +
 	"\x10ListGoalsRequest\x12\x17\n" +
-	"\abook_id\x18\x01 \x01(\tR\x06bookId\"U\n" +
+	"\abook_id\x18\x01 \x01(\tR\x06bookId\x12)\n" +
+	"\x10include_archived\x18\x02 \x01(\bR\x0fincludeArchived\"U\n" +
 	"\x11ListGoalsResponse\x12@\n" +
-	"\x05goals\x18\x01 \x03(\v2*.vrooli.money_ledger.v1.ledger.GoalVerdictR\x05goals*V\n" +
+	"\x05goals\x18\x01 \x03(\v2*.vrooli.money_ledger.v1.ledger.GoalVerdictR\x05goals\"C\n" +
+	"\x12ArchiveBookRequest\x12\x17\n" +
+	"\abook_id\x18\x01 \x01(\tR\x06bookId\x12\x14\n" +
+	"\x05actor\x18\x02 \x01(\tR\x05actor\"N\n" +
+	"\x13ArchiveBookResponse\x127\n" +
+	"\x04book\x18\x01 \x01(\v2#.vrooli.money_ledger.v1.ledger.BookR\x04book\"C\n" +
+	"\x12ArchiveGoalRequest\x12\x17\n" +
+	"\agoal_id\x18\x01 \x01(\tR\x06goalId\x12\x14\n" +
+	"\x05actor\x18\x02 \x01(\tR\x05actor\"N\n" +
+	"\x13ArchiveGoalResponse\x127\n" +
+	"\x04goal\x18\x01 \x01(\v2#.vrooli.money_ledger.v1.ledger.GoalR\x04goal\"]\n" +
+	"\x13ReparentGoalRequest\x12\x17\n" +
+	"\agoal_id\x18\x01 \x01(\tR\x06goalId\x12\x17\n" +
+	"\abook_id\x18\x02 \x01(\tR\x06bookId\x12\x14\n" +
+	"\x05actor\x18\x03 \x01(\tR\x05actor\"O\n" +
+	"\x14ReparentGoalResponse\x127\n" +
+	"\x04goal\x18\x01 \x01(\v2#.vrooli.money_ledger.v1.ledger.GoalR\x04goal*V\n" +
 	"\x11SustainPeriodUnit\x12#\n" +
 	"\x1fSUSTAIN_PERIOD_UNIT_UNSPECIFIED\x10\x00\x12\a\n" +
 	"\x03DAY\x10\x01\x12\b\n" +
 	"\x04WEEK\x10\x02\x12\t\n" +
-	"\x05MONTH\x10\x032\xe6\x03\n" +
+	"\x05MONTH\x10\x03*k\n" +
+	"\vAccountKind\x12\x1c\n" +
+	"\x18ACCOUNT_KIND_UNSPECIFIED\x10\x00\x12\t\n" +
+	"\x05ASSET\x10\x01\x12\r\n" +
+	"\tLIABILITY\x10\x02\x12\v\n" +
+	"\aREVENUE\x10\x03\x12\v\n" +
+	"\aEXPENSE\x10\x04\x12\n" +
+	"\n" +
+	"\x06EQUITY\x10\x052\xdc\x04\n" +
 	"\fBooksService\x12q\n" +
 	"\n" +
 	"CreateBook\x120.vrooli.money_ledger.v1.ledger.CreateBookRequest\x1a1.vrooli.money_ledger.v1.ledger.CreateBookResponse\x12n\n" +
-	"\tListBooks\x12/.vrooli.money_ledger.v1.ledger.ListBooksRequest\x1a0.vrooli.money_ledger.v1.ledger.ListBooksResponse\x12z\n" +
+	"\tListBooks\x12/.vrooli.money_ledger.v1.ledger.ListBooksRequest\x1a0.vrooli.money_ledger.v1.ledger.ListBooksResponse\x12t\n" +
+	"\vArchiveBook\x121.vrooli.money_ledger.v1.ledger.ArchiveBookRequest\x1a2.vrooli.money_ledger.v1.ledger.ArchiveBookResponse\x12z\n" +
 	"\rCreateAccount\x123.vrooli.money_ledger.v1.ledger.CreateAccountRequest\x1a4.vrooli.money_ledger.v1.ledger.CreateAccountResponse\x12w\n" +
 	"\fListAccounts\x122.vrooli.money_ledger.v1.ledger.ListAccountsRequest\x1a3.vrooli.money_ledger.v1.ledger.ListAccountsResponse2\xe8\x03\n" +
 	"\x0eJournalService\x12q\n" +
@@ -2106,12 +2521,14 @@ const file_money_ledger_v1_ledger_ledger_proto_rawDesc = "" +
 	"GetPosting\x120.vrooli.money_ledger.v1.ledger.GetPostingRequest\x1a1.vrooli.money_ledger.v1.ledger.GetPostingResponse\x12w\n" +
 	"\fListPostings\x122.vrooli.money_ledger.v1.ledger.ListPostingsRequest\x1a3.vrooli.money_ledger.v1.ledger.ListPostingsResponse\x12}\n" +
 	"\x0eReversePosting\x124.vrooli.money_ledger.v1.ledger.ReversePostingRequest\x1a5.vrooli.money_ledger.v1.ledger.ReversePostingResponse\x12k\n" +
-	"\bTransfer\x12..vrooli.money_ledger.v1.ledger.TransferRequest\x1a/.vrooli.money_ledger.v1.ledger.TransferResponse2\xda\x03\n" +
+	"\bTransfer\x12..vrooli.money_ledger.v1.ledger.TransferRequest\x1a/.vrooli.money_ledger.v1.ledger.TransferResponse2\xc9\x05\n" +
 	"\x0fPositionService\x12n\n" +
 	"\vGetPosition\x12..vrooli.money_ledger.v1.ledger.PositionRequest\x1a/.vrooli.money_ledger.v1.ledger.PositionResponse\x12q\n" +
 	"\fGetStatement\x12/.vrooli.money_ledger.v1.ledger.StatementRequest\x1a0.vrooli.money_ledger.v1.ledger.StatementResponse\x12t\n" +
 	"\vDeclareGoal\x121.vrooli.money_ledger.v1.ledger.DeclareGoalRequest\x1a2.vrooli.money_ledger.v1.ledger.DeclareGoalResponse\x12n\n" +
-	"\tListGoals\x12/.vrooli.money_ledger.v1.ledger.ListGoalsRequest\x1a0.vrooli.money_ledger.v1.ledger.ListGoalsResponseBQZOgithub.com/vrooli/vrooli/packages/proto/gen/go/money-ledger/v1/ledger;ledger_v1b\x06proto3"
+	"\tListGoals\x12/.vrooli.money_ledger.v1.ledger.ListGoalsRequest\x1a0.vrooli.money_ledger.v1.ledger.ListGoalsResponse\x12t\n" +
+	"\vArchiveGoal\x121.vrooli.money_ledger.v1.ledger.ArchiveGoalRequest\x1a2.vrooli.money_ledger.v1.ledger.ArchiveGoalResponse\x12w\n" +
+	"\fReparentGoal\x122.vrooli.money_ledger.v1.ledger.ReparentGoalRequest\x1a3.vrooli.money_ledger.v1.ledger.ReparentGoalResponseBQZOgithub.com/vrooli/vrooli/packages/proto/gen/go/money-ledger/v1/ledger;ledger_v1b\x06proto3"
 
 var (
 	file_money_ledger_v1_ledger_ledger_proto_rawDescOnce sync.Once
@@ -2125,96 +2542,113 @@ func file_money_ledger_v1_ledger_ledger_proto_rawDescGZIP() []byte {
 	return file_money_ledger_v1_ledger_ledger_proto_rawDescData
 }
 
-var file_money_ledger_v1_ledger_ledger_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_money_ledger_v1_ledger_ledger_proto_msgTypes = make([]protoimpl.MessageInfo, 30)
+var file_money_ledger_v1_ledger_ledger_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
+var file_money_ledger_v1_ledger_ledger_proto_msgTypes = make([]protoimpl.MessageInfo, 36)
 var file_money_ledger_v1_ledger_ledger_proto_goTypes = []any{
 	(SustainPeriodUnit)(0),         // 0: vrooli.money_ledger.v1.ledger.SustainPeriodUnit
-	(*Availability)(nil),           // 1: vrooli.money_ledger.v1.ledger.Availability
-	(*Book)(nil),                   // 2: vrooli.money_ledger.v1.ledger.Book
-	(*Account)(nil),                // 3: vrooli.money_ledger.v1.ledger.Account
-	(*Goal)(nil),                   // 4: vrooli.money_ledger.v1.ledger.Goal
-	(*GoalVerdict)(nil),            // 5: vrooli.money_ledger.v1.ledger.GoalVerdict
-	(*CreateBookRequest)(nil),      // 6: vrooli.money_ledger.v1.ledger.CreateBookRequest
-	(*CreateBookResponse)(nil),     // 7: vrooli.money_ledger.v1.ledger.CreateBookResponse
-	(*ListBooksRequest)(nil),       // 8: vrooli.money_ledger.v1.ledger.ListBooksRequest
-	(*ListBooksResponse)(nil),      // 9: vrooli.money_ledger.v1.ledger.ListBooksResponse
-	(*CreateAccountRequest)(nil),   // 10: vrooli.money_ledger.v1.ledger.CreateAccountRequest
-	(*CreateAccountResponse)(nil),  // 11: vrooli.money_ledger.v1.ledger.CreateAccountResponse
-	(*ListAccountsRequest)(nil),    // 12: vrooli.money_ledger.v1.ledger.ListAccountsRequest
-	(*ListAccountsResponse)(nil),   // 13: vrooli.money_ledger.v1.ledger.ListAccountsResponse
-	(*GetPostingRequest)(nil),      // 14: vrooli.money_ledger.v1.ledger.GetPostingRequest
-	(*GetPostingResponse)(nil),     // 15: vrooli.money_ledger.v1.ledger.GetPostingResponse
-	(*ListPostingsRequest)(nil),    // 16: vrooli.money_ledger.v1.ledger.ListPostingsRequest
-	(*ListPostingsResponse)(nil),   // 17: vrooli.money_ledger.v1.ledger.ListPostingsResponse
-	(*ReversePostingRequest)(nil),  // 18: vrooli.money_ledger.v1.ledger.ReversePostingRequest
-	(*ReversePostingResponse)(nil), // 19: vrooli.money_ledger.v1.ledger.ReversePostingResponse
-	(*TransferRequest)(nil),        // 20: vrooli.money_ledger.v1.ledger.TransferRequest
-	(*TransferResponse)(nil),       // 21: vrooli.money_ledger.v1.ledger.TransferResponse
-	(*PositionRequest)(nil),        // 22: vrooli.money_ledger.v1.ledger.PositionRequest
-	(*PositionInput)(nil),          // 23: vrooli.money_ledger.v1.ledger.PositionInput
-	(*PositionResponse)(nil),       // 24: vrooli.money_ledger.v1.ledger.PositionResponse
-	(*StatementRequest)(nil),       // 25: vrooli.money_ledger.v1.ledger.StatementRequest
-	(*StatementResponse)(nil),      // 26: vrooli.money_ledger.v1.ledger.StatementResponse
-	(*DeclareGoalRequest)(nil),     // 27: vrooli.money_ledger.v1.ledger.DeclareGoalRequest
-	(*DeclareGoalResponse)(nil),    // 28: vrooli.money_ledger.v1.ledger.DeclareGoalResponse
-	(*ListGoalsRequest)(nil),       // 29: vrooli.money_ledger.v1.ledger.ListGoalsRequest
-	(*ListGoalsResponse)(nil),      // 30: vrooli.money_ledger.v1.ledger.ListGoalsResponse
-	(*timestamppb.Timestamp)(nil),  // 31: google.protobuf.Timestamp
-	(*shared.Posting)(nil),         // 32: vrooli.money_ledger.v1.shared.Posting
-	(shared.Basis)(0),              // 33: vrooli.money_ledger.v1.shared.Basis
+	(AccountKind)(0),               // 1: vrooli.money_ledger.v1.ledger.AccountKind
+	(*Availability)(nil),           // 2: vrooli.money_ledger.v1.ledger.Availability
+	(*Book)(nil),                   // 3: vrooli.money_ledger.v1.ledger.Book
+	(*Account)(nil),                // 4: vrooli.money_ledger.v1.ledger.Account
+	(*Goal)(nil),                   // 5: vrooli.money_ledger.v1.ledger.Goal
+	(*GoalVerdict)(nil),            // 6: vrooli.money_ledger.v1.ledger.GoalVerdict
+	(*CreateBookRequest)(nil),      // 7: vrooli.money_ledger.v1.ledger.CreateBookRequest
+	(*CreateBookResponse)(nil),     // 8: vrooli.money_ledger.v1.ledger.CreateBookResponse
+	(*ListBooksRequest)(nil),       // 9: vrooli.money_ledger.v1.ledger.ListBooksRequest
+	(*ListBooksResponse)(nil),      // 10: vrooli.money_ledger.v1.ledger.ListBooksResponse
+	(*CreateAccountRequest)(nil),   // 11: vrooli.money_ledger.v1.ledger.CreateAccountRequest
+	(*CreateAccountResponse)(nil),  // 12: vrooli.money_ledger.v1.ledger.CreateAccountResponse
+	(*ListAccountsRequest)(nil),    // 13: vrooli.money_ledger.v1.ledger.ListAccountsRequest
+	(*ListAccountsResponse)(nil),   // 14: vrooli.money_ledger.v1.ledger.ListAccountsResponse
+	(*GetPostingRequest)(nil),      // 15: vrooli.money_ledger.v1.ledger.GetPostingRequest
+	(*GetPostingResponse)(nil),     // 16: vrooli.money_ledger.v1.ledger.GetPostingResponse
+	(*ListPostingsRequest)(nil),    // 17: vrooli.money_ledger.v1.ledger.ListPostingsRequest
+	(*ListPostingsResponse)(nil),   // 18: vrooli.money_ledger.v1.ledger.ListPostingsResponse
+	(*ReversePostingRequest)(nil),  // 19: vrooli.money_ledger.v1.ledger.ReversePostingRequest
+	(*ReversePostingResponse)(nil), // 20: vrooli.money_ledger.v1.ledger.ReversePostingResponse
+	(*TransferRequest)(nil),        // 21: vrooli.money_ledger.v1.ledger.TransferRequest
+	(*TransferResponse)(nil),       // 22: vrooli.money_ledger.v1.ledger.TransferResponse
+	(*PositionRequest)(nil),        // 23: vrooli.money_ledger.v1.ledger.PositionRequest
+	(*PositionInput)(nil),          // 24: vrooli.money_ledger.v1.ledger.PositionInput
+	(*PositionResponse)(nil),       // 25: vrooli.money_ledger.v1.ledger.PositionResponse
+	(*StatementRequest)(nil),       // 26: vrooli.money_ledger.v1.ledger.StatementRequest
+	(*StatementResponse)(nil),      // 27: vrooli.money_ledger.v1.ledger.StatementResponse
+	(*DeclareGoalRequest)(nil),     // 28: vrooli.money_ledger.v1.ledger.DeclareGoalRequest
+	(*DeclareGoalResponse)(nil),    // 29: vrooli.money_ledger.v1.ledger.DeclareGoalResponse
+	(*ListGoalsRequest)(nil),       // 30: vrooli.money_ledger.v1.ledger.ListGoalsRequest
+	(*ListGoalsResponse)(nil),      // 31: vrooli.money_ledger.v1.ledger.ListGoalsResponse
+	(*ArchiveBookRequest)(nil),     // 32: vrooli.money_ledger.v1.ledger.ArchiveBookRequest
+	(*ArchiveBookResponse)(nil),    // 33: vrooli.money_ledger.v1.ledger.ArchiveBookResponse
+	(*ArchiveGoalRequest)(nil),     // 34: vrooli.money_ledger.v1.ledger.ArchiveGoalRequest
+	(*ArchiveGoalResponse)(nil),    // 35: vrooli.money_ledger.v1.ledger.ArchiveGoalResponse
+	(*ReparentGoalRequest)(nil),    // 36: vrooli.money_ledger.v1.ledger.ReparentGoalRequest
+	(*ReparentGoalResponse)(nil),   // 37: vrooli.money_ledger.v1.ledger.ReparentGoalResponse
+	(*timestamppb.Timestamp)(nil),  // 38: google.protobuf.Timestamp
+	(*shared.Posting)(nil),         // 39: vrooli.money_ledger.v1.shared.Posting
+	(shared.Basis)(0),              // 40: vrooli.money_ledger.v1.shared.Basis
 }
 var file_money_ledger_v1_ledger_ledger_proto_depIdxs = []int32{
-	31, // 0: vrooli.money_ledger.v1.ledger.Availability.last_success_at:type_name -> google.protobuf.Timestamp
-	31, // 1: vrooli.money_ledger.v1.ledger.Book.created_at:type_name -> google.protobuf.Timestamp
-	31, // 2: vrooli.money_ledger.v1.ledger.Account.created_at:type_name -> google.protobuf.Timestamp
+	38, // 0: vrooli.money_ledger.v1.ledger.Availability.last_success_at:type_name -> google.protobuf.Timestamp
+	38, // 1: vrooli.money_ledger.v1.ledger.Book.created_at:type_name -> google.protobuf.Timestamp
+	38, // 2: vrooli.money_ledger.v1.ledger.Account.created_at:type_name -> google.protobuf.Timestamp
 	0,  // 3: vrooli.money_ledger.v1.ledger.Goal.sustain_period_unit:type_name -> vrooli.money_ledger.v1.ledger.SustainPeriodUnit
-	4,  // 4: vrooli.money_ledger.v1.ledger.GoalVerdict.goal:type_name -> vrooli.money_ledger.v1.ledger.Goal
+	5,  // 4: vrooli.money_ledger.v1.ledger.GoalVerdict.goal:type_name -> vrooli.money_ledger.v1.ledger.Goal
 	0,  // 5: vrooli.money_ledger.v1.ledger.GoalVerdict.period_unit:type_name -> vrooli.money_ledger.v1.ledger.SustainPeriodUnit
-	2,  // 6: vrooli.money_ledger.v1.ledger.CreateBookResponse.book:type_name -> vrooli.money_ledger.v1.ledger.Book
-	2,  // 7: vrooli.money_ledger.v1.ledger.ListBooksResponse.books:type_name -> vrooli.money_ledger.v1.ledger.Book
-	3,  // 8: vrooli.money_ledger.v1.ledger.CreateAccountResponse.account:type_name -> vrooli.money_ledger.v1.ledger.Account
-	3,  // 9: vrooli.money_ledger.v1.ledger.ListAccountsResponse.accounts:type_name -> vrooli.money_ledger.v1.ledger.Account
-	32, // 10: vrooli.money_ledger.v1.ledger.GetPostingResponse.posting:type_name -> vrooli.money_ledger.v1.shared.Posting
-	32, // 11: vrooli.money_ledger.v1.ledger.ListPostingsResponse.postings:type_name -> vrooli.money_ledger.v1.shared.Posting
-	32, // 12: vrooli.money_ledger.v1.ledger.ReversePostingResponse.posting:type_name -> vrooli.money_ledger.v1.shared.Posting
-	31, // 13: vrooli.money_ledger.v1.ledger.TransferRequest.occurred_at:type_name -> google.protobuf.Timestamp
-	32, // 14: vrooli.money_ledger.v1.ledger.TransferResponse.postings:type_name -> vrooli.money_ledger.v1.shared.Posting
-	33, // 15: vrooli.money_ledger.v1.ledger.PositionInput.basis:type_name -> vrooli.money_ledger.v1.shared.Basis
-	1,  // 16: vrooli.money_ledger.v1.ledger.PositionResponse.availability:type_name -> vrooli.money_ledger.v1.ledger.Availability
-	23, // 17: vrooli.money_ledger.v1.ledger.PositionResponse.inputs:type_name -> vrooli.money_ledger.v1.ledger.PositionInput
-	1,  // 18: vrooli.money_ledger.v1.ledger.StatementResponse.availability:type_name -> vrooli.money_ledger.v1.ledger.Availability
-	4,  // 19: vrooli.money_ledger.v1.ledger.DeclareGoalRequest.goal:type_name -> vrooli.money_ledger.v1.ledger.Goal
-	4,  // 20: vrooli.money_ledger.v1.ledger.DeclareGoalResponse.goal:type_name -> vrooli.money_ledger.v1.ledger.Goal
-	5,  // 21: vrooli.money_ledger.v1.ledger.ListGoalsResponse.goals:type_name -> vrooli.money_ledger.v1.ledger.GoalVerdict
-	6,  // 22: vrooli.money_ledger.v1.ledger.BooksService.CreateBook:input_type -> vrooli.money_ledger.v1.ledger.CreateBookRequest
-	8,  // 23: vrooli.money_ledger.v1.ledger.BooksService.ListBooks:input_type -> vrooli.money_ledger.v1.ledger.ListBooksRequest
-	10, // 24: vrooli.money_ledger.v1.ledger.BooksService.CreateAccount:input_type -> vrooli.money_ledger.v1.ledger.CreateAccountRequest
-	12, // 25: vrooli.money_ledger.v1.ledger.BooksService.ListAccounts:input_type -> vrooli.money_ledger.v1.ledger.ListAccountsRequest
-	14, // 26: vrooli.money_ledger.v1.ledger.JournalService.GetPosting:input_type -> vrooli.money_ledger.v1.ledger.GetPostingRequest
-	16, // 27: vrooli.money_ledger.v1.ledger.JournalService.ListPostings:input_type -> vrooli.money_ledger.v1.ledger.ListPostingsRequest
-	18, // 28: vrooli.money_ledger.v1.ledger.JournalService.ReversePosting:input_type -> vrooli.money_ledger.v1.ledger.ReversePostingRequest
-	20, // 29: vrooli.money_ledger.v1.ledger.JournalService.Transfer:input_type -> vrooli.money_ledger.v1.ledger.TransferRequest
-	22, // 30: vrooli.money_ledger.v1.ledger.PositionService.GetPosition:input_type -> vrooli.money_ledger.v1.ledger.PositionRequest
-	25, // 31: vrooli.money_ledger.v1.ledger.PositionService.GetStatement:input_type -> vrooli.money_ledger.v1.ledger.StatementRequest
-	27, // 32: vrooli.money_ledger.v1.ledger.PositionService.DeclareGoal:input_type -> vrooli.money_ledger.v1.ledger.DeclareGoalRequest
-	29, // 33: vrooli.money_ledger.v1.ledger.PositionService.ListGoals:input_type -> vrooli.money_ledger.v1.ledger.ListGoalsRequest
-	7,  // 34: vrooli.money_ledger.v1.ledger.BooksService.CreateBook:output_type -> vrooli.money_ledger.v1.ledger.CreateBookResponse
-	9,  // 35: vrooli.money_ledger.v1.ledger.BooksService.ListBooks:output_type -> vrooli.money_ledger.v1.ledger.ListBooksResponse
-	11, // 36: vrooli.money_ledger.v1.ledger.BooksService.CreateAccount:output_type -> vrooli.money_ledger.v1.ledger.CreateAccountResponse
-	13, // 37: vrooli.money_ledger.v1.ledger.BooksService.ListAccounts:output_type -> vrooli.money_ledger.v1.ledger.ListAccountsResponse
-	15, // 38: vrooli.money_ledger.v1.ledger.JournalService.GetPosting:output_type -> vrooli.money_ledger.v1.ledger.GetPostingResponse
-	17, // 39: vrooli.money_ledger.v1.ledger.JournalService.ListPostings:output_type -> vrooli.money_ledger.v1.ledger.ListPostingsResponse
-	19, // 40: vrooli.money_ledger.v1.ledger.JournalService.ReversePosting:output_type -> vrooli.money_ledger.v1.ledger.ReversePostingResponse
-	21, // 41: vrooli.money_ledger.v1.ledger.JournalService.Transfer:output_type -> vrooli.money_ledger.v1.ledger.TransferResponse
-	24, // 42: vrooli.money_ledger.v1.ledger.PositionService.GetPosition:output_type -> vrooli.money_ledger.v1.ledger.PositionResponse
-	26, // 43: vrooli.money_ledger.v1.ledger.PositionService.GetStatement:output_type -> vrooli.money_ledger.v1.ledger.StatementResponse
-	28, // 44: vrooli.money_ledger.v1.ledger.PositionService.DeclareGoal:output_type -> vrooli.money_ledger.v1.ledger.DeclareGoalResponse
-	30, // 45: vrooli.money_ledger.v1.ledger.PositionService.ListGoals:output_type -> vrooli.money_ledger.v1.ledger.ListGoalsResponse
-	34, // [34:46] is the sub-list for method output_type
-	22, // [22:34] is the sub-list for method input_type
-	22, // [22:22] is the sub-list for extension type_name
-	22, // [22:22] is the sub-list for extension extendee
-	0,  // [0:22] is the sub-list for field type_name
+	3,  // 6: vrooli.money_ledger.v1.ledger.CreateBookResponse.book:type_name -> vrooli.money_ledger.v1.ledger.Book
+	3,  // 7: vrooli.money_ledger.v1.ledger.ListBooksResponse.books:type_name -> vrooli.money_ledger.v1.ledger.Book
+	1,  // 8: vrooli.money_ledger.v1.ledger.CreateAccountRequest.account_kind:type_name -> vrooli.money_ledger.v1.ledger.AccountKind
+	4,  // 9: vrooli.money_ledger.v1.ledger.CreateAccountResponse.account:type_name -> vrooli.money_ledger.v1.ledger.Account
+	4,  // 10: vrooli.money_ledger.v1.ledger.ListAccountsResponse.accounts:type_name -> vrooli.money_ledger.v1.ledger.Account
+	39, // 11: vrooli.money_ledger.v1.ledger.GetPostingResponse.posting:type_name -> vrooli.money_ledger.v1.shared.Posting
+	39, // 12: vrooli.money_ledger.v1.ledger.ListPostingsResponse.postings:type_name -> vrooli.money_ledger.v1.shared.Posting
+	39, // 13: vrooli.money_ledger.v1.ledger.ReversePostingResponse.posting:type_name -> vrooli.money_ledger.v1.shared.Posting
+	38, // 14: vrooli.money_ledger.v1.ledger.TransferRequest.occurred_at:type_name -> google.protobuf.Timestamp
+	39, // 15: vrooli.money_ledger.v1.ledger.TransferResponse.postings:type_name -> vrooli.money_ledger.v1.shared.Posting
+	40, // 16: vrooli.money_ledger.v1.ledger.PositionInput.basis:type_name -> vrooli.money_ledger.v1.shared.Basis
+	2,  // 17: vrooli.money_ledger.v1.ledger.PositionResponse.availability:type_name -> vrooli.money_ledger.v1.ledger.Availability
+	24, // 18: vrooli.money_ledger.v1.ledger.PositionResponse.inputs:type_name -> vrooli.money_ledger.v1.ledger.PositionInput
+	2,  // 19: vrooli.money_ledger.v1.ledger.StatementResponse.availability:type_name -> vrooli.money_ledger.v1.ledger.Availability
+	5,  // 20: vrooli.money_ledger.v1.ledger.DeclareGoalRequest.goal:type_name -> vrooli.money_ledger.v1.ledger.Goal
+	5,  // 21: vrooli.money_ledger.v1.ledger.DeclareGoalResponse.goal:type_name -> vrooli.money_ledger.v1.ledger.Goal
+	6,  // 22: vrooli.money_ledger.v1.ledger.ListGoalsResponse.goals:type_name -> vrooli.money_ledger.v1.ledger.GoalVerdict
+	3,  // 23: vrooli.money_ledger.v1.ledger.ArchiveBookResponse.book:type_name -> vrooli.money_ledger.v1.ledger.Book
+	5,  // 24: vrooli.money_ledger.v1.ledger.ArchiveGoalResponse.goal:type_name -> vrooli.money_ledger.v1.ledger.Goal
+	5,  // 25: vrooli.money_ledger.v1.ledger.ReparentGoalResponse.goal:type_name -> vrooli.money_ledger.v1.ledger.Goal
+	7,  // 26: vrooli.money_ledger.v1.ledger.BooksService.CreateBook:input_type -> vrooli.money_ledger.v1.ledger.CreateBookRequest
+	9,  // 27: vrooli.money_ledger.v1.ledger.BooksService.ListBooks:input_type -> vrooli.money_ledger.v1.ledger.ListBooksRequest
+	32, // 28: vrooli.money_ledger.v1.ledger.BooksService.ArchiveBook:input_type -> vrooli.money_ledger.v1.ledger.ArchiveBookRequest
+	11, // 29: vrooli.money_ledger.v1.ledger.BooksService.CreateAccount:input_type -> vrooli.money_ledger.v1.ledger.CreateAccountRequest
+	13, // 30: vrooli.money_ledger.v1.ledger.BooksService.ListAccounts:input_type -> vrooli.money_ledger.v1.ledger.ListAccountsRequest
+	15, // 31: vrooli.money_ledger.v1.ledger.JournalService.GetPosting:input_type -> vrooli.money_ledger.v1.ledger.GetPostingRequest
+	17, // 32: vrooli.money_ledger.v1.ledger.JournalService.ListPostings:input_type -> vrooli.money_ledger.v1.ledger.ListPostingsRequest
+	19, // 33: vrooli.money_ledger.v1.ledger.JournalService.ReversePosting:input_type -> vrooli.money_ledger.v1.ledger.ReversePostingRequest
+	21, // 34: vrooli.money_ledger.v1.ledger.JournalService.Transfer:input_type -> vrooli.money_ledger.v1.ledger.TransferRequest
+	23, // 35: vrooli.money_ledger.v1.ledger.PositionService.GetPosition:input_type -> vrooli.money_ledger.v1.ledger.PositionRequest
+	26, // 36: vrooli.money_ledger.v1.ledger.PositionService.GetStatement:input_type -> vrooli.money_ledger.v1.ledger.StatementRequest
+	28, // 37: vrooli.money_ledger.v1.ledger.PositionService.DeclareGoal:input_type -> vrooli.money_ledger.v1.ledger.DeclareGoalRequest
+	30, // 38: vrooli.money_ledger.v1.ledger.PositionService.ListGoals:input_type -> vrooli.money_ledger.v1.ledger.ListGoalsRequest
+	34, // 39: vrooli.money_ledger.v1.ledger.PositionService.ArchiveGoal:input_type -> vrooli.money_ledger.v1.ledger.ArchiveGoalRequest
+	36, // 40: vrooli.money_ledger.v1.ledger.PositionService.ReparentGoal:input_type -> vrooli.money_ledger.v1.ledger.ReparentGoalRequest
+	8,  // 41: vrooli.money_ledger.v1.ledger.BooksService.CreateBook:output_type -> vrooli.money_ledger.v1.ledger.CreateBookResponse
+	10, // 42: vrooli.money_ledger.v1.ledger.BooksService.ListBooks:output_type -> vrooli.money_ledger.v1.ledger.ListBooksResponse
+	33, // 43: vrooli.money_ledger.v1.ledger.BooksService.ArchiveBook:output_type -> vrooli.money_ledger.v1.ledger.ArchiveBookResponse
+	12, // 44: vrooli.money_ledger.v1.ledger.BooksService.CreateAccount:output_type -> vrooli.money_ledger.v1.ledger.CreateAccountResponse
+	14, // 45: vrooli.money_ledger.v1.ledger.BooksService.ListAccounts:output_type -> vrooli.money_ledger.v1.ledger.ListAccountsResponse
+	16, // 46: vrooli.money_ledger.v1.ledger.JournalService.GetPosting:output_type -> vrooli.money_ledger.v1.ledger.GetPostingResponse
+	18, // 47: vrooli.money_ledger.v1.ledger.JournalService.ListPostings:output_type -> vrooli.money_ledger.v1.ledger.ListPostingsResponse
+	20, // 48: vrooli.money_ledger.v1.ledger.JournalService.ReversePosting:output_type -> vrooli.money_ledger.v1.ledger.ReversePostingResponse
+	22, // 49: vrooli.money_ledger.v1.ledger.JournalService.Transfer:output_type -> vrooli.money_ledger.v1.ledger.TransferResponse
+	25, // 50: vrooli.money_ledger.v1.ledger.PositionService.GetPosition:output_type -> vrooli.money_ledger.v1.ledger.PositionResponse
+	27, // 51: vrooli.money_ledger.v1.ledger.PositionService.GetStatement:output_type -> vrooli.money_ledger.v1.ledger.StatementResponse
+	29, // 52: vrooli.money_ledger.v1.ledger.PositionService.DeclareGoal:output_type -> vrooli.money_ledger.v1.ledger.DeclareGoalResponse
+	31, // 53: vrooli.money_ledger.v1.ledger.PositionService.ListGoals:output_type -> vrooli.money_ledger.v1.ledger.ListGoalsResponse
+	35, // 54: vrooli.money_ledger.v1.ledger.PositionService.ArchiveGoal:output_type -> vrooli.money_ledger.v1.ledger.ArchiveGoalResponse
+	37, // 55: vrooli.money_ledger.v1.ledger.PositionService.ReparentGoal:output_type -> vrooli.money_ledger.v1.ledger.ReparentGoalResponse
+	41, // [41:56] is the sub-list for method output_type
+	26, // [26:41] is the sub-list for method input_type
+	26, // [26:26] is the sub-list for extension type_name
+	26, // [26:26] is the sub-list for extension extendee
+	0,  // [0:26] is the sub-list for field type_name
 }
 
 func init() { file_money_ledger_v1_ledger_ledger_proto_init() }
@@ -2227,8 +2661,8 @@ func file_money_ledger_v1_ledger_ledger_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_money_ledger_v1_ledger_ledger_proto_rawDesc), len(file_money_ledger_v1_ledger_ledger_proto_rawDesc)),
-			NumEnums:      1,
-			NumMessages:   30,
+			NumEnums:      2,
+			NumMessages:   36,
 			NumExtensions: 0,
 			NumServices:   3,
 		},

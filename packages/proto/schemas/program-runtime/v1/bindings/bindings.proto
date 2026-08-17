@@ -221,6 +221,19 @@ message BindingCondition {
   string sustained_degradation_reason = 9;
 }
 
+// ScenarioCondition is the producer-owned rollup consumed by coverage
+// boards. One scenario contributes one condition, regardless of how many
+// manifest bindings it exposes.
+message ScenarioCondition {
+  string scenario = 1;
+  ConditionStatus status = 2;
+  string verdict = 3;
+  int32 binding_count = 4;
+  int32 dormant_bindings = 5;
+  int32 degraded_bindings = 6;
+  int32 healthy_bindings = 7;
+}
+
 message GetBindingConditionRequest {
   string binding_id = 1;
   string scenario = 2;
@@ -232,6 +245,7 @@ message GetBindingConditionResponse {
   int64 window_seconds = 2;
   int32 total_bindings = 3;
   int32 instrumented_bindings = 4;
+  repeated ScenarioCondition scenario_conditions = 5;
 }
 
 message DescribeBindingRequest {

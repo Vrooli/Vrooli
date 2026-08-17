@@ -1,0 +1,32 @@
+syntax = "proto3";
+
+package vrooli.rcl_fixture_positive_1786980261703779175.v1.shared;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/rcl-fixture-positive-1786980261703779175/v1/shared;shared_v1";
+
+// =============================================================================
+// ERROR ENVELOPE — canonical REST-exception non-2xx body
+// =============================================================================
+//
+// @stability stable
+//
+// Connect-RPC methods use Connect's canonical error envelope and code set.
+// Deliberate REST exceptions, such as multipart uploads and operational
+// endpoints, return this shape for non-2xx responses. The thin writer at
+// api/internal/httpx/errors.go::WriteError marshals it with protojson; UI and
+// CLI REST clients decode via fromJson / protojson.Unmarshal and surface the
+// typed `code` + `message` to callers.
+//
+// Codes are short snake_case strings categorising the failure ("invalid_request",
+// "not_found", "internal"). Add new codes by extending the canonical list
+// in api/internal/httpx/errors.go — keep wire-side and writer-side in sync.
+//
+// `details` is reserved for structured field-violation reporting once a
+// validation framework lands; ship empty for now.
+// =============================================================================
+
+message ErrorEnvelope {
+  string code = 1;
+  string message = 2;
+  map<string, string> details = 3;
+}

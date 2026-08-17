@@ -1,0 +1,9 @@
+import { Link } from "react-router-dom";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
+import { EmptyState } from "../components/ui/empty-state";
+import { selectors } from "../consts/selectors";
+import { SurfaceFrame } from "./VariationPage";
+
+export function StylesPage() {
+  return <SurfaceFrame eyebrow="Voice" title="Style Library" description="Compose versioned voices from directives, exemplars, anti-patterns, lexicons, and measurable targets." testId={selectors.pages.styles} headingId="styles-heading"><div className="grid gap-4 lg:grid-cols-2"><Card><CardHeader><CardTitle>Declared voices</CardTitle><CardDescription>Files from consuming scenarios appear here with their content hash and source path.</CardDescription></CardHeader><CardContent><EmptyState title="No declared styles registered" description="Register a consumer declaration to make its voice available without integration code." action={<Link className="inline-flex min-h-11 items-center justify-center rounded-control bg-app-primary px-3 text-sm font-medium text-app-primary-foreground focus-visible:outline focus-visible:outline-2" to="/declarations">Open declarations</Link>} /></CardContent></Card><Card><CardHeader><CardTitle>Operator-authored</CardTitle><CardDescription>Local records can be composed and versioned here. Once exported, the file becomes authoritative.</CardDescription></CardHeader><CardContent><EmptyState title="No local style versions" description="Create a style from the API or CLI to start a versioned voice." action={<Link className="inline-flex min-h-11 items-center justify-center rounded-control bg-app-primary px-3 text-sm font-medium text-app-primary-foreground focus-visible:outline focus-visible:outline-2" to="/declarations">View registry</Link>} /></CardContent></Card></div></SurfaceFrame>;
+}

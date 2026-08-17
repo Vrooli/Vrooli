@@ -307,7 +307,14 @@ class ValidationMatrix(_message.Message):
     def __init__(self, matrix_id: _Optional[str] = ..., scenario_name: _Optional[str] = ..., artifact_digest: _Optional[str] = ..., journeys: _Optional[_Iterable[_Union[JourneyCatalogItem, _Mapping]]] = ..., targets: _Optional[_Iterable[_Union[ValidationTargetDescriptor, _Mapping]]] = ..., environment_profiles: _Optional[_Iterable[_Union[ValidationEnvironmentProfile, str]]] = ..., cells: _Optional[_Iterable[_Union[ValidationCell, _Mapping]]] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class ReleaseGate(_message.Message):
-    __slots__ = ("matrix_id", "disposition", "passed", "required_cell_count", "passing_cell_count", "missing_cell_ids", "failed_cell_ids", "reason")
+    __slots__ = ("matrix_id", "disposition", "passed", "required_cell_count", "passing_cell_count", "missing_cell_ids", "failed_cell_ids", "reason", "satisfying_target_ids")
+    class SatisfyingTargetIdsEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: str
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[str] = ...) -> None: ...
     MATRIX_ID_FIELD_NUMBER: _ClassVar[int]
     DISPOSITION_FIELD_NUMBER: _ClassVar[int]
     PASSED_FIELD_NUMBER: _ClassVar[int]
@@ -316,6 +323,7 @@ class ReleaseGate(_message.Message):
     MISSING_CELL_IDS_FIELD_NUMBER: _ClassVar[int]
     FAILED_CELL_IDS_FIELD_NUMBER: _ClassVar[int]
     REASON_FIELD_NUMBER: _ClassVar[int]
+    SATISFYING_TARGET_IDS_FIELD_NUMBER: _ClassVar[int]
     matrix_id: str
     disposition: ValidationDisposition
     passed: bool
@@ -324,4 +332,5 @@ class ReleaseGate(_message.Message):
     missing_cell_ids: _containers.RepeatedScalarFieldContainer[str]
     failed_cell_ids: _containers.RepeatedScalarFieldContainer[str]
     reason: str
-    def __init__(self, matrix_id: _Optional[str] = ..., disposition: _Optional[_Union[ValidationDisposition, str]] = ..., passed: _Optional[bool] = ..., required_cell_count: _Optional[int] = ..., passing_cell_count: _Optional[int] = ..., missing_cell_ids: _Optional[_Iterable[str]] = ..., failed_cell_ids: _Optional[_Iterable[str]] = ..., reason: _Optional[str] = ...) -> None: ...
+    satisfying_target_ids: _containers.ScalarMap[str, str]
+    def __init__(self, matrix_id: _Optional[str] = ..., disposition: _Optional[_Union[ValidationDisposition, str]] = ..., passed: _Optional[bool] = ..., required_cell_count: _Optional[int] = ..., passing_cell_count: _Optional[int] = ..., missing_cell_ids: _Optional[_Iterable[str]] = ..., failed_cell_ids: _Optional[_Iterable[str]] = ..., reason: _Optional[str] = ..., satisfying_target_ids: _Optional[_Mapping[str, str]] = ...) -> None: ...

@@ -82,6 +82,9 @@ message PipelineConfig {
   // Verified Vrooli release directory that contains resource artifacts.
   optional string resource_artifact_root = 24;
 
+  // Verified Vrooli release directory that contains vendored tool artifacts.
+  optional string tool_artifact_root = 29;
+
   // Output placement mode: proper, staging, or custom.
   optional string location_mode = 25;
 
@@ -211,6 +214,8 @@ message HostRequirementPlanItem {
   string verdict = 7;
   string reason = 8;
   repeated string provenance = 9;
+  string architecture = 10;
+  optional string artifact = 11;
 }
 
 message ResourceDeploymentPlanItem {
@@ -254,6 +259,8 @@ message ResourceDeploymentService {
   repeated ResourceDeploymentHealthCheck health_checks = 8;
   repeated ResourceDeploymentArtifact files = 9;
   optional ResourceDeploymentServiceConfig config = 10;
+  string layout = 11;
+  optional string entry_path = 12;
 }
 
 message ResourceProviderPolicy {

@@ -3,26 +3,300 @@
 /* eslint-disable */
 
 import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
+import { file_google_protobuf_struct } from "@bufbuild/protobuf/wkt";
 
 /**
  * Describes the file prose-studio/v1/prose/prose.proto.
  */
 export const file_prose_studio_v1_prose_prose = /*@__PURE__*/
-  fileDesc("CiFwcm9zZS1zdHVkaW8vdjEvcHJvc2UvcHJvc2UucHJvdG8SHHZyb29saS5wcm9zZV9zdHVkaW8udjEucHJvc2UiGwoLSnNvblJlcXVlc3QSDAoEanNvbhgBIAEoCSIcCgxKc29uUmVzcG9uc2USDAoEanNvbhgBIAEoCTKJCQoSUHJvc2VTdHVkaW9TZXJ2aWNlEmEKCFJlZ2lzdHJ5EikudnJvb2xpLnByb3NlX3N0dWRpby52MS5wcm9zZS5Kc29uUmVxdWVzdBoqLnZyb29saS5wcm9zZV9zdHVkaW8udjEucHJvc2UuSnNvblJlc3BvbnNlEmQKC0NyZWF0ZVN0eWxlEikudnJvb2xpLnByb3NlX3N0dWRpby52MS5wcm9zZS5Kc29uUmVxdWVzdBoqLnZyb29saS5wcm9zZV9zdHVkaW8udjEucHJvc2UuSnNvblJlc3BvbnNlEmcKDlJlc29sdmVQcm9maWxlEikudnJvb2xpLnByb3NlX3N0dWRpby52MS5wcm9zZS5Kc29uUmVxdWVzdBoqLnZyb29saS5wcm9zZV9zdHVkaW8udjEucHJvc2UuSnNvblJlc3BvbnNlEmEKCEdlbmVyYXRlEikudnJvb2xpLnByb3NlX3N0dWRpby52MS5wcm9zZS5Kc29uUmVxdWVzdBoqLnZyb29saS5wcm9zZV9zdHVkaW8udjEucHJvc2UuSnNvblJlc3BvbnNlEl8KBlJlcm9sbBIpLnZyb29saS5wcm9zZV9zdHVkaW8udjEucHJvc2UuSnNvblJlcXVlc3QaKi52cm9vbGkucHJvc2Vfc3R1ZGlvLnYxLnByb3NlLkpzb25SZXNwb25zZRJmCg1TZXNzaW9uQWN0aW9uEikudnJvb2xpLnByb3NlX3N0dWRpby52MS5wcm9zZS5Kc29uUmVxdWVzdBoqLnZyb29saS5wcm9zZV9zdHVkaW8udjEucHJvc2UuSnNvblJlc3BvbnNlEmwKE1JlaW5kZXhEZWNsYXJhdGlvbnMSKS52cm9vbGkucHJvc2Vfc3R1ZGlvLnYxLnByb3NlLkpzb25SZXF1ZXN0GioudnJvb2xpLnByb3NlX3N0dWRpby52MS5wcm9zZS5Kc29uUmVzcG9uc2USbQoUVmFsaWRhdGVEZWNsYXJhdGlvbnMSKS52cm9vbGkucHJvc2Vfc3R1ZGlvLnYxLnByb3NlLkpzb25SZXF1ZXN0GioudnJvb2xpLnByb3NlX3N0dWRpby52MS5wcm9zZS5Kc29uUmVzcG9uc2USZwoOQ3JlYXRlRG9jdW1lbnQSKS52cm9vbGkucHJvc2Vfc3R1ZGlvLnYxLnByb3NlLkpzb25SZXF1ZXN0GioudnJvb2xpLnByb3NlX3N0dWRpby52MS5wcm9zZS5Kc29uUmVzcG9uc2USaQoQQXNzZW1ibGVEb2N1bWVudBIpLnZyb29saS5wcm9zZV9zdHVkaW8udjEucHJvc2UuSnNvblJlcXVlc3QaKi52cm9vbGkucHJvc2Vfc3R1ZGlvLnYxLnByb3NlLkpzb25SZXNwb25zZRJkCgtDb25mb3JtYW5jZRIpLnZyb29saS5wcm9zZV9zdHVkaW8udjEucHJvc2UuSnNvblJlcXVlc3QaKi52cm9vbGkucHJvc2Vfc3R1ZGlvLnYxLnByb3NlLkpzb25SZXNwb25zZUJPWk1naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3Byb3NlLXN0dWRpby92MS9wcm9zZTtwcm9zZV92MWIGcHJvdG8z");
+  fileDesc("CiFwcm9zZS1zdHVkaW8vdjEvcHJvc2UvcHJvc2UucHJvdG8SHHZyb29saS5wcm9zZV9zdHVkaW8udjEucHJvc2UiEQoPUmVnaXN0cnlSZXF1ZXN0ImQKDFJlZ2lzdHJ5S2luZBIMCgRraW5kGAEgASgJEhMKC2Rlc2NyaXB0aW9uGAIgASgJEjEKEHBhcmFtZXRlcl9zY2hlbWEYAyABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0IosCChBSZWdpc3RyeVJlc3BvbnNlEjwKCHNhbXBsZXJzGAEgAygLMioudnJvb2xpLnByb3NlX3N0dWRpby52MS5wcm9zZS5SZWdpc3RyeUtpbmQSPAoIcG9saWNpZXMYAiADKAsyKi52cm9vbGkucHJvc2Vfc3R1ZGlvLnYxLnByb3NlLlJlZ2lzdHJ5S2luZBI7CgdtZXRyaWNzGAMgAygLMioudnJvb2xpLnByb3NlX3N0dWRpby52MS5wcm9zZS5SZWdpc3RyeUtpbmQSPgoKdHJhbnNmb3JtcxgEIAMoCzIqLnZyb29saS5wcm9zZV9zdHVkaW8udjEucHJvc2UuUmVnaXN0cnlLaW5kIvoCCgVTdHlsZRILCgNrZXkYASABKAkSDwoHdmVyc2lvbhgCIAEoBRIOCgZwYXJlbnQYAyABKAkSEQoJZXhlbXBsYXJzGAQgAygJEhIKCmRpcmVjdGl2ZXMYBSADKAkSFQoNYW50aV9wYXR0ZXJucxgGIAMoCRIPCgdsZXhpY29uGAcgAygJEkEKB3RhcmdldHMYCCADKAsyMC52cm9vbGkucHJvc2Vfc3R1ZGlvLnYxLnByb3NlLlN0eWxlLlRhcmdldHNFbnRyeRJMCg1heGlzX2RlZmF1bHRzGAkgAygLMjUudnJvb2xpLnByb3NlX3N0dWRpby52MS5wcm9zZS5TdHlsZS5BeGlzRGVmYXVsdHNFbnRyeRouCgxUYXJnZXRzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgBOgI4ARozChFBeGlzRGVmYXVsdHNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIkgKEkNyZWF0ZVN0eWxlUmVxdWVzdBIyCgVzdHlsZRgBIAEoCzIjLnZyb29saS5wcm9zZV9zdHVkaW8udjEucHJvc2UuU3R5bGUiSQoTQ3JlYXRlU3R5bGVSZXNwb25zZRIyCgVzdHlsZRgBIAEoCzIjLnZyb29saS5wcm9zZV9zdHVkaW8udjEucHJvc2UuU3R5bGUiZgoHU2FtcGxlchIMCgRraW5kGAEgASgJEgkKAWsYAiABKAUSCwoDdGF1GAMgASgBEhoKEnRlbXBlcmF0dXJlX3N0YW5jZRgEIAEoCRIZChFtYXhfb3V0cHV0X3Rva2VucxgFIAEoBSKKAQoLQ29uc3RyYWludHMSEQoJbWluX3dvcmRzGAEgASgFEhEKCW1heF93b3JkcxgCIAEoBRIRCgltaW5fZ3JhZGUYAyABKAESEQoJbWF4X2dyYWRlGAQgASgBEhYKDmJhbm5lZF9sZXhpY29uGAUgAygJEhcKD3JlcXVpcmVkX2Zvcm1hdBgGIAEoCSJECgZCdWRnZXQSGQoRbWF4X291dHB1dF90b2tlbnMYASABKAUSHwoXbWF4X3Nlc3Npb25fY29zdF9taWNyb3MYAiABKAMiiQEKDUNvbnRleHRQb2xpY3kSHgoWZnVsbF90ZXh0X3Rva2VuX2J1ZGdldBgBIAEoBRIYChBzdW1tYXJpemVfYmV5b25kGAIgASgFEhwKFGFsd2F5c19mdWxsX3ByZXZpb3VzGAMgASgIEiAKGGRlY2xhcmVkX2NvbnRleHRfY2VpbGluZxgEIAEoBSKpBAoHUHJvZmlsZRILCgNrZXkYASABKAkSDwoHdmVyc2lvbhgCIAEoBRIOCgZwYXJlbnQYAyABKAkSEgoKc3R5bGVfcmVmcxgEIAMoCRI2CgdzYW1wbGVyGAUgASgLMiUudnJvb2xpLnByb3NlX3N0dWRpby52MS5wcm9zZS5TYW1wbGVyEj4KC2NvbnN0cmFpbnRzGAYgASgLMikudnJvb2xpLnByb3NlX3N0dWRpby52MS5wcm9zZS5Db25zdHJhaW50cxIYChBzZWxlY3Rpb25fcG9saWN5GAcgASgJElQKEHNlbGVjdGlvbl9wYXJhbXMYCCADKAsyOi52cm9vbGkucHJvc2Vfc3R1ZGlvLnYxLnByb3NlLlByb2ZpbGUuU2VsZWN0aW9uUGFyYW1zRW50cnkSGQoRbWVhc3VyZW1lbnRfdGllcnMYCSADKAkSNAoGYnVkZ2V0GAogASgLMiQudnJvb2xpLnByb3NlX3N0dWRpby52MS5wcm9zZS5CdWRnZXQSQwoOY29udGV4dF9wb2xpY3kYCyABKAsyKy52cm9vbGkucHJvc2Vfc3R1ZGlvLnYxLnByb3NlLkNvbnRleHRQb2xpY3kSFAoMZ2F0ZXdheV9yb2xlGAwgASgJEhAKCGxvY2FsaXR5GA0gASgJGjYKFFNlbGVjdGlvblBhcmFtc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoAToCOAEiJAoVUmVzb2x2ZVByb2ZpbGVSZXF1ZXN0EgsKA2tleRgBIAEoCSKfAQoWUmVzb2x2ZVByb2ZpbGVSZXNwb25zZRI2Cgdwcm9maWxlGAEgASgLMiUudnJvb2xpLnByb3NlX3N0dWRpby52MS5wcm9zZS5Qcm9maWxlEjMKBnN0eWxlcxgCIAMoCzIjLnZyb29saS5wcm9zZV9zdHVkaW8udjEucHJvc2UuU3R5bGUSGAoQaW5zdHJ1Y3Rpb25fdGV4dBgDIAEoCSIzCg9OZWdhdGl2ZUNvbnRleHQSDgoGcGlubmVkGAEgAygJEhAKCHJlamVjdGVkGAIgAygJIqYBCg9HZW5lcmF0ZVJlcXVlc3QSEwoLcHJvZmlsZV9rZXkYASABKAkSDQoFcXVlcnkYAiABKAkSGgoSaW5jbHVkZV9jYW5kaWRhdGVzGAMgASgIEhIKCnNlc3Npb25faWQYBCABKAkSPwoIbmVnYXRpdmUYBSABKAsyLS52cm9vbGkucHJvc2Vfc3R1ZGlvLnYxLnByb3NlLk5lZ2F0aXZlQ29udGV4dCIvCgtFbGlnaWJpbGl0eRIQCghlbGlnaWJsZRgBIAEoCBIOCgZyZWFzb24YAiABKAkiNQoOVmVyYmFsaXplZEhpbnQSDwoHb3JkaW5hbBgBIAEoBRISCgpjYWxpYnJhdGVkGAIgASgIIo8ECgpQcm92ZW5hbmNlEhcKD3Byb2ZpbGVfdmVyc2lvbhgBIAEoCRIWCg5zdHlsZV92ZXJzaW9ucxgCIAMoCRIQCghzdHJhdGVneRgDIAEoCRJCChNzdHJhdGVneV9wYXJhbWV0ZXJzGAQgASgLMiUudnJvb2xpLnByb3NlX3N0dWRpby52MS5wcm9zZS5TYW1wbGVyEhAKCHByb3ZpZGVyGAUgASgJEhoKEnJlc29sdmVkX21vZGVsX3JlZhgGIAEoCRIUCgxnYXRld2F5X3JvbGUYByABKAkSGAoQdGVtcGVyYXR1cmVfc2VudBgIIAEoARIbChN0ZW1wZXJhdHVyZV9zdXBwb3J0GAkgASgJEiMKG21heF9vdXRwdXRfdG9rZW5zX2VmZmVjdGl2ZRgKIAEoBRIgChhtYXhfb3V0cHV0X3Rva2Vuc19zb3VyY2UYCyABKAkSFAoMaW5wdXRfdG9rZW5zGAwgASgFEhUKDW91dHB1dF90b2tlbnMYDSABKAUSEwoLY29zdF9taWNyb3MYDiABKAMSGQoRbWFjaGluZV9nZW5lcmF0ZWQYDyABKAgSEgoKZGlzY2xvc3VyZRgQIAEoCRJHChBjb250ZXh0X3NuYXBzaG90GBEgASgLMi0udnJvb2xpLnByb3NlX3N0dWRpby52MS5wcm9zZS5Db250ZXh0U25hcHNob3QimgMKCUNhbmRpZGF0ZRIKCgJpZBgBIAEoCRIQCghyb3VuZF9pZBgCIAEoCRIUCgxkZXJpdmVkX2Zyb20YAyADKAkSDAoEdGV4dBgEIAEoCRItCgxtZWFzdXJlbWVudHMYBSABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0EjEKEHNldF9tZWFzdXJlbWVudHMYBiABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0EjwKCnByb3ZlbmFuY2UYByABKAsyKC52cm9vbGkucHJvc2Vfc3R1ZGlvLnYxLnByb3NlLlByb3ZlbmFuY2USRQoPdmVyYmFsaXplZF9oaW50GAggASgLMiwudnJvb2xpLnByb3NlX3N0dWRpby52MS5wcm9zZS5WZXJiYWxpemVkSGludBI+CgtlbGlnaWJpbGl0eRgJIAEoCzIpLnZyb29saS5wcm9zZV9zdHVkaW8udjEucHJvc2UuRWxpZ2liaWxpdHkSEQoJY29tbWl0dGVkGAogASgIEhEKCXNldF9pbmRleBgLIAEoBSK7AgoFUm91bmQSCgoCaWQYASABKAkSEgoKc2Vzc2lvbl9pZBgCIAEoCRI3CghzdHJhdGVneRgDIAEoCzIlLnZyb29saS5wcm9zZV9zdHVkaW8udjEucHJvc2UuU2FtcGxlchIVCg1jYW5kaWRhdGVfaWRzGAQgAygJEhcKD2NhbmRpZGF0ZV9jb3VudBgFIAEoBRItCgxzYW1wbGluZ19rZXkYBiABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0EhkKEXRvdGFsX2Nvc3RfbWljcm9zGAcgASgDEkcKEG5lZ2F0aXZlX2NvbnRleHQYCCABKAsyLS52cm9vbGkucHJvc2Vfc3R1ZGlvLnYxLnByb3NlLk5lZ2F0aXZlQ29udGV4dBIWCg5zZWxlY3Rpb25fc2VlZBgJIAEoAyKaAQoHU2Vzc2lvbhIKCgJpZBgBIAEoCRITCgtwcm9maWxlX2tleRgCIAEoCRINCgVxdWVyeRgDIAEoCRIOCgZzdGF0dXMYBCABKAkSDgoGcGlubmVkGAUgAygJEhAKCHJlamVjdGVkGAYgAygJEhEKCXJvdW5kX2lkcxgHIAMoCRIaChJidWRnZXRfdXNlZF9taWNyb3MYCCABKAMisQEKD0RlZ3JhZGVkT3V0Y29tZRIMCgRraW5kGAEgASgJEg4KBnJlYXNvbhgCIAEoCRIcChRyZXF1ZXN0ZWRfY2FuZGlkYXRlcxgDIAEoBRIbChNyZWNlaXZlZF9jYW5kaWRhdGVzGAQgASgFEiMKG21heF9vdXRwdXRfdG9rZW5zX2VmZmVjdGl2ZRgFIAEoBRIgChhtYXhfb3V0cHV0X3Rva2Vuc19zb3VyY2UYBiABKAki/QIKEEdlbmVyYXRlUmVzcG9uc2USNgoHc2Vzc2lvbhgBIAEoCzIlLnZyb29saS5wcm9zZV9zdHVkaW8udjEucHJvc2UuU2Vzc2lvbhIyCgVyb3VuZBgCIAEoCzIjLnZyb29saS5wcm9zZV9zdHVkaW8udjEucHJvc2UuUm91bmQSOQoIc2VsZWN0ZWQYAyABKAsyJy52cm9vbGkucHJvc2Vfc3R1ZGlvLnYxLnByb3NlLkNhbmRpZGF0ZRI7CgpjYW5kaWRhdGVzGAQgAygLMicudnJvb2xpLnByb3NlX3N0dWRpby52MS5wcm9zZS5DYW5kaWRhdGUSRAoTc2VsZWN0ZWRfY2FuZGlkYXRlcxgFIAMoCzInLnZyb29saS5wcm9zZV9zdHVkaW8udjEucHJvc2UuQ2FuZGlkYXRlEj8KCGRlZ3JhZGVkGAYgASgLMi0udnJvb2xpLnByb3NlX3N0dWRpby52MS5wcm9zZS5EZWdyYWRlZE91dGNvbWUiPwoNUmVyb2xsUmVxdWVzdBISCgpzZXNzaW9uX2lkGAEgASgJEhoKEmluY2x1ZGVfY2FuZGlkYXRlcxgCIAEoCCJQCg5SZXJvbGxSZXNwb25zZRI+CgZyZXN1bHQYASABKAsyLi52cm9vbGkucHJvc2Vfc3R1ZGlvLnYxLnByb3NlLkdlbmVyYXRlUmVzcG9uc2UiUAoUU2Vzc2lvbkFjdGlvblJlcXVlc3QSDgoGYWN0aW9uGAEgASgJEhIKCnNlc3Npb25faWQYAiABKAkSFAoMY2FuZGlkYXRlX2lkGAMgASgJIk8KFVNlc3Npb25BY3Rpb25SZXNwb25zZRI2CgdzZXNzaW9uGAEgASgLMiUudnJvb2xpLnByb3NlX3N0dWRpby52MS5wcm9zZS5TZXNzaW9uIsABCgtEZWNsYXJhdGlvbhIMCgRwYXRoGAEgASgJEhYKDnNjaGVtYV92ZXJzaW9uGAIgASgJEgwKBGtpbmQYAyABKAkSCwoDa2V5GAQgASgJEhIKCmNyZWF0ZWRfYnkYBSABKAkSFAoMY29udGVudF9oYXNoGAYgASgJEg4KBnN0YXR1cxgHIAEoCRINCgVlcnJvchgIIAEoCRInCgZyZWNvcmQYCSABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0IioKGlJlaW5kZXhEZWNsYXJhdGlvbnNSZXF1ZXN0EgwKBHJvb3QYASABKAkiXgobUmVpbmRleERlY2xhcmF0aW9uc1Jlc3BvbnNlEj8KDGRlY2xhcmF0aW9ucxgBIAMoCzIpLnZyb29saS5wcm9zZV9zdHVkaW8udjEucHJvc2UuRGVjbGFyYXRpb24iKwobVmFsaWRhdGVEZWNsYXJhdGlvbnNSZXF1ZXN0EgwKBHJvb3QYASABKAkiXwocVmFsaWRhdGVEZWNsYXJhdGlvbnNSZXNwb25zZRI/CgxkZWNsYXJhdGlvbnMYASADKAsyKS52cm9vbGkucHJvc2Vfc3R1ZGlvLnYxLnByb3NlLkRlY2xhcmF0aW9uIpgBCg9Db250ZXh0U25hcHNob3QSEwoLb3V0bGluZV9yZWYYASABKAkSGgoScHJpb3Jfc2VjdGlvbl9yZWZzGAIgAygJEhkKEWZvbGxvd2luZ19pbnRlbnRzGAMgAygJEh8KF3N1bW1hcml6ZWRfc2VjdGlvbl9yZWZzGAQgAygJEhgKEGVzdGltYXRlZF90b2tlbnMYBSABKAUi1QEKB1NlY3Rpb24SCgoCaWQYASABKAkSEwoLZG9jdW1lbnRfaWQYAiABKAkSEAoIcG9zaXRpb24YAyABKAUSDgoGaW50ZW50GAQgASgJEhMKC3Byb2ZpbGVfa2V5GAUgASgJEhIKCnNlc3Npb25faWQYBiABKAkSHgoWY29tbWl0dGVkX2NhbmRpZGF0ZV9pZBgHIAEoCRI+Cgdjb250ZXh0GAggASgLMi0udnJvb2xpLnByb3NlX3N0dWRpby52MS5wcm9zZS5Db250ZXh0U25hcHNob3QigwIKCERvY3VtZW50EgoKAmlkGAEgASgJEg0KBXRpdGxlGAIgASgJEhMKC3Byb2ZpbGVfa2V5GAMgASgJEhEKCXN0eWxlX2tleRgEIAEoCRISCgpvdXRsaW5lX2lkGAUgASgJEhMKC3NlY3Rpb25faWRzGAYgAygJEg4KBnN0YXR1cxgHIAEoCRIWCg5hc3NlbWJsZWRfdGV4dBgIIAEoCRIqCgljb2hlcmVuY2UYCSABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0EjcKCHNlY3Rpb25zGAogAygLMiUudnJvb2xpLnByb3NlX3N0dWRpby52MS5wcm9zZS5TZWN0aW9uIooBChVDcmVhdGVEb2N1bWVudFJlcXVlc3QSOAoIZG9jdW1lbnQYASABKAsyJi52cm9vbGkucHJvc2Vfc3R1ZGlvLnYxLnByb3NlLkRvY3VtZW50EjcKCHNlY3Rpb25zGAIgAygLMiUudnJvb2xpLnByb3NlX3N0dWRpby52MS5wcm9zZS5TZWN0aW9uIlIKFkNyZWF0ZURvY3VtZW50UmVzcG9uc2USOAoIZG9jdW1lbnQYASABKAsyJi52cm9vbGkucHJvc2Vfc3R1ZGlvLnYxLnByb3NlLkRvY3VtZW50IiUKF0Fzc2VtYmxlRG9jdW1lbnRSZXF1ZXN0EgoKAmlkGAEgASgJIlQKGEFzc2VtYmxlRG9jdW1lbnRSZXNwb25zZRI4Cghkb2N1bWVudBgBIAEoCzImLnZyb29saS5wcm9zZV9zdHVkaW8udjEucHJvc2UuRG9jdW1lbnQiNQoSQ29uZm9ybWFuY2VSZXF1ZXN0EhEKCXN0eWxlX2tleRgBIAEoCRIMCgR0ZXh0GAIgASgJIj4KE0NvbmZvcm1hbmNlUmVzcG9uc2USJwoGcmVwb3J0GAEgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdDLMCgoSUHJvc2VTdHVkaW9TZXJ2aWNlEmkKCFJlZ2lzdHJ5Ei0udnJvb2xpLnByb3NlX3N0dWRpby52MS5wcm9zZS5SZWdpc3RyeVJlcXVlc3QaLi52cm9vbGkucHJvc2Vfc3R1ZGlvLnYxLnByb3NlLlJlZ2lzdHJ5UmVzcG9uc2UScgoLQ3JlYXRlU3R5bGUSMC52cm9vbGkucHJvc2Vfc3R1ZGlvLnYxLnByb3NlLkNyZWF0ZVN0eWxlUmVxdWVzdBoxLnZyb29saS5wcm9zZV9zdHVkaW8udjEucHJvc2UuQ3JlYXRlU3R5bGVSZXNwb25zZRJ7Cg5SZXNvbHZlUHJvZmlsZRIzLnZyb29saS5wcm9zZV9zdHVkaW8udjEucHJvc2UuUmVzb2x2ZVByb2ZpbGVSZXF1ZXN0GjQudnJvb2xpLnByb3NlX3N0dWRpby52MS5wcm9zZS5SZXNvbHZlUHJvZmlsZVJlc3BvbnNlEmkKCEdlbmVyYXRlEi0udnJvb2xpLnByb3NlX3N0dWRpby52MS5wcm9zZS5HZW5lcmF0ZVJlcXVlc3QaLi52cm9vbGkucHJvc2Vfc3R1ZGlvLnYxLnByb3NlLkdlbmVyYXRlUmVzcG9uc2USYwoGUmVyb2xsEisudnJvb2xpLnByb3NlX3N0dWRpby52MS5wcm9zZS5SZXJvbGxSZXF1ZXN0GiwudnJvb2xpLnByb3NlX3N0dWRpby52MS5wcm9zZS5SZXJvbGxSZXNwb25zZRJ4Cg1TZXNzaW9uQWN0aW9uEjIudnJvb2xpLnByb3NlX3N0dWRpby52MS5wcm9zZS5TZXNzaW9uQWN0aW9uUmVxdWVzdBozLnZyb29saS5wcm9zZV9zdHVkaW8udjEucHJvc2UuU2Vzc2lvbkFjdGlvblJlc3BvbnNlEooBChNSZWluZGV4RGVjbGFyYXRpb25zEjgudnJvb2xpLnByb3NlX3N0dWRpby52MS5wcm9zZS5SZWluZGV4RGVjbGFyYXRpb25zUmVxdWVzdBo5LnZyb29saS5wcm9zZV9zdHVkaW8udjEucHJvc2UuUmVpbmRleERlY2xhcmF0aW9uc1Jlc3BvbnNlEo0BChRWYWxpZGF0ZURlY2xhcmF0aW9ucxI5LnZyb29saS5wcm9zZV9zdHVkaW8udjEucHJvc2UuVmFsaWRhdGVEZWNsYXJhdGlvbnNSZXF1ZXN0GjoudnJvb2xpLnByb3NlX3N0dWRpby52MS5wcm9zZS5WYWxpZGF0ZURlY2xhcmF0aW9uc1Jlc3BvbnNlEnsKDkNyZWF0ZURvY3VtZW50EjMudnJvb2xpLnByb3NlX3N0dWRpby52MS5wcm9zZS5DcmVhdGVEb2N1bWVudFJlcXVlc3QaNC52cm9vbGkucHJvc2Vfc3R1ZGlvLnYxLnByb3NlLkNyZWF0ZURvY3VtZW50UmVzcG9uc2USgQEKEEFzc2VtYmxlRG9jdW1lbnQSNS52cm9vbGkucHJvc2Vfc3R1ZGlvLnYxLnByb3NlLkFzc2VtYmxlRG9jdW1lbnRSZXF1ZXN0GjYudnJvb2xpLnByb3NlX3N0dWRpby52MS5wcm9zZS5Bc3NlbWJsZURvY3VtZW50UmVzcG9uc2UScgoLQ29uZm9ybWFuY2USMC52cm9vbGkucHJvc2Vfc3R1ZGlvLnYxLnByb3NlLkNvbmZvcm1hbmNlUmVxdWVzdBoxLnZyb29saS5wcm9zZV9zdHVkaW8udjEucHJvc2UuQ29uZm9ybWFuY2VSZXNwb25zZUJPWk1naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3Byb3NlLXN0dWRpby92MS9wcm9zZTtwcm9zZV92MWIGcHJvdG8z", [file_google_protobuf_struct]);
 
 /**
- * Describes the message vrooli.prose_studio.v1.prose.JsonRequest.
- * Use `create(JsonRequestSchema)` to create a new message.
+ * Describes the message vrooli.prose_studio.v1.prose.RegistryRequest.
+ * Use `create(RegistryRequestSchema)` to create a new message.
  */
-export const JsonRequestSchema = /*@__PURE__*/
+export const RegistryRequestSchema = /*@__PURE__*/
   messageDesc(file_prose_studio_v1_prose_prose, 0);
 
 /**
- * Describes the message vrooli.prose_studio.v1.prose.JsonResponse.
- * Use `create(JsonResponseSchema)` to create a new message.
+ * Describes the message vrooli.prose_studio.v1.prose.RegistryKind.
+ * Use `create(RegistryKindSchema)` to create a new message.
  */
-export const JsonResponseSchema = /*@__PURE__*/
+export const RegistryKindSchema = /*@__PURE__*/
   messageDesc(file_prose_studio_v1_prose_prose, 1);
+
+/**
+ * Describes the message vrooli.prose_studio.v1.prose.RegistryResponse.
+ * Use `create(RegistryResponseSchema)` to create a new message.
+ */
+export const RegistryResponseSchema = /*@__PURE__*/
+  messageDesc(file_prose_studio_v1_prose_prose, 2);
+
+/**
+ * Describes the message vrooli.prose_studio.v1.prose.Style.
+ * Use `create(StyleSchema)` to create a new message.
+ */
+export const StyleSchema = /*@__PURE__*/
+  messageDesc(file_prose_studio_v1_prose_prose, 3);
+
+/**
+ * Describes the message vrooli.prose_studio.v1.prose.CreateStyleRequest.
+ * Use `create(CreateStyleRequestSchema)` to create a new message.
+ */
+export const CreateStyleRequestSchema = /*@__PURE__*/
+  messageDesc(file_prose_studio_v1_prose_prose, 4);
+
+/**
+ * Describes the message vrooli.prose_studio.v1.prose.CreateStyleResponse.
+ * Use `create(CreateStyleResponseSchema)` to create a new message.
+ */
+export const CreateStyleResponseSchema = /*@__PURE__*/
+  messageDesc(file_prose_studio_v1_prose_prose, 5);
+
+/**
+ * Describes the message vrooli.prose_studio.v1.prose.Sampler.
+ * Use `create(SamplerSchema)` to create a new message.
+ */
+export const SamplerSchema = /*@__PURE__*/
+  messageDesc(file_prose_studio_v1_prose_prose, 6);
+
+/**
+ * Describes the message vrooli.prose_studio.v1.prose.Constraints.
+ * Use `create(ConstraintsSchema)` to create a new message.
+ */
+export const ConstraintsSchema = /*@__PURE__*/
+  messageDesc(file_prose_studio_v1_prose_prose, 7);
+
+/**
+ * Describes the message vrooli.prose_studio.v1.prose.Budget.
+ * Use `create(BudgetSchema)` to create a new message.
+ */
+export const BudgetSchema = /*@__PURE__*/
+  messageDesc(file_prose_studio_v1_prose_prose, 8);
+
+/**
+ * Describes the message vrooli.prose_studio.v1.prose.ContextPolicy.
+ * Use `create(ContextPolicySchema)` to create a new message.
+ */
+export const ContextPolicySchema = /*@__PURE__*/
+  messageDesc(file_prose_studio_v1_prose_prose, 9);
+
+/**
+ * Describes the message vrooli.prose_studio.v1.prose.Profile.
+ * Use `create(ProfileSchema)` to create a new message.
+ */
+export const ProfileSchema = /*@__PURE__*/
+  messageDesc(file_prose_studio_v1_prose_prose, 10);
+
+/**
+ * Describes the message vrooli.prose_studio.v1.prose.ResolveProfileRequest.
+ * Use `create(ResolveProfileRequestSchema)` to create a new message.
+ */
+export const ResolveProfileRequestSchema = /*@__PURE__*/
+  messageDesc(file_prose_studio_v1_prose_prose, 11);
+
+/**
+ * Describes the message vrooli.prose_studio.v1.prose.ResolveProfileResponse.
+ * Use `create(ResolveProfileResponseSchema)` to create a new message.
+ */
+export const ResolveProfileResponseSchema = /*@__PURE__*/
+  messageDesc(file_prose_studio_v1_prose_prose, 12);
+
+/**
+ * Describes the message vrooli.prose_studio.v1.prose.NegativeContext.
+ * Use `create(NegativeContextSchema)` to create a new message.
+ */
+export const NegativeContextSchema = /*@__PURE__*/
+  messageDesc(file_prose_studio_v1_prose_prose, 13);
+
+/**
+ * Describes the message vrooli.prose_studio.v1.prose.GenerateRequest.
+ * Use `create(GenerateRequestSchema)` to create a new message.
+ */
+export const GenerateRequestSchema = /*@__PURE__*/
+  messageDesc(file_prose_studio_v1_prose_prose, 14);
+
+/**
+ * Describes the message vrooli.prose_studio.v1.prose.Eligibility.
+ * Use `create(EligibilitySchema)` to create a new message.
+ */
+export const EligibilitySchema = /*@__PURE__*/
+  messageDesc(file_prose_studio_v1_prose_prose, 15);
+
+/**
+ * Describes the message vrooli.prose_studio.v1.prose.VerbalizedHint.
+ * Use `create(VerbalizedHintSchema)` to create a new message.
+ */
+export const VerbalizedHintSchema = /*@__PURE__*/
+  messageDesc(file_prose_studio_v1_prose_prose, 16);
+
+/**
+ * Describes the message vrooli.prose_studio.v1.prose.Provenance.
+ * Use `create(ProvenanceSchema)` to create a new message.
+ */
+export const ProvenanceSchema = /*@__PURE__*/
+  messageDesc(file_prose_studio_v1_prose_prose, 17);
+
+/**
+ * Describes the message vrooli.prose_studio.v1.prose.Candidate.
+ * Use `create(CandidateSchema)` to create a new message.
+ */
+export const CandidateSchema = /*@__PURE__*/
+  messageDesc(file_prose_studio_v1_prose_prose, 18);
+
+/**
+ * Describes the message vrooli.prose_studio.v1.prose.Round.
+ * Use `create(RoundSchema)` to create a new message.
+ */
+export const RoundSchema = /*@__PURE__*/
+  messageDesc(file_prose_studio_v1_prose_prose, 19);
+
+/**
+ * Describes the message vrooli.prose_studio.v1.prose.Session.
+ * Use `create(SessionSchema)` to create a new message.
+ */
+export const SessionSchema = /*@__PURE__*/
+  messageDesc(file_prose_studio_v1_prose_prose, 20);
+
+/**
+ * Describes the message vrooli.prose_studio.v1.prose.DegradedOutcome.
+ * Use `create(DegradedOutcomeSchema)` to create a new message.
+ */
+export const DegradedOutcomeSchema = /*@__PURE__*/
+  messageDesc(file_prose_studio_v1_prose_prose, 21);
+
+/**
+ * Describes the message vrooli.prose_studio.v1.prose.GenerateResponse.
+ * Use `create(GenerateResponseSchema)` to create a new message.
+ */
+export const GenerateResponseSchema = /*@__PURE__*/
+  messageDesc(file_prose_studio_v1_prose_prose, 22);
+
+/**
+ * Describes the message vrooli.prose_studio.v1.prose.RerollRequest.
+ * Use `create(RerollRequestSchema)` to create a new message.
+ */
+export const RerollRequestSchema = /*@__PURE__*/
+  messageDesc(file_prose_studio_v1_prose_prose, 23);
+
+/**
+ * Describes the message vrooli.prose_studio.v1.prose.RerollResponse.
+ * Use `create(RerollResponseSchema)` to create a new message.
+ */
+export const RerollResponseSchema = /*@__PURE__*/
+  messageDesc(file_prose_studio_v1_prose_prose, 24);
+
+/**
+ * Describes the message vrooli.prose_studio.v1.prose.SessionActionRequest.
+ * Use `create(SessionActionRequestSchema)` to create a new message.
+ */
+export const SessionActionRequestSchema = /*@__PURE__*/
+  messageDesc(file_prose_studio_v1_prose_prose, 25);
+
+/**
+ * Describes the message vrooli.prose_studio.v1.prose.SessionActionResponse.
+ * Use `create(SessionActionResponseSchema)` to create a new message.
+ */
+export const SessionActionResponseSchema = /*@__PURE__*/
+  messageDesc(file_prose_studio_v1_prose_prose, 26);
+
+/**
+ * Describes the message vrooli.prose_studio.v1.prose.Declaration.
+ * Use `create(DeclarationSchema)` to create a new message.
+ */
+export const DeclarationSchema = /*@__PURE__*/
+  messageDesc(file_prose_studio_v1_prose_prose, 27);
+
+/**
+ * Describes the message vrooli.prose_studio.v1.prose.ReindexDeclarationsRequest.
+ * Use `create(ReindexDeclarationsRequestSchema)` to create a new message.
+ */
+export const ReindexDeclarationsRequestSchema = /*@__PURE__*/
+  messageDesc(file_prose_studio_v1_prose_prose, 28);
+
+/**
+ * Describes the message vrooli.prose_studio.v1.prose.ReindexDeclarationsResponse.
+ * Use `create(ReindexDeclarationsResponseSchema)` to create a new message.
+ */
+export const ReindexDeclarationsResponseSchema = /*@__PURE__*/
+  messageDesc(file_prose_studio_v1_prose_prose, 29);
+
+/**
+ * Describes the message vrooli.prose_studio.v1.prose.ValidateDeclarationsRequest.
+ * Use `create(ValidateDeclarationsRequestSchema)` to create a new message.
+ */
+export const ValidateDeclarationsRequestSchema = /*@__PURE__*/
+  messageDesc(file_prose_studio_v1_prose_prose, 30);
+
+/**
+ * Describes the message vrooli.prose_studio.v1.prose.ValidateDeclarationsResponse.
+ * Use `create(ValidateDeclarationsResponseSchema)` to create a new message.
+ */
+export const ValidateDeclarationsResponseSchema = /*@__PURE__*/
+  messageDesc(file_prose_studio_v1_prose_prose, 31);
+
+/**
+ * Describes the message vrooli.prose_studio.v1.prose.ContextSnapshot.
+ * Use `create(ContextSnapshotSchema)` to create a new message.
+ */
+export const ContextSnapshotSchema = /*@__PURE__*/
+  messageDesc(file_prose_studio_v1_prose_prose, 32);
+
+/**
+ * Describes the message vrooli.prose_studio.v1.prose.Section.
+ * Use `create(SectionSchema)` to create a new message.
+ */
+export const SectionSchema = /*@__PURE__*/
+  messageDesc(file_prose_studio_v1_prose_prose, 33);
+
+/**
+ * Describes the message vrooli.prose_studio.v1.prose.Document.
+ * Use `create(DocumentSchema)` to create a new message.
+ */
+export const DocumentSchema = /*@__PURE__*/
+  messageDesc(file_prose_studio_v1_prose_prose, 34);
+
+/**
+ * Describes the message vrooli.prose_studio.v1.prose.CreateDocumentRequest.
+ * Use `create(CreateDocumentRequestSchema)` to create a new message.
+ */
+export const CreateDocumentRequestSchema = /*@__PURE__*/
+  messageDesc(file_prose_studio_v1_prose_prose, 35);
+
+/**
+ * Describes the message vrooli.prose_studio.v1.prose.CreateDocumentResponse.
+ * Use `create(CreateDocumentResponseSchema)` to create a new message.
+ */
+export const CreateDocumentResponseSchema = /*@__PURE__*/
+  messageDesc(file_prose_studio_v1_prose_prose, 36);
+
+/**
+ * Describes the message vrooli.prose_studio.v1.prose.AssembleDocumentRequest.
+ * Use `create(AssembleDocumentRequestSchema)` to create a new message.
+ */
+export const AssembleDocumentRequestSchema = /*@__PURE__*/
+  messageDesc(file_prose_studio_v1_prose_prose, 37);
+
+/**
+ * Describes the message vrooli.prose_studio.v1.prose.AssembleDocumentResponse.
+ * Use `create(AssembleDocumentResponseSchema)` to create a new message.
+ */
+export const AssembleDocumentResponseSchema = /*@__PURE__*/
+  messageDesc(file_prose_studio_v1_prose_prose, 38);
+
+/**
+ * Describes the message vrooli.prose_studio.v1.prose.ConformanceRequest.
+ * Use `create(ConformanceRequestSchema)` to create a new message.
+ */
+export const ConformanceRequestSchema = /*@__PURE__*/
+  messageDesc(file_prose_studio_v1_prose_prose, 39);
+
+/**
+ * Describes the message vrooli.prose_studio.v1.prose.ConformanceResponse.
+ * Use `create(ConformanceResponseSchema)` to create a new message.
+ */
+export const ConformanceResponseSchema = /*@__PURE__*/
+  messageDesc(file_prose_studio_v1_prose_prose, 40);
 
 /**
  * @generated from service vrooli.prose_studio.v1.prose.ProseStudioService

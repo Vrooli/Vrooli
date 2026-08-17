@@ -31,6 +31,10 @@ enum InferenceErrorCode {
   // be honoured is omitted silently instead, because the role author expressed
   // a preference while the caller made no promise.
   INFERENCE_ERROR_CODE_UNSUPPORTED_SAMPLING = 6;
+  // INFERENCE_ERROR_CODE_CONTEXT_OVERFLOW means the assembled input plus the
+  // requested output cap cannot fit the resolved provider model window. The
+  // gateway refuses before dispatch and never exposes the window value.
+  INFERENCE_ERROR_CODE_CONTEXT_OVERFLOW = 7;
 }
 
 // InferenceError is a typed failure returned inside a response. It is kept

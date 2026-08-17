@@ -10,6 +10,7 @@ import { cleanup, screen } from "@testing-library/react";
 import { expectNoA11yViolations, renderWithProviders } from "../test-utils";
 import { setLocale } from "../i18n";
 import { TestAppRouter } from "../app/routes";
+import { ThemeProvider } from "../theme/ThemeProvider";
 
 vi.mock("../api/channelManager", () => ({
   overview: vi.fn().mockResolvedValue({ identities: {}, actions: {} }),
@@ -40,7 +41,10 @@ describe("AppShell accessibility", () => {
   it("renders the shell without axe violations in the dark theme", async () => {
     const { container } = renderWithProviders(
       <TestAppRouter initialEntries={["/"]} />,
-      { withoutRouter: true, initialTheme: "dark" },
+      {
+        withoutRouter: true,
+        extraProviders: (children) => <ThemeProvider initialChoice="dark">{children}</ThemeProvider>,
+      },
     );
     await screen.findByText(/No identities yet/i);
     await expectNoA11yViolations(container);

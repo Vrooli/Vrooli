@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "prose-studio",
   "generator": "v1.0.0",
-  "manifest_hash": "d6f998317e019955504ed596fc5b82e350f3b2883683cf4a27fe42b7554cd7a2",
+  "manifest_hash": "536b4a5325b5c9d78c2c54698a3f9f15b6637440cd27c4ec6ca4286b7e758918",
   "commands": [
     {
       "path": "prose conformance",

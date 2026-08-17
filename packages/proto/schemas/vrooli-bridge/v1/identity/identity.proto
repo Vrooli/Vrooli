@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package vrooli.vrooli_bridge.v1.identity;
 
+import "google/protobuf/timestamp.proto";
+
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/identity;identity_v1";
 
 // =============================================================================
@@ -51,6 +53,11 @@ service IdentityService {
   // Refresh rotates an authenticator refresh token and returns replacement
   // owner access and refresh tokens. The bridge stores nothing server-side.
   rpc Refresh(RefreshRequest) returns (RefreshResponse);
+
+  // Enroll a client key for locally minted Bridge sessions. The caller must
+  // already hold a normal owner session; the private key remains on the
+  // client and the returned reference is not a bearer credential.
+  rpc EnrollOperatorSession(EnrollOperatorSessionRequest) returns (EnrollOperatorSessionResponse);
 }
 
 message LoginRequest {
@@ -92,4 +99,20 @@ message RefreshRequest {
 message RefreshResponse {
   string token = 1;
   string refresh_token = 2;
+}
+
+message EnrollOperatorSessionRequest {
+  bytes public_key = 1;
+  string mode = 2;
+  repeated string requested_scopes = 3;
+}
+
+message EnrollOperatorSessionResponse {
+  string enrollment_reference = 1;
+  string operator_id = 2;
+  string identity_provider = 3;
+  string mode = 4;
+  repeated string scope_ceiling = 5;
+  google.protobuf.Timestamp enrolled_at = 6;
+  int64 session_ttl_seconds = 7;
 }

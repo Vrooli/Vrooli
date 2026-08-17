@@ -30,6 +30,7 @@ message ProgramEvent {
   int64 context_bytes = 10;
   string reason = 11;
   string failure_location = 12;
+  int64 sequence = 13;
 }
 
 message ListEventsRequest {

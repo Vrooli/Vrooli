@@ -72,8 +72,10 @@ message ImportFileRequest {
 message ImportFileResponse { Receipt receipt = 1; }
 enum SourceMode { SOURCE_MODE_UNSPECIFIED = 0; SOURCE_MODE_FIXTURE = 1; SOURCE_MODE_OPERATOR_SUPPLIED = 2; }
 message OperatorInputField { string path = 1; string status = 2; bool written = 3; string unit = 4; int32 window_days = 5; google.protobuf.Timestamp observed_at = 6; string kind = 7; string reason = 8; }
-message OperatorImportRequest { string source_path = 1; SourceMode source_mode = 2; bool apply = 3; string adapter_id = 4; string book_id = 5; string account_id = 6; }
+message OperatorImportRequest { string source_path = 1; SourceMode source_mode = 2; bool apply = 3; string adapter_id = 4; string book_id = 5; string account_id = 6; bytes source_json = 7; }
 message OperatorImportResponse { repeated OperatorInputField fields = 1; int32 read = 2; int32 written = 3; int32 findings = 4; bool applied = 5; }
+message OperatorInputStatusRequest { string book_id = 1; }
+message OperatorInputStatusResponse { repeated OperatorInputField fields = 1; }
 
 service IngestService {
   rpc RegisterAdapter(RegisterAdapterRequest) returns (RegisterAdapterResponse);
@@ -82,4 +84,5 @@ service IngestService {
   rpc RunAdapter(RunAdapterRequest) returns (RunAdapterResponse);
   rpc ImportFile(ImportFileRequest) returns (ImportFileResponse);
   rpc ImportOperatorInputs(OperatorImportRequest) returns (OperatorImportResponse);
+  rpc OperatorInputStatus(OperatorInputStatusRequest) returns (OperatorInputStatusResponse);
 }

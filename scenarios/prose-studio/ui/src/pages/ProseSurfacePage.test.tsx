@@ -30,10 +30,26 @@ describe("Prose Studio surfaces", () => {
     expect(screen.getByRole("link", { name: "Open variation board" })).toHaveAttribute("href", "/variation");
   });
 
-  it("renders candidate text without introducing a per-card quality ordering", () => {
+  it("renders candidate text and enables a negative reroll action without introducing a per-card quality ordering", async () => {
     renderWithProviders(<VariationBoard candidates={["A measured paragraph"]} />);
     expect(screen.getByLabelText("Candidate 1")).toHaveTextContent("A measured paragraph");
-    expect(screen.getByRole("button", { name: /reroll/i })).toBeDisabled();
+    const reroll = screen.getByRole("button", { name: /reroll/i });
+    expect(reroll).toBeEnabled();
+    await reroll.click();
+    expect(screen.getByRole("status")).toHaveTextContent("Reroll requested");
+  });
+
+  it("shows measured diversity and transient generation states", () => {
+    renderWithProviders(<VariationBoard candidates={["A measured paragraph"]} diversity={0.812} />);
+    expect(screen.getByLabelText("Set diversity 0.812")).toHaveTextContent("0.81");
+    cleanup();
+
+    renderWithProviders(<VariationBoard loading />);
+    expect(screen.getByRole("status")).toHaveTextContent("Generating a measured candidate set");
+    cleanup();
+
+    renderWithProviders(<VariationBoard error="Gateway unavailable" />);
+    expect(screen.getByRole("alert")).toHaveTextContent("Gateway unavailable");
   });
 
   it("reports declaration validation failure and permits retry", async () => {

@@ -18,10 +18,25 @@ class SustainPeriodUnit(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     DAY: _ClassVar[SustainPeriodUnit]
     WEEK: _ClassVar[SustainPeriodUnit]
     MONTH: _ClassVar[SustainPeriodUnit]
+
+class AccountKind(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    ACCOUNT_KIND_UNSPECIFIED: _ClassVar[AccountKind]
+    ASSET: _ClassVar[AccountKind]
+    LIABILITY: _ClassVar[AccountKind]
+    REVENUE: _ClassVar[AccountKind]
+    EXPENSE: _ClassVar[AccountKind]
+    EQUITY: _ClassVar[AccountKind]
 SUSTAIN_PERIOD_UNIT_UNSPECIFIED: SustainPeriodUnit
 DAY: SustainPeriodUnit
 WEEK: SustainPeriodUnit
 MONTH: SustainPeriodUnit
+ACCOUNT_KIND_UNSPECIFIED: AccountKind
+ASSET: AccountKind
+LIABILITY: AccountKind
+REVENUE: AccountKind
+EXPENSE: AccountKind
+EQUITY: AccountKind
 
 class Availability(_message.Message):
     __slots__ = ("adapter_id", "reason", "last_success_at")
@@ -34,16 +49,18 @@ class Availability(_message.Message):
     def __init__(self, adapter_id: _Optional[str] = ..., reason: _Optional[str] = ..., last_success_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class Book(_message.Message):
-    __slots__ = ("id", "name", "currency", "created_at")
+    __slots__ = ("id", "name", "currency", "created_at", "archived")
     ID_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     CURRENCY_FIELD_NUMBER: _ClassVar[int]
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    ARCHIVED_FIELD_NUMBER: _ClassVar[int]
     id: str
     name: str
     currency: str
     created_at: _timestamp_pb2.Timestamp
-    def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., currency: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+    archived: bool
+    def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., currency: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., archived: _Optional[bool] = ...) -> None: ...
 
 class Account(_message.Message):
     __slots__ = ("id", "book_id", "name", "kind", "created_at")
@@ -60,7 +77,7 @@ class Account(_message.Message):
     def __init__(self, id: _Optional[str] = ..., book_id: _Optional[str] = ..., name: _Optional[str] = ..., kind: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class Goal(_message.Message):
-    __slots__ = ("id", "name", "metric", "comparator", "threshold_minor", "sustain_periods", "buffer_multiple", "book_id", "threshold_ratio", "comparand_metric", "sustain_period_unit")
+    __slots__ = ("id", "name", "metric", "comparator", "threshold_minor", "sustain_periods", "buffer_multiple", "book_id", "threshold_ratio", "comparand_metric", "sustain_period_unit", "archived")
     ID_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     METRIC_FIELD_NUMBER: _ClassVar[int]
@@ -72,6 +89,7 @@ class Goal(_message.Message):
     THRESHOLD_RATIO_FIELD_NUMBER: _ClassVar[int]
     COMPARAND_METRIC_FIELD_NUMBER: _ClassVar[int]
     SUSTAIN_PERIOD_UNIT_FIELD_NUMBER: _ClassVar[int]
+    ARCHIVED_FIELD_NUMBER: _ClassVar[int]
     id: str
     name: str
     metric: str
@@ -83,7 +101,8 @@ class Goal(_message.Message):
     threshold_ratio: float
     comparand_metric: str
     sustain_period_unit: SustainPeriodUnit
-    def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., metric: _Optional[str] = ..., comparator: _Optional[str] = ..., threshold_minor: _Optional[int] = ..., sustain_periods: _Optional[int] = ..., buffer_multiple: _Optional[float] = ..., book_id: _Optional[str] = ..., threshold_ratio: _Optional[float] = ..., comparand_metric: _Optional[str] = ..., sustain_period_unit: _Optional[_Union[SustainPeriodUnit, str]] = ...) -> None: ...
+    archived: bool
+    def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., metric: _Optional[str] = ..., comparator: _Optional[str] = ..., threshold_minor: _Optional[int] = ..., sustain_periods: _Optional[int] = ..., buffer_multiple: _Optional[float] = ..., book_id: _Optional[str] = ..., threshold_ratio: _Optional[float] = ..., comparand_metric: _Optional[str] = ..., sustain_period_unit: _Optional[_Union[SustainPeriodUnit, str]] = ..., archived: _Optional[bool] = ...) -> None: ...
 
 class GoalVerdict(_message.Message):
     __slots__ = ("goal", "met", "sustained_periods", "explanation", "required_periods", "period_unit")
@@ -116,8 +135,10 @@ class CreateBookResponse(_message.Message):
     def __init__(self, book: _Optional[_Union[Book, _Mapping]] = ...) -> None: ...
 
 class ListBooksRequest(_message.Message):
-    __slots__ = ()
-    def __init__(self) -> None: ...
+    __slots__ = ("include_archived",)
+    INCLUDE_ARCHIVED_FIELD_NUMBER: _ClassVar[int]
+    include_archived: bool
+    def __init__(self, include_archived: _Optional[bool] = ...) -> None: ...
 
 class ListBooksResponse(_message.Message):
     __slots__ = ("books",)
@@ -126,14 +147,14 @@ class ListBooksResponse(_message.Message):
     def __init__(self, books: _Optional[_Iterable[_Union[Book, _Mapping]]] = ...) -> None: ...
 
 class CreateAccountRequest(_message.Message):
-    __slots__ = ("book_id", "name", "kind")
+    __slots__ = ("book_id", "name", "account_kind")
     BOOK_ID_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
-    KIND_FIELD_NUMBER: _ClassVar[int]
+    ACCOUNT_KIND_FIELD_NUMBER: _ClassVar[int]
     book_id: str
     name: str
-    kind: str
-    def __init__(self, book_id: _Optional[str] = ..., name: _Optional[str] = ..., kind: _Optional[str] = ...) -> None: ...
+    account_kind: AccountKind
+    def __init__(self, book_id: _Optional[str] = ..., name: _Optional[str] = ..., account_kind: _Optional[_Union[AccountKind, str]] = ...) -> None: ...
 
 class CreateAccountResponse(_message.Message):
     __slots__ = ("account",)
@@ -324,13 +345,59 @@ class DeclareGoalResponse(_message.Message):
     def __init__(self, goal: _Optional[_Union[Goal, _Mapping]] = ...) -> None: ...
 
 class ListGoalsRequest(_message.Message):
-    __slots__ = ("book_id",)
+    __slots__ = ("book_id", "include_archived")
     BOOK_ID_FIELD_NUMBER: _ClassVar[int]
+    INCLUDE_ARCHIVED_FIELD_NUMBER: _ClassVar[int]
     book_id: str
-    def __init__(self, book_id: _Optional[str] = ...) -> None: ...
+    include_archived: bool
+    def __init__(self, book_id: _Optional[str] = ..., include_archived: _Optional[bool] = ...) -> None: ...
 
 class ListGoalsResponse(_message.Message):
     __slots__ = ("goals",)
     GOALS_FIELD_NUMBER: _ClassVar[int]
     goals: _containers.RepeatedCompositeFieldContainer[GoalVerdict]
     def __init__(self, goals: _Optional[_Iterable[_Union[GoalVerdict, _Mapping]]] = ...) -> None: ...
+
+class ArchiveBookRequest(_message.Message):
+    __slots__ = ("book_id", "actor")
+    BOOK_ID_FIELD_NUMBER: _ClassVar[int]
+    ACTOR_FIELD_NUMBER: _ClassVar[int]
+    book_id: str
+    actor: str
+    def __init__(self, book_id: _Optional[str] = ..., actor: _Optional[str] = ...) -> None: ...
+
+class ArchiveBookResponse(_message.Message):
+    __slots__ = ("book",)
+    BOOK_FIELD_NUMBER: _ClassVar[int]
+    book: Book
+    def __init__(self, book: _Optional[_Union[Book, _Mapping]] = ...) -> None: ...
+
+class ArchiveGoalRequest(_message.Message):
+    __slots__ = ("goal_id", "actor")
+    GOAL_ID_FIELD_NUMBER: _ClassVar[int]
+    ACTOR_FIELD_NUMBER: _ClassVar[int]
+    goal_id: str
+    actor: str
+    def __init__(self, goal_id: _Optional[str] = ..., actor: _Optional[str] = ...) -> None: ...
+
+class ArchiveGoalResponse(_message.Message):
+    __slots__ = ("goal",)
+    GOAL_FIELD_NUMBER: _ClassVar[int]
+    goal: Goal
+    def __init__(self, goal: _Optional[_Union[Goal, _Mapping]] = ...) -> None: ...
+
+class ReparentGoalRequest(_message.Message):
+    __slots__ = ("goal_id", "book_id", "actor")
+    GOAL_ID_FIELD_NUMBER: _ClassVar[int]
+    BOOK_ID_FIELD_NUMBER: _ClassVar[int]
+    ACTOR_FIELD_NUMBER: _ClassVar[int]
+    goal_id: str
+    book_id: str
+    actor: str
+    def __init__(self, goal_id: _Optional[str] = ..., book_id: _Optional[str] = ..., actor: _Optional[str] = ...) -> None: ...
+
+class ReparentGoalResponse(_message.Message):
+    __slots__ = ("goal",)
+    GOAL_FIELD_NUMBER: _ClassVar[int]
+    goal: Goal
+    def __init__(self, goal: _Optional[_Union[Goal, _Mapping]] = ...) -> None: ...

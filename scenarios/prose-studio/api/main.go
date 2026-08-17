@@ -163,6 +163,9 @@ func main() {
 	}
 	proseService := prose.New(db.Primary())
 	if declarationsRoot := findDeclarationsRoot(); declarationsRoot != "" {
+		// Recorded so a reindex request that names no root rescans this
+		// scenario's own declarations rather than being refused.
+		proseService.SetDeclarationsRoot(declarationsRoot)
 		if _, err := proseService.Reindex(context.Background(), declarationsRoot); err != nil {
 			// A malformed declaration is retained as invalid by Reindex and must
 			// never make the API unavailable. Unexpected filesystem failures are

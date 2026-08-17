@@ -2,24 +2,337 @@
   "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
   "name": "prose-studio",
   "description": "Governed prose generation with inspectable profiles, measured candidate sets, convergence, declarations, and document assembly.",
-  "groups": [{
-    "name": "prose",
-    "description": "Operate Prose Studio",
-    "commands": [
-      {"name":"registry","description":"List introspectable sampler, policy, metric, and transform kinds","flags":[{"name":"json","description":"JSON request payload","default":"{}"}],"binding":{"kind":"connect-rpc","service":"ProseStudioService","method":"Registry"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"architecture":{"primitive":"proto_list"}},
-      {"name":"style-create","description":"Create a versioned writing style","flags":[{"name":"json","required":true,"description":"Style JSON payload"}],"binding":{"kind":"connect-rpc","service":"ProseStudioService","method":"CreateStyle"},"governance":{"effect":"write","run_eligible":true,"permissions":["network:internal"]},"architecture":{"primitive":"proto_list"}},
-      {"name":"profile-resolve","description":"Resolve a profile and inspect the exact instruction","flags":[{"name":"json","required":true,"description":"JSON object containing key"}],"binding":{"kind":"connect-rpc","service":"ProseStudioService","method":"ResolveProfile"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"architecture":{"primitive":"proto_list"}},
-      {"name":"generate","description":"Generate a measured candidate set","flags":[{"name":"json","required":true,"description":"Generate JSON payload"}],"binding":{"kind":"connect-rpc","service":"ProseStudioService","method":"Generate"},"governance":{"effect":"write","run_eligible":true,"permissions":["network:internal"]},"architecture":{"primitive":"proto_list"}},
-      {"name":"reroll","description":"Reroll a session with bounded negative context","flags":[{"name":"json","required":true,"description":"Reroll JSON payload"}],"binding":{"kind":"connect-rpc","service":"ProseStudioService","method":"Reroll"},"governance":{"effect":"write","run_eligible":true,"permissions":["network:internal"]},"architecture":{"primitive":"proto_list"}},
-      {"name":"session-action","description":"Pin, unpin, reject, refine, commit, or abandon a session","flags":[{"name":"json","required":true,"description":"Session action JSON payload"}],"binding":{"kind":"connect-rpc","service":"ProseStudioService","method":"SessionAction"},"governance":{"effect":"write","run_eligible":true,"permissions":["network:internal"]},"architecture":{"primitive":"proto_list"}},
-      {"name":"declarations-reindex","description":"Register consumer-owned declaration files","flags":[{"name":"json","required":true,"description":"JSON object containing root"}],"binding":{"kind":"connect-rpc","service":"ProseStudioService","method":"ReindexDeclarations"},"governance":{"effect":"write","run_eligible":true,"permissions":["network:internal"]},"architecture":{"primitive":"proto_list"}},
-      {"name":"declarations-validate","description":"Validate declarations without invoking test-genie","flags":[{"name":"json","required":true,"description":"JSON object containing root"}],"binding":{"kind":"connect-rpc","service":"ProseStudioService","method":"ValidateDeclarations"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"architecture":{"primitive":"proto_list"}},
-      {"name":"document-create","description":"Create a section-composed document","flags":[{"name":"json","required":true,"description":"Document and sections JSON payload"}],"binding":{"kind":"connect-rpc","service":"ProseStudioService","method":"CreateDocument"},"governance":{"effect":"write","run_eligible":true,"permissions":["network:internal"]},"architecture":{"primitive":"proto_list"}},
-      {"name":"document-assemble","description":"Assemble committed sections to ordered text","flags":[{"name":"json","required":true,"description":"JSON object containing id"}],"binding":{"kind":"connect-rpc","service":"ProseStudioService","method":"AssembleDocument"},"governance":{"effect":"write","run_eligible":true,"permissions":["network:internal"]},"architecture":{"primitive":"proto_list"}},
-      {"name":"conformance","description":"Report style targets and lexicon spans","flags":[{"name":"json","required":true,"description":"Conformance JSON payload"}],"binding":{"kind":"connect-rpc","service":"ProseStudioService","method":"Conformance"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"architecture":{"primitive":"proto_list"}}
+  "groups": [
+    {
+      "name": "prose",
+      "description": "Operate Prose Studio",
+      "commands": [
+        {
+          "name": "registry",
+          "description": "List introspectable sampler, policy, metric, and transform kinds",
+          "flags": [
+            {
+              "name": "request-json",
+              "description": "JSON request payload (use --json for output format)",
+              "local_only": true,
+              "bind_waiver": "The CLI accepts a complete protojson request payload and decodes it into the typed request before invoking the Connect client.",
+              "default": "{}"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ProseStudioService",
+            "method": "Registry"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "style-create",
+          "description": "Create a versioned writing style",
+          "flags": [
+            {
+              "name": "request-json",
+              "required": true,
+              "local_only": true,
+              "bind_waiver": "The CLI accepts a complete protojson request payload and decodes it into the typed request before invoking the Connect client.",
+              "description": "Style JSON payload"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ProseStudioService",
+            "method": "CreateStyle"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "profile-resolve",
+          "description": "Resolve a profile and inspect the exact instruction",
+          "flags": [
+            {
+              "name": "request-json",
+              "required": true,
+              "local_only": true,
+              "bind_waiver": "The CLI accepts a complete protojson request payload and decodes it into the typed request before invoking the Connect client.",
+              "description": "JSON object containing key"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ProseStudioService",
+            "method": "ResolveProfile"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "generate",
+          "description": "Generate a measured candidate set",
+          "flags": [
+            {
+              "name": "request-json",
+              "required": true,
+              "local_only": true,
+              "bind_waiver": "The CLI accepts a complete protojson request payload and decodes it into the typed request before invoking the Connect client.",
+              "description": "Generate JSON payload"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ProseStudioService",
+            "method": "Generate"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "reroll",
+          "description": "Reroll a session with bounded negative context",
+          "flags": [
+            {
+              "name": "request-json",
+              "required": true,
+              "local_only": true,
+              "bind_waiver": "The CLI accepts a complete protojson request payload and decodes it into the typed request before invoking the Connect client.",
+              "description": "Reroll JSON payload"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ProseStudioService",
+            "method": "Reroll"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "session-action",
+          "description": "Pin, unpin, reject, refine, commit, or abandon a session",
+          "flags": [
+            {
+              "name": "request-json",
+              "required": true,
+              "local_only": true,
+              "bind_waiver": "The CLI accepts a complete protojson request payload and decodes it into the typed request before invoking the Connect client.",
+              "description": "Session action JSON payload"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ProseStudioService",
+            "method": "SessionAction"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "declarations-reindex",
+          "description": "Register consumer-owned declaration files",
+          "flags": [
+            {
+              "name": "request-json",
+              "required": true,
+              "local_only": true,
+              "bind_waiver": "The CLI accepts a complete protojson request payload and decodes it into the typed request before invoking the Connect client.",
+              "description": "JSON object containing root"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ProseStudioService",
+            "method": "ReindexDeclarations"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "declarations-validate",
+          "description": "Validate declarations without invoking test-genie",
+          "flags": [
+            {
+              "name": "request-json",
+              "required": true,
+              "local_only": true,
+              "bind_waiver": "The CLI accepts a complete protojson request payload and decodes it into the typed request before invoking the Connect client.",
+              "description": "JSON object containing root"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ProseStudioService",
+            "method": "ValidateDeclarations"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "document-create",
+          "description": "Create a section-composed document",
+          "flags": [
+            {
+              "name": "request-json",
+              "required": true,
+              "local_only": true,
+              "bind_waiver": "The CLI accepts a complete protojson request payload and decodes it into the typed request before invoking the Connect client.",
+              "description": "Document and sections JSON payload"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ProseStudioService",
+            "method": "CreateDocument"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "document-assemble",
+          "description": "Assemble committed sections to ordered text",
+          "flags": [
+            {
+              "name": "request-json",
+              "required": true,
+              "local_only": true,
+              "bind_waiver": "The CLI accepts a complete protojson request payload and decodes it into the typed request before invoking the Connect client.",
+              "description": "JSON object containing id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ProseStudioService",
+            "method": "AssembleDocument"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "conformance",
+          "description": "Report style targets and lexicon spans",
+          "flags": [
+            {
+              "name": "request-json",
+              "required": true,
+              "local_only": true,
+              "bind_waiver": "The CLI accepts a complete protojson request payload and decodes it into the typed request before invoking the Connect client.",
+              "description": "Conformance JSON payload"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ProseStudioService",
+            "method": "Conformance"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        }
+      ]
+    }
+  ],
+  "measures": {
+    "domains": [
+      {
+        "domain": "prose_records",
+        "stateful": true,
+        "reason": "Versioned styles, profiles, sessions, candidates, declarations, and documents are governed scenario state."
+      }
+    ],
+    "omitted": [
+      {
+        "domain": "prose_records",
+        "reason": "The current CLI exposes typed list-shaped prose responses, but no dedicated CountProseRecords measure RPC exists yet; keep this explicit waiver until the measures contract can return a scalar or table without repurposing generation responses."
+      }
     ]
-  }],
-  "measures":{"domains":[]},
-  "exceptions":[],
-  "omitted":[]
+  },
+  "exceptions": [],
+  "omitted": []
 }

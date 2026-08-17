@@ -3,12 +3,36 @@ import datetime
 from google.protobuf import timestamp_pb2 as _timestamp_pb2
 from vrooli_bridge.v1.shared import shared_pb2 as _shared_pb2
 from google.protobuf.internal import containers as _containers
+from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
 from collections.abc import Iterable as _Iterable, Mapping as _Mapping
 from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
+
+class PrivilegedOperation(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    PRIVILEGED_OPERATION_UNSPECIFIED: _ClassVar[PrivilegedOperation]
+    PRIVILEGED_OPERATION_PROVISION: _ClassVar[PrivilegedOperation]
+    PRIVILEGED_OPERATION_INVENTORY_INSTALLATION: _ClassVar[PrivilegedOperation]
+    PRIVILEGED_OPERATION_PLAN_UNINSTALL: _ClassVar[PrivilegedOperation]
+    PRIVILEGED_OPERATION_PROVISION_BREAK_GLASS: _ClassVar[PrivilegedOperation]
+    PRIVILEGED_OPERATION_ISSUE_CLEANUP_CAPABILITY: _ClassVar[PrivilegedOperation]
+    PRIVILEGED_OPERATION_APPLY_FROZEN_PLAN: _ClassVar[PrivilegedOperation]
+    PRIVILEGED_OPERATION_VERIFY_RESULT: _ClassVar[PrivilegedOperation]
+    PRIVILEGED_OPERATION_ROTATE_BREAK_GLASS: _ClassVar[PrivilegedOperation]
+    PRIVILEGED_OPERATION_RESET_BREAK_GLASS: _ClassVar[PrivilegedOperation]
+PRIVILEGED_OPERATION_UNSPECIFIED: PrivilegedOperation
+PRIVILEGED_OPERATION_PROVISION: PrivilegedOperation
+PRIVILEGED_OPERATION_INVENTORY_INSTALLATION: PrivilegedOperation
+PRIVILEGED_OPERATION_PLAN_UNINSTALL: PrivilegedOperation
+PRIVILEGED_OPERATION_PROVISION_BREAK_GLASS: PrivilegedOperation
+PRIVILEGED_OPERATION_ISSUE_CLEANUP_CAPABILITY: PrivilegedOperation
+PRIVILEGED_OPERATION_APPLY_FROZEN_PLAN: PrivilegedOperation
+PRIVILEGED_OPERATION_VERIFY_RESULT: PrivilegedOperation
+PRIVILEGED_OPERATION_ROTATE_BREAK_GLASS: PrivilegedOperation
+PRIVILEGED_OPERATION_RESET_BREAK_GLASS: PrivilegedOperation
 
 class Handshake(_message.Message):
     __slots__ = ("protocol_version", "node_id", "agent_version", "os", "arch", "capabilities", "supports_websocket")
@@ -57,6 +81,34 @@ class JobPush(_message.Message):
     timeout_seconds: int
     outputs: _containers.RepeatedCompositeFieldContainer[ArtifactOutput]
     def __init__(self, run_id: _Optional[str] = ..., scenario: _Optional[str] = ..., verb: _Optional[str] = ..., args: _Optional[_Iterable[str]] = ..., timeout_seconds: _Optional[int] = ..., outputs: _Optional[_Iterable[_Union[ArtifactOutput, _Mapping]]] = ...) -> None: ...
+
+class CleanupCommand(_message.Message):
+    __slots__ = ("operation", "op_id", "machine_id", "node_id", "target", "scope", "plan_id", "plan_hash", "sealed_passphrase", "capability", "operator_confirmed", "operator_id")
+    OPERATION_FIELD_NUMBER: _ClassVar[int]
+    OP_ID_FIELD_NUMBER: _ClassVar[int]
+    MACHINE_ID_FIELD_NUMBER: _ClassVar[int]
+    NODE_ID_FIELD_NUMBER: _ClassVar[int]
+    TARGET_FIELD_NUMBER: _ClassVar[int]
+    SCOPE_FIELD_NUMBER: _ClassVar[int]
+    PLAN_ID_FIELD_NUMBER: _ClassVar[int]
+    PLAN_HASH_FIELD_NUMBER: _ClassVar[int]
+    SEALED_PASSPHRASE_FIELD_NUMBER: _ClassVar[int]
+    CAPABILITY_FIELD_NUMBER: _ClassVar[int]
+    OPERATOR_CONFIRMED_FIELD_NUMBER: _ClassVar[int]
+    OPERATOR_ID_FIELD_NUMBER: _ClassVar[int]
+    operation: PrivilegedOperation
+    op_id: str
+    machine_id: str
+    node_id: str
+    target: str
+    scope: str
+    plan_id: str
+    plan_hash: str
+    sealed_passphrase: bytes
+    capability: bytes
+    operator_confirmed: bool
+    operator_id: str
+    def __init__(self, operation: _Optional[_Union[PrivilegedOperation, str]] = ..., op_id: _Optional[str] = ..., machine_id: _Optional[str] = ..., node_id: _Optional[str] = ..., target: _Optional[str] = ..., scope: _Optional[str] = ..., plan_id: _Optional[str] = ..., plan_hash: _Optional[str] = ..., sealed_passphrase: _Optional[bytes] = ..., capability: _Optional[bytes] = ..., operator_confirmed: _Optional[bool] = ..., operator_id: _Optional[str] = ...) -> None: ...
 
 class ArtifactOutput(_message.Message):
     __slots__ = ("name", "media_type", "output_flag", "max_bytes")
@@ -119,7 +171,7 @@ class RelayCancel(_message.Message):
     def __init__(self, correlation_id: _Optional[str] = ..., reason: _Optional[str] = ...) -> None: ...
 
 class ServerFrame(_message.Message):
-    __slots__ = ("frame_id", "ack", "job", "provision", "ping", "abort", "session", "relay", "relay_cancel")
+    __slots__ = ("frame_id", "ack", "job", "provision", "ping", "abort", "session", "relay", "relay_cancel", "cleanup")
     FRAME_ID_FIELD_NUMBER: _ClassVar[int]
     ACK_FIELD_NUMBER: _ClassVar[int]
     JOB_FIELD_NUMBER: _ClassVar[int]
@@ -129,6 +181,7 @@ class ServerFrame(_message.Message):
     SESSION_FIELD_NUMBER: _ClassVar[int]
     RELAY_FIELD_NUMBER: _ClassVar[int]
     RELAY_CANCEL_FIELD_NUMBER: _ClassVar[int]
+    CLEANUP_FIELD_NUMBER: _ClassVar[int]
     frame_id: str
     ack: HandshakeAck
     job: JobPush
@@ -138,7 +191,8 @@ class ServerFrame(_message.Message):
     session: _shared_pb2.SessionFrame
     relay: RelayRequest
     relay_cancel: RelayCancel
-    def __init__(self, frame_id: _Optional[str] = ..., ack: _Optional[_Union[HandshakeAck, _Mapping]] = ..., job: _Optional[_Union[JobPush, _Mapping]] = ..., provision: _Optional[_Union[ProvisionCommand, _Mapping]] = ..., ping: _Optional[_Union[ControlPing, _Mapping]] = ..., abort: _Optional[_Union[AbortJob, _Mapping]] = ..., session: _Optional[_Union[_shared_pb2.SessionFrame, _Mapping]] = ..., relay: _Optional[_Union[RelayRequest, _Mapping]] = ..., relay_cancel: _Optional[_Union[RelayCancel, _Mapping]] = ...) -> None: ...
+    cleanup: CleanupCommand
+    def __init__(self, frame_id: _Optional[str] = ..., ack: _Optional[_Union[HandshakeAck, _Mapping]] = ..., job: _Optional[_Union[JobPush, _Mapping]] = ..., provision: _Optional[_Union[ProvisionCommand, _Mapping]] = ..., ping: _Optional[_Union[ControlPing, _Mapping]] = ..., abort: _Optional[_Union[AbortJob, _Mapping]] = ..., session: _Optional[_Union[_shared_pb2.SessionFrame, _Mapping]] = ..., relay: _Optional[_Union[RelayRequest, _Mapping]] = ..., relay_cancel: _Optional[_Union[RelayCancel, _Mapping]] = ..., cleanup: _Optional[_Union[CleanupCommand, _Mapping]] = ...) -> None: ...
 
 class SignedServerFrame(_message.Message):
     __slots__ = ("frame", "signature")

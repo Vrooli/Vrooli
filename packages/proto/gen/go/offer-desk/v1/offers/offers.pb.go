@@ -82,6 +82,7 @@ func (NodeKind) EnumDescriptor() ([]byte, []int) {
 	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{0}
 }
 
+// PROPOSED is appended to preserve the wire/database values of existing statuses.
 type Status int32
 
 const (
@@ -92,6 +93,7 @@ const (
 	Status_ACTIVE             Status = 4
 	Status_SHIPPED            Status = 5
 	Status_RETIRED            Status = 6
+	Status_PROPOSED           Status = 7
 )
 
 // Enum value maps for Status.
@@ -104,6 +106,7 @@ var (
 		4: "ACTIVE",
 		5: "SHIPPED",
 		6: "RETIRED",
+		7: "PROPOSED",
 	}
 	Status_value = map[string]int32{
 		"STATUS_UNSPECIFIED": 0,
@@ -113,6 +116,7 @@ var (
 		"ACTIVE":             4,
 		"SHIPPED":            5,
 		"RETIRED":            6,
+		"PROPOSED":           7,
 	}
 )
 
@@ -438,15 +442,16 @@ func (x *Node) GetActualAccountId() string {
 }
 
 type Edge struct {
-	state              protoimpl.MessageState `protogen:"open.v1"`
-	Id                 string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	FromId             string                 `protobuf:"bytes,2,opt,name=from_id,json=fromId,proto3" json:"from_id,omitempty"`
-	ToId               string                 `protobuf:"bytes,3,opt,name=to_id,json=toId,proto3" json:"to_id,omitempty"`
-	Kind               string                 `protobuf:"bytes,4,opt,name=kind,proto3" json:"kind,omitempty"`
-	IntendedPriceMinor int64                  `protobuf:"varint,5,opt,name=intended_price_minor,json=intendedPriceMinor,proto3" json:"intended_price_minor,omitempty"`
-	Currency           string                 `protobuf:"bytes,6,opt,name=currency,proto3" json:"currency,omitempty"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+	state                 protoimpl.MessageState `protogen:"open.v1"`
+	Id                    string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	FromId                string                 `protobuf:"bytes,2,opt,name=from_id,json=fromId,proto3" json:"from_id,omitempty"`
+	ToId                  string                 `protobuf:"bytes,3,opt,name=to_id,json=toId,proto3" json:"to_id,omitempty"`
+	Kind                  string                 `protobuf:"bytes,4,opt,name=kind,proto3" json:"kind,omitempty"`
+	IntendedPriceMinor    int64                  `protobuf:"varint,5,opt,name=intended_price_minor,json=intendedPriceMinor,proto3" json:"intended_price_minor,omitempty"`
+	Currency              string                 `protobuf:"bytes,6,opt,name=currency,proto3" json:"currency,omitempty"`
+	IntendedPriceDeclared bool                   `protobuf:"varint,7,opt,name=intended_price_declared,json=intendedPriceDeclared,proto3" json:"intended_price_declared,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *Edge) Reset() {
@@ -519,6 +524,13 @@ func (x *Edge) GetCurrency() string {
 		return x.Currency
 	}
 	return ""
+}
+
+func (x *Edge) GetIntendedPriceDeclared() bool {
+	if x != nil {
+		return x.IntendedPriceDeclared
+	}
+	return false
 }
 
 type TriggerClause struct {
@@ -2809,6 +2821,389 @@ func (x *ImportCatalogResponse) GetApplied() bool {
 	return false
 }
 
+type MergeNodesRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SurvivingId   string                 `protobuf:"bytes,1,opt,name=surviving_id,json=survivingId,proto3" json:"surviving_id,omitempty"`
+	DuplicateId   string                 `protobuf:"bytes,2,opt,name=duplicate_id,json=duplicateId,proto3" json:"duplicate_id,omitempty"`
+	Actor         string                 `protobuf:"bytes,3,opt,name=actor,proto3" json:"actor,omitempty"`
+	DryRun        bool                   `protobuf:"varint,4,opt,name=dry_run,json=dryRun,proto3" json:"dry_run,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MergeNodesRequest) Reset() {
+	*x = MergeNodesRequest{}
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[40]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MergeNodesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MergeNodesRequest) ProtoMessage() {}
+
+func (x *MergeNodesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[40]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MergeNodesRequest.ProtoReflect.Descriptor instead.
+func (*MergeNodesRequest) Descriptor() ([]byte, []int) {
+	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{40}
+}
+
+func (x *MergeNodesRequest) GetSurvivingId() string {
+	if x != nil {
+		return x.SurvivingId
+	}
+	return ""
+}
+
+func (x *MergeNodesRequest) GetDuplicateId() string {
+	if x != nil {
+		return x.DuplicateId
+	}
+	return ""
+}
+
+func (x *MergeNodesRequest) GetActor() string {
+	if x != nil {
+		return x.Actor
+	}
+	return ""
+}
+
+func (x *MergeNodesRequest) GetDryRun() bool {
+	if x != nil {
+		return x.DryRun
+	}
+	return false
+}
+
+type MergeNodesResponse struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	Surviving        *Node                  `protobuf:"bytes,1,opt,name=surviving,proto3" json:"surviving,omitempty"`
+	MovedEdges       int32                  `protobuf:"varint,2,opt,name=moved_edges,json=movedEdges,proto3" json:"moved_edges,omitempty"`
+	MovedTriggers    int32                  `protobuf:"varint,3,opt,name=moved_triggers,json=movedTriggers,proto3" json:"moved_triggers,omitempty"`
+	MovedEvaluations int32                  `protobuf:"varint,4,opt,name=moved_evaluations,json=movedEvaluations,proto3" json:"moved_evaluations,omitempty"`
+	MovedProposals   int32                  `protobuf:"varint,5,opt,name=moved_proposals,json=movedProposals,proto3" json:"moved_proposals,omitempty"`
+	MovedFindings    int32                  `protobuf:"varint,6,opt,name=moved_findings,json=movedFindings,proto3" json:"moved_findings,omitempty"`
+	CollapsedEdgeIds []string               `protobuf:"bytes,7,rep,name=collapsed_edge_ids,json=collapsedEdgeIds,proto3" json:"collapsed_edge_ids,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *MergeNodesResponse) Reset() {
+	*x = MergeNodesResponse{}
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[41]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MergeNodesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MergeNodesResponse) ProtoMessage() {}
+
+func (x *MergeNodesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[41]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MergeNodesResponse.ProtoReflect.Descriptor instead.
+func (*MergeNodesResponse) Descriptor() ([]byte, []int) {
+	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{41}
+}
+
+func (x *MergeNodesResponse) GetSurviving() *Node {
+	if x != nil {
+		return x.Surviving
+	}
+	return nil
+}
+
+func (x *MergeNodesResponse) GetMovedEdges() int32 {
+	if x != nil {
+		return x.MovedEdges
+	}
+	return 0
+}
+
+func (x *MergeNodesResponse) GetMovedTriggers() int32 {
+	if x != nil {
+		return x.MovedTriggers
+	}
+	return 0
+}
+
+func (x *MergeNodesResponse) GetMovedEvaluations() int32 {
+	if x != nil {
+		return x.MovedEvaluations
+	}
+	return 0
+}
+
+func (x *MergeNodesResponse) GetMovedProposals() int32 {
+	if x != nil {
+		return x.MovedProposals
+	}
+	return 0
+}
+
+func (x *MergeNodesResponse) GetMovedFindings() int32 {
+	if x != nil {
+		return x.MovedFindings
+	}
+	return 0
+}
+
+func (x *MergeNodesResponse) GetCollapsedEdgeIds() []string {
+	if x != nil {
+		return x.CollapsedEdgeIds
+	}
+	return nil
+}
+
+type VerifyCatalogRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SourcePath    string                 `protobuf:"bytes,1,opt,name=source_path,json=sourcePath,proto3" json:"source_path,omitempty"`
+	SourceMode    SourceMode             `protobuf:"varint,2,opt,name=source_mode,json=sourceMode,proto3,enum=vrooli.offer_desk.v1.offers.SourceMode" json:"source_mode,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *VerifyCatalogRequest) Reset() {
+	*x = VerifyCatalogRequest{}
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[42]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *VerifyCatalogRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*VerifyCatalogRequest) ProtoMessage() {}
+
+func (x *VerifyCatalogRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[42]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use VerifyCatalogRequest.ProtoReflect.Descriptor instead.
+func (*VerifyCatalogRequest) Descriptor() ([]byte, []int) {
+	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{42}
+}
+
+func (x *VerifyCatalogRequest) GetSourcePath() string {
+	if x != nil {
+		return x.SourcePath
+	}
+	return ""
+}
+
+func (x *VerifyCatalogRequest) GetSourceMode() SourceMode {
+	if x != nil {
+		return x.SourceMode
+	}
+	return SourceMode_SOURCE_MODE_UNSPECIFIED
+}
+
+type VerifyFileReport struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Path          string                 `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
+	Expected      int32                  `protobuf:"varint,2,opt,name=expected,proto3" json:"expected,omitempty"`
+	Live          int32                  `protobuf:"varint,3,opt,name=live,proto3" json:"live,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *VerifyFileReport) Reset() {
+	*x = VerifyFileReport{}
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[43]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *VerifyFileReport) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*VerifyFileReport) ProtoMessage() {}
+
+func (x *VerifyFileReport) ProtoReflect() protoreflect.Message {
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[43]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use VerifyFileReport.ProtoReflect.Descriptor instead.
+func (*VerifyFileReport) Descriptor() ([]byte, []int) {
+	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{43}
+}
+
+func (x *VerifyFileReport) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *VerifyFileReport) GetExpected() int32 {
+	if x != nil {
+		return x.Expected
+	}
+	return 0
+}
+
+func (x *VerifyFileReport) GetLive() int32 {
+	if x != nil {
+		return x.Live
+	}
+	return 0
+}
+
+type VerifyCatalogResponse struct {
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	Files               []*VerifyFileReport    `protobuf:"bytes,1,rep,name=files,proto3" json:"files,omitempty"`
+	DuplicateIdentities []string               `protobuf:"bytes,2,rep,name=duplicate_identities,json=duplicateIdentities,proto3" json:"duplicate_identities,omitempty"`
+	OrphanEdgeIds       []string               `protobuf:"bytes,3,rep,name=orphan_edge_ids,json=orphanEdgeIds,proto3" json:"orphan_edge_ids,omitempty"`
+	ExtraNodeIds        []string               `protobuf:"bytes,4,rep,name=extra_node_ids,json=extraNodeIds,proto3" json:"extra_node_ids,omitempty"`
+	TotalDrift          int32                  `protobuf:"varint,5,opt,name=total_drift,json=totalDrift,proto3" json:"total_drift,omitempty"`
+	// reconciled reports that every check which could run agreed. It is not a
+	// claim that the source-versus-live count comparison ran: read `comparable`
+	// for that. A compressed source declares no records, so the count comparison
+	// has nothing to compare and is skipped while duplicate-identity and
+	// orphan-edge checks still run.
+	Reconciled bool `protobuf:"varint,6,opt,name=reconciled,proto3" json:"reconciled,omitempty"`
+	// comparable reports whether the source-versus-live node-count comparison
+	// actually ran. False means no declared source file yielded a countable
+	// record, which is the expected steady state once sources have been
+	// compressed to judgment-only prose and their state moved into this scenario.
+	Comparable bool `protobuf:"varint,7,opt,name=comparable,proto3" json:"comparable,omitempty"`
+	// not_comparable_reason states why the count comparison was skipped. Empty
+	// when comparable is true.
+	NotComparableReason string `protobuf:"bytes,8,opt,name=not_comparable_reason,json=notComparableReason,proto3" json:"not_comparable_reason,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
+}
+
+func (x *VerifyCatalogResponse) Reset() {
+	*x = VerifyCatalogResponse{}
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[44]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *VerifyCatalogResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*VerifyCatalogResponse) ProtoMessage() {}
+
+func (x *VerifyCatalogResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[44]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use VerifyCatalogResponse.ProtoReflect.Descriptor instead.
+func (*VerifyCatalogResponse) Descriptor() ([]byte, []int) {
+	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{44}
+}
+
+func (x *VerifyCatalogResponse) GetFiles() []*VerifyFileReport {
+	if x != nil {
+		return x.Files
+	}
+	return nil
+}
+
+func (x *VerifyCatalogResponse) GetDuplicateIdentities() []string {
+	if x != nil {
+		return x.DuplicateIdentities
+	}
+	return nil
+}
+
+func (x *VerifyCatalogResponse) GetOrphanEdgeIds() []string {
+	if x != nil {
+		return x.OrphanEdgeIds
+	}
+	return nil
+}
+
+func (x *VerifyCatalogResponse) GetExtraNodeIds() []string {
+	if x != nil {
+		return x.ExtraNodeIds
+	}
+	return nil
+}
+
+func (x *VerifyCatalogResponse) GetTotalDrift() int32 {
+	if x != nil {
+		return x.TotalDrift
+	}
+	return 0
+}
+
+func (x *VerifyCatalogResponse) GetReconciled() bool {
+	if x != nil {
+		return x.Reconciled
+	}
+	return false
+}
+
+func (x *VerifyCatalogResponse) GetComparable() bool {
+	if x != nil {
+		return x.Comparable
+	}
+	return false
+}
+
+func (x *VerifyCatalogResponse) GetNotComparableReason() string {
+	if x != nil {
+		return x.NotComparableReason
+	}
+	return ""
+}
+
 type SpaceCell struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -2823,7 +3218,7 @@ type SpaceCell struct {
 
 func (x *SpaceCell) Reset() {
 	*x = SpaceCell{}
-	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[40]
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[45]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2835,7 +3230,7 @@ func (x *SpaceCell) String() string {
 func (*SpaceCell) ProtoMessage() {}
 
 func (x *SpaceCell) ProtoReflect() protoreflect.Message {
-	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[40]
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[45]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2848,7 +3243,7 @@ func (x *SpaceCell) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SpaceCell.ProtoReflect.Descriptor instead.
 func (*SpaceCell) Descriptor() ([]byte, []int) {
-	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{40}
+	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{45}
 }
 
 func (x *SpaceCell) GetId() string {
@@ -2908,7 +3303,7 @@ type SpaceResponse struct {
 
 func (x *SpaceResponse) Reset() {
 	*x = SpaceResponse{}
-	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[41]
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[46]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2920,7 +3315,7 @@ func (x *SpaceResponse) String() string {
 func (*SpaceResponse) ProtoMessage() {}
 
 func (x *SpaceResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[41]
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[46]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2933,7 +3328,7 @@ func (x *SpaceResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SpaceResponse.ProtoReflect.Descriptor instead.
 func (*SpaceResponse) Descriptor() ([]byte, []int) {
-	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{41}
+	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{46}
 }
 
 func (x *SpaceResponse) GetSchemaVersion() string {
@@ -2999,14 +3394,15 @@ const file_offer_desk_v1_offers_offers_proto_rawDesc = "" +
 	"trigger_id\x18\x05 \x01(\tR\ttriggerId\x129\n" +
 	"\n" +
 	"created_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12*\n" +
-	"\x11actual_account_id\x18\a \x01(\tR\x0factualAccountId\"\xa6\x01\n" +
+	"\x11actual_account_id\x18\a \x01(\tR\x0factualAccountId\"\xde\x01\n" +
 	"\x04Edge\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n" +
 	"\afrom_id\x18\x02 \x01(\tR\x06fromId\x12\x13\n" +
 	"\x05to_id\x18\x03 \x01(\tR\x04toId\x12\x12\n" +
 	"\x04kind\x18\x04 \x01(\tR\x04kind\x120\n" +
 	"\x14intended_price_minor\x18\x05 \x01(\x03R\x12intendedPriceMinor\x12\x1a\n" +
-	"\bcurrency\x18\x06 \x01(\tR\bcurrency\"f\n" +
+	"\bcurrency\x18\x06 \x01(\tR\bcurrency\x126\n" +
+	"\x17intended_price_declared\x18\a \x01(\bR\x15intendedPriceDeclared\"f\n" +
 	"\rTriggerClause\x12\x1b\n" +
 	"\tfact_name\x18\x01 \x01(\tR\bfactName\x12\x1a\n" +
 	"\boperator\x18\x02 \x01(\tR\boperator\x12\x1c\n" +
@@ -3180,7 +3576,44 @@ const file_offer_desk_v1_offers_offers_proto_rawDesc = "" +
 	"status_map\x18\x02 \x03(\v2+.vrooli.offer_desk.v1.offers.StatusMapEntryR\tstatusMap\x12F\n" +
 	"\bfindings\x18\x03 \x03(\v2*.vrooli.offer_desk.v1.offers.ImportFindingR\bfindings\x12%\n" +
 	"\x0etotal_findings\x18\x04 \x01(\x05R\rtotalFindings\x12\x18\n" +
-	"\aapplied\x18\x05 \x01(\bR\aapplied\"\x91\x01\n" +
+	"\aapplied\x18\x05 \x01(\bR\aapplied\"\x9a\x01\n" +
+	"\x11MergeNodesRequest\x12*\n" +
+	"\fsurviving_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vsurvivingId\x12*\n" +
+	"\fduplicate_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vduplicateId\x12\x14\n" +
+	"\x05actor\x18\x03 \x01(\tR\x05actor\x12\x17\n" +
+	"\adry_run\x18\x04 \x01(\bR\x06dryRun\"\xc8\x02\n" +
+	"\x12MergeNodesResponse\x12?\n" +
+	"\tsurviving\x18\x01 \x01(\v2!.vrooli.offer_desk.v1.offers.NodeR\tsurviving\x12\x1f\n" +
+	"\vmoved_edges\x18\x02 \x01(\x05R\n" +
+	"movedEdges\x12%\n" +
+	"\x0emoved_triggers\x18\x03 \x01(\x05R\rmovedTriggers\x12+\n" +
+	"\x11moved_evaluations\x18\x04 \x01(\x05R\x10movedEvaluations\x12'\n" +
+	"\x0fmoved_proposals\x18\x05 \x01(\x05R\x0emovedProposals\x12%\n" +
+	"\x0emoved_findings\x18\x06 \x01(\x05R\rmovedFindings\x12,\n" +
+	"\x12collapsed_edge_ids\x18\a \x03(\tR\x10collapsedEdgeIds\"\x81\x01\n" +
+	"\x14VerifyCatalogRequest\x12\x1f\n" +
+	"\vsource_path\x18\x01 \x01(\tR\n" +
+	"sourcePath\x12H\n" +
+	"\vsource_mode\x18\x02 \x01(\x0e2'.vrooli.offer_desk.v1.offers.SourceModeR\n" +
+	"sourceMode\"V\n" +
+	"\x10VerifyFileReport\x12\x12\n" +
+	"\x04path\x18\x01 \x01(\tR\x04path\x12\x1a\n" +
+	"\bexpected\x18\x02 \x01(\x05R\bexpected\x12\x12\n" +
+	"\x04live\x18\x03 \x01(\x05R\x04live\"\xf2\x02\n" +
+	"\x15VerifyCatalogResponse\x12C\n" +
+	"\x05files\x18\x01 \x03(\v2-.vrooli.offer_desk.v1.offers.VerifyFileReportR\x05files\x121\n" +
+	"\x14duplicate_identities\x18\x02 \x03(\tR\x13duplicateIdentities\x12&\n" +
+	"\x0forphan_edge_ids\x18\x03 \x03(\tR\rorphanEdgeIds\x12$\n" +
+	"\x0eextra_node_ids\x18\x04 \x03(\tR\fextraNodeIds\x12\x1f\n" +
+	"\vtotal_drift\x18\x05 \x01(\x05R\n" +
+	"totalDrift\x12\x1e\n" +
+	"\n" +
+	"reconciled\x18\x06 \x01(\bR\n" +
+	"reconciled\x12\x1e\n" +
+	"\n" +
+	"comparable\x18\a \x01(\bR\n" +
+	"comparable\x122\n" +
+	"\x15not_comparable_reason\x18\b \x01(\tR\x13notComparableReason\"\x91\x01\n" +
 	"\tSpaceCell\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05group\x18\x02 \x01(\tR\x05group\x12\x1a\n" +
@@ -3204,7 +3637,7 @@ const file_offer_desk_v1_offers_offers_proto_rawDesc = "" +
 	"\aVARIANT\x10\x02\x12\v\n" +
 	"\aCHANNEL\x10\x03\x12\x10\n" +
 	"\fREVENUE_LINE\x10\x04\x12\x0f\n" +
-	"\vDELIVERABLE\x10\x05*p\n" +
+	"\vDELIVERABLE\x10\x05*~\n" +
 	"\x06Status\x12\x16\n" +
 	"\x12STATUS_UNSPECIFIED\x10\x00\x12\b\n" +
 	"\x04IDEA\x10\x01\x12\r\n" +
@@ -3213,7 +3646,8 @@ const file_offer_desk_v1_offers_offers_proto_rawDesc = "" +
 	"\n" +
 	"\x06ACTIVE\x10\x04\x12\v\n" +
 	"\aSHIPPED\x10\x05\x12\v\n" +
-	"\aRETIRED\x10\x06*O\n" +
+	"\aRETIRED\x10\x06\x12\f\n" +
+	"\bPROPOSED\x10\a*O\n" +
 	"\aVerdict\x12\x17\n" +
 	"\x13VERDICT_UNSPECIFIED\x10\x00\x12\r\n" +
 	"\tSATISFIED\x10\x01\x12\x0f\n" +
@@ -3232,7 +3666,7 @@ const file_offer_desk_v1_offers_offers_proto_rawDesc = "" +
 	"\x12TriggerComposition\x12#\n" +
 	"\x1fTRIGGER_COMPOSITION_UNSPECIFIED\x10\x00\x12\a\n" +
 	"\x03ALL\x10\x01\x12\a\n" +
-	"\x03ANY\x10\x022\xad\x05\n" +
+	"\x03ANY\x10\x022\x94\a\n" +
 	"\x0eCatalogService\x12m\n" +
 	"\n" +
 	"CreateNode\x12..vrooli.offer_desk.v1.offers.CreateNodeRequest\x1a/.vrooli.offer_desk.v1.offers.CreateNodeResponse\x12j\n" +
@@ -3242,7 +3676,10 @@ const file_offer_desk_v1_offers_offers_proto_rawDesc = "" +
 	"\n" +
 	"CreateEdge\x12..vrooli.offer_desk.v1.offers.CreateEdgeRequest\x1a/.vrooli.offer_desk.v1.offers.CreateEdgeResponse\x12j\n" +
 	"\tListEdges\x12-.vrooli.offer_desk.v1.offers.ListEdgesRequest\x1a..vrooli.offer_desk.v1.offers.ListEdgesResponse\x12v\n" +
-	"\rImportCatalog\x121.vrooli.offer_desk.v1.offers.ImportCatalogRequest\x1a2.vrooli.offer_desk.v1.offers.ImportCatalogResponse2\xb6\x04\n" +
+	"\rImportCatalog\x121.vrooli.offer_desk.v1.offers.ImportCatalogRequest\x1a2.vrooli.offer_desk.v1.offers.ImportCatalogResponse\x12m\n" +
+	"\n" +
+	"MergeNodes\x12..vrooli.offer_desk.v1.offers.MergeNodesRequest\x1a/.vrooli.offer_desk.v1.offers.MergeNodesResponse\x12v\n" +
+	"\rVerifyCatalog\x121.vrooli.offer_desk.v1.offers.VerifyCatalogRequest\x1a2.vrooli.offer_desk.v1.offers.VerifyCatalogResponse2\xb6\x04\n" +
 	"\fGatesService\x12y\n" +
 	"\x0eDeclareTrigger\x122.vrooli.offer_desk.v1.offers.DeclareTriggerRequest\x1a3.vrooli.offer_desk.v1.offers.DeclareTriggerResponse\x12d\n" +
 	"\aAddFact\x12+.vrooli.offer_desk.v1.offers.AddFactRequest\x1a,.vrooli.offer_desk.v1.offers.AddFactResponse\x12g\n" +
@@ -3267,7 +3704,7 @@ func file_offer_desk_v1_offers_offers_proto_rawDescGZIP() []byte {
 }
 
 var file_offer_desk_v1_offers_offers_proto_enumTypes = make([]protoimpl.EnumInfo, 6)
-var file_offer_desk_v1_offers_offers_proto_msgTypes = make([]protoimpl.MessageInfo, 42)
+var file_offer_desk_v1_offers_offers_proto_msgTypes = make([]protoimpl.MessageInfo, 47)
 var file_offer_desk_v1_offers_offers_proto_goTypes = []any{
 	(NodeKind)(0),                   // 0: vrooli.offer_desk.v1.offers.NodeKind
 	(Status)(0),                     // 1: vrooli.offer_desk.v1.offers.Status
@@ -3315,35 +3752,40 @@ var file_offer_desk_v1_offers_offers_proto_goTypes = []any{
 	(*StatusMapEntry)(nil),          // 43: vrooli.offer_desk.v1.offers.StatusMapEntry
 	(*ImportFinding)(nil),           // 44: vrooli.offer_desk.v1.offers.ImportFinding
 	(*ImportCatalogResponse)(nil),   // 45: vrooli.offer_desk.v1.offers.ImportCatalogResponse
-	(*SpaceCell)(nil),               // 46: vrooli.offer_desk.v1.offers.SpaceCell
-	(*SpaceResponse)(nil),           // 47: vrooli.offer_desk.v1.offers.SpaceResponse
-	(*timestamppb.Timestamp)(nil),   // 48: google.protobuf.Timestamp
-	(*ledger.PositionResponse)(nil), // 49: vrooli.money_ledger.v1.ledger.PositionResponse
-	(*ledger.GoalVerdict)(nil),      // 50: vrooli.money_ledger.v1.ledger.GoalVerdict
+	(*MergeNodesRequest)(nil),       // 46: vrooli.offer_desk.v1.offers.MergeNodesRequest
+	(*MergeNodesResponse)(nil),      // 47: vrooli.offer_desk.v1.offers.MergeNodesResponse
+	(*VerifyCatalogRequest)(nil),    // 48: vrooli.offer_desk.v1.offers.VerifyCatalogRequest
+	(*VerifyFileReport)(nil),        // 49: vrooli.offer_desk.v1.offers.VerifyFileReport
+	(*VerifyCatalogResponse)(nil),   // 50: vrooli.offer_desk.v1.offers.VerifyCatalogResponse
+	(*SpaceCell)(nil),               // 51: vrooli.offer_desk.v1.offers.SpaceCell
+	(*SpaceResponse)(nil),           // 52: vrooli.offer_desk.v1.offers.SpaceResponse
+	(*timestamppb.Timestamp)(nil),   // 53: google.protobuf.Timestamp
+	(*ledger.PositionResponse)(nil), // 54: vrooli.money_ledger.v1.ledger.PositionResponse
+	(*ledger.GoalVerdict)(nil),      // 55: vrooli.money_ledger.v1.ledger.GoalVerdict
 }
 var file_offer_desk_v1_offers_offers_proto_depIdxs = []int32{
 	0,  // 0: vrooli.offer_desk.v1.offers.Node.kind:type_name -> vrooli.offer_desk.v1.offers.NodeKind
 	1,  // 1: vrooli.offer_desk.v1.offers.Node.status:type_name -> vrooli.offer_desk.v1.offers.Status
-	48, // 2: vrooli.offer_desk.v1.offers.Node.created_at:type_name -> google.protobuf.Timestamp
-	48, // 3: vrooli.offer_desk.v1.offers.Fact.observed_at:type_name -> google.protobuf.Timestamp
+	53, // 2: vrooli.offer_desk.v1.offers.Node.created_at:type_name -> google.protobuf.Timestamp
+	53, // 3: vrooli.offer_desk.v1.offers.Fact.observed_at:type_name -> google.protobuf.Timestamp
 	8,  // 4: vrooli.offer_desk.v1.offers.Trigger.clauses:type_name -> vrooli.offer_desk.v1.offers.TriggerClause
 	5,  // 5: vrooli.offer_desk.v1.offers.Trigger.composition:type_name -> vrooli.offer_desk.v1.offers.TriggerComposition
 	2,  // 6: vrooli.offer_desk.v1.offers.Evaluation.verdict:type_name -> vrooli.offer_desk.v1.offers.Verdict
-	48, // 7: vrooli.offer_desk.v1.offers.Evaluation.evaluated_at:type_name -> google.protobuf.Timestamp
-	48, // 8: vrooli.offer_desk.v1.offers.ProposalDecline.created_at:type_name -> google.protobuf.Timestamp
+	53, // 7: vrooli.offer_desk.v1.offers.Evaluation.evaluated_at:type_name -> google.protobuf.Timestamp
+	53, // 8: vrooli.offer_desk.v1.offers.ProposalDecline.created_at:type_name -> google.protobuf.Timestamp
 	1,  // 9: vrooli.offer_desk.v1.offers.Proposal.requested_status:type_name -> vrooli.offer_desk.v1.offers.Status
-	48, // 10: vrooli.offer_desk.v1.offers.Proposal.created_at:type_name -> google.protobuf.Timestamp
+	53, // 10: vrooli.offer_desk.v1.offers.Proposal.created_at:type_name -> google.protobuf.Timestamp
 	12, // 11: vrooli.offer_desk.v1.offers.Proposal.decline_history:type_name -> vrooli.offer_desk.v1.offers.ProposalDecline
-	48, // 12: vrooli.offer_desk.v1.offers.Availability.last_success_at:type_name -> google.protobuf.Timestamp
+	53, // 12: vrooli.offer_desk.v1.offers.Availability.last_success_at:type_name -> google.protobuf.Timestamp
 	1,  // 13: vrooli.offer_desk.v1.offers.BoardEntry.status:type_name -> vrooli.offer_desk.v1.offers.Status
 	14, // 14: vrooli.offer_desk.v1.offers.BoardEntry.availability:type_name -> vrooli.offer_desk.v1.offers.Availability
-	48, // 15: vrooli.offer_desk.v1.offers.EvaluationCondition.last_run_at:type_name -> google.protobuf.Timestamp
+	53, // 15: vrooli.offer_desk.v1.offers.EvaluationCondition.last_run_at:type_name -> google.protobuf.Timestamp
 	4,  // 16: vrooli.offer_desk.v1.offers.EvaluationCondition.last_result:type_name -> vrooli.offer_desk.v1.offers.EvaluationResult
 	15, // 17: vrooli.offer_desk.v1.offers.BoardResponse.entries:type_name -> vrooli.offer_desk.v1.offers.BoardEntry
-	49, // 18: vrooli.offer_desk.v1.offers.BoardResponse.position:type_name -> vrooli.money_ledger.v1.ledger.PositionResponse
+	54, // 18: vrooli.offer_desk.v1.offers.BoardResponse.position:type_name -> vrooli.money_ledger.v1.ledger.PositionResponse
 	14, // 19: vrooli.offer_desk.v1.offers.BoardResponse.availability:type_name -> vrooli.offer_desk.v1.offers.Availability
 	16, // 20: vrooli.offer_desk.v1.offers.BoardResponse.evaluation:type_name -> vrooli.offer_desk.v1.offers.EvaluationCondition
-	50, // 21: vrooli.offer_desk.v1.offers.BoardResponse.goals:type_name -> vrooli.money_ledger.v1.ledger.GoalVerdict
+	55, // 21: vrooli.offer_desk.v1.offers.BoardResponse.goals:type_name -> vrooli.money_ledger.v1.ledger.GoalVerdict
 	0,  // 22: vrooli.offer_desk.v1.offers.CreateNodeRequest.kind:type_name -> vrooli.offer_desk.v1.offers.NodeKind
 	1,  // 23: vrooli.offer_desk.v1.offers.CreateNodeRequest.status:type_name -> vrooli.offer_desk.v1.offers.Status
 	6,  // 24: vrooli.offer_desk.v1.offers.CreateNodeResponse.node:type_name -> vrooli.offer_desk.v1.offers.Node
@@ -3369,38 +3811,45 @@ var file_offer_desk_v1_offers_offers_proto_depIdxs = []int32{
 	42, // 44: vrooli.offer_desk.v1.offers.ImportCatalogResponse.files:type_name -> vrooli.offer_desk.v1.offers.ImportFileReport
 	43, // 45: vrooli.offer_desk.v1.offers.ImportCatalogResponse.status_map:type_name -> vrooli.offer_desk.v1.offers.StatusMapEntry
 	44, // 46: vrooli.offer_desk.v1.offers.ImportCatalogResponse.findings:type_name -> vrooli.offer_desk.v1.offers.ImportFinding
-	46, // 47: vrooli.offer_desk.v1.offers.SpaceResponse.cells:type_name -> vrooli.offer_desk.v1.offers.SpaceCell
-	18, // 48: vrooli.offer_desk.v1.offers.CatalogService.CreateNode:input_type -> vrooli.offer_desk.v1.offers.CreateNodeRequest
-	20, // 49: vrooli.offer_desk.v1.offers.CatalogService.ListNodes:input_type -> vrooli.offer_desk.v1.offers.ListNodesRequest
-	22, // 50: vrooli.offer_desk.v1.offers.CatalogService.Transition:input_type -> vrooli.offer_desk.v1.offers.TransitionRequest
-	24, // 51: vrooli.offer_desk.v1.offers.CatalogService.CreateEdge:input_type -> vrooli.offer_desk.v1.offers.CreateEdgeRequest
-	38, // 52: vrooli.offer_desk.v1.offers.CatalogService.ListEdges:input_type -> vrooli.offer_desk.v1.offers.ListEdgesRequest
-	41, // 53: vrooli.offer_desk.v1.offers.CatalogService.ImportCatalog:input_type -> vrooli.offer_desk.v1.offers.ImportCatalogRequest
-	26, // 54: vrooli.offer_desk.v1.offers.GatesService.DeclareTrigger:input_type -> vrooli.offer_desk.v1.offers.DeclareTriggerRequest
-	28, // 55: vrooli.offer_desk.v1.offers.GatesService.AddFact:input_type -> vrooli.offer_desk.v1.offers.AddFactRequest
-	30, // 56: vrooli.offer_desk.v1.offers.GatesService.Evaluate:input_type -> vrooli.offer_desk.v1.offers.EvaluateRequest
-	32, // 57: vrooli.offer_desk.v1.offers.GatesService.Promote:input_type -> vrooli.offer_desk.v1.offers.PromoteRequest
-	34, // 58: vrooli.offer_desk.v1.offers.GatesService.ListProposals:input_type -> vrooli.offer_desk.v1.offers.ListProposalsRequest
-	40, // 59: vrooli.offer_desk.v1.offers.BoardService.GetBoard:input_type -> vrooli.offer_desk.v1.offers.ProjectionRequest
-	40, // 60: vrooli.offer_desk.v1.offers.SpaceService.GetProjection:input_type -> vrooli.offer_desk.v1.offers.ProjectionRequest
-	19, // 61: vrooli.offer_desk.v1.offers.CatalogService.CreateNode:output_type -> vrooli.offer_desk.v1.offers.CreateNodeResponse
-	21, // 62: vrooli.offer_desk.v1.offers.CatalogService.ListNodes:output_type -> vrooli.offer_desk.v1.offers.ListNodesResponse
-	23, // 63: vrooli.offer_desk.v1.offers.CatalogService.Transition:output_type -> vrooli.offer_desk.v1.offers.TransitionResponse
-	25, // 64: vrooli.offer_desk.v1.offers.CatalogService.CreateEdge:output_type -> vrooli.offer_desk.v1.offers.CreateEdgeResponse
-	39, // 65: vrooli.offer_desk.v1.offers.CatalogService.ListEdges:output_type -> vrooli.offer_desk.v1.offers.ListEdgesResponse
-	45, // 66: vrooli.offer_desk.v1.offers.CatalogService.ImportCatalog:output_type -> vrooli.offer_desk.v1.offers.ImportCatalogResponse
-	27, // 67: vrooli.offer_desk.v1.offers.GatesService.DeclareTrigger:output_type -> vrooli.offer_desk.v1.offers.DeclareTriggerResponse
-	29, // 68: vrooli.offer_desk.v1.offers.GatesService.AddFact:output_type -> vrooli.offer_desk.v1.offers.AddFactResponse
-	31, // 69: vrooli.offer_desk.v1.offers.GatesService.Evaluate:output_type -> vrooli.offer_desk.v1.offers.EvaluateResponse
-	33, // 70: vrooli.offer_desk.v1.offers.GatesService.Promote:output_type -> vrooli.offer_desk.v1.offers.PromoteResponse
-	35, // 71: vrooli.offer_desk.v1.offers.GatesService.ListProposals:output_type -> vrooli.offer_desk.v1.offers.ListProposalsResponse
-	17, // 72: vrooli.offer_desk.v1.offers.BoardService.GetBoard:output_type -> vrooli.offer_desk.v1.offers.BoardResponse
-	47, // 73: vrooli.offer_desk.v1.offers.SpaceService.GetProjection:output_type -> vrooli.offer_desk.v1.offers.SpaceResponse
-	61, // [61:74] is the sub-list for method output_type
-	48, // [48:61] is the sub-list for method input_type
-	48, // [48:48] is the sub-list for extension type_name
-	48, // [48:48] is the sub-list for extension extendee
-	0,  // [0:48] is the sub-list for field type_name
+	6,  // 47: vrooli.offer_desk.v1.offers.MergeNodesResponse.surviving:type_name -> vrooli.offer_desk.v1.offers.Node
+	3,  // 48: vrooli.offer_desk.v1.offers.VerifyCatalogRequest.source_mode:type_name -> vrooli.offer_desk.v1.offers.SourceMode
+	49, // 49: vrooli.offer_desk.v1.offers.VerifyCatalogResponse.files:type_name -> vrooli.offer_desk.v1.offers.VerifyFileReport
+	51, // 50: vrooli.offer_desk.v1.offers.SpaceResponse.cells:type_name -> vrooli.offer_desk.v1.offers.SpaceCell
+	18, // 51: vrooli.offer_desk.v1.offers.CatalogService.CreateNode:input_type -> vrooli.offer_desk.v1.offers.CreateNodeRequest
+	20, // 52: vrooli.offer_desk.v1.offers.CatalogService.ListNodes:input_type -> vrooli.offer_desk.v1.offers.ListNodesRequest
+	22, // 53: vrooli.offer_desk.v1.offers.CatalogService.Transition:input_type -> vrooli.offer_desk.v1.offers.TransitionRequest
+	24, // 54: vrooli.offer_desk.v1.offers.CatalogService.CreateEdge:input_type -> vrooli.offer_desk.v1.offers.CreateEdgeRequest
+	38, // 55: vrooli.offer_desk.v1.offers.CatalogService.ListEdges:input_type -> vrooli.offer_desk.v1.offers.ListEdgesRequest
+	41, // 56: vrooli.offer_desk.v1.offers.CatalogService.ImportCatalog:input_type -> vrooli.offer_desk.v1.offers.ImportCatalogRequest
+	46, // 57: vrooli.offer_desk.v1.offers.CatalogService.MergeNodes:input_type -> vrooli.offer_desk.v1.offers.MergeNodesRequest
+	48, // 58: vrooli.offer_desk.v1.offers.CatalogService.VerifyCatalog:input_type -> vrooli.offer_desk.v1.offers.VerifyCatalogRequest
+	26, // 59: vrooli.offer_desk.v1.offers.GatesService.DeclareTrigger:input_type -> vrooli.offer_desk.v1.offers.DeclareTriggerRequest
+	28, // 60: vrooli.offer_desk.v1.offers.GatesService.AddFact:input_type -> vrooli.offer_desk.v1.offers.AddFactRequest
+	30, // 61: vrooli.offer_desk.v1.offers.GatesService.Evaluate:input_type -> vrooli.offer_desk.v1.offers.EvaluateRequest
+	32, // 62: vrooli.offer_desk.v1.offers.GatesService.Promote:input_type -> vrooli.offer_desk.v1.offers.PromoteRequest
+	34, // 63: vrooli.offer_desk.v1.offers.GatesService.ListProposals:input_type -> vrooli.offer_desk.v1.offers.ListProposalsRequest
+	40, // 64: vrooli.offer_desk.v1.offers.BoardService.GetBoard:input_type -> vrooli.offer_desk.v1.offers.ProjectionRequest
+	40, // 65: vrooli.offer_desk.v1.offers.SpaceService.GetProjection:input_type -> vrooli.offer_desk.v1.offers.ProjectionRequest
+	19, // 66: vrooli.offer_desk.v1.offers.CatalogService.CreateNode:output_type -> vrooli.offer_desk.v1.offers.CreateNodeResponse
+	21, // 67: vrooli.offer_desk.v1.offers.CatalogService.ListNodes:output_type -> vrooli.offer_desk.v1.offers.ListNodesResponse
+	23, // 68: vrooli.offer_desk.v1.offers.CatalogService.Transition:output_type -> vrooli.offer_desk.v1.offers.TransitionResponse
+	25, // 69: vrooli.offer_desk.v1.offers.CatalogService.CreateEdge:output_type -> vrooli.offer_desk.v1.offers.CreateEdgeResponse
+	39, // 70: vrooli.offer_desk.v1.offers.CatalogService.ListEdges:output_type -> vrooli.offer_desk.v1.offers.ListEdgesResponse
+	45, // 71: vrooli.offer_desk.v1.offers.CatalogService.ImportCatalog:output_type -> vrooli.offer_desk.v1.offers.ImportCatalogResponse
+	47, // 72: vrooli.offer_desk.v1.offers.CatalogService.MergeNodes:output_type -> vrooli.offer_desk.v1.offers.MergeNodesResponse
+	50, // 73: vrooli.offer_desk.v1.offers.CatalogService.VerifyCatalog:output_type -> vrooli.offer_desk.v1.offers.VerifyCatalogResponse
+	27, // 74: vrooli.offer_desk.v1.offers.GatesService.DeclareTrigger:output_type -> vrooli.offer_desk.v1.offers.DeclareTriggerResponse
+	29, // 75: vrooli.offer_desk.v1.offers.GatesService.AddFact:output_type -> vrooli.offer_desk.v1.offers.AddFactResponse
+	31, // 76: vrooli.offer_desk.v1.offers.GatesService.Evaluate:output_type -> vrooli.offer_desk.v1.offers.EvaluateResponse
+	33, // 77: vrooli.offer_desk.v1.offers.GatesService.Promote:output_type -> vrooli.offer_desk.v1.offers.PromoteResponse
+	35, // 78: vrooli.offer_desk.v1.offers.GatesService.ListProposals:output_type -> vrooli.offer_desk.v1.offers.ListProposalsResponse
+	17, // 79: vrooli.offer_desk.v1.offers.BoardService.GetBoard:output_type -> vrooli.offer_desk.v1.offers.BoardResponse
+	52, // 80: vrooli.offer_desk.v1.offers.SpaceService.GetProjection:output_type -> vrooli.offer_desk.v1.offers.SpaceResponse
+	66, // [66:81] is the sub-list for method output_type
+	51, // [51:66] is the sub-list for method input_type
+	51, // [51:51] is the sub-list for extension type_name
+	51, // [51:51] is the sub-list for extension extendee
+	0,  // [0:51] is the sub-list for field type_name
 }
 
 func init() { file_offer_desk_v1_offers_offers_proto_init() }
@@ -3414,7 +3863,7 @@ func file_offer_desk_v1_offers_offers_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_offer_desk_v1_offers_offers_proto_rawDesc), len(file_offer_desk_v1_offers_offers_proto_rawDesc)),
 			NumEnums:      6,
-			NumMessages:   42,
+			NumMessages:   47,
 			NumExtensions: 0,
 			NumServices:   4,
 		},

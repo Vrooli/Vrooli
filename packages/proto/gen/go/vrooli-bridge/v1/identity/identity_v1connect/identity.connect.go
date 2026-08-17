@@ -40,6 +40,9 @@ const (
 	IdentityServiceRegisterProcedure = "/vrooli.vrooli_bridge.v1.identity.IdentityService/Register"
 	// IdentityServiceRefreshProcedure is the fully-qualified name of the IdentityService's Refresh RPC.
 	IdentityServiceRefreshProcedure = "/vrooli.vrooli_bridge.v1.identity.IdentityService/Refresh"
+	// IdentityServiceEnrollOperatorSessionProcedure is the fully-qualified name of the
+	// IdentityService's EnrollOperatorSession RPC.
+	IdentityServiceEnrollOperatorSessionProcedure = "/vrooli.vrooli_bridge.v1.identity.IdentityService/EnrollOperatorSession"
 )
 
 // IdentityServiceClient is a client for the vrooli.vrooli_bridge.v1.identity.IdentityService
@@ -56,6 +59,10 @@ type IdentityServiceClient interface {
 	// Refresh rotates an authenticator refresh token and returns replacement
 	// owner access and refresh tokens. The bridge stores nothing server-side.
 	Refresh(context.Context, *connect.Request[identity.RefreshRequest]) (*connect.Response[identity.RefreshResponse], error)
+	// Enroll a client key for locally minted Bridge sessions. The caller must
+	// already hold a normal owner session; the private key remains on the
+	// client and the returned reference is not a bearer credential.
+	EnrollOperatorSession(context.Context, *connect.Request[identity.EnrollOperatorSessionRequest]) (*connect.Response[identity.EnrollOperatorSessionResponse], error)
 }
 
 // NewIdentityServiceClient constructs a client for the
@@ -88,14 +95,21 @@ func NewIdentityServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(identityServiceMethods.ByName("Refresh")),
 			connect.WithClientOptions(opts...),
 		),
+		enrollOperatorSession: connect.NewClient[identity.EnrollOperatorSessionRequest, identity.EnrollOperatorSessionResponse](
+			httpClient,
+			baseURL+IdentityServiceEnrollOperatorSessionProcedure,
+			connect.WithSchema(identityServiceMethods.ByName("EnrollOperatorSession")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // identityServiceClient implements IdentityServiceClient.
 type identityServiceClient struct {
-	login    *connect.Client[identity.LoginRequest, identity.LoginResponse]
-	register *connect.Client[identity.RegisterRequest, identity.RegisterResponse]
-	refresh  *connect.Client[identity.RefreshRequest, identity.RefreshResponse]
+	login                 *connect.Client[identity.LoginRequest, identity.LoginResponse]
+	register              *connect.Client[identity.RegisterRequest, identity.RegisterResponse]
+	refresh               *connect.Client[identity.RefreshRequest, identity.RefreshResponse]
+	enrollOperatorSession *connect.Client[identity.EnrollOperatorSessionRequest, identity.EnrollOperatorSessionResponse]
 }
 
 // Login calls vrooli.vrooli_bridge.v1.identity.IdentityService.Login.
@@ -113,6 +127,12 @@ func (c *identityServiceClient) Refresh(ctx context.Context, req *connect.Reques
 	return c.refresh.CallUnary(ctx, req)
 }
 
+// EnrollOperatorSession calls
+// vrooli.vrooli_bridge.v1.identity.IdentityService.EnrollOperatorSession.
+func (c *identityServiceClient) EnrollOperatorSession(ctx context.Context, req *connect.Request[identity.EnrollOperatorSessionRequest]) (*connect.Response[identity.EnrollOperatorSessionResponse], error) {
+	return c.enrollOperatorSession.CallUnary(ctx, req)
+}
+
 // IdentityServiceHandler is an implementation of the
 // vrooli.vrooli_bridge.v1.identity.IdentityService service.
 type IdentityServiceHandler interface {
@@ -127,6 +147,10 @@ type IdentityServiceHandler interface {
 	// Refresh rotates an authenticator refresh token and returns replacement
 	// owner access and refresh tokens. The bridge stores nothing server-side.
 	Refresh(context.Context, *connect.Request[identity.RefreshRequest]) (*connect.Response[identity.RefreshResponse], error)
+	// Enroll a client key for locally minted Bridge sessions. The caller must
+	// already hold a normal owner session; the private key remains on the
+	// client and the returned reference is not a bearer credential.
+	EnrollOperatorSession(context.Context, *connect.Request[identity.EnrollOperatorSessionRequest]) (*connect.Response[identity.EnrollOperatorSessionResponse], error)
 }
 
 // NewIdentityServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -154,6 +178,12 @@ func NewIdentityServiceHandler(svc IdentityServiceHandler, opts ...connect.Handl
 		connect.WithSchema(identityServiceMethods.ByName("Refresh")),
 		connect.WithHandlerOptions(opts...),
 	)
+	identityServiceEnrollOperatorSessionHandler := connect.NewUnaryHandler(
+		IdentityServiceEnrollOperatorSessionProcedure,
+		svc.EnrollOperatorSession,
+		connect.WithSchema(identityServiceMethods.ByName("EnrollOperatorSession")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.vrooli_bridge.v1.identity.IdentityService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case IdentityServiceLoginProcedure:
@@ -162,6 +192,8 @@ func NewIdentityServiceHandler(svc IdentityServiceHandler, opts ...connect.Handl
 			identityServiceRegisterHandler.ServeHTTP(w, r)
 		case IdentityServiceRefreshProcedure:
 			identityServiceRefreshHandler.ServeHTTP(w, r)
+		case IdentityServiceEnrollOperatorSessionProcedure:
+			identityServiceEnrollOperatorSessionHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -181,4 +213,8 @@ func (UnimplementedIdentityServiceHandler) Register(context.Context, *connect.Re
 
 func (UnimplementedIdentityServiceHandler) Refresh(context.Context, *connect.Request[identity.RefreshRequest]) (*connect.Response[identity.RefreshResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.vrooli_bridge.v1.identity.IdentityService.Refresh is not implemented"))
+}
+
+func (UnimplementedIdentityServiceHandler) EnrollOperatorSession(context.Context, *connect.Request[identity.EnrollOperatorSessionRequest]) (*connect.Response[identity.EnrollOperatorSessionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.vrooli_bridge.v1.identity.IdentityService.EnrollOperatorSession is not implemented"))
 }

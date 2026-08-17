@@ -39,6 +39,9 @@ const (
 	// OnboardServiceStartOnboardingProcedure is the fully-qualified name of the OnboardService's
 	// StartOnboarding RPC.
 	OnboardServiceStartOnboardingProcedure = "/vrooli.vrooli_bridge.v1.onboard.OnboardService/StartOnboarding"
+	// OnboardServiceProtectOnboardingProcedure is the fully-qualified name of the OnboardService's
+	// ProtectOnboarding RPC.
+	OnboardServiceProtectOnboardingProcedure = "/vrooli.vrooli_bridge.v1.onboard.OnboardService/ProtectOnboarding"
 	// OnboardServiceGetOnboardingProcedure is the fully-qualified name of the OnboardService's
 	// GetOnboarding RPC.
 	OnboardServiceGetOnboardingProcedure = "/vrooli.vrooli_bridge.v1.onboard.OnboardService/GetOnboarding"
@@ -71,6 +74,12 @@ type OnboardServiceClient interface {
 	// BEFORE creating an op or touching the host. The response carries the op id;
 	// the operator then blocks on WaitOnboarding.
 	StartOnboarding(context.Context, *connect.Request[onboard.StartOnboardingRequest]) (*connect.Response[onboard.StartOnboardingResponse], error)
+	// ProtectOnboarding completes the named post-pairing protection step. The
+	// caller seals the passphrase to the node's public key before sending it;
+	// Bridge can relay the opaque envelope and wait for the typed helper result
+	// but cannot open it. A declined passphrase is represented by the client as
+	// a skipped step and does not claim that the node is protected.
+	ProtectOnboarding(context.Context, *connect.Request[onboard.ProtectOnboardingRequest]) (*connect.Response[onboard.ProtectOnboardingResponse], error)
 	// GetOnboarding returns one op by id with its full persisted step-event
 	// history. Owner-gated. Re-attaching after a client disconnect is just calling
 	// GetOnboarding again.
@@ -119,6 +128,12 @@ func NewOnboardServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(onboardServiceMethods.ByName("StartOnboarding")),
 			connect.WithClientOptions(opts...),
 		),
+		protectOnboarding: connect.NewClient[onboard.ProtectOnboardingRequest, onboard.ProtectOnboardingResponse](
+			httpClient,
+			baseURL+OnboardServiceProtectOnboardingProcedure,
+			connect.WithSchema(onboardServiceMethods.ByName("ProtectOnboarding")),
+			connect.WithClientOptions(opts...),
+		),
 		getOnboarding: connect.NewClient[onboard.GetOnboardingRequest, onboard.GetOnboardingResponse](
 			httpClient,
 			baseURL+OnboardServiceGetOnboardingProcedure,
@@ -156,6 +171,7 @@ func NewOnboardServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 type onboardServiceClient struct {
 	preflightOnboarding    *connect.Client[onboard.PreflightOnboardingRequest, onboard.PreflightOnboardingResponse]
 	startOnboarding        *connect.Client[onboard.StartOnboardingRequest, onboard.StartOnboardingResponse]
+	protectOnboarding      *connect.Client[onboard.ProtectOnboardingRequest, onboard.ProtectOnboardingResponse]
 	getOnboarding          *connect.Client[onboard.GetOnboardingRequest, onboard.GetOnboardingResponse]
 	listOnboardings        *connect.Client[onboard.ListOnboardingsRequest, onboard.ListOnboardingsResponse]
 	waitOnboarding         *connect.Client[onboard.WaitOnboardingRequest, onboard.WaitOnboardingResponse]
@@ -171,6 +187,11 @@ func (c *onboardServiceClient) PreflightOnboarding(ctx context.Context, req *con
 // StartOnboarding calls vrooli.vrooli_bridge.v1.onboard.OnboardService.StartOnboarding.
 func (c *onboardServiceClient) StartOnboarding(ctx context.Context, req *connect.Request[onboard.StartOnboardingRequest]) (*connect.Response[onboard.StartOnboardingResponse], error) {
 	return c.startOnboarding.CallUnary(ctx, req)
+}
+
+// ProtectOnboarding calls vrooli.vrooli_bridge.v1.onboard.OnboardService.ProtectOnboarding.
+func (c *onboardServiceClient) ProtectOnboarding(ctx context.Context, req *connect.Request[onboard.ProtectOnboardingRequest]) (*connect.Response[onboard.ProtectOnboardingResponse], error) {
+	return c.protectOnboarding.CallUnary(ctx, req)
 }
 
 // GetOnboarding calls vrooli.vrooli_bridge.v1.onboard.OnboardService.GetOnboarding.
@@ -215,6 +236,12 @@ type OnboardServiceHandler interface {
 	// BEFORE creating an op or touching the host. The response carries the op id;
 	// the operator then blocks on WaitOnboarding.
 	StartOnboarding(context.Context, *connect.Request[onboard.StartOnboardingRequest]) (*connect.Response[onboard.StartOnboardingResponse], error)
+	// ProtectOnboarding completes the named post-pairing protection step. The
+	// caller seals the passphrase to the node's public key before sending it;
+	// Bridge can relay the opaque envelope and wait for the typed helper result
+	// but cannot open it. A declined passphrase is represented by the client as
+	// a skipped step and does not claim that the node is protected.
+	ProtectOnboarding(context.Context, *connect.Request[onboard.ProtectOnboardingRequest]) (*connect.Response[onboard.ProtectOnboardingResponse], error)
 	// GetOnboarding returns one op by id with its full persisted step-event
 	// history. Owner-gated. Re-attaching after a client disconnect is just calling
 	// GetOnboarding again.
@@ -258,6 +285,12 @@ func NewOnboardServiceHandler(svc OnboardServiceHandler, opts ...connect.Handler
 		connect.WithSchema(onboardServiceMethods.ByName("StartOnboarding")),
 		connect.WithHandlerOptions(opts...),
 	)
+	onboardServiceProtectOnboardingHandler := connect.NewUnaryHandler(
+		OnboardServiceProtectOnboardingProcedure,
+		svc.ProtectOnboarding,
+		connect.WithSchema(onboardServiceMethods.ByName("ProtectOnboarding")),
+		connect.WithHandlerOptions(opts...),
+	)
 	onboardServiceGetOnboardingHandler := connect.NewUnaryHandler(
 		OnboardServiceGetOnboardingProcedure,
 		svc.GetOnboarding,
@@ -294,6 +327,8 @@ func NewOnboardServiceHandler(svc OnboardServiceHandler, opts ...connect.Handler
 			onboardServicePreflightOnboardingHandler.ServeHTTP(w, r)
 		case OnboardServiceStartOnboardingProcedure:
 			onboardServiceStartOnboardingHandler.ServeHTTP(w, r)
+		case OnboardServiceProtectOnboardingProcedure:
+			onboardServiceProtectOnboardingHandler.ServeHTTP(w, r)
 		case OnboardServiceGetOnboardingProcedure:
 			onboardServiceGetOnboardingHandler.ServeHTTP(w, r)
 		case OnboardServiceListOnboardingsProcedure:
@@ -319,6 +354,10 @@ func (UnimplementedOnboardServiceHandler) PreflightOnboarding(context.Context, *
 
 func (UnimplementedOnboardServiceHandler) StartOnboarding(context.Context, *connect.Request[onboard.StartOnboardingRequest]) (*connect.Response[onboard.StartOnboardingResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.vrooli_bridge.v1.onboard.OnboardService.StartOnboarding is not implemented"))
+}
+
+func (UnimplementedOnboardServiceHandler) ProtectOnboarding(context.Context, *connect.Request[onboard.ProtectOnboardingRequest]) (*connect.Response[onboard.ProtectOnboardingResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.vrooli_bridge.v1.onboard.OnboardService.ProtectOnboarding is not implemented"))
 }
 
 func (UnimplementedOnboardServiceHandler) GetOnboarding(context.Context, *connect.Request[onboard.GetOnboardingRequest]) (*connect.Response[onboard.GetOnboardingResponse], error) {

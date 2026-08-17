@@ -15,7 +15,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file money-ledger/v1/ledger/ledger.proto.
  */
 export const file_money_ledger_v1_ledger_ledger: GenFile = /*@__PURE__*/
-  fileDesc("CiNtb25leS1sZWRnZXIvdjEvbGVkZ2VyL2xlZGdlci5wcm90bxIddnJvb2xpLm1vbmV5X2xlZGdlci52MS5sZWRnZXIieQoMQXZhaWxhYmlsaXR5EhsKCmFkYXB0ZXJfaWQYASABKAlCB7pIBHICEAESFwoGcmVhc29uGAIgASgJQge6SARyAhABEjMKD2xhc3Rfc3VjY2Vzc19hdBgDIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiYgoEQm9vaxIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEhAKCGN1cnJlbmN5GAMgASgJEi4KCmNyZWF0ZWRfYXQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wInIKB0FjY291bnQSCgoCaWQYASABKAkSDwoHYm9va19pZBgCIAEoCRIMCgRuYW1lGAMgASgJEgwKBGtpbmQYBCABKAkSLgoKY3JlYXRlZF9hdBgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiogIKBEdvYWwSCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRIOCgZtZXRyaWMYAyABKAkSEgoKY29tcGFyYXRvchgEIAEoCRIXCg90aHJlc2hvbGRfbWlub3IYBSABKAMSFwoPc3VzdGFpbl9wZXJpb2RzGAYgASgFEhcKD2J1ZmZlcl9tdWx0aXBsZRgHIAEoARIPCgdib29rX2lkGAggASgJEhcKD3RocmVzaG9sZF9yYXRpbxgJIAEoARIYChBjb21wYXJhbmRfbWV0cmljGAogASgJEk0KE3N1c3RhaW5fcGVyaW9kX3VuaXQYCyABKA4yMC52cm9vbGkubW9uZXlfbGVkZ2VyLnYxLmxlZGdlci5TdXN0YWluUGVyaW9kVW5pdCLeAQoLR29hbFZlcmRpY3QSMQoEZ29hbBgBIAEoCzIjLnZyb29saS5tb25leV9sZWRnZXIudjEubGVkZ2VyLkdvYWwSCwoDbWV0GAIgASgIEhkKEXN1c3RhaW5lZF9wZXJpb2RzGAMgASgFEhMKC2V4cGxhbmF0aW9uGAQgASgJEhgKEHJlcXVpcmVkX3BlcmlvZHMYBSABKAUSRQoLcGVyaW9kX3VuaXQYBiABKA4yMC52cm9vbGkubW9uZXlfbGVkZ2VyLnYxLmxlZGdlci5TdXN0YWluUGVyaW9kVW5pdCIzChFDcmVhdGVCb29rUmVxdWVzdBIMCgRuYW1lGAEgASgJEhAKCGN1cnJlbmN5GAIgASgJIkcKEkNyZWF0ZUJvb2tSZXNwb25zZRIxCgRib29rGAEgASgLMiMudnJvb2xpLm1vbmV5X2xlZGdlci52MS5sZWRnZXIuQm9vayISChBMaXN0Qm9va3NSZXF1ZXN0IkcKEUxpc3RCb29rc1Jlc3BvbnNlEjIKBWJvb2tzGAEgAygLMiMudnJvb2xpLm1vbmV5X2xlZGdlci52MS5sZWRnZXIuQm9vayJDChRDcmVhdGVBY2NvdW50UmVxdWVzdBIPCgdib29rX2lkGAEgASgJEgwKBG5hbWUYAiABKAkSDAoEa2luZBgDIAEoCSJQChVDcmVhdGVBY2NvdW50UmVzcG9uc2USNwoHYWNjb3VudBgBIAEoCzImLnZyb29saS5tb25leV9sZWRnZXIudjEubGVkZ2VyLkFjY291bnQiJgoTTGlzdEFjY291bnRzUmVxdWVzdBIPCgdib29rX2lkGAEgASgJIlAKFExpc3RBY2NvdW50c1Jlc3BvbnNlEjgKCGFjY291bnRzGAEgAygLMiYudnJvb2xpLm1vbmV5X2xlZGdlci52MS5sZWRnZXIuQWNjb3VudCInChFHZXRQb3N0aW5nUmVxdWVzdBISCgpwb3N0aW5nX2lkGAEgASgJIk0KEkdldFBvc3RpbmdSZXNwb25zZRI3Cgdwb3N0aW5nGAEgASgLMiYudnJvb2xpLm1vbmV5X2xlZGdlci52MS5zaGFyZWQuUG9zdGluZyJjChNMaXN0UG9zdGluZ3NSZXF1ZXN0EhIKCmFjY291bnRfaWQYASABKAkSDwoHYm9va19pZBgCIAEoCRINCgVsaW1pdBgDIAEoBRIMCgRmcm9tGAQgASgJEgoKAnRvGAUgASgJIlAKFExpc3RQb3N0aW5nc1Jlc3BvbnNlEjgKCHBvc3RpbmdzGAEgAygLMiYudnJvb2xpLm1vbmV5X2xlZGdlci52MS5zaGFyZWQuUG9zdGluZyI7ChVSZXZlcnNlUG9zdGluZ1JlcXVlc3QSEgoKcG9zdGluZ19pZBgBIAEoCRIOCgZyZWFzb24YAiABKAkiUQoWUmV2ZXJzZVBvc3RpbmdSZXNwb25zZRI3Cgdwb3N0aW5nGAEgASgLMiYudnJvb2xpLm1vbmV5X2xlZGdlci52MS5zaGFyZWQuUG9zdGluZyLEAQoPVHJhbnNmZXJSZXF1ZXN0EhcKD2Zyb21fYWNjb3VudF9pZBgBIAEoCRIVCg10b19hY2NvdW50X2lkGAIgASgJEhQKDGFtb3VudF9taW5vchgDIAEoAxIQCghjdXJyZW5jeRgEIAEoCRITCgtleHRlcm5hbF9pZBgFIAEoCRITCgtkZXNjcmlwdGlvbhgGIAEoCRIvCgtvY2N1cnJlZF9hdBgHIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiTAoQVHJhbnNmZXJSZXNwb25zZRI4Cghwb3N0aW5ncxgBIAMoCzImLnZyb29saS5tb25leV9sZWRnZXIudjEuc2hhcmVkLlBvc3RpbmciPAoPUG9zaXRpb25SZXF1ZXN0Eg8KB2Jvb2tfaWQYASABKAkSDAoEZnJvbRgCIAEoCRIKCgJ0bxgDIAEoCSKMAQoNUG9zaXRpb25JbnB1dBIOCgZzb3VyY2UYASABKAkSMwoFYmFzaXMYAiABKA4yJC52cm9vbGkubW9uZXlfbGVkZ2VyLnYxLnNoYXJlZC5CYXNpcxITCgthZ2Vfc2Vjb25kcxgDIAEoAxIRCglhdmFpbGFibGUYBCABKAgSDgoGcmVhc29uGAUgASgJItQCChBQb3NpdGlvblJlc3BvbnNlEhIKCmNhc2hfbWlub3IYASABKAMSFQoNcmV2ZW51ZV9taW5vchgCIAEoAxIVCg1leHBlbnNlX21pbm9yGAMgASgDEhIKCmJ1cm5fbWlub3IYBCABKAMSFQoNcnVud2F5X21vbnRocxgFIAEoARIQCghjdXJyZW5jeRgGIAEoCRIPCgdwYXJ0aWFsGAcgASgIEkEKDGF2YWlsYWJpbGl0eRgIIAMoCzIrLnZyb29saS5tb25leV9sZWRnZXIudjEubGVkZ2VyLkF2YWlsYWJpbGl0eRI8CgZpbnB1dHMYCSADKAsyLC52cm9vbGkubW9uZXlfbGVkZ2VyLnYxLmxlZGdlci5Qb3NpdGlvbklucHV0EhgKEHJ1bndheV9hdmFpbGFibGUYCiABKAgSFQoNcnVud2F5X3JlYXNvbhgLIAEoCSI9ChBTdGF0ZW1lbnRSZXF1ZXN0Eg8KB2Jvb2tfaWQYASABKAkSDAoEZnJvbRgCIAEoCRIKCgJ0bxgDIAEoCSLoAgoRU3RhdGVtZW50UmVzcG9uc2USDwoHYm9va19pZBgBIAEoCRIQCghjdXJyZW5jeRgCIAEoCRIaChJvcGVuaW5nX2Nhc2hfbWlub3IYAyABKAMSFAoMaW5mbG93X21pbm9yGAQgASgDEhUKDW91dGZsb3dfbWlub3IYBSABKAMSGgoSY2xvc2luZ19jYXNoX21pbm9yGAYgASgDEhUKDXJldmVudWVfbWlub3IYByABKAMSFQoNZXhwZW5zZV9taW5vchgIIAEoAxIPCgdwYXJ0aWFsGAkgASgIEkEKDGF2YWlsYWJpbGl0eRgKIAMoCzIrLnZyb29saS5tb25leV9sZWRnZXIudjEubGVkZ2VyLkF2YWlsYWJpbGl0eRIUCgxhc3NldHNfbWlub3IYCyABKAMSGQoRbGlhYmlsaXRpZXNfbWlub3IYDCABKAMSDAoEZnJvbRgNIAEoCRIKCgJ0bxgOIAEoCSJPChJEZWNsYXJlR29hbFJlcXVlc3QSOQoEZ29hbBgBIAEoCzIjLnZyb29saS5tb25leV9sZWRnZXIudjEubGVkZ2VyLkdvYWxCBrpIA8gBASJIChNEZWNsYXJlR29hbFJlc3BvbnNlEjEKBGdvYWwYASABKAsyIy52cm9vbGkubW9uZXlfbGVkZ2VyLnYxLmxlZGdlci5Hb2FsIiMKEExpc3RHb2Fsc1JlcXVlc3QSDwoHYm9va19pZBgBIAEoCSJOChFMaXN0R29hbHNSZXNwb25zZRI5CgVnb2FscxgBIAMoCzIqLnZyb29saS5tb25leV9sZWRnZXIudjEubGVkZ2VyLkdvYWxWZXJkaWN0KlYKEVN1c3RhaW5QZXJpb2RVbml0EiMKH1NVU1RBSU5fUEVSSU9EX1VOSVRfVU5TUEVDSUZJRUQQABIHCgNEQVkQARIICgRXRUVLEAISCQoFTU9OVEgQAzLmAwoMQm9va3NTZXJ2aWNlEnEKCkNyZWF0ZUJvb2sSMC52cm9vbGkubW9uZXlfbGVkZ2VyLnYxLmxlZGdlci5DcmVhdGVCb29rUmVxdWVzdBoxLnZyb29saS5tb25leV9sZWRnZXIudjEubGVkZ2VyLkNyZWF0ZUJvb2tSZXNwb25zZRJuCglMaXN0Qm9va3MSLy52cm9vbGkubW9uZXlfbGVkZ2VyLnYxLmxlZGdlci5MaXN0Qm9va3NSZXF1ZXN0GjAudnJvb2xpLm1vbmV5X2xlZGdlci52MS5sZWRnZXIuTGlzdEJvb2tzUmVzcG9uc2USegoNQ3JlYXRlQWNjb3VudBIzLnZyb29saS5tb25leV9sZWRnZXIudjEubGVkZ2VyLkNyZWF0ZUFjY291bnRSZXF1ZXN0GjQudnJvb2xpLm1vbmV5X2xlZGdlci52MS5sZWRnZXIuQ3JlYXRlQWNjb3VudFJlc3BvbnNlEncKDExpc3RBY2NvdW50cxIyLnZyb29saS5tb25leV9sZWRnZXIudjEubGVkZ2VyLkxpc3RBY2NvdW50c1JlcXVlc3QaMy52cm9vbGkubW9uZXlfbGVkZ2VyLnYxLmxlZGdlci5MaXN0QWNjb3VudHNSZXNwb25zZTLoAwoOSm91cm5hbFNlcnZpY2UScQoKR2V0UG9zdGluZxIwLnZyb29saS5tb25leV9sZWRnZXIudjEubGVkZ2VyLkdldFBvc3RpbmdSZXF1ZXN0GjEudnJvb2xpLm1vbmV5X2xlZGdlci52MS5sZWRnZXIuR2V0UG9zdGluZ1Jlc3BvbnNlEncKDExpc3RQb3N0aW5ncxIyLnZyb29saS5tb25leV9sZWRnZXIudjEubGVkZ2VyLkxpc3RQb3N0aW5nc1JlcXVlc3QaMy52cm9vbGkubW9uZXlfbGVkZ2VyLnYxLmxlZGdlci5MaXN0UG9zdGluZ3NSZXNwb25zZRJ9Cg5SZXZlcnNlUG9zdGluZxI0LnZyb29saS5tb25leV9sZWRnZXIudjEubGVkZ2VyLlJldmVyc2VQb3N0aW5nUmVxdWVzdBo1LnZyb29saS5tb25leV9sZWRnZXIudjEubGVkZ2VyLlJldmVyc2VQb3N0aW5nUmVzcG9uc2USawoIVHJhbnNmZXISLi52cm9vbGkubW9uZXlfbGVkZ2VyLnYxLmxlZGdlci5UcmFuc2ZlclJlcXVlc3QaLy52cm9vbGkubW9uZXlfbGVkZ2VyLnYxLmxlZGdlci5UcmFuc2ZlclJlc3BvbnNlMtoDCg9Qb3NpdGlvblNlcnZpY2USbgoLR2V0UG9zaXRpb24SLi52cm9vbGkubW9uZXlfbGVkZ2VyLnYxLmxlZGdlci5Qb3NpdGlvblJlcXVlc3QaLy52cm9vbGkubW9uZXlfbGVkZ2VyLnYxLmxlZGdlci5Qb3NpdGlvblJlc3BvbnNlEnEKDEdldFN0YXRlbWVudBIvLnZyb29saS5tb25leV9sZWRnZXIudjEubGVkZ2VyLlN0YXRlbWVudFJlcXVlc3QaMC52cm9vbGkubW9uZXlfbGVkZ2VyLnYxLmxlZGdlci5TdGF0ZW1lbnRSZXNwb25zZRJ0CgtEZWNsYXJlR29hbBIxLnZyb29saS5tb25leV9sZWRnZXIudjEubGVkZ2VyLkRlY2xhcmVHb2FsUmVxdWVzdBoyLnZyb29saS5tb25leV9sZWRnZXIudjEubGVkZ2VyLkRlY2xhcmVHb2FsUmVzcG9uc2USbgoJTGlzdEdvYWxzEi8udnJvb2xpLm1vbmV5X2xlZGdlci52MS5sZWRnZXIuTGlzdEdvYWxzUmVxdWVzdBowLnZyb29saS5tb25leV9sZWRnZXIudjEubGVkZ2VyLkxpc3RHb2Fsc1Jlc3BvbnNlQlFaT2dpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vbW9uZXktbGVkZ2VyL3YxL2xlZGdlcjtsZWRnZXJfdjFiBnByb3RvMw", [file_google_protobuf_timestamp, file_buf_validate_validate, file_money_ledger_v1_shared_ledger_types]);
+  fileDesc("CiNtb25leS1sZWRnZXIvdjEvbGVkZ2VyL2xlZGdlci5wcm90bxIddnJvb2xpLm1vbmV5X2xlZGdlci52MS5sZWRnZXIieQoMQXZhaWxhYmlsaXR5EhsKCmFkYXB0ZXJfaWQYASABKAlCB7pIBHICEAESFwoGcmVhc29uGAIgASgJQge6SARyAhABEjMKD2xhc3Rfc3VjY2Vzc19hdBgDIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAidAoEQm9vaxIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEhAKCGN1cnJlbmN5GAMgASgJEi4KCmNyZWF0ZWRfYXQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhAKCGFyY2hpdmVkGAUgASgIInIKB0FjY291bnQSCgoCaWQYASABKAkSDwoHYm9va19pZBgCIAEoCRIMCgRuYW1lGAMgASgJEgwKBGtpbmQYBCABKAkSLgoKY3JlYXRlZF9hdBgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAitAIKBEdvYWwSCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRIOCgZtZXRyaWMYAyABKAkSEgoKY29tcGFyYXRvchgEIAEoCRIXCg90aHJlc2hvbGRfbWlub3IYBSABKAMSFwoPc3VzdGFpbl9wZXJpb2RzGAYgASgFEhcKD2J1ZmZlcl9tdWx0aXBsZRgHIAEoARIPCgdib29rX2lkGAggASgJEhcKD3RocmVzaG9sZF9yYXRpbxgJIAEoARIYChBjb21wYXJhbmRfbWV0cmljGAogASgJEk0KE3N1c3RhaW5fcGVyaW9kX3VuaXQYCyABKA4yMC52cm9vbGkubW9uZXlfbGVkZ2VyLnYxLmxlZGdlci5TdXN0YWluUGVyaW9kVW5pdBIQCghhcmNoaXZlZBgMIAEoCCLeAQoLR29hbFZlcmRpY3QSMQoEZ29hbBgBIAEoCzIjLnZyb29saS5tb25leV9sZWRnZXIudjEubGVkZ2VyLkdvYWwSCwoDbWV0GAIgASgIEhkKEXN1c3RhaW5lZF9wZXJpb2RzGAMgASgFEhMKC2V4cGxhbmF0aW9uGAQgASgJEhgKEHJlcXVpcmVkX3BlcmlvZHMYBSABKAUSRQoLcGVyaW9kX3VuaXQYBiABKA4yMC52cm9vbGkubW9uZXlfbGVkZ2VyLnYxLmxlZGdlci5TdXN0YWluUGVyaW9kVW5pdCIzChFDcmVhdGVCb29rUmVxdWVzdBIMCgRuYW1lGAEgASgJEhAKCGN1cnJlbmN5GAIgASgJIkcKEkNyZWF0ZUJvb2tSZXNwb25zZRIxCgRib29rGAEgASgLMiMudnJvb2xpLm1vbmV5X2xlZGdlci52MS5sZWRnZXIuQm9vayIsChBMaXN0Qm9va3NSZXF1ZXN0EhgKEGluY2x1ZGVfYXJjaGl2ZWQYASABKAgiRwoRTGlzdEJvb2tzUmVzcG9uc2USMgoFYm9va3MYASADKAsyIy52cm9vbGkubW9uZXlfbGVkZ2VyLnYxLmxlZGdlci5Cb29rIncKFENyZWF0ZUFjY291bnRSZXF1ZXN0Eg8KB2Jvb2tfaWQYASABKAkSDAoEbmFtZRgCIAEoCRJACgxhY2NvdW50X2tpbmQYAyABKA4yKi52cm9vbGkubW9uZXlfbGVkZ2VyLnYxLmxlZGdlci5BY2NvdW50S2luZCJQChVDcmVhdGVBY2NvdW50UmVzcG9uc2USNwoHYWNjb3VudBgBIAEoCzImLnZyb29saS5tb25leV9sZWRnZXIudjEubGVkZ2VyLkFjY291bnQiJgoTTGlzdEFjY291bnRzUmVxdWVzdBIPCgdib29rX2lkGAEgASgJIlAKFExpc3RBY2NvdW50c1Jlc3BvbnNlEjgKCGFjY291bnRzGAEgAygLMiYudnJvb2xpLm1vbmV5X2xlZGdlci52MS5sZWRnZXIuQWNjb3VudCInChFHZXRQb3N0aW5nUmVxdWVzdBISCgpwb3N0aW5nX2lkGAEgASgJIk0KEkdldFBvc3RpbmdSZXNwb25zZRI3Cgdwb3N0aW5nGAEgASgLMiYudnJvb2xpLm1vbmV5X2xlZGdlci52MS5zaGFyZWQuUG9zdGluZyJjChNMaXN0UG9zdGluZ3NSZXF1ZXN0EhIKCmFjY291bnRfaWQYASABKAkSDwoHYm9va19pZBgCIAEoCRINCgVsaW1pdBgDIAEoBRIMCgRmcm9tGAQgASgJEgoKAnRvGAUgASgJIlAKFExpc3RQb3N0aW5nc1Jlc3BvbnNlEjgKCHBvc3RpbmdzGAEgAygLMiYudnJvb2xpLm1vbmV5X2xlZGdlci52MS5zaGFyZWQuUG9zdGluZyI7ChVSZXZlcnNlUG9zdGluZ1JlcXVlc3QSEgoKcG9zdGluZ19pZBgBIAEoCRIOCgZyZWFzb24YAiABKAkiUQoWUmV2ZXJzZVBvc3RpbmdSZXNwb25zZRI3Cgdwb3N0aW5nGAEgASgLMiYudnJvb2xpLm1vbmV5X2xlZGdlci52MS5zaGFyZWQuUG9zdGluZyLEAQoPVHJhbnNmZXJSZXF1ZXN0EhcKD2Zyb21fYWNjb3VudF9pZBgBIAEoCRIVCg10b19hY2NvdW50X2lkGAIgASgJEhQKDGFtb3VudF9taW5vchgDIAEoAxIQCghjdXJyZW5jeRgEIAEoCRITCgtleHRlcm5hbF9pZBgFIAEoCRITCgtkZXNjcmlwdGlvbhgGIAEoCRIvCgtvY2N1cnJlZF9hdBgHIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiTAoQVHJhbnNmZXJSZXNwb25zZRI4Cghwb3N0aW5ncxgBIAMoCzImLnZyb29saS5tb25leV9sZWRnZXIudjEuc2hhcmVkLlBvc3RpbmciPAoPUG9zaXRpb25SZXF1ZXN0Eg8KB2Jvb2tfaWQYASABKAkSDAoEZnJvbRgCIAEoCRIKCgJ0bxgDIAEoCSKMAQoNUG9zaXRpb25JbnB1dBIOCgZzb3VyY2UYASABKAkSMwoFYmFzaXMYAiABKA4yJC52cm9vbGkubW9uZXlfbGVkZ2VyLnYxLnNoYXJlZC5CYXNpcxITCgthZ2Vfc2Vjb25kcxgDIAEoAxIRCglhdmFpbGFibGUYBCABKAgSDgoGcmVhc29uGAUgASgJItQCChBQb3NpdGlvblJlc3BvbnNlEhIKCmNhc2hfbWlub3IYASABKAMSFQoNcmV2ZW51ZV9taW5vchgCIAEoAxIVCg1leHBlbnNlX21pbm9yGAMgASgDEhIKCmJ1cm5fbWlub3IYBCABKAMSFQoNcnVud2F5X21vbnRocxgFIAEoARIQCghjdXJyZW5jeRgGIAEoCRIPCgdwYXJ0aWFsGAcgASgIEkEKDGF2YWlsYWJpbGl0eRgIIAMoCzIrLnZyb29saS5tb25leV9sZWRnZXIudjEubGVkZ2VyLkF2YWlsYWJpbGl0eRI8CgZpbnB1dHMYCSADKAsyLC52cm9vbGkubW9uZXlfbGVkZ2VyLnYxLmxlZGdlci5Qb3NpdGlvbklucHV0EhgKEHJ1bndheV9hdmFpbGFibGUYCiABKAgSFQoNcnVud2F5X3JlYXNvbhgLIAEoCSI9ChBTdGF0ZW1lbnRSZXF1ZXN0Eg8KB2Jvb2tfaWQYASABKAkSDAoEZnJvbRgCIAEoCRIKCgJ0bxgDIAEoCSLoAgoRU3RhdGVtZW50UmVzcG9uc2USDwoHYm9va19pZBgBIAEoCRIQCghjdXJyZW5jeRgCIAEoCRIaChJvcGVuaW5nX2Nhc2hfbWlub3IYAyABKAMSFAoMaW5mbG93X21pbm9yGAQgASgDEhUKDW91dGZsb3dfbWlub3IYBSABKAMSGgoSY2xvc2luZ19jYXNoX21pbm9yGAYgASgDEhUKDXJldmVudWVfbWlub3IYByABKAMSFQoNZXhwZW5zZV9taW5vchgIIAEoAxIPCgdwYXJ0aWFsGAkgASgIEkEKDGF2YWlsYWJpbGl0eRgKIAMoCzIrLnZyb29saS5tb25leV9sZWRnZXIudjEubGVkZ2VyLkF2YWlsYWJpbGl0eRIUCgxhc3NldHNfbWlub3IYCyABKAMSGQoRbGlhYmlsaXRpZXNfbWlub3IYDCABKAMSDAoEZnJvbRgNIAEoCRIKCgJ0bxgOIAEoCSJPChJEZWNsYXJlR29hbFJlcXVlc3QSOQoEZ29hbBgBIAEoCzIjLnZyb29saS5tb25leV9sZWRnZXIudjEubGVkZ2VyLkdvYWxCBrpIA8gBASJIChNEZWNsYXJlR29hbFJlc3BvbnNlEjEKBGdvYWwYASABKAsyIy52cm9vbGkubW9uZXlfbGVkZ2VyLnYxLmxlZGdlci5Hb2FsIj0KEExpc3RHb2Fsc1JlcXVlc3QSDwoHYm9va19pZBgBIAEoCRIYChBpbmNsdWRlX2FyY2hpdmVkGAIgASgIIk4KEUxpc3RHb2Fsc1Jlc3BvbnNlEjkKBWdvYWxzGAEgAygLMioudnJvb2xpLm1vbmV5X2xlZGdlci52MS5sZWRnZXIuR29hbFZlcmRpY3QiNAoSQXJjaGl2ZUJvb2tSZXF1ZXN0Eg8KB2Jvb2tfaWQYASABKAkSDQoFYWN0b3IYAiABKAkiSAoTQXJjaGl2ZUJvb2tSZXNwb25zZRIxCgRib29rGAEgASgLMiMudnJvb2xpLm1vbmV5X2xlZGdlci52MS5sZWRnZXIuQm9vayI0ChJBcmNoaXZlR29hbFJlcXVlc3QSDwoHZ29hbF9pZBgBIAEoCRINCgVhY3RvchgCIAEoCSJIChNBcmNoaXZlR29hbFJlc3BvbnNlEjEKBGdvYWwYASABKAsyIy52cm9vbGkubW9uZXlfbGVkZ2VyLnYxLmxlZGdlci5Hb2FsIkYKE1JlcGFyZW50R29hbFJlcXVlc3QSDwoHZ29hbF9pZBgBIAEoCRIPCgdib29rX2lkGAIgASgJEg0KBWFjdG9yGAMgASgJIkkKFFJlcGFyZW50R29hbFJlc3BvbnNlEjEKBGdvYWwYASABKAsyIy52cm9vbGkubW9uZXlfbGVkZ2VyLnYxLmxlZGdlci5Hb2FsKlYKEVN1c3RhaW5QZXJpb2RVbml0EiMKH1NVU1RBSU5fUEVSSU9EX1VOSVRfVU5TUEVDSUZJRUQQABIHCgNEQVkQARIICgRXRUVLEAISCQoFTU9OVEgQAyprCgtBY2NvdW50S2luZBIcChhBQ0NPVU5UX0tJTkRfVU5TUEVDSUZJRUQQABIJCgVBU1NFVBABEg0KCUxJQUJJTElUWRACEgsKB1JFVkVOVUUQAxILCgdFWFBFTlNFEAQSCgoGRVFVSVRZEAUy3AQKDEJvb2tzU2VydmljZRJxCgpDcmVhdGVCb29rEjAudnJvb2xpLm1vbmV5X2xlZGdlci52MS5sZWRnZXIuQ3JlYXRlQm9va1JlcXVlc3QaMS52cm9vbGkubW9uZXlfbGVkZ2VyLnYxLmxlZGdlci5DcmVhdGVCb29rUmVzcG9uc2USbgoJTGlzdEJvb2tzEi8udnJvb2xpLm1vbmV5X2xlZGdlci52MS5sZWRnZXIuTGlzdEJvb2tzUmVxdWVzdBowLnZyb29saS5tb25leV9sZWRnZXIudjEubGVkZ2VyLkxpc3RCb29rc1Jlc3BvbnNlEnQKC0FyY2hpdmVCb29rEjEudnJvb2xpLm1vbmV5X2xlZGdlci52MS5sZWRnZXIuQXJjaGl2ZUJvb2tSZXF1ZXN0GjIudnJvb2xpLm1vbmV5X2xlZGdlci52MS5sZWRnZXIuQXJjaGl2ZUJvb2tSZXNwb25zZRJ6Cg1DcmVhdGVBY2NvdW50EjMudnJvb2xpLm1vbmV5X2xlZGdlci52MS5sZWRnZXIuQ3JlYXRlQWNjb3VudFJlcXVlc3QaNC52cm9vbGkubW9uZXlfbGVkZ2VyLnYxLmxlZGdlci5DcmVhdGVBY2NvdW50UmVzcG9uc2USdwoMTGlzdEFjY291bnRzEjIudnJvb2xpLm1vbmV5X2xlZGdlci52MS5sZWRnZXIuTGlzdEFjY291bnRzUmVxdWVzdBozLnZyb29saS5tb25leV9sZWRnZXIudjEubGVkZ2VyLkxpc3RBY2NvdW50c1Jlc3BvbnNlMugDCg5Kb3VybmFsU2VydmljZRJxCgpHZXRQb3N0aW5nEjAudnJvb2xpLm1vbmV5X2xlZGdlci52MS5sZWRnZXIuR2V0UG9zdGluZ1JlcXVlc3QaMS52cm9vbGkubW9uZXlfbGVkZ2VyLnYxLmxlZGdlci5HZXRQb3N0aW5nUmVzcG9uc2USdwoMTGlzdFBvc3RpbmdzEjIudnJvb2xpLm1vbmV5X2xlZGdlci52MS5sZWRnZXIuTGlzdFBvc3RpbmdzUmVxdWVzdBozLnZyb29saS5tb25leV9sZWRnZXIudjEubGVkZ2VyLkxpc3RQb3N0aW5nc1Jlc3BvbnNlEn0KDlJldmVyc2VQb3N0aW5nEjQudnJvb2xpLm1vbmV5X2xlZGdlci52MS5sZWRnZXIuUmV2ZXJzZVBvc3RpbmdSZXF1ZXN0GjUudnJvb2xpLm1vbmV5X2xlZGdlci52MS5sZWRnZXIuUmV2ZXJzZVBvc3RpbmdSZXNwb25zZRJrCghUcmFuc2ZlchIuLnZyb29saS5tb25leV9sZWRnZXIudjEubGVkZ2VyLlRyYW5zZmVyUmVxdWVzdBovLnZyb29saS5tb25leV9sZWRnZXIudjEubGVkZ2VyLlRyYW5zZmVyUmVzcG9uc2UyyQUKD1Bvc2l0aW9uU2VydmljZRJuCgtHZXRQb3NpdGlvbhIuLnZyb29saS5tb25leV9sZWRnZXIudjEubGVkZ2VyLlBvc2l0aW9uUmVxdWVzdBovLnZyb29saS5tb25leV9sZWRnZXIudjEubGVkZ2VyLlBvc2l0aW9uUmVzcG9uc2UScQoMR2V0U3RhdGVtZW50Ei8udnJvb2xpLm1vbmV5X2xlZGdlci52MS5sZWRnZXIuU3RhdGVtZW50UmVxdWVzdBowLnZyb29saS5tb25leV9sZWRnZXIudjEubGVkZ2VyLlN0YXRlbWVudFJlc3BvbnNlEnQKC0RlY2xhcmVHb2FsEjEudnJvb2xpLm1vbmV5X2xlZGdlci52MS5sZWRnZXIuRGVjbGFyZUdvYWxSZXF1ZXN0GjIudnJvb2xpLm1vbmV5X2xlZGdlci52MS5sZWRnZXIuRGVjbGFyZUdvYWxSZXNwb25zZRJuCglMaXN0R29hbHMSLy52cm9vbGkubW9uZXlfbGVkZ2VyLnYxLmxlZGdlci5MaXN0R29hbHNSZXF1ZXN0GjAudnJvb2xpLm1vbmV5X2xlZGdlci52MS5sZWRnZXIuTGlzdEdvYWxzUmVzcG9uc2USdAoLQXJjaGl2ZUdvYWwSMS52cm9vbGkubW9uZXlfbGVkZ2VyLnYxLmxlZGdlci5BcmNoaXZlR29hbFJlcXVlc3QaMi52cm9vbGkubW9uZXlfbGVkZ2VyLnYxLmxlZGdlci5BcmNoaXZlR29hbFJlc3BvbnNlEncKDFJlcGFyZW50R29hbBIyLnZyb29saS5tb25leV9sZWRnZXIudjEubGVkZ2VyLlJlcGFyZW50R29hbFJlcXVlc3QaMy52cm9vbGkubW9uZXlfbGVkZ2VyLnYxLmxlZGdlci5SZXBhcmVudEdvYWxSZXNwb25zZUJRWk9naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL21vbmV5LWxlZGdlci92MS9sZWRnZXI7bGVkZ2VyX3YxYgZwcm90bzM", [file_google_protobuf_timestamp, file_buf_validate_validate, file_money_ledger_v1_shared_ledger_types]);
 
 /**
  * @generated from message vrooli.money_ledger.v1.ledger.Availability
@@ -67,6 +67,11 @@ export type Book = Message<"vrooli.money_ledger.v1.ledger.Book"> & {
    * @generated from field: google.protobuf.Timestamp created_at = 4;
    */
   createdAt?: Timestamp | undefined;
+
+  /**
+   * @generated from field: bool archived = 5;
+   */
+  archived: boolean;
 };
 
 /**
@@ -171,6 +176,11 @@ export type Goal = Message<"vrooli.money_ledger.v1.ledger.Goal"> & {
    * @generated from field: vrooli.money_ledger.v1.ledger.SustainPeriodUnit sustain_period_unit = 11;
    */
   sustainPeriodUnit: SustainPeriodUnit;
+
+  /**
+   * @generated from field: bool archived = 12;
+   */
+  archived: boolean;
 };
 
 /**
@@ -265,6 +275,10 @@ export const CreateBookResponseSchema: GenMessage<CreateBookResponse> = /*@__PUR
  * @generated from message vrooli.money_ledger.v1.ledger.ListBooksRequest
  */
 export type ListBooksRequest = Message<"vrooli.money_ledger.v1.ledger.ListBooksRequest"> & {
+  /**
+   * @generated from field: bool include_archived = 1;
+   */
+  includeArchived: boolean;
 };
 
 /**
@@ -306,9 +320,9 @@ export type CreateAccountRequest = Message<"vrooli.money_ledger.v1.ledger.Create
   name: string;
 
   /**
-   * @generated from field: string kind = 3;
+   * @generated from field: vrooli.money_ledger.v1.ledger.AccountKind account_kind = 3;
    */
-  kind: string;
+  accountKind: AccountKind;
 };
 
 /**
@@ -842,6 +856,11 @@ export type ListGoalsRequest = Message<"vrooli.money_ledger.v1.ledger.ListGoalsR
    * @generated from field: string book_id = 1;
    */
   bookId: string;
+
+  /**
+   * @generated from field: bool include_archived = 2;
+   */
+  includeArchived: boolean;
 };
 
 /**
@@ -867,6 +886,128 @@ export type ListGoalsResponse = Message<"vrooli.money_ledger.v1.ledger.ListGoals
  */
 export const ListGoalsResponseSchema: GenMessage<ListGoalsResponse> = /*@__PURE__*/
   messageDesc(file_money_ledger_v1_ledger_ledger, 29);
+
+/**
+ * @generated from message vrooli.money_ledger.v1.ledger.ArchiveBookRequest
+ */
+export type ArchiveBookRequest = Message<"vrooli.money_ledger.v1.ledger.ArchiveBookRequest"> & {
+  /**
+   * @generated from field: string book_id = 1;
+   */
+  bookId: string;
+
+  /**
+   * @generated from field: string actor = 2;
+   */
+  actor: string;
+};
+
+/**
+ * Describes the message vrooli.money_ledger.v1.ledger.ArchiveBookRequest.
+ * Use `create(ArchiveBookRequestSchema)` to create a new message.
+ */
+export const ArchiveBookRequestSchema: GenMessage<ArchiveBookRequest> = /*@__PURE__*/
+  messageDesc(file_money_ledger_v1_ledger_ledger, 30);
+
+/**
+ * @generated from message vrooli.money_ledger.v1.ledger.ArchiveBookResponse
+ */
+export type ArchiveBookResponse = Message<"vrooli.money_ledger.v1.ledger.ArchiveBookResponse"> & {
+  /**
+   * @generated from field: vrooli.money_ledger.v1.ledger.Book book = 1;
+   */
+  book?: Book | undefined;
+};
+
+/**
+ * Describes the message vrooli.money_ledger.v1.ledger.ArchiveBookResponse.
+ * Use `create(ArchiveBookResponseSchema)` to create a new message.
+ */
+export const ArchiveBookResponseSchema: GenMessage<ArchiveBookResponse> = /*@__PURE__*/
+  messageDesc(file_money_ledger_v1_ledger_ledger, 31);
+
+/**
+ * @generated from message vrooli.money_ledger.v1.ledger.ArchiveGoalRequest
+ */
+export type ArchiveGoalRequest = Message<"vrooli.money_ledger.v1.ledger.ArchiveGoalRequest"> & {
+  /**
+   * @generated from field: string goal_id = 1;
+   */
+  goalId: string;
+
+  /**
+   * @generated from field: string actor = 2;
+   */
+  actor: string;
+};
+
+/**
+ * Describes the message vrooli.money_ledger.v1.ledger.ArchiveGoalRequest.
+ * Use `create(ArchiveGoalRequestSchema)` to create a new message.
+ */
+export const ArchiveGoalRequestSchema: GenMessage<ArchiveGoalRequest> = /*@__PURE__*/
+  messageDesc(file_money_ledger_v1_ledger_ledger, 32);
+
+/**
+ * @generated from message vrooli.money_ledger.v1.ledger.ArchiveGoalResponse
+ */
+export type ArchiveGoalResponse = Message<"vrooli.money_ledger.v1.ledger.ArchiveGoalResponse"> & {
+  /**
+   * @generated from field: vrooli.money_ledger.v1.ledger.Goal goal = 1;
+   */
+  goal?: Goal | undefined;
+};
+
+/**
+ * Describes the message vrooli.money_ledger.v1.ledger.ArchiveGoalResponse.
+ * Use `create(ArchiveGoalResponseSchema)` to create a new message.
+ */
+export const ArchiveGoalResponseSchema: GenMessage<ArchiveGoalResponse> = /*@__PURE__*/
+  messageDesc(file_money_ledger_v1_ledger_ledger, 33);
+
+/**
+ * @generated from message vrooli.money_ledger.v1.ledger.ReparentGoalRequest
+ */
+export type ReparentGoalRequest = Message<"vrooli.money_ledger.v1.ledger.ReparentGoalRequest"> & {
+  /**
+   * @generated from field: string goal_id = 1;
+   */
+  goalId: string;
+
+  /**
+   * @generated from field: string book_id = 2;
+   */
+  bookId: string;
+
+  /**
+   * @generated from field: string actor = 3;
+   */
+  actor: string;
+};
+
+/**
+ * Describes the message vrooli.money_ledger.v1.ledger.ReparentGoalRequest.
+ * Use `create(ReparentGoalRequestSchema)` to create a new message.
+ */
+export const ReparentGoalRequestSchema: GenMessage<ReparentGoalRequest> = /*@__PURE__*/
+  messageDesc(file_money_ledger_v1_ledger_ledger, 34);
+
+/**
+ * @generated from message vrooli.money_ledger.v1.ledger.ReparentGoalResponse
+ */
+export type ReparentGoalResponse = Message<"vrooli.money_ledger.v1.ledger.ReparentGoalResponse"> & {
+  /**
+   * @generated from field: vrooli.money_ledger.v1.ledger.Goal goal = 1;
+   */
+  goal?: Goal | undefined;
+};
+
+/**
+ * Describes the message vrooli.money_ledger.v1.ledger.ReparentGoalResponse.
+ * Use `create(ReparentGoalResponseSchema)` to create a new message.
+ */
+export const ReparentGoalResponseSchema: GenMessage<ReparentGoalResponse> = /*@__PURE__*/
+  messageDesc(file_money_ledger_v1_ledger_ledger, 35);
 
 /**
  * @generated from enum vrooli.money_ledger.v1.ledger.SustainPeriodUnit
@@ -900,6 +1041,47 @@ export const SustainPeriodUnitSchema: GenEnum<SustainPeriodUnit> = /*@__PURE__*/
   enumDesc(file_money_ledger_v1_ledger_ledger, 0);
 
 /**
+ * @generated from enum vrooli.money_ledger.v1.ledger.AccountKind
+ */
+export enum AccountKind {
+  /**
+   * @generated from enum value: ACCOUNT_KIND_UNSPECIFIED = 0;
+   */
+  ACCOUNT_KIND_UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: ASSET = 1;
+   */
+  ASSET = 1,
+
+  /**
+   * @generated from enum value: LIABILITY = 2;
+   */
+  LIABILITY = 2,
+
+  /**
+   * @generated from enum value: REVENUE = 3;
+   */
+  REVENUE = 3,
+
+  /**
+   * @generated from enum value: EXPENSE = 4;
+   */
+  EXPENSE = 4,
+
+  /**
+   * @generated from enum value: EQUITY = 5;
+   */
+  EQUITY = 5,
+}
+
+/**
+ * Describes the enum vrooli.money_ledger.v1.ledger.AccountKind.
+ */
+export const AccountKindSchema: GenEnum<AccountKind> = /*@__PURE__*/
+  enumDesc(file_money_ledger_v1_ledger_ledger, 1);
+
+/**
  * @generated from service vrooli.money_ledger.v1.ledger.BooksService
  */
 export const BooksService: GenService<{
@@ -918,6 +1100,14 @@ export const BooksService: GenService<{
     methodKind: "unary";
     input: typeof ListBooksRequestSchema;
     output: typeof ListBooksResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.money_ledger.v1.ledger.BooksService.ArchiveBook
+   */
+  archiveBook: {
+    methodKind: "unary";
+    input: typeof ArchiveBookRequestSchema;
+    output: typeof ArchiveBookResponseSchema;
   },
   /**
    * @generated from rpc vrooli.money_ledger.v1.ledger.BooksService.CreateAccount
@@ -1012,6 +1202,22 @@ export const PositionService: GenService<{
     methodKind: "unary";
     input: typeof ListGoalsRequestSchema;
     output: typeof ListGoalsResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.money_ledger.v1.ledger.PositionService.ArchiveGoal
+   */
+  archiveGoal: {
+    methodKind: "unary";
+    input: typeof ArchiveGoalRequestSchema;
+    output: typeof ArchiveGoalResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.money_ledger.v1.ledger.PositionService.ReparentGoal
+   */
+  reparentGoal: {
+    methodKind: "unary";
+    input: typeof ReparentGoalRequestSchema;
+    output: typeof ReparentGoalResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_money_ledger_v1_ledger_ledger, 2);

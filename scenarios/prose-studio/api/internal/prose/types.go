@@ -3,6 +3,8 @@ package prose
 import (
 	"encoding/json"
 	"time"
+
+	"github.com/vrooli/textmetrics"
 )
 
 type Style struct {
@@ -74,13 +76,15 @@ type ContextPolicy struct {
 	FullTextTokenBudget int  `json:"full_text_token_budget"`
 	SummarizeBeyond     int  `json:"summarize_beyond"`
 	AlwaysFullPrevious  bool `json:"always_full_previous"`
+	// DeclaredContextCeiling is a profile-owned worst-case ceiling used by the
+	// static feasibility check. It is not a provider context-window fact.
+	DeclaredContextCeiling int `json:"declared_context_ceiling,omitempty"`
 }
 
 type ResolvedProfile struct {
 	Profile         Profile `json:"profile"`
 	Styles          []Style `json:"styles"`
 	InstructionText string  `json:"instruction_text"`
-	ContextWindow   int     `json:"resolved_model_context_window"`
 }
 
 type Provenance struct {
@@ -90,7 +94,6 @@ type Provenance struct {
 	StrategyParameters       Sampler          `json:"strategy_parameters"`
 	Provider                 string           `json:"provider"`
 	ResolvedModelRef         string           `json:"resolved_model_ref"`
-	DeclaredContextWindow    int              `json:"declared_context_window"`
 	GatewayRole              string           `json:"gateway_role"`
 	TemperatureSent          float64          `json:"temperature_sent"`
 	TemperatureSupport       string           `json:"temperature_support"`
@@ -109,6 +112,7 @@ type Candidate struct {
 	RoundID         string          `json:"round_id"`
 	DerivedFrom     []string        `json:"derived_from,omitempty"`
 	Text            string          `json:"text"`
+	SetIndex        int             `json:"set_index"`
 	Measurements    any             `json:"measurements"`
 	SetMeasurements any             `json:"set_measurements"`
 	Provenance      Provenance      `json:"provenance"`
@@ -127,12 +131,18 @@ type Eligibility struct {
 }
 
 type Round struct {
-	ID              string          `json:"id"`
-	SessionID       string          `json:"session_id"`
-	Strategy        Sampler         `json:"strategy"`
-	CandidateIDs    []string        `json:"candidate_ids"`
-	TotalCostMicros int64           `json:"total_cost_micros"`
-	NegativeContext NegativeContext `json:"negative_context,omitempty"`
+	ID           string   `json:"id"`
+	SessionID    string   `json:"session_id"`
+	Strategy     Sampler  `json:"strategy"`
+	CandidateIDs []string `json:"candidate_ids"`
+	// SamplingKey is the round's effective generation identity. It is recorded
+	// at birth because comparability is otherwise undecidable after the fact:
+	// two set-diversity numbers mean nothing side by side unless the conditions
+	// that produced them are known to match.
+	SamplingKey     textmetrics.SamplingKey `json:"sampling_key"`
+	SelectionSeed   int64                   `json:"selection_seed"`
+	TotalCostMicros int64                   `json:"total_cost_micros"`
+	NegativeContext NegativeContext         `json:"negative_context,omitempty"`
 }
 type NegativeContext struct {
 	Pinned   []string `json:"pinned,omitempty"`
@@ -159,15 +169,16 @@ type SelectionEvent struct {
 }
 
 type Document struct {
-	ID            string   `json:"id"`
-	Title         string   `json:"title"`
-	ProfileKey    string   `json:"profile_key"`
-	StyleKey      string   `json:"style_key"`
-	OutlineID     string   `json:"outline_id,omitempty"`
-	SectionIDs    []string `json:"section_ids"`
-	Status        string   `json:"status"`
-	AssembledText string   `json:"assembled_text,omitempty"`
-	Coherence     any      `json:"coherence,omitempty"`
+	ID            string    `json:"id"`
+	Title         string    `json:"title"`
+	ProfileKey    string    `json:"profile_key"`
+	StyleKey      string    `json:"style_key"`
+	OutlineID     string    `json:"outline_id,omitempty"`
+	SectionIDs    []string  `json:"section_ids"`
+	Status        string    `json:"status"`
+	AssembledText string    `json:"assembled_text,omitempty"`
+	Coherence     any       `json:"coherence,omitempty"`
+	Sections      []Section `json:"sections,omitempty"`
 }
 type Section struct {
 	ID                   string          `json:"id"`
@@ -219,16 +230,28 @@ type GenerateRequest struct {
 	Negative          NegativeContext `json:"negative_context,omitempty"`
 }
 type GenerateResponse struct {
-	Session    Session     `json:"session"`
-	Round      Round       `json:"round"`
-	Selected   *Candidate  `json:"selected,omitempty"`
-	Candidates []Candidate `json:"candidates,omitempty"`
+	Session            Session          `json:"session"`
+	Round              Round            `json:"round"`
+	Selected           *Candidate       `json:"selected,omitempty"`
+	Candidates         []Candidate      `json:"candidates,omitempty"`
+	SelectedCandidates []Candidate      `json:"selected_candidates,omitempty"`
+	Degraded           *DegradedOutcome `json:"degraded,omitempty"`
+}
+
+type DegradedOutcome struct {
+	Kind                     string `json:"kind"`
+	Reason                   string `json:"reason"`
+	RequestedCandidates      int    `json:"requested_candidates"`
+	ReceivedCandidates       int    `json:"received_candidates"`
+	MaxOutputTokensEffective int    `json:"max_output_tokens_effective"`
+	MaxOutputTokensSource    string `json:"max_output_tokens_source"`
 }
 
 type GatewayRequest struct {
 	Role              string          `json:"role"`
 	Instruction       string          `json:"instruction"`
 	Query             string          `json:"query"`
+	Strategy          string          `json:"strategy"`
 	K                 int             `json:"k"`
 	Tau               float64         `json:"tau"`
 	MaxOutputTokens   int             `json:"max_output_tokens"`
@@ -240,11 +263,21 @@ type GatewayCandidate struct {
 	Text               string  `json:"text"`
 	Provider           string  `json:"provider"`
 	Model              string  `json:"model"`
-	ContextWindow      int     `json:"context_window"`
 	Temperature        float64 `json:"temperature"`
 	TemperatureSupport string  `json:"temperature_support"`
 	InputTokens        int     `json:"input_tokens"`
 	OutputTokens       int     `json:"output_tokens"`
 	CostMicros         int64   `json:"cost_micros"`
-	HintOrdinal        int     `json:"hint_ordinal"`
+	// MaxOutputTokensEffective and its source are the gateway's report of the
+	// cap it actually imposed, which is not always the cap the profile asked
+	// for: a role policy can supply one, and the gateway can impose none.
+	MaxOutputTokensEffective int    `json:"max_output_tokens_effective"`
+	MaxOutputTokensSource    string `json:"max_output_tokens_source"`
+	// HintOrdinal is the candidate's rank by the probability the model verbalized
+	// for it, 1 being the highest, scoped to this round only. It is zero for any
+	// strategy that elicits no probability. The probability itself is deliberately
+	// not carried: verbalized confidence is uncalibrated and sparse, so a stored
+	// float would invite the averaging and thresholding OT-P0-009 forbids, while
+	// a within-round rank cannot be compared across rounds by accident.
+	HintOrdinal int `json:"hint_ordinal"`
 }

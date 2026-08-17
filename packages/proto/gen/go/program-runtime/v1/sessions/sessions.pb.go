@@ -521,6 +521,178 @@ func (x *ListSessionsResponse) GetCount() int64 {
 	return 0
 }
 
+type Delegation struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SessionId     string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	ExecutionId   string                 `protobuf:"bytes,2,opt,name=execution_id,json=executionId,proto3" json:"execution_id,omitempty"`
+	Owner         string                 `protobuf:"bytes,3,opt,name=owner,proto3" json:"owner,omitempty"`
+	WorkflowKey   string                 `protobuf:"bytes,4,opt,name=workflow_key,json=workflowKey,proto3" json:"workflow_key,omitempty"`
+	CreatedAt     string                 `protobuf:"bytes,5,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	LastStatus    string                 `protobuf:"bytes,6,opt,name=last_status,json=lastStatus,proto3" json:"last_status,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Delegation) Reset() {
+	*x = Delegation{}
+	mi := &file_program_runtime_v1_sessions_sessions_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Delegation) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Delegation) ProtoMessage() {}
+
+func (x *Delegation) ProtoReflect() protoreflect.Message {
+	mi := &file_program_runtime_v1_sessions_sessions_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Delegation.ProtoReflect.Descriptor instead.
+func (*Delegation) Descriptor() ([]byte, []int) {
+	return file_program_runtime_v1_sessions_sessions_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *Delegation) GetSessionId() string {
+	if x != nil {
+		return x.SessionId
+	}
+	return ""
+}
+
+func (x *Delegation) GetExecutionId() string {
+	if x != nil {
+		return x.ExecutionId
+	}
+	return ""
+}
+
+func (x *Delegation) GetOwner() string {
+	if x != nil {
+		return x.Owner
+	}
+	return ""
+}
+
+func (x *Delegation) GetWorkflowKey() string {
+	if x != nil {
+		return x.WorkflowKey
+	}
+	return ""
+}
+
+func (x *Delegation) GetCreatedAt() string {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return ""
+}
+
+func (x *Delegation) GetLastStatus() string {
+	if x != nil {
+		return x.LastStatus
+	}
+	return ""
+}
+
+type ListDelegationsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListDelegationsRequest) Reset() {
+	*x = ListDelegationsRequest{}
+	mi := &file_program_runtime_v1_sessions_sessions_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListDelegationsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListDelegationsRequest) ProtoMessage() {}
+
+func (x *ListDelegationsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_program_runtime_v1_sessions_sessions_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListDelegationsRequest.ProtoReflect.Descriptor instead.
+func (*ListDelegationsRequest) Descriptor() ([]byte, []int) {
+	return file_program_runtime_v1_sessions_sessions_proto_rawDescGZIP(), []int{8}
+}
+
+type ListDelegationsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Delegations   []*Delegation          `protobuf:"bytes,1,rep,name=delegations,proto3" json:"delegations,omitempty"`
+	Count         int64                  `protobuf:"varint,2,opt,name=count,proto3" json:"count,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListDelegationsResponse) Reset() {
+	*x = ListDelegationsResponse{}
+	mi := &file_program_runtime_v1_sessions_sessions_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListDelegationsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListDelegationsResponse) ProtoMessage() {}
+
+func (x *ListDelegationsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_program_runtime_v1_sessions_sessions_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListDelegationsResponse.ProtoReflect.Descriptor instead.
+func (*ListDelegationsResponse) Descriptor() ([]byte, []int) {
+	return file_program_runtime_v1_sessions_sessions_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *ListDelegationsResponse) GetDelegations() []*Delegation {
+	if x != nil {
+		return x.Delegations
+	}
+	return nil
+}
+
+func (x *ListDelegationsResponse) GetCount() int64 {
+	if x != nil {
+		return x.Count
+	}
+	return 0
+}
+
 type DeleteSessionRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -531,7 +703,7 @@ type DeleteSessionRequest struct {
 
 func (x *DeleteSessionRequest) Reset() {
 	*x = DeleteSessionRequest{}
-	mi := &file_program_runtime_v1_sessions_sessions_proto_msgTypes[7]
+	mi := &file_program_runtime_v1_sessions_sessions_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -543,7 +715,7 @@ func (x *DeleteSessionRequest) String() string {
 func (*DeleteSessionRequest) ProtoMessage() {}
 
 func (x *DeleteSessionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_program_runtime_v1_sessions_sessions_proto_msgTypes[7]
+	mi := &file_program_runtime_v1_sessions_sessions_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -556,7 +728,7 @@ func (x *DeleteSessionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteSessionRequest.ProtoReflect.Descriptor instead.
 func (*DeleteSessionRequest) Descriptor() ([]byte, []int) {
-	return file_program_runtime_v1_sessions_sessions_proto_rawDescGZIP(), []int{7}
+	return file_program_runtime_v1_sessions_sessions_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *DeleteSessionRequest) GetId() string {
@@ -582,7 +754,7 @@ type DeleteSessionResponse struct {
 
 func (x *DeleteSessionResponse) Reset() {
 	*x = DeleteSessionResponse{}
-	mi := &file_program_runtime_v1_sessions_sessions_proto_msgTypes[8]
+	mi := &file_program_runtime_v1_sessions_sessions_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -594,7 +766,7 @@ func (x *DeleteSessionResponse) String() string {
 func (*DeleteSessionResponse) ProtoMessage() {}
 
 func (x *DeleteSessionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_program_runtime_v1_sessions_sessions_proto_msgTypes[8]
+	mi := &file_program_runtime_v1_sessions_sessions_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -607,7 +779,7 @@ func (x *DeleteSessionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteSessionResponse.ProtoReflect.Descriptor instead.
 func (*DeleteSessionResponse) Descriptor() ([]byte, []int) {
-	return file_program_runtime_v1_sessions_sessions_proto_rawDescGZIP(), []int{8}
+	return file_program_runtime_v1_sessions_sessions_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *DeleteSessionResponse) GetSession() *Session {
@@ -627,7 +799,7 @@ type GrantSessionRequest struct {
 
 func (x *GrantSessionRequest) Reset() {
 	*x = GrantSessionRequest{}
-	mi := &file_program_runtime_v1_sessions_sessions_proto_msgTypes[9]
+	mi := &file_program_runtime_v1_sessions_sessions_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -639,7 +811,7 @@ func (x *GrantSessionRequest) String() string {
 func (*GrantSessionRequest) ProtoMessage() {}
 
 func (x *GrantSessionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_program_runtime_v1_sessions_sessions_proto_msgTypes[9]
+	mi := &file_program_runtime_v1_sessions_sessions_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -652,7 +824,7 @@ func (x *GrantSessionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GrantSessionRequest.ProtoReflect.Descriptor instead.
 func (*GrantSessionRequest) Descriptor() ([]byte, []int) {
-	return file_program_runtime_v1_sessions_sessions_proto_rawDescGZIP(), []int{9}
+	return file_program_runtime_v1_sessions_sessions_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *GrantSessionRequest) GetId() string {
@@ -678,7 +850,7 @@ type GrantSessionResponse struct {
 
 func (x *GrantSessionResponse) Reset() {
 	*x = GrantSessionResponse{}
-	mi := &file_program_runtime_v1_sessions_sessions_proto_msgTypes[10]
+	mi := &file_program_runtime_v1_sessions_sessions_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -690,7 +862,7 @@ func (x *GrantSessionResponse) String() string {
 func (*GrantSessionResponse) ProtoMessage() {}
 
 func (x *GrantSessionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_program_runtime_v1_sessions_sessions_proto_msgTypes[10]
+	mi := &file_program_runtime_v1_sessions_sessions_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -703,7 +875,7 @@ func (x *GrantSessionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GrantSessionResponse.ProtoReflect.Descriptor instead.
 func (*GrantSessionResponse) Descriptor() ([]byte, []int) {
-	return file_program_runtime_v1_sessions_sessions_proto_rawDescGZIP(), []int{10}
+	return file_program_runtime_v1_sessions_sessions_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *GrantSessionResponse) GetSession() *Session {
@@ -757,6 +929,21 @@ const file_program_runtime_v1_sessions_sessions_proto_rawDesc = "" +
 	"\x13ListSessionsRequest\"u\n" +
 	"\x14ListSessionsResponse\x12G\n" +
 	"\bsessions\x18\x01 \x03(\v2+.vrooli.program_runtime.v1.sessions.SessionR\bsessions\x12\x14\n" +
+	"\x05count\x18\x02 \x01(\x03R\x05count\"\xc7\x01\n" +
+	"\n" +
+	"Delegation\x12\x1d\n" +
+	"\n" +
+	"session_id\x18\x01 \x01(\tR\tsessionId\x12!\n" +
+	"\fexecution_id\x18\x02 \x01(\tR\vexecutionId\x12\x14\n" +
+	"\x05owner\x18\x03 \x01(\tR\x05owner\x12!\n" +
+	"\fworkflow_key\x18\x04 \x01(\tR\vworkflowKey\x12\x1d\n" +
+	"\n" +
+	"created_at\x18\x05 \x01(\tR\tcreatedAt\x12\x1f\n" +
+	"\vlast_status\x18\x06 \x01(\tR\n" +
+	"lastStatus\"\x18\n" +
+	"\x16ListDelegationsRequest\"\x81\x01\n" +
+	"\x17ListDelegationsResponse\x12P\n" +
+	"\vdelegations\x18\x01 \x03(\v2..vrooli.program_runtime.v1.sessions.DelegationR\vdelegations\x12\x14\n" +
 	"\x05count\x18\x02 \x01(\x03R\x05count\">\n" +
 	"\x14DeleteSessionRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x16\n" +
@@ -767,12 +954,13 @@ const file_program_runtime_v1_sessions_sessions_proto_rawDesc = "" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x16\n" +
 	"\x06grants\x18\x02 \x03(\tR\x06grants\"]\n" +
 	"\x14GrantSessionResponse\x12E\n" +
-	"\asession\x18\x01 \x01(\v2+.vrooli.program_runtime.v1.sessions.SessionR\asession2\xa3\x05\n" +
+	"\asession\x18\x01 \x01(\v2+.vrooli.program_runtime.v1.sessions.SessionR\asession2\xb0\x06\n" +
 	"\x0eSessionService\x12\x84\x01\n" +
 	"\rCreateSession\x128.vrooli.program_runtime.v1.sessions.CreateSessionRequest\x1a9.vrooli.program_runtime.v1.sessions.CreateSessionResponse\x12{\n" +
 	"\n" +
 	"GetSession\x125.vrooli.program_runtime.v1.sessions.GetSessionRequest\x1a6.vrooli.program_runtime.v1.sessions.GetSessionResponse\x12\x81\x01\n" +
-	"\fListSessions\x127.vrooli.program_runtime.v1.sessions.ListSessionsRequest\x1a8.vrooli.program_runtime.v1.sessions.ListSessionsResponse\x12\x84\x01\n" +
+	"\fListSessions\x127.vrooli.program_runtime.v1.sessions.ListSessionsRequest\x1a8.vrooli.program_runtime.v1.sessions.ListSessionsResponse\x12\x8a\x01\n" +
+	"\x0fListDelegations\x12:.vrooli.program_runtime.v1.sessions.ListDelegationsRequest\x1a;.vrooli.program_runtime.v1.sessions.ListDelegationsResponse\x12\x84\x01\n" +
 	"\rDeleteSession\x128.vrooli.program_runtime.v1.sessions.DeleteSessionRequest\x1a9.vrooli.program_runtime.v1.sessions.DeleteSessionResponse\x12\x81\x01\n" +
 	"\fGrantSession\x127.vrooli.program_runtime.v1.sessions.GrantSessionRequest\x1a8.vrooli.program_runtime.v1.sessions.GrantSessionResponseBXZVgithub.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/sessions;sessions_v1b\x06proto3"
 
@@ -788,41 +976,47 @@ func file_program_runtime_v1_sessions_sessions_proto_rawDescGZIP() []byte {
 	return file_program_runtime_v1_sessions_sessions_proto_rawDescData
 }
 
-var file_program_runtime_v1_sessions_sessions_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
+var file_program_runtime_v1_sessions_sessions_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
 var file_program_runtime_v1_sessions_sessions_proto_goTypes = []any{
-	(*Session)(nil),               // 0: vrooli.program_runtime.v1.sessions.Session
-	(*CreateSessionRequest)(nil),  // 1: vrooli.program_runtime.v1.sessions.CreateSessionRequest
-	(*CreateSessionResponse)(nil), // 2: vrooli.program_runtime.v1.sessions.CreateSessionResponse
-	(*GetSessionRequest)(nil),     // 3: vrooli.program_runtime.v1.sessions.GetSessionRequest
-	(*GetSessionResponse)(nil),    // 4: vrooli.program_runtime.v1.sessions.GetSessionResponse
-	(*ListSessionsRequest)(nil),   // 5: vrooli.program_runtime.v1.sessions.ListSessionsRequest
-	(*ListSessionsResponse)(nil),  // 6: vrooli.program_runtime.v1.sessions.ListSessionsResponse
-	(*DeleteSessionRequest)(nil),  // 7: vrooli.program_runtime.v1.sessions.DeleteSessionRequest
-	(*DeleteSessionResponse)(nil), // 8: vrooli.program_runtime.v1.sessions.DeleteSessionResponse
-	(*GrantSessionRequest)(nil),   // 9: vrooli.program_runtime.v1.sessions.GrantSessionRequest
-	(*GrantSessionResponse)(nil),  // 10: vrooli.program_runtime.v1.sessions.GrantSessionResponse
+	(*Session)(nil),                 // 0: vrooli.program_runtime.v1.sessions.Session
+	(*CreateSessionRequest)(nil),    // 1: vrooli.program_runtime.v1.sessions.CreateSessionRequest
+	(*CreateSessionResponse)(nil),   // 2: vrooli.program_runtime.v1.sessions.CreateSessionResponse
+	(*GetSessionRequest)(nil),       // 3: vrooli.program_runtime.v1.sessions.GetSessionRequest
+	(*GetSessionResponse)(nil),      // 4: vrooli.program_runtime.v1.sessions.GetSessionResponse
+	(*ListSessionsRequest)(nil),     // 5: vrooli.program_runtime.v1.sessions.ListSessionsRequest
+	(*ListSessionsResponse)(nil),    // 6: vrooli.program_runtime.v1.sessions.ListSessionsResponse
+	(*Delegation)(nil),              // 7: vrooli.program_runtime.v1.sessions.Delegation
+	(*ListDelegationsRequest)(nil),  // 8: vrooli.program_runtime.v1.sessions.ListDelegationsRequest
+	(*ListDelegationsResponse)(nil), // 9: vrooli.program_runtime.v1.sessions.ListDelegationsResponse
+	(*DeleteSessionRequest)(nil),    // 10: vrooli.program_runtime.v1.sessions.DeleteSessionRequest
+	(*DeleteSessionResponse)(nil),   // 11: vrooli.program_runtime.v1.sessions.DeleteSessionResponse
+	(*GrantSessionRequest)(nil),     // 12: vrooli.program_runtime.v1.sessions.GrantSessionRequest
+	(*GrantSessionResponse)(nil),    // 13: vrooli.program_runtime.v1.sessions.GrantSessionResponse
 }
 var file_program_runtime_v1_sessions_sessions_proto_depIdxs = []int32{
 	0,  // 0: vrooli.program_runtime.v1.sessions.CreateSessionResponse.session:type_name -> vrooli.program_runtime.v1.sessions.Session
 	0,  // 1: vrooli.program_runtime.v1.sessions.GetSessionResponse.session:type_name -> vrooli.program_runtime.v1.sessions.Session
 	0,  // 2: vrooli.program_runtime.v1.sessions.ListSessionsResponse.sessions:type_name -> vrooli.program_runtime.v1.sessions.Session
-	0,  // 3: vrooli.program_runtime.v1.sessions.DeleteSessionResponse.session:type_name -> vrooli.program_runtime.v1.sessions.Session
-	0,  // 4: vrooli.program_runtime.v1.sessions.GrantSessionResponse.session:type_name -> vrooli.program_runtime.v1.sessions.Session
-	1,  // 5: vrooli.program_runtime.v1.sessions.SessionService.CreateSession:input_type -> vrooli.program_runtime.v1.sessions.CreateSessionRequest
-	3,  // 6: vrooli.program_runtime.v1.sessions.SessionService.GetSession:input_type -> vrooli.program_runtime.v1.sessions.GetSessionRequest
-	5,  // 7: vrooli.program_runtime.v1.sessions.SessionService.ListSessions:input_type -> vrooli.program_runtime.v1.sessions.ListSessionsRequest
-	7,  // 8: vrooli.program_runtime.v1.sessions.SessionService.DeleteSession:input_type -> vrooli.program_runtime.v1.sessions.DeleteSessionRequest
-	9,  // 9: vrooli.program_runtime.v1.sessions.SessionService.GrantSession:input_type -> vrooli.program_runtime.v1.sessions.GrantSessionRequest
-	2,  // 10: vrooli.program_runtime.v1.sessions.SessionService.CreateSession:output_type -> vrooli.program_runtime.v1.sessions.CreateSessionResponse
-	4,  // 11: vrooli.program_runtime.v1.sessions.SessionService.GetSession:output_type -> vrooli.program_runtime.v1.sessions.GetSessionResponse
-	6,  // 12: vrooli.program_runtime.v1.sessions.SessionService.ListSessions:output_type -> vrooli.program_runtime.v1.sessions.ListSessionsResponse
-	8,  // 13: vrooli.program_runtime.v1.sessions.SessionService.DeleteSession:output_type -> vrooli.program_runtime.v1.sessions.DeleteSessionResponse
-	10, // 14: vrooli.program_runtime.v1.sessions.SessionService.GrantSession:output_type -> vrooli.program_runtime.v1.sessions.GrantSessionResponse
-	10, // [10:15] is the sub-list for method output_type
-	5,  // [5:10] is the sub-list for method input_type
-	5,  // [5:5] is the sub-list for extension type_name
-	5,  // [5:5] is the sub-list for extension extendee
-	0,  // [0:5] is the sub-list for field type_name
+	7,  // 3: vrooli.program_runtime.v1.sessions.ListDelegationsResponse.delegations:type_name -> vrooli.program_runtime.v1.sessions.Delegation
+	0,  // 4: vrooli.program_runtime.v1.sessions.DeleteSessionResponse.session:type_name -> vrooli.program_runtime.v1.sessions.Session
+	0,  // 5: vrooli.program_runtime.v1.sessions.GrantSessionResponse.session:type_name -> vrooli.program_runtime.v1.sessions.Session
+	1,  // 6: vrooli.program_runtime.v1.sessions.SessionService.CreateSession:input_type -> vrooli.program_runtime.v1.sessions.CreateSessionRequest
+	3,  // 7: vrooli.program_runtime.v1.sessions.SessionService.GetSession:input_type -> vrooli.program_runtime.v1.sessions.GetSessionRequest
+	5,  // 8: vrooli.program_runtime.v1.sessions.SessionService.ListSessions:input_type -> vrooli.program_runtime.v1.sessions.ListSessionsRequest
+	8,  // 9: vrooli.program_runtime.v1.sessions.SessionService.ListDelegations:input_type -> vrooli.program_runtime.v1.sessions.ListDelegationsRequest
+	10, // 10: vrooli.program_runtime.v1.sessions.SessionService.DeleteSession:input_type -> vrooli.program_runtime.v1.sessions.DeleteSessionRequest
+	12, // 11: vrooli.program_runtime.v1.sessions.SessionService.GrantSession:input_type -> vrooli.program_runtime.v1.sessions.GrantSessionRequest
+	2,  // 12: vrooli.program_runtime.v1.sessions.SessionService.CreateSession:output_type -> vrooli.program_runtime.v1.sessions.CreateSessionResponse
+	4,  // 13: vrooli.program_runtime.v1.sessions.SessionService.GetSession:output_type -> vrooli.program_runtime.v1.sessions.GetSessionResponse
+	6,  // 14: vrooli.program_runtime.v1.sessions.SessionService.ListSessions:output_type -> vrooli.program_runtime.v1.sessions.ListSessionsResponse
+	9,  // 15: vrooli.program_runtime.v1.sessions.SessionService.ListDelegations:output_type -> vrooli.program_runtime.v1.sessions.ListDelegationsResponse
+	11, // 16: vrooli.program_runtime.v1.sessions.SessionService.DeleteSession:output_type -> vrooli.program_runtime.v1.sessions.DeleteSessionResponse
+	13, // 17: vrooli.program_runtime.v1.sessions.SessionService.GrantSession:output_type -> vrooli.program_runtime.v1.sessions.GrantSessionResponse
+	12, // [12:18] is the sub-list for method output_type
+	6,  // [6:12] is the sub-list for method input_type
+	6,  // [6:6] is the sub-list for extension type_name
+	6,  // [6:6] is the sub-list for extension extendee
+	0,  // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_program_runtime_v1_sessions_sessions_proto_init() }
@@ -836,7 +1030,7 @@ func file_program_runtime_v1_sessions_sessions_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_program_runtime_v1_sessions_sessions_proto_rawDesc), len(file_program_runtime_v1_sessions_sessions_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   11,
+			NumMessages:   14,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

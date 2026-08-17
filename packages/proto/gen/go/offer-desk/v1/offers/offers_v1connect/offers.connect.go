@@ -57,6 +57,12 @@ const (
 	// CatalogServiceImportCatalogProcedure is the fully-qualified name of the CatalogService's
 	// ImportCatalog RPC.
 	CatalogServiceImportCatalogProcedure = "/vrooli.offer_desk.v1.offers.CatalogService/ImportCatalog"
+	// CatalogServiceMergeNodesProcedure is the fully-qualified name of the CatalogService's MergeNodes
+	// RPC.
+	CatalogServiceMergeNodesProcedure = "/vrooli.offer_desk.v1.offers.CatalogService/MergeNodes"
+	// CatalogServiceVerifyCatalogProcedure is the fully-qualified name of the CatalogService's
+	// VerifyCatalog RPC.
+	CatalogServiceVerifyCatalogProcedure = "/vrooli.offer_desk.v1.offers.CatalogService/VerifyCatalog"
 	// GatesServiceDeclareTriggerProcedure is the fully-qualified name of the GatesService's
 	// DeclareTrigger RPC.
 	GatesServiceDeclareTriggerProcedure = "/vrooli.offer_desk.v1.offers.GatesService/DeclareTrigger"
@@ -84,6 +90,8 @@ type CatalogServiceClient interface {
 	CreateEdge(context.Context, *connect.Request[offers.CreateEdgeRequest]) (*connect.Response[offers.CreateEdgeResponse], error)
 	ListEdges(context.Context, *connect.Request[offers.ListEdgesRequest]) (*connect.Response[offers.ListEdgesResponse], error)
 	ImportCatalog(context.Context, *connect.Request[offers.ImportCatalogRequest]) (*connect.Response[offers.ImportCatalogResponse], error)
+	MergeNodes(context.Context, *connect.Request[offers.MergeNodesRequest]) (*connect.Response[offers.MergeNodesResponse], error)
+	VerifyCatalog(context.Context, *connect.Request[offers.VerifyCatalogRequest]) (*connect.Response[offers.VerifyCatalogResponse], error)
 }
 
 // NewCatalogServiceClient constructs a client for the vrooli.offer_desk.v1.offers.CatalogService
@@ -133,6 +141,18 @@ func NewCatalogServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(catalogServiceMethods.ByName("ImportCatalog")),
 			connect.WithClientOptions(opts...),
 		),
+		mergeNodes: connect.NewClient[offers.MergeNodesRequest, offers.MergeNodesResponse](
+			httpClient,
+			baseURL+CatalogServiceMergeNodesProcedure,
+			connect.WithSchema(catalogServiceMethods.ByName("MergeNodes")),
+			connect.WithClientOptions(opts...),
+		),
+		verifyCatalog: connect.NewClient[offers.VerifyCatalogRequest, offers.VerifyCatalogResponse](
+			httpClient,
+			baseURL+CatalogServiceVerifyCatalogProcedure,
+			connect.WithSchema(catalogServiceMethods.ByName("VerifyCatalog")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -144,6 +164,8 @@ type catalogServiceClient struct {
 	createEdge    *connect.Client[offers.CreateEdgeRequest, offers.CreateEdgeResponse]
 	listEdges     *connect.Client[offers.ListEdgesRequest, offers.ListEdgesResponse]
 	importCatalog *connect.Client[offers.ImportCatalogRequest, offers.ImportCatalogResponse]
+	mergeNodes    *connect.Client[offers.MergeNodesRequest, offers.MergeNodesResponse]
+	verifyCatalog *connect.Client[offers.VerifyCatalogRequest, offers.VerifyCatalogResponse]
 }
 
 // CreateNode calls vrooli.offer_desk.v1.offers.CatalogService.CreateNode.
@@ -176,6 +198,16 @@ func (c *catalogServiceClient) ImportCatalog(ctx context.Context, req *connect.R
 	return c.importCatalog.CallUnary(ctx, req)
 }
 
+// MergeNodes calls vrooli.offer_desk.v1.offers.CatalogService.MergeNodes.
+func (c *catalogServiceClient) MergeNodes(ctx context.Context, req *connect.Request[offers.MergeNodesRequest]) (*connect.Response[offers.MergeNodesResponse], error) {
+	return c.mergeNodes.CallUnary(ctx, req)
+}
+
+// VerifyCatalog calls vrooli.offer_desk.v1.offers.CatalogService.VerifyCatalog.
+func (c *catalogServiceClient) VerifyCatalog(ctx context.Context, req *connect.Request[offers.VerifyCatalogRequest]) (*connect.Response[offers.VerifyCatalogResponse], error) {
+	return c.verifyCatalog.CallUnary(ctx, req)
+}
+
 // CatalogServiceHandler is an implementation of the vrooli.offer_desk.v1.offers.CatalogService
 // service.
 type CatalogServiceHandler interface {
@@ -185,6 +217,8 @@ type CatalogServiceHandler interface {
 	CreateEdge(context.Context, *connect.Request[offers.CreateEdgeRequest]) (*connect.Response[offers.CreateEdgeResponse], error)
 	ListEdges(context.Context, *connect.Request[offers.ListEdgesRequest]) (*connect.Response[offers.ListEdgesResponse], error)
 	ImportCatalog(context.Context, *connect.Request[offers.ImportCatalogRequest]) (*connect.Response[offers.ImportCatalogResponse], error)
+	MergeNodes(context.Context, *connect.Request[offers.MergeNodesRequest]) (*connect.Response[offers.MergeNodesResponse], error)
+	VerifyCatalog(context.Context, *connect.Request[offers.VerifyCatalogRequest]) (*connect.Response[offers.VerifyCatalogResponse], error)
 }
 
 // NewCatalogServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -230,6 +264,18 @@ func NewCatalogServiceHandler(svc CatalogServiceHandler, opts ...connect.Handler
 		connect.WithSchema(catalogServiceMethods.ByName("ImportCatalog")),
 		connect.WithHandlerOptions(opts...),
 	)
+	catalogServiceMergeNodesHandler := connect.NewUnaryHandler(
+		CatalogServiceMergeNodesProcedure,
+		svc.MergeNodes,
+		connect.WithSchema(catalogServiceMethods.ByName("MergeNodes")),
+		connect.WithHandlerOptions(opts...),
+	)
+	catalogServiceVerifyCatalogHandler := connect.NewUnaryHandler(
+		CatalogServiceVerifyCatalogProcedure,
+		svc.VerifyCatalog,
+		connect.WithSchema(catalogServiceMethods.ByName("VerifyCatalog")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.offer_desk.v1.offers.CatalogService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case CatalogServiceCreateNodeProcedure:
@@ -244,6 +290,10 @@ func NewCatalogServiceHandler(svc CatalogServiceHandler, opts ...connect.Handler
 			catalogServiceListEdgesHandler.ServeHTTP(w, r)
 		case CatalogServiceImportCatalogProcedure:
 			catalogServiceImportCatalogHandler.ServeHTTP(w, r)
+		case CatalogServiceMergeNodesProcedure:
+			catalogServiceMergeNodesHandler.ServeHTTP(w, r)
+		case CatalogServiceVerifyCatalogProcedure:
+			catalogServiceVerifyCatalogHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -275,6 +325,14 @@ func (UnimplementedCatalogServiceHandler) ListEdges(context.Context, *connect.Re
 
 func (UnimplementedCatalogServiceHandler) ImportCatalog(context.Context, *connect.Request[offers.ImportCatalogRequest]) (*connect.Response[offers.ImportCatalogResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.offer_desk.v1.offers.CatalogService.ImportCatalog is not implemented"))
+}
+
+func (UnimplementedCatalogServiceHandler) MergeNodes(context.Context, *connect.Request[offers.MergeNodesRequest]) (*connect.Response[offers.MergeNodesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.offer_desk.v1.offers.CatalogService.MergeNodes is not implemented"))
+}
+
+func (UnimplementedCatalogServiceHandler) VerifyCatalog(context.Context, *connect.Request[offers.VerifyCatalogRequest]) (*connect.Response[offers.VerifyCatalogResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.offer_desk.v1.offers.CatalogService.VerifyCatalog is not implemented"))
 }
 
 // GatesServiceClient is a client for the vrooli.offer_desk.v1.offers.GatesService service.

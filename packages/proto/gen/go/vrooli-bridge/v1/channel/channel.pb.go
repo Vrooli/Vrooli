@@ -23,6 +23,80 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// PrivilegedOperation is the closed vocabulary accepted by the separate
+// privileged helper.  The enum is deliberately owned by the channel contract:
+// the control plane cannot invent an operation that the helper has not been
+// taught, and the helper never accepts a caller-provided argv or shell string.
+type PrivilegedOperation int32
+
+const (
+	PrivilegedOperation_PRIVILEGED_OPERATION_UNSPECIFIED              PrivilegedOperation = 0
+	PrivilegedOperation_PRIVILEGED_OPERATION_PROVISION                PrivilegedOperation = 1
+	PrivilegedOperation_PRIVILEGED_OPERATION_INVENTORY_INSTALLATION   PrivilegedOperation = 2
+	PrivilegedOperation_PRIVILEGED_OPERATION_PLAN_UNINSTALL           PrivilegedOperation = 3
+	PrivilegedOperation_PRIVILEGED_OPERATION_PROVISION_BREAK_GLASS    PrivilegedOperation = 4
+	PrivilegedOperation_PRIVILEGED_OPERATION_ISSUE_CLEANUP_CAPABILITY PrivilegedOperation = 5
+	PrivilegedOperation_PRIVILEGED_OPERATION_APPLY_FROZEN_PLAN        PrivilegedOperation = 6
+	PrivilegedOperation_PRIVILEGED_OPERATION_VERIFY_RESULT            PrivilegedOperation = 7
+	PrivilegedOperation_PRIVILEGED_OPERATION_ROTATE_BREAK_GLASS       PrivilegedOperation = 8
+	PrivilegedOperation_PRIVILEGED_OPERATION_RESET_BREAK_GLASS        PrivilegedOperation = 9
+)
+
+// Enum value maps for PrivilegedOperation.
+var (
+	PrivilegedOperation_name = map[int32]string{
+		0: "PRIVILEGED_OPERATION_UNSPECIFIED",
+		1: "PRIVILEGED_OPERATION_PROVISION",
+		2: "PRIVILEGED_OPERATION_INVENTORY_INSTALLATION",
+		3: "PRIVILEGED_OPERATION_PLAN_UNINSTALL",
+		4: "PRIVILEGED_OPERATION_PROVISION_BREAK_GLASS",
+		5: "PRIVILEGED_OPERATION_ISSUE_CLEANUP_CAPABILITY",
+		6: "PRIVILEGED_OPERATION_APPLY_FROZEN_PLAN",
+		7: "PRIVILEGED_OPERATION_VERIFY_RESULT",
+		8: "PRIVILEGED_OPERATION_ROTATE_BREAK_GLASS",
+		9: "PRIVILEGED_OPERATION_RESET_BREAK_GLASS",
+	}
+	PrivilegedOperation_value = map[string]int32{
+		"PRIVILEGED_OPERATION_UNSPECIFIED":              0,
+		"PRIVILEGED_OPERATION_PROVISION":                1,
+		"PRIVILEGED_OPERATION_INVENTORY_INSTALLATION":   2,
+		"PRIVILEGED_OPERATION_PLAN_UNINSTALL":           3,
+		"PRIVILEGED_OPERATION_PROVISION_BREAK_GLASS":    4,
+		"PRIVILEGED_OPERATION_ISSUE_CLEANUP_CAPABILITY": 5,
+		"PRIVILEGED_OPERATION_APPLY_FROZEN_PLAN":        6,
+		"PRIVILEGED_OPERATION_VERIFY_RESULT":            7,
+		"PRIVILEGED_OPERATION_ROTATE_BREAK_GLASS":       8,
+		"PRIVILEGED_OPERATION_RESET_BREAK_GLASS":        9,
+	}
+)
+
+func (x PrivilegedOperation) Enum() *PrivilegedOperation {
+	p := new(PrivilegedOperation)
+	*p = x
+	return p
+}
+
+func (x PrivilegedOperation) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (PrivilegedOperation) Descriptor() protoreflect.EnumDescriptor {
+	return file_vrooli_bridge_v1_channel_channel_proto_enumTypes[0].Descriptor()
+}
+
+func (PrivilegedOperation) Type() protoreflect.EnumType {
+	return &file_vrooli_bridge_v1_channel_channel_proto_enumTypes[0]
+}
+
+func (x PrivilegedOperation) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use PrivilegedOperation.Descriptor instead.
+func (PrivilegedOperation) EnumDescriptor() ([]byte, []int) {
+	return file_vrooli_bridge_v1_channel_channel_proto_rawDescGZIP(), []int{0}
+}
+
 // Handshake is the first frame a node sends when it opens the channel. It
 // establishes durable identity and negotiates the protocol version.
 type Handshake struct {
@@ -317,6 +391,142 @@ func (x *JobPush) GetOutputs() []*ArtifactOutput {
 	return nil
 }
 
+// CleanupCommand carries one typed request to the privileged helper.  The
+// control plane may relay an opaque sealed envelope, but it cannot open or
+// transform it.  Plan and apply are separate operations so the node can freeze
+// its own installation ledger and later apply exactly that frozen plan.
+type CleanupCommand struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	Operation         PrivilegedOperation    `protobuf:"varint,1,opt,name=operation,proto3,enum=vrooli.vrooli_bridge.v1.channel.PrivilegedOperation" json:"operation,omitempty"`
+	OpId              string                 `protobuf:"bytes,2,opt,name=op_id,json=opId,proto3" json:"op_id,omitempty"`
+	MachineId         string                 `protobuf:"bytes,3,opt,name=machine_id,json=machineId,proto3" json:"machine_id,omitempty"`
+	NodeId            string                 `protobuf:"bytes,4,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
+	Target            string                 `protobuf:"bytes,5,opt,name=target,proto3" json:"target,omitempty"`
+	Scope             string                 `protobuf:"bytes,6,opt,name=scope,proto3" json:"scope,omitempty"`
+	PlanId            string                 `protobuf:"bytes,7,opt,name=plan_id,json=planId,proto3" json:"plan_id,omitempty"`
+	PlanHash          string                 `protobuf:"bytes,8,opt,name=plan_hash,json=planHash,proto3" json:"plan_hash,omitempty"`
+	SealedPassphrase  []byte                 `protobuf:"bytes,9,opt,name=sealed_passphrase,json=sealedPassphrase,proto3" json:"sealed_passphrase,omitempty"`
+	Capability        []byte                 `protobuf:"bytes,10,opt,name=capability,proto3" json:"capability,omitempty"`
+	OperatorConfirmed bool                   `protobuf:"varint,11,opt,name=operator_confirmed,json=operatorConfirmed,proto3" json:"operator_confirmed,omitempty"`
+	OperatorId        string                 `protobuf:"bytes,12,opt,name=operator_id,json=operatorId,proto3" json:"operator_id,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *CleanupCommand) Reset() {
+	*x = CleanupCommand{}
+	mi := &file_vrooli_bridge_v1_channel_channel_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CleanupCommand) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CleanupCommand) ProtoMessage() {}
+
+func (x *CleanupCommand) ProtoReflect() protoreflect.Message {
+	mi := &file_vrooli_bridge_v1_channel_channel_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CleanupCommand.ProtoReflect.Descriptor instead.
+func (*CleanupCommand) Descriptor() ([]byte, []int) {
+	return file_vrooli_bridge_v1_channel_channel_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *CleanupCommand) GetOperation() PrivilegedOperation {
+	if x != nil {
+		return x.Operation
+	}
+	return PrivilegedOperation_PRIVILEGED_OPERATION_UNSPECIFIED
+}
+
+func (x *CleanupCommand) GetOpId() string {
+	if x != nil {
+		return x.OpId
+	}
+	return ""
+}
+
+func (x *CleanupCommand) GetMachineId() string {
+	if x != nil {
+		return x.MachineId
+	}
+	return ""
+}
+
+func (x *CleanupCommand) GetNodeId() string {
+	if x != nil {
+		return x.NodeId
+	}
+	return ""
+}
+
+func (x *CleanupCommand) GetTarget() string {
+	if x != nil {
+		return x.Target
+	}
+	return ""
+}
+
+func (x *CleanupCommand) GetScope() string {
+	if x != nil {
+		return x.Scope
+	}
+	return ""
+}
+
+func (x *CleanupCommand) GetPlanId() string {
+	if x != nil {
+		return x.PlanId
+	}
+	return ""
+}
+
+func (x *CleanupCommand) GetPlanHash() string {
+	if x != nil {
+		return x.PlanHash
+	}
+	return ""
+}
+
+func (x *CleanupCommand) GetSealedPassphrase() []byte {
+	if x != nil {
+		return x.SealedPassphrase
+	}
+	return nil
+}
+
+func (x *CleanupCommand) GetCapability() []byte {
+	if x != nil {
+		return x.Capability
+	}
+	return nil
+}
+
+func (x *CleanupCommand) GetOperatorConfirmed() bool {
+	if x != nil {
+		return x.OperatorConfirmed
+	}
+	return false
+}
+
+func (x *CleanupCommand) GetOperatorId() string {
+	if x != nil {
+		return x.OperatorId
+	}
+	return ""
+}
+
 // ArtifactOutput describes one bounded file a typed job is allowed to produce.
 // The output_flag is a fixed flag name selected by the control-plane manifest;
 // it is not caller-supplied shell text.
@@ -332,7 +542,7 @@ type ArtifactOutput struct {
 
 func (x *ArtifactOutput) Reset() {
 	*x = ArtifactOutput{}
-	mi := &file_vrooli_bridge_v1_channel_channel_proto_msgTypes[3]
+	mi := &file_vrooli_bridge_v1_channel_channel_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -344,7 +554,7 @@ func (x *ArtifactOutput) String() string {
 func (*ArtifactOutput) ProtoMessage() {}
 
 func (x *ArtifactOutput) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_bridge_v1_channel_channel_proto_msgTypes[3]
+	mi := &file_vrooli_bridge_v1_channel_channel_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -357,7 +567,7 @@ func (x *ArtifactOutput) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ArtifactOutput.ProtoReflect.Descriptor instead.
 func (*ArtifactOutput) Descriptor() ([]byte, []int) {
-	return file_vrooli_bridge_v1_channel_channel_proto_rawDescGZIP(), []int{3}
+	return file_vrooli_bridge_v1_channel_channel_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *ArtifactOutput) GetName() string {
@@ -408,7 +618,7 @@ type ProvisionCommand struct {
 
 func (x *ProvisionCommand) Reset() {
 	*x = ProvisionCommand{}
-	mi := &file_vrooli_bridge_v1_channel_channel_proto_msgTypes[4]
+	mi := &file_vrooli_bridge_v1_channel_channel_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -420,7 +630,7 @@ func (x *ProvisionCommand) String() string {
 func (*ProvisionCommand) ProtoMessage() {}
 
 func (x *ProvisionCommand) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_bridge_v1_channel_channel_proto_msgTypes[4]
+	mi := &file_vrooli_bridge_v1_channel_channel_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -433,7 +643,7 @@ func (x *ProvisionCommand) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProvisionCommand.ProtoReflect.Descriptor instead.
 func (*ProvisionCommand) Descriptor() ([]byte, []int) {
-	return file_vrooli_bridge_v1_channel_channel_proto_rawDescGZIP(), []int{4}
+	return file_vrooli_bridge_v1_channel_channel_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *ProvisionCommand) GetOpId() string {
@@ -468,7 +678,7 @@ type ControlPing struct {
 
 func (x *ControlPing) Reset() {
 	*x = ControlPing{}
-	mi := &file_vrooli_bridge_v1_channel_channel_proto_msgTypes[5]
+	mi := &file_vrooli_bridge_v1_channel_channel_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -480,7 +690,7 @@ func (x *ControlPing) String() string {
 func (*ControlPing) ProtoMessage() {}
 
 func (x *ControlPing) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_bridge_v1_channel_channel_proto_msgTypes[5]
+	mi := &file_vrooli_bridge_v1_channel_channel_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -493,7 +703,7 @@ func (x *ControlPing) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ControlPing.ProtoReflect.Descriptor instead.
 func (*ControlPing) Descriptor() ([]byte, []int) {
-	return file_vrooli_bridge_v1_channel_channel_proto_rawDescGZIP(), []int{5}
+	return file_vrooli_bridge_v1_channel_channel_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *ControlPing) GetSentAt() *timestamppb.Timestamp {
@@ -522,7 +732,7 @@ type AbortJob struct {
 
 func (x *AbortJob) Reset() {
 	*x = AbortJob{}
-	mi := &file_vrooli_bridge_v1_channel_channel_proto_msgTypes[6]
+	mi := &file_vrooli_bridge_v1_channel_channel_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -534,7 +744,7 @@ func (x *AbortJob) String() string {
 func (*AbortJob) ProtoMessage() {}
 
 func (x *AbortJob) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_bridge_v1_channel_channel_proto_msgTypes[6]
+	mi := &file_vrooli_bridge_v1_channel_channel_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -547,7 +757,7 @@ func (x *AbortJob) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AbortJob.ProtoReflect.Descriptor instead.
 func (*AbortJob) Descriptor() ([]byte, []int) {
-	return file_vrooli_bridge_v1_channel_channel_proto_rawDescGZIP(), []int{6}
+	return file_vrooli_bridge_v1_channel_channel_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *AbortJob) GetRunId() string {
@@ -589,7 +799,7 @@ type RelayRequest struct {
 
 func (x *RelayRequest) Reset() {
 	*x = RelayRequest{}
-	mi := &file_vrooli_bridge_v1_channel_channel_proto_msgTypes[7]
+	mi := &file_vrooli_bridge_v1_channel_channel_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -601,7 +811,7 @@ func (x *RelayRequest) String() string {
 func (*RelayRequest) ProtoMessage() {}
 
 func (x *RelayRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_bridge_v1_channel_channel_proto_msgTypes[7]
+	mi := &file_vrooli_bridge_v1_channel_channel_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -614,7 +824,7 @@ func (x *RelayRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RelayRequest.ProtoReflect.Descriptor instead.
 func (*RelayRequest) Descriptor() ([]byte, []int) {
-	return file_vrooli_bridge_v1_channel_channel_proto_rawDescGZIP(), []int{7}
+	return file_vrooli_bridge_v1_channel_channel_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *RelayRequest) GetCorrelationId() string {
@@ -671,7 +881,7 @@ type RelayCancel struct {
 
 func (x *RelayCancel) Reset() {
 	*x = RelayCancel{}
-	mi := &file_vrooli_bridge_v1_channel_channel_proto_msgTypes[8]
+	mi := &file_vrooli_bridge_v1_channel_channel_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -683,7 +893,7 @@ func (x *RelayCancel) String() string {
 func (*RelayCancel) ProtoMessage() {}
 
 func (x *RelayCancel) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_bridge_v1_channel_channel_proto_msgTypes[8]
+	mi := &file_vrooli_bridge_v1_channel_channel_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -696,7 +906,7 @@ func (x *RelayCancel) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RelayCancel.ProtoReflect.Descriptor instead.
 func (*RelayCancel) Descriptor() ([]byte, []int) {
-	return file_vrooli_bridge_v1_channel_channel_proto_rawDescGZIP(), []int{8}
+	return file_vrooli_bridge_v1_channel_channel_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *RelayCancel) GetCorrelationId() string {
@@ -734,6 +944,7 @@ type ServerFrame struct {
 	//	*ServerFrame_Session
 	//	*ServerFrame_Relay
 	//	*ServerFrame_RelayCancel
+	//	*ServerFrame_Cleanup
 	Payload       isServerFrame_Payload `protobuf_oneof:"payload"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -741,7 +952,7 @@ type ServerFrame struct {
 
 func (x *ServerFrame) Reset() {
 	*x = ServerFrame{}
-	mi := &file_vrooli_bridge_v1_channel_channel_proto_msgTypes[9]
+	mi := &file_vrooli_bridge_v1_channel_channel_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -753,7 +964,7 @@ func (x *ServerFrame) String() string {
 func (*ServerFrame) ProtoMessage() {}
 
 func (x *ServerFrame) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_bridge_v1_channel_channel_proto_msgTypes[9]
+	mi := &file_vrooli_bridge_v1_channel_channel_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -766,7 +977,7 @@ func (x *ServerFrame) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ServerFrame.ProtoReflect.Descriptor instead.
 func (*ServerFrame) Descriptor() ([]byte, []int) {
-	return file_vrooli_bridge_v1_channel_channel_proto_rawDescGZIP(), []int{9}
+	return file_vrooli_bridge_v1_channel_channel_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *ServerFrame) GetFrameId() string {
@@ -855,6 +1066,15 @@ func (x *ServerFrame) GetRelayCancel() *RelayCancel {
 	return nil
 }
 
+func (x *ServerFrame) GetCleanup() *CleanupCommand {
+	if x != nil {
+		if x, ok := x.Payload.(*ServerFrame_Cleanup); ok {
+			return x.Cleanup
+		}
+	}
+	return nil
+}
+
 type isServerFrame_Payload interface {
 	isServerFrame_Payload()
 }
@@ -891,6 +1111,10 @@ type ServerFrame_RelayCancel struct {
 	RelayCancel *RelayCancel `protobuf:"bytes,9,opt,name=relay_cancel,json=relayCancel,proto3,oneof"`
 }
 
+type ServerFrame_Cleanup struct {
+	Cleanup *CleanupCommand `protobuf:"bytes,10,opt,name=cleanup,proto3,oneof"`
+}
+
 func (*ServerFrame_Ack) isServerFrame_Payload() {}
 
 func (*ServerFrame_Job) isServerFrame_Payload() {}
@@ -906,6 +1130,8 @@ func (*ServerFrame_Session) isServerFrame_Payload() {}
 func (*ServerFrame_Relay) isServerFrame_Payload() {}
 
 func (*ServerFrame_RelayCancel) isServerFrame_Payload() {}
+
+func (*ServerFrame_Cleanup) isServerFrame_Payload() {}
 
 // SignedServerFrame is the mutual-auth envelope EVERY control-plane → node push
 // is wrapped in (SECURITY.md boundary 2, DECISIONS.md 2026-06-18). The control
@@ -934,7 +1160,7 @@ type SignedServerFrame struct {
 
 func (x *SignedServerFrame) Reset() {
 	*x = SignedServerFrame{}
-	mi := &file_vrooli_bridge_v1_channel_channel_proto_msgTypes[10]
+	mi := &file_vrooli_bridge_v1_channel_channel_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -946,7 +1172,7 @@ func (x *SignedServerFrame) String() string {
 func (*SignedServerFrame) ProtoMessage() {}
 
 func (x *SignedServerFrame) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_bridge_v1_channel_channel_proto_msgTypes[10]
+	mi := &file_vrooli_bridge_v1_channel_channel_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -959,7 +1185,7 @@ func (x *SignedServerFrame) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SignedServerFrame.ProtoReflect.Descriptor instead.
 func (*SignedServerFrame) Descriptor() ([]byte, []int) {
-	return file_vrooli_bridge_v1_channel_channel_proto_rawDescGZIP(), []int{10}
+	return file_vrooli_bridge_v1_channel_channel_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *SignedServerFrame) GetFrame() []byte {
@@ -997,7 +1223,7 @@ type NodeFrame struct {
 
 func (x *NodeFrame) Reset() {
 	*x = NodeFrame{}
-	mi := &file_vrooli_bridge_v1_channel_channel_proto_msgTypes[11]
+	mi := &file_vrooli_bridge_v1_channel_channel_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1009,7 +1235,7 @@ func (x *NodeFrame) String() string {
 func (*NodeFrame) ProtoMessage() {}
 
 func (x *NodeFrame) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_bridge_v1_channel_channel_proto_msgTypes[11]
+	mi := &file_vrooli_bridge_v1_channel_channel_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1022,7 +1248,7 @@ func (x *NodeFrame) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NodeFrame.ProtoReflect.Descriptor instead.
 func (*NodeFrame) Descriptor() ([]byte, []int) {
-	return file_vrooli_bridge_v1_channel_channel_proto_rawDescGZIP(), []int{11}
+	return file_vrooli_bridge_v1_channel_channel_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *NodeFrame) GetPayload() isNodeFrame_Payload {
@@ -1152,7 +1378,25 @@ const file_vrooli_bridge_v1_channel_channel_proto_rawDesc = "" +
 	"\x04verb\x18\x03 \x01(\tR\x04verb\x12\x12\n" +
 	"\x04args\x18\x04 \x03(\tR\x04args\x12'\n" +
 	"\x0ftimeout_seconds\x18\x05 \x01(\x03R\x0etimeoutSeconds\x12I\n" +
-	"\aoutputs\x18\x06 \x03(\v2/.vrooli.vrooli_bridge.v1.channel.ArtifactOutputR\aoutputsJ\x04\b\a\x10\x10\"\x81\x01\n" +
+	"\aoutputs\x18\x06 \x03(\v2/.vrooli.vrooli_bridge.v1.channel.ArtifactOutputR\aoutputsJ\x04\b\a\x10\x10\"\xb8\x03\n" +
+	"\x0eCleanupCommand\x12R\n" +
+	"\toperation\x18\x01 \x01(\x0e24.vrooli.vrooli_bridge.v1.channel.PrivilegedOperationR\toperation\x12\x13\n" +
+	"\x05op_id\x18\x02 \x01(\tR\x04opId\x12\x1d\n" +
+	"\n" +
+	"machine_id\x18\x03 \x01(\tR\tmachineId\x12\x17\n" +
+	"\anode_id\x18\x04 \x01(\tR\x06nodeId\x12\x16\n" +
+	"\x06target\x18\x05 \x01(\tR\x06target\x12\x14\n" +
+	"\x05scope\x18\x06 \x01(\tR\x05scope\x12\x17\n" +
+	"\aplan_id\x18\a \x01(\tR\x06planId\x12\x1b\n" +
+	"\tplan_hash\x18\b \x01(\tR\bplanHash\x12+\n" +
+	"\x11sealed_passphrase\x18\t \x01(\fR\x10sealedPassphrase\x12\x1e\n" +
+	"\n" +
+	"capability\x18\n" +
+	" \x01(\fR\n" +
+	"capability\x12-\n" +
+	"\x12operator_confirmed\x18\v \x01(\bR\x11operatorConfirmed\x12\x1f\n" +
+	"\voperator_id\x18\f \x01(\tR\n" +
+	"operatorIdJ\x04\b\r\x10 \"\x81\x01\n" +
 	"\x0eArtifactOutput\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1d\n" +
 	"\n" +
@@ -1178,7 +1422,7 @@ const file_vrooli_bridge_v1_channel_channel_proto_rawDesc = "" +
 	"\x12max_response_bytes\x18\x06 \x01(\x04R\x10maxResponseBytesJ\x04\b\a\x10\x10\"R\n" +
 	"\vRelayCancel\x12%\n" +
 	"\x0ecorrelation_id\x18\x01 \x01(\tR\rcorrelationId\x12\x16\n" +
-	"\x06reason\x18\x02 \x01(\tR\x06reasonJ\x04\b\x03\x10\x10\"\xf2\x04\n" +
+	"\x06reason\x18\x02 \x01(\tR\x06reasonJ\x04\b\x03\x10\x10\"\xbf\x05\n" +
 	"\vServerFrame\x12\x19\n" +
 	"\bframe_id\x18\x06 \x01(\tR\aframeId\x12A\n" +
 	"\x03ack\x18\x01 \x01(\v2-.vrooli.vrooli_bridge.v1.channel.HandshakeAckH\x00R\x03ack\x12<\n" +
@@ -1188,7 +1432,9 @@ const file_vrooli_bridge_v1_channel_channel_proto_rawDesc = "" +
 	"\x05abort\x18\x05 \x01(\v2).vrooli.vrooli_bridge.v1.channel.AbortJobH\x00R\x05abort\x12H\n" +
 	"\asession\x18\a \x01(\v2,.vrooli.vrooli_bridge.v1.shared.SessionFrameH\x00R\asession\x12E\n" +
 	"\x05relay\x18\b \x01(\v2-.vrooli.vrooli_bridge.v1.channel.RelayRequestH\x00R\x05relay\x12Q\n" +
-	"\frelay_cancel\x18\t \x01(\v2,.vrooli.vrooli_bridge.v1.channel.RelayCancelH\x00R\vrelayCancelB\t\n" +
+	"\frelay_cancel\x18\t \x01(\v2,.vrooli.vrooli_bridge.v1.channel.RelayCancelH\x00R\vrelayCancel\x12K\n" +
+	"\acleanup\x18\n" +
+	" \x01(\v2/.vrooli.vrooli_bridge.v1.channel.CleanupCommandH\x00R\acleanupB\t\n" +
 	"\apayload\"G\n" +
 	"\x11SignedServerFrame\x12\x14\n" +
 	"\x05frame\x18\x01 \x01(\fR\x05frame\x12\x1c\n" +
@@ -1200,7 +1446,18 @@ const file_vrooli_bridge_v1_channel_channel_proto_rawDesc = "" +
 	"\fdelivery_ack\x18\x04 \x01(\v2+.vrooli.vrooli_bridge.v1.shared.DeliveryAckH\x00R\vdeliveryAck\x12H\n" +
 	"\asession\x18\x05 \x01(\v2,.vrooli.vrooli_bridge.v1.shared.SessionFrameH\x00R\asession\x12V\n" +
 	"\x0erelay_response\x18\x06 \x01(\v2-.vrooli.vrooli_bridge.v1.shared.RelayResponseH\x00R\rrelayResponseB\t\n" +
-	"\apayloadBTZRgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/channel;channel_v1b\x06proto3"
+	"\apayload*\xc9\x03\n" +
+	"\x13PrivilegedOperation\x12$\n" +
+	" PRIVILEGED_OPERATION_UNSPECIFIED\x10\x00\x12\"\n" +
+	"\x1ePRIVILEGED_OPERATION_PROVISION\x10\x01\x12/\n" +
+	"+PRIVILEGED_OPERATION_INVENTORY_INSTALLATION\x10\x02\x12'\n" +
+	"#PRIVILEGED_OPERATION_PLAN_UNINSTALL\x10\x03\x12.\n" +
+	"*PRIVILEGED_OPERATION_PROVISION_BREAK_GLASS\x10\x04\x121\n" +
+	"-PRIVILEGED_OPERATION_ISSUE_CLEANUP_CAPABILITY\x10\x05\x12*\n" +
+	"&PRIVILEGED_OPERATION_APPLY_FROZEN_PLAN\x10\x06\x12&\n" +
+	"\"PRIVILEGED_OPERATION_VERIFY_RESULT\x10\a\x12+\n" +
+	"'PRIVILEGED_OPERATION_ROTATE_BREAK_GLASS\x10\b\x12*\n" +
+	"&PRIVILEGED_OPERATION_RESET_BREAK_GLASS\x10\tBTZRgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/channel;channel_v1b\x06proto3"
 
 var (
 	file_vrooli_bridge_v1_channel_channel_proto_rawDescOnce sync.Once
@@ -1214,51 +1471,56 @@ func file_vrooli_bridge_v1_channel_channel_proto_rawDescGZIP() []byte {
 	return file_vrooli_bridge_v1_channel_channel_proto_rawDescData
 }
 
-var file_vrooli_bridge_v1_channel_channel_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
+var file_vrooli_bridge_v1_channel_channel_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_vrooli_bridge_v1_channel_channel_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
 var file_vrooli_bridge_v1_channel_channel_proto_goTypes = []any{
-	(*Handshake)(nil),               // 0: vrooli.vrooli_bridge.v1.channel.Handshake
-	(*HandshakeAck)(nil),            // 1: vrooli.vrooli_bridge.v1.channel.HandshakeAck
-	(*JobPush)(nil),                 // 2: vrooli.vrooli_bridge.v1.channel.JobPush
-	(*ArtifactOutput)(nil),          // 3: vrooli.vrooli_bridge.v1.channel.ArtifactOutput
-	(*ProvisionCommand)(nil),        // 4: vrooli.vrooli_bridge.v1.channel.ProvisionCommand
-	(*ControlPing)(nil),             // 5: vrooli.vrooli_bridge.v1.channel.ControlPing
-	(*AbortJob)(nil),                // 6: vrooli.vrooli_bridge.v1.channel.AbortJob
-	(*RelayRequest)(nil),            // 7: vrooli.vrooli_bridge.v1.channel.RelayRequest
-	(*RelayCancel)(nil),             // 8: vrooli.vrooli_bridge.v1.channel.RelayCancel
-	(*ServerFrame)(nil),             // 9: vrooli.vrooli_bridge.v1.channel.ServerFrame
-	(*SignedServerFrame)(nil),       // 10: vrooli.vrooli_bridge.v1.channel.SignedServerFrame
-	(*NodeFrame)(nil),               // 11: vrooli.vrooli_bridge.v1.channel.NodeFrame
-	(shared.CompatibilityStatus)(0), // 12: vrooli.vrooli_bridge.v1.shared.CompatibilityStatus
-	(*timestamppb.Timestamp)(nil),   // 13: google.protobuf.Timestamp
-	(*shared.SessionFrame)(nil),     // 14: vrooli.vrooli_bridge.v1.shared.SessionFrame
-	(*shared.Heartbeat)(nil),        // 15: vrooli.vrooli_bridge.v1.shared.Heartbeat
-	(*shared.RunEvent)(nil),         // 16: vrooli.vrooli_bridge.v1.shared.RunEvent
-	(*shared.DeliveryAck)(nil),      // 17: vrooli.vrooli_bridge.v1.shared.DeliveryAck
-	(*shared.RelayResponse)(nil),    // 18: vrooli.vrooli_bridge.v1.shared.RelayResponse
+	(PrivilegedOperation)(0),        // 0: vrooli.vrooli_bridge.v1.channel.PrivilegedOperation
+	(*Handshake)(nil),               // 1: vrooli.vrooli_bridge.v1.channel.Handshake
+	(*HandshakeAck)(nil),            // 2: vrooli.vrooli_bridge.v1.channel.HandshakeAck
+	(*JobPush)(nil),                 // 3: vrooli.vrooli_bridge.v1.channel.JobPush
+	(*CleanupCommand)(nil),          // 4: vrooli.vrooli_bridge.v1.channel.CleanupCommand
+	(*ArtifactOutput)(nil),          // 5: vrooli.vrooli_bridge.v1.channel.ArtifactOutput
+	(*ProvisionCommand)(nil),        // 6: vrooli.vrooli_bridge.v1.channel.ProvisionCommand
+	(*ControlPing)(nil),             // 7: vrooli.vrooli_bridge.v1.channel.ControlPing
+	(*AbortJob)(nil),                // 8: vrooli.vrooli_bridge.v1.channel.AbortJob
+	(*RelayRequest)(nil),            // 9: vrooli.vrooli_bridge.v1.channel.RelayRequest
+	(*RelayCancel)(nil),             // 10: vrooli.vrooli_bridge.v1.channel.RelayCancel
+	(*ServerFrame)(nil),             // 11: vrooli.vrooli_bridge.v1.channel.ServerFrame
+	(*SignedServerFrame)(nil),       // 12: vrooli.vrooli_bridge.v1.channel.SignedServerFrame
+	(*NodeFrame)(nil),               // 13: vrooli.vrooli_bridge.v1.channel.NodeFrame
+	(shared.CompatibilityStatus)(0), // 14: vrooli.vrooli_bridge.v1.shared.CompatibilityStatus
+	(*timestamppb.Timestamp)(nil),   // 15: google.protobuf.Timestamp
+	(*shared.SessionFrame)(nil),     // 16: vrooli.vrooli_bridge.v1.shared.SessionFrame
+	(*shared.Heartbeat)(nil),        // 17: vrooli.vrooli_bridge.v1.shared.Heartbeat
+	(*shared.RunEvent)(nil),         // 18: vrooli.vrooli_bridge.v1.shared.RunEvent
+	(*shared.DeliveryAck)(nil),      // 19: vrooli.vrooli_bridge.v1.shared.DeliveryAck
+	(*shared.RelayResponse)(nil),    // 20: vrooli.vrooli_bridge.v1.shared.RelayResponse
 }
 var file_vrooli_bridge_v1_channel_channel_proto_depIdxs = []int32{
-	12, // 0: vrooli.vrooli_bridge.v1.channel.HandshakeAck.compatibility:type_name -> vrooli.vrooli_bridge.v1.shared.CompatibilityStatus
-	3,  // 1: vrooli.vrooli_bridge.v1.channel.JobPush.outputs:type_name -> vrooli.vrooli_bridge.v1.channel.ArtifactOutput
-	13, // 2: vrooli.vrooli_bridge.v1.channel.ControlPing.sent_at:type_name -> google.protobuf.Timestamp
-	1,  // 3: vrooli.vrooli_bridge.v1.channel.ServerFrame.ack:type_name -> vrooli.vrooli_bridge.v1.channel.HandshakeAck
-	2,  // 4: vrooli.vrooli_bridge.v1.channel.ServerFrame.job:type_name -> vrooli.vrooli_bridge.v1.channel.JobPush
-	4,  // 5: vrooli.vrooli_bridge.v1.channel.ServerFrame.provision:type_name -> vrooli.vrooli_bridge.v1.channel.ProvisionCommand
-	5,  // 6: vrooli.vrooli_bridge.v1.channel.ServerFrame.ping:type_name -> vrooli.vrooli_bridge.v1.channel.ControlPing
-	6,  // 7: vrooli.vrooli_bridge.v1.channel.ServerFrame.abort:type_name -> vrooli.vrooli_bridge.v1.channel.AbortJob
-	14, // 8: vrooli.vrooli_bridge.v1.channel.ServerFrame.session:type_name -> vrooli.vrooli_bridge.v1.shared.SessionFrame
-	7,  // 9: vrooli.vrooli_bridge.v1.channel.ServerFrame.relay:type_name -> vrooli.vrooli_bridge.v1.channel.RelayRequest
-	8,  // 10: vrooli.vrooli_bridge.v1.channel.ServerFrame.relay_cancel:type_name -> vrooli.vrooli_bridge.v1.channel.RelayCancel
-	0,  // 11: vrooli.vrooli_bridge.v1.channel.NodeFrame.handshake:type_name -> vrooli.vrooli_bridge.v1.channel.Handshake
-	15, // 12: vrooli.vrooli_bridge.v1.channel.NodeFrame.heartbeat:type_name -> vrooli.vrooli_bridge.v1.shared.Heartbeat
-	16, // 13: vrooli.vrooli_bridge.v1.channel.NodeFrame.run_event:type_name -> vrooli.vrooli_bridge.v1.shared.RunEvent
-	17, // 14: vrooli.vrooli_bridge.v1.channel.NodeFrame.delivery_ack:type_name -> vrooli.vrooli_bridge.v1.shared.DeliveryAck
-	14, // 15: vrooli.vrooli_bridge.v1.channel.NodeFrame.session:type_name -> vrooli.vrooli_bridge.v1.shared.SessionFrame
-	18, // 16: vrooli.vrooli_bridge.v1.channel.NodeFrame.relay_response:type_name -> vrooli.vrooli_bridge.v1.shared.RelayResponse
-	17, // [17:17] is the sub-list for method output_type
-	17, // [17:17] is the sub-list for method input_type
-	17, // [17:17] is the sub-list for extension type_name
-	17, // [17:17] is the sub-list for extension extendee
-	0,  // [0:17] is the sub-list for field type_name
+	14, // 0: vrooli.vrooli_bridge.v1.channel.HandshakeAck.compatibility:type_name -> vrooli.vrooli_bridge.v1.shared.CompatibilityStatus
+	5,  // 1: vrooli.vrooli_bridge.v1.channel.JobPush.outputs:type_name -> vrooli.vrooli_bridge.v1.channel.ArtifactOutput
+	0,  // 2: vrooli.vrooli_bridge.v1.channel.CleanupCommand.operation:type_name -> vrooli.vrooli_bridge.v1.channel.PrivilegedOperation
+	15, // 3: vrooli.vrooli_bridge.v1.channel.ControlPing.sent_at:type_name -> google.protobuf.Timestamp
+	2,  // 4: vrooli.vrooli_bridge.v1.channel.ServerFrame.ack:type_name -> vrooli.vrooli_bridge.v1.channel.HandshakeAck
+	3,  // 5: vrooli.vrooli_bridge.v1.channel.ServerFrame.job:type_name -> vrooli.vrooli_bridge.v1.channel.JobPush
+	6,  // 6: vrooli.vrooli_bridge.v1.channel.ServerFrame.provision:type_name -> vrooli.vrooli_bridge.v1.channel.ProvisionCommand
+	7,  // 7: vrooli.vrooli_bridge.v1.channel.ServerFrame.ping:type_name -> vrooli.vrooli_bridge.v1.channel.ControlPing
+	8,  // 8: vrooli.vrooli_bridge.v1.channel.ServerFrame.abort:type_name -> vrooli.vrooli_bridge.v1.channel.AbortJob
+	16, // 9: vrooli.vrooli_bridge.v1.channel.ServerFrame.session:type_name -> vrooli.vrooli_bridge.v1.shared.SessionFrame
+	9,  // 10: vrooli.vrooli_bridge.v1.channel.ServerFrame.relay:type_name -> vrooli.vrooli_bridge.v1.channel.RelayRequest
+	10, // 11: vrooli.vrooli_bridge.v1.channel.ServerFrame.relay_cancel:type_name -> vrooli.vrooli_bridge.v1.channel.RelayCancel
+	4,  // 12: vrooli.vrooli_bridge.v1.channel.ServerFrame.cleanup:type_name -> vrooli.vrooli_bridge.v1.channel.CleanupCommand
+	1,  // 13: vrooli.vrooli_bridge.v1.channel.NodeFrame.handshake:type_name -> vrooli.vrooli_bridge.v1.channel.Handshake
+	17, // 14: vrooli.vrooli_bridge.v1.channel.NodeFrame.heartbeat:type_name -> vrooli.vrooli_bridge.v1.shared.Heartbeat
+	18, // 15: vrooli.vrooli_bridge.v1.channel.NodeFrame.run_event:type_name -> vrooli.vrooli_bridge.v1.shared.RunEvent
+	19, // 16: vrooli.vrooli_bridge.v1.channel.NodeFrame.delivery_ack:type_name -> vrooli.vrooli_bridge.v1.shared.DeliveryAck
+	16, // 17: vrooli.vrooli_bridge.v1.channel.NodeFrame.session:type_name -> vrooli.vrooli_bridge.v1.shared.SessionFrame
+	20, // 18: vrooli.vrooli_bridge.v1.channel.NodeFrame.relay_response:type_name -> vrooli.vrooli_bridge.v1.shared.RelayResponse
+	19, // [19:19] is the sub-list for method output_type
+	19, // [19:19] is the sub-list for method input_type
+	19, // [19:19] is the sub-list for extension type_name
+	19, // [19:19] is the sub-list for extension extendee
+	0,  // [0:19] is the sub-list for field type_name
 }
 
 func init() { file_vrooli_bridge_v1_channel_channel_proto_init() }
@@ -1266,7 +1528,7 @@ func file_vrooli_bridge_v1_channel_channel_proto_init() {
 	if File_vrooli_bridge_v1_channel_channel_proto != nil {
 		return
 	}
-	file_vrooli_bridge_v1_channel_channel_proto_msgTypes[9].OneofWrappers = []any{
+	file_vrooli_bridge_v1_channel_channel_proto_msgTypes[10].OneofWrappers = []any{
 		(*ServerFrame_Ack)(nil),
 		(*ServerFrame_Job)(nil),
 		(*ServerFrame_Provision)(nil),
@@ -1275,8 +1537,9 @@ func file_vrooli_bridge_v1_channel_channel_proto_init() {
 		(*ServerFrame_Session)(nil),
 		(*ServerFrame_Relay)(nil),
 		(*ServerFrame_RelayCancel)(nil),
+		(*ServerFrame_Cleanup)(nil),
 	}
-	file_vrooli_bridge_v1_channel_channel_proto_msgTypes[11].OneofWrappers = []any{
+	file_vrooli_bridge_v1_channel_channel_proto_msgTypes[12].OneofWrappers = []any{
 		(*NodeFrame_Handshake)(nil),
 		(*NodeFrame_Heartbeat)(nil),
 		(*NodeFrame_RunEvent)(nil),
@@ -1289,13 +1552,14 @@ func file_vrooli_bridge_v1_channel_channel_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_vrooli_bridge_v1_channel_channel_proto_rawDesc), len(file_vrooli_bridge_v1_channel_channel_proto_rawDesc)),
-			NumEnums:      0,
-			NumMessages:   12,
+			NumEnums:      1,
+			NumMessages:   13,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
 		GoTypes:           file_vrooli_bridge_v1_channel_channel_proto_goTypes,
 		DependencyIndexes: file_vrooli_bridge_v1_channel_channel_proto_depIdxs,
+		EnumInfos:         file_vrooli_bridge_v1_channel_channel_proto_enumTypes,
 		MessageInfos:      file_vrooli_bridge_v1_channel_channel_proto_msgTypes,
 	}.Build()
 	File_vrooli_bridge_v1_channel_channel_proto = out.File

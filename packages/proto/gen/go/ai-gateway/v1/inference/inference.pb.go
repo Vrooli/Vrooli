@@ -40,6 +40,10 @@ const (
 	// be honoured is omitted silently instead, because the role author expressed
 	// a preference while the caller made no promise.
 	InferenceErrorCode_INFERENCE_ERROR_CODE_UNSUPPORTED_SAMPLING InferenceErrorCode = 6
+	// INFERENCE_ERROR_CODE_CONTEXT_OVERFLOW means the assembled input plus the
+	// requested output cap cannot fit the resolved provider model window. The
+	// gateway refuses before dispatch and never exposes the window value.
+	InferenceErrorCode_INFERENCE_ERROR_CODE_CONTEXT_OVERFLOW InferenceErrorCode = 7
 )
 
 // Enum value maps for InferenceErrorCode.
@@ -52,6 +56,7 @@ var (
 		4: "INFERENCE_ERROR_CODE_VALIDATION_FAILED",
 		5: "INFERENCE_ERROR_CODE_PROVIDER_FAILED",
 		6: "INFERENCE_ERROR_CODE_UNSUPPORTED_SAMPLING",
+		7: "INFERENCE_ERROR_CODE_CONTEXT_OVERFLOW",
 	}
 	InferenceErrorCode_value = map[string]int32{
 		"INFERENCE_ERROR_CODE_UNSPECIFIED":          0,
@@ -61,6 +66,7 @@ var (
 		"INFERENCE_ERROR_CODE_VALIDATION_FAILED":    4,
 		"INFERENCE_ERROR_CODE_PROVIDER_FAILED":      5,
 		"INFERENCE_ERROR_CODE_UNSUPPORTED_SAMPLING": 6,
+		"INFERENCE_ERROR_CODE_CONTEXT_OVERFLOW":     7,
 	}
 )
 
@@ -713,7 +719,7 @@ const file_ai_gateway_v1_inference_inference_proto_rawDesc = "" +
 	"\x04role\x18\x04 \x01(\tR\x04role\"\x96\x01\n" +
 	"\x10RunBatchResponse\x12E\n" +
 	"\aresults\x18\x01 \x03(\v2+.vrooli.ai_gateway.v1.inference.RunResponseR\aresults\x12;\n" +
-	"\x05usage\x18\x02 \x01(\v2%.vrooli.ai_gateway.v1.inference.UsageR\x05usage*\xbc\x02\n" +
+	"\x05usage\x18\x02 \x01(\v2%.vrooli.ai_gateway.v1.inference.UsageR\x05usage*\xe7\x02\n" +
 	"\x12InferenceErrorCode\x12$\n" +
 	" INFERENCE_ERROR_CODE_UNSPECIFIED\x10\x00\x12$\n" +
 	" INFERENCE_ERROR_CODE_UNAVAILABLE\x10\x01\x12(\n" +
@@ -721,7 +727,8 @@ const file_ai_gateway_v1_inference_inference_proto_rawDesc = "" +
 	"'INFERENCE_ERROR_CODE_UNSUPPORTED_SCHEMA\x10\x03\x12*\n" +
 	"&INFERENCE_ERROR_CODE_VALIDATION_FAILED\x10\x04\x12(\n" +
 	"$INFERENCE_ERROR_CODE_PROVIDER_FAILED\x10\x05\x12-\n" +
-	")INFERENCE_ERROR_CODE_UNSUPPORTED_SAMPLING\x10\x062\xe1\x01\n" +
+	")INFERENCE_ERROR_CODE_UNSUPPORTED_SAMPLING\x10\x06\x12)\n" +
+	"%INFERENCE_ERROR_CODE_CONTEXT_OVERFLOW\x10\a2\xe1\x01\n" +
 	"\x10InferenceService\x12^\n" +
 	"\x03Run\x12*.vrooli.ai_gateway.v1.inference.RunRequest\x1a+.vrooli.ai_gateway.v1.inference.RunResponse\x12m\n" +
 	"\bRunBatch\x12/.vrooli.ai_gateway.v1.inference.RunBatchRequest\x1a0.vrooli.ai_gateway.v1.inference.RunBatchResponseBUZSgithub.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference;inference_v1b\x06proto3"

@@ -9,6 +9,8 @@ import (
 	"github.com/vrooli/cli-core/cliapp"
 	v1 "github.com/vrooli/vrooli/packages/proto/gen/go/prose-studio/v1/prose"
 	connectv1 "github.com/vrooli/vrooli/packages/proto/gen/go/prose-studio/v1/prose/prose_v1connect"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 )
 
 type handlers struct {
@@ -20,57 +22,154 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 	return &handlers{client: connectv1.NewProseStudioServiceClient(httpClient, baseURL)}
 }
 
-func (h *handlers) call(method string) func(cliapp.OperationContext) (*v1.JsonResponse, error) {
-	return func(ctx cliapp.OperationContext) (*v1.JsonResponse, error) {
-		payload := ctx.Flag("json")
-		if payload == "" {
-			payload = `{}`
-		}
-		var msg v1.JsonRequest
-		msg.Json = payload
-		var resp *connect.Response[v1.JsonResponse]
-		var err error
-		switch method {
-		case "Registry":
-			resp, err = h.client.Registry(context.Background(), connect.NewRequest(&msg))
-		case "CreateStyle":
-			resp, err = h.client.CreateStyle(context.Background(), connect.NewRequest(&msg))
-		case "ResolveProfile":
-			resp, err = h.client.ResolveProfile(context.Background(), connect.NewRequest(&msg))
-		case "Generate":
-			resp, err = h.client.Generate(context.Background(), connect.NewRequest(&msg))
-		case "Reroll":
-			resp, err = h.client.Reroll(context.Background(), connect.NewRequest(&msg))
-		case "SessionAction":
-			resp, err = h.client.SessionAction(context.Background(), connect.NewRequest(&msg))
-		case "ReindexDeclarations":
-			resp, err = h.client.ReindexDeclarations(context.Background(), connect.NewRequest(&msg))
-		case "ValidateDeclarations":
-			resp, err = h.client.ValidateDeclarations(context.Background(), connect.NewRequest(&msg))
-		case "CreateDocument":
-			resp, err = h.client.CreateDocument(context.Background(), connect.NewRequest(&msg))
-		case "AssembleDocument":
-			resp, err = h.client.AssembleDocument(context.Background(), connect.NewRequest(&msg))
-		case "Conformance":
-			resp, err = h.client.Conformance(context.Background(), connect.NewRequest(&msg))
-		default:
-			return nil, fmt.Errorf("unknown prose method %q", method)
-		}
-		if err != nil {
-			return nil, cliapp.WrapAPIError("prose "+method, err, nil)
-		}
-		if resp == nil || resp.Msg == nil {
-			return nil, fmt.Errorf("server returned no prose response")
-		}
-		return resp.Msg, nil
+func requestFromFlag[T proto.Message](ctx cliapp.OperationContext, message T) (T, error) {
+	payload := ctx.Flag("request-json")
+	if payload == "" {
+		payload = `{}`
 	}
+	if err := (protojson.UnmarshalOptions{DiscardUnknown: false}).Unmarshal([]byte(payload), message); err != nil {
+		return message, fmt.Errorf("decode --json: %w", err)
+	}
+	return message, nil
 }
 
-func (h *handlers) report(_ cliapp.OperationContext, response *v1.JsonResponse) cliapp.ListReport {
-	var pretty any
-	if json.Unmarshal([]byte(response.GetJson()), &pretty) == nil {
-		b, _ := json.MarshalIndent(pretty, "", "  ")
-		return cliapp.ListReport{Summary: []string{"Prose Studio response"}, ResultsHeading: "Response", Results: []string{string(b)}}
+func (h *handlers) registryCall(ctx cliapp.OperationContext) (*v1.RegistryResponse, error) {
+	request, err := requestFromFlag(ctx, &v1.RegistryRequest{})
+	if err != nil {
+		return nil, err
 	}
-	return cliapp.ListReport{Summary: []string{"Prose Studio response"}, ResultsHeading: "Response", Results: []string{response.GetJson()}}
+	response, err := h.client.Registry(context.Background(), connect.NewRequest(request))
+	if err != nil {
+		return nil, cliapp.WrapAPIError("prose Registry", err, nil)
+	}
+	return responseMessage(response)
+}
+func (h *handlers) createStyleCall(ctx cliapp.OperationContext) (*v1.CreateStyleResponse, error) {
+	request, err := requestFromFlag(ctx, &v1.CreateStyleRequest{})
+	if err != nil {
+		return nil, err
+	}
+	response, err := h.client.CreateStyle(context.Background(), connect.NewRequest(request))
+	if err != nil {
+		return nil, cliapp.WrapAPIError("prose CreateStyle", err, nil)
+	}
+	return responseMessage(response)
+}
+func (h *handlers) resolveProfileCall(ctx cliapp.OperationContext) (*v1.ResolveProfileResponse, error) {
+	request, err := requestFromFlag(ctx, &v1.ResolveProfileRequest{})
+	if err != nil {
+		return nil, err
+	}
+	response, err := h.client.ResolveProfile(context.Background(), connect.NewRequest(request))
+	if err != nil {
+		return nil, cliapp.WrapAPIError("prose ResolveProfile", err, nil)
+	}
+	return responseMessage(response)
+}
+func (h *handlers) generateCall(ctx cliapp.OperationContext) (*v1.GenerateResponse, error) {
+	request, err := requestFromFlag(ctx, &v1.GenerateRequest{})
+	if err != nil {
+		return nil, err
+	}
+	response, err := h.client.Generate(context.Background(), connect.NewRequest(request))
+	if err != nil {
+		return nil, cliapp.WrapAPIError("prose Generate", err, nil)
+	}
+	return responseMessage(response)
+}
+func (h *handlers) rerollCall(ctx cliapp.OperationContext) (*v1.RerollResponse, error) {
+	request, err := requestFromFlag(ctx, &v1.RerollRequest{})
+	if err != nil {
+		return nil, err
+	}
+	response, err := h.client.Reroll(context.Background(), connect.NewRequest(request))
+	if err != nil {
+		return nil, cliapp.WrapAPIError("prose Reroll", err, nil)
+	}
+	return responseMessage(response)
+}
+func (h *handlers) sessionActionCall(ctx cliapp.OperationContext) (*v1.SessionActionResponse, error) {
+	request, err := requestFromFlag(ctx, &v1.SessionActionRequest{})
+	if err != nil {
+		return nil, err
+	}
+	response, err := h.client.SessionAction(context.Background(), connect.NewRequest(request))
+	if err != nil {
+		return nil, cliapp.WrapAPIError("prose SessionAction", err, nil)
+	}
+	return responseMessage(response)
+}
+func (h *handlers) reindexCall(ctx cliapp.OperationContext) (*v1.ReindexDeclarationsResponse, error) {
+	request, err := requestFromFlag(ctx, &v1.ReindexDeclarationsRequest{})
+	if err != nil {
+		return nil, err
+	}
+	response, err := h.client.ReindexDeclarations(context.Background(), connect.NewRequest(request))
+	if err != nil {
+		return nil, cliapp.WrapAPIError("prose ReindexDeclarations", err, nil)
+	}
+	return responseMessage(response)
+}
+func (h *handlers) validateCall(ctx cliapp.OperationContext) (*v1.ValidateDeclarationsResponse, error) {
+	request, err := requestFromFlag(ctx, &v1.ValidateDeclarationsRequest{})
+	if err != nil {
+		return nil, err
+	}
+	response, err := h.client.ValidateDeclarations(context.Background(), connect.NewRequest(request))
+	if err != nil {
+		return nil, cliapp.WrapAPIError("prose ValidateDeclarations", err, nil)
+	}
+	return responseMessage(response)
+}
+func (h *handlers) createDocumentCall(ctx cliapp.OperationContext) (*v1.CreateDocumentResponse, error) {
+	request, err := requestFromFlag(ctx, &v1.CreateDocumentRequest{})
+	if err != nil {
+		return nil, err
+	}
+	response, err := h.client.CreateDocument(context.Background(), connect.NewRequest(request))
+	if err != nil {
+		return nil, cliapp.WrapAPIError("prose CreateDocument", err, nil)
+	}
+	return responseMessage(response)
+}
+func (h *handlers) assembleDocumentCall(ctx cliapp.OperationContext) (*v1.AssembleDocumentResponse, error) {
+	request, err := requestFromFlag(ctx, &v1.AssembleDocumentRequest{})
+	if err != nil {
+		return nil, err
+	}
+	response, err := h.client.AssembleDocument(context.Background(), connect.NewRequest(request))
+	if err != nil {
+		return nil, cliapp.WrapAPIError("prose AssembleDocument", err, nil)
+	}
+	return responseMessage(response)
+}
+func (h *handlers) conformanceCall(ctx cliapp.OperationContext) (*v1.ConformanceResponse, error) {
+	request, err := requestFromFlag(ctx, &v1.ConformanceRequest{})
+	if err != nil {
+		return nil, err
+	}
+	response, err := h.client.Conformance(context.Background(), connect.NewRequest(request))
+	if err != nil {
+		return nil, cliapp.WrapAPIError("prose Conformance", err, nil)
+	}
+	return responseMessage(response)
+}
+
+func responseMessage[T any](response *connect.Response[T]) (*T, error) {
+	var zero *T
+	if response == nil || response.Msg == nil {
+		return zero, fmt.Errorf("server returned no prose response")
+	}
+	return response.Msg, nil
+}
+
+func protoReport[T proto.Message](label string) func(cliapp.OperationContext, T) cliapp.ListReport {
+	return func(_ cliapp.OperationContext, message T) cliapp.ListReport {
+		raw, _ := (protojson.MarshalOptions{UseProtoNames: true, Multiline: true, Indent: "  "}).Marshal(message)
+		var pretty any
+		if json.Unmarshal(raw, &pretty) == nil {
+			raw, _ = json.MarshalIndent(pretty, "", "  ")
+		}
+		return cliapp.ListReport{Summary: []string{label}, ResultsHeading: "Response", Results: []string{string(raw)}}
+	}
 }

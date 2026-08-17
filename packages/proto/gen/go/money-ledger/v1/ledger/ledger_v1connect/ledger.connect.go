@@ -41,6 +41,9 @@ const (
 	BooksServiceCreateBookProcedure = "/vrooli.money_ledger.v1.ledger.BooksService/CreateBook"
 	// BooksServiceListBooksProcedure is the fully-qualified name of the BooksService's ListBooks RPC.
 	BooksServiceListBooksProcedure = "/vrooli.money_ledger.v1.ledger.BooksService/ListBooks"
+	// BooksServiceArchiveBookProcedure is the fully-qualified name of the BooksService's ArchiveBook
+	// RPC.
+	BooksServiceArchiveBookProcedure = "/vrooli.money_ledger.v1.ledger.BooksService/ArchiveBook"
 	// BooksServiceCreateAccountProcedure is the fully-qualified name of the BooksService's
 	// CreateAccount RPC.
 	BooksServiceCreateAccountProcedure = "/vrooli.money_ledger.v1.ledger.BooksService/CreateAccount"
@@ -70,12 +73,19 @@ const (
 	// PositionServiceListGoalsProcedure is the fully-qualified name of the PositionService's ListGoals
 	// RPC.
 	PositionServiceListGoalsProcedure = "/vrooli.money_ledger.v1.ledger.PositionService/ListGoals"
+	// PositionServiceArchiveGoalProcedure is the fully-qualified name of the PositionService's
+	// ArchiveGoal RPC.
+	PositionServiceArchiveGoalProcedure = "/vrooli.money_ledger.v1.ledger.PositionService/ArchiveGoal"
+	// PositionServiceReparentGoalProcedure is the fully-qualified name of the PositionService's
+	// ReparentGoal RPC.
+	PositionServiceReparentGoalProcedure = "/vrooli.money_ledger.v1.ledger.PositionService/ReparentGoal"
 )
 
 // BooksServiceClient is a client for the vrooli.money_ledger.v1.ledger.BooksService service.
 type BooksServiceClient interface {
 	CreateBook(context.Context, *connect.Request[ledger.CreateBookRequest]) (*connect.Response[ledger.CreateBookResponse], error)
 	ListBooks(context.Context, *connect.Request[ledger.ListBooksRequest]) (*connect.Response[ledger.ListBooksResponse], error)
+	ArchiveBook(context.Context, *connect.Request[ledger.ArchiveBookRequest]) (*connect.Response[ledger.ArchiveBookResponse], error)
 	CreateAccount(context.Context, *connect.Request[ledger.CreateAccountRequest]) (*connect.Response[ledger.CreateAccountResponse], error)
 	ListAccounts(context.Context, *connect.Request[ledger.ListAccountsRequest]) (*connect.Response[ledger.ListAccountsResponse], error)
 }
@@ -103,6 +113,12 @@ func NewBooksServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(booksServiceMethods.ByName("ListBooks")),
 			connect.WithClientOptions(opts...),
 		),
+		archiveBook: connect.NewClient[ledger.ArchiveBookRequest, ledger.ArchiveBookResponse](
+			httpClient,
+			baseURL+BooksServiceArchiveBookProcedure,
+			connect.WithSchema(booksServiceMethods.ByName("ArchiveBook")),
+			connect.WithClientOptions(opts...),
+		),
 		createAccount: connect.NewClient[ledger.CreateAccountRequest, ledger.CreateAccountResponse](
 			httpClient,
 			baseURL+BooksServiceCreateAccountProcedure,
@@ -122,6 +138,7 @@ func NewBooksServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 type booksServiceClient struct {
 	createBook    *connect.Client[ledger.CreateBookRequest, ledger.CreateBookResponse]
 	listBooks     *connect.Client[ledger.ListBooksRequest, ledger.ListBooksResponse]
+	archiveBook   *connect.Client[ledger.ArchiveBookRequest, ledger.ArchiveBookResponse]
 	createAccount *connect.Client[ledger.CreateAccountRequest, ledger.CreateAccountResponse]
 	listAccounts  *connect.Client[ledger.ListAccountsRequest, ledger.ListAccountsResponse]
 }
@@ -134,6 +151,11 @@ func (c *booksServiceClient) CreateBook(ctx context.Context, req *connect.Reques
 // ListBooks calls vrooli.money_ledger.v1.ledger.BooksService.ListBooks.
 func (c *booksServiceClient) ListBooks(ctx context.Context, req *connect.Request[ledger.ListBooksRequest]) (*connect.Response[ledger.ListBooksResponse], error) {
 	return c.listBooks.CallUnary(ctx, req)
+}
+
+// ArchiveBook calls vrooli.money_ledger.v1.ledger.BooksService.ArchiveBook.
+func (c *booksServiceClient) ArchiveBook(ctx context.Context, req *connect.Request[ledger.ArchiveBookRequest]) (*connect.Response[ledger.ArchiveBookResponse], error) {
+	return c.archiveBook.CallUnary(ctx, req)
 }
 
 // CreateAccount calls vrooli.money_ledger.v1.ledger.BooksService.CreateAccount.
@@ -151,6 +173,7 @@ func (c *booksServiceClient) ListAccounts(ctx context.Context, req *connect.Requ
 type BooksServiceHandler interface {
 	CreateBook(context.Context, *connect.Request[ledger.CreateBookRequest]) (*connect.Response[ledger.CreateBookResponse], error)
 	ListBooks(context.Context, *connect.Request[ledger.ListBooksRequest]) (*connect.Response[ledger.ListBooksResponse], error)
+	ArchiveBook(context.Context, *connect.Request[ledger.ArchiveBookRequest]) (*connect.Response[ledger.ArchiveBookResponse], error)
 	CreateAccount(context.Context, *connect.Request[ledger.CreateAccountRequest]) (*connect.Response[ledger.CreateAccountResponse], error)
 	ListAccounts(context.Context, *connect.Request[ledger.ListAccountsRequest]) (*connect.Response[ledger.ListAccountsResponse], error)
 }
@@ -174,6 +197,12 @@ func NewBooksServiceHandler(svc BooksServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(booksServiceMethods.ByName("ListBooks")),
 		connect.WithHandlerOptions(opts...),
 	)
+	booksServiceArchiveBookHandler := connect.NewUnaryHandler(
+		BooksServiceArchiveBookProcedure,
+		svc.ArchiveBook,
+		connect.WithSchema(booksServiceMethods.ByName("ArchiveBook")),
+		connect.WithHandlerOptions(opts...),
+	)
 	booksServiceCreateAccountHandler := connect.NewUnaryHandler(
 		BooksServiceCreateAccountProcedure,
 		svc.CreateAccount,
@@ -192,6 +221,8 @@ func NewBooksServiceHandler(svc BooksServiceHandler, opts ...connect.HandlerOpti
 			booksServiceCreateBookHandler.ServeHTTP(w, r)
 		case BooksServiceListBooksProcedure:
 			booksServiceListBooksHandler.ServeHTTP(w, r)
+		case BooksServiceArchiveBookProcedure:
+			booksServiceArchiveBookHandler.ServeHTTP(w, r)
 		case BooksServiceCreateAccountProcedure:
 			booksServiceCreateAccountHandler.ServeHTTP(w, r)
 		case BooksServiceListAccountsProcedure:
@@ -211,6 +242,10 @@ func (UnimplementedBooksServiceHandler) CreateBook(context.Context, *connect.Req
 
 func (UnimplementedBooksServiceHandler) ListBooks(context.Context, *connect.Request[ledger.ListBooksRequest]) (*connect.Response[ledger.ListBooksResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.money_ledger.v1.ledger.BooksService.ListBooks is not implemented"))
+}
+
+func (UnimplementedBooksServiceHandler) ArchiveBook(context.Context, *connect.Request[ledger.ArchiveBookRequest]) (*connect.Response[ledger.ArchiveBookResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.money_ledger.v1.ledger.BooksService.ArchiveBook is not implemented"))
 }
 
 func (UnimplementedBooksServiceHandler) CreateAccount(context.Context, *connect.Request[ledger.CreateAccountRequest]) (*connect.Response[ledger.CreateAccountResponse], error) {
@@ -376,6 +411,8 @@ type PositionServiceClient interface {
 	GetStatement(context.Context, *connect.Request[ledger.StatementRequest]) (*connect.Response[ledger.StatementResponse], error)
 	DeclareGoal(context.Context, *connect.Request[ledger.DeclareGoalRequest]) (*connect.Response[ledger.DeclareGoalResponse], error)
 	ListGoals(context.Context, *connect.Request[ledger.ListGoalsRequest]) (*connect.Response[ledger.ListGoalsResponse], error)
+	ArchiveGoal(context.Context, *connect.Request[ledger.ArchiveGoalRequest]) (*connect.Response[ledger.ArchiveGoalResponse], error)
+	ReparentGoal(context.Context, *connect.Request[ledger.ReparentGoalRequest]) (*connect.Response[ledger.ReparentGoalResponse], error)
 }
 
 // NewPositionServiceClient constructs a client for the
@@ -414,6 +451,18 @@ func NewPositionServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(positionServiceMethods.ByName("ListGoals")),
 			connect.WithClientOptions(opts...),
 		),
+		archiveGoal: connect.NewClient[ledger.ArchiveGoalRequest, ledger.ArchiveGoalResponse](
+			httpClient,
+			baseURL+PositionServiceArchiveGoalProcedure,
+			connect.WithSchema(positionServiceMethods.ByName("ArchiveGoal")),
+			connect.WithClientOptions(opts...),
+		),
+		reparentGoal: connect.NewClient[ledger.ReparentGoalRequest, ledger.ReparentGoalResponse](
+			httpClient,
+			baseURL+PositionServiceReparentGoalProcedure,
+			connect.WithSchema(positionServiceMethods.ByName("ReparentGoal")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -423,6 +472,8 @@ type positionServiceClient struct {
 	getStatement *connect.Client[ledger.StatementRequest, ledger.StatementResponse]
 	declareGoal  *connect.Client[ledger.DeclareGoalRequest, ledger.DeclareGoalResponse]
 	listGoals    *connect.Client[ledger.ListGoalsRequest, ledger.ListGoalsResponse]
+	archiveGoal  *connect.Client[ledger.ArchiveGoalRequest, ledger.ArchiveGoalResponse]
+	reparentGoal *connect.Client[ledger.ReparentGoalRequest, ledger.ReparentGoalResponse]
 }
 
 // GetPosition calls vrooli.money_ledger.v1.ledger.PositionService.GetPosition.
@@ -445,6 +496,16 @@ func (c *positionServiceClient) ListGoals(ctx context.Context, req *connect.Requ
 	return c.listGoals.CallUnary(ctx, req)
 }
 
+// ArchiveGoal calls vrooli.money_ledger.v1.ledger.PositionService.ArchiveGoal.
+func (c *positionServiceClient) ArchiveGoal(ctx context.Context, req *connect.Request[ledger.ArchiveGoalRequest]) (*connect.Response[ledger.ArchiveGoalResponse], error) {
+	return c.archiveGoal.CallUnary(ctx, req)
+}
+
+// ReparentGoal calls vrooli.money_ledger.v1.ledger.PositionService.ReparentGoal.
+func (c *positionServiceClient) ReparentGoal(ctx context.Context, req *connect.Request[ledger.ReparentGoalRequest]) (*connect.Response[ledger.ReparentGoalResponse], error) {
+	return c.reparentGoal.CallUnary(ctx, req)
+}
+
 // PositionServiceHandler is an implementation of the vrooli.money_ledger.v1.ledger.PositionService
 // service.
 type PositionServiceHandler interface {
@@ -452,6 +513,8 @@ type PositionServiceHandler interface {
 	GetStatement(context.Context, *connect.Request[ledger.StatementRequest]) (*connect.Response[ledger.StatementResponse], error)
 	DeclareGoal(context.Context, *connect.Request[ledger.DeclareGoalRequest]) (*connect.Response[ledger.DeclareGoalResponse], error)
 	ListGoals(context.Context, *connect.Request[ledger.ListGoalsRequest]) (*connect.Response[ledger.ListGoalsResponse], error)
+	ArchiveGoal(context.Context, *connect.Request[ledger.ArchiveGoalRequest]) (*connect.Response[ledger.ArchiveGoalResponse], error)
+	ReparentGoal(context.Context, *connect.Request[ledger.ReparentGoalRequest]) (*connect.Response[ledger.ReparentGoalResponse], error)
 }
 
 // NewPositionServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -485,6 +548,18 @@ func NewPositionServiceHandler(svc PositionServiceHandler, opts ...connect.Handl
 		connect.WithSchema(positionServiceMethods.ByName("ListGoals")),
 		connect.WithHandlerOptions(opts...),
 	)
+	positionServiceArchiveGoalHandler := connect.NewUnaryHandler(
+		PositionServiceArchiveGoalProcedure,
+		svc.ArchiveGoal,
+		connect.WithSchema(positionServiceMethods.ByName("ArchiveGoal")),
+		connect.WithHandlerOptions(opts...),
+	)
+	positionServiceReparentGoalHandler := connect.NewUnaryHandler(
+		PositionServiceReparentGoalProcedure,
+		svc.ReparentGoal,
+		connect.WithSchema(positionServiceMethods.ByName("ReparentGoal")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.money_ledger.v1.ledger.PositionService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case PositionServiceGetPositionProcedure:
@@ -495,6 +570,10 @@ func NewPositionServiceHandler(svc PositionServiceHandler, opts ...connect.Handl
 			positionServiceDeclareGoalHandler.ServeHTTP(w, r)
 		case PositionServiceListGoalsProcedure:
 			positionServiceListGoalsHandler.ServeHTTP(w, r)
+		case PositionServiceArchiveGoalProcedure:
+			positionServiceArchiveGoalHandler.ServeHTTP(w, r)
+		case PositionServiceReparentGoalProcedure:
+			positionServiceReparentGoalHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -518,4 +597,12 @@ func (UnimplementedPositionServiceHandler) DeclareGoal(context.Context, *connect
 
 func (UnimplementedPositionServiceHandler) ListGoals(context.Context, *connect.Request[ledger.ListGoalsRequest]) (*connect.Response[ledger.ListGoalsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.money_ledger.v1.ledger.PositionService.ListGoals is not implemented"))
+}
+
+func (UnimplementedPositionServiceHandler) ArchiveGoal(context.Context, *connect.Request[ledger.ArchiveGoalRequest]) (*connect.Response[ledger.ArchiveGoalResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.money_ledger.v1.ledger.PositionService.ArchiveGoal is not implemented"))
+}
+
+func (UnimplementedPositionServiceHandler) ReparentGoal(context.Context, *connect.Request[ledger.ReparentGoalRequest]) (*connect.Response[ledger.ReparentGoalResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.money_ledger.v1.ledger.PositionService.ReparentGoal is not implemented"))
 }

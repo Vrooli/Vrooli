@@ -994,6 +994,7 @@ type OperatorImportRequest struct {
 	AdapterId     string                 `protobuf:"bytes,4,opt,name=adapter_id,json=adapterId,proto3" json:"adapter_id,omitempty"`
 	BookId        string                 `protobuf:"bytes,5,opt,name=book_id,json=bookId,proto3" json:"book_id,omitempty"`
 	AccountId     string                 `protobuf:"bytes,6,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	SourceJson    []byte                 `protobuf:"bytes,7,opt,name=source_json,json=sourceJson,proto3" json:"source_json,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1068,6 +1069,13 @@ func (x *OperatorImportRequest) GetAccountId() string {
 		return x.AccountId
 	}
 	return ""
+}
+
+func (x *OperatorImportRequest) GetSourceJson() []byte {
+	if x != nil {
+		return x.SourceJson
+	}
+	return nil
 }
 
 type OperatorImportResponse struct {
@@ -1146,6 +1154,94 @@ func (x *OperatorImportResponse) GetApplied() bool {
 	return false
 }
 
+type OperatorInputStatusRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	BookId        string                 `protobuf:"bytes,1,opt,name=book_id,json=bookId,proto3" json:"book_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *OperatorInputStatusRequest) Reset() {
+	*x = OperatorInputStatusRequest{}
+	mi := &file_money_ledger_v1_ingest_ingest_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *OperatorInputStatusRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*OperatorInputStatusRequest) ProtoMessage() {}
+
+func (x *OperatorInputStatusRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_money_ledger_v1_ingest_ingest_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use OperatorInputStatusRequest.ProtoReflect.Descriptor instead.
+func (*OperatorInputStatusRequest) Descriptor() ([]byte, []int) {
+	return file_money_ledger_v1_ingest_ingest_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *OperatorInputStatusRequest) GetBookId() string {
+	if x != nil {
+		return x.BookId
+	}
+	return ""
+}
+
+type OperatorInputStatusResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Fields        []*OperatorInputField  `protobuf:"bytes,1,rep,name=fields,proto3" json:"fields,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *OperatorInputStatusResponse) Reset() {
+	*x = OperatorInputStatusResponse{}
+	mi := &file_money_ledger_v1_ingest_ingest_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *OperatorInputStatusResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*OperatorInputStatusResponse) ProtoMessage() {}
+
+func (x *OperatorInputStatusResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_money_ledger_v1_ingest_ingest_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use OperatorInputStatusResponse.ProtoReflect.Descriptor instead.
+func (*OperatorInputStatusResponse) Descriptor() ([]byte, []int) {
+	return file_money_ledger_v1_ingest_ingest_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *OperatorInputStatusResponse) GetFields() []*OperatorInputField {
+	if x != nil {
+		return x.Fields
+	}
+	return nil
+}
+
 var File_money_ledger_v1_ingest_ingest_proto protoreflect.FileDescriptor
 
 const file_money_ledger_v1_ingest_ingest_proto_rawDesc = "" +
@@ -1217,7 +1313,7 @@ const file_money_ledger_v1_ingest_ingest_proto_rawDesc = "" +
 	"\vobserved_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
 	"observedAt\x12\x12\n" +
 	"\x04kind\x18\a \x01(\tR\x04kind\x12\x16\n" +
-	"\x06reason\x18\b \x01(\tR\x06reason\"\xf1\x01\n" +
+	"\x06reason\x18\b \x01(\tR\x06reason\"\x92\x02\n" +
 	"\x15OperatorImportRequest\x12\x1f\n" +
 	"\vsource_path\x18\x01 \x01(\tR\n" +
 	"sourcePath\x12J\n" +
@@ -1228,13 +1324,19 @@ const file_money_ledger_v1_ingest_ingest_proto_rawDesc = "" +
 	"adapter_id\x18\x04 \x01(\tR\tadapterId\x12\x17\n" +
 	"\abook_id\x18\x05 \x01(\tR\x06bookId\x12\x1d\n" +
 	"\n" +
-	"account_id\x18\x06 \x01(\tR\taccountId\"\xc7\x01\n" +
+	"account_id\x18\x06 \x01(\tR\taccountId\x12\x1f\n" +
+	"\vsource_json\x18\a \x01(\fR\n" +
+	"sourceJson\"\xc7\x01\n" +
 	"\x16OperatorImportResponse\x12I\n" +
 	"\x06fields\x18\x01 \x03(\v21.vrooli.money_ledger.v1.ingest.OperatorInputFieldR\x06fields\x12\x12\n" +
 	"\x04read\x18\x02 \x01(\x05R\x04read\x12\x18\n" +
 	"\awritten\x18\x03 \x01(\x05R\awritten\x12\x1a\n" +
 	"\bfindings\x18\x04 \x01(\x05R\bfindings\x12\x18\n" +
-	"\aapplied\x18\x05 \x01(\bR\aapplied*x\n" +
+	"\aapplied\x18\x05 \x01(\bR\aapplied\"5\n" +
+	"\x1aOperatorInputStatusRequest\x12\x17\n" +
+	"\abook_id\x18\x01 \x01(\tR\x06bookId\"h\n" +
+	"\x1bOperatorInputStatusResponse\x12I\n" +
+	"\x06fields\x18\x01 \x03(\v21.vrooli.money_ledger.v1.ingest.OperatorInputFieldR\x06fields*x\n" +
 	"\vAdapterKind\x12\x1c\n" +
 	"\x18ADAPTER_KIND_UNSPECIFIED\x10\x00\x12\x17\n" +
 	"\x13ADAPTER_KIND_MANUAL\x10\x01\x12\x15\n" +
@@ -1244,7 +1346,7 @@ const file_money_ledger_v1_ingest_ingest_proto_rawDesc = "" +
 	"SourceMode\x12\x1b\n" +
 	"\x17SOURCE_MODE_UNSPECIFIED\x10\x00\x12\x17\n" +
 	"\x13SOURCE_MODE_FIXTURE\x10\x01\x12!\n" +
-	"\x1dSOURCE_MODE_OPERATOR_SUPPLIED\x10\x022\xed\x05\n" +
+	"\x1dSOURCE_MODE_OPERATOR_SUPPLIED\x10\x022\xfc\x06\n" +
 	"\rIngestService\x12\x80\x01\n" +
 	"\x0fRegisterAdapter\x125.vrooli.money_ledger.v1.ingest.RegisterAdapterRequest\x1a6.vrooli.money_ledger.v1.ingest.RegisterAdapterResponse\x12w\n" +
 	"\fListAdapters\x122.vrooli.money_ledger.v1.ingest.ListAdaptersRequest\x1a3.vrooli.money_ledger.v1.ingest.ListAdaptersResponse\x12t\n" +
@@ -1253,7 +1355,8 @@ const file_money_ledger_v1_ingest_ingest_proto_rawDesc = "" +
 	"RunAdapter\x120.vrooli.money_ledger.v1.ingest.RunAdapterRequest\x1a1.vrooli.money_ledger.v1.ingest.RunAdapterResponse\x12q\n" +
 	"\n" +
 	"ImportFile\x120.vrooli.money_ledger.v1.ingest.ImportFileRequest\x1a1.vrooli.money_ledger.v1.ingest.ImportFileResponse\x12\x83\x01\n" +
-	"\x14ImportOperatorInputs\x124.vrooli.money_ledger.v1.ingest.OperatorImportRequest\x1a5.vrooli.money_ledger.v1.ingest.OperatorImportResponseBQZOgithub.com/vrooli/vrooli/packages/proto/gen/go/money-ledger/v1/ingest;ingest_v1b\x06proto3"
+	"\x14ImportOperatorInputs\x124.vrooli.money_ledger.v1.ingest.OperatorImportRequest\x1a5.vrooli.money_ledger.v1.ingest.OperatorImportResponse\x12\x8c\x01\n" +
+	"\x13OperatorInputStatus\x129.vrooli.money_ledger.v1.ingest.OperatorInputStatusRequest\x1a:.vrooli.money_ledger.v1.ingest.OperatorInputStatusResponseBQZOgithub.com/vrooli/vrooli/packages/proto/gen/go/money-ledger/v1/ingest;ingest_v1b\x06proto3"
 
 var (
 	file_money_ledger_v1_ingest_ingest_proto_rawDescOnce sync.Once
@@ -1268,70 +1371,75 @@ func file_money_ledger_v1_ingest_ingest_proto_rawDescGZIP() []byte {
 }
 
 var file_money_ledger_v1_ingest_ingest_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_money_ledger_v1_ingest_ingest_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
+var file_money_ledger_v1_ingest_ingest_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
 var file_money_ledger_v1_ingest_ingest_proto_goTypes = []any{
-	(AdapterKind)(0),                // 0: vrooli.money_ledger.v1.ingest.AdapterKind
-	(SourceMode)(0),                 // 1: vrooli.money_ledger.v1.ingest.SourceMode
-	(*Adapter)(nil),                 // 2: vrooli.money_ledger.v1.ingest.Adapter
-	(*Receipt)(nil),                 // 3: vrooli.money_ledger.v1.ingest.Receipt
-	(*Availability)(nil),            // 4: vrooli.money_ledger.v1.ingest.Availability
-	(*RegisterAdapterRequest)(nil),  // 5: vrooli.money_ledger.v1.ingest.RegisterAdapterRequest
-	(*RegisterAdapterResponse)(nil), // 6: vrooli.money_ledger.v1.ingest.RegisterAdapterResponse
-	(*ListAdaptersRequest)(nil),     // 7: vrooli.money_ledger.v1.ingest.ListAdaptersRequest
-	(*ListAdaptersResponse)(nil),    // 8: vrooli.money_ledger.v1.ingest.ListAdaptersResponse
-	(*IngestEventRequest)(nil),      // 9: vrooli.money_ledger.v1.ingest.IngestEventRequest
-	(*IngestEventResponse)(nil),     // 10: vrooli.money_ledger.v1.ingest.IngestEventResponse
-	(*RunAdapterRequest)(nil),       // 11: vrooli.money_ledger.v1.ingest.RunAdapterRequest
-	(*RunAdapterResponse)(nil),      // 12: vrooli.money_ledger.v1.ingest.RunAdapterResponse
-	(*ImportFileRequest)(nil),       // 13: vrooli.money_ledger.v1.ingest.ImportFileRequest
-	(*ImportFileResponse)(nil),      // 14: vrooli.money_ledger.v1.ingest.ImportFileResponse
-	(*OperatorInputField)(nil),      // 15: vrooli.money_ledger.v1.ingest.OperatorInputField
-	(*OperatorImportRequest)(nil),   // 16: vrooli.money_ledger.v1.ingest.OperatorImportRequest
-	(*OperatorImportResponse)(nil),  // 17: vrooli.money_ledger.v1.ingest.OperatorImportResponse
-	(*timestamppb.Timestamp)(nil),   // 18: google.protobuf.Timestamp
-	(*shared.MoneyEvent)(nil),       // 19: vrooli.money_ledger.v1.shared.MoneyEvent
-	(*shared.Posting)(nil),          // 20: vrooli.money_ledger.v1.shared.Posting
+	(AdapterKind)(0),                    // 0: vrooli.money_ledger.v1.ingest.AdapterKind
+	(SourceMode)(0),                     // 1: vrooli.money_ledger.v1.ingest.SourceMode
+	(*Adapter)(nil),                     // 2: vrooli.money_ledger.v1.ingest.Adapter
+	(*Receipt)(nil),                     // 3: vrooli.money_ledger.v1.ingest.Receipt
+	(*Availability)(nil),                // 4: vrooli.money_ledger.v1.ingest.Availability
+	(*RegisterAdapterRequest)(nil),      // 5: vrooli.money_ledger.v1.ingest.RegisterAdapterRequest
+	(*RegisterAdapterResponse)(nil),     // 6: vrooli.money_ledger.v1.ingest.RegisterAdapterResponse
+	(*ListAdaptersRequest)(nil),         // 7: vrooli.money_ledger.v1.ingest.ListAdaptersRequest
+	(*ListAdaptersResponse)(nil),        // 8: vrooli.money_ledger.v1.ingest.ListAdaptersResponse
+	(*IngestEventRequest)(nil),          // 9: vrooli.money_ledger.v1.ingest.IngestEventRequest
+	(*IngestEventResponse)(nil),         // 10: vrooli.money_ledger.v1.ingest.IngestEventResponse
+	(*RunAdapterRequest)(nil),           // 11: vrooli.money_ledger.v1.ingest.RunAdapterRequest
+	(*RunAdapterResponse)(nil),          // 12: vrooli.money_ledger.v1.ingest.RunAdapterResponse
+	(*ImportFileRequest)(nil),           // 13: vrooli.money_ledger.v1.ingest.ImportFileRequest
+	(*ImportFileResponse)(nil),          // 14: vrooli.money_ledger.v1.ingest.ImportFileResponse
+	(*OperatorInputField)(nil),          // 15: vrooli.money_ledger.v1.ingest.OperatorInputField
+	(*OperatorImportRequest)(nil),       // 16: vrooli.money_ledger.v1.ingest.OperatorImportRequest
+	(*OperatorImportResponse)(nil),      // 17: vrooli.money_ledger.v1.ingest.OperatorImportResponse
+	(*OperatorInputStatusRequest)(nil),  // 18: vrooli.money_ledger.v1.ingest.OperatorInputStatusRequest
+	(*OperatorInputStatusResponse)(nil), // 19: vrooli.money_ledger.v1.ingest.OperatorInputStatusResponse
+	(*timestamppb.Timestamp)(nil),       // 20: google.protobuf.Timestamp
+	(*shared.MoneyEvent)(nil),           // 21: vrooli.money_ledger.v1.shared.MoneyEvent
+	(*shared.Posting)(nil),              // 22: vrooli.money_ledger.v1.shared.Posting
 }
 var file_money_ledger_v1_ingest_ingest_proto_depIdxs = []int32{
 	0,  // 0: vrooli.money_ledger.v1.ingest.Adapter.kind:type_name -> vrooli.money_ledger.v1.ingest.AdapterKind
-	18, // 1: vrooli.money_ledger.v1.ingest.Adapter.last_success_at:type_name -> google.protobuf.Timestamp
-	18, // 2: vrooli.money_ledger.v1.ingest.Receipt.from:type_name -> google.protobuf.Timestamp
-	18, // 3: vrooli.money_ledger.v1.ingest.Receipt.to:type_name -> google.protobuf.Timestamp
-	18, // 4: vrooli.money_ledger.v1.ingest.Receipt.created_at:type_name -> google.protobuf.Timestamp
-	18, // 5: vrooli.money_ledger.v1.ingest.Availability.last_success_at:type_name -> google.protobuf.Timestamp
+	20, // 1: vrooli.money_ledger.v1.ingest.Adapter.last_success_at:type_name -> google.protobuf.Timestamp
+	20, // 2: vrooli.money_ledger.v1.ingest.Receipt.from:type_name -> google.protobuf.Timestamp
+	20, // 3: vrooli.money_ledger.v1.ingest.Receipt.to:type_name -> google.protobuf.Timestamp
+	20, // 4: vrooli.money_ledger.v1.ingest.Receipt.created_at:type_name -> google.protobuf.Timestamp
+	20, // 5: vrooli.money_ledger.v1.ingest.Availability.last_success_at:type_name -> google.protobuf.Timestamp
 	2,  // 6: vrooli.money_ledger.v1.ingest.RegisterAdapterRequest.adapter:type_name -> vrooli.money_ledger.v1.ingest.Adapter
 	2,  // 7: vrooli.money_ledger.v1.ingest.RegisterAdapterResponse.adapter:type_name -> vrooli.money_ledger.v1.ingest.Adapter
 	2,  // 8: vrooli.money_ledger.v1.ingest.ListAdaptersResponse.adapters:type_name -> vrooli.money_ledger.v1.ingest.Adapter
-	19, // 9: vrooli.money_ledger.v1.ingest.IngestEventRequest.event:type_name -> vrooli.money_ledger.v1.shared.MoneyEvent
-	20, // 10: vrooli.money_ledger.v1.ingest.IngestEventResponse.posting:type_name -> vrooli.money_ledger.v1.shared.Posting
+	21, // 9: vrooli.money_ledger.v1.ingest.IngestEventRequest.event:type_name -> vrooli.money_ledger.v1.shared.MoneyEvent
+	22, // 10: vrooli.money_ledger.v1.ingest.IngestEventResponse.posting:type_name -> vrooli.money_ledger.v1.shared.Posting
 	3,  // 11: vrooli.money_ledger.v1.ingest.IngestEventResponse.receipt:type_name -> vrooli.money_ledger.v1.ingest.Receipt
-	18, // 12: vrooli.money_ledger.v1.ingest.RunAdapterRequest.from:type_name -> google.protobuf.Timestamp
-	18, // 13: vrooli.money_ledger.v1.ingest.RunAdapterRequest.to:type_name -> google.protobuf.Timestamp
+	20, // 12: vrooli.money_ledger.v1.ingest.RunAdapterRequest.from:type_name -> google.protobuf.Timestamp
+	20, // 13: vrooli.money_ledger.v1.ingest.RunAdapterRequest.to:type_name -> google.protobuf.Timestamp
 	3,  // 14: vrooli.money_ledger.v1.ingest.RunAdapterResponse.receipt:type_name -> vrooli.money_ledger.v1.ingest.Receipt
 	4,  // 15: vrooli.money_ledger.v1.ingest.RunAdapterResponse.availability:type_name -> vrooli.money_ledger.v1.ingest.Availability
-	18, // 16: vrooli.money_ledger.v1.ingest.ImportFileRequest.from:type_name -> google.protobuf.Timestamp
-	18, // 17: vrooli.money_ledger.v1.ingest.ImportFileRequest.to:type_name -> google.protobuf.Timestamp
+	20, // 16: vrooli.money_ledger.v1.ingest.ImportFileRequest.from:type_name -> google.protobuf.Timestamp
+	20, // 17: vrooli.money_ledger.v1.ingest.ImportFileRequest.to:type_name -> google.protobuf.Timestamp
 	3,  // 18: vrooli.money_ledger.v1.ingest.ImportFileResponse.receipt:type_name -> vrooli.money_ledger.v1.ingest.Receipt
-	18, // 19: vrooli.money_ledger.v1.ingest.OperatorInputField.observed_at:type_name -> google.protobuf.Timestamp
+	20, // 19: vrooli.money_ledger.v1.ingest.OperatorInputField.observed_at:type_name -> google.protobuf.Timestamp
 	1,  // 20: vrooli.money_ledger.v1.ingest.OperatorImportRequest.source_mode:type_name -> vrooli.money_ledger.v1.ingest.SourceMode
 	15, // 21: vrooli.money_ledger.v1.ingest.OperatorImportResponse.fields:type_name -> vrooli.money_ledger.v1.ingest.OperatorInputField
-	5,  // 22: vrooli.money_ledger.v1.ingest.IngestService.RegisterAdapter:input_type -> vrooli.money_ledger.v1.ingest.RegisterAdapterRequest
-	7,  // 23: vrooli.money_ledger.v1.ingest.IngestService.ListAdapters:input_type -> vrooli.money_ledger.v1.ingest.ListAdaptersRequest
-	9,  // 24: vrooli.money_ledger.v1.ingest.IngestService.IngestEvent:input_type -> vrooli.money_ledger.v1.ingest.IngestEventRequest
-	11, // 25: vrooli.money_ledger.v1.ingest.IngestService.RunAdapter:input_type -> vrooli.money_ledger.v1.ingest.RunAdapterRequest
-	13, // 26: vrooli.money_ledger.v1.ingest.IngestService.ImportFile:input_type -> vrooli.money_ledger.v1.ingest.ImportFileRequest
-	16, // 27: vrooli.money_ledger.v1.ingest.IngestService.ImportOperatorInputs:input_type -> vrooli.money_ledger.v1.ingest.OperatorImportRequest
-	6,  // 28: vrooli.money_ledger.v1.ingest.IngestService.RegisterAdapter:output_type -> vrooli.money_ledger.v1.ingest.RegisterAdapterResponse
-	8,  // 29: vrooli.money_ledger.v1.ingest.IngestService.ListAdapters:output_type -> vrooli.money_ledger.v1.ingest.ListAdaptersResponse
-	10, // 30: vrooli.money_ledger.v1.ingest.IngestService.IngestEvent:output_type -> vrooli.money_ledger.v1.ingest.IngestEventResponse
-	12, // 31: vrooli.money_ledger.v1.ingest.IngestService.RunAdapter:output_type -> vrooli.money_ledger.v1.ingest.RunAdapterResponse
-	14, // 32: vrooli.money_ledger.v1.ingest.IngestService.ImportFile:output_type -> vrooli.money_ledger.v1.ingest.ImportFileResponse
-	17, // 33: vrooli.money_ledger.v1.ingest.IngestService.ImportOperatorInputs:output_type -> vrooli.money_ledger.v1.ingest.OperatorImportResponse
-	28, // [28:34] is the sub-list for method output_type
-	22, // [22:28] is the sub-list for method input_type
-	22, // [22:22] is the sub-list for extension type_name
-	22, // [22:22] is the sub-list for extension extendee
-	0,  // [0:22] is the sub-list for field type_name
+	15, // 22: vrooli.money_ledger.v1.ingest.OperatorInputStatusResponse.fields:type_name -> vrooli.money_ledger.v1.ingest.OperatorInputField
+	5,  // 23: vrooli.money_ledger.v1.ingest.IngestService.RegisterAdapter:input_type -> vrooli.money_ledger.v1.ingest.RegisterAdapterRequest
+	7,  // 24: vrooli.money_ledger.v1.ingest.IngestService.ListAdapters:input_type -> vrooli.money_ledger.v1.ingest.ListAdaptersRequest
+	9,  // 25: vrooli.money_ledger.v1.ingest.IngestService.IngestEvent:input_type -> vrooli.money_ledger.v1.ingest.IngestEventRequest
+	11, // 26: vrooli.money_ledger.v1.ingest.IngestService.RunAdapter:input_type -> vrooli.money_ledger.v1.ingest.RunAdapterRequest
+	13, // 27: vrooli.money_ledger.v1.ingest.IngestService.ImportFile:input_type -> vrooli.money_ledger.v1.ingest.ImportFileRequest
+	16, // 28: vrooli.money_ledger.v1.ingest.IngestService.ImportOperatorInputs:input_type -> vrooli.money_ledger.v1.ingest.OperatorImportRequest
+	18, // 29: vrooli.money_ledger.v1.ingest.IngestService.OperatorInputStatus:input_type -> vrooli.money_ledger.v1.ingest.OperatorInputStatusRequest
+	6,  // 30: vrooli.money_ledger.v1.ingest.IngestService.RegisterAdapter:output_type -> vrooli.money_ledger.v1.ingest.RegisterAdapterResponse
+	8,  // 31: vrooli.money_ledger.v1.ingest.IngestService.ListAdapters:output_type -> vrooli.money_ledger.v1.ingest.ListAdaptersResponse
+	10, // 32: vrooli.money_ledger.v1.ingest.IngestService.IngestEvent:output_type -> vrooli.money_ledger.v1.ingest.IngestEventResponse
+	12, // 33: vrooli.money_ledger.v1.ingest.IngestService.RunAdapter:output_type -> vrooli.money_ledger.v1.ingest.RunAdapterResponse
+	14, // 34: vrooli.money_ledger.v1.ingest.IngestService.ImportFile:output_type -> vrooli.money_ledger.v1.ingest.ImportFileResponse
+	17, // 35: vrooli.money_ledger.v1.ingest.IngestService.ImportOperatorInputs:output_type -> vrooli.money_ledger.v1.ingest.OperatorImportResponse
+	19, // 36: vrooli.money_ledger.v1.ingest.IngestService.OperatorInputStatus:output_type -> vrooli.money_ledger.v1.ingest.OperatorInputStatusResponse
+	30, // [30:37] is the sub-list for method output_type
+	23, // [23:30] is the sub-list for method input_type
+	23, // [23:23] is the sub-list for extension type_name
+	23, // [23:23] is the sub-list for extension extendee
+	0,  // [0:23] is the sub-list for field type_name
 }
 
 func init() { file_money_ledger_v1_ingest_ingest_proto_init() }
@@ -1345,7 +1453,7 @@ func file_money_ledger_v1_ingest_ingest_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_money_ledger_v1_ingest_ingest_proto_rawDesc), len(file_money_ledger_v1_ingest_ingest_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   16,
+			NumMessages:   18,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

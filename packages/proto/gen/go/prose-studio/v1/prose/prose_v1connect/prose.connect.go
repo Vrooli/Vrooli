@@ -71,17 +71,17 @@ const (
 // ProseStudioServiceClient is a client for the vrooli.prose_studio.v1.prose.ProseStudioService
 // service.
 type ProseStudioServiceClient interface {
-	Registry(context.Context, *connect.Request[prose.JsonRequest]) (*connect.Response[prose.JsonResponse], error)
-	CreateStyle(context.Context, *connect.Request[prose.JsonRequest]) (*connect.Response[prose.JsonResponse], error)
-	ResolveProfile(context.Context, *connect.Request[prose.JsonRequest]) (*connect.Response[prose.JsonResponse], error)
-	Generate(context.Context, *connect.Request[prose.JsonRequest]) (*connect.Response[prose.JsonResponse], error)
-	Reroll(context.Context, *connect.Request[prose.JsonRequest]) (*connect.Response[prose.JsonResponse], error)
-	SessionAction(context.Context, *connect.Request[prose.JsonRequest]) (*connect.Response[prose.JsonResponse], error)
-	ReindexDeclarations(context.Context, *connect.Request[prose.JsonRequest]) (*connect.Response[prose.JsonResponse], error)
-	ValidateDeclarations(context.Context, *connect.Request[prose.JsonRequest]) (*connect.Response[prose.JsonResponse], error)
-	CreateDocument(context.Context, *connect.Request[prose.JsonRequest]) (*connect.Response[prose.JsonResponse], error)
-	AssembleDocument(context.Context, *connect.Request[prose.JsonRequest]) (*connect.Response[prose.JsonResponse], error)
-	Conformance(context.Context, *connect.Request[prose.JsonRequest]) (*connect.Response[prose.JsonResponse], error)
+	Registry(context.Context, *connect.Request[prose.RegistryRequest]) (*connect.Response[prose.RegistryResponse], error)
+	CreateStyle(context.Context, *connect.Request[prose.CreateStyleRequest]) (*connect.Response[prose.CreateStyleResponse], error)
+	ResolveProfile(context.Context, *connect.Request[prose.ResolveProfileRequest]) (*connect.Response[prose.ResolveProfileResponse], error)
+	Generate(context.Context, *connect.Request[prose.GenerateRequest]) (*connect.Response[prose.GenerateResponse], error)
+	Reroll(context.Context, *connect.Request[prose.RerollRequest]) (*connect.Response[prose.RerollResponse], error)
+	SessionAction(context.Context, *connect.Request[prose.SessionActionRequest]) (*connect.Response[prose.SessionActionResponse], error)
+	ReindexDeclarations(context.Context, *connect.Request[prose.ReindexDeclarationsRequest]) (*connect.Response[prose.ReindexDeclarationsResponse], error)
+	ValidateDeclarations(context.Context, *connect.Request[prose.ValidateDeclarationsRequest]) (*connect.Response[prose.ValidateDeclarationsResponse], error)
+	CreateDocument(context.Context, *connect.Request[prose.CreateDocumentRequest]) (*connect.Response[prose.CreateDocumentResponse], error)
+	AssembleDocument(context.Context, *connect.Request[prose.AssembleDocumentRequest]) (*connect.Response[prose.AssembleDocumentResponse], error)
+	Conformance(context.Context, *connect.Request[prose.ConformanceRequest]) (*connect.Response[prose.ConformanceResponse], error)
 }
 
 // NewProseStudioServiceClient constructs a client for the
@@ -96,67 +96,67 @@ func NewProseStudioServiceClient(httpClient connect.HTTPClient, baseURL string, 
 	baseURL = strings.TrimRight(baseURL, "/")
 	proseStudioServiceMethods := prose.File_prose_studio_v1_prose_prose_proto.Services().ByName("ProseStudioService").Methods()
 	return &proseStudioServiceClient{
-		registry: connect.NewClient[prose.JsonRequest, prose.JsonResponse](
+		registry: connect.NewClient[prose.RegistryRequest, prose.RegistryResponse](
 			httpClient,
 			baseURL+ProseStudioServiceRegistryProcedure,
 			connect.WithSchema(proseStudioServiceMethods.ByName("Registry")),
 			connect.WithClientOptions(opts...),
 		),
-		createStyle: connect.NewClient[prose.JsonRequest, prose.JsonResponse](
+		createStyle: connect.NewClient[prose.CreateStyleRequest, prose.CreateStyleResponse](
 			httpClient,
 			baseURL+ProseStudioServiceCreateStyleProcedure,
 			connect.WithSchema(proseStudioServiceMethods.ByName("CreateStyle")),
 			connect.WithClientOptions(opts...),
 		),
-		resolveProfile: connect.NewClient[prose.JsonRequest, prose.JsonResponse](
+		resolveProfile: connect.NewClient[prose.ResolveProfileRequest, prose.ResolveProfileResponse](
 			httpClient,
 			baseURL+ProseStudioServiceResolveProfileProcedure,
 			connect.WithSchema(proseStudioServiceMethods.ByName("ResolveProfile")),
 			connect.WithClientOptions(opts...),
 		),
-		generate: connect.NewClient[prose.JsonRequest, prose.JsonResponse](
+		generate: connect.NewClient[prose.GenerateRequest, prose.GenerateResponse](
 			httpClient,
 			baseURL+ProseStudioServiceGenerateProcedure,
 			connect.WithSchema(proseStudioServiceMethods.ByName("Generate")),
 			connect.WithClientOptions(opts...),
 		),
-		reroll: connect.NewClient[prose.JsonRequest, prose.JsonResponse](
+		reroll: connect.NewClient[prose.RerollRequest, prose.RerollResponse](
 			httpClient,
 			baseURL+ProseStudioServiceRerollProcedure,
 			connect.WithSchema(proseStudioServiceMethods.ByName("Reroll")),
 			connect.WithClientOptions(opts...),
 		),
-		sessionAction: connect.NewClient[prose.JsonRequest, prose.JsonResponse](
+		sessionAction: connect.NewClient[prose.SessionActionRequest, prose.SessionActionResponse](
 			httpClient,
 			baseURL+ProseStudioServiceSessionActionProcedure,
 			connect.WithSchema(proseStudioServiceMethods.ByName("SessionAction")),
 			connect.WithClientOptions(opts...),
 		),
-		reindexDeclarations: connect.NewClient[prose.JsonRequest, prose.JsonResponse](
+		reindexDeclarations: connect.NewClient[prose.ReindexDeclarationsRequest, prose.ReindexDeclarationsResponse](
 			httpClient,
 			baseURL+ProseStudioServiceReindexDeclarationsProcedure,
 			connect.WithSchema(proseStudioServiceMethods.ByName("ReindexDeclarations")),
 			connect.WithClientOptions(opts...),
 		),
-		validateDeclarations: connect.NewClient[prose.JsonRequest, prose.JsonResponse](
+		validateDeclarations: connect.NewClient[prose.ValidateDeclarationsRequest, prose.ValidateDeclarationsResponse](
 			httpClient,
 			baseURL+ProseStudioServiceValidateDeclarationsProcedure,
 			connect.WithSchema(proseStudioServiceMethods.ByName("ValidateDeclarations")),
 			connect.WithClientOptions(opts...),
 		),
-		createDocument: connect.NewClient[prose.JsonRequest, prose.JsonResponse](
+		createDocument: connect.NewClient[prose.CreateDocumentRequest, prose.CreateDocumentResponse](
 			httpClient,
 			baseURL+ProseStudioServiceCreateDocumentProcedure,
 			connect.WithSchema(proseStudioServiceMethods.ByName("CreateDocument")),
 			connect.WithClientOptions(opts...),
 		),
-		assembleDocument: connect.NewClient[prose.JsonRequest, prose.JsonResponse](
+		assembleDocument: connect.NewClient[prose.AssembleDocumentRequest, prose.AssembleDocumentResponse](
 			httpClient,
 			baseURL+ProseStudioServiceAssembleDocumentProcedure,
 			connect.WithSchema(proseStudioServiceMethods.ByName("AssembleDocument")),
 			connect.WithClientOptions(opts...),
 		),
-		conformance: connect.NewClient[prose.JsonRequest, prose.JsonResponse](
+		conformance: connect.NewClient[prose.ConformanceRequest, prose.ConformanceResponse](
 			httpClient,
 			baseURL+ProseStudioServiceConformanceProcedure,
 			connect.WithSchema(proseStudioServiceMethods.ByName("Conformance")),
@@ -167,88 +167,88 @@ func NewProseStudioServiceClient(httpClient connect.HTTPClient, baseURL string, 
 
 // proseStudioServiceClient implements ProseStudioServiceClient.
 type proseStudioServiceClient struct {
-	registry             *connect.Client[prose.JsonRequest, prose.JsonResponse]
-	createStyle          *connect.Client[prose.JsonRequest, prose.JsonResponse]
-	resolveProfile       *connect.Client[prose.JsonRequest, prose.JsonResponse]
-	generate             *connect.Client[prose.JsonRequest, prose.JsonResponse]
-	reroll               *connect.Client[prose.JsonRequest, prose.JsonResponse]
-	sessionAction        *connect.Client[prose.JsonRequest, prose.JsonResponse]
-	reindexDeclarations  *connect.Client[prose.JsonRequest, prose.JsonResponse]
-	validateDeclarations *connect.Client[prose.JsonRequest, prose.JsonResponse]
-	createDocument       *connect.Client[prose.JsonRequest, prose.JsonResponse]
-	assembleDocument     *connect.Client[prose.JsonRequest, prose.JsonResponse]
-	conformance          *connect.Client[prose.JsonRequest, prose.JsonResponse]
+	registry             *connect.Client[prose.RegistryRequest, prose.RegistryResponse]
+	createStyle          *connect.Client[prose.CreateStyleRequest, prose.CreateStyleResponse]
+	resolveProfile       *connect.Client[prose.ResolveProfileRequest, prose.ResolveProfileResponse]
+	generate             *connect.Client[prose.GenerateRequest, prose.GenerateResponse]
+	reroll               *connect.Client[prose.RerollRequest, prose.RerollResponse]
+	sessionAction        *connect.Client[prose.SessionActionRequest, prose.SessionActionResponse]
+	reindexDeclarations  *connect.Client[prose.ReindexDeclarationsRequest, prose.ReindexDeclarationsResponse]
+	validateDeclarations *connect.Client[prose.ValidateDeclarationsRequest, prose.ValidateDeclarationsResponse]
+	createDocument       *connect.Client[prose.CreateDocumentRequest, prose.CreateDocumentResponse]
+	assembleDocument     *connect.Client[prose.AssembleDocumentRequest, prose.AssembleDocumentResponse]
+	conformance          *connect.Client[prose.ConformanceRequest, prose.ConformanceResponse]
 }
 
 // Registry calls vrooli.prose_studio.v1.prose.ProseStudioService.Registry.
-func (c *proseStudioServiceClient) Registry(ctx context.Context, req *connect.Request[prose.JsonRequest]) (*connect.Response[prose.JsonResponse], error) {
+func (c *proseStudioServiceClient) Registry(ctx context.Context, req *connect.Request[prose.RegistryRequest]) (*connect.Response[prose.RegistryResponse], error) {
 	return c.registry.CallUnary(ctx, req)
 }
 
 // CreateStyle calls vrooli.prose_studio.v1.prose.ProseStudioService.CreateStyle.
-func (c *proseStudioServiceClient) CreateStyle(ctx context.Context, req *connect.Request[prose.JsonRequest]) (*connect.Response[prose.JsonResponse], error) {
+func (c *proseStudioServiceClient) CreateStyle(ctx context.Context, req *connect.Request[prose.CreateStyleRequest]) (*connect.Response[prose.CreateStyleResponse], error) {
 	return c.createStyle.CallUnary(ctx, req)
 }
 
 // ResolveProfile calls vrooli.prose_studio.v1.prose.ProseStudioService.ResolveProfile.
-func (c *proseStudioServiceClient) ResolveProfile(ctx context.Context, req *connect.Request[prose.JsonRequest]) (*connect.Response[prose.JsonResponse], error) {
+func (c *proseStudioServiceClient) ResolveProfile(ctx context.Context, req *connect.Request[prose.ResolveProfileRequest]) (*connect.Response[prose.ResolveProfileResponse], error) {
 	return c.resolveProfile.CallUnary(ctx, req)
 }
 
 // Generate calls vrooli.prose_studio.v1.prose.ProseStudioService.Generate.
-func (c *proseStudioServiceClient) Generate(ctx context.Context, req *connect.Request[prose.JsonRequest]) (*connect.Response[prose.JsonResponse], error) {
+func (c *proseStudioServiceClient) Generate(ctx context.Context, req *connect.Request[prose.GenerateRequest]) (*connect.Response[prose.GenerateResponse], error) {
 	return c.generate.CallUnary(ctx, req)
 }
 
 // Reroll calls vrooli.prose_studio.v1.prose.ProseStudioService.Reroll.
-func (c *proseStudioServiceClient) Reroll(ctx context.Context, req *connect.Request[prose.JsonRequest]) (*connect.Response[prose.JsonResponse], error) {
+func (c *proseStudioServiceClient) Reroll(ctx context.Context, req *connect.Request[prose.RerollRequest]) (*connect.Response[prose.RerollResponse], error) {
 	return c.reroll.CallUnary(ctx, req)
 }
 
 // SessionAction calls vrooli.prose_studio.v1.prose.ProseStudioService.SessionAction.
-func (c *proseStudioServiceClient) SessionAction(ctx context.Context, req *connect.Request[prose.JsonRequest]) (*connect.Response[prose.JsonResponse], error) {
+func (c *proseStudioServiceClient) SessionAction(ctx context.Context, req *connect.Request[prose.SessionActionRequest]) (*connect.Response[prose.SessionActionResponse], error) {
 	return c.sessionAction.CallUnary(ctx, req)
 }
 
 // ReindexDeclarations calls vrooli.prose_studio.v1.prose.ProseStudioService.ReindexDeclarations.
-func (c *proseStudioServiceClient) ReindexDeclarations(ctx context.Context, req *connect.Request[prose.JsonRequest]) (*connect.Response[prose.JsonResponse], error) {
+func (c *proseStudioServiceClient) ReindexDeclarations(ctx context.Context, req *connect.Request[prose.ReindexDeclarationsRequest]) (*connect.Response[prose.ReindexDeclarationsResponse], error) {
 	return c.reindexDeclarations.CallUnary(ctx, req)
 }
 
 // ValidateDeclarations calls vrooli.prose_studio.v1.prose.ProseStudioService.ValidateDeclarations.
-func (c *proseStudioServiceClient) ValidateDeclarations(ctx context.Context, req *connect.Request[prose.JsonRequest]) (*connect.Response[prose.JsonResponse], error) {
+func (c *proseStudioServiceClient) ValidateDeclarations(ctx context.Context, req *connect.Request[prose.ValidateDeclarationsRequest]) (*connect.Response[prose.ValidateDeclarationsResponse], error) {
 	return c.validateDeclarations.CallUnary(ctx, req)
 }
 
 // CreateDocument calls vrooli.prose_studio.v1.prose.ProseStudioService.CreateDocument.
-func (c *proseStudioServiceClient) CreateDocument(ctx context.Context, req *connect.Request[prose.JsonRequest]) (*connect.Response[prose.JsonResponse], error) {
+func (c *proseStudioServiceClient) CreateDocument(ctx context.Context, req *connect.Request[prose.CreateDocumentRequest]) (*connect.Response[prose.CreateDocumentResponse], error) {
 	return c.createDocument.CallUnary(ctx, req)
 }
 
 // AssembleDocument calls vrooli.prose_studio.v1.prose.ProseStudioService.AssembleDocument.
-func (c *proseStudioServiceClient) AssembleDocument(ctx context.Context, req *connect.Request[prose.JsonRequest]) (*connect.Response[prose.JsonResponse], error) {
+func (c *proseStudioServiceClient) AssembleDocument(ctx context.Context, req *connect.Request[prose.AssembleDocumentRequest]) (*connect.Response[prose.AssembleDocumentResponse], error) {
 	return c.assembleDocument.CallUnary(ctx, req)
 }
 
 // Conformance calls vrooli.prose_studio.v1.prose.ProseStudioService.Conformance.
-func (c *proseStudioServiceClient) Conformance(ctx context.Context, req *connect.Request[prose.JsonRequest]) (*connect.Response[prose.JsonResponse], error) {
+func (c *proseStudioServiceClient) Conformance(ctx context.Context, req *connect.Request[prose.ConformanceRequest]) (*connect.Response[prose.ConformanceResponse], error) {
 	return c.conformance.CallUnary(ctx, req)
 }
 
 // ProseStudioServiceHandler is an implementation of the
 // vrooli.prose_studio.v1.prose.ProseStudioService service.
 type ProseStudioServiceHandler interface {
-	Registry(context.Context, *connect.Request[prose.JsonRequest]) (*connect.Response[prose.JsonResponse], error)
-	CreateStyle(context.Context, *connect.Request[prose.JsonRequest]) (*connect.Response[prose.JsonResponse], error)
-	ResolveProfile(context.Context, *connect.Request[prose.JsonRequest]) (*connect.Response[prose.JsonResponse], error)
-	Generate(context.Context, *connect.Request[prose.JsonRequest]) (*connect.Response[prose.JsonResponse], error)
-	Reroll(context.Context, *connect.Request[prose.JsonRequest]) (*connect.Response[prose.JsonResponse], error)
-	SessionAction(context.Context, *connect.Request[prose.JsonRequest]) (*connect.Response[prose.JsonResponse], error)
-	ReindexDeclarations(context.Context, *connect.Request[prose.JsonRequest]) (*connect.Response[prose.JsonResponse], error)
-	ValidateDeclarations(context.Context, *connect.Request[prose.JsonRequest]) (*connect.Response[prose.JsonResponse], error)
-	CreateDocument(context.Context, *connect.Request[prose.JsonRequest]) (*connect.Response[prose.JsonResponse], error)
-	AssembleDocument(context.Context, *connect.Request[prose.JsonRequest]) (*connect.Response[prose.JsonResponse], error)
-	Conformance(context.Context, *connect.Request[prose.JsonRequest]) (*connect.Response[prose.JsonResponse], error)
+	Registry(context.Context, *connect.Request[prose.RegistryRequest]) (*connect.Response[prose.RegistryResponse], error)
+	CreateStyle(context.Context, *connect.Request[prose.CreateStyleRequest]) (*connect.Response[prose.CreateStyleResponse], error)
+	ResolveProfile(context.Context, *connect.Request[prose.ResolveProfileRequest]) (*connect.Response[prose.ResolveProfileResponse], error)
+	Generate(context.Context, *connect.Request[prose.GenerateRequest]) (*connect.Response[prose.GenerateResponse], error)
+	Reroll(context.Context, *connect.Request[prose.RerollRequest]) (*connect.Response[prose.RerollResponse], error)
+	SessionAction(context.Context, *connect.Request[prose.SessionActionRequest]) (*connect.Response[prose.SessionActionResponse], error)
+	ReindexDeclarations(context.Context, *connect.Request[prose.ReindexDeclarationsRequest]) (*connect.Response[prose.ReindexDeclarationsResponse], error)
+	ValidateDeclarations(context.Context, *connect.Request[prose.ValidateDeclarationsRequest]) (*connect.Response[prose.ValidateDeclarationsResponse], error)
+	CreateDocument(context.Context, *connect.Request[prose.CreateDocumentRequest]) (*connect.Response[prose.CreateDocumentResponse], error)
+	AssembleDocument(context.Context, *connect.Request[prose.AssembleDocumentRequest]) (*connect.Response[prose.AssembleDocumentResponse], error)
+	Conformance(context.Context, *connect.Request[prose.ConformanceRequest]) (*connect.Response[prose.ConformanceResponse], error)
 }
 
 // NewProseStudioServiceHandler builds an HTTP handler from the service implementation. It returns
@@ -357,46 +357,46 @@ func NewProseStudioServiceHandler(svc ProseStudioServiceHandler, opts ...connect
 // UnimplementedProseStudioServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedProseStudioServiceHandler struct{}
 
-func (UnimplementedProseStudioServiceHandler) Registry(context.Context, *connect.Request[prose.JsonRequest]) (*connect.Response[prose.JsonResponse], error) {
+func (UnimplementedProseStudioServiceHandler) Registry(context.Context, *connect.Request[prose.RegistryRequest]) (*connect.Response[prose.RegistryResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.prose_studio.v1.prose.ProseStudioService.Registry is not implemented"))
 }
 
-func (UnimplementedProseStudioServiceHandler) CreateStyle(context.Context, *connect.Request[prose.JsonRequest]) (*connect.Response[prose.JsonResponse], error) {
+func (UnimplementedProseStudioServiceHandler) CreateStyle(context.Context, *connect.Request[prose.CreateStyleRequest]) (*connect.Response[prose.CreateStyleResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.prose_studio.v1.prose.ProseStudioService.CreateStyle is not implemented"))
 }
 
-func (UnimplementedProseStudioServiceHandler) ResolveProfile(context.Context, *connect.Request[prose.JsonRequest]) (*connect.Response[prose.JsonResponse], error) {
+func (UnimplementedProseStudioServiceHandler) ResolveProfile(context.Context, *connect.Request[prose.ResolveProfileRequest]) (*connect.Response[prose.ResolveProfileResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.prose_studio.v1.prose.ProseStudioService.ResolveProfile is not implemented"))
 }
 
-func (UnimplementedProseStudioServiceHandler) Generate(context.Context, *connect.Request[prose.JsonRequest]) (*connect.Response[prose.JsonResponse], error) {
+func (UnimplementedProseStudioServiceHandler) Generate(context.Context, *connect.Request[prose.GenerateRequest]) (*connect.Response[prose.GenerateResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.prose_studio.v1.prose.ProseStudioService.Generate is not implemented"))
 }
 
-func (UnimplementedProseStudioServiceHandler) Reroll(context.Context, *connect.Request[prose.JsonRequest]) (*connect.Response[prose.JsonResponse], error) {
+func (UnimplementedProseStudioServiceHandler) Reroll(context.Context, *connect.Request[prose.RerollRequest]) (*connect.Response[prose.RerollResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.prose_studio.v1.prose.ProseStudioService.Reroll is not implemented"))
 }
 
-func (UnimplementedProseStudioServiceHandler) SessionAction(context.Context, *connect.Request[prose.JsonRequest]) (*connect.Response[prose.JsonResponse], error) {
+func (UnimplementedProseStudioServiceHandler) SessionAction(context.Context, *connect.Request[prose.SessionActionRequest]) (*connect.Response[prose.SessionActionResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.prose_studio.v1.prose.ProseStudioService.SessionAction is not implemented"))
 }
 
-func (UnimplementedProseStudioServiceHandler) ReindexDeclarations(context.Context, *connect.Request[prose.JsonRequest]) (*connect.Response[prose.JsonResponse], error) {
+func (UnimplementedProseStudioServiceHandler) ReindexDeclarations(context.Context, *connect.Request[prose.ReindexDeclarationsRequest]) (*connect.Response[prose.ReindexDeclarationsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.prose_studio.v1.prose.ProseStudioService.ReindexDeclarations is not implemented"))
 }
 
-func (UnimplementedProseStudioServiceHandler) ValidateDeclarations(context.Context, *connect.Request[prose.JsonRequest]) (*connect.Response[prose.JsonResponse], error) {
+func (UnimplementedProseStudioServiceHandler) ValidateDeclarations(context.Context, *connect.Request[prose.ValidateDeclarationsRequest]) (*connect.Response[prose.ValidateDeclarationsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.prose_studio.v1.prose.ProseStudioService.ValidateDeclarations is not implemented"))
 }
 
-func (UnimplementedProseStudioServiceHandler) CreateDocument(context.Context, *connect.Request[prose.JsonRequest]) (*connect.Response[prose.JsonResponse], error) {
+func (UnimplementedProseStudioServiceHandler) CreateDocument(context.Context, *connect.Request[prose.CreateDocumentRequest]) (*connect.Response[prose.CreateDocumentResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.prose_studio.v1.prose.ProseStudioService.CreateDocument is not implemented"))
 }
 
-func (UnimplementedProseStudioServiceHandler) AssembleDocument(context.Context, *connect.Request[prose.JsonRequest]) (*connect.Response[prose.JsonResponse], error) {
+func (UnimplementedProseStudioServiceHandler) AssembleDocument(context.Context, *connect.Request[prose.AssembleDocumentRequest]) (*connect.Response[prose.AssembleDocumentResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.prose_studio.v1.prose.ProseStudioService.AssembleDocument is not implemented"))
 }
 
-func (UnimplementedProseStudioServiceHandler) Conformance(context.Context, *connect.Request[prose.JsonRequest]) (*connect.Response[prose.JsonResponse], error) {
+func (UnimplementedProseStudioServiceHandler) Conformance(context.Context, *connect.Request[prose.ConformanceRequest]) (*connect.Response[prose.ConformanceResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.prose_studio.v1.prose.ProseStudioService.Conformance is not implemented"))
 }

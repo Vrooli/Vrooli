@@ -41,6 +41,8 @@ const (
 	// base64-encoded payload prefixed with "in:" or "out:".
 	AuditAction_AUDIT_ACTION_SESSION_DATA_IN  AuditAction = 7
 	AuditAction_AUDIT_ACTION_SESSION_DATA_OUT AuditAction = 8
+	// A Bridge-managed, operator-confirmed cleanup operation.
+	AuditAction_AUDIT_ACTION_CLEANUP AuditAction = 9
 )
 
 // Enum value maps for AuditAction.
@@ -55,6 +57,7 @@ var (
 		6: "AUDIT_ACTION_SESSION_RESIZE",
 		7: "AUDIT_ACTION_SESSION_DATA_IN",
 		8: "AUDIT_ACTION_SESSION_DATA_OUT",
+		9: "AUDIT_ACTION_CLEANUP",
 	}
 	AuditAction_value = map[string]int32{
 		"AUDIT_ACTION_UNSPECIFIED":      0,
@@ -66,6 +69,7 @@ var (
 		"AUDIT_ACTION_SESSION_RESIZE":   6,
 		"AUDIT_ACTION_SESSION_DATA_IN":  7,
 		"AUDIT_ACTION_SESSION_DATA_OUT": 8,
+		"AUDIT_ACTION_CLEANUP":          9,
 	}
 )
 
@@ -423,7 +427,7 @@ const file_vrooli_bridge_v1_audit_audit_proto_rawDesc = "" +
 	"\x06run_id\x18\x02 \x01(\tR\x05runId\x12\x14\n" +
 	"\x05limit\x18\x03 \x01(\x05R\x05limit\"`\n" +
 	"\x18ListAuditRecordsResponse\x12D\n" +
-	"\arecords\x18\x01 \x03(\v2*.vrooli.vrooli_bridge.v1.audit.AuditRecordR\arecords*\xa5\x02\n" +
+	"\arecords\x18\x01 \x03(\v2*.vrooli.vrooli_bridge.v1.audit.AuditRecordR\arecords*\xbf\x02\n" +
 	"\vAuditAction\x12\x1c\n" +
 	"\x18AUDIT_ACTION_UNSPECIFIED\x10\x00\x12\x19\n" +
 	"\x15AUDIT_ACTION_DISPATCH\x10\x01\x12\x1a\n" +
@@ -433,7 +437,8 @@ const file_vrooli_bridge_v1_audit_audit_proto_rawDesc = "" +
 	"\x1aAUDIT_ACTION_SESSION_CLOSE\x10\x05\x12\x1f\n" +
 	"\x1bAUDIT_ACTION_SESSION_RESIZE\x10\x06\x12 \n" +
 	"\x1cAUDIT_ACTION_SESSION_DATA_IN\x10\a\x12!\n" +
-	"\x1dAUDIT_ACTION_SESSION_DATA_OUT\x10\b*\x9c\x01\n" +
+	"\x1dAUDIT_ACTION_SESSION_DATA_OUT\x10\b\x12\x18\n" +
+	"\x14AUDIT_ACTION_CLEANUP\x10\t*\x9c\x01\n" +
 	"\fAuditOutcome\x12\x1d\n" +
 	"\x19AUDIT_OUTCOME_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16AUDIT_OUTCOME_ACCEPTED\x10\x01\x12\x1a\n" +

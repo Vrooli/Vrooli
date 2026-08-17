@@ -49,6 +49,19 @@ message ListSessionsResponse {
   repeated Session sessions = 1;
   int64 count = 2;
 }
+message Delegation {
+  string session_id = 1;
+  string execution_id = 2;
+  string owner = 3;
+  string workflow_key = 4;
+  string created_at = 5;
+  string last_status = 6;
+}
+message ListDelegationsRequest {}
+message ListDelegationsResponse {
+  repeated Delegation delegations = 1;
+  int64 count = 2;
+}
 message DeleteSessionRequest {
   string id = 1;
   string reason = 2;
@@ -68,6 +81,7 @@ service SessionService {
   rpc CreateSession(CreateSessionRequest) returns (CreateSessionResponse);
   rpc GetSession(GetSessionRequest) returns (GetSessionResponse);
   rpc ListSessions(ListSessionsRequest) returns (ListSessionsResponse);
+  rpc ListDelegations(ListDelegationsRequest) returns (ListDelegationsResponse);
   rpc DeleteSession(DeleteSessionRequest) returns (DeleteSessionResponse);
   rpc GrantSession(GrantSessionRequest) returns (GrantSessionResponse);
 }

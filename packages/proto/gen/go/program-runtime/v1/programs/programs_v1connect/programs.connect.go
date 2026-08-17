@@ -51,6 +51,9 @@ const (
 	// ProgramServiceMineUnresolvedBindingsProcedure is the fully-qualified name of the ProgramService's
 	// MineUnresolvedBindings RPC.
 	ProgramServiceMineUnresolvedBindingsProcedure = "/vrooli.program_runtime.v1.programs.ProgramService/MineUnresolvedBindings"
+	// ProgramServiceRunAuthoringEvalProcedure is the fully-qualified name of the ProgramService's
+	// RunAuthoringEval RPC.
+	ProgramServiceRunAuthoringEvalProcedure = "/vrooli.program_runtime.v1.programs.ProgramService/RunAuthoringEval"
 )
 
 // ProgramServiceClient is a client for the vrooli.program_runtime.v1.programs.ProgramService
@@ -62,6 +65,7 @@ type ProgramServiceClient interface {
 	MineFailures(context.Context, *connect.Request[programs.MineFailuresRequest]) (*connect.Response[programs.MineFailuresResponse], error)
 	MineRefusals(context.Context, *connect.Request[programs.MineRefusalsRequest]) (*connect.Response[programs.MineRefusalsResponse], error)
 	MineUnresolvedBindings(context.Context, *connect.Request[programs.MineUnresolvedBindingsRequest]) (*connect.Response[programs.MineUnresolvedBindingsResponse], error)
+	RunAuthoringEval(context.Context, *connect.Request[programs.RunAuthoringEvalRequest]) (*connect.Response[programs.RunAuthoringEvalResponse], error)
 }
 
 // NewProgramServiceClient constructs a client for the
@@ -112,6 +116,12 @@ func NewProgramServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(programServiceMethods.ByName("MineUnresolvedBindings")),
 			connect.WithClientOptions(opts...),
 		),
+		runAuthoringEval: connect.NewClient[programs.RunAuthoringEvalRequest, programs.RunAuthoringEvalResponse](
+			httpClient,
+			baseURL+ProgramServiceRunAuthoringEvalProcedure,
+			connect.WithSchema(programServiceMethods.ByName("RunAuthoringEval")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -123,6 +133,7 @@ type programServiceClient struct {
 	mineFailures           *connect.Client[programs.MineFailuresRequest, programs.MineFailuresResponse]
 	mineRefusals           *connect.Client[programs.MineRefusalsRequest, programs.MineRefusalsResponse]
 	mineUnresolvedBindings *connect.Client[programs.MineUnresolvedBindingsRequest, programs.MineUnresolvedBindingsResponse]
+	runAuthoringEval       *connect.Client[programs.RunAuthoringEvalRequest, programs.RunAuthoringEvalResponse]
 }
 
 // SubmitProgram calls vrooli.program_runtime.v1.programs.ProgramService.SubmitProgram.
@@ -156,6 +167,11 @@ func (c *programServiceClient) MineUnresolvedBindings(ctx context.Context, req *
 	return c.mineUnresolvedBindings.CallUnary(ctx, req)
 }
 
+// RunAuthoringEval calls vrooli.program_runtime.v1.programs.ProgramService.RunAuthoringEval.
+func (c *programServiceClient) RunAuthoringEval(ctx context.Context, req *connect.Request[programs.RunAuthoringEvalRequest]) (*connect.Response[programs.RunAuthoringEvalResponse], error) {
+	return c.runAuthoringEval.CallUnary(ctx, req)
+}
+
 // ProgramServiceHandler is an implementation of the
 // vrooli.program_runtime.v1.programs.ProgramService service.
 type ProgramServiceHandler interface {
@@ -165,6 +181,7 @@ type ProgramServiceHandler interface {
 	MineFailures(context.Context, *connect.Request[programs.MineFailuresRequest]) (*connect.Response[programs.MineFailuresResponse], error)
 	MineRefusals(context.Context, *connect.Request[programs.MineRefusalsRequest]) (*connect.Response[programs.MineRefusalsResponse], error)
 	MineUnresolvedBindings(context.Context, *connect.Request[programs.MineUnresolvedBindingsRequest]) (*connect.Response[programs.MineUnresolvedBindingsResponse], error)
+	RunAuthoringEval(context.Context, *connect.Request[programs.RunAuthoringEvalRequest]) (*connect.Response[programs.RunAuthoringEvalResponse], error)
 }
 
 // NewProgramServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -210,6 +227,12 @@ func NewProgramServiceHandler(svc ProgramServiceHandler, opts ...connect.Handler
 		connect.WithSchema(programServiceMethods.ByName("MineUnresolvedBindings")),
 		connect.WithHandlerOptions(opts...),
 	)
+	programServiceRunAuthoringEvalHandler := connect.NewUnaryHandler(
+		ProgramServiceRunAuthoringEvalProcedure,
+		svc.RunAuthoringEval,
+		connect.WithSchema(programServiceMethods.ByName("RunAuthoringEval")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.program_runtime.v1.programs.ProgramService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ProgramServiceSubmitProgramProcedure:
@@ -224,6 +247,8 @@ func NewProgramServiceHandler(svc ProgramServiceHandler, opts ...connect.Handler
 			programServiceMineRefusalsHandler.ServeHTTP(w, r)
 		case ProgramServiceMineUnresolvedBindingsProcedure:
 			programServiceMineUnresolvedBindingsHandler.ServeHTTP(w, r)
+		case ProgramServiceRunAuthoringEvalProcedure:
+			programServiceRunAuthoringEvalHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -255,4 +280,8 @@ func (UnimplementedProgramServiceHandler) MineRefusals(context.Context, *connect
 
 func (UnimplementedProgramServiceHandler) MineUnresolvedBindings(context.Context, *connect.Request[programs.MineUnresolvedBindingsRequest]) (*connect.Response[programs.MineUnresolvedBindingsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.program_runtime.v1.programs.ProgramService.MineUnresolvedBindings is not implemented"))
+}
+
+func (UnimplementedProgramServiceHandler) RunAuthoringEval(context.Context, *connect.Request[programs.RunAuthoringEvalRequest]) (*connect.Response[programs.RunAuthoringEvalResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.program_runtime.v1.programs.ProgramService.RunAuthoringEval is not implemented"))
 }

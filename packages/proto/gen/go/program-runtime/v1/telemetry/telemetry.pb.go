@@ -105,6 +105,7 @@ type ProgramEvent struct {
 	ContextBytes    int64                  `protobuf:"varint,10,opt,name=context_bytes,json=contextBytes,proto3" json:"context_bytes,omitempty"`
 	Reason          string                 `protobuf:"bytes,11,opt,name=reason,proto3" json:"reason,omitempty"`
 	FailureLocation string                 `protobuf:"bytes,12,opt,name=failure_location,json=failureLocation,proto3" json:"failure_location,omitempty"`
+	Sequence        int64                  `protobuf:"varint,13,opt,name=sequence,proto3" json:"sequence,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -223,6 +224,13 @@ func (x *ProgramEvent) GetFailureLocation() string {
 	return ""
 }
 
+func (x *ProgramEvent) GetSequence() int64 {
+	if x != nil {
+		return x.Sequence
+	}
+	return 0
+}
+
 type ListEventsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	SessionId     string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
@@ -323,7 +331,7 @@ var File_program_runtime_v1_telemetry_telemetry_proto protoreflect.FileDescripto
 
 const file_program_runtime_v1_telemetry_telemetry_proto_rawDesc = "" +
 	"\n" +
-	",program-runtime/v1/telemetry/telemetry.proto\x12#vrooli.program_runtime.v1.telemetry\"\xb0\x03\n" +
+	",program-runtime/v1/telemetry/telemetry.proto\x12#vrooli.program_runtime.v1.telemetry\"\xcc\x03\n" +
 	"\fProgramEvent\x12\x19\n" +
 	"\bevent_id\x18\x01 \x01(\tR\aeventId\x12\x1f\n" +
 	"\voccurred_at\x18\x02 \x01(\tR\n" +
@@ -343,7 +351,8 @@ const file_program_runtime_v1_telemetry_telemetry_proto_rawDesc = "" +
 	"\rcontext_bytes\x18\n" +
 	" \x01(\x03R\fcontextBytes\x12\x16\n" +
 	"\x06reason\x18\v \x01(\tR\x06reason\x12)\n" +
-	"\x10failure_location\x18\f \x01(\tR\x0ffailureLocation\"v\n" +
+	"\x10failure_location\x18\f \x01(\tR\x0ffailureLocation\x12\x1a\n" +
+	"\bsequence\x18\r \x01(\x03R\bsequence\"v\n" +
 	"\x11ListEventsRequest\x12\x1d\n" +
 	"\n" +
 	"session_id\x18\x01 \x01(\tR\tsessionId\x12B\n" +

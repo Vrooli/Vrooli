@@ -21,6 +21,23 @@ enum ProgramStatus {
   PROGRAM_STATUS_CANCELLED = 5;
 }
 
+enum FailureCause {
+  FAILURE_CAUSE_UNSPECIFIED = 0;
+  FAILURE_CAUSE_UNRESOLVED_NAME = 1;
+  FAILURE_CAUSE_UNKNOWN_FIELD = 2;
+  FAILURE_CAUSE_AMBIGUOUS_RESPONSE = 3;
+  FAILURE_CAUSE_UNREACHABLE_SCENARIO = 4;
+  FAILURE_CAUSE_REFUSED_NO_GRANT = 5;
+  FAILURE_CAUSE_REFUSED_NOT_RUN_ELIGIBLE = 6;
+  FAILURE_CAUSE_INFERENCE_SPEND_EXCEEDED = 7;
+  FAILURE_CAUSE_DELEGATED_RUN_SPEND_EXCEEDED = 8;
+  FAILURE_CAUSE_DEADLINE_EXCEEDED = 9;
+  FAILURE_CAUSE_KERNEL_SYNTAX = 10;
+  FAILURE_CAUSE_KERNEL_RUNTIME = 11;
+  FAILURE_CAUSE_BRIDGE_TRANSPORT = 12;
+  FAILURE_CAUSE_UNCLASSIFIED = 13;
+}
+
 message Program {
   string id = 1;
   string session_id = 2;
@@ -38,6 +55,15 @@ message Program {
   int64 wall_time_millis = 14;
   int64 cpu_time_millis = 15;
   string library_version = 16;
+  FailureCause failure_cause = 17;
+}
+
+message Diagnostic {
+  string severity = 1;
+  int32 line = 2;
+  string name = 3;
+  string message = 4;
+  string nearest_match = 5;
 }
 
 message SubmitProgramRequest {
@@ -46,9 +72,11 @@ message SubmitProgramRequest {
   Provenance provenance = 3;
   bool include_materialized = 4;
   bool async = 5;
+  bool explain = 6;
 }
 message SubmitProgramResponse {
   Program program = 1;
+  repeated Diagnostic diagnostics = 2;
 }
 message GetProgramRequest {
   string id = 1;
@@ -101,6 +129,33 @@ message MineUnresolvedBindingsResponse {
   int64 count = 2;
 }
 
+message RunAuthoringEvalRequest {
+  string suite = 1;
+  int32 max_cases = 2;
+}
+
+message AuthoringCaseResult {
+  string case_id = 1;
+  bool authored = 2;
+  bool first_attempt_ok = 3;
+  string cause = 4;
+  int64 agent_bytes = 5;
+  string model = 6;
+}
+
+message RunAuthoringEvalResponse {
+  string suite = 1;
+  string status = 2;
+  string reason = 3;
+  int32 cases = 4;
+  int32 met = 5;
+  int32 missed = 6;
+  int32 wrong_result = 7;
+  int32 unavailable = 8;
+  int32 floor = 9;
+  repeated AuthoringCaseResult results = 10;
+}
+
 service ProgramService {
   rpc SubmitProgram(SubmitProgramRequest) returns (SubmitProgramResponse);
   rpc GetProgram(GetProgramRequest) returns (GetProgramResponse);
@@ -108,4 +163,5 @@ service ProgramService {
   rpc MineFailures(MineFailuresRequest) returns (MineFailuresResponse);
   rpc MineRefusals(MineRefusalsRequest) returns (MineRefusalsResponse);
   rpc MineUnresolvedBindings(MineUnresolvedBindingsRequest) returns (MineUnresolvedBindingsResponse);
+  rpc RunAuthoringEval(RunAuthoringEvalRequest) returns (RunAuthoringEvalResponse);
 }

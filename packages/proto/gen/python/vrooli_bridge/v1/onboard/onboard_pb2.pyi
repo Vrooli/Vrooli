@@ -167,7 +167,7 @@ class PreflightOnboardingResponse(_message.Message):
     def __init__(self, decision: _Optional[_Union[ConnectDecision, str]] = ..., machine_id: _Optional[str] = ..., host: _Optional[str] = ..., port: _Optional[int] = ..., user: _Optional[str] = ..., client_key_fingerprint: _Optional[str] = ..., host_key_fingerprint: _Optional[str] = ..., password_required: _Optional[bool] = ..., message: _Optional[str] = ...) -> None: ...
 
 class StartOnboardingRequest(_message.Message):
-    __slots__ = ("host", "port", "user", "ssh_password", "node_name", "target_revision", "repo_url", "checkout_dir", "control_plane_url", "capabilities", "verify_timeout_seconds", "skip_setup", "skip_prereqs", "provision_sudo", "setup_environment", "setup_resources", "setup_scenarios", "include_optional", "source_mode", "reachability_mode", "machine_id", "retry_of_enrollment_attempt_id", "setup_passphrase")
+    __slots__ = ("host", "port", "user", "ssh_password", "node_name", "target_revision", "repo_url", "checkout_dir", "control_plane_url", "capabilities", "verify_timeout_seconds", "skip_setup", "skip_prereqs", "provision_sudo", "setup_environment", "setup_resources", "setup_scenarios", "include_optional", "source_mode", "reachability_mode", "machine_id", "retry_of_enrollment_attempt_id", "setup_passphrase", "provision_service_user")
     HOST_FIELD_NUMBER: _ClassVar[int]
     PORT_FIELD_NUMBER: _ClassVar[int]
     USER_FIELD_NUMBER: _ClassVar[int]
@@ -191,6 +191,7 @@ class StartOnboardingRequest(_message.Message):
     MACHINE_ID_FIELD_NUMBER: _ClassVar[int]
     RETRY_OF_ENROLLMENT_ATTEMPT_ID_FIELD_NUMBER: _ClassVar[int]
     SETUP_PASSPHRASE_FIELD_NUMBER: _ClassVar[int]
+    PROVISION_SERVICE_USER_FIELD_NUMBER: _ClassVar[int]
     host: str
     port: int
     user: str
@@ -214,7 +215,40 @@ class StartOnboardingRequest(_message.Message):
     machine_id: str
     retry_of_enrollment_attempt_id: str
     setup_passphrase: str
-    def __init__(self, host: _Optional[str] = ..., port: _Optional[int] = ..., user: _Optional[str] = ..., ssh_password: _Optional[str] = ..., node_name: _Optional[str] = ..., target_revision: _Optional[str] = ..., repo_url: _Optional[str] = ..., checkout_dir: _Optional[str] = ..., control_plane_url: _Optional[str] = ..., capabilities: _Optional[_Iterable[str]] = ..., verify_timeout_seconds: _Optional[int] = ..., skip_setup: _Optional[bool] = ..., skip_prereqs: _Optional[bool] = ..., provision_sudo: _Optional[bool] = ..., setup_environment: _Optional[str] = ..., setup_resources: _Optional[str] = ..., setup_scenarios: _Optional[str] = ..., include_optional: _Optional[bool] = ..., source_mode: _Optional[_Union[SourceMode, str]] = ..., reachability_mode: _Optional[str] = ..., machine_id: _Optional[str] = ..., retry_of_enrollment_attempt_id: _Optional[str] = ..., setup_passphrase: _Optional[str] = ...) -> None: ...
+    provision_service_user: str
+    def __init__(self, host: _Optional[str] = ..., port: _Optional[int] = ..., user: _Optional[str] = ..., ssh_password: _Optional[str] = ..., node_name: _Optional[str] = ..., target_revision: _Optional[str] = ..., repo_url: _Optional[str] = ..., checkout_dir: _Optional[str] = ..., control_plane_url: _Optional[str] = ..., capabilities: _Optional[_Iterable[str]] = ..., verify_timeout_seconds: _Optional[int] = ..., skip_setup: _Optional[bool] = ..., skip_prereqs: _Optional[bool] = ..., provision_sudo: _Optional[bool] = ..., setup_environment: _Optional[str] = ..., setup_resources: _Optional[str] = ..., setup_scenarios: _Optional[str] = ..., include_optional: _Optional[bool] = ..., source_mode: _Optional[_Union[SourceMode, str]] = ..., reachability_mode: _Optional[str] = ..., machine_id: _Optional[str] = ..., retry_of_enrollment_attempt_id: _Optional[str] = ..., setup_passphrase: _Optional[str] = ..., provision_service_user: _Optional[str] = ...) -> None: ...
+
+class ProtectOnboardingRequest(_message.Message):
+    __slots__ = ("onboarding_op_id", "machine_id", "node_id", "target", "scope", "cleanup_operation_id", "sealed_passphrase", "declined")
+    ONBOARDING_OP_ID_FIELD_NUMBER: _ClassVar[int]
+    MACHINE_ID_FIELD_NUMBER: _ClassVar[int]
+    NODE_ID_FIELD_NUMBER: _ClassVar[int]
+    TARGET_FIELD_NUMBER: _ClassVar[int]
+    SCOPE_FIELD_NUMBER: _ClassVar[int]
+    CLEANUP_OPERATION_ID_FIELD_NUMBER: _ClassVar[int]
+    SEALED_PASSPHRASE_FIELD_NUMBER: _ClassVar[int]
+    DECLINED_FIELD_NUMBER: _ClassVar[int]
+    onboarding_op_id: str
+    machine_id: str
+    node_id: str
+    target: str
+    scope: str
+    cleanup_operation_id: str
+    sealed_passphrase: bytes
+    declined: bool
+    def __init__(self, onboarding_op_id: _Optional[str] = ..., machine_id: _Optional[str] = ..., node_id: _Optional[str] = ..., target: _Optional[str] = ..., scope: _Optional[str] = ..., cleanup_operation_id: _Optional[str] = ..., sealed_passphrase: _Optional[bytes] = ..., declined: _Optional[bool] = ...) -> None: ...
+
+class ProtectOnboardingResponse(_message.Message):
+    __slots__ = ("op", "protection_status", "protection_operation_id", "detail")
+    OP_FIELD_NUMBER: _ClassVar[int]
+    PROTECTION_STATUS_FIELD_NUMBER: _ClassVar[int]
+    PROTECTION_OPERATION_ID_FIELD_NUMBER: _ClassVar[int]
+    DETAIL_FIELD_NUMBER: _ClassVar[int]
+    op: OnboardingOp
+    protection_status: str
+    protection_operation_id: str
+    detail: str
+    def __init__(self, op: _Optional[_Union[OnboardingOp, _Mapping]] = ..., protection_status: _Optional[str] = ..., protection_operation_id: _Optional[str] = ..., detail: _Optional[str] = ...) -> None: ...
 
 class StartOnboardingResponse(_message.Message):
     __slots__ = ("op_id", "dry_run", "host", "port", "user", "machine_id", "enrollment_attempt_id")

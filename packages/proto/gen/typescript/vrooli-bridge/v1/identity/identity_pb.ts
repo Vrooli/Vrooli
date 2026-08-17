@@ -4,13 +4,15 @@
 
 import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
 import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
+import type { Timestamp } from "@bufbuild/protobuf/wkt";
+import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file vrooli-bridge/v1/identity/identity.proto.
  */
 export const file_vrooli_bridge_v1_identity_identity: GenFile = /*@__PURE__*/
-  fileDesc("Cih2cm9vbGktYnJpZGdlL3YxL2lkZW50aXR5L2lkZW50aXR5LnByb3RvEiB2cm9vbGkudnJvb2xpX2JyaWRnZS52MS5pZGVudGl0eSIvCgxMb2dpblJlcXVlc3QSDQoFZW1haWwYASABKAkSEAoIcGFzc3dvcmQYAiABKAkiVQoNTG9naW5SZXNwb25zZRINCgV0b2tlbhgBIAEoCRINCgVlbWFpbBgCIAEoCRIPCgd1c2VyX2lkGAMgASgJEhUKDXJlZnJlc2hfdG9rZW4YBCABKAkiRAoPUmVnaXN0ZXJSZXF1ZXN0Eg0KBWVtYWlsGAEgASgJEhAKCHBhc3N3b3JkGAIgASgJEhAKCHVzZXJuYW1lGAMgASgJIlgKEFJlZ2lzdGVyUmVzcG9uc2USDQoFdG9rZW4YASABKAkSDQoFZW1haWwYAiABKAkSDwoHdXNlcl9pZBgDIAEoCRIVCg1yZWZyZXNoX3Rva2VuGAQgASgJIicKDlJlZnJlc2hSZXF1ZXN0EhUKDXJlZnJlc2hfdG9rZW4YASABKAkiNwoPUmVmcmVzaFJlc3BvbnNlEg0KBXRva2VuGAEgASgJEhUKDXJlZnJlc2hfdG9rZW4YAiABKAky3gIKD0lkZW50aXR5U2VydmljZRJoCgVMb2dpbhIuLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLmlkZW50aXR5LkxvZ2luUmVxdWVzdBovLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLmlkZW50aXR5LkxvZ2luUmVzcG9uc2UScQoIUmVnaXN0ZXISMS52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5pZGVudGl0eS5SZWdpc3RlclJlcXVlc3QaMi52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5pZGVudGl0eS5SZWdpc3RlclJlc3BvbnNlEm4KB1JlZnJlc2gSMC52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5pZGVudGl0eS5SZWZyZXNoUmVxdWVzdBoxLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLmlkZW50aXR5LlJlZnJlc2hSZXNwb25zZUJWWlRnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3Zyb29saS1icmlkZ2UvdjEvaWRlbnRpdHk7aWRlbnRpdHlfdjFiBnByb3RvMw");
+  fileDesc("Cih2cm9vbGktYnJpZGdlL3YxL2lkZW50aXR5L2lkZW50aXR5LnByb3RvEiB2cm9vbGkudnJvb2xpX2JyaWRnZS52MS5pZGVudGl0eSIvCgxMb2dpblJlcXVlc3QSDQoFZW1haWwYASABKAkSEAoIcGFzc3dvcmQYAiABKAkiVQoNTG9naW5SZXNwb25zZRINCgV0b2tlbhgBIAEoCRINCgVlbWFpbBgCIAEoCRIPCgd1c2VyX2lkGAMgASgJEhUKDXJlZnJlc2hfdG9rZW4YBCABKAkiRAoPUmVnaXN0ZXJSZXF1ZXN0Eg0KBWVtYWlsGAEgASgJEhAKCHBhc3N3b3JkGAIgASgJEhAKCHVzZXJuYW1lGAMgASgJIlgKEFJlZ2lzdGVyUmVzcG9uc2USDQoFdG9rZW4YASABKAkSDQoFZW1haWwYAiABKAkSDwoHdXNlcl9pZBgDIAEoCRIVCg1yZWZyZXNoX3Rva2VuGAQgASgJIicKDlJlZnJlc2hSZXF1ZXN0EhUKDXJlZnJlc2hfdG9rZW4YASABKAkiNwoPUmVmcmVzaFJlc3BvbnNlEg0KBXRva2VuGAEgASgJEhUKDXJlZnJlc2hfdG9rZW4YAiABKAkiWgocRW5yb2xsT3BlcmF0b3JTZXNzaW9uUmVxdWVzdBISCgpwdWJsaWNfa2V5GAEgASgMEgwKBG1vZGUYAiABKAkSGAoQcmVxdWVzdGVkX3Njb3BlcxgDIAMoCSLgAQodRW5yb2xsT3BlcmF0b3JTZXNzaW9uUmVzcG9uc2USHAoUZW5yb2xsbWVudF9yZWZlcmVuY2UYASABKAkSEwoLb3BlcmF0b3JfaWQYAiABKAkSGQoRaWRlbnRpdHlfcHJvdmlkZXIYAyABKAkSDAoEbW9kZRgEIAEoCRIVCg1zY29wZV9jZWlsaW5nGAUgAygJEi8KC2Vucm9sbGVkX2F0GAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIbChNzZXNzaW9uX3R0bF9zZWNvbmRzGAcgASgDMvkDCg9JZGVudGl0eVNlcnZpY2USaAoFTG9naW4SLi52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5pZGVudGl0eS5Mb2dpblJlcXVlc3QaLy52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5pZGVudGl0eS5Mb2dpblJlc3BvbnNlEnEKCFJlZ2lzdGVyEjEudnJvb2xpLnZyb29saV9icmlkZ2UudjEuaWRlbnRpdHkuUmVnaXN0ZXJSZXF1ZXN0GjIudnJvb2xpLnZyb29saV9icmlkZ2UudjEuaWRlbnRpdHkuUmVnaXN0ZXJSZXNwb25zZRJuCgdSZWZyZXNoEjAudnJvb2xpLnZyb29saV9icmlkZ2UudjEuaWRlbnRpdHkuUmVmcmVzaFJlcXVlc3QaMS52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5pZGVudGl0eS5SZWZyZXNoUmVzcG9uc2USmAEKFUVucm9sbE9wZXJhdG9yU2Vzc2lvbhI+LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLmlkZW50aXR5LkVucm9sbE9wZXJhdG9yU2Vzc2lvblJlcXVlc3QaPy52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5pZGVudGl0eS5FbnJvbGxPcGVyYXRvclNlc3Npb25SZXNwb25zZUJWWlRnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3Zyb29saS1icmlkZ2UvdjEvaWRlbnRpdHk7aWRlbnRpdHlfdjFiBnByb3RvMw", [file_google_protobuf_timestamp]);
 
 /**
  * @generated from message vrooli.vrooli_bridge.v1.identity.LoginRequest
@@ -173,6 +175,80 @@ export const RefreshResponseSchema: GenMessage<RefreshResponse> = /*@__PURE__*/
   messageDesc(file_vrooli_bridge_v1_identity_identity, 5);
 
 /**
+ * @generated from message vrooli.vrooli_bridge.v1.identity.EnrollOperatorSessionRequest
+ */
+export type EnrollOperatorSessionRequest = Message<"vrooli.vrooli_bridge.v1.identity.EnrollOperatorSessionRequest"> & {
+  /**
+   * @generated from field: bytes public_key = 1;
+   */
+  publicKey: Uint8Array;
+
+  /**
+   * @generated from field: string mode = 2;
+   */
+  mode: string;
+
+  /**
+   * @generated from field: repeated string requested_scopes = 3;
+   */
+  requestedScopes: string[];
+};
+
+/**
+ * Describes the message vrooli.vrooli_bridge.v1.identity.EnrollOperatorSessionRequest.
+ * Use `create(EnrollOperatorSessionRequestSchema)` to create a new message.
+ */
+export const EnrollOperatorSessionRequestSchema: GenMessage<EnrollOperatorSessionRequest> = /*@__PURE__*/
+  messageDesc(file_vrooli_bridge_v1_identity_identity, 6);
+
+/**
+ * @generated from message vrooli.vrooli_bridge.v1.identity.EnrollOperatorSessionResponse
+ */
+export type EnrollOperatorSessionResponse = Message<"vrooli.vrooli_bridge.v1.identity.EnrollOperatorSessionResponse"> & {
+  /**
+   * @generated from field: string enrollment_reference = 1;
+   */
+  enrollmentReference: string;
+
+  /**
+   * @generated from field: string operator_id = 2;
+   */
+  operatorId: string;
+
+  /**
+   * @generated from field: string identity_provider = 3;
+   */
+  identityProvider: string;
+
+  /**
+   * @generated from field: string mode = 4;
+   */
+  mode: string;
+
+  /**
+   * @generated from field: repeated string scope_ceiling = 5;
+   */
+  scopeCeiling: string[];
+
+  /**
+   * @generated from field: google.protobuf.Timestamp enrolled_at = 6;
+   */
+  enrolledAt?: Timestamp | undefined;
+
+  /**
+   * @generated from field: int64 session_ttl_seconds = 7;
+   */
+  sessionTtlSeconds: bigint;
+};
+
+/**
+ * Describes the message vrooli.vrooli_bridge.v1.identity.EnrollOperatorSessionResponse.
+ * Use `create(EnrollOperatorSessionResponseSchema)` to create a new message.
+ */
+export const EnrollOperatorSessionResponseSchema: GenMessage<EnrollOperatorSessionResponse> = /*@__PURE__*/
+  messageDesc(file_vrooli_bridge_v1_identity_identity, 7);
+
+/**
  * @generated from service vrooli.vrooli_bridge.v1.identity.IdentityService
  */
 export const IdentityService: GenService<{
@@ -210,6 +286,18 @@ export const IdentityService: GenService<{
     methodKind: "unary";
     input: typeof RefreshRequestSchema;
     output: typeof RefreshResponseSchema;
+  },
+  /**
+   * Enroll a client key for locally minted Bridge sessions. The caller must
+   * already hold a normal owner session; the private key remains on the
+   * client and the returned reference is not a bearer credential.
+   *
+   * @generated from rpc vrooli.vrooli_bridge.v1.identity.IdentityService.EnrollOperatorSession
+   */
+  enrollOperatorSession: {
+    methodKind: "unary";
+    input: typeof EnrollOperatorSessionRequestSchema;
+    output: typeof EnrollOperatorSessionResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_vrooli_bridge_v1_identity_identity, 0);

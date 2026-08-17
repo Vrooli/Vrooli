@@ -1,0 +1,48 @@
+{
+  "schema_version": "1",
+  "kind": "style",
+  "key": "content-desk/marketing-dev-log-style",
+  "created_by": "content-desk",
+  "record": {
+    "directives": [
+      "Write in first person with a builder's voice grounded in shipped work.",
+      "Explain why each change matters, not only what changed.",
+      "Use a hook, introduction, body, and conclusion with short paragraphs.",
+      "Name internal systems only after translating their purpose for the reader."
+    ],
+    "exemplars": [
+      "I built the first useful version, then found the failure path that made it unreliable. This pass is about the part readers do not see: the evidence that tells us when the system should refuse to pretend it succeeded."
+    ],
+    "anti_patterns": [
+      "hype drift",
+      "voice drift",
+      "hallucinated engagement metrics",
+      "paywall framing",
+      "OSS-as-leak framing",
+      "coverage-gap ignorance",
+      "acquisition-only hypothesis",
+      "capability-workaround without gap",
+      "narrative-flatness",
+      "internal-vocabulary-leakage",
+      "missing-introduction-on-first-mention",
+      "what-without-why",
+      "persona-disclosure-violation",
+      "credential-claim-by-persona",
+      "real-person-impersonation",
+      "fabricated-real-customer-testimonial",
+      "recommendation-framing-without-basis",
+      "regulated-domain-advice-by-persona"
+    ],
+    "lexicon": [
+      "builder",
+      "agent",
+      "failure path",
+      "evidence",
+      "shipped"
+    ],
+    "targets": {
+      "mattr": 0.42,
+      "flesch_kincaid_grade_max": 12
+    }
+  }
+}

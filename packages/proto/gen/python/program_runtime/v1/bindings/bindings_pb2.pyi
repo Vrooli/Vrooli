@@ -354,6 +354,24 @@ class BindingCondition(_message.Message):
     sustained_degradation_reason: str
     def __init__(self, binding_id: _Optional[str] = ..., scenario: _Optional[str] = ..., status: _Optional[_Union[ConditionStatus, str]] = ..., verdict: _Optional[str] = ..., serving: _Optional[_Union[ServingCondition, _Mapping]] = ..., freshness: _Optional[_Union[FreshnessCondition, _Mapping]] = ..., exercise: _Optional[_Union[ExerciseCondition, _Mapping]] = ..., sustained_degradation: _Optional[bool] = ..., sustained_degradation_reason: _Optional[str] = ...) -> None: ...
 
+class ScenarioCondition(_message.Message):
+    __slots__ = ("scenario", "status", "verdict", "binding_count", "dormant_bindings", "degraded_bindings", "healthy_bindings")
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    VERDICT_FIELD_NUMBER: _ClassVar[int]
+    BINDING_COUNT_FIELD_NUMBER: _ClassVar[int]
+    DORMANT_BINDINGS_FIELD_NUMBER: _ClassVar[int]
+    DEGRADED_BINDINGS_FIELD_NUMBER: _ClassVar[int]
+    HEALTHY_BINDINGS_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    status: ConditionStatus
+    verdict: str
+    binding_count: int
+    dormant_bindings: int
+    degraded_bindings: int
+    healthy_bindings: int
+    def __init__(self, scenario: _Optional[str] = ..., status: _Optional[_Union[ConditionStatus, str]] = ..., verdict: _Optional[str] = ..., binding_count: _Optional[int] = ..., dormant_bindings: _Optional[int] = ..., degraded_bindings: _Optional[int] = ..., healthy_bindings: _Optional[int] = ...) -> None: ...
+
 class GetBindingConditionRequest(_message.Message):
     __slots__ = ("binding_id", "scenario", "window_seconds")
     BINDING_ID_FIELD_NUMBER: _ClassVar[int]
@@ -365,16 +383,18 @@ class GetBindingConditionRequest(_message.Message):
     def __init__(self, binding_id: _Optional[str] = ..., scenario: _Optional[str] = ..., window_seconds: _Optional[int] = ...) -> None: ...
 
 class GetBindingConditionResponse(_message.Message):
-    __slots__ = ("conditions", "window_seconds", "total_bindings", "instrumented_bindings")
+    __slots__ = ("conditions", "window_seconds", "total_bindings", "instrumented_bindings", "scenario_conditions")
     CONDITIONS_FIELD_NUMBER: _ClassVar[int]
     WINDOW_SECONDS_FIELD_NUMBER: _ClassVar[int]
     TOTAL_BINDINGS_FIELD_NUMBER: _ClassVar[int]
     INSTRUMENTED_BINDINGS_FIELD_NUMBER: _ClassVar[int]
+    SCENARIO_CONDITIONS_FIELD_NUMBER: _ClassVar[int]
     conditions: _containers.RepeatedCompositeFieldContainer[BindingCondition]
     window_seconds: int
     total_bindings: int
     instrumented_bindings: int
-    def __init__(self, conditions: _Optional[_Iterable[_Union[BindingCondition, _Mapping]]] = ..., window_seconds: _Optional[int] = ..., total_bindings: _Optional[int] = ..., instrumented_bindings: _Optional[int] = ...) -> None: ...
+    scenario_conditions: _containers.RepeatedCompositeFieldContainer[ScenarioCondition]
+    def __init__(self, conditions: _Optional[_Iterable[_Union[BindingCondition, _Mapping]]] = ..., window_seconds: _Optional[int] = ..., total_bindings: _Optional[int] = ..., instrumented_bindings: _Optional[int] = ..., scenario_conditions: _Optional[_Iterable[_Union[ScenarioCondition, _Mapping]]] = ...) -> None: ...
 
 class DescribeBindingRequest(_message.Message):
     __slots__ = ("id",)

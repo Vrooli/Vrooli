@@ -17,6 +17,7 @@ class InferenceErrorCode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     INFERENCE_ERROR_CODE_VALIDATION_FAILED: _ClassVar[InferenceErrorCode]
     INFERENCE_ERROR_CODE_PROVIDER_FAILED: _ClassVar[InferenceErrorCode]
     INFERENCE_ERROR_CODE_UNSUPPORTED_SAMPLING: _ClassVar[InferenceErrorCode]
+    INFERENCE_ERROR_CODE_CONTEXT_OVERFLOW: _ClassVar[InferenceErrorCode]
 INFERENCE_ERROR_CODE_UNSPECIFIED: InferenceErrorCode
 INFERENCE_ERROR_CODE_UNAVAILABLE: InferenceErrorCode
 INFERENCE_ERROR_CODE_INVALID_REQUEST: InferenceErrorCode
@@ -24,6 +25,7 @@ INFERENCE_ERROR_CODE_UNSUPPORTED_SCHEMA: InferenceErrorCode
 INFERENCE_ERROR_CODE_VALIDATION_FAILED: InferenceErrorCode
 INFERENCE_ERROR_CODE_PROVIDER_FAILED: InferenceErrorCode
 INFERENCE_ERROR_CODE_UNSUPPORTED_SAMPLING: InferenceErrorCode
+INFERENCE_ERROR_CODE_CONTEXT_OVERFLOW: InferenceErrorCode
 
 class Usage(_message.Message):
     __slots__ = ("input_tokens", "output_tokens", "cost_micros")

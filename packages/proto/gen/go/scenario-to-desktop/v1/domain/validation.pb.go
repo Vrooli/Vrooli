@@ -1217,8 +1217,12 @@ type ReleaseGate struct {
 	MissingCellIds    []string               `protobuf:"bytes,6,rep,name=missing_cell_ids,json=missingCellIds,proto3" json:"missing_cell_ids,omitempty"`
 	FailedCellIds     []string               `protobuf:"bytes,7,rep,name=failed_cell_ids,json=failedCellIds,proto3" json:"failed_cell_ids,omitempty"`
 	Reason            *string                `protobuf:"bytes,8,opt,name=reason,proto3,oneof" json:"reason,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// Matrix-wide chapter satisfaction. The key is the stable journey/profile
+	// selection identity and the value is the target that supplied the passing
+	// evidence. A chapter is still unsatisfied when no capable target passes.
+	SatisfyingTargetIds map[string]string `protobuf:"bytes,9,rep,name=satisfying_target_ids,json=satisfyingTargetIds,proto3" json:"satisfying_target_ids,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *ReleaseGate) Reset() {
@@ -1305,6 +1309,13 @@ func (x *ReleaseGate) GetReason() string {
 		return *x.Reason
 	}
 	return ""
+}
+
+func (x *ReleaseGate) GetSatisfyingTargetIds() map[string]string {
+	if x != nil {
+		return x.SatisfyingTargetIds
+	}
+	return nil
 }
 
 var File_scenario_to_desktop_v1_domain_validation_proto protoreflect.FileDescriptor
@@ -1421,7 +1432,7 @@ const file_scenario_to_desktop_v1_domain_validation_proto_rawDesc = "" +
 	"\x14environment_profiles\x18\x06 \x03(\x0e2B.vrooli.scenario_to_desktop.v1.domain.ValidationEnvironmentProfileR\x13environmentProfiles\x12J\n" +
 	"\x05cells\x18\a \x03(\v24.vrooli.scenario_to_desktop.v1.domain.ValidationCellR\x05cells\x129\n" +
 	"\n" +
-	"created_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\"\x82\x03\n" +
+	"created_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\"\xca\x04\n" +
 	"\vReleaseGate\x12$\n" +
 	"\tmatrix_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\bmatrixId\x12]\n" +
 	"\vdisposition\x18\x02 \x01(\x0e2;.vrooli.scenario_to_desktop.v1.domain.ValidationDispositionR\vdisposition\x12\x16\n" +
@@ -1430,7 +1441,11 @@ const file_scenario_to_desktop_v1_domain_validation_proto_rawDesc = "" +
 	"\x12passing_cell_count\x18\x05 \x01(\x05R\x10passingCellCount\x12(\n" +
 	"\x10missing_cell_ids\x18\x06 \x03(\tR\x0emissingCellIds\x12&\n" +
 	"\x0ffailed_cell_ids\x18\a \x03(\tR\rfailedCellIds\x12\x1b\n" +
-	"\x06reason\x18\b \x01(\tH\x00R\x06reason\x88\x01\x01B\t\n" +
+	"\x06reason\x18\b \x01(\tH\x00R\x06reason\x88\x01\x01\x12~\n" +
+	"\x15satisfying_target_ids\x18\t \x03(\v2J.vrooli.scenario_to_desktop.v1.domain.ReleaseGate.SatisfyingTargetIdsEntryR\x13satisfyingTargetIds\x1aF\n" +
+	"\x18SatisfyingTargetIdsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01B\t\n" +
 	"\a_reason*\xf7\x06\n" +
 	"\x1aValidationTargetCapability\x12,\n" +
 	"(VALIDATION_TARGET_CAPABILITY_UNSPECIFIED\x10\x00\x12-\n" +
@@ -1503,7 +1518,7 @@ func file_scenario_to_desktop_v1_domain_validation_proto_rawDescGZIP() []byte {
 }
 
 var file_scenario_to_desktop_v1_domain_validation_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
-var file_scenario_to_desktop_v1_domain_validation_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
+var file_scenario_to_desktop_v1_domain_validation_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
 var file_scenario_to_desktop_v1_domain_validation_proto_goTypes = []any{
 	(ValidationTargetCapability)(0),    // 0: vrooli.scenario_to_desktop.v1.domain.ValidationTargetCapability
 	(ValidationEnvironmentProfile)(0),  // 1: vrooli.scenario_to_desktop.v1.domain.ValidationEnvironmentProfile
@@ -1518,17 +1533,18 @@ var file_scenario_to_desktop_v1_domain_validation_proto_goTypes = []any{
 	(*ValidationTargetDescriptor)(nil), // 10: vrooli.scenario_to_desktop.v1.domain.ValidationTargetDescriptor
 	(*ValidationMatrix)(nil),           // 11: vrooli.scenario_to_desktop.v1.domain.ValidationMatrix
 	(*ReleaseGate)(nil),                // 12: vrooli.scenario_to_desktop.v1.domain.ReleaseGate
-	(*timestamppb.Timestamp)(nil),      // 13: google.protobuf.Timestamp
+	nil,                                // 13: vrooli.scenario_to_desktop.v1.domain.ReleaseGate.SatisfyingTargetIdsEntry
+	(*timestamppb.Timestamp)(nil),      // 14: google.protobuf.Timestamp
 }
 var file_scenario_to_desktop_v1_domain_validation_proto_depIdxs = []int32{
-	13, // 0: vrooli.scenario_to_desktop.v1.domain.AppTarget.launched_at:type_name -> google.protobuf.Timestamp
-	13, // 1: vrooli.scenario_to_desktop.v1.domain.ValidationContext.expires_at:type_name -> google.protobuf.Timestamp
+	14, // 0: vrooli.scenario_to_desktop.v1.domain.AppTarget.launched_at:type_name -> google.protobuf.Timestamp
+	14, // 1: vrooli.scenario_to_desktop.v1.domain.ValidationContext.expires_at:type_name -> google.protobuf.Timestamp
 	1,  // 2: vrooli.scenario_to_desktop.v1.domain.ValidationCell.environment_profile:type_name -> vrooli.scenario_to_desktop.v1.domain.ValidationEnvironmentProfile
 	2,  // 3: vrooli.scenario_to_desktop.v1.domain.ValidationCell.disposition:type_name -> vrooli.scenario_to_desktop.v1.domain.ValidationDisposition
 	0,  // 4: vrooli.scenario_to_desktop.v1.domain.ValidationCell.required_capabilities:type_name -> vrooli.scenario_to_desktop.v1.domain.ValidationTargetCapability
 	8,  // 5: vrooli.scenario_to_desktop.v1.domain.ValidationCell.evidence:type_name -> vrooli.scenario_to_desktop.v1.domain.LayeredEvidence
-	13, // 6: vrooli.scenario_to_desktop.v1.domain.ValidationCell.created_at:type_name -> google.protobuf.Timestamp
-	13, // 7: vrooli.scenario_to_desktop.v1.domain.ValidationCell.completed_at:type_name -> google.protobuf.Timestamp
+	14, // 6: vrooli.scenario_to_desktop.v1.domain.ValidationCell.created_at:type_name -> google.protobuf.Timestamp
+	14, // 7: vrooli.scenario_to_desktop.v1.domain.ValidationCell.completed_at:type_name -> google.protobuf.Timestamp
 	3,  // 8: vrooli.scenario_to_desktop.v1.domain.LayeredEvidence.kind:type_name -> vrooli.scenario_to_desktop.v1.domain.LayeredEvidence.Kind
 	0,  // 9: vrooli.scenario_to_desktop.v1.domain.JourneyCatalogItem.required_capabilities:type_name -> vrooli.scenario_to_desktop.v1.domain.ValidationTargetCapability
 	0,  // 10: vrooli.scenario_to_desktop.v1.domain.ValidationTargetDescriptor.capabilities:type_name -> vrooli.scenario_to_desktop.v1.domain.ValidationTargetCapability
@@ -1536,13 +1552,14 @@ var file_scenario_to_desktop_v1_domain_validation_proto_depIdxs = []int32{
 	10, // 12: vrooli.scenario_to_desktop.v1.domain.ValidationMatrix.targets:type_name -> vrooli.scenario_to_desktop.v1.domain.ValidationTargetDescriptor
 	1,  // 13: vrooli.scenario_to_desktop.v1.domain.ValidationMatrix.environment_profiles:type_name -> vrooli.scenario_to_desktop.v1.domain.ValidationEnvironmentProfile
 	7,  // 14: vrooli.scenario_to_desktop.v1.domain.ValidationMatrix.cells:type_name -> vrooli.scenario_to_desktop.v1.domain.ValidationCell
-	13, // 15: vrooli.scenario_to_desktop.v1.domain.ValidationMatrix.created_at:type_name -> google.protobuf.Timestamp
+	14, // 15: vrooli.scenario_to_desktop.v1.domain.ValidationMatrix.created_at:type_name -> google.protobuf.Timestamp
 	2,  // 16: vrooli.scenario_to_desktop.v1.domain.ReleaseGate.disposition:type_name -> vrooli.scenario_to_desktop.v1.domain.ValidationDisposition
-	17, // [17:17] is the sub-list for method output_type
-	17, // [17:17] is the sub-list for method input_type
-	17, // [17:17] is the sub-list for extension type_name
-	17, // [17:17] is the sub-list for extension extendee
-	0,  // [0:17] is the sub-list for field type_name
+	13, // 17: vrooli.scenario_to_desktop.v1.domain.ReleaseGate.satisfying_target_ids:type_name -> vrooli.scenario_to_desktop.v1.domain.ReleaseGate.SatisfyingTargetIdsEntry
+	18, // [18:18] is the sub-list for method output_type
+	18, // [18:18] is the sub-list for method input_type
+	18, // [18:18] is the sub-list for extension type_name
+	18, // [18:18] is the sub-list for extension extendee
+	0,  // [0:18] is the sub-list for field type_name
 }
 
 func init() { file_scenario_to_desktop_v1_domain_validation_proto_init() }
@@ -1562,7 +1579,7 @@ func file_scenario_to_desktop_v1_domain_validation_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_scenario_to_desktop_v1_domain_validation_proto_rawDesc), len(file_scenario_to_desktop_v1_domain_validation_proto_rawDesc)),
 			NumEnums:      4,
-			NumMessages:   9,
+			NumMessages:   10,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

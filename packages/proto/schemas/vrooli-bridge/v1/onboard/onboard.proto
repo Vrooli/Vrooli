@@ -270,6 +270,13 @@ service OnboardService {
   // the operator then blocks on WaitOnboarding.
   rpc StartOnboarding(StartOnboardingRequest) returns (StartOnboardingResponse);
 
+  // ProtectOnboarding completes the named post-pairing protection step. The
+  // caller seals the passphrase to the node's public key before sending it;
+  // Bridge can relay the opaque envelope and wait for the typed helper result
+  // but cannot open it. A declined passphrase is represented by the client as
+  // a skipped step and does not claim that the node is protected.
+  rpc ProtectOnboarding(ProtectOnboardingRequest) returns (ProtectOnboardingResponse);
+
   // GetOnboarding returns one op by id with its full persisted step-event
   // history. Owner-gated. Re-attaching after a client disconnect is just calling
   // GetOnboarding again.
@@ -427,6 +434,30 @@ message StartOnboardingRequest {
   // request-scoped, rides the SSH bootstrap stdin channel after the pairing
   // code, and is never persisted, logged, or accepted on argv.
   string setup_passphrase = 23;
+
+  // Optional OS principal for the distinct privileged provisioning helper.
+  // This is an account name, never credential material; when set, bootstrap
+  // installs the machine-wide helper under this principal rather than leaving
+  // cleanup/provisioning unavailable.
+  string provision_service_user = 24;
+}
+
+message ProtectOnboardingRequest {
+  string onboarding_op_id = 1;
+  string machine_id = 2;
+  string node_id = 3;
+  string target = 4;
+  string scope = 5;
+  string cleanup_operation_id = 6;
+  bytes sealed_passphrase = 7;
+  bool declined = 8;
+}
+
+message ProtectOnboardingResponse {
+  OnboardingOp op = 1;
+  string protection_status = 2;
+  string protection_operation_id = 3;
+  string detail = 4;
 }
 
 message StartOnboardingResponse {

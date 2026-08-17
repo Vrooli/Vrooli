@@ -16,7 +16,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class PipelineConfig(_message.Message):
-    __slots__ = ("scenario_name", "platforms", "skip_preflight", "skip_smoke_test", "stop_on_failure", "deployment_mode", "framework", "template_type", "webhook_url", "proxy_url", "bundle_manifest_path", "resource_artifact_root", "location_mode", "clean", "sign", "publish", "distribute", "distribution_targets", "version", "preflight_timeout_seconds", "preflight_secrets", "stop_after_stage", "resume_from_stage", "parent_pipeline_id", "idempotency_key", "stages", "artifact_trust_mode", "update_config")
+    __slots__ = ("scenario_name", "platforms", "skip_preflight", "skip_smoke_test", "stop_on_failure", "deployment_mode", "framework", "template_type", "webhook_url", "proxy_url", "bundle_manifest_path", "resource_artifact_root", "tool_artifact_root", "location_mode", "clean", "sign", "publish", "distribute", "distribution_targets", "version", "preflight_timeout_seconds", "preflight_secrets", "stop_after_stage", "resume_from_stage", "parent_pipeline_id", "idempotency_key", "stages", "artifact_trust_mode", "update_config")
     class PreflightSecretsEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -36,6 +36,7 @@ class PipelineConfig(_message.Message):
     PROXY_URL_FIELD_NUMBER: _ClassVar[int]
     BUNDLE_MANIFEST_PATH_FIELD_NUMBER: _ClassVar[int]
     RESOURCE_ARTIFACT_ROOT_FIELD_NUMBER: _ClassVar[int]
+    TOOL_ARTIFACT_ROOT_FIELD_NUMBER: _ClassVar[int]
     LOCATION_MODE_FIELD_NUMBER: _ClassVar[int]
     CLEAN_FIELD_NUMBER: _ClassVar[int]
     SIGN_FIELD_NUMBER: _ClassVar[int]
@@ -64,6 +65,7 @@ class PipelineConfig(_message.Message):
     proxy_url: str
     bundle_manifest_path: str
     resource_artifact_root: str
+    tool_artifact_root: str
     location_mode: str
     clean: bool
     sign: bool
@@ -80,7 +82,7 @@ class PipelineConfig(_message.Message):
     stages: _containers.RepeatedScalarFieldContainer[_common_pb2.StageName]
     artifact_trust_mode: str
     update_config: _update_config_pb2.UpdateConfig
-    def __init__(self, scenario_name: _Optional[str] = ..., platforms: _Optional[_Iterable[_Union[_common_pb2.Platform, str]]] = ..., skip_preflight: _Optional[bool] = ..., skip_smoke_test: _Optional[bool] = ..., stop_on_failure: _Optional[bool] = ..., deployment_mode: _Optional[_Union[_common_pb2.DeploymentMode, str]] = ..., framework: _Optional[_Union[_common_pb2.Framework, str]] = ..., template_type: _Optional[_Union[_common_pb2.TemplateType, str]] = ..., webhook_url: _Optional[str] = ..., proxy_url: _Optional[str] = ..., bundle_manifest_path: _Optional[str] = ..., resource_artifact_root: _Optional[str] = ..., location_mode: _Optional[str] = ..., clean: _Optional[bool] = ..., sign: _Optional[bool] = ..., publish: _Optional[bool] = ..., distribute: _Optional[bool] = ..., distribution_targets: _Optional[_Iterable[str]] = ..., version: _Optional[str] = ..., preflight_timeout_seconds: _Optional[int] = ..., preflight_secrets: _Optional[_Mapping[str, str]] = ..., stop_after_stage: _Optional[_Union[_common_pb2.StageName, str]] = ..., resume_from_stage: _Optional[_Union[_common_pb2.StageName, str]] = ..., parent_pipeline_id: _Optional[str] = ..., idempotency_key: _Optional[str] = ..., stages: _Optional[_Iterable[_Union[_common_pb2.StageName, str]]] = ..., artifact_trust_mode: _Optional[str] = ..., update_config: _Optional[_Union[_update_config_pb2.UpdateConfig, _Mapping]] = ...) -> None: ...
+    def __init__(self, scenario_name: _Optional[str] = ..., platforms: _Optional[_Iterable[_Union[_common_pb2.Platform, str]]] = ..., skip_preflight: _Optional[bool] = ..., skip_smoke_test: _Optional[bool] = ..., stop_on_failure: _Optional[bool] = ..., deployment_mode: _Optional[_Union[_common_pb2.DeploymentMode, str]] = ..., framework: _Optional[_Union[_common_pb2.Framework, str]] = ..., template_type: _Optional[_Union[_common_pb2.TemplateType, str]] = ..., webhook_url: _Optional[str] = ..., proxy_url: _Optional[str] = ..., bundle_manifest_path: _Optional[str] = ..., resource_artifact_root: _Optional[str] = ..., tool_artifact_root: _Optional[str] = ..., location_mode: _Optional[str] = ..., clean: _Optional[bool] = ..., sign: _Optional[bool] = ..., publish: _Optional[bool] = ..., distribute: _Optional[bool] = ..., distribution_targets: _Optional[_Iterable[str]] = ..., version: _Optional[str] = ..., preflight_timeout_seconds: _Optional[int] = ..., preflight_secrets: _Optional[_Mapping[str, str]] = ..., stop_after_stage: _Optional[_Union[_common_pb2.StageName, str]] = ..., resume_from_stage: _Optional[_Union[_common_pb2.StageName, str]] = ..., parent_pipeline_id: _Optional[str] = ..., idempotency_key: _Optional[str] = ..., stages: _Optional[_Iterable[_Union[_common_pb2.StageName, str]]] = ..., artifact_trust_mode: _Optional[str] = ..., update_config: _Optional[_Union[_update_config_pb2.UpdateConfig, _Mapping]] = ...) -> None: ...
 
 class StageResult(_message.Message):
     __slots__ = ("stage", "status", "started_at", "completed_at", "error", "logs", "details")
@@ -133,7 +135,7 @@ class ResourceDeploymentPlan(_message.Message):
     def __init__(self, schema_version: _Optional[str] = ..., resources: _Optional[_Iterable[_Union[ResourceDeploymentPlanItem, _Mapping]]] = ..., artifact_trust_mode: _Optional[str] = ..., promotable: _Optional[bool] = ..., host_requirements: _Optional[_Iterable[_Union[HostRequirementPlanItem, _Mapping]]] = ...) -> None: ...
 
 class HostRequirementPlanItem(_message.Message):
-    __slots__ = ("name", "kind", "os", "privilege", "bundling", "required", "verdict", "reason", "provenance")
+    __slots__ = ("name", "kind", "os", "privilege", "bundling", "required", "verdict", "reason", "provenance", "architecture", "artifact")
     NAME_FIELD_NUMBER: _ClassVar[int]
     KIND_FIELD_NUMBER: _ClassVar[int]
     OS_FIELD_NUMBER: _ClassVar[int]
@@ -143,6 +145,8 @@ class HostRequirementPlanItem(_message.Message):
     VERDICT_FIELD_NUMBER: _ClassVar[int]
     REASON_FIELD_NUMBER: _ClassVar[int]
     PROVENANCE_FIELD_NUMBER: _ClassVar[int]
+    ARCHITECTURE_FIELD_NUMBER: _ClassVar[int]
+    ARTIFACT_FIELD_NUMBER: _ClassVar[int]
     name: str
     kind: str
     os: str
@@ -152,7 +156,9 @@ class HostRequirementPlanItem(_message.Message):
     verdict: str
     reason: str
     provenance: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, name: _Optional[str] = ..., kind: _Optional[str] = ..., os: _Optional[str] = ..., privilege: _Optional[str] = ..., bundling: _Optional[str] = ..., required: _Optional[bool] = ..., verdict: _Optional[str] = ..., reason: _Optional[str] = ..., provenance: _Optional[_Iterable[str]] = ...) -> None: ...
+    architecture: str
+    artifact: str
+    def __init__(self, name: _Optional[str] = ..., kind: _Optional[str] = ..., os: _Optional[str] = ..., privilege: _Optional[str] = ..., bundling: _Optional[str] = ..., required: _Optional[bool] = ..., verdict: _Optional[str] = ..., reason: _Optional[str] = ..., provenance: _Optional[_Iterable[str]] = ..., architecture: _Optional[str] = ..., artifact: _Optional[str] = ...) -> None: ...
 
 class ResourceDeploymentPlanItem(_message.Message):
     __slots__ = ("requested_resource", "resource", "os", "architecture", "mode", "support", "requires", "limitations", "evidence", "selected_fallback", "artifact", "files", "service", "privilege", "bundling", "eligibility", "eligibility_reason")
@@ -209,7 +215,7 @@ class ResourceDeploymentArtifact(_message.Message):
     def __init__(self, name: _Optional[str] = ..., sha256: _Optional[str] = ...) -> None: ...
 
 class ResourceDeploymentService(_message.Message):
-    __slots__ = ("provider_policy", "artifact", "version", "sha256", "arguments", "environment", "ports", "health_checks", "files", "config")
+    __slots__ = ("provider_policy", "artifact", "version", "sha256", "arguments", "environment", "ports", "health_checks", "files", "config", "layout", "entry_path")
     class EnvironmentEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -227,6 +233,8 @@ class ResourceDeploymentService(_message.Message):
     HEALTH_CHECKS_FIELD_NUMBER: _ClassVar[int]
     FILES_FIELD_NUMBER: _ClassVar[int]
     CONFIG_FIELD_NUMBER: _ClassVar[int]
+    LAYOUT_FIELD_NUMBER: _ClassVar[int]
+    ENTRY_PATH_FIELD_NUMBER: _ClassVar[int]
     provider_policy: ResourceProviderPolicy
     artifact: str
     version: str
@@ -237,7 +245,9 @@ class ResourceDeploymentService(_message.Message):
     health_checks: _containers.RepeatedCompositeFieldContainer[ResourceDeploymentHealthCheck]
     files: _containers.RepeatedCompositeFieldContainer[ResourceDeploymentArtifact]
     config: ResourceDeploymentServiceConfig
-    def __init__(self, provider_policy: _Optional[_Union[ResourceProviderPolicy, _Mapping]] = ..., artifact: _Optional[str] = ..., version: _Optional[str] = ..., sha256: _Optional[str] = ..., arguments: _Optional[_Iterable[str]] = ..., environment: _Optional[_Mapping[str, str]] = ..., ports: _Optional[_Iterable[_Union[ResourceDeploymentServicePort, _Mapping]]] = ..., health_checks: _Optional[_Iterable[_Union[ResourceDeploymentHealthCheck, _Mapping]]] = ..., files: _Optional[_Iterable[_Union[ResourceDeploymentArtifact, _Mapping]]] = ..., config: _Optional[_Union[ResourceDeploymentServiceConfig, _Mapping]] = ...) -> None: ...
+    layout: str
+    entry_path: str
+    def __init__(self, provider_policy: _Optional[_Union[ResourceProviderPolicy, _Mapping]] = ..., artifact: _Optional[str] = ..., version: _Optional[str] = ..., sha256: _Optional[str] = ..., arguments: _Optional[_Iterable[str]] = ..., environment: _Optional[_Mapping[str, str]] = ..., ports: _Optional[_Iterable[_Union[ResourceDeploymentServicePort, _Mapping]]] = ..., health_checks: _Optional[_Iterable[_Union[ResourceDeploymentHealthCheck, _Mapping]]] = ..., files: _Optional[_Iterable[_Union[ResourceDeploymentArtifact, _Mapping]]] = ..., config: _Optional[_Union[ResourceDeploymentServiceConfig, _Mapping]] = ..., layout: _Optional[str] = ..., entry_path: _Optional[str] = ...) -> None: ...
 
 class ResourceProviderPolicy(_message.Message):
     __slots__ = ("default_mode", "target_defaults", "allowed_modes", "shared_reuse_requires_consent", "external_management", "external_access_capabilities")

@@ -1,0 +1,27 @@
+{
+  "schema_version": "1",
+  "kind": "profile",
+  "key": "content-desk/marketing-dev-log-profile",
+  "created_by": "content-desk",
+  "record": {
+    "style_refs": ["content-desk/marketing-dev-log-style"],
+    "sampler": {
+      "kind": "direct",
+      "k": 1,
+      "temperature_stance": "ignored",
+      "max_output_tokens": 1400
+    },
+    "selection_policy": "take_first",
+    "gateway_role": "write.default",
+    "locality": "remote_only",
+    "budget": {
+      "max_output_tokens": 1400,
+      "max_session_cost_micros": 1000000
+    },
+    "context_policy": {
+      "full_text_token_budget": 4096,
+      "summarize_beyond": 4096,
+      "declared_context_ceiling": 8192
+    }
+  }
+}

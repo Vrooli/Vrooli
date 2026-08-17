@@ -4,53 +4,1362 @@
 
 import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
 import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
-import type { Message } from "@bufbuild/protobuf";
+import { file_google_protobuf_struct } from "@bufbuild/protobuf/wkt";
+import type { JsonObject, Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file prose-studio/v1/prose/prose.proto.
  */
 export const file_prose_studio_v1_prose_prose: GenFile = /*@__PURE__*/
-  fileDesc("CiFwcm9zZS1zdHVkaW8vdjEvcHJvc2UvcHJvc2UucHJvdG8SHHZyb29saS5wcm9zZV9zdHVkaW8udjEucHJvc2UiGwoLSnNvblJlcXVlc3QSDAoEanNvbhgBIAEoCSIcCgxKc29uUmVzcG9uc2USDAoEanNvbhgBIAEoCTKJCQoSUHJvc2VTdHVkaW9TZXJ2aWNlEmEKCFJlZ2lzdHJ5EikudnJvb2xpLnByb3NlX3N0dWRpby52MS5wcm9zZS5Kc29uUmVxdWVzdBoqLnZyb29saS5wcm9zZV9zdHVkaW8udjEucHJvc2UuSnNvblJlc3BvbnNlEmQKC0NyZWF0ZVN0eWxlEikudnJvb2xpLnByb3NlX3N0dWRpby52MS5wcm9zZS5Kc29uUmVxdWVzdBoqLnZyb29saS5wcm9zZV9zdHVkaW8udjEucHJvc2UuSnNvblJlc3BvbnNlEmcKDlJlc29sdmVQcm9maWxlEikudnJvb2xpLnByb3NlX3N0dWRpby52MS5wcm9zZS5Kc29uUmVxdWVzdBoqLnZyb29saS5wcm9zZV9zdHVkaW8udjEucHJvc2UuSnNvblJlc3BvbnNlEmEKCEdlbmVyYXRlEikudnJvb2xpLnByb3NlX3N0dWRpby52MS5wcm9zZS5Kc29uUmVxdWVzdBoqLnZyb29saS5wcm9zZV9zdHVkaW8udjEucHJvc2UuSnNvblJlc3BvbnNlEl8KBlJlcm9sbBIpLnZyb29saS5wcm9zZV9zdHVkaW8udjEucHJvc2UuSnNvblJlcXVlc3QaKi52cm9vbGkucHJvc2Vfc3R1ZGlvLnYxLnByb3NlLkpzb25SZXNwb25zZRJmCg1TZXNzaW9uQWN0aW9uEikudnJvb2xpLnByb3NlX3N0dWRpby52MS5wcm9zZS5Kc29uUmVxdWVzdBoqLnZyb29saS5wcm9zZV9zdHVkaW8udjEucHJvc2UuSnNvblJlc3BvbnNlEmwKE1JlaW5kZXhEZWNsYXJhdGlvbnMSKS52cm9vbGkucHJvc2Vfc3R1ZGlvLnYxLnByb3NlLkpzb25SZXF1ZXN0GioudnJvb2xpLnByb3NlX3N0dWRpby52MS5wcm9zZS5Kc29uUmVzcG9uc2USbQoUVmFsaWRhdGVEZWNsYXJhdGlvbnMSKS52cm9vbGkucHJvc2Vfc3R1ZGlvLnYxLnByb3NlLkpzb25SZXF1ZXN0GioudnJvb2xpLnByb3NlX3N0dWRpby52MS5wcm9zZS5Kc29uUmVzcG9uc2USZwoOQ3JlYXRlRG9jdW1lbnQSKS52cm9vbGkucHJvc2Vfc3R1ZGlvLnYxLnByb3NlLkpzb25SZXF1ZXN0GioudnJvb2xpLnByb3NlX3N0dWRpby52MS5wcm9zZS5Kc29uUmVzcG9uc2USaQoQQXNzZW1ibGVEb2N1bWVudBIpLnZyb29saS5wcm9zZV9zdHVkaW8udjEucHJvc2UuSnNvblJlcXVlc3QaKi52cm9vbGkucHJvc2Vfc3R1ZGlvLnYxLnByb3NlLkpzb25SZXNwb25zZRJkCgtDb25mb3JtYW5jZRIpLnZyb29saS5wcm9zZV9zdHVkaW8udjEucHJvc2UuSnNvblJlcXVlc3QaKi52cm9vbGkucHJvc2Vfc3R1ZGlvLnYxLnByb3NlLkpzb25SZXNwb25zZUJPWk1naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3Byb3NlLXN0dWRpby92MS9wcm9zZTtwcm9zZV92MWIGcHJvdG8z");
+  fileDesc("CiFwcm9zZS1zdHVkaW8vdjEvcHJvc2UvcHJvc2UucHJvdG8SHHZyb29saS5wcm9zZV9zdHVkaW8udjEucHJvc2UiEQoPUmVnaXN0cnlSZXF1ZXN0ImQKDFJlZ2lzdHJ5S2luZBIMCgRraW5kGAEgASgJEhMKC2Rlc2NyaXB0aW9uGAIgASgJEjEKEHBhcmFtZXRlcl9zY2hlbWEYAyABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0IosCChBSZWdpc3RyeVJlc3BvbnNlEjwKCHNhbXBsZXJzGAEgAygLMioudnJvb2xpLnByb3NlX3N0dWRpby52MS5wcm9zZS5SZWdpc3RyeUtpbmQSPAoIcG9saWNpZXMYAiADKAsyKi52cm9vbGkucHJvc2Vfc3R1ZGlvLnYxLnByb3NlLlJlZ2lzdHJ5S2luZBI7CgdtZXRyaWNzGAMgAygLMioudnJvb2xpLnByb3NlX3N0dWRpby52MS5wcm9zZS5SZWdpc3RyeUtpbmQSPgoKdHJhbnNmb3JtcxgEIAMoCzIqLnZyb29saS5wcm9zZV9zdHVkaW8udjEucHJvc2UuUmVnaXN0cnlLaW5kIvoCCgVTdHlsZRILCgNrZXkYASABKAkSDwoHdmVyc2lvbhgCIAEoBRIOCgZwYXJlbnQYAyABKAkSEQoJZXhlbXBsYXJzGAQgAygJEhIKCmRpcmVjdGl2ZXMYBSADKAkSFQoNYW50aV9wYXR0ZXJucxgGIAMoCRIPCgdsZXhpY29uGAcgAygJEkEKB3RhcmdldHMYCCADKAsyMC52cm9vbGkucHJvc2Vfc3R1ZGlvLnYxLnByb3NlLlN0eWxlLlRhcmdldHNFbnRyeRJMCg1heGlzX2RlZmF1bHRzGAkgAygLMjUudnJvb2xpLnByb3NlX3N0dWRpby52MS5wcm9zZS5TdHlsZS5BeGlzRGVmYXVsdHNFbnRyeRouCgxUYXJnZXRzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgBOgI4ARozChFBeGlzRGVmYXVsdHNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIkgKEkNyZWF0ZVN0eWxlUmVxdWVzdBIyCgVzdHlsZRgBIAEoCzIjLnZyb29saS5wcm9zZV9zdHVkaW8udjEucHJvc2UuU3R5bGUiSQoTQ3JlYXRlU3R5bGVSZXNwb25zZRIyCgVzdHlsZRgBIAEoCzIjLnZyb29saS5wcm9zZV9zdHVkaW8udjEucHJvc2UuU3R5bGUiZgoHU2FtcGxlchIMCgRraW5kGAEgASgJEgkKAWsYAiABKAUSCwoDdGF1GAMgASgBEhoKEnRlbXBlcmF0dXJlX3N0YW5jZRgEIAEoCRIZChFtYXhfb3V0cHV0X3Rva2VucxgFIAEoBSKKAQoLQ29uc3RyYWludHMSEQoJbWluX3dvcmRzGAEgASgFEhEKCW1heF93b3JkcxgCIAEoBRIRCgltaW5fZ3JhZGUYAyABKAESEQoJbWF4X2dyYWRlGAQgASgBEhYKDmJhbm5lZF9sZXhpY29uGAUgAygJEhcKD3JlcXVpcmVkX2Zvcm1hdBgGIAEoCSJECgZCdWRnZXQSGQoRbWF4X291dHB1dF90b2tlbnMYASABKAUSHwoXbWF4X3Nlc3Npb25fY29zdF9taWNyb3MYAiABKAMiiQEKDUNvbnRleHRQb2xpY3kSHgoWZnVsbF90ZXh0X3Rva2VuX2J1ZGdldBgBIAEoBRIYChBzdW1tYXJpemVfYmV5b25kGAIgASgFEhwKFGFsd2F5c19mdWxsX3ByZXZpb3VzGAMgASgIEiAKGGRlY2xhcmVkX2NvbnRleHRfY2VpbGluZxgEIAEoBSKpBAoHUHJvZmlsZRILCgNrZXkYASABKAkSDwoHdmVyc2lvbhgCIAEoBRIOCgZwYXJlbnQYAyABKAkSEgoKc3R5bGVfcmVmcxgEIAMoCRI2CgdzYW1wbGVyGAUgASgLMiUudnJvb2xpLnByb3NlX3N0dWRpby52MS5wcm9zZS5TYW1wbGVyEj4KC2NvbnN0cmFpbnRzGAYgASgLMikudnJvb2xpLnByb3NlX3N0dWRpby52MS5wcm9zZS5Db25zdHJhaW50cxIYChBzZWxlY3Rpb25fcG9saWN5GAcgASgJElQKEHNlbGVjdGlvbl9wYXJhbXMYCCADKAsyOi52cm9vbGkucHJvc2Vfc3R1ZGlvLnYxLnByb3NlLlByb2ZpbGUuU2VsZWN0aW9uUGFyYW1zRW50cnkSGQoRbWVhc3VyZW1lbnRfdGllcnMYCSADKAkSNAoGYnVkZ2V0GAogASgLMiQudnJvb2xpLnByb3NlX3N0dWRpby52MS5wcm9zZS5CdWRnZXQSQwoOY29udGV4dF9wb2xpY3kYCyABKAsyKy52cm9vbGkucHJvc2Vfc3R1ZGlvLnYxLnByb3NlLkNvbnRleHRQb2xpY3kSFAoMZ2F0ZXdheV9yb2xlGAwgASgJEhAKCGxvY2FsaXR5GA0gASgJGjYKFFNlbGVjdGlvblBhcmFtc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoAToCOAEiJAoVUmVzb2x2ZVByb2ZpbGVSZXF1ZXN0EgsKA2tleRgBIAEoCSKfAQoWUmVzb2x2ZVByb2ZpbGVSZXNwb25zZRI2Cgdwcm9maWxlGAEgASgLMiUudnJvb2xpLnByb3NlX3N0dWRpby52MS5wcm9zZS5Qcm9maWxlEjMKBnN0eWxlcxgCIAMoCzIjLnZyb29saS5wcm9zZV9zdHVkaW8udjEucHJvc2UuU3R5bGUSGAoQaW5zdHJ1Y3Rpb25fdGV4dBgDIAEoCSIzCg9OZWdhdGl2ZUNvbnRleHQSDgoGcGlubmVkGAEgAygJEhAKCHJlamVjdGVkGAIgAygJIqYBCg9HZW5lcmF0ZVJlcXVlc3QSEwoLcHJvZmlsZV9rZXkYASABKAkSDQoFcXVlcnkYAiABKAkSGgoSaW5jbHVkZV9jYW5kaWRhdGVzGAMgASgIEhIKCnNlc3Npb25faWQYBCABKAkSPwoIbmVnYXRpdmUYBSABKAsyLS52cm9vbGkucHJvc2Vfc3R1ZGlvLnYxLnByb3NlLk5lZ2F0aXZlQ29udGV4dCIvCgtFbGlnaWJpbGl0eRIQCghlbGlnaWJsZRgBIAEoCBIOCgZyZWFzb24YAiABKAkiNQoOVmVyYmFsaXplZEhpbnQSDwoHb3JkaW5hbBgBIAEoBRISCgpjYWxpYnJhdGVkGAIgASgIIo8ECgpQcm92ZW5hbmNlEhcKD3Byb2ZpbGVfdmVyc2lvbhgBIAEoCRIWCg5zdHlsZV92ZXJzaW9ucxgCIAMoCRIQCghzdHJhdGVneRgDIAEoCRJCChNzdHJhdGVneV9wYXJhbWV0ZXJzGAQgASgLMiUudnJvb2xpLnByb3NlX3N0dWRpby52MS5wcm9zZS5TYW1wbGVyEhAKCHByb3ZpZGVyGAUgASgJEhoKEnJlc29sdmVkX21vZGVsX3JlZhgGIAEoCRIUCgxnYXRld2F5X3JvbGUYByABKAkSGAoQdGVtcGVyYXR1cmVfc2VudBgIIAEoARIbChN0ZW1wZXJhdHVyZV9zdXBwb3J0GAkgASgJEiMKG21heF9vdXRwdXRfdG9rZW5zX2VmZmVjdGl2ZRgKIAEoBRIgChhtYXhfb3V0cHV0X3Rva2Vuc19zb3VyY2UYCyABKAkSFAoMaW5wdXRfdG9rZW5zGAwgASgFEhUKDW91dHB1dF90b2tlbnMYDSABKAUSEwoLY29zdF9taWNyb3MYDiABKAMSGQoRbWFjaGluZV9nZW5lcmF0ZWQYDyABKAgSEgoKZGlzY2xvc3VyZRgQIAEoCRJHChBjb250ZXh0X3NuYXBzaG90GBEgASgLMi0udnJvb2xpLnByb3NlX3N0dWRpby52MS5wcm9zZS5Db250ZXh0U25hcHNob3QimgMKCUNhbmRpZGF0ZRIKCgJpZBgBIAEoCRIQCghyb3VuZF9pZBgCIAEoCRIUCgxkZXJpdmVkX2Zyb20YAyADKAkSDAoEdGV4dBgEIAEoCRItCgxtZWFzdXJlbWVudHMYBSABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0EjEKEHNldF9tZWFzdXJlbWVudHMYBiABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0EjwKCnByb3ZlbmFuY2UYByABKAsyKC52cm9vbGkucHJvc2Vfc3R1ZGlvLnYxLnByb3NlLlByb3ZlbmFuY2USRQoPdmVyYmFsaXplZF9oaW50GAggASgLMiwudnJvb2xpLnByb3NlX3N0dWRpby52MS5wcm9zZS5WZXJiYWxpemVkSGludBI+CgtlbGlnaWJpbGl0eRgJIAEoCzIpLnZyb29saS5wcm9zZV9zdHVkaW8udjEucHJvc2UuRWxpZ2liaWxpdHkSEQoJY29tbWl0dGVkGAogASgIEhEKCXNldF9pbmRleBgLIAEoBSK7AgoFUm91bmQSCgoCaWQYASABKAkSEgoKc2Vzc2lvbl9pZBgCIAEoCRI3CghzdHJhdGVneRgDIAEoCzIlLnZyb29saS5wcm9zZV9zdHVkaW8udjEucHJvc2UuU2FtcGxlchIVCg1jYW5kaWRhdGVfaWRzGAQgAygJEhcKD2NhbmRpZGF0ZV9jb3VudBgFIAEoBRItCgxzYW1wbGluZ19rZXkYBiABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0EhkKEXRvdGFsX2Nvc3RfbWljcm9zGAcgASgDEkcKEG5lZ2F0aXZlX2NvbnRleHQYCCABKAsyLS52cm9vbGkucHJvc2Vfc3R1ZGlvLnYxLnByb3NlLk5lZ2F0aXZlQ29udGV4dBIWCg5zZWxlY3Rpb25fc2VlZBgJIAEoAyKaAQoHU2Vzc2lvbhIKCgJpZBgBIAEoCRITCgtwcm9maWxlX2tleRgCIAEoCRINCgVxdWVyeRgDIAEoCRIOCgZzdGF0dXMYBCABKAkSDgoGcGlubmVkGAUgAygJEhAKCHJlamVjdGVkGAYgAygJEhEKCXJvdW5kX2lkcxgHIAMoCRIaChJidWRnZXRfdXNlZF9taWNyb3MYCCABKAMisQEKD0RlZ3JhZGVkT3V0Y29tZRIMCgRraW5kGAEgASgJEg4KBnJlYXNvbhgCIAEoCRIcChRyZXF1ZXN0ZWRfY2FuZGlkYXRlcxgDIAEoBRIbChNyZWNlaXZlZF9jYW5kaWRhdGVzGAQgASgFEiMKG21heF9vdXRwdXRfdG9rZW5zX2VmZmVjdGl2ZRgFIAEoBRIgChhtYXhfb3V0cHV0X3Rva2Vuc19zb3VyY2UYBiABKAki/QIKEEdlbmVyYXRlUmVzcG9uc2USNgoHc2Vzc2lvbhgBIAEoCzIlLnZyb29saS5wcm9zZV9zdHVkaW8udjEucHJvc2UuU2Vzc2lvbhIyCgVyb3VuZBgCIAEoCzIjLnZyb29saS5wcm9zZV9zdHVkaW8udjEucHJvc2UuUm91bmQSOQoIc2VsZWN0ZWQYAyABKAsyJy52cm9vbGkucHJvc2Vfc3R1ZGlvLnYxLnByb3NlLkNhbmRpZGF0ZRI7CgpjYW5kaWRhdGVzGAQgAygLMicudnJvb2xpLnByb3NlX3N0dWRpby52MS5wcm9zZS5DYW5kaWRhdGUSRAoTc2VsZWN0ZWRfY2FuZGlkYXRlcxgFIAMoCzInLnZyb29saS5wcm9zZV9zdHVkaW8udjEucHJvc2UuQ2FuZGlkYXRlEj8KCGRlZ3JhZGVkGAYgASgLMi0udnJvb2xpLnByb3NlX3N0dWRpby52MS5wcm9zZS5EZWdyYWRlZE91dGNvbWUiPwoNUmVyb2xsUmVxdWVzdBISCgpzZXNzaW9uX2lkGAEgASgJEhoKEmluY2x1ZGVfY2FuZGlkYXRlcxgCIAEoCCJQCg5SZXJvbGxSZXNwb25zZRI+CgZyZXN1bHQYASABKAsyLi52cm9vbGkucHJvc2Vfc3R1ZGlvLnYxLnByb3NlLkdlbmVyYXRlUmVzcG9uc2UiUAoUU2Vzc2lvbkFjdGlvblJlcXVlc3QSDgoGYWN0aW9uGAEgASgJEhIKCnNlc3Npb25faWQYAiABKAkSFAoMY2FuZGlkYXRlX2lkGAMgASgJIk8KFVNlc3Npb25BY3Rpb25SZXNwb25zZRI2CgdzZXNzaW9uGAEgASgLMiUudnJvb2xpLnByb3NlX3N0dWRpby52MS5wcm9zZS5TZXNzaW9uIsABCgtEZWNsYXJhdGlvbhIMCgRwYXRoGAEgASgJEhYKDnNjaGVtYV92ZXJzaW9uGAIgASgJEgwKBGtpbmQYAyABKAkSCwoDa2V5GAQgASgJEhIKCmNyZWF0ZWRfYnkYBSABKAkSFAoMY29udGVudF9oYXNoGAYgASgJEg4KBnN0YXR1cxgHIAEoCRINCgVlcnJvchgIIAEoCRInCgZyZWNvcmQYCSABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0IioKGlJlaW5kZXhEZWNsYXJhdGlvbnNSZXF1ZXN0EgwKBHJvb3QYASABKAkiXgobUmVpbmRleERlY2xhcmF0aW9uc1Jlc3BvbnNlEj8KDGRlY2xhcmF0aW9ucxgBIAMoCzIpLnZyb29saS5wcm9zZV9zdHVkaW8udjEucHJvc2UuRGVjbGFyYXRpb24iKwobVmFsaWRhdGVEZWNsYXJhdGlvbnNSZXF1ZXN0EgwKBHJvb3QYASABKAkiXwocVmFsaWRhdGVEZWNsYXJhdGlvbnNSZXNwb25zZRI/CgxkZWNsYXJhdGlvbnMYASADKAsyKS52cm9vbGkucHJvc2Vfc3R1ZGlvLnYxLnByb3NlLkRlY2xhcmF0aW9uIpgBCg9Db250ZXh0U25hcHNob3QSEwoLb3V0bGluZV9yZWYYASABKAkSGgoScHJpb3Jfc2VjdGlvbl9yZWZzGAIgAygJEhkKEWZvbGxvd2luZ19pbnRlbnRzGAMgAygJEh8KF3N1bW1hcml6ZWRfc2VjdGlvbl9yZWZzGAQgAygJEhgKEGVzdGltYXRlZF90b2tlbnMYBSABKAUi1QEKB1NlY3Rpb24SCgoCaWQYASABKAkSEwoLZG9jdW1lbnRfaWQYAiABKAkSEAoIcG9zaXRpb24YAyABKAUSDgoGaW50ZW50GAQgASgJEhMKC3Byb2ZpbGVfa2V5GAUgASgJEhIKCnNlc3Npb25faWQYBiABKAkSHgoWY29tbWl0dGVkX2NhbmRpZGF0ZV9pZBgHIAEoCRI+Cgdjb250ZXh0GAggASgLMi0udnJvb2xpLnByb3NlX3N0dWRpby52MS5wcm9zZS5Db250ZXh0U25hcHNob3QigwIKCERvY3VtZW50EgoKAmlkGAEgASgJEg0KBXRpdGxlGAIgASgJEhMKC3Byb2ZpbGVfa2V5GAMgASgJEhEKCXN0eWxlX2tleRgEIAEoCRISCgpvdXRsaW5lX2lkGAUgASgJEhMKC3NlY3Rpb25faWRzGAYgAygJEg4KBnN0YXR1cxgHIAEoCRIWCg5hc3NlbWJsZWRfdGV4dBgIIAEoCRIqCgljb2hlcmVuY2UYCSABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0EjcKCHNlY3Rpb25zGAogAygLMiUudnJvb2xpLnByb3NlX3N0dWRpby52MS5wcm9zZS5TZWN0aW9uIooBChVDcmVhdGVEb2N1bWVudFJlcXVlc3QSOAoIZG9jdW1lbnQYASABKAsyJi52cm9vbGkucHJvc2Vfc3R1ZGlvLnYxLnByb3NlLkRvY3VtZW50EjcKCHNlY3Rpb25zGAIgAygLMiUudnJvb2xpLnByb3NlX3N0dWRpby52MS5wcm9zZS5TZWN0aW9uIlIKFkNyZWF0ZURvY3VtZW50UmVzcG9uc2USOAoIZG9jdW1lbnQYASABKAsyJi52cm9vbGkucHJvc2Vfc3R1ZGlvLnYxLnByb3NlLkRvY3VtZW50IiUKF0Fzc2VtYmxlRG9jdW1lbnRSZXF1ZXN0EgoKAmlkGAEgASgJIlQKGEFzc2VtYmxlRG9jdW1lbnRSZXNwb25zZRI4Cghkb2N1bWVudBgBIAEoCzImLnZyb29saS5wcm9zZV9zdHVkaW8udjEucHJvc2UuRG9jdW1lbnQiNQoSQ29uZm9ybWFuY2VSZXF1ZXN0EhEKCXN0eWxlX2tleRgBIAEoCRIMCgR0ZXh0GAIgASgJIj4KE0NvbmZvcm1hbmNlUmVzcG9uc2USJwoGcmVwb3J0GAEgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdDLMCgoSUHJvc2VTdHVkaW9TZXJ2aWNlEmkKCFJlZ2lzdHJ5Ei0udnJvb2xpLnByb3NlX3N0dWRpby52MS5wcm9zZS5SZWdpc3RyeVJlcXVlc3QaLi52cm9vbGkucHJvc2Vfc3R1ZGlvLnYxLnByb3NlLlJlZ2lzdHJ5UmVzcG9uc2UScgoLQ3JlYXRlU3R5bGUSMC52cm9vbGkucHJvc2Vfc3R1ZGlvLnYxLnByb3NlLkNyZWF0ZVN0eWxlUmVxdWVzdBoxLnZyb29saS5wcm9zZV9zdHVkaW8udjEucHJvc2UuQ3JlYXRlU3R5bGVSZXNwb25zZRJ7Cg5SZXNvbHZlUHJvZmlsZRIzLnZyb29saS5wcm9zZV9zdHVkaW8udjEucHJvc2UuUmVzb2x2ZVByb2ZpbGVSZXF1ZXN0GjQudnJvb2xpLnByb3NlX3N0dWRpby52MS5wcm9zZS5SZXNvbHZlUHJvZmlsZVJlc3BvbnNlEmkKCEdlbmVyYXRlEi0udnJvb2xpLnByb3NlX3N0dWRpby52MS5wcm9zZS5HZW5lcmF0ZVJlcXVlc3QaLi52cm9vbGkucHJvc2Vfc3R1ZGlvLnYxLnByb3NlLkdlbmVyYXRlUmVzcG9uc2USYwoGUmVyb2xsEisudnJvb2xpLnByb3NlX3N0dWRpby52MS5wcm9zZS5SZXJvbGxSZXF1ZXN0GiwudnJvb2xpLnByb3NlX3N0dWRpby52MS5wcm9zZS5SZXJvbGxSZXNwb25zZRJ4Cg1TZXNzaW9uQWN0aW9uEjIudnJvb2xpLnByb3NlX3N0dWRpby52MS5wcm9zZS5TZXNzaW9uQWN0aW9uUmVxdWVzdBozLnZyb29saS5wcm9zZV9zdHVkaW8udjEucHJvc2UuU2Vzc2lvbkFjdGlvblJlc3BvbnNlEooBChNSZWluZGV4RGVjbGFyYXRpb25zEjgudnJvb2xpLnByb3NlX3N0dWRpby52MS5wcm9zZS5SZWluZGV4RGVjbGFyYXRpb25zUmVxdWVzdBo5LnZyb29saS5wcm9zZV9zdHVkaW8udjEucHJvc2UuUmVpbmRleERlY2xhcmF0aW9uc1Jlc3BvbnNlEo0BChRWYWxpZGF0ZURlY2xhcmF0aW9ucxI5LnZyb29saS5wcm9zZV9zdHVkaW8udjEucHJvc2UuVmFsaWRhdGVEZWNsYXJhdGlvbnNSZXF1ZXN0GjoudnJvb2xpLnByb3NlX3N0dWRpby52MS5wcm9zZS5WYWxpZGF0ZURlY2xhcmF0aW9uc1Jlc3BvbnNlEnsKDkNyZWF0ZURvY3VtZW50EjMudnJvb2xpLnByb3NlX3N0dWRpby52MS5wcm9zZS5DcmVhdGVEb2N1bWVudFJlcXVlc3QaNC52cm9vbGkucHJvc2Vfc3R1ZGlvLnYxLnByb3NlLkNyZWF0ZURvY3VtZW50UmVzcG9uc2USgQEKEEFzc2VtYmxlRG9jdW1lbnQSNS52cm9vbGkucHJvc2Vfc3R1ZGlvLnYxLnByb3NlLkFzc2VtYmxlRG9jdW1lbnRSZXF1ZXN0GjYudnJvb2xpLnByb3NlX3N0dWRpby52MS5wcm9zZS5Bc3NlbWJsZURvY3VtZW50UmVzcG9uc2UScgoLQ29uZm9ybWFuY2USMC52cm9vbGkucHJvc2Vfc3R1ZGlvLnYxLnByb3NlLkNvbmZvcm1hbmNlUmVxdWVzdBoxLnZyb29saS5wcm9zZV9zdHVkaW8udjEucHJvc2UuQ29uZm9ybWFuY2VSZXNwb25zZUJPWk1naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3Byb3NlLXN0dWRpby92MS9wcm9zZTtwcm9zZV92MWIGcHJvdG8z", [file_google_protobuf_struct]);
 
 /**
- * Prose Studio keeps its public payloads JSON-shaped so new data records and
- * registry kinds can be added without a schema redeploy. The envelope still
- * gives every operation a governed Connect-RPC method, generated clients, and
- * full CLI parity. The JSON object carried in each field is validated by the
- * API before it reaches the domain service.
- *
- * @generated from message vrooli.prose_studio.v1.prose.JsonRequest
+ * @generated from message vrooli.prose_studio.v1.prose.RegistryRequest
  */
-export type JsonRequest = Message<"vrooli.prose_studio.v1.prose.JsonRequest"> & {
-  /**
-   * @generated from field: string json = 1;
-   */
-  json: string;
+export type RegistryRequest = Message<"vrooli.prose_studio.v1.prose.RegistryRequest"> & {
 };
 
 /**
- * Describes the message vrooli.prose_studio.v1.prose.JsonRequest.
- * Use `create(JsonRequestSchema)` to create a new message.
+ * Describes the message vrooli.prose_studio.v1.prose.RegistryRequest.
+ * Use `create(RegistryRequestSchema)` to create a new message.
  */
-export const JsonRequestSchema: GenMessage<JsonRequest> = /*@__PURE__*/
+export const RegistryRequestSchema: GenMessage<RegistryRequest> = /*@__PURE__*/
   messageDesc(file_prose_studio_v1_prose_prose, 0);
 
 /**
- * @generated from message vrooli.prose_studio.v1.prose.JsonResponse
+ * @generated from message vrooli.prose_studio.v1.prose.RegistryKind
  */
-export type JsonResponse = Message<"vrooli.prose_studio.v1.prose.JsonResponse"> & {
+export type RegistryKind = Message<"vrooli.prose_studio.v1.prose.RegistryKind"> & {
   /**
-   * @generated from field: string json = 1;
+   * @generated from field: string kind = 1;
    */
-  json: string;
+  kind: string;
+
+  /**
+   * @generated from field: string description = 2;
+   */
+  description: string;
+
+  /**
+   * @generated from field: google.protobuf.Struct parameter_schema = 3;
+   */
+  parameterSchema?: JsonObject | undefined;
 };
 
 /**
- * Describes the message vrooli.prose_studio.v1.prose.JsonResponse.
- * Use `create(JsonResponseSchema)` to create a new message.
+ * Describes the message vrooli.prose_studio.v1.prose.RegistryKind.
+ * Use `create(RegistryKindSchema)` to create a new message.
  */
-export const JsonResponseSchema: GenMessage<JsonResponse> = /*@__PURE__*/
+export const RegistryKindSchema: GenMessage<RegistryKind> = /*@__PURE__*/
   messageDesc(file_prose_studio_v1_prose_prose, 1);
+
+/**
+ * @generated from message vrooli.prose_studio.v1.prose.RegistryResponse
+ */
+export type RegistryResponse = Message<"vrooli.prose_studio.v1.prose.RegistryResponse"> & {
+  /**
+   * @generated from field: repeated vrooli.prose_studio.v1.prose.RegistryKind samplers = 1;
+   */
+  samplers: RegistryKind[];
+
+  /**
+   * @generated from field: repeated vrooli.prose_studio.v1.prose.RegistryKind policies = 2;
+   */
+  policies: RegistryKind[];
+
+  /**
+   * @generated from field: repeated vrooli.prose_studio.v1.prose.RegistryKind metrics = 3;
+   */
+  metrics: RegistryKind[];
+
+  /**
+   * @generated from field: repeated vrooli.prose_studio.v1.prose.RegistryKind transforms = 4;
+   */
+  transforms: RegistryKind[];
+};
+
+/**
+ * Describes the message vrooli.prose_studio.v1.prose.RegistryResponse.
+ * Use `create(RegistryResponseSchema)` to create a new message.
+ */
+export const RegistryResponseSchema: GenMessage<RegistryResponse> = /*@__PURE__*/
+  messageDesc(file_prose_studio_v1_prose_prose, 2);
+
+/**
+ * @generated from message vrooli.prose_studio.v1.prose.Style
+ */
+export type Style = Message<"vrooli.prose_studio.v1.prose.Style"> & {
+  /**
+   * @generated from field: string key = 1;
+   */
+  key: string;
+
+  /**
+   * @generated from field: int32 version = 2;
+   */
+  version: number;
+
+  /**
+   * @generated from field: string parent = 3;
+   */
+  parent: string;
+
+  /**
+   * @generated from field: repeated string exemplars = 4;
+   */
+  exemplars: string[];
+
+  /**
+   * @generated from field: repeated string directives = 5;
+   */
+  directives: string[];
+
+  /**
+   * @generated from field: repeated string anti_patterns = 6;
+   */
+  antiPatterns: string[];
+
+  /**
+   * @generated from field: repeated string lexicon = 7;
+   */
+  lexicon: string[];
+
+  /**
+   * @generated from field: map<string, double> targets = 8;
+   */
+  targets: { [key: string]: number };
+
+  /**
+   * @generated from field: map<string, string> axis_defaults = 9;
+   */
+  axisDefaults: { [key: string]: string };
+};
+
+/**
+ * Describes the message vrooli.prose_studio.v1.prose.Style.
+ * Use `create(StyleSchema)` to create a new message.
+ */
+export const StyleSchema: GenMessage<Style> = /*@__PURE__*/
+  messageDesc(file_prose_studio_v1_prose_prose, 3);
+
+/**
+ * @generated from message vrooli.prose_studio.v1.prose.CreateStyleRequest
+ */
+export type CreateStyleRequest = Message<"vrooli.prose_studio.v1.prose.CreateStyleRequest"> & {
+  /**
+   * @generated from field: vrooli.prose_studio.v1.prose.Style style = 1;
+   */
+  style?: Style | undefined;
+};
+
+/**
+ * Describes the message vrooli.prose_studio.v1.prose.CreateStyleRequest.
+ * Use `create(CreateStyleRequestSchema)` to create a new message.
+ */
+export const CreateStyleRequestSchema: GenMessage<CreateStyleRequest> = /*@__PURE__*/
+  messageDesc(file_prose_studio_v1_prose_prose, 4);
+
+/**
+ * @generated from message vrooli.prose_studio.v1.prose.CreateStyleResponse
+ */
+export type CreateStyleResponse = Message<"vrooli.prose_studio.v1.prose.CreateStyleResponse"> & {
+  /**
+   * @generated from field: vrooli.prose_studio.v1.prose.Style style = 1;
+   */
+  style?: Style | undefined;
+};
+
+/**
+ * Describes the message vrooli.prose_studio.v1.prose.CreateStyleResponse.
+ * Use `create(CreateStyleResponseSchema)` to create a new message.
+ */
+export const CreateStyleResponseSchema: GenMessage<CreateStyleResponse> = /*@__PURE__*/
+  messageDesc(file_prose_studio_v1_prose_prose, 5);
+
+/**
+ * @generated from message vrooli.prose_studio.v1.prose.Sampler
+ */
+export type Sampler = Message<"vrooli.prose_studio.v1.prose.Sampler"> & {
+  /**
+   * @generated from field: string kind = 1;
+   */
+  kind: string;
+
+  /**
+   * @generated from field: int32 k = 2;
+   */
+  k: number;
+
+  /**
+   * @generated from field: double tau = 3;
+   */
+  tau: number;
+
+  /**
+   * @generated from field: string temperature_stance = 4;
+   */
+  temperatureStance: string;
+
+  /**
+   * @generated from field: int32 max_output_tokens = 5;
+   */
+  maxOutputTokens: number;
+};
+
+/**
+ * Describes the message vrooli.prose_studio.v1.prose.Sampler.
+ * Use `create(SamplerSchema)` to create a new message.
+ */
+export const SamplerSchema: GenMessage<Sampler> = /*@__PURE__*/
+  messageDesc(file_prose_studio_v1_prose_prose, 6);
+
+/**
+ * @generated from message vrooli.prose_studio.v1.prose.Constraints
+ */
+export type Constraints = Message<"vrooli.prose_studio.v1.prose.Constraints"> & {
+  /**
+   * @generated from field: int32 min_words = 1;
+   */
+  minWords: number;
+
+  /**
+   * @generated from field: int32 max_words = 2;
+   */
+  maxWords: number;
+
+  /**
+   * @generated from field: double min_grade = 3;
+   */
+  minGrade: number;
+
+  /**
+   * @generated from field: double max_grade = 4;
+   */
+  maxGrade: number;
+
+  /**
+   * @generated from field: repeated string banned_lexicon = 5;
+   */
+  bannedLexicon: string[];
+
+  /**
+   * @generated from field: string required_format = 6;
+   */
+  requiredFormat: string;
+};
+
+/**
+ * Describes the message vrooli.prose_studio.v1.prose.Constraints.
+ * Use `create(ConstraintsSchema)` to create a new message.
+ */
+export const ConstraintsSchema: GenMessage<Constraints> = /*@__PURE__*/
+  messageDesc(file_prose_studio_v1_prose_prose, 7);
+
+/**
+ * @generated from message vrooli.prose_studio.v1.prose.Budget
+ */
+export type Budget = Message<"vrooli.prose_studio.v1.prose.Budget"> & {
+  /**
+   * @generated from field: int32 max_output_tokens = 1;
+   */
+  maxOutputTokens: number;
+
+  /**
+   * @generated from field: int64 max_session_cost_micros = 2;
+   */
+  maxSessionCostMicros: bigint;
+};
+
+/**
+ * Describes the message vrooli.prose_studio.v1.prose.Budget.
+ * Use `create(BudgetSchema)` to create a new message.
+ */
+export const BudgetSchema: GenMessage<Budget> = /*@__PURE__*/
+  messageDesc(file_prose_studio_v1_prose_prose, 8);
+
+/**
+ * @generated from message vrooli.prose_studio.v1.prose.ContextPolicy
+ */
+export type ContextPolicy = Message<"vrooli.prose_studio.v1.prose.ContextPolicy"> & {
+  /**
+   * @generated from field: int32 full_text_token_budget = 1;
+   */
+  fullTextTokenBudget: number;
+
+  /**
+   * @generated from field: int32 summarize_beyond = 2;
+   */
+  summarizeBeyond: number;
+
+  /**
+   * @generated from field: bool always_full_previous = 3;
+   */
+  alwaysFullPrevious: boolean;
+
+  /**
+   * @generated from field: int32 declared_context_ceiling = 4;
+   */
+  declaredContextCeiling: number;
+};
+
+/**
+ * Describes the message vrooli.prose_studio.v1.prose.ContextPolicy.
+ * Use `create(ContextPolicySchema)` to create a new message.
+ */
+export const ContextPolicySchema: GenMessage<ContextPolicy> = /*@__PURE__*/
+  messageDesc(file_prose_studio_v1_prose_prose, 9);
+
+/**
+ * @generated from message vrooli.prose_studio.v1.prose.Profile
+ */
+export type Profile = Message<"vrooli.prose_studio.v1.prose.Profile"> & {
+  /**
+   * @generated from field: string key = 1;
+   */
+  key: string;
+
+  /**
+   * @generated from field: int32 version = 2;
+   */
+  version: number;
+
+  /**
+   * @generated from field: string parent = 3;
+   */
+  parent: string;
+
+  /**
+   * @generated from field: repeated string style_refs = 4;
+   */
+  styleRefs: string[];
+
+  /**
+   * @generated from field: vrooli.prose_studio.v1.prose.Sampler sampler = 5;
+   */
+  sampler?: Sampler | undefined;
+
+  /**
+   * @generated from field: vrooli.prose_studio.v1.prose.Constraints constraints = 6;
+   */
+  constraints?: Constraints | undefined;
+
+  /**
+   * @generated from field: string selection_policy = 7;
+   */
+  selectionPolicy: string;
+
+  /**
+   * @generated from field: map<string, double> selection_params = 8;
+   */
+  selectionParams: { [key: string]: number };
+
+  /**
+   * @generated from field: repeated string measurement_tiers = 9;
+   */
+  measurementTiers: string[];
+
+  /**
+   * @generated from field: vrooli.prose_studio.v1.prose.Budget budget = 10;
+   */
+  budget?: Budget | undefined;
+
+  /**
+   * @generated from field: vrooli.prose_studio.v1.prose.ContextPolicy context_policy = 11;
+   */
+  contextPolicy?: ContextPolicy | undefined;
+
+  /**
+   * @generated from field: string gateway_role = 12;
+   */
+  gatewayRole: string;
+
+  /**
+   * @generated from field: string locality = 13;
+   */
+  locality: string;
+};
+
+/**
+ * Describes the message vrooli.prose_studio.v1.prose.Profile.
+ * Use `create(ProfileSchema)` to create a new message.
+ */
+export const ProfileSchema: GenMessage<Profile> = /*@__PURE__*/
+  messageDesc(file_prose_studio_v1_prose_prose, 10);
+
+/**
+ * @generated from message vrooli.prose_studio.v1.prose.ResolveProfileRequest
+ */
+export type ResolveProfileRequest = Message<"vrooli.prose_studio.v1.prose.ResolveProfileRequest"> & {
+  /**
+   * @generated from field: string key = 1;
+   */
+  key: string;
+};
+
+/**
+ * Describes the message vrooli.prose_studio.v1.prose.ResolveProfileRequest.
+ * Use `create(ResolveProfileRequestSchema)` to create a new message.
+ */
+export const ResolveProfileRequestSchema: GenMessage<ResolveProfileRequest> = /*@__PURE__*/
+  messageDesc(file_prose_studio_v1_prose_prose, 11);
+
+/**
+ * @generated from message vrooli.prose_studio.v1.prose.ResolveProfileResponse
+ */
+export type ResolveProfileResponse = Message<"vrooli.prose_studio.v1.prose.ResolveProfileResponse"> & {
+  /**
+   * @generated from field: vrooli.prose_studio.v1.prose.Profile profile = 1;
+   */
+  profile?: Profile | undefined;
+
+  /**
+   * @generated from field: repeated vrooli.prose_studio.v1.prose.Style styles = 2;
+   */
+  styles: Style[];
+
+  /**
+   * @generated from field: string instruction_text = 3;
+   */
+  instructionText: string;
+};
+
+/**
+ * Describes the message vrooli.prose_studio.v1.prose.ResolveProfileResponse.
+ * Use `create(ResolveProfileResponseSchema)` to create a new message.
+ */
+export const ResolveProfileResponseSchema: GenMessage<ResolveProfileResponse> = /*@__PURE__*/
+  messageDesc(file_prose_studio_v1_prose_prose, 12);
+
+/**
+ * @generated from message vrooli.prose_studio.v1.prose.NegativeContext
+ */
+export type NegativeContext = Message<"vrooli.prose_studio.v1.prose.NegativeContext"> & {
+  /**
+   * @generated from field: repeated string pinned = 1;
+   */
+  pinned: string[];
+
+  /**
+   * @generated from field: repeated string rejected = 2;
+   */
+  rejected: string[];
+};
+
+/**
+ * Describes the message vrooli.prose_studio.v1.prose.NegativeContext.
+ * Use `create(NegativeContextSchema)` to create a new message.
+ */
+export const NegativeContextSchema: GenMessage<NegativeContext> = /*@__PURE__*/
+  messageDesc(file_prose_studio_v1_prose_prose, 13);
+
+/**
+ * @generated from message vrooli.prose_studio.v1.prose.GenerateRequest
+ */
+export type GenerateRequest = Message<"vrooli.prose_studio.v1.prose.GenerateRequest"> & {
+  /**
+   * @generated from field: string profile_key = 1;
+   */
+  profileKey: string;
+
+  /**
+   * @generated from field: string query = 2;
+   */
+  query: string;
+
+  /**
+   * @generated from field: bool include_candidates = 3;
+   */
+  includeCandidates: boolean;
+
+  /**
+   * @generated from field: string session_id = 4;
+   */
+  sessionId: string;
+
+  /**
+   * @generated from field: vrooli.prose_studio.v1.prose.NegativeContext negative = 5;
+   */
+  negative?: NegativeContext | undefined;
+};
+
+/**
+ * Describes the message vrooli.prose_studio.v1.prose.GenerateRequest.
+ * Use `create(GenerateRequestSchema)` to create a new message.
+ */
+export const GenerateRequestSchema: GenMessage<GenerateRequest> = /*@__PURE__*/
+  messageDesc(file_prose_studio_v1_prose_prose, 14);
+
+/**
+ * @generated from message vrooli.prose_studio.v1.prose.Eligibility
+ */
+export type Eligibility = Message<"vrooli.prose_studio.v1.prose.Eligibility"> & {
+  /**
+   * @generated from field: bool eligible = 1;
+   */
+  eligible: boolean;
+
+  /**
+   * @generated from field: string reason = 2;
+   */
+  reason: string;
+};
+
+/**
+ * Describes the message vrooli.prose_studio.v1.prose.Eligibility.
+ * Use `create(EligibilitySchema)` to create a new message.
+ */
+export const EligibilitySchema: GenMessage<Eligibility> = /*@__PURE__*/
+  messageDesc(file_prose_studio_v1_prose_prose, 15);
+
+/**
+ * @generated from message vrooli.prose_studio.v1.prose.VerbalizedHint
+ */
+export type VerbalizedHint = Message<"vrooli.prose_studio.v1.prose.VerbalizedHint"> & {
+  /**
+   * @generated from field: int32 ordinal = 1;
+   */
+  ordinal: number;
+
+  /**
+   * @generated from field: bool calibrated = 2;
+   */
+  calibrated: boolean;
+};
+
+/**
+ * Describes the message vrooli.prose_studio.v1.prose.VerbalizedHint.
+ * Use `create(VerbalizedHintSchema)` to create a new message.
+ */
+export const VerbalizedHintSchema: GenMessage<VerbalizedHint> = /*@__PURE__*/
+  messageDesc(file_prose_studio_v1_prose_prose, 16);
+
+/**
+ * @generated from message vrooli.prose_studio.v1.prose.Provenance
+ */
+export type Provenance = Message<"vrooli.prose_studio.v1.prose.Provenance"> & {
+  /**
+   * @generated from field: string profile_version = 1;
+   */
+  profileVersion: string;
+
+  /**
+   * @generated from field: repeated string style_versions = 2;
+   */
+  styleVersions: string[];
+
+  /**
+   * @generated from field: string strategy = 3;
+   */
+  strategy: string;
+
+  /**
+   * @generated from field: vrooli.prose_studio.v1.prose.Sampler strategy_parameters = 4;
+   */
+  strategyParameters?: Sampler | undefined;
+
+  /**
+   * @generated from field: string provider = 5;
+   */
+  provider: string;
+
+  /**
+   * @generated from field: string resolved_model_ref = 6;
+   */
+  resolvedModelRef: string;
+
+  /**
+   * @generated from field: string gateway_role = 7;
+   */
+  gatewayRole: string;
+
+  /**
+   * @generated from field: double temperature_sent = 8;
+   */
+  temperatureSent: number;
+
+  /**
+   * @generated from field: string temperature_support = 9;
+   */
+  temperatureSupport: string;
+
+  /**
+   * @generated from field: int32 max_output_tokens_effective = 10;
+   */
+  maxOutputTokensEffective: number;
+
+  /**
+   * @generated from field: string max_output_tokens_source = 11;
+   */
+  maxOutputTokensSource: string;
+
+  /**
+   * @generated from field: int32 input_tokens = 12;
+   */
+  inputTokens: number;
+
+  /**
+   * @generated from field: int32 output_tokens = 13;
+   */
+  outputTokens: number;
+
+  /**
+   * @generated from field: int64 cost_micros = 14;
+   */
+  costMicros: bigint;
+
+  /**
+   * @generated from field: bool machine_generated = 15;
+   */
+  machineGenerated: boolean;
+
+  /**
+   * @generated from field: string disclosure = 16;
+   */
+  disclosure: string;
+
+  /**
+   * @generated from field: vrooli.prose_studio.v1.prose.ContextSnapshot context_snapshot = 17;
+   */
+  contextSnapshot?: ContextSnapshot | undefined;
+};
+
+/**
+ * Describes the message vrooli.prose_studio.v1.prose.Provenance.
+ * Use `create(ProvenanceSchema)` to create a new message.
+ */
+export const ProvenanceSchema: GenMessage<Provenance> = /*@__PURE__*/
+  messageDesc(file_prose_studio_v1_prose_prose, 17);
+
+/**
+ * @generated from message vrooli.prose_studio.v1.prose.Candidate
+ */
+export type Candidate = Message<"vrooli.prose_studio.v1.prose.Candidate"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string round_id = 2;
+   */
+  roundId: string;
+
+  /**
+   * @generated from field: repeated string derived_from = 3;
+   */
+  derivedFrom: string[];
+
+  /**
+   * @generated from field: string text = 4;
+   */
+  text: string;
+
+  /**
+   * @generated from field: google.protobuf.Struct measurements = 5;
+   */
+  measurements?: JsonObject | undefined;
+
+  /**
+   * @generated from field: google.protobuf.Struct set_measurements = 6;
+   */
+  setMeasurements?: JsonObject | undefined;
+
+  /**
+   * @generated from field: vrooli.prose_studio.v1.prose.Provenance provenance = 7;
+   */
+  provenance?: Provenance | undefined;
+
+  /**
+   * @generated from field: vrooli.prose_studio.v1.prose.VerbalizedHint verbalized_hint = 8;
+   */
+  verbalizedHint?: VerbalizedHint | undefined;
+
+  /**
+   * @generated from field: vrooli.prose_studio.v1.prose.Eligibility eligibility = 9;
+   */
+  eligibility?: Eligibility | undefined;
+
+  /**
+   * @generated from field: bool committed = 10;
+   */
+  committed: boolean;
+
+  /**
+   * @generated from field: int32 set_index = 11;
+   */
+  setIndex: number;
+};
+
+/**
+ * Describes the message vrooli.prose_studio.v1.prose.Candidate.
+ * Use `create(CandidateSchema)` to create a new message.
+ */
+export const CandidateSchema: GenMessage<Candidate> = /*@__PURE__*/
+  messageDesc(file_prose_studio_v1_prose_prose, 18);
+
+/**
+ * @generated from message vrooli.prose_studio.v1.prose.Round
+ */
+export type Round = Message<"vrooli.prose_studio.v1.prose.Round"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string session_id = 2;
+   */
+  sessionId: string;
+
+  /**
+   * @generated from field: vrooli.prose_studio.v1.prose.Sampler strategy = 3;
+   */
+  strategy?: Sampler | undefined;
+
+  /**
+   * @generated from field: repeated string candidate_ids = 4;
+   */
+  candidateIds: string[];
+
+  /**
+   * @generated from field: int32 candidate_count = 5;
+   */
+  candidateCount: number;
+
+  /**
+   * @generated from field: google.protobuf.Struct sampling_key = 6;
+   */
+  samplingKey?: JsonObject | undefined;
+
+  /**
+   * @generated from field: int64 total_cost_micros = 7;
+   */
+  totalCostMicros: bigint;
+
+  /**
+   * @generated from field: vrooli.prose_studio.v1.prose.NegativeContext negative_context = 8;
+   */
+  negativeContext?: NegativeContext | undefined;
+
+  /**
+   * @generated from field: int64 selection_seed = 9;
+   */
+  selectionSeed: bigint;
+};
+
+/**
+ * Describes the message vrooli.prose_studio.v1.prose.Round.
+ * Use `create(RoundSchema)` to create a new message.
+ */
+export const RoundSchema: GenMessage<Round> = /*@__PURE__*/
+  messageDesc(file_prose_studio_v1_prose_prose, 19);
+
+/**
+ * @generated from message vrooli.prose_studio.v1.prose.Session
+ */
+export type Session = Message<"vrooli.prose_studio.v1.prose.Session"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string profile_key = 2;
+   */
+  profileKey: string;
+
+  /**
+   * @generated from field: string query = 3;
+   */
+  query: string;
+
+  /**
+   * @generated from field: string status = 4;
+   */
+  status: string;
+
+  /**
+   * @generated from field: repeated string pinned = 5;
+   */
+  pinned: string[];
+
+  /**
+   * @generated from field: repeated string rejected = 6;
+   */
+  rejected: string[];
+
+  /**
+   * @generated from field: repeated string round_ids = 7;
+   */
+  roundIds: string[];
+
+  /**
+   * @generated from field: int64 budget_used_micros = 8;
+   */
+  budgetUsedMicros: bigint;
+};
+
+/**
+ * Describes the message vrooli.prose_studio.v1.prose.Session.
+ * Use `create(SessionSchema)` to create a new message.
+ */
+export const SessionSchema: GenMessage<Session> = /*@__PURE__*/
+  messageDesc(file_prose_studio_v1_prose_prose, 20);
+
+/**
+ * @generated from message vrooli.prose_studio.v1.prose.DegradedOutcome
+ */
+export type DegradedOutcome = Message<"vrooli.prose_studio.v1.prose.DegradedOutcome"> & {
+  /**
+   * @generated from field: string kind = 1;
+   */
+  kind: string;
+
+  /**
+   * @generated from field: string reason = 2;
+   */
+  reason: string;
+
+  /**
+   * @generated from field: int32 requested_candidates = 3;
+   */
+  requestedCandidates: number;
+
+  /**
+   * @generated from field: int32 received_candidates = 4;
+   */
+  receivedCandidates: number;
+
+  /**
+   * @generated from field: int32 max_output_tokens_effective = 5;
+   */
+  maxOutputTokensEffective: number;
+
+  /**
+   * @generated from field: string max_output_tokens_source = 6;
+   */
+  maxOutputTokensSource: string;
+};
+
+/**
+ * Describes the message vrooli.prose_studio.v1.prose.DegradedOutcome.
+ * Use `create(DegradedOutcomeSchema)` to create a new message.
+ */
+export const DegradedOutcomeSchema: GenMessage<DegradedOutcome> = /*@__PURE__*/
+  messageDesc(file_prose_studio_v1_prose_prose, 21);
+
+/**
+ * @generated from message vrooli.prose_studio.v1.prose.GenerateResponse
+ */
+export type GenerateResponse = Message<"vrooli.prose_studio.v1.prose.GenerateResponse"> & {
+  /**
+   * @generated from field: vrooli.prose_studio.v1.prose.Session session = 1;
+   */
+  session?: Session | undefined;
+
+  /**
+   * @generated from field: vrooli.prose_studio.v1.prose.Round round = 2;
+   */
+  round?: Round | undefined;
+
+  /**
+   * @generated from field: vrooli.prose_studio.v1.prose.Candidate selected = 3;
+   */
+  selected?: Candidate | undefined;
+
+  /**
+   * @generated from field: repeated vrooli.prose_studio.v1.prose.Candidate candidates = 4;
+   */
+  candidates: Candidate[];
+
+  /**
+   * @generated from field: repeated vrooli.prose_studio.v1.prose.Candidate selected_candidates = 5;
+   */
+  selectedCandidates: Candidate[];
+
+  /**
+   * @generated from field: vrooli.prose_studio.v1.prose.DegradedOutcome degraded = 6;
+   */
+  degraded?: DegradedOutcome | undefined;
+};
+
+/**
+ * Describes the message vrooli.prose_studio.v1.prose.GenerateResponse.
+ * Use `create(GenerateResponseSchema)` to create a new message.
+ */
+export const GenerateResponseSchema: GenMessage<GenerateResponse> = /*@__PURE__*/
+  messageDesc(file_prose_studio_v1_prose_prose, 22);
+
+/**
+ * @generated from message vrooli.prose_studio.v1.prose.RerollRequest
+ */
+export type RerollRequest = Message<"vrooli.prose_studio.v1.prose.RerollRequest"> & {
+  /**
+   * @generated from field: string session_id = 1;
+   */
+  sessionId: string;
+
+  /**
+   * @generated from field: bool include_candidates = 2;
+   */
+  includeCandidates: boolean;
+};
+
+/**
+ * Describes the message vrooli.prose_studio.v1.prose.RerollRequest.
+ * Use `create(RerollRequestSchema)` to create a new message.
+ */
+export const RerollRequestSchema: GenMessage<RerollRequest> = /*@__PURE__*/
+  messageDesc(file_prose_studio_v1_prose_prose, 23);
+
+/**
+ * @generated from message vrooli.prose_studio.v1.prose.RerollResponse
+ */
+export type RerollResponse = Message<"vrooli.prose_studio.v1.prose.RerollResponse"> & {
+  /**
+   * @generated from field: vrooli.prose_studio.v1.prose.GenerateResponse result = 1;
+   */
+  result?: GenerateResponse | undefined;
+};
+
+/**
+ * Describes the message vrooli.prose_studio.v1.prose.RerollResponse.
+ * Use `create(RerollResponseSchema)` to create a new message.
+ */
+export const RerollResponseSchema: GenMessage<RerollResponse> = /*@__PURE__*/
+  messageDesc(file_prose_studio_v1_prose_prose, 24);
+
+/**
+ * @generated from message vrooli.prose_studio.v1.prose.SessionActionRequest
+ */
+export type SessionActionRequest = Message<"vrooli.prose_studio.v1.prose.SessionActionRequest"> & {
+  /**
+   * @generated from field: string action = 1;
+   */
+  action: string;
+
+  /**
+   * @generated from field: string session_id = 2;
+   */
+  sessionId: string;
+
+  /**
+   * @generated from field: string candidate_id = 3;
+   */
+  candidateId: string;
+};
+
+/**
+ * Describes the message vrooli.prose_studio.v1.prose.SessionActionRequest.
+ * Use `create(SessionActionRequestSchema)` to create a new message.
+ */
+export const SessionActionRequestSchema: GenMessage<SessionActionRequest> = /*@__PURE__*/
+  messageDesc(file_prose_studio_v1_prose_prose, 25);
+
+/**
+ * @generated from message vrooli.prose_studio.v1.prose.SessionActionResponse
+ */
+export type SessionActionResponse = Message<"vrooli.prose_studio.v1.prose.SessionActionResponse"> & {
+  /**
+   * @generated from field: vrooli.prose_studio.v1.prose.Session session = 1;
+   */
+  session?: Session | undefined;
+};
+
+/**
+ * Describes the message vrooli.prose_studio.v1.prose.SessionActionResponse.
+ * Use `create(SessionActionResponseSchema)` to create a new message.
+ */
+export const SessionActionResponseSchema: GenMessage<SessionActionResponse> = /*@__PURE__*/
+  messageDesc(file_prose_studio_v1_prose_prose, 26);
+
+/**
+ * @generated from message vrooli.prose_studio.v1.prose.Declaration
+ */
+export type Declaration = Message<"vrooli.prose_studio.v1.prose.Declaration"> & {
+  /**
+   * @generated from field: string path = 1;
+   */
+  path: string;
+
+  /**
+   * @generated from field: string schema_version = 2;
+   */
+  schemaVersion: string;
+
+  /**
+   * @generated from field: string kind = 3;
+   */
+  kind: string;
+
+  /**
+   * @generated from field: string key = 4;
+   */
+  key: string;
+
+  /**
+   * @generated from field: string created_by = 5;
+   */
+  createdBy: string;
+
+  /**
+   * @generated from field: string content_hash = 6;
+   */
+  contentHash: string;
+
+  /**
+   * @generated from field: string status = 7;
+   */
+  status: string;
+
+  /**
+   * @generated from field: string error = 8;
+   */
+  error: string;
+
+  /**
+   * @generated from field: google.protobuf.Struct record = 9;
+   */
+  record?: JsonObject | undefined;
+};
+
+/**
+ * Describes the message vrooli.prose_studio.v1.prose.Declaration.
+ * Use `create(DeclarationSchema)` to create a new message.
+ */
+export const DeclarationSchema: GenMessage<Declaration> = /*@__PURE__*/
+  messageDesc(file_prose_studio_v1_prose_prose, 27);
+
+/**
+ * @generated from message vrooli.prose_studio.v1.prose.ReindexDeclarationsRequest
+ */
+export type ReindexDeclarationsRequest = Message<"vrooli.prose_studio.v1.prose.ReindexDeclarationsRequest"> & {
+  /**
+   * @generated from field: string root = 1;
+   */
+  root: string;
+};
+
+/**
+ * Describes the message vrooli.prose_studio.v1.prose.ReindexDeclarationsRequest.
+ * Use `create(ReindexDeclarationsRequestSchema)` to create a new message.
+ */
+export const ReindexDeclarationsRequestSchema: GenMessage<ReindexDeclarationsRequest> = /*@__PURE__*/
+  messageDesc(file_prose_studio_v1_prose_prose, 28);
+
+/**
+ * @generated from message vrooli.prose_studio.v1.prose.ReindexDeclarationsResponse
+ */
+export type ReindexDeclarationsResponse = Message<"vrooli.prose_studio.v1.prose.ReindexDeclarationsResponse"> & {
+  /**
+   * @generated from field: repeated vrooli.prose_studio.v1.prose.Declaration declarations = 1;
+   */
+  declarations: Declaration[];
+};
+
+/**
+ * Describes the message vrooli.prose_studio.v1.prose.ReindexDeclarationsResponse.
+ * Use `create(ReindexDeclarationsResponseSchema)` to create a new message.
+ */
+export const ReindexDeclarationsResponseSchema: GenMessage<ReindexDeclarationsResponse> = /*@__PURE__*/
+  messageDesc(file_prose_studio_v1_prose_prose, 29);
+
+/**
+ * @generated from message vrooli.prose_studio.v1.prose.ValidateDeclarationsRequest
+ */
+export type ValidateDeclarationsRequest = Message<"vrooli.prose_studio.v1.prose.ValidateDeclarationsRequest"> & {
+  /**
+   * @generated from field: string root = 1;
+   */
+  root: string;
+};
+
+/**
+ * Describes the message vrooli.prose_studio.v1.prose.ValidateDeclarationsRequest.
+ * Use `create(ValidateDeclarationsRequestSchema)` to create a new message.
+ */
+export const ValidateDeclarationsRequestSchema: GenMessage<ValidateDeclarationsRequest> = /*@__PURE__*/
+  messageDesc(file_prose_studio_v1_prose_prose, 30);
+
+/**
+ * @generated from message vrooli.prose_studio.v1.prose.ValidateDeclarationsResponse
+ */
+export type ValidateDeclarationsResponse = Message<"vrooli.prose_studio.v1.prose.ValidateDeclarationsResponse"> & {
+  /**
+   * @generated from field: repeated vrooli.prose_studio.v1.prose.Declaration declarations = 1;
+   */
+  declarations: Declaration[];
+};
+
+/**
+ * Describes the message vrooli.prose_studio.v1.prose.ValidateDeclarationsResponse.
+ * Use `create(ValidateDeclarationsResponseSchema)` to create a new message.
+ */
+export const ValidateDeclarationsResponseSchema: GenMessage<ValidateDeclarationsResponse> = /*@__PURE__*/
+  messageDesc(file_prose_studio_v1_prose_prose, 31);
+
+/**
+ * @generated from message vrooli.prose_studio.v1.prose.ContextSnapshot
+ */
+export type ContextSnapshot = Message<"vrooli.prose_studio.v1.prose.ContextSnapshot"> & {
+  /**
+   * @generated from field: string outline_ref = 1;
+   */
+  outlineRef: string;
+
+  /**
+   * @generated from field: repeated string prior_section_refs = 2;
+   */
+  priorSectionRefs: string[];
+
+  /**
+   * @generated from field: repeated string following_intents = 3;
+   */
+  followingIntents: string[];
+
+  /**
+   * @generated from field: repeated string summarized_section_refs = 4;
+   */
+  summarizedSectionRefs: string[];
+
+  /**
+   * @generated from field: int32 estimated_tokens = 5;
+   */
+  estimatedTokens: number;
+};
+
+/**
+ * Describes the message vrooli.prose_studio.v1.prose.ContextSnapshot.
+ * Use `create(ContextSnapshotSchema)` to create a new message.
+ */
+export const ContextSnapshotSchema: GenMessage<ContextSnapshot> = /*@__PURE__*/
+  messageDesc(file_prose_studio_v1_prose_prose, 32);
+
+/**
+ * @generated from message vrooli.prose_studio.v1.prose.Section
+ */
+export type Section = Message<"vrooli.prose_studio.v1.prose.Section"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string document_id = 2;
+   */
+  documentId: string;
+
+  /**
+   * @generated from field: int32 position = 3;
+   */
+  position: number;
+
+  /**
+   * @generated from field: string intent = 4;
+   */
+  intent: string;
+
+  /**
+   * @generated from field: string profile_key = 5;
+   */
+  profileKey: string;
+
+  /**
+   * @generated from field: string session_id = 6;
+   */
+  sessionId: string;
+
+  /**
+   * @generated from field: string committed_candidate_id = 7;
+   */
+  committedCandidateId: string;
+
+  /**
+   * @generated from field: vrooli.prose_studio.v1.prose.ContextSnapshot context = 8;
+   */
+  context?: ContextSnapshot | undefined;
+};
+
+/**
+ * Describes the message vrooli.prose_studio.v1.prose.Section.
+ * Use `create(SectionSchema)` to create a new message.
+ */
+export const SectionSchema: GenMessage<Section> = /*@__PURE__*/
+  messageDesc(file_prose_studio_v1_prose_prose, 33);
+
+/**
+ * @generated from message vrooli.prose_studio.v1.prose.Document
+ */
+export type Document = Message<"vrooli.prose_studio.v1.prose.Document"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string title = 2;
+   */
+  title: string;
+
+  /**
+   * @generated from field: string profile_key = 3;
+   */
+  profileKey: string;
+
+  /**
+   * @generated from field: string style_key = 4;
+   */
+  styleKey: string;
+
+  /**
+   * @generated from field: string outline_id = 5;
+   */
+  outlineId: string;
+
+  /**
+   * @generated from field: repeated string section_ids = 6;
+   */
+  sectionIds: string[];
+
+  /**
+   * @generated from field: string status = 7;
+   */
+  status: string;
+
+  /**
+   * @generated from field: string assembled_text = 8;
+   */
+  assembledText: string;
+
+  /**
+   * @generated from field: google.protobuf.Struct coherence = 9;
+   */
+  coherence?: JsonObject | undefined;
+
+  /**
+   * @generated from field: repeated vrooli.prose_studio.v1.prose.Section sections = 10;
+   */
+  sections: Section[];
+};
+
+/**
+ * Describes the message vrooli.prose_studio.v1.prose.Document.
+ * Use `create(DocumentSchema)` to create a new message.
+ */
+export const DocumentSchema: GenMessage<Document> = /*@__PURE__*/
+  messageDesc(file_prose_studio_v1_prose_prose, 34);
+
+/**
+ * @generated from message vrooli.prose_studio.v1.prose.CreateDocumentRequest
+ */
+export type CreateDocumentRequest = Message<"vrooli.prose_studio.v1.prose.CreateDocumentRequest"> & {
+  /**
+   * @generated from field: vrooli.prose_studio.v1.prose.Document document = 1;
+   */
+  document?: Document | undefined;
+
+  /**
+   * @generated from field: repeated vrooli.prose_studio.v1.prose.Section sections = 2;
+   */
+  sections: Section[];
+};
+
+/**
+ * Describes the message vrooli.prose_studio.v1.prose.CreateDocumentRequest.
+ * Use `create(CreateDocumentRequestSchema)` to create a new message.
+ */
+export const CreateDocumentRequestSchema: GenMessage<CreateDocumentRequest> = /*@__PURE__*/
+  messageDesc(file_prose_studio_v1_prose_prose, 35);
+
+/**
+ * @generated from message vrooli.prose_studio.v1.prose.CreateDocumentResponse
+ */
+export type CreateDocumentResponse = Message<"vrooli.prose_studio.v1.prose.CreateDocumentResponse"> & {
+  /**
+   * @generated from field: vrooli.prose_studio.v1.prose.Document document = 1;
+   */
+  document?: Document | undefined;
+};
+
+/**
+ * Describes the message vrooli.prose_studio.v1.prose.CreateDocumentResponse.
+ * Use `create(CreateDocumentResponseSchema)` to create a new message.
+ */
+export const CreateDocumentResponseSchema: GenMessage<CreateDocumentResponse> = /*@__PURE__*/
+  messageDesc(file_prose_studio_v1_prose_prose, 36);
+
+/**
+ * @generated from message vrooli.prose_studio.v1.prose.AssembleDocumentRequest
+ */
+export type AssembleDocumentRequest = Message<"vrooli.prose_studio.v1.prose.AssembleDocumentRequest"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+};
+
+/**
+ * Describes the message vrooli.prose_studio.v1.prose.AssembleDocumentRequest.
+ * Use `create(AssembleDocumentRequestSchema)` to create a new message.
+ */
+export const AssembleDocumentRequestSchema: GenMessage<AssembleDocumentRequest> = /*@__PURE__*/
+  messageDesc(file_prose_studio_v1_prose_prose, 37);
+
+/**
+ * @generated from message vrooli.prose_studio.v1.prose.AssembleDocumentResponse
+ */
+export type AssembleDocumentResponse = Message<"vrooli.prose_studio.v1.prose.AssembleDocumentResponse"> & {
+  /**
+   * @generated from field: vrooli.prose_studio.v1.prose.Document document = 1;
+   */
+  document?: Document | undefined;
+};
+
+/**
+ * Describes the message vrooli.prose_studio.v1.prose.AssembleDocumentResponse.
+ * Use `create(AssembleDocumentResponseSchema)` to create a new message.
+ */
+export const AssembleDocumentResponseSchema: GenMessage<AssembleDocumentResponse> = /*@__PURE__*/
+  messageDesc(file_prose_studio_v1_prose_prose, 38);
+
+/**
+ * @generated from message vrooli.prose_studio.v1.prose.ConformanceRequest
+ */
+export type ConformanceRequest = Message<"vrooli.prose_studio.v1.prose.ConformanceRequest"> & {
+  /**
+   * @generated from field: string style_key = 1;
+   */
+  styleKey: string;
+
+  /**
+   * @generated from field: string text = 2;
+   */
+  text: string;
+};
+
+/**
+ * Describes the message vrooli.prose_studio.v1.prose.ConformanceRequest.
+ * Use `create(ConformanceRequestSchema)` to create a new message.
+ */
+export const ConformanceRequestSchema: GenMessage<ConformanceRequest> = /*@__PURE__*/
+  messageDesc(file_prose_studio_v1_prose_prose, 39);
+
+/**
+ * @generated from message vrooli.prose_studio.v1.prose.ConformanceResponse
+ */
+export type ConformanceResponse = Message<"vrooli.prose_studio.v1.prose.ConformanceResponse"> & {
+  /**
+   * @generated from field: google.protobuf.Struct report = 1;
+   */
+  report?: JsonObject | undefined;
+};
+
+/**
+ * Describes the message vrooli.prose_studio.v1.prose.ConformanceResponse.
+ * Use `create(ConformanceResponseSchema)` to create a new message.
+ */
+export const ConformanceResponseSchema: GenMessage<ConformanceResponse> = /*@__PURE__*/
+  messageDesc(file_prose_studio_v1_prose_prose, 40);
 
 /**
  * @generated from service vrooli.prose_studio.v1.prose.ProseStudioService
@@ -61,88 +1370,88 @@ export const ProseStudioService: GenService<{
    */
   registry: {
     methodKind: "unary";
-    input: typeof JsonRequestSchema;
-    output: typeof JsonResponseSchema;
+    input: typeof RegistryRequestSchema;
+    output: typeof RegistryResponseSchema;
   },
   /**
    * @generated from rpc vrooli.prose_studio.v1.prose.ProseStudioService.CreateStyle
    */
   createStyle: {
     methodKind: "unary";
-    input: typeof JsonRequestSchema;
-    output: typeof JsonResponseSchema;
+    input: typeof CreateStyleRequestSchema;
+    output: typeof CreateStyleResponseSchema;
   },
   /**
    * @generated from rpc vrooli.prose_studio.v1.prose.ProseStudioService.ResolveProfile
    */
   resolveProfile: {
     methodKind: "unary";
-    input: typeof JsonRequestSchema;
-    output: typeof JsonResponseSchema;
+    input: typeof ResolveProfileRequestSchema;
+    output: typeof ResolveProfileResponseSchema;
   },
   /**
    * @generated from rpc vrooli.prose_studio.v1.prose.ProseStudioService.Generate
    */
   generate: {
     methodKind: "unary";
-    input: typeof JsonRequestSchema;
-    output: typeof JsonResponseSchema;
+    input: typeof GenerateRequestSchema;
+    output: typeof GenerateResponseSchema;
   },
   /**
    * @generated from rpc vrooli.prose_studio.v1.prose.ProseStudioService.Reroll
    */
   reroll: {
     methodKind: "unary";
-    input: typeof JsonRequestSchema;
-    output: typeof JsonResponseSchema;
+    input: typeof RerollRequestSchema;
+    output: typeof RerollResponseSchema;
   },
   /**
    * @generated from rpc vrooli.prose_studio.v1.prose.ProseStudioService.SessionAction
    */
   sessionAction: {
     methodKind: "unary";
-    input: typeof JsonRequestSchema;
-    output: typeof JsonResponseSchema;
+    input: typeof SessionActionRequestSchema;
+    output: typeof SessionActionResponseSchema;
   },
   /**
    * @generated from rpc vrooli.prose_studio.v1.prose.ProseStudioService.ReindexDeclarations
    */
   reindexDeclarations: {
     methodKind: "unary";
-    input: typeof JsonRequestSchema;
-    output: typeof JsonResponseSchema;
+    input: typeof ReindexDeclarationsRequestSchema;
+    output: typeof ReindexDeclarationsResponseSchema;
   },
   /**
    * @generated from rpc vrooli.prose_studio.v1.prose.ProseStudioService.ValidateDeclarations
    */
   validateDeclarations: {
     methodKind: "unary";
-    input: typeof JsonRequestSchema;
-    output: typeof JsonResponseSchema;
+    input: typeof ValidateDeclarationsRequestSchema;
+    output: typeof ValidateDeclarationsResponseSchema;
   },
   /**
    * @generated from rpc vrooli.prose_studio.v1.prose.ProseStudioService.CreateDocument
    */
   createDocument: {
     methodKind: "unary";
-    input: typeof JsonRequestSchema;
-    output: typeof JsonResponseSchema;
+    input: typeof CreateDocumentRequestSchema;
+    output: typeof CreateDocumentResponseSchema;
   },
   /**
    * @generated from rpc vrooli.prose_studio.v1.prose.ProseStudioService.AssembleDocument
    */
   assembleDocument: {
     methodKind: "unary";
-    input: typeof JsonRequestSchema;
-    output: typeof JsonResponseSchema;
+    input: typeof AssembleDocumentRequestSchema;
+    output: typeof AssembleDocumentResponseSchema;
   },
   /**
    * @generated from rpc vrooli.prose_studio.v1.prose.ProseStudioService.Conformance
    */
   conformance: {
     methodKind: "unary";
-    input: typeof JsonRequestSchema;
-    output: typeof JsonResponseSchema;
+    input: typeof ConformanceRequestSchema;
+    output: typeof ConformanceResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_prose_studio_v1_prose_prose, 0);

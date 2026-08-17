@@ -130,6 +130,44 @@ message JobPush {
   reserved 7 to 15; // env scoping, artifact inputs, queue metadata
 }
 
+// PrivilegedOperation is the closed vocabulary accepted by the separate
+// privileged helper.  The enum is deliberately owned by the channel contract:
+// the control plane cannot invent an operation that the helper has not been
+// taught, and the helper never accepts a caller-provided argv or shell string.
+enum PrivilegedOperation {
+  PRIVILEGED_OPERATION_UNSPECIFIED = 0;
+  PRIVILEGED_OPERATION_PROVISION = 1;
+  PRIVILEGED_OPERATION_INVENTORY_INSTALLATION = 2;
+  PRIVILEGED_OPERATION_PLAN_UNINSTALL = 3;
+  PRIVILEGED_OPERATION_PROVISION_BREAK_GLASS = 4;
+  PRIVILEGED_OPERATION_ISSUE_CLEANUP_CAPABILITY = 5;
+  PRIVILEGED_OPERATION_APPLY_FROZEN_PLAN = 6;
+  PRIVILEGED_OPERATION_VERIFY_RESULT = 7;
+  PRIVILEGED_OPERATION_ROTATE_BREAK_GLASS = 8;
+  PRIVILEGED_OPERATION_RESET_BREAK_GLASS = 9;
+}
+
+// CleanupCommand carries one typed request to the privileged helper.  The
+// control plane may relay an opaque sealed envelope, but it cannot open or
+// transform it.  Plan and apply are separate operations so the node can freeze
+// its own installation ledger and later apply exactly that frozen plan.
+message CleanupCommand {
+  PrivilegedOperation operation = 1;
+  string op_id = 2;
+  string machine_id = 3;
+  string node_id = 4;
+  string target = 5;
+  string scope = 6;
+  string plan_id = 7;
+  string plan_hash = 8;
+  bytes sealed_passphrase = 9;
+  bytes capability = 10;
+  bool operator_confirmed = 11;
+  string operator_id = 12;
+
+  reserved 13 to 31;
+}
+
 // ArtifactOutput describes one bounded file a typed job is allowed to produce.
 // The output_flag is a fixed flag name selected by the control-plane manifest;
 // it is not caller-supplied shell text.
@@ -236,6 +274,7 @@ message ServerFrame {
     shared.SessionFrame session = 7;
     RelayRequest relay = 8;
     RelayCancel relay_cancel = 9;
+    CleanupCommand cleanup = 10;
   }
 }
 

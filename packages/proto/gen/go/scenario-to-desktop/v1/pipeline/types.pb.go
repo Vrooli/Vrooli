@@ -62,6 +62,8 @@ type PipelineConfig struct {
 	BundleManifestPath *string `protobuf:"bytes,11,opt,name=bundle_manifest_path,json=bundleManifestPath,proto3,oneof" json:"bundle_manifest_path,omitempty"`
 	// Verified Vrooli release directory that contains resource artifacts.
 	ResourceArtifactRoot *string `protobuf:"bytes,24,opt,name=resource_artifact_root,json=resourceArtifactRoot,proto3,oneof" json:"resource_artifact_root,omitempty"`
+	// Verified Vrooli release directory that contains vendored tool artifacts.
+	ToolArtifactRoot *string `protobuf:"bytes,29,opt,name=tool_artifact_root,json=toolArtifactRoot,proto3,oneof" json:"tool_artifact_root,omitempty"`
 	// Output placement mode: proper, staging, or custom.
 	LocationMode *string `protobuf:"bytes,25,opt,name=location_mode,json=locationMode,proto3,oneof" json:"location_mode,omitempty"`
 	// Whether to clean existing output before building.
@@ -222,6 +224,13 @@ func (x *PipelineConfig) GetBundleManifestPath() string {
 func (x *PipelineConfig) GetResourceArtifactRoot() string {
 	if x != nil && x.ResourceArtifactRoot != nil {
 		return *x.ResourceArtifactRoot
+	}
+	return ""
+}
+
+func (x *PipelineConfig) GetToolArtifactRoot() string {
+	if x != nil && x.ToolArtifactRoot != nil {
+		return *x.ToolArtifactRoot
 	}
 	return ""
 }
@@ -690,6 +699,8 @@ type HostRequirementPlanItem struct {
 	Verdict       string                 `protobuf:"bytes,7,opt,name=verdict,proto3" json:"verdict,omitempty"`
 	Reason        string                 `protobuf:"bytes,8,opt,name=reason,proto3" json:"reason,omitempty"`
 	Provenance    []string               `protobuf:"bytes,9,rep,name=provenance,proto3" json:"provenance,omitempty"`
+	Architecture  string                 `protobuf:"bytes,10,opt,name=architecture,proto3" json:"architecture,omitempty"`
+	Artifact      *string                `protobuf:"bytes,11,opt,name=artifact,proto3,oneof" json:"artifact,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -785,6 +796,20 @@ func (x *HostRequirementPlanItem) GetProvenance() []string {
 		return x.Provenance
 	}
 	return nil
+}
+
+func (x *HostRequirementPlanItem) GetArchitecture() string {
+	if x != nil {
+		return x.Architecture
+	}
+	return ""
+}
+
+func (x *HostRequirementPlanItem) GetArtifact() string {
+	if x != nil && x.Artifact != nil {
+		return *x.Artifact
+	}
+	return ""
 }
 
 type ResourceDeploymentPlanItem struct {
@@ -1075,6 +1100,8 @@ type ResourceDeploymentService struct {
 	HealthChecks   []*ResourceDeploymentHealthCheck `protobuf:"bytes,8,rep,name=health_checks,json=healthChecks,proto3" json:"health_checks,omitempty"`
 	Files          []*ResourceDeploymentArtifact    `protobuf:"bytes,9,rep,name=files,proto3" json:"files,omitempty"`
 	Config         *ResourceDeploymentServiceConfig `protobuf:"bytes,10,opt,name=config,proto3,oneof" json:"config,omitempty"`
+	Layout         string                           `protobuf:"bytes,11,opt,name=layout,proto3" json:"layout,omitempty"`
+	EntryPath      *string                          `protobuf:"bytes,12,opt,name=entry_path,json=entryPath,proto3,oneof" json:"entry_path,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -1177,6 +1204,20 @@ func (x *ResourceDeploymentService) GetConfig() *ResourceDeploymentServiceConfig
 		return x.Config
 	}
 	return nil
+}
+
+func (x *ResourceDeploymentService) GetLayout() string {
+	if x != nil {
+		return x.Layout
+	}
+	return ""
+}
+
+func (x *ResourceDeploymentService) GetEntryPath() string {
+	if x != nil && x.EntryPath != nil {
+		return *x.EntryPath
+	}
+	return ""
 }
 
 type ResourceProviderPolicy struct {
@@ -3317,7 +3358,7 @@ var File_scenario_to_desktop_v1_pipeline_types_proto protoreflect.FileDescriptor
 
 const file_scenario_to_desktop_v1_pipeline_types_proto_rawDesc = "" +
 	"\n" +
-	"+scenario-to-desktop/v1/pipeline/types.proto\x12&vrooli.scenario_to_desktop.v1.pipeline\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a*scenario-to-desktop/v1/shared/common.proto\x1a,scenario-to-desktop/v1/shared/metadata.proto\x1a5scenario-to-desktop/v1/shared/operation_results.proto\x1a5scenario-to-desktop/v1/shared/preflight_results.proto\x1a1scenario-to-desktop/v1/shared/update_config.proto\"\xbe\x10\n" +
+	"+scenario-to-desktop/v1/pipeline/types.proto\x12&vrooli.scenario_to_desktop.v1.pipeline\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a*scenario-to-desktop/v1/shared/common.proto\x1a,scenario-to-desktop/v1/shared/metadata.proto\x1a5scenario-to-desktop/v1/shared/operation_results.proto\x1a5scenario-to-desktop/v1/shared/preflight_results.proto\x1a1scenario-to-desktop/v1/shared/update_config.proto\"\x88\x11\n" +
 	"\x0ePipelineConfig\x12,\n" +
 	"\rscenario_name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\fscenarioName\x12L\n" +
 	"\tplatforms\x18\x02 \x03(\x0e2..vrooli.scenario_to_desktop.v1.shared.PlatformR\tplatforms\x12*\n" +
@@ -3332,26 +3373,27 @@ const file_scenario_to_desktop_v1_pipeline_types_proto_rawDesc = "" +
 	"\tproxy_url\x18\n" +
 	" \x01(\tH\x04R\bproxyUrl\x88\x01\x01\x125\n" +
 	"\x14bundle_manifest_path\x18\v \x01(\tH\x05R\x12bundleManifestPath\x88\x01\x01\x129\n" +
-	"\x16resource_artifact_root\x18\x18 \x01(\tH\x06R\x14resourceArtifactRoot\x88\x01\x01\x12(\n" +
-	"\rlocation_mode\x18\x19 \x01(\tH\aR\flocationMode\x88\x01\x01\x12\x19\n" +
-	"\x05clean\x18\f \x01(\bH\bR\x05clean\x88\x01\x01\x12\x17\n" +
-	"\x04sign\x18\r \x01(\bH\tR\x04sign\x88\x01\x01\x12\x1d\n" +
-	"\apublish\x18\x0e \x01(\bH\n" +
-	"R\apublish\x88\x01\x01\x12#\n" +
+	"\x16resource_artifact_root\x18\x18 \x01(\tH\x06R\x14resourceArtifactRoot\x88\x01\x01\x121\n" +
+	"\x12tool_artifact_root\x18\x1d \x01(\tH\aR\x10toolArtifactRoot\x88\x01\x01\x12(\n" +
+	"\rlocation_mode\x18\x19 \x01(\tH\bR\flocationMode\x88\x01\x01\x12\x19\n" +
+	"\x05clean\x18\f \x01(\bH\tR\x05clean\x88\x01\x01\x12\x17\n" +
+	"\x04sign\x18\r \x01(\bH\n" +
+	"R\x04sign\x88\x01\x01\x12\x1d\n" +
+	"\apublish\x18\x0e \x01(\bH\vR\apublish\x88\x01\x01\x12#\n" +
 	"\n" +
-	"distribute\x18\x0f \x01(\bH\vR\n" +
+	"distribute\x18\x0f \x01(\bH\fR\n" +
 	"distribute\x88\x01\x01\x121\n" +
 	"\x14distribution_targets\x18\x10 \x03(\tR\x13distributionTargets\x12\x1d\n" +
-	"\aversion\x18\x11 \x01(\tH\fR\aversion\x88\x01\x01\x12?\n" +
-	"\x19preflight_timeout_seconds\x18\x12 \x01(\x05H\rR\x17preflightTimeoutSeconds\x88\x01\x01\x12y\n" +
+	"\aversion\x18\x11 \x01(\tH\rR\aversion\x88\x01\x01\x12?\n" +
+	"\x19preflight_timeout_seconds\x18\x12 \x01(\x05H\x0eR\x17preflightTimeoutSeconds\x88\x01\x01\x12y\n" +
 	"\x11preflight_secrets\x18\x13 \x03(\v2L.vrooli.scenario_to_desktop.v1.pipeline.PipelineConfig.PreflightSecretsEntryR\x10preflightSecrets\x12^\n" +
-	"\x10stop_after_stage\x18\x14 \x01(\x0e2/.vrooli.scenario_to_desktop.v1.shared.StageNameH\x0eR\x0estopAfterStage\x88\x01\x01\x12`\n" +
-	"\x11resume_from_stage\x18\x15 \x01(\x0e2/.vrooli.scenario_to_desktop.v1.shared.StageNameH\x0fR\x0fresumeFromStage\x88\x01\x01\x121\n" +
-	"\x12parent_pipeline_id\x18\x16 \x01(\tH\x10R\x10parentPipelineId\x88\x01\x01\x12,\n" +
-	"\x0fidempotency_key\x18\x17 \x01(\tH\x11R\x0eidempotencyKey\x88\x01\x01\x12G\n" +
+	"\x10stop_after_stage\x18\x14 \x01(\x0e2/.vrooli.scenario_to_desktop.v1.shared.StageNameH\x0fR\x0estopAfterStage\x88\x01\x01\x12`\n" +
+	"\x11resume_from_stage\x18\x15 \x01(\x0e2/.vrooli.scenario_to_desktop.v1.shared.StageNameH\x10R\x0fresumeFromStage\x88\x01\x01\x121\n" +
+	"\x12parent_pipeline_id\x18\x16 \x01(\tH\x11R\x10parentPipelineId\x88\x01\x01\x12,\n" +
+	"\x0fidempotency_key\x18\x17 \x01(\tH\x12R\x0eidempotencyKey\x88\x01\x01\x12G\n" +
 	"\x06stages\x18\x1a \x03(\x0e2/.vrooli.scenario_to_desktop.v1.shared.StageNameR\x06stages\x123\n" +
-	"\x13artifact_trust_mode\x18\x1b \x01(\tH\x12R\x11artifactTrustMode\x88\x01\x01\x12\\\n" +
-	"\rupdate_config\x18\x1c \x01(\v22.vrooli.scenario_to_desktop.v1.shared.UpdateConfigH\x13R\fupdateConfig\x88\x01\x01\x1aC\n" +
+	"\x13artifact_trust_mode\x18\x1b \x01(\tH\x13R\x11artifactTrustMode\x88\x01\x01\x12\\\n" +
+	"\rupdate_config\x18\x1c \x01(\v22.vrooli.scenario_to_desktop.v1.shared.UpdateConfigH\x14R\fupdateConfig\x88\x01\x01\x1aC\n" +
 	"\x15PreflightSecretsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01B\x11\n" +
@@ -3362,7 +3404,8 @@ const file_scenario_to_desktop_v1_pipeline_types_proto_rawDesc = "" +
 	"\n" +
 	"_proxy_urlB\x17\n" +
 	"\x15_bundle_manifest_pathB\x19\n" +
-	"\x17_resource_artifact_rootB\x10\n" +
+	"\x17_resource_artifact_rootB\x15\n" +
+	"\x13_tool_artifact_rootB\x10\n" +
 	"\x0e_location_modeB\b\n" +
 	"\x06_cleanB\a\n" +
 	"\x05_signB\n" +
@@ -3408,7 +3451,7 @@ const file_scenario_to_desktop_v1_pipeline_types_proto_rawDesc = "" +
 	"\n" +
 	"promotable\x18\x04 \x01(\bR\n" +
 	"promotable\x12l\n" +
-	"\x11host_requirements\x18\x05 \x03(\v2?.vrooli.scenario_to_desktop.v1.pipeline.HostRequirementPlanItemR\x10hostRequirements\"\xf9\x01\n" +
+	"\x11host_requirements\x18\x05 \x03(\v2?.vrooli.scenario_to_desktop.v1.pipeline.HostRequirementPlanItemR\x10hostRequirements\"\xcb\x02\n" +
 	"\x17HostRequirementPlanItem\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x12\n" +
 	"\x04kind\x18\x02 \x01(\tR\x04kind\x12\x0e\n" +
@@ -3420,7 +3463,11 @@ const file_scenario_to_desktop_v1_pipeline_types_proto_rawDesc = "" +
 	"\x06reason\x18\b \x01(\tR\x06reason\x12\x1e\n" +
 	"\n" +
 	"provenance\x18\t \x03(\tR\n" +
-	"provenance\"\xb0\x06\n" +
+	"provenance\x12\"\n" +
+	"\farchitecture\x18\n" +
+	" \x01(\tR\farchitecture\x12\x1f\n" +
+	"\bartifact\x18\v \x01(\tH\x00R\bartifact\x88\x01\x01B\v\n" +
+	"\t_artifact\"\xb0\x06\n" +
 	"\x1aResourceDeploymentPlanItem\x12-\n" +
 	"\x12requested_resource\x18\x01 \x01(\tR\x11requestedResource\x12\x1a\n" +
 	"\bresource\x18\x02 \x01(\tR\bresource\x12\x0e\n" +
@@ -3449,7 +3496,7 @@ const file_scenario_to_desktop_v1_pipeline_types_proto_rawDesc = "" +
 	"\x06reason\x18\x02 \x01(\tR\x06reason\"H\n" +
 	"\x1aResourceDeploymentArtifact\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x16\n" +
-	"\x06sha256\x18\x02 \x01(\tR\x06sha256\"\xba\x06\n" +
+	"\x06sha256\x18\x02 \x01(\tR\x06sha256\"\x85\a\n" +
 	"\x19ResourceDeploymentService\x12g\n" +
 	"\x0fprovider_policy\x18\x01 \x01(\v2>.vrooli.scenario_to_desktop.v1.pipeline.ResourceProviderPolicyR\x0eproviderPolicy\x12\x1a\n" +
 	"\bartifact\x18\x02 \x01(\tR\bartifact\x12\x18\n" +
@@ -3461,11 +3508,15 @@ const file_scenario_to_desktop_v1_pipeline_types_proto_rawDesc = "" +
 	"\rhealth_checks\x18\b \x03(\v2E.vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentHealthCheckR\fhealthChecks\x12X\n" +
 	"\x05files\x18\t \x03(\v2B.vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentArtifactR\x05files\x12d\n" +
 	"\x06config\x18\n" +
-	" \x01(\v2G.vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentServiceConfigH\x00R\x06config\x88\x01\x01\x1a>\n" +
+	" \x01(\v2G.vrooli.scenario_to_desktop.v1.pipeline.ResourceDeploymentServiceConfigH\x00R\x06config\x88\x01\x01\x12\x16\n" +
+	"\x06layout\x18\v \x01(\tR\x06layout\x12\"\n" +
+	"\n" +
+	"entry_path\x18\f \x01(\tH\x01R\tentryPath\x88\x01\x01\x1a>\n" +
 	"\x10EnvironmentEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01B\t\n" +
-	"\a_config\"\xd6\x03\n" +
+	"\a_configB\r\n" +
+	"\v_entry_path\"\xd6\x03\n" +
 	"\x16ResourceProviderPolicy\x12!\n" +
 	"\fdefault_mode\x18\x01 \x01(\tR\vdefaultMode\x12{\n" +
 	"\x0ftarget_defaults\x18\x02 \x03(\v2R.vrooli.scenario_to_desktop.v1.pipeline.ResourceProviderPolicy.TargetDefaultsEntryR\x0etargetDefaults\x12#\n" +
@@ -3883,6 +3934,7 @@ func file_scenario_to_desktop_v1_pipeline_types_proto_init() {
 		(*StageDetails_SmokeTest)(nil),
 		(*StageDetails_Deploy)(nil),
 	}
+	file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[4].OneofWrappers = []any{}
 	file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[5].OneofWrappers = []any{}
 	file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[8].OneofWrappers = []any{}
 	file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[13].OneofWrappers = []any{}

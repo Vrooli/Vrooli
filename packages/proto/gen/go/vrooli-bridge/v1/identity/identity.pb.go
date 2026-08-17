@@ -9,6 +9,7 @@ package identity_v1
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -370,11 +371,163 @@ func (x *RefreshResponse) GetRefreshToken() string {
 	return ""
 }
 
+type EnrollOperatorSessionRequest struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	PublicKey       []byte                 `protobuf:"bytes,1,opt,name=public_key,json=publicKey,proto3" json:"public_key,omitempty"`
+	Mode            string                 `protobuf:"bytes,2,opt,name=mode,proto3" json:"mode,omitempty"`
+	RequestedScopes []string               `protobuf:"bytes,3,rep,name=requested_scopes,json=requestedScopes,proto3" json:"requested_scopes,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *EnrollOperatorSessionRequest) Reset() {
+	*x = EnrollOperatorSessionRequest{}
+	mi := &file_vrooli_bridge_v1_identity_identity_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EnrollOperatorSessionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EnrollOperatorSessionRequest) ProtoMessage() {}
+
+func (x *EnrollOperatorSessionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_vrooli_bridge_v1_identity_identity_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EnrollOperatorSessionRequest.ProtoReflect.Descriptor instead.
+func (*EnrollOperatorSessionRequest) Descriptor() ([]byte, []int) {
+	return file_vrooli_bridge_v1_identity_identity_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *EnrollOperatorSessionRequest) GetPublicKey() []byte {
+	if x != nil {
+		return x.PublicKey
+	}
+	return nil
+}
+
+func (x *EnrollOperatorSessionRequest) GetMode() string {
+	if x != nil {
+		return x.Mode
+	}
+	return ""
+}
+
+func (x *EnrollOperatorSessionRequest) GetRequestedScopes() []string {
+	if x != nil {
+		return x.RequestedScopes
+	}
+	return nil
+}
+
+type EnrollOperatorSessionResponse struct {
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	EnrollmentReference string                 `protobuf:"bytes,1,opt,name=enrollment_reference,json=enrollmentReference,proto3" json:"enrollment_reference,omitempty"`
+	OperatorId          string                 `protobuf:"bytes,2,opt,name=operator_id,json=operatorId,proto3" json:"operator_id,omitempty"`
+	IdentityProvider    string                 `protobuf:"bytes,3,opt,name=identity_provider,json=identityProvider,proto3" json:"identity_provider,omitempty"`
+	Mode                string                 `protobuf:"bytes,4,opt,name=mode,proto3" json:"mode,omitempty"`
+	ScopeCeiling        []string               `protobuf:"bytes,5,rep,name=scope_ceiling,json=scopeCeiling,proto3" json:"scope_ceiling,omitempty"`
+	EnrolledAt          *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=enrolled_at,json=enrolledAt,proto3" json:"enrolled_at,omitempty"`
+	SessionTtlSeconds   int64                  `protobuf:"varint,7,opt,name=session_ttl_seconds,json=sessionTtlSeconds,proto3" json:"session_ttl_seconds,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
+}
+
+func (x *EnrollOperatorSessionResponse) Reset() {
+	*x = EnrollOperatorSessionResponse{}
+	mi := &file_vrooli_bridge_v1_identity_identity_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EnrollOperatorSessionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EnrollOperatorSessionResponse) ProtoMessage() {}
+
+func (x *EnrollOperatorSessionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_vrooli_bridge_v1_identity_identity_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EnrollOperatorSessionResponse.ProtoReflect.Descriptor instead.
+func (*EnrollOperatorSessionResponse) Descriptor() ([]byte, []int) {
+	return file_vrooli_bridge_v1_identity_identity_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *EnrollOperatorSessionResponse) GetEnrollmentReference() string {
+	if x != nil {
+		return x.EnrollmentReference
+	}
+	return ""
+}
+
+func (x *EnrollOperatorSessionResponse) GetOperatorId() string {
+	if x != nil {
+		return x.OperatorId
+	}
+	return ""
+}
+
+func (x *EnrollOperatorSessionResponse) GetIdentityProvider() string {
+	if x != nil {
+		return x.IdentityProvider
+	}
+	return ""
+}
+
+func (x *EnrollOperatorSessionResponse) GetMode() string {
+	if x != nil {
+		return x.Mode
+	}
+	return ""
+}
+
+func (x *EnrollOperatorSessionResponse) GetScopeCeiling() []string {
+	if x != nil {
+		return x.ScopeCeiling
+	}
+	return nil
+}
+
+func (x *EnrollOperatorSessionResponse) GetEnrolledAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.EnrolledAt
+	}
+	return nil
+}
+
+func (x *EnrollOperatorSessionResponse) GetSessionTtlSeconds() int64 {
+	if x != nil {
+		return x.SessionTtlSeconds
+	}
+	return 0
+}
+
 var File_vrooli_bridge_v1_identity_identity_proto protoreflect.FileDescriptor
 
 const file_vrooli_bridge_v1_identity_identity_proto_rawDesc = "" +
 	"\n" +
-	"(vrooli-bridge/v1/identity/identity.proto\x12 vrooli.vrooli_bridge.v1.identity\"@\n" +
+	"(vrooli-bridge/v1/identity/identity.proto\x12 vrooli.vrooli_bridge.v1.identity\x1a\x1fgoogle/protobuf/timestamp.proto\"@\n" +
 	"\fLoginRequest\x12\x14\n" +
 	"\x05email\x18\x01 \x01(\tR\x05email\x12\x1a\n" +
 	"\bpassword\x18\x02 \x01(\tR\bpassword\"y\n" +
@@ -396,11 +549,27 @@ const file_vrooli_bridge_v1_identity_identity_proto_rawDesc = "" +
 	"\rrefresh_token\x18\x01 \x01(\tR\frefreshToken\"L\n" +
 	"\x0fRefreshResponse\x12\x14\n" +
 	"\x05token\x18\x01 \x01(\tR\x05token\x12#\n" +
-	"\rrefresh_token\x18\x02 \x01(\tR\frefreshToken2\xde\x02\n" +
+	"\rrefresh_token\x18\x02 \x01(\tR\frefreshToken\"|\n" +
+	"\x1cEnrollOperatorSessionRequest\x12\x1d\n" +
+	"\n" +
+	"public_key\x18\x01 \x01(\fR\tpublicKey\x12\x12\n" +
+	"\x04mode\x18\x02 \x01(\tR\x04mode\x12)\n" +
+	"\x10requested_scopes\x18\x03 \x03(\tR\x0frequestedScopes\"\xc6\x02\n" +
+	"\x1dEnrollOperatorSessionResponse\x121\n" +
+	"\x14enrollment_reference\x18\x01 \x01(\tR\x13enrollmentReference\x12\x1f\n" +
+	"\voperator_id\x18\x02 \x01(\tR\n" +
+	"operatorId\x12+\n" +
+	"\x11identity_provider\x18\x03 \x01(\tR\x10identityProvider\x12\x12\n" +
+	"\x04mode\x18\x04 \x01(\tR\x04mode\x12#\n" +
+	"\rscope_ceiling\x18\x05 \x03(\tR\fscopeCeiling\x12;\n" +
+	"\venrolled_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"enrolledAt\x12.\n" +
+	"\x13session_ttl_seconds\x18\a \x01(\x03R\x11sessionTtlSeconds2\xf9\x03\n" +
 	"\x0fIdentityService\x12h\n" +
 	"\x05Login\x12..vrooli.vrooli_bridge.v1.identity.LoginRequest\x1a/.vrooli.vrooli_bridge.v1.identity.LoginResponse\x12q\n" +
 	"\bRegister\x121.vrooli.vrooli_bridge.v1.identity.RegisterRequest\x1a2.vrooli.vrooli_bridge.v1.identity.RegisterResponse\x12n\n" +
-	"\aRefresh\x120.vrooli.vrooli_bridge.v1.identity.RefreshRequest\x1a1.vrooli.vrooli_bridge.v1.identity.RefreshResponseBVZTgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/identity;identity_v1b\x06proto3"
+	"\aRefresh\x120.vrooli.vrooli_bridge.v1.identity.RefreshRequest\x1a1.vrooli.vrooli_bridge.v1.identity.RefreshResponse\x12\x98\x01\n" +
+	"\x15EnrollOperatorSession\x12>.vrooli.vrooli_bridge.v1.identity.EnrollOperatorSessionRequest\x1a?.vrooli.vrooli_bridge.v1.identity.EnrollOperatorSessionResponseBVZTgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/identity;identity_v1b\x06proto3"
 
 var (
 	file_vrooli_bridge_v1_identity_identity_proto_rawDescOnce sync.Once
@@ -414,27 +583,33 @@ func file_vrooli_bridge_v1_identity_identity_proto_rawDescGZIP() []byte {
 	return file_vrooli_bridge_v1_identity_identity_proto_rawDescData
 }
 
-var file_vrooli_bridge_v1_identity_identity_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_vrooli_bridge_v1_identity_identity_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_vrooli_bridge_v1_identity_identity_proto_goTypes = []any{
-	(*LoginRequest)(nil),     // 0: vrooli.vrooli_bridge.v1.identity.LoginRequest
-	(*LoginResponse)(nil),    // 1: vrooli.vrooli_bridge.v1.identity.LoginResponse
-	(*RegisterRequest)(nil),  // 2: vrooli.vrooli_bridge.v1.identity.RegisterRequest
-	(*RegisterResponse)(nil), // 3: vrooli.vrooli_bridge.v1.identity.RegisterResponse
-	(*RefreshRequest)(nil),   // 4: vrooli.vrooli_bridge.v1.identity.RefreshRequest
-	(*RefreshResponse)(nil),  // 5: vrooli.vrooli_bridge.v1.identity.RefreshResponse
+	(*LoginRequest)(nil),                  // 0: vrooli.vrooli_bridge.v1.identity.LoginRequest
+	(*LoginResponse)(nil),                 // 1: vrooli.vrooli_bridge.v1.identity.LoginResponse
+	(*RegisterRequest)(nil),               // 2: vrooli.vrooli_bridge.v1.identity.RegisterRequest
+	(*RegisterResponse)(nil),              // 3: vrooli.vrooli_bridge.v1.identity.RegisterResponse
+	(*RefreshRequest)(nil),                // 4: vrooli.vrooli_bridge.v1.identity.RefreshRequest
+	(*RefreshResponse)(nil),               // 5: vrooli.vrooli_bridge.v1.identity.RefreshResponse
+	(*EnrollOperatorSessionRequest)(nil),  // 6: vrooli.vrooli_bridge.v1.identity.EnrollOperatorSessionRequest
+	(*EnrollOperatorSessionResponse)(nil), // 7: vrooli.vrooli_bridge.v1.identity.EnrollOperatorSessionResponse
+	(*timestamppb.Timestamp)(nil),         // 8: google.protobuf.Timestamp
 }
 var file_vrooli_bridge_v1_identity_identity_proto_depIdxs = []int32{
-	0, // 0: vrooli.vrooli_bridge.v1.identity.IdentityService.Login:input_type -> vrooli.vrooli_bridge.v1.identity.LoginRequest
-	2, // 1: vrooli.vrooli_bridge.v1.identity.IdentityService.Register:input_type -> vrooli.vrooli_bridge.v1.identity.RegisterRequest
-	4, // 2: vrooli.vrooli_bridge.v1.identity.IdentityService.Refresh:input_type -> vrooli.vrooli_bridge.v1.identity.RefreshRequest
-	1, // 3: vrooli.vrooli_bridge.v1.identity.IdentityService.Login:output_type -> vrooli.vrooli_bridge.v1.identity.LoginResponse
-	3, // 4: vrooli.vrooli_bridge.v1.identity.IdentityService.Register:output_type -> vrooli.vrooli_bridge.v1.identity.RegisterResponse
-	5, // 5: vrooli.vrooli_bridge.v1.identity.IdentityService.Refresh:output_type -> vrooli.vrooli_bridge.v1.identity.RefreshResponse
-	3, // [3:6] is the sub-list for method output_type
-	0, // [0:3] is the sub-list for method input_type
-	0, // [0:0] is the sub-list for extension type_name
-	0, // [0:0] is the sub-list for extension extendee
-	0, // [0:0] is the sub-list for field type_name
+	8, // 0: vrooli.vrooli_bridge.v1.identity.EnrollOperatorSessionResponse.enrolled_at:type_name -> google.protobuf.Timestamp
+	0, // 1: vrooli.vrooli_bridge.v1.identity.IdentityService.Login:input_type -> vrooli.vrooli_bridge.v1.identity.LoginRequest
+	2, // 2: vrooli.vrooli_bridge.v1.identity.IdentityService.Register:input_type -> vrooli.vrooli_bridge.v1.identity.RegisterRequest
+	4, // 3: vrooli.vrooli_bridge.v1.identity.IdentityService.Refresh:input_type -> vrooli.vrooli_bridge.v1.identity.RefreshRequest
+	6, // 4: vrooli.vrooli_bridge.v1.identity.IdentityService.EnrollOperatorSession:input_type -> vrooli.vrooli_bridge.v1.identity.EnrollOperatorSessionRequest
+	1, // 5: vrooli.vrooli_bridge.v1.identity.IdentityService.Login:output_type -> vrooli.vrooli_bridge.v1.identity.LoginResponse
+	3, // 6: vrooli.vrooli_bridge.v1.identity.IdentityService.Register:output_type -> vrooli.vrooli_bridge.v1.identity.RegisterResponse
+	5, // 7: vrooli.vrooli_bridge.v1.identity.IdentityService.Refresh:output_type -> vrooli.vrooli_bridge.v1.identity.RefreshResponse
+	7, // 8: vrooli.vrooli_bridge.v1.identity.IdentityService.EnrollOperatorSession:output_type -> vrooli.vrooli_bridge.v1.identity.EnrollOperatorSessionResponse
+	5, // [5:9] is the sub-list for method output_type
+	1, // [1:5] is the sub-list for method input_type
+	1, // [1:1] is the sub-list for extension type_name
+	1, // [1:1] is the sub-list for extension extendee
+	0, // [0:1] is the sub-list for field type_name
 }
 
 func init() { file_vrooli_bridge_v1_identity_identity_proto_init() }
@@ -448,7 +623,7 @@ func file_vrooli_bridge_v1_identity_identity_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_vrooli_bridge_v1_identity_identity_proto_rawDesc), len(file_vrooli_bridge_v1_identity_identity_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   6,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -902,8 +902,13 @@ type StartOnboardingRequest struct {
 	// request-scoped, rides the SSH bootstrap stdin channel after the pairing
 	// code, and is never persisted, logged, or accepted on argv.
 	SetupPassphrase string `protobuf:"bytes,23,opt,name=setup_passphrase,json=setupPassphrase,proto3" json:"setup_passphrase,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// Optional OS principal for the distinct privileged provisioning helper.
+	// This is an account name, never credential material; when set, bootstrap
+	// installs the machine-wide helper under this principal rather than leaving
+	// cleanup/provisioning unavailable.
+	ProvisionServiceUser string `protobuf:"bytes,24,opt,name=provision_service_user,json=provisionServiceUser,proto3" json:"provision_service_user,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *StartOnboardingRequest) Reset() {
@@ -1097,6 +1102,181 @@ func (x *StartOnboardingRequest) GetSetupPassphrase() string {
 	return ""
 }
 
+func (x *StartOnboardingRequest) GetProvisionServiceUser() string {
+	if x != nil {
+		return x.ProvisionServiceUser
+	}
+	return ""
+}
+
+type ProtectOnboardingRequest struct {
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	OnboardingOpId     string                 `protobuf:"bytes,1,opt,name=onboarding_op_id,json=onboardingOpId,proto3" json:"onboarding_op_id,omitempty"`
+	MachineId          string                 `protobuf:"bytes,2,opt,name=machine_id,json=machineId,proto3" json:"machine_id,omitempty"`
+	NodeId             string                 `protobuf:"bytes,3,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
+	Target             string                 `protobuf:"bytes,4,opt,name=target,proto3" json:"target,omitempty"`
+	Scope              string                 `protobuf:"bytes,5,opt,name=scope,proto3" json:"scope,omitempty"`
+	CleanupOperationId string                 `protobuf:"bytes,6,opt,name=cleanup_operation_id,json=cleanupOperationId,proto3" json:"cleanup_operation_id,omitempty"`
+	SealedPassphrase   []byte                 `protobuf:"bytes,7,opt,name=sealed_passphrase,json=sealedPassphrase,proto3" json:"sealed_passphrase,omitempty"`
+	Declined           bool                   `protobuf:"varint,8,opt,name=declined,proto3" json:"declined,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
+}
+
+func (x *ProtectOnboardingRequest) Reset() {
+	*x = ProtectOnboardingRequest{}
+	mi := &file_vrooli_bridge_v1_onboard_onboard_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProtectOnboardingRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProtectOnboardingRequest) ProtoMessage() {}
+
+func (x *ProtectOnboardingRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_vrooli_bridge_v1_onboard_onboard_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProtectOnboardingRequest.ProtoReflect.Descriptor instead.
+func (*ProtectOnboardingRequest) Descriptor() ([]byte, []int) {
+	return file_vrooli_bridge_v1_onboard_onboard_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *ProtectOnboardingRequest) GetOnboardingOpId() string {
+	if x != nil {
+		return x.OnboardingOpId
+	}
+	return ""
+}
+
+func (x *ProtectOnboardingRequest) GetMachineId() string {
+	if x != nil {
+		return x.MachineId
+	}
+	return ""
+}
+
+func (x *ProtectOnboardingRequest) GetNodeId() string {
+	if x != nil {
+		return x.NodeId
+	}
+	return ""
+}
+
+func (x *ProtectOnboardingRequest) GetTarget() string {
+	if x != nil {
+		return x.Target
+	}
+	return ""
+}
+
+func (x *ProtectOnboardingRequest) GetScope() string {
+	if x != nil {
+		return x.Scope
+	}
+	return ""
+}
+
+func (x *ProtectOnboardingRequest) GetCleanupOperationId() string {
+	if x != nil {
+		return x.CleanupOperationId
+	}
+	return ""
+}
+
+func (x *ProtectOnboardingRequest) GetSealedPassphrase() []byte {
+	if x != nil {
+		return x.SealedPassphrase
+	}
+	return nil
+}
+
+func (x *ProtectOnboardingRequest) GetDeclined() bool {
+	if x != nil {
+		return x.Declined
+	}
+	return false
+}
+
+type ProtectOnboardingResponse struct {
+	state                 protoimpl.MessageState `protogen:"open.v1"`
+	Op                    *OnboardingOp          `protobuf:"bytes,1,opt,name=op,proto3" json:"op,omitempty"`
+	ProtectionStatus      string                 `protobuf:"bytes,2,opt,name=protection_status,json=protectionStatus,proto3" json:"protection_status,omitempty"`
+	ProtectionOperationId string                 `protobuf:"bytes,3,opt,name=protection_operation_id,json=protectionOperationId,proto3" json:"protection_operation_id,omitempty"`
+	Detail                string                 `protobuf:"bytes,4,opt,name=detail,proto3" json:"detail,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
+}
+
+func (x *ProtectOnboardingResponse) Reset() {
+	*x = ProtectOnboardingResponse{}
+	mi := &file_vrooli_bridge_v1_onboard_onboard_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProtectOnboardingResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProtectOnboardingResponse) ProtoMessage() {}
+
+func (x *ProtectOnboardingResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_vrooli_bridge_v1_onboard_onboard_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProtectOnboardingResponse.ProtoReflect.Descriptor instead.
+func (*ProtectOnboardingResponse) Descriptor() ([]byte, []int) {
+	return file_vrooli_bridge_v1_onboard_onboard_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *ProtectOnboardingResponse) GetOp() *OnboardingOp {
+	if x != nil {
+		return x.Op
+	}
+	return nil
+}
+
+func (x *ProtectOnboardingResponse) GetProtectionStatus() string {
+	if x != nil {
+		return x.ProtectionStatus
+	}
+	return ""
+}
+
+func (x *ProtectOnboardingResponse) GetProtectionOperationId() string {
+	if x != nil {
+		return x.ProtectionOperationId
+	}
+	return ""
+}
+
+func (x *ProtectOnboardingResponse) GetDetail() string {
+	if x != nil {
+		return x.Detail
+	}
+	return ""
+}
+
 type StartOnboardingResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The server-owned durable op id to wait on / re-attach by. Empty on a
@@ -1119,7 +1299,7 @@ type StartOnboardingResponse struct {
 
 func (x *StartOnboardingResponse) Reset() {
 	*x = StartOnboardingResponse{}
-	mi := &file_vrooli_bridge_v1_onboard_onboard_proto_msgTypes[5]
+	mi := &file_vrooli_bridge_v1_onboard_onboard_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1131,7 +1311,7 @@ func (x *StartOnboardingResponse) String() string {
 func (*StartOnboardingResponse) ProtoMessage() {}
 
 func (x *StartOnboardingResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_bridge_v1_onboard_onboard_proto_msgTypes[5]
+	mi := &file_vrooli_bridge_v1_onboard_onboard_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1144,7 +1324,7 @@ func (x *StartOnboardingResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartOnboardingResponse.ProtoReflect.Descriptor instead.
 func (*StartOnboardingResponse) Descriptor() ([]byte, []int) {
-	return file_vrooli_bridge_v1_onboard_onboard_proto_rawDescGZIP(), []int{5}
+	return file_vrooli_bridge_v1_onboard_onboard_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *StartOnboardingResponse) GetOpId() string {
@@ -1205,7 +1385,7 @@ type GetOnboardingRequest struct {
 
 func (x *GetOnboardingRequest) Reset() {
 	*x = GetOnboardingRequest{}
-	mi := &file_vrooli_bridge_v1_onboard_onboard_proto_msgTypes[6]
+	mi := &file_vrooli_bridge_v1_onboard_onboard_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1217,7 +1397,7 @@ func (x *GetOnboardingRequest) String() string {
 func (*GetOnboardingRequest) ProtoMessage() {}
 
 func (x *GetOnboardingRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_bridge_v1_onboard_onboard_proto_msgTypes[6]
+	mi := &file_vrooli_bridge_v1_onboard_onboard_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1230,7 +1410,7 @@ func (x *GetOnboardingRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetOnboardingRequest.ProtoReflect.Descriptor instead.
 func (*GetOnboardingRequest) Descriptor() ([]byte, []int) {
-	return file_vrooli_bridge_v1_onboard_onboard_proto_rawDescGZIP(), []int{6}
+	return file_vrooli_bridge_v1_onboard_onboard_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *GetOnboardingRequest) GetId() string {
@@ -1251,7 +1431,7 @@ type GetOnboardingResponse struct {
 
 func (x *GetOnboardingResponse) Reset() {
 	*x = GetOnboardingResponse{}
-	mi := &file_vrooli_bridge_v1_onboard_onboard_proto_msgTypes[7]
+	mi := &file_vrooli_bridge_v1_onboard_onboard_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1263,7 +1443,7 @@ func (x *GetOnboardingResponse) String() string {
 func (*GetOnboardingResponse) ProtoMessage() {}
 
 func (x *GetOnboardingResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_bridge_v1_onboard_onboard_proto_msgTypes[7]
+	mi := &file_vrooli_bridge_v1_onboard_onboard_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1276,7 +1456,7 @@ func (x *GetOnboardingResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetOnboardingResponse.ProtoReflect.Descriptor instead.
 func (*GetOnboardingResponse) Descriptor() ([]byte, []int) {
-	return file_vrooli_bridge_v1_onboard_onboard_proto_rawDescGZIP(), []int{7}
+	return file_vrooli_bridge_v1_onboard_onboard_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *GetOnboardingResponse) GetOp() *OnboardingOp {
@@ -1305,7 +1485,7 @@ type ListOnboardingsRequest struct {
 
 func (x *ListOnboardingsRequest) Reset() {
 	*x = ListOnboardingsRequest{}
-	mi := &file_vrooli_bridge_v1_onboard_onboard_proto_msgTypes[8]
+	mi := &file_vrooli_bridge_v1_onboard_onboard_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1317,7 +1497,7 @@ func (x *ListOnboardingsRequest) String() string {
 func (*ListOnboardingsRequest) ProtoMessage() {}
 
 func (x *ListOnboardingsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_bridge_v1_onboard_onboard_proto_msgTypes[8]
+	mi := &file_vrooli_bridge_v1_onboard_onboard_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1330,7 +1510,7 @@ func (x *ListOnboardingsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListOnboardingsRequest.ProtoReflect.Descriptor instead.
 func (*ListOnboardingsRequest) Descriptor() ([]byte, []int) {
-	return file_vrooli_bridge_v1_onboard_onboard_proto_rawDescGZIP(), []int{8}
+	return file_vrooli_bridge_v1_onboard_onboard_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *ListOnboardingsRequest) GetHost() string {
@@ -1357,7 +1537,7 @@ type ListOnboardingsResponse struct {
 
 func (x *ListOnboardingsResponse) Reset() {
 	*x = ListOnboardingsResponse{}
-	mi := &file_vrooli_bridge_v1_onboard_onboard_proto_msgTypes[9]
+	mi := &file_vrooli_bridge_v1_onboard_onboard_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1369,7 +1549,7 @@ func (x *ListOnboardingsResponse) String() string {
 func (*ListOnboardingsResponse) ProtoMessage() {}
 
 func (x *ListOnboardingsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_bridge_v1_onboard_onboard_proto_msgTypes[9]
+	mi := &file_vrooli_bridge_v1_onboard_onboard_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1382,7 +1562,7 @@ func (x *ListOnboardingsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListOnboardingsResponse.ProtoReflect.Descriptor instead.
 func (*ListOnboardingsResponse) Descriptor() ([]byte, []int) {
-	return file_vrooli_bridge_v1_onboard_onboard_proto_rawDescGZIP(), []int{9}
+	return file_vrooli_bridge_v1_onboard_onboard_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *ListOnboardingsResponse) GetOps() []*OnboardingOp {
@@ -1404,7 +1584,7 @@ type WaitOnboardingRequest struct {
 
 func (x *WaitOnboardingRequest) Reset() {
 	*x = WaitOnboardingRequest{}
-	mi := &file_vrooli_bridge_v1_onboard_onboard_proto_msgTypes[10]
+	mi := &file_vrooli_bridge_v1_onboard_onboard_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1416,7 +1596,7 @@ func (x *WaitOnboardingRequest) String() string {
 func (*WaitOnboardingRequest) ProtoMessage() {}
 
 func (x *WaitOnboardingRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_bridge_v1_onboard_onboard_proto_msgTypes[10]
+	mi := &file_vrooli_bridge_v1_onboard_onboard_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1429,7 +1609,7 @@ func (x *WaitOnboardingRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WaitOnboardingRequest.ProtoReflect.Descriptor instead.
 func (*WaitOnboardingRequest) Descriptor() ([]byte, []int) {
-	return file_vrooli_bridge_v1_onboard_onboard_proto_rawDescGZIP(), []int{10}
+	return file_vrooli_bridge_v1_onboard_onboard_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *WaitOnboardingRequest) GetId() string {
@@ -1458,7 +1638,7 @@ type WaitOnboardingResponse struct {
 
 func (x *WaitOnboardingResponse) Reset() {
 	*x = WaitOnboardingResponse{}
-	mi := &file_vrooli_bridge_v1_onboard_onboard_proto_msgTypes[11]
+	mi := &file_vrooli_bridge_v1_onboard_onboard_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1470,7 +1650,7 @@ func (x *WaitOnboardingResponse) String() string {
 func (*WaitOnboardingResponse) ProtoMessage() {}
 
 func (x *WaitOnboardingResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_bridge_v1_onboard_onboard_proto_msgTypes[11]
+	mi := &file_vrooli_bridge_v1_onboard_onboard_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1483,7 +1663,7 @@ func (x *WaitOnboardingResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WaitOnboardingResponse.ProtoReflect.Descriptor instead.
 func (*WaitOnboardingResponse) Descriptor() ([]byte, []int) {
-	return file_vrooli_bridge_v1_onboard_onboard_proto_rawDescGZIP(), []int{11}
+	return file_vrooli_bridge_v1_onboard_onboard_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *WaitOnboardingResponse) GetOp() *OnboardingOp {
@@ -1509,7 +1689,7 @@ type CancelOnboardingRequest struct {
 
 func (x *CancelOnboardingRequest) Reset() {
 	*x = CancelOnboardingRequest{}
-	mi := &file_vrooli_bridge_v1_onboard_onboard_proto_msgTypes[12]
+	mi := &file_vrooli_bridge_v1_onboard_onboard_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1521,7 +1701,7 @@ func (x *CancelOnboardingRequest) String() string {
 func (*CancelOnboardingRequest) ProtoMessage() {}
 
 func (x *CancelOnboardingRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_bridge_v1_onboard_onboard_proto_msgTypes[12]
+	mi := &file_vrooli_bridge_v1_onboard_onboard_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1534,7 +1714,7 @@ func (x *CancelOnboardingRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CancelOnboardingRequest.ProtoReflect.Descriptor instead.
 func (*CancelOnboardingRequest) Descriptor() ([]byte, []int) {
-	return file_vrooli_bridge_v1_onboard_onboard_proto_rawDescGZIP(), []int{12}
+	return file_vrooli_bridge_v1_onboard_onboard_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *CancelOnboardingRequest) GetId() string {
@@ -1555,7 +1735,7 @@ type CancelOnboardingResponse struct {
 
 func (x *CancelOnboardingResponse) Reset() {
 	*x = CancelOnboardingResponse{}
-	mi := &file_vrooli_bridge_v1_onboard_onboard_proto_msgTypes[13]
+	mi := &file_vrooli_bridge_v1_onboard_onboard_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1567,7 +1747,7 @@ func (x *CancelOnboardingResponse) String() string {
 func (*CancelOnboardingResponse) ProtoMessage() {}
 
 func (x *CancelOnboardingResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_bridge_v1_onboard_onboard_proto_msgTypes[13]
+	mi := &file_vrooli_bridge_v1_onboard_onboard_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1580,7 +1760,7 @@ func (x *CancelOnboardingResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CancelOnboardingResponse.ProtoReflect.Descriptor instead.
 func (*CancelOnboardingResponse) Descriptor() ([]byte, []int) {
-	return file_vrooli_bridge_v1_onboard_onboard_proto_rawDescGZIP(), []int{13}
+	return file_vrooli_bridge_v1_onboard_onboard_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *CancelOnboardingResponse) GetOp() *OnboardingOp {
@@ -1599,7 +1779,7 @@ type RemoveFailedOnboardingRequest struct {
 
 func (x *RemoveFailedOnboardingRequest) Reset() {
 	*x = RemoveFailedOnboardingRequest{}
-	mi := &file_vrooli_bridge_v1_onboard_onboard_proto_msgTypes[14]
+	mi := &file_vrooli_bridge_v1_onboard_onboard_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1611,7 +1791,7 @@ func (x *RemoveFailedOnboardingRequest) String() string {
 func (*RemoveFailedOnboardingRequest) ProtoMessage() {}
 
 func (x *RemoveFailedOnboardingRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_bridge_v1_onboard_onboard_proto_msgTypes[14]
+	mi := &file_vrooli_bridge_v1_onboard_onboard_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1624,7 +1804,7 @@ func (x *RemoveFailedOnboardingRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RemoveFailedOnboardingRequest.ProtoReflect.Descriptor instead.
 func (*RemoveFailedOnboardingRequest) Descriptor() ([]byte, []int) {
-	return file_vrooli_bridge_v1_onboard_onboard_proto_rawDescGZIP(), []int{14}
+	return file_vrooli_bridge_v1_onboard_onboard_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *RemoveFailedOnboardingRequest) GetId() string {
@@ -1642,7 +1822,7 @@ type RemoveFailedOnboardingResponse struct {
 
 func (x *RemoveFailedOnboardingResponse) Reset() {
 	*x = RemoveFailedOnboardingResponse{}
-	mi := &file_vrooli_bridge_v1_onboard_onboard_proto_msgTypes[15]
+	mi := &file_vrooli_bridge_v1_onboard_onboard_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1654,7 +1834,7 @@ func (x *RemoveFailedOnboardingResponse) String() string {
 func (*RemoveFailedOnboardingResponse) ProtoMessage() {}
 
 func (x *RemoveFailedOnboardingResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_vrooli_bridge_v1_onboard_onboard_proto_msgTypes[15]
+	mi := &file_vrooli_bridge_v1_onboard_onboard_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1667,7 +1847,7 @@ func (x *RemoveFailedOnboardingResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RemoveFailedOnboardingResponse.ProtoReflect.Descriptor instead.
 func (*RemoveFailedOnboardingResponse) Descriptor() ([]byte, []int) {
-	return file_vrooli_bridge_v1_onboard_onboard_proto_rawDescGZIP(), []int{15}
+	return file_vrooli_bridge_v1_onboard_onboard_proto_rawDescGZIP(), []int{17}
 }
 
 var File_vrooli_bridge_v1_onboard_onboard_proto protoreflect.FileDescriptor
@@ -1728,7 +1908,7 @@ const file_vrooli_bridge_v1_onboard_onboard_proto_rawDesc = "" +
 	"\x16client_key_fingerprint\x18\x06 \x01(\tR\x14clientKeyFingerprint\x120\n" +
 	"\x14host_key_fingerprint\x18\a \x01(\tR\x12hostKeyFingerprint\x12+\n" +
 	"\x11password_required\x18\b \x01(\bR\x10passwordRequired\x12\x18\n" +
-	"\amessage\x18\t \x01(\tR\amessage\"\x9d\a\n" +
+	"\amessage\x18\t \x01(\tR\amessage\"\xd3\a\n" +
 	"\x16StartOnboardingRequest\x12\x12\n" +
 	"\x04host\x18\x01 \x01(\tR\x04host\x12\x12\n" +
 	"\x04port\x18\x02 \x01(\x05R\x04port\x12\x12\n" +
@@ -1756,7 +1936,23 @@ const file_vrooli_bridge_v1_onboard_onboard_proto_rawDesc = "" +
 	"\n" +
 	"machine_id\x18\x15 \x01(\tR\tmachineId\x12B\n" +
 	"\x1eretry_of_enrollment_attempt_id\x18\x16 \x01(\tR\x1aretryOfEnrollmentAttemptId\x12)\n" +
-	"\x10setup_passphrase\x18\x17 \x01(\tR\x0fsetupPassphrase\"\xd6\x01\n" +
+	"\x10setup_passphrase\x18\x17 \x01(\tR\x0fsetupPassphrase\x124\n" +
+	"\x16provision_service_user\x18\x18 \x01(\tR\x14provisionServiceUser\"\xa5\x02\n" +
+	"\x18ProtectOnboardingRequest\x12(\n" +
+	"\x10onboarding_op_id\x18\x01 \x01(\tR\x0eonboardingOpId\x12\x1d\n" +
+	"\n" +
+	"machine_id\x18\x02 \x01(\tR\tmachineId\x12\x17\n" +
+	"\anode_id\x18\x03 \x01(\tR\x06nodeId\x12\x16\n" +
+	"\x06target\x18\x04 \x01(\tR\x06target\x12\x14\n" +
+	"\x05scope\x18\x05 \x01(\tR\x05scope\x120\n" +
+	"\x14cleanup_operation_id\x18\x06 \x01(\tR\x12cleanupOperationId\x12+\n" +
+	"\x11sealed_passphrase\x18\a \x01(\fR\x10sealedPassphrase\x12\x1a\n" +
+	"\bdeclined\x18\b \x01(\bR\bdeclined\"\xd7\x01\n" +
+	"\x19ProtectOnboardingResponse\x12=\n" +
+	"\x02op\x18\x01 \x01(\v2-.vrooli.vrooli_bridge.v1.onboard.OnboardingOpR\x02op\x12+\n" +
+	"\x11protection_status\x18\x02 \x01(\tR\x10protectionStatus\x126\n" +
+	"\x17protection_operation_id\x18\x03 \x01(\tR\x15protectionOperationId\x12\x16\n" +
+	"\x06detail\x18\x04 \x01(\tR\x06detail\"\xd6\x01\n" +
 	"\x17StartOnboardingResponse\x12\x13\n" +
 	"\x05op_id\x18\x01 \x01(\tR\x04opId\x12\x17\n" +
 	"\adry_run\x18\x02 \x01(\bR\x06dryRun\x12\x12\n" +
@@ -1816,10 +2012,11 @@ const file_vrooli_bridge_v1_onboard_onboard_proto_rawDesc = "" +
 	"\x1cCONNECT_DECISION_FIRST_TOUCH\x10\x02\x12&\n" +
 	"\"CONNECT_DECISION_RECOVERY_REQUIRED\x10\x03\x12\x1e\n" +
 	"\x1aCONNECT_DECISION_AMBIGUOUS\x10\x04\x12$\n" +
-	" CONNECT_DECISION_HOST_KEY_REVIEW\x10\x052\xdb\a\n" +
+	" CONNECT_DECISION_HOST_KEY_REVIEW\x10\x052\xe8\b\n" +
 	"\x0eOnboardService\x12\x90\x01\n" +
 	"\x13PreflightOnboarding\x12;.vrooli.vrooli_bridge.v1.onboard.PreflightOnboardingRequest\x1a<.vrooli.vrooli_bridge.v1.onboard.PreflightOnboardingResponse\x12\x84\x01\n" +
-	"\x0fStartOnboarding\x127.vrooli.vrooli_bridge.v1.onboard.StartOnboardingRequest\x1a8.vrooli.vrooli_bridge.v1.onboard.StartOnboardingResponse\x12~\n" +
+	"\x0fStartOnboarding\x127.vrooli.vrooli_bridge.v1.onboard.StartOnboardingRequest\x1a8.vrooli.vrooli_bridge.v1.onboard.StartOnboardingResponse\x12\x8a\x01\n" +
+	"\x11ProtectOnboarding\x129.vrooli.vrooli_bridge.v1.onboard.ProtectOnboardingRequest\x1a:.vrooli.vrooli_bridge.v1.onboard.ProtectOnboardingResponse\x12~\n" +
 	"\rGetOnboarding\x125.vrooli.vrooli_bridge.v1.onboard.GetOnboardingRequest\x1a6.vrooli.vrooli_bridge.v1.onboard.GetOnboardingResponse\x12\x84\x01\n" +
 	"\x0fListOnboardings\x127.vrooli.vrooli_bridge.v1.onboard.ListOnboardingsRequest\x1a8.vrooli.vrooli_bridge.v1.onboard.ListOnboardingsResponse\x12\x81\x01\n" +
 	"\x0eWaitOnboarding\x126.vrooli.vrooli_bridge.v1.onboard.WaitOnboardingRequest\x1a7.vrooli.vrooli_bridge.v1.onboard.WaitOnboardingResponse\x12\x87\x01\n" +
@@ -1839,7 +2036,7 @@ func file_vrooli_bridge_v1_onboard_onboard_proto_rawDescGZIP() []byte {
 }
 
 var file_vrooli_bridge_v1_onboard_onboard_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
-var file_vrooli_bridge_v1_onboard_onboard_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
+var file_vrooli_bridge_v1_onboard_onboard_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
 var file_vrooli_bridge_v1_onboard_onboard_proto_goTypes = []any{
 	(OnboardingState)(0),                   // 0: vrooli.vrooli_bridge.v1.onboard.OnboardingState
 	(SourceMode)(0),                        // 1: vrooli.vrooli_bridge.v1.onboard.SourceMode
@@ -1850,53 +2047,58 @@ var file_vrooli_bridge_v1_onboard_onboard_proto_goTypes = []any{
 	(*PreflightOnboardingRequest)(nil),     // 6: vrooli.vrooli_bridge.v1.onboard.PreflightOnboardingRequest
 	(*PreflightOnboardingResponse)(nil),    // 7: vrooli.vrooli_bridge.v1.onboard.PreflightOnboardingResponse
 	(*StartOnboardingRequest)(nil),         // 8: vrooli.vrooli_bridge.v1.onboard.StartOnboardingRequest
-	(*StartOnboardingResponse)(nil),        // 9: vrooli.vrooli_bridge.v1.onboard.StartOnboardingResponse
-	(*GetOnboardingRequest)(nil),           // 10: vrooli.vrooli_bridge.v1.onboard.GetOnboardingRequest
-	(*GetOnboardingResponse)(nil),          // 11: vrooli.vrooli_bridge.v1.onboard.GetOnboardingResponse
-	(*ListOnboardingsRequest)(nil),         // 12: vrooli.vrooli_bridge.v1.onboard.ListOnboardingsRequest
-	(*ListOnboardingsResponse)(nil),        // 13: vrooli.vrooli_bridge.v1.onboard.ListOnboardingsResponse
-	(*WaitOnboardingRequest)(nil),          // 14: vrooli.vrooli_bridge.v1.onboard.WaitOnboardingRequest
-	(*WaitOnboardingResponse)(nil),         // 15: vrooli.vrooli_bridge.v1.onboard.WaitOnboardingResponse
-	(*CancelOnboardingRequest)(nil),        // 16: vrooli.vrooli_bridge.v1.onboard.CancelOnboardingRequest
-	(*CancelOnboardingResponse)(nil),       // 17: vrooli.vrooli_bridge.v1.onboard.CancelOnboardingResponse
-	(*RemoveFailedOnboardingRequest)(nil),  // 18: vrooli.vrooli_bridge.v1.onboard.RemoveFailedOnboardingRequest
-	(*RemoveFailedOnboardingResponse)(nil), // 19: vrooli.vrooli_bridge.v1.onboard.RemoveFailedOnboardingResponse
-	(*timestamppb.Timestamp)(nil),          // 20: google.protobuf.Timestamp
+	(*ProtectOnboardingRequest)(nil),       // 9: vrooli.vrooli_bridge.v1.onboard.ProtectOnboardingRequest
+	(*ProtectOnboardingResponse)(nil),      // 10: vrooli.vrooli_bridge.v1.onboard.ProtectOnboardingResponse
+	(*StartOnboardingResponse)(nil),        // 11: vrooli.vrooli_bridge.v1.onboard.StartOnboardingResponse
+	(*GetOnboardingRequest)(nil),           // 12: vrooli.vrooli_bridge.v1.onboard.GetOnboardingRequest
+	(*GetOnboardingResponse)(nil),          // 13: vrooli.vrooli_bridge.v1.onboard.GetOnboardingResponse
+	(*ListOnboardingsRequest)(nil),         // 14: vrooli.vrooli_bridge.v1.onboard.ListOnboardingsRequest
+	(*ListOnboardingsResponse)(nil),        // 15: vrooli.vrooli_bridge.v1.onboard.ListOnboardingsResponse
+	(*WaitOnboardingRequest)(nil),          // 16: vrooli.vrooli_bridge.v1.onboard.WaitOnboardingRequest
+	(*WaitOnboardingResponse)(nil),         // 17: vrooli.vrooli_bridge.v1.onboard.WaitOnboardingResponse
+	(*CancelOnboardingRequest)(nil),        // 18: vrooli.vrooli_bridge.v1.onboard.CancelOnboardingRequest
+	(*CancelOnboardingResponse)(nil),       // 19: vrooli.vrooli_bridge.v1.onboard.CancelOnboardingResponse
+	(*RemoveFailedOnboardingRequest)(nil),  // 20: vrooli.vrooli_bridge.v1.onboard.RemoveFailedOnboardingRequest
+	(*RemoveFailedOnboardingResponse)(nil), // 21: vrooli.vrooli_bridge.v1.onboard.RemoveFailedOnboardingResponse
+	(*timestamppb.Timestamp)(nil),          // 22: google.protobuf.Timestamp
 }
 var file_vrooli_bridge_v1_onboard_onboard_proto_depIdxs = []int32{
 	0,  // 0: vrooli.vrooli_bridge.v1.onboard.OnboardingOp.state:type_name -> vrooli.vrooli_bridge.v1.onboard.OnboardingState
-	20, // 1: vrooli.vrooli_bridge.v1.onboard.OnboardingOp.created_at:type_name -> google.protobuf.Timestamp
-	20, // 2: vrooli.vrooli_bridge.v1.onboard.OnboardingOp.started_at:type_name -> google.protobuf.Timestamp
-	20, // 3: vrooli.vrooli_bridge.v1.onboard.OnboardingOp.finished_at:type_name -> google.protobuf.Timestamp
+	22, // 1: vrooli.vrooli_bridge.v1.onboard.OnboardingOp.created_at:type_name -> google.protobuf.Timestamp
+	22, // 2: vrooli.vrooli_bridge.v1.onboard.OnboardingOp.started_at:type_name -> google.protobuf.Timestamp
+	22, // 3: vrooli.vrooli_bridge.v1.onboard.OnboardingOp.finished_at:type_name -> google.protobuf.Timestamp
 	1,  // 4: vrooli.vrooli_bridge.v1.onboard.OnboardingOp.source_mode:type_name -> vrooli.vrooli_bridge.v1.onboard.SourceMode
 	2,  // 5: vrooli.vrooli_bridge.v1.onboard.OnboardingStepEvent.status:type_name -> vrooli.vrooli_bridge.v1.onboard.OnboardingStepStatus
-	20, // 6: vrooli.vrooli_bridge.v1.onboard.OnboardingStepEvent.emitted_at:type_name -> google.protobuf.Timestamp
+	22, // 6: vrooli.vrooli_bridge.v1.onboard.OnboardingStepEvent.emitted_at:type_name -> google.protobuf.Timestamp
 	3,  // 7: vrooli.vrooli_bridge.v1.onboard.PreflightOnboardingResponse.decision:type_name -> vrooli.vrooli_bridge.v1.onboard.ConnectDecision
 	1,  // 8: vrooli.vrooli_bridge.v1.onboard.StartOnboardingRequest.source_mode:type_name -> vrooli.vrooli_bridge.v1.onboard.SourceMode
-	4,  // 9: vrooli.vrooli_bridge.v1.onboard.GetOnboardingResponse.op:type_name -> vrooli.vrooli_bridge.v1.onboard.OnboardingOp
-	5,  // 10: vrooli.vrooli_bridge.v1.onboard.GetOnboardingResponse.events:type_name -> vrooli.vrooli_bridge.v1.onboard.OnboardingStepEvent
-	4,  // 11: vrooli.vrooli_bridge.v1.onboard.ListOnboardingsResponse.ops:type_name -> vrooli.vrooli_bridge.v1.onboard.OnboardingOp
-	4,  // 12: vrooli.vrooli_bridge.v1.onboard.WaitOnboardingResponse.op:type_name -> vrooli.vrooli_bridge.v1.onboard.OnboardingOp
-	4,  // 13: vrooli.vrooli_bridge.v1.onboard.CancelOnboardingResponse.op:type_name -> vrooli.vrooli_bridge.v1.onboard.OnboardingOp
-	6,  // 14: vrooli.vrooli_bridge.v1.onboard.OnboardService.PreflightOnboarding:input_type -> vrooli.vrooli_bridge.v1.onboard.PreflightOnboardingRequest
-	8,  // 15: vrooli.vrooli_bridge.v1.onboard.OnboardService.StartOnboarding:input_type -> vrooli.vrooli_bridge.v1.onboard.StartOnboardingRequest
-	10, // 16: vrooli.vrooli_bridge.v1.onboard.OnboardService.GetOnboarding:input_type -> vrooli.vrooli_bridge.v1.onboard.GetOnboardingRequest
-	12, // 17: vrooli.vrooli_bridge.v1.onboard.OnboardService.ListOnboardings:input_type -> vrooli.vrooli_bridge.v1.onboard.ListOnboardingsRequest
-	14, // 18: vrooli.vrooli_bridge.v1.onboard.OnboardService.WaitOnboarding:input_type -> vrooli.vrooli_bridge.v1.onboard.WaitOnboardingRequest
-	16, // 19: vrooli.vrooli_bridge.v1.onboard.OnboardService.CancelOnboarding:input_type -> vrooli.vrooli_bridge.v1.onboard.CancelOnboardingRequest
-	18, // 20: vrooli.vrooli_bridge.v1.onboard.OnboardService.RemoveFailedOnboarding:input_type -> vrooli.vrooli_bridge.v1.onboard.RemoveFailedOnboardingRequest
-	7,  // 21: vrooli.vrooli_bridge.v1.onboard.OnboardService.PreflightOnboarding:output_type -> vrooli.vrooli_bridge.v1.onboard.PreflightOnboardingResponse
-	9,  // 22: vrooli.vrooli_bridge.v1.onboard.OnboardService.StartOnboarding:output_type -> vrooli.vrooli_bridge.v1.onboard.StartOnboardingResponse
-	11, // 23: vrooli.vrooli_bridge.v1.onboard.OnboardService.GetOnboarding:output_type -> vrooli.vrooli_bridge.v1.onboard.GetOnboardingResponse
-	13, // 24: vrooli.vrooli_bridge.v1.onboard.OnboardService.ListOnboardings:output_type -> vrooli.vrooli_bridge.v1.onboard.ListOnboardingsResponse
-	15, // 25: vrooli.vrooli_bridge.v1.onboard.OnboardService.WaitOnboarding:output_type -> vrooli.vrooli_bridge.v1.onboard.WaitOnboardingResponse
-	17, // 26: vrooli.vrooli_bridge.v1.onboard.OnboardService.CancelOnboarding:output_type -> vrooli.vrooli_bridge.v1.onboard.CancelOnboardingResponse
-	19, // 27: vrooli.vrooli_bridge.v1.onboard.OnboardService.RemoveFailedOnboarding:output_type -> vrooli.vrooli_bridge.v1.onboard.RemoveFailedOnboardingResponse
-	21, // [21:28] is the sub-list for method output_type
-	14, // [14:21] is the sub-list for method input_type
-	14, // [14:14] is the sub-list for extension type_name
-	14, // [14:14] is the sub-list for extension extendee
-	0,  // [0:14] is the sub-list for field type_name
+	4,  // 9: vrooli.vrooli_bridge.v1.onboard.ProtectOnboardingResponse.op:type_name -> vrooli.vrooli_bridge.v1.onboard.OnboardingOp
+	4,  // 10: vrooli.vrooli_bridge.v1.onboard.GetOnboardingResponse.op:type_name -> vrooli.vrooli_bridge.v1.onboard.OnboardingOp
+	5,  // 11: vrooli.vrooli_bridge.v1.onboard.GetOnboardingResponse.events:type_name -> vrooli.vrooli_bridge.v1.onboard.OnboardingStepEvent
+	4,  // 12: vrooli.vrooli_bridge.v1.onboard.ListOnboardingsResponse.ops:type_name -> vrooli.vrooli_bridge.v1.onboard.OnboardingOp
+	4,  // 13: vrooli.vrooli_bridge.v1.onboard.WaitOnboardingResponse.op:type_name -> vrooli.vrooli_bridge.v1.onboard.OnboardingOp
+	4,  // 14: vrooli.vrooli_bridge.v1.onboard.CancelOnboardingResponse.op:type_name -> vrooli.vrooli_bridge.v1.onboard.OnboardingOp
+	6,  // 15: vrooli.vrooli_bridge.v1.onboard.OnboardService.PreflightOnboarding:input_type -> vrooli.vrooli_bridge.v1.onboard.PreflightOnboardingRequest
+	8,  // 16: vrooli.vrooli_bridge.v1.onboard.OnboardService.StartOnboarding:input_type -> vrooli.vrooli_bridge.v1.onboard.StartOnboardingRequest
+	9,  // 17: vrooli.vrooli_bridge.v1.onboard.OnboardService.ProtectOnboarding:input_type -> vrooli.vrooli_bridge.v1.onboard.ProtectOnboardingRequest
+	12, // 18: vrooli.vrooli_bridge.v1.onboard.OnboardService.GetOnboarding:input_type -> vrooli.vrooli_bridge.v1.onboard.GetOnboardingRequest
+	14, // 19: vrooli.vrooli_bridge.v1.onboard.OnboardService.ListOnboardings:input_type -> vrooli.vrooli_bridge.v1.onboard.ListOnboardingsRequest
+	16, // 20: vrooli.vrooli_bridge.v1.onboard.OnboardService.WaitOnboarding:input_type -> vrooli.vrooli_bridge.v1.onboard.WaitOnboardingRequest
+	18, // 21: vrooli.vrooli_bridge.v1.onboard.OnboardService.CancelOnboarding:input_type -> vrooli.vrooli_bridge.v1.onboard.CancelOnboardingRequest
+	20, // 22: vrooli.vrooli_bridge.v1.onboard.OnboardService.RemoveFailedOnboarding:input_type -> vrooli.vrooli_bridge.v1.onboard.RemoveFailedOnboardingRequest
+	7,  // 23: vrooli.vrooli_bridge.v1.onboard.OnboardService.PreflightOnboarding:output_type -> vrooli.vrooli_bridge.v1.onboard.PreflightOnboardingResponse
+	11, // 24: vrooli.vrooli_bridge.v1.onboard.OnboardService.StartOnboarding:output_type -> vrooli.vrooli_bridge.v1.onboard.StartOnboardingResponse
+	10, // 25: vrooli.vrooli_bridge.v1.onboard.OnboardService.ProtectOnboarding:output_type -> vrooli.vrooli_bridge.v1.onboard.ProtectOnboardingResponse
+	13, // 26: vrooli.vrooli_bridge.v1.onboard.OnboardService.GetOnboarding:output_type -> vrooli.vrooli_bridge.v1.onboard.GetOnboardingResponse
+	15, // 27: vrooli.vrooli_bridge.v1.onboard.OnboardService.ListOnboardings:output_type -> vrooli.vrooli_bridge.v1.onboard.ListOnboardingsResponse
+	17, // 28: vrooli.vrooli_bridge.v1.onboard.OnboardService.WaitOnboarding:output_type -> vrooli.vrooli_bridge.v1.onboard.WaitOnboardingResponse
+	19, // 29: vrooli.vrooli_bridge.v1.onboard.OnboardService.CancelOnboarding:output_type -> vrooli.vrooli_bridge.v1.onboard.CancelOnboardingResponse
+	21, // 30: vrooli.vrooli_bridge.v1.onboard.OnboardService.RemoveFailedOnboarding:output_type -> vrooli.vrooli_bridge.v1.onboard.RemoveFailedOnboardingResponse
+	23, // [23:31] is the sub-list for method output_type
+	15, // [15:23] is the sub-list for method input_type
+	15, // [15:15] is the sub-list for extension type_name
+	15, // [15:15] is the sub-list for extension extendee
+	0,  // [0:15] is the sub-list for field type_name
 }
 
 func init() { file_vrooli_bridge_v1_onboard_onboard_proto_init() }
@@ -1910,7 +2112,7 @@ func file_vrooli_bridge_v1_onboard_onboard_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_vrooli_bridge_v1_onboard_onboard_proto_rawDesc), len(file_vrooli_bridge_v1_onboard_onboard_proto_rawDesc)),
 			NumEnums:      4,
-			NumMessages:   16,
+			NumMessages:   18,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math/rand"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -35,7 +36,27 @@ var (
 	ErrEmptyQuery              = errors.New("query_is_required")
 	ErrUnknownLocality         = errors.New("unknown_locality")
 	ErrUnknownTemperature      = errors.New("unknown_temperature_stance")
+	ErrMalformedCandidateSet   = errors.New("malformed_candidate_set")
+	ErrDeclarationRootMissing  = errors.New("declaration_root_missing")
 )
+
+// underRoot reports whether path sits inside base, comparing cleaned absolute
+// paths so a sibling directory sharing a name prefix cannot match.
+func underRoot(base, path string) bool {
+	absBase, err := filepath.Abs(base)
+	if err != nil {
+		return false
+	}
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return false
+	}
+	relative, err := filepath.Rel(absBase, absPath)
+	if err != nil {
+		return false
+	}
+	return relative != ".." && !strings.HasPrefix(relative, ".."+string(filepath.Separator))
+}
 
 // localityNames maps the profile-facing locality vocabulary onto the gateway's
 // Profile enum. The names are the enum's own, minus the PROFILE_ prefix, so a
@@ -83,6 +104,166 @@ func samplingControls(stance string) (*sharedv1.SamplingControls, error) {
 	return &sharedv1.SamplingControls{Temperature: &temperature}, nil
 }
 
+const (
+	samplerDirect     = "direct"
+	samplerVSStandard = "vs_standard"
+)
+
+// samplingKeyOf builds a round's effective generation identity. The output cap
+// comes from what the gateway reported imposing rather than what the profile
+// requested, because a set generated under a role-policy cap is not comparable
+// to one generated under a caller cap even when the numbers coincide — which is
+// exactly why SamplingKey carries the source alongside the value.
+func samplingKeyOf(sampler Sampler, responses []GatewayCandidate) textmetrics.SamplingKey {
+	// Tau is not carried: it is a parameter of the verbalized strategy, and the
+	// strategy is the variable an experiment varies. It stays recorded in full on
+	// Round.Strategy, which is provenance rather than a comparability condition.
+	key := textmetrics.SamplingKey{
+		K:                 sampler.K,
+		TemperatureStance: sampler.TemperatureStance,
+	}
+	if len(responses) > 0 {
+		key.MaxOutputTokens = responses[0].MaxOutputTokensEffective
+		key.MaxOutputTokenSource = responses[0].MaxOutputTokensSource
+	}
+	return key
+}
+
+// CompareRounds refuses two rounds whose generation conditions differ, so a
+// caller cannot place two set-diversity numbers side by side unless they were
+// produced under the same effective sampling. This is OT-P0-024's enforcement
+// point: comparability is decided from recorded keys, not from the caller's
+// assurance that the two runs were "the same except for the strategy".
+func (s *Service) CompareRounds(ctx context.Context, leftID, rightID string) error {
+	left, err := s.loadRound(ctx, leftID)
+	if err != nil {
+		return err
+	}
+	right, err := s.loadRound(ctx, rightID)
+	if err != nil {
+		return err
+	}
+	return textmetrics.Comparable(left.SamplingKey, right.SamplingKey)
+}
+
+func (s *Service) loadRound(ctx context.Context, id string) (Round, error) {
+	var round Round
+	if err := s.loadJSON(ctx, "prose_rounds", id, &round); err != nil {
+		return Round{}, fmt.Errorf("load round %s: %w", id, err)
+	}
+	return round, nil
+}
+
+// vsCandidateSchema elicits the verbalized distribution: each entry pairs the
+// prose with the model's own probability for it. minItems is deliberately absent
+// because the gateway's enforceable schema subset does not carry it, so the
+// candidate count rides in the instruction and is checked after decode. The
+// probability bounds are in-schema precisely because minimum/maximum are in that
+// subset, which makes the gateway's local validator the one enforcing them.
+const vsCandidateSchema = `{"type":"array","items":{"type":"object","properties":{"text":{"type":"string"},"probability":{"type":"number","minimum":0,"maximum":1}},"required":["text","probability"]}}`
+
+func gatewaySchema(req GatewayRequest) string {
+	if req.Strategy == samplerVSStandard {
+		return vsCandidateSchema
+	}
+	if req.K > 1 {
+		return `{"type":"array","items":{"type":"string"}}`
+	}
+	return `{"type":"string"}`
+}
+
+// verbalizedCandidate is the wire shape of one entry in a verbalized
+// distribution. It exists only inside the decode: the probability is read to
+// derive a rank and then dropped, and never reaches a stored record.
+type verbalizedCandidate struct {
+	Text        string  `json:"text"`
+	Probability float64 `json:"probability"`
+}
+
+// decodeCandidates turns a gateway value into prose plus, for a verbalized
+// strategy, the rank each candidate holds under the model's own probabilities.
+// Order is the model's emission order throughout; ranks are carried alongside
+// rather than applied as a sort, because reordering the set by the model's
+// probability would make a quality proxy the presentation order.
+func decodeCandidates(req GatewayRequest, valueJSON string) ([]string, []int, error) {
+	if req.Strategy == samplerVSStandard {
+		var entries []verbalizedCandidate
+		if err := json.Unmarshal([]byte(valueJSON), &entries); err != nil {
+			return nil, nil, fmt.Errorf("decode verbalized candidate set: %w", err)
+		}
+		if len(entries) == 0 {
+			return nil, nil, errors.New("ai-gateway returned no prose candidates")
+		}
+		texts := make([]string, len(entries))
+		for i, entry := range entries {
+			if strings.TrimSpace(entry.Text) == "" {
+				return nil, nil, fmt.Errorf("%w: candidate %d carries no text", ErrMalformedCandidateSet, i+1)
+			}
+			// The gateway validates these bounds too. Re-checking here keeps the
+			// rank honest even if this package is ever pointed at a seam that does
+			// not, which is how the ordinal became a fabrication the first time.
+			if entry.Probability < 0 || entry.Probability > 1 {
+				return nil, nil, fmt.Errorf("%w: candidate %d reports probability %v outside [0,1]", ErrMalformedCandidateSet, i+1, entry.Probability)
+			}
+			texts[i] = entry.Text
+		}
+		return texts, verbalizedOrdinals(entries), nil
+	}
+	var texts []string
+	if req.K == 1 {
+		if err := json.Unmarshal([]byte(valueJSON), &texts); err != nil {
+			var text string
+			if err := json.Unmarshal([]byte(valueJSON), &text); err != nil {
+				return nil, nil, fmt.Errorf("decode ai-gateway text: %w", err)
+			}
+			texts = []string{text}
+		}
+	} else if err := json.Unmarshal([]byte(valueJSON), &texts); err != nil {
+		return nil, nil, fmt.Errorf("decode ai-gateway candidate set: %w", err)
+	}
+	if len(texts) == 0 {
+		return nil, nil, errors.New("ai-gateway returned no prose candidates")
+	}
+	// A strategy that elicits no probability carries no ordering signal. Zero
+	// says that, where a positional index would have claimed a signal that the
+	// model never gave.
+	return texts, make([]int, len(texts)), nil
+}
+
+// verbalizedOrdinals ranks entries by descending verbalized probability, 1 being
+// the highest. Ties keep emission order so the rank is deterministic.
+func verbalizedOrdinals(entries []verbalizedCandidate) []int {
+	order := make([]int, len(entries))
+	for i := range order {
+		order[i] = i
+	}
+	sort.SliceStable(order, func(a, b int) bool {
+		return entries[order[a]].Probability > entries[order[b]].Probability
+	})
+	ordinals := make([]int, len(entries))
+	for rank, index := range order {
+		ordinals[index] = rank + 1
+	}
+	return ordinals
+}
+
+// verbalizedInstruction asks the model to enumerate a distribution rather than
+// answer once. The tail clause is what does the work: an instance-level request
+// lands on the mode, so the threshold pushes the set off it. The final clause is
+// not decoration either — without it a model reads "unlikely" as "strange" and
+// spends the set on novelty instead of on genuinely different readings.
+func verbalizedInstruction(k int, tau float64) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "Return %d substantially different responses to the request, as a JSON array.\n", k)
+	b.WriteString("Give each entry the response text and an estimated probability, between 0 and 1, that the response carries relative to the full distribution of plausible responses.\n")
+	if tau > 0 {
+		fmt.Fprintf(&b, "Sample from the tail of that distribution: prefer valid responses that ordinary prompting would leave with little probability mass, and aim for each candidate's probability to fall below %.2f.\n", tau)
+	}
+	b.WriteString("Vary the assumption, the framing, the structure, and the angle between candidates, not merely the wording.\n")
+	b.WriteString("Do not make a candidate strange for the sake of novelty. Every candidate must stay logically sound, relevant to the request, and useful on its own, and must obey the voice above.")
+	return b.String()
+}
+
 // Gateway is the only inference seam. Production uses HTTPGateway, which
 // talks to ai-gateway; tests inject a fake. No vendor SDK or credential is
 // present in this package.
@@ -102,10 +283,11 @@ func (g HTTPGateway) Generate(ctx context.Context, req GatewayRequest) ([]Gatewa
 	if strings.TrimSpace(req.Query) == "" {
 		return nil, ErrEmptyQuery
 	}
-	// write.default is a single-draft role. Build a comparable direct set by
-	// issuing one governed gateway request per slot; write.diverse remains one
-	// request returning the role's k-candidate array.
-	if req.Role == "write.default" && req.K > 1 {
+	// The direct strategy is one draft per call by definition, so a k-slot direct
+	// set is k governed requests. vs_standard is one request that enumerates the
+	// whole set. This keys on the strategy, not the role: the strategy decides
+	// how many calls a set costs, and a role is free to serve either.
+	if req.Strategy == samplerDirect && req.K > 1 {
 		out := make([]GatewayCandidate, 0, req.K)
 		for i := 0; i < req.K; i++ {
 			single := req
@@ -123,10 +305,7 @@ func (g HTTPGateway) Generate(ctx context.Context, req GatewayRequest) ([]Gatewa
 		client = http.DefaultClient
 	}
 	connectClient := inferenceconnect.NewInferenceServiceClient(client, g.BaseURL)
-	schema := `{"type":"string"}`
-	if req.K > 1 {
-		schema = `{"type":"array","items":{"type":"string"}}`
-	}
+	schema := gatewaySchema(req)
 	instruction := req.Instruction
 	if len(req.Negative.Pinned) > 0 || len(req.Negative.Rejected) > 0 {
 		negative, _ := json.Marshal(req.Negative)
@@ -155,29 +334,25 @@ func (g HTTPGateway) Generate(ctx context.Context, req GatewayRequest) ([]Gatewa
 		return nil, fmt.Errorf("ai-gateway request: %w", err)
 	}
 	if resp.Msg.GetError() != nil {
+		if resp.Msg.GetError().GetCode() == inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_CONTEXT_OVERFLOW {
+			return nil, fmt.Errorf("%w: gateway refused the assembled context before provider dispatch: %s", ErrContextInfeasible, resp.Msg.GetError().GetMessage())
+		}
 		return nil, fmt.Errorf("ai-gateway inference: %s", resp.Msg.GetError().GetMessage())
 	}
-	var texts []string
-	if req.K == 1 {
-		if err := json.Unmarshal([]byte(resp.Msg.GetValueJson()), &texts); err != nil {
-			var text string
-			if err := json.Unmarshal([]byte(resp.Msg.GetValueJson()), &text); err != nil {
-				return nil, fmt.Errorf("decode ai-gateway text: %w", err)
-			}
-			texts = []string{text}
-		}
-	} else if err := json.Unmarshal([]byte(resp.Msg.GetValueJson()), &texts); err != nil {
-		return nil, fmt.Errorf("decode ai-gateway candidate set: %w", err)
-	}
-	if len(texts) == 0 {
-		return nil, errors.New("ai-gateway returned no prose candidates")
+	texts, ordinals, err := decodeCandidates(req, resp.Msg.GetValueJson())
+	if err != nil {
+		return nil, err
 	}
 	provider, model := resp.Msg.GetProvider(), resp.Msg.GetModel()
 	usage := resp.Msg.GetUsage()
 	settings := resp.Msg.GetApplied()
 	out := make([]GatewayCandidate, len(texts))
 	for i, text := range texts {
-		candidate := GatewayCandidate{Text: text, Provider: provider, Model: model, ContextWindow: 32768, HintOrdinal: i + 1}
+		// The gateway reports no model context window today: AppliedSettings
+		// carries sampling and output-cap facts only, and no resource policy
+		// declares a window. Undeclared is therefore the truth, and a constant
+		// invented here would be indistinguishable from a measured one.
+		candidate := GatewayCandidate{Text: text, Provider: provider, Model: model, HintOrdinal: ordinals[i]}
 		if usage != nil {
 			candidate.InputTokens = int(usage.GetInputTokens())
 			candidate.OutputTokens = int(usage.GetOutputTokens())
@@ -186,6 +361,11 @@ func (g HTTPGateway) Generate(ctx context.Context, req GatewayRequest) ([]Gatewa
 		if settings != nil {
 			candidate.TemperatureSupport = settings.GetTemperatureSupport().String()
 			candidate.Temperature = settings.GetTemperatureSent()
+			// The cap the gateway imposed, from the gateway. Echoing the profile's
+			// requested cap back as provenance would report the request rather
+			// than what happened, which is the one thing provenance must not do.
+			candidate.MaxOutputTokensEffective = int(settings.GetMaxOutputTokensEffective())
+			candidate.MaxOutputTokensSource = settings.GetMaxOutputTokensSource().String()
 		}
 		out[i] = candidate
 	}
@@ -197,6 +377,22 @@ type Service struct {
 	gateway Gateway
 	mu      sync.RWMutex
 	now     func() time.Time
+	// declarationsRoot is the scenario's own declaration root, used when a
+	// reindex caller names none. Empty means no default is configured.
+	declarationsRoot string
+}
+
+// SetDeclarationsRoot names the root a rootless Reindex should rescan.
+func (s *Service) SetDeclarationsRoot(root string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.declarationsRoot = strings.TrimSpace(root)
+}
+
+func (s *Service) defaultDeclarationsRoot() string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.declarationsRoot
 }
 
 func New(db *sql.DB) *Service {
@@ -244,7 +440,7 @@ func (s *Service) CreateProfile(ctx context.Context, profile Profile) (Profile, 
 		profile.Version = s.nextVersion(ctx, "profile", profile.Key)
 	}
 	if profile.Sampler.Kind == "" {
-		profile.Sampler.Kind = "direct"
+		profile.Sampler.Kind = samplerDirect
 	}
 	if profile.Sampler.K <= 0 {
 		profile.Sampler.K = 1
@@ -264,8 +460,17 @@ func (s *Service) CreateProfile(ctx context.Context, profile Profile) (Profile, 
 	if profile.ContextPolicy.SummarizeBeyond <= 0 {
 		profile.ContextPolicy.SummarizeBeyond = profile.ContextPolicy.FullTextTokenBudget
 	}
-	if profile.Sampler.Kind != "direct" && profile.Sampler.Kind != "vs_standard" {
+	if profile.Sampler.Kind != samplerDirect && profile.Sampler.Kind != samplerVSStandard {
 		return Profile{}, fmt.Errorf("unknown sampler kind %q", profile.Sampler.Kind)
+	}
+	// A one-candidate distribution is the mode with extra steps: the technique
+	// only means anything across a set, so refuse the configuration rather than
+	// let a profile claim a strategy it cannot exercise.
+	if profile.Sampler.Kind == samplerVSStandard && profile.Sampler.K < 2 {
+		return Profile{}, fmt.Errorf("sampler kind %q requires k >= 2, got %d", samplerVSStandard, profile.Sampler.K)
+	}
+	if profile.Sampler.Kind == samplerVSStandard && (profile.Sampler.Tau < 0 || profile.Sampler.Tau > 1) {
+		return Profile{}, fmt.Errorf("sampler tau must fall in [0,1], got %v", profile.Sampler.Tau)
 	}
 	if profile.Locality == "" {
 		profile.Locality = "local_first"
@@ -322,17 +527,40 @@ func (s *Service) ResolveProfile(ctx context.Context, key string) (ResolvedProfi
 			instruction.WriteString(d)
 			instruction.WriteByte('\n')
 		}
+		for _, exemplar := range style.Exemplars {
+			instruction.WriteString("Example voice:\n")
+			instruction.WriteString(exemplar)
+			instruction.WriteByte('\n')
+		}
+		if len(style.Lexicon) > 0 {
+			instruction.WriteString("Preferred lexicon: ")
+			instruction.WriteString(strings.Join(style.Lexicon, ", "))
+			instruction.WriteByte('\n')
+		}
+		for target, value := range style.Targets {
+			instruction.WriteString("Target ")
+			instruction.WriteString(target)
+			instruction.WriteString(" >= ")
+			instruction.WriteString(strconv.FormatFloat(value, 'f', -1, 64))
+			instruction.WriteByte('\n')
+		}
 		for _, a := range style.AntiPatterns {
 			instruction.WriteString("Avoid: ")
 			instruction.WriteString(a)
 			instruction.WriteByte('\n')
 		}
 	}
-	// Sampler parameters are transport concerns: k shapes the schema, the
-	// temperature stance becomes a SamplingControls message. Naming them in the
-	// prompt told the model about its own configuration and asked nothing of it.
-	instruction.WriteString("Return prose only. Respect the declared constraints and preserve the requested intent.")
-	return ResolvedProfile{Profile: profile, Styles: styles, InstructionText: instruction.String(), ContextWindow: 32768}, nil
+	// The temperature stance is a transport concern and becomes a SamplingControls
+	// message, so it is not named here. The candidate count and threshold are the
+	// opposite: the enforceable schema subset carries neither, so a verbalized
+	// strategy has to ask for them in words. Built here rather than at the gateway
+	// seam so the text ResolveProfile reports is the text that will be sent.
+	if profile.Sampler.Kind == samplerVSStandard {
+		instruction.WriteString(verbalizedInstruction(profile.Sampler.K, profile.Sampler.Tau))
+	} else {
+		instruction.WriteString("Return prose only. Respect the declared constraints and preserve the requested intent.")
+	}
+	return ResolvedProfile{Profile: profile, Styles: styles, InstructionText: instruction.String()}, nil
 }
 
 func (s *Service) Registry() Registry {
@@ -379,19 +607,21 @@ func (s *Service) generateResolved(ctx context.Context, req GenerateRequest, res
 	if strings.TrimSpace(req.Query) == "" {
 		return GenerateResponse{}, ErrEmptyQuery
 	}
-	gwReq := GatewayRequest{Role: resolved.Profile.GatewayRole, Instruction: resolved.InstructionText, Query: req.Query, K: resolved.Profile.Sampler.K, Tau: resolved.Profile.Sampler.Tau, MaxOutputTokens: resolved.Profile.Budget.MaxOutputTokens, TemperatureStance: resolved.Profile.Sampler.TemperatureStance, Locality: resolved.Profile.Locality, Negative: req.Negative}
+	effectiveCap := effectiveOutputCap(resolved.Profile)
+	gwReq := GatewayRequest{Role: resolved.Profile.GatewayRole, Instruction: resolved.InstructionText, Query: req.Query, Strategy: resolved.Profile.Sampler.Kind, K: resolved.Profile.Sampler.K, Tau: resolved.Profile.Sampler.Tau, MaxOutputTokens: effectiveCap, TemperatureStance: resolved.Profile.Sampler.TemperatureStance, Locality: resolved.Profile.Locality, Negative: req.Negative}
 	responses, err := s.gateway.Generate(ctx, gwReq)
 	if err != nil {
 		return GenerateResponse{}, err
 	}
-	if resolved.Profile.Sampler.Kind == "direct" && len(responses) < resolved.Profile.Sampler.K {
-		return GenerateResponse{}, fmt.Errorf("direct sampler returned %d candidates, want %d", len(responses), resolved.Profile.Sampler.K)
+	shortSet := len(responses) < resolved.Profile.Sampler.K
+	if len(responses) > resolved.Profile.Sampler.K {
+		responses = responses[:resolved.Profile.Sampler.K]
 	}
-	if len(responses) < resolved.Profile.Sampler.K {
-		return GenerateResponse{}, fmt.Errorf("sampler returned %d candidates, want %d", len(responses), resolved.Profile.Sampler.K)
+	selectionSeed := time.Now().UnixNano()
+	round := Round{ID: uuid.NewString(), SessionID: session.ID, Strategy: resolved.Profile.Sampler, SelectionSeed: selectionSeed, SamplingKey: samplingKeyOf(resolved.Profile.Sampler, responses), NegativeContext: req.Negative}
+	if shortSet && len(responses) == 0 {
+		return GenerateResponse{}, fmt.Errorf("sampler returned no candidates")
 	}
-	responses = responses[:resolved.Profile.Sampler.K]
-	round := Round{ID: uuid.NewString(), SessionID: session.ID, Strategy: resolved.Profile.Sampler, NegativeContext: req.Negative}
 	texts := make([]string, len(responses))
 	for i, response := range responses {
 		texts[i] = response.Text
@@ -408,8 +638,12 @@ func (s *Service) generateResolved(ctx context.Context, req GenerateRequest, res
 		if i == len(responses)-1 {
 			cost += totalCost - cost*int64(len(responses))
 		}
-		candidate := Candidate{ID: id, RoundID: round.ID, Text: response.Text, Measurements: measurements[i], SetMeasurements: setMeasurements, Eligibility: gate(measurements[i], resolved.Profile.Constraints), Provenance: Provenance{ProfileVersion: fmt.Sprintf("%s@%d", resolved.Profile.Key, resolved.Profile.Version), StyleVersions: styleVersions(resolved.Styles), Strategy: resolved.Profile.Sampler.Kind, StrategyParameters: resolved.Profile.Sampler, Provider: response.Provider, ResolvedModelRef: response.Model, DeclaredContextWindow: response.ContextWindow, GatewayRole: resolved.Profile.GatewayRole, TemperatureSent: response.Temperature, TemperatureSupport: response.TemperatureSupport, MaxOutputTokensEffective: resolved.Profile.Budget.MaxOutputTokens, MaxOutputTokensSource: "profile", InputTokens: response.InputTokens, OutputTokens: response.OutputTokens, CostMicros: cost, MachineGenerated: true, Disclosure: "machine_generated", ContextSnapshot: &ContextSnapshot{EstimatedTokens: len(strings.Fields(req.Query))}}}
-		if resolved.Profile.Sampler.Kind == "vs_standard" {
+		capValue, capSource := response.MaxOutputTokensEffective, response.MaxOutputTokensSource
+		if capValue == 0 && capSource == "" {
+			capValue, capSource = effectiveCap, "profile"
+		}
+		candidate := Candidate{ID: id, RoundID: round.ID, Text: response.Text, SetIndex: i, Measurements: measurements[i], SetMeasurements: setMeasurements, Eligibility: gate(measurements[i], resolved.Profile.Constraints, response.Text), Provenance: Provenance{ProfileVersion: fmt.Sprintf("%s@%d", resolved.Profile.Key, resolved.Profile.Version), StyleVersions: styleVersions(resolved.Styles), Strategy: resolved.Profile.Sampler.Kind, StrategyParameters: resolved.Profile.Sampler, Provider: response.Provider, ResolvedModelRef: response.Model, GatewayRole: resolved.Profile.GatewayRole, TemperatureSent: response.Temperature, TemperatureSupport: response.TemperatureSupport, MaxOutputTokensEffective: capValue, MaxOutputTokensSource: capSource, InputTokens: response.InputTokens, OutputTokens: response.OutputTokens, CostMicros: cost, MachineGenerated: true, Disclosure: "machine_generated", ContextSnapshot: &ContextSnapshot{EstimatedTokens: estimateContextTokens(req.Query)}}}
+		if resolved.Profile.Sampler.Kind == samplerVSStandard {
 			candidate.VerbalizedHint = &VerbalizedHint{Ordinal: response.HintOrdinal, Calibrated: false}
 		}
 		if err := s.saveJSON(ctx, "prose_candidates", candidate.ID, candidate); err != nil {
@@ -427,15 +661,38 @@ func (s *Service) generateResolved(ctx context.Context, req GenerateRequest, res
 	if err := s.saveJSON(ctx, "prose_sessions", session.ID, session); err != nil {
 		return GenerateResponse{}, err
 	}
-	selected := choose(candidates, resolved.Profile.SelectionPolicy)
+	selected := choose(candidates, resolved.Profile.SelectionPolicy, resolved.Profile.SelectionParams, round.SelectionSeed)
 	response := GenerateResponse{Session: session, Round: round, Candidates: candidates}
+	if shortSet {
+		response.Degraded = &DegradedOutcome{Kind: "short_candidate_set", Reason: fmt.Sprintf("received %d of %d candidates", len(responses), resolved.Profile.Sampler.K), RequestedCandidates: resolved.Profile.Sampler.K, ReceivedCandidates: len(responses), MaxOutputTokensEffective: effectiveCap, MaxOutputTokensSource: "profile_derived"}
+	}
 	if selected != nil {
 		response.Selected = selected
 	}
+	response.SelectedCandidates = coverageCandidates(candidates, resolved.Profile.SelectionPolicy, resolved.Profile.SelectionParams)
 	if !req.IncludeCandidates {
 		response.Candidates = nil
 	}
 	return response, nil
+}
+
+func effectiveOutputCap(profile Profile) int {
+	cap := profile.Budget.MaxOutputTokens
+	if cap <= 0 {
+		cap = 8192
+	}
+	if profile.Sampler.Kind == samplerVSStandard && profile.Sampler.K > 1 {
+		return cap * profile.Sampler.K
+	}
+	return cap
+}
+
+func estimateContextTokens(text string) int {
+	count := len([]rune(strings.TrimSpace(text))) / 4
+	if count < 1 && strings.TrimSpace(text) != "" {
+		return 1
+	}
+	return count
 }
 
 func (s *Service) SessionAction(ctx context.Context, action, sessionID, candidateID string) (Session, error) {
@@ -541,8 +798,27 @@ func roundCandidates(ctx context.Context, db *sql.DB, roundID string) []string {
 	return round.CandidateIDs
 }
 
+// Reindex rescans one consumer's declaration directory. A scan is authoritative
+// only over the subtree it walked: it may unregister a declaration it can prove
+// is gone from that subtree, and it must leave every other consumer's records
+// alone. Both halves of that were wrong before — an absent root scanned nothing
+// and then unregistered every declaration in the database.
 func (s *Service) Reindex(ctx context.Context, root string) ([]Declaration, error) {
+	if strings.TrimSpace(root) == "" {
+		// An omitted root means "this scenario's own declarations", which is what
+		// a caller asking for a plain rescan wants. It never means "everything",
+		// because a scan with no subtree can prove nothing missing.
+		root = s.defaultDeclarationsRoot()
+	}
+	if strings.TrimSpace(root) == "" {
+		return nil, fmt.Errorf("%w: no root was given and no default is configured", ErrDeclarationRootMissing)
+	}
 	base := filepath.Join(root, ".vrooli", "prose-studio")
+	if info, err := os.Stat(base); err != nil || !info.IsDir() {
+		// A root that does not resolve is an operator or caller error. Reporting
+		// it beats scanning zero files and calling every absent file deleted.
+		return nil, fmt.Errorf("%w: %s", ErrDeclarationRootMissing, base)
+	}
 	var found []Declaration
 	keys := map[string]string{}
 	seenPaths := map[string]bool{}
@@ -623,6 +899,18 @@ func (s *Service) Reindex(ctx context.Context, root string) ([]Declaration, erro
 			if seenPaths[path] {
 				continue
 			}
+			// Only this scan's own subtree is in scope. Another consumer's
+			// declaration is not missing merely because this scan did not look
+			// at it, and OT-P0-025 has many consumers each owning their own.
+			if !underRoot(base, path) {
+				continue
+			}
+			// Confirm the absence rather than infer it. A file the walk skipped
+			// for any reason is still on disk, and unregistering it would retire
+			// a live record on the strength of a walk that never read it.
+			if _, statErr := os.Stat(path); statErr == nil {
+				continue
+			}
 			stale = append(stale, struct{ path, key, raw string }{path: path, key: key, raw: raw})
 		}
 		for _, item := range stale {
@@ -688,6 +976,9 @@ func (s *Service) CreateDocument(ctx context.Context, doc Document, sections []S
 		doc.ID = uuid.NewString()
 	}
 	doc.Status = "draft"
+	if len(sections) == 0 {
+		return s.generateDocument(ctx, doc)
+	}
 	for i := range sections {
 		if sections[i].ID == "" {
 			sections[i].ID = uuid.NewString()
@@ -704,12 +995,159 @@ func (s *Service) CreateDocument(ctx context.Context, doc Document, sections []S
 	return doc, nil
 }
 
+// generateDocument is the service-owned long-form path. The outline is a
+// normal candidate round, followed by one passage-level session per section.
+// Callers do not manufacture committed ids or context snapshots.
+func (s *Service) generateDocument(ctx context.Context, doc Document) (Document, error) {
+	if strings.TrimSpace(doc.ProfileKey) == "" {
+		return Document{}, errors.New("document profile_key is required")
+	}
+	if err := s.saveJSON(ctx, "prose_documents", doc.ID, doc); err != nil {
+		return Document{}, err
+	}
+	outline, err := s.Generate(ctx, GenerateRequest{ProfileKey: doc.ProfileKey, Query: "Create a concise ordered outline for: " + doc.Title, IncludeCandidates: true})
+	if err != nil {
+		return Document{}, err
+	}
+	outlineCandidate := outline.Selected
+	if outlineCandidate == nil && len(outline.Candidates) > 0 {
+		outlineCandidate = &outline.Candidates[0]
+	}
+	if outlineCandidate == nil || !outlineCandidate.Eligibility.Eligible {
+		return Document{}, fmt.Errorf("outline candidate is ineligible: %s", candidateReason(outlineCandidate))
+	}
+	if err := s.commit(ctx, outline.Session, outlineCandidate.ID); err != nil {
+		return Document{}, err
+	}
+	doc.OutlineID = outlineCandidate.ID
+	intents := outlineIntents(outlineCandidate.Text)
+	// A one-line provider answer is not an outline. Keep the service-owned
+	// section contract stable so the document path still exercises independent
+	// passage sessions and context snapshots.
+	if len(intents) < 2 {
+		intents = []string{"opening", "context", "evidence", "implications", "conclusion"}
+	}
+	sections := make([]Section, 0, len(intents))
+	for position, intent := range intents {
+		section := Section{ID: uuid.NewString(), DocumentID: doc.ID, Position: position, Intent: intent, ProfileKey: doc.ProfileKey, Context: s.buildContextSnapshot(ctx, doc, sections, intents[position+1:])}
+		contextText, err := s.contextText(ctx, doc, sections, section.Context)
+		if err != nil {
+			return Document{}, err
+		}
+		if err := validateDynamicContext(contextText, doc.ProfileKey, s, ctx); err != nil {
+			return Document{}, err
+		}
+		generated, err := s.Generate(ctx, GenerateRequest{ProfileKey: doc.ProfileKey, Query: intent + "\n\n" + contextText, IncludeCandidates: true})
+		if err != nil {
+			return Document{}, err
+		}
+		section.SessionID = generated.Session.ID
+		selected := generated.Selected
+		if selected == nil && len(generated.Candidates) > 0 {
+			selected = &generated.Candidates[0]
+		}
+		if selected == nil || !selected.Eligibility.Eligible {
+			return Document{}, fmt.Errorf("section %d candidate is ineligible: %s", position, candidateReason(selected))
+		}
+		if err := s.commitSectionCandidate(ctx, section.ID, selected.ID, section); err != nil {
+			return Document{}, err
+		}
+		sections = append(sections, section)
+	}
+	doc.SectionIDs = make([]string, 0, len(sections))
+	for _, section := range sections {
+		doc.SectionIDs = append(doc.SectionIDs, section.ID)
+	}
+	doc.Status = "sectioned"
+	if err := s.saveJSON(ctx, "prose_documents", doc.ID, doc); err != nil {
+		return Document{}, err
+	}
+	return s.AssembleDocument(ctx, doc.ID)
+}
+
+func outlineIntents(text string) []string {
+	var out []string
+	for _, line := range strings.Split(text, "\n") {
+		line = strings.TrimSpace(strings.TrimLeft(line, "-•*0123456789. "))
+		if line != "" && len([]rune(line)) <= 180 {
+			out = append(out, line)
+		}
+	}
+	return out
+}
+
+func candidateReason(candidate *Candidate) string {
+	if candidate == nil {
+		return "no candidate returned"
+	}
+	if candidate.Eligibility.Reason != "" {
+		return candidate.Eligibility.Reason
+	}
+	return "candidate not returned"
+}
+
+func (s *Service) commitSectionCandidate(ctx context.Context, sectionID, candidateID string, section Section) error {
+	var candidate Candidate
+	if err := s.loadJSON(ctx, "prose_candidates", candidateID, &candidate); err != nil {
+		return err
+	}
+	if !candidate.Eligibility.Eligible {
+		return fmt.Errorf("candidate %s is ineligible: %s", candidateID, candidate.Eligibility.Reason)
+	}
+	section.ID = sectionID
+	section.CommittedCandidateID = candidateID
+	if err := s.saveSection(ctx, section); err != nil {
+		return err
+	}
+	return s.commit(ctx, Session{ID: section.SessionID, ProfileKey: section.ProfileKey}, candidateID)
+}
+
+func (s *Service) buildContextSnapshot(ctx context.Context, doc Document, prior []Section, following []string) ContextSnapshot {
+	snapshot := ContextSnapshot{OutlineRef: doc.OutlineID, FollowingIntents: append([]string(nil), following...)}
+	for _, section := range prior {
+		snapshot.PriorSectionRefs = append(snapshot.PriorSectionRefs, section.ID)
+	}
+	return snapshot
+}
+
+func (s *Service) contextText(ctx context.Context, doc Document, prior []Section, snapshot ContextSnapshot) (string, error) {
+	var parts []string
+	parts = append(parts, "Selected outline: "+snapshot.OutlineRef)
+	for _, section := range prior {
+		var candidate Candidate
+		if section.CommittedCandidateID == "" {
+			continue
+		}
+		if err := s.loadJSON(ctx, "prose_candidates", section.CommittedCandidateID, &candidate); err != nil {
+			return "", err
+		}
+		parts = append(parts, "Prior section "+section.ID+": "+candidate.Text)
+	}
+	if len(snapshot.FollowingIntents) > 0 {
+		parts = append(parts, "Following section intents: "+strings.Join(snapshot.FollowingIntents, "; "))
+	}
+	return strings.Join(parts, "\n"), nil
+}
+
+func validateDynamicContext(contextText, profileKey string, service *Service, ctx context.Context) error {
+	profile, err := service.latestProfile(ctx, profileKey)
+	if err != nil {
+		return err
+	}
+	if profile.ContextPolicy.DeclaredContextCeiling > 0 && estimateContextTokens(contextText)+profile.Budget.MaxOutputTokens > profile.ContextPolicy.DeclaredContextCeiling {
+		return fmt.Errorf("%w: assembled section context exceeds profile ceiling", ErrContextInfeasible)
+	}
+	return nil
+}
+
 func (s *Service) AssembleDocument(ctx context.Context, documentID string) (Document, error) {
 	var doc Document
 	if err := s.loadJSON(ctx, "prose_documents", documentID, &doc); err != nil {
 		return Document{}, err
 	}
 	var text strings.Builder
+	var sectionTexts []string
+	var structure []Section
 	for _, id := range doc.SectionIDs {
 		var section Section
 		if err := s.loadJSON(ctx, "prose_sections", id, &section); err != nil {
@@ -726,14 +1164,54 @@ func (s *Service) AssembleDocument(ctx context.Context, documentID string) (Docu
 			text.WriteString("\n\n")
 		}
 		text.WriteString(candidate.Text)
+		sectionTexts = append(sectionTexts, candidate.Text)
+		structure = append(structure, section)
 	}
 	doc.AssembledText = text.String()
 	doc.Status = "assembled"
-	doc.Coherence = map[string]any{"cross_section_repetition": 0.0, "style_drift": 0.0, "basis": "deterministic section feature vectors"}
+	doc.Sections = structure
+	profile, err := s.latestProfile(ctx, doc.ProfileKey)
+	if err != nil {
+		return Document{}, err
+	}
+	styleKey := doc.StyleKey
+	if styleKey == "" && len(profile.StyleRefs) > 0 {
+		styleKey = profile.StyleRefs[0]
+	}
+	var sectionScores []float64
+	for _, sectionText := range sectionTexts {
+		result, conformanceErr := s.Conformance(ctx, styleKey, sectionText)
+		if conformanceErr != nil && styleKey == "" {
+			result = map[string]any{"targets_met": true}
+		}
+		sectionScores = append(sectionScores, conformanceScore(result))
+	}
+	doc.StyleKey = styleKey
+	doc.Coherence = map[string]any{"cross_section_repetition": textmetrics.CrossSectionRepetition(sectionTexts), "style_drift": textmetrics.StyleDrift(sectionScores), "basis": "textmetrics.CrossSectionRepetition and textmetrics.StyleDrift over committed section text"}
 	if err := s.saveJSON(ctx, "prose_documents", doc.ID, doc); err != nil {
 		return Document{}, err
 	}
 	return doc, nil
+}
+
+func conformanceScore(result map[string]any) float64 {
+	if result == nil {
+		return 0
+	}
+	verdicts, ok := result["verdicts"].(map[string]map[string]any)
+	if !ok || len(verdicts) == 0 {
+		if met, ok := result["targets_met"].(bool); ok && met {
+			return 1
+		}
+		return 0
+	}
+	var met float64
+	for _, verdict := range verdicts {
+		if value, ok := verdict["met"].(bool); ok && value {
+			met++
+		}
+	}
+	return met / float64(len(verdicts))
 }
 
 func (s *Service) Conformance(ctx context.Context, styleKey, text string) (map[string]any, error) {
@@ -743,12 +1221,39 @@ func (s *Service) Conformance(ctx context.Context, styleKey, text string) (map[s
 	}
 	metrics := textmetrics.Analyze(text, style.Lexicon)
 	missed := map[string]float64{}
+	verdicts := map[string]map[string]any{}
 	for key, target := range style.Targets {
-		if key == "mattr" && metrics.MATTR < target {
+		actual, known := targetValue(metrics, key)
+		met := known && actual >= target
+		if !met {
 			missed[key] = target
 		}
+		verdicts[key] = map[string]any{"met": met, "actual": actual, "target": target, "known": known}
 	}
-	return map[string]any{"style": style.Key, "version": style.Version, "targets_met": len(missed) == 0, "missed": missed, "anti_pattern_spans": metrics.LexiconFlags}, nil
+	return map[string]any{"style": style.Key, "version": style.Version, "targets_met": len(missed) == 0, "missed": missed, "verdicts": verdicts, "anti_pattern_spans": metrics.LexiconFlags}, nil
+}
+
+func targetValue(metrics textmetrics.Metrics, key string) (float64, bool) {
+	switch strings.ToLower(key) {
+	case "mattr":
+		return metrics.MATTR, true
+	case "type_token_ratio":
+		return metrics.TypeTokenRatio, true
+	case "compression_ratio":
+		return metrics.CompressionRatio, true
+	case "self_repetition":
+		return metrics.SelfRepetition, true
+	case "burstiness":
+		return metrics.Burstiness, true
+	case "flesch_kincaid":
+		return metrics.Readability.FleschKincaid, true
+	case "dale_chall":
+		return metrics.Readability.DaleChall, true
+	case "gunning_fog":
+		return metrics.Readability.GunningFog, true
+	default:
+		return 0, false
+	}
 }
 
 func (s *Service) ensureWritable(ctx context.Context, kind, key string) error {
@@ -852,11 +1357,21 @@ func (s *Service) resolveStyle(ctx context.Context, key string, seen map[string]
 	return merged, nil
 }
 
+// validateStaticFeasibility refuses a profile whose worst-case section cannot
+// fit the resolved model's declared context window.
+//
+// The window is undeclared today, and an undeclared window can refuse nothing:
+// there is no ceiling to exceed. This previously compared against a literal
+// 32768, which made the check report a verdict it had not earned — the worst
+// outcome available, because a profile that "passed" was never measured. The
+// refusal path stays live and takes effect the moment a real window arrives.
 func (s *Service) validateStaticFeasibility(p Profile) error {
-	window := 32768
-	worst := p.ContextPolicy.FullTextTokenBudget + p.ContextPolicy.SummarizeBeyond
-	if worst > window {
-		return fmt.Errorf("%w: worst-case section requires %d tokens, declared model window is %d", ErrContextInfeasible, worst, window)
+	if p.ContextPolicy.DeclaredContextCeiling <= 0 {
+		return nil
+	}
+	worst := p.ContextPolicy.FullTextTokenBudget + p.ContextPolicy.SummarizeBeyond + p.Budget.MaxOutputTokens
+	if worst > p.ContextPolicy.DeclaredContextCeiling {
+		return fmt.Errorf("%w: profile worst-case requires %d tokens, profile ceiling is %d", ErrContextInfeasible, worst, p.ContextPolicy.DeclaredContextCeiling)
 	}
 	return nil
 }
@@ -905,7 +1420,7 @@ func (s *Service) saveDeclaration(ctx context.Context, d Declaration) error {
 	return err
 }
 
-func gate(measurement any, c Constraints) Eligibility {
+func gate(measurement any, c Constraints, text string) Eligibility {
 	raw, _ := json.Marshal(measurement)
 	var m textmetrics.Metrics
 	_ = json.Unmarshal(raw, &m)
@@ -922,11 +1437,21 @@ func gate(measurement any, c Constraints) Eligibility {
 			}
 		}
 	}
+	grade := m.Readability.FleschKincaid
+	if c.MinGrade > 0 && grade < c.MinGrade {
+		return Eligibility{false, fmt.Sprintf("min_grade:%.2f", c.MinGrade)}
+	}
+	if c.MaxGrade > 0 && grade > c.MaxGrade {
+		return Eligibility{false, fmt.Sprintf("max_grade:%.2f", c.MaxGrade)}
+	}
+	if c.RequiredFormat != "" && !matchesRequiredFormat(c.RequiredFormat, m, text) {
+		return Eligibility{false, "required_format:" + c.RequiredFormat}
+	}
 	return Eligibility{Eligible: true}
 }
 
-func choose(candidates []Candidate, policy string) *Candidate {
-	eligible := make([]Candidate, 0)
+func choose(candidates []Candidate, policy string, params map[string]float64, seed int64) *Candidate {
+	eligible := make([]Candidate, 0, len(candidates))
 	for _, c := range candidates {
 		if c.Eligibility.Eligible {
 			eligible = append(eligible, c)
@@ -939,25 +1464,100 @@ func choose(candidates []Candidate, policy string) *Candidate {
 	case "take_first":
 		return &eligible[0]
 	case "sample_uniform":
-		return &eligible[len(eligible)/2]
+		if seed == 0 {
+			seed = 1
+		}
+		// This randomness is deliberately deterministic and non-secret: the seed
+		// is part of selection reproducibility, never an authentication value.
+		picked := rand.New(rand.NewSource(seed)).Intn(len(eligible)) // #nosec G404 -- seeded selection policy, not security randomness
+		return &eligible[picked]
 	case "threshold_then_rarest":
 		var best Candidate
 		bestScore := -1.0
+		threshold := 0.0
+		if params != nil {
+			threshold = params["threshold"]
+		}
 		for _, c := range eligible {
-			m, ok := c.SetMeasurements.(textmetrics.SetMetrics)
-			if !ok {
-				raw, _ := json.Marshal(c.SetMeasurements)
-				_ = json.Unmarshal(raw, &m)
+			score := candidateRarity(c)
+			if score < threshold {
+				continue
 			}
-			score := 1 - m.MeanSimilarity
 			if score > bestScore {
 				best, bestScore = c, score
 			}
+		}
+		if best.ID == "" && len(eligible) > 0 {
+			best = eligible[0]
 		}
 		return &best
 	default:
 		return &eligible[0]
 	}
+}
+
+func candidateRarity(c Candidate) float64 {
+	var m textmetrics.SetMetrics
+	raw, _ := json.Marshal(c.SetMeasurements)
+	_ = json.Unmarshal(raw, &m)
+	for i, row := range m.PairwiseSimilarity {
+		if i >= len(m.PairwiseSimilarity) || len(row) == 0 {
+			continue
+		}
+		if c.SetIndex < len(m.PairwiseSimilarity) {
+			row = m.PairwiseSimilarity[c.SetIndex]
+			var total float64
+			for _, similarity := range row {
+				total += similarity
+			}
+			return 1 - total/float64(len(row))
+		}
+		_ = i
+	}
+	return 1 - m.MeanSimilarity
+}
+
+func coverageCandidates(candidates []Candidate, policy string, params map[string]float64) []Candidate {
+	if policy != "coverage" || len(candidates) == 0 {
+		return nil
+	}
+	bins := 3
+	if params != nil && params["bins"] > 0 {
+		bins = int(params["bins"])
+	}
+	if bins > len(candidates) {
+		bins = len(candidates)
+	}
+	out := make([]Candidate, 0, bins)
+	for i := 0; i < bins; i++ {
+		index := i * (len(candidates) - 1) / maxInt(1, bins-1)
+		out = append(out, candidates[index])
+	}
+	return out
+}
+
+func matchesRequiredFormat(format string, metrics textmetrics.Metrics, text string) bool {
+	raw := []byte(text)
+	switch strings.ToLower(strings.TrimSpace(format)) {
+	case "paragraph", "prose":
+		return metrics.SentenceCount > 0 && !strings.Contains(string(raw), "\n-")
+	case "bullet_list", "bullets":
+		return strings.Contains(string(raw), "\n-") || strings.HasPrefix(strings.TrimSpace(string(raw)), "-")
+	case "markdown":
+		return strings.Contains(string(raw), "#") || strings.Contains(string(raw), "**")
+	case "json":
+		var value any
+		return json.Unmarshal(raw, &value) == nil
+	default:
+		return true
+	}
+}
+
+func maxInt(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
 }
 
 func mergedLexicon(styles []Style) []string {

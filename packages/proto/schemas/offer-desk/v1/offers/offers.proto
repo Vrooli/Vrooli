@@ -9,13 +9,14 @@ import "money-ledger/v1/ledger/ledger.proto";
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/offer-desk/v1/offers;offers_v1";
 
 enum NodeKind { NODE_KIND_UNSPECIFIED = 0; OFFER = 1; VARIANT = 2; CHANNEL = 3; REVENUE_LINE = 4; DELIVERABLE = 5; }
-enum Status { STATUS_UNSPECIFIED = 0; IDEA = 1; CANDIDATE = 2; TRIGGER_MET = 3; ACTIVE = 4; SHIPPED = 5; RETIRED = 6; }
+// PROPOSED is appended to preserve the wire/database values of existing statuses.
+enum Status { STATUS_UNSPECIFIED = 0; IDEA = 1; CANDIDATE = 2; TRIGGER_MET = 3; ACTIVE = 4; SHIPPED = 5; RETIRED = 6; PROPOSED = 7; }
 enum Verdict { VERDICT_UNSPECIFIED = 0; SATISFIED = 1; UNSATISFIED = 2; UNKNOWN = 3; }
 enum SourceMode { SOURCE_MODE_UNSPECIFIED = 0; SOURCE_MODE_FIXTURE = 1; SOURCE_MODE_OPERATOR_SUPPLIED = 2; }
 enum EvaluationResult { EVALUATION_RESULT_UNSPECIFIED = 0; EVALUATION_SUCCEEDED = 1; EVALUATION_FAILED = 2; EVALUATION_NOT_RUN = 3; }
 
 message Node { string id = 1; NodeKind kind = 2; string name = 3; Status status = 4; string trigger_id = 5; google.protobuf.Timestamp created_at = 6; string actual_account_id = 7; }
-message Edge { string id = 1; string from_id = 2; string to_id = 3; string kind = 4; int64 intended_price_minor = 5; string currency = 6; }
+message Edge { string id = 1; string from_id = 2; string to_id = 3; string kind = 4; int64 intended_price_minor = 5; string currency = 6; bool intended_price_declared = 7; }
 enum TriggerComposition { TRIGGER_COMPOSITION_UNSPECIFIED = 0; ALL = 1; ANY = 2; }
 message TriggerClause { string fact_name = 1; string operator = 2; double threshold = 3; }
 message Fact { string name = 1; double value = 2; google.protobuf.Timestamp observed_at = 3; int32 stale_after_days = 4; string dimension = 5; }
@@ -56,6 +57,44 @@ message ImportFileReport { string path = 1; int32 read = 2; int32 written = 3; i
 message StatusMapEntry { string path = 1; Status status = 2; bool recognized = 3; int32 line = 4; }
 message ImportFinding { string path = 1; string reason = 2; bool blocking = 3; int32 line = 4; }
 message ImportCatalogResponse { repeated ImportFileReport files = 1; repeated StatusMapEntry status_map = 2; repeated ImportFinding findings = 3; int32 total_findings = 4; bool applied = 5; }
+message MergeNodesRequest {
+  string surviving_id = 1 [(buf.validate.field).string.min_len = 1];
+  string duplicate_id = 2 [(buf.validate.field).string.min_len = 1];
+  string actor = 3;
+  bool dry_run = 4;
+}
+message MergeNodesResponse {
+  Node surviving = 1;
+  int32 moved_edges = 2;
+  int32 moved_triggers = 3;
+  int32 moved_evaluations = 4;
+  int32 moved_proposals = 5;
+  int32 moved_findings = 6;
+  repeated string collapsed_edge_ids = 7;
+}
+message VerifyCatalogRequest { string source_path = 1; SourceMode source_mode = 2; }
+message VerifyFileReport { string path = 1; int32 expected = 2; int32 live = 3; }
+message VerifyCatalogResponse {
+  repeated VerifyFileReport files = 1;
+  repeated string duplicate_identities = 2;
+  repeated string orphan_edge_ids = 3;
+  repeated string extra_node_ids = 4;
+  int32 total_drift = 5;
+  // reconciled reports that every check which could run agreed. It is not a
+  // claim that the source-versus-live count comparison ran: read `comparable`
+  // for that. A compressed source declares no records, so the count comparison
+  // has nothing to compare and is skipped while duplicate-identity and
+  // orphan-edge checks still run.
+  bool reconciled = 6;
+  // comparable reports whether the source-versus-live node-count comparison
+  // actually ran. False means no declared source file yielded a countable
+  // record, which is the expected steady state once sources have been
+  // compressed to judgment-only prose and their state moved into this scenario.
+  bool comparable = 7;
+  // not_comparable_reason states why the count comparison was skipped. Empty
+  // when comparable is true.
+  string not_comparable_reason = 8;
+}
 message SpaceCell { string id = 1; string group = 2; string question = 3; string owner = 4; string status = 5; string notes = 6; }
 message SpaceResponse { string schema_version = 1; string projection = 2; string owner = 3; string denominator_confidence = 4; string confidence_rationale = 5; string source = 6; repeated SpaceCell cells = 7; }
 
@@ -66,6 +105,8 @@ service CatalogService {
   rpc CreateEdge(CreateEdgeRequest) returns (CreateEdgeResponse);
   rpc ListEdges(ListEdgesRequest) returns (ListEdgesResponse);
   rpc ImportCatalog(ImportCatalogRequest) returns (ImportCatalogResponse);
+  rpc MergeNodes(MergeNodesRequest) returns (MergeNodesResponse);
+  rpc VerifyCatalog(VerifyCatalogRequest) returns (VerifyCatalogResponse);
 }
 service GatesService {
   rpc DeclareTrigger(DeclareTriggerRequest) returns (DeclareTriggerResponse);

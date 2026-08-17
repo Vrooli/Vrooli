@@ -25,7 +25,7 @@ _sym_db = _symbol_database.Default()
 from google.protobuf import timestamp_pb2 as google_dot_protobuf_dot_timestamp__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\"vrooli-bridge/v1/audit/audit.proto\x12\x1dvrooli.vrooli_bridge.v1.audit\x1a\x1fgoogle/protobuf/timestamp.proto\"\x87\x03\n\x0b\x41uditRecord\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x42\n\x06\x61\x63tion\x18\x02 \x01(\x0e\x32*.vrooli.vrooli_bridge.v1.audit.AuditActionR\x06\x61\x63tion\x12\x14\n\x05\x61\x63tor\x18\x03 \x01(\tR\x05\x61\x63tor\x12\x17\n\x07node_id\x18\x04 \x01(\tR\x06nodeId\x12\x1a\n\x08scenario\x18\x05 \x01(\tR\x08scenario\x12\x12\n\x04verb\x18\x06 \x01(\tR\x04verb\x12\x12\n\x04\x61rgs\x18\x07 \x03(\tR\x04\x61rgs\x12\x45\n\x07outcome\x18\x08 \x01(\x0e\x32+.vrooli.vrooli_bridge.v1.audit.AuditOutcomeR\x07outcome\x12\x16\n\x06\x64\x65tail\x18\t \x01(\tR\x06\x64\x65tail\x12\x15\n\x06run_id\x18\n \x01(\tR\x05runId\x12;\n\x0brecorded_at\x18\x0b \x01(\x0b\x32\x1a.google.protobuf.TimestampR\nrecordedAt\"_\n\x17ListAuditRecordsRequest\x12\x17\n\x07node_id\x18\x01 \x01(\tR\x06nodeId\x12\x15\n\x06run_id\x18\x02 \x01(\tR\x05runId\x12\x14\n\x05limit\x18\x03 \x01(\x05R\x05limit\"`\n\x18ListAuditRecordsResponse\x12\x44\n\x07records\x18\x01 \x03(\x0b\x32*.vrooli.vrooli_bridge.v1.audit.AuditRecordR\x07records*\xa5\x02\n\x0b\x41uditAction\x12\x1c\n\x18\x41UDIT_ACTION_UNSPECIFIED\x10\x00\x12\x19\n\x15\x41UDIT_ACTION_DISPATCH\x10\x01\x12\x1a\n\x16\x41UDIT_ACTION_PROVISION\x10\x02\x12\x1c\n\x18\x41UDIT_ACTION_BREAK_GLASS\x10\x03\x12\x1d\n\x19\x41UDIT_ACTION_SESSION_OPEN\x10\x04\x12\x1e\n\x1a\x41UDIT_ACTION_SESSION_CLOSE\x10\x05\x12\x1f\n\x1b\x41UDIT_ACTION_SESSION_RESIZE\x10\x06\x12 \n\x1c\x41UDIT_ACTION_SESSION_DATA_IN\x10\x07\x12!\n\x1d\x41UDIT_ACTION_SESSION_DATA_OUT\x10\x08*\x9c\x01\n\x0c\x41uditOutcome\x12\x1d\n\x19\x41UDIT_OUTCOME_UNSPECIFIED\x10\x00\x12\x1a\n\x16\x41UDIT_OUTCOME_ACCEPTED\x10\x01\x12\x1a\n\x16\x41UDIT_OUTCOME_REJECTED\x10\x02\x12\x1b\n\x17\x41UDIT_OUTCOME_COMPLETED\x10\x03\x12\x18\n\x14\x41UDIT_OUTCOME_FAILED\x10\x04\x32\x94\x01\n\x0c\x41uditService\x12\x83\x01\n\x10ListAuditRecords\x12\x36.vrooli.vrooli_bridge.v1.audit.ListAuditRecordsRequest\x1a\x37.vrooli.vrooli_bridge.v1.audit.ListAuditRecordsResponseBPZNgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/audit;audit_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\"vrooli-bridge/v1/audit/audit.proto\x12\x1dvrooli.vrooli_bridge.v1.audit\x1a\x1fgoogle/protobuf/timestamp.proto\"\x87\x03\n\x0b\x41uditRecord\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x42\n\x06\x61\x63tion\x18\x02 \x01(\x0e\x32*.vrooli.vrooli_bridge.v1.audit.AuditActionR\x06\x61\x63tion\x12\x14\n\x05\x61\x63tor\x18\x03 \x01(\tR\x05\x61\x63tor\x12\x17\n\x07node_id\x18\x04 \x01(\tR\x06nodeId\x12\x1a\n\x08scenario\x18\x05 \x01(\tR\x08scenario\x12\x12\n\x04verb\x18\x06 \x01(\tR\x04verb\x12\x12\n\x04\x61rgs\x18\x07 \x03(\tR\x04\x61rgs\x12\x45\n\x07outcome\x18\x08 \x01(\x0e\x32+.vrooli.vrooli_bridge.v1.audit.AuditOutcomeR\x07outcome\x12\x16\n\x06\x64\x65tail\x18\t \x01(\tR\x06\x64\x65tail\x12\x15\n\x06run_id\x18\n \x01(\tR\x05runId\x12;\n\x0brecorded_at\x18\x0b \x01(\x0b\x32\x1a.google.protobuf.TimestampR\nrecordedAt\"_\n\x17ListAuditRecordsRequest\x12\x17\n\x07node_id\x18\x01 \x01(\tR\x06nodeId\x12\x15\n\x06run_id\x18\x02 \x01(\tR\x05runId\x12\x14\n\x05limit\x18\x03 \x01(\x05R\x05limit\"`\n\x18ListAuditRecordsResponse\x12\x44\n\x07records\x18\x01 \x03(\x0b\x32*.vrooli.vrooli_bridge.v1.audit.AuditRecordR\x07records*\xbf\x02\n\x0b\x41uditAction\x12\x1c\n\x18\x41UDIT_ACTION_UNSPECIFIED\x10\x00\x12\x19\n\x15\x41UDIT_ACTION_DISPATCH\x10\x01\x12\x1a\n\x16\x41UDIT_ACTION_PROVISION\x10\x02\x12\x1c\n\x18\x41UDIT_ACTION_BREAK_GLASS\x10\x03\x12\x1d\n\x19\x41UDIT_ACTION_SESSION_OPEN\x10\x04\x12\x1e\n\x1a\x41UDIT_ACTION_SESSION_CLOSE\x10\x05\x12\x1f\n\x1b\x41UDIT_ACTION_SESSION_RESIZE\x10\x06\x12 \n\x1c\x41UDIT_ACTION_SESSION_DATA_IN\x10\x07\x12!\n\x1d\x41UDIT_ACTION_SESSION_DATA_OUT\x10\x08\x12\x18\n\x14\x41UDIT_ACTION_CLEANUP\x10\t*\x9c\x01\n\x0c\x41uditOutcome\x12\x1d\n\x19\x41UDIT_OUTCOME_UNSPECIFIED\x10\x00\x12\x1a\n\x16\x41UDIT_OUTCOME_ACCEPTED\x10\x01\x12\x1a\n\x16\x41UDIT_OUTCOME_REJECTED\x10\x02\x12\x1b\n\x17\x41UDIT_OUTCOME_COMPLETED\x10\x03\x12\x18\n\x14\x41UDIT_OUTCOME_FAILED\x10\x04\x32\x94\x01\n\x0c\x41uditService\x12\x83\x01\n\x10ListAuditRecords\x12\x36.vrooli.vrooli_bridge.v1.audit.ListAuditRecordsRequest\x1a\x37.vrooli.vrooli_bridge.v1.audit.ListAuditRecordsResponseBPZNgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/audit;audit_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -34,15 +34,15 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'ZNgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/audit;audit_v1'
   _globals['_AUDITACTION']._serialized_start=692
-  _globals['_AUDITACTION']._serialized_end=985
-  _globals['_AUDITOUTCOME']._serialized_start=988
-  _globals['_AUDITOUTCOME']._serialized_end=1144
+  _globals['_AUDITACTION']._serialized_end=1011
+  _globals['_AUDITOUTCOME']._serialized_start=1014
+  _globals['_AUDITOUTCOME']._serialized_end=1170
   _globals['_AUDITRECORD']._serialized_start=103
   _globals['_AUDITRECORD']._serialized_end=494
   _globals['_LISTAUDITRECORDSREQUEST']._serialized_start=496
   _globals['_LISTAUDITRECORDSREQUEST']._serialized_end=591
   _globals['_LISTAUDITRECORDSRESPONSE']._serialized_start=593
   _globals['_LISTAUDITRECORDSRESPONSE']._serialized_end=689
-  _globals['_AUDITSERVICE']._serialized_start=1147
-  _globals['_AUDITSERVICE']._serialized_end=1295
+  _globals['_AUDITSERVICE']._serialized_start=1173
+  _globals['_AUDITSERVICE']._serialized_end=1321
 # @@protoc_insertion_point(module_scope)

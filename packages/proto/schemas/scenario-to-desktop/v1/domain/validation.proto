@@ -191,4 +191,8 @@ message ReleaseGate {
   repeated string missing_cell_ids = 6;
   repeated string failed_cell_ids = 7;
   optional string reason = 8;
+  // Matrix-wide chapter satisfaction. The key is the stable journey/profile
+  // selection identity and the value is the target that supplied the passing
+  // evidence. A chapter is still unsatisfied when no capable target passes.
+  map<string, string> satisfying_target_ids = 9;
 }

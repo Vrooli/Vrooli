@@ -14,6 +14,8 @@ import (
 	"github.com/gorilla/mux"
 	v1 "github.com/vrooli/vrooli/packages/proto/gen/go/prose-studio/v1/prose"
 	connectv1 "github.com/vrooli/vrooli/packages/proto/gen/go/prose-studio/v1/prose/prose_v1connect"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 )
 
 type handler struct{ service *internal.Service }
@@ -29,38 +31,170 @@ func Module(service *internal.Service) module.Module {
 	}, Endpoints: Endpoints}
 }
 
-func (h *handler) Registry(ctx context.Context, req *connect.Request[v1.JsonRequest]) (*connect.Response[v1.JsonResponse], error) {
-	return h.call(ctx, "registry", req.Msg.GetJson())
+func (h *handler) Registry(ctx context.Context, req *connect.Request[v1.RegistryRequest]) (*connect.Response[v1.RegistryResponse], error) {
+	value := h.service.Registry()
+	var out v1.RegistryResponse
+	if err := encodeResponse(value, &out); err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&out), nil
 }
-func (h *handler) CreateStyle(ctx context.Context, req *connect.Request[v1.JsonRequest]) (*connect.Response[v1.JsonResponse], error) {
-	return h.call(ctx, "create_style", req.Msg.GetJson())
+
+func (h *handler) CreateStyle(ctx context.Context, req *connect.Request[v1.CreateStyleRequest]) (*connect.Response[v1.CreateStyleResponse], error) {
+	var in internal.Style
+	if err := decodeMessage(req.Msg.GetStyle(), &in); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	out, err := h.service.CreateStyle(ctx, in)
+	if err != nil {
+		return nil, connect.NewError(codeFor(err), err)
+	}
+	var response v1.CreateStyleResponse
+	if err := encodeResponse(map[string]any{"style": out}, &response); err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&response), nil
 }
-func (h *handler) ResolveProfile(ctx context.Context, req *connect.Request[v1.JsonRequest]) (*connect.Response[v1.JsonResponse], error) {
-	return h.call(ctx, "resolve_profile", req.Msg.GetJson())
+
+func (h *handler) ResolveProfile(ctx context.Context, req *connect.Request[v1.ResolveProfileRequest]) (*connect.Response[v1.ResolveProfileResponse], error) {
+	out, err := h.service.ResolveProfile(ctx, req.Msg.GetKey())
+	if err != nil {
+		return nil, connect.NewError(codeFor(err), err)
+	}
+	var response v1.ResolveProfileResponse
+	if err := encodeResponse(out, &response); err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&response), nil
 }
-func (h *handler) Generate(ctx context.Context, req *connect.Request[v1.JsonRequest]) (*connect.Response[v1.JsonResponse], error) {
-	return h.call(ctx, "generate", req.Msg.GetJson())
+
+func (h *handler) Generate(ctx context.Context, req *connect.Request[v1.GenerateRequest]) (*connect.Response[v1.GenerateResponse], error) {
+	var in internal.GenerateRequest
+	if err := decodeMessage(req.Msg, &in); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	out, err := h.service.Generate(ctx, in)
+	if err != nil {
+		return nil, connect.NewError(codeFor(err), err)
+	}
+	var response v1.GenerateResponse
+	if err := encodeResponse(out, &response); err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&response), nil
 }
-func (h *handler) Reroll(ctx context.Context, req *connect.Request[v1.JsonRequest]) (*connect.Response[v1.JsonResponse], error) {
-	return h.call(ctx, "reroll", req.Msg.GetJson())
+
+func (h *handler) Reroll(ctx context.Context, req *connect.Request[v1.RerollRequest]) (*connect.Response[v1.RerollResponse], error) {
+	out, err := h.service.Reroll(ctx, req.Msg.GetSessionId(), req.Msg.GetIncludeCandidates())
+	if err != nil {
+		return nil, connect.NewError(codeFor(err), err)
+	}
+	var response v1.RerollResponse
+	if err := encodeResponse(map[string]any{"result": out}, &response); err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&response), nil
 }
-func (h *handler) SessionAction(ctx context.Context, req *connect.Request[v1.JsonRequest]) (*connect.Response[v1.JsonResponse], error) {
-	return h.call(ctx, "session_action", req.Msg.GetJson())
+
+func (h *handler) SessionAction(ctx context.Context, req *connect.Request[v1.SessionActionRequest]) (*connect.Response[v1.SessionActionResponse], error) {
+	out, err := h.service.SessionAction(ctx, req.Msg.GetAction(), req.Msg.GetSessionId(), req.Msg.GetCandidateId())
+	if err != nil {
+		return nil, connect.NewError(codeFor(err), err)
+	}
+	var response v1.SessionActionResponse
+	if err := encodeResponse(map[string]any{"session": out}, &response); err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&response), nil
 }
-func (h *handler) ReindexDeclarations(ctx context.Context, req *connect.Request[v1.JsonRequest]) (*connect.Response[v1.JsonResponse], error) {
-	return h.call(ctx, "reindex", req.Msg.GetJson())
+
+func (h *handler) ReindexDeclarations(ctx context.Context, req *connect.Request[v1.ReindexDeclarationsRequest]) (*connect.Response[v1.ReindexDeclarationsResponse], error) {
+	out, err := h.service.Reindex(ctx, req.Msg.GetRoot())
+	if err != nil {
+		return nil, connect.NewError(codeFor(err), err)
+	}
+	var response v1.ReindexDeclarationsResponse
+	if err := encodeResponse(map[string]any{"declarations": out}, &response); err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&response), nil
 }
-func (h *handler) ValidateDeclarations(ctx context.Context, req *connect.Request[v1.JsonRequest]) (*connect.Response[v1.JsonResponse], error) {
-	return h.call(ctx, "validate", req.Msg.GetJson())
+
+func (h *handler) ValidateDeclarations(ctx context.Context, req *connect.Request[v1.ValidateDeclarationsRequest]) (*connect.Response[v1.ValidateDeclarationsResponse], error) {
+	out, err := h.service.ValidateDeclarations(ctx, req.Msg.GetRoot())
+	if err != nil {
+		return nil, connect.NewError(codeFor(err), err)
+	}
+	var response v1.ValidateDeclarationsResponse
+	if err := encodeResponse(map[string]any{"declarations": out}, &response); err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&response), nil
 }
-func (h *handler) CreateDocument(ctx context.Context, req *connect.Request[v1.JsonRequest]) (*connect.Response[v1.JsonResponse], error) {
-	return h.call(ctx, "create_document", req.Msg.GetJson())
+
+func (h *handler) CreateDocument(ctx context.Context, req *connect.Request[v1.CreateDocumentRequest]) (*connect.Response[v1.CreateDocumentResponse], error) {
+	var in struct {
+		Document internal.Document  `json:"document"`
+		Sections []internal.Section `json:"sections"`
+	}
+	if err := decodeMessage(req.Msg, &in); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	out, err := h.service.CreateDocument(ctx, in.Document, in.Sections)
+	if err != nil {
+		return nil, connect.NewError(codeFor(err), err)
+	}
+	var response v1.CreateDocumentResponse
+	if err := encodeResponse(map[string]any{"document": out}, &response); err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&response), nil
 }
-func (h *handler) AssembleDocument(ctx context.Context, req *connect.Request[v1.JsonRequest]) (*connect.Response[v1.JsonResponse], error) {
-	return h.call(ctx, "assemble", req.Msg.GetJson())
+
+func (h *handler) AssembleDocument(ctx context.Context, req *connect.Request[v1.AssembleDocumentRequest]) (*connect.Response[v1.AssembleDocumentResponse], error) {
+	out, err := h.service.AssembleDocument(ctx, req.Msg.GetId())
+	if err != nil {
+		return nil, connect.NewError(codeFor(err), err)
+	}
+	var response v1.AssembleDocumentResponse
+	if err := encodeResponse(map[string]any{"document": out}, &response); err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&response), nil
 }
-func (h *handler) Conformance(ctx context.Context, req *connect.Request[v1.JsonRequest]) (*connect.Response[v1.JsonResponse], error) {
-	return h.call(ctx, "conformance", req.Msg.GetJson())
+
+func (h *handler) Conformance(ctx context.Context, req *connect.Request[v1.ConformanceRequest]) (*connect.Response[v1.ConformanceResponse], error) {
+	out, err := h.service.Conformance(ctx, req.Msg.GetStyleKey(), req.Msg.GetText())
+	if err != nil {
+		return nil, connect.NewError(codeFor(err), err)
+	}
+	var response v1.ConformanceResponse
+	if err := encodeResponse(map[string]any{"report": out}, &response); err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&response), nil
+}
+
+func decodeMessage(message proto.Message, out any) error {
+	if message == nil {
+		return errors.New("request message is required")
+	}
+	raw, err := (protojson.MarshalOptions{UseProtoNames: true}).Marshal(message)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(raw, out)
+}
+
+func encodeResponse(value any, message proto.Message) error {
+	raw, err := json.Marshal(value)
+	if err != nil {
+		return err
+	}
+	if err := (protojson.UnmarshalOptions{DiscardUnknown: true}).Unmarshal(raw, message); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (h *handler) rest(w http.ResponseWriter, r *http.Request) {
@@ -78,14 +212,6 @@ func (h *handler) rest(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	_, _ = w.Write(resp)
-}
-
-func (h *handler) call(ctx context.Context, op, raw string) (*connect.Response[v1.JsonResponse], error) {
-	out, err := h.dispatch(ctx, op, json.RawMessage(raw))
-	if err != nil {
-		return nil, connect.NewError(codeFor(err), err)
-	}
-	return connect.NewResponse(&v1.JsonResponse{Json: string(out)}), nil
 }
 
 func (h *handler) dispatch(ctx context.Context, op string, raw json.RawMessage) ([]byte, error) {
@@ -227,6 +353,7 @@ func codeFor(err error) connect.Code {
 		return connect.CodeInvalidArgument
 	}
 }
+
 func writeError(w http.ResponseWriter, code connect.Code, err error) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusBadRequest)

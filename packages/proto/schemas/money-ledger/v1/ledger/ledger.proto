@@ -14,17 +14,18 @@ message Availability {
   google.protobuf.Timestamp last_success_at = 3;
 }
 
-message Book { string id = 1; string name = 2; string currency = 3; google.protobuf.Timestamp created_at = 4; }
+message Book { string id = 1; string name = 2; string currency = 3; google.protobuf.Timestamp created_at = 4; bool archived = 5; }
 message Account { string id = 1; string book_id = 2; string name = 3; string kind = 4; google.protobuf.Timestamp created_at = 5; }
 enum SustainPeriodUnit { SUSTAIN_PERIOD_UNIT_UNSPECIFIED = 0; DAY = 1; WEEK = 2; MONTH = 3; }
-message Goal { string id = 1; string name = 2; string metric = 3; string comparator = 4; int64 threshold_minor = 5; int32 sustain_periods = 6; double buffer_multiple = 7; string book_id = 8; double threshold_ratio = 9; string comparand_metric = 10; SustainPeriodUnit sustain_period_unit = 11; }
+enum AccountKind { ACCOUNT_KIND_UNSPECIFIED = 0; ASSET = 1; LIABILITY = 2; REVENUE = 3; EXPENSE = 4; EQUITY = 5; }
+message Goal { string id = 1; string name = 2; string metric = 3; string comparator = 4; int64 threshold_minor = 5; int32 sustain_periods = 6; double buffer_multiple = 7; string book_id = 8; double threshold_ratio = 9; string comparand_metric = 10; SustainPeriodUnit sustain_period_unit = 11; bool archived = 12; }
 message GoalVerdict { Goal goal = 1; bool met = 2; int32 sustained_periods = 3; string explanation = 4; int32 required_periods = 5; SustainPeriodUnit period_unit = 6; }
 
 message CreateBookRequest { string name = 1; string currency = 2; }
 message CreateBookResponse { Book book = 1; }
-message ListBooksRequest {}
+message ListBooksRequest { bool include_archived = 1; }
 message ListBooksResponse { repeated Book books = 1; }
-message CreateAccountRequest { string book_id = 1; string name = 2; string kind = 3; }
+message CreateAccountRequest { string book_id = 1; string name = 2; AccountKind account_kind = 3; }
 message CreateAccountResponse { Account account = 1; }
 message ListAccountsRequest { string book_id = 1; }
 message ListAccountsResponse { repeated Account accounts = 1; }
@@ -43,12 +44,19 @@ message StatementRequest { string book_id = 1; string from = 2; string to = 3; }
 message StatementResponse { string book_id = 1; string currency = 2; int64 opening_cash_minor = 3; int64 inflow_minor = 4; int64 outflow_minor = 5; int64 closing_cash_minor = 6; int64 revenue_minor = 7; int64 expense_minor = 8; bool partial = 9; repeated Availability availability = 10; int64 assets_minor = 11; int64 liabilities_minor = 12; string from = 13; string to = 14; }
 message DeclareGoalRequest { Goal goal = 1 [(buf.validate.field).required = true]; }
 message DeclareGoalResponse { Goal goal = 1; }
-message ListGoalsRequest { string book_id = 1; }
+message ListGoalsRequest { string book_id = 1; bool include_archived = 2; }
 message ListGoalsResponse { repeated GoalVerdict goals = 1; }
+message ArchiveBookRequest { string book_id = 1; string actor = 2; }
+message ArchiveBookResponse { Book book = 1; }
+message ArchiveGoalRequest { string goal_id = 1; string actor = 2; }
+message ArchiveGoalResponse { Goal goal = 1; }
+message ReparentGoalRequest { string goal_id = 1; string book_id = 2; string actor = 3; }
+message ReparentGoalResponse { Goal goal = 1; }
 
 service BooksService {
   rpc CreateBook(CreateBookRequest) returns (CreateBookResponse);
   rpc ListBooks(ListBooksRequest) returns (ListBooksResponse);
+  rpc ArchiveBook(ArchiveBookRequest) returns (ArchiveBookResponse);
   rpc CreateAccount(CreateAccountRequest) returns (CreateAccountResponse);
   rpc ListAccounts(ListAccountsRequest) returns (ListAccountsResponse);
 }
@@ -63,4 +71,6 @@ service PositionService {
   rpc GetStatement(StatementRequest) returns (StatementResponse);
   rpc DeclareGoal(DeclareGoalRequest) returns (DeclareGoalResponse);
   rpc ListGoals(ListGoalsRequest) returns (ListGoalsResponse);
+  rpc ArchiveGoal(ArchiveGoalRequest) returns (ArchiveGoalResponse);
+  rpc ReparentGoal(ReparentGoalRequest) returns (ReparentGoalResponse);
 }

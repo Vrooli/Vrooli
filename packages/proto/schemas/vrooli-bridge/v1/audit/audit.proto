@@ -29,7 +29,7 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridg
 // =============================================================================
 
 // AuditAction is the kind of operation an audit record describes.
-enum AuditAction {
+  enum AuditAction {
   AUDIT_ACTION_UNSPECIFIED = 0;
 
   // A job dispatch (dispatch domain).
@@ -50,6 +50,9 @@ enum AuditAction {
   // base64-encoded payload prefixed with "in:" or "out:".
   AUDIT_ACTION_SESSION_DATA_IN = 7;
   AUDIT_ACTION_SESSION_DATA_OUT = 8;
+
+  // A Bridge-managed, operator-confirmed cleanup operation.
+  AUDIT_ACTION_CLEANUP = 9;
 }
 
 // AuditOutcome is the result recorded for an audited operation.

@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file vrooli-bridge/v1/onboard/onboard.proto.
  */
 export const file_vrooli_bridge_v1_onboard_onboard: GenFile = /*@__PURE__*/
-  fileDesc("CiZ2cm9vbGktYnJpZGdlL3YxL29uYm9hcmQvb25ib2FyZC5wcm90bxIfdnJvb2xpLnZyb29saV9icmlkZ2UudjEub25ib2FyZCKHBQoMT25ib2FyZGluZ09wEgoKAmlkGAEgASgJEgwKBGhvc3QYAiABKAkSDAoEcG9ydBgDIAEoBRIMCgR1c2VyGAQgASgJEhEKCW5vZGVfbmFtZRgFIAEoCRIXCg90YXJnZXRfcmV2aXNpb24YBiABKAkSEAoIcmVwb191cmwYByABKAkSPwoFc3RhdGUYCCABKA4yMC52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5vbmJvYXJkLk9uYm9hcmRpbmdTdGF0ZRIPCgdub2RlX2lkGAkgASgJEhYKDmZhaWx1cmVfcmVhc29uGAogASgJEhEKCWV4aXRfY29kZRgLIAEoBRIuCgpjcmVhdGVkX2F0GAwgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgpzdGFydGVkX2F0GA0gASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIvCgtmaW5pc2hlZF9hdBgOIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASQAoLc291cmNlX21vZGUYDyABKA4yKy52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5vbmJvYXJkLlNvdXJjZU1vZGUSFQoNYmFzZV9yZXZpc2lvbhgQIAEoCRIbChN3b3JraW5nX3RyZWVfZGlnZXN0GBEgASgJEhYKDmZhaWx1cmVfZGV0YWlsGBIgASgJEhkKEWNvbnRyb2xfcGxhbmVfdXJsGBMgASgJEhkKEXJlYWNoYWJpbGl0eV9tb2RlGBQgASgJEhIKCm1hY2hpbmVfaWQYFSABKAkSHQoVZW5yb2xsbWVudF9hdHRlbXB0X2lkGBYgASgJIs4BChNPbmJvYXJkaW5nU3RlcEV2ZW50Eg0KBW9wX2lkGAEgASgJEhAKCHNlcXVlbmNlGAIgASgEEg8KB3N0ZXBfaWQYAyABKAkSRQoGc3RhdHVzGAQgASgOMjUudnJvb2xpLnZyb29saV9icmlkZ2UudjEub25ib2FyZC5PbmJvYXJkaW5nU3RlcFN0YXR1cxIOCgZkZXRhaWwYBSABKAkSLgoKZW1pdHRlZF9hdBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiWgoaUHJlZmxpZ2h0T25ib2FyZGluZ1JlcXVlc3QSDAoEaG9zdBgBIAEoCRIMCgRwb3J0GAIgASgFEgwKBHVzZXIYAyABKAkSEgoKbWFjaGluZV9pZBgEIAEoCSKJAgobUHJlZmxpZ2h0T25ib2FyZGluZ1Jlc3BvbnNlEkIKCGRlY2lzaW9uGAEgASgOMjAudnJvb2xpLnZyb29saV9icmlkZ2UudjEub25ib2FyZC5Db25uZWN0RGVjaXNpb24SEgoKbWFjaGluZV9pZBgCIAEoCRIMCgRob3N0GAMgASgJEgwKBHBvcnQYBCABKAUSDAoEdXNlchgFIAEoCRIeChZjbGllbnRfa2V5X2ZpbmdlcnByaW50GAYgASgJEhwKFGhvc3Rfa2V5X2ZpbmdlcnByaW50GAcgASgJEhkKEXBhc3N3b3JkX3JlcXVpcmVkGAggASgIEg8KB21lc3NhZ2UYCSABKAki2QQKFlN0YXJ0T25ib2FyZGluZ1JlcXVlc3QSDAoEaG9zdBgBIAEoCRIMCgRwb3J0GAIgASgFEgwKBHVzZXIYAyABKAkSFAoMc3NoX3Bhc3N3b3JkGAQgASgJEhEKCW5vZGVfbmFtZRgFIAEoCRIXCg90YXJnZXRfcmV2aXNpb24YBiABKAkSEAoIcmVwb191cmwYByABKAkSFAoMY2hlY2tvdXRfZGlyGAggASgJEhkKEWNvbnRyb2xfcGxhbmVfdXJsGAkgASgJEhQKDGNhcGFiaWxpdGllcxgKIAMoCRIeChZ2ZXJpZnlfdGltZW91dF9zZWNvbmRzGAsgASgFEhIKCnNraXBfc2V0dXAYDCABKAgSFAoMc2tpcF9wcmVyZXFzGA0gASgIEhYKDnByb3Zpc2lvbl9zdWRvGA4gASgIEhkKEXNldHVwX2Vudmlyb25tZW50GA8gASgJEhcKD3NldHVwX3Jlc291cmNlcxgQIAEoCRIXCg9zZXR1cF9zY2VuYXJpb3MYESABKAkSGAoQaW5jbHVkZV9vcHRpb25hbBgSIAEoCBJACgtzb3VyY2VfbW9kZRgTIAEoDjIrLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLm9uYm9hcmQuU291cmNlTW9kZRIZChFyZWFjaGFiaWxpdHlfbW9kZRgUIAEoCRISCgptYWNoaW5lX2lkGBUgASgJEiYKHnJldHJ5X29mX2Vucm9sbG1lbnRfYXR0ZW1wdF9pZBgWIAEoCRIYChBzZXR1cF9wYXNzcGhyYXNlGBcgASgJIpYBChdTdGFydE9uYm9hcmRpbmdSZXNwb25zZRINCgVvcF9pZBgBIAEoCRIPCgdkcnlfcnVuGAIgASgIEgwKBGhvc3QYAyABKAkSDAoEcG9ydBgEIAEoBRIMCgR1c2VyGAUgASgJEhIKCm1hY2hpbmVfaWQYBiABKAkSHQoVZW5yb2xsbWVudF9hdHRlbXB0X2lkGAcgASgJIiIKFEdldE9uYm9hcmRpbmdSZXF1ZXN0EgoKAmlkGAEgASgJIpgBChVHZXRPbmJvYXJkaW5nUmVzcG9uc2USOQoCb3AYASABKAsyLS52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5vbmJvYXJkLk9uYm9hcmRpbmdPcBJECgZldmVudHMYAiADKAsyNC52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5vbmJvYXJkLk9uYm9hcmRpbmdTdGVwRXZlbnQiNQoWTGlzdE9uYm9hcmRpbmdzUmVxdWVzdBIMCgRob3N0GAEgASgJEg0KBWxpbWl0GAIgASgFIlUKF0xpc3RPbmJvYXJkaW5nc1Jlc3BvbnNlEjoKA29wcxgBIAMoCzItLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLm9uYm9hcmQuT25ib2FyZGluZ09wIjwKFVdhaXRPbmJvYXJkaW5nUmVxdWVzdBIKCgJpZBgBIAEoCRIXCg90aW1lb3V0X3NlY29uZHMYAiABKAMiZgoWV2FpdE9uYm9hcmRpbmdSZXNwb25zZRI5CgJvcBgBIAEoCzItLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLm9uYm9hcmQuT25ib2FyZGluZ09wEhEKCXRpbWVkX291dBgCIAEoCCIlChdDYW5jZWxPbmJvYXJkaW5nUmVxdWVzdBIKCgJpZBgBIAEoCSJVChhDYW5jZWxPbmJvYXJkaW5nUmVzcG9uc2USOQoCb3AYASABKAsyLS52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5vbmJvYXJkLk9uYm9hcmRpbmdPcCIrCh1SZW1vdmVGYWlsZWRPbmJvYXJkaW5nUmVxdWVzdBIKCgJpZBgBIAEoCSIgCh5SZW1vdmVGYWlsZWRPbmJvYXJkaW5nUmVzcG9uc2UqtwIKD09uYm9hcmRpbmdTdGF0ZRIgChxPTkJPQVJESU5HX1NUQVRFX1VOU1BFQ0lGSUVEEAASHAoYT05CT0FSRElOR19TVEFURV9QRU5ESU5HEAESHgoaT05CT0FSRElOR19TVEFURV9TU0hfU0VUVVAQAhIjCh9PTkJPQVJESU5HX1NUQVRFX1BVU0hJTkdfU0NSSVBUEAMSIgoeT05CT0FSRElOR19TVEFURV9CT09UU1RSQVBQSU5HEAQSHgoaT05CT0FSRElOR19TVEFURV9WRVJJRllJTkcQBRIeChpPTkJPQVJESU5HX1NUQVRFX1NVQ0NFRURFRBAGEhsKF09OQk9BUkRJTkdfU1RBVEVfRkFJTEVEEAcSHgoaT05CT0FSRElOR19TVEFURV9DQU5DRUxMRUQQCCpoCgpTb3VyY2VNb2RlEhsKF1NPVVJDRV9NT0RFX1VOU1BFQ0lGSUVEEAASHwobU09VUkNFX01PREVfUElOTkVEX1JFVklTSU9OEAESHAoYU09VUkNFX01PREVfV09SS0lOR19UUkVFEAIqyAEKFE9uYm9hcmRpbmdTdGVwU3RhdHVzEiYKIk9OQk9BUkRJTkdfU1RFUF9TVEFUVVNfVU5TUEVDSUZJRUQQABIiCh5PTkJPQVJESU5HX1NURVBfU1RBVFVTX1NUQVJURUQQARIdChlPTkJPQVJESU5HX1NURVBfU1RBVFVTX09LEAISIgoeT05CT0FSRElOR19TVEVQX1NUQVRVU19TS0lQUEVEEAMSIQodT05CT0FSRElOR19TVEVQX1NUQVRVU19GQUlMRUQQBCrjAQoPQ29ubmVjdERlY2lzaW9uEiAKHENPTk5FQ1RfREVDSVNJT05fVU5TUEVDSUZJRUQQABIeChpDT05ORUNUX0RFQ0lTSU9OX1JFQ09OTkVDVBABEiAKHENPTk5FQ1RfREVDSVNJT05fRklSU1RfVE9VQ0gQAhImCiJDT05ORUNUX0RFQ0lTSU9OX1JFQ09WRVJZX1JFUVVJUkVEEAMSHgoaQ09OTkVDVF9ERUNJU0lPTl9BTUJJR1VPVVMQBBIkCiBDT05ORUNUX0RFQ0lTSU9OX0hPU1RfS0VZX1JFVklFVxAFMtsHCg5PbmJvYXJkU2VydmljZRKQAQoTUHJlZmxpZ2h0T25ib2FyZGluZxI7LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLm9uYm9hcmQuUHJlZmxpZ2h0T25ib2FyZGluZ1JlcXVlc3QaPC52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5vbmJvYXJkLlByZWZsaWdodE9uYm9hcmRpbmdSZXNwb25zZRKEAQoPU3RhcnRPbmJvYXJkaW5nEjcudnJvb2xpLnZyb29saV9icmlkZ2UudjEub25ib2FyZC5TdGFydE9uYm9hcmRpbmdSZXF1ZXN0GjgudnJvb2xpLnZyb29saV9icmlkZ2UudjEub25ib2FyZC5TdGFydE9uYm9hcmRpbmdSZXNwb25zZRJ+Cg1HZXRPbmJvYXJkaW5nEjUudnJvb2xpLnZyb29saV9icmlkZ2UudjEub25ib2FyZC5HZXRPbmJvYXJkaW5nUmVxdWVzdBo2LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLm9uYm9hcmQuR2V0T25ib2FyZGluZ1Jlc3BvbnNlEoQBCg9MaXN0T25ib2FyZGluZ3MSNy52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5vbmJvYXJkLkxpc3RPbmJvYXJkaW5nc1JlcXVlc3QaOC52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5vbmJvYXJkLkxpc3RPbmJvYXJkaW5nc1Jlc3BvbnNlEoEBCg5XYWl0T25ib2FyZGluZxI2LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLm9uYm9hcmQuV2FpdE9uYm9hcmRpbmdSZXF1ZXN0GjcudnJvb2xpLnZyb29saV9icmlkZ2UudjEub25ib2FyZC5XYWl0T25ib2FyZGluZ1Jlc3BvbnNlEocBChBDYW5jZWxPbmJvYXJkaW5nEjgudnJvb2xpLnZyb29saV9icmlkZ2UudjEub25ib2FyZC5DYW5jZWxPbmJvYXJkaW5nUmVxdWVzdBo5LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLm9uYm9hcmQuQ2FuY2VsT25ib2FyZGluZ1Jlc3BvbnNlEpkBChZSZW1vdmVGYWlsZWRPbmJvYXJkaW5nEj4udnJvb2xpLnZyb29saV9icmlkZ2UudjEub25ib2FyZC5SZW1vdmVGYWlsZWRPbmJvYXJkaW5nUmVxdWVzdBo/LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLm9uYm9hcmQuUmVtb3ZlRmFpbGVkT25ib2FyZGluZ1Jlc3BvbnNlQlRaUmdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vdnJvb2xpLWJyaWRnZS92MS9vbmJvYXJkO29uYm9hcmRfdjFiBnByb3RvMw", [file_google_protobuf_timestamp]);
+  fileDesc("CiZ2cm9vbGktYnJpZGdlL3YxL29uYm9hcmQvb25ib2FyZC5wcm90bxIfdnJvb2xpLnZyb29saV9icmlkZ2UudjEub25ib2FyZCKHBQoMT25ib2FyZGluZ09wEgoKAmlkGAEgASgJEgwKBGhvc3QYAiABKAkSDAoEcG9ydBgDIAEoBRIMCgR1c2VyGAQgASgJEhEKCW5vZGVfbmFtZRgFIAEoCRIXCg90YXJnZXRfcmV2aXNpb24YBiABKAkSEAoIcmVwb191cmwYByABKAkSPwoFc3RhdGUYCCABKA4yMC52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5vbmJvYXJkLk9uYm9hcmRpbmdTdGF0ZRIPCgdub2RlX2lkGAkgASgJEhYKDmZhaWx1cmVfcmVhc29uGAogASgJEhEKCWV4aXRfY29kZRgLIAEoBRIuCgpjcmVhdGVkX2F0GAwgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgpzdGFydGVkX2F0GA0gASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIvCgtmaW5pc2hlZF9hdBgOIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASQAoLc291cmNlX21vZGUYDyABKA4yKy52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5vbmJvYXJkLlNvdXJjZU1vZGUSFQoNYmFzZV9yZXZpc2lvbhgQIAEoCRIbChN3b3JraW5nX3RyZWVfZGlnZXN0GBEgASgJEhYKDmZhaWx1cmVfZGV0YWlsGBIgASgJEhkKEWNvbnRyb2xfcGxhbmVfdXJsGBMgASgJEhkKEXJlYWNoYWJpbGl0eV9tb2RlGBQgASgJEhIKCm1hY2hpbmVfaWQYFSABKAkSHQoVZW5yb2xsbWVudF9hdHRlbXB0X2lkGBYgASgJIs4BChNPbmJvYXJkaW5nU3RlcEV2ZW50Eg0KBW9wX2lkGAEgASgJEhAKCHNlcXVlbmNlGAIgASgEEg8KB3N0ZXBfaWQYAyABKAkSRQoGc3RhdHVzGAQgASgOMjUudnJvb2xpLnZyb29saV9icmlkZ2UudjEub25ib2FyZC5PbmJvYXJkaW5nU3RlcFN0YXR1cxIOCgZkZXRhaWwYBSABKAkSLgoKZW1pdHRlZF9hdBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiWgoaUHJlZmxpZ2h0T25ib2FyZGluZ1JlcXVlc3QSDAoEaG9zdBgBIAEoCRIMCgRwb3J0GAIgASgFEgwKBHVzZXIYAyABKAkSEgoKbWFjaGluZV9pZBgEIAEoCSKJAgobUHJlZmxpZ2h0T25ib2FyZGluZ1Jlc3BvbnNlEkIKCGRlY2lzaW9uGAEgASgOMjAudnJvb2xpLnZyb29saV9icmlkZ2UudjEub25ib2FyZC5Db25uZWN0RGVjaXNpb24SEgoKbWFjaGluZV9pZBgCIAEoCRIMCgRob3N0GAMgASgJEgwKBHBvcnQYBCABKAUSDAoEdXNlchgFIAEoCRIeChZjbGllbnRfa2V5X2ZpbmdlcnByaW50GAYgASgJEhwKFGhvc3Rfa2V5X2ZpbmdlcnByaW50GAcgASgJEhkKEXBhc3N3b3JkX3JlcXVpcmVkGAggASgIEg8KB21lc3NhZ2UYCSABKAki+QQKFlN0YXJ0T25ib2FyZGluZ1JlcXVlc3QSDAoEaG9zdBgBIAEoCRIMCgRwb3J0GAIgASgFEgwKBHVzZXIYAyABKAkSFAoMc3NoX3Bhc3N3b3JkGAQgASgJEhEKCW5vZGVfbmFtZRgFIAEoCRIXCg90YXJnZXRfcmV2aXNpb24YBiABKAkSEAoIcmVwb191cmwYByABKAkSFAoMY2hlY2tvdXRfZGlyGAggASgJEhkKEWNvbnRyb2xfcGxhbmVfdXJsGAkgASgJEhQKDGNhcGFiaWxpdGllcxgKIAMoCRIeChZ2ZXJpZnlfdGltZW91dF9zZWNvbmRzGAsgASgFEhIKCnNraXBfc2V0dXAYDCABKAgSFAoMc2tpcF9wcmVyZXFzGA0gASgIEhYKDnByb3Zpc2lvbl9zdWRvGA4gASgIEhkKEXNldHVwX2Vudmlyb25tZW50GA8gASgJEhcKD3NldHVwX3Jlc291cmNlcxgQIAEoCRIXCg9zZXR1cF9zY2VuYXJpb3MYESABKAkSGAoQaW5jbHVkZV9vcHRpb25hbBgSIAEoCBJACgtzb3VyY2VfbW9kZRgTIAEoDjIrLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLm9uYm9hcmQuU291cmNlTW9kZRIZChFyZWFjaGFiaWxpdHlfbW9kZRgUIAEoCRISCgptYWNoaW5lX2lkGBUgASgJEiYKHnJldHJ5X29mX2Vucm9sbG1lbnRfYXR0ZW1wdF9pZBgWIAEoCRIYChBzZXR1cF9wYXNzcGhyYXNlGBcgASgJEh4KFnByb3Zpc2lvbl9zZXJ2aWNlX3VzZXIYGCABKAkiwwEKGFByb3RlY3RPbmJvYXJkaW5nUmVxdWVzdBIYChBvbmJvYXJkaW5nX29wX2lkGAEgASgJEhIKCm1hY2hpbmVfaWQYAiABKAkSDwoHbm9kZV9pZBgDIAEoCRIOCgZ0YXJnZXQYBCABKAkSDQoFc2NvcGUYBSABKAkSHAoUY2xlYW51cF9vcGVyYXRpb25faWQYBiABKAkSGQoRc2VhbGVkX3Bhc3NwaHJhc2UYByABKAwSEAoIZGVjbGluZWQYCCABKAgiogEKGVByb3RlY3RPbmJvYXJkaW5nUmVzcG9uc2USOQoCb3AYASABKAsyLS52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5vbmJvYXJkLk9uYm9hcmRpbmdPcBIZChFwcm90ZWN0aW9uX3N0YXR1cxgCIAEoCRIfChdwcm90ZWN0aW9uX29wZXJhdGlvbl9pZBgDIAEoCRIOCgZkZXRhaWwYBCABKAkilgEKF1N0YXJ0T25ib2FyZGluZ1Jlc3BvbnNlEg0KBW9wX2lkGAEgASgJEg8KB2RyeV9ydW4YAiABKAgSDAoEaG9zdBgDIAEoCRIMCgRwb3J0GAQgASgFEgwKBHVzZXIYBSABKAkSEgoKbWFjaGluZV9pZBgGIAEoCRIdChVlbnJvbGxtZW50X2F0dGVtcHRfaWQYByABKAkiIgoUR2V0T25ib2FyZGluZ1JlcXVlc3QSCgoCaWQYASABKAkimAEKFUdldE9uYm9hcmRpbmdSZXNwb25zZRI5CgJvcBgBIAEoCzItLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLm9uYm9hcmQuT25ib2FyZGluZ09wEkQKBmV2ZW50cxgCIAMoCzI0LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLm9uYm9hcmQuT25ib2FyZGluZ1N0ZXBFdmVudCI1ChZMaXN0T25ib2FyZGluZ3NSZXF1ZXN0EgwKBGhvc3QYASABKAkSDQoFbGltaXQYAiABKAUiVQoXTGlzdE9uYm9hcmRpbmdzUmVzcG9uc2USOgoDb3BzGAEgAygLMi0udnJvb2xpLnZyb29saV9icmlkZ2UudjEub25ib2FyZC5PbmJvYXJkaW5nT3AiPAoVV2FpdE9uYm9hcmRpbmdSZXF1ZXN0EgoKAmlkGAEgASgJEhcKD3RpbWVvdXRfc2Vjb25kcxgCIAEoAyJmChZXYWl0T25ib2FyZGluZ1Jlc3BvbnNlEjkKAm9wGAEgASgLMi0udnJvb2xpLnZyb29saV9icmlkZ2UudjEub25ib2FyZC5PbmJvYXJkaW5nT3ASEQoJdGltZWRfb3V0GAIgASgIIiUKF0NhbmNlbE9uYm9hcmRpbmdSZXF1ZXN0EgoKAmlkGAEgASgJIlUKGENhbmNlbE9uYm9hcmRpbmdSZXNwb25zZRI5CgJvcBgBIAEoCzItLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLm9uYm9hcmQuT25ib2FyZGluZ09wIisKHVJlbW92ZUZhaWxlZE9uYm9hcmRpbmdSZXF1ZXN0EgoKAmlkGAEgASgJIiAKHlJlbW92ZUZhaWxlZE9uYm9hcmRpbmdSZXNwb25zZSq3AgoPT25ib2FyZGluZ1N0YXRlEiAKHE9OQk9BUkRJTkdfU1RBVEVfVU5TUEVDSUZJRUQQABIcChhPTkJPQVJESU5HX1NUQVRFX1BFTkRJTkcQARIeChpPTkJPQVJESU5HX1NUQVRFX1NTSF9TRVRVUBACEiMKH09OQk9BUkRJTkdfU1RBVEVfUFVTSElOR19TQ1JJUFQQAxIiCh5PTkJPQVJESU5HX1NUQVRFX0JPT1RTVFJBUFBJTkcQBBIeChpPTkJPQVJESU5HX1NUQVRFX1ZFUklGWUlORxAFEh4KGk9OQk9BUkRJTkdfU1RBVEVfU1VDQ0VFREVEEAYSGwoXT05CT0FSRElOR19TVEFURV9GQUlMRUQQBxIeChpPTkJPQVJESU5HX1NUQVRFX0NBTkNFTExFRBAIKmgKClNvdXJjZU1vZGUSGwoXU09VUkNFX01PREVfVU5TUEVDSUZJRUQQABIfChtTT1VSQ0VfTU9ERV9QSU5ORURfUkVWSVNJT04QARIcChhTT1VSQ0VfTU9ERV9XT1JLSU5HX1RSRUUQAirIAQoUT25ib2FyZGluZ1N0ZXBTdGF0dXMSJgoiT05CT0FSRElOR19TVEVQX1NUQVRVU19VTlNQRUNJRklFRBAAEiIKHk9OQk9BUkRJTkdfU1RFUF9TVEFUVVNfU1RBUlRFRBABEh0KGU9OQk9BUkRJTkdfU1RFUF9TVEFUVVNfT0sQAhIiCh5PTkJPQVJESU5HX1NURVBfU1RBVFVTX1NLSVBQRUQQAxIhCh1PTkJPQVJESU5HX1NURVBfU1RBVFVTX0ZBSUxFRBAEKuMBCg9Db25uZWN0RGVjaXNpb24SIAocQ09OTkVDVF9ERUNJU0lPTl9VTlNQRUNJRklFRBAAEh4KGkNPTk5FQ1RfREVDSVNJT05fUkVDT05ORUNUEAESIAocQ09OTkVDVF9ERUNJU0lPTl9GSVJTVF9UT1VDSBACEiYKIkNPTk5FQ1RfREVDSVNJT05fUkVDT1ZFUllfUkVRVUlSRUQQAxIeChpDT05ORUNUX0RFQ0lTSU9OX0FNQklHVU9VUxAEEiQKIENPTk5FQ1RfREVDSVNJT05fSE9TVF9LRVlfUkVWSUVXEAUy6AgKDk9uYm9hcmRTZXJ2aWNlEpABChNQcmVmbGlnaHRPbmJvYXJkaW5nEjsudnJvb2xpLnZyb29saV9icmlkZ2UudjEub25ib2FyZC5QcmVmbGlnaHRPbmJvYXJkaW5nUmVxdWVzdBo8LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLm9uYm9hcmQuUHJlZmxpZ2h0T25ib2FyZGluZ1Jlc3BvbnNlEoQBCg9TdGFydE9uYm9hcmRpbmcSNy52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5vbmJvYXJkLlN0YXJ0T25ib2FyZGluZ1JlcXVlc3QaOC52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5vbmJvYXJkLlN0YXJ0T25ib2FyZGluZ1Jlc3BvbnNlEooBChFQcm90ZWN0T25ib2FyZGluZxI5LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLm9uYm9hcmQuUHJvdGVjdE9uYm9hcmRpbmdSZXF1ZXN0GjoudnJvb2xpLnZyb29saV9icmlkZ2UudjEub25ib2FyZC5Qcm90ZWN0T25ib2FyZGluZ1Jlc3BvbnNlEn4KDUdldE9uYm9hcmRpbmcSNS52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5vbmJvYXJkLkdldE9uYm9hcmRpbmdSZXF1ZXN0GjYudnJvb2xpLnZyb29saV9icmlkZ2UudjEub25ib2FyZC5HZXRPbmJvYXJkaW5nUmVzcG9uc2UShAEKD0xpc3RPbmJvYXJkaW5ncxI3LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLm9uYm9hcmQuTGlzdE9uYm9hcmRpbmdzUmVxdWVzdBo4LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLm9uYm9hcmQuTGlzdE9uYm9hcmRpbmdzUmVzcG9uc2USgQEKDldhaXRPbmJvYXJkaW5nEjYudnJvb2xpLnZyb29saV9icmlkZ2UudjEub25ib2FyZC5XYWl0T25ib2FyZGluZ1JlcXVlc3QaNy52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5vbmJvYXJkLldhaXRPbmJvYXJkaW5nUmVzcG9uc2UShwEKEENhbmNlbE9uYm9hcmRpbmcSOC52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5vbmJvYXJkLkNhbmNlbE9uYm9hcmRpbmdSZXF1ZXN0GjkudnJvb2xpLnZyb29saV9icmlkZ2UudjEub25ib2FyZC5DYW5jZWxPbmJvYXJkaW5nUmVzcG9uc2USmQEKFlJlbW92ZUZhaWxlZE9uYm9hcmRpbmcSPi52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5vbmJvYXJkLlJlbW92ZUZhaWxlZE9uYm9hcmRpbmdSZXF1ZXN0Gj8udnJvb2xpLnZyb29saV9icmlkZ2UudjEub25ib2FyZC5SZW1vdmVGYWlsZWRPbmJvYXJkaW5nUmVzcG9uc2VCVFpSZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby92cm9vbGktYnJpZGdlL3YxL29uYm9hcmQ7b25ib2FyZF92MWIGcHJvdG8z", [file_google_protobuf_timestamp]);
 
 /**
  * OnboardingOp is the durable, server-owned record of one StartOnboarding.
@@ -542,6 +542,16 @@ export type StartOnboardingRequest = Message<"vrooli.vrooli_bridge.v1.onboard.St
    * @generated from field: string setup_passphrase = 23;
    */
   setupPassphrase: string;
+
+  /**
+   * Optional OS principal for the distinct privileged provisioning helper.
+   * This is an account name, never credential material; when set, bootstrap
+   * installs the machine-wide helper under this principal rather than leaving
+   * cleanup/provisioning unavailable.
+   *
+   * @generated from field: string provision_service_user = 24;
+   */
+  provisionServiceUser: string;
 };
 
 /**
@@ -550,6 +560,90 @@ export type StartOnboardingRequest = Message<"vrooli.vrooli_bridge.v1.onboard.St
  */
 export const StartOnboardingRequestSchema: GenMessage<StartOnboardingRequest> = /*@__PURE__*/
   messageDesc(file_vrooli_bridge_v1_onboard_onboard, 4);
+
+/**
+ * @generated from message vrooli.vrooli_bridge.v1.onboard.ProtectOnboardingRequest
+ */
+export type ProtectOnboardingRequest = Message<"vrooli.vrooli_bridge.v1.onboard.ProtectOnboardingRequest"> & {
+  /**
+   * @generated from field: string onboarding_op_id = 1;
+   */
+  onboardingOpId: string;
+
+  /**
+   * @generated from field: string machine_id = 2;
+   */
+  machineId: string;
+
+  /**
+   * @generated from field: string node_id = 3;
+   */
+  nodeId: string;
+
+  /**
+   * @generated from field: string target = 4;
+   */
+  target: string;
+
+  /**
+   * @generated from field: string scope = 5;
+   */
+  scope: string;
+
+  /**
+   * @generated from field: string cleanup_operation_id = 6;
+   */
+  cleanupOperationId: string;
+
+  /**
+   * @generated from field: bytes sealed_passphrase = 7;
+   */
+  sealedPassphrase: Uint8Array;
+
+  /**
+   * @generated from field: bool declined = 8;
+   */
+  declined: boolean;
+};
+
+/**
+ * Describes the message vrooli.vrooli_bridge.v1.onboard.ProtectOnboardingRequest.
+ * Use `create(ProtectOnboardingRequestSchema)` to create a new message.
+ */
+export const ProtectOnboardingRequestSchema: GenMessage<ProtectOnboardingRequest> = /*@__PURE__*/
+  messageDesc(file_vrooli_bridge_v1_onboard_onboard, 5);
+
+/**
+ * @generated from message vrooli.vrooli_bridge.v1.onboard.ProtectOnboardingResponse
+ */
+export type ProtectOnboardingResponse = Message<"vrooli.vrooli_bridge.v1.onboard.ProtectOnboardingResponse"> & {
+  /**
+   * @generated from field: vrooli.vrooli_bridge.v1.onboard.OnboardingOp op = 1;
+   */
+  op?: OnboardingOp | undefined;
+
+  /**
+   * @generated from field: string protection_status = 2;
+   */
+  protectionStatus: string;
+
+  /**
+   * @generated from field: string protection_operation_id = 3;
+   */
+  protectionOperationId: string;
+
+  /**
+   * @generated from field: string detail = 4;
+   */
+  detail: string;
+};
+
+/**
+ * Describes the message vrooli.vrooli_bridge.v1.onboard.ProtectOnboardingResponse.
+ * Use `create(ProtectOnboardingResponseSchema)` to create a new message.
+ */
+export const ProtectOnboardingResponseSchema: GenMessage<ProtectOnboardingResponse> = /*@__PURE__*/
+  messageDesc(file_vrooli_bridge_v1_onboard_onboard, 6);
 
 /**
  * @generated from message vrooli.vrooli_bridge.v1.onboard.StartOnboardingResponse
@@ -607,7 +701,7 @@ export type StartOnboardingResponse = Message<"vrooli.vrooli_bridge.v1.onboard.S
  * Use `create(StartOnboardingResponseSchema)` to create a new message.
  */
 export const StartOnboardingResponseSchema: GenMessage<StartOnboardingResponse> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_onboard_onboard, 5);
+  messageDesc(file_vrooli_bridge_v1_onboard_onboard, 7);
 
 /**
  * @generated from message vrooli.vrooli_bridge.v1.onboard.GetOnboardingRequest
@@ -624,7 +718,7 @@ export type GetOnboardingRequest = Message<"vrooli.vrooli_bridge.v1.onboard.GetO
  * Use `create(GetOnboardingRequestSchema)` to create a new message.
  */
 export const GetOnboardingRequestSchema: GenMessage<GetOnboardingRequest> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_onboard_onboard, 6);
+  messageDesc(file_vrooli_bridge_v1_onboard_onboard, 8);
 
 /**
  * @generated from message vrooli.vrooli_bridge.v1.onboard.GetOnboardingResponse
@@ -648,7 +742,7 @@ export type GetOnboardingResponse = Message<"vrooli.vrooli_bridge.v1.onboard.Get
  * Use `create(GetOnboardingResponseSchema)` to create a new message.
  */
 export const GetOnboardingResponseSchema: GenMessage<GetOnboardingResponse> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_onboard_onboard, 7);
+  messageDesc(file_vrooli_bridge_v1_onboard_onboard, 9);
 
 /**
  * @generated from message vrooli.vrooli_bridge.v1.onboard.ListOnboardingsRequest
@@ -674,7 +768,7 @@ export type ListOnboardingsRequest = Message<"vrooli.vrooli_bridge.v1.onboard.Li
  * Use `create(ListOnboardingsRequestSchema)` to create a new message.
  */
 export const ListOnboardingsRequestSchema: GenMessage<ListOnboardingsRequest> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_onboard_onboard, 8);
+  messageDesc(file_vrooli_bridge_v1_onboard_onboard, 10);
 
 /**
  * @generated from message vrooli.vrooli_bridge.v1.onboard.ListOnboardingsResponse
@@ -693,7 +787,7 @@ export type ListOnboardingsResponse = Message<"vrooli.vrooli_bridge.v1.onboard.L
  * Use `create(ListOnboardingsResponseSchema)` to create a new message.
  */
 export const ListOnboardingsResponseSchema: GenMessage<ListOnboardingsResponse> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_onboard_onboard, 9);
+  messageDesc(file_vrooli_bridge_v1_onboard_onboard, 11);
 
 /**
  * @generated from message vrooli.vrooli_bridge.v1.onboard.WaitOnboardingRequest
@@ -718,7 +812,7 @@ export type WaitOnboardingRequest = Message<"vrooli.vrooli_bridge.v1.onboard.Wai
  * Use `create(WaitOnboardingRequestSchema)` to create a new message.
  */
 export const WaitOnboardingRequestSchema: GenMessage<WaitOnboardingRequest> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_onboard_onboard, 10);
+  messageDesc(file_vrooli_bridge_v1_onboard_onboard, 12);
 
 /**
  * @generated from message vrooli.vrooli_bridge.v1.onboard.WaitOnboardingResponse
@@ -743,7 +837,7 @@ export type WaitOnboardingResponse = Message<"vrooli.vrooli_bridge.v1.onboard.Wa
  * Use `create(WaitOnboardingResponseSchema)` to create a new message.
  */
 export const WaitOnboardingResponseSchema: GenMessage<WaitOnboardingResponse> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_onboard_onboard, 11);
+  messageDesc(file_vrooli_bridge_v1_onboard_onboard, 13);
 
 /**
  * @generated from message vrooli.vrooli_bridge.v1.onboard.CancelOnboardingRequest
@@ -760,7 +854,7 @@ export type CancelOnboardingRequest = Message<"vrooli.vrooli_bridge.v1.onboard.C
  * Use `create(CancelOnboardingRequestSchema)` to create a new message.
  */
 export const CancelOnboardingRequestSchema: GenMessage<CancelOnboardingRequest> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_onboard_onboard, 12);
+  messageDesc(file_vrooli_bridge_v1_onboard_onboard, 14);
 
 /**
  * @generated from message vrooli.vrooli_bridge.v1.onboard.CancelOnboardingResponse
@@ -780,7 +874,7 @@ export type CancelOnboardingResponse = Message<"vrooli.vrooli_bridge.v1.onboard.
  * Use `create(CancelOnboardingResponseSchema)` to create a new message.
  */
 export const CancelOnboardingResponseSchema: GenMessage<CancelOnboardingResponse> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_onboard_onboard, 13);
+  messageDesc(file_vrooli_bridge_v1_onboard_onboard, 15);
 
 /**
  * @generated from message vrooli.vrooli_bridge.v1.onboard.RemoveFailedOnboardingRequest
@@ -797,7 +891,7 @@ export type RemoveFailedOnboardingRequest = Message<"vrooli.vrooli_bridge.v1.onb
  * Use `create(RemoveFailedOnboardingRequestSchema)` to create a new message.
  */
 export const RemoveFailedOnboardingRequestSchema: GenMessage<RemoveFailedOnboardingRequest> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_onboard_onboard, 14);
+  messageDesc(file_vrooli_bridge_v1_onboard_onboard, 16);
 
 /**
  * @generated from message vrooli.vrooli_bridge.v1.onboard.RemoveFailedOnboardingResponse
@@ -810,7 +904,7 @@ export type RemoveFailedOnboardingResponse = Message<"vrooli.vrooli_bridge.v1.on
  * Use `create(RemoveFailedOnboardingResponseSchema)` to create a new message.
  */
 export const RemoveFailedOnboardingResponseSchema: GenMessage<RemoveFailedOnboardingResponse> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_onboard_onboard, 15);
+  messageDesc(file_vrooli_bridge_v1_onboard_onboard, 17);
 
 /**
  * OnboardingState is an onboarding op's lifecycle state. PENDING/SSH_SETUP/
@@ -1063,6 +1157,20 @@ export const OnboardService: GenService<{
     methodKind: "unary";
     input: typeof StartOnboardingRequestSchema;
     output: typeof StartOnboardingResponseSchema;
+  },
+  /**
+   * ProtectOnboarding completes the named post-pairing protection step. The
+   * caller seals the passphrase to the node's public key before sending it;
+   * Bridge can relay the opaque envelope and wait for the typed helper result
+   * but cannot open it. A declined passphrase is represented by the client as
+   * a skipped step and does not claim that the node is protected.
+   *
+   * @generated from rpc vrooli.vrooli_bridge.v1.onboard.OnboardService.ProtectOnboarding
+   */
+  protectOnboarding: {
+    methodKind: "unary";
+    input: typeof ProtectOnboardingRequestSchema;
+    output: typeof ProtectOnboardingResponseSchema;
   },
   /**
    * GetOnboarding returns one op by id with its full persisted step-event

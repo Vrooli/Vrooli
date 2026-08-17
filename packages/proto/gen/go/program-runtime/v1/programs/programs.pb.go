@@ -134,6 +134,88 @@ func (ProgramStatus) EnumDescriptor() ([]byte, []int) {
 	return file_program_runtime_v1_programs_programs_proto_rawDescGZIP(), []int{1}
 }
 
+type FailureCause int32
+
+const (
+	FailureCause_FAILURE_CAUSE_UNSPECIFIED                  FailureCause = 0
+	FailureCause_FAILURE_CAUSE_UNRESOLVED_NAME              FailureCause = 1
+	FailureCause_FAILURE_CAUSE_UNKNOWN_FIELD                FailureCause = 2
+	FailureCause_FAILURE_CAUSE_AMBIGUOUS_RESPONSE           FailureCause = 3
+	FailureCause_FAILURE_CAUSE_UNREACHABLE_SCENARIO         FailureCause = 4
+	FailureCause_FAILURE_CAUSE_REFUSED_NO_GRANT             FailureCause = 5
+	FailureCause_FAILURE_CAUSE_REFUSED_NOT_RUN_ELIGIBLE     FailureCause = 6
+	FailureCause_FAILURE_CAUSE_INFERENCE_SPEND_EXCEEDED     FailureCause = 7
+	FailureCause_FAILURE_CAUSE_DELEGATED_RUN_SPEND_EXCEEDED FailureCause = 8
+	FailureCause_FAILURE_CAUSE_DEADLINE_EXCEEDED            FailureCause = 9
+	FailureCause_FAILURE_CAUSE_KERNEL_SYNTAX                FailureCause = 10
+	FailureCause_FAILURE_CAUSE_KERNEL_RUNTIME               FailureCause = 11
+	FailureCause_FAILURE_CAUSE_BRIDGE_TRANSPORT             FailureCause = 12
+	FailureCause_FAILURE_CAUSE_UNCLASSIFIED                 FailureCause = 13
+)
+
+// Enum value maps for FailureCause.
+var (
+	FailureCause_name = map[int32]string{
+		0:  "FAILURE_CAUSE_UNSPECIFIED",
+		1:  "FAILURE_CAUSE_UNRESOLVED_NAME",
+		2:  "FAILURE_CAUSE_UNKNOWN_FIELD",
+		3:  "FAILURE_CAUSE_AMBIGUOUS_RESPONSE",
+		4:  "FAILURE_CAUSE_UNREACHABLE_SCENARIO",
+		5:  "FAILURE_CAUSE_REFUSED_NO_GRANT",
+		6:  "FAILURE_CAUSE_REFUSED_NOT_RUN_ELIGIBLE",
+		7:  "FAILURE_CAUSE_INFERENCE_SPEND_EXCEEDED",
+		8:  "FAILURE_CAUSE_DELEGATED_RUN_SPEND_EXCEEDED",
+		9:  "FAILURE_CAUSE_DEADLINE_EXCEEDED",
+		10: "FAILURE_CAUSE_KERNEL_SYNTAX",
+		11: "FAILURE_CAUSE_KERNEL_RUNTIME",
+		12: "FAILURE_CAUSE_BRIDGE_TRANSPORT",
+		13: "FAILURE_CAUSE_UNCLASSIFIED",
+	}
+	FailureCause_value = map[string]int32{
+		"FAILURE_CAUSE_UNSPECIFIED":                  0,
+		"FAILURE_CAUSE_UNRESOLVED_NAME":              1,
+		"FAILURE_CAUSE_UNKNOWN_FIELD":                2,
+		"FAILURE_CAUSE_AMBIGUOUS_RESPONSE":           3,
+		"FAILURE_CAUSE_UNREACHABLE_SCENARIO":         4,
+		"FAILURE_CAUSE_REFUSED_NO_GRANT":             5,
+		"FAILURE_CAUSE_REFUSED_NOT_RUN_ELIGIBLE":     6,
+		"FAILURE_CAUSE_INFERENCE_SPEND_EXCEEDED":     7,
+		"FAILURE_CAUSE_DELEGATED_RUN_SPEND_EXCEEDED": 8,
+		"FAILURE_CAUSE_DEADLINE_EXCEEDED":            9,
+		"FAILURE_CAUSE_KERNEL_SYNTAX":                10,
+		"FAILURE_CAUSE_KERNEL_RUNTIME":               11,
+		"FAILURE_CAUSE_BRIDGE_TRANSPORT":             12,
+		"FAILURE_CAUSE_UNCLASSIFIED":                 13,
+	}
+)
+
+func (x FailureCause) Enum() *FailureCause {
+	p := new(FailureCause)
+	*p = x
+	return p
+}
+
+func (x FailureCause) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (FailureCause) Descriptor() protoreflect.EnumDescriptor {
+	return file_program_runtime_v1_programs_programs_proto_enumTypes[2].Descriptor()
+}
+
+func (FailureCause) Type() protoreflect.EnumType {
+	return &file_program_runtime_v1_programs_programs_proto_enumTypes[2]
+}
+
+func (x FailureCause) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use FailureCause.Descriptor instead.
+func (FailureCause) EnumDescriptor() ([]byte, []int) {
+	return file_program_runtime_v1_programs_programs_proto_rawDescGZIP(), []int{2}
+}
+
 type Program struct {
 	state            protoimpl.MessageState `protogen:"open.v1"`
 	Id               string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -152,6 +234,7 @@ type Program struct {
 	WallTimeMillis   int64                  `protobuf:"varint,14,opt,name=wall_time_millis,json=wallTimeMillis,proto3" json:"wall_time_millis,omitempty"`
 	CpuTimeMillis    int64                  `protobuf:"varint,15,opt,name=cpu_time_millis,json=cpuTimeMillis,proto3" json:"cpu_time_millis,omitempty"`
 	LibraryVersion   string                 `protobuf:"bytes,16,opt,name=library_version,json=libraryVersion,proto3" json:"library_version,omitempty"`
+	FailureCause     FailureCause           `protobuf:"varint,17,opt,name=failure_cause,json=failureCause,proto3,enum=vrooli.program_runtime.v1.programs.FailureCause" json:"failure_cause,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -298,6 +381,89 @@ func (x *Program) GetLibraryVersion() string {
 	return ""
 }
 
+func (x *Program) GetFailureCause() FailureCause {
+	if x != nil {
+		return x.FailureCause
+	}
+	return FailureCause_FAILURE_CAUSE_UNSPECIFIED
+}
+
+type Diagnostic struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Severity      string                 `protobuf:"bytes,1,opt,name=severity,proto3" json:"severity,omitempty"`
+	Line          int32                  `protobuf:"varint,2,opt,name=line,proto3" json:"line,omitempty"`
+	Name          string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
+	Message       string                 `protobuf:"bytes,4,opt,name=message,proto3" json:"message,omitempty"`
+	NearestMatch  string                 `protobuf:"bytes,5,opt,name=nearest_match,json=nearestMatch,proto3" json:"nearest_match,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Diagnostic) Reset() {
+	*x = Diagnostic{}
+	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Diagnostic) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Diagnostic) ProtoMessage() {}
+
+func (x *Diagnostic) ProtoReflect() protoreflect.Message {
+	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Diagnostic.ProtoReflect.Descriptor instead.
+func (*Diagnostic) Descriptor() ([]byte, []int) {
+	return file_program_runtime_v1_programs_programs_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *Diagnostic) GetSeverity() string {
+	if x != nil {
+		return x.Severity
+	}
+	return ""
+}
+
+func (x *Diagnostic) GetLine() int32 {
+	if x != nil {
+		return x.Line
+	}
+	return 0
+}
+
+func (x *Diagnostic) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *Diagnostic) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+func (x *Diagnostic) GetNearestMatch() string {
+	if x != nil {
+		return x.NearestMatch
+	}
+	return ""
+}
+
 type SubmitProgramRequest struct {
 	state               protoimpl.MessageState `protogen:"open.v1"`
 	SessionId           string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
@@ -305,13 +471,14 @@ type SubmitProgramRequest struct {
 	Provenance          Provenance             `protobuf:"varint,3,opt,name=provenance,proto3,enum=vrooli.program_runtime.v1.programs.Provenance" json:"provenance,omitempty"`
 	IncludeMaterialized bool                   `protobuf:"varint,4,opt,name=include_materialized,json=includeMaterialized,proto3" json:"include_materialized,omitempty"`
 	Async               bool                   `protobuf:"varint,5,opt,name=async,proto3" json:"async,omitempty"`
+	Explain             bool                   `protobuf:"varint,6,opt,name=explain,proto3" json:"explain,omitempty"`
 	unknownFields       protoimpl.UnknownFields
 	sizeCache           protoimpl.SizeCache
 }
 
 func (x *SubmitProgramRequest) Reset() {
 	*x = SubmitProgramRequest{}
-	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[1]
+	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -323,7 +490,7 @@ func (x *SubmitProgramRequest) String() string {
 func (*SubmitProgramRequest) ProtoMessage() {}
 
 func (x *SubmitProgramRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[1]
+	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -336,7 +503,7 @@ func (x *SubmitProgramRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SubmitProgramRequest.ProtoReflect.Descriptor instead.
 func (*SubmitProgramRequest) Descriptor() ([]byte, []int) {
-	return file_program_runtime_v1_programs_programs_proto_rawDescGZIP(), []int{1}
+	return file_program_runtime_v1_programs_programs_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *SubmitProgramRequest) GetSessionId() string {
@@ -374,16 +541,24 @@ func (x *SubmitProgramRequest) GetAsync() bool {
 	return false
 }
 
+func (x *SubmitProgramRequest) GetExplain() bool {
+	if x != nil {
+		return x.Explain
+	}
+	return false
+}
+
 type SubmitProgramResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Program       *Program               `protobuf:"bytes,1,opt,name=program,proto3" json:"program,omitempty"`
+	Diagnostics   []*Diagnostic          `protobuf:"bytes,2,rep,name=diagnostics,proto3" json:"diagnostics,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *SubmitProgramResponse) Reset() {
 	*x = SubmitProgramResponse{}
-	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[2]
+	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -395,7 +570,7 @@ func (x *SubmitProgramResponse) String() string {
 func (*SubmitProgramResponse) ProtoMessage() {}
 
 func (x *SubmitProgramResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[2]
+	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -408,12 +583,19 @@ func (x *SubmitProgramResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SubmitProgramResponse.ProtoReflect.Descriptor instead.
 func (*SubmitProgramResponse) Descriptor() ([]byte, []int) {
-	return file_program_runtime_v1_programs_programs_proto_rawDescGZIP(), []int{2}
+	return file_program_runtime_v1_programs_programs_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *SubmitProgramResponse) GetProgram() *Program {
 	if x != nil {
 		return x.Program
+	}
+	return nil
+}
+
+func (x *SubmitProgramResponse) GetDiagnostics() []*Diagnostic {
+	if x != nil {
+		return x.Diagnostics
 	}
 	return nil
 }
@@ -427,7 +609,7 @@ type GetProgramRequest struct {
 
 func (x *GetProgramRequest) Reset() {
 	*x = GetProgramRequest{}
-	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[3]
+	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -439,7 +621,7 @@ func (x *GetProgramRequest) String() string {
 func (*GetProgramRequest) ProtoMessage() {}
 
 func (x *GetProgramRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[3]
+	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -452,7 +634,7 @@ func (x *GetProgramRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetProgramRequest.ProtoReflect.Descriptor instead.
 func (*GetProgramRequest) Descriptor() ([]byte, []int) {
-	return file_program_runtime_v1_programs_programs_proto_rawDescGZIP(), []int{3}
+	return file_program_runtime_v1_programs_programs_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *GetProgramRequest) GetId() string {
@@ -471,7 +653,7 @@ type GetProgramResponse struct {
 
 func (x *GetProgramResponse) Reset() {
 	*x = GetProgramResponse{}
-	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[4]
+	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -483,7 +665,7 @@ func (x *GetProgramResponse) String() string {
 func (*GetProgramResponse) ProtoMessage() {}
 
 func (x *GetProgramResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[4]
+	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -496,7 +678,7 @@ func (x *GetProgramResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetProgramResponse.ProtoReflect.Descriptor instead.
 func (*GetProgramResponse) Descriptor() ([]byte, []int) {
-	return file_program_runtime_v1_programs_programs_proto_rawDescGZIP(), []int{4}
+	return file_program_runtime_v1_programs_programs_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *GetProgramResponse) GetProgram() *Program {
@@ -516,7 +698,7 @@ type ListProgramsRequest struct {
 
 func (x *ListProgramsRequest) Reset() {
 	*x = ListProgramsRequest{}
-	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[5]
+	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -528,7 +710,7 @@ func (x *ListProgramsRequest) String() string {
 func (*ListProgramsRequest) ProtoMessage() {}
 
 func (x *ListProgramsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[5]
+	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -541,7 +723,7 @@ func (x *ListProgramsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListProgramsRequest.ProtoReflect.Descriptor instead.
 func (*ListProgramsRequest) Descriptor() ([]byte, []int) {
-	return file_program_runtime_v1_programs_programs_proto_rawDescGZIP(), []int{5}
+	return file_program_runtime_v1_programs_programs_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *ListProgramsRequest) GetSessionId() string {
@@ -567,7 +749,7 @@ type ListProgramsResponse struct {
 
 func (x *ListProgramsResponse) Reset() {
 	*x = ListProgramsResponse{}
-	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[6]
+	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -579,7 +761,7 @@ func (x *ListProgramsResponse) String() string {
 func (*ListProgramsResponse) ProtoMessage() {}
 
 func (x *ListProgramsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[6]
+	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -592,7 +774,7 @@ func (x *ListProgramsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListProgramsResponse.ProtoReflect.Descriptor instead.
 func (*ListProgramsResponse) Descriptor() ([]byte, []int) {
-	return file_program_runtime_v1_programs_programs_proto_rawDescGZIP(), []int{6}
+	return file_program_runtime_v1_programs_programs_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *ListProgramsResponse) GetPrograms() []*Program {
@@ -611,7 +793,7 @@ type MineFailuresRequest struct {
 
 func (x *MineFailuresRequest) Reset() {
 	*x = MineFailuresRequest{}
-	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[7]
+	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -623,7 +805,7 @@ func (x *MineFailuresRequest) String() string {
 func (*MineFailuresRequest) ProtoMessage() {}
 
 func (x *MineFailuresRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[7]
+	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -636,7 +818,7 @@ func (x *MineFailuresRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MineFailuresRequest.ProtoReflect.Descriptor instead.
 func (*MineFailuresRequest) Descriptor() ([]byte, []int) {
-	return file_program_runtime_v1_programs_programs_proto_rawDescGZIP(), []int{7}
+	return file_program_runtime_v1_programs_programs_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *MineFailuresRequest) GetIncludeOperator() bool {
@@ -659,7 +841,7 @@ type FailureShape struct {
 
 func (x *FailureShape) Reset() {
 	*x = FailureShape{}
-	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[8]
+	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -671,7 +853,7 @@ func (x *FailureShape) String() string {
 func (*FailureShape) ProtoMessage() {}
 
 func (x *FailureShape) ProtoReflect() protoreflect.Message {
-	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[8]
+	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -684,7 +866,7 @@ func (x *FailureShape) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FailureShape.ProtoReflect.Descriptor instead.
 func (*FailureShape) Descriptor() ([]byte, []int) {
-	return file_program_runtime_v1_programs_programs_proto_rawDescGZIP(), []int{8}
+	return file_program_runtime_v1_programs_programs_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *FailureShape) GetShape() string {
@@ -732,7 +914,7 @@ type MineFailuresResponse struct {
 
 func (x *MineFailuresResponse) Reset() {
 	*x = MineFailuresResponse{}
-	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[9]
+	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -744,7 +926,7 @@ func (x *MineFailuresResponse) String() string {
 func (*MineFailuresResponse) ProtoMessage() {}
 
 func (x *MineFailuresResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[9]
+	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -757,7 +939,7 @@ func (x *MineFailuresResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MineFailuresResponse.ProtoReflect.Descriptor instead.
 func (*MineFailuresResponse) Descriptor() ([]byte, []int) {
-	return file_program_runtime_v1_programs_programs_proto_rawDescGZIP(), []int{9}
+	return file_program_runtime_v1_programs_programs_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *MineFailuresResponse) GetShapes() []*FailureShape {
@@ -783,7 +965,7 @@ type MineRefusalsRequest struct {
 
 func (x *MineRefusalsRequest) Reset() {
 	*x = MineRefusalsRequest{}
-	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[10]
+	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -795,7 +977,7 @@ func (x *MineRefusalsRequest) String() string {
 func (*MineRefusalsRequest) ProtoMessage() {}
 
 func (x *MineRefusalsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[10]
+	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -808,7 +990,7 @@ func (x *MineRefusalsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MineRefusalsRequest.ProtoReflect.Descriptor instead.
 func (*MineRefusalsRequest) Descriptor() ([]byte, []int) {
-	return file_program_runtime_v1_programs_programs_proto_rawDescGZIP(), []int{10}
+	return file_program_runtime_v1_programs_programs_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *MineRefusalsRequest) GetIncludeOperator() bool {
@@ -830,7 +1012,7 @@ type RefusalShape struct {
 
 func (x *RefusalShape) Reset() {
 	*x = RefusalShape{}
-	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[11]
+	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -842,7 +1024,7 @@ func (x *RefusalShape) String() string {
 func (*RefusalShape) ProtoMessage() {}
 
 func (x *RefusalShape) ProtoReflect() protoreflect.Message {
-	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[11]
+	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -855,7 +1037,7 @@ func (x *RefusalShape) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RefusalShape.ProtoReflect.Descriptor instead.
 func (*RefusalShape) Descriptor() ([]byte, []int) {
-	return file_program_runtime_v1_programs_programs_proto_rawDescGZIP(), []int{11}
+	return file_program_runtime_v1_programs_programs_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *RefusalShape) GetBindingId() string {
@@ -896,7 +1078,7 @@ type MineRefusalsResponse struct {
 
 func (x *MineRefusalsResponse) Reset() {
 	*x = MineRefusalsResponse{}
-	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[12]
+	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -908,7 +1090,7 @@ func (x *MineRefusalsResponse) String() string {
 func (*MineRefusalsResponse) ProtoMessage() {}
 
 func (x *MineRefusalsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[12]
+	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -921,7 +1103,7 @@ func (x *MineRefusalsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MineRefusalsResponse.ProtoReflect.Descriptor instead.
 func (*MineRefusalsResponse) Descriptor() ([]byte, []int) {
-	return file_program_runtime_v1_programs_programs_proto_rawDescGZIP(), []int{12}
+	return file_program_runtime_v1_programs_programs_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *MineRefusalsResponse) GetShapes() []*RefusalShape {
@@ -946,7 +1128,7 @@ type MineUnresolvedBindingsRequest struct {
 
 func (x *MineUnresolvedBindingsRequest) Reset() {
 	*x = MineUnresolvedBindingsRequest{}
-	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[13]
+	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -958,7 +1140,7 @@ func (x *MineUnresolvedBindingsRequest) String() string {
 func (*MineUnresolvedBindingsRequest) ProtoMessage() {}
 
 func (x *MineUnresolvedBindingsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[13]
+	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -971,7 +1153,7 @@ func (x *MineUnresolvedBindingsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MineUnresolvedBindingsRequest.ProtoReflect.Descriptor instead.
 func (*MineUnresolvedBindingsRequest) Descriptor() ([]byte, []int) {
-	return file_program_runtime_v1_programs_programs_proto_rawDescGZIP(), []int{13}
+	return file_program_runtime_v1_programs_programs_proto_rawDescGZIP(), []int{14}
 }
 
 type UnresolvedBindingShape struct {
@@ -985,7 +1167,7 @@ type UnresolvedBindingShape struct {
 
 func (x *UnresolvedBindingShape) Reset() {
 	*x = UnresolvedBindingShape{}
-	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[14]
+	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -997,7 +1179,7 @@ func (x *UnresolvedBindingShape) String() string {
 func (*UnresolvedBindingShape) ProtoMessage() {}
 
 func (x *UnresolvedBindingShape) ProtoReflect() protoreflect.Message {
-	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[14]
+	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1010,7 +1192,7 @@ func (x *UnresolvedBindingShape) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UnresolvedBindingShape.ProtoReflect.Descriptor instead.
 func (*UnresolvedBindingShape) Descriptor() ([]byte, []int) {
-	return file_program_runtime_v1_programs_programs_proto_rawDescGZIP(), []int{14}
+	return file_program_runtime_v1_programs_programs_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *UnresolvedBindingShape) GetAttemptedName() string {
@@ -1044,7 +1226,7 @@ type MineUnresolvedBindingsResponse struct {
 
 func (x *MineUnresolvedBindingsResponse) Reset() {
 	*x = MineUnresolvedBindingsResponse{}
-	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[15]
+	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1056,7 +1238,7 @@ func (x *MineUnresolvedBindingsResponse) String() string {
 func (*MineUnresolvedBindingsResponse) ProtoMessage() {}
 
 func (x *MineUnresolvedBindingsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[15]
+	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1069,7 +1251,7 @@ func (x *MineUnresolvedBindingsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MineUnresolvedBindingsResponse.ProtoReflect.Descriptor instead.
 func (*MineUnresolvedBindingsResponse) Descriptor() ([]byte, []int) {
-	return file_program_runtime_v1_programs_programs_proto_rawDescGZIP(), []int{15}
+	return file_program_runtime_v1_programs_programs_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *MineUnresolvedBindingsResponse) GetShapes() []*UnresolvedBindingShape {
@@ -1086,11 +1268,263 @@ func (x *MineUnresolvedBindingsResponse) GetCount() int64 {
 	return 0
 }
 
+type RunAuthoringEvalRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Suite         string                 `protobuf:"bytes,1,opt,name=suite,proto3" json:"suite,omitempty"`
+	MaxCases      int32                  `protobuf:"varint,2,opt,name=max_cases,json=maxCases,proto3" json:"max_cases,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RunAuthoringEvalRequest) Reset() {
+	*x = RunAuthoringEvalRequest{}
+	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RunAuthoringEvalRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RunAuthoringEvalRequest) ProtoMessage() {}
+
+func (x *RunAuthoringEvalRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RunAuthoringEvalRequest.ProtoReflect.Descriptor instead.
+func (*RunAuthoringEvalRequest) Descriptor() ([]byte, []int) {
+	return file_program_runtime_v1_programs_programs_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *RunAuthoringEvalRequest) GetSuite() string {
+	if x != nil {
+		return x.Suite
+	}
+	return ""
+}
+
+func (x *RunAuthoringEvalRequest) GetMaxCases() int32 {
+	if x != nil {
+		return x.MaxCases
+	}
+	return 0
+}
+
+type AuthoringCaseResult struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	CaseId         string                 `protobuf:"bytes,1,opt,name=case_id,json=caseId,proto3" json:"case_id,omitempty"`
+	Authored       bool                   `protobuf:"varint,2,opt,name=authored,proto3" json:"authored,omitempty"`
+	FirstAttemptOk bool                   `protobuf:"varint,3,opt,name=first_attempt_ok,json=firstAttemptOk,proto3" json:"first_attempt_ok,omitempty"`
+	Cause          string                 `protobuf:"bytes,4,opt,name=cause,proto3" json:"cause,omitempty"`
+	AgentBytes     int64                  `protobuf:"varint,5,opt,name=agent_bytes,json=agentBytes,proto3" json:"agent_bytes,omitempty"`
+	Model          string                 `protobuf:"bytes,6,opt,name=model,proto3" json:"model,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *AuthoringCaseResult) Reset() {
+	*x = AuthoringCaseResult{}
+	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AuthoringCaseResult) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AuthoringCaseResult) ProtoMessage() {}
+
+func (x *AuthoringCaseResult) ProtoReflect() protoreflect.Message {
+	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AuthoringCaseResult.ProtoReflect.Descriptor instead.
+func (*AuthoringCaseResult) Descriptor() ([]byte, []int) {
+	return file_program_runtime_v1_programs_programs_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *AuthoringCaseResult) GetCaseId() string {
+	if x != nil {
+		return x.CaseId
+	}
+	return ""
+}
+
+func (x *AuthoringCaseResult) GetAuthored() bool {
+	if x != nil {
+		return x.Authored
+	}
+	return false
+}
+
+func (x *AuthoringCaseResult) GetFirstAttemptOk() bool {
+	if x != nil {
+		return x.FirstAttemptOk
+	}
+	return false
+}
+
+func (x *AuthoringCaseResult) GetCause() string {
+	if x != nil {
+		return x.Cause
+	}
+	return ""
+}
+
+func (x *AuthoringCaseResult) GetAgentBytes() int64 {
+	if x != nil {
+		return x.AgentBytes
+	}
+	return 0
+}
+
+func (x *AuthoringCaseResult) GetModel() string {
+	if x != nil {
+		return x.Model
+	}
+	return ""
+}
+
+type RunAuthoringEvalResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Suite         string                 `protobuf:"bytes,1,opt,name=suite,proto3" json:"suite,omitempty"`
+	Status        string                 `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
+	Reason        string                 `protobuf:"bytes,3,opt,name=reason,proto3" json:"reason,omitempty"`
+	Cases         int32                  `protobuf:"varint,4,opt,name=cases,proto3" json:"cases,omitempty"`
+	Met           int32                  `protobuf:"varint,5,opt,name=met,proto3" json:"met,omitempty"`
+	Missed        int32                  `protobuf:"varint,6,opt,name=missed,proto3" json:"missed,omitempty"`
+	WrongResult   int32                  `protobuf:"varint,7,opt,name=wrong_result,json=wrongResult,proto3" json:"wrong_result,omitempty"`
+	Unavailable   int32                  `protobuf:"varint,8,opt,name=unavailable,proto3" json:"unavailable,omitempty"`
+	Floor         int32                  `protobuf:"varint,9,opt,name=floor,proto3" json:"floor,omitempty"`
+	Results       []*AuthoringCaseResult `protobuf:"bytes,10,rep,name=results,proto3" json:"results,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RunAuthoringEvalResponse) Reset() {
+	*x = RunAuthoringEvalResponse{}
+	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RunAuthoringEvalResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RunAuthoringEvalResponse) ProtoMessage() {}
+
+func (x *RunAuthoringEvalResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RunAuthoringEvalResponse.ProtoReflect.Descriptor instead.
+func (*RunAuthoringEvalResponse) Descriptor() ([]byte, []int) {
+	return file_program_runtime_v1_programs_programs_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *RunAuthoringEvalResponse) GetSuite() string {
+	if x != nil {
+		return x.Suite
+	}
+	return ""
+}
+
+func (x *RunAuthoringEvalResponse) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *RunAuthoringEvalResponse) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+func (x *RunAuthoringEvalResponse) GetCases() int32 {
+	if x != nil {
+		return x.Cases
+	}
+	return 0
+}
+
+func (x *RunAuthoringEvalResponse) GetMet() int32 {
+	if x != nil {
+		return x.Met
+	}
+	return 0
+}
+
+func (x *RunAuthoringEvalResponse) GetMissed() int32 {
+	if x != nil {
+		return x.Missed
+	}
+	return 0
+}
+
+func (x *RunAuthoringEvalResponse) GetWrongResult() int32 {
+	if x != nil {
+		return x.WrongResult
+	}
+	return 0
+}
+
+func (x *RunAuthoringEvalResponse) GetUnavailable() int32 {
+	if x != nil {
+		return x.Unavailable
+	}
+	return 0
+}
+
+func (x *RunAuthoringEvalResponse) GetFloor() int32 {
+	if x != nil {
+		return x.Floor
+	}
+	return 0
+}
+
+func (x *RunAuthoringEvalResponse) GetResults() []*AuthoringCaseResult {
+	if x != nil {
+		return x.Results
+	}
+	return nil
+}
+
 var File_program_runtime_v1_programs_programs_proto protoreflect.FileDescriptor
 
 const file_program_runtime_v1_programs_programs_proto_rawDesc = "" +
 	"\n" +
-	"*program-runtime/v1/programs/programs.proto\x12\"vrooli.program_runtime.v1.programs\"\x80\x05\n" +
+	"*program-runtime/v1/programs/programs.proto\x12\"vrooli.program_runtime.v1.programs\"\xd7\x05\n" +
 	"\aProgram\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n" +
 	"\n" +
@@ -1113,7 +1547,15 @@ const file_program_runtime_v1_programs_programs_proto_rawDesc = "" +
 	"\fcompleted_at\x18\r \x01(\tR\vcompletedAt\x12(\n" +
 	"\x10wall_time_millis\x18\x0e \x01(\x03R\x0ewallTimeMillis\x12&\n" +
 	"\x0fcpu_time_millis\x18\x0f \x01(\x03R\rcpuTimeMillis\x12'\n" +
-	"\x0flibrary_version\x18\x10 \x01(\tR\x0elibraryVersion\"\xe6\x01\n" +
+	"\x0flibrary_version\x18\x10 \x01(\tR\x0elibraryVersion\x12U\n" +
+	"\rfailure_cause\x18\x11 \x01(\x0e20.vrooli.program_runtime.v1.programs.FailureCauseR\ffailureCause\"\x8f\x01\n" +
+	"\n" +
+	"Diagnostic\x12\x1a\n" +
+	"\bseverity\x18\x01 \x01(\tR\bseverity\x12\x12\n" +
+	"\x04line\x18\x02 \x01(\x05R\x04line\x12\x12\n" +
+	"\x04name\x18\x03 \x01(\tR\x04name\x12\x18\n" +
+	"\amessage\x18\x04 \x01(\tR\amessage\x12#\n" +
+	"\rnearest_match\x18\x05 \x01(\tR\fnearestMatch\"\x80\x02\n" +
 	"\x14SubmitProgramRequest\x12\x1d\n" +
 	"\n" +
 	"session_id\x18\x01 \x01(\tR\tsessionId\x12\x16\n" +
@@ -1122,9 +1564,11 @@ const file_program_runtime_v1_programs_programs_proto_rawDesc = "" +
 	"provenance\x18\x03 \x01(\x0e2..vrooli.program_runtime.v1.programs.ProvenanceR\n" +
 	"provenance\x121\n" +
 	"\x14include_materialized\x18\x04 \x01(\bR\x13includeMaterialized\x12\x14\n" +
-	"\x05async\x18\x05 \x01(\bR\x05async\"^\n" +
+	"\x05async\x18\x05 \x01(\bR\x05async\x12\x18\n" +
+	"\aexplain\x18\x06 \x01(\bR\aexplain\"\xb0\x01\n" +
 	"\x15SubmitProgramResponse\x12E\n" +
-	"\aprogram\x18\x01 \x01(\v2+.vrooli.program_runtime.v1.programs.ProgramR\aprogram\"#\n" +
+	"\aprogram\x18\x01 \x01(\v2+.vrooli.program_runtime.v1.programs.ProgramR\aprogram\x12P\n" +
+	"\vdiagnostics\x18\x02 \x03(\v2..vrooli.program_runtime.v1.programs.DiagnosticR\vdiagnostics\"#\n" +
 	"\x11GetProgramRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"[\n" +
 	"\x12GetProgramResponse\x12E\n" +
@@ -1165,7 +1609,30 @@ const file_program_runtime_v1_programs_programs_proto_rawDesc = "" +
 	"\tlast_seen\x18\x03 \x01(\tR\blastSeen\"\x8a\x01\n" +
 	"\x1eMineUnresolvedBindingsResponse\x12R\n" +
 	"\x06shapes\x18\x01 \x03(\v2:.vrooli.program_runtime.v1.programs.UnresolvedBindingShapeR\x06shapes\x12\x14\n" +
-	"\x05count\x18\x02 \x01(\x03R\x05count*\x83\x01\n" +
+	"\x05count\x18\x02 \x01(\x03R\x05count\"L\n" +
+	"\x17RunAuthoringEvalRequest\x12\x14\n" +
+	"\x05suite\x18\x01 \x01(\tR\x05suite\x12\x1b\n" +
+	"\tmax_cases\x18\x02 \x01(\x05R\bmaxCases\"\xc1\x01\n" +
+	"\x13AuthoringCaseResult\x12\x17\n" +
+	"\acase_id\x18\x01 \x01(\tR\x06caseId\x12\x1a\n" +
+	"\bauthored\x18\x02 \x01(\bR\bauthored\x12(\n" +
+	"\x10first_attempt_ok\x18\x03 \x01(\bR\x0efirstAttemptOk\x12\x14\n" +
+	"\x05cause\x18\x04 \x01(\tR\x05cause\x12\x1f\n" +
+	"\vagent_bytes\x18\x05 \x01(\x03R\n" +
+	"agentBytes\x12\x14\n" +
+	"\x05model\x18\x06 \x01(\tR\x05model\"\xce\x02\n" +
+	"\x18RunAuthoringEvalResponse\x12\x14\n" +
+	"\x05suite\x18\x01 \x01(\tR\x05suite\x12\x16\n" +
+	"\x06status\x18\x02 \x01(\tR\x06status\x12\x16\n" +
+	"\x06reason\x18\x03 \x01(\tR\x06reason\x12\x14\n" +
+	"\x05cases\x18\x04 \x01(\x05R\x05cases\x12\x10\n" +
+	"\x03met\x18\x05 \x01(\x05R\x03met\x12\x16\n" +
+	"\x06missed\x18\x06 \x01(\x05R\x06missed\x12!\n" +
+	"\fwrong_result\x18\a \x01(\x05R\vwrongResult\x12 \n" +
+	"\vunavailable\x18\b \x01(\x05R\vunavailable\x12\x14\n" +
+	"\x05floor\x18\t \x01(\x05R\x05floor\x12Q\n" +
+	"\aresults\x18\n" +
+	" \x03(\v27.vrooli.program_runtime.v1.programs.AuthoringCaseResultR\aresults*\x83\x01\n" +
 	"\n" +
 	"Provenance\x12\x1a\n" +
 	"\x16PROVENANCE_UNSPECIFIED\x10\x00\x12\x14\n" +
@@ -1179,7 +1646,23 @@ const file_program_runtime_v1_programs_programs_proto_rawDesc = "" +
 	"\x16PROGRAM_STATUS_RUNNING\x10\x02\x12\x1c\n" +
 	"\x18PROGRAM_STATUS_SUCCEEDED\x10\x03\x12\x19\n" +
 	"\x15PROGRAM_STATUS_FAILED\x10\x04\x12\x1c\n" +
-	"\x18PROGRAM_STATUS_CANCELLED\x10\x052\xc2\x06\n" +
+	"\x18PROGRAM_STATUS_CANCELLED\x10\x05*\x97\x04\n" +
+	"\fFailureCause\x12\x1d\n" +
+	"\x19FAILURE_CAUSE_UNSPECIFIED\x10\x00\x12!\n" +
+	"\x1dFAILURE_CAUSE_UNRESOLVED_NAME\x10\x01\x12\x1f\n" +
+	"\x1bFAILURE_CAUSE_UNKNOWN_FIELD\x10\x02\x12$\n" +
+	" FAILURE_CAUSE_AMBIGUOUS_RESPONSE\x10\x03\x12&\n" +
+	"\"FAILURE_CAUSE_UNREACHABLE_SCENARIO\x10\x04\x12\"\n" +
+	"\x1eFAILURE_CAUSE_REFUSED_NO_GRANT\x10\x05\x12*\n" +
+	"&FAILURE_CAUSE_REFUSED_NOT_RUN_ELIGIBLE\x10\x06\x12*\n" +
+	"&FAILURE_CAUSE_INFERENCE_SPEND_EXCEEDED\x10\a\x12.\n" +
+	"*FAILURE_CAUSE_DELEGATED_RUN_SPEND_EXCEEDED\x10\b\x12#\n" +
+	"\x1fFAILURE_CAUSE_DEADLINE_EXCEEDED\x10\t\x12\x1f\n" +
+	"\x1bFAILURE_CAUSE_KERNEL_SYNTAX\x10\n" +
+	"\x12 \n" +
+	"\x1cFAILURE_CAUSE_KERNEL_RUNTIME\x10\v\x12\"\n" +
+	"\x1eFAILURE_CAUSE_BRIDGE_TRANSPORT\x10\f\x12\x1e\n" +
+	"\x1aFAILURE_CAUSE_UNCLASSIFIED\x10\r2\xd2\a\n" +
 	"\x0eProgramService\x12\x84\x01\n" +
 	"\rSubmitProgram\x128.vrooli.program_runtime.v1.programs.SubmitProgramRequest\x1a9.vrooli.program_runtime.v1.programs.SubmitProgramResponse\x12{\n" +
 	"\n" +
@@ -1187,7 +1670,8 @@ const file_program_runtime_v1_programs_programs_proto_rawDesc = "" +
 	"\fListPrograms\x127.vrooli.program_runtime.v1.programs.ListProgramsRequest\x1a8.vrooli.program_runtime.v1.programs.ListProgramsResponse\x12\x81\x01\n" +
 	"\fMineFailures\x127.vrooli.program_runtime.v1.programs.MineFailuresRequest\x1a8.vrooli.program_runtime.v1.programs.MineFailuresResponse\x12\x81\x01\n" +
 	"\fMineRefusals\x127.vrooli.program_runtime.v1.programs.MineRefusalsRequest\x1a8.vrooli.program_runtime.v1.programs.MineRefusalsResponse\x12\x9f\x01\n" +
-	"\x16MineUnresolvedBindings\x12A.vrooli.program_runtime.v1.programs.MineUnresolvedBindingsRequest\x1aB.vrooli.program_runtime.v1.programs.MineUnresolvedBindingsResponseBXZVgithub.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/programs;programs_v1b\x06proto3"
+	"\x16MineUnresolvedBindings\x12A.vrooli.program_runtime.v1.programs.MineUnresolvedBindingsRequest\x1aB.vrooli.program_runtime.v1.programs.MineUnresolvedBindingsResponse\x12\x8d\x01\n" +
+	"\x10RunAuthoringEval\x12;.vrooli.program_runtime.v1.programs.RunAuthoringEvalRequest\x1a<.vrooli.program_runtime.v1.programs.RunAuthoringEvalResponseBXZVgithub.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/programs;programs_v1b\x06proto3"
 
 var (
 	file_program_runtime_v1_programs_programs_proto_rawDescOnce sync.Once
@@ -1201,55 +1685,65 @@ func file_program_runtime_v1_programs_programs_proto_rawDescGZIP() []byte {
 	return file_program_runtime_v1_programs_programs_proto_rawDescData
 }
 
-var file_program_runtime_v1_programs_programs_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_program_runtime_v1_programs_programs_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
+var file_program_runtime_v1_programs_programs_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
+var file_program_runtime_v1_programs_programs_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
 var file_program_runtime_v1_programs_programs_proto_goTypes = []any{
 	(Provenance)(0),                        // 0: vrooli.program_runtime.v1.programs.Provenance
 	(ProgramStatus)(0),                     // 1: vrooli.program_runtime.v1.programs.ProgramStatus
-	(*Program)(nil),                        // 2: vrooli.program_runtime.v1.programs.Program
-	(*SubmitProgramRequest)(nil),           // 3: vrooli.program_runtime.v1.programs.SubmitProgramRequest
-	(*SubmitProgramResponse)(nil),          // 4: vrooli.program_runtime.v1.programs.SubmitProgramResponse
-	(*GetProgramRequest)(nil),              // 5: vrooli.program_runtime.v1.programs.GetProgramRequest
-	(*GetProgramResponse)(nil),             // 6: vrooli.program_runtime.v1.programs.GetProgramResponse
-	(*ListProgramsRequest)(nil),            // 7: vrooli.program_runtime.v1.programs.ListProgramsRequest
-	(*ListProgramsResponse)(nil),           // 8: vrooli.program_runtime.v1.programs.ListProgramsResponse
-	(*MineFailuresRequest)(nil),            // 9: vrooli.program_runtime.v1.programs.MineFailuresRequest
-	(*FailureShape)(nil),                   // 10: vrooli.program_runtime.v1.programs.FailureShape
-	(*MineFailuresResponse)(nil),           // 11: vrooli.program_runtime.v1.programs.MineFailuresResponse
-	(*MineRefusalsRequest)(nil),            // 12: vrooli.program_runtime.v1.programs.MineRefusalsRequest
-	(*RefusalShape)(nil),                   // 13: vrooli.program_runtime.v1.programs.RefusalShape
-	(*MineRefusalsResponse)(nil),           // 14: vrooli.program_runtime.v1.programs.MineRefusalsResponse
-	(*MineUnresolvedBindingsRequest)(nil),  // 15: vrooli.program_runtime.v1.programs.MineUnresolvedBindingsRequest
-	(*UnresolvedBindingShape)(nil),         // 16: vrooli.program_runtime.v1.programs.UnresolvedBindingShape
-	(*MineUnresolvedBindingsResponse)(nil), // 17: vrooli.program_runtime.v1.programs.MineUnresolvedBindingsResponse
+	(FailureCause)(0),                      // 2: vrooli.program_runtime.v1.programs.FailureCause
+	(*Program)(nil),                        // 3: vrooli.program_runtime.v1.programs.Program
+	(*Diagnostic)(nil),                     // 4: vrooli.program_runtime.v1.programs.Diagnostic
+	(*SubmitProgramRequest)(nil),           // 5: vrooli.program_runtime.v1.programs.SubmitProgramRequest
+	(*SubmitProgramResponse)(nil),          // 6: vrooli.program_runtime.v1.programs.SubmitProgramResponse
+	(*GetProgramRequest)(nil),              // 7: vrooli.program_runtime.v1.programs.GetProgramRequest
+	(*GetProgramResponse)(nil),             // 8: vrooli.program_runtime.v1.programs.GetProgramResponse
+	(*ListProgramsRequest)(nil),            // 9: vrooli.program_runtime.v1.programs.ListProgramsRequest
+	(*ListProgramsResponse)(nil),           // 10: vrooli.program_runtime.v1.programs.ListProgramsResponse
+	(*MineFailuresRequest)(nil),            // 11: vrooli.program_runtime.v1.programs.MineFailuresRequest
+	(*FailureShape)(nil),                   // 12: vrooli.program_runtime.v1.programs.FailureShape
+	(*MineFailuresResponse)(nil),           // 13: vrooli.program_runtime.v1.programs.MineFailuresResponse
+	(*MineRefusalsRequest)(nil),            // 14: vrooli.program_runtime.v1.programs.MineRefusalsRequest
+	(*RefusalShape)(nil),                   // 15: vrooli.program_runtime.v1.programs.RefusalShape
+	(*MineRefusalsResponse)(nil),           // 16: vrooli.program_runtime.v1.programs.MineRefusalsResponse
+	(*MineUnresolvedBindingsRequest)(nil),  // 17: vrooli.program_runtime.v1.programs.MineUnresolvedBindingsRequest
+	(*UnresolvedBindingShape)(nil),         // 18: vrooli.program_runtime.v1.programs.UnresolvedBindingShape
+	(*MineUnresolvedBindingsResponse)(nil), // 19: vrooli.program_runtime.v1.programs.MineUnresolvedBindingsResponse
+	(*RunAuthoringEvalRequest)(nil),        // 20: vrooli.program_runtime.v1.programs.RunAuthoringEvalRequest
+	(*AuthoringCaseResult)(nil),            // 21: vrooli.program_runtime.v1.programs.AuthoringCaseResult
+	(*RunAuthoringEvalResponse)(nil),       // 22: vrooli.program_runtime.v1.programs.RunAuthoringEvalResponse
 }
 var file_program_runtime_v1_programs_programs_proto_depIdxs = []int32{
 	0,  // 0: vrooli.program_runtime.v1.programs.Program.provenance:type_name -> vrooli.program_runtime.v1.programs.Provenance
 	1,  // 1: vrooli.program_runtime.v1.programs.Program.status:type_name -> vrooli.program_runtime.v1.programs.ProgramStatus
-	0,  // 2: vrooli.program_runtime.v1.programs.SubmitProgramRequest.provenance:type_name -> vrooli.program_runtime.v1.programs.Provenance
-	2,  // 3: vrooli.program_runtime.v1.programs.SubmitProgramResponse.program:type_name -> vrooli.program_runtime.v1.programs.Program
-	2,  // 4: vrooli.program_runtime.v1.programs.GetProgramResponse.program:type_name -> vrooli.program_runtime.v1.programs.Program
-	2,  // 5: vrooli.program_runtime.v1.programs.ListProgramsResponse.programs:type_name -> vrooli.program_runtime.v1.programs.Program
-	10, // 6: vrooli.program_runtime.v1.programs.MineFailuresResponse.shapes:type_name -> vrooli.program_runtime.v1.programs.FailureShape
-	13, // 7: vrooli.program_runtime.v1.programs.MineRefusalsResponse.shapes:type_name -> vrooli.program_runtime.v1.programs.RefusalShape
-	16, // 8: vrooli.program_runtime.v1.programs.MineUnresolvedBindingsResponse.shapes:type_name -> vrooli.program_runtime.v1.programs.UnresolvedBindingShape
-	3,  // 9: vrooli.program_runtime.v1.programs.ProgramService.SubmitProgram:input_type -> vrooli.program_runtime.v1.programs.SubmitProgramRequest
-	5,  // 10: vrooli.program_runtime.v1.programs.ProgramService.GetProgram:input_type -> vrooli.program_runtime.v1.programs.GetProgramRequest
-	7,  // 11: vrooli.program_runtime.v1.programs.ProgramService.ListPrograms:input_type -> vrooli.program_runtime.v1.programs.ListProgramsRequest
-	9,  // 12: vrooli.program_runtime.v1.programs.ProgramService.MineFailures:input_type -> vrooli.program_runtime.v1.programs.MineFailuresRequest
-	12, // 13: vrooli.program_runtime.v1.programs.ProgramService.MineRefusals:input_type -> vrooli.program_runtime.v1.programs.MineRefusalsRequest
-	15, // 14: vrooli.program_runtime.v1.programs.ProgramService.MineUnresolvedBindings:input_type -> vrooli.program_runtime.v1.programs.MineUnresolvedBindingsRequest
-	4,  // 15: vrooli.program_runtime.v1.programs.ProgramService.SubmitProgram:output_type -> vrooli.program_runtime.v1.programs.SubmitProgramResponse
-	6,  // 16: vrooli.program_runtime.v1.programs.ProgramService.GetProgram:output_type -> vrooli.program_runtime.v1.programs.GetProgramResponse
-	8,  // 17: vrooli.program_runtime.v1.programs.ProgramService.ListPrograms:output_type -> vrooli.program_runtime.v1.programs.ListProgramsResponse
-	11, // 18: vrooli.program_runtime.v1.programs.ProgramService.MineFailures:output_type -> vrooli.program_runtime.v1.programs.MineFailuresResponse
-	14, // 19: vrooli.program_runtime.v1.programs.ProgramService.MineRefusals:output_type -> vrooli.program_runtime.v1.programs.MineRefusalsResponse
-	17, // 20: vrooli.program_runtime.v1.programs.ProgramService.MineUnresolvedBindings:output_type -> vrooli.program_runtime.v1.programs.MineUnresolvedBindingsResponse
-	15, // [15:21] is the sub-list for method output_type
-	9,  // [9:15] is the sub-list for method input_type
-	9,  // [9:9] is the sub-list for extension type_name
-	9,  // [9:9] is the sub-list for extension extendee
-	0,  // [0:9] is the sub-list for field type_name
+	2,  // 2: vrooli.program_runtime.v1.programs.Program.failure_cause:type_name -> vrooli.program_runtime.v1.programs.FailureCause
+	0,  // 3: vrooli.program_runtime.v1.programs.SubmitProgramRequest.provenance:type_name -> vrooli.program_runtime.v1.programs.Provenance
+	3,  // 4: vrooli.program_runtime.v1.programs.SubmitProgramResponse.program:type_name -> vrooli.program_runtime.v1.programs.Program
+	4,  // 5: vrooli.program_runtime.v1.programs.SubmitProgramResponse.diagnostics:type_name -> vrooli.program_runtime.v1.programs.Diagnostic
+	3,  // 6: vrooli.program_runtime.v1.programs.GetProgramResponse.program:type_name -> vrooli.program_runtime.v1.programs.Program
+	3,  // 7: vrooli.program_runtime.v1.programs.ListProgramsResponse.programs:type_name -> vrooli.program_runtime.v1.programs.Program
+	12, // 8: vrooli.program_runtime.v1.programs.MineFailuresResponse.shapes:type_name -> vrooli.program_runtime.v1.programs.FailureShape
+	15, // 9: vrooli.program_runtime.v1.programs.MineRefusalsResponse.shapes:type_name -> vrooli.program_runtime.v1.programs.RefusalShape
+	18, // 10: vrooli.program_runtime.v1.programs.MineUnresolvedBindingsResponse.shapes:type_name -> vrooli.program_runtime.v1.programs.UnresolvedBindingShape
+	21, // 11: vrooli.program_runtime.v1.programs.RunAuthoringEvalResponse.results:type_name -> vrooli.program_runtime.v1.programs.AuthoringCaseResult
+	5,  // 12: vrooli.program_runtime.v1.programs.ProgramService.SubmitProgram:input_type -> vrooli.program_runtime.v1.programs.SubmitProgramRequest
+	7,  // 13: vrooli.program_runtime.v1.programs.ProgramService.GetProgram:input_type -> vrooli.program_runtime.v1.programs.GetProgramRequest
+	9,  // 14: vrooli.program_runtime.v1.programs.ProgramService.ListPrograms:input_type -> vrooli.program_runtime.v1.programs.ListProgramsRequest
+	11, // 15: vrooli.program_runtime.v1.programs.ProgramService.MineFailures:input_type -> vrooli.program_runtime.v1.programs.MineFailuresRequest
+	14, // 16: vrooli.program_runtime.v1.programs.ProgramService.MineRefusals:input_type -> vrooli.program_runtime.v1.programs.MineRefusalsRequest
+	17, // 17: vrooli.program_runtime.v1.programs.ProgramService.MineUnresolvedBindings:input_type -> vrooli.program_runtime.v1.programs.MineUnresolvedBindingsRequest
+	20, // 18: vrooli.program_runtime.v1.programs.ProgramService.RunAuthoringEval:input_type -> vrooli.program_runtime.v1.programs.RunAuthoringEvalRequest
+	6,  // 19: vrooli.program_runtime.v1.programs.ProgramService.SubmitProgram:output_type -> vrooli.program_runtime.v1.programs.SubmitProgramResponse
+	8,  // 20: vrooli.program_runtime.v1.programs.ProgramService.GetProgram:output_type -> vrooli.program_runtime.v1.programs.GetProgramResponse
+	10, // 21: vrooli.program_runtime.v1.programs.ProgramService.ListPrograms:output_type -> vrooli.program_runtime.v1.programs.ListProgramsResponse
+	13, // 22: vrooli.program_runtime.v1.programs.ProgramService.MineFailures:output_type -> vrooli.program_runtime.v1.programs.MineFailuresResponse
+	16, // 23: vrooli.program_runtime.v1.programs.ProgramService.MineRefusals:output_type -> vrooli.program_runtime.v1.programs.MineRefusalsResponse
+	19, // 24: vrooli.program_runtime.v1.programs.ProgramService.MineUnresolvedBindings:output_type -> vrooli.program_runtime.v1.programs.MineUnresolvedBindingsResponse
+	22, // 25: vrooli.program_runtime.v1.programs.ProgramService.RunAuthoringEval:output_type -> vrooli.program_runtime.v1.programs.RunAuthoringEvalResponse
+	19, // [19:26] is the sub-list for method output_type
+	12, // [12:19] is the sub-list for method input_type
+	12, // [12:12] is the sub-list for extension type_name
+	12, // [12:12] is the sub-list for extension extendee
+	0,  // [0:12] is the sub-list for field type_name
 }
 
 func init() { file_program_runtime_v1_programs_programs_proto_init() }
@@ -1262,8 +1756,8 @@ func file_program_runtime_v1_programs_programs_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_program_runtime_v1_programs_programs_proto_rawDesc), len(file_program_runtime_v1_programs_programs_proto_rawDesc)),
-			NumEnums:      2,
-			NumMessages:   16,
+			NumEnums:      3,
+			NumMessages:   20,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
