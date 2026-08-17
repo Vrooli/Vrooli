@@ -1,8 +1,8 @@
 package domains
 
 import (
-	"program-runtime/cli/domains/bindings"
 	"program-runtime/cli/domains/authoring"
+	"program-runtime/cli/domains/bindings"
 	"program-runtime/cli/domains/discovery"
 	"program-runtime/cli/domains/library"
 	"program-runtime/cli/domains/programs"

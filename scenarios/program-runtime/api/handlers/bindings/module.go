@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"path"
 	"path/filepath"
 	"slices"
 	"sort"
@@ -369,17 +370,122 @@ func Bridge(registry *bindings.Registry, manager *sessions.Manager, refusalRecor
 	})
 }
 
+// projectionVerbs maps each runtime-owned verb to the governed binding that
+// serves it. The verbs are compositions over the same registry a program calls
+// directly — not a second outbound path — so they inherit governance, argument
+// validation, reachability, and invocation recording rather than re-declaring
+// them. A verb whose owner has no governed binding fails closed and names the
+// owner, because inventing an ungoverned client for it would put an
+// unvalidated call behind a surface that advertises the opposite.
+var projectionVerbs = map[string]projectionVerb{
+	"recall": {
+		binding: "search-hub/query/query",
+		owner:   "search-hub",
+		build: func(request map[string]any) (map[string]any, error) {
+			intent := strings.TrimSpace(fmt.Sprint(firstNonEmpty(request, "intent", "query", "text")))
+			if intent == "" {
+				return nil, errors.New("recall requires a non-empty intent")
+			}
+			args := map[string]any{"query": intent, "rows": "ranked"}
+			if depth := strings.TrimSpace(fmt.Sprint(request["depth"])); depth == "deep" {
+				args["limit"] = 30
+			} else {
+				args["limit"] = 10
+			}
+			return args, nil
+		},
+	},
+	// `validate` reads the latest recorded verdicts rather than starting a run.
+	// Starting a run is a write that test-genie exposes as run-ineligible, so no
+	// governed binding exists for it and inventing one here would put an
+	// unvalidated mutation behind a read-shaped verb. Programs start runs
+	// through the lifecycle (`vrooli scenario test`); this verb answers "what
+	// does validation currently say".
+	"validate": {
+		binding: "test-genie/runs/list",
+		owner:   "test-genie",
+		build: func(request map[string]any) (map[string]any, error) {
+			scenario := strings.TrimSpace(fmt.Sprint(firstNonEmpty(request, "scenario", "target", "name")))
+			if scenario == "" {
+				return nil, errors.New("validate requires a scenario name")
+			}
+			args := map[string]any{"scenario": scenario}
+			if status := strings.TrimSpace(fmt.Sprint(request["status"])); status != "" {
+				args["status"] = status
+			}
+			if strings.TrimSpace(fmt.Sprint(request["depth"])) == "deep" {
+				args["limit"] = 20
+			} else {
+				args["limit"] = 5
+			}
+			return args, nil
+		},
+	},
+	"capture": {
+		binding: "vrooli-memory/journal/note",
+		owner:   "vrooli-memory",
+		build: func(request map[string]any) (map[string]any, error) {
+			body := strings.TrimSpace(fmt.Sprint(firstNonEmpty(request, "text", "note", "body")))
+			if body == "" {
+				return nil, errors.New("capture requires non-empty text")
+			}
+			kind := strings.TrimSpace(fmt.Sprint(request["kind"]))
+			if kind == "" {
+				kind = "note"
+			}
+			if kind != "note" && kind != "work-record" {
+				return nil, fmt.Errorf("capture kind %q is not accepted; use \"note\" or \"work-record\"", kind)
+			}
+			args := map[string]any{"body": body, "kind": kind}
+			// A work record carries the four fields the learning loop expects.
+			// They are optional on the binding, so a caller that omits them
+			// still writes a valid record rather than being refused.
+			for _, field := range []string{"scope", "trigger", "approach", "evidence", "outcome"} {
+				if value := strings.TrimSpace(fmt.Sprint(request[field])); value != "" && value != "<nil>" {
+					args[field] = value
+				}
+			}
+			return args, nil
+		},
+	},
+	// `guide` has no governed binding: prompt-manager ships no resolved
+	// manifest binding in the live registry, so there is nothing typed to
+	// compose. It stays declared and fails closed with that reason rather than
+	// disappearing, so the gap is visible to the agent and to the unbound
+	// census instead of silently absent.
+	"guide": {owner: "prompt-manager"},
+}
+
+type projectionVerb struct {
+	binding string
+	owner   string
+	build   func(map[string]any) (map[string]any, error)
+}
+
+func firstNonEmpty(request map[string]any, keys ...string) any {
+	for _, key := range keys {
+		if value, ok := request[key]; ok && strings.TrimSpace(fmt.Sprint(value)) != "" {
+			return value
+		}
+	}
+	return ""
+}
+
 // ProjectionBridge exposes runtime-owned projection verbs as typed, immutable
 // Go endpoints rather than mutable library rows.
-func ProjectionBridge(manager *sessions.Manager) http.Handler {
+func ProjectionBridge(manager *sessions.Manager, registry *bindings.Registry) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			w.WriteHeader(http.StatusMethodNotAllowed)
 			return
 		}
-		verb := strings.TrimPrefix(r.URL.Path, "/projection/")
-		if verb != "recall" && verb != "guide" && verb != "validate" && verb != "capture" {
-			writeBridgeError(w, http.StatusNotFound, "unknown projection verb")
+		// The handler is mounted under a scenario-internal prefix, so the verb
+		// is the final path segment. Trimming a bare "/projection/" prefix left
+		// the whole path in `verb` and made every call a 404.
+		verb := path.Base(r.URL.Path)
+		spec, known := projectionVerbs[verb]
+		if !known {
+			writeBridgeError(w, http.StatusNotFound, fmt.Sprintf("unknown projection verb %q", verb))
 			return
 		}
 		var request map[string]any
@@ -387,20 +493,48 @@ func ProjectionBridge(manager *sessions.Manager) http.Handler {
 			writeBridgeError(w, http.StatusBadRequest, fmt.Sprintf("decode projection request: %v", err))
 			return
 		}
+		sessionID := fmt.Sprint(request["session_id"])
 		if manager != nil {
-			if _, err := manager.Get(r.Context(), fmt.Sprint(request["session_id"])); err != nil {
+			if _, err := manager.Get(r.Context(), sessionID); err != nil {
 				writeBridgeError(w, http.StatusNotFound, err.Error())
 				return
 			}
 		}
-		text := map[string]string{
-			"recall":   "Recall governed records relevant to the requested intent, then verify the live contract before acting.",
-			"guide":    "Construct a bounded program from live governed bindings; compose Handles and stop on null verdicts.",
-			"validate": "Validation is a read-only projection; inspect its verdict and evidence before proceeding.",
-			"capture":  "Capture a reusable outcome for the learning loop with trigger, approach, evidence, and outcome.",
-		}[verb]
+		if spec.binding == "" {
+			writeBridgeError(w, http.StatusServiceUnavailable, fmt.Sprintf("projection %q is unavailable: %s exposes no governed binding in the live registry", verb, spec.owner))
+			return
+		}
+		if registry == nil {
+			writeBridgeError(w, http.StatusServiceUnavailable, fmt.Sprintf("projection %q is unavailable: binding registry is not configured", verb))
+			return
+		}
+		if _, governed := registry.Binding(spec.binding); !governed {
+			writeBridgeError(w, http.StatusServiceUnavailable, fmt.Sprintf("projection %q is unavailable: binding %q is not governed in the live registry", verb, spec.binding))
+			return
+		}
+		args, err := spec.build(request)
+		if err != nil {
+			writeBridgeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		rowsField := ""
+		if value, ok := args["rows"]; ok {
+			rowsField = fmt.Sprint(value)
+			delete(args, "rows")
+		}
+		result, err := registry.Execute(r.Context(), spec.binding, args, nil, false,
+			bindings.InvocationMetadata{SessionID: sessionID, ProgramID: fmt.Sprint(request["program_id"]), Provenance: fmt.Sprint(request["provenance"])},
+			&http.Client{Timeout: 2 * time.Minute})
+		if err != nil {
+			writeBridgeError(w, http.StatusBadGateway, fmt.Sprintf("projection %q is unavailable: %v", verb, err))
+			return
+		}
+		response := map[string]any{"verb": verb, "binding_id": spec.binding, "owner": spec.owner, "result": result}
+		if rowsField != "" {
+			response["rows_field"] = rowsField
+		}
 		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]any{"text": text, "verb": verb, "mode": request["mode"], "session_id": request["session_id"]})
+		_ = json.NewEncoder(w).Encode(response)
 	})
 }
 

@@ -1,218 +1,212 @@
 package programs
 
 import (
+	"bytes"
+	"context"
+	"encoding/json"
 	"fmt"
-	"regexp"
+	"os/exec"
 	"sort"
 	"strings"
+	"time"
 
 	programsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/programs"
 )
 
-var pythonIdentifier = regexp.MustCompile(`[A-Za-z_][A-Za-z0-9_]*`)
+// analyzeTimeout bounds the static analysis subprocess. Analysis is a parse and
+// a symbol-table walk, so a program that exceeds this is pathological; a slow
+// analyzer degrades to "no diagnostics" rather than delaying every submission.
+const analyzeTimeout = 10 * time.Second
 
-var pythonKeywords = map[string]struct{}{
-	"and": {}, "as": {}, "assert": {}, "async": {}, "await": {}, "break": {}, "case": {}, "class": {}, "continue": {},
-	"def": {}, "del": {}, "elif": {}, "else": {}, "except": {}, "finally": {}, "for": {}, "from": {}, "global": {},
-	"if": {}, "import": {}, "in": {}, "is": {}, "lambda": {}, "match": {}, "nonlocal": {}, "not": {}, "or": {},
-	"pass": {}, "raise": {}, "return": {}, "try": {}, "while": {}, "with": {}, "yield": {},
+// nearestMatchFloor is the similarity a candidate must reach before it is
+// offered as a suggestion. It is deliberately high: a wrong suggestion is worse
+// than none, because a model acts on it. `KeyError` against this namespace
+// scores far below the floor and therefore returns no suggestion at all.
+const nearestMatchFloor = 0.62
+
+// analysis is the contract emitted by kernel/host/analyze.py.
+type analysis struct {
+	OK       bool           `json:"ok"`
+	Degraded string         `json:"degraded"`
+	Free     []analysisName `json:"free"`
+	Shadowed []analysisName `json:"shadowed"`
 }
 
-// ResolveSource performs the lightweight, deterministic part of Python name
-// resolution needed before execution. It intentionally resolves only roots;
-// proto field validation remains owned by the binding registry.
-func ResolveSource(source string, known []string) []*programsv1.Diagnostic {
+type analysisName struct {
+	Name string `json:"name"`
+	Line int32  `json:"line"`
+}
+
+// unresolvedNamePrefix marks the one diagnostic class that represents an agent
+// reaching for a capability that does not exist. A protected-name assignment
+// and a shadow warning are program-authoring mistakes about names that resolve
+// perfectly well, so recording them would answer the Act denominator's question
+// — "what did an agent try to invoke and could not" — with a false positive.
+const unresolvedNamePrefix = "name "
+
+// IsUnresolvedNameDiagnostic reports whether a diagnostic represents an
+// unreachable capability rather than a misuse of a name that does resolve.
+func IsUnresolvedNameDiagnostic(diagnostic *programsv1.Diagnostic) bool {
+	return diagnostic.GetSeverity() == "error" && strings.HasPrefix(diagnostic.GetMessage(), unresolvedNamePrefix)
+}
+
+var protectedRuntimeNames = map[string]struct{}{
+	"discover": {}, "recall": {}, "guide": {}, "validate": {}, "capture": {}, "ai": {},
+	"agent": {}, "gather": {}, "describe": {}, "reachable": {}, "lib": {}, "vrooli": {},
+	"__vrooli__": {},
+}
+
+// ResolveSource reports the names a program reads that resolve to nothing, and
+// the assignments that shadow a governed binding.
+//
+// Scope analysis is delegated to kernel/host/analyze.py, which uses Python's own
+// `symtable`. Re-implementing Python scoping here is what previously refused
+// every program containing a `def`, `lambda`, comprehension, or `for` loop: the
+// prior regex pass treated their bound names as unresolved globals.
+//
+// The pass is conservative by contract. When analysis is unavailable, degraded,
+// or reports a syntax error, this returns no diagnostics and lets the kernel
+// report the failure with its real cause. A false refusal of a correct program
+// is the expensive error; a missed diagnostic only costs a runtime error the
+// kernel already produces.
+func ResolveSource(source string, known []string, analyzerPath string) []*programsv1.Diagnostic {
+	result, err := runAnalyzer(source, analyzerPath)
+	if err != nil || result == nil || !result.OK || result.Degraded != "" {
+		return nil
+	}
+
 	knownSet := make(map[string]struct{}, len(known))
 	for _, name := range known {
 		knownSet[name] = struct{}{}
 	}
-	assigned := assignedNames(source)
-	assigned = mergeNames(assigned, importedNames(source))
-	seen := make(map[string]struct{})
+
 	var diagnostics []*programsv1.Diagnostic
-	lines := strings.Split(source, "\n")
-	for lineNo, line := range lines {
-		clean := stripPythonCommentAndStrings(line)
-		if assignment := assignmentTarget(clean); assignment != "" {
-			if _, ok := knownSet[assignment]; ok {
-				if isProtectedRuntimeName(assignment) {
-					diagnostics = append(diagnostics, &programsv1.Diagnostic{Severity: "error", Line: int32(lineNo + 1), Name: assignment, Message: fmt.Sprintf("protected runtime name %q cannot be assigned", assignment)})
-				} else {
-					diagnostics = append(diagnostics, &programsv1.Diagnostic{Severity: "warning", Line: int32(lineNo + 1), Name: assignment, Message: fmt.Sprintf("scenario namespace %q is shadowed; use __vrooli__.%s to reach the binding", assignment, assignment)})
-				}
-			}
+	for _, entry := range result.Shadowed {
+		if _, ok := knownSet[entry.Name]; !ok {
+			continue
 		}
-		ids := pythonIdentifier.FindAllStringIndex(clean, -1)
-		for _, index := range ids {
-			name := clean[index[0]:index[1]]
-			if _, keyword := pythonKeywords[name]; keyword || isPythonLiteral(name) || isAttributeToken(clean, index[0]) || isAssignedToken(clean, index[1]) {
-				continue
-			}
-			if _, local := assigned[name]; local && name != "test_geni" {
-				continue
-			}
-			if _, ok := knownSet[name]; ok || isBuiltin(name) || isBuiltinVariable(name) {
-				continue
-			}
-			if _, ok := seen[name]; ok {
-				continue
-			}
-			seen[name] = struct{}{}
-			nearest := nearestName(name, known)
-			message := fmt.Sprintf("name %q does not resolve to a governed binding namespace or a built-in", name)
-			if nearest != "" {
-				message += fmt.Sprintf("; nearest match: %q", nearest)
-			}
-			diagnostics = append(diagnostics, &programsv1.Diagnostic{Severity: "error", Line: int32(lineNo + 1), Name: name, Message: message, NearestMatch: nearest})
+		if _, protected := protectedRuntimeNames[entry.Name]; protected {
+			diagnostics = append(diagnostics, &programsv1.Diagnostic{
+				Severity: "error",
+				Line:     entry.Line,
+				Name:     entry.Name,
+				Message:  fmt.Sprintf("protected runtime name %q cannot be assigned", entry.Name),
+			})
+			continue
 		}
+		diagnostics = append(diagnostics, &programsv1.Diagnostic{
+			Severity: "warning",
+			Line:     entry.Line,
+			Name:     entry.Name,
+			Message:  fmt.Sprintf("scenario namespace %q is shadowed for the rest of this session; reach the binding as __vrooli__.%s", entry.Name, entry.Name),
+		})
 	}
+
+	for _, entry := range result.Free {
+		if _, ok := knownSet[entry.Name]; ok {
+			continue
+		}
+		nearest := nearestName(entry.Name, known)
+		message := fmt.Sprintf(unresolvedNamePrefix+"%q does not resolve to a governed binding namespace or a built-in", entry.Name)
+		if nearest != "" {
+			message += fmt.Sprintf("; nearest match: %q", nearest)
+		}
+		diagnostics = append(diagnostics, &programsv1.Diagnostic{
+			Severity:     "error",
+			Line:         entry.Line,
+			Name:         entry.Name,
+			Message:      message,
+			NearestMatch: nearest,
+		})
+	}
+
+	sort.SliceStable(diagnostics, func(left, right int) bool {
+		return diagnostics[left].GetLine() < diagnostics[right].GetLine()
+	})
 	return diagnostics
 }
 
-func assignmentTarget(line string) string {
-	index := strings.Index(line, "=")
-	if index < 0 || strings.HasPrefix(strings.TrimSpace(line[index:]), "==") {
-		return ""
+func runAnalyzer(source, analyzerPath string) (*analysis, error) {
+	if strings.TrimSpace(analyzerPath) == "" {
+		return nil, fmt.Errorf("analyzer path is not configured")
 	}
-	return pythonIdentifier.FindString(strings.TrimSpace(line[:index]))
-}
-
-func isProtectedRuntimeName(name string) bool {
-	_, ok := map[string]struct{}{"discover": {}, "recall": {}, "guide": {}, "validate": {}, "capture": {}, "ai": {}, "agent": {}, "gather": {}, "describe": {}, "reachable": {}, "lib": {}, "vrooli": {}, "__vrooli__": {}}[name]
-	return ok
-}
-
-func mergeNames(left, right map[string]struct{}) map[string]struct{} {
-	for name := range right {
-		left[name] = struct{}{}
+	python, err := pythonInterpreter()
+	if err != nil {
+		return nil, err
 	}
-	return left
-}
-
-func importedNames(source string) map[string]struct{} {
-	result := make(map[string]struct{})
-	for _, line := range strings.Split(source, "\n") {
-		clean := strings.TrimSpace(stripPythonCommentAndStrings(line))
-		if strings.HasPrefix(clean, "import ") {
-			for _, item := range strings.Split(strings.TrimSpace(strings.TrimPrefix(clean, "import ")), ",") {
-				parts := strings.Fields(item)
-				if len(parts) >= 3 && parts[len(parts)-2] == "as" {
-					result[parts[len(parts)-1]] = struct{}{}
-				} else if len(parts) > 0 {
-					result[strings.Split(parts[0], ".")[0]] = struct{}{}
-				}
-			}
-		}
-		if strings.HasPrefix(clean, "from ") && strings.Contains(clean, " import ") {
-			items := strings.SplitN(clean, " import ", 2)[1]
-			for _, item := range strings.Split(items, ",") {
-				parts := strings.Fields(item)
-				if len(parts) >= 3 && parts[len(parts)-2] == "as" {
-					result[parts[len(parts)-1]] = struct{}{}
-				} else if len(parts) > 0 {
-					result[parts[0]] = struct{}{}
-				}
-			}
-		}
+	ctx, cancel := context.WithTimeout(context.Background(), analyzeTimeout)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, python, "-I", "-S", analyzerPath)
+	cmd.Stdin = strings.NewReader(source)
+	var stdout bytes.Buffer
+	cmd.Stdout = &stdout
+	if err := cmd.Run(); err != nil {
+		return nil, fmt.Errorf("run analyzer: %w", err)
 	}
-	return result
-}
-
-func assignedNames(source string) map[string]struct{} {
-	assigned := make(map[string]struct{})
-	for _, line := range strings.Split(source, "\n") {
-		clean := stripPythonCommentAndStrings(line)
-		if index := strings.Index(clean, "="); index >= 0 && !strings.Contains(clean[index:], "==") {
-			lhs := strings.TrimSpace(clean[:index])
-			if match := pythonIdentifier.FindString(lhs); match != "" {
-				assigned[match] = struct{}{}
-			}
-		}
+	var result analysis
+	if err := json.Unmarshal(stdout.Bytes(), &result); err != nil {
+		return nil, fmt.Errorf("decode analyzer result: %w", err)
 	}
-	return assigned
+	return &result, nil
 }
 
-func stripPythonCommentAndStrings(line string) string {
-	var out strings.Builder
-	inSingle, inDouble := false, false
-	for index := 0; index < len(line); index++ {
-		char := line[index]
-		if char == '\\' && (inSingle || inDouble) {
-			index++
-			continue
-		}
-		if char == '\'' && !inDouble {
-			inSingle = !inSingle
-			continue
-		}
-		if char == '"' && !inSingle {
-			inDouble = !inDouble
-			continue
-		}
-		if char == '#' && !inSingle && !inDouble {
-			break
-		}
-		if !inSingle && !inDouble {
-			out.WriteByte(char)
-		} else {
-			out.WriteByte(' ')
-		}
-	}
-	return out.String()
-}
-
-func isAttributeToken(line string, start int) bool {
-	for start > 0 && line[start-1] == ' ' {
-		start--
-	}
-	return start > 0 && line[start-1] == '.'
-}
-
-func isAssignedToken(line string, end int) bool {
-	rest := strings.TrimSpace(line[end:])
-	return strings.HasPrefix(rest, "=") && !strings.HasPrefix(rest, "==")
-}
-
-func isPythonLiteral(name string) bool {
-	return name == "True" || name == "False" || name == "None"
-}
-
-func isBuiltin(name string) bool {
-	_, ok := map[string]struct{}{"print": {}, "len": {}, "min": {}, "max": {}, "range": {}, "sorted": {}, "sum": {}, "list": {}, "dict": {}, "set": {}, "str": {}, "int": {}, "float": {}, "bool": {}, "enumerate": {}, "isinstance": {}, "object": {}}[name]
-	return ok
-}
-
-func isBuiltinVariable(name string) bool {
-	return name == "Handle" || name == "result" || name == "rows" || name == "value" || name == "item" || name == "items"
-}
-
+// nearestName offers the closest known name by normalized edit distance.
+//
+// The prior implementation scored shared characters without regard to order or
+// length, so `KeyError` matched `discover` (both contain e, r, o, c) and `text`
+// matched `agent`. Those suggestions actively misdirect a model, which is why
+// the metric is now positional and the floor is high enough to return nothing
+// when no candidate is genuinely close.
 func nearestName(name string, known []string) string {
-	sorted := append([]string(nil), known...)
-	sort.Strings(sorted)
+	candidates := append([]string(nil), known...)
+	sort.Strings(candidates)
 	best, score := "", 0.0
-	for _, candidate := range sorted {
+	for _, candidate := range candidates {
 		value := similarity(name, candidate)
 		if value > score {
 			best, score = candidate, value
 		}
 	}
-	if score < 0.45 {
+	if score < nearestMatchFloor {
 		return ""
 	}
 	return best
 }
 
+// similarity is 1 - (levenshtein / longest), case-insensitive.
 func similarity(left, right string) float64 {
 	if left == right {
 		return 1
 	}
-	common := 0
-	for _, char := range left {
-		if strings.ContainsRune(right, char) {
-			common++
-		}
+	if left == "" || right == "" {
+		return 0
 	}
-	return float64(common) / float64(maxInt(len(left), len(right)))
+	lower, upper := []rune(strings.ToLower(left)), []rune(strings.ToLower(right))
+	previous := make([]int, len(upper)+1)
+	current := make([]int, len(upper)+1)
+	for index := range previous {
+		previous[index] = index
+	}
+	for i := 1; i <= len(lower); i++ {
+		current[0] = i
+		for j := 1; j <= len(upper); j++ {
+			cost := 1
+			if lower[i-1] == upper[j-1] {
+				cost = 0
+			}
+			current[j] = minInt(minInt(current[j-1]+1, previous[j]+1), previous[j-1]+cost)
+		}
+		copy(previous, current)
+	}
+	longest := maxInt(len(lower), len(upper))
+	return 1 - float64(previous[len(upper)])/float64(longest)
+}
+
+func minInt(left, right int) int {
+	if left < right {
+		return left
+	}
+	return right
 }
 
 func maxInt(left, right int) int {

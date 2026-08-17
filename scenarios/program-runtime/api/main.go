@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -251,7 +252,7 @@ func main() {
 				known = append(known, name)
 			}
 		}
-		return programs.ResolveSource(source, known)
+		return programs.ResolveSource(source, known, filepath.Join(repoRoot, "scenarios", "program-runtime", "kernel", "host", "analyze.py"))
 	}, RecordUnresolved: func(ctx context.Context, sessionID, attemptedName string) error {
 		if unresolvedRecorder == nil {
 			return nil
@@ -281,13 +282,67 @@ func main() {
 			}
 		}
 	}()
+	// The authoring eval composes the same governed inference binding a program
+	// calls, so a measured score is attributable to a real route rather than to
+	// a private client. Both seams are injected; when either cannot resolve, the
+	// eval reports `unavailable` with the reason rather than a fabricated score.
+	authoringDeps := programs.AuthoringDeps{
+		SuitePath: programs.DefaultSuitePath(repoRoot),
+		Author: func(ctx context.Context, instruction, task string) (string, string, error) {
+			const authoringRole = "author.generator"
+			// The role is schema-constrained, so the program is requested as a
+			// field of a small object rather than as a bare string. A bare
+			// `{"type":"string"}` grammar makes the model emit a fence and stop
+			// after a few tokens; an object with one `source` field does not.
+			const authoringSchema = `{"type":"object","properties":{"source":{"type":"string"}},"required":["source"]}`
+			response, err := bindingRegistry.Execute(ctx, "ai-gateway/inference/run", map[string]any{
+				"source":      task,
+				"instruction": instruction,
+				"role":        authoringRole,
+				"schema":      authoringSchema,
+			}, nil, false, bindings.InvocationMetadata{Provenance: "test"}, programs.AuthoringHTTPClient())
+			if err != nil {
+				return "", "", err
+			}
+			model, _ := response["model"].(string)
+			raw, _ := response["valueJson"].(string)
+			if strings.TrimSpace(raw) == "" {
+				raw, _ = response["value_json"].(string)
+			}
+			if strings.TrimSpace(raw) == "" {
+				return "", model, fmt.Errorf("authoring response carried no value")
+			}
+			var envelope struct {
+				Source string `json:"source"`
+			}
+			if err := json.Unmarshal([]byte(raw), &envelope); err != nil {
+				return "", model, fmt.Errorf("authoring response is not the declared object: %w", err)
+			}
+			if strings.TrimSpace(envelope.Source) == "" {
+				return "", model, fmt.Errorf("authoring response carried an empty source field")
+			}
+			return envelope.Source, model, nil
+		},
+		RunCase: func(ctx context.Context, source string) (string, string, int64, string, error) {
+			session, err := sessionManager.Create(ctx, "", "", nil)
+			if err != nil {
+				return "", "", 0, "", err
+			}
+			defer func() { _, _ = sessionManager.Delete(context.Background(), session.ID, "authoring eval case complete") }()
+			p, err := programService.Submit(ctx, session.ID, source, programsv1.Provenance_PROVENANCE_TEST, false)
+			if err != nil {
+				return "", "", 0, "", err
+			}
+			return p.GetStdout(), p.GetFailureShape(), p.GetAgentBytes(), p.GetFailureDetail(), nil
+		},
+	}
 
 	srv := server.New(
 		server.Deps{Clock: schedule.System(), Logger: log.Default()},
 		healthH.ModuleWithDescriptor(db, "program-runtime-api", "1.0.0", bindingRegistry.SkippedManifestCount, bindingRegistry.SnapshotMetadata),
 		capsH.Module(capabilities.NewRegistry()),
 		bindingsH.Module(bindingRegistry, libraryRepository),
-		programsH.Module(programService),
+		programsH.Module(programService, authoringDeps),
 		libraryH.Module(libraryRepository),
 		sessionsH.Module(sessionManager),
 		telemetryH.Module(telemetryStore),
@@ -302,7 +357,7 @@ func main() {
 	rootMux.Handle("/internal/program-runtime/bindings/describe", bindingsH.DescribeBridge(bindingRegistry, sessionManager))
 	rootMux.Handle("/internal/program-runtime/bindings/reachability", bindingsH.ReachabilityBridge(bindingRegistry, sessionManager))
 	rootMux.Handle("/internal/program-runtime/bindings/unresolved", bindingsH.UnresolvedBridge(sessionManager, unresolvedRecorder))
-	rootMux.Handle("/internal/program-runtime/bindings/projection/", bindingsH.ProjectionBridge(sessionManager))
+	rootMux.Handle("/internal/program-runtime/bindings/projection/", bindingsH.ProjectionBridge(sessionManager, bindingRegistry))
 	rootMux.Handle("/internal/program-runtime/bindings/resolve-intent", bindingsH.IntentBridge(bindingRegistry, libraryRepository))
 	rootMux.Handle("/internal/program-runtime/bindings/search", bindingsH.BindingCorpusHandler(bindingRegistry))
 	rootMux.Handle("/internal/program-runtime/library/search", bindingsH.LibraryCorpusHandler(libraryRepository))

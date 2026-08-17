@@ -44,7 +44,7 @@ func (h *handlers) submit(ctx cliapp.OperationContext) (*programsv1.SubmitProgra
 	if waitTimeout > 0 {
 		async = true
 	}
-	r, e := h.client.SubmitProgram(context.Background(), connect.NewRequest(&programsv1.SubmitProgramRequest{SessionId: ctx.Flag("session-id"), Source: source, Provenance: provenance, IncludeMaterialized: ctx.BoolFlag("include-materialized"), Async: async}))
+	r, e := h.client.SubmitProgram(context.Background(), connect.NewRequest(&programsv1.SubmitProgramRequest{SessionId: ctx.Flag("session-id"), Source: source, Provenance: provenance, IncludeMaterialized: ctx.BoolFlag("include-materialized"), Explain: ctx.BoolFlag("explain"), Async: async}))
 	if e != nil {
 		return nil, cliapp.WrapAPIError("submit program", e, nil)
 	}

@@ -4,7 +4,7 @@ import time
 
 
 started = time.perf_counter()
-results = vrooli.gather(
+results = gather(
     lambda: agent_manager.measures.run_volume(),
     lambda: ai_gateway.measures.total(),
     lambda: program_runtime.programs.mine(include_operator=False),

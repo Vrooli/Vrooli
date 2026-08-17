@@ -6,7 +6,7 @@ corpus = [
 ]
 
 
-results = vrooli.gather(*[
+results = gather(*[
     lambda text=text: ai.classify(
         text,
         {"type": "string", "enum": ["infra", "user"]},

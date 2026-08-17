@@ -48,13 +48,16 @@ _INVOCATION_CONTEXT: contextvars.ContextVar[dict[str, str]] = contextvars.Contex
     "program_runtime_invocation_context", default={}
 )
 
-_SAFE_BUILTIN_NAMES = (
-    "__import__", "abs", "all", "any", "bool", "dict", "enumerate", "Exception", "filter",
-    "float", "int", "isinstance", "len", "list", "map", "max", "MemoryError", "min", "object",
-    "print", "range", "repr", "reversed", "round", "RuntimeError", "set", "sorted", "str", "sum",
-    "tuple", "TypeError", "ValueError", "zip",
-)
-_SAFE_BUILTINS = {name: getattr(builtins, name) for name in _SAFE_BUILTIN_NAMES}
+try:
+    from safebuiltins import SAFE_BUILTIN_NAMES as _SAFE_BUILTIN_NAMES, SAFE_BUILTINS as _SAFE_BUILTINS
+except ImportError:  # launched by absolute path without the host dir on sys.path
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from safebuiltins import SAFE_BUILTIN_NAMES as _SAFE_BUILTIN_NAMES, SAFE_BUILTINS as _SAFE_BUILTINS
+
+# `open` is re-bound to the workspace-guarded wrapper installed above, so a
+# program receives the guarded callable rather than the raw builtin.
+_SAFE_BUILTINS = dict(_SAFE_BUILTINS)
+_SAFE_BUILTINS["open"] = _guarded_open
 
 
 class Handle:
@@ -168,6 +171,78 @@ class Handle:
         return return_self().__await__()
 
 
+def _looks_like_binding_name(name: str) -> bool:
+    """Could this name plausibly have been an attempt to reach a binding?
+
+    Python's own vocabulary is excluded: a dunder, a builtin the program did not
+    receive, or a single-character loop variable is a language miss. Everything
+    else is treated as a capability the agent expected to exist, which is the
+    signal the Act denominator is built from.
+    """
+    if name.startswith("__") or len(name) < 3:
+        return False
+    return name not in _PYTHON_VOCABULARY
+
+
+# Builtins the kernel deliberately withholds. A program referencing one of these
+# made a language mistake, not a capability request.
+_PYTHON_VOCABULARY = frozenset(
+    set(dir(builtins))
+    | {"self", "cls", "args", "kwargs", "exc", "err", "idx", "key", "val", "row", "item", "text", "data", "result"}
+)
+
+
+def _nearest_name(name: str, candidates: Iterable[str]) -> str:
+    """Closest candidate by normalized edit distance, or empty when none is close.
+
+    The floor matches the Go resolver's: a wrong suggestion is worse than none,
+    because a model acts on it.
+    """
+    best, score = "", 0.0
+    lower = name.lower()
+    for candidate in candidates:
+        value = _similarity(lower, candidate.lower())
+        if value > score:
+            best, score = candidate, value
+    return best if score >= 0.62 else ""
+
+
+def _similarity(left: str, right: str) -> float:
+    if left == right:
+        return 1.0
+    if not left or not right:
+        return 0.0
+    previous = list(range(len(right) + 1))
+    for i, left_char in enumerate(left, start=1):
+        current = [i]
+        for j, right_char in enumerate(right, start=1):
+            current.append(min(current[j - 1] + 1, previous[j] + 1, previous[j - 1] + (left_char != right_char)))
+        previous = current
+    return 1 - previous[len(right)] / max(len(left), len(right))
+
+
+def _projection_verb(root: "Namespace", verb: str, primary: str):
+    """Bind one projection verb to its primary argument name.
+
+    The returned callable accepts the primary argument positionally or by
+    keyword and forwards every other keyword unchanged, so a verb reads the same
+    way as ``discover`` at a call site.
+    """
+
+    def invoke(value: Any = None, **kwargs: Any) -> Handle:
+        if value is not None:
+            if primary in kwargs:
+                raise TypeError(f"{verb}() got {primary!r} twice")
+            kwargs[primary] = value
+        if not str(kwargs.get(primary, "")).strip():
+            raise TypeError(f"{verb}() requires a non-empty {primary}")
+        return root.projection(verb, **kwargs)
+
+    invoke.__name__ = verb
+    invoke.__doc__ = f"Governed {verb} projection; pass {primary} positionally or by keyword."
+    return invoke
+
+
 class ProgramGlobals(dict):
     """Session globals with a small, stable runtime-owned protected surface."""
 
@@ -198,8 +273,15 @@ class ProgramGlobals(dict):
     def __missing__(self, name: str) -> Any:
         if name in _SAFE_BUILTINS:
             return _SAFE_BUILTINS[name]
+        # A name that only Python could have supplied is a language-level miss,
+        # not an attempt to reach a governed capability. Recording it would fill
+        # the unresolved-attempt ledger — the Act denominator's feedback signal —
+        # with builtin and local-variable names.
+        if not _looks_like_binding_name(name):
+            raise NameError(f"name {name!r} is not defined")
         self._record_unresolved(name)
-        detail = ""
+        nearest = _nearest_name(name, self._known_names)
+        detail = f"; nearest match: {nearest!r}" if nearest else ""
         raise NameError(f"name {name!r} does not resolve to a governed binding namespace or a built-in{detail}")
 
     def __setitem__(self, name: str, value: Any) -> None:
@@ -792,10 +874,14 @@ class SessionKernel:
         project = Namespace(project_bindings, self.invocations, session_id, agent_bridge_url, bridge_url, discovery_url, {}, libraries, namespace_prefix="vrooli")
         builtin_surface: dict[str, Any] = {
             "discover": root.discover,
-            "recall": lambda **kwargs: root.projection("recall", **kwargs),
-            "guide": lambda **kwargs: root.projection("guide", **kwargs),
-            "validate": lambda **kwargs: root.projection("validate", **kwargs),
-            "capture": lambda **kwargs: root.projection("capture", **kwargs),
+            # Each verb accepts the same positional-or-keyword shape as
+            # `discover`, so `recall("intent")` and `recall(intent="intent")`
+            # are both valid. A keyword-only surface reads as an inconsistency
+            # next to `discover` and is a needless first-attempt failure.
+            "recall": _projection_verb(root, "recall", "intent"),
+            "guide": _projection_verb(root, "guide", "task"),
+            "validate": _projection_verb(root, "validate", "scenario"),
+            "capture": _projection_verb(root, "capture", "text"),
             "ai": root.ai,
             "agent": root.agent,
             "gather": root.gather,

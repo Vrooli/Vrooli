@@ -187,7 +187,7 @@ func (d *HTTPDelegator) Start(ctx context.Context, request DelegationRequest) (m
 
 	return map[string]any{
 		"execution_id": executionID,
-		"status": valueOr(execution, "status", ""),
+		"status":       valueOr(execution, "status", ""),
 	}, nil
 }
 
@@ -226,10 +226,10 @@ func (d *HTTPDelegator) Collect(ctx context.Context, sessionID, executionID stri
 		resultExecution = waitExecution
 	}
 	return map[string]any{
-		"execution_id": executionID,
-		"status": valueOr(resultExecution, "status", ""),
-		"evidence": resultExecution["output"],
-		"observations": resultExecution["observations"],
+		"execution_id":   executionID,
+		"status":         valueOr(resultExecution, "status", ""),
+		"evidence":       resultExecution["output"],
+		"observations":   resultExecution["observations"],
 		"charge_receipt": valueOr(resultExecution, "charge_receipt", valueOr(resultExecution, "chargeReceipt", nil)),
 	}, nil
 }

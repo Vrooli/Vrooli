@@ -15,12 +15,13 @@ import (
 
 type handler struct {
 	programsconnect.UnimplementedProgramServiceHandler
-	service *internalprograms.Service
+	service   *internalprograms.Service
+	authoring internalprograms.AuthoringDeps
 }
 
-func Module(service *internalprograms.Service) module.Module {
+func Module(service *internalprograms.Service, authoring internalprograms.AuthoringDeps) module.Module {
 	return module.Module{Name: "programs", Mount: func(r *mux.Router) {
-		path, h := programsconnect.NewProgramServiceHandler(&handler{service: service})
+		path, h := programsconnect.NewProgramServiceHandler(&handler{service: service, authoring: authoring})
 		connectx.RegisterServices(r, connectx.ServiceMount{Path: path, Handler: h})
 	}, Endpoints: Endpoints}
 }
@@ -60,19 +61,41 @@ func (h *handler) MineUnresolvedBindings(ctx context.Context, _ *connect.Request
 	return connect.NewResponse(&programsv1.MineUnresolvedBindingsResponse{Shapes: shapes, Count: int64(len(shapes))}), nil
 }
 
-// RunAuthoringEval is intentionally explicit about dependency state. The
-// corpus and result contract are stable even when no code-authoring model
-// route is available, so callers never mistake an unavailable run for a zero
-// score.
-func (h *handler) RunAuthoringEval(_ context.Context, req *connect.Request[programsv1.RunAuthoringEvalRequest]) (*connect.Response[programsv1.RunAuthoringEvalResponse], error) {
-	suite := req.Msg.GetSuite()
-	if suite == "" {
-		suite = "evals/authoring.primary.json"
+// RunAuthoringEval measures first-attempt authoring correctness against the
+// versioned corpus.
+//
+// It reports `unavailable` with a stated reason only when a dependency is
+// genuinely missing. It must never return a fixed unavailable response: that is
+// indistinguishable from an honest degradation to every caller, and it passes
+// the floor gate trivially because a floor comparison is skipped when nothing
+// was measured.
+func (h *handler) RunAuthoringEval(ctx context.Context, req *connect.Request[programsv1.RunAuthoringEvalRequest]) (*connect.Response[programsv1.RunAuthoringEvalResponse], error) {
+	deps := h.authoring
+	if suite := req.Msg.GetSuite(); suite != "" {
+		deps.SuitePath = suite
+	}
+	result := internalprograms.RunAuthoringEval(ctx, deps)
+	cases := make([]*programsv1.AuthoringCaseResult, 0, len(result.Cases))
+	for _, item := range result.Cases {
+		cases = append(cases, &programsv1.AuthoringCaseResult{
+			CaseId:         item.CaseID,
+			Authored:       item.Authored,
+			FirstAttemptOk: item.FirstAttempt,
+			Cause:          item.Cause,
+			AgentBytes:     item.AgentBytes,
+			Model:          item.Model,
+		})
 	}
 	return connect.NewResponse(&programsv1.RunAuthoringEvalResponse{
-		Suite:       suite,
-		Status:      "unavailable",
-		Reason:      "no ai-gateway code-authoring route resolved; tried hosted code.authoring and local code.local fallbacks",
-		Unavailable: 1,
+		Suite:       result.Suite,
+		Status:      result.Status,
+		Reason:      result.Reason,
+		Floor:       result.Floor,
+		Met:         result.Met,
+		Missed:      result.Missed,
+		WrongResult: result.WrongResult,
+		Unavailable: result.Unavailable,
+		Cases:       int32(len(result.Cases)),
+		Results:     cases,
 	}), nil
 }

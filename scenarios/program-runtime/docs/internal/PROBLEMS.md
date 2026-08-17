@@ -219,6 +219,119 @@ missing member rather than claiming a clean regression diff.
 **Refs:** plan baseline `program-runtime-trustworthy-results-and-a-self-improving-baseline`,
 `docs/TESTING.md`.
 
+### 2026-08-17 — prose-studio binds a control flag as a payload argument
+
+**Symptom:** `program-runtime bindings doctor --json` reports `uncallable: 10`.
+Every one is a `prose-studio/prose/*` binding whose manifest maps an argument
+named `json` onto a request message with no such field.
+
+**Root cause:** `--json` is a CLI renderer control flag, not a proto payload
+field. cli-health's `binding.control_flag_bound` rule exists for exactly this
+shape; the scenario's manifest predates or bypasses it.
+
+**Workaround:** None needed here. The bindings are refused at generation, so no
+program can call them; the count is honest backlog rather than a live defect.
+
+**Real fix:** Remove the `json` argument mapping from those eleven commands in
+`scenarios/prose-studio/cli/manifest.json`.
+
+**Owner:** prose-studio.
+
+**Refs:** `scenarios/prose-studio/cli/manifest.json`,
+`scenarios/cli-health/api/internal/services/manifestvalidation/findings.go`
+(`CodeBindingControlFlagBound`).
+
+### 2026-08-17 — the `guide` verb has no governed binding to compose
+
+**Symptom:** `guide("...")` fails with `projection "guide" is unavailable:
+prompt-manager exposes no governed binding in the live registry`.
+
+**Root cause:** prompt-manager contributes zero bindings to the live registry,
+so there is no typed operation for the verb to call. The other three projection
+verbs compose `search-hub/query/query`, `test-genie/runs/list`, and
+`vrooli-memory/journal/note`.
+
+**Workaround:** Read skills with `prompt-manager skill read <name>` outside a
+program.
+
+**Real fix:** prompt-manager ships a `cli/manifest.json` binding for skill and
+action lookup; the verb then needs only a binding id and an argument builder.
+
+**Owner:** prompt-manager, with a one-line follow-up here.
+
+**Refs:** `api/handlers/bindings/module.go` (`projectionVerbs`),
+`docs/guides/program-construction.md` § Runtime verbs.
+
+### 2026-08-17 — `validate` reads verdicts and cannot start a run
+
+**Symptom:** `validate("program-runtime")` returns the latest recorded
+test-genie run verdicts. It does not start a run, which the construction guide
+states explicitly.
+
+**Root cause:** starting a run is a write that test-genie declares
+run-ineligible, so no governed binding exists. Composing an ungoverned client
+for it would put an unvalidated mutation behind a read-shaped verb.
+
+**Workaround:** Start runs through the lifecycle (`vrooli scenario test <name>`)
+and block once on the run id.
+
+**Real fix:** test-genie publishes a run-start binding with an equivalent
+governance contract, at which point the verb gains a `wait` mode.
+
+**Owner:** test-genie / program-runtime.
+
+**Refs:** `api/handlers/bindings/module.go` (`projectionVerbs`), `docs/TESTING.md`.
+
+### 2026-08-17 — the authoring eval was a stub that reported honest degradation
+
+**Symptom:** `program-runtime authoring eval --json` always returned
+`{"status": "unavailable", "reason": "no ai-gateway code-authoring route
+resolved; tried hosted code.authoring and local code.local fallbacks"}`, and
+`evals/authoring.primary.json` carried `floor: 0`.
+
+**Root cause:** `RunAuthoringEval` in `api/handlers/programs/module.go` returned
+a fixed literal. It never read the corpus, never resolved a route, and never
+submitted a program. The two roles its reason named — `code.authoring` and
+`code.local` — do not exist in the ai-gateway catalog, so the reason was
+fabricated as well.
+
+This is worse than an unimplemented feature. The response is byte-identical to
+an honest degradation, so a reader concludes the dependency is missing rather
+than the measurement. It also passes the floor gate silently: a floor
+comparison is skipped when nothing was measured, and the floor was 0 because
+both "pre-change" captures recorded the same stub output.
+
+**Workaround:** None was needed; the number was never usable.
+
+**Real fix:** Implemented in `api/internal/programs/authoring.go`. The eval
+loads the corpus, authors each case through the governed
+`ai-gateway/inference/run` binding using the `author.generator` role, submits
+the result with `PROVENANCE_TEST` into a fresh session, and evaluates a
+result-shaped oracle. `unavailable` is now reachable only on real route loss
+and carries the underlying error. Six tests cover measured, wrong-result,
+missed, route-loss, missing-corpus, and fence-stripping paths.
+
+**Remaining — the eval needs an asynchronous shape.** A full 12-case run authors
+and executes twelve programs, so its wall time is twelve model round-trips plus
+twelve kernel spawns. That exceeds the API server's response deadline and the
+run ends as `unavailable: unexpected EOF` before it can return counts. The
+measurement path itself is proven: a single authoring call against
+`author.generator` returns a correct program (`z-ai/glm-5.2` via openrouter,
+`validated: true`) using the object schema
+`{"type":"object","properties":{"source":{"type":"string"}},"required":["source"]}`,
+and the corpus/oracle/submission path is covered by six unit tests. What is
+missing is the submission shape: `RunAuthoringEval` should accept and return
+like `programs submit --async`, with a run id the caller blocks on once, rather
+than holding one long request open.
+
+Until that lands, the floor in `evals/authoring.primary.json` stays `0` and must
+not be treated as a gate. It has never been derived from a measured run.
+
+**Owner:** program-runtime.
+
+**Refs:** `api/internal/programs/authoring.go`,
+`api/internal/programs/authoring_test.go`, `api/handlers/programs/module.go`.
+
 ## Architecture Drift
 
 Use this section for deferred findings from `screaming-architecture-audit`.

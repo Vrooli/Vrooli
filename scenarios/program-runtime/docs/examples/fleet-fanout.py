@@ -6,7 +6,7 @@ def main():
         "ai_gateway_calls": lambda: ai_gateway.measures.total(),
         "program_runtime_bindings": lambda: program_runtime.bindings.list(),
     }
-    results = vrooli.gather(*calls.values())
+    results = gather(*calls.values())
     print({
         name: {
             "count": result.count(),

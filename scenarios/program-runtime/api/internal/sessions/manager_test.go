@@ -301,3 +301,26 @@ func TestKernelSpawnFailureLeavesExistingSessionsUntouched(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// TestDeleteReclaimsTheKernelProcess guards a leak that idle reclamation never
+// had: Delete closed the manager's kernel handle but skipped OnReclaimed, which
+// is the hook that kills the kernel process group and removes the session's
+// pinned work directory. One validation sweep left 26 live interpreters holding
+// 625 MB, all parented to the running API.
+func TestDeleteReclaimsTheKernelProcess(t *testing.T) {
+	var reclaimed []string
+	manager := NewManager(Options{
+		Store:       newSessionTestDB(t),
+		OnReclaimed: func(id string) { reclaimed = append(reclaimed, id) },
+	})
+	session, err := manager.Create(context.Background(), "", "", nil)
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	if _, err := manager.Delete(context.Background(), session.ID, "test"); err != nil {
+		t.Fatalf("delete session: %v", err)
+	}
+	if len(reclaimed) != 1 || reclaimed[0] != session.ID {
+		t.Fatalf("Delete must reclaim the kernel exactly as idle reclamation does; got %v", reclaimed)
+	}
+}

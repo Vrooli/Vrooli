@@ -116,7 +116,7 @@ func (s *Service) SubmitWithDiagnostics(ctx context.Context, sessionID, source s
 	}
 	if explain || hasDiagnosticErrors(diagnostics) {
 		now := s.clock().UTC().Format(time.RFC3339Nano)
-		p := &programsv1.Program{Id: "prog_" + uuid.NewString(), SessionId: sessionID, Source: source, Provenance: provenance, CreatedAt: now, CompletedAt: now, Status: programsv1.ProgramStatus_PROGRAM_STATUS_FAILED, OutputLimitBytes: 4096, FailureShape: "unresolved_name", FailureCause: programsv1.FailureCause_FAILURE_CAUSE_UNRESOLVED_NAME}
+		p := &programsv1.Program{Id: "prog_" + uuid.NewString(), SessionId: sessionID, Source: source, Provenance: provenance, CreatedAt: now, CompletedAt: now, Status: programsv1.ProgramStatus_PROGRAM_STATUS_FAILED, OutputLimitBytes: 4096, FailureShape: preflightCause(diagnostics), FailureCause: preflightFailureCause(diagnostics)}
 		if explain && !hasDiagnosticErrors(diagnostics) {
 			p.Status = programsv1.ProgramStatus_PROGRAM_STATUS_ACCEPTED
 			p.CompletedAt = ""
@@ -126,7 +126,10 @@ func (s *Service) SubmitWithDiagnostics(ctx context.Context, sessionID, source s
 		if len(diagnostics) > 0 {
 			p.FailureDetail = diagnostics[0].GetMessage()
 			for _, diagnostic := range diagnostics {
-				if diagnostic.GetSeverity() == "error" && s.recordUnresolved != nil {
+				// Only an unreachable capability belongs in the ledger. A
+				// protected-name assignment names something that resolves, so
+				// recording it would corrupt the Act denominator's evidence.
+				if IsUnresolvedNameDiagnostic(diagnostic) && s.recordUnresolved != nil {
 					_ = s.recordUnresolved(ctx, sessionID, diagnostic.GetName())
 				}
 			}
@@ -416,4 +419,24 @@ func boundedText(s string, max int) string {
 func clone(p *programsv1.Program) *programsv1.Program {
 	q := *p
 	return &q
+}
+
+// preflightCause names why a submission was refused before execution. An
+// unresolved capability is `unresolved_name`; a refusal that only involves
+// names which do resolve — assigning a protected runtime name — is
+// `unclassified` rather than being mislabelled as a missing capability.
+func preflightCause(diagnostics []*programsv1.Diagnostic) string {
+	for _, diagnostic := range diagnostics {
+		if IsUnresolvedNameDiagnostic(diagnostic) {
+			return "unresolved_name"
+		}
+	}
+	return "unclassified"
+}
+
+func preflightFailureCause(diagnostics []*programsv1.Diagnostic) programsv1.FailureCause {
+	if preflightCause(diagnostics) == "unresolved_name" {
+		return programsv1.FailureCause_FAILURE_CAUSE_UNRESOLVED_NAME
+	}
+	return programsv1.FailureCause_FAILURE_CAUSE_UNCLASSIFIED
 }
