@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "shared-proto-contracts/v1",
+  "title": "Shared Proto Contracts",
+  "type": "object",
+  "required": ["contracts"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "contracts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["prefix", "reason"],
+        "additionalProperties": false,
+        "properties": {
+          "prefix": { "type": "string", "minLength": 1 },
+          "reason": { "type": "string", "minLength": 1 }
+        }
+      }
+    }
+  }
+}

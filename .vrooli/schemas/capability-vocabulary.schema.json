@@ -1,0 +1,32 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Capability vocabulary",
+  "type": "object",
+  "required": ["version", "capabilities"],
+  "properties": {
+    "$schema": {"type": "string"},
+    "version": {"type": "integer", "minimum": 1},
+    "capabilities": {
+      "type": "array",
+      "items": {"type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"},
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "platform_policies": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "linux": {"enum": ["no_work_required", "no_equivalent_ever"]},
+          "macos": {"enum": ["no_work_required", "no_equivalent_ever"]},
+          "windows": {"enum": ["no_work_required", "no_equivalent_ever"]}
+        },
+        "patternProperties": {
+          "^(linux|macos|windows)/(amd64|arm64|arm|386|armv7)$": {"enum": ["no_work_required", "no_equivalent_ever"]}
+        }
+      }
+    }
+  },
+  "additionalProperties": false
+}
