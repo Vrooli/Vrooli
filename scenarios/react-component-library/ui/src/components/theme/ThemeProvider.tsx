@@ -23,6 +23,12 @@ function readStorage(): Theme {
   return "system";
 }
 
+function readThemeOverride(): Theme | undefined {
+  if (typeof window === "undefined") return undefined;
+  const requested = new URLSearchParams(window.location.search).get("theme");
+  return requested === "light" || requested === "dark" ? requested : undefined;
+}
+
 function readSystem(): ResolvedTheme {
   if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
     return "light";
@@ -39,7 +45,7 @@ function applyResolved(resolved: ResolvedTheme): void {
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>(() => readStorage());
+  const [theme, setThemeState] = useState<Theme>(() => readThemeOverride() ?? readStorage());
   const [systemResolved, setSystemResolved] = useState<ResolvedTheme>(() => readSystem());
 
   useEffect(() => {

@@ -788,15 +788,16 @@ describe("ComponentEditor", () => {
     );
     await screen.findByRole("button", { name: "Primary" });
     expect(await screen.findAllByTestId(selectors.components.editor.exampleCard)).toHaveLength(1);
-    expect(screen.getByTestId(selectors.components.editor.propsPanel)).toBeInTheDocument();
     const toolsToggle = screen.getByTestId(selectors.components.editor.previewToolsToggle);
-    expect(toolsToggle).toHaveAttribute("aria-expanded", "true");
-    await user.click(toolsToggle);
     expect(toolsToggle).toHaveAttribute("aria-expanded", "false");
+    await user.click(toolsToggle);
+    expect(toolsToggle).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByTestId(selectors.components.editor.propsPanel)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Secondary" }));
     expect(screen.getAllByTestId(selectors.components.editor.exampleCard)).toHaveLength(1);
-    expect(screen.getByTestId(selectors.components.editor.exampleTitle)).toHaveTextContent(
-      "Secondary",
+    expect(screen.getByRole("button", { name: "Secondary" })).toHaveAttribute(
+      "aria-current",
+      "true",
     );
     expect(screen.getByTestId(selectors.components.editor.propsPanel)).toBeInTheDocument();
     window.matchMedia = originalMatchMedia;
@@ -1124,7 +1125,7 @@ describe("ComponentEditor", () => {
     );
     fireEvent.load(frame);
     const card = await screen.findByTestId(selectors.components.editor.exampleCard);
-    expect(screen.getByTestId("components-editor-stage-mode")).toHaveTextContent("Stage");
+    expect(screen.getByTestId("components-editor-stage-mode")).toHaveTextContent("Focus");
     expect(screen.getByTestId(selectors.components.editor.gallery)).toHaveAttribute(
       "data-preview-stage-mode",
       "true",
@@ -1147,6 +1148,7 @@ describe("ComponentEditor", () => {
         libraryId="lib:Gallery"
         onClose={() => {}}
         activePane="preview"
+        stageMode={false}
       />,
     );
 
@@ -1157,8 +1159,7 @@ describe("ComponentEditor", () => {
     expect(gallery.style.width).toBe("");
     expect(gallery.style.height).toBe("");
     expect(frame.style.width).toBe("100%");
-    expect(frame.style.height).toBe("");
-    expect(frame.style.aspectRatio).toBe("16 / 9");
+    expect(frame.style.height).toBe("100%");
   });
 
   it("invokes onClose when the Back-to-list button is clicked", async () => {

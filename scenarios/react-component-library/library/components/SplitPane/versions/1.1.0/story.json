@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 3,
+  "kind": "component",
+  "title": "SplitPane",
+  "args": { "fields": [] },
+  "environment": { "fixtures": [] },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Two meaningful panes",
+      "harness": "Default",
+      "args": {},
+      "expect": [
+        { "kind": "role", "role": "heading", "name": "Keep both decisions in view" },
+        { "kind": "text", "value": "Needs review" },
+        { "kind": "text", "value": "Ready to ship" }
+      ],
+      "interactions": [{ "kind": "settle" }]
+    }
+  ]
+}

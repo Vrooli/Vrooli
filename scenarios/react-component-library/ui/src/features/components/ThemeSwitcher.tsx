@@ -33,6 +33,7 @@ interface Props {
     DeviceFiltersValue,
     "visionFilter" | "setVisionFilter" | "blurPx" | "setBlurPx" | "blurMin" | "blurMax"
   >;
+  compactOnMobile?: boolean;
 }
 
 const MODE_OPTIONS = [
@@ -61,6 +62,7 @@ export function ThemeSwitcher({
   kit,
   setKit,
   filters,
+  compactOnMobile = false,
 }: Props) {
   const { t } = useTranslation();
   const activeMode = MODE_OPTIONS.find((option) => option.value === colorScheme);
@@ -73,6 +75,7 @@ export function ThemeSwitcher({
         icon={<Palette aria-hidden className="h-4 w-4" />}
         triggerTestId={selectors.components.themeSwitcher.appearanceToggle}
         panelTestId={selectors.components.themeSwitcher.appearancePanel}
+        compactOnMobile={compactOnMobile}
       >
         <p className="mb-space-xs text-xs leading-5 text-app-muted-foreground">
           {t(strings.components.themeSwitcher.appearanceDescription)}

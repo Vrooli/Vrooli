@@ -1,4 +1,4 @@
-/** @vrooliComponentSource templates.settings-page
+/** @vrooliComponentSource react-component-library:PageFrame
  *
  * SettingsPage — preferences surface.
  *

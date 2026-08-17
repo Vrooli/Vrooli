@@ -34,6 +34,13 @@ func TestBuildImportMapJSONPinsDeclaredDeps(t *testing.T) {
 	require.NotContains(t, raw, `https://`)
 }
 
+func TestResolvePreviewArchetypeKeepsPrimitiveWellButLetsCompositionsFillStage(t *testing.T) {
+	require.Equal(t, "primitive", resolvePreviewArchetype(components.AssetKindComponent, "ui-primitive", nil))
+	require.Equal(t, "pattern", resolvePreviewArchetype(components.AssetKindComponent, "ui-pattern", nil))
+	require.Equal(t, "page", resolvePreviewArchetype(components.AssetKindComponent, "layout-nav", nil))
+	require.Equal(t, "overlay", resolvePreviewArchetype(components.AssetKindComponent, "ui-pattern", &components.StoryFrame{Asset: "overlays.dialog"}))
+}
+
 func TestBuildImportMapJSONUsesResolvedDependencyVersionPerBundle(t *testing.T) {
 	withPackageRuntimeCandidates(t, func(name string) []string {
 		if name == "date-fns" {
@@ -112,7 +119,21 @@ func TestRenderHarnessHTMLInjectsDesignSystemCSS(t *testing.T) {
 	require.Contains(t, html, `queueMicrotask(ready)`)
 	require.Contains(t, html, `[100, 500, 1500].forEach((delay) => setTimeout(ready, delay))`)
 	require.Contains(t, html, `window.__vrooliBridgeChildInstalled = true`)
+	require.Contains(t, html, `Route isolation: component navigation is part of the specimen`)
+	require.Contains(t, html, `window.history.pushState =`)
+	require.Contains(t, html, `document.addEventListener("click", (event) =>`)
 	require.Less(t, strings.Index(html, `window.__vrooliBridgeChildInstalled = true`), strings.Index(html, `<script type="module">`), "the bridge handshake must not wait for preview module imports")
+}
+
+func TestRenderHarnessHTMLGalleryModeBoundsTheEmbeddedSurface(t *testing.T) {
+	html := renderHarnessHTML("cmp-1", internalpreview.Bundle{
+		JS:         "export default function Demo() { return null }",
+		SourcePath: "components/Demo.tsx",
+		SHA256:     "sha",
+	}, harnessStory{}, testPreviewCSS, true)
+	require.Contains(t, html, `<body class="rcl-preview-gallery">`)
+	require.Contains(t, html, `.rcl-preview-gallery #root`)
+	require.Contains(t, html, `.rcl-preview-gallery .rcl-preview-specimen`)
 }
 
 func TestRenderHarnessHTMLShowsImportMapDiagnostics(t *testing.T) {
@@ -202,7 +223,7 @@ func TestRenderHarnessHTMLRecordsDeclarativeHandlersAndCustomHarnessEvents(t *te
 	require.Contains(t, html, `const createNodeFactory = (React, Icons, log) =>`)
 	require.Contains(t, html, `return (...args) => log(name, ...args);`)
 	require.Contains(t, html, `type: "rcl-preview-event"`)
-	require.Contains(t, html, `React.createElement(Harness, { args: props, log: postPreviewEvent })`)
+	require.Contains(t, html, `React.createElement(Harness, { args: props, environment, fixtures: resolveFixtureContext(environment), log: postPreviewEvent })`)
 	require.Less(t, strings.Index(html, `const postPreviewEvent =`), strings.Index(html, `const resolveProps = createNodeFactory`))
 }
 

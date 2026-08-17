@@ -89,21 +89,43 @@ type StoryFrame struct {
 // fixture id, but it cannot name an arbitrary provider/import to execute.
 var storyFixtureAdapters = map[string]struct{}{
 	"voice-input": {},
+	"file-attach": {},
+	"clipboard":   {},
+	"network":     {},
 }
 
 type StoryDefinition struct {
 	ID   string `json:"id"`
 	Name string `json:"name"`
 	// Description is optional specimen context shown by the catalog workbench.
-	Description string `json:"description,omitempty"`
+	Description string    `json:"description,omitempty"`
+	Mode        StoryMode `json:"mode,omitempty"`
 	// Harness selects a named export from the version-local story.tsx file.
 	// It is available only in schemaVersion 2 and later.
 	Harness      string             `json:"harness,omitempty"`
 	Frame        *StoryFrame        `json:"frame,omitempty"`
+	Geometry     *StoryGeometry     `json:"geometry,omitempty"`
 	Args         json.RawMessage    `json:"args"`
 	Environment  map[string]string  `json:"environment,omitempty"`
 	Interactions []StoryInteraction `json:"interactions,omitempty"`
 	Expect       []StoryExpectation `json:"expect,omitempty"`
+}
+
+type StoryMode string
+
+const (
+	StoryModePinned StoryMode = "pinned"
+	StoryModeLive   StoryMode = "live"
+)
+
+// StoryGeometry lets a story make a deliberate exception to the catalog
+// archetype. It stays declarative so the preview host can apply the same
+// geometry in every surface without importing component code.
+type StoryGeometry struct {
+	Archetype string `json:"archetype,omitempty"`
+	Width     string `json:"width,omitempty"`
+	Height    string `json:"height,omitempty"`
+	MinHeight string `json:"minHeight,omitempty"`
 }
 
 type StoryInteraction struct {
@@ -429,6 +451,9 @@ func ValidateStoryContract(contract *StoryContract) []StoryDiagnostic {
 		if strings.TrimSpace(story.Name) == "" {
 			diagnostics = append(diagnostics, storyDiagnostic(pointer+"/name", "required", "name is required"))
 		}
+		if story.Mode != "" && story.Mode != StoryModePinned && story.Mode != StoryModeLive {
+			diagnostics = append(diagnostics, storyDiagnostic(pointer+"/mode", "story_mode", "mode must be pinned or live"))
+		}
 		if contract.SchemaVersion == 1 && (story.Harness != "" || story.Description != "" || story.Frame != nil) {
 			diagnostics = append(diagnostics, storyDiagnostic(pointer, "schema_version", "harness and description require schemaVersion 2"))
 		}
@@ -437,6 +462,9 @@ func ValidateStoryContract(contract *StoryContract) []StoryDiagnostic {
 		}
 		if story.Frame != nil {
 			diagnostics = append(diagnostics, validateStoryFrameShape(pointer+"/frame", story.Frame)...)
+		}
+		if story.Geometry != nil {
+			diagnostics = append(diagnostics, validateStoryGeometry(pointer+"/geometry", story.Geometry)...)
 		}
 		if story.Harness != "" && !validHarnessExport(story.Harness) {
 			diagnostics = append(diagnostics, storyDiagnostic(pointer+"/harness", "javascript_identifier", "harness must be a valid named JavaScript export identifier"))
@@ -466,6 +494,20 @@ func ValidateStoryContract(contract *StoryContract) []StoryDiagnostic {
 	}
 	sort.Slice(diagnostics, func(i, j int) bool { return diagnostics[i].Pointer < diagnostics[j].Pointer })
 	return diagnostics
+}
+
+func validateStoryGeometry(pointer string, geometry *StoryGeometry) []StoryDiagnostic {
+	if geometry == nil {
+		return nil
+	}
+	if geometry.Archetype != "" {
+		switch geometry.Archetype {
+		case "primitive", "pattern", "page", "shell", "frame", "overlay":
+		default:
+			return []StoryDiagnostic{storyDiagnostic(pointer+"/archetype", "geometry_archetype", "geometry archetype is not supported")}
+		}
+	}
+	return nil
 }
 
 func validateStoryField(pointer string, field StoryField) []StoryDiagnostic {

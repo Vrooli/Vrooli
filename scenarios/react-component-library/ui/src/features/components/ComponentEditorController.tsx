@@ -1,4 +1,4 @@
-/** @vrooliComponentSource patterns.master-detail-workspace */
+/** @vrooliComponentSource react-component-library:MasterDetail */
 import { Fragment, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type Monaco } from "@monaco-editor/react";
@@ -14,7 +14,7 @@ import {
   Minimize2,
   PanelsLeftRight,
 } from "lucide-react";
-import { Group, Panel, Separator, type PanelImperativeHandle } from "react-resizable-panels";
+import { Group, Panel, Separator } from "react-resizable-panels";
 
 import { Button } from "../../components/Button";
 import { IconButton } from "../../components/IconButton";
@@ -32,7 +32,7 @@ import { errorMessage } from "../../lib/errorMessage";
 import { EmulatorToolbar } from "./EmulatorChrome";
 import { ComponentEditorStage } from "./ComponentEditorStage";
 import { ComponentEditorSource } from "./ComponentEditorSource";
-import { ComponentEditorMobileTools, ComponentEditorTools } from "./ComponentEditorTools";
+import { ComponentEditorTools } from "./ComponentEditorTools";
 import { ThemeSwitcher, type PreviewKit } from "./ThemeSwitcher";
 import { DEFAULT_ADOPTION_TEMPLATE } from "./adoptionTemplates";
 import { AssetWorkspace } from "../assets/AssetWorkspace";
@@ -93,6 +93,16 @@ function loadSplitLayout(): Record<string, number> {
   }
 }
 
+function readPreviewPreference<T>(key: string, fallback: T): T {
+  if (typeof window === "undefined") return fallback;
+  try {
+    const value = window.localStorage.getItem(key);
+    return value === null ? fallback : (JSON.parse(value) as T);
+  } catch {
+    return fallback;
+  }
+}
+
 // JSDOM does not provide ResizeObserver, while the browser-only panel library
 // requires one at mount time. The fallback is intentionally inert: production
 // browsers retain the native observer and panel sizing; unit tests only need a
@@ -135,6 +145,8 @@ interface ComponentEditorProps {
   onPreviewExperienceStateChange?: (state: "loading" | "partial" | "ready" | "error") => void;
   /** Structural assets open in the single-specimen stage; ordinary components keep the gallery. */
   stageMode?: boolean;
+  /** Standalone preview routes omit editor navigation and workspace chrome. */
+  chromeless?: boolean;
 }
 
 /**
@@ -163,7 +175,8 @@ export function ComponentEditorImpl({
   selectedStory,
   onSelectedStoryChange,
   onPreviewExperienceStateChange,
-  stageMode: initialStageMode = false,
+  stageMode: initialStageMode,
+  chromeless = false,
 }: ComponentEditorProps) {
   const { t } = useTranslation();
   const shellNavigation = useShellNavigation();
@@ -175,7 +188,6 @@ export function ComponentEditorImpl({
   const previewFrameRef = useRef<HTMLIFrameElement | null>(null);
   const previewStageRef = useRef<HTMLDivElement | null>(null);
   const previewCanvasRef = useRef<HTMLDivElement | null>(null);
-  const previewToolsPanelRef = useRef<PanelImperativeHandle | null>(null);
   const previewFramesRef = useRef(new Set<HTMLIFrameElement>());
   const specimenFramesRef = useRef(new Map<SpecimenIdentity, HTMLIFrameElement>());
   const inspector = useComponentInspector(previewFrameRef);
@@ -238,10 +250,11 @@ export function ComponentEditorImpl({
     () => new Set(),
   );
   const [activeSpecimen, setActiveSpecimen] = useState<SpecimenIdentity | null>(null);
-  const [mobileTool, setMobileTool] = useState<"props" | "inspector" | null>(null);
-  const [previewToolsCollapsed, setPreviewToolsCollapsed] = useState(false);
+  const [previewToolsCollapsed, setPreviewToolsCollapsed] = useState(true);
   const [previewFullscreen, setPreviewFullscreen] = useState(false);
-  const [stageMode, setStageMode] = useState(initialStageMode);
+  const [stageMode, setStageMode] = useState(
+    () => initialStageMode ?? readPreviewPreference("rcl.preview.view", "focus") === "focus",
+  );
   const [specimenOverrides, setSpecimenOverrides] = useState<
     Record<string, Record<string, unknown>>
   >({});
@@ -250,9 +263,24 @@ export function ComponentEditorImpl({
   >({});
   const [overrideMessages, setOverrideMessages] = useState<Record<string, string>>({});
   const [previewEvents, setPreviewEvents] = useState<PreviewEvent[]>([]);
-  const [previewKit, setPreviewKit] = useState<PreviewKit>("vrooli-default");
-  const [frameEnabled, setFrameEnabled] = useState(true);
+  const [previewKit, setPreviewKit] = useState<PreviewKit>(() =>
+    readPreviewPreference("rcl.preview.kit", "vrooli-default" as PreviewKit),
+  );
+  const [frameEnabled] = useState(() => readPreviewPreference("rcl.preview.frame", true));
   const previewReloadKey = 0;
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        "rcl.preview.view",
+        JSON.stringify(stageMode ? "focus" : "canvas"),
+      );
+      window.localStorage.setItem("rcl.preview.kit", JSON.stringify(previewKit));
+      window.localStorage.setItem("rcl.preview.frame", JSON.stringify(frameEnabled));
+    } catch {
+      // Preferences are best-effort in private and embedded browser contexts.
+    }
+  }, [frameEnabled, previewKit, stageMode]);
   const [uncontrolledPane, setUncontrolledPane] = useState<WorkspacePane>("files");
   const currentPane = activePane ?? uncontrolledPane;
   const [splitView, setSplitView] = useState(false);
@@ -287,19 +315,41 @@ export function ComponentEditorImpl({
     // Structural assets are judged as compositions, so the specimen owns the
     // initial vertical space. The tools remain one intentional toggle away.
     setPreviewToolsCollapsed(true);
-    const collapseFrame = window.requestAnimationFrame(() => {
-      previewToolsPanelRef.current?.collapse();
-      window.requestAnimationFrame(() => emulator.fitToPane());
+    const fitPreview = () => emulator.fitToPane(previewStageRef.current);
+    const collapseFrame = window.requestAnimationFrame(() =>
+      window.requestAnimationFrame(fitPreview),
+    );
+    const resizeObserver = new ResizeObserver(() => {
+      window.requestAnimationFrame(() => emulator.fitToPane(previewStageRef.current));
     });
-    return () => window.cancelAnimationFrame(collapseFrame);
-  }, [emulator.fitToPane, stageMode]);
+    const viewportFrame = previewStageRef.current?.querySelector<HTMLElement>(
+      "[data-emulator-viewport-frame]",
+    );
+    if (viewportFrame) resizeObserver.observe(viewportFrame);
+    else if (previewStageRef.current) resizeObserver.observe(previewStageRef.current);
+    return () => {
+      window.cancelAnimationFrame(collapseFrame);
+      resizeObserver.disconnect();
+    };
+  }, [emulator.fitToPane, previewReady, stageMode]);
+
+  useEffect(() => {
+    if (!stageMode) return;
+    const leaveSpecimen = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setStageMode(false);
+      setComparedSpecimens(new Set());
+    };
+    window.addEventListener("keydown", leaveSpecimen);
+    return () => window.removeEventListener("keydown", leaveSpecimen);
+  }, [stageMode]);
 
   const resolvedPreviewTheme =
     filters.colorScheme === "system" ? appResolvedTheme : filters.colorScheme;
 
   useEffect(() => {
     const handleFullscreenChange = () => {
-      setPreviewFullscreen(document.fullscreenElement === previewCanvasRef.current);
+      setPreviewFullscreen(document.fullscreenElement === previewStageRef.current);
     };
     document.addEventListener("fullscreenchange", handleFullscreenChange);
     return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
@@ -737,9 +787,7 @@ export function ComponentEditorImpl({
         .slice(0, 1)
     : comparisonActive
       ? specimens.filter((example) => comparedSpecimens.has(specimenIdentity(example)))
-      : activeSpecimen
-        ? specimens.filter((example) => specimenIdentity(example) === activeSpecimen)
-        : [specimens[0]];
+      : specimens;
   const activeExample = specimens.find((example) => specimenIdentity(example) === activeSpecimen);
   const activeStoryContract: ComponentStory | undefined = (storiesQuery.data?.stories ?? []).find(
     (story) => story.version === (activeExample?.version || activeVersion),
@@ -783,11 +831,7 @@ export function ComponentEditorImpl({
     });
   };
   const togglePreviewTools = () => {
-    setPreviewToolsCollapsed((collapsed) => {
-      if (collapsed) previewToolsPanelRef.current?.expand();
-      else previewToolsPanelRef.current?.collapse();
-      return !collapsed;
-    });
+    setPreviewToolsCollapsed((collapsed) => !collapsed);
   };
 
   const editorToolProps = {
@@ -806,7 +850,7 @@ export function ComponentEditorImpl({
   };
 
   const togglePreviewFullscreen = async () => {
-    const stage = previewCanvasRef.current ?? previewStageRef.current;
+    const stage = previewStageRef.current;
     if (!stage) return;
     if (previewFullscreen) {
       if (document.fullscreenElement === stage && typeof document.exitFullscreen === "function")
@@ -830,60 +874,62 @@ export function ComponentEditorImpl({
       testId={selectors.components.editor.panel}
       label={t(strings.components.editor.title, { libraryId })}
     >
-      <WorkspaceHeader
-        title={<span data-testid={selectors.components.editor.title}>{libraryId}</span>}
-        description={t(strings.components.editor.subtitle)}
-        leading={
-          shellNavigation.sidebarCollapsed ? (
-            <button
-              type="button"
-              onClick={shellNavigation.openSidebar}
-              aria-label={t("nav.openDrawer", { defaultValue: "Open navigation" })}
-              data-testid="workspace-header-open-sidebar"
-              className="touch-target inline-flex items-center justify-center rounded-control text-app-muted-foreground hover:bg-app-surface-muted hover:text-app-foreground"
-            >
-              <Menu aria-hidden className="h-5 w-5" />
-            </button>
-          ) : undefined
-        }
-        actions={
-          <div className="flex items-center gap-space-2xs">
-            {dirty && (
-              <StatusBadge data-testid={selectors.components.editor.dirtyBadge} tone="warning">
-                {t(strings.components.editor.dirty)}
-              </StatusBadge>
-            )}
-            {previewReady && (desktopLayout || currentPane === "preview") && (
-              <StatusBadge data-testid={selectors.components.editor.previewBadge} tone="success">
-                {t(strings.components.editor.previewReady)}
-              </StatusBadge>
-            )}
-            {availablePanes.length > 1 && (
-              <IconButton
-                data-testid="components-editor-split-view-toggle"
-                aria-label={t("components.editor.splitView", { defaultValue: "Split view" })}
-                aria-pressed={splitView}
-                onClick={toggleSplitView}
-                className={`hidden h-8 min-h-8 min-w-8 lg:inline-flex ${splitView ? "bg-app-primary text-app-primary-foreground" : "border border-app-border bg-app-surface"}`}
+      {!chromeless && (
+        <WorkspaceHeader
+          title={<span data-testid={selectors.components.editor.title}>{libraryId}</span>}
+          description={t(strings.components.editor.subtitle)}
+          leading={
+            shellNavigation.sidebarCollapsed ? (
+              <button
+                type="button"
+                onClick={shellNavigation.openSidebar}
+                aria-label={t("nav.openDrawer", { defaultValue: "Open navigation" })}
+                data-testid="workspace-header-open-sidebar"
+                className="touch-target inline-flex items-center justify-center rounded-control text-app-muted-foreground hover:bg-app-surface-muted hover:text-app-foreground"
               >
-                <PanelsLeftRight aria-hidden className="h-3.5 w-3.5" />
-              </IconButton>
-            )}
-            {renderable && (
-              <IconButton
-                data-testid={selectors.components.editor.closeButton}
-                aria-label={t(strings.components.editor.close)}
-                onClick={onClose}
-                className="h-11 min-h-11 min-w-11 border border-app-border bg-app-surface"
-              >
-                <ArrowLeft aria-hidden className="h-3.5 w-3.5" />
-              </IconButton>
-            )}
-          </div>
-        }
-      />
+                <Menu aria-hidden className="h-5 w-5" />
+              </button>
+            ) : undefined
+          }
+          actions={
+            <div className="flex items-center gap-space-2xs">
+              {dirty && (
+                <StatusBadge data-testid={selectors.components.editor.dirtyBadge} tone="warning">
+                  {t(strings.components.editor.dirty)}
+                </StatusBadge>
+              )}
+              {previewReady && (desktopLayout || currentPane === "preview") && (
+                <StatusBadge data-testid={selectors.components.editor.previewBadge} tone="success">
+                  {t(strings.components.editor.previewReady)}
+                </StatusBadge>
+              )}
+              {availablePanes.length > 1 && (
+                <IconButton
+                  data-testid="components-editor-split-view-toggle"
+                  aria-label={t("components.editor.splitView", { defaultValue: "Split view" })}
+                  aria-pressed={splitView}
+                  onClick={toggleSplitView}
+                  className={`hidden h-8 min-h-8 min-w-8 lg:inline-flex ${splitView ? "bg-app-primary text-app-primary-foreground" : "border border-app-border bg-app-surface"}`}
+                >
+                  <PanelsLeftRight aria-hidden className="h-3.5 w-3.5" />
+                </IconButton>
+              )}
+              {renderable && (
+                <IconButton
+                  data-testid={selectors.components.editor.closeButton}
+                  aria-label={t(strings.components.editor.close)}
+                  onClick={onClose}
+                  className="h-11 min-h-11 min-w-11 border border-app-border bg-app-surface"
+                >
+                  <ArrowLeft aria-hidden className="h-3.5 w-3.5" />
+                </IconButton>
+              )}
+            </div>
+          }
+        />
+      )}
 
-      {navigationSlot && (
+      {!chromeless && navigationSlot && (
         <div className="shrink-0 border-b border-app-border bg-app-surface px-space-sm">
           {navigationSlot}
         </div>
@@ -987,7 +1033,7 @@ export function ComponentEditorImpl({
                           data-testid={selectors.components.editor.workspacePane}
                           data-preview-state={previewExperienceState}
                           data-pane="preview"
-                          className="flex h-full min-h-0 min-w-0 w-full max-w-full flex-col overflow-hidden bg-app-background"
+                          className="relative flex h-full min-h-0 min-w-0 w-full max-w-full flex-col overflow-hidden bg-app-background"
                         >
                           {splitView &&
                             paneHeader(
@@ -996,29 +1042,36 @@ export function ComponentEditorImpl({
                               paneLabels.preview,
                               <Eye aria-hidden className="h-3.5 w-3.5" />,
                             )}
-                          <div className="flex min-w-0 max-w-full shrink-0 flex-wrap items-center gap-space-2xs border-b border-app-border bg-app-surface px-space-2xs py-space-2xs">
+                          <div
+                            data-preview-floating-dock
+                            role="toolbar"
+                            aria-label="Preview controls"
+                            className="absolute left-space-xs right-space-xs top-space-xs z-20 flex min-w-0 max-w-[calc(100%-var(--space-sm))] flex-wrap items-center gap-space-2xs rounded-panel border border-app-border/80 bg-app-surface/95 px-space-2xs py-space-2xs shadow-xl backdrop-blur"
+                          >
                             <nav
-                              className="order-last flex min-w-0 max-w-full basis-full flex-wrap gap-space-3xs sm:order-none sm:basis-auto sm:flex-1"
+                              className="order-last min-w-0 max-w-full basis-full overflow-x-auto border-t border-app-border/70 pt-space-2xs"
                               aria-label={t(strings.components.editor.storiesLabel)}
                             >
-                              {specimens.map((example) => {
-                                const identity = specimenIdentity(example);
-                                const selected = identity === activeSpecimen;
-                                return (
-                                  <Button
-                                    key={identity}
-                                    data-testid={selectors.components.editor.storyPickerItem}
-                                    type="button"
-                                    variant={selected ? "primary" : "secondary"}
-                                    className="h-8 min-w-11 shrink-0 px-space-2xs text-xs"
-                                    aria-current={selected ? "true" : undefined}
-                                    title={example?.description}
-                                    onClick={() => activateSpecimen(identity)}
-                                  >
-                                    {example?.displayName || example?.name || "Default"}
-                                  </Button>
-                                );
-                              })}
+                              <div className="flex w-max gap-space-3xs">
+                                {specimens.map((example) => {
+                                  const identity = specimenIdentity(example);
+                                  const selected = identity === activeSpecimen;
+                                  return (
+                                    <Button
+                                      key={identity}
+                                      data-testid={selectors.components.editor.storyPickerItem}
+                                      type="button"
+                                      variant={selected ? "primary" : "secondary"}
+                                      className="h-8 min-w-11 shrink-0 px-space-2xs text-xs"
+                                      aria-current={selected ? "true" : undefined}
+                                      title={example?.description}
+                                      onClick={() => activateSpecimen(identity)}
+                                    >
+                                      {example?.displayName || example?.name || "Default"}
+                                    </Button>
+                                  );
+                                })}
+                              </div>
                             </nav>
                             <IconButton
                               data-testid={selectors.components.editor.previewStageFullscreen}
@@ -1051,6 +1104,7 @@ export function ComponentEditorImpl({
                               kit={previewKit}
                               setKit={setPreviewKit}
                               filters={filters}
+                              compactOnMobile
                             />
                             <Button
                               type="button"
@@ -1060,25 +1114,13 @@ export function ComponentEditorImpl({
                               data-testid="components-editor-stage-mode"
                               onClick={() => {
                                 setStageMode((enabled) => !enabled);
+                                setPreviewToolsCollapsed(true);
                                 setComparedSpecimens(new Set());
                               }}
                             >
-                              {stageMode ? "Stage" : "Gallery"}
+                              {stageMode ? "Focus" : "Canvas"}
                             </Button>
-                            {activeSpecimen && (
-                              <Button
-                                type="button"
-                                variant={frameEnabled ? "primary" : "secondary"}
-                                className="h-8 px-space-2xs text-xs"
-                                aria-pressed={frameEnabled}
-                                onClick={() => setFrameEnabled((enabled) => !enabled)}
-                              >
-                                {frameEnabled
-                                  ? t("components.editor.framed", { defaultValue: "Framed" })
-                                  : t("components.editor.unframed", { defaultValue: "Unframed" })}
-                              </Button>
-                            )}
-                            <EmulatorToolbar emulator={emulator} />
+                            <EmulatorToolbar emulator={emulator} compactOnMobile />
                             {activeSpecimen && (
                               <IconButton
                                 data-testid={selectors.components.editor.previewToolsToggle}
@@ -1107,7 +1149,6 @@ export function ComponentEditorImpl({
                           <ComponentEditorStage
                             emulator={emulator}
                             filters={filters}
-                            desktopLayout={desktopLayout}
                             stageMode={stageMode}
                             comparisonActive={comparisonActive}
                             specimens={specimens}
@@ -1126,6 +1167,7 @@ export function ComponentEditorImpl({
                             selectedVersion={selectedVersion}
                             resolvedPreviewTheme={resolvedPreviewTheme}
                             previewCanvasRef={previewCanvasRef}
+                            toolsOpen={!previewToolsCollapsed}
                             onClearComparison={() => setComparedSpecimens(new Set())}
                             onToggleComparison={toggleComparison}
                             onRetrySpecimen={retrySpecimen}
@@ -1140,17 +1182,13 @@ export function ComponentEditorImpl({
                               }))
                             }
                             postToPreviewFrames={postToPreviewFrames}
-                            previewToolsPanelRef={previewToolsPanelRef}
-                            onPanelCollapsed={(collapsed) => setPreviewToolsCollapsed(collapsed)}
-                            onSetMobileTool={setMobileTool}
+                            onCloseTools={() => setPreviewToolsCollapsed(true)}
+                            onEnterSpecimen={(identity) => {
+                              setActiveSpecimen(identity);
+                              setStageMode(true);
+                              setComparedSpecimens(new Set());
+                            }}
                             tools={<ComponentEditorTools {...editorToolProps} />}
-                            mobileTools={
-                              <ComponentEditorMobileTools
-                                tool={mobileTool}
-                                onClose={() => setMobileTool(null)}
-                                props={editorToolProps}
-                              />
-                            }
                           />
                         </ExperienceSurface>
                       </div>

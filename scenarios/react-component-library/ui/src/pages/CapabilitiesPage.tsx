@@ -1,4 +1,4 @@
-/** @vrooliComponentSource feedback.status-badge */
+/** @vrooliComponentSource react-component-library:StatusBadge */
 import { useQuery } from "@tanstack/react-query";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/Card";

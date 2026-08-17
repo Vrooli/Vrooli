@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "kind": "component",
   "title": "VoiceInputButton",
   "args": { "fields": [
@@ -10,9 +10,13 @@
     { "path": "level", "label": "Input level", "kind": "number", "minimum": 0, "maximum": 1, "default": 0.65 },
     { "path": "timeoutProgress", "label": "Timeout progress", "kind": "number", "minimum": 0, "maximum": 1, "default": 0.5 }
   ] },
-  "environment": { "fixtures": [] },
+  "environment": {
+    "fixtures": [
+      { "key": "voiceInput", "adapter": "voice-input", "options": ["idle", "recording", "permission-denied"] }
+    ]
+  },
   "stories": [
-    { "id": "idle", "name": "Idle", "args": { "state": "idle", "size": "sm" }, "expect": [{ "kind": "role", "role": "button", "name": "Start voice input" }] },
+    { "id": "idle", "name": "Idle", "mode": "live", "harness": "Live", "args": { "state": "idle", "size": "sm" }, "environment": { "voiceInput": "idle" }, "expect": [{ "kind": "role", "role": "button", "name": "Start voice input" }] },
     { "id": "preparing", "name": "Preparing", "args": { "state": "preparing" }, "expect": [{ "kind": "role", "role": "button", "name": "Preparing microphone" }] },
     { "id": "recording", "name": "Recording", "args": { "state": "recording", "mode": "always-on", "level": 0.65 }, "expect": [{ "kind": "role", "role": "button", "name": "Stop voice input" }] },
     { "id": "recovering", "name": "Recovering", "args": { "state": "recovering", "level": 0.35 }, "expect": [{ "kind": "role", "role": "button", "name": "Listening for voice input" }] },

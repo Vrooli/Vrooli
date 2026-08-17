@@ -1,4 +1,4 @@
-/** @vrooliComponentSource feedback.not-found-state */
+/** @vrooliComponentSource react-component-library:EmptyState */
 import { Link } from "react-router-dom";
 
 import { useTranslation } from "../i18n";

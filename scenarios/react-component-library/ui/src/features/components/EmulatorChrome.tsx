@@ -1,4 +1,4 @@
-/** @vrooliComponentSource patterns.responsive-inspector-workspace */
+/** @vrooliComponentSource react-component-library:InspectorLayout */
 import { type ReactNode, useId } from "react";
 import { MonitorSmartphone, RotateCw, Undo2, ZoomIn } from "lucide-react";
 
@@ -22,6 +22,7 @@ interface EmulatorChromeProps {
 
 interface EmulatorToolbarProps {
   emulator: DeviceEmulationValue;
+  compactOnMobile?: boolean;
 }
 
 interface EmulatorViewportProps {
@@ -52,7 +53,7 @@ const deviceGroupLabel = (
  * permanently visible/disabled inputs. Device and zoom state remain owned by
  * useDeviceEmulation so persisted behavior is unchanged.
  */
-export function EmulatorToolbar({ emulator }: EmulatorToolbarProps) {
+export function EmulatorToolbar({ emulator, compactOnMobile = false }: EmulatorToolbarProps) {
   const { t } = useTranslation();
   const idPrefix = useId();
   const widthInputId = `${idPrefix}-width`;
@@ -77,6 +78,7 @@ export function EmulatorToolbar({ emulator }: EmulatorToolbarProps) {
         icon={<MonitorSmartphone aria-hidden className="h-4 w-4" />}
         triggerTestId={selectors.components.emulator.viewportToggle}
         panelTestId={selectors.components.emulator.viewportPanel}
+        compactOnMobile={compactOnMobile}
       >
         <p className="mb-space-xs text-xs leading-5 text-app-muted-foreground">
           {t(strings.components.emulator.viewportDescription)}
@@ -211,7 +213,12 @@ export function EmulatorToolbar({ emulator }: EmulatorToolbarProps) {
             <Button
               type="button"
               data-testid="components-emulator-fit"
-              onClick={emulator.fitToPane}
+              onClick={(event) =>
+                emulator.fitToPane(
+                  event.currentTarget.closest<HTMLElement>("[data-emulator-viewport-frame]")
+                    ?.parentElement,
+                )
+              }
               variant="secondary"
               className="h-9 flex-1 px-space-2xs text-xs"
             >

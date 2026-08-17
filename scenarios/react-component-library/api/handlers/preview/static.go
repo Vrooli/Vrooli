@@ -100,7 +100,7 @@ func (h *HarnessHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "preview: requested design kit is unavailable", http.StatusInternalServerError)
 		return
 	}
-	doc := renderHarnessHTML(id, bundle, story, css)
+	doc := renderHarnessHTML(id, bundle, story, css, strings.EqualFold(strings.TrimSpace(r.URL.Query().Get("view")), "canvas"))
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
 	// Same-origin: the host iframe controls the `src`, and same-origin
@@ -158,6 +158,11 @@ type harnessStory struct {
 	ExpectJSON            string
 	Harness               string
 	Frame                 *components.StoryFrame
+	Geometry              *components.StoryGeometry
+	Mode                  components.StoryMode
+	Slot                  string
+	AssetKind             components.AssetKind
+	Archetype             string
 }
 
 // resolveStory uses the indexed story contract as the only harness baseline.
@@ -167,6 +172,10 @@ func (h *HarnessHandler) resolveStory(r *http.Request, id string) (harnessStory,
 		return harnessStory{}, nil
 	}
 	version := strings.TrimSpace(r.URL.Query().Get("version"))
+	component, err := h.components.Get(r.Context(), id)
+	if err != nil {
+		return harnessStory{}, err
+	}
 	stories, err := h.components.ListStories(r.Context(), components.StoryQuery{ComponentID: id, Version: version, Limit: 20})
 	if err != nil {
 		return harnessStory{}, err
@@ -199,14 +208,51 @@ func (h *HarnessHandler) resolveStory(r *http.Request, id string) (harnessStory,
 			if err != nil {
 				return harnessStory{}, fmt.Errorf("preview: encode story environment: %w", err)
 			}
-			return harnessStory{Name: definition.ID, Version: projected.Version, DisplayName: definition.Name, Kind: contract.Kind, PropsJSON: string(args), ArgsJSON: projected.ArgsJSON, EnvironmentJSON: string(environment), EnvironmentSchemaJSON: projected.EnvironmentJSON, InteractionsJSON: string(interactions), ExpectJSON: string(expect), Harness: definition.Harness, Frame: components.EffectiveStoryFrame(&contract, &definition)}, nil
+			frame := components.EffectiveStoryFrame(&contract, &definition)
+			return harnessStory{Name: definition.ID, Version: projected.Version, DisplayName: definition.Name, Kind: contract.Kind, PropsJSON: string(args), ArgsJSON: projected.ArgsJSON, EnvironmentJSON: string(environment), EnvironmentSchemaJSON: projected.EnvironmentJSON, InteractionsJSON: string(interactions), ExpectJSON: string(expect), Harness: definition.Harness, Frame: frame, Geometry: definition.Geometry, Mode: definition.Mode, Slot: component.Slot, AssetKind: component.AssetKind, Archetype: resolvePreviewArchetype(component.AssetKind, component.Slot, frame)}, nil
 		}
 	}
 	return harnessStory{}, fmt.Errorf("preview: story %q not found for component %q", storyID, id)
 }
 
-func renderHarnessHTML(id string, b preview.Bundle, ex harnessStory, designSystemCSS string) string {
+type previewArchetype string
+
+const (
+	previewArchetypePrimitive previewArchetype = "primitive"
+	previewArchetypePattern   previewArchetype = "pattern"
+	previewArchetypePage      previewArchetype = "page"
+	previewArchetypeOverlay   previewArchetype = "overlay"
+)
+
+func resolvePreviewArchetype(kind components.AssetKind, slot string, frame *components.StoryFrame) string {
+	if frame != nil {
+		asset := strings.ToLower(frame.Asset)
+		if strings.Contains(asset, "dialog") || strings.Contains(asset, "modal") || strings.Contains(asset, "popover") || strings.Contains(asset, "overlay") {
+			return string(previewArchetypeOverlay)
+		}
+		return string(previewArchetypePage)
+	}
+	if kind == components.AssetKindHook || kind == components.AssetKindFoundation {
+		return string(previewArchetypePrimitive)
+	}
+	switch strings.ToLower(strings.TrimSpace(slot)) {
+	case "ui-primitive":
+		return string(previewArchetypePrimitive)
+	case "ui-pattern":
+		return string(previewArchetypePattern)
+	case "layout-nav":
+		return string(previewArchetypePage)
+	default:
+		return string(previewArchetypePattern)
+	}
+}
+
+func renderHarnessHTML(id string, b preview.Bundle, ex harnessStory, designSystemCSS string, galleryMode ...bool) string {
 	var sb strings.Builder
+	bodyClass := ""
+	if len(galleryMode) > 0 && galleryMode[0] {
+		bodyClass = ` class="rcl-preview-gallery"`
+	}
 	sb.WriteString(`<!doctype html>
 <html lang="en">
 <head>
@@ -229,6 +275,9 @@ func renderHarnessHTML(id string, b preview.Bundle, ex harnessStory, designSyste
 	sb.WriteString(`
   html, body { margin: 0; padding: 0; min-height: 100vh; background: var(--color-background); color: var(--color-foreground); font-family: var(--font-sans, ui-sans-serif), system-ui, sans-serif; }
   #root { min-height: 100vh; box-sizing: border-box; background: var(--color-background); }
+  .rcl-preview-gallery,
+  .rcl-preview-gallery #root { min-height: 100%; height: 100%; overflow: hidden; }
+  .rcl-preview-gallery .rcl-preview-specimen { min-height: 100%; height: 100%; padding: 24px; }
   .rcl-preview-specimen {
     min-height: 100vh;
     box-sizing: border-box;
@@ -240,6 +289,17 @@ func renderHarnessHTML(id string, b preview.Bundle, ex harnessStory, designSyste
       linear-gradient(135deg, color-mix(in srgb, var(--color-surface) 54%, transparent), transparent 58%),
       var(--color-background);
   }
+  .rcl-preview-stage {
+    min-height: 100vh;
+    box-sizing: border-box;
+    width: 100%;
+    display: grid;
+    align-content: start;
+    background: var(--color-background);
+  }
+  .rcl-preview-stage--pattern { padding: clamp(24px, 4vw, 64px); }
+  .rcl-preview-stage--page,
+  .rcl-preview-stage--overlay { min-height: 100vh; padding: 0; }
   .rcl-preview-well {
     width: min(100%, 760px);
     box-sizing: border-box;
@@ -313,7 +373,9 @@ func renderHarnessHTML(id string, b preview.Bundle, ex harnessStory, designSyste
 })();
 </script>
 </head>
-<body>
+<body`)
+	sb.WriteString(bodyClass)
+	sb.WriteString(`>
 <div id="root" data-testid="component-harness-root" data-experience-surface="component-harness" data-experience-state="loading"></div>
 `)
 	if len(importWarnings) > 0 {
@@ -354,6 +416,11 @@ const previewStory = {
   expect: ` + jsonArrayLiteral(ex.ExpectJSON) + `,
   harness: ` + jsString(ex.Harness) + `,
   frame: ` + frameJSON(ex.Frame) + `,
+  geometry: ` + geometryJSON(ex.Geometry) + `,
+  mode: ` + jsString(string(ex.Mode)) + `,
+  slot: ` + jsString(ex.Slot) + `,
+  assetKind: ` + jsString(string(ex.AssetKind)) + `,
+  archetype: ` + jsString(ex.Archetype) + `,
   fixture: ` + jsonObjectLiteral(b.FixtureJSON) + `,
 };
 // Resolved-theme bridge: the host owns the app/system decision and posts
@@ -395,6 +462,56 @@ window.addEventListener("message", (ev) => {
       parent.postMessage({ type: "rcl-theme-applied", themeId: data.themeId || "" }, "*");
     } catch (e) {}
   });
+})();
+// Route isolation: component navigation is part of the specimen, not a
+// request to replace the preview harness with the library application. Keep
+// same-origin links and history updates inside this harness document while
+// preserving a readable hash route for stories that want to observe it.
+(() => {
+  const harnessPath = window.location.pathname;
+  const routeFor = (raw) => {
+    if (raw === undefined || raw === null || raw === "") return null;
+    let resolved;
+    try { resolved = new URL(String(raw), window.location.href); } catch (e) { return null; }
+    if (resolved.origin !== window.location.origin) return null;
+    if (resolved.pathname === harnessPath && resolved.hash.startsWith("#/")) return resolved.pathname + resolved.search + resolved.hash;
+    if (resolved.pathname === harnessPath && !resolved.search && !resolved.hash) return null;
+    return harnessPath + "#" + resolved.pathname + resolved.search + resolved.hash;
+  };
+  const applyRoute = (raw, replace) => {
+    const local = routeFor(raw);
+    if (!local) return false;
+    const method = replace ? "replaceState" : "pushState";
+    window.history[method]({}, "", local);
+    window.dispatchEvent(new PopStateEvent("popstate"));
+    document.documentElement.dataset.previewRoute = local.slice(local.indexOf("#") + 1);
+    return true;
+  };
+  const nativePushState = window.history.pushState.bind(window.history);
+  const nativeReplaceState = window.history.replaceState.bind(window.history);
+  window.history.pushState = (state, title, raw) => {
+    if (routeFor(raw)) {
+      nativePushState(state, title, routeFor(raw));
+      window.dispatchEvent(new PopStateEvent("popstate"));
+      return;
+    }
+    nativePushState(state, title, raw);
+  };
+  window.history.replaceState = (state, title, raw) => {
+    if (routeFor(raw)) {
+      nativeReplaceState(state, title, routeFor(raw));
+      window.dispatchEvent(new PopStateEvent("popstate"));
+      return;
+    }
+    nativeReplaceState(state, title, raw);
+  };
+  document.addEventListener("click", (event) => {
+    if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    const anchor = event.target && event.target.closest ? event.target.closest("a[href]") : null;
+    if (!anchor || anchor.target === "_blank" || !applyRoute(anchor.getAttribute("href"), false)) return;
+    event.preventDefault();
+    event.stopPropagation();
+  }, true);
 })();
 // Inspector (req IS-001..003): minimal implementation of the
 // @vrooli/iframe-bridge INSPECT wire protocol. The host sends
@@ -709,7 +826,9 @@ try {
     : Mod[Object.keys(Mod).find(k => isRenderableComponent(Mod[k]))] ?? null;
   const hookEntry = Object.entries(Mod).find(([name, value]) => name.startsWith("use") && typeof value === "function");
   const Frame = Object.values(FrameMod).find((value) => isRenderableComponent(value));
-  if (previewStory.kind === "hook" && !hookEntry) {
+  if (previewStory.mode === "live" && !previewStory.harness) {
+    showPreviewError("preview: live stories must declare an explicit harness");
+  } else if (previewStory.kind === "hook" && !hookEntry) {
     showPreviewError("preview: hook file exports no callable use* hook");
   } else if (previewStory.kind !== "hook" && !Cmp) {
     showPreviewError("preview: component file exports neither a default nor a callable named export");
@@ -780,7 +899,19 @@ try {
 		const buttonClass = "min-h-11 min-w-11 rounded-control px-2 py-1";
 		return React.createElement("div", { role: "status", "data-rcl-hook-root": true }, React.createElement("button", { type: "button", className: buttonClass, "data-rcl-hook-action": "start", onClick: () => void voice.start() }, "Start"), React.createElement("button", { type: "button", className: buttonClass, "data-rcl-hook-action": "stop", onClick: () => void voice.stop() }, "Stop"), React.createElement("output", null, voice.state));
       };
+      if (hookName === "useFileAttach" || hookName === "useClipboard" || hookName === "useNetworkStatus") return () => {
+        const key = hookName === "useFileAttach" ? "fileAttach" : hookName === "useClipboard" ? "clipboard" : "network";
+        const state = environment && environment[key] || "idle";
+        return React.createElement("div", { role: "status", "data-rcl-hook-root": true }, hookName + ": " + state);
+      };
       throw new Error("preview: no registered fixture for hook " + hookName);
+    };
+    const resolveFixtureContext = (environment) => {
+      const declared = Array.isArray(previewStory.environmentSchema && previewStory.environmentSchema.fixtures) ? previewStory.environmentSchema.fixtures : [];
+      return Object.fromEntries(declared.map((fixture) => [fixture.key, {
+        adapter: fixture.adapter,
+        value: environment && environment[fixture.key] || fixture.options && fixture.options[0] || "idle",
+      }]));
     };
     const validateEnvironment = (environment) => {
       if (!environment || typeof environment !== "object" || Array.isArray(environment)) return ["Environment override must be an object."];
@@ -793,7 +924,13 @@ try {
       }
       return failures;
     };
-    const wrapStandalone = (subject) => previewStory.kind === "component"
+    const wrapStandalone = (subject) => {
+      const archetype = previewStory.geometry?.archetype || previewStory.archetype || "pattern";
+      if (archetype !== "primitive") {
+        const className = "rcl-preview-stage rcl-preview-stage--" + archetype;
+        return React.createElement("div", { className, "data-preview-stage": "stage", "data-preview-archetype": archetype }, subject);
+      }
+      return previewStory.kind === "component"
       ? React.createElement(
         "div",
         { className: "rcl-preview-specimen", "data-preview-stage": "specimen" },
@@ -805,11 +942,13 @@ try {
         ),
       )
       : subject;
+    };
     const renderPreview = (override, environment = previewStory.environment) => {
       const safeOverride = override && typeof override === "object" && !Array.isArray(override) ? override : {};
       const props = resolveProps(mergeStoryProps(previewStory.props, safeOverride));
+      const fixtures = resolveFixtureContext(environment);
       const subject = previewStory.harness
-        ? React.createElement(HarnessMod[previewStory.harness], { args: props, log: postPreviewEvent })
+        ? React.createElement(HarnessMod[previewStory.harness], { args: props, environment, fixtures, log: postPreviewEvent })
         : previewStory.kind === "hook" ? React.createElement(hookFixture(props, environment)) : React.createElement(Cmp, props);
       if (previewStory.frame && Frame) {
         const fixtureRegion = React.createElement(
@@ -834,7 +973,7 @@ try {
       if (previewStory.harness) {
         const Harness = HarnessMod[previewStory.harness];
         if (typeof Harness !== "function") throw new Error("preview: harness export " + previewStory.harness + " was not found");
-        root.render(wrapStandalone(React.createElement(Harness, { args: props, log: postPreviewEvent })));
+        root.render(wrapStandalone(React.createElement(Harness, { args: props, environment, fixtures: resolveFixtureContext(environment), log: postPreviewEvent })));
         return;
       }
       const standaloneSubject = previewStory.kind === "hook"
@@ -1120,6 +1259,17 @@ func frameJSON(frame *components.StoryFrame) string {
 		return "null"
 	}
 	raw, err := json.Marshal(frame)
+	if err != nil {
+		return "null"
+	}
+	return string(raw)
+}
+
+func geometryJSON(geometry *components.StoryGeometry) string {
+	if geometry == nil {
+		return "null"
+	}
+	raw, err := json.Marshal(geometry)
 	if err != nil {
 		return "null"
 	}

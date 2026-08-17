@@ -67,4 +67,13 @@ describe("ThemeSwitcher", () => {
     await user.click(screen.getByTestId(selectors.components.themeSwitcher.modeDark));
     expect(setColorScheme).toHaveBeenCalledWith("dark");
   });
+
+  it("portals the appearance panel above the preview dock", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<Harness />);
+    await user.click(screen.getByTestId(selectors.components.themeSwitcher.appearanceToggle));
+    const panel = screen.getByTestId(selectors.components.themeSwitcher.appearancePanel);
+    expect(panel.parentElement).toBe(document.body);
+    expect(panel).toHaveClass("fixed");
+  });
 });

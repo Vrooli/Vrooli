@@ -129,7 +129,7 @@ export interface DeviceEmulationValue {
   zoomIn: () => void;
   zoomOut: () => void;
   resetZoom: () => void;
-  fitToPane: () => void;
+  fitToPane: (target?: HTMLElement | null) => void;
   rotate: () => void;
   reset: () => void;
 }
@@ -185,8 +185,8 @@ export function useDeviceEmulation(): DeviceEmulationValue {
     setState((prev) => ({ ...prev, zoom: 1 }));
   }, []);
 
-  const fitToPane = useCallback(() => {
-    const frame = document.querySelector<HTMLElement>("[data-emulator-viewport-frame]");
+  const fitToPane = useCallback((target?: HTMLElement | null) => {
+    const frame = target?.querySelector<HTMLElement>("[data-emulator-viewport-frame]") ?? null;
     const availableWidth = frame?.clientWidth ?? 0;
     const availableHeight = frame?.clientHeight ?? 0;
     if (availableWidth <= 0 || availableHeight <= 0) {
@@ -195,7 +195,6 @@ export function useDeviceEmulation(): DeviceEmulationValue {
     }
     const horizontalPadding = 24;
     const nextZoom = Math.min(
-      1,
       (availableWidth - horizontalPadding) / displayWidth,
       (availableHeight - horizontalPadding) / displayHeight,
     );

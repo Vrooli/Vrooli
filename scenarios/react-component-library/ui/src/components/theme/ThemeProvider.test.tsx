@@ -50,10 +50,12 @@ function installMatchMedia(dark: boolean) {
 describe("ThemeProvider", () => {
   beforeEach(() => {
     window.localStorage.clear();
+    window.history.replaceState({}, "", "/");
     document.documentElement.removeAttribute("data-resolved-theme");
     document.documentElement.classList.remove("dark");
   });
   afterEach(() => {
+    window.history.replaceState({}, "", "/");
     vi.unstubAllGlobals();
   });
 
@@ -75,6 +77,19 @@ describe("ThemeProvider", () => {
       </ThemeProvider>,
     );
     expect(screen.getByTestId("theme").textContent).toBe("system");
+    expect(screen.getByTestId("resolved").textContent).toBe("dark");
+    expect(document.documentElement.classList.contains("dark")).toBe(true);
+  });
+
+  it("honors an explicit URL theme for deterministic preview captures", () => {
+    installMatchMedia(false);
+    window.history.replaceState({}, "", "/assets/example?theme=dark");
+    render(
+      <ThemeProvider>
+        <Probe />
+      </ThemeProvider>,
+    );
+    expect(screen.getByTestId("theme").textContent).toBe("dark");
     expect(screen.getByTestId("resolved").textContent).toBe("dark");
     expect(document.documentElement.classList.contains("dark")).toBe(true);
   });

@@ -1,0 +1,12 @@
+{
+  "libraryId": "react-component-library:PreviewDock",
+  "catalogId": "preview.preview-dock",
+  "displayName": "PreviewDock",
+  "description": "Overlay controls that keep preview navigation visible without taking space from the specimen.",
+  "assetKind": "component",
+  "tags": ["preview", "chrome", "responsive"],
+  "slot": "ui-pattern",
+  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
+  "latest": "1.0.0",
+  "deprecatedVersions": []
+}

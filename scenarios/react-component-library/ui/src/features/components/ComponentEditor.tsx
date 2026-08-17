@@ -1,3 +1,3 @@
-/** @vrooliComponentSource patterns.master-detail-workspace */
+/** @vrooliComponentSource react-component-library:MasterDetail */
 export { ComponentEditorImpl as ComponentEditor } from "./ComponentEditorController";
 export type { ComparisonSession } from "./ComponentEditorController";

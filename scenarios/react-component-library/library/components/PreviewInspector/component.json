@@ -1,0 +1,12 @@
+{
+  "libraryId": "react-component-library:PreviewInspector",
+  "catalogId": "preview.inspector-drawer",
+  "displayName": "PreviewInspector",
+  "description": "A dismissible slide-over for props, inspector details, and preview events.",
+  "assetKind": "component",
+  "tags": ["preview", "overlay", "inspection"],
+  "slot": "ui-pattern",
+  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
+  "latest": "1.0.0",
+  "deprecatedVersions": []
+}

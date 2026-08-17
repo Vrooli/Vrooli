@@ -19,7 +19,7 @@ interface PropsExperimentPanelProps {
   onReset: () => void;
 }
 
-type ControlKind = "text" | "number" | "boolean" | "select";
+type ControlKind = "text" | "number" | "boolean" | "select" | "json";
 interface ControlDefinition {
   key: string;
   label?: string;
@@ -48,12 +48,15 @@ function controlsFor(storyContract?: ComponentStory): ControlDefinition[] {
           };
           if (typeof value.path !== "string") return [];
           const kind = value.kind === "enum" ? "select" : value.kind;
-          if (!["text", "number", "boolean", "select"].includes(String(kind))) return [];
+          const controlKind = ["object", "array", "structured"].includes(String(kind))
+            ? "json"
+            : kind;
+          if (!["text", "number", "boolean", "select", "json"].includes(String(controlKind))) return [];
           return [
             {
               key: value.path,
               label: typeof value.label === "string" ? value.label : value.path,
-              kind: kind as ControlKind,
+              kind: controlKind as ControlKind,
               options: Array.isArray(value.options)
                 ? value.options.filter((option): option is string => typeof option === "string")
                 : undefined,
@@ -287,6 +290,18 @@ export function PropsExperimentPanel({
                 </option>
               ))}
             </select>
+          ) : control.kind === "json" ? (
+            <textarea
+              className="mt-space-3xs min-h-20 w-full resize-y rounded-md border border-app-border bg-app-background p-space-2xs font-mono text-xs"
+              value={JSON.stringify(valueAtPath(values, control.key) ?? (control.kind === "json" ? {} : null), null, 2)}
+              onChange={(event) => {
+                try {
+                  setValue(control.key, JSON.parse(event.target.value));
+                } catch {
+                  setParseError(`Invalid JSON for ${control.key}.`);
+                }
+              }}
+            />
           ) : (
             <input
               className="mt-space-3xs h-9 w-full rounded-md border border-app-border bg-app-background px-space-2xs text-sm"

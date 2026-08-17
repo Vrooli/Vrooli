@@ -23,6 +23,9 @@ const CapabilitiesPage = lazy(() =>
 const NotFoundPage = lazy(() =>
   import("./pages/NotFoundPage").then((m) => ({ default: m.NotFoundPage })),
 );
+const PreviewPopoutPage = lazy(() =>
+  import("./pages/PreviewPopoutPage").then((m) => ({ default: m.PreviewPopoutPage })),
+);
 
 function RouteSkeleton() {
   const { t } = useTranslation();
@@ -52,6 +55,14 @@ export default function App() {
 
   return (
     <Routes>
+      <Route
+        path={appRoutes.preview}
+        element={
+          <Page>
+            <PreviewPopoutPage />
+          </Page>
+        }
+      />
       <Route element={<AppShell />}>
         <Route
           path={appRoutes.catalog}

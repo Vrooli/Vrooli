@@ -1,0 +1,28 @@
+{
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "schema": "scenario-experience-spec/v1",
+    "provenance": "react-component-library:SplitPane@1.1.0"
+  },
+  "component": {
+    "id": "manipulation.split-pane",
+    "title": "SplitPane",
+    "purpose": "Stable two-region workspace layout."
+  },
+  "states": [
+    {
+      "id": "default",
+      "example": "default",
+      "description": "Both panes preserve usable regions."
+    }
+  ],
+  "claims": [
+    {
+      "id": "contract-present",
+      "type": "custom",
+      "statement": "SplitPane preserves two meaningful regions across layout changes.",
+      "tier": "manual",
+      "states": ["default"]
+    }
+  ]
+}

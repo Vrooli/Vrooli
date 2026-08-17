@@ -9,6 +9,7 @@ export const appRoutes = {
   catalog: "/",
   assetCatalog: "/catalog",
   asset: "/assets/:id",
+  preview: "/assets/:id/preview",
   coverage: "/coverage",
   capabilities: "/capabilities",
   settings: "/settings",
@@ -23,7 +24,7 @@ export type AssetInfoTab =
   | "progression"
   | "adoptions"
   | "relationships";
-export type AssetRouteState = { tab?: AssetInfoTab; story?: string; testReport?: string };
+export type AssetRouteState = { tab?: AssetInfoTab; story?: string; testReport?: string; view?: "focus" | "canvas" };
 
 const assetTabs = new Set<AssetInfoTab>([
   "overview",
@@ -41,8 +42,17 @@ export function assetPath(assetID: string, state: AssetRouteState = {}): string 
   if (state.tab && state.tab !== "preview") search.set("tab", state.tab);
   if (state.story) search.set("story", state.story);
   if (state.testReport && state.tab === "tests") search.set("testReport", state.testReport);
+  if (state.view) search.set("view", state.view);
   const serialized = search.toString();
   return `/assets/${encodeURIComponent(assetID)}${serialized ? `?${serialized}` : ""}`;
+}
+
+export function previewPath(assetID: string, story?: string, view?: "focus" | "canvas"): string {
+  const search = new URLSearchParams();
+  if (story) search.set("story", story);
+  if (view) search.set("view", view);
+  const serialized = search.toString();
+  return `/assets/${encodeURIComponent(assetID)}/preview${serialized ? `?${serialized}` : ""}`;
 }
 
 export function assetInfoTab(search: URLSearchParams): AssetInfoTab {

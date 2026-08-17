@@ -1,6 +1,5 @@
-/** @vrooliComponentSource patterns.split-pane-workspace */
-import type { ReactNode, Ref } from "react";
-import { Group, Panel, Separator } from "react-resizable-panels";
+/** @vrooliComponentSource react-component-library:SplitPane */
+import { useRef, useState, type PointerEvent, type ReactNode, type Ref } from "react";
 
 import { Button } from "../../components/Button";
 import { selectors } from "../../consts/selectors";
@@ -31,7 +30,6 @@ export type PreviewSpecimen = {
 type StageProps = {
   emulator: DeviceEmulationValue;
   filters: DeviceFiltersValue;
-  desktopLayout: boolean;
   stageMode: boolean;
   comparisonActive: boolean;
   specimens: Array<PreviewSpecimen | undefined>;
@@ -51,7 +49,7 @@ type StageProps = {
   resolvedPreviewTheme: string;
   previewCanvasRef: Ref<HTMLDivElement>;
   tools: ReactNode;
-  mobileTools: ReactNode;
+  toolsOpen: boolean;
   onClearComparison: () => void;
   onToggleComparison: (identity: SpecimenIdentity) => void;
   onRetrySpecimen: (identity: SpecimenIdentity) => void;
@@ -59,17 +57,13 @@ type StageProps = {
   onPreviewLoad: (identity: SpecimenIdentity) => void;
   onPreviewError: (identity: SpecimenIdentity) => void;
   postToPreviewFrames: (message: unknown) => void;
-  previewToolsPanelRef: React.RefObject<
-    import("react-resizable-panels").PanelImperativeHandle | null
-  >;
-  onPanelCollapsed: (collapsed: boolean) => void;
-  onSetMobileTool: (tool: "props" | "inspector" | null) => void;
+  onCloseTools: () => void;
+  onEnterSpecimen: (identity: SpecimenIdentity) => void;
 };
 
 export function ComponentEditorStage({
   emulator,
   filters,
-  desktopLayout,
   stageMode,
   comparisonActive,
   specimens,
@@ -89,7 +83,7 @@ export function ComponentEditorStage({
   resolvedPreviewTheme,
   previewCanvasRef,
   tools,
-  mobileTools,
+  toolsOpen,
   onClearComparison,
   onToggleComparison,
   onRetrySpecimen,
@@ -97,242 +91,264 @@ export function ComponentEditorStage({
   onPreviewLoad,
   onPreviewError,
   postToPreviewFrames,
-  previewToolsPanelRef,
-  onPanelCollapsed,
-  onSetMobileTool,
+  onCloseTools,
+  onEnterSpecimen,
 }: StageProps) {
   const { t } = useTranslation();
+  const [canvasOffset, setCanvasOffset] = useState({ x: 0, y: 0 });
+  const dragRef = useRef<{ x: number; y: number; originX: number; originY: number } | null>(null);
   const identityFor = (example?: PreviewSpecimen): SpecimenIdentity =>
     `${example?.version || "__current__"}:${example?.name || "__default__"}`;
   return (
-    <Group
-      id="component-preview-workbench"
-      orientation="vertical"
-      defaultLayout={{ specimen: 1, tools: 280 }}
-      className="min-h-0 flex-1"
-    >
-      <Panel id="specimen" minSize={220} className="min-h-0">
-        <div className="relative h-full min-h-0">
-          <EmulatorViewport
-            emulator={emulator}
-            filters={filters}
-            mode={stageMode ? "stage" : "gallery"}
+    <div id="component-preview-workbench" className="relative min-h-0 flex-1 pt-48">
+      <div className="relative h-full min-h-0">
+        {comparisonActive && (
+          <div className="absolute bottom-space-xs left-space-xs z-10 flex max-w-[calc(100%-var(--space-sm))] items-center gap-space-2xs rounded-md border border-app-primary/30 bg-app-surface/95 px-space-xs py-space-2xs text-xs shadow-md backdrop-blur">
+            <p
+              data-testid={selectors.components.editor.comparisonToolbar}
+              className="text-app-foreground"
+            >
+              {t(strings.components.editor.comparing)}
+            </p>
+            <Button
+              data-testid={selectors.components.editor.comparisonClear}
+              type="button"
+              variant="secondary"
+              className="h-7 shrink-0 px-space-2xs text-xs"
+              onClick={onClearComparison}
+            >
+              {t(strings.components.editor.showAllStories)}
+            </Button>
+          </div>
+        )}
+        <p
+          data-testid={selectors.components.editor.galleryStatus}
+          aria-live="polite"
+          className="pointer-events-none absolute bottom-space-xs right-space-xs z-10 max-w-[45%] truncate rounded-md bg-app-surface/90 px-space-2xs py-space-3xs text-xs text-app-muted-foreground shadow-sm backdrop-blur"
+        >
+          {previewMessage ||
+            t(strings.components.editor.storyStatus, {
+              ready: readyExamples.size,
+              total: specimens.length,
+            })}
+        </p>
+        <EmulatorViewport
+          emulator={emulator}
+          filters={filters}
+          mode={stageMode ? "stage" : "gallery"}
+        >
+          <div
+            data-testid={selectors.components.editor.gallery}
+            data-preview-stage-mode={stageMode ? "true" : "false"}
+            data-preview-view={stageMode ? "focus" : "canvas"}
+            onPointerDown={(event: PointerEvent<HTMLDivElement>) => {
+              if (stageMode) return;
+              const target = event.target as Element;
+              if (target.closest(`[data-testid="${selectors.components.editor.exampleCard}"]`)) {
+                return;
+              }
+              dragRef.current = {
+                x: event.clientX,
+                y: event.clientY,
+                originX: canvasOffset.x,
+                originY: canvasOffset.y,
+              };
+              event.currentTarget.setPointerCapture(event.pointerId);
+            }}
+            onPointerMove={(event) => {
+              if (!dragRef.current) return;
+              setCanvasOffset({
+                x: dragRef.current.originX + event.clientX - dragRef.current.x,
+                y: dragRef.current.originY + event.clientY - dragRef.current.y,
+              });
+            }}
+            onPointerUp={(event) => {
+              dragRef.current = null;
+              event.currentTarget.releasePointerCapture?.(event.pointerId);
+            }}
+            onWheel={(event) => {
+              if (stageMode) return;
+              event.preventDefault();
+              const direction = event.deltaY > 0 ? -1 : 1;
+              emulator.setZoom(emulator.zoom + direction * 0.1);
+            }}
+            className={
+              stageMode
+                ? "flex h-full min-h-0 items-center justify-center bg-app-background p-space-xs"
+                : "h-full cursor-grab touch-none bg-app-background p-space-xs active:cursor-grabbing"
+            }
+            style={
+              stageMode
+                ? { width: emulator.displayWidth, height: emulator.displayHeight }
+                : {
+                    backgroundImage:
+                      "linear-gradient(to right, color-mix(in srgb, var(--color-border) 48%, transparent) 1px, transparent 1px), linear-gradient(to bottom, color-mix(in srgb, var(--color-border) 48%, transparent) 1px, transparent 1px)",
+                    backgroundSize: "24px 24px",
+                  }
+            }
           >
             <div
-              data-testid={selectors.components.editor.gallery}
-              data-preview-stage-mode={stageMode ? "true" : "false"}
-              className={
-                stageMode
-                  ? "flex h-full items-center justify-center overflow-auto bg-app-background p-space-xs"
-                  : "h-full overflow-auto bg-app-background p-space-xs"
-              }
+              data-canvas-surface={!stageMode ? "true" : undefined}
+              aria-label={!stageMode ? "Preview canvas. Drag to pan, scroll to zoom." : undefined}
               style={
-                stageMode
-                  ? { width: emulator.displayWidth, height: emulator.displayHeight }
+                !stageMode
+                  ? {
+                      transform: `translate(${canvasOffset.x}px, ${canvasOffset.y}px) scale(${emulator.zoom})`,
+                      transformOrigin: "top left",
+                    }
                   : undefined
               }
+              className={
+                stageMode
+                  ? "flex min-w-0 justify-center"
+                  : comparisonActive
+                    ? "grid min-w-0 grid-cols-1 gap-space-xs md:grid-cols-2"
+                    : "grid min-w-0 grid-cols-[repeat(auto-fit,minmax(20rem,1fr))] gap-space-xs"
+              }
             >
-              {comparisonActive && (
-                <div
-                  data-testid={selectors.components.editor.comparisonToolbar}
-                  className="mb-space-xs flex flex-wrap items-center justify-between gap-space-2xs rounded-md border border-app-primary/30 bg-app-primary/10 px-space-xs py-space-2xs"
-                >
-                  <p className="text-xs text-app-foreground">
-                    {t(strings.components.editor.comparing)}
-                  </p>
-                  <Button
-                    data-testid={selectors.components.editor.comparisonClear}
-                    type="button"
-                    variant="secondary"
-                    className="h-7 px-space-2xs text-xs"
-                    onClick={onClearComparison}
+              {visibleSpecimens.map((example) => {
+                const identity = identityFor(example);
+                const title =
+                  example?.displayName ||
+                  example?.name ||
+                  t(strings.components.editor.previewHeading);
+                const error = specimenErrors[identity];
+                const isActive = activeSpecimen === identity;
+                return (
+                  <section
+                    ref={stageMode && isActive ? previewCanvasRef : undefined}
+                    key={identity}
+                    data-testid={selectors.components.editor.exampleCard}
+                    data-specimen={identity}
+                    data-story={example?.storyId ?? "__default__"}
+                    data-story-ready={readyExamples.has(identity) ? "true" : "false"}
+                    onClick={() => {
+                      if (!stageMode) onEnterSpecimen(identity);
+                    }}
+                    className={`min-w-0 overflow-hidden rounded-md border bg-app-surface ${stageMode ? "w-fit max-w-full" : "h-[24rem]"} ${isActive ? "border-app-primary ring-1 ring-app-primary/30" : "border-app-border"}`}
                   >
-                    {t(strings.components.editor.showAllStories)}
-                  </Button>
-                </div>
-              )}
-              <p
-                data-testid={selectors.components.editor.galleryStatus}
-                aria-live="polite"
-                className="mb-space-2xs text-xs text-app-muted-foreground"
-              >
-                {previewMessage ||
-                  t(strings.components.editor.storyStatus, {
-                    ready: readyExamples.size,
-                    total: specimens.length,
-                  })}
-              </p>
-              <div
-                className={
-                  stageMode
-                    ? "flex min-w-0 justify-center"
-                    : comparisonActive
-                      ? "grid min-w-0 grid-cols-1 gap-space-xs md:grid-cols-2"
-                      : "grid min-w-0 grid-cols-[repeat(auto-fit,minmax(20rem,1fr))] gap-space-xs"
-                }
-              >
-                {visibleSpecimens.map((example) => {
-                  const identity = identityFor(example);
-                  const title =
-                    example?.displayName ||
-                    example?.name ||
-                    t(strings.components.editor.previewHeading);
-                  const error = specimenErrors[identity];
-                  const isActive = activeSpecimen === identity;
-                  return (
-                    <section
-                      ref={stageMode && isActive ? previewCanvasRef : undefined}
-                      key={identity}
-                      data-testid={selectors.components.editor.exampleCard}
-                      data-specimen={identity}
-                      data-story={example?.storyId ?? "__default__"}
-                      data-story-ready={readyExamples.has(identity) ? "true" : "false"}
-                      className={`min-w-0 overflow-hidden rounded-md border bg-app-surface ${stageMode ? "w-fit max-w-full" : ""} ${isActive ? "border-app-primary ring-1 ring-app-primary/30" : "border-app-border"}`}
-                    >
-                      <header className="flex items-center justify-between gap-space-2xs border-b border-app-border px-space-xs py-space-2xs">
-                        <h3
-                          data-testid={selectors.components.editor.exampleTitle}
-                          title={example?.description}
-                          className="min-w-0 truncate text-sm font-semibold text-app-foreground"
-                        >
-                          {title}
-                        </h3>
-                        {examplesCanCompare(specimens) && (
-                          <Button
-                            data-testid={selectors.components.editor.exampleCompare}
-                            type="button"
-                            variant={comparedSpecimens.has(identity) ? "primary" : "secondary"}
-                            aria-pressed={comparedSpecimens.has(identity)}
-                            disabled={
-                              !comparedSpecimens.has(identity) && comparedSpecimens.size >= 2
-                            }
-                            className="h-7 px-space-2xs text-xs"
-                            onClick={() => onToggleComparison(identity)}
+                    {!stageMode && (
+                      <>
+                        <header className="flex items-center justify-between gap-space-2xs border-b border-app-border px-space-xs py-space-2xs">
+                          <h3
+                            data-testid={selectors.components.editor.exampleTitle}
+                            title={example?.description}
+                            className="min-w-0 truncate text-sm font-semibold text-app-foreground"
                           >
-                            {t(strings.components.editor.compareStory)}
-                          </Button>
-                        )}
-                      </header>
-                      {example?.description ? (
-                        <p
-                          data-testid={selectors.components.editor.storyDescription}
-                          className="border-b border-app-border bg-app-muted/30 px-space-xs py-space-2xs text-xs leading-relaxed text-app-muted-foreground"
-                        >
-                          {example.description}
-                        </p>
-                      ) : null}
-                      {error ? (
-                        <div
-                          data-testid={selectors.components.editor.specimenError}
-                          className="flex min-h-[18rem] flex-col items-center justify-center gap-space-xs bg-app-danger/5 p-space-sm text-center"
-                        >
-                          <p className="text-xs text-app-danger">{error}</p>
-                          <Button
-                            data-testid={selectors.components.editor.specimenRetry}
-                            type="button"
-                            variant="secondary"
-                            className="h-8 px-space-xs text-xs"
-                            onClick={() => onRetrySpecimen(identity)}
-                          >
-                            {t(strings.components.editor.previewRetry)}
-                          </Button>
-                        </div>
-                      ) : (
-                        <iframe
-                          data-testid={selectors.components.editor.previewFrame}
-                          data-specimen={identity}
-                          data-preview-kit={previewKit}
-                          title={`${t(strings.components.editor.previewHeading)} - ${title}`}
-                          src={harnessUrl(
-                            id,
-                            baselineSha,
-                            previewReloadKey + (specimenRetries[identity] ?? 0),
-                            example,
-                            selectedVersion,
-                            previewKit,
-                            frameEnabled,
+                            {title}
+                          </h3>
+                          {examplesCanCompare(specimens) && (
+                            <Button
+                              data-testid={selectors.components.editor.exampleCompare}
+                              type="button"
+                              variant={comparedSpecimens.has(identity) ? "primary" : "secondary"}
+                              aria-pressed={comparedSpecimens.has(identity)}
+                              disabled={
+                                !comparedSpecimens.has(identity) && comparedSpecimens.size >= 2
+                              }
+                              className="h-7 px-space-2xs text-xs"
+                              onClick={() => onToggleComparison(identity)}
+                            >
+                              {t(strings.components.editor.compareStory)}
+                            </Button>
                           )}
-                          sandbox="allow-scripts allow-same-origin"
-                          ref={(frame) => onRegisterPreviewFrame(identity, frame)}
-                          onLoad={() => {
-                            onPreviewLoad(identity);
-                            postToPreviewFrames({
-                              type: "rcl-resolved-theme",
-                              theme: resolvedPreviewTheme,
-                            });
-                          }}
-                          onError={() => onPreviewError(identity)}
-                          style={{
-                            width: stageMode ? emulator.displayWidth : "100%",
-                            ...(stageMode
-                              ? { height: emulator.displayHeight }
-                              : { aspectRatio: "16 / 9" }),
-                            backgroundColor: "var(--color-background)",
-                          }}
-                          className={stageMode ? "block border-0" : "block max-w-full border-0"}
-                        />
-                      )}
-                    </section>
-                  );
-                })}
-              </div>
+                        </header>
+                        {example?.description ? (
+                          <p
+                            data-testid={selectors.components.editor.storyDescription}
+                            className="border-b border-app-border bg-app-muted/30 px-space-xs py-space-2xs text-xs leading-relaxed text-app-muted-foreground"
+                          >
+                            {example.description}
+                          </p>
+                        ) : null}
+                      </>
+                    )}
+                    {error ? (
+                      <div
+                        data-testid={selectors.components.editor.specimenError}
+                        className="flex min-h-[18rem] flex-col items-center justify-center gap-space-xs bg-app-danger/5 p-space-sm text-center"
+                      >
+                        <p className="text-xs text-app-danger">{error}</p>
+                        <Button
+                          data-testid={selectors.components.editor.specimenRetry}
+                          type="button"
+                          variant="secondary"
+                          className="h-8 px-space-xs text-xs"
+                          onClick={() => onRetrySpecimen(identity)}
+                        >
+                          {t(strings.components.editor.previewRetry)}
+                        </Button>
+                      </div>
+                    ) : (
+                      <iframe
+                        data-testid={selectors.components.editor.previewFrame}
+                        data-specimen={identity}
+                        data-preview-kit={previewKit}
+                        title={`${t(strings.components.editor.previewHeading)} - ${title}`}
+                        src={harnessUrl(
+                          id,
+                          baselineSha,
+                          previewReloadKey + (specimenRetries[identity] ?? 0),
+                          example,
+                          selectedVersion,
+                          previewKit,
+                          frameEnabled,
+                          stageMode,
+                        )}
+                        sandbox="allow-scripts allow-same-origin"
+                        ref={(frame) => onRegisterPreviewFrame(identity, frame)}
+                        onLoad={() => {
+                          onPreviewLoad(identity);
+                          postToPreviewFrames({
+                            type: "rcl-resolved-theme",
+                            theme: resolvedPreviewTheme,
+                          });
+                        }}
+                        onError={() => onPreviewError(identity)}
+                        style={{
+                          width: stageMode ? emulator.displayWidth : "100%",
+                          ...(stageMode ? { height: emulator.displayHeight } : { height: "100%" }),
+                          backgroundColor: "var(--color-background)",
+                        }}
+                        className={stageMode ? "block border-0" : "block max-w-full border-0"}
+                      />
+                    )}
+                  </section>
+                );
+              })}
             </div>
-          </EmulatorViewport>
-        </div>
-      </Panel>
-      {activeSpecimen && desktopLayout && (
-        <>
-          <Separator className="hidden h-1 shrink-0 bg-app-border hover:bg-app-primary lg:block" />
-          <Panel
-            panelRef={previewToolsPanelRef}
-            id="tools"
-            defaultSize={280}
-            minSize={160}
-            maxSize="45%"
-            collapsible
-            collapsedSize={0}
-            onResize={(size) => onPanelCollapsed(size.inPixels === 0)}
-            className="hidden min-h-0 lg:block"
-          >
-            <div
-              id="component-preview-tools"
-              data-testid={selectors.components.editor.previewToolsPanel}
-              className="h-full overflow-y-auto border-t border-app-border bg-app-surface p-space-xs"
+          </div>
+        </EmulatorViewport>
+      </div>
+      {activeSpecimen && toolsOpen && (
+        <aside
+          id="component-preview-tools"
+          data-testid={selectors.components.editor.previewToolsPanel}
+          aria-label={t("components.editor.showTools", { defaultValue: "Preview controls" })}
+          className="absolute bottom-space-xs right-space-xs top-48 z-30 flex w-[min(30rem,calc(100%-var(--space-sm)))] min-w-0 flex-col overflow-hidden rounded-panel border border-app-border bg-app-surface/98 shadow-2xl backdrop-blur"
+        >
+          <div className="flex shrink-0 items-center justify-between gap-space-xs border-b border-app-border px-space-xs py-space-2xs">
+            <div>
+              <p className="text-sm font-semibold text-app-foreground">
+                {t("components.editor.previewControls", { defaultValue: "Preview controls" })}
+              </p>
+              <p className="text-xs text-app-muted-foreground">
+                {activeSpecimen.split(":").slice(1).join(":")}
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="secondary"
+              className="h-8 shrink-0 px-space-2xs text-xs"
+              onClick={onCloseTools}
             >
-              {tools}
-            </div>
-          </Panel>
-        </>
+              {t("common.close", { defaultValue: "Close" })}
+            </Button>
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto p-space-xs">{tools}</div>
+        </aside>
       )}
-      {activeSpecimen && (
-        <div className="flex shrink-0 gap-space-2xs border-t border-app-border bg-app-surface p-space-2xs lg:hidden">
-          <Button
-            type="button"
-            className="h-9 flex-1 text-xs"
-            onClick={() => onSetMobileTool("props")}
-          >
-            {t("components.editor.editProps", { defaultValue: "Edit props" })}
-          </Button>
-          <Button
-            type="button"
-            variant="secondary"
-            className="h-9 flex-1 text-xs"
-            onClick={() => onSetMobileTool("inspector")}
-          >
-            {t("components.inspector.title", { defaultValue: "Inspect" })}
-          </Button>
-          <Button
-            type="button"
-            variant="secondary"
-            className="h-9 px-space-xs text-xs"
-            onClick={() => onSetMobileTool(null)}
-          >
-            {t("components.editor.reset", { defaultValue: "Reset" })}
-          </Button>
-        </div>
-      )}
-      {mobileTools}
-    </Group>
+    </div>
   );
 }
 
@@ -348,6 +364,7 @@ function harnessUrl(
   selectedVersion: string | undefined,
   kit: PreviewKit,
   frameEnabled: boolean,
+  stageMode: boolean,
 ): string {
   const url = new URL(
     `${API_BASE.replace(/\/$/, "")}/preview/${encodeURIComponent(id)}/harness.html`,
@@ -356,6 +373,7 @@ function harnessUrl(
   url.searchParams.set("r", String(reloadKey));
   url.searchParams.set("kit", kit);
   url.searchParams.set("frame", frameEnabled ? "on" : "off");
+  url.searchParams.set("view", stageMode ? "focus" : "canvas");
   if (selectedVersion) url.searchParams.set("version", selectedVersion);
   if (example) {
     if (example.storyId) url.searchParams.set("story", example.storyId);

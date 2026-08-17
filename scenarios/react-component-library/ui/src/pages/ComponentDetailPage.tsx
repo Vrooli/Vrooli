@@ -1,4 +1,4 @@
-/** @vrooliComponentSource navigation.page
+/** @vrooliComponentSource react-component-library:Page
  *
  * ComponentDetailPage — full-width editor + preview for a component.
  *
@@ -288,6 +288,7 @@ export function ComponentDetailPage() {
   const [comparison, setComparison] = useState<ComparisonSession | null>(null);
   const infoTab = assetInfoTab(search);
   const selectedStory = assetStory(search);
+  const requestedPreviewView = search.get("view");
   const setInfoTab = (tab: InfoTab) =>
     setSearch(assetSearchForTab(tab, undefined, selectedStory), { replace: true });
   const [selectedAdoptionID, setSelectedAdoptionID] = useState("");
@@ -453,9 +454,15 @@ export function ComponentDetailPage() {
         id={component.id}
         libraryId={component.libraryId || component.id}
         latestVersion={component.latestVersion || component.version}
-        stageMode={/navigation|pattern|sidebar|shell|pageframe|page-template|bottomnav/i.test(
-          component.libraryId || component.id,
-        )}
+        stageMode={
+          requestedPreviewView === "focus"
+            ? true
+            : requestedPreviewView === "canvas"
+              ? false
+              : /navigation|pattern|sidebar|shell|pageframe|page-template|bottomnav/i.test(
+                  component.libraryId || component.id,
+                )
+        }
         onClose={() => {
           void navigate("/");
         }}
@@ -653,7 +660,9 @@ export function ComponentDetailPage() {
                 <AdoptionsCard componentId={component.id} suggestionsOnly />
               </section>
             )}
-            {infoTab === "relationships" && <RelationshipsPanel assetId={loadedAsset?.catalogId ?? component.id} />}
+            {infoTab === "relationships" && (
+              <RelationshipsPanel assetId={loadedAsset?.catalogId ?? component.id} />
+            )}
           </div>
         }
       />

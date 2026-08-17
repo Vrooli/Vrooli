@@ -1,4 +1,4 @@
-/** @vrooliComponentSource feedback.status-badge */
+/** @vrooliComponentSource react-component-library:StatusBadge */
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowRight } from "lucide-react";

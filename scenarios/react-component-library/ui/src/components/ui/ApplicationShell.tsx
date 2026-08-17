@@ -189,22 +189,24 @@ export function ApplicationShell({ children }: Props) {
 
   return (
     <ShellNavigationContext.Provider value={{ sidebarCollapsed, openSidebar }}>
-      <LibraryAppShell
-        className="h-dvh min-h-0 w-full overflow-hidden"
-        navigation={navigation}
-        navigationMode="managed"
-        navigationLabel={t("nav.label", { defaultValue: "Primary navigation" })}
-        header={header}
-        headerMode={isComponentDetail ? "hidden" : "visible"}
-        mainMode={isComponentDetail ? "flush" : "padded"}
-        mainClassName={
-          isComponentDetail
-            ? "pb-safe flex min-h-0 min-w-0 w-full max-w-full flex-1 flex-col overflow-auto pb-20 md:pb-0"
-            : "pb-safe min-h-0 min-w-0 w-full max-w-full flex-1 overflow-auto pb-20 md:pb-0"
-        }
-      >
-        {children ?? <Outlet />}
-      </LibraryAppShell>
+      <div ref={shellRef} className="h-dvh min-h-0 w-full">
+        <LibraryAppShell
+          className="h-full min-h-0 w-full overflow-hidden"
+          navigation={navigation}
+          navigationMode="managed"
+          navigationLabel={t("nav.label", { defaultValue: "Primary navigation" })}
+          header={header}
+          headerMode={isComponentDetail ? "hidden" : "visible"}
+          mainMode={isComponentDetail ? "flush" : "padded"}
+          mainClassName={
+            isComponentDetail
+              ? "pb-safe flex min-h-0 min-w-0 w-full max-w-full flex-1 flex-col overflow-auto pb-20 md:pb-0"
+              : "pb-safe min-h-0 min-w-0 w-full max-w-full flex-1 overflow-auto pb-20 md:pb-0"
+          }
+        >
+          {children ?? <Outlet />}
+        </LibraryAppShell>
+      </div>
       {isMobile ? (
         <BottomNav
           label={t("nav.label", { defaultValue: "Primary navigation" })}

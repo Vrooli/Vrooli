@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 3,
+  "kind": "component",
+  "title": "Canvas frame",
+  "args": { "fields": [{ "path": "mode", "label": "Mode", "kind": "enum", "options": ["focus", "canvas"], "default": "focus" }] },
+  "environment": { "fixtures": [] },
+  "stories": [{ "id": "default", "name": "Shared substrate", "harness": "Default", "mode": "pinned", "args": {}, "expect": [{ "kind": "role", "role": "region", "name": "Preview canvas" }, { "kind": "text", "value": "One specimen" }] }]
+}

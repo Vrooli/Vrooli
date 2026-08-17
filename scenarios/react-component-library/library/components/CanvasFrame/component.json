@@ -1,0 +1,12 @@
+{
+  "libraryId": "react-component-library:CanvasFrame",
+  "catalogId": "preview.canvas-frame",
+  "displayName": "CanvasFrame",
+  "description": "The shared preview substrate that owns fit, background, and specimen placement for focus and canvas views.",
+  "assetKind": "component",
+  "tags": ["preview", "layout", "canvas"],
+  "slot": "ui-pattern",
+  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
+  "latest": "1.0.0",
+  "deprecatedVersions": []
+}

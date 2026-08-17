@@ -1,4 +1,4 @@
-/** @vrooliComponentSource foundations.viewport-axis */
+/** @vrooliComponentSource react-component-library:ResponsivePanel */
 import { selectors } from "../../consts/selectors";
 
 /**
