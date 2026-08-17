@@ -26,11 +26,11 @@ func Module(service *internalprograms.Service) module.Module {
 }
 
 func (h *handler) SubmitProgram(ctx context.Context, req *connect.Request[programsv1.SubmitProgramRequest]) (*connect.Response[programsv1.SubmitProgramResponse], error) {
-	p, err := h.service.Submit(ctx, req.Msg.SessionId, req.Msg.Source, req.Msg.Provenance, req.Msg.IncludeMaterialized, req.Msg.Async)
+	p, diagnostics, err := h.service.SubmitWithDiagnostics(ctx, req.Msg.SessionId, req.Msg.Source, req.Msg.Provenance, req.Msg.IncludeMaterialized, req.Msg.Explain, req.Msg.Async)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
-	return connect.NewResponse(&programsv1.SubmitProgramResponse{Program: p}), nil
+	return connect.NewResponse(&programsv1.SubmitProgramResponse{Program: p, Diagnostics: diagnostics}), nil
 }
 
 func (h *handler) GetProgram(ctx context.Context, req *connect.Request[programsv1.GetProgramRequest]) (*connect.Response[programsv1.GetProgramResponse], error) {
@@ -58,4 +58,21 @@ func (h *handler) MineRefusals(ctx context.Context, req *connect.Request[program
 func (h *handler) MineUnresolvedBindings(ctx context.Context, _ *connect.Request[programsv1.MineUnresolvedBindingsRequest]) (*connect.Response[programsv1.MineUnresolvedBindingsResponse], error) {
 	shapes := h.service.MineUnresolvedBindings(ctx)
 	return connect.NewResponse(&programsv1.MineUnresolvedBindingsResponse{Shapes: shapes, Count: int64(len(shapes))}), nil
+}
+
+// RunAuthoringEval is intentionally explicit about dependency state. The
+// corpus and result contract are stable even when no code-authoring model
+// route is available, so callers never mistake an unavailable run for a zero
+// score.
+func (h *handler) RunAuthoringEval(_ context.Context, req *connect.Request[programsv1.RunAuthoringEvalRequest]) (*connect.Response[programsv1.RunAuthoringEvalResponse], error) {
+	suite := req.Msg.GetSuite()
+	if suite == "" {
+		suite = "evals/authoring.primary.json"
+	}
+	return connect.NewResponse(&programsv1.RunAuthoringEvalResponse{
+		Suite:       suite,
+		Status:      "unavailable",
+		Reason:      "no ai-gateway code-authoring route resolved; tried hosted code.authoring and local code.local fallbacks",
+		Unavailable: 1,
+	}), nil
 }

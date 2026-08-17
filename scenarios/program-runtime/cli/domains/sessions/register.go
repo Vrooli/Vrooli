@@ -28,6 +28,7 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		"SessionService.CreateSession":                                   cliapp.ProtoMutation(h.create, h.createReport),
 		"SessionService.GetSession":                                      cliapp.ProtoList(h.get, h.getReport),
 		"vrooli.program_runtime.v1.sessions.SessionService.ListSessions": cliapp.ProtoList(h.list, h.listReport),
+		"SessionService.ListDelegations":                                 cliapp.ProtoList(h.delegations, h.delegationsReport),
 		"SessionService.DeleteSession":                                   cliapp.ProtoMutation(h.delete, h.deleteReport),
 		"SessionService.GrantSession":                                    cliapp.ProtoMutation(h.grant, h.grantReport),
 	})
@@ -95,6 +96,14 @@ func (h *handlers) list(_ cliapp.OperationContext) (*sessionsv1.ListSessionsResp
 	return r.Msg, nil
 }
 
+func (h *handlers) delegations(_ cliapp.OperationContext) (*sessionsv1.ListDelegationsResponse, error) {
+	r, e := h.client.ListDelegations(context.Background(), connect.NewRequest(&sessionsv1.ListDelegationsRequest{}))
+	if e != nil {
+		return nil, cliapp.WrapAPIError("list session delegations", e, nil)
+	}
+	return r.Msg, nil
+}
+
 func (h *handlers) delete(ctx cliapp.OperationContext) (*sessionsv1.DeleteSessionResponse, error) {
 	r, e := h.client.DeleteSession(context.Background(), connect.NewRequest(&sessionsv1.DeleteSessionRequest{Id: ctx.Positional("id"), Reason: ctx.Flag("reason")}))
 	if e != nil {
@@ -133,4 +142,12 @@ func (h *handlers) listReport(_ cliapp.OperationContext, r *sessionsv1.ListSessi
 		items = append(items, fmt.Sprintf("%s [%s]", s.Id, s.State))
 	}
 	return cliapp.ListReport{Summary: []string{fmt.Sprintf("%d session(s).", len(items))}, ResultsHeading: "Sessions", Results: items}
+}
+
+func (*handlers) delegationsReport(_ cliapp.OperationContext, r *sessionsv1.ListDelegationsResponse) cliapp.ListReport {
+	items := make([]string, 0, len(r.Delegations))
+	for _, delegation := range r.Delegations {
+		items = append(items, fmt.Sprintf("%s [%s]", delegation.ExecutionId, delegation.LastStatus))
+	}
+	return cliapp.ListReport{Summary: []string{fmt.Sprintf("%d delegation(s).", len(items))}, ResultsHeading: "Delegations", Results: items}
 }

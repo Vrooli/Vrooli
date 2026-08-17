@@ -48,6 +48,14 @@ _INVOCATION_CONTEXT: contextvars.ContextVar[dict[str, str]] = contextvars.Contex
     "program_runtime_invocation_context", default={}
 )
 
+_SAFE_BUILTIN_NAMES = (
+    "__import__", "abs", "all", "any", "bool", "dict", "enumerate", "Exception", "filter",
+    "float", "int", "isinstance", "len", "list", "map", "max", "MemoryError", "min", "object",
+    "print", "range", "repr", "reversed", "round", "RuntimeError", "set", "sorted", "str", "sum",
+    "tuple", "TypeError", "ValueError", "zip",
+)
+_SAFE_BUILTINS = {name: getattr(builtins, name) for name in _SAFE_BUILTIN_NAMES}
+
 
 class Handle:
     def __init__(self, rows: Iterable[Any], label: str = "result", *, metadata: dict[str, Any] | None = None, raw: Any = None) -> None:
@@ -160,8 +168,48 @@ class Handle:
         return return_self().__await__()
 
 
+class ProgramGlobals(dict):
+    """Session globals with a small, stable runtime-owned protected surface."""
+
+    def __init__(self, *, protected: set[str], known_names: Iterable[str], unresolved_url: str = "", session_id: str = "") -> None:
+        super().__init__()
+        self._protected = frozenset(protected)
+        self._known_names = tuple(sorted(set(known_names)))
+        self._unresolved_url = unresolved_url.strip()
+        self._session_id = session_id
+
+    def _record_unresolved(self, name: str) -> None:
+        if not self._unresolved_url:
+            return
+        endpoint = self._unresolved_url.rsplit("/", 1)[0] + "/unresolved"
+        request = urllib.request.Request(
+            endpoint,
+            data=json.dumps({"session_id": self._session_id, "attempted_name": name}).encode(),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=2):
+                pass
+        except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError, OSError):
+            # Telemetry must never change the program's deterministic failure.
+            pass
+
+    def __missing__(self, name: str) -> Any:
+        if name in _SAFE_BUILTINS:
+            return _SAFE_BUILTINS[name]
+        self._record_unresolved(name)
+        detail = ""
+        raise NameError(f"name {name!r} does not resolve to a governed binding namespace or a built-in{detail}")
+
+    def __setitem__(self, name: str, value: Any) -> None:
+        if name in self._protected and name in self:
+            raise NameError(f"protected runtime name {name!r} cannot be assigned")
+        super().__setitem__(name, value)
+
+
 class Namespace:
-    def __init__(self, bindings: dict[str, Any] | None = None, invocations: list[dict[str, str]] | None = None, session_id: str = "", agent_bridge_url: str = "", bridge_url: str = "", discovery_url: str = "", reachability: dict[str, Any] | None = None, libraries: list[dict[str, Any]] | None = None) -> None:
+    def __init__(self, bindings: dict[str, Any] | None = None, invocations: list[dict[str, str]] | None = None, session_id: str = "", agent_bridge_url: str = "", bridge_url: str = "", discovery_url: str = "", reachability: dict[str, Any] | None = None, libraries: list[dict[str, Any]] | None = None, namespace_prefix: str = "") -> None:
         self._bindings = _normalize_bindings(bindings or {})
         self._invocations = invocations if invocations is not None else []
         self._session_id = session_id
@@ -172,7 +220,7 @@ class Namespace:
                 continue
             for group, commands in groups.items():
                 paths = self._bare_groups.setdefault(group, [])
-                paths.extend(f"vrooli.{scenario}.{group}.{command}" for command in commands)
+                paths.extend(f"{scenario}.{group}.{command}" for command in commands)
         for paths in self._bare_groups.values():
             paths.sort()
         self._agent = _DelegationSurface(session_id, agent_bridge_url, self._invocations) if agent_bridge_url else _DeferredSurface("agent-manager delegation")
@@ -181,6 +229,7 @@ class Namespace:
         self._reachability_url = self._bridge_url.rsplit("/", 1)[0] + "/reachability" if self._bridge_url else ""
         self._reachability = _normalize_bindings(reachability or {})
         self.lib = _LibraryNamespace(self, libraries or [])
+        self._namespace_prefix = namespace_prefix.strip(".")
 
     @property
     def ai(self) -> "_DeferredSurface":
@@ -262,10 +311,30 @@ class Namespace:
         raise AttributeError(f"no governed binding scenario or group {group!r}")
 
     def discover(self, intent: str) -> Handle:
-        """Resolve through the current seeded discover library facade."""
-        if self.lib.available("discover"):
-            return self.lib.discover(intent)
+        """Resolve one governed capability by intent."""
         return self._discover_bridge(intent)
+
+    def projection(self, verb: str, **kwargs: Any) -> Handle:
+        """Call a projection verb through the runtime's private bridge."""
+        if not self._bridge_url:
+            raise RuntimeError(f"program-runtime projection {verb} is unavailable")
+        endpoint = self._bridge_url.rsplit("/", 1)[0] + "/projection/" + verb
+        request = urllib.request.Request(endpoint, data=json.dumps({"session_id": self._session_id, **kwargs}).encode(), headers={"Content-Type": "application/json"}, method="POST")
+        try:
+            with urllib.request.urlopen(request, timeout=30) as response:
+                payload = json.loads(response.read().decode())
+        except urllib.error.HTTPError as exc:
+            detail = exc.read().decode(errors="replace")
+            try:
+                detail = json.loads(detail).get("error", detail)
+            except json.JSONDecodeError:
+                pass
+            raise RuntimeError(str(detail)) from exc
+        except (urllib.error.URLError, TimeoutError, OSError, json.JSONDecodeError) as exc:
+            raise RuntimeError(f"program-runtime projection {verb} unavailable: {exc}") from exc
+        if not isinstance(payload, dict):
+            payload = {"value": payload}
+        return Handle([payload], verb, metadata=payload, raw=payload)
 
     def _execute_library_source(self, spec: dict[str, Any], args: tuple[Any, ...], kwargs: dict[str, Any]) -> Handle:
         """Execute one operator-promoted source with only public runtime globals."""
@@ -277,7 +346,7 @@ class Namespace:
             "__name__": "program_runtime_library",
             "intent": kwargs.pop("intent", ""),
             "text": kwargs.pop("text", ""),
-            "__builtins__": {"len": len, "min": min, "max": max, "print": print, "range": range, "sorted": sorted},
+            "__builtins__": dict(_SAFE_BUILTINS),
         }
         if kwargs:
             raise TypeError(f"unknown library inputs: {', '.join(sorted(kwargs))}")
@@ -347,7 +416,10 @@ class Namespace:
                     if group:
                         parts.append(group)
                     parts.append(command)
-                    paths.append("vrooli." + ".".join(parts))
+                    path = ".".join(parts)
+                    if self._namespace_prefix:
+                        path = self._namespace_prefix + "." + path
+                    paths.append(path)
         return sorted(paths)
 
 
@@ -400,10 +472,10 @@ class _NamespaceScenario:
 class _LibraryNamespace:
     """Versioned, allowlisted facades for the promoted program library.
 
-    Library source is retained as auditable metadata and is never evaluated as
-    a second interpreter program. Each seeded entry maps to a narrow host
-    facade, which keeps promotion from becoming an arbitrary code-loading
-    escape hatch while still giving programs a stable ``vrooli.lib`` surface.
+    Library source is retained as auditable metadata and evaluated only after
+    operator promotion, inside the same bounded runtime environment. Library
+    entries are not seeded aliases: ``lib`` is an explicit inventory of the
+    programs an operator has promoted for reuse.
     """
 
     def __init__(self, owner: Namespace, libraries: list[dict[str, Any]]) -> None:
@@ -417,17 +489,19 @@ class _LibraryNamespace:
     def available(self, name: str) -> bool:
         return name in self._libraries
 
+    def list(self) -> Handle:
+        rows = [
+            {key: item.get(key, "") for key in ("name", "version", "description", "origin", "current")}
+            for item in sorted(self._libraries.values(), key=lambda value: str(value.get("name", "")))
+        ]
+        return Handle(rows, "lib.list")
+
     def __getattr__(self, name: str) -> Any:
         spec = self._libraries.get(name)
         if spec is None:
             raise AttributeError(f"library program {name!r} is not current and promoted")
 
         def invoke(*args: Any, **kwargs: Any) -> Handle:
-            if name == "discover":
-                intent = kwargs.pop("intent", args[0] if args else "")
-                if kwargs or len(args) > 1 or not str(intent).strip():
-                    raise TypeError("vrooli.lib.discover requires one non-empty intent")
-                return self._owner._discover_bridge(str(intent))
             return self._owner._execute_library_source(spec, args, kwargs)
 
         invoke.__name__ = name
@@ -607,13 +681,19 @@ class BridgeBinding:
         if args:
             raise TypeError(f"{self.binding_id} accepts named proto fields, not positional arguments")
         confirmed = bool(kwargs.pop("_confirm", False))
+        rows_override = kwargs.pop("rows", None)
+        if rows_override is not None:
+            rows_override = str(rows_override)
+            if rows_override not in self.row_field_candidates:
+                candidates = ", ".join(self.row_field_candidates) or "<none>"
+                raise ValueError(f"binding {self.binding_id} rows must be one of: {candidates}")
         if not self.bridge_url:
             raise RuntimeError("program-runtime binding bridge is unavailable")
         if self.reachability_url:
             self._check_live_reachability()
         elif not self.reachable:
             raise RuntimeError(f"binding {self.binding_id} is unreachable: {self.reachability_reason}")
-        return self._invoke(kwargs, confirmed)
+        return self._invoke(kwargs, confirmed, rows_override)
 
     def _check_live_reachability(self) -> None:
         request = urllib.request.Request(
@@ -634,9 +714,9 @@ class BridgeBinding:
         except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError, OSError, json.JSONDecodeError) as exc:
             raise RuntimeError(f"binding {self.binding_id} is unreachable: live reachability unavailable: {exc}") from exc
 
-    def _invoke(self, kwargs: dict[str, Any], confirmed: bool) -> Handle:
+    def _invoke(self, kwargs: dict[str, Any], confirmed: bool, rows_override: str | None = None) -> Handle:
         context = _INVOCATION_CONTEXT.get()
-        request = json.dumps({"session_id": self.session_id, "program_id": context.get("program_id", ""), "provenance": context.get("provenance", ""), "binding_id": self.binding_id, "args": kwargs, "confirmed": confirmed}).encode()
+        request = json.dumps({"session_id": self.session_id, "program_id": context.get("program_id", ""), "provenance": context.get("provenance", ""), "binding_id": self.binding_id, "args": kwargs, "confirmed": confirmed, "rows": rows_override or ""}).encode()
         http_request = urllib.request.Request(self.bridge_url, data=request, headers={"Content-Type": "application/json"}, method="POST")
         try:
             with urllib.request.urlopen(http_request, timeout=180) as response:
@@ -653,13 +733,14 @@ class BridgeBinding:
         self.invocations.append({"binding_id": self.binding_id, "effect": self.effect})
         if not isinstance(payload, dict):
             raise RuntimeError(f"binding {self.binding_id} returned a non-object response")
-        if self.row_field_candidates:
+        if self.row_field_candidates and not rows_override:
             candidates = ", ".join(self.row_field_candidates)
             raise RuntimeError(f"binding {self.binding_id} has no determinable primary response field; candidate repeated fields: {candidates}")
-        if self.rows_field:
-            rows = payload.get(self.rows_field, [])
+        selected_rows_field = rows_override or self.rows_field
+        if selected_rows_field:
+            rows = payload.get(selected_rows_field, [])
             if not isinstance(rows, list):
-                raise RuntimeError(f"binding {self.binding_id} response field {self.rows_field!r} is not a list")
+                raise RuntimeError(f"binding {self.binding_id} response field {selected_rows_field!r} is not a list")
         else:
             rows = [payload]
         metadata = {name: payload[name] for name in self.meta_fields if name in payload}
@@ -700,14 +781,44 @@ class SessionKernel:
             bindings = mapped
         else:
             reachability = {scenario: {"reachable": True, "reason": ""} for scenario in bindings}
-        self.globals: dict[str, Any] = {
-            "__name__": "program_runtime_session",
-            # Handle is the public bounded-result constructor available to
-            # submitted programs; the host module is intentionally not on the
-            # isolated interpreter's import path.
-            "Handle": Handle,
-            "vrooli": Namespace(bindings, self.invocations, session_id, agent_bridge_url, bridge_url, discovery_url, reachability, libraries),
+        project_bindings: dict[str, Any] = {}
+        scenario_bindings: dict[str, Any] = {}
+        for scenario, value in bindings.items():
+            if scenario == "vrooli":
+                project_bindings = value
+            else:
+                scenario_bindings[scenario] = value
+        root = Namespace(scenario_bindings, self.invocations, session_id, agent_bridge_url, bridge_url, discovery_url, reachability, libraries)
+        project = Namespace(project_bindings, self.invocations, session_id, agent_bridge_url, bridge_url, discovery_url, {}, libraries, namespace_prefix="vrooli")
+        builtin_surface: dict[str, Any] = {
+            "discover": root.discover,
+            "recall": lambda **kwargs: root.projection("recall", **kwargs),
+            "guide": lambda **kwargs: root.projection("guide", **kwargs),
+            "validate": lambda **kwargs: root.projection("validate", **kwargs),
+            "capture": lambda **kwargs: root.projection("capture", **kwargs),
+            "ai": root.ai,
+            "agent": root.agent,
+            "gather": root.gather,
+            "describe": root.describe,
+            "reachable": root.reachable,
+            "lib": root.lib,
+            "vrooli": project,
+            "__vrooli__": root,
         }
+        protected = {"discover", "recall", "guide", "validate", "capture", "ai", "agent", "gather", "describe", "reachable", "lib", "vrooli", "__vrooli__"}
+        unresolved_url = bridge_url.rsplit("/", 1)[0] + "/execute" if bridge_url else ""
+        self.globals = ProgramGlobals(protected=protected, known_names=[*scenario_bindings, *builtin_surface], unresolved_url=unresolved_url, session_id=session_id)
+        self.globals["__name__"] = "program_runtime_session"
+        self.globals["__builtins__"] = _SAFE_BUILTINS
+        self.globals["Handle"] = Handle
+        for name, value in builtin_surface.items():
+            self.globals[name] = value
+        for scenario, value in scenario_bindings.items():
+            self.globals[scenario] = (
+                _NamespaceScenario(scenario, value, self.invocations)
+                if _is_scenario_map(value)
+                else _NamespaceGroup(scenario, value, self.invocations)
+            )
 
     def execute(self, source: str, include_materialized: bool = False, program_id: str = "", provenance: str = "", progress=None) -> dict[str, Any]:
         output = _ProgressBuffer(progress)

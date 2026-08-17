@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Project the callable surface from the proto descriptor and CLI manifests, validate arguments pre-flight, refuse ungoverned calls, and render the resolved registry.",
-    "last_validated_at": "2026-08-16T11:20:00-04:00",
+    "last_validated_at": "2026-08-16T15:17:16-04:00",
     "module": "bindings",
     "prd_ref": "PRD.md",
     "priority": "P0",
@@ -11,7 +11,7 @@
     {
       "id": "PRT-P0-001",
       "title": "Runtime binding generation",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-001",
       "category": "bindings.registry",
       "criticality": "P0",
@@ -25,19 +25,19 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Target `api/internal/bindings/registry_test.go::TestProjectsManifestBoundMethods` (tag the test [REQ:PRT-P0-001]). Given the generated descriptor image and a scenario CLI manifest, the registry yields one callable per manifest-bound Connect method."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Target `api/internal/bindings/registry_test.go::TestNewManifestNeedsNoScenarioCode` (tag the test [REQ:PRT-P0-001]). A manifest added to the fixture set becomes callable without any registry edit, proving zero per-scenario integration."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Target `kernel/tests/test_handles.py::test_namespace_mirrors_manifest_groups` (tag the test [REQ:PRT-P0-001]). The kernel namespace path matches the manifest group/command shape agents already know from the CLI."
         }
       ]
@@ -45,7 +45,7 @@
     {
       "id": "PRT-P0-002",
       "title": "Pre-flight argument validation",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-002",
       "category": "bindings.validation",
       "criticality": "P0",
@@ -59,19 +59,19 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Target `api/internal/bindings/registry_test.go::TestRejectsUnknownFieldBeforeDispatch` (tag the test [REQ:PRT-P0-002]). An argument absent from the bound request message is refused with no outbound request issued."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Target `api/internal/bindings/registry_test.go::TestErrorNamesOffendingField` (tag the test [REQ:PRT-P0-002]). The refusal names the offending field so a program can be repaired without reading proto source."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Target `api/internal/bindings/registry_test.go::TestRejectsMistypedAndMissingRequiredFields` (tag the test [REQ:PRT-P0-002]). Wrong-typed and omitted required fields are refused pre-flight, not surfaced as a remote 400."
         }
       ]
@@ -79,7 +79,7 @@
     {
       "id": "PRT-P0-005",
       "title": "Governance enforced at the binding boundary",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-005",
       "category": "bindings.governance",
       "criticality": "P0",
@@ -93,19 +93,19 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Target `api/internal/bindings/registry_test.go::TestRunIneligibleCommandGeneratesNoBinding` (tag the test [REQ:PRT-P0-005]). A manifest command declaring run_eligible false produces no callable at all, not a callable that fails at dispatch."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Target `api/internal/bindings/governance_test.go::TestDestructiveEffectRequiresGrant` (tag the test [REQ:PRT-P0-005]). A destructive-effect binding refuses without a matching session grant and succeeds with one."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Target `api/internal/bindings/governance_test.go::TestGovernanceIsReadNotRedefined` (tag the test [REQ:PRT-P0-005]). Effect and permission vocabulary is read from the manifest contract; the scenario declares no second policy vocabulary."
         }
       ]
@@ -113,7 +113,7 @@
     {
       "id": "PRT-P1-001",
       "title": "In-kernel capability discovery",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P1-001",
       "category": "bindings.discovery",
       "criticality": "P1",
@@ -127,13 +127,13 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Target `api/internal/bindings/discovery_test.go::TestResolvesOperationByIntent` (tag the test [REQ:PRT-P1-001]). An intent string resolves to candidate bindings through search-hub without preloading the surface."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Target `api/internal/bindings/discovery_test.go::TestDegradesWhenSearchHubUnavailable` (tag the test [REQ:PRT-P1-001]). An unreachable search-hub degrades to a stated reason; direct binding calls keep working."
         }
       ]
@@ -141,7 +141,7 @@
     {
       "id": "PRT-P1-007",
       "title": "Binding registry inspection surface",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P1-007",
       "category": "ui.bindings",
       "criticality": "P1",
@@ -156,7 +156,7 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Target `api/internal/bindings/registry_test.go::TestEveryUnboundCapabilityCarriesAReason` (tag the test [REQ:PRT-P1-007]). No capability is reported unbound without one of the closed set of unbound reasons; an unclassifiable capability is reported as such rather than omitted."
         },
         {

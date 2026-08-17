@@ -26,41 +26,49 @@ The problem it removes is arity and materialization. An agent that needs to insp
 2. Every operation crosses one boundary that already knows its declared effect and permissions, so governance is enforced rather than described.
 3. A failed program is an analyzable artifact with a deterministic error, which is a higher-quality friction signal than intent inferred from tool-call transcripts.
 
+**Construction contract.** Agent-authored programs use a flat top-level
+scenario namespace (`search_hub.query.query(...)`), the project CLI namespace
+(`vrooli.scenario.status(...)`), and runtime verbs (`discover`, `gather`,
+`ai`, `agent`, `lib`, and the projection verbs). The stable `__vrooli__`
+escape hatch preserves access when a scenario name is shadowed. Static
+preflight diagnostics and the closed failure-cause vocabulary are part of the
+product contract, not implementation details.
+
 ## 🎯 Operational Targets
 
 > Checkboxes auto-update from requirements sync; do not hand-edit them.
 
 ### 🔴 P0 – Must ship for viability
 
-- [ ] OT-P0-001 | Runtime binding generation | The Program Runtime MUST generate callable bindings at session start from the proto descriptor image and the scenario CLI manifests, and MUST NOT require per-scenario integration code for a scenario that ships a manifest.
-- [ ] OT-P0-002 | Pre-flight argument validation | When a program calls a binding with arguments that do not satisfy the bound proto method's field contract, the Program Runtime MUST reject the call before issuing any request and MUST name the offending field.
-- [ ] OT-P0-003 | Handle-based results | The Program Runtime MUST return operation results as in-kernel handles whose default representation is bounded, and MUST require an explicit materialization call before result data enters the submitter's output.
-- [ ] OT-P0-004 | Session-persistent kernel state | While a session is live, the Program Runtime MUST preserve kernel variable state across separate program submissions so a later program can reference an earlier program's handles.
-- [ ] OT-P0-005 | Governance enforced at the binding boundary | The Program Runtime MUST NOT generate a binding for a command whose CLI manifest governance declares run_eligible false, and MUST refuse a binding whose declared effect is destructive unless the session holds an explicit matching grant.
-- [ ] OT-P0-006 | Typed program telemetry | The Program Runtime MUST emit a typed platform event for every program submission, binding invocation, and program failure through the shared event bus, so friction analysis reads program evidence without a scenario-local analysis stack.
-- [ ] OT-P0-007 | Act projection ownership | The Program Runtime MUST serve the Act denominator through the shared space projection verb.
-- [ ] OT-P0-008 | Act numerator registry RPC | The Program Runtime MUST expose a binding-registry RPC that reports, per Act operation class, whether every operation it names resolves to a manifest-bound governed binding, so meta-optimization-manager computes the Act numerator live and never stores it.
-- [ ] OT-P0-009 | Domain measure coverage | Every stateful domain the Program Runtime owns MUST carry at least one declared measure in the CLI manifest, or a `measures.omitted` waiver naming the domain and its reason, so measures-health grades the scenario on a stated position rather than an absence.
+- [x] OT-P0-001 | Runtime binding generation | The Program Runtime MUST generate callable bindings at session start from the proto descriptor image and the scenario CLI manifests, and MUST NOT require per-scenario integration code for a scenario that ships a manifest.
+- [x] OT-P0-002 | Pre-flight argument validation | When a program calls a binding with arguments that do not satisfy the bound proto method's field contract, the Program Runtime MUST reject the call before issuing any request and MUST name the offending field.
+- [x] OT-P0-003 | Handle-based results | The Program Runtime MUST return operation results as in-kernel handles whose default representation is bounded, and MUST require an explicit materialization call before result data enters the submitter's output.
+- [x] OT-P0-004 | Session-persistent kernel state | While a session is live, the Program Runtime MUST preserve kernel variable state across separate program submissions so a later program can reference an earlier program's handles.
+- [x] OT-P0-005 | Governance enforced at the binding boundary | The Program Runtime MUST NOT generate a binding for a command whose CLI manifest governance declares run_eligible false, and MUST refuse a binding whose declared effect is destructive unless the session holds an explicit matching grant.
+- [x] OT-P0-006 | Typed program telemetry | The Program Runtime MUST emit a typed platform event for every program submission, binding invocation, and program failure through the shared event bus, so friction analysis reads program evidence without a scenario-local analysis stack.
+- [x] OT-P0-007 | Act projection ownership | The Program Runtime MUST serve the Act denominator through the shared space projection verb.
+- [x] OT-P0-008 | Act numerator registry RPC | The Program Runtime MUST expose a binding-registry RPC that reports, per Act operation class, whether every operation it names resolves to a manifest-bound governed binding, so meta-optimization-manager computes the Act numerator live and never stores it.
+- [x] OT-P0-009 | Domain measure coverage | Every stateful domain the Program Runtime owns MUST carry at least one declared measure in the CLI manifest, or a `measures.omitted` waiver naming the domain and its reason, so measures-health grades the scenario on a stated position rather than an absence.
 
 ### 🟠 P1 – Should have post-launch
 
-- [ ] OT-P1-001 | In-kernel capability discovery | The Program Runtime SHOULD expose capability discovery as an in-kernel call so a program resolves an operation by intent without the callable surface being preloaded into the submitting agent's context.
-- [ ] OT-P1-002 | Typed inference bindings | The Program Runtime SHOULD expose classify, extract, and judge operations resolved through ai-gateway, so a program performs bounded typed inference without spawning a delegated agent run.
-- [ ] OT-P1-003 | Delegated agent runs from a program | The Program Runtime SHOULD let a program spawn an agent-manager run and collect its evidence, so unbounded agentic work stays distinguishable from bounded inference.
-- [ ] OT-P1-004 | Sandbox composition | The Program Runtime SHOULD bind a session to a workspace-sandbox workspace so filesystem effects are isolated and reviewable.
-- [ ] OT-P1-005 | Bounded session lifecycle | The Program Runtime SHOULD enforce idle reclamation and wall-clock and memory ceilings per session, and SHOULD report the reason when it reclaims a session.
+- [x] OT-P1-001 | In-kernel capability discovery | The Program Runtime SHOULD expose capability discovery as an in-kernel call so a program resolves an operation by intent without the callable surface being preloaded into the submitting agent's context.
+- [x] OT-P1-002 | Typed inference bindings | The Program Runtime SHOULD expose classify, extract, and judge operations resolved through ai-gateway, so a program performs bounded typed inference without spawning a delegated agent run.
+- [x] OT-P1-003 | Delegated agent runs from a program | The Program Runtime SHOULD let a program spawn an agent-manager run and collect its evidence, so unbounded agentic work stays distinguishable from bounded inference.
+- [x] OT-P1-004 | Sandbox composition | The Program Runtime SHOULD bind a session to a workspace-sandbox workspace so filesystem effects are isolated and reviewable.
+- [x] OT-P1-005 | Bounded session lifecycle | The Program Runtime SHOULD enforce idle reclamation and wall-clock and memory ceilings per session, and SHOULD report the reason when it reclaims a session.
 - [x] OT-P1-010 | Per-session inference spend ceiling | The Program Runtime SHOULD enforce a configurable per-session ceiling over ai-gateway `Usage.cost_micros`, input tokens, and output tokens, and SHOULD report `inference_spend_exceeded` when the ceiling reclaims or refuses work.
 - [x] OT-P1-011 | Per-session delegated-run spend ceiling | The Program Runtime SHOULD enforce a separate configurable per-session ceiling over agent-manager delegated-run spend, and SHOULD report `delegated_run_spend_exceeded` when that ceiling reclaims or refuses work.
-- [ ] OT-P1-006 | Queryable program corpus | The Program Runtime SHOULD retain submitted program source and failure detail as a queryable corpus so recurring failure shapes are derivable mechanically.
-- [ ] OT-P1-007 | Binding registry inspection surface | The Program Runtime SHOULD provide an operator surface that browses the resolved callable namespace and, for every fleet capability that is unbound, states which of the declared unbound reasons applies. This is promoted out of OT-P2-001 because it is the only operator surface that carries information before any program has run, and because it renders the same registry state the Act numerator computes.
-- [ ] OT-P1-008 | Program provenance | The Program Runtime SHOULD record whether a program was submitted by an agent or by a human operator, and SHOULD exclude operator-submitted programs from corpus mining by default, so the corpus keeps measuring what agents attempt rather than what operators experiment with.
-- [ ] OT-P1-009 | Act denominator audit | Once the binding-registry numerator is live, the Program Runtime SHOULD audit every Act denominator cell against the resolved registry and raise the stated denominator confidence above `SKETCH`, so Act coverage on the readiness board is measured rather than authored. The denominator was written before this scenario existed and 12 of its 28 cells are marked unaudited; without this target the board reports an Act percentage at `SKETCH` confidence indefinitely.
+- [x] OT-P1-006 | Queryable program corpus | The Program Runtime SHOULD retain submitted program source and failure detail as a queryable corpus so recurring failure shapes are derivable mechanically.
+- [x] OT-P1-007 | Binding registry inspection surface | The Program Runtime SHOULD provide an operator surface that browses the resolved callable namespace and, for every fleet capability that is unbound, states which of the declared unbound reasons applies. This is promoted out of OT-P2-001 because it is the only operator surface that carries information before any program has run, and because it renders the same registry state the Act numerator computes.
+- [x] OT-P1-008 | Program provenance | The Program Runtime SHOULD record whether a program was submitted by an agent or by a human operator, and SHOULD exclude operator-submitted programs from corpus mining by default, so the corpus keeps measuring what agents attempt rather than what operators experiment with.
+- [x] OT-P1-009 | Act denominator audit | Once the binding-registry numerator is live, the Program Runtime SHOULD audit every Act denominator cell against the resolved registry and raise the stated denominator confidence above `SKETCH`, so Act coverage on the readiness board is measured rather than authored. The denominator was written before this scenario existed and 12 of its 28 cells are marked unaudited; without this target the board reports an Act percentage at `SKETCH` confidence indefinitely.
 
 ### 🟢 P2 – Future / expansion
 
 - [ ] OT-P2-001 | Operator inspection surface | Beyond the binding registry promoted to OT-P1-007, the Program Runtime MAY provide operator surfaces for sessions, kernel variables, and program history, including replaying a historical program and forking it into a new session.
 - [ ] OT-P2-002 | Program corpus mining | The Program Runtime MAY analyze recurring program shapes in the corpus and propose them as skill or action candidates with their call sites as evidence.
-- [ ] OT-P2-003 | Named durable workspaces | The Program Runtime MAY support named sessions that survive across agent runs so a long investigation reuses accumulated state.
+- [x] OT-P2-003 | Named durable workspaces | The Program Runtime MAY support named sessions that survive across agent runs so a long investigation reuses accumulated state.
 - [ ] OT-P2-004 | Alternate kernel adapters | The Program Runtime MAY support kernel languages beyond Python where a measured capability argument justifies the added surface.
 
 ## 🧱 Tech Direction Snapshot

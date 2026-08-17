@@ -58,6 +58,18 @@ func (h *handler) ListSessions(ctx context.Context, _ *connect.Request[sessionsv
 	return connect.NewResponse(out), nil
 }
 
+func (h *handler) ListDelegations(ctx context.Context, _ *connect.Request[sessionsv1.ListDelegationsRequest]) (*connect.Response[sessionsv1.ListDelegationsResponse], error) {
+	delegations, err := h.manager.ListDelegations(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := &sessionsv1.ListDelegationsResponse{Count: int64(len(delegations))}
+	for _, delegation := range delegations {
+		out.Delegations = append(out.Delegations, toDelegationProto(delegation))
+	}
+	return connect.NewResponse(out), nil
+}
+
 func (h *handler) DeleteSession(ctx context.Context, req *connect.Request[sessionsv1.DeleteSessionRequest]) (*connect.Response[sessionsv1.DeleteSessionResponse], error) {
 	s, err := h.manager.Delete(ctx, req.Msg.Id, req.Msg.Reason)
 	if err != nil {
@@ -81,4 +93,8 @@ func toProto(s *internalsessions.Session) *sessionsv1.Session {
 	}
 	sort.Strings(out.Grants)
 	return out
+}
+
+func toDelegationProto(d *internalsessions.Delegation) *sessionsv1.Delegation {
+	return &sessionsv1.Delegation{SessionId: d.SessionID, ExecutionId: d.ExecutionID, Owner: d.Owner, WorkflowKey: d.WorkflowKey, CreatedAt: d.CreatedAt.Format(time.RFC3339Nano), LastStatus: d.LastStatus}
 }

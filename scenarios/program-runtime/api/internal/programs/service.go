@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"sync/atomic"
 	"time"
 	"unicode/utf8"
 
@@ -63,6 +64,8 @@ type Options struct {
 	Events         interface {
 		Append(*telemetryv1.ProgramEvent)
 	}
+	Preflight        func(string) []*programsv1.Diagnostic
+	RecordUnresolved func(context.Context, string, string) error
 }
 
 type Service struct {
@@ -76,7 +79,10 @@ type Service struct {
 	events          interface {
 		Append(*telemetryv1.ProgramEvent)
 	}
-	repo Repository
+	preflight        func(string) []*programsv1.Diagnostic
+	recordUnresolved func(context.Context, string, string) error
+	repo             Repository
+	eventSequence    atomic.Int64
 }
 
 func NewService(options Options) *Service {
@@ -88,21 +94,74 @@ func NewService(options Options) *Service {
 	if options.Store != nil {
 		repo = NewRepository(options.Store)
 	}
-	return &Service{clock: clock, runner: options.Runner, validateSession: options.ValidateSession, recordMemory: options.RecordMemory, executionBudget: options.ExecutionBudget, chargeExecution: options.ChargeExecution, libraryVersion: options.LibraryVersion, events: options.Events, repo: repo}
+	return &Service{clock: clock, runner: options.Runner, validateSession: options.ValidateSession, recordMemory: options.RecordMemory, executionBudget: options.ExecutionBudget, chargeExecution: options.ChargeExecution, libraryVersion: options.LibraryVersion, events: options.Events, preflight: options.Preflight, recordUnresolved: options.RecordUnresolved, repo: repo}
+}
+
+func (s *Service) SubmitWithDiagnostics(ctx context.Context, sessionID, source string, provenance programsv1.Provenance, includeMaterialized bool, explain bool, async ...bool) (*programsv1.Program, []*programsv1.Diagnostic, error) {
+	if strings.TrimSpace(sessionID) == "" {
+		return nil, nil, errors.New("session_id is required")
+	}
+	if s.validateSession != nil && !s.validateSession(sessionID) {
+		return nil, nil, errors.New("session not found or reclaimed")
+	}
+	if strings.TrimSpace(source) == "" {
+		return nil, nil, errors.New("source is required")
+	}
+	if provenance == programsv1.Provenance_PROVENANCE_UNSPECIFIED {
+		return nil, nil, errors.New("provenance is required")
+	}
+	diagnostics := []*programsv1.Diagnostic(nil)
+	if s.preflight != nil {
+		diagnostics = s.preflight(source)
+	}
+	if explain || hasDiagnosticErrors(diagnostics) {
+		now := s.clock().UTC().Format(time.RFC3339Nano)
+		p := &programsv1.Program{Id: "prog_" + uuid.NewString(), SessionId: sessionID, Source: source, Provenance: provenance, CreatedAt: now, CompletedAt: now, Status: programsv1.ProgramStatus_PROGRAM_STATUS_FAILED, OutputLimitBytes: 4096, FailureShape: "unresolved_name", FailureCause: programsv1.FailureCause_FAILURE_CAUSE_UNRESOLVED_NAME}
+		if explain && !hasDiagnosticErrors(diagnostics) {
+			p.Status = programsv1.ProgramStatus_PROGRAM_STATUS_ACCEPTED
+			p.CompletedAt = ""
+			p.FailureShape = ""
+			p.FailureCause = programsv1.FailureCause_FAILURE_CAUSE_UNSPECIFIED
+		}
+		if len(diagnostics) > 0 {
+			p.FailureDetail = diagnostics[0].GetMessage()
+			for _, diagnostic := range diagnostics {
+				if diagnostic.GetSeverity() == "error" && s.recordUnresolved != nil {
+					_ = s.recordUnresolved(ctx, sessionID, diagnostic.GetName())
+				}
+			}
+		}
+		if !explain {
+			if err := s.repo.Save(ctx, p); err != nil {
+				return nil, diagnostics, err
+			}
+			s.emitLifecycle(p, telemetryv1.EventKind_PROGRAM_SUBMITTED)
+			s.emitLifecycle(p, telemetryv1.EventKind_PROGRAM_FAILED)
+		}
+		return clone(p), diagnostics, nil
+	}
+
+	p, _, err := s.submit(ctx, sessionID, source, provenance, includeMaterialized, async...)
+	return p, diagnostics, err
 }
 
 func (s *Service) Submit(ctx context.Context, sessionID, source string, provenance programsv1.Provenance, includeMaterialized bool, async ...bool) (*programsv1.Program, error) {
+	p, _, err := s.SubmitWithDiagnostics(ctx, sessionID, source, provenance, includeMaterialized, false, async...)
+	return p, err
+}
+
+func (s *Service) submit(ctx context.Context, sessionID, source string, provenance programsv1.Provenance, includeMaterialized bool, async ...bool) (*programsv1.Program, []*programsv1.Diagnostic, error) {
 	if strings.TrimSpace(sessionID) == "" {
-		return nil, errors.New("session_id is required")
+		return nil, nil, errors.New("session_id is required")
 	}
 	if s.validateSession != nil && !s.validateSession(sessionID) {
-		return nil, errors.New("session not found or reclaimed")
+		return nil, nil, errors.New("session not found or reclaimed")
 	}
 	if strings.TrimSpace(source) == "" {
-		return nil, errors.New("source is required")
+		return nil, nil, errors.New("source is required")
 	}
 	if provenance == programsv1.Provenance_PROVENANCE_UNSPECIFIED {
-		return nil, errors.New("provenance is required")
+		return nil, nil, errors.New("provenance is required")
 	}
 
 	now := s.clock().UTC().Format(time.RFC3339Nano)
@@ -114,7 +173,7 @@ func (s *Service) Submit(ctx context.Context, sessionID, source string, provenan
 		p.OutputLimitBytes = 65536
 	}
 	if err := s.repo.Save(ctx, p); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	s.emitLifecycle(p, telemetryv1.EventKind_PROGRAM_SUBMITTED)
 	s.emitLifecycle(p, telemetryv1.EventKind_PROGRAM_ACCEPTED)
@@ -124,10 +183,19 @@ func (s *Service) Submit(ctx context.Context, sessionID, source string, provenan
 		// accepted work; the execution budget remains the authoritative bound.
 		// #nosec G118 -- accepted async work is intentionally detached from the RPC.
 		go s.execute(context.WithoutCancel(ctx), p, includeMaterialized)
-		return clone(p), nil
+		return clone(p), nil, nil
 	}
 	s.execute(ctx, p, includeMaterialized)
-	return clone(p), nil
+	return clone(p), nil, nil
+}
+
+func hasDiagnosticErrors(diagnostics []*programsv1.Diagnostic) bool {
+	for _, diagnostic := range diagnostics {
+		if diagnostic != nil && diagnostic.GetSeverity() == "error" {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *Service) execute(ctx context.Context, p *programsv1.Program, includeMaterialized bool) {
@@ -204,7 +272,7 @@ func (s *Service) execute(ctx context.Context, p *programsv1.Program, includeMat
 	}
 	for _, invocation := range result.Invocations {
 		if s.events != nil {
-			s.appendEvent(&telemetryv1.ProgramEvent{EventId: uuid.NewString(), OccurredAt: p.CreatedAt, Kind: telemetryv1.EventKind_BINDING_INVOKED, ProgramId: p.Id, SessionId: p.SessionId, BindingId: invocation.BindingID, Effect: invocation.Effect, Provenance: p.Provenance.String()})
+			s.appendEvent(&telemetryv1.ProgramEvent{EventId: uuid.NewString(), OccurredAt: s.clock().UTC().Format(time.RFC3339Nano), Kind: telemetryv1.EventKind_BINDING_INVOKED, ProgramId: p.Id, SessionId: p.SessionId, BindingId: invocation.BindingID, Effect: invocation.Effect, Provenance: p.Provenance.String()})
 		}
 	}
 	if s.chargeExecution != nil {
@@ -219,8 +287,9 @@ func (s *Service) fail(p *programsv1.Program, runErr error) {
 	var deadlineErr *DeadlineExceededError
 	if errors.As(runErr, &deadlineErr) {
 		p.FailureShape = "deadline_exceeded"
+		p.FailureCause = programsv1.FailureCause_FAILURE_CAUSE_DEADLINE_EXCEEDED
 	} else {
-		p.FailureShape = failureShape(runErr.Error())
+		p.FailureShape, p.FailureCause = failureShape(runErr.Error())
 	}
 	_ = s.repo.Save(context.Background(), p)
 	s.emitLifecycle(p, telemetryv1.EventKind_PROGRAM_FAILED)
@@ -228,7 +297,7 @@ func (s *Service) fail(p *programsv1.Program, runErr error) {
 
 func (s *Service) emitLifecycle(p *programsv1.Program, kind telemetryv1.EventKind) {
 	if s.events != nil {
-		event := &telemetryv1.ProgramEvent{EventId: uuid.NewString(), OccurredAt: p.CreatedAt, Kind: kind, ProgramId: p.Id, SessionId: p.SessionId, Provenance: p.Provenance.String(), FailureShape: p.FailureShape, ContextBytes: p.ContextBytes, Reason: p.FailureDetail}
+		event := &telemetryv1.ProgramEvent{EventId: uuid.NewString(), OccurredAt: s.clock().UTC().Format(time.RFC3339Nano), Kind: kind, ProgramId: p.Id, SessionId: p.SessionId, Provenance: p.Provenance.String(), FailureShape: p.FailureShape, ContextBytes: p.ContextBytes, Reason: p.FailureDetail}
 		if kind == telemetryv1.EventKind_PROGRAM_FAILED {
 			event.FailureLocation = failureLocation(p.FailureDetail)
 		}
@@ -238,6 +307,7 @@ func (s *Service) emitLifecycle(p *programsv1.Program, kind telemetryv1.EventKin
 
 func (s *Service) appendEvent(event *telemetryv1.ProgramEvent) {
 	if s.events != nil {
+		event.Sequence = s.eventSequence.Add(1)
 		s.events.Append(event)
 	}
 }
@@ -284,15 +354,37 @@ func (s *Service) MineUnresolvedBindings(ctx context.Context) []*programsv1.Unre
 }
 
 var (
-	lineError     = regexp.MustCompile(`(?i)(line\s+\d+|field\s+[a-z0-9_.-]+|[a-z_]+error)`)
 	locationError = regexp.MustCompile(`(?i)(line\s+\d+|field\s+[a-z0-9_.-]+)`)
 )
 
-func failureShape(detail string) string {
-	if match := lineError.FindString(strings.ToLower(detail)); match != "" {
-		return match
+func failureShape(detail string) (string, programsv1.FailureCause) {
+	lower := strings.ToLower(detail)
+	classifications := []struct {
+		needle string
+		name   string
+		cause  programsv1.FailureCause
+	}{
+		{"does not resolve", "unresolved_name", programsv1.FailureCause_FAILURE_CAUSE_UNRESOLVED_NAME},
+		{"unknown field", "unknown_field", programsv1.FailureCause_FAILURE_CAUSE_UNKNOWN_FIELD},
+		{"accepts named proto fields", "unknown_field", programsv1.FailureCause_FAILURE_CAUSE_UNKNOWN_FIELD},
+		{"no determinable primary response", "ambiguous_response", programsv1.FailureCause_FAILURE_CAUSE_AMBIGUOUS_RESPONSE},
+		{"unreachable", "unreachable_scenario", programsv1.FailureCause_FAILURE_CAUSE_UNREACHABLE_SCENARIO},
+		{"not run eligible", "refused_not_run_eligible", programsv1.FailureCause_FAILURE_CAUSE_REFUSED_NOT_RUN_ELIGIBLE},
+		{"run_eligible", "refused_not_run_eligible", programsv1.FailureCause_FAILURE_CAUSE_REFUSED_NOT_RUN_ELIGIBLE},
+		{"requires confirmation", "refused_no_grant", programsv1.FailureCause_FAILURE_CAUSE_REFUSED_NO_GRANT},
+		{"grant", "refused_no_grant", programsv1.FailureCause_FAILURE_CAUSE_REFUSED_NO_GRANT},
+		{"inference spend", "inference_spend_exceeded", programsv1.FailureCause_FAILURE_CAUSE_INFERENCE_SPEND_EXCEEDED},
+		{"delegated", "delegated_run_spend_exceeded", programsv1.FailureCause_FAILURE_CAUSE_DELEGATED_RUN_SPEND_EXCEEDED},
+		{"syntaxerror", "kernel_syntax", programsv1.FailureCause_FAILURE_CAUSE_KERNEL_SYNTAX},
+		{"bridge unavailable", "bridge_transport", programsv1.FailureCause_FAILURE_CAUSE_BRIDGE_TRANSPORT},
+		{"transport", "bridge_transport", programsv1.FailureCause_FAILURE_CAUSE_BRIDGE_TRANSPORT},
 	}
-	return "runtime error"
+	for _, item := range classifications {
+		if strings.Contains(lower, item.needle) {
+			return item.name, item.cause
+		}
+	}
+	return "kernel_runtime", programsv1.FailureCause_FAILURE_CAUSE_KERNEL_RUNTIME
 }
 
 func failureLocation(detail string) string {

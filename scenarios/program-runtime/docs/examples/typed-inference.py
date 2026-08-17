@@ -7,7 +7,7 @@ corpus = [
 
 
 results = vrooli.gather(*[
-    lambda text=text: vrooli.ai.classify(
+    lambda text=text: ai.classify(
         text,
         {"type": "string", "enum": ["infra", "user"]},
         "Choose the primary failure class.",

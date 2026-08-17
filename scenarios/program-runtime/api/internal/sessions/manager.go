@@ -241,6 +241,20 @@ func (m *Manager) GetDelegation(ctx context.Context, sessionID, executionID stri
 	return m.repo.GetDelegation(ctx, sessionID, executionID)
 }
 
+// CountDelegations returns the retained delegation records used by the
+// session_delegations measure. It is a direct projection of durable state.
+func (m *Manager) CountDelegations(ctx context.Context) int {
+	count, err := m.repo.CountDelegations(ctx)
+	if err != nil {
+		return 0
+	}
+	return count
+}
+
+func (m *Manager) ListDelegations(ctx context.Context) ([]*Delegation, error) {
+	return m.repo.ListDelegations(ctx)
+}
+
 func (m *Manager) Get(ctx context.Context, id string) (*Session, error) {
 	s, err := m.repo.Get(ctx, id)
 	if err != nil {

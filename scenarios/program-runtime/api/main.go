@@ -32,6 +32,7 @@ import (
 	apiserver "github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
 	repocontract "github.com/vrooli/repo-contract-go"
+	programsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/programs"
 	_ "modernc.org/sqlite"
 
 	bindingsH "program-runtime/handlers/bindings"
@@ -170,14 +171,8 @@ func main() {
 		log.Fatalf("program schema compatibility failed: %v", err)
 	}
 	libraryRepository := library.NewRepository(db.Primary())
-	if err := libraryRepository.EnsureSeeded(context.Background(), []library.Seed{
-		{Name: "discover", Source: "# Governed discovery facade; the public kernel bridge supplies the typed result.\nresult = vrooli.discover(intent)", Description: "Resolve one governed capability by intent and stop on an explicit null verdict."},
-		{Name: "fleet-fanout", Source: "result = vrooli.reachable()", Description: "Summarize live scenario reachability through the governed runtime."},
-		{Name: "failure-triage", Source: "result = vrooli.program_runtime.programs.mine()", Description: "Inspect recurring governed program failure shapes for triage."},
-		{Name: "registry-sweep", Source: "result = vrooli.program_runtime.bindings.doctor()", Description: "Inspect the live binding registry and its serving health."},
-		{Name: "typed-inference", Source: "result = vrooli.ai.classify(text)", Description: "Classify a small corpus through the governed inference binding."},
-	}, time.Now().UTC()); err != nil {
-		log.Fatalf("library seed failed: %v", err)
+	if err := libraryRepository.RemoveSeededAliases(context.Background()); err != nil {
+		log.Fatalf("library alias migration failed: %v", err)
 	}
 	retentionDB, err := database.Open(context.Background(), database.Config{
 		Driver:       database.DriverSQLite,
@@ -205,12 +200,13 @@ func main() {
 	}
 	bindingRegistry.SetInvocationRecorder(bindings.NewInvocationRepository(db.Primary()))
 	refusalRepository := bindings.NewRefusalRepository(db.Primary())
+	unresolvedRecorder, _ := refusalRepository.(bindings.UnresolvedRecorder)
 	telemetryStore := telemetry.NewStoreWithDB(db.Primary(), telemetry.NewPublisher(os.Getenv("VROOLI_EVENTS_API_BASE")))
 	telemetryStore.Start(context.Background())
 	registryBindings := bindingRegistry.List("", "")
 	bindingSpecs := make([]programs.BindingSpec, 0, len(registryBindings))
 	for _, binding := range registryBindings {
-		bindingSpecs = append(bindingSpecs, programs.BindingSpec{ID: binding.GetId(), Scenario: binding.GetScenario(), Group: binding.GetGroup(), Command: binding.GetCommand(), Effect: binding.GetEffect(), Reachable: binding.GetReachable(), ReachabilityReason: binding.GetReachabilityReason(), RowsField: binding.GetRowsField(), MetaFields: binding.GetMetaFields(), RowFieldCandidates: binding.GetRowFieldCandidates()})
+		bindingSpecs = append(bindingSpecs, programs.BindingSpec{ID: binding.GetId(), Namespace: strings.ReplaceAll(binding.GetScenario(), "-", "_"), Scenario: binding.GetScenario(), Group: binding.GetGroup(), Command: binding.GetCommand(), Effect: binding.GetEffect(), Reachable: binding.GetReachable(), ReachabilityReason: binding.GetReachabilityReason(), RowsField: binding.GetRowsField(), MetaFields: binding.GetMetaFields(), RowFieldCandidates: binding.GetRowFieldCandidates()})
 	}
 	bridgeURL := ""
 	agentBridgeURL := ""
@@ -223,7 +219,7 @@ func main() {
 		current := bindingRegistry.List("", "")
 		out := make([]programs.BindingSpec, 0, len(current))
 		for _, binding := range current {
-			out = append(out, programs.BindingSpec{ID: binding.GetId(), Scenario: binding.GetScenario(), Group: binding.GetGroup(), Command: binding.GetCommand(), Effect: binding.GetEffect(), Reachable: binding.GetReachable(), ReachabilityReason: binding.GetReachabilityReason(), RowsField: binding.GetRowsField(), MetaFields: binding.GetMetaFields(), RowFieldCandidates: binding.GetRowFieldCandidates()})
+			out = append(out, programs.BindingSpec{ID: binding.GetId(), Namespace: strings.ReplaceAll(binding.GetScenario(), "-", "_"), Scenario: binding.GetScenario(), Group: binding.GetGroup(), Command: binding.GetCommand(), Effect: binding.GetEffect(), Reachable: binding.GetReachable(), ReachabilityReason: binding.GetReachabilityReason(), RowsField: binding.GetRowsField(), MetaFields: binding.GetMetaFields(), RowFieldCandidates: binding.GetRowFieldCandidates()})
 		}
 		return out
 	})
@@ -246,7 +242,22 @@ func main() {
 	}
 	workspaceResolver := sessions.NewTypedWorkspaceResolver(discovery.NewResolver(discovery.ResolverConfig{}), http.DefaultClient)
 	sessionManager := sessions.NewManager(sessions.Options{Store: db.Primary(), WallBudget: envDurationMillis("PROGRAM_RUNTIME_WALL_BUDGET_MILLIS"), CPUBudget: envDurationMillis("PROGRAM_RUNTIME_CPU_BUDGET_MILLIS"), InferenceCeilingMicros: envInt64("PROGRAM_RUNTIME_INFERENCE_CEILING_MICROS"), DelegationCeilingMicros: envInt64("PROGRAM_RUNTIME_DELEGATION_CEILING_MICROS"), WorkspaceResolver: workspaceResolver, OnWorkspaceResolved: runner.SetSessionWorkspace, OnReclaimed: func(id string) { runner.KillSession(id); runner.ClearSessionWorkspace(id) }})
-	programService := programs.NewService(programs.Options{Store: db.Primary(), Runner: runner, RecordMemory: func(id string, bytes int64) { _ = sessionManager.SetMemoryBytes(context.Background(), id, bytes) }, ExecutionBudget: func(id string) (programs.ExecutionLimits, error) {
+	programService := programs.NewService(programs.Options{Store: db.Primary(), Runner: runner, Preflight: func(source string) []*programsv1.Diagnostic {
+		current := bindingRegistry.List("", "")
+		known := []string{"discover", "recall", "guide", "validate", "capture", "ai", "agent", "gather", "describe", "reachable", "lib", "vrooli", "__vrooli__", "Handle"}
+		for _, binding := range current {
+			name := strings.ReplaceAll(binding.GetScenario(), "-", "_")
+			if name != "" && name != "vrooli" {
+				known = append(known, name)
+			}
+		}
+		return programs.ResolveSource(source, known)
+	}, RecordUnresolved: func(ctx context.Context, sessionID, attemptedName string) error {
+		if unresolvedRecorder == nil {
+			return nil
+		}
+		return unresolvedRecorder.RecordUnresolved(ctx, sessionID, attemptedName, time.Now().UTC())
+	}, RecordMemory: func(id string, bytes int64) { _ = sessionManager.SetMemoryBytes(context.Background(), id, bytes) }, ExecutionBudget: func(id string) (programs.ExecutionLimits, error) {
 		budget, err := sessionManager.ExecutionBudget(context.Background(), id)
 		if err != nil {
 			return programs.ExecutionLimits{}, err
@@ -290,6 +301,8 @@ func main() {
 	rootMux.Handle("/internal/program-runtime/bindings/execute", bindingsH.Bridge(bindingRegistry, sessionManager, refusalRepository))
 	rootMux.Handle("/internal/program-runtime/bindings/describe", bindingsH.DescribeBridge(bindingRegistry, sessionManager))
 	rootMux.Handle("/internal/program-runtime/bindings/reachability", bindingsH.ReachabilityBridge(bindingRegistry, sessionManager))
+	rootMux.Handle("/internal/program-runtime/bindings/unresolved", bindingsH.UnresolvedBridge(sessionManager, unresolvedRecorder))
+	rootMux.Handle("/internal/program-runtime/bindings/projection/", bindingsH.ProjectionBridge(sessionManager))
 	rootMux.Handle("/internal/program-runtime/bindings/resolve-intent", bindingsH.IntentBridge(bindingRegistry, libraryRepository))
 	rootMux.Handle("/internal/program-runtime/bindings/search", bindingsH.BindingCorpusHandler(bindingRegistry))
 	rootMux.Handle("/internal/program-runtime/library/search", bindingsH.LibraryCorpusHandler(libraryRepository))
@@ -303,6 +316,8 @@ func main() {
 		return len(sessionManager.List(context.Background()))
 	}, func() int {
 		return len(programService.MineFailures(context.Background(), false))
+	}, func() int {
+		return sessionManager.CountDelegations(context.Background())
 	}, func() int {
 		total, _, _ := bindingRegistry.InvocationMeasures(context.Background())
 		return total

@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Emit typed platform events for submissions, invocations, and failures through the shared event bus. Emission only; no scenario-local analysis.",
-    "last_validated_at": "2026-08-16T11:20:00-04:00",
+    "last_validated_at": "2026-08-16T15:17:16-04:00",
     "module": "telemetry",
     "prd_ref": "PRD.md",
     "priority": "P0",
@@ -11,7 +11,7 @@
     {
       "id": "PRT-P0-006",
       "title": "Typed program telemetry",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-006",
       "category": "telemetry.events",
       "criticality": "P0",
@@ -25,19 +25,19 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Target `api/internal/telemetry/events_test.go::TestEmitsSubmissionInvocationAndFailureEvents` (tag the test [REQ:PRT-P0-006]). Each program submission, binding invocation, and failure emits one typed event through the shared event bus."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Target `api/internal/telemetry/events_test.go::TestFailureEventCarriesProgramLocator` (tag the test [REQ:PRT-P0-006]). A failure event carries the program id and failing location so friction analysis can trace it without re-running."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Target `api/internal/telemetry/events_test.go::TestNoScenarioLocalAnalysisStack` (tag the test [REQ:PRT-P0-006]). Telemetry is emitted only; no aggregation or ranking happens here. Analysis belongs to agent-manager and meta-optimization-manager."
         },
         {

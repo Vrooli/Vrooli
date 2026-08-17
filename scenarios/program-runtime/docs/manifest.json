@@ -394,6 +394,74 @@
             "requiredHeadings": ["Lifecycle and ports", "API and CLI", "Build and dependencies", "Tests", "Storage", "Proto codegen", "When to add a new entry here", "Cross-references"],
             "forbiddenPlaceholders": ["[TODO]"]
           }
+        },
+        {
+          "path": "guides/program-construction.md",
+          "docType": "program-construction-guide",
+          "title": "Program Construction",
+          "aliases": ["construct-program", "agent-programs"],
+          "description": "Build governed programs with flat namespaces, bounded Handles, and typed recovery evidence",
+          "audience": ["agents", "developers"],
+          "canonicalFor": ["program-construction", "agent-program-authoring"],
+          "maturity": "active",
+          "requiredBy": ["implemented"],
+          "completion": "required",
+          "validation": {"requiredHeadings": ["Constructing a program"], "forbiddenPlaceholders": ["[TODO]"]}
+        },
+        {
+          "path": "construction/namespace-and-contracts.md",
+          "docType": "program-namespace-guide",
+          "title": "Program Namespace and Contracts",
+          "description": "Address flat scenario bindings and inspect live binding contracts",
+          "audience": ["agents", "developers"],
+          "maturity": "active",
+          "requiredBy": ["implemented"],
+          "completion": "required",
+          "validation": {"forbiddenPlaceholders": ["[TODO]"]}
+        },
+        {
+          "path": "construction/handles.md",
+          "docType": "program-handles-guide",
+          "title": "Program Handles",
+          "description": "Shape bounded rows while retaining response metadata",
+          "audience": ["agents", "developers"],
+          "maturity": "active",
+          "requiredBy": ["implemented"],
+          "completion": "required",
+          "validation": {"forbiddenPlaceholders": ["[TODO]"]}
+        },
+        {
+          "path": "construction/inference-and-discovery.md",
+          "docType": "program-inference-guide",
+          "title": "Program Inference and Discovery",
+          "description": "Use governed discovery and typed inference with null-verdict stops",
+          "audience": ["agents", "developers"],
+          "maturity": "active",
+          "requiredBy": ["implemented"],
+          "completion": "required",
+          "validation": {"forbiddenPlaceholders": ["[TODO]"]}
+        },
+        {
+          "path": "construction/delegation.md",
+          "docType": "program-delegation-guide",
+          "title": "Program Delegation",
+          "description": "Start and collect governed delegated work without polling loops",
+          "audience": ["agents", "developers"],
+          "maturity": "active",
+          "requiredBy": ["implemented"],
+          "completion": "required",
+          "validation": {"forbiddenPlaceholders": ["[TODO]"]}
+        },
+        {
+          "path": "construction/failure-recovery.md",
+          "docType": "program-failure-recovery-guide",
+          "title": "Program Failure Recovery",
+          "description": "Interpret static diagnostics and closed failure causes",
+          "audience": ["agents", "developers"],
+          "maturity": "active",
+          "requiredBy": ["implemented"],
+          "completion": "required",
+          "validation": {"forbiddenPlaceholders": ["[TODO]"]}
         }
       ]
     },

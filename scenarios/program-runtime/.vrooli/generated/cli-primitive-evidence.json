@@ -4,8 +4,16 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "program-runtime",
   "generator": "v1.0.0",
-  "manifest_hash": "12dcbcf15e4cc6308eada852fcd6986efde96c248b237671f71fd4bd0c7336d6",
+  "manifest_hash": "e1fae1ee35253b0c51d4b6ffd6bfda0db048c569391eff3ac14f3f8a18b4776c",
   "commands": [
+    {
+      "path": "authoring eval",
+      "group": "authoring",
+      "command": "eval",
+      "binding": "vrooli.program_runtime.v1.programs.ProgramService.RunAuthoringEval",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
     {
       "path": "bindings act",
       "group": "bindings",
@@ -163,6 +171,14 @@
       "binding": "SessionService.CreateSession",
       "declared_primitive": "proto_mutation",
       "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "sessions delegations",
+      "group": "sessions",
+      "command": "delegations",
+      "binding": "SessionService.ListDelegations",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
     },
     {
       "path": "sessions delete",

@@ -42,6 +42,7 @@ func EnsureCompatibility(ctx context.Context, db SQLExecutor) error {
 		{"wall_time_millis", "INTEGER NOT NULL DEFAULT 0"},
 		{"cpu_time_millis", "INTEGER NOT NULL DEFAULT 0"},
 		{"library_version", "TEXT NOT NULL DEFAULT ''"},
+		{"failure_cause", "TEXT NOT NULL DEFAULT ''"},
 	}
 	for _, column := range columns {
 		if found[column.name] {

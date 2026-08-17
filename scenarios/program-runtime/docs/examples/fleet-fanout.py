@@ -2,9 +2,9 @@
 
 def main():
     calls = {
-        "agent_manager_runs": lambda: vrooli.agent_manager.measures.run_volume(),
-        "ai_gateway_calls": lambda: vrooli.ai_gateway.measures.total(),
-        "program_runtime_bindings": lambda: vrooli.program_runtime.bindings.list(),
+        "agent_manager_runs": lambda: agent_manager.measures.run_volume(),
+        "ai_gateway_calls": lambda: ai_gateway.measures.total(),
+        "program_runtime_bindings": lambda: program_runtime.bindings.list(),
     }
     results = vrooli.gather(*calls.values())
     print({

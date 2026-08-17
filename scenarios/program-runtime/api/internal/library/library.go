@@ -83,6 +83,20 @@ func (r *Repository) EnsureSeeded(ctx context.Context, seeds []Seed, now time.Ti
 	return nil
 }
 
+// RemoveSeededAliases is the one-time migration for the pre-promotion
+// library shape. Seeded rows were aliases masquerading as reusable programs;
+// deleting only rows explicitly marked origin=seeded leaves promoted history
+// intact and makes the durable library match its current contract.
+func (r *Repository) RemoveSeededAliases(ctx context.Context) error {
+	if _, err := r.db.ExecContext(ctx, `DELETE FROM library_current WHERE name IN (SELECT name FROM library_programs WHERE origin='seeded')`); err != nil {
+		return fmt.Errorf("remove seeded library selections: %w", err)
+	}
+	if _, err := r.db.ExecContext(ctx, `DELETE FROM library_programs WHERE origin='seeded'`); err != nil {
+		return fmt.Errorf("remove seeded library aliases: %w", err)
+	}
+	return nil
+}
+
 func (r *Repository) List(ctx context.Context) ([]*sharedv1.LibraryProgram, error) {
 	rows, err := r.db.QueryContext(ctx, `SELECT p.id,p.name,p.version,p.source,p.description,p.origin,p.created_at,p.source_program_id,p.promoted_by,p.promotion_reason,p.called_binding_ids,COALESCE(c.name IS NOT NULL,0) FROM library_programs p LEFT JOIN library_current c ON c.name=p.name AND c.version=p.version ORDER BY p.name,p.version`)
 	if err != nil {

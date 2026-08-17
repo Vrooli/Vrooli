@@ -31,6 +31,8 @@ type Repository interface {
 	RecordDelegationUsage(context.Context, string, int64, bool, string) error
 	SaveDelegation(context.Context, *Delegation) error
 	GetDelegation(context.Context, string, string) (*Delegation, error)
+	ListDelegations(context.Context) ([]*Delegation, error)
+	CountDelegations(context.Context) (int, error)
 	RecordExecutionUsage(context.Context, string, time.Duration, time.Duration, time.Time) error
 	Reclaim(context.Context, string, string, time.Time) error
 }
@@ -236,6 +238,40 @@ func (r *sqliteRepository) GetDelegation(ctx context.Context, sessionID, executi
 	return &d, nil
 }
 
+func (r *sqliteRepository) CountDelegations(ctx context.Context) (int, error) {
+	var count int
+	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM session_delegations`).Scan(&count); err != nil {
+		return 0, fmt.Errorf("count session delegations: %w", err)
+	}
+	return count, nil
+}
+
+func (r *sqliteRepository) ListDelegations(ctx context.Context) ([]*Delegation, error) {
+	rows, err := r.db.QueryContext(ctx, `SELECT session_id, execution_id, owner, workflow_key, created_at, last_status FROM session_delegations ORDER BY created_at, execution_id`)
+	if err != nil {
+		return nil, fmt.Errorf("list session delegations: %w", err)
+	}
+	defer rows.Close()
+	var out []*Delegation
+	for rows.Next() {
+		var d Delegation
+		var created string
+		if err := rows.Scan(&d.SessionID, &d.ExecutionID, &d.Owner, &d.WorkflowKey, &created, &d.LastStatus); err != nil {
+			return nil, fmt.Errorf("scan session delegation: %w", err)
+		}
+		parsed, err := time.Parse(time.RFC3339Nano, created)
+		if err != nil {
+			return nil, fmt.Errorf("parse session delegation timestamp: %w", err)
+		}
+		d.CreatedAt = parsed
+		out = append(out, &d)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate session delegations: %w", err)
+	}
+	return out, nil
+}
+
 func (r *sqliteRepository) RecordExecutionUsage(ctx context.Context, id string, wall, cpu time.Duration, now time.Time) error {
 	result, err := r.db.ExecContext(ctx, `UPDATE sessions SET wall_consumed_millis = wall_consumed_millis + ?, cpu_consumed_millis = cpu_consumed_millis + ?, last_activity_at = ? WHERE id = ?`, durationMillis(wall), durationMillis(cpu), formatTime(now), id)
 	if err != nil {
@@ -320,9 +356,9 @@ func boolInt(value bool) int {
 // memoryRepository keeps package-level tests independent from an on-disk
 // database. Production always supplies a SQLite executor through Options.
 type memoryRepository struct {
-	mu       sync.RWMutex
-	sessions map[string]*Session
-	reasons  []string
+	mu          sync.RWMutex
+	sessions    map[string]*Session
+	reasons     []string
 	delegations map[string]*Delegation
 }
 
@@ -391,6 +427,28 @@ func (r *memoryRepository) GetDelegation(_ context.Context, sessionID, execution
 		return nil, ErrDelegationNotOwned
 	}
 	return cloneDelegation(delegation), nil
+}
+
+func (r *memoryRepository) CountDelegations(_ context.Context) (int, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return len(r.delegations), nil
+}
+
+func (r *memoryRepository) ListDelegations(_ context.Context) ([]*Delegation, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	out := make([]*Delegation, 0, len(r.delegations))
+	for _, delegation := range r.delegations {
+		out = append(out, cloneDelegation(delegation))
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].CreatedAt.Equal(out[j].CreatedAt) {
+			return out[i].ExecutionID < out[j].ExecutionID
+		}
+		return out[i].CreatedAt.Before(out[j].CreatedAt)
+	})
+	return out, nil
 }
 
 func cloneDelegation(delegation *Delegation) *Delegation {

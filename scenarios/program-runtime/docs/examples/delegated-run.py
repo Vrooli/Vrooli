@@ -13,11 +13,11 @@ request = {
     },
 }
 
-first = vrooli.agent.start(**request)
-second = vrooli.agent.start(**request)
+first = agent.start(**request)
+second = agent.start(**request)
 
-first_result = vrooli.agent.collect(first, wait_seconds=30)
-second_result = vrooli.agent.collect(second, wait_seconds=30)
+first_result = agent.collect(first, wait_seconds=30)
+second_result = agent.collect(second, wait_seconds=30)
 print(first_result.head(1))
 print(second_result.head(1))
 

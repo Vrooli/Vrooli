@@ -54,7 +54,7 @@ def test_binding_response_uses_declared_rows_field_and_preserves_metadata():
         }
     ], session_id="phase-1", bridge_url="http://bridge/internal/program-runtime/bindings/execute")
     with patch("host.engine.urllib.request.urlopen", side_effect=[ReachabilityResponse(), Response()]):
-        result = kernel.execute("rows = vrooli.search_hub.query.query(query='program runtime')\nprint(rows.count())\nprint(rows.meta()['latencyMs'])\nprint(rows.raw()['rerankerLeg'])")
+        result = kernel.execute("rows = search_hub.query.query(query='program runtime')\nprint(rows.count())\nprint(rows.meta()['latencyMs'])\nprint(rows.raw()['rerankerLeg'])")
     assert result["ok"]
     assert "2" in result["stdout"]
     assert "12" in result["stdout"]
@@ -93,10 +93,41 @@ def test_binding_response_refuses_ambiguous_repeated_fields_with_candidates():
         }
     ], session_id="phase-1", bridge_url="http://bridge/internal/program-runtime/bindings/execute")
     with patch("host.engine.urllib.request.urlopen", side_effect=[ReachabilityResponse(), Response()]):
-        result = kernel.execute("vrooli.fixture.query.run()")
+        result = kernel.execute("fixture.query.run()")
     assert not result["ok"]
     assert "fixture/query/run" in result["error"]
     assert "first, second" in result["error"]
+
+
+def test_binding_response_accepts_explicit_rows_projection():
+    class ReachabilityResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def read(self):
+            return b'{"fixture":{"reachable":true}}'
+
+    class Response:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def read(self):
+            return b'{"first":[1],"second":[2],"metadata":"kept"}'
+
+    kernel = SessionKernel([
+        {"id": "fixture/query/run", "scenario": "fixture", "group": "query", "command": "run", "row_field_candidates": ["first", "second"]}
+    ], session_id="phase-1", bridge_url="http://bridge/internal/program-runtime/bindings/execute")
+    with patch("host.engine.urllib.request.urlopen", side_effect=[ReachabilityResponse(), Response()]):
+        result = kernel.execute("rows = fixture.query.run(rows='second')\nprint(rows.count())\nprint(rows.raw()['metadata'])")
+    assert result["ok"]
+    assert "1" in result["stdout"]
+    assert "kept" in result["stdout"]
 
 
 def test_handle_constructor_is_available_to_isolated_programs():
@@ -167,8 +198,8 @@ def test_namespace_mirrors_manifest_groups(tmp_path):  # [REQ:PRT-P0-001]
 
 def test_inference_and_delegation_fail_closed():
     kernel = SessionKernel()
-    inference = kernel.execute("vrooli.ai.classify('hello')")
-    delegation = kernel.execute("vrooli.agent.run('other-scenario')")
+    inference = kernel.execute("ai.classify('hello')")
+    delegation = kernel.execute("agent.run('other-scenario')")
     assert not inference["ok"]
     assert "promotion" in inference["error"]
     assert not delegation["ok"]
@@ -177,23 +208,20 @@ def test_inference_and_delegation_fail_closed():
 
 def test_current_library_facades_are_versioned_and_bounded():
     kernel = SessionKernel(
-        libraries=[
-            {"name": "discover", "version": 1, "current": True},
-            {"name": "old-tool", "version": 1, "current": False},
-        ]
+        libraries=[{"name": "old-tool", "version": 1, "current": False}]
     )
-    result = kernel.execute("print(vrooli.lib.discover('find a capability').head(1))")
+    result = kernel.execute("print(lib.list().materialize())")
     assert result["ok"]
-    assert "null_verdict" in result["stdout"]
+    assert "old-tool" not in result["stdout"]
 
-    retired = kernel.execute("vrooli.lib.old_tool()")
+    retired = kernel.execute("lib.old_tool()")
     assert not retired["ok"]
     assert "not current and promoted" in retired["error"]
 
 
 def test_library_facade_rejects_ambiguous_arguments():
     kernel = SessionKernel(libraries=[{"name": "fleet-fanout", "version": 1, "current": True}])
-    result = kernel.execute("vrooli.lib.fleet_fanout('unexpected')")
+    result = kernel.execute("lib.fleet_fanout('unexpected')")
     assert not result["ok"]
     assert "accept named inputs" in result["error"]
 
@@ -204,6 +232,6 @@ def test_promoted_library_source_runs_inside_the_same_governed_surface():
             {"name": "probe", "version": 2, "current": True, "source": "result = Handle([{'ok': True}])"},
         ]
     )
-    result = kernel.execute("print(vrooli.lib.probe().head(1))")
+    result = kernel.execute("print(lib.probe().head(1))")
     assert result["ok"]
     assert "'ok': True" in result["stdout"]

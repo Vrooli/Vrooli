@@ -95,9 +95,9 @@ func TestProjectManifestBindsControlPlaneMethods(t *testing.T) {
 	r, err := Load(repoRoot(t))
 	require.NoError(t, err)
 	bindings := r.List("vrooli", "scenario")
-	require.Len(t, bindings, 7)
+	require.Len(t, bindings, 6)
 	want := map[string]struct{}{
-		"ListScenarios": {}, "GetScenarioStatus": {}, "GetScenarioLogs": {},
+		"GetScenarioStatus": {}, "GetScenarioLogs": {},
 		"StartScenario": {}, "StopScenario": {}, "RestartScenario": {}, "SetupScenario": {},
 	}
 	for _, binding := range bindings {

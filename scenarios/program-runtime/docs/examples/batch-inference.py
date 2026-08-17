@@ -6,7 +6,7 @@ corpus = [
     "The deployment lost its database connection.",
 ]
 
-result = vrooli.ai.batch(
+result = ai.batch(
     corpus,
     {"type": "string", "enum": ["infra", "user"]},
     "Choose the primary failure class.",

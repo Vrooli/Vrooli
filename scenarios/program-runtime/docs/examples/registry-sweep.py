@@ -1,6 +1,6 @@
 """Plan a safe registry sweep without invoking write-effect bindings."""
 
-plan = vrooli.program_runtime.bindings.sweep(dry_run=True)
+plan = program_runtime.bindings.sweep(dry_run=True)
 print({
     "result_rows": plan.count(),
 })

@@ -37,10 +37,26 @@ def documented_programs():
 
 def test_every_documented_program_compiles_and_executes():
     failures = []
+    surface = DocumentationSurface()
+    globals_for_docs = {
+        "Handle": Handle,
+        "vrooli": surface,
+        "__name__": "documentation_test",
+        "describe": surface,
+        "search_hub": surface,
+        "gather": surface.gather,
+        "ai": surface,
+        "agent": surface,
+        "discover": surface.discover,
+        "lib": surface,
+        "agent_manager": surface,
+        "ai_gateway": surface,
+        "program_runtime": surface,
+    }
     for label, source in documented_programs():
         try:
             code = compile(source, label, "exec")
-            exec(code, {"Handle": Handle, "vrooli": DocumentationSurface(), "__name__": "documentation_test"})
+            exec(code, globals_for_docs)
         except Exception as exc:  # noqa: BLE001 - report every broken example together
             failures.append(f"{label}: {type(exc).__name__}: {exc}")
     assert not failures, "\n".join(failures)

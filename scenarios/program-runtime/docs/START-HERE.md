@@ -1,5 +1,7 @@
 # Start Here — Program Runtime
 
+For agent-facing construction, begin with [the program construction guide](guides/program-construction.md).
+
 This is the first document to read after generating the scenario from
 the `react-vite` template. Treat it as the scenario initialization
 protocol: complete the gates in order, check them off as you go, and

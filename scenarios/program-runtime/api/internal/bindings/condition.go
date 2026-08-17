@@ -69,6 +69,7 @@ func (r *Registry) Conditions(ctx context.Context, bindingID, scenario string, w
 		sustainedByBinding[row.BindingID] = append(sustainedByBinding[row.BindingID], row)
 	}
 	response := &bindingsv1.GetBindingConditionResponse{WindowSeconds: int64(window / time.Second)}
+	byScenario := make(map[string][]*bindingsv1.BindingCondition)
 	for _, binding := range r.bindings {
 		if bindingID != "" && binding.GetId() != bindingID || scenario != "" && binding.GetScenario() != scenario {
 			continue
@@ -85,8 +86,44 @@ func (r *Registry) Conditions(ctx context.Context, bindingID, scenario string, w
 			response.InstrumentedBindings++
 		}
 		response.Conditions = append(response.Conditions, condition)
+		byScenario[binding.GetScenario()] = append(byScenario[binding.GetScenario()], condition)
+	}
+	for _, scenario := range sortedScenarioNames(byScenario) {
+		conditions := byScenario[scenario]
+		rollup := &bindingsv1.ScenarioCondition{Scenario: scenario, BindingCount: int32(len(conditions))}
+		for _, condition := range conditions {
+			switch condition.GetStatus() {
+			case bindingsv1.ConditionStatus_CONDITION_STATUS_DEGRADED:
+				rollup.DegradedBindings++
+			case bindingsv1.ConditionStatus_CONDITION_STATUS_HEALTHY:
+				rollup.HealthyBindings++
+			case bindingsv1.ConditionStatus_CONDITION_STATUS_DORMANT, bindingsv1.ConditionStatus_CONDITION_STATUS_UNINSTRUMENTED:
+				rollup.DormantBindings++
+			}
+		}
+		switch {
+		case rollup.DegradedBindings > 0:
+			rollup.Status = bindingsv1.ConditionStatus_CONDITION_STATUS_DEGRADED
+			rollup.Verdict = fmt.Sprintf("scenario has %d degraded binding(s)", rollup.DegradedBindings)
+		case rollup.HealthyBindings > 0:
+			rollup.Status = bindingsv1.ConditionStatus_CONDITION_STATUS_HEALTHY
+			rollup.Verdict = fmt.Sprintf("scenario has %d healthy binding(s)", rollup.HealthyBindings)
+		default:
+			rollup.Status = bindingsv1.ConditionStatus_CONDITION_STATUS_DORMANT
+			rollup.Verdict = "scenario has no exercised bindings in the requested window"
+		}
+		response.ScenarioConditions = append(response.ScenarioConditions, rollup)
 	}
 	return response, nil
+}
+
+func sortedScenarioNames(groups map[string][]*bindingsv1.BindingCondition) []string {
+	names := make([]string, 0, len(groups))
+	for name := range groups {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
 }
 
 // SustainedDegradedCount is the measure-facing projection of the same

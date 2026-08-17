@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Cross-domain obligations that no single product domain owns: declared measure coverage, the broader operator console, and future kernel adapters.",
-    "last_validated_at": "2026-08-16T11:20:00-04:00",
+    "last_validated_at": "2026-08-16T15:17:16-04:00",
     "module": "platform",
     "prd_ref": "PRD.md",
     "priority": "P0",
@@ -11,7 +11,7 @@
     {
       "id": "PRT-P0-009",
       "title": "Domain measure coverage",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-009",
       "category": "measures.coverage",
       "criticality": "P0",
@@ -25,13 +25,13 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Target `api/handlers/measures/module_test.go::TestDeclarationsCoverStatefulDomains` (tag the test [REQ:PRT-P0-009]). Each stateful domain has a declared owner measure, while explicitly stateless domains carry a reason in the manifest."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Target `api/handlers/measures/module_test.go::TestDeclarationsCoverStatefulDomains` (tag the test [REQ:PRT-P0-009]). The declarations are checked against the scenario manifest's stateful-domain contract, so an unknown waiver cannot silently replace a measure."
         }
       ]
@@ -52,7 +52,7 @@
         {
           "type": "manual",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "No validation target exists: the broader sessions and program-history operator surface remains planned. The binding registry surface is separately earned by PRT-P1-007."
         },
         {
@@ -79,7 +79,7 @@
         {
           "type": "manual",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "No validation target exists: no non-Python kernel has been admitted and no measured capability argument justifies alternate adapters."
         },
         {

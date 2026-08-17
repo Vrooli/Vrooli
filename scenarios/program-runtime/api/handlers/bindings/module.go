@@ -219,6 +219,42 @@ func ReachabilityBridge(registry *bindings.Registry, manager *sessions.Manager) 
 	})
 }
 
+// UnresolvedBridge records runtime name misses produced by dynamic Python
+// lookups (the normal static path is handled by program preflight). It is a
+// best-effort telemetry seam: the kernel still owns the user-visible
+// NameError, while this handler owns durable unresolved-name evidence.
+func UnresolvedBridge(manager *sessions.Manager, recorder bindings.UnresolvedRecorder) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		var request struct {
+			SessionID     string `json:"session_id"`
+			AttemptedName string `json:"attempted_name"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			writeBridgeError(w, http.StatusBadRequest, fmt.Sprintf("decode unresolved-name request: %v", err))
+			return
+		}
+		if strings.TrimSpace(request.AttemptedName) == "" {
+			writeBridgeError(w, http.StatusBadRequest, "attempted_name is required")
+			return
+		}
+		if _, err := manager.Get(r.Context(), request.SessionID); err != nil {
+			writeBridgeError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		if recorder != nil {
+			if err := recorder.RecordUnresolved(r.Context(), request.SessionID, request.AttemptedName, time.Now().UTC()); err != nil {
+				writeBridgeError(w, http.StatusInternalServerError, err.Error())
+				return
+			}
+		}
+		w.WriteHeader(http.StatusNoContent)
+	})
+}
+
 func resolveDescriptionID(registry *bindings.Registry, reference string) (string, error) {
 	reference = strings.TrimSpace(reference)
 	if strings.HasPrefix(reference, "vrooli.") {
@@ -254,6 +290,7 @@ func Bridge(registry *bindings.Registry, manager *sessions.Manager, refusalRecor
 			BindingID  string         `json:"binding_id"`
 			Args       map[string]any `json:"args"`
 			Confirmed  bool           `json:"confirmed"`
+			Rows       string         `json:"rows"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 			writeBridgeError(w, http.StatusBadRequest, fmt.Sprintf("decode binding request: %v", err))
@@ -292,6 +329,22 @@ func Bridge(registry *bindings.Registry, manager *sessions.Manager, refusalRecor
 			writeBridgeError(w, http.StatusBadRequest, err.Error())
 			return
 		}
+		if request.Rows != "" {
+			binding, _ := registry.Binding(request.BindingID)
+			valid := false
+			if binding != nil {
+				for _, candidate := range binding.GetRowFieldCandidates() {
+					if candidate == request.Rows {
+						valid = true
+						break
+					}
+				}
+			}
+			if !valid {
+				writeBridgeError(w, http.StatusBadRequest, fmt.Sprintf("binding %s rows must name one of its repeated response fields", request.BindingID))
+				return
+			}
+		}
 		result, err := registry.Execute(r.Context(), request.BindingID, request.Args, grants, request.Confirmed, bindings.InvocationMetadata{SessionID: request.SessionID, ProgramID: request.ProgramID, Provenance: request.Provenance}, &http.Client{Timeout: 3 * time.Minute})
 		if err != nil {
 			writeBridgeError(w, http.StatusBadRequest, err.Error())
@@ -313,6 +366,41 @@ func Bridge(registry *bindings.Registry, manager *sessions.Manager, refusalRecor
 		}
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(result)
+	})
+}
+
+// ProjectionBridge exposes runtime-owned projection verbs as typed, immutable
+// Go endpoints rather than mutable library rows.
+func ProjectionBridge(manager *sessions.Manager) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		verb := strings.TrimPrefix(r.URL.Path, "/projection/")
+		if verb != "recall" && verb != "guide" && verb != "validate" && verb != "capture" {
+			writeBridgeError(w, http.StatusNotFound, "unknown projection verb")
+			return
+		}
+		var request map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			writeBridgeError(w, http.StatusBadRequest, fmt.Sprintf("decode projection request: %v", err))
+			return
+		}
+		if manager != nil {
+			if _, err := manager.Get(r.Context(), fmt.Sprint(request["session_id"])); err != nil {
+				writeBridgeError(w, http.StatusNotFound, err.Error())
+				return
+			}
+		}
+		text := map[string]string{
+			"recall":   "Recall governed records relevant to the requested intent, then verify the live contract before acting.",
+			"guide":    "Construct a bounded program from live governed bindings; compose Handles and stop on null verdicts.",
+			"validate": "Validation is a read-only projection; inspect its verdict and evidence before proceeding.",
+			"capture":  "Capture a reusable outcome for the learning loop with trigger, approach, evidence, and outcome.",
+		}[verb]
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{"text": text, "verb": verb, "mode": request["mode"], "session_id": request["session_id"]})
 	})
 }
 

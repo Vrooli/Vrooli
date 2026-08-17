@@ -21,8 +21,8 @@ not add another `ports` entry. Declare an additional port only when the
 scenario starts a separate listener process.
 
 The canonical bands all sit below 32768 so Linux never hands out the
-ports as outbound source ports. See the project-level port allocation reference
-(`path:docs/reference/port-allocation.md`) for the full policy.
+ports as outbound source ports. See the project-level port allocation policy
+for the full policy.
 
 ### Optional overrides
 

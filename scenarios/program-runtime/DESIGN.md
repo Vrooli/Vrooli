@@ -178,6 +178,13 @@ Concrete rule of thumb: this design tells you *how* a control should look, behav
 
 ## Intent
 
+Program construction is intentionally visually legible: scenario bindings
+are flat top-level namespaces, project control-plane calls live under
+`vrooli`, and runtime verbs are top-level built-ins. Results are bounded
+Handles, response metadata stays outside rows, and failures present a named
+cause with a recovery path. The construction reference is
+`docs/construction/README.md`.
+
 Vrooli Operational Console is the default design language for scenario applications. It is built for operators, agents, reviewers, maintainers, and builders who need to understand system state quickly and act repeatedly without friction.
 
 The interface should feel calm, technical, dense, legible, and durable. It should borrow the strongest patterns from Swarm Manager and Git Control Tower: dark operational chrome, precise status color, compact information surfaces, resizable desktop panels, mobile-first navigation adaptations, and strong support for long-running workflows. It should not feel like a marketing site, decorative dashboard, consumer social app, or generic purple-gradient AI product.

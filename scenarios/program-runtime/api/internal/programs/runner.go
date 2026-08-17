@@ -36,6 +36,7 @@ type Invocation struct {
 
 type BindingSpec struct {
 	ID                 string   `json:"id"`
+	Namespace          string   `json:"namespace,omitempty"`
 	Scenario           string   `json:"scenario"`
 	Group              string   `json:"group"`
 	Command            string   `json:"command"`
