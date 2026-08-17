@@ -17,7 +17,6 @@ import (
 
 type journeyTestDriver struct {
 	geometry *procmetrics.WindowGeometry
-	closed   bool
 }
 
 func (d *journeyTestDriver) IsAvailable(context.Context) bool { return true }

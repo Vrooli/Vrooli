@@ -2,7 +2,6 @@ package pipeline
 
 import (
 	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -11,6 +10,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/vrooli/binaryfetch"
 	hostreq "github.com/vrooli/vrooli/packages/hostreq"
 	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
 )
@@ -31,15 +31,17 @@ type ResourceDeploymentPlan struct {
 // It preserves the resolver's provenance and terminal eligibility reason in
 // the bundle plan instead of making runtime discovery a hidden prerequisite.
 type HostRequirementPlanItem struct {
-	Name       string   `json:"name"`
-	Kind       string   `json:"kind"`
-	OS         string   `json:"os"`
-	Privilege  string   `json:"privilege"`
-	Bundling   string   `json:"bundling"`
-	Required   bool     `json:"required"`
-	Verdict    string   `json:"verdict"`
-	Reason     string   `json:"reason"`
-	Provenance []string `json:"provenance,omitempty"`
+	Name         string   `json:"name"`
+	Kind         string   `json:"kind"`
+	OS           string   `json:"os"`
+	Architecture string   `json:"architecture"`
+	Privilege    string   `json:"privilege"`
+	Bundling     string   `json:"bundling"`
+	Required     bool     `json:"required"`
+	Verdict      string   `json:"verdict"`
+	Reason       string   `json:"reason"`
+	Artifact     string   `json:"artifact,omitempty"`
+	Provenance   []string `json:"provenance,omitempty"`
 }
 
 type ResourceDeploymentPlanItem struct {
@@ -79,16 +81,19 @@ type ResourceDeploymentArtifact struct {
 // bundled-service resource. It is separate from the resource controller so a
 // desktop runtime cannot accidentally launch a controller as a service.
 type ResourceDeploymentService struct {
-	ProviderPolicy resourcedeployment.ProviderPolicy `json:"provider_policy"`
-	Artifact       string                            `json:"artifact"`
-	Version        string                            `json:"version"`
-	SHA256         string                            `json:"sha256"`
-	Arguments      []string                          `json:"arguments,omitempty"`
-	Environment    map[string]string                 `json:"environment,omitempty"`
-	Config         *resourcedeployment.ServiceConfig `json:"config,omitempty"`
-	Ports          []ResourceDeploymentServicePort   `json:"ports,omitempty"`
-	HealthChecks   []ResourceDeploymentHealthCheck   `json:"health_checks,omitempty"`
-	Files          []ResourceDeploymentArtifact      `json:"files"`
+	ProviderPolicy resourcedeployment.ProviderPolicy    `json:"provider_policy"`
+	Artifact       string                               `json:"artifact"`
+	Layout         string                               `json:"layout"`
+	EntryPath      string                               `json:"entry_path,omitempty"`
+	Version        string                               `json:"version"`
+	SHA256         string                               `json:"sha256"`
+	Arguments      []string                             `json:"arguments,omitempty"`
+	Environment    map[string]string                    `json:"environment,omitempty"`
+	Bootstrap      *resourcedeployment.ServiceBootstrap `json:"bootstrap,omitempty"`
+	Config         *resourcedeployment.ServiceConfig    `json:"config,omitempty"`
+	Ports          []ResourceDeploymentServicePort      `json:"ports,omitempty"`
+	HealthChecks   []ResourceDeploymentHealthCheck      `json:"health_checks,omitempty"`
+	Files          []ResourceDeploymentArtifact         `json:"files"`
 }
 
 // ResourceDeploymentHealthCheck is the resolved readiness contract for a
@@ -124,7 +129,7 @@ type resourceArtifactManifest struct {
 // resolveResourceDeploymentPlanWithTrust makes every resource selection before
 // any bundle output is written. The artifact hashes are resolved here as well
 // so staging cannot change the deployment choice after the gate has passed.
-func resolveResourceDeploymentPlanWithTrust(scenarioPath, artifactRoot string, platformInputs []string, trustMode resourcedeployment.ArtifactTrustMode) (*ResourceDeploymentPlan, error) {
+func resolveResourceDeploymentPlanWithTrust(scenarioPath, artifactRoot, toolArtifactRoot string, platformInputs []string, trustMode resourcedeployment.ArtifactTrustMode) (*ResourceDeploymentPlan, error) {
 	required, fallbacks, err := requiredScenarioResources(filepath.Join(scenarioPath, ".vrooli", "service.json"))
 	if err != nil {
 		return nil, err
@@ -177,7 +182,7 @@ func resolveResourceDeploymentPlanWithTrust(scenarioPath, artifactRoot string, p
 		}
 	}
 	for _, platform := range platforms {
-		hostItems, err := resolveDesktopHostRequirements(root, scenarioPath, required, platform)
+		hostItems, err := resolveDesktopHostRequirements(root, scenarioPath, required, platform, toolArtifactRoot, trustMode)
 		if err != nil {
 			return nil, err
 		}
@@ -197,7 +202,7 @@ func resolveResourceDeploymentPlanWithTrust(scenarioPath, artifactRoot string, p
 	return plan, nil
 }
 
-func resolveDesktopHostRequirements(root, scenarioPath string, resources []string, platform resourcedeployment.Platform) ([]HostRequirementPlanItem, error) {
+func resolveDesktopHostRequirements(root, scenarioPath string, resources []string, platform resourcedeployment.Platform, toolArtifactRoot string, trustMode resourcedeployment.ArtifactTrustMode) ([]HostRequirementPlanItem, error) {
 	// Unit-level artifact fixtures deliberately contain only the resource and
 	// scenario contracts. A real pipeline always has the repository service
 	// manifest; do not make those isolated fixture plans invent host state.
@@ -217,23 +222,62 @@ func resolveDesktopHostRequirements(root, scenarioPath string, resources []strin
 		Resources:     strings.Join(resources, ","),
 		ScenarioPaths: []string{scenarioPath},
 		Platform:      platform.OS,
+		Architecture:  platform.Arch,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("resolve desktop host requirements: %w", err)
 	}
 	items := make([]HostRequirementPlanItem, 0, len(resolution.Tools)+len(resolution.Safeguards))
+	toolChecksums := map[string]string(nil)
+	if toolArtifactRoot != "" {
+		manifest, _, err := resourcedeployment.VerifyReleaseDirectory(toolArtifactRoot, trustMode, filepath.Join(root, "install", "vrooli-release.pub"))
+		if err != nil {
+			return nil, fmt.Errorf("verify tool artifact release: %w", err)
+		}
+		toolChecksums = make(map[string]string, len(manifest.Artifacts))
+		for _, artifact := range manifest.Artifacts {
+			toolChecksums[artifact.Name] = artifact.SHA256
+		}
+	}
 	appendRequirement := func(requirement hostreq.ResolvedRequirement) {
-		present := requirement.Bundling == "vendorable"
-		if requirement.Bundling == "host-required" && platform.OS == hostreq.CurrentPlatform() {
+		present := false
+		artifactName := ""
+		if requirement.Bundling == "vendorable" && toolArtifactRoot != "" {
+			if requirement.Acquisition != nil {
+				factsOS := platform.OS
+				if factsOS == "macos" {
+					factsOS = "darwin"
+				}
+				_, resolveErr := requirement.Acquisition.Resolve(binaryfetch.Facts{"os": factsOS, "arch": platform.Arch})
+				if resolveErr == nil {
+					artifactName = toolArtifactName(requirement.Name, platform)
+					_, statErr := os.Stat(filepath.Join(toolArtifactRoot, artifactName))
+					present = statErr == nil
+					if present && toolChecksums != nil {
+						expected, ok := toolChecksums[artifactName]
+						actual, digestErr := artifactDigest(filepath.Join(toolArtifactRoot, artifactName))
+						present = ok && digestErr == nil && strings.EqualFold(expected, actual)
+					}
+				}
+			}
+		}
+		probeKnown := true
+		currentOS := hostreq.CurrentPlatform()
+		if currentOS == "darwin" {
+			currentOS = "macos"
+		}
+		if requirement.Bundling == "host-required" && platform.OS == currentOS {
 			_, lookupErr := exec.LookPath(requirement.Name)
 			present = lookupErr == nil
+		} else if requirement.Bundling == "host-required" {
+			probeKnown = false
 		}
-		eligibility := hostreq.EvaluateEligibility(requirement, hostreq.TierDesktop, platform.OS, present)
+		eligibility := hostreq.EvaluateEligibility(requirement, hostreq.TierDesktop, platform.OS, platform.Arch, present, probeKnown)
 		provenance := make([]string, 0, len(requirement.Provenance))
 		for _, source := range requirement.Provenance {
 			provenance = append(provenance, source.Kind+":"+source.Name+":"+source.Source)
 		}
-		items = append(items, HostRequirementPlanItem{Name: requirement.Name, Kind: string(requirement.Kind), OS: platform.OS, Privilege: string(requirement.Privilege), Bundling: string(requirement.Bundling), Required: requirement.Required, Verdict: string(eligibility.Verdict), Reason: eligibility.Reason, Provenance: provenance})
+		items = append(items, HostRequirementPlanItem{Name: requirement.Name, Kind: string(requirement.Kind), OS: platform.OS, Architecture: platform.Arch, Privilege: string(requirement.Privilege), Bundling: string(requirement.Bundling), Required: requirement.Required, Verdict: string(eligibility.Verdict), Reason: eligibility.Reason, Artifact: artifactName, Provenance: provenance})
 	}
 	for _, requirement := range resolution.Tools {
 		appendRequirement(requirement)
@@ -397,7 +441,16 @@ func bundledServicePlan(manifest *resourceArtifactManifest, candidate string, pl
 	if err != nil {
 		return nil, fmt.Errorf("resolve bundled service artifact for %s: %w", candidate, err)
 	}
-	return &ResourceDeploymentService{ProviderPolicy: manifest.ManagedService.ProviderPolicy, Artifact: name, Version: artifact.Version, SHA256: artifact.SHA256, Arguments: append([]string(nil), manifest.ManagedService.Arguments...), Environment: cloneServiceEnvironment(manifest.ManagedService.Environment), Config: cloneServiceConfig(manifest.ManagedService.Config), Ports: append([]ResourceDeploymentServicePort(nil), manifest.Ports...), HealthChecks: append([]ResourceDeploymentHealthCheck(nil), manifest.HealthChecks...)}, nil
+	return &ResourceDeploymentService{ProviderPolicy: manifest.ManagedService.ProviderPolicy, Artifact: name, Layout: artifact.Layout, EntryPath: artifact.EntryPath, Version: artifact.Version, SHA256: artifact.SHA256, Arguments: append([]string(nil), manifest.ManagedService.Arguments...), Environment: cloneServiceEnvironment(manifest.ManagedService.Environment), Bootstrap: cloneServiceBootstrap(manifest.ManagedService.Bootstrap), Config: cloneServiceConfig(manifest.ManagedService.Config), Ports: append([]ResourceDeploymentServicePort(nil), manifest.Ports...), HealthChecks: append([]ResourceDeploymentHealthCheck(nil), manifest.HealthChecks...)}, nil
+}
+
+func cloneServiceBootstrap(bootstrap *resourcedeployment.ServiceBootstrap) *resourcedeployment.ServiceBootstrap {
+	if bootstrap == nil {
+		return nil
+	}
+	clone := *bootstrap
+	clone.Arguments = append([]string(nil), bootstrap.Arguments...)
+	return &clone
 }
 
 func cloneServiceConfig(config *resourcedeployment.ServiceConfig) *resourcedeployment.ServiceConfig {
@@ -429,7 +482,7 @@ func resolveArtifactFiles(root string, checksums map[string]string, item *Resour
 		if !ok {
 			return fmt.Errorf("signed release checksum is missing resource artifact %s", name)
 		}
-		actual, err := sha256File(filepath.Join(root, name))
+		actual, err := artifactDigest(filepath.Join(root, name))
 		if err != nil {
 			return fmt.Errorf("hash resource artifact %s: %w", name, err)
 		}
@@ -448,7 +501,7 @@ func resolveArtifactFiles(root string, checksums map[string]string, item *Resour
 	if !ok {
 		return fmt.Errorf("signed release checksum is missing bundled service artifact %s", item.Service.Artifact)
 	}
-	actual, err := sha256File(filepath.Join(root, item.Service.Artifact))
+	actual, err := artifactDigest(filepath.Join(root, item.Service.Artifact))
 	if err != nil {
 		return fmt.Errorf("hash bundled service artifact %s: %w", item.Service.Artifact, err)
 	}
@@ -500,6 +553,30 @@ func stageBundledResourceArtifacts(bundleDir, artifactRoot string, plan *Resourc
 		return nil, fmt.Errorf("write resource deployment plan: %w", err)
 	}
 	return append(copied, path), nil
+}
+
+// stageBundledToolArtifacts copies only vendorable tools admitted by the
+// target-specific plan. Safeguards and host-required tools never enter the
+// bundle, even when a similarly named file exists in the release directory.
+func stageBundledToolArtifacts(bundleDir, artifactRoot string, plan *ResourceDeploymentPlan) ([]string, error) {
+	if plan == nil || artifactRoot == "" {
+		return nil, nil
+	}
+	var copied []string
+	for _, requirement := range plan.HostRequirements {
+		if requirement.Bundling != "vendorable" || requirement.Artifact == "" || requirement.Verdict != string(hostreq.EligibilityEligible) {
+			continue
+		}
+		if !resourcedeployment.IsSafeArtifactName(requirement.Artifact) {
+			return nil, fmt.Errorf("unsafe tool artifact %q", requirement.Artifact)
+		}
+		destination := filepath.Join(bundleDir, "tools", requirement.Artifact)
+		if err := copyArtifact(filepath.Join(artifactRoot, requirement.Artifact), destination); err != nil {
+			return nil, err
+		}
+		copied = append(copied, destination)
+	}
+	return copied, nil
 }
 
 func requiredScenarioResources(path string) ([]string, map[string][]string, error) {
@@ -556,26 +633,91 @@ func loadResourceArtifactManifest(path string) (resourceArtifactManifest, error)
 	return manifest, json.Unmarshal(data, &manifest)
 }
 
-func sha256File(path string) (string, error) {
+func artifactDigest(path string) (string, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		return "", err
+	}
+	if info.IsDir() {
+		return binaryfetch.TreeDigest(path)
+	}
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return "", err
 	}
 	sum := sha256.Sum256(data)
-	return hex.EncodeToString(sum[:]), nil
+	return fmt.Sprintf("%x", sum[:]), nil
 }
 
 func copyArtifact(src, dst string) error {
-	data, err := os.ReadFile(src)
-	if err != nil {
-		return err
-	}
-	info, err := os.Stat(src)
+	info, err := os.Lstat(src)
 	if err != nil {
 		return err
 	}
 	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
 		return err
 	}
+	if info.IsDir() {
+		if err := os.MkdirAll(dst, info.Mode().Perm()); err != nil {
+			return err
+		}
+		return filepath.WalkDir(src, func(path string, entry os.DirEntry, walkErr error) error {
+			if walkErr != nil {
+				return walkErr
+			}
+			rel, err := filepath.Rel(src, path)
+			if err != nil {
+				return err
+			}
+			if rel == "." {
+				return nil
+			}
+			target := filepath.Join(dst, rel)
+			if entry.Type()&os.ModeSymlink != 0 {
+				link, err := os.Readlink(path)
+				if err != nil {
+					return err
+				}
+				if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+					return err
+				}
+				return os.Symlink(link, target)
+			}
+			if entry.IsDir() {
+				return os.MkdirAll(target, 0o755)
+			}
+			data, err := os.ReadFile(path)
+			if err != nil {
+				return err
+			}
+			if err := os.WriteFile(target, data, entry.Type().Perm()); err != nil {
+				return err
+			}
+			return nil
+		})
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		link, err := os.Readlink(src)
+		if err != nil {
+			return err
+		}
+		return os.Symlink(link, dst)
+	}
+	data, err := os.ReadFile(src)
+	if err != nil {
+		return err
+	}
 	return os.WriteFile(dst, data, info.Mode().Perm())
+}
+
+func toolArtifactName(name string, platform resourcedeployment.Platform) string {
+	osName := platform.OS
+	if osName == "macos" {
+		osName = "darwin"
+	}
+	suffix := ""
+	if osName == "windows" {
+		suffix = ".exe"
+	}
+	return fmt.Sprintf("tool_%s_%s_%s%s", name, osName, platform.Arch, suffix)
 }

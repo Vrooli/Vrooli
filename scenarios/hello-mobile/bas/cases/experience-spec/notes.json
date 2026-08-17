@@ -41,6 +41,30 @@
         },
         "metadata": { "label": "Notes page visible" }
       }
+    },
+    {
+      "id": "wait-notes-surface",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-testid=\"notes-surface\"][data-experience-state=\"loading\"]",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": { "label": "Notes experience loading state visible" }
+      }
+    },
+    {
+      "id": "wait-notes-terminal",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-testid=\"notes-surface\"][data-experience-state=\"ready\"], [data-testid=\"notes-surface\"][data-experience-state=\"empty\"], [data-testid=\"notes-surface\"][data-experience-state=\"error\"]",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": { "label": "Notes experience terminal state visible" }
+      }
     }
   ]
 }

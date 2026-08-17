@@ -49,209 +49,465 @@
       "path": "/api/v1/capabilities/describe",
       "method": "GET",
       "summary": "Describe declared scenario dependencies and their current recovery actions.",
-      "category": "capabilities"
-    },
-    {
-      "id": "notes_list",
-      "path": "/vrooli.scenario_to_ios.v1.notes.NotesService/ListNotes",
-      "method": "POST",
-      "summary": "List notes",
-      "description": "Returns up to 100 notes ordered newest-first by created_at through the generated Connect-RPC Notes service.",
-      "category": "notes",
-      "response": {
-        "type": "object",
-        "properties": {
-          "notes": "array<Note>"
-        }
-      },
-      "errors": [
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "Repository read failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "List notes",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.scenario_to_ios.v1.notes.NotesService/ListNotes -H 'Content-Type: application/json' -d '{}'"
-        }
-      ]
-    },
-    {
-      "id": "notes_create",
-      "path": "/vrooli.scenario_to_ios.v1.notes.NotesService/CreateNote",
-      "method": "POST",
-      "summary": "Create a note",
-      "description": "Persists a new note. Title is required and validated by notes.Service; body is optional.",
-      "category": "notes",
-      "request": {
-        "type": "object",
-        "properties": {
-          "body": "string",
-          "title": "string (required, non-whitespace)"
-        }
-      },
-      "response": {
-        "type": "object",
-        "properties": {
-          "note": "Note"
-        }
-      },
-      "errors": [
-        {
-          "status": 400,
-          "code": "invalid_argument",
-          "description": "Missing or whitespace-only title"
-        },
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "Repository write failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "Create note",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.scenario_to_ios.v1.notes.NotesService/CreateNote -H 'Content-Type: application/json' -d '{\"title\":\"first\",\"body\":\"hello\"}'"
-        }
-      ]
-    },
-    {
-      "id": "notes_get",
-      "path": "/vrooli.scenario_to_ios.v1.notes.NotesService/GetNote",
-      "method": "POST",
-      "summary": "Get a note by id",
-      "description": "Returns the note matching the request id through the generated Connect-RPC Notes service.",
-      "category": "notes",
-      "request": {
-        "type": "object",
-        "properties": {
-          "id": "string"
-        }
-      },
-      "response": {
-        "type": "object",
-        "properties": {
-          "note": "Note"
-        }
-      },
-      "errors": [
-        {
-          "status": 404,
-          "code": "not_found",
-          "description": "No note with that id exists"
-        },
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "Repository read failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "Get note",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.scenario_to_ios.v1.notes.NotesService/GetNote -H 'Content-Type: application/json' -d '{\"id\":\"abc123\"}'"
-        }
-      ]
-    },
-    {
-      "id": "notes_count",
-      "path": "/vrooli.scenario_to_ios.v1.notes.NotesService/CountNotes",
-      "method": "POST",
-      "summary": "Count notes in a time window",
-      "description": "Counts notes created within the requested canonical time window. Bound to the `notes count` measure (read-only, run-eligible) so search-hub can answer analytical questions like \"how many notes were created this week\".",
-      "category": "notes",
-      "request": {
-        "type": "object",
-        "properties": {
-          "window": "TimeWindow (vrooli.measures.v1; e.g. {\"token\":\"TIME_WINDOW_TOKEN_THIS_WEEK\"})"
-        }
-      },
-      "response": {
-        "type": "object",
-        "properties": {
-          "count": "int64 (notes created in the window)"
-        }
-      },
-      "errors": [
-        {
-          "status": 400,
-          "code": "invalid_argument",
-          "description": "Unresolvable or malformed time window"
-        },
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "Repository read failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "Count this week",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.scenario_to_ios.v1.notes.NotesService/CountNotes -H 'Content-Type: application/json' -d '{\"window\":{\"token\":\"TIME_WINDOW_TOKEN_THIS_WEEK\"}}'"
-        }
-      ]
-    },
-    {
-      "id": "notes_attach",
-      "path": "/api/v1/notes/{id}/attachments",
-      "method": "POST",
-      "summary": "Upload a note attachment",
-      "description": "Uploads opaque file bytes through the documented REST multipart exception and returns proto-typed attachment metadata.",
-      "category": "notes",
-      "request": {
-        "type": "multipart/form-data",
-        "properties": {
-          "file": "file (required)"
-        }
-      },
-      "response": {
-        "type": "UploadAttachmentResponse",
-        "properties": {
-          "attachment": "Attachment"
-        }
-      },
-      "errors": [
-        {
-          "status": 400,
-          "code": "invalid_request",
-          "description": "Missing file or invalid multipart upload"
-        },
-        {
-          "status": 404,
-          "code": "not_found",
-          "description": "No note with that id exists"
-        },
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "BlobStore or metadata persistence failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "Attach file",
-          "curl": "curl -X POST http://localhost:${API_PORT}/api/v1/notes/abc123/attachments -F file=@./example.png"
-        }
-      ],
+      "description": "",
+      "category": "capabilities",
       "rest_exception": {
-        "reason": "multipart_upload",
-        "note": "Multipart/form-data request transport cannot be expressed in proto. The response payload is still the proto-typed UploadAttachmentResponse message.",
+        "reason": "ops_probe",
+        "note": "Lifecycle and operator capability probe surface.",
         "proto_payloads": {
           "request": {
-            "transport": "multipart/form-data",
-            "conformance": "transport_only"
+            "transport": "none",
+            "conformance": "none"
           },
           "response": {
-            "proto_full_name": "vrooli.scenario_to_ios.v1.notes.UploadAttachmentResponse",
             "transport": "json",
-            "conformance": "protojson"
+            "conformance": "external_shape"
           },
           "error": {
-            "proto_full_name": "vrooli.scenario_to_ios.v1.shared.ErrorEnvelope",
             "transport": "json",
-            "conformance": "protojson"
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "ios_generate",
+      "path": "/api/v1/ios/generate",
+      "method": "POST",
+      "summary": "Generate a deterministic Capacitor iOS project",
+      "description": "",
+      "category": "builds",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Operator generation surface accepts a JSON source reference.",
+        "proto_payloads": {
+          "request": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "ios_build",
+      "path": "/api/v1/ios/build",
+      "method": "POST",
+      "summary": "Build an iOS artifact on an Apple host",
+      "description": "",
+      "category": "builds",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Operator build surface returns unavailable when no Apple host exists.",
+        "proto_payloads": {
+          "request": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "ios_targets",
+      "path": "/api/v1/ios/targets",
+      "method": "GET",
+      "summary": "Probe Apple targets and bridge readiness",
+      "description": "",
+      "category": "targets",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Operator probe surface returns report-shaped JSON.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "ios_conformance_plan",
+      "path": "/api/v1/ios/conformance-plan",
+      "method": "GET",
+      "summary": "Show the twelve iOS conformance chapters",
+      "description": "",
+      "category": "journeys",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Operator report surface.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "ios_readiness",
+      "path": "/api/v1/ios/readiness",
+      "method": "GET",
+      "summary": "Show the probed Apple readiness ladder",
+      "description": "",
+      "category": "readiness",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Operator report surface.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "ios_distribution",
+      "path": "/api/v1/ios/distribution",
+      "method": "GET",
+      "summary": "Show independent iOS distribution channels",
+      "description": "",
+      "category": "distribution",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Operator report surface.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "ios_matrix",
+      "path": "/api/v1/ios/matrix",
+      "method": "GET",
+      "summary": "Show the iOS validation matrix readiness",
+      "description": "",
+      "category": "releases",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Operator report surface.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "ios_validation_catalog",
+      "path": "/api/v1/validation/catalog",
+      "method": "GET",
+      "summary": "Show the provider-owned iOS validation catalog",
+      "description": "",
+      "category": "releases",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Catalog is a read-only matrix selection surface.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "ios_validation_profiles",
+      "path": "/api/v1/validation/profiles",
+      "method": "GET",
+      "summary": "Show validation environment profiles",
+      "description": "",
+      "category": "releases",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Profile catalog is provider-neutral.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "ios_validation_matrices_list",
+      "path": "/api/v1/validation/matrices",
+      "method": "GET",
+      "summary": "List durable iOS validation matrix runs",
+      "description": "",
+      "category": "releases",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Matrix listing is server-owned and durable.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "ios_validation_matrices_create",
+      "path": "/api/v1/validation/matrices",
+      "method": "POST",
+      "summary": "Create a durable iOS validation matrix run",
+      "description": "",
+      "category": "releases",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Matrix creation accepts a JSON selection and is server-owned.",
+        "proto_payloads": {
+          "request": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "ios_validation_matrix",
+      "path": "/api/v1/validation/matrices/{run_id}",
+      "method": "GET",
+      "summary": "Inspect a durable iOS validation matrix run",
+      "description": "",
+      "category": "releases",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Run identity and evidence remain producer-owned.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "ios_validation_matrix_start",
+      "path": "/api/v1/validation/matrices/{run_id}/start",
+      "method": "POST",
+      "summary": "Start a server-owned iOS validation matrix",
+      "description": "",
+      "category": "releases",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Start is asynchronous and durable.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "ios_validation_matrix_wait",
+      "path": "/api/v1/validation/matrices/{run_id}/wait",
+      "method": "GET",
+      "summary": "Wait for a durable iOS validation matrix",
+      "description": "",
+      "category": "releases",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Wait returns the producer-owned terminal report.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "ios_validation_matrix_abort",
+      "path": "/api/v1/validation/matrices/{run_id}/abort",
+      "method": "POST",
+      "summary": "Abort a durable iOS validation matrix",
+      "description": "",
+      "category": "releases",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Abort preserves the cancelled run record.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "ios_validation_matrix_rerun",
+      "path": "/api/v1/validation/matrices/{run_id}/rerun",
+      "method": "POST",
+      "summary": "Rerun selected iOS validation cells",
+      "description": "",
+      "category": "releases",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Rerun creates an independent immutable run.",
+        "proto_payloads": {
+          "request": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "ios_validation_matrix_compare",
+      "path": "/api/v1/validation/matrices/{run_id}/compare/{prior_run_id}",
+      "method": "GET",
+      "summary": "Compare two iOS validation matrix runs",
+      "description": "",
+      "category": "releases",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Comparison does not mutate either run.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
           }
         }
       }

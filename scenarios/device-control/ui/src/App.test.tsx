@@ -15,6 +15,7 @@ import { renderWithProviders } from "./test-utils";
 import { Providers } from "./app/providers";
 import { TestAppRouter } from "./app/routes";
 import { selectors } from "./consts/selectors";
+import App from "./App";
 
 describe("App composition", () => {
   afterEach(() => {
@@ -29,5 +30,10 @@ describe("App composition", () => {
       { withoutRouter: true },
     );
     expect(screen.getByTestId(selectors.app.title)).toBeInTheDocument();
+  });
+
+  it("mounts the production App composition", () => {
+    renderWithProviders(<App />, { withoutRouter: true });
+    expect(screen.getByTestId(selectors.layout.shell)).toBeInTheDocument();
   });
 });

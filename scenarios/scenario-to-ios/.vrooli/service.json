@@ -218,6 +218,11 @@
         "required": true,
         "degraded_behavior": "Web-content chapters report unavailable; native shell chapters still execute and the run reports partial honestly rather than passing."
       },
+      "backdrop-studio": {
+        "purpose": "Provides the typed backdrop composition contract used by the iOS journey adapter for scenario-owned web-content flows.",
+        "required": true,
+        "degraded_behavior": "Journey web-content chapters report unavailable with the missing backdrop capability; the ramp never silently replaces the typed client."
+      },
       "secrets-manager": {
         "purpose": "Holds certificates, provisioning profiles, and App Store Connect API keys by reference so no signing material exists in this repository, in a generated project, or in evidence.",
         "required": true,

@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -75,5 +75,27 @@ describe("FlowsPage", () => {
     const image = await screen.findByTestId(selectors.pages.flowEvidenceImage);
     expect(image).toHaveAttribute("src", expect.stringContaining("/api/v1/evidence/evidence-1"));
     expect(screen.getByTestId(selectors.pages.flowRunReview)).toHaveTextContent("abc123");
+  });
+
+  it("renders capability gaps and warnings from validation", async () => {
+    api.validateFlow.mockResolvedValue({ runnable: false, gaps: ["screenshot unavailable"], warnings: ["run on a paired device"] });
+    const user = userEvent.setup();
+    renderWithProviders(<FlowsPage />);
+    await user.click(await screen.findByRole("button", { name: strings.pages.flows.validate }));
+    await waitFor(() => expect(screen.getByTestId(selectors.pages.flowGapReport)).toHaveTextContent("screenshot unavailable"));
+    expect(screen.getByTestId(selectors.pages.flowGapReport)).toHaveTextContent("run on a paired device");
+  });
+
+  it("reports malformed definitions and lease failures without leaving a busy control", async () => {
+    const user = userEvent.setup();
+    api.acquireSession.mockRejectedValue(new Error("lease denied"));
+    renderWithProviders(<FlowsPage />);
+    const definition = await screen.findByTestId(selectors.pages.flowDefinition);
+    fireEvent.change(definition, { target: { value: "{" } });
+    await user.click(screen.getByRole("button", { name: strings.pages.flows.validate }));
+    expect(await screen.findByTestId(selectors.pages.flowError)).toBeInTheDocument();
+    fireEvent.change(definition, { target: { value: "{}" } });
+    await user.click(screen.getByRole("button", { name: strings.pages.flows.acquireAndRun }));
+    expect(await screen.findByTestId(selectors.pages.flowError)).toHaveTextContent("lease denied");
   });
 });

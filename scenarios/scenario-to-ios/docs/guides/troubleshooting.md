@@ -73,11 +73,8 @@ Quick fixes:
 # Start the API if it's not running
 make start
 
-# Or let the CLI auto-start it
-scenario-to-ios status --auto-start
-
-# Or override the API base for this invocation
-scenario-to-ios status --api-base "http://localhost:$(vrooli scenario port scenario-to-ios API_PORT)/api/v1"
+# Then inspect the target state through the declared CLI surface
+scenario-to-ios ios targets --json
 ```
 
 ### CLI behaves like an old version after editing source

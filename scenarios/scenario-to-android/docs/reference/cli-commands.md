@@ -16,7 +16,7 @@ that touches the API).
 The CLI's command surface (groups, commands, positionals, flags,
 RPC bindings, governance metadata) is declared in
 [`cli/manifest.json`](../../cli/manifest.json) and validated against the
-project CLI-manifest schema (`path:.vrooli/schemas/cli-manifest.schema.json`)
+project CLI-manifest schema (`path:../../.vrooli/schemas/cli-manifest.schema.json`)
 (schema id `cli-manifest/v1`). The manifest is loaded at startup by
 `cliapp.LoadFromManifestPrimitives`, which:
 
@@ -44,7 +44,7 @@ that committed file **statically** to verify each declared primitive — it neve
 runs your commands. A declaration with no matching evidence is advisory
 not-yet-verified debt, a mismatch is a gating error, and a stale/missing artifact
 keeps declared primitives unverified. See the CLI architecture maturity
-reference (`path:scenarios/cli-health/docs/reference/cli-architecture-maturity.md`).
+reference (`path:../cli-health/docs/reference/cli-architecture-maturity.md`).
 
 Per-domain tests use `cliapp.RequireProtoServiceCoverage` to assert
 that every RPC on the bound proto service either has a manifest command

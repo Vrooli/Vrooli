@@ -46,8 +46,8 @@ diagnosis.
    per-capability result. No code change or scenario restart is needed.
 
 If the report says **insufficient permissions**, install the supplied udev rule
-from [`51-android.rules`](51-android.rules) into `/etc/udev/rules.d/`, reload
-udev, add your user to `plugdev`, and replug the phone:
+from [`51-android.rules`](51-android.rules) into the system udev rules directory,
+reload udev, add your user to `plugdev`, and replug the phone:
 
 ```sh
 sudo install -m 0644 51-android.rules /etc/udev/rules.d/51-android.rules

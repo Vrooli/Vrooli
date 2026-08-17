@@ -97,6 +97,14 @@ make start   # wraps `vrooli scenario start`
 
 See [`docs/QUICKSTART.md`](docs/QUICKSTART.md) for the full clone-to-running flow.
 
+## Customize Safely
+
+Keep the delivery adapters, evidence contracts, and responsive shell seams
+intact when customizing this scenario. Add product behavior through a declared
+domain and its API, CLI, UI, requirements, and documentation surfaces; use the
+shared component canon before introducing a new primitive. Re-run the targeted
+scenario checks and the Android matrix after changes to delivery behavior.
+
 Run tests with `make test` (which runs `vrooli scenario test`) or invoke
 `test-genie execute scenario-to-android --preset comprehensive` directly for
 finer-grained presets.

@@ -138,4 +138,4 @@ These are real, and none is a scheduling problem:
 - [`GO-TO-MARKET.md`](GO-TO-MARKET.md) — channel and launch plan
 - [`../operations/OBSERVABILITY.md`](../operations/OBSERVABILITY.md) — telemetry needed for business validation
 - [`../internal/SECURITY.md`](../internal/SECURITY.md) — the open questions that gate external sale
-- Project-level monetization strategy: `path:docs/monetization/README.md`.
+- [Project-level monetization strategy](../../../../docs/monetization/README.md).

@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-syntax -- synthetic select copy is a component-contract fixture. */
 import { describe, expect, it } from "vitest";
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";

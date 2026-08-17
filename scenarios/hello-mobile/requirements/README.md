@@ -9,6 +9,12 @@ Generated scenarios start with `01-foundation/module.json` so Test Genie can val
 2. `requirements/index.json` imports each module; tests auto-sync their status when they run.
 3. Coverage summaries live in `coverage/phase-results/` after each test phase.
 
+## Validation
+
+Each requirement records at least one validation entry. Test references are
+scenario-relative and should point to the focused test or deterministic BAS
+flow that proves the requirement.
+
 ## Contributor Notes
 - Add folders/modules that match your scenario’s PRD targets (P0/P1/P2) instead of reusing other scenarios’ names.
 - Remove or replace `01-foundation/module.json` once real PRD-generated modules exist.

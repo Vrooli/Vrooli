@@ -217,15 +217,15 @@ type portabilityResourceManifest struct {
 	Bundling     string            `json:"bundling"`
 	Platforms    map[string]string `json:"platforms"`
 	Requirements struct {
-		Class      string  `json:"class"`
-		Weight     float64 `json:"weight"`
-		RAMMB      float64 `json:"ram_mb"`
-		DiskMB     float64 `json:"disk_mb"`
-		CPUCores   float64 `json:"cpu_cores"`
-		GPU        bool    `json:"gpu"`
-		Network    string  `json:"network"`
-		Source     string  `json:"source"`
-		Confidence string  `json:"confidence"`
+		Class      string                        `json:"class"`
+		Weight     float64                       `json:"weight"`
+		RAMMB      float64                       `json:"ram_mb"`
+		DiskMB     float64                       `json:"disk_mb"`
+		CPUCores   float64                       `json:"cpu_cores"`
+		GPU        *deployability.GPURequirement `json:"gpu"`
+		Network    string                        `json:"network"`
+		Source     string                        `json:"source"`
+		Confidence string                        `json:"confidence"`
 	} `json:"requirements"`
 }
 
@@ -250,7 +250,7 @@ func (h *connectHandler) validatePortabilityHost(explicitPath, scenario string) 
 	if err := coreset.ValidateConfiguredTrustedBaseClosure(repoRoot); err != nil {
 		return fmt.Errorf("validate trusted-base closure: %w", err)
 	}
-	if err := validateToolMacOSAcquisitions(repoRoot); err != nil {
+	if err := validateToolAcquisitionCoverage(repoRoot); err != nil {
 		return fmt.Errorf("validate tool acquisition paths: %w", err)
 	}
 	resourceRoot := filepath.Join(filepath.Dir(filepath.Dir(root)), "resources")
@@ -296,8 +296,9 @@ func (h *connectHandler) validatePortabilityHost(explicitPath, scenario string) 
 			Requirements: &deployability.ResourceRequirements{
 				Class: resource.Requirements.Class, Weight: resource.Requirements.Weight,
 				RAMMB: resource.Requirements.RAMMB, DiskMB: resource.Requirements.DiskMB,
-				CPUCores: resource.Requirements.CPUCores, GPU: resource.Requirements.GPU,
-				Network: resource.Requirements.Network, Source: resource.Requirements.Source,
+				CPUCores:       resource.Requirements.CPUCores,
+				GPURequirement: resource.Requirements.GPU,
+				Network:        resource.Requirements.Network, Source: resource.Requirements.Source,
 				Confidence: resource.Requirements.Confidence,
 			},
 		})

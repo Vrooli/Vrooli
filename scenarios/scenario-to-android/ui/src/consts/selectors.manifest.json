@@ -80,6 +80,178 @@
       "testId": "dashboard-target-matrix",
       "selector": "[data-testid=\"dashboard-target-matrix\"]"
     },
+    "delivery.targetDisposition": {
+      "testId": "dashboard-target-disposition",
+      "selector": "[data-testid=\"dashboard-target-disposition\"]"
+    },
+    "delivery.gateVerdict": {
+      "testId": "dashboard-gate-verdict",
+      "selector": "[data-testid=\"dashboard-gate-verdict\"]"
+    },
+    "delivery.readinessSummary": {
+      "testId": "dashboard-readiness-summary",
+      "selector": "[data-testid=\"dashboard-readiness-summary\"]"
+    },
+    "delivery.executingNode": {
+      "testId": "dashboard-executing-node",
+      "selector": "[data-testid=\"dashboard-executing-node\"]"
+    },
+    "delivery.generateProject": {
+      "testId": "dashboard-generate-project",
+      "selector": "[data-testid=\"dashboard-generate-project\"]"
+    },
+    "delivery.rowPromotability": {
+      "testId": "dashboard-row-promotability",
+      "selector": "[data-testid=\"dashboard-row-promotability\"]"
+    },
+    "distribution.channelList": {
+      "testId": "distribution-channel-list",
+      "selector": "[data-testid=\"distribution-channel-list\"]"
+    },
+    "distribution.channelAvailability": {
+      "testId": "distribution-channel-availability",
+      "selector": "[data-testid=\"distribution-channel-availability\"]"
+    },
+    "distribution.channelRequirement": {
+      "testId": "distribution-channel-requirement",
+      "selector": "[data-testid=\"distribution-channel-requirement\"]"
+    },
+    "distribution.channelBlockingRung": {
+      "testId": "distribution-channel-blocking-rung",
+      "selector": "[data-testid=\"distribution-channel-blocking-rung\"]"
+    },
+    "distribution.channelNextAction": {
+      "testId": "distribution-channel-next-action",
+      "selector": "[data-testid=\"distribution-channel-next-action\"]"
+    },
+    "distribution.channelDeadline": {
+      "testId": "distribution-channel-deadline",
+      "selector": "[data-testid=\"distribution-channel-deadline\"]"
+    },
+    "distribution.artifactIdentity": {
+      "testId": "distribution-artifact-identity",
+      "selector": "[data-testid=\"distribution-artifact-identity\"]"
+    },
+    "distribution.promotabilityBlock": {
+      "testId": "distribution-promotability-block",
+      "selector": "[data-testid=\"distribution-promotability-block\"]"
+    },
+    "readiness.rungList": {
+      "testId": "readiness-rung-list",
+      "selector": "[data-testid=\"readiness-rung-list\"]"
+    },
+    "readiness.rungState": {
+      "testId": "readiness-rung-state",
+      "selector": "[data-testid=\"readiness-rung-state\"]"
+    },
+    "readiness.rungOwner": {
+      "testId": "readiness-rung-owner",
+      "selector": "[data-testid=\"readiness-rung-owner\"]"
+    },
+    "readiness.rungCost": {
+      "testId": "readiness-rung-cost",
+      "selector": "[data-testid=\"readiness-rung-cost\"]"
+    },
+    "readiness.rungNextAction": {
+      "testId": "readiness-rung-next-action",
+      "selector": "[data-testid=\"readiness-rung-next-action\"]"
+    },
+    "readiness.rungDeadline": {
+      "testId": "readiness-rung-deadline",
+      "selector": "[data-testid=\"readiness-rung-deadline\"]"
+    },
+    "runReview.runVerdict": {
+      "testId": "run-review-verdict",
+      "selector": "[data-testid=\"run-review-verdict\"]"
+    },
+    "runReview.chapterList": {
+      "testId": "run-review-chapter-list",
+      "selector": "[data-testid=\"run-review-chapter-list\"]"
+    },
+    "runReview.chapterExpected": {
+      "testId": "run-review-chapter-expected",
+      "selector": "[data-testid=\"run-review-chapter-expected\"]"
+    },
+    "runReview.chapterObserved": {
+      "testId": "run-review-chapter-observed",
+      "selector": "[data-testid=\"run-review-chapter-observed\"]"
+    },
+    "runReview.chapterStrategy": {
+      "testId": "run-review-chapter-strategy",
+      "selector": "[data-testid=\"run-review-chapter-strategy\"]"
+    },
+    "runReview.promotabilityNotice": {
+      "testId": "run-review-promotability-notice",
+      "selector": "[data-testid=\"run-review-promotability-notice\"]"
+    },
+    "runReview.exceededBound": {
+      "testId": "run-review-exceeded-bound",
+      "selector": "[data-testid=\"run-review-exceeded-bound\"]"
+    },
+    "runReview.missingOffset": {
+      "testId": "run-review-missing-offset",
+      "selector": "[data-testid=\"run-review-missing-offset\"]"
+    },
+    "runReview.recording": {
+      "testId": "run-review-recording",
+      "selector": "[data-testid=\"run-review-recording\"]"
+    },
+    "runReview.leaseInterruption": {
+      "testId": "run-review-lease-interruption",
+      "selector": "[data-testid=\"run-review-lease-interruption\"]"
+    },
+    "targetDetail.targetDisposition": {
+      "testId": "target-detail-disposition",
+      "selector": "[data-testid=\"target-detail-disposition\"]"
+    },
+    "targetDetail.capabilityList": {
+      "testId": "target-detail-capability-list",
+      "selector": "[data-testid=\"target-detail-capability-list\"]"
+    },
+    "targetDetail.probeTimestamp": {
+      "testId": "target-detail-probe-timestamp",
+      "selector": "[data-testid=\"target-detail-probe-timestamp\"]"
+    },
+    "targetDetail.missingCapability": {
+      "testId": "target-detail-missing-capability",
+      "selector": "[data-testid=\"target-detail-missing-capability\"]"
+    },
+    "targetDetail.nextAction": {
+      "testId": "target-detail-next-action",
+      "selector": "[data-testid=\"target-detail-next-action\"]"
+    },
+    "targetDetail.transport": {
+      "testId": "target-detail-transport",
+      "selector": "[data-testid=\"target-detail-transport\"]"
+    },
+    "targetDetail.strategyTier": {
+      "testId": "target-detail-strategy-tier",
+      "selector": "[data-testid=\"target-detail-strategy-tier\"]"
+    },
+    "targetDetail.leaseHolder": {
+      "testId": "target-detail-lease-holder",
+      "selector": "[data-testid=\"target-detail-lease-holder\"]"
+    },
+    "targetDetail.deviceIdentity": {
+      "testId": "target-detail-device-identity",
+      "selector": "[data-testid=\"target-detail-device-identity\"]"
+    },
+    "settingsPage.form": {
+      "testId": "settings-form",
+      "selector": "[data-testid=\"settings-form\"]"
+    },
+    "settingsPage.signingIdentity": {
+      "testId": "settings-signing-identity-ref",
+      "selector": "[data-testid=\"settings-signing-identity-ref\"]"
+    },
+    "settingsPage.defaultTransport": {
+      "testId": "settings-default-transport",
+      "selector": "[data-testid=\"settings-default-transport\"]"
+    },
+    "settingsPage.localeControl": {
+      "testId": "settings-locale-control",
+      "selector": "[data-testid=\"settings-locale-control\"]"
+    },
     "pages.dashboard": {
       "testId": "page-dashboard",
       "selector": "[data-testid=\"page-dashboard\"]"

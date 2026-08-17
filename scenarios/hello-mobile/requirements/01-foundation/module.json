@@ -10,7 +10,7 @@
     {
       "id": "MOBILE-001",
       "title": "Expose deterministic conformance selectors",
-      "status": "implemented",
+      "status": "complete",
       "prd_ref": "OT-P0-001",
       "category": "foundation",
       "criticality": "P0",
@@ -22,7 +22,7 @@
       "validation": [
         {
           "type": "test",
-          "status": "implemented",
+          "status": "complete",
           "ref": "ui/src/MobileFixture.test.tsx",
           "notes": "The focused UI test proves persistence and explicit connectivity/notification state transitions."
         }
@@ -31,7 +31,7 @@
     {
       "id": "MOBILE-002",
       "title": "Provide a BAS-compatible mobile smoke flow",
-      "status": "implemented",
+      "status": "complete",
       "prd_ref": "OT-P0-002",
       "category": "foundation",
       "criticality": "P0",
@@ -43,9 +43,51 @@
       "validation": [
         {
           "type": "test",
-          "status": "implemented",
+          "status": "complete",
           "ref": "bas/cases/mobile/conformance-flow.json",
           "notes": "The flow uses selector-manifest IDs and does not depend on timing-sensitive or backend state."
+        }
+      ]
+    },
+    {
+      "id": "MOBILE-003",
+      "title": "Persist submitted fixture values",
+      "status": "complete",
+      "prd_ref": "OT-P1-001",
+      "category": "foundation",
+      "criticality": "P1",
+      "description": "The fixture preserves a submitted value across a page reload through local storage.",
+      "tags": [
+        "mobile",
+        "persistence"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "complete",
+          "ref": "ui/src/MobileFixture.test.tsx",
+          "notes": "The focused UI test submits a value, reloads the fixture, and asserts the value remains visible."
+        }
+      ]
+    },
+    {
+      "id": "MOBILE-004",
+      "title": "Expose explicit fixture state transitions",
+      "status": "complete",
+      "prd_ref": "OT-P1-002",
+      "category": "foundation",
+      "criticality": "P1",
+      "description": "The fixture exposes deterministic connectivity and notification transitions without network or backend state.",
+      "tags": [
+        "mobile",
+        "state"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "complete",
+          "ref": "ui/src/MobileFixture.test.tsx",
+          "notes": "The focused UI test drives the connectivity and notification controls and asserts their visible state labels."
         }
       ]
     }

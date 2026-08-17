@@ -28,13 +28,13 @@ belong in [`DATA.md`](DATA.md).
 | Domain | Responsibility | Purpose | Owns Data | Primary Archetype | Secondary Traits | Glossary | Source Paths |
 |---|---|---|---|---|---|---|---|
 | health | Report runtime readiness and dependency reachability. | Expose API/database readiness and show the UI can read live backend state. | No product data. | reporting | query | HealthHandler | `api/handlers/health/`, `ui/src/features/health/`, `packages/proto/schemas/scenario-to-android/v1/shared/health.proto` |
-| projects | Answer "what generated Android app exists for which scenario, at which revision?" | Own Capacitor shell generation so a scenario becomes a buildable Android project without its UI being rewritten. | Generated-project records, shell template selection, bundle identity. | service | crud | Project, ShellTemplate, BundleIdentity | `api/internal/projects/`, `api/handlers/projects/`, `cli/domains/projects/`, `ui/src/features/projects/` |
-| targets | Answer "which Android targets can I prove right now, and what is missing?" | Implement the spine `Prober` seam and own emulator provisioning, so availability is probed rather than inferred. | Capability snapshots, AVD records, probe history. | reporting | query, integration | Target, CapabilitySnapshot, AVD, Transport | `api/internal/targets/`, `api/handlers/targets/`, `cli/domains/targets/`, `ui/src/features/targets/` |
-| builds | Answer "how does a project become a signed artifact?" | Implement the spine `Builder` seam: Gradle invocation, target-API assertion, and signing by secret reference. | Build records, artifact references, assertion results. | workflow | service | Build, Artifact, TargetApiAssertion, SigningIdentity | `api/internal/builds/`, `api/handlers/builds/`, `cli/domains/builds/`, `ui/src/features/builds/` |
-| journeys | Answer "does the generated app behave like a Vrooli app on Android?" | Implement the spine `Driver` seam by composing device-control verbs and browser-automation-studio flows onto one chaptered timeline. | Journey plans, run chapters, evidence references. | workflow | integration | JourneyPlan, Chapter, Assertion, Lease | `api/internal/journeys/`, `api/handlers/journeys/`, `cli/domains/journeys/`, `ui/src/features/journeys/` |
-| releases | Answer "may this artifact ship?" | Drive the spine's immutable validation matrix and compute the fail-closed release gate, emitting reference-only verdicts. | Matrix run selections, gate verdicts. | workflow | reporting | MatrixRun, Cell, Disposition, TargetVerdict | `api/internal/releases/`, `api/handlers/releases/`, `cli/domains/releases/`, `ui/src/features/releases/` |
-| distribution | Answer "where may this artifact legitimately go?" | Implement the spine `Distributor` seam over channels with genuinely different identity requirements. | Channel availability records, upload receipts. | service | integration | Channel, PlayTrack, SideloadRoute, UploadReceipt | `api/internal/distribution/`, `api/handlers/distribution/`, `cli/domains/distribution/`, `ui/src/features/distribution/` |
-| readiness | Answer "what stands between me and shipping this?" | Own the probed Google release-readiness ladder that backs the CLI, the UI walkthrough, and the generated documentation. | Rung state, probe results, next actions. | reporting | query | Rung, LadderState, NextAction | `api/internal/readiness/`, `api/handlers/readiness/`, `cli/domains/readiness/`, `ui/src/features/readiness/` |
+| projects | Answer "what generated Android app exists for which scenario, at which revision?" | Own Capacitor shell generation so a scenario becomes a buildable Android project without its UI being rewritten. | Generated-project records, shell template selection, bundle identity. | service | crud | Project, ShellTemplate, BundleIdentity | `api/internal/projects/` |
+| targets | Answer "which Android targets can I prove right now, and what is missing?" | Implement the spine `Prober` seam and own emulator provisioning, so availability is probed rather than inferred. | Capability snapshots, AVD records, probe history. | reporting | query, integration | Target, CapabilitySnapshot, AVD, Transport | `api/internal/targets/` |
+| builds | Answer "how does a project become a signed artifact?" | Implement the spine `Builder` seam: Gradle invocation, target-API assertion, and signing by secret reference. | Build records, artifact references, assertion results. | workflow | service | Build, Artifact, TargetApiAssertion, SigningIdentity | `api/internal/builds/` |
+| journeys | Answer "does the generated app behave like a Vrooli app on Android?" | Implement the spine `Driver` seam by composing device-control verbs and browser-automation-studio flows onto one chaptered timeline. | Journey plans, run chapters, evidence references. | workflow | integration | JourneyPlan, Chapter, Assertion, Lease | `api/internal/journeys/` |
+| releases | Answer "may this artifact ship?" | Compute the fail-closed release gate over the matrix adapter in the shared ramp composition layer, emitting reference-only verdicts. | Matrix run selections, gate verdicts. | workflow | reporting | MatrixRun, Cell, Disposition, TargetVerdict | `api/internal/releases/`, `api/handlers/releases/` |
+| distribution | Answer "where may this artifact legitimately go?" | Implement the spine `Distributor` seam over channels with genuinely different identity requirements. | Channel availability records, upload receipts. | service | integration | Channel, PlayTrack, SideloadRoute, UploadReceipt | `api/internal/distribution/` |
+| readiness | Answer "what stands between me and shipping this?" | Own the probed Google release-readiness ladder that backs the CLI, the UI walkthrough, and the generated documentation. | Rung state, probe results, next actions. | reporting | query | Rung, LadderState, NextAction | `api/internal/readiness/` |
 
 ## Domain Details
 
@@ -164,6 +164,29 @@ belong in [`DATA.md`](DATA.md).
   generated documentation, so documentation cannot drift from code.
 - Requirements: `S2A-P0-009`.
 
+## Android P0 ownership register
+
+Each P0 requirement has one product-domain owner. The `Builder` seam owns
+both project generation and artifact production because generation and build
+share one reproducible project-preparation boundary; the `projects` domain is
+reserved for persisted project records and additional shell families.
+
+| Requirement | Owning domain | Primary implementation evidence |
+|---|---|---|
+| `S2A-P0-001` | builds | `api/internal/builds/builder_test.go` |
+| `S2A-P0-002` | builds | `api/internal/builds/builder_test.go` |
+| `S2A-P0-003` | targets | `api/internal/targets/prober_test.go` |
+| `S2A-P0-004` | journeys | `api/internal/journeys/driver_test.go` |
+| `S2A-P0-005` | journeys | `api/internal/journeys/plan_test.go` |
+| `S2A-P0-006` | targets | `../../resources/android-sdk/cli/main_test.go` |
+| `S2A-P0-007` | builds | `api/internal/builds/builder_test.go` |
+| `S2A-P0-008` | distribution | `api/internal/distribution/distributor_test.go` |
+| `S2A-P0-009` | readiness | `api/internal/readiness/readiness_test.go` |
+| `S2A-P0-010` | releases | `api/internal/releases/gate_test.go` |
+| `S2A-P0-011` | releases | `cli/domains/android/register_test.go` |
+| `S2A-P0-012` | journeys | `api/internal/journeys/driver_test.go` |
+| `S2A-P0-013` | builds | `api/internal/builds/builder_test.go` |
+
 ## Shared Concepts
 
 | Concept | Meaning | Owner |
@@ -195,6 +218,10 @@ These are important but should not become product domains:
 - `api/internal/testutil/` — cross-domain test harnesses.
 - `ui/src/components/` — shared presentation primitives.
 - `ui/src/test-utils/` — cross-feature testing support.
+- `cli/domains/` — CLI registration and transport adapters.
+- `ui/src/features/delivery/` — shared delivery-ramp operator walkthrough.
+- `../../resources/android-sdk/cli/` — governed resource-owned SDK lifecycle.
+- `../../hello-mobile/ui/` — fixture-owned end-to-end test surface.
 
 If one of these starts using product vocabulary, split the product
 piece into an owning domain instead of growing infrastructure.

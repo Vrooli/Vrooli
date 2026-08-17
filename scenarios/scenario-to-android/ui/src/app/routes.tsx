@@ -11,6 +11,8 @@ import { SettingsPage } from "../pages/SettingsPage";
 import { TargetMatrixPage } from "../pages/TargetMatrixPage";
 import { RunReviewPage } from "../pages/RunReviewPage";
 import { ReadinessPage } from "../pages/ReadinessPage";
+import { Providers } from "./providers";
+import { DistributionSurface, TargetDetailSurface, RunReviewSurface } from "../features/delivery/ExperienceSurfaces";
 
 /**
  * Canonical route table. Exported so tests can construct an in-memory router
@@ -26,7 +28,10 @@ export const routes: RouteObject[] = [
       { index: true, element: <DashboardPage /> },
       { path: "targets", element: <TargetMatrixPage /> },
       { path: "runs", element: <RunReviewPage /> },
+      { path: "runs/:runId", element: <RunReviewSurface /> },
       { path: "readiness", element: <ReadinessPage /> },
+      { path: "distribution", element: <DistributionSurface /> },
+      { path: "targets/:targetId", element: <TargetDetailSurface /> },
       { path: "settings", element: <SettingsPage /> },
     ],
   },
@@ -58,5 +63,9 @@ export function AppRouter() {
  */
 export function TestAppRouter({ initialEntries }: { initialEntries: string[] }) {
   const router = createMemoryRouter(routes, { initialEntries, future: dataRouterFuture });
-  return <RouterProvider router={router} future={routerProviderFuture} />;
+  return (
+    <Providers>
+      <RouterProvider router={router} future={routerProviderFuture} />
+    </Providers>
+  );
 }

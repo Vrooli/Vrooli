@@ -181,6 +181,10 @@ type Config struct {
 	// package from source when this is absent.
 	ResourceArtifactRoot string `json:"resource_artifact_root,omitempty"`
 
+	// ToolArtifactRoot is a verified Vrooli release directory containing
+	// vendored tool artifacts plus SHA256SUMS.
+	ToolArtifactRoot string `json:"tool_artifact_root,omitempty"`
+
 	// ArtifactTrustMode governs Vrooli release-manifest admission. It is
 	// independent of installer/app code signing.
 	ArtifactTrustMode resourcedeployment.ArtifactTrustMode `json:"artifact_trust_mode,omitempty"`

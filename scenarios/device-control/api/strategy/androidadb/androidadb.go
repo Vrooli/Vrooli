@@ -785,11 +785,6 @@ func (a *Adapter) webViewSocket(ctx context.Context, packageName string) (string
 	return "", lastErr
 }
 
-func discoverWebViewRendererID(ctx context.Context, endpoint string) (string, error) {
-	rendererID, _, err := discoverWebViewRenderer(ctx, endpoint)
-	return rendererID, err
-}
-
 func discoverWebViewRenderer(ctx context.Context, endpoint string) (string, string, error) {
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, strings.TrimRight(endpoint, "/")+"/json/list", nil)
 	if err != nil {
@@ -1022,6 +1017,11 @@ func (a *Adapter) Describe(ctx context.Context) (strategy.Declaration, error) {
 		{strategy.CapDeviceLogs, []string{"logcat", "-d", "-t", "1"}, "logcat is unavailable; grant device log access"},
 	}
 	for _, probe := range probes {
+		if probe.name == strategy.CapNetworkControl {
+			available, evidence := a.probeNetworkControl(ctx)
+			caps[probe.name] = strategy.ProbeCapability(probe.name, available, probe.next, probe.next, evidence)
+			continue
+		}
 		_, err := a.runner.Run(ctx, "adb", a.args(probe.args...)...)
 		caps[probe.name] = strategy.ProbeCapability(probe.name, err == nil, probe.next, probe.next, "adb "+strings.Join(probe.args, " "))
 	}
@@ -1035,6 +1035,21 @@ func (a *Adapter) Describe(ctx context.Context) (strategy.Declaration, error) {
 	d = strategy.WithSupportedHostOS(d, "linux", "darwin", "windows")
 	d.Tiers = strategy.Tiers(d)
 	return d, nil
+}
+
+// probeNetworkControl mirrors the fallback used by Actuate. Some Android
+// images return a non-zero usage status for `svc wifi` without an action even
+// though the connectivity service exposes the supported airplane-mode
+// control. The fallback is a read-only capability probe; it does not change
+// network state.
+func (a *Adapter) probeNetworkControl(ctx context.Context) (bool, string) {
+	if _, err := a.runner.Run(ctx, "adb", a.args("shell", "svc", "wifi")...); err == nil {
+		return true, "adb shell svc wifi"
+	}
+	if _, err := a.runner.Run(ctx, "adb", a.args("shell", "cmd", "connectivity", "airplane-mode")...); err == nil {
+		return true, "adb shell cmd connectivity airplane-mode"
+	}
+	return false, "adb shell svc wifi; adb shell cmd connectivity airplane-mode"
 }
 
 func unavailable(next string) strategy.Declaration {
@@ -1459,7 +1474,7 @@ func (a *Adapter) Observe(ctx context.Context) (strategy.Frame, error) {
 }
 
 func (a *Adapter) ResolveSemantic(ctx context.Context, target string) (strategy.SemanticResult, error) {
-	tree, err := a.runner.Run(ctx, "adb", a.args("exec-out", "uiautomator", "dump", "/dev/tty")...)
+	tree, err := a.runner.Run(ctx, "adb", a.args("exec-out", "uiautomator", "dump", "/dev/stdout")...)
 	if err != nil {
 		return strategy.SemanticResult{}, err
 	}
@@ -1687,7 +1702,7 @@ func (a *Adapter) Actuate(ctx context.Context, event strategy.Actuation) error {
 		case "semantic-target":
 			return fmt.Errorf("semantic-target is resolver-scoped; execute it through the flow resolver")
 		case "semantic-assert":
-			tree, err := a.runner.Run(ctx, "adb", a.args("exec-out", "uiautomator", "dump", "/dev/tty")...)
+			tree, err := a.runner.Run(ctx, "adb", a.args("exec-out", "uiautomator", "dump", "/dev/stdout")...)
 			if err != nil {
 				return err
 			}

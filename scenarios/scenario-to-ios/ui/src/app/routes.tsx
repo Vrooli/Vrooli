@@ -8,6 +8,8 @@ import {
 import { AppShell } from "../layout/AppShell";
 import { DashboardPage } from "../pages/DashboardPage";
 import { SettingsPage } from "../pages/SettingsPage";
+import { Providers } from "./providers";
+import { DistributionSurface, ReadinessSurface, RunReviewSurface, TargetDetailSurface } from "../features/delivery/ExperienceSurfaces";
 
 /**
  * Canonical route table. Exported so tests can construct an in-memory router
@@ -21,6 +23,10 @@ export const routes: RouteObject[] = [
     element: <AppShell />,
     children: [
       { index: true, element: <DashboardPage /> },
+      { path: "distribution", element: <DistributionSurface /> },
+      { path: "readiness", element: <ReadinessSurface /> },
+      { path: "runs/:runId", element: <RunReviewSurface /> },
+      { path: "targets/:targetId", element: <TargetDetailSurface /> },
       { path: "settings", element: <SettingsPage /> },
     ],
   },
@@ -52,5 +58,9 @@ export function AppRouter() {
  */
 export function TestAppRouter({ initialEntries }: { initialEntries: string[] }) {
   const router = createMemoryRouter(routes, { initialEntries, future: dataRouterFuture });
-  return <RouterProvider router={router} future={routerProviderFuture} />;
+  return (
+    <Providers>
+      <RouterProvider router={router} future={routerProviderFuture} />
+    </Providers>
+  );
 }

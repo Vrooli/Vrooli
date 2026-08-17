@@ -9,6 +9,14 @@
     "purpose": "Expose the removable notes example as a concrete route while the scenario's real product domain is still being shaped.",
     "prd_refs": ["OT-P0-001"]
   },
+  "states": [
+    { "id": "default", "description": "The notes surface is ready and exposes its list and create action." },
+    { "id": "loading", "description": "Notes are loading while the notes surface remains present and announces progress." },
+    { "id": "empty", "description": "No notes exist and the surface explains the empty state without collapsing the route." },
+    { "id": "partial", "description": "The notes surface remains usable while optional note data or attachments are incomplete." },
+    { "id": "stale", "description": "The last note snapshot remains visible while a refresh or synchronization is pending." },
+    { "id": "request-error", "description": "The notes request failed; the surface names the failure and preserves the route's recovery action." }
+  ],
   "regions": [
     {
       "id": "notes",

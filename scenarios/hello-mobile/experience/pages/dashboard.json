@@ -8,5 +8,13 @@
     "routes": ["/"],
     "purpose": "Give the operator the first useful view of Hello Mobile and make the primary next action clear.",
     "prd_refs": ["OT-P0-001"]
-  }
+  },
+  "states": [
+    { "id": "default", "description": "Health information, conformance controls, and dashboard placeholders are visible." },
+    { "id": "loading", "description": "The health request is pending while the dashboard frame and conformance controls remain usable." },
+    { "id": "stale", "description": "The last health snapshot remains visible with an explicit refresh action while freshness is restored." },
+    { "id": "request-error", "description": "Health refresh failed; the error is named and the refresh action remains available." },
+    { "id": "partial", "description": "Health information is unavailable while the conformance fixture and stable dashboard placeholders remain usable." },
+    { "id": "empty", "description": "Optional dashboard measurements are not available; stable placeholders remain visible instead of blank space." }
+  ]
 }

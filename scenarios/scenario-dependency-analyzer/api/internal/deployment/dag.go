@@ -100,6 +100,7 @@ func buildResourceDependencyNode(repoRoot, name string, meta *types.DeploymentDe
 		node.TierSupport = unknownTierSupport(err.Error())
 	} else {
 		if declaration.Requirements != nil {
+			gpu := declaration.Requirements.GPURequirement != nil
 			node.ResourceType = declaration.Requirements.Class
 			node.Requirements = &types.DeploymentRequirements{
 				Class:      declaration.Requirements.Class,
@@ -107,7 +108,7 @@ func buildResourceDependencyNode(repoRoot, name string, meta *types.DeploymentDe
 				RAMMB:      ptr(declaration.Requirements.RAMMB),
 				DiskMB:     ptr(declaration.Requirements.DiskMB),
 				CPUCores:   ptr(declaration.Requirements.CPUCores),
-				GPU:        ptr(declaration.Requirements.GPU),
+				GPU:        ptr(gpu),
 				Network:    declaration.Requirements.Network,
 				Source:     declaration.Requirements.Source,
 				Confidence: declaration.Requirements.Confidence,

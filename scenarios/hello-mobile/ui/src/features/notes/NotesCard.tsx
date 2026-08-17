@@ -116,7 +116,7 @@ export function NotesCard() {
           <CardTitle>{t(strings.notes.title)}</CardTitle>
           <Button
             data-testid={selectors.notes.createButton}
-            size="sm"
+            size="md"
             onClick={handleCreateNote}
             disabled={createNoteMutation.isPending}
           >

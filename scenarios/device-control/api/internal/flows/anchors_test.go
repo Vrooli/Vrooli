@@ -19,4 +19,3 @@ func TestAnchorStoreSurvivesRestart(t *testing.T) {
 	require.Equal(t, created.ID, resolved.ID)
 	require.Equal(t, created.Bounds, resolved.Bounds)
 }
-

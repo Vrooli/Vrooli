@@ -151,6 +151,12 @@ func (s *BundleStage) Execute(ctx context.Context, input *StageInput) *StageResu
 		return result
 	}
 	packageResult.CopiedArtifacts = append(packageResult.CopiedArtifacts, resourceArtifacts...)
+	toolArtifacts, err := stageBundledToolArtifacts(packageResult.BundleDir, input.Config.ToolArtifactRoot, input.ResourceDeploymentPlan)
+	if err != nil {
+		failStage(result, s.timeProvider, errors.ErrBundlePackagingFailed(err, scenarioPath))
+		return result
+	}
+	packageResult.CopiedArtifacts = append(packageResult.CopiedArtifacts, toolArtifacts...)
 
 	// Update input for next stage
 	input.BundleResult = packageResult

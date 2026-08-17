@@ -714,7 +714,7 @@ func runJourneyCommand(ctx context.Context, command string, args []string, env [
 	if len(args) == 0 {
 		return nil, fmt.Errorf("journey command args are required")
 	}
-	process := execCommandContext(ctx, command, args...)
+	process := exec.CommandContext(ctx, command, args...)
 	process.Env = append(os.Environ(), env...)
 	output, err := process.CombinedOutput()
 	result := &ExecutionResult{Combined: string(output), ExitCode: 0}
@@ -722,10 +722,6 @@ func runJourneyCommand(ctx context.Context, command string, args []string, env [
 		result.ExitCode = 1
 	}
 	return result, err
-}
-
-var execCommandContext = func(ctx context.Context, command string, args ...string) *exec.Cmd {
-	return exec.CommandContext(ctx, command, args...)
 }
 
 func (s *DefaultService) persistJourney(journey deliveryramp.JourneyResult) string {

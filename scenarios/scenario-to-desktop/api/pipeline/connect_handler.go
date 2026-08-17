@@ -327,6 +327,7 @@ func configFromProto(value *pipelinev1.PipelineConfig) (*Config, error) {
 		TemplateType:         templateTypeFromProto(value.GetTemplateType()),
 		PreflightSecrets:     value.GetPreflightSecrets(),
 		ResourceArtifactRoot: value.GetResourceArtifactRoot(),
+		ToolArtifactRoot:     value.GetToolArtifactRoot(),
 		ArtifactTrustMode:    resourcedeployment.ArtifactTrustMode(value.GetArtifactTrustMode()),
 		LocationMode:         value.GetLocationMode(),
 		Stages:               stagesFromProto(value.GetStages()),
@@ -555,6 +556,8 @@ func resourceDeploymentPlanToProto(value *ResourceDeploymentPlan) *pipelinev1.Re
 					TargetDefaults:             map[string]string{},
 				},
 				Artifact:    service.Artifact,
+				Layout:      service.Layout,
+				EntryPath:   optionalString(service.EntryPath),
 				Version:     service.Version,
 				Sha256:      service.SHA256,
 				Arguments:   append([]string(nil), service.Arguments...),
@@ -584,15 +587,17 @@ func resourceDeploymentPlanToProto(value *ResourceDeploymentPlan) *pipelinev1.Re
 	}
 	for _, requirement := range value.HostRequirements {
 		result.HostRequirements = append(result.HostRequirements, &pipelinev1.HostRequirementPlanItem{
-			Name:       requirement.Name,
-			Kind:       requirement.Kind,
-			Os:         requirement.OS,
-			Privilege:  requirement.Privilege,
-			Bundling:   requirement.Bundling,
-			Required:   requirement.Required,
-			Verdict:    requirement.Verdict,
-			Reason:     requirement.Reason,
-			Provenance: append([]string(nil), requirement.Provenance...),
+			Name:         requirement.Name,
+			Kind:         requirement.Kind,
+			Os:           requirement.OS,
+			Architecture: requirement.Architecture,
+			Privilege:    requirement.Privilege,
+			Bundling:     requirement.Bundling,
+			Required:     requirement.Required,
+			Verdict:      requirement.Verdict,
+			Reason:       requirement.Reason,
+			Artifact:     optionalString(requirement.Artifact),
+			Provenance:   append([]string(nil), requirement.Provenance...),
 		})
 	}
 	return result
@@ -694,6 +699,9 @@ func applyOptionalProtoConfig(result *pipelinev1.PipelineConfig, config *Config)
 func applyOptionalProtoExecutionConfig(result *pipelinev1.PipelineConfig, config *Config) {
 	if config.ResourceArtifactRoot != "" {
 		result.ResourceArtifactRoot = stringPtr(config.ResourceArtifactRoot)
+	}
+	if config.ToolArtifactRoot != "" {
+		result.ToolArtifactRoot = stringPtr(config.ToolArtifactRoot)
 	}
 	if config.ArtifactTrustMode != "" {
 		result.ArtifactTrustMode = stringPtr(string(config.ArtifactTrustMode))

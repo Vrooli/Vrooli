@@ -60,7 +60,7 @@ automatically):
 
 ```bash
 scenario-to-android status
-scenario-to-android <domain> <command>   # e.g. list/create commands for your domain
+scenario-to-android status
 ```
 
 Or directly via HTTP:

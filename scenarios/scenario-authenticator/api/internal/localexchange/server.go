@@ -75,10 +75,11 @@ func Start(ctx context.Context, path string, handler http.Handler) (func(), erro
 		stop()
 	}()
 	go func() {
-		if err := server.Serve(listener); err != nil && !errors.Is(err, http.ErrServerClosed) && ctx.Err() == nil {
-			// The owning process logs the failure through its health/lifecycle
-			// surface; the goroutine must not turn an accepted API into a panic.
+		if err := server.Serve(listener); err == nil || errors.Is(err, http.ErrServerClosed) || ctx.Err() != nil {
+			return
 		}
+		// The owning process logs the failure through its health/lifecycle
+		// surface; the goroutine must not turn an accepted API into a panic.
 	}()
 	return stop, nil
 }

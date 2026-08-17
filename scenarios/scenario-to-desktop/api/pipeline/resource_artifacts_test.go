@@ -11,9 +11,11 @@ import (
 	"encoding/pem"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
+	hostreq "github.com/vrooli/vrooli/packages/hostreq"
 	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
 )
 
@@ -45,7 +47,7 @@ func TestStageBundledResourceArtifactsStagesVerifiedArtifactsAndPlan(t *testing.
 	writeTestReleaseSignature(t, root, artifactRoot, checksumData)
 
 	bundleDir := filepath.Join(root, "bundle")
-	plan, err := resolveResourceDeploymentPlanWithTrust(scenarioPath, artifactRoot, []string{"linux-amd64"}, resourcedeployment.ArtifactTrustProduction)
+	plan, err := resolveResourceDeploymentPlanWithTrust(scenarioPath, artifactRoot, "", []string{"linux-amd64"}, resourcedeployment.ArtifactTrustProduction)
 	mustNoError(t, err, "resolve plan")
 	copied, err := stageBundledResourceArtifacts(bundleDir, artifactRoot, plan)
 	mustNoError(t, err, "stage artifacts")
@@ -87,7 +89,7 @@ func TestStageBundledServiceStagesSeparatelyPinnedServer(t *testing.T) {
 	mustWriteFile(t, filepath.Join(artifactRoot, "SHA256SUMS"), checksumData, 0o644)
 	writeTestReleaseSignature(t, root, artifactRoot, checksumData)
 
-	plan, err := resolveResourceDeploymentPlanWithTrust(scenarioPath, artifactRoot, []string{"linux-amd64"}, resourcedeployment.ArtifactTrustProduction)
+	plan, err := resolveResourceDeploymentPlanWithTrust(scenarioPath, artifactRoot, "", []string{"linux-amd64"}, resourcedeployment.ArtifactTrustProduction)
 	mustNoError(t, err, "resolve plan")
 	item := plan.Resources[0]
 	if item.Service == nil || item.Service.Artifact != serverName || len(item.Service.Files) != 1 {
@@ -179,7 +181,7 @@ func TestStageBundledResourceArtifactsRejectsChecksumMismatch(t *testing.T) {
 		t.Fatal(err)
 	}
 	writeTestReleaseSignature(t, root, artifactRoot, checksumData)
-	if _, err := resolveResourceDeploymentPlanWithTrust(scenarioPath, artifactRoot, []string{"linux-amd64"}, resourcedeployment.ArtifactTrustProduction); err == nil || !strings.Contains(err.Error(), "hash mismatch") {
+	if _, err := resolveResourceDeploymentPlanWithTrust(scenarioPath, artifactRoot, "", []string{"linux-amd64"}, resourcedeployment.ArtifactTrustProduction); err == nil || !strings.Contains(err.Error(), "hash mismatch") {
 		t.Fatalf("expected checksum mismatch, got %v", err)
 	}
 }
@@ -205,6 +207,69 @@ func TestProductionTrustExplainsMissingReleaseSignature(t *testing.T) {
 	}
 }
 
+func TestDesktopToolEligibilityRequiresAStagedArtifactAndPreservesCrossPlatformUnknown(t *testing.T) {
+	_, sourceFile, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("runtime.Caller failed")
+	}
+	repoRoot := filepath.Clean(filepath.Join(filepath.Dir(sourceFile), "../../../.."))
+	scenarioPath := filepath.Join(t.TempDir(), "fixture")
+	mustMkdirAll(t, filepath.Join(scenarioPath, ".vrooli"))
+	mustWriteFile(t, filepath.Join(scenarioPath, ".vrooli", "service.json"), []byte(`{"service":{"name":"fixture"},"hostTools":[{"name":"yq","required":true,"reason":"fixture yq"}]}`), 0o644)
+
+	toolRoot := t.TempDir()
+	body := []byte("verified yq")
+	toolName := "tool_yq_linux_amd64"
+	mustWriteFile(t, filepath.Join(toolRoot, toolName), body, 0o755)
+	sum := sha256.Sum256(body)
+	manifest := resourcedeployment.ReleaseManifest{SchemaVersion: "v1", Artifacts: []resourcedeployment.ReleaseArtifact{{Name: toolName, SHA256: hex.EncodeToString(sum[:]), Role: "tool", UpstreamProvenance: "fixture"}}}
+	canonical, err := manifest.CanonicalBytes()
+	mustNoError(t, err, "canonicalize tool release")
+	mustWriteFile(t, filepath.Join(toolRoot, "release-manifest.json"), canonical, 0o644)
+
+	items, err := resolveDesktopHostRequirements(repoRoot, scenarioPath, []string{"none"}, resourcedeployment.Platform{OS: "linux", Arch: "amd64"}, toolRoot, resourcedeployment.ArtifactTrustDevelopmentLocal)
+	mustNoError(t, err, "resolve staged tool")
+	yq := findHostRequirement(t, items, "yq")
+	if yq.Verdict != string(hostreq.EligibilityEligible) || yq.Artifact != toolName || yq.Architecture != "amd64" {
+		t.Fatalf("staged yq requirement = %#v, want eligible staged amd64 artifact", yq)
+	}
+
+	missingRoot := t.TempDir()
+	filler := []byte("unrelated")
+	fillerSum := sha256.Sum256(filler)
+	fillerName := "tool_fixture_linux_amd64"
+	mustWriteFile(t, filepath.Join(missingRoot, fillerName), filler, 0o755)
+	missingManifest := resourcedeployment.ReleaseManifest{SchemaVersion: "v1", Artifacts: []resourcedeployment.ReleaseArtifact{{Name: fillerName, SHA256: hex.EncodeToString(fillerSum[:]), Role: "fixture", UpstreamProvenance: "fixture"}}}
+	missingCanonical, err := missingManifest.CanonicalBytes()
+	mustNoError(t, err, "canonicalize missing-tool release")
+	mustWriteFile(t, filepath.Join(missingRoot, "release-manifest.json"), missingCanonical, 0o644)
+	missingItems, err := resolveDesktopHostRequirements(repoRoot, scenarioPath, []string{"none"}, resourcedeployment.Platform{OS: "linux", Arch: "amd64"}, missingRoot, resourcedeployment.ArtifactTrustDevelopmentLocal)
+	mustNoError(t, err, "resolve missing staged tool")
+	missing := findHostRequirement(t, missingItems, "yq")
+	if missing.Verdict != string(hostreq.EligibilityIneligible) || missing.Artifact != toolName {
+		t.Fatalf("missing yq requirement = %#v, want ineligible with selected artifact name", missing)
+	}
+
+	mustWriteFile(t, filepath.Join(scenarioPath, ".vrooli", "service.json"), []byte(`{"service":{"name":"fixture"},"hostTools":[{"name":"ffmpeg","required":true,"reason":"fixture ffmpeg"}]}`), 0o644)
+	crossPlatform, err := resolveDesktopHostRequirements(repoRoot, scenarioPath, []string{"none"}, resourcedeployment.Platform{OS: "windows", Arch: "amd64"}, "", resourcedeployment.ArtifactTrustDevelopmentLocal)
+	mustNoError(t, err, "resolve cross-platform host requirement")
+	ffmpeg := findHostRequirement(t, crossPlatform, "ffmpeg")
+	if ffmpeg.Verdict != string(hostreq.EligibilityUnknown) || ffmpeg.Architecture != "amd64" || ffmpeg.OS != "windows" {
+		t.Fatalf("cross-platform ffmpeg requirement = %#v, want unknown windows/amd64", ffmpeg)
+	}
+}
+
+func findHostRequirement(t *testing.T, items []HostRequirementPlanItem, name string) HostRequirementPlanItem {
+	t.Helper()
+	for _, item := range items {
+		if item.Name == name {
+			return item
+		}
+	}
+	t.Fatalf("host requirement %q not found in %#v", name, items)
+	return HostRequirementPlanItem{}
+}
+
 func TestResolveResourceDeploymentPlanSelectsOnlyValidatedFallback(t *testing.T) {
 	root := t.TempDir()
 	scenarioPath := filepath.Join(root, "scenarios", "demo")
@@ -227,7 +292,7 @@ func TestResolveResourceDeploymentPlanSelectsOnlyValidatedFallback(t *testing.T)
 			t.Fatal(err)
 		}
 	}
-	plan, err := resolveResourceDeploymentPlanWithTrust(scenarioPath, "", []string{"linux-amd64"}, resourcedeployment.ArtifactTrustDevelopmentLocal)
+	plan, err := resolveResourceDeploymentPlanWithTrust(scenarioPath, "", "", []string{"linux-amd64"}, resourcedeployment.ArtifactTrustDevelopmentLocal)
 	if err != nil {
 		t.Fatalf("resolve fallback: %v", err)
 	}
@@ -237,7 +302,7 @@ func TestResolveResourceDeploymentPlanSelectsOnlyValidatedFallback(t *testing.T)
 	if plan.Resources[0].SelectedFallback == nil || plan.Resources[0].SelectedFallback.Resource != "fallback" || plan.Resources[0].SelectedFallback.Reason == "" {
 		t.Fatalf("fallback selection must be explicit: %#v", plan.Resources[0])
 	}
-	windowsPlan, err := resolveResourceDeploymentPlanWithTrust(scenarioPath, "", []string{"windows-amd64"}, resourcedeployment.ArtifactTrustDevelopmentLocal)
+	windowsPlan, err := resolveResourceDeploymentPlanWithTrust(scenarioPath, "", "", []string{"windows-amd64"}, resourcedeployment.ArtifactTrustDevelopmentLocal)
 	if err != nil {
 		t.Fatalf("unsupported target must remain a buildable, recorded limitation: %v", err)
 	}
@@ -262,7 +327,7 @@ func TestResolveResourceDeploymentPlanRejectsEmptyOrDuplicateTargetMatrix(t *tes
 	if err := os.WriteFile(filepath.Join(scenarioPath, ".vrooli", "service.json"), []byte(`{"dependencies":{"resources":{}}}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := resolveResourceDeploymentPlanWithTrust(scenarioPath, "", nil, resourcedeployment.ArtifactTrustDevelopmentLocal); err == nil || !strings.Contains(err.Error(), "target matrix") {
+	if _, err := resolveResourceDeploymentPlanWithTrust(scenarioPath, "", "", nil, resourcedeployment.ArtifactTrustDevelopmentLocal); err == nil || !strings.Contains(err.Error(), "target matrix") {
 		t.Fatalf("expected empty matrix to fail, got %v", err)
 	}
 }

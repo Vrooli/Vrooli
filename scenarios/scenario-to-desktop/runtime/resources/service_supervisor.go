@@ -168,15 +168,25 @@ func (s *ServiceSupervisor) startOne(ctx context.Context, item Item) error {
 		return fmt.Errorf("allocate bundled service ports: %w", err)
 	}
 	artifactPath := filepath.Join(s.bundleRoot, "resources", item.Resource, service.Artifact)
+	launchPath := artifactPath
+	workingDir := filepath.Dir(artifactPath)
+	if service.Layout == "dir" {
+		launchPath = filepath.Join(artifactPath, filepath.FromSlash(service.EntryPath))
+		workingDir = artifactPath
+	}
 	environmentMap, arguments := launch.environment(service, servicePorts)
 	if err := writeServiceConfig(service.Config, launch.configDir, environmentMap); err != nil {
 		logFile.Close()
 		return fmt.Errorf("write bundled service config: %w", err)
 	}
-	cmd := exec.CommandContext(ctx, artifactPath, arguments...)
+	if err := runServiceBootstrap(ctx, service, artifactPath, launch, environmentMap); err != nil {
+		logFile.Close()
+		return err
+	}
+	cmd := exec.CommandContext(ctx, launchPath, arguments...)
 	infra.ConfigureProcessCommand(cmd)
 	cmd.Env = environmentList(environmentMap)
-	cmd.Dir = filepath.Dir(artifactPath)
+	cmd.Dir = workingDir
 	cmd.Stdout = logFile
 	cmd.Stderr = logFile
 	if err := cmd.Start(); err != nil {
@@ -393,6 +403,61 @@ func writeServiceConfig(config *resourcedeployment.ServiceConfig, configDir stri
 	return os.WriteFile(path, []byte(expandServiceTemplate(config.Content, values)), 0o600)
 }
 
+func runServiceBootstrap(ctx context.Context, service *Service, artifactPath string, launch serviceLaunchDirectories, values map[string]string) error {
+	if service.Bootstrap == nil {
+		return nil
+	}
+	bootstrap := service.Bootstrap
+	if err := bootstrap.Validate(); err != nil {
+		return err
+	}
+	marker := filepath.Join(launch.dataDir, filepath.FromSlash(bootstrap.Marker))
+	if _, err := os.Stat(marker); err == nil {
+		return nil
+	} else if !os.IsNotExist(err) {
+		return fmt.Errorf("inspect bundled service bootstrap marker: %w", err)
+	}
+	artifactRoot := filepath.Dir(artifactPath)
+	if strings.EqualFold(strings.TrimSpace(service.Layout), "dir") {
+		artifactRoot = artifactPath
+	}
+	environment := cloneEnvironment(values)
+	var passwordPath string
+	if strings.TrimSpace(bootstrap.PasswordEnv) != "" {
+		password := environment[bootstrap.PasswordEnv]
+		if password == "" {
+			return fmt.Errorf("bundled service bootstrap requires %s", bootstrap.PasswordEnv)
+		}
+		if strings.TrimSpace(bootstrap.PasswordFile) == "" {
+			return fmt.Errorf("bundled service bootstrap password_file is required")
+		}
+		passwordPath = filepath.Join(launch.configDir, filepath.FromSlash(bootstrap.PasswordFile))
+		if err := os.MkdirAll(filepath.Dir(passwordPath), 0o700); err != nil {
+			return err
+		}
+		if err := os.WriteFile(passwordPath, []byte(password+"\n"), 0o600); err != nil {
+			return err
+		}
+		defer os.Remove(passwordPath)
+	}
+	arguments := make([]string, len(bootstrap.Arguments))
+	for index, argument := range bootstrap.Arguments {
+		arguments[index] = expandServiceTemplate(argument, environment)
+	}
+	executable := filepath.Join(artifactRoot, filepath.FromSlash(bootstrap.Executable))
+	command := exec.CommandContext(ctx, executable, arguments...)
+	command.Dir = artifactRoot
+	command.Env = environmentList(environment)
+	output, err := command.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("run bundled service bootstrap: %w: %s", err, strings.TrimSpace(string(output)))
+	}
+	if _, err := os.Stat(marker); err != nil {
+		return fmt.Errorf("bundled service bootstrap completed without marker %s: %w", bootstrap.Marker, err)
+	}
+	return nil
+}
+
 func waitForServiceHealth(parent context.Context, checks []HealthCheck, values map[string]string, ports ...[]ServicePort) error {
 	if len(checks) == 0 {
 		return nil
@@ -416,6 +481,16 @@ func waitForServiceHealth(parent context.Context, checks []HealthCheck, values m
 				servicePorts = ports[0]
 			}
 			target := expandHealthCheckTarget(check.Target, values, servicePorts)
+			if check.Type == "tcp" {
+				dialer := net.Dialer{Timeout: 5 * time.Second}
+				connection, dialErr := dialer.DialContext(ctx, "tcp", target)
+				if dialErr != nil {
+					ready = false
+					break
+				}
+				_ = connection.Close()
+				continue
+			}
 			request, err := http.NewRequestWithContext(ctx, http.MethodGet, target, nil)
 			if err != nil {
 				return fmt.Errorf("build health request: %w", err)

@@ -66,6 +66,10 @@ export function HealthCard() {
         {data && (
           <dl className="grid gap-2 text-sm md:grid-cols-2">
             <div>
+              <dt className="text-app-muted-foreground">{t(strings.health.statusLabel)}</dt>
+              <dd className="font-medium">{data.status}</dd>
+            </div>
+            <div>
               <dt className="text-app-muted-foreground">{t(strings.health.serviceLabel)}</dt>
               <dd data-testid={selectors.health.serviceValue} className="font-medium">
                 {data.service}

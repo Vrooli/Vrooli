@@ -61,8 +61,10 @@ type VideoContentAssessment struct {
 	Reason        string  `json:"reason,omitempty"`
 }
 
-var videoLumaPattern = regexp.MustCompile(`lavfi\.signalstats\.YAVG=([0-9]+(?:\.[0-9]+)?)`)
-var videoMaxLumaPattern = regexp.MustCompile(`lavfi\.signalstats\.YMAX=([0-9]+(?:\.[0-9]+)?)`)
+var (
+	videoLumaPattern    = regexp.MustCompile(`lavfi\.signalstats\.YAVG=([0-9]+(?:\.[0-9]+)?)`)
+	videoMaxLumaPattern = regexp.MustCompile(`lavfi\.signalstats\.YMAX=([0-9]+(?:\.[0-9]+)?)`)
+)
 
 // AssessVideoContent rejects a recording whose entire sampled body stays at
 // Android's legal-range black level. A valid MP4 container is not useful

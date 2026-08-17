@@ -220,6 +220,7 @@ func (s *DeployStage) uploadArtifacts(ctx context.Context, client *deploy.LPBSCl
 		appendInfo(result, "Uploading %s artifact: %s", platform, artifactPath)
 		uploadResult, err := client.UploadArtifact(ctx, &deploy.UploadRequest{
 			RemoteProfile:  remoteProfile,
+			ScenarioName:   input.Config.ScenarioName,
 			AppKey:         cfg.AppKey,
 			Platform:       platform,
 			FilePath:       artifactPath,

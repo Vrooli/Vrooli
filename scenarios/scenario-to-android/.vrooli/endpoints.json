@@ -53,7 +53,12 @@
       "category": "capabilities",
       "rest_exception": {
         "reason": "ops_probe",
-        "note": "Operational capability inventory is a plain JSON probe for lifecycle tooling."
+        "note": "Operational capability inventory is a plain JSON probe for lifecycle tooling.",
+        "proto_payloads": {
+          "request": { "transport": "none", "conformance": "none" },
+          "response": { "transport": "json", "conformance": "external_shape" },
+          "error": { "transport": "json", "conformance": "external_shape" }
+        }
       }
     },
     {
@@ -65,7 +70,12 @@
       "category": "ramp",
       "rest_exception": {
         "reason": "ops_probe",
-        "note": "Android delivery-ramp operator surface is exposed as a plain JSON control endpoint."
+        "note": "Android delivery-ramp operator surface is exposed as a plain JSON control endpoint.",
+        "proto_payloads": {
+          "request": { "transport": "none", "conformance": "none" },
+          "response": { "transport": "json", "conformance": "external_shape" },
+          "error": { "transport": "json", "conformance": "external_shape" }
+        }
       }
     },
     {
@@ -77,7 +87,12 @@
       "category": "ramp",
       "rest_exception": {
         "reason": "ops_probe",
-        "note": "Android delivery-ramp operator surface is exposed as a plain JSON control endpoint."
+        "note": "Android delivery-ramp operator surface is exposed as a plain JSON control endpoint.",
+        "proto_payloads": {
+          "request": { "transport": "none", "conformance": "none" },
+          "response": { "transport": "json", "conformance": "external_shape" },
+          "error": { "transport": "json", "conformance": "external_shape" }
+        }
       }
     },
     {
@@ -89,7 +104,12 @@
       "category": "ramp",
       "rest_exception": {
         "reason": "ops_probe",
-        "note": "Android delivery-ramp operator surface is exposed as a plain JSON control endpoint."
+        "note": "Android delivery-ramp operator surface is exposed as a plain JSON control endpoint.",
+        "proto_payloads": {
+          "request": { "transport": "none", "conformance": "none" },
+          "response": { "transport": "json", "conformance": "external_shape" },
+          "error": { "transport": "json", "conformance": "external_shape" }
+        }
       }
     },
     {
@@ -101,7 +121,12 @@
       "category": "ramp",
       "rest_exception": {
         "reason": "ops_probe",
-        "note": "Android delivery-ramp operator surface is exposed as a plain JSON control endpoint."
+        "note": "Android delivery-ramp operator surface is exposed as a plain JSON control endpoint.",
+        "proto_payloads": {
+          "request": { "transport": "none", "conformance": "none" },
+          "response": { "transport": "json", "conformance": "external_shape" },
+          "error": { "transport": "json", "conformance": "external_shape" }
+        }
       }
     },
     {
@@ -113,7 +138,12 @@
       "category": "ramp",
       "rest_exception": {
         "reason": "ops_probe",
-        "note": "Operator generation control surface accepts a JSON request and returns a generated-project descriptor."
+        "note": "Operator generation control surface accepts a JSON request and returns a generated-project descriptor.",
+        "proto_payloads": {
+          "request": { "transport": "json", "conformance": "external_shape" },
+          "response": { "transport": "json", "conformance": "external_shape" },
+          "error": { "transport": "json", "conformance": "external_shape" }
+        }
       }
     },
     {
@@ -125,7 +155,12 @@
       "category": "ramp",
       "rest_exception": {
         "reason": "ops_probe",
-        "note": "Operator build control surface accepts a JSON request and returns an immutable artifact descriptor."
+        "note": "Operator build control surface accepts a JSON request and returns an immutable artifact descriptor.",
+        "proto_payloads": {
+          "request": { "transport": "json", "conformance": "external_shape" },
+          "response": { "transport": "json", "conformance": "external_shape" },
+          "error": { "transport": "json", "conformance": "external_shape" }
+        }
       }
     },
     {
@@ -137,7 +172,12 @@
       "category": "ramp",
       "rest_exception": {
         "reason": "ops_probe",
-        "note": "Provisioning returns metadata only; key material is never returned."
+        "note": "Provisioning returns metadata only; key material is never returned.",
+        "proto_payloads": {
+          "request": { "transport": "json", "conformance": "external_shape" },
+          "response": { "transport": "json", "conformance": "external_shape" },
+          "error": { "transport": "json", "conformance": "external_shape" }
+        }
       }
     }
   ]

@@ -10,12 +10,13 @@ import (
 	"runtime"
 	"strings"
 
-	"scenario-to-android/internal/androidbuild"
-	"scenario-to-android/internal/androidmatrix"
-	"scenario-to-android/internal/androidprobe"
+	"scenario-to-android/internal/builds"
 	"scenario-to-android/internal/capabilities"
+	"scenario-to-android/internal/journeys"
 	"scenario-to-android/internal/modules"
+	"scenario-to-android/internal/releases"
 	"scenario-to-android/internal/server"
+	"scenario-to-android/internal/targets"
 
 	"github.com/vrooli/api-core/schedule"
 
@@ -28,12 +29,14 @@ import (
 	"github.com/vrooli/api-core/storage"
 	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 	credentialclient "github.com/vrooli/vrooli/packages/credentialclient-go"
+	deliveryramp "github.com/vrooli/vrooli/packages/delivery-ramp-go"
 	validationmatrix "github.com/vrooli/vrooli/packages/delivery-ramp-go/validationmatrix"
 	_ "modernc.org/sqlite"
 
+	buildsh "scenario-to-android/handlers/builds"
 	capsH "scenario-to-android/handlers/capabilities"
 	healthH "scenario-to-android/handlers/health"
-	rampH "scenario-to-android/handlers/ramp"
+	rampH "scenario-to-android/handlers/releases"
 )
 
 // sqliteDSN resolves the SQLite database file path and wraps it in a DSN
@@ -166,12 +169,36 @@ func main() {
 	if err != nil {
 		log.Fatalf("validation matrix storage configuration failed: %v", err)
 	}
-	executors := validationmatrix.Executors{Local: androidmatrix.Executor{}}
+	androidPlan := journeys.AndroidPlan()
+	journeySelection := validationmatrix.JourneySelection{JourneyID: androidPlan.ID, DisplayName: "Android generated-app conformance", SourcePath: "internal/journeys/plan.go", ExecutionMode: "platform", Required: true, Category: "android", Requirements: []string{"hello-mobile APK", "device-control lease", "redacted recording", "BAS WebView flow"}, Safety: validationmatrix.JourneySafety{Mutating: true, RequiresIsolation: true, RequiresConfirmation: true}}
+	journeyRunner := func(ctx context.Context, request deliveryramp.DriverRequest, deviceURL, basURL, deviceTransport string, client *http.Client) (deliveryramp.JourneyResult, error) {
+		if client == nil {
+			client = http.DefaultClient
+		}
+		driver := journeys.Driver{
+			Devices: &journeys.HTTPDeviceClient{BaseURL: deviceURL, Actor: "scenario-to-android", DeviceTransport: deviceTransport, Client: client},
+			BAS:     journeys.HTTPBASClient{BaseURL: basURL, FlowRoot: repoRoot(), HTTP: client},
+			Actor:   "scenario-to-android",
+		}
+		return driver.Execute(ctx, request)
+	}
+	resolveTransport := func(ctx context.Context, deviceURL, targetID string, client *http.Client) string {
+		observed, err := (targets.DeviceControlInventory{Resolve: func(context.Context) (string, error) { return deviceURL, nil }, Client: client}).List(ctx)
+		if err == nil {
+			for _, item := range observed {
+				if item.ID == targetID && strings.TrimSpace(item.ADBTransport) != "" {
+					return item.ADBTransport
+				}
+			}
+		}
+		return "usb"
+	}
+	executors := validationmatrix.Executors{Local: releases.Executor{JourneyPlan: androidPlan.JourneyPlan(), ResolveTransport: resolveTransport, RunJourney: journeyRunner}}
 	if bridgeExecutor := validationmatrix.NewClientFromEnv(); bridgeExecutor != nil {
 		executors.Bridge = bridgeExecutor
 	}
 	matrixOptions := []validationmatrix.ServiceOption{
-		validationmatrix.WithCatalogResolver(androidmatrix.Catalog{Probe: androidprobe.Prober{Devices: androidprobe.NewDeviceControlInventory()}}),
+		validationmatrix.WithCatalogResolver(releases.Catalog{Probe: targets.Prober{Devices: targets.NewDeviceControlInventory()}, Journey: journeySelection}),
 	}
 	if deploymentURL := strings.TrimSpace(os.Getenv("DEPLOYMENT_MANAGER_URL")); deploymentURL != "" {
 		profileID := strings.TrimSpace(os.Getenv("DEPLOYMENT_MANAGER_PROFILE_ID"))
@@ -204,13 +231,28 @@ func main() {
 	} else {
 		signingClient = client
 	}
-	builder := androidbuild.Builder{Signing: signingClient}
+	builder := builds.Builder{Signing: signingClient}
+	buildSurface := buildsh.Surface{
+		Builder:         builder,
+		SigningIdentity: builds.DefaultSigningIdentity,
+		Generate:        builder.Generate,
+		ProvisionSigning: func(ctx context.Context, identity string) error {
+			if builder.Signing == nil {
+				return fmt.Errorf("secrets-manager credential client is not configured")
+			}
+			provisioner, ok := builder.Signing.(builds.SigningProvisioner)
+			if !ok {
+				return fmt.Errorf("configured credential client cannot provision")
+			}
+			return builds.ProvisionSigningKey(ctx, provisioner, identity, "", builder.Run)
+		},
+	}
 
 	srv := server.New(
 		server.Deps{Clock: schedule.System(), Logger: log.Default()},
 		healthH.Module(db, "scenario-to-android-api", "1.0.0"),
 		capsH.Module(capabilities.NewRegistry()),
-		rampH.Module([]*validationmatrix.Handler{matrixHandler}, builder),
+		rampH.Module([]*validationmatrix.Handler{matrixHandler}, buildSurface),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development

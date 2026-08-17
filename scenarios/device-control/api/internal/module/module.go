@@ -49,3 +49,23 @@ const (
 	RESTReasonThirdPartyShape = endpoints.RESTReasonThirdPartyShape
 	RESTReasonOpsProbe        = endpoints.RESTReasonOpsProbe
 )
+
+// ThirdPartyJSONREST describes the JSON envelope used by device-control's
+// hand-rolled REST projections. These routes intentionally remain REST while
+// their scenario-owned proto envelopes are being established; declaring all
+// three payload roles keeps that boundary explicit in endpoints.json.
+func ThirdPartyJSONREST(method string) *RESTException {
+	request := RESTPayload{Transport: "none", Conformance: "none"}
+	if method == "POST" || method == "PUT" || method == "PATCH" {
+		request = RESTPayload{Transport: "json", Conformance: "external_shape"}
+	}
+	return &RESTException{
+		Reason: RESTReasonThirdPartyShape,
+		Note:   "Scenario-owned JSON projection remains REST until its proto envelope is published.",
+		ProtoPayloads: &RESTProtoPayloads{
+			Request:  request,
+			Response: RESTPayload{Transport: "json", Conformance: "external_shape"},
+			Error:    RESTPayload{Transport: "json", Conformance: "external_shape"},
+		},
+	}
+}

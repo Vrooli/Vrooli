@@ -116,7 +116,7 @@ func (w *ManifestWriter) WriteManifest(ctx context.Context, input smoketest.Evid
 			CellID: workflowReference.CellID, Disposition: workflowReference.Disposition,
 		}
 		for _, artifact := range workflowReference.Artifacts {
-			manifest.Timeline.Workflow.Artifacts = append(manifest.Timeline.Workflow.Artifacts, deliveryramp.WorkflowManifestArtifact{ID: artifact.ID, Kind: artifact.Kind, URI: artifact.URI, MediaType: artifact.MediaType, Checksum: artifact.Checksum, Redacted: artifact.Redacted})
+			manifest.Timeline.Workflow.Artifacts = append(manifest.Timeline.Workflow.Artifacts, deliveryramp.WorkflowManifestArtifact(artifact))
 		}
 	}
 	if input.Journey.ProviderObservation != nil {

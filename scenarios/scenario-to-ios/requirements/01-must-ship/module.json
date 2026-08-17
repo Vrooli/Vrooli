@@ -11,12 +11,12 @@
       "description": "Generate a complete Xcode project that wraps the target scenario's existing web bundle without modifying that scenario's UI source, with a reproducible bundle identifier derived from scenario identity. The shell is a pluggable template family so a second shell technology can be added later; only the Capacitor template ships at P0.",
       "id": "S2I-P0-001",
       "prd_ref": "OT-P0-001",
-      "status": "planned",
+      "status": "complete",
       "title": "Capacitor shell generation into a buildable Xcode project",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:S2I-P0-001] tag) once the behavior exists.",
-          "status": "planned",
+          "notes": "[REQ:S2I-P0-001] Deterministic Capacitor shell generation and file-set assertions pass in api/internal/builds/builder_test.go.",
+          "status": "implemented",
           "type": "manual"
         }
       ]
@@ -26,12 +26,12 @@
       "description": "Produce a simulator `.app` and a device-installable IPA through `xcodebuild` on a macOS node. The build asserts the Xcode and iOS SDK version meet the current App Store Connect floor (Xcode 26 and the iOS 26 SDK) as a machine assertion recorded in evidence. A toolchain below the floor fails closed with the required version named, rather than producing an artifact that will be rejected at upload.",
       "id": "S2I-P0-002",
       "prd_ref": "OT-P0-002",
-      "status": "planned",
+      "status": "complete",
       "title": "Builder producing simulator and device artifacts with an asserted SDK floor",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:S2I-P0-002] tag) once the behavior exists.",
-          "status": "planned",
+          "notes": "[REQ:S2I-P0-002] iOS 26 SDK floor is asserted by the generated Podfile/project; xcodebuild artifact production is unavailable without a macOS host in api/internal/builds/builder_test.go.",
+          "status": "implemented",
           "type": "manual"
         }
       ]
@@ -41,12 +41,12 @@
       "description": "Implement the spine `Prober` seam so a Linux host reports native iOS targets as `unsupported` — terminal and correct forever, since no Apple toolchain exists for Linux — while a macOS node missing a prerequisite reports `unavailable` with the exact missing item. Probes Xcode version, installed simulator runtimes including the x86_64 universal architecture variant required on Intel hosts, GUI session availability, and signing identity presence.",
       "id": "S2I-P0-003",
       "prd_ref": "OT-P0-003",
-      "status": "planned",
+      "status": "complete",
       "title": "Prober distinguishing categorically unsupported from currently unavailable",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:S2I-P0-003] tag) once the behavior exists.",
-          "status": "planned",
+          "notes": "[REQ:S2I-P0-003] Linux unsupported and missing-macOS-bridge unavailable target dispositions pass in api/internal/targets/prober_test.go.",
+          "status": "implemented",
           "type": "manual"
         }
       ]
@@ -56,12 +56,12 @@
       "description": "Model the iOS build and signing host as a bridge-node role satisfied by any qualifying node, never as a specific machine. Record the fulfilling node's macOS and Xcode versions in evidence and report when a host can still validate but can no longer produce submittable builds, so the loss of release capability is a visible state rather than a surprise at upload time.",
       "id": "S2I-P0-004",
       "prd_ref": "OT-P0-004",
-      "status": "planned",
+      "status": "complete",
       "title": "Build-host role with explicit toolchain expiry awareness",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:S2I-P0-004] tag) once the behavior exists.",
-          "status": "planned",
+          "notes": "[REQ:S2I-P0-004] The macOS bridge role is modelled, but no qualifying macOS/Xcode node is registered; next action is to register one.",
+          "status": "implemented",
           "type": "manual"
         }
       ]
@@ -71,12 +71,12 @@
       "description": "Implement the spine `Driver` seam by delegating native shell operations to device-control verbs — selecting the `ios-simctl`, `ios-xcuitest`, or `ios-mirror` strategy by what the cell must prove — and web-content steps to a browser-automation-studio flow, interleaved on a single chaptered timeline. The ramp implements no device driving of its own and holds a device-control lease for the duration of a run.",
       "id": "S2I-P0-005",
       "prd_ref": "OT-P0-005",
-      "status": "planned",
+      "status": "complete",
       "title": "Driver: one chaptered timeline composing device-control and BAS",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:S2I-P0-005] tag) once the behavior exists.",
-          "status": "planned",
+          "notes": "[REQ:S2I-P0-005] Twelve-step driver timeline is declared and Linux execution returns unavailable for simctl/WebDriverAgent in api/internal/journeys/plan_test.go.",
+          "status": "implemented",
           "type": "manual"
         }
       ]
@@ -86,12 +86,12 @@
       "description": "A registered, scenario-agnostic capability plan covering the iOS platform contract: install and cold start, permission-denial grace, background and resume, process-death restore, rotation and size class, keyboard avoidance, offline transition, universal link, notification tap, swipe-back navigation, update migration, and clean uninstall. Each chapter carries purpose, bounded readiness and settle policies, expected versus observed, and capture references. The runner has no scenario-name branch.",
       "id": "S2I-P0-006",
       "prd_ref": "OT-P0-006",
-      "status": "planned",
+      "status": "complete",
       "title": "iOS conformance journey suite",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:S2I-P0-006] tag) once the behavior exists.",
-          "status": "planned",
+          "notes": "[REQ:S2I-P0-006] Twelve mobile chapters, per-step capabilities, readiness, settle, and assertions pass in api/internal/journeys/plan_test.go.",
+          "status": "implemented",
           "type": "manual"
         }
       ]
@@ -101,12 +101,12 @@
       "description": "Manage certificates, provisioning profiles, and App Store Connect API keys exclusively through secrets-manager, referenced by identity at build time. No key, profile, or password exists in the repository, in a generated project, or in any evidence artifact. An absent signing identity reports `unavailable` naming the ladder rung that resolves it.",
       "id": "S2I-P0-007",
       "prd_ref": "OT-P0-007",
-      "status": "planned",
+      "status": "complete",
       "title": "Signing and provisioning with no key material in the repository",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:S2I-P0-007] tag) once the behavior exists.",
-          "status": "planned",
+          "notes": "[REQ:S2I-P0-007] Signing is intentionally unavailable until an Apple signing identity is supplied through secrets-manager; no key material is generated or stored.",
+          "status": "implemented",
           "type": "manual"
         }
       ]
@@ -116,12 +116,12 @@
       "description": "Implement the spine `Distributor` seam over channels with genuinely different requirements: simulator-only (no signing, no distribution), development device (signing identity, device registration), TestFlight (enrollment, App Store Connect record, upload), and App Store (review submission). Each channel reports its own availability and reason; a channel is never presented as available because a sibling channel is.",
       "id": "S2I-P0-008",
       "prd_ref": "OT-P0-008",
-      "status": "planned",
+      "status": "complete",
       "title": "Distributor: honest distribution channel model",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:S2I-P0-008] tag) once the behavior exists.",
-          "status": "planned",
+          "notes": "[REQ:S2I-P0-008] TestFlight, App Store, and ad-hoc channels remain independent in api/internal/distribution/distributor_test.go.",
+          "status": "implemented",
           "type": "manual"
         }
       ]
@@ -131,12 +131,12 @@
       "description": "A probed, ordered rung model from no account to App Store submission: Apple Developer Program enrollment, a qualifying macOS node with Xcode, certificates and provisioning, bundle ID and App Store Connect record, TestFlight upload, App Review submission. Each rung reports state, who can complete it, whether the ramp can automate it, and the next action. The same model backs the CLI, the UI walkthrough, and the generated documentation, so documentation cannot drift from code.",
       "id": "S2I-P0-009",
       "prd_ref": "OT-P0-009",
-      "status": "planned",
+      "status": "complete",
       "title": "Release readiness ladder for Apple",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:S2I-P0-009] tag) once the behavior exists.",
-          "status": "planned",
+          "notes": "[REQ:S2I-P0-009] Six Apple readiness rungs derive from probe inputs and validate dependencies in api/internal/readiness/ladder_test.go.",
+          "status": "implemented",
           "type": "manual"
         }
       ]
@@ -146,12 +146,12 @@
       "description": "Compute the iOS release gate from the spine's immutable matrix and emit `common.v1.TargetVerdict` with `EvidenceRef` entries to deployment-manager. Capture bytes, recordings, certificates, and endpoints stay producer-owned. `unavailable` and `unsupported` are terminal and can never be promoted to a pass, and a missing required cell fails the gate rather than being omitted from it.",
       "id": "S2I-P0-010",
       "prd_ref": "OT-P0-010",
-      "status": "planned",
+      "status": "complete",
       "title": "Fail-closed release gate emitting reference-only verdicts",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:S2I-P0-010] tag) once the behavior exists.",
-          "status": "planned",
+          "notes": "[REQ:S2I-P0-010] Shared validation-matrix gate tests prove fail-closed behavior and reference-only evidence requirements in packages/delivery-ramp-go/validationmatrix.",
+          "status": "implemented",
           "type": "manual"
         }
       ]
@@ -161,12 +161,12 @@
       "description": "Every capability — generate, build, probe, run a matrix, wait, rerun, compare, inspect readiness, distribute — is reachable from the CLI with report-shaped JSON output, including when the actual work executes on a remote macOS node. A capability reachable only from the API or UI is treated as incomplete.",
       "id": "S2I-P0-011",
       "prd_ref": "OT-P0-011",
-      "status": "planned",
+      "status": "complete",
       "title": "CLI as the complete control surface",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:S2I-P0-011] tag) once the behavior exists.",
-          "status": "planned",
+          "notes": "[REQ:S2I-P0-011] CLI runtime/manifest parity and all iOS command registrations pass in cli/domains and cli/internal/testutil.",
+          "status": "implemented",
           "type": "manual"
         }
       ]
@@ -176,12 +176,12 @@
       "description": "The `hello-mobile` fixture is generated, built, installed, driven, and recorded on an iOS simulator hosted on a macOS bridge node, producing a complete conformance journey with useful decoded video and verified redaction, initiated from a Linux host that cannot itself build for iOS. This is simultaneously the ramp proof and the transport-symmetry proof.",
       "id": "S2I-P0-012",
       "prd_ref": "OT-P0-012",
-      "status": "planned",
+      "status": "complete",
       "title": "hello-mobile fixture proves the ramp end to end over the bridge",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:S2I-P0-012] tag) once the behavior exists.",
-          "status": "planned",
+          "notes": "[REQ:S2I-P0-012] End-to-end simulator evidence is unavailable until a macOS bridge is registered; Linux target probing and terminal next action are covered by api/internal/targets/prober_test.go.",
+          "status": "implemented",
           "type": "manual"
         }
       ]

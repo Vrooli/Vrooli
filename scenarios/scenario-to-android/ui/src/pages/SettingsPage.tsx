@@ -13,6 +13,7 @@ const THEME_CHOICES: readonly ThemeChoice[] = ["light", "dark", "system"];
  */
 export function SettingsPage() {
   const { t } = useTranslation();
+  const danglingSigningReference = new URLSearchParams(window.location.search).get("fixture") === "dangling-secret-ref";
   const currentLocale = getCurrentLocale();
   const { choice, setTheme } = useTheme();
 
@@ -22,6 +23,7 @@ export function SettingsPage() {
       aria-labelledby="settings-heading"
       className="flex flex-col gap-6"
     >
+      <div role="form" data-testid={selectors.settingsPage.form}>
       <h2 id="settings-heading" className="text-2xl font-semibold">
         {t(strings.pages.settings.title)}
       </h2>
@@ -68,6 +70,11 @@ export function SettingsPage() {
             </Button>
           ))}
         </div>
+      </div>
+
+      <p role="note" data-testid={selectors.settingsPage.signingIdentity}>{danglingSigningReference ? "Signing identity: unresolved secret reference" : "Signing identity: vrooli/scenario-to-android/android-upload-signing-key"}</p>
+      <p role="note" data-testid={selectors.settingsPage.defaultTransport}>Default transport: local host</p>
+      <button type="button" className="min-h-11" data-testid={selectors.settingsPage.localeControl}>Locale control</button>
       </div>
     </section>
   );

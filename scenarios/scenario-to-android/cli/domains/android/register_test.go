@@ -60,3 +60,17 @@ func TestSelectPhysicalTargetRequiresExplicitSelectionWhenAmbiguous(t *testing.T
 	_, err = selectPhysicalTarget(body, "")
 	require.ErrorContains(t, err, "multiple physical Android targets")
 }
+
+func TestMatrixSelectionCarriesBuiltPackageName(t *testing.T) {
+	request := matrixSelectionRequest("sha256:artifact", "/tmp/app-debug.apk", "com.example.custom")
+	metadata, ok := request["metadata"].(map[string]string)
+	require.True(t, ok)
+	require.Equal(t, "com.example.custom", metadata["package_name"])
+}
+
+func TestMatrixSelectionUsesBuilderPackageDefault(t *testing.T) {
+	request := matrixSelectionRequest("sha256:artifact", "/tmp/app-debug.apk", "")
+	metadata, ok := request["metadata"].(map[string]string)
+	require.True(t, ok)
+	require.Equal(t, defaultAndroidPackageName, metadata["package_name"])
+}

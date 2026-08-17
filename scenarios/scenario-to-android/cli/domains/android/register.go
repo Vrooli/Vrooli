@@ -107,6 +107,25 @@ type androidCatalog struct {
 	Targets []catalogTarget `json:"targets"`
 }
 
+const defaultAndroidPackageName = "com.vrooli.generated.app"
+
+func matrixSelectionRequest(digest, artifactPath, packageName string) map[string]any {
+	packageName = strings.TrimSpace(packageName)
+	if packageName == "" {
+		packageName = defaultAndroidPackageName
+	}
+	return map[string]any{
+		"scenario_name":        "hello-mobile",
+		"artifact_digest":      digest,
+		"artifact_path":        artifactPath,
+		"environment_profiles": []int{1},
+		"max_concurrency":      1,
+		"metadata": map[string]string{
+			"package_name": packageName,
+		},
+	}
+}
+
 // selectPhysicalTarget keeps the end-to-end operator command focused on the
 // physical target it is intended to prove. The general matrix-create command
 // remains the way to run the full catalog, including an emulator when one is
@@ -264,7 +283,7 @@ func matrixCreate(core *cliapp.ScenarioApp) func(cliapp.RunContext) error {
 		if digest == "" {
 			return fmt.Errorf("ANDROID_ARTIFACT_DIGEST is required")
 		}
-		body, err := core.Request("POST", "/validation/matrices", nil, map[string]any{"scenario_name": "hello-mobile", "artifact_digest": digest, "artifact_path": strings.TrimSpace(getenv("ANDROID_ARTIFACT_PATH")), "environment_profiles": []int{1}, "max_concurrency": 1})
+		body, err := core.Request("POST", "/validation/matrices", nil, matrixSelectionRequest(digest, strings.TrimSpace(getenv("ANDROID_ARTIFACT_PATH")), getenv("ANDROID_ARTIFACT_PACKAGE")))
 		if err != nil {
 			return fmt.Errorf("create Android matrix: %w", err)
 		}

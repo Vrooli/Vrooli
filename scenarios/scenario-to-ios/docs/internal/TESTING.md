@@ -968,10 +968,8 @@ lower the gate.
 ## Cross-references
 
 - **Seams definition + adding new seams**: [`SEAMS.md`](SEAMS.md).
-- **Skill bundle for testing-related work** (load before substantial test changes):
-  ```bash
-  prompt-manager skill read seam-discovery-and-enforcement test unit-testing-architecture-steer
-  ```
+- **Skill bundle for testing-related work**: load the relevant testing skill from
+  prompt-manager before substantial test changes.
 - **Test runner used by CI and `vrooli scenario test`**: see
   `.github/workflows/test.yml` and `packages/cli-core/cmd/scenario_test.go`.
 - **Why no inline mocks in `*_test.go` files**: the testutil package

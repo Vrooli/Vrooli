@@ -12,7 +12,7 @@
           "description": "List all notes",
           "binding": {
             "kind": "connect-rpc",
-            "service": "NotesService",
+            "service": "vrooli.hello_mobile.v1.notes.NotesService",
             "method": "ListNotes"
           },
           "governance": {
@@ -42,7 +42,7 @@
           ],
           "binding": {
             "kind": "connect-rpc",
-            "service": "NotesService",
+            "service": "vrooli.hello_mobile.v1.notes.NotesService",
             "method": "CreateNote"
           },
           "governance": {
@@ -68,7 +68,7 @@
           ],
           "binding": {
             "kind": "connect-rpc",
-            "service": "NotesService",
+            "service": "vrooli.hello_mobile.v1.notes.NotesService",
             "method": "GetNote"
           },
           "governance": {
@@ -88,12 +88,13 @@
           "flags": [
             {
               "name": "window",
+              "bind_waiver": "The notes CLI adapter converts the public canonical time-window token into the structured measures.v1.TimeWindow RPC message before invoking CountNotes.",
               "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)"
             }
           ],
           "binding": {
             "kind": "connect-rpc",
-            "service": "NotesService",
+            "service": "vrooli.hello_mobile.v1.notes.NotesService",
             "method": "CountNotes"
           },
           "governance": {

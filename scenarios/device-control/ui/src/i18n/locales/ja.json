@@ -87,7 +87,13 @@
     "retainedEvidenceAlt": "保持された証拠 {{id}}",
     "invalidFlow": "フローJSONが無効です",
     "flowFailed": "フローの実行に失敗しました",
-    "sessionKillFailed": "セッションの停止に失敗しました"
+    "sessionKillFailed": "セッションの停止に失敗しました",
+    "strategyOption": "{{id}} · {{status}}",
+    "deviceOption": "{{name}} · {{id}}",
+    "chapterSummary": "{{id}}: {{disposition}} — {{message}}",
+    "resolutionSummary": "{{target}}: ランク{{rung}}、信頼度{{confidence}}",
+    "degradedEvidence": "低下: {{reason}}",
+    "dispositionReasonUnavailable": "主張の最低基準未満"
     },
     "evidence": {
       "title": "証拠と監査",

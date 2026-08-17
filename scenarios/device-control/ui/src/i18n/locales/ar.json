@@ -87,7 +87,13 @@
     "retainedEvidenceAlt": "دليل محتفظ به {{id}}",
     "invalidFlow": "JSON التدفق غير صالح",
     "flowFailed": "فشل تشغيل التدفق",
-    "sessionKillFailed": "فشل إيقاف الجلسة"
+    "sessionKillFailed": "فشل إيقاف الجلسة",
+    "strategyOption": "{{id}} · {{status}}",
+    "deviceOption": "{{name}} · {{id}}",
+    "chapterSummary": "{{id}}: {{disposition}} — {{message}}",
+    "resolutionSummary": "{{target}}: المستوى {{rung}}، الثقة {{confidence}}",
+    "degradedEvidence": "متدهور: {{reason}}",
+    "dispositionReasonUnavailable": "أقل من الحد الأدنى للمطالبة"
     },
     "evidence": {
       "title": "الأدلة والتدقيق",

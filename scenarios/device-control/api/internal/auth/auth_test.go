@@ -24,6 +24,7 @@ func (f *fakeResolver) Provision(_ context.Context, _, _, value string) error {
 	f.value, f.status.Configured = value, true
 	return nil
 }
+
 func (f *fakeResolver) Resolve(context.Context, string, string) (string, error) {
 	f.resolveCalls++
 	return f.value, f.err

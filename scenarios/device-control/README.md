@@ -103,6 +103,13 @@ make start   # wraps `vrooli scenario start`
 
 See [`docs/QUICKSTART.md`](docs/QUICKSTART.md) for the full clone-to-running flow.
 
+## Customize Safely
+
+Keep device-control capability probing, leases, evidence retention, and
+fail-closed dispositions intact when customizing this scenario. Add behavior
+through a declared domain and its API, CLI, UI, requirements, and documentation
+surfaces; prefer the shared component canon before introducing a new primitive.
+
 Run tests with `make test` (which runs `vrooli scenario test`) or invoke
 `test-genie execute device-control --preset comprehensive` directly for
 finer-grained presets.

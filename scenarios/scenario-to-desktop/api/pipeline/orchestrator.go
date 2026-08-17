@@ -460,6 +460,9 @@ func applyConfigStringFields(dst, src *Config) {
 	if src.ResourceArtifactRoot != "" {
 		dst.ResourceArtifactRoot = src.ResourceArtifactRoot
 	}
+	if src.ToolArtifactRoot != "" {
+		dst.ToolArtifactRoot = src.ToolArtifactRoot
+	}
 	if src.DeploymentMode != "" {
 		dst.DeploymentMode = src.DeploymentMode
 	}
@@ -572,6 +575,7 @@ func (o *DefaultOrchestrator) ResumePipeline(ctx context.Context, pipelineID str
 		ProxyURL:                parentStatus.Config.ProxyURL,
 		BundleManifestPath:      parentStatus.Config.BundleManifestPath,
 		ResourceArtifactRoot:    parentStatus.Config.ResourceArtifactRoot,
+		ToolArtifactRoot:        parentStatus.Config.ToolArtifactRoot,
 		Sign:                    parentStatus.Config.Sign,
 		DeployConfig:            parentStatus.Config.DeployConfig,
 		Version:                 parentStatus.Config.Version,

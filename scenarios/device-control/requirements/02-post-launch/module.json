@@ -41,7 +41,7 @@
       "description": "Drive physical iPhones through iPhone Mirroring with synthetic HID events and OCR. Floor tier only and requires no developer account, which makes it the first usable physical-iPhone path. Explicitly non-promotable for release evidence because OCR reads pixels rather than meaning.",
       "id": "DVC-P1-003",
       "prd_ref": "OT-P1-003",
-      "status": "partial",
+      "status": "in_progress",
       "title": "ios-mirror strategy",
       "validation": [
         {
@@ -148,7 +148,7 @@
       "description": "Typed normalized gesture vocabulary covers long press, double tap, drag, fling, scroll-to, and capability-gated pinch; pixel escape hatches are explicitly non-portable.",
       "id": "DVC-P1-010",
       "prd_ref": "OT-P1-008",
-      "status": "partial",
+      "status": "in_progress",
       "title": "Typed gesture vocabulary",
       "validation": [{"type": "test", "ref": "api/internal/control/gestures_test.go::TestGestureVocabularyBuildsTypedPointerEvents", "status": "complete", "notes": "Targeted fake-runner table covers long press, double tap, drag, and fling; physical gesture proof remains pending."}]
     },
@@ -166,7 +166,7 @@
       "description": "Lease-owned state changes carry reverse-order undo callbacks and emit named restored or failed restoration events when a flow ends or is killed.",
       "id": "DVC-P1-012",
       "prd_ref": "OT-P1-008",
-      "status": "partial",
+      "status": "in_progress",
       "title": "Guaranteed state restoration",
       "validation": [{"type": "test", "ref": "api/internal/sessions/restoration_test.go::TestStateManagerRestoresReverseOrderAndReportsFailures", "status": "complete", "notes": "State manager ordering and failure reporting are proven; kill-mid-flow hardware proof remains pending."}]
     },
@@ -175,7 +175,7 @@
       "description": "Vision results can promote persistent normalized anchors and completed runs can export deterministic replay flows with resolution rung metadata and failed-step exclusions.",
       "id": "DVC-P1-013",
       "prd_ref": "OT-P1-009",
-      "status": "partial",
+      "status": "in_progress",
       "title": "Record and export replay flows",
       "validation": [{"type": "test", "ref": "api/internal/flows/resolution_test.go::TestVisionPromotionReplaysThroughAnchorWithoutGateway", "status": "complete", "notes": "Vision-to-anchor replay asserts the second resolution makes no gateway call; physical export replay remains pending."}]
     },

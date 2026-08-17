@@ -169,7 +169,8 @@
       "id": "rung-order-is-the-reading-order",
       "type": "reading-order",
       "elements": [
-        "rung-list"
+        "rung-list",
+        "rung-state"
       ],
       "states": [
         "default",

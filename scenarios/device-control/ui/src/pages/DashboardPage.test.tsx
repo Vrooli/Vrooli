@@ -13,9 +13,15 @@ const api = vi.hoisted(() => ({
   listDevices: vi.fn(),
   listSessions: vi.fn(),
   listStrategies: vi.fn(),
+  listAuthProfiles: vi.fn(),
+  getAuthProfile: vi.fn(),
 }));
 
 vi.mock("../api/deviceControl", () => api);
+vi.mock("../api/authentication", () => ({
+  listAuthProfiles: api.listAuthProfiles,
+  getAuthProfile: api.getAuthProfile,
+}));
 vi.mock("../features/health/HealthCard", () => ({
   HealthCard: () => <div data-testid="health-card" />,
 }));
@@ -43,6 +49,7 @@ beforeEach(() => {
   api.listStrategies.mockResolvedValue({ strategies: [] });
   api.listSessions.mockResolvedValue({ sessions: [] });
   api.killSession.mockResolvedValue({});
+  api.listAuthProfiles.mockResolvedValue({ profiles: [] });
 });
 
 describe("DashboardPage", () => {
@@ -105,5 +112,73 @@ describe("DashboardPage", () => {
 
     await user.click(await screen.findByTestId(selectors.pages.dashboardAcquire));
     expect(api.acquireSession).toHaveBeenCalledWith(device.id, "browser-operator");
+  });
+
+  it("keeps inventory visible while an optional auth probe is unavailable", async () => {
+    api.listAuthProfiles.mockRejectedValue(new Error("auth provider unavailable"));
+    renderWithProviders(<DashboardPage />);
+    expect(await screen.findByText(device.id)).toBeInTheDocument();
+    expect(screen.getByTestId(selectors.pages.dashboardDevices)).toBeInTheDocument();
+  });
+
+  it("renders provider-backed authentication metadata alongside inventory", async () => {
+    api.listAuthProfiles.mockResolvedValue({
+      profiles: [{
+        id: "profile-1",
+        device_id: device.id,
+        method: "pin",
+        credential_identity: "device-control/profile-1",
+        credential_field: "unlock",
+        verification: "fresh_lock_state_unlocked",
+        policy: { max_attempts: 1, attempt_limit: 15, settle: 1 },
+        status: "active",
+        created_at: "now",
+        updated_at: "now",
+      }],
+    });
+    api.getAuthProfile.mockResolvedValue({ provider: { provider: "test", provider_state: "available", configured: true } });
+    renderWithProviders(<DashboardPage />);
+    expect(await screen.findByText(/profile-1/)).toBeInTheDocument();
+    expect(api.getAuthProfile).toHaveBeenCalledWith("profile-1");
+  });
+
+  it("renders unavailable-device fallbacks and non-promotable strategy state", async () => {
+    api.listDevices.mockResolvedValue({
+      devices: [{
+        ...device,
+        id: "offline-emulator",
+        name: "Offline emulator",
+        kind: "emulator",
+        status: "offline",
+        model: "",
+        serial: "",
+        os_version: "",
+        transport: "",
+        health: "",
+        health_reason: "",
+        capabilities: "not-an-array",
+      }],
+    });
+    api.listStrategies.mockResolvedValue({ strategies: [{ id: "unknown", description: "", status: "unknown", tiers: [], capabilities: {}, promotable: false }] });
+    renderWithProviders(<DashboardPage />);
+    expect(await screen.findByText(/offline-emulator/)).toBeInTheDocument();
+    expect(screen.getByText(/Offline emulator/)).toBeInTheDocument();
+    const fleet = screen.getByTestId(selectors.pages.dashboardDevices);
+    expect(fleet).toHaveTextContent("pages.dashboard.osUnavailable");
+    expect(fleet).toHaveTextContent("pages.dashboard.localTransport");
+    expect(screen.getByText(/pages\.dashboard\.unknown/)).toBeInTheDocument();
+    expect(screen.getByText(/^pages\.dashboard\.no$/)).toBeInTheDocument();
+  });
+
+  it("surfaces probe and lease failures as actionable dashboard errors", async () => {
+    api.connectDevice.mockRejectedValue(new Error("probe failed"));
+    api.acquireSession.mockRejectedValue(new Error("lease failed"));
+    const user = userEvent.setup();
+    renderWithProviders(<DashboardPage />);
+    const fleet = await screen.findByTestId(selectors.pages.dashboardDevices);
+    await user.click(within(fleet).getByTestId(selectors.pages.dashboardReprobe));
+    expect(await screen.findByRole("alert")).toHaveTextContent("probe failed");
+    await user.click(within(fleet).getByTestId(selectors.pages.dashboardAcquire));
+    expect(await screen.findByRole("alert")).toHaveTextContent("lease failed");
   });
 });

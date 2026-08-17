@@ -34,12 +34,12 @@ func TestModuleMountRegistersRoutes(t *testing.T) {
 
 func TestEndpointDescriptorJSONShape(t *testing.T) {
 	descriptor := module.EndpointDescriptor{
-		ID:          "notes_create",
-		Path:        "/api/v1/notes",
+		ID:          "demo_create",
+		Path:        "/api/v1/demo",
 		Method:      http.MethodPost,
-		Summary:     "Create note",
-		Description: "Creates a note",
-		Category:    "notes",
+		Summary:     "Create demo item",
+		Description: "Creates a demo item",
+		Category:    "demo",
 		Request: &module.Schema{
 			Type:       "object",
 			Properties: map[string]string{"title": "string"},
@@ -52,7 +52,7 @@ func TestEndpointDescriptorJSONShape(t *testing.T) {
 		}},
 		Examples: []module.Example{{
 			Name: "Create",
-			Curl: "curl http://localhost:${API_PORT}/api/v1/notes",
+			Curl: "curl http://localhost:${API_PORT}/api/v1/demo",
 		}},
 	}
 
@@ -61,8 +61,8 @@ func TestEndpointDescriptorJSONShape(t *testing.T) {
 
 	var got map[string]any
 	require.NoError(t, json.Unmarshal(data, &got))
-	require.Equal(t, "notes_create", got["id"])
-	require.Equal(t, "/api/v1/notes", got["path"])
+	require.Equal(t, "demo_create", got["id"])
+	require.Equal(t, "/api/v1/demo", got["path"])
 	require.Equal(t, http.MethodPost, got["method"])
 	require.Contains(t, got, "request")
 	require.Contains(t, got, "response")

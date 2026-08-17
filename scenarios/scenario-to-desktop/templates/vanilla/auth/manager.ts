@@ -22,21 +22,20 @@ export function createAuthManager(deps: AuthManagerDependencies): IAuthManager {
         storage,
         safeStorage,
         http,
-        shell,
         timer,
         uuid,
         pathUtils,
         config,
         onAuthChange,
-        onWindowFocus,
         onProtocolUrl,
+        onLoopbackAuthorization,
+        createCodeChallenge,
         onRefreshToken,
         onGetRefreshToken,
         onClearRefreshToken,
     } = deps;
 
     let tokenRefreshTimer: NodeJS.Timeout | null = null;
-    let pendingAuthState: string | null = null;
     let memoryTokens: StoredTokens | null = null;
 
     // The credential authority is the recovery source when encrypted local
@@ -287,20 +286,59 @@ export function createAuthManager(deps: AuthManagerDependencies): IAuthManager {
         }
     }
 
+    async function completeLoopbackAuthorization(verifier: string, state: string): Promise<void> {
+        if (!onLoopbackAuthorization || !createCodeChallenge) {
+            throw new Error("loopback authorization is not configured");
+        }
+        const challenge = createCodeChallenge(verifier);
+        const callback = await onLoopbackAuthorization((redirectURI) => {
+            const authUrl = new URL(`${config.lpbsUrl}/auth/login`);
+            authUrl.searchParams.set("redirect_uri", redirectURI);
+            authUrl.searchParams.set("code_challenge", challenge);
+            authUrl.searchParams.set("code_challenge_method", "S256");
+            authUrl.searchParams.set("app", config.appDisplayName);
+            authUrl.searchParams.set("state", state);
+            return authUrl.toString();
+        });
+        if (callback.state !== state || !callback.code) {
+            throw new Error("loopback authorization state/code rejected");
+        }
+        const response = await http.fetch(`${config.lpbsUrl}/api/v1/auth/token`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                code: callback.code,
+                code_verifier: verifier,
+                redirect_uri: callback.redirectURI,
+            }),
+        });
+        if (!response.ok) {
+            throw new Error(`authorization code exchange failed (${response.status})`);
+        }
+        const tokens = await response.json() as {
+            access_token: string;
+            refresh_token: string;
+            expires_at: string;
+        };
+        await storeAuthTokens({
+            accessToken: tokens.access_token,
+            refreshToken: tokens.refresh_token,
+            expiresAt: tokens.expires_at,
+        });
+        await refreshEntitlementLease(tokens.access_token);
+        scheduleTokenRefresh(tokens.expires_at);
+        onAuthChange("tokens-received");
+    }
+
     const manager: IAuthManager = {
         async signIn(options?: { state?: string }): Promise<{ state: string }> {
             const state = options?.state ?? uuid.generate();
 
-            // Store state for CSRF validation in callback
-            pendingAuthState = state;
-
-            const authUrl = new URL(`${config.lpbsUrl}/auth/login`);
-            authUrl.searchParams.set("redirect_uri", `${config.protocol}://auth/callback`);
-            authUrl.searchParams.set("app", config.appDisplayName);
-            authUrl.searchParams.set("state", state);
-
-            // Open in default browser
-            await shell.openExternal(authUrl.toString());
+            const verifier = `${uuid.generate()}${uuid.generate()}`;
+            void completeLoopbackAuthorization(verifier, state).catch((error: unknown) => {
+                console.error("[Auth] loopback sign-in failed:", error);
+                onAuthChange("session-expired");
+            });
 
             return { state };
         },
@@ -387,58 +425,15 @@ export function createAuthManager(deps: AuthManagerDependencies): IAuthManager {
                     return;
                 }
 
-                // Extract tokens from URL fragment
-                const fragmentParams = new URLSearchParams(parsed.hash.slice(1));
-                const accessToken = fragmentParams.get("access_token");
-                const refreshToken = fragmentParams.get("refresh_token");
-                const expiresAt = fragmentParams.get("expires_at");
-                const state = fragmentParams.get("state");
-
-                // Validate CSRF state parameter
-                if (pendingAuthState && state !== pendingAuthState) {
-                    console.error("[Auth] CSRF validation failed: state mismatch");
-                    onAuthChange("session-expired");
-                    pendingAuthState = null;
-                    return;
-                }
-                pendingAuthState = null; // Clear after validation
-
-                if (!accessToken || !refreshToken || !expiresAt) {
-                    console.error("[Auth] Missing tokens in callback URL");
+                // A custom scheme is never an authentication credential channel.
+                // The supported flow consumes the code on the process-owned
+                // loopback listener before this generic protocol handler runs.
+                if (parsed.hash.includes("access_token") || parsed.hash.includes("refresh_token") || parsed.searchParams.has("access_token") || parsed.searchParams.has("refresh_token")) {
+                    console.error("[Auth] rejected token-bearing custom-scheme callback");
                     onAuthChange("session-expired");
                     return;
                 }
-
-                // Store tokens securely
-                await storeAuthTokens({
-                    accessToken,
-                    refreshToken,
-                    expiresAt,
-                });
-                await refreshEntitlementLease(accessToken);
-                // Schedule token refresh
-                scheduleTokenRefresh(expiresAt);
-
-                // Fetch user info
-                try {
-                    const userResponse = await http.fetch(`${config.lpbsUrl}/api/v1/auth/me`, {
-                        headers: { "Authorization": `Bearer ${accessToken}` },
-                    });
-
-                    if (userResponse.ok) {
-                        const userData = await userResponse.json() as { user: StoredUser };
-                        await storeUserInfo(userData.user);
-                    }
-                } catch (error) {
-                    console.warn("[Auth] Failed to fetch user info:", error);
-                }
-
-                // Notify renderer
-                onAuthChange("tokens-received");
-                console.log("[Auth] Authentication successful");
-
-                // Focus the main window
-                onWindowFocus?.();
+                onProtocolUrl?.(url);
             } catch (error) {
                 console.error("[Auth] Failed to handle auth callback:", error);
                 onAuthChange("session-expired");

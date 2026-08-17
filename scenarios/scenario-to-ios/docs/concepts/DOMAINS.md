@@ -28,7 +28,7 @@ belong in [`DATA.md`](DATA.md).
 | Domain | Responsibility | Purpose | Owns Data | Primary Archetype | Secondary Traits | Glossary | Source Paths |
 |---|---|---|---|---|---|---|---|
 | health | Report runtime readiness and dependency reachability. | Expose API/database readiness and show the UI can read live backend state. | No product data. | reporting | query | HealthHandler | `api/handlers/health/`, `ui/src/features/health/`, `packages/proto/schemas/scenario-to-ios/v1/shared/health.proto` |
-| projects | Answer "what generated iOS app exists for which scenario, at which revision?" | Own Capacitor shell generation into a buildable Xcode project without rewriting the scenario's UI. | Generated-project records, shell template selection, bundle identity. | service | crud | Project, ShellTemplate, BundleIdentity | `api/internal/projects/`, `api/handlers/projects/`, `cli/domains/projects/`, `ui/src/features/projects/` |
+| projects | Answer "what generated iOS app exists for which scenario, at which revision?" | Reserved for persisted project records and additional shell families; the P0 Capacitor generation boundary is owned by `builds`. | Deferred until project records or a second shell family exists. | service | crud | Project, ShellTemplate, BundleIdentity | — (reserved; P0 generation is `api/internal/builds/`) |
 | targets | Answer "which iOS targets can I prove right now, and where must the work run?" | Implement the spine `Prober` seam, distinguish terminal `unsupported` from actionable `unavailable`, and resolve the build-host role. | Capability snapshots, build-host role state, probe history. | reporting | query, integration | Target, CapabilitySnapshot, BuildHostRole, ToolchainVersion | `api/internal/targets/`, `api/handlers/targets/`, `cli/domains/targets/`, `ui/src/features/targets/` |
 | builds | Answer "how does a project become a signed artifact, on a machine that is not this one?" | Implement the spine `Builder` seam: remote `xcodebuild` invocation, SDK-floor assertion, and signing by secret reference. | Build records, artifact references, assertion results. | workflow | service, integration | Build, Artifact, SdkFloorAssertion, SigningIdentity | `api/internal/builds/`, `api/handlers/builds/`, `cli/domains/builds/`, `ui/src/features/builds/` |
 | journeys | Answer "does the generated app behave like a Vrooli app on iOS?" | Implement the spine `Driver` seam by composing device-control verbs and browser-automation-studio flows onto one chaptered timeline. | Journey plans, run chapters, evidence references, strategy attribution. | workflow | integration | JourneyPlan, Chapter, Assertion, Lease, StrategyTier | `api/internal/journeys/`, `api/handlers/journeys/`, `cli/domains/journeys/`, `ui/src/features/journeys/` |
@@ -57,15 +57,17 @@ belong in [`DATA.md`](DATA.md).
 
 ### projects
 
-- Purpose: turn a target scenario into a buildable Capacitor Xcode
-  project without modifying that scenario's UI source.
+- Purpose: reserve the future project-record and shell-family boundary.
+  P0 Capacitor Xcode project generation belongs to the `Builder` seam in
+  `builds`, so this domain remains deliberately unimplemented until it
+  owns persisted project records or a second shell technology.
 - Primary archetype: service / crud.
-- Owns: generated-project records, shell template selection, bundle
-  identifier derivation from scenario identity, and reproducibility.
-- Does not own: the build itself (`builds`), or the target scenario's UI.
+- Owns when activated: generated-project records and additional shell
+  template selection. It does not own the current P0 generation path or
+  the target scenario's UI.
 - Key invariant: bundle identity is derived, not assigned by hand, so the
   App Store Connect record a build uploads to is reproducible.
-- Requirements: `S2I-P0-001`, `S2I-P2-002`, `S2I-P2-003`.
+- Requirements when activated: `S2I-P2-002`, `S2I-P2-003`.
 
 ### targets
 
@@ -177,6 +179,29 @@ belong in [`DATA.md`](DATA.md).
 - Key invariant: one model backs the CLI, the UI walkthrough, and the
   generated documentation, so documentation cannot drift from code.
 - Requirements: `S2I-P0-009`.
+
+## iOS P0 ownership register
+
+Each P0 requirement has one product-domain owner. Capacitor project
+generation is intentionally owned by `builds` because it shares the
+reproducible project-preparation boundary with artifact production; the
+`projects` domain is reserved for future persisted records and alternate
+shell families.
+
+| Requirement | Owning domain | Primary implementation evidence |
+|---|---|---|
+| `S2I-P0-001` | builds | `api/internal/builds/builder_test.go` |
+| `S2I-P0-002` | builds | `api/internal/builds/builder_test.go` |
+| `S2I-P0-003` | targets | `api/internal/targets/prober_test.go` |
+| `S2I-P0-004` | targets | `api/internal/targets/prober_test.go` |
+| `S2I-P0-005` | journeys | `api/internal/journeys/driver_test.go` |
+| `S2I-P0-006` | journeys | `api/internal/journeys/plan_test.go` |
+| `S2I-P0-007` | builds | `api/internal/builds/builder_test.go` |
+| `S2I-P0-008` | distribution | `api/internal/distribution/distributor_test.go` |
+| `S2I-P0-009` | readiness | `api/internal/readiness/readiness_test.go` |
+| `S2I-P0-010` | releases | `api/internal/releases/gate_test.go` |
+| `S2I-P0-011` | releases | `cli/domains/ios/register_test.go` |
+| `S2I-P0-012` | journeys | `api/internal/journeys/driver_test.go` |
 
 ## Shared Concepts
 

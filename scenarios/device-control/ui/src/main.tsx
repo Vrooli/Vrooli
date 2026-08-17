@@ -1,9 +1,15 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { installChunkReloadGuard } from "@vrooli/api-base";
 import { initIframeBridgeChild } from "@vrooli/iframe-bridge";
 import { initSpatialNav } from "@vrooli/iframe-bridge/spatial";
 import "./styles.css";
+
+// Code-split routes use lazy(); after a rebuild the old hashed chunks are
+// gone, so a tab opened before the deploy would crash on its next navigation.
+// Recover once, rate-limited, by loading the current index/chunk manifest.
+installChunkReloadGuard();
 
 // INTEROP-CRITICAL: Embedded mounts identify themselves before React renders so
 // the parent shell can route iframe bridge events to this scenario.

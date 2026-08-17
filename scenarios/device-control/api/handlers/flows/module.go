@@ -130,6 +130,11 @@ var Endpoints = []module.EndpointDescriptor{
 		RESTException: &module.RESTException{
 			Reason: module.RESTReasonOpsProbe,
 			Note:   "Caller-owned frame execution uses a JSON transport until the device-control flow envelope is proto-typed.",
+			ProtoPayloads: &module.RESTProtoPayloads{
+				Request:  module.RESTPayload{Transport: "json", Conformance: "external_shape"},
+				Response: module.RESTPayload{Transport: "json", Conformance: "external_shape"},
+				Error:    module.RESTPayload{Transport: "json", Conformance: "external_shape"},
+			},
 		},
 		Examples: []module.Example{{Name: "Resolve a screenshot target", Curl: "curl http://localhost:${API_PORT}/api/v1/flows/resolve-target -H 'Content-Type: application/json' -d '{\"target\":\"settings\",\"frame_base64\":\"...\",\"media_type\":\"image/png\"}'"}},
 	},

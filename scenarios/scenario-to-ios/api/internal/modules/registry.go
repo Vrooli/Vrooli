@@ -19,7 +19,13 @@ package modules
 import (
 	"scenario-to-ios/internal/module"
 
+	buildsH "scenario-to-ios/handlers/builds"
 	capsH "scenario-to-ios/handlers/capabilities"
+	distributionH "scenario-to-ios/handlers/distribution"
+	journeysH "scenario-to-ios/handlers/journeys"
+	readinessH "scenario-to-ios/handlers/readiness"
+	releasesH "scenario-to-ios/handlers/releases"
+	targetsH "scenario-to-ios/handlers/targets"
 
 	apidb "github.com/vrooli/api-core/database"
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -36,6 +42,12 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out := make([]module.EndpointDescriptor, 0)
 	out = append(out, healthH.Endpoints...)
 	out = append(out, capsH.Endpoints...)
+	out = append(out, buildsH.Endpoints...)
+	out = append(out, targetsH.Endpoints...)
+	out = append(out, journeysH.Endpoints...)
+	out = append(out, readinessH.Endpoints...)
+	out = append(out, distributionH.Endpoints...)
+	out = append(out, releasesH.Endpoints...)
 	return out
 }
 

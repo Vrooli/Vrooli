@@ -18,12 +18,13 @@ Machine-tier claims should only be added when the UI has stable selectors and
 the claim can be checked by the experience phase. Manual claims need
 attestations with expiry; aspirational claims are useful intent but never gate.
 
-## Current depth: L2 across all product pages
+## Current depth: L2 design contract, with active scope limited to implemented UI
 
-The eight product pages — `fleet`, `device-detail`, `session`, `flows`,
-`run-review`, `strategies`, `agent`, `settings` — carry priorities, states,
-elements, claims, and bindings, plus two journeys. The UX design they encode is
-in [`../docs/concepts/UI-ARCHITECTURE.md`](../docs/concepts/UI-ARCHITECTURE.md).
+The eight product page documents carry priorities, states, elements, claims,
+and bindings, plus two journeys. All page and journey documents are currently
+draft until their routes, BAS cases, and stable selector evidence exist
+together. The UX design they encode is in
+[`../docs/concepts/UI-ARCHITECTURE.md`](../docs/concepts/UI-ARCHITECTURE.md).
 
 Three conventions were established while writing them; keep them when adding a
 page.
@@ -49,10 +50,9 @@ rendered verbatim rather than paraphrased — are `manual`, and say why in
 `rationale`. Do not inflate a perceptual judgement to `machine` to make a
 number go down.
 
-Bindings name `data-testid` values the UI does not implement yet. That is
-deliberate: they are the selector SSOT for the build and for `bas/` case
-scaffolding. Until the markup exists, reconciliation reports
-`capture_unavailable` at INFO — the contract is declared, not yet met.
+Bindings are the selector SSOT for the build and for `bas/` case scaffolding.
+Draft pages may name selectors before their markup exists; they are excluded
+from active reconciliation until the corresponding route is implemented.
 
 The generated `notes` page is part of the removable example domain. Running
 `template-manager detemplate device-control` removes its page spec and registry

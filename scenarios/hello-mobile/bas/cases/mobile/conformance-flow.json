@@ -4,8 +4,13 @@
     "description": "Types a deterministic value into hello-mobile, submits it, and verifies the visible derived response.",
     "requirement": "HELLO-MOBILE-P0-001",
     "version": "1",
-    "labels": {"reset": "none", "flow_id": "hello-mobile-smoke"},
-    "execution_mode": "observer"
+    "labels": {
+      "reset": "none",
+      "flow_id": "hello-mobile-smoke",
+      "requires_confirmation": "true",
+      "routed_isolation": "true"
+    },
+    "execution_mode": "mutating"
   },
   "settings": {"viewport_width": 412, "viewport_height": 915},
   "nodes": [

@@ -22,7 +22,7 @@ scenario starts a separate listener process.
 
 The canonical bands all sit below 32768 so Linux never hands out the
 ports as outbound source ports. See the project-level port allocation reference
-(`path:docs/reference/port-allocation.md`) for the full policy.
+(`path:../../docs/reference/port-allocation.md`) for the full policy.
 
 ### Optional overrides
 
@@ -123,12 +123,8 @@ File shape:
 }
 ```
 
-Set values via the CLI rather than editing the file directly:
-
-```bash
-scenario-to-ios configure api_base http://localhost:15001/api/v1
-scenario-to-ios configure token <token>
-```
+Set values through the lifecycle-managed environment rather than committing
+credentials or editing generated files directly.
 
 ## API-base resolution precedence
 

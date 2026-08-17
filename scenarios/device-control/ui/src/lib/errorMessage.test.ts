@@ -25,4 +25,9 @@ describe("errorMessage", () => {
   it("falls back to ordinary error messages", () => {
     expect(errorMessage(new Error("boom"), i18n.t)).toBe("boom");
   });
+
+  it("maps unknown API codes and primitive failures to stable text", () => {
+    expect(errorMessage(makeApiError("future_code", "server detail", 500), i18n.t)).toBe("An unknown error occurred.");
+    expect(errorMessage("offline", i18n.t)).toBe("offline");
+  });
 });

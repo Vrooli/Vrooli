@@ -8,5 +8,13 @@
     "routes": ["/settings"],
     "purpose": "Expose the minimum configuration surface needed to understand and operate Hello Mobile safely.",
     "prd_refs": ["OT-P1-001"]
-  }
+  },
+  "states": [
+    { "id": "default", "description": "Theme and locale preferences are available with their current selections." },
+    { "id": "loading", "description": "Persisted preferences are being restored while the settings surface remains stable." },
+    { "id": "stale", "description": "The last persisted preference snapshot remains visible until synchronization completes." },
+    { "id": "request-error", "description": "Preference persistence failed; the current selections remain visible and actionable for retry." },
+    { "id": "partial", "description": "Some preferences are available while an optional preference source is unavailable." },
+    { "id": "empty", "description": "No optional configuration is present; the supported defaults and choices remain usable." }
+  ]
 }

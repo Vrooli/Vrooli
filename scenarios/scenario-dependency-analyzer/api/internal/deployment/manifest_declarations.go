@@ -21,15 +21,15 @@ type resourceManifestInput struct {
 }
 
 type resourceRequirementsInput struct {
-	Class      string  `json:"class"`
-	Weight     float64 `json:"weight"`
-	RAMMB      float64 `json:"ram_mb"`
-	DiskMB     float64 `json:"disk_mb"`
-	CPUCores   float64 `json:"cpu_cores"`
-	GPU        bool    `json:"gpu"`
-	Network    string  `json:"network"`
-	Source     string  `json:"source"`
-	Confidence string  `json:"confidence"`
+	Class      string                        `json:"class"`
+	Weight     float64                       `json:"weight"`
+	RAMMB      float64                       `json:"ram_mb"`
+	DiskMB     float64                       `json:"disk_mb"`
+	CPUCores   float64                       `json:"cpu_cores"`
+	GPU        *deployability.GPURequirement `json:"gpu"`
+	Network    string                        `json:"network"`
+	Source     string                        `json:"source"`
+	Confidence string                        `json:"confidence"`
 }
 
 type resourceProfileInput struct {
@@ -62,8 +62,9 @@ func loadResourceDeclaration(repoRoot, name string, required bool) (deployabilit
 		requirements = &deployability.ResourceRequirements{
 			Class: manifest.Requirements.Class, Weight: manifest.Requirements.Weight,
 			RAMMB: manifest.Requirements.RAMMB, DiskMB: manifest.Requirements.DiskMB,
-			CPUCores: manifest.Requirements.CPUCores, GPU: manifest.Requirements.GPU,
-			Network: manifest.Requirements.Network, Source: manifest.Requirements.Source, Confidence: manifest.Requirements.Confidence,
+			CPUCores:       manifest.Requirements.CPUCores,
+			GPURequirement: manifest.Requirements.GPU,
+			Network:        manifest.Requirements.Network, Source: manifest.Requirements.Source, Confidence: manifest.Requirements.Confidence,
 		}
 	}
 	platforms := make(map[deployability.HostOS]deployability.PlatformDeclaration, len(manifest.Platforms))
@@ -179,10 +180,11 @@ func resolverTierSummary(verdict deployability.Verdict, reasons []string, requir
 		summary.Supported = &supported
 	}
 	if requirements != nil {
+		gpu := requirements.GPURequirement != nil
 		summary.Requirements = &types.DeploymentRequirements{
 			Class: requirements.Class, Weight: ptr(requirements.Weight),
 			RAMMB: ptr(requirements.RAMMB), DiskMB: ptr(requirements.DiskMB), CPUCores: ptr(requirements.CPUCores),
-			GPU: ptr(requirements.GPU), Network: requirements.Network, Source: requirements.Source, Confidence: requirements.Confidence,
+			GPU: ptr(gpu), Network: requirements.Network, Source: requirements.Source, Confidence: requirements.Confidence,
 		}
 	}
 	return summary

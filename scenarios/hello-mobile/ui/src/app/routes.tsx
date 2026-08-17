@@ -6,6 +6,7 @@ import {
 } from "react-router-dom";
 
 import { AppShell } from "../layout/AppShell";
+import { Providers } from "./providers";
 import { DashboardPage } from "../pages/DashboardPage";
 import { NotesPage } from "../pages/NotesPage"; // EXAMPLE-DOMAIN:notes
 import { SettingsPage } from "../pages/SettingsPage";
@@ -45,7 +46,11 @@ export function AppRouter() {
   // Re-create per mount so HMR / re-mounts pick up updated routes during dev
   // and so tests that manipulate `window.history` see fresh routing each time.
   const router = createBrowserRouter(routes, { future: dataRouterFuture });
-  return <RouterProvider router={router} future={routerProviderFuture} />;
+  return (
+    <Providers>
+      <RouterProvider router={router} future={routerProviderFuture} />
+    </Providers>
+  );
 }
 
 /**
@@ -54,5 +59,9 @@ export function AppRouter() {
  */
 export function TestAppRouter({ initialEntries }: { initialEntries: string[] }) {
   const router = createMemoryRouter(routes, { initialEntries, future: dataRouterFuture });
-  return <RouterProvider router={router} future={routerProviderFuture} />;
+  return (
+    <Providers>
+      <RouterProvider router={router} future={routerProviderFuture} />
+    </Providers>
+  );
 }

@@ -53,8 +53,8 @@ When adding a shared component, search and adopt from the registry first:
 
 ```bash
 react-component-library components list --json
-react-component-library adoptions resolve-path <component-id> scenario-to-ios
-react-component-library adoptions apply <component-id> scenario-to-ios <adopted-path>
+react-component-library adoptions resolve-path "<component-id>" scenario-to-ios
+react-component-library adoptions apply "<component-id>" scenario-to-ios "<adopted-path>"
 ```
 
 Use scenario-local custom components for genuinely scenario-specific surfaces,

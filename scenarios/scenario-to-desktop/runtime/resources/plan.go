@@ -14,6 +14,7 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/vrooli/binaryfetch"
 	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
 )
 
@@ -54,16 +55,19 @@ type Artifact struct {
 // controller artifact and must be verified separately before any supervisor
 // receives it.
 type Service struct {
-	ProviderPolicy resourcedeployment.ProviderPolicy `json:"provider_policy"`
-	Artifact       string                            `json:"artifact"`
-	Version        string                            `json:"version"`
-	SHA256         string                            `json:"sha256"`
-	Arguments      []string                          `json:"arguments,omitempty"`
-	Environment    map[string]string                 `json:"environment,omitempty"`
-	Config         *resourcedeployment.ServiceConfig `json:"config,omitempty"`
-	Ports          []ServicePort                     `json:"ports,omitempty"`
-	HealthChecks   []HealthCheck                     `json:"health_checks,omitempty"`
-	Files          []Artifact                        `json:"files"`
+	ProviderPolicy resourcedeployment.ProviderPolicy    `json:"provider_policy"`
+	Artifact       string                               `json:"artifact"`
+	Layout         string                               `json:"layout"`
+	EntryPath      string                               `json:"entry_path,omitempty"`
+	Version        string                               `json:"version"`
+	SHA256         string                               `json:"sha256"`
+	Arguments      []string                             `json:"arguments,omitempty"`
+	Environment    map[string]string                    `json:"environment,omitempty"`
+	Bootstrap      *resourcedeployment.ServiceBootstrap `json:"bootstrap,omitempty"`
+	Config         *resourcedeployment.ServiceConfig    `json:"config,omitempty"`
+	Ports          []ServicePort                        `json:"ports,omitempty"`
+	HealthChecks   []HealthCheck                        `json:"health_checks,omitempty"`
+	Files          []Artifact                           `json:"files"`
 }
 
 type HealthCheck struct {
@@ -167,12 +171,12 @@ func verifyService(bundleRoot string, item Item) error {
 	if err := validateServiceDeclaration(item.Resource, service); err != nil {
 		return err
 	}
-	data, err := os.ReadFile(filepath.Join(bundleRoot, "resources", item.Resource, service.Artifact))
+	artifactPath := filepath.Join(bundleRoot, "resources", item.Resource, service.Artifact)
+	actual, err := serviceArtifactDigest(artifactPath, service.Layout)
 	if err != nil {
 		return fmt.Errorf("read bundled service artifact %s: %w", service.Artifact, err)
 	}
-	sum := sha256.Sum256(data)
-	if !strings.EqualFold(hex.EncodeToString(sum[:]), service.SHA256) {
+	if !strings.EqualFold(actual, service.SHA256) {
 		return fmt.Errorf("bundled service artifact hash mismatch for %s", service.Artifact)
 	}
 	return nil
@@ -205,20 +209,58 @@ func validateServiceIdentity(resource string, service *Service) error {
 	if strings.TrimSpace(service.Version) == "" || !resourcedeployment.IsSafeArtifactName(service.Artifact) || len(service.SHA256) != sha256.Size*2 {
 		return fmt.Errorf("resource %s has an invalid bundled service identity", resource)
 	}
+	switch service.Layout {
+	case "file", "":
+		if service.EntryPath != "" {
+			return fmt.Errorf("resource %s has entry_path for file-layout service", resource)
+		}
+	case "dir":
+		if !safeRelativePath(service.EntryPath) {
+			return fmt.Errorf("resource %s has invalid directory service entry_path", resource)
+		}
+	default:
+		return fmt.Errorf("resource %s has unknown bundled service layout %q", resource, service.Layout)
+	}
 	if len(service.Files) != 1 || service.Files[0].Name != service.Artifact || !strings.EqualFold(service.Files[0].SHA256, service.SHA256) {
 		return fmt.Errorf("resource %s has an invalid bundled service file record", resource)
 	}
 	return nil
 }
 
+func serviceArtifactDigest(path, layout string) (string, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		return "", err
+	}
+	if strings.EqualFold(strings.TrimSpace(layout), "dir") || info.IsDir() {
+		return binaryfetch.TreeDigest(path)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return "", err
+	}
+	sum := sha256.Sum256(data)
+	return hex.EncodeToString(sum[:]), nil
+}
+
+func safeRelativePath(path string) bool {
+	path = filepath.Clean(filepath.FromSlash(strings.TrimSpace(path)))
+	return path != "." && path != "" && !filepath.IsAbs(path) && path != ".." && !strings.HasPrefix(path, ".."+string(filepath.Separator))
+}
+
 func validateServiceRuntime(resource string, service *Service) error {
+	if service.Bootstrap != nil {
+		if err := service.Bootstrap.Validate(); err != nil {
+			return fmt.Errorf("resource %s has invalid bundled service bootstrap: %w", resource, err)
+		}
+	}
 	if service.Config != nil {
 		if err := service.Config.Validate(); err != nil {
 			return fmt.Errorf("resource %s has invalid bundled service config: %w", resource, err)
 		}
 	}
 	for _, check := range service.HealthChecks {
-		if check.Type != "http" || strings.TrimSpace(check.Target) == "" {
+		if (check.Type != "http" && check.Type != "tcp") || strings.TrimSpace(check.Target) == "" {
 			return fmt.Errorf("resource %s has an unsupported bundled service health check", resource)
 		}
 		for _, status := range check.ExpectedStatus {

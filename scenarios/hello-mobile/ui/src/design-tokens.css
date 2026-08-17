@@ -226,7 +226,7 @@
 }
 
 .pb-safe {
-  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-bottom: max(env(safe-area-inset-bottom, 0px), 1.5rem);
 }
 
 .pt-safe {

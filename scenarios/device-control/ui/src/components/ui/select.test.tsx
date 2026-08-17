@@ -23,4 +23,12 @@ describe("Select", () => {
 
     expect(screen.getByLabelText<HTMLSelectElement>("Choice").value).toBe("b");
   });
+
+  it("renders placeholders and disabled options", () => {
+    renderWithProviders(
+      <Select aria-label="Choice" placeholder="Choose one" options={[{ value: "a", label: "Alpha", disabled: true }]} />,
+    );
+    expect(screen.getByRole("option", { name: "Choose one" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Alpha" })).toBeDisabled();
+  });
 });

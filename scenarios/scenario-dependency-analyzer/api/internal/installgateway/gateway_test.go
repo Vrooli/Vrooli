@@ -76,6 +76,31 @@ func TestResolveSupportsSharedPackageToolsSurface(t *testing.T) {
 	}
 }
 
+func TestResolveSharedPackageWorkspaceDoesNotDisableWorkspaceMode(t *testing.T) {
+	repoRoot := t.TempDir()
+	packageRoot := filepath.Join(repoRoot, "packages", "audio-capture-browser")
+	if err := os.MkdirAll(packageRoot, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(packageRoot, "package.json"), []byte(`{"name":"@vrooli/audio-capture-browser"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(packageRoot, "pnpm-lock.yaml"), nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(packageRoot, "pnpm-workspace.yaml"), []byte("packages:\n  - .\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	r, err := Resolve(repoRoot, "audio-tools", "tools/audio-capture-browser", "npm", "@types/react", "^18.2.47")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := r.Command(), "pnpm add --ignore-scripts --workspace-root @types/react@^18.2.47"; got != want {
+		t.Fatalf("command = %q, want %q", got, want)
+	}
+}
+
 func TestResolveAddsPnpmWorkspaceRootForSurfaceWorkspace(t *testing.T) {
 	repoRoot := t.TempDir()
 	mkSurface(t, repoRoot, "demo", "ui", map[string]string{

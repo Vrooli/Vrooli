@@ -68,6 +68,7 @@ describe("Locale switching through the shell (real locales)", () => {
   it("switches to Japanese when the 日本語 toggle is clicked", async () => {
     const user = userEvent.setup();
     renderWithProviders(<TestAppRouter initialEntries={["/settings"]} />, { withoutRouter: true });
+    await screen.findByTestId(selectors.pages.settings);
     await user.click(screen.getByTestId(selectors.settingsPage.localeOption({ code: "ja" })));
 
     await waitFor(() => {
@@ -79,6 +80,7 @@ describe("Locale switching through the shell (real locales)", () => {
   it("flips <html dir> to rtl when an RTL locale (ar) is chosen", async () => {
     const user = userEvent.setup();
     renderWithProviders(<TestAppRouter initialEntries={["/settings"]} />, { withoutRouter: true });
+    await screen.findByTestId(selectors.pages.settings);
     await user.click(screen.getByTestId(selectors.settingsPage.localeOption({ code: "ar" })));
 
     await waitFor(() => {

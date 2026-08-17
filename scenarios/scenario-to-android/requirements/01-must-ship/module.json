@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Requirement stubs scaffolded from the P0 operational targets.",
-    "last_validated_at": "2026-08-15T10:49:43-04:00",
+    "last_validated_at": "2026-08-16T21:03:51-04:00",
     "module": "P0-targets",
     "priority": "P0",
     "schema_version": "1.0.0"
@@ -10,33 +10,33 @@
     {
       "id": "S2A-P0-001",
       "title": "Capacitor shell generation from any scenario UI",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-001",
       "criticality": "P0",
       "description": "Generate a complete, buildable Capacitor Android project that wraps the target scenario's existing web bundle without modifying that scenario's UI source. The shell is a pluggable template family so a second shell technology can be added later without re-architecting the ramp; only the Capacitor template ships at P0. Generation is reproducible: the same scenario at the same revision produces the same project.",
       "validation": [
         {
           "type": "test",
-          "ref": "api/internal/androidbuild/builder_test.go::TestRenderProjectUsesAPI36AndContainsNoSigningIdentity",
+          "ref": "api/internal/builds/builder_test.go::TestRenderProjectUsesAPI36AndContainsNoSigningIdentity",
           "phase": "unit",
-          "status": "failing",
-          "notes": "[REQ:S2A-P0-001] Renders the generated Android shell around the supplied web bundle; targeted androidbuild tests pass."
+          "status": "implemented",
+          "notes": "[REQ:S2A-P0-001] Renders the generated Android shell around the supplied web bundle; targeted builds-domain tests pass."
         }
       ]
     },
     {
       "id": "S2A-P0-002",
       "title": "Gradle build to APK and AAB with asserted target API",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-002",
       "criticality": "P0",
       "description": "Produce both a debug-signable APK for direct install and an AAB for Play distribution. The build asserts `targetSdk` is at or above the current Play floor (API 36) as a machine assertion recorded in evidence, not as a comment in a Gradle file. A build below the floor fails closed with the required level named.",
       "validation": [
         {
           "type": "test",
-          "ref": "api/internal/androidbuild/builder_test.go::TestBuilderRejectsBelowAPI36",
+          "ref": "api/internal/builds/builder_test.go::TestBuilderRejectsBelowAPI36",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "[REQ:S2A-P0-002] Rejects a build request below the API 36 target floor; targeted builder tests and the real APK/AAB build assert API 36."
         }
       ]
@@ -44,16 +44,16 @@
     {
       "id": "S2A-P0-003",
       "title": "Prober: probed Android target inventory",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-003",
       "criticality": "P0",
       "description": "Implement the spine `Prober` seam so target availability is decided by probing, never by operating-system name. Reports the emulator target on this host (KVM presence and writability, SDK, platform-tools, system image, AVD), emulator targets on bridge nodes, and physical devices surfaced through device-control. A capability that cannot be proven reports `unavailable` with the exact missing prerequisite and a next action.",
       "validation": [
         {
           "type": "test",
-          "ref": "api/internal/androidprobe/prober_test.go::TestProbeReportsLocalEmulatorAndPhysicalDevice",
+          "ref": "api/internal/targets/prober_test.go::TestProbeReportsLocalEmulatorAndPhysicalDevice",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "[REQ:S2A-P0-003] Reports local and device-control targets with capability-based availability; targeted prober tests pass."
         }
       ]
@@ -61,16 +61,16 @@
     {
       "id": "S2A-P0-004",
       "title": "Driver: one chaptered timeline composing device-control and BAS",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-004",
       "criticality": "P0",
       "description": "Implement the spine `Driver` seam by delegating native shell operations (install, launch, permissions, background, rotate, uninstall) to device-control verbs and web-content steps to a browser-automation-studio flow, interleaved on a single chaptered timeline. The ramp implements no device driving of its own and holds a device-control lease for the duration of a run. The timeline records explicit start/end host-device clock samples and fails launch/render assertions when the required logcat event is absent.",
       "validation": [
         {
           "type": "test",
-          "ref": "api/internal/androidjourney/driver_test.go::TestDriverCompletesBASStepWithReferenceOnlyVideo",
+          "ref": "api/internal/journeys/driver_test.go::TestDriverCompletesBASStepWithReferenceOnlyVideo",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "[REQ:S2A-P0-004] Holds the device lease, delegates BAS, records clock samples, and requires bounded recording offsets; targeted journey tests pass."
         }
       ]
@@ -78,16 +78,16 @@
     {
       "id": "S2A-P0-005",
       "title": "Android conformance journey suite",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-005",
       "criticality": "P0",
       "description": "A registered, scenario-agnostic capability plan covering the Android platform contract: install and cold start, permission-denial grace, background and resume, process-death restore, rotation, keyboard avoidance, offline transition, deep link, notification tap, back navigation, update migration, and clean uninstall. Each chapter carries purpose, bounded readiness and settle policies, expected versus observed, and capture references. The runner has no scenario-name branch.",
       "validation": [
         {
           "type": "test",
-          "ref": "api/internal/conformance/plan_test.go::TestAndroidPlanDelegatesWebContentToARegisteredBASFlow",
+          "ref": "api/internal/journeys/plan_test.go::TestAndroidPlanDelegatesWebContentToARegisteredBASFlow",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "[REQ:S2A-P0-005] Validates the twelve generated-app chapters and bounded readiness policy; targeted conformance tests pass."
         }
       ]
@@ -112,37 +112,37 @@
     {
       "id": "S2A-P0-007",
       "title": "Signing with no key material in the repository",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-007",
       "criticality": "P0",
       "description": "Generate and store the upload key through secrets-manager and sign build outputs by reference. No keystore, password, or key material exists in the repository, in a generated project, or in any evidence artifact. A missing signing identity reports `unavailable` with the ladder rung that would resolve it.",
       "validation": [
         {
           "type": "test",
-          "ref": "api/internal/androidbuild/builder_test.go::TestRenderProjectUsesAPI36AndContainsNoSigningIdentity",
+          "ref": "api/internal/builds/builder_test.go::TestRenderProjectUsesAPI36AndContainsNoSigningIdentity",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "[REQ:S2A-P0-007] Generated projects contain no signing identity material; release signing reads only a temporary properties path outside the project."
         },
         {
           "type": "test",
-          "ref": "api/internal/androidbuild/builder_test.go::TestProvisionSigningKeyStoresOnlyCredentialFields",
+          "ref": "api/internal/builds/builder_test.go::TestProvisionSigningKeyStoresOnlyCredentialFields",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "[REQ:S2A-P0-007] Provisioning generates the keystore through keytool, stores only base64/password/alias via the credential-client seam, and returns no material."
         },
         {
           "type": "test",
-          "ref": "api/internal/androidbuild/builder_test.go::TestSignedBuildUsesTemporaryCredentialProperties",
+          "ref": "api/internal/builds/builder_test.go::TestSignedBuildUsesTemporaryCredentialProperties",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "[REQ:S2A-P0-007] Signed release APK/AAB uses secrets-manager values, emits release metadata, and removes temporary signing files after Gradle. Live validation produced android-release artifact checksum sha256:140c79ff91029a16c1f8555da2fc45590230e2f5e78f0d6aa63c1df7730277d3; APK contains VROOLI-U signature entries."
         },
         {
           "type": "test",
-          "ref": "api/internal/androidbuild/builder_test.go::TestProvisionSigningKeyRejectsPartialIdentity",
+          "ref": "api/internal/builds/builder_test.go::TestProvisionSigningKeyRejectsPartialIdentity",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "[REQ:S2A-P0-007] Partial signing identities fail closed rather than replacing an existing upload identity."
         }
       ]
@@ -150,16 +150,16 @@
     {
       "id": "S2A-P0-008",
       "title": "Distributor: honest distribution channel model",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-008",
       "criticality": "P0",
       "description": "Implement the spine `Distributor` seam over three distinct channels with different identity and evidence requirements: Play (verified developer, AAB, review), verified sideload (developer verification, direct APK), and ADB internal (no verification, host-tethered). Each channel reports its own availability and reason. A channel is never presented as available because a sibling channel is.",
       "validation": [
         {
           "type": "test",
-          "ref": "api/internal/androidrelease/readiness_test.go::TestDistributorDoesNotInferSiblingChannelAvailability",
+          "ref": "api/internal/distribution/distributor_test.go::TestDistributorDoesNotInferSiblingChannelAvailability",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "[REQ:S2A-P0-008] Keeps Play, verified sideload, and ADB channel availability independent; targeted readiness tests pass."
         }
       ]
@@ -167,16 +167,16 @@
     {
       "id": "S2A-P0-009",
       "title": "Release readiness ladder for Google",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-009",
       "criticality": "P0",
       "description": "A probed, ordered rung model from no account to production listing: Play Console registration, developer verification, signing key and Play App Signing, target API compliance, internal testing track, production listing. Each rung reports state, who can complete it, whether the ramp can automate it, and the next action. The same model backs the CLI, the UI walkthrough, and the generated documentation, so documentation cannot drift from code.",
       "validation": [
         {
           "type": "test",
-          "ref": "api/internal/androidrelease/readiness_test.go::TestGoogleReadinessHasSixIndependentRungs",
+          "ref": "api/internal/readiness/readiness_test.go::TestGoogleReadinessHasSixIndependentRungs",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "[REQ:S2A-P0-009] Validates the ordered six-rung Google readiness model; targeted readiness tests pass."
         }
       ]
@@ -184,16 +184,16 @@
     {
       "id": "S2A-P0-010",
       "title": "Fail-closed release gate emitting reference-only verdicts",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-010",
       "criticality": "P0",
       "description": "Compute the Android release gate from the spine's immutable matrix and emit `common.v1.TargetVerdict` with `EvidenceRef` entries to deployment-manager. Capture bytes, recordings, keys, and endpoints stay producer-owned. `unavailable` and `unsupported` are terminal states that can never be promoted to a pass, and a missing required cell fails the gate rather than being omitted from it.",
       "validation": [
         {
           "type": "test",
-          "ref": "api/internal/androidrelease/gate_test.go::TestEvaluateGateRejectsUnavailableRequiredCell",
+          "ref": "api/internal/releases/gate_test.go::TestEvaluateGateRejectsUnavailableRequiredCell",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "[REQ:S2A-P0-010] Fails closed on unavailable cells and requires reference-only evidence for passes; targeted gate/matrix tests pass."
         }
       ]
@@ -218,7 +218,7 @@
     {
       "id": "S2A-P0-012",
       "title": "hello-mobile fixture proves the ramp end to end",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-012",
       "criticality": "P0",
       "description": "The `hello-mobile` fixture scenario is generated, built, installed, driven, and recorded on a physical Android device, producing a complete conformance journey with useful decoded video and correlated device events. The physical profile is proven when every executable chapter passes with reference-only evidence; a target capability that cannot be proven remains explicitly unavailable and keeps the required-cell release gate closed.",
@@ -227,38 +227,38 @@
           "type": "test",
           "ref": "../../hello-mobile/ui/src/MobileFixture.test.tsx::persists deterministic fixture state",
           "phase": "integration",
-          "status": "failing",
-          "notes": "[REQ:S2A-P0-012] Focused fixture coverage passes. Final governed physical matrix run run-b556ab488cfe12f571be7379 on Galaxy A03s used the active device-control unlock profile, produced a 181.88s decoded review recording at /home/matthalloran8/.vrooli/data/vrooli/device-control/evidence/8f3b0858-d270-40da-a685-0d4c5479b2d3.bin, and retained logcat plus start/end clock evidence. All executable chapters completed; the offline_transition chapter is honestly unavailable because the target lacks network-control, so the required-cell gate remains closed."
+          "status": "implemented",
+          "notes": "[REQ:S2A-P0-012] Focused fixture coverage passes. Final governed physical matrix run run-b556ab488cfe12f571be7379 on Galaxy A03s serial R9TT608Q6MH used the active device-control unlock profile, produced a 181.880000s decoded MP4 at /home/matthalloran8/.vrooli/data/vrooli/device-control/evidence/8f3b0858-d270-40da-a685-0d4c5479b2d3.bin, and retained logcat plus start/end clock evidence. ffprobe reports size 1370277 and sha256sum reports ae6dc338afa97442f30c295da8ba37406c662801140bd1d4ecfcda2f8ef2f440. All executable chapters completed; the offline_transition chapter is honestly unavailable because the target lacks network-control, so the required-cell gate remains closed."
         }
       ]
     },
     {
       "id": "S2A-P0-013",
       "title": "Generated application branding reaches Android",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-013",
       "criticality": "P0",
       "description": "Generated Android applications carry the target scenario's brand-manager output into adaptive and legacy launcher icons, splash, notification icon, shortcuts, and a share-target intent filter. Scenarios without an assigned brand receive an explicit generic placeholder set and the build reports that fact.",
       "validation": [
         {
           "type": "test",
-          "ref": "api/internal/androidbuild/builder_test.go::TestRenderProjectIncludesBrandingAssets",
+          "ref": "api/internal/builds/builder_test.go::TestRenderProjectIncludesBrandingAssets",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "[REQ:S2A-P0-013] TestRenderProjectIncludesBrandingAssets passes. A real hello-mobile build used brand-manager assignment eb63f611-1be6-4801-9e06-104da7af8f09 and emitted branded APK/AAB metadata with targetSdk 36. Physical install/launch/screenshot flow 9c05e75c-5f4a-4d7e-a786-8827bd94deda passed; follow-up resolver flow 02a5358d-44c8-4031-baab-c8282e5321b2 passed with screenshot evidence 818edea8-760c-4a20-a649-0ffc99f4d9c8 and resolver log evidence 0a9b265c-794b-478b-a9b7-6aaf8d2f86ec."
         },
         {
           "type": "test",
-          "ref": "api/internal/androidbuild/builder_test.go::TestBuilderReportsPlaceholderBrandingWithoutAssignment",
+          "ref": "api/internal/builds/builder_test.go::TestBuilderReportsPlaceholderBrandingWithoutAssignment",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "[REQ:S2A-P0-013] An unassigned scenario reports branding_source=placeholder and Generic Vrooli App metadata while still rendering the complete Android branding resource set."
         },
         {
           "type": "test",
           "ref": "docs/internal/PROGRESS.md",
           "phase": "physical",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Physical install, package presence, launch, rendered app screenshot, Android resolver display with Hello Mobile target, dismissal, stop, uninstall, final package absence, and locked-state restoration passed on Galaxy A03s in flow 02a5358d-44c8-4031-baab-c8282e5321b2. Screenshot evidence 818edea8-760c-4a20-a649-0ffc99f4d9c8 and resolver log evidence 0a9b265c-794b-478b-a9b7-6aaf8d2f86ec are redaction-verified."
         }
       ]

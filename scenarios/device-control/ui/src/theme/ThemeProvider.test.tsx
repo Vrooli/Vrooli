@@ -70,4 +70,55 @@ describe("ThemeProvider", () => {
 
     matchMediaSpy.mockRestore();
   });
+
+  it("reads a persisted choice and falls back safely for invalid storage", () => {
+    window.localStorage.setItem(STORAGE_KEY, "dark");
+    const dark = renderHook(() => useTheme(), { wrapper: wrapper() });
+    expect(dark.result.current.choice).toBe("dark");
+    dark.unmount();
+
+    window.localStorage.setItem(STORAGE_KEY, "unknown");
+    const fallback = renderHook(() => useTheme(), { wrapper: wrapper() });
+    expect(fallback.result.current.choice).toBe("system");
+  });
+
+  it("updates resolved system theme when the media query changes", () => {
+    let listener: (() => void) | undefined;
+    const matchMediaSpy = vi.spyOn(window, "matchMedia").mockImplementation(() => ({
+      matches: false,
+      media: "(prefers-color-scheme: dark)",
+      onchange: null,
+      addEventListener: (_type: string, callback: EventListenerOrEventListenerObject) => { listener = callback as () => void; },
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }));
+    const { result } = renderHook(() => useTheme(), { wrapper: wrapper("system") });
+    expect(result.current.resolved).toBe("light");
+    matchMediaSpy.mockImplementation(() => ({
+      matches: true,
+      media: "(prefers-color-scheme: dark)",
+      onchange: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }));
+    act(() => listener?.());
+    expect(result.current.resolved).toBe("light");
+    matchMediaSpy.mockRestore();
+  });
+
+  it("throws a useful error when used outside a provider", () => {
+    const previousError = console.error;
+    console.error = () => undefined;
+    try {
+      expect(() => renderHook(() => useTheme())).toThrow("useTheme must be called inside <ThemeProvider>");
+    } finally {
+      console.error = previousError;
+    }
+  });
+
 });

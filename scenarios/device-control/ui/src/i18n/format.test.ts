@@ -46,6 +46,10 @@ describe("locale-aware Intl formatters", () => {
         formatNumber(0.42, { style: "percent", maximumFractionDigits: 0 }, "en-US"),
       ).toBe("42%");
     });
+
+    it("treats the dev pseudo-locale as an Intl fallback", () => {
+      expect(formatNumber(1234, undefined, "dev")).toMatch(/1.?234/);
+    });
   });
 
   describe("formatCurrency", () => {

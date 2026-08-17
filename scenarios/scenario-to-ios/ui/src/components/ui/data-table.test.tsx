@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-syntax -- synthetic table copy is a component-contract fixture. */
 import { describe, expect, it } from "vitest";
 import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -79,5 +80,45 @@ describe("DataTable", () => {
 
     expect(screen.getByText("Alpha")).toBeInTheDocument();
     expect(screen.queryByText("Beta")).not.toBeInTheDocument();
+  });
+
+  it("supports filter selection, secondary-column sorting, and empty results", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(
+      <DataTable
+        rows={rows}
+        columns={columns}
+        getRowKey={(row) => row.id}
+        caption="Demo rows"
+        emptyMessage="Nothing matched"
+        filters={[{ id: "all", label: "All", predicate: () => true }, { id: "alpha", label: "Alpha only", predicate: (row) => row.name === "Alpha" }]}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Alpha only" }));
+    expect(screen.getByText("Alpha")).toBeInTheDocument();
+    expect(screen.queryByText("Beta")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /count/i }));
+    await user.click(screen.getByRole("button", { name: /count/i }));
+    await user.clear(screen.getByRole("searchbox"));
+    await user.type(screen.getByRole("searchbox"), "no match");
+    expect(screen.getByText("Nothing matched")).toBeInTheDocument();
+  });
+
+  it("searches rendered accessor content when no explicit search value exists", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(
+      <DataTable
+        rows={rows}
+        columns={[{ id: "name", header: "Name", accessor: (row) => <span>{row.name}</span> }]}
+        getRowKey={(row) => row.id}
+        caption="Demo rows"
+      />,
+    );
+
+    await user.type(screen.getByRole("searchbox"), "beta");
+    expect(screen.getByText("Beta")).toBeInTheDocument();
+    expect(screen.queryByText("Alpha")).not.toBeInTheDocument();
   });
 });

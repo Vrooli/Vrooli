@@ -18,7 +18,8 @@
 import { app, BrowserWindow, net as electronNet, session, shell, Menu, ipcMain, dialog, Tray, nativeImage, clipboard, safeStorage, screen, contentTracing } from "electron";
 import { type ChildProcess, fork, spawn } from "node:child_process";
 import * as nodeNet from "node:net";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
+import { createServer } from "node:http";
 import * as fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
@@ -205,6 +206,39 @@ let appSessionReadyAt: string | null = null;
 let appSessionFailureMessage: string | null = null;
 let appSessionRecorded = false;
 let runtimeAppDataRoot: string | null = null;
+
+async function runLoopbackAuthorization(
+    buildAuthorizationURL: (redirectURI: string) => string,
+): Promise<{ code: string; state: string; redirectURI: string }> {
+    let listenerRedirectURI = "";
+    return new Promise((resolve, reject) => {
+        const server = createServer((request, response) => {
+            const callbackURL = new URL(request.url || "/", "http://127.0.0.1");
+            if (callbackURL.pathname !== "/callback") {
+                response.statusCode = 404;
+                response.end();
+                return;
+            }
+            response.end("Authentication complete. You may return to the app.");
+            server.close();
+            resolve({
+                code: callbackURL.searchParams.get("code") || "",
+                state: callbackURL.searchParams.get("state") || "",
+                redirectURI: listenerRedirectURI,
+            });
+        });
+        server.once("error", reject);
+        server.listen(0, "127.0.0.1", () => {
+            const address = server.address();
+            if (!address || typeof address === "string") {
+                reject(new Error("loopback listener did not expose a port"));
+                return;
+            }
+            listenerRedirectURI = `http://127.0.0.1:${address.port}/callback`;
+            void shell.openExternal(buildAuthorizationURL(listenerRedirectURI)).catch(reject);
+        });
+    });
+}
 
 // Derived configuration
 const SERVER_URL = APP_CONFIG.SERVER_TYPE === "external"
@@ -1346,6 +1380,8 @@ app.whenReady().then(async () => {
             onAuthChange: (event) => { if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send("auth:changed", { event }); },
             onWindowFocus: () => { if (mainWindow) { if (mainWindow.isMinimized()) mainWindow.restore(); mainWindow.focus(); } },
             onProtocolUrl: (url) => { if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send("protocol-url", url); },
+            onLoopbackAuthorization: runLoopbackAuthorization,
+            createCodeChallenge: (verifier) => createHash("sha256").update(verifier).digest("base64url"),
             onRefreshToken: async (refreshToken) => {
                 if (!runtimeControlClient) {
                     throw new Error("shared credential authority is unavailable");

@@ -1,12 +1,11 @@
 {
   "_comment": "このファイルには2種類の補間があります。(1) 生成時: Scenario to iOS のような大文字スネークケースのプレースホルダーは、`template-manager generate` がシナリオビルド前に置換します。実行時にはリテラル表示値として扱われます。(2) 実行時: {{count}} のようなトークンは i18next の補間で、`t(key, { count })` によりレンダー時に置換されます。アンダースコアで始まるキー（このキーのような）はセンチネルで、コード生成・パリティテスト・未使用キー監査からスキップされます。",
   "app": {
-    "title": "Scenario to iOS",
-    "eyebrow": "シナリオテンプレート",
-    "description": "このスターター UI は意図的に最小限です。Tailwind + shadcn のスタイル規約と API 接続を維持しながら、シナリオ固有の体験に置き換えてください。"
+    "title": "Scenario to iOS"
   },
   "layout": {
     "sidebarLabel": "メインナビゲーション",
+    "mainLabel": "メインコンテンツ",
     "bottomNavLabel": "モバイルナビゲーション",
     "nav": {
       "dashboard": "ダッシュボード",
@@ -24,14 +23,36 @@
   "pages": {
     "dashboard": {
       "title": "ダッシュボード",
-      "description": "シナリオのヘルスと主要指標の概要。製品の成長に合わせてこれらのカードを実際のサーフェスに置き換えてください。",
-      "statPlaceholderLabel": "指標"
+      "description": "シナリオのヘルスと主要指標の概要。製品の成長に合わせてこれらのカードを実際のサーフェスに置き換えてください。"
     },
     "settings": {
       "title": "設定",
       "themeHeading": "外観",
       "localeHeading": "言語"
     }
+  },
+  "delivery": {
+    "title": "iOS 配信準備状況",
+    "description": "バックエンドからのターゲット、適合性、Apple リリース準備状況です。",
+    "readiness": "Apple 準備状況",
+    "targets": "利用可能なターゲット",
+    "conformance": "適合性プラン",
+    "chapters": "定義済みチャプター",
+    "blockedAt": "停止箇所",
+    "nextAction": "次のアクション",
+    "missingCapability": "不足している機能",
+    "loading": "配信レポートを読み込み中…",
+    "unavailable": "配信レポートを利用できません"
+  },
+  "experience": {
+    "deliveryEvidence": "Delivery evidence", "targetMatrix": "Target matrix", "terminal": "terminal", "probed": "probed", "targetDisposition": "Target disposition", "unsupported": "unsupported", "available": "available", "validateOnly": "validate-only", "unavailable": "unavailable", "releaseGate": "Release gate", "passedNonPromotable": "passed with non-promotable evidence", "pending": "pending", "releaseReadiness": "Release readiness", "blockedOnMacOSBridge": "blocked on macOS bridge", "appleHardwareRequired": "Apple hardware required", "executingNode": "Executing node", "linuxHost": "Linux host", "evidenceGrade": "Evidence grade", "pixelGradeMirror": "pixel-grade mirror (non-promotable)", "semantic": "semantic", "generateProject": "Generate project", "distribution": "Distribution", "independentAppleChannelVerdicts": "Independent Apple channel verdicts.", "channels": "Channels", "appStore": "App Store", "testFlight": "TestFlight", "adHoc": "Ad Hoc", "blockedNoMacNode": "blocked-no-mac-node", "waitingOnApple": "waiting-on-Apple", "requiresReachableMacOSBridge": "requires a reachable macOS bridge", "requiresAppleDeveloperEnrollment": "requires Apple Developer enrollment", "requiresChannelReview": "requires channel-specific review", "requiresEnrollmentAndSigning": "requires Apple Developer enrollment and signing", "macOSBuildHost": "macOS build host", "developerProgram": "Developer Program", "appleReview": "Apple review", "appStoreReview": "App Store review", "connectMacOSBridge": "connect a macOS bridge", "waitForAppleDecision": "wait for Apple decision", "enrollDeveloperProgram": "enroll the Apple Developer Program", "manageTestFlightTesters": "manage TestFlight testers", "submitAppStoreReview": "submit for App Store review", "artifactPending": "Artifact: pending · iOS bundle · semantic evidence", "evidenceCannotGateRelease": "This evidence cannot gate a release.", "releaseReadinessHeading": "Release readiness", "orderedAppleLadder": "The ordered Apple readiness ladder.", "appleID": "Apple ID", "owner": "owner", "ownerAndApple": "owner and Apple", "annualProgram": "$99 annual program", "noAdditionalCost": "no additional cost", "hostLease": "host enrollment expires with its lease", "semanticMirror": "Until then, semantic mirror evidence remains available.", "signInAppleID": "sign in with Apple ID", "completePrecedingRung": "complete the preceding rung", "runReview": "Run review", "expectedObservedEvidence": "Expected and observed evidence for each chapter.", "incomplete": "incomplete", "partial": "partial", "passed": "passed", "applicationLaunches": "expected: application launches", "wkwebviewUnavailable": "WKWebView unavailable", "semanticObservation": "observed: semantic observation", "strategyMirrorSemantic": "strategy: ios-mirror · semantic", "settleBound": "settle bound: 30 seconds", "recordingUnavailable": "recording: unavailable", "cannotGateRelease": "This run cannot gate a release.", "leaseLostInfrastructure": "Device lease was lost; this is an infrastructure interruption.", "targetDetail": "Target detail", "probedCapabilitySnapshot": "The probed capability snapshot and driving strategy.", "disposition": "disposition", "capabilities": "capabilities: Xcode, simulator, signing", "probedAt": "probed at: current snapshot", "missingCapability": "missing capability", "localLinuxHost": "local Linux host", "macOSBridge": "macOS bridge", "strategyUnsupported": "unsupported", "leaseHolderNone": "lease holder: none", "leaseHolderOtherConsumer": "lease holder: another consumer", "deviceIdentity": "device identity", "loggedInGuiSession": "logged-in GUI session", "x86SimulatorRuntime": "x86_64 simulator runtime", "appleToolchain": "Apple toolchain", "macOSBridgeNode": "macOS bridge node", "registerInspectBridge": "register or inspect the macOS bridge", "logIntoGuiSession": "log in to the GUI session", "installSimulatorRuntime": "install the simulator runtime", "appStoreConnect": "App Store Connect", "blockedOnAppleID": "blocked-on-Apple-ID"
+  },
+  "settingsDetails": {
+    "signingIdentity": "Signing identity",
+    "unresolvedSecretReference": "unresolved secret reference",
+    "defaultSigningIdentity": "vrooli/scenario-to-ios/apple-developer",
+    "defaultTransport": "Default transport: macOS bridge",
+    "localeControl": "Locale control"
   },
   "health": {
     "title": "API ステータス",

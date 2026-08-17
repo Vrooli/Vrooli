@@ -45,7 +45,22 @@
  * initialised. The pattern above is hoisting-safe and preserves every
  * non-overridden export of `./api/health` via `importOriginal()`.
  */
-export { renderWithProviders } from "@vrooli/api-base/testing";
+import { renderWithProviders as renderWithBaseProviders } from "@vrooli/api-base/testing";
+import { createElement, type ReactElement } from "react";
+import { I18nextProvider } from "react-i18next";
+import { ThemeProvider } from "../theme/ThemeProvider";
+import { i18n } from "../i18n";
+
+import type { ProviderRenderOptions, ProviderRenderResult } from "@vrooli/api-base/testing";
+
+/** Render with the same API, i18n, and theme providers as the application. */
+export function renderWithProviders(ui: ReactElement, options?: ProviderRenderOptions): ProviderRenderResult {
+  return renderWithBaseProviders(
+    createElement(I18nextProvider, { i18n }, createElement(ThemeProvider, null, ui)),
+    options,
+  );
+}
+
 export type { ProviderRenderOptions, ProviderRenderResult } from "@vrooli/api-base/testing";
 export { interp } from "./interp";
 export { expectNoA11yViolations } from "@vrooli/api-base/testing";

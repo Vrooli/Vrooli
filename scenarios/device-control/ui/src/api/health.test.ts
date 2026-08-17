@@ -31,4 +31,9 @@ describe("api/health.fetchHealth", () => {
       cache: "no-store",
     });
   });
+
+  it("rejects non-success health responses", async () => {
+    fetchSpy.mockResolvedValueOnce(new Response('{"message":"down"}', { status: 503 }));
+    await expect(fetchHealth()).rejects.toThrow();
+  });
 });

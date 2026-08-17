@@ -16,7 +16,7 @@ that touches the API).
 The CLI's command surface (groups, commands, positionals, flags,
 RPC bindings, governance metadata) is declared in
 [`cli/manifest.json`](../../cli/manifest.json) and validated against the
-project CLI-manifest schema (`path:.vrooli/schemas/cli-manifest.schema.json`)
+project CLI-manifest schema (`path:../../.vrooli/schemas/cli-manifest.schema.json`)
 (schema id `cli-manifest/v1`). The manifest is loaded at startup by
 `cliapp.LoadFromManifestPrimitives`, which:
 
@@ -44,7 +44,7 @@ that committed file **statically** to verify each declared primitive — it neve
 runs your commands. A declaration with no matching evidence is advisory
 not-yet-verified debt, a mismatch is a gating error, and a stale/missing artifact
 keeps declared primitives unverified. See the CLI architecture maturity
-reference (`path:scenarios/cli-health/docs/reference/cli-architecture-maturity.md`).
+reference (`path:../cli-health/docs/reference/cli-architecture-maturity.md`).
 
 Per-domain tests use `cliapp.RequireProtoServiceCoverage` to assert
 that every RPC on the bound proto service either has a manifest command
@@ -94,20 +94,11 @@ scenario-to-ios status
 scenario-to-ios status --json
 ```
 
-### `scenario-to-ios configure <key> <value>`
-
-Persist a setting to the per-user CLI config file (location resolved
-per [`configuration.md`](configuration.md#cli-config-file)).
+Use the declared operational commands for delivery state:
 
 ```bash
-scenario-to-ios configure api_base http://localhost:15001/api/v1
-scenario-to-ios configure token <token>
-```
-
-Read values back without an argument:
-
-```bash
-scenario-to-ios configure api_base
+scenario-to-ios ios targets --json
+scenario-to-ios ios readiness --json
 ```
 
 ## Scenario commands — `<domain>`
@@ -122,6 +113,25 @@ in [`api-endpoints.md`](api-endpoints.md).
 The scaffold ships one fully worked CRUD command group as a copyable
 reference (see the fenced example below); `template-manager detemplate
 <scenario>` removes it once your real domains are green.
+
+## iOS delivery commands
+
+The `ios` group is the control surface for the delivery ramp. All commands
+return report-shaped JSON with `--json`, including terminal unavailable states:
+
+| Command | API report |
+|---|---|
+| `scenario-to-ios ios targets` | Apple targets and bridge capabilities |
+| `scenario-to-ios ios generate` | deterministic Capacitor/Xcode project |
+| `scenario-to-ios ios build` | macOS `xcodebuild` artifact or unavailable report |
+| `scenario-to-ios ios conformance-plan` | twelve-chapter mobile plan |
+| `scenario-to-ios ios readiness` | six-rung Apple readiness ladder |
+| `scenario-to-ios ios distribution` | independent TestFlight, App Store, and ad-hoc channels |
+| `scenario-to-ios ios matrix` | validation matrix readiness report |
+
+`ios generate` and `ios build` require `IOS_SOURCE_REF` and never place
+signing material in the generated project. A missing Apple host is surfaced as
+`unavailable` with `missing_capability` and `next_action` fields.
 
 ## Output contracts
 

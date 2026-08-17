@@ -81,4 +81,33 @@ describe("DataTable", () => {
     expect(screen.getByText("Alpha")).toBeInTheDocument();
     expect(screen.queryByText("Beta")).not.toBeInTheDocument();
   });
+
+  it("supports filters, descending order, numeric sort, fallback search text, and empty results", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(
+      <DataTable
+        rows={rows}
+        columns={[
+          ...columns,
+          { id: "status", header: "Status", accessor: (row) => <span>{row.count > 1 ? "ready" : "idle"}</span> },
+        ]}
+        getRowKey={(row) => row.id}
+        caption="Demo rows"
+        filters={[{ id: "all", label: "All", predicate: () => true }, { id: "large", label: "Large", predicate: (row) => row.count > 1 }]}
+        filterGroupLabel="Row filters"
+        sortLabel={(header) => `Order ${header}`}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Large" }));
+    expect(screen.getByText("Beta")).toBeInTheDocument();
+    expect(screen.queryByText("Alpha")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Order Count" }));
+    await user.click(screen.getByRole("button", { name: "Order Count" }));
+    await user.type(screen.getByRole("searchbox"), "ready");
+    expect(screen.getByText("Beta")).toBeInTheDocument();
+    await user.clear(screen.getByRole("searchbox"));
+    await user.type(screen.getByRole("searchbox"), "missing");
+    expect(screen.getByText("No rows")).toBeInTheDocument();
+  });
 });

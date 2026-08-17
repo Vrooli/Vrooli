@@ -107,6 +107,7 @@ type breakGlassProvisioner struct {
 	paths     trustposture.KeyPaths
 	available bool
 	ttl       time.Duration
+	target    string
 }
 
 func (p breakGlassProvisioner) Provision(_ context.Context, accountID, realmID string, scopes []string, linkedAt time.Time) error {
@@ -120,7 +121,7 @@ func (p breakGlassProvisioner) Issue(_ context.Context, accountID, realmID strin
 	if !p.available || p.ttl <= 0 {
 		return "", time.Time{}, fmt.Errorf("break-glass is unavailable under the configured trust posture")
 	}
-	token, err := trustposture.IssueFromProvision(p.paths, requested, now, p.ttl)
+	token, err := trustposture.IssueFromProvisionForTarget(p.paths, p.target, requested, now, p.ttl)
 	if err != nil {
 		return "", time.Time{}, err
 	}
@@ -176,9 +177,13 @@ func main() {
 	if err != nil {
 		log.Fatalf("resolve trust posture defaults: %v", err)
 	}
-	breakGlassPaths, err := trustposture.ResolveKeyPaths()
+	breakGlassPaths, err := trustposture.ResolveAuthenticatorKeyPaths()
 	if err != nil {
 		log.Fatalf("resolve break-glass key paths: %v", err)
+	}
+	breakGlassTarget, err := os.Hostname()
+	if err != nil || strings.TrimSpace(breakGlassTarget) == "" {
+		log.Fatalf("resolve break-glass target: %v", err)
 	}
 	signer := authcrypto.NewSigner(keys, authcrypto.SignerConfig{
 		Issuer: realm.Issuer,
@@ -208,8 +213,8 @@ func main() {
 		Audit:            auditLogger,
 		Authorization:    authorizationService,
 		MachineBindings:  repo.(accounts.MachineBindingStore),
-		BreakGlass:       breakGlassProvisioner{paths: breakGlassPaths, available: defaults.BreakGlassAvailable, ttl: defaults.BreakGlassTTL},
-		BreakGlassIssuer: breakGlassProvisioner{paths: breakGlassPaths, available: defaults.BreakGlassAvailable, ttl: defaults.BreakGlassTTL},
+		BreakGlass:       breakGlassProvisioner{paths: breakGlassPaths, available: defaults.BreakGlassAvailable, ttl: defaults.BreakGlassTTL, target: breakGlassTarget},
+		BreakGlassIssuer: breakGlassProvisioner{paths: breakGlassPaths, available: defaults.BreakGlassAvailable, ttl: defaults.BreakGlassTTL, target: breakGlassTarget},
 		Clock:            clk,
 	})
 	_, localHandler := accountsconnect.NewAccountsServiceHandler(authH.NewConnectHandler(authH.Deps{Service: authService, Logger: log.Default()}))

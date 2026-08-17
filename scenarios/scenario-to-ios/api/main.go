@@ -7,11 +7,18 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
+	"scenario-to-ios/internal/builds"
 	"scenario-to-ios/internal/capabilities"
+	"scenario-to-ios/internal/distribution"
+	"scenario-to-ios/internal/journeys"
 	"scenario-to-ios/internal/modules"
+	"scenario-to-ios/internal/readiness"
+	"scenario-to-ios/internal/releases"
 	"scenario-to-ios/internal/server"
+	"scenario-to-ios/internal/targets"
 
 	"github.com/vrooli/api-core/schedule"
 
@@ -22,10 +29,18 @@ import (
 	"github.com/vrooli/api-core/preflight"
 	apiserver "github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
+	deliveryramp "github.com/vrooli/vrooli/packages/delivery-ramp-go"
+	validationmatrix "github.com/vrooli/vrooli/packages/delivery-ramp-go/validationmatrix"
 	_ "modernc.org/sqlite"
 
+	buildsH "scenario-to-ios/handlers/builds"
 	capsH "scenario-to-ios/handlers/capabilities"
+	distributionH "scenario-to-ios/handlers/distribution"
 	healthH "scenario-to-ios/handlers/health"
+	journeysH "scenario-to-ios/handlers/journeys"
+	readinessH "scenario-to-ios/handlers/readiness"
+	releasesH "scenario-to-ios/handlers/releases"
+	targetsH "scenario-to-ios/handlers/targets"
 )
 
 // sqliteDSN resolves the SQLite database file path and wraps it in a DSN
@@ -95,17 +110,6 @@ func scenarioStorageRoots() (storage.Paths, error) {
 	return resolver.Resolve(storage.Options{ScenarioID: scenarioID})
 }
 
-// fileRootPath is the template's mandatory file-store seam. Domain stores
-// compose their relative paths from it rather than retaining startup root
-// strings, so X-Vrooli-Test-Mode is honored independently per request.
-func fileRootPath(ctx context.Context, roots *filerouting.RoutedRoots, class storage.Class, rel string) (string, error) {
-	root, err := roots.Pick(ctx, class)
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(root, rel), nil
-}
-
 func sqliteFileDSN(path string) (string, error) {
 	if strings.HasPrefix(path, "file:") {
 		return path, nil
@@ -149,11 +153,64 @@ func main() {
 		log.Fatalf("file storage configuration failed: %v", err)
 	}
 	fileRoots := filerouting.New(primaryFileRoots)
+	matrixStore, err := validationmatrix.NewFileStore(filepath.Join(primaryFileRoots.DataDir, "validation-matrices"))
+	if err != nil {
+		log.Fatalf("validation matrix storage configuration failed: %v", err)
+	}
+	prober := targets.Prober{GOOS: runtime.GOOS}
+	builder := builds.Builder{GOOS: runtime.GOOS}
+	iosPlan := journeys.Plan()
+	journeySelection := validationmatrix.JourneySelection{
+		JourneyID:     iosPlan.ID,
+		DisplayName:   "iOS generated-app conformance",
+		SourcePath:    "internal/journeys/plan.go",
+		ExecutionMode: "platform",
+		Required:      true,
+		Category:      "ios",
+		Requirements:  []string{"macOS simulator or iOS bridge", "device-control lease", "BAS WebView flow"},
+		Safety:        validationmatrix.JourneySafety{Mutating: true, RequiresIsolation: true, RequiresConfirmation: true},
+	}
+	journeyRunner := func(ctx context.Context, request deliveryramp.DriverRequest) (deliveryramp.JourneyResult, error) {
+		return (journeys.Driver{GOOS: runtime.GOOS}).Execute(ctx, request)
+	}
+	matrixExecutor := releases.Executor{JourneyPlan: iosPlan, RunJourney: journeyRunner}
+	matrixService := validationmatrix.NewService(
+		matrixStore,
+		validationmatrix.Executors{Local: matrixExecutor, Bridge: matrixExecutor},
+		validationmatrix.WithCatalogResolver(releases.Catalog{Probe: prober, Journey: journeySelection}),
+	)
+	matrixService.RecoverStale()
+	matrixHandler := validationmatrix.NewHandler(matrixService)
+	readinessProbe := readiness.Probe{
+		DeveloperProgram: envBool("APPLE_DEVELOPER_PROGRAM"),
+		VerifiedIdentity: envBool("APPLE_VERIFIED_IDENTITY"),
+		MacOSBuildHost:   envBool("APPLE_MACOS_BUILD_HOST"),
+		SigningReference: envBool("APPLE_SIGNING_REFERENCE"),
+		TestFlightAccess: envBool("APPLE_TESTFLIGHT_ACCESS"),
+		AppStoreListing:  envBool("APPLE_APP_STORE_LISTING"),
+	}
+	distributor := distribution.Distributor{
+		DeveloperProgram: readinessProbe.DeveloperProgram,
+		SigningReference: readinessProbe.SigningReference,
+		TestFlightAccess: readinessProbe.TestFlightAccess,
+		AppStoreListing:  readinessProbe.AppStoreListing,
+	}
 
 	srv := server.New(
 		server.Deps{Clock: schedule.System(), Logger: log.Default()},
 		healthH.Module(db, "scenario-to-ios-api", "1.0.0"),
 		capsH.Module(capabilities.NewRegistry()),
+		buildsH.Module(builder),
+		targetsH.Module(prober),
+		journeysH.Module(),
+		readinessH.Module(readinessProbe),
+		distributionH.Module(distributor),
+		releasesH.Module([]*validationmatrix.Handler{matrixHandler}, releasesH.Surface{
+			Probe: func(ctx context.Context) (deliveryramp.Inventory, error) {
+				return prober.Probe(ctx, deliveryramp.ProbeRequest{})
+			},
+			ChapterCount: len(iosPlan.Steps),
+		}),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development
@@ -175,4 +232,9 @@ func main() {
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}
+}
+
+func envBool(key string) bool {
+	value := strings.ToLower(strings.TrimSpace(os.Getenv(key)))
+	return value == "1" || value == "true" || value == "yes"
 }

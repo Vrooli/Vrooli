@@ -1,4 +1,5 @@
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
+import { renderWithProviders } from "@vrooli/api-base/testing";
 import { describe, expect, it, vi } from "vitest";
 
 import type { AuthProfile, ProviderStatus } from "../../api/authentication";
@@ -27,10 +28,28 @@ describe("AuthenticationProfilesCard", () => {
     const providers: Record<string, ProviderStatus> = {
       [profile.id]: { provider: "test", provider_state: "available", configured: true },
     };
-    render(<AuthenticationProfilesCard profiles={[profile]} providers={providers} />);
+    renderWithProviders(<AuthenticationProfilesCard profiles={[profile]} providers={providers} />);
 
     expect(screen.getByTestId("authentication-profiles-card")).toHaveTextContent("profile-1");
     expect(screen.getByTestId("authentication-profiles-card")).toHaveTextContent("available");
     expect(screen.getByTestId("authentication-profiles-card")).not.toHaveTextContent("credential_value");
+  });
+
+  it("renders the empty state when no profiles are configured", () => {
+    renderWithProviders(<AuthenticationProfilesCard profiles={[]} providers={{}} />);
+    expect(screen.getByTestId("authentication-profiles-card")).toHaveTextContent("auth.none");
+  });
+
+  it("reports missing provider state and never exposes optional credential data", () => {
+    renderWithProviders(
+      <AuthenticationProfilesCard
+        profiles={[{ ...profile, last_outcome: "failed" }]}
+        providers={{}}
+      />,
+    );
+    const card = screen.getByTestId("authentication-profiles-card");
+    expect(card).toHaveTextContent("not checked");
+    expect(card).toHaveTextContent("auth.unconfigured");
+    expect(card).not.toHaveTextContent("credential_value");
   });
 });

@@ -49,6 +49,121 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 ## Entries
 
+### 2026-08-17 — Shared workflow provider still cannot resolve the self route
+
+**Symptom:** The fresh Phase 9 run `20260817-112516-aad4c0fe` passes the
+device-control implementation phases but fails its BAS workflow cases when
+`@scenario/self` is resolved for API port discovery.
+
+**Root cause:** The shared workflow provider sends the literal placeholder to
+runtime discovery without binding it to the current Test Genie target
+scenario. This is the same provider defect recorded below, reproduced after
+the device-control UI and performance findings were repaired.
+
+**Workaround:** Use targeted API, UI, Lighthouse, and device-control evidence
+checks while Test Genie/BAS is under repair. Keep the portable `@scenario/self`
+token in authored cases; do not hard-code a runtime port in this scenario.
+
+**Real fix:** workflow-health/Test Genie must bind `@scenario/self` to the run
+target before querying `API_PORT`.
+
+**Owner:** workflow-health/Test Genie maintainers.
+
+**Refs:** run `20260817-112516-aad4c0fe`; `bas/cases/02-operator/`;
+`performance-health lighthouse run device-control`.
+
+### 2026-08-17 — Product pages are specified ahead of the current router
+
+**Symptom:** Experience reconciliation cannot join bindings for the fleet,
+device-detail, strategies, session, run-review, agent, or settings pages.
+
+**Root cause:** Those documents describe the intended device-control product,
+but the current UI router implements only dashboard, flows, evidence, and
+settings presentation. Treating the documents as active made the capture
+provider report unjoined bindings as implementation failures.
+
+**Workaround:** Keep the not-yet-routed page and journey entries in `draft`
+status. The implemented flows page remains active; promote each page only when
+its route and stable selector evidence land together.
+
+**Real fix:** Implement the remaining routes and join their bindings against
+live accessibility captures, then promote them from draft to active.
+
+**Owner:** Device-control UI owner.
+
+**Refs:** `experience/index.json`, `ui/src/app/routes.tsx`, Test Genie run
+`20260817-043745-9c1d041b`, phase `experience`.
+
+### 2026-08-17 — Test Genie self-route resolution is not reliable in this run
+
+**Symptom:** The workflow phase cannot open device-control BAS cases because
+`@scenario/self` is passed to runtime discovery without a scenario name.
+
+**Root cause:** The shared workflow provider resolves the placeholder as a
+literal scenario key instead of binding it to the run's target scenario. This
+is outside device-control's route or workflow content.
+
+**Workaround:** Use targeted local UI/API validation and inspect BAS assets
+directly while the provider is being repaired. Do not replace the placeholder
+with a hard-coded port in scenario-owned workflows.
+
+**Real fix:** workflow-health/Test Genie must bind `@scenario/self` before
+calling runtime port discovery and preserve the provider run's target scenario.
+
+**Owner:** workflow-health/Test Genie maintainers.
+
+**Refs:** Run `20260817-043745-9c1d041b`, workflow artifact; related prior
+finding `durable provider terminal run has no shared validation response`.
+
+### 2026-08-17 — Phase 9 device-control run remains queued
+
+**Symptom:** Fresh run `20260817-090402-bb45848c` remained queued with no
+progress since creation for 45 minutes; durable status reported the run active
+but not started.
+
+**Root cause:** Shared Test Genie caller-queued admission/worker capacity is
+saturated while Test Genie is under parallel development. This does not
+indicate a device-control assertion failure.
+
+**Workaround:** Retain the run identity, use targeted device-control checks
+and the physical Galaxy A03s evidence, and do not call `findings` until the
+server-owned run is terminal.
+
+**Real fix:** Restore Test Genie worker scheduling and reconcile this retained
+run's findings manifest.
+
+**Owner:** Test Genie maintainers.
+
+**Refs:** run `20260817-090402-bb45848c`; plan
+`mobile-delivery-ramps-implement-scenario-to-ios-complete`.
+
+### 2026-08-17 — Fresh integrated visual/performance findings need capture reconciliation
+
+**Symptom:** Fresh run `20260817-134652-0046615c` reports repeated
+`visual_status_bar_color_mismatch` findings across its UI-health captures and
+the performance phase reports Lighthouse `0.54`, below the `0.75` threshold.
+
+**Root cause:** The earlier targeted repair and Lighthouse evidence are green,
+but the current server-owned capture still observes a different top-strip color
+and performance profile. The exact capture colors are not exposed in the
+terminal findings summary, so this cannot be safely closed by changing the
+theme declaration blindly.
+
+**Workaround:** Keep the shared theme declarations aligned with the actual
+design tokens, use the passing targeted UI/build/quality checks, and retain the
+integrated run as an open finding until a fresh capture exposes the measured
+colors and timing evidence.
+
+**Real fix:** Re-run UI-health/performance with the repaired Test Genie capture
+path, compare the measured status strip with the declared theme token, and
+repair the owning CSS or capture provider at the cause.
+
+**Owner:** Device-control UI owner for CSS; ui-health/performance-health
+maintainers for capture fidelity.
+
+**Refs:** Run `20260817-134652-0046615c`; `ui-health` and `performance`
+artifacts; targeted Lighthouse evidence recorded in `PROGRESS.md`.
+
 ### 2026-08-15 — Physical Android proof requires a configured unlock profile
 
 **Symptom:** The Galaxy A03s is discoverable and accepts device-control
@@ -162,6 +277,69 @@ the capture environment rather than a confirmed CSS defect.
 
 ---
 
+### 2026-08-17 — Integrated Test Genie validation is queued without a terminal verdict
+
+**Symptom:** Fresh run `20260817-035511-16157988` remains `queued/active`
+beyond its estimated duration, and the waiter returns without terminal JSON.
+
+**Root cause:** Shared Test Genie scheduling/worker state is degraded while
+another agent changes the test-genie scenario; this is not a device-control
+application failure.
+
+**Workaround:** Use the passing targeted UI, API, build, and requirements checks
+as current evidence. Do not infer an integrated PASS from the queued run.
+
+**Real fix:** Restore Test Genie worker scheduling and complete the retained
+server-owned run, then reconcile its findings.
+
+**Owner:** Test Genie maintainers.
+
+**Refs:** Run `20260817-035511-16157988`; plan mobile-delivery-ramps.
+
+### 2026-08-17 — Agent-mode experience contract is ahead of its UI
+
+**Symptom:** The agent experience page declared an active route and required
+accessibility bindings, but device-control has no agent route or implementation.
+
+**Root cause:** The P1 agent-mode requirements remain planned while the
+experience index had been promoted to active prematurely.
+
+**Workaround:** Keep the detailed `pages/agent.json` contract as a draft and
+leave the operator surface out of the active experience set until the agent
+runtime and route exist.
+
+**Real fix:** Implement the bounded agent run, transcript, abort, and promotion
+surface, add its BAS coverage, then promote the page back to active.
+
+**Owner:** Device-control maintainers.
+
+**Refs:** `experience/pages/agent.json`; `requirements/02-post-launch/module.json`
+(`DVC-P1-005`, `DVC-P1-006`).
+
+### 2026-08-17 — Settings experience contract is ahead of its UI
+
+**Symptom:** The settings experience specification describes redaction,
+consumer grants, retention, and bridge-connection controls, but the current UI
+only implements theme and locale preferences. Keeping the page active caused
+the validator to report unjoined bindings for every declared settings element.
+
+**Root cause:** The detailed settings contract was promoted before the
+corresponding controls and state-specific BAS coverage existed.
+
+**Workaround:** Keep the detailed `pages/settings.json` contract in `draft`.
+The existing `/settings` route remains a real preferences page and is covered
+by the UI route tests.
+
+**Real fix:** Implement the declared policy, grant, retention, and bridge
+controls with their state fixtures and BAS coverage, then promote the page back
+to active.
+
+**Owner:** Device-control maintainers.
+
+**Refs:** `experience/index.json`; `experience/pages/settings.json`;
+`ui/src/pages/SettingsPage.tsx`; requirements `DVC-P1-003`, `DVC-P1-004`, and
+`DVC-P1-010`.
+
 ## Architecture Drift
 
 Use this section for deferred findings from `screaming-architecture-audit`.
@@ -171,7 +349,7 @@ a migration handoff with a planned retirement path back into
 
 | Area | Drift | Maturity Impact | Real Fix |
 |---|---|---|---|
-| _None yet._ |  |  |  |
+| API/domain ownership | The current architecture audit reports 22 requirement-to-domain ownership errors and 13 unowned-source-path errors. The in-flight implementation consolidates several product surfaces behind `api/handlers/control` and `api/internal/control`, while this document still describes split `devices`, `sessions`, `flows`, and `strategies` source paths. | Targeted API/UI/CLI validation is green, but the architecture phase cannot be treated as clean until the ownership map and the intentional façade boundary agree. | Complete the domain consolidation deliberately: align `DOMAINS.md` and the requirement ownership register with the actual source tree, declare approved cross-domain façade edges or split the handler, then rerun Architecture Cartographer. |
 
 ## Work ladder
 
@@ -191,7 +369,8 @@ a migration handoff with a planned retirement path back into
 
 - 2026-08-12: The scenario exposed a provider-neutral, twelve-chapter Android physical conformance plan and emitted a `common.v1.TargetVerdict` with `DEVICE_KIND_PHYSICAL`, evidence references, and a serial-bearing detail string. The API and CLI fail closed with `unavailable` when the fixture APK is absent.
 - Superseding evidence on 2026-08-15: final governed matrix run `run-b556ab488cfe12f571be7379` built package `com.vrooli.hellomobile` at target API 36, used the active profile-backed unlock path, installed and drove the physical Galaxy A03s, and retained a 181.88s decoded review recording, logcat, and start/end clock evidence. The `offline_transition` chapter is typed unavailable because the target lacks `network-control`; the required-cell gate therefore remains closed.
-- The conformance gate remains open until network control is implemented or the chapter is explicitly excluded from the required physical profile. All other executable chapters completed on hardware.
+- Current matrix-wide status on 2026-08-17: targeted run `run-b91a7dd7f47c66e93aaad4c7` closed the required-cell gate with the governed `vrooli-api36` emulator as the satisfying target. The Galaxy A03s remains correctly unavailable for the offline chapter; its cell in that run also failed closed because the currently reachable handset was locked at the visible-surface step. This does not invalidate the retained unlocked physical evidence above.
+- The physical-target conformance gap remains open until network control is implemented or the chapter is explicitly excluded from the required physical profile. The matrix-wide gate is satisfied by the emulator, and all other executable chapters completed on hardware.
 - Targeted validation is green: API/CLI Go suites, UI 36-file/145-test suite, type-check, lint, managed build/restart, JSON/endpoint generation, the hello-mobile APK build/package inspection, and requirement structure validation. Comprehensive Test Genie evidence is currently degraded: run `20260812-183608-51052a99` found the initial undeclared CLI commands, run `20260812-184226-7d007c1d` found and exposed manifest schema errors, and run `20260812-185005-fbd1e28e` aborted because its legacy runner predates canonical terminal snapshots. These are recorded as infrastructure/contract findings, not treated as passing baseline evidence.
 
 ### 2026-08-12 — Cross-platform honesty and wireless seams implemented

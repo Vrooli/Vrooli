@@ -223,6 +223,11 @@
         "required": true,
         "degraded_behavior": "Web-content chapters report unavailable; native shell chapters still execute and the run reports partial honestly rather than passing."
       },
+      "backdrop-studio": {
+        "purpose": "Provides the typed backdrop composition contract used by the Android journey adapter for scenario-owned web-content flows.",
+        "required": true,
+        "degraded_behavior": "Journey web-content chapters report unavailable with the missing backdrop capability; the ramp never silently replaces the typed client."
+      },
       "secrets-manager": {
         "purpose": "Holds the upload signing key by reference so no key material exists in this repository, in a generated project, or in evidence.",
         "required": true,
@@ -232,6 +237,11 @@
         "purpose": "Conformance fixture. The ramp must be provable end to end without depending on any product scenario's correctness.",
         "required": false,
         "degraded_behavior": "The ramp's own conformance proof cannot run. Product scenario deliveries are unaffected."
+      },
+      "scenario-to-desktop": {
+        "purpose": "Compile-time shared target-verdict domain contract used by the release matrix; the Android ramp does not call the desktop scenario at runtime.",
+        "required": false,
+        "degraded_behavior": "The local release matrix cannot compile until the shared desktop-domain package is available; no desktop process is required at runtime."
       }
     }
   },

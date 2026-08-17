@@ -3,6 +3,7 @@ package androidadb
 import (
 	"bytes"
 	"context"
+	"errors"
 	"image"
 	"image/png"
 	"strings"
@@ -14,6 +15,7 @@ import (
 
 type scriptedRunner struct {
 	responses map[string][]byte
+	errors    map[string]error
 	calls     []string
 }
 
@@ -34,6 +36,9 @@ func (r *processRunner) Start(string, ...string) (Process, error) { return r.pro
 func (r *scriptedRunner) Run(_ context.Context, name string, args ...string) ([]byte, error) {
 	call := strings.Join(append([]string{name}, args...), " ")
 	r.calls = append(r.calls, call)
+	if err := r.errors[call]; err != nil {
+		return r.responses[call], err
+	}
 	return r.responses[call], nil
 }
 
@@ -115,6 +120,21 @@ func TestRestoredWirelessDescribeUsesSelectedEndpointState(t *testing.T) {
 	require.Equal(t, strategy.StatusAvailable, declaration.Capabilities[strategy.CapInput].Status)
 	require.Equal(t, strategy.StatusAvailable, declaration.Capabilities[strategy.CapScreenshot].Status)
 	require.Equal(t, "adb devices -l", runner.calls[0])
+}
+
+func TestDescribeUsesConnectivityFallbackForNetworkControl(t *testing.T) {
+	runner := &scriptedRunner{
+		responses: map[string][]byte{
+			"adb devices -l": []byte("List of devices attached\nemulator-5554\tdevice product:sdk_gphone model:sdk_gphone64_x86_64 device:generic_x86_64\n"),
+		},
+		errors: map[string]error{
+			"adb -s emulator-5554 shell svc wifi": errors.New("usage: svc wifi [enable|disable]"),
+		},
+	}
+	declaration, err := NewWithRunner(runner, "emulator-5554").Describe(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, strategy.StatusAvailable, declaration.Capabilities[strategy.CapNetworkControl].Status)
+	require.Contains(t, runner.calls, "adb -s emulator-5554 shell cmd connectivity airplane-mode")
 }
 
 func TestReconnectWirelessDiscoversRotatedTLSEndpoint(t *testing.T) {
@@ -294,8 +314,8 @@ func TestSemanticTargetResolvesAccessibilityBoundsAndTapsCenter(t *testing.T) {
 	var screenshot bytes.Buffer
 	require.NoError(t, png.Encode(&screenshot, image.NewRGBA(image.Rect(0, 0, 100, 200))))
 	runner := &scriptedRunner{responses: map[string][]byte{
-		"adb -s serial-1 exec-out uiautomator dump /dev/tty": []byte(`<hierarchy><node resource-id="com.example:id/hello-mobile-input" bounds="[10,20][90,180]" /></hierarchy>`),
-		"adb -s serial-1 exec-out screencap -p":              screenshot.Bytes(),
+		"adb -s serial-1 exec-out uiautomator dump /dev/stdout": []byte(`<hierarchy><node resource-id="com.example:id/hello-mobile-input" bounds="[10,20][90,180]" /></hierarchy>`),
+		"adb -s serial-1 exec-out screencap -p":                 screenshot.Bytes(),
 	}}
 	adapter := NewWithRunner(runner, "serial-1")
 	match, err := adapter.ResolveSemantic(context.Background(), "hello-mobile-input")
@@ -308,7 +328,7 @@ func TestSemanticTargetResolvesAccessibilityBoundsAndTapsCenter(t *testing.T) {
 
 func TestSemanticAssertVerifiesAccessibilityText(t *testing.T) {
 	runner := &scriptedRunner{responses: map[string][]byte{
-		"adb -s serial-1 exec-out uiautomator dump /dev/tty": []byte(`<hierarchy><node resource-id="com.example:id/state" text="Connectivity: offline" bounds="[0,0][100,40]" /></hierarchy>`),
+		"adb -s serial-1 exec-out uiautomator dump /dev/stdout": []byte(`<hierarchy><node resource-id="com.example:id/state" text="Connectivity: offline" bounds="[0,0][100,40]" /></hierarchy>`),
 	}}
 	adapter := NewWithRunner(runner, "serial-1")
 	require.NoError(t, adapter.Actuate(context.Background(), strategy.Actuation{Action: "semantic-assert", Value: "state", Expected: "Connectivity: offline"}))

@@ -49,3 +49,26 @@ const (
 	RESTReasonThirdPartyShape = endpoints.RESTReasonThirdPartyShape
 	RESTReasonOpsProbe        = endpoints.RESTReasonOpsProbe
 )
+
+// OpsRESTException documents a report-shaped JSON endpoint that exists for
+// lifecycle or operator callers rather than as a generated Connect method.
+// The explicit payload declaration keeps proto-health aware of the transport
+// boundary even when the response is an external report shape.
+func OpsRESTException(note string) *RESTException {
+	return &RESTException{
+		Reason: RESTReasonOpsProbe,
+		Note:   note,
+		ProtoPayloads: &RESTProtoPayloads{
+			Request:  RESTPayload{Transport: "none", Conformance: "none"},
+			Response: RESTPayload{Transport: "json", Conformance: "external_shape"},
+			Error:    RESTPayload{Transport: "json", Conformance: "external_shape"},
+		},
+	}
+}
+
+// OpsJSONRESTException is the JSON-request variant for operator mutations.
+func OpsJSONRESTException(note string) *RESTException {
+	result := OpsRESTException(note)
+	result.ProtoPayloads.Request = RESTPayload{Transport: "json", Conformance: "external_shape"}
+	return result
+}

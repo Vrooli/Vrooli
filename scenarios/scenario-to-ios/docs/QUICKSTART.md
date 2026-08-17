@@ -60,7 +60,7 @@ automatically):
 
 ```bash
 scenario-to-ios status
-scenario-to-ios <domain> <command>   # e.g. list/create commands for your domain
+scenario-to-ios ios targets --json
 ```
 
 Or directly via HTTP:

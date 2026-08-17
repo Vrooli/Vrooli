@@ -3,6 +3,8 @@ package smoketest
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -117,7 +119,7 @@ func journeyFixture(capability string) (JourneyFixture, bool) {
 
 func capabilityForScenario(scenario string) string {
 	scenario = strings.TrimSpace(scenario)
-	if scenario == "browser-automation-studio" {
+	if scenarioDeclaresMonetization(scenario) {
 		return "monetization.trust-boundary.v1"
 	}
 	journeyRegistry.RLock()
@@ -126,6 +128,27 @@ func capabilityForScenario(scenario string) string {
 		return scenario
 	}
 	return "desktop.launch.baseline"
+}
+
+func scenarioDeclaresMonetization(scenario string) bool {
+	if scenario == "" {
+		return false
+	}
+	roots := []string{strings.TrimSpace(os.Getenv("VROOLI_ROOT")), "."}
+	for _, root := range roots {
+		if root == "" {
+			continue
+		}
+		for _, candidate := range []string{
+			filepath.Join(root, "scenarios", scenario, ".vrooli", "monetization.json"),
+			filepath.Join(root, scenario, ".vrooli", "monetization.json"),
+		} {
+			if _, err := os.Stat(candidate); err == nil {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func defaultReadiness(id, reason string) deliveryramp.ReadinessPolicy {
@@ -382,8 +405,14 @@ func (monetizationBoundaryFixture) Plan(JourneyInput) deliveryramp.JourneyPlan {
 		Profile:       "normal-review",
 		Steps: []deliveryramp.JourneyStepSpec{
 			{ID: "activate", Purpose: "Bring the bundled application into view before trust-boundary checks.", Action: "window_activate", Capture: true, Readiness: windowReady, Settle: settle},
+			{ID: "signin_shared_session", Purpose: "Prove native sign-in provisions the shared machine session.", Action: "signin_shared_session", Capture: true, Readiness: windowReady, Settle: settle, Assertion: &deliveryramp.AssertionSpec{ID: "monetization.session.provisioned", Expected: "session=shared"}},
+			{ID: "second_app_resolves", Purpose: "Prove a second app resolves the existing session without another sign-in.", Action: "second_app_resolves", Capture: true, Readiness: windowReady, Settle: settle, Assertion: &deliveryramp.AssertionSpec{ID: "monetization.session.reused", Expected: "session=reused"}},
 			{ID: "tampered_class_a", Purpose: "Patch the local entitlement view and call the real Class A authority.", Action: "tampered_class_a", Capture: true, Readiness: windowReady, Settle: settle, Assertion: &deliveryramp.AssertionSpec{ID: "monetization.class_a.refused", Expected: "class_a=refused"}},
 			{ID: "class_b_local", Purpose: "Run a local-capacity Class B operation under the signed plan lease.", Action: "class_b_local", Capture: true, Readiness: windowReady, Settle: settle, Assertion: &deliveryramp.AssertionSpec{ID: "monetization.class_b.allowed", Expected: "class_b=allowed"}},
+			{ID: "offline_class_b", Purpose: "Prove local Class B work remains usable while the authority is unavailable.", Action: "offline_class_b", Capture: true, Readiness: windowReady, Settle: settle, Assertion: &deliveryramp.AssertionSpec{ID: "monetization.offline.class_b", Expected: "offline_class_b=allowed"}},
+			{ID: "offline_gate_degrades", Purpose: "Prove a still-valid cached lease survives a transient outage.", Action: "offline_gate_degrades", Capture: true, Readiness: windowReady, Settle: settle, Assertion: &deliveryramp.AssertionSpec{ID: "monetization.offline.cached_lease", Expected: "cached_lease=allowed"}},
+			{ID: "outbox_drains_once", Purpose: "Prove queued usage drains exactly once after reconnecting.", Action: "outbox_drains_once", Capture: true, Readiness: windowReady, Settle: settle, Assertion: &deliveryramp.AssertionSpec{ID: "monetization.outbox.once", Expected: "outbox=exactly_once"}},
+			{ID: "expired_lease_falls_back", Purpose: "Prove an expired signed lease no longer grants paid access.", Action: "expired_lease_falls_back", Capture: true, Readiness: windowReady, Settle: settle, Assertion: &deliveryramp.AssertionSpec{ID: "monetization.expired_lease", Expected: "expired_lease=free"}},
 			{ID: "quit", Purpose: "Close the bundled application after the boundary assertions.", Action: "quit_app", Capture: true, Readiness: windowReady, Settle: defaultSettle("shutdown_settle", "allow shutdown to settle")},
 		},
 	}
@@ -391,7 +420,13 @@ func (monetizationBoundaryFixture) Plan(JourneyInput) deliveryramp.JourneyPlan {
 
 func (monetizationBoundaryFixture) Actions() map[string]JourneyAction {
 	return map[string]JourneyAction{
-		"tampered_class_a": operationJourneyAction("tampered_class_a"),
-		"class_b_local":    operationJourneyAction("class_b_local"),
+		"signin_shared_session":    operationJourneyAction("signin_shared_session"),
+		"second_app_resolves":      operationJourneyAction("second_app_resolves"),
+		"tampered_class_a":         operationJourneyAction("tampered_class_a"),
+		"class_b_local":            operationJourneyAction("class_b_local"),
+		"offline_class_b":          operationJourneyAction("offline_class_b"),
+		"offline_gate_degrades":    operationJourneyAction("offline_gate_degrades"),
+		"outbox_drains_once":       operationJourneyAction("outbox_drains_once"),
+		"expired_lease_falls_back": operationJourneyAction("expired_lease_falls_back"),
 	}
 }

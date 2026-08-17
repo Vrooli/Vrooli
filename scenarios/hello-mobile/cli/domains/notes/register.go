@@ -18,10 +18,10 @@ const GroupName = "notes"
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
 	bindings := map[string]cliapp.PrimitiveHandler{
-		"NotesService.ListNotes":  cliapp.ProtoList(h.listCall, h.listReport),
-		"NotesService.CreateNote": cliapp.ProtoMutation(h.createCall, h.createReport),
-		"NotesService.GetNote":    cliapp.ProtoList(h.getCall, h.getReport),
-		"NotesService.CountNotes": cliapp.ProtoList(h.countCall, h.countReport),
+		"vrooli.hello_mobile.v1.notes.NotesService.ListNotes":  cliapp.ProtoList(h.listCall, h.listReport),
+		"vrooli.hello_mobile.v1.notes.NotesService.CreateNote": cliapp.ProtoMutation(h.createCall, h.createReport),
+		"vrooli.hello_mobile.v1.notes.NotesService.GetNote":    cliapp.ProtoList(h.getCall, h.getReport),
+		"vrooli.hello_mobile.v1.notes.NotesService.CountNotes": cliapp.ProtoList(h.countCall, h.countReport),
 	}
 	group, err := cliapp.LoadFromManifestPrimitives(manifest, GroupName, bindings)
 	if err != nil {

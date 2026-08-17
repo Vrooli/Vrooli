@@ -348,6 +348,7 @@ func (s *Service) ListLiveSessionsContext(ctx context.Context) []Session {
 	}
 	return live
 }
+
 func (s *Service) Kill(id, reason string) (Session, error) {
 	return s.KillContext(context.Background(), id, reason)
 }

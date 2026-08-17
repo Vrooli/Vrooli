@@ -1,3 +1,4 @@
+import { lazy, Suspense, type ReactNode } from "react";
 import {
   createBrowserRouter,
   createMemoryRouter,
@@ -6,10 +7,26 @@ import {
 } from "react-router-dom";
 
 import { AppShell } from "../layout/AppShell";
-import { DashboardPage } from "../pages/DashboardPage";
-import { SettingsPage } from "../pages/SettingsPage";
-import { FlowsPage } from "../pages/FlowsPage";
-import { EvidencePage } from "../pages/EvidencePage";
+import { Providers } from "./providers";
+import { strings } from "../consts/strings";
+import { useTranslation } from "../i18n";
+
+// Keep the shell and the first route small. Feature pages are independent
+// delivery surfaces and should not make every initial dashboard load pay for
+// flow authoring, evidence review, and settings code.
+const DashboardPage = lazy(async () => ({ default: (await import("../pages/DashboardPage")).DashboardPage }));
+const SettingsPage = lazy(async () => ({ default: (await import("../pages/SettingsPage")).SettingsPage }));
+const FlowsPage = lazy(async () => ({ default: (await import("../pages/FlowsPage")).FlowsPage }));
+const EvidencePage = lazy(async () => ({ default: (await import("../pages/EvidencePage")).EvidencePage }));
+
+function PageLoading() {
+  const { t } = useTranslation();
+  return <div className="p-6 text-app-muted-foreground" role="status">{t(strings.health.loading)}</div>;
+}
+
+function lazyPage(element: ReactNode) {
+  return <Suspense fallback={<PageLoading />}>{element}</Suspense>;
+}
 
 /**
  * Canonical route table. Exported so tests can construct an in-memory router
@@ -22,10 +39,10 @@ export const routes: RouteObject[] = [
     path: "/",
     element: <AppShell />,
     children: [
-      { index: true, element: <DashboardPage /> },
-      { path: "flows", element: <FlowsPage /> },
-      { path: "evidence", element: <EvidencePage /> },
-      { path: "settings", element: <SettingsPage /> },
+      { index: true, element: lazyPage(<DashboardPage />) },
+      { path: "flows", element: lazyPage(<FlowsPage />) },
+      { path: "evidence", element: lazyPage(<EvidencePage />) },
+      { path: "settings", element: lazyPage(<SettingsPage />) },
     ],
   },
 ];
@@ -47,7 +64,11 @@ export function AppRouter() {
   // Re-create per mount so HMR / re-mounts pick up updated routes during dev
   // and so tests that manipulate `window.history` see fresh routing each time.
   const router = createBrowserRouter(routes, { future: dataRouterFuture });
-  return <RouterProvider router={router} future={routerProviderFuture} />;
+  return (
+    <Providers>
+      <RouterProvider router={router} future={routerProviderFuture} />
+    </Providers>
+  );
 }
 
 /**
@@ -56,5 +77,9 @@ export function AppRouter() {
  */
 export function TestAppRouter({ initialEntries }: { initialEntries: string[] }) {
   const router = createMemoryRouter(routes, { initialEntries, future: dataRouterFuture });
-  return <RouterProvider router={router} future={routerProviderFuture} />;
+  return (
+    <Providers>
+      <RouterProvider router={router} future={routerProviderFuture} />
+    </Providers>
+  );
 }

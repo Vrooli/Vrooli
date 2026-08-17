@@ -87,7 +87,13 @@
       "retainedEvidenceAlt": "Retained evidence {{id}}",
       "invalidFlow": "Invalid flow JSON",
       "flowFailed": "Flow run failed",
-      "sessionKillFailed": "Session kill failed"
+      "sessionKillFailed": "Session kill failed",
+      "strategyOption": "{{id}} · {{status}}",
+      "deviceOption": "{{name}} · {{id}}",
+      "chapterSummary": "{{id}}: {{disposition}} — {{message}}",
+      "resolutionSummary": "{{target}}: rung {{rung}}, confidence {{confidence}}",
+      "degradedEvidence": "Degraded: {{reason}}",
+      "dispositionReasonUnavailable": "below claim minimum"
     },
     "evidence": {
       "title": "Evidence and audit",

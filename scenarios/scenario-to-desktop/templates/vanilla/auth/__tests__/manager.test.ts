@@ -219,12 +219,13 @@ function createTestDependencies(overrides?: Partial<AuthManagerDependencies>): A
     const authChangeEvents: AuthChangeEvent[] = [];
     let windowFocusCalled = false;
     const protocolUrls: string[] = [];
+    const shell = createMockShell();
 
     const deps: AuthManagerDependencies = {
         storage: createMockStorage(),
         safeStorage: createMockSafeStorage(),
         http: createMockHttpClient(),
-        shell: createMockShell(),
+        shell,
         timer: createMockTimer(),
         uuid: createMockUuidGenerator(),
         pathUtils: createMockPathUtils(),
@@ -232,6 +233,11 @@ function createTestDependencies(overrides?: Partial<AuthManagerDependencies>): A
         onAuthChange: (event) => authChangeEvents.push(event),
         onWindowFocus: () => { windowFocusCalled = true; },
         onProtocolUrl: (url) => protocolUrls.push(url),
+        onLoopbackAuthorization: async (buildAuthorizationURL) => {
+            await shell.openExternal(buildAuthorizationURL("http://127.0.0.1:43123/callback"));
+            return await new Promise<never>(() => {});
+        },
+        createCodeChallenge: () => "test-challenge",
         ...overrides,
     };
 
@@ -259,7 +265,7 @@ describe("createAuthManager", () => {
     });
 
     describe("signIn", () => {
-        it("opens external URL with correct parameters", async () => {
+        it("opens a loopback PKCE URL with correct parameters", async () => {
             const manager = createAuthManager(deps);
 
             await manager.signIn();
@@ -268,7 +274,9 @@ describe("createAuthManager", () => {
             const url = new URL(deps.shell._openedUrls[0] ?? "");
             expect(url.origin).toBe("https://test.vrooli.com");
             expect(url.pathname).toBe("/auth/login");
-            expect(url.searchParams.get("redirect_uri")).toBe("testapp://auth/callback");
+            expect(url.searchParams.get("redirect_uri")).toBe("http://127.0.0.1:43123/callback");
+            expect(url.searchParams.get("code_challenge")).toBe("test-challenge");
+            expect(url.searchParams.get("code_challenge_method")).toBe("S256");
             expect(url.searchParams.get("app")).toBe("Test App");
             expect(url.searchParams.get("state")).toBe("test-uuid-12345");
         });
@@ -293,61 +301,12 @@ describe("createAuthManager", () => {
     });
 
     describe("handleCallback", () => {
-        // Use dynamic future date for valid callbacks
-        const futureExpiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 1 hour from now
-        const validCallbackUrl = `testapp://auth/callback#access_token=at123&refresh_token=rt456&expires_at=${encodeURIComponent(futureExpiresAt)}&state=test-uuid-12345`;
-
-        it("stores tokens from valid callback", async () => {
+        it("rejects callbacks that carry tokens", async () => {
             const manager = createAuthManager(deps);
-            await manager.signIn(); // Sets pending state
-
-            await manager.handleCallback(validCallbackUrl);
-
-            const stored = deps.storage._files.get("auth/tokens.enc");
-            expect(stored).toBeDefined();
-            const decrypted = deps.safeStorage.decryptString(stored as Buffer);
-            const tokens = JSON.parse(decrypted);
-            expect(tokens.accessToken).toBe("at123");
-            expect(tokens.refreshToken).toBe("rt456");
-        });
-
-        it("notifies tokens-received on success", async () => {
-            const manager = createAuthManager(deps);
-            await manager.signIn();
-
-            await manager.handleCallback(validCallbackUrl);
-
-            expect(deps.authChangeEvents).toContain("tokens-received");
-        });
-
-        it("calls window focus callback", async () => {
-            const manager = createAuthManager(deps);
-            await manager.signIn();
-
-            await manager.handleCallback(validCallbackUrl);
-
-            expect(deps.windowFocusCalled).toBe(true);
-        });
-
-        it("rejects callback with wrong state (CSRF protection)", async () => {
-            const manager = createAuthManager(deps);
-            await manager.signIn(); // Sets state to "test-uuid-12345"
-
-            const badStateUrl = "testapp://auth/callback#access_token=at123&refresh_token=rt456&expires_at=2024-12-31T23:59:59Z&state=wrong-state";
-            await manager.handleCallback(badStateUrl);
+            await manager.handleCallback("testapp://auth/callback#access_token=at123&refresh_token=rt456");
 
             expect(deps.authChangeEvents).toContain("session-expired");
             expect(deps.storage._files.has("auth/tokens.enc")).toBe(false);
-        });
-
-        it("rejects callback with missing tokens", async () => {
-            const manager = createAuthManager(deps);
-            await manager.signIn();
-
-            const incompleteUrl = "testapp://auth/callback#access_token=at123&state=test-uuid-12345";
-            await manager.handleCallback(incompleteUrl);
-
-            expect(deps.authChangeEvents).toContain("session-expired");
         });
 
         it("forwards non-auth callbacks to protocol URL handler", async () => {
@@ -359,32 +318,11 @@ describe("createAuthManager", () => {
             expect(deps.authChangeEvents).toHaveLength(0);
         });
 
-        it("fetches and stores user info", async () => {
+        it("forwards code-only callbacks without treating them as credentials", async () => {
             const manager = createAuthManager(deps);
-            await manager.signIn();
-
-            deps.http._responses.set("https://test.vrooli.com/api/v1/auth/me", {
-                ok: true,
-                status: 200,
-                body: { user: { id: "user123", email: "test@example.com", emailVerified: true } },
-            });
-
-            await manager.handleCallback(validCallbackUrl);
-
-            const userContent = deps.storage._files.get("auth/user.json");
-            expect(userContent).toBeDefined();
-            const user = JSON.parse(userContent as string);
-            expect(user.id).toBe("user123");
-            expect(user.email).toBe("test@example.com");
-        });
-
-        it("schedules token refresh", async () => {
-            const manager = createAuthManager(deps);
-            await manager.signIn();
-
-            await manager.handleCallback(validCallbackUrl);
-
-            expect(deps.timer._scheduledCallbacks.length).toBe(1);
+            await manager.handleCallback("testapp://auth/callback?code=one-use-code&state=test-uuid-12345");
+            expect(deps.protocolUrls).toContain("testapp://auth/callback?code=one-use-code&state=test-uuid-12345");
+            expect(deps.authChangeEvents).toHaveLength(0);
         });
     });
 
@@ -394,9 +332,9 @@ describe("createAuthManager", () => {
         beforeEach(async () => {
             // Set up authenticated state with future expiry
             const futureExpiry = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+            deps.storage._files.set("auth/tokens.enc", deps.safeStorage.encryptString(JSON.stringify({ accessToken: "at123", refreshToken: "rt456", expiresAt: futureExpiry })));
             authenticatedManager = createAuthManager(deps);
-            await authenticatedManager.signIn();
-            await authenticatedManager.handleCallback(`testapp://auth/callback#access_token=at123&refresh_token=rt456&expires_at=${encodeURIComponent(futureExpiry)}&state=test-uuid-12345`);
+            await authenticatedManager.initialize();
             deps.authChangeEvents.length = 0; // Clear events
             deps.http._requests.length = 0; // Clear requests from setup
         });
@@ -697,24 +635,6 @@ describe("createAuthManager", () => {
             expect(token).toBe("fresh-access");
             expect(deps.http._requests.find((request) => request.url.endsWith("/auth/refresh"))?.options?.body)
                 .toContain("authority-refresh-token");
-        });
-
-        it("stores only the refresh token in the credential authority when encryption is unavailable", async () => {
-            let provisionedRefreshToken: string | null = null;
-            deps = createTestDependencies({
-                safeStorage: createMockSafeStorage(false),
-                onRefreshToken: async (refreshToken) => { provisionedRefreshToken = refreshToken; },
-            });
-            const manager = createAuthManager(deps);
-            await manager.signIn();
-
-            const futureExpiry = new Date(Date.now() + 60 * 60 * 1000).toISOString();
-            const callbackUrl = `testapp://auth/callback#access_token=at123&refresh_token=rt456&expires_at=${encodeURIComponent(futureExpiry)}&state=test-uuid-12345`;
-            await manager.handleCallback(callbackUrl);
-
-            const stored = deps.storage._files.get("auth/tokens.enc");
-            expect(stored).toBeUndefined();
-            expect(provisionedRefreshToken).toBe("rt456");
         });
 
         it("recovers a refresh token from the authority and never reads plaintext", async () => {

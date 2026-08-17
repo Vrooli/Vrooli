@@ -20,7 +20,7 @@ import (
 	"scenario-to-android/internal/module"
 
 	capsH "scenario-to-android/handlers/capabilities"
-	rampH "scenario-to-android/handlers/ramp"
+	rampH "scenario-to-android/handlers/releases"
 
 	apidb "github.com/vrooli/api-core/database"
 	"google.golang.org/protobuf/reflect/protoreflect"

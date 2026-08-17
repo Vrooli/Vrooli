@@ -50,6 +50,105 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 ## Entries
 
+### 2026-08-17 — Shared lifecycle cannot reload the current iOS API binary
+
+**Symptom:** The source-level iOS route contract is corrected and the API
+binary builds with `/api/v1/ios/*`, but the running service still serves the
+previous `/ios/*` binary. `vrooli scenario restart` and `stop` fail before
+replacing it because the control plane cannot read
+`resources/sherpa-onnx/resource.json`.
+
+**Root cause:** A concurrent shared resource migration removed or relocated a
+resource manifest required by the lifecycle port allocator. This is outside
+the iOS scenario and is not an Apple-toolchain limitation.
+
+**Workaround:** Use the route regression test, generated endpoint manifest,
+and targeted API/CLI tests as source evidence. Reload the scenario through the
+normal lifecycle after the shared manifest is restored; do not run the API
+binary directly.
+
+**Real fix:** Restore the authoritative `sherpa-onnx` resource manifest or
+make the control plane tolerate its intentional removal, then restart
+`scenario-to-ios` and rerun the public iOS CLI probes.
+
+**Owner:** Control-plane/resource-migration workstream.
+
+**Refs:** `resources/sherpa-onnx/resource.json`,
+`api/handlers/*/handler.go`, `api/handlers/*/endpoints.go`, and
+`vrooli scenario restart scenario-to-ios`.
+
+### 2026-08-16 — Test Genie admission and control-plane build are degraded
+
+**Symptom:** The server-owned iOS suite run `20260816-192247-0f265c85` remained
+queued because preview admission was saturated. The normal `vrooli scenario
+test` path also could not rebuild while concurrent work left `internal/hostreqkit`
+and test-genie module metadata inconsistent.
+
+**Root cause:** Shared test/control-plane changes are being developed by a
+parallel agent during this delivery-ramp implementation.
+
+**Workaround:** Validate changed behavior with package, API, CLI, UI, and
+targeted build tests; retain the durable run identity and rerun the
+server-owned suite once admission and module freshness recover.
+
+**Real fix:** Restore control-plane compilation and let the queued run reach a
+terminal verdict before claiming suite-level acceptance.
+
+**Owner:** test-genie/control-plane workstream.
+
+**Refs:** `20260816-192247-0f265c85`, `internal/hostreqkit/manifest.go`.
+
+### 2026-08-16 — Shared validation host has a stale Redis container after resource migration
+
+**Symptom:** Fresh server-owned Android and iOS runs fail before phase
+execution when their dependency startup reaches Redis. The control plane
+refuses the Redis data directory because it is owned by UID 999, while the
+invoking user is UID 1000.
+
+**Root cause:** A legacy Docker container (`vrooli-redis-resource`) still
+bind-mounts the per-user Redis cache while the working resource manifest is
+being migrated to the managed-service driver. The managed-service storage
+ownership guard correctly fails closed rather than adopting foreign-owned
+state.
+
+**Workaround:** Linux can still validate the iOS API, CLI, UI, and the
+unsupported/unavailable boundary. Fresh server-owned iOS validation must wait
+for the control-plane migration/remediation.
+
+**Real fix:** The resource/control-plane workstream must retire the stale
+container through an auditable Vrooli lifecycle path and converge or reset the
+regenerable Redis cache under the invoking user's ownership. Do not add
+scenario-local repair logic or manually change ownership.
+
+**Owner:** resource/control-plane workstream.
+
+**Refs:** fresh runs `20260816-212537-b5a43d34` and
+`20260816-212539-6ee9d837`; scenario-qa `knw-1786915919029734855`;
+`resources/redis/resource.json`.
+
+### 2026-08-17 — Phase 9 admission is saturated after the iOS PASS
+
+**Symptom:** Fresh Phase 9 attempts for device-control and hello-mobile remain
+`queued` with no progress since creation (`20260817-090402-bb45848c` and
+`20260817-094636-3bbc63e0`); Android and desktop retries are rejected with
+`resource_exhausted: test-genie admission is saturated`.
+
+**Root cause:** The shared Test Genie caller-queued worker capacity is saturated
+while its scenario is being changed by another agent. This is independent of
+the iOS implementation: the fresh iOS run `20260817-083715-3875a9d7` passed
+all 21 phases before the saturation appeared.
+
+**Workaround:** Keep the iOS Linux frontier validated by the fresh PASS and
+targeted tests; do not infer suite PASS for queued or rejected Phase 9 runs.
+
+**Real fix:** Restore Test Genie admission/worker progress, then rerun the
+Phase 9 mobile-stack and desktop suites and synchronize their findings.
+
+**Owner:** Test Genie maintainers.
+
+**Refs:** runs `20260817-083715-3875a9d7`, `20260817-090402-bb45848c`,
+`20260817-094636-3bbc63e0`; plan `mobile-delivery-ramps-implement-scenario-to-ios-complete`.
+
 ### 2026-08-10 — The only available macOS node has a dated release capability
 
 **Symptom:** `minimouse` is `darwin/amd64` — Intel. It can validate iOS indefinitely, but its ability to produce **submittable** builds expires.
@@ -106,33 +205,48 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 **Refs:** `S2I-P0-010`, `S2I-P1-002`, `docs/concepts/FLOWS.md`.
 
-### 2026-08-10 — Capture redaction policy is a cross-scenario gap, and it is worse here
+### 2026-08-17 — Physical iOS capture remains hardware-gated
 
-**Symptom:** `S2I-P0-010` requires verified redaction before a capture is referenced in a verdict. The policy that states what is redacted, and who may view an unredacted capture, does not exist.
+**Symptom:** iOS simulator and physical-device capture cannot produce runtime
+evidence on this Linux host, while the shared producer redaction policy is now
+implemented and verified by `device-control`.
 
-**Root cause:** `device-control` owns the redaction policy and records the same gap. The exposure is larger for this ramp than for Android: the `ios-mirror` strategy captures the mirrored **screen**, which includes content outside the app under test — notifications, messages, and 2FA codes that arrive mid-run.
+**Root cause:** No qualifying macOS bridge, iOS simulator, WebDriverAgent
+runtime, or Apple signing identity is registered. Whole-screen mirror evidence
+also remains advisory and non-promotable by design.
 
-**Workaround:** Simulator captures carry no personal data, so simulator-only conformance is safe to build now.
+**Workaround:** Keep simulator/bridge paths terminally unavailable or
+unsupported with named next actions, and use the shared producer policy before
+any future capture reference is emitted.
 
-**Real fix:** The `device-control` redaction policy lands and explicitly addresses whole-screen capture. **No physical-device journey may ship before that.**
+**Real fix:** Register the macOS bridge and Apple runtime, then exercise the
+existing adapters without changing the matrix, evidence, readiness, CLI, or UI
+layers.
 
-**Owner:** `device-control`, with this ramp as a consumer.
+**Owner:** repository owner / bridge operator.
 
-**Refs:** `scenarios/device-control/docs/internal/PROBLEMS.md`, `docs/concepts/DATA.md`.
+**Refs:** `docs/reference/apple-hardware-activation.md`,
+`scenarios/device-control/docs/concepts/REDACTION.md`, `S2I-P0-010`.
 
-### 2026-08-10 — The `hello-mobile` conformance fixture does not exist
+### 2026-08-17 — Apple-hosted `hello-mobile` conformance remains unavailable
 
-**Symptom:** `S2I-P0-012` requires the ramp to be provable end to end — and, because the build runs on a remote node, it is simultaneously the transport-symmetry proof. There is no mobile equivalent of `hello-desktop`.
+**Symptom:** The shared `hello-mobile` fixture and its Android proof exist, but
+the iOS end-to-end conformance path cannot run on this Linux host.
 
-**Root cause:** Not yet built. It is shared with `scenario-to-android`, so neither ramp owns it and it can fall between them.
+**Root cause:** The iOS fixture requires a registered macOS bridge with an
+iOS simulator, WebDriverAgent-capable runtime, and the Apple toolchain.
 
-**Workaround:** None. Until it exists, conformance can only be exercised against a product scenario, which conflates two failure sources.
+**Workaround:** Keep the Linux project-generation, target-probing, readiness,
+and terminal-unavailable journey checks green. Android physical evidence remains
+the available mobile fixture proof.
 
-**Real fix:** Create `hello-mobile` as a minimal self-contained fixture, mirroring `hello-desktop`'s shape.
+**Real fix:** Register a trusted macOS bridge, then run the iOS fixture through
+the unchanged twelve-chapter journey and retain the producer-owned evidence.
 
-**Owner:** unassigned — needs an explicit owner precisely because it is shared.
+**Owner:** repository owner / bridge operator.
 
-**Refs:** `scenarios/hello-desktop/`, `S2I-P0-012`.
+**Refs:** `scenarios/hello-mobile/`, `S2I-P0-012`,
+`docs/reference/apple-hardware-activation.md`.
 
 ## Architecture Drift
 
@@ -143,7 +257,7 @@ a migration handoff with a planned retirement path back into
 
 | Area | Drift | Maturity Impact | Real Fix |
 |---|---|---|---|
-| Whole scenario | The domain map in `docs/concepts/DOMAINS.md` describes seven product domains; none of them exist in `api/internal/` yet. The scaffold still carries the template's `notes` example domain. | Expected for a scenario authored documentation-first. It is drift only if code lands in a shape that contradicts the map. | Implement the domains as mapped, then run `template-manager detemplate scenario-to-ios`. |
+| Whole scenario | The seven declared product domains are implemented under `api/internal/{builds,targets,journeys,readiness,distribution,releases}` with shared handler composition. The remaining gap is Apple-hosted runtime evidence, not an unowned source tree. | Linux-testable implementation is covered; native iOS runtime and signing remain unavailable until the bridge and Apple credentials exist. | Register the macOS bridge and rerun the existing adapters; do not move matrix, evidence, readiness, CLI, or UI ownership into the adapter ledger. |
 
 ## Cross-references
 

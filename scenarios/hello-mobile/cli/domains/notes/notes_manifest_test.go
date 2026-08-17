@@ -19,7 +19,7 @@ import (
 // the template itself does not build because of hello-mobile placeholders.
 func TestNotesManifestCoversNotesService(t *testing.T) {
 	manifest := readNotesManifest(t)
-	cliapp.RequireProtoServiceCoverage(t, manifest, notesv1.File_hello_mobile_v1_notes_notes_proto, "NotesService")
+	cliapp.RequireProtoServiceCoverage(t, manifest, notesv1.File_hello_mobile_v1_notes_notes_proto, "vrooli.hello_mobile.v1.notes.NotesService")
 }
 
 func readNotesManifest(t *testing.T) []byte {

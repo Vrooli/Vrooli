@@ -5,6 +5,7 @@
     "schema_version": "1.0.0"
   },
   "imports": [
-    "01-foundation/module.json"
+    "01-foundation/module.json",
+    "03-future/module.json"
   ]
 }

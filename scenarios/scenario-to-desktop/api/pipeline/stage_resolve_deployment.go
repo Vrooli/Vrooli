@@ -63,7 +63,11 @@ func (s *ResolveDeploymentStage) Execute(ctx context.Context, input *StageInput)
 		failStage(result, s.timeProvider, errors.New(errors.CodeValidation, "artifact trust mode is required when resource_artifact_root is set").WithRecovery(errors.RecoveryFixInput, "Use development-local for a verified local evidence bundle or production with a release-manifest signature."))
 		return result
 	}
-	plan, err := resolveResourceDeploymentPlanWithTrust(scenarioPath, input.Config.ResourceArtifactRoot, input.Config.Platforms, mode)
+	if mode == "" && input.Config.ToolArtifactRoot != "" {
+		failStage(result, s.timeProvider, errors.New(errors.CodeValidation, "artifact trust mode is required when tool_artifact_root is set").WithRecovery(errors.RecoveryFixInput, "Use development-local for a verified local evidence bundle or production with a release-manifest signature."))
+		return result
+	}
+	plan, err := resolveResourceDeploymentPlanWithTrust(scenarioPath, input.Config.ResourceArtifactRoot, input.Config.ToolArtifactRoot, input.Config.Platforms, mode)
 	if err != nil {
 		failStage(result, s.timeProvider, errors.ErrBundlePackagingFailed(err, scenarioPath))
 		return result

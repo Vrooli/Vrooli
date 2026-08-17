@@ -138,7 +138,7 @@ func Resolve(repoRoot, scenario, surface, ecosystem, packageName, version string
 	if err != nil {
 		return Resolution{}, err
 	}
-	if manager == "pnpm" && isSharedPackageRoot(repoRoot, surfaceRoot) {
+	if manager == "pnpm" && isSharedPackageRoot(repoRoot, surfaceRoot) && !fileExists(filepath.Join(surfaceRoot, "pnpm-workspace.yaml")) {
 		argv = append(argv, "--ignore-workspace")
 	}
 	return Resolution{

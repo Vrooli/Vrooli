@@ -47,12 +47,12 @@ export function FlowsPage() {
         <Card><CardHeader><CardTitle>{t(strings.pages.flows.flowDefinition)}</CardTitle></CardHeader><CardContent className="flex flex-col gap-3">
           <label htmlFor="flow-strategy">{t(strings.pages.flows.strategy)}</label>
           <select id="flow-strategy" data-testid={selectors.pages.flowStrategy} value={strategy} onChange={(e) => setStrategy(e.target.value)} className="rounded-md border bg-transparent p-2">
-            {strategies.map((item) => <option key={item.id} value={item.id}>{item.id} · {item.status}</option>)}
+            {strategies.map((item) => <option key={item.id} value={item.id}>{t(strings.pages.flows.strategyOption, { id: item.id, status: item.status })}</option>)}
           </select>
           <label htmlFor="flow-device">{t(strings.pages.flows.device)}</label>
-          <select id="flow-device" data-testid={selectors.pages.flowDevice} value={device} onChange={(e) => setDevice(e.target.value)} className="rounded-md border bg-transparent p-2">{devices.filter((item) => item.status === "available").map((item) => <option key={item.id} value={item.id}>{item.model || item.name} · {item.serial || item.id}</option>)}</select>
+          <select id="flow-device" data-testid={selectors.pages.flowDevice} value={device} onChange={(e) => setDevice(e.target.value)} className="rounded-md border bg-transparent p-2">{devices.filter((item) => item.status === "available").map((item) => <option key={item.id} value={item.id}>{t(strings.pages.flows.deviceOption, { name: item.model || item.name, id: item.serial || item.id })}</option>)}</select>
           <label htmlFor="flow-json">{t(strings.pages.flows.json)}</label>
-          <textarea id="flow-json" data-testid={selectors.pages.flowDefinition} value={flow} onChange={(e) => setFlow(e.target.value)} rows={14} className="rounded-md border bg-transparent p-3 font-mono text-sm" />
+          <textarea id="flow-json" data-testid={selectors.pages.flowDefinition} value={flow} onChange={(e) => setFlow(e.target.value)} rows={14} className="rounded-md border bg-transparent p-3 font-mono text-base" />
           <div className="flex gap-2"><Button data-testid={selectors.pages.flowValidate} onClick={validate}>{t(strings.pages.flows.validate)}</Button><Button data-testid={selectors.pages.flowRun} onClick={() => void execute()} disabled={running || !device}>{running ? t(strings.pages.flows.running) : t(strings.pages.flows.acquireAndRun)}</Button></div>
           {activeSession && <div data-testid={selectors.pages.flowActiveSession} className="rounded-md border border-app-destructive/40 p-3" role="status"><p className="font-medium">{t(strings.pages.flows.liveSession, { id: activeSession.id })}</p><p className="text-sm text-app-muted-foreground">{t(strings.pages.flows.killAvailable)}</p><Button data-testid={selectors.pages.flowKillSession} className="mt-2" onClick={() => void killActiveSession()} aria-label={t(strings.pages.flows.killActiveSession)}>{t(strings.pages.flows.killActiveSession)}</Button></div>}
           {error && <p data-testid={selectors.pages.flowError} role="alert" className="text-red-600">{error}</p>}
@@ -60,7 +60,44 @@ export function FlowsPage() {
         <Card data-testid={selectors.pages.flowGapReport}><CardHeader><CardTitle>{t(strings.pages.flows.capabilityGapReport)}</CardTitle></CardHeader><CardContent>
           {report ? <div role="status"><p className={report.runnable ? "text-emerald-600" : "text-amber-600"}>{report.runnable ? t(strings.pages.flows.runnable) : t(strings.pages.flows.blockedBeforeExecution)}</p>{(report.gaps ?? []).map((gap) => <p key={gap} className="mt-2 text-sm">{gap}</p>)}{(report.warnings ?? []).map((warning) => <p key={warning} className="mt-2 text-sm text-app-muted-foreground">{warning}</p>)}</div> : <p className="text-app-muted-foreground">{t(strings.pages.flows.noValidation)}</p>}
         </CardContent></Card>
-        <Card data-testid={selectors.pages.flowRunReview}><CardHeader><CardTitle>{t(strings.pages.flows.runReview)}</CardTitle></CardHeader><CardContent>{run ? <div className="flex flex-col gap-2"><p role="status">{run.disposition}</p>{run.chapters.map((chapter) => <p key={chapter.id} className="text-sm">{chapter.id}: {chapter.disposition} — {chapter.message}</p>)}{(run.resolutions ?? []).map((resolution) => <p key={`${resolution.target}-${resolution.rung}`} className="text-sm">{resolution.target}: rung {resolution.rung}, confidence {resolution.confidence.toFixed(2)}</p>)}<p className="font-medium">{t(strings.pages.flows.retainedEvidence, { count: run.evidence.length })}</p>{run.evidence.map((ref) => <div key={ref.id} className={`rounded-md border p-2 ${ref.disposition === "degraded" ? "border-amber-500" : ""}`}><p className="text-sm"><span>{ref.id}</span> · <span>{ref.kind}</span> · <span>{ref.checksum ?? t(strings.pages.flows.checksumUnavailable)}</span> · <span>{ref.size_bytes}</span> {t(strings.pages.flows.bytes)} · {t(strings.pages.flows.redactionVerified, { verified: String(ref.redaction_verified) })} · {(ref.applied_rules ?? []).join(", ")}</p>{ref.disposition === "degraded" && <p role="status" className="font-medium text-amber-700">Degraded: {ref.disposition_reason ?? "below claim minimum"}</p>}{ref.kind === "image" && <img data-testid={selectors.pages.flowEvidenceImage} src={buildApiUrl(`/api/v1/evidence/${encodeURIComponent(ref.id)}`, { baseUrl: API_BASE })} alt={t(strings.pages.flows.retainedEvidenceAlt, { id: ref.id })} className="mt-2 max-h-80 w-auto rounded border" />}</div>)}</div> : <p className="text-app-muted-foreground">{t(strings.pages.flows.noRun)}</p>}</CardContent></Card>
+        <Card data-testid={selectors.pages.flowRunReview}>
+          <CardHeader><CardTitle>{t(strings.pages.flows.runReview)}</CardTitle></CardHeader>
+          <CardContent>
+            {run ? (
+              <div className="flex flex-col gap-2">
+                <p role="status">{run.disposition}</p>
+                {run.chapters.map((chapter) => (
+                  <p key={chapter.id} className="text-sm">
+                    {t(strings.pages.flows.chapterSummary, { id: chapter.id, disposition: chapter.disposition, message: chapter.message })}
+                  </p>
+                ))}
+                {(run.resolutions ?? []).map((resolution) => (
+                  <p key={`${resolution.target}-${resolution.rung}`} className="text-sm">
+                    {t(strings.pages.flows.resolutionSummary, { target: resolution.target, rung: resolution.rung, confidence: resolution.confidence.toFixed(2) })}
+                  </p>
+                ))}
+                <p className="font-medium">{t(strings.pages.flows.retainedEvidence, { count: run.evidence.length })}</p>
+                {run.evidence.map((ref) => (
+                  <div key={ref.id} className={`rounded-md border p-2 ${ref.disposition === "degraded" ? "border-amber-500" : ""}`}>
+                    <p className="text-sm">
+                      <span>{ref.id}</span> <span aria-hidden="true">·</span> <span>{ref.kind}</span> <span aria-hidden="true">·</span>
+                      <span>{ref.checksum ?? t(strings.pages.flows.checksumUnavailable)}</span> <span aria-hidden="true">·</span>
+                      <span>{ref.size_bytes}</span> {t(strings.pages.flows.bytes)} <span aria-hidden="true">·</span>
+                      <span>{t(strings.pages.flows.redactionVerified, { verified: String(ref.redaction_verified) })}</span>
+                      <span aria-hidden="true">·</span> {(ref.applied_rules ?? []).join(", ")}
+                    </p>
+                    {ref.disposition === "degraded" && (
+                      <p role="status" className="font-medium text-amber-700">
+                        {t(strings.pages.flows.degradedEvidence, { reason: ref.disposition_reason ?? t(strings.pages.flows.dispositionReasonUnavailable) })}
+                      </p>
+                    )}
+                    {ref.kind === "image" && <img data-testid={selectors.pages.flowEvidenceImage} src={buildApiUrl(`/api/v1/evidence/${encodeURIComponent(ref.id)}`, { baseUrl: API_BASE })} alt={t(strings.pages.flows.retainedEvidenceAlt, { id: ref.id })} className="mt-2 max-h-80 w-auto rounded border" />}
+                  </div>
+                ))}
+              </div>
+            ) : <p className="text-app-muted-foreground">{t(strings.pages.flows.noRun)}</p>}
+          </CardContent>
+        </Card>
       </div>
     </section>
   );

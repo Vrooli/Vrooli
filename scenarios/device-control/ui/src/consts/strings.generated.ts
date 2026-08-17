@@ -100,6 +100,12 @@ export const strings = {
       invalidFlow: "pages.flows.invalidFlow",
       flowFailed: "pages.flows.flowFailed",
       sessionKillFailed: "pages.flows.sessionKillFailed",
+      strategyOption: "pages.flows.strategyOption",
+      deviceOption: "pages.flows.deviceOption",
+      chapterSummary: "pages.flows.chapterSummary",
+      resolutionSummary: "pages.flows.resolutionSummary",
+      degradedEvidence: "pages.flows.degradedEvidence",
+      dispositionReasonUnavailable: "pages.flows.dispositionReasonUnavailable",
     },
     evidence: {
       title: "pages.evidence.title",

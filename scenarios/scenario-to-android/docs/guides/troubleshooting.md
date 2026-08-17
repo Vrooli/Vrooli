@@ -73,11 +73,8 @@ Quick fixes:
 # Start the API if it's not running
 make start
 
-# Or let the CLI auto-start it
-scenario-to-android status --auto-start
-
-# Or override the API base for this invocation
-scenario-to-android status --api-base "http://localhost:$(vrooli scenario port scenario-to-android API_PORT)/api/v1"
+# Then use the scenario CLI against the lifecycle-managed API
+scenario-to-android status
 ```
 
 ### CLI behaves like an old version after editing source
