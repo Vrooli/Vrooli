@@ -1,0 +1,14 @@
+{
+  "libraryId": "react-component-library:MonetizationAccount",
+  "catalogId": "monetization.account-surface",
+  "displayName": "MonetizationAccount",
+  "description": "Shared account surface primitives for paid scenarios, including subscription status and badges.",
+  "assetKind": "component",
+  "tags": ["monetization", "account"],
+  "latest": "1.0.0",
+  "designStyles": [
+    { "styleId": "vrooli-default", "affinity": "native" },
+    { "styleId": "vrooli-command-display", "affinity": "compatible" },
+    { "styleId": "vrooli-conversion-landing", "affinity": "compatible" }
+  ]
+}

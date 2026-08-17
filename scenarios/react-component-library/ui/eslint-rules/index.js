@@ -20,10 +20,32 @@
  */
 import codegenFresh from "./codegen-fresh.js";
 import noUnusedKeys from "./no-unused-keys.js";
+import noRawDimensions from "./no-raw-dimensions.js";
 
 export default {
   rules: {
     "codegen-fresh": codegenFresh,
     "no-unused-keys": noUnusedKeys,
+  },
+};
+
+/**
+ * Vrooli design-system ESLint plugin.
+ *
+ * Separate from the string-registry plugin above because it applies to a
+ * different surface: the string rules anchor on this scenario's generated
+ * registry and run once per pass, while the design-system rules are per-file
+ * and are shared by BOTH eslint configs — the app config over `src/**` and
+ * the catalog config over `../library/**`. Keeping them in one plugin object
+ * that both configs register is what stops the app and the library from
+ * drifting into different rulesets again.
+ *
+ *   - `design-system/no-raw-dimensions` — rejects raw Tailwind spacing and
+ *     sizing utilities in class strings, with a different remediation per
+ *     family (spacing has a ramp step to move to; sizing does not).
+ */
+export const designSystem = {
+  rules: {
+    "no-raw-dimensions": noRawDimensions,
   },
 };

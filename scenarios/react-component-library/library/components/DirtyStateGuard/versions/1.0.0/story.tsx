@@ -134,7 +134,7 @@ export function Default() {
             window.setTimeout(() => guard.current?.requestLeave(), 0);
           }}
           style={{
-            minHeight: 40,
+            minHeight: 44,
             border: "1px solid var(--color-border, #cbd5e1)",
             borderRadius: "var(--radius-control, 8px)",
             background: "transparent",

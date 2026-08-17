@@ -21,7 +21,8 @@ export type AssetInfoTab =
   | "tests"
   | "versions"
   | "progression"
-  | "adoptions";
+  | "adoptions"
+  | "relationships";
 export type AssetRouteState = { tab?: AssetInfoTab; story?: string; testReport?: string };
 
 const assetTabs = new Set<AssetInfoTab>([
@@ -32,6 +33,7 @@ const assetTabs = new Set<AssetInfoTab>([
   "versions",
   "progression",
   "adoptions",
+  "relationships",
 ]);
 
 export function assetPath(assetID: string, state: AssetRouteState = {}): string {

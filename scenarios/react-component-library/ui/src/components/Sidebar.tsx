@@ -3,7 +3,7 @@ import { type ReactNode } from "react";
 import { Link, NavLink, useLocation } from "react-router-dom";
 
 import { useTranslation } from "../i18n";
-import { BarChart3, Blocks, FolderTree, PanelLeftClose, Sparkles } from "lucide-react";
+import { BarChart3, FolderTree, PanelLeftClose, Sparkles } from "lucide-react";
 import { BrandMark } from "./BrandMark";
 import { AppNavigation } from "./ui/AppNavigation/versions/1.0.0/AppNavigation";
 import { NavigationTree } from "./ui/NavigationTree/versions/1.0.0/NavigationTree";
@@ -66,7 +66,10 @@ export function SidebarContent({
       </div>
 
       <div className="min-h-0 flex-1 overflow-auto px-space-2xs py-space-xs">
-        <AppNavigation brand={t("app.brand", { defaultValue: "Component Library" })}>
+        {/* No brand: the sidebar header above already renders it alongside the
+            collapse and settings controls. AppNavigation renders its own brand
+            when given one, so passing it here produced the product name twice. */}
+        <AppNavigation>
           <ul data-rcl-app-navigation-list>
             <li>
               <Link
@@ -95,10 +98,9 @@ export function SidebarContent({
             </li>
           </ul>
         </AppNavigation>
-        <div className="mb-space-xs flex items-center gap-space-2xs border-b border-app-border px-space-xs pb-space-2xs text-[11px] font-semibold uppercase tracking-wide text-app-muted-foreground">
-          <Blocks aria-hidden className="h-3.5 w-3.5" />
-          <span>Library inventory</span>
-        </div>
+        {/* NavigationTree renders its own title; a hand-rolled header here
+            produced "Library inventory" twice. The heading is the component's
+            to own — pass it through the prop rather than drawing one beside it. */}
         <NavigationTree title="Library inventory" items={[]}>
           <div data-rcl-navigation-tree-list>{inventorySlot}</div>
         </NavigationTree>

@@ -5,7 +5,13 @@
   "api": {
     "variants": {},
     "modes": [],
-    "parts": []
+    "parts": [
+      "heading",
+      "eyebrow",
+      "title",
+      "list",
+      "item"
+    ]
   },
   "asset": {
     "id": "navigation.navigation-tree",

@@ -21,6 +21,11 @@ const navigationTreeStyles = `
 [data-rcl-navigation-tree] [data-rcl-navigation-tree-title] { font: var(--text-heading-sm); }
 [data-rcl-navigation-tree] [data-rcl-navigation-tree-list] { display: grid; gap: var(--space-3xs); margin: 0; padding: 0; list-style: none; }
 [data-rcl-navigation-tree] [data-rcl-navigation-tree-item] { min-inline-size: 0; }
+/* Icons are sized here rather than through the icon library's size prop: that
+   prop lands on the SVG width/height geometry attributes, whose grammar is
+   <length>, so a var() expression is rejected and the icon falls back to the
+   300x150 replaced-element default. */
+[data-rcl-navigation-tree] svg { inline-size: var(--icon-size-sm); block-size: var(--icon-size-sm); flex: 0 0 auto; }
 `;
 
 export function NavigationTree({
@@ -53,7 +58,7 @@ export function NavigationTree({
                   label={item}
                   href={`#${encodeURIComponent(item.toLowerCase())}`}
                   current={index === currentIndex}
-                  icon={<FolderTree size="var(--space-sm)" strokeWidth={1.8} />}
+                  icon={<FolderTree strokeWidth={1.8} />}
                 />
               </li>
             ))}

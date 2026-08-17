@@ -27,6 +27,7 @@ import (
 	localdb "react-component-library/internal/database"
 
 	adoptionsH "react-component-library/handlers/adoptions"
+	catalogH "react-component-library/handlers/catalog"
 	componentsH "react-component-library/handlers/components"
 	componentTestsH "react-component-library/handlers/componenttests"
 	depsH "react-component-library/handlers/deps"
@@ -38,6 +39,7 @@ import (
 	workflowsH "react-component-library/handlers/workflows"
 
 	adoptionsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/adoptions"
+	catalogv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/catalog"
 	componentsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/components"
 	componenttestsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/componenttests"
 	depsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/deps"
@@ -55,6 +57,7 @@ import (
 func AllEndpoints() []module.EndpointDescriptor {
 	out := make([]module.EndpointDescriptor, 0)
 	out = append(out, adoptionsH.Endpoints...)
+	out = append(out, catalogH.Endpoints...)
 	out = append(out, componentsH.Endpoints...)
 	out = append(out, componentTestsH.Endpoints...)
 	out = append(out, depsH.Endpoints...)
@@ -82,6 +85,7 @@ type ProtoFileEntry struct {
 func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
 		{Module: "adoptions", File: adoptionsv1.File_react_component_library_v1_adoptions_adoptions_proto},
+		{Module: "catalog", File: catalogv1.File_react_component_library_v1_catalog_catalog_proto},
 		{Module: "components", File: componentsv1.File_react_component_library_v1_components_components_proto},
 		{Module: "component-tests", File: componenttestsv1.File_react_component_library_v1_componenttests_component_tests_proto},
 		{Module: "deps", File: depsv1.File_react_component_library_v1_deps_deps_proto},

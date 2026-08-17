@@ -8,7 +8,7 @@ export function ControlledWithRecents({
   const [value, setValue] = useState(args.value);
   const [recents, setRecents] = useState<string[]>([]);
   return (
-    <div className="space-y-3">
+    <div className="space-y-space-xs">
       <ColorPicker
         palette={args.palette}
         value={value}
@@ -43,7 +43,7 @@ export function RecentsCommitOnBlur({
     log("recordRecent", color);
   };
   return (
-    <div className="space-y-3">
+    <div className="space-y-space-xs">
       <ColorPicker
         palette={args.palette}
         value={value}

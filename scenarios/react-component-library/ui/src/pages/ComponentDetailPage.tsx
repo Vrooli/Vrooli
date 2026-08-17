@@ -30,6 +30,7 @@ import { ComponentExperiencePanel } from "../features/components/ComponentExperi
 import { ComponentTestPanel } from "../features/components/ComponentTestPanel";
 import { VersionsCard } from "../features/versions/VersionsCard";
 import { ProgressionPanel } from "../features/versions/ProgressionPanel";
+import { RelationshipsPanel } from "../features/catalog/RelationshipsPanel";
 import { useTranslation } from "../i18n";
 import {
   assetInfoTab,
@@ -81,6 +82,7 @@ function DetailTabs({
       label: t("componentDetail.info.adoptions", { defaultValue: "Adoptions" }),
       count: adoptionCount,
     },
+    { id: "relationships", label: "Relationships" },
   ];
 
   return (
@@ -268,6 +270,7 @@ function HookWorkspace({
                 )}
               </div>
             )}
+            {tab === "relationships" && <RelationshipsPanel assetId={asset.id} />}
           </aside>
         }
       />
@@ -650,6 +653,7 @@ export function ComponentDetailPage() {
                 <AdoptionsCard componentId={component.id} suggestionsOnly />
               </section>
             )}
+            {infoTab === "relationships" && <RelationshipsPanel assetId={loadedAsset?.catalogId ?? component.id} />}
           </div>
         }
       />

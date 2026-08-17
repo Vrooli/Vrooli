@@ -29,29 +29,34 @@ import (
 // The wire/proto type lives at the transport edge; this struct is the
 // only shape internal callers depend on.
 type Component struct {
-	ID            string
-	CatalogID     string
-	LibraryID     string
-	Slug          string
-	DisplayName   string
-	Description   string
-	Slot          string
-	Category      string
-	SourcePath    string
-	Version       string
-	LatestVersion string
-	DraftVersion  string
-	ManifestPath  string
-	Tags          []string
-	IndexedAt     time.Time
-	UpdatedAt     time.Time
-	Headers       map[string]string
-	DesignStyles  []ComponentDesignAffinity
-	AssetKind     AssetKind
-	Dependencies  []AssetDependency
-	Expects       []string
-	Satisfies     []string
-	Metrics       AssetMetrics
+	ID                       string
+	CatalogID                string
+	LibraryID                string
+	Slug                     string
+	DisplayName              string
+	Description              string
+	Slot                     string
+	Category                 string
+	SourcePath               string
+	Version                  string
+	LatestVersion            string
+	DraftVersion             string
+	ManifestPath             string
+	Tags                     []string
+	IndexedAt                time.Time
+	UpdatedAt                time.Time
+	Headers                  map[string]string
+	DesignStyles             []ComponentDesignAffinity
+	AssetKind                AssetKind
+	Dependencies             []AssetDependency
+	Expects                  []string
+	Satisfies                []string
+	CatalogDomain            string
+	CatalogDomainOrder       int
+	CatalogRung              int
+	CatalogRungName          string
+	TransitiveDependentCount int
+	Metrics                  AssetMetrics
 }
 
 // AssetKind distinguishes renderable assets, reusable hooks, and the

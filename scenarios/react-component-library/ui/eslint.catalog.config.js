@@ -4,6 +4,7 @@ import importPlugin from "eslint-plugin-import";
 import jsxA11y from "eslint-plugin-jsx-a11y";
 import reactHooks from "eslint-plugin-react-hooks";
 import tseslint from "typescript-eslint";
+import { designSystem } from "./eslint-rules/index.js";
 
 export default tseslint.config(
   {
@@ -32,6 +33,7 @@ export default tseslint.config(
     plugins: {
       import: importPlugin,
       "react-hooks": reactHooks,
+      "design-system": designSystem,
     },
     settings: {
       "import/resolver": {
@@ -58,6 +60,15 @@ export default tseslint.config(
       "@typescript-eslint/restrict-template-expressions": "off",
       "@typescript-eslint/no-confusing-void-expression": "off",
       "import/no-cycle": "error",
+
+      // The library corpus is already clean of raw dimensions — the Go
+      // `tokens` catalog gate has been enforcing this over library/** all
+      // along, and reports 0 findings across 331 active sources. The rule is
+      // registered here at "error" to keep it that way at authoring time
+      // rather than only at gate time, and because a library asset is copied
+      // verbatim into every adopting scenario: a raw dimension here is a raw
+      // dimension in each of them.
+      "design-system/no-raw-dimensions": "error",
     },
   },
 );

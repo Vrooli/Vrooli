@@ -498,6 +498,9 @@ LIMIT ?
 	if err := s.loadAssetProjection(ctx, assets); err != nil {
 		return nil, err
 	}
+	if err := s.loadCatalogProjectionBatch(ctx, assets); err != nil {
+		return nil, err
+	}
 	return out, nil
 }
 
@@ -678,6 +681,80 @@ func isStructuredHeaderField(field string) bool {
 	}
 }
 
+// catalogHeaderFields are the header keys that carry the typed catalog
+// projection. Only these are read on the list path.
+var catalogHeaderFields = []string{"catalogId", "catalogExpects", "catalogSatisfies"}
+
+// loadCatalogProjectionBatch populates the typed catalog fields for a list of
+// components without attaching the raw header map.
+//
+// The distinction matters and is asserted by the repository tests: List
+// deliberately omits Headers so list payloads stay lean, while Get carries the
+// full map. That contract was correct, but CatalogID was only ever set as a
+// side effect of loading the whole map — so every component returned by List
+// had an empty CatalogID, which silently disabled the catalog projection
+// (domain, rung, dependent counts) and rendered the entire catalog browser
+// under "Other / Rung 0".
+//
+// Reading just these three fields honours both requirements: the projection is
+// present, the arbitrary header map is not. Batched for the same reason
+// loadAssetProjection is — list presentation must not issue one query per row.
+func (s *sqliteRepository) loadCatalogProjectionBatch(ctx context.Context, assets []*Component) error {
+	if len(assets) == 0 {
+		return nil
+	}
+	args := make([]any, 0, len(assets)+len(catalogHeaderFields))
+	byID := make(map[string]*Component, len(assets))
+	for _, asset := range assets {
+		args = append(args, asset.ID)
+		byID[asset.ID] = asset
+	}
+	idPlaceholders := strings.TrimRight(strings.Repeat("?,", len(assets)), ",")
+	for _, field := range catalogHeaderFields {
+		args = append(args, field)
+	}
+	fieldPlaceholders := strings.TrimRight(strings.Repeat("?,", len(catalogHeaderFields)), ",")
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT component_id, field, value FROM component_headers WHERE component_id IN (`+idPlaceholders+`) AND field IN (`+fieldPlaceholders+`)`, args...)
+	if err != nil {
+		return fmt.Errorf("load catalog projection batch: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var componentID, field, value string
+		if err := rows.Scan(&componentID, &field, &value); err != nil {
+			return fmt.Errorf("scan catalog projection row: %w", err)
+		}
+		asset, ok := byID[componentID]
+		if !ok {
+			continue
+		}
+		applyCatalogHeader(asset, field, value)
+	}
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("iterate catalog projection batch: %w", err)
+	}
+	return nil
+}
+
+// applyCatalogHeader projects one header onto its typed field. Shared by the
+// single-row and batched loaders so the two paths cannot disagree about what a
+// header means.
+func applyCatalogHeader(c *Component, field, value string) {
+	switch field {
+	case "catalogId":
+		c.CatalogID = strings.TrimSpace(value)
+	case "catalogExpects":
+		if raw := strings.TrimSpace(value); raw != "" {
+			_ = json.Unmarshal([]byte(raw), &c.Expects)
+		}
+	case "catalogSatisfies":
+		if raw := strings.TrimSpace(value); raw != "" {
+			_ = json.Unmarshal([]byte(raw), &c.Satisfies)
+		}
+	}
+}
+
 func (s *sqliteRepository) loadHeaders(ctx context.Context, c *Component) error {
 	rows, err := s.db.QueryContext(ctx, `SELECT field, value FROM component_headers WHERE component_id = ?`, c.ID)
 	if err != nil {
@@ -696,12 +773,8 @@ func (s *sqliteRepository) loadHeaders(ctx context.Context, c *Component) error 
 		return fmt.Errorf("iterate headers for %q: %w", c.ID, err)
 	}
 	c.Headers = headers
-	c.CatalogID = strings.TrimSpace(headers["catalogId"])
-	if raw := strings.TrimSpace(headers["catalogExpects"]); raw != "" {
-		_ = json.Unmarshal([]byte(raw), &c.Expects)
-	}
-	if raw := strings.TrimSpace(headers["catalogSatisfies"]); raw != "" {
-		_ = json.Unmarshal([]byte(raw), &c.Satisfies)
+	for field, value := range headers {
+		applyCatalogHeader(c, field, value)
 	}
 	return nil
 }

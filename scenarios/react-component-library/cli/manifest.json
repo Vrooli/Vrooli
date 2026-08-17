@@ -1701,8 +1701,8 @@
             ]
           }
         },
-        {
-          "name": "gates",
+    {
+      "name": "gates",
           "description": "Run one deterministic catalog gate against the live corpus",
           "positionals": [
             {
@@ -1716,15 +1716,45 @@
             "service": "CatalogService",
             "method": "RunGate"
           },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal",
-              "filesystem:read"
-            ]
-          }
-        }
+      "governance": {
+        "effect": "read",
+        "run_eligible": true,
+        "permissions": [
+          "network:internal",
+          "filesystem:read"
+        ]
+      }
+    },
+    {
+      "name": "graph",
+      "description": "Show catalog dependencies, dependents, closure bands, and blast radius for an asset",
+      "positionals": [
+        { "name": "asset-id", "required": true, "description": "Catalog asset id" }
+      ],
+      "binding": { "kind": "connect-rpc", "service": "CatalogService", "method": "GetAssetRelationships" },
+      "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal", "filesystem:read"] }
+    },
+    {
+      "name": "graph-reconcile",
+      "description": "Compare catalog, manifest, and actual import dependency graphs",
+      "binding": { "kind": "connect-rpc", "service": "CatalogService", "method": "ReconcileGraph" },
+      "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal", "filesystem:read"] }
+    },
+    {
+      "name": "structure",
+      "description": "Show catalog population, graph invariants, and largest blast radii",
+      "binding": { "kind": "connect-rpc", "service": "CatalogService", "method": "GetCatalogStructure" },
+      "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal", "filesystem:read"] }
+    },
+    {
+      "name": "ports",
+      "description": "Show unmet host capabilities for an asset closure",
+      "positionals": [
+        { "name": "asset-id", "required": true, "description": "Catalog asset id" }
+      ],
+      "binding": { "kind": "connect-rpc", "service": "CatalogService", "method": "GetAssetPortContract" },
+      "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal", "filesystem:read"] }
+    }
       ]
     }
   ],

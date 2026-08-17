@@ -3,6 +3,7 @@ package catalog
 import (
 	"context"
 	"fmt"
+	"sort"
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliapp"
@@ -59,15 +60,167 @@ func (h *handlers) gate(ctx cliapp.RunContext) error {
 	if resp == nil || resp.Msg == nil {
 		return fmt.Errorf("server returned no catalog gate result")
 	}
-	findings := make([]string, 0, len(resp.Msg.Findings))
+	// Findings render grouped by remediation, not one flat list. A gate that
+	// reports 410 assets failing for one reason should print that reason once
+	// and then the affected locations — repeating an identical paragraph per
+	// row buries the single fact the reader needs under its own restatement.
+	type group struct {
+		code, severity, remediation, docs string
+		locations                         []string
+	}
+	order := make([]string, 0, len(resp.Msg.Findings))
+	groups := map[string]*group{}
 	for _, finding := range resp.Msg.Findings {
-		findings = append(findings, fmt.Sprintf("%s [%s] %s: %s", finding.AssetId, finding.Code, finding.Severity, finding.Message))
+		location := finding.AssetId
+		if finding.File != "" {
+			location = finding.File
+			if finding.Line > 0 {
+				location = fmt.Sprintf("%s:%d", finding.File, finding.Line)
+			}
+		}
+		key := finding.Code + "\x00" + finding.Remediation
+		existing, seen := groups[key]
+		if !seen {
+			existing = &group{code: finding.Code, severity: finding.Severity, remediation: finding.Remediation, docs: finding.DocsRef}
+			groups[key] = existing
+			order = append(order, key)
+		}
+		entry := location
+		if finding.Message != "" {
+			entry += ": " + finding.Message
+		}
+		existing.locations = append(existing.locations, entry)
+	}
+
+	const maxLocations = 20
+	findings := make([]string, 0, len(order))
+	for _, key := range order {
+		g := groups[key]
+		entry := fmt.Sprintf("[%s] %s — %d location(s)", g.code, g.severity, len(g.locations))
+		shown := g.locations
+		if len(shown) > maxLocations {
+			shown = shown[:maxLocations]
+		}
+		for _, location := range shown {
+			entry += "\n    " + location
+		}
+		if len(g.locations) > len(shown) {
+			// Never silently truncate: a hidden remainder reads as full
+			// coverage. Say how many were withheld and how to see them.
+			entry += fmt.Sprintf("\n    … and %d more (use --json for the complete list)", len(g.locations)-len(shown))
+		}
+		if g.remediation != "" {
+			entry += "\n  fix: " + g.remediation
+		}
+		if g.docs != "" {
+			entry += "\n  docs: " + g.docs
+		}
+		findings = append(findings, entry)
+	}
+	blocking, advisory := 0, 0
+	for _, finding := range resp.Msg.Findings {
+		if finding.Severity == "error" {
+			blocking++
+		} else {
+			advisory++
+		}
+	}
+	summary := fmt.Sprintf("Gate %s: inspected %d file(s), %d finding(s)", resp.Msg.Gate, resp.Msg.InspectedFiles, len(resp.Msg.Findings))
+	if len(resp.Msg.Findings) > 0 {
+		summary += fmt.Sprintf(" (%d blocking, %d advisory) in %d distinct cause(s)", blocking, advisory, len(findings))
+	}
+	lines := []string{summary + "."}
+	if resp.Msg.InspectedFiles == 0 {
+		lines = append(lines, "WARNING: this gate inspected zero files. A gate that inspects nothing cannot pass; treat this as a runner fault, not a clean result.")
 	}
 	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
-		Summary:        []string{fmt.Sprintf("Gate %s: inspected %d file(s), %d finding(s).", resp.Msg.Gate, resp.Msg.InspectedFiles, len(findings))},
+		Summary:        lines,
 		ResultsHeading: "Findings",
 		Results:        findings,
 	})
+}
+
+func (h *handlers) graph(ctx cliapp.RunContext) error {
+	resp, err := h.client.GetAssetRelationships(context.Background(), connect.NewRequest(&catalogv1.GetAssetRelationshipsRequest{AssetId: ctx.Positional("asset-id")}))
+	if err != nil {
+		return cliapp.WrapAPIError("get catalog graph", err, nil)
+	}
+	if resp == nil || resp.Msg == nil || resp.Msg.Relationships == nil {
+		return fmt.Errorf("server returned no catalog graph")
+	}
+	r := resp.Msg.Relationships
+	results := []string{fmt.Sprintf("depends-on: %d direct, %d in closure", len(r.DirectDependencies), len(r.Closure)), fmt.Sprintf("used-by: %d direct, %d transitive", len(r.DirectDependents), len(r.TransitiveDependents))}
+	for _, band := range r.ClosureBands {
+		results = append(results, fmt.Sprintf("rung %d (%s): %d", band.Rung, band.RungName, band.Count))
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("Asset graph: %s; blast radius %d.", r.Root.AssetId, len(r.TransitiveDependents))}, ResultsHeading: "Relationships", Results: results})
+}
+
+func (h *handlers) structure(ctx cliapp.RunContext) error {
+	resp, err := h.client.GetCatalogStructure(context.Background(), connect.NewRequest(&catalogv1.GetCatalogStructureRequest{}))
+	if err != nil {
+		return cliapp.WrapAPIError("get catalog structure", err, nil)
+	}
+	if resp == nil || resp.Msg == nil || resp.Msg.Structure == nil {
+		return fmt.Errorf("server returned no catalog structure")
+	}
+	structure := resp.Msg.Structure
+	results := make([]string, 0, len(structure.Population)+len(structure.Invariants)+len(structure.BlastRadius))
+	for _, row := range structure.Population {
+		results = append(results, fmt.Sprintf("rung %d (%s): %d", row.Rung, row.RungName, row.Count))
+	}
+	for _, invariant := range structure.Invariants {
+		results = append(results, fmt.Sprintf("%s: %s", invariant.Label, invariant.Status))
+	}
+	for _, row := range structure.BlastRadius {
+		if row.Asset != nil {
+			results = append(results, fmt.Sprintf("blast radius %s: %d", row.Asset.AssetId, row.TransitiveDependentCount))
+		}
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{"Catalog structure"}, ResultsHeading: "Structure", Results: results})
+}
+
+func (h *handlers) reconcile(ctx cliapp.RunContext) error {
+	resp, err := h.client.ReconcileGraph(context.Background(), connect.NewRequest(&catalogv1.ReconcileGraphRequest{}))
+	if err != nil {
+		return cliapp.WrapAPIError("reconcile catalog graph", err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no graph reconciliation")
+	}
+	counts := map[string]int32{}
+	if resp.Msg.Distribution != nil {
+		counts = resp.Msg.Distribution.Counts
+	}
+	verdicts := make([]string, 0, len(counts))
+	for verdict := range counts {
+		verdicts = append(verdicts, verdict)
+	}
+	sort.Strings(verdicts)
+	results := make([]string, 0, len(counts))
+	for _, verdict := range verdicts {
+		results = append(results, fmt.Sprintf("%s: %d", verdict, counts[verdict]))
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("Graph reconciliation: %d assets.", len(resp.Msg.Assets))}, ResultsHeading: "Verdict distribution", Results: results})
+}
+
+func (h *handlers) ports(ctx cliapp.RunContext) error {
+	resp, err := h.client.GetAssetPortContract(context.Background(), connect.NewRequest(&catalogv1.GetAssetPortContractRequest{AssetId: ctx.Positional("asset-id")}))
+	if err != nil {
+		return cliapp.WrapAPIError("get catalog ports", err, nil)
+	}
+	if resp == nil || resp.Msg == nil || resp.Msg.Contract == nil {
+		return fmt.Errorf("server returned no asset port contract")
+	}
+	contract := resp.Msg.Contract
+	results := make([]string, 0, len(contract.UnmetPorts))
+	for _, port := range contract.UnmetPorts {
+		results = append(results, fmt.Sprintf("%s: demanded by %d asset(s), %d candidate satisfier(s)", port.CapabilityId, len(port.DemandingAssets), len(port.CandidateSatisfiers)))
+	}
+	if contract.SelfContained {
+		results = append(results, "self-contained: closure satisfies all host ports")
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("Asset port contract: %d closure assets.", contract.ClosureCount)}, ResultsHeading: "Unmet ports", Results: results})
 }
 
 func formatMaturity(values map[string]int32) []string {

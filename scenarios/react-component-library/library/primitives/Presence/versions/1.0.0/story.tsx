@@ -6,7 +6,7 @@ export function TogglePresence({
 }: StoryHarnessProps<{ present: boolean; children: string }>) {
   const [present, setPresent] = useState(args.present);
   return (
-    <div className="space-y-4">
+    <div className="space-y-space-sm">
       <button
         type="button"
         onClick={() => setPresent((current) => !current)}

@@ -15,6 +15,7 @@ import (
 	"sync"
 
 	"github.com/santhosh-tekuri/jsonschema/v5"
+	"react-component-library/internal/assetrung"
 )
 
 type Finding struct {
@@ -155,7 +156,14 @@ type gateConfig struct {
 }
 
 type catalogConfig struct {
-	Gates []gateConfig `json:"gates"`
+	Domains []domainConfig `json:"domains"`
+	Gates   []gateConfig   `json:"gates"`
+}
+
+type domainConfig struct {
+	ID          string `json:"id"`
+	Order       int    `json:"order"`
+	Description string `json:"description"`
 }
 
 func crossRegistryFindings(repoRoot, catalogDir string) []Finding {
@@ -177,7 +185,12 @@ func crossRegistryFindings(repoRoot, catalogDir string) []Finding {
 		docs = append(docs, doc)
 	}
 	var findings []Finding
+	findings = append(findings, domainOrderFindings(repoRoot, catalogDir)...)
 	for _, doc := range docs {
+		if _, err := assetrung.Of(doc.Asset.Kind); err != nil {
+			findings = append(findings, Finding{Code: "catalog.unknown_kind", Severity: "error", Location: doc.Asset.ID, Message: fmt.Sprintf("asset %q has unrecognized kind %q", doc.Asset.ID, doc.Asset.Kind)})
+			continue
+		}
 		for _, target := range doc.Asset.Targets {
 			if !targets[target] {
 				findings = append(findings, Finding{Code: "catalog.target_missing", Severity: "error", Location: doc.Asset.ID, Message: fmt.Sprintf("target %q is not declared by any scenario template", target)})
@@ -257,7 +270,40 @@ func containsRequires(doc assetDoc, id string) bool {
 }
 
 func rank(kind string) int {
-	return map[string]int{"foundation": 0, "runtime-hook": 1, "runtime-service": 1, "adapter": 1, "primitive": 2, "component": 3, "pattern": 4, "navigation": 4, "page-template": 5, "fixture": -1, "generator": 1}[kind]
+	rung, err := assetrung.Of(kind)
+	if err != nil {
+		return -1
+	}
+	return int(rung)
+}
+
+func domainOrderFindings(repoRoot, catalogDir string) []Finding {
+	data, err := os.ReadFile(filepath.Join(catalogDir, "config.json"))
+	if err != nil {
+		return nil
+	}
+	var config catalogConfig
+	if json.Unmarshal(data, &config) != nil {
+		return nil
+	}
+	byOrder := map[int][]domainConfig{}
+	var findings []Finding
+	for _, domain := range config.Domains {
+		if domain.Order <= 0 {
+			findings = append(findings, Finding{Code: "catalog.domain_order_invalid", Severity: "error", Location: rel(repoRoot, filepath.Join(catalogDir, "config.json")), Message: fmt.Sprintf("domain %q must declare an order greater than zero", domain.ID)})
+		}
+		byOrder[domain.Order] = append(byOrder[domain.Order], domain)
+	}
+	location := rel(repoRoot, filepath.Join(catalogDir, "config.json"))
+	for order, domains := range byOrder {
+		if order <= 0 || len(domains) < 2 {
+			continue
+		}
+		for _, domain := range domains {
+			findings = append(findings, Finding{Code: "catalog.domain_order_duplicate", Severity: "error", Location: location, Message: fmt.Sprintf("domain %q shares order %d with another domain", domain.ID, order)})
+		}
+	}
+	return findings
 }
 
 func cycleFindings(docs []assetDoc, byID map[string]assetDoc) []Finding {

@@ -348,6 +348,26 @@ Every durable scenario document should be registered in
 `docs/manifest.json`. Put deep domain-specific documentation under
 `docs/domains/<domain>/` when `DOMAINS.md` would become noisy.
 
+## Catalog graph projection
+
+The catalog domain keeps desired-state dependency data in memory as a typed
+forward and reverse index. `assetrung` owns the six existing rung values and
+fails closed on unknown kinds; `assetgraph` owns closure, dependents, cycle
+errors, and deterministic rung bands. The API exposes this read model through
+the generated catalog proto, while the CLI and UI remain thin consumers.
+
+The graph is intentionally a projection, not a new persistence model. Catalog
+`requires` edges define closure; `suggests` edges remain advisory. The
+relationships tab presents rung bands rather than a node-link visualization,
+and the dashboard structure panel presents rung population and blast radius.
+The reconciler separately compares catalog edges, manifest pins, and imports
+from `typescript-code-graph`; it reports drift and never edits `library/`.
+
+Port obligations are derived from the same closure: port-facet capabilities
+demanded by closure assets are subtracted by port capabilities satisfied in the
+closure. The remainder is the host contract and is available through both the
+CLI and relationships read model.
+
 ## Cross-References
 
 - [`START-HERE.md`](../START-HERE.md) — first implementation workflow

@@ -90,6 +90,49 @@ func TestLiveCatalogValidation(t *testing.T) {
 	}
 }
 
+func TestDomainOrderFindingsReportBothDuplicates(t *testing.T) {
+	root := t.TempDir()
+	catalogDir := filepath.Join(root, "scenarios", "react-component-library", "catalog")
+	if err := os.MkdirAll(catalogDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(catalogDir, "config.json"), []byte(`{"domains":[{"id":"a","order":10},{"id":"b","order":10},{"id":"c","order":20}]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	findings := domainOrderFindings(root, catalogDir)
+	duplicates := 0
+	for _, finding := range findings {
+		if finding.Code == "catalog.domain_order_duplicate" && finding.Severity == "error" {
+			duplicates++
+		}
+	}
+	if duplicates != 2 {
+		t.Fatalf("duplicate findings=%d: %#v", duplicates, findings)
+	}
+}
+
+func TestUnknownKindProducesTypedFinding(t *testing.T) {
+	root := t.TempDir()
+	catalogDir := filepath.Join(root, "scenarios", "react-component-library", "catalog")
+	assetDir := filepath.Join(catalogDir, "assets", "controls")
+	if err := os.MkdirAll(assetDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(catalogDir, "config.json"), []byte(`{"domains":[{"id":"controls","order":10}]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(assetDir, "unknown.json"), []byte(`{"kind":"catalog-asset","asset":{"id":"controls.unknown","kind":"typo-kind","targets":[]}}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	findings := crossRegistryFindings(root, catalogDir)
+	for _, finding := range findings {
+		if finding.Code == "catalog.unknown_kind" && finding.Severity == "error" && finding.Location == "controls.unknown" {
+			return
+		}
+	}
+	t.Fatalf("unknown-kind finding missing: %#v", findings)
+}
+
 func min(a, b int) int {
 	if a < b {
 		return a

@@ -4,8 +4,17 @@
   "displayName": "AppNavigation",
   "description": "One composed navigation contract owning sidebar-to-drawer, modal-to-bottom-sheet, and header-to-bottom-navigation transformations.",
   "assetKind": "component",
-  "tags": ["navigation", "responsive", "token-bound"],
-  "latest": "1.0.0",
-  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
+  "tags": [
+    "navigation",
+    "responsive",
+    "token-bound"
+  ],
+  "latest": "1.1.0",
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native"
+    }
+  ],
   "dependencies": []
 }

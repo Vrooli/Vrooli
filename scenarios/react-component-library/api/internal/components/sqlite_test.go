@@ -101,6 +101,7 @@ func TestSQLiteRepository_UpsertManifestPersistsLatestHeadersForCategoryFacet(t 
 			"deps":      `{"react":"^18"}`,
 			"category":  "controls",
 			"warning":   "DO NOT REMOVE",
+			"catalogId": "controls.button",
 		},
 	})
 	require.NoError(t, err)
@@ -115,7 +116,12 @@ func TestSQLiteRepository_UpsertManifestPersistsLatestHeadersForCategoryFacet(t 
 	require.NoError(t, err)
 	require.Len(t, got, 1)
 	require.Equal(t, "react-component-library:Button", got[0].LibraryID)
-	require.Nil(t, got[0].Headers, "List omits headers; Get carries them")
+	require.Nil(t, got[0].Headers, "List omits the arbitrary header map; Get carries it")
+	// The lean-payload rule applies to the raw map only. The typed catalog
+	// projection must survive List: it is what the catalog browser groups by,
+	// and loading it as a side effect of the full header map is what left
+	// CatalogID empty for every listed asset.
+	require.Equal(t, "controls.button", got[0].CatalogID, "List must carry the typed catalog projection")
 
 	fetched, err := repo.Get(ctx, c.ID)
 	require.NoError(t, err)

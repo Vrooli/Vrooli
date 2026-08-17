@@ -32,6 +32,14 @@
   ],
   "gates": [
     {
+      "id": "graph-reconciled",
+      "rung": "implemented",
+      "description": "Reports catalog, manifest, and TypeScript import dependency drift without repairing manifests.",
+      "appliesTo": ["foundation", "runtime-hook", "runtime-service", "adapter", "generator", "primitive", "component", "pattern", "page-template", "navigation"],
+      "blocking": false,
+      "runner": { "react-vite": "react-component-library catalog gates graph-reconciled" }
+    },
+    {
       "id": "token-vocabulary",
       "rung": "implemented",
       "description": "Active library source uses the single retained CSS custom-property vocabulary.",

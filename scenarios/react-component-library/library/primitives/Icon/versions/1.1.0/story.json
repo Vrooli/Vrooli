@@ -1,0 +1,92 @@
+{
+  "schemaVersion": 3,
+  "kind": "component",
+  "title": "Icon",
+  "args": {
+    "fields": [
+      {
+        "path": "name",
+        "label": "Name",
+        "kind": "enum",
+        "default": "check",
+        "options": ["check", "close", "chevronDown", "chevronRight", "menu", "search", "plus", "arrowStart", "arrowEnd"]
+      }
+    ]
+  },
+  "environment": { "fixtures": [] },
+  "stories": [
+    {
+      "id": "name-check",
+      "name": "Check",
+      "harness": "IconShowcase",
+      "args": { "name": "check" },
+      "expect": [
+        { "kind": "role", "role": "img", "name": "Check" },
+        { "kind": "text", "value": "Icons with a point of view" },
+        { "kind": "layout", "selector": "[data-rcl-icon-showcase]", "minWidth": 240, "minHeight": 180, "noOverflow": true }
+      ]
+    },
+    {
+      "id": "name-search",
+      "name": "Search",
+      "harness": "IconShowcase",
+      "args": { "name": "search" },
+      "expect": [
+        { "kind": "role", "role": "img", "name": "Search" },
+        { "kind": "attribute", "selector": "[data-icon=search]", "name": "aria-label", "value": "Search" }
+      ]
+    },
+    {
+      "id": "name-arrow-end",
+      "name": "Arrow end",
+      "harness": "IconShowcase",
+      "args": { "name": "arrowEnd" },
+      "expect": [
+        { "kind": "role", "role": "img", "name": "Arrow end" },
+        { "kind": "text", "value": "Arrow end · named for assistive technology" }
+      ]
+    },
+    {
+      "id": "name-close",
+      "name": "Close",
+      "harness": "IconShowcase",
+      "args": { "name": "close" },
+      "expect": [{ "kind": "role", "role": "img", "name": "Close" }]
+    },
+    {
+      "id": "name-chevron-down",
+      "name": "Chevron down",
+      "harness": "IconShowcase",
+      "args": { "name": "chevronDown" },
+      "expect": [{ "kind": "role", "role": "img", "name": "Chevron down" }]
+    },
+    {
+      "id": "name-chevron-right",
+      "name": "Chevron right",
+      "harness": "IconShowcase",
+      "args": { "name": "chevronRight" },
+      "expect": [{ "kind": "role", "role": "img", "name": "Chevron right" }]
+    },
+    {
+      "id": "name-menu",
+      "name": "Menu",
+      "harness": "IconShowcase",
+      "args": { "name": "menu" },
+      "expect": [{ "kind": "role", "role": "img", "name": "Menu" }]
+    },
+    {
+      "id": "name-plus",
+      "name": "Plus",
+      "harness": "IconShowcase",
+      "args": { "name": "plus" },
+      "expect": [{ "kind": "role", "role": "img", "name": "Plus" }]
+    },
+    {
+      "id": "name-arrow-start",
+      "name": "Arrow start",
+      "harness": "IconShowcase",
+      "args": { "name": "arrowStart" },
+      "expect": [{ "kind": "role", "role": "img", "name": "Arrow start" }]
+    }
+  ]
+}

@@ -4,7 +4,7 @@
   "displayName": "Menu",
   "description": "An anchored command menu with roving focus, typeahead, checkbox and radio items, and responsive layering.",
   "assetKind": "component",
-  "latest": "1.0.0",
+  "latest": "1.1.0",
   "tags": [
     "overlay",
     "menu",
@@ -14,16 +14,31 @@
     "token-bound"
   ],
   "dependencies": [
-    { "libraryId": "react-component-library:Popover", "version": "1.0.0" },
+    {
+      "libraryId": "react-component-library:Popover",
+      "version": "1.0.0"
+    },
     {
       "libraryId": "react-component-library:useRovingFocus",
       "version": "1.0.0"
     },
-    { "libraryId": "react-component-library:useTypeahead", "version": "1.0.0" }
+    {
+      "libraryId": "react-component-library:useTypeahead",
+      "version": "1.0.0"
+    }
   ],
   "designStyles": [
-    { "styleId": "vrooli-default", "affinity": "native" },
-    { "styleId": "vrooli-command-display", "affinity": "compatible" },
-    { "styleId": "vrooli-conversion-landing", "affinity": "compatible" }
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native"
+    },
+    {
+      "styleId": "vrooli-command-display",
+      "affinity": "compatible"
+    },
+    {
+      "styleId": "vrooli-conversion-landing",
+      "affinity": "compatible"
+    }
   ]
 }

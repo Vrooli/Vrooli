@@ -83,6 +83,59 @@ separately scoped requirement before adding any execution semantics.
 `docs/concepts/FLOWS.md#preview-workspace-experiment`,
 `requirements/17-examples-as-data/module.json`.
 
+## Design ramp debt — `design-system/no-raw-dimensions` baseline
+
+**Status:** rule landed at `warn` on 2026-08-15 against the baseline below. The
+count is a ratchet: it may only decrease. When it reaches zero, flip the rule to
+`error` in `ui/eslint.config.js` and delete this section.
+
+**Do not** silence findings by adding files to an ignore list. A grandfathered
+file is one nothing will ever come back to, and the debt here is exactly the
+kind that compounds invisibly.
+
+| Family | Count | Fix |
+|---|---:|---|
+| `sizing` (`w-*`, `h-*`) | 280 | Route icons through the `Icon` primitive's `size` scale; prefer layout constraints over fixed box dimensions. No autofix — each needs judgement. |
+| `spacingFixable` | 14 | `eslint --fix` rewrites these to the matching ramp step. |
+| `arbitrary` (`[13px]`) | 5 | Nearest ramp step, or publish the missing rung. |
+| `spacingUnmapped` | 3 | Value lands between ramp steps; pick the nearest or publish the rung. |
+| **Total** | **302** across 33 files | |
+
+**Why this existed.** The Go `tokens` catalog gate has enforced this rule over
+`library/**` all along and reports 0 findings across 331 active sources. Its
+source glob never covered `ui/src/**`, so the workspace application — the
+surface a maintainer actually looks at — accumulated 302 raw dimensions while
+the library it showcases stayed clean. The lint rule now applies to both
+surfaces from one implementation so the two cannot diverge again.
+
+**The library was not as clean as the gate reported.** On its first run the new
+rule found 3 real violations in `library/**` that the Go gate had been blind to:
+`space-y-3` in `ColorPicker/versions/1.0.0/story.tsx` (×2) and `space-y-4` in
+`Presence/versions/1.0.0/story.tsx`. The Go `literalDimension` regex enumerates
+`p|m|gap|w|h` prefixes and omits `space-x`/`space-y`, so those utilities were
+never inspected. All 3 are fixed; the library config runs the rule at `error`
+and is green. This is the argument for the rule living in ESLint rather than
+being a second Go glob: the AST rule classifies by property prefix set rather
+than by a hand-maintained regex alternation, so a missed prefix is a one-line
+addition to `SPACING_PREFIXES` instead of a silent blind spot.
+
+**Largest concentrations** (`ui/src/`):
+
+```
+49  features/components/ComponentEditorController.tsx
+39  features/components/ComponentEditorSource.tsx
+30  features/components/ComponentTestPanel.tsx
+22  features/components/EmulatorChrome.tsx
+21  components/color-picker-harvest/ColorPicker.tsx
+20  features/versions/VersionDiffViewer.tsx
+19  features/catalog/CatalogBrowser.tsx
+```
+
+The `sizing` family dominating at 280 is not incidental: the app renders raw
+`lucide-react` icons with `h-4 w-4` rather than passing them through the `Icon`
+primitive, so it never inherits the size scale. That is the mechanical cause of
+the icon-size inconsistency visible across the workspace chrome.
+
 ## Architecture Drift
 
 Use this section for deferred findings from `screaming-architecture-audit`.

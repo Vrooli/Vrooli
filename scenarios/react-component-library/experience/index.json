@@ -209,6 +209,18 @@
       "path": "components/cartesian-charts.json",
       "title": "Cartesian Charts",
       "status": "active"
+    },
+    {
+      "id": "relationships-panel",
+      "path": "components/relationships-panel.json",
+      "title": "Catalog Relationships Panel",
+      "status": "active"
+    },
+    {
+      "id": "structure-panel",
+      "path": "components/structure-panel.json",
+      "title": "Catalog Structure Panel",
+      "status": "active"
     }
   ]
 }

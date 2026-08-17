@@ -329,3 +329,12 @@ The AppShell skip link uses a tokenized 44px in-viewport hit area with clipped i
 # 2026-08-10 — Semantic scroll containers own the navigation role
 
 Tabs keeps the horizontal overflow on the bounded viewport that carries `role="tablist"` and its accessible name. The inner strip is only a layout surface. This prevents the intrinsic width of long tab labels from being reported as document chrome or horizontal page overflow while preserving roving focus and the tab/tabpanel relationship.
+# 2026-08-14 — Catalog relationships use rung bands and read-only reconciliation
+
+The catalog graph is indexed in memory with forward and reverse edges. Closure
+surfaces use six labelled rung bands because the enforced rung ordering is more
+legible and deterministic than a force-directed graph at catalog scale.
+`graph-reconciled` is deliberately non-blocking: it measures existing catalog,
+manifest, and import drift without writing `library/**`. Host obligations are
+derived from port-facet capabilities over the closure and remain distinct from
+behavior claims.

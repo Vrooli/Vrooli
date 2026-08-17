@@ -25,6 +25,8 @@ import { ChevronDown, ChevronRight, File, FolderOpen } from "lucide-react";
 export interface TreeNode {
   id: string;
   label: ReactNode;
+  /** Optional stable test hook attached to the selectable tree row. */
+  testId?: string;
   /** Optional accessible name when the visible label contains badges or icons. */
   ariaLabel?: string;
   children?: TreeNode[];
@@ -230,6 +232,7 @@ export function TreeView({
           aria-selected={selectedId === node.id}
           aria-expanded={hasChildren ? isExpanded : undefined}
           aria-disabled={node.disabled || undefined}
+          data-testid={node.testId}
           tabIndex={
             selectedId === node.id || (!selectedId && visibleNodes[0]?.node.id === node.id) ? 0 : -1
           }

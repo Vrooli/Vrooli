@@ -21,7 +21,7 @@ const appNavigationStyles = `
 [data-rcl-app-navigation] [data-rcl-app-navigation-list] a { display: flex; min-block-size: var(--tap-target-min); align-items: center; gap: var(--space-xs); border-radius: var(--radius-control); color: var(--color-muted-foreground); padding: var(--space-2xs) var(--space-xs); font: var(--text-body-sm); text-decoration: none; transition: background-color var(--dur-quick) var(--ease-standard), color var(--dur-quick) var(--ease-standard); }
 [data-rcl-app-navigation] [data-rcl-app-navigation-list] a:hover { background: var(--color-surface-muted); color: var(--color-foreground); }
 [data-rcl-app-navigation] [data-rcl-app-navigation-list] a[aria-current="page"] { background: color-mix(in srgb, var(--color-primary) 10%, var(--color-surface)); color: var(--color-foreground); font-weight: 650; box-shadow: inset var(--space-3xs) 0 var(--color-primary); }
-[data-rcl-app-navigation] [data-rcl-app-navigation-list] svg { color: var(--color-primary); }
+[data-rcl-app-navigation] [data-rcl-app-navigation-list] svg { inline-size: var(--icon-size-sm); block-size: var(--icon-size-sm); flex: 0 0 auto; color: var(--color-primary); }
 [data-rcl-app-navigation] [data-rcl-app-navigation-list] span { min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 [data-rcl-app-navigation] a:focus-visible { outline: var(--border-focus) solid var(--color-focus); outline-offset: var(--space-4xs); }
 [data-rcl-app-navigation][data-viewport-mode="mobile"] { border: 0; border-block-start: var(--border-hairline) solid var(--color-border); border-radius: 0; box-shadow: var(--elev-floating); padding: var(--space-2xs) var(--space-xs) calc(var(--space-2xs) + env(safe-area-inset-bottom, 0px)); }
@@ -46,25 +46,37 @@ const defaultItems: NavigationItem[] = [
     label: "Home",
     href: "/",
     current: true,
-    icon: <Home aria-hidden size="var(--space-sm)" />,
+    icon: <Home aria-hidden />,
   },
   {
     label: "Library",
     href: "/library",
-    icon: <LayoutGrid aria-hidden size="var(--space-sm)" />,
+    icon: <LayoutGrid aria-hidden />,
   },
   {
     label: "Settings",
     href: "/settings",
-    icon: <Settings aria-hidden size="var(--space-sm)" />,
+    icon: <Settings aria-hidden />,
   },
 ];
 
+/**
+ * `brand` is optional as of 1.1.0: when omitted, the brand block is not
+ * rendered at all.
+ *
+ * Previously it defaulted to a literal string and the block always rendered, so
+ * any page that already had its own header — the workspace sidebar, which also
+ * carries the collapse and settings controls — ended up with the product name
+ * twice. A component that unconditionally renders chrome cannot be composed
+ * into a surface that already provides it, and the page has no way to opt out.
+ * Making the block conditional lets the composing surface decide who owns the
+ * brand, which is the only place that knows.
+ */
 export function AppNavigation({
   mode = "desktop",
   items = defaultItems,
   children,
-  brand = "Component Library",
+  brand,
 }: {
   mode?: "mobile" | "tablet" | "desktop" | "wide";
   items?: NavigationItem[];
@@ -85,12 +97,14 @@ export function AppNavigation({
         }
         data-rcl-app-navigation
       >
-        <div data-rcl-app-navigation-brand>
-          <span data-rcl-app-navigation-mark aria-hidden="true">
-            <LayoutGrid size="var(--space-sm)" />
-          </span>
-          <span>{brand}</span>
-        </div>
+        {brand ? (
+          <div data-rcl-app-navigation-brand>
+            <span data-rcl-app-navigation-mark aria-hidden="true">
+              <LayoutGrid />
+            </span>
+            <span>{brand}</span>
+          </div>
+        ) : null}
         <nav aria-label="Application navigation">
           {children ?? (
             <ul data-rcl-app-navigation-list>

@@ -15,6 +15,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"react-component-library/internal/assetrung"
 )
 
 // Asset is one desired-state catalog entry.
@@ -22,7 +24,10 @@ type Asset struct {
 	ID           string
 	Name         string
 	Kind         string
+	Rung         assetrung.Rung
+	RungName     string
 	Domain       string
+	DomainOrder  int
 	Slot         string
 	Delivery     string
 	Targets      []string
@@ -40,7 +45,9 @@ type Asset struct {
 // Implementation is one on-disk component manifest.
 type Implementation struct {
 	// Name is the directory name under any library asset root.
-	Name string
+	Name      string
+	LibraryID string
+	Path      string
 	// Root is "foundations", "hooks", "services", "primitives", or "components".
 	Root string
 	// CatalogID is the nullable back-reference to a catalog asset. Empty means
@@ -52,12 +59,18 @@ type Implementation struct {
 	SupplementalJustification string
 	Latest                    string
 	Slot                      string
+	Dependencies              []ManifestDependency
 	// ExperienceStateKnown is true for live catalog loading. It lets unit
 	// callers retain the small in-memory Compute fixture while production
 	// coverage fail-closes when no registered contract exists.
 	ExperienceStateKnown bool
 	ExperienceRegistered bool
 	ExperienceVacuous    bool
+}
+
+type ManifestDependency struct {
+	LibraryID string
+	Version   string
 }
 
 type rawAsset struct {
@@ -92,12 +105,21 @@ type rawAsset struct {
 	RequiredStates       []string `json:"requiredStates"`
 }
 
+type catalogDomain struct {
+	ID    string `json:"id"`
+	Order int    `json:"order"`
+}
+
 type rawManifest struct {
 	LibraryID                 string `json:"libraryId"`
 	CatalogID                 string `json:"catalogId"`
 	SupplementalJustification string `json:"x-supplementalJustification"`
 	Latest                    string `json:"latest"`
 	Slot                      string `json:"slot"`
+	Dependencies              []struct {
+		LibraryID string `json:"libraryId"`
+		Version   string `json:"version"`
+	} `json:"dependencies"`
 }
 
 // LoadGateDefinitions reads the catalog gate registry without coupling API
@@ -118,6 +140,10 @@ func LoadGateDefinitions(configPath string) ([]GateDefinition, error) {
 
 // LoadCatalog reads every asset document under catalogDir/assets.
 func LoadCatalog(catalogDir string) ([]Asset, error) {
+	orders, err := loadDomainOrders(filepath.Join(catalogDir, "config.json"))
+	if err != nil {
+		return nil, err
+	}
 	paths, err := filepath.Glob(filepath.Join(catalogDir, "assets", "*", "*.json"))
 	if err != nil {
 		return nil, fmt.Errorf("scan catalog: %w", err)
@@ -138,12 +164,17 @@ func LoadCatalog(catalogDir string) ([]Asset, error) {
 		}
 		asset := Asset{
 			ID: raw.Asset.ID, Name: raw.Asset.Name, Kind: raw.Asset.Kind,
-			Domain: raw.Asset.Domain, Slot: raw.Asset.Slot, Delivery: raw.Asset.Delivery,
+			Domain: raw.Asset.Domain, DomainOrder: orders[raw.Asset.Domain], Slot: raw.Asset.Slot, Delivery: raw.Asset.Delivery,
 			Targets: raw.Asset.Targets, Kits: raw.Asset.Kits,
 			Priority: raw.Asset.Target.Priority, Maturity: raw.Asset.Target.Maturity,
 			Satisfies: raw.Satisfies, Capabilities: raw.RequiredCapabilities,
 			States: raw.RequiredStates,
 		}
+		rung, err := assetrung.Of(asset.Kind)
+		if err != nil {
+			return nil, fmt.Errorf("asset %s: %w", asset.ID, err)
+		}
+		asset.Rung, asset.RungName = rung, rung.Name()
 		for _, r := range raw.Dependencies.Requires {
 			asset.Requires = append(asset.Requires, r.Asset)
 		}
@@ -156,6 +187,27 @@ func LoadCatalog(catalogDir string) ([]Asset, error) {
 		out = append(out, asset)
 	}
 	return out, nil
+}
+
+func loadDomainOrders(path string) (map[string]int, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return map[string]int{}, nil
+		}
+		return nil, fmt.Errorf("read catalog config: %w", err)
+	}
+	var config struct {
+		Domains []catalogDomain `json:"domains"`
+	}
+	if err := json.Unmarshal(data, &config); err != nil {
+		return nil, fmt.Errorf("parse catalog config: %w", err)
+	}
+	orders := make(map[string]int, len(config.Domains))
+	for _, domain := range config.Domains {
+		orders[domain.ID] = domain.Order
+	}
+	return orders, nil
 }
 
 // LoadImplementations reads every component.json under the library roots.
@@ -179,12 +231,21 @@ func LoadImplementations(libraryDir string) ([]Implementation, error) {
 			}
 			implementation := Implementation{
 				Name:                      filepath.Base(filepath.Dir(path)),
+				LibraryID:                 raw.LibraryID,
+				Path:                      path,
 				Root:                      root,
 				CatalogID:                 raw.CatalogID,
 				SupplementalJustification: raw.SupplementalJustification,
 				Latest:                    raw.Latest,
 				Slot:                      raw.Slot,
-				ExperienceStateKnown:      true,
+				Dependencies: func() []ManifestDependency {
+					deps := make([]ManifestDependency, 0, len(raw.Dependencies))
+					for _, dep := range raw.Dependencies {
+						deps = append(deps, ManifestDependency{LibraryID: dep.LibraryID, Version: dep.Version})
+					}
+					return deps
+				}(),
+				ExperienceStateKnown: true,
 			}
 			if state, ok := experience[implementation.Name+"@"+implementation.Latest]; ok {
 				implementation.ExperienceRegistered = true

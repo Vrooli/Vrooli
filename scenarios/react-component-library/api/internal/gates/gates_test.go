@@ -204,6 +204,82 @@ func TestLifecycleGateAcceptsDocumentGuard(t *testing.T) {
 	}
 }
 
+// TestEveryFindingCarriesRemediation is the contract that keeps gate output
+// actionable. A finding states what is wrong; without a remediation the reader
+// is left to infer the fix, and inference is how "use a declared semantic
+// token" survived for as long as it did against a ramp that publishes no such
+// token. Any new gate that emits a bare message fails here.
+func TestEveryFindingCarriesRemediation(t *testing.T) {
+	root := t.TempDir()
+	runners := map[string]func(string) (Result, error){
+		"api":        ValidateAPI,
+		"tokens":     ValidateTokens,
+		"lifecycle":  ValidateLifecycle,
+		"fixtures":   ValidateFixtures,
+		"examples":   ValidateExamples,
+		"rtl":        ValidateRTL,
+		"stress":     ValidateStress,
+		"reduced":    ValidateReducedMotion,
+		"integrate":  ValidateIntegration,
+		"vocabulary": ValidateTokenVocabulary,
+	}
+	for name, run := range runners {
+		t.Run(name, func(t *testing.T) {
+			result, err := run(root)
+			if err != nil {
+				t.Skipf("runner needs inputs this fixture does not supply: %v", err)
+			}
+			if len(result.Findings) == 0 {
+				t.Fatalf("%s produced no findings; the zero-input contract should have emitted one", name)
+			}
+			for _, finding := range result.Findings {
+				if strings.TrimSpace(finding.Remediation) == "" {
+					t.Errorf("finding %q has no remediation; state what to do about it, not only what is wrong", finding.Code)
+				}
+				if strings.TrimSpace(finding.Message) == "" {
+					t.Errorf("finding %q has no message", finding.Code)
+				}
+			}
+		})
+	}
+}
+
+// TestLiteralDimensionFindingsNameTheRightFix guards the classification that
+// makes the tokens gate trustworthy. Spacing has a ramp to point at; sizing
+// does not, and pointing an author at a nonexistent icon-size token is worse
+// than silence because it sends them looking for something they cannot find.
+func TestLiteralDimensionFindingsNameTheRightFix(t *testing.T) {
+	source := []byte("const a = <Icon className=\"h-4 w-4\" />;\nconst b = <div className=\"gap-3\" />;\nconst c = <hr className=\"w-[13px]\" />;\n")
+	findings := literalDimensionFindings("/repo", "/repo/library/components/X/versions/1.0.0/X.tsx", source)
+	byLine := map[int]Finding{}
+	for _, finding := range findings {
+		byLine[finding.Line] = finding
+	}
+	sizing, okSizing := byLine[1]
+	if !okSizing || !strings.Contains(sizing.Remediation, "Icon primitive's size scale") {
+		t.Errorf("sizing finding should point at the Icon size scale, got %q", sizing.Remediation)
+	}
+	if strings.Contains(sizing.Remediation, "semantic token") {
+		t.Errorf("sizing finding must not promise a token the ramp does not publish: %q", sizing.Remediation)
+	}
+	spacing, okSpacing := byLine[2]
+	if !okSpacing || !strings.Contains(spacing.Remediation, "gap-space-") {
+		t.Errorf("spacing finding should name the ramp utilities, got %q", spacing.Remediation)
+	}
+	arbitrary, okArbitrary := byLine[3]
+	if !okArbitrary || !strings.Contains(arbitrary.Remediation, "ramp is missing a rung") {
+		t.Errorf("arbitrary-px finding should offer adding a ramp step, got %q", arbitrary.Remediation)
+	}
+	for _, finding := range findings {
+		if finding.File != "library/components/X/versions/1.0.0/X.tsx" {
+			t.Errorf("finding file should be repo-relative, got %q", finding.File)
+		}
+		if finding.Line == 0 {
+			t.Errorf("finding %q resolved no line", finding.Message)
+		}
+	}
+}
+
 func TestEveryGateRejectsZeroInspectedInputs(t *testing.T) {
 	root := t.TempDir()
 	tests := []struct {

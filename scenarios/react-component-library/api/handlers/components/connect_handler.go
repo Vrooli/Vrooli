@@ -62,7 +62,16 @@ func (h *connectHandler) ListComponents(ctx context.Context, req *connect.Reques
 	resp := &componentsv1.ListComponentsResponse{
 		Components: make([]*componentsv1.Component, 0, len(out)),
 	}
+	index, indexErr := h.catalogIndex()
+	if indexErr != nil {
+		// Not fatal: the implementation registry is still authoritative for
+		// everything except placement. Log it rather than failing the list, but
+		// do log it — a silently unenriched list is what made every asset render
+		// under "Other / Rung 0" without anything reporting a fault.
+		h.deps.Logger.Printf("components.ListComponents: catalog projection unavailable: %v", indexErr)
+	}
 	for _, c := range out {
+		h.enrichCatalogProjection(index, &c)
 		resp.Components = append(resp.Components, domainToProto(c))
 	}
 	return connect.NewResponse(resp), nil
@@ -77,6 +86,11 @@ func (h *connectHandler) GetComponent(ctx context.Context, req *connect.Request[
 		}
 		return nil, connectErr
 	}
+	index, indexErr := h.catalogIndex()
+	if indexErr != nil {
+		h.deps.Logger.Printf("components.GetComponent(%q): catalog projection unavailable: %v", req.Msg.Id, indexErr)
+	}
+	h.enrichCatalogProjection(index, &got)
 	resp := &componentsv1.GetComponentResponse{Component: domainToProto(got)}
 	if req.Msg.GetIncludeExperience() {
 		if h.deps.ExperienceReader == nil {

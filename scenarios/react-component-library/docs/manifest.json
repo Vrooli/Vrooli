@@ -441,6 +441,27 @@
       "extensionPolicy": "Add internal docs for durable developer/agent memory: seams, tests, errors, decisions, problems, progress, audits, and skill-specific findings. Do not place user-facing procedures here.",
       "documents": [
         {
+          "path": "reports/2026-08-13-asset-graph-workspace.md",
+          "docType": "research-report",
+          "title": "Asset Graph Workspace Report",
+          "description": "Measured baseline and design brief for the catalog graph workspace",
+          "audience": ["developers", "agents"],
+          "maturity": "active",
+          "requiredBy": ["implemented"],
+          "completion": "required",
+          "validation": { "forbiddenPlaceholders": ["[TODO]"] }
+        },
+        {
+          "path": "reports/2026-08-13-asset-graph-workspace.html",
+          "docType": "research-report-rendering",
+          "title": "Asset Graph Workspace Visual Report",
+          "description": "Visual companion to the asset graph workspace design brief",
+          "audience": ["developers", "agents"],
+          "maturity": "active",
+          "requiredBy": ["implemented"],
+          "completion": "required"
+        },
+        {
           "path": "internal/SEAMS.md",
           "docType": "seams",
           "title": "Seams",

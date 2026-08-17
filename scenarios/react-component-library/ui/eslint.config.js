@@ -5,7 +5,7 @@ import jsxA11y from "eslint-plugin-jsx-a11y";
 import reactHooks from "eslint-plugin-react-hooks";
 import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
-import stringsPlugin from "./eslint-rules/index.js";
+import stringsPlugin, { designSystem } from "./eslint-rules/index.js";
 
 export default tseslint.config(
   { ignores: ["dist", "node_modules", "coverage", "src/**/flow/generated/**"] },
@@ -40,6 +40,7 @@ export default tseslint.config(
       "react-hooks": reactHooks,
       "react-refresh": reactRefresh,
       strings: stringsPlugin,
+      "design-system": designSystem,
     },
     settings: {
       "import/resolver": {
@@ -217,6 +218,21 @@ export default tseslint.config(
           ],
         },
       ],
+
+      // ════════════════════════════════════════════════════════════════════════
+      // DESIGN RAMP
+      //
+      // Landed at "warn" against a recorded baseline of 382 findings across 36
+      // files (see docs/internal/PROBLEMS.md). The debt predates the rule, so
+      // erroring immediately would have meant one large mechanical change
+      // across 36 files before anything was verifiable. The contract is that
+      // the count only ever goes down; when it reaches zero this flips to
+      // "error" and the baseline line in PROBLEMS.md is deleted.
+      //
+      // Do NOT add files to an ignore list to make this quieter — a
+      // grandfathered file is one nothing will ever come back to.
+      // ════════════════════════════════════════════════════════════════════════
+      "design-system/no-raw-dimensions": "warn",
     },
   },
   {

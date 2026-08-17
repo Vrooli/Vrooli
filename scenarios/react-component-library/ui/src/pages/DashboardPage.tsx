@@ -15,6 +15,7 @@ import { adoptionsClient, LibraryVersionStatus, LocalStatus } from "../api/adopt
 import { listCatalogAssets, type CatalogAsset } from "../api/components";
 import { useTranslation } from "../i18n";
 import { assetInfoTab, assetPath } from "../routes";
+import { StructurePanel } from "../features/dashboard/StructurePanel";
 
 function countAdoptionIssues(
   adoptions: Awaited<ReturnType<typeof adoptionsClient.listAdoptions>>["adoptions"],
@@ -122,6 +123,8 @@ export function DashboardPage() {
           tone={issueCount > 0 ? "warning" : "default"}
         />
       </dl>
+
+      <StructurePanel />
 
       <div className="grid gap-space-sm lg:grid-cols-2">
         <section

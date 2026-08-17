@@ -172,6 +172,20 @@ For a command inside an existing domain:
   "API unreachable at http://localhost:15001 — try `--auto-start` or
   `vrooli scenario start react-component-library`" is good.
 
+## Catalog graph commands
+
+The catalog group exposes the dependency projection without performing graph
+math in the CLI:
+
+- `react-component-library catalog graph <asset-id>` reports direct
+  dependencies, closure bands, direct dependents, and blast radius. Add
+  `--json` for the generated response.
+- `react-component-library catalog graph-reconcile` compares catalog,
+  manifest, and TypeScript import edges and reports one typed verdict per
+  asset. It never repairs manifests.
+- `react-component-library catalog ports <asset-id>` reports unmet port-facet
+  capabilities, demanding closure assets, and candidate satisfiers.
+
 ## Cross-references
 
 - [`api-endpoints.md`](api-endpoints.md) — API endpoints these commands mirror

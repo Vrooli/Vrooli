@@ -3,6 +3,8 @@ package catalogcoverage
 import (
 	"sort"
 	"strings"
+
+	"react-component-library/internal/assetrung"
 )
 
 // Bucket is which side of the join an entry landed on.
@@ -58,15 +60,18 @@ type GateDefinition struct {
 
 // Row is one joined entry.
 type Row struct {
-	AssetID  string
-	Name     string
-	Domain   string
-	Kind     string
-	Priority string
-	Bucket   Bucket
-	Target   string
-	Platform string
-	Achieved AchievedRung
+	AssetID     string
+	Name        string
+	Domain      string
+	Rung        assetrung.Rung
+	RungName    string
+	DomainOrder int
+	Kind        string
+	Priority    string
+	Bucket      Bucket
+	Target      string
+	Platform    string
+	Achieved    AchievedRung
 	// Implementation is the on-disk directory name when one exists.
 	Implementation string
 	// BlocksDownstream is how many other catalog assets transitively require
@@ -148,7 +153,8 @@ func ComputeWithEvidence(assets []Asset, impls []Implementation, evidence []Gate
 		for _, target := range targets {
 			row := Row{
 				AssetID: asset.ID, Name: asset.Name, Domain: asset.Domain,
-				Kind: asset.Kind, Priority: asset.Priority, Target: asset.Maturity, Platform: target,
+				Kind: asset.Kind, Rung: asset.Rung, RungName: asset.RungName, DomainOrder: asset.DomainOrder,
+				Priority: asset.Priority, Target: asset.Maturity, Platform: target,
 				Achieved: RungMissing, BlocksDownstream: downstream[asset.ID],
 			}
 			if impl, ok := byCatalogID[asset.ID]; ok {

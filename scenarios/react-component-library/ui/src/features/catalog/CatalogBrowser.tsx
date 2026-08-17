@@ -43,6 +43,23 @@ function adoptionCounts(asset: CatalogAsset) {
   };
 }
 
+function catalogGroups(assets: CatalogAsset[], other: string) {
+  const domains = new Map<string, { order: number; rungs: Map<number, CatalogAsset[]> }>();
+  for (const asset of assets) {
+    const domain = asset.catalogDomain || asset.slot || asset.category || other;
+    const rung = asset.catalogRung ?? -1;
+    const group = domains.get(domain) ?? { order: asset.catalogDomainOrder || Number.MAX_SAFE_INTEGER, rungs: new Map<number, CatalogAsset[]>() };
+    group.rungs.set(rung, [...(group.rungs.get(rung) ?? []), asset]);
+    domains.set(domain, group);
+  }
+  return [...domains.entries()]
+    .sort(([, a], [, b]) => a.order - b.order)
+    .map(([domain, group]) => [
+      domain,
+      [...group.rungs.entries()].sort(([a], [b]) => a - b),
+    ] as const);
+}
+
 function AssetRow({
   asset,
   presentation,
@@ -227,72 +244,76 @@ export function CatalogBrowser({ compact = false, onNavigate, surfaceId }: Props
     staleTime: 30_000,
   });
   const assets = useMemo(() => query.data?.components ?? [], [query.data]);
-  const groups = useMemo(() => {
-    const grouped = new Map<string, CatalogAsset[]>();
-    for (const asset of assets) {
-      const key = asset.slot || asset.category || t("catalog.other", { defaultValue: "Other" });
-      grouped.set(key, [...(grouped.get(key) ?? []), asset]);
-    }
-    return [...grouped.entries()].sort(([a], [b]) => a.localeCompare(b));
-  }, [assets, t]);
+  const groups = useMemo(
+    () => catalogGroups(assets, t("catalog.other", { defaultValue: "Other" })),
+    [assets, t],
+  );
   const treeNodes = useMemo<TreeNode[]>(
     () =>
-      groups.map(([group, groupedAssets]) => {
-        const adoptionTotal = groupedAssets.reduce(
-          (total, asset) => total + adoptionCounts(asset).direct,
-          0,
-        );
+      groups.map(([domain, rungGroups]) => {
+        const domainAssets = rungGroups.flatMap(([, groupedAssets]) => groupedAssets);
+        const adoptionTotal = domainAssets.reduce((total, asset) => total + adoptionCounts(asset).direct, 0);
         return {
-          id: `catalog-group:${group}`,
+          id: `catalog-domain:${domain}`,
           label: (
-            <span className="flex min-w-0 items-center gap-space-2xs">
-              <span className="min-w-0 flex-1 truncate text-xs font-semibold uppercase tracking-wide">
-                {group}
+            <span className="grid min-w-0 grid-cols-3 items-center gap-space-2xs">
+              <span className="col-span-2 min-w-0 truncate text-label font-semibold uppercase tracking-wide">
+                {domain}
               </span>
-              <span data-testid="catalog-group-adoptions" className="rcl-tree-label-meta shrink-0">
-                {groupedAssets.length} assets · {adoptionTotal} adoptions
+              <span
+                data-testid="catalog-group-adoptions"
+                className="rcl-tree-label-meta min-w-0 truncate text-end tabular-nums"
+                title={`${domainAssets.length} assets, ${adoptionTotal} adoptions`}
+              >
+                {domainAssets.length} · {adoptionTotal}
               </span>
             </span>
           ),
-          ariaLabel: `${group}, ${groupedAssets.length} assets, ${adoptionTotal} adoptions`,
+          ariaLabel: `${domain}, ${domainAssets.length} assets, ${adoptionTotal} adoptions`,
           defaultExpanded: true,
-          children: groupedAssets.map((asset) => {
-            const counts = adoptionCounts(asset);
-            const isHook =
-              (asset.assetKind as unknown) === 2 ||
-              (asset.assetKind as unknown) === "ASSET_KIND_HOOK";
-            return {
-              id: asset.id,
-              label: (
-                <span className="flex min-w-0 items-center gap-space-2xs">
-                  <span
-                    data-testid={selectors.catalog.asset}
-                    className="rcl-tree-label-main min-w-0 flex-1 truncate"
-                  >
-                    {asset.displayName || asset.libraryId}
-                  </span>
-                  <span className="rcl-tree-label-meta shrink-0">
-                    <span>
-                      {t("catalog.adoptions", {
-                        defaultValue: "{{count}} adoptions",
-                        count: counts.direct,
-                      })}
-                    </span>
-                    {isHook && (
-                      <span>
-                        {t("catalog.effectiveAdoptions", {
-                          defaultValue: "{{count}} effective",
-                          count: counts.effective,
-                        })}
+          children: rungGroups.map(([rung, groupedAssets]) => ({
+            id: `catalog-rung:${domain}:${rung}`,
+            label: <span className="text-label font-medium capitalize">{groupedAssets[0]?.catalogRungName || `Rung ${rung}`}</span>,
+            defaultExpanded: true,
+            children: groupedAssets
+              .sort((a, b) => a.id.localeCompare(b.id))
+              .map((asset) => {
+                const counts = adoptionCounts(asset);
+                const isHook = (asset.assetKind as unknown) === 2 || (asset.assetKind as unknown) === "ASSET_KIND_HOOK";
+                return {
+                  id: asset.id,
+                  testId: selectors.catalog.asset,
+                  // A 2:1 grid rather than flex-1 + shrink-0. With shrink-0 the
+                  // metadata kept its full width and the name — the only part
+                  // that identifies the row — was starved to zero at this tree
+                  // depth.
+                  //
+                  // The metrics render as bare numerals because the prose form
+                  // ("0 adoptions · 23 down") cannot fit a third of a sidebar
+                  // row three levels deep, and truncating it yields "0 ad…",
+                  // which is strictly worse than a number: it costs the same
+                  // space and carries no value. The full phrasing stays
+                  // available through the row title and the aria-label, so the
+                  // meaning is reachable without being resident.
+                  label: (
+                    <span className="grid min-w-0 grid-cols-3 items-center gap-space-2xs">
+                      <span className="rcl-tree-label-main col-span-2 min-w-0 truncate">
+                        {asset.displayName || asset.libraryId}
                       </span>
-                    )}
-                  </span>
-                </span>
-              ),
-              ariaLabel: `${asset.displayName || asset.libraryId}, ${asset.libraryId}, ${counts.direct} direct adoptions${isHook ? `, ${counts.effective} effective adoptions` : ""}`,
-              icon: <FileCode2 aria-hidden className="h-4 w-4" />,
-            };
-          }),
+                      <span
+                        className="rcl-tree-label-meta min-w-0 truncate text-end tabular-nums"
+                        title={`${counts.direct} direct adoptions${isHook ? `, ${counts.effective} effective` : ""}${asset.transitiveDependentCount ? `, ${asset.transitiveDependentCount} downstream dependents` : ""}`}
+                      >
+                        {counts.direct}
+                        {asset.transitiveDependentCount ? ` · ${asset.transitiveDependentCount}↓` : ""}
+                      </span>
+                    </span>
+                  ),
+                  ariaLabel: `${asset.displayName || asset.libraryId}, ${asset.libraryId}, ${counts.direct} direct adoptions${asset.transitiveDependentCount ? `, ${asset.transitiveDependentCount} downstream dependents` : ""}`,
+                  icon: <FileCode2 aria-hidden className="h-4 w-4" />,
+                };
+              }),
+          })),
         };
       }),
     [groups, t],

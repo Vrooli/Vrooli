@@ -1,0 +1,1100 @@
+<title>Asset Graph Workspace</title>
+<style>
+  :root {
+    --ground: #f4f6f9;
+    --surface: #ffffff;
+    --raised: #fafbfd;
+    --sunken: #eef1f6;
+    --border: #dbe1ea;
+    --hairline: #e8edf3;
+    --ink: #0d1524;
+    --ink-soft: #33415a;
+    --muted: #5a6779;
+    --faint: #8593a8;
+    --primary: #2563eb;
+    --primary-soft: #e5edfd;
+    --tech: #0e7490;
+    --tech-soft: #ddf1f6;
+    --ok: #15803d;
+    --ok-soft: #dcf3e4;
+    --warn: #b45309;
+    --warn-soft: #fbeedb;
+    --bad: #b91c1c;
+    --bad-soft: #fbe4e4;
+    --rung0: #0e7490;
+    --rung1: #1179a4;
+    --rung2: #1a72bd;
+    --rung3: #2467cf;
+    --rung4: #2f5cd6;
+    --rung5: #4451d8;
+    --shadow: 0 1px 2px rgba(13, 21, 36, .06), 0 6px 18px -10px rgba(13, 21, 36, .18);
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #0a111d;
+      --surface: #111a29;
+      --raised: #162032;
+      --sunken: #0d1523;
+      --border: #243248;
+      --hairline: #1b2739;
+      --ink: #e4ecf7;
+      --ink-soft: #c3d0e2;
+      --muted: #8b9bb2;
+      --faint: #6b7b93;
+      --primary: #5c9dfb;
+      --primary-soft: #17253f;
+      --tech: #38bdf8;
+      --tech-soft: #10293a;
+      --ok: #4ade80;
+      --ok-soft: #10281c;
+      --warn: #fbbf24;
+      --warn-soft: #2b2110;
+      --bad: #f87171;
+      --bad-soft: #2c1618;
+      --rung0: #38bdf8;
+      --rung1: #4fb2f3;
+      --rung2: #62a6ee;
+      --rung3: #7599ea;
+      --rung4: #8a8fe6;
+      --rung5: #9d86e2;
+      --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 24px -12px rgba(0, 0, 0, .7);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground: #0a111d;
+    --surface: #111a29;
+    --raised: #162032;
+    --sunken: #0d1523;
+    --border: #243248;
+    --hairline: #1b2739;
+    --ink: #e4ecf7;
+    --ink-soft: #c3d0e2;
+    --muted: #8b9bb2;
+    --faint: #6b7b93;
+    --primary: #5c9dfb;
+    --primary-soft: #17253f;
+    --tech: #38bdf8;
+    --tech-soft: #10293a;
+    --ok: #4ade80;
+    --ok-soft: #10281c;
+    --warn: #fbbf24;
+    --warn-soft: #2b2110;
+    --bad: #f87171;
+    --bad-soft: #2c1618;
+    --rung0: #38bdf8;
+    --rung1: #4fb2f3;
+    --rung2: #62a6ee;
+    --rung3: #7599ea;
+    --rung4: #8a8fe6;
+    --rung5: #9d86e2;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 24px -12px rgba(0, 0, 0, .7);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 40px 24px 96px;
+    display: flex;
+    flex-direction: column;
+    gap: 56px;
+  }
+
+  h1, h2, h3, h4 { margin: 0; text-wrap: balance; line-height: 1.25; }
+  p { margin: 0; }
+  a { color: var(--primary); }
+
+  code, .mono { font-family: var(--mono); font-variant-ligatures: none; }
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--faint);
+  }
+
+  /* ---------- masthead ---------- */
+
+  .masthead { display: flex; flex-direction: column; gap: 16px; }
+
+  .masthead h1 { font-size: 28px; font-weight: 640; letter-spacing: -.015em; }
+
+  .lede { font-size: 17px; color: var(--ink-soft); max-width: 66ch; }
+
+  .provenance {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 20px;
+    padding-top: 14px;
+    border-top: 1px solid var(--hairline);
+    font-family: var(--mono);
+    font-size: 11.5px;
+    color: var(--faint);
+  }
+
+  .provenance span { white-space: nowrap; }
+
+  /* ---------- census strip ---------- */
+
+  .census {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(158px, 1fr));
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .census div { background: var(--surface); padding: 14px 16px; display: flex; flex-direction: column; gap: 3px; }
+
+  .census .n {
+    font-family: var(--mono);
+    font-size: 22px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -.02em;
+  }
+
+  .census .k { font-size: 12px; color: var(--muted); line-height: 1.4; }
+
+  .census .n.is-warn { color: var(--warn); }
+  .census .n.is-bad { color: var(--bad); }
+
+  /* ---------- sections ---------- */
+
+  section { display: flex; flex-direction: column; gap: 20px; }
+
+  .sec-head { display: flex; flex-direction: column; gap: 8px; }
+
+  .sec-head h2 { font-size: 22px; font-weight: 620; letter-spacing: -.012em; }
+
+  .sec-head p { color: var(--ink-soft); max-width: 72ch; }
+
+  .step-title { display: flex; align-items: baseline; gap: 12px; }
+
+  .step-num {
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--surface);
+    background: var(--ink);
+    padding: 2px 7px;
+    border-radius: 2px;
+    letter-spacing: .04em;
+    flex: none;
+  }
+
+  .note {
+    font-size: 13.5px;
+    color: var(--muted);
+    border-left: 2px solid var(--border);
+    padding-left: 14px;
+    max-width: 74ch;
+  }
+
+  .note strong { color: var(--ink-soft); font-weight: 600; }
+
+  /* ---------- rung ladder ---------- */
+
+  .ladder {
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    background: var(--surface);
+    overflow: hidden;
+  }
+
+  .ladder-row {
+    display: grid;
+    grid-template-columns: 46px 96px minmax(0, 1fr) 74px;
+    align-items: center;
+    gap: 16px;
+    padding: 11px 16px;
+    border-top: 1px solid var(--hairline);
+  }
+
+  .ladder-row:first-child { border-top: 0; }
+
+  .ladder-num {
+    font-family: var(--mono);
+    font-size: 15px;
+    font-weight: 640;
+    font-variant-numeric: tabular-nums;
+    color: var(--rung);
+  }
+
+  .meter { display: flex; gap: 3px; }
+
+  .meter i {
+    display: block;
+    width: 12px;
+    height: 12px;
+    border-radius: 1px;
+    background: var(--hairline);
+  }
+
+  .meter i.on { background: var(--rung); }
+
+  .ladder-kinds { font-family: var(--mono); font-size: 12.5px; color: var(--ink-soft); overflow-wrap: anywhere; }
+
+  .ladder-count {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    font-variant-numeric: tabular-nums;
+    color: var(--muted);
+    text-align: right;
+  }
+
+  /* ---------- mockup frames ---------- */
+
+  .mock {
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--surface);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+
+  .mock-cap {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 7px 12px;
+    background: var(--sunken);
+    border-bottom: 1px solid var(--border);
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--faint);
+  }
+
+  .mock-body { padding: 0; overflow-x: auto; }
+
+  .tag-new {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--primary);
+    background: var(--primary-soft);
+    border: 1px solid color-mix(in srgb, var(--primary) 30%, transparent);
+    padding: 1px 6px;
+    border-radius: 2px;
+    white-space: nowrap;
+  }
+
+  /* ---------- app chrome inside mockups ---------- */
+
+  .app-top {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--hairline);
+    font-size: 13px;
+  }
+
+  .crumb { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+  .crumb b { color: var(--ink); font-weight: 600; }
+
+  .chip {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: .04em;
+    padding: 1px 6px;
+    border-radius: 2px;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    white-space: nowrap;
+  }
+
+  .chip.ok { color: var(--ok); background: var(--ok-soft); border-color: color-mix(in srgb, var(--ok) 34%, transparent); }
+  .chip.warn { color: var(--warn); background: var(--warn-soft); border-color: color-mix(in srgb, var(--warn) 34%, transparent); }
+  .chip.bad { color: var(--bad); background: var(--bad-soft); border-color: color-mix(in srgb, var(--bad) 34%, transparent); }
+  .chip.tech { color: var(--tech); background: var(--tech-soft); border-color: color-mix(in srgb, var(--tech) 34%, transparent); }
+
+  .tabstrip {
+    display: flex;
+    gap: 2px;
+    padding: 0 12px;
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+    scrollbar-width: thin;
+  }
+
+  .tabstrip a {
+    font-size: 13px;
+    color: var(--muted);
+    text-decoration: none;
+    padding: 9px 11px;
+    border-bottom: 2px solid transparent;
+    white-space: nowrap;
+  }
+
+  .tabstrip a.active {
+    color: var(--ink);
+    font-weight: 600;
+    border-bottom-color: var(--primary);
+  }
+
+  .tabstrip a.added {
+    color: var(--primary);
+    border-bottom-color: var(--primary);
+    font-weight: 600;
+    background: var(--primary-soft);
+  }
+
+  /* ---------- panels ---------- */
+
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--hairline); }
+
+  .pane { background: var(--surface); padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+
+  .pane-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+
+  .pane-head h4 { font-size: 12px; font-weight: 660; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
+
+  .pane-head .count { font-family: var(--mono); font-size: 11.5px; color: var(--faint); font-variant-numeric: tabular-nums; }
+
+  /* ---------- asset rows ---------- */
+
+  .arow {
+    display: grid;
+    grid-template-columns: 20px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 9px;
+    padding: 5px 7px;
+    border-radius: 2px;
+    font-size: 13px;
+  }
+
+  .arow:hover { background: var(--raised); }
+
+  .arow .rmark {
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 660;
+    text-align: center;
+    color: var(--surface);
+    background: var(--rung);
+    border-radius: 2px;
+    line-height: 16px;
+    height: 16px;
+  }
+
+  .arow .aid { font-family: var(--mono); font-size: 12.5px; color: var(--ink-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .arow .aid b { color: var(--ink); font-weight: 600; }
+  .arow .meta { font-family: var(--mono); font-size: 11px; color: var(--faint); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+  .arow.indent { padding-left: 22px; }
+  .arow.indent2 { padding-left: 38px; }
+
+  .arow.is-warn { background: var(--warn-soft); }
+
+  /* ---------- stratified closure bands ---------- */
+
+  .bands { display: flex; flex-direction: column; gap: 1px; background: var(--hairline); }
+
+  .band {
+    display: grid;
+    grid-template-columns: 128px minmax(0, 1fr) 44px;
+    gap: 14px;
+    align-items: start;
+    background: var(--surface);
+    padding: 9px 16px;
+  }
+
+  .band-label { display: flex; align-items: center; gap: 8px; }
+
+  .band-label .rmark {
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 660;
+    color: var(--surface);
+    background: var(--rung);
+    border-radius: 2px;
+    width: 16px;
+    height: 16px;
+    line-height: 16px;
+    text-align: center;
+    flex: none;
+  }
+
+  .band-label span { font-family: var(--mono); font-size: 11.5px; color: var(--muted); }
+
+  .band-items { display: flex; flex-wrap: wrap; gap: 4px; }
+
+  .pill {
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 2px 7px;
+    border-radius: 2px;
+    border: 1px solid var(--border);
+    background: var(--raised);
+    color: var(--ink-soft);
+    white-space: nowrap;
+  }
+
+  .pill.root { border-color: var(--primary); background: var(--primary-soft); color: var(--primary); font-weight: 600; }
+  .pill.more { border-style: dashed; color: var(--faint); }
+  .pill.port { border-color: color-mix(in srgb, var(--warn) 45%, transparent); background: var(--warn-soft); color: var(--warn); }
+
+  .band-n { font-family: var(--mono); font-size: 12px; color: var(--faint); text-align: right; font-variant-numeric: tabular-nums; }
+
+  /* ---------- sidebar mockups ---------- */
+
+  .side-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+
+  .side {
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--surface);
+    overflow: hidden;
+    box-shadow: var(--shadow);
+  }
+
+  .side-cap {
+    padding: 7px 12px;
+    background: var(--sunken);
+    border-bottom: 1px solid var(--border);
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--faint);
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .side-search {
+    margin: 10px 12px 4px;
+    padding: 5px 9px;
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    background: var(--raised);
+    font-family: var(--mono);
+    font-size: 11.5px;
+    color: var(--faint);
+  }
+
+  .side-list { padding: 6px 8px 12px; display: flex; flex-direction: column; gap: 1px; }
+
+  .grp {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 6px 7px;
+    font-size: 11px;
+    font-weight: 660;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .grp .c { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0; text-transform: none; color: var(--faint); font-variant-numeric: tabular-nums; }
+
+  .grp.lvl2 {
+    padding-left: 20px;
+    text-transform: none;
+    letter-spacing: 0;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ink-soft);
+    font-family: var(--mono);
+  }
+
+  .grp.lvl2 .rmark {
+    font-family: var(--mono);
+    font-size: 9.5px;
+    color: var(--surface);
+    background: var(--rung);
+    border-radius: 2px;
+    width: 15px;
+    height: 15px;
+    line-height: 15px;
+    text-align: center;
+    margin-right: 7px;
+    flex: none;
+    display: inline-block;
+  }
+
+  .leaf {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 4px 7px 4px 22px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--ink-soft);
+    border-radius: 2px;
+  }
+
+  .leaf.deep { padding-left: 42px; }
+  .leaf .c { font-size: 10.5px; color: var(--faint); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .leaf.sel { background: var(--primary-soft); color: var(--primary); font-weight: 600; }
+
+  /* ---------- drift table ---------- */
+
+  .drift { width: 100%; border-collapse: collapse; font-size: 13px; }
+
+  .drift th {
+    text-align: left;
+    font-size: 11px;
+    font-weight: 660;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 9px 16px;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+
+  .drift td {
+    padding: 9px 16px;
+    border-bottom: 1px solid var(--hairline);
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--ink-soft);
+    vertical-align: top;
+  }
+
+  .drift tr:last-child td { border-bottom: 0; }
+  .drift td.v { color: var(--ink); }
+
+  .del { color: var(--bad); }
+  .add { color: var(--ok); }
+
+  /* ---------- verdict list ---------- */
+
+  .verdicts { display: flex; flex-direction: column; gap: 1px; background: var(--hairline); }
+
+  .verdict {
+    display: grid;
+    grid-template-columns: 84px minmax(0, 1fr);
+    gap: 14px;
+    background: var(--surface);
+    padding: 11px 16px;
+    font-size: 13px;
+  }
+
+  .verdict .lab { font-family: var(--mono); font-size: 11px; letter-spacing: .04em; text-transform: uppercase; color: var(--faint); padding-top: 2px; }
+  .verdict .txt { color: var(--ink-soft); }
+  .verdict .txt b { color: var(--ink); font-weight: 600; }
+
+  /* ---------- closing ---------- */
+
+  .closing {
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--warn);
+    border-radius: 3px;
+    background: var(--surface);
+    padding: 18px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .closing h3 { font-size: 15px; font-weight: 640; }
+  .closing p { font-size: 14px; color: var(--ink-soft); max-width: 76ch; }
+
+  :where(a, [tabindex]):focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  @media (max-width: 860px) {
+    .cols, .side-compare { grid-template-columns: 1fr; }
+    .band { grid-template-columns: 104px minmax(0, 1fr); }
+    .band-n { display: none; }
+    .ladder-row { grid-template-columns: 34px 74px minmax(0, 1fr); }
+    .ladder-count { display: none; }
+    .verdict { grid-template-columns: 1fr; gap: 4px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+  }
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <p class="eyebrow">react-component-library · ux proposal</p>
+    <h1>Asset Graph Workspace</h1>
+    <p class="lede">
+      The catalog already enforces a six-rung dependency ladder across 410 assets and 848 edges.
+      No surface renders it. These are five changes that make the graph you already validate the graph you can actually navigate — built in dependency order, each one reusing the data the previous one landed.
+    </p>
+    <div class="provenance">
+      <span>catalog/config.json</span>
+      <span>catalogvalidate/validate.go:259</span>
+      <span>CatalogBrowser.tsx:230</span>
+      <span>routes.ts</span>
+      <span>experience-manager/capabilities</span>
+      <span>measured 2026-08-13</span>
+    </div>
+  </header>
+
+  <div class="census">
+    <div><span class="n">410</span><span class="k">catalog assets</span></div>
+    <div><span class="n">848</span><span class="k">requires edges, acyclic &amp; rank-checked</span></div>
+    <div><span class="n">303</span><span class="k">assets downstream of foundations.tokens</span></div>
+    <div><span class="n is-warn">143</span><span class="k">edges in the manifest graph — unreconciled</span></div>
+    <div><span class="n is-bad">0</span><span class="k">surfaces that render any of it</span></div>
+  </div>
+
+  <!-- ================= the ladder ================= -->
+  <section>
+    <div class="sec-head">
+      <p class="eyebrow">what is already true</p>
+      <h2>The ladder is enforced, not aspirational</h2>
+      <p>
+        <code>rank()</code> maps every asset kind to one of six rungs, and an asset may not <code>require</code> anything above its own rung. That check runs today and fails the catalog gate. Everything below is a read of this data — no new model, no migration.
+      </p>
+    </div>
+
+    <div class="ladder">
+      <div class="ladder-row" style="--rung: var(--rung5)">
+        <span class="ladder-num">5</span>
+        <span class="meter"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span>
+        <span class="ladder-kinds">page-template</span>
+        <span class="ladder-count">21</span>
+      </div>
+      <div class="ladder-row" style="--rung: var(--rung4)">
+        <span class="ladder-num">4</span>
+        <span class="meter"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span>
+        <span class="ladder-kinds">pattern · navigation</span>
+        <span class="ladder-count">40</span>
+      </div>
+      <div class="ladder-row" style="--rung: var(--rung3)">
+        <span class="ladder-num">3</span>
+        <span class="meter"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span>
+        <span class="ladder-kinds">component</span>
+        <span class="ladder-count">209</span>
+      </div>
+      <div class="ladder-row" style="--rung: var(--rung2)">
+        <span class="ladder-num">2</span>
+        <span class="meter"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i><i></i></span>
+        <span class="ladder-kinds">primitive</span>
+        <span class="ladder-count">35</span>
+      </div>
+      <div class="ladder-row" style="--rung: var(--rung1)">
+        <span class="ladder-num">1</span>
+        <span class="meter"><i class="on"></i><i class="on"></i><i></i><i></i><i></i><i></i></span>
+        <span class="ladder-kinds">runtime-hook · runtime-service · adapter · generator</span>
+        <span class="ladder-count">87</span>
+      </div>
+      <div class="ladder-row" style="--rung: var(--rung0)">
+        <span class="ladder-num">0</span>
+        <span class="meter"><i class="on"></i><i></i><i></i><i></i><i></i><i></i></span>
+        <span class="ladder-kinds">foundation</span>
+        <span class="ladder-count">9</span>
+      </div>
+    </div>
+
+    <p class="note">
+      <strong>Obligations travel up; claims do not travel down.</strong> Re-proving Button's contrast inside DataTable inside a page template is combinatorial and tests the same pixels repeatedly. What genuinely composes upward is the <em>unmet port</em> — a host dependency an asset cannot satisfy alone. Every surface below reads the graph in that direction.
+    </p>
+  </section>
+
+  <!-- ================= 01 relationships ================= -->
+  <section>
+    <div class="sec-head">
+      <div class="step-title">
+        <span class="step-num">01</span>
+        <h2>A Relationships tab</h2>
+      </div>
+      <p>
+        Today the Overview tab lists direct manifest dependencies — one hop, downward only, no reverse edges. Nothing tells you that 90 assets depend directly on <code>foundations.tokens</code> and 303 depend on it transitively. A reverse index over the existing rows is the whole build.
+      </p>
+    </div>
+
+    <div class="mock">
+      <div class="mock-cap"><span>Mockup · asset detail · desktop</span><span class="tag-new">new tab</span></div>
+      <div class="mock-body">
+        <div class="app-top">
+          <span class="crumb">data-display / <b>DataTable</b></span>
+          <span class="chip tech">rung 3 · component</span>
+          <span class="chip ok">production-ready</span>
+          <span class="chip">v1.3.0</span>
+        </div>
+
+        <nav class="tabstrip">
+          <a href="#01">Preview</a>
+          <a href="#01">Overview</a>
+          <a href="#01">Files</a>
+          <a href="#01">Tests</a>
+          <a href="#01">Versions</a>
+          <a href="#01">Progression</a>
+          <a href="#01">Adoptions</a>
+          <a href="#01" class="added" aria-current="page">Relationships</a>
+        </nav>
+
+        <div class="cols">
+          <div class="pane">
+            <div class="pane-head">
+              <h4>Depends on</h4>
+              <span class="count">3 direct · 27 dependencies</span>
+            </div>
+            <div class="arow" style="--rung: var(--rung3)"><span class="rmark">3</span><span class="aid"><b>data-display.table</b></span><span class="meta">1 dependent</span></div>
+            <div class="arow indent" style="--rung: var(--rung2)"><span class="rmark">2</span><span class="aid">primitives.scroll-area</span><span class="meta">·</span></div>
+            <div class="arow" style="--rung: var(--rung3)"><span class="rmark">3</span><span class="aid"><b>feedback.async-boundary</b></span><span class="meta">28 dependents</span></div>
+            <div class="arow indent" style="--rung: var(--rung3)"><span class="rmark">3</span><span class="aid">feedback.empty-state</span><span class="meta">·</span></div>
+            <div class="arow indent" style="--rung: var(--rung3)"><span class="rmark">3</span><span class="aid">feedback.offline-state</span><span class="meta">·</span></div>
+            <div class="arow indent2" style="--rung: var(--rung1)"><span class="rmark">1</span><span class="aid">hooks.use-network-status</span><span class="meta">·</span></div>
+            <div class="arow" style="--rung: var(--rung1)"><span class="rmark">1</span><span class="aid"><b>services.selection-store</b></span><span class="meta">4 dependents</span></div>
+            <div class="arow indent" style="--rung: var(--rung1)"><span class="rmark">1</span><span class="aid">services.create-scoped-store</span><span class="meta">·</span></div>
+          </div>
+
+          <div class="pane">
+            <div class="pane-head">
+              <h4>Used by</h4>
+              <span class="count">5 direct · 9 total</span>
+            </div>
+            <div class="arow" style="--rung: var(--rung3)"><span class="rmark">3</span><span class="aid"><b>data-display.data-grid</b></span><span class="meta">component</span></div>
+            <div class="arow" style="--rung: var(--rung4)"><span class="rmark">4</span><span class="aid"><b>patterns.resource-collection</b></span><span class="meta">pattern</span></div>
+            <div class="arow" style="--rung: var(--rung4)"><span class="rmark">4</span><span class="aid"><b>patterns.import-workflow</b></span><span class="meta">pattern</span></div>
+            <div class="arow" style="--rung: var(--rung5)"><span class="rmark">5</span><span class="aid"><b>templates.collection-page</b></span><span class="meta">page-template</span></div>
+            <div class="arow" style="--rung: var(--rung1)"><span class="rmark">1</span><span class="aid"><b>generators.data-table-generator</b></span><span class="meta">generator</span></div>
+            <div class="arow indent" style="--rung: var(--rung5)"><span class="rmark">5</span><span class="aid">templates.dashboard-page</span><span class="meta">via resource-collection</span></div>
+          </div>
+        </div>
+
+        <div class="mock-cap" style="border-top: 1px solid var(--border)"><span>Closure, stratified by rung — 28 assets</span><span>blast radius upward: 9</span></div>
+
+        <div class="bands">
+          <div class="band" style="--rung: var(--rung5)">
+            <span class="band-label"><span class="rmark">5</span><span>page-template</span></span>
+            <span class="band-items"><span class="pill more">none below root</span></span>
+            <span class="band-n">0</span>
+          </div>
+          <div class="band" style="--rung: var(--rung3)">
+            <span class="band-label"><span class="rmark">3</span><span>component</span></span>
+            <span class="band-items">
+              <span class="pill root">data-display.data-table</span>
+              <span class="pill">data-display.table</span>
+              <span class="pill">feedback.async-boundary</span>
+              <span class="pill">feedback.empty-state</span>
+              <span class="pill">feedback.error-state</span>
+              <span class="pill">feedback.loading-state</span>
+              <span class="pill">feedback.offline-state</span>
+              <span class="pill">feedback.permission-state</span>
+              <span class="pill">controls.button</span>
+              <span class="pill">controls.pressable</span>
+              <span class="pill">primitives.status-indicator</span>
+            </span>
+            <span class="band-n">11</span>
+          </div>
+          <div class="band" style="--rung: var(--rung2)">
+            <span class="band-label"><span class="rmark">2</span><span>primitive</span></span>
+            <span class="band-items">
+              <span class="pill">primitives.icon</span>
+              <span class="pill">primitives.text</span>
+              <span class="pill">primitives.stack</span>
+              <span class="pill">primitives.slot</span>
+              <span class="pill">primitives.spinner</span>
+              <span class="pill">primitives.skeleton</span>
+              <span class="pill">primitives.scroll-area</span>
+            </span>
+            <span class="band-n">7</span>
+          </div>
+          <div class="band" style="--rung: var(--rung1)">
+            <span class="band-label"><span class="rmark">1</span><span>hook · service</span></span>
+            <span class="band-items">
+              <span class="pill">hooks.use-announce</span>
+              <span class="pill">hooks.use-press</span>
+              <span class="pill">hooks.use-focus-visible</span>
+              <span class="pill">hooks.use-network-status</span>
+              <span class="pill">hooks.use-reduced-motion</span>
+              <span class="pill">services.selection-store</span>
+              <span class="pill">services.create-scoped-store</span>
+            </span>
+            <span class="band-n">7</span>
+          </div>
+          <div class="band" style="--rung: var(--rung0)">
+            <span class="band-label"><span class="rmark">0</span><span>foundation</span></span>
+            <span class="band-items">
+              <span class="pill">foundations.tokens</span>
+              <span class="pill">foundations.contracts</span>
+              <span class="pill">foundations.icon-registry</span>
+            </span>
+            <span class="band-n">3</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p class="note">
+      Every number here is already in SQLite. The tab is a projection plus one reverse index — no schema change, no new authoring burden. <strong>The sentence it makes possible:</strong> "changing <code>feedback.async-boundary</code> touches 28 assets."
+    </p>
+  </section>
+
+  <!-- ================= 02 sidebar ================= -->
+  <section>
+    <div class="sec-head">
+      <div class="step-title">
+        <span class="step-num">02</span>
+        <h2>The sidebar becomes an actual tree</h2>
+      </div>
+      <p>
+        <code>CatalogBrowser.tsx:230</code> groups by <code>slot || category</code> and sorts <code>localeCompare</code> — one level, alphabetical, and mostly falling through to <em>Other</em> because only 42 of 193 manifests declare a slot. The <code>TreeNode</code> type it renders through already supports arbitrary depth. The nesting axis exists too: <code>catalog/config.json</code> declares 20 domains with an explicit <code>order</code> from 10 to 200, which no Go code has ever parsed.
+      </p>
+    </div>
+
+    <div class="side-compare">
+      <div class="side">
+        <div class="side-cap"><span>Today</span><span>1 level · alphabetical</span></div>
+        <div class="side-search">search assets…</div>
+        <div class="side-list">
+          <div class="grp">layout-nav <span class="c">4 assets · 6 adoptions</span></div>
+          <div class="leaf">AppShell <span class="c">2 adoptions</span></div>
+          <div class="leaf">BottomNav <span class="c">1 adoption</span></div>
+          <div class="leaf">SidebarShell <span class="c">3 adoptions</span></div>
+          <div class="grp">Other <span class="c">151 assets · 88 adoptions</span></div>
+          <div class="leaf">AspectRatio <span class="c">0 adoptions</span></div>
+          <div class="leaf">AsyncBoundary <span class="c">4 adoptions</span></div>
+          <div class="leaf">Button <span class="c">9 adoptions</span></div>
+          <div class="leaf">ControlBase <span class="c">2 adoptions</span></div>
+          <div class="leaf">DataTable <span class="c">3 adoptions</span></div>
+          <div class="leaf">Tokens <span class="c">6 adoptions</span></div>
+          <div class="grp">ui-pattern <span class="c">15 assets · 21 adoptions</span></div>
+          <div class="leaf">DataToolbar <span class="c">2 adoptions</span></div>
+          <div class="grp">ui-primitive <span class="c">23 assets · 34 adoptions</span></div>
+          <div class="leaf">Card <span class="c">7 adoptions</span></div>
+        </div>
+      </div>
+
+      <div class="side">
+        <div class="side-cap"><span>Proposed</span><span>domain → rung → asset</span></div>
+        <div class="side-search">search assets…</div>
+        <div class="side-list">
+          <div class="grp">foundations <span class="c">order 10 · 9</span></div>
+          <div class="grp lvl2" style="--rung: var(--rung0)"><span><span class="rmark">0</span>foundation</span><span class="c">9</span></div>
+          <div class="leaf deep">tokens <span class="c">303 downstream</span></div>
+          <div class="leaf deep">contracts <span class="c">155 downstream</span></div>
+          <div class="leaf deep">icon-registry <span class="c">119 downstream</span></div>
+          <div class="grp">hooks <span class="c">order 20 · 38</span></div>
+          <div class="grp lvl2" style="--rung: var(--rung1)"><span><span class="rmark">1</span>runtime-hook</span><span class="c">38</span></div>
+          <div class="leaf deep">use-reduced-motion <span class="c">187 downstream</span></div>
+          <div class="leaf deep">use-controllable-state <span class="c">108 downstream</span></div>
+          <div class="grp">primitives <span class="c">order 40 · 38</span></div>
+          <div class="grp lvl2" style="--rung: var(--rung2)"><span><span class="rmark">2</span>primitive</span><span class="c">29</span></div>
+          <div class="leaf deep">text <span class="c">127 downstream</span></div>
+          <div class="leaf deep">icon <span class="c">118 downstream</span></div>
+          <div class="grp lvl2" style="--rung: var(--rung3)"><span><span class="rmark">3</span>component</span><span class="c">9</span></div>
+          <div class="leaf deep">card <span class="c">21 downstream</span></div>
+          <div class="grp">data-display <span class="c">order 110 · 29</span></div>
+          <div class="grp lvl2" style="--rung: var(--rung3)"><span><span class="rmark">3</span>component</span><span class="c">29</span></div>
+          <div class="leaf deep sel">data-table <span class="c">9 downstream</span></div>
+        </div>
+      </div>
+    </div>
+
+    <p class="note">
+      Ordering by domain <code>order</code> rather than alphabetically puts foundations at the top and adapters at the bottom, so the sidebar reads bottom-up like the ladder it already enforces. <strong>Decide one thing first:</strong> either wire <code>order</code> or delete it — right now it is a lie sitting in an SSOT file.
+    </p>
+  </section>
+
+  <!-- ================= 03 dashboard ================= -->
+  <section>
+    <div class="sec-head">
+      <div class="step-title">
+        <span class="step-num">03</span>
+        <h2>A Structure panel on the dashboard</h2>
+      </div>
+      <p>
+        The dashboard is four flat sections — attention, evolved, adoption, moves. None of them answer "what shape is this library in?" This panel is the orientation surface: the census, the invariants that hold, and the assets you cannot touch cheaply.
+      </p>
+    </div>
+
+    <div class="mock">
+      <div class="mock-cap"><span>Mockup · dashboard panel</span><span class="tag-new">new section</span></div>
+      <div class="mock-body">
+        <div class="cols">
+          <div class="pane">
+            <div class="pane-head"><h4>Graph invariants</h4><span class="count">catalog gate</span></div>
+            <div class="arow"><span class="rmark" style="--rung: var(--ok)">✓</span><span class="aid">rank ordering — no upward requires</span><span class="meta">848 edges</span></div>
+            <div class="arow"><span class="rmark" style="--rung: var(--ok)">✓</span><span class="aid">acyclic requires graph</span><span class="meta">410 nodes</span></div>
+            <div class="arow is-warn"><span class="rmark" style="--rung: var(--warn)">!</span><span class="aid">catalog ↔ manifest reconciliation</span><span class="meta">not run</span></div>
+            <div class="arow is-warn"><span class="rmark" style="--rung: var(--warn)">!</span><span class="aid">44 assets declare no dependencies</span><span class="meta">review</span></div>
+          </div>
+
+          <div class="pane">
+            <div class="pane-head"><h4>Cannot change cheaply</h4><span class="count">transitive dependents</span></div>
+            <div class="arow" style="--rung: var(--rung0)"><span class="rmark">0</span><span class="aid"><b>foundations.tokens</b></span><span class="meta">303</span></div>
+            <div class="arow" style="--rung: var(--rung1)"><span class="rmark">1</span><span class="aid"><b>hooks.use-reduced-motion</b></span><span class="meta">187</span></div>
+            <div class="arow" style="--rung: var(--rung0)"><span class="rmark">0</span><span class="aid"><b>foundations.contracts</b></span><span class="meta">155</span></div>
+            <div class="arow" style="--rung: var(--rung2)"><span class="rmark">2</span><span class="aid"><b>primitives.text</b></span><span class="meta">127</span></div>
+            <div class="arow" style="--rung: var(--rung0)"><span class="rmark">0</span><span class="aid"><b>foundations.icon-registry</b></span><span class="meta">119</span></div>
+            <div class="arow" style="--rung: var(--rung2)"><span class="rmark">2</span><span class="aid"><b>primitives.icon</b></span><span class="meta">118</span></div>
+          </div>
+        </div>
+
+        <div class="mock-cap" style="border-top: 1px solid var(--border)"><span>Population by rung</span><span>410 assets</span></div>
+        <div class="bands">
+          <div class="band" style="--rung: var(--rung5)"><span class="band-label"><span class="rmark">5</span><span>page-template</span></span><span class="band-items"><span class="pill">templates 21</span></span><span class="band-n">21</span></div>
+          <div class="band" style="--rung: var(--rung4)"><span class="band-label"><span class="rmark">4</span><span>pattern · nav</span></span><span class="band-items"><span class="pill">patterns 29</span><span class="pill">navigation 11</span></span><span class="band-n">40</span></div>
+          <div class="band" style="--rung: var(--rung3)"><span class="band-label"><span class="rmark">3</span><span>component</span></span><span class="band-items"><span class="pill">forms 33</span><span class="pill">data-display 29</span><span class="pill">ai 26</span><span class="pill">feedback 22</span><span class="pill">controls 20</span><span class="pill">overlays 18</span><span class="pill more">+61 across 7 domains</span></span><span class="band-n">209</span></div>
+          <div class="band" style="--rung: var(--rung2)"><span class="band-label"><span class="rmark">2</span><span>primitive</span></span><span class="band-items"><span class="pill">primitives 29</span><span class="pill">motion 6</span></span><span class="band-n">35</span></div>
+          <div class="band" style="--rung: var(--rung1)"><span class="band-label"><span class="rmark">1</span><span>hook · svc · adapter</span></span><span class="band-items"><span class="pill">hooks 38</span><span class="pill">adapters 17</span><span class="pill">generators 16</span><span class="pill">services 15</span><span class="pill more">+1 navigation</span></span><span class="band-n">87</span></div>
+          <div class="band" style="--rung: var(--rung0)"><span class="band-label"><span class="rmark">0</span><span>foundation</span></span><span class="band-items"><span class="pill">foundations 9</span></span><span class="band-n">9</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 04 drift ================= -->
+  <section>
+    <div class="sec-head">
+      <div class="step-title">
+        <span class="step-num">04</span>
+        <h2>Reconcile the two graphs</h2>
+      </div>
+      <p>
+        There are two dependency graphs and nothing compares them. <code>catalog/assets/**</code> declares the desired state — 848 edges across 410 assets. <code>library/**/component.json</code> declares what the implementation actually pins — 143 edges, on 72 of 193 version manifests. This is the honest version of screaming architecture: the filesystem only screams if something enforces the scream.
+      </p>
+    </div>
+
+    <div class="mock">
+      <div class="mock-cap"><span>Mockup · vrooli catalog graph drift</span><span class="tag-new">new check</span></div>
+      <div class="mock-body">
+        <table class="drift">
+          <thead>
+            <tr><th>Asset</th><th>Catalog declares</th><th>Manifest pins</th><th>Verdict</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="v">data-display.data-table</td>
+              <td>table · async-boundary · <span class="del">selection-store</span></td>
+              <td>Table@1.0.0 · AsyncBoundary@1.0.0</td>
+              <td><span class="chip warn">undeclared in manifest</span></td>
+            </tr>
+            <tr>
+              <td class="v">overlays.popover</td>
+              <td>tokens · surface · presence · 4 hooks</td>
+              <td><span class="del">— none pinned —</span></td>
+              <td><span class="chip bad">manifest empty</span></td>
+            </tr>
+            <tr>
+              <td class="v">controls.button</td>
+              <td>tokens · pressable · icon</td>
+              <td>ControlBase@1.0.0 <span class="add">+ actual import</span></td>
+              <td><span class="chip warn">pins outside catalog edges</span></td>
+            </tr>
+            <tr>
+              <td class="v">primitives.card</td>
+              <td>tokens · surface</td>
+              <td>Surface@1.1.0 · Tokens@1.0.0</td>
+              <td><span class="chip ok">reconciled</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <p class="note">
+      Rows are illustrative of the check's shape — the reconciler is what produces the real list. <strong>Note the second row:</strong> 121 of 193 version manifests pin nothing at all, so "manifest empty" will be the dominant verdict on the first run. That number is the backlog.
+    </p>
+  </section>
+
+  <!-- ================= 05 ports ================= -->
+  <section>
+    <div class="sec-head">
+      <div class="step-title">
+        <span class="step-num">05</span>
+        <h2>Unmet ports — what actually stacks</h2>
+      </div>
+      <p>
+        The capability registry already splits every capability into <code>promises</code> (59) and <code>port</code> (23), and 23 assets declare <code>satisfies</code>. A port is a host obligation an asset cannot fulfil alone. Union the port-facet capabilities over an asset's closure, subtract what the closure provides, and the remainder is exactly the contract a consuming scenario must honor. That number is computable today and appears nowhere.
+      </p>
+    </div>
+
+    <div class="mock">
+      <div class="mock-cap"><span>Mockup · asset detail · Relationships → Host contract</span><span class="tag-new">new section</span></div>
+      <div class="mock-body">
+        <div class="app-top">
+          <span class="crumb">templates / <b>CollectionPage</b></span>
+          <span class="chip tech">rung 5 · page-template</span>
+          <span class="chip warn">1 unmet port</span>
+          <span class="chip">closure 47</span>
+        </div>
+
+        <div class="verdicts">
+          <div class="verdict">
+            <span class="lab">Provided</span>
+            <span class="txt"><b>design-tokens</b> and <b>icon-registry</b> are satisfied inside the closure by <code>foundations.tokens</code> and <code>foundations.icon-registry</code>.</span>
+          </div>
+          <div class="verdict">
+            <span class="lab">Unmet</span>
+            <span class="txt"><b>reduced-motion</b> is demanded by 7 assets in this closure and satisfied by none of them. <code>foundations.ui-provider</code> declares it — and is not a dependency of anything here. The host must mount it.</span>
+          </div>
+        </div>
+
+        <div class="mock-cap" style="border-top: 1px solid var(--border)"><span>reduced-motion · demanded by 7 of 47</span><span class="chip warn">host must provide</span></div>
+
+        <div class="bands">
+          <div class="band" style="--rung: var(--rung5)">
+            <span class="band-label"><span class="rmark">5</span><span>page-template</span></span>
+            <span class="band-items"><span class="pill port">templates.collection-page</span></span>
+            <span class="band-n">1</span>
+          </div>
+          <div class="band" style="--rung: var(--rung3)">
+            <span class="band-label"><span class="rmark">3</span><span>component</span></span>
+            <span class="band-items"><span class="pill port">controls.button</span><span class="pill port">feedback.loading-state</span><span class="pill port">primitives.status-indicator</span></span>
+            <span class="band-n">3</span>
+          </div>
+          <div class="band" style="--rung: var(--rung2)">
+            <span class="band-label"><span class="rmark">2</span><span>primitive</span></span>
+            <span class="band-items"><span class="pill port">primitives.skeleton</span><span class="pill port">primitives.spinner</span></span>
+            <span class="band-n">2</span>
+          </div>
+          <div class="band" style="--rung: var(--rung1)">
+            <span class="band-label"><span class="rmark">1</span><span>hook</span></span>
+            <span class="band-items"><span class="pill port">hooks.use-reduced-motion</span></span>
+            <span class="band-n">1</span>
+          </div>
+          <div class="band" style="--rung: var(--rung0)">
+            <span class="band-label"><span class="rmark">0</span><span>foundation</span></span>
+            <span class="band-items"><span class="pill">foundations.ui-provider — satisfies, not required</span></span>
+            <span class="band-n">0</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p class="note">
+      This is the concrete, bounded meaning of "experience stacks upward" — one number per asset, derived, no new authoring. <strong>It also settles the <code>extends</code> question:</strong> 182 canonical <code>experience-contract.json</code> files exist in the library and zero specs use <code>extends</code>. Do this first; decide whether claim inheritance is worth building only after the port view has been in use for a while.
+    </p>
+  </section>
+
+  <!-- ================= closing ================= -->
+  <div class="closing">
+    <h3>One correctness note before any of this ships</h3>
+    <p>
+      <code>rank()</code> in <code>catalogvalidate/validate.go:259</code> is a bare map lookup with no default. An asset whose <code>kind</code> is misspelled or newly added ranks 0 — foundation — and silently passes every downward check. Every surface above inherits that hole. Guard the lookup and fail on an unknown kind before you build things that trust the ladder.
+    </p>
+  </div>
+
+</div>

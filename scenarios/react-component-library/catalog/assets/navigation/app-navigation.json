@@ -5,7 +5,11 @@
   "api": {
     "variants": {},
     "modes": [],
-    "parts": []
+    "parts": [
+      "brand",
+      "mark",
+      "list"
+    ]
   },
   "asset": {
     "id": "navigation.app-navigation",

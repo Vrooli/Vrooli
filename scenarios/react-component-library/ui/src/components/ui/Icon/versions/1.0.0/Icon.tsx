@@ -48,14 +48,21 @@ export function Icon({
       aria-label={label}
       role={label ? "img" : undefined}
       viewBox={icon.viewBox}
-      width={props.width ?? iconSize(size)}
-      height={props.height ?? iconSize(size)}
+      // Sized in CSS below, not here: SVG width/height are geometry attributes
+      // whose grammar is <length>, and iconSize() returns a var() expression
+      // that the browser rejects outright — leaving the icon at the 300x150
+      // replaced-element default. Tracks primitives.icon@1.1.0.
       fill="none"
       stroke="currentColor"
       strokeWidth={props.strokeWidth ?? 2}
       strokeLinecap="round"
       strokeLinejoin="round"
-      style={{ color: toneColors[tone], ...style }}
+      style={{
+        inlineSize: props.width ?? iconSize(size),
+        blockSize: props.height ?? iconSize(size),
+        color: toneColors[tone],
+        ...style,
+      }}
       data-icon={name}
     >
       <path d={icon.path} />

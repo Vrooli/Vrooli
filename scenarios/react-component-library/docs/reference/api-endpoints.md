@@ -97,6 +97,23 @@ Update display metadata and explicit version pointers in
 
 ---
 
+## Catalog graph endpoints
+
+The catalog service includes four proto-first read operations:
+
+- `GetAssetRelationships` returns direct dependencies, full `requires`
+  closure, reverse dependents, rung bands, and transitive dependent count.
+- `GetCatalogStructure` returns population by rung, invariant status, and the
+  highest blast-radius assets for the dashboard.
+- `ReconcileGraph` returns one verdict per catalog asset across catalog,
+  manifest, and TypeScript import views. Import extraction degradation is
+  explicit as `imports-unavailable`.
+- `GetAssetPortContract` returns unmet port-facet capabilities over an asset's
+  closure and candidate catalog satisfiers.
+
+Unknown assets are typed not-found errors; graph cycles are failed
+preconditions carrying the cycle path.
+
 ## Adding a new endpoint
 
 For a new domain, copy the notes vertical slice first, then replace it

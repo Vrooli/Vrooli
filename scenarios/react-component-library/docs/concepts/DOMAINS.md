@@ -7,6 +7,7 @@ This document maps the product capability boundaries for the scenario.
 | Domain | Purpose | Primary Archetype | Owns Data | Surfaces | Source Paths |
 |---|---|---|---|---|---|
 | components | Index Git-tracked component and hook manifests, versions, dependency pins, catalog metrics, and catalog conformance automation. | catalog | `components`, `component_asset_dependencies`, manifest files, version source paths | API, CLI, UI | `api/internal/components/`, `api/handlers/components/`, `cli/domains/components/`, `ui/src/features/`, `ui/scripts/catalog-conformance.mjs`, `ui/scripts/preview-e2e.mjs` |
+| catalog graph | Project desired-state catalog relationships, rung structure, reconciliation, and host port obligations. | projection | Catalog asset files and domain order; no graph table | API, CLI, UI | `api/internal/assetrung/`, `api/internal/assetgraph/`, `api/internal/graphreconcile/`, `api/internal/portcontract/`, `api/handlers/catalog/` |
 | inventory | Scan a scenario's UI inventory to supply adoption recommendations. | analyzer | Derived scan results only; no durable product data | API | `api/handlers/inventory/`, `api/internal/uimanifest/` |
 | versions | Browse and diff indexed component release artifacts. | catalog | `component_versions` release snapshots | API, CLI, UI | `api/internal/versions/`, `api/handlers/versions/`, `cli/domains/versions/`, `ui/src/features/versions/` |
 | adoptions | Copy a dependency closure into target scenarios and track per-asset provenance/drift. | workflow | `adoption_records`, target scenario files | API, CLI, UI | `api/internal/adoptions/`, `api/handlers/adoptions/`, `cli/domains/adoptions/`, `ui/src/features/adoptions/` |
@@ -29,6 +30,9 @@ This document maps the product capability boundaries for the scenario.
   save-history snapshots.
 - An adoption resolves a deterministic, deduplicated, version-pinned closure;
   each asset receives its own provenance record and no overwrite is inferred.
+- The catalog graph is a read-only projection over desired-state assets. It
+  does not replace manifest-pinned closure resolution used by adoption and
+  preview, and reconciliation never repairs a manifest.
 
 ## Non-Domains
 

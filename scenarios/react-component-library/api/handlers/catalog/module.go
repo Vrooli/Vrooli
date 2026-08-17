@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/gorilla/mux"
@@ -21,6 +22,7 @@ import (
 type handler struct {
 	repoRoot string
 	evidence *catalogcoverage.EvidenceStore
+	reports  reportCache
 }
 
 // Module exposes the same live coverage projection used by the component-test
@@ -30,19 +32,45 @@ func Module(repoRoot string, dbs ...*sql.DB) module.Module {
 	if len(dbs) > 0 && dbs[0] != nil {
 		evidence = catalogcoverage.NewEvidenceStore(dbs[0])
 	}
-	path, service := catalogconnect.NewCatalogServiceHandler(&handler{repoRoot: repoRoot, evidence: evidence})
+	h := &handler{repoRoot: repoRoot, evidence: evidence}
+	// Warm the coverage report in the background at startup. The first
+	// computation costs ~45s because it runs the full gate suite including the
+	// toolchain-spawning `types` runner; paying that on a user's first page
+	// view is what made the coverage page appear broken. Detached from startup
+	// so it never delays the health check — until it lands, a cold request
+	// still computes synchronously and is correct, just slow.
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+		defer cancel()
+		_, _ = h.report(ctx)
+	}()
+	path, service := catalogconnect.NewCatalogServiceHandler(h)
 	return module.Module{
-		Name:  "catalog",
-		Mount: func(r *mux.Router) { connectx.RegisterServices(r, connectx.ServiceMount{Path: path, Handler: service}) },
-		Endpoints: []module.EndpointDescriptor{
-			{ID: "catalog_coverage", Path: catalogconnect.CatalogServiceGetCoverageProcedure, Method: "POST", Summary: "Report achieved catalog maturity", Category: "catalog"},
-			{ID: "catalog_next", Path: catalogconnect.CatalogServiceListNextWorkProcedure, Method: "POST", Summary: "Rank catalog next work", Category: "catalog"},
-			{ID: "catalog_gate", Path: catalogconnect.CatalogServiceRunGateProcedure, Method: "POST", Summary: "Run a declarative catalog gate", Category: "catalog"},
-		},
+		Name:      "catalog",
+		Mount:     func(r *mux.Router) { connectx.RegisterServices(r, connectx.ServiceMount{Path: path, Handler: service}) },
+		Endpoints: Endpoints,
 	}
 }
 
+var Endpoints = []module.EndpointDescriptor{
+	{ID: "catalog_coverage", Path: catalogconnect.CatalogServiceGetCoverageProcedure, Method: "POST", Summary: "Report achieved catalog maturity", Category: "catalog"},
+	{ID: "catalog_next", Path: catalogconnect.CatalogServiceListNextWorkProcedure, Method: "POST", Summary: "Rank catalog next work", Category: "catalog"},
+	{ID: "catalog_gate", Path: catalogconnect.CatalogServiceRunGateProcedure, Method: "POST", Summary: "Run a declarative catalog gate", Category: "catalog"},
+	{ID: "catalog_graph", Path: catalogconnect.CatalogServiceGetAssetRelationshipsProcedure, Method: "POST", Summary: "Read catalog asset relationships", Category: "catalog"},
+	{ID: "catalog_structure", Path: catalogconnect.CatalogServiceGetCatalogStructureProcedure, Method: "POST", Summary: "Read catalog structure", Category: "catalog"},
+	{ID: "catalog_reconcile", Path: catalogconnect.CatalogServiceReconcileGraphProcedure, Method: "POST", Summary: "Reconcile catalog dependency graphs", Category: "catalog"},
+	{ID: "catalog_ports", Path: catalogconnect.CatalogServiceGetAssetPortContractProcedure, Method: "POST", Summary: "Read asset host obligations", Category: "catalog"},
+}
+
+// report serves the coverage projection through the revision-keyed cache. The
+// underlying computation executes every gate runner including the toolchain-
+// spawning `types` gate, so it must not run once per request; see
+// report_cache.go for the measurement that motivated this.
 func (h *handler) report(ctx context.Context) (*catalogcoverage.Report, error) {
+	return h.reports.get(ctx, h.repoRoot, h.computeReport)
+}
+
+func (h *handler) computeReport(ctx context.Context) (*catalogcoverage.Report, error) {
 	assets, err := catalogcoverage.LoadCatalog(filepath.Join(h.repoRoot, "scenarios", "react-component-library", "catalog"))
 	if err != nil {
 		return nil, err
@@ -111,15 +139,40 @@ func (h *handler) RunGate(ctx context.Context, req *connect.Request[catalogv1.Ru
 		result, err = gates.ValidateFixtures(h.repoRoot)
 	case "examples":
 		result, err = gates.ValidateExamples(h.repoRoot)
+	case "graph-reconciled":
+		result, err = gates.ValidateGraphReconciled(h.repoRoot)
 	default:
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("unknown catalog gate %q", gate))
 	}
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("run catalog gate %q: %w", gate, err))
 	}
+	// Severity is the gate's declared blocking flag, not a constant. Reporting
+	// every finding as "error" made the non-blocking gates (graph-reconciled,
+	// forced-colors, documentation, migration) indistinguishable from the
+	// blocking ones, so a reader had no way to tell reported drift from a
+	// release-stopping defect.
+	severity := "error"
+	if definitions, defErr := catalogcoverage.LoadGateDefinitions(filepath.Join(h.repoRoot, "scenarios", "react-component-library", "catalog", "config.json")); defErr == nil {
+		for _, definition := range definitions {
+			if definition.ID == gate && !definition.Blocking {
+				severity = "warning"
+				break
+			}
+		}
+	}
 	response := &catalogv1.RunGateResponse{Gate: gate, InspectedFiles: int32(result.Inspected), Findings: make([]*catalogv1.GateFinding, 0, len(result.Findings))}
 	for _, finding := range result.Findings {
-		response.Findings = append(response.Findings, &catalogv1.GateFinding{Code: finding.Code, Message: finding.Message, AssetId: finding.AssetID, Severity: "error"})
+		response.Findings = append(response.Findings, &catalogv1.GateFinding{
+			Code:        finding.Code,
+			Message:     finding.Message,
+			AssetId:     finding.AssetID,
+			Severity:    severity,
+			File:        finding.File,
+			Line:        int32(finding.Line),
+			Remediation: finding.Remediation,
+			DocsRef:     finding.DocsRef,
+		})
 	}
 	return connect.NewResponse(response), nil
 }
@@ -142,7 +195,7 @@ func toProto(report *catalogcoverage.Report) *catalogv1.CoverageReport {
 }
 
 func rowProto(row catalogcoverage.Row) *catalogv1.CoverageRow {
-	return &catalogv1.CoverageRow{AssetId: row.AssetID, Name: row.Name, Domain: row.Domain, Kind: row.Kind, Priority: row.Priority, Bucket: string(row.Bucket), Platform: row.Platform, Target: row.Target, Achieved: string(row.Achieved), Implementation: row.Implementation, BlocksDownstream: int32(row.BlocksDownstream)}
+	return &catalogv1.CoverageRow{AssetId: row.AssetID, Name: row.Name, Domain: row.Domain, Kind: row.Kind, Priority: row.Priority, Bucket: string(row.Bucket), Platform: row.Platform, Target: row.Target, Achieved: string(row.Achieved), Implementation: row.Implementation, BlocksDownstream: int32(row.BlocksDownstream), Rung: int32(row.Rung), RungName: row.RungName, DomainOrder: int32(row.DomainOrder)}
 }
 
 func maturityProto(m catalogcoverage.MaturityCoverage) *catalogv1.MaturitySummary {
