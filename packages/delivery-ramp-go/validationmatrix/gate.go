@@ -19,10 +19,13 @@ func EvaluateReleaseGate(matrix *domainv1.ValidationMatrix) *domainv1.ReleaseGat
 		gate.Reason = stringPtr("validation matrix identity is missing")
 		return gate
 	}
-	expected, structured, err := expectedRequiredCells(matrix)
+	_, structured, err := expectedRequiredCells(matrix)
 	if err != nil {
 		gate.Reason = stringPtr(err.Error())
 		return gate
+	}
+	if structured {
+		return evaluateMatrixWideGate(matrix, gate)
 	}
 	observed := make(map[string]*domainv1.ValidationCell, len(matrix.GetCells()))
 	for _, cell := range matrix.GetCells() {
@@ -55,24 +58,6 @@ func EvaluateReleaseGate(matrix *domainv1.ValidationMatrix) *domainv1.ReleaseGat
 		gate.Reason = stringPtr("no required applicable validation cells exist")
 		return gate
 	}
-	if structured {
-		for key := range expected {
-			cell, present := observed[key]
-			if !present {
-				gate.RequiredCellCount++
-				gate.MissingCellIds = append(gate.MissingCellIds, key)
-				continue
-			}
-			if !cell.GetRequired() {
-				gate.RequiredCellCount++
-				gate.FailedCellIds = append(gate.FailedCellIds, cell.GetCellId())
-			}
-		}
-		if len(gate.MissingCellIds) > 0 {
-			gate.Reason = stringPtr("required validation cell identities are incomplete")
-			return gate
-		}
-	}
 	if len(gate.FailedCellIds) > 0 || gate.PassingCellCount != gate.RequiredCellCount {
 		gate.Reason = stringPtr(fmt.Sprintf("%d required validation cell(s) failed or lack complete evidence", len(gate.FailedCellIds)))
 		return gate
@@ -80,6 +65,129 @@ func EvaluateReleaseGate(matrix *domainv1.ValidationMatrix) *domainv1.ReleaseGat
 	gate.Disposition = domainv1.ValidationDisposition_VALIDATION_DISPOSITION_PASS
 	gate.Passed = true
 	return gate
+}
+
+// evaluateMatrixWideGate treats a required journey/profile as the unit of
+// release coverage. A target that cannot advertise the journey's required
+// capabilities is not a failed required cell; another target may satisfy the
+// chapter. The selected target is retained on the gate so reports cannot
+// mistake emulator coverage for physical-device coverage.
+func evaluateMatrixWideGate(matrix *domainv1.ValidationMatrix, gate *domainv1.ReleaseGate) *domainv1.ReleaseGate {
+	observed := make(map[string]*domainv1.ValidationCell, len(matrix.GetCells()))
+	for _, cell := range matrix.GetCells() {
+		if cell == nil {
+			continue
+		}
+		key := cellKey(cell)
+		if key == "" {
+			continue
+		}
+		if _, duplicate := observed[key]; duplicate {
+			gate.FailedCellIds = append(gate.FailedCellIds, cell.GetCellId())
+			continue
+		}
+		observed[key] = cell
+	}
+
+	targets := make(map[string]*domainv1.ValidationTargetDescriptor, len(matrix.GetTargets()))
+	for _, target := range matrix.GetTargets() {
+		if target != nil {
+			targets[target.GetTargetId()] = target
+		}
+	}
+	for _, journey := range matrix.GetJourneys() {
+		if journey == nil || !journey.GetRequired() {
+			continue
+		}
+		for _, profile := range matrix.GetEnvironmentProfiles() {
+			chapterKey := chapterKey(journey.GetJourneyId(), profile)
+			gate.RequiredCellCount++
+			candidateIDs := make([]string, 0, len(targets))
+			for _, target := range matrix.GetTargets() {
+				// Keep the capability filter adjacent to the matrix snapshot so
+				// every candidate is evaluated against the same immutable inputs.
+				if target == nil || !target.GetAvailable() || !supportsCapabilityEnums(target.GetCapabilities(), journey.GetRequiredCapabilities()) {
+					continue
+				}
+				candidateIDs = append(candidateIDs, target.GetTargetId())
+			}
+			if len(candidateIDs) == 0 {
+				gate.MissingCellIds = append(gate.MissingCellIds, chapterKey)
+				continue
+			}
+
+			passed := false
+			for _, targetID := range candidateIDs {
+				cell := observed[selectionKey(journey.GetJourneyId(), targetID, profile)]
+				if cell == nil {
+					continue
+				}
+				if !cell.GetRequired() || !cell.GetApplicable() || cell.GetDisposition() != domainv1.ValidationDisposition_VALIDATION_DISPOSITION_PASS || !completeEvidence(matrix, cell) {
+					continue
+				}
+				passed = true
+				gate.PassingCellCount++
+				if gate.SatisfyingTargetIds == nil {
+					gate.SatisfyingTargetIds = make(map[string]string)
+				}
+				gate.SatisfyingTargetIds[chapterKey] = targetID
+				break
+			}
+			if passed {
+				continue
+			}
+			for _, targetID := range candidateIDs {
+				if cell := observed[selectionKey(journey.GetJourneyId(), targetID, profile)]; cell != nil {
+					gate.FailedCellIds = append(gate.FailedCellIds, cell.GetCellId())
+				}
+			}
+			if len(gate.FailedCellIds) == 0 || !containsCellForChapter(gate.FailedCellIds, observed, journey.GetJourneyId(), profile) {
+				gate.MissingCellIds = append(gate.MissingCellIds, chapterKey)
+			}
+		}
+	}
+	if len(gate.MissingCellIds) > 0 {
+		gate.Reason = stringPtr("required journey coverage is incomplete")
+		return gate
+	}
+	if len(gate.FailedCellIds) > 0 || gate.PassingCellCount != gate.RequiredCellCount {
+		gate.Reason = stringPtr(fmt.Sprintf("%d required journey/profile chapter(s) failed or lack complete evidence", gate.RequiredCellCount-gate.PassingCellCount))
+		return gate
+	}
+	gate.Disposition = domainv1.ValidationDisposition_VALIDATION_DISPOSITION_PASS
+	gate.Passed = true
+	return gate
+}
+
+func chapterKey(journeyID string, profile domainv1.ValidationEnvironmentProfile) string {
+	return fmt.Sprintf("journey=%s profile=%s", journeyID, profile.String())
+}
+
+func supportsCapabilityEnums(observed, required []domainv1.ValidationTargetCapability) bool {
+	for _, want := range required {
+		found := false
+		for _, got := range observed {
+			if got == want {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return false
+		}
+	}
+	return true
+}
+
+func containsCellForChapter(failed []string, observed map[string]*domainv1.ValidationCell, journeyID string, profile domainv1.ValidationEnvironmentProfile) bool {
+	for _, cellID := range failed {
+		for _, cell := range observed {
+			if cell.GetCellId() == cellID && cell.GetJourneyId() == journeyID && cell.GetEnvironmentProfile() == profile {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func expectedRequiredCells(matrix *domainv1.ValidationMatrix) (map[string]struct{}, bool, error) {

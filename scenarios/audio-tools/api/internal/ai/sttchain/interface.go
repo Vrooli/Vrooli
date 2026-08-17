@@ -154,6 +154,15 @@ func (t ProviderTraits) Supports(k StrategyKind) bool {
 type Provider interface {
 	Type() ProviderTier
 	IsAvailable(ctx context.Context) bool
+
+	// Transcribe converts one audio buffer to text.
+	//
+	// Implementations must be safe for concurrent use on a single instance.
+	// VADSegment issues bounded preview transcriptions on its own goroutine
+	// while a segment-boundary transcription may be in flight, so a provider
+	// that keeps mutable per-call state on itself will corrupt one of them.
+	// The shipped providers satisfy this by holding only immutable
+	// collaborators and building request state on the stack.
 	Transcribe(ctx context.Context, req Request) (*Result, error)
 	Model() string
 

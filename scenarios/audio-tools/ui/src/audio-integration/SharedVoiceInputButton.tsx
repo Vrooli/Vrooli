@@ -5,12 +5,25 @@
  * @vrooliComponentAppliedAt 2026-08-05T04:36:00Z
  * @vrooliComponentSourceSha256 cec62efe50b286699552e6c4678f7e6e9a2db998ef6bacf3082bfe86b9010c6b
  * @vrooliComponentDriftHash bec785d91eb22af5c7bf7855b59022ab1b1dd04f4b805a1ab47ea61682a73928
- * @vrooliComponentTokenTranslation bg-app-danger/20->bg-app-danger/20,bg-app-info/20->bg-app-info/20,bg-app-primary/10->bg-app-primary/10,bg-app-primary/20->bg-app-primary/20,bg-app-primary/60->bg-app-primary/60,bg-app-surface->bg-app-surface,bg-app-surface-muted->bg-app-surface-muted,bg-app-warning/10->bg-app-warning/10,bg-app-warning/15->bg-app-warning/15,bg-app-warning/70->bg-app-warning/70,border-app-border->border-app-border,border-app-danger->border-app-danger,border-app-info->border-app-info,border-app-primary->border-app-primary,border-app-warning->border-app-warning,border-app-warning/50->border-app-warning/50,text-app-danger->text-app-danger,text-app-info->text-app-info,text-app-muted-foreground->text-app-muted-foreground,text-app-primary->text-app-primary,text-app-warning->text-app-warning,text-app-warning/80->text-app-warning/80
+ * @vrooliComponentTokenTranslation bg-app-danger/20->bg-app-danger/20,bg-app-info/20->bg-app-info/20,bg-app-primary/20->bg-app-primary/20,bg-app-primary/60->bg-app-primary/60,bg-app-surface->bg-app-surface,bg-app-warning/10->bg-app-warning/10,bg-app-warning/70->bg-app-warning/70,border-app-border->border-app-border,border-app-danger->border-app-danger,border-app-info->border-app-info,border-app-primary->border-app-primary,border-app-warning->border-app-warning,border-app-warning/50->border-app-warning/50,text-app-danger->text-app-danger,text-app-info->text-app-info,text-app-muted-foreground->text-app-muted-foreground,text-app-primary->text-app-primary,text-app-warning->text-app-warning,text-app-warning/80->text-app-warning/80
  *
  * This file was copied from React Component Library. Local edits are allowed;
  * run "react-component-library adoptions refresh" to inspect drift.
+ *
+ * LOCAL EDIT — fixed footprint. The 3.0.0 snapshot rendered an error popover,
+ * a partial-transcript tooltip, a "Transcribe anyway" link, and a recovery
+ * action strip inside this control's own wrapper, so the control's footprint
+ * changed with its state. Neither audio-tools call site ever supplied the props
+ * that armed those branches, so they were unreachable here; they are removed
+ * rather than left as a trap. Library 4.0.0+ made the same change upstream, and
+ * 4.1.0 declares `fixed-footprint` in its experience contract. This file cannot
+ * be re-adopted from 4.1.0 yet because the catalog maturity floor for adoption
+ * is `verified` and every catalog asset is currently `scaffolded`.
+ *
+ * Status text and recovery actions are app chrome. See `LiveTry` and
+ * `DictationRecorder`, which already render their own.
  */
-import { useCallback, useRef, useState, type ButtonHTMLAttributes, type PointerEvent } from "react";
+import { useCallback, useRef, type ButtonHTMLAttributes, type PointerEvent } from "react";
 import { IconButton } from "./IconButton";
 import type { ControlDensity, ControlSize } from "./ControlBase";
 import { VoiceInputButtonGlyph as Glyph, type VoiceInputGlyphKind } from "./VoiceInputButtonGlyph";
@@ -26,22 +39,10 @@ export interface VoiceInputButtonProps extends Omit<ButtonHTMLAttributes<HTMLBut
   readonly density?: ControlDensity;
   readonly level?: number;
   readonly timeoutProgress?: number;
-  readonly error?: string;
-  readonly rejectionReason?: string;
-  readonly partialTranscript?: string;
   readonly onStart?: () => void;
   readonly onStop?: () => void;
   readonly onPrepare?: () => void;
-  readonly onDismissError?: () => void;
-  readonly onTranscribeAnyway?: () => void;
-  readonly onCancel?: () => void;
   readonly onExitPassive?: () => void;
-  readonly onReleaseMic?: () => void;
-  readonly onTtsStop?: () => void;
-  readonly onExportDiagnostic?: () => string | null;
-  readonly staleLiveMic?: boolean;
-  readonly isTtsSpeaking?: boolean;
-  readonly canExportDiagnostic?: boolean;
   readonly backend?: string;
   readonly wrapperClassName?: string;
   readonly iconClassName?: string;
@@ -53,15 +54,13 @@ const labels: Record<VoiceInputButtonState, string> = {
   idle: "Start voice input", preparing: "Preparing microphone", recording: "Stop voice input", recovering: "Listening for voice input", transcribing: "Transcribing voice input", unavailable: "Voice input unavailable", error: "Voice input error",
 };
 
-export function VoiceInputButton({ state = "idle", mode = "always-on", size = "sm", density = "comfortable", level = 0, timeoutProgress = 0, error, rejectionReason, partialTranscript, onStart, onStop, onPrepare, onDismissError, onTranscribeAnyway, onCancel, onExitPassive, onReleaseMic, onTtsStop, onExportDiagnostic, staleLiveMic, isTtsSpeaking, canExportDiagnostic, backend, className, wrapperClassName, iconClassName, disabled, onPointerCancel, ...props }: VoiceInputButtonProps) {
+export function VoiceInputButton({ state = "idle", mode = "always-on", size = "sm", density = "comfortable", level = 0, timeoutProgress = 0, onStart, onStop, onPrepare, onExitPassive, backend, className, wrapperClassName, iconClassName, disabled, onPointerCancel, ...props }: VoiceInputButtonProps) {
   const testId = (props as VoiceInputButtonProps & { "data-testid"?: string })["data-testid"];
-  const [dismissedError, setDismissedError] = useState<string | undefined>();
   const pressStartedAt = useRef(0);
   const pressIntent = useRef<"start" | "stop" | "exit-passive" | "none">("none");
   const skipClick = useRef(false);
   const active = state === "recording" || state === "recovering";
   const canInteract = !disabled && state !== "preparing" && state !== "transcribing" && state !== "unavailable";
-  const visibleError = state === "error" && error && error !== dismissedError;
   const progress = Math.max(0, Math.min(1, timeoutProgress));
   const normalizedLevel = Math.max(0, Math.min(1, level));
   const accessibleLabel = props["aria-label"] ?? labels[state];
@@ -114,7 +113,7 @@ export function VoiceInputButton({ state = "idle", mode = "always-on", size = "s
       onPointerDown={handlePointerDown}
       onPointerUp={finishPointer}
       onClick={handleClick}
-      onPointerCancel={(event) => { finishPointer(); onCancel?.(); onPointerCancel?.(event); }}
+      onPointerCancel={(event) => { finishPointer(); onPointerCancel?.(event); }}
       size={size}
       density={density}
       variant="secondary"
@@ -125,16 +124,5 @@ export function VoiceInputButton({ state = "idle", mode = "always-on", size = "s
       {state === "recording" && mode === "timeout" && <svg aria-hidden="true" className="pointer-events-none absolute left-1/2 top-1/2 z-10 aspect-square h-[calc(100%-4px)] min-h-6 max-h-8 -translate-x-1/2 -translate-y-1/2 -rotate-90 overflow-visible" viewBox="0 0 44 44"><circle cx="22" cy="22" r="18" fill="none" stroke="currentColor" strokeWidth="3" className="text-app-warning/80" strokeDasharray={RING_CIRCUMFERENCE} strokeDashoffset={RING_CIRCUMFERENCE * (1 - progress)} strokeLinecap="round" /></svg>}
       <span className="sr-only">{labels[state]}</span>
     </IconButton>
-    {visibleError && <div className="absolute left-1/2 top-full z-10 mt-1 flex w-52 -translate-x-1/2 items-start gap-1.5 rounded border border-app-warning/50 bg-app-surface px-2 py-1 text-[10px] text-app-warning shadow-lg"><div role="status" className="min-w-0 flex-1 break-words">{error}</div><button data-testid="voice-input-error-dismiss" type="button" className="touch-target shrink-0 rounded p-0.5 hover:bg-app-warning/15" aria-label="Dismiss voice input error" onClick={() => { setDismissedError(error); onDismissError?.(); }}><Glyph kind="close" className="h-3 w-3" /></button></div>}
-    {active && partialTranscript && <div className="pointer-events-none absolute bottom-full left-1/2 mb-1 max-w-[200px] -translate-x-1/2 overflow-hidden text-ellipsis whitespace-nowrap rounded border border-app-border bg-app-surface px-2 py-1 text-[10px] text-app-muted-foreground shadow-lg">{partialTranscript}</div>}
-    {rejectionReason && onTranscribeAnyway && <button type="button" className="ml-2 text-sm text-app-primary underline" onClick={onTranscribeAnyway}>Transcribe anyway</button>}
-    {(state === "transcribing" && onCancel) || (staleLiveMic && onReleaseMic) || (isTtsSpeaking && onTtsStop) || (canExportDiagnostic && onExportDiagnostic) ? (
-      <div role="group" aria-label="Voice recovery actions" className="mt-1 flex flex-wrap justify-center gap-1 text-[10px]">
-        {state === "transcribing" && onCancel && <button type="button" className="rounded border border-app-border px-1.5 py-0.5 text-app-muted-foreground hover:bg-app-surface-muted" onClick={onCancel}>Cancel</button>}
-        {staleLiveMic && onReleaseMic && <button type="button" className="rounded border border-app-warning px-1.5 py-0.5 text-app-warning hover:bg-app-warning/10" onClick={onReleaseMic}>Release mic</button>}
-        {isTtsSpeaking && onTtsStop && <button type="button" className="rounded border border-app-primary px-1.5 py-0.5 text-app-primary hover:bg-app-primary/10" onClick={onTtsStop}>Stop speech</button>}
-        {canExportDiagnostic && onExportDiagnostic && <button type="button" className="rounded border border-app-border px-1.5 py-0.5 text-app-muted-foreground hover:bg-app-surface-muted" onClick={() => { onExportDiagnostic(); }}>Export diagnostic</button>}
-      </div>
-    ) : null}
   </div>;
 }

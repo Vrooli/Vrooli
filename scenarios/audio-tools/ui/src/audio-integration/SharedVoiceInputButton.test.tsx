@@ -3,27 +3,40 @@ import { describe, expect, it, vi } from "vitest";
 import { VoiceInputButton } from "./SharedVoiceInputButton";
 import { renderWithProviders } from "../test-utils";
 
+/**
+ * The adopted control renders the button and nothing else.
+ *
+ * The previous version of this suite asserted the opposite: that an error
+ * popover, a "Transcribe anyway" link, and a Cancel/Release mic/Stop speech/
+ * Export diagnostic strip were all reachable from inside the button's wrapper.
+ * Those branches were unreachable in this scenario — no call site supplied the
+ * props that armed them — and they were the defect operators kept reporting as
+ * "the button shows extra things depending on state". The suite was locking in
+ * the implementation instead of the intended behaviour.
+ */
 describe("adopted VoiceInputButton boundary", () => {
-  it("preserves consumer labels and exposes recovery actions", () => {
-    const onDismissError = vi.fn();
-    const onTranscribeAnyway = vi.fn();
+  const STATES = ["idle", "preparing", "recording", "recovering", "transcribing", "unavailable", "error"] as const;
 
-    renderWithProviders(
-      <VoiceInputButton
-        aria-label="Saisie vocale"
-        state="error"
-        error="Microphone busy"
-        rejectionReason="Speaker mismatch"
-        onDismissError={onDismissError}
-        onTranscribeAnyway={onTranscribeAnyway}
-      />,
-    );
-
+  it("preserves consumer labels", () => {
+    renderWithProviders(<VoiceInputButton aria-label="Saisie vocale" state="error" />);
     expect(screen.getByRole("button", { name: "Saisie vocale" })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Dismiss voice input error" }));
-    fireEvent.click(screen.getByRole("button", { name: "Transcribe anyway" }));
-    expect(onDismissError).toHaveBeenCalledOnce();
-    expect(onTranscribeAnyway).toHaveBeenCalledOnce();
+  });
+
+  for (const state of STATES) {
+    it(`renders exactly one control in the ${state} state`, () => {
+      const { container } = renderWithProviders(<VoiceInputButton state={state} />);
+      expect(container.querySelectorAll("button")).toHaveLength(1);
+    });
+  }
+
+  it("keeps status text and recovery actions out of the control", () => {
+    const { container } = renderWithProviders(<VoiceInputButton state="transcribing" />);
+    expect(container.querySelector('[role="group"]')).toBeNull();
+    expect(screen.queryByRole("button", { name: /cancel/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /release mic/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /stop speech/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /export diagnostic/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /transcribe anyway/i })).toBeNull();
   });
 
   it("starts and stops through click and pointer gestures", () => {
@@ -47,36 +60,9 @@ describe("adopted VoiceInputButton boundary", () => {
     expect(onPointerCancel).toHaveBeenCalledOnce();
   });
 
-  it("keeps recovery, TTS, and diagnostic actions reachable", () => {
-    const onCancel = vi.fn();
-    const onReleaseMic = vi.fn();
-    const onTtsStop = vi.fn();
-    const onExportDiagnostic = vi.fn(() => null);
+  it("exits passive listening from the control itself", () => {
     const onExitPassive = vi.fn();
-
-    const { rerender } = renderWithProviders(
-      <VoiceInputButton
-        state="transcribing"
-        onCancel={onCancel}
-        staleLiveMic
-        onReleaseMic={onReleaseMic}
-        isTtsSpeaking
-        onTtsStop={onTtsStop}
-        canExportDiagnostic
-        onExportDiagnostic={onExportDiagnostic}
-      />,
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
-    fireEvent.click(screen.getByRole("button", { name: "Release mic" }));
-    fireEvent.click(screen.getByRole("button", { name: "Stop speech" }));
-    fireEvent.click(screen.getByRole("button", { name: "Export diagnostic" }));
-    expect(onCancel).toHaveBeenCalledOnce();
-    expect(onReleaseMic).toHaveBeenCalledOnce();
-    expect(onTtsStop).toHaveBeenCalledOnce();
-    expect(onExportDiagnostic).toHaveBeenCalledOnce();
-
-    rerender(<VoiceInputButton state="recovering" onExitPassive={onExitPassive} />);
+    renderWithProviders(<VoiceInputButton state="recovering" onExitPassive={onExitPassive} />);
     const passiveButton = screen.getByRole("button", { name: "Listening for voice input" });
     fireEvent.pointerDown(passiveButton);
     fireEvent.pointerUp(passiveButton);

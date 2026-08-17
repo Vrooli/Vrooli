@@ -36,11 +36,16 @@ type Profile struct {
 	Budget           Budget             `json:"budget"`
 	ContextPolicy    ContextPolicy      `json:"context_policy"`
 	GatewayRole      string             `json:"gateway_role"`
-	Authority        string             `json:"authority"`
-	SourcePath       string             `json:"source_path,omitempty"`
-	ContentHash      string             `json:"content_hash,omitempty"`
-	Status           string             `json:"status"`
-	CreatedAt        time.Time          `json:"created_at"`
+	// Locality is the caller's stance on where inference may run, named in the
+	// gateway's Profile vocabulary without the PROFILE_ prefix. The write roles
+	// are local-first by catalog order, so a profile that needs frontier prose
+	// quality says so here rather than by reordering the catalog for everyone.
+	Locality    string    `json:"locality,omitempty"`
+	Authority   string    `json:"authority"`
+	SourcePath  string    `json:"source_path,omitempty"`
+	ContentHash string    `json:"content_hash,omitempty"`
+	Status      string    `json:"status"`
+	CreatedAt   time.Time `json:"created_at"`
 }
 
 type Sampler struct {
@@ -228,6 +233,7 @@ type GatewayRequest struct {
 	Tau               float64         `json:"tau"`
 	MaxOutputTokens   int             `json:"max_output_tokens"`
 	TemperatureStance string          `json:"temperature_stance"`
+	Locality          string          `json:"locality,omitempty"`
 	Negative          NegativeContext `json:"negative_context,omitempty"`
 }
 type GatewayCandidate struct {

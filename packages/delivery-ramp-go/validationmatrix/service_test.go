@@ -313,7 +313,7 @@ func TestProfileContractsAcceptAdvertisedCapabilities(t *testing.T) {
 	}
 }
 
-func TestServicePersistsMixedTerminalDispositionsWithoutFalsePass(t *testing.T) {
+func TestServiceSelectsOnePassingTargetForMatrixWideChapter(t *testing.T) {
 	store, err := NewFileStore(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
@@ -347,11 +347,11 @@ func TestServicePersistsMixedTerminalDispositionsWithoutFalsePass(t *testing.T) 
 	if err != nil {
 		t.Fatal(err)
 	}
-	if finished.State != RunFailed || finished.Gate.GetPassed() || finished.Gate.GetPassingCellCount() != 1 || finished.Gate.GetRequiredCellCount() != 5 {
-		for _, cell := range finished.Cells {
-			t.Logf("cell target=%s disposition=%s state=%s evidence=%d", cell.Cell.GetTargetId(), cell.Cell.GetDisposition(), cell.State, len(cell.Cell.GetEvidence()))
-		}
-		t.Fatalf("mixed dispositions produced an untruthful gate: state=%s gate=%v", finished.State, finished.Gate)
+	if finished.State != RunCompleted || !finished.Gate.GetPassed() || finished.Gate.GetPassingCellCount() != 1 || finished.Gate.GetRequiredCellCount() != 1 {
+		t.Fatalf("matrix-wide gate did not select the passing target: state=%s gate=%v", finished.State, finished.Gate)
+	}
+	if finished.Gate.GetSatisfyingTargetIds()["journey=journey profile=VALIDATION_ENVIRONMENT_PROFILE_NORMAL"] != "pass" {
+		t.Fatalf("satisfying target was not retained: %v", finished.Gate.GetSatisfyingTargetIds())
 	}
 	byTarget := make(map[string]domainv1.ValidationDisposition, len(finished.Cells))
 	for _, cell := range finished.Cells {

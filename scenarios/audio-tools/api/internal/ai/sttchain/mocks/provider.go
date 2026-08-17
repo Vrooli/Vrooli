@@ -5,6 +5,7 @@ package mocks
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"audio-tools/internal/ai/sttchain"
@@ -22,6 +23,11 @@ type FakeProvider struct {
 	TranscribeFn func(ctx context.Context, req sttchain.Request) (*sttchain.Result, error)
 	StreamFn     func(ctx context.Context, start sttchain.StreamStart, chunks <-chan sttchain.AudioChunk) (<-chan sttchain.StreamEvent, error)
 	Calls        int
+
+	// mu guards Calls and the configurable behaviour fields against the
+	// concurrent Transcribe calls the Provider contract allows. Read Calls
+	// through CallCount from a test that runs a strategy with previews.
+	mu sync.Mutex
 }
 
 // NewFakeProvider constructs a FakeProvider for the given tier + traits.
@@ -65,17 +71,32 @@ func (p *FakeProvider) IsAvailable(context.Context) bool { return true }
 func (p *FakeProvider) Model() string                    { return "fake" }
 func (p *FakeProvider) Traits() sttchain.ProviderTraits  { return p.Traits_ }
 func (p *FakeProvider) Transcribe(ctx context.Context, req sttchain.Request) (*sttchain.Result, error) {
+	// Providers must tolerate concurrent Transcribe calls (see the interface
+	// doc): VADSegment issues preview transcriptions alongside the boundary
+	// transcription on the same instance. The fake counts calls, so it needs
+	// the same guarantee or `-race` reports the mock rather than the code.
+	p.mu.Lock()
 	p.Calls++
-	if p.TranscribeFn != nil {
-		return p.TranscribeFn(ctx, req)
+	fn, err, result := p.TranscribeFn, p.Err, p.Result
+	p.mu.Unlock()
+
+	if fn != nil {
+		return fn(ctx, req)
 	}
-	if p.Err != nil {
-		return nil, p.Err
+	if err != nil {
+		return nil, err
 	}
-	if p.Result != nil {
-		return p.Result, nil
+	if result != nil {
+		return result, nil
 	}
 	return &sttchain.Result{Text: "x", Tier: p.Tier, Latency: time.Millisecond}, nil
+}
+
+// CallCount reports Transcribe invocations without racing a concurrent call.
+func (p *FakeProvider) CallCount() int {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.Calls
 }
 
 func (p *FakeProvider) TranscribeStreaming(ctx context.Context, start sttchain.StreamStart, chunks <-chan sttchain.AudioChunk) (<-chan sttchain.StreamEvent, error) {

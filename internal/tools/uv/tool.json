@@ -2,9 +2,25 @@
   "$schema": "../../../.vrooli/schemas/tool.schema.json",
   "name": "uv",
   "description": "uv — Astral's fast Python package/venv manager. Builds and syncs the per-scenario isolated Python virtualenvs that model-managing scenarios (image-tools, future video-tools) provision from a committed requirements.lock.",
-  "storage": { "entries": {
-    "cache": { "rung": "relocatable", "path": "$USER_CACHE_DIR/uv", "kind": "dir", "regenerable": true, "relocation": { "key": "UV_CACHE_DIR", "scope": "process-tree" }, "budget": { "max_bytes": "9658MiB", "rationale": "Measured at 5063493335 bytes on 2026-08-03; ceiling is two times observed size." }, "rationale": "Re-downloadable Python package cache." }
-  } },
+  "storage": {
+    "entries": {
+      "cache": {
+        "rung": "relocatable",
+        "path": "$USER_CACHE_DIR/uv",
+        "kind": "dir",
+        "regenerable": true,
+        "relocation": {
+          "key": "UV_CACHE_DIR",
+          "scope": "process-tree"
+        },
+        "budget": {
+          "max_bytes": "9658MiB",
+          "rationale": "Measured at 5063493335 bytes on 2026-08-03; ceiling is two times observed size."
+        },
+        "rationale": "Re-downloadable Python package cache."
+      }
+    }
+  },
   "commands": [
     "uv"
   ],
@@ -17,47 +33,67 @@
     "windows"
   ],
   "installHint": "Install on demand with `vrooli host install uv` (no sudo — a single static binary into ~/.vrooli/bin). Required for scenarios that provision an isolated Python venv from requirements.lock.",
-  "source": {
-    "type": "release",
-    "targets": {
-      "linux/amd64": {
+  "bundling": "vendorable",
+  "capability": "package-management",
+  "capability_role": "primary",
+  "acquisition": {
+    "kind": "url",
+    "targets": [
+      {
+        "when": {
+          "os": "linux",
+          "arch": "amd64"
+        },
         "url": "https://github.com/astral-sh/uv/releases/download/0.8.17/uv-x86_64-unknown-linux-gnu.tar.gz",
         "sha256": "920cbcaad514cc185634f6f0dcd71df5e8f4ee4456d440a22e0f8c0f142a8203",
         "archive": "tar.gz",
-        "binPath": "uv-x86_64-unknown-linux-gnu/uv",
-        "layout": "file"
+        "layout": "file",
+        "bin_path": "uv-x86_64-unknown-linux-gnu/uv"
       },
-      "linux/arm64": {
+      {
+        "when": {
+          "os": "linux",
+          "arch": "arm64"
+        },
         "url": "https://github.com/astral-sh/uv/releases/download/0.8.17/uv-aarch64-unknown-linux-gnu.tar.gz",
         "sha256": "9a20d65b110770bbaa2ee89ed76eb963d8c6a480b9ebef584ea9df2ae85b4f0f",
         "archive": "tar.gz",
-        "binPath": "uv-aarch64-unknown-linux-gnu/uv",
-        "layout": "file"
+        "layout": "file",
+        "bin_path": "uv-aarch64-unknown-linux-gnu/uv"
       },
-      "darwin/amd64": {
+      {
+        "when": {
+          "os": "darwin",
+          "arch": "amd64"
+        },
         "url": "https://github.com/astral-sh/uv/releases/download/0.8.17/uv-x86_64-apple-darwin.tar.gz",
         "sha256": "31ed353cfd8e6c962e7c60617bd8a9d6b97b704c1ecb5b5eceaff8c6121b54ac",
         "archive": "tar.gz",
-        "binPath": "uv-x86_64-apple-darwin/uv",
-        "layout": "file"
+        "layout": "file",
+        "bin_path": "uv-x86_64-apple-darwin/uv"
       },
-      "darwin/arm64": {
+      {
+        "when": {
+          "os": "darwin",
+          "arch": "arm64"
+        },
         "url": "https://github.com/astral-sh/uv/releases/download/0.8.17/uv-aarch64-apple-darwin.tar.gz",
         "sha256": "e4d4859d7726298daa4c12e114f269ff282b2cfc2b415dc0b2ca44ae2dbd358e",
         "archive": "tar.gz",
-        "binPath": "uv-aarch64-apple-darwin/uv",
-        "layout": "file"
+        "layout": "file",
+        "bin_path": "uv-aarch64-apple-darwin/uv"
       },
-      "windows/amd64": {
+      {
+        "when": {
+          "os": "windows",
+          "arch": "amd64"
+        },
         "url": "https://github.com/astral-sh/uv/releases/download/0.8.17/uv-x86_64-pc-windows-msvc.zip",
         "sha256": "0d051779fbcb173b183efeae1c3e96148764fd82709bbbf0966df3efe48b67c5",
         "archive": "zip",
-        "binPath": "uv.exe",
-        "layout": "file"
+        "layout": "file",
+        "bin_path": "uv.exe"
       }
-    }
-  },
- "bundling": "vendorable",
-  "capability": "package-management",
-  "capability_role": "primary"
+    ]
+  }
 }

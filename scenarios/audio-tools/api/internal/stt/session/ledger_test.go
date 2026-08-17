@@ -3,12 +3,10 @@ package session
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
 	"testing"
-	"time"
 
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/filerouting"
@@ -37,7 +35,6 @@ func TestAcceleratedServerRetentionBaseline(t *testing.T) {
 	)
 
 	ledger := newLedger(t, maxRetainedBytes)
-	startedAt := time.Now()
 	framesReceived := 0
 	failureSeconds := 0
 	for sequence := 0; sequence < simulatedSeconds/frameSeconds; sequence++ {
@@ -65,31 +62,6 @@ func TestAcceleratedServerRetentionBaseline(t *testing.T) {
 	if got := ledger.Snapshot().TerminalReason; got != TerminalResourceExhausted {
 		t.Fatalf("terminal reason = %q, want %q", got, TerminalResourceExhausted)
 	}
-
-	writeAcceleratedBaselineEvidence(t, map[string]any{
-		"server": map[string]any{
-			"predictedCeilingSeconds": predictedCeilingSec,
-			"observedFailureSeconds":  failureSeconds,
-			"framesCaptured":          simulatedSeconds / frameSeconds,
-			"framesReceived":          framesReceived,
-			"terminal":                string(TerminalResourceExhausted),
-			"wallClockMs":             time.Since(startedAt).Milliseconds(),
-		},
-		"serverAssertions": []map[string]any{
-			{
-				"name":               "server_retention_ceiling_within_60_seconds",
-				"passed":             true,
-				"failureTimeSeconds": failureSeconds,
-				"detail":             "real session ledger reached resource_exhausted at the predicted retained-byte ceiling",
-			},
-			{
-				"name":               "server_accepts_all_60_simulated_minutes",
-				"passed":             framesReceived == simulatedSeconds/frameSeconds,
-				"failureTimeSeconds": failureSeconds,
-				"detail":             "unchanged ledger terminates before all captured intervals are received",
-			},
-		},
-	})
 }
 
 func TestAcceleratedServerCoverageAcknowledgementKeepsRetentionBounded(t *testing.T) {
@@ -121,42 +93,6 @@ func TestAcceleratedServerCoverageAcknowledgementKeepsRetentionBounded(t *testin
 	state := ledger.Snapshot()
 	if state.TerminalReason != TerminalNone {
 		t.Fatalf("coverage lane reached terminal state: %q", state.TerminalReason)
-	}
-	writeAcceleratedBaselineEvidence(t, map[string]any{
-		"serverRepaired": map[string]any{
-			"simulatedSeconds": simulatedSeconds,
-			"framesReceived":   simulatedSeconds / frameSeconds,
-			"terminal":         "none",
-			"replayChunks":     len(state.Replay),
-			"maxRetainedBytes": maxRetainedBytes,
-			"acknowledgement":  "coverage_driven",
-		},
-	})
-}
-
-func writeAcceleratedBaselineEvidence(t *testing.T, additions map[string]any) {
-	t.Helper()
-	path := os.Getenv("AUDIO_RELIABILITY_EVIDENCE_PATH")
-	if path == "" {
-		return
-	}
-	data, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	evidence := map[string]any{}
-	if err := json.Unmarshal(data, &evidence); err != nil {
-		t.Fatal(err)
-	}
-	for key, value := range additions {
-		evidence[key] = value
-	}
-	updated, err := json.MarshalIndent(evidence, "", "  ")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(path, append(updated, '\n'), 0o644); err != nil {
-		t.Fatal(err)
 	}
 }
 

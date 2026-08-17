@@ -1,7 +1,8 @@
 # Operations
 
-`adguard-home` is a single-container Docker-backed resource for managed local
-DNS filtering.
+`adguard-home` is a native managed-service resource for managed local DNS
+filtering. Its release archive is acquired and verified by the shared
+fact-predicated acquisition contract; no container runtime is involved.
 
 ## Architecture Boundary
 
@@ -18,9 +19,9 @@ the matching package under `cli/internal/` first and keep commands thin.
 
 ## Operator Checklist
 
-- Confirm the pinned image tag before upgrades. The current manifest uses `adguard/adguardhome:v0.107.77`.
+- Confirm the pinned release and every target checksum before upgrades. The current manifest uses AdGuard Home `v0.107.73`.
 - Keep runtime storage rooted in `${RESOURCE_CONFIG_DIR}`, `${RESOURCE_DATA_DIR}`, `${RESOURCE_CACHE_DIR}`, `${RESOURCE_LOGS_DIR}`, and `${RESOURCE_STATE_DIR}` rather than repo-local `data/`.
-- Back up `${RESOURCE_CONFIG_DIR}` and `${RESOURCE_DATA_DIR}` together. AdGuard configuration lives under `/opt/adguardhome/conf`; runtime work data lives under `/opt/adguardhome/work`.
+- Back up `${RESOURCE_CONFIG_DIR}` and `${RESOURCE_DATA_DIR}` together. The managed process reads configuration from the former and keeps runtime work data in the latter.
 - Treat the manifest HTTP check as liveness only. Use `resource-adguard-home api-health --json` for authenticated control-plane readiness.
 - Use `resource-adguard-home bootstrap --base-url http://localhost:3000 --json` for first-run setup. It stores credentials through the credential authority and does not print the generated password.
 - Use `resource-adguard-home config preview --json` to inspect upstream drift before Network Manager policy code applies any persistent resolver change.

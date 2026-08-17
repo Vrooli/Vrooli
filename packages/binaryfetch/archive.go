@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 )
 
 // ErrNoBinaryInArchive is returned when the requested binPath (or, when binPath
@@ -21,6 +22,46 @@ var ErrNoBinaryInArchive = errors.New("binaryfetch: binary not found in archive"
 // model-adjacent binaries while refusing absurd entries.
 const maxArchiveEntryBytes int64 = 2 << 30
 
+// ArchiveDecompressor opens a stream for a format that is not available in
+// the standard library. The caller owns the optional dependency and registers
+// it at process startup; binaryfetch itself stays standard-library-only.
+type ArchiveDecompressor func(io.Reader) (io.ReadCloser, error)
+
+var archiveDecompressors = struct {
+	sync.RWMutex
+	items map[string]ArchiveDecompressor
+}{items: map[string]ArchiveDecompressor{}}
+
+// RegisterArchiveDecompressor registers a decompressor by archive name and
+// returns an unregister function for scoped embeddings and tests.
+func RegisterArchiveDecompressor(format string, decompressor ArchiveDecompressor) func() {
+	key := normalizeArchive(format)
+	archiveDecompressors.Lock()
+	previous, hadPrevious := archiveDecompressors.items[key]
+	if decompressor == nil {
+		delete(archiveDecompressors.items, key)
+	} else {
+		archiveDecompressors.items[key] = decompressor
+	}
+	archiveDecompressors.Unlock()
+	return func() {
+		archiveDecompressors.Lock()
+		defer archiveDecompressors.Unlock()
+		if hadPrevious {
+			archiveDecompressors.items[key] = previous
+		} else {
+			delete(archiveDecompressors.items, key)
+		}
+	}
+}
+
+func registeredArchiveDecompressor(format string) (ArchiveDecompressor, bool) {
+	archiveDecompressors.RLock()
+	decompressor, ok := archiveDecompressors.items[normalizeArchive(format)]
+	archiveDecompressors.RUnlock()
+	return decompressor, ok
+}
+
 // extractBinary pulls the binary identified by binPath out of the archive at
 // archivePath and writes it to destFile. When binPath is empty it selects the
 // archive's sole regular file (erroring if there are zero or many). format is
@@ -29,11 +70,68 @@ func extractBinary(archivePath, format, binPath, destFile string) error {
 	switch format {
 	case "tar.gz", "tgz":
 		return extractFromTarGz(archivePath, binPath, destFile)
+	case "tar.zst":
+		return extractFromTarZstd(archivePath, binPath, destFile)
 	case "zip":
 		return extractFromZip(archivePath, binPath, destFile)
 	default:
 		return fmt.Errorf("binaryfetch: unsupported archive format %q", format)
 	}
+}
+
+func extractFromTarZstd(archivePath, binPath, destFile string) error {
+	f, err := os.Open(archivePath) //nolint:gosec // archivePath is fetched into a controlled temp dir
+	if err != nil {
+		return err
+	}
+	decompressor, ok := registeredArchiveDecompressor("tar.zst")
+	if !ok {
+		f.Close()
+		return fmt.Errorf("binaryfetch: no decompressor registered for tar.zst")
+	}
+	stream, err := decompressor(f)
+	if err != nil {
+		f.Close()
+		return fmt.Errorf("binaryfetch: open tar.zst: %w", err)
+	}
+	defer func() { _ = stream.Close(); _ = f.Close() }()
+	return extractFromTarReader(tar.NewReader(stream), binPath, destFile, archivePath, "tar.zst")
+}
+
+func extractFromTarReader(tr *tar.Reader, binPath, destFile, archivePath, format string) error {
+	var candidates []string
+	matchName := filepath.Clean(binPath)
+	for {
+		hdr, err := tr.Next()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			return fmt.Errorf("binaryfetch: read tar: %w", err)
+		}
+		if hdr.Typeflag != tar.TypeReg {
+			continue
+		}
+		name := filepath.Clean(hdr.Name)
+		if binPath != "" {
+			if name == matchName || filepath.Base(name) == filepath.Base(matchName) {
+				return writeReader(tr, destFile)
+			}
+			continue
+		}
+		candidates = append(candidates, name)
+	}
+	if binPath != "" {
+		return fmt.Errorf("%w: %q not in archive", ErrNoBinaryInArchive, binPath)
+	}
+	if len(candidates) != 1 {
+		return fmt.Errorf("%w: archive has %d regular files; set binPath to disambiguate", ErrNoBinaryInArchive, len(candidates))
+	}
+	// The stream is exhausted; reopen and select the sole file deterministically.
+	if format == "tar.zst" {
+		return extractFromTarZstd(archivePath, candidates[0], destFile)
+	}
+	return nil
 }
 
 func extractFromTarGz(archivePath, binPath, destFile string) error {
@@ -129,10 +227,83 @@ func extractAll(archivePath, format, destDir string) error {
 	switch format {
 	case "tar.gz", "tgz":
 		return extractAllTarGz(archivePath, destDir)
+	case "tar.zst":
+		return extractAllTarZstd(archivePath, destDir)
 	case "zip":
 		return extractAllZip(archivePath, destDir)
 	default:
 		return fmt.Errorf("binaryfetch: unsupported archive format %q", format)
+	}
+}
+
+func extractAllTarZstd(archivePath, destDir string) error {
+	f, err := os.Open(archivePath) //nolint:gosec // archivePath is fetched into a controlled temp dir
+	if err != nil {
+		return err
+	}
+	decompressor, ok := registeredArchiveDecompressor("tar.zst")
+	if !ok {
+		f.Close()
+		return fmt.Errorf("binaryfetch: no decompressor registered for tar.zst")
+	}
+	stream, err := decompressor(f)
+	if err != nil {
+		f.Close()
+		return fmt.Errorf("binaryfetch: open tar.zst: %w", err)
+	}
+	defer func() { _ = stream.Close(); _ = f.Close() }()
+	return extractAllTarReader(tar.NewReader(stream), destDir)
+}
+
+// extractTarLayer extracts an uncompressed OCI tar layer into destDir. OCI
+// layers are handled separately from declared archive formats because the
+// layer digest is the image reference's content address.
+func extractTarLayer(archivePath, destDir string) error {
+	file, err := os.Open(archivePath) //nolint:gosec // fetched into a controlled temp dir
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	return extractAllTarReader(tar.NewReader(file), destDir)
+}
+
+func extractAllTarReader(tr *tar.Reader, destDir string) error {
+	if err := os.MkdirAll(destDir, 0o755); err != nil {
+		return fmt.Errorf("binaryfetch: create extract dir: %w", err)
+	}
+	for {
+		hdr, err := tr.Next()
+		if errors.Is(err, io.EOF) {
+			return nil
+		}
+		if err != nil {
+			return fmt.Errorf("binaryfetch: read tar: %w", err)
+		}
+		target, err := safeJoin(destDir, hdr.Name)
+		if err != nil {
+			return err
+		}
+		switch hdr.Typeflag {
+		case tar.TypeDir:
+			if err := os.MkdirAll(target, 0o755); err != nil {
+				return fmt.Errorf("binaryfetch: mkdir %q: %w", hdr.Name, err)
+			}
+		case tar.TypeReg:
+			if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+				return fmt.Errorf("binaryfetch: mkdir parent of %q: %w", hdr.Name, err)
+			}
+			mode := os.FileMode(hdr.Mode).Perm()
+			if mode == 0 {
+				mode = 0o644
+			}
+			if err := writeReaderMode(tr, target, mode); err != nil {
+				return err
+			}
+		case tar.TypeSymlink:
+			if err := createSafeSymlink(destDir, hdr.Name, hdr.Linkname, target); err != nil {
+				return err
+			}
+		}
 	}
 }
 
@@ -192,10 +363,37 @@ func extractAllTarGz(archivePath, destDir string) error {
 			if err := writeReaderMode(tr, target, mode); err != nil {
 				return err
 			}
+		case tar.TypeSymlink:
+			if err := createSafeSymlink(destDir, hdr.Name, hdr.Linkname, target); err != nil {
+				return err
+			}
 		default:
-			// Skip symlinks, devices, fifos: a fetched backend tree is plain files.
+			// Devices and fifos are never materialized from a fetched backend tree.
 			continue
 		}
+	}
+	return nil
+}
+
+func createSafeSymlink(root, name, linkname, target string) error {
+	if filepath.IsAbs(filepath.FromSlash(linkname)) {
+		return fmt.Errorf("binaryfetch: symlink %q has an absolute target", name)
+	}
+	resolved, err := safeJoin(root, filepath.ToSlash(filepath.Join(filepath.Dir(name), filepath.FromSlash(linkname))))
+	if err != nil {
+		return fmt.Errorf("binaryfetch: symlink %q target escapes extract dir: %w", name, err)
+	}
+	if _, err := os.Stat(resolved); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("binaryfetch: inspect symlink %q target: %w", name, err)
+	}
+	if err := os.RemoveAll(target); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("binaryfetch: replace symlink %q: %w", name, err)
+	}
+	if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+		return fmt.Errorf("binaryfetch: mkdir symlink parent %q: %w", name, err)
+	}
+	if err := os.Symlink(linkname, target); err != nil {
+		return fmt.Errorf("binaryfetch: create symlink %q: %w", name, err)
 	}
 	return nil
 }

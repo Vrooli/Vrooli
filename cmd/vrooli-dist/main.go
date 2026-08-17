@@ -32,9 +32,8 @@ func run(args []string) int {
 	allowMissingDarwinKeychain := flags.Bool("allow-missing-darwin-keychain", false,
 		"permit building darwin from a non-darwin host, producing a CLI with no macOS credential backend; never use for a release")
 	matrixJSON := flags.Bool("matrix-json", false, "print the supported target matrix as JSON")
-	vaultServer := flags.Bool("vault-server", false, "stage a checksum-verified Vault server from the checked-in catalog")
-	vaultTarget := flags.String("vault-target", "", "managed Vault target (for example linux-amd64)")
 	resourceArtifacts := flags.Bool("resource-artifacts", false, "build and stage release-signable resource controller and service artifacts")
+	toolArtifacts := flags.Bool("tool-artifacts", false, "stage release-signable vendored tool artifacts")
 	verifyReleaseManifest := flags.Bool("verify-release-manifest", false, "verify a staged generic release manifest before it is bundled")
 	trustMode := flags.String("trust-mode", "", "artifact trust mode for manifest verification: development-local or production")
 	releaseArtifactRoot := flags.String("release-artifact-root", "", "staged release artifact directory to verify")
@@ -78,25 +77,22 @@ func run(args []string) int {
 		return 0
 	}
 	stagedReleaseArtifacts := false
-	if *vaultServer {
-		if strings.TrimSpace(*root) == "" || strings.TrimSpace(*outDir) == "" || strings.TrimSpace(*vaultTarget) == "" {
-			fmt.Fprintln(os.Stderr, "--vault-server requires --root, --out-dir, and --vault-target")
-			return 2
-		}
-		if err := stageVaultServer(context.Background(), *root, *outDir, *vaultTarget); err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			return 1
-		}
-		stagedReleaseArtifacts = true
-	}
-	if *resourceArtifacts {
+	if *resourceArtifacts || *toolArtifacts {
 		if strings.TrimSpace(*root) == "" || strings.TrimSpace(*outDir) == "" {
-			fmt.Fprintln(os.Stderr, "--resource-artifacts requires --root and --out-dir")
+			fmt.Fprintln(os.Stderr, "--resource-artifacts/--tool-artifacts require --root and --out-dir")
 			return 2
 		}
-		if err := stageResourceArtifacts(context.Background(), *root, *outDir); err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			return 1
+		if *resourceArtifacts {
+			if err := stageResourceArtifacts(context.Background(), *root, *outDir); err != nil {
+				fmt.Fprintln(os.Stderr, err)
+				return 1
+			}
+		}
+		if *toolArtifacts {
+			if err := stageToolArtifacts(context.Background(), *root, *outDir); err != nil {
+				fmt.Fprintln(os.Stderr, err)
+				return 1
+			}
 		}
 		if err := writeReleaseChecksumManifest(*outDir); err != nil {
 			fmt.Fprintln(os.Stderr, err)

@@ -18,6 +18,7 @@ const (
 	EligibilityEligible   = internalhostreq.EligibilityEligible
 	EligibilityDegraded   = internalhostreq.EligibilityDegraded
 	EligibilityIneligible = internalhostreq.EligibilityIneligible
+	EligibilityUnknown    = internalhostreq.EligibilityUnknown
 )
 
 var (

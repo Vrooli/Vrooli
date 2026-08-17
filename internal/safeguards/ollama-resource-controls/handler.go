@@ -1,44 +1,46 @@
-// Package ollamaresourcecontrols installs a systemd drop-in that caps
-// ollama.service memory usage and biases the system-wide OOM killer toward
-// it. Motivation: on 2026-05-07 the dev workstation hard-reset four times
-// in 24 h with no kernel-side panic logs. The active ollama.service was the
-// stock installer's unit with no cgroup directives; agents that bypass the
-// resource-ollama wrapper hit localhost:11434 directly and could drive an
-// embeddings burst large enough to be a candidate cause. Whatever the root
-// cause turns out to be, an unbounded ollama is a known host-stability risk
-// and the cheapest mitigation is enforced cgroup limits.
+// Package ollamaresourcecontrols verifies the resource controls applied by the
+// managed-service supervisor to Ollama's actual supervised process.
 //
-// We use a high-priority drop-in (99-vrooli-...) rather than rewriting
-// ollama.service so we layer cleanly on top of whatever Ollama's upstream
-// installer or any pre-existing wrapper has already written.
+// Older versions installed a systemd drop-in for ollama.service. That unit is
+// not part of the managed-service lifecycle, so the drop-in could report
+// success while the process serving inference remained unlimited. The control
+// plane now applies the limits at launch and this safeguard reads them back
+// from the supervisor's recorded PID.
 package ollamaresourcecontrols
 
 import (
-	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strconv"
 	"strings"
 
-	"github.com/vrooli/vrooli/internal/daemonreload"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
+	"golang.org/x/sys/unix"
 )
 
 const (
-	dropinDir  = "/etc/systemd/system/ollama.service.d"
-	dropinPath = dropinDir + "/99-vrooli-resource-controls.conf"
+	memoryHighPercent = 60
+	memoryMaxPercent  = 70
+	oomScoreAdjust    = 500
 )
 
-// Resource control values. Memory caps use systemd percentage syntax
-// (% of physical RAM) so they scale across hosts. CPUQuota is intentionally
-// omitted — memory exhaustion hangs kernels; CPU saturation is recoverable.
-var managedDirectives = []struct {
-	Key   string
-	Value string
-}{
-	{"MemoryHigh", "60%"},
-	{"MemoryMax", "70%"},
-	{"TasksMax", "4096"},
-	{"OOMScoreAdjust", "500"},
+type managedServiceState struct {
+	PID int `json:"pid"`
 }
+
+var (
+	readFileFn   = os.ReadFile
+	statePathFn  = ollamaStatePath
+	processAlive = func(pid int) bool {
+		err := unix.Kill(pid, 0)
+		return err == nil || errors.Is(err, unix.EPERM)
+	}
+	processLimitsFn = readProcessLimits
+)
 
 type handler struct {
 	manifest hostreqkit.SafeguardManifest
@@ -54,45 +56,37 @@ func (h handler) Kind() hostreqspec.Kind { return hostreqspec.KindSafeguard }
 func (h handler) Inspect(host hostreqkit.Host, requirement hostreqspec.ResolvedRequirement) hostreqkit.ItemStatus {
 	status := hostreqkit.BaseStatus(requirement)
 	status.SupportClass = hostreqkit.SupportSupported
-
 	if requirement.Manual {
 		status.SupportClass = hostreqkit.SupportManualOnly
 		status.ExecutionState = hostreqkit.ExecutionManualActionRequired
 		return status
 	}
-
 	if host.OS != "linux" {
 		status.SupportClass = hostreqkit.SupportUnsupported
 		status.ExecutionState = hostreqkit.ExecutionUnsupported
-		status.Notes = append(status.Notes, "ollama resource controls require systemd (Linux only)")
+		status.Notes = append(status.Notes, "ollama resource controls require the Linux managed-service supervisor")
 		return status
 	}
-
-	if !host.SupportsSystemd {
+	state, err := readState()
+	if errors.Is(err, os.ErrNotExist) || state.PID <= 0 || !processAlive(state.PID) {
 		status.SupportClass = hostreqkit.SupportNotApplicable
 		status.ExecutionState = hostreqkit.ExecutionNotApplicable
-		status.Notes = append(status.Notes, "host does not support systemd")
+		status.Notes = append(status.Notes, "ollama managed-service is not running")
 		return status
 	}
-
-	// Only applicable when ollama.service is actually present. Hosts without
-	// ollama (CI runners, fresh installs) shouldn't see this as a missing
-	// safeguard.
-	if !ollamaUnitPresent() {
+	if err != nil {
 		status.SupportClass = hostreqkit.SupportNotApplicable
 		status.ExecutionState = hostreqkit.ExecutionNotApplicable
-		status.Notes = append(status.Notes, "ollama.service not present on this host")
+		status.Notes = append(status.Notes, "ollama managed-service state is unavailable: "+err.Error())
 		return status
 	}
-
-	if hostreqkit.FileContentMatches(dropinPath, buildDropinContent()) {
-		status.Applied = true
-		status.ExecutionState = hostreqkit.ExecutionAlreadyPresent
-		status.Notes = append(status.Notes, "ollama resource-control drop-in already in place")
+	if err := verifyProcessControls(state.PID); err != nil {
+		status.Notes = append(status.Notes, fmt.Sprintf("ollama supervisor process %d controls are missing or stale: %v", state.PID, err))
 		return status
 	}
-
-	status.Notes = append(status.Notes, "ollama resource-control drop-in missing or stale at "+dropinPath)
+	status.Applied = true
+	status.ExecutionState = hostreqkit.ExecutionAlreadyPresent
+	status.Notes = append(status.Notes, fmt.Sprintf("ollama supervisor process %d has the declared memory and OOM controls", state.PID))
 	return status
 }
 
@@ -106,72 +100,88 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 		return status, nil
 	case hostreqkit.SupportManualOnly:
 		status.ExecutionState = hostreqkit.ExecutionManualActionRequired
-		status.Notes = append(status.Notes, "manual safeguard action required by manifest declaration")
 		return status, nil
 	}
-
 	if status.Applied {
 		status.ExecutionState = hostreqkit.ExecutionAlreadyPresent
 		return status, nil
 	}
-
+	status.ExecutionState = hostreqkit.ExecutionFailed
 	if opts.DryRun {
 		status.ExecutionState = hostreqkit.ExecutionWouldApply
-		status.Notes = append(status.Notes, "dry-run: would install "+dropinPath)
+		status.Notes = append(status.Notes, "dry-run: restart Ollama through `vrooli resource restart ollama` so the supervisor reapplies its process limits")
 		return status, nil
 	}
-
-	if err := hostreqkit.EnsureManagedDir(dropinDir, opts.SudoMode, opts); err != nil {
-		status.ExecutionState = hostreqkit.ExecutionFailed
-		status.Notes = append(status.Notes, err.Error())
-		return status, nil
-	}
-
-	if err := hostreqkit.InstallManagedContent(dropinPath, buildDropinContent(), opts.SudoMode, opts); err != nil {
-		status.ExecutionState = hostreqkit.ExecutionFailed
-		status.Notes = append(status.Notes, err.Error())
-		return status, nil
-	}
-
-	if _, err := daemonreload.Reload(context.Background(), daemonreload.CurrentRoot(), opts); err != nil {
-		status.ExecutionState = hostreqkit.ExecutionFailed
-		status.Notes = append(status.Notes, "drop-in written but daemon-reload/ GPU repair failed: "+err.Error())
-		return status, nil
-	}
-
-	// Don't auto-restart ollama. The drop-in is read on next start; a forced
-	// restart here would interrupt running embeddings/inference for any
-	// caller currently using ollama. Surface the note instead so the operator
-	// chooses when to apply.
-	status.Applied = true
-	status.ExecutionState = hostreqkit.ExecutionApplied
-	status.Notes = append(status.Notes,
-		"drop-in installed; run `systemctl restart ollama` to apply cgroup limits to the running process")
+	status.Notes = append(status.Notes, "restart Ollama through `vrooli resource restart ollama`; limits are applied only by the managed-service supervisor")
 	return status, nil
 }
 
-// ollamaUnitPresent returns true when systemd knows about ollama.service.
-// Uses `systemctl list-unit-files` so we catch both /etc/systemd/system and
-// /lib/systemd/system without hardcoding paths.
-func ollamaUnitPresent() bool {
-	out, err := hostreqkit.CombinedOutputFn("systemctl", "list-unit-files", "--no-pager", "--no-legend", "ollama.service")
+func readState() (managedServiceState, error) {
+	body, err := readFileFn(statePathFn())
 	if err != nil {
-		return false
+		return managedServiceState{}, err
 	}
-	return strings.Contains(string(out), "ollama.service")
+	var state managedServiceState
+	if err := json.Unmarshal(body, &state); err != nil {
+		return managedServiceState{}, fmt.Errorf("parse managed-service state: %w", err)
+	}
+	return state, nil
 }
 
-func buildDropinContent() string {
-	var b strings.Builder
-	b.WriteString("# Managed by Vrooli -- do not edit manually\n")
-	b.WriteString("# Caps ollama.service so an embeddings burst cannot exhaust host RAM.\n")
-	b.WriteString("# See internal/safeguards/ollama-resource-controls/handler.go for rationale.\n")
-	b.WriteString("[Service]\n")
-	for _, d := range managedDirectives {
-		b.WriteString(d.Key)
-		b.WriteString("=")
-		b.WriteString(d.Value)
-		b.WriteString("\n")
+func ollamaStatePath() string {
+	home, err := hostreqkit.InvokingUserHomeDir()
+	if err != nil {
+		return filepath.Join(".", "ollama", "managed-service.json")
 	}
-	return b.String()
+	return filepath.Join(home, ".local", "state", "vrooli", "resources", "ollama", "managed-service.json")
+}
+
+func verifyProcessControls(pid int) error {
+	total, err := physicalMemory()
+	if err != nil {
+		return err
+	}
+	cur, max, err := processLimitsFn(pid)
+	if err != nil {
+		return err
+	}
+	wantCur := total * memoryHighPercent / 100
+	wantMax := total * memoryMaxPercent / 100
+	if cur != wantCur || max != wantMax {
+		return fmt.Errorf("address-space limit is cur=%d max=%d, want cur=%d max=%d", cur, max, wantCur, wantMax)
+	}
+	value, err := readFileFn(filepath.Join("/proc", strconv.Itoa(pid), "oom_score_adj"))
+	if err != nil {
+		return fmt.Errorf("read oom_score_adj: %w", err)
+	}
+	if strings.TrimSpace(string(value)) != strconv.Itoa(oomScoreAdjust) {
+		return fmt.Errorf("oom_score_adj is %q, want %d", strings.TrimSpace(string(value)), oomScoreAdjust)
+	}
+	return nil
+}
+
+func readProcessLimits(pid int) (uint64, uint64, error) {
+	var limit unix.Rlimit
+	if err := unix.Prlimit(pid, unix.RLIMIT_AS, nil, &limit); err != nil {
+		return 0, 0, fmt.Errorf("read address-space limit: %w", err)
+	}
+	return limit.Cur, limit.Max, nil
+}
+
+func physicalMemory() (uint64, error) {
+	data, err := readFileFn("/proc/meminfo")
+	if err != nil {
+		return 0, fmt.Errorf("read physical memory: %w", err)
+	}
+	for _, line := range strings.Split(string(data), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) >= 2 && fields[0] == "MemTotal:" {
+			kib, err := strconv.ParseUint(fields[1], 10, 64)
+			if err != nil || kib == 0 {
+				break
+			}
+			return kib * 1024, nil
+		}
+	}
+	return 0, fmt.Errorf("physical memory is missing from /proc/meminfo")
 }

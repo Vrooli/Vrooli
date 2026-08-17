@@ -5,27 +5,30 @@ package deployability
 
 import core "github.com/vrooli/vrooli/internal/deployability"
 
-type HostOS = core.HostOS
-type Bundling = core.Bundling
-type DeliveryTier = core.DeliveryTier
-type Verdict = core.Verdict
-type ResourceRequirements = core.ResourceRequirements
-type PlatformDeclaration = core.PlatformDeclaration
-type CapabilityDeclaration = core.CapabilityDeclaration
-type DependencyDeclaration = core.DependencyDeclaration
-type TargetDeclaration = core.TargetDeclaration
-type ResolutionInput = core.ResolutionInput
-type Reason = core.Reason
-type DependencyResult = core.DependencyResult
-type Resolution = core.Resolution
-type CapabilityImplementation = core.CapabilityImplementation
-type CapabilityResolutionStatus = core.CapabilityResolutionStatus
-type CapabilityResolution = core.CapabilityResolution
-type InstanceLiteral = core.InstanceLiteral
-type SwapSource = core.SwapSource
-type SwapAlternative = core.SwapAlternative
-type ResourceSwapSuggestion = core.ResourceSwapSuggestion
-type ToolAcquisitionDeclaration = core.ToolAcquisitionDeclaration
+type (
+	HostOS                         = core.HostOS
+	Bundling                       = core.Bundling
+	DeliveryTier                   = core.DeliveryTier
+	Verdict                        = core.Verdict
+	ResourceRequirements           = core.ResourceRequirements
+	GPURequirement                 = core.GPURequirement
+	PlatformDeclaration            = core.PlatformDeclaration
+	CapabilityDeclaration          = core.CapabilityDeclaration
+	DependencyDeclaration          = core.DependencyDeclaration
+	TargetDeclaration              = core.TargetDeclaration
+	ResolutionInput                = core.ResolutionInput
+	Reason                         = core.Reason
+	DependencyResult               = core.DependencyResult
+	Resolution                     = core.Resolution
+	CapabilityImplementation       = core.CapabilityImplementation
+	CapabilityResolutionStatus     = core.CapabilityResolutionStatus
+	CapabilityResolution           = core.CapabilityResolution
+	InstanceLiteral                = core.InstanceLiteral
+	SwapSource                     = core.SwapSource
+	SwapAlternative                = core.SwapAlternative
+	ResourceSwapSuggestion         = core.ResourceSwapSuggestion
+	AcquisitionCoverageDeclaration = core.AcquisitionCoverageDeclaration
+)
 
 const (
 	HostOSLinux   = core.HostOSLinux
@@ -52,9 +55,11 @@ const (
 	CapabilityPeerless    = core.CapabilityPeerless
 )
 
-var Resolve = core.Resolve
-var ResolveCapability = core.ResolveCapability
-var SuggestResourceSwaps = core.SuggestResourceSwaps
-var ExtractDeclaredAlternatives = core.ExtractDeclaredAlternatives
-var FindInstanceLiterals = core.FindInstanceLiterals
-var ValidateMacOSAcquisition = core.ValidateMacOSAcquisition
+var (
+	Resolve                     = core.Resolve
+	ResolveCapability           = core.ResolveCapability
+	SuggestResourceSwaps        = core.SuggestResourceSwaps
+	ExtractDeclaredAlternatives = core.ExtractDeclaredAlternatives
+	FindInstanceLiterals        = core.FindInstanceLiterals
+	ValidateAcquisitionCoverage = core.ValidateAcquisitionCoverage
+)

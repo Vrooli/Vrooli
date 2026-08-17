@@ -99,6 +99,19 @@ type StreamConfig struct {
 	VADTrailingPadMs      int
 	VADInitialPromptWords int
 
+	// Live-text levers for VADSegmenter. VADSegment commits only at silence
+	// boundaries, so without a preview lane a continuously speaking operator
+	// sees no text at all until they pause. This is the default strategy on
+	// every host without a CUDA GPU, so "no previews" means "no live text"
+	// for all of macOS, Windows, and GPU-less Linux.
+	//
+	// VADPreviewIntervalMs is the minimum new audio between previews
+	// (0 disables). VADPreviewWindowMs bounds the trailing audio each
+	// preview transcribes, keeping preview cost flat across a long session.
+	// See strategy.VADSegmenter.
+	VADPreviewIntervalMs int
+	VADPreviewWindowMs   int
+
 	// Post-recognition egress-gate levers. The Segmenter builds the gate
 	// from these (Phase 2 derives the stage set from the engine manifest;
 	// these remain the operator tunables the manifest-derived stages read).
@@ -167,10 +180,17 @@ func Defaults() StreamConfig {
 		// Do not best-guess divergent Whisper text by default. The bounded
 		// MaxWindowMs path retains audio and retries with backoff; operators
 		// can opt into the faster but lower-confidence stall fallback.
-		OverlapMaxStallRejects:     0,
-		VADPreRollMs:               800,
-		VADTrailingPadMs:           200,
-		VADInitialPromptWords:      20,
+		OverlapMaxStallRejects: 0,
+		VADPreRollMs:           800,
+		VADTrailingPadMs:       200,
+		VADInitialPromptWords:  20,
+		// Preview every 1.5 s of new speech over an 8 s trailing window.
+		// One extra provider call per 1.5 s of continuous speech is the price
+		// of live text on hosts with no streaming engine; the window bound
+		// keeps that price constant no matter how long the operator talks.
+		// Set VADPreviewIntervalMs to 0 to trade live text back for load.
+		VADPreviewIntervalMs:       1500,
+		VADPreviewWindowMs:         8000,
 		HallucinationFilterEnabled: true,
 		VADFilterEnabled:           true,
 		// faster-whisper defaults: a segment is "no speech" when
@@ -354,6 +374,8 @@ func (s *Selector) Select(
 				PreRollMs:          cfg.VADPreRollMs,
 				TrailingPadMs:      cfg.VADTrailingPadMs,
 				InitialPromptWords: cfg.VADInitialPromptWords,
+				PreviewIntervalMs:  cfg.VADPreviewIntervalMs,
+				PreviewWindowMs:    cfg.VADPreviewWindowMs,
 			}, kind, nil
 		case sttchain.StrategyOverlapAgree:
 			if !traits.Batch {

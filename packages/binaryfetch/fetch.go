@@ -129,6 +129,20 @@ func Fetch(ctx context.Context, spec Target, destDir string, onProgress Progress
 	return finalPath, nil
 }
 
+// Download retrieves a non-executable provenance file into destination. It
+// shares the same HTTPS-capable HTTP client and cancellation behavior as
+// executable acquisition; callers must authenticate the downloaded bytes with
+// VerifyProvenance before using them as trust evidence.
+func Download(ctx context.Context, rawURL, destination string, onProgress ProgressFunc) error {
+	if strings.TrimSpace(rawURL) == "" {
+		return fmt.Errorf("binaryfetch: download URL is required")
+	}
+	if err := os.MkdirAll(filepath.Dir(destination), 0o700); err != nil {
+		return err
+	}
+	return download(ctx, rawURL, destination, onProgress)
+}
+
 // FetchDir downloads + sha256-verifies the target archive and extracts its
 // ENTIRE tree into optDir (cleaning optDir first so reinstalls are idempotent).
 // It validates that the entry binary at <optDir>/<spec.BinPath> exists, is not an

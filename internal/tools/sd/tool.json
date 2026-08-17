@@ -1,7 +1,10 @@
 {
   "$schema": "../../../.vrooli/schemas/tool.schema.json",
- "name": "sd",
-  "storage": {"entries": {}, "rationale": "This tool has no tool-owned persistent storage in the supported Vrooli workflow; the explicit empty declaration records that caches or credentials are owned by the invoking workflow."},
+  "name": "sd",
+  "storage": {
+    "entries": {},
+    "rationale": "This tool has no tool-owned persistent storage in the supported Vrooli workflow; the explicit empty declaration records that caches or credentials are owned by the invoking workflow."
+  },
   "description": "stable-diffusion.cpp (sd) text-to-image / image-to-image backend for image-tools",
   "commands": [
     "sd"
@@ -15,29 +18,47 @@
     "windows"
   ],
   "installHint": "Installs the prebuilt CPU build of stable-diffusion.cpp (sd-cli + libstable-diffusion.so) into ~/.vrooli/opt/sd with a launcher on PATH; runs on any x86_64 host with no GPU required. For GPU-accelerated generation on a GPU host, run `vrooli host install sd-gpu` instead — it supersedes this CPU launcher with a Vulkan (Linux) or CUDA 12 (Windows) build so image-tools runs on the GPU.",
-  "source": {
-    "type": "release",
-    "targets": {
-      "linux/amd64": {
+  "bundling": "vendorable",
+  "capability": "media-processing",
+  "capability_role": "primary",
+  "acquisition": {
+    "kind": "url",
+    "targets": [
+      {
+        "when": {
+          "os": "linux",
+          "arch": "amd64"
+        },
         "url": "https://github.com/leejet/stable-diffusion.cpp/releases/download/master-709-92a3b73/sd-master-92a3b73-bin-Linux-Ubuntu-24.04-x86_64.zip",
         "sha256": "860b7c12bf7f53af6caaa2507dadca13802ce2b73a0249c163535a9d389f26df",
         "archive": "zip",
         "layout": "dir",
-        "binPath": "sd-cli"
+        "bin_path": "sd-cli"
       },
-      "windows/amd64": {
+      {
+        "when": {
+          "os": "windows",
+          "arch": "amd64"
+        },
         "url": "https://github.com/leejet/stable-diffusion.cpp/releases/download/master-709-92a3b73/sd-master-92a3b73-bin-win-avx2-x64.zip",
         "sha256": "530bf311f7879afa1bbdb0841b46de491050bf203ba449d6650717600b539794",
         "archive": "zip",
         "layout": "dir",
-        "binPath": "sd-cli.exe"
+        "bin_path": "sd-cli.exe"
+      },
+      {
+        "when": {
+          "os": "linux",
+          "arch": "arm64"
+        },
+        "unsupported": "stable-diffusion.cpp publishes no Linux arm64 release artifact; building the missing upstream target is outside host provisioning scope."
+      },
+      {
+        "when": {
+          "os": "darwin"
+        },
+        "unsupported": "stable-diffusion.cpp publishes no supported macOS release artifact for this tool; building a macOS target is outside host provisioning scope."
       }
-    },
-    "unsupported": {
-      "linux/arm64": "stable-diffusion.cpp publishes no Linux arm64 release artifact; building the missing upstream target is outside host provisioning scope."
-    }
-  },
- "bundling": "vendorable",
-  "capability": "media-processing",
-  "capability_role": "primary"
+    ]
+  }
 }

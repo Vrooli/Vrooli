@@ -61,10 +61,33 @@ type SetMetrics struct {
 // SamplingKey is the effective generation identity used by comparability.
 // Source is retained because a role default and a profile-derived value are
 // not equivalent even when their numeric values happen to match.
+//
+// The sampling strategy is deliberately NOT part of this key, and neither is
+// any parameter the strategy owns. A strategy is the thing an experiment varies
+// — the whole reason to measure two candidate sets is usually to learn whether
+// one strategy produced a more diverse set than another under otherwise
+// identical conditions. Including the strategy made every such comparison
+// incomparable by construction, which left the measurement layer unable to
+// answer the one question it exists to answer.
+//
+// Excluding the strategy while keeping its parameters would not have fixed
+// that: a tail threshold that only one strategy defines is a proxy for the
+// strategy, so a set drawn without one never matches a set drawn with one. The
+// strategy and its parameters therefore leave together.
+//
+// The cost is real and deliberate: this key no longer distinguishes two runs of
+// one strategy at different parameter values, so it cannot refuse a comparison
+// between two verbalized rounds drawn at different thresholds. Those parameters
+// stay fully recorded on the round; they are simply not what decides
+// comparability. Refusing that case again needs comparability to be stated
+// relative to a declared experiment rather than by flat key equality.
+//
+// What remains is the set of conditions defined independently of any strategy,
+// which must hold still for a diversity number to mean the same thing on both
+// sides: how many candidates were drawn, what sampling stance produced them,
+// and what output ceiling bounded them.
 type SamplingKey struct {
-	Strategy             string `json:"strategy"`
 	K                    int    `json:"k"`
-	Tau                  string `json:"tau"`
 	TemperatureStance    string `json:"temperature_stance"`
 	MaxOutputTokens      int    `json:"max_output_tokens_effective"`
 	MaxOutputTokenSource string `json:"max_output_tokens_source"`
@@ -118,13 +141,23 @@ func AnalyzeSet(texts, lexicon []string) ([]Metrics, SetMetrics) {
 	}
 	var total float64
 	var pairs int
+	perCandidateRouge := make([]float64, len(texts))
+	perCandidatePairs := make([]int, len(texts))
 	for i := range texts {
 		for j := i + 1; j < len(texts); j++ {
 			sim := lexicalSimilarity(words(texts[i]), words(texts[j]))
 			set.PairwiseSimilarity[i][j], set.PairwiseSimilarity[j][i] = sim, sim
+			rouge := rougeL(words(texts[i]), words(texts[j]))
+			perCandidateRouge[i] += rouge
+			perCandidateRouge[j] += rouge
+			perCandidatePairs[i]++
+			perCandidatePairs[j]++
 			total += sim
 			pairs++
 		}
+	}
+	for i := range items {
+		items[i].RougeLHomogenize = ratio(perCandidateRouge[i], float64(perCandidatePairs[i]))
 	}
 	set.MeanSimilarity = ratio(total, float64(pairs))
 	set.Diversity = 1 - set.MeanSimilarity
@@ -151,6 +184,36 @@ func wordsWithSpans(text string) []Span {
 		out = append(out, Span{Start: start, End: len(text), Text: text[start:]})
 	}
 	return out
+}
+
+// rougeL returns token-level ROUGE-L F. It is a deterministic lexical
+// homogenization signal, not a semantic similarity claim.
+func rougeL(a, b []string) float64 {
+	if len(a) == 0 && len(b) == 0 {
+		return 1
+	}
+	if len(a) == 0 || len(b) == 0 {
+		return 0
+	}
+	dp := make([][]int, len(a)+1)
+	for i := range dp {
+		dp[i] = make([]int, len(b)+1)
+	}
+	for i := 1; i <= len(a); i++ {
+		for j := 1; j <= len(b); j++ {
+			if a[i-1] == b[j-1] {
+				dp[i][j] = dp[i-1][j-1] + 1
+			} else if dp[i-1][j] > dp[i][j-1] {
+				dp[i][j] = dp[i-1][j]
+			} else {
+				dp[i][j] = dp[i][j-1]
+			}
+		}
+	}
+	lcs := float64(dp[len(a)][len(b)])
+	precision := lcs / float64(len(b))
+	recall := lcs / float64(len(a))
+	return ratio(2*precision*recall, precision+recall)
 }
 
 func words(text string) []string {
@@ -365,6 +428,7 @@ func variance(xs []int) float64 {
 	}
 	return sum / float64(len(xs))
 }
+
 func uniqueWords(ws []Span) int {
 	seen := map[string]struct{}{}
 	for _, w := range ws {
@@ -372,6 +436,7 @@ func uniqueWords(ws []Span) int {
 	}
 	return len(seen)
 }
+
 func uniqueStrings(ws []string) int {
 	seen := map[string]struct{}{}
 	for _, w := range ws {
@@ -379,12 +444,14 @@ func uniqueStrings(ws []string) int {
 	}
 	return len(seen)
 }
+
 func ratio(a, b float64) float64 {
 	if b == 0 {
 		return 0
 	}
 	return a / b
 }
+
 func complexWords(ws []Span) int {
 	count := 0
 	for _, w := range ws {
@@ -394,6 +461,7 @@ func complexWords(ws []Span) int {
 	}
 	return count
 }
+
 func syllableCount(word string) int {
 	w := strings.ToLower(word)
 	count := 0
@@ -413,10 +481,12 @@ func syllableCount(word string) int {
 	}
 	return count
 }
+
 func isDaleChallEasy(word string) bool {
 	w := strings.ToLower(word)
 	return len([]rune(w)) <= 4 || strings.Contains(" the of and to in is you that it he was for on are as with his they i at be this have from or one had by word but not what all were we when your can said there use an each which she do how their if will up other about out many then them these so some her would make like him into time has look two more write go see number no way could people my than first water been call who oil its now find long down day did get come made may part", " "+w+" ")
 }
+
 func itoa(n int) string {
 	if n == 1 {
 		return "1"

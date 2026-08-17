@@ -1,6 +1,8 @@
 # Operations
 
-`redis` is organized as a `docker-service` resource.
+`redis` is organized as a native `managed-service` resource. The Linux
+artifact is acquired from a digest-pinned OCI source and launched directly;
+Docker is not a runtime prerequisite.
 
 ## Architecture Boundary
 

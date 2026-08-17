@@ -127,12 +127,31 @@
     "artifact": {
       "path": "server/ollama",
       "version": "0.30.10",
+      "layout": "dir",
+      "entry_path": "bin/ollama",
       "sha256_by_platform": {
-        "linux-amd64": "d173d44ec6992090968ddbd20230873a00852ccedcd532bfddd0d307829ebb78",
-        "macos-amd64": "88abf6776aa83f8d975a486ddac82a285be61cdadd5705153338a49e0f2c5139",
-        "macos-arm64": "88abf6776aa83f8d975a486ddac82a285be61cdadd5705153338a49e0f2c5139"
+        "linux-amd64": "6de264e9396f76050d7e52eba55b5f5a3faf36b72bbb40dd1a6bc086ffa17e1d",
+        "linux-arm64": "a08ccae5f5bc28f7d0dabf62c8dcdc6edfa560405d1ef21f00a5b449529698f2",
+        "macos-amd64": "2977c5b38dfcf6a8293c7c027348bfb77ba2ef519b421b1a748a6285d4fcf7b8",
+        "macos-arm64": "2977c5b38dfcf6a8293c7c027348bfb77ba2ef519b421b1a748a6285d4fcf7b8"
       },
       "bundle_artifact": "ollama_${os}_${arch}"
+    },
+    "process_limits": {
+      "memory_high_percent": 60,
+      "memory_max_percent": 70,
+      "oom_score_adjust": 500
+    },
+    "acquisition": {
+      "kind": "url",
+      "license": "MIT",
+      "targets": [
+        {"when": {"os": "linux", "arch": "amd64"}, "url": "https://github.com/ollama/ollama/releases/download/v0.30.10/ollama-linux-amd64.tar.zst", "sha256": "046d8f28e58d58477a49558d8d1bcb2e81ca8b287f93c44b12ff919c10d178dd", "archive": "tar.zst", "layout": "dir", "bin_path": "bin/ollama"},
+        {"when": {"os": "linux", "arch": "arm64"}, "url": "https://github.com/ollama/ollama/releases/download/v0.30.10/ollama-linux-arm64.tar.zst", "sha256": "b626aef722ddb9d64dd20a76eeba9267abc5e9494faabb97839db85462b707d7", "archive": "tar.zst", "layout": "dir", "bin_path": "bin/ollama"},
+        {"when": {"os": "macos", "arch": "amd64"}, "url": "https://github.com/ollama/ollama/releases/download/v0.30.10/Ollama-darwin.zip", "sha256": "18ff2fd66e141595edbb79fa6887806ed2fe6e08fdfe8b91ecc9376a6bfcb29f", "archive": "zip", "layout": "dir", "bin_path": "Ollama.app/Contents/Resources/ollama"},
+        {"when": {"os": "macos", "arch": "arm64"}, "url": "https://github.com/ollama/ollama/releases/download/v0.30.10/Ollama-darwin.zip", "sha256": "18ff2fd66e141595edbb79fa6887806ed2fe6e08fdfe8b91ecc9376a6bfcb29f", "archive": "zip", "layout": "dir", "bin_path": "Ollama.app/Contents/Resources/ollama"},
+        {"when": {"os": "windows"}, "unsupported": "the Vrooli managed-service contract does not yet stage the Windows server tree"}
+      ]
     },
     "attach_health_path": "/api/tags",
     "arguments": ["serve"],
@@ -153,7 +172,7 @@
       "desktop": {
         "linux": {
           "support": "conditional",
-          "mode": "bundled-service",
+          "mode": "manual",
           "architectures": ["amd64"],
           "requires": [],
           "limitations": [
@@ -167,7 +186,7 @@
         },
         "macos": {
           "support": "conditional",
-          "mode": "bundled-service",
+          "mode": "manual",
           "architectures": [
             "amd64",
             "arm64"
@@ -234,7 +253,7 @@
     "ram_mb": 8192,
     "disk_mb": 12288,
     "cpu_cores": 4,
-    "gpu": true,
+    "gpu": {},
     "network": "optional",
     "bucket": "large",
     "source": "estimated",
@@ -276,12 +295,6 @@
       "timeout_seconds": 10
     }
   ],
-  "gpu": {
-    "probe": "nvidia",
-    "env_overrides": {
-      "NVIDIA_VISIBLE_DEVICES": "all"
-    }
-  },
   "hostSafeguards": [
     {
       "name": "nvidia_driver",

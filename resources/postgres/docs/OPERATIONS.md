@@ -1,6 +1,8 @@
 # Operations
 
-`postgres` is organized as a `docker-service` resource.
+`postgres` is organized as a native `managed-service` resource. The Linux
+server tree is acquired and tree-verified from a digest-pinned OCI source and
+launched directly without Docker.
 
 ## Architecture Boundary
 

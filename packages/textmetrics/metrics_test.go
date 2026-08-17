@@ -26,17 +26,20 @@ func TestAnalyzeIsByteStable(t *testing.T) {
 }
 
 func TestAnalyzeSetRetainsPairwiseMatrix(t *testing.T) {
-	_, set := AnalyzeSet([]string{"bright river stone", "bright river path", "quiet forest night"}, nil)
+	items, set := AnalyzeSet([]string{"bright river stone", "bright river path", "quiet forest night"}, nil)
 	if len(set.PairwiseSimilarity) != 3 || set.PairwiseSimilarity[0][1] == set.PairwiseSimilarity[0][2] {
 		t.Fatalf("unexpected matrix: %+v", set.PairwiseSimilarity)
 	}
 	if set.Diversity <= 0 || set.Basis == "" {
 		t.Fatalf("missing diversity basis: %+v", set)
 	}
+	if items[0].RougeLHomogenize <= 0 || items[0].RougeLHomogenize >= 1 {
+		t.Fatalf("ROUGE-L homogenization was not computed: %+v", items[0])
+	}
 }
 
 func TestComparableIncludesTokenSource(t *testing.T) {
-	a := SamplingKey{Strategy: "direct", K: 3, MaxOutputTokens: 512, MaxOutputTokenSource: "profile"}
+	a := SamplingKey{K: 3, MaxOutputTokens: 512, MaxOutputTokenSource: "profile"}
 	b := a
 	if err := Comparable(a, b); err != nil {
 		t.Fatal(err)
@@ -44,5 +47,28 @@ func TestComparableIncludesTokenSource(t *testing.T) {
 	b.MaxOutputTokenSource = "role-default"
 	if err := Comparable(a, b); err == nil {
 		t.Fatal("different token provenance was accepted")
+	}
+}
+
+// The strategy is the variable an experiment varies, so two sets drawn under
+// identical conditions must compare no matter which strategy produced them.
+// The key holds no strategy field at all; this guards the conditions that do
+// remain, so a later addition cannot reintroduce a strategy proxy unnoticed.
+func TestComparableIgnoresStrategyButHoldsConditions(t *testing.T) {
+	base := SamplingKey{K: 5, TemperatureStance: "role_default", MaxOutputTokens: 2048, MaxOutputTokenSource: "request"}
+	if err := Comparable(base, base); err != nil {
+		t.Fatal(err)
+	}
+	for name, mutate := range map[string]func(*SamplingKey){
+		"candidate count": func(k *SamplingKey) { k.K = 3 },
+		"sampling stance": func(k *SamplingKey) { k.TemperatureStance = "0.7" },
+		"output ceiling":  func(k *SamplingKey) { k.MaxOutputTokens = 1024 },
+		"ceiling source":  func(k *SamplingKey) { k.MaxOutputTokenSource = "role-default" },
+	} {
+		other := base
+		mutate(&other)
+		if err := Comparable(base, other); err == nil {
+			t.Fatalf("a differing %s was accepted as comparable", name)
+		}
 	}
 }

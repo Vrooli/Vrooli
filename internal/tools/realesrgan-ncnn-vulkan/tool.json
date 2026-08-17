@@ -1,7 +1,10 @@
 {
   "$schema": "../../../.vrooli/schemas/tool.schema.json",
- "name": "realesrgan-ncnn-vulkan",
-  "storage": {"entries": {}, "rationale": "This tool has no tool-owned persistent storage in the supported Vrooli workflow; the explicit empty declaration records that caches or credentials are owned by the invoking workflow."},
+  "name": "realesrgan-ncnn-vulkan",
+  "storage": {
+    "entries": {},
+    "rationale": "This tool has no tool-owned persistent storage in the supported Vrooli workflow; the explicit empty declaration records that caches or credentials are owned by the invoking workflow."
+  },
   "description": "Real-ESRGAN ncnn-vulkan upscaler/denoiser binary — optional image-tools backend fetched on demand into ~/.vrooli/bin",
   "commands": [
     "realesrgan-ncnn-vulkan"
@@ -15,43 +18,63 @@
     "windows"
   ],
   "installHint": "Optional image-tools upscale/denoise backend; install on demand with `vrooli host install realesrgan-ncnn-vulkan`",
-  "source": {
-    "type": "release",
-    "targets": {
-      "linux/amd64": {
+  "bundling": "vendorable",
+  "capability": "media-processing",
+  "capability_role": "primary",
+  "acquisition": {
+    "kind": "url",
+    "targets": [
+      {
+        "when": {
+          "os": "linux",
+          "arch": "amd64"
+        },
         "url": "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.5.0/realesrgan-ncnn-vulkan-20220424-ubuntu.zip",
         "sha256": "e5aa6eb131234b87c0c51f82b89390f5e3e642b7b70f2b9bbe95b6a285a40c96",
         "archive": "zip",
-        "binPath": "realesrgan-ncnn-vulkan",
-        "layout": "dir"
+        "layout": "dir",
+        "bin_path": "realesrgan-ncnn-vulkan"
       },
-      "darwin/amd64": {
+      {
+        "when": {
+          "os": "darwin",
+          "arch": "amd64"
+        },
         "url": "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.5.0/realesrgan-ncnn-vulkan-20220424-macos.zip",
         "sha256": "e0ad05580abfeb25f8d8fb55aaf7bedf552c375b5b4d9bd3c8d59764d2cc333a",
         "archive": "zip",
-        "binPath": "realesrgan-ncnn-vulkan",
-        "layout": "dir"
+        "layout": "dir",
+        "bin_path": "realesrgan-ncnn-vulkan"
       },
-      "darwin/arm64": {
+      {
+        "when": {
+          "os": "darwin",
+          "arch": "arm64"
+        },
         "url": "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.5.0/realesrgan-ncnn-vulkan-20220424-macos.zip",
         "sha256": "e0ad05580abfeb25f8d8fb55aaf7bedf552c375b5b4d9bd3c8d59764d2cc333a",
         "archive": "zip",
-        "binPath": "realesrgan-ncnn-vulkan",
-        "layout": "dir"
+        "layout": "dir",
+        "bin_path": "realesrgan-ncnn-vulkan"
       },
-      "windows/amd64": {
+      {
+        "when": {
+          "os": "windows",
+          "arch": "amd64"
+        },
         "url": "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.5.0/realesrgan-ncnn-vulkan-20220424-windows.zip",
         "sha256": "abc02804e17982a3be33675e4d471e91ea374e65b70167abc09e31acb412802d",
         "archive": "zip",
-        "binPath": "realesrgan-ncnn-vulkan.exe",
-        "layout": "dir"
+        "layout": "dir",
+        "bin_path": "realesrgan-ncnn-vulkan.exe"
+      },
+      {
+        "when": {
+          "os": "linux",
+          "arch": "arm64"
+        },
+        "unsupported": "Real-ESRGAN ncnn-vulkan publishes no Linux arm64 release artifact; building the missing upstream target is outside host provisioning scope."
       }
-    },
-    "unsupported": {
-      "linux/arm64": "Real-ESRGAN ncnn-vulkan publishes no Linux arm64 release artifact; building the missing upstream target is outside host provisioning scope."
-    }
-  },
- "bundling": "vendorable",
-  "capability": "media-processing",
-  "capability_role": "primary"
+    ]
+  }
 }

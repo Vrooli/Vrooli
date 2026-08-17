@@ -207,6 +207,17 @@
       },
       "bundle_artifact": "minio_${os}_${arch}"
     },
+    "acquisition": {
+      "kind": "url",
+      "license": "AGPL-3.0-or-later",
+      "targets": [
+        {"when": {"os": "linux", "arch": "amd64"}, "url": "https://dl.min.io/server/minio/release/linux-amd64/archive/minio.RELEASE.2025-07-23T15-54-02Z", "sha256": "eef6581f6509f43ece007a6f2eb4c5e3ce41498c8956e919a7ac7b4b170fa431", "archive": "none", "layout": "file"},
+        {"when": {"os": "linux", "arch": "arm64"}, "url": "https://dl.min.io/server/minio/release/linux-arm64/archive/minio.RELEASE.2025-07-23T15-54-02Z", "sha256": "ec9f48fee97dee7e6ce8fe9f576471bcd52380c035091d8b075b64d606124c7e", "archive": "none", "layout": "file"},
+        {"when": {"os": "macos", "arch": "amd64"}, "url": "https://dl.min.io/server/minio/release/darwin-amd64/archive/minio.RELEASE.2025-07-23T15-54-02Z", "sha256": "314cc62269594d291eaca7807522a079d7c246ff15626964d7190fdd05b7ab04", "archive": "none", "layout": "file"},
+        {"when": {"os": "macos", "arch": "arm64"}, "url": "https://dl.min.io/server/minio/release/darwin-arm64/archive/minio.RELEASE.2025-07-23T15-54-02Z", "sha256": "0939ce5553ce9e6451b69e049fbf399794368276b61da8166f84cbd8c7f2d641", "archive": "none", "layout": "file"},
+        {"when": {"os": "windows", "arch": "amd64"}, "url": "https://dl.min.io/server/minio/release/windows-amd64/archive/minio.RELEASE.2025-07-23T15-54-02Z", "sha256": "4c7c7b6e52638fbe25997a5e4dbb735c44537397ccc7c503c1cb0d02bb61b517", "archive": "none", "layout": "file"}
+      ]
+    },
     "attach_health_path": "/minio/health/ready",
     "arguments": [
       "server",
@@ -295,5 +306,5 @@
   },
   "template_version": "2",
   "privilege": "user",
-  "bundling": "host-required"
+  "bundling": "vendorable"
 }

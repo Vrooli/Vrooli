@@ -70,8 +70,8 @@
       "kind": "go_module"
     }
   },
-  "template": "docker-service",
-  "driver": "docker-service",
+  "template": "managed-service",
+  "driver": "managed-service",
   "credentials": {
     "descriptors": [
       {
@@ -89,57 +89,49 @@
       "desktop": {
         "linux": {
           "support": "conditional",
-          "mode": "docker-desktop",
+          "mode": "bundled-service",
           "architectures": [
             "amd64",
             "arm64"
           ],
-          "requires": [
-            "docker"
-          ],
           "limitations": [
-            "Docker images, storage, and networking remain host-managed."
+            "The native PostgreSQL tree is extracted from a digest-pinned official OCI image without a container runtime."
           ],
           "evidence": [
             "manifest-validation",
-            "docker-preflight"
+            "artifact-checksum",
+            "copy-first-data-validation"
           ]
         },
         "macos": {
-          "support": "conditional",
-          "mode": "docker-desktop",
+          "support": "unsupported",
+          "mode": "manual",
           "architectures": [
             "amd64",
             "arm64"
           ],
-          "requires": [
-            "docker"
-          ],
           "limitations": [
-            "Docker Desktop must be installed and running."
+            "A reproducible native macOS PostgreSQL tree is not yet available in the selected acquisition channel."
           ],
           "evidence": [
-            "manifest-validation",
-            "docker-preflight"
-          ]
+            "manifest-validation"
+          ],
+          "reason": "PostgreSQL is unsupported on macOS until its native tree can be staged and smoke-tested without a package manager."
         },
         "windows": {
-          "support": "conditional",
-          "mode": "docker-desktop",
+          "support": "unsupported",
+          "mode": "manual",
           "architectures": [
             "amd64",
             "arm64"
           ],
-          "requires": [
-            "docker"
-          ],
           "limitations": [
-            "Docker Desktop must be installed and running."
+            "A reproducible native Windows PostgreSQL tree is not yet available in the selected acquisition channel."
           ],
           "evidence": [
-            "manifest-validation",
-            "docker-preflight"
-          ]
+            "manifest-validation"
+          ],
+          "reason": "PostgreSQL is unsupported on Windows until its native tree can be staged and smoke-tested without a package manager."
         }
       }
     }
@@ -158,50 +150,96 @@
   },
   "platforms": {
     "linux": "supported",
-    "macos": "supported",
-    "windows": "partial"
+    "macos": "unsupported",
+    "windows": "unsupported"
   },
   "dependencies": [],
   "ports": [
     {
       "name": "postgresql",
-      "container": 5432,
       "host": 5433
     }
   ],
   "health_checks": [
     {
-      "type": "command",
+      "type": "tcp",
       "kind": "readiness",
-      "command": [
-        "docker",
-        "exec",
-        "vrooli-postgres-main",
-        "pg_isready",
-        "-U",
-        "vrooli",
-        "-h",
-        "127.0.0.1"
-      ],
-      "target": "",
+      "target": "127.0.0.1:5433",
       "interval_seconds": 10,
       "timeout_seconds": 5
     }
   ],
-  "runtime": {
-    "image": "postgres@sha256:57c72fd2a128e416c7fcc499958864df5301e940bca0a56f58fddf30ffc07777",
-    "container_name": "vrooli-postgres-main",
-    "env": {
+  "managed_service": {
+    "provider_policy": {
+      "target_defaults": {
+        "control-plane": "managed-private",
+        "desktop-bundle": "managed-private"
+      },
+      "allowed_modes": [
+        "managed-private",
+        "managed-shared",
+        "attach-only",
+        "remote-vrooli",
+        "managed-discovered"
+      ],
+      "shared_reuse_requires_consent": true,
+      "external_management": "forbidden",
+      "external_access_capabilities": [
+        "read-only",
+        "read-write"
+      ]
+    },
+    "artifact": {
+      "path": "server/postgres",
+      "version": "16.14-bookworm",
+      "layout": "dir",
+      "entry_path": "usr/lib/postgresql/16/bin/postgres",
+      "sha256_by_platform": {
+        "linux-amd64": "8c18753fd1965bb4eaf099ad88412be883b25396b6a5e3b97ad610ddfa3855f2",
+        "linux-arm64": "e495022187d70554a26e83311146b847ee3477e972a97ae4224658e52ab299ef"
+      },
+      "bundle_artifact": "postgres_${os}_${arch}"
+    },
+    "acquisition": {
+      "kind": "oci-image",
+      "license": "PostgreSQL",
+      "targets": [
+        {"when": {"os": "linux", "arch": "amd64"}, "image": "library/postgres@sha256:95206741a5b214807675e14165369d05b93a9cf692223b616d07cca227e74b0b", "layout": "dir", "bin_path": "usr/lib/postgresql/16/bin/postgres", "runtime_env": {"LD_PRELOAD": "${RESOURCE_ARTIFACT_DIR}/usr/lib/x86_64-linux-gnu/libpq.so.5:${RESOURCE_ARTIFACT_DIR}/usr/lib/x86_64-linux-gnu/libicui18n.so.76:${RESOURCE_ARTIFACT_DIR}/usr/lib/x86_64-linux-gnu/libicuuc.so.76:${RESOURCE_ARTIFACT_DIR}/usr/lib/x86_64-linux-gnu/libicudata.so.76:${RESOURCE_ARTIFACT_DIR}/usr/lib/x86_64-linux-gnu/libzstd.so.1:${RESOURCE_ARTIFACT_DIR}/usr/lib/x86_64-linux-gnu/liblz4.so.1:${RESOURCE_ARTIFACT_DIR}/usr/lib/x86_64-linux-gnu/libxml2.so.2:${RESOURCE_ARTIFACT_DIR}/usr/lib/x86_64-linux-gnu/libpam.so.0:${RESOURCE_ARTIFACT_DIR}/usr/lib/x86_64-linux-gnu/libssl.so.3:${RESOURCE_ARTIFACT_DIR}/usr/lib/x86_64-linux-gnu/libcrypto.so.3:${RESOURCE_ARTIFACT_DIR}/usr/lib/x86_64-linux-gnu/libgssapi_krb5.so.2:${RESOURCE_ARTIFACT_DIR}/usr/lib/x86_64-linux-gnu/libz.so.1:${RESOURCE_ARTIFACT_DIR}/usr/lib/x86_64-linux-gnu/libldap.so.2:${RESOURCE_ARTIFACT_DIR}/usr/lib/x86_64-linux-gnu/libsystemd.so.0"}},
+        {"when": {"os": "linux", "arch": "arm64"}, "image": "library/postgres@sha256:95206741a5b214807675e14165369d05b93a9cf692223b616d07cca227e74b0b", "layout": "dir", "bin_path": "usr/lib/postgresql/16/bin/postgres", "runtime_env": {"LD_PRELOAD": "${RESOURCE_ARTIFACT_DIR}/usr/lib/aarch64-linux-gnu/libpq.so.5:${RESOURCE_ARTIFACT_DIR}/usr/lib/aarch64-linux-gnu/libicui18n.so.76:${RESOURCE_ARTIFACT_DIR}/usr/lib/aarch64-linux-gnu/libicuuc.so.76:${RESOURCE_ARTIFACT_DIR}/usr/lib/aarch64-linux-gnu/libicudata.so.76:${RESOURCE_ARTIFACT_DIR}/usr/lib/aarch64-linux-gnu/libzstd.so.1:${RESOURCE_ARTIFACT_DIR}/usr/lib/aarch64-linux-gnu/liblz4.so.1:${RESOURCE_ARTIFACT_DIR}/usr/lib/aarch64-linux-gnu/libxml2.so.2:${RESOURCE_ARTIFACT_DIR}/usr/lib/aarch64-linux-gnu/libpam.so.0:${RESOURCE_ARTIFACT_DIR}/usr/lib/aarch64-linux-gnu/libssl.so.3:${RESOURCE_ARTIFACT_DIR}/usr/lib/aarch64-linux-gnu/libcrypto.so.3:${RESOURCE_ARTIFACT_DIR}/usr/lib/aarch64-linux-gnu/libgssapi_krb5.so.2:${RESOURCE_ARTIFACT_DIR}/usr/lib/aarch64-linux-gnu/libz.so.1:${RESOURCE_ARTIFACT_DIR}/usr/lib/aarch64-linux-gnu/libldap.so.2:${RESOURCE_ARTIFACT_DIR}/usr/lib/aarch64-linux-gnu/libsystemd.so.0"}},
+        {"when": {"os": "macos"}, "unsupported": "PostgreSQL upstream's native macOS distribution is not a reproducible archive accepted by the current stager"},
+        {"when": {"os": "windows"}, "unsupported": "PostgreSQL native Windows distribution is not a reproducible archive accepted by the current stager"}
+      ]
+    },
+    "attach_health_path": "/",
+    "arguments": [
+      "-D", "${RESOURCE_DATA_DIR}/instances/main/data",
+      "-p", "${RESOURCE_PORT_POSTGRESQL}",
+      "-h", "127.0.0.1",
+      "-k", "${RESOURCE_DATA_DIR}/instances/main"
+    ],
+    "environment": {
       "POSTGRES_DB": "vrooli",
       "POSTGRES_USER": "vrooli",
-      "POSTGRES_PASSWORD": "vrooli"
+      "POSTGRES_PASSWORD": "vrooli",
+      "PGDATA": "${RESOURCE_DATA_DIR}/instances/main/data"
     },
-    "volumes": [
-      {
-        "source": "${RESOURCE_DATA_DIR}/instances/main/data",
-        "target": "/var/lib/postgresql/data"
-      }
-    ]
+    "shutdown": {
+      "signal": "interrupt"
+    },
+    "bootstrap": {
+      "marker": "instances/main/data/PG_VERSION",
+      "executable": "usr/lib/postgresql/16/bin/initdb",
+      "arguments": [
+        "-D", "${RESOURCE_DATA_DIR}/instances/main/data",
+        "--username", "${POSTGRES_USER}",
+        "--pwfile", "${RESOURCE_CONFIG_DIR}/.bootstrap-password",
+        "--auth-host", "scram-sha-256",
+        "--auth-local", "trust",
+        "--encoding", "UTF8"
+      ],
+      "password_env": "POSTGRES_PASSWORD",
+      "password_file": ".bootstrap-password"
+    }
   },
   "dependency_schema": {
     "type": "object",
@@ -246,8 +284,7 @@
   "environment_exports": {
     "static": {
       "POSTGRES_HOST": "localhost",
-      "POSTGRES_SSLMODE": "disable",
-      "POSTGRES_CONTAINER_NAME": "vrooli-postgres-main"
+      "POSTGRES_SSLMODE": "disable"
     },
     "from_ports": {
       "POSTGRES_PORT": "postgresql"
@@ -290,5 +327,5 @@
   },
   "template_version": "2",
   "privilege": "user",
-  "bundling": "host-required"
+  "bundling": "vendorable"
 }

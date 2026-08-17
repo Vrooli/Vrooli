@@ -59,64 +59,55 @@
       "kind": "go_module"
     }
   },
-  "template": "docker-service",
-  "driver": "docker-service",
+  "template": "managed-service",
+  "driver": "managed-service",
   "deployment": {
     "profiles": {
       "desktop": {
         "linux": {
           "support": "conditional",
-          "mode": "docker-desktop",
+          "mode": "bundled-service",
           "architectures": [
             "amd64",
             "arm64"
           ],
-          "requires": [
-            "docker"
-          ],
           "limitations": [
-            "Docker images, storage, and networking remain host-managed."
+            "The Linux native Redis artifact is extracted from a digest-pinned official OCI image without a container runtime."
           ],
           "evidence": [
             "manifest-validation",
-            "docker-preflight"
+            "artifact-checksum"
           ]
         },
         "macos": {
-          "support": "conditional",
-          "mode": "docker-desktop",
+          "support": "unsupported",
+          "mode": "manual",
           "architectures": [
             "amd64",
             "arm64"
           ],
-          "requires": [
-            "docker"
-          ],
           "limitations": [
-            "Docker Desktop must be installed and running."
+            "The current Redis release publishes no self-contained native macOS artifact in the declared acquisition channel."
           ],
           "evidence": [
-            "manifest-validation",
-            "docker-preflight"
-          ]
+            "manifest-validation"
+          ],
+          "reason": "Redis is unsupported on macOS until a reproducible native binary distribution is available."
         },
         "windows": {
-          "support": "conditional",
-          "mode": "docker-desktop",
+          "support": "unsupported",
+          "mode": "manual",
           "architectures": [
             "amd64",
             "arm64"
           ],
-          "requires": [
-            "docker"
-          ],
           "limitations": [
-            "Docker Desktop must be installed and running."
+            "The current Redis release publishes no self-contained native Windows artifact in the declared acquisition channel."
           ],
           "evidence": [
-            "manifest-validation",
-            "docker-preflight"
-          ]
+            "manifest-validation"
+          ],
+          "reason": "Redis is unsupported on Windows until a reproducible native binary distribution is available."
         }
       }
     }
@@ -135,14 +126,13 @@
   },
   "platforms": {
     "linux": "supported",
-    "macos": "supported",
-    "windows": "partial"
+    "macos": "unsupported",
+    "windows": "unsupported"
   },
   "dependencies": [],
   "ports": [
     {
       "name": "redis",
-      "container": 6379,
       "host": 6380
     }
   ],
@@ -155,37 +145,62 @@
       "timeout_seconds": 5
     }
   ],
-  "runtime": {
-    "image": "redis@sha256:e7723ff73d963f5cc6d9c4643ea3d989527a402a319239054e9472a7fb9219a2",
-    "container_name": "vrooli-redis-resource",
-    "command": [
-      "redis-server",
-      "--appendonly",
-      "no",
-      "--save",
-      "900",
-      "1",
-      "300",
-      "10",
-      "60",
-      "10000",
-      "--maxmemory",
-      "2gb",
-      "--maxmemory-policy",
-      "allkeys-lru",
-      "--protected-mode",
-      "no",
-      "--bind",
-      "0.0.0.0",
-      "--port",
-      "6379"
+  "managed_service": {
+    "provider_policy": {
+      "target_defaults": {
+        "control-plane": "managed-private",
+        "desktop-bundle": "managed-private"
+      },
+      "allowed_modes": [
+        "managed-private",
+        "managed-shared",
+        "attach-only",
+        "remote-vrooli",
+        "managed-discovered"
+      ],
+      "shared_reuse_requires_consent": true,
+      "external_management": "forbidden",
+      "external_access_capabilities": [
+        "read-only",
+        "read-write"
+      ]
+    },
+    "artifact": {
+      "path": "server/redis",
+      "version": "8.2.1-bookworm",
+      "layout": "dir",
+      "entry_path": "usr/local/bin/redis-server",
+      "sha256_by_platform": {
+        "linux-amd64": "86c6c4edee666ed69fabb75da42a9ef6271e40065ec7689c600f15a34674207b",
+        "linux-arm64": "09d8ff3812820ce984739999be5bea5f8a30385aff2081d48c7132edf3a15660"
+      },
+      "bundle_artifact": "redis_${os}_${arch}"
+    },
+    "acquisition": {
+      "kind": "oci-image",
+      "license": "RSALv2",
+      "targets": [
+        {"when": {"os": "linux", "arch": "amd64"}, "image": "library/redis@sha256:5fa2edb1e408fa8235e6db8fab01d1afaaae96c9403ba67b70feceb8661e8621", "layout": "dir", "bin_path": "usr/local/bin/redis-server"},
+        {"when": {"os": "linux", "arch": "arm64"}, "image": "library/redis@sha256:5fa2edb1e408fa8235e6db8fab01d1afaaae96c9403ba67b70feceb8661e8621", "layout": "dir", "bin_path": "usr/local/bin/redis-server"},
+        {"when": {"os": "macos"}, "unsupported": "Redis upstream does not publish a self-contained native macOS binary in the selected release channel"},
+        {"when": {"os": "windows"}, "unsupported": "Redis upstream does not publish a self-contained native Windows binary in the selected release channel"}
+      ]
+    },
+    "attach_health_path": "/",
+    "arguments": [
+      "--appendonly", "no",
+      "--save", "900", "1", "300", "10", "60", "10000",
+      "--maxmemory", "2gb",
+      "--maxmemory-policy", "allkeys-lru",
+      "--set-proc-title", "no",
+      "--protected-mode", "yes",
+      "--bind", "127.0.0.1",
+      "--port", "${RESOURCE_PORT_REDIS}",
+      "--dir", "${RESOURCE_DATA_DIR}"
     ],
-    "volumes": [
-      {
-        "source": "${RESOURCE_DATA_DIR}",
-        "target": "/data"
-      }
-    ]
+    "environment": {
+      "REDIS_HOST": "localhost"
+    }
   },
   "dependency_schema": {
     "type": "object",
@@ -241,5 +256,5 @@
   },
   "template_version": "2",
   "privilege": "user",
-  "bundling": "host-required"
+  "bundling": "vendorable"
 }

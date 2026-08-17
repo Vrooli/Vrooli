@@ -20,6 +20,7 @@
     "macos",
     "windows"
   ],
+  "manual": true,
   "notes": "Not yet declared by any scenario — kept for upcoming scenario-to-cloud integration",
  "bundling": "host-required",
   "capability": "container-runtime",

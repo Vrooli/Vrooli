@@ -208,7 +208,7 @@
     "ram_mb": 4096,
     "disk_mb": 8192,
     "cpu_cores": 2,
-    "gpu": true,
+    "gpu": {},
     "network": "required",
     "bucket": "large",
     "source": "estimated",

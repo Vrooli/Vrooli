@@ -2,16 +2,17 @@
 
 Managed AdGuard Home DNS filtering and resolver service
 
-This resource was generated from the `docker-service` template and then
-specialized for AdGuard Home.
+This resource uses the `managed-service` template. The control plane acquires
+and verifies the official AdGuard Home release for the selected
+OS/architecture, then supervises the native process directly.
 
 ## Intent
 
 - Resource ID: `adguard-home`
 - Category: `dns`
-- Driver: `docker-service`
-- Portability tier: `partial`
-- Pinned image: `adguard/adguardhome:v0.107.77`
+- Driver: `managed-service`
+- Portability tier: `cross-platform native`
+- Pinned release: `v0.107.73`
 
 ## Use Cases
 
@@ -33,22 +34,15 @@ The CLI stays thin on purpose.
 
 The manifest declares:
 
-| Name | Host | Container | Purpose |
+| Name | Bind | Process | Purpose |
 |---|---:|---:|---|
 | `admin` | `3000/tcp` | `3000/tcp` | AdGuard setup/admin/control API |
 | `dns-tcp` | `192.168.1.173:53/tcp` | `53/tcp` | DNS service |
 | `dns-udp` | `192.168.1.173:53/udp` | `53/udp` | DNS service |
 
-Port `53` is intentionally not hidden behind a random high port. Network-wide
-DNS filtering only works when clients or a router can actually reach the DNS
-listener they are configured to use.
-
-DNS is bound to the server LAN address instead of every host interface. That
-preserves the host's `systemd-resolved` loopback stub on `127.0.0.53:53` while
-exposing AdGuard to LAN clients. On this host the bind address is
-`192.168.1.173`; reserve that address in router DHCP before advertising it as
-household DNS. On another host, change both DNS `host_ip` entries and
-`ADGUARD_HOME_DNS_BIND_IP` to that server's reserved/static LAN address.
+The default is loopback-only so a clean install cannot accidentally become a
+network-wide resolver. Change the declarative bind address only with an
+explicit host firewall and LAN exposure policy.
 
 ## Environment Exports
 
@@ -105,7 +99,7 @@ Persistent DNS filtering changes should go through Network Manager policy and ro
 ## First-Run Bootstrap
 
 Use the resource-local bootstrap command after `vrooli resource start
-adguard-home` reports the container is running:
+adguard-home` reports the managed service is running:
 
 ```bash
 resource-adguard-home bootstrap --base-url http://localhost:3000 --json

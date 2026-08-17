@@ -57,7 +57,6 @@
         "docs/**",
         "README.md",
         "resource.json",
-        "artifacts.json",
         "model-policy.json"
       ]
     },
@@ -91,9 +90,20 @@
       "path": "server/reranker",
       "version": "1.7.4",
       "sha256_by_platform": {
-        "linux-amd64": "0e18dd5070cf9a3dbb6833e6f546afe8030cf9e731c73236d84d301f9093bc4a"
+        "linux-amd64": "68b30d1c0efa51d6ec0916bde786d9a4824f3cd0055148ae0dfe4c51993b43ee"
       },
       "bundle_artifact": "reranker_${os}_${arch}"
+    },
+    "acquisition": {
+      "kind": "oci-image",
+      "license": "Apache-2.0",
+      "targets": [
+        {"when": {"os": "linux", "arch": "amd64", "gpu.cuda_compute": ">=8.9"}, "image": "ghcr.io/huggingface/text-embeddings-inference@sha256:8350eef88360fd746de01cd951adef9584a35ad957a7d02fa3309c2b6e962323", "artifact_sha256": "0e18dd5070cf9a3dbb6833e6f546afe8030cf9e731c73236d84d301f9093bc4a", "layout": "file", "bin_path": "/usr/local/bin/text-embeddings-router"},
+        {"when": {"os": "linux", "arch": "amd64"}, "image": "ghcr.io/huggingface/text-embeddings-inference@sha256:22eac176ead3eb7008c672123b05331347e1a86661a7f27f3f6550dbe31ff96c", "artifact_sha256": "68b30d1c0efa51d6ec0916bde786d9a4824f3cd0055148ae0dfe4c51993b43ee", "layout": "file", "bin_path": "/usr/local/bin/text-embeddings-router"},
+        {"when": {"os": "macos", "arch": "amd64"}, "unsupported": "the pinned TEI image has no native macOS executable bundle"},
+        {"when": {"os": "macos", "arch": "arm64"}, "unsupported": "the pinned TEI image has no native macOS executable bundle"},
+        {"when": {"os": "windows", "arch": "amd64"}, "unsupported": "the pinned TEI image has no native Windows executable bundle"}
+      ]
     },
     "attach_health_path": "/health",
       "arguments": [
@@ -114,18 +124,15 @@
     "profiles": {
       "desktop": {
         "linux": {
-          "support": "conditional",
-          "mode": "bundled-service",
+          "support": "unsupported",
+          "mode": "manual",
           "architectures": ["amd64"],
           "requires": [],
           "limitations": [
             "The pinned TEI 1.7.4 server binary is evidenced on Linux amd64. GPU acceleration depends on the host CUDA driver; CPU mode remains available where the selected model supports it."
           ],
-          "evidence": [
-            "manifest-validation",
-            "artifact-checksum",
-            "target-smoke"
-          ]
+          "evidence": [],
+          "reason": "The pinned OCI image is available for controlled acquisition, but desktop bundling remains unsupported until target smoke evidence is published."
         },
         "macos": {
           "support": "unsupported",
@@ -150,12 +157,6 @@
           "reason": "Native Windows delivery remains pending an artifact and target smoke evidence."
         }
       }
-    }
-  },
-  "gpu": {
-    "probe": "nvidia",
-    "env_overrides": {
-      "NVIDIA_VISIBLE_DEVICES": "all"
     }
   },
   "capacity": {
@@ -190,7 +191,6 @@
     "ram_mb": 3072,
     "disk_mb": 4096,
     "cpu_cores": 2,
-    "gpu": true,
     "network": "required",
     "bucket": "large",
     "source": "estimated",

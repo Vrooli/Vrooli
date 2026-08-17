@@ -228,6 +228,17 @@
       },
       "bundle_artifact": "qdrant_${os}_${arch}"
     },
+    "acquisition": {
+      "kind": "url",
+      "license": "Apache-2.0",
+      "targets": [
+        {"when": {"os": "linux", "arch": "amd64"}, "url": "https://github.com/qdrant/qdrant/releases/download/v1.15.3/qdrant-x86_64-unknown-linux-gnu.tar.gz", "sha256": "26d7b7fa397a8f936721038b99f6c6557ea7540768e902db97dfc6f83f72eb69", "archive": "tar.gz", "layout": "file", "bin_path": "qdrant"},
+        {"when": {"os": "linux", "arch": "arm64"}, "url": "https://github.com/qdrant/qdrant/releases/download/v1.15.3/qdrant-aarch64-unknown-linux-musl.tar.gz", "sha256": "b9ac8d2989904c2b9d44ac396c64241d5b97733a32f23c5f52667cf4ef67b072", "archive": "tar.gz", "layout": "file", "bin_path": "qdrant"},
+        {"when": {"os": "macos", "arch": "amd64"}, "url": "https://github.com/qdrant/qdrant/releases/download/v1.15.3/qdrant-x86_64-apple-darwin.tar.gz", "sha256": "9ddaa9dd670431b15a42f868582fffd1291f3898d28c9c7185c357e62f393e1b", "archive": "tar.gz", "layout": "file", "bin_path": "qdrant"},
+        {"when": {"os": "macos", "arch": "arm64"}, "url": "https://github.com/qdrant/qdrant/releases/download/v1.15.3/qdrant-aarch64-apple-darwin.tar.gz", "sha256": "c8404af1727aab1ccb0a7dd4c644091954d056ec4e4ec898987fc0647f5128c6", "archive": "tar.gz", "layout": "file", "bin_path": "qdrant"},
+        {"when": {"os": "windows", "arch": "amd64"}, "url": "https://github.com/qdrant/qdrant/releases/download/v1.15.3/qdrant-x86_64-pc-windows-msvc.zip", "sha256": "5049d33ed8f0640b3f80feea08c55fcb5cd155f75ed91c5e5e40b2e90570a62b", "archive": "zip", "layout": "file", "bin_path": "qdrant.exe"}
+      ]
+    },
     "attach_health_path": "/readyz",
     "arguments": [
       "--config-path",
@@ -323,5 +334,5 @@
   },
   "template_version": "2",
   "privilege": "user",
-  "bundling": "host-required"
+  "bundling": "vendorable"
 }

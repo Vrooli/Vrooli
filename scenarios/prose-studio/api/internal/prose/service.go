@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -31,7 +32,56 @@ var (
 	ErrDeclarationCollision    = errors.New("declaration_key_collision")
 	ErrBudgetExceeded          = errors.New("session_budget_exceeded")
 	ErrContextInfeasible       = errors.New("context_window_infeasible")
+	ErrEmptyQuery              = errors.New("query_is_required")
+	ErrUnknownLocality         = errors.New("unknown_locality")
+	ErrUnknownTemperature      = errors.New("unknown_temperature_stance")
 )
+
+// localityNames maps the profile-facing locality vocabulary onto the gateway's
+// Profile enum. The names are the enum's own, minus the PROFILE_ prefix, so a
+// declaration file never has to know the proto spelling.
+var localityNames = map[string]sharedv1.Profile{
+	"local_only":        sharedv1.Profile_PROFILE_LOCAL_ONLY,
+	"local_first":       sharedv1.Profile_PROFILE_LOCAL_FIRST,
+	"remote_only":       sharedv1.Profile_PROFILE_REMOTE_ONLY,
+	"quality_first":     sharedv1.Profile_PROFILE_QUALITY_FIRST,
+	"cheap_first":       sharedv1.Profile_PROFILE_CHEAP_FIRST,
+	"privacy_sensitive": sharedv1.Profile_PROFILE_PRIVACY_SENSITIVE,
+}
+
+// localityProfile resolves a declared locality. An empty stance keeps the
+// historical local-first default; an unrecognised one is a request defect
+// rather than a silent fallback, because a profile that asks for remote-only
+// and quietly runs locally is the failure this field exists to prevent.
+func localityProfile(name string) (sharedv1.Profile, error) {
+	trimmed := strings.TrimSpace(strings.ToLower(name))
+	if trimmed == "" {
+		return sharedv1.Profile_PROFILE_LOCAL_FIRST, nil
+	}
+	profile, ok := localityNames[trimmed]
+	if !ok {
+		return sharedv1.Profile_PROFILE_UNSPECIFIED, fmt.Errorf("%w: %q", ErrUnknownLocality, name)
+	}
+	return profile, nil
+}
+
+// samplingControls turns a profile's temperature stance into an explicit
+// gateway control. "ignored" and "role_default" send nothing, which the gateway
+// reads as "use the role's declared sampling". Any other value must parse as a
+// temperature; an unparseable stance is a defect rather than a silent no-op,
+// which is what the stance previously was.
+func samplingControls(stance string) (*sharedv1.SamplingControls, error) {
+	trimmed := strings.TrimSpace(strings.ToLower(stance))
+	switch trimmed {
+	case "", "ignored", "role_default":
+		return nil, nil
+	}
+	temperature, err := strconv.ParseFloat(trimmed, 64)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %q is neither a role-default stance nor a temperature", ErrUnknownTemperature, stance)
+	}
+	return &sharedv1.SamplingControls{Temperature: &temperature}, nil
+}
 
 // Gateway is the only inference seam. Production uses HTTPGateway, which
 // talks to ai-gateway; tests inject a fake. No vendor SDK or credential is
@@ -48,6 +98,9 @@ type HTTPGateway struct {
 func (g HTTPGateway) Generate(ctx context.Context, req GatewayRequest) ([]GatewayCandidate, error) {
 	if strings.TrimSpace(g.BaseURL) == "" {
 		return nil, errors.New("ai-gateway endpoint is not configured")
+	}
+	if strings.TrimSpace(req.Query) == "" {
+		return nil, ErrEmptyQuery
 	}
 	// write.default is a single-draft role. Build a comparable direct set by
 	// issuing one governed gateway request per slot; write.diverse remains one
@@ -79,12 +132,23 @@ func (g HTTPGateway) Generate(ctx context.Context, req GatewayRequest) ([]Gatewa
 		negative, _ := json.Marshal(req.Negative)
 		instruction += "\nDo not repeat candidates represented by this prior-round context: " + string(negative)
 	}
+	locality, err := localityProfile(req.Locality)
+	if err != nil {
+		return nil, err
+	}
+	sampling, err := samplingControls(req.TemperatureStance)
+	if err != nil {
+		return nil, err
+	}
+	// Source carries what the caller asked for; Instruction carries how to write
+	// it. Sending the query as Source is what makes the request about anything.
 	resp, err := connectClient.Run(ctx, connect.NewRequest(&inferencev1.RunRequest{
-		Source:          "prose-studio",
+		Source:          req.Query,
 		SchemaJson:      schema,
 		Instruction:     instruction,
 		Role:            req.Role,
-		Profile:         sharedv1.Profile_PROFILE_LOCAL_FIRST,
+		Profile:         locality,
+		Sampling:        sampling,
 		MaxOutputTokens: int32(req.MaxOutputTokens),
 	}))
 	if err != nil {
@@ -138,6 +202,7 @@ type Service struct {
 func New(db *sql.DB) *Service {
 	return NewWithGateway(db, HTTPGateway{BaseURL: os.Getenv("AI_GATEWAY_URL")})
 }
+
 func NewWithGateway(db *sql.DB, gateway Gateway) *Service {
 	return &Service{db: db, gateway: gateway, now: time.Now}
 }
@@ -202,6 +267,17 @@ func (s *Service) CreateProfile(ctx context.Context, profile Profile) (Profile, 
 	if profile.Sampler.Kind != "direct" && profile.Sampler.Kind != "vs_standard" {
 		return Profile{}, fmt.Errorf("unknown sampler kind %q", profile.Sampler.Kind)
 	}
+	if profile.Locality == "" {
+		profile.Locality = "local_first"
+	}
+	// Reject an unusable locality or temperature stance at write time, so a
+	// profile cannot sit in the registry looking valid and fail every generate.
+	if _, err := localityProfile(profile.Locality); err != nil {
+		return Profile{}, err
+	}
+	if _, err := samplingControls(profile.Sampler.TemperatureStance); err != nil {
+		return Profile{}, err
+	}
 	if err := s.validateStaticFeasibility(profile); err != nil {
 		return Profile{}, err
 	}
@@ -231,7 +307,10 @@ func (s *Service) ResolveProfile(ctx context.Context, key string) (ResolvedProfi
 		styles = append(styles, style)
 	}
 	var instruction strings.Builder
-	instruction.WriteString("You are a governed prose writer. Machine generation disclosure is mandatory.\n")
+	// Machine-generation provenance is carried on the candidate record as a
+	// constant (see Provenance.Disclosure). It must never be asked of the model,
+	// which answers such an instruction inside the prose itself.
+	instruction.WriteString("You are a prose writer. Write the prose the request asks for, and nothing else.\n")
 	for _, style := range styles {
 		instruction.WriteString("VOICE ")
 		instruction.WriteString(style.Key)
@@ -249,10 +328,10 @@ func (s *Service) ResolveProfile(ctx context.Context, key string) (ResolvedProfi
 			instruction.WriteByte('\n')
 		}
 	}
+	// Sampler parameters are transport concerns: k shapes the schema, the
+	// temperature stance becomes a SamplingControls message. Naming them in the
+	// prompt told the model about its own configuration and asked nothing of it.
 	instruction.WriteString("Return prose only. Respect the declared constraints and preserve the requested intent.")
-	instruction.WriteString("\nSAMPLING: strategy=")
-	instruction.WriteString(profile.Sampler.Kind)
-	instruction.WriteString(fmt.Sprintf(" k=%d tau=%.4f temperature_stance=%s.", profile.Sampler.K, profile.Sampler.Tau, profile.Sampler.TemperatureStance))
 	return ResolvedProfile{Profile: profile, Styles: styles, InstructionText: instruction.String(), ContextWindow: 32768}, nil
 }
 
@@ -297,7 +376,10 @@ func (s *Service) generateResolved(ctx context.Context, req GenerateRequest, res
 	if session.BudgetUsed >= int64(resolved.Profile.Budget.MaxSessionCost) && resolved.Profile.Budget.MaxSessionCost > 0 {
 		return GenerateResponse{}, ErrBudgetExceeded
 	}
-	gwReq := GatewayRequest{Role: resolved.Profile.GatewayRole, Instruction: resolved.InstructionText, Query: req.Query, K: resolved.Profile.Sampler.K, Tau: resolved.Profile.Sampler.Tau, MaxOutputTokens: resolved.Profile.Budget.MaxOutputTokens, TemperatureStance: resolved.Profile.Sampler.TemperatureStance, Negative: req.Negative}
+	if strings.TrimSpace(req.Query) == "" {
+		return GenerateResponse{}, ErrEmptyQuery
+	}
+	gwReq := GatewayRequest{Role: resolved.Profile.GatewayRole, Instruction: resolved.InstructionText, Query: req.Query, K: resolved.Profile.Sampler.K, Tau: resolved.Profile.Sampler.Tau, MaxOutputTokens: resolved.Profile.Budget.MaxOutputTokens, TemperatureStance: resolved.Profile.Sampler.TemperatureStance, Locality: resolved.Profile.Locality, Negative: req.Negative}
 	responses, err := s.gateway.Generate(ctx, gwReq)
 	if err != nil {
 		return GenerateResponse{}, err
@@ -680,11 +762,13 @@ func (s *Service) ensureWritable(ctx context.Context, kind, key string) error {
 	}
 	return nil
 }
+
 func (s *Service) nextVersion(ctx context.Context, kind, key string) int {
 	var n int
 	_ = s.db.QueryRowContext(ctx, `SELECT COALESCE(MAX(version),0) FROM prose_records WHERE kind=? AND record_key=?`, kind, key).Scan(&n)
 	return n + 1
 }
+
 func (s *Service) checkStyleCycle(ctx context.Context, key, parent string) error {
 	seen := map[string]bool{key: true}
 	for parent != "" {
@@ -703,16 +787,19 @@ func (s *Service) checkStyleCycle(ctx context.Context, key, parent string) error
 	}
 	return nil
 }
+
 func (s *Service) latestStyle(ctx context.Context, key string) (Style, error) {
 	var out Style
 	err := s.latest(ctx, "style", key, &out)
 	return out, err
 }
+
 func (s *Service) latestProfile(ctx context.Context, key string) (Profile, error) {
 	var out Profile
 	err := s.latest(ctx, "profile", key, &out)
 	return out, err
 }
+
 func (s *Service) latest(ctx context.Context, kind, key string, out any) error {
 	var payload string
 	err := s.db.QueryRowContext(ctx, `SELECT payload FROM prose_records WHERE kind=? AND record_key=? ORDER BY version DESC LIMIT 1`, kind, key).Scan(&payload)
@@ -721,6 +808,7 @@ func (s *Service) latest(ctx context.Context, kind, key string, out any) error {
 	}
 	return json.Unmarshal([]byte(payload), out)
 }
+
 func (s *Service) resolveStyle(ctx context.Context, key string, seen map[string]bool) (Style, error) {
 	if seen[key] {
 		return Style{}, fmt.Errorf("%w: %s", ErrStyleResolutionConflict, key)
@@ -763,6 +851,7 @@ func (s *Service) resolveStyle(ctx context.Context, key string, seen map[string]
 	}
 	return merged, nil
 }
+
 func (s *Service) validateStaticFeasibility(p Profile) error {
 	window := 32768
 	worst := p.ContextPolicy.FullTextTokenBudget + p.ContextPolicy.SummarizeBeyond
@@ -771,6 +860,7 @@ func (s *Service) validateStaticFeasibility(p Profile) error {
 	}
 	return nil
 }
+
 func (s *Service) putRecord(ctx context.Context, kind, key string, version int, value any, authority, path, hash, status string, frozen bool) error {
 	raw, err := json.Marshal(value)
 	if err != nil {
@@ -779,6 +869,7 @@ func (s *Service) putRecord(ctx context.Context, kind, key string, version int, 
 	_, err = s.db.ExecContext(ctx, `INSERT INTO prose_records(kind,record_key,version,payload,authority,source_path,content_hash,status,frozen,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?)`, kind, key, version, string(raw), authority, path, hash, status, boolInt(frozen), s.now().UTC().Format(time.RFC3339Nano))
 	return err
 }
+
 func (s *Service) saveJSON(ctx context.Context, table, id string, value any) error {
 	raw, err := json.Marshal(value)
 	if err != nil {
@@ -787,6 +878,7 @@ func (s *Service) saveJSON(ctx context.Context, table, id string, value any) err
 	_, err = s.db.ExecContext(ctx, "INSERT INTO "+table+"(id,payload) VALUES(?,?) ON CONFLICT(id) DO UPDATE SET payload=excluded.payload", id, string(raw))
 	return err
 }
+
 func (s *Service) saveSection(ctx context.Context, section Section) error {
 	raw, err := json.Marshal(section)
 	if err != nil {
@@ -795,6 +887,7 @@ func (s *Service) saveSection(ctx context.Context, section Section) error {
 	_, err = s.db.ExecContext(ctx, `INSERT INTO prose_sections(id,document_id,payload) VALUES(?,?,?) ON CONFLICT(id) DO UPDATE SET document_id=excluded.document_id,payload=excluded.payload`, section.ID, section.DocumentID, string(raw))
 	return err
 }
+
 func (s *Service) loadJSON(ctx context.Context, table, id string, out any) error {
 	var raw string
 	if err := s.db.QueryRowContext(ctx, "SELECT payload FROM "+table+" WHERE id=?", id).Scan(&raw); err != nil {
@@ -802,6 +895,7 @@ func (s *Service) loadJSON(ctx context.Context, table, id string, out any) error
 	}
 	return json.Unmarshal([]byte(raw), out)
 }
+
 func (s *Service) saveDeclaration(ctx context.Context, d Declaration) error {
 	raw, err := json.Marshal(d)
 	if err != nil {
@@ -810,6 +904,7 @@ func (s *Service) saveDeclaration(ctx context.Context, d Declaration) error {
 	_, err = s.db.ExecContext(ctx, `INSERT INTO prose_declarations(path,record_key,payload) VALUES(?,?,?) ON CONFLICT(path) DO UPDATE SET record_key=excluded.record_key,payload=excluded.payload`, d.Path, d.Key, string(raw))
 	return err
 }
+
 func gate(measurement any, c Constraints) Eligibility {
 	raw, _ := json.Marshal(measurement)
 	var m textmetrics.Metrics
@@ -829,6 +924,7 @@ func gate(measurement any, c Constraints) Eligibility {
 	}
 	return Eligibility{Eligible: true}
 }
+
 func choose(candidates []Candidate, policy string) *Candidate {
 	eligible := make([]Candidate, 0)
 	for _, c := range candidates {
@@ -863,6 +959,7 @@ func choose(candidates []Candidate, policy string) *Candidate {
 		return &eligible[0]
 	}
 }
+
 func mergedLexicon(styles []Style) []string {
 	var out []string
 	for _, s := range styles {
@@ -870,6 +967,7 @@ func mergedLexicon(styles []Style) []string {
 	}
 	return out
 }
+
 func styleVersions(styles []Style) []string {
 	out := make([]string, len(styles))
 	for i, s := range styles {
@@ -877,18 +975,21 @@ func styleVersions(styles []Style) []string {
 	}
 	return out
 }
+
 func defaultAuthority(a string) string {
 	if a == "" {
 		return "local"
 	}
 	return a
 }
+
 func boolInt(v bool) int {
 	if v {
 		return 1
 	}
 	return 0
 }
+
 func appendUnique(xs []string, v string) []string {
 	for _, x := range xs {
 		if x == v {
@@ -897,6 +998,7 @@ func appendUnique(xs []string, v string) []string {
 	}
 	return append(xs, v)
 }
+
 func remove(xs []string, v string) []string {
 	out := xs[:0]
 	for _, x := range xs {

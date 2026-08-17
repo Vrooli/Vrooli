@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"strings"
+	"sync"
 
 	"audio-tools/internal/ai/sttchain"
 	"audio-tools/internal/logx"
@@ -74,6 +75,30 @@ type VADSegmenter struct {
 	// InitialPromptWords (default 20) is the count of previous-segment
 	// words forwarded as the next request's initial_prompt.
 	InitialPromptWords int
+
+	// PreviewIntervalMs is the minimum amount of NEW audio that must
+	// arrive before another in-flight preview transcription is launched.
+	// 0 disables previews entirely.
+	//
+	// Without previews this strategy emits text only at silence
+	// boundaries, so an operator speaking continuously sees nothing until
+	// they pause. That is the whole live-text experience on every host
+	// without a streaming engine — which today is every macOS and Windows
+	// host, and every Linux host without an NVIDIA GPU, because
+	// kyutai-stt is the only streaming provider and it requires CUDA.
+	//
+	// Previews are best-effort and strictly additive: they never advance
+	// segStart, never touch the committed transcript, and never surface an
+	// error. A preview that fails or returns nothing is simply not shown.
+	PreviewIntervalMs int
+
+	// PreviewWindowMs bounds how much trailing audio a preview
+	// transcribes. Preview cost must not grow with segment length: during
+	// continuous speech no segment commits, so the in-flight segment grows
+	// without bound and previewing all of it would be quadratic in session
+	// length — the exact failure this pipeline has been repaired for.
+	// Clamped to the tail of the in-flight segment. 0 means no clamp.
+	PreviewWindowMs int
 
 	// Clock is the wall-clock seam used for per-segment latency
 	// measurement. Defaults to schedule.System().
@@ -266,6 +291,80 @@ func (v *VADSegmenter) Run(
 		hasVoiced = false
 	}
 
+	// Preview lane. Single-flight and asynchronous: the provider call must
+	// not sit in the chunk loop, or every preview would delay silence
+	// detection by its own latency and make the auto-stop boundary drift.
+	var previewWG sync.WaitGroup
+	previewSlot := make(chan struct{}, 1)
+	previewIntervalBytes := v.SampleRate * v.PreviewIntervalMs / 1000 * sampleBytes
+	previewWindowBytes := v.SampleRate * v.PreviewWindowMs / 1000 * sampleBytes
+	lastPreviewEnd := 0
+
+	maybePreview := func() {
+		if v.PreviewIntervalMs <= 0 || !hasVoiced {
+			return
+		}
+		end := len(buf)
+		if end-lastPreviewEnd < previewIntervalBytes {
+			return
+		}
+		select {
+		case previewSlot <- struct{}{}:
+		default:
+			// A preview is still running. Skipping is correct: previews are
+			// replaceable, so the next one supersedes whatever this would
+			// have said, and queueing them would let a slow provider build
+			// an unbounded backlog of stale hypotheses.
+			return
+		}
+		lastPreviewEnd = end
+		windowStart := segStart
+		if previewWindowBytes > 0 && end-windowStart > previewWindowBytes {
+			windowStart = end - previewWindowBytes
+		}
+		window := make([]byte, end-windowStart)
+		copy(window, buf[windowStart:end])
+
+		prompt := start.InitialPrompt
+		if v.InitialPromptWords > 0 && lastPromptText != "" {
+			prompt = strings.TrimSpace(prompt + " " + voice.LastNWords(lastPromptText, v.InitialPromptWords))
+		}
+		req := sttchain.Request{
+			Audio:                   window,
+			Format:                  start.InputFormat,
+			Language:                start.Language,
+			InitialPrompt:           prompt,
+			SkipSpeakerVerification: start.SkipSpeakerVerification,
+			VADFilter:               start.VADFilter,
+			BYOKProvider:            start.BYOKProvider,
+			BYOKKey:                 start.BYOKKey,
+			LPBSToken:               start.LPBSToken,
+			UserIdentity:            start.UserIdentity,
+		}
+
+		previewWG.Add(1)
+		go func() {
+			defer previewWG.Done()
+			defer func() { <-previewSlot }()
+			res, err := v.Provider.Transcribe(ctx, req)
+			if err != nil || res == nil {
+				return
+			}
+			text := strings.TrimSpace(res.Text)
+			if text == "" {
+				return
+			}
+			select {
+			case events <- sttchain.StreamEvent{Kind: sttchain.StreamEventPartial, Partial: &sttchain.PartialEvent{Text: text}}:
+			case <-ctx.Done():
+			}
+		}()
+	}
+
+	// drainPreviews blocks until no preview can still send. A partial that
+	// arrived after Done would be text the consumer can never settle.
+	drainPreviews := func() { previewWG.Wait() }
+
 	emitDone := func() {
 		events <- sttchain.StreamEvent{Kind: sttchain.StreamEventDone, Done: &sttchain.DoneEvent{
 			FinalText:  committed,
@@ -368,18 +467,21 @@ func (v *VADSegmenter) Run(
 		case <-ctx.Done():
 			scan()
 			flushSegment(len(buf))
+			drainPreviews()
 			emitDone()
 			return ctx.Err()
 		case ch, ok := <-chunks:
 			if !ok {
 				scan()
 				flushSegment(len(buf))
+				drainPreviews()
 				emitDone()
 				return nil
 			}
 			cursor.Observe(ch)
 			buf = append(buf, ch.Audio...)
 			scan()
+			maybePreview()
 		}
 	}
 }
@@ -414,6 +516,11 @@ func (v *VADSegmenter) applyDefaults() {
 	}
 	if v.FrameMs == 0 {
 		v.FrameMs = 20
+	}
+	if v.PreviewWindowMs == 0 {
+		// Long enough for Whisper to have real context, short enough that a
+		// preview costs about the same at minute 60 as at minute 1.
+		v.PreviewWindowMs = 8000
 	}
 	// PreRollMs/TrailingPadMs/InitialPromptWords are additive — zero is
 	// a valid "disable" value for each. Operator config supplies real

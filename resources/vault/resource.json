@@ -123,6 +123,24 @@
       },
       "bundle_artifact": "vault_${os}_${arch}"
     },
+    "acquisition": {
+      "kind": "url",
+      "license": "BUSL-1.1",
+      "provenance": {
+        "kind": "gpg-checksums",
+        "key_url": "https://keybase.io/hashicorp/pgp_keys.asc",
+        "checksum_manifest_url": "https://releases.hashicorp.com/vault/1.17.6/vault_1.17.6_SHA256SUMS",
+        "checksum_signature_url": "https://releases.hashicorp.com/vault/1.17.6/vault_1.17.6_SHA256SUMS.sig",
+        "fingerprint": "C874011F0AB405110D02105534365D9472D7468F"
+      },
+      "targets": [
+        {"when": {"os": "linux", "arch": "amd64"}, "url": "https://releases.hashicorp.com/vault/1.17.6/vault_1.17.6_linux_amd64.zip", "sha256": "0cddc1fbbb88583b5ba5b845f9f8fae47c6fb39a6d48cd543c6ba6fd3ac1a669", "archive": "zip", "layout": "file", "bin_path": "vault"},
+        {"when": {"os": "linux", "arch": "arm64"}, "url": "https://releases.hashicorp.com/vault/1.17.6/vault_1.17.6_linux_arm64.zip", "sha256": "05a48513fd609e26c25d6b6b74005bce3430984fe4161696236cc2226e664f3a", "archive": "zip", "layout": "file", "bin_path": "vault"},
+        {"when": {"os": "macos", "arch": "amd64"}, "url": "https://releases.hashicorp.com/vault/1.17.6/vault_1.17.6_darwin_amd64.zip", "sha256": "6900092b154e4d306ed24a0217c68e373b84161bf3dcc4988f401115a33fe768", "archive": "zip", "layout": "file", "bin_path": "vault"},
+        {"when": {"os": "macos", "arch": "arm64"}, "url": "https://releases.hashicorp.com/vault/1.17.6/vault_1.17.6_darwin_arm64.zip", "sha256": "5120c28700460a74782f30ae14b1b6493e8d43fa15947ef954384bfc684a6be7", "archive": "zip", "layout": "file", "bin_path": "vault"},
+        {"when": {"os": "windows", "arch": "amd64"}, "url": "https://releases.hashicorp.com/vault/1.17.6/vault_1.17.6_windows_amd64.zip", "sha256": "4b66a86e6a6033103a102bce5a3aa660c81c244cb3841a37374f71f069f6d191", "archive": "zip", "layout": "file", "bin_path": "vault.exe"}
+      ]
+    },
     "attach_health_path": "/v1/sys/health",
     "arguments": [
       "server",

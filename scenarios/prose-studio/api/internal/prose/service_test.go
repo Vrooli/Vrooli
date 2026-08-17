@@ -2,13 +2,13 @@ package prose
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
-	"database/sql"
 	"github.com/stretchr/testify/require"
 	_ "modernc.org/sqlite"
 )

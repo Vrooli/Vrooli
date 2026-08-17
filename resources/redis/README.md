@@ -6,8 +6,8 @@ Managed Redis cache and event-bus runtime for local scenario workflows.
 
 - Resource ID: `redis`
 - Category: `storage`
-- Driver: `docker-service`
-- Portability tier: `full`
+- Driver: `managed-service`
+- Portability tier: `Linux native; macOS and Windows explicitly unsupported until reproducible native artifacts are published`
 
 ## Use Cases
 
@@ -17,7 +17,9 @@ Managed Redis cache and event-bus runtime for local scenario workflows.
 
 ## Architecture
 
-This resource uses the updated `docker-service` structure.
+This resource uses the managed-service structure. Linux bytes are extracted
+from a digest-pinned official OCI image over HTTPS; the image is never run as
+a container.
 
 - `resource.json` is the declarative authority for lifecycle, runtime, health, exports, and freshness metadata.
 - `cli/` is the thin binary entrypoint and delegated command wiring surface.

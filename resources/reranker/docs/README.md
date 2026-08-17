@@ -72,7 +72,8 @@ persists across restarts and is measured by Storage Manager.
 
 ## Artifact provenance
 
-The Linux amd64 artifact is TEI 1.7.4's `text-embeddings-router` executable,
-staged from the pinned upstream image digest recorded in `artifacts.json` and
-verified by SHA-256 before launch. macOS and Windows remain unsupported until a
-signed native bundle and target smoke evidence exist.
+The Linux amd64 artifact is TEI 1.7.4's `text-embeddings-router` executable.
+The acquisition ladder selects the CUDA 8.9+ image when the host reports that
+capability and otherwise selects the digest-pinned CPU image; both selected
+executables are verified by SHA-256 before launch. macOS and Windows remain
+unsupported until signed native bundles and target smoke evidence exist.

@@ -3,9 +3,14 @@
   "roles": {
     "chat.small": {
       "model": "bytedance-seed/seed-2.0-mini",
-      "fallbacks": ["openai/gpt-oss-20b", "inception/mercury-2"],
+      "fallbacks": [
+        "openai/gpt-oss-20b",
+        "inception/mercury-2"
+      ],
       "endpoint": "chat",
-      "required_capabilities": ["chat"],
+      "required_capabilities": [
+        "chat"
+      ],
       "description": "Low-latency, low-cost cloud chat/generation role for cheap, low-risk text paths.",
       "preference": 10,
       "request_defaults": {
@@ -25,9 +30,15 @@
     },
     "chat.default": {
       "model": "minimax/minimax-m3",
-      "fallbacks": ["qwen/qwen3.7-plus", "google/gemini-3.1-flash-lite-preview", "z-ai/glm-5.2"],
+      "fallbacks": [
+        "qwen/qwen3.7-plus",
+        "google/gemini-3.1-flash-lite-preview",
+        "z-ai/glm-5.2"
+      ],
       "endpoint": "chat",
-      "required_capabilities": ["chat"],
+      "required_capabilities": [
+        "chat"
+      ],
       "description": "Default cloud chat/generation role: 1M-context value workhorse for synthesis and lightweight agent text.",
       "preference": 20,
       "request_defaults": {
@@ -47,9 +58,15 @@
     },
     "chat.quality": {
       "model": "z-ai/glm-5.2",
-      "fallbacks": ["anthropic/claude-haiku-4.5", "google/gemini-3.5-flash", "openai/gpt-5.4"],
+      "fallbacks": [
+        "anthropic/claude-haiku-4.5",
+        "google/gemini-3.5-flash",
+        "openai/gpt-5.4"
+      ],
       "endpoint": "chat",
-      "required_capabilities": ["chat"],
+      "required_capabilities": [
+        "chat"
+      ],
       "description": "Quality-tier cloud chat role for higher-reliability reasoning and customer-facing prose.",
       "preference": 30,
       "request_defaults": {
@@ -69,9 +86,15 @@
     },
     "summarize.default": {
       "model": "minimax/minimax-m3",
-      "fallbacks": ["google/gemini-3.1-flash-lite-preview", "qwen/qwen3.7-plus"],
+      "fallbacks": [
+        "google/gemini-3.1-flash-lite-preview",
+        "qwen/qwen3.7-plus"
+      ],
       "endpoint": "chat",
-      "required_capabilities": ["chat", "long_context"],
+      "required_capabilities": [
+        "chat",
+        "long_context"
+      ],
       "description": "Default summarization/distillation role; long-context model so large inputs fit in one pass.",
       "preference": 40,
       "request_defaults": {
@@ -91,9 +114,15 @@
     },
     "classify.routing": {
       "model": "inception/mercury-2",
-      "fallbacks": ["openai/gpt-oss-20b", "bytedance-seed/seed-2.0-mini", "google/gemini-3.1-flash-lite-preview"],
+      "fallbacks": [
+        "openai/gpt-oss-20b",
+        "bytedance-seed/seed-2.0-mini",
+        "google/gemini-3.1-flash-lite-preview"
+      ],
       "endpoint": "chat",
-      "required_capabilities": ["chat"],
+      "required_capabilities": [
+        "chat"
+      ],
       "description": "Fast, cheap routing/classification role for structured decisions.",
       "preference": 50,
       "request_defaults": {
@@ -115,7 +144,11 @@
       "model": "google/gemini-3.1-flash-lite-preview",
       "fallbacks": [],
       "endpoint": "chat",
-      "required_capabilities": ["chat", "vision", "structured_output"],
+      "required_capabilities": [
+        "chat",
+        "vision",
+        "structured_output"
+      ],
       "description": "Hosted visual grounding role for locate.visual when no eligible local vision model exists.",
       "preference": 65,
       "request_defaults": {
@@ -136,9 +169,15 @@
     },
     "extract.structured": {
       "model": "google/gemini-3.1-flash-lite-preview",
-      "fallbacks": ["inception/mercury-2", "minimax/minimax-m3", "qwen/qwen3.7-plus"],
+      "fallbacks": [
+        "inception/mercury-2",
+        "minimax/minimax-m3",
+        "qwen/qwen3.7-plus"
+      ],
       "endpoint": "chat",
-      "required_capabilities": ["structured_output"],
+      "required_capabilities": [
+        "structured_output"
+      ],
       "description": "Structured-extraction role; default biases to long-context multimodal coverage with structured_outputs support.",
       "preference": 60,
       "request_defaults": {
@@ -159,9 +198,14 @@
     },
     "rerank.llm_fallback": {
       "model": "inception/mercury-2",
-      "fallbacks": ["bytedance-seed/seed-2.0-mini", "openai/gpt-oss-20b"],
+      "fallbacks": [
+        "bytedance-seed/seed-2.0-mini",
+        "openai/gpt-oss-20b"
+      ],
       "endpoint": "chat",
-      "required_capabilities": ["chat"],
+      "required_capabilities": [
+        "chat"
+      ],
       "description": "LLM rerank fallback role used when a dedicated reranker resource is unavailable.",
       "preference": 70,
       "request_defaults": {
@@ -181,9 +225,16 @@
     },
     "code.default": {
       "model": "z-ai/glm-5.2",
-      "fallbacks": ["moonshotai/kimi-k2.7-code", "anthropic/claude-haiku-4.5", "openai/gpt-5.4-mini"],
+      "fallbacks": [
+        "moonshotai/kimi-k2.7-code",
+        "anthropic/claude-haiku-4.5",
+        "openai/gpt-5.4-mini"
+      ],
       "endpoint": "chat",
-      "required_capabilities": ["chat", "code"],
+      "required_capabilities": [
+        "chat",
+        "code"
+      ],
       "description": "Default cloud code-generation role; price/performance winner for coding and agentic edits.",
       "preference": 80,
       "request_defaults": {
@@ -203,9 +254,16 @@
     },
     "agent.tools": {
       "model": "z-ai/glm-5.2",
-      "fallbacks": ["minimax/minimax-m3", "anthropic/claude-haiku-4.5", "google/gemini-3.5-flash", "openai/gpt-5.4"],
+      "fallbacks": [
+        "minimax/minimax-m3",
+        "anthropic/claude-haiku-4.5",
+        "google/gemini-3.5-flash",
+        "openai/gpt-5.4"
+      ],
       "endpoint": "chat",
-      "required_capabilities": ["tools"],
+      "required_capabilities": [
+        "tools"
+      ],
       "description": "Tool-calling agent role; biases toward reliability over raw cheapness for multi-step tool use.",
       "preference": 90,
       "request_defaults": {
@@ -225,9 +283,14 @@
     },
     "write.default": {
       "model": "google/gemini-3.7-flash",
-      "fallbacks": ["z-ai/glm-5.2", "minimax/minimax-m3"],
+      "fallbacks": [
+        "z-ai/glm-5.2",
+        "minimax/minimax-m3"
+      ],
       "endpoint": "chat",
-      "required_capabilities": ["chat"],
+      "required_capabilities": [
+        "chat"
+      ],
       "description": "Hosted natural-prose writing role: marketing copy, blog and technical writing, and creative drafts. Chosen for quality per dollar rather than for sampling control.",
       "preference": 70,
       "request_defaults": {
@@ -246,11 +309,15 @@
       }
     },
     "write.diverse": {
-      "model": "anthropic/claude-fable-5",
-      "fallbacks": ["google/gemini-3.7-flash"],
+      "model": "google/gemini-3.7-flash",
+      "fallbacks": [
+        "anthropic/claude-fable-5"
+      ],
       "endpoint": "chat",
-      "required_capabilities": ["chat"],
-      "description": "Diversity-controlled prose: one request returns k candidate drafts. Frontier-tier because candidate variety scales with model capability, not with sampling settings, so a cheaper rung would underperform on the technique this role exists to serve.",
+      "required_capabilities": [
+        "chat"
+      ],
+      "description": "Diversity-controlled prose: one request returns k candidate drafts. Operator-selected cost tier (2026-08-16): this is the k-candidates-per-call lane and therefore the highest-token-volume role in the catalog, so it runs on the balanced rung rather than the frontier one. Diversity gain does scale with model capability, so expect this rung to underperform the frontier fallback on the acceptance measurement; that trade is deliberate and is exactly what the measurement is for.",
       "preference": 80,
       "request_defaults": {
         "temperature": 1.0,
@@ -262,16 +329,21 @@
       "provenance": {
         "source_kind": "manual_policy",
         "confidence": "low",
-        "source": "AI Gateway sampling-and-write-roles plan 2026-08-16. Anthropic models from Opus 4.7 onward reject sampling parameters with a 400, so the declared temperature is never sent; the fallback also does not honor it. Declared at the weakest link across model and fallbacks.",
+        "source": "Operator decision 2026-08-16 on cost: gemini-3.7-flash primary (Arena Creative Writing #3, ~25x cheaper than the frontier rung) with claude-fable-5 retained only as an availability fallback. sampling_support is declared at the WEAKEST LINK across model and fallbacks: gemini accepts temperature and silently ignores it, and Anthropic models from Opus 4.7 onward reject it with a 400, so 'rejected' is the honest declaration and the role's temperature is never sent. Model availability on this account and current pricing are both UNVERIFIED.",
         "observed_at": "2026-08-16",
         "sample_count": 0
       }
     },
     "image.generate.fast": {
       "model": "sourceful/riverflow-v2.5-fast",
-      "fallbacks": ["black-forest-labs/flux.2-klein", "recraft/recraft-v4.1-utility"],
+      "fallbacks": [
+        "black-forest-labs/flux.2-klein",
+        "recraft/recraft-v4.1-utility"
+      ],
       "endpoint": "images",
-      "required_capabilities": ["image_output"],
+      "required_capabilities": [
+        "image_output"
+      ],
       "description": "Cheap, fast cloud image-generation role for drafts and high-volume product/brand imagery.",
       "preference": 100,
       "request_defaults": {
@@ -288,9 +360,15 @@
     },
     "image.generate.default": {
       "model": "bytedance-seed/seedream-4.5",
-      "fallbacks": ["sourceful/riverflow-v2.5-fast", "google/gemini-3.1-flash-image", "recraft/recraft-v4.1-utility"],
+      "fallbacks": [
+        "sourceful/riverflow-v2.5-fast",
+        "google/gemini-3.1-flash-image",
+        "recraft/recraft-v4.1-utility"
+      ],
       "endpoint": "images",
-      "required_capabilities": ["image_output"],
+      "required_capabilities": [
+        "image_output"
+      ],
       "description": "Default cloud image-generation role; flat-price model with good composition and editing consistency.",
       "preference": 110,
       "request_defaults": {
@@ -307,9 +385,15 @@
     },
     "image.generate.quality": {
       "model": "google/gemini-3-pro-image",
-      "fallbacks": ["black-forest-labs/flux.2-max", "openai/gpt-5.4-image-2", "x-ai/grok-imagine-image-quality"],
+      "fallbacks": [
+        "black-forest-labs/flux.2-max",
+        "openai/gpt-5.4-image-2",
+        "x-ai/grok-imagine-image-quality"
+      ],
       "endpoint": "images",
-      "required_capabilities": ["image_output"],
+      "required_capabilities": [
+        "image_output"
+      ],
       "description": "Premium cloud image-generation role for identity/text/logo-quality-sensitive renders.",
       "preference": 120,
       "request_defaults": {
@@ -327,10 +411,19 @@
     },
     "image.generate.logo": {
       "model": "recraft/recraft-v4.1-vector",
-      "fallbacks": ["recraft/recraft-v4.1-pro-vector", "sourceful/riverflow-v2.5-fast", "recraft/recraft-v4.1-utility"],
+      "fallbacks": [
+        "recraft/recraft-v4.1-pro-vector",
+        "sourceful/riverflow-v2.5-fast",
+        "recraft/recraft-v4.1-utility"
+      ],
       "endpoint": "images",
-      "required_capabilities": ["image_output"],
-      "preferred_capabilities": ["svg_output", "transparent_background"],
+      "required_capabilities": [
+        "image_output"
+      ],
+      "preferred_capabilities": [
+        "svg_output",
+        "transparent_background"
+      ],
       "description": "Logo-generation role; the default model emits vector/SVG natively (response media_type), with a transparent background.",
       "preference": 130,
       "request_defaults": {
@@ -347,9 +440,16 @@
     },
     "image.edit.default": {
       "model": "bytedance-seed/seedream-4.5",
-      "fallbacks": ["sourceful/riverflow-v2.5-fast", "sourceful/riverflow-v2.5-pro", "google/gemini-3.1-flash-image"],
+      "fallbacks": [
+        "sourceful/riverflow-v2.5-fast",
+        "sourceful/riverflow-v2.5-pro",
+        "google/gemini-3.1-flash-image"
+      ],
       "endpoint": "images",
-      "required_capabilities": ["image_input", "image_output"],
+      "required_capabilities": [
+        "image_input",
+        "image_output"
+      ],
       "description": "Default cloud image-edit/img2img role; flat-price model positioned for editing consistency.",
       "preference": 140,
       "request_defaults": {
@@ -365,9 +465,15 @@
     },
     "image.edit.identity": {
       "model": "google/gemini-3-pro-image",
-      "fallbacks": ["x-ai/grok-imagine-image-quality"],
+      "fallbacks": [
+        "x-ai/grok-imagine-image-quality"
+      ],
       "endpoint": "images",
-      "required_capabilities": ["image_input", "image_output", "identity_preservation"],
+      "required_capabilities": [
+        "image_input",
+        "image_output",
+        "identity_preservation"
+      ],
       "description": "Identity-preserving image-edit role for edits that must keep a subject's likeness or structure.",
       "preference": 150,
       "request_defaults": {
@@ -383,9 +489,14 @@
     },
     "image.vector.default": {
       "model": "recraft/recraft-v4.1-vector",
-      "fallbacks": ["recraft/recraft-v4.1-pro-vector"],
+      "fallbacks": [
+        "recraft/recraft-v4.1-pro-vector"
+      ],
       "endpoint": "images",
-      "required_capabilities": ["image_output", "svg_output"],
+      "required_capabilities": [
+        "image_output",
+        "svg_output"
+      ],
       "description": "Vector/SVG image role for clean scalable marks and icons; the model emits SVG natively (response media_type).",
       "preference": 160,
       "request_defaults": {
@@ -404,12 +515,28 @@
     "google/gemini-3.7-flash": {
       "provider": "google",
       "family": "gemini",
-      "capabilities": ["chat", "text_input", "text_output", "tools", "structured_output", "long_context", "vision", "document"],
+      "capabilities": [
+        "chat",
+        "text_input",
+        "text_output",
+        "tools",
+        "structured_output",
+        "long_context",
+        "vision",
+        "document"
+      ],
       "modalities": {
-        "input": ["text", "image"],
-        "output": ["text"]
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "text"
+        ]
       },
-      "endpoints": ["chat"],
+      "endpoints": [
+        "chat"
+      ],
       "context_window_tokens": 1000000,
       "default_eligible": true,
       "pricing": {
@@ -435,12 +562,28 @@
     "anthropic/claude-fable-5": {
       "provider": "anthropic",
       "family": "claude",
-      "capabilities": ["chat", "text_input", "text_output", "tools", "structured_output", "long_context", "code", "vision"],
+      "capabilities": [
+        "chat",
+        "text_input",
+        "text_output",
+        "tools",
+        "structured_output",
+        "long_context",
+        "code",
+        "vision"
+      ],
       "modalities": {
-        "input": ["text", "image"],
-        "output": ["text"]
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "text"
+        ]
       },
-      "endpoints": ["chat"],
+      "endpoints": [
+        "chat"
+      ],
       "context_window_tokens": 200000,
       "default_eligible": false,
       "pricing": {
@@ -466,12 +609,29 @@
     "bytedance-seed/seed-2.0-mini": {
       "provider": "bytedance-seed",
       "family": "seed",
-      "capabilities": ["chat", "text_input", "text_output"],
-      "modalities": {"input": ["text"], "output": ["text"]},
-      "endpoints": ["chat"],
+      "capabilities": [
+        "chat",
+        "text_input",
+        "text_output"
+      ],
+      "modalities": {
+        "input": [
+          "text"
+        ],
+        "output": [
+          "text"
+        ]
+      },
+      "endpoints": [
+        "chat"
+      ],
       "context_window_tokens": 131072,
       "default_eligible": true,
-      "pricing": {"unit": "per_mtok", "input_per_mtok": 0.10, "output_per_mtok": 0.40},
+      "pricing": {
+        "unit": "per_mtok",
+        "input_per_mtok": 0.1,
+        "output_per_mtok": 0.4
+      },
       "use_case_notes": "Cheap general cloud model; better default than ultra-cheap raw models when some generality matters.",
       "provenance": {
         "catalog": {
@@ -486,12 +646,30 @@
     "openai/gpt-oss-20b": {
       "provider": "openai",
       "family": "gpt-oss",
-      "capabilities": ["chat", "text_input", "text_output", "structured_output"],
-      "modalities": {"input": ["text"], "output": ["text"]},
-      "endpoints": ["chat"],
+      "capabilities": [
+        "chat",
+        "text_input",
+        "text_output",
+        "structured_output"
+      ],
+      "modalities": {
+        "input": [
+          "text"
+        ],
+        "output": [
+          "text"
+        ]
+      },
+      "endpoints": [
+        "chat"
+      ],
       "context_window_tokens": 131072,
       "default_eligible": true,
-      "pricing": {"unit": "per_mtok", "input_per_mtok": 0.029, "output_per_mtok": 0.14},
+      "pricing": {
+        "unit": "per_mtok",
+        "input_per_mtok": 0.029,
+        "output_per_mtok": 0.14
+      },
       "use_case_notes": "Ultra-cheap text model for low-risk routing/rerank fallback work.",
       "provenance": {
         "catalog": {
@@ -506,12 +684,31 @@
     "inception/mercury-2": {
       "provider": "inception",
       "family": "mercury",
-      "capabilities": ["chat", "text_input", "text_output", "tools", "structured_output"],
-      "modalities": {"input": ["text"], "output": ["text"]},
-      "endpoints": ["chat"],
+      "capabilities": [
+        "chat",
+        "text_input",
+        "text_output",
+        "tools",
+        "structured_output"
+      ],
+      "modalities": {
+        "input": [
+          "text"
+        ],
+        "output": [
+          "text"
+        ]
+      },
+      "endpoints": [
+        "chat"
+      ],
       "context_window_tokens": 131072,
       "default_eligible": true,
-      "pricing": {"unit": "per_mtok", "input_per_mtok": 0.25, "output_per_mtok": 0.75},
+      "pricing": {
+        "unit": "per_mtok",
+        "input_per_mtok": 0.25,
+        "output_per_mtok": 0.75
+      },
       "use_case_notes": "Low-latency model for routing, classification, and JSON-ish structured tasks.",
       "provenance": {
         "catalog": {
@@ -526,13 +723,36 @@
     "google/gemini-3.1-flash-lite-preview": {
       "provider": "google",
       "family": "gemini",
-      "capabilities": ["chat", "text_input", "text_output", "tools", "structured_output", "long_context", "vision", "document"],
-      "modalities": {"input": ["text", "image"], "output": ["text"]},
+      "capabilities": [
+        "chat",
+        "text_input",
+        "text_output",
+        "tools",
+        "structured_output",
+        "long_context",
+        "vision",
+        "document"
+      ],
+      "modalities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "text"
+        ]
+      },
       "coordinate_convention": "normalized_1000",
-      "endpoints": ["chat"],
+      "endpoints": [
+        "chat"
+      ],
       "context_window_tokens": 1000000,
       "default_eligible": true,
-      "pricing": {"unit": "per_mtok", "input_per_mtok": 0.25, "output_per_mtok": 1.50},
+      "pricing": {
+        "unit": "per_mtok",
+        "input_per_mtok": 0.25,
+        "output_per_mtok": 1.5
+      },
       "use_case_notes": "Cheap long-context multimodal workhorse for extraction, documents, OCR-ish vision, and video understanding.",
       "provenance": {
         "catalog": {
@@ -547,12 +767,35 @@
     "minimax/minimax-m3": {
       "provider": "minimax",
       "family": "minimax",
-      "capabilities": ["chat", "text_input", "text_output", "tools", "structured_output", "long_context", "code"],
-      "modalities": {"input": ["text", "image", "video"], "output": ["text"]},
-      "endpoints": ["chat"],
+      "capabilities": [
+        "chat",
+        "text_input",
+        "text_output",
+        "tools",
+        "structured_output",
+        "long_context",
+        "code"
+      ],
+      "modalities": {
+        "input": [
+          "text",
+          "image",
+          "video"
+        ],
+        "output": [
+          "text"
+        ]
+      },
+      "endpoints": [
+        "chat"
+      ],
       "context_window_tokens": 1000000,
       "default_eligible": true,
-      "pricing": {"unit": "per_mtok", "input_per_mtok": 0.30, "output_per_mtok": 1.20},
+      "pricing": {
+        "unit": "per_mtok",
+        "input_per_mtok": 0.3,
+        "output_per_mtok": 1.2
+      },
       "use_case_notes": "Best general text value: 1M context, agent/coding/tool-oriented, low output price.",
       "provenance": {
         "modalities": {
@@ -574,12 +817,33 @@
     "qwen/qwen3.7-plus": {
       "provider": "qwen",
       "family": "qwen",
-      "capabilities": ["chat", "text_input", "text_output", "tools", "structured_output", "long_context", "code"],
-      "modalities": {"input": ["text"], "output": ["text"]},
-      "endpoints": ["chat"],
+      "capabilities": [
+        "chat",
+        "text_input",
+        "text_output",
+        "tools",
+        "structured_output",
+        "long_context",
+        "code"
+      ],
+      "modalities": {
+        "input": [
+          "text"
+        ],
+        "output": [
+          "text"
+        ]
+      },
+      "endpoints": [
+        "chat"
+      ],
       "context_window_tokens": 1000000,
       "default_eligible": true,
-      "pricing": {"unit": "per_mtok", "input_per_mtok": 0.32, "output_per_mtok": 1.28},
+      "pricing": {
+        "unit": "per_mtok",
+        "input_per_mtok": 0.32,
+        "output_per_mtok": 1.28
+      },
       "use_case_notes": "Strong coding/tool/productivity fallback near MiniMax on price with 1M context.",
       "provenance": {
         "catalog": {
@@ -594,12 +858,32 @@
     "z-ai/glm-5.2": {
       "provider": "z-ai",
       "family": "glm",
-      "capabilities": ["chat", "text_input", "text_output", "tools", "structured_output", "code"],
-      "modalities": {"input": ["text"], "output": ["text"]},
-      "endpoints": ["chat"],
+      "capabilities": [
+        "chat",
+        "text_input",
+        "text_output",
+        "tools",
+        "structured_output",
+        "code"
+      ],
+      "modalities": {
+        "input": [
+          "text"
+        ],
+        "output": [
+          "text"
+        ]
+      },
+      "endpoints": [
+        "chat"
+      ],
       "context_window_tokens": 200000,
       "default_eligible": true,
-      "pricing": {"unit": "per_mtok", "input_per_mtok": 0.94, "output_per_mtok": 3.00},
+      "pricing": {
+        "unit": "per_mtok",
+        "input_per_mtok": 0.94,
+        "output_per_mtok": 3.0
+      },
       "use_case_notes": "Price/performance winner for quality reasoning, coding, and agentic tool work.",
       "provenance": {
         "catalog": {
@@ -614,12 +898,31 @@
     "moonshotai/kimi-k2.7-code": {
       "provider": "moonshotai",
       "family": "kimi",
-      "capabilities": ["chat", "text_input", "text_output", "tools", "code"],
-      "modalities": {"input": ["text"], "output": ["text"]},
-      "endpoints": ["chat"],
+      "capabilities": [
+        "chat",
+        "text_input",
+        "text_output",
+        "tools",
+        "code"
+      ],
+      "modalities": {
+        "input": [
+          "text"
+        ],
+        "output": [
+          "text"
+        ]
+      },
+      "endpoints": [
+        "chat"
+      ],
       "context_window_tokens": 256000,
       "default_eligible": true,
-      "pricing": {"unit": "per_mtok", "input_per_mtok": 0.74, "output_per_mtok": 3.50},
+      "pricing": {
+        "unit": "per_mtok",
+        "input_per_mtok": 0.74,
+        "output_per_mtok": 3.5
+      },
       "use_case_notes": "Coding-focused model cheaper than many frontier coding options.",
       "provenance": {
         "catalog": {
@@ -634,12 +937,34 @@
     "anthropic/claude-haiku-4.5": {
       "provider": "anthropic",
       "family": "claude",
-      "capabilities": ["chat", "text_input", "text_output", "tools", "structured_output", "code", "vision"],
-      "modalities": {"input": ["text", "image"], "output": ["text"]},
-      "endpoints": ["chat"],
+      "capabilities": [
+        "chat",
+        "text_input",
+        "text_output",
+        "tools",
+        "structured_output",
+        "code",
+        "vision"
+      ],
+      "modalities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "text"
+        ]
+      },
+      "endpoints": [
+        "chat"
+      ],
       "context_window_tokens": 200000,
       "default_eligible": true,
-      "pricing": {"unit": "per_mtok", "input_per_mtok": 1.00, "output_per_mtok": 5.00},
+      "pricing": {
+        "unit": "per_mtok",
+        "input_per_mtok": 1.0,
+        "output_per_mtok": 5.0
+      },
       "use_case_notes": "Reliable coding/computer-use profile at reasonable cost; strong quality-tier fallback.",
       "provenance": {
         "catalog": {
@@ -654,12 +979,35 @@
     "google/gemini-3.5-flash": {
       "provider": "google",
       "family": "gemini",
-      "capabilities": ["chat", "text_input", "text_output", "tools", "structured_output", "long_context", "vision", "document"],
-      "modalities": {"input": ["text", "image"], "output": ["text"]},
-      "endpoints": ["chat"],
+      "capabilities": [
+        "chat",
+        "text_input",
+        "text_output",
+        "tools",
+        "structured_output",
+        "long_context",
+        "vision",
+        "document"
+      ],
+      "modalities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "text"
+        ]
+      },
+      "endpoints": [
+        "chat"
+      ],
       "context_window_tokens": 1000000,
       "default_eligible": true,
-      "pricing": {"unit": "per_mtok", "input_per_mtok": 1.50, "output_per_mtok": 9.00},
+      "pricing": {
+        "unit": "per_mtok",
+        "input_per_mtok": 1.5,
+        "output_per_mtok": 9.0
+      },
       "use_case_notes": "Higher-quality multimodal fallback; OCR/document/vision quality jump over Flash Lite.",
       "provenance": {
         "catalog": {
@@ -674,12 +1022,35 @@
     "openai/gpt-5.4": {
       "provider": "openai",
       "family": "gpt-5",
-      "capabilities": ["chat", "text_input", "text_output", "tools", "structured_output", "vision", "document", "code"],
-      "modalities": {"input": ["text", "image"], "output": ["text"]},
-      "endpoints": ["chat"],
+      "capabilities": [
+        "chat",
+        "text_input",
+        "text_output",
+        "tools",
+        "structured_output",
+        "vision",
+        "document",
+        "code"
+      ],
+      "modalities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "text"
+        ]
+      },
+      "endpoints": [
+        "chat"
+      ],
       "context_window_tokens": 400000,
       "default_eligible": true,
-      "pricing": {"unit": "per_mtok", "input_per_mtok": 2.50, "output_per_mtok": 15.00},
+      "pricing": {
+        "unit": "per_mtok",
+        "input_per_mtok": 2.5,
+        "output_per_mtok": 15.0
+      },
       "use_case_notes": "Premium chat/agent/document fallback; not the price/performance default.",
       "provenance": {
         "catalog": {
@@ -694,12 +1065,32 @@
     "openai/gpt-5.4-mini": {
       "provider": "openai",
       "family": "gpt-5",
-      "capabilities": ["chat", "text_input", "text_output", "tools", "structured_output", "code"],
-      "modalities": {"input": ["text"], "output": ["text"]},
-      "endpoints": ["chat"],
+      "capabilities": [
+        "chat",
+        "text_input",
+        "text_output",
+        "tools",
+        "structured_output",
+        "code"
+      ],
+      "modalities": {
+        "input": [
+          "text"
+        ],
+        "output": [
+          "text"
+        ]
+      },
+      "endpoints": [
+        "chat"
+      ],
       "context_window_tokens": 400000,
       "default_eligible": true,
-      "pricing": {"unit": "per_mtok", "input_per_mtok": 0.75, "output_per_mtok": 4.50},
+      "pricing": {
+        "unit": "per_mtok",
+        "input_per_mtok": 0.75,
+        "output_per_mtok": 4.5
+      },
       "use_case_notes": "OpenAI behavior at lower cost than GPT-5.4; code fallback.",
       "provenance": {
         "catalog": {
@@ -714,11 +1105,29 @@
     "bytedance-seed/seedream-4.5": {
       "provider": "bytedance-seed",
       "family": "seedream",
-      "capabilities": ["text_input", "image_output", "image_input", "image_edit"],
-      "modalities": {"input": ["text", "image"], "output": ["image"]},
-      "endpoints": ["images"],
+      "capabilities": [
+        "text_input",
+        "image_output",
+        "image_input",
+        "image_edit"
+      ],
+      "modalities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "image"
+        ]
+      },
+      "endpoints": [
+        "images"
+      ],
       "default_eligible": true,
-      "pricing": {"unit": "per_image", "per_image": 0.04},
+      "pricing": {
+        "unit": "per_image",
+        "per_image": 0.04
+      },
       "use_case_notes": "Default image model: flat cheap price, good editing consistency, multi-image composition.",
       "provenance": {
         "catalog": {
@@ -733,11 +1142,30 @@
     "sourceful/riverflow-v2.5-fast": {
       "provider": "sourceful",
       "family": "riverflow",
-      "capabilities": ["text_input", "image_output", "image_input", "image_edit", "transparent_background"],
-      "modalities": {"input": ["text", "image"], "output": ["image"]},
-      "endpoints": ["images"],
+      "capabilities": [
+        "text_input",
+        "image_output",
+        "image_input",
+        "image_edit",
+        "transparent_background"
+      ],
+      "modalities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "image"
+        ]
+      },
+      "endpoints": [
+        "images"
+      ],
       "default_eligible": true,
-      "pricing": {"unit": "per_image", "per_image": 0.019},
+      "pricing": {
+        "unit": "per_image",
+        "per_image": 0.019
+      },
       "use_case_notes": "Cheap default for product/brand generation and editing with background controls.",
       "provenance": {
         "catalog": {
@@ -752,11 +1180,30 @@
     "sourceful/riverflow-v2.5-pro": {
       "provider": "sourceful",
       "family": "riverflow",
-      "capabilities": ["text_input", "image_output", "image_input", "image_edit", "transparent_background"],
-      "modalities": {"input": ["text", "image"], "output": ["image"]},
-      "endpoints": ["images"],
+      "capabilities": [
+        "text_input",
+        "image_output",
+        "image_input",
+        "image_edit",
+        "transparent_background"
+      ],
+      "modalities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "image"
+        ]
+      },
+      "endpoints": [
+        "images"
+      ],
       "default_eligible": true,
-      "pricing": {"unit": "per_image", "per_image": 0.13},
+      "pricing": {
+        "unit": "per_image",
+        "per_image": 0.13
+      },
       "use_case_notes": "More capable Sourceful option supporting more input images than Fast.",
       "provenance": {
         "catalog": {
@@ -771,11 +1218,31 @@
     "google/gemini-3.1-flash-image": {
       "provider": "google",
       "family": "gemini-image",
-      "capabilities": ["text_input", "image_output", "image_input", "image_edit"],
-      "modalities": {"input": ["text", "image"], "output": ["image"]},
-      "endpoints": ["images"],
+      "capabilities": [
+        "text_input",
+        "image_output",
+        "image_input",
+        "image_edit"
+      ],
+      "modalities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "image"
+        ]
+      },
+      "endpoints": [
+        "images"
+      ],
       "default_eligible": true,
-      "pricing": {"unit": "per_mtok_image", "input_per_mtok": 0.50, "output_per_mtok": 3.00, "image_tokens_per_mtok": 60.00},
+      "pricing": {
+        "unit": "per_mtok_image",
+        "input_per_mtok": 0.5,
+        "output_per_mtok": 3.0,
+        "image_tokens_per_mtok": 60.0
+      },
       "use_case_notes": "Nano Banana 2; stronger when text/image reasoning and editing quality matter, image-token priced.",
       "provenance": {
         "catalog": {
@@ -790,11 +1257,26 @@
     "recraft/recraft-v4.1-utility": {
       "provider": "recraft",
       "family": "recraft",
-      "capabilities": ["text_input", "image_output"],
-      "modalities": {"input": ["text"], "output": ["image"]},
-      "endpoints": ["images"],
+      "capabilities": [
+        "text_input",
+        "image_output"
+      ],
+      "modalities": {
+        "input": [
+          "text"
+        ],
+        "output": [
+          "image"
+        ]
+      },
+      "endpoints": [
+        "images"
+      ],
       "default_eligible": true,
-      "pricing": {"unit": "per_image", "per_image": 0.035},
+      "pricing": {
+        "unit": "per_image",
+        "per_image": 0.035
+      },
       "use_case_notes": "Clean structured raster graphics, product/mockup work.",
       "provenance": {
         "catalog": {
@@ -809,11 +1291,29 @@
     "recraft/recraft-v4.1-vector": {
       "provider": "recraft",
       "family": "recraft",
-      "capabilities": ["text_input", "image_output", "svg_output", "transparent_background"],
-      "modalities": {"input": ["text"], "output": ["image", "vector"]},
-      "endpoints": ["images"],
+      "capabilities": [
+        "text_input",
+        "image_output",
+        "svg_output",
+        "transparent_background"
+      ],
+      "modalities": {
+        "input": [
+          "text"
+        ],
+        "output": [
+          "image",
+          "vector"
+        ]
+      },
+      "endpoints": [
+        "images"
+      ],
       "default_eligible": true,
-      "pricing": {"unit": "per_image", "per_image": 0.08},
+      "pricing": {
+        "unit": "per_image",
+        "per_image": 0.08
+      },
       "use_case_notes": "Best-value vector/SVG/logo candidate.",
       "provenance": {
         "catalog": {
@@ -828,11 +1328,29 @@
     "recraft/recraft-v4.1-pro-vector": {
       "provider": "recraft",
       "family": "recraft",
-      "capabilities": ["text_input", "image_output", "svg_output", "transparent_background"],
-      "modalities": {"input": ["text"], "output": ["image", "vector"]},
-      "endpoints": ["images"],
+      "capabilities": [
+        "text_input",
+        "image_output",
+        "svg_output",
+        "transparent_background"
+      ],
+      "modalities": {
+        "input": [
+          "text"
+        ],
+        "output": [
+          "image",
+          "vector"
+        ]
+      },
+      "endpoints": [
+        "images"
+      ],
       "default_eligible": true,
-      "pricing": {"unit": "per_image", "per_image": 0.30},
+      "pricing": {
+        "unit": "per_image",
+        "per_image": 0.3
+      },
       "use_case_notes": "Premium vector/SVG fallback.",
       "provenance": {
         "catalog": {
@@ -847,11 +1365,27 @@
     "black-forest-labs/flux.2-klein": {
       "provider": "black-forest-labs",
       "family": "flux",
-      "capabilities": ["text_input", "image_output"],
-      "modalities": {"input": ["text"], "output": ["image"]},
-      "endpoints": ["images"],
+      "capabilities": [
+        "text_input",
+        "image_output"
+      ],
+      "modalities": {
+        "input": [
+          "text"
+        ],
+        "output": [
+          "image"
+        ]
+      },
+      "endpoints": [
+        "images"
+      ],
       "default_eligible": true,
-      "pricing": {"unit": "per_megapixel", "first_output_mp": 0.014, "additional_mp": 0.001},
+      "pricing": {
+        "unit": "per_megapixel",
+        "first_output_mp": 0.014,
+        "additional_mp": 0.001
+      },
       "use_case_notes": "Cheap raster generation when megapixel billing is favorable.",
       "provenance": {
         "catalog": {
@@ -866,11 +1400,30 @@
     "black-forest-labs/flux.2-max": {
       "provider": "black-forest-labs",
       "family": "flux",
-      "capabilities": ["text_input", "image_output", "image_input"],
-      "modalities": {"input": ["text", "image"], "output": ["image"]},
-      "endpoints": ["images"],
+      "capabilities": [
+        "text_input",
+        "image_output",
+        "image_input"
+      ],
+      "modalities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "image"
+        ]
+      },
+      "endpoints": [
+        "images"
+      ],
       "default_eligible": true,
-      "pricing": {"unit": "per_megapixel", "input_mp": 0.03, "first_output_mp": 0.07, "additional_mp": 0.03},
+      "pricing": {
+        "unit": "per_megapixel",
+        "input_mp": 0.03,
+        "first_output_mp": 0.07,
+        "additional_mp": 0.03
+      },
       "use_case_notes": "Premium FLUX raster generation option.",
       "provenance": {
         "catalog": {
@@ -885,11 +1438,32 @@
     "google/gemini-3-pro-image": {
       "provider": "google",
       "family": "gemini-image",
-      "capabilities": ["text_input", "image_output", "image_input", "image_edit", "identity_preservation"],
-      "modalities": {"input": ["text", "image"], "output": ["image"]},
-      "endpoints": ["images"],
+      "capabilities": [
+        "text_input",
+        "image_output",
+        "image_input",
+        "image_edit",
+        "identity_preservation"
+      ],
+      "modalities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "image"
+        ]
+      },
+      "endpoints": [
+        "images"
+      ],
       "default_eligible": true,
-      "pricing": {"unit": "per_mtok_image", "input_per_mtok": 2.00, "output_per_mtok": 12.00, "image_tokens_per_mtok": 120.00},
+      "pricing": {
+        "unit": "per_mtok_image",
+        "input_per_mtok": 2.0,
+        "output_per_mtok": 12.0,
+        "image_tokens_per_mtok": 120.0
+      },
       "use_case_notes": "Nano Banana Pro; premium default for identity/text/logo-quality-sensitive work; listing calls out identity preservation.",
       "provenance": {
         "catalog": {
@@ -904,11 +1478,31 @@
     "openai/gpt-5.4-image-2": {
       "provider": "openai",
       "family": "gpt-5-image",
-      "capabilities": ["text_input", "image_output", "image_input", "image_edit"],
-      "modalities": {"input": ["text", "image"], "output": ["image"]},
-      "endpoints": ["images"],
+      "capabilities": [
+        "text_input",
+        "image_output",
+        "image_input",
+        "image_edit"
+      ],
+      "modalities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "image"
+        ]
+      },
+      "endpoints": [
+        "images"
+      ],
       "default_eligible": true,
-      "pricing": {"unit": "per_mtok_image", "input_per_mtok": 8.00, "output_per_mtok": 15.00, "image_tokens_per_mtok": 30.00},
+      "pricing": {
+        "unit": "per_mtok_image",
+        "input_per_mtok": 8.0,
+        "output_per_mtok": 15.0,
+        "image_tokens_per_mtok": 30.0
+      },
       "use_case_notes": "Premium OpenAI image generation/editing; high-cost candidate, not a default.",
       "provenance": {
         "catalog": {
@@ -923,11 +1517,30 @@
     "x-ai/grok-imagine-image-quality": {
       "provider": "x-ai",
       "family": "grok-imagine",
-      "capabilities": ["text_input", "image_output", "image_input", "image_edit", "identity_preservation"],
-      "modalities": {"input": ["text", "image"], "output": ["image"]},
-      "endpoints": ["images"],
+      "capabilities": [
+        "text_input",
+        "image_output",
+        "image_input",
+        "image_edit",
+        "identity_preservation"
+      ],
+      "modalities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "image"
+        ]
+      },
+      "endpoints": [
+        "images"
+      ],
       "default_eligible": true,
-      "pricing": {"unit": "per_mtok_image", "image_tokens_per_mtok": 11.98},
+      "pricing": {
+        "unit": "per_mtok_image",
+        "image_tokens_per_mtok": 11.98
+      },
       "use_case_notes": "Identity/structure-preserving photoreal image work.",
       "provenance": {
         "catalog": {
@@ -941,7 +1554,15 @@
     }
   },
   "constraints": {
-    "endpoints": ["chat", "images", "embeddings", "rerank", "responses", "audio", "video"],
+    "endpoints": [
+      "chat",
+      "images",
+      "embeddings",
+      "rerank",
+      "responses",
+      "audio",
+      "video"
+    ],
     "capability_vocabulary": [
       "chat",
       "text_input",
@@ -981,7 +1602,11 @@
       "image.edit.identity",
       "image.vector.default"
     ],
-    "direct_model_exception_required_fields": ["reason", "owner", "review_after"],
+    "direct_model_exception_required_fields": [
+      "reason",
+      "owner",
+      "review_after"
+    ],
     "provenance_required": true,
     "provenance_source_kinds": [
       "manual_policy",
@@ -992,7 +1617,13 @@
       "static_estimate",
       "scenario_pin"
     ],
-    "modality_vocabulary": ["text", "image", "vector", "video", "audio"]
+    "modality_vocabulary": [
+      "text",
+      "image",
+      "vector",
+      "video",
+      "audio"
+    ]
   },
   "provenance": {
     "policy": {

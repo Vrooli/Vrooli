@@ -6,8 +6,8 @@ Managed PostgreSQL runtime for local scenario storage and multi-instance databas
 
 - Resource ID: `postgres`
 - Category: `storage`
-- Driver: `docker-service`
-- Portability tier: `full`
+- Driver: `managed-service`
+- Portability tier: `Linux native; macOS and Windows explicitly unsupported until reproducible native trees are published`
 
 ## Use Cases
 
@@ -17,7 +17,9 @@ Managed PostgreSQL runtime for local scenario storage and multi-instance databas
 
 ## Architecture
 
-This resource uses the updated `docker-service` structure.
+This resource uses the managed-service structure. Linux PostgreSQL binaries,
+libraries, and the share tree are extracted from a digest-pinned official OCI
+source and launched directly; Docker is not a runtime prerequisite.
 
 - `resource.json` is the declarative authority for lifecycle, runtime, ports, exports, health, and freshness metadata.
 - `cli/` is the thin binary entrypoint and delegated command wiring surface.
@@ -65,4 +67,5 @@ Connection defaults:
 
 ## Maturity
 
-M4 (2026-08-05): Docker service lifecycle, query readiness, pinned image, typed configuration, and capability evidence are enforced by the fleet contract.
+M4 (2026-08-16): Native tree acquisition, copy-first bootstrap, query
+readiness, and capability evidence are enforced by the fleet contract.
