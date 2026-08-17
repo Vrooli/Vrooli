@@ -2,7 +2,7 @@
   "_metadata": {
     "auto_sync_enabled": true,
     "description": "Evidence-backed Secrets Manager requirements mapped to the PRD operational targets.",
-    "last_validated_at": "2026-07-29T16:41:02-04:00",
+    "last_validated_at": "2026-08-13T16:52:13-04:00",
     "module": "operational-targets",
     "schema_version": "1.0.0"
   },
@@ -10,7 +10,7 @@
     {
       "id": "SEC-VLT-001",
       "title": "Secret inventory discovery",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-001",
       "category": "vault-intelligence",
       "description": "When a repository scan runs, Secrets Manager shall discover declared secret requirements and normalize their metadata for resource-level inspection.",
@@ -19,14 +19,14 @@
           "type": "test",
           "ref": "api/scanner_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "SEC-SCAN-001",
       "title": "Security finding detection",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-002",
       "category": "security-scanning",
       "description": "When a security scan runs, Secrets Manager shall detect supported insecure patterns and report contextual findings.",
@@ -35,14 +35,14 @@
           "type": "test",
           "ref": "api/security_scanner_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "SEC-DEP-002",
       "title": "Tier-aware deployment manifest",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-003",
       "category": "deployment",
       "description": "When a deployment consumer requests a tier manifest, Secrets Manager shall return the selected secret handling strategy and bundle metadata without returning secret values.",
@@ -51,14 +51,14 @@
           "type": "test",
           "ref": "api/deployment_manifest_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "SEC-UX-002",
       "title": "Guided operator journeys",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-004",
       "category": "ui",
       "description": "When an operator opens the dashboard, Secrets Manager shall provide journey controls that direct configuration, vulnerability remediation, and deployment preparation.",
@@ -67,14 +67,14 @@
           "type": "test",
           "ref": "ui/src/App.test.tsx",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "SEC-VLT-005",
       "title": "Guided secret provisioning",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-001",
       "category": "vault-intelligence",
       "description": "When an authorized operator provisions a secret, Secrets Manager should validate the request and refresh the secret status.",
@@ -83,14 +83,14 @@
           "type": "test",
           "ref": "api/main_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "SEC-UI-001",
       "title": "Operator dashboard",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-002",
       "category": "ui",
       "description": "When dashboard data is available, Secrets Manager should display resource, deployment, and compliance views from API-backed state.",
@@ -99,14 +99,14 @@
           "type": "test",
           "ref": "ui/src/App.test.tsx",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "SEC-DATA-001",
       "title": "Validation history persistence",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-003",
       "category": "data",
       "description": "When a validation or scan completes, Secrets Manager should persist the result needed to compare compliance over time.",
@@ -115,14 +115,14 @@
           "type": "test",
           "ref": "api/scanner_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "SEC-CLI-001",
       "title": "Automation-friendly command normalization",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-004",
       "category": "cli",
       "description": "When an automation client uses a documented command alias, Secrets Manager should normalize it to the matching API-proxy command without duplicating business logic.",
@@ -131,7 +131,7 @@
           "type": "test",
           "ref": "cli/app_test.go",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },

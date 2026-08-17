@@ -35,6 +35,7 @@ func TestConservativeBuiltInsValidateAndSortCatalog(t *testing.T) {
 		Docker:               &cleanupfakes.DockerClient{},
 		Journal:              &cleanupfakes.JournalClient{},
 		OwnerScenarioClient:  &cleanupfakes.ScenarioProviderClient{},
+		OllamaModelProvider:  NewOllamaModelRetentionProvider(&fakeOllamaInventory{}, &memoryOllamaLedger{}, "model-policy.json", nil),
 		Clock:                cleanupfakes.Clock{Time: time.Unix(10, 0)},
 		TrashRoots:           []string{"/fake/trash"},
 		TmpRoots:             []string{"/fake/tmp"},
@@ -49,7 +50,7 @@ func TestConservativeBuiltInsValidateAndSortCatalog(t *testing.T) {
 		t.Fatalf("NewRegistry() error = %v", err)
 	}
 	got := registry.List()
-	if len(got) != 11 {
+	if len(got) != 12 {
 		t.Fatalf("List() len = %d, want 11", len(got))
 	}
 	for i := 1; i < len(got); i++ {

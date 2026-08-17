@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"storage-manager/hostfs"
 	"storage-manager/hostpaths"
@@ -18,6 +19,7 @@ import (
 	"github.com/vrooli/api-core/connectx"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/filerouting"
+	repocontract "github.com/vrooli/repo-contract-go"
 	cleanupconnect "github.com/vrooli/vrooli/packages/proto/gen/go/storage-manager/v1/cleanup/cleanup_v1connect"
 )
 
@@ -78,10 +80,25 @@ func defaultRegistry(fileRoots *filerouting.RoutedRoots) (*providers.Registry, e
 	if ledgerErr != nil {
 		return nil, ledgerErr
 	}
+	ollamaLedger, err := providers.NewFileOllamaUsageLedger(filepath.Join(stateDir, "vrooli", "storage-manager", "ollama-usage-ledger.json"))
+	if err != nil {
+		return nil, err
+	}
+	repoRoot, _ := repocontract.ResolveRepoRoot()
+	if repoRoot == "" {
+		repoRoot, _ = os.Getwd()
+	}
+	ollama := providers.NewHTTPOllamaModelInventory(resolveOllamaBaseURL())
 	builtIns, err := providers.ConservativeBuiltIns(providers.BuiltInDeps{
 		FileSystem:        files,
 		Clock:             schedule.System(),
 		DockerImageLedger: ledger,
+		OllamaModelProvider: providers.NewOllamaModelRetentionProvider(
+			ollama,
+			ollamaLedger,
+			filepath.Join(repoRoot, "resources", "ollama", "model-policy.json"),
+			schedule.System(),
+		),
 
 		TrashRoots:           roots.Trash,
 		TmpRoots:             roots.Tmp,
@@ -92,6 +109,30 @@ func defaultRegistry(fileRoots *filerouting.RoutedRoots) (*providers.Registry, e
 		return nil, err
 	}
 	return providers.NewRegistry(builtIns...)
+}
+
+func resolveOllamaBaseURL() string {
+	if raw := strings.TrimSpace(os.Getenv("OLLAMA_BASE_URL")); raw != "" {
+		return strings.TrimRight(raw, "/")
+	}
+	host := strings.TrimSpace(os.Getenv("OLLAMA_HOST"))
+	port := strings.TrimSpace(os.Getenv("OLLAMA_PORT"))
+	if host == "" {
+		host = "127.0.0.1"
+	}
+	if strings.HasPrefix(host, "http://") || strings.HasPrefix(host, "https://") {
+		if port == "" {
+			return strings.TrimRight(host, "/")
+		}
+		return strings.TrimRight(host, "/") + ":" + port
+	}
+	if strings.Contains(host, ":") {
+		return "http://" + host
+	}
+	if port == "" {
+		port = "11434"
+	}
+	return "http://" + host + ":" + port
 }
 
 var Endpoints = []module.EndpointDescriptor{

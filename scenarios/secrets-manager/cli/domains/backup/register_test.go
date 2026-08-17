@@ -14,6 +14,10 @@ type backupClient struct {
 func (c backupClient) Provision(context.Context, credentialclient.ProvisionRequest) (credentialclient.ProvisionResponse, error) {
 	return credentialclient.ProvisionResponse{}, nil
 }
+
+func (c backupClient) Resolve(context.Context, string, string) (string, error) {
+	return "", credentialclient.ErrCredentialAbsent
+}
 func (c backupClient) Delete(context.Context, string, string) error { return nil }
 func (c backupClient) Status(_ context.Context, identity, field string) (credentialclient.CredentialStatus, error) {
 	return credentialclient.CredentialStatus{Identity: identity, Field: field, Configured: c.statuses[identity+"\x00"+field]}, nil

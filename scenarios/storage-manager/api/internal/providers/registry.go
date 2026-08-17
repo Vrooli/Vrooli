@@ -112,6 +112,9 @@ func ConservativeBuiltIns(deps BuiltInDeps) ([]cleanup.Provider, error) {
 	if deps.DockerImageLedger != nil {
 		providers = append(providers, NewDockerUnusedImagesProvider(deps.Docker, deps.DockerImageLedger))
 	}
+	if deps.OllamaModelProvider != nil {
+		providers = append(providers, deps.OllamaModelProvider)
+	}
 	providers = append(providers, OwnerScenarioBuiltIns(deps.OwnerScenarioClient)...)
 
 	for _, provider := range providers {
@@ -177,6 +180,7 @@ type BuiltInDeps struct {
 	ProcessRunner        cleanup.ProcessRunner
 	Docker               cleanup.DockerClient
 	DockerImageLedger    imageUsageLedger
+	OllamaModelProvider  cleanup.Provider
 	Journal              cleanup.JournalClient
 	OwnerScenarioClient  cleanup.ScenarioProviderClient
 	Clock                cleanup.Clock

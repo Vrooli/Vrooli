@@ -251,7 +251,11 @@ func (s *service) AppendEvent(ctx context.Context, ev RunEvent) (bool, error) {
 	changed := false
 	switch ev.Kind {
 	case EventStatus:
-		if run.Status == StatusQueued && strings.EqualFold(strings.TrimSpace(ev.Status), "running") {
+		// A delivery acknowledgement moves the durable run to ACKED before the
+		// agent starts the process. The first running status must still advance
+		// that run to RUNNING; otherwise the watchdog interprets a legitimate
+		// long-running command as a delivery failure after StartDeadline.
+		if (run.Status == StatusQueued || run.Status == StatusPushed || run.Status == StatusAcked) && strings.EqualFold(strings.TrimSpace(ev.Status), "running") {
 			run.Status = StatusRunning
 			run.StartedAt = now
 			changed = true

@@ -132,8 +132,11 @@ target-bound protection step. On an interactive terminal it asks for a
 break-glass passphrase, seals that passphrase locally to the node's pinned
 identity key, and sends only the opaque envelope to Bridge. Bridge dispatches
 the typed cleanup helper and waits for its terminal result; it never sees the
-plaintext. Leaving the prompt empty (or running headlessly) records the
-protection capability as missing rather than claiming the node is protected.
+plaintext. Type the explicit token `SKIP` when protection must be declined;
+an empty read is never treated as a decline because an Enter key pressed while
+the long onboarding wait is still running can remain buffered until this
+prompt appears. Running headlessly records the protection capability as
+missing rather than claiming the node is protected.
 The step is idempotent: matching material already present on the node is
 reported as unchanged, while foreign or incomplete material is refused.
 
@@ -304,10 +307,11 @@ for qualification. See the canonical [platform support matrix](../../../../docs/
 ONLINE needs Docker — it matters only later, when a dispatched job runs a
 container workload. Docker is a `vrooli setup` requirement (the `docker`
 requirement), so setup — not onboarding — owns provider reconciliation. On
-macOS the ladder first adopts a healthy local or remote daemon, then an
-existing OrbStack, Rancher Desktop, or Docker Desktop provider, and otherwise
-provisions/verifies headless Colima. A GUI session is required only when the
-selected provider requires one; it is never needed to bring the node ONLINE.
+macOS the ladder first adopts a healthy local or remote Docker Engine-compatible
+provider (for example OrbStack, Rancher Desktop, or Docker Desktop), and
+otherwise provisions/verifies headless Colima. These are optional provider
+choices, not a macOS contract. A GUI session is required only when the selected
+provider requires one; it is never needed to bring the node ONLINE.
 
 **Then onboard from the control-plane host:**
 
@@ -342,18 +346,20 @@ to the node's published key and sends only the opaque envelope through Bridge.
 The passphrase is not accepted from an environment variable, argv, or a file.
 
 ```bash
-cat > authorization.json <<'JSON'
-{"passphrase":"enter-at-run-time"}
-JSON
+read -r -s -p 'Break-glass passphrase: ' BRIDGE_BREAK_GLASS_PASSPHRASE
+printf '\n'
+jq -n --arg passphrase "$BRIDGE_BREAK_GLASS_PASSPHRASE" '{passphrase:$passphrase}' |
 vrooli-bridge cleanup provision-break-glass \
   --machine "<machine-id>" \
   --node "<node-id>" \
   --target "<target-hostname>" \
-  --scope "vrooli:uninstall" < authorization.json
-rm -- authorization.json
+  --scope "vrooli:uninstall"
+unset BRIDGE_BREAK_GLASS_PASSPHRASE
 ```
 
-Prefer a secret-manager pipe over a persistent file for automation. Matching
+Prefer a secret-manager pipe over a shell variable for automation. Never place
+the passphrase in a persistent file, argv, or exported environment variable;
+unset the temporary shell variable immediately. Matching
 protection requests are idempotent. A request with a different target,
 operator, scope, or operation identity is refused rather than replacing
 existing material. The command prints a capability report covering agent

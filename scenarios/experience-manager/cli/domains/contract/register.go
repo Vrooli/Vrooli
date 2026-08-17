@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"time"
 
 	"connectrpc.com/connect"
 	contractv1 "github.com/vrooli/vrooli/packages/proto/gen/go/experience-manager/v1/contract"
@@ -44,7 +45,10 @@ type handlers struct {
 }
 
 func newHandlers(core *cliapp.ScenarioApp) *handlers {
-	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
+	// Full-fidelity validation can synchronously capture the declared
+	// experience matrix through BAS. Keep this client deadline aligned with
+	// the API's long-running capture budget instead of the generic CLI default.
+	httpClient, baseURL := cliapp.NewConnectHTTPClientWithTimeout(core, 10*time.Minute)
 	return &handlers{
 		core:         core,
 		client:       contractconnect.NewContractServiceClient(httpClient, baseURL),

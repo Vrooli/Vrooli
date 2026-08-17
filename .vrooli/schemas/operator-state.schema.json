@@ -25,6 +25,30 @@
       "default": "personal",
       "description": "Per-install operator-selected trust stance. It selects token, break-glass, node-execution, and JWKS-cache defaults; it never disables identity verification. Missing means personal."
     },
+    "operator_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Stable identity reference returned by enrollment; never an access token."
+    },
+    "identity_provider": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The authority used during enrollment, such as scenario-authenticator."
+    },
+    "session_mode": {
+      "type": "string",
+      "enum": ["personal", "shared", "hosted"],
+      "description": "Local session policy selected at enrollment."
+    },
+    "enrollment_reference": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque enrollment reference; it is not a bearer credential."
+    },
+    "enrolled_at": {
+      "type": "string",
+      "format": "date-time"
+    },
     "core": {
       "type": "object",
       "description": "Operator-granted core-set authority used by control-plane fallback paths.",

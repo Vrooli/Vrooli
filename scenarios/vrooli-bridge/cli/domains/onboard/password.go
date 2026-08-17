@@ -129,17 +129,40 @@ func (p passwordSource) resolve(user, host string, fromStdin, promptRequested bo
 // environment or argv fallback for this secret: unattended onboarding may
 // decline the protection step and must report the missing capability instead
 // of hanging or pretending that a node is protected.
+//
+// An empty interactive read is never treated as a decline. Long-running
+// onboarding can leave an operator's early Enter key buffered until this
+// prompt appears; requiring an explicit SKIP token prevents that stale input
+// from silently disabling target-bound protection.
 func (p passwordSource) resolveBreakGlass(target string) (string, error) {
 	if !p.isTerminal() {
 		return "", nil
 	}
-	fmt.Fprintf(p.prompt, "Break-glass passphrase for %s (leave blank to finish onboarding without protection): ", target)
-	secret, err := p.readSecret()
-	fmt.Fprintln(p.prompt)
-	if err != nil {
-		return "", fmt.Errorf("read break-glass passphrase: %w", err)
+	for {
+		fmt.Fprintf(p.prompt, "Break-glass passphrase for %s (type SKIP to continue without protection): ", target)
+		secret, err := p.readSecret()
+		fmt.Fprintln(p.prompt)
+		if err != nil {
+			return "", fmt.Errorf("read break-glass passphrase: %w", err)
+		}
+		if strings.TrimSpace(string(secret)) != "" {
+			return string(secret), nil
+		}
+
+		fmt.Fprintln(p.prompt, "No passphrase was entered. Protection is still required; type SKIP to explicitly continue without it, or enter a passphrase.")
+		confirmation, confirmErr := p.readSecret()
+		fmt.Fprintln(p.prompt)
+		if confirmErr != nil {
+			return "", fmt.Errorf("read break-glass decision: %w", confirmErr)
+		}
+		if strings.EqualFold(strings.TrimSpace(string(confirmation)), "skip") {
+			return "", nil
+		}
+		if strings.TrimSpace(string(confirmation)) != "" {
+			return string(confirmation), nil
+		}
+		fmt.Fprintln(p.prompt, "Protection was not declined. Please enter the break-glass passphrase when prompted.")
 	}
-	return string(secret), nil
 }
 
 // trimTrailingNewline strips exactly one trailing LF or CRLF — the newline the

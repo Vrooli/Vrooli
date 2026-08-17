@@ -130,7 +130,7 @@ func Resolve(repoRoot, scenario, surface, ecosystem, packageName, version string
 	}
 	surfaceRoot := resolveSurfaceRoot(repoRoot, scenario, surface)
 	if surfaceRoot == "" {
-		return Resolution{}, fmt.Errorf("surface directory not found: scenarios/%s/%s", scenario, surface)
+		return Resolution{}, fmt.Errorf("surface directory not found: scenarios/%s/%s or resources/%s/%s", scenario, surface, scenario, surface)
 	}
 
 	ecosystem = strings.ToLower(strings.TrimSpace(ecosystem))
@@ -214,7 +214,7 @@ func ResolveNpmOverride(repoRoot, scenario, surface string) (Resolution, error) 
 	}
 	surfaceRoot := resolveSurfaceRoot(repoRoot, scenario, surface)
 	if surfaceRoot == "" {
-		return Resolution{}, fmt.Errorf("surface directory not found: scenarios/%s/%s", scenario, surface)
+		return Resolution{}, fmt.Errorf("surface directory not found: scenarios/%s/%s or resources/%s/%s", scenario, surface, scenario, surface)
 	}
 	if manager := jsManager(surfaceRoot); manager != "pnpm" {
 		return Resolution{}, fmt.Errorf("npm overrides require a pnpm surface, got %s", manager)
@@ -226,7 +226,10 @@ func ResolveNpmOverride(repoRoot, scenario, surface string) (Resolution, error) 
 	return Resolution{SurfaceRoot: surfaceRoot, PackageManager: "pnpm", ManifestPath: filepath.Join(surfaceRoot, "package.json"), Argv: argv, Profile: SafeProfileFor("pnpm", argv)}, nil
 }
 
-// resolveSurfaceRoot supports both scenario surfaces and package targets.
+// resolveSurfaceRoot supports scenario surfaces, resource surfaces, and
+// package targets. Resource surfaces deliberately use the same request shape
+// as scenarios so the dependency analyzer remains the single governed install
+// path for both kinds of repository-owned code.
 // Package installs use the existing tools/<package> surface spelling so the
 // CLI remains backward-compatible while governed dependency changes can reach
 // shared packages without pretending they are scenarios.
@@ -234,6 +237,10 @@ func resolveSurfaceRoot(repoRoot, scenario, surface string) string {
 	scenarioRoot := filepath.Join(repoRoot, "scenarios", scenario, surface)
 	if info, err := os.Stat(scenarioRoot); err == nil && info.IsDir() {
 		return scenarioRoot
+	}
+	resourceRoot := filepath.Join(repoRoot, "resources", scenario, surface)
+	if info, err := os.Stat(resourceRoot); err == nil && info.IsDir() {
+		return resourceRoot
 	}
 	if strings.HasPrefix(surface, "tools/") {
 		packageName := strings.TrimPrefix(surface, "tools/")

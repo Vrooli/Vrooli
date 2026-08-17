@@ -39,11 +39,13 @@ is read-only and is the input to the census and adoption views.
 | | |
 |---|---|
 | **Auth** | Operator-local API access |
-| **Response** | `OwnerInventory { repo_root, owners[], findings[] }` |
+| **Response** | `OwnerInventory { repo_root, owners[], findings[], ollama_models? }`; when Ollama is available, `ollama_models.models[]` contains each installed model's name, digest, logical size, policy reachability, and regeneration rationale, plus physical/unattributed accounting for the model root. |
 | **CLI** | `storage-manager storage inventory` |
 
 The loader lives in `packages/api-core/storage/owners.go`; native manifest
 locations remain authoritative and are not copied into a second manifest tree.
+Model identity is reported by the Ollama service API, not inferred from shared
+blob paths.
 
 ### `GET /api/v1/census`
 

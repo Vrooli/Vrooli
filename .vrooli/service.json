@@ -35,13 +35,6 @@
         "enabled": true,
         "required": false
       },
-      "home-assistant": {
-        "config_dir": "~/.vrooli/home-assistant/config",
-        "description": "Open source home automation platform for IoT device control and automation",
-        "enabled": true,
-        "required": false,
-        "timezone": "America/New_York"
-      },
       "k6": {
         "description": "Modern load testing tool with JavaScript scripting",
         "enabled": true,

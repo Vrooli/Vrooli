@@ -50,6 +50,12 @@ func (h *handlers) preflightConnect(ctx cliapp.RunContext) error {
 	if port == 0 {
 		port = 22
 	}
+	// Keep progress on stderr so --json remains machine-readable on stdout.
+	// The server-owned start + wait can take several minutes (especially for a
+	// working-tree transfer), and silence makes an interactive operator unsure
+	// whether the CLI is alive or ready for input. Explicitly state that no
+	// input is expected until the post-enrollment protection prompt appears.
+	fmt.Fprintf(ctx.Stderr(), "Bridge: checking trust and preparing onboarding for %s (no input is needed yet)\n", host)
 	preflight, err := h.client.PreflightOnboarding(context.Background(), connect.NewRequest(&onboardv1.PreflightOnboardingRequest{
 		Host: host, Port: int32(port), User: user, MachineId: strings.TrimSpace(ctx.Flag("machine-id")),
 	}))
@@ -128,6 +134,7 @@ func (h *handlers) preflightConnect(ctx cliapp.RunContext) error {
 			fmt.Fprintf(ctx.Stdout(), "Machine: %s; credential: %s\n", preflight.Msg.MachineId, credentialReportLine(credSource))
 		}
 	}
+	fmt.Fprintf(ctx.Stderr(), "Bridge: onboarding operation %s started; waiting for remote setup and ONLINE confirmation. This may take several minutes. Do not press Enter until prompted.\n", startResp.Msg.OpId)
 	waitResp, err := h.client.WaitOnboarding(context.Background(), connect.NewRequest(&onboardv1.WaitOnboardingRequest{Id: startResp.Msg.OpId, TimeoutSeconds: 1800}))
 	if err != nil {
 		return cliapp.WrapAPIError(fmt.Sprintf("wait for onboarding %q", startResp.Msg.OpId), err, nil)
@@ -141,6 +148,9 @@ func (h *handlers) preflightConnect(ctx cliapp.RunContext) error {
 	}
 	if getResp == nil || getResp.Msg == nil || getResp.Msg.Op == nil {
 		return fmt.Errorf("server returned no onboarding op")
+	}
+	if getResp.Msg.Op.State == onboardv1.OnboardingState_ONBOARDING_STATE_SUCCEEDED && strings.TrimSpace(getResp.Msg.Op.NodeId) != "" {
+		fmt.Fprintln(ctx.Stderr(), "Bridge: remote onboarding succeeded; the break-glass prompt is now ready.")
 	}
 	protectionDetail, protectionErr := h.protectAfterOnboarding(ctx, preflight.Msg.MachineId, getResp.Msg.Op)
 	if protectionErr != nil {

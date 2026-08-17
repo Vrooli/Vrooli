@@ -2,6 +2,7 @@ package storage
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/gorilla/mux"
 	corestorage "github.com/vrooli/api-core/storage"
+	"storage-manager/internal/providers"
 )
 
 func TestCensusEndpointReturnsClosedAccounting(t *testing.T) {
@@ -58,6 +60,64 @@ func TestInventoryEndpointReturnsTypedOwnerRecords(t *testing.T) {
 	}
 	if len(inventory.Owners) != 1 || inventory.Owners[0].ID != "demo" {
 		t.Fatalf("inventory = %#v", inventory)
+	}
+}
+
+type fakeOllamaInventory struct {
+	models []providers.OllamaModel
+}
+
+func (f fakeOllamaInventory) ListModels(context.Context) ([]providers.OllamaModel, error) {
+	return f.models, nil
+}
+func (f fakeOllamaInventory) ListRunningModels(context.Context) ([]providers.OllamaModel, error) {
+	return nil, nil
+}
+func (f fakeOllamaInventory) DeleteModel(context.Context, string) error { return nil }
+
+func TestInventoryEndpointAttributesOllamaModelsAndRemainder(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "resources", "ollama", "model-policy.json")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte(`{"roles":{"code.local":{"model":"primary:latest","fallbacks":["fallback:latest"]}}}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	modelRoot := filepath.Join(root, "models")
+	if err := os.MkdirAll(modelRoot, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(modelRoot, "shared-blob"), []byte("physical-remainder"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	router := mux.NewRouter()
+	Module(ModuleDeps{
+		RepoRoot: root, OllamaModelRoot: modelRoot,
+		OllamaInventory: fakeOllamaInventory{models: []providers.OllamaModel{
+			{Name: "orphan:latest", Digest: "sha256:orphan", Size: 5},
+			{Name: "primary:latest", Digest: "sha256:primary", Size: 7},
+		}},
+	}).Mount(router)
+	res := httptest.NewRecorder()
+	router.ServeHTTP(res, httptest.NewRequest(http.MethodGet, "/api/v1/storage/inventory", nil))
+	if res.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", res.Code, res.Body.String())
+	}
+	var out struct {
+		OllamaModels OllamaStorageInventory `json:"ollama_models"`
+	}
+	if err := json.NewDecoder(res.Body).Decode(&out); err != nil {
+		t.Fatal(err)
+	}
+	if len(out.OllamaModels.Models) != 2 || out.OllamaModels.Models[0].Name != "orphan:latest" {
+		t.Fatalf("models = %+v", out.OllamaModels.Models)
+	}
+	if out.OllamaModels.Models[0].PolicyReachable || !out.OllamaModels.Models[1].PolicyReachable {
+		t.Fatalf("reachability = %+v", out.OllamaModels.Models)
+	}
+	if out.OllamaModels.UnattributedBytes == 0 || len(out.OllamaModels.UnattributedPaths) != 1 {
+		t.Fatalf("physical remainder = %+v", out.OllamaModels)
 	}
 }
 

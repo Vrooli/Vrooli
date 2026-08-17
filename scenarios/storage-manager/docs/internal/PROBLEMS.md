@@ -84,6 +84,6 @@ a migration handoff with a planned retirement path back into
 ## Work ladder
 
 - Rung: W3
-- Evidence: the current storage-manager comprehensive suite passed 21/21 phases and the dedicated storage phase passed 1/1; the implementation layer was still incomplete because Test Genie reported `functional_incomplete`, 0/11 requirements passing, and 0 API endpoints beyond `/health` in its completeness summary.
-- Blocker: owner-neutral inventory and the follow-up census/operator surfaces are being implemented under the hardening plan.
-- Measured: 2026-08-02
+- Evidence: focused Ollama CLI, Storage Manager handler, and full API package tests passed; live `resource-ollama models inventory --json` reported 19 named models with digests, sizes, policy reachability, and regeneration reasons; live `GET /api/v1/storage/inventory` reported the same 19 rows, 62,434,233,666 logical model bytes, and the physical model-root accounting note.
+- Blocker: the comprehensive suite still has four pre-existing failed phases (dependency governance/module replace, documentation debt, unit execution/evidence debt, and proto REST payload declarations); the phase-3 model identity behavior itself is validated.
+- Measured: 2026-08-15

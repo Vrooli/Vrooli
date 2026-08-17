@@ -35,6 +35,13 @@ func activeMachineElementIDs(page spec.PageDocument, target CaptureTarget) map[s
 		if applies, _ := claimAppliesToTarget(claim, target); claim.Tier != "machine" || !applies {
 			continue
 		}
+		// An element-absent claim is a negative assertion. Its expected
+		// evidence is that no matching node exists, so treating it as an
+		// active binding would incorrectly produce bindings_unjoined before
+		// the claim evaluator can prove the absence.
+		if claim.Type == "element-absent" {
+			continue
+		}
 		for _, elementID := range claim.Elements {
 			out[elementID] = true
 		}
@@ -206,15 +213,26 @@ func componentHarnessRoute(scenario string, component spec.ComponentDocument, ve
 
 func componentCatalogID(scenario string, component spec.ComponentDocument) string {
 	refParts := strings.Split(filepath.ToSlash(componentCatalogRef(component)), "/")
+	namespace := strings.TrimSpace(scenario)
+	for i := 1; i < len(refParts); i++ {
+		if refParts[i] != "library" {
+			continue
+		}
+		candidate := strings.TrimSpace(refParts[i-1])
+		if candidate != "" && candidate != "." && candidate != ".." {
+			namespace = candidate
+			break
+		}
+	}
 	for i := 0; i+1 < len(refParts); i++ {
 		if refParts[i] == "components" && refParts[i+1] != "" {
-			return scenario + ":" + refParts[i+1]
+			return namespace + ":" + refParts[i+1]
 		}
 	}
 	if strings.TrimSpace(component.Component.Title) != "" {
-		return scenario + ":" + strings.TrimSpace(component.Component.Title)
+		return namespace + ":" + strings.TrimSpace(component.Component.Title)
 	}
-	return scenario + ":" + component.Component.ID
+	return namespace + ":" + component.Component.ID
 }
 
 func componentVersion(examplesRef string) string {

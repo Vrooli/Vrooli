@@ -144,6 +144,28 @@ func TestAppendEvent_RunningTransition(t *testing.T) {
 	require.False(t, got.StartedAt.IsZero())
 }
 
+// [REQ:BRG-P0-005] A delivery acknowledgement precedes the agent's running
+// status. The acknowledgement must not cause the watchdog to classify a
+// legitimate long-running command as a delivery failure.
+func TestAppendEvent_RunningTransitionAfterDeliveryAck(t *testing.T) {
+	svc, _ := newService(t)
+	run := mustCreate(t, svc)
+
+	require.NoError(t, svc.RecordDeliveryAck(context.Background(), runs.DeliveryAck{
+		NodeID: "n1", FrameID: "frame-1", RunID: run.ID,
+	}))
+	accepted, err := svc.AppendEvent(context.Background(), runs.RunEvent{
+		RunID: run.ID, Kind: runs.EventStatus, Sequence: 1, Status: "running",
+	})
+	require.NoError(t, err)
+	require.True(t, accepted)
+
+	got, _, err := svc.Get(context.Background(), run.ID)
+	require.NoError(t, err)
+	require.Equal(t, runs.StatusRunning, got.Status)
+	require.False(t, got.StartedAt.IsZero())
+}
+
 // [REQ:BRG-P0-005] Abort marks a non-terminal run ABORTED, wakes a blocked
 // waiter, and is idempotent on an already-terminal run.
 func TestAbort_WakesWaiterAndIsIdempotent(t *testing.T) {

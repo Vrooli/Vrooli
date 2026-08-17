@@ -174,7 +174,12 @@ func main() {
 		fleetH.Module(logger, repoRoot, db, schedule.System()),
 		advisorH.Module(logger, repoRoot),
 		validationH.Module(logger, repoRoot),
-		storageH.Module(storageH.ModuleDeps{RepoRoot: repoRoot, DB: db}),
+		storageH.Module(storageH.ModuleDeps{
+			RepoRoot:        repoRoot,
+			DB:              db,
+			OllamaInventory: storageH.NewOllamaInventoryFromEnvironment(),
+			OllamaModelRoot: storageH.DefaultOllamaModelRoot(),
+		}),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development

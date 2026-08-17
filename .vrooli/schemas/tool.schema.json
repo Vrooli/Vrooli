@@ -106,93 +106,9 @@
       "enum": ["vendorable", "host-required", "prohibited"],
       "description": "Whether the tool may be included in a Tier 2 desktop bundle."
     },
-    "source": {
-      "type": "object",
-      "description": "Verified fetch targets for the generic handler. Absent or type=package uses the OS package manager (defaultPackage/packages). type=url|release prefers a matching verified binary target installed into user-local ~/.vrooli/bin (no sudo), then falls back to an explicitly declared host package when that target is absent.",
-      "required": [
-        "type"
-      ],
-      "additionalProperties": false,
-      "properties": {
-        "type": {
-          "enum": [
-            "package",
-            "url",
-            "release"
-          ],
-          "description": "package = OS package manager (default); url = a direct binary/archive URL; release = a published release artifact. url and release behave identically at fetch time; release is a documentation hint that the URL points at a tagged release asset."
-        },
-        "targets": {
-          "type": "object",
-          "description": "Per os/arch fetch specs, keyed \"<os>/<arch>\" (Go GOOS/GOARCH, e.g. linux/amd64, darwin/arm64). A host with no matching target falls back to its declared package, when present, and is otherwise cleanly unsupported.",
-          "minProperties": 1,
-          "propertyNames": {
-            "pattern": "^[a-z0-9]+/[a-z0-9]+$"
-          },
-          "additionalProperties": {
-            "type": "object",
-            "required": [
-              "url",
-              "sha256"
-            ],
-            "additionalProperties": false,
-            "properties": {
-              "url": {
-                "type": "string",
-                "description": "Download URL for the binary or archive"
-              },
-              "sha256": {
-                "type": "string",
-                "pattern": "^[a-fA-F0-9]{64}$",
-                "description": "Mandatory SHA-256 of the downloaded bytes (the archive when archived, else the raw binary)"
-              },
-              "archive": {
-                "enum": [
-                  "tar.gz",
-                  "zip",
-                  "none"
-                ],
-                "description": "Archive format to extract; omit or \"none\" for a raw binary"
-              },
-              "layout": {
-                "enum": [
-                  "file",
-                  "dir"
-                ],
-                "description": "Install layout. \"file\" (default) places a single binary into ~/.vrooli/bin. \"dir\" extracts the whole archive tree into ~/.vrooli/opt/<tool>/ and writes a launcher into ~/.vrooli/bin/<command> that runs binPath with the opt dir on LD_LIBRARY_PATH — for backends that ship sibling shared libraries or asset directories the binary loads at runtime."
-              },
-              "binPath": {
-                "type": "string",
-                "description": "Path of the binary inside the archive (required when archive is set and the binary is not at the archive root; for layout=dir, the entry binary path relative to the extracted opt dir)"
-              },
-              "mode": {
-                "type": "string",
-                "pattern": "^0[0-7]{3}$",
-                "description": "Octal file mode for the placed binary (default 0755)"
-              },
-              "runtimeEnv": {
-                "type": "object",
-                "description": "Environment variables set by a dir-layout launcher. Each value is a path relative to the extracted opt directory, so the launcher never inherits an incompatible ambient runtime home.",
-                "additionalProperties": {
-                  "type": "string",
-                  "minLength": 1
-                }
-              }
-            }
-          }
-        },
-        "unsupported": {
-          "type": "object",
-          "description": "Explicitly unsupported os/arch combinations. Each key is <os>/<arch> and each value explains why no upstream artifact or install route exists.",
-          "propertyNames": {
-            "pattern": "^[a-z0-9]+/[a-z0-9]+$"
-          },
-          "additionalProperties": {
-            "type": "string",
-            "minLength": 1
-          }
-        }
-      }
+    "acquisition": {
+      "$ref": "acquisition.schema.json#",
+      "description": "Fact-predicated, checksum-verified acquisition targets shared by tools and resources."
     },
     "requires": {
       "type": "object",

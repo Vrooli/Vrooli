@@ -49,6 +49,10 @@
           "type": "string",
           "description": "Routing description: what to find here and when to route to it"
         },
+        "routing_profile": {
+          "$ref": "#/definitions/routing_profile",
+          "description": "Optional provider-agnostic positive routing facets"
+        },
         "scope": {
           "type": "string",
           "description": "Routing scope (e.g. 'SCOPE_PROJECT')"
@@ -114,6 +118,38 @@
       "type": "object",
       "description": "Opaque transport descriptor (interpreted by search-hub, not by aisearch-go).",
       "additionalProperties": true
+    },
+    "routing_profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Provider-agnostic routing facets; exclusions are diagnostic metadata and are never embedded as positive semantic evidence.",
+      "properties": {
+        "answer_spaces": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "intents": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "positive_examples": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "exclusions": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      },
+      "anyOf": [
+        { "required": ["answer_spaces"] },
+        { "required": ["intents"] },
+        { "required": ["positive_examples"] }
+      ]
     },
     "tuning": {
       "type": "object",

@@ -842,7 +842,15 @@
           "minimum": 0
         },
         "gpu": {
-          "type": "boolean"
+          "type": "object",
+          "description": "Optional GPU requirement. An empty object requires a GPU; min_cuda_compute narrows the requirement.",
+          "properties": {
+            "min_cuda_compute": {
+              "type": "string",
+              "pattern": "^[0-9]+(\\.[0-9]+)?$"
+            }
+          },
+          "additionalProperties": false
         },
         "network": {
           "type": "string",

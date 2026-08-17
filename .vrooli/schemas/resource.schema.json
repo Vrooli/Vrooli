@@ -702,6 +702,16 @@
         "artifact"
       ],
       "properties": {
+        "artifact_role": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Release manifest role for the staged service artifact."
+        },
+        "provenance_class": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Release manifest provenance label declared by the resource."
+        },
         "provider_policy": {
           "type": "object",
           "required": [
@@ -778,6 +788,16 @@
               "type": "string",
               "minLength": 1
             },
+            "layout": {
+              "type": "string",
+              "enum": ["file", "dir"],
+              "description": "Artifact verification/launch layout; directory artifacts use the declared entry_path and tree digest."
+            },
+            "entry_path": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Executable path relative to a directory artifact root."
+            },
             "bundle_artifact": {
               "type": "string",
               "minLength": 1,
@@ -810,6 +830,23 @@
           ],
           "additionalProperties": false
         },
+        "acquisition": {
+          "$ref": "acquisition.schema.json#",
+          "description": "Declared source, verification, and host-fact selection contract for the managed-service artifact."
+        },
+        "data_artifacts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "path", "acquisition"],
+            "properties": {
+              "name": {"type": "string", "minLength": 1},
+              "path": {"type": "string", "minLength": 1},
+              "acquisition": {"$ref": "acquisition.schema.json#"}
+            },
+            "additionalProperties": false
+          }
+        },
         "attach_health_path": {
           "type": "string",
           "pattern": "^/[^?#]*$",
@@ -828,6 +865,42 @@
             "type": "string"
           },
           "description": "Literal environment values supplied only to the managed process. Secrets are not permitted here; resolve them through provider-scoped credentials."
+        },
+        "bootstrap": {
+          "type": "object",
+          "required": ["marker", "executable"],
+          "properties": {
+            "marker": {"type": "string", "minLength": 1},
+            "executable": {"type": "string", "minLength": 1},
+            "arguments": {"type": "array", "items": {"type": "string"}},
+            "password_env": {"type": "string"},
+            "password_file": {"type": "string"}
+          },
+          "additionalProperties": false,
+          "description": "One idempotent initialization command run from the verified directory artifact when the marker is absent."
+        },
+        "process_limits": {
+          "type": "object",
+          "properties": {
+            "memory_high_percent": {"type": "integer", "minimum": 1, "maximum": 100},
+            "memory_max_percent": {"type": "integer", "minimum": 1, "maximum": 100},
+            "oom_score_adjust": {"type": "integer", "minimum": -1000, "maximum": 1000}
+          },
+          "additionalProperties": false,
+          "description": "Limits applied by the managed-service supervisor to the launched process."
+        },
+        "shutdown": {
+          "type": "object",
+          "required": ["signal"],
+          "properties": {
+            "signal": {
+              "type": "string",
+              "enum": ["terminate", "interrupt"],
+              "description": "Platform-neutral first shutdown request. terminate is SIGTERM on Unix; interrupt is SIGINT on Unix and the native console-control request on Windows."
+            }
+          },
+          "additionalProperties": false,
+          "description": "First shutdown request for the supervised process. The resource lifecycle stop timeout bounds graceful waiting and triggers forced escalation if needed."
         },
         "config": {
           "type": "object",

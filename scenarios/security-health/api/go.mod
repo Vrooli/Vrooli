@@ -4,7 +4,6 @@ go 1.25.0
 
 require (
 	connectrpc.com/connect v1.19.2
-	github.com/google/uuid v1.6.0
 	github.com/gorilla/handlers v1.5.2
 	github.com/gorilla/mux v1.8.1
 	github.com/stretchr/testify v1.10.0
@@ -19,7 +18,10 @@ require (
 	modernc.org/sqlite v1.50.1
 )
 
-require github.com/vrooli/cli-core v0.0.0 // indirect
+require (
+	github.com/google/uuid v1.6.0 // indirect
+	github.com/vrooli/cli-core v0.0.0 // indirect
+)
 
 require (
 	github.com/bmatcuk/doublestar/v4 v4.10.0 // indirect
@@ -33,7 +35,7 @@ require (
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/vrooli/vrooli-cli-go v0.0.0
 	golang.org/x/sync v0.20.0
-	golang.org/x/sys v0.44.0 // indirect
+	golang.org/x/sys v0.47.0 // indirect
 	modernc.org/libc v1.72.3 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect

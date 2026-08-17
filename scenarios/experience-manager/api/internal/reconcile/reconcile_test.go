@@ -303,6 +303,19 @@ func TestActiveComponentBuildsHarnessTargetsAndPersistsEvidence(t *testing.T) { 
 	}
 }
 
+func TestComponentHarnessRouteUsesLibraryNamespaceFromExternalStoryRef(t *testing.T) {
+	component := spec.ComponentDocument{Component: spec.ComponentIdentity{
+		ID:       "dirty-state-guard",
+		Title:    "DirtyStateGuard",
+		StoryRef: "../../../react-component-library/library/components/DirtyStateGuard/versions/1.0.0/story.json",
+	}}
+
+	route := componentHarnessRoute("money-ledger", component, "1.0.0", "prompt-open")
+	if !strings.HasPrefix(route, "/preview/react-component-library:DirtyStateGuard/harness.html?") {
+		t.Fatalf("route = %q, want external component-library namespace", route)
+	}
+}
+
 func TestActiveComponentFailuresAreBlocking(t *testing.T) {
 	report := activeComponentReport("action", spec.Binding{Selector: "button"})
 	component := report.Spec.Components["button"]
@@ -914,6 +927,18 @@ func TestActivePageWithNoJoinedBindingsBlocks(t *testing.T) {
 	}
 	if !strings.Contains(findings[0].Message, `state "default"`) || !strings.Contains(findings[0].Message, "zero of 1 declared bindings") {
 		t.Fatalf("zero-binding message = %q", findings[0].Message)
+	}
+}
+
+func TestElementAbsentClaimDoesNotRequireAJoinedBinding(t *testing.T) {
+	report := activeReport("missing", spec.Binding{TestID: "not-rendered"})
+	page := report.Spec.Pages["home"]
+	page.Claims[0].Type = "element-absent"
+	report.Spec.Pages["home"] = page
+
+	findings := Check{Capturer: fakeCapturer{snapshot: passingSnapshot()}, CaptureProfiles: testProfiles()}.Run(context.Background(), report)
+	if len(findings) != 0 {
+		t.Fatalf("absence-only claim should pass when the bound element is absent, got %+v", findings)
 	}
 }
 

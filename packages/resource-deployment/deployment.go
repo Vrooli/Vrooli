@@ -125,8 +125,13 @@ func (s ServiceShutdown) Validate() error {
 // nesting here makes the JSON contract shared by resource manifests, the
 // control plane, and deployment consumers.
 type ManagedService struct {
-	ProviderPolicy ProviderPolicy  `json:"provider_policy"`
-	Artifact       ServiceArtifact `json:"artifact,omitempty"`
+	ProviderPolicy ProviderPolicy `json:"provider_policy"`
+	// ArtifactRole and ProvenanceClass are release metadata declared by the
+	// resource. The distributor uses them instead of inferring trust from an
+	// artifact filename.
+	ArtifactRole    string          `json:"artifact_role,omitempty"`
+	ProvenanceClass string          `json:"provenance_class,omitempty"`
+	Artifact        ServiceArtifact `json:"artifact,omitempty"`
 	// Acquisition is the one declared source contract used to stage this
 	// service for control-plane and desktop deployments. Artifact remains the
 	// launch-time verification contract for the staged result.

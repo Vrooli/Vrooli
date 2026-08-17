@@ -1,6 +1,7 @@
 package onboard
 
 import (
+	"bytes"
 	"context"
 	"crypto/ed25519"
 	"crypto/rand"
@@ -263,6 +264,73 @@ func TestConnect_TrustedReconnectDoesNotPrompt(t *testing.T) {
 	require.NoError(t, h.preflightConnect(ctx))
 	require.Equal(t, "machine-trusted", svc.startReq.MachineId)
 	require.Empty(t, svc.startReq.SshPassword)
+}
+
+func TestConnect_EmitsProgressBeforeTheLongWait(t *testing.T) {
+	svc := &fakeOnboard{
+		preflightResp: &onboardv1.PreflightOnboardingResponse{Decision: onboardv1.ConnectDecision_CONNECT_DECISION_RECONNECT, MachineId: "machine-trusted", Host: "minimouse.local", Port: 22, User: "matthalloran8", ClientKeyFingerprint: "SHA256:client", PasswordRequired: false, Message: "trusted"},
+		startResp:     &onboardv1.StartOnboardingResponse{OpId: "op-progress", Host: "minimouse.local", Port: 22, User: "matthalloran8"},
+		waitResp:      &onboardv1.WaitOnboardingResponse{Op: terminalConnectResponse().Op},
+		getResps:      []*onboardv1.GetOnboardingResponse{terminalConnectResponse()},
+	}
+	core := clitest.NewTestApp(t, connectAPI(svc))
+	h := newHandlers(core)
+	h.password = passwordSource{lookupEnv: func(string) (string, bool) { return "", false }, isTerminal: func() bool { return false }, prompt: io.Discard}
+	stderr := new(bytes.Buffer)
+	ctx, _ := cliapptest.NewCapturedRunContext(core, startSchema(), cliapptest.TestRunContextOptions{
+		Flags:  map[string]string{"host": "minimouse.local", "user": "matthalloran8"},
+		Stderr: stderr,
+	})
+
+	require.NoError(t, h.preflightConnect(ctx))
+	progress := stderr.String()
+	require.Contains(t, progress, "no input is needed yet")
+	require.Contains(t, progress, "op-progress started")
+	require.Contains(t, progress, "Do not press Enter until prompted")
+}
+
+func TestResolveBreakGlassRequiresExplicitSkipAfterBlankInput(t *testing.T) {
+	reads := 0
+	p := passwordSource{
+		isTerminal: func() bool { return true },
+		readSecret: func() ([]byte, error) {
+			reads++
+			switch reads {
+			case 1:
+				return []byte{}, nil // stale Enter buffered before the prompt
+			case 2:
+				return []byte{}, nil // another stale Enter cannot decline protection
+			default:
+				return []byte("new protected passphrase"), nil
+			}
+		},
+		prompt: io.Discard,
+	}
+
+	passphrase, err := p.resolveBreakGlass("minimouse.local")
+	require.NoError(t, err)
+	require.Equal(t, "new protected passphrase", passphrase)
+	require.Equal(t, 3, reads)
+}
+
+func TestResolveBreakGlassAcceptsExplicitSkip(t *testing.T) {
+	reads := 0
+	p := passwordSource{
+		isTerminal: func() bool { return true },
+		readSecret: func() ([]byte, error) {
+			reads++
+			if reads == 1 {
+				return []byte{}, nil
+			}
+			return []byte("SKIP"), nil
+		},
+		prompt: io.Discard,
+	}
+
+	passphrase, err := p.resolveBreakGlass("minimouse.local")
+	require.NoError(t, err)
+	require.Empty(t, passphrase)
+	require.Equal(t, 2, reads)
 }
 
 func TestConnect_RejectsRetiredSetupPassphraseIntake(t *testing.T) {

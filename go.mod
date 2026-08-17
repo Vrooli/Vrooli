@@ -7,6 +7,7 @@ toolchain go1.25.12
 require (
 	connectrpc.com/connect v1.19.2
 	github.com/gorilla/mux v1.8.1
+	github.com/klauspost/compress v1.17.4
 	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1
 	github.com/vrooli/api-core v0.0.0
 	github.com/vrooli/binaryfetch v0.0.0

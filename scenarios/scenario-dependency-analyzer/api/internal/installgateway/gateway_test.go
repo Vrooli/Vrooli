@@ -21,6 +21,55 @@ func mkSurface(t *testing.T, repoRoot, scenario, surface string, files map[strin
 	}
 }
 
+func mkResourceSurface(t *testing.T, repoRoot, resource, surface string, files map[string]string) string {
+	t.Helper()
+	dir := filepath.Join(repoRoot, "resources", resource, surface)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for name, body := range files {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return dir
+}
+
+func TestResolveSupportsResourceSurface(t *testing.T) {
+	repoRoot := t.TempDir()
+	resourceRoot := mkResourceSurface(t, repoRoot, "doc-parse", "cli", map[string]string{
+		"go.mod": "module resource-doc-parse/cli\n",
+	})
+
+	r, err := Resolve(repoRoot, "doc-parse", "cli", "go", "github.com/tetratelabs/wazero", "v1.9.0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.SurfaceRoot != resourceRoot {
+		t.Fatalf("resource surface root = %q, want %q", r.SurfaceRoot, resourceRoot)
+	}
+	if r.ManifestPath != filepath.Join(resourceRoot, "go.mod") {
+		t.Fatalf("resource manifest = %q, want %q", r.ManifestPath, filepath.Join(resourceRoot, "go.mod"))
+	}
+	if got, want := r.Command(), "go get github.com/tetratelabs/wazero@v1.9.0"; got != want {
+		t.Fatalf("resource install command = %q, want %q", got, want)
+	}
+}
+
+func TestResolvePrefersScenarioSurfaceWhenNamesOverlap(t *testing.T) {
+	repoRoot := t.TempDir()
+	mkSurface(t, repoRoot, "doc-parse", "cli", map[string]string{"go.mod": "module scenario-doc-parse/cli\n"})
+	resourceRoot := mkResourceSurface(t, repoRoot, "doc-parse", "cli", map[string]string{"go.mod": "module resource-doc-parse/cli\n"})
+
+	r, err := Resolve(repoRoot, "doc-parse", "cli", "go", "github.com/tetratelabs/wazero", "v1.9.0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.SurfaceRoot == resourceRoot {
+		t.Fatal("scenario surface was shadowed by resource surface")
+	}
+}
+
 func TestResolveBuildsArgvPerEcosystem(t *testing.T) {
 	repoRoot := t.TempDir()
 	mkSurface(t, repoRoot, "demo", "ui", map[string]string{"pnpm-lock.yaml": "", "package.json": "{}"})

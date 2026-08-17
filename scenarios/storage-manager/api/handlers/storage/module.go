@@ -21,12 +21,15 @@ import (
 	"storage-manager/internal/census"
 	"storage-manager/internal/module"
 	"storage-manager/internal/placement"
+	"storage-manager/internal/providers"
 	managerRetention "storage-manager/internal/retention"
 )
 
 type ModuleDeps struct {
-	RepoRoot string
-	DB       *database.RoutedDB
+	RepoRoot        string
+	DB              *database.RoutedDB
+	OllamaInventory providers.OllamaModelInventory
+	OllamaModelRoot string
 }
 
 func Module(d ModuleDeps) module.Module {
@@ -50,7 +53,12 @@ func Module(d ModuleDeps) module.Module {
 				return
 			}
 			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(inventory)
+			out := storageInventoryResponse{OwnerInventory: inventory}
+			if d.OllamaInventory != nil {
+				modelInventory := buildOllamaStorageInventory(req.Context(), d.OllamaInventory, d.OllamaModelRoot, filepath.Join(d.RepoRoot, "resources", "ollama", "model-policy.json"))
+				out.OllamaModels = &modelInventory
+			}
+			_ = json.NewEncoder(w).Encode(out)
 		}).Methods(http.MethodGet)
 		r.HandleFunc("/api/v1/census", func(w http.ResponseWriter, req *http.Request) {
 			root := d.RepoRoot

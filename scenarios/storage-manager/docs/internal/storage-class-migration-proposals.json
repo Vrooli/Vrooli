@@ -1,7 +1,7 @@
 {
   "generated_at": "2026-08-05T19:29:58.068145+00:00",
   "generator": "storage-manager class migration (resolver-equivalence review)",
-  "proposal_count": 113,
+  "proposal_count": 112,
   "changed_files": [
     "scenarios/agent-inbox/.vrooli/service.json",
     "scenarios/agent-manager/.vrooli/service.json",
@@ -33,7 +33,6 @@
     "scenarios/flow-verifier/.vrooli/service.json",
     "scenarios/git-control-tower/.vrooli/service.json",
     "scenarios/go-code-graph/.vrooli/service.json",
-    "scenarios/home-automation/.vrooli/service.json",
     "scenarios/image-tools/.vrooli/service.json",
     "scenarios/knowledge-observatory/.vrooli/service.json",
     "scenarios/landing-page-business-suite/.vrooli/service.json",
@@ -454,16 +453,6 @@
       "owner": "go-code-graph",
       "entry": "data",
       "source": "scenarios/go-code-graph/.vrooli/service.json",
-      "old_path": "data",
-      "class": "data",
-      "subpath": "",
-      "reason": "scenario runtime class root migration"
-    },
-    {
-      "owner_kind": "scenario",
-      "owner": "home-automation",
-      "entry": "data",
-      "source": "scenarios/home-automation/.vrooli/service.json",
       "old_path": "data",
       "class": "data",
       "subpath": "",
