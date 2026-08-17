@@ -239,6 +239,19 @@
   "locale": {
     "switcherLabel": "اللغة"
   },
+  "components": {
+    "asyncBoundary": {
+      "loadingContent": "Loading content",
+      "loadingMoment": "This may take a moment."
+    },
+    "chart": {
+      "kicker": "Performance overview",
+      "valuesLabel": "Chart values",
+      "caption": "{{title}} data",
+      "period": "Period",
+      "value": "Value"
+    }
+  },
   "errorBoundary": {
     "title": "حدث خطأ ما",
     "message": "حدث خطأ غير متوقع أثناء عرض الصفحة. حاول مرة أخرى، أو أعد تحميل الصفحة إذا استمرت المشكلة.",

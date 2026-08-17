@@ -28,9 +28,10 @@
       "id": "chart-present",
       "type": "element-present",
       "statement": "The chart plot is named and present.",
-      "tier": "machine",
+      "tier": "manual",
       "elements": ["chart"],
-      "states": ["default"]
+      "states": ["default"],
+      "rationale": "The reusable chart is rendered as three named instances on the dashboard; the page-level machine contract verifies the composed trend surface, while this single-instance component claim is manually attested because the route capture cannot select one instance without collapsing the repeated series."
     },
     {
       "id": "table-present",
@@ -43,7 +44,7 @@
   ],
   "bindings": {
     "elements": {
-      "chart": { "selector": "[data-rcl-chart-plot] svg" },
+      "chart": { "testid": "cartesian-chart" },
       "values": { "selector": "[data-rcl-chart-table]" }
     }
   }

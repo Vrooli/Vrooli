@@ -420,3 +420,67 @@ func TestCatalogVerifyDetectsAnOrphanEdge(t *testing.T) { // [REQ:MIG-004]
 	require.False(t, report.Reconciled)
 	require.Contains(t, report.OrphanEdgeIds, orphanID)
 }
+
+// TestCatalogVerifyCountsBlockingFindingsFromAnyPath pins the wrong-root case.
+//
+// Pointing the verifier at a subdirectory of the declared root raises a blocking
+// "declared source file is missing" finding for every manifest path plus an
+// "undeclared source file" finding for everything it does find. None of those
+// paths appears in the per-file report, so the old drift loop — which only
+// counted a blocking finding whose path matched a file already in the report —
+// dropped all of them and the wrong root reported reconciled=true.
+func TestCatalogVerifyCountsBlockingFindingsFromAnyPath(t *testing.T) { // [REQ:MIG-004]
+	root := verificationSource(t)
+	s, ctx := testCatalog(t)
+	_, err := s.ImportCatalog(ctx, root, offerspb.SourceMode_SOURCE_MODE_OPERATOR_SUPPLIED, true, "operator:test")
+	require.NoError(t, err)
+
+	wrongRoot := filepath.Join(root, "catalogs")
+	report, err := s.VerifyCatalog(ctx, wrongRoot, offerspb.SourceMode_SOURCE_MODE_OPERATOR_SUPPLIED)
+	require.NoError(t, err)
+	require.False(t, report.Reconciled, "a root that resolves none of the declared source files must not reconcile")
+	require.Positive(t, report.TotalDrift, "blocking findings must count toward drift regardless of path")
+	require.False(t, report.Comparable)
+	// A wrong root and a compressed source both skip the comparison for opposite
+	// reasons, so they must not share a message: reassuring text here is how a
+	// mis-aimed verification gets read as a pass.
+	require.Contains(t, report.NotComparableReason, "check --source-path")
+	require.NotContains(t, report.NotComparableReason, "this is expected")
+}
+
+// TestCatalogVerifyReportsNotComparableWhenSourcesAreCompressed pins the state
+// the monetization cutover actually left behind.
+//
+// Once sources are compressed to judgment-only prose and their records move into
+// this scenario, a dry-run import yields no countable record, so the
+// source-versus-live count comparison has nothing to compare. That is the
+// correct steady state — but before Comparable existed it was reported as a bare
+// reconciled=true, indistinguishable from an import that never ran.
+func TestCatalogVerifyReportsNotComparableWhenSourcesAreCompressed(t *testing.T) { // [REQ:MIG-004]
+	root := verificationSource(t)
+	s, ctx := testCatalog(t)
+	_, err := s.ImportCatalog(ctx, root, offerspb.SourceMode_SOURCE_MODE_OPERATOR_SUPPLIED, true, "operator:test")
+	require.NoError(t, err)
+
+	full, err := s.VerifyCatalog(ctx, root, offerspb.SourceMode_SOURCE_MODE_OPERATOR_SUPPLIED)
+	require.NoError(t, err)
+	require.True(t, full.Comparable, "a source declaring records must be comparable")
+	require.Empty(t, full.NotComparableReason)
+
+	// Compress every declared source the way the retirement disposition did:
+	// strip the state marker the parser keys on, keep the prose.
+	require.NoError(t, filepath.Walk(root, func(path string, info os.FileInfo, walkErr error) error {
+		require.NoError(t, walkErr)
+		if info.IsDir() || filepath.Ext(path) != ".md" {
+			return nil
+		}
+		body, readErr := os.ReadFile(path)
+		require.NoError(t, readErr)
+		return os.WriteFile(path, []byte(strings.ReplaceAll(string(body), "**Status:", "**Retired-status:")), info.Mode().Perm())
+	}))
+
+	compressed, err := s.VerifyCatalog(ctx, root, offerspb.SourceMode_SOURCE_MODE_OPERATOR_SUPPLIED)
+	require.NoError(t, err)
+	require.False(t, compressed.Comparable, "a compressed source declares no records and cannot be compared")
+	require.NotEmpty(t, compressed.NotComparableReason, "the skipped comparison must state why")
+}

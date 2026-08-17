@@ -239,6 +239,19 @@
   "locale": {
     "switcherLabel": "Language"
   },
+  "components": {
+    "asyncBoundary": {
+      "loadingContent": "Loading content",
+      "loadingMoment": "This may take a moment."
+    },
+    "chart": {
+      "kicker": "Performance overview",
+      "valuesLabel": "Chart values",
+      "caption": "{{title}} data",
+      "period": "Period",
+      "value": "Value"
+    }
+  },
   "errorBoundary": {
     "title": "Something went wrong",
     "message": "An unexpected error occurred while rendering the page. Try again, or reload if the problem persists.",

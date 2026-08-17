@@ -173,7 +173,7 @@ export function DashboardPage() {
           <label className="grid min-w-36 gap-1" htmlFor="trend-window"><span>{t(strings.pages.dashboard.trendWindowLabel)}</span><Select id="trend-window" data-testid={selectors.pages.trendWindow} value={String(trendWindowDays)} onChange={(event) => setTrendWindowDays(Number(event.target.value))} options={[7, 30, 90].map((days) => ({ value: String(days), label: t(strings.pages.dashboard.trendWindowDays, { days }) }))} /></label>
         </CardHeader>
         <CardContent className="grid gap-4">
-          <div data-testid={selectors.pages.runwayBurnTrend} aria-label={t(strings.pages.dashboard.trendTitle)} className="grid gap-4 xl:grid-cols-3">
+          <div data-testid={selectors.pages.runwayBurnTrend} role="img" aria-label={t(strings.pages.dashboard.trendTitle)} className="grid gap-4 xl:grid-cols-3">
             <CartesianCharts data={chartData((row) => row.inflow)} title={t(strings.pages.dashboard.trendInflow)} kind="area" status={trendStatus} emptyMessage={t(strings.pages.dashboard.trendEmpty)} valueFormatter={(value) => formatCurrency(value, currency)} />
             <CartesianCharts data={chartData((row) => row.outflow)} title={t(strings.pages.dashboard.trendOutflow)} kind="area" status={trendStatus} emptyMessage={t(strings.pages.dashboard.trendEmpty)} valueFormatter={(value) => formatCurrency(value, currency)} />
             <CartesianCharts data={chartData((row) => row.net)} title={t(strings.pages.dashboard.trendNet)} kind="line" status={trendStatus} emptyMessage={t(strings.pages.dashboard.trendEmpty)} valueFormatter={(value) => formatCurrency(value, currency)} />

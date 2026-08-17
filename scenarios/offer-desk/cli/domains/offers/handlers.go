@@ -224,7 +224,14 @@ func catalogMergeReport(_ cliapp.OperationContext, m *offerspb.MergeNodesRespons
 }
 
 func catalogVerifyReport(_ cliapp.OperationContext, m *offerspb.VerifyCatalogResponse) cliapp.ListReport {
-	return cliapp.ListReport{Summary: []string{fmt.Sprintf("Catalog verification reconciled=%t, files=%d, drift=%d, duplicate_identities=%d, orphan_edges=%d, extra_nodes=%d.", m.Reconciled, len(m.Files), m.TotalDrift, len(m.DuplicateIdentities), len(m.OrphanEdgeIds), len(m.ExtraNodeIds))}, ResultsHeading: "Reconciliation", Results: mapStrings(len(m.Files), func(i int) string {
+	summary := []string{fmt.Sprintf("Catalog verification reconciled=%t, comparable=%t, files=%d, drift=%d, duplicate_identities=%d, orphan_edges=%d, extra_nodes=%d.", m.Reconciled, m.Comparable, len(m.Files), m.TotalDrift, len(m.DuplicateIdentities), len(m.OrphanEdgeIds), len(m.ExtraNodeIds))}
+	// A bare "reconciled=true" reads as "the import was verified" even when no
+	// count comparison ran. The reason is printed beside it so a human cannot
+	// draw that conclusion from this output alone.
+	if !m.Comparable && m.NotComparableReason != "" {
+		summary = append(summary, "Not comparable: "+m.NotComparableReason)
+	}
+	return cliapp.ListReport{Summary: summary, ResultsHeading: "Reconciliation", Results: mapStrings(len(m.Files), func(i int) string {
 		file := m.Files[i]
 		return fmt.Sprintf("%s — expected=%d live=%d", file.Path, file.Expected, file.Live)
 	})}

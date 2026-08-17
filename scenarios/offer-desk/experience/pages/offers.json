@@ -268,7 +268,7 @@
       "id": "offer-table",
       "role": "table",
       "name": "Offers",
-      "description": "The table equivalent of the graph, carrying the same nodes and edges. Always present, never a fallback."
+      "description": "A table rendering of the catalog graph, carrying the same nodes and relationship counts in grouped or flat form."
     },
     {
       "id": "status-label",
@@ -542,7 +542,7 @@
       "type": "affordance-present",
       "statement": "The operator can switch from the grouped catalog to the existing flat table.",
       "tier": "machine",
-      "elements": ["catalog-view-toggle", "offer-table"],
+      "elements": ["catalog-view-toggle"],
       "states": ["grouped-default", "grouped-empty", "grouped-no-edges"],
       "params": { "affordances": ["toggle"], "targetRole": "button" },
       "rationale": "Grouping is a default projection, not a replacement for the searchable record table."

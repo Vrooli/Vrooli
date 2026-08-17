@@ -8,7 +8,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/lib/pq v1.10.9
 	github.com/vrooli/api-core v0.0.0
-	golang.org/x/crypto v0.15.0
+	golang.org/x/crypto v0.54.0
 )
 
 require (
@@ -35,9 +35,9 @@ require (
 	github.com/vrooli/cli-core v0.0.0 // indirect
 	github.com/vrooli/repo-contract-go v0.0.0 // indirect
 	golang.org/x/arch v0.3.0 // indirect
-	golang.org/x/net v0.17.0 // indirect
-	golang.org/x/sys v0.44.0 // indirect
-	golang.org/x/text v0.14.0 // indirect
+	golang.org/x/net v0.56.0 // indirect
+	golang.org/x/sys v0.47.0 // indirect
+	golang.org/x/text v0.40.0 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

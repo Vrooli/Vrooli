@@ -163,6 +163,9 @@ export const strings = {
       requestError: "pages.accounts.requestError",
       balanceUnavailable: "pages.accounts.balanceUnavailable",
       emptyGuidance: "pages.accounts.emptyGuidance",
+      archiveBookAction: "pages.accounts.archiveBookAction",
+      archivedBookNotice: "pages.accounts.archivedBookNotice",
+      acceptedKinds: "pages.accounts.acceptedKinds",
     },
     adapters: {
       title: "pages.adapters.title",
@@ -189,6 +192,21 @@ export const strings = {
       requestError: "pages.adapters.requestError",
       lastSuccess: "pages.adapters.lastSuccess",
       availabilityReason: "pages.adapters.availabilityReason",
+      fileKind: "pages.adapters.fileKind",
+      aggregatorKind: "pages.adapters.aggregatorKind",
+      operatorInputTitle: "pages.adapters.operatorInputTitle",
+      operatorInputDescription: "pages.adapters.operatorInputDescription",
+      operatorInputStatusCaption: "pages.adapters.operatorInputStatusCaption",
+      field: "pages.adapters.field",
+      status: "pages.adapters.status",
+      observed: "pages.adapters.observed",
+      reason: "pages.adapters.reason",
+      absentUntilSupplied: "pages.adapters.absentUntilSupplied",
+      derivedRateRefusal: "pages.adapters.derivedRateRefusal",
+      previewImport: "pages.adapters.previewImport",
+      applyReviewedImport: "pages.adapters.applyReviewedImport",
+      reportTitle: "pages.adapters.reportTitle",
+      written: "pages.adapters.written",
     },
     statements: {
       title: "pages.statements.title",
@@ -230,6 +248,8 @@ export const strings = {
       goalsEmpty: "pages.settings.goalsEmpty",
       defaultBook: "pages.settings.defaultBook",
       currencyDisplay: "pages.settings.currencyDisplay",
+      archiveGoal: "pages.settings.archiveGoal",
+      moveGoal: "pages.settings.moveGoal",
     },
   },
   health: {
@@ -268,6 +288,19 @@ export const strings = {
   },
   locale: {
     switcherLabel: "locale.switcherLabel",
+  },
+  components: {
+    asyncBoundary: {
+      loadingContent: "components.asyncBoundary.loadingContent",
+      loadingMoment: "components.asyncBoundary.loadingMoment",
+    },
+    chart: {
+      kicker: "components.chart.kicker",
+      valuesLabel: "components.chart.valuesLabel",
+      caption: "components.chart.caption",
+      period: "components.chart.period",
+      value: "components.chart.value",
+    },
   },
   errorBoundary: {
     title: "errorBoundary.title",

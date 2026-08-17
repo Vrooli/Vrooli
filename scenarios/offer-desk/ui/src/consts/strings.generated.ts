@@ -251,6 +251,19 @@ export const strings = {
   locale: {
     switcherLabel: "locale.switcherLabel",
   },
+  components: {
+    asyncBoundary: {
+      loadingContent: "components.asyncBoundary.loadingContent",
+      loadingMoment: "components.asyncBoundary.loadingMoment",
+    },
+    chart: {
+      kicker: "components.chart.kicker",
+      valuesLabel: "components.chart.valuesLabel",
+      caption: "components.chart.caption",
+      period: "components.chart.period",
+      value: "components.chart.value",
+    },
+  },
   errorBoundary: {
     title: "errorBoundary.title",
     message: "errorBoundary.message",

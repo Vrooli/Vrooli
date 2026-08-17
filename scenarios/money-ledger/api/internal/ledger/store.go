@@ -51,6 +51,7 @@ func (s *Store) EnsureMigrations(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
+		defer rows.Close()
 		found := false
 		for rows.Next() {
 			var cid int
@@ -83,6 +84,7 @@ func (s *Store) EnsureMigrations(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	defer rows.Close()
 	type accountKindRow struct{ id, kind string }
 	var accounts []accountKindRow
 	for rows.Next() {

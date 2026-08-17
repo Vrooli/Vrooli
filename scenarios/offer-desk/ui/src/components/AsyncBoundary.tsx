@@ -20,6 +20,8 @@ import {
 } from "react";
 import { useAnnounce } from "../hooks/useAnnounce";
 import { useNetworkStatus } from "../hooks/useNetworkStatus";
+import { useTranslation } from "../i18n";
+import { strings } from "../consts/strings";
 
 export type AsyncBoundaryStatus =
   | "idle"
@@ -236,6 +238,7 @@ export function AsyncBoundary({
 }: AsyncBoundaryProps) {
   const isOnline = useNetworkStatus();
   const announce = useAnnounce();
+  const { t } = useTranslation();
   const generatedId = useId().replace(/:/g, "");
   const descriptionId = `${id ?? `rcl-async-${generatedId}`}-description`;
   const [pendingReady, setPendingReady] = useState(status !== "pending");
@@ -374,10 +377,10 @@ export function AsyncBoundary({
             ) : pendingReady ? (
               <LoadingSkeleton />
             ) : (
-              <span data-rcl-async-muted>Loading content</span>
+              <span data-rcl-async-muted>{t(strings.components.asyncBoundary.loadingContent)}</span>
             )}
             {!pending && pendingReady && (
-              <span data-rcl-async-muted>This may take a moment.</span>
+              <span data-rcl-async-muted>{t(strings.components.asyncBoundary.loadingMoment)}</span>
             )}
           </div>
         ) : effectiveStatus === "error" ? (

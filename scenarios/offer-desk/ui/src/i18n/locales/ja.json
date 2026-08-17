@@ -236,6 +236,19 @@
   "locale": {
     "switcherLabel": "言語"
   },
+  "components": {
+    "asyncBoundary": {
+      "loadingContent": "Loading content",
+      "loadingMoment": "This may take a moment."
+    },
+    "chart": {
+      "kicker": "Performance overview",
+      "valuesLabel": "Chart values",
+      "caption": "{{title}} data",
+      "period": "Period",
+      "value": "Value"
+    }
+  },
   "errorBoundary": {
     "title": "問題が発生しました",
     "message": "ページの表示中に予期しないエラーが発生しました。再試行するか、解決しない場合はページを再読み込みしてください。",

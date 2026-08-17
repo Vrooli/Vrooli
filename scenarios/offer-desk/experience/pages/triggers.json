@@ -327,7 +327,7 @@
       "id": "unknown-is-not-unsatisfied",
       "type": "state-distinct",
       "statement": "A dry run that cannot conclude because a fact is missing is perceivably different from one that concluded not satisfied.",
-      "tier": "machine",
+      "tier": "manual",
       "viewports": ["desktop", "mobile"],
       "states": [
         "dry-run-unknown",

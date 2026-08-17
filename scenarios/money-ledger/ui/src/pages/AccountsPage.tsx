@@ -190,9 +190,9 @@ export function AccountsPage() {
           </ul>
           {selectedBook && <div className="mt-3 flex flex-wrap items-center gap-2">
             <Button type="button" data-testid="book-archive-control" variant="secondary" disabled={archiveBookMutation.isPending} onClick={() => archiveBookMutation.mutate(selectedBook.id)}>
-              Archive book
+              {t(strings.pages.accounts.archiveBookAction)}
             </Button>
-            <span data-testid="archived-book-notice" role="status" className="text-sm text-app-muted-foreground">Archiving removes this book from default position reads; journal history remains readable.</span>
+            <span data-testid="archived-book-notice" role="status" className="text-sm text-app-muted-foreground">{t(strings.pages.accounts.archivedBookNotice)}</span>
           </div>}
         </CardContent>
       </Card>
@@ -216,7 +216,7 @@ export function AccountsPage() {
               <label className="grid gap-1" htmlFor="account-book"><span>{t(strings.pages.accounts.selectBook)}</span><Select id="account-book" value={bookId} onChange={(event) => setSelectedBookId(event.target.value)} options={(books.data?.books ?? []).map((book) => ({ value: book.id, label: `${book.name} · ${book.currency}` }))} placeholder={t(strings.pages.accounts.selectBook)} /></label>
               <label className="grid gap-1" htmlFor="account-name"><span>{t(strings.pages.accounts.accountNameLabel)}</span><Input id="account-name" value={accountForm.name} onChange={(event) => setAccountForm({ ...accountForm, name: event.target.value })} /></label>
               <label className="grid gap-1" htmlFor="account-kind"><span>{t(strings.pages.accounts.accountKindLabel)}</span><Input id="account-kind" value={accountForm.kind} onChange={(event) => setAccountForm({ ...accountForm, kind: event.target.value.toUpperCase() })} aria-describedby="account-kind-vocabulary" /></label>
-              <span id="account-kind-vocabulary" data-testid="account-kind-vocabulary" role="group" className="text-xs text-app-muted-foreground">Accepted kinds: ASSET, LIABILITY, REVENUE, EXPENSE, EQUITY.</span>
+              <span id="account-kind-vocabulary" data-testid="account-kind-vocabulary" role="group" className="text-xs text-app-muted-foreground">{t(strings.pages.accounts.acceptedKinds)}</span>
               {accountError && <p role="alert" className="text-sm text-app-danger">{createAccountMutation.isError ? t(strings.pages.accounts.requestError) : t(strings.pages.accounts.validationError)}</p>}
               {accountMessage && <p role="status" className="text-sm text-app-success">{accountMessage}</p>}
               <Button type="submit" disabled={createAccountMutation.isPending || !bookId}>{t(strings.pages.accounts.createAccountAction)}</Button>

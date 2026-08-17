@@ -56,14 +56,6 @@
     },
     {
       "action": {
-        "click": { "selector": "@selector/pages.catalogViewToggle" },
-        "metadata": { "label": "Reach flat catalog table" },
-        "type": "ACTION_TYPE_CLICK"
-      },
-      "id": "click-offers-flat-view"
-    },
-    {
-      "action": {
         "metadata": { "label": "Flat offer table visible" },
         "type": "ACTION_TYPE_WAIT",
         "wait": {

@@ -23,6 +23,8 @@ import {
 } from "./AsyncBoundary";
 import { useElementRect } from "../hooks/useElementRect";
 import { useLocale } from "../hooks/useLocale";
+import { useTranslation } from "../i18n";
+import { strings } from "../consts/strings";
 
 export type ChartPresentation = "contained" | "immersive";
 export type ChartLevel = "controller" | "compound" | "convenience";
@@ -96,6 +98,7 @@ export function Chart({
   className,
   style,
 }: ChartProps) {
+  const { t } = useTranslation();
   const locale = useLocale();
   const [plotElement, setPlotElement] = useState<HTMLElement | null>(null);
   const rect = useElementRect(plotElement);
@@ -132,7 +135,14 @@ export function Chart({
   const yTicks = useMemo(() => [max, min + range / 2, min], [max, min, range]);
 
   return (
-    <div data-rcl-chart className={className} style={style}>
+    <div
+      data-rcl-chart
+      data-testid="cartesian-chart"
+      role="img"
+      aria-label={title}
+      className={className}
+      style={style}
+    >
       <style data-rcl-chart-styles>{styles}</style>
       <AsyncBoundary
         status={boundaryStatus}
@@ -148,7 +158,7 @@ export function Chart({
           <div data-rcl-chart-surface data-presentation={presentation}>
             <div data-rcl-chart-header>
               <div data-rcl-chart-heading>
-                <span data-rcl-chart-kicker>Performance overview</span>
+                <span data-rcl-chart-kicker>{t(strings.components.chart.kicker)}</span>
                 <h2 id={titleId} data-rcl-chart-title>
                   {title}
                 </h2>
@@ -232,7 +242,7 @@ export function Chart({
               <div
                 data-rcl-chart-legend
                 data-rcl-chart-part="legend"
-                aria-label="Chart values"
+                aria-label={t(strings.components.chart.valuesLabel)}
               >
                 {data.map((point) => (
                   <button
@@ -251,11 +261,11 @@ export function Chart({
               </div>
             )}
             <table data-rcl-chart-table>
-              <caption>{title} data</caption>
+              <caption>{t(strings.components.chart.caption, { title })}</caption>
               <thead>
                 <tr>
-                  <th scope="col">Period</th>
-                  <th scope="col">Value</th>
+                  <th scope="col">{t(strings.components.chart.period)}</th>
+                  <th scope="col">{t(strings.components.chart.value)}</th>
                 </tr>
               </thead>
               <tbody>

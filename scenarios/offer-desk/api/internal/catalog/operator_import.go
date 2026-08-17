@@ -71,7 +71,21 @@ type CatalogVerifyReport struct {
 	OrphanEdgeIds       []string
 	ExtraNodeIds        []string
 	TotalDrift          int
-	Reconciled          bool
+	// Reconciled reports that every check which could run agreed. It is not a
+	// claim that the source-versus-live count comparison ran — read Comparable
+	// for that.
+	Reconciled bool
+	// Comparable reports whether the source-versus-live node-count comparison
+	// actually ran. It is false when no declared source file yielded a countable
+	// record, which is the expected steady state after sources have been
+	// compressed to judgment-only prose and their state moved into this
+	// scenario. Before this field existed, that state and "the import never
+	// ran" were both reported as a bare reconciled=true and could not be told
+	// apart.
+	Comparable bool
+	// NotComparableReason states why the count comparison was skipped. Empty
+	// when Comparable is true.
+	NotComparableReason string
 }
 
 type importedNode struct {
@@ -858,10 +872,29 @@ func (s *Store) VerifyCatalog(ctx context.Context, sourcePath string, mode offer
 			comparableFiles = append(comparableFiles, i)
 			expectedNodes += file.Written
 		}
-		for _, finding := range importReport.Findings {
-			if finding.Path == file.Path && finding.Blocking {
-				report.TotalDrift++
-			}
+	}
+
+	missingDeclared := 0
+	for _, finding := range importReport.Findings {
+		if finding.Blocking && strings.Contains(finding.Reason, "declared source file is missing") {
+			missingDeclared++
+		}
+	}
+
+	// Every blocking finding is drift, whatever path it names.
+	//
+	// This loop used to sit inside the per-file loop above and count a blocking
+	// finding only when its path matched a file already in report.Files. That
+	// silently dropped the findings that matter most: point the verifier at the
+	// wrong root and the import raises "declared source file is missing" for
+	// every manifest path plus "undeclared source file" for everything it does
+	// find — 63 blocking findings against docs/monetization/catalogs — none of
+	// which named a path in report.Files, so drift stayed 0 and the wrong root
+	// reported reconciled=true. A verification that passes when it was aimed at
+	// the wrong directory is worse than no verification.
+	for _, finding := range importReport.Findings {
+		if finding.Blocking {
+			report.TotalDrift++
 		}
 	}
 
@@ -942,6 +975,22 @@ func (s *Store) VerifyCatalog(ctx context.Context, sourcePath string, mode offer
 	}
 	report.TotalDrift += len(report.OrphanEdgeIds)
 	report.Reconciled = report.TotalDrift == 0
+	report.Comparable = expectedNodes > 0 && len(comparableFiles) > 0
+	if !report.Comparable {
+		// The two ways a comparison can be skipped need opposite responses, so
+		// they must not share a message. A wrong root is a mistake to correct; a
+		// compressed source is the intended end state. Reassuring text on the
+		// first case is how a mis-aimed verification gets read as a pass.
+		if missingDeclared > 0 {
+			report.NotComparableReason = fmt.Sprintf(
+				"%d declared source file(s) were not found under this root, so it is not the declared source tree; check --source-path before reading any other field",
+				missingDeclared)
+		} else {
+			report.NotComparableReason = fmt.Sprintf(
+				"no declared source file yielded a countable record (%d file(s) inspected), so the source-versus-live node count was not compared; this is expected once sources are compressed to judgment-only prose and their state is read from this scenario",
+				len(report.Files))
+		}
+	}
 	return report, nil
 }
 

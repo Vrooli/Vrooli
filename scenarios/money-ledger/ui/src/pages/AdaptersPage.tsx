@@ -118,7 +118,7 @@ export function AdaptersPage() {
             <form className="grid gap-3" onSubmit={submitRegistration}>
               <label className="grid gap-1" htmlFor="adapter-id"><span>{t(strings.pages.adapters.adapterIdLabel)}</span><Input id="adapter-id" value={form.id} onChange={(event) => setForm({ ...form, id: event.target.value })} /></label>
               <label className="grid gap-1" htmlFor="adapter-name"><span>{t(strings.pages.adapters.adapterNameLabel)}</span><Input id="adapter-name" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} /></label>
-              <label className="grid gap-1" htmlFor="adapter-kind"><span>{t(strings.pages.adapters.adapterKindLabel)}</span><Select id="adapter-kind" value={form.kind} onChange={(event) => setForm({ ...form, kind: event.target.value })} options={[{ value: String(AdapterKind.FILE), label: "FILE" }, { value: String(AdapterKind.AGGREGATOR), label: "AGGREGATOR" }]} /></label>
+              <label className="grid gap-1" htmlFor="adapter-kind"><span>{t(strings.pages.adapters.adapterKindLabel)}</span><Select id="adapter-kind" value={form.kind} onChange={(event) => setForm({ ...form, kind: event.target.value })} options={[{ value: String(AdapterKind.FILE), label: t(strings.pages.adapters.fileKind) }, { value: String(AdapterKind.AGGREGATOR), label: t(strings.pages.adapters.aggregatorKind) }]} /></label>
               <Button type="submit" disabled={registerMutation.isPending}>{t(strings.pages.adapters.registerAction)}</Button>
             </form>
           </FormSection>
@@ -133,21 +133,21 @@ export function AdaptersPage() {
           </FormSection>
         </DirtyStateGuard>
       </div>
-      <Card data-testid="operator-input-surface" aria-labelledby="operator-input-heading">
-        <CardHeader><CardTitle id="operator-input-heading">Operator financial inputs</CardTitle></CardHeader>
+      <Card data-testid="operator-input-surface" role="region" aria-labelledby="operator-input-heading">
+        <CardHeader><CardTitle id="operator-input-heading">{t(strings.pages.adapters.operatorInputTitle)}</CardTitle></CardHeader>
         <CardContent className="grid gap-4">
-          <p className="text-sm text-app-muted-foreground">Enter the requested values here. Empty fields remain absent; MRR is derived and cannot be posted.</p>
-          <div data-testid="operator-input-status" className="overflow-x-auto rounded border">
-            <table className="w-full text-left text-sm"><caption className="sr-only">Operator input status</caption><thead><tr><th className="p-2">Field</th><th className="p-2">Status</th><th className="p-2">Observed</th><th className="p-2">Reason</th></tr></thead><tbody>
+          <p className="text-sm text-app-muted-foreground">{t(strings.pages.adapters.operatorInputDescription)}</p>
+          <div className="overflow-x-auto rounded border">
+            <table data-testid="operator-input-status" className="w-full text-left text-sm"><caption className="sr-only">{t(strings.pages.adapters.operatorInputStatusCaption)}</caption><thead><tr><th className="p-2">{t(strings.pages.adapters.field)}</th><th className="p-2">{t(strings.pages.adapters.status)}</th><th className="p-2">{t(strings.pages.adapters.observed)}</th><th className="p-2">{t(strings.pages.adapters.reason)}</th></tr></thead><tbody>
               {(operatorStatus.data?.fields ?? operatorFields.map(([path, , kind]) => ({ path, status: kind === "derived-rate" ? "rejected" : "absent", observedAt: undefined, reason: kind === "derived-rate" ? "Derived rate; not a journal input." : "" }))).map((field) => <tr key={field.path}><td className="p-2 font-medium">{field.path}</td><td className="p-2">{field.status}</td><td className="p-2">{timestampLabel(field.observedAt)}</td><td className="p-2">{field.reason || "—"}</td></tr>)}
             </tbody></table>
           </div>
           <form className="grid gap-3 sm:grid-cols-2" onSubmit={(event) => { event.preventDefault(); operatorMutation.mutate(false); }}>
-            {operatorFields.filter(([, , kind]) => kind !== "derived-rate").map(([path, label, kind]) => <label key={path} className="grid gap-1" htmlFor={`operator-${path.replace(/\./g, "-")}`}><span>{label} <small className="text-app-muted-foreground">({kind})</small></span><Input id={`operator-${path.replace(/\./g, "-")}`} type="number" value={operatorValues[path] ?? ""} onChange={(event) => setOperatorValues({ ...operatorValues, [path]: event.target.value })} placeholder="Absent until supplied" /></label>)}
-            <p id="operator-input-derived-rate-refusal" data-testid="operator-input-derived-rate-refusal" role="note" className="rounded border p-2 text-sm text-app-muted-foreground">subscriptions.mrr is refused: it is a derived rate, not a journal input.</p>
-            <div className="flex flex-wrap gap-2 sm:col-span-2"><Button type="submit" disabled={operatorMutation.isPending || !operatorBookId || !accounts.data?.accounts[0]?.id}>Preview import</Button><Button type="button" variant="secondary" disabled={operatorMutation.isPending || !operatorReport || !operatorBookId || !accounts.data?.accounts[0]?.id} onClick={() => operatorMutation.mutate(true)}>Apply reviewed import</Button></div>
+            {operatorFields.filter(([, , kind]) => kind !== "derived-rate").map(([path, label, kind]) => <label key={path} className="grid gap-1" htmlFor={`operator-${path.replace(/\./g, "-")}`}><span>{label} <small className="text-app-muted-foreground">({kind})</small></span><Input id={`operator-${path.replace(/\./g, "-")}`} type="number" value={operatorValues[path] ?? ""} onChange={(event) => setOperatorValues({ ...operatorValues, [path]: event.target.value })} placeholder={t(strings.pages.adapters.absentUntilSupplied)} /></label>)}
+            <p id="operator-input-derived-rate-refusal" data-testid="operator-input-derived-rate-refusal" role="note" className="rounded border p-2 text-sm text-app-muted-foreground">{t(strings.pages.adapters.derivedRateRefusal)}</p>
+            <div className="flex flex-wrap gap-2 sm:col-span-2"><Button type="submit" disabled={operatorMutation.isPending || !operatorBookId || !accounts.data?.accounts[0]?.id}>{t(strings.pages.adapters.previewImport)}</Button><Button type="button" variant="secondary" disabled={operatorMutation.isPending || !operatorReport || !operatorBookId || !accounts.data?.accounts[0]?.id} onClick={() => operatorMutation.mutate(true)}>{t(strings.pages.adapters.applyReviewedImport)}</Button></div>
           </form>
-          {operatorReport && <div data-testid="operator-input-report" role="status" className="rounded border p-3 text-sm"><p className="font-medium">Import report</p><ul className="mt-2 grid gap-1">{operatorReport.fields.map((field) => <li key={field.path}>{field.path}: {field.status}{field.written ? " · written" : ""}{field.reason ? ` · ${field.reason}` : ""}</li>)}</ul></div>}
+          {operatorReport && <div data-testid="operator-input-report" role="status" className="rounded border p-3 text-sm"><p className="font-medium">{t(strings.pages.adapters.reportTitle)}</p><ul className="mt-2 grid gap-1">{operatorReport.fields.map((field) => <li key={field.path}>{field.path}: {field.status}{field.written ? ` · ${t(strings.pages.adapters.written)}` : ""}{field.reason ? ` · ${field.reason}` : ""}</li>)}</ul></div>}
         </CardContent>
       </Card>
       {error && <p role="alert" className="text-sm text-app-danger">{t(strings.pages.adapters.requestError)}</p>}

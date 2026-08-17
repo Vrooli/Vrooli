@@ -55,11 +55,16 @@ export function SettingsPage() {
       <section className="rounded-md border p-4" aria-labelledby="settings-goals-heading">
         <h3 id="settings-goals-heading" className="font-semibold">{t(strings.pages.settings.goalsHeading)}</h3>
         <ul data-testid="settings-goal-list" aria-label={t(strings.pages.settings.goalsHeading)} className="mt-2 text-sm text-app-muted-foreground">
-          {goalRows.length === 0 ? <li>{t(strings.pages.settings.goalsEmpty)}</li> : goalRows.map((verdict) => verdict.goal && <li key={verdict.goal.id} className="flex flex-wrap items-center gap-2">
-            <span>{t(strings.pages.settings.goalSummary, { name: verdict.goal.name, threshold: formatCurrency(Number(verdict.goal.thresholdMinor) / 100, books.data?.books.find((book) => book.id === bookId)?.currency || "USD"), comparator: verdict.goal.comparator, periods: verdict.goal.sustainPeriods })}</span>
-            <Button type="button" size="sm" variant="secondary" data-testid="settings-goal-archive" disabled={archiveGoalMutation.isPending} onClick={() => archiveGoalMutation.mutate(verdict.goal!.id)}>Archive goal</Button>
-            {books.data?.books.find((book) => book.id !== bookId) && <Button type="button" size="sm" variant="secondary" data-testid="settings-goal-reparent" disabled={reparentGoalMutation.isPending} onClick={() => reparentGoalMutation.mutate({ goalId: verdict.goal!.id, targetBookId: books.data!.books.find((book) => book.id !== bookId)!.id })}>Move goal</Button>}
-          </li>)}
+          {goalRows.length === 0 ? <li>{t(strings.pages.settings.goalsEmpty)}</li> : goalRows.map((verdict) => {
+            const goal = verdict.goal;
+            const targetBook = books.data?.books.find((book) => book.id !== bookId);
+            if (!goal) return null;
+            return <li key={goal.id} className="flex flex-wrap items-center gap-2">
+              <span>{t(strings.pages.settings.goalSummary, { name: goal.name, threshold: formatCurrency(Number(goal.thresholdMinor) / 100, books.data?.books.find((book) => book.id === bookId)?.currency || "USD"), comparator: goal.comparator, periods: goal.sustainPeriods })}</span>
+              <Button type="button" size="sm" variant="secondary" data-testid="settings-goal-archive" disabled={archiveGoalMutation.isPending} onClick={() => archiveGoalMutation.mutate(goal.id)}>{t(strings.pages.settings.archiveGoal)}</Button>
+              {targetBook && <Button type="button" size="sm" variant="secondary" data-testid="settings-goal-reparent" disabled={reparentGoalMutation.isPending} onClick={() => reparentGoalMutation.mutate({ goalId: goal.id, targetBookId: targetBook.id })}>{t(strings.pages.settings.moveGoal)}</Button>}
+            </li>;
+          })}
         </ul>
         <div className="mt-3 grid gap-2 sm:grid-cols-3">
           <span data-testid="settings-goal-threshold" role="group" aria-label={t(strings.pages.settings.goalThreshold)} className="rounded border p-2 text-sm">{goalRows.length ? t(strings.pages.settings.goalThreshold) : t(strings.pages.settings.goalsEmpty)}</span>

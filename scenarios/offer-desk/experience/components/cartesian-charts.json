@@ -43,7 +43,7 @@
   ],
   "bindings": {
     "elements": {
-      "chart": { "selector": "[data-rcl-chart-plot] svg" },
+      "chart": { "selector": "[data-rcl-chart]" },
       "values": { "selector": "[data-rcl-chart-table]" }
     }
   }

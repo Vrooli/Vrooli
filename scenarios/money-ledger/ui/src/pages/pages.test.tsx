@@ -7,6 +7,7 @@ import { AdaptersPage } from "./AdaptersPage";
 import { StatementsPage } from "./StatementsPage";
 import { DashboardPage } from "./DashboardPage";
 import { JournalPage } from "./JournalPage";
+import { SettingsPage } from "./SettingsPage";
 import { renderWithProviders } from "../test-utils";
 import { selectors } from "../consts/selectors";
 
@@ -26,6 +27,11 @@ const api = vi.hoisted(() => ({
   runAdapter: vi.fn(),
   importFile: vi.fn(),
   registerManualAdapter: vi.fn(),
+  fetchOperatorInputStatus: vi.fn(),
+  importOperatorInputsJSON: vi.fn(),
+  archiveBook: vi.fn(),
+  archiveGoal: vi.fn(),
+  reparentGoal: vi.fn(),
   ingestEvent: vi.fn(),
   reversePosting: vi.fn(),
   configuredBookId: vi.fn(() => "book-1"),
@@ -58,6 +64,11 @@ beforeEach(() => {
   api.registerAdapter.mockResolvedValue({ adapter: { id: "file-created", enabled: true } });
   api.runAdapter.mockResolvedValue({});
   api.importFile.mockResolvedValue({});
+  api.fetchOperatorInputStatus.mockResolvedValue({ fields: [] });
+  api.importOperatorInputsJSON.mockResolvedValue({ fields: [{ path: "cash", status: "current", written: true, reason: "", kind: "monetary" }] });
+  api.archiveBook.mockResolvedValue({});
+  api.archiveGoal.mockResolvedValue({});
+  api.reparentGoal.mockResolvedValue({});
 });
 
 describe("ledger page empty and degraded states", () => {
@@ -288,6 +299,51 @@ describe("ledger page empty and degraded states", () => {
     expect(await screen.findByText(/credential expired/)).toBeVisible();
     await user.click(screen.getByTestId("statement-export"));
     expect(await screen.findByText(/exported/i)).toBeVisible();
+  });
+
+  it("exercises archive, reparent, locale/theme, and operator-input review actions", async () => {
+    const user = userEvent.setup();
+    api.fetchBooks.mockResolvedValue({
+      books: [
+        { id: "book-1", name: "Operating", currency: "USD" },
+        { id: "book-2", name: "Reserve", currency: "USD" },
+      ],
+    });
+    api.fetchGoals.mockResolvedValue({
+      goals: [{ goal: { id: "goal-1", name: "Alive", thresholdMinor: 1000n, comparator: ">=", sustainPeriods: 3 } }],
+    });
+
+    renderWithProviders(<SettingsPage />);
+    await screen.findByTestId("settings-goal-list");
+    await user.click(screen.getByTestId("settings-goal-archive"));
+    await user.click(screen.getByTestId("settings-goal-reparent"));
+    await user.click(screen.getByTestId("page-settings-theme-dark"));
+    await user.click(screen.getByTestId("page-settings-locale-ja"));
+    await waitFor(() => {
+      expect(api.archiveGoal).toHaveBeenCalledWith("goal-1");
+      expect(api.reparentGoal).toHaveBeenCalledWith("goal-1", "book-2");
+    });
+
+    cleanup();
+    api.fetchAccounts.mockImplementation((bookId?: string) =>
+      Promise.resolve({ accounts: [{ id: bookId === "book-2" ? "account-2" : "account-1", name: "Cash", kind: "ASSET" }] }),
+    );
+    renderWithProviders(<AccountsPage />);
+    await user.click(await screen.findByTestId("book-archive-control"));
+    await waitFor(() => expect(api.archiveBook).toHaveBeenCalledWith("book-1"));
+
+    cleanup();
+    renderWithProviders(<AdaptersPage />);
+    await screen.findByTestId("operator-input-surface");
+    await user.type(screen.getByLabelText(/^Cash/), "125");
+    const previewButton = screen.getAllByRole("button").find((button) => /preview import/i.test(button.textContent ?? ""));
+    expect(previewButton).toBeDefined();
+    await user.click(previewButton!);
+    await waitFor(() => expect(api.importOperatorInputsJSON).toHaveBeenCalledWith(expect.objectContaining({ apply: false })));
+    const applyButton = screen.getAllByRole("button").find((button) => /apply reviewed import/i.test(button.textContent ?? ""));
+    expect(applyButton).toBeDefined();
+    await user.click(applyButton!);
+    await waitFor(() => expect(api.importOperatorInputsJSON).toHaveBeenCalledWith(expect.objectContaining({ apply: true })));
   });
 
   it("drives request errors from mocked transport", async () => {

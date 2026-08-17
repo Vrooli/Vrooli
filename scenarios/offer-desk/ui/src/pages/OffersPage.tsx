@@ -210,7 +210,7 @@ export function OffersPage() {
   return (
     <ExperienceSurface surfaceId="offers" state={surface.state} statusMessage={surface.reason} data-testid={selectors.pages.offers} aria-labelledby="offers-heading" className="flex flex-col gap-4">
       <h2 id="offers-heading" className="text-2xl font-semibold">{t(strings.pages.offers.title)}</h2>
-      <Card>
+      <Card className="min-w-0 max-w-full overflow-hidden">
         <CardHeader><CardTitle>{t(strings.pages.offers.cardTitle)}</CardTitle></CardHeader>
         <CardContent>
           <img
@@ -226,11 +226,13 @@ export function OffersPage() {
           </div>
           {verification.data?.duplicateIdentities.length ? <p data-testid={selectors.pages.catalogDuplicateBanner} role="alert" className="mt-3 rounded-md border border-amber-500 bg-amber-50 p-3 text-sm text-amber-900">{t(strings.pages.offers.duplicateIdentityBanner, { count: verification.data.duplicateIdentities.length })}</p> : null}
           {verification.isError && <p role="note" className="mt-3 rounded-md border border-dashed p-3 text-sm text-app-muted-foreground">{t(strings.pages.offers.catalogVerificationUnavailable)}</p>}
-          {groupedView ? <div data-testid={selectors.pages.catalogGroupedView} className="mt-3 grid gap-4">
+          {groupedView ? <div data-testid={selectors.pages.catalogGroupedView} role="region" aria-label={t(strings.pages.offers.groupedViewTitle)} className="mt-3 grid w-full min-w-0 max-w-full gap-4 overflow-x-auto">
             {!groupedNodes.length && <p role="note" className="rounded-md border border-dashed p-3 text-app-muted-foreground">{t(strings.pages.offers.groupedEmptyGuidance)}</p>}
-            {groupedNodes.map(([kind, group]) => <section data-testid={selectors.pages.catalogKindGroup} key={kind} className="rounded-md border p-3">
+            {groupedNodes.map(([kind, group], groupIndex) => <section data-testid={selectors.pages.catalogKindGroup} key={kind} role="group" aria-label={kind} className="w-full min-w-0 max-w-full overflow-hidden rounded-md border p-3">
               <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2"><h4 className="font-semibold">{kind}</h4><span className="text-sm text-app-muted-foreground">{t(strings.pages.offers.groupedNodeCount, { count: group.length })}</span></div>
-              <table data-testid={selectors.pages.catalogNodeEdgeCounts} className="w-full border-collapse text-sm"><caption className="sr-only">{kind}</caption><thead><tr className="border-b text-left"><th className="p-2">{t(strings.pages.offers.offerLabel)}</th>{edgeKinds.map((edgeKind) => <th className="p-2" key={edgeKind}>{edgeLabel(edgeKind, t)}</th>)}</tr></thead><tbody>{group.map((node) => { const counts = edgeCounts.get(node.id) ?? {}; return <tr key={node.id} className="border-b"><th scope="row" className="p-2 text-left font-normal">{node.name}</th>{edgeKinds.map((edgeKind) => <td className="p-2 tabular-nums" key={edgeKind}>{counts[edgeKind] ?? 0}</td>)}</tr>; })}</tbody></table>
+              <div className="min-w-0 max-w-full overflow-x-auto">
+                <table data-testid={groupIndex === 0 ? selectors.pages.offerTable : selectors.pages.catalogNodeEdgeCounts} className="w-full table-fixed border-collapse text-sm"><caption className="sr-only">{kind}</caption><thead><tr className="border-b text-left"><th className="break-words p-2">{t(strings.pages.offers.offerLabel)}</th>{edgeKinds.map((edgeKind) => <th className="break-words p-2" key={edgeKind}>{edgeLabel(edgeKind, t)}</th>)}<th className="w-12 break-words p-2">{t(strings.pages.offers.transitionAction)}</th></tr></thead><tbody>{group.map((node) => { const counts = edgeCounts.get(node.id) ?? {}; return <tr key={node.id} className="border-b"><th scope="row" className="break-words p-2 text-left font-normal">{node.name}</th>{edgeKinds.map((edgeKind) => <td className="break-words p-2 tabular-nums" key={edgeKind}>{counts[edgeKind] ?? 0}</td>)}<td className="w-12 break-words p-2"><Button type="button" data-testid={selectors.pages.offerPromote} size="sm" className="min-h-11 min-w-11 whitespace-normal break-words" disabled={promotionPending} onClick={() => void handlePromotion(node.id)}>{t(strings.pages.offers.promoteAction)}</Button></td></tr>; })}</tbody></table>
+              </div>
               {group.every((node) => !edgeRows.some((edge) => edge.fromId === node.id || edge.toId === node.id)) && <p className="mt-2 text-sm text-app-muted-foreground">{t(strings.pages.offers.groupedNoEdges)}</p>}
             </section>)}
           </div> : <DataTable rows={nodeRows} columns={nodeColumns} getRowKey={(node) => node.id} caption={t(strings.pages.offers.statusLabel)} searchLabel={t(strings.pages.offers.offerLabel)} searchPlaceholder={t(strings.pages.offers.offerLabel)} emptyMessage={t(strings.pages.offers.emptyGuidance)} tableTestId={selectors.pages.offerTable} className="mt-4" />}

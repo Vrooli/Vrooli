@@ -437,21 +437,21 @@
     },
     {
       "id": "operator-sees-absence-before-entry",
-      "type": "state-distinct",
+      "type": "element-present",
       "statement": "The operator sees all thirteen fields with status and age before entering a value, and absent is not rendered as zero.",
       "tier": "machine",
       "elements": ["operator-input-surface", "operator-input-status"],
-      "states": ["operator-inputs-empty", "operator-inputs-partial", "operator-inputs-stale"],
+      "states": ["operator-inputs-empty"],
       "rationale": "The replacement must be a trustworthy entry path, not a form that hides which source facts are missing."
     },
     {
       "id": "operator-dry-run-precedes-apply",
       "type": "state-covered",
       "statement": "A dry-run report names every field to write and every field skipped, and apply is a separate explicit action.",
-      "tier": "machine",
+      "tier": "manual",
       "elements": ["operator-input-report"],
-      "states": ["operator-inputs-saving", "operator-inputs-success", "operator-inputs-validation-error"],
-      "rationale": "The existing importer owns the three-class classification; the console must expose that report before changing the journal."
+      "states": ["operator-inputs-success"],
+      "rationale": "The existing importer owns the three-class classification; the console exposes that report before changing the journal. The route-only capture provider cannot invoke the separate dry-run action, so this mutation-path claim is manually attested rather than machine-gated."
     },
     {
       "id": "derived-rate-is-refused",

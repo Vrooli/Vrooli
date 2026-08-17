@@ -30,6 +30,7 @@ type Service struct {
 	journal  ledgerconnect.JournalServiceClient
 	position ledgerconnect.PositionServiceClient
 	bookID   string
+	bookName string
 	books    ledgerconnect.BooksServiceClient
 	interval time.Duration
 }
@@ -225,8 +226,10 @@ func (s *Service) VerifyCatalog(ctx context.Context, r *connect.Request[offerspb
 		return nil, invalid(err)
 	}
 	response := &offerspb.VerifyCatalogResponse{
-		TotalDrift: int32(report.TotalDrift),
-		Reconciled: report.Reconciled,
+		TotalDrift:          int32(report.TotalDrift),
+		Reconciled:          report.Reconciled,
+		Comparable:          report.Comparable,
+		NotComparableReason: report.NotComparableReason,
 	}
 	for _, file := range report.Files {
 		response.Files = append(response.Files, &offerspb.VerifyFileReport{Path: file.Path, Expected: int32(file.Expected), Live: int32(file.Live)})
@@ -294,10 +297,18 @@ func (s *Service) GetBoard(ctx context.Context, _ *connect.Request[offerspb.Proj
 	if s.position == nil {
 		response.Availability = append(response.Availability, &offerspb.Availability{Source: "money-ledger", Reason: "actuals unavailable: declared money-ledger dependency could not be resolved"})
 	} else {
-		if s.bookID == "" && s.books != nil {
+		if s.books != nil {
 			books, bookErr := s.books.ListBooks(ctx, connect.NewRequest(&ledgerpb.ListBooksRequest{}))
-			if bookErr == nil && len(books.Msg.Books) > 0 {
-				s.bookID = books.Msg.Books[0].Id
+			if bookErr == nil {
+				if s.bookID == "" && len(books.Msg.Books) > 0 {
+					s.bookID = books.Msg.Books[0].Id
+				}
+				for _, book := range books.Msg.Books {
+					if book.Id == s.bookID {
+						s.bookName = book.Name
+						break
+					}
+				}
 			}
 		}
 		if s.bookID == "" {
@@ -312,6 +323,9 @@ func (s *Service) GetBoard(ctx context.Context, _ *connect.Request[offerspb.Proj
 			} else {
 				response.Position = position.Msg
 				response.PostureSource = "money-ledger.position"
+				if s.bookName != "" {
+					response.PostureSource += ": " + s.bookName
+				}
 				for _, input := range position.Msg.Inputs {
 					if input.AgeSeconds > response.PostureAgeSeconds {
 						response.PostureAgeSeconds = input.AgeSeconds
