@@ -1,6 +1,6 @@
 ## Tools focus: Program Runtime
 
-Use `program-runtime` when a task needs a persistent, governed program session, typed scenario operations, bounded result handles, or provenance-bearing failure discovery. Keep every operation inside the declared binding registry and make materialization, grants, and provenance explicit.
+Use `program-runtime` when a task needs a persistent, governed program session, typed scenario operations, bounded result handles, or provenance-bearing failure discovery. Keep every operation inside the declared binding registry and make materialization, grants, and provenance explicit. For construction patterns, read `scenarios/program-runtime/docs/guides/program-construction.md`.
 
 ### Scope
 
@@ -40,7 +40,7 @@ Read `path:docs/agent-system/PROMOTION_LADDER.md` when repeated manual runtime w
    bounded argument rows in a handle:
 
    ```python
-   contract = vrooli.describe("test-genie/runs/list")
+   contract = describe("test-genie/runs/list")
    print(contract.head(10))
    ```
 
@@ -60,7 +60,7 @@ Read `path:docs/agent-system/PROMOTION_LADDER.md` when repeated manual runtime w
    program-runtime programs submit --session-id <session> --source <program> --provenance operator
    ```
 
-5. Read the bounded result with `program-runtime programs get <id>`. Treat `failure_detail` and `failure_shape` as diagnostic data, not as permission to bypass the registry.
+5. Read the bounded result with `program-runtime programs get <id>`. Treat `failure_detail` and `failure_shape` as diagnostic data, not as permission to bypass the registry. `failure_shape` carries a closed-vocabulary cause (for example `unknown_field`, `ambiguous_response`, `unreachable_scenario`), never a Python exception class.
 6. Reuse the session only when the program requires prior variables. Reclaim it with `program-runtime sessions delete <session>` and state the reclaim reason.
 
 Use this work table for operation choice:
@@ -84,18 +84,19 @@ materialize only the small projection the caller needs.
 
 ```python
 # Count and group without copying rows into program output.
-rows = vrooli.search_hub.search.query(query="program runtime")
+rows = search_hub.query.query(query="program runtime", rows="ranked")
 print(rows.count())
 print(rows.group_by("kind"))
+print(rows.meta().get("latencyMs"))
 ```
 
-Independent calls run concurrently through the explicit `vrooli.gather` helper;
+Independent calls run concurrently through the explicit `gather` helper;
 pass zero-argument callables so each binding starts on a worker thread:
 
 ```python
 queries = ["proto bindings", "telemetry", "scenario health"]
-results = vrooli.gather(*[
-    lambda query=query: vrooli.search_hub.search.query(query=query)
+results = gather(*[
+    lambda query=query: search_hub.query.query(query=query, rows="ranked")
     for query in queries
 ])
 print([result.count() for result in results])
@@ -104,7 +105,7 @@ print([result.count() for result in results])
 Typed inference is a governed ai-gateway call, not a direct provider path:
 
 ```python
-result = vrooli.ai.classify(
+result = ai.classify(
     "The request timed out after the provider retry.",
     schema={"type": "string", "enum": ["infra", "user"]},
     instruction="Choose the primary failure class.",
@@ -112,15 +113,56 @@ result = vrooli.ai.classify(
 print(result.head(1))
 ```
 
-The convenience roles are `classify.fast`, `extract.structured`, and
-`judge.default`. If the ai-gateway binding is unavailable, the helper fails
+`meta()` preserves response fields that are not rows, such as latency and
+reranker information. `raw()` is available when a bounded decoded response is
+needed for diagnostics; neither method bypasses the output limit.
+
+```python
+verdict = discover("book a flight to the moon")
+row = verdict.head(1)[0]
+if not row["binding_id"]:
+    print({"stopped": True, "reason": row["reason"]})
+```
+
+The convenience roles are `classify.fast`, `extract.structured`,
+`judge.default`, and `write.default` (`ai.write(...)`). The first three
+are deterministic and refuse a caller-supplied `temperature` with
+`INVALID_REQUEST`; `write.default` is overridable, so `ai.write` alone accepts
+`temperature=` and `max_output_tokens=`. Omit them to get the role's declared
+sampling — and note that `temperature=0.0` is a deterministic *request*, not an
+omission. If the ai-gateway binding is unavailable, the helper fails
 closed with a stated bridge or provider error. Delegated agent work remains a
-separate `vrooli.agent` capability and requires its own governed bridge.
+separate `agent` capability and requires its own governed bridge.
+
+### Runtime verbs
+
+Each verb takes its primary argument positionally or by keyword, returns a
+`Handle`, and fails closed naming its unavailable dependency. None falls back to
+a shell call or a direct provider call.
+
+| Verb | Resolves through | Notes |
+|---|---|---|
+| `discover(intent)` | binding registry + Search Hub | One governed binding or an explicit null verdict. |
+| `recall(intent, depth=)` | search-hub | Governed records and docs. `depth="deep"` widens retrieval. |
+| `validate(scenario, depth=)` | test-genie | Reads the **latest recorded** run verdicts. It does not start a run. |
+| `capture(text, kind=)` | vrooli-memory | `kind="note"` or `"work-record"`; a work record also accepts `trigger`, `approach`, `evidence`, `outcome`. |
+| `guide(task)` | prompt-manager | **Currently unavailable** — prompt-manager exposes no governed binding, so the verb fails closed with that reason. Use `prompt-manager skill read <name>` meanwhile. |
+
+Starting a test run stays a lifecycle operation: run `vrooli scenario test
+<name>`, then block **once** with `test-genie runs wait`. Never poll, and never
+implement a polling loop inside a program.
+
 
 ### Worked examples
 
-The runnable files in `scenarios/program-runtime/docs/examples/` cover the
-common shapes an agent should copy and adapt:
+Read `scenarios/program-runtime/docs/guides/program-construction.md` first: it
+teaches when a program beats separate tool calls, the three addressing forms,
+the allowlisted builtin surface, the fetch-shape-materialize discipline, and how
+to read a failure cause. Its task-shaped pages under `docs/construction/` carry
+the construction patterns.
+
+The runnable files in `scenarios/program-runtime/docs/examples/` are the
+executable form of those patterns:
 
 | Example | Demonstrates |
 |---|---|
@@ -138,13 +180,22 @@ bridge remains governed by Agent Manager's role-policy catalogs; it does not
 silently substitute a direct agent or shell call when those catalogs are
 unavailable.
 
-Use `vrooli.discover("typed inference")` to find candidate capabilities, then
-confirm the exact manifest argument names with
-`program-runtime bindings describe <scenario>/<group>/<command>`. The public
-namespace is `vrooli.<scenario>.<group>.<command>`; hyphens become underscores.
+Use `discover("typed inference")` to request one judged capability or
+an explicit null verdict. A successful handle row includes `binding_id`,
+`confidence`, `method`, and the resolved `arguments`; inspect
+`row = result.head(1)` before invoking anything. A null row has an empty
+`binding_id` and a stated `reason`. Stop and ask for a clearer intent or use
+the governed `bindings describe` command; never shell out or guess a path.
+The public namespace is flat: `<scenario>.<group>.<command>`, with hyphens becoming underscores. `vrooli.` addresses the project CLI only and never a scenario; `__vrooli__` is the stable root when a local variable shadows a scenario name.
 For a bounded projection, use `count()`, `head(n)`, `filter(...)`, or
 `group_by(...)`. Use `materialize(limit)` only when the rows themselves are
 needed, and always keep the limit explicit.
+
+The library holds explicitly promoted programs only and is frozen when the
+session starts; there are no seeded entries. Use `lib.list()` to enumerate what
+the session froze and `lib.<promoted_name>(...)` to call one. The standard
+library is the runtime verbs, not `lib`.
+library workflow; start a new session after changing a library current version.
 
 ### Governance rules
 
@@ -153,7 +204,12 @@ needed, and always keep the limit explicit.
 - Treat destructive operations as denied until the session has the exact grant and the request includes confirmation.
 - Use `operator` provenance only for direct operator work. Use `agent`, `test`, or `replay` only when the caller can identify that source.
 - Keep program output bounded. Use handle operations such as `count`, `head`, `filter`, and `group_by`; call `materialize(limit)` only when rows are required.
-- Do not treat `vrooli.ai.*` or `vrooli.agent.*` as ambient capabilities. They
+- Treat `discover` with an empty `binding_id` as a null verdict. Do not
+  invoke an alternative by guessing, and do not shell out to bypass discovery.
+- Discovery uses `fast`, `judged` (the default), or bounded `deep` mode through
+  the typed binding contract. A Search Hub outage is an explicit unavailable
+  result, not a local boot-time fallback.
+- Do not treat `ai.*` or `agent.*` as ambient capabilities. They
   are only enabled inside a live program session with the corresponding
   governed bridge and registry binding.
 
@@ -184,6 +240,8 @@ Wait once on the returned run ID with `test-genie runs wait --json program-runti
 | Submission says session not found | `program-runtime sessions get <id>` | Create a new session. Do not silently create one when state continuity matters. |
 | Destructive call is refused | Session grants and confirmation | Request the exact grant through the session governance path. Do not weaken authorization. |
 | Result is too large | Program source and handle operations | Replace eager row printing with `count`, `head`, `filter`, `group_by`, or bounded `materialize`. |
+| Discovery returns a null verdict | `result.head(1)` and its `reason` | Clarify the intent or inspect the governed binding contract; do not shell out, guess a path, or invoke an alternative. |
+| Discovery says unavailable | Search Hub health and `result.head(1)` | Preserve the explicit unavailable reason and retry through the governed runtime after Search Hub recovers; direct binding calls remain the only fallback. |
 | Python adapter is unavailable | Scenario problem log and kernel health | Use the standard-library kernel protocol. Do not install packages with a raw package manager. |
 | Template cleanup is blocked | `template-manager` service health | Keep the legacy proto methods explicitly omitted and document the blocker. Resume official detemplate when the service is repaired. |
 

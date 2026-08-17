@@ -1,13 +1,6 @@
 {
-  "required_read": [
-    {
-      "prefix": "catalog-snapshot/YYYY-MM-DD"
-    }
-  ],
+  "required_read": [],
   "evidence_consumed": [
-    {
-      "prefix": "candidate-sku-record/*"
-    },
     {
       "prefix": "monetization-benchmark-record/*"
     }
@@ -17,10 +10,6 @@
       "prefix": "monetization-canon/*",
       "destination_kind": "por_file",
       "destination_path": "docs/monetization/catalogs/CATALOG.md"
-    },
-    {
-      "prefix": "catalog-snapshot/*",
-      "destination_kind": "knowledge"
     }
   ],
   "external_producers": [

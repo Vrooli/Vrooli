@@ -4,6 +4,9 @@ Integrate `scenarios/{{TARGET}}/` into the **Vrooli Business Suite bundle** so t
 
 Your goal is to ensure `{{TARGET}}` enforces entitlements and consumes credits consistently with every other bundled app, so that a single subscription unlocks and meters all apps in the bundle.
 
+Required reading:
+- `docs/concepts/PAID_FEATURES.md` — the engineering contract this skill implements. It owns the free/metered/gated decision, the Class A / Class B meter split, the trust boundary, and the current implementation status of each piece. Read it first; this skill is the wiring, not the contract.
+
 Optional reading:
 - `prompt-manager skill read api-steer`
 - `prompt-manager skill read interoperability-steer`
@@ -14,12 +17,15 @@ Optional reading:
 
 The Business Suite bundle is a collection of apps sold under a single subscription. Each bundled app must:
 
-1. **Authenticate users** via LPBS-issued JWT tokens (one identity system, not per-app accounts).
-2. **Enforce entitlements** — only active subscribers can access gated features or downloads.
-3. **Consume credits** — metered features (AI calls, exports, compute) deduct from a shared credit wallet.
-4. **Register in LPBS** — so the landing page, download system, and entitlements API know the app exists.
+1. **Use one identity** — LPBS-issued sessions through the shared device credential, not per-app accounts.
+2. **Enforce entitlements** — only active subscribers reach gated features or downloads.
+3. **Meter correctly for its class** — cost-bearing operations charge server-side; local-capacity operations run optimistically and sync.
+4. **Declare its paid surface** — `.vrooli/monetization.json`, so `monetization-conformance` can validate it.
+5. **Register in LPBS** — so the landing page, download system, and entitlements API know the app exists.
 
 Without a shared integration pattern, each app invents its own auth, its own gating, its own credit logic. The result: inconsistent enforcement, double-charging bugs, bypassed gates, and a fractured user experience. This skill exists to prevent that divergence.
+
+> **Revision note.** Earlier revisions of this skill instructed scenarios to validate LPBS tokens locally with a shared HS256 `JWT_SECRET`, and documented a `POST /api/v1/credits/consume` endpoint. Both were wrong. LPBS signs asymmetrically and publishes a JWKS; that endpoint never existed. A symmetric key that can verify a token can also mint one, so shipping it inside a desktop bundle is an account-takeover primitive. If you find either pattern in a scenario, treat it as a defect and see §3.
 
 **This skill is NOT about:**
 - Building the LPBS scenario itself (that's LPBS's own concern)
@@ -32,12 +38,13 @@ Without a shared integration pattern, each app invents its own auth, its own gat
 ### 1. Scope Boundaries
 
 **In scope**
-- JWT token validation in `{{TARGET}}` (accepting LPBS-issued tokens)
-- Credit consumption calls from `{{TARGET}}` to LPBS
-- Entitlement/subscription status checks
+- Wiring `{{TARGET}}` to the shared LPBS consumer session
+- Resolving and verifying the entitlement lease, and gating features on it
+- Classifying every metered operation, and wiring the Class A or Class B path for each
+- Authoring `.vrooli/monetization.json` and passing `monetization-conformance`
 - Registering `{{TARGET}}` as a downloadable app in LPBS (database records)
 - Error handling for auth failures, insufficient credits, and lapsed subscriptions
-- Audit of existing `{{TARGET}}` code for missing or inconsistent integration
+- Audit of existing `{{TARGET}}` code for missing, inconsistent, or unsafe integration
 
 **Out of scope**
 - LPBS internals (webhook handling, Stripe integration, subscription lifecycle)
@@ -50,418 +57,177 @@ Without a shared integration pattern, each app invents its own auth, its own gat
 
 ### 2. Architecture Overview: How Bundle Integration Works
 
-```
-┌──────────────────────────────────────────────────────────────────┐
-│                    LPBS (Landing Page Business Suite)            │
-│                                                                  │
-│  ┌────────────┐  ┌──────────────┐  ┌───────────────────────┐   │
-│  │ Auth       │  │ Subscriptions│  │ Credit Wallets        │   │
-│  │ (JWT)      │  │ & Entitle-   │  │ (balance, consume,    │   │
-│  │            │  │ ments        │  │  top-up)              │   │
-│  └─────┬──────┘  └──────┬───────┘  └───────────┬───────────┘   │
-│        │                │                       │               │
-│  Issues tokens    Checks status           Tracks balance        │
-│        │                │                       │               │
-└────────┼────────────────┼───────────────────────┼───────────────┘
-         │                │                       │
-         ▼                ▼                       ▼
-┌──────────────────────────────────────────────────────────────────┐
-│                    {{TARGET}} (Your App)                         │
-│                                                                  │
-│  ┌────────────────┐  ┌─────────────────┐  ┌──────────────────┐ │
-│  │ Auth Middleware │  │ Entitlement     │  │ Credit Gate      │ │
-│  │ (validate JWT) │  │ Check           │  │ (consume before  │ │
-│  │                │  │ (subscription   │  │  expensive ops)  │ │
-│  │                │  │  active?)       │  │                  │ │
-│  └────────────────┘  └─────────────────┘  └──────────────────┘ │
-│                                                                  │
-│  All three call LPBS APIs — {{TARGET}} never stores user        │
-│  accounts, subscriptions, or credit balances itself.            │
-└──────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph LPBS["LPBS — trusted server"]
+        AUTH["Identity<br/>magic link, JWT, JWKS"]
+        ENT["Subscriptions<br/>& entitlement lease"]
+        WALLET["Credit wallet<br/>reserve / finalize"]
+        USAGE["Usage ledger<br/>dedupes on operation_id"]
+    end
+
+    subgraph TARGET["{{TARGET}} — untrusted client in tier 2 / 3"]
+        SESSION["Shared session<br/>credentialclient-go"]
+        GATE["Gate<br/>verifies cached lease locally"]
+        CLASSB["Class B meter<br/>optimistic + outbox"]
+    end
+
+    AUTH -->|access token| SESSION
+    ENT -->|signed lease| GATE
+    SESSION -->|bearer| ENT
+    CLASSB -->|batch, user token| USAGE
+    WALLET -.->|Class A charged here, never on the client| TARGET
 ```
 
-**Key principle:** `{{TARGET}}` is a *consumer* of LPBS services, never a *replica*. User accounts, subscription state, and credit balances live in LPBS. `{{TARGET}}` validates tokens and makes API calls — it does not maintain its own copy of this data.
+**Key principle:** `{{TARGET}}` is a *consumer* of LPBS services, never a *replica*. Accounts, subscription state, and credit balances live in LPBS.
+
+**Second key principle:** in tier 2 and tier 3 that consumer runs on hardware the user controls. The lease lets it decide *fast* and *offline*; LPBS still decides *authoritatively* for anything that costs money. §3 makes this concrete.
 
 ---
 
-### 3. JWT Authentication Contract
+### 3. The Trust Boundary — read this before writing any code
 
-LPBS issues JWT tokens via magic-link email auth. `{{TARGET}}` must validate these tokens to identify users.
+Everything in this skill follows from one fact: **a scenario running on a user's machine is untrusted.**
 
-#### 3.1 Token Structure
+In tier-2 desktop and tier-3 mobile, `{{TARGET}}`'s own API binary ships inside the app bundle. Its code is readable, its local database is writable, and its configuration is on the user's disk. Anything it enforces locally is advisory, and anything it holds is a secret the user has.
 
-LPBS access tokens contain these claims:
+Three rules follow. The `monetization-conformance` phase fails the build on all three.
 
-```json
-{
-  "uid": "user-uuid",
-  "email": "user@example.com",
-  "sid": "session-uuid",
-  "iss": "landing-page-business-suite",
-  "sub": "user-uuid",
-  "exp": 1711200000,
-  "iat": 1711198000,
-  "nbf": 1711198000
-}
-```
+| Rule | Why | Finding code |
+|---|---|---|
+| **Never ship a shared service secret to a client.** | A static token that authorizes writes is a forgery primitive the moment it leaves Vrooli's servers. | `money.service_token_in_client_bundle` |
+| **Take identity from the verified token, never the request body.** | A server that reads `user_identity` from a payload lets any caller write against a stranger's account. | `money.identity_from_request_body` |
+| **Never verify an LPBS token with a shared symmetric secret.** | A key that can verify HS256 can also mint it. In a client bundle that is account takeover. | `money.symmetric_token_verification` |
 
-#### 3.2 Validation Rules
+Local entitlement checks are still worth writing. They drive correct button states, upgrade prompts, and fast decisions. They are a **user-experience affordance, not a security boundary** — LPBS re-checks authoritatively on every cost-bearing call.
 
-| Rule | Detail |
-|------|--------|
-| **Signing algorithm** | HS256 (HMAC-SHA256) |
-| **Shared secret** | `JWT_SECRET` environment variable (32-byte hex string, shared between LPBS and `{{TARGET}}`) |
-| **Issuer** | Must match `JWT_ISSUER` env var (default: `"landing-page-business-suite"`) |
-| **Expiration** | Access tokens expire after 15 minutes; always check `exp` claim |
-| **Token location** | Check `Authorization: Bearer <token>` header first, fall back to `access_token` cookie |
+---
 
-#### 3.3 Middleware Pattern (Go)
+### 4. Identity and the Entitlement Lease
+
+#### 4.1 `{{TARGET}}` never owns an account system
+
+Users authenticate through LPBS by magic link. `{{TARGET}}` never stores passwords, sends auth email, or keeps a user table.
+
+The shared device session already exists and is the only sign-in path you should wire:
 
 ```go
-func requireLPBSAuth(jwtSecret []byte, jwtIssuer string) gin.HandlerFunc {
-    return func(c *gin.Context) {
-        tokenStr := extractBearerToken(c.GetHeader("Authorization"))
-        if tokenStr == "" {
-            tokenStr, _ = c.Cookie("access_token")
-        }
-        if tokenStr == "" {
-            c.AbortWithStatusJSON(401, gin.H{
-                "error":      "authentication required",
-                "error_type": "unauthorized",
-                "retryable":  false,
-            })
-            return
-        }
+import credentialclient "github.com/vrooli/vrooli/packages/credentialclient-go"
 
-        claims := &LPBSClaims{}
-        token, err := jwt.ParseWithClaims(tokenStr, claims,
-            func(t *jwt.Token) (interface{}, error) {
-                if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
-                    return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
-                }
-                return jwtSecret, nil
-            },
-            jwt.WithIssuer(jwtIssuer),
-            jwt.WithValidMethods([]string{"HS256"}),
-        )
-        if err != nil || !token.Valid {
-            c.AbortWithStatusJSON(401, gin.H{
-                "error":      "invalid or expired token",
-                "error_type": "unauthorized",
-                "retryable":  false,
-            })
-            return
-        }
-
-        c.Set("user_email", claims.Email)
-        c.Set("user_id", claims.UID)
-        c.Next()
-    }
+resolver := &credentialclient.ConsumerSessionResolver{
+    Credentials: credentialsClient,
+    LPBSBaseURL: cfg.LPBSBaseURL,
 }
-
-type LPBSClaims struct {
-    UID   string `json:"uid"`
-    Email string `json:"email"`
-    SID   string `json:"sid"`
-    jwt.RegisteredClaims
-}
-
-func extractBearerToken(header string) string {
-    if len(header) > 7 && header[:7] == "Bearer " {
-        return header[7:]
-    }
-    return ""
-}
+access, err := resolver.Resolve(ctx) // short-lived access token, memory only
 ```
 
-#### 3.4 Auth Decision Tree
+The durable refresh token lives in the credential authority under identity `vrooli/lpbs-account`, field `refresh-token`. That single credential is why signing in to one Vrooli app signs you in to all of them on that machine. Do not invent a second one.
 
-```
-Request arrives at {{TARGET}}
-│
-▼
-Is this endpoint public (health, landing, docs)?
-├─ YES → skip auth, serve directly
-└─ NO
-   │
-   ▼
-   Extract token from Authorization header
-   │
-   ▼
-   Token found?
-   ├─ NO → check access_token cookie
-   │       │
-   │       ▼
-   │       Cookie found?
-   │       ├─ NO → 401 Unauthorized
-   │       └─ YES → validate cookie token
-   └─ YES → validate header token
-            │
-            ▼
-            Token valid (signature, expiry, issuer)?
-            ├─ NO → 401 Unauthorized
-            └─ YES → set user context, continue to handler
-```
+#### 4.2 Getting the lease
 
-#### 3.5 What {{TARGET}} Must NOT Do
-
-- **Do NOT implement its own user registration or login.** Users authenticate through LPBS; `{{TARGET}}` only validates the resulting tokens.
-- **Do NOT store user passwords or send magic-link emails.** That's LPBS's responsibility.
-- **Do NOT cache user identity beyond the request.** The JWT is self-contained; validate it fresh per request.
-- **Do NOT hardcode the JWT secret.** Always read from `JWT_SECRET` environment variable.
-
----
-
-### 4. Entitlement Checking
-
-Before serving gated features or downloads, `{{TARGET}}` must verify the user has an active subscription.
-
-#### 4.1 When to Check Entitlements
-
-```
-User requests a feature in {{TARGET}}
-│
-▼
-Is this feature gated (requires subscription)?
-├─ NO → serve directly
-└─ YES
-   │
-   ▼
-   Call LPBS: GET /api/v1/entitlements
-   (Authorization: Bearer <user's token>)
-   │
-   ▼
-   Response status field?
-   ├─ "active" or "trialing" → allow access
-   ├─ "past_due"             → allow access with warning (grace period)
-   ├─ "canceled"             → deny, show "subscription ended" message
-   └─ "inactive" / other     → deny, show upgrade prompt
-```
-
-#### 4.2 Entitlement API Call
+`{{TARGET}}` does not verify LPBS tokens itself. It presents the user's access token to LPBS and receives a **signed entitlement lease**: the entitlement payload signed with the key LPBS publishes at `/.well-known/jwks.json`, carrying a `not_after`.
 
 ```
 GET <LPBS_BASE_URL>/api/v1/entitlements
-Authorization: Bearer <user_access_token>
+Authorization: Bearer <user access token>
 ```
 
-Response (200 OK):
 ```json
 {
   "status": "active",
   "plan_tier": "pro",
+  "plan_rank": 3,
   "price_id": "price_...",
-  "features": ["feature1", "feature2"],
+  "features": ["watermark_free", "ai"],
+  "limits": [
+    { "limit_key": "workflow_exports", "limit_value": 100, "reset_period": "monthly" }
+  ],
   "billing_cycle_start": 15,
-  "credits": {
-    "balance_credits": 5000000,
-    "display_credits_label": "credits",
-    "display_credits_multiplier": 0.001
-  },
-  "subscription": {
-    "subscription_id": "sub_...",
-    "bundle_key": "business_suite"
-  }
+  "credits": { "balance_credits": 5000000 },
+  "subscription": { "user_identity": "user@example.com" },
+  "not_after": "2026-09-13T00:00:00Z"
 }
 ```
 
-Response (401): Token invalid or missing.
-Response (403): No active subscription.
+Cache the lease and verify its signature locally on each gate. That makes a gate a local signature check instead of a network round-trip, and it is what lets a paid desktop app keep working on a plane.
 
-#### 4.3 Entitlement Check Pattern (Go)
+The lease carries `plan_rank`, `limits[]`, and `not_after`. Read these values from the verified lease and never duplicate them in scenario configuration.
 
-```go
-type EntitlementResponse struct {
-    Status            string          `json:"status"`
-    PlanTier          string          `json:"plan_tier"`
-    Features          []string        `json:"features"`
-    BillingCycleStart int             `json:"billing_cycle_start"`
-    Credits           *CreditBalance  `json:"credits,omitempty"`
-}
+#### 4.3 Gate rules
 
-type CreditBalance struct {
-    BalanceCredits          int64   `json:"balance_credits"`
-    DisplayCreditsLabel     string  `json:"display_credits_label"`
-    DisplayCreditsMultiplier float64 `json:"display_credits_multiplier"`
-}
+- **Verify against JWKS.** Never against a shared symmetric secret. See §3.
+- **Read limits from the lease, not from local config.** LPBS's `subscription_tier_limits` is authoritative. A scenario that also keeps a `TIER_LIMITS_JSON` env var has two sources of truth that drift the first time pricing changes. Finding: `money.limits_from_local_config`.
+- **Degrade to the cached lease while it is valid.** Do not hard-fail a gate on a transient network error. Finding: `money.gate_blocks_offline`.
+- **Expire honestly.** Once `not_after` passes with no refresh, fall back to the free tier and tell the user why.
+- **Every gate has exactly one chokepoint,** and its source paths are declared in `.vrooli/monetization.json` as the feature's `enforcement_paths`. A declared feature with no gate call in those paths fails conformance.
 
-func (c *LPBSClient) CheckEntitlements(ctx context.Context, userToken string) (*EntitlementResponse, error) {
-    req, _ := http.NewRequestWithContext(ctx, "GET", c.baseURL+"/api/v1/entitlements", nil)
-    req.Header.Set("Authorization", "Bearer "+userToken)
+#### 4.4 Status handling
 
-    resp, err := c.httpClient.Do(req)
-    if err != nil {
-        return nil, fmt.Errorf("lpbs unreachable: %w", err)
-    }
-    defer resp.Body.Close()
-
-    switch resp.StatusCode {
-    case 200:
-        var result EntitlementResponse
-        if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-            return nil, fmt.Errorf("decode entitlements: %w", err)
-        }
-        return &result, nil
-    case 401:
-        return nil, ErrUnauthorized
-    case 403:
-        return nil, ErrNoActiveSubscription
-    default:
-        return nil, fmt.Errorf("lpbs returned %d", resp.StatusCode)
-    }
-}
-```
-
-#### 4.4 Caching Entitlements
-
-LPBS caches subscription status for 60 seconds internally. `{{TARGET}}` may apply a short local cache (30-60 seconds) to avoid hammering LPBS on every request, but:
-
-- **Never cache longer than 60 seconds** — subscription changes must propagate quickly.
-- **Cache key must include user email** — never serve one user's entitlements to another.
-- **Invalidate on 401** — if LPBS rejects the token, clear any cached entitlements for that user.
+| `status` | Behavior |
+|---|---|
+| `active`, `trialing` | Allow |
+| `past_due` | Allow with a warning — this is a grace period, not a cancellation |
+| `canceled` | Deny, show "subscription ended" |
+| `inactive`, anything else | Deny, show the upgrade prompt |
 
 ---
 
-### 5. Credit Consumption
+### 5. Metering
 
-Credits are the metering unit for expensive operations (AI calls, video exports, compute time, etc.). `{{TARGET}}` consumes credits by calling LPBS — it never manages balances itself.
+Read `docs/concepts/PAID_FEATURES.md` §"Decision 2 — which meter class?" first. The class decides where enforcement runs and is the single most consequential choice in this skill.
 
-#### 5.1 What Gets Credit-Gated
+| | **Class A — cost-bearing** | **Class B — local-capacity** |
+|---|---|---|
+| Vrooli pays per use | Yes | No |
+| Executed by | LPBS | The client |
+| Works offline | No — the feature *is* a network call | Yes, always |
+| Enforcement | Reserve → execute → finalize, server-side | Local optimistic check + durable outbox |
+| Bypassable | No | Yes, and that is accepted |
+
+The dividing line is **who pays**, not where the code runs. An export that uploads to Vrooli-owned storage is Class A even though the export runs locally.
+
+#### 5.1 Class A — you probably do not implement this
+
+If the cost-bearing operation is LLM inference, call **ai-gateway** normally. It already routes metered inference to LPBS, holds the circuit breaker, and resolves the access token. `{{TARGET}}` writes no metering code at all.
+
+Implement Class A directly only when the cost is not inference and not audio. Then the operation must run **on LPBS**, following the reserve → execute → finalize contract in `PAID_FEATURES.md`. A cost-bearing meter that the client executes fails conformance as `money.cost_bearing_meter_client_executed`: if the client can decide not to charge, it is not a meter.
+
+BYOK must stay valid. A user supplying their own provider key pays their own way and is charged zero credits.
+
+#### 5.2 Class B — local, optimistic, and synced
 
 ```
-Does this feature cost real money to run (API calls, GPU, storage)?
-│
-├─ YES → credit-gated (consume credits per use)
-│
-└─ NO
-   │
-   ▼
-   Is this a core differentiator of the paid product?
-   │
-   ├─ YES → subscription-gated (check entitlements, no credit cost)
-   │
-   └─ NO → free / ungated
+User triggers the operation
+  → check the lease limit locally (no network)
+  → run the operation
+  → append {operation_id, limit_key, amount, occurred_at} to a durable outbox
+  → drain the outbox on a ticker, on reconnect, and at startup
 ```
 
-#### 5.2 Credit Consumption Decision Table
+Rules:
 
-| Question | If YES | If NO |
-|----------|--------|-------|
-| Is the cost per-invocation (single API call, one export)? | Simple consumption — deduct fixed amount | Continue... |
-| Is the cost proportional to input size (tokens, pixels, duration)? | Calculate amount from input, then consume | Continue... |
-| Is it a long-running job (minutes of compute)? | Reserve credits upfront, refund unused portion on completion | Continue... |
-| Can the user retry if it fails mid-operation? | Non-idempotent `ConsumeCredits` is acceptable | Use idempotent consumption with operation ID |
+- **Never block the operation on the network.** Draining happens outside the request path.
+- **The outbox is durable.** A goroutine with three retries that gives up loses paid-plan usage silently. Persist the row, mark it synced, retry until it lands. Declare the outbox path in `.vrooli/monetization.json`. Finding: `money.no_outbox_for_local_meter`.
+- **Reuse one `operation_id`** across the local ledger row and every retry. LPBS dedupes on it, so a batch can be sent twice with no double count.
+- **Report, do not retro-bill.** A backlog that syncs over the limit is recorded as overage. Never claw back credits or disable a feature after the fact.
+- **Show pending state.** "12 operations pending sync" is honest and cheap.
 
-#### 5.3 Credit Consumption API Call
+#### 5.3 Sending usage
 
-**Simple (non-idempotent) consumption:**
+Usage is reported with the **user's access token**. LPBS derives identity from the verified claims and ignores any identity in the body.
+
 ```
-POST <LPBS_BASE_URL>/api/v1/credits/consume
-Authorization: Bearer <user_access_token>
-Content-Type: application/json
-
-{
-  "email": "user@example.com",
-  "amount": 500000,
-  "reason": "ai_chat_completion",
-  "metadata": {
-    "scenario": "{{TARGET}}",
-    "model": "claude-sonnet-4-20250514",
-    "input_tokens": 1200,
-    "output_tokens": 800
-  }
-}
+POST <LPBS_BASE_URL>/api/v1/usage/report
+Authorization: Bearer <user access token>
 ```
 
-**Idempotent consumption (for non-retryable operations):**
-```
-POST <LPBS_BASE_URL>/api/v1/credits/consume
-Authorization: Bearer <user_access_token>
-Content-Type: application/json
+The user-authenticated batch endpoint accepts the user's access token and derives identity from its verified claims. Do not send a service token or trust `user_identity` from the request body.
 
-{
-  "email": "user@example.com",
-  "amount": 500000,
-  "reason": "video_export",
-  "idempotency_key": "export-<user_id>-<export_job_id>",
-  "metadata": {
-    "scenario": "{{TARGET}}",
-    "export_format": "mp4",
-    "duration_seconds": 120
-  }
-}
-```
+There is no `/api/v1/credits/consume` endpoint. Earlier revisions of this skill documented one; it never existed.
 
-Response (200 OK):
-```json
-{
-  "remaining_credits": 4500000,
-  "consumed": 500000
-}
-```
+#### 5.4 Displaying credits
 
-Response (402):
-```json
-{
-  "error": "insufficient credits",
-  "error_type": "forbidden",
-  "retryable": false,
-  "balance_credits": 200000,
-  "required_credits": 500000
-}
-```
-
-#### 5.4 Consumption Pattern (Go)
-
-```go
-type ConsumeRequest struct {
-    Email          string            `json:"email"`
-    Amount         int64             `json:"amount"`
-    Reason         string            `json:"reason"`
-    IdempotencyKey string            `json:"idempotency_key,omitempty"`
-    Metadata       map[string]string `json:"metadata,omitempty"`
-}
-
-type ConsumeResponse struct {
-    RemainingCredits int64 `json:"remaining_credits"`
-    Consumed         int64 `json:"consumed"`
-}
-
-func (c *LPBSClient) ConsumeCredits(ctx context.Context, userToken string, req ConsumeRequest) (*ConsumeResponse, error) {
-    body, _ := json.Marshal(req)
-    httpReq, _ := http.NewRequestWithContext(ctx, "POST",
-        c.baseURL+"/api/v1/credits/consume", bytes.NewReader(body))
-    httpReq.Header.Set("Authorization", "Bearer "+userToken)
-    httpReq.Header.Set("Content-Type", "application/json")
-
-    resp, err := c.httpClient.Do(httpReq)
-    if err != nil {
-        return nil, fmt.Errorf("lpbs unreachable: %w", err)
-    }
-    defer resp.Body.Close()
-
-    switch resp.StatusCode {
-    case 200:
-        var result ConsumeResponse
-        json.NewDecoder(resp.Body).Decode(&result)
-        return &result, nil
-    case 402:
-        return nil, ErrInsufficientCredits
-    case 401:
-        return nil, ErrUnauthorized
-    default:
-        return nil, fmt.Errorf("lpbs returned %d", resp.StatusCode)
-    }
-}
-```
-
-#### 5.5 Credit Consumption Safety Rules
-
-- **Always consume BEFORE performing the expensive operation.** Never do the work first and charge after — if charging fails, you've given away free compute.
-- **Always include `scenario` in metadata.** This enables per-app usage analytics and debugging.
-- **Use idempotency keys for non-retryable operations.** If a video export can't be re-run, the consumption call must be idempotent so retries don't double-charge.
-- **Handle 402 gracefully.** Show the user their balance and how to top up — don't just fail with a generic error.
-- **Never expose internal credit amounts to users.** Use the `display_credits_multiplier` from entitlements to convert to display units.
+Credits are internal units. Convert with `display_credits_multiplier` / `display_credits_label` from the entitlement payload. Never hardcode a display number and never show raw internal units.
 
 ---
 
@@ -523,40 +289,15 @@ Is {{TARGET}} a paid/premium app?
           (consider whether it belongs in the bundle at all)
 ```
 
-#### 6.3 Registration SQL
+#### 6.3 Programmatic registration
 
-```sql
--- Register the app
-INSERT INTO download_apps (
-    bundle_key, app_key, name, tagline, description,
-    icon_url, install_overview, display_order
-) VALUES (
-    'business_suite',
-    '{{TARGET}}',
-    'Human-Readable App Name',
-    'Short tagline for download listings',
-    'Full description of what this app does.',
-    '/icons/{{TARGET}}.png',
-    'Download and run the installer for your platform.',
-    10  -- adjust display_order as needed
-);
-
--- Register platform assets (one per platform the app supports)
-INSERT INTO download_assets (
-    bundle_key, app_key, platform, variant_key,
-    artifact_url, artifact_source, release_version,
-    requires_entitlement, checksum
-) VALUES
-    ('business_suite', '{{TARGET}}', 'windows', 'default',
-     'https://downloads.example.com/{{TARGET}}/{{TARGET}}-setup.exe',
-     'direct', '1.0.0', true, 'sha256-...'),
-    ('business_suite', '{{TARGET}}', 'mac', 'default',
-     'https://downloads.example.com/{{TARGET}}/{{TARGET}}.dmg',
-     'direct', '1.0.0', true, 'sha256-...'),
-    ('business_suite', '{{TARGET}}', 'linux', 'default',
-     'https://downloads.example.com/{{TARGET}}/{{TARGET}}.AppImage',
-     'direct', '1.0.0', true, 'sha256-...');
-```
+Register from the artifact produced by `scenario-to-desktop`. The delivery
+path reads the artifact's platform, semantic version, and SHA-256 checksum,
+then reads `bundle_key`, `app_key`, and `requires_entitlement` from the
+scenario declaration. Call the LPBS catalog service in
+`scenarios/landing-page-business-suite/api/internal/delivery/catalog.go`;
+do not write registration SQL or hand-type release metadata. Registration is
+idempotent on `bundle_key`, `app_key`, `platform`, and `variant_key`.
 
 #### 6.4 Verifying Registration
 
@@ -577,8 +318,12 @@ After registering, verify the full loop works:
 | Variable | Purpose | Example |
 |----------|---------|---------|
 | `LPBS_BASE_URL` | LPBS API base URL | `http://localhost:5080` |
-| `JWT_SECRET` | Shared HMAC signing key (same as LPBS) | 32-byte hex string |
+| `LPBS_JWKS_URL` | Where to fetch LPBS's public key set | `<LPBS_BASE_URL>/.well-known/jwks.json` |
 | `JWT_ISSUER` | Expected token issuer | `landing-page-business-suite` |
+
+There is deliberately **no shared signing secret** in this table. LPBS signs asymmetrically and publishes its public key set; `{{TARGET}}` needs the public half only. If you find a `JWT_SECRET` in a scenario, it is a defect — see §3.
+
+The durable refresh credential is **not** an environment variable either. It lives in the credential authority under `vrooli/lpbs-account` and is reached through `packages/credentialclient-go`.
 
 #### 7.2 Client Initialization Pattern
 
@@ -600,24 +345,27 @@ func NewLPBSClient(baseURL string) *LPBSClient {
 
 #### 7.3 Resilience When LPBS Is Unreachable
 
-```
-{{TARGET}} calls LPBS and gets network error or timeout
-│
-▼
-Is this an auth validation call?
-├─ YES → JWT validation is local (shared secret), no network needed
-│        Only token refresh requires LPBS — fail gracefully
-│
-└─ NO (entitlement check or credit consumption)
-   │
-   ▼
-   Is there a cached entitlement result < 60 seconds old?
-   ├─ YES → use cached result, log warning about LPBS unavailability
-   └─ NO  → fail closed (deny access), log error
-            Do NOT fail open — that would give free access during outages
+Offline is a normal state for a tier-2 desktop app, not an error. The correct behavior differs per surface, and "deny everywhere" is wrong — it breaks a paying customer's app on a plane.
+
+```mermaid
+flowchart TD
+    A[LPBS is unreachable] --> B{What was the call?}
+    B -->|Gated feature check| C{Cached lease still within not_after?}
+    C -->|Yes| D[Allow per the lease — show a stale-data notice]
+    C -->|No| E[Fall back to free tier — say why in the UI]
+    B -->|Class B metered operation| F[Run it — append to the outbox, never block]
+    B -->|Class A metered operation| G[Fail with a clear offline message]
+    B -->|Sign-in / token refresh| H[Fail gracefully — keep the existing session]
 ```
 
-**Critical rule:** When LPBS is unreachable and no cache exists, **fail closed** (deny access). Failing open means any network issue grants free access to paid features.
+Rules:
+
+- **Gated features follow the lease.** A valid lease is a positive grant that already survives the outage. An expired lease drops to free tier — that is the honest expiry, not a failure.
+- **Class B never blocks.** The operation runs and queues. The user's own machine did the work; there is nothing to protect by refusing.
+- **Class A fails.** It is a network call by definition, so there is no offline path to preserve. Say "this needs a connection", not "access denied".
+- **Do not deny a gate because of a transient error when a signed lease remains valid.** Finding: `money.gate_blocks_offline`.
+
+The revenue integrity you are protecting lives in Class A, which is unbypassable because the wallet check happens on LPBS before any work is returned. Refusing gated features during an outage protects nothing and costs goodwill.
 
 ---
 
@@ -651,35 +399,50 @@ Is this an auth validation call?
 
 Use this checklist to verify `{{TARGET}}` is fully integrated. Every item should be true before considering integration complete.
 
-#### 9.1 Authentication
-- [ ] `JWT_SECRET` and `JWT_ISSUER` env vars are configured
-- [ ] Auth middleware validates LPBS JWT tokens (HS256, checks expiry, checks issuer)
-- [ ] Token extracted from `Authorization: Bearer` header, fallback to `access_token` cookie
-- [ ] 401 returned for missing/invalid/expired tokens with standard error shape
+#### 9.0 Trust boundary
+- [ ] No shared service token or symmetric signing secret ships in any tier-2 or tier-3 bundle
+- [ ] No `deployment.tiers.*.secrets` entry with `classification: service` in `.vrooli/service.json`
+- [ ] Every write to LPBS carries the user's access token; none carries a static secret
+- [ ] No cost-bearing meter is executed by the client
+
+#### 9.1 Identity
+- [ ] Sign-in goes through `packages/credentialclient-go` and `vrooli/lpbs-account`
+- [ ] Token verification uses LPBS's published JWKS, never a shared symmetric secret
+- [ ] 401 returned for missing/invalid/expired tokens with the standard error shape
 - [ ] App does NOT have its own user registration or login system
 
 #### 9.2 Entitlements
-- [ ] Gated features call `GET /api/v1/entitlements` before serving
-- [ ] Active and trialing subscriptions are allowed
+- [ ] Gated features resolve through the entitlement lease
+- [ ] Active and trialing subscriptions are allowed; `past_due` is a grace period
 - [ ] Canceled/inactive subscriptions are denied with clear messaging
-- [ ] LPBS unavailability fails closed (denies access), not open
-- [ ] Entitlement caching respects 60-second maximum TTL
+- [ ] A valid cached lease keeps gates working while LPBS is unreachable
+- [ ] Tier limits come from the lease, not from scenario config
+- [ ] Every gated feature has one chokepoint represented by its declared `enforcement_paths`
 
-#### 9.3 Credit Consumption
-- [ ] Expensive operations consume credits BEFORE performing work
-- [ ] `scenario` field is included in all consumption metadata
-- [ ] Idempotency keys used for non-retryable operations
+#### 9.3 Metering
+- [ ] Every meter declares a `class` in `.vrooli/monetization.json`
+- [ ] Class A operations execute on LPBS with reserve → execute → finalize
+- [ ] Class B operations never block on the network
+- [ ] Class B operations write to a durable outbox with a stable `operation_id`
+- [ ] BYOK bypasses credit charges entirely
 - [ ] 402 (insufficient credits) handled with balance display and top-up guidance
 - [ ] Internal credit amounts never exposed to users (use display multiplier)
 
-#### 9.4 LPBS Registration
+#### 9.4 Declaration
+- [ ] `.vrooli/monetization.json` exists and validates against the schema
+- [ ] `bundle_key` names a bundle LPBS actually has
+- [ ] `app_key` matches the scenario's `download_apps.app_key` row in that bundle
+- [ ] Every declared meter has `subscription_tier_limits` rows for every tier in the bundle
+- [ ] `test-genie execute {{TARGET}} --phases monetization-conformance` passes
+
+#### 9.5 LPBS Registration
 - [ ] `download_apps` row exists with `bundle_key = 'business_suite'`
 - [ ] `download_assets` rows exist for each supported platform
 - [ ] `requires_entitlement` is set correctly per the decision tree in §6.2
 - [ ] Download verified: subscriber can download, non-subscriber gets 403
 - [ ] Release version and checksum are current
 
-#### 9.5 Error Handling
+#### 9.6 Error Handling
 - [ ] All LPBS-related errors use the standard error shape (§8.1)
 - [ ] No raw LPBS error messages leak through to users
 - [ ] Network timeouts to LPBS are handled (10-second timeout)
@@ -696,8 +459,15 @@ When integrating an existing `{{TARGET}}` that may already have partial or ad-ho
 # Find existing auth middleware or JWT handling
 rg -n "jwt\|JWT\|Bearer\|access_token\|Authorization" scenarios/{{TARGET}}/api/ --type go
 
-# Find any hardcoded secrets or credentials
-rg -n "JWT_SECRET\|jwt_secret\|signing.key\|hmac" scenarios/{{TARGET}}/ --type go
+# Trust-boundary sweep — any hit here is a financial-security defect
+rg -n "JWT_SECRET\|jwt_secret\|SERVICE_SECRET\|service_secret\|HS256\|SigningMethodHMAC" scenarios/{{TARGET}}/
+
+# Identity taken from a payload instead of a verified token
+rg -n "user_identity\|UserIdentity" scenarios/{{TARGET}}/ --type go
+
+# Secrets the desktop/mobile bundle would carry
+jq '.deployment.tiers | to_entries[] | select(.key | test("tier-[23]")) | .value.secrets' \
+  scenarios/{{TARGET}}/.vrooli/service.json
 
 # Find existing HTTP client calls (may be calling LPBS already)
 rg -n "lpbs\|landing-page\|entitlement\|credits\|subscription" scenarios/{{TARGET}}/ --type go -i
@@ -714,12 +484,19 @@ rg -n "LPBS_BASE_URL\|JWT_SECRET\|JWT_ISSUER" scenarios/{{TARGET}}/
 
 #### 10.2 Red Flags
 
-- [ ] App has its own user registration/login (should use LPBS JWT only)
-- [ ] App stores subscription or credit state locally (should query LPBS)
+Ordered worst first. The top four are financial-security defects, not style issues — stop and fix them before continuing the integration.
+
+- [ ] **A shared service token or symmetric signing secret is present anywhere the client can reach** — the holder can forge writes
+- [ ] **A write to LPBS carries `user_identity` in the body rather than deriving it from the token** — cross-account write primitive
+- [ ] **A cost-bearing meter is charged by client code** — the client can decline to charge
+- [ ] **Token verification uses a symmetric HMAC or any client-reachable signing secret** — a verifying key that can also mint
+- [ ] App has its own user registration/login (should use the shared LPBS session)
 - [ ] App has its own Stripe integration (all billing goes through LPBS)
-- [ ] JWT secret is hardcoded instead of read from environment
-- [ ] Gated features have no auth or entitlement checks
-- [ ] Credit consumption happens AFTER expensive operations (should be before)
+- [ ] Gated features have no entitlement check, or the check is not represented by a declared `enforcement_paths` entry
+- [ ] Tier limits are read from scenario config instead of the entitlement lease
+- [ ] A local-capacity meter reports usage with in-memory retries and no durable outbox
+- [ ] A gate hard-fails when LPBS is unreachable despite a still-valid lease
+- [ ] No `.vrooli/monetization.json`, or it does not match what the code actually gates
 - [ ] Errors from LPBS are passed through raw without mapping to standard shape
 - [ ] No `download_apps`/`download_assets` registration in LPBS
 - [ ] `requires_entitlement` is `false` on assets that should be gated
@@ -792,9 +569,9 @@ You may:
 
 You must:
 - Use LPBS as the single source of truth for auth, subscriptions, and credits
-- Validate JWT tokens using the shared secret (never hardcode)
+- Verify entitlement leases with LPBS's published asymmetric JWKS; never ship a shared signing secret
 - Consume credits BEFORE performing expensive operations
-- Fail closed when LPBS is unreachable (deny access, don't grant it)
+- Serve a still-valid cached lease during a transient outage; expire to the free tier when `not_after` passes
 - Use the standard error shape for all LPBS-related errors
 - Include `scenario` in all credit consumption metadata
 - Set `requires_entitlement` correctly on download assets
@@ -803,7 +580,7 @@ You must NOT:
 - Implement user registration, login, or account management in `{{TARGET}}`
 - Store subscription state or credit balances in `{{TARGET}}`'s own database
 - Integrate Stripe directly into `{{TARGET}}` (all billing goes through LPBS)
-- Fail open when LPBS is unreachable
+- Do not block Class B operations on a transient LPBS outage; append to the durable outbox and drain later
 - Expose internal credit amounts to users
 - Bypass entitlement checks for any gated feature
 - Make superficial changes (adding unused imports, renaming without improvement)

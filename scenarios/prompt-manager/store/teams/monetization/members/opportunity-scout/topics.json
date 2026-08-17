@@ -15,11 +15,6 @@
   "evidence_consumed": [],
   "output": [
     {
-      "prefix": "candidate-sku-record/*",
-      "destination_kind": "knowledge",
-      "schema": "candidate-sku"
-    },
-    {
       "prefix": "scout-scan/*",
       "destination_kind": "knowledge"
     },

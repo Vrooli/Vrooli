@@ -13,22 +13,13 @@
       "source_team": "marketing-crew"
     }
   ],
-  "required_read": [
-    {
-      "prefix": "monetization/market-scan/<slug>"
-    }
-  ],
+  "required_read": [],
   "evidence_consumed": [],
   "output": [
     {
       "prefix": "monetization-benchmark-record/*",
       "destination_kind": "knowledge",
-      "schema": "market-scan"
-    },
-    {
-      "prefix": "monetization/market-scan/*",
-      "destination_kind": "knowledge",
-      "schema": "market-scan"
+      "schema": "benchmark-record"
     }
   ],
   "raises_work_items": true,

@@ -1,61 +1,35 @@
 # Run Task: Financial Tracker
 
-## Reasoning Framework
-Each heartbeat, compute and label:
+## Instrument and Continuity
 
-1. Cash and monthly burn by category.
-2. Revenue by tier, bundle, and revenue line.
-3. Channel-attributed acquisition or conversion where telemetry exists.
-4. Runway and default-alive gap.
-5. Time allocation across product, services, and ops.
-6. Retention metrics and LTV only when data supports them.
-7. Material deltas versus the last ledger snapshot.
+Read the team's declared `offer-desk` instrument first, using the financial
+posture and goal rows. If the instrument is unavailable, record the reason
+and age in the continuity record, fall back to durable ledger evidence or the
+operator-input adapter, and make no fabricated calculation; never silently
+skip the board.
+
+## Reasoning Framework
+
+1. What financial posture or goal row needs interpretation?
+2. Which basis, availability, or age qualification changes the decision?
+3. Is the delta material enough to warrant an operator work item?
+4. What missing input is the load-bearing blocker?
 
 ## Task Loop
-1. Read the declared financial model, pricing, revenue-line, channel, telemetry-roadmap, and input-guidance docs.
-2. Read operator-inputs.json and classify each field by status.
-3. Read recent ledger entries and open work items in your owned contexts.
-4. Compute the current snapshot with honesty flags.
-5. Identify material deltas and assumption drift.
-6. Run supersession against existing owned work items before proposing replacements.
-7. Append the ledger entry when the snapshot has supported data.
-8. Propose work items when the math materially changes an operator choice.
-9. Record the ledger-snapshot knowledge entry.
 
-## Ledger Entry Shape
-```json
-{
-  "id": "ledger-<unix-nanos>",
-  "at": "YYYY-MM-DDTHH:MM:SSZ",
-  "by": "financial-tracker",
-  "snapshot": {
-    "cash": {},
-    "monthlyBurn": {},
-    "monthlyRevenue": {},
-    "runway": {},
-    "timeAllocation": {},
-    "retention": {}
-  },
-  "deltas": {
-    "runwayDelta": null,
-    "servicesSubsRatio": null,
-    "materialChanges": []
-  },
-  "flags": []
-}
-```
-
-## Honesty Flags
-- `fixed`
-- `measured`
-- `estimate`
-- `aspirational`
-- `pending-telemetry`
-- `pending-operator`
-- `stale`
-
-Do not emit bare numbers.
+1. Read the instrument and the Source Ledger wake for owned contexts.
+2. Review the live posture, goals, and adapter qualifications; do not recreate
+   a ledger snapshot or calculate the board's figures.
+3. Apply the time-cost, services-capacity, default-alive, and honesty judgment
+   framework.
+4. Run supersession against existing owned work items before proposing a
+   replacement.
+5. Propose a work item when a material change or missing operator decision
+   warrants one.
 
 ## Run Decision
 
-Record durable continuity in your declared Source Ledger topics. Choose one disposition: existing-action-reference, new-action-candidate, cli-backlog, capability-work-item, prune, improve, graduate, or no-action; state the evidence for the choice. Preserve any narrower lane-specific decisions stated in the task loop.
+Record durable continuity in the declared Source Ledger topics. Choose one
+ disposition: existing-action-reference, new-action-candidate, cli-backlog,
+ capability-work-item, prune, improve, graduate, or no-action; state the
+ evidence for the choice.

@@ -2,3 +2,6 @@
 {"actionId":"agent-system.framework-health","startedAt":"2026-08-11T09:00:42.853646241Z","finishedAt":"2026-08-11T09:00:43.01966669Z","durationMs":166,"status":"rejected","error":"action is not runnable","validationValid":false}
 {"actionId":"agent-system.framework-health","startedAt":"2026-08-12T09:01:03.731417714Z","finishedAt":"2026-08-12T09:01:04.231970296Z","durationMs":500,"status":"rejected","error":"action is not runnable","validationValid":false}
 {"actionId":"agent-system.framework-health","startedAt":"2026-08-13T09:00:24.61863763Z","finishedAt":"2026-08-13T09:00:24.809255551Z","durationMs":190,"status":"rejected","error":"action is not runnable","validationValid":false}
+{"actionId":"agent-system.framework-health","startedAt":"2026-08-14T09:01:26.443748838Z","finishedAt":"2026-08-14T09:01:27.090990417Z","durationMs":647,"status":"rejected","error":"action is not runnable","validationValid":false}
+{"actionId":"agent-system.framework-health","startedAt":"2026-08-15T09:00:41.152431724Z","finishedAt":"2026-08-15T09:00:41.578163394Z","durationMs":425,"status":"rejected","error":"action is not runnable","validationValid":false}
+{"actionId":"agent-system.framework-health","startedAt":"2026-08-16T09:01:08.18988634Z","finishedAt":"2026-08-16T09:01:08.68320549Z","durationMs":493,"status":"rejected","error":"action is not runnable","validationValid":false}

@@ -4,6 +4,7 @@
   "providers": [
     {
       "provider_id": "prompt-manager.skill",
+      "lifecycle": "production",
       "provider_group": "prompt-manager",
       "bucket": "BUCKET_DO",
       "type": "skill",
@@ -50,6 +51,7 @@
     },
     {
       "provider_id": "prompt-manager.action",
+      "lifecycle": "production",
       "provider_group": "prompt-manager",
       "bucket": "BUCKET_DO",
       "type": "action",
@@ -89,7 +91,7 @@
         "description": "Starter reviewed cases for the action leaf. Cases are intentionally small and will be expanded through evals generate, reviewed, then promoted.",
         "cases": [
           {"id": "provider-contract-action", "query": "run provider contract tests", "tags": ["strong", "testing"], "expect_ids": ["test-genie.provider-contract"], "expect_within_top_k": 5},
-          {"id": "scenario-operation-action", "query": "run a scenario operation", "tags": ["strong", "operations"], "expect_ids": ["vrooli.scenario"], "expect_within_top_k": 5},
+          {"id": "scenario-operation-action", "query": "run a scenario operation", "tags": ["strong", "operations"], "expect_ids": ["scenario.status.show"], "expect_within_top_k": 5},
           {"id": "actions-gibberish", "query": "qzvplm krxnt nonsense", "tags": ["gibberish"], "expect_no_strong_hit": true, "expect_max_score": 0.3}
         ]
       }

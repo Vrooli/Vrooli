@@ -1,20 +1,7 @@
 {
-  "required_read": [
-    {
-      "prefix": "ledger-snapshot/YYYY-MM-DD"
-    }
-  ],
+  "required_read": [],
   "evidence_consumed": [],
-  "output": [
-    {
-      "prefix": "monetization-ledger-log/*",
-      "destination_kind": "knowledge"
-    },
-    {
-      "prefix": "ledger-snapshot/*",
-      "destination_kind": "knowledge"
-    }
-  ],
+  "output": [],
   "external_producers": [
     "operator"
   ]

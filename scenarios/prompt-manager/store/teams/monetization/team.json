@@ -11,9 +11,13 @@
     }
   ],
   "instrument": {
-    "status": "none",
+    "status": "live",
+    "scenario": "offer-desk",
     "archetype": "production-ledger",
-    "gapMarker": "2026-08-13 — no domain scenario at all. docs/monetization/catalogs/ holds a six-state SKU lifecycle across 22 hand-maintained files, which is the operational state a ledger instrument would own. Highest-value consolidation candidate in the fleet."
+    "coversScenarios": [
+      "offer-desk",
+      "money-ledger"
+    ]
   },
   "enabled": true,
   "runtime": {
@@ -50,11 +54,6 @@
       "purpose": "Intake for monetization opportunity signals classified by `monetization-opportunity`."
     },
     {
-      "prefix": "candidate-sku-record/*",
-      "status": "live",
-      "purpose": "Candidate SKU, add-on, services-line, or channel records."
-    },
-    {
       "prefix": "scout-scan/*",
       "status": "live",
       "purpose": "Scout heartbeat summaries and pool snapshots."
@@ -63,21 +62,6 @@
       "prefix": "monetization/opportunity/*",
       "status": "live",
       "purpose": "Additional opportunity observations that are not yet promoted."
-    },
-    {
-      "prefix": "catalog-snapshot/*",
-      "status": "live",
-      "purpose": "Snapshot of SKU, tier, channel, and services-line trigger state."
-    },
-    {
-      "prefix": "ledger-snapshot/*",
-      "status": "live",
-      "purpose": "Financial posture snapshot."
-    },
-    {
-      "prefix": "monetization-ledger-log/*",
-      "status": "live",
-      "purpose": "Append-only monetization ledger events used to produce current financial posture snapshots."
     },
     {
       "prefix": "validation-inbox/*",
@@ -93,11 +77,6 @@
       "prefix": "monetization-benchmark-record/*",
       "status": "live",
       "purpose": "Validated benchmark records."
-    },
-    {
-      "prefix": "monetization/market-scan/*",
-      "status": "live",
-      "purpose": "Market-scan evidence."
     }
   ],
   "operatingContract": {
@@ -113,6 +92,10 @@
           "paths": [
             {
               "base": "repo-root",
+              "path": "scenarios/offer-desk/docs/spaces/offers.json"
+            },
+            {
+              "base": "repo-root",
               "path": "docs/monetization/README.md"
             },
             {
@@ -125,47 +108,15 @@
             },
             {
               "base": "repo-root",
+              "path": "docs/monetization/operating/README.md"
+            },
+            {
+              "base": "repo-root",
               "path": "docs/monetization/strategy/STRATEGY.md"
             },
             {
               "base": "repo-root",
-              "path": "docs/monetization/catalogs/CATALOG.md"
-            },
-            {
-              "base": "repo-root",
-              "path": "docs/monetization/catalogs/skus/base/business.md"
-            },
-            {
-              "base": "repo-root",
-              "path": "docs/monetization/catalogs/skus/base/lifestyle.md"
-            },
-            {
-              "base": "repo-root",
-              "path": "docs/monetization/catalogs/skus/addons/elder-care.md"
-            },
-            {
-              "base": "repo-root",
-              "path": "docs/monetization/catalogs/skus/addons/family-with-kids.md"
-            },
-            {
-              "base": "repo-root",
-              "path": "docs/monetization/catalogs/skus/addons/property-services.md"
-            },
-            {
-              "base": "repo-root",
-              "path": "docs/monetization/catalogs/scenario-sku-map.json"
-            },
-            {
-              "base": "repo-root",
-              "path": "docs/monetization/strategy/TIERS.md"
-            },
-            {
-              "base": "repo-root",
-              "path": "docs/monetization/strategy/PRICING.md"
-            },
-            {
-              "base": "repo-root",
-              "path": "docs/monetization/evidence/FINANCIAL_MODEL.md"
+              "path": "docs/monetization/strategy/README.md"
             },
             {
               "base": "repo-root",
@@ -173,47 +124,19 @@
             },
             {
               "base": "repo-root",
-              "path": "docs/monetization/catalogs/revenue-lines/README.md"
+              "path": "docs/monetization/strategy/PRICING.md"
             },
             {
               "base": "repo-root",
-              "path": "docs/monetization/evidence/TELEMETRY_ROADMAP.md"
+              "path": "docs/monetization/strategy/TIERS.md"
             },
             {
               "base": "repo-root",
-              "path": "docs/monetization/evidence/BENCHMARKS.md"
+              "path": "docs/monetization/catalogs/README.md"
             },
             {
               "base": "repo-root",
-              "path": "docs/monetization/governance/HOW_TO_GATHER_INPUTS.md"
-            },
-            {
-              "base": "repo-root",
-              "path": "docs/monetization/taxonomies/monetization-opportunity/README.md"
-            },
-            {
-              "base": "repo-root",
-              "path": "docs/monetization/taxonomies/monetization-opportunity/taxonomy.json"
-            },
-            {
-              "base": "repo-root",
-              "path": "docs/monetization/taxonomies/monetization-validation/README.md"
-            },
-            {
-              "base": "repo-root",
-              "path": "docs/monetization/taxonomies/monetization-validation/taxonomy.json"
-            },
-            {
-              "base": "repo-root",
-              "path": "docs/monetization/governance/editing.md"
-            },
-            {
-              "base": "repo-root",
-              "path": "docs/monetization/governance/adoption-validation.md"
-            },
-            {
-              "base": "repo-root",
-              "path": "docs/monetization/governance/changelog.md"
+              "path": "docs/monetization/catalogs/CATALOG.md"
             },
             {
               "base": "repo-root",
@@ -242,6 +165,106 @@
             {
               "base": "repo-root",
               "path": "docs/monetization/catalogs/channels/web-seo.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/catalogs/revenue-lines/README.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/catalogs/revenue-lines/affiliate-commerce.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/catalogs/revenue-lines/app-development.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/catalogs/revenue-lines/consulting.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/catalogs/revenue-lines/consumer-products.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/catalogs/revenue-lines/flipping.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/catalogs/revenue-lines/lead-generation.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/catalogs/revenue-lines/subscription.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/catalogs/skus/addons/elder-care.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/catalogs/skus/addons/family-with-kids.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/catalogs/skus/addons/property-services.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/catalogs/skus/base/business.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/catalogs/skus/base/lifestyle.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/evidence/README.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/evidence/BENCHMARKS.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/evidence/FINANCIAL_MODEL.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/evidence/TELEMETRY_ROADMAP.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/governance/HOW_TO_GATHER_INPUTS.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/governance/adoption-validation.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/governance/changelog.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/governance/editing.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/taxonomies/monetization-opportunity/README.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/taxonomies/monetization-opportunity/taxonomy.json"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/taxonomies/monetization-validation/README.md"
+            },
+            {
+              "base": "repo-root",
+              "path": "docs/monetization/taxonomies/monetization-validation/taxonomy.json"
             }
           ],
           "writePolicy": "operator-curated-via-swarm-manager",
@@ -253,8 +276,8 @@
             "scenario-to-cloud",
             "scenario-qa"
           ],
-          "rationale": "Canonical monetization strategy, catalog, delivery tiers, pricing, channels, funnel, revenue lines, telemetry, benchmarks, and operator-input guidance.",
-          "useFor": "monetization strategy, SKU catalog, tiers, pricing, financial model, funnel, revenue lines, channels, telemetry roadmap, benchmarks, and operator-input guidance"
+          "rationale": "Canonical monetization strategy, lifecycle judgment, delivery-tier and channel discipline, pricing principles, evidence protocols, taxonomies, and operator-input guidance. Offer Desk is the live instrument for catalog, tier, channel, revenue-line, deliverable, pricing, and promotion state; Money Ledger supplies the financial posture it covers.",
+          "useFor": "monetization strategy, lifecycle and packaging judgment, pricing principles, financial-model assumptions, funnel rules, revenue-line and channel discipline, telemetry roadmap, benchmark method, taxonomies, and operator-input guidance; query the Offer Desk instrument for current state"
         }
       ],
       "sharedState": [
@@ -266,37 +289,12 @@
           },
           "kind": "charter",
           "required": true
-        },
-        {
-          "id": "operator-inputs-json",
-          "path": {
-            "base": "team-shared",
-            "path": "operator-inputs.json"
-          },
-          "ownerMemberId": "financial-tracker",
-          "kind": "operator-input",
-          "required": true
         }
       ]
     },
     "knowledgeTopics": {
-      "catalog-snapshot/YYYY-MM-DD": {
-        "ownerMemberId": "catalog-strategist",
-        "supersedesPrevious": true,
-        "retention": "snapshot"
-      },
-      "ledger-snapshot/YYYY-MM-DD": {
-        "ownerMemberId": "financial-tracker",
-        "supersedesPrevious": true,
-        "retention": "snapshot"
-      },
       "scout-scan/YYYY-MM-DD": {
         "ownerMemberId": "opportunity-scout",
-        "supersedesPrevious": true,
-        "retention": "snapshot"
-      },
-      "monetization/market-scan/<slug>": {
-        "ownerMemberId": "market-validator",
         "supersedesPrevious": true,
         "retention": "snapshot"
       }
@@ -327,7 +325,6 @@
           "stillWriteHandoff": true
         },
         "taskParameters": {
-          "activeBaseBundle": "business",
           "headlinerCriteria": [
             "strong standalone appeal",
             "deployable today"
@@ -355,7 +352,7 @@
           "Every candidate needs a concrete revisit trigger.",
           "Every idea needs both acquisition and retention hypotheses.",
           "Do not nominate Tier 4 hardware work without explicit operator initiation.",
-          "Inbox triage must leave no entry under opportunity-inbox/* — promote (retag to monetization/opportunity/<slug>), convert-to-market-scan (retag to monetization/market-scan/<slug>), or delete."
+          "Inbox triage must leave no entry under opportunity-inbox/* — promote (retag to monetization/opportunity/<slug>), observe (retag to scout-scan/YYYY-MM-DD), file work, or delete."
         ],
         "readOnlyModeBehavior": {
           "stillWriteKnowledge": true,
@@ -378,9 +375,6 @@
             "kind": "knowledge"
           },
           {
-            "kind": "knowledge"
-          },
-          {
             "kind": "handoff"
           }
         ],
@@ -391,7 +385,7 @@
           }
         ],
         "safetyCriticalRules": [
-          "Do not edit shared/operator-inputs.json; it is operator state.",
+          "Operator financial inputs enter through Money Ledger's /adapters surface; never fabricate an absent value or edit retired copies.",
           "Every numeric field must carry an honesty flag.",
           "Keep channels separate from revenue lines."
         ],
@@ -431,17 +425,12 @@
         "safetyCriticalRules": [
           "Every captured value needs a source, date, and applicability flag.",
           "Deep research stays scoped to the active tier and bundle.",
-          "Validation-inbox triage must leave no entry under validation-inbox/* — convert (retag to monetization/market-scan/<slug>), file a work item, or delete.",
+          "Validation-inbox triage must leave no entry under validation-inbox/* — validate (retag to monetization-benchmark-record/<slug>), preserve adjacent evidence, file a work item, or delete.",
           "The staleness sweep enqueues but never re-fetches or resolves; resolution happens via the router and method skills only."
         ],
         "readOnlyModeBehavior": {
           "stillWriteKnowledge": true,
           "stillWriteHandoff": true
-        },
-        "taskParameters": {
-          "activeBaseBundle": "business",
-          "activeDeliveryTier": "Tier 1 with Tier 2 prereq work progressing",
-          "staleBenchmarkAfterMonths": 12
         }
       },
       "monetization-contrarian": {
