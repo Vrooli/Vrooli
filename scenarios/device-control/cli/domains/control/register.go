@@ -21,6 +21,13 @@ func Group(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 			}
 			return emit(ctx, b, "Devices")
 		}),
+		command("describe", "Describe one device and every transport capability profile", cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "id", Required: true, Description: "device id"}}}, func(ctx cliapp.RunContext) error {
+			b, err := core.Request(http.MethodGet, "/devices/"+ctx.Positional("id"), nil, nil)
+			if err != nil {
+				return err
+			}
+			return emit(ctx, b, "Device description")
+		}),
 		command("state", "Read live state from a device", cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "id", Required: true, Description: "device id"}}}, func(ctx cliapp.RunContext) error {
 			b, err := core.Request(http.MethodGet, "/devices/"+ctx.Positional("id")+"/state", nil, nil)
 			if err != nil {

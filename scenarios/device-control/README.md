@@ -1,5 +1,18 @@
 # Device Control
 
+Device Control is the governed control plane for owner-authorized physical and
+virtual devices. It discovers devices, describes the capabilities of each
+transport, acquires leases, executes bounded actions, and retains auditable
+evidence. Phones are one supported device class alongside televisions,
+speakers, lights, sensors, cameras, locks, and other endpoints.
+
+The device identity is durable across endpoint changes and may have multiple
+transports. Capabilities belong to the device/transport pair, so a Google TV
+can expose ADB screenshots and semantic input while its Android TV Remote
+transport exposes directional input and media control without a screen.
+
+## Device authentication
+
 Device authentication is a governed capability for owner-trusted phones. Use
 `device-control auth create` to save reference-only policy, use
 `device-control auth update` for metadata changes, pipe a credential to
@@ -15,7 +28,9 @@ restarts. Recover a stale saved endpoint with
 `device-control device reconnect <device-id> --json`; the reconnect verifies
 the original hardware serial before persisting a discovered TLS endpoint.
 
-Drive owner-trusted physical and virtual devices through pluggable control strategies, with shared vision-based understanding, reusable automation flows, and agent-driven goal completion.
+Drive owner-authorized physical and virtual devices through pluggable control
+strategies, capability-derived actions, reusable automation flows, and
+agent-driven goal completion.
 
 This scenario packages the standard full-stack Vrooli scenario shape:
 

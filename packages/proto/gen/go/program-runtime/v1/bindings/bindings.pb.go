@@ -2513,7 +2513,16 @@ type DiscoverResult struct {
 	// A library result is mutually exclusive with binding. It is returned when
 	// a seeded or explicitly promoted reusable program is the best governed
 	// capability for the intent.
-	Library       *shared.LibraryProgram `protobuf:"bytes,8,opt,name=library,proto3" json:"library,omitempty"`
+	Library *shared.LibraryProgram `protobuf:"bytes,8,opt,name=library,proto3" json:"library,omitempty"`
+	// True when discovery could not reach a verdict because a dependency failed,
+	// as distinct from reaching the verdict "nothing governed serves this".
+	//
+	// Both cases carry an empty binding_id, so before this field a caller could
+	// only tell them apart by string-matching `reason`. That mattered: the skill
+	// instructs an agent to treat an empty binding_id as a stop, so a degraded
+	// judge or an unreachable Search Hub silently taught agents that no
+	// capability existed. A null verdict is a stop; unavailable is a retry.
+	Unavailable   bool `protobuf:"varint,9,opt,name=unavailable,proto3" json:"unavailable,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2602,6 +2611,13 @@ func (x *DiscoverResult) GetLibrary() *shared.LibraryProgram {
 		return x.Library
 	}
 	return nil
+}
+
+func (x *DiscoverResult) GetUnavailable() bool {
+	if x != nil {
+		return x.Unavailable
+	}
+	return false
 }
 
 type ResolveIntentResponse struct {
@@ -2895,7 +2911,7 @@ const file_program_runtime_v1_bindings_bindings_proto_rawDesc = "" +
 	"\x14ResolveIntentRequest\x12\x16\n" +
 	"\x06intent\x18\x01 \x01(\tR\x06intent\x12\x14\n" +
 	"\x05limit\x18\x02 \x01(\x05R\x05limit\x12\x12\n" +
-	"\x04mode\x18\x03 \x01(\tR\x04mode\"\x89\x03\n" +
+	"\x04mode\x18\x03 \x01(\tR\x04mode\"\xab\x03\n" +
 	"\x0eDiscoverResult\x12\x1d\n" +
 	"\n" +
 	"binding_id\x18\x01 \x01(\tR\tbindingId\x12\x1e\n" +
@@ -2907,7 +2923,8 @@ const file_program_runtime_v1_bindings_bindings_proto_rawDesc = "" +
 	"\falternatives\x18\x05 \x03(\tR\falternatives\x12E\n" +
 	"\abinding\x18\x06 \x01(\v2+.vrooli.program_runtime.v1.bindings.BindingR\abinding\x12Q\n" +
 	"\targuments\x18\a \x03(\v23.vrooli.program_runtime.v1.bindings.BindingArgumentR\targuments\x12J\n" +
-	"\alibrary\x18\b \x01(\v20.vrooli.program_runtime.v1.shared.LibraryProgramR\alibrary\"\xf4\x01\n" +
+	"\alibrary\x18\b \x01(\v20.vrooli.program_runtime.v1.shared.LibraryProgramR\alibrary\x12 \n" +
+	"\vunavailable\x18\t \x01(\bR\vunavailable\"\xf4\x01\n" +
 	"\x15ResolveIntentResponse\x12G\n" +
 	"\bbindings\x18\x01 \x03(\v2+.vrooli.program_runtime.v1.bindings.BindingR\bbindings\x12\x16\n" +
 	"\x06reason\x18\x02 \x01(\tR\x06reason\x12\x1a\n" +

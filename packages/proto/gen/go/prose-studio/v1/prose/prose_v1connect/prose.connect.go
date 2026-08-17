@@ -63,6 +63,9 @@ const (
 	// ProseStudioServiceAssembleDocumentProcedure is the fully-qualified name of the
 	// ProseStudioService's AssembleDocument RPC.
 	ProseStudioServiceAssembleDocumentProcedure = "/vrooli.prose_studio.v1.prose.ProseStudioService/AssembleDocument"
+	// ProseStudioServiceResumeDocumentProcedure is the fully-qualified name of the ProseStudioService's
+	// ResumeDocument RPC.
+	ProseStudioServiceResumeDocumentProcedure = "/vrooli.prose_studio.v1.prose.ProseStudioService/ResumeDocument"
 	// ProseStudioServiceConformanceProcedure is the fully-qualified name of the ProseStudioService's
 	// Conformance RPC.
 	ProseStudioServiceConformanceProcedure = "/vrooli.prose_studio.v1.prose.ProseStudioService/Conformance"
@@ -81,6 +84,7 @@ type ProseStudioServiceClient interface {
 	ValidateDeclarations(context.Context, *connect.Request[prose.ValidateDeclarationsRequest]) (*connect.Response[prose.ValidateDeclarationsResponse], error)
 	CreateDocument(context.Context, *connect.Request[prose.CreateDocumentRequest]) (*connect.Response[prose.CreateDocumentResponse], error)
 	AssembleDocument(context.Context, *connect.Request[prose.AssembleDocumentRequest]) (*connect.Response[prose.AssembleDocumentResponse], error)
+	ResumeDocument(context.Context, *connect.Request[prose.ResumeDocumentRequest]) (*connect.Response[prose.ResumeDocumentResponse], error)
 	Conformance(context.Context, *connect.Request[prose.ConformanceRequest]) (*connect.Response[prose.ConformanceResponse], error)
 }
 
@@ -156,6 +160,12 @@ func NewProseStudioServiceClient(httpClient connect.HTTPClient, baseURL string, 
 			connect.WithSchema(proseStudioServiceMethods.ByName("AssembleDocument")),
 			connect.WithClientOptions(opts...),
 		),
+		resumeDocument: connect.NewClient[prose.ResumeDocumentRequest, prose.ResumeDocumentResponse](
+			httpClient,
+			baseURL+ProseStudioServiceResumeDocumentProcedure,
+			connect.WithSchema(proseStudioServiceMethods.ByName("ResumeDocument")),
+			connect.WithClientOptions(opts...),
+		),
 		conformance: connect.NewClient[prose.ConformanceRequest, prose.ConformanceResponse](
 			httpClient,
 			baseURL+ProseStudioServiceConformanceProcedure,
@@ -177,6 +187,7 @@ type proseStudioServiceClient struct {
 	validateDeclarations *connect.Client[prose.ValidateDeclarationsRequest, prose.ValidateDeclarationsResponse]
 	createDocument       *connect.Client[prose.CreateDocumentRequest, prose.CreateDocumentResponse]
 	assembleDocument     *connect.Client[prose.AssembleDocumentRequest, prose.AssembleDocumentResponse]
+	resumeDocument       *connect.Client[prose.ResumeDocumentRequest, prose.ResumeDocumentResponse]
 	conformance          *connect.Client[prose.ConformanceRequest, prose.ConformanceResponse]
 }
 
@@ -230,6 +241,11 @@ func (c *proseStudioServiceClient) AssembleDocument(ctx context.Context, req *co
 	return c.assembleDocument.CallUnary(ctx, req)
 }
 
+// ResumeDocument calls vrooli.prose_studio.v1.prose.ProseStudioService.ResumeDocument.
+func (c *proseStudioServiceClient) ResumeDocument(ctx context.Context, req *connect.Request[prose.ResumeDocumentRequest]) (*connect.Response[prose.ResumeDocumentResponse], error) {
+	return c.resumeDocument.CallUnary(ctx, req)
+}
+
 // Conformance calls vrooli.prose_studio.v1.prose.ProseStudioService.Conformance.
 func (c *proseStudioServiceClient) Conformance(ctx context.Context, req *connect.Request[prose.ConformanceRequest]) (*connect.Response[prose.ConformanceResponse], error) {
 	return c.conformance.CallUnary(ctx, req)
@@ -248,6 +264,7 @@ type ProseStudioServiceHandler interface {
 	ValidateDeclarations(context.Context, *connect.Request[prose.ValidateDeclarationsRequest]) (*connect.Response[prose.ValidateDeclarationsResponse], error)
 	CreateDocument(context.Context, *connect.Request[prose.CreateDocumentRequest]) (*connect.Response[prose.CreateDocumentResponse], error)
 	AssembleDocument(context.Context, *connect.Request[prose.AssembleDocumentRequest]) (*connect.Response[prose.AssembleDocumentResponse], error)
+	ResumeDocument(context.Context, *connect.Request[prose.ResumeDocumentRequest]) (*connect.Response[prose.ResumeDocumentResponse], error)
 	Conformance(context.Context, *connect.Request[prose.ConformanceRequest]) (*connect.Response[prose.ConformanceResponse], error)
 }
 
@@ -318,6 +335,12 @@ func NewProseStudioServiceHandler(svc ProseStudioServiceHandler, opts ...connect
 		connect.WithSchema(proseStudioServiceMethods.ByName("AssembleDocument")),
 		connect.WithHandlerOptions(opts...),
 	)
+	proseStudioServiceResumeDocumentHandler := connect.NewUnaryHandler(
+		ProseStudioServiceResumeDocumentProcedure,
+		svc.ResumeDocument,
+		connect.WithSchema(proseStudioServiceMethods.ByName("ResumeDocument")),
+		connect.WithHandlerOptions(opts...),
+	)
 	proseStudioServiceConformanceHandler := connect.NewUnaryHandler(
 		ProseStudioServiceConformanceProcedure,
 		svc.Conformance,
@@ -346,6 +369,8 @@ func NewProseStudioServiceHandler(svc ProseStudioServiceHandler, opts ...connect
 			proseStudioServiceCreateDocumentHandler.ServeHTTP(w, r)
 		case ProseStudioServiceAssembleDocumentProcedure:
 			proseStudioServiceAssembleDocumentHandler.ServeHTTP(w, r)
+		case ProseStudioServiceResumeDocumentProcedure:
+			proseStudioServiceResumeDocumentHandler.ServeHTTP(w, r)
 		case ProseStudioServiceConformanceProcedure:
 			proseStudioServiceConformanceHandler.ServeHTTP(w, r)
 		default:
@@ -395,6 +420,10 @@ func (UnimplementedProseStudioServiceHandler) CreateDocument(context.Context, *c
 
 func (UnimplementedProseStudioServiceHandler) AssembleDocument(context.Context, *connect.Request[prose.AssembleDocumentRequest]) (*connect.Response[prose.AssembleDocumentResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.prose_studio.v1.prose.ProseStudioService.AssembleDocument is not implemented"))
+}
+
+func (UnimplementedProseStudioServiceHandler) ResumeDocument(context.Context, *connect.Request[prose.ResumeDocumentRequest]) (*connect.Response[prose.ResumeDocumentResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.prose_studio.v1.prose.ProseStudioService.ResumeDocument is not implemented"))
 }
 
 func (UnimplementedProseStudioServiceHandler) Conformance(context.Context, *connect.Request[prose.ConformanceRequest]) (*connect.Response[prose.ConformanceResponse], error) {

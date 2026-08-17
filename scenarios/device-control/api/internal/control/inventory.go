@@ -111,12 +111,13 @@ func (s *Service) Devices(ctx context.Context) []Device {
 									}
 								}
 							}
-							record := devicedomain.Record{ID: discoveredDevice.ID, Name: discoveredDevice.Model, Kind: adbDeviceKind(discoveredDevice.Serial), Serial: discoveredDevice.Serial, Endpoint: discoveredDevice.Endpoint, Model: discoveredDevice.Model, OSVersion: discoveredDevice.OSVersion, StrategyID: discoveredDevice.StrategyID, Status: discoveredDevice.Health, Health: discoveredDevice.Health, HealthReason: discoveredDevice.HealthReason, HostNodeID: hostNodeID, Transport: discoveredDevice.Transport, ObservedAt: discoveredDevice.ObservedAt, Capabilities: mapCaps(deviceDeclaration)}
+							record := devicedomain.Record{ID: discoveredDevice.ID, IdentityKey: discoveredDevice.Serial, Name: discoveredDevice.Model, Kind: adbDeviceKind(discoveredDevice.Serial), Serial: discoveredDevice.Serial, Endpoint: discoveredDevice.Endpoint, Model: discoveredDevice.Model, OSVersion: discoveredDevice.OSVersion, StrategyID: discoveredDevice.StrategyID, Status: discoveredDevice.Health, Health: discoveredDevice.Health, HealthReason: discoveredDevice.HealthReason, HostNodeID: hostNodeID, Transport: discoveredDevice.Transport, ObservedAt: discoveredDevice.ObservedAt, Capabilities: mapCaps(deviceDeclaration)}
 							if record.Name == "" {
 								record.Name = record.Serial
 							}
-							s.devices.UpsertIdentity(record)
-							seen[record.ID] = true
+							merged := s.devices.UpsertIdentity(record)
+							_ = s.persistObservedTransportProfiles(inventoryCtx, merged)
+							seen[merged.ID] = true
 						}
 					}
 				}
@@ -205,7 +206,8 @@ func (s *Service) Devices(ctx context.Context) []Device {
 						}
 					}
 					device.Status, device.Health, device.HealthReason = status, status, reason
-					s.devices.Upsert(recordFromDevice(*device))
+					merged := s.devices.UpsertIdentity(recordFromDevice(*device))
+					_ = s.persistObservedTransportProfiles(inventoryCtx, merged)
 					continue
 				}
 				byID[d.ID] = len(out)
@@ -225,7 +227,8 @@ func (s *Service) Devices(ctx context.Context) []Device {
 				// answers whether the row is a physical target. Keep those
 				// concepts separate: every bridge peripheral is physical, and
 				// the strategy id carries the platform-specific driver.
-				merged := s.devices.Upsert(devicedomain.Record{ID: d.ID, Name: d.Name, Kind: "physical", Serial: d.Serial, Model: d.Name, OSVersion: d.OSVersion, StrategyID: strategyID, Transport: d.Transport, HostNodeID: d.HostNodeID, Status: status, Health: status, HealthReason: reason, Capabilities: capabilities, ObservedAt: time.Now().UTC()})
+				merged := s.devices.UpsertIdentity(devicedomain.Record{ID: d.ID, IdentityKey: d.Serial, Name: d.Name, Kind: "physical", Serial: d.Serial, Model: d.Name, OSVersion: d.OSVersion, StrategyID: strategyID, Transport: d.Transport, HostNodeID: d.HostNodeID, Status: status, Health: status, HealthReason: reason, Capabilities: capabilities, ObservedAt: time.Now().UTC()})
+				_ = s.persistObservedTransportProfiles(inventoryCtx, merged)
 				out = append(out, deviceFromRecord(merged))
 			}
 		}
@@ -246,9 +249,21 @@ func (s *Service) Devices(ctx context.Context) []Device {
 		if out[i].Health == strategy.StatusAvailable {
 			out[i].HealthReason = "wireless ADB endpoint reachable and identity verified"
 		}
-		s.devices.Upsert(recordFromDevice(out[i]))
+		s.devices.UpsertIdentity(recordFromDevice(out[i]))
 	}
 	return out
+}
+
+// DescribeDevice returns the device-oriented declaration after refreshing the
+// inventory. The transport profiles are accumulated by the identity store,
+// while the legacy scalar fields remain as the selected/default transport.
+func (s *Service) DescribeDevice(ctx context.Context, id string) (Device, error) {
+	for _, device := range s.Devices(ctx) {
+		if device.ID == strings.TrimSpace(id) {
+			return device, nil
+		}
+	}
+	return Device{}, fmt.Errorf("unknown device %q", id)
 }
 
 func adbDeviceKind(serial string) string {
@@ -272,8 +287,14 @@ func (s *Service) ForgetDeviceContext(ctx context.Context, id string) bool {
 	forgotten := s.devices.Forget(id)
 	delete(s.transportStrategies, id)
 	delete(s.transportStates, id)
+	for key, state := range s.transportProfiles {
+		if state.DeviceID == id {
+			delete(s.transportProfiles, key)
+		}
+	}
 	if s.db != nil {
 		_, _ = s.db.ExecContext(ctx, `DELETE FROM device_control_transports WHERE device_id = ?`, id)
+		_, _ = s.db.ExecContext(ctx, `DELETE FROM device_control_transport_profiles WHERE device_id = ?`, id)
 	}
 	return forgotten
 }
@@ -318,7 +339,7 @@ func (s *Service) PromoteWireless(ctx context.Context, id string) (Device, error
 	record.Status = strategy.StatusAvailable
 	record.Health = strategy.StatusAvailable
 	record.HealthReason = "wireless ADB transport verified against the onboarded serial"
-	return deviceFromRecord(s.devices.Upsert(record)), nil
+	return deviceFromRecord(s.devices.UpsertIdentity(record)), nil
 }
 
 // ReconnectWireless revalidates a promoted wireless transport and allows the
@@ -356,7 +377,7 @@ func (s *Service) ReconnectWireless(ctx context.Context, id string) (Device, err
 	record.Status = strategy.StatusAvailable
 	record.Health = strategy.StatusAvailable
 	record.HealthReason = "wireless ADB endpoint reconnected and identity verified"
-	updated := s.devices.Upsert(record)
+	updated := s.devices.UpsertIdentity(record)
 	s.mu.Unlock()
 	return deviceFromRecord(updated), nil
 }
@@ -380,10 +401,11 @@ func recordFromDevice(device Device) devicedomain.Record {
 	capabilities := make([]strategy.Capability, len(device.Capabilities))
 	copy(capabilities, device.Capabilities)
 	return devicedomain.Record{
-		ID: device.ID, Name: device.Name, Kind: device.Kind, Serial: device.Serial,
+		ID: device.ID, IdentityKey: device.IdentityKey, Name: device.Name, Kind: device.Kind, Serial: device.Serial,
 		Model: device.Model, OSVersion: device.OSVersion, StrategyID: device.StrategyID,
 		Status: device.Status, Health: device.Health, HealthReason: device.HealthReason,
 		HostNodeID: device.HostNodeID, Transport: device.Transport, Capabilities: capabilities,
+		Transports: append([]strategy.DeviceTransport(nil), device.Transports...),
 		Endpoint:   device.Endpoint,
 		ObservedAt: device.ObservedAt, FirstSeenAt: device.FirstSeenAt, LastSeenAt: device.LastSeenAt,
 	}

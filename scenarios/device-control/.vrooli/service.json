@@ -5,7 +5,7 @@
     "parent": "vrooli",
     "name": "device-control",
     "displayName": "Device Control",
-    "description": "Drive owner-trusted physical and virtual devices through pluggable control strategies, with shared vision-based understanding, reusable automation flows, and agent-driven goal completion.",
+    "description": "Control owner-authorized physical and virtual devices through pluggable transports, capability-derived actions, durable identity, auditable sessions, and reusable automation flows.",
     "version": "0.0.1",
     "type": "business-application",
     "category": "ai_tools",

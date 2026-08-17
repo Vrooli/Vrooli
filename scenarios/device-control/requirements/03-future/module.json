@@ -38,7 +38,7 @@
     },
     {
       "criticality": "P2",
-      "description": "Extend beyond phones and hosts as new device classes become trusted, using the same floor and conformance suite rather than new engines.",
+      "description": "Extend across device classes as new transports become trusted, using the same floor and conformance suite rather than new engines.",
       "id": "DVC-P2-003",
       "prd_ref": "OT-P2-003",
       "status": "planned",

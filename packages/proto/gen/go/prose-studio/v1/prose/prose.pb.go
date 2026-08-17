@@ -2770,6 +2770,94 @@ func (x *AssembleDocumentResponse) GetDocument() *Document {
 	return nil
 }
 
+type ResumeDocumentRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ResumeDocumentRequest) Reset() {
+	*x = ResumeDocumentRequest{}
+	mi := &file_prose_studio_v1_prose_prose_proto_msgTypes[39]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResumeDocumentRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResumeDocumentRequest) ProtoMessage() {}
+
+func (x *ResumeDocumentRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_prose_studio_v1_prose_prose_proto_msgTypes[39]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResumeDocumentRequest.ProtoReflect.Descriptor instead.
+func (*ResumeDocumentRequest) Descriptor() ([]byte, []int) {
+	return file_prose_studio_v1_prose_prose_proto_rawDescGZIP(), []int{39}
+}
+
+func (x *ResumeDocumentRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+type ResumeDocumentResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Document      *Document              `protobuf:"bytes,1,opt,name=document,proto3" json:"document,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ResumeDocumentResponse) Reset() {
+	*x = ResumeDocumentResponse{}
+	mi := &file_prose_studio_v1_prose_prose_proto_msgTypes[40]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResumeDocumentResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResumeDocumentResponse) ProtoMessage() {}
+
+func (x *ResumeDocumentResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_prose_studio_v1_prose_prose_proto_msgTypes[40]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResumeDocumentResponse.ProtoReflect.Descriptor instead.
+func (*ResumeDocumentResponse) Descriptor() ([]byte, []int) {
+	return file_prose_studio_v1_prose_prose_proto_rawDescGZIP(), []int{40}
+}
+
+func (x *ResumeDocumentResponse) GetDocument() *Document {
+	if x != nil {
+		return x.Document
+	}
+	return nil
+}
+
 type ConformanceRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	StyleKey      string                 `protobuf:"bytes,1,opt,name=style_key,json=styleKey,proto3" json:"style_key,omitempty"`
@@ -2780,7 +2868,7 @@ type ConformanceRequest struct {
 
 func (x *ConformanceRequest) Reset() {
 	*x = ConformanceRequest{}
-	mi := &file_prose_studio_v1_prose_prose_proto_msgTypes[39]
+	mi := &file_prose_studio_v1_prose_prose_proto_msgTypes[41]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2792,7 +2880,7 @@ func (x *ConformanceRequest) String() string {
 func (*ConformanceRequest) ProtoMessage() {}
 
 func (x *ConformanceRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_prose_studio_v1_prose_prose_proto_msgTypes[39]
+	mi := &file_prose_studio_v1_prose_prose_proto_msgTypes[41]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2805,7 +2893,7 @@ func (x *ConformanceRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConformanceRequest.ProtoReflect.Descriptor instead.
 func (*ConformanceRequest) Descriptor() ([]byte, []int) {
-	return file_prose_studio_v1_prose_prose_proto_rawDescGZIP(), []int{39}
+	return file_prose_studio_v1_prose_prose_proto_rawDescGZIP(), []int{41}
 }
 
 func (x *ConformanceRequest) GetStyleKey() string {
@@ -2831,7 +2919,7 @@ type ConformanceResponse struct {
 
 func (x *ConformanceResponse) Reset() {
 	*x = ConformanceResponse{}
-	mi := &file_prose_studio_v1_prose_prose_proto_msgTypes[40]
+	mi := &file_prose_studio_v1_prose_prose_proto_msgTypes[42]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2843,7 +2931,7 @@ func (x *ConformanceResponse) String() string {
 func (*ConformanceResponse) ProtoMessage() {}
 
 func (x *ConformanceResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_prose_studio_v1_prose_prose_proto_msgTypes[40]
+	mi := &file_prose_studio_v1_prose_prose_proto_msgTypes[42]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2856,7 +2944,7 @@ func (x *ConformanceResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConformanceResponse.ProtoReflect.Descriptor instead.
 func (*ConformanceResponse) Descriptor() ([]byte, []int) {
-	return file_prose_studio_v1_prose_prose_proto_rawDescGZIP(), []int{40}
+	return file_prose_studio_v1_prose_prose_proto_rawDescGZIP(), []int{42}
 }
 
 func (x *ConformanceResponse) GetReport() *structpb.Struct {
@@ -3119,13 +3207,16 @@ const file_prose_studio_v1_prose_prose_proto_rawDesc = "" +
 	"\x17AssembleDocumentRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"^\n" +
 	"\x18AssembleDocumentResponse\x12B\n" +
+	"\bdocument\x18\x01 \x01(\v2&.vrooli.prose_studio.v1.prose.DocumentR\bdocument\"'\n" +
+	"\x15ResumeDocumentRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\"\\\n" +
+	"\x16ResumeDocumentResponse\x12B\n" +
 	"\bdocument\x18\x01 \x01(\v2&.vrooli.prose_studio.v1.prose.DocumentR\bdocument\"E\n" +
 	"\x12ConformanceRequest\x12\x1b\n" +
 	"\tstyle_key\x18\x01 \x01(\tR\bstyleKey\x12\x12\n" +
 	"\x04text\x18\x02 \x01(\tR\x04text\"F\n" +
 	"\x13ConformanceResponse\x12/\n" +
-	"\x06report\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x06report2\xcc\n" +
-	"\n" +
+	"\x06report\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x06report2\xc9\v\n" +
 	"\x12ProseStudioService\x12i\n" +
 	"\bRegistry\x12-.vrooli.prose_studio.v1.prose.RegistryRequest\x1a..vrooli.prose_studio.v1.prose.RegistryResponse\x12r\n" +
 	"\vCreateStyle\x120.vrooli.prose_studio.v1.prose.CreateStyleRequest\x1a1.vrooli.prose_studio.v1.prose.CreateStyleResponse\x12{\n" +
@@ -3136,7 +3227,8 @@ const file_prose_studio_v1_prose_prose_proto_rawDesc = "" +
 	"\x13ReindexDeclarations\x128.vrooli.prose_studio.v1.prose.ReindexDeclarationsRequest\x1a9.vrooli.prose_studio.v1.prose.ReindexDeclarationsResponse\x12\x8d\x01\n" +
 	"\x14ValidateDeclarations\x129.vrooli.prose_studio.v1.prose.ValidateDeclarationsRequest\x1a:.vrooli.prose_studio.v1.prose.ValidateDeclarationsResponse\x12{\n" +
 	"\x0eCreateDocument\x123.vrooli.prose_studio.v1.prose.CreateDocumentRequest\x1a4.vrooli.prose_studio.v1.prose.CreateDocumentResponse\x12\x81\x01\n" +
-	"\x10AssembleDocument\x125.vrooli.prose_studio.v1.prose.AssembleDocumentRequest\x1a6.vrooli.prose_studio.v1.prose.AssembleDocumentResponse\x12r\n" +
+	"\x10AssembleDocument\x125.vrooli.prose_studio.v1.prose.AssembleDocumentRequest\x1a6.vrooli.prose_studio.v1.prose.AssembleDocumentResponse\x12{\n" +
+	"\x0eResumeDocument\x123.vrooli.prose_studio.v1.prose.ResumeDocumentRequest\x1a4.vrooli.prose_studio.v1.prose.ResumeDocumentResponse\x12r\n" +
 	"\vConformance\x120.vrooli.prose_studio.v1.prose.ConformanceRequest\x1a1.vrooli.prose_studio.v1.prose.ConformanceResponseBOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/prose-studio/v1/prose;prose_v1b\x06proto3"
 
 var (
@@ -3151,7 +3243,7 @@ func file_prose_studio_v1_prose_prose_proto_rawDescGZIP() []byte {
 	return file_prose_studio_v1_prose_prose_proto_rawDescData
 }
 
-var file_prose_studio_v1_prose_prose_proto_msgTypes = make([]protoimpl.MessageInfo, 44)
+var file_prose_studio_v1_prose_prose_proto_msgTypes = make([]protoimpl.MessageInfo, 46)
 var file_prose_studio_v1_prose_prose_proto_goTypes = []any{
 	(*RegistryRequest)(nil),              // 0: vrooli.prose_studio.v1.prose.RegistryRequest
 	(*RegistryKind)(nil),                 // 1: vrooli.prose_studio.v1.prose.RegistryKind
@@ -3192,26 +3284,28 @@ var file_prose_studio_v1_prose_prose_proto_goTypes = []any{
 	(*CreateDocumentResponse)(nil),       // 36: vrooli.prose_studio.v1.prose.CreateDocumentResponse
 	(*AssembleDocumentRequest)(nil),      // 37: vrooli.prose_studio.v1.prose.AssembleDocumentRequest
 	(*AssembleDocumentResponse)(nil),     // 38: vrooli.prose_studio.v1.prose.AssembleDocumentResponse
-	(*ConformanceRequest)(nil),           // 39: vrooli.prose_studio.v1.prose.ConformanceRequest
-	(*ConformanceResponse)(nil),          // 40: vrooli.prose_studio.v1.prose.ConformanceResponse
-	nil,                                  // 41: vrooli.prose_studio.v1.prose.Style.TargetsEntry
-	nil,                                  // 42: vrooli.prose_studio.v1.prose.Style.AxisDefaultsEntry
-	nil,                                  // 43: vrooli.prose_studio.v1.prose.Profile.SelectionParamsEntry
-	(*structpb.Struct)(nil),              // 44: google.protobuf.Struct
+	(*ResumeDocumentRequest)(nil),        // 39: vrooli.prose_studio.v1.prose.ResumeDocumentRequest
+	(*ResumeDocumentResponse)(nil),       // 40: vrooli.prose_studio.v1.prose.ResumeDocumentResponse
+	(*ConformanceRequest)(nil),           // 41: vrooli.prose_studio.v1.prose.ConformanceRequest
+	(*ConformanceResponse)(nil),          // 42: vrooli.prose_studio.v1.prose.ConformanceResponse
+	nil,                                  // 43: vrooli.prose_studio.v1.prose.Style.TargetsEntry
+	nil,                                  // 44: vrooli.prose_studio.v1.prose.Style.AxisDefaultsEntry
+	nil,                                  // 45: vrooli.prose_studio.v1.prose.Profile.SelectionParamsEntry
+	(*structpb.Struct)(nil),              // 46: google.protobuf.Struct
 }
 var file_prose_studio_v1_prose_prose_proto_depIdxs = []int32{
-	44, // 0: vrooli.prose_studio.v1.prose.RegistryKind.parameter_schema:type_name -> google.protobuf.Struct
+	46, // 0: vrooli.prose_studio.v1.prose.RegistryKind.parameter_schema:type_name -> google.protobuf.Struct
 	1,  // 1: vrooli.prose_studio.v1.prose.RegistryResponse.samplers:type_name -> vrooli.prose_studio.v1.prose.RegistryKind
 	1,  // 2: vrooli.prose_studio.v1.prose.RegistryResponse.policies:type_name -> vrooli.prose_studio.v1.prose.RegistryKind
 	1,  // 3: vrooli.prose_studio.v1.prose.RegistryResponse.metrics:type_name -> vrooli.prose_studio.v1.prose.RegistryKind
 	1,  // 4: vrooli.prose_studio.v1.prose.RegistryResponse.transforms:type_name -> vrooli.prose_studio.v1.prose.RegistryKind
-	41, // 5: vrooli.prose_studio.v1.prose.Style.targets:type_name -> vrooli.prose_studio.v1.prose.Style.TargetsEntry
-	42, // 6: vrooli.prose_studio.v1.prose.Style.axis_defaults:type_name -> vrooli.prose_studio.v1.prose.Style.AxisDefaultsEntry
+	43, // 5: vrooli.prose_studio.v1.prose.Style.targets:type_name -> vrooli.prose_studio.v1.prose.Style.TargetsEntry
+	44, // 6: vrooli.prose_studio.v1.prose.Style.axis_defaults:type_name -> vrooli.prose_studio.v1.prose.Style.AxisDefaultsEntry
 	3,  // 7: vrooli.prose_studio.v1.prose.CreateStyleRequest.style:type_name -> vrooli.prose_studio.v1.prose.Style
 	3,  // 8: vrooli.prose_studio.v1.prose.CreateStyleResponse.style:type_name -> vrooli.prose_studio.v1.prose.Style
 	6,  // 9: vrooli.prose_studio.v1.prose.Profile.sampler:type_name -> vrooli.prose_studio.v1.prose.Sampler
 	7,  // 10: vrooli.prose_studio.v1.prose.Profile.constraints:type_name -> vrooli.prose_studio.v1.prose.Constraints
-	43, // 11: vrooli.prose_studio.v1.prose.Profile.selection_params:type_name -> vrooli.prose_studio.v1.prose.Profile.SelectionParamsEntry
+	45, // 11: vrooli.prose_studio.v1.prose.Profile.selection_params:type_name -> vrooli.prose_studio.v1.prose.Profile.SelectionParamsEntry
 	8,  // 12: vrooli.prose_studio.v1.prose.Profile.budget:type_name -> vrooli.prose_studio.v1.prose.Budget
 	9,  // 13: vrooli.prose_studio.v1.prose.Profile.context_policy:type_name -> vrooli.prose_studio.v1.prose.ContextPolicy
 	10, // 14: vrooli.prose_studio.v1.prose.ResolveProfileResponse.profile:type_name -> vrooli.prose_studio.v1.prose.Profile
@@ -3219,13 +3313,13 @@ var file_prose_studio_v1_prose_prose_proto_depIdxs = []int32{
 	13, // 16: vrooli.prose_studio.v1.prose.GenerateRequest.negative:type_name -> vrooli.prose_studio.v1.prose.NegativeContext
 	6,  // 17: vrooli.prose_studio.v1.prose.Provenance.strategy_parameters:type_name -> vrooli.prose_studio.v1.prose.Sampler
 	32, // 18: vrooli.prose_studio.v1.prose.Provenance.context_snapshot:type_name -> vrooli.prose_studio.v1.prose.ContextSnapshot
-	44, // 19: vrooli.prose_studio.v1.prose.Candidate.measurements:type_name -> google.protobuf.Struct
-	44, // 20: vrooli.prose_studio.v1.prose.Candidate.set_measurements:type_name -> google.protobuf.Struct
+	46, // 19: vrooli.prose_studio.v1.prose.Candidate.measurements:type_name -> google.protobuf.Struct
+	46, // 20: vrooli.prose_studio.v1.prose.Candidate.set_measurements:type_name -> google.protobuf.Struct
 	17, // 21: vrooli.prose_studio.v1.prose.Candidate.provenance:type_name -> vrooli.prose_studio.v1.prose.Provenance
 	16, // 22: vrooli.prose_studio.v1.prose.Candidate.verbalized_hint:type_name -> vrooli.prose_studio.v1.prose.VerbalizedHint
 	15, // 23: vrooli.prose_studio.v1.prose.Candidate.eligibility:type_name -> vrooli.prose_studio.v1.prose.Eligibility
 	6,  // 24: vrooli.prose_studio.v1.prose.Round.strategy:type_name -> vrooli.prose_studio.v1.prose.Sampler
-	44, // 25: vrooli.prose_studio.v1.prose.Round.sampling_key:type_name -> google.protobuf.Struct
+	46, // 25: vrooli.prose_studio.v1.prose.Round.sampling_key:type_name -> google.protobuf.Struct
 	13, // 26: vrooli.prose_studio.v1.prose.Round.negative_context:type_name -> vrooli.prose_studio.v1.prose.NegativeContext
 	20, // 27: vrooli.prose_studio.v1.prose.GenerateResponse.session:type_name -> vrooli.prose_studio.v1.prose.Session
 	19, // 28: vrooli.prose_studio.v1.prose.GenerateResponse.round:type_name -> vrooli.prose_studio.v1.prose.Round
@@ -3235,44 +3329,47 @@ var file_prose_studio_v1_prose_prose_proto_depIdxs = []int32{
 	21, // 32: vrooli.prose_studio.v1.prose.GenerateResponse.degraded:type_name -> vrooli.prose_studio.v1.prose.DegradedOutcome
 	22, // 33: vrooli.prose_studio.v1.prose.RerollResponse.result:type_name -> vrooli.prose_studio.v1.prose.GenerateResponse
 	20, // 34: vrooli.prose_studio.v1.prose.SessionActionResponse.session:type_name -> vrooli.prose_studio.v1.prose.Session
-	44, // 35: vrooli.prose_studio.v1.prose.Declaration.record:type_name -> google.protobuf.Struct
+	46, // 35: vrooli.prose_studio.v1.prose.Declaration.record:type_name -> google.protobuf.Struct
 	27, // 36: vrooli.prose_studio.v1.prose.ReindexDeclarationsResponse.declarations:type_name -> vrooli.prose_studio.v1.prose.Declaration
 	27, // 37: vrooli.prose_studio.v1.prose.ValidateDeclarationsResponse.declarations:type_name -> vrooli.prose_studio.v1.prose.Declaration
 	32, // 38: vrooli.prose_studio.v1.prose.Section.context:type_name -> vrooli.prose_studio.v1.prose.ContextSnapshot
-	44, // 39: vrooli.prose_studio.v1.prose.Document.coherence:type_name -> google.protobuf.Struct
+	46, // 39: vrooli.prose_studio.v1.prose.Document.coherence:type_name -> google.protobuf.Struct
 	33, // 40: vrooli.prose_studio.v1.prose.Document.sections:type_name -> vrooli.prose_studio.v1.prose.Section
 	34, // 41: vrooli.prose_studio.v1.prose.CreateDocumentRequest.document:type_name -> vrooli.prose_studio.v1.prose.Document
 	33, // 42: vrooli.prose_studio.v1.prose.CreateDocumentRequest.sections:type_name -> vrooli.prose_studio.v1.prose.Section
 	34, // 43: vrooli.prose_studio.v1.prose.CreateDocumentResponse.document:type_name -> vrooli.prose_studio.v1.prose.Document
 	34, // 44: vrooli.prose_studio.v1.prose.AssembleDocumentResponse.document:type_name -> vrooli.prose_studio.v1.prose.Document
-	44, // 45: vrooli.prose_studio.v1.prose.ConformanceResponse.report:type_name -> google.protobuf.Struct
-	0,  // 46: vrooli.prose_studio.v1.prose.ProseStudioService.Registry:input_type -> vrooli.prose_studio.v1.prose.RegistryRequest
-	4,  // 47: vrooli.prose_studio.v1.prose.ProseStudioService.CreateStyle:input_type -> vrooli.prose_studio.v1.prose.CreateStyleRequest
-	11, // 48: vrooli.prose_studio.v1.prose.ProseStudioService.ResolveProfile:input_type -> vrooli.prose_studio.v1.prose.ResolveProfileRequest
-	14, // 49: vrooli.prose_studio.v1.prose.ProseStudioService.Generate:input_type -> vrooli.prose_studio.v1.prose.GenerateRequest
-	23, // 50: vrooli.prose_studio.v1.prose.ProseStudioService.Reroll:input_type -> vrooli.prose_studio.v1.prose.RerollRequest
-	25, // 51: vrooli.prose_studio.v1.prose.ProseStudioService.SessionAction:input_type -> vrooli.prose_studio.v1.prose.SessionActionRequest
-	28, // 52: vrooli.prose_studio.v1.prose.ProseStudioService.ReindexDeclarations:input_type -> vrooli.prose_studio.v1.prose.ReindexDeclarationsRequest
-	30, // 53: vrooli.prose_studio.v1.prose.ProseStudioService.ValidateDeclarations:input_type -> vrooli.prose_studio.v1.prose.ValidateDeclarationsRequest
-	35, // 54: vrooli.prose_studio.v1.prose.ProseStudioService.CreateDocument:input_type -> vrooli.prose_studio.v1.prose.CreateDocumentRequest
-	37, // 55: vrooli.prose_studio.v1.prose.ProseStudioService.AssembleDocument:input_type -> vrooli.prose_studio.v1.prose.AssembleDocumentRequest
-	39, // 56: vrooli.prose_studio.v1.prose.ProseStudioService.Conformance:input_type -> vrooli.prose_studio.v1.prose.ConformanceRequest
-	2,  // 57: vrooli.prose_studio.v1.prose.ProseStudioService.Registry:output_type -> vrooli.prose_studio.v1.prose.RegistryResponse
-	5,  // 58: vrooli.prose_studio.v1.prose.ProseStudioService.CreateStyle:output_type -> vrooli.prose_studio.v1.prose.CreateStyleResponse
-	12, // 59: vrooli.prose_studio.v1.prose.ProseStudioService.ResolveProfile:output_type -> vrooli.prose_studio.v1.prose.ResolveProfileResponse
-	22, // 60: vrooli.prose_studio.v1.prose.ProseStudioService.Generate:output_type -> vrooli.prose_studio.v1.prose.GenerateResponse
-	24, // 61: vrooli.prose_studio.v1.prose.ProseStudioService.Reroll:output_type -> vrooli.prose_studio.v1.prose.RerollResponse
-	26, // 62: vrooli.prose_studio.v1.prose.ProseStudioService.SessionAction:output_type -> vrooli.prose_studio.v1.prose.SessionActionResponse
-	29, // 63: vrooli.prose_studio.v1.prose.ProseStudioService.ReindexDeclarations:output_type -> vrooli.prose_studio.v1.prose.ReindexDeclarationsResponse
-	31, // 64: vrooli.prose_studio.v1.prose.ProseStudioService.ValidateDeclarations:output_type -> vrooli.prose_studio.v1.prose.ValidateDeclarationsResponse
-	36, // 65: vrooli.prose_studio.v1.prose.ProseStudioService.CreateDocument:output_type -> vrooli.prose_studio.v1.prose.CreateDocumentResponse
-	38, // 66: vrooli.prose_studio.v1.prose.ProseStudioService.AssembleDocument:output_type -> vrooli.prose_studio.v1.prose.AssembleDocumentResponse
-	40, // 67: vrooli.prose_studio.v1.prose.ProseStudioService.Conformance:output_type -> vrooli.prose_studio.v1.prose.ConformanceResponse
-	57, // [57:68] is the sub-list for method output_type
-	46, // [46:57] is the sub-list for method input_type
-	46, // [46:46] is the sub-list for extension type_name
-	46, // [46:46] is the sub-list for extension extendee
-	0,  // [0:46] is the sub-list for field type_name
+	34, // 45: vrooli.prose_studio.v1.prose.ResumeDocumentResponse.document:type_name -> vrooli.prose_studio.v1.prose.Document
+	46, // 46: vrooli.prose_studio.v1.prose.ConformanceResponse.report:type_name -> google.protobuf.Struct
+	0,  // 47: vrooli.prose_studio.v1.prose.ProseStudioService.Registry:input_type -> vrooli.prose_studio.v1.prose.RegistryRequest
+	4,  // 48: vrooli.prose_studio.v1.prose.ProseStudioService.CreateStyle:input_type -> vrooli.prose_studio.v1.prose.CreateStyleRequest
+	11, // 49: vrooli.prose_studio.v1.prose.ProseStudioService.ResolveProfile:input_type -> vrooli.prose_studio.v1.prose.ResolveProfileRequest
+	14, // 50: vrooli.prose_studio.v1.prose.ProseStudioService.Generate:input_type -> vrooli.prose_studio.v1.prose.GenerateRequest
+	23, // 51: vrooli.prose_studio.v1.prose.ProseStudioService.Reroll:input_type -> vrooli.prose_studio.v1.prose.RerollRequest
+	25, // 52: vrooli.prose_studio.v1.prose.ProseStudioService.SessionAction:input_type -> vrooli.prose_studio.v1.prose.SessionActionRequest
+	28, // 53: vrooli.prose_studio.v1.prose.ProseStudioService.ReindexDeclarations:input_type -> vrooli.prose_studio.v1.prose.ReindexDeclarationsRequest
+	30, // 54: vrooli.prose_studio.v1.prose.ProseStudioService.ValidateDeclarations:input_type -> vrooli.prose_studio.v1.prose.ValidateDeclarationsRequest
+	35, // 55: vrooli.prose_studio.v1.prose.ProseStudioService.CreateDocument:input_type -> vrooli.prose_studio.v1.prose.CreateDocumentRequest
+	37, // 56: vrooli.prose_studio.v1.prose.ProseStudioService.AssembleDocument:input_type -> vrooli.prose_studio.v1.prose.AssembleDocumentRequest
+	39, // 57: vrooli.prose_studio.v1.prose.ProseStudioService.ResumeDocument:input_type -> vrooli.prose_studio.v1.prose.ResumeDocumentRequest
+	41, // 58: vrooli.prose_studio.v1.prose.ProseStudioService.Conformance:input_type -> vrooli.prose_studio.v1.prose.ConformanceRequest
+	2,  // 59: vrooli.prose_studio.v1.prose.ProseStudioService.Registry:output_type -> vrooli.prose_studio.v1.prose.RegistryResponse
+	5,  // 60: vrooli.prose_studio.v1.prose.ProseStudioService.CreateStyle:output_type -> vrooli.prose_studio.v1.prose.CreateStyleResponse
+	12, // 61: vrooli.prose_studio.v1.prose.ProseStudioService.ResolveProfile:output_type -> vrooli.prose_studio.v1.prose.ResolveProfileResponse
+	22, // 62: vrooli.prose_studio.v1.prose.ProseStudioService.Generate:output_type -> vrooli.prose_studio.v1.prose.GenerateResponse
+	24, // 63: vrooli.prose_studio.v1.prose.ProseStudioService.Reroll:output_type -> vrooli.prose_studio.v1.prose.RerollResponse
+	26, // 64: vrooli.prose_studio.v1.prose.ProseStudioService.SessionAction:output_type -> vrooli.prose_studio.v1.prose.SessionActionResponse
+	29, // 65: vrooli.prose_studio.v1.prose.ProseStudioService.ReindexDeclarations:output_type -> vrooli.prose_studio.v1.prose.ReindexDeclarationsResponse
+	31, // 66: vrooli.prose_studio.v1.prose.ProseStudioService.ValidateDeclarations:output_type -> vrooli.prose_studio.v1.prose.ValidateDeclarationsResponse
+	36, // 67: vrooli.prose_studio.v1.prose.ProseStudioService.CreateDocument:output_type -> vrooli.prose_studio.v1.prose.CreateDocumentResponse
+	38, // 68: vrooli.prose_studio.v1.prose.ProseStudioService.AssembleDocument:output_type -> vrooli.prose_studio.v1.prose.AssembleDocumentResponse
+	40, // 69: vrooli.prose_studio.v1.prose.ProseStudioService.ResumeDocument:output_type -> vrooli.prose_studio.v1.prose.ResumeDocumentResponse
+	42, // 70: vrooli.prose_studio.v1.prose.ProseStudioService.Conformance:output_type -> vrooli.prose_studio.v1.prose.ConformanceResponse
+	59, // [59:71] is the sub-list for method output_type
+	47, // [47:59] is the sub-list for method input_type
+	47, // [47:47] is the sub-list for extension type_name
+	47, // [47:47] is the sub-list for extension extendee
+	0,  // [0:47] is the sub-list for field type_name
 }
 
 func init() { file_prose_studio_v1_prose_prose_proto_init() }
@@ -3286,7 +3383,7 @@ func file_prose_studio_v1_prose_prose_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_prose_studio_v1_prose_prose_proto_rawDesc), len(file_prose_studio_v1_prose_prose_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   44,
+			NumMessages:   46,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

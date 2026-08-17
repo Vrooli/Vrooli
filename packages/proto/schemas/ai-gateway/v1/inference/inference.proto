@@ -113,7 +113,28 @@ message RunBatchResponse {
   Usage usage = 2;
 }
 
+message EmbedRequest {
+  repeated string texts = 1;
+  string role = 2;
+  // Embeddings are deterministic. Presence is rejected as an invalid request.
+  vrooli.ai_gateway.v1.shared.SamplingControls sampling = 3;
+}
+
+message EmbedResponse {
+  repeated EmbeddingVector vectors = 1;
+  string provider = 2;
+  string model = 3;
+  int32 dimension = 4;
+  Usage usage = 5;
+  InferenceError error = 6;
+}
+
+message EmbeddingVector {
+  repeated double values = 1;
+}
+
 service InferenceService {
-  rpc Run(RunRequest) returns (RunResponse);
-  rpc RunBatch(RunBatchRequest) returns (RunBatchResponse);
+	rpc Run(RunRequest) returns (RunResponse);
+	rpc RunBatch(RunBatchRequest) returns (RunBatchResponse);
+	rpc Embed(EmbedRequest) returns (EmbedResponse);
 }

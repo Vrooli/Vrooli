@@ -21,6 +21,8 @@ import (
 
 const CredentialNamespace = "device-control/"
 
+const pairingCertificateField = "pairing_certificate"
+
 const (
 	MethodPIN              = "pin"
 	MethodNumeric          = "numeric_passcode"
@@ -391,6 +393,38 @@ func (s *Store) Provision(ctx context.Context, id string, valueReader io.Reader)
 		return s.resolver.Status(ctx, p.CredentialIdentity, p.CredentialField), err
 	}
 	return s.resolver.Status(ctx, p.CredentialIdentity, p.CredentialField), nil
+}
+
+// SavePairingCertificate and LoadPairingCertificate keep transport identity in
+// the same credential authority used by device authentication. The profile
+// metadata table intentionally does not contain the certificate or private
+// key; only the authority-backed opaque value does.
+func (s *Store) SavePairingCertificate(ctx context.Context, serial string, certificate []byte) error {
+	serial = strings.TrimSpace(serial)
+	if serial == "" || len(certificate) == 0 {
+		return fmt.Errorf("pairing certificate requires a serial and non-empty bundle")
+	}
+	if s.resolver == nil {
+		return errors.New("credential authority is unavailable")
+	}
+	identity := CredentialNamespace + "android-tv-remote/" + strings.ToLower(serial)
+	return s.resolver.Provision(ctx, identity, pairingCertificateField, string(certificate))
+}
+
+func (s *Store) LoadPairingCertificate(ctx context.Context, serial string) ([]byte, error) {
+	serial = strings.TrimSpace(serial)
+	if serial == "" {
+		return nil, fmt.Errorf("pairing certificate requires a serial")
+	}
+	if s.resolver == nil {
+		return nil, errors.New("credential authority is unavailable")
+	}
+	identity := CredentialNamespace + "android-tv-remote/" + strings.ToLower(serial)
+	value, err := s.resolver.Resolve(ctx, identity, pairingCertificateField)
+	if err != nil {
+		return nil, err
+	}
+	return []byte(value), nil
 }
 
 // DeleteCredential removes the authority-held value for a profile reference.

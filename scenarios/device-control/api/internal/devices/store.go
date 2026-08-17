@@ -12,11 +12,13 @@ import (
 
 type Record struct {
 	ID, Name, Kind, Serial, Model, OSVersion, StrategyID string
+	IdentityKey                                          string
 	Endpoint                                             string
 	Status, Health, HealthReason, HostNodeID, Transport  string
 	Capabilities                                         []strategy.Capability
 	FirstSeenAt, LastSeenAt                              time.Time
 	ObservedAt                                           time.Time
+	Transports                                           []strategy.DeviceTransport
 }
 
 type Store struct {
@@ -54,15 +56,42 @@ func (s *Store) Upsert(record Record) Record {
 func (s *Store) UpsertIdentity(record Record) Record {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	canonicalID := record.ID
 	if record.Kind == "physical" && record.Serial != "" {
 		for id, existing := range s.records {
 			if id == record.ID || existing.Kind != "physical" {
 				continue
 			}
-			if existing.Serial == record.Serial || (record.Endpoint != "" && existing.Serial == record.Endpoint) {
+			if existing.Serial == record.Serial {
+				canonicalID = existing.ID
+				// Keep the canonical row; only an alternate endpoint-keyed row
+				// is removed when it is not the selected identity.
+				if id != canonicalID {
+					delete(s.records, id)
+				}
+			} else if record.Endpoint != "" && existing.Serial == record.Endpoint && record.Serial != record.Endpoint {
+				// An endpoint-keyed pre-promotion row is replaced by the
+				// stronger hardware identity contributed by the incoming strategy.
 				delete(s.records, id)
+				canonicalID = record.ID
 			}
 		}
+	}
+	if existing, ok := s.records[canonicalID]; ok {
+		record.ID = canonicalID
+		record.FirstSeenAt = existing.FirstSeenAt
+		record.Transports = mergeTransports(existing.Transports, record)
+		if record.StrategyID == "" {
+			record.StrategyID = existing.StrategyID
+		}
+		if record.Transport == "" {
+			record.Transport = existing.Transport
+		}
+		if record.Serial == "" {
+			record.Serial = existing.Serial
+		}
+	} else {
+		record.Transports = mergeTransports(nil, record)
 	}
 	now := record.ObservedAt
 	if now.IsZero() {
@@ -81,6 +110,43 @@ func (s *Store) UpsertIdentity(record Record) Record {
 	}
 	s.records[record.ID] = clone(record)
 	return clone(record)
+}
+
+func mergeTransports(existing []strategy.DeviceTransport, record Record) []strategy.DeviceTransport {
+	merged := append([]strategy.DeviceTransport(nil), existing...)
+	for _, candidate := range record.Transports {
+		mergeTransport(&merged, candidate)
+	}
+	name := record.Transport
+	if name == "" {
+		name = record.StrategyID
+	}
+	transport := strategy.DeviceTransport{StrategyID: record.StrategyID, Name: name, Endpoint: record.Endpoint, Health: record.Health, HealthReason: record.HealthReason, Capabilities: map[string]strategy.Capability{}, ObservedAt: record.ObservedAt}
+	for _, capability := range record.Capabilities {
+		transport.Capabilities[capability.Name] = capability
+	}
+	for i := range merged {
+		if merged[i].StrategyID == transport.StrategyID && merged[i].Name == transport.Name {
+			merged[i] = transport
+			return merged
+		}
+	}
+	mergeTransport(&merged, transport)
+	sort.Slice(merged, func(i, j int) bool { return merged[i].Name < merged[j].Name })
+	return merged
+}
+
+func mergeTransport(merged *[]strategy.DeviceTransport, transport strategy.DeviceTransport) {
+	if transport.StrategyID == "" && transport.Name == "" {
+		return
+	}
+	for i := range *merged {
+		if (*merged)[i].StrategyID == transport.StrategyID && (*merged)[i].Name == transport.Name {
+			(*merged)[i] = transport
+			return
+		}
+	}
+	*merged = append(*merged, transport)
 }
 
 func (s *Store) MarkAbsentExcept(now time.Time, present map[string]bool, reason func(Record) string) {
@@ -137,5 +203,20 @@ func clone(record Record) Record {
 	capabilities := make([]strategy.Capability, len(record.Capabilities))
 	copy(capabilities, record.Capabilities)
 	record.Capabilities = capabilities
+	record.Transports = append([]strategy.DeviceTransport(nil), record.Transports...)
+	for i := range record.Transports {
+		record.Transports[i].Capabilities = cloneCapabilities(record.Transports[i].Capabilities)
+	}
 	return record
+}
+
+func cloneCapabilities(input map[string]strategy.Capability) map[string]strategy.Capability {
+	if input == nil {
+		return nil
+	}
+	out := make(map[string]strategy.Capability, len(input))
+	for key, value := range input {
+		out[key] = value
+	}
+	return out
 }

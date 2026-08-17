@@ -129,6 +129,37 @@ authorize this host on the phone, then retry. Use
 `device-control flow run --transport wireless` explicitly for subsequent
 wireless flows.
 
+## Google TV / Android TV Remote
+
+The Android TV Remote adapter is an attach-only transport. It discovers Google
+TV devices through the host's mDNS resolver and controls directional keys,
+text, playback, and relative volume changes without Home Assistant or Docker.
+The remote protocol does not expose a screen or view hierarchy, so those
+capabilities are reported unavailable rather than synthesized; absolute volume
+levels are intentionally rejected because the protocol only guarantees volume
+key injection.
+
+Pairing is an owner action on the television. Show the pairing prompt on the
+TV, provide its six-digit PIN to the Android TV Remote client, and retain the
+resulting certificate through the device-control credential authority. Pairing
+material is never returned in a device declaration or written to an audit
+record. A successful discovery reports a stable serial so the same television
+can reconcile with another transport such as ADB.
+
+## Home Assistant attach-only entities
+
+Home Assistant is not a Vrooli-managed resource. To attach to an operator-run
+instance, configure `HOME_ASSISTANT_URL` and `HOME_ASSISTANT_TOKEN` (the
+`*_BASE_URL` and `*_ACCESS_TOKEN` aliases are also accepted), then run
+`device-control device list --json`. The adapter reads `/api/states`, gives each
+entity a stable `home-assistant:<entity_id>` identity, and reports typed
+capabilities by domain. Sensors are read-only; cameras are the only entities
+that expose frame observation; media players expose playback and volume.
+
+The adapter never starts, stops, installs, or repairs Home Assistant. If the
+endpoint or token is unavailable, the strategy remains visible with an honest
+unavailable reason and a next action.
+
 ## iOS Simulator
 
 The simulator path is owned by a macOS bridge host. Install Xcode and the

@@ -7,6 +7,8 @@ import (
 
 	"device-control/strategy"
 	"device-control/strategy/androidadb"
+	"device-control/strategy/androidtvremote"
+	"device-control/strategy/homeassistant"
 	"device-control/strategy/hostdesktop"
 	"device-control/strategy/iosmirror"
 	"device-control/strategy/iossimctl"
@@ -14,6 +16,11 @@ import (
 )
 
 type Registry struct{ items map[string]strategy.Strategy }
+
+type DeviceDeclaration struct {
+	Device      strategy.Device      `json:"device"`
+	Declaration strategy.Declaration `json:"declaration"`
+}
 
 func New(items ...strategy.Strategy) *Registry {
 	r := &Registry{items: map[string]strategy.Strategy{}}
@@ -26,7 +33,7 @@ func New(items ...strategy.Strategy) *Registry {
 }
 
 func Default() *Registry {
-	return New(androidadb.New(), hostdesktop.New(), iossimctl.New(), iosxcuitest.New(), iosmirror.New())
+	return New(androidadb.New(), androidtvremote.New(), homeassistant.NewFromEnv(), hostdesktop.New(), iossimctl.New(), iosxcuitest.New(), iosmirror.New())
 }
 func (r *Registry) Get(id string) (strategy.Strategy, bool) { s, ok := r.items[id]; return s, ok }
 func (r *Registry) List(ctx context.Context) []strategy.Declaration {
@@ -42,6 +49,44 @@ func (r *Registry) List(ctx context.Context) []strategy.Declaration {
 			d = strategy.UnavailableDeclaration(id, "strategy probe failed", []strategy.Capability{{Name: strategy.CapInput}, {Name: strategy.CapScreenshot}}, err.Error())
 		}
 		out = append(out, d)
+	}
+	return out
+}
+
+// ListDevices is the device-oriented view. Strategies remain the transport
+// diagnostic view exposed by List; this method fans out enumerators and binds
+// each discovered target before describing it.
+func (r *Registry) ListDevices(ctx context.Context) []DeviceDeclaration {
+	ids := make([]string, 0, len(r.items))
+	for id := range r.items {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	out := make([]DeviceDeclaration, 0)
+	for _, id := range ids {
+		base := r.items[id]
+		enumerator, ok := base.(strategy.Enumerator)
+		if !ok {
+			continue
+		}
+		devices, err := enumerator.Enumerate(ctx)
+		if err != nil {
+			continue
+		}
+		for _, device := range devices {
+			driver := base
+			if scoped, ok := base.(strategy.DeviceScoped); ok && device.Serial != "" {
+				driver = scoped.ForDevice(device.Serial)
+			}
+			declaration, err := driver.Describe(ctx)
+			if err != nil {
+				declaration = strategy.UnavailableDeclaration(id, "device description failed", nil, err.Error())
+			}
+			declaration.DeviceID = device.ID
+			declaration.Transport = device.Transport
+			declaration.StrategyID = id
+			out = append(out, DeviceDeclaration{Device: device, Declaration: declaration})
+		}
 	}
 	return out
 }

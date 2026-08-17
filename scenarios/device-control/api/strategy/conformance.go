@@ -33,15 +33,32 @@ func Verify(ctx context.Context, s Strategy) ConformanceReport {
 		r.Passed = append(r.Passed, "transcript-replay", "unavailable-disposition")
 		return r
 	}
-	if _, err := s.Observe(ctx); err != nil {
-		r.Failed = append(r.Failed, "observe: "+err.Error())
-	} else {
-		r.Passed = append(r.Passed, "observe")
+	if d.Capabilities[CapScreenshot].Status == StatusAvailable {
+		observer, ok := s.(Observer)
+		if !ok {
+			r.Failed = append(r.Failed, "observe: declared screenshot capability without Observer")
+		} else if _, err := observer.Observe(ctx); err != nil {
+			r.Failed = append(r.Failed, "observe: "+err.Error())
+		} else {
+			r.Passed = append(r.Passed, "observe")
+		}
 	}
-	if err := s.Actuate(ctx, Actuation{Pointer: &PointerEvent{Kind: "move", X: 0, Y: 0}}); err != nil {
-		r.Failed = append(r.Failed, "actuate: "+err.Error())
+	if d.Capabilities[CapInput].Status == StatusAvailable {
+		actuator, ok := s.(InputActuator)
+		if !ok {
+			r.Failed = append(r.Failed, "actuate: declared input capability without InputActuator")
+		} else if err := actuator.Actuate(ctx, Actuation{Pointer: &PointerEvent{Kind: "move", X: 0, Y: 0}}); err != nil {
+			r.Failed = append(r.Failed, "actuate: "+err.Error())
+		} else {
+			r.Passed = append(r.Passed, "actuate")
+		}
 	} else {
-		r.Passed = append(r.Passed, "actuate")
+		if _, ok := s.(Observer); !ok {
+			r.Passed = append(r.Passed, "screenless-floor")
+		}
+		if _, ok := s.(InputActuator); !ok {
+			r.Passed = append(r.Passed, "non-actuating-floor")
+		}
 	}
 	if len(r.Failed) > 0 {
 		r.Status = StatusDegraded

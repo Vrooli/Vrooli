@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file program-runtime/v1/programs/programs.proto.
  */
 export const file_program_runtime_v1_programs_programs: GenFile = /*@__PURE__*/
-  fileDesc("Cipwcm9ncmFtLXJ1bnRpbWUvdjEvcHJvZ3JhbXMvcHJvZ3JhbXMucHJvdG8SInZyb29saS5wcm9ncmFtX3J1bnRpbWUudjEucHJvZ3JhbXMihgQKB1Byb2dyYW0SCgoCaWQYASABKAkSEgoKc2Vzc2lvbl9pZBgCIAEoCRIOCgZzb3VyY2UYAyABKAkSQgoKcHJvdmVuYW5jZRgEIAEoDjIuLnZyb29saS5wcm9ncmFtX3J1bnRpbWUudjEucHJvZ3JhbXMuUHJvdmVuYW5jZRJBCgZzdGF0dXMYBSABKA4yMS52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLnByb2dyYW1zLlByb2dyYW1TdGF0dXMSDgoGc3Rkb3V0GAYgASgJEhYKDmZhaWx1cmVfZGV0YWlsGAcgASgJEhUKDWZhaWx1cmVfc2hhcGUYCCABKAkSFQoNY29udGV4dF9ieXRlcxgJIAEoAxISCgpjcmVhdGVkX2F0GAogASgJEhoKEm91dHB1dF9saW1pdF9ieXRlcxgLIAEoAxITCgthZ2VudF9ieXRlcxgMIAEoAxIUCgxjb21wbGV0ZWRfYXQYDSABKAkSGAoQd2FsbF90aW1lX21pbGxpcxgOIAEoAxIXCg9jcHVfdGltZV9taWxsaXMYDyABKAMSFwoPbGlicmFyeV92ZXJzaW9uGBAgASgJEkcKDWZhaWx1cmVfY2F1c2UYESABKA4yMC52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLnByb2dyYW1zLkZhaWx1cmVDYXVzZSJiCgpEaWFnbm9zdGljEhAKCHNldmVyaXR5GAEgASgJEgwKBGxpbmUYAiABKAUSDAoEbmFtZRgDIAEoCRIPCgdtZXNzYWdlGAQgASgJEhUKDW5lYXJlc3RfbWF0Y2gYBSABKAkivAEKFFN1Ym1pdFByb2dyYW1SZXF1ZXN0EhIKCnNlc3Npb25faWQYASABKAkSDgoGc291cmNlGAIgASgJEkIKCnByb3ZlbmFuY2UYAyABKA4yLi52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLnByb2dyYW1zLlByb3ZlbmFuY2USHAoUaW5jbHVkZV9tYXRlcmlhbGl6ZWQYBCABKAgSDQoFYXN5bmMYBSABKAgSDwoHZXhwbGFpbhgGIAEoCCKaAQoVU3VibWl0UHJvZ3JhbVJlc3BvbnNlEjwKB3Byb2dyYW0YASABKAsyKy52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLnByb2dyYW1zLlByb2dyYW0SQwoLZGlhZ25vc3RpY3MYAiADKAsyLi52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLnByb2dyYW1zLkRpYWdub3N0aWMiHwoRR2V0UHJvZ3JhbVJlcXVlc3QSCgoCaWQYASABKAkiUgoSR2V0UHJvZ3JhbVJlc3BvbnNlEjwKB3Byb2dyYW0YASABKAsyKy52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLnByb2dyYW1zLlByb2dyYW0iQwoTTGlzdFByb2dyYW1zUmVxdWVzdBISCgpzZXNzaW9uX2lkGAEgASgJEhgKEGluY2x1ZGVfb3BlcmF0b3IYAiABKAgiVQoUTGlzdFByb2dyYW1zUmVzcG9uc2USPQoIcHJvZ3JhbXMYASADKAsyKy52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLnByb2dyYW1zLlByb2dyYW0iLwoTTWluZUZhaWx1cmVzUmVxdWVzdBIYChBpbmNsdWRlX29wZXJhdG9yGAEgASgIIm4KDEZhaWx1cmVTaGFwZRINCgVzaGFwZRgBIAEoCRINCgVjb3VudBgCIAEoAxISCgpmaXJzdF9zZWVuGAMgASgJEhEKCWxhc3Rfc2VlbhgEIAEoCRIZChFzYW1wbGVfcHJvZ3JhbV9pZBgFIAEoCSJnChRNaW5lRmFpbHVyZXNSZXNwb25zZRJACgZzaGFwZXMYASADKAsyMC52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLnByb2dyYW1zLkZhaWx1cmVTaGFwZRINCgVjb3VudBgCIAEoAyIvChNNaW5lUmVmdXNhbHNSZXF1ZXN0EhgKEGluY2x1ZGVfb3BlcmF0b3IYASABKAgiVAoMUmVmdXNhbFNoYXBlEhIKCmJpbmRpbmdfaWQYASABKAkSDgoGcmVhc29uGAIgASgJEg0KBWNvdW50GAMgASgDEhEKCWxhc3Rfc2VlbhgEIAEoCSJnChRNaW5lUmVmdXNhbHNSZXNwb25zZRJACgZzaGFwZXMYASADKAsyMC52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLnByb2dyYW1zLlJlZnVzYWxTaGFwZRINCgVjb3VudBgCIAEoAyIfCh1NaW5lVW5yZXNvbHZlZEJpbmRpbmdzUmVxdWVzdCJSChZVbnJlc29sdmVkQmluZGluZ1NoYXBlEhYKDmF0dGVtcHRlZF9uYW1lGAEgASgJEg0KBWNvdW50GAIgASgDEhEKCWxhc3Rfc2VlbhgDIAEoCSJ7Ch5NaW5lVW5yZXNvbHZlZEJpbmRpbmdzUmVzcG9uc2USSgoGc2hhcGVzGAEgAygLMjoudnJvb2xpLnByb2dyYW1fcnVudGltZS52MS5wcm9ncmFtcy5VbnJlc29sdmVkQmluZGluZ1NoYXBlEg0KBWNvdW50GAIgASgDIjsKF1J1bkF1dGhvcmluZ0V2YWxSZXF1ZXN0Eg0KBXN1aXRlGAEgASgJEhEKCW1heF9jYXNlcxgCIAEoBSKFAQoTQXV0aG9yaW5nQ2FzZVJlc3VsdBIPCgdjYXNlX2lkGAEgASgJEhAKCGF1dGhvcmVkGAIgASgIEhgKEGZpcnN0X2F0dGVtcHRfb2sYAyABKAgSDQoFY2F1c2UYBCABKAkSEwoLYWdlbnRfYnl0ZXMYBSABKAMSDQoFbW9kZWwYBiABKAki+QEKGFJ1bkF1dGhvcmluZ0V2YWxSZXNwb25zZRINCgVzdWl0ZRgBIAEoCRIOCgZzdGF0dXMYAiABKAkSDgoGcmVhc29uGAMgASgJEg0KBWNhc2VzGAQgASgFEgsKA21ldBgFIAEoBRIOCgZtaXNzZWQYBiABKAUSFAoMd3JvbmdfcmVzdWx0GAcgASgFEhMKC3VuYXZhaWxhYmxlGAggASgFEg0KBWZsb29yGAkgASgFEkgKB3Jlc3VsdHMYCiADKAsyNy52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLnByb2dyYW1zLkF1dGhvcmluZ0Nhc2VSZXN1bHQqgwEKClByb3ZlbmFuY2USGgoWUFJPVkVOQU5DRV9VTlNQRUNJRklFRBAAEhQKEFBST1ZFTkFOQ0VfQUdFTlQQARIXChNQUk9WRU5BTkNFX09QRVJBVE9SEAISEwoPUFJPVkVOQU5DRV9URVNUEAMSFQoRUFJPVkVOQU5DRV9SRVBMQVkQBCq/AQoNUHJvZ3JhbVN0YXR1cxIeChpQUk9HUkFNX1NUQVRVU19VTlNQRUNJRklFRBAAEhsKF1BST0dSQU1fU1RBVFVTX0FDQ0VQVEVEEAESGgoWUFJPR1JBTV9TVEFUVVNfUlVOTklORxACEhwKGFBST0dSQU1fU1RBVFVTX1NVQ0NFRURFRBADEhkKFVBST0dSQU1fU1RBVFVTX0ZBSUxFRBAEEhwKGFBST0dSQU1fU1RBVFVTX0NBTkNFTExFRBAFKpcECgxGYWlsdXJlQ2F1c2USHQoZRkFJTFVSRV9DQVVTRV9VTlNQRUNJRklFRBAAEiEKHUZBSUxVUkVfQ0FVU0VfVU5SRVNPTFZFRF9OQU1FEAESHwobRkFJTFVSRV9DQVVTRV9VTktOT1dOX0ZJRUxEEAISJAogRkFJTFVSRV9DQVVTRV9BTUJJR1VPVVNfUkVTUE9OU0UQAxImCiJGQUlMVVJFX0NBVVNFX1VOUkVBQ0hBQkxFX1NDRU5BUklPEAQSIgoeRkFJTFVSRV9DQVVTRV9SRUZVU0VEX05PX0dSQU5UEAUSKgomRkFJTFVSRV9DQVVTRV9SRUZVU0VEX05PVF9SVU5fRUxJR0lCTEUQBhIqCiZGQUlMVVJFX0NBVVNFX0lORkVSRU5DRV9TUEVORF9FWENFRURFRBAHEi4KKkZBSUxVUkVfQ0FVU0VfREVMRUdBVEVEX1JVTl9TUEVORF9FWENFRURFRBAIEiMKH0ZBSUxVUkVfQ0FVU0VfREVBRExJTkVfRVhDRUVERUQQCRIfChtGQUlMVVJFX0NBVVNFX0tFUk5FTF9TWU5UQVgQChIgChxGQUlMVVJFX0NBVVNFX0tFUk5FTF9SVU5USU1FEAsSIgoeRkFJTFVSRV9DQVVTRV9CUklER0VfVFJBTlNQT1JUEAwSHgoaRkFJTFVSRV9DQVVTRV9VTkNMQVNTSUZJRUQQDTLSBwoOUHJvZ3JhbVNlcnZpY2UShAEKDVN1Ym1pdFByb2dyYW0SOC52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLnByb2dyYW1zLlN1Ym1pdFByb2dyYW1SZXF1ZXN0GjkudnJvb2xpLnByb2dyYW1fcnVudGltZS52MS5wcm9ncmFtcy5TdWJtaXRQcm9ncmFtUmVzcG9uc2USewoKR2V0UHJvZ3JhbRI1LnZyb29saS5wcm9ncmFtX3J1bnRpbWUudjEucHJvZ3JhbXMuR2V0UHJvZ3JhbVJlcXVlc3QaNi52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLnByb2dyYW1zLkdldFByb2dyYW1SZXNwb25zZRKBAQoMTGlzdFByb2dyYW1zEjcudnJvb2xpLnByb2dyYW1fcnVudGltZS52MS5wcm9ncmFtcy5MaXN0UHJvZ3JhbXNSZXF1ZXN0GjgudnJvb2xpLnByb2dyYW1fcnVudGltZS52MS5wcm9ncmFtcy5MaXN0UHJvZ3JhbXNSZXNwb25zZRKBAQoMTWluZUZhaWx1cmVzEjcudnJvb2xpLnByb2dyYW1fcnVudGltZS52MS5wcm9ncmFtcy5NaW5lRmFpbHVyZXNSZXF1ZXN0GjgudnJvb2xpLnByb2dyYW1fcnVudGltZS52MS5wcm9ncmFtcy5NaW5lRmFpbHVyZXNSZXNwb25zZRKBAQoMTWluZVJlZnVzYWxzEjcudnJvb2xpLnByb2dyYW1fcnVudGltZS52MS5wcm9ncmFtcy5NaW5lUmVmdXNhbHNSZXF1ZXN0GjgudnJvb2xpLnByb2dyYW1fcnVudGltZS52MS5wcm9ncmFtcy5NaW5lUmVmdXNhbHNSZXNwb25zZRKfAQoWTWluZVVucmVzb2x2ZWRCaW5kaW5ncxJBLnZyb29saS5wcm9ncmFtX3J1bnRpbWUudjEucHJvZ3JhbXMuTWluZVVucmVzb2x2ZWRCaW5kaW5nc1JlcXVlc3QaQi52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLnByb2dyYW1zLk1pbmVVbnJlc29sdmVkQmluZGluZ3NSZXNwb25zZRKNAQoQUnVuQXV0aG9yaW5nRXZhbBI7LnZyb29saS5wcm9ncmFtX3J1bnRpbWUudjEucHJvZ3JhbXMuUnVuQXV0aG9yaW5nRXZhbFJlcXVlc3QaPC52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLnByb2dyYW1zLlJ1bkF1dGhvcmluZ0V2YWxSZXNwb25zZUJYWlZnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3Byb2dyYW0tcnVudGltZS92MS9wcm9ncmFtcztwcm9ncmFtc192MWIGcHJvdG8z");
+  fileDesc("Cipwcm9ncmFtLXJ1bnRpbWUvdjEvcHJvZ3JhbXMvcHJvZ3JhbXMucHJvdG8SInZyb29saS5wcm9ncmFtX3J1bnRpbWUudjEucHJvZ3JhbXMihgQKB1Byb2dyYW0SCgoCaWQYASABKAkSEgoKc2Vzc2lvbl9pZBgCIAEoCRIOCgZzb3VyY2UYAyABKAkSQgoKcHJvdmVuYW5jZRgEIAEoDjIuLnZyb29saS5wcm9ncmFtX3J1bnRpbWUudjEucHJvZ3JhbXMuUHJvdmVuYW5jZRJBCgZzdGF0dXMYBSABKA4yMS52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLnByb2dyYW1zLlByb2dyYW1TdGF0dXMSDgoGc3Rkb3V0GAYgASgJEhYKDmZhaWx1cmVfZGV0YWlsGAcgASgJEhUKDWZhaWx1cmVfc2hhcGUYCCABKAkSFQoNY29udGV4dF9ieXRlcxgJIAEoAxISCgpjcmVhdGVkX2F0GAogASgJEhoKEm91dHB1dF9saW1pdF9ieXRlcxgLIAEoAxITCgthZ2VudF9ieXRlcxgMIAEoAxIUCgxjb21wbGV0ZWRfYXQYDSABKAkSGAoQd2FsbF90aW1lX21pbGxpcxgOIAEoAxIXCg9jcHVfdGltZV9taWxsaXMYDyABKAMSFwoPbGlicmFyeV92ZXJzaW9uGBAgASgJEkcKDWZhaWx1cmVfY2F1c2UYESABKA4yMC52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLnByb2dyYW1zLkZhaWx1cmVDYXVzZSJiCgpEaWFnbm9zdGljEhAKCHNldmVyaXR5GAEgASgJEgwKBGxpbmUYAiABKAUSDAoEbmFtZRgDIAEoCRIPCgdtZXNzYWdlGAQgASgJEhUKDW5lYXJlc3RfbWF0Y2gYBSABKAkivAEKFFN1Ym1pdFByb2dyYW1SZXF1ZXN0EhIKCnNlc3Npb25faWQYASABKAkSDgoGc291cmNlGAIgASgJEkIKCnByb3ZlbmFuY2UYAyABKA4yLi52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLnByb2dyYW1zLlByb3ZlbmFuY2USHAoUaW5jbHVkZV9tYXRlcmlhbGl6ZWQYBCABKAgSDQoFYXN5bmMYBSABKAgSDwoHZXhwbGFpbhgGIAEoCCKaAQoVU3VibWl0UHJvZ3JhbVJlc3BvbnNlEjwKB3Byb2dyYW0YASABKAsyKy52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLnByb2dyYW1zLlByb2dyYW0SQwoLZGlhZ25vc3RpY3MYAiADKAsyLi52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLnByb2dyYW1zLkRpYWdub3N0aWMiHwoRR2V0UHJvZ3JhbVJlcXVlc3QSCgoCaWQYASABKAkiUgoSR2V0UHJvZ3JhbVJlc3BvbnNlEjwKB3Byb2dyYW0YASABKAsyKy52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLnByb2dyYW1zLlByb2dyYW0iOwoVV2FpdEZvclByb2dyYW1SZXF1ZXN0EgoKAmlkGAEgASgJEhYKDnRpbWVvdXRfbWlsbGlzGAIgASgDIn8KFldhaXRGb3JQcm9ncmFtUmVzcG9uc2USPAoHcHJvZ3JhbRgBIAEoCzIrLnZyb29saS5wcm9ncmFtX3J1bnRpbWUudjEucHJvZ3JhbXMuUHJvZ3JhbRIQCgh0ZXJtaW5hbBgCIAEoCBIVCg13YWl0ZWRfbWlsbGlzGAMgASgDIkMKE0xpc3RQcm9ncmFtc1JlcXVlc3QSEgoKc2Vzc2lvbl9pZBgBIAEoCRIYChBpbmNsdWRlX29wZXJhdG9yGAIgASgIIlUKFExpc3RQcm9ncmFtc1Jlc3BvbnNlEj0KCHByb2dyYW1zGAEgAygLMisudnJvb2xpLnByb2dyYW1fcnVudGltZS52MS5wcm9ncmFtcy5Qcm9ncmFtIi8KE01pbmVGYWlsdXJlc1JlcXVlc3QSGAoQaW5jbHVkZV9vcGVyYXRvchgBIAEoCCJuCgxGYWlsdXJlU2hhcGUSDQoFc2hhcGUYASABKAkSDQoFY291bnQYAiABKAMSEgoKZmlyc3Rfc2VlbhgDIAEoCRIRCglsYXN0X3NlZW4YBCABKAkSGQoRc2FtcGxlX3Byb2dyYW1faWQYBSABKAkiZwoUTWluZUZhaWx1cmVzUmVzcG9uc2USQAoGc2hhcGVzGAEgAygLMjAudnJvb2xpLnByb2dyYW1fcnVudGltZS52MS5wcm9ncmFtcy5GYWlsdXJlU2hhcGUSDQoFY291bnQYAiABKAMiLwoTTWluZVJlZnVzYWxzUmVxdWVzdBIYChBpbmNsdWRlX29wZXJhdG9yGAEgASgIIlQKDFJlZnVzYWxTaGFwZRISCgpiaW5kaW5nX2lkGAEgASgJEg4KBnJlYXNvbhgCIAEoCRINCgVjb3VudBgDIAEoAxIRCglsYXN0X3NlZW4YBCABKAkiZwoUTWluZVJlZnVzYWxzUmVzcG9uc2USQAoGc2hhcGVzGAEgAygLMjAudnJvb2xpLnByb2dyYW1fcnVudGltZS52MS5wcm9ncmFtcy5SZWZ1c2FsU2hhcGUSDQoFY291bnQYAiABKAMiHwodTWluZVVucmVzb2x2ZWRCaW5kaW5nc1JlcXVlc3QiUgoWVW5yZXNvbHZlZEJpbmRpbmdTaGFwZRIWCg5hdHRlbXB0ZWRfbmFtZRgBIAEoCRINCgVjb3VudBgCIAEoAxIRCglsYXN0X3NlZW4YAyABKAkiewoeTWluZVVucmVzb2x2ZWRCaW5kaW5nc1Jlc3BvbnNlEkoKBnNoYXBlcxgBIAMoCzI6LnZyb29saS5wcm9ncmFtX3J1bnRpbWUudjEucHJvZ3JhbXMuVW5yZXNvbHZlZEJpbmRpbmdTaGFwZRINCgVjb3VudBgCIAEoAyI7ChdSdW5BdXRob3JpbmdFdmFsUmVxdWVzdBINCgVzdWl0ZRgBIAEoCRIRCgltYXhfY2FzZXMYAiABKAUihQEKE0F1dGhvcmluZ0Nhc2VSZXN1bHQSDwoHY2FzZV9pZBgBIAEoCRIQCghhdXRob3JlZBgCIAEoCBIYChBmaXJzdF9hdHRlbXB0X29rGAMgASgIEg0KBWNhdXNlGAQgASgJEhMKC2FnZW50X2J5dGVzGAUgASgDEg0KBW1vZGVsGAYgASgJIqcCChhSdW5BdXRob3JpbmdFdmFsUmVzcG9uc2USDQoFc3VpdGUYASABKAkSDgoGc3RhdHVzGAIgASgJEg4KBnJlYXNvbhgDIAEoCRINCgVjYXNlcxgEIAEoBRILCgNtZXQYBSABKAUSDgoGbWlzc2VkGAYgASgFEhQKDHdyb25nX3Jlc3VsdBgHIAEoBRITCgt1bmF2YWlsYWJsZRgIIAEoBRINCgVmbG9vchgJIAEoBRJICgdyZXN1bHRzGAogAygLMjcudnJvb2xpLnByb2dyYW1fcnVudGltZS52MS5wcm9ncmFtcy5BdXRob3JpbmdDYXNlUmVzdWx0EhUKDW5vdF9hdHRlbXB0ZWQYCyABKAUSFQoNaGFybmVzc19zdGFtcBgMIAEoCSqDAQoKUHJvdmVuYW5jZRIaChZQUk9WRU5BTkNFX1VOU1BFQ0lGSUVEEAASFAoQUFJPVkVOQU5DRV9BR0VOVBABEhcKE1BST1ZFTkFOQ0VfT1BFUkFUT1IQAhITCg9QUk9WRU5BTkNFX1RFU1QQAxIVChFQUk9WRU5BTkNFX1JFUExBWRAEKr8BCg1Qcm9ncmFtU3RhdHVzEh4KGlBST0dSQU1fU1RBVFVTX1VOU1BFQ0lGSUVEEAASGwoXUFJPR1JBTV9TVEFUVVNfQUNDRVBURUQQARIaChZQUk9HUkFNX1NUQVRVU19SVU5OSU5HEAISHAoYUFJPR1JBTV9TVEFUVVNfU1VDQ0VFREVEEAMSGQoVUFJPR1JBTV9TVEFUVVNfRkFJTEVEEAQSHAoYUFJPR1JBTV9TVEFUVVNfQ0FOQ0VMTEVEEAUqlwQKDEZhaWx1cmVDYXVzZRIdChlGQUlMVVJFX0NBVVNFX1VOU1BFQ0lGSUVEEAASIQodRkFJTFVSRV9DQVVTRV9VTlJFU09MVkVEX05BTUUQARIfChtGQUlMVVJFX0NBVVNFX1VOS05PV05fRklFTEQQAhIkCiBGQUlMVVJFX0NBVVNFX0FNQklHVU9VU19SRVNQT05TRRADEiYKIkZBSUxVUkVfQ0FVU0VfVU5SRUFDSEFCTEVfU0NFTkFSSU8QBBIiCh5GQUlMVVJFX0NBVVNFX1JFRlVTRURfTk9fR1JBTlQQBRIqCiZGQUlMVVJFX0NBVVNFX1JFRlVTRURfTk9UX1JVTl9FTElHSUJMRRAGEioKJkZBSUxVUkVfQ0FVU0VfSU5GRVJFTkNFX1NQRU5EX0VYQ0VFREVEEAcSLgoqRkFJTFVSRV9DQVVTRV9ERUxFR0FURURfUlVOX1NQRU5EX0VYQ0VFREVEEAgSIwofRkFJTFVSRV9DQVVTRV9ERUFETElORV9FWENFRURFRBAJEh8KG0ZBSUxVUkVfQ0FVU0VfS0VSTkVMX1NZTlRBWBAKEiAKHEZBSUxVUkVfQ0FVU0VfS0VSTkVMX1JVTlRJTUUQCxIiCh5GQUlMVVJFX0NBVVNFX0JSSURHRV9UUkFOU1BPUlQQDBIeChpGQUlMVVJFX0NBVVNFX1VOQ0xBU1NJRklFRBANMtwICg5Qcm9ncmFtU2VydmljZRKEAQoNU3VibWl0UHJvZ3JhbRI4LnZyb29saS5wcm9ncmFtX3J1bnRpbWUudjEucHJvZ3JhbXMuU3VibWl0UHJvZ3JhbVJlcXVlc3QaOS52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLnByb2dyYW1zLlN1Ym1pdFByb2dyYW1SZXNwb25zZRJ7CgpHZXRQcm9ncmFtEjUudnJvb2xpLnByb2dyYW1fcnVudGltZS52MS5wcm9ncmFtcy5HZXRQcm9ncmFtUmVxdWVzdBo2LnZyb29saS5wcm9ncmFtX3J1bnRpbWUudjEucHJvZ3JhbXMuR2V0UHJvZ3JhbVJlc3BvbnNlEocBCg5XYWl0Rm9yUHJvZ3JhbRI5LnZyb29saS5wcm9ncmFtX3J1bnRpbWUudjEucHJvZ3JhbXMuV2FpdEZvclByb2dyYW1SZXF1ZXN0GjoudnJvb2xpLnByb2dyYW1fcnVudGltZS52MS5wcm9ncmFtcy5XYWl0Rm9yUHJvZ3JhbVJlc3BvbnNlEoEBCgxMaXN0UHJvZ3JhbXMSNy52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLnByb2dyYW1zLkxpc3RQcm9ncmFtc1JlcXVlc3QaOC52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLnByb2dyYW1zLkxpc3RQcm9ncmFtc1Jlc3BvbnNlEoEBCgxNaW5lRmFpbHVyZXMSNy52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLnByb2dyYW1zLk1pbmVGYWlsdXJlc1JlcXVlc3QaOC52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLnByb2dyYW1zLk1pbmVGYWlsdXJlc1Jlc3BvbnNlEoEBCgxNaW5lUmVmdXNhbHMSNy52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLnByb2dyYW1zLk1pbmVSZWZ1c2Fsc1JlcXVlc3QaOC52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLnByb2dyYW1zLk1pbmVSZWZ1c2Fsc1Jlc3BvbnNlEp8BChZNaW5lVW5yZXNvbHZlZEJpbmRpbmdzEkEudnJvb2xpLnByb2dyYW1fcnVudGltZS52MS5wcm9ncmFtcy5NaW5lVW5yZXNvbHZlZEJpbmRpbmdzUmVxdWVzdBpCLnZyb29saS5wcm9ncmFtX3J1bnRpbWUudjEucHJvZ3JhbXMuTWluZVVucmVzb2x2ZWRCaW5kaW5nc1Jlc3BvbnNlEo0BChBSdW5BdXRob3JpbmdFdmFsEjsudnJvb2xpLnByb2dyYW1fcnVudGltZS52MS5wcm9ncmFtcy5SdW5BdXRob3JpbmdFdmFsUmVxdWVzdBo8LnZyb29saS5wcm9ncmFtX3J1bnRpbWUudjEucHJvZ3JhbXMuUnVuQXV0aG9yaW5nRXZhbFJlc3BvbnNlQlhaVmdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vcHJvZ3JhbS1ydW50aW1lL3YxL3Byb2dyYW1zO3Byb2dyYW1zX3YxYgZwcm90bzM");
 
 /**
  * @generated from message vrooli.program_runtime.v1.programs.Program
@@ -245,6 +245,75 @@ export const GetProgramResponseSchema: GenMessage<GetProgramResponse> = /*@__PUR
   messageDesc(file_program_runtime_v1_programs_programs, 5);
 
 /**
+ * WaitForProgram blocks server-side until a program reaches a terminal state.
+ *
+ * It exists because the only previous way to await an asynchronous program was
+ * a client-side loop calling GetProgram every 50ms — twenty requests a second
+ * for the whole life of the program. That loop lived in the CLI, so every other
+ * consumer (a workflow step, another scenario, this scenario's own authoring
+ * eval) had to reimplement it, and it contradicted the project rule that a
+ * caller blocks once and never polls.
+ *
+ * @generated from message vrooli.program_runtime.v1.programs.WaitForProgramRequest
+ */
+export type WaitForProgramRequest = Message<"vrooli.program_runtime.v1.programs.WaitForProgramRequest"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * How long to block. Absent or over the runtime ceiling means the ceiling.
+   * Exceeding it is not an error: the current non-terminal program is
+   * returned with terminal=false so the caller can resume the wait, which is a
+   * bounded resumption rather than a busy loop.
+   *
+   * @generated from field: int64 timeout_millis = 2;
+   */
+  timeoutMillis: bigint;
+};
+
+/**
+ * Describes the message vrooli.program_runtime.v1.programs.WaitForProgramRequest.
+ * Use `create(WaitForProgramRequestSchema)` to create a new message.
+ */
+export const WaitForProgramRequestSchema: GenMessage<WaitForProgramRequest> = /*@__PURE__*/
+  messageDesc(file_program_runtime_v1_programs_programs, 6);
+
+/**
+ * @generated from message vrooli.program_runtime.v1.programs.WaitForProgramResponse
+ */
+export type WaitForProgramResponse = Message<"vrooli.program_runtime.v1.programs.WaitForProgramResponse"> & {
+  /**
+   * @generated from field: vrooli.program_runtime.v1.programs.Program program = 1;
+   */
+  program?: Program | undefined;
+
+  /**
+   * False when the wait returned at its deadline rather than at a terminal
+   * state. A caller that needs longer waits again on the same id.
+   *
+   * @generated from field: bool terminal = 2;
+   */
+  terminal: boolean;
+
+  /**
+   * The deadline actually applied after clamping, so a caller can tell that
+   * its requested timeout was bounded by the runtime.
+   *
+   * @generated from field: int64 waited_millis = 3;
+   */
+  waitedMillis: bigint;
+};
+
+/**
+ * Describes the message vrooli.program_runtime.v1.programs.WaitForProgramResponse.
+ * Use `create(WaitForProgramResponseSchema)` to create a new message.
+ */
+export const WaitForProgramResponseSchema: GenMessage<WaitForProgramResponse> = /*@__PURE__*/
+  messageDesc(file_program_runtime_v1_programs_programs, 7);
+
+/**
  * @generated from message vrooli.program_runtime.v1.programs.ListProgramsRequest
  */
 export type ListProgramsRequest = Message<"vrooli.program_runtime.v1.programs.ListProgramsRequest"> & {
@@ -264,7 +333,7 @@ export type ListProgramsRequest = Message<"vrooli.program_runtime.v1.programs.Li
  * Use `create(ListProgramsRequestSchema)` to create a new message.
  */
 export const ListProgramsRequestSchema: GenMessage<ListProgramsRequest> = /*@__PURE__*/
-  messageDesc(file_program_runtime_v1_programs_programs, 6);
+  messageDesc(file_program_runtime_v1_programs_programs, 8);
 
 /**
  * @generated from message vrooli.program_runtime.v1.programs.ListProgramsResponse
@@ -281,7 +350,7 @@ export type ListProgramsResponse = Message<"vrooli.program_runtime.v1.programs.L
  * Use `create(ListProgramsResponseSchema)` to create a new message.
  */
 export const ListProgramsResponseSchema: GenMessage<ListProgramsResponse> = /*@__PURE__*/
-  messageDesc(file_program_runtime_v1_programs_programs, 7);
+  messageDesc(file_program_runtime_v1_programs_programs, 9);
 
 /**
  * @generated from message vrooli.program_runtime.v1.programs.MineFailuresRequest
@@ -298,7 +367,7 @@ export type MineFailuresRequest = Message<"vrooli.program_runtime.v1.programs.Mi
  * Use `create(MineFailuresRequestSchema)` to create a new message.
  */
 export const MineFailuresRequestSchema: GenMessage<MineFailuresRequest> = /*@__PURE__*/
-  messageDesc(file_program_runtime_v1_programs_programs, 8);
+  messageDesc(file_program_runtime_v1_programs_programs, 10);
 
 /**
  * @generated from message vrooli.program_runtime.v1.programs.FailureShape
@@ -335,7 +404,7 @@ export type FailureShape = Message<"vrooli.program_runtime.v1.programs.FailureSh
  * Use `create(FailureShapeSchema)` to create a new message.
  */
 export const FailureShapeSchema: GenMessage<FailureShape> = /*@__PURE__*/
-  messageDesc(file_program_runtime_v1_programs_programs, 9);
+  messageDesc(file_program_runtime_v1_programs_programs, 11);
 
 /**
  * @generated from message vrooli.program_runtime.v1.programs.MineFailuresResponse
@@ -357,7 +426,7 @@ export type MineFailuresResponse = Message<"vrooli.program_runtime.v1.programs.M
  * Use `create(MineFailuresResponseSchema)` to create a new message.
  */
 export const MineFailuresResponseSchema: GenMessage<MineFailuresResponse> = /*@__PURE__*/
-  messageDesc(file_program_runtime_v1_programs_programs, 10);
+  messageDesc(file_program_runtime_v1_programs_programs, 12);
 
 /**
  * @generated from message vrooli.program_runtime.v1.programs.MineRefusalsRequest
@@ -374,7 +443,7 @@ export type MineRefusalsRequest = Message<"vrooli.program_runtime.v1.programs.Mi
  * Use `create(MineRefusalsRequestSchema)` to create a new message.
  */
 export const MineRefusalsRequestSchema: GenMessage<MineRefusalsRequest> = /*@__PURE__*/
-  messageDesc(file_program_runtime_v1_programs_programs, 11);
+  messageDesc(file_program_runtime_v1_programs_programs, 13);
 
 /**
  * @generated from message vrooli.program_runtime.v1.programs.RefusalShape
@@ -406,7 +475,7 @@ export type RefusalShape = Message<"vrooli.program_runtime.v1.programs.RefusalSh
  * Use `create(RefusalShapeSchema)` to create a new message.
  */
 export const RefusalShapeSchema: GenMessage<RefusalShape> = /*@__PURE__*/
-  messageDesc(file_program_runtime_v1_programs_programs, 12);
+  messageDesc(file_program_runtime_v1_programs_programs, 14);
 
 /**
  * @generated from message vrooli.program_runtime.v1.programs.MineRefusalsResponse
@@ -428,7 +497,7 @@ export type MineRefusalsResponse = Message<"vrooli.program_runtime.v1.programs.M
  * Use `create(MineRefusalsResponseSchema)` to create a new message.
  */
 export const MineRefusalsResponseSchema: GenMessage<MineRefusalsResponse> = /*@__PURE__*/
-  messageDesc(file_program_runtime_v1_programs_programs, 13);
+  messageDesc(file_program_runtime_v1_programs_programs, 15);
 
 /**
  * @generated from message vrooli.program_runtime.v1.programs.MineUnresolvedBindingsRequest
@@ -441,7 +510,7 @@ export type MineUnresolvedBindingsRequest = Message<"vrooli.program_runtime.v1.p
  * Use `create(MineUnresolvedBindingsRequestSchema)` to create a new message.
  */
 export const MineUnresolvedBindingsRequestSchema: GenMessage<MineUnresolvedBindingsRequest> = /*@__PURE__*/
-  messageDesc(file_program_runtime_v1_programs_programs, 14);
+  messageDesc(file_program_runtime_v1_programs_programs, 16);
 
 /**
  * @generated from message vrooli.program_runtime.v1.programs.UnresolvedBindingShape
@@ -468,7 +537,7 @@ export type UnresolvedBindingShape = Message<"vrooli.program_runtime.v1.programs
  * Use `create(UnresolvedBindingShapeSchema)` to create a new message.
  */
 export const UnresolvedBindingShapeSchema: GenMessage<UnresolvedBindingShape> = /*@__PURE__*/
-  messageDesc(file_program_runtime_v1_programs_programs, 15);
+  messageDesc(file_program_runtime_v1_programs_programs, 17);
 
 /**
  * @generated from message vrooli.program_runtime.v1.programs.MineUnresolvedBindingsResponse
@@ -490,7 +559,7 @@ export type MineUnresolvedBindingsResponse = Message<"vrooli.program_runtime.v1.
  * Use `create(MineUnresolvedBindingsResponseSchema)` to create a new message.
  */
 export const MineUnresolvedBindingsResponseSchema: GenMessage<MineUnresolvedBindingsResponse> = /*@__PURE__*/
-  messageDesc(file_program_runtime_v1_programs_programs, 16);
+  messageDesc(file_program_runtime_v1_programs_programs, 18);
 
 /**
  * @generated from message vrooli.program_runtime.v1.programs.RunAuthoringEvalRequest
@@ -512,7 +581,7 @@ export type RunAuthoringEvalRequest = Message<"vrooli.program_runtime.v1.program
  * Use `create(RunAuthoringEvalRequestSchema)` to create a new message.
  */
 export const RunAuthoringEvalRequestSchema: GenMessage<RunAuthoringEvalRequest> = /*@__PURE__*/
-  messageDesc(file_program_runtime_v1_programs_programs, 17);
+  messageDesc(file_program_runtime_v1_programs_programs, 19);
 
 /**
  * @generated from message vrooli.program_runtime.v1.programs.AuthoringCaseResult
@@ -554,7 +623,7 @@ export type AuthoringCaseResult = Message<"vrooli.program_runtime.v1.programs.Au
  * Use `create(AuthoringCaseResultSchema)` to create a new message.
  */
 export const AuthoringCaseResultSchema: GenMessage<AuthoringCaseResult> = /*@__PURE__*/
-  messageDesc(file_program_runtime_v1_programs_programs, 18);
+  messageDesc(file_program_runtime_v1_programs_programs, 20);
 
 /**
  * @generated from message vrooli.program_runtime.v1.programs.RunAuthoringEvalResponse
@@ -609,6 +678,22 @@ export type RunAuthoringEvalResponse = Message<"vrooli.program_runtime.v1.progra
    * @generated from field: repeated vrooli.program_runtime.v1.programs.AuthoringCaseResult results = 10;
    */
   results: AuthoringCaseResult[];
+
+  /**
+   * Cases skipped because the response deadline approached. A partial run
+   * states this instead of reporting a low score as a whole-corpus result.
+   *
+   * @generated from field: int32 not_attempted = 11;
+   */
+  notAttempted: number;
+
+  /**
+   * The brief version this score was measured against. Two runs are comparable
+   * only when their stamps match.
+   *
+   * @generated from field: string harness_stamp = 12;
+   */
+  harnessStamp: string;
 };
 
 /**
@@ -616,7 +701,7 @@ export type RunAuthoringEvalResponse = Message<"vrooli.program_runtime.v1.progra
  * Use `create(RunAuthoringEvalResponseSchema)` to create a new message.
  */
 export const RunAuthoringEvalResponseSchema: GenMessage<RunAuthoringEvalResponse> = /*@__PURE__*/
-  messageDesc(file_program_runtime_v1_programs_programs, 19);
+  messageDesc(file_program_runtime_v1_programs_programs, 21);
 
 /**
  * @generated from enum vrooli.program_runtime.v1.programs.Provenance
@@ -795,6 +880,14 @@ export const ProgramService: GenService<{
     methodKind: "unary";
     input: typeof GetProgramRequestSchema;
     output: typeof GetProgramResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.program_runtime.v1.programs.ProgramService.WaitForProgram
+   */
+  waitForProgram: {
+    methodKind: "unary";
+    input: typeof WaitForProgramRequestSchema;
+    output: typeof WaitForProgramResponseSchema;
   },
   /**
    * @generated from rpc vrooli.program_runtime.v1.programs.ProgramService.ListPrograms

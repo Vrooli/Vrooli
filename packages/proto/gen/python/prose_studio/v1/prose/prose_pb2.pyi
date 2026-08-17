@@ -520,6 +520,18 @@ class AssembleDocumentResponse(_message.Message):
     document: Document
     def __init__(self, document: _Optional[_Union[Document, _Mapping]] = ...) -> None: ...
 
+class ResumeDocumentRequest(_message.Message):
+    __slots__ = ("id",)
+    ID_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    def __init__(self, id: _Optional[str] = ...) -> None: ...
+
+class ResumeDocumentResponse(_message.Message):
+    __slots__ = ("document",)
+    DOCUMENT_FIELD_NUMBER: _ClassVar[int]
+    document: Document
+    def __init__(self, document: _Optional[_Union[Document, _Mapping]] = ...) -> None: ...
+
 class ConformanceRequest(_message.Message):
     __slots__ = ("style_key", "text")
     STYLE_KEY_FIELD_NUMBER: _ClassVar[int]

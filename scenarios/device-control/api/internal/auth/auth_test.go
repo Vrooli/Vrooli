@@ -15,17 +15,21 @@ import (
 
 type fakeResolver struct {
 	value        string
+	identity     string
+	field        string
 	status       ProviderStatus
 	err          error
 	resolveCalls int
 }
 
-func (f *fakeResolver) Provision(_ context.Context, _, _, value string) error {
+func (f *fakeResolver) Provision(_ context.Context, identity, field, value string) error {
+	f.identity, f.field = identity, field
 	f.value, f.status.Configured = value, true
 	return nil
 }
 
-func (f *fakeResolver) Resolve(context.Context, string, string) (string, error) {
+func (f *fakeResolver) Resolve(_ context.Context, identity, field string) (string, error) {
+	f.identity, f.field = identity, field
 	f.resolveCalls++
 	return f.value, f.err
 }
@@ -67,6 +71,19 @@ func TestProfilePersistenceNeverStoresCredentialMaterial(t *testing.T) {
 		values = append(values, v[:]...)
 	}
 	require.NotContains(t, values, "runtime-only-fixture")
+}
+
+func TestPairingCertificateUsesCredentialAuthority(t *testing.T) {
+	resolver := &fakeResolver{status: ProviderStatus{ProviderState: "available"}}
+	store, err := NewStore(nil, resolver)
+	require.NoError(t, err)
+	bundle := []byte(`{"certificate":"fixture-cert","private_key":"fixture-key"}`)
+	require.NoError(t, store.SavePairingCertificate(context.Background(), "TV-Serial", bundle))
+	loaded, err := store.LoadPairingCertificate(context.Background(), "TV-Serial")
+	require.NoError(t, err)
+	require.Equal(t, bundle, loaded)
+	require.Equal(t, CredentialNamespace+"android-tv-remote/tv-serial", resolver.identity)
+	require.Equal(t, "pairing_certificate", resolver.field)
 }
 
 func TestProfileUpdateChangesMetadataWithoutResolvingCredential(t *testing.T) {

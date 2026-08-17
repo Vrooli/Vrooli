@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file ai-gateway/v1/inference/inference.proto.
  */
 export const file_ai_gateway_v1_inference_inference: GenFile = /*@__PURE__*/
-  fileDesc("CidhaS1nYXRld2F5L3YxL2luZmVyZW5jZS9pbmZlcmVuY2UucHJvdG8SHnZyb29saS5haV9nYXRld2F5LnYxLmluZmVyZW5jZSJJCgVVc2FnZRIUCgxpbnB1dF90b2tlbnMYASABKAMSFQoNb3V0cHV0X3Rva2VucxgCIAEoAxITCgtjb3N0X21pY3JvcxgDIAEoAyJ2Cg5JbmZlcmVuY2VFcnJvchJACgRjb2RlGAEgASgOMjIudnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLkluZmVyZW5jZUVycm9yQ29kZRIPCgdtZXNzYWdlGAIgASgJEhEKCWNvbnN0cnVjdBgDIAEoCSJgCgRUdXJuEgwKBHJvbGUYASABKAkSDAoEdGV4dBgCIAEoCRI8CgthdHRhY2htZW50cxgDIAMoCzInLnZyb29saS5haV9nYXRld2F5LnYxLnNoYXJlZC5BdHRhY2htZW50ItoCCgpSdW5SZXF1ZXN0Eg4KBnNvdXJjZRgBIAEoCRITCgtzY2hlbWFfanNvbhgCIAEoCRITCgtpbnN0cnVjdGlvbhgDIAEoCRIMCgRyb2xlGAQgASgJEjMKBXR1cm5zGAUgAygLMiQudnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLlR1cm4SPAoLYXR0YWNobWVudHMYBiADKAsyJy52cm9vbGkuYWlfZ2F0ZXdheS52MS5zaGFyZWQuQXR0YWNobWVudBI1Cgdwcm9maWxlGAcgASgOMiQudnJvb2xpLmFpX2dhdGV3YXkudjEuc2hhcmVkLlByb2ZpbGUSPwoIc2FtcGxpbmcYCCABKAsyLS52cm9vbGkuYWlfZ2F0ZXdheS52MS5zaGFyZWQuU2FtcGxpbmdDb250cm9scxIZChFtYXhfb3V0cHV0X3Rva2VucxgJIAEoBSKJAgoLUnVuUmVzcG9uc2USEgoKdmFsdWVfanNvbhgBIAEoCRIQCghwcm92aWRlchgCIAEoCRINCgVtb2RlbBgDIAEoCRIRCgl2YWxpZGF0ZWQYBCABKAgSNAoFdXNhZ2UYBSABKAsyJS52cm9vbGkuYWlfZ2F0ZXdheS52MS5pbmZlcmVuY2UuVXNhZ2USPQoFZXJyb3IYBiABKAsyLi52cm9vbGkuYWlfZ2F0ZXdheS52MS5pbmZlcmVuY2UuSW5mZXJlbmNlRXJyb3ISPQoHYXBwbGllZBgHIAEoCzIsLnZyb29saS5haV9nYXRld2F5LnYxLnNoYXJlZC5BcHBsaWVkU2V0dGluZ3MiHgoMUnVuQmF0Y2hJdGVtEg4KBnNvdXJjZRgBIAEoCSKGAQoPUnVuQmF0Y2hSZXF1ZXN0EjsKBWl0ZW1zGAEgAygLMiwudnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLlJ1bkJhdGNoSXRlbRITCgtzY2hlbWFfanNvbhgCIAEoCRITCgtpbnN0cnVjdGlvbhgDIAEoCRIMCgRyb2xlGAQgASgJIoYBChBSdW5CYXRjaFJlc3BvbnNlEjwKB3Jlc3VsdHMYASADKAsyKy52cm9vbGkuYWlfZ2F0ZXdheS52MS5pbmZlcmVuY2UuUnVuUmVzcG9uc2USNAoFdXNhZ2UYAiABKAsyJS52cm9vbGkuYWlfZ2F0ZXdheS52MS5pbmZlcmVuY2UuVXNhZ2Uq5wIKEkluZmVyZW5jZUVycm9yQ29kZRIkCiBJTkZFUkVOQ0VfRVJST1JfQ09ERV9VTlNQRUNJRklFRBAAEiQKIElORkVSRU5DRV9FUlJPUl9DT0RFX1VOQVZBSUxBQkxFEAESKAokSU5GRVJFTkNFX0VSUk9SX0NPREVfSU5WQUxJRF9SRVFVRVNUEAISKwonSU5GRVJFTkNFX0VSUk9SX0NPREVfVU5TVVBQT1JURURfU0NIRU1BEAMSKgomSU5GRVJFTkNFX0VSUk9SX0NPREVfVkFMSURBVElPTl9GQUlMRUQQBBIoCiRJTkZFUkVOQ0VfRVJST1JfQ09ERV9QUk9WSURFUl9GQUlMRUQQBRItCilJTkZFUkVOQ0VfRVJST1JfQ09ERV9VTlNVUFBPUlRFRF9TQU1QTElORxAGEikKJUlORkVSRU5DRV9FUlJPUl9DT0RFX0NPTlRFWFRfT1ZFUkZMT1cQBzLhAQoQSW5mZXJlbmNlU2VydmljZRJeCgNSdW4SKi52cm9vbGkuYWlfZ2F0ZXdheS52MS5pbmZlcmVuY2UuUnVuUmVxdWVzdBorLnZyb29saS5haV9nYXRld2F5LnYxLmluZmVyZW5jZS5SdW5SZXNwb25zZRJtCghSdW5CYXRjaBIvLnZyb29saS5haV9nYXRld2F5LnYxLmluZmVyZW5jZS5SdW5CYXRjaFJlcXVlc3QaMC52cm9vbGkuYWlfZ2F0ZXdheS52MS5pbmZlcmVuY2UuUnVuQmF0Y2hSZXNwb25zZUJVWlNnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2FpLWdhdGV3YXkvdjEvaW5mZXJlbmNlO2luZmVyZW5jZV92MWIGcHJvdG8z", [file_ai_gateway_v1_shared_gateway]);
+  fileDesc("CidhaS1nYXRld2F5L3YxL2luZmVyZW5jZS9pbmZlcmVuY2UucHJvdG8SHnZyb29saS5haV9nYXRld2F5LnYxLmluZmVyZW5jZSJJCgVVc2FnZRIUCgxpbnB1dF90b2tlbnMYASABKAMSFQoNb3V0cHV0X3Rva2VucxgCIAEoAxITCgtjb3N0X21pY3JvcxgDIAEoAyJ2Cg5JbmZlcmVuY2VFcnJvchJACgRjb2RlGAEgASgOMjIudnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLkluZmVyZW5jZUVycm9yQ29kZRIPCgdtZXNzYWdlGAIgASgJEhEKCWNvbnN0cnVjdBgDIAEoCSJgCgRUdXJuEgwKBHJvbGUYASABKAkSDAoEdGV4dBgCIAEoCRI8CgthdHRhY2htZW50cxgDIAMoCzInLnZyb29saS5haV9nYXRld2F5LnYxLnNoYXJlZC5BdHRhY2htZW50ItoCCgpSdW5SZXF1ZXN0Eg4KBnNvdXJjZRgBIAEoCRITCgtzY2hlbWFfanNvbhgCIAEoCRITCgtpbnN0cnVjdGlvbhgDIAEoCRIMCgRyb2xlGAQgASgJEjMKBXR1cm5zGAUgAygLMiQudnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLlR1cm4SPAoLYXR0YWNobWVudHMYBiADKAsyJy52cm9vbGkuYWlfZ2F0ZXdheS52MS5zaGFyZWQuQXR0YWNobWVudBI1Cgdwcm9maWxlGAcgASgOMiQudnJvb2xpLmFpX2dhdGV3YXkudjEuc2hhcmVkLlByb2ZpbGUSPwoIc2FtcGxpbmcYCCABKAsyLS52cm9vbGkuYWlfZ2F0ZXdheS52MS5zaGFyZWQuU2FtcGxpbmdDb250cm9scxIZChFtYXhfb3V0cHV0X3Rva2VucxgJIAEoBSKJAgoLUnVuUmVzcG9uc2USEgoKdmFsdWVfanNvbhgBIAEoCRIQCghwcm92aWRlchgCIAEoCRINCgVtb2RlbBgDIAEoCRIRCgl2YWxpZGF0ZWQYBCABKAgSNAoFdXNhZ2UYBSABKAsyJS52cm9vbGkuYWlfZ2F0ZXdheS52MS5pbmZlcmVuY2UuVXNhZ2USPQoFZXJyb3IYBiABKAsyLi52cm9vbGkuYWlfZ2F0ZXdheS52MS5pbmZlcmVuY2UuSW5mZXJlbmNlRXJyb3ISPQoHYXBwbGllZBgHIAEoCzIsLnZyb29saS5haV9nYXRld2F5LnYxLnNoYXJlZC5BcHBsaWVkU2V0dGluZ3MiHgoMUnVuQmF0Y2hJdGVtEg4KBnNvdXJjZRgBIAEoCSKGAQoPUnVuQmF0Y2hSZXF1ZXN0EjsKBWl0ZW1zGAEgAygLMiwudnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLlJ1bkJhdGNoSXRlbRITCgtzY2hlbWFfanNvbhgCIAEoCRITCgtpbnN0cnVjdGlvbhgDIAEoCRIMCgRyb2xlGAQgASgJIoYBChBSdW5CYXRjaFJlc3BvbnNlEjwKB3Jlc3VsdHMYASADKAsyKy52cm9vbGkuYWlfZ2F0ZXdheS52MS5pbmZlcmVuY2UuUnVuUmVzcG9uc2USNAoFdXNhZ2UYAiABKAsyJS52cm9vbGkuYWlfZ2F0ZXdheS52MS5pbmZlcmVuY2UuVXNhZ2UibAoMRW1iZWRSZXF1ZXN0Eg0KBXRleHRzGAEgAygJEgwKBHJvbGUYAiABKAkSPwoIc2FtcGxpbmcYAyABKAsyLS52cm9vbGkuYWlfZ2F0ZXdheS52MS5zaGFyZWQuU2FtcGxpbmdDb250cm9scyL6AQoNRW1iZWRSZXNwb25zZRJACgd2ZWN0b3JzGAEgAygLMi8udnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLkVtYmVkZGluZ1ZlY3RvchIQCghwcm92aWRlchgCIAEoCRINCgVtb2RlbBgDIAEoCRIRCglkaW1lbnNpb24YBCABKAUSNAoFdXNhZ2UYBSABKAsyJS52cm9vbGkuYWlfZ2F0ZXdheS52MS5pbmZlcmVuY2UuVXNhZ2USPQoFZXJyb3IYBiABKAsyLi52cm9vbGkuYWlfZ2F0ZXdheS52MS5pbmZlcmVuY2UuSW5mZXJlbmNlRXJyb3IiIQoPRW1iZWRkaW5nVmVjdG9yEg4KBnZhbHVlcxgBIAMoASrnAgoSSW5mZXJlbmNlRXJyb3JDb2RlEiQKIElORkVSRU5DRV9FUlJPUl9DT0RFX1VOU1BFQ0lGSUVEEAASJAogSU5GRVJFTkNFX0VSUk9SX0NPREVfVU5BVkFJTEFCTEUQARIoCiRJTkZFUkVOQ0VfRVJST1JfQ09ERV9JTlZBTElEX1JFUVVFU1QQAhIrCidJTkZFUkVOQ0VfRVJST1JfQ09ERV9VTlNVUFBPUlRFRF9TQ0hFTUEQAxIqCiZJTkZFUkVOQ0VfRVJST1JfQ09ERV9WQUxJREFUSU9OX0ZBSUxFRBAEEigKJElORkVSRU5DRV9FUlJPUl9DT0RFX1BST1ZJREVSX0ZBSUxFRBAFEi0KKUlORkVSRU5DRV9FUlJPUl9DT0RFX1VOU1VQUE9SVEVEX1NBTVBMSU5HEAYSKQolSU5GRVJFTkNFX0VSUk9SX0NPREVfQ09OVEVYVF9PVkVSRkxPVxAHMscCChBJbmZlcmVuY2VTZXJ2aWNlEl4KA1J1bhIqLnZyb29saS5haV9nYXRld2F5LnYxLmluZmVyZW5jZS5SdW5SZXF1ZXN0GisudnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLlJ1blJlc3BvbnNlEm0KCFJ1bkJhdGNoEi8udnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLlJ1bkJhdGNoUmVxdWVzdBowLnZyb29saS5haV9nYXRld2F5LnYxLmluZmVyZW5jZS5SdW5CYXRjaFJlc3BvbnNlEmQKBUVtYmVkEiwudnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLkVtYmVkUmVxdWVzdBotLnZyb29saS5haV9nYXRld2F5LnYxLmluZmVyZW5jZS5FbWJlZFJlc3BvbnNlQlVaU2dpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vYWktZ2F0ZXdheS92MS9pbmZlcmVuY2U7aW5mZXJlbmNlX3YxYgZwcm90bzM", [file_ai_gateway_v1_shared_gateway]);
 
 /**
  * Usage is the provider-reported accounting for one inference operation.
@@ -309,6 +309,94 @@ export const RunBatchResponseSchema: GenMessage<RunBatchResponse> = /*@__PURE__*
   messageDesc(file_ai_gateway_v1_inference_inference, 7);
 
 /**
+ * @generated from message vrooli.ai_gateway.v1.inference.EmbedRequest
+ */
+export type EmbedRequest = Message<"vrooli.ai_gateway.v1.inference.EmbedRequest"> & {
+  /**
+   * @generated from field: repeated string texts = 1;
+   */
+  texts: string[];
+
+  /**
+   * @generated from field: string role = 2;
+   */
+  role: string;
+
+  /**
+   * Embeddings are deterministic. Presence is rejected as an invalid request.
+   *
+   * @generated from field: vrooli.ai_gateway.v1.shared.SamplingControls sampling = 3;
+   */
+  sampling?: SamplingControls | undefined;
+};
+
+/**
+ * Describes the message vrooli.ai_gateway.v1.inference.EmbedRequest.
+ * Use `create(EmbedRequestSchema)` to create a new message.
+ */
+export const EmbedRequestSchema: GenMessage<EmbedRequest> = /*@__PURE__*/
+  messageDesc(file_ai_gateway_v1_inference_inference, 8);
+
+/**
+ * @generated from message vrooli.ai_gateway.v1.inference.EmbedResponse
+ */
+export type EmbedResponse = Message<"vrooli.ai_gateway.v1.inference.EmbedResponse"> & {
+  /**
+   * @generated from field: repeated vrooli.ai_gateway.v1.inference.EmbeddingVector vectors = 1;
+   */
+  vectors: EmbeddingVector[];
+
+  /**
+   * @generated from field: string provider = 2;
+   */
+  provider: string;
+
+  /**
+   * @generated from field: string model = 3;
+   */
+  model: string;
+
+  /**
+   * @generated from field: int32 dimension = 4;
+   */
+  dimension: number;
+
+  /**
+   * @generated from field: vrooli.ai_gateway.v1.inference.Usage usage = 5;
+   */
+  usage?: Usage | undefined;
+
+  /**
+   * @generated from field: vrooli.ai_gateway.v1.inference.InferenceError error = 6;
+   */
+  error?: InferenceError | undefined;
+};
+
+/**
+ * Describes the message vrooli.ai_gateway.v1.inference.EmbedResponse.
+ * Use `create(EmbedResponseSchema)` to create a new message.
+ */
+export const EmbedResponseSchema: GenMessage<EmbedResponse> = /*@__PURE__*/
+  messageDesc(file_ai_gateway_v1_inference_inference, 9);
+
+/**
+ * @generated from message vrooli.ai_gateway.v1.inference.EmbeddingVector
+ */
+export type EmbeddingVector = Message<"vrooli.ai_gateway.v1.inference.EmbeddingVector"> & {
+  /**
+   * @generated from field: repeated double values = 1;
+   */
+  values: number[];
+};
+
+/**
+ * Describes the message vrooli.ai_gateway.v1.inference.EmbeddingVector.
+ * Use `create(EmbeddingVectorSchema)` to create a new message.
+ */
+export const EmbeddingVectorSchema: GenMessage<EmbeddingVector> = /*@__PURE__*/
+  messageDesc(file_ai_gateway_v1_inference_inference, 10);
+
+/**
  * @generated from enum vrooli.ai_gateway.v1.inference.InferenceErrorCode
  */
 export enum InferenceErrorCode {
@@ -391,6 +479,14 @@ export const InferenceService: GenService<{
     methodKind: "unary";
     input: typeof RunBatchRequestSchema;
     output: typeof RunBatchResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.ai_gateway.v1.inference.InferenceService.Embed
+   */
+  embed: {
+    methodKind: "unary";
+    input: typeof EmbedRequestSchema;
+    output: typeof EmbedResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_ai_gateway_v1_inference_inference, 0);

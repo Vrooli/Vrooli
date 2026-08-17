@@ -84,6 +84,31 @@ message GetProgramRequest {
 message GetProgramResponse {
   Program program = 1;
 }
+// WaitForProgram blocks server-side until a program reaches a terminal state.
+//
+// It exists because the only previous way to await an asynchronous program was
+// a client-side loop calling GetProgram every 50ms — twenty requests a second
+// for the whole life of the program. That loop lived in the CLI, so every other
+// consumer (a workflow step, another scenario, this scenario's own authoring
+// eval) had to reimplement it, and it contradicted the project rule that a
+// caller blocks once and never polls.
+message WaitForProgramRequest {
+  string id = 1;
+  // How long to block. Absent or over the runtime ceiling means the ceiling.
+  // Exceeding it is not an error: the current non-terminal program is
+  // returned with terminal=false so the caller can resume the wait, which is a
+  // bounded resumption rather than a busy loop.
+  int64 timeout_millis = 2;
+}
+message WaitForProgramResponse {
+  Program program = 1;
+  // False when the wait returned at its deadline rather than at a terminal
+  // state. A caller that needs longer waits again on the same id.
+  bool terminal = 2;
+  // The deadline actually applied after clamping, so a caller can tell that
+  // its requested timeout was bounded by the runtime.
+  int64 waited_millis = 3;
+}
 message ListProgramsRequest {
   string session_id = 1;
   bool include_operator = 2;
@@ -154,11 +179,18 @@ message RunAuthoringEvalResponse {
   int32 unavailable = 8;
   int32 floor = 9;
   repeated AuthoringCaseResult results = 10;
+  // Cases skipped because the response deadline approached. A partial run
+  // states this instead of reporting a low score as a whole-corpus result.
+  int32 not_attempted = 11;
+  // The brief version this score was measured against. Two runs are comparable
+  // only when their stamps match.
+  string harness_stamp = 12;
 }
 
 service ProgramService {
   rpc SubmitProgram(SubmitProgramRequest) returns (SubmitProgramResponse);
   rpc GetProgram(GetProgramRequest) returns (GetProgramResponse);
+  rpc WaitForProgram(WaitForProgramRequest) returns (WaitForProgramResponse);
   rpc ListPrograms(ListProgramsRequest) returns (ListProgramsResponse);
   rpc MineFailures(MineFailuresRequest) returns (MineFailuresResponse);
   rpc MineRefusals(MineRefusalsRequest) returns (MineRefusalsResponse);

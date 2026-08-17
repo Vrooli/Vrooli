@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"reflect"
 	"strings"
 	"time"
 
@@ -29,6 +30,32 @@ func (s *Service) Validate(ctx context.Context, flow Flow, strategyID string) Ga
 		return GapReport{Gaps: []string{"unknown strategy " + strategyID}}
 	}
 	return validateAgainstDeclaration(ctx, flow, d)
+}
+
+func observedStateKey(deviceID, transport, attribute string) string {
+	return deviceID + "\x00" + transport + "\x00" + attribute
+}
+
+func (s *Service) rememberObservedState(deviceID, transport, attribute string, value any) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.observedStates == nil {
+		s.observedStates = map[string]any{}
+	}
+	s.observedStates[observedStateKey(deviceID, transport, attribute)] = value
+}
+
+func (s *Service) observeState(deviceID, transport, attribute string, value any) (old any, changed, hadPrevious bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.observedStates == nil {
+		s.observedStates = map[string]any{}
+	}
+	key := observedStateKey(deviceID, transport, attribute)
+	old, hadPrevious = s.observedStates[key]
+	changed = hadPrevious && !reflect.DeepEqual(old, value)
+	s.observedStates[key] = value
+	return old, changed, hadPrevious
 }
 
 func validateAgainstDeclaration(ctx context.Context, flow Flow, d strategy.Strategy) GapReport {
@@ -56,6 +83,10 @@ func validateAgainstDeclaration(ctx context.Context, flow Flow, d strategy.Strat
 				g.Runnable = false
 				g.Gaps = append(g.Gaps, fmt.Sprintf("step %s requires %s (%s)", step.ID, cap, decl.Capabilities[cap].NextAction))
 			}
+		}
+		if capability, ok := capabilityForDerivedStep(step.Kind); ok && decl.Capabilities[capability].Status != strategy.StatusAvailable {
+			g.Runnable = false
+			g.Gaps = append(g.Gaps, fmt.Sprintf("step %s requires %s (%s)", step.ID, capability, decl.Capabilities[capability].Reason))
 		}
 	}
 	return g
@@ -93,6 +124,14 @@ func (s *Service) execute(ctx context.Context, flow Flow, deviceID, actor string
 			return RunResult{}, fmt.Errorf("unknown device %q", deviceID)
 		}
 		return RunResult{}, fmt.Errorf("transport %q is unavailable for device %q; request usb or promote the device before requesting wireless", flow.Transport, deviceID)
+	}
+	if strings.TrimSpace(flow.Transport) == "" {
+		if record, found := s.devices.Get(deviceID); found {
+			flow.Transport = record.Transport
+			if strings.EqualFold(flow.Transport, "wireless") {
+				flow.Transport = "usb"
+			}
+		}
 	}
 	g := validateAgainstDeclaration(ctx, flow, strat)
 	if !g.Runnable {
@@ -222,11 +261,22 @@ func (s *Service) execute(ctx context.Context, flow Flow, deviceID, actor string
 		return nil
 	}
 	var previousFrame, lastFrame []byte
+	stepCausationID := ""
 	dispatch := func(stepctx context.Context, event strategy.Actuation) error {
 		if flow.SuppressActuation {
 			return nil
 		}
-		return strat.Actuate(stepctx, event)
+		actuator, ok := strat.(strategy.InputActuator)
+		if !ok {
+			return &strategy.UnsupportedCapabilityError{Capability: strategy.CapInput, Operation: "actuate"}
+		}
+		if strings.TrimSpace(event.CausationID) == "" {
+			event.CausationID = stepCausationID
+			if event.CausationID == "" {
+				event.CausationID = uuid.NewString()
+			}
+		}
+		return actuator.Actuate(stepctx, event)
 	}
 	for _, step := range flow.Steps {
 		chapter := Chapter{ID: step.ID, Title: step.Kind, Disposition: "passed", Message: "completed"}
@@ -241,6 +291,7 @@ func (s *Service) execute(ctx context.Context, flow Flow, deviceID, actor string
 			step.TimeoutMS = 30000
 		}
 		stepctx, cancel := context.WithTimeout(runctx, time.Duration(step.TimeoutMS)*time.Millisecond)
+		stepCausationID = uuid.NewString()
 		var stepErr error
 		redactionVerified := true
 		if requiresVisibleSurface(step.Kind) {
@@ -284,7 +335,12 @@ func (s *Service) execute(ctx context.Context, flow Flow, deviceID, actor string
 						break
 					}
 				}
-				frame, e := strat.Observe(stepctx)
+				observer, observerOK := strat.(strategy.Observer)
+				if !observerOK {
+					stepErr = &strategy.UnsupportedCapabilityError{Capability: strategy.CapScreenshot, Operation: "observe"}
+					break
+				}
+				frame, e := observer.Observe(stepctx)
 				stepErr = e
 				if stepErr == nil {
 					redacted, re := evidence.RedactCaptureWithRegions(frame.Bytes, frame.MediaType, evidence.DefaultPolicy, flow.AllowUnredactedCapture, actor, sensitiveRegions(step))
@@ -331,13 +387,103 @@ func (s *Service) execute(ctx context.Context, flow Flow, deviceID, actor string
 					default:
 					}
 				}
+			case "property-get":
+				property, ok := strat.(strategy.PropertyActuator)
+				if !ok {
+					stepErr = &strategy.UnsupportedCapabilityError{Capability: strategy.CapProperty, Operation: "get-property"}
+					break
+				}
+				name := step.Target
+				if value, ok := step.Arguments["name"].(string); ok && value != "" {
+					name = value
+				}
+				_, stepErr = property.GetProperty(stepctx, name)
+			case "property-set":
+				property, ok := strat.(strategy.PropertyActuator)
+				if !ok {
+					stepErr = &strategy.UnsupportedCapabilityError{Capability: strategy.CapProperty, Operation: "set-property"}
+					break
+				}
+				name := step.Target
+				if value, ok := step.Arguments["name"].(string); ok && value != "" {
+					name = value
+				}
+				value, valueOK := step.Arguments["value"]
+				if !valueOK {
+					value = step.Target
+				}
+				oldValue, oldErr := property.GetProperty(stepctx, name)
+				if oldErr != nil {
+					stepErr = oldErr
+					break
+				}
+				stepErr = property.SetProperty(stepctx, strategy.PropertySet{Name: name, Value: value, CausationID: stepCausationID})
+				if stepErr == nil {
+					s.rememberObservedState(deviceID, flow.Transport, name, value)
+					stateClass := strategy.StateBearing
+					if declaration, describeErr := strat.Describe(stepctx); describeErr == nil {
+						for _, descriptor := range declaration.Properties {
+							if descriptor.Name == name && descriptor.StateClass != "" {
+								stateClass = descriptor.StateClass
+							}
+						}
+					}
+					s.EmitStateChange(strategy.StateChangeEvent{DeviceID: deviceID, Transport: flow.Transport, Attribute: name, OldValue: oldValue, NewValue: value, CausationID: stepCausationID, StateClass: stateClass})
+				}
+			case "sensor-read":
+				reader, ok := strat.(strategy.SensorReader)
+				if !ok {
+					stepErr = &strategy.UnsupportedCapabilityError{Capability: strategy.CapSensor, Operation: "read-sensors"}
+					break
+				}
+				var readings []strategy.SensorReading
+				readings, stepErr = reader.ReadSensors(stepctx)
+				if stepErr == nil {
+					for _, reading := range readings {
+						oldValue, changed, hadPrevious := s.observeState(deviceID, flow.Transport, reading.Name, reading.Value)
+						if !hadPrevious || !changed {
+							continue
+						}
+						observedAt := reading.ObservedAt
+						if observedAt.IsZero() {
+							observedAt = time.Now().UTC()
+						}
+						stateClass := reading.StateClass
+						if stateClass == "" {
+							stateClass = strategy.StateBearing
+						}
+						s.EmitStateChange(strategy.StateChangeEvent{DeviceID: deviceID, Transport: flow.Transport, Attribute: reading.Name, OldValue: oldValue, NewValue: reading.Value, ObservedAt: observedAt, CausationID: stepCausationID, StateClass: stateClass})
+					}
+				}
+			case "media-play", "media-pause", "media-stop", "media-next", "media-previous", "media-volume":
+				media, ok := strat.(strategy.MediaController)
+				if !ok {
+					stepErr = &strategy.UnsupportedCapabilityError{Capability: strategy.CapMedia, Operation: "control-media"}
+					break
+				}
+				action := strings.TrimPrefix(step.Kind, "media-")
+				var value any
+				if raw, present := step.Arguments["value"]; present {
+					value = raw
+				} else if step.Target != "" {
+					value = step.Target
+				}
+				stepErr = media.ControlMedia(stepctx, strategy.MediaCommand{Action: action, Value: value, CausationID: stepCausationID})
+				if stepErr == nil {
+					s.EmitStateChange(strategy.StateChangeEvent{DeviceID: deviceID, Transport: flow.Transport, Attribute: "media." + action, NewValue: value, CausationID: stepCausationID, StateClass: strategy.EventBearing})
+				}
 			case "semantic-target":
 				semantic, ok := strat.(strategy.SemanticResolver)
 				if !ok {
 					stepErr = fmt.Errorf("strategy does not implement deterministic semantic resolution")
 					break
 				}
-				frame, observeErr := strat.Observe(stepctx)
+				observer, observerOK := strat.(strategy.Observer)
+				if !observerOK {
+					stepErr = &strategy.UnsupportedCapabilityError{Capability: strategy.CapScreenshot, Operation: "semantic-target"}
+					break
+				}
+				frame, observeErr := observer.Observe(stepctx)
 				if observeErr != nil {
 					stepErr = observeErr
 					break
@@ -516,9 +662,9 @@ func (s *Service) execute(ctx context.Context, flow Flow, deviceID, actor string
 			}
 		}
 		s.mu.Lock()
-		audit := Audit{ID: uuid.NewString(), Actor: actor, DeviceID: deviceID, LeaseID: sess.ID, Verb: step.Kind, Outcome: outcome, CreatedAt: time.Now().UTC(), RedactionVerified: redactionVerified, RedactionOptedOut: flow.AllowUnredactedCapture}
+		audit := Audit{ID: uuid.NewString(), Actor: actor, DeviceID: deviceID, Transport: flow.Transport, CausationID: stepCausationID, LeaseID: sess.ID, Verb: step.Kind, Outcome: outcome, CreatedAt: time.Now().UTC(), RedactionVerified: redactionVerified, RedactionOptedOut: flow.AllowUnredactedCapture}
 		if s.db != nil {
-			_, _ = s.db.ExecContext(ctx, `INSERT INTO device_control_audits (id, actor, device_id, lease_id, verb, outcome, created_at, redaction_verified, redaction_opted_out) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, audit.ID, audit.Actor, audit.DeviceID, audit.LeaseID, audit.Verb, audit.Outcome, audit.CreatedAt.Format(time.RFC3339Nano), boolInt(redactionVerified), boolInt(flow.AllowUnredactedCapture))
+			_, _ = s.db.ExecContext(ctx, `INSERT INTO device_control_audits (id, actor, device_id, transport, causation_id, lease_id, verb, outcome, created_at, redaction_verified, redaction_opted_out) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, audit.ID, audit.Actor, audit.DeviceID, audit.Transport, audit.CausationID, audit.LeaseID, audit.Verb, audit.Outcome, audit.CreatedAt.Format(time.RFC3339Nano), boolInt(redactionVerified), boolInt(flow.AllowUnredactedCapture))
 		}
 		s.audits = append(s.audits, audit)
 		s.mu.Unlock()
@@ -678,23 +824,26 @@ func executeScrollTo(ctx context.Context, dispatch func(context.Context, strateg
 	return dispatch(ctx, strategy.Actuation{Action: "scroll-to", Value: step.Target})
 }
 
-// strategyForFlow keeps release-grade flows on USB unless they explicitly
-// request wireless. Promotion stores the endpoint-bound strategy separately so
-// an explicit wireless flow can use it without changing the stable identity.
+// strategyForFlow resolves a requested transport profile against the durable
+// identity. Promotion keeps the legacy wireless endpoint-bound strategy
+// separate, while ordinary composed identities can select any named profile.
 func (s *Service) strategyForFlow(deviceID, requestedTransport string) (strategy.Strategy, bool) {
 	requestedTransport = strings.ToLower(strings.TrimSpace(requestedTransport))
-	if requestedTransport == "" {
-		requestedTransport = "usb"
-	}
-	if requestedTransport != "usb" && requestedTransport != "wireless" {
-		return nil, false
-	}
 	record, ok := s.devices.Get(deviceID)
 	if !ok {
-		if requestedTransport == "usb" {
+		if requestedTransport == "" || requestedTransport == "usb" {
 			return s.strategyForDevice(deviceID)
 		}
 		return nil, false
+	}
+	if requestedTransport == "" {
+		// Preserve the legacy USB default for an unselected wireless promotion,
+		// while allowing a composed identity's selected REST/mDNS/etc. transport
+		// to be the natural default for a modality-specific device.
+		requestedTransport = strings.ToLower(strings.TrimSpace(record.Transport))
+		if requestedTransport == "" || requestedTransport == "wireless" {
+			requestedTransport = "usb"
+		}
 	}
 	if requestedTransport == "wireless" {
 		if record.Transport != "wireless" {
@@ -704,6 +853,24 @@ func (s *Service) strategyForFlow(deviceID, requestedTransport string) (strategy
 		deferred, promoted := s.transportStrategies[deviceID]
 		s.mu.Unlock()
 		return deferred, promoted
+	}
+	for _, profile := range record.Transports {
+		name := strings.ToLower(strings.TrimSpace(profile.Name))
+		strategyID := strings.ToLower(strings.TrimSpace(profile.StrategyID))
+		if requestedTransport != name && requestedTransport != strategyID {
+			continue
+		}
+		base, found := s.registry.Get(profile.StrategyID)
+		if !found {
+			return nil, false
+		}
+		if scoped, scopedOK := base.(strategy.DeviceScoped); scopedOK && record.Serial != "" {
+			base = scoped.ForDevice(record.Serial)
+		}
+		return base, true
+	}
+	if requestedTransport != "usb" && requestedTransport != strings.ToLower(strings.TrimSpace(record.Transport)) && requestedTransport != strings.ToLower(strings.TrimSpace(record.StrategyID)) {
+		return nil, false
 	}
 	base, ok := s.registry.Get(record.StrategyID)
 	if !ok {

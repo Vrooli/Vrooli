@@ -39,6 +39,9 @@ const (
 	// ProgramServiceGetProgramProcedure is the fully-qualified name of the ProgramService's GetProgram
 	// RPC.
 	ProgramServiceGetProgramProcedure = "/vrooli.program_runtime.v1.programs.ProgramService/GetProgram"
+	// ProgramServiceWaitForProgramProcedure is the fully-qualified name of the ProgramService's
+	// WaitForProgram RPC.
+	ProgramServiceWaitForProgramProcedure = "/vrooli.program_runtime.v1.programs.ProgramService/WaitForProgram"
 	// ProgramServiceListProgramsProcedure is the fully-qualified name of the ProgramService's
 	// ListPrograms RPC.
 	ProgramServiceListProgramsProcedure = "/vrooli.program_runtime.v1.programs.ProgramService/ListPrograms"
@@ -61,6 +64,7 @@ const (
 type ProgramServiceClient interface {
 	SubmitProgram(context.Context, *connect.Request[programs.SubmitProgramRequest]) (*connect.Response[programs.SubmitProgramResponse], error)
 	GetProgram(context.Context, *connect.Request[programs.GetProgramRequest]) (*connect.Response[programs.GetProgramResponse], error)
+	WaitForProgram(context.Context, *connect.Request[programs.WaitForProgramRequest]) (*connect.Response[programs.WaitForProgramResponse], error)
 	ListPrograms(context.Context, *connect.Request[programs.ListProgramsRequest]) (*connect.Response[programs.ListProgramsResponse], error)
 	MineFailures(context.Context, *connect.Request[programs.MineFailuresRequest]) (*connect.Response[programs.MineFailuresResponse], error)
 	MineRefusals(context.Context, *connect.Request[programs.MineRefusalsRequest]) (*connect.Response[programs.MineRefusalsResponse], error)
@@ -90,6 +94,12 @@ func NewProgramServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			httpClient,
 			baseURL+ProgramServiceGetProgramProcedure,
 			connect.WithSchema(programServiceMethods.ByName("GetProgram")),
+			connect.WithClientOptions(opts...),
+		),
+		waitForProgram: connect.NewClient[programs.WaitForProgramRequest, programs.WaitForProgramResponse](
+			httpClient,
+			baseURL+ProgramServiceWaitForProgramProcedure,
+			connect.WithSchema(programServiceMethods.ByName("WaitForProgram")),
 			connect.WithClientOptions(opts...),
 		),
 		listPrograms: connect.NewClient[programs.ListProgramsRequest, programs.ListProgramsResponse](
@@ -129,6 +139,7 @@ func NewProgramServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 type programServiceClient struct {
 	submitProgram          *connect.Client[programs.SubmitProgramRequest, programs.SubmitProgramResponse]
 	getProgram             *connect.Client[programs.GetProgramRequest, programs.GetProgramResponse]
+	waitForProgram         *connect.Client[programs.WaitForProgramRequest, programs.WaitForProgramResponse]
 	listPrograms           *connect.Client[programs.ListProgramsRequest, programs.ListProgramsResponse]
 	mineFailures           *connect.Client[programs.MineFailuresRequest, programs.MineFailuresResponse]
 	mineRefusals           *connect.Client[programs.MineRefusalsRequest, programs.MineRefusalsResponse]
@@ -144,6 +155,11 @@ func (c *programServiceClient) SubmitProgram(ctx context.Context, req *connect.R
 // GetProgram calls vrooli.program_runtime.v1.programs.ProgramService.GetProgram.
 func (c *programServiceClient) GetProgram(ctx context.Context, req *connect.Request[programs.GetProgramRequest]) (*connect.Response[programs.GetProgramResponse], error) {
 	return c.getProgram.CallUnary(ctx, req)
+}
+
+// WaitForProgram calls vrooli.program_runtime.v1.programs.ProgramService.WaitForProgram.
+func (c *programServiceClient) WaitForProgram(ctx context.Context, req *connect.Request[programs.WaitForProgramRequest]) (*connect.Response[programs.WaitForProgramResponse], error) {
+	return c.waitForProgram.CallUnary(ctx, req)
 }
 
 // ListPrograms calls vrooli.program_runtime.v1.programs.ProgramService.ListPrograms.
@@ -177,6 +193,7 @@ func (c *programServiceClient) RunAuthoringEval(ctx context.Context, req *connec
 type ProgramServiceHandler interface {
 	SubmitProgram(context.Context, *connect.Request[programs.SubmitProgramRequest]) (*connect.Response[programs.SubmitProgramResponse], error)
 	GetProgram(context.Context, *connect.Request[programs.GetProgramRequest]) (*connect.Response[programs.GetProgramResponse], error)
+	WaitForProgram(context.Context, *connect.Request[programs.WaitForProgramRequest]) (*connect.Response[programs.WaitForProgramResponse], error)
 	ListPrograms(context.Context, *connect.Request[programs.ListProgramsRequest]) (*connect.Response[programs.ListProgramsResponse], error)
 	MineFailures(context.Context, *connect.Request[programs.MineFailuresRequest]) (*connect.Response[programs.MineFailuresResponse], error)
 	MineRefusals(context.Context, *connect.Request[programs.MineRefusalsRequest]) (*connect.Response[programs.MineRefusalsResponse], error)
@@ -201,6 +218,12 @@ func NewProgramServiceHandler(svc ProgramServiceHandler, opts ...connect.Handler
 		ProgramServiceGetProgramProcedure,
 		svc.GetProgram,
 		connect.WithSchema(programServiceMethods.ByName("GetProgram")),
+		connect.WithHandlerOptions(opts...),
+	)
+	programServiceWaitForProgramHandler := connect.NewUnaryHandler(
+		ProgramServiceWaitForProgramProcedure,
+		svc.WaitForProgram,
+		connect.WithSchema(programServiceMethods.ByName("WaitForProgram")),
 		connect.WithHandlerOptions(opts...),
 	)
 	programServiceListProgramsHandler := connect.NewUnaryHandler(
@@ -239,6 +262,8 @@ func NewProgramServiceHandler(svc ProgramServiceHandler, opts ...connect.Handler
 			programServiceSubmitProgramHandler.ServeHTTP(w, r)
 		case ProgramServiceGetProgramProcedure:
 			programServiceGetProgramHandler.ServeHTTP(w, r)
+		case ProgramServiceWaitForProgramProcedure:
+			programServiceWaitForProgramHandler.ServeHTTP(w, r)
 		case ProgramServiceListProgramsProcedure:
 			programServiceListProgramsHandler.ServeHTTP(w, r)
 		case ProgramServiceMineFailuresProcedure:
@@ -264,6 +289,10 @@ func (UnimplementedProgramServiceHandler) SubmitProgram(context.Context, *connec
 
 func (UnimplementedProgramServiceHandler) GetProgram(context.Context, *connect.Request[programs.GetProgramRequest]) (*connect.Response[programs.GetProgramResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.program_runtime.v1.programs.ProgramService.GetProgram is not implemented"))
+}
+
+func (UnimplementedProgramServiceHandler) WaitForProgram(context.Context, *connect.Request[programs.WaitForProgramRequest]) (*connect.Response[programs.WaitForProgramResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.program_runtime.v1.programs.ProgramService.WaitForProgram is not implemented"))
 }
 
 func (UnimplementedProgramServiceHandler) ListPrograms(context.Context, *connect.Request[programs.ListProgramsRequest]) (*connect.Response[programs.ListProgramsResponse], error) {

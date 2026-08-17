@@ -122,3 +122,35 @@ class RunBatchResponse(_message.Message):
     results: _containers.RepeatedCompositeFieldContainer[RunResponse]
     usage: Usage
     def __init__(self, results: _Optional[_Iterable[_Union[RunResponse, _Mapping]]] = ..., usage: _Optional[_Union[Usage, _Mapping]] = ...) -> None: ...
+
+class EmbedRequest(_message.Message):
+    __slots__ = ("texts", "role", "sampling")
+    TEXTS_FIELD_NUMBER: _ClassVar[int]
+    ROLE_FIELD_NUMBER: _ClassVar[int]
+    SAMPLING_FIELD_NUMBER: _ClassVar[int]
+    texts: _containers.RepeatedScalarFieldContainer[str]
+    role: str
+    sampling: _gateway_pb2.SamplingControls
+    def __init__(self, texts: _Optional[_Iterable[str]] = ..., role: _Optional[str] = ..., sampling: _Optional[_Union[_gateway_pb2.SamplingControls, _Mapping]] = ...) -> None: ...
+
+class EmbedResponse(_message.Message):
+    __slots__ = ("vectors", "provider", "model", "dimension", "usage", "error")
+    VECTORS_FIELD_NUMBER: _ClassVar[int]
+    PROVIDER_FIELD_NUMBER: _ClassVar[int]
+    MODEL_FIELD_NUMBER: _ClassVar[int]
+    DIMENSION_FIELD_NUMBER: _ClassVar[int]
+    USAGE_FIELD_NUMBER: _ClassVar[int]
+    ERROR_FIELD_NUMBER: _ClassVar[int]
+    vectors: _containers.RepeatedCompositeFieldContainer[EmbeddingVector]
+    provider: str
+    model: str
+    dimension: int
+    usage: Usage
+    error: InferenceError
+    def __init__(self, vectors: _Optional[_Iterable[_Union[EmbeddingVector, _Mapping]]] = ..., provider: _Optional[str] = ..., model: _Optional[str] = ..., dimension: _Optional[int] = ..., usage: _Optional[_Union[Usage, _Mapping]] = ..., error: _Optional[_Union[InferenceError, _Mapping]] = ...) -> None: ...
+
+class EmbeddingVector(_message.Message):
+    __slots__ = ("values",)
+    VALUES_FIELD_NUMBER: _ClassVar[int]
+    values: _containers.RepeatedScalarFieldContainer[float]
+    def __init__(self, values: _Optional[_Iterable[float]] = ...) -> None: ...

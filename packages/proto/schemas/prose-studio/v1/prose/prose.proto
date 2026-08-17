@@ -217,6 +217,8 @@ message CreateDocumentRequest { Document document = 1; repeated Section sections
 message CreateDocumentResponse { Document document = 1; }
 message AssembleDocumentRequest { string id = 1; }
 message AssembleDocumentResponse { Document document = 1; }
+message ResumeDocumentRequest { string id = 1; }
+message ResumeDocumentResponse { Document document = 1; }
 
 message ConformanceRequest { string style_key = 1; string text = 2; }
 message ConformanceResponse { google.protobuf.Struct report = 1; }
@@ -232,5 +234,6 @@ service ProseStudioService {
   rpc ValidateDeclarations(ValidateDeclarationsRequest) returns (ValidateDeclarationsResponse);
   rpc CreateDocument(CreateDocumentRequest) returns (CreateDocumentResponse);
   rpc AssembleDocument(AssembleDocumentRequest) returns (AssembleDocumentResponse);
+  rpc ResumeDocument(ResumeDocumentRequest) returns (ResumeDocumentResponse);
   rpc Conformance(ConformanceRequest) returns (ConformanceResponse);
 }

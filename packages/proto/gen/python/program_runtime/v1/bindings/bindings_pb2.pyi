@@ -485,7 +485,7 @@ class ResolveIntentRequest(_message.Message):
     def __init__(self, intent: _Optional[str] = ..., limit: _Optional[int] = ..., mode: _Optional[str] = ...) -> None: ...
 
 class DiscoverResult(_message.Message):
-    __slots__ = ("binding_id", "confidence", "method", "reason", "alternatives", "binding", "arguments", "library")
+    __slots__ = ("binding_id", "confidence", "method", "reason", "alternatives", "binding", "arguments", "library", "unavailable")
     BINDING_ID_FIELD_NUMBER: _ClassVar[int]
     CONFIDENCE_FIELD_NUMBER: _ClassVar[int]
     METHOD_FIELD_NUMBER: _ClassVar[int]
@@ -494,6 +494,7 @@ class DiscoverResult(_message.Message):
     BINDING_FIELD_NUMBER: _ClassVar[int]
     ARGUMENTS_FIELD_NUMBER: _ClassVar[int]
     LIBRARY_FIELD_NUMBER: _ClassVar[int]
+    UNAVAILABLE_FIELD_NUMBER: _ClassVar[int]
     binding_id: str
     confidence: str
     method: str
@@ -502,7 +503,8 @@ class DiscoverResult(_message.Message):
     binding: Binding
     arguments: _containers.RepeatedCompositeFieldContainer[BindingArgument]
     library: _library_pb2.LibraryProgram
-    def __init__(self, binding_id: _Optional[str] = ..., confidence: _Optional[str] = ..., method: _Optional[str] = ..., reason: _Optional[str] = ..., alternatives: _Optional[_Iterable[str]] = ..., binding: _Optional[_Union[Binding, _Mapping]] = ..., arguments: _Optional[_Iterable[_Union[BindingArgument, _Mapping]]] = ..., library: _Optional[_Union[_library_pb2.LibraryProgram, _Mapping]] = ...) -> None: ...
+    unavailable: bool
+    def __init__(self, binding_id: _Optional[str] = ..., confidence: _Optional[str] = ..., method: _Optional[str] = ..., reason: _Optional[str] = ..., alternatives: _Optional[_Iterable[str]] = ..., binding: _Optional[_Union[Binding, _Mapping]] = ..., arguments: _Optional[_Iterable[_Union[BindingArgument, _Mapping]]] = ..., library: _Optional[_Union[_library_pb2.LibraryProgram, _Mapping]] = ..., unavailable: _Optional[bool] = ...) -> None: ...
 
 class ResolveIntentResponse(_message.Message):
     __slots__ = ("bindings", "reason", "fallback", "result", "mode")

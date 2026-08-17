@@ -153,6 +153,24 @@ class GetProgramResponse(_message.Message):
     program: Program
     def __init__(self, program: _Optional[_Union[Program, _Mapping]] = ...) -> None: ...
 
+class WaitForProgramRequest(_message.Message):
+    __slots__ = ("id", "timeout_millis")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    TIMEOUT_MILLIS_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    timeout_millis: int
+    def __init__(self, id: _Optional[str] = ..., timeout_millis: _Optional[int] = ...) -> None: ...
+
+class WaitForProgramResponse(_message.Message):
+    __slots__ = ("program", "terminal", "waited_millis")
+    PROGRAM_FIELD_NUMBER: _ClassVar[int]
+    TERMINAL_FIELD_NUMBER: _ClassVar[int]
+    WAITED_MILLIS_FIELD_NUMBER: _ClassVar[int]
+    program: Program
+    terminal: bool
+    waited_millis: int
+    def __init__(self, program: _Optional[_Union[Program, _Mapping]] = ..., terminal: _Optional[bool] = ..., waited_millis: _Optional[int] = ...) -> None: ...
+
 class ListProgramsRequest(_message.Message):
     __slots__ = ("session_id", "include_operator")
     SESSION_ID_FIELD_NUMBER: _ClassVar[int]
@@ -268,7 +286,7 @@ class AuthoringCaseResult(_message.Message):
     def __init__(self, case_id: _Optional[str] = ..., authored: _Optional[bool] = ..., first_attempt_ok: _Optional[bool] = ..., cause: _Optional[str] = ..., agent_bytes: _Optional[int] = ..., model: _Optional[str] = ...) -> None: ...
 
 class RunAuthoringEvalResponse(_message.Message):
-    __slots__ = ("suite", "status", "reason", "cases", "met", "missed", "wrong_result", "unavailable", "floor", "results")
+    __slots__ = ("suite", "status", "reason", "cases", "met", "missed", "wrong_result", "unavailable", "floor", "results", "not_attempted", "harness_stamp")
     SUITE_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
     REASON_FIELD_NUMBER: _ClassVar[int]
@@ -279,6 +297,8 @@ class RunAuthoringEvalResponse(_message.Message):
     UNAVAILABLE_FIELD_NUMBER: _ClassVar[int]
     FLOOR_FIELD_NUMBER: _ClassVar[int]
     RESULTS_FIELD_NUMBER: _ClassVar[int]
+    NOT_ATTEMPTED_FIELD_NUMBER: _ClassVar[int]
+    HARNESS_STAMP_FIELD_NUMBER: _ClassVar[int]
     suite: str
     status: str
     reason: str
@@ -289,4 +309,6 @@ class RunAuthoringEvalResponse(_message.Message):
     unavailable: int
     floor: int
     results: _containers.RepeatedCompositeFieldContainer[AuthoringCaseResult]
-    def __init__(self, suite: _Optional[str] = ..., status: _Optional[str] = ..., reason: _Optional[str] = ..., cases: _Optional[int] = ..., met: _Optional[int] = ..., missed: _Optional[int] = ..., wrong_result: _Optional[int] = ..., unavailable: _Optional[int] = ..., floor: _Optional[int] = ..., results: _Optional[_Iterable[_Union[AuthoringCaseResult, _Mapping]]] = ...) -> None: ...
+    not_attempted: int
+    harness_stamp: str
+    def __init__(self, suite: _Optional[str] = ..., status: _Optional[str] = ..., reason: _Optional[str] = ..., cases: _Optional[int] = ..., met: _Optional[int] = ..., missed: _Optional[int] = ..., wrong_result: _Optional[int] = ..., unavailable: _Optional[int] = ..., floor: _Optional[int] = ..., results: _Optional[_Iterable[_Union[AuthoringCaseResult, _Mapping]]] = ..., not_attempted: _Optional[int] = ..., harness_stamp: _Optional[str] = ...) -> None: ...

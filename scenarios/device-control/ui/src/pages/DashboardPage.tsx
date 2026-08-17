@@ -197,6 +197,27 @@ export function DashboardPage() {
                       </span>
                     ))}
                   </div>
+                  {Array.isArray(device.transports) && device.transports.length > 0 && (
+                    <div className="mt-3 flex flex-col gap-2 rounded-md bg-app-muted/30 p-2" data-testid={`device-transports-${device.id}`}>
+                      {device.transports.map((transport) => (
+                        <div key={`${transport.strategy_id}:${transport.name}:${transport.endpoint ?? ""}`} className="rounded border p-2">
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="text-sm font-medium">{transport.strategy_id} · {transport.name || t(strings.pages.dashboard.unknown)}</span>
+                            <span className="rounded-full border px-2 py-1 text-xs">{transport.health || t(strings.pages.dashboard.unknown)}</span>
+                          </div>
+                          {transport.endpoint && <p className="text-xs text-app-muted-foreground">{transport.endpoint}</p>}
+                          <p className="text-xs text-app-muted-foreground">{transport.health_reason || t(strings.pages.dashboard.probePassed)}</p>
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {Object.entries(transport.capabilities ?? {}).map(([name, capability]) => (
+                              <span key={name} className="rounded border px-2 py-1 text-xs">
+                                {name}: {capability.status}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                   <div className="mt-3 flex gap-2">
                     <Button
                       data-testid={selectors.pages.dashboardReprobe}

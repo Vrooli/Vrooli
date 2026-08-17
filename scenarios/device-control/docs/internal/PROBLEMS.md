@@ -362,9 +362,9 @@ a migration handoff with a planned retirement path back into
 ## Work ladder
 
 - Rung: W0
-- Evidence: the deterministic `swarm-manager goals list --json` name/title/description search found no goal naming `device-control`; the active work is recorded in Plan Manager instead, so the goal-to-PRD comparison cannot be performed.
-- Blocker: W0 is unverifiable until an approved swarm-manager goal names this scenario, or the contract workflow explicitly records the plan as the governing goal artifact.
-- Measured: 2026-08-12
+- Evidence: the deterministic `swarm-manager goals list --json` search now finds `generalized-device-control-portable-searxng-retirement`, and its target includes `scenario/device-control`. The goal title requires generalization, while the PRD still states an observe/actuate/describe floor and places additional device classes at P2; the governing Plan Manager plan requires an ID/Describe floor, property/sensor/media modalities, and Google TV/Home Assistant adapters. The two artifacts do not yet provide a bidirectional, priority-aligned contract comparison.
+- Blocker: W0 remains unresolved at the contract layer. A PRD-authoring decision must reconcile the new generalized-device-control goal and Plan Manager outcome with the P0 floor and P2 additional-device-class targets before W1-W3 can be used as scenario-contract evidence.
+- Measured: 2026-08-17
 
 ## Browser E2E validation notes
 

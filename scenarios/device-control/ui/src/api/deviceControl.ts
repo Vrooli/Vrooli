@@ -2,8 +2,9 @@ import { buildApiUrl } from "@vrooli/api-base";
 
 import { API_BASE } from "./client";
 
-export type Capability = { name: string; status: string; prerequisite?: string; next_action?: string };
-export type Device = { id: string; name: string; kind: string; serial?: string; model?: string; os_version?: string; transport?: string; strategy_id: string; status: string; health?: string; health_reason?: string; capabilities: Capability[] };
+export type Capability = { name: string; status: string; prerequisite?: string; next_action?: string; reason?: string; state_class?: string };
+export type DeviceTransport = { strategy_id: string; name: string; endpoint?: string; health?: string; health_reason?: string; capabilities?: Record<string, Capability>; observed_at?: string };
+export type Device = { id: string; name: string; kind: string; identity_key?: string; serial?: string; model?: string; os_version?: string; transport?: string; strategy_id: string; status: string; health?: string; health_reason?: string; capabilities: Capability[]; transports?: DeviceTransport[] };
 export type Strategy = { id: string; description: string; status: string; reason?: string; supported_host_os?: string[]; tiers: string[]; executable_step_kinds: string[]; capabilities: Record<string, Capability>; next_actions?: string[]; promotable: boolean };
 export type Session = { id: string; device_id: string; actor: string; state: string; lease_token?: string; expires_at: string; created_at: string };
 export type OnboardingRung = { id: string; prerequisite?: string; owner?: string; status: string; next_action: string };

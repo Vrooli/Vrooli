@@ -38,6 +38,8 @@ const (
 	// InferenceServiceRunBatchProcedure is the fully-qualified name of the InferenceService's RunBatch
 	// RPC.
 	InferenceServiceRunBatchProcedure = "/vrooli.ai_gateway.v1.inference.InferenceService/RunBatch"
+	// InferenceServiceEmbedProcedure is the fully-qualified name of the InferenceService's Embed RPC.
+	InferenceServiceEmbedProcedure = "/vrooli.ai_gateway.v1.inference.InferenceService/Embed"
 )
 
 // InferenceServiceClient is a client for the vrooli.ai_gateway.v1.inference.InferenceService
@@ -45,6 +47,7 @@ const (
 type InferenceServiceClient interface {
 	Run(context.Context, *connect.Request[inference.RunRequest]) (*connect.Response[inference.RunResponse], error)
 	RunBatch(context.Context, *connect.Request[inference.RunBatchRequest]) (*connect.Response[inference.RunBatchResponse], error)
+	Embed(context.Context, *connect.Request[inference.EmbedRequest]) (*connect.Response[inference.EmbedResponse], error)
 }
 
 // NewInferenceServiceClient constructs a client for the
@@ -71,6 +74,12 @@ func NewInferenceServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithSchema(inferenceServiceMethods.ByName("RunBatch")),
 			connect.WithClientOptions(opts...),
 		),
+		embed: connect.NewClient[inference.EmbedRequest, inference.EmbedResponse](
+			httpClient,
+			baseURL+InferenceServiceEmbedProcedure,
+			connect.WithSchema(inferenceServiceMethods.ByName("Embed")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -78,6 +87,7 @@ func NewInferenceServiceClient(httpClient connect.HTTPClient, baseURL string, op
 type inferenceServiceClient struct {
 	run      *connect.Client[inference.RunRequest, inference.RunResponse]
 	runBatch *connect.Client[inference.RunBatchRequest, inference.RunBatchResponse]
+	embed    *connect.Client[inference.EmbedRequest, inference.EmbedResponse]
 }
 
 // Run calls vrooli.ai_gateway.v1.inference.InferenceService.Run.
@@ -90,11 +100,17 @@ func (c *inferenceServiceClient) RunBatch(ctx context.Context, req *connect.Requ
 	return c.runBatch.CallUnary(ctx, req)
 }
 
+// Embed calls vrooli.ai_gateway.v1.inference.InferenceService.Embed.
+func (c *inferenceServiceClient) Embed(ctx context.Context, req *connect.Request[inference.EmbedRequest]) (*connect.Response[inference.EmbedResponse], error) {
+	return c.embed.CallUnary(ctx, req)
+}
+
 // InferenceServiceHandler is an implementation of the
 // vrooli.ai_gateway.v1.inference.InferenceService service.
 type InferenceServiceHandler interface {
 	Run(context.Context, *connect.Request[inference.RunRequest]) (*connect.Response[inference.RunResponse], error)
 	RunBatch(context.Context, *connect.Request[inference.RunBatchRequest]) (*connect.Response[inference.RunBatchResponse], error)
+	Embed(context.Context, *connect.Request[inference.EmbedRequest]) (*connect.Response[inference.EmbedResponse], error)
 }
 
 // NewInferenceServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -116,12 +132,20 @@ func NewInferenceServiceHandler(svc InferenceServiceHandler, opts ...connect.Han
 		connect.WithSchema(inferenceServiceMethods.ByName("RunBatch")),
 		connect.WithHandlerOptions(opts...),
 	)
+	inferenceServiceEmbedHandler := connect.NewUnaryHandler(
+		InferenceServiceEmbedProcedure,
+		svc.Embed,
+		connect.WithSchema(inferenceServiceMethods.ByName("Embed")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.ai_gateway.v1.inference.InferenceService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case InferenceServiceRunProcedure:
 			inferenceServiceRunHandler.ServeHTTP(w, r)
 		case InferenceServiceRunBatchProcedure:
 			inferenceServiceRunBatchHandler.ServeHTTP(w, r)
+		case InferenceServiceEmbedProcedure:
+			inferenceServiceEmbedHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -137,4 +161,8 @@ func (UnimplementedInferenceServiceHandler) Run(context.Context, *connect.Reques
 
 func (UnimplementedInferenceServiceHandler) RunBatch(context.Context, *connect.Request[inference.RunBatchRequest]) (*connect.Response[inference.RunBatchResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.ai_gateway.v1.inference.InferenceService.RunBatch is not implemented"))
+}
+
+func (UnimplementedInferenceServiceHandler) Embed(context.Context, *connect.Request[inference.EmbedRequest]) (*connect.Response[inference.EmbedResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.ai_gateway.v1.inference.InferenceService.Embed is not implemented"))
 }

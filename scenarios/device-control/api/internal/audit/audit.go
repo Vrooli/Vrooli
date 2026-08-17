@@ -6,6 +6,8 @@ type Record struct {
 	ID                string    `json:"id"`
 	Actor             string    `json:"actor"`
 	DeviceID          string    `json:"device_id"`
+	Transport         string    `json:"transport,omitempty"`
+	CausationID       string    `json:"causation_id,omitempty"`
 	LeaseID           string    `json:"lease_id"`
 	Verb              string    `json:"verb"`
 	Outcome           string    `json:"outcome"`

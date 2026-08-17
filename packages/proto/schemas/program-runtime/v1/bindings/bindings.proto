@@ -323,6 +323,15 @@ message DiscoverResult {
   // a seeded or explicitly promoted reusable program is the best governed
   // capability for the intent.
   vrooli.program_runtime.v1.shared.LibraryProgram library = 8;
+  // True when discovery could not reach a verdict because a dependency failed,
+  // as distinct from reaching the verdict "nothing governed serves this".
+  //
+  // Both cases carry an empty binding_id, so before this field a caller could
+  // only tell them apart by string-matching `reason`. That mattered: the skill
+  // instructs an agent to treat an empty binding_id as a stop, so a degraded
+  // judge or an unreachable Search Hub silently taught agents that no
+  // capability existed. A null verdict is a stop; unavailable is a retry.
+  bool unavailable = 9;
 }
 
 message ResolveIntentResponse {

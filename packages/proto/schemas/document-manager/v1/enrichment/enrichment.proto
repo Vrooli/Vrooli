@@ -1,0 +1,37 @@
+syntax = "proto3";
+
+package vrooli.document_manager.v1.enrichment;
+
+import "document-manager/v1/shared/document.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/document-manager/v1/enrichment;enrichment_v1";
+
+service EnrichmentService {
+  rpc Enrich(EnrichRequest) returns (EnrichResponse);
+  rpc Embed(EmbedRequest) returns (EmbedResponse);
+}
+
+message EnrichRequest {
+  string document_hash = 1;
+  string text = 2;
+  shared.PrivacyClass privacy_class = 3;
+}
+message EnrichResponse {
+  bool enriched = 1;
+  string summary = 2;
+  shared.PrivacyClass suggested_privacy_class = 3;
+  string status = 4;
+}
+message EmbedRequest {
+  string document_hash = 1;
+  string unit_id = 2;
+  string text = 3;
+  shared.PrivacyClass privacy_class = 4;
+  string role = 5;
+}
+message EmbedResponse {
+  string embedding_id = 1;
+  bool enriched = 2;
+  int32 dimension = 3;
+  string status = 4;
+}

@@ -43,3 +43,14 @@ func TestStoreUpsertIdentityRemovesEndpointAlias(t *testing.T) {
 	_, found = store.Get("android-stable")
 	require.True(t, found)
 }
+
+func TestStoreUpsertIdentityMergesTransportProfiles(t *testing.T) {
+	store := NewStore()
+	first := store.UpsertIdentity(Record{ID: "tv", Kind: "physical", Serial: "tv-serial", StrategyID: "android-adb", Transport: "usb", Endpoint: "usb", Capabilities: nil})
+	require.Equal(t, "tv", first.ID)
+	second := store.UpsertIdentity(Record{ID: "tv", Kind: "physical", Serial: "tv-serial", StrategyID: "android-tv-remote", Transport: "mdns", Endpoint: "tv.local:6466"})
+	require.Equal(t, "tv", second.ID)
+	require.Len(t, second.Transports, 2)
+	transportIDs := []string{second.Transports[0].StrategyID, second.Transports[1].StrategyID}
+	require.ElementsMatch(t, []string{"android-adb", "android-tv-remote"}, transportIDs)
+}

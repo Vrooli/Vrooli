@@ -21,6 +21,13 @@
           "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
         },
         {
+          "name": "describe",
+          "description": "Describe one device and every transport capability profile",
+          "positionals": [{ "name": "id", "required": true }],
+          "binding": { "kind": "local" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
           "name": "connect",
           "description": "Show device onboarding",
           "flags": [

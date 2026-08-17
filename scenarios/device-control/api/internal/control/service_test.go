@@ -528,6 +528,56 @@ func TestWirelessTransportStateSurvivesServiceReconstruction(t *testing.T) { // 
 	require.Equal(t, "192.168.1.42:5555", provider.WirelessEndpoint())
 }
 
+func TestObservedTransportProfilesSurviveServiceReconstruction(t *testing.T) {
+	svc, db := testService(t)
+	first := &enumeratingFake{Strategy: fakes.New("android-adb", strategy.StatusAvailable, strategy.CapInput), devices: []strategy.Device{{
+		ID: "tv-usb", Serial: "tv-serial", Model: "Living room TV", StrategyID: "android-adb", Transport: "usb", Endpoint: "usb", Health: strategy.StatusAvailable,
+	}}}
+	second := &enumeratingFake{Strategy: fakes.New("android-tv-remote", strategy.StatusAvailable, strategy.CapMedia), devices: []strategy.Device{{
+		ID: "tv-remote", Serial: "tv-serial", Model: "Living room TV", StrategyID: "android-tv-remote", Transport: "mdns", Endpoint: "tv.local:6466", Health: strategy.StatusAvailable,
+	}}}
+	svc.registry = strategyregistry.New(first, second)
+
+	devices := svc.Devices(context.Background())
+	require.Len(t, devices, 1)
+	require.Len(t, devices[0].Transports, 2)
+
+	reloaded, err := NewWithDB(strategyregistry.New(), db)
+	require.NoError(t, err)
+	restored, ok := reloaded.devices.Get("tv-usb")
+	require.True(t, ok)
+	require.Len(t, restored.Transports, 2)
+	require.ElementsMatch(t, []string{"android-adb", "android-tv-remote"}, []string{restored.Transports[0].StrategyID, restored.Transports[1].StrategyID})
+	var count int
+	require.NoError(t, db.QueryRow(`SELECT COUNT(*) FROM device_control_transport_profiles WHERE device_id = ?`, "tv-usb").Scan(&count))
+	require.Equal(t, 2, count)
+}
+
+func TestFlowsAndAuditsSelectBothGenericTransportProfiles(t *testing.T) {
+	minimum, maximum := 0.0, 100.0
+	first := fakes.NewPropertyOnly("hub-rest", strategy.PropertyDescriptor{Name: "brightness", ValueType: "number", Writable: true, Minimum: &minimum, Maximum: &maximum}, 10.0)
+	second := fakes.NewPropertyOnly("hub-mdns", strategy.PropertyDescriptor{Name: "brightness", ValueType: "number", Writable: true, Minimum: &minimum, Maximum: &maximum}, 20.0)
+	svc, _ := testService(t)
+	svc.registry = strategyregistry.New(first, second)
+	svc.devices.UpsertIdentity(devicedomain.Record{ID: "hub-device", Kind: "physical", Serial: "hub-serial", StrategyID: first.ID(), Transport: "rest", Endpoint: "ha.example", Status: strategy.StatusAvailable, Health: strategy.StatusAvailable})
+	svc.devices.UpsertIdentity(devicedomain.Record{ID: "hub-device-mdns", Kind: "physical", Serial: "hub-serial", StrategyID: second.ID(), Transport: "mdns", Endpoint: "tv.local:6466", Status: strategy.StatusAvailable, Health: strategy.StatusAvailable})
+
+	for _, test := range []struct {
+		transport string
+		value     float64
+	}{
+		{transport: "rest", value: 30},
+		{transport: "mdns", value: 40},
+	} {
+		result, err := svc.Run(context.Background(), Flow{Transport: test.transport, Steps: []Step{{ID: "set-brightness", Kind: "property-set", RequiredCapabilities: []string{strategy.CapProperty}, Arguments: map[string]any{"name": "brightness", "value": test.value}}}}, "hub-device", "operator")
+		require.NoError(t, err)
+		require.Equal(t, "passed", result.Disposition)
+	}
+	audits := svc.Audit()
+	require.Len(t, audits, 2)
+	require.ElementsMatch(t, []string{"rest", "mdns"}, []string{audits[0].Transport, audits[1].Transport})
+}
+
 func TestWirelessInventoryUsesRestoredAdapterCapabilities(t *testing.T) {
 	svc, db := testService(t)
 	first := newPersistentWirelessStrategy()
@@ -648,6 +698,77 @@ func TestRunRetainsRedactedCaptureAndTapCoordinates(t *testing.T) { // [REQ:DVC-
 	require.Len(t, calls, 1)
 	require.InDelta(t, 12, calls[0].Pointer.X, 0)
 	require.InDelta(t, 34, calls[0].Pointer.Y, 0)
+}
+
+func TestPropertyActuationPublishesLocalStateChangeWithSharedCausation(t *testing.T) {
+	minimum, maximum := 0.0, 100.0
+	property := fakes.NewPropertyOnly("property-device", strategy.PropertyDescriptor{
+		Name: "brightness", ValueType: "number", Writable: true, Minimum: &minimum, Maximum: &maximum,
+	}, 20.0)
+	db, err := sql.Open("sqlite", "file:control-test-property-events-"+t.Name()+"?mode=memory&cache=shared")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = db.Close() })
+	svc, err := NewWithDB(strategyregistry.New(property), db)
+	require.NoError(t, err)
+	subscription := svc.SubscribeStateChanges(1)
+	t.Cleanup(subscription.Cancel)
+
+	result, err := svc.Run(context.Background(), Flow{Steps: []Step{{
+		ID: "set-brightness", Kind: "property-set", RequiredCapabilities: []string{strategy.CapProperty},
+		Arguments: map[string]any{"name": "brightness", "value": 40.0},
+	}}}, "property-device", "operator")
+	require.NoError(t, err)
+	require.Equal(t, "passed", result.Disposition)
+
+	select {
+	case event := <-subscription.Events:
+		require.Equal(t, "property-device", event.DeviceID)
+		require.Equal(t, "brightness", event.Attribute)
+		require.Equal(t, 20.0, event.OldValue)
+		require.Equal(t, 40.0, event.NewValue)
+		require.Equal(t, strategy.StateBearing, event.StateClass)
+		require.NotEmpty(t, event.CausationID)
+		require.NotEmpty(t, event.ObservedAt)
+		require.NotEmpty(t, svc.Audit())
+		require.Equal(t, event.CausationID, svc.Audit()[0].CausationID)
+	case <-time.After(time.Second):
+		t.Fatal("property actuation did not publish a local state-change event")
+	}
+}
+
+func TestSensorReadPublishesOnlyObservedTransitions(t *testing.T) {
+	sensor := fakes.NewSensorOnly("sensor-rest", strategy.SensorReading{Name: "temperature", Value: 21.0, StateClass: strategy.StateBearing})
+	svc := New(strategyregistry.New(sensor))
+	svc.devices.UpsertIdentity(devicedomain.Record{ID: "sensor-device", Kind: "physical", Serial: "sensor-serial", StrategyID: sensor.ID(), Transport: "rest", Status: strategy.StatusAvailable, Health: strategy.StatusAvailable})
+	subscription := svc.SubscribeStateChanges(2)
+	t.Cleanup(subscription.Cancel)
+	flow := Flow{Transport: "rest", Steps: []Step{{ID: "read", Kind: "sensor-read", RequiredCapabilities: []string{strategy.CapSensor}}}}
+
+	result, err := svc.Run(context.Background(), flow, "sensor-device", "operator")
+	require.NoError(t, err)
+	require.Equal(t, "passed", result.Disposition)
+	select {
+	case event := <-subscription.Events:
+		t.Fatalf("first sensor observation unexpectedly emitted event: %+v", event)
+	default:
+	}
+
+	sensor.Readings[0].Value = 22.5
+	result, err = svc.Run(context.Background(), flow, "sensor-device", "operator")
+	require.NoError(t, err)
+	require.Equal(t, "passed", result.Disposition)
+	select {
+	case event := <-subscription.Events:
+		require.Equal(t, "sensor-device", event.DeviceID)
+		require.Equal(t, "rest", event.Transport)
+		require.Equal(t, "temperature", event.Attribute)
+		require.Equal(t, 21.0, event.OldValue)
+		require.Equal(t, 22.5, event.NewValue)
+		require.Equal(t, strategy.StateBearing, event.StateClass)
+		require.NotEmpty(t, event.CausationID)
+	case <-time.After(time.Second):
+		t.Fatal("sensor transition did not publish a local state-change event")
+	}
 }
 
 func TestRunRejectsUnredactedCaptureWithoutActor(t *testing.T) {

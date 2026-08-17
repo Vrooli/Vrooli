@@ -23,6 +23,7 @@ func Module(s *internal.Service) module.Module {
 	h := &handler{service: s, anchors: anchors}
 	return module.Module{Name: "device-control", Mount: func(r *mux.Router) {
 		r.HandleFunc("/api/v1/devices", h.listDevices).Methods(http.MethodGet)
+		r.HandleFunc("/api/v1/devices/{id}", h.describeDevice).Methods(http.MethodGet)
 		r.HandleFunc("/api/v1/devices/{id}", h.forgetDevice).Methods(http.MethodDelete)
 		r.HandleFunc("/api/v1/devices/{id}/state", h.deviceState).Methods(http.MethodGet)
 		r.HandleFunc("/api/v1/devices/{id}/webview/attach", h.attachWebView).Methods(http.MethodPost)
@@ -82,6 +83,15 @@ type handler struct {
 
 func (h *handler) listDevices(w http.ResponseWriter, r *http.Request) {
 	write(w, http.StatusOK, map[string]any{"devices": h.service.Devices(r.Context())})
+}
+
+func (h *handler) describeDevice(w http.ResponseWriter, r *http.Request) {
+	device, err := h.service.DescribeDevice(r.Context(), mux.Vars(r)["id"])
+	if err != nil {
+		writeError(w, http.StatusNotFound, "device_not_found", err.Error())
+		return
+	}
+	write(w, http.StatusOK, map[string]any{"device": device})
 }
 
 func (h *handler) deviceState(w http.ResponseWriter, r *http.Request) {

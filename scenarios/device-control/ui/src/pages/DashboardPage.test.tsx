@@ -142,6 +142,25 @@ describe("DashboardPage", () => {
     expect(api.getAuthProfile).toHaveBeenCalledWith("profile-1");
   });
 
+  it("renders each transport profile for a merged device identity", async () => {
+    api.listDevices.mockResolvedValue({
+      devices: [{
+        ...device,
+        transports: [
+          { strategy_id: "android-adb", name: "usb", endpoint: "R9TT608Q6MH", health: "ready", capabilities: { input: { name: "input", status: "available" } } },
+          { strategy_id: "android-tv-remote", name: "mdns", endpoint: "living-room", health: "unavailable", health_reason: "pairing required", capabilities: { media: { name: "media", status: "available" } } },
+        ],
+      }],
+    });
+    renderWithProviders(<DashboardPage />);
+
+    const transports = await screen.findByTestId(`device-transports-${device.id}`);
+    expect(transports).toHaveTextContent("android-adb · usb");
+    expect(transports).toHaveTextContent("android-tv-remote · mdns");
+    expect(transports).toHaveTextContent("pairing required");
+    expect(transports).toHaveTextContent("media: available");
+  });
+
   it("renders unavailable-device fallbacks and non-promotable strategy state", async () => {
     api.listDevices.mockResolvedValue({
       devices: [{
