@@ -127,6 +127,30 @@ code server-side (injected over SSH stdin, never argv/logs) → run the
 script → confirm the node is ONLINE. The op is server-owned: it survives
 your client disconnecting and is re-attachable by id.
 
+After the node is ONLINE, the canonical `connect` flow performs a named
+target-bound protection step. On an interactive terminal it asks for a
+break-glass passphrase, seals that passphrase locally to the node's pinned
+identity key, and sends only the opaque envelope to Bridge. Bridge dispatches
+the typed cleanup helper and waits for its terminal result; it never sees the
+plaintext. Leaving the prompt empty (or running headlessly) records the
+protection capability as missing rather than claiming the node is protected.
+The step is idempotent: matching material already present on the node is
+reported as unchanged, while foreign or incomplete material is refused.
+
+To complete protection later for an already-succeeded onboarding operation,
+use the explicit recovery command. It uses the same opaque authorization JSON
+contract as the standalone cleanup protection command:
+
+```bash
+vrooli-bridge onboard complete-protection \
+  --onboarding-op-id <onboarding-op-id> --machine <machine-id> \
+  --node <node-id> --target mini-01.local --scope all < authorization.json
+```
+
+The `onboard status` event history shows the `break-glass-provision` step as
+completed, skipped/declined, or failed, so a node that declined protection is
+visible as incomplete in both CLI output and fleet readiness.
+
 ### Canonical one-command connection
 
 Use this command for the normal operator flow:
@@ -270,13 +294,11 @@ for qualification. See the canonical [platform support matrix](../../../../docs/
 1. **Enable Remote Login (SSH).** System Settings → General → Sharing →
    Remote Login → on, for the admin user. This is the SSH target
    `onboard start --host … --user …` connects to.
-2. **Enable auto-login for the agent's user.** System Settings → Users &
-   Groups → Automatically log in as `<user>`. This is **required**: the
-   node-agent installs as a launchd **LaunchAgent**
-   (`com.vrooli.bridge.vrooli-bridge-agent`), which runs only while its
-   user is GUI-logged-in. A headless mini with no auto-login will pair
-   but the agent will not auto-start after reboot — there is no
-   `loginctl enable-linger` equivalent on macOS.
+2. **If onboarding uses a GUI-domain LaunchAgent**, enable auto-login for
+   the agent's user. SSH-only/headless onboarding installs the agent as the
+   machine-wide `com.vrooli.bridge.vrooli-bridge-agent` LaunchDaemon under
+   `/Library/LaunchDaemons`; that mode is independent of GUI login and does
+   not require auto-login.
 
 **Docker is not an onboarding pre-step.** Nothing in pairing or coming
 ONLINE needs Docker — it matters only later, when a dispatched job runs a
@@ -304,6 +326,75 @@ operations go through the control plane.
 See the canonical [platform support matrix](../../../../docs/reference/platform-support.md)
 for the current evidence tier. Do not assume `vrooli setup` succeeds on a mini
 until the target hardware has completed the recorded qualification ladder.
+
+## Protected cleanup and enrollment-based recovery
+
+Bridge-managed cleanup is the supported path for removing Vrooli-owned state
+from a remote node. The operator terminal procedure is emergency-only: use it
+only when the node is both unreachable and unmanageable, and never target the
+current control-plane host.
+
+### Protect a node during onboarding or repair
+
+Break-glass protection can be established remotely through the Bridge agent.
+The operator supplies the passphrase as JSON on stdin; the CLI seals it locally
+to the node's published key and sends only the opaque envelope through Bridge.
+The passphrase is not accepted from an environment variable, argv, or a file.
+
+```bash
+cat > authorization.json <<'JSON'
+{"passphrase":"enter-at-run-time"}
+JSON
+vrooli-bridge cleanup provision-break-glass \
+  --machine "<machine-id>" \
+  --node "<node-id>" \
+  --target "<target-hostname>" \
+  --scope "vrooli:uninstall" < authorization.json
+rm -- authorization.json
+```
+
+Prefer a secret-manager pipe over a persistent file for automation. Matching
+protection requests are idempotent. A request with a different target,
+operator, scope, or operation identity is refused rather than replacing
+existing material. The command prints a capability report covering agent
+presence, runtime, provisioning, SSH management and approval, cleanup
+planning, cleanup application, and target-bound break-glass. The next command
+shown by the report is `vrooli-bridge cleanup get <operation-id>`.
+
+### Protected cleanup lifecycle
+
+The cleanup flow is deliberately staged:
+
+1. `vrooli-bridge cleanup start` collects a read-only inventory and freezes a
+   plan.
+2. `vrooli-bridge cleanup get <operation-id>` displays the exact `Remove`,
+   `Keep`, and `Cannot attribute` sections and the plan hash.
+3. `vrooli-bridge cleanup confirm <operation-id>` requires the exact target,
+   plan hash, and sealed operator authorization.
+4. `vrooli-bridge cleanup get <operation-id>` returns the durable receipt.
+5. `vrooli-bridge cleanup verify <operation-id>` performs the post-apply
+   verification.
+
+An apply resumes the same frozen plan and hash; it does not rediscover or
+expand the removal set. The privileged node helper accepts named typed
+operations only. It is not an interactive shell and does not receive a raw
+removal command. If the paired agent is unavailable, Bridge may use verified
+and policy-approved SSH management as the transport for that same typed
+helper. Without either path it returns a typed blocked result naming the
+missing capability and performs no cleanup.
+
+Break-glass envelopes use the VCS1 X25519/AES-GCM format and are bound to the
+machine, node, target, scope, plan hash, operation, and operator. Locally
+minted operator sessions have a maximum lifetime of 15 minutes; revocation is
+therefore bounded by that lifetime. Enrollment requires the authenticator,
+but an enrolled local session can be verified and renewed without contacting
+it on every request. Capability verification tolerates at most two minutes of
+clock skew at either endpoint; outside that window it refuses with a named
+clock-skew reason. Operators must correct node time before retrying.
+
+No destructive action may target the current host. Before a live operation,
+confirm the machine id, node id, target, and pre-removal inventory in the
+durable operation record.
 
 ## Machine identity repair and merge
 

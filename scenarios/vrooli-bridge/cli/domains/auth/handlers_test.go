@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
 	identityv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/identity"
@@ -48,11 +49,18 @@ func newTestHandlers(t *testing.T, client *fakeIdentityClient) (*handlers, *clia
 	t.Helper()
 	core := clitest.NewTestApp(t, nil)
 	core.ConfigFile = &cliutil.ConfigFile{Path: filepath.Join(t.TempDir(), "config.json")}
-	h := &handlers{core: core, client: client}
+	h := &handlers{core: core, client: client, enroll: func(_ context.Context, app *cliapp.ScenarioApp, token string) error {
+		if strings.TrimSpace(token) == "" {
+			return errors.New("missing token")
+		}
+		app.Config.Token = ""
+		app.Config.RefreshToken = ""
+		return nil
+	}, mintLocal: func(time.Time) (string, error) { return "local-session", nil }}
 	return h, core
 }
 
-func TestLoginPersistsReturnedOwnerTokenWithoutPrintingSecrets(t *testing.T) {
+func TestLoginEnrollsWithoutPersistingReturnedOwnerToken(t *testing.T) {
 	client := &fakeIdentityClient{loginResponse: &identityv1.LoginResponse{Token: "owner-jwt-secret", Email: "owner@example.com", UserId: "owner-1"}}
 	h, core := newTestHandlers(t, client)
 	h.password = passwordSource{stdin: strings.NewReader("correct horse battery staple\n")}
@@ -67,8 +75,8 @@ func TestLoginPersistsReturnedOwnerTokenWithoutPrintingSecrets(t *testing.T) {
 	if client.loginRequest == nil || client.loginRequest.Email != "owner@example.com" || client.loginRequest.Password != "correct horse battery staple" {
 		t.Fatalf("login request = %#v", client.loginRequest)
 	}
-	if core.Config.Token != "owner-jwt-secret" {
-		t.Fatalf("saved token = %q", core.Config.Token)
+	if core.Config.Token != "" || core.Config.RefreshToken != "" {
+		t.Fatalf("bearer session persisted: token=%q refresh=%q", core.Config.Token, core.Config.RefreshToken)
 	}
 	if got := output.String(); strings.Contains(got, "owner-jwt-secret") || strings.Contains(got, "correct horse battery staple") || !strings.Contains(got, "owner@example.com") {
 		t.Fatalf("unsafe login output %q", got)

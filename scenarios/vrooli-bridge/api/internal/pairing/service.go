@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/vrooli/api-core/schedule"
+	"github.com/vrooli/vrooli/packages/proto/sealing"
 )
 
 // Code/TTL policy. Codes are single-use and short-lived: a live code can enrol a
@@ -362,6 +363,20 @@ func (s *Service) ListRequests(ctx context.Context, includeDecided bool) ([]Pair
 // atomic revoke (so a single RevokeNode kills durable identity AND auth).
 func (s *Service) RevokeCredential(ctx context.Context, nodeID string) error {
 	return s.repo.RevokeCredential(ctx, nodeID)
+}
+
+// SealingPublicKey returns the node-bound X25519 public key used to seal
+// operator authorization envelopes. It is derived from the already-pinned
+// Ed25519 identity; no additional private key is stored or transported.
+func (s *Service) SealingPublicKey(ctx context.Context, nodeID string) ([]byte, error) {
+	public, ok, err := s.repo.ActivePublicKey(ctx, nodeID)
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return nil, fmt.Errorf("node %q has no active credential", nodeID)
+	}
+	return sealing.PublicKeyFromEd25519(public)
 }
 
 // --- helpers ---

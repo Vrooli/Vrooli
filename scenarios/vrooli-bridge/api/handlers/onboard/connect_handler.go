@@ -271,6 +271,7 @@ func (h *connectHandler) StartOnboarding(ctx context.Context, req *connect.Reque
 		SetupResources:       req.Msg.GetSetupResources(),
 		SetupScenarios:       req.Msg.GetSetupScenarios(),
 		IncludeOptional:      req.Msg.GetIncludeOptional(),
+		ProvisionServiceUser: req.Msg.GetProvisionServiceUser(),
 		SourceMode:           sourceModeFromProto(req.Msg.GetSourceMode()),
 		DryRun:               dryRun,
 	}
@@ -311,6 +312,35 @@ func (h *connectHandler) StartOnboarding(ctx context.Context, req *connect.Reque
 		User:                dec.User,
 		MachineId:           machineID,
 		EnrollmentAttemptId: attemptID,
+	}), nil
+}
+
+// ProtectOnboarding is the named post-pairing protection step. The caller has
+// already sealed the passphrase to the node's published key; this handler only
+// authenticates the owner and delegates the opaque envelope to the domain.
+func (h *connectHandler) ProtectOnboarding(ctx context.Context, req *connect.Request[onboardv1.ProtectOnboardingRequest]) (*connect.Response[onboardv1.ProtectOnboardingResponse], error) {
+	owner, err := auth.RequireOwner(ctx)
+	if err != nil {
+		return nil, auth.ToConnectError(err)
+	}
+	actor := owner.OwnerID
+	if actor == "" {
+		actor = owner.Email
+	}
+	if actor == "" {
+		actor = "owner"
+	}
+	decision, err := h.deps.Service.Protect(ctx, onboard.ProtectionInput{
+		OnboardingOpID: req.Msg.GetOnboardingOpId(), MachineID: req.Msg.GetMachineId(), NodeID: req.Msg.GetNodeId(),
+		Target: req.Msg.GetTarget(), Scope: req.Msg.GetScope(), CleanupOperationID: req.Msg.GetCleanupOperationId(),
+		SealedPassphrase: append([]byte(nil), req.Msg.GetSealedPassphrase()...), OperatorID: actor, Declined: req.Msg.GetDeclined(),
+	})
+	if err != nil {
+		return nil, h.mapErr("ProtectOnboarding", req.Msg.GetOnboardingOpId(), err)
+	}
+	return connect.NewResponse(&onboardv1.ProtectOnboardingResponse{
+		Op: domainOpToProto(decision.Op), ProtectionStatus: decision.Status,
+		ProtectionOperationId: decision.OperationID, Detail: decision.Detail,
 	}), nil
 }
 

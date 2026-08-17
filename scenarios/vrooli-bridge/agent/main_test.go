@@ -54,13 +54,14 @@ func TestServiceDefinition_EmbedsDialArgs(t *testing.T) {
 func TestServiceDefinition_ProvisionerIsDistinctService(t *testing.T) {
 	dir := t.TempDir()
 	cfg := config.Config{
-		StateDir:           dir,
-		WorkDir:            "/srv/vrooli",
-		VrooliBin:          "/opt/vrooli/bin/vrooli",
-		ServiceUser:        "vrooli-provisioner",
-		ProvisionHelper:    true,
-		ProvisionSocket:    "/run/vrooli-bridge/provision.sock",
-		ProvisionClientUID: 1000,
+		StateDir:            dir,
+		WorkDir:             "/srv/vrooli",
+		VrooliBin:           "/opt/vrooli/bin/vrooli",
+		ServiceUser:         "vrooli-provisioner",
+		ProvisionHelper:     true,
+		ProvisionSocket:     "/run/vrooli-bridge/provision.sock",
+		ProvisionClientUID:  1000,
+		ProvisionClientHome: "/home/vrooli",
 	}
 	def, err := serviceDefinition(cfg)
 	require.NoError(t, err)
@@ -70,6 +71,7 @@ func TestServiceDefinition_ProvisionerIsDistinctService(t *testing.T) {
 		"--state-dir", dir,
 		"--provision-helper", "--provision-socket", "/run/vrooli-bridge/provision.sock",
 		"--provision-client-uid", "1000",
+		"--provision-client-home", "/home/vrooli",
 		"--work-dir", "/srv/vrooli",
 		"--vrooli-bin", "/opt/vrooli/bin/vrooli",
 	}, def.Args)

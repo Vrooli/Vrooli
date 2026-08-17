@@ -10,7 +10,9 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	sharedsession "github.com/vrooli/api-core/operatorsession"
 	"github.com/vrooli/api-core/trustposture"
+	localenrollment "vrooli-bridge/internal/operatorsession"
 )
 
 // fakeBase64URL JSON-encodes v and base64url's it (no padding) — the JWS
@@ -109,4 +111,23 @@ func TestBreakGlassValidatorIsOfflineAndDistinct(t *testing.T) {
 	require.Equal(t, AuthMethodBreakGlass, id.AuthMethod)
 	_, err = c.ValidateBreakGlass(context.Background(), token+"x")
 	require.ErrorIs(t, err, ErrUnauthenticated)
+}
+
+type localStore struct{ record localenrollment.Record }
+
+func (s localStore) Lookup(context.Context, string) (localenrollment.Record, error) { return s.record, nil }
+
+func TestValidateLocalDoesNotNeedAuthenticator(t *testing.T) {
+	private, err := sharedsession.GenerateKey()
+	require.NoError(t, err)
+	public, err := sharedsession.PublicKey(private)
+	require.NoError(t, err)
+	now := time.Unix(2_000, 0).UTC()
+	token, err := sharedsession.Mint(private, "enrollment-1", "owner-1", []string{"vrooli-bridge:read"}, now, time.Minute)
+	require.NoError(t, err)
+	c := NewClient(Config{Now: func() time.Time { return now }, LocalSessions: localStore{record: localenrollment.Record{Reference: "enrollment-1", OperatorID: "owner-1", Mode: sharedsession.ModePersonal, PublicKey: public, Scopes: []string{"vrooli-bridge:read"}, EnrolledAt: now}}})
+	id, err := c.ValidateLocal(context.Background(), token)
+	require.NoError(t, err)
+	require.Equal(t, "owner-1", id.OwnerID)
+	require.Equal(t, AuthMethodEnrolled, id.AuthMethod)
 }

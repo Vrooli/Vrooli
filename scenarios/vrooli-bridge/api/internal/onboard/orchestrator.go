@@ -426,6 +426,12 @@ func buildBootstrapArgsForScopes(in StartInput, wtSourceDir, wtDigest string, ar
 		// Working-tree mode: point the script at the pre-synced tree and give it the
 		// content digest so a re-ship of changed work re-runs node-side setup.
 		args = append(args, "--source-dir", wtSourceDir)
+		// The bootstrap process may inherit BRIDGE_WORK_DIR from a host profile or
+		// an older installation.  That environment value must never be allowed to
+		// replace the exact tree this operation just shipped: the agent's runner
+		// and cleanup CLI both need a repository-contract root.  Carry the resolved
+		// destination explicitly so working-tree onboarding is deterministic.
+		args = append(args, "--work-dir", wtSourceDir)
 		if wtDigest != "" {
 			args = append(args, "--source-digest", wtDigest)
 		}
@@ -447,6 +453,10 @@ func buildBootstrapArgsForScopes(in StartInput, wtSourceDir, wtDigest string, ar
 	}
 	if cd := trimField(in.CheckoutDir); cd != "" {
 		args = append(args, "--checkout-dir", cd)
+		// An explicit checkout is also the only safe default runner root.  Passing
+		// it as a flag prevents a stale BRIDGE_WORK_DIR environment variable on a
+		// reused node from pointing the helper at a runtime binary directory.
+		args = append(args, "--work-dir", cd)
 	}
 	if in.VerifyTimeoutSeconds > 0 {
 		args = append(args, "--verify-timeout", strconv.Itoa(int(in.VerifyTimeoutSeconds)))
@@ -483,6 +493,9 @@ func buildBootstrapArgsForScopes(in StartInput, wtSourceDir, wtDigest string, ar
 	}
 	if in.IncludeOptional {
 		args = append(args, "--include-optional")
+	}
+	if helper := trimField(in.ProvisionServiceUser); helper != "" {
+		args = append(args, "--provision-service-user", helper)
 	}
 	return args
 }

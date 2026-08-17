@@ -2,10 +2,13 @@ package onboard
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"path/filepath"
 	"strings"
+	"time"
 
+	internalcleanup "vrooli-bridge/internal/cleanup"
 	"vrooli-bridge/internal/machines"
 	"vrooli-bridge/internal/module"
 	internalonboard "vrooli-bridge/internal/onboard"
@@ -40,6 +43,42 @@ func NewService(db internalonboard.SQLExecutor, clk schedule.Clock, pairingSvc *
 		clk,
 		opts...,
 	)
+}
+
+// NewProtectionProvisioner adapts the cleanup domain's durable typed helper
+// operation to the onboarding protection step. The passphrase remains opaque
+// in both domains; this adapter only coordinates dispatch and the server-owned
+// terminal wait.
+func NewProtectionProvisioner(cleanupSvc internalcleanup.Service) internalonboard.ProtectionProvisioner {
+	return protectionProvisioner{cleanup: cleanupSvc}
+}
+
+type protectionProvisioner struct {
+	cleanup internalcleanup.Service
+}
+
+func (p protectionProvisioner) ProvisionProtection(ctx context.Context, in internalonboard.ProtectionInput) (string, string, string, error) {
+	if p.cleanup == nil {
+		return "", "", "cleanup service is not configured", fmt.Errorf("cleanup service is not configured")
+	}
+	op, err := p.cleanup.ProvisionBreakGlass(ctx, internalcleanup.ProvisionInput{
+		MachineID: in.MachineID, NodeID: in.NodeID, Target: in.Target, Scope: in.Scope,
+		OperationID: in.CleanupOperationID, SealedPassphrase: append([]byte(nil), in.SealedPassphrase...), OperatorID: in.OperatorID,
+	})
+	if err != nil {
+		return "", op.ID, "protection dispatch failed: " + err.Error(), err
+	}
+	finished, timedOut, err := p.cleanup.Wait(ctx, op.ID, 10*time.Minute)
+	if err != nil {
+		return "", op.ID, "protection wait failed: " + err.Error(), err
+	}
+	if timedOut {
+		return finished.Status.String(), op.ID, "protection remains in progress after the wait budget", fmt.Errorf("protection operation %q did not reach a terminal state", op.ID)
+	}
+	if finished.Status != internalcleanup.StatusCompleted {
+		return finished.Status.String(), op.ID, "protection finished with status " + finished.Status.String() + ": " + finished.Reason, fmt.Errorf("protection operation %q finished with status %s", op.ID, finished.Status.String())
+	}
+	return finished.Status.String(), op.ID, "target-bound break-glass material is established (existing material was left unchanged when present)", nil
 }
 
 // Module returns the onboard domain's contribution to the API: the generated

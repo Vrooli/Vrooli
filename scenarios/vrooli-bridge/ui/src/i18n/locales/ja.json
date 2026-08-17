@@ -95,6 +95,10 @@
       "archive": "アーカイブ",
       "revokeNode": "ノードを取り消す",
       "cleanup": "SSH クリーンアップを要求",
+      "cleanupPlanRemove": "削除",
+      "cleanupPlanKeep": "保持",
+      "cleanupPlanCannotAttribute": "帰属不可",
+      "cleanupPlanEmpty": "なし",
       "remove": "レコードを削除",
       "removeConfirm": "Machine レコード {{id}} を削除しますか？監査履歴と登録履歴は保持されます。"
     },

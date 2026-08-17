@@ -144,37 +144,6 @@ func (s *sqliteRepository) Resolve(ctx context.Context, query IdentityQuery) (Ma
 	return Machine{}, ErrInvalid{"identity", "at least one identity fact is required"}
 }
 
-func (s *sqliteRepository) findActiveByLocator(ctx context.Context, kind, value string) (Machine, bool, error) {
-	normalized, err := normalizeLocator(kind, value)
-	if err != nil {
-		return Machine{}, false, err
-	}
-	rows, err := s.db.QueryContext(ctx, `SELECT c.machine_id FROM machine_locator_claims c JOIN machines m ON m.id=c.machine_id WHERE m.lifecycle='active' AND c.kind=? AND c.normalized_value=?`, strings.ToLower(strings.TrimSpace(kind)), normalized)
-	if err != nil {
-		return Machine{}, false, fmt.Errorf("resolve active machine locator: %w", err)
-	}
-	defer rows.Close()
-	var ids []string
-	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err != nil {
-			return Machine{}, false, err
-		}
-		ids = append(ids, id)
-	}
-	if err := rows.Err(); err != nil {
-		return Machine{}, false, err
-	}
-	if len(ids) == 0 {
-		return Machine{}, false, nil
-	}
-	if len(ids) > 1 {
-		return Machine{}, false, ErrAmbiguous{Evidence: kind + "=" + normalized}
-	}
-	machine, err := s.Get(ctx, ids[0])
-	return machine, err == nil, err
-}
-
 func isUniqueConstraint(err error) bool {
 	return err != nil && strings.Contains(strings.ToLower(err.Error()), "unique constraint")
 }

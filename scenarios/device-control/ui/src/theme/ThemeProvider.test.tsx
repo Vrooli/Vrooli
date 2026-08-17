@@ -20,6 +20,7 @@ describe("ThemeProvider", () => {
   beforeEach(() => {
     window.localStorage.clear();
     document.documentElement.removeAttribute("data-theme");
+    document.documentElement.removeAttribute("data-resolved-theme");
   });
 
   afterEach(() => {
@@ -29,12 +30,14 @@ describe("ThemeProvider", () => {
   it("sets data-theme on the html element for an explicit light choice", () => {
     renderHook(() => useTheme(), { wrapper: wrapper("light") });
     expect(document.documentElement.getAttribute("data-theme")).toBe("light");
+    expect(document.documentElement.getAttribute("data-resolved-theme")).toBe("light");
   });
 
   it("sets data-theme to dark when the user chooses dark", () => {
     const { result } = renderHook(() => useTheme(), { wrapper: wrapper("light") });
     act(() => result.current.setTheme("dark"));
     expect(document.documentElement.getAttribute("data-theme")).toBe("dark");
+    expect(document.documentElement.getAttribute("data-resolved-theme")).toBe("dark");
     expect(result.current.choice).toBe("dark");
     expect(result.current.resolved).toBe("dark");
   });
@@ -44,6 +47,7 @@ describe("ThemeProvider", () => {
     const { result } = renderHook(() => useTheme(), { wrapper: wrapper("light") });
     act(() => result.current.setTheme("system"));
     expect(document.documentElement.hasAttribute("data-theme")).toBe(false);
+    expect(document.documentElement.getAttribute("data-resolved-theme")).toBe("light");
     expect(result.current.choice).toBe("system");
   });
 

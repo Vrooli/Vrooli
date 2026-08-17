@@ -115,9 +115,19 @@ type Config struct {
 	// socket. A negative value leaves that check to the socket's native ACL.
 	ProvisionHelperUID int
 
+	// ProvisionClientHome is the runner principal's home directory. The
+	// privileged helper runs as a separate OS user, so it must carry this
+	// identity explicitly when invoking user-scoped Vrooli commands.
+	ProvisionClientHome string
+
 	// SystemService asks the native manager for a machine-wide service unit. It
 	// is reserved for the privileged helper; ordinary agents remain user-scoped.
 	SystemService bool
+
+	// CleanupStdin runs one typed cleanup command received as protobuf JSON on
+	// stdin and exits. It is the fixed SSH transport entrypoint; it never opens
+	// a shell and never accepts caller-supplied argv.
+	CleanupStdin bool
 }
 
 // Paired reports whether the agent has the minimum configuration to hold a
@@ -151,7 +161,9 @@ func Load(args []string) (Config, error) {
 		provisionSocket  = fs.String("provision-socket", envOr("BRIDGE_PROVISION_SOCKET", ""), "Local IPC socket shared by the runner and provisioning helper")
 		clientUID        = fs.Int("provision-client-uid", envIntOr("BRIDGE_PROVISION_CLIENT_UID", -1), "Unix uid permitted to call the provisioning helper")
 		helperUID        = fs.Int("provision-helper-uid", envIntOr("BRIDGE_PROVISION_HELPER_UID", -1), "Unix uid expected for the provisioning helper")
+		clientHome       = fs.String("provision-client-home", envOr("BRIDGE_PROVISION_CLIENT_HOME", ""), "Home directory of the runner principal for privileged child commands")
 		systemService    = fs.Bool("system-service", envBoolOr("BRIDGE_SYSTEM_SERVICE", false), "Install a machine-wide native service (privileged helper only)")
+		cleanupStdin     = fs.Bool("cleanup-stdin", false, "Run one typed cleanup command from protobuf JSON on stdin")
 	)
 
 	if err := fs.Parse(args); err != nil {
@@ -200,7 +212,9 @@ func Load(args []string) (Config, error) {
 		ProvisionSocket:     strings.TrimSpace(*provisionSocket),
 		ProvisionClientUID:  *clientUID,
 		ProvisionHelperUID:  *helperUID,
+		ProvisionClientHome: strings.TrimSpace(*clientHome),
 		SystemService:       *systemService,
+		CleanupStdin:        *cleanupStdin,
 	}, nil
 }
 

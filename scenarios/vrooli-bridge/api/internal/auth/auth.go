@@ -44,7 +44,9 @@ import (
 	"time"
 
 	"vrooli-bridge/internal/httpc"
+	localenrollment "vrooli-bridge/internal/operatorsession"
 
+	sharedsession "github.com/vrooli/api-core/operatorsession"
 	"github.com/vrooli/api-core/trustposture"
 )
 
@@ -72,7 +74,15 @@ type AuthMethod string
 const (
 	AuthMethodNormal     AuthMethod = "normal"
 	AuthMethodBreakGlass AuthMethod = "break_glass"
+	AuthMethodEnrolled   AuthMethod = "enrolled"
 )
+
+// LocalSessionStore is the Bridge-owned enrollment authority. It returns
+// public records only; private keys and locally minted credentials stay on the
+// operator client.
+type LocalSessionStore interface {
+	Lookup(context.Context, string) (localenrollment.Record, error)
+}
 
 // Validator is the seam the middleware depends on. Production wires *Client;
 // handler/middleware tests substitute a fake so they never touch the network.
@@ -115,6 +125,7 @@ type Client struct {
 	breakGlassPublic   ed25519.PublicKey
 	breakGlassAudience string
 	breakGlassTarget   string
+	localSessions      LocalSessionStore
 }
 
 // Config configures the production Client.
@@ -128,6 +139,7 @@ type Config struct {
 	BreakGlassPublicKey []byte
 	BreakGlassAudience  string
 	BreakGlassTarget    string
+	LocalSessions       LocalSessionStore
 }
 
 // NewClient constructs the production Validator, filling defaults. A nil Doer
@@ -179,7 +191,47 @@ func NewClient(cfg Config) *Client {
 		breakGlassPublic:   public,
 		breakGlassAudience: audience,
 		breakGlassTarget:   target,
+		localSessions:      cfg.LocalSessions,
 	}
+}
+
+// ValidateLocal verifies a session minted from a previously enrolled client
+// key. It never contacts the authenticator; enrollment is the only online
+// authority step. Revocation is checked on every request, so local sessions
+// cannot outlive a revoked enrollment.
+func (c *Client) ValidateLocal(ctx context.Context, token string) (Identity, error) {
+	if c.localSessions == nil {
+		return Identity{}, ErrUnauthenticated
+	}
+	parts := strings.Split(strings.TrimSpace(token), ".")
+	if len(parts) != 3 || parts[0] != "OS1" {
+		return Identity{}, ErrUnauthenticated
+	}
+	claimsPayload, err := decodeLocalReference(parts[1])
+	if err != nil {
+		return Identity{}, ErrUnauthenticated
+	}
+	record, err := c.localSessions.Lookup(ctx, claimsPayload.EnrollmentReference)
+	if err != nil || record.Revoked || record.OperatorID != claimsPayload.OperatorID {
+		return Identity{}, ErrUnauthenticated
+	}
+	claims, err := sharedsession.Verify(record.PublicKey, token, c.now())
+	if err != nil || claims.EnrollmentReference != record.Reference || !sharedsession.ContainsAll(record.Scopes, claims.Scopes) {
+		return Identity{}, ErrUnauthenticated
+	}
+	return Identity{OwnerID: claims.OperatorID, Scopes: append([]string(nil), claims.Scopes...), ExpiresAt: time.Unix(claims.ExpiresAt, 0).UTC(), AuthMethod: AuthMethodEnrolled}, nil
+}
+
+func decodeLocalReference(encoded string) (sharedsession.LocalSession, error) {
+	data, err := base64.RawURLEncoding.DecodeString(encoded)
+	if err != nil {
+		return sharedsession.LocalSession{}, err
+	}
+	var claims sharedsession.LocalSession
+	if err := json.Unmarshal(data, &claims); err != nil {
+		return sharedsession.LocalSession{}, err
+	}
+	return claims, nil
 }
 
 // Compile-time guarantee.

@@ -28,6 +28,7 @@ package onboard
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -178,6 +179,10 @@ const (
 	// StepApplySelection records the declarative onboarding pass after the node
 	// is online and before the operation is reported successful.
 	StepApplySelection = "apply-selection"
+	// StepProtect records the target-bound break-glass protection handoff. It is
+	// intentionally after pairing: only then can the CLI seal the passphrase to
+	// the node's pinned public key without sending plaintext to Bridge.
+	StepProtect = "break-glass-provision"
 )
 
 // FailureReason is the taxonomy of terminal-failure causes recorded on a FAILED
@@ -335,6 +340,10 @@ type StartInput struct {
 	SetupResources   string // enabled | none | <comma list> | ""
 	SetupScenarios   string // none | all | <comma list> | ""
 	IncludeOptional  bool   // also apply optional (non-required) host safeguards
+	// ProvisionServiceUser selects the separate OS principal for the privileged
+	// provisioning helper. Empty preserves the unprivileged-agent-only posture.
+	// It is an account name, not a password or other credential.
+	ProvisionServiceUser string
 	// NodeKind is forwarded to the optional vrooli-onboarding handoff. Empty
 	// preserves the agent default for callers that predate typed node kinds.
 	NodeKind string
@@ -366,6 +375,29 @@ type Decision struct {
 	User   string
 }
 
+// ProtectionInput is the post-pairing authorization envelope. SealedPassphrase
+// is opaque to Bridge and must already be sealed to the node's identity by the
+// caller. The cleanup operation id is supplied by the read-only preparation
+// step and is part of the envelope's AAD.
+type ProtectionInput struct {
+	OnboardingOpID     string
+	MachineID          string
+	NodeID             string
+	Target             string
+	Scope              string
+	CleanupOperationID string
+	SealedPassphrase   []byte
+	OperatorID         string
+	Declined           bool
+}
+
+type ProtectionDecision struct {
+	Op          Op
+	Status      string
+	OperationID string
+	Detail      string
+}
+
 // ListFilter narrows ListOps. Zero-value fields are not applied.
 type ListFilter struct {
 	Host  string
@@ -386,6 +418,16 @@ type ErrInvalid struct {
 }
 
 func (e ErrInvalid) Error() string { return fmt.Sprintf("%s: %s", e.Field, e.Reason) }
+
+// ErrConflict means the requested post-pairing action no longer matches the
+// immutable onboarding result. It is a failed-precondition rather than a
+// generic server failure so clients can recover by re-reading the operation.
+type ErrConflict struct {
+	Field  string
+	Reason string
+}
+
+func (e ErrConflict) Error() string { return fmt.Sprintf("%s: %s", e.Field, e.Reason) }
 
 // trimField normalises a request token.
 func trimField(s string) string { return strings.TrimSpace(s) }
@@ -419,6 +461,8 @@ func IsWorkingTreeRevision(revision string) bool {
 // tokens, and each documents its own contract. A comma is deliberately allowed
 // (resource/scenario selections are comma lists).
 const setupProfileMetachars = "|&;<>()$`\\\"'\n\r\t*?[]{}!#~ "
+
+var provisionServiceUserPattern = regexp.MustCompile(`^[a-zA-Z0-9._-]+$`)
 
 // validSetupEnvironments is the enum-ish allow-list for setup_environment. Empty
 // is always valid (the node falls through to its own default).
@@ -456,6 +500,18 @@ func validateSetupProfile(in StartInput) error {
 				Field:  "setup_environment",
 				Reason: "must be one of development, production, minimal (or empty for the node default)",
 			}
+		}
+	}
+	if helper := trimField(in.ProvisionServiceUser); helper != "" {
+		if !provisionServiceUserPattern.MatchString(helper) {
+			return ErrInvalid{Field: "provision_service_user", Reason: "must be a single POSIX/macOS account name containing only letters, digits, dot, underscore, or hyphen"}
+		}
+		runner := trimField(in.User)
+		if runner == "" {
+			runner = "root"
+		}
+		if helper == runner {
+			return ErrInvalid{Field: "provision_service_user", Reason: "must name a separate OS principal from the SSH runner"}
 		}
 	}
 	return nil

@@ -3,6 +3,7 @@ import { useCallback, useState } from "react";
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { FleetPanel } from "../features/fleet/FleetPanel";
+import { CleanupPanel } from "../features/fleet/CleanupPanel";
 import { MachineLifecyclePanel } from "../features/fleet/MachineLifecyclePanel";
 import { OnboardNodeForm } from "../features/fleet/OnboardNodeForm";
 import { type OnboardingOp } from "../api/onboard";
@@ -54,6 +55,8 @@ export function DashboardPage() {
       </div>
 
       <FleetPanel onAddNode={handleAddNode} onRetryOnboarding={handleRetryOnboarding} />
+
+      <CleanupPanel />
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(20rem,.65fr)]">
         <div className="flex flex-col gap-6">

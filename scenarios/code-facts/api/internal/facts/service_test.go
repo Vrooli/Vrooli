@@ -243,6 +243,103 @@ func TestSearchExpandsAuthoritativeGraphEdgesOnDemand(t *testing.T) {
 	}
 }
 
+func TestSearchNaturalLanguageRanksSourceBackedLocation(t *testing.T) {
+	root := t.TempDir()
+	idx := newLexicalProjectIndex(root)
+	idx.facts = []*factsv1.GenericFact{
+		lexicalFact("scenarios/search-hub/api/internal/metrics/demotion.go", 22, "func (s *sqliteDemotionStore) Load(ctx context.Context) ([]routing.ProviderDemotionState, error) {", factsv1.FactFamily_FACT_FAMILY_SYMBOLS),
+		lexicalFact("scenarios/search-hub/api/internal/routing/router.go", 80, "func routeProvider(providerID string) error", factsv1.FactFamily_FACT_FAMILY_SYMBOLS),
+		lexicalFact("scenarios/search-hub/api/internal/metrics/health.go", 15, "func recordProviderHealth(providerID string)", factsv1.FactFamily_FACT_FAMILY_SYMBOLS),
+	}
+	idx.markReady()
+	svc := &Service{projectIdx: idx}
+	response, err := svc.Search(context.Background(), &factsv1.SearchRequest{
+		Query: "where is the function that computes provider demotion in the router",
+		Limit: 5, Target: &factsv1.CodeTarget{Kind: factsv1.TargetKind_TARGET_KIND_PROJECT, RepoRoot: root},
+		Families: []factsv1.FactFamily{factsv1.FactFamily_FACT_FAMILY_SYMBOLS},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(response.GetResults()) == 0 || response.GetResults()[0].GetId() != "code-facts:lexical:scenarios/search-hub/api/internal/metrics/demotion.go:22" {
+		t.Fatalf("natural-language results = %#v, want demotion source location ranked first", response.GetResults())
+	}
+	hit := response.GetResults()[0]
+	if hit.GetPath() != "scenarios/search-hub/api/internal/metrics/demotion.go" || hit.GetEvidenceStatus() != factsv1.EvidenceStatus_EVIDENCE_STATUS_PROVEN || hit.GetAnalyzer() != "code-facts.lexical" {
+		t.Fatalf("natural-language hit provenance = %#v, want source-backed lexical evidence", hit)
+	}
+}
+
+func TestSearchExactIdentifierAndNegativeQueries(t *testing.T) {
+	root := t.TempDir()
+	idx := newLexicalProjectIndex(root)
+	idx.facts = []*factsv1.GenericFact{
+		lexicalFact("scenarios/search-hub/api/internal/metrics/demotion.go", 22, "provider demotion persistence", factsv1.FactFamily_FACT_FAMILY_SYMBOLS),
+		lexicalFact("scenarios/search-hub/api/internal/metrics/other.go", 22, "provider persistence", factsv1.FactFamily_FACT_FAMILY_SYMBOLS),
+	}
+	idx.markReady()
+	svc := &Service{projectIdx: idx}
+	exact, err := svc.Search(context.Background(), &factsv1.SearchRequest{
+		Query: "demotion.go:22", Limit: 5,
+		Target:   &factsv1.CodeTarget{Kind: factsv1.TargetKind_TARGET_KIND_PROJECT, RepoRoot: root},
+		Families: []factsv1.FactFamily{factsv1.FactFamily_FACT_FAMILY_SYMBOLS},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(exact.GetResults()) == 0 || exact.GetResults()[0].GetPath() != "scenarios/search-hub/api/internal/metrics/demotion.go" {
+		t.Fatalf("exact identifier results = %#v, want demotion.go first", exact.GetResults())
+	}
+	negative, err := svc.Search(context.Background(), &factsv1.SearchRequest{
+		Query: "unrelated quantum database", Limit: 5,
+		Target:   &factsv1.CodeTarget{Kind: factsv1.TargetKind_TARGET_KIND_PROJECT, RepoRoot: root},
+		Families: []factsv1.FactFamily{factsv1.FactFamily_FACT_FAMILY_SYMBOLS},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(negative.GetResults()) != 0 {
+		t.Fatalf("negative query results = %#v, want no false positives", negative.GetResults())
+	}
+}
+
+func TestSearchProjectIndexHonorsCancellation(t *testing.T) {
+	root := t.TempDir()
+	idx := newLexicalProjectIndex(root)
+	idx.facts = []*factsv1.GenericFact{lexicalFact("scenarios/demo/api/main.go", 1, "provider", factsv1.FactFamily_FACT_FAMILY_SYMBOLS)}
+	svc := &Service{projectIdx: idx}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	_, err := svc.Search(ctx, &factsv1.SearchRequest{
+		Query: "provider", Limit: 5,
+		Target:   &factsv1.CodeTarget{Kind: factsv1.TargetKind_TARGET_KIND_PROJECT, RepoRoot: root},
+		Families: []factsv1.FactFamily{factsv1.FactFamily_FACT_FAMILY_SYMBOLS},
+	})
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("canceled search error = %v, want context.Canceled", err)
+	}
+}
+
+func TestSearchProjectIndexColdStateUsesCompleteFallback(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "scenarios", "demo", "api", "demotion.go"), "package demo\nfunc ProviderDemotion() {}\n")
+	if err := os.MkdirAll(filepath.Join(root, "packages"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	svc := &Service{projectIdx: newLexicalProjectIndex(root)}
+	response, err := svc.Search(context.Background(), &factsv1.SearchRequest{
+		Query: "provider demotion", Limit: 5,
+		Target:   &factsv1.CodeTarget{Kind: factsv1.TargetKind_TARGET_KIND_PROJECT, RepoRoot: root},
+		Families: []factsv1.FactFamily{factsv1.FactFamily_FACT_FAMILY_SYMBOLS},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(response.GetResults()) == 0 || response.GetResults()[0].GetPath() != "scenarios/demo/api/demotion.go" {
+		t.Fatalf("cold-index results = %#v, want complete fallback result", response.GetResults())
+	}
+}
+
 func TestDescribeScenarioReportsUnknownSidecarUnsupported(t *testing.T) {
 	repo, _ := writeScenarioFixture(t, "sidecar-demo")
 	writeFile(t, filepath.Join(repo, "scenarios", "sidecar-demo", "sidecar", "README.md"), "# custom runtime\n")

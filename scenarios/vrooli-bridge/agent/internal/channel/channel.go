@@ -49,6 +49,8 @@ import (
 	artifactsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/artifacts"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/artifacts/artifacts_v1connect"
 	channelv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/channel"
+	cleanupv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/cleanup"
+	"github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/cleanup/cleanup_v1connect"
 	presencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/presence"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/presence/presence_v1connect"
 	provisionv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/provision"
@@ -56,6 +58,7 @@ import (
 	runsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/runs"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/runs/runs_v1connect"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/shared"
+	"github.com/vrooli/vrooli/packages/proto/privilegedops"
 )
 
 // ProtocolVersion is the agent's implemented wire protocol version. It MUST
@@ -89,6 +92,7 @@ type Client struct {
 	runsRPC      runs_v1connect.RunsServiceClient
 	artifactsRPC artifacts_v1connect.ArtifactsServiceClient
 	provisionRPC provision_v1connect.ProvisionServiceClient
+	cleanupRPC   cleanup_v1connect.CleanupServiceClient
 	sampler      health.Sampler
 	cred         *nodecred.Credential
 	cpVerifier   *cpverify.Verifier
@@ -118,6 +122,7 @@ type Client struct {
 	sessions      map[string]*nodeSession
 	relayReporter RelayResponseReporter
 	commandRunner exec.CommandRunner
+	shutdown      func()
 }
 
 // Option customises a Client (transport, sampler, clock, backoff) for tests and
@@ -171,6 +176,12 @@ func WithCommandRunner(runner exec.CommandRunner) Option {
 	return func(c *Client) { c.commandRunner = runner }
 }
 
+// WithShutdown supplies the process lifecycle hook used after a successful
+// node cleanup. The cleanup receipt is reported first; only then does the
+// managed agent stop, allowing its just-removed service unit to disappear
+// without orphaning the control-plane operation.
+func WithShutdown(shutdown func()) Option { return func(c *Client) { c.shutdown = shutdown } }
+
 // NewClient constructs a channel client from resolved config. The PresenceService
 // Connect client is built over the same HTTP client and the control-plane base
 // URL; it is only invoked once Dial confirms the agent is paired.
@@ -192,6 +203,7 @@ func NewClient(cfg config.Config, opts ...Option) *Client {
 	c.runsRPC = runs_v1connect.NewRunsServiceClient(c.httpClient, base)
 	c.artifactsRPC = artifacts_v1connect.NewArtifactsServiceClient(c.httpClient, base)
 	c.provisionRPC = provision_v1connect.NewProvisionServiceClient(c.httpClient, base)
+	c.cleanupRPC = cleanup_v1connect.NewCleanupServiceClient(c.httpClient, base)
 	return c
 }
 
@@ -380,7 +392,7 @@ func (c *Client) handleServerFrame(payload string) {
 		c.logger.Printf("channel: rejected unverified server frame (%v); total rejected=%d", err, n)
 		return
 	}
-	if frame.GetJob() != nil || frame.GetProvision() != nil || frame.GetAbort() != nil {
+	if frame.GetJob() != nil || frame.GetProvision() != nil || frame.GetCleanup() != nil || frame.GetAbort() != nil {
 		c.sendDeliveryAck(frame)
 	}
 	if session := frame.GetSession(); session != nil {
@@ -432,6 +444,14 @@ func (c *Client) handleServerFrame(payload string) {
 			prov.GetOpId(), prov.GetTargetRevision(), prov.GetRollbackRevision())
 		go c.runProvision(prov)
 	}
+	if cleanup := frame.GetCleanup(); cleanup != nil {
+		if c.cfg.PresenceOnly {
+			c.logger.Printf("channel: rejecting cleanup op_id=%q because agent is in presence-only posture", cleanup.GetOpId())
+			return
+		}
+		c.logger.Printf("channel: received typed cleanup op_id=%q operation=%s", cleanup.GetOpId(), cleanup.GetOperation().String())
+		go c.runCleanup(cleanup)
+	}
 	if abort := frame.GetAbort(); abort != nil {
 		// A control-plane cancel (OT-P1-004): stop the in-flight run's process so
 		// it does not run to completion. Unknown/finished runs are a no-op.
@@ -459,6 +479,9 @@ func (c *Client) sendDeliveryAck(frame *channelv1.ServerFrame) {
 	}
 	if prov := frame.GetProvision(); prov != nil {
 		ack.OpId = prov.GetOpId()
+	}
+	if cleanup := frame.GetCleanup(); cleanup != nil {
+		ack.OpId = cleanup.GetOpId()
 	}
 	if abort := frame.GetAbort(); abort != nil {
 		ack.RunId = abort.GetRunId()
@@ -731,6 +754,39 @@ func (c *Client) reportProvisionUnavailable(ctx context.Context, reporter *provi
 	_ = reporter.Report(ctx, &provisionv1.ProvisionEvent{OpId: cmd.GetOpId(), Kind: provisionv1.ProvisionEventKind_PROVISION_EVENT_KIND_EXIT, ExitCode: 127})
 }
 
+func (c *Client) runCleanup(cmd *channelv1.CleanupCommand) {
+	ctx := c.baseCtxOrBackground()
+	reporter := &cleanupEventReporter{rpc: c.cleanupRPC, cred: c.cred, nodeID: c.cfg.NodeID, now: c.now}
+	if strings.TrimSpace(c.cfg.ProvisionSocket) == "" {
+		_ = reporter.Report(ctx, &cleanupv1.CleanupEvent{OperationId: cmd.GetOpId(), Kind: cleanupv1.CleanupEventKind_CLEANUP_EVENT_KIND_STATUS, Status: "blocked", Reason: "provisioning helper is not installed"})
+		_ = reporter.Report(ctx, &cleanupv1.CleanupEvent{OperationId: cmd.GetOpId(), Kind: cleanupv1.CleanupEventKind_CLEANUP_EVENT_KIND_EXIT, ExitCode: 127})
+		return
+	}
+	err := privsep.RunCleanup(ctx, c.cfg.ProvisionSocket, c.cfg.ProvisionHelperUID, cmd, func(event *cleanupv1.CleanupEvent) error { return reporter.Report(ctx, event) })
+	if err != nil && ctx.Err() == nil {
+		c.logger.Printf("channel: cleanup %q: helper IPC failed: %v", cmd.GetOpId(), err)
+		// Do not leave the durable cleanup operation in an apparent running
+		// state when the local helper cannot be reached or its IPC stream is
+		// malformed. The control plane needs a typed terminal observation so
+		// the operator can repair/re-enroll and safely retry the frozen plan.
+		_ = reporter.Report(ctx, &cleanupv1.CleanupEvent{
+			OperationId: cmd.GetOpId(),
+			Kind:        cleanupv1.CleanupEventKind_CLEANUP_EVENT_KIND_STATUS,
+			Status:      "failed",
+			Reason:      "privileged helper IPC: " + err.Error(),
+		})
+		_ = reporter.Report(ctx, &cleanupv1.CleanupEvent{
+			OperationId: cmd.GetOpId(),
+			Kind:        cleanupv1.CleanupEventKind_CLEANUP_EVENT_KIND_EXIT,
+			ExitCode:    127,
+		})
+		return
+	}
+	if err == nil && c.shutdown != nil && privilegedops.Name(cmd.GetOperation()) == privilegedops.ApplyFrozenPlan {
+		c.shutdown()
+	}
+}
+
 // runEventReporter implements exec.EventReporter by calling the control plane's
 // RunsService.ReportRunEvent, signing each call with the node's per-node
 // Ed25519 credential so the control plane verifies the node (and that it only
@@ -785,6 +841,24 @@ type provisionEventReporter struct {
 	cred   *nodecred.Credential
 	nodeID string
 	now    func() time.Time
+}
+
+type cleanupEventReporter struct {
+	rpc    cleanup_v1connect.CleanupServiceClient
+	cred   *nodecred.Credential
+	nodeID string
+	now    func() time.Time
+}
+
+func (r *cleanupEventReporter) Report(ctx context.Context, ev *cleanupv1.CleanupEvent) error {
+	req := connect.NewRequest(&cleanupv1.ReportCleanupEventRequest{Event: ev})
+	if r.cred != nil {
+		for k, v := range r.cred.Headers(r.nodeID, r.now().UTC()) {
+			req.Header().Set(k, v)
+		}
+	}
+	_, err := r.rpc.ReportCleanupEvent(ctx, req)
+	return err
 }
 
 func (r *provisionEventReporter) Report(ctx context.Context, ev *provisionv1.ProvisionEvent) error {

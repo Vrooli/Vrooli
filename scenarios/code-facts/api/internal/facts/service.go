@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -202,25 +203,32 @@ func (s *Service) Search(ctx context.Context, req *factsv1.SearchRequest) (*fact
 	if err != nil {
 		return nil, err
 	}
-	terms := strings.Fields(strings.ToLower(query))
+	terms := searchQueryTokens(query)
 	hits := make([]*factsv1.SearchHit, 0, len(report.GetFacts()))
+	var indexedScores map[*factsv1.GenericFact]float64
+	if target.GetKind() == factsv1.TargetKind_TARGET_KIND_PROJECT || target.GetKind() == factsv1.TargetKind_TARGET_KIND_REPO {
+		if s.projectIdx != nil {
+			indexedScores = s.projectIdx.scoreFacts(query, terms)
+		}
+	}
 	for _, fact := range report.GetFacts() {
 		if fact == nil || len(terms) == 0 {
 			continue
 		}
-		attrs := fact.GetAttributes()
-		corpus := strings.ToLower(strings.Join([]string{
-			fact.GetId(), fact.GetSubject(), fact.GetKind(), attrs["name"], attrs["path"], attrs["qualified_name"], attrs["route_path"], attrs["import_path"],
-		}, " "))
-		matched := 0
-		for _, term := range terms {
-			if strings.Contains(corpus, term) {
-				matched++
+		var score float64
+		if indexedScores != nil {
+			var indexed bool
+			score, indexed = indexedScores[fact]
+			if !indexed {
+				continue
 			}
+		} else {
+			score = scoreSearchFact(fact, query, terms)
 		}
-		if matched == 0 {
+		if score == 0 {
 			continue
 		}
+		attrs := fact.GetAttributes()
 		path := attrs["path"]
 		status := factsv1.EvidenceStatus_EVIDENCE_STATUS_UNKNOWN
 		message := fact.GetSubject()
@@ -237,7 +245,7 @@ func (s *Service) Search(ctx context.Context, req *factsv1.SearchRequest) (*fact
 			Id:             fact.GetId(),
 			Title:          fact.GetSubject(),
 			Text:           message,
-			Score:          float64(matched) / float64(len(terms)),
+			Score:          score,
 			Path:           path,
 			Analyzer:       attrs["analyzer"],
 			EvidenceStatus: status,
@@ -387,6 +395,9 @@ func (s *Service) lexicalEdgeExpansions(hit *factsv1.SearchHit, query string) []
 }
 
 func (s *Service) searchReport(ctx context.Context, target *factsv1.CodeTarget, families []factsv1.FactFamily, query string) (*factsv1.CodeFactsReport, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	if target.GetKind() != factsv1.TargetKind_TARGET_KIND_PROJECT && target.GetKind() != factsv1.TargetKind_TARGET_KIND_REPO {
 		return s.Describe(ctx, &factsv1.DescribeCodeFactsRequest{Target: target, Include: families, UseCache: true})
 	}
@@ -395,22 +406,71 @@ func (s *Service) searchReport(ctx context.Context, target *factsv1.CodeTarget, 
 		return nil, err
 	}
 	if s.projectIdx != nil && filepath.Clean(s.projectIdx.root) == filepath.Clean(repoRoot) {
-		return s.projectIdx.report(target, families, query), nil
+		if !s.projectIdx.isReady() {
+			return lexicalProjectReport(ctx, repoRoot, target, families, query)
+		}
+		return s.projectIdx.report(ctx, target, families, query)
 	}
 	return lexicalProjectReport(ctx, repoRoot, target, families, query)
 }
 
 type lexicalProjectIndex struct {
-	root  string
-	mu    sync.RWMutex
-	facts []*factsv1.GenericFact
+	root     string
+	mu       sync.RWMutex
+	facts    []*factsv1.GenericFact
+	postings map[string][]lexicalPosting
+	docFreq  map[string]int
+	docCount int
+	ready    chan struct{}
+}
+
+type lexicalPosting struct {
+	fact   *factsv1.GenericFact
+	weight float64
 }
 
 func newLexicalProjectIndex(root string) *lexicalProjectIndex {
-	return &lexicalProjectIndex{root: root}
+	return &lexicalProjectIndex{root: root, postings: make(map[string][]lexicalPosting), docFreq: make(map[string]int), ready: make(chan struct{})}
+}
+
+func (idx *lexicalProjectIndex) markReady() {
+	select {
+	case <-idx.ready:
+	default:
+		close(idx.ready)
+	}
+}
+
+func (idx *lexicalProjectIndex) isReady() bool {
+	select {
+	case <-idx.ready:
+		return true
+	default:
+		return false
+	}
+}
+
+func (idx *lexicalProjectIndex) addFact(fact *factsv1.GenericFact) {
+	idx.mu.Lock()
+	defer idx.mu.Unlock()
+	idx.facts = append(idx.facts, fact)
+	weights := make(map[string]float64)
+	for _, field := range factSearchFields(fact) {
+		for _, token := range uniqueSearchTokens(tokenizeSearchText(field.value), false) {
+			if field.weight > weights[token] {
+				weights[token] = field.weight
+			}
+		}
+	}
+	for token, weight := range weights {
+		idx.postings[token] = append(idx.postings[token], lexicalPosting{fact: fact, weight: weight})
+		idx.docFreq[token]++
+	}
+	idx.docCount++
 }
 
 func (idx *lexicalProjectIndex) build() {
+	defer idx.markReady()
 	for _, root := range []string{filepath.Join(idx.root, "scenarios"), filepath.Join(idx.root, "packages")} {
 		_ = filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
 			if err != nil {
@@ -434,7 +494,7 @@ func (idx *lexicalProjectIndex) build() {
 			rel, _ := filepath.Rel(idx.root, path)
 			for lineNumber, line := range strings.Split(string(payload), "\n") {
 				subject := strings.TrimSpace(line)
-				if subject == "" {
+				if !shouldIndexLexicalLine(filepath.ToSlash(rel), lineNumber+1, subject) {
 					continue
 				}
 				family := factsv1.FactFamily_FACT_FAMILY_SYMBOLS
@@ -442,38 +502,107 @@ func (idx *lexicalProjectIndex) build() {
 					family = factsv1.FactFamily_FACT_FAMILY_PROTO_ADOPTION
 				}
 				fact := lexicalFact(filepath.ToSlash(rel), lineNumber+1, subject, family)
-				idx.mu.Lock()
-				idx.facts = append(idx.facts, fact)
-				idx.mu.Unlock()
+				idx.addFact(fact)
 			}
 			return nil
 		})
 	}
 }
 
-func (idx *lexicalProjectIndex) report(target *factsv1.CodeTarget, families []factsv1.FactFamily, query string) *factsv1.CodeFactsReport {
-	terms := strings.Fields(strings.ToLower(strings.TrimSpace(query)))
+func (idx *lexicalProjectIndex) report(ctx context.Context, target *factsv1.CodeTarget, families []factsv1.FactFamily, query string) (*factsv1.CodeFactsReport, error) {
+	terms := searchQueryTokens(query)
 	idx.mu.RLock()
-	facts := append([]*factsv1.GenericFact(nil), idx.facts...)
+	var facts []*factsv1.GenericFact
+	if len(idx.postings) > 0 {
+		seen := make(map[*factsv1.GenericFact]struct{})
+		for _, term := range terms {
+			for _, posting := range idx.postings[term] {
+				seen[posting.fact] = struct{}{}
+			}
+		}
+		facts = make([]*factsv1.GenericFact, 0, len(seen))
+		for fact := range seen {
+			facts = append(facts, fact)
+		}
+		sort.Slice(facts, func(i, j int) bool { return facts[i].GetId() < facts[j].GetId() })
+	} else {
+		facts = append([]*factsv1.GenericFact(nil), idx.facts...)
+	}
 	idx.mu.RUnlock()
 	report := &factsv1.CodeFactsReport{Target: &factsv1.TargetContext{Requested: target, ResolvedKind: target.GetKind(), RootPath: idx.root, RootPaths: []string{filepath.Join(idx.root, "scenarios"), filepath.Join(idx.root, "packages")}}}
 	for _, fact := range facts {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
 		if !hasFamily(families, fact.GetFamily()) {
 			continue
 		}
-		corpus := strings.ToLower(fact.GetSubject() + " " + fact.GetAttributes()["path"])
-		matched := true
-		for _, term := range terms {
-			if !strings.Contains(corpus, term) {
-				matched = false
-				break
-			}
-		}
-		if matched {
+		if len(idx.postings) > 0 || scoreSearchFact(fact, query, terms) > 0 {
 			report.Facts = append(report.Facts, fact)
 		}
 	}
-	return report
+	return report, nil
+}
+
+func (idx *lexicalProjectIndex) scoreFacts(query string, queryTokens []string) map[*factsv1.GenericFact]float64 {
+	idx.mu.RLock()
+	defer idx.mu.RUnlock()
+	if len(idx.postings) == 0 || len(queryTokens) == 0 {
+		return nil
+	}
+	type accumulated struct {
+		matched int
+		score   float64
+	}
+	accumulatedByFact := make(map[*factsv1.GenericFact]accumulated)
+	compoundIdentifiers := searchCompoundIdentifiers(query)
+	exactCompoundFacts := make(map[*factsv1.GenericFact]struct{})
+	if len(compoundIdentifiers) > 0 {
+		for _, identifier := range compoundIdentifiers {
+			identifierTokens := tokenizeSearchText(identifier)
+			if len(identifierTokens) == 0 {
+				continue
+			}
+			for _, posting := range idx.postings[identifierTokens[0]] {
+				if searchFactContainsCompoundIdentifier(posting.fact, identifier) {
+					exactCompoundFacts[posting.fact] = struct{}{}
+				}
+			}
+		}
+	}
+	for _, token := range queryTokens {
+		termWeight := 1 + math.Log(float64(idx.docCount+1)/float64(idx.docFreq[token]+1))
+		for _, posting := range idx.postings[token] {
+			current := accumulatedByFact[posting.fact]
+			current.matched++
+			current.score += posting.weight * termWeight
+			accumulatedByFact[posting.fact] = current
+		}
+	}
+	totalTermWeight := 0.0
+	for _, token := range queryTokens {
+		totalTermWeight += 1 + math.Log(float64(idx.docCount+1)/float64(idx.docFreq[token]+1))
+	}
+	scores := make(map[*factsv1.GenericFact]float64, len(accumulatedByFact))
+	for fact, current := range accumulatedByFact {
+		if current.matched == 0 {
+			continue
+		}
+		if len(exactCompoundFacts) > 0 {
+			if _, ok := exactCompoundFacts[fact]; !ok {
+				continue
+			}
+		}
+		score := current.score / (10 * totalTermWeight)
+		score += searchScoreBonusesIndexed(fact, query, queryTokens)
+		coverage := float64(current.matched) / float64(len(queryTokens))
+		score *= coverage * coverage
+		if score > 1 {
+			score = 1
+		}
+		scores[fact] = score
+	}
+	return scores
 }
 
 func lexicalFact(path string, line int, subject string, family factsv1.FactFamily) *factsv1.GenericFact {
@@ -491,7 +620,7 @@ func lexicalFact(path string, line int, subject string, family factsv1.FactFamil
 // remains the authoritative graph-backed detail endpoint for callers that need
 // references, calls, or analyzer-specific facts.
 func lexicalProjectReport(ctx context.Context, repoRoot string, target *factsv1.CodeTarget, families []factsv1.FactFamily, query string) (*factsv1.CodeFactsReport, error) {
-	terms := strings.Fields(strings.ToLower(strings.TrimSpace(query)))
+	terms := searchQueryTokens(query)
 	report := &factsv1.CodeFactsReport{Target: &factsv1.TargetContext{Requested: target, ResolvedKind: target.GetKind(), RootPath: repoRoot, RootPaths: []string{filepath.Join(repoRoot, "scenarios"), filepath.Join(repoRoot, "packages")}}}
 	allowed := map[string]bool{".go": true, ".ts": true, ".tsx": true, ".proto": true}
 	roots := []string{filepath.Join(repoRoot, "scenarios"), filepath.Join(repoRoot, "packages")}
@@ -517,17 +646,6 @@ func lexicalProjectReport(ctx context.Context, repoRoot string, target *factsv1.
 				return nil
 			}
 			for lineNumber, line := range strings.Split(string(payload), "\n") {
-				lower := strings.ToLower(line + " " + path)
-				matched := true
-				for _, term := range terms {
-					if !strings.Contains(lower, term) {
-						matched = false
-						break
-					}
-				}
-				if !matched {
-					continue
-				}
 				rel, _ := filepath.Rel(repoRoot, path)
 				family := factsv1.FactFamily_FACT_FAMILY_SYMBOLS
 				if filepath.Ext(path) == ".proto" {
@@ -537,15 +655,21 @@ func lexicalProjectReport(ctx context.Context, repoRoot string, target *factsv1.
 					continue
 				}
 				subject := strings.TrimSpace(line)
-				report.Facts = append(report.Facts, &factsv1.GenericFact{
+				fact := &factsv1.GenericFact{
 					Id: "code-facts:lexical:" + filepath.ToSlash(rel) + ":" + strconv.Itoa(lineNumber+1), Family: family, Kind: "lexical_source", Subject: subject,
 					Attributes: map[string]string{"path": filepath.ToSlash(rel), "line": strconv.Itoa(lineNumber + 1), "analyzer": "code-facts.lexical"},
 					Evidence:   []*factsv1.Evidence{{Status: factsv1.EvidenceStatus_EVIDENCE_STATUS_PROVEN, Confidence: 0.7, Analyzer: "code-facts.lexical", Message: "Matched source text in the bounded project lexical index.", Range: &factsv1.SourceRange{File: filepath.ToSlash(rel), StartLine: int32(lineNumber + 1), EndLine: int32(lineNumber + 1)}}},
-				})
+				}
+				if scoreSearchFact(fact, query, terms) > 0 {
+					report.Facts = append(report.Facts, fact)
+				}
 			}
 			return nil
 		})
 		if err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				continue
+			}
 			return nil, err
 		}
 	}

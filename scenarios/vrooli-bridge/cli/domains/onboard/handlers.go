@@ -4,17 +4,22 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
 	"strconv"
 	"strings"
 	"time"
 
 	"connectrpc.com/connect"
+	cleanupv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/cleanup"
+	cleanupconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/cleanup/cleanup_v1connect"
 	machinesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/machines"
 	machinesconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/machines/machines_v1connect"
 	onboardv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/onboard"
 	onboardconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/onboard/onboard_v1connect"
+	"github.com/vrooli/vrooli/packages/proto/privilegedops"
 
 	"github.com/vrooli/cli-core/cliapp"
+	"vrooli-bridge/cli/internal/operatorauth"
 	"vrooli-bridge/cli/internal/session"
 )
 
@@ -26,10 +31,12 @@ const defaultRevision = "@cp"
 
 // handlers bundles the Connect client and the (injectable) SSH-password source.
 type handlers struct {
-	core     *cliapp.ScenarioApp
-	client   onboardconnect.OnboardServiceClient
-	machines machineCreator
-	password passwordSource
+	core          *cliapp.ScenarioApp
+	client        onboardconnect.OnboardServiceClient
+	machines      machineCreator
+	cleanup       cleanupconnect.CleanupServiceClient
+	password      passwordSource
+	authorization io.Reader
 }
 
 type machineCreator interface {
@@ -104,7 +111,8 @@ func (h *handlers) preflightConnect(ctx cliapp.RunContext) error {
 		ReachabilityMode: strings.TrimSpace(ctx.Flag("reachability-mode")), VerifyTimeoutSeconds: int32(parseInt(ctx.Flag("verify-timeout"))),
 		SkipSetup: ctx.BoolFlag("skip-setup"), SkipPrereqs: ctx.BoolFlag("skip-prereqs"), ProvisionSudo: resolveProvisionSudo(ctx),
 		SetupEnvironment: strings.TrimSpace(ctx.Flag("setup-environment")), SetupResources: strings.TrimSpace(ctx.Flag("setup-resources")),
-		SetupScenarios: strings.TrimSpace(ctx.Flag("setup-scenarios")), IncludeOptional: ctx.BoolFlag("include-optional"), SourceMode: sourceMode,
+		SetupScenarios: strings.TrimSpace(ctx.Flag("setup-scenarios")), IncludeOptional: ctx.BoolFlag("include-optional"),
+		ProvisionServiceUser: strings.TrimSpace(ctx.Flag("provision-service-user")), SourceMode: sourceMode,
 	}))
 	if err != nil {
 		return wrapOnboardAPIError("start onboarding connection", err)
@@ -134,6 +142,23 @@ func (h *handlers) preflightConnect(ctx cliapp.RunContext) error {
 	if getResp == nil || getResp.Msg == nil || getResp.Msg.Op == nil {
 		return fmt.Errorf("server returned no onboarding op")
 	}
+	protectionDetail, protectionErr := h.protectAfterOnboarding(ctx, preflight.Msg.MachineId, getResp.Msg.Op)
+	if protectionErr != nil {
+		return protectionErr
+	}
+	if !ctx.JSON() && protectionDetail != "" {
+		fmt.Fprintln(ctx.Stdout(), protectionDetail)
+	}
+	if protectionDetail != "" {
+		refreshed, refreshErr := h.client.GetOnboarding(context.Background(), connect.NewRequest(&onboardv1.GetOnboardingRequest{Id: getResp.Msg.Op.Id}))
+		if refreshErr != nil {
+			return cliapp.WrapAPIError(fmt.Sprintf("get protected onboarding %q", getResp.Msg.Op.Id), refreshErr, nil)
+		}
+		if refreshed == nil || refreshed.Msg == nil || refreshed.Msg.Op == nil {
+			return fmt.Errorf("server returned no protected onboarding op")
+		}
+		getResp = refreshed
+	}
 	return h.renderTerminal(ctx, getResp.Msg)
 }
 
@@ -160,11 +185,207 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 	// render the durable terminal result instead of timing out locally.
 	httpClient, baseURL := session.NewConnectHTTPClientWithTimeout(core, 2*time.Hour)
 	return &handlers{
-		core:     core,
-		client:   onboardconnect.NewOnboardServiceClient(httpClient, baseURL),
-		machines: machinesconnect.NewMachineServiceClient(httpClient, baseURL),
-		password: newPasswordSource(),
+		core:          core,
+		client:        onboardconnect.NewOnboardServiceClient(httpClient, baseURL),
+		machines:      machinesconnect.NewMachineServiceClient(httpClient, baseURL),
+		cleanup:       cleanupconnect.NewCleanupServiceClient(httpClient, baseURL),
+		password:      newPasswordSource(),
+		authorization: os.Stdin,
 	}
+}
+
+// protect is the named first-touch protection step. It deliberately runs
+// after onboarding has produced a durable node identity: the passphrase is
+// sealed locally to that node's pinned key, and the control plane receives only
+// the opaque envelope. Re-running the command is safe because the node helper's
+// provision operation is idempotent for matching material.
+func (h *handlers) protect(ctx cliapp.RunContext) error {
+	prepared, err := h.cleanup.PrepareCleanup(context.Background(), connect.NewRequest(&cleanupv1.PrepareCleanupRequest{
+		MachineId: ctx.Flag("machine"), NodeId: ctx.Flag("node"), Target: ctx.Flag("target"), Scope: ctx.Flag("scope"),
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("prepare target protection", err, nil)
+	}
+	if prepared == nil || prepared.Msg == nil || prepared.Msg.Target == nil {
+		return fmt.Errorf("server returned no cleanup protection target")
+	}
+	target := prepared.Msg.Target
+	if strings.TrimSpace(target.OperationId) == "" || len(target.SealingPublicKey) == 0 {
+		return fmt.Errorf("cleanup protection target did not publish an operation id and sealing key")
+	}
+	sealed, _, err := operatorauth.Read(h.authorization, operatorauth.Target{
+		MachineID: target.MachineId, NodeID: target.NodeId, Target: target.Target, Scope: target.Scope,
+		OperationID: target.OperationId, OperatorID: target.OperatorId, SealingPublicKey: target.SealingPublicKey,
+	})
+	if err != nil {
+		return err
+	}
+	resp, err := h.cleanup.ProvisionBreakGlass(context.Background(), connect.NewRequest(&cleanupv1.ProvisionBreakGlassRequest{
+		MachineId: target.MachineId, NodeId: target.NodeId, Target: target.Target, Scope: target.Scope,
+		OperationId: target.OperationId, SealedPassphrase: sealed, OperatorId: target.OperatorId,
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("establish target break-glass protection", err, nil)
+	}
+	if resp == nil || resp.Msg == nil || resp.Msg.Operation == nil {
+		return fmt.Errorf("server returned no protection operation")
+	}
+	op := resp.Msg.Operation
+	changes := capabilityReport(target, true)
+	changes = append(changes, fmt.Sprintf("target-bound break-glass: provisioning operation %s (%s)", op.Id, cleanupStatusLabel(op.Status)))
+	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
+		Result:      []string{fmt.Sprintf("Onboarding protection step dispatched for %s.", target.Target)},
+		Changes:     changes,
+		NextCommand: []string{fmt.Sprintf("`cleanup get %s` — confirm the target-bound break-glass capability is established", op.Id)},
+	})
+}
+
+// completeProtection is the explicit recovery of the named onboarding step
+// for callers that already have a durable onboarding operation. Its stdin
+// contract is the same opaque authorization object as standalone `protect`;
+// the canonical interactive `connect` path uses the local masked prompt.
+func (h *handlers) completeProtection(ctx cliapp.RunContext) error {
+	prepared, err := h.cleanup.PrepareCleanup(context.Background(), connect.NewRequest(&cleanupv1.PrepareCleanupRequest{
+		MachineId: ctx.Flag("machine"), NodeId: ctx.Flag("node"), Target: ctx.Flag("target"), Scope: ctx.Flag("scope"),
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("prepare onboarding protection", err, nil)
+	}
+	if prepared == nil || prepared.Msg == nil || prepared.Msg.Target == nil {
+		return fmt.Errorf("server returned no onboarding protection target")
+	}
+	target := prepared.Msg.Target
+	sealed, _, err := operatorauth.Read(h.authorization, operatorauth.Target{
+		MachineID: target.MachineId, NodeID: target.NodeId, Target: target.Target, Scope: target.Scope,
+		OperationID: target.OperationId, OperatorID: target.OperatorId, SealingPublicKey: target.SealingPublicKey,
+	})
+	if err != nil {
+		return err
+	}
+	resp, err := h.client.ProtectOnboarding(context.Background(), connect.NewRequest(&onboardv1.ProtectOnboardingRequest{
+		OnboardingOpId: ctx.Flag("onboarding-op-id"), MachineId: target.MachineId, NodeId: target.NodeId,
+		Target: target.Target, Scope: target.Scope, CleanupOperationId: target.OperationId, SealedPassphrase: sealed,
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("complete onboarding protection", err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no onboarding protection result")
+	}
+	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
+		Result:  []string{"Onboarding protection step completed."},
+		Changes: capabilityReport(target, resp.Msg.ProtectionStatus == "completed"),
+	})
+}
+
+// protectAfterOnboarding is the canonical first-touch protection step. It
+// runs only after the node identity exists, so the passphrase can be sealed on
+// the operator machine to the node's pinned key. A non-interactive invocation
+// deliberately declines and records the missing capability instead of reading
+// an environment variable or hanging for input.
+func (h *handlers) protectAfterOnboarding(ctx cliapp.RunContext, machineID string, op *onboardv1.OnboardingOp) (string, error) {
+	if op == nil || op.State != onboardv1.OnboardingState_ONBOARDING_STATE_SUCCEEDED || strings.TrimSpace(op.NodeId) == "" {
+		return "", nil
+	}
+	prepared, err := h.cleanup.PrepareCleanup(context.Background(), connect.NewRequest(&cleanupv1.PrepareCleanupRequest{
+		MachineId: machineID, NodeId: op.NodeId, Target: op.Host, Scope: "all",
+	}))
+	if err != nil {
+		return "", cliapp.WrapAPIError("prepare onboarding protection", err, nil)
+	}
+	if prepared == nil || prepared.Msg == nil || prepared.Msg.Target == nil {
+		return "", fmt.Errorf("server returned no onboarding protection target")
+	}
+	target := prepared.Msg.Target
+	passphrase, err := h.password.resolveBreakGlass(target.Target)
+	if err != nil {
+		return "", err
+	}
+	request := &onboardv1.ProtectOnboardingRequest{
+		OnboardingOpId: op.Id, MachineId: target.MachineId, NodeId: target.NodeId, Target: target.Target,
+		Scope: target.Scope, CleanupOperationId: target.OperationId,
+	}
+	if strings.TrimSpace(passphrase) == "" {
+		request.Declined = true
+	} else {
+		sealed, sealErr := operatorauth.SealPassphrase(passphrase, operatorauth.Target{
+			MachineID: target.MachineId, NodeID: target.NodeId, Target: target.Target, Scope: target.Scope,
+			OperationID: target.OperationId, OperatorID: target.OperatorId, SealingPublicKey: target.SealingPublicKey,
+		})
+		if sealErr != nil {
+			return "", sealErr
+		}
+		request.SealedPassphrase = sealed
+	}
+	resp, err := h.client.ProtectOnboarding(context.Background(), connect.NewRequest(request))
+	if err != nil {
+		return "", cliapp.WrapAPIError("complete onboarding protection", err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return "", fmt.Errorf("server returned no onboarding protection result")
+	}
+	lines := capabilityReport(target, !request.Declined && resp.Msg.ProtectionStatus == "completed")
+	if request.Declined {
+		lines = append(lines, "protection: declined — target-bound break-glass is missing")
+	} else {
+		lines = append(lines, "protection: "+resp.Msg.Detail)
+	}
+	return "Onboarding protection report:\n  " + strings.Join(lines, "\n  "), nil
+}
+
+func capabilityReport(target *cleanupv1.CleanupTarget, protected bool) []string {
+	capabilities := make(map[string]bool, len(target.Capabilities))
+	for _, value := range target.Capabilities {
+		capabilities[strings.TrimSpace(value)] = true
+	}
+	scopes := make(map[string]bool, len(target.ApprovedScopes))
+	for _, value := range target.ApprovedScopes {
+		scopes[strings.TrimSpace(value)] = true
+	}
+	lines := make([]string, 0, len(privilegedops.OnboardingCapabilities()))
+	for _, capability := range privilegedops.OnboardingCapabilities() {
+		status := "not reported"
+		switch capability.Name {
+		case privilegedops.CapabilityAgentPresence:
+			status = target.Transport + " (" + target.TransportReason + ")"
+		case privilegedops.CapabilityRuntime:
+			status = capabilityState(capabilities[capability.Name])
+		case privilegedops.CapabilityProvisioning:
+			status = capabilityState(capabilities[capability.Name])
+		case privilegedops.CapabilitySSHManagement:
+			status = approvedState(capabilities[capability.Name], scopes[capability.Name])
+		case privilegedops.CapabilityCleanupPlanning:
+			status = "available through the typed helper"
+		case privilegedops.CapabilityCleanupApplication:
+			status = "operator-confirmed only"
+		case privilegedops.CapabilityTargetBoundBreakGlass:
+			status = capabilityState(protected)
+		}
+		lines = append(lines, capability.Label+": "+status)
+	}
+	return lines
+}
+
+func capabilityState(available bool) string {
+	if available {
+		return "reported"
+	}
+	return "not reported"
+}
+
+func approvedState(capability, scope bool) string {
+	switch {
+	case capability && scope:
+		return "approved"
+	case capability:
+		return "reported but not approved"
+	default:
+		return "not reported"
+	}
+}
+
+func cleanupStatusLabel(status cleanupv1.CleanupStatus) string {
+	return strings.TrimPrefix(status.String(), "CLEANUP_STATUS_")
 }
 
 // start kicks off a durable, server-owned onboarding op. The SSH password is
@@ -253,6 +474,7 @@ func (h *handlers) start(ctx cliapp.RunContext) error {
 		SetupResources:       strings.TrimSpace(ctx.Flag("setup-resources")),
 		SetupScenarios:       strings.TrimSpace(ctx.Flag("setup-scenarios")),
 		IncludeOptional:      ctx.BoolFlag("include-optional"),
+		ProvisionServiceUser: strings.TrimSpace(ctx.Flag("provision-service-user")),
 		SourceMode:           sourceMode,
 	}))
 	if err != nil {

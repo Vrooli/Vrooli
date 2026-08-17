@@ -96,6 +96,10 @@
       "archive": "أرشفة",
       "revokeNode": "إلغاء العقدة",
       "cleanup": "طلب تنظيف SSH",
+      "cleanupPlanRemove": "إزالة",
+      "cleanupPlanKeep": "إبقاء",
+      "cleanupPlanCannotAttribute": "غير منسوب",
+      "cleanupPlanEmpty": "لا شيء",
       "remove": "إزالة السجل",
       "removeConfirm": "إزالة سجل الجهاز {{id}}؟ يبقى سجل التدقيق وسجل التسجيل محفوظين."
     },

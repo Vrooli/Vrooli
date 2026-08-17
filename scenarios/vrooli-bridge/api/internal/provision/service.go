@@ -4,9 +4,9 @@ import (
 	"context"
 	"errors"
 	"strings"
-	"sync"
 	"time"
 
+	"github.com/vrooli/api-core/operationcoord"
 	"github.com/vrooli/api-core/schedule"
 )
 
@@ -19,10 +19,6 @@ const DefaultTimeoutSeconds int64 = 3600 // 1 hour
 // DefaultWaitTimeout bounds a Wait call that passes timeout_seconds <= 0, so a
 // block-once wait can never hang forever even if the node vanishes mid-provision.
 const DefaultWaitTimeout = 60 * time.Minute
-
-// subscriberBuffer bounds a live event subscriber's channel. A slow streaming
-// client that fills its buffer drops the overflow rather than blocking ingest.
-const subscriberBuffer = 256
 
 // Service is the application-layer surface the provision handler depends on. It
 // owns the SyncToRevision orchestration (the privileged-tier safety sequence)
@@ -70,7 +66,7 @@ type service struct {
 	audit          AuditSink
 	pusher         CommandPusher
 	clock          schedule.Clock
-	coord          *coordinator
+	coord          *operationcoord.Coordinator[ProvisionEvent]
 	defaultTimeout int64
 	revResolver    RevisionResolver
 }
@@ -107,7 +103,7 @@ func NewService(repo Repository, nodes NodeReader, presence Presence, sink Audit
 		audit:          sink,
 		pusher:         pusher,
 		clock:          clk,
-		coord:          newCoordinator(),
+		coord:          operationcoord.New[ProvisionEvent](),
 		defaultTimeout: DefaultTimeoutSeconds,
 	}
 	for _, opt := range opts {
@@ -324,9 +320,9 @@ func (s *service) AppendEvent(ctx context.Context, ev ProvisionEvent) (bool, err
 
 	// Fan out to live subscribers first so a follower sees the event, then wake
 	// block-once waiters if the op is now terminal.
-	s.coord.publish(ev)
+	s.coord.Publish(op.ID, ev)
 	if op.Status.Terminal() {
-		s.coord.signalTerminal(op.ID)
+		s.coord.SignalTerminal(op.ID)
 	}
 	return true, nil
 }
@@ -352,7 +348,7 @@ func (s *service) Wait(ctx context.Context, id string, timeout time.Duration) (P
 
 	// Register the waiter BEFORE the terminal recheck so a terminal transition
 	// racing this call cannot be missed.
-	wait, cancel := s.coord.registerWaiter(id)
+	wait, cancel := s.coord.RegisterWaiter(id)
 	defer cancel()
 
 	op, err := s.repo.Get(ctx, id)
@@ -385,7 +381,7 @@ func (s *service) Wait(ctx context.Context, id string, timeout time.Duration) (P
 }
 
 func (s *service) Subscribe(id string) (<-chan ProvisionEvent, func()) {
-	return s.coord.subscribe(id)
+	return s.coord.Subscribe(id)
 }
 
 // markFailed transitions an op to FAILED with a recorded status event. Used on a
@@ -411,10 +407,10 @@ func (s *service) markFailed(ctx context.Context, id, reason string) error {
 	if r := strings.TrimSpace(reason); r != "" {
 		label = "failed: " + r
 	}
-	ev := ProvisionEvent{OpID: id, Kind: EventStatus, Sequence: s.coord.nextSyntheticSeq(id), Status: label, EmittedAt: now}
+	ev := ProvisionEvent{OpID: id, Kind: EventStatus, Sequence: s.coord.NextSyntheticSeq(id), Status: label, EmittedAt: now}
 	_ = s.repo.AppendEvent(ctx, ev)
-	s.coord.publish(ev)
-	s.coord.signalTerminal(id)
+	s.coord.Publish(id, ev)
+	s.coord.SignalTerminal(id)
 	return nil
 }
 
@@ -426,118 +422,4 @@ func (s *service) auditReject(ctx context.Context, in SyncInput, reason string) 
 		TargetRevision: trimRevision(in.TargetRevision), RollbackRevision: trimRevision(in.RollbackRevision),
 		Accepted: false, Detail: reason,
 	})
-}
-
-// ----------------------------------------------------------------------------
-// coordinator — the in-memory block-once waiter registry + live event fan-out.
-// Mirrors the runs domain's coordinator (same durability discipline).
-// ----------------------------------------------------------------------------
-
-type coordinator struct {
-	mu       sync.Mutex
-	waiters  map[string]map[chan struct{}]struct{}
-	subs     map[string]map[chan ProvisionEvent]struct{}
-	synthSeq map[string]uint64
-}
-
-func newCoordinator() *coordinator {
-	return &coordinator{
-		waiters:  make(map[string]map[chan struct{}]struct{}),
-		subs:     make(map[string]map[chan ProvisionEvent]struct{}),
-		synthSeq: make(map[string]uint64),
-	}
-}
-
-func (c *coordinator) registerWaiter(id string) (<-chan struct{}, func()) {
-	ch := make(chan struct{})
-	c.mu.Lock()
-	set := c.waiters[id]
-	if set == nil {
-		set = make(map[chan struct{}]struct{})
-		c.waiters[id] = set
-	}
-	set[ch] = struct{}{}
-	c.mu.Unlock()
-
-	var once sync.Once
-	cancel := func() {
-		once.Do(func() {
-			c.mu.Lock()
-			if s := c.waiters[id]; s != nil {
-				delete(s, ch)
-				if len(s) == 0 {
-					delete(c.waiters, id)
-				}
-			}
-			c.mu.Unlock()
-		})
-	}
-	return ch, cancel
-}
-
-func (c *coordinator) signalTerminal(id string) {
-	c.mu.Lock()
-	set := c.waiters[id]
-	delete(c.waiters, id)
-	c.mu.Unlock()
-	for ch := range set {
-		close(ch)
-	}
-}
-
-func (c *coordinator) subscribe(id string) (<-chan ProvisionEvent, func()) {
-	ch := make(chan ProvisionEvent, subscriberBuffer)
-	c.mu.Lock()
-	set := c.subs[id]
-	if set == nil {
-		set = make(map[chan ProvisionEvent]struct{})
-		c.subs[id] = set
-	}
-	set[ch] = struct{}{}
-	c.mu.Unlock()
-
-	var once sync.Once
-	cancel := func() {
-		once.Do(func() {
-			c.mu.Lock()
-			if s := c.subs[id]; s != nil {
-				delete(s, ch)
-				if len(s) == 0 {
-					delete(c.subs, id)
-				}
-			}
-			c.mu.Unlock()
-		})
-	}
-	return ch, cancel
-}
-
-func (c *coordinator) publish(ev ProvisionEvent) {
-	c.mu.Lock()
-	set := c.subs[ev.OpID]
-	chans := make([]chan ProvisionEvent, 0, len(set))
-	for ch := range set {
-		chans = append(chans, ch)
-	}
-	c.mu.Unlock()
-	for _, ch := range chans {
-		select {
-		case ch <- ev:
-		default:
-		}
-	}
-}
-
-// nextSyntheticSeq returns a per-op sequence for a control-plane-synthesised
-// event (a markFailed status), kept well above any node sequence space by
-// offsetting high. It only needs to be unique per op for the primary key.
-func (c *coordinator) nextSyntheticSeq(id string) uint64 {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	const base = 1 << 62
-	if c.synthSeq[id] == 0 {
-		c.synthSeq[id] = base
-	}
-	c.synthSeq[id]++
-	return c.synthSeq[id]
 }

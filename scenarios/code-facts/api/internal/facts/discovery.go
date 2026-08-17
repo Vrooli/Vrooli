@@ -432,6 +432,9 @@ func hasScriptSource(root string) bool {
 }
 
 func shouldPruneDir(name string) bool {
+	if strings.HasPrefix(name, ".proto-gen-stage-") {
+		return true
+	}
 	switch name {
 	case ".git", "node_modules", "dist", "coverage", "data", ".cache", "build":
 		return true

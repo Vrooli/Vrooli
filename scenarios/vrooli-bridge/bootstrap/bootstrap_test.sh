@@ -120,6 +120,28 @@ fi
 exec "${args[@]}"
 SUDO
 
+  # Ownership-repair fixture: the bootstrap's exact-path chown remains safe to
+  # exercise without root by restoring owner-readable permissions on its final
+  # path argument. Real runs use the non-interactive sudo/root path above.
+  cat >"${FAKEBIN}/chown" <<'CHOWN'
+#!/usr/bin/env bash
+set -euo pipefail
+target="${!#}"
+[ -n "${FAKE_CHOWN_LOG:-}" ] && printf '%s\n' "$target" >>"$FAKE_CHOWN_LOG"
+chmod -R u+rwX "$target"
+CHOWN
+
+  # uname: keep the normal Linux fixture deterministic and allow the platform
+  # default socket contract to be exercised as a Darwin run below.
+  cat >"${FAKEBIN}/uname" <<'UNAME'
+#!/usr/bin/env bash
+case "${1:-}" in
+  -s) echo "${FAKE_UNAME_S:-Linux}" ;;
+  -m) echo "${FAKE_UNAME_M:-x86_64}" ;;
+  *) echo "Linux" ;;
+esac
+UNAME
+
   # loginctl: linger state persists in a file so run 2 sees run 1's enable.
   cat >"${FAKEBIN}/loginctl" <<LOGINCTL
 #!/usr/bin/env bash
@@ -233,7 +255,7 @@ APT
   printf '#!/usr/bin/env bash\nexit 0\n' >"${TOOLBIN}/go"
   printf '#!/usr/bin/env bash\nexit 0\n' >"${TOOLBIN}/pnpm"
 
-  chmod +x "${FAKEBIN}/git" "${FAKEBIN}/make" "${FAKEBIN}/sudo" "${FAKEBIN}/loginctl" "${FAKEBIN}/journalctl" "${FAKEBIN}/apt-get" "${TOOLBIN}/go" "${TOOLBIN}/pnpm" "$FAKE_AGENT" "$FAKE_CLI" "$FAKE_VROOLI"
+  chmod +x "${FAKEBIN}/git" "${FAKEBIN}/make" "${FAKEBIN}/sudo" "${FAKEBIN}/chown" "${FAKEBIN}/uname" "${FAKEBIN}/loginctl" "${FAKEBIN}/journalctl" "${FAKEBIN}/apt-get" "${TOOLBIN}/go" "${TOOLBIN}/pnpm" "$FAKE_AGENT" "$FAKE_CLI" "$FAKE_VROOLI"
 }
 
 FAKE_MAKE_LOG="${WORKROOT}/make.calls"
@@ -242,7 +264,10 @@ run_bootstrap() { # run_bootstrap <stdout-file> [extra bootstrap args...]
   local out="$1"; shift
   HOME="$TEST_HOME" PATH="${FAKEBIN}:${TOOLBIN}:${PATH}" \
   FAKE_MAKE_LOG="$FAKE_MAKE_LOG" \
+  FAKE_AGENT_LOG="${FAKE_AGENT_LOG:-$WORKROOT/agent.calls}" \
+  FAKE_UNAME_S="${FAKE_UNAME_S:-Linux}" FAKE_UNAME_M="${FAKE_UNAME_M:-x86_64}" \
   FAKE_SUDO_MODE="${FAKE_SUDO_MODE:-denied}" \
+  FAKE_CHOWN_LOG="${FAKE_CHOWN_LOG:-$WORKROOT/chown.calls}" \
   FAKE_SETUP_NEEDS_SUDO="${FAKE_SETUP_NEEDS_SUDO:-}" \
   BRIDGE_PAIRING_CODE="TESTCODE1234" \
     bash "$SCRIPT" \
@@ -291,6 +316,29 @@ check "run 2 setup skipped (sentinel)" "$(marker_is "$OUT2" step-skip setup && e
 check "run 2 service-install skipped (converged)" "$(marker_is "$OUT2" step-skip service-install && echo 0 || echo 1)"
 check "run 2 autostart skipped (linger already on)" "$(marker_is "$OUT2" step-skip autostart && echo 0 || echo 1)"
 check "run 2 verify-online still connected" "$(marker_is "$OUT2" step-ok verify-online && echo 0 || echo 1)"
+
+echo "== unreadable managed state directory is repaired narrowly =="
+rm -rf "$STATE" "$CHECKOUT"; mkdir -p "$STATE"; chmod 000 "$STATE"
+OUTOWNERSHIP="${WORKROOT}/ownership-repair.out"
+set +e
+FAKE_SUDO_MODE=passwordless run_bootstrap "$OUTOWNERSHIP"
+ownership_rc=$?
+set -e
+check "ownership repair run exits 0" "$ownership_rc"
+if [ "$ownership_rc" -ne 0 ]; then
+  sed -n '1,120p' "${OUTOWNERSHIP}.err" >&2
+fi
+check "ownership repair reaches run-ok" "$(grep -q 'event=run-ok' "$OUTOWNERSHIP" && echo 0 || echo 1)"
+check "ownership repair targets only the managed state directory" "$(grep -Fxq "$STATE" "$WORKROOT/chown.calls" && echo 0 || echo 1)"
+
+echo "== Darwin provisioning helper uses writable per-user state socket =="
+rm -rf "$STATE" "$CHECKOUT"
+OUTDARWIN="${WORKROOT}/darwin-provision.out"
+FAKE_UNAME_S=Darwin FAKE_UNAME_M=x86_64 FAKE_SUDO_MODE=passwordless run_bootstrap "$OUTDARWIN" \
+  --provision-service-user root
+check "Darwin helper run exits 0" "$?"
+check "Darwin helper run reaches run-ok" "$(grep -q 'event=run-ok' "$OUTDARWIN" && echo 0 || echo 1)"
+check "Darwin helper defaults socket under state dir" "$(grep -q -- "--provision-socket ${STATE}/provision.sock" "$WORKROOT/agent.calls" && echo 0 || echo 1)"
 
 echo "== existing Git worktree with file-form .git metadata converges =="
 rm -rf "$STATE" "$CHECKOUT"; mkdir -p "$CHECKOUT"
@@ -417,6 +465,8 @@ TOOLLESS="${WORKROOT}/toolless"; make_toolless_bin "$TOOLLESS"
 echo "== complete prebuilt bundle reaches online with no node Go or source build =="
 rm -rf "$STATE" "$CHECKOUT"; mkdir -p "$CHECKOUT"
 printf 'shipped tree\n' >"${CHECKOUT}/WORKING.txt"
+mkdir -p "${CHECKOUT}/.vrooli"
+printf '{}\n' >"${CHECKOUT}/.vrooli/repo-contract.json"
 : >"$FAKE_MAKE_LOG"
 FAKE_VROOLI_LOG="${WORKROOT}/vrooli.calls"; : >"$FAKE_VROOLI_LOG"
 FAKE_AGENT_LOG="${WORKROOT}/agent.calls"; : >"$FAKE_AGENT_LOG"
@@ -453,6 +503,8 @@ run_prebuilt_setup_failure() { # category exit output
   local category="$1" expected_exit="$2" out="$3"
   rm -rf "$STATE" "$CHECKOUT"; mkdir -p "$CHECKOUT"
   printf 'shipped tree\n' >"${CHECKOUT}/WORKING.txt"
+  mkdir -p "${CHECKOUT}/.vrooli"
+  printf '{}\n' >"${CHECKOUT}/.vrooli/repo-contract.json"
   PATH="${FAKEBIN}:${TOOLLESS}" HOME="${WORKROOT}/result-home-${category}" \
   FAKE_VROOLI_RESULT_CATEGORY="$category" FAKE_VROOLI_EXIT="$expected_exit" BRIDGE_PAIRING_CODE="TESTCODE1234" \
     bash "$SCRIPT" \
@@ -526,6 +578,8 @@ echo "== working-tree source mode: verify a pre-synced tree instead of cloning =
 rm -rf "$STATE"; : >"$FAKE_MAKE_LOG"
 SRCTREE="${WORKROOT}/synced-tree"; rm -rf "$SRCTREE"; mkdir -p "$SRCTREE/scenarios/vrooli-bridge"
 printf 'uncommitted work\n' >"$SRCTREE/WORKING.txt"
+mkdir -p "$SRCTREE/.vrooli"
+printf '{}\n' >"$SRCTREE/.vrooli/repo-contract.json"
 OUTWT="${WORKROOT}/worktree.out"
 run_bootstrap "$OUTWT" --revision e767613fca --source-dir "$SRCTREE" --source-digest "abc123def456"
 check "working-tree run exits 0" "$?"

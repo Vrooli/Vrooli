@@ -19,6 +19,9 @@ package privsep
 import (
 	"context"
 	"fmt"
+	"os"
+	osuser "os/user"
+	"strconv"
 	"strings"
 	"time"
 
@@ -69,13 +72,18 @@ type Reporter interface {
 // Helper executes privileged provisioning ops and reports their progress. It is
 // the privileged-tier counterpart to exec.Runner and shares no type with it.
 type Helper struct {
-	gitBin    string
-	vrooliBin string
-	workDir   string
-	step      StepRunner
-	revision  RevisionResolver
-	reporter  Reporter
-	now       func() time.Time
+	gitBin               string
+	vrooliBin            string
+	workDir              string
+	step                 StepRunner
+	revision             RevisionResolver
+	reporter             Reporter
+	sealingSeedPath      string
+	clientUID            int
+	clientHome           string
+	deferredServiceNames []string
+	cleanupWorkDir       string
+	now                  func() time.Time
 }
 
 // Option customises a Helper.
@@ -93,17 +101,77 @@ func WithRevisionResolver(r RevisionResolver) Option { return func(h *Helper) { 
 // WithGitBin overrides the git binary name/path.
 func WithGitBin(bin string) Option { return func(h *Helper) { h.gitBin = strings.TrimSpace(bin) } }
 
+// WithSealingSeedPath points at the node credential seed from which the
+// helper derives its X25519 private key. The seed is read only for the
+// duration of opening an operator envelope.
+func WithSealingSeedPath(path string) Option {
+	return func(h *Helper) { h.sealingSeedPath = strings.TrimSpace(path) }
+}
+
+// WithClientUID identifies the unprivileged runner whose user-scoped Vrooli
+// state the privileged helper must operate on.
+func WithClientUID(uid int) Option { return func(h *Helper) { h.clientUID = uid } }
+
+// WithClientHome supplies the runner home when the transport already resolved
+// it (for example, the fixed SSH cleanup command expands $HOME before sudo).
+func WithClientHome(home string) Option {
+	return func(h *Helper) { h.clientHome = strings.TrimSpace(home) }
+}
+
+// WithDeferredServiceNames marks native services whose unit files may be
+// removed by a cleanup command while the paired helper/agent is still carrying
+// the command's reporting path. The unit files are removed immediately; the
+// transport shuts the processes down only after the terminal receipt is sent.
+func WithDeferredServiceNames(names ...string) Option {
+	return func(h *Helper) {
+		for _, name := range names {
+			if name = strings.TrimSpace(name); name != "" {
+				h.deferredServiceNames = append(h.deferredServiceNames, name)
+			}
+		}
+	}
+}
+
+// WithCleanupWorkDir overrides the directory from which the node-local CLI is
+// launched during cleanup. Production defaults to the platform temporary
+// directory because a frozen plan may remove the checkout in workDir; a child
+// whose current directory is deleted can otherwise lose its ability to finish
+// the receipt/reporting path. Tests use this seam to assert that contract.
+func WithCleanupWorkDir(dir string) Option {
+	return func(h *Helper) {
+		if dir = strings.TrimSpace(dir); dir != "" {
+			h.cleanupWorkDir = dir
+		}
+	}
+}
+
+func (h *Helper) resolvedClientHome() string {
+	if home := strings.TrimSpace(h.clientHome); home != "" {
+		return home
+	}
+	if h.clientUID < 0 {
+		return ""
+	}
+	current, err := osuser.LookupId(strconv.Itoa(h.clientUID))
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(current.HomeDir)
+}
+
 // NewHelper constructs a Helper. vrooliBin is the local vrooli CLI (default
 // "vrooli"), workDir the node's Vrooli checkout, reporter the event sink. The
 // production StepRunner/RevisionResolver default to the os-backed
 // implementations (step_runner.go).
 func NewHelper(vrooliBin, workDir string, reporter Reporter, opts ...Option) *Helper {
 	h := &Helper{
-		gitBin:    "git",
-		vrooliBin: strings.TrimSpace(vrooliBin),
-		workDir:   workDir,
-		reporter:  reporter,
-		now:       time.Now,
+		gitBin:         "git",
+		vrooliBin:      strings.TrimSpace(vrooliBin),
+		workDir:        workDir,
+		clientUID:      -1,
+		cleanupWorkDir: os.TempDir(),
+		reporter:       reporter,
+		now:            time.Now,
 	}
 	if h.vrooliBin == "" {
 		h.vrooliBin = "vrooli"

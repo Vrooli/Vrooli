@@ -139,6 +139,37 @@ func TestBuildBootstrapArgs_DerivesAgentPostureFromCapabilities(t *testing.T) {
 	}
 }
 
+func TestBuildBootstrapArgsPinsRunnerRootToWorkingTreeDestination(t *testing.T) {
+	args := buildBootstrapArgs(StartInput{
+		ControlPlaneURL: "http://control-plane",
+		TargetRevision:  "revision",
+	}, "/Users/runner/vrooli", "digest", RemoteArtifacts{})
+
+	requireBootstrapArgPair(t, args, "--source-dir", "/Users/runner/vrooli")
+	requireBootstrapArgPair(t, args, "--work-dir", "/Users/runner/vrooli")
+}
+
+func TestBuildBootstrapArgsPinsRunnerRootToExplicitCheckout(t *testing.T) {
+	args := buildBootstrapArgs(StartInput{
+		ControlPlaneURL: "http://control-plane",
+		TargetRevision:  "revision",
+		CheckoutDir:     "/opt/vrooli checkout",
+	}, "", "", RemoteArtifacts{})
+
+	requireBootstrapArgPair(t, args, "--checkout-dir", "/opt/vrooli checkout")
+	requireBootstrapArgPair(t, args, "--work-dir", "/opt/vrooli checkout")
+}
+
+func requireBootstrapArgPair(t *testing.T, args []string, flag, value string) {
+	t.Helper()
+	for i := 0; i+1 < len(args); i++ {
+		if args[i] == flag && args[i+1] == value {
+			return
+		}
+	}
+	t.Fatalf("bootstrap args missing %s %q: %#v", flag, value, args)
+}
+
 func TestBuildBootstrapArgs_DerivesAgentPostureFromGrantedDefaults(t *testing.T) {
 	service := &service{defaultScopes: []string{"vrooli-bridge:read", "vrooli-bridge:write"}}
 	args := buildBootstrapArgsForScopes(StartInput{
@@ -148,6 +179,17 @@ func TestBuildBootstrapArgs_DerivesAgentPostureFromGrantedDefaults(t *testing.T)
 	joined := strings.Join(args, "\x00")
 	if !strings.Contains(joined, "--presence-only\x00false") {
 		t.Fatalf("posture-selected execution grants must opt the agent out of presence-only posture: %#v", args)
+	}
+}
+
+func TestBuildBootstrapArgs_ForwardsProvisioningServiceUser(t *testing.T) {
+	args := buildBootstrapArgs(StartInput{
+		ControlPlaneURL:      "http://control-plane",
+		TargetRevision:       "revision",
+		ProvisionServiceUser: "root",
+	}, "", "", RemoteArtifacts{})
+	if !strings.Contains(strings.Join(args, "\x00"), "--provision-service-user\x00root") {
+		t.Fatalf("provisioning service user was not forwarded: %#v", args)
 	}
 }
 
@@ -185,6 +227,7 @@ func TestGitWorkingTreeSource_Snapshot_UsesGitEnumeration(t *testing.T) {
 	dir := t.TempDir()
 	writeFile(t, dir, "tracked.txt", "x")
 	writeFile(t, dir, "untracked.txt", "y")
+	writeFile(t, dir, ".vrooli/repo-contract.json", "{}\n")
 
 	src := &gitWorkingTreeSource{
 		repoDir: dir,
@@ -208,7 +251,7 @@ func TestGitWorkingTreeSource_Snapshot_UsesGitEnumeration(t *testing.T) {
 	if snap.BaseHEAD != "deadbeefcafe" {
 		t.Fatalf("BaseHEAD = %q", snap.BaseHEAD)
 	}
-	if len(snap.Files) != 2 || snap.Files[0] != "tracked.txt" {
+	if len(snap.Files) != 3 || snap.Files[0] != ".vrooli/repo-contract.json" {
 		t.Fatalf("Files = %#v", snap.Files)
 	}
 	if snap.Digest == "" {
@@ -218,10 +261,12 @@ func TestGitWorkingTreeSource_Snapshot_UsesGitEnumeration(t *testing.T) {
 
 func TestValidateWorkingTreeSourceClosureAcceptsOfflineProtoInputs(t *testing.T) {
 	root := t.TempDir()
+	writeFile(t, root, ".vrooli/repo-contract.json", "{}\n")
 	writeFile(t, root, "packages/proto/buf.yaml", "modules:\n  - path: schemas\n")
 	writeFile(t, root, "packages/proto/vendor/googleapis/google/api/annotations.proto", "syntax = \"proto3\";\n")
 	writeFile(t, root, "packages/proto/vendor/protovalidate/buf/validate/validate.proto", "syntax = \"proto3\";\n")
 	files := []string{
+		".vrooli/repo-contract.json",
 		"packages/proto/buf.yaml",
 		"packages/proto/vendor/googleapis/google/api/annotations.proto",
 		"packages/proto/vendor/protovalidate/buf/validate/validate.proto",
@@ -233,10 +278,12 @@ func TestValidateWorkingTreeSourceClosureAcceptsOfflineProtoInputs(t *testing.T)
 
 func TestValidateWorkingTreeSourceClosureRejectsOmittedOfflineProtoInput(t *testing.T) {
 	root := t.TempDir()
+	writeFile(t, root, ".vrooli/repo-contract.json", "{}\n")
 	writeFile(t, root, "packages/proto/buf.yaml", "modules:\n  - path: schemas\n")
 	writeFile(t, root, "packages/proto/vendor/googleapis/google/api/annotations.proto", "syntax = \"proto3\";\n")
 	writeFile(t, root, "packages/proto/vendor/protovalidate/buf/validate/validate.proto", "syntax = \"proto3\";\n")
 	err := validateWorkingTreeSourceClosure(root, []string{
+		".vrooli/repo-contract.json",
 		"packages/proto/buf.yaml",
 		"packages/proto/vendor/googleapis/google/api/annotations.proto",
 	})

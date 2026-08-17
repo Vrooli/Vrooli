@@ -1,20 +1,28 @@
 {
   "$schema": "../../../.vrooli/schemas/search.schema.json",
+  "version": "1.0.0",
   "providers": [
     {
       "provider_id": "code-facts.code",
+      "lifecycle": "production",
       "provider_group": "code-facts",
       "bucket": "BUCKET_KNOW",
       "type": "code",
       "class": "local_live",
       "scope": "SCOPE_PROJECT",
-      "description": "Lexical code evidence for Vrooli symbols, files, packages, and architecture-owned file domains. Use for exact identifiers, function/type names, file locations, package ownership, and where implementation lives. Results preserve analyzer, evidence status, source range, and query-time callers/references.",
+      "description": "Source implementation evidence for Vrooli symbols, functions, types, callers, packages, files, and architecture-owned file domains. Use this leaf for where concrete Go or application code is implemented, including router logic, policy behavior, persistence, and call paths; do not use it as the primary answer for proto declarations or generated service contracts. Results preserve analyzer, evidence status, source range, and query-time callers/references.",
+      "routing_profile": {
+        "answer_spaces": ["implementation", "source_location", "call_path", "persistence"],
+        "intents": ["locate", "trace", "explain", "identify_ownership"],
+        "positive_examples": ["where is this function implemented", "which file persists this value", "where are callers resolved"],
+        "exclusions": ["proto declaration", "generated service contract"]
+      },
       "endpoint": {
         "http_json": {
           "scenario_id": "code-facts",
           "path": "/vrooli.code_facts.v1.facts.CodeFactsService/Search",
           "method": "HTTP_METHOD_POST",
-      "body_template": "{\"query\":\"{{query}}\",\"limit\":{{limit}},\"target\":{\"kind\":\"TARGET_KIND_PROJECT\"},\"families\":[\"FACT_FAMILY_SYMBOLS\"],\"expand_edges\":true}",
+      "body_template": "{\"query\":\"{{query}}\",\"limit\":{{limit}},\"target\":{\"kind\":\"TARGET_KIND_PROJECT\"},\"families\":[\"FACT_FAMILY_SYMBOLS\"],\"expand_edges\":false}",
           "headers": {"Content-Type": "application/json"}
         }
       },
@@ -35,34 +43,47 @@
         "path_field": "path"
       },
       "tuning": {"engine": "bm25", "floor": {"hard_floor": 0, "max_gap": 0}},
-      "performance": {"p95_ms": 4000, "degraded_rate_max": 0.2, "minimum_samples": 2, "telemetry_required": true},
+      "performance": {"p95_ms": 1500, "degraded_rate_max": 0.2, "minimum_samples": 2, "telemetry_required": true},
       "scoring": {"recall_at": 5, "recall_target": 0.8, "mrr_at": 3, "deep_k": 50},
-      "tests": {"minimum": {"reviewed_positive": 12, "negative": 3}, "suite_id": "code-facts.code.primary", "name": "Code identifier and location retrieval", "cases": [
-        {"id": "retry-symbol", "query": "retry", "expect_ids": ["code-facts:lexical:packages/api-base/src/server/health.ts:110"], "expect_within_top_k": 5, "status": "reviewed", "tags": ["reviewed", "identifier", "strong"]},
-        {"id": "database-symbol", "query": "database", "expect_ids": ["code-facts:lexical:packages/api-base/src/__tests__/server/health.test.ts:72"], "expect_within_top_k": 5, "status": "reviewed", "tags": ["reviewed", "location", "weak"]},
-        {"id": "connection-symbol", "query": "connection", "expect_ids": ["code-facts:lexical:packages/api-base/src/__tests__/e2e/host-scenario/api-routing.test.ts:143"], "expect_within_top_k": 5, "status": "reviewed", "tags": ["reviewed", "location", "hard"]},
-        {"id": "health-symbol", "query": "health", "expect_ids": ["code-facts:lexical:packages/agent-policy/policy.go:119"], "expect_within_top_k": 5, "status": "reviewed", "tags": ["reviewed", "identifier", "strong"]},
-        {"id": "api-symbol", "query": "api", "expect_ids": ["code-facts:lexical:packages/ai-go/search/config.go:44"], "expect_within_top_k": 5, "status": "reviewed", "tags": ["reviewed", "location", "weak"]},
-        {"id": "endpoint-symbol", "query": "endpoint", "expect_ids": ["code-facts:lexical:packages/ai-go/openrouter/policy/policy.go:4"], "expect_within_top_k": 5, "status": "reviewed", "tags": ["reviewed", "identifier", "hard"]},
-        {"id": "proto-symbol", "query": "proto", "expect_ids": ["code-facts:lexical:packages/ai-go/search/override.go:105"], "expect_within_top_k": 5, "status": "reviewed", "tags": ["reviewed", "location", "strong"]},
-        {"id": "service-symbol", "query": "service", "expect_ids": ["code-facts:lexical:packages/ai-go/search/blend_test.go:101"], "expect_within_top_k": 5, "status": "reviewed", "tags": ["reviewed", "identifier", "weak"]},
-        {"id": "search-symbol", "query": "Search", "expect_ids": ["code-facts:lexical:packages/ai-go/search/binding.go:1"], "expect_within_top_k": 5, "status": "reviewed", "tags": ["reviewed", "identifier", "hard"]},
-        {"id": "code-facts-symbol", "query": "CodeFactsService", "expect_ids": ["code-facts:lexical:packages/proto/gen/go/code-facts/v1/facts/facts.pb.go:2908"], "expect_within_top_k": 5, "status": "reviewed", "tags": ["reviewed", "identifier", "strong"]},
-        {"id": "provider-symbol", "query": "provider", "expect_ids": ["code-facts:lexical:packages/agent-policy/policy.go:1"], "expect_within_top_k": 5, "status": "reviewed", "tags": ["reviewed", "location", "weak"]},
-        {"id": "classifier-symbol", "query": "classifier", "expect_ids": ["code-facts:lexical:packages/agent-policy/classifier.go:1"], "expect_within_top_k": 5, "status": "reviewed", "tags": ["reviewed", "behavior", "hard"]},
-        {"id": "code-negative-1", "query": "zxqv impossible symbol", "expect_no_strong_hit": true, "expect_max_score": 0.3, "status": "reviewed", "tags": ["reviewed", "negative"]},
-        {"id": "code-negative-2", "query": "qzvplm missing implementation", "expect_no_strong_hit": true, "expect_max_score": 0.3, "status": "reviewed", "tags": ["reviewed", "negative"]},
-        {"id": "code-negative-3", "query": "nonsense-unowned-identifier", "expect_no_strong_hit": true, "expect_max_score": 0.3, "status": "reviewed", "tags": ["reviewed", "negative"]}
+      "tests": {"minimum": {"reviewed_positive": 12, "negative": 3}, "suite_id": "code-facts.code.primary", "name": "Natural-language code question retrieval", "description": "Reviewed natural-language code questions covering symbol locations, callers, package ownership, file inventory, and contract conformance. The intended p95 is 1500 ms; the phase-1 reading was 4172 ms and remains an explicit latency gap.", "coverage": {"required_tag_groups": [
+        {"id": "symbol-location", "description": "Locates the declaration or implementation that answers a code question.", "tags": ["family.symbol-location"], "min_reviewed_positive": 2},
+        {"id": "caller-reference", "description": "Finds callers, references, or request flow around an implementation.", "tags": ["family.caller-reference"], "min_reviewed_positive": 2},
+        {"id": "package-ownership", "description": "Identifies the package that owns a reusable search or policy contract.", "tags": ["family.package-ownership"], "min_reviewed_positive": 2},
+        {"id": "file-inventory", "description": "Surfaces the files that implement or persist a requested capability.", "tags": ["family.file-inventory"], "min_reviewed_positive": 2},
+        {"id": "contract-conformance", "description": "Locates generated service and contract declarations used by the implementation.", "tags": ["family.contract-conformance"], "min_reviewed_positive": 2}
+      ]}, "cases": [
+        {"id": "demotion-function-location", "query": "where is the function that computes provider demotion in the router", "expect_ids": ["code-facts:lexical:scenarios/search-hub/api/internal/metrics/demotion.go:22"], "expect_within_top_k": 5, "status": "reviewed", "note": "Live provider probe after deterministic lexical ranking returned the owning source location at rank 1.", "tags": ["reviewed", "family.symbol-location", "strong"]},
+        {"id": "provider-health-location", "query": "where is the ProviderHealth type declared in the agent policy package", "expect_ids": ["code-facts:lexical:packages/agent-policy/policy.go:119"], "expect_within_top_k": 5, "status": "reviewed", "note": "Live provider probe returned the ProviderHealth declaration at rank 1 with source provenance.", "tags": ["reviewed", "family.symbol-location", "weak"]},
+        {"id": "query-override-caller", "query": "where are per-request query-time overrides resolved before search", "expect_ids": ["code-facts:lexical:packages/ai-go/search/override.go:128"], "expect_within_top_k": 5, "status": "reviewed", "note": "Live provider probe returned the WithOverrides implementation at rank 1.", "tags": ["reviewed", "family.caller-reference", "strong"]},
+        {"id": "registration-reference", "query": "where does the ControlTokenHeader registration check in override_transport handle provider overrides", "expect_ids": ["code-facts:lexical:packages/ai-go/search/override_transport.go:27"], "expect_within_top_k": 5, "status": "reviewed", "note": "Live provider probe returned the registration control-token declaration at rank 1.", "tags": ["reviewed", "family.caller-reference", "weak"]},
+        {"id": "search-contract-owner", "query": "where is the SearchQuery type declared in the generic search contract", "expect_ids": ["code-facts:lexical:packages/ai-go/search/contracts.go:365"], "expect_within_top_k": 5, "status": "reviewed", "note": "Live provider probe returned the SearchQuery declaration at rank 1.", "tags": ["reviewed", "family.package-ownership", "strong"]},
+        {"id": "provider-policy-owner", "query": "where is ProviderScope declared in the agent-policy package", "expect_ids": ["code-facts:lexical:packages/agent-policy/policy.go:103"], "expect_within_top_k": 5, "status": "reviewed", "note": "Live provider probe returned the provider policy scope declaration at rank 1.", "tags": ["reviewed", "family.package-ownership", "weak"]},
+        {"id": "demotion-files", "query": "where does sqliteDemotionStore Load provider demotion state", "expect_ids": ["code-facts:lexical:scenarios/search-hub/api/internal/metrics/demotion.go:22"], "expect_within_top_k": 5, "status": "reviewed", "note": "Live provider probe returned the SQLite demotion persistence implementation at rank 1.", "tags": ["reviewed", "family.file-inventory", "strong"]},
+        {"id": "descriptor-registration-files", "query": "where is ProviderConfig declared in searchjson for provider registration", "expect_ids": ["code-facts:lexical:packages/ai-go/search/searchjson.go:77"], "expect_within_top_k": 5, "status": "reviewed", "note": "Live provider probe returned the ProviderConfig declaration within the declared top-k.", "tags": ["reviewed", "family.file-inventory", "weak"]},
+        {"id": "generated-facts-service", "query": "where is NewCodeFactsServiceClient in the code-facts generated Go client", "expect_ids": ["code-facts:lexical:packages/proto/gen/go/code-facts/v1/facts/facts_v1connect/facts.connect.go:102"], "expect_within_top_k": 5, "status": "reviewed", "note": "Live provider probe returned the generated Connect client constructor at rank 1; this replaces the prior descriptor-blob line anchor.", "tags": ["reviewed", "family.contract-conformance", "strong"]},
+        {"id": "demotion-reason-contract", "query": "where is GetDemotionReason generated for Search Hub ProviderHealth", "expect_ids": ["code-facts:lexical:packages/proto/gen/go/search-hub/v1/routing/routing.pb.go:1028"], "expect_within_top_k": 5, "status": "reviewed", "note": "Live provider probe returned the generated demotion-reason accessor at rank 1.", "tags": ["reviewed", "family.contract-conformance", "weak"]},
+        {"id": "request-validation-caller", "query": "where is normalize implemented for SearchQuery inputs", "expect_ids": ["code-facts:lexical:packages/ai-go/search/service.go:272"], "expect_within_top_k": 5, "status": "reviewed", "note": "Live provider probe returned the SearchQuery normalization method at rank 1.", "tags": ["reviewed", "family.caller-reference", "hard"]},
+        {"id": "descriptor-writer-files", "query": "where does searchjson_write.go persist provider descriptor data", "expect_ids": ["code-facts:lexical:packages/ai-go/search/searchjson_write.go:15"], "expect_within_top_k": 5, "status": "reviewed", "note": "Live provider probe returned the descriptor writer source at rank 1.", "tags": ["reviewed", "family.file-inventory", "hard"]},
+        {"id": "code-negative-1", "query": "which module handles payment card tokenization", "expect_no_strong_hit": true, "expect_max_score": 0.3, "status": "reviewed", "tags": ["reviewed", "negative"]},
+        {"id": "code-negative-2", "query": "which source implements warehouse barcode printing", "expect_no_strong_hit": true, "expect_max_score": 0.3, "status": "reviewed", "tags": ["reviewed", "negative"]},
+        {"id": "code-negative-3", "query": "which package owns mobile push notification delivery", "expect_no_strong_hit": true, "expect_max_score": 0.3, "status": "reviewed", "tags": ["reviewed", "negative"]}
       ]}
     },
     {
       "provider_id": "code-facts.contracts",
+      "lifecycle": "production",
       "provider_group": "code-facts",
       "bucket": "BUCKET_KNOW",
       "type": "contract",
       "class": "local_live",
       "scope": "SCOPE_PROJECT",
-      "description": "Generated-proto and service-contract evidence across Vrooli: RPC messages, adoption, endpoint conformance, and generated client/server wiring. Use for which service owns a contract, whether a proto is adopted, and how a message reaches an API surface.",
+      "description": "Proto and service-contract evidence across Vrooli: RPC messages, service declarations, adoption, endpoint conformance, and generated client/server contract wiring. Use this leaf for which service owns a proto contract, whether a message or RPC is adopted, and how a contract reaches an API surface; do not use it as the primary answer for ordinary implementation functions, policy logic, or persistence code.",
+      "routing_profile": {
+        "answer_spaces": ["service_contract", "proto_declaration", "endpoint_conformance"],
+        "intents": ["locate", "explain", "identify_ownership", "verify_conformance"],
+        "positive_examples": ["where is the RPC declared", "which service owns this message", "how does this contract reach the API"],
+        "exclusions": ["ordinary implementation", "policy logic", "persistence code"]
+      },
       "endpoint": {
         "http_json": {
           "scenario_id": "code-facts",
@@ -82,24 +103,30 @@
       },
       "result_mapping": {"results_path": "results", "id_field": "id", "score_field": "score", "snippet_field": "text", "title_field": "title", "path_field": "path"},
       "tuning": {"engine": "bm25", "floor": {"hard_floor": 0, "max_gap": 0}},
-      "performance": {"p95_ms": 4000, "degraded_rate_max": 0.2, "minimum_samples": 2, "telemetry_required": true},
+      "performance": {"p95_ms": 1500, "degraded_rate_max": 0.2, "minimum_samples": 2, "telemetry_required": true},
       "scoring": {"recall_at": 5, "recall_target": 0.8, "mrr_at": 3, "deep_k": 50},
-      "tests": {"minimum": {"reviewed_positive": 12, "negative": 3}, "suite_id": "code-facts.contracts.primary", "name": "Contract and proto adoption retrieval", "cases": [
-        {"id": "proto-adoption", "query": "proto", "expect_ids": ["code-facts:lexical:packages/proto/schemas/agent-manager/v1/api/service.proto:1"], "expect_within_top_k": 5, "status": "reviewed", "tags": ["reviewed", "contract", "strong"]},
-        {"id": "adoption-contract", "query": "adoption", "expect_ids": ["code-facts:lexical:packages/proto/schemas/agent-manager/v1/domain/run.proto:193"], "expect_within_top_k": 5, "status": "reviewed", "tags": ["reviewed", "contract", "weak"]},
-        {"id": "generated-contract", "query": "generated", "expect_ids": ["code-facts:lexical:packages/proto/schemas/agent-manager/v1/api/service.proto:533"], "expect_within_top_k": 5, "status": "reviewed", "tags": ["reviewed", "contract", "hard"]},
-        {"id": "rpc-contract", "query": "RPC", "expect_ids": ["code-facts:lexical:packages/proto/schemas/agent-manager/v1/api/service.proto:102"], "expect_within_top_k": 5, "status": "reviewed", "tags": ["reviewed", "contract", "strong"]},
-        {"id": "message-contract", "query": "message", "expect_ids": ["code-facts:lexical:packages/proto/schemas/agent-manager/v1/api/service.proto:1000"], "expect_within_top_k": 5, "status": "reviewed", "tags": ["reviewed", "contract", "weak"]},
-        {"id": "schema-contract", "query": "schema", "expect_ids": ["code-facts:lexical:packages/proto/schemas/agent-manager/v1/api/service.proto:1"], "expect_within_top_k": 5, "status": "reviewed", "tags": ["reviewed", "contract", "hard"]},
-        {"id": "endpoint-contract", "query": "endpoint", "expect_ids": ["code-facts:lexical:packages/proto/schemas/agent-manager/v1/api/service.proto:1146"], "expect_within_top_k": 5, "status": "reviewed", "tags": ["reviewed", "contract", "strong"]},
-        {"id": "conformance-contract", "query": "conformance", "expect_ids": ["code-facts:lexical:packages/proto/schemas/ai-gateway/v1/conformance/conformance.proto:1"], "expect_within_top_k": 5, "status": "reviewed", "tags": ["reviewed", "contract", "weak"]},
-        {"id": "service-contract", "query": "service", "expect_ids": ["code-facts:lexical:packages/proto/schemas/agent-manager/v1/api/service.proto:1"], "expect_within_top_k": 5, "status": "reviewed", "tags": ["reviewed", "contract", "hard"]},
-        {"id": "contract-contract", "query": "contract", "expect_ids": ["code-facts:lexical:packages/proto/schemas/agent-manager/v1/api/service.proto:1112"], "expect_within_top_k": 5, "status": "reviewed", "tags": ["reviewed", "contract", "strong"]},
-        {"id": "response-contract", "query": "response", "expect_ids": ["code-facts:lexical:packages/proto/schemas/agent-manager/v1/api/service.proto:1009"], "expect_within_top_k": 5, "status": "reviewed", "tags": ["reviewed", "contract", "weak"]},
-        {"id": "request-contract", "query": "request", "expect_ids": ["code-facts:lexical:packages/proto/schemas/agent-manager/v1/api/service.proto:1000"], "expect_within_top_k": 5, "status": "reviewed", "tags": ["reviewed", "contract", "hard"]},
-        {"id": "contract-negative-1", "query": "zxqv impossible rpc", "expect_no_strong_hit": true, "expect_max_score": 0.3, "status": "reviewed", "tags": ["reviewed", "negative"]},
-        {"id": "contract-negative-2", "query": "qzvplm missing schema", "expect_no_strong_hit": true, "expect_max_score": 0.3, "status": "reviewed", "tags": ["reviewed", "negative"]},
-        {"id": "contract-negative-3", "query": "nonsense-unowned-contract", "expect_no_strong_hit": true, "expect_max_score": 0.3, "status": "reviewed", "tags": ["reviewed", "negative"]}
+      "tests": {"minimum": {"reviewed_positive": 12, "negative": 3}, "suite_id": "code-facts.contracts.primary", "name": "Natural-language contract and proto retrieval", "description": "Reviewed natural-language contract questions covering service declarations, ownership, request relationships, file inventory, and proto conformance. The intended p95 is 1500 ms; the phase-1 reading was 4172 ms and remains an explicit latency gap.", "coverage": {"required_tag_groups": [
+        {"id": "symbol-location", "description": "Locates the declaration or implementation that answers a contract question.", "tags": ["family.symbol-location"], "min_reviewed_positive": 2},
+        {"id": "caller-reference", "description": "Finds service request and response relationships around a contract.", "tags": ["family.caller-reference"], "min_reviewed_positive": 2},
+        {"id": "package-ownership", "description": "Identifies the package or schema family that owns a contract.", "tags": ["family.package-ownership"], "min_reviewed_positive": 2},
+        {"id": "file-inventory", "description": "Surfaces the files containing the relevant proto and generated contract declarations.", "tags": ["family.file-inventory"], "min_reviewed_positive": 2},
+        {"id": "contract-conformance", "description": "Verifies service, RPC, message, and endpoint conformance declarations.", "tags": ["family.contract-conformance"], "min_reviewed_positive": 2}
+      ]}, "cases": [
+        {"id": "service-contract-location", "query": "where is message AgentManagerService declared in the agent manager proto", "expect_ids": ["code-facts:lexical:packages/proto/schemas/agent-manager/v1/api/service.proto:47"], "expect_within_top_k": 5, "status": "reviewed", "note": "Live provider probe returned the service declaration within the declared top-k.", "tags": ["reviewed", "family.symbol-location", "strong"]},
+        {"id": "run-contract-location", "query": "where is the Run message declaration in the run.proto file", "expect_ids": ["code-facts:lexical:packages/proto/schemas/agent-manager/v1/domain/run.proto:40"], "expect_within_top_k": 5, "status": "reviewed", "note": "Live provider probe returned the Run message declaration at rank 4.", "tags": ["reviewed", "family.symbol-location", "weak"]},
+        {"id": "request-response-reference", "query": "where are UpdateTaskRequest and UpdateTaskResponse declared in the agent manager service proto", "expect_ids": ["code-facts:lexical:packages/proto/schemas/agent-manager/v1/api/service.proto:1000"], "expect_within_top_k": 5, "status": "reviewed", "note": "Live provider probe returned the request declaration at rank 2 with the paired response declaration also present.", "tags": ["reviewed", "family.caller-reference", "strong"]},
+        {"id": "endpoint-reference", "query": "where is the agent manager CreateRunResponse endpoint contract connected to the service", "expect_ids": ["code-facts:lexical:packages/proto/schemas/agent-manager/v1/api/service.proto:1148"], "expect_within_top_k": 5, "status": "reviewed", "note": "Live provider probe returned the CreateRunResponse endpoint contract within the declared top-k.", "tags": ["reviewed", "family.caller-reference", "weak"]},
+        {"id": "agent-manager-schema-owner", "query": "which file contains the AgentManagerService proto definitions", "expect_ids": ["code-facts:lexical:packages/proto/schemas/agent-manager/v1/api/service.proto:47"], "expect_within_top_k": 5, "status": "reviewed", "note": "Live provider probe returned the owning service declaration within the declared top-k.", "tags": ["reviewed", "family.package-ownership", "strong"]},
+        {"id": "ai-gateway-schema-owner", "query": "where is the AI gateway Conformance proto defined", "expect_ids": ["code-facts:lexical:packages/proto/schemas/ai-gateway/v1/conformance/conformance.proto:27"], "expect_within_top_k": 5, "status": "reviewed", "note": "Live provider probe returned the ConformanceService declaration within the declared top-k.", "tags": ["reviewed", "family.package-ownership", "weak"]},
+        {"id": "service-proto-files", "query": "which files contain the agent manager proto service definitions", "expect_ids": ["code-facts:lexical:packages/proto/schemas/agent-manager/v1/api/service.proto:1"], "expect_within_top_k": 5, "status": "reviewed", "note": "Live provider probe returned the owning service proto within the declared top-k.", "tags": ["reviewed", "family.file-inventory", "strong"]},
+        {"id": "generated-contract-files", "query": "which file contains the agent manager service proto definitions", "expect_ids": ["code-facts:lexical:packages/proto/schemas/agent-manager/v1/api/service.proto:1"], "expect_within_top_k": 5, "status": "reviewed", "note": "The contracts provider serves authoritative proto source; live validation returned the service proto file anchor within the declared top-k.", "tags": ["reviewed", "family.file-inventory", "weak"]},
+        {"id": "rpc-conformance", "query": "which RPC Health declaration in AgentManagerService proves HTTP conformance", "expect_ids": ["code-facts:lexical:packages/proto/schemas/agent-manager/v1/api/service.proto:53"], "expect_within_top_k": 5, "status": "reviewed", "note": "Live provider probe returned the Health RPC declaration at rank 1.", "tags": ["reviewed", "family.contract-conformance", "strong"]},
+        {"id": "message-conformance", "query": "where is message HealthResponse declared in the agent manager service proto", "expect_ids": ["code-facts:lexical:packages/proto/schemas/agent-manager/v1/api/service.proto:502"], "expect_within_top_k": 5, "status": "reviewed", "note": "Live provider probe returned the HealthResponse message declaration at rank 1.", "tags": ["reviewed", "family.contract-conformance", "weak"]},
+        {"id": "contract-symbol-location", "query": "where is CreateRunResponse declared for the agent manager API endpoint", "expect_ids": ["code-facts:lexical:packages/proto/schemas/agent-manager/v1/api/service.proto:1148"], "expect_within_top_k": 5, "status": "reviewed", "note": "Live provider probe returned the CreateRunResponse declaration at rank 1.", "tags": ["reviewed", "family.symbol-location", "hard"]},
+        {"id": "conformance-file-location", "query": "where is the AI gateway Conformance proto defined", "expect_ids": ["code-facts:lexical:packages/proto/schemas/ai-gateway/v1/conformance/conformance.proto:27"], "expect_within_top_k": 5, "status": "reviewed", "note": "Live provider probe returned the ConformanceService declaration within the declared top-k.", "tags": ["reviewed", "family.file-inventory", "hard"]},
+        {"id": "contract-negative-1", "query": "which proto defines warehouse barcode printing", "expect_no_strong_hit": true, "expect_max_score": 0.3, "status": "reviewed", "tags": ["reviewed", "negative"]},
+        {"id": "contract-negative-2", "query": "which service owns mobile push notification delivery", "expect_no_strong_hit": true, "expect_max_score": 0.3, "status": "reviewed", "tags": ["reviewed", "negative"]},
+        {"id": "contract-negative-3", "query": "where is the payment card tokenization RPC contract", "expect_no_strong_hit": true, "expect_max_score": 0.3, "status": "reviewed", "tags": ["reviewed", "negative"]}
       ]}
     }
   ]

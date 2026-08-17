@@ -7,8 +7,11 @@
     <link rel="manifest" href="site.webmanifest" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="description" content="Drive owner-trusted physical and virtual devices through pluggable control strategies, with shared vision-based understanding, reusable automation flows, and agent-driven goal completion." />
-    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f8fafc" />
-    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#020617" />
+    <!-- Browser chrome follows the top app bar surface, not the page body.
+         Keep the default capture (dark system scheme) first because the
+         ui-health runtime probe reads the first theme-color declaration. -->
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0f172a" />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="Device Control" />

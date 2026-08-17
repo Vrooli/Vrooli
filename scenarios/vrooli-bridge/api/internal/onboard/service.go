@@ -3,6 +3,7 @@ package onboard
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -68,6 +69,10 @@ type Service interface {
 	// restart: each is marked FAILED with FailureInterrupted (safe to retry — the
 	// flow is idempotent). Returns the count reconciled. Called once at boot.
 	ResumeInterrupted(ctx context.Context) (int, error)
+
+	// Protect records the post-pairing target-bound protection step after the
+	// cleanup domain has completed its typed helper operation.
+	Protect(ctx context.Context, in ProtectionInput) (ProtectionDecision, error)
 }
 
 type MachineEnrollmentDecision struct {
@@ -95,6 +100,7 @@ type service struct {
 	nodeRev                NodeRevisionRecorder
 	handoff                onboarding.HandoffClient
 	firewallAdmitter       FirewallAdmitter
+	protection             ProtectionProvisioner
 
 	wg sync.WaitGroup // tracks in-flight orchestration goroutines (for tests)
 }
@@ -183,6 +189,13 @@ func WithOnboardingHandoff(client onboarding.HandoffClient) Option {
 // setup-managed broker, while isolated tests and other deployments remain inert.
 func WithFirewallAdmitter(admitter FirewallAdmitter) Option {
 	return func(s *service) { s.firewallAdmitter = admitter }
+}
+
+// WithProtectionProvisioner wires the cleanup domain's typed protection
+// operation into the named onboarding step. It is optional for isolated legacy
+// callers; production always supplies it.
+func WithProtectionProvisioner(provisioner ProtectionProvisioner) Option {
+	return func(s *service) { s.protection = provisioner }
 }
 
 // NewService constructs the production Service.
@@ -359,6 +372,67 @@ func (s *service) Start(ctx context.Context, in StartInput) (Decision, error) {
 	return Decision{OpID: op.ID, Host: host, Port: port, User: user}, nil
 }
 
+func (s *service) Protect(ctx context.Context, in ProtectionInput) (ProtectionDecision, error) {
+	in.OnboardingOpID = trimField(in.OnboardingOpID)
+	in.MachineID = trimField(in.MachineID)
+	in.NodeID = trimField(in.NodeID)
+	in.Target = trimField(in.Target)
+	in.Scope = trimField(in.Scope)
+	in.CleanupOperationID = trimField(in.CleanupOperationID)
+	in.OperatorID = trimField(in.OperatorID)
+	if in.OnboardingOpID == "" || in.NodeID == "" || in.Target == "" {
+		return ProtectionDecision{}, ErrInvalid{Field: "protection_target", Reason: "onboarding operation, node, and target are required"}
+	}
+	if !in.Declined && in.CleanupOperationID == "" {
+		return ProtectionDecision{}, ErrInvalid{Field: "cleanup_operation_id", Reason: "required unless the operator declined protection"}
+	}
+	if !in.Declined && len(in.SealedPassphrase) == 0 {
+		return ProtectionDecision{}, ErrInvalid{Field: "sealed_passphrase", Reason: "required"}
+	}
+	op, err := s.repo.Get(ctx, in.OnboardingOpID)
+	if err != nil {
+		return ProtectionDecision{}, err
+	}
+	if op.State != StateSucceeded {
+		return ProtectionDecision{}, ErrConflict{Field: "onboarding_state", Reason: "protection requires a succeeded onboarding operation"}
+	}
+	if op.NodeID != in.NodeID {
+		return ProtectionDecision{}, ErrConflict{Field: "node_id", Reason: "protection node does not match the onboarding result"}
+	}
+	if op.Host != in.Target {
+		return ProtectionDecision{}, ErrConflict{Field: "target", Reason: "protection target does not match the onboarding result"}
+	}
+	if in.Declined {
+		detail := "operator declined the break-glass passphrase; target-bound break-glass remains missing"
+		s.appendEvent(ctx, op.ID, StepProtect, StepStatusSkipped, detail)
+		return ProtectionDecision{Op: op, Status: "declined", Detail: detail}, nil
+	}
+	if s.protection == nil {
+		return ProtectionDecision{}, ErrInvalid{Field: "protection", Reason: "onboarding protection is not configured"}
+	}
+	status, operationID, detail, err := s.protection.ProvisionProtection(ctx, in)
+	if err != nil {
+		s.appendEvent(ctx, op.ID, StepProtect, StepStatusFailed, detailOrError(detail, err))
+		return ProtectionDecision{}, err
+	}
+	statusValue := StepStatusOK
+	if status != "completed" {
+		statusValue = StepStatusFailed
+	}
+	s.appendEvent(ctx, op.ID, StepProtect, statusValue, detail)
+	return ProtectionDecision{Op: op, Status: status, OperationID: operationID, Detail: detail}, nil
+}
+
+func detailOrError(detail string, err error) string {
+	if strings.TrimSpace(detail) != "" {
+		return detail
+	}
+	if err == nil {
+		return "protection failed"
+	}
+	return err.Error()
+}
+
 func (s *service) StartMachineEnrollment(ctx context.Context, machineID string, in StartInput) (MachineEnrollmentDecision, error) {
 	return s.startMachineEnrollment(ctx, machineID, "", in)
 }
@@ -394,7 +468,8 @@ func (s *service) startMachineEnrollment(ctx context.Context, machineID, retryOf
 	attempt, err := NewAttempt(machineID, map[string]string{
 		"host": in.Host, "port": fmt.Sprintf("%d", in.Port), "user": in.User,
 		"node_name": in.NodeName, "target_revision": in.TargetRevision,
-		"control_plane_url": in.ControlPlaneURL,
+		"control_plane_url":      in.ControlPlaneURL,
+		"provision_service_user": in.ProvisionServiceUser,
 	})
 	if err != nil {
 		zeroBytes(in.Password)

@@ -14,7 +14,9 @@
 }
 
 body {
-  background: var(--color-background);
+  /* Safe-area pixels are browser chrome and must match the app bars that
+     occupy the same edge; the app shell owns the page background below. */
+  background: var(--color-surface);
   color: var(--color-foreground);
   font-family: var(--font-sans);
   margin: 0;

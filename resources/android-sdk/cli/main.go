@@ -17,7 +17,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
-	"syscall"
 	"time"
 )
 
@@ -632,7 +631,7 @@ func avdStart(name string) error {
 	emulator := filepath.Join(layout.SDKRoot, "emulator", executable("emulator"))
 	cmd := exec.Command(emulator, "-avd", name, "-no-snapshot", "-no-audio", "-no-boot-anim", "-no-window")
 	cmd.Env = sdkEnvironment(layout)
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+	cmd.SysProcAttr = androidSDKDetachedProcessAttrs()
 	logPath := filepath.Join(layout.Root, "avd", name+".log")
 	if err := os.MkdirAll(filepath.Dir(logPath), 0o700); err != nil {
 		return fmt.Errorf("prepare emulator log directory: %w", err)

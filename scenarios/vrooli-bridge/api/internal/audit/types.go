@@ -44,6 +44,7 @@ const (
 	ActionSessionResize  Action = 6
 	ActionSessionDataIn  Action = 7
 	ActionSessionDataOut Action = 8
+	ActionCleanup        Action = 9
 )
 
 // Outcome is the result recorded for an audited operation.

@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Server-owned durable remote runs (test-genie lifecycle reuse); survive disconnect; re-attach by id; stream results/logs back.",
-    "last_validated_at": "2026-08-16T03:17:42-04:00",
+    "last_validated_at": "2026-08-17T07:57:42-04:00",
     "module": "durable-execution",
     "prd_ref": "OT-P0-005",
     "priority": "P0",
@@ -11,7 +11,7 @@
     {
       "id": "BRG-P0-005",
       "title": "Durable Remote Execution \u0026 Result Collection",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-005",
       "category": "core",
       "description": "A dispatched job runs as a server-owned durable run on the node (reusing test-genie's run-lifecycle philosophy): it survives client and agent disconnect, is re-attachable by id with a block-once wait verb (no polling), and streams exit status, logs, and result artifacts back to the control plane for aggregation.",
@@ -20,7 +20,7 @@
           "type": "test",
           "ref": "api/internal/runs/durable_test.go",
           "phase": "unit",
-          "status": "not_implemented",
+          "status": "implemented",
           "notes": "A run continues after the dispatching client disconnects and is re-attachable by run-id; wait returns exactly once with the real exit code."
         },
         {
@@ -34,7 +34,7 @@
           "type": "manual",
           "ref": "docs/concepts/FLOWS.md#remote-run",
           "phase": "business",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Dispatch `scenario test X` to a node, drop the client, re-attach by id, and read the verdict + logs."
         }
       ]

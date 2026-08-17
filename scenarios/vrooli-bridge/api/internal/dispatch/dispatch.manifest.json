@@ -2,6 +2,8 @@
   "source": "project-cli-catalog-with-typed-capability-bindings",
   "default_grants": ["read", "write"],
   "typed_bindings": [
+    {"verb": "setup status", "effect": "read"},
+    {"verb": "setup", "effect": "write"},
     {"verb": "scenario wait", "effect": "write"},
     {"verb": "device-control observe", "effect": "read"},
     {"verb": "device-control actuate", "effect": "write"},

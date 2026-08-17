@@ -262,6 +262,19 @@ func launchdSystemPath(d Definition) string {
 	return filepath.Join(launchdSystemDir, LaunchdLabel(d.Name)+".plist")
 }
 
+// launchdUserDomains returns the two per-user namespaces that can contain a
+// stale Bridge LaunchAgent. An SSH-only install converges on a system
+// LaunchDaemon, but a previous GUI-session install may still be loaded under
+// gui/<uid>, and older headless installs may be under user/<uid>. Evicting only
+// this exact managed label prevents two agents with different node identities
+// from running concurrently after a re-enrollment.
+func launchdUserDomains(uid int) []string {
+	if uid < 0 {
+		return nil
+	}
+	return []string{fmt.Sprintf("gui/%d", uid), fmt.Sprintf("user/%d", uid)}
+}
+
 func runSudo(ctx context.Context, runner commandRunner, argv ...string) (string, error) {
 	return runner.run(ctx, append([]string{"sudo", "-n"}, argv...)...)
 }
@@ -346,6 +359,16 @@ func (m launchdManager) Install(ctx context.Context, d Definition) (InstallResul
 	// ignore the "not loaded" failure on a fresh install. This is what makes a
 	// re-install idempotent: it always converges on the freshly-written plist.
 	_, _ = run(ctx, "launchctl", "bootout", target)
+	if systemScope {
+		// A system daemon is the canonical service for SSH/headless installs.
+		// Remove any same-label per-user service as well; otherwise launchd can
+		// keep an older node process alive and race the freshly installed daemon.
+		// These are exact fixed Bridge labels, and failures are intentionally
+		// ignored because either domain may not exist on this host.
+		for _, userDomain := range launchdUserDomains(m.uid()) {
+			_, _ = runSudo(ctx, m.runner, "launchctl", "bootout", userDomain+"/"+LaunchdLabel(d.Name))
+		}
+	}
 	if _, err := run(ctx, "launchctl", "bootstrap", serviceDomain, plistPath); err != nil {
 		return InstallResult{}, err
 	}

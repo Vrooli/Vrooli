@@ -295,3 +295,11 @@ type MachineLinker interface {
 type OnlineConfirmer interface {
 	ConfirmOnline(ctx context.Context, nodeID string, timeout time.Duration) (online bool, err error)
 }
+
+// ProtectionProvisioner is the narrow bridge from onboarding to the cleanup
+// domain. It owns the typed helper dispatch and waits for the durable result;
+// onboarding only records the named step and never learns how host cleanup is
+// implemented.
+type ProtectionProvisioner interface {
+	ProvisionProtection(context.Context, ProtectionInput) (status, operationID, detail string, err error)
+}

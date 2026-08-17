@@ -17,12 +17,15 @@ func ToConnectError(err error) error {
 		return nil
 	}
 	var (
-		invalid ErrInvalid
-		opNF    ErrOpNotFound
+		invalid  ErrInvalid
+		conflict ErrConflict
+		opNF     ErrOpNotFound
 	)
 	switch {
 	case errors.As(err, &invalid):
 		return connect.NewError(connect.CodeInvalidArgument, invalid)
+	case errors.As(err, &conflict):
+		return connect.NewError(connect.CodeFailedPrecondition, conflict)
 	case errors.As(err, &opNF):
 		return connect.NewError(connect.CodeNotFound, opNF)
 	default:

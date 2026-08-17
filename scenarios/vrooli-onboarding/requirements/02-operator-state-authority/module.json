@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Operator-state write authority: one typed service, field-scoped merges, schema validation before write, and no second authority for any operator decision.",
-    "last_validated_at": "2026-08-14T04:29:01-04:00",
+    "last_validated_at": "2026-08-16T14:54:14-04:00",
     "module": "onboarding.state",
     "schema_version": "1.0.0"
   },
@@ -9,7 +9,7 @@
     {
       "id": "ONB-STATE-AUTHORITY",
       "title": "The system shall commit every operator decision through one typed operator-state service that preserves fields it does not own.",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-003",
       "category": "state",
       "description": "Compositional claim for the state domain. Today two authorities exist for resource enablement and a partial writer performs a total write, so the claim is false in both directions.",
@@ -25,7 +25,7 @@
           "type": "test",
           "ref": "api/operator_state_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Evidence target: `internal/operatorstate/service_test.go`; this requirement remains planned until that evidence is added. the shared control-plane service that every writer must route through."
         }
       ]
@@ -33,7 +33,7 @@
     {
       "id": "ONB-STATE-MERGE-PATCH",
       "title": "When a surface commits a choice, the operator-state service shall merge only the named fields and shall leave every other field unchanged.",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-002",
       "category": "state",
       "description": "The write API takes a field-scoped patch, not a document. This removes the whole class of defect where a partial writer silently truncates the document, rather than fixing one instance of it by adding a struct field.",
@@ -42,7 +42,7 @@
           "type": "test",
           "ref": "api/operator_state_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Evidence target: `internal/operatorstate/service_test.go`; this requirement remains planned until that evidence is added. a patch that sets one scenario flag changes exactly one field in the written document."
         }
       ]
@@ -50,7 +50,7 @@
     {
       "id": "ONB-STATE-PRESERVES-UNKNOWN",
       "title": "If the stored document carries a field the writing binary does not model, then the write shall preserve that field unchanged.",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-002",
       "category": "state",
       "description": "The regression this pins is live today: a wizard save drops trust_posture and core, which silently disables control-plane core protection and downgrades a shared or hosted install to the personal trust posture. The test uses a document containing every schema field plus one the binary has never seen.",
@@ -59,14 +59,14 @@
           "type": "test",
           "ref": "api/operator_state_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Evidence target: `internal/operatorstate/preserve_test.go`; this requirement remains planned until that evidence is added. round-trips a full document through every writer and asserts byte-for-byte preservation of unowned fields."
         },
         {
           "type": "test",
           "ref": "api/operator_state_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Evidence: the HTTP boundary preserves trust_posture and core across a wizard-shaped commit."
         }
       ]
@@ -74,7 +74,7 @@
     {
       "id": "ONB-STATE-SCHEMA-VALIDATED",
       "title": "Before it writes, the operator-state service shall validate the merged document against operator-state.schema.json and shall reject an invalid write.",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-003",
       "category": "state",
       "description": "The schema sets additionalProperties false, so an invalid write is unrecoverable without hand repair. Validation moves before the write, and the rejection names the failing path.",
@@ -83,7 +83,7 @@
           "type": "test",
           "ref": "api/operator_state_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Evidence target: `internal/operatorstate/service_test.go`; this requirement remains planned until that evidence is added. an out-of-enum trust_posture is rejected and the stored document is untouched."
         }
       ]
@@ -91,7 +91,7 @@
     {
       "id": "ONB-STATE-SINGLE-WRITER",
       "title": "If any component other than the operator-state service writes the operator-state file, then the repository test suite shall fail.",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-003",
       "category": "state",
       "description": "Enforced structurally with a syntax-aware scan for writes to the operator-state path outside the owning package, so a new writer cannot be introduced quietly.",
@@ -100,7 +100,7 @@
           "type": "test",
           "ref": "api/operator_state_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Evidence target: `internal/operatorstate/single_writer_test.go`; this requirement remains planned until that evidence is added. ast-grep style scan asserting one write site."
         }
       ]
@@ -108,7 +108,7 @@
     {
       "id": "ONB-STATE-ATOMIC",
       "title": "The operator-state service shall write the document atomically with secret file permissions.",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-003",
       "category": "state",
       "description": "A partial write leaves an install unbootable. The current implementation already uses the shared atomic writer and the secret permission mode; the target keeps this behaviour when the writer moves into the control plane.",
@@ -117,7 +117,7 @@
           "type": "test",
           "ref": "api/operator_state_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Asserts the written file mode and that a failed encode leaves the prior document intact."
         }
       ]
@@ -125,7 +125,7 @@
     {
       "id": "ONB-STATE-RESOURCE-AUTHORITY",
       "title": "The resource-enable command shall write resource enablement to operator state, and no other file shall carry that decision.",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-003",
       "category": "state",
       "description": "The configuration contract names operator state the source of truth for resource enablement, but the control-plane command writes the repository service manifest instead, and the wizard writes neither. Retiring the second authority is what makes the wizard's resources step meaningful.",
@@ -134,7 +134,7 @@
           "type": "test",
           "ref": "api/operator_state_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Evidence target: `internal/resources/resources_test.go`; this requirement remains planned until that evidence is added. SetEnabled writes operator state and leaves the repository manifest unchanged."
         }
       ]
@@ -142,7 +142,7 @@
     {
       "id": "ONB-STATE-COMPLETION-MARKER",
       "title": "When apply finishes, the service shall record a durable completion marker naming the applied selection and the completion time.",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-006",
       "category": "state",
       "description": "Without a marker, 'this install has been configured' is unobservable: the wizard cannot resume correctly, autoheal cannot tell a fresh host from a configured one, and a desktop first-run cannot decide whether to open setup.",
@@ -151,7 +151,7 @@
           "type": "test",
           "ref": "api/operator_state_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Evidence target: `internal/operatorstate/service_test.go`; this requirement remains planned until that evidence is added. the marker records the applied selection digest and survives a later unrelated patch."
         }
       ]
@@ -159,7 +159,7 @@
     {
       "id": "ONB-STATE-CONCURRENT-SAFE",
       "title": "If two surfaces commit different fields at the same time, then both changes shall survive.",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-002",
       "category": "state",
       "description": "A UI toggle and a CLI apply can overlap on the same host. Field-scoped merges under a write lock make the outcome order-independent for disjoint fields.",
@@ -171,7 +171,7 @@
           "type": "test",
           "ref": "api/operator_state_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Evidence target: `internal/operatorstate/concurrency_test.go`; this requirement remains planned until that evidence is added. parallel disjoint patches both land; overlapping patches serialize."
         }
       ]
@@ -179,7 +179,7 @@
     {
       "id": "ONB-REENTRY-RESUMES",
       "title": "When an operator re-opens the wizard on a configured install, it should load committed state and resume at the first unsatisfied step.",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-002",
       "category": "state",
       "description": "Committed state drives the flow, so the wizard is a re-enterable control surface rather than a one-shot installer. State loading works today; resuming does not, because no completion marker exists and re-entry always lands on the first step.",
@@ -191,14 +191,14 @@
           "type": "test",
           "ref": "ui/src/hooks/useWizardState.test.tsx",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Asserts committed selections reload on entry; resume-at-step is covered by companion evidence."
         },
         {
           "type": "test",
           "ref": "ui/src/hooks/useWizardState.test.tsx",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Evidence: a configured install with an unmet credential resumes at the credentials step."
         }
       ]

@@ -12,6 +12,7 @@ import {
   type StartOnboardingInput,
 } from "../../api/onboard";
 import { fetchBridgeReadiness, performBridgeFirewallAction } from "../../api/readiness";
+import { cleanupClient } from "../../api/cleanup";
 
 export const BRIDGE_READINESS_QUERY_KEY = ["fleet", "bridge-readiness"] as const;
 
@@ -32,6 +33,39 @@ export const NODES_QUERY_KEY = ["fleet", "nodes"] as const;
 export const MACHINES_QUERY_KEY = ["fleet", "machines"] as const;
 export const MACHINE_DETAIL_QUERY_KEY = (id: string) => ["fleet", "machine", id] as const;
 export const MACHINE_TRUST_QUERY_KEY = (id: string) => ["fleet", "machine", id, "trust"] as const;
+export const CLEANUP_QUERY_KEY = (id: string) => ["fleet", "cleanup", id] as const;
+
+export function useCleanupQuery(id: string | null) {
+  return useQuery({
+    queryKey: CLEANUP_QUERY_KEY(id ?? ""),
+    enabled: id !== null,
+    queryFn: () => cleanupClient.getCleanup({ id: id ?? "" }),
+    refetchInterval: (query) => {
+      const status = query.state.data?.operation?.status;
+      return status === undefined || status >= 6 || status === 8 || status === 9 ? false : 2_000;
+    },
+  });
+}
+
+export function useStartCleanupMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { machineId: string; nodeId: string; target: string; scope: string }) => cleanupClient.startCleanup(input),
+    onSuccess: (response) => {
+      if (response.operation) void queryClient.invalidateQueries({ queryKey: CLEANUP_QUERY_KEY(response.operation.id) });
+    },
+  });
+}
+
+export function useConfirmCleanupMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: Parameters<typeof cleanupClient.confirmCleanup>[0]) => cleanupClient.confirmCleanup(input),
+    onSuccess: (response) => {
+      if (response.operation) void queryClient.invalidateQueries({ queryKey: CLEANUP_QUERY_KEY(response.operation.id) });
+    },
+  });
+}
 
 /** Durable Machine intent records, separate from their current paired Node. */
 export function useMachinesQuery() {

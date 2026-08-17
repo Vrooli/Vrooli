@@ -24,14 +24,14 @@ Bridge's security posture is unusually load-bearing: it executes code and runs p
 | Job logs / result artifacts | variable | runs/artifacts | Inherit the sensitivity of whatever the executed command emitted; treated as at least as sensitive as the scenario under test. Node-produced artifacts are bounded, owner-scoped, and stored only for their run. |
 | Node metadata | medium | registry | Machine identities, OS/arch/revision, reachable endpoints, permission scopes — operational intelligence about the owner's fleet. |
 | Pairing tokens | high (briefly) | pairing | Single-use, short-TTL; a live token can pair a rogue node. |
-| Local owner token file | high | CLI/session | Optional owner-only `VROOLI_BRIDGE_TOKEN_FILE` fallback for CI or unlinked machines; unlike peer credentials it can be copied and replayed. |
+| Local operator enrollment | high | shared `api-core/operatorsession` contract | The per-user Ed25519 private key is stored owner-only in the local operator-session store; short-lived `OS1` sessions are minted in memory and are never persisted. |
 | Break-glass credential | high (briefly) | authenticator/CLI | Issued from owner-only provisioned material into a 0600 token file and sent only as `Authorization: BreakGlass`; it is short-lived, scope-ceilinged and audited. |
 
 ## Auth And Authorization
 
 Bridge has three distinct authorization boundaries, all enforced at the API/service layer (UI and CLI never enforce locally):
 
-1. **Owner → control plane.** Access to the control plane is gated by scenario-authenticator (fail-closed, brief validation cache), consistent with device-sync-hub. Only the owner can register/revoke nodes, dispatch jobs, or provision.
+1. **Owner → control plane.** A machine enrolls once through scenario-authenticator. Bridge stores only the enrollment public-key record and the owner client stores its private key in the local operator-session store. Owner RPCs then use short-lived signed `LocalSession` credentials verified against the Bridge enrollment record, so an enrolled machine does not depend on the authenticator for every request. Only the owner can register/revoke nodes, dispatch jobs, or provision.
 2. **Control plane ↔ node (mutual auth).** Every exchange is mutually authenticated — the node proves it is the paired node, and the control plane proves it is the legitimate coordinator (so a node never executes a job from an impostor). **Mechanism (decided 2026-06-18, see `DECISIONS.md`): per-node Ed25519 keypair pinned both directions at pairing.** The node generates an Ed25519 keypair at pairing and registers its public key in `node_credentials`; the control plane holds its own long-lived keypair, and the node pins the control-plane public key at bootstrap (delivered out-of-band alongside the pairing code). Node→CP calls (Connect-RPC: register, heartbeat, run results) carry a signature over the request verifiable against the stored node key; the dial-out SSE token is bound to the node key. CP→node pushes are verifiable against the pinned control-plane key, so a node rejects an impostor coordinator. TLS provides transport confidentiality; the pinned keys provide identity. Full PKI/mTLS-CA was rejected as heavier than a single owner needs.
 
    **Status: built + tested (Phase 3 / G7).** CP→node: the control plane signs every server frame with its long-lived Ed25519 key and wraps it in a `SignedServerFrame` envelope (`api/internal/channelsign`, signature over the exact serialized frame bytes); the agent verifies each frame against the pinned control-plane key (`agent/internal/cpverify`) before acting on it. The pin is written to `<state-dir>/control_plane.pub` (0600, dir 0700) by `vrooli-bridge pair redeem --state-dir …`, **before** the single-use pairing code is burned; a redeem that cannot pin surfaces the key so the operator can pin by hand. At startup a paired agent that finds **no pin fails hard** (`cpverify.ErrNoPin`, no TOFU fallback), and any frame that fails verification is dropped and surfaced in the `rejected_cp_frames` health counter on the agent heartbeat. Node→CP: node calls carry an Ed25519 signature verifiable against the public key stored in `node_credentials` at pairing.
@@ -65,7 +65,8 @@ posture verifies normal tokens. A cached JWKS is usable only within its
 posture-selected grace window; an unavailable authenticator never grants
 access.
 
-Break-glass is a separate, positive capability. Phase 6 provisions an Ed25519
+Break-glass is a separate, positive capability. The protected cleanup flow
+provisions an Ed25519
 private key with owner-only permissions and pins its public half on the
 verifier. The `BreakGlass` authorization scheme verifies the signed,
 time-boxed credential offline, requires an explicit scope list, and applies the
@@ -74,13 +75,32 @@ account's scope ceiling before issuance. Every accepted use appends the typed
 a fail-open branch and cannot be obtained merely by taking the authenticator
 offline.
 
-The local owner exchange is the preferred CLI acquisition path. It uses the
-authenticator's Unix socket and kernel peer credential, and returns a normal
-short-lived JWT. If the socket is unavailable or the principal is unbound, the
-CLI falls back to the owner-only token file (`VROOLI_BRIDGE_TOKEN_FILE` or
-`VROOLI_AUTH_TOKEN_FILE`), then to the masked password flow. Unlinking a
-machine binding does not revoke tokens already issued; they remain valid until
-expiry or explicit session revocation.
+The refusal matrix is intentionally explicit: a target, machine, node, cleanup
+scope, frozen plan hash, operation id, audience, pinned key, or lifetime
+mismatch is rejected with a named field or typed reason. A valid owner session
+does not authorize apply by itself; the operation also requires the opaque
+node-bound passphrase envelope and operator confirmation. A node revoked after
+planning is re-checked before confirmation and every resume dispatch. The
+chosen capability clock-skew tolerance is two minutes; outside it verification
+returns the clock-skew reason.
+
+Residual risks are bounded but not eliminated: an already-running child process
+cannot be retroactively unwound by a later revocation, and unit tests cannot
+provide forensic guarantees against a privileged operating-system memory
+inspector. The implementation therefore never puts the passphrase in argv,
+environment, durable Bridge state, or emitted events; only the node helper
+opens the sealed envelope and zeroes its working buffers.
+
+Enrollment is the only normal path that contacts scenario-authenticator: the
+CLI may use its Unix-socket machine-principal exchange or an explicitly
+supplied login/token for that one enrollment RPC. The returned provider token
+is cleared immediately and is never written to CLI config, operator-state,
+browser storage, or Bridge state. Every later CLI and UI request mints an
+`OS1` LocalSession locally. Bridge checks enrollment revocation on each request,
+and the 15-minute local-session lifetime is the maximum revocation delay for a
+session minted before revocation. A rejected credential remains
+`unauthenticated`; an authenticator outage during first enrollment is a typed
+provider-unavailable diagnosis.
 
 The node registry is the sole owner of approved execution scopes. The
 dispatch manifest is derived from the shared CLI governance catalog and then
@@ -325,11 +345,13 @@ rule rollback. See [`../../../../docs/architecture/PRIVILEGE_BROKER.md`](../../.
 - A policy transition that removes required capability or suggested-scope intent
   requires an explicit operator confirmation. The confirmation is recorded with
   the immutable policy decision; it never approves or revokes Registry scope.
-- Archive Machine, revoke Node, remove SSH access, remove Machine, cleanup
-  tombstone, and exceptional purge are separate authorized/audited effects.
+- Archive Machine, revoke Node, record legacy cleanup intent, remove Machine,
+  and exceptional purge are separate authorized/audited effects. Remote
+  cleanup is a Bridge-managed operation whose frozen plan and receipt are
+  separate from the historical tombstone record.
   Machine-effect audit records are append-only and contain actor, action, safe
   detail, and timestamp only; they never carry secrets or raw command input.
-  Local revocation is durable before remote cleanup; cleanup is `pending`,
-  `confirmed`, `not_applicable`, or `abandoned_with_acknowledgement`.
+  Local revocation is durable before any remote cleanup request; legacy cleanup
+  records migrate to terminal `not_applicable` history with an explicit reason.
 - The existing agent remains a restricted Presence client. It cannot gain a
   shell, provisioning, or scope-approval path from Machine enrollment.

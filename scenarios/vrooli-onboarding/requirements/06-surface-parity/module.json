@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Equal capability across the UI, the interactive CLI, the non-interactive CLI, and the API, with one shared session model behind all four.",
-    "last_validated_at": "2026-08-14T04:29:01-04:00",
+    "last_validated_at": "2026-08-16T14:54:14-04:00",
     "module": "onboarding.parity",
     "schema_version": "1.0.0"
   },
@@ -9,7 +9,7 @@
     {
       "id": "ONB-PARITY-THREE-SURFACES",
       "title": "The wizard shall be completable through the UI, an interactive CLI, and a non-interactive CLI or API call.",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-008",
       "category": "parity",
       "description": "Compositional claim for the parity domain. Today the CLI can only submit a hand-authored state document, so headless onboarding, and therefore remote and VPS onboarding, has no usable surface.",
@@ -23,7 +23,7 @@
           "type": "test",
           "ref": "cli/domains/wizard/wizard_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Evidence target: `cli/domains/wizard/wizard_test.go`; this requirement remains planned until that evidence is added. the CLI wizard domain."
         }
       ]
@@ -31,7 +31,7 @@
     {
       "id": "ONB-CLI-INTERACTIVE",
       "title": "The CLI shall walk the same steps as the UI in an interactive terminal session.",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-008",
       "category": "parity",
       "description": "Same steps, same order, same derived consequences, same locked system set. The terminal presentation differs; the decisions do not.",
@@ -40,7 +40,7 @@
           "type": "test",
           "ref": "cli/domains/wizard/wizard_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Evidence target: `cli/domains/wizard/wizard_test.go`; this requirement remains planned until that evidence is added. a scripted session reaches a committed selection through the same step sequence."
         }
       ]
@@ -48,7 +48,7 @@
     {
       "id": "ONB-CLI-NONINTERACTIVE",
       "title": "The CLI shall accept a declarative selection document and shall complete setup with no prompt.",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-008",
       "category": "parity",
       "description": "The selection document names capabilities the operator wants, not the full internal state shape. It is the surface bridge, cloud, and CI automation drive, and it is what makes remote onboarding possible.",
@@ -57,7 +57,7 @@
           "type": "test",
           "ref": "cli/domains/wizard/wizard_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Evidence target: `cli/domains/wizard/wizard_test.go`; this requirement remains planned until that evidence is added. a selection document produces the expected committed state with no terminal input."
         }
       ]
@@ -65,7 +65,7 @@
     {
       "id": "ONB-PARITY-IDENTICAL-STATE",
       "title": "When the same choices are made through the UI, the interactive CLI, and the non-interactive CLI, the resulting operator state shall be identical.",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-008",
       "category": "parity",
       "description": "This is the falsifiable form of the parity claim, and the only one that stays true as surfaces evolve. It holds because all three write through one service, not because three code paths were kept in step by review.",
@@ -77,7 +77,7 @@
           "type": "test",
           "ref": "api/v2_parity_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Evidence: `api/v2_parity_test.go` compares canonical operator-state documents from a direct UI patch, an interactive selection translation, and a JSON-round-tripped non-interactive selection."
         }
       ]
@@ -85,7 +85,7 @@
     {
       "id": "ONB-PARITY-RESUMABLE-SESSION",
       "title": "When a setup session is started on one surface, another surface shall be able to resume it at the same step.",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-008",
       "category": "parity",
       "description": "An operator who starts in the browser and finishes in a terminal, or an agent that takes over a half-finished session, both need the step pointer to be shared state rather than browser memory.",
@@ -94,7 +94,7 @@
           "type": "test",
           "ref": "api/v2_session_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Evidence target: `api/v2_session_test.go`; this requirement remains planned until that evidence is added. a session started through the API resumes at the first unsatisfied step from the CLI."
         }
       ]
@@ -102,7 +102,7 @@
     {
       "id": "ONB-CLI-CREDENTIALS-STDIN",
       "title": "If the CLI provisions a credential, then it shall read the value from standard input and shall not accept it as a command argument.",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-007",
       "category": "parity",
       "description": "A value in argv is visible in the process table and in shell history. Standard input is the only accepted channel, and the command rejects a value-bearing flag rather than warning about it.",
@@ -111,7 +111,7 @@
           "type": "test",
           "ref": "cli/domains/credentials/register_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Evidence target: `cli/domains/credentials/credentials_test.go`; this requirement remains planned until that evidence is added. a value-bearing flag is rejected; stdin provisioning succeeds."
         }
       ]
@@ -119,7 +119,7 @@
     {
       "id": "ONB-CLI-EXIT-CODE",
       "title": "If a required readiness item is not ready, then the readiness command shall exit with a non-zero status.",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-004",
       "category": "parity",
       "description": "Automation cannot branch on prose. A machine-readable exit code is what lets bridge, cloud provisioning, and CI gate on a real readiness result.",
@@ -128,7 +128,7 @@
           "type": "test",
           "ref": "cli/domains/operator/register_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Evidence target: `cli/domains/operator/operator_test.go`; this requirement remains planned until that evidence is added. a missing required credential yields a non-zero exit; a degraded optional item does not."
         }
       ]
@@ -136,7 +136,7 @@
     {
       "id": "ONB-CLI-NO-DEAD-COMMANDS",
       "title": "If a CLI command targets an API route, then that route shall be registered in the router.",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-007",
       "category": "parity",
       "description": "This is currently violated: the setup-order command calls a route the router never registers, so the command always fails. A structural test over the command surface catches the class rather than the instance.",
@@ -145,7 +145,7 @@
           "type": "test",
           "ref": "cli/app_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Evidence: every route referenced by a command exists in the router's registered set."
         }
       ]

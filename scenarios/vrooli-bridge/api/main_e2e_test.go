@@ -53,6 +53,10 @@ func TestE2E_BinaryBootsAndServesHealth(t *testing.T) {
 	binary := buildBinary(t)
 	port := pickFreePort(t)
 	dbPath := filepath.Join(t.TempDir(), "e2e.db")
+	bootstrap, err := filepath.Abs(filepath.Join("..", "bootstrap", "bootstrap.sh"))
+	if err != nil {
+		t.Fatalf("resolve test bootstrap script: %v", err)
+	}
 
 	cmd := exec.Command(binary)
 	cmd.Env = append(os.Environ(),
@@ -60,6 +64,7 @@ func TestE2E_BinaryBootsAndServesHealth(t *testing.T) {
 		// packages/api-core/server/server.go::config.getenv).
 		"API_PORT="+strconv.Itoa(port),
 		"SQLITE_PATH="+dbPath,
+		"BRIDGE_BOOTSTRAP_SCRIPT="+bootstrap,
 		// Pass the preflight lifecycle guard. Without this the binary
 		// errors out with "must be run through the Vrooli lifecycle
 		// system" before opening any listener. preflight.LifecycleManagedEnvVar

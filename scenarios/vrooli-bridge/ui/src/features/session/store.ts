@@ -1,20 +1,21 @@
 /**
- * Persisted session shape. The bridge console has exactly one credential: the
- * owner JWT (there is no per-device token — a browser is the owner's console,
- * not a fleet node). The owner token authorizes every owner-gated fleet RPC
- * (registry, dispatch, onboard, provision, …); `api/client.ts` reads it fresh
- * per request and attaches it as `Authorization: Bearer`.
+ * Browser-side session state. A browser never persists an authenticator JWT:
+ * it keeps only enrollment metadata and an Ed25519 private key, then mints a
+ * short-lived Bridge LocalSession in memory. The key is the browser analogue
+ * of the CLI's per-user local enrollment store.
  */
+import { loadBrowserEnrollment, mintBrowserSession } from "./browser_session";
+
 export interface SessionState {
+  /** Ephemeral OS1 LocalSession; never written to browser storage. */
   ownerToken: string | null;
-  /** Owner email for display ("signed in as …"); best-effort, may be null. */
+  /** Owner email for display (best-effort, non-secret). */
   ownerEmail: string | null;
 }
 
-const STORAGE_KEY = "vrooli-bridge.session";
+const DISPLAY_STORAGE_KEY = "vrooli-bridge.session";
 
-interface StoredSession {
-  ownerToken?: string | null;
+interface StoredEnrollmentOwner {
   ownerEmail?: string | null;
 }
 
@@ -23,75 +24,100 @@ export const emptySession: SessionState = {
   ownerEmail: null,
 };
 
+let volatileToken: string | null = null;
+let bootstrapToken: string | null = null;
+
 const safeStorage = (): Storage | null => {
   try {
     return typeof window !== "undefined" ? window.localStorage : null;
   } catch {
-    // Access can throw in privacy modes / sandboxed iframes.
     return null;
   }
 };
 
-/**
- * Read the full persisted session. Tolerant of malformed/legacy payloads:
- * anything unparseable resolves to the empty session rather than throwing, so a
- * corrupt entry can never wedge the app at boot.
- */
+function storedOwnerEmail(): string | null {
+  const storage = safeStorage();
+  if (!storage) return null;
+  const raw = storage.getItem(DISPLAY_STORAGE_KEY);
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as StoredEnrollmentOwner;
+    return parsed.ownerEmail ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** Read the in-memory session. Persistent enrollment is restored explicitly. */
 export function loadSession(): SessionState {
-  const storage = safeStorage();
-  if (!storage) return emptySession;
-  const raw = storage.getItem(STORAGE_KEY);
-  if (!raw) return emptySession;
-  try {
-    const parsed = JSON.parse(raw) as StoredSession;
-    return {
-      ownerToken: parsed.ownerToken ?? null,
-      ownerEmail: parsed.ownerEmail ?? null,
-    };
-  } catch {
-    return emptySession;
+  const target = safeStorage();
+  if (target && !target.getItem(DISPLAY_STORAGE_KEY) && !target.getItem("vrooli-bridge.operator-session")) {
+    volatileToken = null;
   }
-}
-
-export function saveSession(state: SessionState): void {
-  const storage = safeStorage();
-  if (!storage) return;
-  const stored: StoredSession = {
-    ownerToken: state.ownerToken,
-    ownerEmail: state.ownerEmail,
-  };
-  try {
-    storage.setItem(STORAGE_KEY, JSON.stringify(stored));
-  } catch {
-    // Quota / disabled storage — non-fatal; the in-memory context still holds.
-  }
-}
-
-export function clearSession(): void {
-  const storage = safeStorage();
-  if (!storage) return;
-  try {
-    storage.removeItem(STORAGE_KEY);
-  } catch {
-    // ignore
-  }
+  return { ownerToken: volatileToken, ownerEmail: storedOwnerEmail() };
 }
 
 /**
- * Read just the owner token, fresh from storage. `authedFetch` calls this on
- * every request so a sign-in mid-session is picked up without rebuilding the
- * Connect transport.
+ * Test and runtime seam for replacing only the ephemeral credential. The
+ * owner token is deliberately not serialized.
  */
+export function saveSession(state: SessionState): void {
+  volatileToken = state.ownerToken;
+  const storage = safeStorage();
+  if (!storage) return;
+  try {
+    const previous = storage.getItem(DISPLAY_STORAGE_KEY);
+    const ownerEmail = state.ownerEmail ?? (previous ? storedOwnerEmail() : null);
+    storage.setItem(DISPLAY_STORAGE_KEY, JSON.stringify({ ownerEmail } satisfies StoredEnrollmentOwner));
+  } catch {
+    // Quota / disabled storage — the in-memory session remains usable.
+  }
+}
+
+/** Clear the ephemeral session but keep the durable enrollment for re-entry. */
+export function clearSession(): void {
+  volatileToken = null;
+  bootstrapToken = null;
+  const target = safeStorage();
+  if (target) {
+    try {
+      target.removeItem(DISPLAY_STORAGE_KEY);
+    } catch {
+      // ignore
+    }
+  }
+}
+
+/** Read a credential for the fetch wrapper; bootstrap is one-RPC enrollment only. */
 export function readOwnerToken(): string | null {
-  return loadSession().ownerToken;
+  return bootstrapToken ?? volatileToken;
+}
+
+export function setEnrollmentBootstrapToken(token: string): void {
+  bootstrapToken = token;
+}
+
+export function clearEnrollmentBootstrapToken(): void {
+  bootstrapToken = null;
+}
+
+/** Restore and mint a local session without contacting the identity provider. */
+export async function restoreLocalSession(): Promise<SessionState | null> {
+  if (volatileToken) return null;
+  const enrollment = await loadBrowserEnrollment();
+  if (!enrollment) return null;
+  try {
+    volatileToken = await mintBrowserSession(enrollment);
+  } catch {
+    volatileToken = null;
+  }
+  return loadSession();
 }
 
 /**
- * Window event dispatched when a request that carried the owner token came
- * back 401 — the token is expired or revoked. The transport (`api/client.ts`)
- * dispatches it; `SessionProvider` listens and clears the session, so the app
- * gate returns the user to the sign-in screen instead of stranding them in a
- * shell where every panel errors.
+ * Window event dispatched when a local credential is rejected. This clears
+ * only the ephemeral token; a later request can mint again while enrollment
+ * remains valid, and explicit revocation can remove the enrollment record.
  */
 export const SESSION_EXPIRED_EVENT = "vrooli-bridge:session-expired";
 

@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"strings"
+	"time"
 
 	"connectrpc.com/connect"
 	identityv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/identity"
@@ -18,10 +19,20 @@ import (
 
 type handlers struct {
 	core          *cliapp.ScenarioApp
-	client        identityconnect.IdentityServiceClient
+	client        identityClient
 	password      passwordSource
 	localExchange func(context.Context) (string, string, error)
 	tokenFile     func() (string, error)
+	enroll        func(context.Context, *cliapp.ScenarioApp, string) error
+	mintLocal     func(time.Time) (string, error)
+}
+
+// identityClient is deliberately the subset used by auth commands. Keeping
+// this seam narrow means adding an owner-session RPC cannot invalidate every
+// auth test double or force unrelated callers to implement it.
+type identityClient interface {
+	Login(context.Context, *connect.Request[identityv1.LoginRequest]) (*connect.Response[identityv1.LoginResponse], error)
+	Refresh(context.Context, *connect.Request[identityv1.RefreshRequest]) (*connect.Response[identityv1.RefreshResponse], error)
 }
 
 func newHandlers(core *cliapp.ScenarioApp) *handlers {
@@ -32,6 +43,13 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 		password:      newPasswordSource(),
 		localExchange: session.ExchangeLocal,
 		tokenFile:     session.TokenFile,
+		enroll: func(ctx context.Context, app *cliapp.ScenarioApp, token string) error {
+			return session.EnrollLocalWithToken(ctx, app, token)
+		},
+		mintLocal: func(now time.Time) (string, error) {
+			token, _, err := session.ResolveLocal(now)
+			return token, err
+		},
 	}
 }
 
@@ -44,20 +62,26 @@ func (h *handlers) login(ctx cliapp.RunContext) error {
 		return fmt.Errorf("--email is required")
 	}
 	if h.localExchange != nil {
-		if token, refresh, err := h.localExchange(context.Background()); err == nil {
-			if err := h.saveSession(token, refresh); err != nil {
-				return err
+		if token, _, err := h.localExchange(context.Background()); err == nil {
+			if err := h.enroll(context.Background(), h.core, token); err == nil {
+				// The durable local enrollment replaces the bearer-token config;
+				// the access token is intentionally not persisted by this path.
+				h.core.Config.Token = ""
+				h.core.Config.RefreshToken = ""
+				if err := h.core.SaveConfig(); err != nil {
+					return fmt.Errorf("save local operator enrollment: %w", err)
+				}
+				fmt.Fprintln(ctx.Stdout(), "Enrolled through the local machine binding. Future owner sessions will be minted locally.")
+				return nil
 			}
-			fmt.Fprintln(ctx.Stdout(), "Signed in through the local machine binding. Owner session saved for this CLI.")
-			return nil
 		}
 	}
 	if h.tokenFile != nil {
 		if token, err := h.tokenFile(); err == nil {
-			if err := h.saveSession(token, ""); err != nil {
+			if err := h.enroll(context.Background(), h.core, token); err != nil {
 				return err
 			}
-			fmt.Fprintln(ctx.Stdout(), "Loaded the owner session from the configured token file.")
+			fmt.Fprintln(ctx.Stdout(), "Enrolled through the configured owner token. Future owner sessions will be minted locally.")
 			return nil
 		}
 	}
@@ -81,48 +105,22 @@ func (h *handlers) login(ctx cliapp.RunContext) error {
 		return fmt.Errorf("sign in returned no access token")
 	}
 
-	// Do not alter an existing token until a complete new login has succeeded.
-	if err := h.saveSession(resp.Msg.Token, resp.Msg.RefreshToken); err != nil {
-		return err
+	if err := h.enroll(context.Background(), h.core, resp.Msg.Token); err != nil {
+		return fmt.Errorf("enroll local owner session: %w", err)
 	}
 	// Deliberately custom output: generic proto rendering could expose Token.
-	fmt.Fprintf(ctx.Stdout(), "Signed in as %s. Owner session saved for this CLI.\n", displayIdentity(resp.Msg.Email, resp.Msg.UserId))
-	return nil
-}
-
-func (h *handlers) saveSession(token, refresh string) error {
-	if strings.TrimSpace(token) == "" {
-		return fmt.Errorf("sign in returned no access token")
-	}
-	h.core.Config.Token = token
-	h.core.Config.RefreshToken = refresh
-	if err := h.core.SaveConfig(); err != nil {
-		return fmt.Errorf("save owner session: %w", err)
-	}
+	fmt.Fprintf(ctx.Stdout(), "Signed in as %s. Local owner enrollment saved; future sessions will be minted locally.\n", displayIdentity(resp.Msg.Email, resp.Msg.UserId))
 	return nil
 }
 
 func (h *handlers) refresh(ctx cliapp.RunContext) error {
-	if strings.TrimSpace(h.core.Config.RefreshToken) == "" {
-		return fmt.Errorf("no refresh token is saved; run `auth login` first")
+	if h.mintLocal == nil {
+		return fmt.Errorf("local operator-session resolver is not configured")
 	}
-	resp, err := h.client.Refresh(context.Background(), connect.NewRequest(&identityv1.RefreshRequest{
-		RefreshToken: h.core.Config.RefreshToken,
-	}))
-	if err != nil {
-		return cliapp.WrapAPIError("refresh owner session", err, nil)
+	if _, err := h.mintLocal(time.Now()); err != nil {
+		return fmt.Errorf("refresh local owner session: %w", err)
 	}
-	if resp == nil || resp.Msg == nil || strings.TrimSpace(resp.Msg.Token) == "" || strings.TrimSpace(resp.Msg.RefreshToken) == "" {
-		return fmt.Errorf("refresh returned no complete owner session")
-	}
-	previous := h.core.Config
-	h.core.Config.Token = resp.Msg.Token
-	h.core.Config.RefreshToken = resp.Msg.RefreshToken
-	if err := h.core.SaveConfig(); err != nil {
-		h.core.Config = previous
-		return fmt.Errorf("save refreshed owner session: %w", err)
-	}
-	fmt.Fprintln(ctx.Stdout(), "Owner session refreshed and saved.")
+	fmt.Fprintln(ctx.Stdout(), "Local owner session refreshed without contacting the identity provider.")
 	return nil
 }
 

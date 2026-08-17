@@ -164,6 +164,14 @@ maintainers for capture fidelity.
 **Refs:** Run `20260817-134652-0046615c`; `ui-health` and `performance`
 artifacts; targeted Lighthouse evidence recorded in `PROGRESS.md`.
 
+Follow-up runs `20260817-144148-3bac8ee7`, `20260817-145412-e5861f38`, and
+`20260817-150319-4b2d8e82` executed all 22 phases but retained the same
+`visual_status_bar_color_mismatch` error. The scenario now aligns the body
+safe-area pixels with the top-bar surface and exposes media-specific chrome
+colors; the remaining mismatch is not closed because the shared capture path
+does not publish the measured pixel evidence needed to distinguish its
+desktop/mobile viewport handling from the scenario render.
+
 ### 2026-08-15 — Physical Android proof requires a configured unlock profile
 
 **Symptom:** The Galaxy A03s is discoverable and accepts device-control

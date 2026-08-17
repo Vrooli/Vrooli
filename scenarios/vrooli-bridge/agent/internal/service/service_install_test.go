@@ -268,13 +268,20 @@ func TestLaunchdInstall_HeadlessUsesSystemDaemon(t *testing.T) {
 	require.True(t, res.Enabled)
 	require.True(t, res.Running)
 	calls := runner.argvStrings()
-	require.Len(t, calls, 5)
+	require.Len(t, calls, 7)
 	require.True(t, strings.HasPrefix(calls[0], "sudo -n /usr/bin/install -o root -g wheel -m 0644 "))
 	require.Contains(t, calls[0], " /Library/LaunchDaemons/com.vrooli.bridge.vrooli-bridge-agent.plist")
 	require.Equal(t, "sudo -n launchctl bootout system/com.vrooli.bridge.vrooli-bridge-agent", calls[1])
-	require.Equal(t, "sudo -n launchctl bootstrap system /Library/LaunchDaemons/com.vrooli.bridge.vrooli-bridge-agent.plist", calls[2])
-	require.Equal(t, "sudo -n launchctl enable system/com.vrooli.bridge.vrooli-bridge-agent", calls[3])
-	require.Equal(t, "sudo -n launchctl kickstart -k system/com.vrooli.bridge.vrooli-bridge-agent", calls[4])
+	require.Equal(t, "sudo -n launchctl bootout gui/501/com.vrooli.bridge.vrooli-bridge-agent", calls[2])
+	require.Equal(t, "sudo -n launchctl bootout user/501/com.vrooli.bridge.vrooli-bridge-agent", calls[3])
+	require.Equal(t, "sudo -n launchctl bootstrap system /Library/LaunchDaemons/com.vrooli.bridge.vrooli-bridge-agent.plist", calls[4])
+	require.Equal(t, "sudo -n launchctl enable system/com.vrooli.bridge.vrooli-bridge-agent", calls[5])
+	require.Equal(t, "sudo -n launchctl kickstart -k system/com.vrooli.bridge.vrooli-bridge-agent", calls[6])
+}
+
+func TestLaunchdUserDomainsAreExactAndStable(t *testing.T) {
+	require.Equal(t, []string{"gui/501", "user/501"}, launchdUserDomains(501))
+	require.Empty(t, launchdUserDomains(-1))
 }
 
 // [REQ:BRG-P0-007] launchd Status parses `launchctl print` state = running / pid.

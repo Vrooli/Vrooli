@@ -26,6 +26,7 @@ import (
 	attachedH "vrooli-bridge/handlers/attached"
 	auditH "vrooli-bridge/handlers/audit"
 	channelH "vrooli-bridge/handlers/channel"
+	cleanupH "vrooli-bridge/handlers/cleanup"
 	dispatchH "vrooli-bridge/handlers/dispatch"
 	fleetH "vrooli-bridge/handlers/fleet"
 	gateH "vrooli-bridge/handlers/gate"
@@ -43,11 +44,13 @@ import (
 	internalattached "vrooli-bridge/internal/attached"
 	localdb "vrooli-bridge/internal/database"
 	internalmachines "vrooli-bridge/internal/machines"
+	internaloperatorsession "vrooli-bridge/internal/operatorsession"
 	internalreadiness "vrooli-bridge/internal/readiness"
 
 	artifactsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/artifacts"
 	attachedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/attached_devices"
 	auditv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/audit"
+	cleanupv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/cleanup"
 	dispatchv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/dispatch"
 	fleetv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/fleet"
 	gatev1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/gate"
@@ -74,6 +77,7 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out = append(out, attachedH.Endpoints...)
 	out = append(out, auditH.Endpoints...)
 	out = append(out, channelH.Endpoints...)
+	out = append(out, cleanupH.Endpoints...)
 	out = append(out, dispatchH.Endpoints...)
 	out = append(out, fleetH.Endpoints...)
 	out = append(out, gateH.Endpoints...)
@@ -117,6 +121,7 @@ func AllProtoFiles() []ProtoFileEntry {
 		{Module: "attached-devices", File: attachedv1.File_vrooli_bridge_v1_attached_devices_attached_devices_proto},
 		{Module: "audit", File: auditv1.File_vrooli_bridge_v1_audit_audit_proto},
 		{Module: "channel", File: presencev1.File_vrooli_bridge_v1_presence_presence_proto},
+		{Module: "cleanup", File: cleanupv1.File_vrooli_bridge_v1_cleanup_cleanup_proto},
 		{Module: "dispatch", File: dispatchv1.File_vrooli_bridge_v1_dispatch_dispatch_proto},
 		{Module: "fleet", File: fleetv1.File_vrooli_bridge_v1_fleet_fleet_proto},
 		{Module: "gate", File: gatev1.File_vrooli_bridge_v1_gate_gate_proto},
@@ -147,9 +152,11 @@ func AllSchemas() []apidb.SchemaProvider {
 		apidb.SchemaProviderFunc(artifactsH.Schema),
 		apidb.SchemaProviderFunc(auditH.Schema),
 		apidb.SchemaProviderFunc(channelH.Schema),
+		apidb.SchemaProviderFunc(cleanupH.Schema),
 		apidb.SchemaProviderFunc(fleetH.Schema),
 		apidb.SchemaProviderFunc(gateH.Schema),
 		apidb.SchemaProviderFunc(identityH.Schema),
+		apidb.SchemaProviderFunc(internaloperatorsession.Schema),
 		apidb.SchemaProviderFunc(internalmachines.Schema),
 		apidb.SchemaProviderFunc(internalattached.Schema),
 		apidb.SchemaProviderFunc(onboardH.Schema),

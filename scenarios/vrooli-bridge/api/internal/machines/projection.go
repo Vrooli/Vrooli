@@ -4,6 +4,10 @@ import "context"
 
 // NodeSnapshot and PresenceSnapshot are read models supplied by their owning
 // Registry and Presence domains. They intentionally contain no Machine fields.
+// Capabilities are node observations only. They never grant an operation: the
+// separately stored ApprovedScopes are the authorization ceiling. Keeping both
+// fields in the projection prevents a newly reported capability from silently
+// becoming permission to use it.
 type NodeSnapshot struct {
 	ID             string
 	Name           string

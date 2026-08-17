@@ -9,7 +9,6 @@ import (
 
 	sshcore "github.com/vrooli/ssh-core"
 	gossh "golang.org/x/crypto/ssh"
-	"golang.org/x/crypto/ssh/knownhosts"
 )
 
 func newTOFUHostKeyCallback(host string, port int, path string) (gossh.HostKeyCallback, error) {
@@ -24,23 +23,10 @@ func hostKeyAlgorithmsForType(keyType string) []string {
 	return sshcore.HostKeyAlgorithmsForType(keyType)
 }
 
-func knownHostMatches(token, target string) bool { return sshcore.KnownHostMatches(token, target) }
-
 func ensureKnownHostsFile(path string) error { return sshcore.EnsureKnownHostsFile(path) }
 
 func hostFingerprint(path, host string, port int) string {
 	return sshcore.HostFingerprint(path, host, port)
-}
-
-func asKnownHostsKeyError(err error, out **knownhosts.KeyError) bool {
-	if err == nil {
-		return false
-	}
-	keyErr, ok := err.(*knownhosts.KeyError)
-	if ok {
-		*out = keyErr
-	}
-	return ok
 }
 
 func (s *Service) ForgetHostKey(host string, port int) error {

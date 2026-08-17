@@ -114,6 +114,7 @@ func TestLoad_ProvisionHelperDoesNotRequireRunnerStatePermissions(t *testing.T) 
 		"--provision-socket", "/run/vrooli-bridge/provision.sock",
 		"--provision-client-uid", "1000",
 		"--provision-helper-uid", "1001",
+		"--provision-client-home", "/home/tester",
 		"--system-service",
 	})
 	require.NoError(t, err)
@@ -121,6 +122,7 @@ func TestLoad_ProvisionHelperDoesNotRequireRunnerStatePermissions(t *testing.T) 
 	require.Equal(t, "/run/vrooli-bridge/provision.sock", cfg.ProvisionSocket)
 	require.Equal(t, 1000, cfg.ProvisionClientUID)
 	require.Equal(t, 1001, cfg.ProvisionHelperUID)
+	require.Equal(t, "/home/tester", cfg.ProvisionClientHome)
 	require.True(t, cfg.SystemService)
 	_, err = os.Stat(dir)
 	require.ErrorIs(t, err, os.ErrNotExist)
@@ -141,4 +143,12 @@ func TestLoad_OrdinaryAgentCannotRequestSystemService(t *testing.T) {
 		"--system-service",
 	})
 	require.EqualError(t, err, "--system-service is reserved for --provision-helper")
+}
+
+func TestLoad_CleanupStdinIsExplicitTransportMode(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "state")
+	cfg, err := Load([]string{"--state-dir", dir, "--cleanup-stdin"})
+	require.NoError(t, err)
+	require.True(t, cfg.CleanupStdin)
+	require.False(t, cfg.Paired(), "typed cleanup transport does not need channel identity")
 }

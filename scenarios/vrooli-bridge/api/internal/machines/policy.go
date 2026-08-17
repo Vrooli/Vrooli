@@ -3,6 +3,8 @@ package machines
 import (
 	"encoding/json"
 	"sort"
+
+	"github.com/vrooli/vrooli/packages/proto/privilegedops"
 )
 
 // Profile is a versioned built-in policy template. It may suggest setup and
@@ -26,14 +28,14 @@ type PolicySnapshot struct {
 }
 
 var builtInProfiles = map[string]Profile{
-	"managed-connection": {ID: "managed-connection", Version: "v1", SetupEnvironment: "minimal", SuggestedScopes: []string{"presence.read"}, RequiredCapabilities: []string{"ssh.management"}},
-	"presence":           {ID: "presence", Version: "v1", SetupEnvironment: "minimal", SuggestedScopes: []string{"presence.read"}, RequiredCapabilities: []string{"agent.presence"}},
-	"deployment-target":  {ID: "deployment-target", Version: "v1", SetupEnvironment: "production", SuggestedScopes: []string{"presence.read", "provision.execute"}, RequiredCapabilities: []string{"agent.presence", "provision"}},
-	"production-runtime": {ID: "production-runtime", Version: "v1", SetupEnvironment: "production", SuggestedScopes: []string{"presence.read"}, RequiredCapabilities: []string{"agent.presence", "runtime"}},
-	"development-runner": {ID: "development-runner", Version: "v1", SetupEnvironment: "development", SuggestedScopes: []string{"presence.read", "runs.execute"}, RequiredCapabilities: []string{"agent.presence", "runner"}},
+	"managed-connection": {ID: "managed-connection", Version: "v1", SetupEnvironment: "minimal", SuggestedScopes: []string{"presence.read"}, RequiredCapabilities: []string{privilegedops.CapabilitySSHManagement}},
+	"presence":           {ID: "presence", Version: "v1", SetupEnvironment: "minimal", SuggestedScopes: []string{"presence.read"}, RequiredCapabilities: []string{privilegedops.CapabilityAgentPresence}},
+	"deployment-target":  {ID: "deployment-target", Version: "v1", SetupEnvironment: "production", SuggestedScopes: []string{"presence.read", "provision.execute"}, RequiredCapabilities: []string{privilegedops.CapabilityAgentPresence, privilegedops.CapabilityProvisioning}},
+	"production-runtime": {ID: "production-runtime", Version: "v1", SetupEnvironment: "production", SuggestedScopes: []string{"presence.read"}, RequiredCapabilities: []string{privilegedops.CapabilityAgentPresence, privilegedops.CapabilityRuntime}},
+	"development-runner": {ID: "development-runner", Version: "v1", SetupEnvironment: "development", SuggestedScopes: []string{"presence.read", "runs.execute"}, RequiredCapabilities: []string{privilegedops.CapabilityAgentPresence, "runner"}},
 	// custom is intentionally a constrained built-in base plus explicit
 	// overrides; it is not profile CRUD or an authorization escape hatch.
-	"custom": {ID: "custom", Version: "v1", SetupEnvironment: "development", SuggestedScopes: []string{"presence.read"}, RequiredCapabilities: []string{"agent.presence"}},
+	"custom": {ID: "custom", Version: "v1", SetupEnvironment: "development", SuggestedScopes: []string{"presence.read"}, RequiredCapabilities: []string{privilegedops.CapabilityAgentPresence}},
 }
 
 func ResolveProfile(machineID, id, version string, overrides map[string]string) (PolicySnapshot, error) {

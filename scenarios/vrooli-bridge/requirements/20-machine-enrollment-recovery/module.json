@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Durable Machine intent, immutable enrollment recovery, trust, and capability-policy invariants.",
-    "last_validated_at": "2026-08-14T01:05:15-04:00",
+    "last_validated_at": "2026-08-17T07:57:42-04:00",
     "module": "machine-enrollment-recovery",
     "priority": "P0",
     "schema_version": "1.0.0"

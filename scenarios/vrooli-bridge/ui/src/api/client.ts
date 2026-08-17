@@ -9,27 +9,25 @@ import {
   type ErrorEnvelope,
 } from "@vrooli/proto-types/vrooli-bridge/v1/errors/errors_pb";
 
-import { notifySessionExpired, readOwnerToken } from "../features/session/store";
+import { notifySessionExpired, readOwnerToken, restoreLocalSession } from "../features/session/store";
 
 export const API_BASE = resolveApiBase();
 export const REST_API_BASE = resolveApiBase({ appendSuffix: true });
 const PROTO_READ_OPTIONS = { ignoreUnknownFields: true } as const;
 
 /**
- * The control plane's one credential is the owner JWT, and `@vrooli/api-base`
- * has no built-in auth interceptor. `authedFetch` reads the token fresh from the
- * session store on every request and attaches it as `Authorization: Bearer`, so
- * every owner-gated fleet RPC (registry, dispatch, onboard, provision, …) is
- * reachable once the owner signs in. We read fresh per call (not at
- * transport-construction time) so a sign-in mid-session takes effect without
- * rebuilding the transport; the same-origin IdentityService sign-in RPCs
- * themselves are unauthenticated and simply carry no header yet.
+ * `@vrooli/api-base` has no built-in auth interceptor. `authedFetch` reads the
+ * ephemeral LocalSession fresh from the session store on every request and
+ * attaches it as `Authorization: LocalSession`. Enrollment metadata and the
+ * signing key persist locally; provider bearer tokens do not. The one-time
+ * enrollment RPC uses an explicit in-memory bootstrap token.
  */
 export async function authedFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
-  const ownerToken = readOwnerToken();
+  const ownerToken = readOwnerToken() ?? (await restoreLocalSession())?.ownerToken ?? null;
   const headers = new Headers(init?.headers);
   if (ownerToken && !headers.has("Authorization")) {
-    headers.set("Authorization", `Bearer ${ownerToken}`);
+    const scheme = ownerToken.startsWith("OS1.") ? "LocalSession" : "Bearer";
+    headers.set("Authorization", `${scheme} ${ownerToken}`);
   }
   const res = await fetch(input, { ...init, headers });
   // A 401 on a request that carried our token means the token is expired or
@@ -50,7 +48,8 @@ function isIdentityCall(input: RequestInfo | URL): boolean {
 
 /**
  * Connect transport every RPC client is built against. The custom `fetch`
- * attaches the owner JWT when present; the server enforces which RPCs require it.
+ * attaches the enrollment-based local credential when present; the server
+ * enforces which RPCs require it.
  */
 export const transport = createScenarioConnectTransport({
   baseUrl: API_BASE,

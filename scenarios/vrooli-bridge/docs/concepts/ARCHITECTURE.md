@@ -126,9 +126,11 @@ edit ordinary node metadata. That surface can update the registry-owned name,
 endpoint, capabilities, scopes, and revision, and can revoke the node.
 
 Machine lifecycle actions remain intentionally separate: archive/remove the
-durable operator-intent record and request SSH cleanup are not disguised as a
-node revoke. This preserves the security model: revocation severs a node's
-credential and live channel; record removal never claims remote cleanup.
+durable operator-intent record and record legacy cleanup intent are not
+disguised as a node revoke. Remote cleanup is a separate Bridge-managed,
+operator-confirmed operation with a frozen plan and receipt. This preserves the
+security model: revocation severs a node's credential and live channel; a
+history record never claims remote cleanup.
 
 ## System Boundaries
 

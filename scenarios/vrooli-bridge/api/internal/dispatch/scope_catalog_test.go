@@ -32,6 +32,18 @@ func TestAllowUsesProjectCatalogVocabulary(t *testing.T) {
 	}
 }
 
+func TestAllowProjectSetupBindingsUseTheExpectedEffects(t *testing.T) {
+	if err := Allow(Job{Verb: "setup status"}, []string{"vrooli-bridge:read"}, DefaultManifest); err != nil {
+		t.Fatalf("read scope should authorize project setup status: %v", err)
+	}
+	if err := Allow(Job{Verb: "setup"}, []string{"vrooli-bridge:read"}, DefaultManifest); err == nil {
+		t.Fatal("read scope must not authorize project setup")
+	}
+	if err := Allow(Job{Verb: "setup"}, []string{"vrooli-bridge:write"}, DefaultManifest); err != nil {
+		t.Fatalf("write scope should authorize project setup: %v", err)
+	}
+}
+
 func TestAllowPreservesMinimouseCurrentVerbScopes(t *testing.T) {
 	scopes := []string{
 		"vrooli-bridge:write",

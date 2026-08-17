@@ -12,25 +12,26 @@ import {
   clearSession,
   loadSession,
   saveSession,
+  restoreLocalSession,
   SESSION_EXPIRED_EVENT,
   type SessionState,
 } from "./store";
 
 /**
- * Session context + `useSession()` hook. Backed by `localStorage` (via
- * `./store`) so a returning visit stays signed in. The transport's `authedFetch`
- * reads the owner token straight from storage; this context exists so React
- * surfaces re-render when the session changes (signed in vs not).
+ * Session context + `useSession()` hook. Enrollment metadata survives a
+ * returning visit, while the short-lived LocalSession stays in memory. The
+ * provider restores it locally on mount so React surfaces re-render when the
+ * session changes (signed in vs not).
  */
 export interface SessionContextValue {
   session: SessionState;
-  /** True once an owner JWT is present (owner-gated fleet RPCs are reachable). */
+  /** True once a locally minted owner session is present. */
   isOwner: boolean;
   /** Owner email for display, when known. */
   ownerEmail: string | null;
-  /** Store / replace the owner JWT (and optional email) after a sign-in. */
+  /** Store / replace the ephemeral local session (and optional email). */
   setOwnerToken: (ownerToken: string, ownerEmail?: string | null) => void;
-  /** Drop the owner JWT: this browser signs out. */
+  /** Drop the local session; durable enrollment remains available. */
   clearOwnerToken: () => void;
 }
 
@@ -38,6 +39,16 @@ const SessionContext = createContext<SessionContextValue | null>(null);
 
 export function SessionProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<SessionState>(() => loadSession());
+
+  useEffect(() => {
+    let cancelled = false;
+    void restoreLocalSession().then((restored) => {
+      if (!cancelled && restored) setSession(restored);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const setOwnerToken = useCallback((ownerToken: string, ownerEmail: string | null = null) => {
     const next: SessionState = { ownerToken, ownerEmail };

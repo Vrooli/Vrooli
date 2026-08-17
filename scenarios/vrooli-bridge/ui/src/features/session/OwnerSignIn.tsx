@@ -9,15 +9,22 @@ import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
 import { identityClient } from "../../api/identity";
 import { useSession } from "./SessionProvider";
+import {
+  generateBrowserKeyMaterial,
+  mintBrowserSession,
+  saveBrowserEnrollment,
+} from "./browser_session";
+import { clearEnrollmentBootstrapToken, setEnrollmentBootstrapToken } from "./store";
 
 type Mode = "signin" | "register";
 
 /**
  * Owner sign-in / registration surface. Posts SAME-ORIGIN to the control plane's
  * own IdentityService (`api/identity`) — the bridge forwards to
- * scenario-authenticator via api-core/discovery and relays the owner JWT, which
- * we store in the session so every owner-gated fleet RPC becomes reachable. The
- * browser never makes a cross-origin call.
+ * scenario-authenticator via api-core/discovery. The returned provider token is
+ * used once to enroll a browser signing key, then discarded; owner RPCs use
+ * short-lived locally minted LocalSession credentials. The browser never makes
+ * a cross-origin call.
  *
  * When an owner token is already present it renders the signed-in state
  * ("Signed in as …" + Sign out) instead of the form, so the same component is
@@ -41,7 +48,28 @@ export function OwnerSignIn() {
         mode === "register"
           ? await identityClient.register({ email: trimmed, password, username: username.trim() })
           : await identityClient.login({ email: trimmed, password });
-      return { token: resp.token, email: resp.email };
+      const keyMaterial = await generateBrowserKeyMaterial();
+      setEnrollmentBootstrapToken(resp.token);
+      try {
+        const enrolled = await identityClient.enrollOperatorSession({
+          publicKey: keyMaterial.publicKey,
+          mode: "personal",
+          requestedScopes: [],
+        });
+        const enrollment = {
+          operatorId: enrolled.operatorId,
+          identityProvider: enrolled.identityProvider,
+          mode: enrolled.mode,
+          reference: enrolled.enrollmentReference,
+          enrolledAt: new Date().toISOString(),
+          scopeCeiling: enrolled.scopeCeiling,
+          privateKeyPkcs8: keyMaterial.privateKeyPkcs8,
+        };
+        await saveBrowserEnrollment(enrollment);
+        return { token: await mintBrowserSession(enrollment), email: resp.email };
+      } finally {
+        clearEnrollmentBootstrapToken();
+      }
     },
     onSuccess: (resp) => {
       setOwnerToken(resp.token, resp.email || email.trim() || null);

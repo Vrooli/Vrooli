@@ -62,6 +62,19 @@ type fixedEnrollmentResolver struct {
 	err    error
 }
 
+type fakeProtectionProvisioner struct {
+	status      string
+	operationID string
+	detail      string
+	err         error
+	calls       int
+}
+
+func (p *fakeProtectionProvisioner) ProvisionProtection(_ context.Context, _ onboard.ProtectionInput) (string, string, string, error) {
+	p.calls++
+	return p.status, p.operationID, p.detail, p.err
+}
+
 type recordingHandoff struct {
 	request   onboarding.HandoffRequest
 	selection onboarding.Selection
@@ -164,6 +177,68 @@ func TestStart_SuccessFullFlow(t *testing.T) {
 	for i := 1; i < len(events); i++ {
 		require.Greater(t, events[i].Sequence, events[i-1].Sequence)
 	}
+}
+
+func TestProtectOnboardingFreshMaterialRecordsNamedStep(t *testing.T) {
+	repo := mocks.NewFakeRepository()
+	driver := &mocks.FakeSSHDriver{RunBootstrapMarkers: successMarkers(testNodeID)}
+	protector := &fakeProtectionProvisioner{status: "completed", operationID: "cleanup-1", detail: "material established"}
+	svc := onboard.NewService(repo, driver, &mocks.FakeCodeIssuer{Code: testCode}, &mocks.FakeOnlineConfirmer{Online: true}, schedule.System(),
+		onboard.WithEnrollmentResolver(fixedEnrollmentResolver{nodeID: testNodeID, paired: true}), onboard.WithProtectionProvisioner(protector))
+	decision, err := svc.Start(context.Background(), validInput())
+	require.NoError(t, err)
+	op := waitTerminal(t, svc, decision.OpID)
+	result, err := svc.Protect(context.Background(), onboard.ProtectionInput{OnboardingOpID: op.ID, NodeID: testNodeID, Target: op.Host, CleanupOperationID: "cleanup-1", SealedPassphrase: []byte("opaque"), OperatorID: "owner"})
+	require.NoError(t, err)
+	require.Equal(t, "completed", result.Status)
+	require.Equal(t, 1, protector.calls)
+	_, events, err := svc.GetOp(context.Background(), op.ID)
+	require.NoError(t, err)
+	var recorded bool
+	for _, event := range events {
+		if event.StepID == onboard.StepProtect && event.Status == onboard.StepStatusOK && event.Detail == "material established" {
+			recorded = true
+		}
+	}
+	require.True(t, recorded)
+}
+
+func TestProtectOnboardingExistingMaterialSucceedsWithoutOverwrite(t *testing.T) {
+	repo := mocks.NewFakeRepository()
+	protector := &fakeProtectionProvisioner{status: "completed", operationID: "cleanup-existing", detail: "existing material unchanged"}
+	svc := onboard.NewService(repo, &mocks.FakeSSHDriver{RunBootstrapMarkers: successMarkers(testNodeID)}, &mocks.FakeCodeIssuer{Code: testCode}, &mocks.FakeOnlineConfirmer{Online: true}, schedule.System(),
+		onboard.WithEnrollmentResolver(fixedEnrollmentResolver{nodeID: testNodeID, paired: true}), onboard.WithProtectionProvisioner(protector))
+	decision, err := svc.Start(context.Background(), validInput())
+	require.NoError(t, err)
+	op := waitTerminal(t, svc, decision.OpID)
+	result, err := svc.Protect(context.Background(), onboard.ProtectionInput{OnboardingOpID: op.ID, NodeID: testNodeID, Target: op.Host, CleanupOperationID: "cleanup-existing", SealedPassphrase: []byte("opaque"), OperatorID: "owner"})
+	require.NoError(t, err)
+	require.Equal(t, "existing material unchanged", result.Detail)
+	require.Equal(t, 1, protector.calls)
+}
+
+func TestProtectOnboardingDeclinedRecordsMissingCapability(t *testing.T) {
+	repo := mocks.NewFakeRepository()
+	protector := &fakeProtectionProvisioner{status: "completed", operationID: "should-not-run"}
+	svc := onboard.NewService(repo, &mocks.FakeSSHDriver{RunBootstrapMarkers: successMarkers(testNodeID)}, &mocks.FakeCodeIssuer{Code: testCode}, &mocks.FakeOnlineConfirmer{Online: true}, schedule.System(),
+		onboard.WithEnrollmentResolver(fixedEnrollmentResolver{nodeID: testNodeID, paired: true}), onboard.WithProtectionProvisioner(protector))
+	decision, err := svc.Start(context.Background(), validInput())
+	require.NoError(t, err)
+	op := waitTerminal(t, svc, decision.OpID)
+	result, err := svc.Protect(context.Background(), onboard.ProtectionInput{OnboardingOpID: op.ID, NodeID: testNodeID, Target: op.Host, Declined: true, OperatorID: "owner"})
+	require.NoError(t, err)
+	require.Equal(t, "declined", result.Status)
+	require.Equal(t, 0, protector.calls)
+	_, events, err := svc.GetOp(context.Background(), op.ID)
+	require.NoError(t, err)
+	var skipped bool
+	for _, event := range events {
+		if event.StepID == onboard.StepProtect && event.Status == onboard.StepStatusSkipped {
+			skipped = true
+			require.Contains(t, event.Detail, "break-glass remains missing")
+		}
+	}
+	require.True(t, skipped)
 }
 
 func TestStart_FinalKeyVerificationFailsClosed(t *testing.T) {
@@ -304,6 +379,20 @@ func TestStart_SetupProfileThreadsToBootstrapArgs(t *testing.T) {
 	require.Contains(t, driver.CapturedArgs, "--include-optional")
 }
 
+func TestStart_ProvisionServiceUserThreadsToBootstrapArgs(t *testing.T) {
+	repo := mocks.NewFakeRepository()
+	driver := &mocks.FakeSSHDriver{RunBootstrapMarkers: successMarkers(testNodeID)}
+	svc := newTestService(repo, driver, &mocks.FakeCodeIssuer{Code: testCode}, &mocks.FakeOnlineConfirmer{Online: true})
+
+	in := validInput()
+	in.User = "matthalloran8"
+	in.ProvisionServiceUser = "root"
+	dec, err := svc.Start(context.Background(), in)
+	require.NoError(t, err)
+	_ = waitTerminal(t, svc, dec.OpID)
+	requireArgPair(t, driver.CapturedArgs, "--provision-service-user", "root")
+}
+
 func TestStart_SetupProfileOmittedWhenEmpty(t *testing.T) {
 	repo := mocks.NewFakeRepository()
 	driver := &mocks.FakeSSHDriver{RunBootstrapMarkers: successMarkers(testNodeID)}
@@ -330,6 +419,8 @@ func TestStart_SetupProfileValidation(t *testing.T) {
 		"command sub in scenarios": {func(in *onboard.StartInput) { in.SetupScenarios = "$(whoami)" }, "setup_scenarios"},
 		"metachar in environment":  {func(in *onboard.StartInput) { in.SetupEnvironment = "dev|x" }, "setup_environment"},
 		"bad environment enum":     {func(in *onboard.StartInput) { in.SetupEnvironment = "staging" }, "setup_environment"},
+		"unsafe provisioning user": {func(in *onboard.StartInput) { in.ProvisionServiceUser = "root;bad" }, "provision_service_user"},
+		"same provisioning user":   {func(in *onboard.StartInput) { in.ProvisionServiceUser = in.User }, "provision_service_user"},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {

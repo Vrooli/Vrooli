@@ -22,6 +22,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"os/signal"
@@ -29,6 +30,10 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+
+	channelv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/channel"
+	cleanupv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/cleanup"
+	"google.golang.org/protobuf/encoding/protojson"
 
 	"vrooli-bridge/agent/internal/buildinfo"
 	"vrooli-bridge/agent/internal/channel"
@@ -67,6 +72,9 @@ func run(args []string) error {
 		}
 		return err
 	}
+	if cfg.CleanupStdin {
+		return runCleanupStdin(cfg)
+	}
 
 	logger.Printf("vrooli-bridge-agent %s (%s service manager, state dir %s)",
 		buildinfo.Fingerprint(), platform.NativeServiceManager(), cfg.StateDir)
@@ -89,7 +97,7 @@ func run(args []string) error {
 		helperCtx, stopHelper := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 		defer stopHelper()
 		logger.Printf("provisioning helper socket=%s", cfg.ProvisionSocket)
-		if err := privsep.Serve(helperCtx, cfg.ProvisionSocket, cfg.VrooliBin, cfg.WorkDir, cfg.ProvisionClientUID); err != nil {
+		if err := privsep.ServeWithShutdown(helperCtx, cfg.ProvisionSocket, cfg.VrooliBin, cfg.WorkDir, cfg.ProvisionClientUID, stopHelper, cfg.StateDir); err != nil {
 			return fmt.Errorf("provisioning helper: %w", err)
 		}
 		return nil
@@ -143,7 +151,7 @@ func run(args []string) error {
 		}
 	}
 
-	client := channel.NewClient(cfg, channel.WithLogger(logger), channel.WithCredential(cred), channel.WithCPVerifier(cpVerifier))
+	client := channel.NewClient(cfg, channel.WithLogger(logger), channel.WithCredential(cred), channel.WithCPVerifier(cpVerifier), channel.WithShutdown(stop))
 	hs := client.Handshake()
 	logger.Printf("channel handshake: node_id=%q protocol_version=%d os=%s arch=%s capabilities=%v",
 		hs.GetNodeId(), hs.GetProtocolVersion(), hs.GetOs(), hs.GetArch(), hs.GetCapabilities())
@@ -161,6 +169,35 @@ func run(args []string) error {
 
 	logger.Printf("channel closed (shutdown signal received)")
 	return nil
+}
+
+// runCleanupStdin is the non-interactive SSH transport for the same typed
+// helper used by the paired channel. The command arrives as protobuf JSON and
+// the helper chooses every executable and argv token. Events leave as protobuf
+// JSON lines so Bridge can persist the same event stream as the agent channel.
+func runCleanupStdin(cfg config.Config) error {
+	payload, err := io.ReadAll(io.LimitReader(os.Stdin, 2*1024*1024))
+	if err != nil {
+		return fmt.Errorf("read typed cleanup command: %w", err)
+	}
+	var command channelv1.CleanupCommand
+	if err := protojson.Unmarshal(payload, &command); err != nil {
+		return fmt.Errorf("decode typed cleanup command: %w", err)
+	}
+	helper := privsep.NewHelper(cfg.VrooliBin, cfg.WorkDir, nil,
+		privsep.WithSealingSeedPath(filepath.Join(cfg.StateDir, "sealing.key")),
+		privsep.WithClientUID(cfg.ProvisionClientUID),
+		privsep.WithClientHome(cfg.ProvisionClientHome),
+	)
+	report := func(event *cleanupv1.CleanupEvent) error {
+		encoded, err := protojson.Marshal(event)
+		if err != nil {
+			return fmt.Errorf("encode cleanup event: %w", err)
+		}
+		_, err = fmt.Fprintln(os.Stdout, string(encoded))
+		return err
+	}
+	return helper.Cleanup(context.Background(), &command, report)
 }
 
 // renderServiceUnit builds this binary's platform-native background-service unit
@@ -193,6 +230,9 @@ func serviceDefinition(cfg config.Config) (service.Definition, error) {
 		args = []string{"--state-dir", cfg.StateDir, "--provision-helper", "--provision-socket", cfg.ProvisionSocket}
 		if cfg.ProvisionClientUID >= 0 {
 			args = append(args, "--provision-client-uid", strconv.Itoa(cfg.ProvisionClientUID))
+		}
+		if cfg.ProvisionClientHome != "" {
+			args = append(args, "--provision-client-home", cfg.ProvisionClientHome)
 		}
 	} else {
 		args = []string{"--control-plane-url", cfg.ControlPlaneURL, "--node-id", cfg.NodeID, "--state-dir", cfg.StateDir}

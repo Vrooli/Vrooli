@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/vrooli/vrooli/packages/proto/privilegedops"
 )
 
 func TestEvaluateReadinessDerivesOwnedFactsWithoutGrantingScopes(t *testing.T) {
@@ -19,4 +20,16 @@ func TestEvaluateReadinessDerivesOwnedFactsWithoutGrantingScopes(t *testing.T) {
 	result = EvaluateReadiness(machine, trust, policy, projection)
 	require.True(t, result.Ready)
 	require.Empty(t, result.Reasons)
+}
+
+func TestEvaluateReadinessNamesEverySharedOnboardingCapability(t *testing.T) {
+	capabilities := privilegedops.CapabilityNames()
+	result := EvaluateReadiness(Machine{Lifecycle: LifecycleActive}, TrustRecord{HostKeyState: HostKeyVerified}, PolicySnapshot{RequiredCapabilities: capabilities}, Projection{
+		HasNode:  true,
+		Node:     NodeSnapshot{Capabilities: []string{privilegedops.CapabilityAgentPresence}},
+		Presence: PresenceSnapshot{Connected: true},
+	})
+	for _, capability := range capabilities[1:] {
+		require.Contains(t, result.Reasons, "missing_capability:"+capability)
+	}
 }

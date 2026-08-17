@@ -5,13 +5,17 @@ package session
 
 import (
 	"context"
+	"crypto/ed25519"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	"connectrpc.com/connect"
+	sharedsession "github.com/vrooli/api-core/operatorsession"
 	"github.com/vrooli/cli-core/cliapp"
 	identityv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/identity"
 	identityconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/identity/identity_v1connect"
@@ -22,10 +26,12 @@ type client struct {
 	base     connect.HTTPClient
 	baseURL  string
 	exchange func(context.Context) (string, string, error)
+	mu       sync.Mutex
 }
 
-// NewConnectHTTPClient returns the standard bridge CLI transport with one
-// transparent owner-token renewal on an unauthenticated response.
+// NewConnectHTTPClient returns the standard Bridge transport. Enrolled
+// operators mint a short-lived local session for each request; enrollment is
+// the only path that may contact the authenticator.
 func NewConnectHTTPClient(app *cliapp.ScenarioApp) (connect.HTTPClient, string) {
 	return NewConnectHTTPClientWithTimeout(app, 0)
 }
@@ -45,72 +51,199 @@ func NewConnectHTTPClientWithTimeout(app *cliapp.ScenarioApp, timeout time.Durat
 	return &client{app: app, base: base, baseURL: baseURL, exchange: ExchangeLocal}, baseURL
 }
 
+// EnrollLocalWithToken completes the one-time enrollment using an access token
+// already obtained by an explicit login flow. The access token is used only
+// for this RPC and is not persisted by this helper.
+func EnrollLocalWithToken(ctx context.Context, app *cliapp.ScenarioApp, access string) error {
+	if app == nil || strings.TrimSpace(access) == "" {
+		return errors.New("operator enrollment requires a Bridge app and access token")
+	}
+	base, baseURL := cliapp.NewConnectHTTPClient(app)
+	private, err := sharedsession.GenerateKey()
+	if err != nil {
+		return err
+	}
+	defer clearBytes(private)
+	public, err := sharedsession.PublicKey(private)
+	if err != nil {
+		return err
+	}
+	c := &client{app: app, base: base, baseURL: baseURL, exchange: ExchangeLocal}
+	if _, err := c.enrollWithAccess(ctx, private, public, access); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (c *client) Do(req *http.Request) (*http.Response, error) {
 	if token, err := BreakGlassTokenFile(); err != nil {
 		return nil, err
 	} else if strings.TrimSpace(token) != "" {
 		return c.doBreakGlass(req, token)
 	}
-	localAttempted := false
-	if c.app != nil && strings.TrimSpace(c.app.Config.Token) == "" {
-		localAttempted = true
-		// Local exchange is the password-free acquisition path. Failure is not
-		// an authorization decision here: the request continues anonymously so
-		// public RPCs and the interactive login fallback retain their normal
-		// behavior.
-		if token, refresh, err := c.exchangeLocal(req.Context()); err == nil {
-			_ = c.persist(token, refresh)
-		} else if token, tokenErr := TokenFile(); tokenErr == nil {
-			c.app.Config.Token = token
-		}
-	}
-	resp, err := c.base.Do(req)
-	if err != nil || resp == nil || resp.StatusCode != http.StatusUnauthorized || skipRefresh(req.URL.Path) {
-		return resp, err
+	// Identity RPCs precede enrollment and must remain callable to perform the
+	// one-time password/token exchange. They do not inherit a stale local
+	// session and never trigger an authenticator call through this transport.
+	if skipEnrollment(req.URL.Path) {
+		return c.base.Do(req)
 	}
 
-	// A saved access token can be expired or revoked while the local machine
-	// binding remains valid. Recover that case through the same password-free
-	// exchange used at startup before attempting refresh. This is important for
-	// self-rebuilding CLIs: a stale config must never suppress the durable local
-	// identity path and turn into a misleading bare "unauthenticated" error.
-	if !localAttempted {
-		if token, refresh, exchangeErr := c.exchangeLocal(req.Context()); exchangeErr == nil {
-			if persistErr := c.persist(token, refresh); persistErr == nil {
-				if resp.Body != nil {
-					_ = resp.Body.Close()
-				}
-				retry, cloneErr := replayRequest(req)
-				if cloneErr != nil {
-					return resp, cloneErr
-				}
-				return c.base.Do(retry)
+	// An enrolled client mints a short-lived local credential without calling
+	// the authenticator. This is also the expired-session refresh path: minting
+	// a new local credential is enough, so no bearer or refresh token is needed.
+	var enrollmentErr error
+	if c.app != nil {
+		if localToken, _, localErr := mintLocalSession(time.Now()); localErr == nil {
+			if err := c.clearLegacyConfig(); err != nil {
+				return nil, err
 			}
+			return c.doLocal(req, localToken)
+		} else {
+			enrollmentErr = localErr
+		}
+		// A deliberately supplied token (for example a one-time token file or a
+		// caller that just completed login) may establish the enrollment. It is
+		// consumed for this one RPC and then removed from the saved config.
+		if access := strings.TrimSpace(c.app.Config.Token); access != "" {
+			if localToken, enrollErr := c.enrollWithAccess(req.Context(), nil, nil, access); enrollErr == nil {
+				return c.doLocal(req, localToken)
+			} else {
+				enrollmentErr = diagnoseCredential(enrollErr)
+			}
+		} else if localToken, enrollErr := c.enrollLocal(req.Context()); enrollErr == nil {
+			return c.doLocal(req, localToken)
+		} else {
+			enrollmentErr = enrollErr
 		}
 	}
-	if strings.TrimSpace(c.app.Config.RefreshToken) == "" {
-		return resp, err
-	}
 
-	newToken, newRefresh, refreshErr := c.refresh(req.Context())
-	if refreshErr != nil {
-		// Preserve the original response. Connect will report the original
-		// unauthenticated operation, never the failed recovery attempt.
+	resp, err := c.base.Do(req)
+	if err != nil || resp == nil || resp.StatusCode != http.StatusUnauthorized {
 		return resp, err
 	}
-	if err := c.persist(newToken, newRefresh); err != nil {
-		// A local config write failure must not replace the original
-		// unauthenticated response with an implementation detail.
-		return resp, nil
+	if enrollmentErr != nil {
+		return nil, diagnoseEnrollment(enrollmentErr)
 	}
-	if resp.Body != nil {
-		_ = resp.Body.Close()
+	return resp, err
+}
+
+func (c *client) clearLegacyConfig() error {
+	if c.app == nil || (strings.TrimSpace(c.app.Config.Token) == "" && strings.TrimSpace(c.app.Config.RefreshToken) == "") {
+		return nil
 	}
-	retry, cloneErr := replayRequest(req)
-	if cloneErr != nil {
-		return resp, cloneErr
+	previous := c.app.Config
+	c.app.Config.Token = ""
+	c.app.Config.RefreshToken = ""
+	if err := c.app.SaveConfig(); err != nil {
+		c.app.Config = previous
+		return fmt.Errorf("clear legacy owner session after local resolution: %w", err)
 	}
-	return c.base.Do(retry)
+	return nil
+}
+
+func (c *client) doLocal(req *http.Request, token string) (*http.Response, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.app == nil || c.app.HTTPClient == nil {
+		return nil, fmt.Errorf("local owner session client is not configured")
+	}
+	previous := c.app.Config.Token
+	defer func() {
+		c.app.Config.Token = previous
+		c.app.HTTPClient.SetToken(previous)
+	}()
+	// cli-core's transport applies Bearer from Config.Token. Clear that
+	// transient value and set the explicit scheme after request construction so
+	// the local credential cannot be mistaken for an authenticator JWT.
+	c.app.Config.Token = ""
+	c.app.HTTPClient.SetToken("")
+	req.Header.Set("Authorization", sharedsession.LocalSessionScheme+" "+token)
+	return c.base.Do(req)
+}
+
+func (c *client) enrollLocal(ctx context.Context) (string, error) {
+	private, err := sharedsession.GenerateKey()
+	if err != nil {
+		return "", err
+	}
+	defer clearBytes(private)
+	public, err := sharedsession.PublicKey(private)
+	if err != nil {
+		return "", err
+	}
+	access, _, err := c.exchangeLocal(ctx)
+	if err != nil {
+		return "", diagnoseEnrollment(err)
+	}
+	return c.enrollWithAccess(ctx, private, public, access)
+}
+
+func (c *client) enrollWithAccess(ctx context.Context, private ed25519.PrivateKey, public ed25519.PublicKey, access string) (string, error) {
+	if private == nil || public == nil {
+		var err error
+		private, err = sharedsession.GenerateKey()
+		if err != nil {
+			return "", err
+		}
+		defer clearBytes(private)
+		public, err = sharedsession.PublicKey(private)
+		if err != nil {
+			return "", err
+		}
+	}
+	previous := c.app.Config.Token
+	c.app.Config.Token = access
+	enrolled := false
+	defer func() {
+		if !enrolled {
+			c.app.Config.Token = previous
+		}
+	}()
+	identityClient := identityconnect.NewIdentityServiceClient(c.base, c.baseURL)
+	resp, err := identityClient.EnrollOperatorSession(ctx, connect.NewRequest(&identityv1.EnrollOperatorSessionRequest{PublicKey: public, Mode: string(sharedsession.ModePersonal)}))
+	if err != nil {
+		return "", err
+	}
+	if resp == nil || resp.Msg == nil || strings.TrimSpace(resp.Msg.EnrollmentReference) == "" || strings.TrimSpace(resp.Msg.OperatorId) == "" {
+		return "", errors.New("operator enrollment returned an incomplete record")
+	}
+	enrolledAt := time.Now().UTC()
+	if resp.Msg.EnrolledAt != nil {
+		enrolledAt = resp.Msg.EnrolledAt.AsTime()
+	}
+	enrollment := sharedsession.Enrollment{OperatorID: resp.Msg.OperatorId, IdentityProvider: resp.Msg.IdentityProvider, Mode: sharedsession.Mode(resp.Msg.Mode), Reference: resp.Msg.EnrollmentReference, EnrolledAt: enrolledAt, ScopeCeiling: append([]string(nil), resp.Msg.ScopeCeiling...)}
+	if err := saveLocalEnrollment(private, enrollment); err != nil {
+		return "", err
+	}
+	// Enrollment supersedes legacy bearer config. Clear it in memory and on
+	// disk immediately after the durable local binding succeeds.
+	c.app.Config.Token = ""
+	c.app.Config.RefreshToken = ""
+	if err := c.app.SaveConfig(); err != nil {
+		return "", fmt.Errorf("clear legacy owner session after enrollment: %w", err)
+	}
+	enrolled = true
+	return sharedsession.Mint(private, enrollment.Reference, enrollment.OperatorID, enrollment.ScopeCeiling, time.Now(), sharedsession.LocalSessionTTL)
+}
+
+func diagnoseEnrollment(cause error) error {
+	if cause == nil {
+		cause = errors.New("operator enrollment failed")
+	}
+	if connect.CodeOf(cause) == connect.CodeUnauthenticated {
+		return sharedsession.EnrollmentRequired(cause, sharedsession.ModePersonal)
+	}
+	return sharedsession.ProviderUnavailable(cause, sharedsession.ModePersonal)
+}
+
+func diagnoseCredential(cause error) error {
+	if cause == nil {
+		cause = errors.New("owner credential was rejected")
+	}
+	if connect.CodeOf(cause) == connect.CodeUnauthenticated {
+		return sharedsession.Diagnosis{Kind: sharedsession.DiagnosisUnauthenticated, Provider: sharedsession.IdentityProviderAuthenticator, Mode: sharedsession.ModePersonal, Reason: cause.Error(), Recovery: "authenticate again and enroll this machine"}
+	}
+	return cause
 }
 
 func (c *client) exchangeLocal(ctx context.Context) (string, string, error) {
@@ -162,47 +295,10 @@ func validateURL(value *url.URL) error {
 	return nil
 }
 
-func (c *client) refresh(ctx context.Context) (string, string, error) {
-	refreshClient := identityconnect.NewIdentityServiceClient(c.base, c.baseURL)
-	resp, err := refreshClient.Refresh(ctx, connect.NewRequest(&identityv1.RefreshRequest{
-		RefreshToken: c.app.Config.RefreshToken,
-	}))
-	if err != nil {
-		return "", "", err
-	}
-	if resp == nil || resp.Msg == nil || strings.TrimSpace(resp.Msg.Token) == "" || strings.TrimSpace(resp.Msg.RefreshToken) == "" {
-		return "", "", fmt.Errorf("refresh returned an incomplete owner session")
-	}
-	return resp.Msg.Token, resp.Msg.RefreshToken, nil
-}
-
-func (c *client) persist(token, refresh string) error {
-	previous := c.app.Config
-	c.app.Config.Token = token
-	c.app.Config.RefreshToken = refresh
-	if err := c.app.SaveConfig(); err != nil {
-		c.app.Config = previous
-		return fmt.Errorf("save refreshed owner session: %w", err)
-	}
-	return nil
-}
-
-func replayRequest(req *http.Request) (*http.Request, error) {
-	if req == nil || req.GetBody == nil {
-		return nil, fmt.Errorf("cannot retry an owner request whose body is not replayable")
-	}
-	body, err := req.GetBody()
-	if err != nil {
-		return nil, err
-	}
-	retry := req.Clone(req.Context())
-	retry.Body = body
-	return retry, nil
-}
-
-func skipRefresh(path string) bool {
+func skipEnrollment(path string) bool {
 	path = strings.TrimRight(path, "/")
 	return strings.HasSuffix(path, "IdentityService/Login") ||
 		strings.HasSuffix(path, "IdentityService/Register") ||
-		strings.HasSuffix(path, "IdentityService/Refresh")
+		strings.HasSuffix(path, "IdentityService/Refresh") ||
+		strings.HasSuffix(path, "IdentityService/EnrollOperatorSession")
 }

@@ -35,7 +35,29 @@ func Migrate(ctx context.Context, db SQLExecutor) error {
 			return fmt.Errorf("inspect machine_migration_reviews.confidence: %w", err)
 		}
 	}
-	return reconcileDuplicateCurrentNodes(ctx, db)
+	if err := reconcileDuplicateCurrentNodes(ctx, db); err != nil {
+		return err
+	}
+	return migrateLegacyCleanupTombstones(ctx, db)
+}
+
+// migrateLegacyCleanupTombstones turns pre-operation cleanup records into
+// honest terminal history. They never executed a remote effect, so pending
+// must not survive startup as if work were still waiting to run.
+func migrateLegacyCleanupTombstones(ctx context.Context, db SQLExecutor) error {
+	exists, err := migrationTableExists(ctx, db, "machine_cleanup_tombstones")
+	if err != nil || !exists {
+		return err
+	}
+	_, err = db.ExecContext(ctx, `UPDATE machine_cleanup_tombstones
+SET action='cleanup_record',
+    status='not_applicable',
+    detail=CASE WHEN trim(detail) <> '' THEN detail || '; legacy record migrated: no remote cleanup was executed' ELSE 'legacy record migrated: no remote cleanup was executed' END
+WHERE action='remove_ssh_access' AND status='pending'`)
+	if err != nil {
+		return fmt.Errorf("migrate legacy cleanup tombstones: %w", err)
+	}
+	return nil
 }
 
 // ensureLocatorClaims creates the active-identity uniqueness boundary for

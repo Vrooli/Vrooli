@@ -82,6 +82,21 @@ var Endpoints = []module.EndpointDescriptor{
 		},
 	},
 	{
+		ID:          "onboard_protect_onboarding",
+		Path:        onboardconnect.OnboardServiceProtectOnboardingProcedure,
+		Method:      "POST",
+		Summary:     "Complete target-bound onboarding protection",
+		Description: "Relays an opaque node-sealed break-glass envelope after pairing; the node helper owns the protected material and the owner passphrase never reaches Bridge plaintext.",
+		Category:    "onboard",
+		Request:     &module.Schema{Type: "object", Properties: map[string]string{"onboarding_op_id": "string (required)", "machine_id": "string (required)", "node_id": "string (required)", "target": "string (required)", "scope": "string", "cleanup_operation_id": "string (required)", "sealed_passphrase": "bytes", "declined": "bool"}},
+		Response:    &module.Schema{Type: "object", Properties: map[string]string{"op": "OnboardingOp", "protection_status": "string", "protection_operation_id": "string", "detail": "string"}},
+		Errors: []module.ErrorDesc{
+			{Status: 400, Code: "invalid_argument", Description: "Missing onboarding or target identity, or missing sealed authorization when not declined"},
+			{Status: 401, Code: "unauthenticated", Description: "Owner token required"},
+			{Status: 412, Code: "failed_precondition", Description: "The target protection step cannot be completed"},
+		},
+	},
+	{
 		ID:          "onboard_list_onboardings",
 		Path:        onboardconnect.OnboardServiceListOnboardingsProcedure,
 		Method:      "POST",

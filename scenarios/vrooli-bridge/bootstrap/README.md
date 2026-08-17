@@ -39,7 +39,9 @@ without pulling a release artifact or GitHub clone. One run:
 11. **service-install** — install + start the platform-native background service
     (systemd `--user` unit on Linux; launchd on macOS).
 12. **autostart** — enable headless auto-start (`loginctl enable-linger` on
-    Linux; launchd `KeepAlive` + auto-login on macOS).
+    Linux; launchd `KeepAlive` on macOS). SSH-only macOS sessions select a
+    machine-wide LaunchDaemon and need no GUI login; a GUI-domain LaunchAgent
+    retains macOS's auto-login prerequisite.
 13. **verify-online** — wait (bounded) for the agent to report a live dial-out
     channel.
 
@@ -76,7 +78,7 @@ BRIDGE_PAIRING_CODE="$(vrooli-bridge pair issue --name web-01 --json | jq -r .co
 | `--work-dir` | `BRIDGE_WORK_DIR` | checkout dir | Dir the agent runs jobs in. |
 | `--service-user` | `BRIDGE_SERVICE_USER` | current user | OS principal the service runs as. |
 | `--provision-service-user` | `BRIDGE_PROVISION_SERVICE_USER` | unset | Separate OS principal for the privileged provisioning helper. When set, the bootstrap requires non-interactive elevation and installs a machine-wide `vrooli-bridge-provisioner` unit. |
-| `--provision-socket` | `BRIDGE_PROVISION_SOCKET` | `/run/vrooli-bridge/provision.sock` | Absolute local IPC socket shared by the runner and provisioner. Linux peer credentials authorize the runner UID. |
+| `--provision-socket` | `BRIDGE_PROVISION_SOCKET` | Linux: `/run/vrooli-bridge/provision.sock`; macOS: `$XDG_STATE_HOME/vrooli-bridge-agent/provision.sock` | Absolute local IPC socket shared by the runner and provisioner. Linux peer credentials authorize the runner UID; macOS keeps the socket in the existing per-user agent state directory because `/run` is not writable there. |
 | `--capabilities` | `BRIDGE_CAPABILITIES` | *(none)* | Comma-separated verb namespaces to self-report. When supplied by Bridge onboarding, it also opts the agent into typed control frames; the registry's approved execution scopes remain the authorization source. |
 | `--verify-timeout` | `BRIDGE_VERIFY_TIMEOUT` | `120` | Dial-out verification budget (seconds). |
 | `--setup-environment` | `BRIDGE_SETUP_ENVIRONMENT` | *(node default)* | Node-side `vrooli setup --environment`: `development` \| `production` \| `minimal`. |
@@ -225,13 +227,14 @@ argv too.
 
 ## macOS
 
-macOS onboarding has **unavoidable manual pre-steps** the script cannot
-perform for you:
+macOS onboarding has one required host prerequisite the script cannot perform
+for you, plus a conditional GUI-session prerequisite:
 
-1. **Remote Login (SSH)** enabled (System Settings → General → Sharing), and
-   **auto-login** enabled if the node is headless — a launchd gui-domain agent
-   only survives logout when the console user is auto-logged-in (the macOS
-   analogue of systemd linger).
+1. **Remote Login (SSH)** enabled (System Settings → General → Sharing).
+2. **Auto-login** is needed only when the service is installed as a
+   launchd `LaunchAgent` in a GUI domain. An SSH-only/headless onboarding run
+   installs a machine-wide `LaunchDaemon`, whose `KeepAlive` policy is
+   independent of GUI login.
 
 Docker is **not** an onboarding pre-step: nothing in pairing or coming ONLINE
 needs it. It is a `vrooli setup` requirement pulled in only for container

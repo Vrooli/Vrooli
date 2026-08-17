@@ -38,6 +38,7 @@ readonly UNIT_NAME="vrooli-bridge-agent.service"
 readonly PROVISIONER_UNIT_NAME="vrooli-bridge-provisioner.service"
 readonly PIN_FILE="control_plane.pub"
 readonly DEFAULT_REPO_URL="https://github.com/Vrooli/Vrooli.git"
+readonly STABLE_AGENT_BIN="${HOME}/.local/bin/vrooli-bridge-agent"
 # The exact line the agent logs when the control plane accepts its dial-out
 # stream (HTTP 200). This is the node-local "connected/ONLINE" signal.
 readonly CONNECTED_MARKER="dial-out stream open"
@@ -48,12 +49,12 @@ readonly INSTALL_RECORD_PATH="${HOME}/.vrooli/state/install-record.json"
 
 log() { printf '%s\n' "$*" >&2; }
 
-# record_install_artifact <scope> <kind> <path> <prefix> [manager] [name] [domain]
+# record_install_artifact <scope> <kind> <path> <prefix> [manager] [name] [domain] [volatile]
 # records only an artifact the bootstrap has just created or owns. It never
 # scans a host directory, so an unrecorded install remains an empty uninstall
 # inventory instead of becoming a guessed deletion set.
 record_install_artifact() {
-  local scope="$1" kind="$2" path="$3" prefix="$4" manager="${5:-}" name="${6:-}" domain="${7:-}"
+  local scope="$1" kind="$2" path="$3" prefix="$4" manager="${5:-}" name="${6:-}" domain="${7:-}" volatile="${8:-false}"
   [ -n "$path" ] || return 0
   case "$path" in /*) ;; *) log "error: refusing to record non-absolute install path: ${path}"; return 1 ;; esac
   mkdir -p "${INSTALL_RECORD_PATH%/*}"
@@ -67,8 +68,18 @@ record_install_artifact() {
   fi
   jq --arg scope "$scope" --arg kind "$kind" --arg path "$path" --arg prefix "$prefix" \
     --arg manager "$manager" --arg name "$name" --arg domain "$domain" \
+    --argjson volatile "$volatile" \
     --arg updated "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-    '.version = 1 | .updated_at = $updated | .entries = ((.entries // []) + [{scope:$scope,kind:$kind,path:$path,prefix:$prefix} + (if $manager != "" then {service_manager:$manager} else {} end) + (if $name != "" then {service_name:$name} else {} end) + (if $domain != "" then {service_domain:$domain} else {} end)]) | .entries |= unique_by([.scope,.kind,.path] | join("\u0000"))' \
+    'def same: .scope == $scope and .kind == $kind and .path == $path;
+     def current: {scope:$scope,kind:$kind,path:$path,prefix:$prefix}
+       + (if $manager != "" then {service_manager:$manager} else {} end)
+       + (if $name != "" then {service_name:$name} else {} end)
+       + (if $domain != "" then {service_domain:$domain} else {} end)
+       + (if $volatile then {volatile:true} else {} end);
+     .version = 1 | .updated_at = $updated | .entries = (.entries // []) |
+     if any(.entries[]; same) then .entries |= map(if same then . + current else . end)
+     else .entries += [current]
+     end' \
     "$tmp" >"${tmp}.json"
   mv "${tmp}.json" "$INSTALL_RECORD_PATH"
   rm -f "$tmp"
@@ -142,7 +153,11 @@ STATE_DIR="${BRIDGE_AGENT_STATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/vrool
 WORK_DIR="${BRIDGE_WORK_DIR:-}"
 SERVICE_USER="${BRIDGE_SERVICE_USER:-}"
 PROVISION_SERVICE_USER="${BRIDGE_PROVISION_SERVICE_USER:-}"
-PROVISION_SOCKET="${BRIDGE_PROVISION_SOCKET:-/run/vrooli-bridge/provision.sock}"
+# The default IPC location is selected after platform detection. Linux keeps a
+# machine-wide runtime path; macOS uses the already-created per-user agent
+# state directory because /run is unavailable/read-only on normal macOS hosts.
+# An explicit BRIDGE_PROVISION_SOCKET/--provision-socket always wins.
+PROVISION_SOCKET="${BRIDGE_PROVISION_SOCKET:-}"
 CAPABILITIES="${BRIDGE_CAPABILITIES:-}"
 PRESENCE_ONLY="${BRIDGE_PRESENCE_ONLY:-true}"
 VERIFY_TIMEOUT="${BRIDGE_VERIFY_TIMEOUT:-120}"
@@ -191,7 +206,7 @@ Options (flag overrides env in parentheses):
                             Separate OS principal for privileged provisioning.
                             (BRIDGE_PROVISION_SERVICE_USER; optional)
   --provision-socket PATH   Root-owned local IPC socket for provisioning.
-                            (BRIDGE_PROVISION_SOCKET; default: /run/vrooli-bridge/provision.sock)
+                            (BRIDGE_PROVISION_SOCKET; default: platform-specific)
   --capabilities LIST       Comma-separated verb namespaces.  (BRIDGE_CAPABILITIES)
   --presence-only BOOL      Hold presence only; reject jobs/provisioning. (BRIDGE_PRESENCE_ONLY; default: true)
   --verify-timeout SECONDS  Dial-out verification budget.     (BRIDGE_VERIFY_TIMEOUT; default: 120)
@@ -305,6 +320,7 @@ if [ -n "$VROOLI_BIN_OVERRIDE" ] && [ -n "$AGENT_BIN_OVERRIDE" ] && [ -n "$BRIDG
 fi
 NODE_ID=""
 NODE_PUBLIC_KEY=""
+AGENT_UNIT_PATH=""
 
 # Common agent config argv shared by --print-public-key / --print-service-unit /
 # service verbs, built once NODE_ID is known.
@@ -345,6 +361,12 @@ step_detect_os() {
   esac
   if [ "$OS" = "darwin" ]; then
     log "    note: macOS nodes need Remote Login enabled (and auto-login if headless); Docker is only for container workloads later, not to onboard (see README)."
+  fi
+  if [ -z "$PROVISION_SOCKET" ]; then
+    case "$OS" in
+      linux)  PROVISION_SOCKET="/run/vrooli-bridge/provision.sock" ;;
+      darwin) PROVISION_SOCKET="${STATE_DIR}/provision.sock" ;;
+    esac
   fi
   step_ok "os=${OS} arch=${ARCH}"
 }
@@ -530,6 +552,7 @@ step_clone() {
   if [ -n "$SOURCE_DIR" ]; then
     [ -d "$SOURCE_DIR" ] || fail 1 "--source-dir ${SOURCE_DIR} does not exist (the control plane's working-tree ship did not land here)"
     [ -n "$(ls -A "$SOURCE_DIR" 2>/dev/null)" ] || fail 1 "--source-dir ${SOURCE_DIR} is empty (the working-tree ship is incomplete) — re-run onboarding"
+    [ -s "${SOURCE_DIR}/.vrooli/repo-contract.json" ] || fail 1 "--source-dir ${SOURCE_DIR} is missing .vrooli/repo-contract.json (the working-tree ship is not a complete Vrooli source closure)"
     CHECKOUT_DIR="$SOURCE_DIR"
     if [ -n "$REVISION" ]; then
       REVISION_SHA="${REVISION}+dirty"
@@ -836,6 +859,31 @@ step_build_agent() {
   step_ok "built ${AGENT_BIN}"
 }
 
+step_install_stable_agent() {
+  step_start stable-agent "install stable typed-helper launcher"
+  mkdir -p "${STABLE_AGENT_BIN%/*}"
+  cp "$AGENT_BIN" "$STABLE_AGENT_BIN"
+  chmod 700 "$STABLE_AGENT_BIN"
+  AGENT_BIN="$STABLE_AGENT_BIN"
+  step_ok "typed helper launcher installed at ${STABLE_AGENT_BIN}"
+}
+
+ensure_state_dir_access() {
+  [ -d "$STATE_DIR" ] || mkdir -p "$STATE_DIR"
+  # The state directory is shared by the unprivileged runner and the optional
+  # machine-wide privileged helper. A previous helper installation may have
+  # recreated it as root after cleanup removed the original tree. Repair only
+  # this exact Bridge-owned directory before any state-backed step runs; never
+  # broaden this into a host-wide ownership change.
+  local runner_user
+  runner_user="${SERVICE_USER:-$(id -un)}"
+  if [ ! -r "$STATE_DIR" ] || [ ! -x "$STATE_DIR" ] || { [ -e "${STATE_DIR}/node_credential.key" ] && [ ! -r "${STATE_DIR}/node_credential.key" ]; }; then
+    have_passwordless_sudo || fail 1 "Bridge agent state directory ${STATE_DIR} is not readable by runner ${runner_user}; non-interactive privilege is required to repair this exact managed path"
+    as_root chown -R "$runner_user" "$STATE_DIR" || fail 1 "could not assign Bridge agent state directory ${STATE_DIR} to runner ${runner_user}"
+  fi
+  chmod 700 "$STATE_DIR" 2>/dev/null || true
+}
+
 step_build_cli() {
   step_start build-cli "prepare vrooli-bridge CLI"
   if [ -n "$BRIDGE_CLI_OVERRIDE" ]; then
@@ -853,12 +901,14 @@ step_build_cli() {
 
 step_node_key() {
   step_start node-key "generate/load node keypair"
-  mkdir -p "$STATE_DIR"
-  chmod 700 "$STATE_DIR" 2>/dev/null || true
+  ensure_state_dir_access
   # LoadOrCreate: reuses an existing key, generates one on first run. Idempotent.
   NODE_PUBLIC_KEY="$("$AGENT_BIN" --print-public-key --state-dir "$STATE_DIR")"
   [ -n "$NODE_PUBLIC_KEY" ] || fail 1 "agent produced no public key"
-  step_ok "node public key ready"
+  # A short digest is diagnostic provenance, not credential material. It lets
+  # the control plane distinguish a stale service process/state path from a
+  # pairing-store mismatch without ever persisting or printing the key itself.
+  step_ok "node public key ready (fingerprint $(profile_hash "$NODE_PUBLIC_KEY" | cut -c1-16))"
 }
 
 step_pair_redeem() {
@@ -970,6 +1020,7 @@ step_service_install() {
     running="$(printf '%s' "$status_json" | jq -r '.running // false')"
     unit_path="$(printf '%s' "$status_json" | jq -r '.unit_path // .unitPath // empty')"
     if [ "$installed" = "true" ] && [ "$running" = "true" ] && [ -n "$unit_path" ] && [ -f "$unit_path" ]; then
+      AGENT_UNIT_PATH="$unit_path"
       local desired
       desired="$("$AGENT_BIN" --print-service-unit "${cfg[@]}")"
       if [ "$desired" = "$(cat "$unit_path")" ]; then
@@ -987,6 +1038,7 @@ step_service_install() {
   local running
   running="$(printf '%s' "$install_json" | jq -r '.running // false')"
   [ "$running" = "true" ] || fail 1 "service installed but not running — inspect: journalctl --user -u ${UNIT_NAME}"
+  AGENT_UNIT_PATH="$(printf '%s' "$install_json" | jq -r '.unit_path // .unitPath // empty')"
   record_install_artifact agent service \
     "$(printf '%s' "$install_json" | jq -r '.unit_path // .unitPath // empty')" \
     "$(printf '%s' "$install_json" | jq -r '.unit_path // .unitPath // empty' | xargs dirname)" \
@@ -998,9 +1050,19 @@ step_service_install() {
 step_autostart() {
   step_start autostart "enable headless auto-start"
   if [ "$OS" = "darwin" ]; then
-    # launchd KeepAlive restarts the agent on crash; surviving logout on a
-    # headless Mac requires auto-login (a manual node pre-step; see README).
-    step_ok "launchd KeepAlive handles restart (auto-login is a manual pre-step)"
+    # SSH-only/headless sessions use a machine-wide LaunchDaemon, which
+    # launchd starts independently of any GUI login. A GUI-domain LaunchAgent
+    # still has the native macOS login prerequisite; report that distinction
+    # explicitly instead of claiming every successful onboarding needs a
+    # manual operator step.
+    case "$AGENT_UNIT_PATH" in
+      /Library/LaunchDaemons/*)
+        step_ok "system LaunchDaemon KeepAlive handles restart; no GUI login or auto-login is required"
+        ;;
+      *)
+        step_ok "LaunchAgent KeepAlive handles restart; headless reboot requires the macOS user's auto-login policy"
+        ;;
+    esac
     return
   fi
   # Linux: a systemd --user service stops at logout unless the user lingers.
@@ -1032,7 +1094,11 @@ step_record_install() {
   if [ -n "$RUNTIME_VROOLI_BIN" ]; then
     record_install_artifact runtime binary "$RUNTIME_VROOLI_BIN" "${RUNTIME_VROOLI_BIN%/*}" || fail 1 "could not record native Vrooli CLI"
   fi
-  record_install_artifact agent directory "$STATE_DIR" "$STATE_DIR" || fail 1 "could not record bridge agent state"
+  # The live agent updates this exact owned directory while it is online. Keep
+  # it removable, but do not make a cleanup plan stale merely because a
+  # heartbeat or credential-sidecar changed between inventory and apply.
+  record_install_artifact agent directory "$STATE_DIR" "$STATE_DIR" "" "" "" true || fail 1 "could not record bridge agent state"
+  record_install_artifact agent binary "$STABLE_AGENT_BIN" "${STABLE_AGENT_BIN%/*}" || fail 1 "could not record stable node-agent launcher"
   if [ -n "$AGENT_BIN" ] && [[ "$AGENT_BIN" != "$CHECKOUT_DIR"/* ]]; then
     record_install_artifact agent binary "$AGENT_BIN" "${AGENT_BIN%/*}" || fail 1 "could not record received agent binary"
   fi
@@ -1111,11 +1177,13 @@ main() {
   # after step_clone because working-tree mode replaces CHECKOUT_DIR with the
   # control plane's pre-synced source directory.
   [ -n "$WORK_DIR" ] || WORK_DIR="$CHECKOUT_DIR"
+  ensure_state_dir_access
   step_setup
   step_toolchain_guard
   step_build_native_vrooli
   step_finalize_setup
   step_build_agent
+  step_install_stable_agent
   step_build_cli
   step_node_key
   step_pair_redeem

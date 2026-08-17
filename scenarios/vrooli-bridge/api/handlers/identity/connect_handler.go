@@ -9,10 +9,16 @@ import (
 	"context"
 	"errors"
 	"log"
-
-	internalidentity "vrooli-bridge/internal/identity"
+	"strings"
+	"time"
 
 	"connectrpc.com/connect"
+	"github.com/google/uuid"
+	sharedsession "github.com/vrooli/api-core/operatorsession"
+	"google.golang.org/protobuf/types/known/timestamppb"
+	"vrooli-bridge/internal/auth"
+	internalidentity "vrooli-bridge/internal/identity"
+	internaloperatorsession "vrooli-bridge/internal/operatorsession"
 
 	identityv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/identity"
 )
@@ -27,8 +33,9 @@ type Forwarder interface {
 
 // Deps wires the seams the Connect identity handler needs.
 type Deps struct {
-	Forwarder Forwarder
-	Logger    *log.Logger
+	Forwarder   Forwarder
+	Enrollments internaloperatorsession.Store
+	Logger      *log.Logger
 }
 
 type connectHandler struct {
@@ -96,6 +103,40 @@ func (h *connectHandler) Refresh(ctx context.Context, req *connect.Request[ident
 	return connect.NewResponse(&identityv1.RefreshResponse{
 		Token: owner.Token, RefreshToken: owner.RefreshToken,
 	}), nil
+}
+
+func (h *connectHandler) EnrollOperatorSession(ctx context.Context, req *connect.Request[identityv1.EnrollOperatorSessionRequest]) (*connect.Response[identityv1.EnrollOperatorSessionResponse], error) {
+	if h.deps.Enrollments == nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("operator session enrollment is unavailable"))
+	}
+	owner, err := auth.RequireOwner(ctx)
+	if err != nil {
+		return nil, auth.ToConnectError(err)
+	}
+	mode := sharedsession.Mode(strings.TrimSpace(req.Msg.GetMode()))
+	if mode == "" {
+		mode = sharedsession.ModePersonal
+	}
+	if mode != sharedsession.ModePersonal && mode != sharedsession.ModeShared && mode != sharedsession.ModeHosted {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("unsupported operator session mode"))
+	}
+	ceiling := append([]string(nil), owner.Scopes...)
+	requested := req.Msg.GetRequestedScopes()
+	if len(requested) > 0 {
+		if !sharedsession.ContainsAll(ceiling, requested) {
+			return nil, connect.NewError(connect.CodePermissionDenied, errors.New("requested operator session scope exceeds the owner ceiling"))
+		}
+		ceiling = append([]string(nil), requested...)
+	}
+	now := time.Now().UTC()
+	record := internaloperatorsession.Record{Reference: uuid.NewString(), OperatorID: owner.OwnerID, Mode: mode, PublicKey: append([]byte(nil), req.Msg.GetPublicKey()...), Scopes: ceiling, EnrolledAt: now}
+	if err := internaloperatorsession.Validate(record); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	if _, err := h.deps.Enrollments.Enroll(ctx, record); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	return connect.NewResponse(&identityv1.EnrollOperatorSessionResponse{EnrollmentReference: record.Reference, OperatorId: record.OperatorID, IdentityProvider: "scenario-authenticator", Mode: string(record.Mode), ScopeCeiling: record.Scopes, EnrolledAt: timestamppb.New(record.EnrolledAt), SessionTtlSeconds: int64(sharedsession.LocalSessionTTL / time.Second)}), nil
 }
 
 // toConnectError maps forwarder errors to Connect codes the UI can branch on.

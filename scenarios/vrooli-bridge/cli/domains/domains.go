@@ -5,6 +5,7 @@ import (
 	"vrooli-bridge/cli/domains/attached"
 	"vrooli-bridge/cli/domains/audit"
 	"vrooli-bridge/cli/domains/auth"
+	"vrooli-bridge/cli/domains/cleanup"
 	"vrooli-bridge/cli/domains/dispatch"
 	"vrooli-bridge/cli/domains/fleet"
 	"vrooli-bridge/cli/domains/gate"
@@ -63,6 +64,7 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 		dispatch.Register,
 		fleet.Register,
 		gate.Register,
+		cleanup.Register,
 		provision.Register,
 		queue.Register,
 		relay.Register,

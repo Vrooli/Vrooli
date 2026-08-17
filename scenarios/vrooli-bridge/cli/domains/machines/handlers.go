@@ -134,7 +134,7 @@ func (h *handlers) requestSSHCleanup(ctx cliapp.RunContext) error {
 	if resp == nil || resp.Msg == nil || resp.Msg.Cleanup == nil {
 		return fmt.Errorf("server returned no cleanup record")
 	}
-	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{Result: []string{fmt.Sprintf("Created SSH cleanup %s (pending).", resp.Msg.Cleanup.Id)}, Changes: []string{fmt.Sprintf("status=%s", resp.Msg.Cleanup.Status)}})
+	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{Result: []string{fmt.Sprintf("Recorded legacy cleanup intent %s.", resp.Msg.Cleanup.Id)}, Changes: []string{fmt.Sprintf("status=%s", resp.Msg.Cleanup.Status)}})
 }
 
 func (h *handlers) updateCleanup(ctx cliapp.RunContext) error {
@@ -146,7 +146,7 @@ func (h *handlers) updateCleanup(ctx cliapp.RunContext) error {
 	if resp == nil || resp.Msg == nil || resp.Msg.Cleanup == nil {
 		return fmt.Errorf("server returned no cleanup record")
 	}
-	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{Result: []string{fmt.Sprintf("Updated cleanup %s.", id)}, Changes: []string{fmt.Sprintf("status=%s", resp.Msg.Cleanup.Status)}})
+	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{Result: []string{fmt.Sprintf("Updated cleanup record %s.", id)}, Changes: []string{fmt.Sprintf("status=%s", resp.Msg.Cleanup.Status)}})
 }
 
 func (h *handlers) applyPolicy(ctx cliapp.RunContext) error {

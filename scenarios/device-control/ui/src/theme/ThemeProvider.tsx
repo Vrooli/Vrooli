@@ -31,8 +31,11 @@ const resolveChoice = (choice: ThemeChoice): "light" | "dark" => {
 
 const applyTheme = (resolved: "light" | "dark", choice: ThemeChoice) => {
   if (typeof document === "undefined") return;
-  // `system` clears the attribute so the CSS @media fallback in tokens.css
-  // owns resolution. Explicit choices write the attribute.
+  // Keep the compatibility `data-theme` selector and the design-kit
+  // `data-resolved-theme` selector synchronized. The former owns legacy
+  // semantic aliases; the latter owns the generated palette. `system` still
+  // clears the choice attribute so its media-query fallback remains valid.
+  document.documentElement.setAttribute("data-resolved-theme", resolved);
   if (choice === "system") {
     document.documentElement.removeAttribute("data-theme");
   } else {

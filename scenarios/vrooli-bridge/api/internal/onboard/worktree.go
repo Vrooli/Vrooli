@@ -54,6 +54,15 @@ var offlineProtoSourceRoots = []string{
 	"packages/proto/vendor/protovalidate",
 }
 
+// bridgeSourceClosureFiles are small control-plane contracts that every plain
+// working-tree shipment must carry. They are not generated build output and
+// cannot be reconstructed safely on a node: repo-contract.json is the shared
+// authority used by the node-side CLI to resolve its runtime-home paths during
+// cleanup and maintenance.
+var bridgeSourceClosureFiles = []string{
+	".vrooli/repo-contract.json",
+}
+
 // execGit runs one command capturing stdout; stderr rides the error.
 func execGit(ctx context.Context, dir, name string, args ...string) ([]byte, error) {
 	cmd := exec.CommandContext(ctx, name, args...)
@@ -101,6 +110,10 @@ func (g *gitWorkingTreeSource) Snapshot(ctx context.Context) (WorkingTreeSnapsho
 	// git ls-files can list the same path twice (once tracked, once as an "other")
 	// only in edge cases; dedupe + sort so the digest is deterministic regardless.
 	files = dedupeSorted(files)
+	// Keep the contract explicit even if a repository-local Git exclude or a
+	// future enumeration change would otherwise omit a tracked control-plane
+	// file. The validator below fails before SSH transfer if it is unavailable.
+	files = appendRequiredSourceFiles(root, files, bridgeSourceClosureFiles)
 	if err := validateWorkingTreeSourceClosure(root, files); err != nil {
 		return WorkingTreeSnapshot{}, err
 	}
@@ -124,6 +137,20 @@ func (g *gitWorkingTreeSource) Snapshot(ctx context.Context) (WorkingTreeSnapsho
 // control plane, where the remediation is clear, instead of producing a late
 // remote buf/validate/validate.proto error.
 func validateWorkingTreeSourceClosure(root string, files []string) error {
+	listed := make(map[string]struct{}, len(files))
+	for _, rel := range files {
+		listed[filepath.ToSlash(rel)] = struct{}{}
+	}
+	for _, rel := range bridgeSourceClosureFiles {
+		abs := filepath.Join(root, filepath.FromSlash(rel))
+		if _, err := os.Stat(abs); err != nil {
+			return fmt.Errorf("working-tree source is incomplete: required Bridge contract %s is unavailable: %w", rel, err)
+		}
+		if _, ok := listed[rel]; !ok {
+			return fmt.Errorf("working-tree source is incomplete: required Bridge contract %s was not enumerated", rel)
+		}
+	}
+
 	protoRoot := filepath.Join(root, "packages", "proto")
 	if _, err := os.Stat(filepath.Join(protoRoot, "buf.yaml")); os.IsNotExist(err) {
 		// A non-Vrooli repository is allowed through this generic source seam;
@@ -133,10 +160,6 @@ func validateWorkingTreeSourceClosure(root string, files []string) error {
 		return fmt.Errorf("inspect Proto workspace: %w", err)
 	}
 
-	listed := make(map[string]struct{}, len(files))
-	for _, rel := range files {
-		listed[filepath.ToSlash(rel)] = struct{}{}
-	}
 	var missing []string
 	for _, relRoot := range offlineProtoSourceRoots {
 		absRoot := filepath.Join(root, filepath.FromSlash(relRoot))
@@ -181,6 +204,27 @@ func validateWorkingTreeSourceClosure(root string, files []string) error {
 		detail = append(append([]string(nil), detail[:maxReported]...), fmt.Sprintf("... and %d more", len(missing)-maxReported))
 	}
 	return fmt.Errorf("working-tree source is incomplete: required offline Proto inputs were not enumerated: %s; restore packages/proto/vendor/googleapis and packages/proto/vendor/protovalidate (run 'cd packages/proto && make refresh-vendor' only when a BSR refresh is intended)", strings.Join(detail, ", "))
+}
+
+func appendRequiredSourceFiles(root string, files, required []string) []string {
+	seen := make(map[string]struct{}, len(files)+len(required))
+	for _, rel := range files {
+		seen[filepath.ToSlash(rel)] = struct{}{}
+	}
+	for _, rel := range required {
+		rel = filepath.ToSlash(strings.TrimSpace(rel))
+		if rel == "" {
+			continue
+		}
+		if _, ok := seen[rel]; ok {
+			continue
+		}
+		if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(rel))); err == nil {
+			files = append(files, rel)
+			seen[rel] = struct{}{}
+		}
+	}
+	return dedupeSorted(files)
 }
 
 // splitNUL splits git's NUL-terminated output into non-empty entries.

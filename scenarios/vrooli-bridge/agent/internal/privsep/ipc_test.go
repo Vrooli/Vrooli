@@ -4,10 +4,11 @@ package privsep_test
 
 import (
 	"context"
+	"crypto/ed25519"
+	"crypto/rand"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -15,14 +16,14 @@ import (
 	"github.com/stretchr/testify/require"
 
 	channelv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/channel"
+	cleanupv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/cleanup"
 	provisionv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/provision"
+	"github.com/vrooli/vrooli/packages/proto/privilegedops"
+	"github.com/vrooli/vrooli/packages/proto/sealing"
 	"vrooli-bridge/agent/internal/privsep"
 )
 
 func TestIPCProvisionRoundTripUsesTypedEvents(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("the production Windows service uses its native IPC adapter")
-	}
 	workDir := t.TempDir()
 	runGit(t, workDir, "init")
 	runGit(t, workDir, "config", "user.email", "bridge-test@example.invalid")
@@ -62,9 +63,6 @@ func TestIPCProvisionRoundTripUsesTypedEvents(t *testing.T) {
 }
 
 func TestIPCRejectsWrongRunnerPeer(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("the production Windows service uses its native IPC adapter")
-	}
 	socket := filepath.Join(t.TempDir(), "provision.sock")
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -73,6 +71,80 @@ func TestIPCRejectsWrongRunnerPeer(t *testing.T) {
 	waitForSocket(t, socket)
 	err := privsep.Run(ctx, socket, -1, &channelv1.ProvisionCommand{OpId: "rejected", TargetRevision: "abc"}, func(*provisionv1.ProvisionEvent) error { return nil })
 	require.Error(t, err)
+}
+
+func TestIPCCleanupRoundTripsEveryNamedOperation(t *testing.T) {
+	stateDir := t.TempDir()
+	_, nodePrivate, err := ed25519.GenerateKey(rand.Reader)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(filepath.Join(stateDir, "node_credential.key"), nodePrivate.Seed(), 0o600))
+	fakeVrooli := filepath.Join(t.TempDir(), "vrooli")
+	require.NoError(t, os.WriteFile(fakeVrooli, []byte("#!/bin/sh\nprintf '{\"ok\":true,\"complete\":true,\"plan_hash\":\"frozen\"}\\n'\n"), 0o700))
+	socket := filepath.Join(t.TempDir(), "run", "cleanup.sock")
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	serverErr := make(chan error, 1)
+	go func() { serverErr <- privsep.Serve(ctx, socket, fakeVrooli, t.TempDir(), os.Getuid(), stateDir) }()
+	waitForSocket(t, socket)
+
+	public, err := sealing.PublicKeyFromEd25519(nodePrivate.Public().(ed25519.PublicKey))
+	require.NoError(t, err)
+	operations := []channelv1.PrivilegedOperation{
+		channelv1.PrivilegedOperation_PRIVILEGED_OPERATION_INVENTORY_INSTALLATION,
+		channelv1.PrivilegedOperation_PRIVILEGED_OPERATION_PLAN_UNINSTALL,
+		channelv1.PrivilegedOperation_PRIVILEGED_OPERATION_PROVISION_BREAK_GLASS,
+		channelv1.PrivilegedOperation_PRIVILEGED_OPERATION_ISSUE_CLEANUP_CAPABILITY,
+		channelv1.PrivilegedOperation_PRIVILEGED_OPERATION_APPLY_FROZEN_PLAN,
+		channelv1.PrivilegedOperation_PRIVILEGED_OPERATION_VERIFY_RESULT,
+		channelv1.PrivilegedOperation_PRIVILEGED_OPERATION_ROTATE_BREAK_GLASS,
+	}
+	for _, operation := range operations {
+		t.Run(privilegedops.Name(operation), func(t *testing.T) {
+			cmd := &channelv1.CleanupCommand{
+				Operation: operation, OpId: "ipc-" + privilegedops.Name(operation), PlanId: "plan-1",
+				MachineId: "machine-1", NodeId: "node-1", Target: "mini.local", Scope: "all",
+				PlanHash: "hash-1", OperatorId: "operator-1", OperatorConfirmed: true,
+			}
+			if operation == channelv1.PrivilegedOperation_PRIVILEGED_OPERATION_APPLY_FROZEN_PLAN {
+				cmd.Capability = []byte("opaque-capability")
+			} else if operation != channelv1.PrivilegedOperation_PRIVILEGED_OPERATION_INVENTORY_INSTALLATION && operation != channelv1.PrivilegedOperation_PRIVILEGED_OPERATION_PLAN_UNINSTALL && operation != channelv1.PrivilegedOperation_PRIVILEGED_OPERATION_VERIFY_RESULT {
+				cmd.SealedPassphrase, err = sealing.Seal(public, []byte("correct horse"), sealing.Context(cmd.MachineId, cmd.NodeId, cmd.Target, cmd.Scope, cmd.PlanHash, cmd.PlanId, cmd.OperatorId))
+				require.NoError(t, err)
+			}
+			var events []*cleanupv1.CleanupEvent
+			require.NoError(t, privsep.RunCleanup(ctx, socket, os.Getuid(), cmd, func(event *cleanupv1.CleanupEvent) error {
+				events = append(events, event)
+				return nil
+			}))
+			require.NotEmpty(t, events)
+			last := events[len(events)-1]
+			require.Equal(t, cleanupv1.CleanupEventKind_CLEANUP_EVENT_KIND_EXIT, last.GetKind())
+			require.Zero(t, last.GetExitCode())
+			require.Equal(t, cmd.GetOpId(), last.GetOperationId())
+		})
+	}
+	cancel()
+	select {
+	case err := <-serverErr:
+		require.NoError(t, err)
+	case <-time.After(time.Second):
+		t.Fatal("cleanup helper did not stop after context cancellation")
+	}
+}
+
+func TestPrivilegedOperationAdmissionIsClosedAndNamesUnknownOperations(t *testing.T) {
+	for name := range privsep.SupportedOperations {
+		t.Run("accepts_"+name, func(t *testing.T) {
+			require.NoError(t, privsep.ValidateOperationName(name))
+		})
+	}
+	for _, name := range []string{"", "remove-everything", "provision --shell", "future-operation"} {
+		t.Run("rejects_"+strings.ReplaceAll(name, " ", "_"), func(t *testing.T) {
+			err := privsep.ValidateOperationName(name)
+			require.Error(t, err)
+			require.Contains(t, err.Error(), name)
+		})
+	}
 }
 
 func waitForSocket(t *testing.T, path string) {

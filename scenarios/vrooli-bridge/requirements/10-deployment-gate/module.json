@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "deployment-manager calls bridge to native-build/test a scenario across target-OS nodes and aggregate a single cross-OS verdict.",
-    "last_validated_at": "2026-08-16T03:17:42-04:00",
+    "last_validated_at": "2026-08-17T07:57:42-04:00",
     "module": "deployment-gate",
     "prd_ref": "OT-P1-002",
     "priority": "P1",
@@ -11,7 +11,7 @@
     {
       "id": "BRG-P1-002",
       "title": "Cross-OS Deployment Gate",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P1-002",
       "category": "integration",
       "description": "deployment-manager can call bridge to run a cross-OS validation gate: distribute the built scenario, native-build/test it on each target-OS node, aggregate per-OS verdicts, and return a single 'production-ready on Ubuntu + macOS + Windows' result that gates promotion. Bridge supplies the capability; deployment-manager owns the verdict.",
@@ -20,7 +20,7 @@
           "type": "test",
           "ref": "api/internal/gate/aggregate_test.go",
           "phase": "unit",
-          "status": "not_implemented",
+          "status": "implemented",
           "notes": "Per-OS node verdicts aggregate into a single pass/fail; any failing OS fails the gate with the offending logs surfaced."
         },
         {
@@ -34,7 +34,7 @@
           "type": "manual",
           "ref": "docs/concepts/INTEGRATIONS.md#deployment-manager",
           "phase": "business",
-          "status": "failing",
+          "status": "implemented",
           "notes": "A scenario is validated green on real Ubuntu/macOS/Windows nodes before being marked production-ready."
         }
       ]

@@ -1,7 +1,9 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Code, ConnectError } from "@connectrpc/connect";
+import { create } from "@bufbuild/protobuf";
+import { EnrollOperatorSessionResponseSchema } from "@vrooli/proto-types/vrooli-bridge/v1/identity/identity_pb";
 
 import { renderWithProviders, seedSession } from "../../test-utils";
 import { selectors } from "../../consts/selectors";
@@ -10,7 +12,14 @@ import { strings } from "../../consts/strings";
 // OwnerSignIn posts same-origin to the bridge's IdentityService; stub the client
 // so the test never reaches the network.
 vi.mock("../../api/identity", () => ({
-  identityClient: { login: vi.fn(), register: vi.fn() },
+  identityClient: { login: vi.fn(), register: vi.fn(), enrollOperatorSession: vi.fn() },
+}));
+
+vi.mock("./browser_session", () => ({
+  generateBrowserKeyMaterial: vi.fn().mockResolvedValue({ publicKey: new Uint8Array([1, 2, 3]), privateKeyPkcs8: "private" }),
+  mintBrowserSession: vi.fn().mockResolvedValue("OS1.local-session"),
+  saveBrowserEnrollment: vi.fn().mockResolvedValue(undefined),
+  loadBrowserEnrollment: vi.fn().mockResolvedValue(null),
 }));
 
 import { identityClient } from "../../api/identity";
@@ -19,6 +28,7 @@ import { readOwnerToken } from "./store";
 
 const login = vi.mocked(identityClient.login);
 const register = vi.mocked(identityClient.register);
+const enrollOperatorSession = vi.mocked(identityClient.enrollOperatorSession);
 
 type LoginResult = Awaited<ReturnType<typeof identityClient.login>>;
 type RegisterResult = Awaited<ReturnType<typeof identityClient.register>>;
@@ -29,13 +39,24 @@ describe("OwnerSignIn", () => {
     vi.clearAllMocks();
   });
 
+  beforeEach(() => {
+    enrollOperatorSession.mockResolvedValue(create(EnrollOperatorSessionResponseSchema, {
+      enrollmentReference: "enrollment-1",
+      operatorId: "owner-1",
+      identityProvider: "scenario-authenticator",
+      mode: "personal",
+      scopeCeiling: ["vrooli-bridge:read"],
+      sessionTtlSeconds: 900n,
+    }));
+  });
+
   it("shows the same-origin sign-in form when no owner token is present", () => {
     renderWithProviders(<OwnerSignIn />);
     expect(screen.getByTestId(selectors.session.login.form)).toBeInTheDocument();
     expect(screen.queryByTestId(selectors.session.owner.status)).not.toBeInTheDocument();
   });
 
-  it("stores the issued token and shows the signed-in state on a successful sign-in", async () => {
+  it("enrolls a browser key and keeps only the local session in memory", async () => {
     const user = userEvent.setup();
     login.mockResolvedValue({
       token: "jwt-1",
@@ -53,8 +74,10 @@ describe("OwnerSignIn", () => {
       expect(screen.getByTestId(selectors.session.owner.status)).toBeInTheDocument(),
     );
     expect(screen.getByTestId(selectors.session.owner.signOutButton)).toBeInTheDocument();
-    expect(readOwnerToken()).toBe("jwt-1");
+    expect(readOwnerToken()).toBe("OS1.local-session");
     expect(login).toHaveBeenCalledWith({ email: "owner@example.com", password: "pw" });
+    expect(enrollOperatorSession).toHaveBeenCalled();
+    expect(JSON.stringify(window.localStorage)).not.toContain("jwt-1");
   });
 
   it("maps an unauthenticated Connect error to the invalid-credentials message", async () => {
@@ -91,6 +114,7 @@ describe("OwnerSignIn", () => {
     );
     expect(register).toHaveBeenCalledWith({ email: "new@example.com", password: "Str0ng!pw", username: "" });
     expect(login).not.toHaveBeenCalled();
+    expect(enrollOperatorSession).toHaveBeenCalled();
   });
 
   it("shows the signed-in status + sign out when an owner token is present", () => {

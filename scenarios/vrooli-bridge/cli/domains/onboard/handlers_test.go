@@ -2,6 +2,8 @@ package onboard
 
 import (
 	"context"
+	"crypto/ed25519"
+	"crypto/rand"
 	"io"
 	"net/http"
 	"strings"
@@ -11,10 +13,13 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	cleanupv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/cleanup"
+	cleanupconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/cleanup/cleanup_v1connect"
 	machinesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/machines"
 	machinesconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/machines/machines_v1connect"
 	onboardv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/onboard"
 	onboardconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/onboard/onboard_v1connect"
+	"github.com/vrooli/vrooli/packages/proto/sealing"
 
 	"github.com/vrooli/cli-core/cliapp"
 	cliapptest "github.com/vrooli/cli-core/cliapptest"
@@ -26,7 +31,9 @@ import (
 // tests. It records the last request per verb and returns canned responses; the
 // Get sequence lets a watch test model progress → terminal without polling.
 type fakeOnboard struct {
+	onboardconnect.UnimplementedOnboardServiceHandler
 	machinesconnect.UnimplementedMachineServiceHandler
+	cleanupconnect.UnimplementedCleanupServiceHandler
 
 	createMachineReq *machinesv1.CreateMachineRequest
 	preflightReq     *onboardv1.PreflightOnboardingRequest
@@ -47,6 +54,10 @@ type fakeOnboard struct {
 
 	cancelReq  *onboardv1.CancelOnboardingRequest
 	cancelResp *onboardv1.CancelOnboardingResponse
+
+	prepareCleanupReq   *cleanupv1.PrepareCleanupRequest
+	provisionCleanupReq *cleanupv1.ProvisionBreakGlassRequest
+	protectReq          *onboardv1.ProtectOnboardingRequest
 }
 
 func (f *fakeOnboard) CreateMachine(_ context.Context, req *connect.Request[machinesv1.CreateMachineRequest]) (*connect.Response[machinesv1.CreateMachineResponse], error) {
@@ -76,6 +87,39 @@ func (f *fakeOnboard) StartOnboarding(_ context.Context, req *connect.Request[on
 		return nil, f.startErr
 	}
 	return connect.NewResponse(f.startResp), nil
+}
+
+func (f *fakeOnboard) ProtectOnboarding(_ context.Context, req *connect.Request[onboardv1.ProtectOnboardingRequest]) (*connect.Response[onboardv1.ProtectOnboardingResponse], error) {
+	f.protectReq = req.Msg
+	return connect.NewResponse(&onboardv1.ProtectOnboardingResponse{
+		Op:                    &onboardv1.OnboardingOp{Id: req.Msg.OnboardingOpId, State: onboardv1.OnboardingState_ONBOARDING_STATE_SUCCEEDED},
+		ProtectionStatus:      "completed",
+		ProtectionOperationId: "cleanup-protection-1",
+		Detail:                "target-bound material established",
+	}), nil
+}
+
+func (f *fakeOnboard) PrepareCleanup(_ context.Context, req *connect.Request[cleanupv1.PrepareCleanupRequest]) (*connect.Response[cleanupv1.PrepareCleanupResponse], error) {
+	f.prepareCleanupReq = req.Msg
+	public, _, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		return nil, err
+	}
+	sealingPublicKey, err := sealing.PublicKeyFromEd25519(public)
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&cleanupv1.PrepareCleanupResponse{Target: &cleanupv1.CleanupTarget{
+		MachineId: req.Msg.MachineId, NodeId: req.Msg.NodeId, Target: req.Msg.Target, Scope: req.Msg.Scope,
+		OperationId: "cleanup-protection-1", OperatorId: "operator-1", SealingPublicKey: sealingPublicKey,
+	}}), nil
+}
+
+func (f *fakeOnboard) ProvisionBreakGlass(_ context.Context, req *connect.Request[cleanupv1.ProvisionBreakGlassRequest]) (*connect.Response[cleanupv1.ProvisionBreakGlassResponse], error) {
+	f.provisionCleanupReq = req.Msg
+	return connect.NewResponse(&cleanupv1.ProvisionBreakGlassResponse{Operation: &cleanupv1.CleanupOperation{
+		Id: req.Msg.OperationId, Status: cleanupv1.CleanupStatus_CLEANUP_STATUS_COMPLETED,
+	}}), nil
 }
 
 func (f *fakeOnboard) GetOnboarding(_ context.Context, req *connect.Request[onboardv1.GetOnboardingRequest]) (*connect.Response[onboardv1.GetOnboardingResponse], error) {
@@ -110,9 +154,11 @@ func (f *fakeOnboard) RemoveFailedOnboarding(_ context.Context, _ *connect.Reque
 func connectAPI(svc *fakeOnboard) http.Handler {
 	path, handler := onboardconnect.NewOnboardServiceHandler(svc)
 	machinePath, machineHandler := machinesconnect.NewMachineServiceHandler(svc)
+	cleanupPath, cleanupHandler := cleanupconnect.NewCleanupServiceHandler(svc)
 	mux := http.NewServeMux()
 	mux.Handle(path, handler)
 	mux.Handle(machinePath, machineHandler)
+	mux.Handle(cleanupPath, cleanupHandler)
 	return mux
 }
 
@@ -135,6 +181,7 @@ func startSchema() cliapp.ArgSchema {
 		{Name: "setup-environment"},
 		{Name: "setup-resources"},
 		{Name: "setup-scenarios"},
+		{Name: "provision-service-user"},
 		{Name: "include-optional", Bool: true},
 		{Name: "skip-setup", Bool: true},
 		{Name: "skip-prereqs", Bool: true},
@@ -231,6 +278,42 @@ func TestConnect_RejectsRetiredSetupPassphraseIntake(t *testing.T) {
 	ctx, _ := cliapptest.NewCapturedRunContext(core, startSchema(), cliapptest.TestRunContextOptions{Flags: map[string]string{"host": "minimouse.local", "user": "matthalloran8", "setup-passphrase-stdin": "true"}})
 
 	require.ErrorContains(t, h.preflightConnect(ctx), "retired")
+}
+
+func TestCapabilityReportNamesEveryOnboardingCapability(t *testing.T) {
+	target := &cleanupv1.CleanupTarget{
+		Transport: "agent", TransportReason: "paired agent is online",
+		Capabilities:   []string{"agent.presence", "runtime", "provision", "ssh.management"},
+		ApprovedScopes: []string{"presence.read"},
+	}
+	report := strings.Join(capabilityReport(target, false), "\n")
+	for _, name := range []string{"agent presence", "runtime", "provisioning", "SSH management", "cleanup planning", "cleanup application", "target-bound break-glass"} {
+		require.Contains(t, report, name)
+	}
+	require.Contains(t, report, "reported but not approved")
+	require.Contains(t, report, "target-bound break-glass: not reported")
+}
+
+func TestCompleteProtectionIsStandaloneRecoveryWithoutReonboard(t *testing.T) {
+	svc := &fakeOnboard{}
+	core := clitest.NewTestApp(t, connectAPI(svc))
+	h := newHandlers(core)
+	h.authorization = strings.NewReader(`{"passphrase":"correct horse battery staple"}`)
+	ctx, _ := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{Flags: []cliapp.Flag{
+		{Name: "onboarding-op-id", Required: true},
+		{Name: "machine", Required: true},
+		{Name: "node", Required: true},
+		{Name: "target", Required: true},
+		{Name: "scope"},
+	}}, cliapptest.TestRunContextOptions{Flags: map[string]string{
+		"onboarding-op-id": "onboard-old", "machine": "machine-1", "node": "node-1", "target": "mini-01.local", "scope": "all",
+	}})
+
+	require.NoError(t, h.completeProtection(ctx))
+	require.Equal(t, "onboard-old", svc.protectReq.GetOnboardingOpId())
+	require.Equal(t, "machine-1", svc.protectReq.GetMachineId())
+	require.NotEmpty(t, svc.protectReq.GetSealedPassphrase(), "recovery must seal locally before dispatch")
+	require.NotEmpty(t, svc.prepareCleanupReq, "recovery prepares a typed operation without starting a new onboarding")
 }
 
 // envPassword is an injected password source that yields a fixed secret via the
@@ -377,10 +460,11 @@ func TestStart_SetupProfileFlagsReachRequest(t *testing.T) {
 
 	ctx, _ := cliapptest.NewCapturedRunContext(core, startSchema(), cliapptest.TestRunContextOptions{
 		Flags: map[string]string{
-			"host":              "h",
-			"setup-environment": "production",
-			"setup-resources":   "enabled",
-			"setup-scenarios":   "none",
+			"host":                   "h",
+			"setup-environment":      "production",
+			"setup-resources":        "enabled",
+			"setup-scenarios":        "none",
+			"provision-service-user": "root",
 		},
 		BoolFlags: map[string]bool{"include-optional": true},
 	})
@@ -389,6 +473,7 @@ func TestStart_SetupProfileFlagsReachRequest(t *testing.T) {
 	require.Equal(t, "production", svc.startReq.SetupEnvironment)
 	require.Equal(t, "enabled", svc.startReq.SetupResources)
 	require.Equal(t, "none", svc.startReq.SetupScenarios)
+	require.Equal(t, "root", svc.startReq.ProvisionServiceUser)
 	require.True(t, svc.startReq.IncludeOptional)
 
 	// Omitted profile flags default to empty (the node uses its own setup defaults).

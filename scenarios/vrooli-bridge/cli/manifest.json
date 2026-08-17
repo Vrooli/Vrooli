@@ -545,8 +545,8 @@
           }
         },
         {
-          "name": "request-ssh-cleanup",
-          "description": "Create an explicit pending SSH-access cleanup effect",
+          "name": "record-cleanup-intent",
+          "description": "Record legacy cleanup intent for historical review; this does not execute remote cleanup",
           "positionals": [
             {
               "name": "id",
@@ -569,8 +569,8 @@
           }
         },
         {
-          "name": "update-cleanup",
-          "description": "Record the explicit outcome of a Machine cleanup",
+          "name": "acknowledge-cleanup-record",
+          "description": "Update a legacy cleanup record with an explicit terminal review outcome",
           "positionals": [
             {
               "name": "id",
@@ -1508,6 +1508,97 @@
       ]
     },
     {
+      "name": "cleanup",
+      "description": "Bridge-managed, operator-confirmed cleanup of recorded Vrooli artifacts",
+      "commands": [
+        {
+          "name": "provision-break-glass",
+          "description": "Provision target-bound break-glass material through the paired helper; read authorization JSON from stdin",
+          "flags": [
+            {"name": "machine", "required": true, "description": "Stable machine id", "bind": {"field": "machine_id"}},
+            {"name": "node", "required": true, "description": "Paired node id", "bind": {"field": "node_id"}},
+            {"name": "target", "required": true, "description": "Exact target hostname", "bind": {"field": "target"}},
+            {"name": "scope", "description": "Cleanup scope (default all)", "bind": {"field": "scope"}},
+            {"name": "operator-id", "description": "Audited operator identity", "bind": {"field": "operator_id"}}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "CleanupService", "method": "ProvisionBreakGlass"},
+          "governance": {"effect": "write", "run_eligible": false, "requires_confirmation": true, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "start",
+          "description": "Start read-only inventory and freeze a cleanup operation",
+          "flags": [
+            {"name": "machine", "required": true, "description": "Stable machine id", "bind": {"field": "machine_id"}},
+            {"name": "node", "required": true, "description": "Paired node id", "bind": {"field": "node_id"}},
+            {"name": "target", "required": true, "description": "Exact target hostname", "bind": {"field": "target"}},
+            {"name": "scope", "description": "Cleanup scope (default all)", "bind": {"field": "scope"}}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "CleanupService", "method": "StartCleanup"},
+          "governance": {"effect": "write", "run_eligible": false, "requires_confirmation": true, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "reset-break-glass",
+          "description": "Retire only stale managed break-glass material; fresh protection must be provisioned afterward",
+          "flags": [
+            {"name": "machine", "required": true, "description": "Stable machine id", "bind": {"field": "machine_id"}},
+            {"name": "node", "required": true, "description": "Paired node id", "bind": {"field": "node_id"}},
+            {"name": "target", "required": true, "description": "Exact target hostname", "bind": {"field": "target"}},
+            {"name": "scope", "description": "Cleanup scope (default all)", "bind": {"field": "scope"}}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "CleanupService", "method": "ResetBreakGlass"},
+          "governance": {"effect": "write", "run_eligible": false, "requires_confirmation": true, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "get",
+          "description": "Show a cleanup operation and event history",
+          "positionals": [{"name": "id", "required": true, "description": "Cleanup operation id"}],
+          "binding": {"kind": "connect-rpc", "service": "CleanupService", "method": "GetCleanup"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "plan",
+          "description": "Show the frozen Remove, Keep, and Cannot attribute plan",
+          "positionals": [{"name": "id", "required": true, "description": "Cleanup operation id"}],
+          "binding": {"kind": "connect-rpc", "service": "CleanupService", "method": "PlanCleanup"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "confirm",
+          "description": "Confirm the exact frozen plan; read authorization JSON from stdin",
+          "positionals": [{"name": "id", "required": true, "description": "Cleanup operation id"}],
+          "flags": [
+            {"name": "target", "required": true, "description": "Exact target hostname"},
+            {"name": "plan-hash", "required": true, "description": "Frozen plan hash", "bind": {"field": "plan_hash"}},
+            {"name": "operator-id", "description": "Audited operator identity", "bind": {"field": "operator_id"}}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "CleanupService", "method": "ConfirmCleanup"},
+          "governance": {"effect": "write", "run_eligible": false, "requires_confirmation": true, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "apply",
+          "description": "Resume application of a previously confirmed frozen plan",
+          "positionals": [{"name": "id", "required": true, "description": "Cleanup operation id"}],
+          "binding": {"kind": "connect-rpc", "service": "CleanupService", "method": "ApplyCleanup"},
+          "governance": {"effect": "write", "run_eligible": false, "requires_confirmation": true, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "verify",
+          "description": "Request read-only post-cleanup verification",
+          "positionals": [{"name": "id", "required": true, "description": "Cleanup operation id"}],
+          "binding": {"kind": "connect-rpc", "service": "CleanupService", "method": "VerifyCleanup"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "cancel",
+          "description": "Cancel a non-terminal cleanup and release its machine lease",
+          "positionals": [{"name": "id", "required": true, "description": "Cleanup operation id"}],
+          "flags": [{"name": "reason", "description": "Reason recorded with cancellation"}],
+          "binding": {"kind": "connect-rpc", "service": "CleanupService", "method": "CancelCleanup"},
+          "governance": {"effect": "write", "run_eligible": false, "requires_confirmation": true, "permissions": ["network:internal"]}
+        }
+      ]
+    },
+    {
       "name": "runs",
       "description": "Inspect and control durable remote runs (re-attach by id, block-once wait)",
       "commands": [
@@ -1742,6 +1833,7 @@
             { "name": "setup-environment", "description": "development, production, or minimal" },
             { "name": "setup-resources", "description": "enabled, none, or a comma-separated list" },
             { "name": "setup-scenarios", "description": "none, all, or a comma-separated list" },
+            { "name": "provision-service-user", "description": "Separate OS account for the privileged provisioning helper" },
             { "name": "include-optional", "bool": true, "description": "Apply optional host safeguards" },
             { "name": "skip-setup", "bool": true, "description": "Skip node setup" },
             { "name": "skip-prereqs", "bool": true, "description": "Assume prerequisites are installed" },
@@ -1824,6 +1916,10 @@
               "description": "Node-side setup scenario selection: none | all | <comma-list> (empty = node default)"
             },
             {
+              "name": "provision-service-user",
+              "description": "Separate OS principal for the privileged provisioning helper"
+            },
+            {
               "name": "include-optional",
               "bool": true,
               "description": "Also apply optional (non-required) host safeguards during node setup"
@@ -1880,6 +1976,19 @@
               "network:internal"
             ]
           }
+        },
+        {
+          "name": "complete-protection",
+          "description": "Complete a named onboarding protection step from an opaque authorization JSON object on stdin",
+          "flags": [
+            { "name": "onboarding-op-id", "required": true, "description": "Succeeded onboarding operation" },
+            { "name": "machine", "required": true, "description": "Durable Machine identity" },
+            { "name": "node", "required": true, "description": "Paired Node identity" },
+            { "name": "target", "required": true, "description": "Exact target hostname" },
+            { "name": "scope", "description": "Cleanup scope binding (default: all)" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "OnboardService", "method": "ProtectOnboarding" },
+          "governance": { "effect": "write", "run_eligible": false, "requires_confirmation": true, "permissions": ["network:internal"] }
         },
         {
           "name": "status",
@@ -2086,6 +2195,21 @@
     "domains": []
   },
   "omitted": [
+    {
+      "service": "CleanupService",
+      "method": "PrepareCleanup",
+      "reason": "Internal typed preparation used by onboarding protection and cleanup provisioning to resolve the target and publish its sealing key; operators invoke the resulting protected workflow rather than a standalone preparation command."
+    },
+    {
+      "service": "CleanupService",
+      "method": "ReportCleanupEvent",
+      "reason": "Node-facing authenticated event ingestion called by the node-agent while reporting cleanup progress; it is not an operator command."
+    },
+    {
+      "service": "IdentityService",
+      "method": "EnrollOperatorSession",
+      "reason": "Browser-facing enrollment RPC used to exchange a local public key for an enrollment record; it is an authenticated UI flow, not an operator CLI command."
+    },
     {
       "service": "PresenceService",
       "method": "ReportSessionFrame",

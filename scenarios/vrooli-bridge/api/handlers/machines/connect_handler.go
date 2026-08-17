@@ -271,11 +271,11 @@ func (h *connectHandler) RequestMachineSSHCleanup(ctx context.Context, req *conn
 	if _, err := h.deps.Service.Get(ctx, req.Msg.MachineId); err != nil {
 		return nil, h.error("RequestMachineSSHCleanup", err)
 	}
-	cleanup, err := h.deps.Service.CreateCleanupTombstone(ctx, internalmachines.CleanupTombstone{MachineID: req.Msg.MachineId, Action: "remove_ssh_access"})
+	cleanup, err := h.deps.Service.CreateCleanupTombstone(ctx, internalmachines.CleanupTombstone{MachineID: req.Msg.MachineId, Action: "cleanup_record"})
 	if err != nil {
 		return nil, h.error("RequestMachineSSHCleanup", err)
 	}
-	h.record(ctx, req.Msg.MachineId, "request_ssh_cleanup", cleanup.ID)
+	h.record(ctx, req.Msg.MachineId, "record_cleanup_intent", cleanup.ID)
 	return connect.NewResponse(&machinesv1.RequestMachineSSHCleanupResponse{Cleanup: cleanupToProto(cleanup)}), nil
 }
 

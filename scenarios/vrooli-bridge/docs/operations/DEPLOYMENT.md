@@ -167,11 +167,11 @@ byte-matches what `--print-service-unit` prints.
     `~/.config/systemd/user`. Headless auto-start requires
     `loginctl enable-linger <user>` (the onboarding path runs this in the
     `autostart` step).
-  - **macOS** → a launchd LaunchAgent labelled
-    `com.vrooli.bridge.vrooli-bridge-agent` under `~/Library/LaunchAgents`. A
-    LaunchAgent runs only while its user is GUI-logged-in, so a headless Mac mini
-    needs **auto-login enabled** (there is no linger equivalent — see
-    [`RUNBOOK.md`](RUNBOOK.md#mac-mini-onboarding)).
+  - **macOS** → launchd. SSH-only/headless sessions use the machine-wide
+    `com.vrooli.bridge.vrooli-bridge-agent` LaunchDaemon under
+    `/Library/LaunchDaemons`, so auto-login is not required. A GUI-domain
+    session may use a LaunchAgent under `~/Library/LaunchAgents`; that mode
+    retains macOS's auto-login prerequisite (see [`RUNBOOK.md`](RUNBOOK.md#mac-mini-onboarding)).
   - **Windows** → render-only today (`sc.exe create … binPath= … start= auto`
     argv); live install is not yet exercised.
 - The two trust tiers install as distinct OS principals: the non-privileged

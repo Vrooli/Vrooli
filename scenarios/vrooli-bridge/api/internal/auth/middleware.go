@@ -16,6 +16,13 @@ type BreakGlassValidator interface {
 	ValidateBreakGlass(ctx context.Context, token string) (Identity, error)
 }
 
+// LocalSessionValidator is the offline enrollment path. It is separate from
+// bearer validation so a malformed local credential can never fall through to
+// a different authorization scheme.
+type LocalSessionValidator interface {
+	ValidateLocal(ctx context.Context, token string) (Identity, error)
+}
+
 // BreakGlassAuditor records accepted break-glass uses as typed audit events.
 // Audit failure is refusal: emergency access remains accountable.
 type BreakGlassAuditor interface {
@@ -99,6 +106,16 @@ func MiddlewareWithAudit(v Validator, logger *log.Logger, auditor BreakGlassAudi
 					}
 				} else {
 					logger.Printf("auth: break-glass rejected: verifier unavailable")
+				}
+			} else if parts := strings.SplitN(header, " ", 2); len(parts) == 2 && strings.EqualFold(parts[0], "LocalSession") {
+				if local, ok := v.(LocalSessionValidator); ok {
+					if id, err := local.ValidateLocal(r.Context(), strings.TrimSpace(parts[1])); err == nil {
+						r = r.WithContext(WithIdentity(r.Context(), id))
+					} else {
+						logger.Printf("auth: local owner session rejected: %v", err)
+					}
+				} else {
+					logger.Printf("auth: local owner session rejected: verifier unavailable")
 				}
 			} else if token := BearerToken(header); token != "" {
 				if id, err := v.Validate(r.Context(), token); err == nil {

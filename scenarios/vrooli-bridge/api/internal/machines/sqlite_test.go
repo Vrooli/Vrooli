@@ -362,6 +362,27 @@ func TestMigrateAddsReviewConfidenceWithoutDroppingEvidence(t *testing.T) {
 	require.Equal(t, "ambiguous", confidence)
 }
 
+func TestMigrateClosesLegacyCleanupTombstonesAsHistory(t *testing.T) {
+	d := db.NewSQLite(t)
+	ctx := context.Background()
+	_, err := d.ExecContext(ctx, `CREATE TABLE machine_cleanup_tombstones (
+        id TEXT PRIMARY KEY, machine_id TEXT NOT NULL, action TEXT NOT NULL,
+        status TEXT NOT NULL, detail TEXT NOT NULL, created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL, acknowledged_at TEXT NOT NULL DEFAULT '')`)
+	require.NoError(t, err)
+	_, err = d.ExecContext(ctx, `INSERT INTO machine_cleanup_tombstones
+        (id,machine_id,action,status,detail,created_at,updated_at)
+        VALUES ('legacy-1','machine-1','remove_ssh_access','pending','','2026-07-17T12:00:00Z','2026-07-17T12:00:00Z')`)
+	require.NoError(t, err)
+	require.NoError(t, machines.Migrate(ctx, d))
+	var action, status, detail string
+	require.NoError(t, d.QueryRowContext(ctx, "SELECT action,status,detail FROM machine_cleanup_tombstones WHERE id='legacy-1'").Scan(&action, &status, &detail))
+	require.Equal(t, "cleanup_record", action)
+	require.Equal(t, "not_applicable", status)
+	require.Contains(t, detail, "no remote cleanup was executed")
+	require.NoError(t, machines.Migrate(ctx, d), "tombstone migration is idempotent")
+}
+
 func TestMigrateReconcilesDuplicateCurrentNodesBeforeUniqueIndex(t *testing.T) {
 	d := db.NewSQLite(t)
 	ctx := context.Background()

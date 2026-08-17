@@ -19,7 +19,7 @@ var Endpoints = []module.EndpointDescriptor{
 		Description: "Forwards email + password to scenario-authenticator (resolved by name via api-core/discovery) and returns the issued owner JWT. The control plane owns no credential logic — it relays. Used by the same-origin Bridge UI and by `vrooli-bridge auth login`; neither client calls scenario-authenticator directly.",
 		Category:    "identity",
 		Request:     &module.Schema{Type: "object", Properties: map[string]string{"email": "string", "password": "string"}},
-		Response:    &module.Schema{Type: "object", Properties: map[string]string{"token": "string (owner JWT)", "refresh_token": "string", "email": "string", "user_id": "string"}}, //nolint:gosec // schema field labels in an API descriptor, not hardcoded credentials
+		Response:    &module.Schema{Type: "object", Properties: map[string]string{"token": "string (owner JWT)", "refresh_token": "string", "email": "string", "user_id": "string"}}, // #nosec G101 -- schema field labels in an API descriptor, not hardcoded credentials.
 		Errors: []module.ErrorDesc{
 			{Status: 401, Code: "unauthenticated", Description: "Invalid email or password"},
 			{Status: 503, Code: "unavailable", Description: "scenario-authenticator could not be reached"},
@@ -36,7 +36,7 @@ var Endpoints = []module.EndpointDescriptor{
 		Description: "Creates an owner account in scenario-authenticator and returns the issued owner JWT (the account is signed in immediately, so a fresh owner can register their first node in one flow). Relayed via api-core/discovery; same-origin only.",
 		Category:    "identity",
 		Request:     &module.Schema{Type: "object", Properties: map[string]string{"email": "string", "password": "string", "username": "string (optional)"}},
-		Response:    &module.Schema{Type: "object", Properties: map[string]string{"token": "string (owner JWT)", "refresh_token": "string", "email": "string", "user_id": "string"}}, //nolint:gosec // schema field labels in an API descriptor, not hardcoded credentials
+		Response:    &module.Schema{Type: "object", Properties: map[string]string{"token": "string (owner JWT)", "refresh_token": "string", "email": "string", "user_id": "string"}}, // #nosec G101 -- schema field labels in an API descriptor, not hardcoded credentials.
 		Errors: []module.ErrorDesc{
 			{Status: 409, Code: "already_exists", Description: "Email already registered"},
 			{Status: 400, Code: "invalid_argument", Description: "Weak password or malformed email (authenticator message relayed)"},
@@ -54,10 +54,24 @@ var Endpoints = []module.EndpointDescriptor{
 		Description: "Rotates a scenario-authenticator refresh token and relays the replacement owner token pair. The bridge stores nothing server-side.",
 		Category:    "identity",
 		Request:     &module.Schema{Type: "object", Properties: map[string]string{"refresh_token": "string"}},
-		Response:    &module.Schema{Type: "object", Properties: map[string]string{"token": "string (owner JWT)", "refresh_token": "string"}}, //nolint:gosec // schema field labels in an API descriptor, not hardcoded credentials
+		Response:    &module.Schema{Type: "object", Properties: map[string]string{"token": "string (owner JWT)", "refresh_token": "string"}}, // #nosec G101 -- schema field labels in an API descriptor, not hardcoded credentials.
 		Errors: []module.ErrorDesc{
 			{Status: 401, Code: "unauthenticated", Description: "Refresh token rejected"},
 			{Status: 503, Code: "unavailable", Description: "scenario-authenticator could not be reached"},
+		},
+	},
+	{
+		ID:          "identity_enroll_operator_session",
+		Path:        identityconnect.IdentityServiceEnrollOperatorSessionProcedure,
+		Method:      "POST",
+		Summary:     "Enroll a locally verifiable operator session",
+		Description: "Owner-authenticated enrollment of a client public key. The private key stays on the client and subsequent short-lived sessions are verified locally by Bridge.",
+		Category:    "identity",
+		Request:     &module.Schema{Type: "object", Properties: map[string]string{"public_key": "bytes", "mode": "string", "requested_scopes": "array"}},
+		Response:    &module.Schema{Type: "object", Properties: map[string]string{"enrollment_reference": "string", "operator_id": "string", "scope_ceiling": "array", "session_ttl_seconds": "integer"}},
+		Errors: []module.ErrorDesc{
+			{Status: 401, Code: "unauthenticated", Description: "A normal owner session is required"},
+			{Status: 403, Code: "permission_denied", Description: "Requested scope exceeds the owner ceiling"},
 		},
 	},
 }

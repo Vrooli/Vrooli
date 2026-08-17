@@ -23,6 +23,7 @@ import (
 	internalonboard "vrooli-bridge/internal/onboard"
 	onboardssh "vrooli-bridge/internal/onboard/ssh"
 	internalonboarding "vrooli-bridge/internal/onboarding"
+	internaloperatorsession "vrooli-bridge/internal/operatorsession"
 	internalpairing "vrooli-bridge/internal/pairing"
 	"vrooli-bridge/internal/presence"
 	internalprovision "vrooli-bridge/internal/provision"
@@ -53,6 +54,7 @@ import (
 	attachedH "vrooli-bridge/handlers/attached"
 	auditH "vrooli-bridge/handlers/audit"
 	channelH "vrooli-bridge/handlers/channel"
+	cleanupH "vrooli-bridge/handlers/cleanup"
 	dispatchH "vrooli-bridge/handlers/dispatch"
 	fleetH "vrooli-bridge/handlers/fleet"
 	gateH "vrooli-bridge/handlers/gate"
@@ -201,26 +203,32 @@ func cpKeyDir() (string, error) {
 }
 
 // bootstrapScriptPath resolves the local path to the node bootstrap script the
-// onboard orchestrator copies to each host. Resolution order: the
-// BRIDGE_BOOTSTRAP_SCRIPT env override, then a set of layout-relative candidates
-// derived from the executable location and the working directory (the api binary
-// lives at scenarios/vrooli-bridge/api/, the script at ../bootstrap/). A missing
-// script is a hard configuration error surfaced at boot.
+// onboard orchestrator copies to each host. Resolution order: the explicit
+// BRIDGE_BOOTSTRAP_SCRIPT override, scenario/repository roots supplied by the
+// lifecycle, the executable location, and finally the working directory. The
+// lifecycle deliberately starts API steps from the API module directory, so a
+// working-directory-only lookup is not portable across supported launchers.
+// A missing script is a hard configuration error surfaced at boot.
 func bootstrapScriptPath() (string, error) {
 	if p := strings.TrimSpace(os.Getenv("BRIDGE_BOOTSTRAP_SCRIPT")); p != "" {
-		return p, nil
+		if info, err := os.Stat(p); err == nil && !info.IsDir() {
+			abs, err := filepath.Abs(p)
+			if err != nil {
+				return "", err
+			}
+			return abs, nil
+		}
+		return "", fmt.Errorf("configured BRIDGE_BOOTSTRAP_SCRIPT is not a file: %s", p)
 	}
-	candidates := []string{
-		filepath.Join("bootstrap", "bootstrap.sh"),
-		filepath.Join("scenarios", "vrooli-bridge", "bootstrap", "bootstrap.sh"),
-	}
-	if exe, err := os.Executable(); err == nil {
-		exeDir := filepath.Dir(exe)
-		candidates = append(candidates,
-			filepath.Join(exeDir, "..", "bootstrap", "bootstrap.sh"),
-			filepath.Join(exeDir, "bootstrap", "bootstrap.sh"),
-		)
-	}
+	workDir, _ := os.Getwd()
+	exe, _ := os.Executable()
+	candidates := bootstrapScriptCandidates(
+		workDir,
+		strings.TrimSpace(os.Getenv("VROOLI_SCENARIO_DIR")),
+		strings.TrimSpace(os.Getenv("SCENARIO_PATH")),
+		strings.TrimSpace(os.Getenv("VROOLI_ROOT")),
+		exe,
+	)
 	for _, c := range candidates {
 		if info, err := os.Stat(c); err == nil && !info.IsDir() {
 			abs, err := filepath.Abs(c)
@@ -231,6 +239,31 @@ func bootstrapScriptPath() (string, error) {
 		}
 	}
 	return "", fmt.Errorf("node bootstrap script not found (set BRIDGE_BOOTSTRAP_SCRIPT); looked in %v", candidates)
+}
+
+// bootstrapScriptCandidates keeps path discovery deterministic and testable.
+// Environment-provided roots are preferred over process cwd because lifecycle
+// and service managers may launch the same binary from different directories.
+func bootstrapScriptCandidates(workDir, scenarioDir, scenarioPath, repoRoot, executable string) []string {
+	var candidates []string
+	add := func(path string) {
+		if strings.TrimSpace(path) == "" {
+			return
+		}
+		candidates = append(candidates, filepath.Clean(path))
+	}
+	for _, dir := range []string{scenarioDir, scenarioPath} {
+		add(filepath.Join(dir, "bootstrap", "bootstrap.sh"))
+	}
+	add(filepath.Join(repoRoot, "scenarios", "vrooli-bridge", "bootstrap", "bootstrap.sh"))
+	if strings.TrimSpace(executable) != "" {
+		exeDir := filepath.Dir(executable)
+		add(filepath.Join(exeDir, "..", "bootstrap", "bootstrap.sh"))
+		add(filepath.Join(exeDir, "bootstrap", "bootstrap.sh"))
+	}
+	add(filepath.Join(workDir, "bootstrap", "bootstrap.sh"))
+	add(filepath.Join(workDir, "scenarios", "vrooli-bridge", "bootstrap", "bootstrap.sh"))
+	return candidates
 }
 
 // deriveControlPlaneURL builds the dial-back URL nodes use to reach this
@@ -339,6 +372,7 @@ func main() {
 		log.Fatalf("resolve trust posture defaults: %v", err)
 	}
 	log.Printf("trust posture %q selects %d default Bridge execution scope(s)", posture.Posture, len(postureDefaults.NodeExecutionScopes))
+	operatorSessionStore := internaloperatorsession.NewSQLiteRepository(db)
 	var breakGlassPublic []byte
 	publicKeyPath := strings.TrimSpace(os.Getenv("VROOLI_BREAK_GLASS_PUBLIC_KEY"))
 	if publicKeyPath == "" {
@@ -360,6 +394,7 @@ func main() {
 		BreakGlassPublicKey: breakGlassPublic,
 		BreakGlassAudience:  strings.TrimSpace(os.Getenv("VROOLI_BREAK_GLASS_AUDIENCE")),
 		BreakGlassTarget:    strings.TrimSpace(os.Getenv("VROOLI_BREAK_GLASS_TARGET")),
+		LocalSessions:       operatorSessionStore,
 	})
 
 	// The presence hub is the in-memory view of which nodes hold a dial-out
@@ -523,6 +558,12 @@ func main() {
 	// stays coherent across both call sites.
 	provisionSvc := provisionH.NewService(db, clk, registrySvc, presenceHub, auditStore, cpKeypair,
 		internalprovision.WithRevisionResolver(revResolver))
+	sshStateDir, err := onboardssh.ResolveStateDir()
+	if err != nil {
+		log.Fatalf("resolve onboarding SSH state dir: %v", err)
+	}
+	sshSvc := onboardssh.NewService(sshStateDir)
+	cleanupSvc := cleanupH.NewService(db, clk, registrySvc, pairingSvc, presenceHub, auditStore, cpKeypair, sshSvc)
 
 	// onboard (phase 5): the orchestration tier. It drives a raw SSH host to a
 	// paired, ONLINE, auto-starting fleet agent as a durable, server-owned op
@@ -531,10 +572,6 @@ func main() {
 	// key install; the single-use pairing code is issued server-side (pairingSvc)
 	// and injected into the remote bootstrap over stdin (never argv/logs). It
 	// owns its durable op tables and reconciles ops orphaned by a restart at boot.
-	sshStateDir, err := onboardssh.ResolveStateDir()
-	if err != nil {
-		log.Fatalf("resolve onboarding SSH state dir: %v", err)
-	}
 	bootstrapScript, err := bootstrapScriptPath()
 	if err != nil {
 		log.Fatalf("resolve node bootstrap script: %v", err)
@@ -556,6 +593,7 @@ func main() {
 	endpointStore := internalreadiness.NewStore(db, internalreadiness.Endpoint{URL: readinessEndpoint, Mode: fallbackMode, Source: readinessSource})
 	onboardOpts := []internalonboard.Option{
 		internalonboard.WithRevisionResolver(revResolver),
+		internalonboard.WithProtectionProvisioner(onboardH.NewProtectionProvisioner(cleanupSvc)),
 		internalonboard.WithDefaultScopes(postureDefaults.NodeExecutionScopes),
 		internalonboard.WithWorkingTreeSource(internalonboard.NewWorkingTreeSource(strings.TrimSpace(os.Getenv("BRIDGE_CP_REPO_DIR")))),
 		internalonboard.WithArtifactBuilder(internalonboard.NewArtifactBuilder()),
@@ -584,7 +622,6 @@ func main() {
 		log.Printf("onboard: default control-plane URL derived as %s (override per request or with BRIDGE_CONTROL_PLANE_URL)", derived)
 		onboardOpts = append(onboardOpts, internalonboard.WithDefaultControlPlaneURL(derived))
 	}
-	sshSvc := onboardssh.NewService(sshStateDir)
 	onboardSvc := onboardH.NewService(db, clk, pairingSvc, presenceHub, sshSvc, bootstrapScript, onboardOpts...)
 	if n, rerr := onboardSvc.ResumeInterrupted(context.Background()); rerr != nil {
 		log.Printf("onboard: reconcile interrupted ops failed: %v", rerr)
@@ -616,7 +653,7 @@ func main() {
 		// which forwards to the authenticator (resolved by name via the shared
 		// authResolver) and relays the issued owner JWT. Unauthenticated (it precedes
 		// the caller holding a token); owns no credential logic and no tables.
-		identityH.Module(authResolver, logger),
+		identityH.Module(authResolver, logger, operatorSessionStore),
 		// machines: operator-intent identity and lifecycle. It references Node
 		// lineage rather than copying Registry or live Presence state.
 		machinesH.Module(db, clk, sshSvc, registrySvc, pairingSvc, presenceHub, onboardSvc, logger),
@@ -628,6 +665,7 @@ func main() {
 			channelH.WithDeliveryAckRecorder(runsSvc), channelH.WithAuditSink(auditStore),
 			channelH.WithSessionManager(sessionManager, authClient, registrySvc), channelH.WithSessionPush(pushSession),
 			channelH.WithRelayResponseSink(relayBroker)),
+		cleanupH.Module(cleanupSvc, nodeVerifier, logger),
 		pairingH.Module(pairingSvc, cpKeypair.PublicKeyBase64(), postureDefaults.NodeExecutionScopes, logger),
 		// dispatch (OT-P0-004): the allowlist gate. It reads node scopes
 		// (registrySvc), checks presence + protocol compatibility, creates durable

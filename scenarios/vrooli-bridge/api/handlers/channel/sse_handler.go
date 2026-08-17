@@ -82,6 +82,12 @@ func (h *sseHandler) handleEvents(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if err := h.deps.Verifier.VerifyProof(r.Context(), proof); err != nil {
+			// Keep the rejection typed for the node, but leave an operator-useful
+			// diagnostic in the control-plane log.  The SSE edge is the only node
+			// auth path whose response cannot carry a Connect error body back to the
+			// long-lived agent, so otherwise a key mismatch is indistinguishable from
+			// a generic offline node during onboarding.
+			h.deps.Logger.Printf("channel.events: dial-out auth rejected node=%q: %v", proof.NodeID, err)
 			httpx.WriteError(w, http.StatusUnauthorized, "unauthenticated", "dial-out token rejected")
 			return
 		}

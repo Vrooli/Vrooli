@@ -112,6 +112,10 @@
       "archive": "Archive",
       "revokeNode": "Revoke node",
       "cleanup": "Request SSH cleanup",
+      "cleanupPlanRemove": "Remove",
+      "cleanupPlanKeep": "Keep",
+      "cleanupPlanCannotAttribute": "Cannot attribute",
+      "cleanupPlanEmpty": "None",
       "remove": "Remove record",
       "removeConfirm": "Remove Machine record {{id}}? Its audit and enrollment history remain preserved."
     },

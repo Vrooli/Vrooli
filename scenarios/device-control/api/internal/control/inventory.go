@@ -19,10 +19,20 @@ func (s *Service) Verify(ctx context.Context, id string) (strategy.ConformanceRe
 }
 
 func (s *Service) Devices(ctx context.Context) []Device {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	timeout := s.inventoryTimeout
+	if timeout <= 0 {
+		timeout = 2 * time.Second
+	}
+	inventoryCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.restoreTransportStrategies()
-	declarations := s.registry.List(ctx)
+	declarations := s.registry.List(inventoryCtx)
 	declarationByID := make(map[string]strategy.Declaration, len(declarations))
 	for _, declaration := range declarations {
 		declarationByID[declaration.StrategyID] = declaration
@@ -67,7 +77,7 @@ func (s *Service) Devices(ctx context.Context) []Device {
 				// wireless phone enough time to answer the complete declaration;
 				// truncating it makes an otherwise usable target look capability-
 				// empty to delivery ramps.
-				probeCtx, cancel := context.WithTimeout(ctx, 8*time.Second)
+				probeCtx, cancel := context.WithTimeout(inventoryCtx, 8*time.Second)
 				effective, err := item.Describe(probeCtx)
 				cancel()
 				if err == nil {
@@ -75,7 +85,7 @@ func (s *Service) Devices(ctx context.Context) []Device {
 				}
 				if enumerator, ok := item.(strategy.Enumerator); ok {
 					enumerating = true
-					if discovered, err := enumerator.Enumerate(ctx); err == nil {
+					if discovered, err := enumerator.Enumerate(inventoryCtx); err == nil {
 						for _, discoveredDevice := range discovered {
 							if !candidate.promoted {
 								if promotedID, duplicate := promotedEndpoints[strings.TrimSpace(discoveredDevice.Serial)]; duplicate {
@@ -93,7 +103,7 @@ func (s *Service) Devices(ctx context.Context) []Device {
 							if !candidate.promoted {
 								if scoped, scopedOK := item.(strategy.DeviceScoped); scopedOK && strings.TrimSpace(discoveredDevice.Serial) != "" {
 									deviceStrategy := scoped.ForDevice(discoveredDevice.Serial)
-									probeCtx, probeCancel := context.WithTimeout(ctx, 8*time.Second)
+									probeCtx, probeCancel := context.WithTimeout(inventoryCtx, 8*time.Second)
 									effective, describeErr := deviceStrategy.Describe(probeCtx)
 									probeCancel()
 									if describeErr == nil {
@@ -123,12 +133,14 @@ func (s *Service) Devices(ctx context.Context) []Device {
 	if len(seen) == 0 {
 		seen = map[string]bool{}
 	}
-	s.devices.MarkAbsentExcept(time.Now().UTC(), seen, func(item devicedomain.Record) string {
-		if item.HostNodeID != "" {
-			return "device not present on host node " + item.HostNodeID
-		}
-		return "device not present on host node local"
-	})
+	if inventoryCtx.Err() == nil {
+		s.devices.MarkAbsentExcept(time.Now().UTC(), seen, func(item devicedomain.Record) string {
+			if item.HostNodeID != "" {
+				return "device not present on host node " + item.HostNodeID
+			}
+			return "device not present on host node local"
+		})
+	}
 	out := make([]Device, 0)
 	for _, item := range s.devices.List() {
 		if seen[item.ID] || item.Kind == "physical" || item.Kind == "emulator" {
@@ -136,7 +148,7 @@ func (s *Service) Devices(ctx context.Context) []Device {
 		}
 	}
 	if s.attached != nil {
-		attached, err := s.attached.List(ctx)
+		attached, err := s.attached.List(inventoryCtx)
 		if err != nil {
 			// A failed bridge lookup must not manufacture a pseudo-device beside
 			// locally enumerated physical devices. Consumers expect one row per

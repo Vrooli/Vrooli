@@ -125,6 +125,23 @@ func (p passwordSource) resolve(user, host string, fromStdin, promptRequested bo
 	return "", credentialNone, nil
 }
 
+// resolveBreakGlass prompts only on an interactive terminal. There is no
+// environment or argv fallback for this secret: unattended onboarding may
+// decline the protection step and must report the missing capability instead
+// of hanging or pretending that a node is protected.
+func (p passwordSource) resolveBreakGlass(target string) (string, error) {
+	if !p.isTerminal() {
+		return "", nil
+	}
+	fmt.Fprintf(p.prompt, "Break-glass passphrase for %s (leave blank to finish onboarding without protection): ", target)
+	secret, err := p.readSecret()
+	fmt.Fprintln(p.prompt)
+	if err != nil {
+		return "", fmt.Errorf("read break-glass passphrase: %w", err)
+	}
+	return string(secret), nil
+}
+
 // trimTrailingNewline strips exactly one trailing LF or CRLF — the newline the
 // shell pipe appends — while preserving any other byte that is genuinely part
 // of the password (including a bare trailing CR).

@@ -46,6 +46,8 @@ type Service struct {
 	flowRuns            map[string]Flow
 	externalRecordings  map[string]externalRecording
 	auth                *authdomain.Store
+	inventoryTimeout    time.Duration
+	sessionQueryTimeout time.Duration
 }
 
 type externalRecording struct {
@@ -73,7 +75,7 @@ func New(registry *strategyregistry.Registry) *Service {
 		dir = configured
 	}
 	authStore, _ := authdomain.NewStore(nil, nil)
-	return &Service{registry: registry, sessions: map[string]Session{}, audits: []Audit{}, agents: map[string]AgentRun{}, devices: devicedomain.NewStore(), artifacts: map[string]string{}, artifactKinds: map[string]string{}, evidenceDir: dir, activeCancels: map[string]context.CancelFunc{}, transportStrategies: map[string]strategy.Strategy{}, transportStates: map[string]transportState{}, anchors: internalflows.NewAnchorStore(), runs: map[string]RunResult{}, flowRuns: map[string]Flow{}, externalRecordings: map[string]externalRecording{}, auth: authStore}
+	return &Service{registry: registry, sessions: map[string]Session{}, audits: []Audit{}, agents: map[string]AgentRun{}, devices: devicedomain.NewStore(), artifacts: map[string]string{}, artifactKinds: map[string]string{}, evidenceDir: dir, activeCancels: map[string]context.CancelFunc{}, transportStrategies: map[string]strategy.Strategy{}, transportStates: map[string]transportState{}, anchors: internalflows.NewAnchorStore(), runs: map[string]RunResult{}, flowRuns: map[string]Flow{}, externalRecordings: map[string]externalRecording{}, auth: authStore, inventoryTimeout: 2 * time.Second, sessionQueryTimeout: 750 * time.Millisecond}
 }
 
 func NewWithAttached(registry *strategyregistry.Registry, reader AttachedReader) *Service {
@@ -302,11 +304,20 @@ func (s *Service) ListSessions() []Session {
 }
 
 func (s *Service) ListSessionsContext(ctx context.Context) []Session {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.db != nil {
-		rows, err := s.db.QueryContext(ctx, `SELECT id, device_id, actor, state, lease_token, kill_reason, expires_at, created_at FROM device_control_sessions ORDER BY created_at DESC`)
+		timeout := s.sessionQueryTimeout
+		if timeout <= 0 {
+			timeout = 750 * time.Millisecond
+		}
+		queryCtx, cancel := context.WithTimeout(ctx, timeout)
+		rows, err := s.db.QueryContext(queryCtx, `SELECT id, device_id, actor, state, lease_token, kill_reason, expires_at, created_at FROM device_control_sessions ORDER BY created_at DESC`)
 		if err == nil {
+			defer cancel()
 			defer rows.Close()
 			out := make([]Session, 0)
 			for rows.Next() {
@@ -319,7 +330,11 @@ func (s *Service) ListSessionsContext(ctx context.Context) []Session {
 				v.CreatedAt, _ = time.Parse(time.RFC3339Nano, created)
 				out = append(out, v)
 			}
-			return out
+			if err := rows.Err(); err == nil {
+				return out
+			}
+		} else {
+			cancel()
 		}
 	}
 	out := make([]Session, 0, len(s.sessions))
