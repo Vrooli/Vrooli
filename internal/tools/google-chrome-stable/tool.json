@@ -1,0 +1,31 @@
+{
+  "$schema": "../../../.vrooli/schemas/tool.schema.json",
+  "name": "google-chrome-stable",
+  "storage": {
+    "entries": {},
+    "rationale": "This host tool has no Vrooli-owned persistent storage; Chrome profile and cache data remain owned by the invoking workflow."
+  },
+  "description": "Optional headless Chromium-compatible browser used for high-fidelity SVG rasterization",
+  "commands": [
+    "google-chrome-stable",
+    "google-chrome",
+    "chromium-browser",
+    "chromium",
+    "chrome",
+    "headless-shell"
+  ],
+  "versionArgs": [
+    "--version"
+  ],
+  "installHint": "Install Google Chrome, Chromium, or another compatible headless browser manually; image-tools also accepts IMAGE_TOOLS_CHROME_BINARY.",
+  "platforms": [
+    "linux",
+    "macos",
+    "windows"
+  ],
+  "manual": true,
+  "bundling": "host-required",
+  "capability": "headless-gui",
+  "capability_role": "primary",
+  "notes": "The runtime probes the command aliases in declaration order. No automatic package mapping is declared because image-tools supports multiple browser distributions and explicit binary overrides."
+}

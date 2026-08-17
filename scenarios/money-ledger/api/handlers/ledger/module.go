@@ -25,6 +25,10 @@ func NewService(db *database.RoutedDB, logger *log.Logger) *Service {
 	return &Service{store: ledger.NewStore(db, nil), logger: logger}
 }
 
+func EnsureMigrations(db *database.RoutedDB) error {
+	return ledger.NewStore(db, nil).EnsureMigrations(context.Background())
+}
+
 func Module(db *database.RoutedDB, _ interface{}, logger *log.Logger) module.Module {
 	s := NewService(db, logger)
 	return module.Module{Name: "ledger", Mount: func(r *mux.Router) {
@@ -59,8 +63,8 @@ func (s *Service) CreateBook(ctx context.Context, req *connect.Request[ledgerpb.
 	return connect.NewResponse(&ledgerpb.CreateBookResponse{Book: b}), nil
 }
 
-func (s *Service) ListBooks(ctx context.Context, _ *connect.Request[ledgerpb.ListBooksRequest]) (*connect.Response[ledgerpb.ListBooksResponse], error) {
-	b, err := s.store.ListBooks(ctx)
+func (s *Service) ListBooks(ctx context.Context, req *connect.Request[ledgerpb.ListBooksRequest]) (*connect.Response[ledgerpb.ListBooksResponse], error) {
+	b, err := s.store.ListBooks(ctx, req.Msg.IncludeArchived)
 	if err != nil {
 		return nil, internal(err)
 	}
@@ -68,11 +72,19 @@ func (s *Service) ListBooks(ctx context.Context, _ *connect.Request[ledgerpb.Lis
 }
 
 func (s *Service) CreateAccount(ctx context.Context, req *connect.Request[ledgerpb.CreateAccountRequest]) (*connect.Response[ledgerpb.CreateAccountResponse], error) {
-	a, err := s.store.CreateAccount(ctx, req.Msg.BookId, req.Msg.Name, req.Msg.Kind)
+	a, err := s.store.CreateAccount(ctx, req.Msg.BookId, req.Msg.Name, req.Msg.AccountKind)
 	if err != nil {
 		return nil, invalid(err)
 	}
 	return connect.NewResponse(&ledgerpb.CreateAccountResponse{Account: a}), nil
+}
+
+func (s *Service) ArchiveBook(ctx context.Context, req *connect.Request[ledgerpb.ArchiveBookRequest]) (*connect.Response[ledgerpb.ArchiveBookResponse], error) {
+	b, err := s.store.ArchiveBook(ctx, req.Msg.BookId, actor(ctx))
+	if err != nil {
+		return nil, notFound(err)
+	}
+	return connect.NewResponse(&ledgerpb.ArchiveBookResponse{Book: b}), nil
 }
 
 func (s *Service) ListAccounts(ctx context.Context, req *connect.Request[ledgerpb.ListAccountsRequest]) (*connect.Response[ledgerpb.ListAccountsResponse], error) {
@@ -143,11 +155,27 @@ func (s *Service) DeclareGoal(ctx context.Context, req *connect.Request[ledgerpb
 }
 
 func (s *Service) ListGoals(ctx context.Context, req *connect.Request[ledgerpb.ListGoalsRequest]) (*connect.Response[ledgerpb.ListGoalsResponse], error) {
-	g, err := s.store.ListGoals(ctx, req.Msg.BookId)
+	g, err := s.store.ListGoals(ctx, req.Msg.BookId, req.Msg.IncludeArchived)
 	if err != nil {
 		return nil, internal(err)
 	}
 	return connect.NewResponse(&ledgerpb.ListGoalsResponse{Goals: g}), nil
+}
+
+func (s *Service) ArchiveGoal(ctx context.Context, req *connect.Request[ledgerpb.ArchiveGoalRequest]) (*connect.Response[ledgerpb.ArchiveGoalResponse], error) {
+	g, err := s.store.ArchiveGoal(ctx, req.Msg.GoalId, actor(ctx))
+	if err != nil {
+		return nil, notFound(err)
+	}
+	return connect.NewResponse(&ledgerpb.ArchiveGoalResponse{Goal: g}), nil
+}
+
+func (s *Service) ReparentGoal(ctx context.Context, req *connect.Request[ledgerpb.ReparentGoalRequest]) (*connect.Response[ledgerpb.ReparentGoalResponse], error) {
+	g, err := s.store.ReparentGoal(ctx, req.Msg.GoalId, req.Msg.BookId, actor(ctx))
+	if err != nil {
+		return nil, invalid(err)
+	}
+	return connect.NewResponse(&ledgerpb.ReparentGoalResponse{Goal: g}), nil
 }
 
 func Schema() string { return (&ledger.Store{}).Schema() }
@@ -157,7 +185,7 @@ func endpoint(id, path, summary string) module.EndpointDescriptor {
 }
 
 var Endpoints = []module.EndpointDescriptor{
-	endpoint("books_create", "/vrooli.money_ledger.v1.ledger.BooksService/CreateBook", "Create an accounting book"), endpoint("books_list", "/vrooli.money_ledger.v1.ledger.BooksService/ListBooks", "List accounting books"), endpoint("accounts_create", "/vrooli.money_ledger.v1.ledger.BooksService/CreateAccount", "Create an account in a book"), endpoint("accounts_list", "/vrooli.money_ledger.v1.ledger.BooksService/ListAccounts", "List accounts"),
+	endpoint("books_create", "/vrooli.money_ledger.v1.ledger.BooksService/CreateBook", "Create an accounting book"), endpoint("books_list", "/vrooli.money_ledger.v1.ledger.BooksService/ListBooks", "List accounting books"), endpoint("books_archive", "/vrooli.money_ledger.v1.ledger.BooksService/ArchiveBook", "Archive a book without deleting its journal"), endpoint("accounts_create", "/vrooli.money_ledger.v1.ledger.BooksService/CreateAccount", "Create an account in a book"), endpoint("accounts_list", "/vrooli.money_ledger.v1.ledger.BooksService/ListAccounts", "List accounts"),
 	endpoint("journal_get", "/vrooli.money_ledger.v1.ledger.JournalService/GetPosting", "Read one immutable posting"), endpoint("journal_list", "/vrooli.money_ledger.v1.ledger.JournalService/ListPostings", "List immutable postings"), endpoint("journal_reverse", "/vrooli.money_ledger.v1.ledger.JournalService/ReversePosting", "Create a reversing entry"), endpoint("journal_transfer", "/vrooli.money_ledger.v1.ledger.JournalService/Transfer", "Create paired inter-book postings"),
-	endpoint("position_get", "/vrooli.money_ledger.v1.ledger.PositionService/GetPosition", "Compute financial position at read time"), endpoint("statement_get", "/vrooli.money_ledger.v1.ledger.PositionService/GetStatement", "Read a period statement"), endpoint("goals_declare", "/vrooli.money_ledger.v1.ledger.PositionService/DeclareGoal", "Declare a sustained financial goal"), endpoint("goals_list", "/vrooli.money_ledger.v1.ledger.PositionService/ListGoals", "List goal verdicts"),
+	endpoint("position_get", "/vrooli.money_ledger.v1.ledger.PositionService/GetPosition", "Compute financial position at read time"), endpoint("statement_get", "/vrooli.money_ledger.v1.ledger.PositionService/GetStatement", "Read a period statement"), endpoint("goals_declare", "/vrooli.money_ledger.v1.ledger.PositionService/DeclareGoal", "Declare a sustained financial goal"), endpoint("goals_list", "/vrooli.money_ledger.v1.ledger.PositionService/ListGoals", "List goal verdicts"), endpoint("goals_archive", "/vrooli.money_ledger.v1.ledger.PositionService/ArchiveGoal", "Archive a goal without deleting its declaration"), endpoint("goals_reparent", "/vrooli.money_ledger.v1.ledger.PositionService/ReparentGoal", "Move a goal while preserving its declaration"),
 }

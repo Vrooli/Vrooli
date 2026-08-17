@@ -9,6 +9,7 @@ import (
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/databasetest"
 	ingestpb "github.com/vrooli/vrooli/packages/proto/gen/go/money-ledger/v1/ingest"
+	ledgerpb "github.com/vrooli/vrooli/packages/proto/gen/go/money-ledger/v1/ledger"
 	sharedpb "github.com/vrooli/vrooli/packages/proto/gen/go/money-ledger/v1/shared"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"money-ledger/internal/ledger"
@@ -29,7 +30,7 @@ func TestManualAdapterUsesOperatorBasisAndDeduplicates(t *testing.T) { // [REQ:C
 	s, ctx := newIngestStore(t)
 	book, err := s.journal.CreateBook(ctx, "Operating", "USD")
 	require.NoError(t, err)
-	account, err := s.journal.CreateAccount(ctx, book.Id, "Cash", "cash")
+	account, err := s.journal.CreateAccount(ctx, book.Id, "Cash", ledgerpb.AccountKind_ASSET)
 	require.NoError(t, err)
 	_, err = s.RegisterAdapter(ctx, &ingestpb.Adapter{Id: "manual", Name: "Hand entry", Kind: ingestpb.AdapterKind_ADAPTER_KIND_MANUAL, Enabled: true})
 	require.NoError(t, err)
@@ -48,7 +49,7 @@ func TestOperatorInputsImportPreservesPendingAsAbsent(t *testing.T) { // [REQ:CT
 	s, ctx := newIngestStore(t)
 	book, err := s.journal.CreateBook(ctx, "Operating", "USD")
 	require.NoError(t, err)
-	account, err := s.journal.CreateAccount(ctx, book.Id, "Cash", "cash")
+	account, err := s.journal.CreateAccount(ctx, book.Id, "Cash", ledgerpb.AccountKind_ASSET)
 	require.NoError(t, err)
 	_, err = s.RegisterAdapter(ctx, &ingestpb.Adapter{Id: "operator-inputs", Name: "Operator inputs", Kind: ingestpb.AdapterKind_ADAPTER_KIND_MANUAL, Enabled: true})
 	require.NoError(t, err)
@@ -85,7 +86,7 @@ func TestOperatorInputsFixtureImportCarriesSourceProvenance(t *testing.T) { // [
 	s, ctx := newIngestStore(t)
 	book, err := s.journal.CreateBook(ctx, "Operating", "USD")
 	require.NoError(t, err)
-	account, err := s.journal.CreateAccount(ctx, book.Id, "Cash", "cash")
+	account, err := s.journal.CreateAccount(ctx, book.Id, "Cash", ledgerpb.AccountKind_ASSET)
 	require.NoError(t, err)
 	_, err = s.RegisterAdapter(ctx, &ingestpb.Adapter{Id: "operator-inputs", Name: "Operator inputs", Kind: ingestpb.AdapterKind_ADAPTER_KIND_MANUAL, Enabled: true})
 	require.NoError(t, err)
@@ -101,7 +102,7 @@ func TestOperatorInputStalenessIsReportedAndNotPosted(t *testing.T) { // [REQ:PO
 	s, ctx := newIngestStore(t)
 	book, err := s.journal.CreateBook(ctx, "Operating", "USD")
 	require.NoError(t, err)
-	account, err := s.journal.CreateAccount(ctx, book.Id, "Cash", "cash")
+	account, err := s.journal.CreateAccount(ctx, book.Id, "Cash", ledgerpb.AccountKind_ASSET)
 	require.NoError(t, err)
 	_, err = s.RegisterAdapter(ctx, &ingestpb.Adapter{Id: "operator-inputs", Name: "Operator inputs", Kind: ingestpb.AdapterKind_ADAPTER_KIND_MANUAL, Enabled: true})
 	require.NoError(t, err)
@@ -126,6 +127,51 @@ func TestOperatorInputStalenessIsReportedAndNotPosted(t *testing.T) { // [REQ:PO
 	var count int
 	require.NoError(t, s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM postings`).Scan(&count))
 	require.Zero(t, count)
+}
+
+func TestConsoleOperatorImportDryRunClassifiesMoneyMeasureAndDerivedRate(t *testing.T) {
+	s, ctx := newIngestStore(t)
+	book, err := s.journal.CreateBook(ctx, "Operating", "USD")
+	require.NoError(t, err)
+	account, err := s.journal.CreateAccount(ctx, book.Id, "Cash", ledgerpb.AccountKind_ASSET)
+	require.NoError(t, err)
+	value := func(v any) map[string]any {
+		return map[string]any{"value": v, "status": "current", "updatedAt": "2099-01-01T12:00:00Z"}
+	}
+	root := map[string]any{
+		"cash":            value(1200),
+		"monthlyBurn":     map[string]any{"aiApi": value(nil), "infrastructure": value(nil), "saas": value(nil), "tooling": value(nil)},
+		"timeAllocation":  map[string]any{"product": value(0.5), "services": value(nil), "ops": value(nil)},
+		"servicesRevenue": map[string]any{"leadGen": value(nil), "doneForYou": value(nil), "consulting": value(nil)},
+		"servicesTime":    map[string]any{"hoursThisWindow": value(nil)},
+		"subscriptions":   map[string]any{"mrr": value(200)},
+	}
+	data, err := json.Marshal(root)
+	require.NoError(t, err)
+	report, err := s.ImportOperatorInputsJSON(ctx, data, false, "manual", book.Id, account.Id)
+	require.NoError(t, err)
+	require.False(t, report.Applied)
+	require.Equal(t, 13, report.Read)
+	require.Equal(t, 0, report.Written)
+	var postings int
+	require.NoError(t, s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM postings`).Scan(&postings))
+	require.Zero(t, postings)
+	require.NoError(t, func() error {
+		applied, applyErr := s.ImportOperatorInputsJSON(ctx, data, true, "manual", book.Id, account.Id)
+		if applyErr != nil {
+			return applyErr
+		}
+		require.True(t, applied.Applied)
+		require.Equal(t, 1, applied.Written)
+		return nil
+	}())
+	require.NoError(t, s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM postings`).Scan(&postings))
+	require.Equal(t, 1, postings)
+	var measures, findings int
+	require.NoError(t, s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM operator_measures`).Scan(&measures))
+	require.Equal(t, 1, measures)
+	require.NoError(t, s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM operator_input_findings WHERE path='subscriptions.mrr'`).Scan(&findings))
+	require.Equal(t, 1, findings)
 }
 
 func TestFileImportReportsMalformedInputWithoutWriting(t *testing.T) { // [REQ:CTR-003]

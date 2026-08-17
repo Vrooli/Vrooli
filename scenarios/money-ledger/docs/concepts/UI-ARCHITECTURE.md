@@ -49,7 +49,7 @@ computed zero is rendered as zero.
 
 | Route | Purpose and primary action | Data sources | Degradation and mobile strategy |
 |---|---|---|---|
-| `/` | Read position, runway, goal verdicts, and declare a goal. | Books, Position, Goals. | Partial position names missing adapters and ages; mobile stacks metric cards before the goal form. |
+| `/` | Read position, runway, goal verdicts, declare a goal, and inspect the observed runway/burn trend. | Books, Position, Goals, Journal postings. | Partial position or posting reads show a named gap; no postings are rendered as undefined rather than zero; mobile stacks cards/charts and keeps the visible trend table horizontally scrollable. |
 | `/accounts` | Create books/accounts, inspect balances, and make a paired transfer. | Books, Accounts, Postings. | Balance gaps say unavailable rather than zero; the account table scrolls inside its container on mobile. |
 | `/journal` | Record a manual event and reverse an existing posting. | Books, Accounts, Postings, audit trail. | Errors stay beside the form; the journal table scrolls inside its container on mobile. |
 | `/adapters` | Register, run, and import through typed adapters. | Adapter registry and receipts. | Availability, failure reason, last-success age, and missing-input impact remain visible. |
@@ -66,7 +66,10 @@ Forms use explicit `label`/`id` associations, errors use alert semantics,
 successful asynchronous outcomes use live regions, and focus indicators use
 the shared visible focus ring. Buttons, navigation items, and form controls
 provide at least a 44px target at mobile widths. Summaries have text/table
-equivalents; no chart is the only representation of a value.
+equivalents; no chart is the only representation of a value. The runway/burn
+trend uses the shared Cartesian chart adoption, with a visible period table,
+source/basis note, selectable window, and explicit gap state; it never
+interpolates unavailable intervals.
 
 See [`../../experience/index.json`](../../experience/index.json),
 `ui/src/consts/selectors.ts`, and

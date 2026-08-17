@@ -4,17 +4,18 @@
     "entries": {
       "data": {
         "budget": {
-          "max_bytes": "1MiB",
-          "rationale": "Measured at 135168 bytes on 2026-08-14; ceiling is two times observed size."
+          "max_bytes": "2MiB",
+          "rationale": "Measured at 668209 bytes on 2026-08-16 at the resolved data location; 2MiB leaves more than twice the observed SQLite database and sidecar footprint."
         },
         "class": "data",
         "kind": "dir",
-        "rationale": "Suggested from the owner's measured storage surface.",
+        "rationale": "Resolved scenario data directory containing the SQLite offer graph, gate registry, append-only catalog audit, and SQLite sidecars.",
         "regenerable": false,
         "rung": "owned"
       }
     }
   },
+  "maturity": "pilot",
   "version": "1.0.0",
   "service": {
     "parent": "vrooli",
@@ -212,6 +213,14 @@
   "dependencies": {
     "resources": {},
     "scenarios": {
+      "data-backup-manager": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "ignore",
+        "description": "Protects the resolved Offer Desk data directory through scheduled snapshots and recovery drills; it is not part of request handling.",
+        "degraded_behavior": "Offer Desk runs normally when the backup manager is unavailable; protection is a scheduled operational concern and the board continues to report data-source availability explicitly."
+      },
       "money-ledger": {
         "type": "scenario",
         "enabled": true,
@@ -222,8 +231,5 @@
       }
     }
   },
-  "credentials": {},
-  "environment": {
-    "SQLITE_PATH": "${SCENARIO_DATA_DIR}/offer-desk.db"
-  }
+  "credentials": {}
 }

@@ -52,6 +52,12 @@
       "path": "components/dirty-state-guard.json",
       "title": "Dirty State Guard",
       "status": "active"
+    },
+    {
+      "id": "cartesian-charts",
+      "path": "components/cartesian-charts.json",
+      "title": "Cartesian Charts",
+      "status": "active"
     }
   ],
   "journeys": [
@@ -77,6 +83,12 @@
       "id": "first-run",
       "path": "journeys/first-run.json",
       "title": "Start a new Offer Desk",
+      "status": "active"
+    },
+    {
+      "id": "merge-duplicate-catalog-records",
+      "path": "journeys/merge-duplicate-catalog-records.json",
+      "title": "Merge duplicate catalog records",
       "status": "active"
     }
   ]

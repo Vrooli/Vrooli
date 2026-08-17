@@ -3,6 +3,9 @@ import { create } from "@bufbuild/protobuf";
 import { timestampFromDate } from "@bufbuild/protobuf/wkt";
 import {
   BooksService,
+  AccountKind,
+  ArchiveBookRequestSchema,
+  ArchiveGoalRequestSchema,
   CreateAccountRequestSchema,
   CreateBookRequestSchema,
   DeclareGoalRequestSchema,
@@ -14,12 +17,14 @@ import {
   ListPostingsRequestSchema,
   PositionRequestSchema,
   PositionService,
+  ReparentGoalRequestSchema,
   ReversePostingRequestSchema,
   StatementRequestSchema,
   SustainPeriodUnit,
   TransferRequestSchema,
 } from "@vrooli/proto-types/money-ledger/v1/ledger/ledger_pb";
 import { AdapterKind, AdapterSchema, ImportFileRequestSchema, IngestEventRequestSchema, IngestService, ListAdaptersRequestSchema, RegisterAdapterRequestSchema, RunAdapterRequestSchema } from "@vrooli/proto-types/money-ledger/v1/ingest/ingest_pb";
+import { OperatorImportRequestSchema, OperatorInputStatusRequestSchema } from "@vrooli/proto-types/money-ledger/v1/ingest/ingest_pb";
 import { Basis, MoneyEventSchema } from "@vrooli/proto-types/money-ledger/v1/shared/ledger_types_pb";
 import { API_BASE, transport } from "./client";
 
@@ -37,6 +42,7 @@ export function fetchBooks() { return booksClient.listBooks(create(ListBooksRequ
 export function fetchAccounts(bookId: string) { return booksClient.listAccounts(create(ListAccountsRequestSchema, { bookId })); }
 export function fetchPostings(bookId: string) { return journalClient.listPostings(create(ListPostingsRequestSchema, { bookId, limit: 100 })); }
 export function fetchAdapters() { return ingestClient.listAdapters(create(ListAdaptersRequestSchema)); }
+export function fetchOperatorInputStatus(bookId = configuredBookId()) { return ingestClient.operatorInputStatus(create(OperatorInputStatusRequestSchema, { bookId })); }
 export function fetchGoals(bookId: string) { return positionClient.listGoals(create(ListGoalsRequestSchema, { bookId })); }
 export function fetchStatement(bookId: string, from = "", to = "") { return positionClient.getStatement(create(StatementRequestSchema, { bookId, from, to })); }
 
@@ -54,6 +60,10 @@ export function runAdapter(adapterId: string) {
 
 export function importFile(adapterId: string, csv: Uint8Array) {
   return ingestClient.importFile(create(ImportFileRequestSchema, { adapterId, csv }));
+}
+
+export function importOperatorInputsJSON(input: { bookId: string; accountId: string; adapterId: string; sourceJson: Uint8Array; apply: boolean }) {
+  return ingestClient.importOperatorInputs(create(OperatorImportRequestSchema, { bookId: input.bookId, accountId: input.accountId, adapterId: input.adapterId, sourceJson: input.sourceJson, apply: input.apply }));
 }
 
 export function declareGoal(input: { bookId: string; name: string; metric: string; comparator: string; thresholdMinor: bigint; sustainPeriods: number; periodUnit: SustainPeriodUnit; bufferMultiple?: number; comparandMetric?: string }) {
@@ -76,8 +86,22 @@ export function createBook(name: string, currency: string) {
   return booksClient.createBook(create(CreateBookRequestSchema, { name, currency }));
 }
 
+export function archiveBook(bookId: string) {
+  return booksClient.archiveBook(create(ArchiveBookRequestSchema, { bookId }));
+}
+
+export function archiveGoal(goalId: string) {
+  return positionClient.archiveGoal(create(ArchiveGoalRequestSchema, { goalId }));
+}
+
+export function reparentGoal(goalId: string, bookId: string) {
+  return positionClient.reparentGoal(create(ReparentGoalRequestSchema, { goalId, bookId }));
+}
+
 export function createAccount(bookId: string, name: string, kind: string) {
-  return booksClient.createAccount(create(CreateAccountRequestSchema, { bookId, name, kind }));
+  const normalized = kind.trim().toUpperCase();
+  const accountKind = ({ ASSET: AccountKind.ASSET, LIABILITY: AccountKind.LIABILITY, REVENUE: AccountKind.REVENUE, EXPENSE: AccountKind.EXPENSE, EQUITY: AccountKind.EQUITY } as Record<string, AccountKind>)[normalized] ?? AccountKind.ACCOUNT_KIND_UNSPECIFIED;
+  return booksClient.createAccount(create(CreateAccountRequestSchema, { bookId, name, accountKind }));
 }
 
 export function ingestEvent(input: {

@@ -214,6 +214,26 @@
           "fixture": "goal-unmet"
         }
       }
+    },
+    {
+      "id": "trend-default",
+      "description": "The selected window has journal observations and the runway-and-burn trend shows each series with its source and basis.",
+      "setup": { "route": "/", "query": { "fixture": "trend-default" } }
+    },
+    {
+      "id": "trend-empty",
+      "description": "The selected window has no postings; the trend remains undefined and the table explains how to begin.",
+      "setup": { "route": "/", "query": { "fixture": "trend-empty" } }
+    },
+    {
+      "id": "trend-partial",
+      "description": "A contributing source is unavailable for part of the selected window; the trend shows an explicit gap and never fills it with zero.",
+      "setup": { "route": "/", "query": { "fixture": "trend-partial" } }
+    },
+    {
+      "id": "trend-stale",
+      "description": "The newest observation in the selected window is past its freshness window; the trend names its age.",
+      "setup": { "route": "/", "query": { "fixture": "trend-stale" } }
     }
   ],
   "elements": [
@@ -264,6 +284,34 @@
       "id": "position-error",
       "role": "x-message",
       "description": "Assertive notice that the position request itself failed — distinct from a position that computed but is partial."
+    },
+    {
+      "id": "runway-burn-trend",
+      "role": "img",
+      "name": "Runway and burn trend",
+      "description": "A keyboard-readable trend of inflow, outflow, and net movement over the selected window."
+    },
+    {
+      "id": "runway-burn-table",
+      "role": "table",
+      "name": "Runway and burn trend data",
+      "description": "Visible tabular equivalent of every plotted series, including an em dash for an unavailable interval."
+    },
+    {
+      "id": "trend-source-basis",
+      "role": "note",
+      "description": "Names the Money Ledger journal source and the basis of the trend observations."
+    },
+    {
+      "id": "trend-gap",
+      "role": "note",
+      "description": "Names the unavailable interval and explains that it is a gap rather than zero or an interpolation."
+    },
+    {
+      "id": "trend-window",
+      "role": "combobox",
+      "name": "Trend window",
+      "description": "Selects the number of days included in the trend."
     }
   ],
   "claims": [
@@ -407,6 +455,43 @@
         "goal-list"
       ],
       "rationale": "DESIGN.md binding adaptation: financial figures on this scenario's surfaces are read in comparison, which misaligned proportional digits actively defeat."
+    },
+    {
+      "id": "trend-has-table-equivalent",
+      "type": "element-present",
+      "statement": "The runway-and-burn trend has a visible table equivalent in the same surface.",
+      "tier": "machine",
+      "elements": ["runway-burn-trend", "runway-burn-table"],
+      "states": ["trend-default", "trend-empty", "trend-partial", "trend-stale"],
+      "rationale": "A chart cannot be the only representation of financial values; the table carries exact values and unavailable gaps."
+    },
+    {
+      "id": "trend-series-name-basis",
+      "type": "element-present",
+      "statement": "The trend names its Money Ledger source and observation basis beside the series.",
+      "tier": "machine",
+      "elements": ["runway-burn-trend", "trend-source-basis"],
+      "states": ["trend-default", "trend-partial", "trend-stale"],
+      "rationale": "Operator-asserted and derived numbers must not be mistaken for authoritative telemetry."
+    },
+    {
+      "id": "trend-unavailable-is-gap",
+      "type": "element-present",
+      "statement": "When a source is unavailable, the trend and table show a named gap rather than zero or an interpolated value.",
+      "tier": "machine",
+      "elements": ["trend-gap", "runway-burn-table"],
+      "states": ["trend-partial"],
+      "rationale": "Unknown financial observations are not false and never become a passing zero."
+    },
+    {
+      "id": "trend-window-is-operable",
+      "type": "affordance-present",
+      "statement": "The operator can choose the trend window from a labeled control.",
+      "tier": "machine",
+      "elements": ["trend-window"],
+      "states": ["trend-default", "trend-empty", "trend-partial", "trend-stale"],
+      "params": { "affordances": ["select"], "targetRole": "combobox" },
+      "rationale": "The trend is a decision surface, so its time horizon must be inspectable rather than fixed in code."
     }
   ],
   "bindings": {
@@ -437,6 +522,21 @@
       },
       "position-error": {
         "testid": "position-error"
+      },
+      "runway-burn-trend": {
+        "testid": "runway-burn-trend"
+      },
+      "runway-burn-table": {
+        "testid": "runway-burn-table"
+      },
+      "trend-source-basis": {
+        "testid": "trend-source-basis"
+      },
+      "trend-gap": {
+        "testid": "trend-gap"
+      },
+      "trend-window": {
+        "testid": "trend-window"
       }
     }
   }

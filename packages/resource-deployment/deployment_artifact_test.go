@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/vrooli/binaryfetch"
 )
 
 func TestServiceArtifactVerifyFile(t *testing.T) {
@@ -71,5 +73,30 @@ func TestServiceArtifactResolvesBundledServerName(t *testing.T) {
 	}
 	if _, err := (ServiceArtifact{Path: "bin/vault", Version: "1", SHA256: strings.Repeat("a", 64)}).BundleArtifactForPlatform("linux", "amd64"); err == nil {
 		t.Fatal("BundleArtifactForPlatform() accepted undeclared bundle artifact")
+	}
+}
+
+func TestServiceArtifactVerifiesDirectoryTreeAndResolvesEntry(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "bin"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "bin", "service"), []byte("service"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	digest, err := binaryfetch.TreeDigest(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	artifact := ServiceArtifact{Path: "server/service", Version: "1.0.0", Layout: "dir", EntryPath: "bin/service", SHA256: digest}
+	if err := artifact.VerifyFile(root); err != nil {
+		t.Fatalf("VerifyFile() error = %v", err)
+	}
+	launch, err := artifact.LaunchPath(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := filepath.Join(root, "bin", "service"); launch != want {
+		t.Fatalf("LaunchPath() = %q, want %q", launch, want)
 	}
 }

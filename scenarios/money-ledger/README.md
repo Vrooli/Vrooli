@@ -8,11 +8,11 @@ Holds where money is and where it went as an auditable journal, admits every sou
 
 **Its sibling:** [Offer Desk](../offer-desk/) holds what should be sold. This scenario holds what happened.
 
-**How the two are adopted:** Offer Desk is the `monetization` team's *instrument* — the one address its members read — and it reads this scenario for actuals and financial posture. This scenario is *covered by* that instrument rather than being it, which is a work-queue role and not a ranking: this is the marketed surface and the operator's daily tool. The direction is one-way and stays that way; this scenario has no knowledge of offers. See [`docs/internal/DECISIONS.md`](docs/internal/DECISIONS.md), 2026-08-13.
+**How the two are adopted:** Offer Desk is the `monetization` team's *instrument* — the one address its members read — and it reads this scenario for actuals and financial posture. This scenario is *covered by* that instrument rather than being it, which is a work-queue role and not a ranking: this is the marketed surface and the operator's daily tool. The direction is one-way and stays that way; this scenario has no knowledge of offers. The adoption is live as of 2026-08-16; see [`docs/internal/DECISIONS.md`](docs/internal/DECISIONS.md).
 
 **Read first:** [`docs/START-HERE.md`](docs/START-HERE.md) for the initialization gates, then [`PRD.md`](PRD.md) for the operational targets and [`docs/concepts/FLOWS.md`](docs/concepts/FLOWS.md) for the diagrams showing how the pieces fit together.
 
-> **Status:** the core journal, ingestion, position, goal, statement, CLI, and console vertical slices are implemented. Run `make test` for the scenario-owned validation suite; see [`docs/internal/PROBLEMS.md`](docs/internal/PROBLEMS.md) for remaining integration and experience-contract findings.
+> **Status:** the core journal, ingestion, position, goal, statement, CLI, and console vertical slices are implemented and covered by the live Offer Desk instrument. Financial observations remain UNKNOWN until operator inputs arrive; product-side validation is current, while the external experience-capture timeout remains recorded in [`docs/internal/PROBLEMS.md`](docs/internal/PROBLEMS.md).
 
 ---
 
@@ -43,8 +43,8 @@ This scenario follows Vrooli's standard full-stack scenario shape:
   output.
 - Baseline PWA/native-readiness metadata: web app manifest,
   standalone-mode mobile tags, proxy-safe relative install asset URLs,
-  a minimal app-shell service worker, safe-area CSS tokens, and generic
-  placeholder icons ready for scenario-specific replacement.
+  a minimal app-shell service worker, safe-area CSS tokens, and a
+  scenario-specific ledger-and-coin icon set in all required PWA sizes.
 - Canonical responsive shell plus adopted-provenance UI primitives from
   `react-component-library` for common shared surfaces such as buttons,
   cards, data tables, empty states, inputs, selects, status badges, sidebar

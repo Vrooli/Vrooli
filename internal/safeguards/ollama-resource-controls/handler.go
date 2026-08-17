@@ -19,7 +19,6 @@ import (
 
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
-	"golang.org/x/sys/unix"
 )
 
 const (
@@ -33,12 +32,9 @@ type managedServiceState struct {
 }
 
 var (
-	readFileFn   = os.ReadFile
-	statePathFn  = ollamaStatePath
-	processAlive = func(pid int) bool {
-		err := unix.Kill(pid, 0)
-		return err == nil || errors.Is(err, unix.EPERM)
-	}
+	readFileFn      = os.ReadFile
+	statePathFn     = ollamaStatePath
+	processAlive    = processAlivePID
 	processLimitsFn = readProcessLimits
 )
 
@@ -158,14 +154,6 @@ func verifyProcessControls(pid int) error {
 		return fmt.Errorf("oom_score_adj is %q, want %d", strings.TrimSpace(string(value)), oomScoreAdjust)
 	}
 	return nil
-}
-
-func readProcessLimits(pid int) (uint64, uint64, error) {
-	var limit unix.Rlimit
-	if err := unix.Prlimit(pid, unix.RLIMIT_AS, nil, &limit); err != nil {
-		return 0, 0, fmt.Errorf("read address-space limit: %w", err)
-	}
-	return limit.Cur, limit.Max, nil
 }
 
 func physicalMemory() (uint64, error) {

@@ -9,6 +9,7 @@ same generated Connect contract used by the UI.
 |---|---|---|
 | `catalog-list` | List typed graph nodes. | — |
 | `catalog-import` | Rehearse or apply a declared catalog source. | `--source-path`, `--source-mode`, `--apply` |
+| `catalog-merge` | Dry-run or apply an audited same-kind duplicate merge. Dry-run is the default. | `--surviving-id`, `--duplicate-id`, `--dry-run=false` to apply |
 | `catalog-create` | Create a graph node. | `--name`, `--actual-account-id` |
 | `catalog-transition` | Apply a legal transition or show refusal/remedy. | `--node-id`, `--status`, `--actor` |
 | `catalog-edge` / `catalog-edges` | Create or list typed relationships. | `--from-id`, `--to-id`, `--kind`, `--currency` |

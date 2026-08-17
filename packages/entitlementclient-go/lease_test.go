@@ -48,6 +48,19 @@ func TestLeaseExpiryIsRejectedEvenWithValidSignature(t *testing.T) {
 	}
 }
 
+func TestCachedLeaseHonorsSignedExpiryWithoutRefreshing(t *testing.T) {
+	issued := time.Date(2030, 1, 1, 0, 0, 0, 0, time.UTC)
+	client := NewClient("http://127.0.0.1:1", nil, nil)
+	client.cache["user@example.com"] = Payload{UserIdentity: "user@example.com", Status: "active", NotAfter: issued.Add(time.Hour)}
+
+	if _, err := client.CachedAt("USER@example.com", issued.Add(30*time.Minute)); err != nil {
+		t.Fatalf("valid cached lease = %v", err)
+	}
+	if _, err := client.CachedAt("user@example.com", issued.Add(time.Hour)); !errors.Is(err, ErrLeaseExpired) {
+		t.Fatalf("expired cached lease error = %v", err)
+	}
+}
+
 func split(t *testing.T, token string) []string {
 	t.Helper()
 	parts := make([]string, 0, 3)

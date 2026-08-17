@@ -116,6 +116,26 @@
       "testId": "position-error",
       "selector": "[data-testid=\"position-error\"]"
     },
+    "pages.runwayBurnTrend": {
+      "testId": "runway-burn-trend",
+      "selector": "[data-testid=\"runway-burn-trend\"]"
+    },
+    "pages.runwayBurnTable": {
+      "testId": "runway-burn-table",
+      "selector": "[data-testid=\"runway-burn-table\"]"
+    },
+    "pages.trendSourceBasis": {
+      "testId": "trend-source-basis",
+      "selector": "[data-testid=\"trend-source-basis\"]"
+    },
+    "pages.trendGap": {
+      "testId": "trend-gap",
+      "selector": "[data-testid=\"trend-gap\"]"
+    },
+    "pages.trendWindow": {
+      "testId": "trend-window",
+      "selector": "[data-testid=\"trend-window\"]"
+    },
     "pages.journal": {
       "testId": "page-journal",
       "selector": "[data-testid=\"page-journal\"]"
@@ -195,6 +215,22 @@
     "pages.adaptersEmptyGuidance": {
       "testId": "adapter-empty-guidance",
       "selector": "[data-testid=\"adapter-empty-guidance\"]"
+    },
+    "pages.operatorInputSurface": {
+      "testId": "operator-input-surface",
+      "selector": "[data-testid=\"operator-input-surface\"]"
+    },
+    "pages.operatorInputStatus": {
+      "testId": "operator-input-status",
+      "selector": "[data-testid=\"operator-input-status\"]"
+    },
+    "pages.operatorInputReport": {
+      "testId": "operator-input-report",
+      "selector": "[data-testid=\"operator-input-report\"]"
+    },
+    "pages.operatorInputDerivedRateRefusal": {
+      "testId": "operator-input-derived-rate-refusal",
+      "selector": "[data-testid=\"operator-input-derived-rate-refusal\"]"
     },
     "pages.eventTable": {
       "testId": "journal-table",

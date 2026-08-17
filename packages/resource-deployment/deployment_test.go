@@ -170,3 +170,16 @@ func TestManagedServiceAttachHealthPathRejectsAmbiguousTargets(t *testing.T) {
 		}
 	}
 }
+
+func TestServiceShutdownValidatesPlatformNeutralSignals(t *testing.T) {
+	for _, signal := range []string{ServiceShutdownTerminate, ServiceShutdownInterrupt} {
+		if err := (ServiceShutdown{Signal: signal}).Validate(); err != nil {
+			t.Fatalf("valid shutdown signal %q: %v", signal, err)
+		}
+	}
+	for _, signal := range []string{"", "sigkill", "SIGTERM"} {
+		if err := (ServiceShutdown{Signal: signal}).Validate(); err == nil {
+			t.Fatalf("invalid shutdown signal %q was accepted", signal)
+		}
+	}
+}

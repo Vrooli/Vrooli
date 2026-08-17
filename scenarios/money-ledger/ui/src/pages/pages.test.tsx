@@ -210,7 +210,7 @@ describe("ledger page empty and degraded states", () => {
 
     await user.type(screen.getByLabelText(/accountNameLabel/i), "Receivables");
     await user.click(screen.getByRole("button", { name: /createAccountAction/i }));
-    await waitFor(() => expect(api.createAccount).toHaveBeenCalledWith("book-created", "Receivables", "cash"));
+		await waitFor(() => expect(api.createAccount).toHaveBeenCalledWith("book-created", "Receivables", "ASSET"));
 
     await user.selectOptions(screen.getByLabelText(/fromAccountLabel/i), "account-1");
     await user.selectOptions(screen.getByLabelText(/toAccountLabel/i), "account-2");

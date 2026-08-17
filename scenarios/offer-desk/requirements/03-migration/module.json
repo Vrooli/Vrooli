@@ -75,6 +75,30 @@
           "notes": "The declared manifest marks narrative files none; the rehearsal report reads and writes only lifecycle, tier, and membership records."
         }
       ]
+    },
+    {
+      "id": "MIG-004",
+      "title": "Reconciliation is a runnable adoption gate",
+      "status": "complete",
+      "prd_ref": "OT-P0-006",
+      "category": "migration",
+      "criticality": "P0",
+      "description": "The operator can run a read-only catalog verification command that reports per-file count drift, duplicate identities, orphan edges, and extra live nodes. Adoption is not complete while the gate reports drift.",
+      "tags": ["migration", "reconciliation", "evidence"],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/catalog/importer_test.go",
+          "status": "implemented",
+          "notes": "Verification detects duplicate-containing catalogs and orphan edges, and passes on a reconciled catalog."
+        },
+        {
+          "type": "manual",
+          "ref": "docs/monetization/governance/adoption-validation.md",
+          "status": "implemented",
+          "notes": "The adoption receipt requires catalog-verify to return reconciled=true and total_drift=0."
+        }
+      ]
     }
   ]
 }

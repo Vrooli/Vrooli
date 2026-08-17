@@ -44,7 +44,27 @@
     },
     {
       "action": {
-        "metadata": { "label": "Offer table visible" },
+        "metadata": { "label": "Grouped catalog view visible" },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/pages.catalogGroupedView",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        }
+      },
+      "id": "wait-offers-grouped-view"
+    },
+    {
+      "action": {
+        "click": { "selector": "@selector/pages.catalogViewToggle" },
+        "metadata": { "label": "Reach flat catalog table" },
+        "type": "ACTION_TYPE_CLICK"
+      },
+      "id": "click-offers-flat-view"
+    },
+    {
+      "action": {
+        "metadata": { "label": "Flat offer table visible" },
         "type": "ACTION_TYPE_WAIT",
         "wait": {
           "selector": "@selector/pages.offerTable",
@@ -65,6 +85,18 @@
         }
       },
       "id": "wait-offers-create-action"
+    },
+    {
+      "action": {
+        "metadata": { "label": "Grouped and flat view toggle visible" },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/pages.catalogViewToggle",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        }
+      },
+      "id": "wait-offers-view-toggle"
     }
   ],
   "settings": {

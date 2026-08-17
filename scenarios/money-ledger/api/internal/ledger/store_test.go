@@ -31,7 +31,7 @@ func TestStoreIngestIsIdempotentAndReversalIsAppendOnly(t *testing.T) { // [REQ:
 	s, ctx := testStore(t)
 	b, err := s.CreateBook(ctx, "Operating", "USD")
 	require.NoError(t, err)
-	a, err := s.CreateAccount(ctx, b.Id, "Cash", "cash")
+	a, err := s.CreateAccount(ctx, b.Id, "Cash", ledgerpb.AccountKind_ASSET)
 	require.NoError(t, err)
 	e := &sharedpb.MoneyEvent{ExternalId: "sale-1", AdapterId: "manual", AccountId: a.Id, BookId: b.Id, AmountMinor: 1250, Currency: "USD", OccurredAt: timestamppb.Now(), Basis: sharedpb.Basis_BASIS_OPERATOR_ASSERTED}
 	p1, duplicate, err := s.Ingest(ctx, e, "operator")
@@ -77,9 +77,9 @@ func TestTransferIsPairedAndAudited(t *testing.T) { // [REQ:JRNL-002] [REQ:JRNL-
 	s, ctx := testStore(t)
 	b, err := s.CreateBook(ctx, "Operating", "USD")
 	require.NoError(t, err)
-	from, err := s.CreateAccount(ctx, b.Id, "Checking", "cash")
+	from, err := s.CreateAccount(ctx, b.Id, "Checking", ledgerpb.AccountKind_ASSET)
 	require.NoError(t, err)
-	to, err := s.CreateAccount(ctx, b.Id, "Reserve", "cash")
+	to, err := s.CreateAccount(ctx, b.Id, "Reserve", ledgerpb.AccountKind_ASSET)
 	require.NoError(t, err)
 	posts, err := s.Transfer(ctx, from.Id, to.Id, 250, "USD", "move-1", "reserve transfer", timestamppb.New(time.Date(2026, 1, 1, 10, 0, 0, 0, time.UTC)), "operator")
 	require.NoError(t, err)
@@ -93,7 +93,7 @@ func TestStatementWithoutBoundsDoesNotInventAnEmptyOpeningBalance(t *testing.T) 
 	s, ctx := testStore(t)
 	b, err := s.CreateBook(ctx, "Operating", "USD")
 	require.NoError(t, err)
-	a, err := s.CreateAccount(ctx, b.Id, "Cash", "cash")
+	a, err := s.CreateAccount(ctx, b.Id, "Cash", ledgerpb.AccountKind_ASSET)
 	require.NoError(t, err)
 	_, _, err = s.Ingest(ctx, &sharedpb.MoneyEvent{ExternalId: "opening", AdapterId: "manual", AccountId: a.Id, BookId: b.Id, AmountMinor: 500, Currency: "USD", OccurredAt: timestamppb.New(time.Date(2025, 12, 31, 10, 0, 0, 0, time.UTC)), Basis: sharedpb.Basis_BASIS_OPERATOR_ASSERTED}, "operator")
 	require.NoError(t, err)
@@ -110,9 +110,9 @@ func TestAccountsRemainScopedToTheirBook(t *testing.T) { // [REQ:JRNL-001]
 	require.NoError(t, err)
 	second, err := s.CreateBook(ctx, "Personal", "USD")
 	require.NoError(t, err)
-	firstAccount, err := s.CreateAccount(ctx, first.Id, "Operating cash", "cash")
+	firstAccount, err := s.CreateAccount(ctx, first.Id, "Operating cash", ledgerpb.AccountKind_ASSET)
 	require.NoError(t, err)
-	secondAccount, err := s.CreateAccount(ctx, second.Id, "Personal cash", "cash")
+	secondAccount, err := s.CreateAccount(ctx, second.Id, "Personal cash", ledgerpb.AccountKind_ASSET)
 	require.NoError(t, err)
 
 	accounts, err := s.ListAccounts(ctx, first.Id)
@@ -132,7 +132,7 @@ func TestPositionChangesForBackdatedPostingAndReportsBasis(t *testing.T) { // [R
 	s, ctx := testStore(t)
 	b, err := s.CreateBook(ctx, "Operating", "USD")
 	require.NoError(t, err)
-	a, err := s.CreateAccount(ctx, b.Id, "Cash", "cash")
+	a, err := s.CreateAccount(ctx, b.Id, "Cash", ledgerpb.AccountKind_ASSET)
 	require.NoError(t, err)
 	postAt := func(id string, amount int64, when time.Time) {
 		t.Helper()
@@ -158,7 +158,7 @@ func TestGoalVerdictRequiresItsDeclaredSustainWindow(t *testing.T) { // [REQ:POS
 	s, ctx := testStore(t)
 	b, err := s.CreateBook(ctx, "Operating", "USD")
 	require.NoError(t, err)
-	a, err := s.CreateAccount(ctx, b.Id, "Revenue", "revenue")
+	a, err := s.CreateAccount(ctx, b.Id, "Revenue", ledgerpb.AccountKind_REVENUE)
 	require.NoError(t, err)
 	for i, when := range []time.Time{
 		time.Date(2026, 1, 1, 10, 0, 0, 0, time.UTC),
@@ -172,11 +172,43 @@ func TestGoalVerdictRequiresItsDeclaredSustainWindow(t *testing.T) { // [REQ:POS
 	}
 	_, err = s.DeclareGoal(ctx, b.Id, &ledgerpb.Goal{Name: "two-month revenue", Metric: "revenue", Comparator: ">=", ThresholdMinor: 100, SustainPeriods: 2})
 	require.NoError(t, err)
-	verdicts, err := s.ListGoals(ctx, b.Id)
+	verdicts, err := s.ListGoals(ctx, b.Id, false)
 	require.NoError(t, err)
 	require.Len(t, verdicts, 1)
 	require.True(t, verdicts[0].Met)
 	require.EqualValues(t, 2, verdicts[0].SustainedPeriods)
+}
+
+func TestUnavailableGoalDoesNotBecomeApassingZero(t *testing.T) { // [REQ:POS-002]
+	s, ctx := testStore(t)
+	b, err := s.CreateBook(ctx, "Operating", "USD")
+	require.NoError(t, err)
+	a, err := s.CreateAccount(ctx, b.Id, "Cash", ledgerpb.AccountKind_ASSET)
+	require.NoError(t, err)
+	_, _, err = s.Ingest(ctx, &sharedpb.MoneyEvent{
+		ExternalId:  "cash-only",
+		AdapterId:   "manual",
+		AccountId:   a.Id,
+		BookId:      b.Id,
+		AmountMinor: 1000,
+		Currency:    "USD",
+		OccurredAt:  timestamppb.New(time.Now().UTC()),
+		FetchedAt:   timestamppb.New(time.Now().UTC()),
+		Basis:       sharedpb.Basis_BASIS_OPERATOR_ASSERTED,
+	}, "operator")
+	require.NoError(t, err)
+	_, err = s.DeclareGoal(ctx, b.Id, &ledgerpb.Goal{Name: "runway-floor", Metric: "runway", Comparator: ">=", ThresholdMinor: 3, SustainPeriods: 1})
+	require.NoError(t, err)
+	_, err = s.DeclareGoal(ctx, b.Id, &ledgerpb.Goal{Name: "default-alive", Metric: "revenue", Comparator: ">=", ComparandMetric: "burn", SustainPeriods: 3, BufferMultiple: 1.25})
+	require.NoError(t, err)
+	verdicts, err := s.ListGoals(ctx, b.Id, false)
+	require.NoError(t, err)
+	require.Len(t, verdicts, 2)
+	for _, verdict := range verdicts {
+		require.False(t, verdict.Met)
+		require.Zero(t, verdict.SustainedPeriods)
+		require.Contains(t, verdict.Explanation, "UNKNOWN:")
+	}
 }
 
 func TestGoalSupportsRatioAndMetricComparandWithExplicitUnits(t *testing.T) { // [REQ:POS-002]
@@ -189,7 +221,7 @@ func TestGoalSupportsRatioAndMetricComparandWithExplicitUnits(t *testing.T) { //
 	comparand, err := s.DeclareGoal(ctx, b.Id, &ledgerpb.Goal{Name: "services trap", Metric: "services_revenue", Comparator: ">", ComparandMetric: "subscription_revenue", SustainPeriods: 2, SustainPeriodUnit: ledgerpb.SustainPeriodUnit_MONTH, BufferMultiple: 1})
 	require.NoError(t, err)
 	require.Equal(t, "subscription_revenue", comparand.ComparandMetric)
-	verdicts, err := s.ListGoals(ctx, b.Id)
+	verdicts, err := s.ListGoals(ctx, b.Id, false)
 	require.NoError(t, err)
 	require.Len(t, verdicts, 2)
 }
@@ -207,4 +239,76 @@ func TestJournalWriteBoundaryHasOnePostingWriter(t *testing.T) { // [REQ:CTR-001
 		require.NoError(t, readErr)
 		require.NotContains(t, string(contents), "INSERT INTO postings", "only ledger.Store may write postings")
 	}
+}
+
+func TestArchivedBookIsExcludedFromPositionAndStillReadableById(t *testing.T) {
+	s, ctx := testStore(t)
+	b, err := s.CreateBook(ctx, "Drill", "USD")
+	require.NoError(t, err)
+	a, err := s.CreateAccount(ctx, b.Id, "Cash", ledgerpb.AccountKind_ASSET)
+	require.NoError(t, err)
+	p, _, err := s.Ingest(ctx, &sharedpb.MoneyEvent{ExternalId: "archive-proof", AdapterId: "manual", AccountId: a.Id, BookId: b.Id, AmountMinor: 100, Currency: "USD", OccurredAt: timestamppb.Now(), Basis: sharedpb.Basis_BASIS_OPERATOR_ASSERTED}, "operator")
+	require.NoError(t, err)
+	_, err = s.ArchiveBook(ctx, b.Id, "operator")
+	require.NoError(t, err)
+	books, err := s.ListBooks(ctx, false)
+	require.NoError(t, err)
+	require.Empty(t, books)
+	_, err = s.Position(ctx, b.Id)
+	require.ErrorContains(t, err, "archived")
+	postings, err := s.ListPostings(ctx, "", b.Id, "", "", 100)
+	require.NoError(t, err)
+	require.Len(t, postings, 1)
+	require.Equal(t, p.Id, postings[0].Id)
+}
+
+func TestAccountKindRefusesUndeclaredValueAndListsAccepted(t *testing.T) {
+	s, ctx := testStore(t)
+	b, err := s.CreateBook(ctx, "Operating", "USD")
+	require.NoError(t, err)
+	_, err = s.CreateAccount(ctx, b.Id, "Savings", ledgerpb.AccountKind(99))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "ASSET, LIABILITY, REVENUE, EXPENSE, EQUITY")
+}
+
+func TestKindNormalizationNeverGuessesAnUnknownKind(t *testing.T) {
+	s, ctx := testStore(t)
+	b, err := s.CreateBook(ctx, "Operating", "USD")
+	require.NoError(t, err)
+	_, err = s.db.ExecContext(ctx, `INSERT INTO accounts(id,book_id,name,kind,created_at) VALUES(?,?,?,?,?)`, "legacy-asset", b.Id, "Legacy asset", "asset", time.Now().UTC().Format(time.RFC3339Nano))
+	require.NoError(t, err)
+	_, err = s.db.ExecContext(ctx, `INSERT INTO accounts(id,book_id,name,kind,created_at) VALUES(?,?,?,?,?)`, "legacy-unknown", b.Id, "Legacy unknown", "savings", time.Now().UTC().Format(time.RFC3339Nano))
+	require.NoError(t, err)
+	require.NoError(t, s.EnsureMigrations(ctx))
+	var normalized, unknown string
+	require.NoError(t, s.db.QueryRowContext(ctx, `SELECT kind FROM accounts WHERE id=?`, "legacy-asset").Scan(&normalized))
+	require.NoError(t, s.db.QueryRowContext(ctx, `SELECT kind FROM accounts WHERE id=?`, "legacy-unknown").Scan(&unknown))
+	require.Equal(t, "ASSET", normalized)
+	require.Equal(t, "SAVINGS", unknown)
+	var findings int
+	require.NoError(t, s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM operator_input_findings WHERE path=?`, "account.kind:legacy-unknown").Scan(&findings))
+	require.Equal(t, 1, findings)
+}
+
+func TestGoalReparentingPreservesSustainMetadata(t *testing.T) {
+	s, ctx := testStore(t)
+	from, err := s.CreateBook(ctx, "Drill", "USD")
+	require.NoError(t, err)
+	to, err := s.CreateBook(ctx, "Production", "USD")
+	require.NoError(t, err)
+	original, err := s.DeclareGoal(ctx, from.Id, &ledgerpb.Goal{Name: "default-alive", Metric: "revenue", Comparator: ">=", ThresholdMinor: 100, SustainPeriods: 3, BufferMultiple: 1.25, SustainPeriodUnit: ledgerpb.SustainPeriodUnit_MONTH})
+	require.NoError(t, err)
+	reparented, err := s.ReparentGoal(ctx, original.Id, to.Id, "operator")
+	require.NoError(t, err)
+	require.Equal(t, to.Id, reparented.BookId)
+	require.Equal(t, original.Name, reparented.Name)
+	require.Equal(t, original.Metric, reparented.Metric)
+	require.Equal(t, original.Comparator, reparented.Comparator)
+	require.Equal(t, original.ThresholdMinor, reparented.ThresholdMinor)
+	require.Equal(t, original.SustainPeriods, reparented.SustainPeriods)
+	require.Equal(t, original.BufferMultiple, reparented.BufferMultiple)
+	require.Equal(t, original.SustainPeriodUnit, reparented.SustainPeriodUnit)
+	var audits int
+	require.NoError(t, s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM ledger_audit WHERE entity_type='goal' AND entity_id=?`, original.Id).Scan(&audits))
+	require.Equal(t, 1, audits)
 }

@@ -16,29 +16,7 @@ import (
 	"offer-desk/internal/catalog"
 )
 
-type drillTicker struct{ ch chan time.Time }
-
-func (t *drillTicker) C() <-chan time.Time { return t.ch }
-func (t *drillTicker) Stop()               {}
-func (t *drillTicker) Reset(time.Duration) {}
-
-type drillClock struct {
-	now    time.Time
-	ticker *drillTicker
-}
-
-func (c *drillClock) Now() time.Time { return c.now }
-func (c *drillClock) NewTimer(d time.Duration) schedule.Timer {
-	return schedule.System().NewTimer(d)
-}
-
-func (c *drillClock) NewTicker(time.Duration) schedule.Ticker {
-	c.ticker = &drillTicker{ch: make(chan time.Time, 1)}
-	return c.ticker
-}
-func (c *drillClock) Sleep(d time.Duration) { time.Sleep(d) }
-
-func testOfferService(t *testing.T, clock *drillClock) (*Service, context.Context) {
+func testOfferService(t *testing.T, clock *schedule.Fake) (*Service, context.Context) {
 	t.Helper()
 	sqlDB := databasetest.NewSQLite(t)
 	db := database.NewFromPrimary(sqlDB)
@@ -50,7 +28,7 @@ func testOfferService(t *testing.T, clock *drillClock) (*Service, context.Contex
 
 func TestSchedulerPromotesSatisfiedCandidateWithoutManualEvaluate(t *testing.T) { // [REQ:GATE-003]
 	t.Setenv("OFFER_EVALUATION_INTERVAL", "1ms")
-	clock := &drillClock{now: time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)}
+	clock := schedule.NewFake(time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC))
 	s, ctx := testOfferService(t, clock)
 	n, err := s.store.CreateNode(ctx, offerspb.NodeKind_OFFER, "Scheduled offer", offerspb.Status_IDEA, "", "")
 	require.NoError(t, err)
@@ -58,10 +36,10 @@ func TestSchedulerPromotesSatisfiedCandidateWithoutManualEvaluate(t *testing.T) 
 	require.NoError(t, err)
 	_, err = s.store.Transition(ctx, n.Id, offerspb.Status_CANDIDATE, "operator")
 	require.NoError(t, err)
-	_, err = s.store.AddFact(ctx, &offerspb.Fact{Name: "activation_rate", Value: 0.8, ObservedAt: timestamppb.New(clock.now), StaleAfterDays: 10})
+	_, err = s.store.AddFact(ctx, &offerspb.Fact{Name: "activation_rate", Value: 0.8, ObservedAt: timestamppb.New(clock.Now()), StaleAfterDays: 10})
 	require.NoError(t, err)
 	s.startScheduler()
-	clock.ticker.ch <- clock.now
+	clock.Tick()
 
 	deadline := time.Now().Add(2 * time.Second)
 	for time.Now().Before(deadline) {
@@ -78,7 +56,7 @@ func TestSchedulerPromotesSatisfiedCandidateWithoutManualEvaluate(t *testing.T) 
 }
 
 func TestAgentPromotionCreatesListableProposalWithoutActivatingNode(t *testing.T) { // [REQ:GATE-005]
-	clock := &drillClock{now: time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)}
+	clock := schedule.NewFake(time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC))
 	s, ctx := testOfferService(t, clock)
 	node, err := s.store.CreateNode(ctx, offerspb.NodeKind_OFFER, "Proposal offer", offerspb.Status_IDEA, "", "")
 	require.NoError(t, err)
@@ -101,7 +79,7 @@ func TestAgentPromotionCreatesListableProposalWithoutActivatingNode(t *testing.T
 }
 
 func TestOperatorRetirementRecordsProposalDeclineHistory(t *testing.T) { // [REQ:GATE-005]
-	clock := &drillClock{now: time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)}
+	clock := schedule.NewFake(time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC))
 	s, ctx := testOfferService(t, clock)
 	node, err := s.store.CreateNode(ctx, offerspb.NodeKind_OFFER, "Declined offer", offerspb.Status_IDEA, "", "")
 	require.NoError(t, err)
@@ -118,7 +96,7 @@ func TestOperatorRetirementRecordsProposalDeclineHistory(t *testing.T) { // [REQ
 }
 
 func TestBoardReportsLedgerUnavailableWithoutInventingActuals(t *testing.T) { // [REQ:INT-002] [REQ:INT-003] [REQ:INT-005]
-	clock := &drillClock{now: time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)}
+	clock := schedule.NewFake(time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC))
 	s, ctx := testOfferService(t, clock)
 	_, err := s.store.CreateNode(ctx, offerspb.NodeKind_OFFER, "Active but unmeasured", offerspb.Status_ACTIVE, "", "")
 	require.NoError(t, err)
@@ -129,5 +107,26 @@ func TestBoardReportsLedgerUnavailableWithoutInventingActuals(t *testing.T) { //
 	require.False(t, response.Msg.Entries[0].ActualsAvailable)
 	require.Len(t, response.Msg.Availability, 1)
 	require.Contains(t, response.Msg.Availability[0].Reason, "actuals unavailable")
-	require.Equal(t, "active and earning nothing", response.Msg.Entries[0].RankReason)
+	require.Contains(t, response.Msg.Entries[0].RankReason, "earnings unknown")
+	require.NotContains(t, response.Msg.Entries[0].RankReason, "earning nothing")
+}
+
+func TestEveryStatusHasAnExplicitRankReason(t *testing.T) {
+	for _, status := range []offerspb.Status{
+		offerspb.Status_STATUS_UNSPECIFIED, offerspb.Status_IDEA, offerspb.Status_CANDIDATE,
+		offerspb.Status_TRIGGER_MET, offerspb.Status_ACTIVE, offerspb.Status_SHIPPED, offerspb.Status_RETIRED, offerspb.Status_PROPOSED,
+	} {
+		reason := rankReason(status, false, 0, "money-ledger.actuals")
+		require.NotEmpty(t, reason, status.String())
+	}
+	require.NotEqual(t, rankReason(offerspb.Status_IDEA, false, 0, "money-ledger.actuals"), rankReason(offerspb.Status_RETIRED, false, 0, "money-ledger.actuals"))
+}
+
+func TestProposedStatusNamesPendingOperatorDecision(t *testing.T) {
+	require.Equal(t, "awaiting operator decision", rankReason(offerspb.Status_PROPOSED, false, 0, "money-ledger.actuals"))
+}
+
+func TestActiveWithZeroActualsStillSaysEarningNothing(t *testing.T) {
+	require.Equal(t, "active and earning nothing", rankReason(offerspb.Status_ACTIVE, true, 0, "money-ledger.actuals"))
+	require.Equal(t, "active and earning", rankReason(offerspb.Status_ACTIVE, true, 100, "money-ledger.actuals"))
 }

@@ -225,6 +225,36 @@
           "fixture": "all-available"
         }
       }
+    },
+    {
+      "id": "operator-inputs-empty",
+      "description": "The thirteen operator fields are present but unanswered; absent is shown as absent, never as zero.",
+      "setup": {"route": "/adapters", "query": {"fixture": "operator-inputs-empty"}}
+    },
+    {
+      "id": "operator-inputs-saving",
+      "description": "An operator-input dry run or apply is in flight and the affected controls say why.",
+      "setup": {"route": "/adapters", "query": {"fixture": "operator-inputs-saving"}}
+    },
+    {
+      "id": "operator-inputs-success",
+      "description": "An operator-input apply completed and its report names written and skipped fields.",
+      "setup": {"route": "/adapters", "query": {"fixture": "operator-inputs-success"}}
+    },
+    {
+      "id": "operator-inputs-validation-error",
+      "description": "An operator-input value was rejected before apply and the field is identified.",
+      "setup": {"route": "/adapters", "query": {"fixture": "operator-inputs-validation-error"}}
+    },
+    {
+      "id": "operator-inputs-partial",
+      "description": "Some operator fields are current while others remain absent; the missing paths are listed.",
+      "setup": {"route": "/adapters", "query": {"fixture": "operator-inputs-partial"}}
+    },
+    {
+      "id": "operator-inputs-stale",
+      "description": "A supplied operator field is outside its declared window and is marked stale with its age.",
+      "setup": {"route": "/adapters", "query": {"fixture": "operator-inputs-stale"}}
     }
   ],
   "elements": [
@@ -268,6 +298,28 @@
       "id": "empty-guidance",
       "role": "note",
       "description": "Guidance for registering a first adapter when none exist."
+    },
+    {
+      "id": "operator-input-surface",
+      "role": "region",
+      "name": "Operator financial inputs",
+      "description": "The thirteen fields requested from the operator, grouped by monetary, measure, and refused-derived-rate class."
+    },
+    {
+      "id": "operator-input-status",
+      "role": "table",
+      "name": "Operator input status",
+      "description": "Each field's absent, current, or stale status, observed time, and reason."
+    },
+    {
+      "id": "operator-input-report",
+      "role": "status",
+      "description": "Dry-run or apply report naming fields written and fields skipped with reasons."
+    },
+    {
+      "id": "operator-input-derived-rate-refusal",
+      "role": "note",
+      "description": "Explains why subscriptions.mrr is derived and cannot be entered as a journal posting."
     }
   ],
   "claims": [
@@ -382,6 +434,33 @@
         "adapter-availability"
       ],
       "rationale": "PRD accessibility rule. Availability is the most consequential fact on this page and must survive without colour perception."
+    },
+    {
+      "id": "operator-sees-absence-before-entry",
+      "type": "state-distinct",
+      "statement": "The operator sees all thirteen fields with status and age before entering a value, and absent is not rendered as zero.",
+      "tier": "machine",
+      "elements": ["operator-input-surface", "operator-input-status"],
+      "states": ["operator-inputs-empty", "operator-inputs-partial", "operator-inputs-stale"],
+      "rationale": "The replacement must be a trustworthy entry path, not a form that hides which source facts are missing."
+    },
+    {
+      "id": "operator-dry-run-precedes-apply",
+      "type": "state-covered",
+      "statement": "A dry-run report names every field to write and every field skipped, and apply is a separate explicit action.",
+      "tier": "machine",
+      "elements": ["operator-input-report"],
+      "states": ["operator-inputs-saving", "operator-inputs-success", "operator-inputs-validation-error"],
+      "rationale": "The existing importer owns the three-class classification; the console must expose that report before changing the journal."
+    },
+    {
+      "id": "derived-rate-is-refused",
+      "type": "element-present",
+      "statement": "subscriptions.mrr is displayed as a refused derived rate and cannot be submitted as a posting.",
+      "tier": "machine",
+      "elements": ["operator-input-derived-rate-refusal"],
+      "states": ["operator-inputs-empty", "operator-inputs-partial"],
+      "rationale": "MRR is computed from telemetry and has no direct journal basis in this scenario."
     }
   ],
   "bindings": {
@@ -409,6 +488,18 @@
       },
       "empty-guidance": {
         "testid": "adapter-empty-guidance"
+      },
+      "operator-input-surface": {
+        "testid": "operator-input-surface"
+      },
+      "operator-input-status": {
+        "testid": "operator-input-status"
+      },
+      "operator-input-report": {
+        "testid": "operator-input-report"
+      },
+      "operator-input-derived-rate-refusal": {
+        "testid": "operator-input-derived-rate-refusal"
       }
     }
   }

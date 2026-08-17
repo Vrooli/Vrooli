@@ -6,11 +6,11 @@ Holds every sellable thing an operator offers as a record with a state, evaluate
 
 **Its sibling:** [Money Ledger](../money-ledger/) holds what actually happened. This scenario holds what *should* earn. Neither can say "this offer is active and has earned nothing" alone.
 
-**Its other job:** this scenario is the `monetization` team's *instrument* — the one address its members read to learn what needs doing. That is why the `board` domain carries financial posture alongside offer state: a team with one address must serve its financial member from the same surface as its catalog members. Money Ledger remains the marketed product; instrument is a work-queue role, not a ranking. See [`docs/internal/DECISIONS.md`](docs/internal/DECISIONS.md), 2026-08-13.
+**Its other job:** this scenario is the `monetization` team's *instrument* — the one address its members read to learn what needs doing. That is why the `board` domain carries financial posture alongside offer state: a team with one address must serve its financial member from the same surface as its catalog members. Money Ledger remains the marketed product; instrument is a work-queue role, not a ranking. The adoption is live as of 2026-08-16; see [`docs/internal/DECISIONS.md`](docs/internal/DECISIONS.md).
 
 **Read first:** [`docs/START-HERE.md`](docs/START-HERE.md) for the initialization gates, then [`PRD.md`](PRD.md) for the operational targets and [`docs/concepts/DOMAINS.md`](docs/concepts/DOMAINS.md) for the domain map and build order.
 
-> **Status:** the core offer graph, lifecycle gates, source-tree importer, board projection, CLI, and console vertical slices are implemented. Run `make test` for scenario-owned validation; see [`docs/internal/PROBLEMS.md`](docs/internal/PROBLEMS.md) for remaining integration and experience-contract findings.
+> **Status:** the core offer graph, lifecycle gates, source-tree importer, board projection, CLI, and console vertical slices are implemented and serve as the live monetization instrument. Product-side validation is current; the external experience-capture timeout remains recorded in [`docs/internal/PROBLEMS.md`](docs/internal/PROBLEMS.md).
 
 ---
 
@@ -41,8 +41,8 @@ This scenario follows Vrooli's standard full-stack scenario shape:
   output.
 - Baseline PWA/native-readiness metadata: web app manifest,
   standalone-mode mobile tags, proxy-safe relative install asset URLs,
-  a minimal app-shell service worker, safe-area CSS tokens, and generic
-  placeholder icons ready for scenario-specific replacement.
+  a minimal app-shell service worker, safe-area CSS tokens, and a
+  scenario-specific connected-graph icon set in all required PWA sizes.
 - Canonical responsive shell plus adopted-provenance UI primitives from
   `react-component-library` for common shared surfaces such as buttons,
   cards, data tables, empty states, inputs, selects, status badges, sidebar

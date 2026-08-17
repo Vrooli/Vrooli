@@ -17,6 +17,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/vrooli/binaryfetch"
 )
 
 type ArtifactTrustMode string
@@ -110,12 +112,26 @@ func VerifyReleaseDirectory(root string, mode ArtifactTrustMode, publicKeyPath s
 		return m, nil, e
 	}
 	for _, a := range m.Artifacts {
-		b, e := os.ReadFile(filepath.Join(root, a.Name))
-		if e != nil {
-			return m, nil, fmt.Errorf("read staged artifact %s: %w", a.Name, e)
+		artifactPath := filepath.Join(root, a.Name)
+		info, statErr := os.Stat(artifactPath)
+		if statErr != nil {
+			return m, nil, fmt.Errorf("read staged artifact %s: %w", a.Name, statErr)
 		}
-		sum := sha256.Sum256(b)
-		if hex.EncodeToString(sum[:]) != a.SHA256 {
+		got := ""
+		if info.IsDir() {
+			got, statErr = binaryfetch.TreeDigest(artifactPath)
+		} else {
+			b, readErr := os.ReadFile(artifactPath)
+			statErr = readErr
+			if statErr == nil {
+				sum := sha256.Sum256(b)
+				got = hex.EncodeToString(sum[:])
+			}
+		}
+		if statErr != nil {
+			return m, nil, fmt.Errorf("hash staged artifact %s: %w", a.Name, statErr)
+		}
+		if got != a.SHA256 {
 			return m, nil, fmt.Errorf("staged artifact %s hash mismatch", a.Name)
 		}
 	}

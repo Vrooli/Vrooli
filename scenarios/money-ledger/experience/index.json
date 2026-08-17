@@ -58,6 +58,12 @@
       "path": "components/dirty-state-guard.json",
       "title": "Dirty State Guard",
       "status": "active"
+    },
+    {
+      "id": "cartesian-charts",
+      "path": "components/cartesian-charts.json",
+      "title": "Cartesian Charts",
+      "status": "active"
     }
   ],
   "journeys": [

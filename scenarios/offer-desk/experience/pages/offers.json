@@ -226,6 +226,36 @@
           "fixture": "dangling-member"
         }
       }
+    },
+    {
+      "id": "merge-duplicate",
+      "description": "An operator compares two same-kind records, sees the references that will move and any edge collapse, and explicitly confirms the audited merge.",
+      "setup": {
+        "route": "/offers",
+        "query": {
+          "fixture": "merge-duplicate"
+        }
+      }
+    },
+    {
+      "id": "grouped-default",
+      "description": "The offers route opens in a grouped catalog view with node counts by kind and edge counts on every node.",
+      "setup": { "route": "/offers", "query": { "fixture": "grouped-default" } }
+    },
+    {
+      "id": "grouped-empty",
+      "description": "The grouped catalog has no nodes and explains how to create the first record; the flat table remains reachable.",
+      "setup": { "route": "/offers", "query": { "fixture": "grouped-empty" } }
+    },
+    {
+      "id": "grouped-no-edges",
+      "description": "A grouped catalog contains a node with no relationships and says so rather than implying missing data is connected.",
+      "setup": { "route": "/offers", "query": { "fixture": "grouped-no-edges" } }
+    },
+    {
+      "id": "grouped-duplicates",
+      "description": "Catalog verification reports duplicate identities and the grouped view shows a blocking banner with the count.",
+      "setup": { "route": "/offers", "query": { "fixture": "grouped-duplicates" } }
     }
   ],
   "elements": [
@@ -244,6 +274,11 @@
       "id": "status-label",
       "role": "status",
       "description": "The offer's current status as a text label from the one shared vocabulary."
+    },
+    {
+      "id": "rank-reason",
+      "role": "status",
+      "description": "The offer's localized board reason, including a named unavailable actuals source when the ledger cannot be read."
     },
     {
       "id": "waiting-on",
@@ -310,6 +345,46 @@
       "role": "form",
       "name": "Create relationship",
       "description": "Creates a typed relationship between offer nodes."
+    },
+    {
+      "id": "offer-merge-form",
+      "role": "form",
+      "name": "Merge duplicate catalog records",
+      "description": "Selects an explicit surviving node and duplicate, then requires confirmation before the destructive but audited merge."
+    },
+    {
+      "id": "offer-merge-summary",
+      "role": "status",
+      "name": "Merge preview",
+      "description": "Names both nodes and the reference counts and collapsed edges that will move."
+    },
+    {
+      "id": "catalog-grouped-view",
+      "role": "region",
+      "name": "Grouped catalog",
+      "description": "The default catalog view grouped by node kind."
+    },
+    {
+      "id": "catalog-kind-group",
+      "role": "group",
+      "description": "One node-kind group with its node count."
+    },
+    {
+      "id": "catalog-node-edge-counts",
+      "role": "table",
+      "name": "Catalog relationship counts",
+      "description": "Each node and its belongs_to, sells_at, requires, and feeds edge counts."
+    },
+    {
+      "id": "catalog-view-toggle",
+      "role": "button",
+      "name": "Catalog view",
+      "description": "Switches between the grouped catalog and the flat table."
+    },
+    {
+      "id": "catalog-duplicate-banner",
+      "role": "alert",
+      "description": "A blocking duplicate-identity finding from catalog verification. Present only when duplicates exist."
     }
   ],
   "claims": [
@@ -434,6 +509,52 @@
       "tier": "machine",
       "elements": ["promote-action"],
       "states": ["default", "promotion-blocked"]
+    },
+    {
+      "id": "duplicate-merge-is-explicit-and-audited",
+      "type": "affordance-present",
+      "statement": "The duplicate merge surface names the survivor, duplicate, reference counts, collapsed edges, confirmation, cancellation, and completion feedback.",
+      "tier": "machine",
+      "elements": ["offer-merge-form", "offer-merge-summary"],
+      "params": {"affordances": ["action", "confirm", "cancel"]},
+      "states": ["merge-duplicate"],
+      "rationale": "GRAPH-005: deleting a duplicate is allowed only when the operator sees which identity survives, what moves, and what audit record will remain."
+    },
+    {
+      "id": "offer-rank-reason-is-visible",
+      "type": "element-present",
+      "statement": "The offer surface renders the board's rank reason as text, including named actuals unavailability rather than a fabricated zero.",
+      "tier": "machine",
+      "elements": ["rank-reason"],
+      "states": ["default", "partial"]
+    },
+    {
+      "id": "grouped-view-shows-counts",
+      "type": "element-present",
+      "statement": "The default grouped catalog shows a node count for each kind and edge counts by kind for each node.",
+      "tier": "machine",
+      "elements": ["catalog-grouped-view", "catalog-kind-group", "catalog-node-edge-counts"],
+      "states": ["grouped-default", "grouped-no-edges"],
+      "rationale": "A flat row list hides the shape of the repaired graph; counts make identity and relationship coverage visible at a glance."
+    },
+    {
+      "id": "flat-view-remains-reachable",
+      "type": "affordance-present",
+      "statement": "The operator can switch from the grouped catalog to the existing flat table.",
+      "tier": "machine",
+      "elements": ["catalog-view-toggle", "offer-table"],
+      "states": ["grouped-default", "grouped-empty", "grouped-no-edges"],
+      "params": { "affordances": ["toggle"], "targetRole": "button" },
+      "rationale": "Grouping is a default projection, not a replacement for the searchable record table."
+    },
+    {
+      "id": "duplicate-banner-is-conditional",
+      "type": "state-distinct",
+      "statement": "A duplicate-identity banner appears when verification reports duplicates and is absent when verification is reconciled.",
+      "tier": "manual",
+      "elements": ["catalog-duplicate-banner", "catalog-grouped-view"],
+      "states": ["grouped-duplicates", "grouped-default"],
+      "rationale": "The banner makes the exact defect class that caused the repair visible without turning a clean catalog into an alarm."
     }
   ],
   "bindings": {
@@ -446,6 +567,9 @@
       },
       "status-label": {
         "testid": "offer-status"
+      },
+      "rank-reason": {
+        "testid": "offer-rank-reason"
       },
       "waiting-on": {
         "testid": "offer-waiting-on"
@@ -482,6 +606,27 @@
       },
       "offer-edge-form": {
         "testid": "offer-create-edge"
+      },
+      "offer-merge-form": {
+        "testid": "offer-merge-form"
+      },
+      "offer-merge-summary": {
+        "testid": "offer-merge-summary"
+      },
+      "catalog-grouped-view": {
+        "testid": "catalog-grouped-view"
+      },
+      "catalog-kind-group": {
+        "testid": "catalog-kind-group"
+      },
+      "catalog-node-edge-counts": {
+        "testid": "catalog-node-edge-counts"
+      },
+      "catalog-view-toggle": {
+        "testid": "catalog-view-toggle"
+      },
+      "catalog-duplicate-banner": {
+        "testid": "catalog-duplicate-banner"
       }
     }
   }

@@ -13,6 +13,7 @@ const api = vi.hoisted(() => ({
   fetchBoard: vi.fn(),
   fetchNodes: vi.fn(),
   fetchEdges: vi.fn(),
+  fetchCatalogVerification: vi.fn(),
   fetchProposals: vi.fn(),
   evaluateTriggers: vi.fn(),
   promoteNode: vi.fn(),
@@ -40,6 +41,7 @@ beforeEach(() => {
   });
   api.fetchNodes.mockResolvedValue({ nodes: [{ id: "offer-1", name: "Example offer", status: "ACTIVE" }] });
   api.fetchEdges.mockResolvedValue({ edges: [{ id: "edge-1", kind: "MEMBERSHIP" }] });
+  api.fetchCatalogVerification.mockResolvedValue({ files: [], duplicateIdentities: [], orphanEdgeIds: [], extraNodeIds: [], totalDrift: 0, reconciled: true });
   api.fetchProposals.mockResolvedValue({ proposals: [{ id: "proposal-1", nodeId: "offer-1", actor: "agent", requestedStatus: "ACTIVE", reason: "Ready for review", evidenceReference: "catalog/node/offer-1", createdAt: { seconds: 1n, nanos: 0 }, declineHistory: [] }] });
   api.evaluateTriggers.mockResolvedValue({ evaluations: [{ id: "eval-1", factName: "revenue", verdict: "UNKNOWN" }] });
   api.promoteNode.mockResolvedValue({
@@ -83,6 +85,7 @@ describe("offer desk authored states", () => {
     window.history.replaceState({}, "", "/offers");
     renderWithProviders(<OffersPage />);
 
+    fireEvent.click(await screen.findByTestId(selectors.pages.catalogViewToggle));
     fireEvent.click(await screen.findByTestId("offer-promote"));
 
     expect(api.promoteNode).toHaveBeenCalledWith(expect.objectContaining({ nodeId: "offer-1", role: "agent" }));
@@ -215,6 +218,8 @@ describe("offer desk authored states", () => {
 
     dashboardView.unmount();
     const offersView = renderWithProviders(<OffersPage />);
+    await screen.findByTestId(selectors.pages.catalogViewToggle);
+    fireEvent.click(screen.getByTestId(selectors.pages.catalogViewToggle));
     await screen.findByTestId(selectors.pages.offerTable);
     fireEvent.change(screen.getByPlaceholderText(/pages\.offers\.offerLabel/), { target: { value: "no matching offer" } });
 

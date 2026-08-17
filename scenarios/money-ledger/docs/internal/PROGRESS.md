@@ -17,8 +17,91 @@ Entries are appended when work lands, not while it is still speculative.
 
 | 2026-08-15 | codex | in-progress | Capability-gap implementation: operator-mode import is reachable through RPC and CLI with dry-run default; thirteen operator paths are classified into eight monetary fields, four measures, and one refused derived rate. Staleness windows and observation dates are reported, stale values are not written, and populated rehearsal evidence shows zero time/hour categories in the journal. Four canonical goal declarations now carry ratio/comparand fields and explicit week/month units. Evidence: `docs/internal/evidence/operator-input-rehearsal.json`; API suite green. |
 | 2026-08-15 | codex | done-with-boundary | Final capability-gap validation: requirements validation passed; CLI unit suites passed after binding importer flags to proto field names; live operator import, staleness, goal, position, and board rehearsals passed. Comprehensive run `20260815-065204-650333b7` passed 18/21 phases; only shared `ui-health` timeout and Test Genie experience capture reconciliation remained. Protected-source digests matched the Phase 1 anchors. Planned requirements are enumerated in `PROBLEMS.md`; adoption/cutover was not performed. |
-| 2026-08-15 | codex | done-with-boundary | Final audit completed: API/CLI Go suites, golangci-lint, both UI suites/type-check/builds, proto build, requirements validation, and protected-tree digest checks passed. The final Offer Desk rerun `20260815-072053-feebd711` also removed the shared template floor findings; Money Ledger retains the documented Test Genie experience-capture boundary from its comprehensive run. Rehearsal copies were moved recoverably to `/tmp/vrooli-money-offer-rehearsal-20260815-final`. |
+| 2026-08-15 | codex | done-with-boundary | Final audit completed: API/CLI Go suites, golangci-lint, both UI suites/type-check/builds, proto build, requirements validation, and protected-tree digest checks passed. The final Offer Desk rerun `20260815-072053-feebd711` also removed the shared template floor findings; Money Ledger retains the documented Test Genie experience-capture boundary from its comprehensive run. Rehearsal copies were moved recoverably to `<tmp>/vrooli-money-offer-rehearsal-20260815-final`. |
 | 2026-08-15 | codex | baseline | Production-ready operator-console plan execution started. Protected-tree digests remain `docs/monetization` = `f9fe1bcaba7690f4ed9efbbba999c9135ee9560dc97fdd67c98342e49dec4f1d` and `scenarios/prompt-manager/store/teams/monetization` = `cb80bef5bb254f98a7de6f4383ddd99ed05d2cd9caedfd237f872a328ba13546`. Git Control Tower collection `money-ledger-and-offer-desk-production-ready-operator-baseline` captured both scenarios at commit `5f0072e4918355fb26da41395cf0f979c5b27b24`; baseline runs: `20260816-035345-81310f5c` and `20260816-035345-299e5d8a`. |
+
+| 2026-08-16 | codex | baseline | Fresh Phase 1 evidence for plan `adopt-offer-desk-and-money-ledger-as-the-monetization-team`: Git Control Tower collection `adopt-offer-desk-and-money-ledger-as-the-monetization-team-baseline` passed with money-ledger run `20260816-175828-55146667` (GCT member SHA `0ba55ce58d82a0dd610f50da429a0bdfc9c59879`; Test Genie terminal metadata reports `ef6a7ad37301e662daae235a3821dfdde8e280f2`) and Offer Desk run `20260816-181248-26067354` (GCT/Test Genie SHA `ef6a7ad37301e662daae235a3821dfdde8e280f2`). Money Ledger passed all 21 planned phases; Offer Desk’s baseline passed 20/21 with the inherited `unit` failure recorded in Offer Desk’s log. Fresh protected-tree digests: `docs/monetization` `f9fe1bcaba7690f4ed9efbbba999c9135ee9560dc97fdd67c98342e49dec4f1d`; monetization team tree `cb80bef5bb254f98a7de6f4383ddd99ed05d2cd9caedfd237f872a328ba13546`. Ten member files total 22,356 bytes: catalog-strategist 1,512/1,653; financial-tracker 1,101/1,968; market-validator 3,122/2,671; monetization-contrarian 3,010/1,460; opportunity-scout 2,858/3,001 (RESPONSIBILITIES/HEARTBEAT). Live repo data directory measured 176,128 bytes including SQLite sidecar files; `money-ledger.db` 143,360 bytes, `money-ledger.db-shm` 32,768 bytes, `money-ledger.db-wal` 0 bytes. Row-count comparand: accounts 4, books 3, notes 0, adapter_status 0, goals 6, operator_input_findings 1, adapters 2, ingest_receipts 6, operator_measures 4, attachments 0, ledger_audit 17, postings 17. Backup coverage at capture: registered 18, recommended 91, sensitive 30, planned 18, backed up 18, verified 17; the full registered-target list is recorded below.
+
+### Fresh baseline phase results — 2026-08-16
+
+| Phase | Money Ledger `20260816-175828-55146667` | Offer Desk `20260816-181248-26067354` |
+|---|---|---|
+| portability | passed | passed |
+| structure | passed | passed |
+| contracts | passed | passed |
+| ui-health | passed | passed |
+| api | passed | passed |
+| architecture | passed | passed |
+| dependencies | passed | passed |
+| quality | passed | passed |
+| docs | passed | passed |
+| performance | passed | passed |
+| unit | passed | failed — `COMPANION_REIMPLEMENTED` (`drillClock`) |
+| storage | passed | passed |
+| workflow | passed | passed |
+| business | passed | passed |
+| experience | passed | passed |
+| tidiness | passed | passed |
+| security | passed | passed |
+| measures | passed | passed |
+| proto | passed | passed |
+| branding | passed | passed |
+| templates | passed (advisory) | passed (advisory) |
+
+### Fresh baseline backup coverage — 2026-08-16
+
+`data-backup-manager coverage report --json` measured `registered_count=18`,
+`recommended_count=91`, `sensitive_count=30`, `planned_count=18`,
+`backed_up_count=18`, and `verified_count=17`. Registered targets were:
+
+| Owner/name | Kind | Locator |
+|---|---|---|
+| claude-code/file-history | filesystem | `~/.claude/file-history` |
+| claude-code/history | filesystem | `~/.claude/history.jsonl` |
+| claude-code/projects | filesystem | `~/.claude/projects` |
+| codex/config | filesystem | `~/.codex/config.toml` |
+| codex/history | filesystem | `~/.codex/history.jsonl` |
+| codex/sessions | filesystem | `~/.codex/sessions` |
+| codex/state | SQLite | `~/.codex/state_5.sqlite` |
+| opencode/config | filesystem | `~/.config/opencode` |
+| source-ledger/journal | SQLite | `<repo>/scenarios/source-ledger/data/source-ledger.db` |
+| swarm-manager/data | filesystem | `~/.vrooli/data/vrooli/swarm-manager` |
+| swarm-manager/domain-data | filesystem | `~/.vrooli/data/vrooli/swarm-manager` |
+| vrooli/config | filesystem | `~/.vrooli/config` |
+| vrooli/data | filesystem | `~/.vrooli/data` |
+| vrooli/plans | filesystem | `~/.vrooli/plans` |
+| vrooli/runtime-db | SQLite | `~/.vrooli/state/runtime.db` |
+| vrooli/secrets | filesystem | `~/.vrooli/secrets.json` |
+| vrooli/state | filesystem | `~/.vrooli/state` |
+| vrooli-memory/journal | SQLite | `~/.vrooli/data/vrooli/vrooli-memory/vrooli-memory.db` |
+
+| 2026-08-16 | codex | phase-3-done | Static storage validation now reflects durable pilot reality. The resolved data directory measured 192,031 bytes on 2026-08-16; the data budget is 1MiB with a measurement-based rationale. `maturity` is `pilot`, and `data-backup-manager` is declared as an enabled, non-required, non-startup dependency with explicit scheduled-protection degradation. `storage-manager validate scenario money-ledger --json` passed; `persistence.backup-target-missing` was applicable and emitted no finding. Fix preview reported no auto-fixable findings. The remaining `MIGRATION_DEBT` advisory is recorded as future schema-change hardening because this phase introduced no schema migration. |
+
+| 2026-08-16 | codex | phase-5-gate | Final quiesced gate passed for Money Ledger. No `SQLITE_PATH` override remains, the repository `data/` directory has no files, and the resolved database is under `~/.vrooli/data/vrooli/money-ledger`. Backup run `899f6bb7-b3dd-4c98-b083-13219cb7683b` produced snapshot `c7dda00016b28de63b6eaccf6076cb8b` (191,882 bytes); audit `3e71151f-0be4-4e16-9287-f7ab449fc386` and drill `4737ddf8-0da0-422c-ad22-e663562a47d3` both verified/restored with exact tree and SQLite matches, 18 tables, integrity `ok`. Restored row counts equal the Phase 1 baseline: accounts 4, books 3, notes 0, adapter_status 0, goals 6, operator_input_findings 1, adapters 2, ingest_receipts 6, operator_measures 4, attachments 0, ledger_audit 17, postings 17. Storage validation passed at `pilot` with the backup check applicable; direct requirements validation passed at L3. Final Test Genie run `20260816-200253-2fb9434a` passed 21/21. Protected digests remain `docs/monetization` `f9fe1bcaba7690f4ed9efbbba999c9135ee9560dc97fdd67c98342e49dec4f1d` and the monetization team tree `cb80bef5bb254f98a7de6f4383ddd99ed05d2cd9caedfd237f872a328ba13546`. Fresh read-only catalog and operator-input rehearsals completed; no source was applied or removed. |
+| 2026-08-16 | codex | phase-7-done | Monetization remained paused. Backup run `72c4daca-2ef4-41df-a3d8-edebd49ced2f` produced the Money rollback snapshot `e65ff9d9eef261335f0bbc0691dbfcca` (192,934 bytes) through the durable plan. The real all-null operator input file was dry-run and applied: all 13 declared paths were classified as 8 monetary fields, 4 windowed measures, and 1 refused derived rate; every field was non-written, the posting count stayed 17, measure count stayed 4, finding count stayed 1, and SQLite integrity remained `ok`. The four canonical goals are present with sustain metadata: `default-alive` `a2aff5f3-e3df-4174-8398-926bd129c797` (3 months, 1.25 buffer), `default-alive-minimum` `5be75ab9-80d1-4c99-842c-401814e10b31` (3 months), `services-capacity` `45fc16ec-3da3-455a-bc78-5c36b86d2277` (30%, 3 weeks), and `services-trap` `bfdaf33a-c047-46a0-b843-464014c875a5` (2 months). Goal evaluation was hardened so unavailable observations—including runway and fixture-only measures—are explicitly `UNKNOWN` with reasons rather than numeric zero or a passing verdict. Live Money position and Offer Desk board both report UNKNOWN goals, an unavailable runway, and `default_alive_gap=unavailable: revenue and burn observations are incomplete`. |
+| 2026-08-16 | codex | phase-11-done | Monetization adoption is live through Offer Desk, with Money Ledger retained as the covered financial source and its durable path at `~/.vrooli/data/vrooli/money-ledger`; no repository database or `SQLITE_PATH` override remains. Fresh direct requirements validation passed, direct experience validation passed at L3 with zero required findings, and storage validation passed with only the known pilot-stage `MIGRATION_DEBT` advisory. Final server-owned Test Genie run `20260816-233216-523abdcf` passed all 21/21 phases. The durable plan `monetization-durable-20260816` (`1b75cf16-a291-41d8-b690-390b5af21c8b`) completed run `7d9410fa-d503-436b-b35c-54bd4c001e4f`; snapshot `58adac6663482ec1bb70e156a47c0845` and audit `70c328fb-4da3-4c4b-8a8f-0f481fffc8c3` are restorable, SQLite-integrity-clean, and exact (`matches=true`, 192,934 bytes, 18 tables). The live instrument contract is `offer-desk` covering both scenarios; the operating model validates with zero findings, graph orientation cost is 73 with one domain address, and the ten-member responsibility/heartbeat set is 27.7% smaller than its Phase 1 baseline. |
+
+### Operator request — 2026-08-16, now entered through Money Ledger `/adapters`
+
+The real file is intentionally unanswered. Runway remains `UNKNOWN` until the
+operator supplies the fields below; no null is interpreted as zero.
+
+| Path | What it means | Where to gather it |
+|---|---|---|
+| `cash` | Cash and readily available operator funds | `HOW_TO_GATHER_INPUTS.md#cash-on-hand` |
+| `monthlyBurn.aiApi` | Monthly model, gateway, STT/TTS, and embedding cost | `HOW_TO_GATHER_INPUTS.md#monthly-ai--api-cost` |
+| `monthlyBurn.infrastructure` | Monthly VPS, storage, CDN, DNS, and backup cost | `HOW_TO_GATHER_INPUTS.md#monthly-infrastructure-cost` |
+| `monthlyBurn.saas` | Monthly Stripe, email, analytics, and business SaaS cost | `HOW_TO_GATHER_INPUTS.md#monthly-third-party-saas-cost` |
+| `monthlyBurn.tooling` | Monthly development, CI, monitoring, and tooling cost | `HOW_TO_GATHER_INPUTS.md#monthly-tooling-cost` |
+| `timeAllocation.product` | Share of the last seven days spent building product | `HOW_TO_GATHER_INPUTS.md#time-allocation` |
+| `timeAllocation.services` | Share of the last seven days spent on paid services | `HOW_TO_GATHER_INPUTS.md#time-allocation` |
+| `timeAllocation.ops` | Share of the last seven days spent on recurring operations | `HOW_TO_GATHER_INPUTS.md#time-allocation` |
+| `servicesRevenue.leadGen` | Monthly revenue from lead-generation services | `HOW_TO_GATHER_INPUTS.md#services-revenue` |
+| `servicesRevenue.doneForYou` | Monthly revenue from done-for-you services | `HOW_TO_GATHER_INPUTS.md#services-revenue` |
+| `servicesRevenue.consulting` | Monthly revenue from consulting services | `HOW_TO_GATHER_INPUTS.md#services-revenue` |
+| `servicesTime.hoursThisWindow` | Hours spent on active services in the current window | `HOW_TO_GATHER_INPUTS.md#services-time` |
+| `subscriptions.mrr` | Subscription MRR from telemetry; not a manual operator number | `HOW_TO_GATHER_INPUTS.md#subscription-mrr` (console displays this as refused derived rate) |
+
 
 ## Entry Template
 
@@ -63,3 +146,6 @@ this entry and its UI-health execution phase remains an infrastructure boundary.
 | 2026-08-16 | codex | evidence | Phase 4 live read evidence: goal `58adfa9a-23a3-4742-9cfe-ad6c1d8375b7` is declared and listed with `MONTH` sustain metadata; statement query for `2026-08-01` through `2026-08-16` reports `partial=true` with named `drill-manual` and `phase3-manual` availability reasons and retained `last_success_at`; failed adapter receipt `816ff07f-97a0-4bc7-b1d9-4d8e1d632006` carries the same named outage reason. The refreshed CLI also produced transfer postings `107528e2-ad55-4798-9c9b-a34a238538f2`/`86b32b4d-ee25-4f34-8818-cfe01ef33eb8`. |
 | 2026-08-16 | codex | done-with-boundary | Phases 5–9/10 console hardening: Offer Desk proposals/board reads and named Money Ledger degradation are live; both experience journey sets now carry affordance `via` values, page claims cover forms and state-changing controls, dirty-state components are indexed, and BAS cases use selector tokens. Phase 9 enforces 44px compact actions and table-local mobile scrolling; UI suites are Money Ledger 36 files/166 tests and Offer Desk 36 files/168 tests, with type-check, lint (two inherited Fast Refresh warnings), and production builds passing. Phase 10 UX docs, references, quickstarts, decisions, and rehearsal artifacts are complete. Money comprehensive run `20260816-071011-66d1c203` completed 17/21; Experience validation exceeded the provider's two-minute client budget. Protected digests remain `docs/monetization` `f9fe1bcaba7690f4ed9efbbba999c9135ee9560dc97fdd67c98342e49dec4f1d` and monetization team `cb80bef5bb254f98a7de6f4383ddd99ed05d2cd9caedfd237f872a328ba13546`. |
 | 2026-08-16 | codex | evidence | Captured `docs/internal/evidence/outage-demo-20260816.mp4` from the live Offer Desk board at 1440×1000/10 fps. The recording shows the healthy board, a stopped Money Ledger with a named connection-refused source-unavailability state and no synthetic zero, then recovery with the posture source restored. The repository has no runnable alternative environment, so the comparative side-by-side half remains explicitly pending rather than fabricated. |
+| 2026-08-17 | codex | phase-8-contract | Phase 8 implementation is complete through the non-mutating boundary: `AccountKind` is a five-value proto enum; account writes persist declared uppercase names; `EnsureMigrations` adds audited archive columns, normalizes legacy casing, and records unknown kinds as findings; archive/reparent RPCs, CLI verbs, endpoint descriptors, and live console affordances are wired. Four expected-behavior store tests pass, API/CLI suites and lint pass, UI tests/type-check/build pass, and the experience contract was extended before the UI controls. Migration was rehearsed against a copied live database in `money-ledger_phase8-rehearsal-20260817`; it produced the expected columns, three normalization audit rows, and no live-database changes. The remaining Phase 8 operator boundary is the production book name and currency; no production book or live normalization has been performed without those values. |
+| 2026-08-17 | codex | phase-9-entry-path | Money Ledger `/adapters` now exposes all thirteen operator fields with absent/current/stale status and observation age, separates monetary fields from measures, refuses `subscriptions.mrr` as a derived rate, previews the existing importer report before apply, and sends console JSON through `ImportOperatorInputs` rather than a second journal writer. `ledger operator-input-status --json` on scratch variant `phase8-rehearsal-20260817` returned all 13 paths. The console contract and selectors were authored before the component. The all-null source remains non-mutating; unit proof covers dry-run, one monetary posting, one measure, and one derived-rate finding. `HOW_TO_GATHER_INPUTS.md` now names `/adapters` as the entry surface. |
+| 2026-08-16 | codex | phase-2-done | Durable-storage migration completed only after verified pre-migration snapshots. `money-ledger.db` plus SQLite sidecars moved (not copied) from `scenarios/money-ledger/data` to `~/.vrooli/data/vrooli/money-ledger`; the repository data directory has no SQLite files, and `SQLITE_PATH` was removed from `.vrooli/service.json`. Lifecycle restart was healthy and `/proc`/`lsof` proved the API has `VROOLI_STORAGE_NAMESPACE=money-ledger` and opens the resolved database path. Resolver proof: live namespace `money-ledger` and injected shadow namespace `money-ledger_shadow` resolve to distinct data paths. Backup plan `monetization-durable-20260816` (`1b75cf16-a291-41d8-b690-390b5af21c8b`) is enabled on `0 3 * * *` with 168h recovery drills and target `299e9057-084a-4072-94fb-86503c4abeda`; controlled stopped-service run `f666f9eb-50f3-41f7-8287-46cdcdd8f591` produced snapshot `72c25462d5dceec980ca8f1c8cc2758c` (159,263 bytes), restore verification `36a9b3bd-e53c-4e96-b853-491eb09808e3`, and exact generic audit `4f18cdee-7cb5-4724-a18a-484d6f315925` (`matches=true`, SQLite integrity `ok`, 18 tables). Scratch restore `e9a5098a-cf31-4029-8be4-21ba271f32c5` reproduced row counts: accounts 4, books 3, notes 0, adapter_status 0, goals 6, operator_input_findings 1, adapters 2, ingest_receipts 6, operator_measures 4, attachments 0, ledger_audit 17, postings 17. The first baseline-safety destination was unusable because its repository credential was unavailable; the verified temporary local destination was retained as an auditable fallback. Old pre-migration target registration was removed only after the post-move audit. |

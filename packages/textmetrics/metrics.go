@@ -165,6 +165,42 @@ func AnalyzeSet(texts, lexicon []string) ([]Metrics, SetMetrics) {
 	return items, set
 }
 
+// CrossSectionRepetition returns the mean lexical similarity of distinct
+// sections. It is deliberately a deterministic text signal, not a semantic
+// claim: callers can name the basis alongside the number they publish.
+func CrossSectionRepetition(sections []string) float64 {
+	if len(sections) < 2 {
+		return 0
+	}
+	var total float64
+	var pairs int
+	for i := 0; i < len(sections); i++ {
+		for j := i + 1; j < len(sections); j++ {
+			total += lexicalSimilarity(words(sections[i]), words(sections[j]))
+			pairs++
+		}
+	}
+	return ratio(total, float64(pairs))
+}
+
+// StyleDrift returns the mean absolute distance from the document's average
+// section conformance. A document with one section has no measurable drift.
+func StyleDrift(sectionConformance []float64) float64 {
+	if len(sectionConformance) < 2 {
+		return 0
+	}
+	var mean float64
+	for _, score := range sectionConformance {
+		mean += score
+	}
+	mean /= float64(len(sectionConformance))
+	var total float64
+	for _, score := range sectionConformance {
+		total += math.Abs(score - mean)
+	}
+	return total / float64(len(sectionConformance))
+}
+
 func wordsWithSpans(text string) []Span {
 	var out []Span
 	start := -1

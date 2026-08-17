@@ -120,6 +120,10 @@
       "HF_HOME": "${RESOURCE_DATA_DIR}/model-cache"
     }
   },
+  "lifecycle": {
+    "start_timeout_seconds": 180,
+    "stop_timeout_seconds": 30
+  },
   "deployment": {
     "profiles": {
       "desktop": {

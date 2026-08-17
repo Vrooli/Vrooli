@@ -48,11 +48,19 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 ## Entries
 
-### Scaffold health gate is not yet run
+## Work ladder
 
-The scenario now starts through `make start`, reports healthy, and has API,
-CLI, and UI evidence. The remaining completion blocker is live experience
-capture reconciliation, not scaffold boot.
+- Rung: W0
+- Evidence: The required W0 goal query could not run because `swarm-manager` is stopped; lifecycle start fails during setup at `scenarios/swarm-manager/ui/src/components/settings/GoalDrainToggle.tsx:33` with a TypeScript `AutoDrainState`/`Updater` mismatch. Offer Desk's PRD P0 targets and this execution plan were read, but no goal comparison was inferred from the unavailable runtime.
+- Blocker: W0 contract comparison is currently unverifiable; the unrelated `swarm-manager` UI build defect is outside this scenario's scope.
+- Measured: 2026-08-16
+
+### Scaffold health is complete; capture is an external boundary
+
+The scenario starts through `make start`, reports healthy, and has API, CLI,
+and UI evidence. Product-side validation is complete for the adopted scope;
+direct experience capture remains an external provider boundary and is not an
+Offer Desk completion blocker.
 
 ### The import is the riskiest step, and it is ordered
 
@@ -167,8 +175,39 @@ shared Test Genie/provider boundary rather than Offer Desk product debt.
 The historical template floor report is retained for provenance. The current
 scenario shell now uses 44px compact controls, safe-area-aware bottom
 navigation, and table-local mobile scrolling; both UI suites and accessibility
-component tests pass. Direct `experience-manager spec validate` requests still
-hold the provider endpoint for its full two-minute client budget and return a
-timeout, so a fresh browser floor result cannot be honestly claimed here.
-Browser Automation Studio capture is also unavailable because its CLI rebuild
-is blocked by unrelated fleet-wide `golang.org/x/sys/unix` module drift.
+component tests pass. An earlier direct `experience-manager spec validate`
+attempt hit the provider timeout, but the Phase 11 direct validations now pass
+at L3 with zero required findings for both scenarios. Browser Automation
+Studio capture remains unavailable because its CLI rebuild is blocked by
+unrelated fleet-wide `golang.org/x/sys/unix` module drift; that boundary no
+longer blocks the product-side experience contract.
+
+### 2026-08-17 — remaining hand-rolled test clocks
+
+**Symptom:** Several neighboring package and scenario tests still declare
+private timers, tickers, or clock helpers instead of using the shared
+`packages/api-core/schedule` contract.
+
+**Root cause:** The fake-clock migration is intentionally scoped to Offer Desk
+for this repair; the other call sites were discovered during the migration
+and are follow-up work.
+
+**Workaround:** Keep new time-dependent tests on `schedule.Clock` and use
+`schedule.NewFake` where the test owns time. Do not add another local drill
+clock or ticker abstraction.
+
+**Real fix:** Migrate these six call sites in a dedicated follow-up, preserving
+their existing behavioral assertions:
+
+- `scenarios/search-hub/api/internal/evalsched/scheduler_test.go`
+- `scenarios/meta-optimization-manager/api/internal/coverage/coverage_test.go`
+- `packages/api-core/database/routed_lease_test.go`
+- `packages/api-core/filerouting/routed_test.go`
+- `packages/api-core/validationrun/lifecycle_test.go`
+- `packages/api-core/retention/scheduler_test.go`
+
+**Owner:** api-core maintainers and the owning scenario teams.
+
+**Refs:** `packages/api-core/schedule/fake.go`,
+`scenarios/offer-desk/api/handlers/offers/module_test.go`, and the fake-clock
+migration phase in the monetization repair plan.

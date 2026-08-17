@@ -92,7 +92,7 @@ sequencing in the PRD is load-bearing, not because they are speculative.
 | OSS discovery | The local-first, no-cloud, no-bank-credentials posture is itself the pitch to a technical audience that distrusts aggregators. | Public repo, honest README, the outage demo | Stars/forks are vanity; the signal is issues describing the honesty failure in other tools |
 | Community content | Long-form on the specific thesis — why a silent zero is worse than an error — reaches people who have been burned. | One strong written piece, the outage recording | Unprompted replies describing the same failure |
 | In-product expansion | Reaches operators already inside a Vrooli bundle who have a financial question. | Bundle membership via Offer Desk | Attach rate once bundles have users |
-| App stores | Broadest reach for a local-first personal-finance app. | Packaged app, store assets, icons | Deferred until the outage demo exists |
+| App stores | Broadest reach for a local-first personal-finance app. | Packaged app, store assets, scenario-specific icons (asset now exists) | Deferred until the outage demo exists |
 | Web SEO | High-intent search on "why does my finance app show zero" style queries. | Landing page, content | Deferred — needs the written piece first |
 
 Channels are listed with a posture, not activated. Activation is Offer Desk's job once it

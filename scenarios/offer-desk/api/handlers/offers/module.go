@@ -104,6 +104,48 @@ func (s *Service) startScheduler() {
 }
 func invalid(err error) error  { return connect.NewError(connect.CodeInvalidArgument, err) }
 func internal(err error) error { return connect.NewError(connect.CodeInternal, err) }
+
+func rankReason(status offerspb.Status, actualsAvailable bool, actualMinor int64, unavailableSource string) string {
+	if !actualsAvailable {
+		source := strings.TrimSpace(unavailableSource)
+		if source == "" {
+			source = "money-ledger.actuals"
+		}
+		switch status {
+		case offerspb.Status_ACTIVE:
+			return fmt.Sprintf("active; earnings unknown — %s unavailable", source)
+		case offerspb.Status_SHIPPED:
+			return fmt.Sprintf("shipped; earnings unknown — %s unavailable", source)
+		}
+	}
+	switch status {
+	case offerspb.Status_STATUS_UNSPECIFIED:
+		return "status not set"
+	case offerspb.Status_IDEA:
+		return "captured, not planned against"
+	case offerspb.Status_CANDIDATE:
+		return "blocked: trigger not met"
+	case offerspb.Status_TRIGGER_MET:
+		return "trigger fired"
+	case offerspb.Status_PROPOSED:
+		return "awaiting operator decision"
+	case offerspb.Status_ACTIVE:
+		if actualMinor == 0 {
+			return "active and earning nothing"
+		}
+		return "active and earning"
+	case offerspb.Status_SHIPPED:
+		if actualMinor == 0 {
+			return "shipped and earning nothing"
+		}
+		return "shipped and earning"
+	case offerspb.Status_RETIRED:
+		return "retired"
+	default:
+		return fmt.Sprintf("unknown status: %d", status)
+	}
+}
+
 func (s *Service) CreateNode(ctx context.Context, r *connect.Request[offerspb.CreateNodeRequest]) (*connect.Response[offerspb.CreateNodeResponse], error) {
 	n, e := s.store.CreateNode(ctx, r.Msg.Kind, r.Msg.Name, r.Msg.Status, r.Msg.TriggerId, r.Msg.ActualAccountId)
 	if e != nil {
@@ -169,6 +211,32 @@ func (s *Service) ImportCatalog(ctx context.Context, r *connect.Request[offerspb
 	return connect.NewResponse(response), nil
 }
 
+func (s *Service) MergeNodes(ctx context.Context, r *connect.Request[offerspb.MergeNodesRequest]) (*connect.Response[offerspb.MergeNodesResponse], error) {
+	response, err := s.store.MergeNodes(ctx, r.Msg)
+	if err != nil {
+		return nil, invalid(err)
+	}
+	return connect.NewResponse(response), nil
+}
+
+func (s *Service) VerifyCatalog(ctx context.Context, r *connect.Request[offerspb.VerifyCatalogRequest]) (*connect.Response[offerspb.VerifyCatalogResponse], error) {
+	report, err := s.store.VerifyCatalog(ctx, r.Msg.SourcePath, r.Msg.SourceMode)
+	if err != nil {
+		return nil, invalid(err)
+	}
+	response := &offerspb.VerifyCatalogResponse{
+		TotalDrift: int32(report.TotalDrift),
+		Reconciled: report.Reconciled,
+	}
+	for _, file := range report.Files {
+		response.Files = append(response.Files, &offerspb.VerifyFileReport{Path: file.Path, Expected: int32(file.Expected), Live: int32(file.Live)})
+	}
+	response.DuplicateIdentities = append(response.DuplicateIdentities, report.DuplicateIdentities...)
+	response.OrphanEdgeIds = append(response.OrphanEdgeIds, report.OrphanEdgeIds...)
+	response.ExtraNodeIds = append(response.ExtraNodeIds, report.ExtraNodeIds...)
+	return connect.NewResponse(response), nil
+}
+
 func (s *Service) DeclareTrigger(ctx context.Context, r *connect.Request[offerspb.DeclareTriggerRequest]) (*connect.Response[offerspb.DeclareTriggerResponse], error) {
 	t, e := s.store.AddTrigger(ctx, r.Msg.Trigger)
 	if e != nil {
@@ -198,6 +266,8 @@ func (s *Service) Promote(ctx context.Context, r *connect.Request[offerspb.Promo
 		if _, err := s.store.Transition(ctx, r.Msg.NodeId, offerspb.Status_ACTIVE, r.Msg.Actor); err != nil {
 			return nil, invalid(err)
 		}
+	} else if _, err := s.store.Transition(ctx, r.Msg.NodeId, offerspb.Status_PROPOSED, r.Msg.Actor); err != nil {
+		return nil, invalid(err)
 	}
 	p, e := s.store.Proposal(ctx, r.Msg.NodeId, r.Msg.Actor, offerspb.Status_ACTIVE, "operator promotion requested")
 	if e != nil {
@@ -267,14 +337,8 @@ func (s *Service) GetBoard(ctx context.Context, _ *connect.Request[offerspb.Proj
 		}
 	}
 	for _, n := range nodes {
-		reason := "active and earning nothing"
-		if n.Status == offerspb.Status_TRIGGER_MET {
-			reason = "trigger fired"
-		}
-		if n.Status == offerspb.Status_CANDIDATE {
-			reason = "blocked: trigger not met"
-		}
-		entry := &offerspb.BoardEntry{NodeId: n.Id, Title: n.Name, RankReason: reason, Status: n.Status}
+		entry := &offerspb.BoardEntry{NodeId: n.Id, Title: n.Name, Status: n.Status}
+		actualsSource := "money-ledger.actuals"
 		if s.journal != nil && n.ActualAccountId != "" {
 			deadline, cancel := context.WithTimeout(ctx, 700*time.Millisecond)
 			postings, err := s.journal.ListPostings(deadline, connect.NewRequest(&ledgerpb.ListPostingsRequest{AccountId: n.ActualAccountId, Limit: 500}))
@@ -290,6 +354,10 @@ func (s *Service) GetBoard(ctx context.Context, _ *connect.Request[offerspb.Proj
 		} else {
 			entry.Availability = append(entry.Availability, &offerspb.Availability{Source: "money-ledger.actuals", Reason: "no ledger account mapping"})
 		}
+		if len(entry.Availability) > 0 && entry.Availability[0].Source != "" {
+			actualsSource = entry.Availability[0].Source
+		}
+		entry.RankReason = rankReason(n.Status, entry.ActualsAvailable, entry.ActualMinor, actualsSource)
 		out = append(out, entry)
 	}
 	response.Entries = out
@@ -344,7 +412,7 @@ func ep(id, path, summary string) module.EndpointDescriptor {
 }
 
 var Endpoints = []module.EndpointDescriptor{
-	ep("catalog_create", "/vrooli.offer_desk.v1.offers.CatalogService/CreateNode", "Create a typed offer-graph node"), ep("catalog_list", "/vrooli.offer_desk.v1.offers.CatalogService/ListNodes", "List offer-graph nodes"), ep("catalog_transition", "/vrooli.offer_desk.v1.offers.CatalogService/Transition", "Transition a node through the enforced lifecycle"), ep("catalog_edge", "/vrooli.offer_desk.v1.offers.CatalogService/CreateEdge", "Create a typed graph edge"), ep("catalog_edges", "/vrooli.offer_desk.v1.offers.CatalogService/ListEdges", "List typed graph edges"), ep("catalog_import", "/vrooli.offer_desk.v1.offers.CatalogService/ImportCatalog", "Rehearse or apply a declared catalog source"),
+	ep("catalog_create", "/vrooli.offer_desk.v1.offers.CatalogService/CreateNode", "Create a typed offer-graph node"), ep("catalog_list", "/vrooli.offer_desk.v1.offers.CatalogService/ListNodes", "List offer-graph nodes"), ep("catalog_transition", "/vrooli.offer_desk.v1.offers.CatalogService/Transition", "Transition a node through the enforced lifecycle"), ep("catalog_edge", "/vrooli.offer_desk.v1.offers.CatalogService/CreateEdge", "Create a typed graph edge"), ep("catalog_edges", "/vrooli.offer_desk.v1.offers.CatalogService/ListEdges", "List typed graph edges"), ep("catalog_import", "/vrooli.offer_desk.v1.offers.CatalogService/ImportCatalog", "Rehearse or apply a declared catalog source"), ep("catalog_merge", "/vrooli.offer_desk.v1.offers.CatalogService/MergeNodes", "Dry-run or apply an audited duplicate-node merge"), ep("catalog_verify", "/vrooli.offer_desk.v1.offers.CatalogService/VerifyCatalog", "Verify source counts and graph identity reconciliation"),
 	ep("gates_trigger", "/vrooli.offer_desk.v1.offers.GatesService/DeclareTrigger", "Declare a machine-evaluable trigger"), ep("gates_fact", "/vrooli.offer_desk.v1.offers.GatesService/AddFact", "Record an observed fact"), ep("gates_evaluate", "/vrooli.offer_desk.v1.offers.GatesService/Evaluate", "Evaluate candidate triggers"), ep("gates_promote", "/vrooli.offer_desk.v1.offers.GatesService/Promote", "Create an operator promotion proposal"), ep("gates_proposals", "/vrooli.offer_desk.v1.offers.GatesService/ListProposals", "List promotion proposals and decline history"), ep("board_show", "/vrooli.offer_desk.v1.offers.BoardService/GetBoard", "Read the ranked offer board"),
 	ep("space_projection", "/vrooli.offer_desk.v1.offers.SpaceService/GetProjection", "Read monetization obligation cells"),
 }

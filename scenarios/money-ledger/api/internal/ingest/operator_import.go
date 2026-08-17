@@ -2,6 +2,7 @@ package ingest
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -32,6 +33,56 @@ type OperatorImportReport struct {
 	Applied  bool
 }
 
+func (s *Store) OperatorInputStatus(ctx context.Context, bookID string) ([]OperatorFieldReport, error) {
+	fields := make([]OperatorFieldReport, 0, len(operatorPaths))
+	for _, path := range operatorPaths {
+		kind, unit, window := operatorFieldClass(path)
+		field := OperatorFieldReport{Path: path, Status: "absent", Kind: kind, Unit: unit, WindowDays: window}
+		if kind == "derived-rate" {
+			field.Status = "rejected"
+			field.Reason = "derived rate is computed from journal telemetry and cannot be imported as a posting"
+			fields = append(fields, field)
+			continue
+		}
+		var observed string
+		var err error
+		if kind == "measure" {
+			err = s.db.QueryRowContext(ctx, `SELECT observed_at FROM operator_measures WHERE path=? ORDER BY observed_at DESC,id DESC LIMIT 1`, path).Scan(&observed)
+		} else {
+			if bookID == "" {
+				err = s.db.QueryRowContext(ctx, `SELECT occurred_at FROM postings WHERE category=? ORDER BY occurred_at DESC,id DESC LIMIT 1`, path).Scan(&observed)
+			} else {
+				err = s.db.QueryRowContext(ctx, `SELECT occurred_at FROM postings WHERE category=? AND book_id=? ORDER BY occurred_at DESC,id DESC LIMIT 1`, path, bookID).Scan(&observed)
+			}
+		}
+		if errors.Is(err, sql.ErrNoRows) {
+			fields = append(fields, field)
+			continue
+		}
+		if err != nil {
+			return nil, err
+		}
+		if strings.TrimSpace(observed) == "" {
+			field.Status = "current"
+			field.Reason = "observation timestamp unavailable"
+			fields = append(fields, field)
+			continue
+		}
+		at, parseErr := time.Parse(time.RFC3339Nano, observed)
+		if parseErr != nil {
+			return nil, parseErr
+		}
+		field.ObservedAt = &at
+		field.Status = "current"
+		if s.now().UTC().Sub(at) > time.Duration(window)*24*time.Hour {
+			field.Status = "stale"
+			field.Reason = "observation is older than the declared staleness window"
+		}
+		fields = append(fields, field)
+	}
+	return fields, nil
+}
+
 var operatorPaths = []string{
 	"cash", "monthlyBurn.aiApi", "monthlyBurn.infrastructure", "monthlyBurn.saas", "monthlyBurn.tooling",
 	"timeAllocation.product", "timeAllocation.services", "timeAllocation.ops",
@@ -43,6 +94,10 @@ var operatorPaths = []string{
 // zeroes. The source bytes are supplied by the caller and are never deleted.
 func (s *Store) ImportOperatorInputs(ctx context.Context, data []byte, adapterID, bookID, accountID string) (*OperatorImportReport, error) {
 	return s.importOperatorInputs(ctx, data, "operator-inputs.json", adapterID, bookID, accountID, true)
+}
+
+func (s *Store) ImportOperatorInputsJSON(ctx context.Context, data []byte, apply bool, adapterID, bookID, accountID string) (*OperatorImportReport, error) {
+	return s.importOperatorInputs(ctx, data, "money-ledger-console", adapterID, bookID, accountID, apply)
 }
 
 // ImportOperatorInputsFile is the fixture-only migration seam. The caller
@@ -104,6 +159,9 @@ func (s *Store) importOperatorInputs(ctx context.Context, data []byte, sourcePat
 		obj, _ := value.(map[string]any)
 		status, _ := obj["status"].(string)
 		if status == "pending-operator" || obj["value"] == nil {
+			if status == "" || obj["value"] == nil && status != "pending-operator" {
+				status = "absent"
+			}
 			field.Status = status
 			preparedFields = append(preparedFields, prepared{path: path, kind: kind, unit: unit, status: status, window: window})
 			report.Fields = append(report.Fields, field)
@@ -145,7 +203,7 @@ func (s *Store) importOperatorInputs(ctx context.Context, data []byte, sourcePat
 	for i := range preparedFields {
 		field := &report.Fields[i]
 		p := preparedFields[i]
-		if p.status == "pending-operator" || p.status == "not-applicable-pre-launch" || p.kind == "derived-rate" || p.status == "stale" || p.kind == "measure" {
+		if p.status == "pending-operator" || p.status == "absent" || p.status == "not-applicable-pre-launch" || p.kind == "derived-rate" || p.status == "stale" || p.kind == "measure" {
 			continue
 		}
 		now := s.now().UTC()
@@ -163,7 +221,7 @@ func (s *Store) importOperatorInputs(ctx context.Context, data []byte, sourcePat
 		return nil, err
 	}
 	for _, p := range preparedFields {
-		if p.kind == "measure" && p.status != "pending-operator" && p.status != "not-applicable-pre-launch" {
+		if p.kind == "measure" && p.status != "pending-operator" && p.status != "absent" && p.status != "not-applicable-pre-launch" {
 			observed := ""
 			if p.observed != nil {
 				observed = p.observed.Format(time.RFC3339Nano)
@@ -174,7 +232,7 @@ func (s *Store) importOperatorInputs(ctx context.Context, data []byte, sourcePat
 		}
 	}
 	for _, p := range preparedFields {
-		if p.kind == "derived-rate" && p.status != "pending-operator" && p.status != "not-applicable-pre-launch" {
+		if p.kind == "derived-rate" && p.status != "pending-operator" && p.status != "absent" && p.status != "not-applicable-pre-launch" {
 			if _, err := s.db.ExecContext(ctx, `INSERT INTO operator_input_findings(path,reason,created_at) VALUES(?,?,?)`, p.path, "derived rate is not an admissible journal input", s.now().UTC().Format(time.RFC3339Nano)); err != nil {
 				return nil, err
 			}

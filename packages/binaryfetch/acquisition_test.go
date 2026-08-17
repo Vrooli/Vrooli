@@ -2,7 +2,9 @@ package binaryfetch
 
 import (
 	"errors"
+	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -82,5 +84,24 @@ func TestAcquisitionSchemaDrift(t *testing.T) {
 	root := filepath.Join("..", "..")
 	if err := ValidateAcquisitionSchema(root); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestAcquisitionSchemaDriftDetectsChangedFragment(t *testing.T) {
+	root := t.TempDir()
+	if err := SyncAcquisitionSchema(root); err != nil {
+		t.Fatalf("SyncAcquisitionSchema: %v", err)
+	}
+	path := filepath.Join(root, filepath.FromSlash(AcquisitionSchemaPath))
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read generated schema: %v", err)
+	}
+	data = []byte(strings.Replace(string(data), `"title": "Declared artifact acquisition"`, `"title": "tampered"`, 1))
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		t.Fatalf("tamper generated schema: %v", err)
+	}
+	if err := ValidateAcquisitionSchema(root); err == nil || !strings.Contains(err.Error(), "acquisition schema is stale") {
+		t.Fatalf("ValidateAcquisitionSchema after tamper = %v, want stale-schema error", err)
 	}
 }

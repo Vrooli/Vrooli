@@ -47,6 +47,33 @@ func (h *handlers) catalogImport(c cliapp.OperationContext) (*offerspb.ImportCat
 	return r.Msg, err
 }
 
+func (h *handlers) catalogMerge(c cliapp.OperationContext) (*offerspb.MergeNodesResponse, error) {
+	dryRun := true
+	if raw := strings.TrimSpace(c.Flag("dry-run")); raw != "" {
+		dryRun = !strings.EqualFold(raw, "false")
+	}
+	r, err := h.c.MergeNodes(context.Background(), connect.NewRequest(&offerspb.MergeNodesRequest{SurvivingId: c.Flag("surviving-id"), DuplicateId: c.Flag("duplicate-id"), Actor: "operator", DryRun: dryRun}))
+	if err != nil {
+		return nil, err
+	}
+	return r.Msg, nil
+}
+
+func (h *handlers) catalogVerify(c cliapp.OperationContext) (*offerspb.VerifyCatalogResponse, error) {
+	mode := offerspb.SourceMode_SOURCE_MODE_OPERATOR_SUPPLIED
+	if strings.EqualFold(c.Flag("source-mode"), "fixture") {
+		mode = offerspb.SourceMode_SOURCE_MODE_FIXTURE
+	}
+	r, err := h.c.VerifyCatalog(context.Background(), connect.NewRequest(&offerspb.VerifyCatalogRequest{SourcePath: c.Flag("source-path"), SourceMode: mode}))
+	if err != nil && r == nil {
+		return nil, err
+	}
+	if r == nil {
+		return nil, fmt.Errorf("catalog verify returned no report")
+	}
+	return r.Msg, nil
+}
+
 func (h *handlers) space(c cliapp.OperationContext) (*offerspb.SpaceResponse, error) {
 	r, err := h.s.GetProjection(context.Background(), connect.NewRequest(&offerspb.ProjectionRequest{Projection: c.Flag("projection")}))
 	if err != nil {
@@ -192,6 +219,24 @@ func catalogImportReport(_ cliapp.OperationContext, m *offerspb.ImportCatalogRes
 	return cliapp.MutationReport{Result: []string{fmt.Sprintf("Catalog import inspected %d source file(s), applied=%t, findings=%d.", len(m.Files), m.Applied, m.TotalFindings)}}
 }
 
+func catalogMergeReport(_ cliapp.OperationContext, m *offerspb.MergeNodesResponse) cliapp.MutationReport {
+	return cliapp.MutationReport{Result: []string{fmt.Sprintf("Merge %s: edges=%d triggers=%d evaluations=%d proposals=%d findings=%d collapsed_edges=%d.", m.Surviving.Id, m.MovedEdges, m.MovedTriggers, m.MovedEvaluations, m.MovedProposals, m.MovedFindings, len(m.CollapsedEdgeIds))}}
+}
+
+func catalogVerifyReport(_ cliapp.OperationContext, m *offerspb.VerifyCatalogResponse) cliapp.ListReport {
+	return cliapp.ListReport{Summary: []string{fmt.Sprintf("Catalog verification reconciled=%t, files=%d, drift=%d, duplicate_identities=%d, orphan_edges=%d, extra_nodes=%d.", m.Reconciled, len(m.Files), m.TotalDrift, len(m.DuplicateIdentities), len(m.OrphanEdgeIds), len(m.ExtraNodeIds))}, ResultsHeading: "Reconciliation", Results: mapStrings(len(m.Files), func(i int) string {
+		file := m.Files[i]
+		return fmt.Sprintf("%s — expected=%d live=%d", file.Path, file.Expected, file.Live)
+	})}
+}
+
+func catalogVerifyOutcome(m *offerspb.VerifyCatalogResponse) error {
+	if m == nil || m.Reconciled {
+		return nil
+	}
+	return fmt.Errorf("catalog verification found drift: total_drift=%d", m.TotalDrift)
+}
+
 func spaceReport(_ cliapp.OperationContext, m *offerspb.SpaceResponse) cliapp.ListReport {
 	return cliapp.ListReport{Summary: []string{fmt.Sprintf("%s projection (%s confidence)", m.Projection, m.DenominatorConfidence)}, ResultsHeading: "Obligations", Results: mapStrings(len(m.Cells), func(i int) string {
 		return fmt.Sprintf("%s — %s [%s]", m.Cells[i].Id, m.Cells[i].Question, m.Cells[i].Status)
@@ -210,6 +255,8 @@ func parseStatus(v string) offerspb.Status {
 		return offerspb.Status_SHIPPED
 	case "retired":
 		return offerspb.Status_RETIRED
+	case "proposed":
+		return offerspb.Status_PROPOSED
 	default:
 		return offerspb.Status_IDEA
 	}

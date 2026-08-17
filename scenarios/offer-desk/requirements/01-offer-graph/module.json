@@ -106,6 +106,21 @@
           "notes": "No API path can delete or mutate an existing audit row."
         }
       ]
+    },
+    {
+      "id": "GRAPH-005",
+      "title": "Duplicate catalog nodes merge with a complete audit",
+      "status": "complete",
+      "prd_ref": "OT-P0-001",
+      "category": "storage",
+      "criticality": "P0",
+      "description": "An explicitly selected surviving node can absorb a same-kind duplicate in one audited transaction. Every edge, trigger, evaluation, proposal and migration finding moves, duplicate edges collapse visibly, and the duplicate row is removed only after the audit is written.",
+      "tags": ["storage", "merge", "audit"],
+      "validation": [
+        {"type": "test", "ref": "api/internal/catalog/store_test.go", "status": "implemented", "notes": "Merge moves every reference and removes the duplicate while preserving an audit naming both ids."},
+        {"type": "test", "ref": "api/internal/catalog/store_test.go", "status": "implemented", "notes": "Cross-kind merges are refused with both kinds and ids named."},
+        {"type": "test", "ref": "api/internal/catalog/store_test.go", "status": "implemented", "notes": "Duplicate graph edges collapse to one and the discarded edge id is reported."}
+      ]
     }
   ]
 }

@@ -213,6 +213,26 @@
           "fixture": "balance-partial"
         }
       }
+    },
+    {
+      "id": "archiving-book",
+      "description": "A book archive is in flight; the archive control is disabled and states that journal history is retained.",
+      "setup": {
+        "route": "/accounts",
+        "query": {
+          "fixture": "archiving-book"
+        }
+      }
+    },
+    {
+      "id": "archived-book",
+      "description": "A book has been archived and is excluded from default financial reads while its journal remains discoverable by id.",
+      "setup": {
+        "route": "/accounts",
+        "query": {
+          "fixture": "archived-book"
+        }
+      }
     }
   ],
   "elements": [
@@ -252,6 +272,23 @@
       "id": "empty-guidance",
       "role": "note",
       "description": "First-run guidance explaining what a book is and why the personal/business split exists before asking for one."
+    },
+    {
+      "id": "book-archive-control",
+      "role": "button",
+      "name": "Archive book",
+      "description": "Archives a book without deleting its immutable journal history."
+    },
+    {
+      "id": "archived-book-notice",
+      "role": "status",
+      "description": "Explains that an archived book is excluded from default position reads while its postings remain readable."
+    },
+    {
+      "id": "account-kind-vocabulary",
+      "role": "group",
+      "name": "Account kind vocabulary",
+      "description": "The declared account kinds accepted at the write boundary: ASSET, LIABILITY, REVENUE, EXPENSE, and EQUITY."
     }
   ],
   "claims": [
@@ -333,6 +370,24 @@
         "account-table"
       ],
       "rationale": "DESIGN.md binding adaptation."
+    },
+    {
+      "id": "archive-is-not-delete",
+      "type": "state-distinct",
+      "statement": "Archiving removes a book from default financial reads without deleting its journal history.",
+      "tier": "manual",
+      "elements": ["book-archive-control", "archived-book-notice"],
+      "states": ["archiving-book", "archived-book"],
+      "rationale": "The ledger's drill evidence is regenerable false; archive is the recoverable boundary and journal history must remain readable."
+    },
+    {
+      "id": "account-kinds-name-the-vocabulary",
+      "type": "element-present",
+      "statement": "Account creation names the five accepted kinds rather than accepting an unexplained free-text category.",
+      "tier": "machine",
+      "elements": ["account-kind-vocabulary"],
+      "states": ["default", "multi-book"],
+      "rationale": "A financial aggregate cannot be trusted when the same concept is written as arbitrary casing or an undeclared kind."
     }
   ],
   "bindings": {
@@ -357,6 +412,15 @@
       },
       "empty-guidance": {
         "testid": "accounts-empty-guidance"
+      },
+      "book-archive-control": {
+        "testid": "book-archive-control"
+      },
+      "archived-book-notice": {
+        "testid": "archived-book-notice"
+      },
+      "account-kind-vocabulary": {
+        "testid": "account-kind-vocabulary"
       }
     }
   }

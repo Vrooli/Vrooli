@@ -82,7 +82,13 @@ func (s *Service) ImportOperatorInputs(ctx context.Context, req *connect.Request
 	if req.Msg.SourceMode == ingestpb.SourceMode_SOURCE_MODE_FIXTURE {
 		mode = ingest.OperatorSourceModeFixture
 	}
-	report, err := s.store.ImportOperatorInputsSource(ctx, req.Msg.SourcePath, mode, req.Msg.Apply, req.Msg.AdapterId, req.Msg.BookId, req.Msg.AccountId)
+	var report *ingest.OperatorImportReport
+	var err error
+	if len(req.Msg.SourceJson) > 0 {
+		report, err = s.store.ImportOperatorInputsJSON(ctx, req.Msg.SourceJson, req.Msg.Apply, req.Msg.AdapterId, req.Msg.BookId, req.Msg.AccountId)
+	} else {
+		report, err = s.store.ImportOperatorInputsSource(ctx, req.Msg.SourcePath, mode, req.Msg.Apply, req.Msg.AdapterId, req.Msg.BookId, req.Msg.AccountId)
+	}
 	if err != nil && report == nil {
 		return nil, invalid(err)
 	}
@@ -103,6 +109,22 @@ func (s *Service) ImportOperatorInputs(ctx context.Context, req *connect.Request
 	return connect.NewResponse(response), nil
 }
 
+func (s *Service) OperatorInputStatus(ctx context.Context, req *connect.Request[ingestpb.OperatorInputStatusRequest]) (*connect.Response[ingestpb.OperatorInputStatusResponse], error) {
+	fields, err := s.store.OperatorInputStatus(ctx, req.Msg.BookId)
+	if err != nil {
+		return nil, internal(err)
+	}
+	response := &ingestpb.OperatorInputStatusResponse{}
+	for _, field := range fields {
+		out := &ingestpb.OperatorInputField{Path: field.Path, Status: field.Status, Written: field.Written, Unit: field.Unit, WindowDays: int32(field.WindowDays), Kind: field.Kind, Reason: field.Reason}
+		if field.ObservedAt != nil {
+			out.ObservedAt = timestamppb.New(*field.ObservedAt)
+		}
+		response.Fields = append(response.Fields, out)
+	}
+	return connect.NewResponse(response), nil
+}
+
 var Endpoints = []module.EndpointDescriptor{
 	ep("ingest_register", "/vrooli.money_ledger.v1.ingest.IngestService/RegisterAdapter", "Register a money adapter"),
 	ep("ingest_list", "/vrooli.money_ledger.v1.ingest.IngestService/ListAdapters", "List money adapters"),
@@ -110,6 +132,7 @@ var Endpoints = []module.EndpointDescriptor{
 	ep("ingest_run", "/vrooli.money_ledger.v1.ingest.IngestService/RunAdapter", "Run an adapter and report availability"),
 	ep("ingest_file", "/vrooli.money_ledger.v1.ingest.IngestService/ImportFile", "Import a CSV through the adapter door"),
 	ep("ingest_operator_inputs", "/vrooli.money_ledger.v1.ingest.IngestService/ImportOperatorInputs", "Rehearse or apply operator financial inputs"),
+	ep("ingest_operator_status", "/vrooli.money_ledger.v1.ingest.IngestService/OperatorInputStatus", "Read operator input status and age"),
 }
 
 func ep(key, path, summary string) module.EndpointDescriptor {

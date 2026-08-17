@@ -1,0 +1,50 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-component",
+  "schemaVersion": "1.1.0",
+  "component": {
+    "id": "cartesian-charts",
+    "title": "Cartesian Charts",
+    "purpose": "Present version progression with a readable chart and tabular equivalent.",
+    "storyRef": "../../../react-component-library/library/components/CartesianCharts/versions/1.0.0/story.json"
+  },
+  "states": [
+    {
+      "id": "default",
+      "example": "default",
+      "description": "A populated progression chart."
+    }
+  ],
+  "elements": [
+    { "id": "chart", "role": "img", "description": "The named chart plot." },
+    {
+      "id": "values",
+      "role": "table",
+      "description": "The accessible tabular equivalent."
+    }
+  ],
+  "claims": [
+    {
+      "id": "chart-present",
+      "type": "element-present",
+      "statement": "The chart plot is named and present.",
+      "tier": "machine",
+      "elements": ["chart"],
+      "states": ["default"]
+    },
+    {
+      "id": "table-present",
+      "type": "element-present",
+      "statement": "Every plotted value has an accessible tabular equivalent.",
+      "tier": "machine",
+      "elements": ["values"],
+      "states": ["default"]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "chart": { "selector": "[data-rcl-chart-plot] svg" },
+      "values": { "selector": "[data-rcl-chart-table]" }
+    }
+  }
+}

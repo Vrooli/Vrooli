@@ -5,16 +5,17 @@
       "data": {
         "budget": {
           "max_bytes": "1MiB",
-          "rationale": "Measured at 135168 bytes on 2026-08-14; ceiling is two times observed size."
+          "rationale": "Measured at 192031 bytes on 2026-08-16 at the resolved data location; 1MiB leaves more than twice the observed SQLite database and sidecar footprint."
         },
         "class": "data",
         "kind": "dir",
-        "rationale": "SQLite ledger database and scenario-owned durable data surface.",
+        "rationale": "Resolved scenario data directory containing the SQLite ledger, account and goal state, audit records, and SQLite sidecars.",
         "regenerable": false,
         "rung": "owned"
       }
     }
   },
+  "maturity": "pilot",
   "version": "1.0.0",
   "service": {
     "parent": "vrooli",
@@ -212,6 +213,14 @@
   "dependencies": {
     "resources": {},
     "scenarios": {
+      "data-backup-manager": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "ignore",
+        "description": "Protects the resolved Money Ledger data directory through scheduled snapshots and recovery drills; it is not part of request handling.",
+        "degraded_behavior": "Money Ledger runs normally when the backup manager is unavailable; protection is a scheduled operational concern and is never substituted with synthetic financial values."
+      },
       "landing-page-business-suite": {
         "type": "scenario",
         "enabled": false,
@@ -222,8 +231,5 @@
       }
     }
   },
-  "credentials": {},
-  "environment": {
-    "SQLITE_PATH": "${SCENARIO_DATA_DIR}/money-ledger.db"
-  }
+  "credentials": {}
 }

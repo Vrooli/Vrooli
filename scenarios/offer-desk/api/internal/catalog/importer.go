@@ -15,37 +15,40 @@ import (
 	"github.com/google/uuid"
 	"github.com/vrooli/api-core/database"
 	offerspb "github.com/vrooli/vrooli/packages/proto/gen/go/offer-desk/v1/offers"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // EnsureMigrations keeps existing local SQLite databases readable after the
-// catalog gained actual-account projection metadata. Schema bootstrap creates
-// the column for new databases; this additive check handles brownfield ones.
+// catalog gained projection metadata and identity constraints. Duplicate data
+// is never deleted here: the service remains readable and names catalog-merge
+// as the only repair path.
 type migrationDB interface {
 	database.SchemaExecer
 	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
 }
 
 func EnsureMigrations(ctx context.Context, db migrationDB) error {
-	rows, err := db.QueryContext(ctx, `PRAGMA table_info(nodes)`)
+	columnExists := func(table, column string) (bool, error) {
+		rows, err := db.QueryContext(ctx, `PRAGMA table_info(`+table+`)`)
+		if err != nil {
+			return false, err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var cid, notnull, pk int
+			var name, typ string
+			var defaultValue any
+			if err := rows.Scan(&cid, &name, &typ, &notnull, &defaultValue, &pk); err != nil {
+				return false, err
+			}
+			if name == column {
+				return true, nil
+			}
+		}
+		return false, rows.Err()
+	}
+	found, err := columnExists("nodes", "actual_account_id")
 	if err != nil {
-		return err
-	}
-	defer rows.Close()
-	found := false
-	for rows.Next() {
-		var cid int
-		var name, typ string
-		var notnull, pk int
-		var defaultValue any
-		if err := rows.Scan(&cid, &name, &typ, &notnull, &defaultValue, &pk); err != nil {
-			rows.Close()
-			return err
-		}
-		if name == "actual_account_id" {
-			found = true
-		}
-	}
-	if err := rows.Close(); err != nil {
 		return err
 	}
 	if !found {
@@ -54,29 +57,14 @@ func EnsureMigrations(ctx context.Context, db migrationDB) error {
 		}
 	}
 	for _, tableColumn := range []struct{ table, column, statement string }{
+		{table: "edges", column: "intended_price_declared", statement: `ALTER TABLE edges ADD COLUMN intended_price_declared INTEGER NOT NULL DEFAULT 0`},
 		{table: "triggers", column: "clauses_json", statement: `ALTER TABLE triggers ADD COLUMN clauses_json TEXT NOT NULL DEFAULT '[]'`},
 		{table: "triggers", column: "composition", statement: `ALTER TABLE triggers ADD COLUMN composition INTEGER NOT NULL DEFAULT 1`},
 		{table: "facts", column: "dimension", statement: `ALTER TABLE facts ADD COLUMN dimension TEXT NOT NULL DEFAULT ''`},
+		{table: "catalog_audit", column: "related_node_id", statement: `ALTER TABLE catalog_audit ADD COLUMN related_node_id TEXT NOT NULL DEFAULT ''`},
 	} {
-		rows, err := db.QueryContext(ctx, `PRAGMA table_info(`+tableColumn.table+`)`)
+		present, err := columnExists(tableColumn.table, tableColumn.column)
 		if err != nil {
-			return err
-		}
-		defer rows.Close()
-		present := false
-		for rows.Next() {
-			var cid, notnull, pk int
-			var name, typ string
-			var defaultValue any
-			if err := rows.Scan(&cid, &name, &typ, &notnull, &defaultValue, &pk); err != nil {
-				rows.Close()
-				return err
-			}
-			if name == tableColumn.column {
-				present = true
-			}
-		}
-		if err := rows.Close(); err != nil {
 			return err
 		}
 		if !present {
@@ -85,7 +73,79 @@ func EnsureMigrations(ctx context.Context, db migrationDB) error {
 			}
 		}
 	}
+	duplicate, err := duplicateGroup(ctx, db, `SELECT kind, name, COUNT(*) FROM nodes GROUP BY kind, name HAVING COUNT(*) > 1 ORDER BY kind, name LIMIT 1`)
+	if err != nil {
+		return err
+	}
+	if duplicate != "" {
+		return fmt.Errorf("catalog identity migration refused: duplicate node identity %s; repair with offer-desk offers catalog-merge", duplicate)
+	}
+	duplicate, err = duplicateGroup(ctx, db, `SELECT from_id || ' -> ' || to_id || ' [' || kind || ']', '', COUNT(*) FROM edges GROUP BY from_id, to_id, kind HAVING COUNT(*) > 1 ORDER BY from_id, to_id, kind LIMIT 1`)
+	if err != nil {
+		return err
+	}
+	if duplicate != "" {
+		return fmt.Errorf("catalog identity migration refused: duplicate edge identity %s; repair with offer-desk offers catalog-merge", duplicate)
+	}
+	if _, err := db.ExecContext(ctx, `CREATE UNIQUE INDEX IF NOT EXISTS nodes_kind_name ON nodes(kind,name)`); err != nil {
+		return err
+	}
+	if _, err := db.ExecContext(ctx, `CREATE UNIQUE INDEX IF NOT EXISTS edges_from_to_kind ON edges(from_id,to_id,kind)`); err != nil {
+		return err
+	}
 	return nil
+}
+
+func duplicateGroup(ctx context.Context, db migrationDB, query string) (string, error) {
+	rows, err := db.QueryContext(ctx, query)
+	if err != nil {
+		return "", err
+	}
+	defer rows.Close()
+	if !rows.Next() {
+		return "", rows.Err()
+	}
+	var first, second string
+	var count int
+	if err := rows.Scan(&first, &second, &count); err != nil {
+		return "", err
+	}
+	if second == "" {
+		return fmt.Sprintf("%s (%d rows)", first, count), nil
+	}
+	return fmt.Sprintf("(%s,%s) (%d rows)", first, second, count), nil
+}
+
+func (s *Store) upsertImportedNode(ctx context.Context, kind offerspb.NodeKind, name string, status offerspb.Status, actor string) (*offerspb.Node, bool, error) {
+	node := &offerspb.Node{}
+	var storedKind, storedStatus int32
+	var created string
+	lookupErr := s.db.QueryRowContext(ctx, `SELECT id,kind,name,status,trigger_id,created_at,actual_account_id FROM nodes WHERE kind=? AND name=?`, int32(kind), name).Scan(&node.Id, &storedKind, &node.Name, &storedStatus, &node.TriggerId, &created, &node.ActualAccountId)
+	if lookupErr == nil {
+		node.Kind = offerspb.NodeKind(storedKind)
+		node.Status = offerspb.Status(storedStatus)
+		parsed, _ := time.Parse(time.RFC3339Nano, created)
+		node.CreatedAt = timestamppb.New(parsed)
+		if node.Status == status {
+			return node, false, nil
+		}
+		if _, err := s.db.ExecContext(ctx, `UPDATE nodes SET status=? WHERE id=?`, int32(status), node.Id); err != nil {
+			return nil, false, err
+		}
+		if actor == "" {
+			actor = "operator"
+		}
+		if _, err := s.db.ExecContext(ctx, `INSERT INTO catalog_audit(id,node_id,actor,prior_status,next_status,reason,created_at) VALUES(?,?,?,?,?,?,?)`, uuid.NewString(), node.Id, actor, int32(node.Status), int32(status), "fixture import status upsert", s.now().UTC().Format(time.RFC3339Nano)); err != nil {
+			return nil, false, err
+		}
+		node.Status = status
+		return node, true, nil
+	}
+	if lookupErr != sql.ErrNoRows {
+		return nil, false, lookupErr
+	}
+	createdNode, err := s.CreateNode(ctx, kind, name, status, "", "")
+	return createdNode, true, err
 }
 
 // ImportFileReport is durable migration evidence for one source file. A
@@ -179,6 +239,8 @@ func parseImportedStatus(body string) (offerspb.Status, bool, int) {
 		return offerspb.Status_RETIRED, true, line
 	case "trigger-met":
 		return offerspb.Status_TRIGGER_MET, true, line
+	case "proposed":
+		return offerspb.Status_PROPOSED, true, line
 	default:
 		return offerspb.Status_STATUS_UNSPECIFIED, false, line
 	}
@@ -225,11 +287,14 @@ func (s *Store) ImportTree(ctx context.Context, root, actor string) (*ImportRepo
 		if match := regexp.MustCompile("(?m)^\\*\\*SKU ID:\\*\\*\\s*`?([^`\\s]+)").FindStringSubmatch(string(body)); len(match) == 2 {
 			name = match[1]
 		}
-		node, createErr := s.CreateNode(ctx, kind, name, status, "", "")
+		node, written, createErr := s.upsertImportedNode(ctx, kind, name, status, actor)
 		if createErr != nil {
-			return nil, fmt.Errorf("import %s: create lifecycle node: %w", rel, createErr)
+			return nil, fmt.Errorf("import %s: upsert lifecycle node: %w", rel, createErr)
 		}
-		fileReport := ImportFileReport{Path: rel, Read: 1, Written: 1}
+		fileReport := ImportFileReport{Path: rel, Read: 1}
+		if written {
+			fileReport.Written = 1
+		}
 		for _, ref := range markdownReference.FindAllStringSubmatch(string(body), -1) {
 			target := strings.TrimSpace(ref[1])
 			if target == "" || strings.HasPrefix(target, "http://") || strings.HasPrefix(target, "https://") {
@@ -242,13 +307,12 @@ func (s *Store) ImportTree(ctx context.Context, root, actor string) (*ImportRepo
 			if _, statErr := os.Stat(candidate); statErr != nil {
 				fileReport.Findings++
 				report.Findings++
-				if _, insertErr := s.db.ExecContext(ctx, `INSERT INTO migration_findings(id,node_id,source_file,reference,reason,created_at) VALUES(?,?,?,?,?,?)`, uuid.NewString(), node.Id, rel, target, "unresolvable internal reference", s.now().UTC().Format(time.RFC3339Nano)); insertErr != nil {
+				if _, insertErr := s.db.ExecContext(ctx, `INSERT INTO migration_findings(id,node_id,source_file,reference,reason,created_at) SELECT ?,?,?,?,?,? WHERE NOT EXISTS (SELECT 1 FROM migration_findings WHERE node_id=? AND source_file=? AND reference=? AND reason=?)`, uuid.NewString(), node.Id, rel, target, "unresolvable internal reference", s.now().UTC().Format(time.RFC3339Nano), node.Id, rel, target, "unresolvable internal reference"); insertErr != nil {
 					return nil, insertErr
 				}
 			}
 		}
 		report.Files = append(report.Files, fileReport)
 	}
-	_ = actor // lifecycle writes are operator-owned; retained for audit seam expansion.
 	return report, nil
 }

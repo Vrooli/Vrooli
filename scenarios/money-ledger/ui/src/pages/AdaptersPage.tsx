@@ -12,16 +12,35 @@ import { useSurfaceState } from "../hooks/useSurfaceState";
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { useTranslation } from "../i18n";
-import { fetchAdapters, importFile, registerAdapter, runAdapter } from "../api/ledger";
+import { configuredBookId, fetchAccounts, fetchAdapters, fetchBooks, fetchOperatorInputStatus, importFile, importOperatorInputsJSON, registerAdapter, runAdapter } from "../api/ledger";
 import { AdapterKind } from "@vrooli/proto-types/money-ledger/v1/ingest/ingest_pb";
 import { formatDate } from "../i18n/format";
 
 const timestampLabel = (timestamp?: { seconds: bigint | number; nanos?: number }) => timestamp ? formatDate(new Date(Number(timestamp.seconds) * 1000 + Math.floor((timestamp.nanos ?? 0) / 1_000_000))) : "—";
+const operatorFields = [
+  ["cash", "Cash", "monetary"],
+  ["monthlyBurn.aiApi", "Monthly burn · AI API", "monetary"],
+  ["monthlyBurn.infrastructure", "Monthly burn · infrastructure", "monetary"],
+  ["monthlyBurn.saas", "Monthly burn · SaaS", "monetary"],
+  ["monthlyBurn.tooling", "Monthly burn · tooling", "monetary"],
+  ["timeAllocation.product", "Time allocation · product", "measure"],
+  ["timeAllocation.services", "Time allocation · services", "measure"],
+  ["timeAllocation.ops", "Time allocation · operations", "measure"],
+  ["servicesRevenue.leadGen", "Services revenue · lead generation", "monetary"],
+  ["servicesRevenue.doneForYou", "Services revenue · done for you", "monetary"],
+  ["servicesRevenue.consulting", "Services revenue · consulting", "monetary"],
+  ["servicesTime.hoursThisWindow", "Services time · hours this window", "measure"],
+  ["subscriptions.mrr", "Subscriptions · MRR", "derived-rate"],
+] as const;
 
 export function AdaptersPage() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const adapters = useQuery({ queryKey: ["adapters"], queryFn: fetchAdapters, retry: false });
+  const books = useQuery({ queryKey: ["operator-books"], queryFn: fetchBooks, retry: false });
+  const operatorBookId = configuredBookId() || books.data?.books[0]?.id || "";
+  const accounts = useQuery({ queryKey: ["operator-accounts", operatorBookId], queryFn: () => fetchAccounts(operatorBookId), retry: false, enabled: Boolean(operatorBookId) });
+  const operatorStatus = useQuery({ queryKey: ["operator-input-status", operatorBookId], queryFn: () => fetchOperatorInputStatus(operatorBookId), retry: false, enabled: Boolean(operatorBookId) });
   const unavailable = Boolean(adapters.data?.adapters.some((adapter) => !adapter.enabled || adapter.availabilityReason));
   const surface = useSurfaceState({
     query: { isLoading: adapters.isLoading, isFetching: adapters.isFetching, isError: adapters.isError, error: adapters.error },
@@ -32,10 +51,28 @@ export function AdaptersPage() {
   const [fileAdapterId, setFileAdapterId] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState(false);
+  const [operatorValues, setOperatorValues] = useState<Record<string, string>>({});
+  const [operatorReport, setOperatorReport] = useState<{ fields: Array<{ path: string; status: string; written: boolean; reason: string; kind: string }> } | null>(null);
   const complete = async () => { await queryClient.invalidateQueries({ queryKey: ["adapters"] }); setError(false); setMessage(t(strings.pages.adapters.savedNotice)); };
   const registerMutation = useMutation({ mutationFn: () => registerAdapter({ id: form.id.trim(), name: form.name.trim(), kind: Number(form.kind) }), onSuccess: async () => { await complete(); setForm({ id: "", name: "", kind: String(AdapterKind.FILE) }); }, onError: () => setError(true) });
   const runMutation = useMutation({ mutationFn: (adapterId: string) => runAdapter(adapterId), onSuccess: complete, onError: () => setError(true) });
   const importMutation = useMutation({ mutationFn: async (input: { adapterId: string; file: File }) => importFile(input.adapterId, new Uint8Array(await input.file.arrayBuffer())), onSuccess: complete, onError: () => setError(true) });
+  const operatorMutation = useMutation({
+    mutationFn: (apply: boolean) => {
+      const field = (path: string) => {
+        const raw = operatorValues[path] ?? "";
+        return { value: raw.trim() === "" ? null : Number(raw), status: raw.trim() === "" ? "pending-operator" : "current", updatedAt: raw.trim() === "" ? null : new Date().toISOString() };
+      };
+      const payload = { cash: field("cash"), monthlyBurn: { aiApi: field("monthlyBurn.aiApi"), infrastructure: field("monthlyBurn.infrastructure"), saas: field("monthlyBurn.saas"), tooling: field("monthlyBurn.tooling") }, timeAllocation: { product: field("timeAllocation.product"), services: field("timeAllocation.services"), ops: field("timeAllocation.ops") }, servicesRevenue: { leadGen: field("servicesRevenue.leadGen"), doneForYou: field("servicesRevenue.doneForYou"), consulting: field("servicesRevenue.consulting") }, servicesTime: { hoursThisWindow: field("servicesTime.hoursThisWindow") }, subscriptions: { mrr: field("subscriptions.mrr") } };
+      return importOperatorInputsJSON({ bookId: operatorBookId, accountId: accounts.data?.accounts[0]?.id ?? "", adapterId: "operator-console", sourceJson: new TextEncoder().encode(JSON.stringify(payload)), apply });
+    },
+    onSuccess: async (report, apply) => {
+      setOperatorReport(report);
+      setMessage(apply ? "Operator inputs applied; the report below names every field." : "Dry run ready; review the report before applying.");
+      if (apply) await queryClient.invalidateQueries({ queryKey: ["operator-input-status", operatorBookId] });
+    },
+    onError: () => setError(true),
+  });
   const submitRegistration = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setMessage("");
@@ -96,6 +133,23 @@ export function AdaptersPage() {
           </FormSection>
         </DirtyStateGuard>
       </div>
+      <Card data-testid="operator-input-surface" aria-labelledby="operator-input-heading">
+        <CardHeader><CardTitle id="operator-input-heading">Operator financial inputs</CardTitle></CardHeader>
+        <CardContent className="grid gap-4">
+          <p className="text-sm text-app-muted-foreground">Enter the requested values here. Empty fields remain absent; MRR is derived and cannot be posted.</p>
+          <div data-testid="operator-input-status" className="overflow-x-auto rounded border">
+            <table className="w-full text-left text-sm"><caption className="sr-only">Operator input status</caption><thead><tr><th className="p-2">Field</th><th className="p-2">Status</th><th className="p-2">Observed</th><th className="p-2">Reason</th></tr></thead><tbody>
+              {(operatorStatus.data?.fields ?? operatorFields.map(([path, , kind]) => ({ path, status: kind === "derived-rate" ? "rejected" : "absent", observedAt: undefined, reason: kind === "derived-rate" ? "Derived rate; not a journal input." : "" }))).map((field) => <tr key={field.path}><td className="p-2 font-medium">{field.path}</td><td className="p-2">{field.status}</td><td className="p-2">{timestampLabel(field.observedAt)}</td><td className="p-2">{field.reason || "—"}</td></tr>)}
+            </tbody></table>
+          </div>
+          <form className="grid gap-3 sm:grid-cols-2" onSubmit={(event) => { event.preventDefault(); operatorMutation.mutate(false); }}>
+            {operatorFields.filter(([, , kind]) => kind !== "derived-rate").map(([path, label, kind]) => <label key={path} className="grid gap-1" htmlFor={`operator-${path.replace(/\./g, "-")}`}><span>{label} <small className="text-app-muted-foreground">({kind})</small></span><Input id={`operator-${path.replace(/\./g, "-")}`} type="number" value={operatorValues[path] ?? ""} onChange={(event) => setOperatorValues({ ...operatorValues, [path]: event.target.value })} placeholder="Absent until supplied" /></label>)}
+            <p id="operator-input-derived-rate-refusal" data-testid="operator-input-derived-rate-refusal" role="note" className="rounded border p-2 text-sm text-app-muted-foreground">subscriptions.mrr is refused: it is a derived rate, not a journal input.</p>
+            <div className="flex flex-wrap gap-2 sm:col-span-2"><Button type="submit" disabled={operatorMutation.isPending || !operatorBookId || !accounts.data?.accounts[0]?.id}>Preview import</Button><Button type="button" variant="secondary" disabled={operatorMutation.isPending || !operatorReport || !operatorBookId || !accounts.data?.accounts[0]?.id} onClick={() => operatorMutation.mutate(true)}>Apply reviewed import</Button></div>
+          </form>
+          {operatorReport && <div data-testid="operator-input-report" role="status" className="rounded border p-3 text-sm"><p className="font-medium">Import report</p><ul className="mt-2 grid gap-1">{operatorReport.fields.map((field) => <li key={field.path}>{field.path}: {field.status}{field.written ? " · written" : ""}{field.reason ? ` · ${field.reason}` : ""}</li>)}</ul></div>}
+        </CardContent>
+      </Card>
       {error && <p role="alert" className="text-sm text-app-danger">{t(strings.pages.adapters.requestError)}</p>}
       {message && <p role="status" className="text-sm text-app-success">{message}</p>}
     </ExperienceSurface>

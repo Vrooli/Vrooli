@@ -23,6 +23,24 @@ All RPCs use `POST /vrooli.offer_desk.v1.offers.CatalogService/<Method>`.
 | `CreateEdge` | Add a typed relationship, including optional intended price/currency. |
 | `ListEdges` | List graph relationships. |
 | `ImportCatalog` | Dry-run or apply a declared catalog source; malformed status and reference drift block apply. |
+| `MergeNodes` | Dry-run or apply an explicit same-kind duplicate merge; moves references, reports collapsed edges, audits both ids, and deletes only on apply. |
+
+`BoardService.GetBoard` derives `rank_reason` from status and actuals availability:
+
+| Status / evidence | `rank_reason` |
+|---|---|
+| unspecified | `status not set` |
+| idea | `captured, not planned against` |
+| candidate | `blocked: trigger not met` |
+| trigger met | `trigger fired` |
+| proposed | `awaiting operator decision` |
+| active/shipped with unavailable actuals | `<status>; earnings unknown — <source> unavailable` |
+| active/shipped with reachable zero actuals | `<status> and earning nothing` |
+| active/shipped with reachable nonzero actuals | `<status> and earning` |
+| retired | `retired` |
+
+An unavailable actuals read never produces an earnings claim; the row instead
+keeps `actuals_available=false` and names the source in `availability`.
 
 ## Gates and proposals
 

@@ -44,15 +44,17 @@ never converts unavailable actuals into zero and never hides the source reason.
 | Route | Purpose and primary action | Data sources | Degradation and mobile strategy |
 |---|---|---|---|
 | `/` | Read ranked opportunities and posture. | Board RPC, Money Ledger position/goals, evaluation run. | Each source is labelled unavailable/partial/stale; cards stack on mobile. |
-| `/offers` | Create nodes/edges, inspect lifecycle, and attempt promotion. | Catalog nodes/edges and gate proposals. | Refusal includes legal transition/remedy; the accessible offer table scrolls inside its container. |
+| `/offers` | Create nodes/edges, inspect lifecycle, review the grouped relationship view, and attempt promotion. | Catalog nodes/edges, catalog verification, and gate proposals. | Grouping is derived from typed catalog nodes and edge counts; verification failures keep the flat table reachable, duplicate identities are an alert, and both grouped tables and the flat table scroll inside their containers on mobile. |
 | `/triggers` | Declare triggers, record facts, and dry-run evaluation. | Trigger/fact/evaluation RPCs. | UNKNOWN is distinct from unsatisfied; fact age and freshness remain visible. |
 | `/proposals` | Accept or decline a promotion proposal with a reason. | Proposal list and catalog nodes. | Agent callers see the operator requirement; decline history remains visible. |
 | `/settings` | Change locale/theme and inspect connection posture. | Local settings and Money Ledger connection status. | Controls remain stacked and keyboard reachable. |
 
-The offer graph image is orientation only. The offer table carries the same
-node/status/action information for screen readers, keyboard users, and narrow
-viewports. Intended prices, when supplied on an edge, use a currency code and
-remain distinct from charged or received amounts owned by upstream systems.
+The offer graph image is orientation only. The grouped relationship view and
+flat offer table carry text equivalents for screen readers, keyboard users,
+and narrow viewports. Group headers expose node counts; each node exposes
+counts for the four relationship kinds. Intended prices, when supplied on an
+edge, use a currency code and remain distinct from charged or received amounts
+owned by upstream systems.
 
 ## Accessibility and responsive contract
 

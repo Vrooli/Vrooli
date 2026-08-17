@@ -35,6 +35,99 @@ func NewStore(db *database.RoutedDB, now func() time.Time) *Store {
 }
 func (s *Store) Schema() string { b, _ := schemaSQL.ReadFile("schema.sql"); return string(b) }
 
+var declaredAccountKinds = map[ledgerpb.AccountKind]string{
+	ledgerpb.AccountKind_ASSET:     "ASSET",
+	ledgerpb.AccountKind_LIABILITY: "LIABILITY",
+	ledgerpb.AccountKind_REVENUE:   "REVENUE",
+	ledgerpb.AccountKind_EXPENSE:   "EXPENSE",
+	ledgerpb.AccountKind_EQUITY:    "EQUITY",
+}
+
+const acceptedAccountKinds = "ASSET, LIABILITY, REVENUE, EXPENSE, EQUITY"
+
+func (s *Store) EnsureMigrations(ctx context.Context) error {
+	for _, table := range []string{"books", "goals"} {
+		rows, err := s.db.QueryContext(ctx, `PRAGMA table_info(`+table+`)`)
+		if err != nil {
+			return err
+		}
+		found := false
+		for rows.Next() {
+			var cid int
+			var name, columnType string
+			var notNull, primaryKey int
+			var defaultValue sql.NullString
+			if err := rows.Scan(&cid, &name, &columnType, &notNull, &defaultValue, &primaryKey); err != nil {
+				_ = rows.Close()
+				return err
+			}
+			if name == "archived" {
+				found = true
+			}
+		}
+		if err := rows.Err(); err != nil {
+			_ = rows.Close()
+			return err
+		}
+		if err := rows.Close(); err != nil {
+			return err
+		}
+		if !found {
+			if _, err := s.db.ExecContext(ctx, `ALTER TABLE `+table+` ADD COLUMN archived INTEGER NOT NULL DEFAULT 0`); err != nil {
+				return err
+			}
+		}
+	}
+
+	rows, err := s.db.QueryContext(ctx, `SELECT id,kind FROM accounts ORDER BY id`)
+	if err != nil {
+		return err
+	}
+	type accountKindRow struct{ id, kind string }
+	var accounts []accountKindRow
+	for rows.Next() {
+		var row accountKindRow
+		if err := rows.Scan(&row.id, &row.kind); err != nil {
+			_ = rows.Close()
+			return err
+		}
+		accounts = append(accounts, row)
+	}
+	if err := rows.Err(); err != nil {
+		_ = rows.Close()
+		return err
+	}
+	if err := rows.Close(); err != nil {
+		return err
+	}
+	for _, row := range accounts {
+		normalized := strings.ToUpper(strings.TrimSpace(row.kind))
+		if normalized != row.kind {
+			if _, err := s.db.ExecContext(ctx, `UPDATE accounts SET kind=? WHERE id=?`, normalized, row.id); err != nil {
+				return err
+			}
+			if err := s.recordAudit(ctx, "account", row.id, "system", "normalized account kind to uppercase", row.kind); err != nil {
+				return err
+			}
+		}
+		if !isDeclaredAccountKindName(normalized) {
+			if _, err := s.db.ExecContext(ctx, `INSERT INTO operator_input_findings(id,path,reason,created_at) SELECT NULL,?,?,? WHERE NOT EXISTS (SELECT 1 FROM operator_input_findings WHERE path=? AND reason=?)`, "account.kind:"+row.id, "unknown account kind "+normalized+"; operator review required", s.now().UTC().Format(time.RFC3339Nano), "account.kind:"+row.id, "unknown account kind "+normalized+"; operator review required"); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func isDeclaredAccountKindName(kind string) bool {
+	switch kind {
+	case "ASSET", "LIABILITY", "REVENUE", "EXPENSE", "EQUITY":
+		return true
+	default:
+		return false
+	}
+}
+
 func (s *Store) recordAudit(ctx context.Context, entityType, entityID, actor, reason, priorValue string) error {
 	_, err := s.db.ExecContext(ctx, `INSERT INTO ledger_audit(id,entity_type,entity_id,actor,reason,prior_value,created_at) VALUES(?,?,?,?,?,?,?)`, uuid.NewString(), entityType, entityID, actor, reason, priorValue, s.now().UTC().Format(time.RFC3339Nano))
 	return err
@@ -69,12 +162,17 @@ func (s *Store) CreateBook(ctx context.Context, name, currency string) (*ledgerp
 		return nil, errors.New("book name and three-letter currency are required")
 	}
 	b := &ledgerpb.Book{Id: uuid.NewString(), Name: name, Currency: currency, CreatedAt: timestamppb.New(s.now())}
-	_, err := s.db.ExecContext(ctx, `INSERT INTO books(id,name,currency,created_at) VALUES(?,?,?,?)`, b.Id, b.Name, b.Currency, b.CreatedAt.AsTime().UTC().Format(time.RFC3339Nano))
+	_, err := s.db.ExecContext(ctx, `INSERT INTO books(id,name,currency,created_at,archived) VALUES(?,?,?,?,0)`, b.Id, b.Name, b.Currency, b.CreatedAt.AsTime().UTC().Format(time.RFC3339Nano))
 	return b, err
 }
 
-func (s *Store) ListBooks(ctx context.Context) ([]*ledgerpb.Book, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT id,name,currency,created_at FROM books ORDER BY created_at,id`)
+func (s *Store) ListBooks(ctx context.Context, includeArchived bool) ([]*ledgerpb.Book, error) {
+	query := `SELECT id,name,currency,created_at,archived FROM books`
+	if !includeArchived {
+		query += ` WHERE archived=0`
+	}
+	query += ` ORDER BY created_at,id`
+	rows, err := s.db.QueryContext(ctx, query)
 	if err != nil {
 		return nil, err
 	}
@@ -82,24 +180,50 @@ func (s *Store) ListBooks(ctx context.Context) ([]*ledgerpb.Book, error) {
 	var out []*ledgerpb.Book
 	for rows.Next() {
 		var id, n, c, ts string
-		if err := rows.Scan(&id, &n, &c, &ts); err != nil {
+		var archived int
+		if err := rows.Scan(&id, &n, &c, &ts, &archived); err != nil {
 			return nil, err
 		}
 		t, _ := time.Parse(time.RFC3339Nano, ts)
-		out = append(out, &ledgerpb.Book{Id: id, Name: n, Currency: c, CreatedAt: timestamppb.New(t)})
+		out = append(out, &ledgerpb.Book{Id: id, Name: n, Currency: c, CreatedAt: timestamppb.New(t), Archived: archived != 0})
 	}
 	return out, rows.Err()
 }
 
-func (s *Store) CreateAccount(ctx context.Context, bookID, name, kind string) (*ledgerpb.Account, error) {
-	if strings.TrimSpace(bookID) == "" || strings.TrimSpace(name) == "" || strings.TrimSpace(kind) == "" {
-		return nil, errors.New("book_id, name, and kind are required")
+func (s *Store) ArchiveBook(ctx context.Context, bookID, actor string) (*ledgerpb.Book, error) {
+	var book ledgerpb.Book
+	var created string
+	var archived int
+	if err := s.db.QueryRowContext(ctx, `SELECT id,name,currency,created_at,archived FROM books WHERE id=?`, bookID).Scan(&book.Id, &book.Name, &book.Currency, &created, &archived); err != nil {
+		return nil, fmt.Errorf("book %q not found: %w", bookID, err)
+	}
+	if archived == 0 {
+		if _, err := s.db.ExecContext(ctx, `UPDATE books SET archived=1 WHERE id=?`, bookID); err != nil {
+			return nil, err
+		}
+		if err := s.recordAudit(ctx, "book", bookID, actor, "archived book", "archived=false"); err != nil {
+			return nil, err
+		}
+	}
+	createdAt, _ := time.Parse(time.RFC3339Nano, created)
+	book.CreatedAt = timestamppb.New(createdAt)
+	book.Archived = true
+	return &book, nil
+}
+
+func (s *Store) CreateAccount(ctx context.Context, bookID, name string, kind ledgerpb.AccountKind) (*ledgerpb.Account, error) {
+	kindName, ok := declaredAccountKinds[kind]
+	if strings.TrimSpace(bookID) == "" || strings.TrimSpace(name) == "" {
+		return nil, errors.New("book_id and name are required")
+	}
+	if !ok {
+		return nil, fmt.Errorf("account kind is invalid; accepted values: %s", acceptedAccountKinds)
 	}
 	var exists int
 	if err := s.db.QueryRowContext(ctx, `SELECT 1 FROM books WHERE id=?`, bookID).Scan(&exists); err != nil {
 		return nil, fmt.Errorf("book %q not found: %w", bookID, err)
 	}
-	a := &ledgerpb.Account{Id: uuid.NewString(), BookId: bookID, Name: strings.TrimSpace(name), Kind: strings.TrimSpace(kind), CreatedAt: timestamppb.New(s.now())}
+	a := &ledgerpb.Account{Id: uuid.NewString(), BookId: bookID, Name: strings.TrimSpace(name), Kind: kindName, CreatedAt: timestamppb.New(s.now())}
 	_, err := s.db.ExecContext(ctx, `INSERT INTO accounts(id,book_id,name,kind,created_at) VALUES(?,?,?,?,?)`, a.Id, a.BookId, a.Name, a.Kind, a.CreatedAt.AsTime().UTC().Format(time.RFC3339Nano))
 	return a, err
 }
@@ -371,8 +495,12 @@ func (s *Store) Transfer(ctx context.Context, fromAccount, toAccount string, amo
 func (s *Store) Position(ctx context.Context, bookID string) (*ledgerpb.PositionResponse, error) {
 	var cash, revenue, expense int64
 	var currency string
-	if err := s.db.QueryRowContext(ctx, `SELECT currency FROM books WHERE id=?`, bookID).Scan(&currency); err != nil {
+	var archived int
+	if err := s.db.QueryRowContext(ctx, `SELECT currency,archived FROM books WHERE id=?`, bookID).Scan(&currency, &archived); err != nil {
 		return nil, fmt.Errorf("book %q not found: %w", bookID, err)
+	}
+	if archived != 0 {
+		return nil, fmt.Errorf("book %q is archived and excluded from position", bookID)
 	}
 	rows, err := s.db.QueryContext(ctx, `SELECT a.kind,COALESCE(SUM(p.amount_minor),0) FROM postings p JOIN accounts a ON a.id=p.account_id WHERE p.book_id=? GROUP BY a.kind`, bookID)
 	if err != nil {
@@ -385,12 +513,12 @@ func (s *Store) Position(ctx context.Context, bookID string) (*ledgerpb.Position
 		if err := rows.Scan(&kind, &value); err != nil {
 			return nil, err
 		}
-		switch strings.ToLower(kind) {
-		case "cash", "asset":
+		switch strings.ToUpper(kind) {
+		case "ASSET":
 			cash += value
-		case "revenue", "income":
+		case "REVENUE":
 			revenue += value
-		case "expense":
+		case "EXPENSE":
 			expense += value
 		}
 	}
@@ -462,7 +590,7 @@ func (s *Store) Statement(ctx context.Context, bookID, from, to string) (*ledger
 		periodArgs = append(periodArgs, to)
 	}
 	var inflow, outflow, revenue, expense int64
-	if err := s.db.QueryRowContext(ctx, `SELECT COALESCE(SUM(CASE WHEN p.amount_minor > 0 THEN p.amount_minor ELSE 0 END),0), COALESCE(SUM(CASE WHEN p.amount_minor < 0 THEN -p.amount_minor ELSE 0 END),0), COALESCE(SUM(CASE WHEN lower(a.kind) IN ('revenue','income') THEN p.amount_minor ELSE 0 END),0), COALESCE(SUM(CASE WHEN lower(a.kind)='expense' THEN -p.amount_minor ELSE 0 END),0) FROM postings p JOIN accounts a ON a.id=p.account_id WHERE `+period, periodArgs...).Scan(&inflow, &outflow, &revenue, &expense); err != nil {
+	if err := s.db.QueryRowContext(ctx, `SELECT COALESCE(SUM(CASE WHEN p.amount_minor > 0 THEN p.amount_minor ELSE 0 END),0), COALESCE(SUM(CASE WHEN p.amount_minor < 0 THEN -p.amount_minor ELSE 0 END),0), COALESCE(SUM(CASE WHEN upper(a.kind)='REVENUE' THEN p.amount_minor ELSE 0 END),0), COALESCE(SUM(CASE WHEN upper(a.kind)='EXPENSE' THEN -p.amount_minor ELSE 0 END),0) FROM postings p JOIN accounts a ON a.id=p.account_id WHERE `+period, periodArgs...).Scan(&inflow, &outflow, &revenue, &expense); err != nil {
 		return nil, err
 	}
 	ending := to
@@ -471,11 +599,11 @@ func (s *Store) Statement(ctx context.Context, bookID, from, to string) (*ledger
 	}
 	var openingCash, closingCash, nonCashAssets, liabilities int64
 	if from != "" {
-		if err := s.db.QueryRowContext(ctx, `SELECT COALESCE(SUM(CASE WHEN lower(a.kind) IN ('cash','asset') THEN p.amount_minor ELSE 0 END),0) FROM postings p JOIN accounts a ON a.id=p.account_id WHERE p.book_id=? AND p.occurred_at<?`, bookID, from).Scan(&openingCash); err != nil {
+		if err := s.db.QueryRowContext(ctx, `SELECT COALESCE(SUM(CASE WHEN upper(a.kind)='ASSET' THEN p.amount_minor ELSE 0 END),0) FROM postings p JOIN accounts a ON a.id=p.account_id WHERE p.book_id=? AND p.occurred_at<?`, bookID, from).Scan(&openingCash); err != nil {
 			return nil, err
 		}
 	}
-	if err := s.db.QueryRowContext(ctx, `SELECT COALESCE(SUM(CASE WHEN lower(a.kind) IN ('cash') THEN p.amount_minor ELSE 0 END),0), COALESCE(SUM(CASE WHEN lower(a.kind) IN ('asset') THEN p.amount_minor ELSE 0 END),0), COALESCE(SUM(CASE WHEN lower(a.kind) IN ('liability','liabilities') THEN p.amount_minor ELSE 0 END),0) FROM postings p JOIN accounts a ON a.id=p.account_id WHERE p.book_id=? AND p.occurred_at<=?`, bookID, ending).Scan(&closingCash, &nonCashAssets, &liabilities); err != nil {
+	if err := s.db.QueryRowContext(ctx, `SELECT COALESCE(SUM(CASE WHEN upper(a.kind)='ASSET' THEN p.amount_minor ELSE 0 END),0), 0, COALESCE(SUM(CASE WHEN upper(a.kind)='LIABILITY' THEN p.amount_minor ELSE 0 END),0) FROM postings p JOIN accounts a ON a.id=p.account_id WHERE p.book_id=? AND p.occurred_at<=?`, bookID, ending).Scan(&closingCash, &nonCashAssets, &liabilities); err != nil {
 		return nil, err
 	}
 	assets := closingCash + nonCashAssets
@@ -526,7 +654,7 @@ func (s *Store) DeclareGoal(ctx context.Context, bookID string, g *ledgerpb.Goal
 		return nil, errors.New("goal must declare a threshold, ratio, or comparand metric")
 	}
 	var exists int
-	if err := s.db.QueryRowContext(ctx, `SELECT 1 FROM books WHERE id=?`, bookID).Scan(&exists); err != nil {
+	if err := s.db.QueryRowContext(ctx, `SELECT 1 FROM books WHERE id=? AND archived=0`, bookID).Scan(&exists); err != nil {
 		return nil, fmt.Errorf("book %q not found: %w", bookID, err)
 	}
 	g.Id = uuid.NewString()
@@ -534,8 +662,13 @@ func (s *Store) DeclareGoal(ctx context.Context, bookID string, g *ledgerpb.Goal
 	return g, err
 }
 
-func (s *Store) ListGoals(ctx context.Context, bookID string) ([]*ledgerpb.GoalVerdict, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT id,name,metric,comparator,threshold_minor,sustain_periods,buffer_multiple,threshold_ratio,comparand_metric,sustain_period_unit FROM goals WHERE book_id=? ORDER BY name`, bookID)
+func (s *Store) ListGoals(ctx context.Context, bookID string, includeArchived bool) ([]*ledgerpb.GoalVerdict, error) {
+	query := `SELECT g.id,g.name,g.metric,g.comparator,g.threshold_minor,g.sustain_periods,g.buffer_multiple,g.threshold_ratio,g.comparand_metric,g.sustain_period_unit,g.archived FROM goals g JOIN books b ON b.id=g.book_id WHERE g.book_id=?`
+	if !includeArchived {
+		query += ` AND g.archived=0 AND b.archived=0`
+	}
+	query += ` ORDER BY g.name`
+	rows, err := s.db.QueryContext(ctx, query, bookID)
 	if err != nil {
 		return nil, err
 	}
@@ -544,11 +677,14 @@ func (s *Store) ListGoals(ctx context.Context, bookID string) ([]*ledgerpb.GoalV
 	for rows.Next() {
 		var g ledgerpb.Goal
 		var unit int32
-		if err := rows.Scan(&g.Id, &g.Name, &g.Metric, &g.Comparator, &g.ThresholdMinor, &g.SustainPeriods, &g.BufferMultiple, &g.ThresholdRatio, &g.ComparandMetric, &unit); err != nil {
+		var archived int
+		if err := rows.Scan(&g.Id, &g.Name, &g.Metric, &g.Comparator, &g.ThresholdMinor, &g.SustainPeriods, &g.BufferMultiple, &g.ThresholdRatio, &g.ComparandMetric, &unit, &archived); err != nil {
 			_ = rows.Close()
 			return nil, err
 		}
 		g.SustainPeriodUnit = ledgerpb.SustainPeriodUnit(unit)
+		g.BookId = bookID
+		g.Archived = archived != 0
 		goals = append(goals, &g)
 	}
 	if err := rows.Err(); err != nil {
@@ -565,20 +701,34 @@ func (s *Store) ListGoals(ctx context.Context, bookID string) ([]*ledgerpb.GoalV
 		if positionErr != nil {
 			return nil, positionErr
 		}
-		value, valueLabel := s.goalMetricValue(ctx, bookID, position, g.Metric)
+		value, valueLabel, available, availabilityReason := s.goalMetricValue(ctx, bookID, position, g.Metric)
 		observedLabel := valueLabel
 		threshold := float64(g.ThresholdMinor)
 		if g.ThresholdRatio > 0 {
 			threshold = g.ThresholdRatio
 		}
 		if g.ComparandMetric != "" {
-			comparand, _ := s.goalMetricValue(ctx, bookID, position, g.ComparandMetric)
+			comparand, _, comparandAvailable, comparandReason := s.goalMetricValue(ctx, bookID, position, g.ComparandMetric)
+			if !comparandAvailable {
+				available = false
+				availabilityReason = "comparand " + g.ComparandMetric + " unavailable: " + comparandReason
+			}
 			if g.BufferMultiple > 0 {
 				comparand *= g.BufferMultiple
 			}
 			value = value - comparand
 			observedLabel = fmt.Sprintf("%.4g", value)
 			threshold = 0
+		}
+		if !available {
+			out = append(out, &ledgerpb.GoalVerdict{
+				Goal:             g,
+				SustainedPeriods: 0,
+				RequiredPeriods:  g.SustainPeriods,
+				PeriodUnit:       g.SustainPeriodUnit,
+				Explanation:      "UNKNOWN: " + availabilityReason,
+			})
+			continue
 		}
 		sustained, sustainErr := s.sustainedGoalPeriods(ctx, bookID, g)
 		if sustainErr != nil {
@@ -589,9 +739,59 @@ func (s *Store) ListGoals(ctx context.Context, bookID string) ([]*ledgerpb.GoalV
 	return out, nil
 }
 
+func (s *Store) ArchiveGoal(ctx context.Context, goalID, actor string) (*ledgerpb.Goal, error) {
+	goal, err := s.goalByID(ctx, goalID)
+	if err != nil {
+		return nil, err
+	}
+	if !goal.Archived {
+		if _, err := s.db.ExecContext(ctx, `UPDATE goals SET archived=1 WHERE id=?`, goalID); err != nil {
+			return nil, err
+		}
+		if err := s.recordAudit(ctx, "goal", goalID, actor, "archived goal", "archived=false"); err != nil {
+			return nil, err
+		}
+		goal.Archived = true
+	}
+	return goal, nil
+}
+
+func (s *Store) ReparentGoal(ctx context.Context, goalID, bookID, actor string) (*ledgerpb.Goal, error) {
+	goal, err := s.goalByID(ctx, goalID)
+	if err != nil {
+		return nil, err
+	}
+	var active int
+	if err := s.db.QueryRowContext(ctx, `SELECT 1 FROM books WHERE id=? AND archived=0`, bookID).Scan(&active); err != nil {
+		return nil, fmt.Errorf("book %q not found or archived: %w", bookID, err)
+	}
+	if goal.BookId != bookID {
+		prior := goal.BookId
+		if _, err := s.db.ExecContext(ctx, `UPDATE goals SET book_id=? WHERE id=?`, bookID, goalID); err != nil {
+			return nil, err
+		}
+		if err := s.recordAudit(ctx, "goal", goalID, actor, "reparented goal", prior); err != nil {
+			return nil, err
+		}
+		goal.BookId = bookID
+	}
+	return goal, nil
+}
+
+func (s *Store) goalByID(ctx context.Context, goalID string) (*ledgerpb.Goal, error) {
+	var goal ledgerpb.Goal
+	var unit, archived int32
+	if err := s.db.QueryRowContext(ctx, `SELECT id,book_id,name,metric,comparator,threshold_minor,sustain_periods,buffer_multiple,threshold_ratio,comparand_metric,sustain_period_unit,archived FROM goals WHERE id=?`, goalID).Scan(&goal.Id, &goal.BookId, &goal.Name, &goal.Metric, &goal.Comparator, &goal.ThresholdMinor, &goal.SustainPeriods, &goal.BufferMultiple, &goal.ThresholdRatio, &goal.ComparandMetric, &unit, &archived); err != nil {
+		return nil, fmt.Errorf("goal %q not found: %w", goalID, err)
+	}
+	goal.SustainPeriodUnit = ledgerpb.SustainPeriodUnit(unit)
+	goal.Archived = archived != 0
+	return &goal, nil
+}
+
 func (s *Store) sustainedGoalPeriods(ctx context.Context, bookID string, goal *ledgerpb.Goal) (int32, error) {
 	if goal.Metric == "services_capacity" || goal.SustainPeriodUnit == ledgerpb.SustainPeriodUnit_WEEK {
-		rows, err := s.db.QueryContext(ctx, `SELECT strftime('%Y-%W',observed_at),value FROM operator_measures WHERE path='timeAllocation.services' AND status NOT IN ('stale','pending-operator') ORDER BY observed_at DESC`)
+		rows, err := s.db.QueryContext(ctx, `SELECT strftime('%Y-%W',observed_at),value FROM operator_measures WHERE path='timeAllocation.services' AND status NOT IN ('stale','pending-operator') AND (source_path='shared/operator-inputs.json' OR source_path LIKE '%/shared/operator-inputs.json') ORDER BY observed_at DESC`)
 		if err != nil {
 			return 0, err
 		}
@@ -725,32 +925,70 @@ func compareGoalFloat(value float64, comparator string, threshold float64) bool 
 	}
 }
 
-func (s *Store) goalMetricValue(ctx context.Context, bookID string, position *ledgerpb.PositionResponse, metric string) (float64, string) {
+func (s *Store) goalMetricValue(ctx context.Context, bookID string, position *ledgerpb.PositionResponse, metric string) (float64, string, bool, string) {
 	switch strings.ToLower(strings.TrimSpace(metric)) {
 	case "revenue", "income":
-		return float64(position.RevenueMinor), fmt.Sprintf("%d", position.RevenueMinor)
+		available, reason := s.hasAccountObservation(ctx, bookID, "revenue", "income")
+		return float64(position.RevenueMinor), fmt.Sprintf("%d", position.RevenueMinor), available, reason
 	case "expense":
-		return float64(position.ExpenseMinor), fmt.Sprintf("%d", position.ExpenseMinor)
+		available, reason := s.hasAccountObservation(ctx, bookID, "expense")
+		return float64(position.ExpenseMinor), fmt.Sprintf("%d", position.ExpenseMinor), available, reason
 	case "burn":
-		return float64(position.BurnMinor), fmt.Sprintf("%d", position.BurnMinor)
+		available, reason := s.hasAccountObservation(ctx, bookID, "expense")
+		return float64(position.BurnMinor), fmt.Sprintf("%d", position.BurnMinor), available, reason
 	case "runway":
-		return position.RunwayMonths, fmt.Sprintf("%.2f months", position.RunwayMonths)
+		if !position.RunwayAvailable {
+			return position.RunwayMonths, fmt.Sprintf("%.2f months", position.RunwayMonths), false, position.RunwayReason
+		}
+		return position.RunwayMonths, fmt.Sprintf("%.2f months", position.RunwayMonths), true, ""
 	case "services_capacity":
 		var value float64
-		_ = s.db.QueryRowContext(ctx, `SELECT COALESCE(value,0) FROM operator_measures WHERE path='timeAllocation.services' ORDER BY observed_at DESC,id DESC LIMIT 1`).Scan(&value)
+		var observed int
+		if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM operator_measures WHERE path='timeAllocation.services' AND status NOT IN ('stale','pending-operator') AND (source_path='shared/operator-inputs.json' OR source_path LIKE '%/shared/operator-inputs.json')`).Scan(&observed); err != nil {
+			return 0, "", false, err.Error()
+		}
+		if observed == 0 {
+			return 0, "0.0000", false, "timeAllocation.services observation is absent"
+		}
+		_ = s.db.QueryRowContext(ctx, `SELECT value FROM operator_measures WHERE path='timeAllocation.services' AND status NOT IN ('stale','pending-operator') AND (source_path='shared/operator-inputs.json' OR source_path LIKE '%/shared/operator-inputs.json') ORDER BY observed_at DESC,id DESC LIMIT 1`).Scan(&value)
 		if value > 1 {
 			value /= 100
 		}
-		return value, fmt.Sprintf("%.4f", value)
+		return value, fmt.Sprintf("%.4f", value), true, ""
 	case "services_revenue", "subscription_revenue":
 		var value float64
 		needle := "services"
 		if strings.Contains(strings.ToLower(metric), "subscription") {
 			needle = "subscription"
 		}
+		var observed int
+		if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM postings p WHERE p.book_id=? AND lower(p.category) LIKE '%'||?||'%'`, bookID, needle).Scan(&observed); err != nil {
+			return 0, "", false, err.Error()
+		}
+		if observed == 0 {
+			return 0, "0", false, metric + " observation is absent"
+		}
 		_ = s.db.QueryRowContext(ctx, `SELECT COALESCE(SUM(p.amount_minor),0) FROM postings p WHERE p.book_id=? AND lower(p.category) LIKE '%'||?||'%'`, bookID, needle).Scan(&value)
-		return value, fmt.Sprintf("%.0f", value)
+		return value, fmt.Sprintf("%.0f", value), true, ""
 	default:
-		return float64(position.CashMinor), fmt.Sprintf("%d", position.CashMinor)
+		return float64(position.CashMinor), fmt.Sprintf("%d", position.CashMinor), true, ""
 	}
+}
+
+func (s *Store) hasAccountObservation(ctx context.Context, bookID string, kinds ...string) (bool, string) {
+	placeholders := make([]string, len(kinds))
+	args := []any{bookID}
+	for i, kind := range kinds {
+		placeholders[i] = "?"
+		args = append(args, kind)
+	}
+	var observed int
+	query := `SELECT COUNT(*) FROM postings p JOIN accounts a ON a.id=p.account_id WHERE p.book_id=? AND lower(a.kind) IN (` + strings.Join(placeholders, ",") + ")"
+	if err := s.db.QueryRowContext(ctx, query, args...).Scan(&observed); err != nil {
+		return false, err.Error()
+	}
+	if observed == 0 {
+		return false, "no " + strings.Join(kinds, "/") + " observation exists"
+	}
+	return true, ""
 }

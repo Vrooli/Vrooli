@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/databasetest"
@@ -20,6 +21,14 @@ func testCatalog(t *testing.T) (*Store, context.Context) {
 	require.NoError(t, database.EnsureSchemas(ctx, sqlDB, database.SchemaProviderFunc(func() string { return (&Store{}).Schema() })))
 	now := time.Date(2026, time.January, 1, 12, 0, 0, 0, time.UTC)
 	return NewStore(db, func() time.Time { return now }), ctx
+}
+
+func seedDuplicateNode(t *testing.T, s *Store, ctx context.Context, kind offerspb.NodeKind, name string) *offerspb.Node {
+	t.Helper()
+	n := &offerspb.Node{Id: uuid.NewString(), Kind: kind, Name: name, Status: offerspb.Status_IDEA, CreatedAt: timestamppb.New(time.Date(2026, time.January, 2, 12, 0, 0, 0, time.UTC))}
+	_, err := s.db.ExecContext(ctx, `INSERT INTO nodes(id,kind,name,status,trigger_id,created_at,actual_account_id) VALUES(?,?,?,?,?,?,?)`, n.Id, int32(n.Kind), n.Name, int32(n.Status), "", n.CreatedAt.AsTime().UTC().Format(time.RFC3339Nano), "")
+	require.NoError(t, err)
+	return n
 }
 
 func TestLifecycleReachesTriggerMetAndUnknownIsNotFalse(t *testing.T) { // [REQ:GATE-003] [REQ:GATE-004]
@@ -58,6 +67,32 @@ func TestIllegalTransitionNamesRuleAndTypedEdgesRejectInvalidPairs(t *testing.T)
 	edge, err := s.CreateEdge(ctx, &offerspb.Edge{FromId: offer.Id, ToId: variant.Id, Kind: "sells_at"})
 	require.NoError(t, err)
 	require.NotEmpty(t, edge.Id)
+}
+
+func TestEdgePricePresenceDistinguishesAbsentFromDeclaredZero(t *testing.T) { // [REQ:MIG-001]
+	s, ctx := testCatalog(t)
+	offer, err := s.CreateNode(ctx, offerspb.NodeKind_OFFER, "Offer", offerspb.Status_IDEA, "", "")
+	require.NoError(t, err)
+	absolute, err := s.CreateNode(ctx, offerspb.NodeKind_VARIANT, "Absent price", offerspb.Status_IDEA, "", "")
+	require.NoError(t, err)
+	zero, err := s.CreateNode(ctx, offerspb.NodeKind_VARIANT, "Declared zero", offerspb.Status_IDEA, "", "")
+	require.NoError(t, err)
+	_, err = s.CreateEdge(ctx, &offerspb.Edge{FromId: offer.Id, ToId: absolute.Id, Kind: "sells_at"})
+	require.NoError(t, err)
+	_, err = s.CreateEdge(ctx, &offerspb.Edge{FromId: offer.Id, ToId: zero.Id, Kind: "sells_at", IntendedPriceDeclared: true, Currency: "USD"})
+	require.NoError(t, err)
+	edges, err := s.ListEdges(ctx, offer.Id)
+	require.NoError(t, err)
+	require.Len(t, edges, 2)
+	byVariant := map[string]*offerspb.Edge{}
+	for _, edge := range edges {
+		byVariant[edge.ToId] = edge
+	}
+	require.False(t, byVariant[absolute.Id].IntendedPriceDeclared)
+	require.Zero(t, byVariant[absolute.Id].IntendedPriceMinor)
+	require.True(t, byVariant[zero.Id].IntendedPriceDeclared)
+	require.Zero(t, byVariant[zero.Id].IntendedPriceMinor)
+	require.Equal(t, "USD", byVariant[zero.Id].Currency)
 }
 
 func TestTriggerCompositionAndFactFreshnessAreExplicit(t *testing.T) { // [REQ:GATE-002] [REQ:GATE-006] [REQ:GATE-008]
@@ -143,4 +178,131 @@ func TestTransitionAuditIsAppendOnly(t *testing.T) { // [REQ:GRAPH-004]
 	require.NoError(t, s.db.QueryRowContext(ctx, `SELECT prior_status,next_status FROM catalog_audit WHERE node_id=?`, n.Id).Scan(&prior, &next))
 	require.Equal(t, int32(offerspb.Status_IDEA), prior)
 	require.Equal(t, int32(offerspb.Status_RETIRED), next)
+}
+
+func TestMergeMovesEveryReferenceThenRemovesDuplicate(t *testing.T) { // [REQ:GRAPH-005]
+	s, ctx := testCatalog(t)
+	survivor, err := s.CreateNode(ctx, offerspb.NodeKind_OFFER, "Same offer", offerspb.Status_IDEA, "", "")
+	require.NoError(t, err)
+	duplicate := seedDuplicateNode(t, s, ctx, offerspb.NodeKind_OFFER, "Same offer")
+	target, err := s.CreateNode(ctx, offerspb.NodeKind_VARIANT, "Target", offerspb.Status_IDEA, "", "")
+	require.NoError(t, err)
+	edge, err := s.CreateEdge(ctx, &offerspb.Edge{FromId: duplicate.Id, ToId: target.Id, Kind: "sells_at"})
+	require.NoError(t, err)
+	trigger, err := s.AddTrigger(ctx, &offerspb.Trigger{NodeId: duplicate.Id, FactName: "paying_users", Operator: ">=", Threshold: 1})
+	require.NoError(t, err)
+	_, err = s.Proposal(ctx, duplicate.Id, "agent", offerspb.Status_ACTIVE, "ready")
+	require.NoError(t, err)
+	_, err = s.db.ExecContext(ctx, `INSERT INTO evaluations(id,node_id,verdict,fact_name,explanation,evaluated_at) VALUES(?,?,?,?,?,?)`, "evaluation-duplicate", duplicate.Id, int32(offerspb.Verdict_SATISFIED), trigger.FactName, "test", time.Now().UTC().Format(time.RFC3339Nano))
+	require.NoError(t, err)
+	_, err = s.db.ExecContext(ctx, `INSERT INTO migration_findings(id,node_id,source_file,reference,reason,created_at) VALUES(?,?,?,?,?,?)`, "finding-duplicate", duplicate.Id, "source.md", "#same", "test", time.Now().UTC().Format(time.RFC3339Nano))
+	require.NoError(t, err)
+
+	dryReport, err := s.MergeNodes(ctx, &offerspb.MergeNodesRequest{SurvivingId: survivor.Id, DuplicateId: duplicate.Id, Actor: "operator", DryRun: true})
+	require.NoError(t, err)
+	require.EqualValues(t, 1, dryReport.MovedEdges)
+	require.EqualValues(t, 1, dryReport.MovedTriggers)
+	require.EqualValues(t, 1, dryReport.MovedEvaluations)
+	var count int
+	require.NoError(t, s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM nodes WHERE id=?`, duplicate.Id).Scan(&count))
+	require.Equal(t, 1, count)
+	report, err := s.MergeNodes(ctx, &offerspb.MergeNodesRequest{SurvivingId: survivor.Id, DuplicateId: duplicate.Id, Actor: "operator", DryRun: false})
+	require.NoError(t, err)
+	require.Equal(t, survivor.Id, report.Surviving.Id)
+	require.EqualValues(t, 1, report.MovedEdges)
+	require.EqualValues(t, 1, report.MovedTriggers)
+	require.EqualValues(t, 1, report.MovedEvaluations)
+	require.EqualValues(t, 1, report.MovedProposals)
+	require.EqualValues(t, 1, report.MovedFindings)
+	require.NoError(t, s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM nodes WHERE id=?`, duplicate.Id).Scan(&count))
+	require.Zero(t, count)
+	for _, table := range []string{"edges", "triggers", "evaluations", "proposals", "migration_findings"} {
+		require.NoError(t, s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM `+table+` WHERE `+map[string]string{"edges": "from_id", "triggers": "node_id", "evaluations": "node_id", "proposals": "node_id", "migration_findings": "node_id"}[table]+`=?`, duplicate.Id).Scan(&count))
+		require.Zero(t, count, table)
+	}
+	var auditReason, auditActor string
+	require.NoError(t, s.db.QueryRowContext(ctx, `SELECT actor,reason FROM catalog_audit WHERE node_id=? ORDER BY created_at DESC LIMIT 1`, survivor.Id).Scan(&auditActor, &auditReason))
+	require.Equal(t, "operator", auditActor)
+	require.Contains(t, auditReason, duplicate.Id)
+	require.NotEmpty(t, edge.Id)
+}
+
+func TestMergeRefusesAcrossKinds(t *testing.T) { // [REQ:GRAPH-005]
+	s, ctx := testCatalog(t)
+	offer, err := s.CreateNode(ctx, offerspb.NodeKind_OFFER, "Offer", offerspb.Status_IDEA, "", "")
+	require.NoError(t, err)
+	channel, err := s.CreateNode(ctx, offerspb.NodeKind_CHANNEL, "Channel", offerspb.Status_IDEA, "", "")
+	require.NoError(t, err)
+	_, err = s.MergeNodes(ctx, &offerspb.MergeNodesRequest{SurvivingId: offer.Id, DuplicateId: channel.Id, Actor: "operator"})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "OFFER")
+	require.Contains(t, err.Error(), "CHANNEL")
+	require.Contains(t, err.Error(), offer.Id)
+	require.Contains(t, err.Error(), channel.Id)
+}
+
+func TestCreateNodeRefusesDuplicateKindAndName(t *testing.T) {
+	s, ctx := testCatalog(t)
+	first, err := s.CreateNode(ctx, offerspb.NodeKind_OFFER, "Unique identity", offerspb.Status_IDEA, "", "")
+	require.NoError(t, err)
+	_, err = s.CreateNode(ctx, offerspb.NodeKind_OFFER, "Unique identity", offerspb.Status_IDEA, "", "")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), first.Id)
+}
+
+func TestEnsureMigrationsRefusesUniqueIndexWhileDuplicatesExist(t *testing.T) {
+	s, ctx := testCatalog(t)
+	seedDuplicateNode(t, s, ctx, offerspb.NodeKind_OFFER, "Duplicate identity")
+	seedDuplicateNode(t, s, ctx, offerspb.NodeKind_OFFER, "Duplicate identity")
+	err := EnsureMigrations(ctx, s.db)
+	require.ErrorContains(t, err, "catalog-merge")
+	var index string
+	require.Error(t, s.db.QueryRowContext(ctx, `SELECT name FROM pragma_index_list('nodes') WHERE name='nodes_kind_name'`).Scan(&index))
+}
+
+func TestEnsureMigrationsCreatesUniqueIndexesForCleanCatalog(t *testing.T) {
+	s, ctx := testCatalog(t)
+	require.NoError(t, EnsureMigrations(ctx, s.db))
+	var nodeIndex, edgeIndex string
+	require.NoError(t, s.db.QueryRowContext(ctx, `SELECT name FROM pragma_index_list('nodes') WHERE name='nodes_kind_name'`).Scan(&nodeIndex))
+	require.NoError(t, s.db.QueryRowContext(ctx, `SELECT name FROM pragma_index_list('edges') WHERE name='edges_from_to_kind'`).Scan(&edgeIndex))
+	require.Equal(t, "nodes_kind_name", nodeIndex)
+	require.Equal(t, "edges_from_to_kind", edgeIndex)
+}
+
+func TestCreateEdgeUpsertPreservesDeclaredPriceAgainstAbsentPrice(t *testing.T) {
+	s, ctx := testCatalog(t)
+	offer, err := s.CreateNode(ctx, offerspb.NodeKind_OFFER, "Priced offer", offerspb.Status_IDEA, "", "")
+	require.NoError(t, err)
+	variant, err := s.CreateNode(ctx, offerspb.NodeKind_VARIANT, "Priced variant", offerspb.Status_IDEA, "", "")
+	require.NoError(t, err)
+	first, err := s.CreateEdge(ctx, &offerspb.Edge{FromId: offer.Id, ToId: variant.Id, Kind: "sells_at", IntendedPriceMinor: 2900, Currency: "USD", IntendedPriceDeclared: true})
+	require.NoError(t, err)
+	second, err := s.CreateEdge(ctx, &offerspb.Edge{FromId: offer.Id, ToId: variant.Id, Kind: "sells_at"})
+	require.NoError(t, err)
+	require.Equal(t, first.Id, second.Id)
+	require.EqualValues(t, 2900, second.IntendedPriceMinor)
+	require.Equal(t, "USD", second.Currency)
+	require.True(t, second.IntendedPriceDeclared)
+}
+
+func TestMergeCollapsesDuplicateEdgeAndReportsIt(t *testing.T) { // [REQ:GRAPH-005]
+	s, ctx := testCatalog(t)
+	survivor, err := s.CreateNode(ctx, offerspb.NodeKind_OFFER, "Same offer", offerspb.Status_IDEA, "", "")
+	require.NoError(t, err)
+	duplicate := seedDuplicateNode(t, s, ctx, offerspb.NodeKind_OFFER, "Same offer")
+	target, err := s.CreateNode(ctx, offerspb.NodeKind_VARIANT, "Target", offerspb.Status_IDEA, "", "")
+	require.NoError(t, err)
+	kept, err := s.CreateEdge(ctx, &offerspb.Edge{FromId: survivor.Id, ToId: target.Id, Kind: "sells_at"})
+	require.NoError(t, err)
+	moved, err := s.CreateEdge(ctx, &offerspb.Edge{FromId: duplicate.Id, ToId: target.Id, Kind: "sells_at"})
+	require.NoError(t, err)
+	report, err := s.MergeNodes(ctx, &offerspb.MergeNodesRequest{SurvivingId: survivor.Id, DuplicateId: duplicate.Id, Actor: "operator"})
+	require.NoError(t, err)
+	require.Contains(t, report.CollapsedEdgeIds, moved.Id)
+	require.NotContains(t, report.CollapsedEdgeIds, kept.Id)
+	edges, err := s.ListEdges(ctx, survivor.Id)
+	require.NoError(t, err)
+	require.Len(t, edges, 1)
+	require.Equal(t, kept.Id, edges[0].Id)
 }

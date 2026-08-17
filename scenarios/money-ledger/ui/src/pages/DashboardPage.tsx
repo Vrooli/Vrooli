@@ -12,10 +12,13 @@ import { HealthCard } from "../features/health/HealthCard";
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { useTranslation } from "../i18n";
-import { configuredBookId, declareGoal, fetchBooks, fetchGoals, fetchPosition } from "../api/ledger";
+import { configuredBookId, declareGoal, fetchBooks, fetchGoals, fetchPosition, fetchPostings } from "../api/ledger";
 import { formatCurrency, formatDate } from "../i18n/format";
 import { useSurfaceState } from "../hooks/useSurfaceState";
 import { SustainPeriodUnit } from "@vrooli/proto-types/money-ledger/v1/ledger/ledger_pb";
+import { Basis } from "@vrooli/proto-types/money-ledger/v1/shared/ledger_types_pb";
+import { CartesianCharts } from "../components/CartesianCharts";
+import type { ChartDatum } from "../components/Chart";
 
 interface PositionView {
   cashMinor: bigint;
@@ -31,17 +34,65 @@ const age = (timestamp?: { seconds: bigint | number; nanos?: number }) => {
   return formatDate(new Date(Number(timestamp.seconds) * 1000 + Math.floor((timestamp.nanos ?? 0) / 1_000_000)));
 };
 
+type PostingLike = {
+  event?: {
+    amountMinor: bigint;
+    occurredAt?: { seconds: bigint | number; nanos?: number };
+    basis: Basis;
+  };
+};
+
+type TrendRow = { id: string; period: string; inflow: bigint; outflow: bigint; net: bigint };
+
+const dayKey = (timestamp?: { seconds: bigint | number; nanos?: number }) => {
+  if (!timestamp) return "";
+  return new Date(Number(timestamp.seconds) * 1000 + Math.floor((timestamp.nanos ?? 0) / 1_000_000)).toISOString().slice(0, 10);
+};
+
+const basisLabel = (basis: Basis, t: ReturnType<typeof useTranslation>["t"]) => {
+  if (basis === Basis.AUTHORITATIVE) return t(strings.pages.dashboard.trendBasisAuthoritative);
+  if (basis === Basis.DERIVED) return t(strings.pages.dashboard.trendBasisDerived);
+  if (basis === Basis.OPERATOR_ASSERTED) return t(strings.pages.dashboard.trendBasisOperator);
+  return t(strings.pages.dashboard.trendBasisMixed);
+};
+
 export function DashboardPage() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
+  const [trendWindowDays, setTrendWindowDays] = useState(30);
   const books = useQuery({ queryKey: ["books"], queryFn: fetchBooks, retry: false });
   const bookId = configuredBookId() || books.data?.books[0]?.id || "";
   const selectedBook = books.data?.books.find((book) => book.id === bookId);
   const query = useQuery({ queryKey: ["position", bookId], queryFn: () => fetchPosition(bookId), retry: false, enabled: Boolean(bookId) });
+  const postings = useQuery({ queryKey: ["postings", bookId], queryFn: () => fetchPostings(bookId), retry: false, enabled: Boolean(bookId) });
   const goals = useQuery({ queryKey: ["goals", bookId], queryFn: () => fetchGoals(bookId), retry: false, enabled: Boolean(bookId) });
   const previous = useQuery({ queryKey: ["position-previous", bookId], queryFn: () => fetchPosition(bookId, "previous", "current"), retry: false, enabled: Boolean(bookId) });
   const data = query.data as PositionView | null | undefined;
   const previousData = previous.data as PositionView | null | undefined;
+  const trendRows = useMemo<TrendRow[]>(() => {
+    const cutoff = Date.now() - trendWindowDays * 24 * 60 * 60 * 1000;
+    const byDay = new Map<string, TrendRow>();
+    for (const posting of (postings.data?.postings ?? []) as PostingLike[]) {
+      const event = posting.event;
+      const date = dayKey(event?.occurredAt);
+      if (!event || !date || Date.parse(`${date}T00:00:00.000Z`) < cutoff) continue;
+      const row = byDay.get(date) ?? { id: date, period: date, inflow: 0n, outflow: 0n, net: 0n };
+      const amount = event.amountMinor;
+      if (amount >= 0n) row.inflow += amount;
+      else row.outflow += -amount;
+      row.net += amount;
+      byDay.set(date, row);
+    }
+    return [...byDay.values()].sort((left, right) => left.period.localeCompare(right.period));
+  }, [postings.data?.postings, trendWindowDays]);
+  const trendStatus = postings.isError ? "partial-error" : postings.isFetching ? "refreshing" : trendRows.length ? (data?.partial ? "stale" : "success") : "empty";
+  const trendBasis = useMemo(() => {
+    const bases = new Set(((postings.data?.postings ?? []) as PostingLike[]).map((posting) => posting.event?.basis).filter((basis): basis is Basis => basis !== undefined));
+    const firstBasis = [...bases][0];
+    return firstBasis !== undefined ? basisLabel(firstBasis, t) : t(strings.pages.dashboard.trendBasisMixed);
+  }, [postings.data?.postings, t]);
+  const currency = selectedBook?.currency || "USD";
+  const chartData = (value: (row: TrendRow) => bigint): ChartDatum[] => trendRows.map((row) => ({ id: row.id, label: row.period.slice(5), value: Number(value(row)) / 100, detail: currency }));
   const showError = query.isError;
   const showEmpty = !query.isLoading && !data && !query.isError;
   const surface = useSurfaceState({
@@ -116,6 +167,30 @@ export function DashboardPage() {
       </div>
       <p data-testid={selectors.pages.positionError} role={showError ? "alert" : "status"} aria-live={showError ? "assertive" : "off"} className={showError ? undefined : "sr-only"}>{positionStatus}</p>
       <p data-testid={selectors.pages.emptyGuidance} role="note" className="rounded-md border border-dashed p-4 text-app-muted-foreground">{t(strings.pages.dashboard.emptyGuidance)}</p>
+      <Card>
+        <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div><CardTitle>{t(strings.pages.dashboard.trendTitle)}</CardTitle><p className="text-sm text-app-muted-foreground">{t(strings.pages.dashboard.trendDescription)}</p></div>
+          <label className="grid min-w-36 gap-1" htmlFor="trend-window"><span>{t(strings.pages.dashboard.trendWindowLabel)}</span><Select id="trend-window" data-testid={selectors.pages.trendWindow} value={String(trendWindowDays)} onChange={(event) => setTrendWindowDays(Number(event.target.value))} options={[7, 30, 90].map((days) => ({ value: String(days), label: t(strings.pages.dashboard.trendWindowDays, { days }) }))} /></label>
+        </CardHeader>
+        <CardContent className="grid gap-4">
+          <div data-testid={selectors.pages.runwayBurnTrend} aria-label={t(strings.pages.dashboard.trendTitle)} className="grid gap-4 xl:grid-cols-3">
+            <CartesianCharts data={chartData((row) => row.inflow)} title={t(strings.pages.dashboard.trendInflow)} kind="area" status={trendStatus} emptyMessage={t(strings.pages.dashboard.trendEmpty)} valueFormatter={(value) => formatCurrency(value, currency)} />
+            <CartesianCharts data={chartData((row) => row.outflow)} title={t(strings.pages.dashboard.trendOutflow)} kind="area" status={trendStatus} emptyMessage={t(strings.pages.dashboard.trendEmpty)} valueFormatter={(value) => formatCurrency(value, currency)} />
+            <CartesianCharts data={chartData((row) => row.net)} title={t(strings.pages.dashboard.trendNet)} kind="line" status={trendStatus} emptyMessage={t(strings.pages.dashboard.trendEmpty)} valueFormatter={(value) => formatCurrency(value, currency)} />
+          </div>
+          <p data-testid={selectors.pages.trendSourceBasis} role="note" className="text-sm text-app-muted-foreground">{t(strings.pages.dashboard.trendSourceBasis, { basis: trendBasis })}</p>
+          {postings.isError && <p data-testid={selectors.pages.trendGap} role="alert" className="rounded-md border border-dashed p-3 text-sm text-amber-800">{t(strings.pages.dashboard.trendGap, { reason: postings.error instanceof Error ? postings.error.message : t(strings.pages.dashboard.sourceUnavailable) })}</p>}
+          {data?.partial && !postings.isError && <p data-testid={selectors.pages.trendGap} role="note" aria-label={t(strings.pages.dashboard.trendGapLabel)} className="rounded-md border border-dashed p-3 text-sm text-amber-800">{t(strings.pages.dashboard.trendGap, { reason: t(strings.pages.dashboard.trendStale, { age: age(data.availability[0]?.lastSuccessAt) }) })}</p>}
+          {!postings.isError && trendRows.length === 0 && !postings.isLoading && <p data-testid={selectors.pages.trendGap} role="note" aria-label={t(strings.pages.dashboard.trendGapLabel)} className="rounded-md border border-dashed p-3 text-sm text-app-muted-foreground">{t(strings.pages.dashboard.trendEmpty)} {t(strings.pages.dashboard.trendNoPostings)}</p>}
+          <div className="overflow-x-auto">
+            <table data-testid={selectors.pages.runwayBurnTable} className="w-full min-w-[32rem] border-collapse text-sm" aria-label={t(strings.pages.dashboard.trendTableCaption)}>
+              <caption className="sr-only">{t(strings.pages.dashboard.trendTableCaption)}</caption>
+              <thead><tr className="border-b text-left"><th className="p-2">{t(strings.pages.dashboard.trendPeriod)}</th><th className="p-2">{t(strings.pages.dashboard.trendInflow)}</th><th className="p-2">{t(strings.pages.dashboard.trendOutflow)}</th><th className="p-2">{t(strings.pages.dashboard.trendNet)}</th></tr></thead>
+              <tbody>{postings.isError ? <tr><td className="p-2" colSpan={4}>{t(strings.pages.dashboard.trendUnavailable)}</td></tr> : trendRows.length ? trendRows.map((row) => <tr key={row.id} className="border-b"><th scope="row" className="p-2 text-left font-normal">{row.period}</th><td className="p-2 tabular-nums">{formatCurrency(Number(row.inflow) / 100, currency)}</td><td className="p-2 tabular-nums">{formatCurrency(Number(row.outflow) / 100, currency)}</td><td className="p-2 tabular-nums">{formatCurrency(Number(row.net) / 100, currency)}</td></tr>) : !postings.isLoading ? <tr><td className="p-2" colSpan={4}>{t(strings.pages.dashboard.trendNoPostings)}</td></tr> : null}</tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
           <CardHeader><CardTitle>{t(strings.pages.dashboard.goalsTitle)}</CardTitle></CardHeader>

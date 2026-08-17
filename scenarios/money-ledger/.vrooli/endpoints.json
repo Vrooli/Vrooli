@@ -87,6 +87,14 @@
       "category": "ledger"
     },
     {
+      "id": "books_archive",
+      "path": "/vrooli.money_ledger.v1.ledger.BooksService/ArchiveBook",
+      "method": "POST",
+      "summary": "Archive a book without deleting its journal",
+      "description": "",
+      "category": "ledger"
+    },
+    {
       "id": "accounts_create",
       "path": "/vrooli.money_ledger.v1.ledger.BooksService/CreateAccount",
       "method": "POST",
@@ -167,6 +175,22 @@
       "category": "ledger"
     },
     {
+      "id": "goals_archive",
+      "path": "/vrooli.money_ledger.v1.ledger.PositionService/ArchiveGoal",
+      "method": "POST",
+      "summary": "Archive a goal without deleting its declaration",
+      "description": "",
+      "category": "ledger"
+    },
+    {
+      "id": "goals_reparent",
+      "path": "/vrooli.money_ledger.v1.ledger.PositionService/ReparentGoal",
+      "method": "POST",
+      "summary": "Move a goal while preserving its declaration",
+      "description": "",
+      "category": "ledger"
+    },
+    {
       "id": "ingest_register",
       "path": "/vrooli.money_ledger.v1.ingest.IngestService/RegisterAdapter",
       "method": "POST",
@@ -203,6 +227,22 @@
       "path": "/vrooli.money_ledger.v1.ingest.IngestService/ImportFile",
       "method": "POST",
       "summary": "Import a CSV through the adapter door",
+      "description": "",
+      "category": ""
+    },
+    {
+      "id": "ingest_operator_inputs",
+      "path": "/vrooli.money_ledger.v1.ingest.IngestService/ImportOperatorInputs",
+      "method": "POST",
+      "summary": "Rehearse or apply operator financial inputs",
+      "description": "",
+      "category": ""
+    },
+    {
+      "id": "ingest_operator_status",
+      "path": "/vrooli.money_ledger.v1.ingest.IngestService/OperatorInputStatus",
+      "method": "POST",
+      "summary": "Read operator input status and age",
       "description": "",
       "category": ""
     }

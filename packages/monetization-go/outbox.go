@@ -51,6 +51,13 @@ type OutboxStore interface {
 	MarkRetry(context.Context, string, time.Time, string) error
 }
 
+// PendingCounter is an optional durable-store capability used by account
+// surfaces to display queued Class B usage. Implementations must count stored
+// rows, not an in-memory worker queue.
+type PendingCounter interface {
+	PendingCount(context.Context, string) (int, error)
+}
+
 // UsageTransport sends one event to the trusted billing authority. The
 // authority must deduplicate OperationID so a crash between send and
 // MarkDelivered cannot double-charge a customer.
@@ -143,6 +150,20 @@ func (o *Outbox) Drain(ctx context.Context, limit int) (delivered int, firstErr 
 		delivered++
 	}
 	return delivered, firstErr
+}
+
+// PendingCount reports durable undelivered usage for one identity. A store
+// that does not expose a count returns ErrPendingCountUnsupported rather than
+// pretending the queue is empty.
+func (o *Outbox) PendingCount(ctx context.Context, userIdentity string) (int, error) {
+	if o == nil || o.Store == nil {
+		return 0, ErrNilOutbox
+	}
+	counter, ok := o.Store.(PendingCounter)
+	if !ok {
+		return 0, ErrPendingCountUnsupported
+	}
+	return counter.PendingCount(ctx, userIdentity)
 }
 
 func (o *Outbox) now() time.Time {
@@ -269,4 +290,21 @@ func (s *MemoryOutboxStore) MarkRetry(_ context.Context, operationID string, nex
 func cloneRecord(record OutboxRecord) OutboxRecord {
 	record.Usage = cloneUsage(record.Usage)
 	return record
+}
+
+var ErrPendingCountUnsupported = errors.New("monetization outbox pending count is unsupported")
+
+// PendingCount returns the number of undelivered records for an identity in
+// the deterministic test store.
+func (s *MemoryOutboxStore) PendingCount(_ context.Context, userIdentity string) (int, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	count := 0
+	for _, record := range s.records {
+		if record.Delivered() || (strings.TrimSpace(userIdentity) != "" && record.Usage.UserIdentity != userIdentity) {
+			continue
+		}
+		count++
+	}
+	return count, nil
 }

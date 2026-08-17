@@ -11,7 +11,7 @@ and the experience contract is [`../../experience/index.json`](../../experience/
 | Route | Surface test ID | Primary evidence |
 |---|---|---|
 | `/` | `page-dashboard` | fired/blocked/earning-nothing regions, source availability, evaluation condition, posture |
-| `/offers` | `page-offers` | accessible graph/table, lifecycle/refusal state, node/transition/edge forms |
+| `/offers` | `page-offers` | grouped relationship view (`catalog-grouped-view`), edge-count table, flat table toggle, lifecycle/refusal state, node/transition/edge forms |
 | `/triggers` | `page-triggers` | trigger editor, dry-run verdict, fact trace/registry, freshness |
 | `/proposals` | `page-proposals` | proposer, requested status, evidence, decline history, accept/decline actions |
 | `/settings` | `page-settings` | theme/locale and ledger connection posture |
@@ -26,6 +26,9 @@ and the experience contract is [`../../experience/index.json`](../../experience/
   named unavailability rather than zero.
 - Intended edge prices carry a currency code and remain separate from charged
   or received amounts. Status and direction are text, not colour alone.
+- The grouped relationship view is derived from catalog verification and keeps
+  the flat table reachable when verification is unavailable; duplicate
+  identities are surfaced with an alert rather than silently merged.
 - Forms have native labels, state-changing controls have machine claims, and
   compact actions keep the 44px mobile target.
 

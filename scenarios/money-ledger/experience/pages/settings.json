@@ -199,6 +199,26 @@
           "fixture": "goals-empty"
         }
       }
+    },
+    {
+      "id": "reparenting-goal",
+      "description": "A goal is being moved to another active book; its sustain metadata stays visible while the write is in flight.",
+      "setup": {
+        "route": "/settings",
+        "query": {
+          "fixture": "reparenting-goal"
+        }
+      }
+    },
+    {
+      "id": "archived-goal",
+      "description": "A goal is archived without deleting its declaration and is excluded from default verdicts.",
+      "setup": {
+        "route": "/settings",
+        "query": {
+          "fixture": "archived-goal"
+        }
+      }
     }
   ],
   "elements": [
@@ -254,6 +274,18 @@
       "role": "radiogroup",
       "name": "Theme",
       "description": "Light, dark, and system mode."
+    },
+    {
+      "id": "goal-archive-control",
+      "role": "button",
+      "name": "Archive goal",
+      "description": "Archives a goal without deleting its declaration."
+    },
+    {
+      "id": "goal-reparent-control",
+      "role": "button",
+      "name": "Move goal",
+      "description": "Moves a goal to another active book while preserving its threshold and sustain metadata."
     }
   ],
   "claims": [
@@ -355,6 +387,15 @@
         "currency-display-control"
       ],
       "rationale": "PRD non-goal: there is no FX engine, and a converted total's basis would depend on a rate and date this scenario does not own. Manual because it is the absence of an affordance, which a presence check cannot express."
+    },
+    {
+      "id": "goal-administration-preserves-declaration",
+      "type": "state-distinct",
+      "statement": "Goal archive and move controls preserve the declaration shape and make exclusion from default verdicts explicit.",
+      "tier": "manual",
+      "elements": ["goal-archive-control", "goal-reparent-control", "goal-list"],
+      "states": ["reparenting-goal", "archived-goal"],
+      "rationale": "The goal is a financial rule, not a disposable UI row; administrative actions must be auditable and must not erase its sustain metadata."
     }
   ],
   "bindings": {
@@ -385,6 +426,12 @@
       },
       "theme-control": {
         "testid": "settings-theme"
+      },
+      "goal-archive-control": {
+        "testid": "settings-goal-archive"
+      },
+      "goal-reparent-control": {
+        "testid": "settings-goal-reparent"
       }
     }
   }

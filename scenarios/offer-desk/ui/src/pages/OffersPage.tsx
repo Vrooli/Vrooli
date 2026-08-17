@@ -14,11 +14,17 @@ import { useSurfaceState } from "../hooks/useSurfaceState";
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { useTranslation } from "../i18n";
-import { createEdge, createNode, fetchEdges, fetchNodes, promoteNode, transition } from "../api/offers";
+import { createEdge, createNode, fetchBoard, fetchCatalogVerification, fetchEdges, fetchNodes, mergeNodes, promoteNode, transition } from "../api/offers";
 
 const nodeKinds = [NodeKind.OFFER, NodeKind.VARIANT, NodeKind.CHANNEL, NodeKind.REVENUE_LINE, NodeKind.DELIVERABLE];
-const statuses = [Status.IDEA, Status.CANDIDATE, Status.TRIGGER_MET, Status.ACTIVE, Status.SHIPPED, Status.RETIRED];
+const statuses = [Status.IDEA, Status.CANDIDATE, Status.TRIGGER_MET, Status.PROPOSED, Status.ACTIVE, Status.SHIPPED, Status.RETIRED];
 const edgeKinds = ["belongs_to", "sells_at", "requires", "feeds"];
+const edgeLabel = (kind: string, t: ReturnType<typeof useTranslation>["t"]) => ({
+  belongs_to: t(strings.pages.offers.edgeBelongsTo),
+  sells_at: t(strings.pages.offers.edgeSellsAt),
+  requires: t(strings.pages.offers.edgeRequires),
+  feeds: t(strings.pages.offers.edgeFeeds),
+}[kind] ?? kind);
 
 const enumLabel = (value: number | string | undefined, values: Record<number, string>, fallback: string) => {
   if (typeof value === "number") return values[value] ?? fallback;
@@ -26,11 +32,29 @@ const enumLabel = (value: number | string | undefined, values: Record<number, st
 };
 const kindName = (value: number | string | undefined) => enumLabel(value, NodeKind, "NODE_KIND_UNSPECIFIED");
 const statusName = (value: number | string | undefined) => enumLabel(value, Status, "STATUS_UNSPECIFIED");
+const localizedRankReason = (reason: string | undefined, t: ReturnType<typeof useTranslation>["t"]) => {
+  if (!reason) return t(strings.pages.dashboard.rankReasonMissing);
+  if (reason === "status not set") return t(strings.pages.dashboard.rankReasonStatusNotSet);
+  if (reason === "captured, not planned against") return t(strings.pages.dashboard.rankReasonIdea);
+  if (reason === "blocked: trigger not met") return t(strings.pages.dashboard.rankReasonCandidate);
+  if (reason === "trigger fired") return t(strings.pages.dashboard.rankReasonTriggerMet);
+  if (reason === "awaiting operator decision") return t(strings.pages.dashboard.rankReasonProposed);
+  if (reason === "active and earning nothing") return t(strings.pages.dashboard.rankReasonActiveEarningNothing);
+  if (reason === "active and earning") return t(strings.pages.dashboard.rankReasonActiveEarning);
+  if (reason === "shipped and earning nothing") return t(strings.pages.dashboard.rankReasonShippedEarningNothing);
+  if (reason === "shipped and earning") return t(strings.pages.dashboard.rankReasonShippedEarning);
+  if (reason === "retired") return t(strings.pages.dashboard.rankReasonRetired);
+  const unknown = /^(active|shipped); earnings unknown — (.+) unavailable$/.exec(reason);
+  if (unknown) return t(unknown[1] === "active" ? strings.pages.dashboard.rankReasonActiveUnknown : strings.pages.dashboard.rankReasonShippedUnknown, { source: unknown[2] });
+  const status = /^unknown status: (.+)$/.exec(reason);
+  return status ? t(strings.pages.dashboard.rankReasonUnknown, { status: status[1] }) : reason;
+};
 const legalNextStatuses = (value: number | string | undefined) => {
   switch (statusName(value)) {
     case "IDEA": return [Status.CANDIDATE, Status.RETIRED];
     case "CANDIDATE": return [Status.TRIGGER_MET, Status.RETIRED];
     case "TRIGGER_MET": return [Status.ACTIVE, Status.RETIRED];
+    case "PROPOSED": return [Status.ACTIVE, Status.RETIRED];
     case "ACTIVE": return [Status.SHIPPED, Status.RETIRED];
     case "SHIPPED": return [Status.RETIRED];
     default: return [];
@@ -46,9 +70,12 @@ export function OffersPage() {
   const queryClient = useQueryClient();
   const nodes = useQuery({ queryKey: ["offer-nodes"], queryFn: fetchNodes, retry: false });
   const edges = useQuery({ queryKey: ["offer-edges"], queryFn: fetchEdges, retry: false });
+  const board = useQuery({ queryKey: ["offer-board"], queryFn: fetchBoard, retry: false });
+  const verification = useQuery({ queryKey: ["offer-catalog-verification", "docs/monetization"], queryFn: () => fetchCatalogVerification(), retry: false });
   const nodeRows = useMemo(() => (nodes.data?.nodes ?? []) as NodeLike[], [nodes.data?.nodes]);
-  const edgeRows = (edges.data?.edges ?? []) as EdgeLike[];
+  const edgeRows = useMemo(() => (edges.data?.edges ?? []) as EdgeLike[], [edges.data?.edges]);
   const refused = nodes.isError || edges.isError;
+  const rankReasons = useMemo(() => new Map((board.data?.entries ?? []).map((entry) => [entry.nodeId, entry.rankReason])), [board.data?.entries]);
   const surface = useSurfaceState({
     query: { isLoading: nodes.isLoading || edges.isLoading, isFetching: nodes.isFetching || edges.isFetching, isError: refused, error: nodes.error || edges.error },
     empty: Boolean(nodes.data && nodes.data.nodes.length === 0),
@@ -61,6 +88,10 @@ export function OffersPage() {
   const [changeError, setChangeError] = useState(false);
   const [promotionProposal, setPromotionProposal] = useState<ProposalLike>();
   const [promotionPending, setPromotionPending] = useState(false);
+  const [mergeForm, setMergeForm] = useState({ survivingId: "", duplicateId: "" });
+  const [mergePreview, setMergePreview] = useState<{ movedEdges: number; movedTriggers: number; movedEvaluations: number; movedProposals: number; movedFindings: number; collapsedEdgeIds: string[] }>();
+  const [mergeResult, setMergeResult] = useState("");
+  const [groupedView, setGroupedView] = useState(true);
 
   const refreshCatalog = async () => {
     await Promise.all([
@@ -86,6 +117,16 @@ export function OffersPage() {
     onSuccess: async () => { await refreshCatalog(); setEdgeForm({ fromId: "", toId: "", kind: edgeKinds[0] ?? "belongs_to", intendedPriceMinor: "", currency: "" }); },
     onError: () => setChangeError(true),
   });
+  const mergePreviewMutation = useMutation({
+    mutationFn: () => mergeNodes({ survivingId: mergeForm.survivingId, duplicateId: mergeForm.duplicateId, actor: "operator", dryRun: true }),
+    onSuccess: (response) => { setMergePreview(response); setMergeResult(""); setChangeError(false); },
+    onError: () => { setMergePreview(undefined); setChangeError(true); },
+  });
+  const mergeApplyMutation = useMutation({
+    mutationFn: () => mergeNodes({ survivingId: mergeForm.survivingId, duplicateId: mergeForm.duplicateId, actor: "operator", dryRun: false }),
+    onSuccess: async () => { await refreshCatalog(); setMergePreview(undefined); setMergeResult(t(strings.pages.offers.mergeResult)); setMergeForm({ survivingId: "", duplicateId: "" }); },
+    onError: () => setChangeError(true),
+  });
   const handlePromotion = async (nodeId: string) => {
     setPromotionPending(true);
     setChangeError(false);
@@ -102,12 +143,33 @@ export function OffersPage() {
   const selectedTransitionNode = nodeRows.find((node) => node.id === transitionForm.nodeId);
   const nextStatuses = legalNextStatuses(selectedTransitionNode?.status);
   const nodeIds = useMemo(() => new Set(nodeRows.map((node) => node.id)), [nodeRows]);
+  const groupedNodes = useMemo(() => {
+    const groups = new Map<string, NodeLike[]>();
+    for (const node of nodeRows) {
+      const group = kindName(node.kind);
+      groups.set(group, [...(groups.get(group) ?? []), node]);
+    }
+    return [...groups.entries()].sort(([left], [right]) => left.localeCompare(right));
+  }, [nodeRows]);
+  const edgeCounts = useMemo(() => {
+    const counts = new Map<string, Record<string, number>>();
+    for (const edge of edgeRows) {
+      for (const nodeId of [edge.fromId, edge.toId]) {
+        if (!nodeId) continue;
+        const row = counts.get(nodeId) ?? {};
+        row[edge.kind] = (row[edge.kind] ?? 0) + 1;
+        counts.set(nodeId, row);
+      }
+    }
+    return counts;
+  }, [edgeRows]);
   const danglingMemberships = edgeRows.filter((edge) => edge.kind.toLowerCase().includes("belongs") && (!nodeIds.has(edge.fromId ?? "") || !nodeIds.has(edge.toId ?? "")));
   const selectedNode = nodeRows[0];
   const nodeColumns = [
     { id: "name", header: t(strings.pages.offers.offerLabel), accessor: (node: NodeLike) => node.name, searchValue: (node: NodeLike) => node.name, className: "break-words" },
     { id: "kind", header: t(strings.pages.offers.nodeKindLabel), accessor: (node: NodeLike) => kindName(node.kind), searchValue: (node: NodeLike) => kindName(node.kind), className: "break-words" },
     { id: "status", header: t(strings.pages.offers.statusLabel), accessor: (node: NodeLike) => statusName(node.status), searchValue: (node: NodeLike) => statusName(node.status), className: "break-words" },
+    { id: "rank-reason", header: t(strings.pages.dashboard.rankReason), accessor: (node: NodeLike) => localizedRankReason(rankReasons.get(node.id), t), searchValue: (node: NodeLike) => rankReasons.get(node.id) || "", className: "break-words" },
     { id: "trigger", header: t(strings.pages.offers.nodeTriggerLabel), accessor: (node: NodeLike) => node.triggerId || "—", searchValue: (node: NodeLike) => node.triggerId || "", className: "break-words" },
     { id: "account", header: t(strings.pages.offers.actualAccountLabel), accessor: (node: NodeLike) => node.actualAccountId || "—", searchValue: (node: NodeLike) => node.actualAccountId || "", className: "break-words" },
     { id: "action", header: t(strings.pages.offers.transitionAction), accessor: (node: NodeLike) => <Button type="button" data-testid={selectors.pages.offerPromote} size="sm" className="w-full min-w-11 whitespace-normal break-words text-center" disabled={promotionPending} onClick={() => void handlePromotion(node.id)}>{t(strings.pages.offers.promoteAction)}</Button>, className: "min-w-11 break-words" },
@@ -135,6 +197,15 @@ export function OffersPage() {
     setChangeError(false);
     createEdgeMutation.mutate();
   };
+  const submitMergePreview = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setMessage("");
+    const survivor = nodeRows.find((node) => node.id === mergeForm.survivingId);
+    const duplicate = nodeRows.find((node) => node.id === mergeForm.duplicateId);
+    if (!survivor || !duplicate || survivor.id === duplicate.id || kindName(survivor.kind) !== kindName(duplicate.kind)) { setChangeError(true); return; }
+    setChangeError(false);
+    mergePreviewMutation.mutate();
+  };
 
   return (
     <ExperienceSurface surfaceId="offers" state={surface.state} statusMessage={surface.reason} data-testid={selectors.pages.offers} aria-labelledby="offers-heading" className="flex flex-col gap-4">
@@ -149,8 +220,22 @@ export function OffersPage() {
             className="h-20 w-full rounded-md border object-contain p-2"
           />
           <p className="text-app-muted-foreground">{t(strings.pages.offers.description)}</p>
-          <DataTable rows={nodeRows} columns={nodeColumns} getRowKey={(node) => node.id} caption={t(strings.pages.offers.statusLabel)} searchLabel={t(strings.pages.offers.offerLabel)} searchPlaceholder={t(strings.pages.offers.offerLabel)} emptyMessage={t(strings.pages.offers.emptyGuidance)} tableTestId={selectors.pages.offerTable} className="mt-4" />
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+            <div><h3 className="font-semibold">{t(strings.pages.offers.groupedViewTitle)}</h3><p className="text-sm text-app-muted-foreground">{t(strings.pages.offers.groupedViewDescription)} {t(strings.pages.offers.groupedKindCount, { count: groupedNodes.length })} · {t(strings.pages.offers.groupedRelationshipCount, { count: edgeRows.length })}</p></div>
+            <Button type="button" variant="secondary" data-testid={selectors.pages.catalogViewToggle} aria-pressed={groupedView} onClick={() => setGroupedView((current) => !current)}>{groupedView ? t(strings.pages.offers.catalogViewFlat) : t(strings.pages.offers.catalogViewGrouped)}</Button>
+          </div>
+          {verification.data?.duplicateIdentities.length ? <p data-testid={selectors.pages.catalogDuplicateBanner} role="alert" className="mt-3 rounded-md border border-amber-500 bg-amber-50 p-3 text-sm text-amber-900">{t(strings.pages.offers.duplicateIdentityBanner, { count: verification.data.duplicateIdentities.length })}</p> : null}
+          {verification.isError && <p role="note" className="mt-3 rounded-md border border-dashed p-3 text-sm text-app-muted-foreground">{t(strings.pages.offers.catalogVerificationUnavailable)}</p>}
+          {groupedView ? <div data-testid={selectors.pages.catalogGroupedView} className="mt-3 grid gap-4">
+            {!groupedNodes.length && <p role="note" className="rounded-md border border-dashed p-3 text-app-muted-foreground">{t(strings.pages.offers.groupedEmptyGuidance)}</p>}
+            {groupedNodes.map(([kind, group]) => <section data-testid={selectors.pages.catalogKindGroup} key={kind} className="rounded-md border p-3">
+              <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2"><h4 className="font-semibold">{kind}</h4><span className="text-sm text-app-muted-foreground">{t(strings.pages.offers.groupedNodeCount, { count: group.length })}</span></div>
+              <table data-testid={selectors.pages.catalogNodeEdgeCounts} className="w-full border-collapse text-sm"><caption className="sr-only">{kind}</caption><thead><tr className="border-b text-left"><th className="p-2">{t(strings.pages.offers.offerLabel)}</th>{edgeKinds.map((edgeKind) => <th className="p-2" key={edgeKind}>{edgeLabel(edgeKind, t)}</th>)}</tr></thead><tbody>{group.map((node) => { const counts = edgeCounts.get(node.id) ?? {}; return <tr key={node.id} className="border-b"><th scope="row" className="p-2 text-left font-normal">{node.name}</th>{edgeKinds.map((edgeKind) => <td className="p-2 tabular-nums" key={edgeKind}>{counts[edgeKind] ?? 0}</td>)}</tr>; })}</tbody></table>
+              {group.every((node) => !edgeRows.some((edge) => edge.fromId === node.id || edge.toId === node.id)) && <p className="mt-2 text-sm text-app-muted-foreground">{t(strings.pages.offers.groupedNoEdges)}</p>}
+            </section>)}
+          </div> : <DataTable rows={nodeRows} columns={nodeColumns} getRowKey={(node) => node.id} caption={t(strings.pages.offers.statusLabel)} searchLabel={t(strings.pages.offers.offerLabel)} searchPlaceholder={t(strings.pages.offers.offerLabel)} emptyMessage={t(strings.pages.offers.emptyGuidance)} tableTestId={selectors.pages.offerTable} className="mt-4" />}
           <p data-testid={selectors.pages.offerStatus} role="status" aria-label={t(strings.pages.offers.statusLabel)} className="text-sm">{selectedNode ? `${selectedNode.name}: ${statusName(selectedNode.status)}` : t(strings.pages.offers.emptyGuidance)}</p>
+          <p data-testid={selectors.pages.offerRankReason} role="status" aria-label={t(strings.pages.dashboard.rankReason)} className="break-words text-sm">{selectedNode ? localizedRankReason(rankReasons.get(selectedNode.id), t) : t(strings.pages.dashboard.rankReasonMissing)}</p>
           <p data-testid={selectors.pages.offerWaitingOn} role="note" aria-label={t(strings.pages.offers.waitingOn)} className="text-sm text-app-muted-foreground">{selectedNode?.status === Status.CANDIDATE || statusName(selectedNode?.status) === "CANDIDATE" ? t(strings.pages.offers.candidateRequiresTrigger) : t(strings.pages.offers.waitingOn)}</p>
           <ul data-testid={selectors.pages.offerLegalTransitions} aria-label={t(strings.pages.offers.legalTransitions)} className="text-sm text-app-muted-foreground"><li>{selectedNode ? legalNextStatuses(selectedNode.status).map((status) => statusName(status)).join(", ") || statusName(selectedNode.status) : t(strings.pages.offers.legalTransitions)}</li></ul>
           <p data-testid={selectors.pages.offerRefusalReason} role="alert" className="text-sm text-app-danger">{refused || changeError ? t(strings.pages.offers.refusalReason) : ""}</p>
@@ -200,6 +285,21 @@ export function OffersPage() {
           </FormSection>
         </DirtyStateGuard>
       </div>
+      <Card>
+        <CardHeader><CardTitle>{t(strings.pages.offers.mergeTitle)}</CardTitle></CardHeader>
+        <CardContent>
+          <form data-testid={selectors.pages.offerMergeForm} aria-label={t(strings.pages.offers.mergeTitle)} className="grid gap-3" onSubmit={submitMergePreview}>
+            <label className="grid gap-1" htmlFor="offer-merge-survivor"><span>{t(strings.pages.offers.mergeSurvivorLabel)}</span><Select id="offer-merge-survivor" value={mergeForm.survivingId} onChange={(event) => { setMergeForm({ ...mergeForm, survivingId: event.target.value }); setMergePreview(undefined); }} options={nodeRows.map((node) => ({ value: node.id, label: `${node.name} · ${kindName(node.kind)}` }))} placeholder={t(strings.pages.offers.mergeSurvivorLabel)} /></label>
+            <label className="grid gap-1" htmlFor="offer-merge-duplicate"><span>{t(strings.pages.offers.mergeDuplicateLabel)}</span><Select id="offer-merge-duplicate" value={mergeForm.duplicateId} onChange={(event) => { setMergeForm({ ...mergeForm, duplicateId: event.target.value }); setMergePreview(undefined); }} options={nodeRows.map((node) => ({ value: node.id, label: `${node.name} · ${kindName(node.kind)}` }))} placeholder={t(strings.pages.offers.mergeDuplicateLabel)} /></label>
+            <Button type="submit" disabled={mergePreviewMutation.isPending || !mergeForm.survivingId || !mergeForm.duplicateId}>{t(strings.pages.offers.mergePreviewAction)}</Button>
+          </form>
+          <div data-testid={selectors.pages.offerMergeSummary} role="status" className="mt-3 grid gap-2 rounded-md border p-3 text-sm">
+            {mergePreview ? <><p>{t(strings.pages.offers.mergeDryRunNotice)}</p><p>{t(strings.pages.offers.mergePreview, { duplicate: nodeRows.find((node) => node.id === mergeForm.duplicateId)?.name ?? mergeForm.duplicateId, survivor: nodeRows.find((node) => node.id === mergeForm.survivingId)?.name ?? mergeForm.survivingId, edges: mergePreview.movedEdges, triggers: mergePreview.movedTriggers, evaluations: mergePreview.movedEvaluations, proposals: mergePreview.movedProposals, findings: mergePreview.movedFindings, collapsed: mergePreview.collapsedEdgeIds.length })}</p></> : <p>{t(strings.pages.offers.mergePreviewAction)}</p>}
+            <div className="flex flex-wrap gap-2"><Button type="button" disabled={mergeApplyMutation.isPending || !mergePreview} onClick={() => mergeApplyMutation.mutate()}>{t(strings.pages.offers.mergeApplyAction)}</Button><Button type="button" variant="secondary" disabled={!mergePreview} onClick={() => setMergePreview(undefined)}>{t(strings.pages.offers.mergeCancelAction)}</Button></div>
+          </div>
+          {mergeResult && <p role="status" className="mt-2 text-sm text-app-success">{mergeResult}</p>}
+        </CardContent>
+      </Card>
       {changeError && <p role="alert" className="text-sm text-app-danger">{t(strings.pages.offers.requestError)}</p>}
       {message && <p data-testid={selectors.pages.offerChangeNotice} role="status" className="text-sm text-app-success">{message}</p>}
     </ExperienceSurface>

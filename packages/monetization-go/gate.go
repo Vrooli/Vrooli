@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"time"
 
 	credentialclient "github.com/vrooli/vrooli/packages/credentialclient-go"
 	entitlementclient "github.com/vrooli/vrooli/packages/entitlementclient-go"
@@ -66,6 +67,9 @@ func (g *Gate) Lease(ctx context.Context, identity string) (entitlementclient.Pa
 	if g == nil || g.Entitlements == nil {
 		return entitlementclient.Payload{}, entitlementclient.ErrLeaseUnavailable
 	}
+	if accessToken := AccessTokenFromContext(ctx); accessToken != "" {
+		return g.Entitlements.GetWithAccess(ctx, identity, accessToken)
+	}
 	return g.Entitlements.Get(ctx, identity)
 }
 
@@ -113,6 +117,64 @@ func (g *Gate) Meter(ctx context.Context, identity, limitKey string) Decision {
 		decision.Reason = ReasonFeatureMissing
 	}
 	return decision
+}
+
+// CachedFeature evaluates a feature using only the lease previously verified
+// by this process. It is the explicit offline path for local, Class B work.
+func (g *Gate) CachedFeature(identity, feature string, minPlanRank int32) Decision {
+	return g.CachedFeatureAt(identity, feature, minPlanRank, time.Now().UTC())
+}
+
+// CachedFeatureAt is the deterministic offline feature decision boundary.
+func (g *Gate) CachedFeatureAt(identity, feature string, minPlanRank int32, now time.Time) Decision {
+	payload, err := g.cachedLeaseAt(identity, now)
+	if err != nil {
+		return fallbackDecision(err, g.upgradePath())
+	}
+	decision := StatusDecision(payload, g.upgradePath())
+	if !decision.Allowed {
+		return decision
+	}
+	if strings.TrimSpace(feature) != "" && !HasFeature(payload, feature) {
+		decision.Allowed = false
+		decision.Reason = ReasonFeatureMissing
+		return decision
+	}
+	if minPlanRank > 0 && !AtLeastRank(payload, minPlanRank) {
+		decision.Allowed = false
+		decision.Reason = ReasonRankInsufficient
+	}
+	return decision
+}
+
+// CachedMeter evaluates a local Class B limit without touching the network.
+func (g *Gate) CachedMeter(identity, limitKey string) Decision {
+	return g.CachedMeterAt(identity, limitKey, time.Now().UTC())
+}
+
+// CachedMeterAt is the deterministic offline limit decision boundary.
+func (g *Gate) CachedMeterAt(identity, limitKey string, now time.Time) Decision {
+	payload, err := g.cachedLeaseAt(identity, now)
+	if err != nil {
+		return fallbackDecision(err, g.upgradePath())
+	}
+	decision := StatusDecision(payload, g.upgradePath())
+	if !decision.Allowed {
+		return decision
+	}
+	decision.Limit, decision.LimitFound = Limit(payload, limitKey, g.BundleKey)
+	if !decision.LimitFound {
+		decision.Allowed = false
+		decision.Reason = ReasonFeatureMissing
+	}
+	return decision
+}
+
+func (g *Gate) cachedLeaseAt(identity string, now time.Time) (entitlementclient.Payload, error) {
+	if g == nil || g.Entitlements == nil {
+		return entitlementclient.Payload{}, entitlementclient.ErrLeaseUnavailable
+	}
+	return g.Entitlements.CachedAt(identity, now)
 }
 
 // StatusDecision maps the LPBS subscription status from a verified lease to a

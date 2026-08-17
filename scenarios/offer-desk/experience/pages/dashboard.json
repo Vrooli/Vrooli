@@ -389,6 +389,15 @@
       "rationale": "Otherwise a partial ranking is read as a complete one, which is the board-level form of the silent-zero failure. The live UI and operator rehearsal prove this distinction; the current route-only capture provider cannot stop Money Ledger between captures to produce the degraded fixture."
     },
     {
+      "id": "rank-reasons-name-the-condition",
+      "type": "element-present",
+      "statement": "Every board status names its condition in text, including earnings unknown when actuals are unavailable and earning nothing only after a reachable zero read.",
+      "tier": "machine",
+      "elements": ["board-ranking", "source-availability"],
+      "states": ["default", "ledger-unavailable", "source-degraded"],
+      "rationale": "The board's strongest claim must remain tied to observable evidence; status alone cannot manufacture a financial conclusion."
+    },
+    {
       "id": "empty-board-differs-from-unreadable",
       "type": "state-distinct",
       "statement": "A board with genuinely nothing to report is perceivably different from one whose sources could not be read.",

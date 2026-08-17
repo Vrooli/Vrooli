@@ -3,7 +3,7 @@
   "projection": "offers",
   "owner": "monetization",
   "denominator_confidence": "sketch",
-  "confidence_rationale": "The obligation cells are an operator-authored first cut and have not yet been reconciled against an external roster.",
+  "confidence_rationale": "The three obligation cells cover the live catalog, promotion gate, and financial-posture surfaces now served by the instrument, but they remain an operator-authored first cut: no external roster or independent obligation inventory exists yet. Keep the denominator at sketch until infra-health and the monetization team complete one observed reconciliation cycle.",
   "cells": [
     {"id":"catalog-state","group":"catalog","question":"What offers and delivery tiers are currently declared?","owner":"monetization","status":"active"},
     {"id":"promotion-state","group":"gates","question":"Which candidate offers have satisfied machine-evaluable triggers?","owner":"monetization","status":"active"},

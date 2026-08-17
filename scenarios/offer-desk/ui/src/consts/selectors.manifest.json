@@ -160,6 +160,10 @@
       "testId": "offer-status",
       "selector": "[data-testid=\"offer-status\"]"
     },
+    "pages.offerRankReason": {
+      "testId": "offer-rank-reason",
+      "selector": "[data-testid=\"offer-rank-reason\"]"
+    },
     "pages.offerWaitingOn": {
       "testId": "offer-waiting-on",
       "selector": "[data-testid=\"offer-waiting-on\"]"
@@ -207,6 +211,34 @@
     "pages.offerCreateEdge": {
       "testId": "offer-create-edge",
       "selector": "[data-testid=\"offer-create-edge\"]"
+    },
+    "pages.offerMergeForm": {
+      "testId": "offer-merge-form",
+      "selector": "[data-testid=\"offer-merge-form\"]"
+    },
+    "pages.offerMergeSummary": {
+      "testId": "offer-merge-summary",
+      "selector": "[data-testid=\"offer-merge-summary\"]"
+    },
+    "pages.catalogGroupedView": {
+      "testId": "catalog-grouped-view",
+      "selector": "[data-testid=\"catalog-grouped-view\"]"
+    },
+    "pages.catalogKindGroup": {
+      "testId": "catalog-kind-group",
+      "selector": "[data-testid=\"catalog-kind-group\"]"
+    },
+    "pages.catalogNodeEdgeCounts": {
+      "testId": "catalog-node-edge-counts",
+      "selector": "[data-testid=\"catalog-node-edge-counts\"]"
+    },
+    "pages.catalogViewToggle": {
+      "testId": "catalog-view-toggle",
+      "selector": "[data-testid=\"catalog-view-toggle\"]"
+    },
+    "pages.catalogDuplicateBanner": {
+      "testId": "catalog-duplicate-banner",
+      "selector": "[data-testid=\"catalog-duplicate-banner\"]"
     },
     "pages.offerChangeNotice": {
       "testId": "offer-change-notice",

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"connectrpc.com/connect"
 
@@ -95,8 +96,24 @@ func (h *handlers) operatorImport(c cliapp.OperationContext) (*ingestpb.Operator
 	return r.Msg, err
 }
 
-func (h *handlers) booksList(_ cliapp.OperationContext) (*ledgerpb.ListBooksResponse, error) {
-	r, e := h.clientB.ListBooks(context.Background(), connect.NewRequest(&ledgerpb.ListBooksRequest{}))
+func (h *handlers) operatorInputStatus(c cliapp.OperationContext) (*ingestpb.OperatorInputStatusResponse, error) {
+	r, err := h.clientI.OperatorInputStatus(context.Background(), connect.NewRequest(&ingestpb.OperatorInputStatusRequest{BookId: c.Flag("book-id")}))
+	if err != nil {
+		return nil, err
+	}
+	return r.Msg, nil
+}
+
+func (h *handlers) booksList(c cliapp.OperationContext) (*ledgerpb.ListBooksResponse, error) {
+	r, e := h.clientB.ListBooks(context.Background(), connect.NewRequest(&ledgerpb.ListBooksRequest{IncludeArchived: strings.EqualFold(c.Flag("include-archived"), "true")}))
+	if e != nil {
+		return nil, e
+	}
+	return r.Msg, nil
+}
+
+func (h *handlers) booksArchive(c cliapp.OperationContext) (*ledgerpb.ArchiveBookResponse, error) {
+	r, e := h.clientB.ArchiveBook(context.Background(), connect.NewRequest(&ledgerpb.ArchiveBookRequest{BookId: c.Flag("book-id"), Actor: "operator"}))
 	if e != nil {
 		return nil, e
 	}
@@ -120,7 +137,23 @@ func (h *handlers) accountsList(c cliapp.OperationContext) (*ledgerpb.ListAccoun
 }
 
 func (h *handlers) accountsCreate(c cliapp.OperationContext) (*ledgerpb.CreateAccountResponse, error) {
-	r, e := h.clientB.CreateAccount(context.Background(), connect.NewRequest(&ledgerpb.CreateAccountRequest{BookId: c.Flag("book-id"), Name: c.Flag("name"), Kind: c.Flag("kind")}))
+	r, e := h.clientB.CreateAccount(context.Background(), connect.NewRequest(&ledgerpb.CreateAccountRequest{BookId: c.Flag("book-id"), Name: c.Flag("name"), AccountKind: parseAccountKind(c.Flag("kind"))}))
+	if e != nil {
+		return nil, e
+	}
+	return r.Msg, nil
+}
+
+func (h *handlers) goalsArchive(c cliapp.OperationContext) (*ledgerpb.ArchiveGoalResponse, error) {
+	r, e := h.clientP.ArchiveGoal(context.Background(), connect.NewRequest(&ledgerpb.ArchiveGoalRequest{GoalId: c.Flag("goal-id"), Actor: "operator"}))
+	if e != nil {
+		return nil, e
+	}
+	return r.Msg, nil
+}
+
+func (h *handlers) goalReparent(c cliapp.OperationContext) (*ledgerpb.ReparentGoalResponse, error) {
+	r, e := h.clientP.ReparentGoal(context.Background(), connect.NewRequest(&ledgerpb.ReparentGoalRequest{GoalId: c.Flag("goal-id"), BookId: c.Flag("book-id"), Actor: "operator"}))
 	if e != nil {
 		return nil, e
 	}
@@ -176,11 +209,28 @@ func (h *handlers) statement(c cliapp.OperationContext) (*ledgerpb.StatementResp
 }
 
 func (h *handlers) goals(c cliapp.OperationContext) (*ledgerpb.ListGoalsResponse, error) {
-	r, e := h.clientP.ListGoals(context.Background(), connect.NewRequest(&ledgerpb.ListGoalsRequest{BookId: c.Flag("book-id")}))
+	r, e := h.clientP.ListGoals(context.Background(), connect.NewRequest(&ledgerpb.ListGoalsRequest{BookId: c.Flag("book-id"), IncludeArchived: strings.EqualFold(c.Flag("include-archived"), "true")}))
 	if e != nil {
 		return nil, e
 	}
 	return r.Msg, nil
+}
+
+func parseAccountKind(v string) ledgerpb.AccountKind {
+	switch strings.TrimSpace(strings.ToUpper(v)) {
+	case "ASSET":
+		return ledgerpb.AccountKind_ASSET
+	case "LIABILITY":
+		return ledgerpb.AccountKind_LIABILITY
+	case "REVENUE":
+		return ledgerpb.AccountKind_REVENUE
+	case "EXPENSE":
+		return ledgerpb.AccountKind_EXPENSE
+	case "EQUITY":
+		return ledgerpb.AccountKind_EQUITY
+	default:
+		return ledgerpb.AccountKind_ACCOUNT_KIND_UNSPECIFIED
+	}
 }
 
 func (h *handlers) goalDeclare(c cliapp.OperationContext) (*ledgerpb.DeclareGoalResponse, error) {
@@ -213,6 +263,10 @@ func booksCreateReport(_ cliapp.OperationContext, m *ledgerpb.CreateBookResponse
 	return cliapp.MutationReport{Result: []string{"Created book " + m.Book.Id + "."}}
 }
 
+func booksArchiveReport(_ cliapp.OperationContext, m *ledgerpb.ArchiveBookResponse) cliapp.MutationReport {
+	return cliapp.MutationReport{Result: []string{"Archived book " + m.Book.Id + ". Journal history remains readable."}}
+}
+
 func accountsListReport(_ cliapp.OperationContext, m *ledgerpb.ListAccountsResponse) cliapp.ListReport {
 	return cliapp.ListReport{Summary: []string{fmt.Sprintf("Found %d account(s).", len(m.Accounts))}, ResultsHeading: "Accounts", Results: mapStrings(len(m.Accounts), func(i int) string {
 		return fmt.Sprintf("%s — %s [%s]", m.Accounts[i].Id, m.Accounts[i].Name, m.Accounts[i].Kind)
@@ -221,6 +275,25 @@ func accountsListReport(_ cliapp.OperationContext, m *ledgerpb.ListAccountsRespo
 
 func accountsCreateReport(_ cliapp.OperationContext, m *ledgerpb.CreateAccountResponse) cliapp.MutationReport {
 	return cliapp.MutationReport{Result: []string{"Created account " + m.Account.Id + "."}}
+}
+
+func operatorInputStatusReport(_ cliapp.OperationContext, m *ingestpb.OperatorInputStatusResponse) cliapp.ListReport {
+	return cliapp.ListReport{Summary: []string{fmt.Sprintf("Found %d operator input field(s).", len(m.Fields))}, ResultsHeading: "Operator input status", Results: mapStrings(len(m.Fields), func(i int) string {
+		field := m.Fields[i]
+		observed := ""
+		if field.ObservedAt != nil {
+			observed = " observed_at=" + field.ObservedAt.AsTime().Format(time.RFC3339)
+		}
+		return fmt.Sprintf("%s status=%s kind=%s%s reason=%s", field.Path, field.Status, field.Kind, observed, field.Reason)
+	})}
+}
+
+func goalsArchiveReport(_ cliapp.OperationContext, m *ledgerpb.ArchiveGoalResponse) cliapp.MutationReport {
+	return cliapp.MutationReport{Result: []string{"Archived goal " + m.Goal.Id + "."}}
+}
+
+func goalReparentReport(_ cliapp.OperationContext, m *ledgerpb.ReparentGoalResponse) cliapp.MutationReport {
+	return cliapp.MutationReport{Result: []string{"Reparented goal " + m.Goal.Id + " to book " + m.Goal.BookId + "."}}
 }
 
 func postingsListReport(_ cliapp.OperationContext, m *ledgerpb.ListPostingsResponse) cliapp.ListReport {

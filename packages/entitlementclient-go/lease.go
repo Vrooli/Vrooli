@@ -197,6 +197,36 @@ func (c *Client) GetWithAccess(ctx context.Context, identity, accessToken string
 	return c.getWithAccess(ctx, identity, accessToken, now)
 }
 
+// Cached returns the verified lease already held by this client without
+// attempting a network request. A lease is usable offline only until its
+// signed not_after boundary; transport-independent callers must treat an
+// expired result as a free-tier decision.
+func (c *Client) Cached(identity string) (Payload, error) {
+	return c.CachedAt(identity, time.Now().UTC())
+}
+
+// CachedAt is the deterministic form of Cached used by boundary checks and
+// tests. It never refreshes or changes the cache.
+func (c *Client) CachedAt(identity string, now time.Time) (Payload, error) {
+	identity = strings.ToLower(strings.TrimSpace(identity))
+	if identity == "" {
+		return Payload{}, ErrLeaseIdentityMissing
+	}
+	c.mu.RLock()
+	payload, ok := c.cache[identity]
+	c.mu.RUnlock()
+	if !ok {
+		return Payload{}, ErrLeaseUnavailable
+	}
+	if now.IsZero() {
+		now = time.Now().UTC()
+	}
+	if !now.UTC().Before(payload.NotAfter.UTC()) {
+		return Payload{}, ErrLeaseExpired
+	}
+	return payload, nil
+}
+
 func (c *Client) getWithAccess(ctx context.Context, identity, accessToken string, now time.Time) (Payload, error) {
 	if strings.TrimSpace(accessToken) == "" {
 		return Payload{}, ErrLeaseUnauthorized

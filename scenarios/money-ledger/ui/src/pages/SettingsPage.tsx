@@ -6,8 +6,9 @@ import { SUPPORTED_LOCALES, getCurrentLocale, getLocaleConfig, setLocale, useTra
 import { useTheme, type ThemeChoice } from "../theme/ThemeProvider";
 import { ExperienceSurface } from "../components/experience/ExperienceSurface";
 import { useQuery } from "@tanstack/react-query";
-import { configuredBookId, fetchBooks, fetchGoals } from "../api/ledger";
+import { archiveGoal, configuredBookId, fetchBooks, fetchGoals, reparentGoal } from "../api/ledger";
 import { formatCurrency } from "../i18n/format";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 const THEME_CHOICES: readonly ThemeChoice[] = ["light", "dark", "system"];
 const THEME_LABEL_KEYS = {
@@ -25,10 +26,19 @@ export function SettingsPage() {
   const { t } = useTranslation();
   const currentLocale = getCurrentLocale();
   const { choice, setTheme } = useTheme();
+  const queryClient = useQueryClient();
   const books = useQuery({ queryKey: ["settings-books"], queryFn: fetchBooks, retry: false });
   const bookId = configuredBookId() || books.data?.books[0]?.id || "";
   const goals = useQuery({ queryKey: ["settings-goals", bookId], queryFn: () => fetchGoals(bookId), retry: false, enabled: Boolean(bookId) });
   const goalRows = goals.data?.goals ?? [];
+  const archiveGoalMutation = useMutation({
+    mutationFn: (goalId: string) => archiveGoal(goalId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["settings-goals", bookId] }),
+  });
+  const reparentGoalMutation = useMutation({
+    mutationFn: (input: { goalId: string; targetBookId: string }) => reparentGoal(input.goalId, input.targetBookId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["settings-goals", bookId] }),
+  });
 
   return (
     <ExperienceSurface
@@ -45,7 +55,11 @@ export function SettingsPage() {
       <section className="rounded-md border p-4" aria-labelledby="settings-goals-heading">
         <h3 id="settings-goals-heading" className="font-semibold">{t(strings.pages.settings.goalsHeading)}</h3>
         <ul data-testid="settings-goal-list" aria-label={t(strings.pages.settings.goalsHeading)} className="mt-2 text-sm text-app-muted-foreground">
-          {goalRows.length === 0 ? <li>{t(strings.pages.settings.goalsEmpty)}</li> : goalRows.map((verdict) => verdict.goal && <li key={verdict.goal.id}>{t(strings.pages.settings.goalSummary, { name: verdict.goal.name, threshold: formatCurrency(Number(verdict.goal.thresholdMinor) / 100, books.data?.books.find((book) => book.id === bookId)?.currency || "USD"), comparator: verdict.goal.comparator, periods: verdict.goal.sustainPeriods })}</li>)}
+          {goalRows.length === 0 ? <li>{t(strings.pages.settings.goalsEmpty)}</li> : goalRows.map((verdict) => verdict.goal && <li key={verdict.goal.id} className="flex flex-wrap items-center gap-2">
+            <span>{t(strings.pages.settings.goalSummary, { name: verdict.goal.name, threshold: formatCurrency(Number(verdict.goal.thresholdMinor) / 100, books.data?.books.find((book) => book.id === bookId)?.currency || "USD"), comparator: verdict.goal.comparator, periods: verdict.goal.sustainPeriods })}</span>
+            <Button type="button" size="sm" variant="secondary" data-testid="settings-goal-archive" disabled={archiveGoalMutation.isPending} onClick={() => archiveGoalMutation.mutate(verdict.goal!.id)}>Archive goal</Button>
+            {books.data?.books.find((book) => book.id !== bookId) && <Button type="button" size="sm" variant="secondary" data-testid="settings-goal-reparent" disabled={reparentGoalMutation.isPending} onClick={() => reparentGoalMutation.mutate({ goalId: verdict.goal!.id, targetBookId: books.data!.books.find((book) => book.id !== bookId)!.id })}>Move goal</Button>}
+          </li>)}
         </ul>
         <div className="mt-3 grid gap-2 sm:grid-cols-3">
           <span data-testid="settings-goal-threshold" role="group" aria-label={t(strings.pages.settings.goalThreshold)} className="rounded border p-2 text-sm">{goalRows.length ? t(strings.pages.settings.goalThreshold) : t(strings.pages.settings.goalsEmpty)}</span>

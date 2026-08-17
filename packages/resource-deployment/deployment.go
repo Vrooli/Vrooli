@@ -13,6 +13,8 @@ import (
 	"runtime"
 	"slices"
 	"strings"
+
+	"github.com/vrooli/binaryfetch"
 )
 
 type Deployment struct {
@@ -90,21 +92,127 @@ type ProviderPolicy struct {
 	ExternalAccessCapabilities []AccessCapability              `json:"external_access_capabilities,omitempty"`
 }
 
+// ServiceShutdown declares the first process signal used when the control
+// plane stops a managed service. The stop timeout on the enclosing resource
+// remains the total bounded lifecycle budget; if the process is still alive
+// when that budget expires, the supervisor escalates to a forced termination
+// and reports failure if the process cannot be observed stopped.
+//
+// "terminate" maps to the platform's ordinary graceful termination request
+// (SIGTERM on Unix). "interrupt" maps to SIGINT on Unix and the platform's
+// native console-control request on Windows. Services should select the
+// signal their own shutdown semantics require instead of making the driver
+// guess from the resource name.
+type ServiceShutdown struct {
+	Signal string `json:"signal"`
+}
+
+const (
+	ServiceShutdownTerminate = "terminate"
+	ServiceShutdownInterrupt = "interrupt"
+)
+
+func (s ServiceShutdown) Validate() error {
+	switch strings.ToLower(strings.TrimSpace(s.Signal)) {
+	case ServiceShutdownTerminate, ServiceShutdownInterrupt:
+		return nil
+	default:
+		return fmt.Errorf("managed-service shutdown signal must be %q or %q", ServiceShutdownTerminate, ServiceShutdownInterrupt)
+	}
+}
+
 // ManagedService is the manifest-facing managed_service block. Keeping the
 // nesting here makes the JSON contract shared by resource manifests, the
 // control plane, and deployment consumers.
 type ManagedService struct {
-	ProviderPolicy   ProviderPolicy    `json:"provider_policy"`
-	Artifact         ServiceArtifact   `json:"artifact,omitempty"`
-	AttachHealthPath string            `json:"attach_health_path,omitempty"`
-	Arguments        []string          `json:"arguments,omitempty"`
-	Environment      map[string]string `json:"environment,omitempty"`
+	ProviderPolicy ProviderPolicy  `json:"provider_policy"`
+	Artifact       ServiceArtifact `json:"artifact,omitempty"`
+	// Acquisition is the one declared source contract used to stage this
+	// service for control-plane and desktop deployments. Artifact remains the
+	// launch-time verification contract for the staged result.
+	Acquisition *binaryfetch.Acquisition `json:"acquisition,omitempty"`
+	// DataArtifacts are checksum-verified, non-executable artifacts that must
+	// arrive in the resource-owned data directory before the service starts.
+	// Model files are the primary use case; keeping them separate from the
+	// launch artifact prevents a service archive from silently becoming a model
+	// supply chain.
+	DataArtifacts    []ManagedServiceDataArtifact `json:"data_artifacts,omitempty"`
+	AttachHealthPath string                       `json:"attach_health_path,omitempty"`
+	Arguments        []string                     `json:"arguments,omitempty"`
+	Environment      map[string]string            `json:"environment,omitempty"`
+	Bootstrap        *ServiceBootstrap            `json:"bootstrap,omitempty"`
+	ProcessLimits    *ProcessLimits               `json:"process_limits,omitempty"`
+	Shutdown         *ServiceShutdown             `json:"shutdown,omitempty"`
 	// EnvironmentFile is an optional resource-owned, line-oriented KEY=VALUE
 	// file loaded from RESOURCE_DATA_DIR immediately before launch. It gives a
 	// resource a durable, non-shell model/config switch without granting the
 	// manifest arbitrary command or host-environment authority.
 	EnvironmentFile string         `json:"environment_file,omitempty"`
 	Config          *ServiceConfig `json:"config,omitempty"`
+}
+
+// ManagedServiceDataArtifact describes one durable, regenerable artifact
+// staged below RESOURCE_DATA_DIR. Path is relative to that directory.
+type ManagedServiceDataArtifact struct {
+	Name        string                   `json:"name"`
+	Path        string                   `json:"path"`
+	Acquisition *binaryfetch.Acquisition `json:"acquisition"`
+}
+
+// ProcessLimits are applied to the supervised process after it starts.
+// Memory percentages map to kernel soft/hard address-space limits on hosts
+// where Vrooli cannot create a delegated service cgroup. OOMScoreAdjust is
+// Linux-specific and optional.
+type ProcessLimits struct {
+	MemoryHighPercent uint8 `json:"memory_high_percent,omitempty"`
+	MemoryMaxPercent  uint8 `json:"memory_max_percent,omitempty"`
+	OOMScoreAdjust    int   `json:"oom_score_adjust,omitempty"`
+}
+
+func (l ProcessLimits) Validate() error {
+	if l.MemoryHighPercent == 0 && l.MemoryMaxPercent == 0 && l.OOMScoreAdjust == 0 {
+		return fmt.Errorf("managed-service process_limits must declare at least one limit")
+	}
+	if l.MemoryHighPercent > 100 || l.MemoryMaxPercent > 100 {
+		return fmt.Errorf("managed-service process_limits memory percentages must be between 1 and 100")
+	}
+	if l.MemoryHighPercent > 0 && l.MemoryMaxPercent > 0 && l.MemoryHighPercent > l.MemoryMaxPercent {
+		return fmt.Errorf("managed-service process_limits memory_high_percent must not exceed memory_max_percent")
+	}
+	if l.OOMScoreAdjust < -1000 || l.OOMScoreAdjust > 1000 {
+		return fmt.Errorf("managed-service process_limits oom_score_adjust must be between -1000 and 1000")
+	}
+	return nil
+}
+
+// ServiceBootstrap describes one idempotent, manifest-owned initialization
+// command for a directory service. It runs only when Marker is absent and
+// uses the already verified artifact root. PasswordFile is written from the
+// named PasswordEnv at launch time and is never part of the manifest itself.
+type ServiceBootstrap struct {
+	Marker       string   `json:"marker"`
+	Executable   string   `json:"executable"`
+	Arguments    []string `json:"arguments,omitempty"`
+	PasswordEnv  string   `json:"password_env,omitempty"`
+	PasswordFile string   `json:"password_file,omitempty"`
+}
+
+func (b ServiceBootstrap) Validate() error {
+	if !safeRelativeDeploymentPath(b.Marker) || !safeRelativeDeploymentPath(b.Executable) {
+		return fmt.Errorf("managed-service bootstrap marker and executable must be safe relative paths")
+	}
+	if strings.TrimSpace(b.PasswordEnv) == "" && strings.TrimSpace(b.PasswordFile) != "" {
+		return fmt.Errorf("managed-service bootstrap password_file requires password_env")
+	}
+	if strings.TrimSpace(b.PasswordFile) != "" && !safeRelativeDeploymentPath(b.PasswordFile) {
+		return fmt.Errorf("managed-service bootstrap password_file must be a safe relative path")
+	}
+	return nil
+}
+
+func safeRelativeDeploymentPath(value string) bool {
+	value = filepath.Clean(filepath.FromSlash(strings.TrimSpace(value)))
+	return value != "" && value != "." && value != ".." && !filepath.IsAbs(value) && !strings.HasPrefix(value, ".."+string(filepath.Separator))
 }
 
 func (m ManagedService) ValidateAttachHealthPath() error {
@@ -115,6 +223,33 @@ func (m ManagedService) ValidateAttachHealthPath() error {
 	parsed, err := url.Parse(path)
 	if err != nil || !strings.HasPrefix(path, "/") || parsed.IsAbs() || parsed.Host != "" || parsed.RawQuery != "" || parsed.Fragment != "" {
 		return fmt.Errorf("managed-service attach_health_path must be an absolute request path without query or fragment")
+	}
+	return nil
+}
+
+// ValidateDataArtifacts validates the durable, non-executable acquisition
+// declarations attached to a managed service.
+func (m ManagedService) ValidateDataArtifacts() error {
+	seen := make(map[string]struct{}, len(m.DataArtifacts))
+	for i, artifact := range m.DataArtifacts {
+		name := strings.TrimSpace(artifact.Name)
+		if name == "" {
+			return fmt.Errorf("data artifact %d name is required", i)
+		}
+		if _, ok := seen[name]; ok {
+			return fmt.Errorf("data artifact %q is declared more than once", name)
+		}
+		seen[name] = struct{}{}
+		path := filepath.Clean(filepath.FromSlash(strings.TrimSpace(artifact.Path)))
+		if path == "." || path == ".." || filepath.IsAbs(artifact.Path) || strings.HasPrefix(path, ".."+string(filepath.Separator)) {
+			return fmt.Errorf("data artifact %q path must remain below RESOURCE_DATA_DIR", name)
+		}
+		if artifact.Acquisition == nil {
+			return fmt.Errorf("data artifact %q acquisition is required", name)
+		}
+		if err := artifact.Acquisition.Validate(); err != nil {
+			return fmt.Errorf("data artifact %q acquisition: %w", name, err)
+		}
 	}
 	return nil
 }
@@ -145,6 +280,12 @@ type ServiceArtifact struct {
 	Version          string            `json:"version"`
 	SHA256           string            `json:"sha256,omitempty"`
 	SHA256ByPlatform map[string]string `json:"sha256_by_platform,omitempty"`
+	// Layout declares what the supervisor verifies and launches. A directory
+	// artifact is authenticated by binaryfetch.TreeDigest and launches its
+	// explicitly declared EntryPath; the default remains a single file for
+	// backwards-compatible manifests.
+	Layout    string `json:"layout,omitempty"`
+	EntryPath string `json:"entry_path,omitempty"`
 	// BundleArtifact is the target-expanded basename used when this server is
 	// included in a signed desktop release.  It is distinct from Path: Path is
 	// the control-plane launch location, while BundleArtifact identifies the
@@ -164,6 +305,22 @@ func (a ServiceArtifact) Validate() error {
 	}
 	if strings.TrimSpace(a.Version) == "" {
 		return fmt.Errorf("artifact version is required")
+	}
+	layout := strings.ToLower(strings.TrimSpace(a.Layout))
+	if layout != "" && layout != "file" && layout != "dir" {
+		return fmt.Errorf("artifact layout %q is invalid", a.Layout)
+	}
+	if entry := strings.TrimSpace(a.EntryPath); entry != "" {
+		clean := filepath.Clean(filepath.FromSlash(entry))
+		if filepath.IsAbs(entry) || clean == "." || clean == ".." || strings.HasPrefix(clean, ".."+string(filepath.Separator)) {
+			return fmt.Errorf("artifact entry_path must be a non-empty relative path")
+		}
+		if layout != "dir" {
+			return fmt.Errorf("artifact entry_path requires dir layout")
+		}
+	}
+	if layout == "dir" && strings.TrimSpace(a.EntryPath) == "" {
+		return fmt.Errorf("directory artifact entry_path is required")
 	}
 	if template := strings.TrimSpace(a.BundleArtifact); template != "" {
 		// Expanding one concrete target validates both the placeholder shape and
@@ -240,12 +397,22 @@ func (a ServiceArtifact) ForPlatform(osName, arch string) (ServiceArtifact, erro
 	return a, nil
 }
 
-// VerifyFile checks a staged executable before it receives lifecycle
+// VerifyFile checks a staged executable or executable tree before it receives lifecycle
 // authority. Signature verification belongs to the release/staging boundary;
 // this second checksum check protects the local hand-off to the supervisor.
 func (a ServiceArtifact) VerifyFile(path string) error {
 	if err := a.Validate(); err != nil {
 		return err
+	}
+	if strings.EqualFold(strings.TrimSpace(a.Layout), "dir") {
+		got, err := binaryfetch.TreeDigest(path)
+		if err != nil {
+			return fmt.Errorf("hash managed-service artifact tree: %w", err)
+		}
+		if !strings.EqualFold(got, strings.TrimSpace(a.SHA256)) {
+			return fmt.Errorf("managed-service artifact checksum mismatch")
+		}
+		return nil
 	}
 	file, err := os.Open(path)
 	if err != nil {
@@ -260,6 +427,23 @@ func (a ServiceArtifact) VerifyFile(path string) error {
 		return fmt.Errorf("managed-service artifact checksum mismatch")
 	}
 	return nil
+}
+
+// LaunchPath resolves the executable within a verified artifact root.
+func (a ServiceArtifact) LaunchPath(root string) (string, error) {
+	if err := a.Validate(); err != nil {
+		return "", err
+	}
+	if !strings.EqualFold(strings.TrimSpace(a.Layout), "dir") {
+		return root, nil
+	}
+	entry := filepath.Clean(filepath.FromSlash(a.EntryPath))
+	path := filepath.Join(root, entry)
+	rel, err := filepath.Rel(root, path)
+	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) || filepath.IsAbs(rel) {
+		return "", fmt.Errorf("artifact entry_path escapes artifact root")
+	}
+	return path, nil
 }
 
 // ProviderRequest carries only explicit operator/app choices. A blank mode

@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"context"
+	"database/sql"
 	"embed"
 	"encoding/json"
 	"errors"
@@ -39,10 +40,17 @@ func (s *Store) CreateNode(ctx context.Context, kind offerspb.NodeKind, name str
 	if status == offerspb.Status_STATUS_UNSPECIFIED {
 		status = offerspb.Status_IDEA
 	}
+	name = strings.TrimSpace(name)
+	var existingID string
+	if err := s.db.QueryRowContext(ctx, `SELECT id FROM nodes WHERE kind=? AND name=?`, int32(kind), name).Scan(&existingID); err == nil {
+		return nil, fmt.Errorf("node identity (%s,%q) already exists as %s", kind.String(), name, existingID)
+	} else if err != sql.ErrNoRows {
+		return nil, err
+	}
 	if status == offerspb.Status_CANDIDATE && strings.TrimSpace(trigger) == "" {
 		return nil, errors.New("rule candidate_requires_trigger: candidate nodes require a machine-evaluable trigger")
 	}
-	n := &offerspb.Node{Id: uuid.NewString(), Kind: kind, Name: strings.TrimSpace(name), Status: status, TriggerId: trigger, ActualAccountId: actualAccountID, CreatedAt: timestamppb.New(s.now())}
+	n := &offerspb.Node{Id: uuid.NewString(), Kind: kind, Name: name, Status: status, TriggerId: trigger, ActualAccountId: actualAccountID, CreatedAt: timestamppb.New(s.now())}
 	if status == offerspb.Status_CANDIDATE {
 		var triggerNode string
 		if err := s.db.QueryRowContext(ctx, `SELECT node_id FROM triggers WHERE id=?`, trigger).Scan(&triggerNode); err != nil || triggerNode != n.Id {
@@ -90,11 +98,13 @@ func (s *Store) ListNodes(ctx context.Context, kind offerspb.NodeKind, status of
 func allowed(from, to offerspb.Status) bool {
 	switch from {
 	case offerspb.Status_IDEA:
-		return to == offerspb.Status_CANDIDATE || to == offerspb.Status_RETIRED
+		return to == offerspb.Status_CANDIDATE || to == offerspb.Status_PROPOSED || to == offerspb.Status_RETIRED
 	case offerspb.Status_CANDIDATE:
 		return to == offerspb.Status_TRIGGER_MET || to == offerspb.Status_IDEA || to == offerspb.Status_RETIRED
 	case offerspb.Status_TRIGGER_MET:
 		return to == offerspb.Status_ACTIVE || to == offerspb.Status_CANDIDATE || to == offerspb.Status_RETIRED
+	case offerspb.Status_PROPOSED:
+		return to == offerspb.Status_ACTIVE || to == offerspb.Status_RETIRED
 	case offerspb.Status_ACTIVE:
 		return to == offerspb.Status_SHIPPED || to == offerspb.Status_RETIRED
 	case offerspb.Status_SHIPPED:
@@ -111,6 +121,8 @@ func legal(from offerspb.Status) string {
 		return "trigger-met, idea, retired"
 	case offerspb.Status_TRIGGER_MET:
 		return "active, candidate, retired"
+	case offerspb.Status_PROPOSED:
+		return "active, retired"
 	case offerspb.Status_ACTIVE:
 		return "shipped, retired"
 	case offerspb.Status_SHIPPED:
@@ -171,7 +183,7 @@ func (s *Store) Transition(ctx context.Context, id string, to offerspb.Status, a
 }
 
 func (s *Store) ListEdges(ctx context.Context, nodeID string) ([]*offerspb.Edge, error) {
-	query := `SELECT id,from_id,to_id,kind,intended_price_minor,currency FROM edges`
+	query := `SELECT id,from_id,to_id,kind,intended_price_minor,currency,intended_price_declared FROM edges`
 	args := []any{}
 	if strings.TrimSpace(nodeID) != "" {
 		query += ` WHERE from_id=? OR to_id=?`
@@ -183,13 +195,14 @@ func (s *Store) ListEdges(ctx context.Context, nodeID string) ([]*offerspb.Edge,
 		return nil, err
 	}
 	defer rows.Close()
-	defer rows.Close()
 	var out []*offerspb.Edge
 	for rows.Next() {
 		var e offerspb.Edge
-		if err := rows.Scan(&e.Id, &e.FromId, &e.ToId, &e.Kind, &e.IntendedPriceMinor, &e.Currency); err != nil {
+		var declared int32
+		if err := rows.Scan(&e.Id, &e.FromId, &e.ToId, &e.Kind, &e.IntendedPriceMinor, &e.Currency, &declared); err != nil {
 			return nil, err
 		}
+		e.IntendedPriceDeclared = declared != 0
 		out = append(out, &e)
 	}
 	return out, rows.Err()
@@ -219,8 +232,201 @@ func (s *Store) CreateEdge(ctx context.Context, e *offerspb.Edge) (*offerspb.Edg
 	if e.Id == "" {
 		e.Id = uuid.NewString()
 	}
-	_, err := s.db.ExecContext(ctx, `INSERT INTO edges(id,from_id,to_id,kind,intended_price_minor,currency) VALUES(?,?,?,?,?,?)`, e.Id, e.FromId, e.ToId, e.Kind, e.IntendedPriceMinor, e.Currency)
+	declared := e.IntendedPriceDeclared || e.IntendedPriceMinor != 0 || strings.TrimSpace(e.Currency) != ""
+	var existingID string
+	var existingPrice int64
+	var existingCurrency string
+	var existingDeclared int
+	lookupErr := s.db.QueryRowContext(ctx, `SELECT id,intended_price_minor,currency,intended_price_declared FROM edges WHERE from_id=? AND to_id=? AND kind=?`, e.FromId, e.ToId, e.Kind).Scan(&existingID, &existingPrice, &existingCurrency, &existingDeclared)
+	if lookupErr == nil {
+		e.Id = existingID
+		if existingDeclared != 0 && !declared {
+			e.IntendedPriceMinor, e.Currency, e.IntendedPriceDeclared = existingPrice, existingCurrency, true
+		} else {
+			e.IntendedPriceDeclared = declared
+		}
+		declaredInt := 0
+		if e.IntendedPriceDeclared {
+			declaredInt = 1
+		}
+		_, err := s.db.ExecContext(ctx, `UPDATE edges SET intended_price_minor=?,currency=?,intended_price_declared=? WHERE id=?`, e.IntendedPriceMinor, e.Currency, declaredInt, e.Id)
+		return e, err
+	}
+	if lookupErr != sql.ErrNoRows {
+		return nil, lookupErr
+	}
+	declaredInt := 0
+	if declared {
+		declaredInt = 1
+	}
+	_, err := s.db.ExecContext(ctx, `INSERT INTO edges(id,from_id,to_id,kind,intended_price_minor,currency,intended_price_declared) VALUES(?,?,?,?,?,?,?)`, e.Id, e.FromId, e.ToId, e.Kind, e.IntendedPriceMinor, e.Currency, declaredInt)
 	return e, err
+}
+
+// MergeNodes is the only catalog operation that removes a node. The caller
+// supplies the survivor explicitly; every reference move, edge collapse,
+// audit write, and final delete happens in one transaction.
+func (s *Store) MergeNodes(ctx context.Context, request *offerspb.MergeNodesRequest) (*offerspb.MergeNodesResponse, error) {
+	if request == nil || strings.TrimSpace(request.SurvivingId) == "" || strings.TrimSpace(request.DuplicateId) == "" {
+		return nil, errors.New("merge requires surviving_id and duplicate_id")
+	}
+	if request.SurvivingId == request.DuplicateId {
+		return nil, fmt.Errorf("merge refused: surviving and duplicate ids are the same: %s", request.SurvivingId)
+	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	type nodeRow struct {
+		node         offerspb.Node
+		kind, status int32
+		createdAt    string
+	}
+	load := func(id string) (*nodeRow, error) {
+		row := &nodeRow{}
+		if err := tx.QueryRowContext(ctx, `SELECT id,kind,name,status,trigger_id,created_at,actual_account_id FROM nodes WHERE id=?`, id).Scan(&row.node.Id, &row.kind, &row.node.Name, &row.status, &row.node.TriggerId, &row.createdAt, &row.node.ActualAccountId); err != nil {
+			return row, fmt.Errorf("merge refused: node %q not found: %w", id, err)
+		}
+		row.node.Kind = offerspb.NodeKind(row.kind)
+		row.node.Status = offerspb.Status(row.status)
+		if parsed, parseErr := time.Parse(time.RFC3339Nano, row.createdAt); parseErr == nil {
+			row.node.CreatedAt = timestamppb.New(parsed)
+		}
+		return row, nil
+	}
+	survivor, err := load(request.SurvivingId)
+	if err != nil {
+		return nil, err
+	}
+	duplicate, err := load(request.DuplicateId)
+	if err != nil {
+		return nil, err
+	}
+	if survivor.node.Kind != duplicate.node.Kind {
+		return nil, fmt.Errorf("merge refused: node kinds differ: surviving %s (%s), duplicate %s (%s)", survivor.node.Kind.String(), survivor.node.Id, duplicate.node.Kind.String(), duplicate.node.Id)
+	}
+
+	response := &offerspb.MergeNodesResponse{Surviving: &survivor.node}
+	type edgeRow struct {
+		id, fromID, toID, kind string
+	}
+	rows, err := tx.QueryContext(ctx, `SELECT id,from_id,to_id,kind FROM edges ORDER BY id`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var edges []edgeRow
+	for rows.Next() {
+		var edge edgeRow
+		if err := rows.Scan(&edge.id, &edge.fromID, &edge.toID, &edge.kind); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		edges = append(edges, edge)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	keptByKey := make(map[string]string, len(edges))
+	duplicateEdgeIDs := make(map[string]struct{})
+	for _, edge := range edges {
+		if edge.fromID != request.DuplicateId && edge.toID != request.DuplicateId {
+			key := edge.fromID + "\x00" + edge.toID + "\x00" + edge.kind
+			keptByKey[key] = edge.id
+		}
+	}
+	for _, edge := range edges {
+		if edge.fromID != request.DuplicateId && edge.toID != request.DuplicateId {
+			continue
+		}
+		duplicateEdgeIDs[edge.id] = struct{}{}
+		fromID, toID := edge.fromID, edge.toID
+		if fromID == request.DuplicateId {
+			fromID = request.SurvivingId
+		}
+		if toID == request.DuplicateId {
+			toID = request.SurvivingId
+		}
+		key := fromID + "\x00" + toID + "\x00" + edge.kind
+		if _, exists := keptByKey[key]; exists {
+			response.CollapsedEdgeIds = append(response.CollapsedEdgeIds, edge.id)
+			continue
+		}
+		keptByKey[key] = edge.id
+	}
+	response.MovedEdges = int32(len(duplicateEdgeIDs))
+
+	count := func(table, column string) (int32, error) {
+		var n int32
+		if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM `+table+` WHERE `+column+`=?`, request.DuplicateId).Scan(&n); err != nil {
+			return 0, err
+		}
+		return n, nil
+	}
+	if response.MovedTriggers, err = count("triggers", "node_id"); err != nil {
+		return nil, err
+	}
+	if response.MovedEvaluations, err = count("evaluations", "node_id"); err != nil {
+		return nil, err
+	}
+	if response.MovedProposals, err = count("proposals", "node_id"); err != nil {
+		return nil, err
+	}
+	if response.MovedFindings, err = count("migration_findings", "node_id"); err != nil {
+		return nil, err
+	}
+	if request.DryRun {
+		return response, nil
+	}
+
+	for _, edge := range edges {
+		if _, isDuplicate := duplicateEdgeIDs[edge.id]; !isDuplicate {
+			continue
+		}
+		collapsed := false
+		for _, collapsedID := range response.CollapsedEdgeIds {
+			if collapsedID == edge.id {
+				collapsed = true
+				break
+			}
+		}
+		if collapsed {
+			if _, err := tx.ExecContext(ctx, `DELETE FROM edges WHERE id=?`, edge.id); err != nil {
+				return nil, err
+			}
+			continue
+		}
+		if _, err := tx.ExecContext(ctx, `UPDATE edges SET from_id=CASE WHEN from_id=? THEN ? ELSE from_id END,to_id=CASE WHEN to_id=? THEN ? ELSE to_id END WHERE id=?`, request.DuplicateId, request.SurvivingId, request.DuplicateId, request.SurvivingId, edge.id); err != nil {
+			return nil, err
+		}
+	}
+	for _, table := range []string{"triggers", "evaluations", "proposals", "migration_findings"} {
+		if _, err := tx.ExecContext(ctx, `UPDATE `+table+` SET node_id=? WHERE node_id=?`, request.SurvivingId, request.DuplicateId); err != nil {
+			return nil, err
+		}
+	}
+	if _, err := tx.ExecContext(ctx, `UPDATE catalog_audit SET node_id=? WHERE node_id=?`, request.SurvivingId, request.DuplicateId); err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(survivor.node.TriggerId) == "" && strings.TrimSpace(duplicate.node.TriggerId) != "" {
+		if _, err := tx.ExecContext(ctx, `UPDATE nodes SET trigger_id=? WHERE id=?`, duplicate.node.TriggerId, request.SurvivingId); err != nil {
+			return nil, err
+		}
+		response.Surviving.TriggerId = duplicate.node.TriggerId
+	}
+	reason := fmt.Sprintf("merged duplicate node: surviving_id=%s duplicate_id=%s", request.SurvivingId, request.DuplicateId)
+	if _, err := tx.ExecContext(ctx, `INSERT INTO catalog_audit(id,node_id,actor,prior_status,next_status,reason,created_at,related_node_id) VALUES(?,?,?,?,?,?,?,?)`, uuid.NewString(), request.SurvivingId, request.Actor, survivor.status, survivor.status, reason, s.now().UTC().Format(time.RFC3339Nano), request.DuplicateId); err != nil {
+		return nil, err
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM nodes WHERE id=?`, request.DuplicateId); err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	return response, nil
 }
 
 func (s *Store) AddTrigger(ctx context.Context, t *offerspb.Trigger) (*offerspb.Trigger, error) {

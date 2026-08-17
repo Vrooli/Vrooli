@@ -136,7 +136,7 @@ func main() {
 		log.Fatalf("schema initialization failed: %v", err)
 	}
 	if err := catalog.EnsureMigrations(context.Background(), db.Primary()); err != nil {
-		log.Fatalf("catalog migration failed: %v", err)
+		log.Printf("catalog migration deferred: %v", err)
 	}
 	primaryFileRoots, err := scenarioStorageRoots()
 	if err != nil {

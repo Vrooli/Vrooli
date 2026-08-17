@@ -19,9 +19,27 @@ type RuntimeBoardData = { postureAgeSeconds?: bigint | number; goals?: RuntimeGo
 
 const enumLabel = (value: unknown) => {
   if (typeof value === "number") {
-    return ["UNSPECIFIED", "IDEA", "CANDIDATE", "TRIGGER_MET", "ACTIVE", "SHIPPED", "RETIRED"][value] ?? "UNKNOWN";
+    return ["UNSPECIFIED", "IDEA", "CANDIDATE", "TRIGGER_MET", "ACTIVE", "SHIPPED", "RETIRED", "PROPOSED"][value] ?? "UNKNOWN";
   }
   return typeof value === "string" ? value.replace(/^STATUS_/, "") : "UNKNOWN";
+};
+
+const localizedRankReason = (reason: string | undefined, t: ReturnType<typeof useTranslation>["t"]) => {
+  if (!reason) return t(strings.pages.dashboard.rankReasonMissing);
+  if (reason === "status not set") return t(strings.pages.dashboard.rankReasonStatusNotSet);
+  if (reason === "captured, not planned against") return t(strings.pages.dashboard.rankReasonIdea);
+  if (reason === "blocked: trigger not met") return t(strings.pages.dashboard.rankReasonCandidate);
+  if (reason === "trigger fired") return t(strings.pages.dashboard.rankReasonTriggerMet);
+  if (reason === "awaiting operator decision") return t(strings.pages.dashboard.rankReasonProposed);
+  if (reason === "active and earning nothing") return t(strings.pages.dashboard.rankReasonActiveEarningNothing);
+  if (reason === "active and earning") return t(strings.pages.dashboard.rankReasonActiveEarning);
+  if (reason === "shipped and earning nothing") return t(strings.pages.dashboard.rankReasonShippedEarningNothing);
+  if (reason === "shipped and earning") return t(strings.pages.dashboard.rankReasonShippedEarning);
+  if (reason === "retired") return t(strings.pages.dashboard.rankReasonRetired);
+  const unknown = /^(active|shipped); earnings unknown — (.+) unavailable$/.exec(reason);
+  if (unknown) return t(unknown[1] === "active" ? strings.pages.dashboard.rankReasonActiveUnknown : strings.pages.dashboard.rankReasonShippedUnknown, { source: unknown[2] });
+  const status = /^unknown status: (.+)$/.exec(reason);
+  return status ? t(strings.pages.dashboard.rankReasonUnknown, { status: status[1] }) : reason;
 };
 
 const timestampLabel = (timestamp?: TimestampLike) => timestamp ? new Date(Number(timestamp.seconds) * 1000 + Math.floor((timestamp.nanos ?? 0) / 1_000_000)).toISOString() : "";
@@ -59,15 +77,15 @@ export function DashboardPage() {
   const rankingColumns = [
     { id: "offer", header: t(strings.pages.dashboard.boardOffer), accessor: (entry: typeof entries[number]) => entry.title, searchValue: (entry: typeof entries[number]) => entry.title },
     { id: "status", header: t(strings.pages.dashboard.boardStatus), accessor: (entry: typeof entries[number]) => enumLabel(entry.status), searchValue: (entry: typeof entries[number]) => enumLabel(entry.status) },
-    { id: "reason", header: t(strings.pages.dashboard.rankReason), accessor: (entry: typeof entries[number]) => entry.rankReason || t(strings.pages.dashboard.rankReasonMissing), searchValue: (entry: typeof entries[number]) => entry.rankReason || "" },
-    { id: "actual", header: t(strings.pages.dashboard.boardActual), accessor: (entry: typeof entries[number]) => entry.actualsAvailable ? entry.actualMinor.toString() : t(strings.pages.dashboard.actualUnavailable, { reason: actualReason(entry) }), searchValue: (entry: typeof entries[number]) => entry.actualsAvailable ? entry.actualMinor.toString() : actualReason(entry) },
+    { id: "reason", header: t(strings.pages.dashboard.rankReason), accessor: (entry: typeof entries[number]) => localizedRankReason(entry.rankReason, t), searchValue: (entry: typeof entries[number]) => entry.rankReason || "", className: "break-words" },
+    { id: "actual", header: t(strings.pages.dashboard.boardActual), accessor: (entry: typeof entries[number]) => entry.actualsAvailable ? entry.actualMinor.toString() : t(strings.pages.dashboard.actualUnavailable, { reason: actualReason(entry) }), searchValue: (entry: typeof entries[number]) => entry.actualsAvailable ? entry.actualMinor.toString() : actualReason(entry), className: "break-words" },
   ];
 
   const renderGroup = (testId: string, title: string, group: typeof entries) => (
     <section data-testid={testId} aria-label={title} className="rounded-md border p-4 min-w-0">
       <h3 className="font-semibold" aria-label={`${title}: ${t(strings.pages.dashboard.noCurrentRecords)}`}>{title}</h3>
       {/* Empty groups remain visible so their contract bindings are present in the accessibility tree. */}
-      {group.length ? <ul>{group.map((entry) => <li key={entry.nodeId} className="text-sm">{entry.title}: {entry.rankReason || t(strings.pages.dashboard.rankReasonMissing)}</li>)}</ul> : <p role="status">{t(strings.pages.dashboard.noCurrentRecords)}</p>}
+      {group.length ? <ul>{group.map((entry) => <li key={entry.nodeId} className="text-sm">{entry.title}: {localizedRankReason(entry.rankReason, t)}</li>)}</ul> : <p role="status">{t(strings.pages.dashboard.noCurrentRecords)}</p>}
     </section>
   );
 

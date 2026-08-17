@@ -94,3 +94,21 @@ func TestOutboxRejectsIncompleteUsage(t *testing.T) {
 		t.Fatalf("expected ErrInvalidUsage, got %v", err)
 	}
 }
+
+func TestOutboxPendingCountUsesDurableStore(t *testing.T) {
+	store := NewMemoryOutboxStore()
+	outbox := NewOutbox(store, &recordingTransport{})
+	if err := outbox.Enqueue(context.Background(), testUsage()); err != nil {
+		t.Fatal(err)
+	}
+	count, err := outbox.PendingCount(context.Background(), "user@example.com")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count != 1 {
+		t.Fatalf("expected one pending record, got %d", count)
+	}
+	if _, err := outbox.PendingCount(context.Background(), "other@example.com"); err != nil {
+		t.Fatal(err)
+	}
+}

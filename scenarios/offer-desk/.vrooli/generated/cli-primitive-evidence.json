@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "offer-desk",
   "generator": "v1.0.0",
-  "manifest_hash": "42df50309be373ba5db345c3e9ab66d49594ece8f20d9c5f7ca91e658e3115d4",
+  "manifest_hash": "86c7a5cf688c21276803636167d4565f25899fa39ee85b3cd3a38f9c8edbba97",
   "commands": [
     {
       "path": "offers board-show",
@@ -55,12 +55,28 @@
       "observed_primitive": "proto_list"
     },
     {
+      "path": "offers catalog-merge",
+      "group": "offers",
+      "command": "catalog-merge",
+      "binding": "CatalogService.MergeNodes",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
       "path": "offers catalog-transition",
       "group": "offers",
       "command": "catalog-transition",
       "binding": "CatalogService.Transition",
       "declared_primitive": "proto_mutation",
       "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "offers catalog-verify",
+      "group": "offers",
+      "command": "catalog-verify",
+      "binding": "CatalogService.VerifyCatalog",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
     },
     {
       "path": "offers gates-evaluate",

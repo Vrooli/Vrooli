@@ -1,11 +1,11 @@
 CREATE TABLE IF NOT EXISTS nodes (id TEXT PRIMARY KEY, kind INTEGER NOT NULL, name TEXT NOT NULL, status INTEGER NOT NULL, trigger_id TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL, actual_account_id TEXT NOT NULL DEFAULT '');
-CREATE TABLE IF NOT EXISTS edges (id TEXT PRIMARY KEY, from_id TEXT NOT NULL, to_id TEXT NOT NULL, kind TEXT NOT NULL, intended_price_minor INTEGER NOT NULL DEFAULT 0, currency TEXT NOT NULL DEFAULT '');
+CREATE TABLE IF NOT EXISTS edges (id TEXT PRIMARY KEY, from_id TEXT NOT NULL, to_id TEXT NOT NULL, kind TEXT NOT NULL, intended_price_minor INTEGER NOT NULL DEFAULT 0, currency TEXT NOT NULL DEFAULT '', intended_price_declared INTEGER NOT NULL DEFAULT 0);
 CREATE TABLE IF NOT EXISTS triggers (id TEXT PRIMARY KEY, node_id TEXT NOT NULL, fact_name TEXT NOT NULL, operator TEXT NOT NULL, threshold REAL NOT NULL, expression TEXT NOT NULL DEFAULT '', clauses_json TEXT NOT NULL DEFAULT '[]', composition INTEGER NOT NULL DEFAULT 1);
 CREATE TABLE IF NOT EXISTS facts (name TEXT PRIMARY KEY, value REAL NOT NULL, observed_at TEXT NOT NULL, stale_after_days INTEGER NOT NULL, dimension TEXT NOT NULL DEFAULT '');
 CREATE TABLE IF NOT EXISTS evaluations (id TEXT PRIMARY KEY, node_id TEXT NOT NULL, verdict INTEGER NOT NULL, fact_name TEXT NOT NULL, explanation TEXT NOT NULL, evaluated_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS proposals (id TEXT PRIMARY KEY, node_id TEXT NOT NULL, actor TEXT NOT NULL, requested_status INTEGER NOT NULL, reason TEXT NOT NULL, created_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS proposal_declines (id TEXT PRIMARY KEY, proposal_id TEXT NOT NULL, actor TEXT NOT NULL, reason TEXT NOT NULL, created_at TEXT NOT NULL);
-CREATE TABLE IF NOT EXISTS catalog_audit (id TEXT PRIMARY KEY, node_id TEXT NOT NULL, actor TEXT NOT NULL, prior_status INTEGER NOT NULL, next_status INTEGER NOT NULL, reason TEXT NOT NULL, created_at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS catalog_audit (id TEXT PRIMARY KEY, node_id TEXT NOT NULL, actor TEXT NOT NULL, prior_status INTEGER NOT NULL, next_status INTEGER NOT NULL, reason TEXT NOT NULL, created_at TEXT NOT NULL, related_node_id TEXT NOT NULL DEFAULT '');
 CREATE TABLE IF NOT EXISTS migration_findings (id TEXT PRIMARY KEY, node_id TEXT NOT NULL, source_file TEXT NOT NULL, reference TEXT NOT NULL, reason TEXT NOT NULL, created_at TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS evaluations_node_time ON evaluations(node_id,evaluated_at);
 CREATE INDEX IF NOT EXISTS migration_findings_node ON migration_findings(node_id,source_file);

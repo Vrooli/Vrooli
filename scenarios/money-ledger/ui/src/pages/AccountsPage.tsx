@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { createAccount, createBook, fetchAccounts, fetchBooks, fetchPostings, transfer } from "../api/ledger";
+import { archiveBook, createAccount, createBook, fetchAccounts, fetchBooks, fetchPostings, transfer } from "../api/ledger";
 import { DirtyStateGuard } from "../components/DirtyStateGuard";
 import { FormSection } from "../components/FormSection";
 import { ExperienceSurface } from "../components/experience/ExperienceSurface";
@@ -37,7 +37,7 @@ export function AccountsPage() {
   });
 
   const [bookForm, setBookForm] = useState({ name: "", currency: "USD" });
-  const [accountForm, setAccountForm] = useState({ name: "", kind: "cash" });
+  const [accountForm, setAccountForm] = useState({ name: "", kind: "ASSET" });
   const [transferForm, setTransferForm] = useState({ fromAccountId: "", toAccountId: "", amountMinor: "", currency: "USD", description: "", date: today() });
   const [bookMessage, setBookMessage] = useState("");
   const [accountMessage, setAccountMessage] = useState("");
@@ -72,11 +72,19 @@ export function AccountsPage() {
     mutationFn: (input: { bookId: string; name: string; kind: string }) => createAccount(input.bookId, input.name, input.kind),
     onSuccess: async () => {
       await invalidateLedger();
-      setAccountForm({ name: "", kind: "cash" });
+      setAccountForm({ name: "", kind: "ASSET" });
       setAccountError(false);
       setAccountMessage(t(strings.pages.accounts.savedNotice));
     },
     onError: () => setAccountError(true),
+  });
+
+  const archiveBookMutation = useMutation({
+    mutationFn: (id: string) => archiveBook(id),
+    onSuccess: async () => {
+      await invalidateLedger();
+      setSelectedBookId("");
+    },
   });
 
   const transferMutation = useMutation({
@@ -133,7 +141,7 @@ export function AccountsPage() {
       return;
     }
     setAccountError(false);
-    createAccountMutation.mutate({ bookId, name: accountForm.name.trim(), kind: accountForm.kind.trim().toLowerCase() });
+    createAccountMutation.mutate({ bookId, name: accountForm.name.trim(), kind: accountForm.kind.trim().toUpperCase() });
   };
   const submitTransfer = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -180,6 +188,12 @@ export function AccountsPage() {
               </li>
             ))}
           </ul>
+          {selectedBook && <div className="mt-3 flex flex-wrap items-center gap-2">
+            <Button type="button" data-testid="book-archive-control" variant="secondary" disabled={archiveBookMutation.isPending} onClick={() => archiveBookMutation.mutate(selectedBook.id)}>
+              Archive book
+            </Button>
+            <span data-testid="archived-book-notice" role="status" className="text-sm text-app-muted-foreground">Archiving removes this book from default position reads; journal history remains readable.</span>
+          </div>}
         </CardContent>
       </Card>
 
@@ -196,12 +210,13 @@ export function AccountsPage() {
           </FormSection>
         </DirtyStateGuard>
 
-        <DirtyStateGuard isDirty={Boolean(accountForm.name || accountForm.kind !== "cash")} protectUnload title={t(strings.pages.accounts.createAccountTitle)} description={t(strings.pages.accounts.description)}>
+        <DirtyStateGuard isDirty={Boolean(accountForm.name || accountForm.kind !== "ASSET")} protectUnload title={t(strings.pages.accounts.createAccountTitle)} description={t(strings.pages.accounts.description)}>
           <FormSection title={t(strings.pages.accounts.createAccountTitle)}>
             <form className="grid gap-3" onSubmit={submitAccount}>
               <label className="grid gap-1" htmlFor="account-book"><span>{t(strings.pages.accounts.selectBook)}</span><Select id="account-book" value={bookId} onChange={(event) => setSelectedBookId(event.target.value)} options={(books.data?.books ?? []).map((book) => ({ value: book.id, label: `${book.name} · ${book.currency}` }))} placeholder={t(strings.pages.accounts.selectBook)} /></label>
               <label className="grid gap-1" htmlFor="account-name"><span>{t(strings.pages.accounts.accountNameLabel)}</span><Input id="account-name" value={accountForm.name} onChange={(event) => setAccountForm({ ...accountForm, name: event.target.value })} /></label>
-              <label className="grid gap-1" htmlFor="account-kind"><span>{t(strings.pages.accounts.accountKindLabel)}</span><Input id="account-kind" value={accountForm.kind} onChange={(event) => setAccountForm({ ...accountForm, kind: event.target.value })} /></label>
+              <label className="grid gap-1" htmlFor="account-kind"><span>{t(strings.pages.accounts.accountKindLabel)}</span><Input id="account-kind" value={accountForm.kind} onChange={(event) => setAccountForm({ ...accountForm, kind: event.target.value.toUpperCase() })} aria-describedby="account-kind-vocabulary" /></label>
+              <span id="account-kind-vocabulary" data-testid="account-kind-vocabulary" role="group" className="text-xs text-app-muted-foreground">Accepted kinds: ASSET, LIABILITY, REVENUE, EXPENSE, EQUITY.</span>
               {accountError && <p role="alert" className="text-sm text-app-danger">{createAccountMutation.isError ? t(strings.pages.accounts.requestError) : t(strings.pages.accounts.validationError)}</p>}
               {accountMessage && <p role="status" className="text-sm text-app-success">{accountMessage}</p>}
               <Button type="submit" disabled={createAccountMutation.isPending || !bookId}>{t(strings.pages.accounts.createAccountAction)}</Button>

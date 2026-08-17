@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "money-ledger",
   "generator": "v1.0.0",
-  "manifest_hash": "626cf63c87d6e04b36e2b1d246966903d84f428217c504d4b81874a1947d7e33",
+  "manifest_hash": "487fb503e09879b7498eeb9567951c7ec8409a69b2e6dca78c1c23f0981f7705",
   "commands": [
     {
       "path": "ingest adapter-register",
@@ -71,6 +71,14 @@
       "observed_primitive": "proto_list"
     },
     {
+      "path": "ledger books-archive",
+      "group": "ledger",
+      "command": "books-archive",
+      "binding": "BooksService.ArchiveBook",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
       "path": "ledger books-create",
       "group": "ledger",
       "command": "books-create",
@@ -91,6 +99,22 @@
       "group": "ledger",
       "command": "goal-declare",
       "binding": "PositionService.DeclareGoal",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "ledger goal-reparent",
+      "group": "ledger",
+      "command": "goal-reparent",
+      "binding": "PositionService.ReparentGoal",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "ledger goals-archive",
+      "group": "ledger",
+      "command": "goals-archive",
+      "binding": "PositionService.ArchiveGoal",
       "declared_primitive": "proto_mutation",
       "observed_primitive": "proto_mutation"
     },
@@ -133,6 +157,14 @@
       "binding": "JournalService.Transfer",
       "declared_primitive": "proto_mutation",
       "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "ledger operator-input-status",
+      "group": "ledger",
+      "command": "operator-input-status",
+      "binding": "IngestService.OperatorInputStatus",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
     },
     {
       "path": "ledger position-show",

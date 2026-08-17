@@ -119,6 +119,22 @@
       "category": "offers"
     },
     {
+      "id": "catalog_merge",
+      "path": "/vrooli.offer_desk.v1.offers.CatalogService/MergeNodes",
+      "method": "POST",
+      "summary": "Dry-run or apply an audited duplicate-node merge",
+      "description": "",
+      "category": "offers"
+    },
+    {
+      "id": "catalog_verify",
+      "path": "/vrooli.offer_desk.v1.offers.CatalogService/VerifyCatalog",
+      "method": "POST",
+      "summary": "Verify source counts and graph identity reconciliation",
+      "description": "",
+      "category": "offers"
+    },
+    {
       "id": "gates_trigger",
       "path": "/vrooli.offer_desk.v1.offers.GatesService/DeclareTrigger",
       "method": "POST",
