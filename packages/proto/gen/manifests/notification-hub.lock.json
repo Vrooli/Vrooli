@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "scenario": "notification-hub",
+  "input_digest": "sha256:01bd7778fa7b76018a29e4d0056732f7bcc2851406a5e76b4501f6652c10426a",
+  "input_files": [
+    "schemas/measures/v1/measures.proto",
+    "schemas/notification-hub/v1/notes/attachments.proto",
+    "schemas/notification-hub/v1/notes/notes.proto",
+    "schemas/notification-hub/v1/shared/errors.proto",
+    "schemas/notification-hub/v1/shared/health.proto",
+    "vendor/protovalidate/buf/validate/validate.proto"
+  ],
+  "toolchain": {
+    "buf": "1.37.0",
+    "buf_gen_yaml_digest": "sha256:25a429d557cd66037be08fe549418750c7bd895d3e6078c5afe55a84afd37e84",
+    "plugins": {
+      "protoc": "34.1",
+      "protoc-gen-connect-go": "v1.19.2",
+      "protoc-gen-es": "2.12.0",
+      "protoc-gen-go": "v1.36.11"
+    }
+  },
+  "outputs": {
+    "gen/go/notification-hub/v1/notes/attachments.pb.go": "sha256:1b55413a71d5a1338b91e5d9a008e5a21e07fe5e5ff38b85dd5c2bf0368c4719",
+    "gen/go/notification-hub/v1/notes/notes.pb.go": "sha256:95e95c61b5ca01a31abd207b4668b37174c9c1eda2620118f51b428e626c89b4",
+    "gen/go/notification-hub/v1/notes/notes_v1connect/notes.connect.go": "sha256:ef03f2a9e436598e695dd6955f1fb907ee27101c5aa3dbe0d2ad453c79d2065a",
+    "gen/go/notification-hub/v1/shared/errors.pb.go": "sha256:5a7f6004bc244398a1d9e4511c99a8b62d07ab4e92fa1e198c57a375beb7cb56",
+    "gen/go/notification-hub/v1/shared/health.pb.go": "sha256:e8ffa676a226dd08ab45f62e7cb627e4579eb26d9b964f0983ce5712466c6f98",
+    "gen/python/notification_hub/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/notification_hub/v1/notes/attachments_pb2.py": "sha256:cd6fe42eb28701102b70023676c7aded30335043e409e74a81bb8a9aca1cc391",
+    "gen/python/notification_hub/v1/notes/attachments_pb2.pyi": "sha256:5594188beec26dac8bb0ab7d1ece27e28d425bc57b7544c9e509610cbb5e37fa",
+    "gen/python/notification_hub/v1/notes/notes_pb2.py": "sha256:eda85bf9d54204cec9436786b3fa565216cb0a21fee5af816e40330e0b3b0c79",
+    "gen/python/notification_hub/v1/notes/notes_pb2.pyi": "sha256:359aac5d47799ae41e88608988e03caee63bd56ec270e6b9959e4bcd3b139386",
+    "gen/python/notification_hub/v1/notes/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/notification_hub/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/notification_hub/v1/shared/errors_pb2.py": "sha256:03be8874006804316abddeec6c0b29f6f8779a49192a6f79fcb3d42ffeb23c3b",
+    "gen/python/notification_hub/v1/shared/errors_pb2.pyi": "sha256:4fab4b85533131b72b50e57a69d84a6878a0c10aa64e5b6791a598b7b9716dd1",
+    "gen/python/notification_hub/v1/shared/health_pb2.py": "sha256:feb6fbed44757b2e77e68f7e1593d6c2ef3dbac8f9ebc52fa9c9dfe09624236e",
+    "gen/python/notification_hub/v1/shared/health_pb2.pyi": "sha256:b9ec00d86e0bdde26187240212eb1746c8be4ebac7b5320be40d8097822a8a04",
+    "gen/python/notification_hub/v1/shared/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/typescript/js/notification-hub/v1/notes/attachments_pb.js": "sha256:d799a76a06230f42de6169b89f184bbf1290cae4e8bd4b213c3b2d472850500b",
+    "gen/typescript/js/notification-hub/v1/notes/notes_pb.js": "sha256:cad65f96df3c665b6d21148a352c51d9ee28e65c3b1852c3b65ced880ed969f6",
+    "gen/typescript/js/notification-hub/v1/shared/errors_pb.js": "sha256:63451cb657d38ac2f18e3c0260987882b809a77a7fee547d72f4b9b889fee893",
+    "gen/typescript/js/notification-hub/v1/shared/health_pb.js": "sha256:5f63d2a8ba2d343adc9418de988dbe2dc3d2a3aaf152626f8d8d595ff132ce68",
+    "gen/typescript/notification-hub/v1/notes/attachments_pb.ts": "sha256:b0a786864e4e87dc232286d27268067101158b5238c40973ef1de251e4de2ff8",
+    "gen/typescript/notification-hub/v1/notes/notes_pb.ts": "sha256:e4c2317b95e6e561ef0a70bc69a94c614cb9d389dea744ee7d56b8ee198a7e71",
+    "gen/typescript/notification-hub/v1/shared/errors_pb.ts": "sha256:43cf51abf563c4a285d7a73ec3d657945b13a99e457f75ed1a58c049e4b172a1",
+    "gen/typescript/notification-hub/v1/shared/health_pb.ts": "sha256:f54347c375e616769be3665767e6734cb981b7cbfd85df216702aca8e68511b0"
+  }
+}

@@ -1,14 +1,36 @@
 {
-  "$schema": "../../test-genie/schemas/testing.schema.json",
+  "$schema": "../../../../scenarios/test-genie/schemas/testing.schema.json",
   "_metadata": {
-    "description": "Testing configuration for notification-hub",
-    "last_updated": "2025-11-06T23:58:54-05:00"
+    "description": "Sample testing configuration for React + Vite template",
+    "last_updated": "2026-05-03T00:00:00Z"
   },
   "version": "1.0.0",
-  "unit": {
-    "options": {
-      "verbose": false
+  "lint": {
+    "handlers": {
+      "go_module": {
+        "enabled": true,
+        "strict": true
+      },
+      "node_package": {
+        "enabled": true,
+        "strict": true
+      }
     },
+    "policy": {
+      "unconfigured_common_components": {
+        "api": "error",
+        "ui": "warning",
+        "cli": "warning"
+      },
+      "unmatched_code_components": "warning"
+    }
+  },
+  "structure": {
+    "additional_dirs": [
+      "ui"
+    ]
+  },
+  "unit": {
     "policy_profile": {
       "version": "1.0.0",
       "template": {
@@ -134,6 +156,26 @@
       "customization": {
         "mode": "monotonic",
         "waivers": []
+      }
+    }
+  },
+  "business": {
+    "checks": {
+      "endpoints": {
+        "enabled": true
+      },
+      "cli_commands": {
+        "enabled": true
+      }
+    }
+  },
+  "performance": {
+    "checks": {
+      "lighthouse": {
+        "enabled": true
+      },
+      "bundle_size": {
+        "enabled": true
       }
     }
   }

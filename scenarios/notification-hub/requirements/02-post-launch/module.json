@@ -1,0 +1,130 @@
+{
+  "_metadata": {
+    "description": "Requirement stubs scaffolded from the P1 operational targets.",
+    "module": "P1-targets",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "criticality": "P1",
+      "description": "When this host cannot serve a channel, the system should forward the delivery to a fleet node that advertises the capability through vrooli-bridge durable dispatch.",
+      "id": "NOTIFICA-P1-001",
+      "prd_ref": "OT-P1-001",
+      "status": "planned",
+      "title": "Cross-node delivery relay",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:NOTIFICA-P1-001] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "When a recipient channel is iMessage, the system should deliver it through the paired Mac node and should record the same receipt shape as a local delivery.",
+      "id": "NOTIFICA-P1-002",
+      "prd_ref": "OT-P1-002",
+      "status": "planned",
+      "title": "iMessage delivery from a Mac node",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:NOTIFICA-P1-002] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "The system should accept vrooli-events webhook deliveries and should raise notifications from subscription pattern matches.",
+      "id": "NOTIFICA-P1-003",
+      "prd_ref": "OT-P1-003",
+      "status": "planned",
+      "title": "Event-driven ingress",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:NOTIFICA-P1-003] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "The system should deliver notifications over SMTP using operator-supplied credentials.",
+      "id": "NOTIFICA-P1-004",
+      "prd_ref": "OT-P1-004",
+      "status": "planned",
+      "title": "Email channel",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:NOTIFICA-P1-004] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "When several low-urgency notifications arrive inside a digest window, the system should combine them into one scheduled summary delivery.",
+      "id": "NOTIFICA-P1-005",
+      "prd_ref": "OT-P1-005",
+      "status": "planned",
+      "title": "Digest collapsing",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:NOTIFICA-P1-005] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "The system should deliver a notification at a caller-specified future time and should survive a restart between acceptance and delivery.",
+      "id": "NOTIFICA-P1-006",
+      "prd_ref": "OT-P1-006",
+      "status": "planned",
+      "title": "Scheduled delivery",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:NOTIFICA-P1-006] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "The system should report delivery counts, failure rates, and per-channel latency over a selectable window.",
+      "id": "NOTIFICA-P1-007",
+      "prd_ref": "OT-P1-007",
+      "status": "planned",
+      "title": "Delivery analytics",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:NOTIFICA-P1-007] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "The system should support an owner-hosted push server so notification bodies need not transit a third-party service.",
+      "id": "NOTIFICA-P1-008",
+      "prd_ref": "OT-P1-008",
+      "status": "planned",
+      "title": "Self-hosted push endpoint",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:NOTIFICA-P1-008] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    }
+  ]
+}

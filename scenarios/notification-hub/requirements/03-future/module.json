@@ -1,0 +1,85 @@
+{
+  "_metadata": {
+    "description": "Requirement stubs scaffolded from the P2 operational targets.",
+    "module": "P2-targets",
+    "priority": "P2",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "criticality": "P2",
+      "description": "The system may deliver push through a service worker on the installed progressive web app, which removes the third-party push dependency.",
+      "id": "NOTIFICA-P2-001",
+      "prd_ref": "OT-P2-001",
+      "status": "planned",
+      "title": "First-party web push",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:NOTIFICA-P2-001] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "The system may deliver notifications over SMS using credentials supplied by the twilio resource.",
+      "id": "NOTIFICA-P2-002",
+      "prd_ref": "OT-P2-002",
+      "status": "planned",
+      "title": "SMS channel",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:NOTIFICA-P2-002] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "When the install runs a shared or hosted trust posture, the system may route notifications per authenticated identity.",
+      "id": "NOTIFICA-P2-003",
+      "prd_ref": "OT-P2-003",
+      "status": "planned",
+      "title": "Multi-user routing",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:NOTIFICA-P2-003] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "The system may accept an acknowledgement or a chosen action from a delivered notification and may return it to the requesting scenario.",
+      "id": "NOTIFICA-P2-004",
+      "prd_ref": "OT-P2-004",
+      "status": "planned",
+      "title": "Acknowledgement and response",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:NOTIFICA-P2-004] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "The system may escalate an unacknowledged critical notification to a second channel after a timeout.",
+      "id": "NOTIFICA-P2-005",
+      "prd_ref": "OT-P2-005",
+      "status": "planned",
+      "title": "Escalation chains",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:NOTIFICA-P2-005] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    }
+  ]
+}

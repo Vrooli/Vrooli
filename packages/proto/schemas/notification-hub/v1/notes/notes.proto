@@ -1,0 +1,124 @@
+syntax = "proto3";
+
+package vrooli.notification_hub.v1.notes;
+
+import "google/protobuf/timestamp.proto";
+import "measures/v1/measures.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/notes;notes_v1";
+
+// =============================================================================
+// NOTES DOMAIN — CRUD reference
+// =============================================================================
+//
+// @stability stable
+// @template react-vite/example
+//
+// Wire contract for the NotesService Connect-RPC service. Ships as the
+// canonical CRUD reference: every layer downstream of this proto (handler,
+// store, UI client, CLI domain) is the pattern new scenarios copy when they
+// add their first non-trivial mutation. Keep that role in mind when extending
+// — additions land here, then ripple to the layers in turn.
+//
+// Naming convention: the `Service` suffix and `<Service><Verb>Request` request
+// shape match buf's DEFAULT lint rules and the rest of `packages/proto/`.
+//
+// CountNotes is the canonical **measure** reference: a named, typed,
+// parameterized analytical query. Its request takes a shared
+// `vrooli.measures.v1.TimeWindow` so date extraction targets a typed,
+// deterministically-resolvable field (the `time_window` canonical convention)
+// rather than a freeform string — this is what lets `measures-health` grade the
+// measure at full tier and `search-hub` answer "how many notes this week"
+// end-to-end. See the manifest `measure` block on `notes count`, the
+// packages/measures-go serve helper mounted at /measures in main.go, and
+// docs/concepts/MEASURES.md.
+//
+// Consumed by:
+//   - API: handlers/notes/connect_handler.go implements the generated
+//          NotesServiceHandler interface from the notes_v1connect Go package;
+//          handlers/notes/measures.go serves the same count as a measure.
+//   - UI:  ui/src/api/notes.ts exposes the generated Connect-Web client.
+//   - CLI: cli/domains/notes/handlers.go calls the generated Connect-Go client
+//          and renders via cliapp.ListReport / MutationReport.
+// =============================================================================
+
+service NotesService {
+  rpc ListNotes(ListNotesRequest) returns (ListNotesResponse);
+  rpc CreateNote(CreateNoteRequest) returns (CreateNoteResponse);
+  rpc GetNote(GetNoteRequest) returns (GetNoteResponse);
+
+  // CountNotes counts notes created within a time window. Bound to the
+  // `notes count` measure (read-only, run-eligible) so search-hub can answer
+  // analytical questions like "how many notes were created this week".
+  rpc CountNotes(CountNotesRequest) returns (CountNotesResponse);
+}
+
+// Note is the canonical wire shape for a single note resource.
+message Note {
+  // UUID assigned by the API on create.
+  string id = 1;
+
+  // Human-supplied title. Required on create; non-empty enforced server-side.
+  string title = 2;
+
+  // Optional body. Empty string is the default.
+  string body = 3;
+
+  // Server time at the moment the note was first persisted.
+  google.protobuf.Timestamp created_at = 4;
+
+  // Server time at the moment the note was last persisted.
+  // Equals created_at on first insert.
+  google.protobuf.Timestamp updated_at = 5;
+
+  // BlobStore keys for files attached through the REST multipart sub-resource.
+  repeated string attachment_keys = 6;
+}
+
+// ListNotesRequest is currently empty; add filters and pagination here.
+message ListNotesRequest {
+}
+
+// ListNotesResponse is the body returned by NotesService.ListNotes.
+message ListNotesResponse {
+  // Notes ordered newest-first by created_at.
+  repeated Note notes = 1;
+}
+
+// CreateNoteRequest is the body accepted by NotesService.CreateNote.
+message CreateNoteRequest {
+  string title = 1;
+  string body = 2;
+}
+
+// CreateNoteResponse is the body returned by a successful create.
+message CreateNoteResponse {
+  Note note = 1;
+}
+
+// GetNoteRequest identifies the note to read.
+message GetNoteRequest {
+  string id = 1;
+}
+
+// GetNoteResponse is the body returned by NotesService.GetNote.
+message GetNoteResponse {
+  Note note = 1;
+}
+
+// CountNotesRequest is the body accepted by NotesService.CountNotes.
+message CountNotesRequest {
+  // Time window the count is scoped to. The shared canonical TimeWindow type
+  // makes this the `time_window` measure param: the manifest annotates it with
+  // a `this_week` default and packages/measures-go resolves the token to a
+  // concrete [from, to) range deterministically (no LLM, explicit timezone).
+  // An unset window resolves to the manifest default.
+  vrooli.measures.v1.TimeWindow window = 1;
+}
+
+// CountNotesResponse is the body returned by NotesService.CountNotes. `count`
+// is the measure's scalar value_field.
+message CountNotesResponse {
+  // Number of notes whose created_at falls in the requested window.
+  int64 count = 1;
+}

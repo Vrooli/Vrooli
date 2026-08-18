@@ -1,0 +1,41 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "set-up-a-device-and-quiet-hours",
+    "title": "Register a device and stop it waking you up",
+    "purpose": "The owner adds a device, proves it can receive, and bounds when it is allowed to interrupt them. Without the second half, the owner mutes the channel and every promise the scenario makes downstream becomes void.",
+    "prd_refs": [
+      "OT-P0-003",
+      "OT-P0-005",
+      "OT-P0-010"
+    ]
+  },
+  "steps": [
+    {
+      "page": "devices",
+      "state": "empty",
+      "intent": "Add a first device and understand what will be needed to reach it before committing.",
+      "via": "device registration"
+    },
+    {
+      "page": "devices",
+      "state": "default",
+      "intent": "Send a test notification to the new device and see it confirmed, so registration is proven rather than assumed.",
+      "via": "device verification send"
+    },
+    {
+      "page": "devices",
+      "state": "default",
+      "intent": "Set quiet hours in the owner's own timezone and understand that only critical urgency overrides them.",
+      "via": "quiet window editor"
+    },
+    {
+      "page": "devices",
+      "state": "default",
+      "intent": "Mute one channel without losing the notifications it would have carried, so muting is a routing change rather than a silent drop.",
+      "via": "per-channel preference"
+    }
+  ]
+}

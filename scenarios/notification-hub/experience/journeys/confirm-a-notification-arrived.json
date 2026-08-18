@@ -1,0 +1,41 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "confirm-a-notification-arrived",
+    "title": "Confirm a notification actually arrived",
+    "purpose": "The owner can answer, without asking anyone, whether something they were promised would reach them actually reached them — and when it did not, why not and what to do about it. This is the journey the scenario exists for; the predecessor implementation reported healthy for ten months while failing it.",
+    "prd_refs": [
+      "OT-P0-001",
+      "OT-P0-004",
+      "OT-P0-008"
+    ]
+  },
+  "steps": [
+    {
+      "page": "timeline",
+      "state": "default",
+      "intent": "Scan recent notifications newest-first and see each one's delivery state without opening anything.",
+      "via": "delivery timeline"
+    },
+    {
+      "page": "timeline",
+      "state": "default",
+      "intent": "Recognise a failed delivery from its row alone, including which device it was for and the reason it failed.",
+      "via": "timeline row status and reason"
+    },
+    {
+      "page": "timeline",
+      "state": "detail",
+      "intent": "Open one notification and see every attempt made for it, on which channel, by which machine, and why routing chose that channel.",
+      "via": "notification detail with per-attempt receipts"
+    },
+    {
+      "page": "timeline",
+      "state": "detail",
+      "intent": "Retry a failed delivery, or follow the stated remedy when retrying cannot help because the address is wrong.",
+      "via": "retry action and remediation text"
+    }
+  ]
+}

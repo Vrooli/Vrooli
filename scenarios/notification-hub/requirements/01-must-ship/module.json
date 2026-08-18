@@ -1,0 +1,160 @@
+{
+  "_metadata": {
+    "description": "Requirement stubs scaffolded from the P0 operational targets.",
+    "module": "P0-targets",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "criticality": "P0",
+      "description": "The system shall deliver a notification to the owner's registered iPhone through a push channel and shall record a delivery receipt for it.",
+      "id": "NOTIFICA-P0-001",
+      "prd_ref": "OT-P0-001",
+      "status": "planned",
+      "title": "Real delivery to a personal device",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:NOTIFICA-P0-001] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "When an agent, scenario, or operator submits a notification request, the system shall persist it and shall return a durable notification id.",
+      "id": "NOTIFICA-P0-002",
+      "prd_ref": "OT-P0-002",
+      "status": "planned",
+      "title": "Direct notification request",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:NOTIFICA-P0-002] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "The system shall record the owner's devices, the channels each device accepts, and the address used for each channel.",
+      "id": "NOTIFICA-P0-003",
+      "prd_ref": "OT-P0-003",
+      "status": "planned",
+      "title": "Device and channel registry",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:NOTIFICA-P0-003] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "The system shall record every delivery attempt with its outcome and shall expose the state of any notification through the API, the CLI, and the UI.",
+      "id": "NOTIFICA-P0-004",
+      "prd_ref": "OT-P0-004",
+      "status": "planned",
+      "title": "Observable delivery state",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:NOTIFICA-P0-004] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "When a notification falls inside a configured quiet window, the system shall hold it until the window closes unless its urgency is marked critical.",
+      "id": "NOTIFICA-P0-005",
+      "prd_ref": "OT-P0-005",
+      "status": "planned",
+      "title": "Quiet hours",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:NOTIFICA-P0-005] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "When repeated requests carry the same dedupe key inside its window, the system shall collapse them into one delivery.",
+      "id": "NOTIFICA-P0-006",
+      "prd_ref": "OT-P0-006",
+      "status": "planned",
+      "title": "Duplicate suppression",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:NOTIFICA-P0-006] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "The system shall resolve identity from scenario-authenticator tokens and shall key recipients by that identity, so no password, profile table, or scenario-issued API key exists here.",
+      "id": "NOTIFICA-P0-007",
+      "prd_ref": "OT-P0-007",
+      "status": "planned",
+      "title": "Identity without local accounts",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:NOTIFICA-P0-007] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "When a delivery attempt fails retryably, the system shall retry with backoff, and shall mark the delivery failed with a stated reason once the retry budget is spent.",
+      "id": "NOTIFICA-P0-008",
+      "prd_ref": "OT-P0-008",
+      "status": "planned",
+      "title": "Retry with terminal failure",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:NOTIFICA-P0-008] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "The system shall declare no resource dependency that requires Docker, so the same build runs on a Linux host and on a macOS fleet node.",
+      "id": "NOTIFICA-P0-009",
+      "prd_ref": "OT-P0-009",
+      "status": "planned",
+      "title": "Runs without Docker",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:NOTIFICA-P0-009] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "The system shall carry a sensitivity label on every notification and shall withhold body content from any channel not approved for that label.",
+      "id": "NOTIFICA-P0-010",
+      "prd_ref": "OT-P0-010",
+      "status": "planned",
+      "title": "Sensitivity labelling",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:NOTIFICA-P0-010] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    }
+  ]
+}

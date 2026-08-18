@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+package vrooli.document_manager.v1.retrieval;
+
+import "document-manager/v1/shared/document.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/document-manager/v1/retrieval;retrieval_v1";
+
+service RetrievalService {
+  rpc Query(QueryRequest) returns (QueryResponse);
+  rpc Similar(SimilarRequest) returns (SimilarResponse);
+}
+
+message QueryRequest {
+  string text = 1;
+  string collection_id = 2;
+  shared.PrivacyClass caller_max_privacy = 3;
+  bool federated = 4;
+  int32 limit = 5;
+}
+message QueryResult { string unit_id = 1; string document_hash = 2; string anchor_uri = 3; double score = 4; }
+message QueryResponse { repeated QueryResult results = 1; bool partial = 2; }
+message SimilarRequest { string document_hash = 1; int32 limit = 2; shared.PrivacyClass caller_max_privacy = 3; }
+message SimilarResponse { repeated QueryResult results = 1; bool partial = 2; }
