@@ -43,6 +43,9 @@
     "targets": {
       "mattr": 0.42,
       "flesch_kincaid_grade_max": 12
+    },
+    "target_directions": {
+      "flesch_kincaid_grade_max": "at_most"
     }
   }
 }

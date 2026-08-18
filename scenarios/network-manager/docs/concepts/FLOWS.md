@@ -13,7 +13,7 @@ This document captures Network Manager's user/system workflows, lifecycle states
 | Filtering change preview/apply/rollback | Planned P0 | `NM-P0-003` | Persistent changes require approval. |
 | Device inventory refresh | Planned P0 | `NM-P0-004` | Identity confidence must be recorded. |
 | Optimization experiment | Planned P0 | `NM-P0-005` | Baseline/candidate/after with scoring. |
-| Home Automation action/event | Planned P0 | `NM-P0-007` | Consumed by home-automation. |
+| Device Control action/event | Planned P0 | `NM-P0-007` | Consumed through the generalized device-control integration. |
 | Household schedule evaluation | Advisory P1 slice | `NM-P1-001`, `NM-P1-002` | Persisted device/group policy intent and manual-required schedule evaluation; automatic enforcement awaits resolver/router capability. |
 | Continuous monitoring | Advisory P1 slice | `NM-P1-007` | Stored schedules, operator-triggered checks, recurring snapshot intent, and regression alerts. |
 

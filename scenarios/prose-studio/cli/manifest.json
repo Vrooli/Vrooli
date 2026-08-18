@@ -232,6 +232,74 @@
           }
         },
         {
+          "name": "document-list",
+          "description": "List generated documents, newest first",
+          "flags": [
+            {
+              "name": "limit",
+              "description": "Maximum documents to return",
+              "local_only": true,
+              "bind_waiver": "The command's handler decodes this flag into the named field of the typed request before invoking the Connect client, so the value is projected by the handler rather than by a generic dispatcher.",
+              "default": "20"
+            },
+            {
+              "name": "status",
+              "description": "Filter by lifecycle status, for example assembled",
+              "local_only": true,
+              "bind_waiver": "The command's handler decodes this flag into the named field of the typed request before invoking the Connect client, so the value is projected by the handler rather than by a generic dispatcher."
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ProseStudioService",
+            "method": "ListDocuments"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "document-show",
+          "description": "Show one document: its outline, coherence, provenance, and prose",
+          "flags": [
+            {
+              "name": "id",
+              "description": "Document identifier from document-list",
+              "local_only": true,
+              "bind_waiver": "The command's handler decodes this flag into the named field of the typed request before invoking the Connect client, so the value is projected by the handler rather than by a generic dispatcher."
+            },
+            {
+              "name": "text-only",
+              "description": "Print only the assembled prose, with no header",
+              "local_only": true,
+              "bind_waiver": "The command's handler decodes this flag into the named field of the typed request before invoking the Connect client, so the value is projected by the handler rather than by a generic dispatcher.",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ProseStudioService",
+            "method": "GetDocument"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
           "name": "document-create",
           "description": "Create a section-composed document",
           "flags": [
@@ -307,9 +375,13 @@
           "governance": {
             "effect": "write",
             "run_eligible": true,
-            "permissions": ["network:internal"]
+            "permissions": [
+              "network:internal"
+            ]
           },
-          "architecture": {"primitive": "proto_list"}
+          "architecture": {
+            "primitive": "proto_list"
+          }
         },
         {
           "name": "conformance",

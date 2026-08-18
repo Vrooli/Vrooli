@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -1013,4 +1014,259 @@ func (s stubEmbedder) Embed(_ context.Context, req EmbeddingRequest) (EmbeddingR
 		out.Vectors = append(out.Vectors, vector)
 	}
 	return out, nil
+}
+
+// --- provider robustness ---------------------------------------------------
+
+// flakyGateway wraps the fixture and injects provider failures on demand, so a
+// long-form composition can be driven through the failure modes a real provider
+// produces: a malformed candidate set, an unreachable resource, a caller-side
+// defect that no retry can fix.
+type flakyGateway struct {
+	inner *fakeGateway
+	fail  func(call int, req GatewayRequest) error
+	calls int
+	seen  []GatewayRequest
+}
+
+func (f *flakyGateway) Generate(ctx context.Context, req GatewayRequest) ([]GatewayCandidate, error) {
+	f.calls++
+	f.seen = append(f.seen, req)
+	if f.fail != nil {
+		if err := f.fail(f.calls, req); err != nil {
+			return nil, err
+		}
+	}
+	return f.inner.Generate(ctx, req)
+}
+
+func newFlakyService(t *testing.T, fail func(call int, req GatewayRequest) error) (*Service, *flakyGateway) {
+	t.Helper()
+	db, err := sql.Open("sqlite", "file:prose-test?mode=memory&cache=shared")
+	require.NoError(t, err)
+	db.SetMaxOpenConns(1)
+	t.Cleanup(func() { _ = db.Close() })
+	require.NoError(t, EnsureSchema(db))
+	gw := &flakyGateway{inner: &fakeGateway{}, fail: fail}
+	return NewWithGateway(db, gw), gw
+}
+
+func isSectionCall(req GatewayRequest) bool {
+	return strings.Contains(req.Query, "HARD SECTION LENGTH")
+}
+
+func TestTransientProviderFailureDoesNotDiscardTheDocument(t *testing.T) {
+	failed := false
+	s, gw := newFlakyService(t, func(_ int, req GatewayRequest) error {
+		if isSectionCall(req) && !failed {
+			failed = true
+			return fmt.Errorf("%w: candidate 4 carries no text", ErrMalformedCandidateSet)
+		}
+		return nil
+	})
+	ctx := context.Background()
+	_, err := s.CreateProfile(ctx, Profile{Key: "flaky", Sampler: Sampler{Kind: samplerDirect, K: 1}, Budget: Budget{MaxOutputTokens: 128}, Composition: CompositionPolicy{SectionCount: 3}})
+	require.NoError(t, err)
+
+	doc, err := s.CreateDocument(ctx, Document{Title: "A document that survived a bad response", ProfileKey: "flaky"}, nil)
+	require.NoError(t, err, "one malformed candidate set must not discard an otherwise complete article")
+	require.Equal(t, "assembled", doc.Status)
+	require.Len(t, doc.SectionIDs, 3)
+	require.True(t, failed, "the failure must actually have been injected")
+	require.Greater(t, gw.calls, 3)
+}
+
+func TestDeterministicRequestErrorIsNotRetried(t *testing.T) {
+	s, gw := newFlakyService(t, func(_ int, req GatewayRequest) error {
+		if isSectionCall(req) {
+			return fmt.Errorf("gateway refused the assembled context: %w", ErrContextInfeasible)
+		}
+		return nil
+	})
+	ctx := context.Background()
+	_, err := s.CreateProfile(ctx, Profile{Key: "infeasible", Sampler: Sampler{Kind: samplerDirect, K: 1}, Budget: Budget{MaxOutputTokens: 128}, Composition: CompositionPolicy{SectionCount: 3}})
+	require.NoError(t, err)
+
+	_, err = s.CreateDocument(ctx, Document{Title: "A document that cannot fit", ProfileKey: "infeasible"}, nil)
+	require.ErrorIs(t, err, ErrContextInfeasible)
+
+	sectionCalls := 0
+	for _, req := range gw.seen {
+		if isSectionCall(req) {
+			sectionCalls++
+		}
+	}
+	require.Equal(t, 1, sectionCalls, "a caller-side defect yields the same answer every time; retrying only spends money")
+}
+
+func TestExhaustedAttemptsNameTheStepAndTheCause(t *testing.T) {
+	s, _ := newFlakyService(t, func(_ int, req GatewayRequest) error {
+		if isSectionCall(req) {
+			return errors.New("ai-gateway inference: provider value failed local validation")
+		}
+		return nil
+	})
+	ctx := context.Background()
+	_, err := s.CreateProfile(ctx, Profile{Key: "doomed", Sampler: Sampler{Kind: samplerDirect, K: 1}, Budget: Budget{MaxOutputTokens: 128}, Composition: CompositionPolicy{SectionCount: 3, GatewayAttempts: 2}})
+	require.NoError(t, err)
+
+	_, err = s.CreateDocument(ctx, Document{Title: "A document that never lands", ProfileKey: "doomed"}, nil)
+	require.ErrorContains(t, err, "section 0 generation failed after 2 attempts")
+	require.ErrorContains(t, err, "failed local validation", "the provider's own reason must survive the wrapper")
+}
+
+func TestVerbalizedSetFallsBackToADirectDraw(t *testing.T) {
+	// A set that will not decode is a failure of the envelope, not of the
+	// content. Re-asking the same sampler for the same shape tends to fail the
+	// same way, so the last attempt drops the envelope.
+	s, gw := newFlakyService(t, func(_ int, req GatewayRequest) error {
+		if isSectionCall(req) && req.Strategy == samplerVSStandard {
+			return fmt.Errorf("%w: candidate 4 carries no text", ErrMalformedCandidateSet)
+		}
+		return nil
+	})
+	ctx := context.Background()
+	_, err := s.CreateProfile(ctx, Profile{Key: "envelope", Sampler: Sampler{Kind: samplerDirect, K: 1}, Budget: Budget{MaxOutputTokens: 128}, Composition: CompositionPolicy{SectionCount: 3, SectionSamplerKind: samplerVSStandard, SectionCandidates: 5}})
+	require.NoError(t, err)
+
+	doc, err := s.CreateDocument(ctx, Document{Title: "A document whose envelope kept failing", ProfileKey: "envelope"}, nil)
+	require.NoError(t, err)
+	require.Len(t, doc.SectionIDs, 3)
+
+	var sawVerbalized, sawDirect bool
+	for _, req := range gw.seen {
+		if !isSectionCall(req) {
+			continue
+		}
+		sawVerbalized = sawVerbalized || req.Strategy == samplerVSStandard
+		sawDirect = sawDirect || req.Strategy == samplerDirect
+	}
+	require.True(t, sawVerbalized, "the declared sampler must be tried first")
+	require.True(t, sawDirect, "the last attempt must drop to a draw with no envelope to get wrong")
+}
+
+func TestFailedSummarisationDegradesRatherThanDiscardingTheDocument(t *testing.T) {
+	s, _ := newFlakyService(t, func(_ int, req GatewayRequest) error {
+		if req.Role == "extract.structured" {
+			return errors.New("ai-gateway embedding: typed inference is unavailable")
+		}
+		return nil
+	})
+	ctx := context.Background()
+	_, err := s.CreateProfile(ctx, Profile{
+		Key:           "degraded",
+		Sampler:       Sampler{Kind: samplerDirect, K: 1},
+		Budget:        Budget{MaxOutputTokens: 128},
+		ContextPolicy: ContextPolicy{FullTextTokenBudget: 1, SummarizeBeyond: 1},
+		Composition:   CompositionPolicy{SectionCount: 3},
+	})
+	require.NoError(t, err)
+
+	doc, err := s.CreateDocument(ctx, Document{Title: "A document whose summariser was down", ProfileKey: "degraded"}, nil)
+	require.NoError(t, err, "a support call that cannot complete must not cost the whole article")
+	require.Len(t, doc.SectionIDs, 3)
+
+	var last Section
+	require.NoError(t, s.loadJSON(ctx, "prose_sections", doc.SectionIDs[2], &last))
+	require.NotEmpty(t, last.Context.DegradedSummaryRefs, "a locally derived summary must be distinguishable from a written one")
+	require.Len(t, last.Context.DegradedSummaryRefs, len(last.Context.SummarizedSectionRefs))
+	for _, id := range last.Context.DegradedSummaryRefs {
+		require.NotEmpty(t, last.Context.SectionSummaries[id], "a degraded summary still has to carry text")
+	}
+}
+
+func TestDeterministicExcerptIsBoundedAndNonEmpty(t *testing.T) {
+	long := strings.TrimSpace(strings.Repeat("The runner keeps the evidence after the caller disconnects. ", 30))
+	excerpt := deterministicExcerpt(long)
+	require.NotEmpty(t, excerpt)
+	require.LessOrEqual(t, len(strings.Fields(excerpt)), excerptWordBudget+12)
+	require.Less(t, len(excerpt), len(long))
+	require.Equal(t, "", deterministicExcerpt("   "))
+	require.Equal(t, "no terminator here.", deterministicExcerpt("no terminator here"), "a passage with no sentence break still has to summarise to something, and it is terminated")
+}
+
+func TestDeterministicRequestErrorClassification(t *testing.T) {
+	for _, err := range []error{ErrBudgetExceeded, ErrContextInfeasible, ErrEmptyQuery, ErrPromptContainsIdentifier, ErrUnknownLocality, ErrProfileUnregistered, context.Canceled} {
+		require.True(t, deterministicRequestError(fmt.Errorf("wrapped: %w", err)), "%v must not be retried", err)
+	}
+	for _, err := range []error{ErrMalformedCandidateSet, ErrMalformedOutline, errors.New("provider value failed local validation")} {
+		require.False(t, deterministicRequestError(fmt.Errorf("wrapped: %w", err)), "%v is a property of one response and is worth re-asking", err)
+	}
+	require.False(t, deterministicRequestError(nil))
+}
+
+// --- document discovery ----------------------------------------------------
+
+func TestListDocumentsAnswersWhatWasWritten(t *testing.T) {
+	s, _ := newTestService(t)
+	ctx := context.Background()
+	_, err := s.CreateProfile(ctx, Profile{Key: "listing", Sampler: Sampler{Kind: samplerDirect, K: 1}, Budget: Budget{MaxOutputTokens: 128}, Composition: CompositionPolicy{SectionCount: 3}})
+	require.NoError(t, err)
+
+	first, err := s.CreateDocument(ctx, Document{Title: "The first article", ProfileKey: "listing"}, nil)
+	require.NoError(t, err)
+	second, err := s.CreateDocument(ctx, Document{Title: "The second article", ProfileKey: "listing"}, nil)
+	require.NoError(t, err)
+
+	// Nothing previously enumerated documents: a caller could create one,
+	// assemble one by identifier, or resume one by identifier, but had no way to
+	// discover an identifier it was never told.
+	listed, err := s.ListDocuments(ctx, 0, "")
+	require.NoError(t, err)
+	require.GreaterOrEqual(t, len(listed), 2)
+	require.Equal(t, second.ID, listed[0].ID, "newest first")
+	require.Equal(t, first.ID, listed[1].ID)
+	require.Equal(t, "The second article", listed[0].Title)
+	require.Equal(t, 3, listed[0].SectionCount)
+	require.Greater(t, listed[0].WordCount, 100)
+	require.Greater(t, listed[0].TotalCostMicros, int64(0))
+	require.False(t, listed[0].CreatedAt.IsZero(), "a listing ordered by recency has to carry a creation time")
+}
+
+func TestListDocumentsHonoursLimitAndStatus(t *testing.T) {
+	s, _ := newTestService(t)
+	ctx := context.Background()
+	_, err := s.CreateProfile(ctx, Profile{Key: "limits", Sampler: Sampler{Kind: samplerDirect, K: 1}, Budget: Budget{MaxOutputTokens: 128}, Composition: CompositionPolicy{SectionCount: 3}})
+	require.NoError(t, err)
+	for i := 0; i < 3; i++ {
+		_, err := s.CreateDocument(ctx, Document{Title: fmt.Sprintf("Article %d", i), ProfileKey: "limits"}, nil)
+		require.NoError(t, err)
+	}
+
+	limited, err := s.ListDocuments(ctx, 2, "")
+	require.NoError(t, err)
+	require.Len(t, limited, 2)
+
+	assembled, err := s.ListDocuments(ctx, 0, "assembled")
+	require.NoError(t, err)
+	require.NotEmpty(t, assembled)
+	for _, doc := range assembled {
+		require.Equal(t, "assembled", doc.Status)
+	}
+
+	none, err := s.ListDocuments(ctx, 0, "no-such-status")
+	require.NoError(t, err)
+	require.Empty(t, none)
+}
+
+func TestGetDocumentReturnsTheProseAndItsMeasurements(t *testing.T) {
+	s, _ := newTestService(t)
+	ctx := context.Background()
+	_, err := s.CreateProfile(ctx, Profile{Key: "reading", Sampler: Sampler{Kind: samplerDirect, K: 1}, Budget: Budget{MaxOutputTokens: 128}, Composition: CompositionPolicy{SectionCount: 3}})
+	require.NoError(t, err)
+	created, err := s.CreateDocument(ctx, Document{Title: "A readable article", ProfileKey: "reading"}, nil)
+	require.NoError(t, err)
+
+	fetched, err := s.GetDocument(ctx, created.ID)
+	require.NoError(t, err)
+	require.Equal(t, created.ID, fetched.ID)
+	require.NotEmpty(t, fetched.AssembledText, "reading a document must return its prose")
+	require.Len(t, fetched.Outline, 3, "and the plan it was written against")
+	require.NotNil(t, fetched.Coherence)
+	require.Equal(t, 3, fetched.Provenance.SectionCount)
+
+	_, err = s.GetDocument(ctx, "")
+	require.ErrorIs(t, err, ErrDocumentIDRequired)
+	_, err = s.GetDocument(ctx, "not-a-document")
+	require.ErrorIs(t, err, ErrDocumentNotFound, "a missing document is not found, not an invalid argument")
 }

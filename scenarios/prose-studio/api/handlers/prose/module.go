@@ -25,7 +25,7 @@ func Module(service *internal.Service) module.Module {
 	return module.Module{Name: "prose", Mount: func(r *mux.Router) {
 		path, connectHandler := connectv1.NewProseStudioServiceHandler(h)
 		r.PathPrefix(path).Handler(connectHandler)
-		for _, op := range []string{"registry", "styles", "profiles/resolve", "generate", "sessions/reroll", "sessions/action", "declarations/reindex", "declarations/validate", "documents", "documents/assemble", "documents/resume", "conformance"} {
+		for _, op := range []string{"registry", "styles", "profiles/resolve", "generate", "sessions/reroll", "sessions/action", "declarations/reindex", "declarations/validate", "documents", "documents/list", "documents/get", "documents/assemble", "documents/resume", "conformance"} {
 			r.HandleFunc("/api/v1/prose/"+op, h.rest).Methods(http.MethodPost)
 		}
 	}, Endpoints: Endpoints}
@@ -132,6 +132,30 @@ func (h *handler) ValidateDeclarations(ctx context.Context, req *connect.Request
 	return connect.NewResponse(&response), nil
 }
 
+func (h *handler) ListDocuments(ctx context.Context, req *connect.Request[v1.ListDocumentsRequest]) (*connect.Response[v1.ListDocumentsResponse], error) {
+	out, err := h.service.ListDocuments(ctx, int(req.Msg.GetLimit()), req.Msg.GetStatus())
+	if err != nil {
+		return nil, connect.NewError(codeFor(err), err)
+	}
+	var response v1.ListDocumentsResponse
+	if err := encodeResponse(map[string]any{"documents": out}, &response); err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&response), nil
+}
+
+func (h *handler) GetDocument(ctx context.Context, req *connect.Request[v1.GetDocumentRequest]) (*connect.Response[v1.GetDocumentResponse], error) {
+	out, err := h.service.GetDocument(ctx, req.Msg.GetId())
+	if err != nil {
+		return nil, connect.NewError(codeFor(err), err)
+	}
+	var response v1.GetDocumentResponse
+	if err := encodeResponse(map[string]any{"document": out}, &response); err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&response), nil
+}
+
 func (h *handler) CreateDocument(ctx context.Context, req *connect.Request[v1.CreateDocumentRequest]) (*connect.Response[v1.CreateDocumentResponse], error) {
 	var in struct {
 		Document internal.Document  `json:"document"`
@@ -211,7 +235,7 @@ func encodeResponse(value any, message proto.Message) error {
 
 func (h *handler) rest(w http.ResponseWriter, r *http.Request) {
 	op := strings.TrimPrefix(r.URL.Path, "/api/v1/prose/")
-	op = map[string]string{"registry": "registry", "styles": "create_style", "profiles/resolve": "resolve_profile", "generate": "generate", "sessions/reroll": "reroll", "sessions/action": "session_action", "declarations/reindex": "reindex", "declarations/validate": "validate", "documents": "create_document", "documents/assemble": "assemble", "documents/resume": "resume", "conformance": "conformance"}[op]
+	op = map[string]string{"registry": "registry", "styles": "create_style", "profiles/resolve": "resolve_profile", "generate": "generate", "sessions/reroll": "reroll", "sessions/action": "session_action", "declarations/reindex": "reindex", "declarations/validate": "validate", "documents": "create_document", "documents/list": "list_documents", "documents/get": "get_document", "documents/assemble": "assemble", "documents/resume": "resume", "conformance": "conformance"}[op]
 	var raw json.RawMessage
 	if err := json.NewDecoder(r.Body).Decode(&raw); err != nil {
 		writeError(w, connect.CodeInvalidArgument, err)
@@ -324,6 +348,33 @@ func (h *handler) dispatch(ctx context.Context, op string, raw json.RawMessage) 
 			return nil, err
 		}
 		value = out
+	case "list_documents":
+		var in struct {
+			Limit  int    `json:"limit"`
+			Status string `json:"status"`
+		}
+		if len(raw) > 0 {
+			if err := json.Unmarshal(raw, &in); err != nil {
+				return nil, err
+			}
+		}
+		out, err := h.service.ListDocuments(ctx, in.Limit, in.Status)
+		if err != nil {
+			return nil, err
+		}
+		value = map[string]any{"documents": out}
+	case "get_document":
+		var in struct {
+			ID string `json:"id"`
+		}
+		if err := json.Unmarshal(raw, &in); err != nil {
+			return nil, err
+		}
+		out, err := h.service.GetDocument(ctx, in.ID)
+		if err != nil {
+			return nil, err
+		}
+		value = out
 	case "assemble":
 		var in struct {
 			ID string `json:"id"`
@@ -373,6 +424,8 @@ func codeFor(err error) connect.Code {
 		return connect.CodeFailedPrecondition
 	case errors.Is(err, internal.ErrProfileDeclared), errors.Is(err, internal.ErrProfileUnregistered), errors.Is(err, internal.ErrBudgetExceeded), errors.Is(err, internal.ErrContextInfeasible):
 		return connect.CodeFailedPrecondition
+	case errors.Is(err, internal.ErrDocumentNotFound):
+		return connect.CodeNotFound
 	default:
 		return connect.CodeInvalidArgument
 	}
@@ -393,6 +446,8 @@ var Endpoints = []module.EndpointDescriptor{
 	{ID: "prose_session_action", Path: connectv1.ProseStudioServiceSessionActionProcedure, Method: http.MethodPost, Summary: "Pin, unpin, reject, refine, or abandon a session", Category: "sessions"},
 	{ID: "prose_reindex_declarations", Path: connectv1.ProseStudioServiceReindexDeclarationsProcedure, Method: http.MethodPost, Summary: "Register consumer-owned declaration files", Category: "declarations"},
 	{ID: "prose_validate_declarations", Path: connectv1.ProseStudioServiceValidateDeclarationsProcedure, Method: http.MethodPost, Summary: "Validate declarations without test-genie", Category: "declarations"},
+	{ID: "prose_list_documents", Path: connectv1.ProseStudioServiceListDocumentsProcedure, Method: http.MethodPost, Summary: "List generated documents, newest first", Category: "documents"},
+	{ID: "prose_get_document", Path: connectv1.ProseStudioServiceGetDocumentProcedure, Method: http.MethodPost, Summary: "Read one document with its outline, coherence, and provenance", Category: "documents"},
 	{ID: "prose_create_document", Path: connectv1.ProseStudioServiceCreateDocumentProcedure, Method: http.MethodPost, Summary: "Create a section-composed document", Category: "documents"},
 	{ID: "prose_assemble_document", Path: connectv1.ProseStudioServiceAssembleDocumentProcedure, Method: http.MethodPost, Summary: "Assemble committed sections to ordered text", Category: "documents"},
 	{ID: "prose_resume_document", Path: connectv1.ProseStudioServiceResumeDocumentProcedure, Method: http.MethodPost, Summary: "Resume a partially committed document", Category: "documents"},

@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Requirement stubs scaffolded from the P0 operational targets.",
-    "last_validated_at": "2026-08-17T16:49:49-04:00",
+    "last_validated_at": "2026-08-18T17:14:37-04:00",
     "module": "P0-targets",
     "priority": "P0",
     "schema_version": "1.0.0"
@@ -633,6 +633,40 @@
           "phase": "unit",
           "status": "implemented",
           "notes": "Focused unit tests in the long-form composition group cover this requirement."
+        }
+      ]
+    },
+    {
+      "id": "PS-P0-038",
+      "title": "Long-form survives a single bad provider response",
+      "status": "complete",
+      "prd_ref": "OT-P0-038",
+      "criticality": "P0",
+      "description": "The system shall re-ask the provider for a failed long-form step within a declared attempt budget, shall not re-ask when the failure is a caller-side defect that would yield the same answer, shall drop a repeatedly undecodable candidate envelope to a direct draw on its final attempt, and shall degrade a failed summarising call to a recorded deterministic excerpt rather than discarding an otherwise complete document",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "api/internal/prose/service_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Fault-injecting gateway tests drive the composition through a malformed candidate set, an unreachable summariser, a caller-side defect, and an exhausted attempt budget."
+        }
+      ]
+    },
+    {
+      "id": "PS-P0-039",
+      "title": "Document discovery and reading",
+      "status": "complete",
+      "prd_ref": "OT-P0-039",
+      "criticality": "P0",
+      "description": "The system shall enumerate generated documents newest-first with a bounded, status-filterable listing, shall return one document with its prose, outline, coherence, and provenance by identifier, shall expose both over Connect-RPC and as CLI verbs with typed flags rather than a raw request payload, and shall render them for a reader rather than as a serialized message",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "api/internal/prose/service_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Listing order, limit, status filter, and typed not-found behaviour are covered by focused tests; the CLI verbs were exercised against the running scenario."
         }
       ]
     }

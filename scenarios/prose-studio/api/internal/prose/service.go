@@ -41,6 +41,8 @@ var (
 	ErrMalformedCandidateSet    = errors.New("malformed_candidate_set")
 	ErrMalformedOutline         = errors.New("malformed_outline")
 	ErrDeclarationRootMissing   = errors.New("declaration_root_missing")
+	ErrDocumentIDRequired       = errors.New("document_id_is_required")
+	ErrDocumentNotFound         = errors.New("document_not_found")
 	ErrPromptContainsIdentifier = errors.New("prompt_contains_record_identifier")
 )
 
@@ -1358,6 +1360,9 @@ func (s *Service) CreateDocument(ctx context.Context, doc Document, sections []S
 	if doc.ID == "" {
 		doc.ID = uuid.NewString()
 	}
+	if doc.CreatedAt.IsZero() {
+		doc.CreatedAt = s.now().UTC()
+	}
 	doc.Status = "draft"
 	if len(sections) == 0 {
 		return s.generateDocument(ctx, doc)
@@ -1376,6 +1381,84 @@ func (s *Service) CreateDocument(ctx context.Context, doc Document, sections []S
 		return Document{}, err
 	}
 	return doc, nil
+}
+
+// ListDocuments answers "what has this scenario written?", newest first.
+//
+// It exists because nothing did. A caller could create a document, assemble one
+// by identifier, or resume one by identifier, but there was no way to discover
+// an identifier in the first place, so reading back a generated article meant
+// querying the SQLite file directly. A listing is not a convenience here; it is
+// the entry point the rest of the document surface assumed and never provided.
+func (s *Service) ListDocuments(ctx context.Context, limit int, status string) ([]DocumentSummary, error) {
+	if limit <= 0 {
+		limit = defaultDocumentListLimit
+	}
+	if limit > maxDocumentListLimit {
+		limit = maxDocumentListLimit
+	}
+	// rowid is insertion order and is not disturbed by the repeated upserts a
+	// document takes during generation, so it is the durable creation order even
+	// for records written before created_at existed.
+	rows, err := s.db.QueryContext(ctx, "SELECT payload FROM prose_documents ORDER BY rowid DESC")
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+	wanted := strings.TrimSpace(status)
+	summaries := make([]DocumentSummary, 0, limit)
+	for rows.Next() {
+		if len(summaries) >= limit {
+			break
+		}
+		var raw string
+		if err := rows.Scan(&raw); err != nil {
+			return nil, err
+		}
+		var doc Document
+		if err := json.Unmarshal([]byte(raw), &doc); err != nil {
+			// One unreadable row must not hide every other document.
+			continue
+		}
+		if wanted != "" && !strings.EqualFold(doc.Status, wanted) {
+			continue
+		}
+		summaries = append(summaries, summarizeDocument(doc))
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return summaries, nil
+}
+
+// GetDocument returns one document with its assembled text, outline, coherence,
+// and provenance.
+func (s *Service) GetDocument(ctx context.Context, documentID string) (Document, error) {
+	if strings.TrimSpace(documentID) == "" {
+		return Document{}, ErrDocumentIDRequired
+	}
+	var doc Document
+	if err := s.loadJSON(ctx, "prose_documents", documentID, &doc); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return Document{}, fmt.Errorf("%w: %s", ErrDocumentNotFound, documentID)
+		}
+		return Document{}, err
+	}
+	return doc, nil
+}
+
+func summarizeDocument(doc Document) DocumentSummary {
+	return DocumentSummary{
+		ID:              doc.ID,
+		Title:           doc.Title,
+		ProfileKey:      doc.ProfileKey,
+		Status:          doc.Status,
+		WordCount:       doc.Provenance.WordCount,
+		SectionCount:    doc.Provenance.SectionCount,
+		TotalCostMicros: doc.Provenance.TotalCostMicros,
+		CreatedAt:       doc.CreatedAt,
+		Coherent:        coherenceVerdictPassed(doc.Coherence),
+	}
 }
 
 // ResumeDocument continues a document from its durable outline and committed
@@ -1451,7 +1534,7 @@ func (s *Service) generateDocument(ctx context.Context, doc Document) (Document,
 		}
 		sectionCount, minSections, maxSections := resolveSectionPlan(doc, sectionProfile, overallMaxWords)
 		outlineQuery := fmt.Sprintf("Create a concise ordered outline as a JSON array of %d sections for: %s. Each section must carry a distinct claim and advance the argument; no two sections may restate the same point in different words. The %d target_words values must sum to between %d and %d words for the assembled article.", sectionCount, doc.Title, sectionCount, overallMinWords, overallMaxWords)
-		outline, err := s.generateWithProfile(ctx, GenerateRequest{ProfileKey: outlineProfileKey, Query: outlineQuery, SchemaJSON: outlineSchema, IncludeCandidates: true}, outlineProfile)
+		outline, err := s.generateWithRetry(ctx, GenerateRequest{ProfileKey: outlineProfileKey, Query: outlineQuery, SchemaJSON: outlineSchema, IncludeCandidates: true}, outlineProfile, "outline generation")
 		if err != nil {
 			return Document{}, err
 		}
@@ -1468,7 +1551,7 @@ func (s *Service) generateDocument(ctx context.Context, doc Document) (Document,
 			// section because minItems is intentionally outside the gateway's
 			// enforceable subset. Retry with the named structural requirement;
 			// never manufacture a fallback outline in the service.
-			outline, err = s.generateWithProfile(ctx, GenerateRequest{ProfileKey: outlineProfileKey, Query: outlineQuery + fmt.Sprintf(" Return a JSON array of between %d and %d ordered section objects; do not return a single object and do not return fewer than %d.", minSections, maxSections, minSections), SchemaJSON: outlineSchema, IncludeCandidates: true}, outlineProfile)
+			outline, err = s.generateWithRetry(ctx, GenerateRequest{ProfileKey: outlineProfileKey, Query: outlineQuery + fmt.Sprintf(" Return a JSON array of between %d and %d ordered section objects; do not return a single object and do not return fewer than %d.", minSections, maxSections, minSections), SchemaJSON: outlineSchema, IncludeCandidates: true}, outlineProfile, "outline retry")
 			if err != nil {
 				return Document{}, err
 			}
@@ -1580,7 +1663,7 @@ func (s *Service) produceSection(ctx context.Context, doc Document, sectionProfi
 	sectionProfile.Sampler.Kind, sectionProfile.Sampler.K = sectionSampler(sectionProfile)
 	sectionQuery := fmt.Sprintf("%s\n\n%s\n\n%s\n\nHARD SECTION LENGTH: write between %d and %d words; aim for approximately %d words. A section materially shorter than the floor is rejected.", doc.Title, planned.Intent, contextText, sectionMinWords, sectionMaxWords, sectionTargetWords)
 	selectionContext := &SelectionContext{PriorText: s.committedSectionTexts(ctx, prior), TargetWords: sectionTargetWords}
-	generated, err := s.generateWithProfile(ctx, GenerateRequest{ProfileKey: sectionProfile.Key, Query: sectionQuery, IncludeCandidates: true, Negative: negative, Selection: selectionContext}, sectionProfile)
+	generated, err := s.generateWithRetry(ctx, GenerateRequest{ProfileKey: sectionProfile.Key, Query: sectionQuery, IncludeCandidates: true, Negative: negative, Selection: selectionContext}, sectionProfile, fmt.Sprintf("section %d generation", position))
 	if err != nil {
 		return Section{}, err
 	}
@@ -1594,7 +1677,7 @@ func (s *Service) produceSection(ctx context.Context, doc Document, sectionProfi
 		// than to abandon the article or to widen the band until it passes.
 		shortfall := closestMiss(generated.Candidates)
 		retryQuery := sectionQuery + fmt.Sprintf("\n\nThe previous attempt was rejected: it produced %d words against a floor of %d. Write a longer section by developing the point with a concrete example and its consequence, not by adding adjectives or restating the same sentence.", shortfall, sectionMinWords)
-		generated, err = s.generateWithProfile(ctx, GenerateRequest{ProfileKey: sectionProfile.Key, Query: retryQuery, IncludeCandidates: true, Negative: negative, SessionID: generated.Session.ID, Selection: selectionContext}, sectionProfile)
+		generated, err = s.generateWithRetry(ctx, GenerateRequest{ProfileKey: sectionProfile.Key, Query: retryQuery, IncludeCandidates: true, Negative: negative, SessionID: generated.Session.ID, Selection: selectionContext}, sectionProfile, fmt.Sprintf("section %d length retry", position))
 		if err != nil {
 			return Section{}, err
 		}
@@ -1787,6 +1870,10 @@ const (
 	defaultSectionOutputFloor   = 2048
 	defaultSectionTokenHeadroom = 6
 	minimumEmbeddingDimension   = 64
+	defaultDocumentListLimit    = 20
+	maxDocumentListLimit        = 200
+	defaultGatewayAttempts      = 3
+	excerptWordBudget           = 60
 	defaultMaxSections          = 9
 	policyContinuation          = "continuation_least_redundant"
 )
@@ -1887,6 +1974,115 @@ func sectionSelectionPolicy(profile Profile) string {
 		return policy
 	}
 	return policyContinuation
+}
+
+// deterministicRequestError reports whether re-asking the provider would be
+// pointless. These are caller-side defects: the same request yields the same
+// answer, so retrying only spends money and delays the real error. Everything
+// else -- a malformed candidate set, a schema validation failure, an
+// unreachable provider -- is a property of one response and is worth re-asking.
+func deterministicRequestError(err error) bool {
+	if err == nil {
+		return false
+	}
+	for _, deterministic := range []error{
+		ErrBudgetExceeded,
+		ErrContextInfeasible,
+		ErrEmptyQuery,
+		ErrPromptContainsIdentifier,
+		ErrUnknownLocality,
+		ErrUnknownTemperature,
+		ErrProfileUnregistered,
+		ErrProfileDeclared,
+		ErrStyleResolutionConflict,
+	} {
+		if errors.Is(err, deterministic) {
+			return true
+		}
+	}
+	return errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded)
+}
+
+func gatewayAttempts(profile Profile) int {
+	if declared := profile.Composition.GatewayAttempts; declared > 0 {
+		return declared
+	}
+	return defaultGatewayAttempts
+}
+
+// generateWithRetry re-asks the provider for one long-form step.
+//
+// A document is not one request. It is an outline call, a call per section,
+// a summarising call per carried predecessor, and a call per repair round, and
+// every one of them was previously able to discard the whole document by coming
+// back malformed once. Providers are stochastic: the same request that returned
+// a candidate set missing a required field returns a well-formed one on the next
+// attempt often enough that abandoning an otherwise complete article for it is
+// the wrong trade.
+//
+// The last attempt drops a verbalized draw to a direct one. A set that will not
+// decode is a failure of the envelope rather than of the content, and re-asking
+// the same sampler for the same shape tends to fail the same way; a direct draw
+// has no envelope to get wrong. Diversity is what is given up, and for a section
+// that is the cheaper loss -- continuation wants the best next passage, not a
+// distribution over framings.
+func (s *Service) generateWithRetry(ctx context.Context, req GenerateRequest, profile Profile, step string) (GenerateResponse, error) {
+	attempts := gatewayAttempts(profile)
+	var last error
+	for attempt := 1; attempt <= attempts; attempt++ {
+		out, err := s.generateWithProfile(ctx, req, profile)
+		if err == nil {
+			return out, nil
+		}
+		if deterministicRequestError(err) {
+			return GenerateResponse{}, err
+		}
+		last = err
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return GenerateResponse{}, ctxErr
+		}
+		if attempt == attempts-1 && profile.Sampler.Kind != samplerDirect {
+			profile.Sampler.Kind = samplerDirect
+			profile.Sampler.K = minInt(maxInt(1, profile.Sampler.K), defaultSectionCandidates)
+		}
+	}
+	return GenerateResponse{}, fmt.Errorf("%s failed after %d attempts: %w", step, attempts, last)
+}
+
+// deterministicExcerpt is the summary of last resort: the opening sentences of
+// a passage, up to a bounded length. It is not a good summary and is not meant
+// to be one. It exists so that a summarising call that cannot be completed
+// costs the later sections some context quality instead of costing the operator
+// the entire article, and the snapshot records which sections carried one.
+func deterministicExcerpt(text string) string {
+	trimmed := strings.TrimSpace(text)
+	if trimmed == "" {
+		return ""
+	}
+	var out []string
+	words := 0
+	for _, sentence := range strings.FieldsFunc(trimmed, func(r rune) bool { return r == '.' || r == '!' || r == '?' }) {
+		sentence = strings.TrimSpace(sentence)
+		if sentence == "" {
+			continue
+		}
+		out = append(out, sentence)
+		words += len(strings.Fields(sentence))
+		if words >= excerptWordBudget {
+			break
+		}
+	}
+	if len(out) == 0 {
+		return trimmed
+	}
+	return strings.Join(out, ". ") + "."
+}
+
+func minInt(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 // sectionOutputCap sizes the output budget for one section.
@@ -2059,12 +2255,14 @@ func (s *Service) prepareContextSnapshot(ctx context.Context, doc Document, prio
 		tokens := estimateContextTokens(candidate.Text)
 		shouldSummarize := !profile.ContextPolicy.AlwaysFullPrevious && (fullTokens+tokens > fullBudget || fullTokens+tokens > summarizeBeyond)
 		if shouldSummarize {
-			summary, err := s.summarizeSection(ctx, candidate.Text)
-			if err != nil {
-				return ContextSnapshot{}, err
-			}
+			summary, degraded := s.summarizeSection(ctx, candidate.Text)
 			snapshot.SummarizedSectionRefs = append([]string{section.ID}, snapshot.SummarizedSectionRefs...)
 			snapshot.SectionSummaries[section.ID] = summary
+			if degraded {
+				// Losing the summary of one predecessor costs later sections some
+				// context quality. Losing the article costs the operator the run.
+				snapshot.DegradedSummaryRefs = append([]string{section.ID}, snapshot.DegradedSummaryRefs...)
+			}
 		} else {
 			snapshot.FullTextSectionRefs = append([]string{section.ID}, snapshot.FullTextSectionRefs...)
 			fullTokens += tokens
@@ -2078,15 +2276,18 @@ func (s *Service) prepareContextSnapshot(ctx context.Context, doc Document, prio
 	return snapshot, nil
 }
 
-func (s *Service) summarizeSection(ctx context.Context, text string) (string, error) {
+// summarizeSection compresses a prior section for the context budget. It
+// reports whether the result is a deterministic excerpt rather than a written
+// summary, and never fails: a summarising call is a supporting request inside a
+// larger composition, and discarding a nearly complete article because one
+// support call did not return is a worse outcome than carrying a weaker summary
+// into the sections that follow.
+func (s *Service) summarizeSection(ctx context.Context, text string) (string, bool) {
 	responses, err := s.gateway.Generate(ctx, GatewayRequest{Role: "extract.structured", Instruction: "Summarize the supplied prose faithfully in two or three sentences. Return only the summary.", Query: text, Strategy: samplerDirect, K: 1, MaxOutputTokens: 256})
-	if err != nil {
-		return "", fmt.Errorf("summarize prior section: %w", err)
+	if err != nil || len(responses) == 0 || strings.TrimSpace(responses[0].Text) == "" {
+		return deterministicExcerpt(text), true
 	}
-	if len(responses) == 0 || strings.TrimSpace(responses[0].Text) == "" {
-		return "", errors.New("summarize prior section: gateway returned no text")
-	}
-	return responses[0].Text, nil
+	return responses[0].Text, false
 }
 
 // assembleSectionContext is the single seam where record references become

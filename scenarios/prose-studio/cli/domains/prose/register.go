@@ -20,6 +20,8 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		"ProseStudioService.SessionAction":        cliapp.ProtoList(h.sessionActionCall, protoReport[*v1.SessionActionResponse]("Prose Studio session")),
 		"ProseStudioService.ReindexDeclarations":  cliapp.ProtoList(h.reindexCall, protoReport[*v1.ReindexDeclarationsResponse]("Prose Studio declarations")),
 		"ProseStudioService.ValidateDeclarations": cliapp.ProtoList(h.validateCall, protoReport[*v1.ValidateDeclarationsResponse]("Prose Studio declaration validation")),
+		"ProseStudioService.ListDocuments":        cliapp.ProtoList(h.listDocumentsCall, documentListReport),
+		"ProseStudioService.GetDocument":          cliapp.ProtoList(h.getDocumentCall, documentShowReport),
 		"ProseStudioService.CreateDocument":       cliapp.ProtoList(h.createDocumentCall, protoReport[*v1.CreateDocumentResponse]("Prose Studio document")),
 		"ProseStudioService.AssembleDocument":     cliapp.ProtoList(h.assembleDocumentCall, protoReport[*v1.AssembleDocumentResponse]("Prose Studio assembled document")),
 		"ProseStudioService.ResumeDocument":       cliapp.ProtoList(h.resumeDocumentCall, protoReport[*v1.ResumeDocumentResponse]("Prose Studio resumed document")),

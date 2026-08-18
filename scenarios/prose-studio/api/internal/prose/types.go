@@ -201,11 +201,28 @@ type Document struct {
 	AssembledText         string    `json:"assembled_text,omitempty"`
 	Coherence             any       `json:"coherence,omitempty"`
 	Sections              []Section `json:"sections,omitempty"`
+	// CreatedAt exists so a reader can ask for the most recent documents without
+	// already knowing an identifier nobody told them.
+	CreatedAt time.Time `json:"created_at,omitempty"`
 	// Provenance for the document as a whole. A long-form run costs one outline
 	// call plus one call per section plus any repair, and none of that is
 	// visible in a single round's accounting; a caller reading a standalone
 	// generate call's cost was reading a different request entirely.
 	Provenance DocumentProvenance `json:"document_provenance,omitempty"`
+}
+
+// DocumentSummary is the listing shape: enough to choose which document to
+// read, without carrying the prose of every document into the response.
+type DocumentSummary struct {
+	ID              string    `json:"id"`
+	Title           string    `json:"title"`
+	ProfileKey      string    `json:"profile_key,omitempty"`
+	Status          string    `json:"status"`
+	WordCount       int       `json:"word_count"`
+	SectionCount    int       `json:"section_count"`
+	TotalCostMicros int64     `json:"total_cost_micros"`
+	CreatedAt       time.Time `json:"created_at,omitempty"`
+	Coherent        bool      `json:"coherent"`
 }
 
 // DocumentProvenance aggregates what an assembled document actually consumed.
@@ -268,6 +285,12 @@ type CompositionPolicy struct {
 	// the best continuation of a framing already chosen. Drawing sections
 	// through the verbalized envelope also buys a failure mode composition has
 	// no use for, since one malformed entry in the set fails the whole document.
+	// GatewayAttempts bounds how many times one long-form step re-asks the
+	// provider before the document fails. Long-form is a multi-request
+	// composition -- one outline call, one call per section, plus summarisation
+	// and repair -- and at that arity a single malformed provider response is an
+	// ordinary event rather than an exceptional one. Zero uses the default.
+	GatewayAttempts int `json:"gateway_attempts,omitempty"`
 	// SectionMaxOutputTokens overrides the derived per-section output budget.
 	SectionMaxOutputTokens int    `json:"section_max_output_tokens,omitempty"`
 	SectionSamplerKind     string `json:"section_sampler_kind,omitempty"`
@@ -332,14 +355,19 @@ type Section struct {
 	Context              ContextSnapshot `json:"context_snapshot"`
 }
 type ContextSnapshot struct {
-	OutlineRef            string            `json:"outline_ref,omitempty"`
-	OutlineText           string            `json:"outline_text,omitempty"`
-	PriorSectionRefs      []string          `json:"prior_section_refs,omitempty"`
-	FullTextSectionRefs   []string          `json:"full_text_section_refs,omitempty"`
-	FollowingIntents      []string          `json:"following_intents,omitempty"`
-	SummarizedSectionRefs []string          `json:"summarized_section_refs,omitempty"`
-	SectionSummaries      map[string]string `json:"section_summaries,omitempty"`
-	EstimatedTokens       int               `json:"estimated_tokens"`
+	OutlineRef            string   `json:"outline_ref,omitempty"`
+	OutlineText           string   `json:"outline_text,omitempty"`
+	PriorSectionRefs      []string `json:"prior_section_refs,omitempty"`
+	FullTextSectionRefs   []string `json:"full_text_section_refs,omitempty"`
+	FollowingIntents      []string `json:"following_intents,omitempty"`
+	SummarizedSectionRefs []string `json:"summarized_section_refs,omitempty"`
+	// DegradedSummaryRefs names sections whose summary came from a deterministic
+	// excerpt because the summarising call could not be completed. The snapshot
+	// records what it carried, so a locally derived summary must be
+	// distinguishable from a model-written one rather than silently equivalent.
+	DegradedSummaryRefs []string          `json:"degraded_summary_refs,omitempty"`
+	SectionSummaries    map[string]string `json:"section_summaries,omitempty"`
+	EstimatedTokens     int               `json:"estimated_tokens"`
 }
 
 type Declaration struct {

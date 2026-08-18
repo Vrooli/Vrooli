@@ -55,6 +55,8 @@
 - [x] OT-P0-035 | Coherence failure causes work | The system shall regenerate the most redundant section under negative conditioning while a declared repair budget remains, shall rewrite that section in place rather than appending one, and shall report the honest failed verdict when the budget is exhausted
 - [x] OT-P0-036 | Semantic document coherence | The system shall measure semantic cross-section repetition over section embeddings alongside the lexical measure, and shall report the measurement as unavailable rather than as a pass when the embedding tier cannot be reached
 - [x] OT-P0-037 | Whole-document provenance | The system shall report the cost, tokens, providers, and models that an assembled document actually consumed across its outline, section, and repair requests
+- [x] OT-P0-038 | Long-form survives a single bad provider response | The system shall re-ask the provider for a failed long-form step within a declared attempt budget, shall not re-ask when the failure is a caller-side defect that would yield the same answer, shall drop a repeatedly undecodable candidate envelope to a direct draw on its final attempt, and shall degrade a failed summarising call to a recorded deterministic excerpt rather than discarding an otherwise complete document
+- [x] OT-P0-039 | Document discovery and reading | The system shall enumerate generated documents newest-first with a bounded, status-filterable listing, shall return one document with its prose, outline, coherence, and provenance by identifier, shall expose both over Connect-RPC and as CLI verbs with typed flags rather than a raw request payload, and shall render them for a reader rather than as a serialized message
 
 ### 🟠 P1 – Should have post-launch
 

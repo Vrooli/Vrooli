@@ -11,7 +11,7 @@
     "04-device-inventory/module.json",
     "05-safe-optimization-experiments/module.json",
     "06-capability-adapter-model/module.json",
-    "07-home-automation-integration/module.json",
+    "07-device-control-integration/module.json",
     "08-privacy-preserving-defaults/module.json",
     "09-operator-ui-cli-workflows/module.json",
     "10-household-policy-profiles/module.json",
