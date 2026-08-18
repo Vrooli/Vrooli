@@ -29,4 +29,15 @@ var Endpoints = []module.EndpointDescriptor{
 		Response:    &module.Schema{Type: "RunBatchResponse", Properties: map[string]string{"results": "RunResponse[]", "usage": "Usage"}},
 		Errors:      []module.ErrorDesc{{Status: 400, Code: "invalid_argument", Description: "The batch size or schema is invalid"}},
 	},
+	{
+		ID:          "inference_embed",
+		Path:        inferenceconnect.InferenceServiceEmbedProcedure,
+		Method:      "POST",
+		Summary:     "Return gateway-owned embedding vectors",
+		Description: "Resolves the embedding.default role and returns one vector per input text in request order.",
+		Category:    "inference",
+		Request:     &module.Schema{Type: "EmbedRequest", Properties: map[string]string{"texts": "string[]", "role": "string", "sampling": "SamplingControls"}},
+		Response:    &module.Schema{Type: "EmbedResponse", Properties: map[string]string{"vectors": "EmbeddingVector[]", "provider": "string", "model": "string", "dimension": "int32", "usage": "Usage", "error": "InferenceError"}},
+		Errors:      []module.ErrorDesc{{Status: 400, Code: "invalid_argument", Description: "The role, texts, or sampling controls are invalid"}},
+	},
 }

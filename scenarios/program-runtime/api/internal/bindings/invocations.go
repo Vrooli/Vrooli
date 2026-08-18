@@ -24,9 +24,14 @@ type Invocation struct {
 	UsageInputTokens  int64
 	UsageOutputTokens int64
 	UsageCostMicros   int64
-	Origin            string
-	InvocationClass   string
-	OccurredAt        time.Time
+	// ServedByProvider/ServedByModel record which route actually answered, so a
+	// slow call caused by a dead local candidate is distinguishable from a slow
+	// model. Empty for bindings that carry no route metadata.
+	ServedByProvider string
+	ServedByModel    string
+	Origin           string
+	InvocationClass  string
+	OccurredAt       time.Time
 }
 
 type InvocationRecorder interface {
@@ -54,9 +59,9 @@ func (r *invocationRepository) RecordInvocation(ctx context.Context, in Invocati
 		in.InvocationClass = classifyInvocation(in)
 	}
 	_, err := r.db.ExecContext(ctx, `INSERT INTO binding_invocations
- (invocation_id, binding_id, target_scenario, session_id, program_id, provenance, outcome, reason, latency_ms, usage_input_tokens, usage_output_tokens, usage_cost_micros, origin, invocation_class, occurred_at)
- VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		in.InvocationID, in.BindingID, in.TargetScenario, in.SessionID, in.ProgramID, in.Provenance, in.Outcome, in.Reason, in.LatencyMS, in.UsageInputTokens, in.UsageOutputTokens, in.UsageCostMicros, in.Origin, in.InvocationClass, in.OccurredAt.UTC().Format(time.RFC3339Nano))
+ (invocation_id, binding_id, target_scenario, session_id, program_id, provenance, outcome, reason, latency_ms, usage_input_tokens, usage_output_tokens, usage_cost_micros, served_by_provider, served_by_model, origin, invocation_class, occurred_at)
+ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		in.InvocationID, in.BindingID, in.TargetScenario, in.SessionID, in.ProgramID, in.Provenance, in.Outcome, in.Reason, in.LatencyMS, in.UsageInputTokens, in.UsageOutputTokens, in.UsageCostMicros, in.ServedByProvider, in.ServedByModel, in.Origin, in.InvocationClass, in.OccurredAt.UTC().Format(time.RFC3339Nano))
 	if err != nil {
 		return fmt.Errorf("record binding invocation: %w", err)
 	}
@@ -64,7 +69,7 @@ func (r *invocationRepository) RecordInvocation(ctx context.Context, in Invocati
 }
 
 func (r *invocationRepository) ListInvocations(ctx context.Context, since time.Time, bindingID, scenario string) ([]Invocation, error) {
-	query := `SELECT invocation_id, binding_id, target_scenario, session_id, program_id, provenance, outcome, reason, latency_ms, usage_input_tokens, usage_output_tokens, usage_cost_micros, origin, invocation_class, occurred_at FROM binding_invocations WHERE occurred_at >= ?`
+	query := `SELECT invocation_id, binding_id, target_scenario, session_id, program_id, provenance, outcome, reason, latency_ms, usage_input_tokens, usage_output_tokens, usage_cost_micros, served_by_provider, served_by_model, origin, invocation_class, occurred_at FROM binding_invocations WHERE occurred_at >= ?`
 	args := []any{since.UTC().Format(time.RFC3339Nano)}
 	if bindingID != "" {
 		query += " AND binding_id = ?"
@@ -84,7 +89,7 @@ func (r *invocationRepository) ListInvocations(ctx context.Context, since time.T
 	for rows.Next() {
 		var in Invocation
 		var occurred string
-		if err := rows.Scan(&in.InvocationID, &in.BindingID, &in.TargetScenario, &in.SessionID, &in.ProgramID, &in.Provenance, &in.Outcome, &in.Reason, &in.LatencyMS, &in.UsageInputTokens, &in.UsageOutputTokens, &in.UsageCostMicros, &in.Origin, &in.InvocationClass, &occurred); err != nil {
+		if err := rows.Scan(&in.InvocationID, &in.BindingID, &in.TargetScenario, &in.SessionID, &in.ProgramID, &in.Provenance, &in.Outcome, &in.Reason, &in.LatencyMS, &in.UsageInputTokens, &in.UsageOutputTokens, &in.UsageCostMicros, &in.ServedByProvider, &in.ServedByModel, &in.Origin, &in.InvocationClass, &occurred); err != nil {
 			return nil, fmt.Errorf("scan binding invocation: %w", err)
 		}
 		parsed, err := time.Parse(time.RFC3339Nano, occurred)

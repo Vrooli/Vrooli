@@ -43,7 +43,17 @@ type ProviderResult struct {
 	// Applied records what the gateway actually sent and what the resolved role
 	// declares, so a caller records provenance that is true rather than
 	// provenance that echoes its own request.
-	Applied AppliedSettings
+	Applied       AppliedSettings
+	ContextWindow int32
+}
+
+type EmbeddingResult struct {
+	Vectors     [][]float64
+	Provider    string
+	Model       string
+	Dimension   int
+	InputTokens int64
+	CostMicros  int64
 }
 
 // AppliedSettings is the gateway's honest account of one execution. It
@@ -85,6 +95,10 @@ const (
 
 type Repository interface {
 	Run(context.Context, ProviderRequest) (ProviderResult, error)
+}
+
+type EmbeddingRepository interface {
+	Embed(context.Context, string, []string) (EmbeddingResult, error)
 }
 
 // UnavailableRepository is the degraded stance used when the role catalog

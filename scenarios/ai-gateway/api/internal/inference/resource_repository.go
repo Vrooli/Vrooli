@@ -24,6 +24,10 @@ var ErrRoleForbidsSampling = errors.New("role does not admit caller-supplied sam
 // rejected schema is never degraded to unconstrained generation.
 var ErrUnsupportedSampling = errors.New("no candidate can honor the requested sampling")
 
+// ErrContextOverflow is returned before provider dispatch when provider policy
+// declares a window that the assembled prompt and output cap cannot fit.
+var ErrContextOverflow = errors.New("resolved model context window would be exceeded")
+
 // resolveTemperature applies the role/caller precedence for one candidate.
 //
 //	caller set + role overridable   -> caller value, but only if the candidate
@@ -144,6 +148,10 @@ func (r *ResourceRepository) Run(ctx context.Context, request ProviderRequest) (
 			continue
 		}
 		maxOutputTokens, capSource := resolveOutputCap(request, resolved)
+		prompt := providerPrompt(request, resolved.CoordinateConvention)
+		if resolved.ContextWindow > 0 && estimateTokens(prompt)+int64(maxOutputTokens) > int64(resolved.ContextWindow) {
+			return ProviderResult{}, fmt.Errorf("%w: assembled input and requested output cap do not fit the resolved model policy", ErrContextOverflow)
+		}
 		applied := AppliedSettings{
 			TemperatureSent:       temperature,
 			TemperatureSupport:    support,
@@ -154,7 +162,7 @@ func (r *ResourceRepository) Run(ctx context.Context, request ProviderRequest) (
 			Kind:      sharedv1.RequestKind_REQUEST_KIND_STRUCTURED_EXTRACTION,
 			Role:      candidate.ResourceRole,
 			Profile:   request.Profile,
-			InputText: providerPrompt(request, resolved.CoordinateConvention),
+			InputText: prompt,
 			Timeout:   definition.Timeout(),
 			// Only a caller-supplied cap is transmitted. A role-declared cap is
 			// already the resource's own default, so re-sending it would turn a
@@ -168,7 +176,6 @@ func (r *ResourceRepository) Run(ctx context.Context, request ProviderRequest) (
 			failures = append(failures, candidate.Provider+": "+err.Error())
 			continue
 		}
-		prompt := providerPrompt(request, resolved.CoordinateConvention)
 		value, inputTokens, outputTokens, costMicros, err := decodeProviderResponse(candidate.Provider, execution.OutputText, prompt)
 		if err != nil {
 			failures = append(failures, candidate.Provider+": "+err.Error())
@@ -178,13 +185,86 @@ func (r *ResourceRepository) Run(ctx context.Context, request ProviderRequest) (
 			ValueJSON: value, Provider: resolved.Provider, Model: resolved.Model,
 			CoordinateConvention: resolved.CoordinateConvention,
 			InputTokens:          inputTokens, OutputTokens: outputTokens, CostMicros: costMicros,
-			Applied: applied,
+			Applied:       applied,
+			ContextWindow: resolved.ContextWindow,
 		}, nil
 	}
 	if samplingRefused {
 		return ProviderResult{}, fmt.Errorf("%w: no candidate for inference role %q honors an explicit temperature (%s)", ErrUnsupportedSampling, request.Role, strings.Join(failures, "; "))
 	}
 	return ProviderResult{}, fmt.Errorf("%w: no inference candidate completed for role %q (%s)", ErrUnavailable, request.Role, strings.Join(failures, "; "))
+}
+
+func (r *ResourceRepository) Embed(ctx context.Context, role string, texts []string) (EmbeddingResult, error) {
+	definition, ok := r.catalog.Roles[strings.TrimSpace(role)]
+	if !ok {
+		return EmbeddingResult{}, fmt.Errorf("%w: inference role %q is not declared", ErrUnavailable, role)
+	}
+	if len(texts) == 0 {
+		return EmbeddingResult{}, errors.New("embedding texts are required")
+	}
+	var result EmbeddingResult
+	for _, text := range texts {
+		var vector []float64
+		var providerName, model string
+		var inputTokens, costMicros int64
+		var failures []string
+		for _, candidate := range definition.Candidates {
+			adapter, available := r.adapters[strings.ToLower(strings.TrimSpace(candidate.Provider))]
+			if !available {
+				failures = append(failures, candidate.Provider+": adapter unavailable")
+				continue
+			}
+			resolved, err := adapter.ResolveRole(ctx, candidate.ResourceRole)
+			if err != nil {
+				failures = append(failures, err.Error())
+				continue
+			}
+			execution, err := adapter.Execute(ctx, providers.ExecutionRequest{Kind: sharedv1.RequestKind_REQUEST_KIND_TEXT_EMBEDDING, Role: candidate.ResourceRole, InputText: text, Timeout: definition.Timeout()})
+			if err != nil {
+				failures = append(failures, err.Error())
+				continue
+			}
+			vector, inputTokens, costMicros, err = decodeEmbeddingResponse(candidate.Provider, execution.OutputText, text)
+			if err != nil {
+				failures = append(failures, err.Error())
+				continue
+			}
+			providerName, model = resolved.Provider, resolved.Model
+			break
+		}
+		if len(vector) == 0 {
+			return EmbeddingResult{}, fmt.Errorf("%w: no embedding candidate completed for %q (%s)", ErrUnavailable, role, strings.Join(failures, "; "))
+		}
+		if result.Dimension == 0 {
+			result.Dimension = len(vector)
+		} else if result.Dimension != len(vector) {
+			return EmbeddingResult{}, errors.New("embedding_dimension_mismatch")
+		}
+		result.Vectors = append(result.Vectors, vector)
+		result.Provider, result.Model = providerName, model
+		result.InputTokens += inputTokens
+		result.CostMicros += costMicros
+	}
+	return result, nil
+}
+
+func decodeEmbeddingResponse(provider, raw, input string) ([]float64, int64, int64, error) {
+	var response struct {
+		Embedding  []float64   `json:"embedding"`
+		Embeddings [][]float64 `json:"embeddings"`
+	}
+	if err := json.Unmarshal([]byte(raw), &response); err != nil {
+		return nil, 0, 0, fmt.Errorf("decode %s embedding: %w", provider, err)
+	}
+	vector := response.Embedding
+	if len(vector) == 0 && len(response.Embeddings) > 0 {
+		vector = response.Embeddings[0]
+	}
+	if len(vector) == 0 {
+		return nil, 0, 0, errors.New("embedding response contained no vector")
+	}
+	return vector, estimateTokens(input), 0, nil
 }
 
 func requestAttachments(request ProviderRequest) []*sharedv1.Attachment {

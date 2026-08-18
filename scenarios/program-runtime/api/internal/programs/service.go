@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 	"unicode/utf8"
@@ -83,6 +84,13 @@ type Service struct {
 	recordUnresolved func(context.Context, string, string) error
 	repo             Repository
 	eventSequence    atomic.Int64
+
+	// terminalWaiters is the notification side of WaitForProgram. One API
+	// process owns the runner, so every terminal transition happens in this
+	// process and an in-process broadcast is complete — no store polling, and
+	// no client-side loop.
+	waiterMu        sync.Mutex
+	terminalWaiters map[string][]chan struct{}
 }
 
 func NewService(options Options) *Service {
@@ -188,8 +196,49 @@ func (s *Service) submit(ctx context.Context, sessionID, source string, provenan
 		go s.execute(context.WithoutCancel(ctx), p, includeMaterialized)
 		return clone(p), nil, nil
 	}
-	s.execute(ctx, p, includeMaterialized)
-	return clone(p), nil, nil
+	// A synchronous submission is bounded well inside the HTTP write deadline.
+	// Without this the handler could outlive the deadline, the connection was
+	// severed mid-write, and the caller saw `unexpected EOF` — a string outside
+	// the closed failure-cause vocabulary that named neither the limit nor the
+	// remedy. Exceeding the bound is now a typed `deadline_exceeded` that names
+	// the async path, and the program keeps running under its session budget
+	// rather than being discarded.
+	syncCtx, cancel := context.WithTimeout(ctx, SyncExecutionBudget)
+	defer cancel()
+	done := make(chan struct{})
+	// #nosec G118 -- the goroutine is bounded by the session execution budget.
+	go func() {
+		defer close(done)
+		s.execute(context.WithoutCancel(ctx), p, includeMaterialized)
+	}()
+	select {
+	case <-done:
+		return clone(p), nil, nil
+	case <-syncCtx.Done():
+		pending := clone(p)
+		return pending, nil, &SyncDeadlineExceededError{Limit: SyncExecutionBudget, ProgramID: p.Id}
+	}
+}
+
+// SyncExecutionBudget bounds a synchronous submission. It mirrors
+// budgets.SyncSubmit; the value is duplicated here rather than imported to keep
+// internal/programs free of a dependency on the handler-side budget package,
+// and TestSyncExecutionBudgetMatchesTheLadder pins the two together.
+const SyncExecutionBudget = 2 * time.Minute
+
+// SyncDeadlineExceededError reports that a synchronous submission outran its
+// bound. The program is still running: it is addressable by id through
+// WaitForProgram, which is what the message tells the caller to do.
+type SyncDeadlineExceededError struct {
+	Limit     time.Duration
+	ProgramID string
+}
+
+func (e *SyncDeadlineExceededError) Error() string {
+	return fmt.Sprintf(
+		"deadline_exceeded: synchronous submission exceeded %s; the program is still running as %s — "+
+			"resubmit with --async and block once with `programs wait`",
+		e.Limit, e.ProgramID)
 }
 
 func hasDiagnosticErrors(diagnostics []*programsv1.Diagnostic) bool {
@@ -272,6 +321,7 @@ func (s *Service) execute(ctx context.Context, p *programsv1.Program, includeMat
 		p.CompletedAt = s.clock().UTC().Format(time.RFC3339Nano)
 		_ = s.repo.Save(context.Background(), p)
 		s.emitLifecycle(p, telemetryv1.EventKind_PROGRAM_SUCCEEDED)
+		s.notifyTerminal(p.Id)
 	}
 	for _, invocation := range result.Invocations {
 		if s.events != nil {
@@ -296,6 +346,7 @@ func (s *Service) fail(p *programsv1.Program, runErr error) {
 	}
 	_ = s.repo.Save(context.Background(), p)
 	s.emitLifecycle(p, telemetryv1.EventKind_PROGRAM_FAILED)
+	s.notifyTerminal(p.Id)
 }
 
 func (s *Service) emitLifecycle(p *programsv1.Program, kind telemetryv1.EventKind) {
@@ -317,6 +368,100 @@ func (s *Service) appendEvent(event *telemetryv1.ProgramEvent) {
 
 func (s *Service) Get(ctx context.Context, id string) (*programsv1.Program, error) {
 	return s.repo.Get(ctx, id)
+}
+
+// IsTerminal reports whether a status can still change.
+func IsTerminal(status programsv1.ProgramStatus) bool {
+	switch status {
+	case programsv1.ProgramStatus_PROGRAM_STATUS_SUCCEEDED,
+		programsv1.ProgramStatus_PROGRAM_STATUS_FAILED,
+		programsv1.ProgramStatus_PROGRAM_STATUS_CANCELLED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Wait blocks until the program reaches a terminal state, the deadline
+// elapses, or the caller's context is cancelled. The returned bool reports
+// whether the program is terminal; false means the deadline arrived first and
+// the caller may wait again on the same id.
+//
+// This is the primitive that replaced a 50ms client-side GetProgram loop. The
+// wait is registered *before* the state is re-read, so a program that
+// completes between the read and the registration still wakes the waiter
+// rather than hanging until the deadline.
+func (s *Service) Wait(ctx context.Context, id string, timeout time.Duration) (*programsv1.Program, bool, error) {
+	notify := s.registerTerminalWaiter(id)
+	defer s.releaseTerminalWaiter(id, notify)
+
+	program, err := s.repo.Get(ctx, id)
+	if err != nil {
+		return nil, false, err
+	}
+	if IsTerminal(program.GetStatus()) {
+		return program, true, nil
+	}
+
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+	select {
+	case <-notify:
+		program, err = s.repo.Get(ctx, id)
+		if err != nil {
+			return nil, false, err
+		}
+		return program, IsTerminal(program.GetStatus()), nil
+	case <-timer.C:
+		program, err = s.repo.Get(ctx, id)
+		if err != nil {
+			return nil, false, err
+		}
+		return program, IsTerminal(program.GetStatus()), nil
+	case <-ctx.Done():
+		return nil, false, ctx.Err()
+	}
+}
+
+func (s *Service) registerTerminalWaiter(id string) chan struct{} {
+	notify := make(chan struct{}, 1)
+	s.waiterMu.Lock()
+	defer s.waiterMu.Unlock()
+	if s.terminalWaiters == nil {
+		s.terminalWaiters = make(map[string][]chan struct{})
+	}
+	s.terminalWaiters[id] = append(s.terminalWaiters[id], notify)
+	return notify
+}
+
+func (s *Service) releaseTerminalWaiter(id string, notify chan struct{}) {
+	s.waiterMu.Lock()
+	defer s.waiterMu.Unlock()
+	waiters := s.terminalWaiters[id]
+	for index, candidate := range waiters {
+		if candidate == notify {
+			s.terminalWaiters[id] = append(waiters[:index], waiters[index+1:]...)
+			break
+		}
+	}
+	if len(s.terminalWaiters[id]) == 0 {
+		delete(s.terminalWaiters, id)
+	}
+}
+
+// notifyTerminal wakes every waiter on a program that just reached a terminal
+// state. Sends are non-blocking onto buffered channels, so a slow or departed
+// waiter can never stall the execution path that produced the result.
+func (s *Service) notifyTerminal(id string) {
+	s.waiterMu.Lock()
+	waiters := append([]chan struct{}(nil), s.terminalWaiters[id]...)
+	s.waiterMu.Unlock()
+	for _, notify := range waiters {
+		select {
+		case notify <- struct{}{}:
+		default:
+		}
+	}
 }
 
 func (s *Service) List(ctx context.Context, sessionID string, includeOperator bool) []*programsv1.Program {
@@ -356,9 +501,7 @@ func (s *Service) MineUnresolvedBindings(ctx context.Context) []*programsv1.Unre
 	return out
 }
 
-var (
-	locationError = regexp.MustCompile(`(?i)(line\s+\d+|field\s+[a-z0-9_.-]+)`)
-)
+var locationError = regexp.MustCompile(`(?i)(line\s+\d+|field\s+[a-z0-9_.-]+)`)
 
 func failureShape(detail string) (string, programsv1.FailureCause) {
 	lower := strings.ToLower(detail)
@@ -381,6 +524,20 @@ func failureShape(detail string) (string, programsv1.FailureCause) {
 		{"syntaxerror", "kernel_syntax", programsv1.FailureCause_FAILURE_CAUSE_KERNEL_SYNTAX},
 		{"bridge unavailable", "bridge_transport", programsv1.FailureCause_FAILURE_CAUSE_BRIDGE_TRANSPORT},
 		{"transport", "bridge_transport", programsv1.FailureCause_FAILURE_CAUSE_BRIDGE_TRANSPORT},
+		// A connection severed by a deadline is a transport failure, not a
+		// defect in the program. These four shapes all reached the corpus as
+		// `kernel_runtime` with a raw Python exception in the detail, which
+		// pointed a reader at their own source instead of at the boundary that
+		// actually failed.
+		{"remotedisconnected", "bridge_transport", programsv1.FailureCause_FAILURE_CAUSE_BRIDGE_TRANSPORT},
+		{"remote end closed connection", "bridge_transport", programsv1.FailureCause_FAILURE_CAUSE_BRIDGE_TRANSPORT},
+		{"unexpected eof", "bridge_transport", programsv1.FailureCause_FAILURE_CAUSE_BRIDGE_TRANSPORT},
+		{"connection reset", "bridge_transport", programsv1.FailureCause_FAILURE_CAUSE_BRIDGE_TRANSPORT},
+		// `deadline_exceeded` is checked late because several needles above are
+		// substrings of ordinary deadline messages; a caller that hit a budget
+		// should see the budget, not a guess at what it was doing.
+		{"deadline_exceeded", "deadline_exceeded", programsv1.FailureCause_FAILURE_CAUSE_DEADLINE_EXCEEDED},
+		{"timed out", "deadline_exceeded", programsv1.FailureCause_FAILURE_CAUSE_DEADLINE_EXCEEDED},
 	}
 	for _, item := range classifications {
 		if strings.Contains(lower, item.needle) {

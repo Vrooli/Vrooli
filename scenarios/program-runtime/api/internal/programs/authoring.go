@@ -10,6 +10,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"program-runtime/internal/harness"
 )
 
 // AuthoringCase is one task in the versioned corpus. The oracle checks the
@@ -56,8 +58,21 @@ type AuthoringResult struct {
 	Missed      int32
 	WrongResult int32
 	Unavailable int32
-	Cases       []AuthoringCaseResult
+	// NotAttempted counts cases skipped because the response deadline
+	// approached. A partial run states this rather than reporting a low score
+	// as if the whole corpus had been measured.
+	NotAttempted int32
+	// HarnessStamp names the brief version this score was measured against, so
+	// two runs are only comparable when their stamps match.
+	HarnessStamp string
+	Cases        []AuthoringCaseResult
 }
+
+// perCaseReserve is the headroom the eval keeps before starting another case.
+// One case is an authoring round-trip plus a kernel spawn plus the program's
+// own work; starting one with less than this remaining risks being cut off
+// mid-write, which is the failure mode that made this eval unreadable.
+const perCaseReserve = 75 * time.Second
 
 // AuthoringDeps are the seams the eval needs. They are injected rather than
 // constructed here so the harness is testable without a live fleet.
@@ -72,21 +87,21 @@ type AuthoringDeps struct {
 	SuitePath string
 }
 
-// authoringInstruction is the standing brief given to the authoring model. It
-// names the namespace rules the corpus exercises, because a model that has
-// never seen this runtime cannot infer them and the eval would then measure
-// prompt omission rather than surface quality.
-const authoringInstruction = `You write short Python programs for the Vrooli Program Runtime.
+// authoringInstruction renders the standing brief from the versioned harness
+// contract.
+//
+// It was a string constant until the contract existed. A constant cannot be
+// checked against the construction guide or the skill, so the brief silently
+// omitted rules those surfaces documented — `gather`'s callable contract among
+// them — and the eval then measured prompt omission rather than surface
+// quality. internal/harness owns the rules, and its drift test keeps the three
+// surfaces aligned.
+func authoringInstruction() string { return harness.Load().Instruction() }
 
-Rules:
-- Scenario operations are flat top-level names: <scenario>.<group>.<command>, hyphens become underscores (search-hub is search_hub).
-- vrooli. addresses the project CLI only, never a scenario.
-- Results are Handle values. Use count(), head(n), filter(), group_by(), select(), sort(), meta().
-- When a response has several repeated fields, pass rows="<field>".
-- Runtime verbs: discover, recall, validate, capture, ai, agent, gather, describe, reachable, lib.
-- print() only the small answer. Never print whole result sets.
-
-Return only Python source. No markdown fence, no commentary.`
+// authoringHarnessStamp identifies the brief a measurement was taken against, so
+// a score is attributable to a harness version rather than to "the prompt at the
+// time".
+func authoringHarnessStamp() string { return harness.Load().Stamp() }
 
 // RunAuthoringEval measures first-attempt authoring correctness against the
 // versioned corpus.
@@ -130,9 +145,27 @@ func RunAuthoringEval(ctx context.Context, deps AuthoringDeps) AuthoringResult {
 		return result
 	}
 
-	for _, item := range suite.Cases {
+	result.HarnessStamp = authoringHarnessStamp()
+
+	for index, item := range suite.Cases {
+		// The eval is one HTTP response, so it must not outrun the write
+		// deadline: a run that is cut off mid-write returns `unexpected EOF`,
+		// which is byte-identical to a missing dependency and discards work
+		// that was actually performed. Stopping early and *saying so* keeps a
+		// partial measurement usable and distinguishable from a whole one.
+		if deadline, hasDeadline := ctx.Deadline(); hasDeadline && time.Until(deadline) < perCaseReserve {
+			result.NotAttempted = int32(len(suite.Cases) - index)
+			result.Status = "partial"
+			result.Reason = fmt.Sprintf(
+				"stopped after %d of %d cases to stay inside the response deadline; %d not attempted",
+				index, len(suite.Cases), result.NotAttempted)
+			sort.SliceStable(result.Cases, func(left, right int) bool {
+				return result.Cases[left].CaseID < result.Cases[right].CaseID
+			})
+			return result
+		}
 		caseResult := AuthoringCaseResult{CaseID: item.ID}
-		source, model, err := deps.Author(ctx, authoringInstruction, item.Task)
+		source, model, err := deps.Author(ctx, authoringInstruction(), item.Task)
 		caseResult.Model = model
 		if err != nil {
 			// A model route that cannot be reached at all makes the whole run

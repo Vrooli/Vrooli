@@ -98,6 +98,41 @@ func TestServiceBatchRejectsTooManyItems(t *testing.T) {
 	require.Equal(t, "INFERENCE_ERROR_CODE_INVALID_REQUEST", response.GetResults()[0].GetError().GetCode().String())
 }
 
+type embeddingTestRepository struct {
+	result EmbeddingResult
+	role   string
+	texts  []string
+}
+
+func (r *embeddingTestRepository) Run(context.Context, ProviderRequest) (ProviderResult, error) {
+	return ProviderResult{}, nil
+}
+
+func (r *embeddingTestRepository) Embed(_ context.Context, role string, texts []string) (EmbeddingResult, error) {
+	r.role, r.texts = role, append([]string(nil), texts...)
+	return r.result, nil
+}
+
+func TestServiceEmbedPreservesTypedProviderEvidence(t *testing.T) {
+	repository := &embeddingTestRepository{result: EmbeddingResult{Vectors: [][]float64{{1, 0}, {0, 1}}, Provider: "ollama", Model: "nomic", Dimension: 2, InputTokens: 8, CostMicros: 12}}
+	response := NewService(repository).Embed(t.Context(), "embedding.default", []string{"one", "two"}, false)
+	require.Nil(t, response.GetError())
+	require.Equal(t, "embedding.default", repository.role)
+	require.Equal(t, "ollama", response.GetProvider())
+	require.EqualValues(t, 2, response.GetDimension())
+	require.EqualValues(t, 12, response.GetUsage().GetCostMicros())
+	require.Len(t, response.GetVectors(), 2)
+}
+
+func TestServiceEmbedRejectsSamplingAndDimensionMismatch(t *testing.T) {
+	repository := &embeddingTestRepository{result: EmbeddingResult{Vectors: [][]float64{{1}, {1, 0}}, Provider: "fake", Model: "m", Dimension: 2}}
+	service := NewService(repository)
+	response := service.Embed(t.Context(), "embedding.default", []string{"one", "two"}, true)
+	require.Equal(t, "INFERENCE_ERROR_CODE_INVALID_REQUEST", response.GetError().GetCode().String())
+	response = service.Embed(t.Context(), "embedding.default", []string{"one", "two"}, false)
+	require.Equal(t, "INFERENCE_ERROR_CODE_VALIDATION_FAILED", response.GetError().GetCode().String())
+}
+
 type fakeRepository struct {
 	result ProviderResult
 	err    error

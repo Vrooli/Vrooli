@@ -804,6 +804,39 @@
           }
         },
         {
+          "name": "wait",
+          "description": "Block once until a program reaches a terminal state.",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Program identifier."
+            }
+          ],
+          "flags": [
+            {
+              "name": "timeout",
+              "description": "How long to block, for example 90s. Converted to timeout_millis; bounded by the runtime ceiling.",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ProgramService",
+            "method": "WaitForProgram"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
           "name": "list",
           "description": "List submitted programs.",
           "flags": [

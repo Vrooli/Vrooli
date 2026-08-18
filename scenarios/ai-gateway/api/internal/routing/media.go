@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"sync"
 	"time"
 
 	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/routing"
@@ -37,7 +36,6 @@ type MediaService struct {
 	db       *sql.DB
 	executor MediaExecutor
 	clock    func() time.Time
-	mu       sync.Mutex
 }
 
 func NewMediaService(db *sql.DB, executor MediaExecutor) *MediaService {
@@ -80,7 +78,7 @@ func (s *MediaService) Submit(ctx context.Context, req *routingv1.SubmitMediaReq
 
 	// Dispatch only after the receipt is durable. The worker owns all later
 	// transitions, so a caller can reconnect using execution_id immediately.
-	go s.run(exec.GetExecutionId(), req)
+	go s.run(context.WithoutCancel(ctx), exec.GetExecutionId(), req)
 	return exec, nil
 }
 
@@ -161,8 +159,8 @@ func (s *MediaService) Retry(ctx context.Context, id, key string) (*routingv1.Me
 	return s.Submit(ctx, &request)
 }
 
-func (s *MediaService) run(id string, req *routingv1.SubmitMediaRequest) {
-	ctx := context.WithValue(context.Background(), mediaExecutionIDKey{}, id)
+func (s *MediaService) run(ctx context.Context, id string, req *routingv1.SubmitMediaRequest) {
+	ctx = context.WithValue(ctx, mediaExecutionIDKey{}, id)
 	started := s.now().Format(time.RFC3339Nano)
 	res, err := s.db.ExecContext(ctx, `UPDATE media_executions SET status = ?, started_at = ? WHERE execution_id = ? AND status = ?`,
 		int32(routingv1.MediaExecutionStatus_MEDIA_EXECUTION_STATUS_RUNNING), started, id,
@@ -174,29 +172,29 @@ func (s *MediaService) run(id string, req *routingv1.SubmitMediaRequest) {
 		return // cancellation won the race.
 	}
 	if s.executor == nil {
-		s.fail(id, "executor_unavailable", "no media executor is configured")
+		s.fail(ctx, id, "executor_unavailable", "no media executor is configured")
 		return
 	}
 	result, err := s.executor.Execute(ctx, req)
 	if err != nil {
-		s.fail(id, "executor_failed", err.Error())
+		s.fail(ctx, id, "executor_failed", err.Error())
 		return
 	}
 	if result == nil {
-		s.fail(id, "executor_protocol", "media executor returned no result")
+		s.fail(ctx, id, "executor_protocol", "media executor returned no result")
 		return
 	}
 	if result.RouteEvidence == nil {
-		s.fail(id, "executor_protocol", "media executor returned no route evidence")
+		s.fail(ctx, id, "executor_protocol", "media executor returned no route evidence")
 		return
 	}
 	if err := validateMediaOutputs(result.Outputs); err != nil {
-		s.fail(id, "executor_protocol", err.Error())
+		s.fail(ctx, id, "executor_protocol", err.Error())
 		return
 	}
 	outputs, err := protojson.Marshal(&routingv1.MediaExecution{Outputs: result.Outputs})
 	if err != nil {
-		s.fail(id, "receipt_encode_failed", err.Error())
+		s.fail(ctx, id, "receipt_encode_failed", err.Error())
 		return
 	}
 	completed := s.now().Format(time.RFC3339Nano)
@@ -206,8 +204,8 @@ func (s *MediaService) run(id string, req *routingv1.SubmitMediaRequest) {
 		int32(routingv1.MediaExecutionStatus_MEDIA_EXECUTION_STATUS_RUNNING))
 }
 
-func (s *MediaService) fail(id, code, message string) {
-	_, _ = s.db.ExecContext(context.Background(), `UPDATE media_executions SET status = ?, completed_at = ?, error_code = ?, error_message = ? WHERE execution_id = ? AND status = ?`,
+func (s *MediaService) fail(ctx context.Context, id, code, message string) {
+	_, _ = s.db.ExecContext(ctx, `UPDATE media_executions SET status = ?, completed_at = ?, error_code = ?, error_message = ? WHERE execution_id = ? AND status = ?`,
 		int32(routingv1.MediaExecutionStatus_MEDIA_EXECUTION_STATUS_FAILED), s.now().Format(time.RFC3339Nano), code, message, id,
 		int32(routingv1.MediaExecutionStatus_MEDIA_EXECUTION_STATUS_RUNNING))
 }
@@ -226,6 +224,7 @@ func (s *MediaService) Recover(ctx context.Context) {
 	if err != nil {
 		return
 	}
+	defer rows.Close()
 	type pendingReceipt struct{ id, payload string }
 	pending := make([]pendingReceipt, 0)
 	for rows.Next() {
@@ -235,14 +234,11 @@ func (s *MediaService) Recover(ctx context.Context) {
 		}
 		pending = append(pending, pendingReceipt{id: id, payload: payload})
 	}
-	if err := rows.Close(); err != nil {
-		return
-	}
 	for _, receipt := range pending {
 		id, payload := receipt.id, receipt.payload
 		var req routingv1.SubmitMediaRequest
 		if err := protojson.Unmarshal([]byte(payload), &req); err != nil {
-			s.fail(id, "receipt_decode_failed", "stored media submission could not be decoded")
+			s.fail(ctx, id, "receipt_decode_failed", "stored media submission could not be decoded")
 			continue
 		}
 		_, err = s.db.ExecContext(ctx, `UPDATE media_executions SET status = ?, started_at = '' WHERE execution_id = ? AND status = ?`,
@@ -251,7 +247,7 @@ func (s *MediaService) Recover(ctx context.Context) {
 		if err != nil {
 			continue
 		}
-		go s.run(id, &req)
+		go s.run(context.WithoutCancel(ctx), id, &req)
 	}
 }
 

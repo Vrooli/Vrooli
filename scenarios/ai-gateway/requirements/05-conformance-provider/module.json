@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Test Genie provider phase for AI inference conformance.",
-    "last_validated_at": "2026-08-14T03:29:05-04:00",
+    "last_validated_at": "2026-08-17T21:13:38-04:00",
     "module": "conformance-provider",
     "prd_ref": "OT-P0-005",
     "priority": "P0",
@@ -11,7 +11,7 @@
     {
       "id": "AIGW-CONFORMANCE-INVENTORY",
       "title": "Conformance phase inventories AI integration patterns in target scenarios",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-005",
       "category": "conformance.inventory",
       "criticality": "P0",
@@ -26,14 +26,14 @@
           "type": "test",
           "ref": "api/internal/conformance/scanner_test.go::TestScannerFindsUnsafeProviderCoupling",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Validates detection fixtures for direct Ollama, provider secret env vars, concrete model slugs, and embedding metadata patterns."
         },
         {
           "type": "test",
           "ref": "api/handlers/conformance/connect_handler_test.go::TestScanScenarioReturnsScannerFindings",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Validates the conformance RPC exposes scanner findings."
         }
       ]
@@ -41,7 +41,7 @@
     {
       "id": "AIGW-CONFORMANCE-MATURITY",
       "title": "Conformance findings follow an explicit maturity ladder",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-005",
       "category": "conformance.maturity",
       "criticality": "P0",
@@ -56,14 +56,14 @@
           "type": "test",
           "ref": "api/internal/conformance/scanner_test.go::TestScannerFindsMaturityTaxonomyRules",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Validates maturity taxonomy findings, severity mapping inputs, and exception handling."
         },
         {
           "type": "test",
           "ref": "api/handlers/conformance/connect_handler_test.go::TestValidateScenarioReturnsSharedAssessment",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Validates ScenarioValidationService returns a shared maturity assessment."
         },
         {

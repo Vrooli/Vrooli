@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Provider-neutral request contracts for AI Gateway callers.",
-    "last_validated_at": "2026-08-14T03:29:05-04:00",
+    "last_validated_at": "2026-08-17T21:13:38-04:00",
     "module": "gateway-contract",
     "prd_ref": "OT-P0-001",
     "priority": "P0",
@@ -11,7 +11,7 @@
     {
       "id": "AIGW-CONTRACT-TEXT",
       "title": "Text inference requests use role, profile, and constraints instead of concrete models",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-001",
       "category": "gateway.contract",
       "criticality": "P0",
@@ -26,14 +26,14 @@
           "type": "test",
           "ref": "api/internal/gateway/service_test.go::TestValidateAcceptsProviderNeutralRequest",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Validates provider-neutral text request parsing, defaults, and role/profile fields."
         },
         {
           "type": "test",
           "ref": "api/internal/gateway/service_test.go::TestValidateRejectsProviderSpecificMetadata",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Validates rejection of concrete provider/model/embedding metadata fields."
         }
       ]
@@ -41,7 +41,7 @@
     {
       "id": "AIGW-CONTRACT-EMBEDDING",
       "title": "Embedding requests carry role and schema metadata requirements",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-001",
       "category": "gateway.contract",
       "criticality": "P0",
@@ -56,7 +56,7 @@
           "type": "test",
           "ref": "api/internal/gateway/service_test.go::TestValidateRejectsProviderSpecificMetadata",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Validates that callers cannot smuggle implicit embedding dimensions through provider-specific metadata; full embedding metadata response support remains in progress."
         }
       ]
@@ -64,7 +64,7 @@
     {
       "id": "AIGW-CONTRACT-SAMPLING",
       "title": "Sampling is a declared role stance a caller may override only where the role allows",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-001",
       "category": "gateway.contract",
       "criticality": "P1",
@@ -79,14 +79,14 @@
           "type": "test",
           "ref": "api/internal/inference/resource_repository_test.go::TestResourceRepositoryRejectsCallerTemperatureOnDeterministicRole",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "A caller temperature sent to a role that has not declared itself overridable is refused by name, and the walk stops rather than trying other candidates that would refuse identically."
         },
         {
           "type": "test",
           "ref": "api/internal/inference/resource_repository_test.go::TestResourceRepositoryDeterministicRoleReachesOpenRouter",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "The determinism invariant holds on the hosted rung too: a role declaring temperature 0 reaches OpenRouter with it, which was previously false because the gateway never passed the flag."
         }
       ]

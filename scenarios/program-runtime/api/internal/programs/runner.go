@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/vrooli/pyenv-go"
+	"program-runtime/internal/budgets"
 	"program-runtime/internal/pydeps"
 )
 
@@ -285,6 +286,13 @@ func (r *SubprocessRunner) process(sessionID string) (*kernelProcess, error) {
 		}
 		if r.discoveryURL != "" {
 			cmd.Env = append(cmd.Env, "PROGRAM_RUNTIME_DISCOVERY_URL="+r.discoveryURL)
+		}
+		// The kernel's client-side timeouts are handed down rather than
+		// declared in Python. Two independent lists of the same numbers is how
+		// `discover` came to allow 10s for a call the bridge is allowed 90s to
+		// make; internal/budgets is now the only definition.
+		if encoded, err := json.Marshal(budgets.Kernel()); err == nil {
+			cmd.Env = append(cmd.Env, "PROGRAM_RUNTIME_BUDGETS="+string(encoded))
 		}
 	}
 	stdin, err := cmd.StdinPipe()

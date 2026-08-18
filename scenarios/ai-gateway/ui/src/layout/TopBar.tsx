@@ -53,8 +53,8 @@ export function TopBar() {
               aria-pressed={currentLocale === lng}
               className={
                 currentLocale === lng
-                  ? "rounded-control bg-app-primary px-2 py-1 font-medium text-app-primary-foreground"
-                  : "rounded-control px-2 py-1 text-app-muted-foreground hover:text-app-foreground"
+                  ? "min-h-11 min-w-11 rounded-control bg-app-primary px-2 py-1 font-medium text-app-primary-foreground"
+                  : "min-h-11 min-w-11 rounded-control px-2 py-1 text-app-muted-foreground hover:text-app-foreground"
               }
             >
               {getLocaleConfig(lng).nativeLabel}
@@ -63,7 +63,7 @@ export function TopBar() {
         </div>
         <label
           data-testid={selectors.theme.switcher}
-          className="flex items-center gap-2 text-xs text-app-muted-foreground"
+          className="flex min-h-11 items-center gap-2 text-xs text-app-muted-foreground"
         >
           <span className="sr-only">{t(strings.theme.switcherLabel)}</span>
           <select
@@ -71,7 +71,7 @@ export function TopBar() {
             onChange={(e) => setTheme(e.target.value as ThemeChoice)}
             data-testid={selectors.theme.select}
             aria-label={t(strings.theme.switcherLabel)}
-            className="rounded-control border border-app-border bg-app-surface px-2 py-1 text-app-foreground"
+            className="min-h-11 min-w-11 rounded-control border border-app-border bg-app-surface px-2 py-1 text-app-foreground"
           >
             {THEME_CHOICES.map((c) => (
               <option key={c} value={c}>

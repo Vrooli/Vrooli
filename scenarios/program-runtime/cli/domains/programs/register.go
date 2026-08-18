@@ -24,7 +24,7 @@ type handlers struct {
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
 	h := &handlers{client: programsconnect.NewProgramServiceClient(httpClient, baseURL)}
-	return cliapp.LoadFromManifestPrimitives(manifest, GroupName, map[string]cliapp.PrimitiveHandler{"ProgramService.SubmitProgram": cliapp.ProtoMutation(h.submit, h.submitReport), "ProgramService.GetProgram": cliapp.ProtoList(h.get, h.programReport), "ProgramService.ListPrograms": cliapp.ProtoList(h.list, h.listReport), "vrooli.program_runtime.v1.programs.ProgramService.MineFailures": cliapp.ProtoList(h.mine, h.failureReport), "vrooli.program_runtime.v1.programs.ProgramService.MineRefusals": cliapp.ProtoList(h.mineRefusals, h.refusalReport), "vrooli.program_runtime.v1.programs.ProgramService.MineUnresolvedBindings": cliapp.ProtoList(h.mineUnresolved, h.unresolvedReport)})
+	return cliapp.LoadFromManifestPrimitives(manifest, GroupName, map[string]cliapp.PrimitiveHandler{"ProgramService.SubmitProgram": cliapp.ProtoMutation(h.submit, h.submitReport), "ProgramService.GetProgram": cliapp.ProtoList(h.get, h.programReport), "ProgramService.WaitForProgram": cliapp.ProtoList(h.waitCommand, h.waitReport), "ProgramService.ListPrograms": cliapp.ProtoList(h.list, h.listReport), "vrooli.program_runtime.v1.programs.ProgramService.MineFailures": cliapp.ProtoList(h.mine, h.failureReport), "vrooli.program_runtime.v1.programs.ProgramService.MineRefusals": cliapp.ProtoList(h.mineRefusals, h.refusalReport), "vrooli.program_runtime.v1.programs.ProgramService.MineUnresolvedBindings": cliapp.ProtoList(h.mineUnresolved, h.unresolvedReport)})
 }
 
 func (h *handlers) submit(ctx cliapp.OperationContext) (*programsv1.SubmitProgramResponse, error) {
@@ -54,27 +54,33 @@ func (h *handlers) submit(ctx cliapp.OperationContext) (*programsv1.SubmitProgra
 	return r.Msg, nil
 }
 
+// wait blocks once on the server-side wait RPC.
+//
+// This used to be a client-side loop calling GetProgram every 50ms — twenty
+// requests a second for the whole life of the program — which contradicted the
+// project rule that a caller blocks once and never polls, and which no
+// non-CLI consumer could reuse. The runtime clamps the deadline, so a request
+// longer than the ceiling returns the current non-terminal program and the
+// caller resumes explicitly rather than spinning.
 func (h *handlers) wait(parent context.Context, id string, timeout time.Duration) (*programsv1.SubmitProgramResponse, error) {
-	ctx, cancel := context.WithTimeout(parent, timeout)
+	// The transport deadline exceeds the requested wait so the server, not the
+	// client, is the party that decides the wait is over.
+	ctx, cancel := context.WithTimeout(parent, timeout+waitTransportMargin)
 	defer cancel()
-	ticker := time.NewTicker(50 * time.Millisecond)
-	defer ticker.Stop()
-	for {
-		result, err := h.client.GetProgram(ctx, connect.NewRequest(&programsv1.GetProgramRequest{Id: id}))
-		if err != nil {
-			return nil, cliapp.WrapAPIError("wait for program", err, nil)
-		}
-		status := result.Msg.GetProgram().GetStatus()
-		if status == programsv1.ProgramStatus_PROGRAM_STATUS_SUCCEEDED || status == programsv1.ProgramStatus_PROGRAM_STATUS_FAILED || status == programsv1.ProgramStatus_PROGRAM_STATUS_CANCELLED {
-			return &programsv1.SubmitProgramResponse{Program: result.Msg.GetProgram()}, nil
-		}
-		select {
-		case <-ctx.Done():
-			return &programsv1.SubmitProgramResponse{Program: result.Msg.GetProgram()}, nil
-		case <-ticker.C:
-		}
+	result, err := h.client.WaitForProgram(ctx, connect.NewRequest(&programsv1.WaitForProgramRequest{
+		Id:            id,
+		TimeoutMillis: timeout.Milliseconds(),
+	}))
+	if err != nil {
+		return nil, cliapp.WrapAPIError("wait for program", err, nil)
 	}
+	return &programsv1.SubmitProgramResponse{Program: result.Msg.GetProgram()}, nil
 }
+
+// waitTransportMargin is the slack between the requested server-side wait and
+// the client's transport deadline, so a wait that returns exactly at its
+// deadline is never reported as a client-side timeout.
+const waitTransportMargin = 15 * time.Second
 
 func parseWaitTimeout(value string) (time.Duration, error) {
 	if strings.TrimSpace(value) == "" {
@@ -114,6 +120,38 @@ func (h *handlers) get(ctx cliapp.OperationContext) (*programsv1.GetProgramRespo
 		return nil, cliapp.WrapAPIError("get program", e, nil)
 	}
 	return r.Msg, nil
+}
+
+// waitCommand is the standalone block-once primitive. It exists as its own
+// command, not only as a flag on submit, so a caller that already has a program
+// id — a resumed wait, a workflow step, an operator following up — has a
+// governed way to block without reimplementing a poll loop.
+func (h *handlers) waitCommand(ctx cliapp.OperationContext) (*programsv1.WaitForProgramResponse, error) {
+	timeout, err := parseWaitTimeout(ctx.Flag("timeout"))
+	if err != nil {
+		return nil, err
+	}
+	callCtx, cancel := context.WithTimeout(context.Background(), timeout+waitTransportMargin)
+	defer cancel()
+	r, e := h.client.WaitForProgram(callCtx, connect.NewRequest(&programsv1.WaitForProgramRequest{
+		Id:            ctx.Positional("id"),
+		TimeoutMillis: timeout.Milliseconds(),
+	}))
+	if e != nil {
+		return nil, cliapp.WrapAPIError("wait for program", e, nil)
+	}
+	return r.Msg, nil
+}
+
+func (*handlers) waitReport(_ cliapp.OperationContext, r *programsv1.WaitForProgramResponse) cliapp.ListReport {
+	if r.GetTerminal() {
+		return cliapp.ListReport{Summary: []string{fmt.Sprintf("Program %s is terminal: %s.", r.GetProgram().GetId(), r.GetProgram().GetStatus())}}
+	}
+	// Not-terminal is a stated outcome, not a failure: the wait returned at its
+	// bound and the caller may wait again on the same id.
+	return cliapp.ListReport{Summary: []string{fmt.Sprintf(
+		"Program %s is still %s after %dms; wait again on the same id to resume.",
+		r.GetProgram().GetId(), r.GetProgram().GetStatus(), r.GetWaitedMillis())}}
 }
 
 func (h *handlers) list(ctx cliapp.OperationContext) (*programsv1.ListProgramsResponse, error) {

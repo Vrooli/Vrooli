@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"path"
@@ -27,6 +28,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"program-runtime/internal/actspace"
 	"program-runtime/internal/bindings"
+	"program-runtime/internal/budgets"
 	"program-runtime/internal/library"
 	"program-runtime/internal/module"
 	"program-runtime/internal/programs"
@@ -346,7 +348,7 @@ func Bridge(registry *bindings.Registry, manager *sessions.Manager, refusalRecor
 				return
 			}
 		}
-		result, err := registry.Execute(r.Context(), request.BindingID, request.Args, grants, request.Confirmed, bindings.InvocationMetadata{SessionID: request.SessionID, ProgramID: request.ProgramID, Provenance: request.Provenance}, &http.Client{Timeout: 3 * time.Minute})
+		result, err := registry.Execute(r.Context(), request.BindingID, request.Args, grants, request.Confirmed, bindings.InvocationMetadata{SessionID: request.SessionID, ProgramID: request.ProgramID, Provenance: request.Provenance}, &http.Client{Timeout: budgets.BridgeCall})
 		if err != nil {
 			writeBridgeError(w, http.StatusBadRequest, err.Error())
 			return
@@ -381,13 +383,13 @@ var projectionVerbs = map[string]projectionVerb{
 	"recall": {
 		binding: "search-hub/query/query",
 		owner:   "search-hub",
-		build: func(request map[string]any) (map[string]any, error) {
-			intent := strings.TrimSpace(fmt.Sprint(firstNonEmpty(request, "intent", "query", "text")))
+		build: func(request projectionRequest) (map[string]any, error) {
+			intent := request.first("intent", "query", "text")
 			if intent == "" {
 				return nil, errors.New("recall requires a non-empty intent")
 			}
 			args := map[string]any{"query": intent, "rows": "ranked"}
-			if depth := strings.TrimSpace(fmt.Sprint(request["depth"])); depth == "deep" {
+			if request.first("depth") == "deep" {
 				args["limit"] = 30
 			} else {
 				args["limit"] = 10
@@ -404,16 +406,21 @@ var projectionVerbs = map[string]projectionVerb{
 	"validate": {
 		binding: "test-genie/runs/list",
 		owner:   "test-genie",
-		build: func(request map[string]any) (map[string]any, error) {
-			scenario := strings.TrimSpace(fmt.Sprint(firstNonEmpty(request, "scenario", "target", "name")))
+		build: func(request projectionRequest) (map[string]any, error) {
+			scenario := request.first("scenario", "target", "name")
 			if scenario == "" {
 				return nil, errors.New("validate requires a scenario name")
 			}
 			args := map[string]any{"scenario": scenario}
-			if status := strings.TrimSpace(fmt.Sprint(request["status"])); status != "" {
+			// An absent `status` must not become a filter. Reading it with
+			// fmt.Sprint on a missing map key yielded the literal string
+			// "<nil>", which test-genie matched against zero runs — so this
+			// verb reported SUCCEEDED with an empty result for every scenario.
+			// projectionRequest.first cannot produce that value.
+			if status := request.first("status"); status != "" {
 				args["status"] = status
 			}
-			if strings.TrimSpace(fmt.Sprint(request["depth"])) == "deep" {
+			if request.first("depth") == "deep" {
 				args["limit"] = 20
 			} else {
 				args["limit"] = 5
@@ -424,12 +431,15 @@ var projectionVerbs = map[string]projectionVerb{
 	"capture": {
 		binding: "vrooli-memory/journal/note",
 		owner:   "vrooli-memory",
-		build: func(request map[string]any) (map[string]any, error) {
-			body := strings.TrimSpace(fmt.Sprint(firstNonEmpty(request, "text", "note", "body")))
+		build: func(request projectionRequest) (map[string]any, error) {
+			body := request.first("text", "note", "body")
 			if body == "" {
 				return nil, errors.New("capture requires non-empty text")
 			}
-			kind := strings.TrimSpace(fmt.Sprint(request["kind"]))
+			// Same defect, opposite symptom: an absent `kind` stringified to
+			// "<nil>", which is non-empty, so the documented "note" default was
+			// unreachable and every caller that omitted the field was refused.
+			kind := request.first("kind")
 			if kind == "" {
 				kind = "note"
 			}
@@ -441,7 +451,7 @@ var projectionVerbs = map[string]projectionVerb{
 			// They are optional on the binding, so a caller that omits them
 			// still writes a valid record rather than being refused.
 			for _, field := range []string{"scope", "trigger", "approach", "evidence", "outcome"} {
-				if value := strings.TrimSpace(fmt.Sprint(request[field])); value != "" && value != "<nil>" {
+				if value := request.first(field); value != "" {
 					args[field] = value
 				}
 			}
@@ -459,16 +469,60 @@ var projectionVerbs = map[string]projectionVerb{
 type projectionVerb struct {
 	binding string
 	owner   string
-	build   func(map[string]any) (map[string]any, error)
+	build   func(projectionRequest) (map[string]any, error)
 }
 
-func firstNonEmpty(request map[string]any, keys ...string) any {
+// projectionRequest is the decoded verb payload. The control fields are typed;
+// everything else stays in Extra because the verb vocabulary is open.
+//
+// It exists because the previous shape — a bare map[string]any read with
+// fmt.Sprint — silently converted every *absent* key into the four-character
+// string "<nil>". That is a non-empty value, so it defeated every `!= ""`
+// guard in this file: `validate` sent it as a status filter and matched zero
+// runs, and `capture` sent it as a kind and refused its own default. Reading a
+// missing key must produce the empty string, and the only reliable way to
+// guarantee that is to stop calling fmt.Sprint on map lookups.
+type projectionRequest struct {
+	SessionID  string         `json:"session_id"`
+	ProgramID  string         `json:"program_id"`
+	Provenance string         `json:"provenance"`
+	Extra      map[string]any `json:"-"`
+}
+
+// first returns the first key that carries a non-empty value, or "" when none
+// does. A JSON null, a missing key, and an empty string are all "absent"; no
+// input can make this return a rendering of nil.
+func (p projectionRequest) first(keys ...string) string {
 	for _, key := range keys {
-		if value, ok := request[key]; ok && strings.TrimSpace(fmt.Sprint(value)) != "" {
-			return value
+		value, present := p.Extra[key]
+		if !present || value == nil {
+			continue
+		}
+		if text, ok := value.(string); ok {
+			if trimmed := strings.TrimSpace(text); trimmed != "" {
+				return trimmed
+			}
+			continue
+		}
+		if trimmed := strings.TrimSpace(fmt.Sprint(value)); trimmed != "" {
+			return trimmed
 		}
 	}
 	return ""
+}
+
+// decodeProjectionRequest reads the control fields into typed columns and
+// retains the remainder for the verb builders.
+func decodeProjectionRequest(body io.Reader) (projectionRequest, error) {
+	var raw map[string]any
+	if err := json.NewDecoder(body).Decode(&raw); err != nil {
+		return projectionRequest{}, err
+	}
+	request := projectionRequest{Extra: raw}
+	request.SessionID = request.first("session_id")
+	request.ProgramID = request.first("program_id")
+	request.Provenance = request.first("provenance")
+	return request, nil
 }
 
 // ProjectionBridge exposes runtime-owned projection verbs as typed, immutable
@@ -488,14 +542,13 @@ func ProjectionBridge(manager *sessions.Manager, registry *bindings.Registry) ht
 			writeBridgeError(w, http.StatusNotFound, fmt.Sprintf("unknown projection verb %q", verb))
 			return
 		}
-		var request map[string]any
-		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		request, err := decodeProjectionRequest(r.Body)
+		if err != nil {
 			writeBridgeError(w, http.StatusBadRequest, fmt.Sprintf("decode projection request: %v", err))
 			return
 		}
-		sessionID := fmt.Sprint(request["session_id"])
 		if manager != nil {
-			if _, err := manager.Get(r.Context(), sessionID); err != nil {
+			if _, err := manager.Get(r.Context(), request.SessionID); err != nil {
 				writeBridgeError(w, http.StatusNotFound, err.Error())
 				return
 			}
@@ -523,8 +576,8 @@ func ProjectionBridge(manager *sessions.Manager, registry *bindings.Registry) ht
 			delete(args, "rows")
 		}
 		result, err := registry.Execute(r.Context(), spec.binding, args, nil, false,
-			bindings.InvocationMetadata{SessionID: sessionID, ProgramID: fmt.Sprint(request["program_id"]), Provenance: fmt.Sprint(request["provenance"])},
-			&http.Client{Timeout: 2 * time.Minute})
+			bindings.InvocationMetadata{SessionID: request.SessionID, ProgramID: request.ProgramID, Provenance: request.Provenance},
+			&http.Client{Timeout: budgets.BridgeCall})
 		if err != nil {
 			writeBridgeError(w, http.StatusBadGateway, fmt.Sprintf("projection %q is unavailable: %v", verb, err))
 			return
@@ -728,7 +781,7 @@ func (s *service) resolveIntent(ctx context.Context, intent string, limit int32,
 		return nil, fmt.Errorf("mode must be fast, judged, or deep")
 	}
 	if mode != "fast" && unboundedDestructiveIntent(intent) {
-		return unavailableDiscoveryResponse(&bindingsv1.ResolveIntentResponse{Mode: mode}, "intent is unbounded or unauthorized; no governed binding is safe to select"), nil
+		return nullVerdictDiscoveryResponse(&bindingsv1.ResolveIntentResponse{Mode: mode}, "intent is unbounded or unauthorized; no governed binding is safe to select"), nil
 	}
 	response := &bindingsv1.ResolveIntentResponse{Mode: mode}
 	ranked, err := s.retrieveIntentCandidates(ctx, intent, limit, mode)
@@ -752,7 +805,7 @@ func (s *service) resolveIntent(ctx context.Context, intent string, limit int32,
 		}
 	}
 	if len(candidates) == 0 {
-		return unavailableDiscoveryResponse(response, "no governed binding or library program matched the intent"), nil
+		return nullVerdictDiscoveryResponse(response, "no governed binding or library program matched the intent"), nil
 	}
 	selected := candidates[0]
 	confidence := "low"
@@ -764,7 +817,7 @@ func (s *service) resolveIntent(ctx context.Context, intent string, limit int32,
 			return unavailableDiscoveryResponse(response, judgeErr.Error()), nil
 		}
 		if selected == nil {
-			return unavailableDiscoveryResponse(response, "judge returned a null verdict"), nil
+			return nullVerdictDiscoveryResponse(response, "judge returned a null verdict"), nil
 		}
 		method = mode + ".judge.default"
 	}
@@ -855,7 +908,7 @@ func (s *service) judgeIntent(ctx context.Context, intent string, candidates []*
 		return nil, "low", fmt.Errorf("encode discovery judge input: %w", err)
 	}
 	schema := `{"type":"object","properties":{"binding_id":{"type":"string"},"confidence":{"enum":["high","medium","low"]}},"required":["binding_id","confidence"]}`
-	result, err := s.registry.Execute(ctx, "ai-gateway/inference/run", map[string]any{"source": string(source), "schema_json": schema, "instruction": "Select exactly one candidate when it directly serves the intent. Return an empty binding_id when no candidate is justified. Confidence must reflect evidence in the candidate contract, not guesswork.", "role": "judge.default"}, nil, false, bindings.InvocationMetadata{Provenance: "program-runtime.discovery"}, &http.Client{Timeout: 3 * time.Minute})
+	result, err := s.registry.Execute(ctx, "ai-gateway/inference/run", map[string]any{"source": string(source), "schema_json": schema, "instruction": "Select exactly one candidate when it directly serves the intent. Return an empty binding_id when no candidate is justified. Confidence must reflect evidence in the candidate contract, not guesswork.", "role": "judge.default"}, nil, false, bindings.InvocationMetadata{Provenance: "program-runtime.discovery"}, &http.Client{Timeout: budgets.BridgeCall})
 	if err != nil {
 		return nil, "low", fmt.Errorf("judge.default unavailable: %v", err)
 	}
@@ -921,9 +974,22 @@ func orderedSearchHits(response *routingv1.QueryResponse) []*routingv1.SearchHit
 	return hits
 }
 
+// unavailableDiscoveryResponse reports that discovery could not reach a
+// verdict because a dependency failed. It is not the same as deciding that
+// nothing serves the intent — see nullVerdictDiscoveryResponse — and the two
+// were conflated until `unavailable` existed to tell them apart.
 func unavailableDiscoveryResponse(response *bindingsv1.ResolveIntentResponse, reason string) *bindingsv1.ResolveIntentResponse {
 	response.Reason = reason
 	response.Fallback = true
+	response.Result = &bindingsv1.DiscoverResult{Method: response.GetMode() + ".unavailable", Reason: reason, Unavailable: true}
+	return response
+}
+
+// nullVerdictDiscoveryResponse reports the honest verdict that no governed
+// capability serves the intent. Retrieval and judging both worked; the answer
+// is no. A caller should stop rather than retry.
+func nullVerdictDiscoveryResponse(response *bindingsv1.ResolveIntentResponse, reason string) *bindingsv1.ResolveIntentResponse {
+	response.Reason = reason
 	response.Result = &bindingsv1.DiscoverResult{Method: response.GetMode() + ".null", Reason: reason}
 	return response
 }

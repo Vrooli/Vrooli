@@ -68,7 +68,7 @@ export function RoutePreviewPage() {
                 data-testid={selectors.routePreview.scenarioInput}
                 value={form.scenario}
                 onChange={(event) => update("scenario", event.target.value)}
-                className="min-h-10 rounded-control border border-app-border bg-app-surface px-3 font-mono text-sm"
+                className="min-h-11 rounded-control border border-app-border bg-app-surface px-3 font-mono text-sm"
               />
             </label>
             <label className="grid gap-1 text-sm font-medium">
@@ -76,7 +76,7 @@ export function RoutePreviewPage() {
               <input
                 value={form.operation}
                 onChange={(event) => update("operation", event.target.value)}
-                className="min-h-10 rounded-control border border-app-border bg-app-surface px-3 font-mono text-sm"
+                className="min-h-11 rounded-control border border-app-border bg-app-surface px-3 font-mono text-sm"
               />
             </label>
             <label className="grid gap-1 text-sm font-medium">
@@ -84,7 +84,7 @@ export function RoutePreviewPage() {
               <input
                 value={form.role}
                 onChange={(event) => update("role", event.target.value)}
-                className="min-h-10 rounded-control border border-app-border bg-app-surface px-3 font-mono text-sm"
+                className="min-h-11 rounded-control border border-app-border bg-app-surface px-3 font-mono text-sm"
               />
             </label>
             <div className="grid gap-3 sm:grid-cols-2">
@@ -94,7 +94,7 @@ export function RoutePreviewPage() {
                   data-testid={selectors.routePreview.profileSelect}
                   value={form.profile}
                   onChange={(event) => update("profile", numberValue(event.target.value, form.profile))}
-                  className="min-h-10 rounded-control border border-app-border bg-app-surface px-3 text-sm"
+                  className="min-h-11 rounded-control border border-app-border bg-app-surface px-3 text-sm"
                 >
                   {profileOptions.map((option) => (
                     <option key={option.value} value={option.value}>
@@ -108,7 +108,7 @@ export function RoutePreviewPage() {
                 <select
                   value={form.privacyClass}
                   onChange={(event) => update("privacyClass", numberValue(event.target.value, form.privacyClass))}
-                  className="min-h-10 rounded-control border border-app-border bg-app-surface px-3 text-sm"
+                  className="min-h-11 rounded-control border border-app-border bg-app-surface px-3 text-sm"
                 >
                   {privacyOptions.map((option) => (
                     <option key={option.value} value={option.value}>
@@ -125,7 +125,7 @@ export function RoutePreviewPage() {
                   type="number"
                   value={form.timeoutMs}
                   onChange={(event) => update("timeoutMs", numberValue(event.target.value, form.timeoutMs))}
-                  className="min-h-10 rounded-control border border-app-border bg-app-surface px-3 text-sm"
+                className="min-h-11 rounded-control border border-app-border bg-app-surface px-3 text-sm"
                 />
               </label>
               <label className="grid gap-1 text-sm font-medium">
@@ -135,7 +135,7 @@ export function RoutePreviewPage() {
                   step="0.01"
                   value={form.maxCostUsd}
                   onChange={(event) => update("maxCostUsd", numberValue(event.target.value, form.maxCostUsd))}
-                  className="min-h-10 rounded-control border border-app-border bg-app-surface px-3 text-sm"
+                className="min-h-11 rounded-control border border-app-border bg-app-surface px-3 text-sm"
                 />
               </label>
               <label className="grid gap-1 text-sm font-medium">
@@ -144,7 +144,7 @@ export function RoutePreviewPage() {
                   type="number"
                   value={form.maxOutputTokens}
                   onChange={(event) => update("maxOutputTokens", numberValue(event.target.value, form.maxOutputTokens))}
-                  className="min-h-10 rounded-control border border-app-border bg-app-surface px-3 text-sm"
+                className="min-h-11 rounded-control border border-app-border bg-app-surface px-3 text-sm"
                 />
               </label>
             </div>
@@ -183,7 +183,7 @@ export function RoutePreviewPage() {
             <button
               type="button"
               disabled={!previewMutation.data?.valid}
-              className="inline-flex min-h-10 items-center gap-2 rounded-control border border-app-border px-3 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex min-h-11 items-center gap-2 rounded-control border border-app-border px-3 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Play aria-hidden="true" size={16} />
               {t(strings.pages.routePreview.execute)}

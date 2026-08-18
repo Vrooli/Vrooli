@@ -37,7 +37,17 @@ verdicts = validate("program-runtime")                                  # a runt
 - **Runtime verbs** are top-level names the runtime owns.
 
 **Do not prefix a scenario binding with `vrooli.`.** `vrooli.search_hub…` does
-not resolve.
+not resolve. `vrooli.` is the project control plane and nothing else — it is
+never a scenario and **never a runtime verb**. `vrooli.discover(...)` and
+`vrooli.recall(...)` both fail; call the verbs at the top level.
+
+**There is no `vrooli` module.** `import vrooli` and `from vrooli import recall`
+both raise `ModuleNotFoundError`. Every name above is already bound in the
+program's globals; a program never imports the runtime.
+
+**A program is module scope, not a function body.** `return` at the top level is
+a `SyntaxError`. Use `if`/`else` to skip work, or wrap the body in a `def` and
+call it.
 
 ### Shadowing and the escape hatch
 
@@ -65,6 +75,14 @@ print(top)                                                         # narrow
 when you need the rows themselves, and always pass a limit. Printed output is
 bounded (4 KB by default, 64 KB when the submission opts into materialized
 output), so an unbounded print is truncated rather than expensive.
+
+A `Handle` is not a dict and not a response object: it has no `.get()` and no
+attributes named after response fields. Take the row first, then index it:
+
+```python
+row = discover("read test run verdicts").head(1)[0]
+print(row["binding_id"])
+```
 
 `meta()` returns the response fields that are not rows — latency, routing,
 totals. `raw()` returns the decoded response. Neither escapes the output bound.
@@ -103,8 +121,8 @@ reference; a reclaimed session loses it.
 
 ## Fan-out
 
-Independent calls run concurrently through `gather`, which takes zero-argument
-callables so each starts on its own worker:
+Independent calls run concurrently through `gather`, which takes **zero-argument
+callables** so each starts on its own worker:
 
 ```python
 queries = ["proto bindings", "telemetry", "scenario health"]
@@ -112,8 +130,32 @@ results = gather(*[lambda q=q: search_hub.query.query(query=q, rows="ranked") fo
 print([r.count() for r in results])
 ```
 
+`gather` does not accept a list, a string, or already-evaluated handles.
+`gather(["a", "b"])` and `gather("documents")` both raise `TypeError` — it needs
+callables it can start, not values that have already been computed.
+
 Bind the loop variable as a default argument (`lambda q=q:`) or every callable
 closes over the last value.
+
+## Long-running programs
+
+A synchronous submission is bounded at **two minutes**. That is a deliberate
+limit, not the runtime's capacity: work that legitimately takes longer is
+submitted asynchronously and awaited once.
+
+```text
+program-runtime programs submit --session-id <id> --source-file work.py \
+  --provenance agent --async
+program-runtime programs wait <program-id> --timeout 300s
+```
+
+`programs submit --async --wait-timeout 300s` does both in one command. Either
+way you **block once** and never poll — the wait is served by the runtime and
+wakes on the program's terminal transition.
+
+A synchronous submission that outruns its bound fails with `deadline_exceeded`
+and names the program id; the program keeps running under its session budget, so
+the recovery is to wait on that id rather than to resubmit the work.
 
 ## The Python surface
 
@@ -182,14 +224,41 @@ program-runtime bindings unbound               # why something is not callable
 
 In-kernel, `describe("test-genie/runs/list")` returns the same descriptor-backed
 argument contract, and `discover("intent")` returns one governed capability or
-an explicit null verdict. Treat a null verdict as a stop, not as permission to
-guess a path or shell out.
+an explicit null verdict.
+
+### A null verdict and an unavailable result are different
+
+Both carry an empty `binding_id`, and confusing them is expensive in opposite
+directions, so the row distinguishes them:
+
+| `unavailable` | Meaning | What to do |
+|---|---|---|
+| `False` | Discovery worked and the answer is that no governed capability serves this intent. | **Stop.** Do not guess a path or shell out. |
+| `True` | Discovery itself failed — Search Hub or the judge was unreachable. The absence is not evidence. | Retry, or fall back to `mode="fast"`, or report the dependency. |
+
+```python
+row = discover("read test run verdicts").head(1)[0]
+if row["unavailable"]:
+    print({"blocked": row["reason"]})          # a dependency, not a gap
+elif row["null_verdict"]:
+    print({"stopped": "no governed capability"})
+else:
+    print(row["binding_id"])
+```
+
+`mode` selects the retrieval strategy:
+
+| Mode | Cost | Use when |
+|---|---|---|
+| `"fast"` | sub-second, no inference | you want determinism, or the judge is degraded |
+| `"judged"` (default) | one governed model round-trip | you want the highest-precision single answer |
+| `"deep"` | judged over paraphrases | recall matters more than latency |
 
 ## Runtime verbs
 
 | Verb | What it does |
 |---|---|
-| `discover(intent)` | One governed binding for an intent, or an explicit null verdict. |
+| `discover(intent, mode=)` | One governed binding for an intent, or an explicit null verdict. |
 | `recall(intent, depth="fast")` | Governed records and docs through search-hub. `depth="deep"` widens the result set. |
 | `validate(scenario, depth="fast")` | The **latest recorded** test-genie run verdicts for a scenario. |
 | `capture(text, kind="note")` | Writes to vrooli-memory. `kind="work-record"` also accepts `trigger`, `approach`, `evidence`, `outcome`. |

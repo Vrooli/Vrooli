@@ -13,6 +13,7 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		Render: map[string]cliapp.Renderer{
 			"InferenceService.Run":      renderRun,
 			"InferenceService.RunBatch": renderRunBatch,
+			"InferenceService.Embed":    renderEmbed,
 		},
 	})
 	if err != nil {

@@ -48,6 +48,38 @@ _INVOCATION_CONTEXT: contextvars.ContextVar[dict[str, str]] = contextvars.Contex
     "program_runtime_invocation_context", default={}
 )
 
+
+class _Budgets:
+    """Client-side timeouts, handed down by the Go supervisor.
+
+    These numbers are not declared here. `internal/budgets` is the single
+    authority and marshals them into PROGRAM_RUNTIME_BUDGETS at spawn, because
+    two independent lists of the same budgets is exactly how `discover` came to
+    allow 10 seconds for a call the bridge is allowed 90 seconds to make.
+
+    The fallbacks below apply only when the kernel is run outside its
+    supervisor — a direct pytest invocation, say. They are deliberately equal
+    to the shipped ladder so a test does not silently exercise a different
+    contract, and `test_budgets_match_go_authority` pins them to it.
+    """
+
+    telemetry = 2.0
+    describe = 20.0
+    invoke = 100.0
+
+    @classmethod
+    def load(cls, raw: str) -> None:
+        try:
+            declared = json.loads(raw) if raw.strip() else {}
+        except json.JSONDecodeError:
+            return
+        if not isinstance(declared, dict):
+            return
+        for attribute, key in (("telemetry", "telemetry_seconds"), ("describe", "describe_seconds"), ("invoke", "invoke_seconds")):
+            value = declared.get(key)
+            if isinstance(value, (int, float)) and value > 0:
+                setattr(cls, attribute, float(value))
+
 try:
     from safebuiltins import SAFE_BUILTIN_NAMES as _SAFE_BUILTIN_NAMES, SAFE_BUILTINS as _SAFE_BUILTINS
 except ImportError:  # launched by absolute path without the host dir on sys.path
@@ -264,7 +296,7 @@ class ProgramGlobals(dict):
             method="POST",
         )
         try:
-            with urllib.request.urlopen(request, timeout=2):
+            with urllib.request.urlopen(request, timeout=_Budgets.telemetry):
                 pass
         except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError, OSError):
             # Telemetry must never change the program's deterministic failure.
@@ -288,6 +320,80 @@ class ProgramGlobals(dict):
         if name in self._protected and name in self:
             raise NameError(f"protected runtime name {name!r} cannot be assigned")
         super().__setitem__(name, value)
+
+
+# The runtime verb surface, declared once.
+#
+# Every consumer derives from this tuple: the top-level builtin surface, the
+# protected-name set that refuses shadowing, and `_ProjectNamespace`'s error
+# message. Before it existed the same list was written out three times in three
+# shapes, which is how the surface came to expose seven of ten verbs under
+# `vrooli.` and three only at the top level.
+_RUNTIME_VERB_NAMES = (
+    "discover",
+    "recall",
+    "guide",
+    "validate",
+    "capture",
+    "ai",
+    "agent",
+    "gather",
+    "describe",
+    "reachable",
+    "lib",
+)
+
+
+
+def _discovery_unavailable_row(reason: str, mode: str) -> dict[str, Any]:
+    """One row shape for every way discovery can fail to reach a verdict.
+
+    `unavailable` is True and `null_verdict` is True: the caller has no binding
+    *and* the absence is not evidence. A caller that only checks binding_id
+    still behaves as before; one that checks `unavailable` can retry, fall back
+    to `mode="fast"`, or report the dependency instead of concluding the fleet
+    has no such capability.
+    """
+    return {"binding_id": "", "null_verdict": True, "unavailable": True, "reason": reason, "mode": mode}
+
+
+class _ProjectNamespace:
+    """The `vrooli.` root: project control-plane bindings and nothing else.
+
+    This exists because `vrooli` used to be a full `Namespace`, and `Namespace`
+    carries the runtime verbs as *methods*. Ordinary attribute lookup found
+    those methods before `__getattr__` ran, so `vrooli.discover`, `vrooli.ai`,
+    `vrooli.gather`, `vrooli.describe`, `vrooli.reachable`, `vrooli.agent`, and
+    `vrooli.lib` all silently worked — while `vrooli.recall`, `vrooli.validate`,
+    and `vrooli.capture`, which are closures rather than methods, did not.
+
+    Nobody chose that 7-of-10 split; it was an artefact of how each verb
+    happened to be implemented. It is the worst possible shape for a surface an
+    agent has to learn, because it works often enough to be internalised and
+    then fails unpredictably — two of twelve authoring-eval cases failed on
+    exactly this. The documented rule has always been that `vrooli.` addresses
+    the project CLI and never a verb, so the code now matches the rule.
+    """
+
+    def __init__(self, bindings: dict[str, Any] | None = None, invocations: list[dict[str, str]] | None = None) -> None:
+        self._bindings = _normalize_bindings(bindings or {})
+        self._invocations = invocations if invocations is not None else []
+
+    def __getattr__(self, group: str) -> Any:
+        if group in self._bindings:
+            value = self._bindings[group]
+            if _is_scenario_map(value):
+                return _NamespaceScenario(group, value, self._invocations)
+            return _NamespaceGroup(group, value, self._invocations)
+        if group in _RUNTIME_VERB_NAMES:
+            raise AttributeError(
+                f"{group!r} is a runtime verb, not a project command: call {group}(...) at the top level. "
+                "`vrooli.` addresses the project control plane only."
+            )
+        raise AttributeError(f"no project command group {group!r} under `vrooli`")
+
+    def __dir__(self) -> list[str]:
+        return sorted(self._bindings)
 
 
 class Namespace:
@@ -333,7 +439,7 @@ class Namespace:
             method="POST",
         )
         try:
-            with urllib.request.urlopen(request, timeout=10) as response:
+            with urllib.request.urlopen(request, timeout=_Budgets.describe) as response:
                 payload = json.loads(response.read().decode())
         except urllib.error.HTTPError as exc:
             detail = exc.read().decode(errors="replace")
@@ -356,7 +462,7 @@ class Namespace:
                 method="POST",
             )
             try:
-                with urllib.request.urlopen(request, timeout=10) as response:
+                with urllib.request.urlopen(request, timeout=_Budgets.describe) as response:
                     live = json.loads(response.read().decode())
                 if isinstance(live, dict):
                     rows = []
@@ -392,9 +498,23 @@ class Namespace:
             )
         raise AttributeError(f"no governed binding scenario or group {group!r}")
 
-    def discover(self, intent: str) -> Handle:
-        """Resolve one governed capability by intent."""
-        return self._discover_bridge(intent)
+    def discover(self, intent: str, mode: str = "judged") -> Handle:
+        """Resolve one governed capability by intent.
+
+        `mode` selects the retrieval strategy and is accepted here because the
+        kernel previously hardcoded `judged` with no way to opt out. That made a
+        degraded judge indistinguishable from an empty fleet from inside a
+        program, and it contradicted the skill, which has always documented
+        three modes:
+
+        - `fast`    deterministic provider ranking, no inference, sub-second.
+        - `judged`  a governed judge picks one candidate. Highest precision,
+                    but it costs a model round-trip and inherits its health.
+        - `deep`    `judged` over paraphrased queries; widest recall.
+        """
+        if mode not in ("fast", "judged", "deep"):
+            raise ValueError('discover mode must be "fast", "judged", or "deep"')
+        return self._discover_bridge(intent, mode)
 
     def projection(self, verb: str, **kwargs: Any) -> Handle:
         """Call a projection verb through the runtime's private bridge."""
@@ -403,7 +523,7 @@ class Namespace:
         endpoint = self._bridge_url.rsplit("/", 1)[0] + "/projection/" + verb
         request = urllib.request.Request(endpoint, data=json.dumps({"session_id": self._session_id, **kwargs}).encode(), headers={"Content-Type": "application/json"}, method="POST")
         try:
-            with urllib.request.urlopen(request, timeout=30) as response:
+            with urllib.request.urlopen(request, timeout=_Budgets.invoke) as response:
                 payload = json.loads(response.read().decode())
         except urllib.error.HTTPError as exc:
             detail = exc.read().decode(errors="replace")
@@ -438,17 +558,17 @@ class Namespace:
             return value
         return Handle([{"library": spec.get("name", ""), "version": spec.get("version", 0), "value": value}], f"vrooli.lib.{spec.get('name', '')}")
 
-    def _discover_bridge(self, intent: str) -> Handle:
+    def _discover_bridge(self, intent: str, mode: str = "judged") -> Handle:
         """Private bridge used by the seeded discover facade."""
         if self._discovery_url:
             try:
                 request = urllib.request.Request(
                     self._discovery_url,
-                    data=json.dumps({"intent": intent, "limit": 20, "mode": "judged"}).encode(),
+                    data=json.dumps({"intent": intent, "limit": 20, "mode": mode}).encode(),
                     headers={"Content-Type": "application/json"},
                     method="POST",
                 )
-                with urllib.request.urlopen(request, timeout=10) as response:
+                with urllib.request.urlopen(request, timeout=_Budgets.invoke) as response:
                     payload = json.loads(response.read().decode())
                 result = payload.get("result") or {}
                 binding = result.get("binding") or {}
@@ -466,11 +586,19 @@ class Namespace:
                     "alternatives": result.get("alternatives", []),
                     "arguments": result.get("arguments", []),
                     "null_verdict": not bool(binding_id),
+                    # `unavailable` separates "discovery could not reach a
+                    # verdict" from "the verdict is that nothing serves this".
+                    # Both carry an empty binding_id, and the skill tells an
+                    # agent that an empty binding_id is a stop — so before this
+                    # field a degraded judge silently taught agents that no
+                    # capability existed.
+                    "unavailable": bool(result.get("unavailable", False)),
+                    "mode": payload.get("mode", mode),
                 }
                 return Handle([row], "vrooli.discover")
             except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError, OSError, json.JSONDecodeError) as exc:
-                return Handle([{"binding_id": "", "null_verdict": True, "reason": f"discovery unavailable: {exc}"}], "vrooli.discover")
-        return Handle([{"binding_id": "", "null_verdict": True, "reason": "discovery unavailable: bridge is not configured"}], "vrooli.discover")
+                return Handle([_discovery_unavailable_row(f"discovery unavailable: {exc}", mode)], "vrooli.discover")
+        return Handle([_discovery_unavailable_row("discovery unavailable: bridge is not configured", mode)], "vrooli.discover")
 
     def gather(self, *calls: Any, max_workers: int = 8) -> list[Handle]:
         """Run zero-argument binding callables concurrently and preserve order."""
@@ -785,7 +913,7 @@ class BridgeBinding:
             method="POST",
         )
         try:
-            with urllib.request.urlopen(request, timeout=10) as response:
+            with urllib.request.urlopen(request, timeout=_Budgets.describe) as response:
                 snapshot = json.loads(response.read().decode())
             scenario = self.binding_id.split("/", 1)[0]
             status = snapshot.get(scenario, {}) if isinstance(snapshot, dict) else {}
@@ -801,7 +929,7 @@ class BridgeBinding:
         request = json.dumps({"session_id": self.session_id, "program_id": context.get("program_id", ""), "provenance": context.get("provenance", ""), "binding_id": self.binding_id, "args": kwargs, "confirmed": confirmed, "rows": rows_override or ""}).encode()
         http_request = urllib.request.Request(self.bridge_url, data=request, headers={"Content-Type": "application/json"}, method="POST")
         try:
-            with urllib.request.urlopen(http_request, timeout=180) as response:
+            with urllib.request.urlopen(http_request, timeout=_Budgets.invoke) as response:
                 payload = json.loads(response.read().decode())
         except urllib.error.HTTPError as exc:
             detail = exc.read().decode(errors="replace")
@@ -871,7 +999,9 @@ class SessionKernel:
             else:
                 scenario_bindings[scenario] = value
         root = Namespace(scenario_bindings, self.invocations, session_id, agent_bridge_url, bridge_url, discovery_url, reachability, libraries)
-        project = Namespace(project_bindings, self.invocations, session_id, agent_bridge_url, bridge_url, discovery_url, {}, libraries, namespace_prefix="vrooli")
+        # `vrooli` is a project-command namespace, deliberately not a Namespace:
+        # see _ProjectNamespace for why the verbs must not leak onto it.
+        project = _ProjectNamespace(project_bindings, self.invocations)
         builtin_surface: dict[str, Any] = {
             "discover": root.discover,
             # Each verb accepts the same positional-or-keyword shape as
@@ -888,10 +1018,18 @@ class SessionKernel:
             "describe": root.describe,
             "reachable": root.reachable,
             "lib": root.lib,
-            "vrooli": project,
-            "__vrooli__": root,
         }
-        protected = {"discover", "recall", "guide", "validate", "capture", "ai", "agent", "gather", "describe", "reachable", "lib", "vrooli", "__vrooli__"}
+        # The surface must cover exactly the declared verbs. A verb added to
+        # the tuple without a binding here — or bound here without being
+        # declared — is the drift that produced the 7-of-10 split, so it fails
+        # at kernel start rather than at some agent's first attempt.
+        missing = [name for name in _RUNTIME_VERB_NAMES if name not in builtin_surface]
+        extra = [name for name in builtin_surface if name not in _RUNTIME_VERB_NAMES]
+        if missing or extra:
+            raise RuntimeError(f"runtime verb surface drifted: missing={missing} unexpected={extra}")
+        builtin_surface["vrooli"] = project
+        builtin_surface["__vrooli__"] = root
+        protected = set(_RUNTIME_VERB_NAMES) | {"vrooli", "__vrooli__"}
         unresolved_url = bridge_url.rsplit("/", 1)[0] + "/execute" if bridge_url else ""
         self.globals = ProgramGlobals(protected=protected, known_names=[*scenario_bindings, *builtin_surface], unresolved_url=unresolved_url, session_id=session_id)
         self.globals["__name__"] = "program_runtime_session"
@@ -964,6 +1102,9 @@ def _output_response(raw_stdout: str, include_materialized: bool, response_type:
 
 
 def serve() -> None:
+    # Budgets are loaded before anything can issue a request, so no call ever
+    # runs against the standalone fallbacks while supervised.
+    _Budgets.load(os.environ.get("PROGRAM_RUNTIME_BUDGETS", ""))
     bindings = []
     binding_path = os.environ.get("PROGRAM_RUNTIME_BINDINGS_FILE", "")
     if binding_path:

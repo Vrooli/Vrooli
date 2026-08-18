@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"program-runtime/internal/bindings"
+	"program-runtime/internal/budgets"
 	"program-runtime/internal/capabilities"
 	"program-runtime/internal/library"
 	"program-runtime/internal/modules"
@@ -142,6 +143,13 @@ func main() {
 	// after a stale-source rebuild before any listeners are opened.
 	if preflight.Run(preflight.Config{ScenarioName: "program-runtime"}) {
 		return
+	}
+
+	// A violated timeout ladder means some layer will be killed mid-write and
+	// its failure will be untyped, which is worse than not starting: the
+	// runtime would keep reporting healthy while returning `unexpected EOF`.
+	if err := budgets.Validate(); err != nil {
+		log.Fatalf("timeout budget ladder is invalid: %v", err)
 	}
 
 	dsn, err := sqliteDSN()
@@ -402,8 +410,15 @@ func main() {
 	// installed test pool. Self-disables in production mode.
 	handler := apihttp.TestModeMiddleware(rootMux)
 
+	// The write deadline is the outermost rung of the budget ladder, not a
+	// taste call. Leaving it unset inherited api-core's 30s default, which
+	// capped every synchronous call in a scenario whose sessions advertise a
+	// four-hour wall budget; the ladder and its startup assertion live in
+	// internal/budgets.
 	if err := apiserver.Run(apiserver.Config{
-		Handler: handler,
+		Handler:      handler,
+		ReadTimeout:  budgets.ServerRead,
+		WriteTimeout: budgets.ServerWrite,
 		Cleanup: func(ctx context.Context) error {
 			_ = runner.Close()
 			close(reclamationStop)

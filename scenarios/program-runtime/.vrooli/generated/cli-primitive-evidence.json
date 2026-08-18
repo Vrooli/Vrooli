@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "program-runtime",
   "generator": "v1.0.0",
-  "manifest_hash": "dacb1e98e34565e5181261d8395c37c9ce54e40d2d6db2d61a047513a847c0df",
+  "manifest_hash": "814462b616c56527c707f600d930031028cf9185e6d94b5f31ceeec9f5f222dd",
   "commands": [
     {
       "path": "authoring eval",
@@ -163,6 +163,14 @@
       "binding": "ProgramService.SubmitProgram",
       "declared_primitive": "proto_mutation",
       "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "programs wait",
+      "group": "programs",
+      "command": "wait",
+      "binding": "ProgramService.WaitForProgram",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
     },
     {
       "path": "sessions create",

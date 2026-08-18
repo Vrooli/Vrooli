@@ -79,6 +79,17 @@ func TestCatalogDeclaresLocateVisualRole(t *testing.T) {
 	require.Equal(t, "vision.default", role.Candidates[1].ResourceRole)
 }
 
+func TestCatalogDeclaresDeviceControlPlanningRole(t *testing.T) {
+	catalog, err := LoadCatalog("../../../config/inference-role-catalog.json")
+	require.NoError(t, err)
+	role, ok := catalog.Roles["device-control.plan"]
+	require.True(t, ok)
+	require.Len(t, role.Candidates, 3)
+	require.Equal(t, "extract.structured", role.Candidates[0].ResourceRole)
+	require.Equal(t, "extract.structured", role.Candidates[1].ResourceRole)
+	require.Equal(t, "extract.structured", role.Candidates[2].ResourceRole)
+}
+
 func visualAttachment(width, height uint32) *sharedv1.Attachment {
 	return &sharedv1.Attachment{
 		Modality:  sharedv1.Modality_MODALITY_IMAGE,

@@ -180,12 +180,32 @@ failure shapes:
 program-runtime programs submit \
   --session-id <session-id> --source '<python>' --provenance agent
 program-runtime programs get <program-id>
+program-runtime programs wait <program-id> [--timeout 90s]
 program-runtime programs list [--session-id <session-id>]
 program-runtime programs mine [--include-operator]
 ```
 
 Program output remains bounded by default. `--include-materialized` permits
 explicit materialization but still applies the stated output limit.
+
+#### Long-running programs
+
+A synchronous submission is bounded at two minutes. Longer work is submitted
+asynchronously and awaited **once**:
+
+```bash
+program-runtime programs submit --session-id <id> --source-file work.py \
+  --provenance agent --async
+program-runtime programs wait <program-id> --timeout 300s
+```
+
+`--async --wait-timeout 300s` on `submit` does both in one command. The wait is
+served by the runtime and wakes on the program's terminal transition, so a
+polling loop is never correct. A wait that reaches its deadline returns the
+current program with `terminal: false` — wait again on the same id to resume.
+
+A synchronous submission that outruns its bound fails with `deadline_exceeded`
+naming the still-running program id, not a severed connection.
 
 ### `program-runtime library`
 

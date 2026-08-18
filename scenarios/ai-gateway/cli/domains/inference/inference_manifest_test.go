@@ -15,5 +15,5 @@ func TestManifestBindsInferenceRun(t *testing.T) {
 	group, err := Register(&cliapp.ScenarioApp{}, manifest)
 	require.NoError(t, err)
 	require.Equal(t, GroupName, group.Name)
-	require.Len(t, group.Subcommands, 2)
+	require.Len(t, group.Subcommands, 3)
 }

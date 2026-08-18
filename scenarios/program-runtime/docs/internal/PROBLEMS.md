@@ -219,6 +219,25 @@ missing member rather than claiming a clean regression diff.
 **Refs:** plan baseline `program-runtime-trustworthy-results-and-a-self-improving-baseline`,
 `docs/TESTING.md`.
 
+### 2026-08-17 — money-ledger binds an argument with no matching proto field
+
+**Symptom:** `program-runtime bindings doctor --json` reports `uncallable: 1`.
+`money-ledger/ledger/accounts-create` maps an argument named `kind` onto
+`CreateAccountRequest`, which has `bookId`, `name`, and `accountKind`.
+
+**Root cause:** the manifest argument name does not match any field on the
+request message, and no rename is declared.
+
+**Workaround:** none needed. The binding is refused at generation, so no program
+can call it; the count is honest backlog rather than a live defect.
+
+**Real fix:** rename the argument to `accountKind` in
+`scenarios/money-ledger/cli/manifest.json`.
+
+**Owner:** money-ledger.
+
+**Refs:** `scenarios/money-ledger/cli/manifest.json`.
+
 ### 2026-08-17 — prose-studio binds a control flag as a payload argument
 
 **Symptom:** `program-runtime bindings doctor --json` reports `uncallable: 10`.
@@ -240,6 +259,129 @@ program can call them; the count is honest backlog rather than a live defect.
 **Refs:** `scenarios/prose-studio/cli/manifest.json`,
 `scenarios/cli-health/api/internal/services/manifestvalidation/findings.go`
 (`CodeBindingControlFlagBound`).
+
+### 2026-08-17 — RESOLVED: the 30-second ceiling nobody set
+
+**Symptom:** every synchronous call failed at ~30s. `programs submit` returned
+`unavailable: unexpected EOF`; `authoring eval` returned the same after 3m26s
+having actually run all twelve cases; judged discovery returned `HTTP 000`; both
+inference examples failed with `RemoteDisconnected`.
+
+**Root cause:** `api/main.go` called `apiserver.Run` without `WriteTimeout`, so
+it inherited api-core's 30s default (`packages/api-core/server/server.go:382`).
+Twenty other scenarios override it — search-hub allows 15 minutes, agent-manager
+3, ai-gateway 2 — so the scenario built to run long programs had the shortest
+deadline in its own dependency chain, while its sessions advertised a four-hour
+wall budget and its kernel client waited 180s. Measured boundary: 28s succeeded,
+32s failed.
+
+**Real fix:** `internal/budgets` is now the single authority for every budget on
+the execution path, arranged as a strictly nested ladder that `Validate()`
+asserts at startup. The kernel's client timeouts are marshalled to it at spawn
+(`PROGRAM_RUNTIME_BUDGETS`) rather than declared in Python, so the two languages
+cannot drift.
+
+**Owner:** program-runtime. **Refs:** `api/internal/budgets/budgets.go`,
+`api/internal/budgets/budgets_test.go`, `kernel/host/engine.py` (`_Budgets`).
+
+### 2026-08-17 — RESOLVED: `validate` and `capture` were broken by a rendered nil
+
+**Symptom:** `validate("<scenario>")` returned `result: {}` for every scenario
+while reporting SUCCEEDED. `capture` at the bridge refused any request that
+omitted `kind`, with `capture kind "<nil>" is not accepted`.
+
+**Root cause:** `fmt.Sprint` on a missing `map[string]any` key returns the string
+`"<nil>"`, which is non-empty and therefore defeats a `!= ""` guard. `validate`
+sent it to test-genie as a status filter and matched zero runs; `capture` tested
+it against `== ""` so the documented `note` default was unreachable. Seven call
+sites had the shape; exactly one carried the `!= "<nil>"` guard. The same defect
+wrote 18 rows to `binding_invocations` whose provenance is the literal `<nil>`.
+
+**Real fix:** `ProjectionBridge` decodes into a typed `projectionRequest` whose
+`first()` accessor treats a missing key, a JSON null, and whitespace alike as
+absent. Nine tests in `handlers/bindings/projection_test.go` cover the class,
+including a table-driven guard that walks every declared verb.
+
+**Owner:** program-runtime. **Refs:** `api/handlers/bindings/module.go`,
+`api/handlers/bindings/projection_test.go`.
+
+### 2026-08-17 — RESOLVED: per-invocation usage was silently zero
+
+**Symptom:** all 426 successful `ai-gateway/inference/run` rows in
+`binding_invocations` recorded 0 input tokens, 0 output tokens, and 0 cost.
+
+**Root cause:** `invocationUsage` read `input_tokens`/`output_tokens`/
+`cost_micros`, but the wire format is protojson, which emits camelCase. Session
+level spend accounting reads a different path and was correct, which is why the
+gap survived: one surface said the calls were free and another said they were
+not, and nothing compared them.
+
+**Real fix:** both spellings are accepted, and `served_by_provider` /
+`served_by_model` are now recorded so a slow call caused by a dead local
+candidate is distinguishable from a slow model. Live evidence after the fix: two
+`ollama|qwen3.5:4b` rows at 610ms and 815ms with real token counts, beside a
+pre-fix row at 46,048ms with no route recorded at all.
+
+**Owner:** program-runtime. **Refs:** `api/internal/bindings/registry.go`,
+`api/internal/bindings/schema.sql`.
+
+### 2026-08-17 — the inference and describe surfaces use parameter names models do not reach for
+
+**Symptom:** two of twelve authoring-eval cases fail on keyword names, not on logic:
+
+```
+TypeError: _InferenceSurface.classify() got an unexpected keyword argument 'text'
+TypeError: Namespace.describe() got an unexpected keyword argument 'binding_id'
+```
+
+**Root cause:** `ai.classify/extract/judge/write` take `source=`, and `describe`
+takes `binding=`. Both are defensible names internally — `source` mirrors the
+ai-gateway request field, `binding` mirrors the registry — but a model writing a
+program reaches for `text=` and `binding_id=`, and `binding_id` is the exact name
+this scenario uses for the same value everywhere else (the corpus, the doctor
+output, discovery rows, the CLI). The surface disagrees with its own vocabulary.
+
+**Workaround:** use `source=` and `binding=`. The failure is immediate and its
+message names the offending keyword, so it costs one retry rather than a wrong
+result.
+
+**Real fix:** accept `text=` as an alias for `source=` and `binding_id=` as an
+alias for `binding=`. Both are pure additions that cannot break a caller. This
+was deliberately *not* done in the change that found it: the two comparable runs
+that set the eval floor were measured against `authoring-brief@3`, and altering
+the surface between them would have destroyed their comparability. It is the next
+iteration, with its own before/after measurement.
+
+**Owner:** program-runtime.
+
+**Refs:** `kernel/host/engine.py` (`_InferenceSurface._invoke`,
+`Namespace.describe`), `evals/authoring.primary.json`.
+
+### 2026-08-17 — `WaitForProgram` shipped ahead of an operational target
+
+**Symptom:** `ProgramService.WaitForProgram` and `program-runtime programs wait`
+are live, tested, and documented, but no PRD operational target names them and
+no requirement in `requirements/04-programs` traces to them.
+
+**Root cause:** the RPC was added to repair a defect — the only way to await an
+async program was a 50ms client-side poll loop that lived in the CLI, so no
+other consumer could reuse it and it contradicted the project's never-poll
+rule. The repair was authorised as engineering work; the contract change it
+implies was not, and inventing a mapping onto an existing target would be a
+false trace.
+
+**Workaround:** none needed for behaviour. The gap is contractual: the scenario
+has a public capability its PRD does not promise, so `business-health` cannot
+grade it and the work ladder's W1 rung has nothing to check.
+
+**Real fix:** author an operational target for bounded asynchronous execution
+through `prompt-manager skill read prd-authoring`, then add the requirement with
+validation refs to `internal/programs/wait_test.go` and the CLI evidence.
+
+**Owner:** program-runtime, with operator approval for the contract change.
+
+**Refs:** `packages/proto/schemas/program-runtime/v1/programs/programs.proto`,
+`api/internal/programs/service.go` (`Wait`), `cli/domains/programs/register.go`.
 
 ### 2026-08-17 — the `guide` verb has no governed binding to compose
 
@@ -266,7 +408,8 @@ action lookup; the verb then needs only a binding id and an argument builder.
 
 **Symptom:** `validate("program-runtime")` returns the latest recorded
 test-genie run verdicts. It does not start a run, which the construction guide
-states explicitly.
+states explicitly. (Separately, it used to return *nothing at all*; that was the
+rendered-nil defect resolved above, not this stated boundary.)
 
 **Root cause:** starting a run is a write that test-genie declares
 run-ineligible, so no governed binding exists. Composing an ungoverned client

@@ -152,6 +152,51 @@ func (s *Service) RunBatch(ctx context.Context, requests []ProviderRequest) *inf
 	return response
 }
 
+func (s *Service) Embed(ctx context.Context, role string, texts []string, sampling bool) *inferencev1.EmbedResponse {
+	response := &inferencev1.EmbedResponse{Usage: &inferencev1.Usage{}}
+	if sampling {
+		return embedError(response, inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_INVALID_REQUEST, "embedding roles are deterministic and reject sampling controls", "sampling")
+	}
+	if strings.TrimSpace(role) == "" {
+		return embedError(response, inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_INVALID_REQUEST, "role is required", "role")
+	}
+	if len(texts) == 0 {
+		return embedError(response, inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_INVALID_REQUEST, "texts are required", "texts")
+	}
+	repository, ok := s.repository.(EmbeddingRepository)
+	if !ok {
+		return embedError(response, inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_UNAVAILABLE, "embedding repository is unavailable", "embedding")
+	}
+	result, err := repository.Embed(ctx, role, texts)
+	if err != nil {
+		code := inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_PROVIDER_FAILED
+		if errors.Is(err, ErrUnavailable) {
+			code = inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_UNAVAILABLE
+		}
+		if strings.Contains(err.Error(), "dimension_mismatch") {
+			code = inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_VALIDATION_FAILED
+		}
+		return embedError(response, code, err.Error(), "embedding")
+	}
+	if result.Dimension <= 0 || len(result.Vectors) != len(texts) {
+		return embedError(response, inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_VALIDATION_FAILED, "embedding repository returned an incomplete vector batch", "vectors")
+	}
+	response.Provider, response.Model, response.Dimension = result.Provider, result.Model, int32(result.Dimension)
+	response.Usage.InputTokens, response.Usage.CostMicros = result.InputTokens, result.CostMicros
+	for _, vector := range result.Vectors {
+		if len(vector) != result.Dimension {
+			return embedError(response, inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_VALIDATION_FAILED, "embedding_dimension_mismatch", "dimension")
+		}
+		response.Vectors = append(response.Vectors, &inferencev1.EmbeddingVector{Values: vector})
+	}
+	return response
+}
+
+func embedError(response *inferencev1.EmbedResponse, code inferencev1.InferenceErrorCode, message, construct string) *inferencev1.EmbedResponse {
+	response.Error = &inferencev1.InferenceError{Code: code, Message: message, Construct: construct}
+	return response
+}
+
 func addUsage(total, item *inferencev1.Usage) {
 	if total == nil || item == nil {
 		return
@@ -202,6 +247,8 @@ func samplingErrorCode(err error) (inferencev1.InferenceErrorCode, string) {
 		return inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_INVALID_REQUEST, samplingConstruct
 	case errors.Is(err, ErrUnsupportedSampling):
 		return inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_UNSUPPORTED_SAMPLING, samplingConstruct
+	case errors.Is(err, ErrContextOverflow):
+		return inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_CONTEXT_OVERFLOW, "context"
 	case errors.Is(err, ErrUnavailable):
 		return inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_UNAVAILABLE, ""
 	default:

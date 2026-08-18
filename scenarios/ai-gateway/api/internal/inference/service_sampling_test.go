@@ -19,12 +19,14 @@ func (r samplingErrRepo) Run(context.Context, ProviderRequest) (ProviderResult, 
 // the response must still report what the gateway would have done.
 func TestServiceMapsSamplingErrorsAndAlwaysReportsApplied(t *testing.T) {
 	for _, tc := range []struct {
-		name string
-		err  error
-		want inferencev1.InferenceErrorCode
+		name      string
+		err       error
+		want      inferencev1.InferenceErrorCode
+		construct string
 	}{
-		{"role forbids override", ErrRoleForbidsSampling, inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_INVALID_REQUEST},
-		{"no candidate honors", ErrUnsupportedSampling, inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_UNSUPPORTED_SAMPLING},
+		{"role forbids override", ErrRoleForbidsSampling, inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_INVALID_REQUEST, "sampling.temperature"},
+		{"no candidate honors", ErrUnsupportedSampling, inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_UNSUPPORTED_SAMPLING, "sampling.temperature"},
+		{"context overflow", ErrContextOverflow, inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_CONTEXT_OVERFLOW, "context"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			service := NewService(samplingErrRepo{err: tc.err})
@@ -32,7 +34,7 @@ func TestServiceMapsSamplingErrorsAndAlwaysReportsApplied(t *testing.T) {
 				Source: "s", SchemaJSON: `{"type":"object"}`, Role: "write.default",
 			})
 			require.Equal(t, tc.want, response.GetError().GetCode())
-			require.Equal(t, "sampling.temperature", response.GetError().GetConstruct())
+			require.Equal(t, tc.construct, response.GetError().GetConstruct())
 			require.NotNil(t, response.GetApplied(), "applied is populated on error paths too")
 			require.Equal(t, sharedv1.SamplingSupport_SAMPLING_SUPPORT_UNSPECIFIED,
 				response.GetApplied().GetTemperatureSupport(),

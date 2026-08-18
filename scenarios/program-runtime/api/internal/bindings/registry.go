@@ -465,7 +465,8 @@ func (r *Registry) Execute(ctx context.Context, id string, args map[string]any, 
 			}
 		}
 		usageInput, usageOutput, usageCost := invocationUsage(result)
-		invocation := Invocation{BindingID: id, TargetScenario: target, SessionID: metadata.SessionID, ProgramID: metadata.ProgramID, Provenance: metadata.Provenance, Outcome: outcome, Reason: reason, LatencyMS: time.Since(started).Milliseconds(), UsageInputTokens: usageInput, UsageOutputTokens: usageOutput, UsageCostMicros: usageCost, OccurredAt: time.Now().UTC()}
+		servedByProvider, servedByModel := invocationRoute(result)
+		invocation := Invocation{BindingID: id, TargetScenario: target, SessionID: metadata.SessionID, ProgramID: metadata.ProgramID, Provenance: metadata.Provenance, Outcome: outcome, Reason: reason, LatencyMS: time.Since(started).Milliseconds(), UsageInputTokens: usageInput, UsageOutputTokens: usageOutput, UsageCostMicros: usageCost, ServedByProvider: servedByProvider, ServedByModel: servedByModel, OccurredAt: time.Now().UTC()}
 		invocation.Origin = invocationOrigin(invocation)
 		invocation.InvocationClass = classifyInvocation(invocation)
 		r.RecordInvocation(ctx, invocation)
@@ -549,12 +550,43 @@ func (r *Registry) Execute(ctx context.Context, id string, args map[string]any, 
 	return jsonResult, nil
 }
 
+// invocationUsage reads token and cost accounting from a decoded response.
+//
+// It accepts both the snake_case and camelCase spellings because the wire
+// format is protojson, which emits camelCase. Reading only snake_case meant
+// every ai-gateway invocation recorded zero tokens and zero cost — 426 of 426
+// successful calls in the shipped ledger — so per-binding spend looked free
+// while session-level accounting, which reads a different path, was correct.
 func invocationUsage(result map[string]any) (input, output, cost int64) {
 	usage, ok := result["usage"].(map[string]any)
 	if !ok {
 		return 0, 0, 0
 	}
-	return numberToInt(usage["input_tokens"]), numberToInt(usage["output_tokens"]), numberToInt(usage["cost_micros"])
+	return numberToInt(firstPresent(usage, "input_tokens", "inputTokens")),
+		numberToInt(firstPresent(usage, "output_tokens", "outputTokens")),
+		numberToInt(firstPresent(usage, "cost_micros", "costMicros"))
+}
+
+// invocationRoute reports which provider and model actually served the call.
+//
+// Without it a call that took 37 seconds because its local candidate was down
+// and the gateway fell back to a hosted one is indistinguishable in the ledger
+// from a call to a slow model. The condition axis reads this ledger, so that
+// difference is the difference between "this binding is degrading" and "this
+// host's local inference is broken".
+func invocationRoute(result map[string]any) (provider, model string) {
+	provider, _ = firstPresent(result, "provider").(string)
+	model, _ = firstPresent(result, "model").(string)
+	return provider, model
+}
+
+func firstPresent(source map[string]any, keys ...string) any {
+	for _, key := range keys {
+		if value, ok := source[key]; ok && value != nil {
+			return value
+		}
+	}
+	return nil
 }
 
 func numberToInt(value any) int64 {

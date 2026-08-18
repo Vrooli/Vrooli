@@ -14,6 +14,7 @@ import (
 
 	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/routing"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/shared"
+	"google.golang.org/protobuf/proto"
 
 	"ai-gateway/internal/gateway"
 	"ai-gateway/internal/providers"
@@ -706,9 +707,9 @@ func (s *Service) resolveAttachments(ctx context.Context, req *sharedv1.GatewayR
 		}
 		resolved = append(resolved, item)
 	}
-	copyReq := *req
+	copyReq := proto.Clone(req).(*sharedv1.GatewayRequest)
 	copyReq.Attachments = resolved
-	return &copyReq, nil
+	return copyReq, nil
 }
 
 func populateAttachmentEvidence(ev *routingv1.RouteEvidence, attachments []*sharedv1.Attachment) {

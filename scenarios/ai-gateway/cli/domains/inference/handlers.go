@@ -79,6 +79,18 @@ func renderRunBatch(ctx cliapp.RunContext, message proto.Message) error {
 	return cliapp.RenderProtoList(ctx, response, cliapp.ListReport{Summary: []string{fmt.Sprintf("Typed inference batch completed: items=%d input_tokens=%d output_tokens=%d cost_micros=%d.", len(response.GetResults()), usage.GetInputTokens(), usage.GetOutputTokens(), usage.GetCostMicros())}, ResultsHeading: "Inference batch", Results: results})
 }
 
+func renderEmbed(ctx cliapp.RunContext, message proto.Message) error {
+	response, ok := message.(*inferencev1.EmbedResponse)
+	if !ok {
+		return fmt.Errorf("inference embed renderer received %T", message)
+	}
+	results := []string{fmt.Sprintf("provider=%s model=%s dimension=%d vectors=%d input_tokens=%d cost_micros=%d", response.GetProvider(), response.GetModel(), response.GetDimension(), len(response.GetVectors()), response.GetUsage().GetInputTokens(), response.GetUsage().GetCostMicros())}
+	if failure := response.GetError(); failure != nil {
+		results = append(results, fmt.Sprintf("error=%s construct=%s message=%s", failure.GetCode().String(), failure.GetConstruct(), failure.GetMessage()))
+	}
+	return cliapp.RenderProtoList(ctx, response, cliapp.ListReport{Summary: []string{fmt.Sprintf("Embedding completed: vectors=%d dimension=%d.", len(response.GetVectors()), response.GetDimension())}, ResultsHeading: "Embedding", Results: results})
+}
+
 func newHandlers(core *cliapp.ScenarioApp) *handlers {
 	httpClient, baseURL := cliapp.NewConnectHTTPClientWithTimeout(core, 0)
 	return &handlers{client: inferenceconnect.NewInferenceServiceClient(httpClient, baseURL)}
@@ -195,4 +207,31 @@ func (h *handlers) runBatch(ctx cliapp.RunContext) error {
 		ResultsHeading: "Inference batch",
 		Results:        results,
 	})
+}
+
+func (h *handlers) embed(ctx cliapp.RunContext) error {
+	path := strings.TrimSpace(ctx.Flag("texts"))
+	if path == "" {
+		return fmt.Errorf("--texts is required")
+	}
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("read --texts %q: %w", path, err)
+	}
+	var texts []string
+	if err := json.Unmarshal(raw, &texts); err != nil {
+		return fmt.Errorf("decode --texts %q: %w", path, err)
+	}
+	role := strings.TrimSpace(ctx.Flag("role"))
+	if role == "" {
+		role = "embedding.default"
+	}
+	resp, err := h.client.Embed(context.Background(), connect.NewRequest(&inferencev1.EmbedRequest{Texts: texts, Role: role}))
+	if err != nil {
+		return cliapp.WrapAPIError("embed texts", err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no embedding response")
+	}
+	return renderEmbed(ctx, resp.Msg)
 }

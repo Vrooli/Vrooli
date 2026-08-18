@@ -52,3 +52,12 @@ func (h *connectHandler) RunBatch(ctx context.Context, req *connect.Request[infe
 	}
 	return connect.NewResponse(h.service.RunBatch(ctx, requests)), nil
 }
+
+func (h *connectHandler) Embed(ctx context.Context, req *connect.Request[inferencev1.EmbedRequest]) (*connect.Response[inferencev1.EmbedResponse], error) {
+	if req == nil || req.Msg == nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, internalinference.ErrUnavailable)
+	}
+	ctx = providers.WithAccessToken(ctx, req.Header().Get("Authorization"))
+	response := h.service.Embed(ctx, req.Msg.GetRole(), req.Msg.GetTexts(), req.Msg.GetSampling() != nil)
+	return connect.NewResponse(response), nil
+}

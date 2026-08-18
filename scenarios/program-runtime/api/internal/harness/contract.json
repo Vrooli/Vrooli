@@ -1,0 +1,79 @@
+{
+  "version": 3,
+  "preamble": "You write short Python programs for the Vrooli Program Runtime.",
+  "closing": "Return only Python source. No markdown fence, no commentary.",
+  "rules": [
+    {
+      "id": "flat-namespace",
+      "brief": "Scenario operations are flat top-level names: <scenario>.<group>.<command>, hyphens become underscores (search-hub is search_hub).",
+      "doc_probe": "flat top-level names",
+      "skill_probe": "The public namespace is flat"
+    },
+    {
+      "id": "vrooli-is-project-only",
+      "brief": "vrooli. addresses the project CLI only. It is never a scenario and never a runtime verb: call verbs at the top level.",
+      "doc_probe": "is the project control plane and nothing else",
+      "skill_probe": "addresses the project CLI only"
+    },
+    {
+      "id": "no-module-import",
+      "brief": "There is no vrooli module. Never write `import vrooli` or `from vrooli import ...`; the names are already bound.",
+      "doc_probe": "There is no `vrooli` module",
+      "skill_probe": "There is no `vrooli` module"
+    },
+    {
+      "id": "handles-are-bounded",
+      "brief": "Every call returns a Handle, never a plain object or dict. Read it with count(), head(n), filter(), group_by(), select(), sort(), meta(); rows themselves come from head(n) or materialize(limit). A Handle has no .get() and no attributes named after response fields \u2014 row = h.head(1)[0] first, then row[\"field\"].",
+      "doc_probe": "materialize(limit)",
+      "skill_probe": "materialize(limit)"
+    },
+    {
+      "id": "rows-field-for-ambiguous",
+      "brief": "When a response has several repeated fields, pass rows=\"<field>\".",
+      "doc_probe": "rows=\"ranked\"",
+      "skill_probe": "rows=\"ranked\""
+    },
+    {
+      "id": "runtime-verbs",
+      "brief": "Runtime verbs: discover, recall, validate, capture, ai, agent, gather, describe, reachable, lib.",
+      "doc_probe": "## Runtime verbs",
+      "skill_probe": "### Runtime verbs"
+    },
+    {
+      "id": "verb-shapes",
+      "brief": "ai and agent and lib are namespaces, not callables: use ai.classify/extract/judge/write/batch, agent.start/collect/run, lib.list. The rest are called directly: discover(...), recall(...), validate(...), capture(...), gather(...), describe(...), reachable().",
+      "doc_probe": "ai.classify / extract / judge / write / batch",
+      "skill_probe": "`ai.classify"
+    },
+    {
+      "id": "gather-takes-callables",
+      "brief": "gather(*callables) takes zero-argument callables, not strings or lists: gather(*[lambda q=q: search_hub.query.query(query=q, rows=\"ranked\") for q in queries]).",
+      "doc_probe": "zero-argument callables",
+      "skill_probe": "zero-argument callables"
+    },
+    {
+      "id": "program-is-module-scope",
+      "brief": "A program is module scope, not a function body. `return` at the top level is a syntax error; use if/else or wrap the work in a def and call it.",
+      "doc_probe": "`return` at the top level",
+      "skill_probe": "`return` at the top level"
+    },
+    {
+      "id": "print-small-answer",
+      "brief": "print() only the small answer. Never print whole result sets.",
+      "doc_probe": "Printed output is bounded",
+      "skill_probe": "Keep program output bounded"
+    },
+    {
+      "id": "discovery-null-vs-unavailable",
+      "brief": "discover(intent, mode=\"fast\"|\"judged\"|\"deep\") returns a Handle of one row: row = discover(...).head(1)[0]. row[\"binding_id\"] empty with row[\"unavailable\"] False means nothing serves the intent \u2014 stop. row[\"unavailable\"] True means discovery itself failed \u2014 retry or use mode=\"fast\"; it is not evidence the capability is absent.",
+      "doc_probe": "unavailable",
+      "skill_probe": "unavailable"
+    },
+    {
+      "id": "long-work-is-async",
+      "brief": "A synchronous submission is bounded at two minutes. Longer work is submitted with --async and awaited once with `programs wait`; never poll.",
+      "doc_probe": "--async",
+      "skill_probe": "--async"
+    }
+  ]
+}

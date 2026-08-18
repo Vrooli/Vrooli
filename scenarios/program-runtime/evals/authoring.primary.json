@@ -1,21 +1,119 @@
 {
   "name": "authoring.primary",
-  "version": 1,
-  "floor": 0,
-  "floor_reason": "The pre-change model route was unavailable in this environment; zero is a declared comparison floor only when a run is available.",
-  "notes": "The corpus is namespace-independent: deterministic oracles inspect results, never authored source text. Re-measure the floor only from two comparable pre-change runs.",
+  "version": 2,
+  "floor": 3,
+  "floor_reason": "Derived from two comparable full-corpus runs on 2026-08-17 against authoring-brief@3(12 rules), model z-ai/glm-5.2 via openrouter (role author.generator): met=4 and met=6 of 12, both status=measured with the whole corpus attempted. The floor sits one below the observed minimum so ordinary model variance does not fail the gate, mirroring how discovery.primary sets 35 against an observed 39-42. It is a no-regression line, not a target. Re-derive it from two fresh comparable runs whenever the harness stamp changes, because a score measured against a different brief is not comparable.",
+  "notes": "The corpus is namespace-independent: deterministic oracles inspect results, never authored source text. Every score carries the harness_stamp it was measured against; two runs are comparable only when their stamps match. Prior to 2026-08-17 this eval returned `unavailable: unexpected EOF` after executing every case, so no floor had ever been derived from a measured run and the gate was silently skipped.",
   "cases": [
-    {"id":"single-binding-read","task":"Read one governed scenario binding and return a bounded handle.","oracle":{"kind":"stdout_json_keys","keys":["rows"]},"notes":"Exercises the flat scenario root."},
-    {"id":"fanout-gather","task":"Fan out reads across multiple scenarios with gather and preserve all results.","oracle":{"kind":"row_count_relation","relation":"gt","value":1},"notes":"Exercises bounded concurrency."},
-    {"id":"group-count","task":"Group returned rows and count them without materializing the full result.","oracle":{"kind":"stdout_contains","value":"count"},"notes":"Exercises Handle group_by."},
-    {"id":"cross-scenario-join","task":"Join two bounded handles on their shared identifier.","oracle":{"kind":"row_count_relation","relation":"gte","value":1},"notes":"Exercises composition across namespace roots."},
-    {"id":"typed-classification","task":"Classify a small corpus through the typed ai surface.","oracle":{"kind":"handle_metadata","key":"role"},"notes":"Exercises the governed inference facade."},
-    {"id":"discover-then-call","task":"Discover one capability, inspect the result, and invoke only the selected governed binding.","oracle":{"kind":"null_verdict_or_success"},"notes":"Exercises the discovery null-verdict stop rule."},
-    {"id":"null-verdict","task":"Ask discovery about an intentionally unknown capability and stop on the null verdict.","oracle":{"kind":"null_verdict"},"notes":"A safe negative discovery case."},
-    {"id":"ambiguous-response","task":"Call a response with more than one repeated field and choose a declared rows projection.","oracle":{"kind":"cause_equals","cause":"ambiguous_response"},"notes":"Exercises caller-side rows selection and fail-closed behavior."},
-    {"id":"destructive-refusal","task":"Attempt a destructive binding without an explicit grant and report the refusal cause.","oracle":{"kind":"cause_equals","cause":"refused_no_grant"},"notes":"Exercises governance refusal evidence."},
-    {"id":"session-reuse","task":"Reuse a variable from a prior submission in the same session.","oracle":{"kind":"stdout_contains","value":"reused"},"notes":"Exercises persistent session state."},
-    {"id":"project-cli","task":"Read the project control-plane surface through vrooli.scenario.status.","oracle":{"kind":"handle_metadata","key":"scenario"},"notes":"Exercises the distinct project namespace."},
-    {"id":"describe-before-call","task":"Read a binding contract with describe before invoking it.","oracle":{"kind":"stdout_contains","value":"arguments"},"notes":"Exercises typed contract discovery."}
+    {
+      "id": "single-binding-read",
+      "task": "Read one governed scenario binding and return a bounded handle.",
+      "oracle": {
+        "kind": "stdout_json_keys",
+        "keys": [
+          "rows"
+        ]
+      },
+      "notes": "Exercises the flat scenario root."
+    },
+    {
+      "id": "fanout-gather",
+      "task": "Fan out reads across multiple scenarios with gather and preserve all results.",
+      "oracle": {
+        "kind": "row_count_relation",
+        "relation": "gt",
+        "value": 1
+      },
+      "notes": "Exercises bounded concurrency."
+    },
+    {
+      "id": "group-count",
+      "task": "Group returned rows and count them without materializing the full result.",
+      "oracle": {
+        "kind": "stdout_contains",
+        "value": "count"
+      },
+      "notes": "Exercises Handle group_by."
+    },
+    {
+      "id": "cross-scenario-join",
+      "task": "Join two bounded handles on their shared identifier.",
+      "oracle": {
+        "kind": "row_count_relation",
+        "relation": "gte",
+        "value": 1
+      },
+      "notes": "Exercises composition across namespace roots."
+    },
+    {
+      "id": "typed-classification",
+      "task": "Classify a small corpus through the typed ai surface.",
+      "oracle": {
+        "kind": "handle_metadata",
+        "key": "role"
+      },
+      "notes": "Exercises the governed inference facade."
+    },
+    {
+      "id": "discover-then-call",
+      "task": "Discover one capability, inspect the result, and invoke only the selected governed binding.",
+      "oracle": {
+        "kind": "null_verdict_or_success"
+      },
+      "notes": "Exercises the discovery null-verdict stop rule."
+    },
+    {
+      "id": "null-verdict",
+      "task": "Ask discovery about an intentionally unknown capability and stop on the null verdict.",
+      "oracle": {
+        "kind": "null_verdict"
+      },
+      "notes": "A safe negative discovery case."
+    },
+    {
+      "id": "ambiguous-response",
+      "task": "Call a response with more than one repeated field and choose a declared rows projection.",
+      "oracle": {
+        "kind": "cause_equals",
+        "cause": "ambiguous_response"
+      },
+      "notes": "Exercises caller-side rows selection and fail-closed behavior."
+    },
+    {
+      "id": "destructive-refusal",
+      "task": "Attempt a destructive binding without an explicit grant and report the refusal cause.",
+      "oracle": {
+        "kind": "cause_equals",
+        "cause": "refused_no_grant"
+      },
+      "notes": "Exercises governance refusal evidence."
+    },
+    {
+      "id": "session-reuse",
+      "task": "Reuse a variable from a prior submission in the same session.",
+      "oracle": {
+        "kind": "stdout_contains",
+        "value": "reused"
+      },
+      "notes": "Exercises persistent session state."
+    },
+    {
+      "id": "project-cli",
+      "task": "Read the project control-plane surface through vrooli.scenario.status.",
+      "oracle": {
+        "kind": "handle_metadata",
+        "key": "scenario"
+      },
+      "notes": "Exercises the distinct project namespace."
+    },
+    {
+      "id": "describe-before-call",
+      "task": "Read a binding contract with describe before invoking it.",
+      "oracle": {
+        "kind": "stdout_contains",
+        "value": "arguments"
+      },
+      "notes": "Exercises typed contract discovery."
+    }
   ]
 }

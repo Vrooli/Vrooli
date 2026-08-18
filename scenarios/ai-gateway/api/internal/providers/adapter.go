@@ -91,6 +91,9 @@ type ResolvedRole struct {
 	// send none, or 0 when the role declares none. Zero is not "unknown": it
 	// means the resource imposes nothing and the provider's own default applies.
 	MaxOutputTokens int32
+	// ContextWindow is provider policy, not caller metadata. Zero means the
+	// provider did not declare one and the gateway must not invent a refusal.
+	ContextWindow int32
 }
 
 // SamplingSupport states how a resolved role's provider treats an explicit
@@ -248,6 +251,7 @@ func (a Adapter) ResolveRole(ctx context.Context, role string) (ResolvedRole, er
 		RequestDefaults      *struct {
 			MaxTokens *int32 `json:"max_tokens"`
 		} `json:"request_defaults"`
+		ContextWindow *int32 `json:"context_window"`
 	}
 	if err := json.Unmarshal([]byte(result.Stdout), &response); err != nil {
 		return ResolvedRole{}, &CommandError{Code: "malformed_json", Command: a.command().String(), ExitCode: result.ExitCode, Stderr: result.Stderr, Err: err}
@@ -271,7 +275,15 @@ func (a Adapter) ResolveRole(ctx context.Context, role string) (ResolvedRole, er
 		CoordinateConvention: strings.TrimSpace(response.CoordinateConvention),
 		SamplingSupport:      parseSamplingSupport(response.SamplingSupport),
 		MaxOutputTokens:      maxOutputTokens,
+		ContextWindow:        valueOrZero(response.ContextWindow),
 	}, nil
+}
+
+func valueOrZero(value *int32) int32 {
+	if value == nil {
+		return 0
+	}
+	return *value
 }
 
 // parseSamplingSupport normalises the resource's declared states. An

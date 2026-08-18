@@ -1085,6 +1085,38 @@
               "network:external"
             ]
           }
+        },
+        {
+          "name": "embed",
+          "description": "Compute one embedding vector per input text through the embedding.default role",
+          "flags": [
+            {
+              "name": "texts",
+              "required": true,
+              "description": "Path to a JSON array of text strings",
+              "bind": {
+                "field": "texts",
+                "kind": "json_file"
+              }
+            },
+            {
+              "name": "role",
+              "description": "Deterministic embedding role",
+              "default": "embedding.default"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "InferenceService",
+            "method": "Embed"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:external"
+            ]
+          }
         }
       ]
     }

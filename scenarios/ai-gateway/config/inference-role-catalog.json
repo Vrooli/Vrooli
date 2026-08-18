@@ -1,6 +1,19 @@
 {
   "schema_version": 1,
   "roles": {
+    "embedding.default": {
+      "description": "Deterministic text embeddings resolved through the local embedding model role.",
+      "timeout_ms": 120000,
+      "sampling": { "temperature": 0.0, "overridable": false },
+      "candidates": [
+        {
+          "provider": "ollama",
+          "resource_role": "embedding.default",
+          "model": "policy-resolved",
+          "reason": "The resource owns the embedding model and its declared vector dimension."
+        }
+      ]
+    },
     "classify.fast": {
       "description": "Low-cost enum classification with a grammar-friendly local first candidate.",
       "timeout_ms": 45000,
@@ -101,6 +114,31 @@
           "resource_role": "vision.default",
           "model": "policy-resolved",
           "reason": "Subscription-backed metered visual grounding fallback."
+        }
+      ]
+    },
+    "device-control.plan": {
+      "description": "Bounded device-control planning over a typed capability and state world model; returns one declared step or a goal-complete verdict.",
+      "timeout_ms": 90000,
+      "sampling": { "temperature": 0.0, "overridable": false },
+      "candidates": [
+        {
+          "provider": "ollama",
+          "resource_role": "extract.structured",
+          "model": "policy-resolved",
+          "reason": "Local structured inference keeps device state and action planning on the control host."
+        },
+        {
+          "provider": "openrouter",
+          "resource_role": "extract.structured",
+          "model": "policy-resolved",
+          "reason": "Hosted structured-output fallback when the local planning resource is unavailable."
+        },
+        {
+          "provider": "lpbs",
+          "resource_role": "extract.structured",
+          "model": "policy-resolved",
+          "reason": "Subscription-backed structured planning fallback when local and operator BYOK routes are unavailable."
         }
       ]
     },

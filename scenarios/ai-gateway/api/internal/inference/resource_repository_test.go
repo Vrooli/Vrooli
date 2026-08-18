@@ -331,3 +331,19 @@ func TestResourceRepositoryReportsOutputCapSource(t *testing.T) {
 		})
 	}
 }
+
+func TestResourceRepositoryRefusesContextOverflowBeforeProviderDispatch(t *testing.T) {
+	runner := &providermocks.FakeRunner{Results: map[string]providers.Result{
+		"resource-ollama policy resolve --role write.default --json": {Stdout: `{"role":"write.default","model":"local-model","context_window":10,"sampling_support":{"temperature":"honored"}}`},
+	}}
+	catalog := RoleCatalog{SchemaVersion: 1, Roles: map[string]InferenceRole{
+		"write.default": {Candidates: []Candidate{{Provider: "ollama", ResourceRole: "write.default", Reason: "local"}}},
+	}}
+	repository, err := NewResourceRepository(catalog, []providers.Adapter{{Provider: providers.ProviderOllama, CommandName: "resource-ollama", Runner: runner}})
+	require.NoError(t, err)
+	_, err = repository.Run(context.Background(), ProviderRequest{Source: "This prompt is intentionally longer than ten provider tokens.", Instruction: "write", SchemaJSON: `{"type":"object"}`, Role: "write.default", MaxOutputTokens: 8})
+	require.ErrorIs(t, err, ErrContextOverflow)
+	for _, command := range runner.Commands {
+		require.NotContains(t, command.String(), "gateway generate", "overflow must be refused before provider dispatch")
+	}
+}
