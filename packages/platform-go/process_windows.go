@@ -29,6 +29,19 @@ func signalPID(pid int, _ bool) error {
 	return windows.TerminateProcess(handle, 1)
 }
 
+func signalPIDWithSignal(pid int, signal os.Signal) error {
+	if pid <= 0 {
+		return nil
+	}
+	// Windows has no POSIX signal delivery. Interrupt is the portable request
+	// for the backend's graceful console-control path; other graceful signals
+	// retain the historical process-termination behavior.
+	if signal == os.Interrupt {
+		return gracefulStopProcess(&os.Process{Pid: pid})
+	}
+	return signalPID(pid, false)
+}
+
 func signalProcessGroup(groupID int, force bool) error { return signalPID(groupID, force) }
 
 func reraiseSignal(signal os.Signal) error {

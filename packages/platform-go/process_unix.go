@@ -22,6 +22,17 @@ func signalPID(pid int, force bool) error {
 	return syscall.Kill(pid, signal)
 }
 
+func signalPIDWithSignal(pid int, signal os.Signal) error {
+	if pid <= 0 {
+		return nil
+	}
+	native, ok := signal.(syscall.Signal)
+	if !ok {
+		return fmt.Errorf("platform: unsupported process signal %T", signal)
+	}
+	return syscall.Kill(pid, native)
+}
+
 func signalProcessGroup(groupID int, force bool) error {
 	if groupID <= 0 {
 		return nil

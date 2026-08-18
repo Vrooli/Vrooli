@@ -58,6 +58,13 @@ func DetachedProcessAttrs() *syscall.SysProcAttr { return detachedProcessAttrs()
 // SignalPID requests graceful or forced termination of one process.
 func SignalPID(pid int, force bool) error { return signalPID(pid, force) }
 
+// SignalPIDWithSignal sends an explicit graceful signal to one process. The
+// platform backend translates the signal into the native process-control
+// mechanism; callers should use this seam instead of importing syscall.
+func SignalPIDWithSignal(pid int, signal os.Signal) error {
+	return signalPIDWithSignal(pid, signal)
+}
+
 // SignalProcessGroup requests graceful or forced termination of a process tree.
 func SignalProcessGroup(groupID int, force bool) error {
 	return signalProcessGroup(groupID, force)
