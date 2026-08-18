@@ -27,9 +27,11 @@ export const routes: RouteObject[] = [
       { index: true, element: <DashboardPage /> },
       { path: "variation", element: <VariationPage /> },
       { path: "styles", element: <StylesPage /> },
+      { path: "styles/:styleId", element: <StylesPage /> },
       { path: "document", element: <DocumentPage /> },
       { path: "declarations", element: <DeclarationsPage /> },
       { path: "settings", element: <SettingsPage /> },
+      { path: "sessions/:sessionId", element: <VariationPage /> },
     ],
   },
 ];

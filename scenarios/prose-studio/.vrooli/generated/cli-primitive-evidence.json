@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "prose-studio",
   "generator": "v1.0.0",
-  "manifest_hash": "536b4a5325b5c9d78c2c54698a3f9f15b6637440cd27c4ec6ca4286b7e758918",
+  "manifest_hash": "b346b462e27bc49786de252c99d4aa749616687c460fbf3b80e04a7ced890097",
   "commands": [
     {
       "path": "prose conformance",
@@ -43,6 +43,14 @@
       "group": "prose",
       "command": "document-create",
       "binding": "ProseStudioService.CreateDocument",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "prose document-resume",
+      "group": "prose",
+      "command": "document-resume",
+      "binding": "ProseStudioService.ResumeDocument",
       "declared_primitive": "proto_list",
       "observed_primitive": "proto_list"
     },

@@ -8,10 +8,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"math/rand"
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -27,18 +29,22 @@ import (
 )
 
 var (
-	ErrStyleResolutionConflict = errors.New("style_resolution_conflict")
-	ErrProfileDeclared         = errors.New("profile_is_declared")
-	ErrProfileUnregistered     = errors.New("profile_unregistered")
-	ErrDeclarationCollision    = errors.New("declaration_key_collision")
-	ErrBudgetExceeded          = errors.New("session_budget_exceeded")
-	ErrContextInfeasible       = errors.New("context_window_infeasible")
-	ErrEmptyQuery              = errors.New("query_is_required")
-	ErrUnknownLocality         = errors.New("unknown_locality")
-	ErrUnknownTemperature      = errors.New("unknown_temperature_stance")
-	ErrMalformedCandidateSet   = errors.New("malformed_candidate_set")
-	ErrDeclarationRootMissing  = errors.New("declaration_root_missing")
+	ErrStyleResolutionConflict  = errors.New("style_resolution_conflict")
+	ErrProfileDeclared          = errors.New("profile_is_declared")
+	ErrProfileUnregistered      = errors.New("profile_unregistered")
+	ErrDeclarationCollision     = errors.New("declaration_key_collision")
+	ErrBudgetExceeded           = errors.New("session_budget_exceeded")
+	ErrContextInfeasible        = errors.New("context_window_infeasible")
+	ErrEmptyQuery               = errors.New("query_is_required")
+	ErrUnknownLocality          = errors.New("unknown_locality")
+	ErrUnknownTemperature       = errors.New("unknown_temperature_stance")
+	ErrMalformedCandidateSet    = errors.New("malformed_candidate_set")
+	ErrMalformedOutline         = errors.New("malformed_outline")
+	ErrDeclarationRootMissing   = errors.New("declaration_root_missing")
+	ErrPromptContainsIdentifier = errors.New("prompt_contains_record_identifier")
 )
+
+var recordIdentifierPattern = regexp.MustCompile(`(?i)\b[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\b`)
 
 // underRoot reports whether path sits inside base, comparing cleaned absolute
 // paths so a sibling directory sharing a name prefix cannot match.
@@ -107,6 +113,7 @@ func samplingControls(stance string) (*sharedv1.SamplingControls, error) {
 const (
 	samplerDirect     = "direct"
 	samplerVSStandard = "vs_standard"
+	samplerComposite  = "composite"
 )
 
 // samplingKeyOf builds a round's effective generation identity. The output cap
@@ -121,6 +128,7 @@ func samplingKeyOf(sampler Sampler, responses []GatewayCandidate) textmetrics.Sa
 	key := textmetrics.SamplingKey{
 		K:                 sampler.K,
 		TemperatureStance: sampler.TemperatureStance,
+		MeasurementTier:   "deterministic",
 	}
 	if len(responses) > 0 {
 		key.MaxOutputTokens = responses[0].MaxOutputTokensEffective
@@ -162,7 +170,25 @@ func (s *Service) loadRound(ctx context.Context, id string) (Round, error) {
 // subset, which makes the gateway's local validator the one enforcing them.
 const vsCandidateSchema = `{"type":"array","items":{"type":"object","properties":{"text":{"type":"string"},"probability":{"type":"number","minimum":0,"maximum":1}},"required":["text","probability"]}}`
 
+// The gateway schema subset does not enforce array cardinality. Fixed object
+// slots make the three-section blog contract enforceable at generation time;
+// decodeOutline also accepts the legacy array form for injected gateways.
+// outlineSchema describes an ordered outline. The previous form was an object
+// with exactly section_1, section_2 and section_3 as required properties, which
+// pinned every document to three sections in the one place a prompt cannot
+// argue with: a model asked in prose for four sections still returned three,
+// because the schema required exactly three named keys.
+//
+// The length band is deliberately NOT expressed here. minItems and maxItems are
+// outside the gateway's enforceable schema subset and are refused rather than
+// ignored, so the band lives in the outline instruction and is enforced by
+// decodeOutline against what actually came back.
+const outlineSchema = `{"type":"array","items":{"type":"object","properties":{"intent":{"type":"string"},"summary":{"type":"string"},"target_words":{"type":"integer"}},"required":["intent","summary","target_words"]}}`
+
 func gatewaySchema(req GatewayRequest) string {
+	if strings.TrimSpace(req.SchemaJSON) != "" {
+		return req.SchemaJSON
+	}
 	if req.Strategy == samplerVSStandard {
 		return vsCandidateSchema
 	}
@@ -211,6 +237,16 @@ func decodeCandidates(req GatewayRequest, valueJSON string) ([]string, []int, er
 	}
 	var texts []string
 	if req.K == 1 {
+		// Structured calls such as the typed outline deliberately return an
+		// object/array as the candidate itself. Preserve that JSON verbatim so
+		// the caller can decode its declared shape after the normal candidate
+		// lifecycle, rather than forcing every schema into a prose string.
+		if strings.TrimSpace(req.SchemaJSON) != "" {
+			if !json.Valid([]byte(valueJSON)) {
+				return nil, nil, fmt.Errorf("decode structured candidate: invalid JSON")
+			}
+			return []string{valueJSON}, []int{0}, nil
+		}
 		if err := json.Unmarshal([]byte(valueJSON), &texts); err != nil {
 			var text string
 			if err := json.Unmarshal([]byte(valueJSON), &text); err != nil {
@@ -271,6 +307,25 @@ type Gateway interface {
 	Generate(context.Context, GatewayRequest) ([]GatewayCandidate, error)
 }
 
+// EmbeddingGateway is optional so lexical-only test gateways remain tiny while
+// production HTTPGateway exposes the gateway-owned semantic tier.
+type EmbeddingGateway interface {
+	Embed(context.Context, EmbeddingRequest) (EmbeddingResponse, error)
+}
+
+type EmbeddingRequest struct {
+	Role  string   `json:"role"`
+	Texts []string `json:"texts"`
+}
+
+type EmbeddingResponse struct {
+	Vectors    [][]float64 `json:"vectors"`
+	Provider   string      `json:"provider"`
+	Model      string      `json:"model"`
+	Dimension  int         `json:"dimension"`
+	CostMicros int64       `json:"cost_micros"`
+}
+
 type HTTPGateway struct {
 	BaseURL string
 	Client  *http.Client
@@ -308,8 +363,15 @@ func (g HTTPGateway) Generate(ctx context.Context, req GatewayRequest) ([]Gatewa
 	schema := gatewaySchema(req)
 	instruction := req.Instruction
 	if len(req.Negative.Pinned) > 0 || len(req.Negative.Rejected) > 0 {
-		negative, _ := json.Marshal(req.Negative)
-		instruction += "\nDo not repeat candidates represented by this prior-round context: " + string(negative)
+		instruction += "\nDo not repeat these previously reviewed passages. Preserve the request's intent while changing the angle, structure, or assumption:\n"
+		for _, text := range append(append([]string{}, req.Negative.Pinned...), req.Negative.Rejected...) {
+			if strings.TrimSpace(text) != "" {
+				if recordIdentifierPattern.MatchString(text) {
+					return nil, fmt.Errorf("%w: negative conditioning", ErrPromptContainsIdentifier)
+				}
+				instruction += "- " + text + "\n"
+			}
+		}
 	}
 	locality, err := localityProfile(req.Locality)
 	if err != nil {
@@ -368,6 +430,38 @@ func (g HTTPGateway) Generate(ctx context.Context, req GatewayRequest) ([]Gatewa
 			candidate.MaxOutputTokensSource = settings.GetMaxOutputTokensSource().String()
 		}
 		out[i] = candidate
+	}
+	return out, nil
+}
+
+func (g HTTPGateway) Embed(ctx context.Context, req EmbeddingRequest) (EmbeddingResponse, error) {
+	if strings.TrimSpace(g.BaseURL) == "" {
+		return EmbeddingResponse{}, errors.New("ai-gateway endpoint is not configured")
+	}
+	if len(req.Texts) == 0 {
+		return EmbeddingResponse{}, errors.New("embedding texts are required")
+	}
+	client := g.Client
+	if client == nil {
+		client = http.DefaultClient
+	}
+	connectClient := inferenceconnect.NewInferenceServiceClient(client, g.BaseURL)
+	resp, err := connectClient.Embed(ctx, connect.NewRequest(&inferencev1.EmbedRequest{Role: req.Role, Texts: req.Texts}))
+	if err != nil {
+		return EmbeddingResponse{}, fmt.Errorf("ai-gateway embedding request: %w", err)
+	}
+	if resp.Msg.GetError() != nil {
+		return EmbeddingResponse{}, fmt.Errorf("ai-gateway embedding: %s", resp.Msg.GetError().GetMessage())
+	}
+	out := EmbeddingResponse{Provider: resp.Msg.GetProvider(), Model: resp.Msg.GetModel(), Dimension: int(resp.Msg.GetDimension()), CostMicros: resp.Msg.GetUsage().GetCostMicros(), Vectors: make([][]float64, 0, len(resp.Msg.GetVectors()))}
+	for _, vector := range resp.Msg.GetVectors() {
+		if len(vector.GetValues()) != out.Dimension {
+			return EmbeddingResponse{}, errors.New("embedding_dimension_mismatch")
+		}
+		out.Vectors = append(out.Vectors, append([]float64(nil), vector.GetValues()...))
+	}
+	if len(out.Vectors) != len(req.Texts) {
+		return EmbeddingResponse{}, errors.New("embedding_vector_count_mismatch")
 	}
 	return out, nil
 }
@@ -455,12 +549,18 @@ func (s *Service) CreateProfile(ctx context.Context, profile Profile) (Profile, 
 		profile.Budget.MaxOutputTokens = 8192
 	}
 	if profile.ContextPolicy.FullTextTokenBudget <= 0 {
-		profile.ContextPolicy.FullTextTokenBudget = profile.Budget.MaxOutputTokens
+		// Deliberately not the output cap. How much prior prose a section prompt
+		// may carry is an input-context question; how long a section may be is an
+		// output question. Seeding one from the other tied a profile's memory of
+		// its own document to its section length, so a profile that wrote short
+		// sections summarised every prior section through a small model exactly
+		// when those sections were short enough to carry whole.
+		profile.ContextPolicy.FullTextTokenBudget = defaultFullTextTokenBudget
 	}
 	if profile.ContextPolicy.SummarizeBeyond <= 0 {
 		profile.ContextPolicy.SummarizeBeyond = profile.ContextPolicy.FullTextTokenBudget
 	}
-	if profile.Sampler.Kind != samplerDirect && profile.Sampler.Kind != samplerVSStandard {
+	if profile.Sampler.Kind != samplerDirect && profile.Sampler.Kind != samplerVSStandard && profile.Sampler.Kind != samplerComposite {
 		return Profile{}, fmt.Errorf("unknown sampler kind %q", profile.Sampler.Kind)
 	}
 	// A one-candidate distribution is the mode with extra steps: the technique
@@ -538,17 +638,42 @@ func (s *Service) ResolveProfile(ctx context.Context, key string) (ResolvedProfi
 			instruction.WriteByte('\n')
 		}
 		for target, value := range style.Targets {
+			direction := "at_least"
+			if style.TargetDirections != nil && style.TargetDirections[target] != "" {
+				direction = style.TargetDirections[target]
+			}
 			instruction.WriteString("Target ")
 			instruction.WriteString(target)
-			instruction.WriteString(" >= ")
+			if direction == "at_most" {
+				instruction.WriteString(" <= ")
+			} else {
+				instruction.WriteString(" >= ")
+			}
 			instruction.WriteString(strconv.FormatFloat(value, 'f', -1, 64))
 			instruction.WriteByte('\n')
 		}
 		for _, a := range style.AntiPatterns {
-			instruction.WriteString("Avoid: ")
+			instruction.WriteString("Avoid the marketing failure mode ")
 			instruction.WriteString(a)
+			instruction.WriteString(": ")
+			instruction.WriteString(antiPatternDefinition(a))
 			instruction.WriteByte('\n')
 		}
+	}
+	if profile.Constraints.MinWords > 0 || profile.Constraints.MaxWords > 0 {
+		instruction.WriteString("Length constraint: ")
+		if profile.Constraints.MinWords > 0 {
+			fmt.Fprintf(&instruction, "at least %d words", profile.Constraints.MinWords)
+		}
+		if profile.Constraints.MinWords > 0 && profile.Constraints.MaxWords > 0 {
+			instruction.WriteString(" and ")
+		}
+		if profile.Constraints.MaxWords > 0 {
+			fmt.Fprintf(&instruction, "at most %d words", profile.Constraints.MaxWords)
+		}
+		instruction.WriteString(".\n")
+	} else {
+		fmt.Fprintf(&instruction, "Length target: approximately %d words; do not answer with a short summary.\n", effectiveOutputCap(profile))
 	}
 	// The temperature stance is a transport concern and becomes a SamplingControls
 	// message, so it is not named here. The candidate count and threshold are the
@@ -563,12 +688,42 @@ func (s *Service) ResolveProfile(ctx context.Context, key string) (ResolvedProfi
 	return ResolvedProfile{Profile: profile, Styles: styles, InstructionText: instruction.String()}, nil
 }
 
+func antiPatternDefinition(name string) string {
+	definitions := map[string]string{
+		"hype drift":                            "do not promise unshipped features or unverifiable dates",
+		"voice drift":                           "keep a concrete builder voice instead of corporate marketing language",
+		"hallucinated engagement metrics":       "never invent numbers; label measured, estimated, aspirational, or pending telemetry claims",
+		"paywall framing":                       "do not describe subscriptions as gating core capabilities",
+		"OSS-as-leak framing":                   "describe self-hosting as a legitimate sovereignty path, not lost revenue",
+		"coverage-gap ignorance":                "acknowledge stale or missing coverage before proposing another campaign",
+		"acquisition-only hypothesis":           "pair acquisition ideas with retention reasoning or explicitly mark awareness-only",
+		"capability-workaround without gap":     "tie manual workarounds to a documented capability gap",
+		"narrative-flatness":                    "shape the essay as hook, introduction, body, and conclusion rather than a changelog",
+		"internal-vocabulary-leakage":           "translate internal names before using them for readers",
+		"missing-introduction-on-first-mention": "introduce each named system and its purpose on first mention",
+		"what-without-why":                      "explain why each change mattered, not only what changed",
+		"persona-disclosure-violation":          "label substantial AI-generated persona content and sponsorships as required",
+		"real-person-impersonation":             "do not resemble or impersonate an identifiable real person",
+		"fabricated-real-customer-testimonial":  "never invent a real customer identity or testimonial",
+		"recommendation-framing-without-basis":  "do not attribute recommendations to an unidentified third party",
+		"regulated-domain-advice-by-persona":    "avoid medical, financial, or legal advice in persona voice",
+	}
+	if definition, ok := definitions[name]; ok {
+		return definition
+	}
+	return "keep claims grounded in supplied evidence and explain their reader value"
+}
+
 func (s *Service) Registry() Registry {
 	return Registry{
-		Samplers:   []RegistryKind{{Kind: "direct", Description: "One gateway call per candidate.", ParameterSchema: map[string]any{"k": "integer >= 1", "temperature_stance": "string"}}, {Kind: "vs_standard", Description: "One call enumerating k candidates under tau.", ParameterSchema: map[string]any{"k": "integer >= 2", "tau": "number 0..1", "temperature_stance": "string"}}},
-		Policies:   []RegistryKind{{Kind: "take_first", Description: "Measurement control: first eligible.", ParameterSchema: map[string]any{}}, {Kind: "sample_uniform", Description: "Uniform among eligible candidates.", ParameterSchema: map[string]any{}}, {Kind: "threshold_then_rarest", Description: "Eligible candidate with greatest lexical rarity.", ParameterSchema: map[string]any{"threshold": "number"}}, {Kind: "coverage", Description: "Spread for human review; never a quality order.", ParameterSchema: map[string]any{"bins": "integer >= 1"}}, {Kind: "human_pick", Description: "Return the full spread for operator choice.", ParameterSchema: map[string]any{}}},
-		Metrics:    []RegistryKind{{Kind: "deterministic", Description: "Reproducible lexical and readability metrics.", ParameterSchema: map[string]any{"lexicon": "string[]"}}},
-		Transforms: []RegistryKind{{Kind: "reading_level", Description: "Deferred typed transform; registry placeholder.", ParameterSchema: map[string]any{"target_grade": "number"}}},
+		Samplers: []RegistryKind{{Kind: "direct", Description: "One gateway call per candidate.", ParameterSchema: map[string]any{"k": "integer >= 1", "temperature_stance": "string"}}, {Kind: "vs_standard", Description: "One call enumerating k candidates under tau.", ParameterSchema: map[string]any{"k": "integer >= 2", "tau": "number 0..1", "temperature_stance": "string"}}},
+		Policies: []RegistryKind{{Kind: "take_first", Description: "Measurement control: first eligible.", ParameterSchema: map[string]any{}}, {Kind: "sample_uniform", Description: "Uniform among eligible candidates.", ParameterSchema: map[string]any{}}, {Kind: "threshold_then_rarest", Description: "Eligible candidate with greatest lexical rarity.", ParameterSchema: map[string]any{"threshold": "number"}}, {Kind: "coverage", Description: "Spread for human review; never a quality order.", ParameterSchema: map[string]any{"bins": "integer >= 1"}}, {Kind: "human_pick", Description: "Return the full spread for operator choice.", ParameterSchema: map[string]any{}}},
+		Metrics:  []RegistryKind{{Kind: "deterministic", Description: "Reproducible lexical and readability metrics.", ParameterSchema: map[string]any{"lexicon": "string[]"}}},
+		Transforms: []RegistryKind{
+			{Kind: "reading_level", Description: "Rewrite a candidate toward a target reading grade.", ParameterSchema: map[string]any{"target_grade": "number"}},
+			{Kind: "elaboration", Description: "Expand a candidate toward a target word count while preserving its claims.", ParameterSchema: map[string]any{"target_words": "integer >= 1"}},
+			{Kind: "simplification", Description: "Shorten a candidate without dropping its declared claim.", ParameterSchema: map[string]any{"target_words": "integer >= 1"}},
+		},
 	}
 }
 
@@ -586,6 +741,26 @@ func (s *Service) generateWithProfile(ctx context.Context, req GenerateRequest, 
 		return GenerateResponse{}, err
 	}
 	resolved.Profile.Sampler = profile.Sampler
+	resolved.Profile.Constraints = profile.Constraints
+	resolved.Profile.MeasurementTiers = profile.MeasurementTiers
+	resolved.Profile.Coherence = profile.Coherence
+	// Selection policy, budget, and composition are carried too. Omitting the
+	// selection policy meant a caller could compute a per-section policy, pass
+	// it in, and silently get the stored profile's policy instead: the section
+	// path asked for continuation selection and received the document's
+	// ideation policy on every call.
+	resolved.Profile.SelectionPolicy = profile.SelectionPolicy
+	resolved.Profile.SelectionParams = profile.SelectionParams
+	resolved.Profile.Budget = profile.Budget
+	resolved.Profile.Composition = profile.Composition
+	if profile.Constraints.MinWords > 0 || profile.Constraints.MaxWords > 0 || profile.Constraints.RequiredFormat != "" {
+		resolved.InstructionText += fmt.Sprintf(
+			"\nHARD OUTPUT CONSTRAINTS: minimum %d words, maximum %d words, required format %q. Stay within these bounds; do not explain the constraints.",
+			profile.Constraints.MinWords,
+			profile.Constraints.MaxWords,
+			profile.Constraints.RequiredFormat,
+		)
+	}
 	return s.generateResolved(ctx, req, resolved)
 }
 
@@ -608,7 +783,7 @@ func (s *Service) generateResolved(ctx context.Context, req GenerateRequest, res
 		return GenerateResponse{}, ErrEmptyQuery
 	}
 	effectiveCap := effectiveOutputCap(resolved.Profile)
-	gwReq := GatewayRequest{Role: resolved.Profile.GatewayRole, Instruction: resolved.InstructionText, Query: req.Query, Strategy: resolved.Profile.Sampler.Kind, K: resolved.Profile.Sampler.K, Tau: resolved.Profile.Sampler.Tau, MaxOutputTokens: effectiveCap, TemperatureStance: resolved.Profile.Sampler.TemperatureStance, Locality: resolved.Profile.Locality, Negative: req.Negative}
+	gwReq := GatewayRequest{Role: resolved.Profile.GatewayRole, Instruction: resolved.InstructionText, Query: req.Query, SchemaJSON: req.SchemaJSON, Strategy: resolved.Profile.Sampler.Kind, K: resolved.Profile.Sampler.K, Tau: resolved.Profile.Sampler.Tau, MaxOutputTokens: effectiveCap, TemperatureStance: resolved.Profile.Sampler.TemperatureStance, Locality: resolved.Profile.Locality, Negative: req.Negative}
 	responses, err := s.gateway.Generate(ctx, gwReq)
 	if err != nil {
 		return GenerateResponse{}, err
@@ -626,7 +801,33 @@ func (s *Service) generateResolved(ctx context.Context, req GenerateRequest, res
 	for i, response := range responses {
 		texts[i] = response.Text
 	}
-	measurements, setMeasurements := textmetrics.AnalyzeSet(texts, mergedLexicon(resolved.Styles))
+	measurements, lexicalSet := textmetrics.AnalyzeSet(texts, mergedLexicon(resolved.Styles))
+	setMeasurements := lexicalSet
+	if profileRequestsSemantic(resolved.Profile) {
+		if embedder, ok := s.gateway.(EmbeddingGateway); ok {
+			embedded, embedErr := embedder.Embed(ctx, EmbeddingRequest{Role: "embedding.default", Texts: texts})
+			if embedErr == nil {
+				semanticItems, candidateSet, semanticErr := textmetrics.AnalyzeSetSemantic(texts, embedded.Vectors)
+				if semanticErr == nil {
+					setMeasurements = candidateSet
+					measurements = semanticItems
+					round.SamplingKey.MeasurementTier = "deterministic_and_semantic"
+					round.MeasurementBasis = candidateSet.Basis
+					round.SemanticSetMeasurements = candidateSet
+				} else {
+					round.MeasurementFallback = semanticErr.Error()
+				}
+			} else {
+				round.MeasurementFallback = "embedding_unavailable: " + embedErr.Error()
+			}
+		} else {
+			round.MeasurementFallback = "embedding_unavailable: gateway has no embedding surface"
+		}
+	}
+	round.LexicalSetMeasurements = lexicalSet
+	if round.MeasurementBasis == "" {
+		round.MeasurementBasis = setMeasurements.Basis
+	}
 	candidates := make([]Candidate, len(responses))
 	var totalCost int64
 	for _, response := range responses {
@@ -661,7 +862,7 @@ func (s *Service) generateResolved(ctx context.Context, req GenerateRequest, res
 	if err := s.saveJSON(ctx, "prose_sessions", session.ID, session); err != nil {
 		return GenerateResponse{}, err
 	}
-	selected := choose(candidates, resolved.Profile.SelectionPolicy, resolved.Profile.SelectionParams, round.SelectionSeed)
+	selected := choose(candidates, resolved.Profile.SelectionPolicy, resolved.Profile.SelectionParams, round.SelectionSeed, req.Selection)
 	response := GenerateResponse{Session: session, Round: round, Candidates: candidates}
 	if shortSet {
 		response.Degraded = &DegradedOutcome{Kind: "short_candidate_set", Reason: fmt.Sprintf("received %d of %d candidates", len(responses), resolved.Profile.Sampler.K), RequestedCandidates: resolved.Profile.Sampler.K, ReceivedCandidates: len(responses), MaxOutputTokensEffective: effectiveCap, MaxOutputTokensSource: "profile_derived"}
@@ -676,8 +877,20 @@ func (s *Service) generateResolved(ctx context.Context, req GenerateRequest, res
 	return response, nil
 }
 
+func profileRequestsSemantic(profile Profile) bool {
+	for _, tier := range profile.MeasurementTiers {
+		if tier == "deterministic_and_semantic" || tier == "semantic" {
+			return true
+		}
+	}
+	return false
+}
+
 func effectiveOutputCap(profile Profile) int {
-	cap := profile.Budget.MaxOutputTokens
+	cap := profile.Sampler.MaxOutputTokens
+	if cap <= 0 {
+		cap = profile.Budget.MaxOutputTokens
+	}
 	if cap <= 0 {
 		cap = 8192
 	}
@@ -708,13 +921,18 @@ func (s *Service) SessionAction(ctx context.Context, action, sessionID, candidat
 	case "reject":
 		session.Rejected = appendUnique(session.Rejected, candidateID)
 	case "refine":
-		// Refinement is intentionally a session-level verb. The caller may
-		// follow it with a reroll carrying updated context; keeping the session
-		// active here makes that transition explicit without inventing a local
-		// ranking or editorial decision.
 		if session.Status == "abandoned" || session.Status == "committed" {
 			return Session{}, fmt.Errorf("cannot refine %s session", session.Status)
 		}
+		if candidateID == "" {
+			return Session{}, errors.New("refine requires a candidate id")
+		}
+		operation := "reading_level"
+		refined, err := s.TransformCandidate(ctx, candidateID, operation, map[string]any{"target_grade": 8})
+		if err != nil {
+			return Session{}, err
+		}
+		session.Pinned = appendUnique(session.Pinned, refined.ID)
 		session.Status = "active"
 	case "abandon":
 		session.Status = "abandoned"
@@ -730,6 +948,147 @@ func (s *Service) SessionAction(ctx context.Context, action, sessionID, candidat
 		return Session{}, err
 	}
 	return session, nil
+}
+
+// TransformCandidate applies one typed, gateway-owned rewrite and records its
+// derivation on the resulting candidate. The source candidate remains intact;
+// transforms are additions to the candidate graph, never silent replacement.
+func (s *Service) TransformCandidate(ctx context.Context, candidateID, operation string, parameters map[string]any) (Candidate, error) {
+	var source Candidate
+	if err := s.loadJSON(ctx, "prose_candidates", candidateID, &source); err != nil {
+		return Candidate{}, err
+	}
+	instruction := map[string]string{
+		"reading_level":  "Rewrite this prose for the requested reading grade while preserving every claim.",
+		"elaboration":    "Expand this prose to the requested word count while preserving every claim.",
+		"simplification": "Shorten this prose to the requested word count without dropping any declared claim.",
+	}[operation]
+	if instruction == "" {
+		return Candidate{}, fmt.Errorf("unknown transform operation %q", operation)
+	}
+	params, err := json.Marshal(parameters)
+	if err != nil {
+		return Candidate{}, err
+	}
+	responses, err := s.gateway.Generate(ctx, GatewayRequest{Role: "write.default", Instruction: instruction, Query: string(params) + "\n\nSOURCE:\n" + source.Text, Strategy: samplerDirect, K: 1, MaxOutputTokens: source.Provenance.MaxOutputTokensEffective})
+	if err != nil {
+		return Candidate{}, err
+	}
+	if len(responses) == 0 || strings.TrimSpace(responses[0].Text) == "" {
+		return Candidate{}, errors.New("transform returned no candidate")
+	}
+	response := responses[0]
+	derived := Candidate{ID: uuid.NewString(), RoundID: source.RoundID, DerivedFrom: []string{source.ID}, Text: response.Text, SetIndex: source.SetIndex, Measurements: textmetrics.Analyze(response.Text, nil), SetMeasurements: source.SetMeasurements, Provenance: source.Provenance, Eligibility: Eligibility{Eligible: true}, Transform: &Transform{Operation: operation, Parameters: parameters, SourceCandidate: source.ID, GatewayRole: "write.default", CreatedAt: s.now()}}
+	derived.Provenance.Provider, derived.Provenance.ResolvedModelRef, derived.Provenance.CostMicros = response.Provider, response.Model, response.CostMicros
+	if err := s.saveJSON(ctx, "prose_candidates", derived.ID, derived); err != nil {
+		return Candidate{}, err
+	}
+	var round Round
+	if err := s.loadJSON(ctx, "prose_rounds", source.RoundID, &round); err == nil {
+		round.CandidateIDs = append(round.CandidateIDs, derived.ID)
+		_ = s.saveJSON(ctx, "prose_rounds", round.ID, round)
+	}
+	return derived, nil
+}
+
+func PlanAxisCells(space AxisSpace) []AxisCell {
+	if len(space.Axes) == 0 {
+		return nil
+	}
+	cells := []AxisCell{{Variants: map[string]string{}}}
+	for _, axis := range space.Axes {
+		var next []AxisCell
+		for _, cell := range cells {
+			for _, variant := range axis.Variants {
+				variants := map[string]string{}
+				for key, value := range cell.Variants {
+					variants[key] = value
+				}
+				variants[axis.Name] = variant
+				next = append(next, AxisCell{Variants: variants})
+			}
+		}
+		cells = next
+	}
+	for i := range cells {
+		parts := make([]string, 0, len(cells[i].Variants))
+		for _, axis := range space.Axes {
+			parts = append(parts, axis.Name+"="+cells[i].Variants[axis.Name])
+		}
+		cells[i].Key = strings.Join(parts, ";")
+	}
+	return cells
+}
+
+// GenerateComposite executes the composite sampler as a bounded Cartesian
+// plan. Each cell gets its own ordinary generation round, so provider/model,
+// cost, and measurement evidence remain attached to the candidate rather than
+// being flattened into an opaque aggregate.
+func (s *Service) GenerateComposite(ctx context.Context, req GenerateRequest, space AxisSpace) (CompositeGeneration, error) {
+	cells := PlanAxisCells(space)
+	if len(cells) == 0 {
+		return CompositeGeneration{}, errors.New("composite_sampler_requires_nonempty_axis_space")
+	}
+	profile, err := s.latestProfile(ctx, req.ProfileKey)
+	if err != nil {
+		return CompositeGeneration{}, err
+	}
+	if profile.Sampler.Kind != samplerComposite {
+		return CompositeGeneration{}, fmt.Errorf("composite_sampler_requires_composite_profile: %s", profile.Sampler.Kind)
+	}
+	if profile.Sampler.K < 1 {
+		profile.Sampler.K = 1
+	}
+	if profile.Sampler.K == 1 {
+		profile.Sampler.Kind = samplerDirect
+	} else {
+		profile.Sampler.Kind = samplerVSStandard
+	}
+	result := CompositeGeneration{Candidates: make([]Candidate, 0, len(cells)*profile.Sampler.K), Rounds: make([]Round, 0, len(cells)), Sessions: make([]Session, 0, len(cells))}
+	for _, cell := range cells {
+		variants := make([]string, 0, len(cell.Variants))
+		for _, axis := range space.Axes {
+			variants = append(variants, axis.Name+"="+cell.Variants[axis.Name])
+		}
+		cellReq := req
+		cellReq.SessionID = ""
+		cellReq.IncludeCandidates = true
+		cellReq.Query = req.Query + "\n\nAXIS CELL: " + strings.Join(variants, "; ")
+		generated, generateErr := s.generateWithProfile(ctx, cellReq, profile)
+		if generateErr != nil {
+			return CompositeGeneration{}, fmt.Errorf("composite cell %s: %w", cell.Key, generateErr)
+		}
+		result.Rounds = append(result.Rounds, generated.Round)
+		result.Sessions = append(result.Sessions, generated.Session)
+		for _, candidate := range generated.Candidates {
+			candidate.AxisCell = cell.Key
+			if saveErr := s.saveJSON(ctx, "prose_candidates", candidate.ID, candidate); saveErr != nil {
+				return CompositeGeneration{}, saveErr
+			}
+			result.Candidates = append(result.Candidates, candidate)
+		}
+	}
+	result.Coverage = ComputeCellCoverage(space, result.Candidates)
+	return result, nil
+}
+
+func ComputeCellCoverage(space AxisSpace, candidates []Candidate) CellCoverage {
+	planned := PlanAxisCells(space)
+	coveredSet := map[string]bool{}
+	for _, candidate := range candidates {
+		if candidate.AxisCell != "" {
+			coveredSet[candidate.AxisCell] = true
+		}
+	}
+	coverage := CellCoverage{Planned: planned}
+	for _, cell := range planned {
+		if coveredSet[cell.Key] {
+			coverage.Covered = append(coverage.Covered, cell.Key)
+		} else {
+			coverage.Missed = append(coverage.Missed, cell.Key)
+		}
+	}
+	return coverage
 }
 
 // Reroll reuses the session path and generates only the unpinned slots. The
@@ -748,18 +1107,34 @@ func (s *Service) Reroll(ctx context.Context, sessionID string, includeCandidate
 		return GenerateResponse{}, errors.New("all candidate slots are pinned")
 	}
 	profile.Sampler.K -= len(session.Pinned)
-	if len(session.Pinned) > 0 || len(session.Rejected) > 0 {
-		// Keep this request in the same service path while preserving the
-		// effective profile in the persisted round. The profile is copied so a
-		// reroll cannot mutate the versioned profile record.
-		copyProfile := profile
-		copyProfile.Key = profile.Key
-		if err := s.saveJSON(ctx, "prose_sessions", session.ID, session); err != nil {
-			return GenerateResponse{}, err
-		}
-		_ = copyProfile
+	negative, err := s.resolveNegativeContext(ctx, session)
+	if err != nil {
+		return GenerateResponse{}, err
 	}
-	return s.generateWithProfile(ctx, GenerateRequest{ProfileKey: session.ProfileKey, Query: session.Query, SessionID: session.ID, IncludeCandidates: includeCandidates, Negative: NegativeContext{Pinned: append([]string(nil), session.Pinned...), Rejected: append([]string(nil), session.Rejected...)}}, profile)
+	return s.generateWithProfile(ctx, GenerateRequest{ProfileKey: session.ProfileKey, Query: session.Query, SessionID: session.ID, IncludeCandidates: includeCandidates, Negative: negative}, profile)
+}
+
+func (s *Service) resolveNegativeContext(ctx context.Context, session Session) (NegativeContext, error) {
+	resolve := func(ids []string) ([]string, error) {
+		out := make([]string, 0, len(ids))
+		for _, id := range ids {
+			var candidate Candidate
+			if err := s.loadJSON(ctx, "prose_candidates", id, &candidate); err != nil {
+				return nil, err
+			}
+			out = append(out, candidate.Text)
+		}
+		return out, nil
+	}
+	pinned, err := resolve(session.Pinned)
+	if err != nil {
+		return NegativeContext{}, err
+	}
+	rejected, err := resolve(session.Rejected)
+	if err != nil {
+		return NegativeContext{}, err
+	}
+	return NegativeContext{Pinned: pinned, Rejected: rejected}, nil
 }
 
 func (s *Service) commit(ctx context.Context, session Session, candidateID string) error {
@@ -784,7 +1159,15 @@ func (s *Service) commit(ctx context.Context, session Session, candidateID strin
 	if err != nil {
 		return err
 	}
-	event := SelectionEvent{ID: uuid.NewString(), SessionID: session.ID, CandidateID: candidateID, ConsideredCandidateIDs: roundCandidates(ctx, s.db, candidate.RoundID), Measurements: candidate.Measurements, CreatedAt: s.now()}
+	distanceBasis := "lexical"
+	var candidateSet textmetrics.SetMetrics
+	if raw, marshalErr := json.Marshal(candidate.SetMeasurements); marshalErr == nil {
+		_ = json.Unmarshal(raw, &candidateSet)
+		if strings.Contains(candidateSet.Basis, "semantic") {
+			distanceBasis = "semantic"
+		}
+	}
+	event := SelectionEvent{ID: uuid.NewString(), SessionID: session.ID, CandidateID: candidateID, ConsideredCandidateIDs: roundCandidates(ctx, s.db, candidate.RoundID), Measurements: candidate.Measurements, DistanceBasis: distanceBasis, CreatedAt: s.now()}
 	return s.saveJSON(ctx, "prose_selection_events", event.ID, event)
 }
 
@@ -995,6 +1378,47 @@ func (s *Service) CreateDocument(ctx context.Context, doc Document, sections []S
 	return doc, nil
 }
 
+// ResumeDocument continues a document from its durable outline and committed
+// sections. It never regenerates a section that already has a committed
+// candidate.
+func (s *Service) ResumeDocument(ctx context.Context, documentID string) (Document, error) {
+	var doc Document
+	if err := s.loadJSON(ctx, "prose_documents", documentID, &doc); err != nil {
+		return Document{}, err
+	}
+	return s.generateDocument(ctx, doc)
+}
+
+func (s *Service) resolveDocumentProfiles(ctx context.Context, doc Document) (Profile, Profile, error) {
+	sectionKey := doc.ProfileKey
+	sectionProfile, err := s.latestProfile(ctx, sectionKey)
+	if err != nil {
+		return Profile{}, Profile{}, err
+	}
+	if sectionProfile.SectionProfileKey != "" {
+		sectionKey = sectionProfile.SectionProfileKey
+		sectionProfile, err = s.latestProfile(ctx, sectionKey)
+		if err != nil {
+			return Profile{}, Profile{}, err
+		}
+	}
+	outlineKey := doc.OutlineProfileKey
+	if outlineKey == "" {
+		outlineKey = sectionProfile.OutlineProfileKey
+	}
+	outlineProfile := sectionProfile
+	if outlineKey != "" {
+		outlineProfile, err = s.latestProfile(ctx, outlineKey)
+		if err != nil {
+			return Profile{}, Profile{}, err
+		}
+	}
+	outlineProfile.Sampler.Kind = samplerDirect
+	outlineProfile.Sampler.K = 1
+	outlineProfile.SelectionPolicy = "take_first"
+	return outlineProfile, sectionProfile, nil
+}
+
 // generateDocument is the service-owned long-form path. The outline is a
 // normal candidate round, followed by one passage-level session per section.
 // Callers do not manufacture committed ids or context snapshots.
@@ -1005,75 +1429,563 @@ func (s *Service) generateDocument(ctx context.Context, doc Document) (Document,
 	if err := s.saveJSON(ctx, "prose_documents", doc.ID, doc); err != nil {
 		return Document{}, err
 	}
-	outline, err := s.Generate(ctx, GenerateRequest{ProfileKey: doc.ProfileKey, Query: "Create a concise ordered outline for: " + doc.Title, IncludeCandidates: true})
+	outlineProfile, sectionProfile, err := s.resolveDocumentProfiles(ctx, doc)
 	if err != nil {
 		return Document{}, err
 	}
-	outlineCandidate := outline.Selected
-	if outlineCandidate == nil && len(outline.Candidates) > 0 {
-		outlineCandidate = &outline.Candidates[0]
+	if doc.OutlineID == "" || len(doc.Outline) == 0 {
+		outlineProfileKey := outlineProfile.Key
+		outlineProfile.Constraints = Constraints{}
+		overallMinWords, overallMaxWords := sectionProfile.Constraints.MinWords, sectionProfile.Constraints.MaxWords
+		if overallMaxWords <= 0 {
+			overallMaxWords = 1400
+		}
+		if overallMinWords <= 0 {
+			overallMinWords = maxInt(80, overallMaxWords/2)
+		}
+		// Leave a production margin above the declared floor: generated prose
+		// naturally varies below outline targets, and a target sum close to the
+		// floor can fail the assembled article by a material amount.
+		if overallMinWords+300 < overallMaxWords {
+			overallMinWords += 300
+		}
+		sectionCount, minSections, maxSections := resolveSectionPlan(doc, sectionProfile, overallMaxWords)
+		outlineQuery := fmt.Sprintf("Create a concise ordered outline as a JSON array of %d sections for: %s. Each section must carry a distinct claim and advance the argument; no two sections may restate the same point in different words. The %d target_words values must sum to between %d and %d words for the assembled article.", sectionCount, doc.Title, sectionCount, overallMinWords, overallMaxWords)
+		outline, err := s.generateWithProfile(ctx, GenerateRequest{ProfileKey: outlineProfileKey, Query: outlineQuery, SchemaJSON: outlineSchema, IncludeCandidates: true}, outlineProfile)
+		if err != nil {
+			return Document{}, err
+		}
+		outlineCandidate := outline.Selected
+		if outlineCandidate == nil && len(outline.Candidates) > 0 {
+			outlineCandidate = &outline.Candidates[0]
+		}
+		if outlineCandidate == nil || !outlineCandidate.Eligibility.Eligible {
+			return Document{}, fmt.Errorf("outline candidate is ineligible: %s", candidateReason(outlineCandidate))
+		}
+		parsedOutline, parseErr := decodeOutline(outlineCandidate.Text, minSections, maxSections)
+		if parseErr != nil {
+			// A weak provider may satisfy the schema while returning only one
+			// section because minItems is intentionally outside the gateway's
+			// enforceable subset. Retry with the named structural requirement;
+			// never manufacture a fallback outline in the service.
+			outline, err = s.generateWithProfile(ctx, GenerateRequest{ProfileKey: outlineProfileKey, Query: outlineQuery + fmt.Sprintf(" Return a JSON array of between %d and %d ordered section objects; do not return a single object and do not return fewer than %d.", minSections, maxSections, minSections), SchemaJSON: outlineSchema, IncludeCandidates: true}, outlineProfile)
+			if err != nil {
+				return Document{}, err
+			}
+			outlineCandidate = outline.Selected
+			if outlineCandidate == nil && len(outline.Candidates) > 0 {
+				outlineCandidate = &outline.Candidates[0]
+			}
+			if outlineCandidate == nil || !outlineCandidate.Eligibility.Eligible {
+				return Document{}, fmt.Errorf("outline retry is ineligible: %s", candidateReason(outlineCandidate))
+			}
+			parsedOutline, parseErr = decodeOutline(outlineCandidate.Text, minSections, maxSections)
+		}
+		if parseErr != nil {
+			return Document{}, parseErr
+		}
+		if err := s.commit(ctx, outline.Session, outlineCandidate.ID); err != nil {
+			return Document{}, err
+		}
+		doc.OutlineID = outlineCandidate.ID
+		doc.OutlineText = outlineCandidate.Text
+		doc.OutlineProfileKey = outlineProfile.Key
+		doc.OutlineProfileVersion = fmt.Sprintf("%s@%d", outlineProfile.Key, outlineProfile.Version)
+		doc.Outline = parsedOutline
+		doc.SectionCount = len(parsedOutline)
 	}
-	if outlineCandidate == nil || !outlineCandidate.Eligibility.Eligible {
-		return Document{}, fmt.Errorf("outline candidate is ineligible: %s", candidateReason(outlineCandidate))
+	doc.SectionProfileVersion = fmt.Sprintf("%s@%d", sectionProfile.Key, sectionProfile.Version)
+	sections := make([]Section, 0, len(doc.SectionIDs))
+	for _, id := range doc.SectionIDs {
+		var existing Section
+		if err := s.loadJSON(ctx, "prose_sections", id, &existing); err == nil && existing.CommittedCandidateID != "" {
+			sections = append(sections, existing)
+		}
 	}
-	if err := s.commit(ctx, outline.Session, outlineCandidate.ID); err != nil {
+	if err := s.saveJSON(ctx, "prose_documents", doc.ID, doc); err != nil {
 		return Document{}, err
 	}
-	doc.OutlineID = outlineCandidate.ID
-	intents := outlineIntents(outlineCandidate.Text)
-	// A one-line provider answer is not an outline. Keep the service-owned
-	// section contract stable so the document path still exercises independent
-	// passage sessions and context snapshots.
-	if len(intents) < 2 {
-		intents = []string{"opening", "context", "evidence", "implications", "conclusion"}
+	intents := make([]string, len(doc.Outline))
+	for i := range doc.Outline {
+		intents[i] = doc.Outline[i].Intent
 	}
-	sections := make([]Section, 0, len(intents))
-	for position, intent := range intents {
-		section := Section{ID: uuid.NewString(), DocumentID: doc.ID, Position: position, Intent: intent, ProfileKey: doc.ProfileKey, Context: s.buildContextSnapshot(ctx, doc, sections, intents[position+1:])}
-		contextText, err := s.contextText(ctx, doc, sections, section.Context)
+	for position, planned := range doc.Outline {
+		if position < len(sections) && sections[position].CommittedCandidateID != "" {
+			continue
+		}
+		section, err := s.produceSection(ctx, doc, sectionProfile, position, planned, sections, intents[position+1:], len(intents), NegativeContext{}, "")
 		if err != nil {
-			return Document{}, err
-		}
-		if err := validateDynamicContext(contextText, doc.ProfileKey, s, ctx); err != nil {
-			return Document{}, err
-		}
-		generated, err := s.Generate(ctx, GenerateRequest{ProfileKey: doc.ProfileKey, Query: intent + "\n\n" + contextText, IncludeCandidates: true})
-		if err != nil {
-			return Document{}, err
-		}
-		section.SessionID = generated.Session.ID
-		selected := generated.Selected
-		if selected == nil && len(generated.Candidates) > 0 {
-			selected = &generated.Candidates[0]
-		}
-		if selected == nil || !selected.Eligibility.Eligible {
-			return Document{}, fmt.Errorf("section %d candidate is ineligible: %s", position, candidateReason(selected))
-		}
-		if err := s.commitSectionCandidate(ctx, section.ID, selected.ID, section); err != nil {
 			return Document{}, err
 		}
 		sections = append(sections, section)
-	}
-	doc.SectionIDs = make([]string, 0, len(sections))
-	for _, section := range sections {
 		doc.SectionIDs = append(doc.SectionIDs, section.ID)
+		doc.Sections = append(doc.Sections, section)
+		if err := s.saveJSON(ctx, "prose_documents", doc.ID, doc); err != nil {
+			return Document{}, err
+		}
 	}
 	doc.Status = "sectioned"
 	if err := s.saveJSON(ctx, "prose_documents", doc.ID, doc); err != nil {
 		return Document{}, err
 	}
-	return s.AssembleDocument(ctx, doc.ID)
+	assembled, err := s.AssembleDocument(ctx, doc.ID)
+	if err != nil {
+		return Document{}, err
+	}
+	return s.repairDocument(ctx, assembled, sectionProfile, intents)
 }
 
-func outlineIntents(text string) []string {
-	var out []string
-	for _, line := range strings.Split(text, "\n") {
-		line = strings.TrimSpace(strings.TrimLeft(line, "-•*0123456789. "))
-		if line != "" && len([]rune(line)) <= 180 {
-			out = append(out, line)
+// produceSection draws, gates, selects, and commits the candidate set for one
+// position in a document. It is shared by first assembly and by repair so a
+// regenerated section is produced under exactly the same band, format, and
+// selection rules as an original one; the previous inline body could only be
+// reached by the first path, which is how a repair path would have drifted.
+func (s *Service) produceSection(ctx context.Context, doc Document, sectionProfile Profile, position int, planned OutlineSection, prior []Section, followingIntents []string, totalSections int, negative NegativeContext, reuseID string) (Section, error) {
+	id := reuseID
+	if strings.TrimSpace(id) == "" {
+		id = uuid.NewString()
+	}
+	section := Section{ID: id, DocumentID: doc.ID, Position: position, Intent: planned.Intent, Summary: planned.Summary, TargetWords: planned.TargetWords, ProfileKey: sectionProfile.Key, Context: s.buildContextSnapshot(ctx, doc, prior, followingIntents)}
+	preparedContext, err := s.prepareContextSnapshot(ctx, doc, prior, section.Context)
+	if err != nil {
+		return Section{}, err
+	}
+	section.Context = preparedContext
+	contextText, err := s.assembleSectionContext(ctx, doc, doc.OutlineText, section, totalSections, prior)
+	if err != nil {
+		return Section{}, err
+	}
+	// The consumer profile's document band describes the whole assembled
+	// article, while each outline cell owns a smaller word budget. Carry the
+	// cell budget into both the instruction and the local eligibility gate;
+	// otherwise a 650-word section minimum is silently applied per section.
+	sectionTargetWords := planned.TargetWords
+	if sectionTargetWords <= 0 {
+		sectionTargetWords = defaultTargetSectionWords
+	}
+	// A band, not a ceiling pinned at the target. The previous form set MaxWords
+	// to the target and MinWords to zero, which gave the model one direction to
+	// miss in and no floor to miss against: outline targets summing to 1100
+	// words were satisfied by 490 words of eligible text.
+	sectionMinWords, sectionMaxWords := sectionWordBand(sectionProfile, sectionTargetWords)
+	sectionProfile.Constraints.MinWords = sectionMinWords
+	sectionProfile.Constraints.MaxWords = sectionMaxWords
+	sectionProfile.Constraints.RequiredFormat = sectionRequiredFormat(sectionProfile)
+	sectionProfile.Sampler.MaxOutputTokens = sectionOutputCap(sectionProfile, sectionMaxWords)
+	sectionProfile.Budget.MaxOutputTokens = sectionProfile.Sampler.MaxOutputTokens
+	// Continuation is not variation. Selecting the section candidate most
+	// distant from its own siblings is right for ideation and wrong here: it
+	// picks the outlier at every position and assembles a document out of them.
+	sectionProfile.SelectionPolicy = sectionSelectionPolicy(sectionProfile)
+	sectionProfile.Sampler.Kind, sectionProfile.Sampler.K = sectionSampler(sectionProfile)
+	sectionQuery := fmt.Sprintf("%s\n\n%s\n\n%s\n\nHARD SECTION LENGTH: write between %d and %d words; aim for approximately %d words. A section materially shorter than the floor is rejected.", doc.Title, planned.Intent, contextText, sectionMinWords, sectionMaxWords, sectionTargetWords)
+	selectionContext := &SelectionContext{PriorText: s.committedSectionTexts(ctx, prior), TargetWords: sectionTargetWords}
+	generated, err := s.generateWithProfile(ctx, GenerateRequest{ProfileKey: sectionProfile.Key, Query: sectionQuery, IncludeCandidates: true, Negative: negative, Selection: selectionContext}, sectionProfile)
+	if err != nil {
+		return Section{}, err
+	}
+	section.SessionID = generated.Session.ID
+	selected := eligibleCandidate(generated)
+	if selected == nil {
+		// One bounded retry naming the measured shortfall, the same shape as the
+		// outline retry. A length floor that can only fail the whole document is
+		// not usable: models undershoot a stated word target routinely, and the
+		// useful response is to say by how much and ask for development rather
+		// than to abandon the article or to widen the band until it passes.
+		shortfall := closestMiss(generated.Candidates)
+		retryQuery := sectionQuery + fmt.Sprintf("\n\nThe previous attempt was rejected: it produced %d words against a floor of %d. Write a longer section by developing the point with a concrete example and its consequence, not by adding adjectives or restating the same sentence.", shortfall, sectionMinWords)
+		generated, err = s.generateWithProfile(ctx, GenerateRequest{ProfileKey: sectionProfile.Key, Query: retryQuery, IncludeCandidates: true, Negative: negative, SessionID: generated.Session.ID, Selection: selectionContext}, sectionProfile)
+		if err != nil {
+			return Section{}, err
+		}
+		section.SessionID = generated.Session.ID
+		selected = eligibleCandidate(generated)
+	}
+	if selected == nil {
+		return Section{}, fmt.Errorf("section %d candidate is ineligible: %s", position, candidateReason(firstCandidate(generated)))
+	}
+	if err := s.commitSectionCandidate(ctx, section.ID, selected.ID, section); err != nil {
+		return Section{}, err
+	}
+	// commitSectionCandidate takes the section by value and records the
+	// committed identifier on its own copy. Recording it here too is what makes
+	// this section visible to every later section: both prepareContextSnapshot
+	// and assembleSectionContext skip a section whose committed candidate is
+	// empty, so without this assignment the caller's slice carries uncommitted
+	// copies and each section is drafted blind to the ones before it. That is
+	// the mechanism behind a document whose sections restate one another.
+	section.CommittedCandidateID = selected.ID
+	return section, nil
+}
+
+// eligibleCandidate returns the policy's choice, and never an ineligible
+// candidate. The previous form fell back to candidates[0] whenever the policy
+// declined to choose, which silently committed a candidate the constraint gate
+// had already rejected.
+func eligibleCandidate(generated GenerateResponse) *Candidate {
+	if generated.Selected != nil && generated.Selected.Eligibility.Eligible {
+		return generated.Selected
+	}
+	for i := range generated.Candidates {
+		if generated.Candidates[i].Eligibility.Eligible {
+			return &generated.Candidates[i]
+		}
+	}
+	return nil
+}
+
+func firstCandidate(generated GenerateResponse) *Candidate {
+	if generated.Selected != nil {
+		return generated.Selected
+	}
+	if len(generated.Candidates) > 0 {
+		return &generated.Candidates[0]
+	}
+	return nil
+}
+
+// closestMiss reports the word count of the longest candidate drawn, which is
+// the number worth telling the model about when every candidate fell short.
+func closestMiss(candidates []Candidate) int {
+	best := 0
+	for _, c := range candidates {
+		if words := candidateWordCount(c); words > best {
+			best = words
+		}
+	}
+	return best
+}
+
+// repairDocument regenerates the section that most repeats the rest of the
+// document, using the other committed sections as negative conditioning, until
+// the coherence verdict passes or the declared repair budget is spent. Without
+// it the verdict is inert: assembly measured repetition, wrote the number onto
+// the document, and returned that document unchanged whether it passed or not.
+func (s *Service) repairDocument(ctx context.Context, doc Document, sectionProfile Profile, intents []string) (Document, error) {
+	rounds := sectionProfile.Composition.MaxRepairRounds
+	for attempt := 0; attempt < rounds; attempt++ {
+		if coherenceVerdictPassed(doc.Coherence) {
+			return doc, nil
+		}
+		sections, texts, err := s.loadCommittedSections(ctx, doc)
+		if err != nil {
+			return doc, err
+		}
+		if len(sections) < 2 {
+			return doc, nil
+		}
+		target := mostRedundantSection(texts)
+		if target < 0 || target >= len(sections) || target >= len(doc.Outline) {
+			return doc, nil
+		}
+		negative := NegativeContext{Rejected: append([]string{texts[target]}, otherTexts(texts, target)...)}
+		prior := sections[:target]
+		following := []string{}
+		if target+1 < len(intents) {
+			following = intents[target+1:]
+		}
+		replaced, err := s.produceSection(ctx, doc, sectionProfile, target, doc.Outline[target], prior, following, len(doc.Outline), negative, sections[target].ID)
+		if err != nil {
+			// A repair that cannot produce an eligible section leaves the prior
+			// document standing with its failed verdict intact. Reporting the
+			// honest failed verdict beats replacing it with nothing.
+			return doc, nil
+		}
+		doc.Sections[target] = replaced
+		reassembled, err := s.AssembleDocument(ctx, doc.ID)
+		if err != nil {
+			return doc, err
+		}
+		doc = reassembled
+	}
+	return doc, nil
+}
+
+// coherenceVerdictPassed reads the assembled verdict without assuming it is
+// present: a document that was never assembled has no verdict, and treating
+// that as a pass would skip repair exactly when it is needed.
+func coherenceVerdictPassed(coherence any) bool {
+	container, ok := coherence.(map[string]any)
+	if !ok {
+		return false
+	}
+	verdict, ok := container["verdict"].(map[string]any)
+	if !ok {
+		return false
+	}
+	passed, ok := verdict["coherent"].(bool)
+	return ok && passed
+}
+
+// mostRedundantSection names the section carrying the highest lexical overlap
+// with any other single section, which is the one worth rewriting first.
+func mostRedundantSection(texts []string) int {
+	if len(texts) < 2 {
+		return -1
+	}
+	worst, worstScore := -1, -1.0
+	for i := range texts {
+		var score float64
+		for j := range texts {
+			if i == j {
+				continue
+			}
+			if overlap := textmetrics.CrossSectionRepetition([]string{texts[i], texts[j]}); overlap > score {
+				score = overlap
+			}
+		}
+		if score > worstScore {
+			worst, worstScore = i, score
+		}
+	}
+	return worst
+}
+
+func otherTexts(texts []string, skip int) []string {
+	out := make([]string, 0, len(texts))
+	for i, text := range texts {
+		if i == skip {
+			continue
+		}
+		out = append(out, text)
+	}
+	return out
+}
+
+// loadCommittedSections re-reads the document's sections from storage so repair
+// operates on committed state rather than on an in-memory copy.
+func (s *Service) loadCommittedSections(ctx context.Context, doc Document) ([]Section, []string, error) {
+	sections := make([]Section, 0, len(doc.SectionIDs))
+	texts := make([]string, 0, len(doc.SectionIDs))
+	for _, id := range doc.SectionIDs {
+		var section Section
+		if err := s.loadJSON(ctx, "prose_sections", id, &section); err != nil {
+			return nil, nil, err
+		}
+		if section.CommittedCandidateID == "" {
+			continue
+		}
+		var candidate Candidate
+		if err := s.loadJSON(ctx, "prose_candidates", section.CommittedCandidateID, &candidate); err != nil {
+			return nil, nil, err
+		}
+		sections = append(sections, section)
+		texts = append(texts, candidate.Text)
+	}
+	return sections, texts, nil
+}
+
+// Composition defaults. They are named constants rather than literals in the
+// outline prompt because "three sections" was previously spread across the
+// prompt, the decoder, and the eval, which made article shape unchangeable.
+const (
+	defaultTargetSectionWords   = 350
+	defaultSectionWordTolerance = 0.25
+	defaultMinSections          = 3
+	defaultFullTextTokenBudget  = 4096
+	defaultSectionCandidates    = 3
+	defaultSectionOutputFloor   = 2048
+	defaultSectionTokenHeadroom = 6
+	minimumEmbeddingDimension   = 64
+	defaultMaxSections          = 9
+	policyContinuation          = "continuation_least_redundant"
+)
+
+// resolveSectionPlan returns the count to ask for and the band the decoder will
+// accept. An explicitly declared count is exact; a derived count is a target
+// inside the declared band, because the model chooses the shape that fits the
+// subject and only the policy decides the range it may choose within.
+func resolveSectionPlan(doc Document, profile Profile, maxWords int) (want, minSections, maxSections int) {
+	want = resolveSectionCount(doc, profile, maxWords)
+	if doc.SectionCount > 0 || profile.Composition.SectionCount > 0 {
+		return want, want, want
+	}
+	minSections, maxSections = profile.Composition.MinSections, profile.Composition.MaxSections
+	if minSections <= 0 {
+		minSections = defaultMinSections
+	}
+	if maxSections <= 0 {
+		maxSections = defaultMaxSections
+	}
+	if maxSections < minSections {
+		maxSections = minSections
+	}
+	return want, minSections, maxSections
+}
+
+// resolveSectionCount decides how many sections an outline carries. Precedence
+// is the document override, then the profile policy, then a count derived from
+// the article's word budget and the declared words-per-section target.
+func resolveSectionCount(doc Document, profile Profile, maxWords int) int {
+	if doc.SectionCount > 0 {
+		return doc.SectionCount
+	}
+	policy := profile.Composition
+	if policy.SectionCount > 0 {
+		return policy.SectionCount
+	}
+	target := policy.TargetSectionWords
+	if target <= 0 {
+		target = defaultTargetSectionWords
+	}
+	minSections, maxSections := policy.MinSections, policy.MaxSections
+	if minSections <= 0 {
+		minSections = defaultMinSections
+	}
+	if maxSections <= 0 {
+		maxSections = defaultMaxSections
+	}
+	if maxSections < minSections {
+		maxSections = minSections
+	}
+	count := maxWords / target
+	if maxWords%target != 0 {
+		count++
+	}
+	if count < minSections {
+		count = minSections
+	}
+	if count > maxSections {
+		count = maxSections
+	}
+	return count
+}
+
+// sectionWordBand converts an outline cell target into the floor and ceiling
+// the section eligibility gate enforces.
+func sectionWordBand(profile Profile, target int) (int, int) {
+	tolerance := profile.Composition.SectionWordTolerance
+	if tolerance <= 0 || tolerance >= 1 {
+		tolerance = defaultSectionWordTolerance
+	}
+	minWords := int(float64(target) * (1 - tolerance))
+	maxWords := int(float64(target) * (1 + tolerance))
+	if minWords < 1 {
+		minWords = 1
+	}
+	if maxWords <= minWords {
+		maxWords = minWords + 1
+	}
+	return minWords, maxWords
+}
+
+// sectionRequiredFormat honours the profile instead of forcing paragraph.
+// matchesRequiredFormat rejects any text carrying a list marker under
+// "paragraph", so forcing that value also banned headings, lists, and code
+// blocks from every long-form section.
+func sectionRequiredFormat(profile Profile) string {
+	if format := strings.TrimSpace(profile.Composition.SectionFormat); format != "" {
+		return format
+	}
+	return "paragraph"
+}
+
+// sectionSelectionPolicy defaults sections to continuation rather than letting
+// them inherit the profile's ideation policy.
+func sectionSelectionPolicy(profile Profile) string {
+	if policy := strings.TrimSpace(profile.Composition.SectionSelectionPolicy); policy != "" {
+		return policy
+	}
+	return policyContinuation
+}
+
+// sectionOutputCap sizes the output budget for one section.
+//
+// The former value, twice the section's word ceiling, was wrong by roughly an
+// order of magnitude against a reasoning model. max_output_tokens bounds every
+// token the model emits, and a reasoning model spends most of that budget
+// before it writes a visible word: at a 624-token cap the provider returned a
+// truncated JSON string and the section arrived as a 12-word fragment, which
+// then failed the word floor. Nothing in the failure named the cap, and the
+// verbalized path masked it entirely because a k-candidate cap is k times
+// larger for the same section.
+//
+// The multiplier is therefore headroom for invisible tokens rather than an
+// estimate of prose length, and the floor matters more than the multiplier for
+// the short sections where the ratio is worst.
+func sectionOutputCap(profile Profile, sectionMaxWords int) int {
+	if declared := profile.Composition.SectionMaxOutputTokens; declared > 0 {
+		return declared
+	}
+	return maxInt(defaultSectionOutputFloor, sectionMaxWords*defaultSectionTokenHeadroom)
+}
+
+// sectionSampler decides how a section's candidate set is drawn. Sections
+// default to direct draws rather than the profile's verbalized sampler: an
+// outline wants a distribution over framings, a section wants the best
+// continuation of the framing the outline already fixed, and the verbalized
+// envelope adds a whole-document failure mode when one entry in the set comes
+// back malformed.
+func sectionSampler(profile Profile) (string, int) {
+	kind := strings.TrimSpace(profile.Composition.SectionSamplerKind)
+	if kind == "" {
+		kind = samplerDirect
+	}
+	count := profile.Composition.SectionCandidates
+	if count <= 0 {
+		count = defaultSectionCandidates
+	}
+	return kind, count
+}
+
+// committedSectionTexts resolves the prose already committed to a document.
+// Selection receives text, never record identifiers.
+func (s *Service) committedSectionTexts(ctx context.Context, sections []Section) []string {
+	out := make([]string, 0, len(sections))
+	for _, section := range sections {
+		if section.CommittedCandidateID == "" {
+			continue
+		}
+		var candidate Candidate
+		if err := s.loadJSON(ctx, "prose_candidates", section.CommittedCandidateID, &candidate); err != nil {
+			continue
+		}
+		if strings.TrimSpace(candidate.Text) != "" {
+			out = append(out, candidate.Text)
 		}
 	}
 	return out
+}
+
+func decodeOutline(text string, minSections, maxSections int) ([]OutlineSection, error) {
+	if minSections <= 0 {
+		minSections = defaultMinSections
+	}
+	if maxSections < minSections {
+		maxSections = minSections
+	}
+	var outline []OutlineSection
+	if err := json.Unmarshal([]byte(text), &outline); err != nil {
+		// A weak provider sometimes returns an object keyed section_1, section_2
+		// rather than an array. Decode it by sorted key so the recovery is not
+		// tied to a fixed section count the way the previous three-field struct
+		// was, and so key order in the JSON cannot reorder the article.
+		var keyed map[string]OutlineSection
+		if fixedErr := json.Unmarshal([]byte(text), &keyed); fixedErr != nil || len(keyed) == 0 {
+			return nil, fmt.Errorf("%w: %v", ErrMalformedOutline, err)
+		}
+		keys := make([]string, 0, len(keyed))
+		for key := range keyed {
+			keys = append(keys, key)
+		}
+		sort.Strings(keys)
+		outline = outline[:0]
+		for _, key := range keys {
+			outline = append(outline, keyed[key])
+		}
+	}
+	// A band rather than an exact count. Section count is a composition policy
+	// decision, and the exact number inside the declared band is the model's to
+	// make; demanding one number turned an ordinary outline into a hard failure.
+	if len(outline) < minSections || len(outline) > maxSections {
+		return nil, fmt.Errorf("%w: outline must contain between %d and %d sections, got %d", ErrMalformedOutline, minSections, maxSections, len(outline))
+	}
+	for i, section := range outline {
+		if strings.TrimSpace(section.Intent) == "" || strings.TrimSpace(section.Summary) == "" || section.TargetWords <= 0 {
+			return nil, fmt.Errorf("%w: section %d requires intent, summary, and positive target_words", ErrMalformedOutline, i+1)
+		}
+	}
+	return outline, nil
 }
 
 func candidateReason(candidate *Candidate) string {
@@ -1103,41 +2015,130 @@ func (s *Service) commitSectionCandidate(ctx context.Context, sectionID, candida
 }
 
 func (s *Service) buildContextSnapshot(ctx context.Context, doc Document, prior []Section, following []string) ContextSnapshot {
-	snapshot := ContextSnapshot{OutlineRef: doc.OutlineID, FollowingIntents: append([]string(nil), following...)}
+	snapshot := ContextSnapshot{OutlineRef: doc.OutlineID, OutlineText: doc.OutlineText, FollowingIntents: append([]string(nil), following...)}
 	for _, section := range prior {
 		snapshot.PriorSectionRefs = append(snapshot.PriorSectionRefs, section.ID)
+		snapshot.FullTextSectionRefs = append(snapshot.FullTextSectionRefs, section.ID)
 	}
 	return snapshot
 }
 
-func (s *Service) contextText(ctx context.Context, doc Document, prior []Section, snapshot ContextSnapshot) (string, error) {
-	var parts []string
-	parts = append(parts, "Selected outline: "+snapshot.OutlineRef)
-	for _, section := range prior {
-		var candidate Candidate
+func (s *Service) prepareContextSnapshot(ctx context.Context, doc Document, prior []Section, snapshot ContextSnapshot) (ContextSnapshot, error) {
+	profile, err := s.latestProfile(ctx, doc.ProfileKey)
+	if err != nil {
+		return ContextSnapshot{}, err
+	}
+	snapshot.PriorSectionRefs = nil
+	snapshot.FullTextSectionRefs = nil
+	snapshot.SummarizedSectionRefs = nil
+	snapshot.SectionSummaries = map[string]string{}
+	fullBudget := profile.ContextPolicy.FullTextTokenBudget
+	if fullBudget <= 0 {
+		// Not the output cap. How many tokens of prior sections a prompt may
+		// carry is an input-context question and has nothing to do with how long
+		// a section may be; borrowing the output cap made a profile that writes
+		// short sections also forget its own document, summarising prior prose
+		// through a small model exactly when the sections were short enough to
+		// carry whole.
+		fullBudget = defaultFullTextTokenBudget
+	}
+	summarizeBeyond := profile.ContextPolicy.SummarizeBeyond
+	if summarizeBeyond <= 0 {
+		summarizeBeyond = fullBudget
+	}
+	fullTokens := 0
+	for index := len(prior) - 1; index >= 0; index-- {
+		section := prior[index]
 		if section.CommittedCandidateID == "" {
 			continue
 		}
+		var candidate Candidate
 		if err := s.loadJSON(ctx, "prose_candidates", section.CommittedCandidateID, &candidate); err != nil {
-			return "", err
+			return ContextSnapshot{}, err
 		}
-		parts = append(parts, "Prior section "+section.ID+": "+candidate.Text)
+		tokens := estimateContextTokens(candidate.Text)
+		shouldSummarize := !profile.ContextPolicy.AlwaysFullPrevious && (fullTokens+tokens > fullBudget || fullTokens+tokens > summarizeBeyond)
+		if shouldSummarize {
+			summary, err := s.summarizeSection(ctx, candidate.Text)
+			if err != nil {
+				return ContextSnapshot{}, err
+			}
+			snapshot.SummarizedSectionRefs = append([]string{section.ID}, snapshot.SummarizedSectionRefs...)
+			snapshot.SectionSummaries[section.ID] = summary
+		} else {
+			snapshot.FullTextSectionRefs = append([]string{section.ID}, snapshot.FullTextSectionRefs...)
+			fullTokens += tokens
+		}
+		snapshot.PriorSectionRefs = append([]string{section.ID}, snapshot.PriorSectionRefs...)
 	}
-	if len(snapshot.FollowingIntents) > 0 {
-		parts = append(parts, "Following section intents: "+strings.Join(snapshot.FollowingIntents, "; "))
+	snapshot.EstimatedTokens = fullTokens
+	for _, summary := range snapshot.SectionSummaries {
+		snapshot.EstimatedTokens += estimateContextTokens(summary)
 	}
-	return strings.Join(parts, "\n"), nil
+	return snapshot, nil
 }
 
-func validateDynamicContext(contextText, profileKey string, service *Service, ctx context.Context) error {
-	profile, err := service.latestProfile(ctx, profileKey)
+func (s *Service) summarizeSection(ctx context.Context, text string) (string, error) {
+	responses, err := s.gateway.Generate(ctx, GatewayRequest{Role: "extract.structured", Instruction: "Summarize the supplied prose faithfully in two or three sentences. Return only the summary.", Query: text, Strategy: samplerDirect, K: 1, MaxOutputTokens: 256})
 	if err != nil {
-		return err
+		return "", fmt.Errorf("summarize prior section: %w", err)
 	}
-	if profile.ContextPolicy.DeclaredContextCeiling > 0 && estimateContextTokens(contextText)+profile.Budget.MaxOutputTokens > profile.ContextPolicy.DeclaredContextCeiling {
-		return fmt.Errorf("%w: assembled section context exceeds profile ceiling", ErrContextInfeasible)
+	if len(responses) == 0 || strings.TrimSpace(responses[0].Text) == "" {
+		return "", errors.New("summarize prior section: gateway returned no text")
 	}
-	return nil
+	return responses[0].Text, nil
+}
+
+// assembleSectionContext is the single seam where record references become
+// prose context. Keeping this conversion centralized prevents UUIDs and other
+// storage identifiers from leaking into prompts as the composition path grows.
+func (s *Service) assembleSectionContext(ctx context.Context, doc Document, outlineText string, section Section, total int, prior []Section) (string, error) {
+	parts := []string{
+		"Document title: " + doc.Title,
+		"Full outline:\n" + outlineText,
+		fmt.Sprintf("Current section: %d of %d", section.Position+1, total),
+		"Section intent: " + section.Intent,
+	}
+	if section.Summary != "" {
+		parts = append(parts, "Section summary: "+section.Summary)
+	}
+	if section.TargetWords > 0 {
+		parts = append(parts, fmt.Sprintf("Length target: approximately %d words.", section.TargetWords))
+	}
+	for _, previous := range prior {
+		if previous.CommittedCandidateID == "" {
+			continue
+		}
+		var candidate Candidate
+		if err := s.loadJSON(ctx, "prose_candidates", previous.CommittedCandidateID, &candidate); err != nil {
+			return "", err
+		}
+		label := previous.Intent
+		if label == "" {
+			label = fmt.Sprintf("section %d", previous.Position+1)
+		}
+		priorText := candidate.Text
+		if summary, ok := section.Context.SectionSummaries[previous.ID]; ok {
+			priorText = summary
+		}
+		parts = append(parts, fmt.Sprintf("Prior section %d (%s): %s", previous.Position+1, label, priorText))
+	}
+	if len(section.Context.FollowingIntents) > 0 {
+		parts = append(parts, "Following section intents: "+strings.Join(section.Context.FollowingIntents, "; "))
+	}
+	// Prior text alone is not an instruction. Supplying it without saying what
+	// to do with it produces a section that re-derives the same argument in new
+	// words, which reads as repetition and measures as low lexical overlap.
+	if len(prior) > 0 {
+		parts = append(parts, "Continuity requirement: the passages above are already written and already published to the reader. Advance the argument from where they end. Do not restate, re-introduce, or re-summarise a point they already establish; assume the reader has read them. Introduce what only this section carries, and if this is the final section, close rather than recapitulate.")
+	} else {
+		parts = append(parts, "Continuity requirement: this is the opening section. Establish the subject and earn the reader's attention; do not summarise the whole article in advance.")
+	}
+	assembled := strings.Join(parts, "\n\n")
+	if recordIdentifierPattern.MatchString(assembled) {
+		return "", fmt.Errorf("%w: section context", ErrPromptContainsIdentifier)
+	}
+	return assembled, nil
 }
 
 func (s *Service) AssembleDocument(ctx context.Context, documentID string) (Document, error) {
@@ -1148,6 +2149,7 @@ func (s *Service) AssembleDocument(ctx context.Context, documentID string) (Docu
 	var text strings.Builder
 	var sectionTexts []string
 	var structure []Section
+	var provenance DocumentProvenance
 	for _, id := range doc.SectionIDs {
 		var section Section
 		if err := s.loadJSON(ctx, "prose_sections", id, &section); err != nil {
@@ -1166,10 +2168,18 @@ func (s *Service) AssembleDocument(ctx context.Context, documentID string) (Docu
 		text.WriteString(candidate.Text)
 		sectionTexts = append(sectionTexts, candidate.Text)
 		structure = append(structure, section)
+		provenance.TotalCostMicros += candidate.Provenance.CostMicros
+		provenance.InputTokens += candidate.Provenance.InputTokens
+		provenance.OutputTokens += candidate.Provenance.OutputTokens
+		provenance.Providers = appendUnique(provenance.Providers, candidate.Provenance.Provider)
+		provenance.Models = appendUnique(provenance.Models, candidate.Provenance.ResolvedModelRef)
 	}
 	doc.AssembledText = text.String()
 	doc.Status = "assembled"
 	doc.Sections = structure
+	provenance.SectionCount = len(structure)
+	provenance.WordCount = textmetrics.Analyze(doc.AssembledText, nil).WordCount
+	doc.Provenance = provenance
 	profile, err := s.latestProfile(ctx, doc.ProfileKey)
 	if err != nil {
 		return Document{}, err
@@ -1183,15 +2193,81 @@ func (s *Service) AssembleDocument(ctx context.Context, documentID string) (Docu
 		result, conformanceErr := s.Conformance(ctx, styleKey, sectionText)
 		if conformanceErr != nil && styleKey == "" {
 			result = map[string]any{"targets_met": true}
+		} else if conformanceErr != nil {
+			return Document{}, conformanceErr
 		}
 		sectionScores = append(sectionScores, conformanceScore(result))
 	}
 	doc.StyleKey = styleKey
-	doc.Coherence = map[string]any{"cross_section_repetition": textmetrics.CrossSectionRepetition(sectionTexts), "style_drift": textmetrics.StyleDrift(sectionScores), "basis": "textmetrics.CrossSectionRepetition and textmetrics.StyleDrift over committed section text"}
+	repetition := textmetrics.CrossSectionRepetition(sectionTexts)
+	drift := textmetrics.StyleDrift(sectionScores)
+	// The lexical measure alone passes the failure a reader notices first.
+	// Three sections that restate one argument in different words score as low
+	// lexical overlap while carrying nearly the same meaning, so a document that
+	// says the same thing three times can clear a lexical repetition threshold
+	// comfortably. Semantic similarity over section embeddings is what catches
+	// it, and it is measured rather than assumed: when the embedding tier is
+	// unavailable the document says so instead of reporting a silent pass.
+	semanticRepetition, semanticBasis, semanticErr := s.semanticSectionRepetition(ctx, sectionTexts)
+	semanticMeasured := semanticErr == nil
+	verdict := map[string]any{"cross_section_repetition": true, "style_drift": true, "semantic_section_repetition": true, "coherent": true}
+	if profile.Coherence.MaxCrossSectionRepetition > 0 {
+		verdict["cross_section_repetition"] = repetition <= profile.Coherence.MaxCrossSectionRepetition
+	}
+	if profile.Coherence.MaxStyleDrift > 0 {
+		verdict["style_drift"] = drift <= profile.Coherence.MaxStyleDrift
+	}
+	if profile.Coherence.MaxSemanticSectionRepetition > 0 && semanticMeasured {
+		verdict["semantic_section_repetition"] = semanticRepetition <= profile.Coherence.MaxSemanticSectionRepetition
+	}
+	verdict["coherent"] = verdict["cross_section_repetition"] == true && verdict["style_drift"] == true && verdict["semantic_section_repetition"] == true
+	coherence := map[string]any{"cross_section_repetition": repetition, "style_drift": drift, "thresholds": profile.Coherence, "verdict": verdict, "basis": "textmetrics.CrossSectionRepetition and textmetrics.StyleDrift over committed section text", "semantic_measured": semanticMeasured}
+	if semanticMeasured {
+		coherence["semantic_section_repetition"] = semanticRepetition
+		coherence["semantic_basis"] = semanticBasis
+	} else if semanticErr != nil {
+		coherence["semantic_unavailable"] = semanticErr.Error()
+	}
+	doc.Coherence = coherence
 	if err := s.saveJSON(ctx, "prose_documents", doc.ID, doc); err != nil {
 		return Document{}, err
 	}
 	return doc, nil
+}
+
+// semanticSectionRepetition reports mean pairwise cosine similarity across
+// section embeddings. It always attempts the measurement rather than gating on
+// the profile's candidate-level measurement tier: whether a document repeats
+// itself is a property of the document, not of how its candidate sets were
+// scored, and a caller that declines the semantic tier for sampling still needs
+// an honest answer here.
+func (s *Service) semanticSectionRepetition(ctx context.Context, sections []string) (float64, string, error) {
+	if len(sections) < 2 {
+		return 0, "", errors.New("semantic_section_repetition_requires_two_sections")
+	}
+	embedder, ok := s.gateway.(EmbeddingGateway)
+	if !ok {
+		return 0, "", errors.New("embedding_unavailable: gateway exposes no embedding surface")
+	}
+	embedded, err := embedder.Embed(ctx, EmbeddingRequest{Role: "embedding.default", Texts: sections})
+	if err != nil {
+		return 0, "", fmt.Errorf("embedding_unavailable: %w", err)
+	}
+	// A similarity threshold is only meaningful over an embedding with enough
+	// dimensions to separate meanings. A degraded embedder returning a handful
+	// of components still yields a number between zero and one, and that number
+	// will sit near any threshold you pick; publishing it as a measured semantic
+	// verdict would be the silent pass this gate exists to remove. This is a
+	// guard on the gateway's reported dimension, which is the only place the
+	// fact is available before the similarity is computed.
+	if embedded.Dimension < minimumEmbeddingDimension {
+		return 0, "", fmt.Errorf("embedding_degenerate: dimension %d is below the %d required to support a similarity threshold", embedded.Dimension, minimumEmbeddingDimension)
+	}
+	_, set, err := textmetrics.AnalyzeSetSemantic(sections, embedded.Vectors)
+	if err != nil {
+		return 0, "", err
+	}
+	return set.MeanSimilarity, set.Basis, nil
 }
 
 func conformanceScore(result map[string]any) float64 {
@@ -1224,13 +2300,18 @@ func (s *Service) Conformance(ctx context.Context, styleKey, text string) (map[s
 	verdicts := map[string]map[string]any{}
 	for key, target := range style.Targets {
 		actual, known := targetValue(metrics, key)
-		met := known && actual >= target
+		direction := "at_least"
+		if style.TargetDirections != nil && style.TargetDirections[key] != "" {
+			direction = style.TargetDirections[key]
+		}
+		met := known && ((direction == "at_most" && actual <= target) || (direction != "at_most" && actual >= target))
 		if !met {
 			missed[key] = target
 		}
-		verdicts[key] = map[string]any{"met": met, "actual": actual, "target": target, "known": known}
+		verdicts[key] = map[string]any{"met": met, "actual": actual, "target": target, "direction": direction, "known": known}
 	}
-	return map[string]any{"style": style.Key, "version": style.Version, "targets_met": len(missed) == 0, "missed": missed, "verdicts": verdicts, "anti_pattern_spans": metrics.LexiconFlags}, nil
+	antiSpans := textmetrics.LexiconSpans(text, style.AntiPatterns)
+	return map[string]any{"style": style.Key, "version": style.Version, "targets_met": len(missed) == 0 && len(antiSpans) == 0, "missed": missed, "verdicts": verdicts, "anti_pattern_spans": antiSpans, "preferred_lexicon_spans": metrics.LexiconFlags}, nil
 }
 
 func targetValue(metrics textmetrics.Metrics, key string) (float64, bool) {
@@ -1245,7 +2326,7 @@ func targetValue(metrics textmetrics.Metrics, key string) (float64, bool) {
 		return metrics.SelfRepetition, true
 	case "burstiness":
 		return metrics.Burstiness, true
-	case "flesch_kincaid":
+	case "flesch_kincaid", "flesch_kincaid_grade", "flesch_kincaid_grade_max":
 		return metrics.Readability.FleschKincaid, true
 	case "dale_chall":
 		return metrics.Readability.DaleChall, true
@@ -1348,6 +2429,16 @@ func (s *Service) resolveStyle(ctx context.Context, key string, seen map[string]
 		}
 		merged.Targets[k] = v
 	}
+	merged.TargetDirections = map[string]string{}
+	for k, v := range parent.TargetDirections {
+		merged.TargetDirections[k] = v
+	}
+	for k, v := range current.TargetDirections {
+		if old, ok := merged.TargetDirections[k]; ok && old != v {
+			return Style{}, fmt.Errorf("%w: target %s has conflicting comparators %q and %q", ErrStyleResolutionConflict, k, old, v)
+		}
+		merged.TargetDirections[k] = v
+	}
 	for k, v := range current.AxisDefaults {
 		if merged.AxisDefaults == nil {
 			merged.AxisDefaults = map[string]string{}
@@ -1437,6 +2528,11 @@ func gate(measurement any, c Constraints, text string) Eligibility {
 			}
 		}
 	}
+	for _, banned := range c.BannedLexicon {
+		if spans := textmetrics.LexiconSpans(text, []string{banned}); len(spans) > 0 {
+			return Eligibility{false, "banned_lexicon:" + spans[0].Term}
+		}
+	}
 	grade := m.Readability.FleschKincaid
 	if c.MinGrade > 0 && grade < c.MinGrade {
 		return Eligibility{false, fmt.Sprintf("min_grade:%.2f", c.MinGrade)}
@@ -1450,7 +2546,7 @@ func gate(measurement any, c Constraints, text string) Eligibility {
 	return Eligibility{Eligible: true}
 }
 
-func choose(candidates []Candidate, policy string, params map[string]float64, seed int64) *Candidate {
+func choose(candidates []Candidate, policy string, params map[string]float64, seed int64, selection *SelectionContext) *Candidate {
 	eligible := make([]Candidate, 0, len(candidates))
 	for _, c := range candidates {
 		if c.Eligibility.Eligible {
@@ -1471,6 +2567,27 @@ func choose(candidates []Candidate, policy string, params map[string]float64, se
 		// is part of selection reproducibility, never an authentication value.
 		picked := rand.New(rand.NewSource(seed)).Intn(len(eligible)) // #nosec G404 -- seeded selection policy, not security randomness
 		return &eligible[picked]
+	case policyContinuation:
+		// Continuation inverts the rarest objective. Rarest asks which candidate
+		// is least like its siblings, which is the right question for ideation
+		// and the wrong one for a position in a document: it selects the outlier
+		// at every position and then assembles the outliers. Here the objective
+		// is the candidate that repeats the committed text least while landing
+		// closest to its outline target. Both terms are deterministic
+		// measurements over text, so this remains a mechanical policy and not
+		// the judge-based ranker the scenario declines to ship.
+		var best Candidate
+		bestScore := math.Inf(1)
+		for _, c := range eligible {
+			score := redundancyAgainst(selection, c.Text) + 0.5*lengthMiss(selection, c)
+			if score < bestScore {
+				best, bestScore = c, score
+			}
+		}
+		if best.ID == "" {
+			best = eligible[0]
+		}
+		return &best
 	case "threshold_then_rarest":
 		var best Candidate
 		bestScore := -1.0
@@ -1496,23 +2613,59 @@ func choose(candidates []Candidate, policy string, params map[string]float64, se
 	}
 }
 
+// redundancyAgainst reports the strongest lexical overlap between a candidate
+// and any single already-committed passage. Max rather than mean: repeating one
+// earlier section wholesale is the failure worth catching, and averaging over
+// unrelated sections hides it.
+func redundancyAgainst(selection *SelectionContext, text string) float64 {
+	if selection == nil || len(selection.PriorText) == 0 {
+		return 0
+	}
+	var worst float64
+	for _, prior := range selection.PriorText {
+		if strings.TrimSpace(prior) == "" {
+			continue
+		}
+		if overlap := textmetrics.CrossSectionRepetition([]string{prior, text}); overlap > worst {
+			worst = overlap
+		}
+	}
+	return worst
+}
+
+// lengthMiss reports how far a candidate falls from its outline target, as a
+// fraction of that target, so the term is comparable across section sizes.
+func lengthMiss(selection *SelectionContext, c Candidate) float64 {
+	if selection == nil || selection.TargetWords <= 0 {
+		return 0
+	}
+	words := candidateWordCount(c)
+	if words <= 0 {
+		return 1
+	}
+	return math.Abs(float64(words-selection.TargetWords)) / float64(selection.TargetWords)
+}
+
+func candidateWordCount(c Candidate) int {
+	var m textmetrics.Metrics
+	raw, _ := json.Marshal(c.Measurements)
+	_ = json.Unmarshal(raw, &m)
+	return m.WordCount
+}
+
 func candidateRarity(c Candidate) float64 {
 	var m textmetrics.SetMetrics
 	raw, _ := json.Marshal(c.SetMeasurements)
 	_ = json.Unmarshal(raw, &m)
-	for i, row := range m.PairwiseSimilarity {
-		if i >= len(m.PairwiseSimilarity) || len(row) == 0 {
-			continue
-		}
-		if c.SetIndex < len(m.PairwiseSimilarity) {
-			row = m.PairwiseSimilarity[c.SetIndex]
+	if c.SetIndex >= 0 && c.SetIndex < len(m.PairwiseSimilarity) {
+		row := m.PairwiseSimilarity[c.SetIndex]
+		if len(row) > 0 {
 			var total float64
 			for _, similarity := range row {
 				total += similarity
 			}
 			return 1 - total/float64(len(row))
 		}
-		_ = i
 	}
 	return 1 - m.MeanSimilarity
 }
@@ -1545,6 +2698,15 @@ func matchesRequiredFormat(format string, metrics textmetrics.Metrics, text stri
 		return strings.Contains(string(raw), "\n-") || strings.HasPrefix(strings.TrimSpace(string(raw)), "-")
 	case "markdown":
 		return strings.Contains(string(raw), "#") || strings.Contains(string(raw), "**")
+	case "rich_prose":
+		// Long-form sections that may carry headings, lists, or code while still
+		// being prose. "paragraph" rejects any text containing a list marker, so
+		// a section required to be a paragraph can never show a command, and a
+		// dev-log post whose subject is a command cannot be written at all.
+		return metrics.SentenceCount > 0 && metrics.WordCount > 0
+	case "essay", "essay_shape":
+		lower := strings.ToLower(string(raw))
+		return metrics.WordCount >= 80 && (strings.Contains(lower, "introduction") || strings.Contains(lower, "## ") || strings.Contains(lower, "# ")) && (strings.Contains(lower, "conclusion") || strings.Contains(lower, "in conclusion") || metrics.SentenceCount >= 4)
 	case "json":
 		var value any
 		return json.Unmarshal(raw, &value) == nil

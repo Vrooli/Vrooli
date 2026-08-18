@@ -288,6 +288,30 @@
           }
         },
         {
+          "name": "document-resume",
+          "description": "Resume a partially committed document",
+          "flags": [
+            {
+              "name": "request-json",
+              "required": true,
+              "local_only": true,
+              "bind_waiver": "The CLI accepts a complete protojson request payload and decodes it into the typed request before invoking the Connect client.",
+              "description": "JSON object containing id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ProseStudioService",
+            "method": "ResumeDocument"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          },
+          "architecture": {"primitive": "proto_list"}
+        },
+        {
           "name": "conformance",
           "description": "Report style targets and lexicon spans",
           "flags": [

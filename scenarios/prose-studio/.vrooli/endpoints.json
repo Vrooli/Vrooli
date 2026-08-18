@@ -125,6 +125,14 @@
       "category": "documents"
     },
     {
+      "id": "prose_resume_document",
+      "path": "/vrooli.prose_studio.v1.prose.ProseStudioService/ResumeDocument",
+      "method": "POST",
+      "summary": "Resume a partially committed document",
+      "description": "",
+      "category": "documents"
+    },
+    {
       "id": "prose_conformance",
       "path": "/vrooli.prose_studio.v1.prose.ProseStudioService/Conformance",
       "method": "POST",

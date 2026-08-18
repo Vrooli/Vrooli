@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Requirement stubs scaffolded from the P0 operational targets.",
-    "last_validated_at": "2026-08-17T03:24:00-04:00",
+    "last_validated_at": "2026-08-17T16:49:49-04:00",
     "module": "P0-targets",
     "priority": "P0",
     "schema_version": "1.0.0"
@@ -200,7 +200,7 @@
       "status": "complete",
       "prd_ref": "OT-P0-012",
       "criticality": "P0",
-      "description": "The system shall ship first-eligible, uniform-random, rarest-above-threshold, coverage, and human-pick policies; shall default agent mode to rarest-above-threshold and human mode to coverage; and shall use first-eligible only as a measurement control",
+      "description": "The system shall ship first-eligible, uniform-random, rarest-above-threshold, least-redundant-continuation, coverage, and human-pick policies; shall default agent mode to rarest-above-threshold and human mode to coverage; and shall use first-eligible only as a measurement control",
       "validation": [
         {
           "type": "manual",
@@ -514,6 +514,125 @@
           "phase": "unit",
           "status": "implemented",
           "notes": "Evidence is recorded in the manual-validation ledger and the plan acceptance artifacts; focused tests and/or live contract evidence cover this requirement."
+        }
+      ]
+    },
+    {
+      "id": "PS-P0-031",
+      "title": "Document shape is declared, not constant",
+      "status": "complete",
+      "prd_ref": "OT-P0-031",
+      "criticality": "P0",
+      "description": "The system shall derive a document's section count from a declared composition policy or an explicit per-document override, and shall fix no section count in the outline prompt, the outline decoder, or the evaluation harness",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "api/internal/prose/service_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Focused unit tests in the long-form composition group cover this requirement."
+        }
+      ]
+    },
+    {
+      "id": "PS-P0-032",
+      "title": "Section length band and declared format",
+      "status": "complete",
+      "prd_ref": "OT-P0-032",
+      "criticality": "P0",
+      "description": "The system shall gate every section against both a floor and a ceiling derived from its outline target so a section that materially undershoots its target is ineligible, and shall apply the profile's declared section format rather than forcing a format that forbids headings, lists, or code",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "api/internal/prose/service_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Focused unit tests in the long-form composition group cover this requirement."
+        }
+      ]
+    },
+    {
+      "id": "PS-P0-033",
+      "title": "Sections see their committed predecessors",
+      "status": "complete",
+      "prd_ref": "OT-P0-033",
+      "criticality": "P0",
+      "description": "The system shall carry the committed text of prior sections into each section's prompt and its recorded context snapshot, shall state the continuity requirement alongside that text, and shall derive the prior-context token budget independently of the output cap",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "api/internal/prose/service_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Focused unit tests in the long-form composition group cover this requirement."
+        }
+      ]
+    },
+    {
+      "id": "PS-P0-034",
+      "title": "Continuation selection",
+      "status": "complete",
+      "prd_ref": "OT-P0-034",
+      "criticality": "P0",
+      "description": "The system shall select a section candidate by least redundancy against already-committed text and closeness to its outline target, shall not select a section by distance from its own siblings, and shall keep that selection a deterministic measurement rather than a judged ranking",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "api/internal/prose/service_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Focused unit tests in the long-form composition group cover this requirement."
+        }
+      ]
+    },
+    {
+      "id": "PS-P0-035",
+      "title": "Coherence failure causes work",
+      "status": "complete",
+      "prd_ref": "OT-P0-035",
+      "criticality": "P0",
+      "description": "The system shall regenerate the most redundant section under negative conditioning while a declared repair budget remains, shall rewrite that section in place rather than appending one, and shall report the honest failed verdict when the budget is exhausted",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "api/internal/prose/service_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Focused unit tests in the long-form composition group cover this requirement."
+        }
+      ]
+    },
+    {
+      "id": "PS-P0-036",
+      "title": "Semantic document coherence",
+      "status": "complete",
+      "prd_ref": "OT-P0-036",
+      "criticality": "P0",
+      "description": "The system shall measure semantic cross-section repetition over section embeddings alongside the lexical measure, and shall report the measurement as unavailable rather than as a pass when the embedding tier cannot be reached",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "api/internal/prose/service_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Focused unit tests in the long-form composition group cover this requirement."
+        }
+      ]
+    },
+    {
+      "id": "PS-P0-037",
+      "title": "Whole-document provenance",
+      "status": "complete",
+      "prd_ref": "OT-P0-037",
+      "criticality": "P0",
+      "description": "The system shall report the cost, tokens, providers, and models that an assembled document actually consumed across its outline, section, and repair requests",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "api/internal/prose/service_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Focused unit tests in the long-form composition group cover this requirement."
         }
       ]
     }

@@ -72,3 +72,44 @@ func TestComparableIgnoresStrategyButHoldsConditions(t *testing.T) {
 		}
 	}
 }
+
+func TestAnalyzeSetSemanticUsesEmbeddingGeometryAndNamesDimension(t *testing.T) {
+	items, set, err := AnalyzeSetSemantic([]string{"same", "near", "different"}, [][]float64{{1, 0}, {0.9, 0.1}, {-1, 0}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(items) != 3 || set.PairwiseSimilarity[0][1] <= set.PairwiseSimilarity[0][2] {
+		t.Fatalf("semantic distances did not preserve geometry: %#v", set.PairwiseSimilarity)
+	}
+	if set.Basis != "semantic cosine similarity over gateway embeddings (dimension 2)" {
+		t.Fatalf("unexpected semantic basis: %q", set.Basis)
+	}
+}
+
+func TestAnalyzeSetSemanticRejectsMalformedVectors(t *testing.T) {
+	if _, _, err := AnalyzeSetSemantic([]string{"a"}, nil); err == nil || err.Error() != "semantic_measurement_vector_count_mismatch" {
+		t.Fatalf("expected named vector count error, got %v", err)
+	}
+	if _, _, err := AnalyzeSetSemantic([]string{"a", "b"}, [][]float64{{1}, {1, 0}}); err == nil || err.Error() != "semantic_measurement_dimension_mismatch" {
+		t.Fatalf("expected named dimension error, got %v", err)
+	}
+}
+
+func TestBasisNamesTheRealEmbeddingDimension(t *testing.T) {
+	// The basis string is what a reader consults to decide whether a similarity
+	// number can be trusted. A stub formatter returned "3" for every dimension
+	// above two, so a 768-dimension measurement described itself as
+	// three-dimensional and looked degenerate.
+	vectors := make([][]float64, 2)
+	for i := range vectors {
+		vectors[i] = make([]float64, 768)
+		vectors[i][i] = 1
+	}
+	_, set, err := AnalyzeSetSemantic([]string{"a", "b"}, vectors)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if set.Basis != "semantic cosine similarity over gateway embeddings (dimension 768)" {
+		t.Fatalf("basis misreports the embedding dimension: %q", set.Basis)
+	}
+}

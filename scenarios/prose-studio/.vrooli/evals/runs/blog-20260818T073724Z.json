@@ -1,0 +1,430 @@
+{
+  "run_id": "20260818T073724Z",
+  "passed": false,
+  "gates": {
+    "word_count": true,
+    "sentence_count": true,
+    "section_count": true,
+    "paragraph_duplication": true,
+    "required_claim_terms": true,
+    "evidence_grounding": true,
+    "evidence_claim_coverage": true,
+    "semantic_measured": true,
+    "semantic_section_repetition": true,
+    "coherence": true,
+    "blind_comparison": false
+  },
+  "measurements": {
+    "word_count": 1068,
+    "sentence_count": 51,
+    "paragraph_count": 14,
+    "max_paragraph_duplication": 0.181,
+    "most_duplicated_pair": [
+      2,
+      8
+    ],
+    "unsupported_numbers": [],
+    "required_terms_present": {
+      "server-owned": true,
+      "test-genie": true,
+      "wait": true
+    },
+    "evidence_claims": [
+      {
+        "claim": "test-genie owns a scenario test run after the command returns",
+        "best_score": 1.0,
+        "covered": true,
+        "sentence": "In our architecture, test-genie owns a scenario test run after the command returns.",
+        "span": [
+          782,
+          865
+        ]
+      },
+      {
+        "claim": "operators start the suite, record its run identifier, and wait once on the server-owned run",
+        "best_score": 0.7778,
+        "covered": true,
+        "sentence": "As a builder, I designed this interaction pattern so that human operators and automated workers follow a single, predictable progression: initiate the scenario suite, capture the assigned run identifier, and perform a single wait operation against the server-owned execution.",
+        "span": [
+          1705,
+          1980
+        ]
+      },
+      {
+        "claim": "a cancelled client is not the same thing as an aborted run",
+        "best_score": 1.0,
+        "covered": true,
+        "sentence": "The operational distinction we enforce is straightforward: a cancelled client is not the same thing as an aborted run.",
+        "span": [
+          3802,
+          3920
+        ]
+      }
+    ],
+    "evidence_claim_coverage": 1.0,
+    "basis": "independent measurement in evals/run-blog.sh; shares no implementation with packages/textmetrics"
+  },
+  "generated_text": "I shipped our first validation loops expecting local processes to hold up, but long-running suites revealed a clear failure path: coupling test execution to an interactive caller always breaks down over time. When an active agent session closes, any scenario test tied to that local shell vanishes along with its output.\n\nAs a builder, I need reliable evidence that outlasts the temporary lifecycle of an individual terminal session. If a validation run takes longer than the caller remains active, the entire validation state disappears unless the system explicitly transfers ownership away from the caller. That lifecycle risk led us to rethink how our control plane handles scenario runs.\n\nTo solve this, we introduced our test runner orchestration service, known as test-genie. In our architecture, test-genie owns a scenario test run after the command returns. Instead of holding an open socket or demanding an unbroken connection, the initial invocation handoff decouples the work from the invoking process. The scenario run becomes a server-owned execution that maintains its distinct identity, preserves its generated logs, and retains its eventual outcome independently.\n\nBecause test-genie takes over execution immediately after the command returns, operators and autonomous agents do not need to keep fragile local processes alive while they wait for results. Validation identity persists, ensuring that the evidence we gather remains intact, durable, and ready for inspection regardless of what happens to the initiating client session.\n\nOnce test-genie takes lifecycle ownership, the day-to-day operational workflow shifts from fragile terminal watching to a clean, decoupled execution loop. As a builder, I designed this interaction pattern so that human operators and automated workers follow a single, predictable progression: initiate the scenario suite, capture the assigned run identifier, and perform a single wait operation against the server-owned execution. When an operator launches a scenario suite, the invocation command does not stall the terminal or demand continuous attention. It dispatches the workload directly to test-genie and returns immediately, providing a stable run identifier as the durable handle for the validation pass. At that exact moment, the operator records the run identifier. Storing this identifier is crucial because it decouples the person or script driving the validation from the physical infrastructure running the test logic. The operator is no longer locked into maintaining a live terminal window or babysitting a persistent SSH session while the suite executes. With the run identifier recorded, the workflow proceeds to its resolution stage. The operator can safely exit the session, switch contexts to parallel tasks, or hand the identifier to another system process. When it is time to collect the final verification evidence, the operator issues a single call to wait once on the server-owned run. This unified wait step reconnects to the persistent state tracked by test-genie, blocking only until the suite reaches its deterministic conclusion. By structuring the workflow around recording the handle and executing a singular wait step, we eliminate the need for ad-hoc polling scripts or brittle client-side keeping-alive routines. The operator receives an unambiguous, verified outcome directly from the server-owned record, maintaining continuous momentum across complex deployment pipelines.\n\nWhen managing complex suites, the most misleading failure path occurs right at the boundary between the caller and the network. Before we enforced explicit run ownership, a dropped connection looked identical to a broken software build. Treating an interrupted client as a failed test introduced noise that obscured genuine regressions.\n\nThe operational distinction we enforce is straightforward: a cancelled client is not the same thing as an aborted run. If an interactive session terminates, a local network interface resets, or an automated agent gets preempted mid-stream, that transport-level disruption must not corrupt the underlying validation lifecycle. The invoking caller may disappear entirely, but the actual execution remains server-owned under the supervision of test-genie.\n\nThis separation directly protects the integrity of our failure diagnosis. A system that treats every disconnected terminal as a failed test loses the crucial difference between an infrastructure interruption and an authentic product defect. When triage teams review test results, they need absolute confidence that an alert reflects faulty product code rather than a transient socket reset on someone's laptop.\n\nBy decoupling client presence from suite execution, we preserve uncorrupted logs and authoritative execution traces on the server. The suite continues executing its scenario steps to completion regardless of client churn. When an operator reconnects to wait on the run, test-genie presents a clean, unpolluted record of what actually occurred in the target environment. We eliminate the guesswork of wondering whether a failure came from our application logic or an unstable client session, ensuring every recorded failure represents verified evidence of a real defect.\n\nPreserving execution state on the server changes how teams and autonomous agents coordinate around release decisions. When a suite is decoupled from caller lifecycles, validation stops being a fragile point-to-point task and becomes an addressable record in our control plane.\n\nThis persistent architecture makes multi-agent handoffs practical. Consider an automated builder agent that initiates a long-running suite and immediately cedes its compute slot. A secondary inspection agent or a human operator can query that exact run later, inspect the evidence assembled by test-genie, and execute a final decision without ever having watched the run live. Because the validation is server-owned, the authority to verify outcomes transfers smoothly across different actors and shifts.\n\nWaiting ceases to be an idle, synchronous liability. In traditional setups, forcing an agent to stay attached to a terminal wastes resources and invites failure paths from connection drops. In our shipped architecture, durable runs turn waiting into a governed capability: the background work continues uninterrupted, the execution evidence remains permanently addressable, and the final decision is evaluated directly against the record produced by the run.\n\nWhen verification is backed by persistent state, our control plane can improve itself continuously without tethering every worker to an active session. A downstream operator does not need to rerun a long scenario simply because the original caller disconnected. They locate the stored run identifier, issue the necessary wait to resolve the state, and make a grounded release decision based on authoritative evidence.\n\nDurable server-owned test runs fundamentally transform how we handle operational trust. By letting test-genie manage validation lifecycles from start to finish, we guarantee that critical verification survives across agent boundaries and handoffs.",
+  "baseline_text": "# Durable validation is a product capability\n\nVrooli's test-genie owns a scenario test run after the command returns. That matters when a suite takes longer than an agent session: the run keeps its identity, logs, and result instead of disappearing with the caller.\n\nThe workflow is simple. Start the scenario suite, record the run identifier, and wait once on the server-owned run. A cancelled client is not the same thing as an aborted run. This gives operators durable evidence for long-running validation and makes a later handoff possible.\n\nThe distinction is operational, not cosmetic. A system that treats every disconnected terminal as a failed test loses the difference between infrastructure interruption and a product defect. Server-owned runs preserve that distinction so the next operator can inspect the evidence and make a grounded decision.\n\nThe result is a control plane that can improve itself without asking every agent to stay attached to a terminal. Durable runs turn waiting into a governed capability: the work continues, the evidence remains addressable, and the final decision can be made from the same record that produced it.",
+  "evidence_source": "/home/matthalloran8/Vrooli/scenarios/prose-studio/evals/baselines/server-owned-test-runs.md",
+  "content_desk_draft_id": "660e86bc-5f18-462c-acf2-22f6e9ae9924",
+  "document": {
+    "id": "cbb20119-6c20-42c8-8080-6e4d00d57f48",
+    "title": "How Vrooli's server-owned test runs make long-running validation durable Use only factual claims supported by this evidence brief. Do not invent metrics, infrastructure, failure incidents, implementation details, or outcomes; every number you write must appear in the brief. Explain each evidence claim once, with distinct section purposes; do not restate the same workflow or conclusion in multiple sections. Evidence claims: test-genie owns a scenario test run after the command returns; operators start the suite, record its run identifier, and wait once on the server-owned run; a cancelled client is not the same thing as an aborted run. Evidence source: # Durable validation is a product capability\n\nVrooli's test-genie owns a scenario test run after the command returns. That matters when a suite takes longer than an agent session: the run keeps its identity, logs, and result instead of disappearing with the caller.\n\nThe workflow is simple. Start the scenario suite, record the run identifier, and wait once on the server-owned run. A cancelled client is not the same thing as an aborted run. This gives operators durable evidence for long-running validation and makes a later handoff possible.\n\nThe distinction is operational, not cosmetic. A system that treats every disconnected terminal as a failed test loses the difference between infrastructure interruption and a product defect. Server-owned runs preserve that distinction so the next operator can inspect the evidence and make a grounded decision.\n\nThe result is a control plane that can improve itself without asking every agent to stay attached to a terminal. Durable runs turn waiting into a governed capability: the work continues, the evidence remains addressable, and the final decision can be made from the same record that produced it.. Explicitly use these exact terms where they fit naturally: server-owned, test-genie, wait.",
+    "profile_key": "content-desk/marketing-dev-log-profile",
+    "outline_profile_key": "content-desk/marketing-dev-log-profile",
+    "style_key": "content-desk/marketing-dev-log-style",
+    "outline_id": "4b32177b-2f69-4a0a-a75b-9b442399ba12",
+    "outline_text": "[\n  {\n    \"intent\": \"Introduce why long-running test validation requires lifecycle ownership to transfer to test-genie rather than staying tied to an ephemeral client process.\",\n    \"summary\": \"Establish the builder context where suites outlast interactive sessions, explaining how test-genie takes ownership of scenario test runs immediately after the invocation command returns so validation identity persists.\",\n    \"target_words\": 260\n  },\n  {\n    \"intent\": \"Explain the operational workflow where an operator initiates the suite, retains the run identifier, and completes validation through a unified wait step.\",\n    \"summary\": \"Detail the concrete execution path where operators start the scenario suite, record the generated run identifier, and wait once on the server-owned execution without remaining tethered to an open terminal.\",\n    \"target_words\": 310\n  },\n  {\n    \"intent\": \"Differentiate transport-level disconnections from actual test failures to protect the integrity of failure diagnosis.\",\n    \"summary\": \"Demonstrate why a cancelled client is not the same thing as an aborted run, ensuring the system preserves uncorrupted logs and prevents network or session interruptions from being misclassified as product defects.\",\n    \"target_words\": 290\n  },\n  {\n    \"intent\": \"Conclude on how server-owned validation records establish durable handoffs and governed verification across agents.\",\n    \"summary\": \"Synthesize how durable server-owned runs turn waiting into a governed capability, preserving an addressable evidence trail that subsequent operators can inspect to make grounded release decisions.\",\n    \"target_words\": 260\n  }\n]",
+    "outline": [
+      {
+        "intent": "Introduce why long-running test validation requires lifecycle ownership to transfer to test-genie rather than staying tied to an ephemeral client process.",
+        "summary": "Establish the builder context where suites outlast interactive sessions, explaining how test-genie takes ownership of scenario test runs immediately after the invocation command returns so validation identity persists.",
+        "target_words": 260
+      },
+      {
+        "intent": "Explain the operational workflow where an operator initiates the suite, retains the run identifier, and completes validation through a unified wait step.",
+        "summary": "Detail the concrete execution path where operators start the scenario suite, record the generated run identifier, and wait once on the server-owned execution without remaining tethered to an open terminal.",
+        "target_words": 310
+      },
+      {
+        "intent": "Differentiate transport-level disconnections from actual test failures to protect the integrity of failure diagnosis.",
+        "summary": "Demonstrate why a cancelled client is not the same thing as an aborted run, ensuring the system preserves uncorrupted logs and prevents network or session interruptions from being misclassified as product defects.",
+        "target_words": 290
+      },
+      {
+        "intent": "Conclude on how server-owned validation records establish durable handoffs and governed verification across agents.",
+        "summary": "Synthesize how durable server-owned runs turn waiting into a governed capability, preserving an addressable evidence trail that subsequent operators can inspect to make grounded release decisions.",
+        "target_words": 260
+      }
+    ],
+    "outline_profile_version": "content-desk/marketing-dev-log-profile@33",
+    "section_count": 4,
+    "section_profile_version": "content-desk/marketing-dev-log-profile@33",
+    "section_ids": [
+      "2843848b-8ce5-43f1-aa9a-b75f92303b00",
+      "3fb1d6c3-9efc-4d17-9618-a2da5b974d14",
+      "0eb68697-79a4-4357-8557-7a5d3ea15882",
+      "c419b615-69d2-4893-b0d1-ae762306e74e"
+    ],
+    "status": "assembled",
+    "assembled_text": "I shipped our first validation loops expecting local processes to hold up, but long-running suites revealed a clear failure path: coupling test execution to an interactive caller always breaks down over time. When an active agent session closes, any scenario test tied to that local shell vanishes along with its output.\n\nAs a builder, I need reliable evidence that outlasts the temporary lifecycle of an individual terminal session. If a validation run takes longer than the caller remains active, the entire validation state disappears unless the system explicitly transfers ownership away from the caller. That lifecycle risk led us to rethink how our control plane handles scenario runs.\n\nTo solve this, we introduced our test runner orchestration service, known as test-genie. In our architecture, test-genie owns a scenario test run after the command returns. Instead of holding an open socket or demanding an unbroken connection, the initial invocation handoff decouples the work from the invoking process. The scenario run becomes a server-owned execution that maintains its distinct identity, preserves its generated logs, and retains its eventual outcome independently.\n\nBecause test-genie takes over execution immediately after the command returns, operators and autonomous agents do not need to keep fragile local processes alive while they wait for results. Validation identity persists, ensuring that the evidence we gather remains intact, durable, and ready for inspection regardless of what happens to the initiating client session.\n\nOnce test-genie takes lifecycle ownership, the day-to-day operational workflow shifts from fragile terminal watching to a clean, decoupled execution loop. As a builder, I designed this interaction pattern so that human operators and automated workers follow a single, predictable progression: initiate the scenario suite, capture the assigned run identifier, and perform a single wait operation against the server-owned execution. When an operator launches a scenario suite, the invocation command does not stall the terminal or demand continuous attention. It dispatches the workload directly to test-genie and returns immediately, providing a stable run identifier as the durable handle for the validation pass. At that exact moment, the operator records the run identifier. Storing this identifier is crucial because it decouples the person or script driving the validation from the physical infrastructure running the test logic. The operator is no longer locked into maintaining a live terminal window or babysitting a persistent SSH session while the suite executes. With the run identifier recorded, the workflow proceeds to its resolution stage. The operator can safely exit the session, switch contexts to parallel tasks, or hand the identifier to another system process. When it is time to collect the final verification evidence, the operator issues a single call to wait once on the server-owned run. This unified wait step reconnects to the persistent state tracked by test-genie, blocking only until the suite reaches its deterministic conclusion. By structuring the workflow around recording the handle and executing a singular wait step, we eliminate the need for ad-hoc polling scripts or brittle client-side keeping-alive routines. The operator receives an unambiguous, verified outcome directly from the server-owned record, maintaining continuous momentum across complex deployment pipelines.\n\nWhen managing complex suites, the most misleading failure path occurs right at the boundary between the caller and the network. Before we enforced explicit run ownership, a dropped connection looked identical to a broken software build. Treating an interrupted client as a failed test introduced noise that obscured genuine regressions.\n\nThe operational distinction we enforce is straightforward: a cancelled client is not the same thing as an aborted run. If an interactive session terminates, a local network interface resets, or an automated agent gets preempted mid-stream, that transport-level disruption must not corrupt the underlying validation lifecycle. The invoking caller may disappear entirely, but the actual execution remains server-owned under the supervision of test-genie.\n\nThis separation directly protects the integrity of our failure diagnosis. A system that treats every disconnected terminal as a failed test loses the crucial difference between an infrastructure interruption and an authentic product defect. When triage teams review test results, they need absolute confidence that an alert reflects faulty product code rather than a transient socket reset on someone's laptop.\n\nBy decoupling client presence from suite execution, we preserve uncorrupted logs and authoritative execution traces on the server. The suite continues executing its scenario steps to completion regardless of client churn. When an operator reconnects to wait on the run, test-genie presents a clean, unpolluted record of what actually occurred in the target environment. We eliminate the guesswork of wondering whether a failure came from our application logic or an unstable client session, ensuring every recorded failure represents verified evidence of a real defect.\n\nPreserving execution state on the server changes how teams and autonomous agents coordinate around release decisions. When a suite is decoupled from caller lifecycles, validation stops being a fragile point-to-point task and becomes an addressable record in our control plane.\n\nThis persistent architecture makes multi-agent handoffs practical. Consider an automated builder agent that initiates a long-running suite and immediately cedes its compute slot. A secondary inspection agent or a human operator can query that exact run later, inspect the evidence assembled by test-genie, and execute a final decision without ever having watched the run live. Because the validation is server-owned, the authority to verify outcomes transfers smoothly across different actors and shifts.\n\nWaiting ceases to be an idle, synchronous liability. In traditional setups, forcing an agent to stay attached to a terminal wastes resources and invites failure paths from connection drops. In our shipped architecture, durable runs turn waiting into a governed capability: the background work continues uninterrupted, the execution evidence remains permanently addressable, and the final decision is evaluated directly against the record produced by the run.\n\nWhen verification is backed by persistent state, our control plane can improve itself continuously without tethering every worker to an active session. A downstream operator does not need to rerun a long scenario simply because the original caller disconnected. They locate the stored run identifier, issue the necessary wait to resolve the state, and make a grounded release decision based on authoritative evidence.\n\nDurable server-owned test runs fundamentally transform how we handle operational trust. By letting test-genie manage validation lifecycles from start to finish, we guarantee that critical verification survives across agent boundaries and handoffs.",
+    "coherence": {
+      "basis": "textmetrics.CrossSectionRepetition and textmetrics.StyleDrift over committed section text",
+      "cross_section_repetition": 0.44164798991487086,
+      "semantic_basis": "semantic cosine similarity over gateway embeddings (dimension 768)",
+      "semantic_measured": true,
+      "semantic_section_repetition": 0.8354887509009346,
+      "style_drift": 0,
+      "thresholds": {
+        "max_cross_section_repetition": 0.55,
+        "max_style_drift": 0.35,
+        "max_semantic_section_repetition": 0.86
+      },
+      "verdict": {
+        "coherent": true,
+        "cross_section_repetition": true,
+        "semantic_section_repetition": true,
+        "style_drift": true
+      }
+    },
+    "sections": [
+      {
+        "id": "2843848b-8ce5-43f1-aa9a-b75f92303b00",
+        "document_id": "cbb20119-6c20-42c8-8080-6e4d00d57f48",
+        "position": 0,
+        "intent": "Introduce why long-running test validation requires lifecycle ownership to transfer to test-genie rather than staying tied to an ephemeral client process.",
+        "summary": "Establish the builder context where suites outlast interactive sessions, explaining how test-genie takes ownership of scenario test runs immediately after the invocation command returns so validation identity persists.",
+        "target_words": 260,
+        "profile_key": "content-desk/marketing-dev-log-profile",
+        "session_id": "295529d2-7506-43a4-83e9-add795ba090d",
+        "committed_candidate_id": "248c4496-3cee-4c0d-9492-db17d180898e",
+        "context_snapshot": {
+          "outline_ref": "4b32177b-2f69-4a0a-a75b-9b442399ba12",
+          "outline_text": "[\n  {\n    \"intent\": \"Introduce why long-running test validation requires lifecycle ownership to transfer to test-genie rather than staying tied to an ephemeral client process.\",\n    \"summary\": \"Establish the builder context where suites outlast interactive sessions, explaining how test-genie takes ownership of scenario test runs immediately after the invocation command returns so validation identity persists.\",\n    \"target_words\": 260\n  },\n  {\n    \"intent\": \"Explain the operational workflow where an operator initiates the suite, retains the run identifier, and completes validation through a unified wait step.\",\n    \"summary\": \"Detail the concrete execution path where operators start the scenario suite, record the generated run identifier, and wait once on the server-owned execution without remaining tethered to an open terminal.\",\n    \"target_words\": 310\n  },\n  {\n    \"intent\": \"Differentiate transport-level disconnections from actual test failures to protect the integrity of failure diagnosis.\",\n    \"summary\": \"Demonstrate why a cancelled client is not the same thing as an aborted run, ensuring the system preserves uncorrupted logs and prevents network or session interruptions from being misclassified as product defects.\",\n    \"target_words\": 290\n  },\n  {\n    \"intent\": \"Conclude on how server-owned validation records establish durable handoffs and governed verification across agents.\",\n    \"summary\": \"Synthesize how durable server-owned runs turn waiting into a governed capability, preserving an addressable evidence trail that subsequent operators can inspect to make grounded release decisions.\",\n    \"target_words\": 260\n  }\n]",
+          "following_intents": [
+            "Explain the operational workflow where an operator initiates the suite, retains the run identifier, and completes validation through a unified wait step.",
+            "Differentiate transport-level disconnections from actual test failures to protect the integrity of failure diagnosis.",
+            "Conclude on how server-owned validation records establish durable handoffs and governed verification across agents."
+          ],
+          "estimated_tokens": 0
+        }
+      },
+      {
+        "id": "3fb1d6c3-9efc-4d17-9618-a2da5b974d14",
+        "document_id": "cbb20119-6c20-42c8-8080-6e4d00d57f48",
+        "position": 1,
+        "intent": "Explain the operational workflow where an operator initiates the suite, retains the run identifier, and completes validation through a unified wait step.",
+        "summary": "Detail the concrete execution path where operators start the scenario suite, record the generated run identifier, and wait once on the server-owned execution without remaining tethered to an open terminal.",
+        "target_words": 310,
+        "profile_key": "content-desk/marketing-dev-log-profile",
+        "session_id": "0e230c9f-eab6-45d8-a57b-36cafb222a84",
+        "committed_candidate_id": "071cc721-7d8b-4983-9d85-e0ada88e7b92",
+        "context_snapshot": {
+          "outline_ref": "4b32177b-2f69-4a0a-a75b-9b442399ba12",
+          "outline_text": "[\n  {\n    \"intent\": \"Introduce why long-running test validation requires lifecycle ownership to transfer to test-genie rather than staying tied to an ephemeral client process.\",\n    \"summary\": \"Establish the builder context where suites outlast interactive sessions, explaining how test-genie takes ownership of scenario test runs immediately after the invocation command returns so validation identity persists.\",\n    \"target_words\": 260\n  },\n  {\n    \"intent\": \"Explain the operational workflow where an operator initiates the suite, retains the run identifier, and completes validation through a unified wait step.\",\n    \"summary\": \"Detail the concrete execution path where operators start the scenario suite, record the generated run identifier, and wait once on the server-owned execution without remaining tethered to an open terminal.\",\n    \"target_words\": 310\n  },\n  {\n    \"intent\": \"Differentiate transport-level disconnections from actual test failures to protect the integrity of failure diagnosis.\",\n    \"summary\": \"Demonstrate why a cancelled client is not the same thing as an aborted run, ensuring the system preserves uncorrupted logs and prevents network or session interruptions from being misclassified as product defects.\",\n    \"target_words\": 290\n  },\n  {\n    \"intent\": \"Conclude on how server-owned validation records establish durable handoffs and governed verification across agents.\",\n    \"summary\": \"Synthesize how durable server-owned runs turn waiting into a governed capability, preserving an addressable evidence trail that subsequent operators can inspect to make grounded release decisions.\",\n    \"target_words\": 260\n  }\n]",
+          "prior_section_refs": [
+            "2843848b-8ce5-43f1-aa9a-b75f92303b00"
+          ],
+          "full_text_section_refs": [
+            "2843848b-8ce5-43f1-aa9a-b75f92303b00"
+          ],
+          "following_intents": [
+            "Differentiate transport-level disconnections from actual test failures to protect the integrity of failure diagnosis.",
+            "Conclude on how server-owned validation records establish durable handoffs and governed verification across agents."
+          ],
+          "estimated_tokens": 387
+        }
+      },
+      {
+        "id": "0eb68697-79a4-4357-8557-7a5d3ea15882",
+        "document_id": "cbb20119-6c20-42c8-8080-6e4d00d57f48",
+        "position": 2,
+        "intent": "Differentiate transport-level disconnections from actual test failures to protect the integrity of failure diagnosis.",
+        "summary": "Demonstrate why a cancelled client is not the same thing as an aborted run, ensuring the system preserves uncorrupted logs and prevents network or session interruptions from being misclassified as product defects.",
+        "target_words": 290,
+        "profile_key": "content-desk/marketing-dev-log-profile",
+        "session_id": "691e970f-2d76-4911-87ef-c8d9d07e1ad0",
+        "committed_candidate_id": "0da45b60-e2f3-4333-b2f5-76b843b2e7aa",
+        "context_snapshot": {
+          "outline_ref": "4b32177b-2f69-4a0a-a75b-9b442399ba12",
+          "outline_text": "[\n  {\n    \"intent\": \"Introduce why long-running test validation requires lifecycle ownership to transfer to test-genie rather than staying tied to an ephemeral client process.\",\n    \"summary\": \"Establish the builder context where suites outlast interactive sessions, explaining how test-genie takes ownership of scenario test runs immediately after the invocation command returns so validation identity persists.\",\n    \"target_words\": 260\n  },\n  {\n    \"intent\": \"Explain the operational workflow where an operator initiates the suite, retains the run identifier, and completes validation through a unified wait step.\",\n    \"summary\": \"Detail the concrete execution path where operators start the scenario suite, record the generated run identifier, and wait once on the server-owned execution without remaining tethered to an open terminal.\",\n    \"target_words\": 310\n  },\n  {\n    \"intent\": \"Differentiate transport-level disconnections from actual test failures to protect the integrity of failure diagnosis.\",\n    \"summary\": \"Demonstrate why a cancelled client is not the same thing as an aborted run, ensuring the system preserves uncorrupted logs and prevents network or session interruptions from being misclassified as product defects.\",\n    \"target_words\": 290\n  },\n  {\n    \"intent\": \"Conclude on how server-owned validation records establish durable handoffs and governed verification across agents.\",\n    \"summary\": \"Synthesize how durable server-owned runs turn waiting into a governed capability, preserving an addressable evidence trail that subsequent operators can inspect to make grounded release decisions.\",\n    \"target_words\": 260\n  }\n]",
+          "prior_section_refs": [
+            "2843848b-8ce5-43f1-aa9a-b75f92303b00",
+            "3fb1d6c3-9efc-4d17-9618-a2da5b974d14"
+          ],
+          "full_text_section_refs": [
+            "2843848b-8ce5-43f1-aa9a-b75f92303b00",
+            "3fb1d6c3-9efc-4d17-9618-a2da5b974d14"
+          ],
+          "following_intents": [
+            "Conclude on how server-owned validation records establish durable handoffs and governed verification across agents."
+          ],
+          "estimated_tokens": 865
+        }
+      },
+      {
+        "id": "c419b615-69d2-4893-b0d1-ae762306e74e",
+        "document_id": "cbb20119-6c20-42c8-8080-6e4d00d57f48",
+        "position": 3,
+        "intent": "Conclude on how server-owned validation records establish durable handoffs and governed verification across agents.",
+        "summary": "Synthesize how durable server-owned runs turn waiting into a governed capability, preserving an addressable evidence trail that subsequent operators can inspect to make grounded release decisions.",
+        "target_words": 260,
+        "profile_key": "content-desk/marketing-dev-log-profile",
+        "session_id": "49f9ae16-ee39-4c3e-bc9e-5e3cc1491667",
+        "committed_candidate_id": "ec04d924-086f-4ee6-b7f6-14d77ae1677a",
+        "context_snapshot": {
+          "outline_ref": "4b32177b-2f69-4a0a-a75b-9b442399ba12",
+          "outline_text": "[\n  {\n    \"intent\": \"Introduce why long-running test validation requires lifecycle ownership to transfer to test-genie rather than staying tied to an ephemeral client process.\",\n    \"summary\": \"Establish the builder context where suites outlast interactive sessions, explaining how test-genie takes ownership of scenario test runs immediately after the invocation command returns so validation identity persists.\",\n    \"target_words\": 260\n  },\n  {\n    \"intent\": \"Explain the operational workflow where an operator initiates the suite, retains the run identifier, and completes validation through a unified wait step.\",\n    \"summary\": \"Detail the concrete execution path where operators start the scenario suite, record the generated run identifier, and wait once on the server-owned execution without remaining tethered to an open terminal.\",\n    \"target_words\": 310\n  },\n  {\n    \"intent\": \"Differentiate transport-level disconnections from actual test failures to protect the integrity of failure diagnosis.\",\n    \"summary\": \"Demonstrate why a cancelled client is not the same thing as an aborted run, ensuring the system preserves uncorrupted logs and prevents network or session interruptions from being misclassified as product defects.\",\n    \"target_words\": 290\n  },\n  {\n    \"intent\": \"Conclude on how server-owned validation records establish durable handoffs and governed verification across agents.\",\n    \"summary\": \"Synthesize how durable server-owned runs turn waiting into a governed capability, preserving an addressable evidence trail that subsequent operators can inspect to make grounded release decisions.\",\n    \"target_words\": 260\n  }\n]",
+          "prior_section_refs": [
+            "2843848b-8ce5-43f1-aa9a-b75f92303b00",
+            "3fb1d6c3-9efc-4d17-9618-a2da5b974d14",
+            "0eb68697-79a4-4357-8557-7a5d3ea15882"
+          ],
+          "full_text_section_refs": [
+            "2843848b-8ce5-43f1-aa9a-b75f92303b00",
+            "3fb1d6c3-9efc-4d17-9618-a2da5b974d14",
+            "0eb68697-79a4-4357-8557-7a5d3ea15882"
+          ],
+          "estimated_tokens": 1308
+        }
+      }
+    ],
+    "document_provenance": {
+      "section_count": 4,
+      "word_count": 1068,
+      "total_cost_micros": 18555,
+      "input_tokens": 11074,
+      "output_tokens": 6749,
+      "providers": [
+        "openrouter"
+      ],
+      "models": [
+        "google/gemini-3.7-flash"
+      ]
+    }
+  },
+  "document_provenance": {
+    "section_count": 4,
+    "word_count": 1068,
+    "total_cost_micros": 18555,
+    "input_tokens": 11074,
+    "output_tokens": 6749,
+    "providers": [
+      "openrouter"
+    ],
+    "models": [
+      "google/gemini-3.7-flash"
+    ]
+  },
+  "claim_coverage": {
+    "supportedSpans": [
+      {
+        "start": 782,
+        "end": 865,
+        "claimId": "a02b4b92-cbd8-4802-adb6-cc67c7e7d6ea",
+        "supported": true
+      },
+      {
+        "start": 1705,
+        "end": 1980,
+        "claimId": "b315eade-5fe2-4202-91cd-640871cb0a88",
+        "supported": true
+      },
+      {
+        "start": 3802,
+        "end": 3920,
+        "claimId": "10ef94d0-fd86-4a52-90b8-8b3a62eb7a0f",
+        "supported": true
+      }
+    ],
+    "uncoveredSpans": [
+      {
+        "end": 782
+      },
+      {
+        "start": 865,
+        "end": 1705
+      },
+      {
+        "start": 1980,
+        "end": 3802
+      },
+      {
+        "start": 3920,
+        "end": 7149
+      }
+    ]
+  },
+  "blind_comparison": {
+    "status": "judged",
+    "verdict": "baseline",
+    "rationale": "Article A provides a concise, high-level architectural argument that respects the reader's time, whereas Article B is excessively repetitive and verbose, restating the same points multiple times without adding technical depth.",
+    "labels": {
+      "A": "baseline",
+      "B": "scenario"
+    }
+  },
+  "single_call_probe": {
+    "round": {
+      "id": "29b935d7-a274-4c60-961b-1e9c13eb6a60",
+      "session_id": "feaff46c-322e-445d-b292-e1084d91f183",
+      "strategy": {
+        "kind": "vs_standard",
+        "k": 5,
+        "tau": 0.7,
+        "temperature_stance": "role_default",
+        "max_output_tokens": 1400
+      },
+      "candidate_ids": [
+        "30b59d56-95d6-466f-803d-7be55bc53068",
+        "90eb9ac6-d0ae-40c9-8956-c99e26ffcb35",
+        "0bd4e1f3-d0f2-41ec-9bcf-c917a7215c1b",
+        "2c497410-88be-43bf-8655-4ed14b3340c0",
+        "73cd7042-b3f1-4766-952b-f4d64202e6f5"
+      ],
+      "sampling_key": {
+        "k": 5,
+        "temperature_stance": "role_default",
+        "max_output_tokens_effective": 7000,
+        "max_output_tokens_source": "OUTPUT_CAP_SOURCE_REQUEST",
+        "measurement_tier": "deterministic_and_semantic"
+      },
+      "selection_seed": 1787038656630138299,
+      "total_cost_micros": 16210,
+      "negative_context": {},
+      "lexical_set_measurements": {
+        "candidate_count": 5,
+        "pairwise_similarity": [
+          [
+            0,
+            0.5125326999434823,
+            0.5261649616356903,
+            0.5184576801985871,
+            0.51066619463384
+          ],
+          [
+            0.5125326999434823,
+            0,
+            0.5406378429686778,
+            0.5011157391720281,
+            0.48443221150968413
+          ],
+          [
+            0.5261649616356903,
+            0.5406378429686778,
+            0,
+            0.5273012251859992,
+            0.5261856503036841
+          ],
+          [
+            0.5184576801985871,
+            0.5011157391720281,
+            0.5273012251859992,
+            0,
+            0.5188307727061165
+          ],
+          [
+            0.51066619463384,
+            0.48443221150968413,
+            0.5261856503036841,
+            0.5188307727061165,
+            0
+          ]
+        ],
+        "mean_similarity": 0.516632497825779,
+        "diversity": 0.483367502174221,
+        "coverage": 0.5013622636921853,
+        "basis": "lexical token 1-3 gram cosine/Jaccard blend; no embeddings available"
+      },
+      "semantic_set_measurements": {
+        "candidate_count": 5,
+        "pairwise_similarity": [
+          [
+            0,
+            0.9246926373054184,
+            0.9290785181137756,
+            0.9371108043868198,
+            0.9308954623552711
+          ],
+          [
+            0.9246926373054184,
+            0,
+            0.9328139500880118,
+            0.932638543049384,
+            0.9254209894089004
+          ],
+          [
+            0.9290785181137756,
+            0.9328139500880118,
+            0,
+            0.934676329649061,
+            0.9280791164879146
+          ],
+          [
+            0.9371108043868198,
+            0.932638543049384,
+            0.934676329649061,
+            0,
+            0.9426875201867978
+          ],
+          [
+            0.9308954623552711,
+            0.9254209894089004,
+            0.9280791164879146,
+            0.9426875201867978,
+            0
+          ]
+        ],
+        "mean_similarity": 0.9318093871031354,
+        "diversity": 0.06819061289686457,
+        "coverage": 0.9271047847114071,
+        "basis": "semantic cosine similarity over gateway embeddings (dimension 768)"
+      },
+      "measurement_basis": "semantic cosine similarity over gateway embeddings (dimension 768)"
+    },
+    "provider": "openrouter",
+    "model": "google/gemini-3.7-flash",
+    "cost_micros": 16210
+  }
+}

@@ -59,7 +59,7 @@ automatically):
 
 ```bash
 prose-studio status
-prose-studio prose generate --json
+prose-studio prose generate --request-json '{"profile_key":"content-desk/marketing-dev-log-profile","query":"a shipped subject","include_candidates":true}'
 ```
 
 Or directly via HTTP:

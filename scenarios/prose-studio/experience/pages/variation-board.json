@@ -6,6 +6,7 @@
     "id": "variation-board",
     "title": "Variation Board",
     "routes": [
+      "/variation",
       "/sessions/:sessionId"
     ],
     "purpose": "Let an operator compare a candidate set on evidence and converge it to one committed output, without the interface nudging the choice toward the most familiar option.",

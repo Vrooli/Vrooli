@@ -1,0 +1,44 @@
+{
+  "name": "blog.primary",
+  "version": 2,
+  "profile": "content-desk/marketing-dev-log-profile",
+  "subject": "How Vrooli's server-owned test runs make long-running validation durable",
+  "section_count_range": [
+    4,
+    7
+  ],
+  "mechanical_gates": {
+    "min_words": 900,
+    "max_words": 1600,
+    "min_sentences": 35,
+    "max_paragraph_duplication": 0.5,
+    "numbers_must_appear_in_evidence": true,
+    "evidence_claim_coverage_required": true,
+    "semantic_measurement_required": true,
+    "max_semantic_section_repetition": 0.86,
+    "required_claim_terms": [
+      "server-owned",
+      "test-genie",
+      "wait"
+    ],
+    "blind_comparison_required": true
+  },
+  "evidence_source": "evals/baselines/server-owned-test-runs.md",
+  "evidence_claims": [
+    "test-genie owns a scenario test run after the command returns",
+    "operators start the suite, record its run identifier, and wait once on the server-owned run",
+    "a cancelled client is not the same thing as an aborted run"
+  ],
+  "baseline": "evals/baselines/server-owned-test-runs.md",
+  "gate_rationale": {
+    "min_words": "650 admitted a fragment. A blog that argues something is not 490 words.",
+    "min_sentences": "Paragraph count alone passed any three paragraphs; sentence count is what distinguishes an article from a summary.",
+    "max_paragraph_duplication": "Catches verbatim and near-verbatim paragraph reuse only. Paraphrase that repeats meaning in fresh words scores low here by construction; that failure is the semantic_section_repetition gate's job, and the two are kept separate so a passing number is not read as evidence of the other.",
+    "numbers_must_appear_in_evidence": "Fabricated metrics are the failure mode with the highest cost and the easiest deterministic check.",
+    "evidence_claim_coverage_required": "Coverage is measured as declared evidence claims that reached the article. The prior form created a claim from every generated sentence and then asked whether the sentences were covered, which no output could fail.",
+    "semantic_measurement_required": "An unmeasured semantic tier must fail the gate rather than pass it silently.",
+    "blind_comparison_required": "The only gate that measures whether the article is good. It was previously recorded as pending and never run.",
+    "max_semantic_section_repetition": "Provisional. Measured section-level values on documents that passed every other gate: 0.8199, 0.8184, 0.8297 (4 sections, nomic-embed-text 768d). Paragraph-level calibration against the known-bad 2026-08-17 article gives 0.7622 bad vs 0.6877 good, so the measure separates in the right direction but its absolute level depends on how many units are compared. 0.86 sits above the observed good band and below any measured bad document; it is set to fire on worse-than-observed rather than calibrated from a labelled corpus, and needs a bad 4-section example to anchor properly."
+  },
+  "evidence_policy": "Store generated text, document provenance, section measurements, coherence, provider/model, cost, and gate results; never feed the blind verdict into selection."
+}

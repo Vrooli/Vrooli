@@ -143,6 +143,17 @@ func (h *handlers) assembleDocumentCall(ctx cliapp.OperationContext) (*v1.Assemb
 	}
 	return responseMessage(response)
 }
+func (h *handlers) resumeDocumentCall(ctx cliapp.OperationContext) (*v1.ResumeDocumentResponse, error) {
+	request, err := requestFromFlag(ctx, &v1.ResumeDocumentRequest{})
+	if err != nil {
+		return nil, err
+	}
+	response, err := h.client.ResumeDocument(context.Background(), connect.NewRequest(request))
+	if err != nil {
+		return nil, cliapp.WrapAPIError("prose ResumeDocument", err, nil)
+	}
+	return responseMessage(response)
+}
 func (h *handlers) conformanceCall(ctx cliapp.OperationContext) (*v1.ConformanceResponse, error) {
 	request, err := requestFromFlag(ctx, &v1.ConformanceRequest{})
 	if err != nil {

@@ -22,6 +22,7 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		"ProseStudioService.ValidateDeclarations": cliapp.ProtoList(h.validateCall, protoReport[*v1.ValidateDeclarationsResponse]("Prose Studio declaration validation")),
 		"ProseStudioService.CreateDocument":       cliapp.ProtoList(h.createDocumentCall, protoReport[*v1.CreateDocumentResponse]("Prose Studio document")),
 		"ProseStudioService.AssembleDocument":     cliapp.ProtoList(h.assembleDocumentCall, protoReport[*v1.AssembleDocumentResponse]("Prose Studio assembled document")),
+		"ProseStudioService.ResumeDocument":       cliapp.ProtoList(h.resumeDocumentCall, protoReport[*v1.ResumeDocumentResponse]("Prose Studio resumed document")),
 		"ProseStudioService.Conformance":          cliapp.ProtoList(h.conformanceCall, protoReport[*v1.ConformanceResponse]("Prose Studio conformance")),
 	}
 	group, err := cliapp.LoadFromManifestPrimitives(manifest, GroupName, bindings)

@@ -25,7 +25,7 @@ func Module(service *internal.Service) module.Module {
 	return module.Module{Name: "prose", Mount: func(r *mux.Router) {
 		path, connectHandler := connectv1.NewProseStudioServiceHandler(h)
 		r.PathPrefix(path).Handler(connectHandler)
-		for _, op := range []string{"registry", "styles", "profiles/resolve", "generate", "sessions/reroll", "sessions/action", "declarations/reindex", "declarations/validate", "documents", "documents/assemble", "conformance"} {
+		for _, op := range []string{"registry", "styles", "profiles/resolve", "generate", "sessions/reroll", "sessions/action", "declarations/reindex", "declarations/validate", "documents", "documents/assemble", "documents/resume", "conformance"} {
 			r.HandleFunc("/api/v1/prose/"+op, h.rest).Methods(http.MethodPost)
 		}
 	}, Endpoints: Endpoints}
@@ -163,6 +163,18 @@ func (h *handler) AssembleDocument(ctx context.Context, req *connect.Request[v1.
 	return connect.NewResponse(&response), nil
 }
 
+func (h *handler) ResumeDocument(ctx context.Context, req *connect.Request[v1.ResumeDocumentRequest]) (*connect.Response[v1.ResumeDocumentResponse], error) {
+	out, err := h.service.ResumeDocument(ctx, req.Msg.GetId())
+	if err != nil {
+		return nil, connect.NewError(codeFor(err), err)
+	}
+	var response v1.ResumeDocumentResponse
+	if err := encodeResponse(map[string]any{"document": out}, &response); err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&response), nil
+}
+
 func (h *handler) Conformance(ctx context.Context, req *connect.Request[v1.ConformanceRequest]) (*connect.Response[v1.ConformanceResponse], error) {
 	out, err := h.service.Conformance(ctx, req.Msg.GetStyleKey(), req.Msg.GetText())
 	if err != nil {
@@ -199,7 +211,7 @@ func encodeResponse(value any, message proto.Message) error {
 
 func (h *handler) rest(w http.ResponseWriter, r *http.Request) {
 	op := strings.TrimPrefix(r.URL.Path, "/api/v1/prose/")
-	op = map[string]string{"registry": "registry", "styles": "create_style", "profiles/resolve": "resolve_profile", "generate": "generate", "sessions/reroll": "reroll", "sessions/action": "session_action", "declarations/reindex": "reindex", "declarations/validate": "validate", "documents": "create_document", "documents/assemble": "assemble", "conformance": "conformance"}[op]
+	op = map[string]string{"registry": "registry", "styles": "create_style", "profiles/resolve": "resolve_profile", "generate": "generate", "sessions/reroll": "reroll", "sessions/action": "session_action", "declarations/reindex": "reindex", "declarations/validate": "validate", "documents": "create_document", "documents/assemble": "assemble", "documents/resume": "resume", "conformance": "conformance"}[op]
 	var raw json.RawMessage
 	if err := json.NewDecoder(r.Body).Decode(&raw); err != nil {
 		writeError(w, connect.CodeInvalidArgument, err)
@@ -324,6 +336,18 @@ func (h *handler) dispatch(ctx context.Context, op string, raw json.RawMessage) 
 			return nil, err
 		}
 		value = out
+	case "resume":
+		var in struct {
+			ID string `json:"id"`
+		}
+		if err := json.Unmarshal(raw, &in); err != nil {
+			return nil, err
+		}
+		out, err := h.service.ResumeDocument(ctx, in.ID)
+		if err != nil {
+			return nil, err
+		}
+		value = out
 	case "conformance":
 		var in struct {
 			StyleKey string `json:"style_key"`
@@ -371,5 +395,6 @@ var Endpoints = []module.EndpointDescriptor{
 	{ID: "prose_validate_declarations", Path: connectv1.ProseStudioServiceValidateDeclarationsProcedure, Method: http.MethodPost, Summary: "Validate declarations without test-genie", Category: "declarations"},
 	{ID: "prose_create_document", Path: connectv1.ProseStudioServiceCreateDocumentProcedure, Method: http.MethodPost, Summary: "Create a section-composed document", Category: "documents"},
 	{ID: "prose_assemble_document", Path: connectv1.ProseStudioServiceAssembleDocumentProcedure, Method: http.MethodPost, Summary: "Assemble committed sections to ordered text", Category: "documents"},
+	{ID: "prose_resume_document", Path: connectv1.ProseStudioServiceResumeDocumentProcedure, Method: http.MethodPost, Summary: "Resume a partially committed document", Category: "documents"},
 	{ID: "prose_conformance", Path: connectv1.ProseStudioServiceConformanceProcedure, Method: http.MethodPost, Summary: "Report style targets and lexicon spans", Category: "styles"},
 }

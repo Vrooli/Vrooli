@@ -8,36 +8,42 @@ import (
 )
 
 type Style struct {
-	Key          string             `json:"key"`
-	Version      int                `json:"version"`
-	Parent       string             `json:"parent,omitempty"`
-	Exemplars    []string           `json:"exemplars,omitempty"`
-	Directives   []string           `json:"directives,omitempty"`
-	AntiPatterns []string           `json:"anti_patterns,omitempty"`
-	Lexicon      []string           `json:"lexicon,omitempty"`
-	Targets      map[string]float64 `json:"targets,omitempty"`
-	AxisDefaults map[string]string  `json:"axis_defaults,omitempty"`
-	Authority    string             `json:"authority"`
-	SourcePath   string             `json:"source_path,omitempty"`
-	ContentHash  string             `json:"content_hash,omitempty"`
-	Frozen       bool               `json:"frozen"`
-	Status       string             `json:"status"`
-	CreatedAt    time.Time          `json:"created_at"`
-}
-
-type Profile struct {
 	Key              string             `json:"key"`
 	Version          int                `json:"version"`
 	Parent           string             `json:"parent,omitempty"`
-	StyleRefs        []string           `json:"style_refs,omitempty"`
-	Sampler          Sampler            `json:"sampler"`
-	Constraints      Constraints        `json:"constraints"`
-	SelectionPolicy  string             `json:"selection_policy"`
-	SelectionParams  map[string]float64 `json:"selection_params,omitempty"`
-	MeasurementTiers []string           `json:"measurement_tiers,omitempty"`
-	Budget           Budget             `json:"budget"`
-	ContextPolicy    ContextPolicy      `json:"context_policy"`
-	GatewayRole      string             `json:"gateway_role"`
+	Exemplars        []string           `json:"exemplars,omitempty"`
+	Directives       []string           `json:"directives,omitempty"`
+	AntiPatterns     []string           `json:"anti_patterns,omitempty"`
+	Lexicon          []string           `json:"lexicon,omitempty"`
+	Targets          map[string]float64 `json:"targets,omitempty"`
+	TargetDirections map[string]string  `json:"target_directions,omitempty"`
+	AxisDefaults     map[string]string  `json:"axis_defaults,omitempty"`
+	Authority        string             `json:"authority"`
+	SourcePath       string             `json:"source_path,omitempty"`
+	ContentHash      string             `json:"content_hash,omitempty"`
+	Frozen           bool               `json:"frozen"`
+	Status           string             `json:"status"`
+	CreatedAt        time.Time          `json:"created_at"`
+}
+
+type Profile struct {
+	Key               string              `json:"key"`
+	Version           int                 `json:"version"`
+	Parent            string              `json:"parent,omitempty"`
+	StyleRefs         []string            `json:"style_refs,omitempty"`
+	Sampler           Sampler             `json:"sampler"`
+	Constraints       Constraints         `json:"constraints"`
+	SelectionPolicy   string              `json:"selection_policy"`
+	SelectionParams   map[string]float64  `json:"selection_params,omitempty"`
+	MeasurementTiers  []string            `json:"measurement_tiers,omitempty"`
+	Budget            Budget              `json:"budget"`
+	ContextPolicy     ContextPolicy       `json:"context_policy"`
+	OutlineProfileKey string              `json:"outline_profile_key,omitempty"`
+	SectionProfileKey string              `json:"section_profile_key,omitempty"`
+	AxisSpaceKey      string              `json:"axis_space_key,omitempty"`
+	Coherence         CoherenceThresholds `json:"coherence_thresholds,omitempty"`
+	Composition       CompositionPolicy   `json:"composition,omitempty"`
+	GatewayRole       string              `json:"gateway_role"`
 	// Locality is the caller's stance on where inference may run, named in the
 	// gateway's Profile vocabulary without the PROFILE_ prefix. The write roles
 	// are local-first by catalog order, so a profile that needs frontier prose
@@ -119,6 +125,8 @@ type Candidate struct {
 	VerbalizedHint  *VerbalizedHint `json:"verbalized_hint,omitempty"`
 	Eligibility     Eligibility     `json:"eligibility"`
 	Committed       bool            `json:"committed"`
+	Transform       *Transform      `json:"transform,omitempty"`
+	AxisCell        string          `json:"axis_cell,omitempty"`
 }
 
 type VerbalizedHint struct {
@@ -139,12 +147,18 @@ type Round struct {
 	// at birth because comparability is otherwise undecidable after the fact:
 	// two set-diversity numbers mean nothing side by side unless the conditions
 	// that produced them are known to match.
-	SamplingKey     textmetrics.SamplingKey `json:"sampling_key"`
-	SelectionSeed   int64                   `json:"selection_seed"`
-	TotalCostMicros int64                   `json:"total_cost_micros"`
-	NegativeContext NegativeContext         `json:"negative_context,omitempty"`
+	SamplingKey             textmetrics.SamplingKey `json:"sampling_key"`
+	SelectionSeed           int64                   `json:"selection_seed"`
+	TotalCostMicros         int64                   `json:"total_cost_micros"`
+	NegativeContext         NegativeContext         `json:"negative_context,omitempty"`
+	LexicalSetMeasurements  any                     `json:"lexical_set_measurements,omitempty"`
+	SemanticSetMeasurements any                     `json:"semantic_set_measurements,omitempty"`
+	MeasurementBasis        string                  `json:"measurement_basis,omitempty"`
+	MeasurementFallback     string                  `json:"measurement_fallback,omitempty"`
 }
 type NegativeContext struct {
+	// These values are prose resolved from session candidate identifiers before
+	// they reach the gateway. Identifiers remain in Session for audit linkage.
 	Pinned   []string `json:"pinned,omitempty"`
 	Rejected []string `json:"rejected,omitempty"`
 }
@@ -164,38 +178,168 @@ type SelectionEvent struct {
 	CandidateID            string    `json:"candidate_id"`
 	ConsideredCandidateIDs []string  `json:"considered_candidate_ids"`
 	Measurements           any       `json:"measurements"`
+	DistanceBasis          string    `json:"distance_basis,omitempty"`
 	OutcomeRef             string    `json:"outcome_ref,omitempty"`
 	CreatedAt              time.Time `json:"created_at"`
 }
 
 type Document struct {
-	ID            string    `json:"id"`
-	Title         string    `json:"title"`
-	ProfileKey    string    `json:"profile_key"`
-	StyleKey      string    `json:"style_key"`
-	OutlineID     string    `json:"outline_id,omitempty"`
-	SectionIDs    []string  `json:"section_ids"`
-	Status        string    `json:"status"`
-	AssembledText string    `json:"assembled_text,omitempty"`
-	Coherence     any       `json:"coherence,omitempty"`
-	Sections      []Section `json:"sections,omitempty"`
+	ID                    string           `json:"id"`
+	Title                 string           `json:"title"`
+	ProfileKey            string           `json:"profile_key"`
+	OutlineProfileKey     string           `json:"outline_profile_key,omitempty"`
+	StyleKey              string           `json:"style_key"`
+	OutlineID             string           `json:"outline_id,omitempty"`
+	OutlineText           string           `json:"outline_text,omitempty"`
+	Outline               []OutlineSection `json:"outline,omitempty"`
+	OutlineProfileVersion string           `json:"outline_profile_version,omitempty"`
+	// SectionCount overrides the profile's composition policy for this document.
+	SectionCount          int       `json:"section_count,omitempty"`
+	SectionProfileVersion string    `json:"section_profile_version,omitempty"`
+	SectionIDs            []string  `json:"section_ids"`
+	Status                string    `json:"status"`
+	AssembledText         string    `json:"assembled_text,omitempty"`
+	Coherence             any       `json:"coherence,omitempty"`
+	Sections              []Section `json:"sections,omitempty"`
+	// Provenance for the document as a whole. A long-form run costs one outline
+	// call plus one call per section plus any repair, and none of that is
+	// visible in a single round's accounting; a caller reading a standalone
+	// generate call's cost was reading a different request entirely.
+	Provenance DocumentProvenance `json:"document_provenance,omitempty"`
+}
+
+// DocumentProvenance aggregates what an assembled document actually consumed.
+type DocumentProvenance struct {
+	SectionCount    int      `json:"section_count"`
+	WordCount       int      `json:"word_count"`
+	TotalCostMicros int64    `json:"total_cost_micros"`
+	InputTokens     int      `json:"input_tokens"`
+	OutputTokens    int      `json:"output_tokens"`
+	Providers       []string `json:"providers,omitempty"`
+	Models          []string `json:"models,omitempty"`
+}
+
+type OutlineSection struct {
+	Intent      string `json:"intent"`
+	Summary     string `json:"summary"`
+	TargetWords int    `json:"target_words"`
+}
+
+type CoherenceThresholds struct {
+	MaxCrossSectionRepetition float64 `json:"max_cross_section_repetition,omitempty"`
+	MaxStyleDrift             float64 `json:"max_style_drift,omitempty"`
+	// MaxSemanticSectionRepetition bounds mean pairwise cosine similarity over
+	// section embeddings. It exists because the lexical measure passes text that
+	// paraphrases itself: three sections restating one argument in different
+	// words score as low lexical overlap while carrying near-identical meaning.
+	MaxSemanticSectionRepetition float64 `json:"max_semantic_section_repetition,omitempty"`
+}
+
+// CompositionPolicy is the long-form half of a profile. Composition is a
+// different problem from candidate variation: a document has a shape, a length
+// band per section, and a redundancy ceiling, none of which the sampler or the
+// candidate-level constraints can express.
+type CompositionPolicy struct {
+	// SectionCount pins the outline length. Zero derives it from the word
+	// budget and TargetSectionWords instead, because the right number of
+	// sections is a function of how long the article is.
+	SectionCount int `json:"section_count,omitempty"`
+	// TargetSectionWords is the words-per-section the derived count aims for.
+	TargetSectionWords int `json:"target_section_words,omitempty"`
+	// MinSections and MaxSections bound the derived count only.
+	MinSections int `json:"min_sections,omitempty"`
+	MaxSections int `json:"max_sections,omitempty"`
+	// SectionWordTolerance is the fractional band around a section's outline
+	// target that the section gate accepts, e.g. 0.25 admits 75%-125%. A band
+	// is required in both directions: a ceiling pinned exactly at the target
+	// gives the model only one direction to miss in, and it always misses low.
+	SectionWordTolerance float64 `json:"section_word_tolerance,omitempty"`
+	// SectionFormat is the required_format applied to each section. Empty means
+	// paragraph. A long-form consumer that needs headings, lists, or code sets
+	// rich_prose here rather than having paragraph forced on it.
+	SectionFormat string `json:"section_format,omitempty"`
+	// MaxRepairRounds bounds regeneration after a failed coherence verdict.
+	// Zero disables repair and preserves the report-only behaviour.
+	MaxRepairRounds int `json:"max_repair_rounds,omitempty"`
+	// SectionSamplerKind and SectionCandidates decide how a section's candidate
+	// set is drawn. They are separate from the profile's sampler because the two
+	// levels want different things: an outline wants a distribution over
+	// framings, which is what verbalized sampling elicits, while a section wants
+	// the best continuation of a framing already chosen. Drawing sections
+	// through the verbalized envelope also buys a failure mode composition has
+	// no use for, since one malformed entry in the set fails the whole document.
+	// SectionMaxOutputTokens overrides the derived per-section output budget.
+	SectionMaxOutputTokens int    `json:"section_max_output_tokens,omitempty"`
+	SectionSamplerKind     string `json:"section_sampler_kind,omitempty"`
+	SectionCandidates      int    `json:"section_candidates,omitempty"`
+	// SectionSelectionPolicy overrides the continuation default for sections.
+	// It is separate from the profile's SelectionPolicy because those two
+	// choices answer different questions: which candidate is most unlike its
+	// siblings, and which candidate best continues this document.
+	SectionSelectionPolicy string `json:"section_selection_policy,omitempty"`
+}
+
+type Transform struct {
+	Operation       string         `json:"operation"`
+	Parameters      map[string]any `json:"parameters,omitempty"`
+	SourceCandidate string         `json:"source_candidate"`
+	GatewayRole     string         `json:"gateway_role"`
+	CreatedAt       time.Time      `json:"created_at"`
+}
+
+type AxisSpace struct {
+	Key       string `json:"key"`
+	Axes      []Axis `json:"axes"`
+	Authority string `json:"authority,omitempty"`
+}
+
+type Axis struct {
+	Name     string   `json:"name"`
+	Variants []string `json:"variants"`
+}
+
+type AxisCell struct {
+	Key      string            `json:"key"`
+	Variants map[string]string `json:"variants"`
+}
+
+type CellCoverage struct {
+	Planned []AxisCell `json:"planned"`
+	Covered []string   `json:"covered"`
+	Missed  []string   `json:"missed"`
+}
+
+// CompositeGeneration is the auditable result of sampling one candidate set
+// per planned axis cell. Candidates retain their ordinary round provenance;
+// the aggregate only adds the cell coverage needed to prove the grid was
+// actually exercised.
+type CompositeGeneration struct {
+	Candidates []Candidate  `json:"candidates"`
+	Rounds     []Round      `json:"rounds"`
+	Sessions   []Session    `json:"sessions"`
+	Coverage   CellCoverage `json:"coverage"`
 }
 type Section struct {
 	ID                   string          `json:"id"`
 	DocumentID           string          `json:"document_id"`
 	Position             int             `json:"position"`
 	Intent               string          `json:"intent"`
+	Summary              string          `json:"summary,omitempty"`
+	TargetWords          int             `json:"target_words,omitempty"`
 	ProfileKey           string          `json:"profile_key,omitempty"`
 	SessionID            string          `json:"session_id,omitempty"`
 	CommittedCandidateID string          `json:"committed_candidate_id,omitempty"`
 	Context              ContextSnapshot `json:"context_snapshot"`
 }
 type ContextSnapshot struct {
-	OutlineRef            string   `json:"outline_ref,omitempty"`
-	PriorSectionRefs      []string `json:"prior_section_refs,omitempty"`
-	FollowingIntents      []string `json:"following_intents,omitempty"`
-	SummarizedSectionRefs []string `json:"summarized_section_refs,omitempty"`
-	EstimatedTokens       int      `json:"estimated_tokens"`
+	OutlineRef            string            `json:"outline_ref,omitempty"`
+	OutlineText           string            `json:"outline_text,omitempty"`
+	PriorSectionRefs      []string          `json:"prior_section_refs,omitempty"`
+	FullTextSectionRefs   []string          `json:"full_text_section_refs,omitempty"`
+	FollowingIntents      []string          `json:"following_intents,omitempty"`
+	SummarizedSectionRefs []string          `json:"summarized_section_refs,omitempty"`
+	SectionSummaries      map[string]string `json:"section_summaries,omitempty"`
+	EstimatedTokens       int               `json:"estimated_tokens"`
 }
 
 type Declaration struct {
@@ -225,9 +369,22 @@ type Registry struct {
 type GenerateRequest struct {
 	ProfileKey        string          `json:"profile_key"`
 	Query             string          `json:"query"`
+	SchemaJSON        string          `json:"schema_json,omitempty"`
 	IncludeCandidates bool            `json:"include_candidates"`
 	SessionID         string          `json:"session_id,omitempty"`
 	Negative          NegativeContext `json:"negative_context,omitempty"`
+	// Selection carries the already-committed surroundings a continuation
+	// policy needs. It is nil for instance-level generation, where a candidate
+	// set has no position in anything.
+	Selection *SelectionContext `json:"selection_context,omitempty"`
+}
+
+// SelectionContext is what a policy needs in order to choose a candidate for a
+// position in a document rather than for its own sake. It carries prose, not
+// record identifiers, so selection never becomes a second prompt seam.
+type SelectionContext struct {
+	PriorText   []string `json:"prior_text,omitempty"`
+	TargetWords int      `json:"target_words,omitempty"`
 }
 type GenerateResponse struct {
 	Session            Session          `json:"session"`
@@ -251,6 +408,7 @@ type GatewayRequest struct {
 	Role              string          `json:"role"`
 	Instruction       string          `json:"instruction"`
 	Query             string          `json:"query"`
+	SchemaJSON        string          `json:"schema_json,omitempty"`
 	Strategy          string          `json:"strategy"`
 	K                 int             `json:"k"`
 	Tau               float64         `json:"tau"`

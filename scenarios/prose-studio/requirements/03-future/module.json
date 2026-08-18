@@ -41,13 +41,15 @@
       "description": "The system may add embedding-based semantic diversity alongside the lexical tier once an embedding surface is available through ai-gateway",
       "id": "PS-P2-003",
       "prd_ref": "OT-P2-003",
-      "status": "planned",
+      "status": "complete",
       "title": "Semantic diversity metrics",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PS-P2-003] tag) once the behavior exists.",
-          "status": "planned",
-          "type": "manual"
+          "type": "manual",
+          "ref": "api/internal/prose/service_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Embedding-backed semantic set measurement is resolved through ai-gateway in generateResolved and recorded on the round; document-level semantic repetition is measured at assembly."
         }
       ]
     },

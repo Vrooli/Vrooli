@@ -97,17 +97,6 @@ func scenarioStorageRoots() (storage.Paths, error) {
 	return resolver.Resolve(storage.Options{ScenarioID: scenarioID})
 }
 
-// fileRootPath is the template's mandatory file-store seam. Domain stores
-// compose their relative paths from it rather than retaining startup root
-// strings, so X-Vrooli-Test-Mode is honored independently per request.
-func fileRootPath(ctx context.Context, roots *filerouting.RoutedRoots, class storage.Class, rel string) (string, error) {
-	root, err := roots.Pick(ctx, class)
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(root, rel), nil
-}
-
 func sqliteFileDSN(path string) (string, error) {
 	if strings.HasPrefix(path, "file:") {
 		return path, nil
@@ -195,7 +184,12 @@ func main() {
 
 	if err := apiserver.Run(apiserver.Config{
 		Handler: handler,
-		Cleanup: func(ctx context.Context) error { return db.Close() },
+		// Long-form assembly can perform one gateway request per section. Keep
+		// the server response window longer than the bounded generation budget;
+		// the api-core default is 30s, which can close the connection while a
+		// valid document is still being committed.
+		WriteTimeout: 10 * time.Minute,
+		Cleanup:      func(ctx context.Context) error { return db.Close() },
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}

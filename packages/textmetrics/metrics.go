@@ -9,6 +9,7 @@ import (
 	"errors"
 	"math"
 	"sort"
+	"strconv"
 	"strings"
 	"unicode"
 )
@@ -50,12 +51,14 @@ type Metrics struct {
 // symmetric, has a zero diagonal, and is retained so selection policies can
 // make the same deterministic decision without recomputing it.
 type SetMetrics struct {
-	CandidateCount     int         `json:"candidate_count"`
-	PairwiseSimilarity [][]float64 `json:"pairwise_similarity"`
-	MeanSimilarity     float64     `json:"mean_similarity"`
-	Diversity          float64     `json:"diversity"`
-	Coverage           float64     `json:"coverage"`
-	Basis              string      `json:"basis"`
+	CandidateCount     int             `json:"candidate_count"`
+	PairwiseSimilarity [][]float64     `json:"pairwise_similarity"`
+	MeanSimilarity     float64         `json:"mean_similarity"`
+	Diversity          float64         `json:"diversity"`
+	Coverage           float64         `json:"coverage"`
+	Basis              string          `json:"basis"`
+	CellCoverage       map[string]bool `json:"cell_coverage,omitempty"`
+	MissedCells        []string        `json:"missed_cells,omitempty"`
 }
 
 // SamplingKey is the effective generation identity used by comparability.
@@ -91,6 +94,7 @@ type SamplingKey struct {
 	TemperatureStance    string `json:"temperature_stance"`
 	MaxOutputTokens      int    `json:"max_output_tokens_effective"`
 	MaxOutputTokenSource string `json:"max_output_tokens_source"`
+	MeasurementTier      string `json:"measurement_tier"`
 }
 
 // Comparable reports whether two measurements were produced under the same
@@ -102,6 +106,11 @@ func Comparable(a, b SamplingKey) error {
 	}
 	return nil
 }
+
+// LexiconSpans locates terms with the same deterministic span semantics used
+// by Analyze. It is exported so conformance can report anti-patterns and
+// preferred vocabulary separately without duplicating byte-offset logic.
+func LexiconSpans(text string, lexicon []string) []Span { return lexiconSpans(text, lexicon) }
 
 // Analyze computes every deterministic metric unconditionally.
 func Analyze(text string, lexicon []string) Metrics {
@@ -163,6 +172,64 @@ func AnalyzeSet(texts, lexicon []string) ([]Metrics, SetMetrics) {
 	set.Diversity = 1 - set.MeanSimilarity
 	set.Coverage = coverage(set.PairwiseSimilarity)
 	return items, set
+}
+
+// AnalyzeSetSemantic retains the deterministic per-text metrics and replaces
+// only the set distance tier with cosine distance over gateway-provided
+// embeddings. No candidate quality ordering is introduced.
+func AnalyzeSetSemantic(texts []string, vectors [][]float64) ([]Metrics, SetMetrics, error) {
+	if len(texts) != len(vectors) {
+		return nil, SetMetrics{}, errors.New("semantic_measurement_vector_count_mismatch")
+	}
+	items := make([]Metrics, len(texts))
+	for i, text := range texts {
+		items[i] = Analyze(text, nil)
+	}
+	dimension := 0
+	if len(vectors) > 0 {
+		dimension = len(vectors[0])
+	}
+	set := SetMetrics{CandidateCount: len(texts), Basis: "semantic cosine similarity over gateway embeddings (dimension " + itoa(dimension) + ")"}
+	set.PairwiseSimilarity = make([][]float64, len(texts))
+	for i := range set.PairwiseSimilarity {
+		set.PairwiseSimilarity[i] = make([]float64, len(texts))
+	}
+	var total float64
+	pairs := 0
+	for i := range vectors {
+		if len(vectors[i]) == 0 {
+			return nil, SetMetrics{}, errors.New("semantic_measurement_empty_vector")
+		}
+		for j := i + 1; j < len(vectors); j++ {
+			if len(vectors[i]) != len(vectors[j]) {
+				return nil, SetMetrics{}, errors.New("semantic_measurement_dimension_mismatch")
+			}
+			sim := cosine(vectors[i], vectors[j])
+			set.PairwiseSimilarity[i][j], set.PairwiseSimilarity[j][i] = sim, sim
+			total += sim
+			pairs++
+		}
+	}
+	set.MeanSimilarity = ratio(total, float64(pairs))
+	set.Diversity = 1 - set.MeanSimilarity
+	set.Coverage = coverage(set.PairwiseSimilarity)
+	return items, set, nil
+}
+
+func cosine(a, b []float64) float64 {
+	var dot, aa, bb float64
+	for i := range a {
+		dot += a[i] * b[i]
+		aa += a[i] * a[i]
+		bb += b[i] * b[i]
+	}
+	if aa == 0 || bb == 0 {
+		if aa == 0 && bb == 0 {
+			return 1
+		}
+		return 0
+	}
+	return dot / math.Sqrt(aa*bb)
 }
 
 // CrossSectionRepetition returns the mean lexical similarity of distinct
@@ -523,12 +590,10 @@ func isDaleChallEasy(word string) bool {
 	return len([]rune(w)) <= 4 || strings.Contains(" the of and to in is you that it he was for on are as with his they i at be this have from or one had by word but not what all were we when your can said there use an each which she do how their if will up other about out many then them these so some her would make like him into time has look two more write go see number no way could people my than first water been call who oil its now find long down day did get come made may part", " "+w+" ")
 }
 
-func itoa(n int) string {
-	if n == 1 {
-		return "1"
-	}
-	if n == 2 {
-		return "2"
-	}
-	return "3"
-}
+// itoa formats the value. It previously returned "1", "2", or "3" for
+// everything else, which meant every semantic measurement published a basis
+// claiming three dimensions regardless of the embedding it actually used: a
+// 768-dimension nomic-embed-text measurement described itself as
+// three-dimensional, and the basis string is precisely the field a reader
+// consults to decide whether a similarity number can be trusted.
+func itoa(n int) string { return strconv.Itoa(n) }

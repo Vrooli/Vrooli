@@ -7,6 +7,8 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -20,17 +22,42 @@ type fakeGateway struct{ calls []GatewayRequest }
 func (f *fakeGateway) Generate(_ context.Context, req GatewayRequest) ([]GatewayCandidate, error) {
 	callIndex := len(f.calls)
 	f.calls = append(f.calls, req)
+	if strings.HasPrefix(req.Query, "Create a concise ordered outline") {
+		return []GatewayCandidate{{Text: `[{"intent":"opening","summary":"Establish the central problem and promise.","target_words":120},{"intent":"evidence","summary":"Show the evidence and explain its significance.","target_words":180},{"intent":"conclusion","summary":"Close with the practical implication for the reader.","target_words":100}]`, Provider: "fake", Model: "fake-model", TemperatureSupport: "supported", CostMicros: 100}}, nil
+	}
 	out := make([]GatewayCandidate, req.K)
 	for i := range out {
-		out[i] = GatewayCandidate{Text: []string{"A crisp opening about trust.", "A vivid opening about craft.", "A practical opening about proof.", "A reflective opening about change.", "A measured opening about care."}[(callIndex+i)%5], Provider: "fake", Model: "fake-model", TemperatureSupport: "supported", CostMicros: 100, HintOrdinal: i + 1}
+		seed := []string{"A crisp opening about trust.", "A vivid opening about craft.", "A practical opening about proof.", "A reflective opening about change.", "A measured opening about care."}[(callIndex+i)%5]
+		out[i] = GatewayCandidate{Text: padToRequestedBand(req.Query, seed), Provider: "fake", Model: "fake-model", TemperatureSupport: "supported", CostMicros: 100, HintOrdinal: i + 1}
 	}
 	return out, nil
+}
+
+var bandPattern = regexp.MustCompile(`between (\d+) and (\d+) words`)
+
+// padToRequestedBand makes the fixture answer the length contract the section
+// prompt states. The previous fixture returned a five-word sentence for every
+// section and every test passed, because the section gate carried no word floor
+// at all — the fixture was only honest by accident of a missing constraint.
+func padToRequestedBand(query, seed string) string {
+	match := bandPattern.FindStringSubmatch(query)
+	if match == nil {
+		return seed
+	}
+	low, _ := strconv.Atoi(match[1])
+	high, _ := strconv.Atoi(match[2])
+	target := (low + high) / 2
+	words := strings.Fields(seed)
+	for len(words) < target {
+		words = append(words, "filler")
+	}
+	return strings.Join(words[:target], " ") + "."
 }
 
 func TestRarestPolicySelectsNonFirstCandidate(t *testing.T) {
 	set := textmetrics.SetMetrics{PairwiseSimilarity: [][]float64{{0, .9, .2}, {.9, 0, .1}, {.2, .1, 0}}}
 	candidates := []Candidate{{ID: "first", SetIndex: 0, SetMeasurements: set, Eligibility: Eligibility{Eligible: true}}, {ID: "middle", SetIndex: 1, SetMeasurements: set, Eligibility: Eligibility{Eligible: true}}, {ID: "rare", SetIndex: 2, SetMeasurements: set, Eligibility: Eligibility{Eligible: true}}}
-	selected := choose(candidates, "threshold_then_rarest", map[string]float64{"threshold": .5}, 1)
+	selected := choose(candidates, "threshold_then_rarest", map[string]float64{"threshold": .5}, 1, nil)
 	require.NotNil(t, selected)
 	require.Equal(t, "rare", selected.ID, "rarest policy must read the candidate's own similarity row")
 }
@@ -38,15 +65,15 @@ func TestRarestPolicySelectsNonFirstCandidate(t *testing.T) {
 func TestRarestPolicyHonoursThreshold(t *testing.T) {
 	set := textmetrics.SetMetrics{PairwiseSimilarity: [][]float64{{0, .9, .2}, {.9, 0, .1}, {.2, .1, 0}}}
 	candidates := []Candidate{{ID: "first", SetIndex: 0, SetMeasurements: set, Eligibility: Eligibility{Eligible: true}}, {ID: "middle", SetIndex: 1, SetMeasurements: set, Eligibility: Eligibility{Eligible: true}}, {ID: "rare", SetIndex: 2, SetMeasurements: set, Eligibility: Eligibility{Eligible: true}}}
-	selected := choose(candidates, "threshold_then_rarest", map[string]float64{"threshold": .95}, 1)
+	selected := choose(candidates, "threshold_then_rarest", map[string]float64{"threshold": .95}, 1, nil)
 	require.NotNil(t, selected)
 	require.Equal(t, "first", selected.ID, "when no candidate clears the threshold, policy must fall back to the eligible set")
 }
 
 func TestUniformPolicyVariesWithSeed(t *testing.T) {
 	candidates := []Candidate{{ID: "a", Eligibility: Eligibility{Eligible: true}}, {ID: "b", Eligibility: Eligibility{Eligible: true}}, {ID: "c", Eligibility: Eligibility{Eligible: true}}}
-	first := choose(candidates, "sample_uniform", nil, 1)
-	second := choose(candidates, "sample_uniform", nil, 2)
+	first := choose(candidates, "sample_uniform", nil, 1, nil)
+	second := choose(candidates, "sample_uniform", nil, 2, nil)
 	require.NotEqual(t, first.ID, second.ID, "uniform policy must use the persisted seed rather than a fixed middle element")
 }
 
@@ -165,16 +192,33 @@ func TestContextSnapshotNamesItsInputs(t *testing.T) {
 	require.Equal(t, []string{"proof", "conclusion"}, snapshot.FollowingIntents)
 }
 
+func TestAssembleSectionContextCarriesLongFormInputsWithoutIdentifiers(t *testing.T) {
+	s, _ := newTestService(t)
+	contextText, err := s.assembleSectionContext(context.Background(), Document{Title: "A durable title"}, "Opening\nEvidence\nClose", Section{Position: 1, Intent: "Evidence", Summary: "Show the measured result", TargetWords: 180}, 3, nil)
+	require.NoError(t, err)
+	require.Contains(t, contextText, "A durable title")
+	require.Contains(t, contextText, "Opening\nEvidence\nClose")
+	require.Contains(t, contextText, "Current section: 2 of 3")
+	require.Contains(t, contextText, "Length target: approximately 180 words")
+	require.NotRegexp(t, recordIdentifierPattern, contextText)
+}
+
+func TestStructuredSingleCandidatePreservesDeclaredJSON(t *testing.T) {
+	texts, _, err := decodeCandidates(GatewayRequest{K: 1, SchemaJSON: outlineSchema}, `[{"intent":"opening","summary":"hook","target_words":100}]`)
+	require.NoError(t, err)
+	require.Equal(t, `[{"intent":"opening","summary":"hook","target_words":100}]`, texts[0])
+}
+
 func TestCreateDocumentOwnsOutlineAndSectionSessions(t *testing.T) {
 	s, _ := newTestService(t)
 	ctx := context.Background()
-	_, err := s.CreateProfile(ctx, Profile{Key: "long-form", Sampler: Sampler{Kind: samplerDirect, K: 1}, Budget: Budget{MaxOutputTokens: 128}})
+	_, err := s.CreateProfile(ctx, Profile{Key: "long-form", Sampler: Sampler{Kind: samplerDirect, K: 1}, Budget: Budget{MaxOutputTokens: 128}, Composition: CompositionPolicy{SectionCount: 3}})
 	require.NoError(t, err)
 
 	doc, err := s.CreateDocument(ctx, Document{Title: "A measured document", ProfileKey: "long-form"}, nil)
 	require.NoError(t, err)
 	require.Equal(t, "assembled", doc.Status)
-	require.Len(t, doc.SectionIDs, 5, "a provider one-line outline must still become the bounded five-section service path")
+	require.Len(t, doc.SectionIDs, 3)
 	require.NotEmpty(t, doc.OutlineID)
 	for _, section := range doc.Sections {
 		require.NotEmpty(t, section.SessionID)
@@ -246,6 +290,67 @@ func TestGenerateMeasuresSetContainsUncalibratedHintsAndAttributesCost(t *testin
 	}
 }
 
+func TestSemanticProfileRecordsLexicalFallbackWhenGatewayCannotEmbed(t *testing.T) {
+	s, _ := newTestService(t)
+	ctx := context.Background()
+	require.NoError(t, func() error {
+		_, err := s.CreateProfile(ctx, Profile{Key: "semantic", MeasurementTiers: []string{"deterministic_and_semantic"}, Sampler: Sampler{Kind: samplerVSStandard, K: 2}, Budget: Budget{MaxOutputTokens: 100}})
+		return err
+	}())
+	out, err := s.Generate(ctx, GenerateRequest{ProfileKey: "semantic", Query: "subject", IncludeCandidates: true})
+	require.NoError(t, err)
+	require.Contains(t, out.Round.MeasurementBasis, "lexical")
+	require.Contains(t, out.Round.MeasurementFallback, "embedding_unavailable")
+	require.NotEmpty(t, out.Round.LexicalSetMeasurements)
+}
+
+func TestConformanceSeparatesAntiPatternAndPreferredSpansAndHonoursComparator(t *testing.T) {
+	s, _ := newTestService(t)
+	ctx := context.Background()
+	_, err := s.CreateStyle(ctx, Style{Key: "marketing", AntiPatterns: []string{"hype drift"}, Lexicon: []string{"evidence"}, Targets: map[string]float64{"flesch_kincaid_grade_max": 20}, TargetDirections: map[string]string{"flesch_kincaid_grade_max": "at_most"}})
+	require.NoError(t, err)
+	report, err := s.Conformance(ctx, "marketing", "Evidence supports this grounded claim. Avoid hype drift.")
+	require.NoError(t, err)
+	require.NotEmpty(t, report["anti_pattern_spans"])
+	require.NotEmpty(t, report["preferred_lexicon_spans"])
+	verdicts := report["verdicts"].(map[string]map[string]any)
+	require.Equal(t, "at_most", verdicts["flesch_kincaid_grade_max"]["direction"])
+}
+
+func TestTransformsRecordSourceAndAxisCellsArePlanned(t *testing.T) {
+	s, _ := newTestService(t)
+	ctx := context.Background()
+	_, err := s.CreateProfile(ctx, Profile{Key: "transform", Sampler: Sampler{Kind: samplerDirect, K: 1}, Budget: Budget{MaxOutputTokens: 100}})
+	require.NoError(t, err)
+	out, err := s.Generate(ctx, GenerateRequest{ProfileKey: "transform", Query: "subject", IncludeCandidates: true})
+	require.NoError(t, err)
+	derived, err := s.TransformCandidate(ctx, out.Candidates[0].ID, "reading_level", map[string]any{"target_grade": 8})
+	require.NoError(t, err)
+	require.Equal(t, []string{out.Candidates[0].ID}, derived.DerivedFrom)
+	require.Equal(t, out.Candidates[0].ID, derived.Transform.SourceCandidate)
+	space := AxisSpace{Key: "marketing", Axes: []Axis{{Name: "audience", Variants: []string{"builder", "operator"}}, {Name: "framing", Variants: []string{"evidence", "lesson"}}}}
+	cells := PlanAxisCells(space)
+	require.Len(t, cells, 4)
+	require.Len(t, ComputeCellCoverage(space, []Candidate{{AxisCell: cells[0].Key}}).Missed, 3)
+}
+
+func TestCompositeGenerationCoversEveryAxisCell(t *testing.T) {
+	s, _ := newTestService(t)
+	ctx := context.Background()
+	_, err := s.CreateProfile(ctx, Profile{Key: "composite", Sampler: Sampler{Kind: samplerComposite, K: 1}, Budget: Budget{MaxOutputTokens: 100}})
+	require.NoError(t, err)
+	space := AxisSpace{Key: "marketing", Axes: []Axis{{Name: "audience", Variants: []string{"builder", "operator"}}, {Name: "framing", Variants: []string{"evidence", "lesson"}}}}
+	result, err := s.GenerateComposite(ctx, GenerateRequest{ProfileKey: "composite", Query: "subject"}, space)
+	require.NoError(t, err)
+	require.Len(t, result.Candidates, 4)
+	require.Len(t, result.Coverage.Planned, 4)
+	require.Len(t, result.Coverage.Covered, 4)
+	require.Empty(t, result.Coverage.Missed)
+	for _, candidate := range result.Candidates {
+		require.NotEmpty(t, candidate.AxisCell)
+	}
+}
+
 func TestDeclarationsAreFileAuthorityAndDeletedFilesBecomeUnregistered(t *testing.T) {
 	s, _ := newTestService(t)
 	ctx := context.Background()
@@ -300,7 +405,7 @@ func TestRerollPreservesSessionAndSendsNegativeContext(t *testing.T) {
 	second, err := s.Reroll(ctx, first.Session.ID, true)
 	require.NoError(t, err)
 	require.Len(t, second.Candidates, 2)
-	require.Equal(t, []string{first.Candidates[0].ID}, second.Round.NegativeContext.Pinned)
+	require.Equal(t, []string{first.Candidates[0].Text}, second.Round.NegativeContext.Pinned)
 	require.Equal(t, second.Round.NegativeContext.Pinned, gateway.calls[1].Negative.Pinned)
 }
 
@@ -549,4 +654,363 @@ func TestComparabilityStillRefusesGenuinelyDifferentConditions(t *testing.T) {
 	// Candidate count changes the pairwise structure a set-diversity number
 	// summarises, so it stays a condition even though strategy no longer is.
 	require.Error(t, s.CompareRounds(ctx, k3.Round.ID, k5.Round.ID))
+}
+
+// --- long-form composition -------------------------------------------------
+
+func TestSectionsCarryPriorCommittedContext(t *testing.T) {
+	s, fake := newTestService(t)
+	ctx := context.Background()
+	_, err := s.CreateProfile(ctx, Profile{Key: "ctx-form", Sampler: Sampler{Kind: samplerDirect, K: 1}, Budget: Budget{MaxOutputTokens: 128}, Composition: CompositionPolicy{SectionCount: 3}})
+	require.NoError(t, err)
+
+	doc, err := s.CreateDocument(ctx, Document{Title: "A continued document", ProfileKey: "ctx-form"}, nil)
+	require.NoError(t, err)
+	require.Len(t, doc.Sections, 3)
+
+	// The regression: commitSectionCandidate records the committed identifier on
+	// its own copy of the section, so the caller's slice used to keep an
+	// uncommitted copy. Every later section then skipped every earlier one and
+	// was drafted blind, which is what made a document restate itself.
+	sectionQueries := sectionPrompts(fake)
+	require.Len(t, sectionQueries, 3)
+	require.NotContains(t, sectionQueries[0], "Prior section", "the opening section has no prior text to carry")
+	require.Contains(t, sectionQueries[1], "Prior section 1", "the second section must see the committed first section")
+	require.Contains(t, sectionQueries[2], "Prior section 1")
+	require.Contains(t, sectionQueries[2], "Prior section 2")
+
+	stored := map[string]Section{}
+	for _, id := range doc.SectionIDs {
+		var section Section
+		require.NoError(t, s.loadJSON(ctx, "prose_sections", id, &section))
+		stored[id] = section
+	}
+	last := stored[doc.SectionIDs[2]]
+	require.Len(t, last.Context.PriorSectionRefs, 2, "the context snapshot must name what it actually carried")
+	require.NotZero(t, last.Context.EstimatedTokens, "a snapshot that carried prior text cannot estimate zero tokens")
+	require.Len(t, last.Context.FullTextSectionRefs, 2, "a short document must carry prior sections whole rather than summarising them")
+	require.Empty(t, last.Context.SummarizedSectionRefs)
+
+	var first Candidate
+	require.NoError(t, s.loadJSON(ctx, "prose_candidates", stored[doc.SectionIDs[0]].CommittedCandidateID, &first))
+	require.Contains(t, sectionQueries[2], first.Text, "the committed prose itself must reach the prompt, not only a reference to it")
+}
+
+func TestRepairRewritesTheMostRedundantSectionWhenCoherenceFails(t *testing.T) {
+	s, fake := newTestService(t)
+	ctx := context.Background()
+	_, err := s.CreateProfile(ctx, Profile{
+		Key:         "repair-form",
+		Sampler:     Sampler{Kind: samplerDirect, K: 1},
+		Budget:      Budget{MaxOutputTokens: 128},
+		Composition: CompositionPolicy{SectionCount: 3, MaxRepairRounds: 2},
+		// Deliberately unreachable for this fixture, whose sections share most of
+		// their words. The point under test is that a failed verdict causes work
+		// rather than only being written down.
+		Coherence: CoherenceThresholds{MaxCrossSectionRepetition: 0.01},
+	})
+	require.NoError(t, err)
+
+	doc, err := s.CreateDocument(ctx, Document{Title: "A repeating document", ProfileKey: "repair-form"}, nil)
+	require.NoError(t, err)
+	require.Len(t, sectionPrompts(fake), 5, "three sections plus two bounded repair attempts")
+
+	coherence, ok := doc.Coherence.(map[string]any)
+	require.True(t, ok)
+	verdict := coherence["verdict"].(map[string]any)
+	require.Equal(t, false, verdict["coherent"], "an exhausted repair budget must report the honest failed verdict, not a pass")
+	require.Len(t, doc.SectionIDs, 3, "repair rewrites a section in place rather than appending one")
+}
+
+func TestRepairIsSkippedWhenTheVerdictPasses(t *testing.T) {
+	s, fake := newTestService(t)
+	ctx := context.Background()
+	_, err := s.CreateProfile(ctx, Profile{Key: "quiet-form", Sampler: Sampler{Kind: samplerDirect, K: 1}, Budget: Budget{MaxOutputTokens: 128}, Composition: CompositionPolicy{SectionCount: 3, MaxRepairRounds: 2}})
+	require.NoError(t, err)
+	doc, err := s.CreateDocument(ctx, Document{Title: "A quiet document", ProfileKey: "quiet-form"}, nil)
+	require.NoError(t, err)
+	require.Len(t, sectionPrompts(fake), 3, "no declared threshold means nothing to repair")
+	require.True(t, coherenceVerdictPassed(doc.Coherence))
+}
+
+func TestSectionPromptStatesContinuityRequirement(t *testing.T) {
+	s, fake := newTestService(t)
+	ctx := context.Background()
+	_, err := s.CreateProfile(ctx, Profile{Key: "cont-form", Sampler: Sampler{Kind: samplerDirect, K: 1}, Budget: Budget{MaxOutputTokens: 128}, Composition: CompositionPolicy{SectionCount: 3}})
+	require.NoError(t, err)
+	_, err = s.CreateDocument(ctx, Document{Title: "A progressing document", ProfileKey: "cont-form"}, nil)
+	require.NoError(t, err)
+
+	sectionQueries := sectionPrompts(fake)
+	require.Len(t, sectionQueries, 3)
+	require.Contains(t, sectionQueries[0], "this is the opening section")
+	require.Contains(t, sectionQueries[1], "Do not restate", "prior text without an instruction produces paraphrase, not progression")
+}
+
+func TestContinuationPolicySelectsLeastRedundantCandidate(t *testing.T) {
+	prior := "Server owned runs survive the caller because test genie takes ownership when the command returns."
+	candidates := []Candidate{
+		{ID: "echo", Text: prior, Eligibility: Eligibility{Eligible: true}},
+		{ID: "advance", Text: "Operators reconnect later and inspect the recorded identifier without repeating hours of work.", Eligibility: Eligibility{Eligible: true}},
+	}
+	selected := choose(candidates, policyContinuation, nil, 1, &SelectionContext{PriorText: []string{prior}})
+	require.NotNil(t, selected)
+	require.Equal(t, "advance", selected.ID, "continuation must not select the candidate that repeats committed text")
+}
+
+func TestContinuationPolicyPrefersTheTargetLength(t *testing.T) {
+	short := Candidate{ID: "short", Text: "Too brief.", Measurements: textmetrics.Metrics{WordCount: 10}, Eligibility: Eligibility{Eligible: true}}
+	right := Candidate{ID: "right", Text: "About the right size for the cell.", Measurements: textmetrics.Metrics{WordCount: 100}, Eligibility: Eligibility{Eligible: true}}
+	selected := choose([]Candidate{short, right}, policyContinuation, nil, 1, &SelectionContext{TargetWords: 100})
+	require.NotNil(t, selected)
+	require.Equal(t, "right", selected.ID)
+}
+
+func TestContinuationPolicyIgnoresVerbalizedHint(t *testing.T) {
+	// The hint is uncalibrated, so it must not become a selection signal by the
+	// back door when a new policy is added.
+	first := Candidate{ID: "first", Text: "One distinct passage.", VerbalizedHint: &VerbalizedHint{Ordinal: 1}, Eligibility: Eligibility{Eligible: true}}
+	second := Candidate{ID: "second", Text: "One distinct passage.", VerbalizedHint: &VerbalizedHint{Ordinal: 9}, Eligibility: Eligibility{Eligible: true}}
+	selected := choose([]Candidate{first, second}, policyContinuation, nil, 1, &SelectionContext{})
+	require.NotNil(t, selected)
+	require.Equal(t, "first", selected.ID, "identical candidates must resolve by order, never by hint rank")
+}
+
+func TestResolveSectionCountDerivesFromWordBudget(t *testing.T) {
+	profile := Profile{Composition: CompositionPolicy{TargetSectionWords: 350}}
+	require.Equal(t, 3, resolveSectionCount(Document{}, profile, 900), "a short article floors at the minimum section count")
+	require.Equal(t, 6, resolveSectionCount(Document{}, profile, 2000), "a longer article earns more sections rather than longer ones")
+	require.Equal(t, 4, resolveSectionCount(Document{SectionCount: 4}, profile, 2000), "an explicit document override wins")
+	require.Equal(t, 5, resolveSectionCount(Document{}, Profile{Composition: CompositionPolicy{SectionCount: 5}}, 900), "an explicit profile count wins over derivation")
+	require.Equal(t, defaultMaxSections, resolveSectionCount(Document{}, profile, 100000), "derivation stays bounded")
+}
+
+func TestSectionWordBandGivesAFloorAndACeiling(t *testing.T) {
+	minWords, maxWords := sectionWordBand(Profile{}, 400)
+	require.Equal(t, 300, minWords)
+	require.Equal(t, 500, maxWords)
+	require.Greater(t, minWords, 0, "a zero floor is what allowed a 1100-word outline to be satisfied by 490 words")
+
+	tight, ceiling := sectionWordBand(Profile{Composition: CompositionPolicy{SectionWordTolerance: 0.1}}, 400)
+	require.Equal(t, 360, tight)
+	require.Equal(t, 440, ceiling)
+}
+
+func TestSectionUndershootIsIneligible(t *testing.T) {
+	metrics := textmetrics.Metrics{WordCount: 120, SentenceCount: 6}
+	eligibility := gate(metrics, Constraints{MinWords: 300, MaxWords: 500}, "some prose")
+	require.False(t, eligibility.Eligible)
+	require.Equal(t, "min_words:300", eligibility.Reason)
+}
+
+func TestDecodeOutlineHonoursExpectedCount(t *testing.T) {
+	three := `[{"intent":"a","summary":"a","target_words":10},{"intent":"b","summary":"b","target_words":10},{"intent":"c","summary":"c","target_words":10}]`
+	_, err := decodeOutline(three, 4, 6)
+	require.ErrorIs(t, err, ErrMalformedOutline, "an outline below the declared floor is malformed")
+	_, err = decodeOutline(three, 1, 2)
+	require.ErrorIs(t, err, ErrMalformedOutline, "an outline above the declared ceiling is malformed")
+
+	// Inside the band the exact count is the model's to choose: section count is
+	// a policy range, and demanding one number turned an ordinary outline into a
+	// hard failure that no retry could recover.
+	outline, err := decodeOutline(three, 2, 5)
+	require.NoError(t, err)
+	require.Len(t, outline, 3)
+}
+
+func TestOutlineSchemaDoesNotPinASectionCount(t *testing.T) {
+	require.Contains(t, outlineSchema, `"type":"array"`, "an object schema with section_1..section_3 as required properties pinned every document to three sections")
+	require.NotContains(t, outlineSchema, "section_1")
+	// The gateway refuses minItems/maxItems as outside its enforceable subset
+	// rather than ignoring them, so a schema carrying them fails the request
+	// outright. The band belongs in the instruction and the decoder.
+	require.NotContains(t, outlineSchema, "minItems")
+	require.NotContains(t, outlineSchema, "maxItems")
+}
+
+func TestResolveSectionPlanIsExactOnlyWhenDeclared(t *testing.T) {
+	want, low, high := resolveSectionPlan(Document{}, Profile{Composition: CompositionPolicy{TargetSectionWords: 350, MinSections: 4, MaxSections: 7}}, 1400)
+	require.Equal(t, 4, want)
+	require.Equal(t, 4, low)
+	require.Equal(t, 7, high)
+
+	want, low, high = resolveSectionPlan(Document{SectionCount: 5}, Profile{}, 1400)
+	require.Equal(t, 5, want)
+	require.Equal(t, 5, low, "an explicitly declared count stays exact")
+	require.Equal(t, 5, high)
+}
+
+func TestDecodeOutlineRecoversKeyedObjectInOrder(t *testing.T) {
+	keyed := `{"section_2":{"intent":"b","summary":"b","target_words":10},"section_1":{"intent":"a","summary":"a","target_words":10}}`
+	outline, err := decodeOutline(keyed, 2, 2)
+	require.NoError(t, err)
+	require.Equal(t, "a", outline[0].Intent, "keyed recovery must order by key, not by JSON member order")
+	require.Equal(t, "b", outline[1].Intent)
+}
+
+func TestRichProseAdmitsStructureThatParagraphBans(t *testing.T) {
+	withList := "Run the suite and wait once.\n- start the run\n- record the identifier"
+	metrics := textmetrics.Analyze(withList, nil)
+	require.False(t, matchesRequiredFormat("paragraph", metrics, withList), "paragraph bans list markers, which is why forcing it banned commands")
+	require.True(t, matchesRequiredFormat("rich_prose", metrics, withList))
+}
+
+func TestSectionRequiredFormatHonoursTheProfile(t *testing.T) {
+	require.Equal(t, "paragraph", sectionRequiredFormat(Profile{}))
+	require.Equal(t, "rich_prose", sectionRequiredFormat(Profile{Composition: CompositionPolicy{SectionFormat: "rich_prose"}}))
+}
+
+func TestSectionSelectionPolicyDefaultsToContinuation(t *testing.T) {
+	require.Equal(t, policyContinuation, sectionSelectionPolicy(Profile{SelectionPolicy: "threshold_then_rarest"}), "sections must not inherit the ideation policy")
+	require.Equal(t, "take_first", sectionSelectionPolicy(Profile{Composition: CompositionPolicy{SectionSelectionPolicy: "take_first"}}))
+}
+
+func TestMostRedundantSectionNamesTheRepeater(t *testing.T) {
+	texts := []string{
+		"The runner takes ownership of the suite the moment the command returns.",
+		"Operators reconnect later and read the recorded evidence at their leisure.",
+		"The runner takes ownership of the suite the moment the command returns.",
+	}
+	worst := mostRedundantSection(texts)
+	require.Contains(t, []int{0, 2}, worst, "the duplicated pair must be named, not the distinct section")
+	require.Equal(t, -1, mostRedundantSection([]string{"only one"}))
+}
+
+func TestCoherenceVerdictPassedRefusesAnAbsentVerdict(t *testing.T) {
+	require.False(t, coherenceVerdictPassed(nil), "an unassembled document must not be treated as coherent")
+	require.False(t, coherenceVerdictPassed(map[string]any{"verdict": map[string]any{"coherent": false}}))
+	require.True(t, coherenceVerdictPassed(map[string]any{"verdict": map[string]any{"coherent": true}}))
+}
+
+func TestAssemblyReportsSemanticMeasurementAsUnavailableRatherThanPassing(t *testing.T) {
+	s, _ := newTestService(t)
+	ctx := context.Background()
+	_, err := s.CreateProfile(ctx, Profile{Key: "sem-form", Sampler: Sampler{Kind: samplerDirect, K: 1}, Budget: Budget{MaxOutputTokens: 128}, Composition: CompositionPolicy{SectionCount: 3}, Coherence: CoherenceThresholds{MaxSemanticSectionRepetition: 0.5}})
+	require.NoError(t, err)
+	doc, err := s.CreateDocument(ctx, Document{Title: "A document without embeddings", ProfileKey: "sem-form"}, nil)
+	require.NoError(t, err)
+
+	coherence, ok := doc.Coherence.(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, false, coherence["semantic_measured"], "a gateway with no embedding surface must say so")
+	require.Contains(t, coherence["semantic_unavailable"], "embedding_unavailable")
+	require.NotContains(t, coherence, "semantic_section_repetition", "an unmeasured value must not be published as a number")
+}
+
+// sectionPrompts isolates the section-generation calls. The summarize path also
+// crosses the gateway, so "not the outline call" is not the same thing as "a
+// section call".
+func sectionPrompts(fake *fakeGateway) []string {
+	var out []string
+	for _, call := range fake.calls {
+		if strings.Contains(call.Query, "HARD SECTION LENGTH") {
+			out = append(out, call.Query)
+		}
+	}
+	return out
+}
+
+func TestAssembledDocumentReportsItsOwnProvenance(t *testing.T) {
+	s, _ := newTestService(t)
+	ctx := context.Background()
+	_, err := s.CreateProfile(ctx, Profile{Key: "prov-form", Sampler: Sampler{Kind: samplerDirect, K: 1}, Budget: Budget{MaxOutputTokens: 128}, Composition: CompositionPolicy{SectionCount: 3}})
+	require.NoError(t, err)
+	doc, err := s.CreateDocument(ctx, Document{Title: "A costed document", ProfileKey: "prov-form"}, nil)
+	require.NoError(t, err)
+
+	// A long-form run costs an outline call plus one call per section. Reading a
+	// standalone generate call's accounting as the document's reported a
+	// different request entirely.
+	require.Equal(t, 3, doc.Provenance.SectionCount)
+	require.Greater(t, doc.Provenance.WordCount, 100)
+	require.Greater(t, doc.Provenance.TotalCostMicros, int64(0))
+	require.Equal(t, []string{"fake"}, doc.Provenance.Providers)
+	require.Equal(t, []string{"fake-model"}, doc.Provenance.Models)
+}
+
+func TestSectionSamplerDefaultsToDirectDraws(t *testing.T) {
+	kind, count := sectionSampler(Profile{Sampler: Sampler{Kind: samplerVSStandard, K: 5}})
+	require.Equal(t, samplerDirect, kind, "sections must not inherit the outline's verbalized sampler")
+	require.Equal(t, defaultSectionCandidates, count, "continuation still needs a set to choose from")
+
+	kind, count = sectionSampler(Profile{Composition: CompositionPolicy{SectionSamplerKind: samplerVSStandard, SectionCandidates: 4}})
+	require.Equal(t, samplerVSStandard, kind)
+	require.Equal(t, 4, count)
+}
+
+func TestEligibleCandidateNeverReturnsARejectedCandidate(t *testing.T) {
+	// The previous fallback took candidates[0] whenever the policy declined to
+	// choose, which committed text the constraint gate had already rejected.
+	rejected := Candidate{ID: "short", Eligibility: Eligibility{Eligible: false, Reason: "min_words:300"}}
+	ok := Candidate{ID: "sound", Eligibility: Eligibility{Eligible: true}}
+	require.Nil(t, eligibleCandidate(GenerateResponse{Candidates: []Candidate{rejected}}))
+	require.Equal(t, "sound", eligibleCandidate(GenerateResponse{Candidates: []Candidate{rejected, ok}}).ID)
+	require.Equal(t, "sound", eligibleCandidate(GenerateResponse{Selected: &ok, Candidates: []Candidate{rejected, ok}}).ID)
+	require.Equal(t, "sound", eligibleCandidate(GenerateResponse{Selected: &rejected, Candidates: []Candidate{rejected, ok}}).ID, "an ineligible policy choice must not be committed")
+}
+
+func TestClosestMissReportsTheLongestDraw(t *testing.T) {
+	candidates := []Candidate{
+		{Measurements: textmetrics.Metrics{WordCount: 120}},
+		{Measurements: textmetrics.Metrics{WordCount: 181}},
+		{Measurements: textmetrics.Metrics{WordCount: 96}},
+	}
+	require.Equal(t, 181, closestMiss(candidates))
+	require.Equal(t, 0, closestMiss(nil))
+}
+
+func TestSectionOutputCapLeavesRoomForInvisibleTokens(t *testing.T) {
+	// Twice the word ceiling was wrong by roughly an order of magnitude against
+	// a reasoning model, whose reasoning tokens are charged to the same budget:
+	// a 312-word section drew a 624-token cap and came back as a 12-word
+	// truncated fragment.
+	require.Equal(t, defaultSectionOutputFloor, sectionOutputCap(Profile{}, 312))
+	require.Equal(t, 6000, sectionOutputCap(Profile{}, 1000))
+	require.Equal(t, 900, sectionOutputCap(Profile{Composition: CompositionPolicy{SectionMaxOutputTokens: 900}}, 312), "an explicit declaration wins")
+	require.GreaterOrEqual(t, sectionOutputCap(Profile{}, 312), 312*2, "the cap must never fall below the prose it is meant to hold")
+}
+
+func TestGenerateWithProfileCarriesTheSelectionPolicy(t *testing.T) {
+	s, _ := newTestService(t)
+	ctx := context.Background()
+	_, err := s.CreateProfile(ctx, Profile{Key: "carry", Sampler: Sampler{Kind: samplerDirect, K: 2}, SelectionPolicy: "coverage", Budget: Budget{MaxOutputTokens: 256}})
+	require.NoError(t, err)
+	stored, err := s.latestProfile(ctx, "carry")
+	require.NoError(t, err)
+
+	// The section path computes a policy and passes it in. Dropping it here
+	// meant the stored ideation policy was used on every section instead.
+	stored.SelectionPolicy = policyContinuation
+	out, err := s.generateWithProfile(ctx, GenerateRequest{ProfileKey: "carry", Query: "a query", IncludeCandidates: true}, stored)
+	require.NoError(t, err)
+	require.NotNil(t, out.Selected, "coverage returns no single selection; continuation must actually have been applied")
+}
+
+func TestDegenerateEmbeddingIsNotAMeasurement(t *testing.T) {
+	svc := &Service{gateway: stubEmbedder{dimension: 3}}
+	_, _, err := svc.semanticSectionRepetition(context.Background(), []string{"one", "two"})
+	require.ErrorContains(t, err, "embedding_degenerate", "a three-component embedding cannot support a similarity threshold")
+
+	svc = &Service{gateway: stubEmbedder{dimension: minimumEmbeddingDimension}}
+	_, basis, err := svc.semanticSectionRepetition(context.Background(), []string{"one", "two"})
+	require.NoError(t, err)
+	require.Contains(t, basis, "semantic cosine similarity")
+}
+
+type stubEmbedder struct{ dimension int }
+
+func (stubEmbedder) Generate(context.Context, GatewayRequest) ([]GatewayCandidate, error) {
+	return nil, errors.New("not used")
+}
+
+func (s stubEmbedder) Embed(_ context.Context, req EmbeddingRequest) (EmbeddingResponse, error) {
+	out := EmbeddingResponse{Dimension: s.dimension}
+	for i := range req.Texts {
+		vector := make([]float64, s.dimension)
+		for j := range vector {
+			vector[j] = float64((i + j) % 7)
+		}
+		out.Vectors = append(out.Vectors, vector)
+	}
+	return out, nil
 }
