@@ -1,0 +1,111 @@
+{
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-index",
+  "contract": {
+    "kind": "scenario-experience",
+    "schema": "scenario-experience-spec/v1"
+  },
+  "schemaVersion": "1.0.0",
+  "scenario": "token-economy",
+  "description": "Experience contract for Token Economy. The scenario serves two audiences with opposite density needs from one token contract: a dense, evidence-first minter console, and a sparse, large-target holder view that may be used by a child. Pages are marked draft while the UI is authored ahead of the build; machine-tier claims are added as stable selectors land.",
+  "pages": [
+    {
+      "id": "holder-home",
+      "path": "pages/holder-home.json",
+      "title": "My Balance",
+      "status": "draft"
+    },
+    {
+      "id": "holder-rewards",
+      "path": "pages/holder-rewards.json",
+      "title": "What I Can Get",
+      "status": "draft"
+    },
+    {
+      "id": "holder-history",
+      "path": "pages/holder-history.json",
+      "title": "My Activity",
+      "status": "draft"
+    },
+    {
+      "id": "dashboard",
+      "path": "pages/dashboard.json",
+      "title": "Economy Overview",
+      "status": "draft"
+    },
+    {
+      "id": "approvals",
+      "path": "pages/approvals.json",
+      "title": "Approvals",
+      "status": "draft"
+    },
+    {
+      "id": "token-types",
+      "path": "pages/token-types.json",
+      "title": "Token Types",
+      "status": "draft"
+    },
+    {
+      "id": "holders-admin",
+      "path": "pages/holders-admin.json",
+      "title": "Holders",
+      "status": "draft"
+    },
+    {
+      "id": "catalog-admin",
+      "path": "pages/catalog-admin.json",
+      "title": "Rewards Catalog",
+      "status": "draft"
+    },
+    {
+      "id": "grants-admin",
+      "path": "pages/grants-admin.json",
+      "title": "Grants & Rules",
+      "status": "draft"
+    },
+    {
+      "id": "journal",
+      "path": "pages/journal.json",
+      "title": "Journal",
+      "status": "draft"
+    },
+    {
+      "id": "earning-admin",
+      "path": "pages/earning-admin.json",
+      "title": "Earning",
+      "status": "draft"
+    },
+    {
+      "id": "settings",
+      "path": "pages/settings.json",
+      "title": "Settings",
+      "status": "draft"
+    },
+    {
+      "id": "notes",
+      "path": "pages/notes.json",
+      "title": "Notes",
+      "status": "active"
+    }
+  ],
+  "journeys": [
+    {
+      "id": "earn-to-redeem",
+      "path": "journeys/earn-to-redeem.json",
+      "title": "Earn to redeem — the core loop",
+      "status": "draft"
+    },
+    {
+      "id": "set-up-an-economy",
+      "path": "journeys/set-up-an-economy.json",
+      "title": "Set up an economy from nothing",
+      "status": "draft"
+    },
+    {
+      "id": "audit-a-mistake",
+      "path": "journeys/audit-a-mistake.json",
+      "title": "Correct a mistake and keep the record",
+      "status": "draft"
+    }
+  ]
+}

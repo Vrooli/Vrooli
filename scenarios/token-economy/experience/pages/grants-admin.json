@@ -1,0 +1,149 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "grants-admin",
+    "title": "Grants & Rules",
+    "routes": [
+      "/grants"
+    ],
+    "purpose": "Let the minter issue tokens and declare the rules that outlive the issuance, in the shape that keeps this economy congruent with real spend authority.",
+    "prd_refs": [
+      "OT-P0-002",
+      "OT-P0-003"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "What a grant may be redeemed for, and until when, is authored with the grant rather than after it."
+    },
+    {
+      "statement": "A rule's effect is stated in plain language before it is saved.",
+      "notes": "A minter who cannot predict what a rule will refuse will write rules that surprise a child."
+    },
+    {
+      "statement": "Issuing a grant records why, because the reason reaches the holder's history."
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "Grants and rules listed."
+    },
+    {
+      "id": "loading",
+      "description": "Grants are being fetched."
+    },
+    {
+      "id": "empty",
+      "description": "No grants yet; the page explains that earning adapters also produce grants."
+    },
+    {
+      "id": "saving",
+      "description": "A grant is being issued."
+    },
+    {
+      "id": "success",
+      "description": "Grant issued and visible in the holder's history."
+    },
+    {
+      "id": "validation-error",
+      "description": "Grant or rule rejected, naming the constraint."
+    },
+    {
+      "id": "request-error",
+      "description": "Grant list or issue failed."
+    },
+    {
+      "id": "partial",
+      "description": "Grants loaded but attached rules failed to resolve; grants render with rules marked unavailable rather than appearing rule-free."
+    },
+    {
+      "id": "stale",
+      "description": "Showing cached grants after a failed refresh, labelled as such so an expired grant is not read as active."
+    }
+  ],
+  "elements": [
+    {
+      "id": "grant-table",
+      "role": "table",
+      "name": "Grants",
+      "description": "Each grant with holder, amount, scope and expiry."
+    },
+    {
+      "id": "issue-grant",
+      "role": "button",
+      "name": "Issue grant",
+      "description": "Opens grant issuance."
+    },
+    {
+      "id": "rule-editor",
+      "role": "group",
+      "name": "Rules",
+      "description": "Scope, expiry and conditions attached to this grant."
+    },
+    {
+      "id": "rule-preview",
+      "role": "note",
+      "name": "What this rule does",
+      "description": "Plain-language restatement of the rule's effect before saving."
+    },
+    {
+      "id": "grant-reason",
+      "role": "textbox",
+      "name": "Reason",
+      "description": "Why this grant was issued; reaches the holder's history."
+    }
+  ],
+  "claims": [
+    {
+      "id": "rules-authored-with-grant",
+      "type": "element-present",
+      "statement": "Scope and expiry are part of grant issuance rather than a separate later step.",
+      "tier": "aspirational",
+      "elements": [
+        "issue-grant",
+        "rule-editor"
+      ]
+    },
+    {
+      "id": "rule-effect-previewed",
+      "type": "element-present",
+      "statement": "A plain-language restatement of the rule's effect is shown before saving.",
+      "tier": "aspirational",
+      "elements": [
+        "rule-preview"
+      ]
+    },
+    {
+      "id": "reason-required",
+      "type": "affordance-present",
+      "statement": "A grant cannot be issued without a reason.",
+      "tier": "aspirational",
+      "elements": [
+        "issue-grant",
+        "grant-reason"
+      ]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "grant-table": {
+        "testid": "grants-table"
+      },
+      "issue-grant": {
+        "testid": "grants-issue"
+      },
+      "rule-editor": {
+        "testid": "grants-rule-editor"
+      },
+      "rule-preview": {
+        "testid": "grants-rule-preview"
+      },
+      "grant-reason": {
+        "testid": "grants-reason"
+      }
+    }
+  }
+}

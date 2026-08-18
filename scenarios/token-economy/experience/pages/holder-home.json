@@ -1,0 +1,205 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "holder-home",
+    "title": "My Balance",
+    "routes": [
+      "/me"
+    ],
+    "purpose": "Tell a holder what they have, what it is worth to them, and what they did to get it — without showing any of the machinery underneath.",
+    "prd_refs": [
+      "OT-P0-012",
+      "OT-P0-006"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "The current spendable balance is the first thing understood, within one glance and without scrolling.",
+      "notes": "This is the only page in the product where a single number dominates. Everything else is subordinate to it."
+    },
+    {
+      "statement": "The most recent reason the balance changed is visible beside it.",
+      "notes": "A balance without its cause is an assertion; the whole premise of the journal is that a holder can see why."
+    },
+    {
+      "statement": "Reserved balance is distinguishable from spendable balance.",
+      "notes": "A holder saving toward a reward must never be surprised that some of their balance will not spend."
+    },
+    {
+      "statement": "The path to the reward list is obvious and is the single dominant action."
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "Holder has a balance and recent history."
+    },
+    {
+      "id": "loading",
+      "description": "Balance and history are being fetched."
+    },
+    {
+      "id": "empty",
+      "description": "Holder exists but has never earned anything; the page explains how earning happens rather than showing a bare zero."
+    },
+    {
+      "id": "partial",
+      "description": "Balance resolved but history failed; the number is shown with an explicit note that history is unavailable."
+    },
+    {
+      "id": "stale",
+      "description": "Displaying a cached balance after a failed refresh, labelled as such rather than presented as current."
+    },
+    {
+      "id": "request-error",
+      "description": "Balance could not be loaded; the page says so plainly and offers retry."
+    },
+    {
+      "id": "offline",
+      "description": "No connection; cached balance shown with an unambiguous offline indicator."
+    },
+    {
+      "id": "permission-denied",
+      "description": "The authenticated holder does not match the requested holder; no data of any kind is rendered."
+    }
+  ],
+  "elements": [
+    {
+      "id": "balance-total",
+      "role": "status",
+      "name": "Spendable balance",
+      "description": "The dominant number: what this holder can spend right now."
+    },
+    {
+      "id": "balance-reserved",
+      "role": "status",
+      "name": "Reserved balance",
+      "description": "Amount held for a pending redemption or a savings goal."
+    },
+    {
+      "id": "recent-history",
+      "role": "list",
+      "name": "Recent activity",
+      "description": "The last few events with the reason each one happened."
+    },
+    {
+      "id": "go-to-rewards",
+      "role": "link",
+      "name": "See what I can get",
+      "description": "The single dominant action leading to the reward list."
+    },
+    {
+      "id": "token-identity",
+      "role": "img",
+      "name": "Token symbol",
+      "description": "The minter-defined symbol and color that give this economy its identity."
+    }
+  ],
+  "claims": [
+    {
+      "id": "balance-visible-without-scroll",
+      "type": "visible-without-scroll",
+      "statement": "The spendable balance is fully visible without scrolling on a mobile viewport.",
+      "tier": "aspirational",
+      "viewports": [
+        "mobile",
+        "tablet",
+        "desktop"
+      ],
+      "elements": [
+        "balance-total"
+      ]
+    },
+    {
+      "id": "one-dominant-action",
+      "type": "single-dominant-action",
+      "statement": "Exactly one primary action is offered on this page: going to the reward list.",
+      "tier": "aspirational",
+      "elements": [
+        "go-to-rewards"
+      ]
+    },
+    {
+      "id": "reading-order-balance-first",
+      "type": "reading-order",
+      "statement": "Balance is read before reserved balance, which is read before recent activity.",
+      "tier": "aspirational",
+      "elements": [
+        "balance-total",
+        "balance-reserved",
+        "recent-history"
+      ],
+      "locales": [
+        "en"
+      ]
+    },
+    {
+      "id": "empty-state-teaches",
+      "type": "state-covered",
+      "statement": "The empty state explains how tokens are earned instead of rendering a bare zero.",
+      "tier": "aspirational",
+      "states": [
+        "empty"
+      ]
+    },
+    {
+      "id": "stale-is-distinct",
+      "type": "state-distinct",
+      "statement": "A stale cached balance is visually and textually distinguishable from a freshly loaded one.",
+      "tier": "aspirational",
+      "states": [
+        "default",
+        "stale"
+      ]
+    },
+    {
+      "id": "no-color-only-state",
+      "type": "affordance-present",
+      "statement": "Reserved versus spendable is conveyed by label and shape, never by color alone.",
+      "tier": "aspirational",
+      "elements": [
+        "balance-total",
+        "balance-reserved"
+      ]
+    },
+    {
+      "id": "keyboard-complete",
+      "type": "keyboard-reachable",
+      "statement": "Every interactive element is reachable and operable by keyboard alone.",
+      "tier": "aspirational",
+      "elements": [
+        "go-to-rewards"
+      ]
+    },
+    {
+      "id": "permission-denied-leaks-nothing",
+      "type": "state-covered",
+      "statement": "The permission-denied state renders no balance, no name, and no indication whether the requested holder exists.",
+      "tier": "aspirational",
+      "states": [
+        "permission-denied"
+      ]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "balance-total": {
+        "testid": "holder-balance-total"
+      },
+      "balance-reserved": {
+        "testid": "holder-balance-reserved"
+      },
+      "recent-history": {
+        "testid": "holder-recent-history"
+      },
+      "go-to-rewards": {
+        "testid": "holder-go-to-rewards"
+      },
+      "token-identity": {
+        "testid": "holder-token-identity"
+      }
+    }
+  }
+}

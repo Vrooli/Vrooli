@@ -1,0 +1,278 @@
+{
+  "_metadata": {
+    "description": "P1 requirements — the capabilities that turn a working earn-to-redeem loop into a household product, opened only after one real household has run the P0 loop.",
+    "module": "P1-targets",
+    "priority": "P1",
+    "auto_sync_enabled": true,
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "TKE-P1-001",
+      "title": "The system should support non-fungible tokens sharing the mint, grant and journal spine.",
+      "status": "planned",
+      "prd_ref": "OT-P1-001",
+      "category": "mints.nonfungible",
+      "criticality": "P1",
+      "description": "Badges, one-off rewards and collectibles are a token class distinguished by indivisibility and uniqueness, not a parallel system. They should reuse the type contract, the grant contract, the journal and the holder isolation boundary; only quantity semantics differ. A non-fungible token should be displayable in the holder view as an owned thing rather than as a balance of one.",
+      "tags": [
+        "mints",
+        "nonfungible",
+        "product"
+      ],
+      "depends_on": [
+        "TKE-P0-001",
+        "TKE-P0-004"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned test file: `api/internal/mints/nonfungible_test.go`. Uniqueness and indivisibility enforced; grant and journal paths shared with fungible types. Tag [REQ:TKE-P1-001]."
+        }
+      ]
+    },
+    {
+      "id": "TKE-P1-002",
+      "title": "The system should evaluate declared rule programs that mint or release automatically, and should not execute caller-supplied code.",
+      "status": "planned",
+      "prd_ref": "OT-P1-002",
+      "category": "grants.rules",
+      "criticality": "P1",
+      "description": "A rule program is a declared condition — a streak reached, a date arrived, a quantity accumulated — evaluated by the engine against journal state. It is the smart-contract shape with no chain underneath. Conditions are chosen from a closed vocabulary; arbitrary scripts are never accepted, because a household economy that can execute caller code is a remote-execution surface wearing a reward-app costume. Every automatic mint or release should be journaled with the rule that caused it, so an unexpected balance is always explainable.",
+      "tags": [
+        "grants",
+        "rules",
+        "automation",
+        "security"
+      ],
+      "depends_on": [
+        "TKE-P0-003",
+        "TKE-P0-011"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned test file: `api/internal/grants/programs_test.go`. Closed condition vocabulary; no eval path; automatic events carry the causing rule. Tag [REQ:TKE-P1-002]."
+        }
+      ]
+    },
+    {
+      "id": "TKE-P1-003",
+      "title": "The system should issue recurring grants on a declared schedule with a one-action cancel.",
+      "status": "planned",
+      "prd_ref": "OT-P1-003",
+      "category": "grants.recurring",
+      "criticality": "P1",
+      "description": "A weekly allowance should be a standing grant with a visible next-issue date, not a reminder someone has to act on. The standing grant is the same object as a one-off grant plus a schedule, so rules, expiry and provenance carry over unchanged. Cancelling should stop future issuance without reversing past ones. A missed window — the instance was off — should be resolved by a declared catch-up policy rather than silently skipped or silently multiplied.",
+      "tags": [
+        "grants",
+        "recurring",
+        "product"
+      ],
+      "depends_on": [
+        "TKE-P0-002"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned test file: `api/internal/grants/schedule_test.go`. Next-issue computation, cancel semantics, and catch-up policy across a missed window. Tag [REQ:TKE-P1-003]."
+        }
+      ]
+    },
+    {
+      "id": "TKE-P1-004",
+      "title": "The system should permit holder-to-holder transfer only where minter policy allows it for that token type.",
+      "status": "planned",
+      "prd_ref": "OT-P1-004",
+      "category": "holders.transfer",
+      "criticality": "P1",
+      "description": "Transfer is a token-type policy: permitted, restricted to named pairs, or forbidden. It should reuse the grant contract on the receiving side and the redemption settlement path on the sending side, so idempotency and journaling come for free. A transfer should never cross the multi-holder isolation boundary in the read direction — the sender learns that it succeeded, not what the recipient's balance became.",
+      "tags": [
+        "holders",
+        "transfer",
+        "product"
+      ],
+      "depends_on": [
+        "TKE-P0-006",
+        "TKE-P0-009"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned test file: `api/internal/holders/transfer_test.go`. Policy enforcement per type; sender learns success only; both sides journaled. Tag [REQ:TKE-P1-004]."
+        }
+      ]
+    },
+    {
+      "id": "TKE-P1-005",
+      "title": "A holder should be able to reserve balance toward a catalog entry, and the reserved portion should be unspendable until released.",
+      "status": "planned",
+      "prd_ref": "OT-P1-005",
+      "category": "redemption.goals",
+      "criticality": "P1",
+      "description": "Saving is the behavior a reward economy most wants to teach, and it needs to be mechanically real rather than a progress bar. A reservation reduces spendable balance, appears in history, and is released by the holder or consumed by the redemption it targeted. Reservations should reuse the same reservation mechanism that gated redemptions already use, not introduce a second one.",
+      "tags": [
+        "redemption",
+        "goals",
+        "product",
+        "ux"
+      ],
+      "depends_on": [
+        "TKE-P0-013"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned test file: `api/internal/redemption/reservation_test.go`. Reserved balance unspendable; release and consume paths; shared mechanism with gated redemption. Tag [REQ:TKE-P1-005]."
+        }
+      ]
+    },
+    {
+      "id": "TKE-P1-006",
+      "title": "The console should present a minter dashboard and a holder view with distinct information density.",
+      "status": "planned",
+      "prd_ref": "OT-P1-006",
+      "category": "ui.console",
+      "criticality": "P1",
+      "description": "Two audiences, one product. The minter dashboard is operational: every holder, the pending-approval queue, economy health, and the journal. The holder view is sparse, large-target and few-decision, legible to a child, and never shows the machinery. They share tokens, type scale and status semantics but not density or information architecture. Both should meet the accessibility floor, with the holder view carrying the harder commitment described in the PRD.",
+      "tags": [
+        "ui",
+        "console",
+        "ux",
+        "accessibility"
+      ],
+      "depends_on": [
+        "TKE-P0-012",
+        "TKE-P0-013"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned test file: `ui/src/features/console/__tests__/MinterDashboard.test.tsx`. Queue, holder list and economy summary render with correct empty and error states. Tag [REQ:TKE-P1-006]."
+        },
+        {
+          "type": "test",
+          "phase": "business",
+          "status": "planned",
+          "notes": "Planned test file: `bas/cases/two-audience-console.json`. Minter and holder sessions each reach only their own surface. Tag [REQ:TKE-P1-006]."
+        }
+      ]
+    },
+    {
+      "id": "TKE-P1-007",
+      "title": "The system should support multiple token types on one instance without balance or catalog leakage between them.",
+      "status": "planned",
+      "prd_ref": "OT-P1-007",
+      "category": "mints.multitype",
+      "criticality": "P1",
+      "description": "One household may run chore tokens and screen-time tokens with different rules, catalogs and holders. Balances, catalog entries, grants and rules should all be type-scoped, and a redemption priced in one type should never be satisfiable by another. Type scoping should be enforced in the repository layer for the same reason holder isolation is.",
+      "tags": [
+        "mints",
+        "multitype",
+        "isolation"
+      ],
+      "depends_on": [
+        "TKE-P0-001",
+        "TKE-P0-008"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned test file: `api/internal/mints/multitype_test.go`. Cross-type redemption refused; catalog and balance queries type-scoped at the repository. Tag [REQ:TKE-P1-007]."
+        }
+      ]
+    },
+    {
+      "id": "TKE-P1-008",
+      "title": "A grant should be able to expire or decay on a declared schedule.",
+      "status": "planned",
+      "prd_ref": "OT-P1-008",
+      "category": "grants.expiry",
+      "criticality": "P1",
+      "description": "Some economies want use-it-or-lose-it pressure. Expiry and decay should be evaluated lazily at read time and materialized as journal events, so a balance is never silently different from its history and an offline instance does not lose events. A holder should see an upcoming expiry before it happens, because a balance that vanishes without warning destroys the trust the journal exists to build.",
+      "tags": [
+        "grants",
+        "expiry",
+        "product"
+      ],
+      "depends_on": [
+        "TKE-P0-004",
+        "TKE-P0-012"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned test file: `api/internal/grants/expiry_test.go`. Lazy evaluation materializes events; offline gaps produce correct totals; upcoming expiry is queryable. Tag [REQ:TKE-P1-008]."
+        }
+      ]
+    },
+    {
+      "id": "TKE-P1-009",
+      "title": "One real Vrooli scenario should be wired as an earning surface end to end.",
+      "status": "planned",
+      "prd_ref": "OT-P1-009",
+      "category": "earning.adapter",
+      "criticality": "P1",
+      "description": "The adapter contract is only proven when something that is not a test double satisfies it. One concrete scenario should earn tokens through the public contract, with no special-casing in this scenario's code, demonstrating the compound-value claim that any Vrooli scenario can become an earning surface. The chosen scenario and the reason for choosing it should be recorded in docs/concepts/INTEGRATIONS.md.",
+      "tags": [
+        "earning",
+        "adapter",
+        "ecosystem",
+        "compound-value"
+      ],
+      "depends_on": [
+        "TKE-P0-007"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned test file: `api/internal/earning/live_adapter_test.go`. End-to-end earn from a real scenario through the public contract with no scenario-specific branch. Tag [REQ:TKE-P1-009]."
+        }
+      ]
+    },
+    {
+      "id": "TKE-P1-010",
+      "title": "The system should export a period of the journal in a stable machine-readable shape.",
+      "status": "planned",
+      "prd_ref": "OT-P1-010",
+      "category": "journal.export",
+      "criticality": "P1",
+      "description": "A minter or a holder should be able to take their history with them, in a shape whose event semantics match the API rather than a flattened summary. Export should respect the isolation boundary — a holder exports only their own events. The format should be versioned so a later schema change does not silently invalidate an archive.",
+      "tags": [
+        "journal",
+        "export",
+        "portability"
+      ],
+      "depends_on": [
+        "TKE-P0-006",
+        "TKE-P0-010"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned test file: `api/internal/journal/export_test.go`. Round-trip fidelity against API event semantics; holder export scoped; format carries a version. Tag [REQ:TKE-P1-010]."
+        }
+      ]
+    }
+  ]
+}
