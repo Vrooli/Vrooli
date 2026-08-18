@@ -12,6 +12,7 @@ import (
 
 	"github.com/vrooli/binaryfetch"
 	repocontract "github.com/vrooli/repo-contract-go"
+	_ "github.com/vrooli/vrooli/internal/acquisition" // register the caller-owned tar.zst archive decoder
 	"github.com/vrooli/vrooli/internal/cliinstall"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
@@ -131,7 +132,7 @@ func (h toolHandler) installStrategy(host hostreqkit.Host) toolInstallStrategy {
 	if h.manifest.SourceType() == "package" {
 		return toolInstallPackage
 	}
-	if _, ok := h.manifest.Source.TargetFor(host.OS, runtimeArch()); ok {
+	if _, ok := hostreqkit.TargetFor(h.manifest.Acquisition, host.OS, runtimeArch()); ok {
 		return toolInstallFetch
 	}
 	if strings.TrimSpace(h.manifest.PackageNameForHost(host)) != "" {
@@ -246,7 +247,7 @@ func (h toolHandler) inspectFetch(host hostreqkit.Host, requirement hostreqspec.
 			// PATH. The source-installed launcher is deliberately preferred on
 			// subsequent inspection, so this does not keep selecting the stale
 			// system package forever.
-			if _, targetAvailable := h.manifest.Source.TargetFor(host.OS, runtimeArch()); targetAvailable {
+			if _, targetAvailable := hostreqkit.TargetFor(h.manifest.Acquisition, host.OS, runtimeArch()); targetAvailable {
 				status.InstallSupported = true
 			}
 			return status
@@ -257,7 +258,7 @@ func (h toolHandler) inspectFetch(host hostreqkit.Host, requirement hostreqspec.
 		return status
 	}
 
-	target, ok := h.manifest.Source.TargetFor(host.OS, runtimeArch())
+	target, ok := hostreqkit.TargetFor(h.manifest.Acquisition, host.OS, runtimeArch())
 	if !ok {
 		status.SupportClass = hostreqkit.SupportUnsupported
 		status.ExecutionState = hostreqkit.ExecutionUnsupported
@@ -279,7 +280,7 @@ func (h toolHandler) inspectFetch(host hostreqkit.Host, requirement hostreqspec.
 
 func (h toolHandler) unsupportedTargetNote(host hostreqkit.Host) string {
 	key := host.OS + "/" + runtimeArch()
-	if reason, ok := h.manifest.Source.UnsupportedFor(host.OS, runtimeArch()); ok {
+	if reason, ok := hostreqkit.UnsupportedFor(h.manifest.Acquisition, host.OS, runtimeArch()); ok {
 		return fmt.Sprintf("%s is explicitly unsupported for %q: %s", key, h.manifest.Name, reason)
 	}
 	return fmt.Sprintf("no %s release target declared for %q", key, h.manifest.Name)
@@ -414,7 +415,7 @@ func (h toolHandler) recordFetchedArtifacts(binDir, command string, dirLayout bo
 // applyFetch installs a url/release tool by fetching+verifying its binary into
 // ~/.vrooli/bin. No sudo: the install location is user-local.
 func (h toolHandler) applyFetch(host hostreqkit.Host, status hostreqkit.ItemStatus, opts hostreqkit.EnsureOptions) (hostreqkit.ItemStatus, error) {
-	target, ok := h.manifest.Source.TargetFor(host.OS, runtimeArch())
+	target, ok := hostreqkit.TargetFor(h.manifest.Acquisition, host.OS, runtimeArch())
 	if !ok {
 		status.SupportClass = hostreqkit.SupportUnsupported
 		status.ExecutionState = hostreqkit.ExecutionUnsupported
@@ -726,10 +727,10 @@ func (h toolHandler) versionSatisfied(status *hostreqkit.ItemStatus) bool {
 // launcher at the correct binary version is not enough when that launcher can
 // inherit an incompatible ambient runtime home.
 func (h toolHandler) runtimeEnvironmentSatisfied(host hostreqkit.Host, status *hostreqkit.ItemStatus) bool {
-	if h.manifest.Source == nil {
+	if h.manifest.Acquisition == nil {
 		return true
 	}
-	target, ok := h.manifest.Source.TargetFor(host.OS, runtimeArch())
+	target, ok := hostreqkit.TargetFor(h.manifest.Acquisition, host.OS, runtimeArch())
 	if !ok || !target.IsDir() {
 		return true
 	}

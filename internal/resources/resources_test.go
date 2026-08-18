@@ -1010,15 +1010,14 @@ func TestProjectPhase5ResourcesAreManifestNative(t *testing.T) {
 	}
 
 	expected := map[string]string{
-		"postgres":        "docker-service",
-		"redis":           "docker-service",
+		"postgres":        "managed-service",
+		"redis":           "managed-service",
 		"qdrant":          "managed-service",
 		"vault":           "managed-service",
 		"minio":           "managed-service",
-		"searxng":         "docker-service",
-		"home-assistant":  "compose-service",
+		"searxng":         "managed-service",
 		"kokoro":          "compose-service",
-		"whisper":         "compose-service",
+		"whisper":         "managed-service",
 		"claude-code":     "external-cli",
 		"codex":           "external-cli",
 		"k6":              "external-cli",
@@ -1056,7 +1055,7 @@ func TestProjectPhase5ResourceManifestsValidate(t *testing.T) {
 	root := projectRootForResourcesTest(t)
 	controller := NewController(root, t.TempDir())
 
-	for _, name := range []string{"postgres", "redis", "qdrant", "vault", "minio", "searxng", "home-assistant", "kokoro", "whisper", "claude-code", "codex", "k6", "opencode", "ollama", "unstructured-io", "gemini", "openrouter", "twilio"} {
+	for _, name := range []string{"postgres", "redis", "qdrant", "vault", "minio", "searxng", "kokoro", "whisper", "claude-code", "codex", "k6", "opencode", "ollama", "unstructured-io", "gemini", "openrouter", "twilio"} {
 		manifest, err := controller.loadResourceManifest(defaultResourceManifestPath(root, name))
 		if err != nil {
 			t.Fatalf("loadResourceManifest(%s): %v", name, err)
@@ -1170,7 +1169,7 @@ func TestProjectMigratedResourcesUseNativeDrivers(t *testing.T) {
 
 	expected := map[string]string{
 		"kokoro":  "compose-service",
-		"whisper": "compose-service",
+		"whisper": "managed-service",
 	}
 
 	for name, driver := range expected {
@@ -1209,12 +1208,11 @@ func TestProjectPhase7ActiveDiscoveryOnlyIncludesManifestBackedResources(t *test
 	}
 }
 
-func TestProjectDockerResourceStatusesUseNativeManifests(t *testing.T) {
+func TestProjectManagedServiceStatusesUseNativeManifests(t *testing.T) {
 	projectRoot := projectRootForResourcesTest(t)
 	root := t.TempDir()
 	home := t.TempDir()
 	controller := NewController(root, home)
-	stateFile := writeFakeDocker(t)
 
 	testscenario.WriteProjectResourceConfig(t, root, "postgres", true)
 	testscenario.WriteProjectResourceConfig(t, root, "redis", true)
@@ -1231,10 +1229,6 @@ func TestProjectDockerResourceStatusesUseNativeManifests(t *testing.T) {
 	redisListener := mustListenTCP(t, "127.0.0.1:"+strconv.Itoa(redisPort))
 	defer redisListener.Close()
 
-	if err := os.WriteFile(stateFile, []byte("running\n"), 0o644); err != nil {
-		t.Fatalf("write fake docker state: %v", err)
-	}
-
 	for _, name := range []string{"postgres", "redis"} {
 		status, err := controller.Status(name, true)
 		if err != nil {
@@ -1243,11 +1237,11 @@ func TestProjectDockerResourceStatusesUseNativeManifests(t *testing.T) {
 		if status.Resource.ControlMode != "manifest-native" {
 			t.Fatalf("%s ControlMode = %q, want manifest-native", name, status.Resource.ControlMode)
 		}
-		if !status.Running {
-			t.Fatalf("%s expected running status", name)
+		if status.Running {
+			t.Fatalf("%s reported running without an acquired managed artifact", name)
 		}
-		if status.Healthy == nil || !*status.Healthy {
-			t.Fatalf("%s Healthy = %#v, want true", name, status.Healthy)
+		if status.StatusCode != StatusCodeUnavailable {
+			t.Fatalf("%s StatusCode = %q, want unavailable", name, status.StatusCode)
 		}
 	}
 }

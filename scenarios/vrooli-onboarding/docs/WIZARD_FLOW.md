@@ -128,6 +128,10 @@ Contract:
   surface; dropping them leaves the operator with an unexplained password box.
 - Save relays the value to the credential authority. The value never appears in
   a response, a log, a URL, an argument, operator state, or browser storage.
+- Descriptors with `provisioning: derived` are read-only status rows. The
+  owning resource or scenario completes them through its own lifecycle after
+  the declared source credential is present; onboarding contains no
+  component-specific bootstrap path.
 - The card shows configured/unconfigured status only. It never reads a value.
 - On a host with no graphical session — a VPS, a CI runner, a headless bundle
   host — no native store exists. The step leads with the encrypted-file-store
@@ -174,7 +178,7 @@ Tools and safeguards derived from every selected scenario and resource manifest.
 ┌─ Host Tools ────────────────────────────────────────────┐
 │  ☑ git           required by 8 scenarios      user  LOW │
 │  ☑ docker        required by all              user  LOW │
-│  ☐ cloudflared   required by deployment-…     user  LOW │
+│  ☐ scenario-tool required by deployment-…     user  LOW │
 ├─ Host Safeguards ───────────────────────────────────────┤
 │  ☑ clock         verifies system clock        none  LOW │
 │  ☐ kernel_config high-performance networking  root  MED │

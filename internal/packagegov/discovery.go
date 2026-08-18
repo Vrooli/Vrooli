@@ -105,101 +105,6 @@ func walkGoMods(root string, fn func(path string) error) error {
 	})
 }
 
-func scanPackageJSON(root string, pkg Package, path string, scope consumerScope) ([]Dependent, []ValidationIssue, error) {
-	manifest, err := readPackageJSON(path)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	var deps []Dependent
-	identifiers := packageModuleIdentifiers(pkg)
-	for _, id := range identifiers {
-		for _, bucket := range []map[string]string{
-			manifest.Dependencies,
-			manifest.DevDependencies,
-			manifest.PeerDependencies,
-			manifest.OptionalDependencies,
-		} {
-			if version, ok := bucket[id]; ok {
-				name, class := classifyConsumer(root, path, scope)
-				deps = append(deps, Dependent{
-					PackageName:      pkg.Name,
-					ConsumerName:     name,
-					ConsumerPath:     consumerRootFromFile(root, path, scope),
-					ConsumerClass:    class,
-					AdoptionMode:     classifyPackageJSONAdoption(pkg, id, version),
-					DependencyFile:   filepath.Clean(path),
-					DependencyTarget: id,
-					Version:          version,
-				})
-			}
-		}
-	}
-
-	var issues []ValidationIssue
-	if scope == scopeScenario {
-		if hasWorkspaceDependency(manifest, identifiers) {
-			name, _ := classifyConsumer(root, path, scope)
-			issues = append(issues, ValidationIssue{
-				Severity:    "error",
-				Code:        "package-no-workspace-deps",
-				Message:     fmt.Sprintf("real scenario %q uses workspace:* for shared package adoption", name),
-				Path:        path,
-				PackageName: pkg.Name,
-			})
-		}
-	}
-	if postinstallTouchesSharedPackages(manifest.Scripts["postinstall"]) {
-		name, _ := classifyConsumer(root, path, scope)
-		issues = append(issues, ValidationIssue{
-			Severity:    "error",
-			Code:        "package-no-unauthorized-postinstall",
-			Message:     fmt.Sprintf("consumer %q still uses postinstall shared-package propagation", name),
-			Path:        path,
-			PackageName: pkg.Name,
-		})
-	}
-
-	return deps, issues, nil
-}
-
-func scanGoMod(root string, pkg Package, path string, scope consumerScope) ([]Dependent, []ValidationIssue, error) {
-	mod, err := readGoMod(path)
-	if err != nil {
-		return nil, nil, err
-	}
-	var deps []Dependent
-	var issues []ValidationIssue
-	for _, id := range packageModuleIdentifiers(pkg) {
-		dep := mod.dependencyFor(path, root, id)
-		if !dep.Present {
-			continue
-		}
-		name, class := classifyGoConsumer(root, path, scope)
-		if !dep.HasGovernedReplace {
-			issues = append(issues, ValidationIssue{
-				Severity:    "error",
-				Code:        "package-go-module-replace-required",
-				Message:     fmt.Sprintf("%s requires a governed local replace for %s", name, id),
-				Path:        filepath.Clean(path),
-				PackageName: pkg.Name,
-			})
-			continue
-		}
-		deps = append(deps, Dependent{
-			PackageName:      pkg.Name,
-			ConsumerName:     name,
-			ConsumerPath:     consumerRootFromFile(root, path, scope),
-			ConsumerClass:    class,
-			AdoptionMode:     ModeGoModuleReplace,
-			DependencyFile:   filepath.Clean(path),
-			DependencyTarget: dep.Target,
-			Version:          dep.Version,
-		})
-	}
-	return deps, issues, nil
-}
-
 func readPackageJSON(path string) (packageJSON, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -262,22 +167,6 @@ func classifyPackageJSONAdoption(pkg Package, target, version string) AdoptionMo
 	default:
 		return ModePublishedSemver
 	}
-}
-
-func hasWorkspaceDependency(pkg packageJSON, ids []string) bool {
-	for _, bucket := range []map[string]string{
-		pkg.Dependencies,
-		pkg.DevDependencies,
-		pkg.PeerDependencies,
-		pkg.OptionalDependencies,
-	} {
-		for _, id := range ids {
-			if strings.TrimSpace(bucket[id]) == "workspace:*" {
-				return true
-			}
-		}
-	}
-	return false
 }
 
 func postinstallTouchesSharedPackages(script string) bool {

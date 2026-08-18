@@ -57,6 +57,14 @@ const (
 	SessionsServiceDismissRecoverableProcedure = "/vrooli.web_console.v1.sessions.SessionsService/DismissRecoverable"
 	// SessionsServiceRecoverProcedure is the fully-qualified name of the SessionsService's Recover RPC.
 	SessionsServiceRecoverProcedure = "/vrooli.web_console.v1.sessions.SessionsService/Recover"
+	// SessionsServiceReopenProcedure is the fully-qualified name of the SessionsService's Reopen RPC.
+	SessionsServiceReopenProcedure = "/vrooli.web_console.v1.sessions.SessionsService/Reopen"
+	// SessionsServiceGetArchiveRetentionProcedure is the fully-qualified name of the SessionsService's
+	// GetArchiveRetention RPC.
+	SessionsServiceGetArchiveRetentionProcedure = "/vrooli.web_console.v1.sessions.SessionsService/GetArchiveRetention"
+	// SessionsServicePruneArchiveProcedure is the fully-qualified name of the SessionsService's
+	// PruneArchive RPC.
+	SessionsServicePruneArchiveProcedure = "/vrooli.web_console.v1.sessions.SessionsService/PruneArchive"
 	// SessionsServiceGetPolicyProcedure is the fully-qualified name of the SessionsService's GetPolicy
 	// RPC.
 	SessionsServiceGetPolicyProcedure = "/vrooli.web_console.v1.sessions.SessionsService/GetPolicy"
@@ -77,6 +85,11 @@ type SessionsServiceClient interface {
 	ListRecoverable(context.Context, *connect.Request[sessions.ListRecoverableRequest]) (*connect.Response[sessions.ListRecoverableResponse], error)
 	DismissRecoverable(context.Context, *connect.Request[sessions.DismissRecoverableRequest]) (*connect.Response[sessions.DismissRecoverableResponse], error)
 	Recover(context.Context, *connect.Request[sessions.RecoverRequest]) (*connect.Response[sessions.RecoverResponse], error)
+	// Reopen is the archive-facing name for the proven Recover workflow. It
+	// preserves the same idempotency header and result contract.
+	Reopen(context.Context, *connect.Request[sessions.ReopenRequest]) (*connect.Response[sessions.ReopenResponse], error)
+	GetArchiveRetention(context.Context, *connect.Request[sessions.GetArchiveRetentionRequest]) (*connect.Response[sessions.GetArchiveRetentionResponse], error)
+	PruneArchive(context.Context, *connect.Request[sessions.PruneArchiveRequest]) (*connect.Response[sessions.PruneArchiveResponse], error)
 	GetPolicy(context.Context, *connect.Request[sessions.GetPolicyRequest]) (*connect.Response[sessions.GetPolicyResponse], error)
 	UpdatePolicy(context.Context, *connect.Request[sessions.UpdatePolicyRequest]) (*connect.Response[sessions.UpdatePolicyResponse], error)
 }
@@ -153,6 +166,24 @@ func NewSessionsServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(sessionsServiceMethods.ByName("Recover")),
 			connect.WithClientOptions(opts...),
 		),
+		reopen: connect.NewClient[sessions.ReopenRequest, sessions.ReopenResponse](
+			httpClient,
+			baseURL+SessionsServiceReopenProcedure,
+			connect.WithSchema(sessionsServiceMethods.ByName("Reopen")),
+			connect.WithClientOptions(opts...),
+		),
+		getArchiveRetention: connect.NewClient[sessions.GetArchiveRetentionRequest, sessions.GetArchiveRetentionResponse](
+			httpClient,
+			baseURL+SessionsServiceGetArchiveRetentionProcedure,
+			connect.WithSchema(sessionsServiceMethods.ByName("GetArchiveRetention")),
+			connect.WithClientOptions(opts...),
+		),
+		pruneArchive: connect.NewClient[sessions.PruneArchiveRequest, sessions.PruneArchiveResponse](
+			httpClient,
+			baseURL+SessionsServicePruneArchiveProcedure,
+			connect.WithSchema(sessionsServiceMethods.ByName("PruneArchive")),
+			connect.WithClientOptions(opts...),
+		),
 		getPolicy: connect.NewClient[sessions.GetPolicyRequest, sessions.GetPolicyResponse](
 			httpClient,
 			baseURL+SessionsServiceGetPolicyProcedure,
@@ -170,18 +201,21 @@ func NewSessionsServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 
 // sessionsServiceClient implements SessionsServiceClient.
 type sessionsServiceClient struct {
-	create             *connect.Client[sessions.CreateRequest, sessions.CreateResponse]
-	list               *connect.Client[sessions.ListRequest, sessions.ListResponse]
-	listArchived       *connect.Client[sessions.ListArchivedRequest, sessions.ListArchivedResponse]
-	get                *connect.Client[sessions.GetRequest, sessions.GetResponse]
-	archive            *connect.Client[sessions.ArchiveRequest, sessions.ArchiveResponse]
-	unarchive          *connect.Client[sessions.UnarchiveRequest, sessions.UnarchiveResponse]
-	delete             *connect.Client[sessions.DeleteRequest, sessions.DeleteResponse]
-	listRecoverable    *connect.Client[sessions.ListRecoverableRequest, sessions.ListRecoverableResponse]
-	dismissRecoverable *connect.Client[sessions.DismissRecoverableRequest, sessions.DismissRecoverableResponse]
-	recover            *connect.Client[sessions.RecoverRequest, sessions.RecoverResponse]
-	getPolicy          *connect.Client[sessions.GetPolicyRequest, sessions.GetPolicyResponse]
-	updatePolicy       *connect.Client[sessions.UpdatePolicyRequest, sessions.UpdatePolicyResponse]
+	create              *connect.Client[sessions.CreateRequest, sessions.CreateResponse]
+	list                *connect.Client[sessions.ListRequest, sessions.ListResponse]
+	listArchived        *connect.Client[sessions.ListArchivedRequest, sessions.ListArchivedResponse]
+	get                 *connect.Client[sessions.GetRequest, sessions.GetResponse]
+	archive             *connect.Client[sessions.ArchiveRequest, sessions.ArchiveResponse]
+	unarchive           *connect.Client[sessions.UnarchiveRequest, sessions.UnarchiveResponse]
+	delete              *connect.Client[sessions.DeleteRequest, sessions.DeleteResponse]
+	listRecoverable     *connect.Client[sessions.ListRecoverableRequest, sessions.ListRecoverableResponse]
+	dismissRecoverable  *connect.Client[sessions.DismissRecoverableRequest, sessions.DismissRecoverableResponse]
+	recover             *connect.Client[sessions.RecoverRequest, sessions.RecoverResponse]
+	reopen              *connect.Client[sessions.ReopenRequest, sessions.ReopenResponse]
+	getArchiveRetention *connect.Client[sessions.GetArchiveRetentionRequest, sessions.GetArchiveRetentionResponse]
+	pruneArchive        *connect.Client[sessions.PruneArchiveRequest, sessions.PruneArchiveResponse]
+	getPolicy           *connect.Client[sessions.GetPolicyRequest, sessions.GetPolicyResponse]
+	updatePolicy        *connect.Client[sessions.UpdatePolicyRequest, sessions.UpdatePolicyResponse]
 }
 
 // Create calls vrooli.web_console.v1.sessions.SessionsService.Create.
@@ -234,6 +268,21 @@ func (c *sessionsServiceClient) Recover(ctx context.Context, req *connect.Reques
 	return c.recover.CallUnary(ctx, req)
 }
 
+// Reopen calls vrooli.web_console.v1.sessions.SessionsService.Reopen.
+func (c *sessionsServiceClient) Reopen(ctx context.Context, req *connect.Request[sessions.ReopenRequest]) (*connect.Response[sessions.ReopenResponse], error) {
+	return c.reopen.CallUnary(ctx, req)
+}
+
+// GetArchiveRetention calls vrooli.web_console.v1.sessions.SessionsService.GetArchiveRetention.
+func (c *sessionsServiceClient) GetArchiveRetention(ctx context.Context, req *connect.Request[sessions.GetArchiveRetentionRequest]) (*connect.Response[sessions.GetArchiveRetentionResponse], error) {
+	return c.getArchiveRetention.CallUnary(ctx, req)
+}
+
+// PruneArchive calls vrooli.web_console.v1.sessions.SessionsService.PruneArchive.
+func (c *sessionsServiceClient) PruneArchive(ctx context.Context, req *connect.Request[sessions.PruneArchiveRequest]) (*connect.Response[sessions.PruneArchiveResponse], error) {
+	return c.pruneArchive.CallUnary(ctx, req)
+}
+
 // GetPolicy calls vrooli.web_console.v1.sessions.SessionsService.GetPolicy.
 func (c *sessionsServiceClient) GetPolicy(ctx context.Context, req *connect.Request[sessions.GetPolicyRequest]) (*connect.Response[sessions.GetPolicyResponse], error) {
 	return c.getPolicy.CallUnary(ctx, req)
@@ -257,6 +306,11 @@ type SessionsServiceHandler interface {
 	ListRecoverable(context.Context, *connect.Request[sessions.ListRecoverableRequest]) (*connect.Response[sessions.ListRecoverableResponse], error)
 	DismissRecoverable(context.Context, *connect.Request[sessions.DismissRecoverableRequest]) (*connect.Response[sessions.DismissRecoverableResponse], error)
 	Recover(context.Context, *connect.Request[sessions.RecoverRequest]) (*connect.Response[sessions.RecoverResponse], error)
+	// Reopen is the archive-facing name for the proven Recover workflow. It
+	// preserves the same idempotency header and result contract.
+	Reopen(context.Context, *connect.Request[sessions.ReopenRequest]) (*connect.Response[sessions.ReopenResponse], error)
+	GetArchiveRetention(context.Context, *connect.Request[sessions.GetArchiveRetentionRequest]) (*connect.Response[sessions.GetArchiveRetentionResponse], error)
+	PruneArchive(context.Context, *connect.Request[sessions.PruneArchiveRequest]) (*connect.Response[sessions.PruneArchiveResponse], error)
 	GetPolicy(context.Context, *connect.Request[sessions.GetPolicyRequest]) (*connect.Response[sessions.GetPolicyResponse], error)
 	UpdatePolicy(context.Context, *connect.Request[sessions.UpdatePolicyRequest]) (*connect.Response[sessions.UpdatePolicyResponse], error)
 }
@@ -328,6 +382,24 @@ func NewSessionsServiceHandler(svc SessionsServiceHandler, opts ...connect.Handl
 		connect.WithSchema(sessionsServiceMethods.ByName("Recover")),
 		connect.WithHandlerOptions(opts...),
 	)
+	sessionsServiceReopenHandler := connect.NewUnaryHandler(
+		SessionsServiceReopenProcedure,
+		svc.Reopen,
+		connect.WithSchema(sessionsServiceMethods.ByName("Reopen")),
+		connect.WithHandlerOptions(opts...),
+	)
+	sessionsServiceGetArchiveRetentionHandler := connect.NewUnaryHandler(
+		SessionsServiceGetArchiveRetentionProcedure,
+		svc.GetArchiveRetention,
+		connect.WithSchema(sessionsServiceMethods.ByName("GetArchiveRetention")),
+		connect.WithHandlerOptions(opts...),
+	)
+	sessionsServicePruneArchiveHandler := connect.NewUnaryHandler(
+		SessionsServicePruneArchiveProcedure,
+		svc.PruneArchive,
+		connect.WithSchema(sessionsServiceMethods.ByName("PruneArchive")),
+		connect.WithHandlerOptions(opts...),
+	)
 	sessionsServiceGetPolicyHandler := connect.NewUnaryHandler(
 		SessionsServiceGetPolicyProcedure,
 		svc.GetPolicy,
@@ -362,6 +434,12 @@ func NewSessionsServiceHandler(svc SessionsServiceHandler, opts ...connect.Handl
 			sessionsServiceDismissRecoverableHandler.ServeHTTP(w, r)
 		case SessionsServiceRecoverProcedure:
 			sessionsServiceRecoverHandler.ServeHTTP(w, r)
+		case SessionsServiceReopenProcedure:
+			sessionsServiceReopenHandler.ServeHTTP(w, r)
+		case SessionsServiceGetArchiveRetentionProcedure:
+			sessionsServiceGetArchiveRetentionHandler.ServeHTTP(w, r)
+		case SessionsServicePruneArchiveProcedure:
+			sessionsServicePruneArchiveHandler.ServeHTTP(w, r)
 		case SessionsServiceGetPolicyProcedure:
 			sessionsServiceGetPolicyHandler.ServeHTTP(w, r)
 		case SessionsServiceUpdatePolicyProcedure:
@@ -413,6 +491,18 @@ func (UnimplementedSessionsServiceHandler) DismissRecoverable(context.Context, *
 
 func (UnimplementedSessionsServiceHandler) Recover(context.Context, *connect.Request[sessions.RecoverRequest]) (*connect.Response[sessions.RecoverResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_console.v1.sessions.SessionsService.Recover is not implemented"))
+}
+
+func (UnimplementedSessionsServiceHandler) Reopen(context.Context, *connect.Request[sessions.ReopenRequest]) (*connect.Response[sessions.ReopenResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_console.v1.sessions.SessionsService.Reopen is not implemented"))
+}
+
+func (UnimplementedSessionsServiceHandler) GetArchiveRetention(context.Context, *connect.Request[sessions.GetArchiveRetentionRequest]) (*connect.Response[sessions.GetArchiveRetentionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_console.v1.sessions.SessionsService.GetArchiveRetention is not implemented"))
+}
+
+func (UnimplementedSessionsServiceHandler) PruneArchive(context.Context, *connect.Request[sessions.PruneArchiveRequest]) (*connect.Response[sessions.PruneArchiveResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_console.v1.sessions.SessionsService.PruneArchive is not implemented"))
 }
 
 func (UnimplementedSessionsServiceHandler) GetPolicy(context.Context, *connect.Request[sessions.GetPolicyRequest]) (*connect.Response[sessions.GetPolicyResponse], error) {

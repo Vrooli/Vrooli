@@ -215,6 +215,18 @@ func (c *Controller) CleanStaleLocks() (control.StopReport, error) {
 			stopped = append(stopped, control.Stopped(fmt.Sprintf("%d", expired.Port), "Expired abandoned registry port reservation"))
 		}
 
+		// Supervisor sessions only reached a terminal status through graceful
+		// shutdown, so every SIGKILLed supervisor left a row claiming to be
+		// running. Retire the ones this host can prove are dead — a live peer
+		// is never touched, because the same guard demands positive evidence.
+		expiredSessions, err := store.ExpireStaleSupervisorSessions(ctx, now, guard)
+		if err != nil {
+			failed = append(failed, control.Failed("supervisor-sessions", err))
+		} else if len(expiredSessions) > 0 {
+			stopped = append(stopped, control.Stopped("supervisor-sessions",
+				fmt.Sprintf("Retired %d supervisor session(s) whose process is gone", len(expiredSessions))))
+		}
+
 		prunedClaims, err := store.PruneTerminalPortClaims(ctx, now.Add(-terminalPortClaimRetention))
 		if err != nil {
 			failed = append(failed, control.Failed("claim-retention", err))

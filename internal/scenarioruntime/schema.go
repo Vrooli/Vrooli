@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 )
 
 const schemaSQL = `
@@ -148,6 +149,10 @@ CREATE TABLE IF NOT EXISTS runtime_start_operations (
   verdict TEXT NOT NULL DEFAULT '',
   error TEXT NOT NULL DEFAULT '',
   initiator_pid INTEGER,
+  initiator_argv TEXT NOT NULL DEFAULT '',
+  initiator_parent_pid INTEGER,
+  initiator_parent_argv TEXT NOT NULL DEFAULT '',
+  initiator_scope TEXT NOT NULL DEFAULT '',
   started_at TEXT NOT NULL,
   updated_at TEXT NOT NULL,
   finished_at TEXT,
@@ -230,19 +235,31 @@ func (s *SQLiteStore) ensureSchema(ctx context.Context) error {
 	if current == SchemaVersion {
 		return nil
 	}
-	if current == 6 {
+	// Additive migration ladder. Each rung applies ONLY its own step and stamps
+	// ONLY its own version, so a database two versions behind climbs both rungs
+	// instead of being stamped current after one of them — which is what the
+	// previous single-step form would have done the moment a second rung
+	// existed.
+	if current > 0 {
 		existing, err := runtimeSchemaExists(ctx, s.db)
 		if err != nil {
 			return fmt.Errorf("inspect runtime registry before migration: %w", err)
 		}
 		if !existing {
-			return fmt.Errorf("runtime registry schema_version 6 is unstamped or incomplete: requires greenfield rebuild or an operator-run temporary conversion script")
+			return fmt.Errorf("runtime registry schema_version %d is unstamped or incomplete: requires greenfield rebuild or an operator-run temporary conversion script", current)
 		}
-		if _, err := s.db.ExecContext(ctx, recoverySchemaSQL); err != nil {
-			return fmt.Errorf("migrate runtime registry schema 6 -> 7: %w", err)
-		}
-		if _, err := s.db.ExecContext(ctx, fmt.Sprintf(`PRAGMA user_version = %d`, SchemaVersion)); err != nil {
-			return fmt.Errorf("stamp migrated runtime registry schema version: %w", err)
+		for current < SchemaVersion {
+			step, ok := schemaMigrations[current]
+			if !ok {
+				return fmt.Errorf("runtime registry schema_version %d -> %d requires greenfield rebuild or an operator-run temporary conversion script", current, SchemaVersion)
+			}
+			if err := step(ctx, s.db); err != nil {
+				return fmt.Errorf("migrate runtime registry schema %d -> %d: %w", current, current+1, err)
+			}
+			current++
+			if _, err := s.db.ExecContext(ctx, fmt.Sprintf(`PRAGMA user_version = %d`, current)); err != nil {
+				return fmt.Errorf("stamp migrated runtime registry schema version %d: %w", current, err)
+			}
 		}
 		return nil
 	}
@@ -261,6 +278,39 @@ func (s *SQLiteStore) ensureSchema(ctx context.Context) error {
 	}
 	if _, err := s.db.ExecContext(ctx, fmt.Sprintf(`PRAGMA user_version = %d`, SchemaVersion)); err != nil {
 		return fmt.Errorf("stamp runtime registry schema version: %w", err)
+	}
+	return nil
+}
+
+// schemaMigrations maps a database's current version to the step that carries
+// it to the next one. Steps must be additive and idempotent: they run against
+// live registries that other processes may be reading.
+var schemaMigrations = map[int]func(context.Context, *sql.DB) error{
+	6: func(ctx context.Context, db *sql.DB) error {
+		_, err := db.ExecContext(ctx, recoverySchemaSQL)
+		return err
+	},
+	7: addStartOperationProvenance,
+}
+
+// addStartOperationProvenance records WHO initiated a start, not merely its
+// PID. Columns are added one at a time because SQLite has no "ADD COLUMN IF
+// NOT EXISTS"; a column that is already present is treated as done rather than
+// as a failure, so re-running the step is safe.
+func addStartOperationProvenance(ctx context.Context, db *sql.DB) error {
+	columns := []string{
+		`ALTER TABLE runtime_start_operations ADD COLUMN initiator_argv TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE runtime_start_operations ADD COLUMN initiator_parent_pid INTEGER`,
+		`ALTER TABLE runtime_start_operations ADD COLUMN initiator_parent_argv TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE runtime_start_operations ADD COLUMN initiator_scope TEXT NOT NULL DEFAULT ''`,
+	}
+	for _, statement := range columns {
+		if _, err := db.ExecContext(ctx, statement); err != nil {
+			if strings.Contains(strings.ToLower(err.Error()), "duplicate column name") {
+				continue
+			}
+			return err
+		}
 	}
 	return nil
 }

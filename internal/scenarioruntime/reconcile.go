@@ -91,7 +91,7 @@ func ReconcileRuntime(in ReconcileInput) ReconcileResult {
 	// PID known-dead or missing — before classifying as stale. This
 	// mirrors the conservative classifier used by ports.preemptFixedPortConflict.
 	if in.Instance.HeartbeatDeadlineAt != nil && !in.Instance.HeartbeatDeadlineAt.After(in.Now) &&
-		isOwnerKnownDead(in.Instance.OwnerPID, in.Processes) {
+		isOwnerKnownDead(in.Instance, in.Processes) {
 		switch in.Instance.Status {
 		case StatusStarting:
 			return result.fail(ReconcileStaleInstance, "starting lease heartbeat deadline has expired (owner pid known-dead)")
@@ -208,14 +208,27 @@ func reconcileClaims(claims []PortClaim, authoritative bool, reason string) []Re
 	return out
 }
 
-// isOwnerKnownDead returns true only when the input.Processes map has
-// positive evidence that the owner PID is no longer running. Absence of
-// evidence is NOT enough: the orchestrator/runner PID typically has no
-// process_ref entry, so the Processes map will not contain it, and we
-// must NOT treat that absence as a stale signal — doing so caused the
-// in-flight-startup release bug. Boot mismatch and dead known refs
-// remain separate stale signals upstream of this check.
-func isOwnerKnownDead(ownerPID *int, processes map[string]ProcessEvidence) bool {
+// isOwnerKnownDead returns true only when there is positive evidence that the
+// instance's owner is gone. Absence of evidence is NOT enough: the
+// orchestrator/runner PID typically has no process_ref entry, so the Processes
+// map will not contain it, and we must NOT treat that absence as a stale
+// signal — doing so caused the in-flight-startup release bug. Boot mismatch and
+// dead known refs remain separate stale signals upstream of this check.
+//
+// A supervisor-owned instance has no owner PID at all: ClaimSupervision nulls
+// the column precisely because the owner is a supervisor SESSION, not a
+// process recorded on this row. Reading that designed-in NULL as proof of
+// death made every supervised instance maximally fragile — the whole fleet sat
+// one lapsed heartbeat away from being classified stale, so a supervisor
+// restart looked identical to 60 scenarios dying at once. For supervisor
+// ownership the PID question is simply not applicable, and the answer is "no
+// positive evidence"; liveness is then decided by the evidence that actually
+// speaks to it downstream (known-dead process refs with no listener).
+func isOwnerKnownDead(instance Instance, processes map[string]ProcessEvidence) bool {
+	if instance.OwnerKind == OwnerKindSupervisor {
+		return false
+	}
+	ownerPID := instance.OwnerPID
 	if ownerPID == nil || *ownerPID <= 0 {
 		return true
 	}

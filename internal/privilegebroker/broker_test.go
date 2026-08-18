@@ -27,11 +27,11 @@ func (f *fakeExecutor) Run(_ context.Context, name string, args ...string) ([]by
 
 func TestBrokerAllowUsesFixedArgvAndVerifiesManagedRule(t *testing.T) {
 	fake := &fakeExecutor{status: []string{"Status: active\n", "Status: active\n18767/tcp ALLOW IN 192.168.1.176 # vrooli-bridge-admission-v1\n"}}
-	b, err := New(Config{AllowedUID: 1000, Executor: fake})
+	_, err := New(Config{AllowedUID: 1000, Executor: fake})
 	if err == nil {
 		t.Fatal("expected socket path validation")
 	}
-	b, err = New(Config{SocketPath: "/tmp/test.sock", AllowedUID: 1000, Executor: fake})
+	b, err := New(Config{SocketPath: "/tmp/test.sock", AllowedUID: 1000, Executor: fake})
 	if err != nil {
 		t.Fatal(err)
 	}

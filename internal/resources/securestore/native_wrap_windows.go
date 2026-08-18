@@ -26,6 +26,13 @@ func nativeWrapAvailable() (string, error) {
 	return keyStoreDPAPI, nil
 }
 
+func nativeWrapDiagnosis() string {
+	if _, err := nativeWrapAvailable(); err != nil {
+		return "unavailable: " + err.Error()
+	}
+	return "available (Windows DPAPI)"
+}
+
 func nativeWrapProtect(value []byte) ([]byte, error) {
 	if _, err := nativeWrapAvailable(); err != nil {
 		return nil, err

@@ -92,6 +92,44 @@ func readProcessEnvironment(pid int) (map[string]string, error) {
 	return parseEnvironmentEntries(data), nil
 }
 
+// processCommandLine reads /proc/<pid>/cmdline, whose arguments are NUL
+// separated with a trailing NUL. A kernel thread has an empty cmdline; report
+// that as an error rather than an empty command so callers can tell "no
+// command" from "not recorded".
+func processCommandLine(pid int) (string, error) {
+	if pid <= 0 {
+		return "", fmt.Errorf("platform: invalid pid %d", pid)
+	}
+	data, err := os.ReadFile("/proc/" + strconv.Itoa(pid) + "/cmdline")
+	if err != nil {
+		return "", err
+	}
+	fields := strings.FieldsFunc(string(data), func(r rune) bool { return r == 0 })
+	if len(fields) == 0 {
+		return "", fmt.Errorf("platform: pid %d exposes no command line", pid)
+	}
+	return strings.Join(fields, " "), nil
+}
+
+// processScope returns the unified-hierarchy cgroup path for pid. The v2 line
+// is "0::<path>"; a v1-only host has no single answer, so it reports empty
+// rather than picking a controller arbitrarily.
+func processScope(pid int) (string, error) {
+	if pid <= 0 {
+		return "", fmt.Errorf("platform: invalid pid %d", pid)
+	}
+	data, err := os.ReadFile("/proc/" + strconv.Itoa(pid) + "/cgroup")
+	if err != nil {
+		return "", err
+	}
+	for _, line := range strings.Split(string(data), "\n") {
+		if path, ok := strings.CutPrefix(strings.TrimSpace(line), "0::"); ok {
+			return path, nil
+		}
+	}
+	return "", nil
+}
+
 func readProcessState(pid int) (byte, bool) {
 	data, err := os.ReadFile("/proc/" + strconv.Itoa(pid) + "/stat")
 	if err != nil {

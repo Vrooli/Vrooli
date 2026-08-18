@@ -158,6 +158,7 @@ type lifecycleDeps struct {
 	runtimeRegistry         func(context.Context, string) (scenarioRuntimeStore, error)
 	hostSession             func(context.Context, string) (hostsession.Snapshot, error)
 	ensureRuntimeSupervisor func(context.Context, string, io.Writer, io.Writer) error
+	captureInitiator        func() process.InitiatorInfo
 }
 
 type hostProbeDeps struct {
@@ -406,6 +407,9 @@ func (r *Runner) runtimeDeps() lifecycleDeps {
 	}
 	if deps.hostSession == nil {
 		deps.hostSession = hostsession.DefaultProvider{}.Current
+	}
+	if deps.captureInitiator == nil {
+		deps.captureInitiator = process.Initiator
 	}
 	if deps.ensureRuntimeSupervisor == nil {
 		deps.ensureRuntimeSupervisor = func(ctx context.Context, home string, stdout io.Writer, stderr io.Writer) error {
@@ -732,6 +736,9 @@ func (r *Runner) executeStart(item scenario.Scenario, opts StartOptions, forceSe
 	if err := r.ensureRuntimeSupervisor(context.Background(), runtimeSession); err != nil {
 		return Result{}, err
 	}
+	// Ownership must change hands before this process does, or the instance is
+	// left leased to a PID that is about to disappear.
+	r.attachSupervision(context.Background(), &runtimeSession, item)
 
 	if len(failedDeps) > 0 {
 		r.logWarn("Scenario started in degraded mode",
@@ -805,7 +812,7 @@ func (r *Runner) printCredentialGapSummary(env ports.Environment) {
 }
 
 // logCredentialGaps emits one line per start, not one per descriptor: a
-// resource such as home-assistant declares six credentials, and six identical
+// resource declares several credentials, and identical
 // warnings would bury the one fact the operator needs.
 func (r *Runner) logCredentialGaps(slug string, env ports.Environment) {
 	if len(env.CredentialGaps) == 0 {

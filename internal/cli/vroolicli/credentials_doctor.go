@@ -5,9 +5,12 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"os"
 	"strings"
 	"time"
 
+	repocontract "github.com/vrooli/repo-contract-go"
+	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/resources/securestore"
 	credentialauthority "github.com/vrooli/vrooli/internal/secrets"
 )
@@ -17,22 +20,42 @@ type recoveryStatus struct {
 	ExportedAt    *time.Time `json:"exported_at"`
 	EntryCount    int        `json:"entry_count"`
 	Uncovered     []string   `json:"uncovered"`
-	Path          string     `json:"path,omitempty"`
+	// RequiredAbsent is deliberately separate from Uncovered. Uncovered means
+	// a value exists locally but is not in the latest receipt; the operator
+	// action is to export again. RequiredAbsent means the authority has no
+	// value at all; the operator action is to provision one.
+	RequiredAbsent []string `json:"required_absent"`
+	// RequiredAbsentDetails carries the descriptor's explanation without
+	// changing the stable address-only list consumed by existing callers.
+	RequiredAbsentDetails []recoveryGapDetail `json:"required_absent_details"`
+	Path                  string              `json:"path,omitempty"`
+	// RootCopy remains present as null when no receipt exists so consumers can
+	// distinguish an absent copy from an omitted field in older output.
+	RootCopy       *securestore.CopyStatus `json:"root_copy"`
+	RootCopyIssues []string                `json:"root_copy_issues,omitempty"`
+}
+
+type recoveryGapDetail struct {
+	Address     string `json:"address"`
+	Description string `json:"description,omitempty"`
 }
 
 // credentialEntry is one declared credential and what the host currently knows
 // about it. It deliberately has no value field: this whole surface exists to be
 // printed, and a value must never reach an output stream.
 type credentialEntry struct {
-	Resource    string `json:"resource"`
-	Env         string `json:"env"`
-	LogicalID   string `json:"logical_id"`
-	Field       string `json:"field"`
-	Label       string `json:"label,omitempty"`
-	Required    bool   `json:"required"`
-	Configured  bool   `json:"configured"`
-	State       string `json:"state"`
-	Remediation string `json:"remediation,omitempty"`
+	Resource     string `json:"resource"`
+	Env          string `json:"env"`
+	LogicalID    string `json:"logical_id"`
+	Field        string `json:"field"`
+	Label        string `json:"label,omitempty"`
+	Description  string `json:"description,omitempty"`
+	Provisioning string `json:"provisioning,omitempty"`
+	DerivedFrom  string `json:"derived_from,omitempty"`
+	Required     bool   `json:"required"`
+	Configured   bool   `json:"configured"`
+	State        string `json:"state"`
+	Remediation  string `json:"remediation,omitempty"`
 }
 
 // writeRecoveryStatus reports whether this host's credentials exist anywhere
@@ -53,28 +76,41 @@ func writeRecoveryStatus(ctx *CommandContext, entries []credentialEntry) {
 		fmt.Fprintf(ctx.Stdout, "\nRecovery\n  No bundle has ever been exported on this host. Every configured credential\n"+
 			"  exists in exactly one place. Create one with:\n"+
 			"    printf '%%s' \"$PASSPHRASE\" | vrooli credentials recovery export --all --output <path>\n")
+		writeRequiredAbsent(ctx.Stdout, status)
+		writeRootCopyStatus(ctx.Stdout, status)
 		return
 	}
 	fmt.Fprintf(ctx.Stdout, "\nRecovery\n  Last bundle: %s (%d credential(s))\n    %s\n",
 		status.ExportedAt.Local().Format("2006-01-02 15:04"), status.EntryCount, status.Path)
 	if len(status.Uncovered) == 0 {
 		fmt.Fprintf(ctx.Stdout, "  Every configured credential on this host is in that bundle.\n")
+	} else {
+		fmt.Fprintf(ctx.Stdout, "  STALE — %d configured credential(s) are not in it:\n", len(status.Uncovered))
+		for _, missing := range status.Uncovered {
+			fmt.Fprintf(ctx.Stdout, "    %s\n", missing)
+		}
+		fmt.Fprintf(ctx.Stdout, "  Re-export to cover them.\n")
+	}
+	writeRequiredAbsent(ctx.Stdout, status)
+	writeRootCopyStatus(ctx.Stdout, status)
+}
+
+func writeRootCopyStatus(out io.Writer, status recoveryStatus) {
+	if len(status.RootCopyIssues) == 0 {
 		return
 	}
-	fmt.Fprintf(ctx.Stdout, "  STALE — %d configured credential(s) are not in it:\n", len(status.Uncovered))
-	for _, missing := range status.Uncovered {
-		fmt.Fprintf(ctx.Stdout, "    %s\n", missing)
+	fmt.Fprintln(out, "  ROOT-COPY — credential-store escrow is not current:")
+	for _, issue := range status.RootCopyIssues {
+		fmt.Fprintf(out, "    %s\n", issue)
 	}
-	fmt.Fprintf(ctx.Stdout, "  Re-export to cover them.\n")
 }
 
 func computeRecoveryStatus(entries []credentialEntry) recoveryStatus {
-	status := recoveryStatus{Uncovered: []string{}}
-	configured := make([]string, 0, len(entries))
-	for _, entry := range entries {
-		if entry.Configured {
-			configured = append(configured, entry.LogicalID+":"+entry.Field)
-		}
+	status := recoveryStatus{Uncovered: []string{}, RequiredAbsent: []string{}, RequiredAbsentDetails: []recoveryGapDetail{}}
+	status.RootCopy, status.RootCopyIssues = inspectCredentialStoreCopy()
+	configured, requiredAbsent := classifyRecoveryEntries(entries)
+	for _, entry := range requiredAbsent {
+		appendRequiredAbsent(&status, entry)
 	}
 	stateDir, err := recoveryStateDir()
 	if err != nil {
@@ -101,7 +137,110 @@ func computeRecoveryStatus(entries []credentialEntry) recoveryStatus {
 		}
 	}
 	status.Uncovered = dedupeStrings(status.Uncovered)
+	status.RequiredAbsent = dedupeStrings(status.RequiredAbsent)
+	status.RequiredAbsentDetails = dedupeRecoveryDetails(status.RequiredAbsentDetails)
 	return status
+}
+
+func inspectCredentialStoreCopy() (*securestore.CopyStatus, []string) {
+	receiptPath, err := config.VrooliPath(repocontract.HomeKeyState, "credential-store-copy.json")
+	if err != nil {
+		return nil, []string{"cannot resolve credential-store copy receipt path"}
+	}
+	data, err := os.ReadFile(receiptPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, []string{"no encrypted credential-store copy receipt exists"}
+		}
+		return nil, []string{"encrypted credential-store copy receipt is unreadable"}
+	}
+	var copyStatus securestore.CopyStatus
+	if err := json.Unmarshal(data, &copyStatus); err != nil || copyStatus.CopiedAt.IsZero() {
+		return nil, []string{"encrypted credential-store copy receipt is invalid"}
+	}
+	issues := []string{}
+	if strings.HasPrefix(strings.ToLower(strings.TrimSpace(copyStatus.Path)), "s3://") {
+		// An object-store receipt is the durable acknowledgement returned by
+		// the PUT. The CLI intentionally does not issue a second GET during
+		// doctor because that would needlessly materialize object-store
+		// credentials on every health check.
+	} else {
+		if _, statErr := os.Stat(copyStatus.Path); statErr != nil {
+			if os.IsNotExist(statErr) {
+				issues = append(issues, "encrypted credential-store copy is missing from its receipt location")
+			} else {
+				issues = append(issues, "encrypted credential-store copy cannot be inspected")
+			}
+		}
+	}
+	storeStatus, err := securestore.DescribeStore()
+	if err != nil || !storeStatus.Initialized {
+		return &copyStatus, issues
+	}
+	if info, statErr := os.Stat(storeStatus.Path); statErr == nil && info.ModTime().After(copyStatus.CopiedAt) {
+		issues = append(issues, "encrypted credential-store copy predates the newest credential-store write")
+	}
+	if generation, generationErr := securestore.StoreGeneration(storeStatus.Path); generationErr == nil && generation != copyStatus.Generation {
+		issues = append(issues, "encrypted credential-store copy uses an older passphrase generation")
+	}
+	return &copyStatus, issues
+}
+
+func classifyRecoveryEntries(entries []credentialEntry) ([]string, []credentialEntry) {
+	configured := make([]string, 0, len(entries))
+	requiredAbsent := make([]credentialEntry, 0)
+	for _, entry := range entries {
+		if entry.Configured {
+			configured = append(configured, entry.LogicalID+":"+entry.Field)
+			continue
+		}
+		if requiredCredentialAbsent(entry) {
+			requiredAbsent = append(requiredAbsent, entry)
+		}
+	}
+	return configured, requiredAbsent
+}
+
+func requiredCredentialAbsent(entry credentialEntry) bool {
+	// An unavailable provider cannot prove absence. Only the normal
+	// unconfigured state is a genuine required-but-absent signal.
+	return entry.Required && entry.Provisioning != "derived" && !entry.Configured && entry.State == "unconfigured"
+}
+
+func appendRequiredAbsent(status *recoveryStatus, entry credentialEntry) {
+	address := entry.LogicalID + ":" + entry.Field
+	status.RequiredAbsent = append(status.RequiredAbsent, address)
+	status.RequiredAbsentDetails = append(status.RequiredAbsentDetails, recoveryGapDetail{
+		Address: address, Description: strings.TrimSpace(entry.Description),
+	})
+}
+
+func dedupeRecoveryDetails(values []recoveryGapDetail) []recoveryGapDetail {
+	seen := map[string]bool{}
+	out := make([]recoveryGapDetail, 0, len(values))
+	for _, value := range values {
+		if seen[value.Address] {
+			continue
+		}
+		seen[value.Address] = true
+		out = append(out, value)
+	}
+	return out
+}
+
+func writeRequiredAbsent(out io.Writer, status recoveryStatus) {
+	if len(status.RequiredAbsent) == 0 {
+		return
+	}
+	fmt.Fprintf(out, "  REQUIRED-BUT-ABSENT — %d required credential(s) have no value:\n", len(status.RequiredAbsent))
+	for _, detail := range status.RequiredAbsentDetails {
+		if detail.Description != "" {
+			fmt.Fprintf(out, "    %s — %s\n", detail.Address, detail.Description)
+			continue
+		}
+		fmt.Fprintf(out, "    %s\n", detail.Address)
+	}
+	fmt.Fprintln(out, "  Provision them before treating this host as recoverable.")
 }
 
 // dedupeStrings keeps a shared credential from being listed once per resource
@@ -185,6 +324,9 @@ func credentialsDoctor(ctx *CommandContext, args []string) error {
 			caveat = " — " + caveat
 		}
 		fmt.Fprintf(ctx.Stdout, "  Storage:   %s%s\n", diagnosis.NativeStorageStrength, caveat)
+	}
+	if diagnosis.NativeWrap != "" {
+		fmt.Fprintf(ctx.Stdout, "  Native wrap: %s\n", diagnosis.NativeWrap)
 	}
 	fmt.Fprintf(ctx.Stdout, "  Adapter:   %s\n", diagnosis.Adapter)
 	// The key wrap is reported on every host that has one, because the wraps

@@ -124,7 +124,7 @@ func TestV2ReadinessIncludesScenarioCredentialDeclarations(t *testing.T) {
 		fields []string
 	}{
 		{name: "landing-page-business-suite", fields: []string{"session-secret", "service-secret", "api-key-encryption-key", "remote-profile-encryption-key", "admin-default-password"}},
-		{name: "tunnel-manager", fields: []string{"cloudflare-account-id", "cloudflare-tunnel-id", "cloudflare-api-token"}},
+		{name: "demo-alpha", fields: []string{"first-id", "second-id", "operator-token"}},
 	} {
 		dir := filepath.Join(root, "scenarios", scenario.name, ".vrooli")
 		if err := os.MkdirAll(dir, 0o755); err != nil {
@@ -139,7 +139,7 @@ func TestV2ReadinessIncludesScenarioCredentialDeclarations(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if err := os.WriteFile(filepath.Join(root, ".vrooli", "operator-state.json"), []byte(`{"version":"1.0.0","scenarios":{"landing-page-business-suite":{"enabled":true},"tunnel-manager":{"enabled":true}}}`), 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(root, ".vrooli", "operator-state.json"), []byte(`{"version":"1.0.0","scenarios":{"landing-page-business-suite":{"enabled":true},"demo-alpha":{"enabled":true}}}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	prior := credentialStatusCommand
@@ -150,9 +150,25 @@ func TestV2ReadinessIncludesScenarioCredentialDeclarations(t *testing.T) {
 		t.Fatalf("status = %d: %s", w.Code, w.Body.String())
 	}
 	body := w.Body.String()
-	for _, field := range []string{"session-secret", "service-secret", "api-key-encryption-key", "remote-profile-encryption-key", "admin-default-password", "cloudflare-account-id", "cloudflare-tunnel-id", "cloudflare-api-token"} {
+	for _, field := range []string{"session-secret", "service-secret", "api-key-encryption-key", "remote-profile-encryption-key", "admin-default-password", "first-id", "second-id", "operator-token"} {
 		if !strings.Contains(body, `"field":"`+field+`"`) {
 			t.Errorf("readiness missing scenario credential field %q: %s", field, body)
 		}
+	}
+}
+
+func TestCredentialReadinessCarriesProvisioningMetadataGenerically(t *testing.T) {
+	previous := credentialStatusCommand
+	credentialStatusCommand = func(context.Context, string, string) ([]byte, error) {
+		return []byte(`{"configured":false}`), nil
+	}
+	t.Cleanup(func() { credentialStatusCommand = previous })
+
+	items := credentialReadinessForDescriptors("demo", []readinessCredentialDescriptor{
+		{LogicalID: "vrooli/demo", Field: "operator-key", Required: true, Provisioning: "operator"},
+		{LogicalID: "vrooli/demo", Field: "derived-key", Required: true, Provisioning: "derived", DerivedFrom: "operator-key"},
+	})
+	if len(items) != 2 || items[1].Provisioning != "derived" || items[1].DerivedFrom != "operator-key" {
+		t.Fatalf("readiness items = %+v", items)
 	}
 }

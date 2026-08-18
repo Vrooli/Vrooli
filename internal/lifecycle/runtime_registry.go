@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"strconv"
 	"strings"
@@ -351,6 +350,61 @@ func (s *runtimeRegistrySession) markRunning(ctx context.Context) error {
 	return nil
 }
 
+// attachSupervision hands the freshly-started instance to the runtime
+// supervisor before this command returns.
+//
+// Without it the start ends with the instance owned by THIS process, which is
+// about to exit: the lease then names a dead owner and nothing renews it, so
+// the scenario reads as stopped roughly 30 seconds later and stays that way
+// until some future supervisor tick adopts it. Every consumer that asks in
+// between is told a healthy, listening scenario is down, and `--auto-start`
+// consumers respond by rebuilding it. Closing the handover here removes the
+// window rather than narrowing it.
+//
+// Failing to attach is not a failed start: the scenario is up either way. It
+// degrades to the previous behavior, loudly, so the gap is visible in the log
+// instead of showing up later as a mystery restart.
+func (r *Runner) attachSupervision(ctx context.Context, session *runtimeRegistrySession, item scenario.Scenario) {
+	if !session.enabled {
+		return
+	}
+	// With the supervisor disabled by policy there is nothing to hand off to,
+	// and waiting to discover that would tax every start.
+	if runtimesupervisor.ModeFromEnv() == runtimesupervisor.ModeOff {
+		return
+	}
+	attached := false
+	err := Await(r.awaitClock(), supervisionAttachPolicy, func() (bool, error) {
+		instance, ok, err := session.store.AttachLiveSupervision(ctx,
+			session.instance.InstanceID, session.instance.Generation, scenarioruntime.DefaultSupervisedLeaseTTL)
+		if err != nil {
+			// A transient store error should not strand ownership; keep
+			// trying until the policy's deadline.
+			r.logDebug("Supervision attach attempt failed",
+				logx.AttrScenario, item.Slug, logx.AttrError, err)
+			return false, nil
+		}
+		if !ok {
+			return false, nil
+		}
+		session.instance = instance
+		attached = true
+		return true, nil
+	})
+	if attached {
+		r.logDebug("Handed runtime ownership to the supervisor",
+			logx.AttrScenario, item.Slug,
+			"supervisor_id", session.instance.SupervisorID,
+		)
+		return
+	}
+	r.logWarn("No live runtime supervisor to take ownership; this instance keeps lifecycle ownership and its lease will lapse when this command exits",
+		logx.AttrScenario, item.Slug,
+		logx.AttrOperation, "attach_supervision",
+		logx.AttrError, err,
+	)
+}
+
 func (r *Runner) ensureRuntimeSupervisor(ctx context.Context, session runtimeRegistrySession) error {
 	if !session.enabled {
 		return nil
@@ -360,7 +414,11 @@ func (r *Runner) ensureRuntimeSupervisor(ctx context.Context, session runtimeReg
 		return nil
 	}
 	deps := r.runtimeDeps()
-	err := deps.ensureRuntimeSupervisor(ctx, r.Home, io.Discard, r.Err)
+	// Both writers are nil on purpose: the supervisor outlives this CLI, so
+	// wiring it to our streams either discards its output or points it at a
+	// descriptor that dies with us. EnsureRunning routes it to the supervisor's
+	// own log file instead.
+	err := deps.ensureRuntimeSupervisor(ctx, r.Home, nil, nil)
 	if err == nil {
 		return nil
 	}

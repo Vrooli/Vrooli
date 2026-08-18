@@ -17,6 +17,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/api-core/cleanupplan"
 	"github.com/vrooli/api-core/trustposture"
 	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/config"
@@ -100,10 +101,15 @@ type InstallProvenance struct {
 // per entry because the runtime checkout, operator runtime home, and native
 // service-manager directories are different safe roots on some platforms.
 type InstallEntry struct {
-	Scope          InstallScope      `json:"scope"`
-	Kind           InstallEntryKind  `json:"kind"`
-	Path           string            `json:"path"`
-	Prefix         string            `json:"prefix"`
+	Scope  InstallScope     `json:"scope"`
+	Kind   InstallEntryKind `json:"kind"`
+	Path   string           `json:"path"`
+	Prefix string           `json:"prefix"`
+	// Volatile marks an explicitly owned runtime surface whose contents are
+	// expected to change while its service is alive (for example an agent
+	// heartbeat/state directory). It remains an exact removal target; only the
+	// content-hash TOCTOU check is skipped for this ledger-declared surface.
+	Volatile       bool              `json:"volatile,omitempty"`
 	Resource       string            `json:"resource,omitempty"`
 	ServiceManager string            `json:"service_manager,omitempty"`
 	ServiceName    string            `json:"service_name,omitempty"`
@@ -137,16 +143,22 @@ type RuntimeProviderProvenance struct {
 type UninstallMode string
 
 const (
-	UninstallPlanMode  UninstallMode = "plan"
-	UninstallApplyMode UninstallMode = "apply"
+	UninstallPlanMode   UninstallMode = "plan"
+	UninstallApplyMode  UninstallMode = "apply"
+	UninstallVerifyMode UninstallMode = "verify"
 )
 
 type UninstallRequest struct {
-	Mode          UninstallMode
-	PlanID        string
-	Scope         InstallScope
-	ConfirmTarget string
-	BreakGlass    string
+	Mode            UninstallMode
+	PlanID          string
+	Scope           InstallScope
+	ConfirmTarget   string
+	BreakGlass      string
+	AuthorizingUser string
+	MachineID       string
+	NodeID          string
+	OperationID     string
+	PlanHash        string
 }
 
 type DiskSnapshot struct {
@@ -156,19 +168,24 @@ type DiskSnapshot struct {
 }
 
 type UninstallPlan struct {
-	Version         int                 `json:"version"`
-	ID              string              `json:"plan_id"`
-	CreatedAt       string              `json:"created_at"`
-	Target          string              `json:"target"`
-	Scope           InstallScope        `json:"scope"`
-	RecordDigest    string              `json:"record_digest"`
+	Version      int          `json:"version"`
+	ID           string       `json:"plan_id"`
+	CreatedAt    string       `json:"created_at"`
+	Target       string       `json:"target"`
+	Scope        InstallScope `json:"scope"`
+	RecordDigest string       `json:"record_digest"`
+	// PlanHash covers the resolved artifact lists, not the request, id, or
+	// timestamps. Bridge binds its cleanup capability to this stable value.
+	PlanHash        string              `json:"plan_hash"`
 	Remove          []InstallEntry      `json:"remove"`
 	Keep            []UninstallDecision `json:"keep"`
 	CannotAttribute []UninstallDecision `json:"cannot_attribute"`
 	// Entries is retained as the apply set and compatibility view. It is
 	// always equal to Remove for newly written plans.
-	Entries []InstallEntry `json:"entries"`
-	Disk    []DiskSnapshot `json:"disk"`
+	Entries  []InstallEntry        `json:"entries"`
+	Disk     []DiskSnapshot        `json:"disk"`
+	Applied  []RemovalReceiptEntry `json:"applied,omitempty"`
+	Attempts []RemovalAttempt      `json:"attempts,omitempty"`
 }
 
 type UninstallDecision struct {
@@ -183,6 +200,14 @@ func (p UninstallPlan) RemoveOrEntries() []InstallEntry {
 	return p.Entries
 }
 
+// ComputePlanHash returns the stable digest of the resolved artifact
+// classification. It intentionally excludes the caller's request, plan id,
+// record digest, and timestamps so retries and transport changes cannot alter
+// the authorization subject.
+func ComputePlanHash(plan UninstallPlan) string {
+	return cleanupplan.HashResolvedArtifacts(plan.RemoveOrEntries(), plan.Keep, plan.CannotAttribute)
+}
+
 type RemovalReceiptEntry struct {
 	Scope InstallScope     `json:"scope"`
 	Kind  InstallEntryKind `json:"kind"`
@@ -190,11 +215,43 @@ type RemovalReceiptEntry struct {
 }
 
 type RemovalReceipt struct {
-	PlanID    string                `json:"plan_id"`
-	Target    string                `json:"target"`
-	Scope     InstallScope          `json:"scope"`
-	RemovedAt string                `json:"removed_at"`
-	Removed   []RemovalReceiptEntry `json:"removed"`
+	PlanID          string                `json:"plan_id"`
+	PlanHash        string                `json:"plan_hash"`
+	Target          string                `json:"target"`
+	Scope           InstallScope          `json:"scope"`
+	RemovedAt       string                `json:"removed_at"`
+	AuthorizingUser string                `json:"authorizing_user,omitempty"`
+	Removed         []RemovalReceiptEntry `json:"removed"`
+	Preserved       []UninstallDecision   `json:"preserved"`
+	CannotAttribute []UninstallDecision   `json:"cannot_attribute"`
+	Attempts        []RemovalAttempt      `json:"attempts"`
+}
+
+// UninstallVerification is a read-only post-apply observation. Entries whose
+// state cannot be checked without invoking a platform-specific package or
+// container client are reported as not_checked rather than being claimed
+// absent.
+type UninstallVerification struct {
+	PlanID          string                `json:"plan_id"`
+	PlanHash        string                `json:"plan_hash"`
+	Target          string                `json:"target"`
+	Scope           InstallScope          `json:"scope"`
+	VerifiedAt      string                `json:"verified_at"`
+	Complete        bool                  `json:"complete"`
+	Removed         []RemovalReceiptEntry `json:"removed"`
+	Remaining       []RemovalReceiptEntry `json:"remaining"`
+	NotChecked      []RemovalReceiptEntry `json:"not_checked"`
+	Preserved       []UninstallDecision   `json:"preserved"`
+	CannotAttribute []UninstallDecision   `json:"cannot_attribute"`
+}
+
+// RemovalAttempt is durable progress evidence for a resumable apply. A failed
+// attempt is not erased when a later retry succeeds.
+type RemovalAttempt struct {
+	StartedAt  string                `json:"started_at"`
+	FinishedAt string                `json:"finished_at"`
+	Applied    []RemovalReceiptEntry `json:"applied"`
+	Error      string                `json:"error,omitempty"`
 }
 
 // Uninstaller is the command-facing seam. Production passes a real remover
@@ -216,13 +273,35 @@ type Remover interface {
 // the signed credential, audience, lifetime, and destructive scope.
 type BreakGlassVerifier func(token string, now time.Time) error
 
+// BoundBreakGlassVerifier adds the frozen operation context to the existing
+// signature/lifetime check. It is optional so older non-Bridge callers retain
+// their compatibility path while cleanup can require complete binding.
+type BoundBreakGlassVerifier func(token string, request UninstallRequest, plan UninstallPlan, now time.Time) error
+
+type UninstallOption func(*uninstallService)
+
+func WithBoundBreakGlassVerifier(verify BoundBreakGlassVerifier) UninstallOption {
+	return func(s *uninstallService) { s.boundVerify = verify }
+}
+
 // NewFileRemover is intentionally the only production constructor for the
 // unexported real remover. cmd/vrooli is the only caller; tests inject a
-// recording Remover into NewUninstallService instead.
-func NewFileRemover(home string) Remover { return fileRemover{home: filepath.Clean(home)} }
+// recording Remover into NewUninstallService instead. The optional service
+// names are deferred only for the paired helper's self-cleanup path; all other
+// service entries are stopped before their unit files are removed.
+func NewFileRemover(home string, deferredServiceNames ...string) Remover {
+	deferred := make(map[string]struct{}, len(deferredServiceNames))
+	for _, name := range deferredServiceNames {
+		if name = normalizeServiceName(name); name != "" {
+			deferred[name] = struct{}{}
+		}
+	}
+	return fileRemover{home: filepath.Clean(home), deferredServiceNames: deferred}
+}
 
 type fileRemover struct {
-	home string
+	home                 string
+	deferredServiceNames map[string]struct{}
 }
 
 func (r fileRemover) Remove(entry InstallEntry) error {
@@ -235,7 +314,7 @@ func (r fileRemover) Remove(entry InstallEntry) error {
 	if entry.Kind == EntryPackage {
 		return removeHostPackage(entry)
 	}
-	if entry.Kind == EntryService {
+	if entry.Kind == EntryService && !r.defersServiceStop(entry) {
 		if err := stopRecordedService(entry); err != nil {
 			return err
 		}
@@ -244,6 +323,30 @@ func (r fileRemover) Remove(entry InstallEntry) error {
 		return fmt.Errorf("remove %s: %w", entry.Path, err)
 	}
 	return nil
+}
+
+// defersServiceStop is used by the paired privileged helper while it is
+// applying its own frozen cleanup plan. Stopping either Bridge service before
+// the terminal receipt is reported would tear down the reporting path (and, on
+// some service managers, kill the helper that is doing the removal). The unit
+// file is still removed in this call; the owning process is shut down by the
+// transport after the receipt has crossed the control-plane boundary.
+func (r fileRemover) defersServiceStop(entry InstallEntry) bool {
+	if entry.Kind != EntryService || strings.TrimSpace(entry.ServiceName) == "" {
+		return false
+	}
+	_, ok := r.deferredServiceNames[normalizeServiceName(entry.ServiceName)]
+	return ok
+}
+
+// normalizeServiceName lets the cleanup guard use one logical service name
+// across native managers: systemd records commonly carry a .service suffix,
+// while launchd records carry the Bridge reverse-DNS prefix.
+func normalizeServiceName(name string) string {
+	name = strings.TrimSpace(name)
+	name = strings.TrimSuffix(name, ".service")
+	name = strings.TrimPrefix(name, "com.vrooli.bridge.")
+	return name
 }
 
 func removeHostPackage(entry InstallEntry) error {
@@ -305,31 +408,50 @@ func runNativeRemovalCommand(name string, args ...string) error {
 }
 
 type uninstallService struct {
-	root     string
-	home     string
-	remover  Remover
-	verify   BreakGlassVerifier
-	hostname func() (string, error)
-	now      func() time.Time
+	root        string
+	home        string
+	planDir     string
+	remover     Remover
+	verify      BreakGlassVerifier
+	boundVerify BoundBreakGlassVerifier
+	hostname    func() (string, error)
+	now         func() time.Time
 }
 
 // NewUninstallService builds the safe orchestration layer around an injected
 // remover. It does not construct or retain any production deletion primitive.
-func NewUninstallService(root, home string, remover Remover, verify BreakGlassVerifier) (Uninstaller, error) {
+func NewUninstallService(root, home string, remover Remover, verify BreakGlassVerifier, options ...UninstallOption) (Uninstaller, error) {
 	if strings.TrimSpace(home) == "" {
 		return nil, errors.New("uninstall: home is required")
 	}
 	if remover == nil {
 		return nil, errors.New("uninstall: remover is required")
 	}
-	return &uninstallService{
+	root = filepath.Clean(strings.TrimSpace(root))
+	if root == "" || root == "." {
+		return nil, errors.New("uninstall: repository root is required")
+	}
+	contract, err := repocontract.LoadDefault(root)
+	if err != nil {
+		return nil, fmt.Errorf("uninstall: load repository contract: %w", err)
+	}
+	state, err := contract.RuntimeHomeEntry(home, repocontract.HomeKeyState)
+	if err != nil {
+		return nil, fmt.Errorf("uninstall: resolve state directory: %w", err)
+	}
+	service := &uninstallService{
 		root:     filepath.Clean(root),
 		home:     filepath.Clean(home),
+		planDir:  filepath.Join(state.AbsPath, "uninstall-plans"),
 		remover:  remover,
 		verify:   verify,
 		hostname: os.Hostname,
 		now:      time.Now,
-	}, nil
+	}
+	for _, option := range options {
+		option(service)
+	}
+	return service, nil
 }
 
 func InstallRecordPath(home string) (string, error) {
@@ -340,15 +462,19 @@ func InstallRecordPath(home string) (string, error) {
 	return filepath.Join(state, "install-record.json"), nil
 }
 
-func uninstallPlanPath(home, id string) (string, error) {
-	state, err := repocontract.RuntimeHomeEntryPath(filepath.Clean(home), repocontract.HomeKeyState)
-	if err != nil {
-		return "", fmt.Errorf("resolve uninstall plan directory: %w", err)
+func uninstallPlanPathIn(planDir, id string) (string, error) {
+	planDir = filepath.Clean(strings.TrimSpace(planDir))
+	if planDir == "" || planDir == "." {
+		return "", errors.New("resolve uninstall plan directory: plan directory is required")
 	}
 	if !isPlanID(id) {
 		return "", fmt.Errorf("invalid uninstall plan id %q", id)
 	}
-	return filepath.Join(state, "uninstall-plans", id+".json"), nil
+	return filepath.Join(planDir, id+".json"), nil
+}
+
+func (s *uninstallService) planPath(id string) (string, error) {
+	return uninstallPlanPathIn(s.planDir, id)
 }
 
 func LoadInstallRecord(home string) (InstallRecord, error) {
@@ -578,7 +704,7 @@ func (s *uninstallService) Plan(request UninstallRequest) (UninstallPlan, error)
 	disk := make([]DiskSnapshot, 0, len(remove))
 	existing := remove[:0]
 	for _, entry := range remove {
-		if entry.Kind == EntryPackage || isContainerEntry(entry.Kind) {
+		if entry.Volatile || entry.Kind == EntryPackage || isContainerEntry(entry.Kind) {
 			existing = append(existing, entry)
 			continue
 		}
@@ -597,6 +723,12 @@ func (s *uninstallService) Plan(request UninstallRequest) (UninstallPlan, error)
 	if err != nil {
 		return UninstallPlan{}, err
 	}
+	if strings.TrimSpace(request.PlanID) != "" {
+		if !isPlanID(request.PlanID) {
+			return UninstallPlan{}, &SafetyError{Code: "invalid_plan_id", Detail: "plan id contains unsafe characters"}
+		}
+		id = strings.TrimSpace(request.PlanID)
+	}
 	now := s.now().UTC()
 	plan := UninstallPlan{
 		Version:         planVersion,
@@ -611,7 +743,8 @@ func (s *uninstallService) Plan(request UninstallRequest) (UninstallPlan, error)
 		Entries:         remove,
 		Disk:            disk,
 	}
-	path, err := uninstallPlanPath(s.home, id)
+	plan.PlanHash = ComputePlanHash(plan)
+	path, err := s.planPath(id)
 	if err != nil {
 		return UninstallPlan{}, err
 	}
@@ -636,10 +769,13 @@ func (s *uninstallService) Apply(request UninstallRequest) (RemovalReceipt, erro
 	if s.verify == nil || strings.TrimSpace(request.BreakGlass) == "" {
 		return RemovalReceipt{}, &SafetyError{Code: "break_glass_required", Detail: "a valid uninstall break-glass token is required"}
 	}
+	// Keep the cheap credential/lifetime gate ahead of any plan read. This is
+	// both a stable error contract and a defense against probing plan metadata
+	// with an expired credential.
 	if err := s.verify(request.BreakGlass, s.now()); err != nil {
 		return RemovalReceipt{}, &SafetyError{Code: "break_glass_required", Detail: err.Error()}
 	}
-	path, err := uninstallPlanPath(s.home, request.PlanID)
+	path, err := s.planPath(request.PlanID)
 	if err != nil {
 		return RemovalReceipt{}, err
 	}
@@ -651,8 +787,21 @@ func (s *uninstallService) Apply(request UninstallRequest) (RemovalReceipt, erro
 	if err := json.Unmarshal(data, &plan); err != nil {
 		return RemovalReceipt{}, &SafetyError{Code: "plan_invalid", Path: path, Detail: err.Error()}
 	}
+	if s.boundVerify != nil {
+		if err := s.boundVerify(request.BreakGlass, request, plan, s.now()); err != nil {
+			return RemovalReceipt{}, &SafetyError{Code: "break_glass_required", Detail: err.Error()}
+		}
+	}
 	if plan.ID != request.PlanID || plan.Version != planVersion || plan.Target != target {
 		return RemovalReceipt{}, &SafetyError{Code: "plan_stale", Path: path, Detail: "plan identity or target no longer matches"}
+	}
+	if plan.PlanHash == "" {
+		// Legacy plans are still readable, but their resolved artifact set is
+		// upgraded before any mutation so a resumed apply has a stable subject.
+		plan.PlanHash = ComputePlanHash(plan)
+	}
+	if plan.PlanHash != ComputePlanHash(plan) {
+		return RemovalReceipt{}, &SafetyError{Code: "plan_stale", Path: path, Detail: "resolved artifact list hash changed"}
 	}
 	if request.Scope != "" && request.Scope != plan.Scope {
 		return RemovalReceipt{}, &SafetyError{Code: "plan_stale", Path: path, Detail: "requested scope differs from frozen plan"}
@@ -676,14 +825,120 @@ func (s *uninstallService) Apply(request UninstallRequest) (RemovalReceipt, erro
 	if err := verifyFrozenDisk(plan); err != nil {
 		return RemovalReceipt{}, err
 	}
-	receipt := RemovalReceipt{PlanID: plan.ID, Target: target, Scope: plan.Scope, RemovedAt: s.now().UTC().Format(time.RFC3339), Removed: make([]RemovalReceiptEntry, 0, len(entries))}
+	attempt := RemovalAttempt{StartedAt: s.now().UTC().Format(time.RFC3339), Applied: make([]RemovalReceiptEntry, 0)}
 	for _, entry := range entries {
-		if err := s.remover.Remove(entry); err != nil {
-			return RemovalReceipt{}, fmt.Errorf("remove frozen entry %s: %w", entry.Path, err)
+		if receiptEntryApplied(plan.Applied, entry) {
+			continue
 		}
-		receipt.Removed = append(receipt.Removed, RemovalReceiptEntry{Scope: entry.Scope, Kind: entry.Kind, Path: entry.Path})
+		if err := s.remover.Remove(entry); err != nil {
+			attempt.FinishedAt = s.now().UTC().Format(time.RFC3339)
+			attempt.Error = fmt.Sprintf("remove frozen entry %s: %v", entry.Path, err)
+			plan.Attempts = append(plan.Attempts, attempt)
+			_ = s.writeUninstallPlan(plan)
+			return removalReceipt(plan, target, request.AuthorizingUser), fmt.Errorf("remove frozen entry %s: %w", entry.Path, err)
+		}
+		removed := RemovalReceiptEntry{Scope: entry.Scope, Kind: entry.Kind, Path: entry.Path}
+		plan.Applied = append(plan.Applied, removed)
+		attempt.Applied = append(attempt.Applied, removed)
+		// Persist after every successful entry. A power loss or transport drop
+		// therefore resumes the same plan without rediscovering or repeating work.
+		if err := s.writeUninstallPlan(plan); err != nil {
+			attempt.FinishedAt = s.now().UTC().Format(time.RFC3339)
+			attempt.Error = "persist apply progress: " + err.Error()
+			plan.Attempts = append(plan.Attempts, attempt)
+			_ = s.writeUninstallPlan(plan)
+			return removalReceipt(plan, target, request.AuthorizingUser), err
+		}
 	}
-	return receipt, nil
+	attempt.FinishedAt = s.now().UTC().Format(time.RFC3339)
+	plan.Attempts = append(plan.Attempts, attempt)
+	if err := s.writeUninstallPlan(plan); err != nil {
+		return removalReceipt(plan, target, request.AuthorizingUser), err
+	}
+	return removalReceipt(plan, target, request.AuthorizingUser), nil
+}
+
+// Verify reads a frozen plan and observes the artifact classes that can be
+// checked safely without granting any mutation capability. It never invokes
+// the remover and never re-runs discovery.
+func (s *uninstallService) Verify(request UninstallRequest) (UninstallVerification, error) {
+	if request.Mode != UninstallVerifyMode || !isPlanID(request.PlanID) {
+		return UninstallVerification{}, &SafetyError{Code: "plan_required", Detail: "--verify requires a valid plan id"}
+	}
+	target, err := s.confirmTarget(request.ConfirmTarget)
+	if err != nil {
+		return UninstallVerification{}, err
+	}
+	path, err := s.planPath(request.PlanID)
+	if err != nil {
+		return UninstallVerification{}, err
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return UninstallVerification{}, &SafetyError{Code: "plan_unavailable", Path: path, Detail: err.Error()}
+	}
+	var plan UninstallPlan
+	if err := json.Unmarshal(data, &plan); err != nil {
+		return UninstallVerification{}, &SafetyError{Code: "plan_invalid", Path: path, Detail: err.Error()}
+	}
+	if plan.ID != request.PlanID || plan.Version != planVersion || plan.Target != target || (request.Scope != "" && request.Scope != plan.Scope) {
+		return UninstallVerification{}, &SafetyError{Code: "plan_stale", Path: path, Detail: "plan identity, target, or scope no longer matches"}
+	}
+	if plan.PlanHash == "" || plan.PlanHash != ComputePlanHash(plan) {
+		return UninstallVerification{}, &SafetyError{Code: "plan_stale", Path: path, Detail: "resolved artifact list hash changed"}
+	}
+	verification := UninstallVerification{
+		PlanID: plan.ID, PlanHash: plan.PlanHash, Target: target, Scope: plan.Scope,
+		VerifiedAt: s.now().UTC().Format(time.RFC3339), Complete: true,
+		Removed:   append([]RemovalReceiptEntry(nil), plan.Applied...),
+		Preserved: append([]UninstallDecision(nil), plan.Keep...), CannotAttribute: append([]UninstallDecision(nil), plan.CannotAttribute...),
+	}
+	for _, entry := range plan.RemoveOrEntries() {
+		observed := RemovalReceiptEntry{Scope: entry.Scope, Kind: entry.Kind, Path: entry.Path}
+		if isContainerEntry(entry.Kind) || entry.Kind == EntryPackage {
+			verification.NotChecked = append(verification.NotChecked, observed)
+			verification.Complete = false
+			continue
+		}
+		if _, err := os.Lstat(entry.Path); err == nil {
+			verification.Remaining = append(verification.Remaining, observed)
+			verification.Complete = false
+		} else if !errors.Is(err, os.ErrNotExist) {
+			verification.NotChecked = append(verification.NotChecked, observed)
+			verification.Complete = false
+		}
+	}
+	return verification, nil
+}
+
+func (s *uninstallService) writeUninstallPlan(plan UninstallPlan) error {
+	path, err := s.planPath(plan.ID)
+	if err != nil {
+		return err
+	}
+	data, err := json.MarshalIndent(plan, "", "  ")
+	if err != nil {
+		return fmt.Errorf("encode uninstall plan progress: %w", err)
+	}
+	return config.WriteOwnedFile(path, append(data, '\n'), 0o600)
+}
+
+func receiptEntryApplied(applied []RemovalReceiptEntry, entry InstallEntry) bool {
+	for _, prior := range applied {
+		if prior.Scope == entry.Scope && prior.Kind == entry.Kind && prior.Path == entry.Path {
+			return true
+		}
+	}
+	return false
+}
+
+func removalReceipt(plan UninstallPlan, target, authorizingUser string) RemovalReceipt {
+	return RemovalReceipt{
+		PlanID: plan.ID, PlanHash: plan.PlanHash, Target: target, Scope: plan.Scope,
+		RemovedAt: time.Now().UTC().Format(time.RFC3339), AuthorizingUser: strings.TrimSpace(authorizingUser),
+		Removed: append([]RemovalReceiptEntry(nil), plan.Applied...), Preserved: append([]UninstallDecision(nil), plan.Keep...),
+		CannotAttribute: append([]UninstallDecision(nil), plan.CannotAttribute...), Attempts: append([]RemovalAttempt(nil), plan.Attempts...),
+	}
 }
 
 type SafetyError struct {
@@ -724,6 +979,9 @@ func validatePlanRequest(request UninstallRequest) error {
 	}
 	if strings.TrimSpace(request.ConfirmTarget) == "" {
 		return &SafetyError{Code: "target_required", Detail: "--confirm-target is required"}
+	}
+	if strings.TrimSpace(request.PlanID) != "" && !isPlanID(request.PlanID) {
+		return &SafetyError{Code: "invalid_plan_id", Detail: "plan id contains unsafe characters"}
 	}
 	return nil
 }
@@ -1018,6 +1276,9 @@ func validateResolvedPath(path, prefix string) error {
 
 func verifyFrozenDisk(plan UninstallPlan) error {
 	for _, expected := range plan.Disk {
+		if receiptEntryAppliedPath(plan.Applied, expected.Path) {
+			continue
+		}
 		fingerprint, exists, err := snapshotPath(expected.Path)
 		if err != nil {
 			return err
@@ -1027,6 +1288,15 @@ func verifyFrozenDisk(plan UninstallPlan) error {
 		}
 	}
 	return nil
+}
+
+func receiptEntryAppliedPath(applied []RemovalReceiptEntry, path string) bool {
+	for _, entry := range applied {
+		if filepath.Clean(entry.Path) == filepath.Clean(path) {
+			return true
+		}
+	}
+	return false
 }
 
 func snapshotPath(path string) (string, bool, error) {
@@ -1099,11 +1369,26 @@ func newPlanID() (string, error) {
 }
 
 func isPlanID(id string) bool {
-	if len(id) != 32 {
+	id = strings.TrimSpace(id)
+	if len(id) == 32 {
+		_, err := hex.DecodeString(id)
+		return err == nil
+	}
+	if len(id) != 36 {
 		return false
 	}
-	_, err := hex.DecodeString(id)
-	return err == nil
+	for index, r := range id {
+		if index == 8 || index == 13 || index == 18 || index == 23 {
+			if r != '-' {
+				return false
+			}
+			continue
+		}
+		if !((r >= '0' && r <= '9') || (r >= 'a' && r <= 'f')) {
+			return false
+		}
+	}
+	return true
 }
 
 func mustInstallRecordPath(home string) string {
@@ -1133,12 +1418,20 @@ func stopRecordedService(entry InstallEntry) error {
 		}
 		domain := strings.TrimSpace(entry.ServiceDomain)
 		if domain == "" {
-			domain = "gui/" + currentUserID()
+			domain = launchdDomainForPath(entry.Path)
 		}
 		return runNativeServiceCommand("launchctl", "bootout", domain+"/"+name)
 	default:
 		return nil
 	}
+}
+
+func launchdDomainForPath(path string) string {
+	clean := filepath.ToSlash(filepath.Clean(strings.TrimSpace(path)))
+	if clean == "/Library/LaunchDaemons" || strings.HasPrefix(clean, "/Library/LaunchDaemons/") {
+		return "system"
+	}
+	return "gui/" + currentUserID()
 }
 
 func currentUserID() string {

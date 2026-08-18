@@ -4,10 +4,13 @@
   "title": "Vrooli monetization declaration",
   "type": "object",
   "additionalProperties": false,
-  "required": ["version", "bundle_key", "features", "meters"],
+  "required": ["version", "bundle_key", "app_key", "features", "meters"],
   "properties": {
-    "version": { "type": "integer", "const": 1 },
+    "$schema": { "type": "string", "minLength": 1 },
+    "version": { "type": "integer", "const": 2 },
     "bundle_key": { "type": "string", "minLength": 1 },
+    "app_key": { "type": "string", "minLength": 1 },
+    "requires_entitlement": { "type": "boolean", "default": true },
     "features": {
       "type": "array",
       "items": { "$ref": "#/$defs/feature" }
@@ -26,6 +29,7 @@
       "properties": {
         "key": { "type": "string", "minLength": 1 },
         "class": { "type": "string", "enum": ["A", "B"] },
+        "min_plan_rank": { "type": "integer", "minimum": 0 },
         "enforcement_paths": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/path" } }
       }
     },
@@ -36,6 +40,8 @@
       "properties": {
         "limit_key": { "type": "string", "minLength": 1 },
         "class": { "type": "string", "enum": ["A", "B"] },
+        "outbox": { "$ref": "#/$defs/path" },
+        "byok": { "type": "boolean" },
         "enforcement_paths": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/path" } }
       }
     }

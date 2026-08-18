@@ -55,7 +55,8 @@ func TestCollectLinuxSnapshot(t *testing.T) {
 			},
 			out: map[string][]byte{
 				"nvidia-smi --query-gpu=index,name,uuid,driver_version,utilization.gpu,utilization.memory,memory.total,memory.used,temperature.gpu,fan.speed,power.draw,power.limit,clocks.sm,clocks.mem --format=csv,noheader,nounits": []byte("0, NVIDIA RTX 4090, GPU-abc, 555.42, 35, 20, 24564, 4096, 65, 40, 180, 450, 2100, 10000\n"),
-				"nvidia-smi --query-compute-apps=pid,process_name,used_memory,gpu_uuid --format=csv,noheader,nounits":                                                                                                                   []byte("1234, python, 2048, GPU-abc\n"),
+				"nvidia-smi --query-gpu=index,compute_cap --format=csv,noheader,nounits":                              []byte("0, 8.9\n"),
+				"nvidia-smi --query-compute-apps=pid,process_name,used_memory,gpu_uuid --format=csv,noheader,nounits": []byte("1234, python, 2048, GPU-abc\n"),
 				"docker info": []byte("Runtimes: io.containerd.runc.v2 nvidia runc\n"),
 			},
 		},
@@ -86,6 +87,9 @@ func TestCollectLinuxSnapshot(t *testing.T) {
 	}
 	if got.GPUs[0].UtilizationPercent != 35 || got.GPUs[0].VRAMUsedBytes != 4096*1024*1024 {
 		t.Fatalf("gpu detail = %#v", got.GPUs[0])
+	}
+	if got.GPUs[0].CUDAComputeCapability != "8.9" {
+		t.Fatalf("gpu compute capability = %q", got.GPUs[0].CUDAComputeCapability)
 	}
 	if len(got.GPUProcesses) != 1 || got.GPUProcesses[0].PID != 1234 || got.GPUProcesses[0].GPUIndex != 0 {
 		t.Fatalf("gpu processes = %#v", got.GPUProcesses)
@@ -336,6 +340,28 @@ func TestParseNvidiaDetailedGPUCSV(t *testing.T) {
 	}
 	if got[0].VRAMBytes != 24564*1024*1024 || got[0].VRAMUsedBytes != 1024*1024*1024 {
 		t.Fatalf("gpu memory = %#v", got[0])
+	}
+}
+
+func TestParseNvidiaComputeCapabilityCSV(t *testing.T) {
+	got := ParseNvidiaComputeCapabilityCSV("0, 8.9\n1, N/A\nmalformed\n")
+	if len(got) != 1 || got[0] != "8.9" {
+		t.Fatalf("compute capabilities = %#v", got)
+	}
+}
+
+func TestAcquisitionFactsOmitAbsentComputeCapability(t *testing.T) {
+	withoutGPU := (Snapshot{OS: "linux", Arch: "arm64"}).AcquisitionFacts()
+	if _, ok := withoutGPU["gpu.cuda_compute"]; ok {
+		t.Fatalf("absent GPU emitted compute fact: %#v", withoutGPU)
+	}
+	withGPUs := (Snapshot{OS: "linux", Arch: "amd64", GPUs: []GPU{
+		{Source: "nvidia-smi", CUDAComputeCapability: "8.0"},
+		{Source: "nvidia-smi", CUDAComputeCapability: "8.9"},
+		{Source: "system_profiler", CUDAComputeCapability: "9.0"},
+	}}).AcquisitionFacts()
+	if got := withGPUs["gpu.cuda_compute"]; got != "8.9" {
+		t.Fatalf("gpu.cuda_compute = %q, want highest NVIDIA capability", got)
 	}
 }
 

@@ -113,3 +113,18 @@ func TestValidateAcceptsAMixOfInjectedAndDirectlyResolvedCredentials(t *testing.
 		t.Fatalf("All() = %+v, want both descriptors — a directly resolved credential is still declared", all)
 	}
 }
+
+func TestDescriptorProvisioningValidation(t *testing.T) {
+	valid := Descriptor{LogicalID: "vrooli/test", Field: "derived", Provisioning: "derived", DerivedFrom: "token"}
+	if err := (Declaration{Descriptors: []Descriptor{valid}}).Validate("test"); err != nil {
+		t.Fatalf("derived descriptor rejected: %v", err)
+	}
+	for _, descriptor := range []Descriptor{
+		{LogicalID: "vrooli/test", Field: "derived", Provisioning: "unknown"},
+		{LogicalID: "vrooli/test", Field: "derived", Provisioning: "derived"},
+	} {
+		if err := (Declaration{Descriptors: []Descriptor{descriptor}}).Validate("test"); err == nil {
+			t.Fatalf("descriptor %+v unexpectedly validated", descriptor)
+		}
+	}
+}

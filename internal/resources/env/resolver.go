@@ -309,13 +309,14 @@ func resolveRequestedEnvValues(
 	warnings := []string{}
 
 	templateContext := buildTemplateContext(root, home, resourceManifest.Name)
+	runtimeEnvironment := declaredRuntimeEnvironment(resourceManifest)
 
 	for _, key := range requested {
 		name := strings.TrimSpace(key)
 		if name == "" {
 			continue
 		}
-		if value, ok := resourceManifest.Runtime.Env[name]; ok {
+		if value, ok := runtimeEnvironment[name]; ok {
 			values[name] = expandTemplateWithContext(value, baseValues, templateContext)
 			continue
 		}
@@ -376,8 +377,9 @@ func ValidateResourceManifest(root string, resourceManifest manifestpkg.Resource
 			}
 		}
 	}
+	runtimeEnvironment := declaredRuntimeEnvironment(resourceManifest)
 	for _, key := range resourceManifest.EnvironmentExports.FromRuntimeEnv {
-		if value, ok := resourceManifest.Runtime.Env[key]; ok {
+		if value, ok := runtimeEnvironment[key]; ok {
 			baseValues[key] = value
 		}
 	}
@@ -400,6 +402,23 @@ func ValidateResourceManifest(root string, resourceManifest manifestpkg.Resource
 	}
 	issues = append(issues, validateResourceStorageSources(root, resourceManifest)...)
 	return issues
+}
+
+func declaredRuntimeEnvironment(manifest manifestpkg.ResourceManifest) map[string]string {
+	managedEnvironmentSize := 0
+	if manifest.ManagedService != nil {
+		managedEnvironmentSize = len(manifest.ManagedService.Environment)
+	}
+	values := make(map[string]string, len(manifest.Runtime.Env)+managedEnvironmentSize)
+	for key, value := range manifest.Runtime.Env {
+		values[key] = value
+	}
+	if manifest.ManagedService != nil {
+		for key, value := range manifest.ManagedService.Environment {
+			values[key] = value
+		}
+	}
+	return values
 }
 
 func hostPortProtocolKey(port manifestpkg.ResourcePort) string {
@@ -538,7 +557,17 @@ func LoadResourcePorts(root string) (map[string]int, error) {
 		if !entry.IsDir() {
 			continue
 		}
-		manifest, err := manifestpkg.Load(filepath.Join(resourcesRoot, entry.Name(), "resource.json"))
+		manifestPath := filepath.Join(resourcesRoot, entry.Name(), "resource.json")
+		if _, err := os.Stat(manifestPath); os.IsNotExist(err) {
+			// Resource discovery intentionally ignores manifest-less directories.
+			// Keep port allocation aligned with that contract so resource-local
+			// prototypes and documentation cannot make unrelated scenarios fail
+			// during lifecycle startup.
+			continue
+		} else if err != nil {
+			return nil, fmt.Errorf("inspect resource %s manifest for port allocation: %w", entry.Name(), err)
+		}
+		manifest, err := manifestpkg.Load(manifestPath)
 		if err != nil {
 			return nil, fmt.Errorf("load resource %s for port allocation: %w", entry.Name(), err)
 		}

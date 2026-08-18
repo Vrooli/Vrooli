@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 // Static primitive-evidence artifact.
@@ -65,7 +67,13 @@ const EvidenceDoNotEditNotice = "GENERATED FILE — do not edit by hand. Regener
 // EvidenceSourceManifest is the scenario-relative path of the manifest the
 // artifact is generated from, recorded for provenance. Constant for golden
 // stability.
-const EvidenceSourceManifest = "cli/manifest.json"
+var EvidenceSourceManifest = func() string {
+	rel, err := repocontract.ScenarioCLIManifestRel("")
+	if err != nil {
+		return ""
+	}
+	return rel
+}()
 
 // EvidenceArtifactPath resolves the canonical primitive-evidence artifact path
 // under a scenario root (the directory that contains cli/ and .vrooli/).

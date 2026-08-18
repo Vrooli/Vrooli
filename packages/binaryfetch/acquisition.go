@@ -67,9 +67,13 @@ type AcquisitionTarget struct {
 	Layout         string            `json:"layout,omitempty"`
 	BinPath        string            `json:"bin_path,omitempty"`
 	Mode           string            `json:"mode,omitempty"`
-	RuntimeEnv     map[string]string `json:"runtime_env,omitempty"`
-	Unsupported    string            `json:"unsupported,omitempty"`
-	Compose        []ComposeStep     `json:"compose,omitempty"`
+	// Executable is the host command adopted by kind=none. It is deliberately
+	// explicit: a managed service may reuse a separately governed host tool,
+	// but it may not discover an arbitrary running process or binary.
+	Executable  string            `json:"executable,omitempty"`
+	RuntimeEnv  map[string]string `json:"runtime_env,omitempty"`
+	Unsupported string            `json:"unsupported,omitempty"`
+	Compose     []ComposeStep     `json:"compose,omitempty"`
 }
 
 // IsDir reports whether the acquired artifact is an executable tree.
@@ -105,7 +109,7 @@ func (a Acquisition) Validate() error {
 		}
 		unsupported := strings.TrimSpace(target.Unsupported)
 		if unsupported != "" {
-			if target.URL != "" || target.Image != "" || target.SHA256 != "" || target.ArtifactSHA256 != "" || target.Archive != "" || target.Layout != "" || target.BinPath != "" || len(target.RuntimeEnv) != 0 || len(target.Compose) != 0 {
+			if target.URL != "" || target.Image != "" || target.SHA256 != "" || target.ArtifactSHA256 != "" || target.Archive != "" || target.Layout != "" || target.BinPath != "" || target.Executable != "" || len(target.RuntimeEnv) != 0 || len(target.Compose) != 0 {
 				return fmt.Errorf("acquisition target %d: unsupported target cannot also declare an artifact", index)
 			}
 			continue
@@ -127,7 +131,12 @@ func (a Acquisition) Validate() error {
 				return fmt.Errorf("acquisition target %d: image is required", index)
 			}
 		case "none":
-			return fmt.Errorf("acquisition target %d: kind none requires unsupported", index)
+			if strings.TrimSpace(target.Executable) == "" {
+				return fmt.Errorf("acquisition target %d: kind none requires executable or unsupported", index)
+			}
+			if filepath.IsAbs(target.Executable) || filepath.Clean(target.Executable) != target.Executable || strings.ContainsAny(target.Executable, `/\\`) {
+				return fmt.Errorf("acquisition target %d: executable must be a PATH command name", index)
+			}
 		case "composed":
 			if target.Layout != "dir" {
 				return fmt.Errorf("acquisition target %d: composed acquisition requires layout dir", index)

@@ -95,6 +95,22 @@ func ReplaceProcess(argv0 string, argv []string, env []string) error {
 // IsPIDRunning reports whether pid can be observed as alive by this user.
 func IsPIDRunning(pid int) bool { return pidIsAlive(pid) }
 
+// ProcessCommandLine returns the command line of pid as a single string on
+// hosts that expose it, or a typed error where they do not.
+//
+// This exists so a durable record can name the process that initiated an
+// operation, not merely its PID. A PID is meaningless within seconds of the
+// process exiting — and on a host where short-lived CLIs start work
+// constantly, that is exactly when someone asks who did it.
+func ProcessCommandLine(pid int) (string, error) { return processCommandLine(pid) }
+
+// ProcessScope returns the operating system's containment identity for pid —
+// on Linux the cgroup path, which outlives the process and identifies the
+// terminal pane, service, or session the work belonged to. Hosts with no such
+// identity return an empty string and no error: absence is a fact, not a
+// failure.
+func ProcessScope(pid int) (string, error) { return processScope(pid) }
+
 // ReadProcessEnvironment returns the environment observable for pid on hosts
 // that expose it. Unsupported hosts return a typed error from their backend.
 func ReadProcessEnvironment(pid int) (map[string]string, error) {
@@ -149,6 +165,12 @@ type ServiceInstallOptions struct {
 	Executable string
 	SourceRoot string
 	User       bool
+	// LogPath is the absolute file the supervised process should write its
+	// stdout and stderr to. The caller resolves it (platform-go does not know
+	// the Vrooli home contract); the backend creates the parent directory and
+	// wires the native unit at it. Empty falls back to the platform default,
+	// which on Linux means the journal.
+	LogPath string
 }
 
 // ServiceInstallResult is the platform-neutral service outcome.
@@ -167,6 +189,19 @@ func InstallService(options ServiceInstallOptions) (ServiceInstallResult, error)
 // UninstallService stops and removes the native runtime supervisor service.
 func UninstallService(options ServiceInstallOptions) (ServiceInstallResult, error) {
 	return uninstallService(options)
+}
+
+// StartInstalledService starts the runtime supervisor through its native
+// service manager when a unit is already installed, and reports whether one
+// was started.
+//
+// Callers use this before falling back to launching the supervisor themselves.
+// A self-launched supervisor inherits the caller's process placement — on Linux
+// that means the cgroup of whatever ran the command — so it can be killed by
+// something entirely unrelated restarting. Going through the service manager
+// puts the daemon where it belongs instead.
+func StartInstalledService(options ServiceInstallOptions) (bool, error) {
+	return startInstalledService(options)
 }
 
 // SupportsService reports whether this host has a supported native service

@@ -61,7 +61,7 @@ func validateReceipt(env *domain.EventEnvelope) *envelopeValidationError {
 	if env.Target == nil || strings.TrimSpace(env.Target.Scenario) == "" || strings.TrimSpace(env.Target.Operation) == "" || strings.TrimSpace(env.Target.Protocol) == "" {
 		return &envelopeValidationError{Field: "target", Message: "receipt target scenario, operation, and protocol are required"}
 	}
-	if env.Data == nil || !strings.HasSuffix(env.Data.TypeUrl, "/vrooli.vrooli_events.v1.domain.ReceiptData") {
+	if env.Data == nil || (!strings.HasSuffix(env.Data.TypeUrl, "/vrooli.vrooli_events.v1.domain.ReceiptData") && !strings.HasSuffix(env.Data.TypeUrl, "/vrooli.events.v1.domain.ReceiptData")) {
 		return &envelopeValidationError{Field: "data", Message: "receipt data must pack ReceiptData"}
 	}
 	return nil

@@ -30,18 +30,18 @@ OT-P2-008 specifies event replay (re-emit historical events to a subscription). 
 ### Metrics export format
 OT-P2-009 specifies Prometheus-compatible /metrics endpoint. Deferred until there's a concrete Grafana/monitoring integration need.
 
-### Aggregate/count surface over receipts (external obligation)
+### Aggregate/count surface over receipts — resolved 2026-08-18
 `meta-optimization-manager`'s Condition axis names this scenario as the **single fleet-wide source for the Exercise signal family** — how often each capability is actually invoked. See `path:../meta-optimization-manager/docs/concepts/CONDITION-MODEL.md` § "Fleet-wide exercise". The design is deliberate: `vrooli.events.receipt.v1` is emitted target-side by every scenario served by `api-core/server.Run`, caller-agnostic, so one aggregate here serves all four projections at once and no projection owner has to implement exercise counting independently.
 
-Three gaps stand between that design and this scenario:
+The aggregate path is now implemented:
 
-- **No aggregate or count operation.** `events query` searches by type, source, and correlation id. Exercise needs counts grouped by target scenario and operation over a time window, plus distinct-caller counts and a last-invoked timestamp.
-- **No `cli/manifest.json`.** Without one this scenario has no governed bindings and is not programmatically callable, so the aggregate would be unreachable from a program even once it exists.
-- **No declared measures.** The Condition model reads signals through the Measures layer and the central measures index; a raw RPC would be a second, unindexed path.
+- `ReceiptAggregateService.AggregateReceipts` groups durable receipt envelopes by target scenario and operation over a bounded window, returning invocation counts, verified distinct callers, unattributed remainder, and last-invoked timestamps.
+- The operation is exposed through the governed CLI manifest as `vrooli-events aggregate` in the Events command group, with verified `proto_list` primitive evidence.
+- The command declares the `receipts.invocations` measure, and Program Runtime consumes one fleet aggregate for each condition window rather than fanning out per scenario.
 
-Distinct-caller counts are additionally bounded by attribution: only verified Agent Manager identity claims may set a receipt's subject and agent correlation, so that signal must report the unattributed remainder rather than silently undercounting. Invocation counts and last-invoked timestamps are unaffected.
+Distinct-caller counts remain bounded by attribution: only verified Agent Manager identity claims may set a receipt's subject and agent correlation, so the aggregate reports the unattributed remainder rather than silently undercounting. Invocation counts and last-invoked timestamps are unaffected. SQLite single-writer scaling remains a separate deferred decision below.
 
-Deferred rather than scheduled — no consumer exists yet, since the condition source is not registered on the board. Revisit when it is, or when any projection owner adopts the Exercise family.
+Validation: store grouping/window/attribution tests, API tests, CLI tests, and `cli-health validate scenario vrooli-events --include-execution` all pass for the new surface. The post-fix authoritative scenario suite `20260818-220718-e21f40ec` passes 21/21; its remaining UI, standards, docs, security, and template findings are advisory maturity debt, not failed phases.
 
 ### SQLite single-writer scaling
 At very high throughput, SQLite's single-writer model could become a bottleneck. Current mitigations (WAL mode, async ingestion) should handle the current scale. If this becomes a real problem, options include:

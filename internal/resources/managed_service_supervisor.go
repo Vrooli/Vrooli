@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 
@@ -52,6 +53,8 @@ type ManagedServiceSupervisor struct {
 	start     func(*exec.Cmd) error
 	isRunning func(int) bool
 	terminate func(int) error
+	forceStop func(int) error
+	signal    func(int, os.Signal) error
 }
 
 func newManagedServiceSupervisor(statePath, logPath string) *ManagedServiceSupervisor {
@@ -62,6 +65,8 @@ func newManagedServiceSupervisor(statePath, logPath string) *ManagedServiceSuper
 		start:     func(cmd *exec.Cmd) error { return cmd.Start() },
 		isRunning: process.IsPIDRunning,
 		terminate: terminateCompanion,
+		forceStop: func(pid int) error { return platform.KillProcess(pid, true) },
+		signal:    platform.SignalPIDWithSignal,
 	}
 }
 
@@ -97,8 +102,12 @@ func (s *ManagedServiceSupervisor) Status() (ManagedServiceState, bool, error) {
 // Start verifies and starts an artifact only when no live process is already
 // recorded. A stale record is atomically replaced; a live record never changes
 // provider, version, or arguments behind the operator's back.
-func (s *ManagedServiceSupervisor) Start(artifactPath string, artifact resourcedeployment.ServiceArtifact, args, env []string, workingDir string) (ManagedServiceState, error) {
+func (s *ManagedServiceSupervisor) Start(artifactPath string, artifact resourcedeployment.ServiceArtifact, args, env []string, workingDir string, limits *resourcedeployment.ProcessLimits) (ManagedServiceState, error) {
 	if err := artifact.VerifyFile(artifactPath); err != nil {
+		return ManagedServiceState{}, err
+	}
+	launchPath, err := artifact.LaunchPath(artifactPath)
+	if err != nil {
 		return ManagedServiceState{}, err
 	}
 	existing, running, err := s.Status()
@@ -121,9 +130,13 @@ func (s *ManagedServiceSupervisor) Start(artifactPath string, artifact resourced
 	if err != nil {
 		return ManagedServiceState{}, err
 	}
-	cmd := exec.Command(artifactPath, args...)
+	cmd := exec.Command(launchPath, args...)
 	cmd.Env = setEnvValue(env, managedServiceOwnershipTokenEnv, ownershipToken)
-	cmd.Dir = workingDir
+	if strings.EqualFold(strings.TrimSpace(artifact.Layout), "dir") {
+		cmd.Dir = artifactPath
+	} else {
+		cmd.Dir = workingDir
+	}
 	cmd.Stdout = logFile
 	cmd.Stderr = logFile
 	if err := platform.ConfigureCommand(cmd, platform.ProcessOptions{Detached: true}); err != nil {
@@ -131,6 +144,10 @@ func (s *ManagedServiceSupervisor) Start(artifactPath string, artifact resourced
 	}
 	if err := s.start(cmd); err != nil {
 		return ManagedServiceState{}, fmt.Errorf("start managed-service artifact: %w", err)
+	}
+	if err := applyManagedServiceProcessLimits(cmd.Process.Pid, limits); err != nil {
+		_ = s.terminate(cmd.Process.Pid)
+		return ManagedServiceState{}, fmt.Errorf("apply managed-service process limits: %w", err)
 	}
 	instanceID := existing.InstanceID
 	if instanceID == "" {
@@ -160,10 +177,22 @@ func (s *ManagedServiceSupervisor) Start(artifactPath string, artifact resourced
 	return state, nil
 }
 
-// Stop asks the process to exit gracefully and waits until the caller's
-// deadline. It retains a stopped record so the next verified launch preserves
-// the instance identity and upgrade lineage.
+// Stop asks the process to exit with the historical graceful termination
+// request and waits until the caller's deadline. If the process is still alive
+// at that bounded deadline, it escalates to forceful termination and retains
+// the state record unless the process is observed stopped.
 func (s *ManagedServiceSupervisor) Stop(ctx context.Context) error {
+	return s.stop(ctx, nil)
+}
+
+// StopWithSignal uses the manifest-selected first shutdown request. The
+// supervisor owns escalation and durable state reconciliation; callers never
+// need to decide whether a timeout means "stopped".
+func (s *ManagedServiceSupervisor) StopWithSignal(ctx context.Context, signal os.Signal) error {
+	return s.stop(ctx, signal)
+}
+
+func (s *ManagedServiceSupervisor) stop(ctx context.Context, signal os.Signal) error {
 	state, running, err := s.Status()
 	if err != nil {
 		return fmt.Errorf("read managed-service state: %w", err)
@@ -171,7 +200,11 @@ func (s *ManagedServiceSupervisor) Stop(ctx context.Context) error {
 	if !running {
 		return nil
 	}
-	if err := s.terminate(state.PID); err != nil {
+	if signal != nil {
+		if err := s.signal(state.PID, signal); err != nil {
+			return fmt.Errorf("stop managed-service process: %w", err)
+		}
+	} else if err := s.terminate(state.PID); err != nil {
 		return fmt.Errorf("stop managed-service process: %w", err)
 	}
 	ticker := time.NewTicker(25 * time.Millisecond)
@@ -179,8 +212,23 @@ func (s *ManagedServiceSupervisor) Stop(ctx context.Context) error {
 	for s.isRunning(state.PID) {
 		select {
 		case <-ctx.Done():
-			return fmt.Errorf("wait for managed-service shutdown: %w", ctx.Err())
+			if !s.isRunning(state.PID) {
+				break
+			}
+			if err := s.forceStop(state.PID); err != nil && s.isRunning(state.PID) {
+				return fmt.Errorf("wait for managed-service shutdown: %w; forceful escalation failed: %v", ctx.Err(), err)
+			}
+			forceCtx, forceCancel := context.WithTimeout(context.Background(), 2*time.Second)
+			forceErr := s.waitUntilStopped(forceCtx, state.PID)
+			forceCancel()
+			if forceErr != nil {
+				return fmt.Errorf("wait for managed-service shutdown: %w; process remained alive after forceful escalation: %v", ctx.Err(), forceErr)
+			}
+			break
 		case <-ticker.C:
+		}
+		if !s.isRunning(state.PID) {
+			break
 		}
 	}
 	now := s.now().UTC()
@@ -188,6 +236,19 @@ func (s *ManagedServiceSupervisor) Stop(ctx context.Context) error {
 	state.StoppedAt = &now
 	if err := s.writeState(state); err != nil {
 		return fmt.Errorf("persist stopped managed-service state: %w", err)
+	}
+	return nil
+}
+
+func (s *ManagedServiceSupervisor) waitUntilStopped(ctx context.Context, pid int) error {
+	ticker := time.NewTicker(25 * time.Millisecond)
+	defer ticker.Stop()
+	for s.isRunning(pid) {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-ticker.C:
+		}
 	}
 	return nil
 }
@@ -290,10 +351,40 @@ func verifyManagedServiceOwnership(state ManagedServiceState) error {
 	if err != nil {
 		return fmt.Errorf("verify managed-service process ownership: %w", err)
 	}
-	if managedServiceTokenHash(env[managedServiceOwnershipTokenEnv]) != state.OwnershipTokenHash {
-		return fmt.Errorf("managed-service process ownership token does not match")
+	if managedServiceTokenHash(env[managedServiceOwnershipTokenEnv]) == state.OwnershipTokenHash {
+		return nil
 	}
-	return nil
+	// Some otherwise legitimate managed services deliberately clear their
+	// environment after startup (Redis does this when proc-title rewriting is
+	// enabled). In that case, retain a process-identity proof: the live
+	// executable must still be the verified artifact recorded by the supervisor.
+	// This does not accept an arbitrary PID, port, or process name, and it also
+	// keeps PID reuse from being mistaken for ownership because the supervisor
+	// state is tied to its recorded artifact path.
+	if managedServiceExecutableMatchesArtifact(state) {
+		return nil
+	}
+	return fmt.Errorf("managed-service process ownership token does not match")
+}
+
+func managedServiceExecutableMatchesArtifact(state ManagedServiceState) bool {
+	if state.PID <= 0 || strings.TrimSpace(state.ArtifactPath) == "" {
+		return false
+	}
+	if runtime.GOOS != "linux" {
+		return false
+	}
+	executable, err := os.Readlink(filepath.Join("/proc", strconv.Itoa(state.PID), "exe"))
+	if err != nil {
+		return false
+	}
+	executable = filepath.Clean(executable)
+	artifact := filepath.Clean(state.ArtifactPath)
+	if executable == artifact {
+		return true
+	}
+	relative, err := filepath.Rel(artifact, executable)
+	return err == nil && relative != "." && relative != ".." && !strings.HasPrefix(relative, ".."+string(filepath.Separator)) && !filepath.IsAbs(relative)
 }
 
 func managedServiceTokenHash(token string) string {
@@ -317,6 +408,27 @@ func managedServiceArtifactPath(controller *Controller, manifest ResourceManifes
 	if err := artifact.Validate(); err != nil {
 		return "", err
 	}
+	if strings.EqualFold(strings.TrimSpace(artifact.Verification), "host-tool") {
+		path, err := exec.LookPath(strings.TrimSpace(artifact.Path))
+		if err != nil {
+			return "", fmt.Errorf("locate managed-service host tool %q: %w", artifact.Path, err)
+		}
+		return filepath.Abs(path)
+	}
+	// Acquired servers live in the immutable per-user artifact store. This is
+	// also the default when a manifest does not need a separate desktop bundle
+	// filename; the resource checkout is never treated as an install location.
+	if manifest.ManagedService.Acquisition != nil && artifact.BundleArtifact == "" {
+		root, err := managedServiceArtifactStoreRoot(controller.Home)
+		if err != nil {
+			return "", err
+		}
+		name := filepath.Base(filepath.FromSlash(artifact.Path))
+		if name == "." || name == string(filepath.Separator) || name == "" {
+			return "", fmt.Errorf("managed-service artifact path has no install name")
+		}
+		return filepath.Join(root, manifest.Name, artifact.Version, name), nil
+	}
 	// A bundled server is delivered with the signed Vrooli release, rather
 	// than the source checkout. This keeps an installed control plane usable
 	// with VROOLI_INSTALL_SOURCE=0 and makes the launch path independent of a
@@ -327,16 +439,9 @@ func managedServiceArtifactPath(controller *Controller, manifest ResourceManifes
 		if err != nil {
 			return "", err
 		}
-		root := strings.TrimSpace(os.Getenv("VROOLI_RESOURCE_ARTIFACT_DIR"))
-		if root == "" {
-			runtimeHome, err := repocontract.VrooliUserRoot(controller.Home)
-			if err != nil {
-				return "", fmt.Errorf("resolve runtime home: %w", err)
-			}
-			root = filepath.Join(runtimeHome, "artifacts")
-		}
-		if !filepath.IsAbs(root) {
-			return "", fmt.Errorf("managed-service artifact root must be absolute")
+		root, err := managedServiceArtifactStoreRoot(controller.Home)
+		if err != nil {
+			return "", err
 		}
 		return filepath.Join(filepath.Clean(root), manifest.Name, artifact.Version, name), nil
 	}
@@ -347,6 +452,21 @@ func managedServiceArtifactPath(controller *Controller, manifest ResourceManifes
 		return "", fmt.Errorf("managed-service artifact path escapes resource root")
 	}
 	return path, nil
+}
+
+func managedServiceArtifactStoreRoot(home string) (string, error) {
+	root := strings.TrimSpace(os.Getenv("VROOLI_RESOURCE_ARTIFACT_DIR"))
+	if root == "" {
+		runtimeHome, err := repocontract.VrooliUserRoot(home)
+		if err != nil {
+			return "", fmt.Errorf("resolve runtime home: %w", err)
+		}
+		root = filepath.Join(runtimeHome, "artifacts")
+	}
+	if !filepath.IsAbs(root) {
+		return "", fmt.Errorf("managed-service artifact root must be absolute")
+	}
+	return filepath.Clean(root), nil
 }
 
 func managedServiceStopContext(parent context.Context, manifest ResourceManifest) (context.Context, context.CancelFunc) {

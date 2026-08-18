@@ -2,13 +2,19 @@ package vroolicli
 
 import (
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
+	"os"
 	"strings"
 
+	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/cli/commandtree"
+	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/resources/securestore"
+	credentialauthority "github.com/vrooli/vrooli/internal/secrets"
+	kopiaregistry "github.com/vrooli/vrooli/packages/kopiaregistry-go"
 )
 
 // The `credentials store` surface manages the encrypted credential store — the
@@ -28,6 +34,9 @@ func credentialsStore(ctx *CommandContext, args []string, input io.Reader) error
 			"  vrooli credentials store lock\n"+
 			"  vrooli credentials store change-passphrase < current-passphrase\\nnew-passphrase\n"+
 			"  vrooli credentials store rewrap < passphrase\n"+
+			"  vrooli credentials store copy --sink <directory|s3://bucket/prefix> [--format json]\n"+
+			"  vrooli credentials store copy configure --sink <directory|s3://bucket/prefix> [--interval 15m]\n"+
+			"  vrooli credentials store copy scheduled [--format json]\n"+
 			"  vrooli credentials store reselect [--format json]\n"+
 			"  vrooli credentials store retire --backend encrypted-file\n\n"+
 			"The encrypted store is the credential backend on a host with no native one.\n"+
@@ -48,6 +57,16 @@ func credentialsStore(ctx *CommandContext, args []string, input io.Reader) error
 		return credentialsStoreChangePassphrase(ctx, args[1:], input)
 	case "rewrap":
 		return credentialsStoreRewrap(ctx, args[1:], input)
+	case "copy":
+		if len(args) > 1 && (args[1] == "configure" || args[1] == "scheduled") {
+			switch args[1] {
+			case "configure":
+				return credentialsStoreCopyConfigure(ctx, args[2:])
+			case "scheduled":
+				return credentialsStoreCopyScheduled(ctx, args[2:])
+			}
+		}
+		return credentialsStoreCopy(ctx, args[1:])
 	case "reselect":
 		return credentialsStoreReselect(ctx, args[1:])
 	case "retire":
@@ -55,6 +74,282 @@ func credentialsStore(ctx *CommandContext, args []string, input io.Reader) error
 	default:
 		return fmt.Errorf("unknown credentials store command %q", args[0])
 	}
+}
+
+func credentialsStoreCopy(ctx *CommandContext, args []string) error {
+	fs := flag.NewFlagSet("credentials store copy", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	sink := strings.TrimSpace(os.Getenv("VROOLI_CREDENTIAL_COPY_SINK"))
+	objectStoreCredentialID := strings.TrimSpace(os.Getenv("VROOLI_OBJECT_STORE_CREDENTIAL_IDENTITY"))
+	objectStoreRegion := strings.TrimSpace(os.Getenv("VROOLI_OBJECT_STORE_REGION"))
+	objectStoreEndpoint := strings.TrimSpace(os.Getenv("VROOLI_OBJECT_STORE_ENDPOINT"))
+	objectStoreAccessKeyField := "s3-access-key-id"
+	objectStoreSecretKeyField := "s3-secret-access-key"
+	objectStoreSessionField := "s3-session-token"
+	configured := false
+	format := "text"
+	fs.StringVar(&sink, "sink", sink, "directory or s3://bucket/prefix outside every kopia repository")
+	fs.StringVar(&objectStoreCredentialID, "object-store-credential-identity", objectStoreCredentialID, "credential identity for S3 access")
+	fs.StringVar(&objectStoreRegion, "object-store-region", objectStoreRegion, "S3 region")
+	fs.StringVar(&objectStoreEndpoint, "object-store-endpoint", objectStoreEndpoint, "S3-compatible endpoint")
+	fs.StringVar(&objectStoreAccessKeyField, "object-store-access-key-field", objectStoreAccessKeyField, "credential field for S3 access key")
+	fs.StringVar(&objectStoreSecretKeyField, "object-store-secret-key-field", objectStoreSecretKeyField, "credential field for S3 secret key")
+	fs.StringVar(&objectStoreSessionField, "object-store-session-field", objectStoreSessionField, "optional credential field for S3 session token")
+	fs.StringVar(&format, "format", format, "output format: text or json")
+	fs.BoolVar(&configured, "configured", false, "use the persisted copy configuration")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if configured {
+		config, err := readCredentialCopyConfig()
+		if err != nil {
+			return err
+		}
+		if !config.Enabled {
+			return fmt.Errorf("encrypted credential-store copy is not configured; run `vrooli credentials store copy configure --sink <directory>`")
+		}
+		sink = config.Sink
+		objectStoreCredentialID = config.ObjectStoreCredentialID
+		objectStoreRegion = config.ObjectStoreRegion
+		objectStoreEndpoint = config.ObjectStoreEndpoint
+		objectStoreAccessKeyField = config.ObjectStoreAccessKeyField
+		objectStoreSecretKeyField = config.ObjectStoreSecretKeyField
+		objectStoreSessionField = config.ObjectStoreSessionField
+	}
+	if len(fs.Args()) != 0 || sink == "" {
+		return fmt.Errorf("credentials store copy requires --sink <directory>, --configured, or VROOLI_CREDENTIAL_COPY_SINK")
+	}
+	if format != "text" && format != "json" {
+		return fmt.Errorf("credentials store copy format must be text or json")
+	}
+	status, err := securestore.DescribeStore()
+	if err != nil {
+		return err
+	}
+	if !status.Initialized {
+		return fmt.Errorf("credential store is not initialized")
+	}
+	registry := kopiaregistry.New(kopiaregistry.RegistryPath())
+	entries, err := registry.Load()
+	if err != nil {
+		return err
+	}
+	repositoryPaths := make([]string, 0, len(entries))
+	repositorySinks := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		if entry.Backend == kopiaregistry.BackendFilesystem && strings.TrimSpace(entry.Path) != "" {
+			repositoryPaths = append(repositoryPaths, entry.Path)
+		}
+		if entry.Backend == kopiaregistry.BackendS3 && strings.TrimSpace(entry.Bucket) != "" {
+			repositorySink := "s3://" + strings.TrimSpace(entry.Bucket)
+			if strings.TrimSpace(entry.Prefix) != "" {
+				repositorySink += "/" + strings.Trim(entry.Prefix, "/")
+			}
+			repositorySinks = append(repositorySinks, repositorySink)
+		}
+	}
+	receiptPath, err := config.VrooliPath(repocontract.HomeKeyState, "credential-store-copy.json")
+	if err != nil {
+		return err
+	}
+	var copyStatus securestore.CopyStatus
+	if strings.HasPrefix(strings.ToLower(strings.TrimSpace(sink)), "s3://") {
+		credentials, credentialErr := resolveObjectStoreCredentials(objectStoreCredentialID, objectStoreAccessKeyField, objectStoreSecretKeyField, objectStoreSessionField)
+		if credentialErr != nil {
+			return credentialErr
+		}
+		copyStatus, err = securestore.CopyStoreS3(status.Path, sink, receiptPath, securestore.S3CopyOptions{
+			Region: objectStoreRegion, Endpoint: objectStoreEndpoint, Credentials: credentials, RepositorySinks: repositorySinks,
+		})
+	} else {
+		copyStatus, err = securestore.CopyStore(status.Path, sink, receiptPath, repositoryPaths)
+	}
+	if err != nil {
+		return err
+	}
+	if format == "json" {
+		return json.NewEncoder(ctx.Stdout).Encode(copyStatus)
+	}
+	_, err = fmt.Fprintf(ctx.Stdout, "Encrypted credential store copied to %s (generation %s).\n", copyStatus.Path, copyStatus.Generation)
+	return err
+}
+
+func credentialCopyConfigPath() (string, error) {
+	return config.VrooliPath(repocontract.HomeKeyConfig, "credential-store-copy.json")
+}
+
+func readCredentialCopyConfig() (securestore.CopyConfig, error) {
+	path, err := credentialCopyConfigPath()
+	if err != nil {
+		return securestore.CopyConfig{}, err
+	}
+	return securestore.ReadCopyConfig(path)
+}
+
+func credentialsStoreCopyConfigure(ctx *CommandContext, args []string) error {
+	fs := flag.NewFlagSet("credentials store copy configure", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	sink := ""
+	interval := securestore.DefaultCopyInterval
+	objectStoreCredentialID := ""
+	objectStoreRegion := ""
+	objectStoreEndpoint := ""
+	objectStoreAccessKeyField := "s3-access-key-id"
+	objectStoreSecretKeyField := "s3-secret-access-key"
+	objectStoreSessionField := "s3-session-token"
+	enabled := true
+	format := "text"
+	fs.StringVar(&sink, "sink", sink, "directory or s3://bucket/prefix outside every kopia repository")
+	fs.DurationVar(&interval, "interval", interval, "refresh interval")
+	fs.StringVar(&objectStoreCredentialID, "object-store-credential-identity", objectStoreCredentialID, "credential identity for S3 access")
+	fs.StringVar(&objectStoreRegion, "object-store-region", objectStoreRegion, "S3 region")
+	fs.StringVar(&objectStoreEndpoint, "object-store-endpoint", objectStoreEndpoint, "S3-compatible endpoint")
+	fs.StringVar(&objectStoreAccessKeyField, "object-store-access-key-field", objectStoreAccessKeyField, "credential field for S3 access key")
+	fs.StringVar(&objectStoreSecretKeyField, "object-store-secret-key-field", objectStoreSecretKeyField, "credential field for S3 secret key")
+	fs.StringVar(&objectStoreSessionField, "object-store-session-field", objectStoreSessionField, "optional credential field for S3 session token")
+	fs.BoolVar(&enabled, "enabled", enabled, "enable scheduled refreshes")
+	fs.StringVar(&format, "format", format, "output format: text or json")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if len(fs.Args()) != 0 {
+		return fmt.Errorf("credentials store copy configure requires --sink <directory|s3://bucket/prefix>")
+	}
+	if !enabled {
+		// Disabling an existing schedule should be a one-flag operation. Keep
+		// the last non-secret configuration in place so a later enable can
+		// reuse it, while allowing an explicit flag to override any field the
+		// operator wants to retain differently.
+		existing, existingErr := readCredentialCopyConfig()
+		if existingErr != nil {
+			return existingErr
+		}
+		if strings.TrimSpace(sink) == "" {
+			sink = existing.Sink
+		}
+		if interval == securestore.DefaultCopyInterval && existing.Interval > 0 {
+			interval = existing.Interval
+		}
+		if objectStoreCredentialID == "" {
+			objectStoreCredentialID = existing.ObjectStoreCredentialID
+		}
+		if objectStoreRegion == "" {
+			objectStoreRegion = existing.ObjectStoreRegion
+		}
+		if objectStoreEndpoint == "" {
+			objectStoreEndpoint = existing.ObjectStoreEndpoint
+		}
+		if objectStoreAccessKeyField == "s3-access-key-id" && existing.ObjectStoreAccessKeyField != "" {
+			objectStoreAccessKeyField = existing.ObjectStoreAccessKeyField
+		}
+		if objectStoreSecretKeyField == "s3-secret-access-key" && existing.ObjectStoreSecretKeyField != "" {
+			objectStoreSecretKeyField = existing.ObjectStoreSecretKeyField
+		}
+		if objectStoreSessionField == "s3-session-token" && existing.ObjectStoreSessionField != "" {
+			objectStoreSessionField = existing.ObjectStoreSessionField
+		}
+	}
+	if strings.TrimSpace(sink) == "" {
+		return fmt.Errorf("credentials store copy configure requires --sink <directory|s3://bucket/prefix> when enabling")
+	}
+	if format != "text" && format != "json" {
+		return fmt.Errorf("credentials store copy configure format must be text or json")
+	}
+	config := securestore.CopyConfig{
+		Enabled: enabled, Sink: strings.TrimSpace(sink), Interval: interval,
+		ObjectStoreCredentialID: strings.TrimSpace(objectStoreCredentialID), ObjectStoreRegion: strings.TrimSpace(objectStoreRegion),
+		ObjectStoreEndpoint: strings.TrimSpace(objectStoreEndpoint), ObjectStoreAccessKeyField: strings.TrimSpace(objectStoreAccessKeyField),
+		ObjectStoreSecretKeyField: strings.TrimSpace(objectStoreSecretKeyField), ObjectStoreSessionField: strings.TrimSpace(objectStoreSessionField),
+	}
+	path, err := credentialCopyConfigPath()
+	if err != nil {
+		return err
+	}
+	if err := securestore.WriteCopyConfig(path, config); err != nil {
+		return err
+	}
+	executable, err := os.Executable()
+	if err != nil {
+		return fmt.Errorf("resolve Vrooli executable for credential-store copy schedule: %w", err)
+	}
+	if err := installCredentialCopySchedule(executable, config.Interval, config.Enabled); err != nil {
+		return err
+	}
+	if format == "json" {
+		return json.NewEncoder(ctx.Stdout).Encode(config)
+	}
+	_, err = fmt.Fprintf(ctx.Stdout, "Encrypted credential-store copy configured at %s; refresh interval %s.\n", config.Sink, config.Interval)
+	return err
+}
+
+func resolveObjectStoreCredentials(identityName, accessField, secretField, sessionField string) (securestore.ObjectStoreCredentials, error) {
+	identity, err := credentialauthority.ParseIdentity(identityName)
+	if err != nil {
+		return securestore.ObjectStoreCredentials{}, fmt.Errorf("object-store credential identity: %w", err)
+	}
+	if accessField == "" {
+		accessField = "s3-access-key-id"
+	}
+	if secretField == "" {
+		secretField = "s3-secret-access-key"
+	}
+	authority, err := credentialauthority.DefaultAuthority()
+	if err != nil {
+		return securestore.ObjectStoreCredentials{}, fmt.Errorf("object-store credential authority: %w", err)
+	}
+	accessKey, err := authority.Resolve(identity, accessField)
+	if err != nil {
+		return securestore.ObjectStoreCredentials{}, fmt.Errorf("resolve object-store access credential %s:%s: %w", identity, accessField, err)
+	}
+	secretKey, err := authority.Resolve(identity, secretField)
+	if err != nil {
+		return securestore.ObjectStoreCredentials{}, fmt.Errorf("resolve object-store secret credential %s:%s: %w", identity, secretField, err)
+	}
+	var sessionToken string
+	if strings.TrimSpace(sessionField) != "" {
+		sessionToken, err = authority.Resolve(identity, sessionField)
+		if err != nil && !errors.Is(err, credentialauthority.ErrUnconfigured) {
+			return securestore.ObjectStoreCredentials{}, fmt.Errorf("resolve object-store session credential %s:%s: %w", identity, sessionField, err)
+		}
+	}
+	return securestore.ObjectStoreCredentials{AccessKey: accessKey, SecretKey: secretKey, SessionToken: sessionToken}, nil
+}
+
+// credentialsStoreCopyScheduled is the timer/service entrypoint. It performs
+// one configured refresh and exits, so an OS scheduler can invoke it without
+// ever placing a passphrase or credential value in a process argument.
+func credentialsStoreCopyScheduled(ctx *CommandContext, args []string) error {
+	format, err := storeFormatFlag("credentials store copy scheduled", args)
+	if err != nil {
+		return err
+	}
+	config, err := readCredentialCopyConfig()
+	if err != nil {
+		return err
+	}
+	if !config.Enabled {
+		return fmt.Errorf("encrypted credential-store copy is not enabled")
+	}
+	copyArgs := []string{"--sink", config.Sink, "--format", format}
+	if config.ObjectStoreCredentialID != "" {
+		copyArgs = append(copyArgs, "--object-store-credential-identity", config.ObjectStoreCredentialID)
+	}
+	if config.ObjectStoreRegion != "" {
+		copyArgs = append(copyArgs, "--object-store-region", config.ObjectStoreRegion)
+	}
+	if config.ObjectStoreEndpoint != "" {
+		copyArgs = append(copyArgs, "--object-store-endpoint", config.ObjectStoreEndpoint)
+	}
+	for _, field := range []struct{ name, value string }{
+		{"--object-store-access-key-field", config.ObjectStoreAccessKeyField},
+		{"--object-store-secret-key-field", config.ObjectStoreSecretKeyField},
+		{"--object-store-session-field", config.ObjectStoreSessionField},
+	} {
+		if field.value != "" {
+			copyArgs = append(copyArgs, field.name, field.value)
+		}
+	}
+	return credentialsStoreCopy(ctx, copyArgs)
 }
 
 func credentialsStoreReselect(ctx *CommandContext, args []string) error {

@@ -40,6 +40,7 @@ func AcquisitionSchema() map[string]any {
 						"layout":          map[string]any{"type": "string", "enum": []string{"file", "dir"}},
 						"bin_path":        map[string]any{"type": "string"},
 						"mode":            map[string]any{"type": "string", "pattern": "^0[0-7]{3}$"},
+						"executable":      map[string]any{"type": "string", "pattern": "^[A-Za-z0-9._-]+$"},
 						"runtime_env":     map[string]any{"type": "object", "additionalProperties": map[string]any{"type": "string"}},
 						"unsupported":     map[string]any{"type": "string", "minLength": 1},
 						"compose": map[string]any{

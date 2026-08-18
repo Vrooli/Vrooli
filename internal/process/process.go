@@ -351,3 +351,47 @@ func humanDuration(duration time.Duration) string {
 		return fmt.Sprintf("%.1fd", duration.Hours()/24)
 	}
 }
+
+// InitiatorInfo names the process that initiated an operation, durably enough
+// to answer "who did this?" after that process is gone.
+//
+// A bare PID cannot answer it. On a host where short-lived CLI invocations
+// start work continuously, the initiator has usually exited before anyone
+// asks, and PIDs are reused. Argv says what ran; the parent says who ran it
+// (a shell, an agent, a service); the scope says where it belonged and, unlike
+// the PID, survives the process.
+type InitiatorInfo struct {
+	PID        int
+	Argv       string
+	ParentPID  int
+	ParentArgv string
+	Scope      string
+}
+
+// Initiator captures the current process as the initiator of an operation.
+// Every field is best-effort: a host that cannot report one leaves it empty
+// rather than failing the operation the record describes.
+func Initiator() InitiatorInfo {
+	info := InitiatorInfo{
+		PID: os.Getpid(),
+		// os.Args, not the platform reader: our own argv is always available
+		// and needs no syscall.
+		Argv:      strings.Join(os.Args, " "),
+		ParentPID: os.Getppid(),
+	}
+	if info.ParentPID > 0 {
+		if argv, err := processCommandLineFn(info.ParentPID); err == nil {
+			info.ParentArgv = argv
+		}
+	}
+	if scope, err := processScopeFn(info.PID); err == nil {
+		info.Scope = scope
+	}
+	return info
+}
+
+// Platform seams, overridable in tests.
+var (
+	processCommandLineFn = platform.ProcessCommandLine
+	processScopeFn       = platform.ProcessScope
+)

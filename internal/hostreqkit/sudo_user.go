@@ -44,13 +44,10 @@
 package hostreqkit
 
 import (
-	"context"
 	"errors"
 	"os"
-	"os/user"
 	"strconv"
 	"strings"
-	"time"
 )
 
 // InvokingUser returns the username of the operator whose intent we should
@@ -142,14 +139,6 @@ var lookupHomeFromPasswdFn = func(user string) string {
 	return ""
 }
 
-var currentUserIDFn = func() string {
-	current, err := user.Current()
-	if err != nil {
-		return ""
-	}
-	return strings.TrimSpace(current.Uid)
-}
-
 // RunAsInvokingUser runs a command as the invoking user. When the vrooli
 // process is running as root (typically because the operator invoked
 // `sudo vrooli setup`), this drops privileges back to $SUDO_USER for the
@@ -189,15 +178,4 @@ func RunAsInvokingUserWithInput(name string, args []string, input string, opts E
 	}
 	wrapped := append([]string{"-u", user, "-H", "--", name}, args...)
 	return RunCommandInputFn("sudo", wrapped, input, opts)
-}
-
-func runAsInvokingUserOutput(name string, args []string) ([]byte, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-	user := InvokingUser()
-	if !RunningAsRootFn() || user == "" || user == "root" {
-		return CombinedOutputContextFn(ctx, name, args...)
-	}
-	wrapped := append([]string{"-u", user, "-H", "--", name}, args...)
-	return CombinedOutputContextFn(ctx, "sudo", wrapped...)
 }

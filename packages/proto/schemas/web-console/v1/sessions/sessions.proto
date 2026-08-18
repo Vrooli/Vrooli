@@ -48,6 +48,11 @@ service SessionsService {
   rpc ListRecoverable(ListRecoverableRequest) returns (ListRecoverableResponse);
   rpc DismissRecoverable(DismissRecoverableRequest) returns (DismissRecoverableResponse);
   rpc Recover(RecoverRequest) returns (RecoverResponse);
+  // Reopen is the archive-facing name for the proven Recover workflow. It
+  // preserves the same idempotency header and result contract.
+  rpc Reopen(ReopenRequest) returns (ReopenResponse);
+  rpc GetArchiveRetention(GetArchiveRetentionRequest) returns (GetArchiveRetentionResponse);
+  rpc PruneArchive(PruneArchiveRequest) returns (PruneArchiveResponse);
   rpc GetPolicy(GetPolicyRequest) returns (GetPolicyResponse);
   rpc UpdatePolicy(UpdatePolicyRequest) returns (UpdatePolicyResponse);
 }
@@ -184,6 +189,8 @@ message ArchivedSession {
   int64 message_count = 10;
   ArchiveRestoreState restore_state = 11;
   string restore_state_reason = 12;
+  // True when this entry is a crash orphan awaiting an explicit recovery decision.
+  bool awaiting_recovery = 13;
 }
 
 message ListArchivedRequest {}
@@ -265,6 +272,64 @@ message RecoverResponse {
   string agent_type = 3;
   string command_sent = 4;
   bool codex_home_copied = 5;
+}
+
+message ReopenRequest {
+  string id = 1;
+}
+
+message ReopenResponse {
+  string old_session_id = 1;
+  string new_session_id = 2;
+  string agent_type = 3;
+  string command_sent = 4;
+  bool codex_home_copied = 5;
+}
+
+// -----------------------------------------------------------------------------
+// Archive retention
+// -----------------------------------------------------------------------------
+
+message ArchiveRetentionPolicy {
+  int32 message_less_age_days = 1;
+  int32 agent_home_age_days = 2;
+  int64 max_bytes = 3;
+}
+
+message ArchiveRetentionStats {
+  int64 entry_count = 1;
+  int64 message_count = 2;
+  int64 transcript_bytes = 3;
+  int64 agent_home_bytes = 4;
+  int64 total_bytes = 5;
+}
+
+message GetArchiveRetentionRequest {}
+
+message GetArchiveRetentionResponse {
+  ArchiveRetentionPolicy policy = 1;
+  ArchiveRetentionStats stats = 2;
+}
+
+message PruneArchiveRequest {
+  // False is the safe default and only reports planned actions.
+  bool apply = 1;
+}
+
+message ArchivePruneAction {
+  string session_id = 1;
+  // "agent_home" or "transcript".
+  string kind = 2;
+  int64 bytes = 3;
+  bool applied = 4;
+}
+
+message PruneArchiveResponse {
+  bool dry_run = 1;
+  repeated ArchivePruneAction actions = 2;
+  int64 reclaimed_bytes = 3;
+  ArchiveRetentionStats before = 4;
+  ArchiveRetentionStats after = 5;
 }
 
 // -----------------------------------------------------------------------------

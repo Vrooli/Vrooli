@@ -8,9 +8,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	clitest "github.com/vrooli/cli-core/cliapptest"
-
 	"github.com/vrooli/cli-core/cliapp"
+	clitest "github.com/vrooli/cli-core/cliapptest"
 	localtest "vrooli-onboarding/cli/internal/testutil"
 )
 
@@ -145,7 +144,7 @@ func TestWizardPureFormattingHelpers(t *testing.T) {
 func TestSelectionPatchCoversAllAutomationChoices(t *testing.T) {
 	selection := Selection{Scenarios: []string{"alpha"}, OptionalResources: []string{"ollama"}}
 	selection.Resources = map[string]bool{"postgres": false}
-	selection.Host.Tools = []string{"cloudflared"}
+	selection.Host.Tools = []string{"demo-tool"}
 	selection.Host.Safeguards = []string{"kernel_config"}
 	selection.OperatingMode = map[string]struct {
 		AutoRestart bool `json:"auto_restart"`
@@ -166,7 +165,7 @@ func TestSelectionPatchCoversAllAutomationChoices(t *testing.T) {
 	if decoded["resources"].(map[string]any)["ollama"].(map[string]any)["enabled"] != true {
 		t.Fatal("optional resources must be represented in the shared patch")
 	}
-	if decoded["host_tools"].(map[string]any)["cloudflared"].(map[string]any)["opted_in"] != true {
+	if decoded["host_tools"].(map[string]any)["demo-tool"].(map[string]any)["opted_in"] != true {
 		t.Fatal("host tools must be represented in the shared patch")
 	}
 }

@@ -1,6 +1,7 @@
 package process
 
 import (
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -403,4 +404,55 @@ func writeScenarioRecordFixture(t *testing.T, home, name, step string, pid, port
 	}); err != nil {
 		t.Fatalf("WriteScenarioRecord %s/%s: %v", name, step, err)
 	}
+}
+
+// Initiator is the record that answers "who started this?" after the starting
+// process is gone, so every field must survive a host that cannot report some
+// of them rather than failing the operation being recorded.
+func TestInitiatorCapturesIdentityAndDegradesHonestly(t *testing.T) {
+	t.Run("full identity", func(t *testing.T) {
+		originalCmd, originalScope := processCommandLineFn, processScopeFn
+		t.Cleanup(func() { processCommandLineFn, processScopeFn = originalCmd, originalScope })
+		processCommandLineFn = func(pid int) (string, error) {
+			if pid != os.Getppid() {
+				t.Fatalf("parent argv requested for pid %d, want ppid %d", pid, os.Getppid())
+			}
+			return "bash -c 'vrooli scenario start alpha'", nil
+		}
+		processScopeFn = func(pid int) (string, error) {
+			if pid != os.Getpid() {
+				t.Fatalf("scope requested for pid %d, want self %d", pid, os.Getpid())
+			}
+			return "/user.slice/tmux-spawn-abc.scope", nil
+		}
+
+		got := Initiator()
+		if got.PID != os.Getpid() || got.ParentPID != os.Getppid() {
+			t.Fatalf("pids = (%d, %d), want (%d, %d)", got.PID, got.ParentPID, os.Getpid(), os.Getppid())
+		}
+		if got.Argv == "" {
+			t.Fatal("own argv is always available and must be recorded")
+		}
+		if got.ParentArgv != "bash -c 'vrooli scenario start alpha'" {
+			t.Fatalf("parent argv = %q", got.ParentArgv)
+		}
+		if got.Scope != "/user.slice/tmux-spawn-abc.scope" {
+			t.Fatalf("scope = %q", got.Scope)
+		}
+	})
+
+	t.Run("unsupported host", func(t *testing.T) {
+		originalCmd, originalScope := processCommandLineFn, processScopeFn
+		t.Cleanup(func() { processCommandLineFn, processScopeFn = originalCmd, originalScope })
+		processCommandLineFn = func(int) (string, error) { return "", errors.New("unsupported") }
+		processScopeFn = func(int) (string, error) { return "", errors.New("unsupported") }
+
+		got := Initiator()
+		if got.ParentArgv != "" || got.Scope != "" {
+			t.Fatalf("unsupported fields must stay empty, got %+v", got)
+		}
+		if got.PID == 0 || got.Argv == "" {
+			t.Fatalf("locally-known fields must still be captured, got %+v", got)
+		}
+	})
 }

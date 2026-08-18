@@ -133,7 +133,8 @@
             "kopia"
           ],
           "limitations": [
-            "The upstream executable, licensing, authentication, and version policy are host-managed."
+            "The upstream executable, licensing, authentication, and version policy are host-managed.",
+            "The Kopia host tool and repository protocol are supported, but Windows restore, scheduler, and restrictive-DACL behavior require native Windows validation; this installation has no Windows hardware evidence."
           ],
           "evidence": [
             "manifest-validation",
@@ -198,26 +199,6 @@
         "install-direct"
       ]
     }
-  },
-  "credentials": {
-    "descriptors": [
-      {
-        "logical_id": "vrooli/kopia",
-        "field": "s3-access-key-id",
-        "env": "AWS_ACCESS_KEY_ID",
-        "label": "S3 access key ID",
-        "description": "Credential-authority field for an S3/MinIO-compatible backend. Stored under the per-repository identity and only required for repositories created with --backend s3.",
-        "required": false
-      },
-      {
-        "logical_id": "vrooli/kopia",
-        "field": "s3-secret-access-key",
-        "env": "AWS_SECRET_ACCESS_KEY",
-        "label": "S3 secret access key",
-        "description": "Credential-authority field for an S3/MinIO-compatible backend. Stored under the per-repository identity and only required for repositories created with --backend s3.",
-        "required": false
-      }
-    ]
   },
   "environment_exports": {
     "static": {

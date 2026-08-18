@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"runtime"
 	"strings"
+
+	"github.com/vrooli/binaryfetch"
 )
 
 type Kind string
@@ -253,18 +255,19 @@ type ResolvedRequirement struct {
 	ConfigError    string         `json:"config_error,omitempty"`
 	// ConfigUnconfigured is set when an optional safeguard declares required
 	// parameters but the operator has not supplied any configuration.
-	ConfigUnconfigured string                 `json:"config_unconfigured,omitempty"`
-	ConfigNonDefault   bool                   `json:"config_non_default,omitempty"`
-	Manual             bool                   `json:"manual"`
-	Privilege          Privilege              `json:"privilege"`
-	Bundling           Bundling               `json:"bundling"`
-	Reasons            []string               `json:"reasons,omitempty"`
-	When               []string               `json:"when,omitempty"`
-	Environments       []string               `json:"environments,omitempty"`
-	Platforms          []string               `json:"platforms,omitempty"`
-	Notes              []string               `json:"notes,omitempty"`
-	Provenance         []Provenance           `json:"provenance,omitempty"`
-	Requires           *CapabilityRequirement `json:"requires,omitempty"`
+	ConfigUnconfigured string                   `json:"config_unconfigured,omitempty"`
+	ConfigNonDefault   bool                     `json:"config_non_default,omitempty"`
+	Manual             bool                     `json:"manual"`
+	Privilege          Privilege                `json:"privilege"`
+	Bundling           Bundling                 `json:"bundling"`
+	Reasons            []string                 `json:"reasons,omitempty"`
+	When               []string                 `json:"when,omitempty"`
+	Environments       []string                 `json:"environments,omitempty"`
+	Platforms          []string                 `json:"platforms,omitempty"`
+	Notes              []string                 `json:"notes,omitempty"`
+	Provenance         []Provenance             `json:"provenance,omitempty"`
+	Requires           *CapabilityRequirement   `json:"requires,omitempty"`
+	Acquisition        *binaryfetch.Acquisition `json:"acquisition,omitempty"`
 }
 
 // ConfigString returns a declared string parameter and reports whether it was

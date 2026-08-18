@@ -15,17 +15,6 @@ var (
 	ErrPlanManagerServer      = errors.New("plan-manager server error")
 )
 
-func writeUnavailable(err error) error {
-	return fmt.Errorf("Plan Manager is required for plan writes; start it with `vrooli scenario start plan-manager`: %w", err)
-}
-
-func writePlanManagerError(err error) error {
-	if shouldUseMirrorFallback(err) {
-		return writeUnavailable(err)
-	}
-	return err
-}
-
 func shouldUseMirrorFallback(err error) bool {
 	return errors.Is(err, ErrPlanManagerUnavailable) || errors.Is(err, ErrPlanManagerTimeout)
 }

@@ -239,5 +239,6 @@ func newUninstaller(root, home string) (cliinstall.Uninstaller, error) {
 		}
 		return fmt.Errorf("break-glass: scope %q is required", cliinstall.UninstallBreakGlassScope)
 	}
-	return cliinstall.NewUninstallService(root, home, cliinstall.NewFileRemover(home), verify, cliinstall.WithBoundBreakGlassVerifier(boundVerify))
+	deferredServiceNames := strings.Split(os.Getenv("VROOLI_BRIDGE_DEFER_SERVICE_STOPS"), ",")
+	return cliinstall.NewUninstallService(root, home, cliinstall.NewFileRemover(home, deferredServiceNames...), verify, cliinstall.WithBoundBreakGlassVerifier(boundVerify))
 }

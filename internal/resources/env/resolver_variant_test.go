@@ -1,6 +1,52 @@
 package env
 
-import "testing"
+import (
+	"encoding/json"
+	"os"
+	"path/filepath"
+	"testing"
+
+	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
+	"github.com/vrooli/vrooli/internal/scenario"
+)
+
+func TestLoadResourcePortsIgnoresPrototypeDirectoriesWithoutManifest(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "resources", "prototype-only"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	manifest := manifestpkg.ResourceManifest{
+		Name:        "fixture",
+		DisplayName: "Fixture",
+		Description: "Fixture resource",
+		CLI:         &scenario.CLIConfig{Enabled: false},
+		Driver:      "external-cli",
+		Binary:      "bash",
+		Ports:       []manifestpkg.ResourcePort{{Name: "http", Host: 19_876}},
+	}
+	data, err := json.Marshal(manifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	manifestDir := filepath.Join(root, "resources", "fixture")
+	if err := os.MkdirAll(manifestDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(manifestDir, "resource.json"), data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	ports, err := LoadResourcePorts(root)
+	if err != nil {
+		t.Fatalf("LoadResourcePorts: %v", err)
+	}
+	if got := ports["fixture"]; got != 19_876 {
+		t.Fatalf("fixture port = %d, want 19876", got)
+	}
+	if _, ok := ports["prototype-only"]; ok {
+		t.Fatal("manifest-less prototype directory must not enter the port registry")
+	}
+}
 
 // TestApplyDependencyOverridesVariantDatabaseName proves the Postgres database
 // name is derived through the InstanceKey SSOT: the live instance keeps the

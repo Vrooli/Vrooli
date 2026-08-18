@@ -57,6 +57,8 @@ func nativeWrapAvailable() (string, error) {
 	return keyStoreKeychain, nil
 }
 
+func nativeWrapDiagnosis() string { return "available (macOS Keychain, cgo)" }
+
 func nativeWrapProtect(value []byte) ([]byte, error) {
 	if len(value) == 0 {
 		return nil, fmt.Errorf("%w: empty data key", errKeyProviderUnavailable)

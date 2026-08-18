@@ -18,6 +18,9 @@ type (
 	ResourceLifecycle            = manifestpkg.ResourceLifecycle
 	ResourceManifestCapabilities = manifestpkg.ResourceManifestCapabilities
 	ResourceCompanion            = manifestpkg.ResourceCompanion
+	ResourceStorage              = manifestpkg.ResourceStorage
+	ResourceStorageEntry         = manifestpkg.ResourceStorageEntry
+	ResourceStorageRelocation    = manifestpkg.ResourceStorageRelocation
 )
 
 func (c *Controller) loadResourceManifest(path string) (ResourceManifest, error) {

@@ -19,15 +19,15 @@ type fleetResourceManifest struct {
 }
 
 type fleetResourceRequirements struct {
-	Class      string  `json:"class"`
-	Weight     float64 `json:"weight"`
-	RAMMB      float64 `json:"ram_mb"`
-	DiskMB     float64 `json:"disk_mb"`
-	CPUCores   float64 `json:"cpu_cores"`
-	GPU        bool    `json:"gpu"`
-	Network    string  `json:"network"`
-	Source     string  `json:"source"`
-	Confidence string  `json:"confidence"`
+	Class      string          `json:"class"`
+	Weight     float64         `json:"weight"`
+	RAMMB      float64         `json:"ram_mb"`
+	DiskMB     float64         `json:"disk_mb"`
+	CPUCores   float64         `json:"cpu_cores"`
+	GPU        *GPURequirement `json:"gpu"`
+	Network    string          `json:"network"`
+	Source     string          `json:"source"`
+	Confidence string          `json:"confidence"`
 }
 
 func TestResolveEnumeratesTheLiveResourceFleet(t *testing.T) {
@@ -135,8 +135,9 @@ func loadFleetResourceDeclarations(repoRoot string) ([]DependencyDeclaration, er
 			Requirements: &ResourceRequirements{
 				Class: manifest.Requirements.Class, Weight: manifest.Requirements.Weight,
 				RAMMB: manifest.Requirements.RAMMB, DiskMB: manifest.Requirements.DiskMB,
-				CPUCores: manifest.Requirements.CPUCores, GPU: manifest.Requirements.GPU,
-				Network: manifest.Requirements.Network, Source: manifest.Requirements.Source,
+				CPUCores:       manifest.Requirements.CPUCores,
+				GPURequirement: manifest.Requirements.GPU,
+				Network:        manifest.Requirements.Network, Source: manifest.Requirements.Source,
 				Confidence: manifest.Requirements.Confidence,
 			},
 		})

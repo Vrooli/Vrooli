@@ -6,10 +6,10 @@
 
 ## Work ladder
 
-- Rung: W0
-- Evidence: the authoritative Plan Manager execution exists and remains active; the remaining gaps below are evidence/deployment gaps, not a missing plan record.
-- Blocker: the work-ladder rung cannot advance until the real remote VPS proof exists; the immutable baseline comparison is now clean.
-- Measured: 2026-08-12
+- Rung: W3
+- Evidence: onboarding had a scenario-specific Cloudflare bootstrap route, client, and UI predicate; those were removed. Credential provisioning now uses the generic descriptor-driven path, while tunnel-manager owns completion of its derived credentials during its lifecycle. Onboarding API and UI suites pass.
+- Blocker: the broader remote VPS evidence limitation below remains; it does not block the generic onboarding implementation.
+- Measured: 2026-08-18
 
 ## Current evidence
 

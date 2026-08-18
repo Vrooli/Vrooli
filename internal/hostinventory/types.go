@@ -152,6 +152,7 @@ type GPU struct {
 	UUID                     string   `json:"uuid,omitempty"`
 	Name                     string   `json:"name"`
 	DriverVersion            string   `json:"driver_version,omitempty"`
+	CUDAComputeCapability    string   `json:"cuda_compute_capability,omitempty"`
 	VRAMBytes                uint64   `json:"vram_bytes"`
 	VRAMUsedBytes            uint64   `json:"vram_used_bytes,omitempty"`
 	UtilizationPercent       float64  `json:"utilization_percent,omitempty"`
@@ -180,6 +181,9 @@ type DockerGPU struct {
 type Tool struct {
 	Present bool   `json:"present"`
 	Path    string `json:"path,omitempty"`
+	// Version is populated only by probes that can read one cheaply. An empty
+	// Version on a present tool means "not probed", never "no version".
+	Version string `json:"version,omitempty"`
 }
 
 func (s Snapshot) HasNvidiaGPU() bool {

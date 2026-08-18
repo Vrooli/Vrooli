@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "scenario": "token-economy",
+  "input_digest": "sha256:e3760910df57405ebcad5c6aca85dba450a72a0bbec3a0431753767afbb1b0a2",
+  "input_files": [
+    "schemas/measures/v1/measures.proto",
+    "schemas/token-economy/v1/notes/attachments.proto",
+    "schemas/token-economy/v1/notes/notes.proto",
+    "schemas/token-economy/v1/shared/errors.proto",
+    "schemas/token-economy/v1/shared/health.proto",
+    "vendor/protovalidate/buf/validate/validate.proto"
+  ],
+  "toolchain": {
+    "buf": "1.37.0",
+    "buf_gen_yaml_digest": "sha256:25a429d557cd66037be08fe549418750c7bd895d3e6078c5afe55a84afd37e84",
+    "plugins": {
+      "protoc": "34.1",
+      "protoc-gen-connect-go": "v1.19.2",
+      "protoc-gen-es": "2.12.0",
+      "protoc-gen-go": "v1.36.11"
+    }
+  },
+  "outputs": {
+    "gen/go/token-economy/v1/notes/attachments.pb.go": "sha256:41475eb647531433e323a2dc98a49d4d24142d8625e92ad117a0c0899ca5cea3",
+    "gen/go/token-economy/v1/notes/notes.pb.go": "sha256:2a39fea4b1e94101f95d192ca72a36f6b808ac003fef8ec33714cebf06d8b7b8",
+    "gen/go/token-economy/v1/notes/notes_v1connect/notes.connect.go": "sha256:d5b3d6132e79e76f27ecaef8be7c22ac00f59e2a22700d5953cdfe8201e489d8",
+    "gen/go/token-economy/v1/shared/errors.pb.go": "sha256:c0bee21af546412642b024d853947ed3a6711cf31c07eac5242fa3406415b69a",
+    "gen/go/token-economy/v1/shared/health.pb.go": "sha256:4c1a3cbdfc4180eacd4e47241e3abf81ec32a7ee23ebb6c64e2a530c3846d751",
+    "gen/python/token_economy/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/token_economy/v1/notes/attachments_pb2.py": "sha256:c15f43aa797015ef04abac29946f07f8a1de5d7fa8ebf12d6f361acf85c0ee8b",
+    "gen/python/token_economy/v1/notes/attachments_pb2.pyi": "sha256:5594188beec26dac8bb0ab7d1ece27e28d425bc57b7544c9e509610cbb5e37fa",
+    "gen/python/token_economy/v1/notes/notes_pb2.py": "sha256:6e89930d0f4d0de05468b02df8ed5dfd3a43ce527b9721d20c073d291e285717",
+    "gen/python/token_economy/v1/notes/notes_pb2.pyi": "sha256:359aac5d47799ae41e88608988e03caee63bd56ec270e6b9959e4bcd3b139386",
+    "gen/python/token_economy/v1/notes/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/token_economy/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/token_economy/v1/shared/errors_pb2.py": "sha256:dc2a0a6d3ffbc31d53458f5fb4c3124379a343e1a26877ff2050a3ef01507aa6",
+    "gen/python/token_economy/v1/shared/errors_pb2.pyi": "sha256:4fab4b85533131b72b50e57a69d84a6878a0c10aa64e5b6791a598b7b9716dd1",
+    "gen/python/token_economy/v1/shared/health_pb2.py": "sha256:56214efc12795e96e559880c6767a5ba4e105f4d22c431d91aff49354baa689e",
+    "gen/python/token_economy/v1/shared/health_pb2.pyi": "sha256:b9ec00d86e0bdde26187240212eb1746c8be4ebac7b5320be40d8097822a8a04",
+    "gen/python/token_economy/v1/shared/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/typescript/js/token-economy/v1/notes/attachments_pb.js": "sha256:cdf3f2d926500580fce5469475d858cfd57b692ae7443c54a4192cdd00706722",
+    "gen/typescript/js/token-economy/v1/notes/notes_pb.js": "sha256:66f9348e8750ccb41ef250d496b81c9ffebdd6031bbeeaa8d5649e063e52e132",
+    "gen/typescript/js/token-economy/v1/shared/errors_pb.js": "sha256:cbcdc89a31a7f4b6a49b52eb0d1fe54abca12dc788a06861fc8c3ce620d38a41",
+    "gen/typescript/js/token-economy/v1/shared/health_pb.js": "sha256:246dc843f4cbf1e4323c2b5eb37576f4d55b8a37910c7ac766b3b2935780aee7",
+    "gen/typescript/token-economy/v1/notes/attachments_pb.ts": "sha256:edbcb643fd09147e21a6e55591d40fc650041d4177f108cb08f77cd02f234138",
+    "gen/typescript/token-economy/v1/notes/notes_pb.ts": "sha256:18108efe669ac94abe89589e0785b2b31c32f60446b70cd5b85d32ea23fae68f",
+    "gen/typescript/token-economy/v1/shared/errors_pb.ts": "sha256:86e02815c715af64ea10abfbadfc2b4fe7112931f1c408389d47a35b77fb884e",
+    "gen/typescript/token-economy/v1/shared/health_pb.ts": "sha256:04c9f9aa4512745e0b917296406d8ce35ca0f864b65a7f28f94ca8c72796c8fe"
+  }
+}

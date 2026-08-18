@@ -7,10 +7,11 @@ import (
 )
 
 type (
-	CommandID          string
-	BlueprintCommandID string
-	ArchiveCommandID   string
-	SchemaCommandID    string
+	CommandID            string
+	AcquisitionCommandID string
+	BlueprintCommandID   string
+	ArchiveCommandID     string
+	SchemaCommandID      string
 )
 
 const (
@@ -38,6 +39,12 @@ const (
 	CommandArchive               CommandID = "archive"
 	CommandBlueprint             CommandID = "blueprint"
 	CommandSchema                CommandID = "schema"
+	CommandAcquisition           CommandID = "acquisition"
+)
+
+const (
+	AcquisitionCommandExplain AcquisitionCommandID = "explain"
+	AcquisitionCommandPrune   AcquisitionCommandID = "prune"
 )
 
 const (
@@ -113,6 +120,14 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 		{Name: string(CommandArchive), Summary: "Manage resource archive maintenance", Handler: CommandArchive},
 		{Name: string(CommandBlueprint), Summary: "Inspect resource blueprints", Handler: CommandBlueprint},
 		{Name: string(CommandSchema), Summary: "Manage resource-derived schema artifacts", Handler: CommandSchema},
+		{Name: string(CommandAcquisition), Summary: "Inspect declared resource acquisition", Handler: CommandAcquisition},
+	}
+}
+
+func AcquisitionCommandSpecs() []commandtree.Spec[AcquisitionCommandID] {
+	return []commandtree.Spec[AcquisitionCommandID]{
+		{Name: string(AcquisitionCommandExplain), Summary: "Explain host-fact acquisition target selection", Args: nameArgSchema("name"), Handler: AcquisitionCommandExplain},
+		{Name: string(AcquisitionCommandPrune), Summary: "Remove superseded managed-resource artifact versions", Args: commandtree.ArgSchema{Positionals: []commandtree.PositionalArg{{Name: "name"}}}, Handler: AcquisitionCommandPrune},
 	}
 }
 
@@ -207,4 +222,13 @@ func ArchiveCommandHelpText(id ArchiveCommandID) string {
 func SchemaCommandHelpText(id SchemaCommandID) string {
 	spec := schemaCommandSpec(id)
 	return commandtree.SpecHelpText("", "vrooli resource schema "+spec.Name, spec)
+}
+
+func AcquisitionCommandHelpText(id AcquisitionCommandID) string {
+	for _, spec := range AcquisitionCommandSpecs() {
+		if spec.Handler == id {
+			return commandtree.SpecHelpText("", "vrooli resource acquisition "+spec.Name, spec)
+		}
+	}
+	panic("unknown resource acquisition command spec: " + string(id))
 }

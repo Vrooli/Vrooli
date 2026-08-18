@@ -190,12 +190,150 @@ func TestCredentialsDoctorJSONContractIncludesRecoveryFields(t *testing.T) {
 	if err := json.Unmarshal(raw["recovery"], &recovery); err != nil {
 		t.Fatal(err)
 	}
-	assertJSONKeys("recovery", recovery, "entry_count", "exported_at", "path", "receipt_exists", "uncovered")
-	for _, key := range []string{"receipt_exists", "entry_count", "path", "uncovered"} {
+	assertJSONKeys("recovery", recovery, "entry_count", "exported_at", "path", "receipt_exists", "uncovered", "required_absent", "required_absent_details", "root_copy", "root_copy_issues")
+	for _, key := range []string{"receipt_exists", "entry_count", "path", "uncovered", "required_absent", "required_absent_details", "root_copy", "root_copy_issues"} {
 		if len(recovery[key]) == 0 {
 			t.Fatalf("recovery.%s is empty", key)
 		}
 	}
+}
+
+func TestRecoveryClassificationSeparatesCoverageAndAbsence(t *testing.T) {
+	tests := []struct {
+		name              string
+		entry             credentialEntry
+		wantConfigured    bool
+		wantRequiredCount int
+	}{
+		{
+			name:           "configured and covered",
+			entry:          credentialEntry{LogicalID: "vrooli/covered", Field: "value", Configured: true, State: "configured"},
+			wantConfigured: true,
+		},
+		{
+			name:           "configured and uncovered",
+			entry:          credentialEntry{LogicalID: "vrooli/stale", Field: "value", Configured: true, State: "configured"},
+			wantConfigured: true,
+		},
+		{
+			name: "required and absent",
+			entry: credentialEntry{
+				LogicalID: "vrooli/required", Field: "value", Required: true,
+				Configured: false, State: "unconfigured", Description: "unlocks the required integration",
+			},
+			wantRequiredCount: 1,
+		},
+		{
+			name: "optional and absent",
+			entry: credentialEntry{
+				LogicalID: "vrooli/optional", Field: "value", Required: false,
+				Configured: false, State: "unconfigured",
+			},
+		},
+		{
+			name: "derived and absent",
+			entry: credentialEntry{
+				LogicalID: "vrooli/derived", Field: "token", Required: true,
+				Provisioning: "derived", Configured: false, State: "derived-unconfigured",
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			configured, requiredAbsent := classifyRecoveryEntries([]credentialEntry{test.entry})
+			if got := len(configured) > 0; got != test.wantConfigured {
+				t.Fatalf("configured = %v, want %v", got, test.wantConfigured)
+			}
+			if got := len(requiredAbsent); got != test.wantRequiredCount {
+				t.Fatalf("required absent count = %d, want %d", got, test.wantRequiredCount)
+			}
+			if test.wantRequiredCount == 1 {
+				if !requiredCredentialAbsent(requiredAbsent[0]) {
+					t.Fatal("required absent entry was not classified as absent")
+				}
+				var status recoveryStatus
+				appendRequiredAbsent(&status, requiredAbsent[0])
+				if len(status.RequiredAbsent) != 1 || len(status.RequiredAbsentDetails) != 1 {
+					t.Fatalf("required absence details = %+v", status)
+				}
+				if status.RequiredAbsent[0] != "vrooli/required:value" || status.RequiredAbsentDetails[0].Description == "" {
+					t.Fatalf("required absence lost address or description: %+v", status)
+				}
+			}
+		})
+	}
+
+	// A missing provider is not evidence that a required value is absent.
+	configured, requiredAbsent := classifyRecoveryEntries([]credentialEntry{{
+		LogicalID: "vrooli/provider-down", Field: "value", Required: true,
+		Configured: false, State: "provider_unavailable",
+	}})
+	if len(configured) != 0 || len(requiredAbsent) != 0 {
+		t.Fatalf("provider outage was misclassified as absence: configured=%v absent=%v", configured, requiredAbsent)
+	}
+}
+
+func TestRuntimeCredentialInventoryHonorsDisabledResource(t *testing.T) {
+	root := credentialFixtureRoot(t)
+	withDoctorAuthority(t, &doctorTestStore{})
+	previousVault := liveVaultUnsealKeyEntries
+	previousKopia := liveKopiaRepositoryEntries
+	liveVaultUnsealKeyEntries = func() []resources.VaultUnsealKeyEntry {
+		return []resources.VaultUnsealKeyEntry{{
+			InstanceID: "ms-test",
+			LogicalID:  "vrooli/vault/ms-test",
+			Field:      "unseal-key",
+		}}
+	}
+	liveKopiaRepositoryEntries = func() []resources.KopiaRepositoryEntry { return nil }
+	t.Cleanup(func() {
+		liveVaultUnsealKeyEntries = previousVault
+		liveKopiaRepositoryEntries = previousKopia
+	})
+
+	writeVaultResourceChoice := func(enabled bool) {
+		t.Helper()
+		path := filepath.Join(root, ".vrooli", "service.json")
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		payload := []byte(`{"dependencies":{"resources":{"vault":{"enabled":` + map[bool]string{true: "true", false: "false"}[enabled] + `}}}}`)
+		if err := os.WriteFile(path, payload, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	t.Run("disabled resource excludes stale broker registration", func(t *testing.T) {
+		writeVaultResourceChoice(false)
+		entries, err := collectCredentialEntries(root)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, entry := range entries {
+			if entry.LogicalID == "vrooli/vault/ms-test" {
+				t.Fatalf("disabled Vault runtime credential remained in inventory: %+v", entry)
+			}
+		}
+	})
+
+	t.Run("enabled resource retains live broker registration", func(t *testing.T) {
+		writeVaultResourceChoice(true)
+		entries, err := collectCredentialEntries(root)
+		if err != nil {
+			t.Fatal(err)
+		}
+		found := false
+		for _, entry := range entries {
+			if entry.LogicalID == "vrooli/vault/ms-test" && entry.Field == "unseal-key" {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Fatalf("enabled Vault runtime credential was omitted: %+v", entries)
+		}
+	})
 }
 
 func sortedJSONKeys(values map[string]json.RawMessage) []string {

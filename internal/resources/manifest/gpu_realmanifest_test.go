@@ -7,9 +7,9 @@ import (
 	manifest "github.com/vrooli/vrooli/internal/resources/manifest"
 )
 
-// Ensures the whisper and kokoro manifests we just edited still parse and
-// validate after adding the gpu block, and that the gpu block is wired
-// through with the expected probe.
+// Ensures the remaining compose-backed Kokoro manifest still carries its
+// explicit GPU overlay. Whisper is now a native managed-service resource;
+// its platform-specific acquisition targets own delivery instead.
 func TestRealManifestsWithGPUBlockLoad(t *testing.T) {
 	repoRoot := findRepoRoot(t)
 	cases := []struct {
@@ -17,7 +17,6 @@ func TestRealManifestsWithGPUBlockLoad(t *testing.T) {
 		overlay     string
 		imageEnvKey string
 	}{
-		{"whisper", "docker/docker-compose.gpu.yml", "WHISPER_IMAGE"},
 		{"kokoro", "docker/docker-compose.gpu.yml", "KOKORO_IMAGE"},
 	}
 

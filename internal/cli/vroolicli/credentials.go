@@ -28,7 +28,7 @@ import (
 // history, or status output.
 func (app *App) runCredentialsCommand(ctx *CommandContext, args []string) error {
 	if len(args) == 0 || commandtree.WantsHelp(args) {
-		fmt.Fprintln(ctx.Stdout, "Usage:\n  vrooli credentials doctor [--check-writes] [--format json]\n  vrooli credentials provision --identity <namespace/name> --field <field> < value\n  vrooli credentials status --identity <namespace/name> --field <field> [--format json]\n  vrooli credentials store <status|init|unlock|lock|rewrap|change-passphrase>\n  vrooli credentials keyring <status|inspect|repair|unlock>\n  vrooli credentials recovery export --entry <identity>:<field> --output <bundle> < passphrase\n  vrooli credentials recovery verify --input <bundle> < passphrase\n  vrooli credentials recovery restore --input <bundle> < passphrase\n\nCredential values, store passphrases, and recovery passphrases are read only from standard input and never printed.\n`credentials store` manages the encrypted backend used on a host with no native credential store.")
+		fmt.Fprintln(ctx.Stdout, "Usage:\n  vrooli credentials doctor [--check-writes] [--format json]\n  vrooli credentials provision --identity <namespace/name> --field <field> < value\n  vrooli credentials status --identity <namespace/name> --field <field> [--format json]\n  vrooli credentials store <status|init|unlock|lock|rewrap|change-passphrase|copy>\n  vrooli credentials keyring <status|inspect|repair|unlock>\n  vrooli credentials recovery export --entry <identity>:<field> --output <bundle> < passphrase\n  vrooli credentials recovery verify --input <bundle> < passphrase\n  vrooli credentials recovery restore --input <bundle> < passphrase\n\nCredential values, store passphrases, and recovery passphrases are read only from standard input and never printed.\n`credentials store` manages the encrypted backend used on a host with no native credential store.")
 		return nil
 	}
 	switch args[0] {
@@ -195,6 +195,15 @@ func collectCredentialEntries(root string) ([]credentialEntry, error) {
 	// omits. For Vault that omission is unrecoverable: without the unseal key
 	// the instance stays sealed forever.
 	vaultEntries := liveVaultUnsealKeyEntries()
+	// A broker registration can outlive the resource it belongs to. Runtime
+	// credentials must not turn a deliberately disabled optional resource into
+	// a required operator action. The control-plane resource choice is the
+	// authority for whether this dynamic inventory participates in recovery.
+	if enabled, enabledErr := runtimeCredentialInventoryEnabled(root, "vault"); enabledErr != nil {
+		return nil, fmt.Errorf("read vault credential inventory policy: %w", enabledErr)
+	} else if !enabled {
+		vaultEntries = nil
+	}
 	kopiaEntries := liveKopiaRepositoryEntries()
 
 	// One verdict per store, read once. Availability was previously inferred
@@ -277,6 +286,21 @@ func collectCredentialEntries(root string) ([]credentialEntry, error) {
 	return entries, nil
 }
 
+// runtimeCredentialInventoryEnabled applies the same operator-state override
+// used by `vrooli resource status` to credentials whose identities are created
+// at runtime. A disabled resource is intentionally out of scope, even if an
+// old broker registration remains on disk. Missing configuration is treated as
+// disabled because an unregistered resource has no active control-plane
+// capability to recover.
+func runtimeCredentialInventoryEnabled(root, resourceName string) (bool, error) {
+	entries, err := catalog.New(root).ReadConfigEntries()
+	if err != nil {
+		return false, err
+	}
+	entry, ok := entries[resourceName]
+	return ok && entry.Enabled, nil
+}
+
 // liveVaultUnsealKeyEntries is the runtime-instance inventory source. It is a
 // variable because it reads this host's broker state directly, which a test
 // must be able to replace — otherwise a credential test's outcome depends on
@@ -303,13 +327,18 @@ func credentialEntriesFor(owner string, declaration credentialspec.Declaration, 
 		entry := credentialEntry{
 			Resource: owner, Env: strings.TrimSpace(descriptor.Env),
 			LogicalID: identity, Field: field,
-			Label: strings.TrimSpace(descriptor.Label), Required: descriptor.Required,
+			Label: strings.TrimSpace(descriptor.Label), Description: strings.TrimSpace(descriptor.Description), Required: descriptor.Required,
+			Provisioning: descriptor.Provisioning, DerivedFrom: descriptor.DerivedFrom,
 			Configured: true, State: "configured",
 		}
 		if gap, missing := gapByKey[identity+":"+field]; missing {
 			entry.Configured = false
 			entry.State = string(gap.Reason)
 			entry.Remediation = gap.Remediation
+			if descriptor.Provisioning == "derived" {
+				entry.State = "derived-unconfigured"
+				entry.Remediation = "this value is derived by the declaring component; provision its source credential first"
+			}
 		} else if providerState != credentialauthority.ProviderAvailable {
 			// The store is down, so nothing can be claimed configured — even a
 			// value this resource's own read happened to return. Configured is

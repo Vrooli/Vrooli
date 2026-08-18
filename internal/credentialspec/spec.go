@@ -47,6 +47,11 @@ type Descriptor struct {
 	Label       string `json:"label,omitempty"`
 	Description string `json:"description,omitempty"`
 	ObtainURL   string `json:"obtain_url,omitempty"`
+	// Provisioning identifies who supplies the value. The default is operator;
+	// derived values are written by the declaring component after derived_from
+	// is available and should not be requested from the operator.
+	Provisioning string `json:"provisioning,omitempty"`
+	DerivedFrom  string `json:"derived_from,omitempty"`
 }
 
 // ResolvedField returns the field this descriptor addresses, applying the
@@ -105,6 +110,13 @@ func (c Declaration) Validate(owner string) error {
 		field := descriptor.ResolvedField()
 		if strings.ContainsAny(field, "/\\") {
 			return fmt.Errorf("%s credential %s field %q cannot contain a path separator", owner, identity, field)
+		}
+		provisioning := strings.TrimSpace(descriptor.Provisioning)
+		if provisioning != "" && provisioning != "operator" && provisioning != "derived" {
+			return fmt.Errorf("%s credential %s:%s has invalid provisioning %q", owner, identity, field, provisioning)
+		}
+		if provisioning == "derived" && strings.TrimSpace(descriptor.DerivedFrom) == "" {
+			return fmt.Errorf("%s credential %s:%s derived provisioning requires derived_from", owner, identity, field)
 		}
 
 		// Two descriptors addressing one store key is a declaration that

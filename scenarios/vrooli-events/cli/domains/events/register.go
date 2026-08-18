@@ -2,6 +2,7 @@ package events
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -11,21 +12,87 @@ import (
 	"os"
 	"strings"
 
+	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
+	domain "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain"
+	domainconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain/domainconnect"
 )
 
 const cliName = "vrooli-events"
 
 func Register(core *cliapp.ScenarioApp) cliapp.CommandGroup {
+	aggregate := aggregatePrimitive()
 	return cliapp.CommandGroup{
 		Title: "Events",
 		Commands: []cliapp.Command{
 			{Name: "ingest", NeedsAPI: true, Description: "Publish an event to the event bus", Run: func(args []string) error { return runIngest(core, args) }},
 			{Name: "query", NeedsAPI: true, Description: "Search events by type/source/correlation_id", Run: func(args []string) error { return runQuery(core, args) }},
+			(cliapp.Command{Name: "aggregate", NeedsAPI: true, Description: "Aggregate receipt invocations by target and operation", Args: cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "target-scenario", Description: "target scenario filter"}, {Name: "operation", Description: "target operation filter"}}}}).WithPrimitive(aggregate),
 			{Name: "subscribe", NeedsAPI: true, Description: "Real-time SSE event listener", Run: func(args []string) error { return runSubscribe(core, args) }},
 		},
 	}
+}
+
+// RegisterManifest returns the manifest-backed form used by the evidence
+// artifact. The live app registers the same primitive through the flat command
+// group because this manifest intentionally declares the events group as flat;
+// keeping the two paths identical preserves both runtime compatibility and
+// structural primitive evidence.
+func RegisterManifest(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
+	_ = core
+	connectManifest, err := aggregateManifest(manifest)
+	if err != nil {
+		return cliapp.SubcommandGroup{}, err
+	}
+	return cliapp.LoadFromManifestPrimitives(connectManifest, "events", map[string]cliapp.PrimitiveHandler{
+		"vrooli.vrooli_events.v1.domain.ReceiptAggregateService.AggregateReceipts": aggregatePrimitive(),
+	})
+}
+
+func aggregateManifest(raw []byte) ([]byte, error) {
+	manifest, err := cliapp.ParseManifest(raw)
+	if err != nil {
+		return nil, fmt.Errorf("parse CLI manifest for aggregate evidence: %w", err)
+	}
+	group := manifest.FindGroup("events")
+	if group == nil {
+		return nil, fmt.Errorf("CLI manifest has no events group")
+	}
+	commands := make([]cliapp.ManifestCommand, 0, 1)
+	for _, command := range group.Commands {
+		if command.Name == "aggregate" {
+			commands = append(commands, command)
+		}
+	}
+	if len(commands) != 1 {
+		return nil, fmt.Errorf("CLI manifest events group must contain exactly one aggregate command")
+	}
+	group.Commands = commands
+	return json.Marshal(manifest)
+}
+
+func aggregatePrimitive() cliapp.PrimitiveHandler {
+	return cliapp.ProtoListEmitUnpopulatedJSON(
+		func(ctx cliapp.OperationContext) (*domain.ReceiptAggregateResponse, error) {
+			httpClient, baseURL := cliapp.NewConnectHTTPClient(ctx.Core())
+			client := domainconnect.NewReceiptAggregateServiceClient(httpClient, baseURL)
+			response, err := client.AggregateReceipts(context.Background(), connect.NewRequest(&domain.ReceiptAggregateRequest{TargetScenario: ctx.Flag("target-scenario"), Operation: ctx.Flag("operation")}))
+			if err != nil {
+				return nil, err
+			}
+			return response.Msg, nil
+		},
+		aggregateReport,
+	)
+}
+
+func aggregateReport(_ cliapp.OperationContext, response *domain.ReceiptAggregateResponse) cliapp.ListReport {
+	results := make([]string, 0, len(response.GetAggregates()))
+	for _, aggregate := range response.GetAggregates() {
+		results = append(results, fmt.Sprintf("%s %s count=%d callers=%d unattributed=%d last=%s", aggregate.GetTargetScenario(), aggregate.GetOperation(), aggregate.GetInvocationCount(), aggregate.GetDistinctVerifiedCallers(), aggregate.GetUnattributedRemainder(), aggregate.GetLastInvokedAt()))
+	}
+	return cliapp.ListReport{Summary: []string{fmt.Sprintf("Receipt aggregates returned: %d", len(results)), "Window since: " + response.GetWindowSince(), "Window until: " + response.GetWindowUntil()}, ResultsHeading: "Receipt aggregates", Results: results}
 }
 
 func runIngest(core *cliapp.ScenarioApp, args []string) error {

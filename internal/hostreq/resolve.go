@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/vrooli/binaryfetch"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 	"github.com/vrooli/vrooli/internal/resources"
 	"github.com/vrooli/vrooli/internal/scenario"
@@ -22,6 +23,7 @@ type ResolveOptions struct {
 	Scenarios     string
 	ScenarioPaths []string
 	Platform      string
+	Architecture  string
 }
 
 type Resolution struct {
@@ -363,6 +365,12 @@ func (s resolverState) add(declaration Declaration, kind Kind, provenance Proven
 	}
 	resolved, exists := target[key]
 	if !exists {
+		var acquisition *binaryfetch.Acquisition
+		if kind == KindTool {
+			if manifest, ok := s.catalog.tools[key]; ok {
+				acquisition = manifest.Acquisition
+			}
+		}
 		target[key] = &ResolvedRequirement{
 			Name:               key,
 			Kind:               kind,
@@ -377,6 +385,7 @@ func (s resolverState) add(declaration Declaration, kind Kind, provenance Proven
 			Notes:              uniqueStrings([]string{strings.TrimSpace(declaration.Notes)}),
 			Provenance:         []Provenance{provenance},
 			Requires:           declaration.Requires,
+			Acquisition:        acquisition,
 			OperatorChoice:     s.operatorState.choice(kind, key),
 			Config:             config,
 			ConfigError:        configError,

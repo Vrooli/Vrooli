@@ -3,25 +3,9 @@ package plans
 import (
 	"crypto/sha256"
 	"encoding/hex"
-	"regexp"
 	"slices"
 	"strings"
 )
-
-func slugOrDefault(slug, title string) string {
-	if cleaned := slugify(slug); cleaned != "" {
-		return cleaned
-	}
-	return slugify(title)
-}
-
-var slugCleaner = regexp.MustCompile(`[^a-z0-9]+`)
-
-func slugify(value string) string {
-	lower := strings.ToLower(strings.TrimSpace(value))
-	lower = slugCleaner.ReplaceAllString(lower, "-")
-	return strings.Trim(lower, "-")
-}
 
 func filterArchived(records []PlanRecord, includeArchived bool) []PlanRecord {
 	filtered := make([]PlanRecord, 0, len(records))
@@ -50,13 +34,6 @@ func sortRecords(records []PlanRecord) {
 func contentHash(content string) string {
 	sum := sha256.Sum256([]byte(content))
 	return hex.EncodeToString(sum[:])
-}
-
-func ensureTrailingNewline(value string) string {
-	if strings.HasSuffix(value, "\n") {
-		return value
-	}
-	return value + "\n"
 }
 
 func titleFromSlug(slug string) string {

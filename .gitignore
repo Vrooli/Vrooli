@@ -64,6 +64,9 @@ lib-cov
 packages/*/coverage/
 scenarios/*/coverage/
 scenarios/*/ui/coverage/
+# Scenario-local visual captures and verdict ledgers are generated evidence,
+# not source. Durable conclusions belong in docs/reports or plan logs; keep
+# the complete coverage tree local with the rest of scenario test output.
 # Test Genie file-determined phase results are runtime cache state, not source.
 scenarios/*/phase-cache/
 # protogen staging trees (packages/proto/protogen/generator.go). Generation

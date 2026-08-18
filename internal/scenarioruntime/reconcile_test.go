@@ -161,3 +161,82 @@ func TestRuntimeEvidenceHelpersKeepHostInspectionAtTheSeam(t *testing.T) {
 func ptrTime(t time.Time) *time.Time {
 	return &t
 }
+
+// A supervisor-owned instance has owner_pid = NULL by design — the owner is a
+// session, not a process on this row. Reading that NULL as proof of death put
+// the entire fleet one lapsed heartbeat away from being classified stale, so a
+// supervisor restart was indistinguishable from every scenario dying at once.
+func TestReconcileDoesNotCondemnSupervisedInstanceOnMissingOwnerPID(t *testing.T) {
+	now := time.Date(2026, 5, 9, 12, 0, 0, 0, time.UTC)
+	lapsed := now.Add(-time.Minute)
+	livePID := 4242
+
+	instance := Instance{
+		InstanceID:          "inst-alpha",
+		Scenario:            "alpha",
+		Status:              StatusRunning,
+		OwnerKind:           OwnerKindSupervisor,
+		OwnerPID:            nil,
+		SupervisorID:        "sup-alpha",
+		HostBootID:          "boot-current",
+		HeartbeatDeadlineAt: &lapsed,
+	}
+	result := ReconcileRuntime(ReconcileInput{
+		Now:           now,
+		CurrentBootID: "boot-current",
+		Instance:      instance,
+		Claims:        []PortClaim{{ClaimID: "claim-a", Port: 8080, Status: ClaimStatusBound}},
+		ProcessRefs:   []ProcessRef{{RefID: "ref-a", PID: &livePID}},
+		Processes:     map[string]ProcessEvidence{"4242": {Known: true, Running: true}},
+		Listeners:     map[int]ListenerEvidence{8080: {Known: true, Listening: true}},
+	})
+	if !result.Authoritative {
+		t.Fatalf("supervised instance with a live process and a listening port was condemned: %s (%s)",
+			result.Classification, result.Reason)
+	}
+}
+
+// The exemption must not become a licence to keep a dead scenario authoritative:
+// positive evidence of death still expires it.
+func TestReconcileStillCondemnsSupervisedInstanceWithDeadProcessAndNoListener(t *testing.T) {
+	now := time.Date(2026, 5, 9, 12, 0, 0, 0, time.UTC)
+	lapsed := now.Add(-time.Minute)
+	deadPID := 4242
+
+	result := ReconcileRuntime(ReconcileInput{
+		Now:           now,
+		CurrentBootID: "boot-current",
+		Instance: Instance{
+			InstanceID: "inst-alpha", Scenario: "alpha", Status: StatusRunning,
+			OwnerKind: OwnerKindSupervisor, SupervisorID: "sup-alpha",
+			HostBootID: "boot-current", HeartbeatDeadlineAt: &lapsed,
+		},
+		Claims:      []PortClaim{{ClaimID: "claim-a", Port: 8080, Status: ClaimStatusBound}},
+		ProcessRefs: []ProcessRef{{RefID: "ref-a", PID: &deadPID}},
+		Processes:   map[string]ProcessEvidence{"4242": {Known: true, Running: false}},
+		Listeners:   map[int]ListenerEvidence{8080: {Known: true, Listening: false}},
+	})
+	if result.Authoritative || result.Classification != ReconcileStaleInstance {
+		t.Fatalf("classification = %s (authoritative=%v), want stale_instance", result.Classification, result.Authoritative)
+	}
+}
+
+// Lifecycle ownership keeps the old rule: there, a missing PID means the row is
+// malformed or the starter vanished, which IS evidence.
+func TestReconcileStillCondemnsLifecycleInstanceWithMissingOwnerPID(t *testing.T) {
+	now := time.Date(2026, 5, 9, 12, 0, 0, 0, time.UTC)
+	lapsed := now.Add(-time.Minute)
+
+	result := ReconcileRuntime(ReconcileInput{
+		Now:           now,
+		CurrentBootID: "boot-current",
+		Instance: Instance{
+			InstanceID: "inst-alpha", Scenario: "alpha", Status: StatusStarting,
+			OwnerKind: OwnerKindLifecycle, OwnerPID: nil,
+			HostBootID: "boot-current", HeartbeatDeadlineAt: &lapsed,
+		},
+	})
+	if result.Authoritative || result.Classification != ReconcileStaleInstance {
+		t.Fatalf("classification = %s (authoritative=%v), want stale_instance", result.Classification, result.Authoritative)
+	}
+}

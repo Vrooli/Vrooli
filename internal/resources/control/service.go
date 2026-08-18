@@ -194,7 +194,15 @@ func (s *Service) runNativeResourceCommand(item catalog.Resource, operation stri
 	if err != nil {
 		return err
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	// Managed-service installs may include large, checksum-verified model data
+	// artifacts in addition to the launch binary. Lifecycle operations remain
+	// short-bounded, while an explicit install gets enough time for a cold
+	// model acquisition on a constrained connection.
+	timeout := 2 * time.Minute
+	if operation == "install" {
+		timeout = 30 * time.Minute
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	if err := s.DriverRunFn(ctx, item, manifest, operation, args, stdout, stderr); err != nil {
 		var resourceErr *vroolierr.Error

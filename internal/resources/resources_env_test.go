@@ -10,7 +10,7 @@ func TestResourceEnvForResourceIncludesCanonicalStorageVariables(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 
-	env := resourceEnvForResource(root, home, "home-assistant")
+	env := resourceEnvForResource(root, home, "fixture-resource")
 	values := map[string]string{}
 	for _, entry := range env {
 		for i := 0; i < len(entry); i++ {
@@ -27,7 +27,7 @@ func TestResourceEnvForResourceIncludesCanonicalStorageVariables(t *testing.T) {
 	if got := values["RESOURCE_DATA_DIR"]; got == "" {
 		t.Fatal("expected RESOURCE_DATA_DIR")
 	}
-	wantRoot := filepath.Join(root, "resources", "home-assistant")
+	wantRoot := filepath.Join(root, "resources", "fixture-resource")
 	if got := values["RESOURCE_ROOT"]; got != wantRoot {
 		t.Fatalf("RESOURCE_ROOT = %q, want %q", got, wantRoot)
 	}

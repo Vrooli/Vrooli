@@ -28,11 +28,12 @@ func TestGoToolchainContract(t *testing.T) {
 	if manifest.Version == "" {
 		t.Fatal("Go tool manifest must declare an exact version")
 	}
-	if manifest.SourceType() != "release" || manifest.Source == nil {
-		t.Fatalf("Go tool source = %#v; want checksum-verified release targets", manifest.Source)
+	if manifest.SourceType() != "url" || manifest.Acquisition == nil {
+		t.Fatalf("Go tool acquisition = %#v; want checksum-verified URL targets", manifest.Acquisition)
 	}
 	for _, targetName := range []string{"linux/amd64", "linux/arm64", "darwin/amd64", "darwin/arm64", "windows/amd64"} {
-		target, ok := manifest.Source.Targets[targetName]
+		parts := strings.SplitN(targetName, "/", 2)
+		target, ok := hostreqkit.TargetFor(manifest.Acquisition, parts[0], parts[1])
 		if !ok || target.Layout != "dir" || target.Archive == "" || target.BinPath == "" || len(target.SHA256) != 64 || target.RuntimeEnv["GOROOT"] != "go" {
 			t.Errorf("Go target %s = %#v; want a complete verified directory release", targetName, target)
 		}

@@ -105,6 +105,7 @@ type App struct {
 type CommandContext struct {
 	Root         string
 	Globals      rootcli.GlobalOptions
+	Stdin        io.Reader
 	Stdout       io.Writer
 	Stderr       io.Writer
 	Logger       *slog.Logger
@@ -179,6 +180,7 @@ func (app *App) Runner() *rootcli.Runner[*CommandContext] {
 		NewContext: func(globals rootcli.GlobalOptions, stdout, stderr io.Writer, logger *slog.Logger) *CommandContext {
 			return &CommandContext{
 				Globals: globals,
+				Stdin:   os.Stdin,
 				Stdout:  stdout,
 				Stderr:  stderr,
 				Logger:  logger,
@@ -807,6 +809,17 @@ func (app *App) installRuntimeSupervisor(ctx *CommandContext, args []string) err
 		return writeCliSupervisorServiceResultJSON(ctx.Stdout, result)
 	}
 	_, _ = fmt.Fprintf(ctx.Stdout, "Installed runtime supervisor service: %s\n", result.UnitPath)
+	_, _ = fmt.Fprintf(ctx.Stdout, "  Runs: %s\n", result.Executable)
+	if result.LogPath != "" {
+		_, _ = fmt.Fprintf(ctx.Stdout, "  Logs: %s\n", result.LogPath)
+	}
+	if !result.ExecutableIsCanonical {
+		// The unit keeps this path across every restart and reboot, so an
+		// operator should learn at install time that it is not the installed
+		// CLI — not later, from /proc, after a build overwrote it.
+		_, _ = fmt.Fprintf(ctx.Stdout,
+			"  Warning: that is not the installed CLI. Run `make install` and re-run this command so the service is not pinned to a build output.\n")
+	}
 	return nil
 }
 

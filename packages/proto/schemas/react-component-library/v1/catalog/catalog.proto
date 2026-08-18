@@ -166,6 +166,9 @@ message CoverageReport {
   repeated Rollup by_domain = 3;
   repeated Rollup by_priority = 4;
   MaturitySummary maturity = 5;
+	map<string, double> composition_scores = 6;
+	double composition_median = 7;
+	int32 bespoke_escape_count = 8;
 }
 
 message GetCoverageResponse {
@@ -217,6 +220,15 @@ message RunGateResponse {
 	repeated CalibrationResult calibration = 6;
 	bool non_discriminating = 7;
 	map<string, int32> surface_verdict_counts = 8;
+	map<string, double> composition_scores = 9;
+	double composition_median = 10;
+	int32 bespoke_escape_count = 11;
+	repeated CompositionEscape composition_escapes = 12;
+}
+
+message CompositionEscape {
+	string asset_id = 1;
+	string reason = 2;
 }
 
 message CalibrationResult {

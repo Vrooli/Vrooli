@@ -31,10 +31,77 @@ func TestResolveReturnsUnknownWhenRequirementsAreMissing(t *testing.T) {
 	}
 }
 
+func TestResolveUsesArchitectureSpecificPlatformSupport(t *testing.T) {
+	dependency := testDependency("architecture-specific", &ResourceRequirements{Class: "service", Weight: 1})
+	dependency.PlatformSupportByTarget = map[string]PlatformDeclaration{
+		"linux-amd64": {Status: "supported"},
+		"linux-arm64": {Status: "unsupported"},
+	}
+
+	amd64 := Resolve(ResolutionInput{
+		Target: TargetDeclaration{Name: "sample", Dependencies: []DependencyDeclaration{dependency}},
+		Tier:   TierDesktop,
+		OS:     HostOSLinux,
+		Arch:   "amd64",
+	})
+	if amd64.Verdict != VerdictEligible {
+		t.Fatalf("amd64 verdict = %s, want eligible: %#v", amd64.Verdict, amd64.Reasons)
+	}
+
+	arm64 := Resolve(ResolutionInput{
+		Target: TargetDeclaration{Name: "sample", Dependencies: []DependencyDeclaration{dependency}},
+		Tier:   TierDesktop,
+		OS:     HostOSLinux,
+		Arch:   "arm64",
+	})
+	if arm64.Verdict != VerdictIneligible {
+		t.Fatalf("arm64 verdict = %s, want ineligible: %#v", arm64.Verdict, arm64.Reasons)
+	}
+}
+
 func TestResolveReturnsIneligibleForDeclaredMobileFootprint(t *testing.T) {
 	result := Resolve(ResolutionInput{Target: TargetDeclaration{Name: "sample", Dependencies: []DependencyDeclaration{testDependency("custom", &ResourceRequirements{Class: "custom", Weight: 3, RAMMB: 4096, CPUCores: 2})}}, Tier: TierMobile, OS: HostOSLinux})
 	if result.Verdict != VerdictIneligible {
 		t.Fatalf("verdict = %s, want ineligible", result.Verdict)
+	}
+}
+
+func TestResolveEvaluatesMinimumCUDAComputeFromFacts(t *testing.T) {
+	dependency := testDependency("gpu-service", &ResourceRequirements{
+		Class:          "inference",
+		Weight:         1,
+		GPURequirement: &GPURequirement{MinCUDACompute: "8.9"},
+	})
+	eligible := Resolve(ResolutionInput{
+		Target: TargetDeclaration{Name: "sample", Dependencies: []DependencyDeclaration{dependency}},
+		Tier:   TierLocal, OS: HostOSLinux, Arch: "amd64",
+		Facts: map[string]string{"gpu.cuda_compute": "9.0"},
+	})
+	if eligible.Verdict != VerdictEligible {
+		t.Fatalf("eligible verdict = %s, want eligible: %+v", eligible.Verdict, eligible.Reasons)
+	}
+	ineligible := Resolve(ResolutionInput{
+		Target: TargetDeclaration{Name: "sample", Dependencies: []DependencyDeclaration{dependency}},
+		Tier:   TierLocal, OS: HostOSLinux, Arch: "amd64",
+		Facts: map[string]string{"gpu.cuda_compute": "8.0"},
+	})
+	if ineligible.Verdict != VerdictIneligible {
+		t.Fatalf("ineligible verdict = %s, want ineligible: %+v", ineligible.Verdict, ineligible.Reasons)
+	}
+}
+
+func TestResolveGPURequirementIsUnknownWhenFactIsAbsent(t *testing.T) {
+	dependency := testDependency("gpu-service", &ResourceRequirements{
+		Class:          "inference",
+		Weight:         1,
+		GPURequirement: &GPURequirement{MinCUDACompute: "8.9"},
+	})
+	result := Resolve(ResolutionInput{
+		Target: TargetDeclaration{Name: "sample", Dependencies: []DependencyDeclaration{dependency}},
+		Tier:   TierLocal, OS: HostOSLinux, Arch: "amd64",
+	})
+	if result.Verdict != VerdictUnknown {
+		t.Fatalf("verdict = %s, want unknown: %+v", result.Verdict, result.Reasons)
 	}
 }
 

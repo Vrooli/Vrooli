@@ -14,7 +14,6 @@ import (
 	"github.com/vrooli/vrooli/internal/safeguards"
 	autohealrecoveryprivileges "github.com/vrooli/vrooli/internal/safeguards/autoheal-recovery-privileges"
 	"github.com/vrooli/vrooli/internal/safeguards/clock"
-	cloudflaredrecoveryprivileges "github.com/vrooli/vrooli/internal/safeguards/cloudflared-recovery-privileges"
 	crashkernelreserve "github.com/vrooli/vrooli/internal/safeguards/crashkernel-reserve"
 	dnsresolution "github.com/vrooli/vrooli/internal/safeguards/dns-resolution"
 	dockerhostfirewall "github.com/vrooli/vrooli/internal/safeguards/docker-host-firewall"
@@ -74,31 +73,30 @@ var customToolHandlers = map[string]func(hostreqkit.ToolManifest) hostreqkit.Han
 // "handler" field under internal/safeguards/. The invariant is enforced by
 // TestSafeguardManifestsReferenceRegisteredHandlers.
 var customSafeguardHandlers = map[string]func(hostreqkit.SafeguardManifest) hostreqkit.Handler{
-	"clock":                           clock.NewHandler,
-	"autoheal_recovery_privileges":    autohealrecoveryprivileges.NewHandler,
-	"onboarding_apply_privileges":     onboardingapplyprivileges.NewHandler,
-	"model_policy_drift":              modelpolicydrift.NewHandler,
-	"cloudflared_recovery_privileges": cloudflaredrecoveryprivileges.NewHandler,
-	"crashkernel_reserve":             crashkernelreserve.NewHandler,
-	"dns_resolution":                  dnsresolution.NewHandler,
-	"docker_host_firewall":            dockerhostfirewall.NewHandler,
-	"tpm_credential_access":           tpmcredentialaccess.NewHandler,
-	"edac_modules":                    edacmodules.NewHandler,
-	"host_hardening":                  hosthardening.NewHandler,
-	"kernel_config":                   kernelconfig.NewHandler,
-	"login_keyring_unlock":            loginkeyringunlock.NewHandler,
-	"nat_protection":                  natprotection.NewHandler,
-	"netconsole":                      netconsole.NewHandler,
-	"nvidia_driver":                   nvidiadriver.NewHandler,
-	"remote_desktop_access":           remotedesktopaccess.NewHandler,
-	"ollama_resource_controls":        ollamaresourcecontrols.NewHandler,
-	"pstore_observability":            pstoreobservability.NewHandler,
-	"pstore_native":                   pstorenative.NewHandler,
-	"pstore_ramoops":                  pstoreramoops.NewHandler,
-	"remote_session_protection":       remotesessionprotection.NewHandler,
-	"tcp_tuning":                      tcptuning.NewHandler,
-	"vrooli_launcher":                 vroolilauncher.NewHandler,
-	"workspace_sandbox_userns":        workspacesandboxuserns.NewHandler,
+	"clock":                        clock.NewHandler,
+	"autoheal_recovery_privileges": autohealrecoveryprivileges.NewHandler,
+	"onboarding_apply_privileges":  onboardingapplyprivileges.NewHandler,
+	"model_policy_drift":           modelpolicydrift.NewHandler,
+	"crashkernel_reserve":          crashkernelreserve.NewHandler,
+	"dns_resolution":               dnsresolution.NewHandler,
+	"docker_host_firewall":         dockerhostfirewall.NewHandler,
+	"tpm_credential_access":        tpmcredentialaccess.NewHandler,
+	"edac_modules":                 edacmodules.NewHandler,
+	"host_hardening":               hosthardening.NewHandler,
+	"kernel_config":                kernelconfig.NewHandler,
+	"login_keyring_unlock":         loginkeyringunlock.NewHandler,
+	"nat_protection":               natprotection.NewHandler,
+	"netconsole":                   netconsole.NewHandler,
+	"nvidia_driver":                nvidiadriver.NewHandler,
+	"remote_desktop_access":        remotedesktopaccess.NewHandler,
+	"ollama_resource_controls":     ollamaresourcecontrols.NewHandler,
+	"pstore_observability":         pstoreobservability.NewHandler,
+	"pstore_native":                pstorenative.NewHandler,
+	"pstore_ramoops":               pstoreramoops.NewHandler,
+	"remote_session_protection":    remotesessionprotection.NewHandler,
+	"tcp_tuning":                   tcptuning.NewHandler,
+	"vrooli_launcher":              vroolilauncher.NewHandler,
+	"workspace_sandbox_userns":     workspacesandboxuserns.NewHandler,
 }
 
 type registry struct {

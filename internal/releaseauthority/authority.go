@@ -25,6 +25,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/vrooli/binaryfetch"
 	credentialauthority "github.com/vrooli/vrooli/internal/secrets"
 	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
 )
@@ -143,12 +144,12 @@ func (a *Authority) SignStage(root, stage string, overwrite bool) (resourcedeplo
 		return resourcedeployment.ReleaseSignature{}, err
 	}
 	for _, artifact := range manifest.Artifacts {
-		data, readErr := os.ReadFile(filepath.Join(stage, artifact.Name))
-		if readErr != nil {
-			return resourcedeployment.ReleaseSignature{}, fmt.Errorf("read staged artifact %s: %w", artifact.Name, readErr)
+		path := filepath.Join(stage, artifact.Name)
+		actual, err := stagedArtifactDigest(path)
+		if err != nil {
+			return resourcedeployment.ReleaseSignature{}, fmt.Errorf("hash staged artifact %s: %w", artifact.Name, err)
 		}
-		sum := sha256.Sum256(data)
-		if hex.EncodeToString(sum[:]) != artifact.SHA256 {
+		if actual != artifact.SHA256 {
 			return resourcedeployment.ReleaseSignature{}, fmt.Errorf("staged artifact %s hash mismatch", artifact.Name)
 		}
 	}
@@ -181,6 +182,22 @@ func (a *Authority) SignStage(root, stage string, overwrite bool) (resourcedeplo
 		return resourcedeployment.ReleaseSignature{}, fmt.Errorf("close release signature: %w", err)
 	}
 	return envelope, nil
+}
+
+func stagedArtifactDigest(path string) (string, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		return "", err
+	}
+	if info.IsDir() {
+		return binaryfetch.TreeDigest(path)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return "", err
+	}
+	sum := sha256.Sum256(data)
+	return hex.EncodeToString(sum[:]), nil
 }
 
 // AddEvidence copies a durable evidence file into a release stage and updates

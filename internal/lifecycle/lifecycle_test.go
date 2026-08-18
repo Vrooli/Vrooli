@@ -335,6 +335,71 @@ func TestExecutePhaseDetailedWrapsStepFailuresWithContext(t *testing.T) {
 	}
 }
 
+func TestStartTrackedProcessImmediateExitIncludesCauseAndLogTail(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	writeLifecycleFixtureManifest(t, root, scenario.ServiceManifest{
+		Service: scenario.ServiceMetadata{Name: "alpha"},
+		Lifecycle: scenario.Lifecycle{Develop: scenario.Phase{Steps: []scenario.PhaseStep{
+			{Name: "start-api", Run: "echo 'bind failed: address already in use'; exit 1", Background: true},
+		}}},
+	})
+	runner := newLifecycleRunnerForTest(t, root, home, func(deps *lifecycleDeps) {
+		deps.sleep = func(duration time.Duration) { time.Sleep(duration) }
+	})
+	item, err := scenario.Load(root, "alpha", scenario.SandboxEnv{})
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+
+	err = runner.startTrackedProcess(item, "develop", item.Manifest.Lifecycle.Develop.Steps[0], map[string]string{})
+	if err == nil {
+		t.Fatal("expected immediate background exit")
+	}
+	if strings.Contains(err.Error(), "%!w(<nil>)") {
+		t.Fatalf("error retained nil wrapping artifact: %v", err)
+	}
+	if !strings.Contains(err.Error(), "exit status 1") || !strings.Contains(err.Error(), "bind failed: address already in use") {
+		t.Fatalf("error = %q, want exit cause and log tail", err)
+	}
+}
+
+func TestStartTrackedProcessRejectsHeldPortBeforeStart(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	port := 22888
+	writeLifecycleFixtureManifest(t, root, scenario.ServiceManifest{
+		Service: scenario.ServiceMetadata{Name: "alpha"},
+		Ports:   map[string]scenario.Port{"api": {EnvVar: "API_PORT", Port: &port}},
+		Lifecycle: scenario.Lifecycle{Develop: scenario.Phase{Steps: []scenario.PhaseStep{
+			{Name: "start-api", Run: "echo should-not-run", Background: true},
+		}}},
+	})
+	runner := newLifecycleRunnerForTest(t, root, home, func(deps *lifecycleDeps) {
+		deps.inspectPort = func(got int) network.PortInspection {
+			if got != port {
+				t.Fatalf("inspectPort(%d), want %d", got, port)
+			}
+			return network.PortInspection{
+				Inspection: network.ListenerInspection{Available: true, Tool: "test"},
+				Listeners:  []network.PortListener{{PID: 4321, Command: "dictation-api"}},
+			}
+		}
+	})
+	item, err := scenario.Load(root, "alpha", scenario.SandboxEnv{})
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+
+	err = runner.startTrackedProcess(item, "develop", item.Manifest.Lifecycle.Develop.Steps[0], map[string]string{"API_PORT": fmt.Sprint(port)})
+	if err == nil {
+		t.Fatal("expected held-port conflict")
+	}
+	if !strings.Contains(err.Error(), "port 22888 is already in use") || !strings.Contains(err.Error(), "pid 4321 (dictation-api)") {
+		t.Fatalf("error = %q, want named holder", err)
+	}
+}
+
 func TestRunPhaseDetailedWritesLifecycleRunBoundaries(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()

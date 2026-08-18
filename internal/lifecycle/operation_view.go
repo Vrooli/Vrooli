@@ -28,17 +28,25 @@ type StartOperationView struct {
 	// when the record carries none. Surfaced so a reader that sees an
 	// in-flight operation can name the same process the lock-contention error
 	// names (ScenarioBusyError.HolderPID) instead of hunting for it with ps.
-	InitiatorPID      int                                  `json:"initiator_pid,omitempty"`
-	Verdict           string                               `json:"verdict,omitempty"`
-	Error             string                               `json:"error,omitempty"`
-	CurrentStep       string                               `json:"current_step,omitempty"`
-	DependencyCurrent string                               `json:"dependency_current,omitempty"`
-	DependencyIndex   int                                  `json:"dependency_index,omitempty"`
-	DependencyTotal   int                                  `json:"dependency_total,omitempty"`
-	StartedAt         time.Time                            `json:"started_at"`
-	FinishedAt        *time.Time                           `json:"finished_at,omitempty"`
-	ElapsedSeconds    int                                  `json:"elapsed_seconds"`
-	Steps             []scenarioruntime.StartOperationStep `json:"steps,omitempty"`
+	InitiatorPID int `json:"initiator_pid,omitempty"`
+	// Initiator provenance answers "who started this?" once the initiating
+	// process is gone — which, for a CLI-driven start, is almost immediately.
+	// Empty on records written before provenance was captured, or on hosts
+	// that cannot report a given field.
+	InitiatorArgv       string                               `json:"initiator_argv,omitempty"`
+	InitiatorParentPID  int                                  `json:"initiator_parent_pid,omitempty"`
+	InitiatorParentArgv string                               `json:"initiator_parent_argv,omitempty"`
+	InitiatorScope      string                               `json:"initiator_scope,omitempty"`
+	Verdict             string                               `json:"verdict,omitempty"`
+	Error               string                               `json:"error,omitempty"`
+	CurrentStep         string                               `json:"current_step,omitempty"`
+	DependencyCurrent   string                               `json:"dependency_current,omitempty"`
+	DependencyIndex     int                                  `json:"dependency_index,omitempty"`
+	DependencyTotal     int                                  `json:"dependency_total,omitempty"`
+	StartedAt           time.Time                            `json:"started_at"`
+	FinishedAt          *time.Time                           `json:"finished_at,omitempty"`
+	ElapsedSeconds      int                                  `json:"elapsed_seconds"`
+	Steps               []scenarioruntime.StartOperationStep `json:"steps,omitempty"`
 	// ETAKnown is false when the phase-duration history cannot honestly
 	// estimate the remaining time; ETASeconds is meaningful only when true.
 	ETAKnown   bool `json:"eta_known"`
@@ -137,6 +145,12 @@ func EvaluateStartOperation(op scenarioruntime.StartOperation, isPIDRunning func
 	if op.InitiatorPID != nil {
 		view.InitiatorPID = *op.InitiatorPID
 	}
+	if op.InitiatorParentPID != nil {
+		view.InitiatorParentPID = *op.InitiatorParentPID
+	}
+	view.InitiatorArgv = op.InitiatorArgv
+	view.InitiatorParentArgv = op.InitiatorParentArgv
+	view.InitiatorScope = op.InitiatorScope
 	end := now
 	if op.FinishedAt != nil {
 		end = *op.FinishedAt

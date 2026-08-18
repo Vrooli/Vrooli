@@ -42,6 +42,9 @@ func TestNoManifestPathLiteralJoins(t *testing.T) {
 		"internal/repocontractcheck/checks.go":    true,
 		"packages/repo-contract-go/audit_test.go": true,
 		"packages/repo-contract-go/manifests.go":  true,
+		// This function asserts the canonical contract values themselves; the
+		// literals are the subject of the assertion, not a runtime path join.
+		"scenarios/structure-health/api/internal/packs/targetpack/project.go": true,
 	}
 
 	// Allowlist directory prefixes (repo-root-relative, slash). The helpers
@@ -89,6 +92,13 @@ func TestNoManifestPathLiteralJoins(t *testing.T) {
 			return nil
 		}
 		if allowlist[rel] {
+			return nil
+		}
+		// Test fixtures and contract assertions must name the files they are
+		// asserting about. They are not production path authorities; scanning
+		// them makes this audit fail on its own fixture vocabulary instead of
+		// detecting drift in shipped code.
+		if strings.HasSuffix(rel, "_test.go") {
 			return nil
 		}
 		for _, prefix := range allowlistPrefixes {

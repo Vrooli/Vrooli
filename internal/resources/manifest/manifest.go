@@ -46,6 +46,7 @@ type ResourceManifest struct {
 	Description           string                       `json:"description,omitempty"`
 	CLI                   *scenario.CLIConfig          `json:"cli"`
 	LegacyRepoDataAllowed bool                         `json:"legacy_repo_data_allowed,omitempty"`
+	Storage               *ResourceStorage             `json:"storage,omitempty"`
 	DurableData           *ResourceDurableData         `json:"durable_data,omitempty"`
 	Template              string                       `json:"template,omitempty"`
 	Driver                string                       `json:"driver"`
@@ -97,18 +98,25 @@ type ResourceManifest struct {
 // ResourceRequirements is the authored resource footprint consumed by
 // deployability resolution. It intentionally contains no readiness verdict.
 type ResourceRequirements struct {
-	Class            string  `json:"class"`
-	Weight           float64 `json:"weight"`
-	RAMMB            float64 `json:"ram_mb,omitempty"`
-	DiskMB           float64 `json:"disk_mb,omitempty"`
-	CPUCores         float64 `json:"cpu_cores,omitempty"`
-	GPU              bool    `json:"gpu,omitempty"`
-	Network          string  `json:"network,omitempty"`
-	StorageMBPerUser float64 `json:"storage_mb_per_user,omitempty"`
-	StartupTimeMS    float64 `json:"startup_time_ms,omitempty"`
-	Bucket           string  `json:"bucket,omitempty"`
-	Source           string  `json:"source"`
-	Confidence       string  `json:"confidence"`
+	Class            string                  `json:"class"`
+	Weight           float64                 `json:"weight"`
+	RAMMB            float64                 `json:"ram_mb,omitempty"`
+	DiskMB           float64                 `json:"disk_mb,omitempty"`
+	CPUCores         float64                 `json:"cpu_cores,omitempty"`
+	GPU              *ResourceGPURequirement `json:"gpu,omitempty"`
+	Network          string                  `json:"network,omitempty"`
+	StorageMBPerUser float64                 `json:"storage_mb_per_user,omitempty"`
+	StartupTimeMS    float64                 `json:"startup_time_ms,omitempty"`
+	Bucket           string                  `json:"bucket,omitempty"`
+	Source           string                  `json:"source"`
+	Confidence       string                  `json:"confidence"`
+}
+
+// ResourceGPURequirement declares a GPU requirement for deployability. An
+// empty object means any GPU is required; MinCUDACompute narrows it to a
+// minimum NVIDIA CUDA compute capability.
+type ResourceGPURequirement struct {
+	MinCUDACompute string `json:"min_cuda_compute,omitempty"`
 }
 
 // ResourceDeployment is the resource-owned, target-specific delivery claim.
@@ -154,6 +162,38 @@ type ResourceGPU struct {
 	Probe          string            `json:"probe"`
 	ComposeOverlay string            `json:"compose_overlay,omitempty"`
 	EnvOverrides   map[string]string `json:"env_overrides,omitempty"`
+}
+
+// ResourceStorage is the lifecycle-facing projection of the shared storage
+// declaration. Retention and ownership services consume the complete storage
+// surface; lifecycle only needs relocation anchors and regeneration policy
+// when reconciling a legacy Docker mount with managed-service data.
+type ResourceStorage struct {
+	Entries map[string]ResourceStorageEntry `json:"entries,omitempty"`
+}
+
+type ResourceStorageEntry struct {
+	Kind        string                     `json:"kind,omitempty"`
+	Class       string                     `json:"class,omitempty"`
+	Regenerable bool                       `json:"regenerable,omitempty"`
+	Subpath     string                     `json:"subpath,omitempty"`
+	Relocation  *ResourceStorageRelocation `json:"relocation,omitempty"`
+}
+
+type ResourceStorageRelocation struct {
+	Key   string `json:"key,omitempty"`
+	Scope string `json:"scope,omitempty"`
+}
+
+func (m ResourceManifest) StorageEntries() []ResourceStorageEntry {
+	if m.Storage == nil || len(m.Storage.Entries) == 0 {
+		return nil
+	}
+	entries := make([]ResourceStorageEntry, 0, len(m.Storage.Entries))
+	for _, entry := range m.Storage.Entries {
+		entries = append(entries, entry)
+	}
+	return entries
 }
 
 // ResourceDurableData declares durable host-filesystem state a resource
@@ -434,9 +474,35 @@ func Validate(manifest ResourceManifest) error {
 		if err := manifest.ManagedService.Artifact.Validate(); err != nil {
 			return fmt.Errorf("managed_service.artifact: %w", err)
 		}
+		if manifest.ManagedService.Acquisition != nil {
+			if err := manifest.ManagedService.Acquisition.Validate(); err != nil {
+				return fmt.Errorf("managed_service.acquisition: %w", err)
+			}
+		}
+		if err := manifest.ManagedService.ValidateDataArtifacts(); err != nil {
+			return fmt.Errorf("managed_service.data_artifacts: %w", err)
+		}
+		if err := manifest.ManagedService.ValidateCredentialFiles(); err != nil {
+			return fmt.Errorf("managed_service.credential_files: %w", err)
+		}
 		if manifest.ManagedService.Config != nil {
 			if err := manifest.ManagedService.Config.Validate(); err != nil {
 				return fmt.Errorf("managed_service.config: %w", err)
+			}
+		}
+		if manifest.ManagedService.Bootstrap != nil {
+			if err := manifest.ManagedService.Bootstrap.Validate(); err != nil {
+				return fmt.Errorf("managed_service.bootstrap: %w", err)
+			}
+		}
+		if manifest.ManagedService.ProcessLimits != nil {
+			if err := manifest.ManagedService.ProcessLimits.Validate(); err != nil {
+				return fmt.Errorf("managed_service.process_limits: %w", err)
+			}
+		}
+		if manifest.ManagedService.Shutdown != nil {
+			if err := manifest.ManagedService.Shutdown.Validate(); err != nil {
+				return fmt.Errorf("managed_service.shutdown: %w", err)
 			}
 		}
 		for key, value := range manifest.ManagedService.Environment {

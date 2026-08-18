@@ -18,6 +18,17 @@
       "description": "`<domain>.<name>`, e.g. `overlays.dialog`, `motion.presence`. The domain prefix must match the asset's own `domain` and the directory it lives in (parser-enforced), so the id, the folder, and the catalog sidebar always agree."
     },
     "SchemaVersion": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+    "ContextKey": {
+      "type": "string",
+      "enum": ["elevation", "density", "tone", "columns", "disabled"]
+    },
+    "ContextValue": {
+      "oneOf": [
+        { "type": "string" },
+        { "type": "number" },
+        { "type": "boolean" }
+      ]
+    },
     "Contract": {
       "type": "object",
       "required": ["kind", "schema"],
@@ -82,7 +93,7 @@
           "minItems": 1,
           "items": {
             "type": "object",
-            "required": ["id", "description", "appliesTo", "rung"],
+            "required": ["id", "description", "appliesTo", "rung", "attribution"],
             "properties": {
               "id": { "$ref": "#/$defs/Slug" },
               "description": { "type": "string", "minLength": 15 },
@@ -102,6 +113,11 @@
                 "type": "string",
                 "enum": ["scaffolded", "implemented", "verified", "production-ready"],
                 "description": "The maturity rung at which this gate becomes applicable. Rungs are inherited upward; every rung at or below an asset target must have an applicable blocking gate."
+              },
+              "attribution": {
+                "type": "string",
+                "enum": ["attributable", "corpus"],
+                "description": "Whether findings identify one catalog asset or describe a system-wide invariant. Corpus gates never contribute to an asset score."
               },
               "runner": {
                 "type": "object",
@@ -142,6 +158,15 @@
         "kind": { "type": "string", "const": "catalog-asset" },
         "schemaVersion": { "$ref": "#/$defs/SchemaVersion" },
         "asset": { "$ref": "#/$defs/AssetIdentity" },
+        "budgets": {
+          "type": "object",
+          "description": "Measured render budgets for browser-backed evidence. Omitted mountMs uses the kind default: primitive 8ms, component 16ms, page-template 50ms.",
+          "properties": {
+            "mountMs": { "type": "number", "minimum": 0 }
+          },
+          "patternProperties": { "^x-": {} },
+          "additionalProperties": false
+        },
         "dependencies": { "$ref": "#/$defs/Dependencies" },
         "expects": {
           "type": "array",
@@ -153,6 +178,18 @@
           "items": { "$ref": "#/$defs/Slug" },
           "uniqueItems": true,
           "description": "Ports this asset supplies to others, resolving to capabilities carrying the `port` facet whose `satisfiedBy` admits `asset` or `template-provides`. This is the other half of `expects`: a port is resolved when some asset in the target declares it here, or when the target's template `provides` block does. Without it a port could be depended on and never claimed by anything, and the closure resolver would have no way to know a dependency is already met."
+        },
+        "provides": {
+          "type": "object",
+          "propertyNames": { "$ref": "#/$defs/ContextKey" },
+          "additionalProperties": { "$ref": "#/$defs/ContextValue" },
+          "description": "Shared runtime context values established by a container. Each key is reconciled against at least one consuming asset by the composition-contract gate."
+        },
+        "consumes": {
+          "type": "object",
+          "propertyNames": { "$ref": "#/$defs/ContextKey" },
+          "additionalProperties": { "$ref": "#/$defs/ContextValue" },
+          "description": "Shared runtime context values honored by a child. Each value is the standalone fallback used when no provider is present."
         },
         "requiredCapabilities": {
           "type": "array",
@@ -228,6 +265,11 @@
         "id": { "$ref": "#/$defs/AssetId" },
         "name": { "type": "string", "minLength": 1, "description": "Display name in the implementation's idiom (e.g. `Dialog`). Not required to be unique across domains." },
         "kind": { "$ref": "#/$defs/AssetKind" },
+        "surface": {
+          "type": "string",
+          "enum": ["base", "raised", "floating", "overlay", "none"],
+          "description": "The declared elevation level of the rendered asset surface. The surface-discipline gate reconciles this declaration with the static ramp usage and captured computed box-shadow."
+        },
         "domain": { "$ref": "#/$defs/Slug", "description": "Must match the id prefix and the containing directory, and must be declared in config." },
         "description": {
           "type": "string",

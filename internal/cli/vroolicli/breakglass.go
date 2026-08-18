@@ -18,6 +18,8 @@ const breakGlassHelpText = `vrooli break-glass - Provision and issue a local, ta
 Usage:
   vrooli break-glass provision --account-id <id> --audience <purpose> --target <hostname> --scopes <scope,...> < passphrase
   vrooli break-glass issue --purpose <purpose> --target <hostname> --scopes <scope,...> [--ttl 15m] < passphrase
+  vrooli break-glass rotate < passphrase
+  vrooli break-glass reset
   vrooli break-glass status
 
 Passphrases are read only from standard input. Provision and issue refuse a
@@ -32,6 +34,12 @@ func breakGlassArgSchema() commandtree.ArgSchema {
 		{Name: "--purpose", ValueName: "purpose", Description: "Alias for --audience (credential purpose)"},
 		{Name: "--target", ValueName: "hostname", Description: "Exact local machine target claim"},
 		{Name: "--scopes", ValueName: "scope,...", Description: "Comma-separated scope ceiling or requested scopes"},
+		{Name: "--scope", ValueName: "scope", Description: "Cleanup scope binding (apply capability only)"},
+		{Name: "--operator-id", ValueName: "id", Description: "Cleanup operator identity binding"},
+		{Name: "--machine-id", ValueName: "id", Description: "Cleanup machine identity binding"},
+		{Name: "--node-id", ValueName: "id", Description: "Cleanup node identity binding"},
+		{Name: "--plan-hash", ValueName: "hash", Description: "Frozen cleanup plan hash binding"},
+		{Name: "--operation-id", ValueName: "id", Description: "Cleanup operation identity binding"},
 		{Name: "--ttl", ValueName: "duration", Description: "Credential lifetime for issue (default 15m)"},
 	}}
 }
@@ -59,7 +67,7 @@ func (app *App) runBreakGlassCommandWithInput(ctx *CommandContext, args []string
 	}
 	switch operation {
 	case "status":
-		if breakGlassHasAnyFlag(parsed, "--account-id", "--audience", "--purpose", "--target", "--scopes", "--ttl") {
+		if breakGlassHasAnyFlag(parsed, "--account-id", "--audience", "--purpose", "--target", "--scopes", "--scope", "--operator-id", "--machine-id", "--node-id", "--plan-hash", "--operation-id", "--ttl") {
 			return rootcli.UsageErrorf("break-glass status", "status accepts no provisioning or issuance flags")
 		}
 		return renderBreakGlassStatus(ctx, paths)
@@ -102,7 +110,18 @@ func (app *App) runBreakGlassCommandWithInput(ctx *CommandContext, args []string
 			}
 		}
 		now := time.Now().UTC()
-		token, err := trustposture.IssueFromWrappedProvision(paths, passphrase, breakGlassPurpose(parsed), target, scopes, now, ttl)
+		binding := trustposture.BreakGlassBinding{
+			OperatorID: parsed.FlagValue("--operator-id"), MachineID: parsed.FlagValue("--machine-id"), NodeID: parsed.FlagValue("--node-id"),
+			Scope: parsed.FlagValue("--scope"), PlanHash: parsed.FlagValue("--plan-hash"), OperationID: parsed.FlagValue("--operation-id"),
+		}
+		var token string
+		if bindingComplete(binding) {
+			token, err = trustposture.IssueFromWrappedProvisionBound(paths, passphrase, breakGlassPurpose(parsed), target, scopes, binding, now, ttl)
+		} else if bindingPresent(binding) {
+			return fmt.Errorf("break-glass issue: incomplete cleanup binding")
+		} else {
+			token, err = trustposture.IssueFromWrappedProvision(paths, passphrase, breakGlassPurpose(parsed), target, scopes, now, ttl)
+		}
 		if err != nil {
 			return err
 		}
@@ -110,9 +129,36 @@ func (app *App) runBreakGlassCommandWithInput(ctx *CommandContext, args []string
 			return err
 		}
 		return renderBreakGlassCredential(ctx, paths.Credential, now.Add(ttl))
+	case "rotate":
+		passphrase, err := readBreakGlassPassphrase(input, "rotate")
+		if err != nil {
+			return err
+		}
+		if err := trustposture.RotateWrapped(paths, passphrase, time.Now().UTC()); err != nil {
+			return err
+		}
+		_, err = fmt.Fprintln(ctx.Stdout, "Break-glass material rotated. The private key is encrypted and was not printed.")
+		return err
+	case "reset":
+		if breakGlassHasAnyFlag(parsed, "--account-id", "--audience", "--purpose", "--target", "--scopes", "--scope", "--operator-id", "--machine-id", "--node-id", "--plan-hash", "--operation-id", "--ttl") {
+			return rootcli.UsageErrorf("break-glass reset", "reset accepts no provisioning or issuance flags")
+		}
+		if err := trustposture.ResetWrapped(paths); err != nil {
+			return err
+		}
+		_, err = fmt.Fprintln(ctx.Stdout, "Break-glass material retired. No replacement credential was created.")
+		return err
 	default:
-		return rootcli.UsageErrorf("break-glass", "unknown operation %q; choose provision, issue, or status", operation)
+		return rootcli.UsageErrorf("break-glass", "unknown operation %q; choose provision, issue, rotate, or status", operation)
 	}
+}
+
+func bindingPresent(binding trustposture.BreakGlassBinding) bool {
+	return strings.TrimSpace(binding.OperatorID) != "" || strings.TrimSpace(binding.MachineID) != "" || strings.TrimSpace(binding.NodeID) != "" || strings.TrimSpace(binding.Scope) != "" || strings.TrimSpace(binding.PlanHash) != "" || strings.TrimSpace(binding.OperationID) != ""
+}
+
+func bindingComplete(binding trustposture.BreakGlassBinding) bool {
+	return strings.TrimSpace(binding.OperatorID) != "" && strings.TrimSpace(binding.MachineID) != "" && strings.TrimSpace(binding.NodeID) != "" && strings.TrimSpace(binding.Scope) != "" && strings.TrimSpace(binding.PlanHash) != "" && strings.TrimSpace(binding.OperationID) != ""
 }
 
 func breakGlassPurpose(parsed commandtree.ParsedArgs) string {

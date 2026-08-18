@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 func nativeLaunchctl(options NativeServiceOptions, action string) ([]byte, error) {
@@ -126,7 +127,14 @@ func installService(options ServiceInstallOptions) (ServiceInstallResult, error)
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return ServiceInstallResult{}, err
 	}
-	content := launchAgentContent(executable, home, options.SourceRoot)
+	logPath := strings.TrimSpace(options.LogPath)
+	if logPath == "" {
+		logPath = filepath.Join(home, "Library", "Logs", "com.vrooli.runtime-supervisor.log")
+	}
+	if err := os.MkdirAll(filepath.Dir(logPath), 0o755); err != nil {
+		return ServiceInstallResult{}, fmt.Errorf("platform: create supervisor log dir: %w", err)
+	}
+	content := launchAgentContent(executable, home, options.SourceRoot, logPath)
 	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 		return ServiceInstallResult{}, err
 	}
@@ -139,7 +147,29 @@ func installService(options ServiceInstallOptions) (ServiceInstallResult, error)
 	if output, err := exec.Command("launchctl", "enable", target).CombinedOutput(); err != nil {
 		return ServiceInstallResult{}, fmt.Errorf("platform: launchctl enable: %w: %s", err, strings.TrimSpace(string(output)))
 	}
+	// Prove the agent is actually running rather than merely bootstrapped:
+	// a plist launchd accepts but cannot execute leaves the install looking
+	// successful while nothing supervises the fleet.
+	if state := awaitLaunchdRunning(target); state != ServiceStateRunning {
+		output, _ := exec.Command("launchctl", "print", target).CombinedOutput()
+		return ServiceInstallResult{UnitName: "com.vrooli.runtime-supervisor", UnitPath: path, Scope: "user", Active: false},
+			fmt.Errorf("platform: installed com.vrooli.runtime-supervisor but it is %s, not running:\n%s", state, strings.TrimSpace(string(output)))
+	}
 	return ServiceInstallResult{UnitName: "com.vrooli.runtime-supervisor", UnitPath: path, Scope: "user", Active: true}, nil
+}
+
+// awaitLaunchdRunning polls launchctl print until the agent settles, reporting
+// the last observation so a start-then-crash is not mistaken for a start.
+func awaitLaunchdRunning(target string) ServiceState {
+	state := ServiceStateUnknown
+	for attempt := 0; attempt < 8; attempt++ {
+		if attempt > 0 {
+			time.Sleep(250 * time.Millisecond)
+		}
+		output, err := exec.Command("launchctl", "print", target).CombinedOutput()
+		state = ParseNativeServiceState("macos", string(output), err != nil)
+	}
+	return state
 }
 
 func uninstallService(options ServiceInstallOptions) (ServiceInstallResult, error) {
@@ -154,6 +184,25 @@ func uninstallService(options ServiceInstallOptions) (ServiceInstallResult, erro
 		return ServiceInstallResult{}, err
 	}
 	return ServiceInstallResult{UnitName: "com.vrooli.runtime-supervisor", UnitPath: path, Scope: "user", Active: false}, nil
+}
+
+func startInstalledService(options ServiceInstallOptions) (bool, error) {
+	home, err := resolvedHome(options.HomeDir)
+	if err != nil {
+		return false, err
+	}
+	path := filepath.Join(home, "Library", "LaunchAgents", "com.vrooli.runtime-supervisor.plist")
+	if _, err := os.Stat(path); err != nil {
+		return false, nil
+	}
+	target := launchdDomain(os.Getuid()) + "/com.vrooli.runtime-supervisor"
+	if output, err := exec.Command("launchctl", "kickstart", target).CombinedOutput(); err != nil {
+		return false, fmt.Errorf("platform: launchctl kickstart: %w: %s", err, strings.TrimSpace(string(output)))
+	}
+	if state := awaitLaunchdRunning(target); state != ServiceStateRunning {
+		return false, fmt.Errorf("platform: started com.vrooli.runtime-supervisor but it is %s, not running", state)
+	}
+	return true, nil
 }
 
 func supportsService(user bool) bool {
@@ -176,9 +225,11 @@ func serviceStartHint() string {
 	return fmt.Sprintf("launchctl kickstart gui/%d/com.vrooli.runtime-supervisor", os.Getuid())
 }
 
-func launchAgentContent(executable, home, sourceRoot string) string {
+func launchAgentContent(executable, home, sourceRoot, logPath string) string {
 	sourceRoot = strings.TrimSpace(sourceRoot)
-	logPath := filepath.Join(home, "Library", "Logs", "com.vrooli.runtime-supervisor.log")
+	if strings.TrimSpace(logPath) == "" {
+		logPath = filepath.Join(home, "Library", "Logs", "com.vrooli.runtime-supervisor.log")
+	}
 	escape := func(value string) string {
 		return strings.NewReplacer("&", "&amp;", "<", "&lt;", ">", "&gt;", "\"", "&quot;", "'", "&apos;").Replace(value)
 	}

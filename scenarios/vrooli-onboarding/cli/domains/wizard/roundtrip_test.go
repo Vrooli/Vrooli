@@ -7,10 +7,10 @@ import (
 
 func TestSelectionRoundTripPreservesTriStateChoices(t *testing.T) {
 	original := Selection{
-		Scenarios:     []string{"alpha"},
-		ScenarioState: map[string]bool{"alpha": true, "beta": false},
-		Resources:     map[string]bool{"postgres": true, "ollama": false},
-		HostTools:     map[string]bool{"git": true},
+		Scenarios:      []string{"alpha"},
+		ScenarioState:  map[string]bool{"alpha": true, "beta": false},
+		Resources:      map[string]bool{"postgres": true, "ollama": false},
+		HostTools:      map[string]bool{"git": true},
 		HostSafeguards: map[string]bool{"firewall": false},
 	}
 	data, err := json.Marshal(original)

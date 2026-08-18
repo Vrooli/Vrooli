@@ -2,7 +2,6 @@ package scenarioruntime
 
 import (
 	"context"
-	"errors"
 	"testing"
 	"time"
 )
@@ -115,20 +114,222 @@ func TestSQLiteStoreClaimSupervisionAndHeartbeatBatch(t *testing.T) {
 	}
 }
 
-func TestSQLiteStoreSupervisorBatchRejectsStaleGeneration(t *testing.T) {
+// A claim the supervisor no longer owns is skipped, not fatal. This used to
+// return ErrStaleGeneration, which aborted the transaction for the WHOLE batch:
+// one scenario stopped mid-tick meant every other scenario's lease went
+// unrenewed, and the error propagated out of the supervisor's Run loop and
+// exited the process. One instance changing state must never cost the rest of
+// the fleet its leases.
+func TestSQLiteStoreSupervisorBatchSkipsClaimsItNoLongerOwns(t *testing.T) {
 	ctx := context.Background()
 	store := newTestStore(t, newFixedClock(time.Date(2026, 5, 9, 12, 0, 0, 0, time.UTC)))
 
-	instance, err := store.CreateLease(ctx, Instance{InstanceID: "inst-alpha", Scenario: "alpha", Status: StatusRunning}, time.Minute)
+	stale, err := store.CreateLease(ctx, Instance{InstanceID: "inst-alpha", Scenario: "alpha", Status: StatusRunning}, time.Minute)
+	if err != nil {
+		t.Fatalf("CreateLease(alpha) error = %v", err)
+	}
+	live, err := store.CreateLease(ctx, Instance{
+		InstanceID: "inst-beta", Scenario: "beta", Status: StatusRunning, SupervisorID: "sup-alpha",
+	}, time.Minute)
+	if err != nil {
+		t.Fatalf("CreateLease(beta) error = %v", err)
+	}
+
+	// The stale claim is listed FIRST so a regression that aborts the batch
+	// cannot pass by luck of ordering.
+	renewed, err := store.HeartbeatSupervisedLeaseBatch(ctx, []SupervisionClaim{
+		{InstanceID: stale.InstanceID, Generation: stale.Generation + 1, SupervisorID: "sup-alpha"},
+		{InstanceID: live.InstanceID, Generation: live.Generation, SupervisorID: "sup-alpha"},
+	}, time.Minute)
+	if err != nil {
+		t.Fatalf("HeartbeatSupervisedLeaseBatch() error = %v, want nil", err)
+	}
+	if len(renewed) != 1 || renewed[0].InstanceID != live.InstanceID {
+		t.Fatalf("renewed = %+v, want only %s", renewed, live.InstanceID)
+	}
+}
+
+func TestStaleSupervisorTriggerRequiresPositiveEvidence(t *testing.T) {
+	now := time.Date(2026, 5, 9, 12, 0, 0, 0, time.UTC)
+	livePID, deadPID := 111, 222
+	guard := StartingLeaseGuard{
+		CurrentBootID: "boot-current",
+		PIDRunning:    func(pid int) bool { return pid == livePID },
+	}
+	base := SupervisorSession{
+		Status:              SupervisorStatusRunning,
+		HostBootID:          "boot-current",
+		HeartbeatDeadlineAt: now.Add(-time.Minute),
+		PID:                 &deadPID,
+	}
+	withSession := func(mutate func(*SupervisorSession)) SupervisorSession {
+		session := base
+		mutate(&session)
+		return session
+	}
+
+	cases := map[string]struct {
+		session     SupervisorSession
+		wantTrigger string
+		wantStale   bool
+	}{
+		"dead pid past deadline": {session: base, wantTrigger: "owner_pid_dead", wantStale: true},
+		"missing pid past deadline": {
+			session:     withSession(func(s *SupervisorSession) { s.PID = nil }),
+			wantTrigger: "owner_pid_missing", wantStale: true,
+		},
+		"previous boot": {
+			session:     withSession(func(s *SupervisorSession) { s.HostBootID = "boot-previous" }),
+			wantTrigger: "boot_id_mismatch", wantStale: true,
+		},
+		// A supervisor whose deadline has passed but whose process is alive is
+		// slow or briefly wedged, not dead — and it is still the fleet's owner.
+		"live pid past deadline": {
+			session: withSession(func(s *SupervisorSession) { s.PID = &livePID }),
+		},
+		"deadline in the future": {
+			session: withSession(func(s *SupervisorSession) { s.HeartbeatDeadlineAt = now.Add(time.Minute) }),
+		},
+		"already terminal": {
+			session: withSession(func(s *SupervisorSession) { s.Status = SupervisorStatusFailed }),
+		},
+		// A zero guard proves nothing, so it must condemn nothing that still
+		// carries a PID.
+		"unprovable without a guard": {
+			session: base,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			activeGuard := guard
+			if name == "unprovable without a guard" {
+				activeGuard = StartingLeaseGuard{}
+			}
+			trigger, stale := StaleSupervisorTrigger(tc.session, activeGuard, now)
+			if stale != tc.wantStale || trigger != tc.wantTrigger {
+				t.Fatalf("StaleSupervisorTrigger() = (%q, %v), want (%q, %v)", trigger, stale, tc.wantTrigger, tc.wantStale)
+			}
+		})
+	}
+}
+
+// A SIGKILLed supervisor never runs its graceful shutdown, so without a reaper
+// its row claims status='running' forever. This host had accumulated 2,362 such
+// rows, every one of them indistinguishable from the live supervisor.
+func TestExpireStaleSupervisorSessionsRetiresOnlyProvableCorpses(t *testing.T) {
+	ctx := context.Background()
+	clk := newFixedClock(time.Date(2026, 5, 9, 12, 0, 0, 0, time.UTC))
+	store := newTestStore(t, clk)
+
+	deadPID, livePID := 4242, 4243
+	for _, session := range []SupervisorSession{
+		{SupervisorID: "sup-dead", HostBootID: "boot-current", HostSessionID: "s", PID: &deadPID},
+		{SupervisorID: "sup-live", HostBootID: "boot-current", HostSessionID: "s", PID: &livePID},
+	} {
+		if _, err := store.CreateSupervisorSession(ctx, session, time.Minute); err != nil {
+			t.Fatalf("CreateSupervisorSession(%s) error = %v", session.SupervisorID, err)
+		}
+	}
+	clk.Advance(2 * time.Minute) // both deadlines lapse
+
+	expired, err := store.ExpireStaleSupervisorSessions(ctx, clk.Now(), StartingLeaseGuard{
+		CurrentBootID: "boot-current",
+		PIDRunning:    func(pid int) bool { return pid == livePID },
+	})
+	if err != nil {
+		t.Fatalf("ExpireStaleSupervisorSessions() error = %v", err)
+	}
+	if len(expired) != 1 || expired[0].SupervisorID != "sup-dead" {
+		t.Fatalf("expired = %+v, want only sup-dead", expired)
+	}
+	if expired[0].Status != SupervisorStatusFailed {
+		t.Fatalf("expired status = %q, want %q", expired[0].Status, SupervisorStatusFailed)
+	}
+
+	running, err := store.ListSupervisorSessions(ctx, SupervisorSessionFilter{Statuses: []string{SupervisorStatusRunning}})
+	if err != nil {
+		t.Fatalf("ListSupervisorSessions() error = %v", err)
+	}
+	if len(running) != 1 || running[0].SupervisorID != "sup-live" {
+		t.Fatalf("still running = %+v, want only sup-live", running)
+	}
+}
+
+// The handover that keeps lifecycle ownership from outliving the command that
+// created it.
+func TestAttachLiveSupervisionTransfersOwnershipAndRefreshesLease(t *testing.T) {
+	ctx := context.Background()
+	clk := newFixedClock(time.Date(2026, 5, 9, 12, 0, 0, 0, time.UTC))
+	store := newTestStore(t, clk)
+
+	ownerPID := 99
+	instance, err := store.CreateLease(ctx, Instance{
+		InstanceID: "inst-alpha", Scenario: "alpha", Status: StatusRunning,
+		OwnerKind: OwnerKindLifecycle, OwnerPID: &ownerPID,
+	}, DefaultHeartbeatTTL)
 	if err != nil {
 		t.Fatalf("CreateLease() error = %v", err)
 	}
-	_, err = store.HeartbeatSupervisedLeaseBatch(ctx, []SupervisionClaim{{
-		InstanceID:   instance.InstanceID,
-		Generation:   instance.Generation + 1,
-		SupervisorID: "sup-alpha",
-	}}, time.Minute)
-	if !errors.Is(err, ErrStaleGeneration) {
-		t.Fatalf("HeartbeatSupervisedLeaseBatch(stale) error = %v, want ErrStaleGeneration", err)
+	supervisorPID := 4242
+	if _, err := store.CreateSupervisorSession(ctx, SupervisorSession{
+		SupervisorID: "sup-live", HostBootID: "boot", HostSessionID: "s", PID: &supervisorPID,
+	}, time.Minute); err != nil {
+		t.Fatalf("CreateSupervisorSession() error = %v", err)
+	}
+
+	attached, ok, err := store.AttachLiveSupervision(ctx, instance.InstanceID, instance.Generation, DefaultSupervisedLeaseTTL)
+	if err != nil || !ok {
+		t.Fatalf("AttachLiveSupervision() = (ok=%v, err=%v), want (true, nil)", ok, err)
+	}
+	if attached.OwnerKind != OwnerKindSupervisor {
+		t.Fatalf("owner kind = %q, want %q", attached.OwnerKind, OwnerKindSupervisor)
+	}
+	// The PID must be cleared: leaving the exiting CLI's PID on a
+	// supervisor-owned row is what made the orphan-squat guard condemn it.
+	if attached.OwnerPID != nil {
+		t.Fatalf("owner pid = %v, want nil", *attached.OwnerPID)
+	}
+	if attached.SupervisorID != "sup-live" {
+		t.Fatalf("supervisor id = %q, want sup-live", attached.SupervisorID)
+	}
+	wantDeadline := clk.Now().Add(DefaultSupervisedLeaseTTL)
+	if attached.HeartbeatDeadlineAt == nil || !attached.HeartbeatDeadlineAt.Equal(wantDeadline) {
+		t.Fatalf("deadline = %v, want %v — the handover must start with a full window", attached.HeartbeatDeadlineAt, wantDeadline)
+	}
+}
+
+// Handing an instance to a dead supervisor would be worse than keeping
+// lifecycle ownership: nothing would ever renew it.
+func TestAttachLiveSupervisionRefusesWhenNoSessionIsLive(t *testing.T) {
+	ctx := context.Background()
+	clk := newFixedClock(time.Date(2026, 5, 9, 12, 0, 0, 0, time.UTC))
+	store := newTestStore(t, clk)
+
+	ownerPID := 99
+	instance, err := store.CreateLease(ctx, Instance{
+		InstanceID: "inst-alpha", Scenario: "alpha", Status: StatusRunning,
+		OwnerKind: OwnerKindLifecycle, OwnerPID: &ownerPID,
+	}, DefaultHeartbeatTTL)
+	if err != nil {
+		t.Fatalf("CreateLease() error = %v", err)
+	}
+	supervisorPID := 4242
+	if _, err := store.CreateSupervisorSession(ctx, SupervisorSession{
+		SupervisorID: "sup-lapsed", HostBootID: "boot", HostSessionID: "s", PID: &supervisorPID,
+	}, time.Minute); err != nil {
+		t.Fatalf("CreateSupervisorSession() error = %v", err)
+	}
+	clk.Advance(2 * time.Minute) // the only session's deadline lapses
+
+	kept, ok, err := store.AttachLiveSupervision(ctx, instance.InstanceID, instance.Generation, DefaultSupervisedLeaseTTL)
+	if err != nil {
+		t.Fatalf("AttachLiveSupervision() error = %v", err)
+	}
+	if ok {
+		t.Fatal("AttachLiveSupervision() attached to a session whose deadline had lapsed")
+	}
+	if kept.OwnerKind != OwnerKindLifecycle || kept.OwnerPID == nil {
+		t.Fatalf("instance = %+v, want untouched lifecycle ownership", kept)
 	}
 }

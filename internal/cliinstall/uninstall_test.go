@@ -21,6 +21,23 @@ func (r *recordingRemover) Remove(entry InstallEntry) error {
 	return nil
 }
 
+type rootDeletingRemover struct {
+	delegate *recordingRemover
+	root     string
+	deleted  bool
+}
+
+func (r *rootDeletingRemover) Remove(entry InstallEntry) error {
+	if err := r.delegate.Remove(entry); err != nil {
+		return err
+	}
+	if !r.deleted {
+		r.deleted = true
+		return os.RemoveAll(r.root)
+	}
+	return nil
+}
+
 func newUninstallTestService(t *testing.T) (*uninstallService, string) {
 	t.Helper()
 	fixture := testkitgo.NewRepoFixture(t)
@@ -121,6 +138,44 @@ func TestUninstallPlanAndApplyUseOnlyFrozenRecordedEntries(t *testing.T) {
 	}
 }
 
+func TestUninstallApplyPersistsProgressAfterSourceRootDisappears(t *testing.T) {
+	service, home := newUninstallTestService(t)
+	first := filepath.Join(home, "owned", "first.txt")
+	second := filepath.Join(home, "owned", "second.txt")
+	if err := os.MkdirAll(filepath.Dir(first), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for _, path := range []string{first, second} {
+		if err := os.WriteFile(path, []byte("owned"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if err := RecordInstallEntries(home, InstallEntry{Scope: ScopeRuntime, Kind: EntryFile, Path: path, Prefix: filepath.Dir(path)}); err != nil {
+			t.Fatalf("RecordInstallEntries(%s): %v", path, err)
+		}
+	}
+
+	plan, err := service.Plan(UninstallRequest{Mode: UninstallPlanMode, Scope: ScopeRuntime, ConfirmTarget: "swarminator"})
+	if err != nil {
+		t.Fatalf("Plan: %v", err)
+	}
+	remover := &recordingRemover{}
+	service.remover = &rootDeletingRemover{delegate: remover, root: service.root}
+	receipt, err := service.Apply(UninstallRequest{Mode: UninstallApplyMode, PlanID: plan.ID, Scope: ScopeRuntime, ConfirmTarget: "swarminator", BreakGlass: "token"})
+	if err != nil {
+		t.Fatalf("Apply after source-root removal: %v", err)
+	}
+	if len(receipt.Removed) != 2 {
+		t.Fatalf("receipt removed %d entries, want 2: %#v", len(receipt.Removed), receipt)
+	}
+	path, err := service.planPath(plan.ID)
+	if err != nil {
+		t.Fatalf("planPath: %v", err)
+	}
+	if _, err := os.Stat(path); err != nil {
+		t.Fatalf("persisted plan after source-root removal: %v", err)
+	}
+}
+
 func TestUnrecordedInstallProducesEmptyPlan(t *testing.T) {
 	service, _ := newUninstallTestService(t)
 	plan, err := service.Plan(UninstallRequest{Mode: UninstallPlanMode, Scope: ScopeAll, ConfirmTarget: "swarminator"})
@@ -129,6 +184,31 @@ func TestUnrecordedInstallProducesEmptyPlan(t *testing.T) {
 	}
 	if len(plan.Entries) != 0 || len(plan.Disk) != 0 {
 		t.Fatalf("unrecorded plan = %#v", plan)
+	}
+}
+
+func TestLaunchdDomainForPathDistinguishesSystemDaemons(t *testing.T) {
+	if got := launchdDomainForPath("/Library/LaunchDaemons/com.vrooli.bridge.vrooli-bridge-provisioner.plist"); got != "system" {
+		t.Fatalf("LaunchDaemon domain = %q, want system", got)
+	}
+	if got := launchdDomainForPath("/Users/runner/Library/LaunchAgents/com.example.agent.plist"); got != "gui/"+currentUserID() {
+		t.Fatalf("LaunchAgent domain = %q, want gui/%s", got, currentUserID())
+	}
+}
+
+func TestFileRemoverDefersOnlyExplicitServiceNames(t *testing.T) {
+	r := fileRemover{deferredServiceNames: map[string]struct{}{"vrooli-bridge-provisioner": {}}}
+	deferred := InstallEntry{Kind: EntryService, ServiceName: "vrooli-bridge-provisioner"}
+	launchdDeferred := InstallEntry{Kind: EntryService, ServiceName: "com.vrooli.bridge.vrooli-bridge-provisioner"}
+	other := InstallEntry{Kind: EntryService, ServiceName: "other-service"}
+	if !r.defersServiceStop(deferred) {
+		t.Fatal("explicitly deferred service was not deferred")
+	}
+	if !r.defersServiceStop(launchdDeferred) {
+		t.Fatal("launchd label for explicitly deferred service was not deferred")
+	}
+	if r.defersServiceStop(other) {
+		t.Fatal("unrelated service was deferred")
 	}
 }
 
@@ -264,6 +344,47 @@ func TestUninstallRejectsFrozenDiskDrift(t *testing.T) {
 	}
 	if got := len(service.remover.(*recordingRemover).entries); got != 0 {
 		t.Fatalf("remover called %d times after drift", got)
+	}
+}
+
+func TestUninstallVolatileEntryRemainsRemovableWithoutContentHash(t *testing.T) {
+	service, home := newUninstallTestService(t)
+	path := filepath.Join(home, "agent-state")
+	if err := os.MkdirAll(path, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(path, "heartbeat"), []byte("before"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := RecordInstallEntries(home, InstallEntry{
+		Scope: ScopeAgent, Kind: EntryDirectory, Path: path, Prefix: path, Volatile: true,
+	}); err != nil {
+		t.Fatalf("RecordInstallEntries: %v", err)
+	}
+
+	plan, err := service.Plan(UninstallRequest{Mode: UninstallPlanMode, Scope: ScopeAgent, ConfirmTarget: "swarminator"})
+	if err != nil {
+		t.Fatalf("Plan: %v", err)
+	}
+	if len(plan.Remove) != 1 || !plan.Remove[0].Volatile {
+		t.Fatalf("volatile plan removal = %#v", plan.Remove)
+	}
+	if len(plan.Disk) != 0 {
+		t.Fatalf("volatile plan unexpectedly froze content: %#v", plan.Disk)
+	}
+
+	// A live agent may update this directory after inventory. The exact ledger
+	// entry remains authorized, while unrelated recorded content is still the
+	// only removal target.
+	if err := os.WriteFile(filepath.Join(path, "heartbeat"), []byte("after"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	receipt, err := service.Apply(UninstallRequest{Mode: UninstallApplyMode, PlanID: plan.ID, Scope: ScopeAgent, ConfirmTarget: "swarminator", BreakGlass: "token"})
+	if err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+	if len(receipt.Removed) != 1 || receipt.Removed[0].Path != path {
+		t.Fatalf("volatile receipt = %#v", receipt)
 	}
 }
 

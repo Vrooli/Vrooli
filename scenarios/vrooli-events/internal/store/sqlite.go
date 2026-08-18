@@ -179,11 +179,18 @@ func (s *SQLiteStore) Insert(ctx context.Context, e Event) (int64, error) {
 		return 0, fmt.Errorf("begin tx: %w", err)
 	}
 	defer func() { _ = tx.Rollback() }()
-
-	res, err := tx.ExecContext(ctx,
-		`INSERT INTO events (event_id, source_scenario, target_scenario, event_type, correlation_id, payload, metadata, expires_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-		e.EventID, e.SourceScenario, e.TargetScenario, e.EventType, e.CorrelationID, e.Payload, string(metadataJSON), nullableTime(e.ExpiresAt))
+	var res sql.Result
+	if e.CreatedAt.IsZero() {
+		res, err = tx.ExecContext(ctx,
+			`INSERT INTO events (event_id, source_scenario, target_scenario, event_type, correlation_id, payload, metadata, expires_at)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+			e.EventID, e.SourceScenario, e.TargetScenario, e.EventType, e.CorrelationID, e.Payload, string(metadataJSON), nullableTime(e.ExpiresAt))
+	} else {
+		res, err = tx.ExecContext(ctx,
+			`INSERT INTO events (event_id, source_scenario, target_scenario, event_type, correlation_id, payload, metadata, created_at, expires_at)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			e.EventID, e.SourceScenario, e.TargetScenario, e.EventType, e.CorrelationID, e.Payload, string(metadataJSON), e.CreatedAt.UTC().Format(sqlutil.TimestampFormat), nullableTime(e.ExpiresAt))
+	}
 	if err != nil {
 		if isUniqueConstraintError(err) {
 			return 0, fmt.Errorf("%w: %s", ErrDuplicateEvent, e.EventID)

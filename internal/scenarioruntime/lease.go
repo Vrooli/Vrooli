@@ -15,9 +15,10 @@ const staleLeaseStopReason = "heartbeat deadline elapsed"
 // starter (owner_pid_dead) from a rebooted host (boot_id_mismatch).
 const staleStartingStopReasonPrefix = "stale startup lease"
 
-// StartingLeaseGuard supplies the host facts needed to tell a live starter from
-// an abandoned one. A zero guard cannot prove any owner dead, so it protects
-// every past-deadline lease that still carries an owner PID.
+// StartingLeaseGuard supplies the host facts needed to tell a live owner from a
+// dead one — for a starting lease, and for a supervisor session, which ask the
+// same question of the same evidence. A zero guard cannot prove any owner dead,
+// so it protects every past-deadline record that still carries a PID.
 type StartingLeaseGuard struct {
 	CurrentBootID string
 	PIDRunning    func(pid int) bool

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -14,6 +15,7 @@ import (
 	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/logx"
+	"github.com/vrooli/vrooli/internal/network"
 	"github.com/vrooli/vrooli/internal/ports"
 	"github.com/vrooli/vrooli/internal/process"
 	"github.com/vrooli/vrooli/internal/scenario"
@@ -434,6 +436,13 @@ func (r *Runner) startTrackedProcess(item scenario.Scenario, phase string, step 
 	stepEnv = setEnvValue(stepEnv, "VROOLI_STEP", step.Name)
 	stepEnv = setEnvValue(stepEnv, "VROOLI_LIFECYCLE_MANAGED", "true")
 
+	port := inferStepPort(item.Manifest, step.Name, env)
+	if port > 0 {
+		if inspection := r.runtimeDeps().inspectPort(port); len(inspection.Listeners) > 0 {
+			return newPhaseStepError(item.Slug, phase, step.Name, logFile, portConflictError(port, inspection))
+		}
+	}
+
 	// Scenario lifecycle steps remain shell-defined by the service.json contract.
 	// Week 6 removes project-level Bash orchestration, but scenario steps
 	// intentionally continue to run as user-authored shell commands.
@@ -452,7 +461,6 @@ func (r *Runner) startTrackedProcess(item scenario.Scenario, phase string, step 
 		return newPhaseStepError(item.Slug, phase, step.Name, logFile, err)
 	}
 
-	port := inferStepPort(item.Manifest, step.Name, env)
 	record := process.Record{
 		PID:        cmd.Process.Pid,
 		PGID:       cmd.Process.Pid,
@@ -481,15 +489,60 @@ func (r *Runner) startTrackedProcess(item scenario.Scenario, phase string, step 
 	if !platform.IsPIDRunning(cmd.Process.Pid) {
 		record.Status = "failed"
 		_ = process.WriteScenarioRecord(r.Home, slug, step.Name, record)
+		exitErr := backgroundProcessExitError(cmd, logFile)
 		return newPhaseStepError(
 			item.Slug,
 			phase,
 			step.Name,
 			logFile,
-			fmt.Errorf("background step exited immediately: %w", err),
+			exitErr,
 		)
 	}
 	return nil
+}
+
+func portConflictError(port int, inspection network.PortInspection) error {
+	holders := make([]string, 0, len(inspection.Listeners))
+	for _, listener := range inspection.Listeners {
+		holder := "listener with unknown process"
+		if listener.PID > 0 {
+			holder = fmt.Sprintf("pid %d", listener.PID)
+		}
+		if command := strings.TrimSpace(listener.Command); command != "" {
+			holder += fmt.Sprintf(" (%s)", command)
+		}
+		holders = append(holders, holder)
+	}
+	return fmt.Errorf("port %d is already in use by %s", port, strings.Join(holders, ", "))
+}
+
+func backgroundProcessExitError(cmd *exec.Cmd, logFile string) error {
+	message := "background step exited immediately"
+	if cmd != nil {
+		if waitErr := cmd.Wait(); waitErr != nil {
+			message += ": " + waitErr.Error()
+		}
+	}
+	if line := lastLogLine(logFile); line != "" {
+		message += "; last log line: " + line
+	} else {
+		message += "; no log output"
+	}
+	return errors.New(message)
+}
+
+func lastLogLine(path string) string {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return ""
+	}
+	lines := strings.Split(strings.TrimRight(string(data), "\r\n"), "\n")
+	for index := len(lines) - 1; index >= 0; index-- {
+		if line := strings.TrimSpace(lines[index]); line != "" {
+			return line
+		}
+	}
+	return ""
 }
 
 func (r *Runner) runForegroundStep(item scenario.Scenario, phase, command string, env map[string]string, logWriter io.Writer) error {

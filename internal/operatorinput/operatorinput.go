@@ -78,13 +78,12 @@ func Replace(requests []Request) error {
 			return err
 		}
 	}
+	mu.Lock()
+	defer mu.Unlock()
 	path, err := QueuePath()
 	if err != nil {
 		return err
 	}
-	mu.Lock()
-	defer mu.Unlock()
-	path, err = QueuePath()
 	if len(requests) == 0 {
 		if removeErr := os.Remove(path); removeErr != nil && !os.IsNotExist(removeErr) {
 			return removeErr

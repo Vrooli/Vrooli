@@ -803,6 +803,11 @@
               "minLength": 1,
               "description": "Target template for the separately signed server asset included in a bundled-service release (for example vault_${os}_${arch})."
             },
+            "verification": {
+              "type": "string",
+              "enum": ["checksum", "host-tool"],
+              "description": "Use host-tool only when acquisition.kind=none explicitly adopts a separately governed PATH tool; staged artifacts remain checksum-verified."
+            },
             "sha256": {
               "type": "string",
               "pattern": "^[A-Fa-f0-9]{64}$"
@@ -826,6 +831,12 @@
               "required": [
                 "sha256_by_platform"
               ]
+            },
+            {
+              "required": ["verification"],
+              "properties": {
+                "verification": {"const": "host-tool"}
+              }
             }
           ],
           "additionalProperties": false
@@ -865,6 +876,20 @@
             "type": "string"
           },
           "description": "Literal environment values supplied only to the managed process. Secrets are not permitted here; resolve them through provider-scoped credentials."
+        },
+        "credential_files": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["logical_id", "path"],
+            "properties": {
+              "logical_id": {"type": "string", "minLength": 3},
+              "field": {"type": "string", "minLength": 1},
+              "path": {"type": "string", "minLength": 1}
+            },
+            "additionalProperties": false
+          },
+          "description": "Authority fields materialized as owner-restricted, short-lived files below RESOURCE_STATE_DIR; never environment or argv values."
         },
         "bootstrap": {
           "type": "object",

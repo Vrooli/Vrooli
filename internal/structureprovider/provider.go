@@ -174,10 +174,6 @@ func enumerateTargets(root string) []validationTarget {
 	return out
 }
 
-func outputFromResponse(root string, response *scenariovalidationv1.ValidateTargetResponse) contractapp.ValidationOutput {
-	return outputFromResponses(root, []*scenariovalidationv1.ValidateTargetResponse{response})
-}
-
 func outputFromResponses(root string, responses []*scenariovalidationv1.ValidateTargetResponse) contractapp.ValidationOutput {
 	checks := make([]contractapp.CheckResult, 0, len(projectChecks))
 	failures := map[string][]string{}

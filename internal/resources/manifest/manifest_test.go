@@ -37,6 +37,9 @@ func TestManagedServiceTemplateGeneratesTargetAwareFixture(t *testing.T) {
 	if err := Validate(manifest); err != nil {
 		t.Fatalf("validate generated fixture: %v", err)
 	}
+	if manifest.ManagedService == nil || manifest.ManagedService.Acquisition == nil {
+		t.Fatal("generated managed-service fixture must declare acquisition")
+	}
 	policy := manifest.ManagedService.ProviderPolicy
 	if got, err := policy.ResolveProvider(resourcedeployment.ProviderRequest{Target: resourcedeployment.ProviderTargetControlPlane}); err != nil || got != resourcedeployment.ProviderManagedShared {
 		t.Fatalf("generated control-plane default = %q, %v", got, err)
@@ -281,7 +284,7 @@ func TestValidateEnforcesPinnedDockerImage(t *testing.T) {
 	for _, bad := range []string{
 		"minio/minio",
 		"minio/minio:latest",
-		"homeassistant/home-assistant:stable",
+		"example/home-service:stable",
 		"registry.example.com:5000/team/app",
 		"example/app@",
 	} {

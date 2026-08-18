@@ -27,7 +27,7 @@ func TestEvaluateEligibility(t *testing.T) {
 			requirement := base
 			requirement.Required = tc.required
 			requirement.Bundling = tc.bundling
-			result := EvaluateEligibility(requirement, TierDesktop, "windows", tc.present)
+			result := EvaluateEligibility(requirement, TierDesktop, "windows", "amd64", tc.present, true)
 			if result.Verdict != tc.want || !strings.Contains(result.Reason, "fixture") {
 				t.Fatalf("EvaluateEligibility() = %+v, want %q and named requirement", result, tc.want)
 			}

@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -22,7 +23,7 @@ import (
 
 const (
 	DefaultRenewInterval        = 10 * time.Second
-	DefaultLeaseTTL             = 45 * time.Second
+	DefaultLeaseTTL             = scenarioruntime.DefaultSupervisedLeaseTTL
 	DefaultHealthInterval       = 45 * time.Second
 	DefaultMaxHealthConcurrency = 16
 	DefaultBatchSize            = 250
@@ -122,8 +123,13 @@ type Service struct {
 }
 
 type TickReport struct {
-	SupervisorID     string         `json:"supervisor_id"`
-	Renewed          int            `json:"renewed"`
+	SupervisorID string `json:"supervisor_id"`
+	Renewed      int    `json:"renewed"`
+	// Skipped counts leases in this tick's batch that no longer belonged to
+	// this supervisor by the time the batch executed — stopped, regenerated,
+	// or claimed by a peer. Normal in small numbers; a persistently high count
+	// means two supervisors are fighting.
+	Skipped          int            `json:"skipped"`
 	Expired          int            `json:"expired"`
 	Unverified       int            `json:"unverified"`
 	HealthProbeCount int            `json:"health_probe_count"`
@@ -167,25 +173,61 @@ func New(cfg Config) *Service {
 	return &Service{cfg: cfg}
 }
 
+// MaxConsecutiveTickFailures bounds how long the supervisor keeps trying
+// before it gives up and lets its service manager restart it with fresh state.
+// At the default 10s renew interval this is ~100s of continuous failure.
+const MaxConsecutiveTickFailures = 10
+
 func Run(ctx context.Context, cfg Config) error {
 	svc := New(cfg)
 	defer svc.Close()
 	if err := svc.ensureStarted(ctx); err != nil {
 		return err
 	}
+	svc.logf("supervisor started supervisor_id=%s pid=%d lease_ttl=%s renew_interval=%s",
+		svc.session.SupervisorID, os.Getpid(), normalizeLeaseTTL(cfg.LeaseTTL), normalizeRenewInterval(cfg.RenewInterval))
 	ticker := time.NewTicker(normalizeRenewInterval(cfg.RenewInterval))
 	defer ticker.Stop()
+	// A tick failure is no longer fatal. Renewal for the whole fleet used to
+	// run through a single error return: any transient store contention, or one
+	// instance changing state mid-tick, propagated out of Run and exited the
+	// process — so every scenario's lease expired because one scenario was
+	// stopped. Transient failures are logged and retried; only sustained
+	// failure exits, because at that point a fresh process is the better
+	// recovery and the service manager provides one.
+	failures := 0
 	for {
 		if _, err := svc.Tick(ctx); err != nil {
-			return err
+			failures++
+			svc.logf("tick failed (%d/%d consecutive): %v", failures, MaxConsecutiveTickFailures, err)
+			if failures >= MaxConsecutiveTickFailures {
+				svc.logf("giving up after %d consecutive tick failures; exiting for restart", failures)
+				return err
+			}
+		} else if failures > 0 {
+			svc.logf("tick recovered after %d consecutive failures", failures)
+			failures = 0
 		}
 		select {
 		case <-ctx.Done():
 			_, _ = svc.stopSession(context.Background(), scenarioruntime.SupervisorStatusStopped, "context canceled")
+			svc.logf("supervisor stopped supervisor_id=%s reason=%q", svc.session.SupervisorID, "context canceled")
 			return ctx.Err()
 		case <-ticker.C:
 		}
 	}
+}
+
+// logf writes one operational line to the supervisor's configured stderr, which
+// its service unit points at ~/.vrooli/logs/runtime-supervisor.log. Kept
+// deliberately sparse — startup, shutdown, and anything that went wrong — so
+// the file stays readable and a failure has somewhere to be recorded.
+func (s *Service) logf(format string, args ...any) {
+	w := s.cfg.Stderr
+	if w == nil {
+		w = os.Stderr
+	}
+	fmt.Fprintf(w, "%s runtime-supervisor: %s\n", s.now().Format(time.RFC3339), fmt.Sprintf(format, args...))
 }
 
 func (s *Service) Tick(ctx context.Context) (TickReport, error) {
@@ -254,14 +296,13 @@ func (s *Service) Tick(ctx context.Context) (TickReport, error) {
 				continue
 			}
 			if _, err := s.store.UpdatePortClaimListenerEvidence(ctx, claim.ClaimID, scenarioruntime.ListenerObservationFromEvidence(s.now(), evidence)); err != nil {
-				return TickReport{}, fmt.Errorf("update listener evidence for %s: %w", claim.ClaimID, err)
+				// Evidence is an observation, not authority. A claim released
+				// concurrently is the common cause and is not a tick failure.
+				s.logf("could not record listener evidence for claim %s: %v", claim.ClaimID, err)
 			}
 		}
 	}
-	reconciled, err := s.reconcileStartingInstances(ctx, instances, claimsByInstance, refsByInstance, healthByInstance, listeners)
-	if err != nil {
-		return TickReport{}, err
-	}
+	reconciled := s.reconcileStartingInstances(ctx, instances, claimsByInstance, refsByInstance, healthByInstance, listeners)
 	if len(reconciled) > 0 {
 		for _, instance := range reconciled {
 			instancesByID[instance.InstanceID] = instance
@@ -295,42 +336,61 @@ func (s *Service) Tick(ctx context.Context) (TickReport, error) {
 		HealthInterval:   normalizeHealthInterval(s.cfg.HealthInterval),
 		BatchSize:        normalizeBatchSize(s.cfg.BatchSize),
 	})
+	// From here on the tick is best-effort per instance. Renewal is the
+	// supervisor's core duty and it must not be abandoned wholesale because one
+	// instance was stopped, restarted, or claimed elsewhere mid-tick; every
+	// scenario that CAN be renewed gets renewed, and what could not is counted
+	// and logged.
 	report := TickReport{SupervisorID: s.session.SupervisorID, Unverified: len(plan.Unverified), Expired: len(plan.Expire), HealthProbeCount: len(plan.HealthProbes)}
 	for _, batch := range plan.RenewalBatches {
-		if err := s.claimRenewalBatch(ctx, batch, instancesByID); err != nil {
-			return TickReport{}, err
-		}
-		renewed, err := s.store.HeartbeatSupervisedLeaseBatch(ctx, batch, normalizeLeaseTTL(s.cfg.LeaseTTL))
+		claimed := s.claimRenewalBatch(ctx, batch, instancesByID)
+		renewed, err := s.store.HeartbeatSupervisedLeaseBatch(ctx, claimed, normalizeLeaseTTL(s.cfg.LeaseTTL))
 		if err != nil {
+			// A whole-batch failure is a store problem, not an instance
+			// problem: surface it so the consecutive-failure counter can act.
 			return TickReport{}, fmt.Errorf("heartbeat supervised lease batch: %w", err)
 		}
 		report.Renewed += len(renewed)
+		// Counted against the PLANNED batch, not the claimable subset, so an
+		// instance dropped at either step is visible.
+		if skipped := len(batch) - len(renewed); skipped > 0 {
+			report.Skipped += skipped
+		}
 		for _, instance := range renewed {
 			_, err := s.store.UpdateInstanceReconciliation(ctx, instance.InstanceID, instance.Generation, string(scenarioruntime.ReconcileVerifiedRunning), "supervisor renewed verified running lease")
 			if err != nil {
-				return TickReport{}, fmt.Errorf("update renewed reconciliation %s: %w", instance.InstanceID, err)
+				s.logf("could not record reconciliation for %s: %v", instance.InstanceID, err)
 			}
 		}
 	}
 	for _, item := range plan.Unverified {
 		_, err := s.store.UpdateInstanceReconciliation(ctx, item.Instance.InstanceID, item.Instance.Generation, string(item.Classification), item.Reason)
 		if err != nil {
-			return TickReport{}, fmt.Errorf("update unverified reconciliation %s: %w", item.Instance.InstanceID, err)
+			s.logf("could not record %s reconciliation for %s: %v", item.Classification, item.Instance.InstanceID, err)
 		}
 	}
 	for _, item := range plan.Expire {
 		if _, err := s.store.ExpireInstance(ctx, item.Instance.InstanceID, item.Reason); err != nil {
-			return TickReport{}, fmt.Errorf("expire stale runtime %s: %w", item.Instance.InstanceID, err)
+			s.logf("could not expire stale runtime %s (%s): %v", item.Instance.Scenario, item.Instance.InstanceID, err)
+			continue
 		}
+		s.logf("expired stale runtime %s instance=%s reason=%q", item.Instance.Scenario, item.Instance.InstanceID, item.Reason)
 	}
+	// Retire dead peers every tick, not only at startup: a predecessor killed
+	// mid-restart still has an unexpired deadline when its successor boots, so a
+	// startup-only sweep leaves it claiming to run until something else looks.
+	s.reapDeadSupervisorSessions(ctx)
+	// Health probing and recovery are secondary to renewal, which has already
+	// happened by this point. Neither may retroactively fail the tick and cost
+	// the fleet its leases.
 	probed, err := s.executeHealthProbes(ctx, plan.HealthProbes, instancesByID, claimsByInstance)
 	if err != nil {
-		return TickReport{}, err
+		s.logf("health probing degraded this tick: %v", err)
 	}
 	report.HealthProbeCount = probed
 	recovery, err := s.reconcileRecovery(ctx)
 	if err != nil {
-		return TickReport{}, err
+		s.logf("recovery reconciliation degraded this tick: %v", err)
 	}
 	report.Recovery = recovery
 	s.lastReport = report
@@ -351,7 +411,11 @@ func listenerEvidenceFromActiveClaims(claims []scenarioruntime.PortClaim, inspec
 	return out
 }
 
-func (s *Service) reconcileStartingInstances(ctx context.Context, instances []scenarioruntime.Instance, claimsByInstance map[string][]scenarioruntime.PortClaim, refsByInstance map[string][]scenarioruntime.ProcessRef, healthByInstance map[string]scenarioruntime.HealthSnapshot, listeners map[int]scenarioruntime.ListenerEvidence) ([]scenarioruntime.Instance, error) {
+// reconcileStartingInstances promotes starting instances whose processes and
+// listeners prove they are up. Every step is per-instance: an instance that
+// cannot be promoted right now is left alone for the next tick rather than
+// aborting promotion for the instances behind it in the list.
+func (s *Service) reconcileStartingInstances(ctx context.Context, instances []scenarioruntime.Instance, claimsByInstance map[string][]scenarioruntime.PortClaim, refsByInstance map[string][]scenarioruntime.ProcessRef, healthByInstance map[string]scenarioruntime.HealthSnapshot, listeners map[int]scenarioruntime.ListenerEvidence) []scenarioruntime.Instance {
 	var reconciled []scenarioruntime.Instance
 	for _, instance := range instances {
 		if instance.Status != scenarioruntime.StatusStarting {
@@ -365,31 +429,40 @@ func (s *Service) reconcileStartingInstances(ctx context.Context, instances []sc
 		if health.InstanceID == "" || shouldProbeStartupHealth(health, s.now(), normalizeHealthInterval(s.cfg.HealthInterval)) {
 			health = s.probeHealth(ctx, instance, claims)
 			if _, err := s.store.UpsertHealthSnapshot(ctx, health); err != nil {
-				return nil, fmt.Errorf("upsert startup reconciliation health for %s: %w", instance.InstanceID, err)
+				s.logf("could not record startup health for %s: %v", instance.InstanceID, err)
 			}
 			healthByInstance[instance.InstanceID] = health
 		}
 		if !runtimeHealthAllowsStartupReconciliation(health) {
 			continue
 		}
+		bindFailed := false
 		for _, claim := range claims {
 			if claim.Status != scenarioruntime.ClaimStatusReserved {
 				continue
 			}
 			if _, err := s.store.BindPortClaim(ctx, claim.ClaimID); err != nil {
-				return nil, fmt.Errorf("bind startup reconciliation claim %s: %w", claim.ClaimID, err)
+				s.logf("could not bind startup claim %s for %s: %v", claim.ClaimID, instance.Scenario, err)
+				bindFailed = true
+				break
 			}
+		}
+		if bindFailed {
+			// Promoting an instance whose ports are not all bound would
+			// advertise a runtime the registry cannot fully account for.
+			continue
 		}
 		updated, err := s.store.UpdateInstanceStatus(ctx, instance.InstanceID, instance.Generation, scenarioruntime.StatusRunning, instance.Phase)
 		if err != nil {
-			return nil, fmt.Errorf("mark startup reconciliation running %s: %w", instance.InstanceID, err)
+			s.logf("could not promote starting instance %s (%s): %v", instance.Scenario, instance.InstanceID, err)
+			continue
 		}
 		if _, err := s.store.UpdateInstanceReconciliation(ctx, updated.InstanceID, updated.Generation, string(scenarioruntime.ReconcileVerifiedRunning), "supervisor reconciled live startup runtime"); err != nil {
-			return nil, fmt.Errorf("update startup reconciliation %s: %w", updated.InstanceID, err)
+			s.logf("could not record startup reconciliation for %s: %v", updated.InstanceID, err)
 		}
 		reconciled = append(reconciled, updated)
 	}
-	return reconciled, nil
+	return reconciled
 }
 
 func startingInstanceHasLiveProcess(refs []scenarioruntime.ProcessRef, pidRunning PIDRunningFunc) bool {
@@ -441,19 +514,32 @@ func runtimeHealthAllowsStartupReconciliation(health scenarioruntime.HealthSnaps
 	}
 }
 
-func (s *Service) claimRenewalBatch(ctx context.Context, batch []scenarioruntime.SupervisionClaim, instances map[string]scenarioruntime.Instance) error {
+// claimRenewalBatch takes ownership of any instance in the batch that is not
+// already ours, and returns the claims that are safe to renew. An instance we
+// could not claim — stopped, regenerated, or taken by a peer between the
+// snapshot and now — is dropped from the batch rather than failing it: it is
+// somebody else's instance now, which is a normal outcome and not this
+// supervisor's problem to escalate.
+func (s *Service) claimRenewalBatch(ctx context.Context, batch []scenarioruntime.SupervisionClaim, instances map[string]scenarioruntime.Instance) []scenarioruntime.SupervisionClaim {
+	renewable := make([]scenarioruntime.SupervisionClaim, 0, len(batch))
 	for _, claim := range batch {
 		instance, ok := instances[claim.InstanceID]
-		if !ok || instance.SupervisorID == claim.SupervisorID {
+		if !ok {
+			continue
+		}
+		if instance.SupervisorID == claim.SupervisorID {
+			renewable = append(renewable, claim)
 			continue
 		}
 		claimed, err := s.store.ClaimSupervision(ctx, claim)
 		if err != nil {
-			return fmt.Errorf("claim runtime supervision %s: %w", claim.InstanceID, err)
+			s.logf("could not claim supervision of %s (%s): %v", instance.Scenario, claim.InstanceID, err)
+			continue
 		}
 		instances[claim.InstanceID] = claimed
+		renewable = append(renewable, claim)
 	}
-	return nil
+	return renewable
 }
 
 func (s *Service) Status(ctx context.Context) (StatusReport, error) {
@@ -569,6 +655,26 @@ func (s *Service) ensureStarted(ctx context.Context) error {
 	}
 	s.session = session
 	return nil
+}
+
+// reapDeadSupervisorSessions retires predecessor sessions this supervisor can
+// prove are dead. A SIGKILLed supervisor never reached its graceful shutdown,
+// so its row kept claiming status='running' indefinitely; taking over is the
+// natural moment to clear them. Only provably dead sessions are touched, so a
+// genuinely live peer is left alone. Failure is logged, never fatal: cleaning
+// up bookkeeping must not prevent the fleet from being supervised.
+func (s *Service) reapDeadSupervisorSessions(ctx context.Context) {
+	expired, err := s.store.ExpireStaleSupervisorSessions(ctx, s.now(), scenarioruntime.StartingLeaseGuard{
+		CurrentBootID: s.host.BootID,
+		PIDRunning:    s.pidRunning,
+	})
+	if err != nil {
+		s.logf("could not retire dead supervisor sessions: %v", err)
+		return
+	}
+	if len(expired) > 0 {
+		s.logf("retired %d dead supervisor session(s)", len(expired))
+	}
 }
 
 func (s *Service) ensureOpened(ctx context.Context) error {
@@ -849,6 +955,23 @@ func EnsureRunning(ctx context.Context, cfg Config) error {
 		return nil
 	}
 
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	// Prefer the installed service. Launching the supervisor ourselves makes it
+	// a child of whatever ran this command, and on Linux it then lives in that
+	// caller's cgroup: a supervisor started from a scenario's own service (or a
+	// terminal multiplexer pane) dies whenever that unrelated thing restarts.
+	// The service manager places it correctly and keeps restarting it.
+	if started, err := platform.StartInstalledService(platform.ServiceInstallOptions{HomeDir: cfg.HomeDir, User: true}); err != nil {
+		// Fall through to the direct launch: an unsupervised supervisor is
+		// still better than none, and the failure is reported where the caller
+		// can log it.
+		fmt.Fprintf(orDiscard(cfg.Stderr), "warning: could not start the installed runtime supervisor service (%v); launching it directly\n", err)
+	} else if started {
+		return nil
+	}
+
 	exe := strings.TrimSpace(cfg.Executable)
 	if exe == "" {
 		var exeErr error
@@ -857,19 +980,23 @@ func EnsureRunning(ctx context.Context, cfg Config) error {
 			return fmt.Errorf("resolve vrooli executable for runtime supervisor: %w", exeErr)
 		}
 	}
-	if err := ctx.Err(); err != nil {
-		return err
-	}
 	cmd := exec.Command(exe, "--no-stale-check", "runtime", "supervisor", "run")
 	cmd.Env = supervisorCommandEnv(os.Environ(), cfg.HomeDir)
-	cmd.Stdout = cfg.Stdout
-	if cmd.Stdout == nil {
-		cmd.Stdout = io.Discard
+	// The spawned supervisor outlives this process, so inheriting the caller's
+	// streams is worse than useless: writes land on the stderr of a CLI that
+	// has already exited, and io.Discard loses the reason it died. Give it the
+	// same log file the installed service writes to, opened as a real *os.File
+	// so the child inherits the descriptor instead of depending on a copying
+	// goroutine that dies with us.
+	logFile, logErr := openSupervisorLog(cfg.HomeDir)
+	if logErr != nil && cfg.Stderr != nil {
+		fmt.Fprintf(cfg.Stderr, "warning: runtime supervisor log unavailable (%v); its output will be discarded\n", logErr)
 	}
-	cmd.Stderr = cfg.Stderr
-	if cmd.Stderr == nil {
-		cmd.Stderr = io.Discard
+	if logFile != nil {
+		defer logFile.Close()
 	}
+	cmd.Stdout = firstNonNilWriter(cfg.Stdout, logFile)
+	cmd.Stderr = firstNonNilWriter(cfg.Stderr, logFile)
 	if err := platform.ConfigureCommand(cmd, platform.ProcessOptions{Detached: true}); err != nil {
 		return err
 	}
@@ -877,6 +1004,45 @@ func EnsureRunning(ctx context.Context, cfg Config) error {
 		return fmt.Errorf("start runtime supervisor: %w", err)
 	}
 	return cmd.Process.Release()
+}
+
+// orDiscard keeps optional diagnostics from panicking on an unset writer.
+func orDiscard(w io.Writer) io.Writer {
+	if w == nil {
+		return io.Discard
+	}
+	return w
+}
+
+// openSupervisorLog appends to the supervisor's log file, creating the log
+// directory when needed. A nil file (with the error) means the caller falls
+// back to discarding output rather than failing the start.
+func openSupervisorLog(homeDir string) (*os.File, error) {
+	path, err := LogPath(homeDir)
+	if err != nil {
+		return nil, err
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return nil, fmt.Errorf("create runtime supervisor log dir: %w", err)
+	}
+	file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
+	if err != nil {
+		return nil, fmt.Errorf("open runtime supervisor log: %w", err)
+	}
+	return file, nil
+}
+
+// firstNonNilWriter prefers an explicitly configured writer, falls back to the
+// log file, and discards only when neither exists. The typed-nil check matters:
+// a nil *os.File in an io.Writer is not a nil interface.
+func firstNonNilWriter(configured io.Writer, logFile *os.File) io.Writer {
+	if configured != nil {
+		return configured
+	}
+	if logFile != nil {
+		return logFile
+	}
+	return io.Discard
 }
 
 func supervisorCommandEnv(env []string, home string) []string {

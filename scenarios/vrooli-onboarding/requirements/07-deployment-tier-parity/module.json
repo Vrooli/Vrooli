@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "The same wizard on every deployment tier: local repository, desktop bundle, and remote host reached through vrooli-bridge or scenario-to-cloud.",
-    "last_validated_at": "2026-08-16T14:54:14-04:00",
+    "last_validated_at": "2026-08-18T15:43:55-04:00",
     "module": "onboarding.tiers",
     "schema_version": "1.0.0"
   },
@@ -9,7 +9,7 @@
     {
       "id": "ONB-TIER-PARITY",
       "title": "While the wizard runs on any supported deployment tier, every step shall resolve its data and no step shall return an error.",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-005",
       "category": "tiers",
       "description": "Compositional claim for the tier domain. The desktop bundle now carries the complete manifest-derived catalog and the browser-validated wizard resolves every declared step without an error.",
@@ -23,7 +23,7 @@
           "type": "test",
           "ref": "api/v2_bundle_mode_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Evidence: boots the API with only the bundle root set and exercises every V2 endpoint."
         }
       ]
@@ -31,7 +31,7 @@
     {
       "id": "ONB-TIER-BUNDLE-CATALOG",
       "title": "While the wizard runs from a desktop bundle, it shall resolve every manifest it reads from the bundled catalog.",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-005",
       "category": "tiers",
       "description": "The desktop runtime deliberately does not set a repository root, because a standalone app has no monorepo. Every manifest class the wizard reads — scenarios, resources, tools, safeguards — must therefore be present in the bundle catalog.",
@@ -40,7 +40,7 @@
           "type": "test",
           "ref": "api/v2_bundle_mode_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Evidence: host requirements resolve from a bundle fixture containing tool and safeguard manifests."
         }
       ]
@@ -48,7 +48,7 @@
     {
       "id": "ONB-TIER-NO-STEP-ERROR",
       "title": "If a manifest source is unavailable on the running tier, then the step shall present a named actionable state and shall not return an unhandled error.",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-005",
       "category": "tiers",
       "description": "A directory-read failure currently becomes a server error and the step renders a generic failure line. The target distinguishes 'this tier does not carry that catalog' from 'this host is broken', because the two have different operator responses.",
@@ -57,7 +57,7 @@
           "type": "test",
           "ref": "api/v2_bundle_mode_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Evidence: an absent catalog yields a typed degraded response, not a 500."
         }
       ]
@@ -65,7 +65,7 @@
     {
       "id": "ONB-TIER-BUNDLE-COMPLETENESS",
       "title": "If a desktop bundle omits a catalog path the wizard reads, then the bundle build check shall fail.",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-005",
       "category": "tiers",
       "description": "The bundle contract declares the catalog paths onboarding depends on, and the packaging step verifies them. This turns a silent runtime failure on an operator's machine into a build failure on ours.",
@@ -77,7 +77,7 @@
           "type": "test",
           "ref": "api/v2_bundle_mode_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "The onboarding bundle fixture exercises the catalog read models and the desktop runtime catalog contract separately fails closed when a declared catalog path is missing."
         },
         {
@@ -92,7 +92,7 @@
     {
       "id": "ONB-TIER-STATE-LOCATION",
       "title": "The operator-state location shall be resolved from the deployment tier, and a desktop install shall not write the repository document.",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-005",
       "category": "tiers",
       "description": "A bundle resolves its state under the app data root supplied by the desktop runtime; a repository install resolves the repository document. A desktop app and a local install on one machine are separate installs by design.",
@@ -101,7 +101,7 @@
           "type": "test",
           "ref": "api/operator_state_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Asserts the storage-root fallback resolves outside the repository when no repository root is set."
         }
       ]
@@ -129,7 +129,7 @@
     {
       "id": "ONB-TIER-SUBSET-SHIPPING",
       "title": "The union export should determine which scenarios, resources, tools, and safeguards a remote or bundled target must carry.",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P1-005",
       "category": "tiers",
       "description": "Shipping the whole repository to every target does not scale, and hand-maintained per-target lists drift. One computation, consumed by every target, keeps them consistent by construction.",
@@ -141,7 +141,7 @@
           "type": "test",
           "ref": "api/closure_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Evidence target: `api/v2_union_test.go`; this requirement remains planned until that evidence is added. the union for a two-scenario selection excludes unrelated catalog members."
         }
       ]

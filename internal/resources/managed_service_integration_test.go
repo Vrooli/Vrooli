@@ -95,11 +95,21 @@ func TestManagedArtifactPrivateLifecycleIntegration(t *testing.T) {
 	}{
 		{name: "minio", binary: "minio"},
 		{name: "qdrant", binary: "qdrant"},
+		{name: "redis", binary: "redis"},
+		{name: "postgres", binary: "postgres"},
+		{name: "ollama", binary: "ollama"},
+		{name: "vault", binary: "vault"},
+		{name: "reranker", binary: "reranker"},
 	} {
 		t.Run(resource.name, func(t *testing.T) {
 			artifactPath := stagedArtifact(t, resource.name, resource.binary)
 			controller := NewController(repoRoot, t.TempDir())
-			t.Setenv("VROOLI_RESOURCE_STORAGE_ROOT", t.TempDir())
+			shortStorageRoot, err := os.MkdirTemp("/tmp", "vr-")
+			if err != nil {
+				t.Fatal(err)
+			}
+			t.Cleanup(func() { _ = os.RemoveAll(shortStorageRoot) })
+			t.Setenv("VROOLI_RESOURCE_STORAGE_ROOT", shortStorageRoot)
 			manifest, err := controller.LoadManifest(filepath.Join(repoRoot, "resources", resource.name, "resource.json"))
 			if err != nil {
 				t.Fatal(err)
@@ -118,12 +128,54 @@ func TestManagedArtifactPrivateLifecycleIntegration(t *testing.T) {
 				}
 				manifest.HealthChecks[index].Target = target
 			}
-
+			if resource.name == "ollama" {
+				manifest.HealthChecks = []ResourceHealthCheck{{
+					Type:           "http",
+					Target:         fmt.Sprintf("http://127.0.0.1:%d/api/tags", portMap[11434]),
+					ExpectedStatus: []int{200},
+					Kind:           "readiness",
+					TimeoutSeconds: 10,
+				}}
+			}
+			if resource.name == "reranker" {
+				paths, err := resourceStoragePaths(resource.name)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if err := os.MkdirAll(paths.DataDir, 0o700); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(filepath.Join(paths.DataDir, "active.env"), []byte("RERANKER_MODEL=BAAI/bge-reranker-v2-m3\n"), 0o600); err != nil {
+					t.Fatal(err)
+				}
+				// Reuse a verified local model cache when present. The symlink itself
+				// lives under the ephemeral test storage root, so the lifecycle test
+				// never mutates the operator's resource state.
+				home, err := os.UserHomeDir()
+				if err != nil {
+					t.Fatal(err)
+				}
+				cachedModel := filepath.Join(home, ".local", "share", "vrooli", "resources", "reranker", "model-cache")
+				if _, err := os.Stat(cachedModel); err == nil {
+					if err := os.Symlink(cachedModel, filepath.Join(paths.DataDir, "model-cache")); err != nil {
+						t.Fatal(err)
+					}
+				}
+				manifest.HealthChecks = []ResourceHealthCheck{{
+					Type:           "http",
+					Target:         fmt.Sprintf("http://127.0.0.1:%d/health", portMap[11453]),
+					ExpectedStatus: []int{200},
+					Kind:           "readiness",
+					TimeoutSeconds: 10,
+				}}
+			}
 			driver := managedServiceDriver{}
 			item := Resource{Name: resource.name}
 			private := []string{"--provider=managed-private"}
 			if err := driver.Run(context.Background(), controller, item, manifest, "start", private, io.Discard, io.Discard); err != nil {
-				t.Fatalf("start verified private artifact %s: %v", artifactPath, err)
+				var startupLogs bytes.Buffer
+				_ = driver.Run(context.Background(), controller, item, manifest, "logs", private, &startupLogs, io.Discard)
+				t.Fatalf("start verified private artifact %s: %v; logs: %s", artifactPath, err, strings.TrimSpace(startupLogs.String()))
 			}
 			t.Cleanup(func() {
 				_ = driver.Run(context.Background(), controller, item, manifest, "stop", private, io.Discard, io.Discard)
@@ -162,7 +214,15 @@ func stagedArtifact(t *testing.T, resource, binary string) string {
 		root = filepath.Join(home, ".vrooli", "artifacts")
 	}
 	name := fmt.Sprintf("%s_%s_%s", binary, runtime.GOOS, runtime.GOARCH)
-	path := filepath.Join(root, resource, map[string]string{"minio": "RELEASE.2025-07-23T15-54-02Z", "qdrant": "1.15.3"}[resource], name)
+	path := filepath.Join(root, resource, map[string]string{
+		"minio":    "RELEASE.2025-07-23T15-54-02Z",
+		"qdrant":   "1.15.3",
+		"redis":    "8.2.1-bookworm",
+		"postgres": "16.14-bookworm",
+		"ollama":   "0.30.10",
+		"vault":    "1.17.6",
+		"reranker": "1.7.4",
+	}[resource], name)
 	if runtime.GOOS == "windows" {
 		path += ".exe"
 	}

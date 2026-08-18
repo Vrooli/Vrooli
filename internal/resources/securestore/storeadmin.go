@@ -1,10 +1,15 @@
 package securestore
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
+	"time"
 )
 
 // The operator surface for the encrypted store. Every native adapter is managed
@@ -48,7 +53,28 @@ type StoreStatus struct {
 	// difference between "this host reboots unattended" and "this host needs a
 	// passphrase typed at every boot" is invisible otherwise, and an operator
 	// who assumes the wrong one finds out during an outage.
-	HostBoundBlocked string `json:"host_bound_blocked,omitempty"`
+	HostBoundBlocked string      `json:"host_bound_blocked,omitempty"`
+	Copy             *CopyStatus `json:"copy,omitempty"`
+}
+
+// CopyStatus is non-secret freshness metadata for the encrypted root copy.
+type CopyStatus struct {
+	Path       string    `json:"path"`
+	Sink       string    `json:"sink"`
+	CopiedAt   time.Time `json:"copied_at"`
+	Generation string    `json:"generation"`
+}
+
+// SinkConflictError is returned when a root copy would be placed inside a
+// repository that it is needed to unlock. That would make bare-host recovery
+// circular.
+type SinkConflictError struct {
+	Sink       string
+	Repository string
+}
+
+func (e *SinkConflictError) Error() string {
+	return fmt.Sprintf("credential-store copy sink %q is inside kopia repository %q", e.Sink, e.Repository)
 }
 
 // errNoEncryptedBackend means the process selected a backend that has no
@@ -110,6 +136,164 @@ func DescribeStore() (StoreStatus, error) {
 		status.UnlockCache = ""
 	}
 	return status, nil
+}
+
+// StoreGeneration returns a stable, non-secret identifier for the current
+// passphrase wrap. It deliberately hashes only public envelope material and
+// never derives an identifier from the passphrase itself.
+func StoreGeneration(path string) (string, error) {
+	file, err := readSealedFile(path)
+	if err != nil {
+		return "", err
+	}
+	for _, wrap := range file.Wraps {
+		if wrap.Provider != providerPassphrase {
+			continue
+		}
+		generation, err := passphraseWrapGeneration(wrap)
+		if err != nil {
+			return "", err
+		}
+		// Keep a digest of the public wrap material alongside the counter. The
+		// counter is what makes rotation observable; the digest distinguishes
+		// legacy or manually-rewritten envelopes that happen to reuse it.
+		h := sha256.New()
+		_, _ = h.Write(wrap.Params)
+		_, _ = h.Write([]byte{0})
+		_, _ = h.Write([]byte(wrap.Ciphertext))
+		return fmt.Sprintf("%d:%s", generation, hex.EncodeToString(h.Sum(nil))), nil
+	}
+	return "", fmt.Errorf("credential store has no passphrase wrap")
+}
+
+func passphraseWrapGeneration(wrap wrappedKey) (uint64, error) {
+	var params passphraseParams
+	if len(wrap.Params) != 0 {
+		if err := json.Unmarshal(wrap.Params, &params); err != nil {
+			return 0, fmt.Errorf("%w: passphrase wrap has unreadable parameters", errSealedCorrupt)
+		}
+	}
+	return normalizedPassphraseGeneration(params.Generation), nil
+}
+
+// CopyStore atomically copies an already encrypted store into sink. The sink
+// is a directory and receives secrets.enc.json plus non-secret receipt
+// metadata. repositoryPaths must contain every local repository root known to
+// the control plane; a copy inside one is refused.
+func CopyStore(source, sink, receiptPath string, repositoryPaths []string) (CopyStatus, error) {
+	source, err := filepath.Abs(filepath.Clean(source))
+	if err != nil {
+		return CopyStatus{}, fmt.Errorf("resolve credential store path: %w", err)
+	}
+	sink, err = filepath.Abs(filepath.Clean(sink))
+	if err != nil {
+		return CopyStatus{}, fmt.Errorf("resolve credential copy sink: %w", err)
+	}
+	for _, repository := range repositoryPaths {
+		resolved, resolveErr := resolveExistingOrParent(repository)
+		if resolveErr != nil || resolved == "" {
+			continue
+		}
+		resolvedSink, sinkResolveErr := resolveExistingOrParent(sink)
+		if sinkResolveErr != nil {
+			return CopyStatus{}, fmt.Errorf("resolve credential copy sink for safety check: %w", sinkResolveErr)
+		}
+		rel, relErr := filepath.Rel(resolved, resolvedSink)
+		if relErr == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+			return CopyStatus{}, &SinkConflictError{Sink: resolvedSink, Repository: resolved}
+		}
+	}
+	if _, err := readSealedFile(source); err != nil {
+		return CopyStatus{}, fmt.Errorf("read encrypted credential store: %w", err)
+	}
+	generation, err := StoreGeneration(source)
+	if err != nil {
+		return CopyStatus{}, err
+	}
+	data, err := os.ReadFile(source)
+	if err != nil {
+		return CopyStatus{}, fmt.Errorf("read encrypted credential store: %w", err)
+	}
+	if err := os.MkdirAll(sink, sealedDirPerm); err != nil {
+		return CopyStatus{}, fmt.Errorf("create credential copy sink: %w", err)
+	}
+	if err := restrictCredentialDirectory(sink); err != nil {
+		return CopyStatus{}, fmt.Errorf("restrict credential copy sink: %w", err)
+	}
+	destination := filepath.Join(sink, filepath.Base(source))
+	if err := atomicCopy(destination, data); err != nil {
+		return CopyStatus{}, err
+	}
+	status := CopyStatus{Path: destination, Sink: sink, CopiedAt: time.Now().UTC(), Generation: generation}
+	if err := writeCopyReceipt(receiptPath, status); err != nil {
+		return CopyStatus{}, err
+	}
+	return status, nil
+}
+
+// resolveExistingOrParent resolves symlinks for a path that may not exist yet.
+// Checking only lexical absolute paths would allow a symlinked sink to land
+// inside a repository after the containment check.
+func resolveExistingOrParent(path string) (string, error) {
+	path, err := filepath.Abs(filepath.Clean(path))
+	if err != nil {
+		return "", err
+	}
+	if resolved, err := filepath.EvalSymlinks(path); err == nil {
+		return filepath.Clean(resolved), nil
+	}
+	parent := filepath.Dir(path)
+	if parent == path {
+		return path, nil
+	}
+	resolvedParent, err := resolveExistingOrParent(parent)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(resolvedParent, filepath.Base(path)), nil
+}
+
+func atomicCopy(destination string, data []byte) error {
+	dir := filepath.Dir(destination)
+	temp, err := os.CreateTemp(dir, ".secrets-*.tmp")
+	if err != nil {
+		return fmt.Errorf("create credential copy temporary file: %w", err)
+	}
+	tempName := temp.Name()
+	defer func() { _ = temp.Close(); _ = os.Remove(tempName) }()
+	if err := temp.Chmod(sealedFilePerm); err != nil {
+		return fmt.Errorf("restrict credential copy temporary file: %w", err)
+	}
+	if _, err := temp.Write(data); err != nil {
+		return fmt.Errorf("write credential copy: %w", err)
+	}
+	if err := temp.Sync(); err != nil {
+		return fmt.Errorf("flush credential copy: %w", err)
+	}
+	if err := temp.Close(); err != nil {
+		return fmt.Errorf("close credential copy: %w", err)
+	}
+	if err := os.Rename(tempName, destination); err != nil {
+		return fmt.Errorf("replace credential copy: %w", err)
+	}
+	if err := RestrictCredentialFile(destination); err != nil {
+		return fmt.Errorf("restrict credential copy: %w", err)
+	}
+	return nil
+}
+
+func writeCopyReceipt(path string, status CopyStatus) error {
+	data, err := json.MarshalIndent(status, "", "  ")
+	if err != nil {
+		return fmt.Errorf("encode credential copy receipt: %w", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(path), sealedDirPerm); err != nil {
+		return fmt.Errorf("create credential copy receipt directory: %w", err)
+	}
+	if err := atomicCopy(path, data); err != nil {
+		return fmt.Errorf("write credential copy receipt: %w", err)
+	}
+	return nil
 }
 
 // InitializeStore creates the encrypted store on this host. The passphrase may
@@ -194,6 +378,10 @@ func ChangePassphraseStore(current, next string) error {
 	if err != nil {
 		return err
 	}
+	return changePassphraseStore(encrypted, current, next)
+}
+
+func changePassphraseStore(encrypted *encryptedStore, current, next string) error {
 	// Validate the supplied current passphrase against its own wrap. The
 	// normal store chain may also have a host-bound wrap; using it here would
 	// let a typo pass and would violate the command's promise that the current
@@ -205,8 +393,20 @@ func ChangePassphraseStore(current, next string) error {
 		return err
 	}
 	currentStore.lock()
+	file, err := readSealedFile(encrypted.path)
+	if err != nil {
+		return err
+	}
+	currentWrap, found := file.wrapFor(providerPassphrase)
+	if !found {
+		return fmt.Errorf("credential store has no passphrase wrap")
+	}
+	currentGeneration, err := passphraseWrapGeneration(currentWrap)
+	if err != nil {
+		return err
+	}
 	SetPassphrase(current)
-	if _, err := encrypted.addWrap(passphraseProvider{passphrase: next}); err != nil {
+	if _, err := encrypted.addWrap(passphraseProvider{passphrase: next, generation: currentGeneration + 1}); err != nil {
 		encrypted.lock()
 		SetPassphrase("")
 		return err

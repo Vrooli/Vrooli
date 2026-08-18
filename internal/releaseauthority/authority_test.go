@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/vrooli/binaryfetch"
 	"github.com/vrooli/vrooli/internal/resources/securestore"
 	credentialauthority "github.com/vrooli/vrooli/internal/secrets"
 	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
@@ -129,6 +130,39 @@ func TestSignStageProducesProductionVerifiableEnvelope(t *testing.T) {
 	}
 	if _, err := authority.SignStage(root, stage, false); err == nil {
 		t.Fatal("SignStage overwrote an existing envelope")
+	}
+}
+
+func TestSignStageAuthenticatesManagedServiceDirectoryTree(t *testing.T) {
+	authority, root := newTestAuthority(t)
+	if _, err := authority.Initialize(root, false); err != nil {
+		t.Fatal(err)
+	}
+	stage := t.TempDir()
+	artifactRoot := filepath.Join(stage, "sherpa-onnx-server_linux_amd64")
+	if err := os.MkdirAll(filepath.Join(artifactRoot, "server"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(artifactRoot, "server", "sherpa-onnx-server"), []byte("native server"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	treeDigest, err := binaryfetch.TreeDigest(artifactRoot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	manifest := resourcedeployment.ReleaseManifest{SchemaVersion: "v1", Artifacts: []resourcedeployment.ReleaseArtifact{{Name: "sherpa-onnx-server_linux_amd64", SHA256: treeDigest, Role: "managed-service", OS: "linux", Arch: "amd64", UpstreamProvenance: "release-signed-vrooli-adapter"}}}
+	canonical, err := manifest.CanonicalBytes()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(stage, "release-manifest.json"), append(canonical, '\n'), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := authority.SignStage(root, stage, false); err != nil {
+		t.Fatalf("SignStage directory artifact: %v", err)
+	}
+	if _, _, err := resourcedeployment.VerifyReleaseDirectory(stage, resourcedeployment.ArtifactTrustProduction, filepath.Join(root, publicPath)); err != nil {
+		t.Fatalf("VerifyReleaseDirectory directory artifact: %v", err)
 	}
 }
 

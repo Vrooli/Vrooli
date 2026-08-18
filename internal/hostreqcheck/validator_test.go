@@ -3,9 +3,11 @@ package hostreqcheck
 import (
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 
 	testkitgo "github.com/vrooli/repo-contract-go/repocontracttest"
+	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	testresource "github.com/vrooli/vrooli/internal/resources/resourcestest"
@@ -90,6 +92,22 @@ func TestCurrentRepoPhase4ValidatorIsClean(t *testing.T) {
 	}
 	if len(report.Findings) != 0 {
 		t.Fatalf("expected no current repo host requirement findings, got %+v", report.Findings)
+	}
+}
+
+func TestPortableToolSourceAcceptsExplicitUnsupportedTargets(t *testing.T) {
+	manifest := hostreqkit.ToolManifest{
+		Bundling: "vendorable",
+		Acquisition: &hostreqkit.ToolSource{
+			Kind: "url",
+			Targets: []hostreqkit.ToolSourceTarget{
+				{When: map[string]string{"os": "linux", "arch": "amd64"}, URL: "https://example.test/tool.zip", SHA256: strings.Repeat("a", 64)},
+				{When: map[string]string{"os": "linux", "arch": "arm64"}, Unsupported: "no upstream arm64 release"},
+			},
+		},
+	}
+	if !hasPortableToolSource(manifest) {
+		t.Fatal("expected a valid target plus explicit unsupported target to satisfy portable source validation")
 	}
 }
 

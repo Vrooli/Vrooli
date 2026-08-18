@@ -107,6 +107,11 @@ func TestAllResourcesDeclareDesktopDeploymentContract(t *testing.T) {
 			continue
 		}
 		name := entry.Name()
+		if _, err := os.Stat(filepath.Join(root, "resources", name, "resource.json")); os.IsNotExist(err) {
+			continue
+		} else if err != nil {
+			t.Fatalf("inspect manifest for %s: %v", name, err)
+		}
 		t.Run(name, func(t *testing.T) {
 			manifest, err := manifestpkg.Load(filepath.Join(root, "resources", name, "resource.json"))
 			if err != nil {

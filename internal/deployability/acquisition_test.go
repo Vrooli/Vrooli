@@ -1,22 +1,43 @@
 package deployability
 
-import "testing"
+import (
+	"testing"
 
-func TestValidateMacOSAcquisition(t *testing.T) {
-	if err := ValidateMacOSAcquisition(ToolAcquisitionDeclaration{Platforms: []HostOS{HostOSMacOS}}); err == nil {
-		t.Fatal("expected a missing macOS acquisition path to fail")
+	"github.com/vrooli/binaryfetch"
+)
+
+func TestValidateAcquisitionCoverageRequiresEveryClaimedPlatform(t *testing.T) {
+	declaration := AcquisitionCoverageDeclaration{
+		Name:             "fixture",
+		Platforms:        []HostOS{HostOSLinux, HostOSMacOS, HostOSWindows},
+		PackageFallbacks: map[HostOS]string{HostOSMacOS: "brew-fixture"},
+		Acquisition: &binaryfetch.Acquisition{Kind: "url", Targets: []binaryfetch.AcquisitionTarget{
+			{When: map[string]string{"os": "linux", "arch": "amd64"}, URL: "https://example.test/linux", SHA256: "0123456789012345678901234567890123456789012345678901234567890123"},
+			{When: map[string]string{"os": "windows"}, Unsupported: "fixture has no Windows build"},
+		}},
 	}
-	if err := ValidateMacOSAcquisition(ToolAcquisitionDeclaration{}); err == nil {
-		t.Fatal("an omitted platform declaration must still require an acquisition path")
+	if err := ValidateAcquisitionCoverage(declaration); err != nil {
+		t.Fatalf("coverage rejected: %v", err)
 	}
-	for _, declaration := range []ToolAcquisitionDeclaration{
-		{Platforms: []HostOS{HostOSMacOS}, Brew: "example"},
-		{Platforms: []HostOS{HostOSMacOS}, Source: "release"},
-		{Platforms: []HostOS{HostOSMacOS}, Handler: "native-handler"},
-		{Platforms: []HostOS{HostOSMacOS}, Manual: true},
-	} {
-		if err := ValidateMacOSAcquisition(declaration); err != nil {
-			t.Fatalf("declared acquisition path rejected: %v", err)
-		}
+}
+
+func TestValidateAcquisitionCoverageRejectsMissingPlatformPath(t *testing.T) {
+	declaration := AcquisitionCoverageDeclaration{
+		Name:        "fixture",
+		Platforms:   []HostOS{HostOSLinux, HostOSMacOS},
+		Acquisition: &binaryfetch.Acquisition{Kind: "url", Targets: []binaryfetch.AcquisitionTarget{{When: map[string]string{"os": "linux"}, URL: "https://example.test/linux", SHA256: "0123456789012345678901234567890123456789012345678901234567890123"}}},
+	}
+	if err := ValidateAcquisitionCoverage(declaration); err == nil {
+		t.Fatal("expected missing macOS coverage to fail")
+	}
+}
+
+func TestValidateAcquisitionCoverageTreatsOmittedPlatformsAsAllPlatforms(t *testing.T) {
+	declaration := AcquisitionCoverageDeclaration{
+		Name:             "fixture",
+		PackageFallbacks: map[HostOS]string{HostOSLinux: "fixture", HostOSMacOS: "fixture", HostOSWindows: "fixture"},
+	}
+	if err := ValidateAcquisitionCoverage(declaration); err != nil {
+		t.Fatalf("omitted platforms with package fallbacks rejected: %v", err)
 	}
 }

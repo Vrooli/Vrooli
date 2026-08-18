@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	osuser "os/user"
 	"path/filepath"
 	"strings"
 
@@ -37,6 +38,15 @@ func HomeDir() (string, error) {
 	}
 	if home := strings.TrimSpace(os.Getenv("HOME")); home != "" {
 		return home, nil
+	}
+	// Service managers and controlled SSH sessions can intentionally omit HOME.
+	// os.UserHomeDir follows that environment variable on Unix, so use the
+	// authenticated process identity as the portable fallback before returning
+	// its less-actionable "$HOME is not defined" error.
+	if current, err := osuser.Current(); err == nil {
+		if home := strings.TrimSpace(current.HomeDir); home != "" {
+			return home, nil
+		}
 	}
 	return os.UserHomeDir()
 }

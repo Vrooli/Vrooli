@@ -4,9 +4,11 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/vrooli/binaryfetch"
 	"github.com/vrooli/cli-core/upstreamcheck"
 	resourceapp "github.com/vrooli/vrooli/internal/app/resource"
 	"github.com/vrooli/vrooli/internal/capacity"
@@ -16,6 +18,7 @@ import (
 	"github.com/vrooli/vrooli/internal/cli/topcli"
 	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/discovery"
+	"github.com/vrooli/vrooli/internal/hostinventory"
 	"github.com/vrooli/vrooli/internal/hostreq"
 	"github.com/vrooli/vrooli/internal/hostreqrun"
 	"github.com/vrooli/vrooli/internal/resources"
@@ -79,6 +82,10 @@ func buildResourceArchiveCommandHandlers[C any](deps HandlerDeps[C]) map[string]
 func buildResourceSchemaCommandHandlers[C any](deps HandlerDeps[C]) map[string]rootcli.ResourceHandler[C] {
 	resourceSchemaCommandTable := buildResourceSchemaCommandTable(deps)
 	return commandtree.BuildHandlerMap(resourceSchemaCommandTable)
+}
+
+func buildResourceAcquisitionCommandHandlers[C any](deps HandlerDeps[C]) map[string]rootcli.ResourceHandler[C] {
+	return commandtree.BuildHandlerMap(buildResourceAcquisitionCommandTable(deps))
 }
 
 func buildResourceCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[rootcli.ResourceHandler[C]] {
@@ -326,6 +333,9 @@ func buildResourceCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[ro
 		resourcecli.CommandSchema: func(ctx C, controller *resources.Controller, args []string) error {
 			return runResourceSubcommandSet(ctx, controller, args, showResourceSchemaHelp, "resource schema", buildResourceSchemaCommandHandlers(deps), deps.Stdout)
 		},
+		resourcecli.CommandAcquisition: func(ctx C, controller *resources.Controller, args []string) error {
+			return runResourceSubcommandSet(ctx, controller, args, showResourceAcquisitionHelp, "resource acquisition", buildResourceAcquisitionCommandHandlers(deps), deps.Stdout)
+		},
 	}
 	return commandtree.BindSpecs(resourcecli.CommandSpecs(), handlerMap)
 }
@@ -492,6 +502,80 @@ func buildResourceSchemaCommandTable[C any](deps HandlerDeps[C]) []commandtree.S
 	return commandtree.BindSpecs(resourcecli.SchemaCommandSpecs(), handlerMap)
 }
 
+func buildResourceAcquisitionCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[rootcli.ResourceHandler[C]] {
+	return []commandtree.Spec[rootcli.ResourceHandler[C]]{
+		{
+			Name:    string(resourcecli.AcquisitionCommandExplain),
+			Summary: "Explain host-fact acquisition target selection",
+			Args:    commandtree.ArgSchema{Positionals: []commandtree.PositionalArg{{Name: "name", Required: true}}},
+			Handler: func(ctx C, controller *resources.Controller, args []string) error {
+				if len(args) != 1 || strings.TrimSpace(args[0]) == "" {
+					return rootcli.UsageErrorf("resource acquisition explain", "resource acquisition explain requires exactly one resource name")
+				}
+				name := strings.TrimSpace(args[0])
+				manifest, err := controller.LoadManifest(filepath.Join(controller.Root, "resources", name, "resource.json"))
+				if err != nil {
+					return err
+				}
+				snapshot, err := hostinventory.Collect(context.Background())
+				if err != nil {
+					return fmt.Errorf("collect host facts: %w", err)
+				}
+				facts := snapshot.AcquisitionFacts()
+				result := resourceAcquisitionExplanation{
+					Resource:       name,
+					Facts:          facts,
+					FactProvenance: acquisitionFactProvenance(snapshot),
+				}
+				if manifest.ManagedService != nil && manifest.ManagedService.Acquisition != nil {
+					result.Acquisition = manifest.ManagedService.Acquisition
+					result.Resolution = manifest.ManagedService.Acquisition.Explain(facts)
+				}
+				format, err := deps.OutputFormat(ctx)
+				if err != nil {
+					return err
+				}
+				return writeResourceAcquisitionExplanation(deps.Stdout(ctx), format, result)
+			},
+		},
+		{
+			Name:    string(resourcecli.AcquisitionCommandPrune),
+			Summary: "Remove superseded managed-resource artifact versions",
+			Args:    commandtree.ArgSchema{Positionals: []commandtree.PositionalArg{{Name: "name"}}},
+			Handler: func(ctx C, controller *resources.Controller, args []string) error {
+				if len(args) > 1 {
+					return rootcli.UsageErrorf("resource acquisition prune", "resource acquisition prune accepts at most one resource name")
+				}
+				names := make([]string, 0, 1)
+				if len(args) == 1 && strings.TrimSpace(args[0]) != "" {
+					names = append(names, strings.TrimSpace(args[0]))
+				} else {
+					items, err := controller.Discover()
+					if err != nil {
+						return err
+					}
+					for _, item := range items {
+						manifest, err := controller.LoadManifest(filepath.Join(controller.Root, "resources", item.Name, "resource.json"))
+						if err == nil && manifest.ManagedService != nil && manifest.ManagedService.Acquisition != nil {
+							names = append(names, item.Name)
+						}
+					}
+				}
+				removed := 0
+				for _, name := range names {
+					count, err := controller.PruneManagedServiceArtifacts(name)
+					if err != nil {
+						return err
+					}
+					removed += count
+				}
+				_, err := fmt.Fprintf(deps.Stdout(ctx), "pruned %d superseded artifact version(s)\n", removed)
+				return err
+			},
+		},
+	}
+}
+
 func showResourceHelp(w io.Writer) {
 	resourcecli.RenderCommandHelp(w, "", "vrooli resource <subcommand> [options]", "Resource Management", resourcecli.CommandSpecs())
 }
@@ -508,6 +592,10 @@ func showResourceSchemaHelp(w io.Writer) {
 	resourcecli.RenderCommandHelp(w, "", "vrooli resource schema <subcommand> [options]", "Resource Schema", resourcecli.SchemaCommandSpecs())
 }
 
+func showResourceAcquisitionHelp(w io.Writer) {
+	resourcecli.RenderCommandHelp(w, "", "vrooli resource acquisition <subcommand> [options]", "Resource Acquisition", resourcecli.AcquisitionCommandSpecs())
+}
+
 type resourceStatusResponse struct {
 	Item     *resources.Status
 	Items    []resources.Status
@@ -522,6 +610,56 @@ type resourceListResponse struct {
 type resourceBlueprintSearchResponse struct {
 	Query string
 	Items []resources.Blueprint
+}
+
+type resourceAcquisitionExplanation struct {
+	Resource       string                              `json:"resource"`
+	Facts          map[string]string                   `json:"facts"`
+	FactProvenance map[string]hostinventory.Provenance `json:"fact_provenance,omitempty"`
+	Acquisition    *binaryfetch.Acquisition            `json:"acquisition,omitempty"`
+	Resolution     binaryfetch.ResolutionExplanation   `json:"resolution,omitempty"`
+}
+
+func acquisitionFactProvenance(snapshot hostinventory.Snapshot) map[string]hostinventory.Provenance {
+	result := map[string]hostinventory.Provenance{}
+	for _, key := range []string{"os", "arch"} {
+		if provenance, ok := snapshot.FieldProvenance[key]; ok {
+			result[key] = provenance
+		}
+	}
+	if provenance, ok := snapshot.FieldProvenance["gpus.cuda_compute_capability"]; ok {
+		result["gpu.cuda_compute"] = provenance
+	}
+	return result
+}
+
+func writeResourceAcquisitionExplanation(w io.Writer, format cliout.Format, result resourceAcquisitionExplanation) error {
+	if format == cliout.FormatJSON {
+		return cliout.WriteJSON(w, result)
+	}
+	_, _ = fmt.Fprintf(w, "Resource: %s\n", result.Resource)
+	_, _ = fmt.Fprintln(w, "Facts:")
+	for key, value := range result.Facts {
+		_, _ = fmt.Fprintf(w, "- %s=%s\n", key, value)
+	}
+	if result.Acquisition == nil {
+		_, _ = fmt.Fprintln(w, "Acquisition: not declared")
+		return nil
+	}
+	_, _ = fmt.Fprintln(w, "Candidates:")
+	for _, candidate := range result.Resolution.Candidates {
+		selection := ""
+		if candidate.Selected {
+			selection = " [selected]"
+		}
+		_, _ = fmt.Fprintf(w, "- #%d when=%v: %s%s\n", candidate.Index, candidate.When, candidate.Reason, selection)
+	}
+	if result.Resolution.Selected >= 0 {
+		_, _ = fmt.Fprintf(w, "Selected candidate: #%d\n", result.Resolution.Selected)
+	} else {
+		_, _ = fmt.Fprintln(w, "Selected candidate: none")
+	}
+	return nil
 }
 
 func newResourceCommandService[C any](deps HandlerDeps[C], ctx C, controller *resources.Controller) resourceapp.Service {

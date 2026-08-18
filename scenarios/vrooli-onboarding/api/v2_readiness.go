@@ -14,24 +14,28 @@ import (
 )
 
 type credentialReadiness struct {
-	Resource    string `json:"resource"`
-	LogicalID   string `json:"logical_id"`
-	Field       string `json:"field"`
-	Label       string `json:"label"`
-	Description string `json:"description,omitempty"`
-	ObtainURL   string `json:"obtain_url,omitempty"`
-	Required    bool   `json:"required"`
-	Status      string `json:"status"`
-	Detail      string `json:"detail,omitempty"`
+	Resource     string `json:"resource"`
+	LogicalID    string `json:"logical_id"`
+	Field        string `json:"field"`
+	Label        string `json:"label"`
+	Description  string `json:"description,omitempty"`
+	ObtainURL    string `json:"obtain_url,omitempty"`
+	Provisioning string `json:"provisioning,omitempty"`
+	DerivedFrom  string `json:"derived_from,omitempty"`
+	Required     bool   `json:"required"`
+	Status       string `json:"status"`
+	Detail       string `json:"detail,omitempty"`
 }
 
 type readinessCredentialDescriptor struct {
-	LogicalID   string `json:"logical_id"`
-	Field       string `json:"field"`
-	Label       string `json:"label"`
-	Description string `json:"description"`
-	ObtainURL   string `json:"obtain_url"`
-	Required    bool   `json:"required"`
+	LogicalID    string `json:"logical_id"`
+	Field        string `json:"field"`
+	Label        string `json:"label"`
+	Description  string `json:"description"`
+	ObtainURL    string `json:"obtain_url"`
+	Required     bool   `json:"required"`
+	Provisioning string `json:"provisioning,omitempty"`
+	DerivedFrom  string `json:"derived_from,omitempty"`
 }
 
 type readinessResponse struct {
@@ -190,7 +194,7 @@ func credentialReadinessForDescriptors(owner string, descriptors []readinessCred
 		if field == "" {
 			field = "value"
 		}
-		item := credentialReadiness{Resource: owner, LogicalID: descriptor.LogicalID, Field: field, Label: descriptor.Label, Description: descriptor.Description, ObtainURL: descriptor.ObtainURL, Required: descriptor.Required, Status: "unconfigured"}
+		item := credentialReadiness{Resource: owner, LogicalID: descriptor.LogicalID, Field: field, Label: descriptor.Label, Description: descriptor.Description, ObtainURL: descriptor.ObtainURL, Required: descriptor.Required, Provisioning: descriptor.Provisioning, DerivedFrom: descriptor.DerivedFrom, Status: "unconfigured"}
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		output, statusErr := credentialStatusCommand(ctx, descriptor.LogicalID, field)
 		cancel()
@@ -284,7 +288,7 @@ func (s *Server) handleV2Readiness(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case credential.Status == "unsupported":
 			response.Status = lessReady(response.Status, "unsupported")
-		case credential.Required && credential.Status != "configured":
+		case credential.Required && credential.Provisioning != "derived" && credential.Status != "configured":
 			response.Status = lessReady(response.Status, "missing")
 		case !credential.Required && credential.Status != "configured":
 			response.Status = lessReady(response.Status, "degraded")

@@ -38,7 +38,7 @@ internal state shape:
 {
   "scenarios": ["swarm-manager", "browser-automation-studio"],
   "optional_resources": ["ollama"],
-  "host": { "tools": ["cloudflared"], "safeguards": ["kernel_config"] },
+  "host": { "tools": ["scenario-tool"], "safeguards": ["kernel_config"] },
   "operating_mode": { "swarm-manager": { "auto_restart": true } },
   "apply": true
 }

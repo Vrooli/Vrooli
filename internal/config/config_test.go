@@ -1,7 +1,7 @@
 package config
 
 import (
-	"os"
+	osuser "os/user"
 	"path/filepath"
 	"testing"
 )
@@ -35,22 +35,22 @@ func TestTemplateBaseDirResolvesRelativeOverride(t *testing.T) {
 	}
 }
 
-func TestHomeDirFallsBackToUserHomeDir(t *testing.T) {
+func TestHomeDirFallsBackToCurrentUserHomeDir(t *testing.T) {
 	t.Setenv("HOME", "")
 
-	want, wantErr := os.UserHomeDir()
+	current, currentErr := osuser.Current()
 	home, err := HomeDir()
-	if wantErr != nil {
-		if err == nil || err.Error() != wantErr.Error() {
-			t.Fatalf("HomeDir error = %v, want %v", err, wantErr)
+	if currentErr != nil {
+		if err == nil {
+			t.Fatal("HomeDir unexpectedly succeeded when the current user cannot be resolved")
 		}
 		return
 	}
 	if err != nil {
 		t.Fatalf("HomeDir: %v", err)
 	}
-	if home != want {
-		t.Fatalf("home = %q, want %q", home, want)
+	if home != current.HomeDir {
+		t.Fatalf("home = %q, want current user's home %q", home, current.HomeDir)
 	}
 }
 

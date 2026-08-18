@@ -8,7 +8,9 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/vrooli/binaryfetch"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
+	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
 )
 
 var digestPattern = regexp.MustCompile(`@sha256:[0-9a-fA-F]{64}$`)
@@ -28,6 +30,14 @@ func CheckFleetContract(root string) error {
 		}
 		name := entry.Name()
 		manifestPath := filepath.Join(resourceRoot, name, "resource.json")
+		if _, statErr := os.Stat(manifestPath); os.IsNotExist(statErr) {
+			// Active resource discovery is manifest-backed. Resource-local
+			// prototypes may live beside published resources without becoming
+			// fleet-contract subjects before they have an honest manifest.
+			continue
+		} else if statErr != nil {
+			return fmt.Errorf("inspect resource %s manifest: %w", name, statErr)
+		}
 		manifest, err := manifestpkg.Load(manifestPath)
 		if err != nil {
 			return fmt.Errorf("load resource %s: %w", name, err)
@@ -44,7 +54,7 @@ func CheckFleetContract(root string) error {
 		if err := checkManifestCommands(name, manifest.Install.Command, manifest.Install.Platforms); err != nil {
 			return err
 		}
-		if err := checkManagedArtifact(name, manifest.ManagedService); err != nil {
+		if err := checkManagedArtifact(name, manifest); err != nil {
 			return err
 		}
 		if err := checkCapabilityContract(root, name); err != nil {
@@ -69,16 +79,71 @@ func checkHealthKinds(name string, checks []manifestpkg.ResourceHealthCheck) err
 	return nil
 }
 
-func checkManagedArtifact(name string, service *manifestpkg.ResourceManagedService) error {
+func checkManagedArtifact(name string, manifest manifestpkg.ResourceManifest) error {
+	service := manifest.ManagedService
 	if service == nil {
 		return nil
 	}
-	required := []string{"linux-amd64", "linux-arm64", "macos-amd64", "macos-arm64", "windows-amd64"}
-	for _, platform := range required {
-		checksum := service.Artifact.SHA256ByPlatform[platform]
-		if !regexp.MustCompile(`^[0-9a-fA-F]{64}$`).MatchString(checksum) {
-			return fmt.Errorf("resource %s managed artifact is missing a sha256 checksum for %s", name, platform)
+	for _, osName := range []string{"linux", "macos", "windows"} {
+		target, found := manifest.Deployment.Target("desktop", osName, "")
+		if !found {
+			return fmt.Errorf("resource %s deployment profile does not declare %s", name, osName)
 		}
+		if target.Support == "unsupported" {
+			if strings.TrimSpace(target.Reason) == "" {
+				return fmt.Errorf("resource %s unsupported %s target has no reason", name, osName)
+			}
+			continue
+		}
+		if manifest.Bundling == "host-required" && strings.HasPrefix(target.Mode, "bundled-") {
+			return fmt.Errorf("resource %s claims host-required bundling but desktop mode %s ships an artifact", name, target.Mode)
+		}
+		if service.Acquisition == nil {
+			return fmt.Errorf("resource %s managed artifact has no acquisition contract for claimed %s", name, osName)
+		}
+		if manifest.Bundling == "vendorable" {
+			for index, candidate := range service.Acquisition.Targets {
+				if !binaryfetch.UsesOnlyBuildTimeFacts(candidate) {
+					return fmt.Errorf("resource %s vendorable acquisition target %d for %s uses runtime facts", name, index, osName)
+				}
+			}
+		}
+		for _, arch := range target.Architectures {
+			platform, err := resourcedeployment.ParsePlatform(osName + "-" + arch)
+			if err != nil {
+				return err
+			}
+			factsOS := platform.OS
+			if factsOS == "macos" {
+				factsOS = "darwin"
+			}
+			acquired, err := service.Acquisition.Resolve(binaryfetch.Facts{"os": factsOS, "arch": arch})
+			if err != nil {
+				return fmt.Errorf("resource %s acquisition does not cover %s: %w", name, platform, err)
+			}
+			if acquired.Unsupported != "" {
+				return fmt.Errorf("resource %s claims %s but acquisition says unsupported: %s", name, platform, acquired.Unsupported)
+			}
+			if strings.EqualFold(strings.TrimSpace(service.Artifact.Verification), "host-tool") {
+				if service.Acquisition.Kind != "none" || strings.TrimSpace(acquired.Executable) == "" || acquired.Executable != service.Artifact.Path {
+					return fmt.Errorf("resource %s host-tool artifact for %s must adopt artifact path %q through acquisition kind none", name, platform, service.Artifact.Path)
+				}
+				continue
+			}
+			artifact, err := service.Artifact.ForPlatform(osName, arch)
+			if err != nil {
+				return fmt.Errorf("resource %s managed artifact %s: %w", name, platform, err)
+			}
+			if acquired.Layout != "dir" && acquired.Archive == "none" && !strings.EqualFold(strings.TrimSpace(acquired.SHA256), strings.TrimSpace(artifact.SHA256)) {
+				return fmt.Errorf("resource %s download/artifact digest mismatch for %s", name, platform)
+			}
+			if !binaryfetch.UsesOnlyBuildTimeFacts(acquired) && manifest.Bundling == "vendorable" {
+				return fmt.Errorf("resource %s vendorable acquisition for %s uses runtime facts", name, platform)
+			}
+		}
+	}
+	if manifest.GPU != nil {
+		return fmt.Errorf("resource %s managed-service retains obsolete gpu block", name)
 	}
 	return nil
 }

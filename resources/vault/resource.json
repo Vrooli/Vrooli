@@ -92,6 +92,8 @@
   "template": "managed-service",
   "driver": "managed-service",
   "managed_service": {
+    "artifact_role": "managed-service",
+    "provenance_class": "hashicorp-checksum-signature-verified",
     "provider_policy": {
       "target_defaults": {
         "control-plane": "managed-shared",

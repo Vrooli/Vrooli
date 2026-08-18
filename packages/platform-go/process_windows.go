@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strings"
 	"syscall"
 	"unsafe"
 
@@ -120,3 +121,24 @@ func pidIsAlive(pid int) bool {
 func readProcessEnvironment(int) (map[string]string, error) {
 	return nil, fmt.Errorf("platform: process environment inspection is not supported on Windows")
 }
+
+// processCommandLine asks WMI through PowerShell, the supported way to read
+// another process's command line on Windows without a native query.
+func processCommandLine(pid int) (string, error) {
+	if pid <= 0 {
+		return "", fmt.Errorf("platform: invalid pid %d", pid)
+	}
+	query := fmt.Sprintf("(Get-CimInstance Win32_Process -Filter 'ProcessId = %d').CommandLine", pid)
+	output, err := exec.Command("powershell.exe", "-NoProfile", "-NonInteractive", "-Command", query).Output()
+	if err != nil {
+		return "", fmt.Errorf("platform: read command line for pid %d: %w", pid, err)
+	}
+	command := strings.TrimSpace(string(output))
+	if command == "" {
+		return "", fmt.Errorf("platform: pid %d exposes no command line", pid)
+	}
+	return command, nil
+}
+
+// processScope reports empty: a Job Object has no stable name to record.
+func processScope(int) (string, error) { return "", nil }

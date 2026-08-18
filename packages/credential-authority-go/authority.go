@@ -18,9 +18,10 @@ package credentialauthority
 
 import (
 	"fmt"
+	"path/filepath"
+
 	"github.com/vrooli/vrooli/internal/resources/securestore"
 	"github.com/vrooli/vrooli/internal/secrets"
-	"path/filepath"
 )
 
 type (

@@ -33,11 +33,9 @@ func releaseManifest(name string, requires *hostreqspec.CapabilityRequirement) h
 		Commands:    []string{name},
 		VersionArgs: []string{"--version"},
 		Requires:    requires,
-		Source: &hostreqkit.ToolSource{
-			Type: "release",
-			Targets: map[string]hostreqkit.ToolSourceTarget{
-				"linux/amd64": {URL: "https://example.test/" + name + ".tar.gz", SHA256: "deadbeef", Archive: "tar.gz", BinPath: "bin/" + name},
-			},
+		Acquisition: &hostreqkit.ToolSource{
+			Kind:    "url",
+			Targets: []hostreqkit.ToolSourceTarget{{When: map[string]string{"os": "linux", "arch": "amd64"}, URL: "https://example.test/" + name + ".tar.gz", SHA256: "deadbeef", Archive: "tar.gz", BinPath: "bin/" + name}},
 		},
 	}
 }
@@ -104,10 +102,10 @@ func bufManifest(t *testing.T) hostreqkit.ToolManifest {
 func TestBufManifestUsesVerifiedGenericReleaseTargets(t *testing.T) {
 	manifest := bufManifest(t)
 	if manifest.Handler != "" {
-		t.Fatalf("buf handler = %q; generic runtime handler must own release installation", manifest.Handler)
+		t.Fatalf("buf handler = %q; generic runtime handler must own URL acquisition", manifest.Handler)
 	}
-	if manifest.Source == nil || manifest.Source.Type != "release" {
-		t.Fatalf("buf source = %#v; want verified release source", manifest.Source)
+	if manifest.Acquisition == nil || manifest.Acquisition.Kind != "url" {
+		t.Fatalf("buf acquisition = %#v; want verified URL source", manifest.Acquisition)
 	}
 	for target, wantURLFragment := range map[string]string{
 		"linux/amd64":  "buf-Linux-x86_64",
@@ -115,17 +113,18 @@ func TestBufManifestUsesVerifiedGenericReleaseTargets(t *testing.T) {
 		"darwin/amd64": "buf-Darwin-x86_64",
 		"darwin/arm64": "buf-Darwin-arm64",
 	} {
-		spec, ok := manifest.Source.Targets[target]
+		parts := strings.SplitN(target, "/", 2)
+		spec, ok := hostreqkit.TargetFor(manifest.Acquisition, parts[0], parts[1])
 		if !ok {
-			t.Errorf("missing required Buf release target %q", target)
+			t.Errorf("missing required Buf acquisition target %q", target)
 			continue
 		}
 		if !strings.Contains(spec.URL, wantURLFragment) || len(spec.SHA256) != 64 {
-			t.Errorf("target %s = %#v; want release URL and SHA-256", target, spec)
+			t.Errorf("target %s = %#v; want URL and SHA-256", target, spec)
 		}
 	}
-	if _, ok := manifest.Source.Targets["darwin/386"]; ok {
-		t.Fatal("unsupported Darwin architecture must not silently select a release")
+	if _, ok := hostreqkit.TargetFor(manifest.Acquisition, "darwin", "386"); ok {
+		t.Fatal("unsupported Darwin architecture must not silently select an acquisition target")
 	}
 }
 
@@ -384,11 +383,9 @@ func dirReleaseManifest(name string) hostreqkit.ToolManifest {
 		Description: "test dir backend",
 		Commands:    []string{name},
 		VersionArgs: []string{"--help"},
-		Source: &hostreqkit.ToolSource{
-			Type: "release",
-			Targets: map[string]hostreqkit.ToolSourceTarget{
-				"linux/amd64": {URL: "https://example.test/" + name + ".zip", SHA256: "deadbeef", Archive: "zip", Layout: "dir", BinPath: name + "-cli"},
-			},
+		Acquisition: &hostreqkit.ToolSource{
+			Kind:    "url",
+			Targets: []hostreqkit.ToolSourceTarget{{When: map[string]string{"os": "linux", "arch": "amd64"}, URL: "https://example.test/" + name + ".zip", SHA256: "deadbeef", Archive: "zip", Layout: "dir", BinPath: name + "-cli"}},
 		},
 	}
 }
@@ -600,7 +597,7 @@ func TestFetchToolRepairsLauncherMissingDeclaredRuntimeEnvironment(t *testing.T)
 
 	manifest := dirReleaseManifest(fetchTestTool)
 	manifest.Version = "1.25.12"
-	manifest.Source.Targets["linux/amd64"] = hostreqkit.ToolSourceTarget{
+	manifest.Acquisition.Targets[0] = hostreqkit.ToolSourceTarget{
 		URL: "https://example.test/tool.zip", SHA256: "deadbeef", Archive: "zip", Layout: "dir", BinPath: "go/bin/go", RuntimeEnv: map[string]string{"GOROOT": "go"},
 	}
 	entry := filepath.Join(optRoot, fetchTestTool, "go/bin/go")

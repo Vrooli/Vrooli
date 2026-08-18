@@ -28,7 +28,7 @@ func loadToolSchema(t *testing.T) *jsonschema.Schema {
 	schemaDir := filepath.Clean(filepath.Join(filepath.Dir(currentFile), "..", "..", ".vrooli", "schemas"))
 
 	compiler := jsonschema.NewCompiler()
-	for _, name := range []string{"common.schema.json", "tool.schema.json"} {
+	for _, name := range []string{"common.schema.json", "acquisition.schema.json", "tool.schema.json"} {
 		data, err := os.ReadFile(filepath.Join(schemaDir, name))
 		if err != nil {
 			t.Fatalf("read %s: %v", name, err)
@@ -50,14 +50,14 @@ func TestReleaseManifestsDeclareLinuxArm64RouteOrUnsupportedReason(t *testing.T)
 		if err := json.Unmarshal(data, &manifest); err != nil {
 			t.Fatalf("parse %s: %v", path, err)
 		}
-		if manifest.SourceType() != "release" || manifest.Source == nil || len(manifest.Source.Targets) == 0 {
+		if manifest.SourceType() != "url" || manifest.Acquisition == nil || len(manifest.Acquisition.Targets) == 0 {
 			continue
 		}
-		if _, ok := manifest.Source.TargetFor("linux", "arm64"); ok {
+		if _, ok := hostreqkit.TargetFor(manifest.Acquisition, "linux", "arm64"); ok {
 			continue
 		}
-		if reason, ok := manifest.Source.UnsupportedFor("linux", "arm64"); !ok || strings.TrimSpace(reason) == "" {
-			t.Errorf("%s declares release targets but neither linux/arm64 nor an unsupported reason", path)
+		if reason, ok := hostreqkit.UnsupportedFor(manifest.Acquisition, "linux", "arm64"); !ok || strings.TrimSpace(reason) == "" {
+			t.Errorf("%s declares URL targets but neither linux/arm64 nor an unsupported reason", path)
 		}
 	}
 }
@@ -94,17 +94,17 @@ func validateAgainst(t *testing.T, schema *jsonschema.Schema, raw string) error 
 	return schema.Validate(payload)
 }
 
-// TestToolSchemaAcceptsSourceTypes confirms the additive source/requires schema
-// accepts a package (implicit), url, and release manifest.
-func TestToolSchemaAcceptsSourceTypes(t *testing.T) {
+// TestToolSchemaAcceptsAcquisitionTypes confirms the acquisition/requires schema
+// accepts a package (implicit), URL, and directory-layout manifest.
+func TestToolSchemaAcceptsAcquisitionTypes(t *testing.T) {
 	schema := loadToolSchema(t)
 	sha := "1111111111111111111111111111111111111111111111111111111111111111"
 
 	cases := map[string]string{
 		"package-implicit": `{"name":"jq","description":"x","commands":["jq"],"versionArgs":["--version"],"defaultPackage":"jq","bundling":"host-required","capability":"developer-utility","capability_role":"primary"}`,
-		"url":              `{"name":"t","description":"x","commands":["t"],"versionArgs":["-v"],"bundling":"vendorable","capability":"developer-utility","capability_role":"peer","source":{"type":"url","targets":{"linux/amd64":{"url":"https://e/t","sha256":"` + sha + `"}}}}`,
-		"release":          `{"name":"sd","description":"x","commands":["sd"],"versionArgs":["--help"],"bundling":"vendorable","capability":"developer-utility","capability_role":"primary","source":{"type":"release","targets":{"linux/amd64":{"url":"https://e/sd.tar.gz","sha256":"` + sha + `","archive":"tar.gz","binPath":"bin/sd","mode":"0755"}}},"requires":{"gpu":true,"minVramGb":4,"arch":["amd64"],"minRamGb":8}}`,
-		"hybrid":           `{"name":"yq","description":"x","commands":["yq"],"versionArgs":["--version"],"bundling":"vendorable","capability":"developer-utility","capability_role":"primary","packages":{"brew":"yq","winget":"MikeF.yq"},"source":{"type":"release","targets":{"linux/amd64":{"url":"https://e/yq","sha256":"` + sha + `"}}}}`,
+		"url":              `{"name":"t","description":"x","commands":["t"],"versionArgs":["-v"],"bundling":"vendorable","capability":"developer-utility","capability_role":"peer","acquisition":{"kind":"url","targets":[{"when":{"os":"linux","arch":"amd64"},"url":"https://e/t","sha256":"` + sha + `"}]}}`,
+		"dir-layout":       `{"name":"sd","description":"x","commands":["sd"],"versionArgs":["--help"],"bundling":"vendorable","capability":"developer-utility","capability_role":"primary","acquisition":{"kind":"url","targets":[{"when":{"os":"linux","arch":"amd64"},"url":"https://e/sd.tar.gz","sha256":"` + sha + `","archive":"tar.gz","layout":"dir","bin_path":"bin/sd","mode":"0755"}]},"requires":{"gpu":true,"minVramGb":4,"arch":["amd64"],"minRamGb":8}}`,
+		"hybrid":           `{"name":"yq","description":"x","commands":["yq"],"versionArgs":["--version"],"bundling":"vendorable","capability":"developer-utility","capability_role":"primary","packages":{"brew":"yq","winget":"MikeF.yq"},"acquisition":{"kind":"url","targets":[{"when":{"os":"linux","arch":"amd64"},"url":"https://e/yq","sha256":"` + sha + `"}]}}`,
 	}
 	for name, raw := range cases {
 		if err := validateAgainst(t, schema, raw); err != nil {
@@ -113,19 +113,19 @@ func TestToolSchemaAcceptsSourceTypes(t *testing.T) {
 	}
 }
 
-// TestToolSchemaRejectsBadSource confirms the schema enforces the security-
+// TestToolSchemaRejectsBadAcquisition confirms the schema enforces the security-
 // sensitive invariants: mandatory 64-hex sha256, known archive enum, known
 // source type.
-func TestToolSchemaRejectsBadSource(t *testing.T) {
+func TestToolSchemaRejectsBadAcquisition(t *testing.T) {
 	schema := loadToolSchema(t)
 	sha := "1111111111111111111111111111111111111111111111111111111111111111"
 
 	bad := map[string]string{
-		"missing-sha256":   `{"name":"t","description":"x","commands":["t"],"versionArgs":["-v"],"source":{"type":"url","targets":{"linux/amd64":{"url":"https://e/t"}}}}`,
-		"short-sha256":     `{"name":"t","description":"x","commands":["t"],"versionArgs":["-v"],"source":{"type":"url","targets":{"linux/amd64":{"url":"https://e/t","sha256":"abc"}}}}`,
-		"unknown-type":     `{"name":"t","description":"x","commands":["t"],"versionArgs":["-v"],"source":{"type":"git","targets":{"linux/amd64":{"url":"https://e/t","sha256":"` + sha + `"}}}}`,
-		"bad-archive":      `{"name":"t","description":"x","commands":["t"],"versionArgs":["-v"],"source":{"type":"url","targets":{"linux/amd64":{"url":"https://e/t","sha256":"` + sha + `","archive":"rar"}}}}`,
-		"bad-target-key":   `{"name":"t","description":"x","commands":["t"],"versionArgs":["-v"],"source":{"type":"url","targets":{"linux":{"url":"https://e/t","sha256":"` + sha + `"}}}}`,
+		"missing-sha256":   `{"name":"t","description":"x","commands":["t"],"versionArgs":["-v"],"acquisition":{"kind":"url","targets":[{"url":"https://e/t"}]}}`,
+		"short-sha256":     `{"name":"t","description":"x","commands":["t"],"versionArgs":["-v"],"acquisition":{"kind":"url","targets":[{"url":"https://e/t","sha256":"abc"}]}}`,
+		"unknown-type":     `{"name":"t","description":"x","commands":["t"],"versionArgs":["-v"],"acquisition":{"kind":"git","targets":[{"url":"https://e/t","sha256":"` + sha + `"}]}}`,
+		"bad-archive":      `{"name":"t","description":"x","commands":["t"],"versionArgs":["-v"],"acquisition":{"kind":"url","targets":[{"url":"https://e/t","sha256":"` + sha + `","archive":"rar"}]}}`,
+		"bad-target-key":   `{"name":"t","description":"x","commands":["t"],"versionArgs":["-v"],"acquisition":{"kind":"url","targets":[{"when":"linux","url":"https://e/t","sha256":"` + sha + `"}]}}`,
 		"unknown-property": `{"name":"t","description":"x","commands":["t"],"versionArgs":["-v"],"requires":{"cpu":true}}`,
 	}
 	for name, raw := range bad {

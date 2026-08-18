@@ -5,9 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	clitest "github.com/vrooli/cli-core/cliapptest"
-
 	"github.com/vrooli/cli-core/cliapp"
+	clitest "github.com/vrooli/cli-core/cliapptest"
 	localtest "vrooli-onboarding/cli/internal/testutil"
 )
 

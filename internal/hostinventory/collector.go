@@ -157,6 +157,8 @@ func (c Collector) Collect(ctx context.Context) (Snapshot, error) {
 	c.collectWindowsGPUs(ctx, &snap, now)
 	c.collectDockerGPU(ctx, &snap, now)
 	c.collectAppleSiliconGPU(&snap, now)
+	c.collectAppleToolchain(ctx, &snap, now)
+	c.collectAndroidToolchain(ctx, &snap, now)
 	return snap, nil
 }
 
@@ -316,6 +318,7 @@ func (c Collector) collectNvidiaGPUs(ctx context.Context, snap *Snapshot, observ
 		return
 	}
 	snap.GPUs = append(snap.GPUs, gpus...)
+	c.collectNvidiaComputeCapabilities(ctx, snap, observedAt)
 	if snap.OS == "linux" {
 		snap.NvidiaDeviceNodes = linuxNvidiaDeviceNodes()
 	}
@@ -329,6 +332,30 @@ func (c Collector) collectNvidiaGPUs(ctx context.Context, snap *Snapshot, observ
 		Command:    "nvidia-smi " + query + " --format=csv,noheader,nounits",
 	}
 	c.collectNvidiaGPUProcesses(ctx, snap, observedAt)
+}
+
+func (c Collector) collectNvidiaComputeCapabilities(ctx context.Context, snap *Snapshot, observedAt time.Time) {
+	const query = "--query-gpu=index,compute_cap"
+	out, err := c.Commands.Run(ctx, "nvidia-smi", query, "--format=csv,noheader,nounits")
+	if err != nil {
+		snap.Warnings = append(snap.Warnings, fmt.Sprintf("nvidia-smi query compute capability: %v", err))
+		snap.ProbeStatuses["nvidia_gpu_compute_capability"] = "failed"
+		return
+	}
+	capabilities := ParseNvidiaComputeCapabilityCSV(string(out))
+	for index := range snap.GPUs {
+		if capability, ok := capabilities[snap.GPUs[index].Index]; ok {
+			snap.GPUs[index].CUDAComputeCapability = capability
+		}
+	}
+	snap.ProbeStatuses["nvidia_gpu_compute_capability"] = "ok"
+	snap.FieldProvenance["gpus.cuda_compute_capability"] = Provenance{
+		SourceKind: SourceKindCommand,
+		Source:     "nvidia-smi",
+		ObservedAt: observedAt,
+		Confidence: "high",
+		Command:    "nvidia-smi " + query + " --format=csv,noheader,nounits",
+	}
 }
 
 func linuxNvidiaDeviceNodes() []string {

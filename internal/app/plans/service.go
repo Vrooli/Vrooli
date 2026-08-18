@@ -3,7 +3,6 @@ package plans
 import (
 	"context"
 	"fmt"
-	"os"
 	"time"
 )
 
@@ -144,18 +143,4 @@ func (s Service) mirrorReader() MirrorFallbackReader {
 		return s.MirrorReader
 	}
 	return OSMirrorFallbackReader{Home: s.Home, Now: s.Now, ReadFile: s.ReadFile}
-}
-
-func (s Service) now() time.Time {
-	if s.Now != nil {
-		return s.Now().UTC()
-	}
-	return time.Now().UTC()
-}
-
-func (s Service) readFile(path string) ([]byte, error) {
-	if s.ReadFile != nil {
-		return s.ReadFile(path)
-	}
-	return os.ReadFile(path)
 }

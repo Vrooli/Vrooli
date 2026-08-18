@@ -156,7 +156,7 @@ class ListResponse(_message.Message):
     def __init__(self, sessions: _Optional[_Iterable[_Union[Session, _Mapping]]] = ..., recovery: _Optional[_Union[RecoveryStatus, _Mapping]] = ...) -> None: ...
 
 class ArchivedSession(_message.Message):
-    __slots__ = ("id", "archived_at", "created_at", "agent_type", "agent_session_id", "cwd", "pane_name", "header_color", "group_name", "message_count", "restore_state", "restore_state_reason")
+    __slots__ = ("id", "archived_at", "created_at", "agent_type", "agent_session_id", "cwd", "pane_name", "header_color", "group_name", "message_count", "restore_state", "restore_state_reason", "awaiting_recovery")
     ID_FIELD_NUMBER: _ClassVar[int]
     ARCHIVED_AT_FIELD_NUMBER: _ClassVar[int]
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
@@ -169,6 +169,7 @@ class ArchivedSession(_message.Message):
     MESSAGE_COUNT_FIELD_NUMBER: _ClassVar[int]
     RESTORE_STATE_FIELD_NUMBER: _ClassVar[int]
     RESTORE_STATE_REASON_FIELD_NUMBER: _ClassVar[int]
+    AWAITING_RECOVERY_FIELD_NUMBER: _ClassVar[int]
     id: str
     archived_at: str
     created_at: str
@@ -181,7 +182,8 @@ class ArchivedSession(_message.Message):
     message_count: int
     restore_state: ArchiveRestoreState
     restore_state_reason: str
-    def __init__(self, id: _Optional[str] = ..., archived_at: _Optional[str] = ..., created_at: _Optional[str] = ..., agent_type: _Optional[str] = ..., agent_session_id: _Optional[str] = ..., cwd: _Optional[str] = ..., pane_name: _Optional[str] = ..., header_color: _Optional[str] = ..., group_name: _Optional[str] = ..., message_count: _Optional[int] = ..., restore_state: _Optional[_Union[ArchiveRestoreState, str]] = ..., restore_state_reason: _Optional[str] = ...) -> None: ...
+    awaiting_recovery: bool
+    def __init__(self, id: _Optional[str] = ..., archived_at: _Optional[str] = ..., created_at: _Optional[str] = ..., agent_type: _Optional[str] = ..., agent_session_id: _Optional[str] = ..., cwd: _Optional[str] = ..., pane_name: _Optional[str] = ..., header_color: _Optional[str] = ..., group_name: _Optional[str] = ..., message_count: _Optional[int] = ..., restore_state: _Optional[_Union[ArchiveRestoreState, str]] = ..., restore_state_reason: _Optional[str] = ..., awaiting_recovery: _Optional[bool] = ...) -> None: ...
 
 class ListArchivedRequest(_message.Message):
     __slots__ = ()
@@ -300,6 +302,94 @@ class RecoverResponse(_message.Message):
     command_sent: str
     codex_home_copied: bool
     def __init__(self, old_session_id: _Optional[str] = ..., new_session_id: _Optional[str] = ..., agent_type: _Optional[str] = ..., command_sent: _Optional[str] = ..., codex_home_copied: _Optional[bool] = ...) -> None: ...
+
+class ReopenRequest(_message.Message):
+    __slots__ = ("id",)
+    ID_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    def __init__(self, id: _Optional[str] = ...) -> None: ...
+
+class ReopenResponse(_message.Message):
+    __slots__ = ("old_session_id", "new_session_id", "agent_type", "command_sent", "codex_home_copied")
+    OLD_SESSION_ID_FIELD_NUMBER: _ClassVar[int]
+    NEW_SESSION_ID_FIELD_NUMBER: _ClassVar[int]
+    AGENT_TYPE_FIELD_NUMBER: _ClassVar[int]
+    COMMAND_SENT_FIELD_NUMBER: _ClassVar[int]
+    CODEX_HOME_COPIED_FIELD_NUMBER: _ClassVar[int]
+    old_session_id: str
+    new_session_id: str
+    agent_type: str
+    command_sent: str
+    codex_home_copied: bool
+    def __init__(self, old_session_id: _Optional[str] = ..., new_session_id: _Optional[str] = ..., agent_type: _Optional[str] = ..., command_sent: _Optional[str] = ..., codex_home_copied: _Optional[bool] = ...) -> None: ...
+
+class ArchiveRetentionPolicy(_message.Message):
+    __slots__ = ("message_less_age_days", "agent_home_age_days", "max_bytes")
+    MESSAGE_LESS_AGE_DAYS_FIELD_NUMBER: _ClassVar[int]
+    AGENT_HOME_AGE_DAYS_FIELD_NUMBER: _ClassVar[int]
+    MAX_BYTES_FIELD_NUMBER: _ClassVar[int]
+    message_less_age_days: int
+    agent_home_age_days: int
+    max_bytes: int
+    def __init__(self, message_less_age_days: _Optional[int] = ..., agent_home_age_days: _Optional[int] = ..., max_bytes: _Optional[int] = ...) -> None: ...
+
+class ArchiveRetentionStats(_message.Message):
+    __slots__ = ("entry_count", "message_count", "transcript_bytes", "agent_home_bytes", "total_bytes")
+    ENTRY_COUNT_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_COUNT_FIELD_NUMBER: _ClassVar[int]
+    TRANSCRIPT_BYTES_FIELD_NUMBER: _ClassVar[int]
+    AGENT_HOME_BYTES_FIELD_NUMBER: _ClassVar[int]
+    TOTAL_BYTES_FIELD_NUMBER: _ClassVar[int]
+    entry_count: int
+    message_count: int
+    transcript_bytes: int
+    agent_home_bytes: int
+    total_bytes: int
+    def __init__(self, entry_count: _Optional[int] = ..., message_count: _Optional[int] = ..., transcript_bytes: _Optional[int] = ..., agent_home_bytes: _Optional[int] = ..., total_bytes: _Optional[int] = ...) -> None: ...
+
+class GetArchiveRetentionRequest(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class GetArchiveRetentionResponse(_message.Message):
+    __slots__ = ("policy", "stats")
+    POLICY_FIELD_NUMBER: _ClassVar[int]
+    STATS_FIELD_NUMBER: _ClassVar[int]
+    policy: ArchiveRetentionPolicy
+    stats: ArchiveRetentionStats
+    def __init__(self, policy: _Optional[_Union[ArchiveRetentionPolicy, _Mapping]] = ..., stats: _Optional[_Union[ArchiveRetentionStats, _Mapping]] = ...) -> None: ...
+
+class PruneArchiveRequest(_message.Message):
+    __slots__ = ("apply",)
+    APPLY_FIELD_NUMBER: _ClassVar[int]
+    apply: bool
+    def __init__(self, apply: _Optional[bool] = ...) -> None: ...
+
+class ArchivePruneAction(_message.Message):
+    __slots__ = ("session_id", "kind", "bytes", "applied")
+    SESSION_ID_FIELD_NUMBER: _ClassVar[int]
+    KIND_FIELD_NUMBER: _ClassVar[int]
+    BYTES_FIELD_NUMBER: _ClassVar[int]
+    APPLIED_FIELD_NUMBER: _ClassVar[int]
+    session_id: str
+    kind: str
+    bytes: int
+    applied: bool
+    def __init__(self, session_id: _Optional[str] = ..., kind: _Optional[str] = ..., bytes: _Optional[int] = ..., applied: _Optional[bool] = ...) -> None: ...
+
+class PruneArchiveResponse(_message.Message):
+    __slots__ = ("dry_run", "actions", "reclaimed_bytes", "before", "after")
+    DRY_RUN_FIELD_NUMBER: _ClassVar[int]
+    ACTIONS_FIELD_NUMBER: _ClassVar[int]
+    RECLAIMED_BYTES_FIELD_NUMBER: _ClassVar[int]
+    BEFORE_FIELD_NUMBER: _ClassVar[int]
+    AFTER_FIELD_NUMBER: _ClassVar[int]
+    dry_run: bool
+    actions: _containers.RepeatedCompositeFieldContainer[ArchivePruneAction]
+    reclaimed_bytes: int
+    before: ArchiveRetentionStats
+    after: ArchiveRetentionStats
+    def __init__(self, dry_run: _Optional[bool] = ..., actions: _Optional[_Iterable[_Union[ArchivePruneAction, _Mapping]]] = ..., reclaimed_bytes: _Optional[int] = ..., before: _Optional[_Union[ArchiveRetentionStats, _Mapping]] = ..., after: _Optional[_Union[ArchiveRetentionStats, _Mapping]] = ...) -> None: ...
 
 class GetPolicyRequest(_message.Message):
     __slots__ = ("id",)

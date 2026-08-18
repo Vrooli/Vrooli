@@ -15,6 +15,7 @@ import (
 	"github.com/vrooli/api-core/devrouting"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/provenance"
+	"github.com/vrooli/api-core/schedule"
 	"github.com/vrooli/api-core/server"
 	"github.com/vrooli/vrooli/packages/proto/descriptorimage"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
@@ -127,6 +128,12 @@ func main() {
 	routes.Handle(validationPath, validationHandler)
 	rootMux := http.NewServeMux()
 	devrouting.Register(rootMux, db)
+	aggregateStore := store.ReceiptAggregateStore(eventStore)
+	receiptMeasures, err := receiptMeasuresHandler(aggregateStore, schedule.System())
+	if err != nil {
+		log.Fatalf("receipt measures: %v", err)
+	}
+	rootMux.Handle("/measures/", http.StripPrefix("/measures", receiptMeasures))
 	rootMux.Handle("/", securityHeaders(provenance.Middleware(provenance.CLIUtilVerifier{})(routes)))
 
 	if err := server.Run(server.Config{

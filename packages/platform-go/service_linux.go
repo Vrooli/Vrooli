@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 )
 
 func nativeSystemctl(options NativeServiceOptions, action string) ([]byte, error) {
@@ -146,17 +147,70 @@ func installService(options ServiceInstallOptions) (ServiceInstallResult, error)
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return ServiceInstallResult{}, fmt.Errorf("platform: create systemd unit dir: %w", err)
 	}
-	content := systemdUnitContent(executable, home, options.SourceRoot)
+	if logPath := strings.TrimSpace(options.LogPath); logPath != "" {
+		// systemd creates the log file but not its directory; a missing
+		// directory fails the unit at start with a message that does not
+		// mention logging at all.
+		if err := os.MkdirAll(filepath.Dir(logPath), 0o755); err != nil {
+			return ServiceInstallResult{}, fmt.Errorf("platform: create supervisor log dir: %w", err)
+		}
+	}
+	content := systemdUnitContent(executable, home, options.SourceRoot, options.LogPath)
 	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 		return ServiceInstallResult{}, fmt.Errorf("platform: write systemd unit: %w", err)
 	}
 	if output, err := exec.Command("systemctl", "--user", "daemon-reload").CombinedOutput(); err != nil {
 		return ServiceInstallResult{}, fmt.Errorf("platform: systemctl daemon-reload: %w: %s", err, strings.TrimSpace(string(output)))
 	}
-	if output, err := exec.Command("systemctl", "--user", "enable", "--now", "vrooli-runtime-supervisor.service").CombinedOutput(); err != nil {
-		return ServiceInstallResult{}, fmt.Errorf("platform: systemctl enable: %w: %s", err, strings.TrimSpace(string(output)))
+	if output, err := exec.Command("systemctl", "--user", "enable", "--now", runtimeSupervisorUnit).CombinedOutput(); err != nil {
+		return ServiceInstallResult{}, fmt.Errorf("platform: systemctl enable: %w: %s\n%s", err, strings.TrimSpace(string(output)), systemdUnitDiagnostics())
 	}
-	return ServiceInstallResult{UnitName: "vrooli-runtime-supervisor.service", UnitPath: path, Scope: "user", Active: true}, nil
+	// An install that wrote a unit the manager refuses to load is a failed
+	// install, not a successful one. `enable --now` alone does not prove it:
+	// a bad-setting unit can leave enablement recorded while the service never
+	// starts, which is how the supervisor stayed dead for days while every
+	// surface reported the install had succeeded.
+	if state := awaitSystemdActive(runtimeSupervisorUnit); state != ServiceStateRunning {
+		return ServiceInstallResult{UnitName: runtimeSupervisorUnit, UnitPath: path, Scope: "user", Active: false},
+			fmt.Errorf("platform: installed %s but it is %s, not running:\n%s", runtimeSupervisorUnit, state, systemdUnitDiagnostics())
+	}
+	return ServiceInstallResult{UnitName: runtimeSupervisorUnit, UnitPath: path, Scope: "user", Active: true}, nil
+}
+
+const runtimeSupervisorUnit = "vrooli-runtime-supervisor.service"
+
+// awaitSystemdActive polls is-active until the unit settles. Type=simple units
+// report active as soon as they fork, so a unit that starts and immediately
+// dies can read running on the first sample; polling to the deadline and
+// reporting the LAST observation catches the crash-on-start case that a single
+// sample would call success.
+func awaitSystemdActive(unit string) ServiceState {
+	state := ServiceStateUnknown
+	for attempt := 0; attempt < 8; attempt++ {
+		if attempt > 0 {
+			time.Sleep(250 * time.Millisecond)
+		}
+		// is-active exits non-zero for anything but active; the state we want
+		// is on stdout either way, so the exit code is not the signal here.
+		output, err := exec.Command("systemctl", "--user", "is-active", unit).CombinedOutput()
+		state = ParseNativeServiceState("linux", string(output), err != nil)
+		if state == ServiceStateFailed {
+			return state
+		}
+	}
+	return state
+}
+
+// systemdUnitDiagnostics captures what an operator would run by hand, so a
+// failed install explains itself instead of pointing at another command.
+func systemdUnitDiagnostics() string {
+	status, _ := exec.Command("systemctl", "--user", "status", "--no-pager", "--lines=10", runtimeSupervisorUnit).CombinedOutput()
+	verify, _ := exec.Command("systemd-analyze", "--user", "verify", runtimeSupervisorUnit).CombinedOutput()
+	parts := []string{strings.TrimSpace(string(status))}
+	if trimmed := strings.TrimSpace(string(verify)); trimmed != "" {
+		parts = append(parts, trimmed)
+	}
+	return strings.Join(parts, "\n")
 }
 
 func uninstallService(options ServiceInstallOptions) (ServiceInstallResult, error) {
@@ -172,21 +226,62 @@ func uninstallService(options ServiceInstallOptions) (ServiceInstallResult, erro
 	return ServiceInstallResult{UnitName: "vrooli-runtime-supervisor.service", UnitPath: path, Scope: "user", Active: false}, nil
 }
 
+func startInstalledService(options ServiceInstallOptions) (bool, error) {
+	home, err := resolvedHome(options.HomeDir)
+	if err != nil {
+		return false, err
+	}
+	path := filepath.Join(home, ".config", "systemd", "user", runtimeSupervisorUnit)
+	if _, err := os.Stat(path); err != nil {
+		// No unit installed: the caller falls back to launching it directly.
+		return false, nil
+	}
+	if output, err := exec.Command("systemctl", "--user", "start", runtimeSupervisorUnit).CombinedOutput(); err != nil {
+		return false, fmt.Errorf("platform: systemctl start %s: %w: %s", runtimeSupervisorUnit, err, strings.TrimSpace(string(output)))
+	}
+	if state := awaitSystemdActive(runtimeSupervisorUnit); state != ServiceStateRunning {
+		return false, fmt.Errorf("platform: started %s but it is %s, not running:\n%s", runtimeSupervisorUnit, state, systemdUnitDiagnostics())
+	}
+	return true, nil
+}
+
 func supportsService(user bool) bool {
 	return user && exec.Command("systemctl", "--user", "--version").Run() == nil
 }
 
 func serviceStartHint() string { return "systemctl --user start vrooli-runtime-supervisor.service" }
 
-func systemdUnitContent(executable, home, sourceRoot string) string {
+// systemdUnitContent renders the user unit.
+//
+// Quoting is per-directive, not uniform, and getting it wrong is fatal rather
+// than cosmetic:
+//
+//   - Environment= and ExecStart= go through systemd's quote-aware parser, so a
+//     value containing spaces MUST be quoted.
+//   - WorkingDirectory= takes the rest of the line verbatim. A quoted value is
+//     read with the quotes as part of the path, which systemd then rejects as
+//     "path is not absolute" and the whole unit refuses to load. A path with
+//     spaces is fine here unquoted.
+//
+// See TestSystemdUnitContentLoadsUnderSystemd, which asserts this against real
+// systemd rather than against our belief about it.
+func systemdUnitContent(executable, home, sourceRoot, logPath string) string {
 	sourceRoot = strings.TrimSpace(sourceRoot)
 	sourceEnv := ""
 	workingDir := ""
 	if sourceRoot != "" {
 		sourceEnv = fmt.Sprintf("Environment=VROOLI_SOURCE_ROOT=%s\n", strconv.Quote(sourceRoot))
-		workingDir = fmt.Sprintf("WorkingDirectory=%s\n", strconv.Quote(sourceRoot))
+		workingDir = fmt.Sprintf("WorkingDirectory=%s\n", sourceRoot)
 	}
-	return fmt.Sprintf("[Unit]\nDescription=Vrooli runtime supervisor\nAfter=default.target\n\n[Service]\nType=simple\nEnvironment=HOME=%s\nEnvironment=VROOLI_RUNTIME_SUPERVISOR=on\n%s%sExecStart=%s --no-stale-check runtime supervisor run\nRestart=on-failure\nRestartSec=5s\n\n[Install]\nWantedBy=default.target\n", strconv.Quote(home), sourceEnv, workingDir, strconv.Quote(executable))
+	// A daemon whose failures are only visible in a journal nobody reads is a
+	// daemon whose failures are invisible. Point it at the same log tree every
+	// scenario already writes to, so both launch paths (systemd here, the
+	// lifecycle fallback spawn) land in one file.
+	logging := ""
+	if logPath = strings.TrimSpace(logPath); logPath != "" {
+		logging = fmt.Sprintf("StandardOutput=append:%s\nStandardError=append:%s\n", logPath, logPath)
+	}
+	return fmt.Sprintf("[Unit]\nDescription=Vrooli runtime supervisor\nAfter=default.target\n\n[Service]\nType=simple\nEnvironment=HOME=%s\nEnvironment=VROOLI_RUNTIME_SUPERVISOR=on\n%s%s%sExecStart=%s --no-stale-check runtime supervisor run\nRestart=always\nRestartSec=5s\n\n[Install]\nWantedBy=default.target\n", strconv.Quote(home), sourceEnv, workingDir, logging, strconv.Quote(executable))
 }
 
 func resolvedHome(home string) (string, error) {

@@ -16,9 +16,7 @@ import (
 // floating image tags. This is grandfathered migration debt, not an accepted
 // state: remove an entry here in the same change that pins the image
 // (docs/resources/deployment-contract.md, "Pinned Runtime Principle").
-var composeImagePinDebt = []string{
-	"home-assistant", // homeassistant/home-assistant:stable
-}
+var composeImagePinDebt = []string{}
 
 // gpuCapacityDebt lists resources that declare a gpu block without a capacity
 // block, making their VRAM invisible to the capacity broker. Remove an entry

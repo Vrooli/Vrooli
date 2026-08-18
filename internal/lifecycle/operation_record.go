@@ -55,13 +55,21 @@ func (r *Runner) beginStartOperationRecord(name string, opts StartOptions) *star
 			logx.AttrScenario, name, "error", err.Error())
 		return nil
 	}
-	pid := os.Getpid()
+	// Capture WHO is starting this, not just the PID. The PID is the liveness
+	// signal and dies with the process; argv, the parent, and the OS scope are
+	// what let anyone reconstruct the cause of a start later, on a host where
+	// many short-lived CLIs start work concurrently.
+	initiator := deps.captureInitiator()
 	op, err := store.BeginStartOperation(ctx, scenarioruntime.StartOperation{
-		Scenario:     name,
-		Variant:      opts.Variant,
-		Operation:    defaultIfEmpty(opts.Operation, "start"),
-		InitiatorPID: &pid,
-		StartedAt:    deps.now().UTC(),
+		Scenario:            name,
+		Variant:             opts.Variant,
+		Operation:           defaultIfEmpty(opts.Operation, "start"),
+		InitiatorPID:        &initiator.PID,
+		InitiatorArgv:       initiator.Argv,
+		InitiatorParentPID:  &initiator.ParentPID,
+		InitiatorParentArgv: initiator.ParentArgv,
+		InitiatorScope:      initiator.Scope,
+		StartedAt:           deps.now().UTC(),
 	})
 	if err != nil {
 		_ = store.Close()

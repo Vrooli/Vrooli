@@ -131,6 +131,16 @@ var (
 		MaxAttempts: 3,
 		Interval:    1 * time.Second,
 	}
+	// supervisionAttachPolicy bounds how long a start waits for the runtime
+	// supervisor to register a session it can hand ownership to. A supervisor
+	// that is already running attaches on the first evaluation; the wait only
+	// matters when this start had to launch one. Kept short because the
+	// fallback — finishing with lifecycle ownership — is the old behavior, not
+	// a failure.
+	supervisionAttachPolicy = AwaitPolicy{
+		Timeout:  3 * time.Second,
+		Interval: 250 * time.Millisecond,
+	}
 	// resourceReadyPolicy bounds the post-start readiness wait for a resource
 	// dependency.
 	resourceReadyPolicy = AwaitPolicy{

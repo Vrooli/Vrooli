@@ -618,6 +618,17 @@
           "type": "string",
           "format": "uri",
           "description": "Where an operator signs up for or generates this credential."
+        },
+        "provisioning": {
+          "type": "string",
+          "enum": ["operator", "derived"],
+          "default": "operator",
+          "description": "Whether the operator supplies this value or the declaring component derives it after another credential is present."
+        },
+        "derived_from": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9._-]+$",
+          "description": "Field that must be present before a derived credential can be provisioned."
         }
       }
     },

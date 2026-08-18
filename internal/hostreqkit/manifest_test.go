@@ -5,23 +5,22 @@ import (
 	"testing"
 )
 
-func TestToolManifestSourceRoundTrips(t *testing.T) {
+func TestToolManifestAcquisitionRoundTrips(t *testing.T) {
 	raw := `{
 		"name": "sd",
 		"description": "stable-diffusion.cpp",
 		"commands": ["sd"],
 		"versionArgs": ["--help"],
-		"source": {
-			"type": "release",
-			"targets": {
-				"linux/amd64": {
-					"url": "https://example.com/sd-linux.tar.gz",
-					"sha256": "abc123",
-					"archive": "tar.gz",
-					"binPath": "build/bin/sd",
-					"mode": "0755"
-				}
-			}
+		"acquisition": {
+			"kind": "url",
+			"targets": [{
+				"when": {"os": "linux", "arch": "amd64"},
+				"url": "https://example.com/sd-linux.tar.gz",
+				"sha256": "abc123",
+				"archive": "tar.gz",
+				"bin_path": "build/bin/sd",
+				"mode": "0755"
+			}]
 		},
 		"requires": {
 			"gpu": true,
@@ -36,10 +35,10 @@ func TestToolManifestSourceRoundTrips(t *testing.T) {
 		t.Fatalf("unmarshal: %v", err)
 	}
 
-	if manifest.SourceType() != "release" {
-		t.Fatalf("SourceType = %q, want release", manifest.SourceType())
+	if manifest.SourceType() != "url" {
+		t.Fatalf("SourceType = %q, want url", manifest.SourceType())
 	}
-	target, ok := manifest.Source.TargetFor("linux", "amd64")
+	target, ok := TargetFor(manifest.Acquisition, "linux", "amd64")
 	if !ok {
 		t.Fatalf("TargetFor(linux, amd64) not found")
 	}
@@ -65,12 +64,12 @@ func TestToolManifestSourceRoundTrips(t *testing.T) {
 	if err := json.Unmarshal(out, &again); err != nil {
 		t.Fatalf("re-unmarshal: %v", err)
 	}
-	if again.SourceType() != "release" {
+	if again.SourceType() != "url" {
 		t.Fatalf("round-trip SourceType = %q", again.SourceType())
 	}
 }
 
-func TestToolManifestSourceTypeDefaultsToPackage(t *testing.T) {
+func TestToolManifestAcquisitionKindDefaultsToPackage(t *testing.T) {
 	var manifest ToolManifest
 	if err := json.Unmarshal([]byte(`{"name":"jq","description":"x","commands":["jq"],"versionArgs":["--version"],"defaultPackage":"jq"}`), &manifest); err != nil {
 		t.Fatalf("unmarshal: %v", err)
@@ -78,17 +77,17 @@ func TestToolManifestSourceTypeDefaultsToPackage(t *testing.T) {
 	if manifest.SourceType() != "package" {
 		t.Fatalf("SourceType = %q, want package (absent source)", manifest.SourceType())
 	}
-	if _, ok := manifest.Source.TargetFor("linux", "amd64"); ok {
+	if _, ok := TargetFor(manifest.Acquisition, "linux", "amd64"); ok {
 		t.Fatalf("TargetFor on nil source should report false")
 	}
 }
 
 func TestToolSourceTargetMisses(t *testing.T) {
 	source := &ToolSource{
-		Type:    "url",
-		Targets: map[string]ToolSourceTarget{"linux/amd64": {URL: "u", SHA256: "s"}},
+		Kind:    "url",
+		Targets: []ToolSourceTarget{{When: map[string]string{"os": "linux", "arch": "amd64"}, URL: "u", SHA256: "s"}},
 	}
-	if _, ok := source.TargetFor("darwin", "arm64"); ok {
+	if _, ok := TargetFor(source, "darwin", "arm64"); ok {
 		t.Fatalf("TargetFor(darwin, arm64) should miss")
 	}
 }

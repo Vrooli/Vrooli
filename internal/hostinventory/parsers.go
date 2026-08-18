@@ -148,6 +148,33 @@ func ParseNvidiaDetailedGPUCSV(input string) ([]GPU, []string, error) {
 	return gpus, warnings, nil
 }
 
+// ParseNvidiaComputeCapabilityCSV parses the separately queried CUDA compute
+// capability. Keeping this query separate preserves the detailed GPU parser's
+// stable field order while using the nvidia-smi field requested by the
+// acquisition fact contract.
+func ParseNvidiaComputeCapabilityCSV(input string) map[int]string {
+	capabilities := map[int]string{}
+	for _, line := range strings.Split(strings.TrimSpace(input), "\n") {
+		parts := strings.SplitN(line, ",", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		index, err := strconv.Atoi(strings.TrimSpace(parts[0]))
+		if err != nil {
+			continue
+		}
+		capability := strings.TrimSpace(parts[1])
+		if capability == "" || strings.EqualFold(capability, "N/A") {
+			continue
+		}
+		if _, err := strconv.ParseFloat(capability, 64); err != nil {
+			continue
+		}
+		capabilities[index] = capability
+	}
+	return capabilities
+}
+
 func ParseNvidiaComputeAppsCSV(input string) ([]GPUProcess, []string, error) {
 	trimmed := strings.TrimSpace(input)
 	if trimmed == "" || strings.Contains(trimmed, "No running processes found") {

@@ -2,8 +2,13 @@ package main
 
 import "net/http"
 
+import "github.com/vrooli/vrooli/scenarios/vrooli-events/internal/store"
+
 func (s *Server) routes() *http.ServeMux {
 	mux := http.NewServeMux()
+	aggregateStore, _ := s.store.(store.ReceiptAggregateStore)
+	aggregatePath, aggregateHandler := receiptAggregateHandler(aggregateStore)
+	mux.Handle(aggregatePath, aggregateHandler)
 
 	// Event endpoints
 	mux.HandleFunc("POST /api/v1/events", s.handleIngest)

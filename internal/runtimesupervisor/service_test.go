@@ -2,6 +2,8 @@ package runtimesupervisor
 
 import (
 	"context"
+	"errors"
+	"io"
 	"path/filepath"
 	"sync"
 	"testing"
@@ -861,5 +863,159 @@ func TestServiceStatusReportsRunningOnlyForFreshLiveSession(t *testing.T) {
 	}
 	if report.StatusReason != "" {
 		t.Fatalf("report.StatusReason = %q, want empty", report.StatusReason)
+	}
+}
+
+// flakyStore wraps a real store and fails the first call of the tick's opening
+// operation a fixed number of times, so Run's failure tolerance can be
+// exercised without a hand-written fake of the whole Store surface.
+type flakyStore struct {
+	Store
+	remainingFailures int
+	ticks             int
+}
+
+func (f *flakyStore) HeartbeatSupervisorSession(ctx context.Context, supervisorID string, ttl time.Duration) (scenarioruntime.SupervisorSession, error) {
+	f.ticks++
+	if f.remainingFailures > 0 {
+		f.remainingFailures--
+		return scenarioruntime.SupervisorSession{}, errors.New("transient store failure")
+	}
+	return f.Store.HeartbeatSupervisorSession(ctx, supervisorID, ttl)
+}
+
+// A transient tick failure used to propagate out of Run and exit the process,
+// so every scenario's lease expired because one store call blipped.
+func TestRunSurvivesTransientTickFailures(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	clk := newFixedClock(time.Date(2026, 7, 15, 12, 0, 0, 0, time.UTC))
+	dbPath := filepath.Join(t.TempDir(), "runtime.db")
+
+	var flaky *flakyStore
+	cfg := Config{
+		DBPath:        dbPath,
+		Clock:         clk,
+		RenewInterval: time.Millisecond,
+		HostProvider:  fakeHostProvider{snapshot: hostsession.Snapshot{BootID: "boot", SessionID: "session"}},
+		Stderr:        io.Discard,
+		StoreFactory: func(ctx context.Context, c scenarioruntime.Config) (Store, error) {
+			inner, err := scenarioruntime.NewSQLiteStore(ctx, c)
+			if err != nil {
+				return nil, err
+			}
+			flaky = &flakyStore{Store: inner, remainingFailures: MaxConsecutiveTickFailures - 1}
+			return flaky, nil
+		},
+	}
+
+	done := make(chan error, 1)
+	go func() { done <- Run(ctx, cfg) }()
+
+	deadline := time.After(10 * time.Second)
+	for {
+		if flaky != nil && flaky.remainingFailures == 0 && flaky.ticks > MaxConsecutiveTickFailures {
+			break
+		}
+		select {
+		case err := <-done:
+			t.Fatalf("Run exited on a transient failure: %v", err)
+		case <-deadline:
+			t.Fatal("timed out waiting for the supervisor to recover from transient failures")
+		case <-time.After(5 * time.Millisecond):
+		}
+	}
+
+	cancel()
+	if err := <-done; !errors.Is(err, context.Canceled) {
+		t.Fatalf("Run() error = %v, want context.Canceled", err)
+	}
+}
+
+// Tolerance must be bounded: a supervisor that can never make progress should
+// exit so its service manager replaces it with a fresh process.
+func TestRunExitsAfterSustainedTickFailures(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	clk := newFixedClock(time.Date(2026, 7, 15, 12, 0, 0, 0, time.UTC))
+	dbPath := filepath.Join(t.TempDir(), "runtime.db")
+
+	cfg := Config{
+		DBPath:        dbPath,
+		Clock:         clk,
+		RenewInterval: time.Millisecond,
+		HostProvider:  fakeHostProvider{snapshot: hostsession.Snapshot{BootID: "boot", SessionID: "session"}},
+		Stderr:        io.Discard,
+		StoreFactory: func(ctx context.Context, c scenarioruntime.Config) (Store, error) {
+			inner, err := scenarioruntime.NewSQLiteStore(ctx, c)
+			if err != nil {
+				return nil, err
+			}
+			return &flakyStore{Store: inner, remainingFailures: MaxConsecutiveTickFailures * 2}, nil
+		},
+	}
+
+	done := make(chan error, 1)
+	go func() { done <- Run(ctx, cfg) }()
+	select {
+	case err := <-done:
+		if err == nil {
+			t.Fatal("Run() returned nil, want the sustained failure surfaced")
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("Run did not exit after sustained tick failures")
+	}
+}
+
+// Taking over is the natural moment to clear predecessors that were killed
+// before they could record their own shutdown.
+func TestSupervisorStartupRetiresDeadPredecessorSessions(t *testing.T) {
+	ctx := context.Background()
+	clk := newFixedClock(time.Date(2026, 7, 15, 12, 0, 0, 0, time.UTC))
+	dbPath := filepath.Join(t.TempDir(), "runtime.db")
+	store, err := scenarioruntime.NewSQLiteStore(ctx, scenarioruntime.Config{DBPath: dbPath, Clock: clk})
+	if err != nil {
+		t.Fatalf("NewSQLiteStore: %v", err)
+	}
+	deadPID := 424242
+	if _, err := store.CreateSupervisorSession(ctx, scenarioruntime.SupervisorSession{
+		SupervisorID: "sup-killed", HostBootID: "boot", HostSessionID: "session", PID: &deadPID,
+	}, time.Minute); err != nil {
+		t.Fatalf("CreateSupervisorSession: %v", err)
+	}
+	if err := store.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+	clk.Advance(2 * time.Minute)
+
+	svc := New(Config{
+		DBPath:       dbPath,
+		Clock:        clk,
+		HostProvider: fakeHostProvider{snapshot: hostsession.Snapshot{BootID: "boot", SessionID: "session"}},
+		PIDRunning:   func(pid int) bool { return pid != deadPID },
+		Stderr:       io.Discard,
+	})
+	defer svc.Close()
+	if _, err := svc.Tick(ctx); err != nil {
+		t.Fatalf("Tick: %v", err)
+	}
+
+	check, err := scenarioruntime.NewSQLiteStore(ctx, scenarioruntime.Config{DBPath: dbPath, Clock: clk})
+	if err != nil {
+		t.Fatalf("NewSQLiteStore(check): %v", err)
+	}
+	defer check.Close()
+	running, err := check.ListSupervisorSessions(ctx, scenarioruntime.SupervisorSessionFilter{
+		Statuses: []string{scenarioruntime.SupervisorStatusRunning},
+	})
+	if err != nil {
+		t.Fatalf("ListSupervisorSessions: %v", err)
+	}
+	for _, session := range running {
+		if session.SupervisorID == "sup-killed" {
+			t.Fatal("a SIGKILLed predecessor is still reported as running")
+		}
+	}
+	if len(running) != 1 {
+		t.Fatalf("running sessions = %d, want only the live one", len(running))
 	}
 }

@@ -4,9 +4,10 @@ package privilegebroker
 
 import (
 	"fmt"
+	"net"
+
 	shared "github.com/vrooli/api-core/localprincipal"
 	"github.com/vrooli/vrooli/internal/localprincipal"
-	"net"
 )
 
 func peerUID(conn *net.UnixConn) (uint32, error) {

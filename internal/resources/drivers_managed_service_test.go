@@ -17,7 +17,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vrooli/binaryfetch"
 	"github.com/vrooli/vrooli/internal/resources/securestore"
+	"github.com/vrooli/vrooli/internal/scenario"
 	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
 	vaultbootstrap "github.com/vrooli/vrooli/packages/vaultbootstrap-go"
 )
@@ -49,6 +51,12 @@ func TestManagedServiceDriverRunsVerifiedPrivateLifecycle(t *testing.T) {
 	if err := driver.Run(context.Background(), controller, item, manifest, "start", nil, io.Discard, io.Discard); err != nil {
 		t.Fatalf("start: %v", err)
 	}
+	// A second start must reconcile the supervisor-owned process before port
+	// preflight. The listener is intentionally still occupied by the first
+	// invocation, so a port-first implementation regresses with EADDRINUSE.
+	if err := driver.Run(context.Background(), controller, item, manifest, "start", nil, io.Discard, io.Discard); err != nil {
+		t.Fatalf("idempotent start: %v", err)
+	}
 	t.Cleanup(func() {
 		_ = driver.Run(context.Background(), controller, item, manifest, "stop", nil, io.Discard, io.Discard)
 	})
@@ -61,6 +69,190 @@ func TestManagedServiceDriverRunsVerifiedPrivateLifecycle(t *testing.T) {
 	}
 	if err := driver.Run(context.Background(), controller, item, manifest, "stop", nil, io.Discard, io.Discard); err != nil {
 		t.Fatalf("stop: %v", err)
+	}
+}
+
+func TestManagedServiceInstallAcquiresDeclaredArtifactIdempotently(t *testing.T) {
+	root := t.TempDir()
+	home := filepath.Join(root, "home")
+	body, err := os.ReadFile(os.Args[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	sum := sha256.Sum256(body)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write(body)
+	}))
+	defer server.Close()
+	manifest := managedServiceTestManifest(fmt.Sprintf("%x", sum))
+	manifest.Name = "acquisition-fixture"
+	manifest.ManagedService.Acquisition = &binaryfetch.Acquisition{
+		Kind: "url",
+		Targets: []binaryfetch.AcquisitionTarget{{
+			URL: server.URL, SHA256: fmt.Sprintf("%x", sum), Layout: "file",
+		}},
+	}
+	controller := NewController(root, home)
+	item := Resource{Name: manifest.Name}
+	driver := managedServiceDriver{}
+	if err := driver.Run(context.Background(), controller, item, manifest, "install", nil, io.Discard, io.Discard); err != nil {
+		t.Fatalf("first install: %v", err)
+	}
+	path, err := managedServiceArtifactPath(controller, manifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	first, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := driver.Run(context.Background(), controller, item, manifest, "install", nil, io.Discard, io.Discard); err != nil {
+		t.Fatalf("second install: %v", err)
+	}
+	second, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(first, second) {
+		t.Fatal("idempotent install changed verified artifact bytes")
+	}
+}
+
+func TestNativeDataArtifactStagesVendoredBytesAndChecksum(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("VROOLI_RESOURCE_STORAGE_ROOT", filepath.Join(root, "runtime"))
+	resourceRoot := filepath.Join(root, "resources", "native-data-fixture", "artifacts")
+	if err := os.MkdirAll(resourceRoot, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	body := []byte("vendored-wasi-fixture")
+	sum := sha256.Sum256(body)
+	digest := fmt.Sprintf("%x", sum)
+	sourcePath := filepath.Join(resourceRoot, "fixture.wasm")
+	if err := os.WriteFile(sourcePath, body, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	manifest := ResourceManifest{
+		Name: "native-data-fixture",
+		ManagedService: &resourcedeployment.ManagedService{DataArtifacts: []resourcedeployment.ManagedServiceDataArtifact{{
+			Name: "fixture-wasi",
+			Path: "fixture.wasm",
+			Acquisition: &binaryfetch.Acquisition{Kind: "url", Targets: []binaryfetch.AcquisitionTarget{{
+				URL: "https://example.invalid/fixture.wasm", SHA256: digest, Layout: "file",
+			}}},
+		}}},
+	}
+	controller := NewController(root, filepath.Join(root, "home"))
+	if err := ensureManagedServiceDataArtifacts(context.Background(), controller, manifest); err != nil {
+		t.Fatalf("stage vendored data artifact: %v", err)
+	}
+	dataPath := filepath.Join(root, "runtime", "data", "vrooli", "resources", manifest.Name, "fixture.wasm")
+	got, err := os.ReadFile(dataPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != string(body) {
+		t.Fatalf("staged bytes = %q, want %q", got, body)
+	}
+	checksum, err := os.ReadFile(dataPath + ".sha256")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.TrimSpace(string(checksum)) != digest {
+		t.Fatalf("checksum sidecar = %q, want %q", strings.TrimSpace(string(checksum)), digest)
+	}
+}
+
+func TestManagedServiceFileArchiveBinPathIsExtractionOnly(t *testing.T) {
+	manifest := managedServiceTestManifest(strings.Repeat("a", 64))
+	manifest.ManagedService.Artifact.Layout = "file"
+	manifest.ManagedService.Artifact.EntryPath = ""
+
+	target := binaryfetch.AcquisitionTarget{
+		Layout:  "file",
+		BinPath: "AdGuardHome/AdGuardHome",
+	}
+	artifact, err := managedServiceArtifactForTarget(manifest, target)
+	if err != nil {
+		t.Fatalf("managedServiceArtifactForTarget: %v", err)
+	}
+	if artifact.EntryPath != "" {
+		t.Fatalf("file-layout archive bin_path became launch entry path %q", artifact.EntryPath)
+	}
+
+	target.Layout = "dir"
+	artifact, err = managedServiceArtifactForTarget(manifest, target)
+	if err != nil {
+		t.Fatalf("managedServiceArtifactForTarget dir: %v", err)
+	}
+	if artifact.EntryPath != target.BinPath {
+		t.Fatalf("directory bin_path = %q, want %q", artifact.EntryPath, target.BinPath)
+	}
+}
+
+func TestManagedServiceHostToolDoesNotRequireReleaseChecksum(t *testing.T) {
+	manifest := managedServiceTestManifest("")
+	manifest.ManagedService.Artifact = resourcedeployment.ServiceArtifact{
+		Path: "cloudflared", Version: "host-tool", Verification: "host-tool",
+	}
+	artifact, err := managedServiceArtifactForTarget(manifest, binaryfetch.AcquisitionTarget{Executable: "cloudflared"})
+	if err != nil {
+		t.Fatalf("managedServiceArtifactForTarget host tool: %v", err)
+	}
+	if artifact.Verification != "host-tool" || artifact.SHA256 != "" {
+		t.Fatalf("host-tool artifact = %+v", artifact)
+	}
+}
+
+func TestPruneManagedServiceArtifactsKeepsCurrentVersion(t *testing.T) {
+	root := t.TempDir()
+	artifactRoot := filepath.Join(root, "artifacts")
+	t.Setenv("VROOLI_RESOURCE_ARTIFACT_DIR", artifactRoot)
+	manifest := managedServiceTestManifest(strings.Repeat("a", 64))
+	manifest.Name = "prune-fixture"
+	manifest.ManagedService.Artifact.Version = "current"
+	manifest.ManagedService.ProviderPolicy.AllowedModes = []resourcedeployment.ProviderMode{resourcedeployment.ProviderManagedPrivate}
+	manifest.ManagedService.ProviderPolicy.ExternalAccessCapabilities = nil
+	manifest.ManagedService.Acquisition = &binaryfetch.Acquisition{
+		Kind: "url",
+		Targets: []binaryfetch.AcquisitionTarget{{
+			URL:    "https://example.invalid/service",
+			SHA256: strings.Repeat("b", 64),
+		}},
+	}
+	manifestDir := filepath.Join(root, "resources", manifest.Name)
+	if err := os.MkdirAll(manifestDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	data, err := json.Marshal(manifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(manifestDir, "resource.json"), data, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for _, version := range []string{"current", "superseded"} {
+		path := filepath.Join(artifactRoot, manifest.Name, version, "server")
+		if err := os.MkdirAll(path, 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(path, "entry"), []byte(version), 0o700); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	removed, err := NewController(root, filepath.Join(root, "home")).PruneManagedServiceArtifacts(manifest.Name)
+	if err != nil {
+		t.Fatalf("prune: %v", err)
+	}
+	if removed != 1 {
+		t.Fatalf("removed = %d, want 1 superseded version", removed)
+	}
+	if _, err := os.Stat(filepath.Join(artifactRoot, manifest.Name, "current")); err != nil {
+		t.Fatalf("current artifact version missing: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(artifactRoot, manifest.Name, "superseded")); !os.IsNotExist(err) {
+		t.Fatalf("superseded artifact version still exists: %v", err)
 	}
 }
 
@@ -418,6 +610,17 @@ func TestReadManagedServiceEnvironmentFileIsResourceOwnedAndOverridesDefaults(t 
 	}
 }
 
+func TestReadManagedServiceEnvironmentFileMissingUsesManifestDefaults(t *testing.T) {
+	dataRoot := t.TempDir()
+	values, err := readManagedServiceEnvironmentFile("active.env", []string{"RESOURCE_DATA_DIR=" + dataRoot})
+	if err != nil {
+		t.Fatalf("missing optional environment file: %v", err)
+	}
+	if len(values) != 0 {
+		t.Fatalf("missing optional environment file = %#v, want empty override", values)
+	}
+}
+
 func TestManagedServiceArtifactPathUsesInstalledSignedArtifactStore(t *testing.T) {
 	root := t.TempDir()
 	home := filepath.Join(root, "home")
@@ -471,6 +674,7 @@ func TestWriteManagedServiceConfigRendersOnlyResourceRuntimePaths(t *testing.T) 
 func managedServiceTestManifest(checksum string) ResourceManifest {
 	return ResourceManifest{
 		Name:      "fixture-service",
+		CLI:       &scenario.CLIConfig{Enabled: false},
 		Driver:    "managed-service",
 		Platforms: ResourcePlatforms{Linux: "supported", MacOS: "supported", Windows: "supported"},
 		ManagedService: &resourcedeployment.ManagedService{

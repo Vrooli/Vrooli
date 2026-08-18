@@ -152,8 +152,48 @@ type ManagedService struct {
 	// file loaded from RESOURCE_DATA_DIR immediately before launch. It gives a
 	// resource a durable, non-shell model/config switch without granting the
 	// manifest arbitrary command or host-environment authority.
-	EnvironmentFile string         `json:"environment_file,omitempty"`
-	Config          *ServiceConfig `json:"config,omitempty"`
+	EnvironmentFile string `json:"environment_file,omitempty"`
+	// CredentialFiles are materialized only for the supervised child and are
+	// removed when it stops. Their contents never enter the process
+	// environment, argv, logs, or manifest.
+	CredentialFiles []ServiceCredentialFile `json:"credential_files,omitempty"`
+	Config          *ServiceConfig          `json:"config,omitempty"`
+}
+
+// ServiceCredentialFile maps one authority field to a short-lived file below
+// RESOURCE_STATE_DIR. Path is relative to that runtime directory and is never
+// accepted as an absolute host path.
+type ServiceCredentialFile struct {
+	LogicalID string `json:"logical_id"`
+	Field     string `json:"field,omitempty"`
+	Path      string `json:"path"`
+}
+
+func (m ManagedService) ValidateCredentialFiles() error {
+	seen := make(map[string]struct{}, len(m.CredentialFiles))
+	for index, declaration := range m.CredentialFiles {
+		identity := strings.TrimSpace(declaration.LogicalID)
+		if identity == "" || !strings.Contains(identity, "/") {
+			return fmt.Errorf("managed-service credential_files[%d] logical_id must be namespaced", index)
+		}
+		field := strings.TrimSpace(declaration.Field)
+		if field == "" {
+			field = "value"
+		}
+		if strings.ContainsAny(field, `/\\`) {
+			return fmt.Errorf("managed-service credential_files[%d] field cannot contain a path separator", index)
+		}
+		path := filepath.Clean(filepath.FromSlash(strings.TrimSpace(declaration.Path)))
+		if path == "." || path == ".." || filepath.IsAbs(declaration.Path) || strings.HasPrefix(path, ".."+string(filepath.Separator)) {
+			return fmt.Errorf("managed-service credential_files[%d] path must remain under RESOURCE_STATE_DIR", index)
+		}
+		key := identity + ":" + field
+		if _, exists := seen[key]; exists {
+			return fmt.Errorf("managed-service credential_files declares %s more than once", key)
+		}
+		seen[key] = struct{}{}
+	}
+	return nil
 }
 
 // ManagedServiceDataArtifact describes one durable, regenerable artifact
@@ -296,6 +336,10 @@ type ServiceArtifact struct {
 	// the control-plane launch location, while BundleArtifact identifies the
 	// immutable release asset staged into a desktop bundle.
 	BundleArtifact string `json:"bundle_artifact,omitempty"`
+	// Verification permits an explicitly governed host tool to be adopted by a
+	// managed service. The default remains checksum verification for every
+	// staged artifact.
+	Verification string `json:"verification,omitempty"`
 }
 
 // Validate checks that an artifact declaration is safe to resolve beneath its
@@ -310,6 +354,13 @@ func (a ServiceArtifact) Validate() error {
 	}
 	if strings.TrimSpace(a.Version) == "" {
 		return fmt.Errorf("artifact version is required")
+	}
+	verification := strings.ToLower(strings.TrimSpace(a.Verification))
+	if verification != "" && verification != "checksum" && verification != "host-tool" {
+		return fmt.Errorf("artifact verification %q is invalid", a.Verification)
+	}
+	if verification == "host-tool" && strings.TrimSpace(a.BundleArtifact) != "" {
+		return fmt.Errorf("host-tool artifacts cannot declare bundle_artifact")
 	}
 	layout := strings.ToLower(strings.TrimSpace(a.Layout))
 	if layout != "" && layout != "file" && layout != "dir" {
@@ -348,7 +399,7 @@ func (a ServiceArtifact) Validate() error {
 			return err
 		}
 	}
-	if strings.TrimSpace(a.SHA256) == "" && len(a.SHA256ByPlatform) == 0 {
+	if verification != "host-tool" && strings.TrimSpace(a.SHA256) == "" && len(a.SHA256ByPlatform) == 0 {
 		return fmt.Errorf("artifact sha256 or sha256_by_platform is required")
 	}
 	return nil
@@ -408,6 +459,16 @@ func (a ServiceArtifact) ForPlatform(osName, arch string) (ServiceArtifact, erro
 func (a ServiceArtifact) VerifyFile(path string) error {
 	if err := a.Validate(); err != nil {
 		return err
+	}
+	if strings.EqualFold(strings.TrimSpace(a.Verification), "host-tool") {
+		info, err := os.Stat(path)
+		if err != nil {
+			return fmt.Errorf("resolve managed-service host tool: %w", err)
+		}
+		if info.IsDir() || info.Mode()&0o111 == 0 {
+			return fmt.Errorf("managed-service host tool is not executable")
+		}
+		return nil
 	}
 	if strings.EqualFold(strings.TrimSpace(a.Layout), "dir") {
 		got, err := binaryfetch.TreeDigest(path)

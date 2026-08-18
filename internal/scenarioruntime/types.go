@@ -15,7 +15,7 @@ const (
 	// this constant, and convert any existing local DB with a one-shot
 	// operator-run script (see docs/plans/
 	// project-internal-greenfield-migration-purge-plan.md).
-	SchemaVersion = 7
+	SchemaVersion = 8
 
 	StatusStarting = "starting"
 	StatusRunning  = "running"
@@ -54,6 +54,12 @@ const (
 	SupervisionPolicyManual  = "manual"
 
 	DefaultHeartbeatTTL = 30 * time.Second
+	// DefaultSupervisedLeaseTTL is the deadline written when ownership sits
+	// with a supervisor session rather than a lifecycle process. It is longer
+	// than DefaultHeartbeatTTL because one supervisor renews the whole fleet on
+	// a shared interval, so its window must absorb a slow tick and a restart.
+	// Shared here so the handover and the renewer cannot drift apart.
+	DefaultSupervisedLeaseTTL = 45 * time.Second
 	// DefaultReservedClaimTTL bounds how long a reserved (not yet bound) port
 	// claim survives without renewal before any allocator may expire it. The
 	// lifecycle renews reserved claims alongside its instance heartbeats so a
@@ -342,6 +348,10 @@ type LifecycleRepository interface {
 	UpdateInstanceStatus(ctx context.Context, instanceID string, generation int64, status string, phase string) (Instance, error)
 	GetInstance(ctx context.Context, instanceID string) (Instance, error)
 	ListInstances(ctx context.Context, filter InstanceFilter) ([]Instance, error)
+	// AttachLiveSupervision hands the instance to the live supervisor session
+	// before the starting process exits, so lifecycle ownership never outlives
+	// the command that created it. Reports false when no live session exists.
+	AttachLiveSupervision(ctx context.Context, instanceID string, generation int64, ttl time.Duration) (Instance, bool, error)
 }
 
 type SupervisorRepository interface {
@@ -349,6 +359,10 @@ type SupervisorRepository interface {
 	HeartbeatSupervisorSession(ctx context.Context, supervisorID string, ttl time.Duration) (SupervisorSession, error)
 	StopSupervisorSession(ctx context.Context, supervisorID string, status string, reason string) (SupervisorSession, error)
 	ListSupervisorSessions(ctx context.Context, filter SupervisorSessionFilter) ([]SupervisorSession, error)
+	// ExpireStaleSupervisorSessions marks provably dead sessions failed.
+	// Without it a SIGKILLed supervisor leaves a row claiming status='running'
+	// forever, and readers cannot tell the live supervisor from its corpses.
+	ExpireStaleSupervisorSessions(ctx context.Context, at time.Time, guard StartingLeaseGuard) ([]SupervisorSession, error)
 	ClaimSupervision(ctx context.Context, claim SupervisionClaim) (Instance, error)
 	ReleaseSupervision(ctx context.Context, instanceID string, generation int64, supervisorID string) (Instance, error)
 	UpdateInstanceReconciliation(ctx context.Context, instanceID string, generation int64, status string, reason string) (Instance, error)

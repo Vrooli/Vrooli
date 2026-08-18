@@ -3,7 +3,6 @@ package hostreqcheck
 import (
 	"encoding/json"
 	"fmt"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"sort"
@@ -52,43 +51,39 @@ type ownerManifest struct {
 	safeguards []hostreq.Declaration
 }
 
-var (
-	// rootCoreToolAllowlist enumerates tools that are intentionally declared
-	// at the root manifest level. Four categories qualify:
-	//
-	//   1. Universal Vrooli prerequisites (curl, docker, git, go, java, jq,
-	//      node, python, yq) — needed by setup itself and many scenarios.
-	//   2. Cross-scenario codegen toolchain (buf, protoc, protoc-gen-*) —
-	//      drives the proto pipeline that all proto-aware scenarios consume.
-	//   3. Cross-scenario formal verification (quint) — drives temporal-flow
-	//      model checking and generated conformance artifacts for templates.
-	//   4. Host-wide observability/forensics (rasdaemon, mcelog,
-	//      kdump-tools) — captures crash data Vrooli's autoheal and
-	//      system-monitor scenarios both read.
-	rootCoreToolAllowlist = map[string]struct{}{
-		"buf":                   {},
-		"curl":                  {},
-		"docker":                {},
-		"git":                   {},
-		"go":                    {},
-		"java":                  {},
-		"jq":                    {},
-		"kdump-tools":           {},
-		"mcelog":                {},
-		"node":                  {},
-		"pnpm":                  {},
-		"protoc":                {},
-		"protoc-gen-connect-go": {},
-		"protoc-gen-es":         {},
-		"protoc-gen-go":         {},
-		"python":                {},
-		"quint":                 {},
-		"rasdaemon":             {},
-		"yq":                    {},
-	}
-	referenceScanCandidates = []string{"stripe", "ffmpeg", "tmux", "helm", "yq", "bats", "ast-grep", "cloudflared", "lychee", "Xvfb", "xdotool", "x11vnc", "websockify", "openbox"}
-	scannableExtensions     = map[string]struct{}{".go": {}, ".sh": {}}
-)
+// rootCoreToolAllowlist enumerates tools that are intentionally declared
+// at the root manifest level. Four categories qualify:
+//
+//  1. Universal Vrooli prerequisites (curl, docker, git, go, java, jq,
+//     node, python, yq) — needed by setup itself and many scenarios.
+//  2. Cross-scenario codegen toolchain (buf, protoc, protoc-gen-*) —
+//     drives the proto pipeline that all proto-aware scenarios consume.
+//  3. Cross-scenario formal verification (quint) — drives temporal-flow
+//     model checking and generated conformance artifacts for templates.
+//  4. Host-wide observability/forensics (rasdaemon, mcelog,
+//     kdump-tools) — captures crash data Vrooli's autoheal and
+//     system-monitor scenarios both read.
+var rootCoreToolAllowlist = map[string]struct{}{
+	"buf":                   {},
+	"curl":                  {},
+	"docker":                {},
+	"git":                   {},
+	"go":                    {},
+	"java":                  {},
+	"jq":                    {},
+	"kdump-tools":           {},
+	"mcelog":                {},
+	"node":                  {},
+	"pnpm":                  {},
+	"protoc":                {},
+	"protoc-gen-connect-go": {},
+	"protoc-gen-es":         {},
+	"protoc-gen-go":         {},
+	"python":                {},
+	"quint":                 {},
+	"rasdaemon":             {},
+	"yq":                    {},
+}
 
 func Validate(root, home string) (Report, error) {
 	owners, err := loadOwners(root, home)
@@ -218,15 +213,21 @@ func effectiveToolPrivilege(manifest hostreqkit.ToolManifest) hostreqspec.Privil
 }
 
 func hasPortableToolSource(manifest hostreqkit.ToolManifest) bool {
-	if manifest.Source == nil || len(manifest.Source.Targets) == 0 {
+	if manifest.Acquisition == nil || len(manifest.Acquisition.Targets) == 0 {
 		return false
 	}
-	for _, target := range manifest.Source.Targets {
-		if strings.TrimSpace(target.URL) == "" || len(strings.TrimSpace(target.SHA256)) != 64 {
-			return false
+	for _, target := range manifest.Acquisition.Targets {
+		if strings.TrimSpace(target.Unsupported) != "" {
+			continue
+		}
+		if strings.TrimSpace(target.URL) != "" && len(strings.TrimSpace(target.SHA256)) == 64 {
+			return true
+		}
+		if image := strings.TrimSpace(target.Image); image != "" && strings.Contains(image, "@sha256:") {
+			return true
 		}
 	}
-	return true
+	return false
 }
 
 func sourceRequiresElevation(dir string) bool {
@@ -379,74 +380,6 @@ func validateDeclarations(owner ownerManifest) ([]Finding, error) {
 	return findings, nil
 }
 
-func validateReferences(root string, owner ownerManifest) []Finding {
-	declared := make(map[string]struct{}, len(owner.hostTools))
-	for _, declaration := range owner.hostTools {
-		declared[strings.TrimSpace(declaration.Name)] = struct{}{}
-	}
-
-	findings := make([]Finding, 0)
-	seen := map[string]struct{}{}
-	_ = filepath.WalkDir(owner.basePath, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return nil
-		}
-		if d.IsDir() {
-			if shouldSkipDir(owner, path, d.Name()) {
-				return filepath.SkipDir
-			}
-			switch d.Name() {
-			case ".git", ".next", "coverage", "data", "dist", "node_modules", "vendor":
-				return filepath.SkipDir
-			}
-			return nil
-		}
-		if !shouldScanFile(path) || path == owner.manifest {
-			return nil
-		}
-		content, err := os.ReadFile(path)
-		if err != nil {
-			return nil
-		}
-		text := string(content)
-		for _, candidate := range referenceScanCandidates {
-			if _, ok := declared[candidate]; ok {
-				continue
-			}
-			if !containsCandidateReference(text, candidate) {
-				continue
-			}
-			key := candidate + "|" + path
-			if _, exists := seen[key]; exists {
-				continue
-			}
-			seen[key] = struct{}{}
-			findings = append(findings, Finding{
-				Code:        FindingUndeclaredReference,
-				OwnerKind:   owner.kind,
-				OwnerName:   owner.name,
-				Requirement: candidate,
-				Source:      relSource(root, path),
-				Message:     fmt.Sprintf("%s %q references %q without declaring it in the owner manifest", owner.kind, owner.name, candidate),
-			})
-		}
-		return nil
-	})
-	return findings
-}
-
-func shouldScanFile(path string) bool {
-	if info, err := os.Stat(path); err == nil && info.Size() > 1<<20 {
-		return false
-	}
-	base := filepath.Base(path)
-	if base == "package.json" {
-		return true
-	}
-	_, ok := scannableExtensions[filepath.Ext(path)]
-	return ok
-}
-
 func containsCandidateReference(text, candidate string) bool {
 	for _, line := range strings.Split(text, "\n") {
 		trimmed := strings.TrimSpace(line)
@@ -464,21 +397,6 @@ func containsCandidateReference(text, candidate string) bool {
 		}
 	}
 	return false
-}
-
-func shouldSkipDir(owner ownerManifest, path, base string) bool {
-	if owner.kind != "root" {
-		return false
-	}
-	if path == owner.basePath {
-		return false
-	}
-	switch base {
-	case ".git", ".next", ".tmp", "__test", "coverage", "data", "dist", "docs", "internal", "k8s", "node_modules", "resources", "scenarios", "scripts", "vendor":
-		return true
-	default:
-		return false
-	}
 }
 
 func isIgnorableCommentLine(line, candidate string) bool {
@@ -573,12 +491,5 @@ func shellCommandTailBoundary(text string, index int) bool {
 }
 
 func manifestSource(path string) string {
-	return filepath.ToSlash(path)
-}
-
-func relSource(root, path string) string {
-	if rel, err := filepath.Rel(root, path); err == nil {
-		return filepath.ToSlash(rel)
-	}
 	return filepath.ToSlash(path)
 }

@@ -35,6 +35,11 @@ type Diagnosis struct {
 	// NativeStorageStrength describes protection outside the process boundary.
 	NativeStorageStrength string `json:"native_storage_strength,omitempty"`
 	NativeStorageCaveat   string `json:"native_storage_caveat,omitempty"`
+	// NativeWrap reports the build/runtime availability of the unattended
+	// platform wrap even when the encrypted store is not initialized yet. This
+	// keeps a CGO-free macOS binary or unavailable Windows DPAPI from looking
+	// healthy merely because no native wrap has been attempted.
+	NativeWrap string `json:"native_wrap,omitempty"`
 	// Writable is true only when the diagnostic throwaway write, readback, and
 	// delete all succeeded. It is intentionally separate from Available: a
 	// backend can answer reads while rejecting every provisioning write.
@@ -147,6 +152,7 @@ func diagnoseStore(store Store, checkWrites bool) Diagnosis {
 	// describe the host as it looked before anything had looked at it.
 	diagnosis.Adapter = AdapterName(store)
 	diagnosis.Backend = backendName(store)
+	diagnosis.NativeWrap = nativeWrapDiagnosis()
 	if diagnosis.Backend == "libsecret" {
 		diagnosis.NativeStorageStrength, diagnosis.NativeStorageCaveat = nativeStorageStrength()
 	}

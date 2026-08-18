@@ -150,6 +150,10 @@ type passphraseParams struct {
 	KDF        string `json:"kdf"`
 	Iterations int    `json:"iterations"`
 	Salt       string `json:"salt"`
+	// Generation is a non-secret, monotonic identifier for passphrase
+	// replacement. Older stores omitted it; those are treated as generation 1
+	// and acquire an explicit counter on the next passphrase change.
+	Generation uint64 `json:"generation,omitempty"`
 }
 
 // nativeWrapProvider keeps the encrypted-file data key inside the platform's
@@ -225,6 +229,7 @@ func (nativeWrapProvider) Unwrap(wrap wrappedKey) ([]byte, error) {
 type passphraseProvider struct {
 	passphrase string
 	source     func() string
+	generation uint64
 }
 
 func (passphraseProvider) Name() string { return providerPassphrase }
@@ -267,6 +272,7 @@ func (provider passphraseProvider) Wrap(dataKey []byte) (wrappedKey, error) {
 		KDF:        "pbkdf2-sha256",
 		Iterations: pbkdf2Iterations,
 		Salt:       base64.StdEncoding.EncodeToString(salt),
+		Generation: normalizedPassphraseGeneration(provider.generation),
 	})
 	if err != nil {
 		return wrappedKey{}, err
@@ -277,6 +283,13 @@ func (provider passphraseProvider) Wrap(dataKey []byte) (wrappedKey, error) {
 		Params:     params,
 		Ciphertext: ciphertext,
 	}, nil
+}
+
+func normalizedPassphraseGeneration(generation uint64) uint64 {
+	if generation == 0 {
+		return 1
+	}
+	return generation
 }
 
 // checkWrapProvider refuses a wrap that belongs to another provider. The AEAD

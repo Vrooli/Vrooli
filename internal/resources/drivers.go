@@ -39,8 +39,9 @@ type resourceDriver interface {
 }
 
 var (
-	lookPathCommandFn       = exec.LookPath
-	runSourceBuildCommandFn = func(cmd *exec.Cmd) error { return cmd.Run() }
+	lookPathCommandFn         = exec.LookPath
+	runSourceBuildCommandFn   = func(cmd *exec.Cmd) error { return cmd.Run() }
+	runDockerLifecycleCommand = runDockerLifecycleCommandReal
 )
 
 func driverForManifest(manifest ResourceManifest) (resourceDriver, error) {
@@ -1303,6 +1304,10 @@ func dockerOutput(ctx context.Context, controller *Controller, args ...string) (
 }
 
 func dockerCommand(ctx context.Context, controller *Controller, stdout, stderr io.Writer, args ...string) error {
+	return runDockerLifecycleCommand(ctx, controller, stdout, stderr, args...)
+}
+
+func runDockerLifecycleCommandReal(ctx context.Context, controller *Controller, stdout, stderr io.Writer, args ...string) error {
 	cmd := shell.Command(shell.Spec{
 		Name:   "docker",
 		Args:   args,
@@ -1620,6 +1625,8 @@ func (d externalCLIDriver) Run(ctx context.Context, controller *Controller, item
 	case "stop":
 		_, err := fmt.Fprintf(stdout, "%s does not run as a managed background service\n", item.Name)
 		return err
+	case "uninstall":
+		return uninstallNativeCLI(controller, manifest)
 	case "logs":
 		if manifest.Capabilities.SupportsLogs {
 			candidates := managedLogCandidates(controller, manifest)
@@ -1650,10 +1657,32 @@ func usesManagedDiscoveredProvider(manifest ResourceManifest) bool {
 }
 
 func (d nativeCLIDriver) Status(ctx context.Context, controller *Controller, item Resource, manifest ResourceManifest, fast bool) (Status, error) {
+	// A native CLI with declared data artifacts has a readiness contract even
+	// though it has no long-lived process. Do not let the fast PATH-only probe
+	// report healthy while its runtime bytes are missing or corrupted.
+	if manifest.ManagedService != nil && len(manifest.ManagedService.DataArtifacts) > 0 {
+		fast = false
+	}
 	return externalCLIDriver{}.Status(ctx, controller, item, manifest, fast)
 }
 
 func (d nativeCLIDriver) Run(ctx context.Context, controller *Controller, item Resource, manifest ResourceManifest, action string, args []string, stdout, stderr io.Writer) error {
+	if action == "start" || action == "restart" {
+		status, err := d.Status(ctx, controller, item, manifest, false)
+		if err != nil {
+			return err
+		}
+		if status.Healthy == nil || !*status.Healthy {
+			message := status.Message
+			if strings.TrimSpace(status.ProbeError) != "" {
+				message += ": " + status.ProbeError
+			}
+			if strings.TrimSpace(message) == "" {
+				message = "readiness check failed"
+			}
+			return &Error{Code: ErrorCodeCommandUnavailable, Resource: item.Name, Operation: action, Category: "Readiness", Err: fmt.Errorf("%s: %s", item.Name, message)}
+		}
+	}
 	return externalCLIDriver{}.Run(ctx, controller, item, manifest, action, args, stdout, stderr)
 }
 
@@ -1675,6 +1704,11 @@ func probeExternalCLICommand(ctx context.Context, controller *Controller, manife
 		Stdin: nil,
 	})
 	result := runCommandResource(ctx, cmd)
+	if result.err != nil {
+		if detail := strings.TrimSpace(string(result.output)); detail != "" {
+			return fmt.Errorf("%w: %s", result.err, detail)
+		}
+	}
 	return result.err
 }
 
@@ -1845,7 +1879,34 @@ func externalCLIBinary(manifest ResourceManifest) string {
 	return manifest.Name
 }
 
+func uninstallNativeCLI(controller *Controller, manifest ResourceManifest) error {
+	runtimeHome, err := repocontract.VrooliUserRoot(controller.Home)
+	if err != nil {
+		return fmt.Errorf("resolve runtime home: %w", err)
+	}
+	binDir := filepath.Join(runtimeHome, "bin")
+	binary := filepath.Join(binDir, externalCLIBinary(manifest))
+	cleanBinary, err := filepath.Abs(binary)
+	if err != nil || filepath.Dir(cleanBinary) != binDir {
+		return fmt.Errorf("refuse to uninstall unsafe native CLI path %q", binary)
+	}
+	for _, path := range []string{cleanBinary, cliutil.InstalledManifestPath(cleanBinary), cliutil.InstalledBuildMetadataPath(cleanBinary)} {
+		if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("uninstall native CLI %s: %w", manifest.Name, err)
+		}
+	}
+	return nil
+}
+
 func runInstallCommand(ctx context.Context, controller *Controller, manifest ResourceManifest) error {
+	// Native CLI resources may own non-executable runtime inputs (for example a
+	// WASI module). Converge those bytes before installing the controller so a
+	// successful CLI build cannot leave the resource half-installed.
+	if manifest.ManagedService != nil && len(manifest.ManagedService.DataArtifacts) > 0 {
+		if err := ensureManagedServiceDataArtifacts(ctx, controller, manifest); err != nil {
+			return err
+		}
+	}
 	if manifest.CLI != nil && manifest.CLI.Enabled {
 		if sourceBuild := manifest.CLI.SourceBuild; sourceBuild != nil {
 			return runSourceBuild(ctx, controller, manifest, sourceBuild)

@@ -206,6 +206,11 @@ func loadSchemaArtifactManifests(root string) ([]loadedSchemaArtifactManifest, e
 		}
 		name := entry.Name()
 		manifestPath := filepath.Join(resourceRoot, name, "resource.json")
+		if _, statErr := os.Stat(manifestPath); os.IsNotExist(statErr) {
+			continue
+		} else if statErr != nil {
+			return nil, fmt.Errorf("inspect resource %s manifest: %w", name, statErr)
+		}
 		manifest, err := manifestpkg.Load(manifestPath)
 		if err != nil {
 			return nil, err
@@ -226,6 +231,11 @@ func findMissingScenarioResourceReferences(root string) ([]ScenarioResourceRefer
 	for _, entry := range resourceEntries {
 		if !entry.IsDir() {
 			continue
+		}
+		if _, err := os.Stat(filepath.Join(root, "resources", entry.Name(), "resource.json")); os.IsNotExist(err) {
+			continue
+		} else if err != nil {
+			return nil, fmt.Errorf("inspect resource %s manifest: %w", entry.Name(), err)
 		}
 		resourceSet[entry.Name()] = struct{}{}
 		resourceNames = append(resourceNames, entry.Name())

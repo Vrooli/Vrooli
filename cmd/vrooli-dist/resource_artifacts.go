@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"os/exec"
@@ -53,11 +54,21 @@ type stagedManagedServiceArtifact struct {
 	File    string
 }
 
+type releaseArtifactMetadata struct {
+	Role       string `json:"role"`
+	Provenance string `json:"provenance"`
+}
+
+const releaseArtifactMetadataFile = "release-artifact-metadata-v1.json"
+
 // stageToolArtifacts uses the same acquisition contract as managed services.
 // A release stager has only the target platform facts, so any target requiring
 // a runtime fact is rejected instead of producing a bundle that cannot be
 // reproduced on a clean machine.
 func stageToolArtifacts(ctx context.Context, root, outDir string) error {
+	if err := os.MkdirAll(outDir, 0o755); err != nil {
+		return fmt.Errorf("create tool artifact output: %w", err)
+	}
 	var manifests []string
 	if err := fs.WalkDir(tools.Manifests, ".", func(path string, entry fs.DirEntry, err error) error {
 		if err != nil {
@@ -170,22 +181,77 @@ func stageResourceArtifacts(ctx context.Context, root, outDir string) error {
 		return fmt.Errorf("create resource artifact output: %w", err)
 	}
 	index := make([]string, 0)
+	docParseStaged := false
 	for _, target := range targets {
 		resourceDir := filepath.Join(root, "resources", target.Resource)
 		if err := buildResourceController(ctx, resourceDir, target, outDir); err != nil {
 			return err
 		}
 		if target.Driver != "managed-service" {
+			if target.Resource == "doc-parse" && !docParseStaged {
+				if err := stageDocParseWASI(root, outDir); err != nil {
+					return err
+				}
+				docParseStaged = true
+			}
 			continue
 		}
-		staged, err := stageManagedServiceArtifact(ctx, target.Manifest, outDir, target.Platform)
+		staged, err := stageManagedServiceArtifact(ctx, target.Manifest, resourceDir, outDir, target.Platform)
 		if err != nil {
 			return fmt.Errorf("stage managed-service %s for %s: %w", target.Resource, target.Platform, err)
 		}
 		index = append(index, strings.Join([]string{target.Resource, staged.Version, artifactOS(target.Platform.OS), target.Platform.Arch, staged.File}, "\t"))
+		if err := updateReleaseArtifactMetadata(outDir, staged.File, releaseArtifactMetadata{Role: target.Manifest.ManagedService.ArtifactRole, Provenance: target.Manifest.ManagedService.ProvenanceClass}); err != nil {
+			return err
+		}
+	}
+	if !docParseStaged {
+		if _, err := os.Stat(filepath.Join(root, "resources", "doc-parse", "resource.json")); err == nil {
+			if err := stageDocParseWASI(root, outDir); err != nil {
+				return err
+			}
+			docParseStaged = true
+		}
 	}
 	sort.Strings(index)
+	if docParseStaged {
+		index = append(index, "doc-parse\tdeclared\tall\tall\tdoc-parse.wasm")
+		sort.Strings(index)
+	}
 	return os.WriteFile(filepath.Join(outDir, "resource-artifacts-v1.txt"), []byte(strings.Join(index, "\n")+"\n"), 0o644)
+}
+
+func stageDocParseWASI(root, outDir string) error {
+	resourceRoot := filepath.Join(root, "resources", "doc-parse")
+	source := filepath.Join(resourceRoot, "artifacts", "doc-parse.wasm")
+	sidecar := source + ".sha256"
+	if _, err := os.Stat(source); err != nil {
+		return fmt.Errorf("doc-parse WASI artifact is missing; run resources/doc-parse/build/build.sh first: %w", err)
+	}
+	if _, err := os.Stat(sidecar); err != nil {
+		return fmt.Errorf("doc-parse WASI artifact checksum is missing: %w", err)
+	}
+	if err := copyFile(source, filepath.Join(outDir, "doc-parse.wasm"), 0o755); err != nil {
+		return fmt.Errorf("stage doc-parse WASI artifact: %w", err)
+	}
+	if err := copyFile(sidecar, filepath.Join(outDir, "doc-parse.wasm.sha256"), 0o644); err != nil {
+		return fmt.Errorf("stage doc-parse WASI checksum: %w", err)
+	}
+	if err := updateReleaseArtifactMetadata(outDir, "doc-parse.wasm", releaseArtifactMetadata{Role: "resource-data", Provenance: "vrooli-rust-build"}); err != nil {
+		return err
+	}
+	return nil
+}
+
+func copyFile(source, destination string, mode os.FileMode) error {
+	data, err := os.ReadFile(source)
+	if err != nil {
+		return err
+	}
+	if err := os.WriteFile(destination, data, mode); err != nil {
+		return err
+	}
+	return os.Chmod(destination, mode)
 }
 
 // writeReleaseChecksumManifest records the immutable bytes that a release
@@ -199,7 +265,7 @@ func writeReleaseChecksumManifest(outDir string) error {
 	}
 	lines := make([]string, 0, len(entries))
 	for _, entry := range entries {
-		if entry.Name() == "SHA256SUMS" || entry.Name() == "SHA256SUMS.sig" || entry.Name() == "release-manifest.json" || entry.Name() == "release-manifest.sig.json" {
+		if entry.Name() == "SHA256SUMS" || entry.Name() == "SHA256SUMS.sig" || entry.Name() == "release-manifest.json" || entry.Name() == "release-manifest.sig.json" || entry.Name() == releaseArtifactMetadataFile || entry.Name() == "resource-artifacts-v1.txt" || entry.Name() == "tool-artifacts-v1.txt" {
 			continue
 		}
 		if (!entry.Type().IsRegular() && !entry.IsDir()) || !resourcedeployment.IsSafeArtifactName(entry.Name()) {
@@ -234,17 +300,20 @@ func writeReleaseChecksumManifest(outDir string) error {
 		fields := strings.Fields(line)
 		name := fields[1]
 		role := "vendored-tool"
-		if strings.HasPrefix(name, "resource-") {
+		provenance := "verified-by-vrooli-stager"
+		if metadata, ok := readReleaseArtifactMetadata(outDir, name); ok {
+			if metadata.Role != "" {
+				role = metadata.Role
+			}
+			if metadata.Provenance != "" {
+				provenance = metadata.Provenance
+			}
+		} else if strings.HasPrefix(name, "resource-") {
+			// Controller artifacts are a generic, manifest-independent release
+			// class; service artifacts must always provide metadata above.
 			role = "resource-controller"
 		}
-		if strings.HasPrefix(name, "vault_") {
-			role = "managed-service"
-		}
 		osName, arch := releaseArtifactPlatform(name)
-		provenance := "verified-by-vrooli-stager"
-		if strings.HasPrefix(name, "vault_") {
-			provenance = "hashicorp-checksum-signature-verified"
-		}
 		artifacts = append(artifacts, resourcedeployment.ReleaseArtifact{Name: name, SHA256: fields[0], Role: role, OS: osName, Arch: arch, UpstreamProvenance: provenance})
 	}
 	canonical, err := (resourcedeployment.ReleaseManifest{SchemaVersion: "v1", Artifacts: artifacts}).CanonicalBytes()
@@ -347,7 +416,7 @@ func buildResourceController(ctx context.Context, resourceDir string, target res
 	return os.WriteFile(filepath.Join(outDir, target.Artifact+".build.json"), append(metadata, '\n'), 0o644)
 }
 
-func stageManagedServiceArtifact(ctx context.Context, manifest resourceArtifactManifest, outDir string, platform resourcedeployment.Platform) (stagedManagedServiceArtifact, error) {
+func stageManagedServiceArtifact(ctx context.Context, manifest resourceArtifactManifest, resourceRoot, outDir string, platform resourcedeployment.Platform) (stagedManagedServiceArtifact, error) {
 	if manifest.ManagedService == nil || manifest.ManagedService.Acquisition == nil {
 		return stagedManagedServiceArtifact{}, fmt.Errorf("managed-service %s must declare acquisition", manifest.Name)
 	}
@@ -390,7 +459,11 @@ func stageManagedServiceArtifact(ctx context.Context, manifest resourceArtifactM
 		return stagedManagedServiceArtifact{}, err
 	}
 	path := filepath.Join(outDir, name)
-	if strings.EqualFold(strings.TrimSpace(manifest.ManagedService.Acquisition.Kind), "oci-image") {
+	if strings.EqualFold(strings.TrimSpace(manifest.ManagedService.Acquisition.Kind), "composed") {
+		if err := composeAcquisitionTarget(ctx, target, resourceRoot, path, platform); err != nil {
+			return stagedManagedServiceArtifact{}, fmt.Errorf("compose managed service %s: %w", manifest.Name, err)
+		}
+	} else if strings.EqualFold(strings.TrimSpace(manifest.ManagedService.Acquisition.Kind), "oci-image") {
 		if layout == "dir" {
 			if _, err := binaryfetch.FetchOCIForPlatform(ctx, target, path, artifactOS(platform.OS), platform.Arch, nil); err != nil {
 				return stagedManagedServiceArtifact{}, err
@@ -414,6 +487,196 @@ func stageManagedServiceArtifact(ctx context.Context, manifest resourceArtifactM
 		return stagedManagedServiceArtifact{}, fmt.Errorf("verify staged %s: %w", manifest.Name, err)
 	}
 	return stagedManagedServiceArtifact{Version: artifact.Version, File: name}, nil
+}
+
+type ComposeStepError struct {
+	Index int
+	Role  string
+	Kind  string
+	Err   error
+}
+
+func (e *ComposeStepError) Error() string {
+	return fmt.Sprintf("compose step %d (%s/%s): %v", e.Index, e.Role, e.Kind, e.Err)
+}
+func (e *ComposeStepError) Unwrap() error { return e.Err }
+
+func composeAcquisitionTarget(ctx context.Context, target binaryfetch.AcquisitionTarget, resourceRoot, artifactRoot string, platform resourcedeployment.Platform) error {
+	type provenanceStep struct {
+		Role         string `json:"role"`
+		Kind         string `json:"kind"`
+		Dest         string `json:"dest"`
+		SourceDigest string `json:"source_digest,omitempty"`
+	}
+	records := make([]provenanceStep, 0, len(target.Compose))
+	for index, step := range target.Compose {
+		if err := step.Validate(); err != nil {
+			return &ComposeStepError{Index: index, Role: step.Role, Kind: step.Kind, Err: err}
+		}
+		if err := runComposeStep(ctx, step, resourceRoot, artifactRoot, platform); err != nil {
+			return &ComposeStepError{Index: index, Role: step.Role, Kind: step.Kind, Err: err}
+		}
+		record := provenanceStep{Role: step.Role, Kind: step.Kind, Dest: step.Dest, SourceDigest: step.SHA256}
+		if strings.EqualFold(strings.TrimSpace(step.Kind), "python-wheels") {
+			lockfile := filepath.Join(resourceRoot, filepath.FromSlash(step.Lockfile))
+			digest, err := fileSHA256(lockfile)
+			if err != nil {
+				return &ComposeStepError{Index: index, Role: step.Role, Kind: step.Kind, Err: err}
+			}
+			record.SourceDigest = digest
+		}
+		records = append(records, record)
+	}
+	manifest := struct {
+		SchemaVersion string           `json:"schema_version"`
+		Platform      string           `json:"platform"`
+		Steps         []provenanceStep `json:"steps"`
+	}{SchemaVersion: "v1", Platform: platform.String(), Steps: records}
+	data, err := json.MarshalIndent(manifest, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(filepath.Join(artifactRoot, ".vrooli-compose-manifest.json"), append(data, '\n'), 0o644)
+}
+
+func fileSHA256(path string) (string, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+	hash := sha256.New()
+	if _, err := io.Copy(hash, file); err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%x", hash.Sum(nil)), nil
+}
+
+func runComposeStep(ctx context.Context, step binaryfetch.ComposeStep, resourceRoot, artifactRoot string, platform resourcedeployment.Platform) error {
+	dest := filepath.Clean(filepath.Join(artifactRoot, filepath.FromSlash(step.Dest)))
+	root := filepath.Clean(artifactRoot)
+	if dest != root && !strings.HasPrefix(dest, root+string(filepath.Separator)) {
+		return fmt.Errorf("destination %q escapes artifact root", step.Dest)
+	}
+	switch strings.ToLower(strings.TrimSpace(step.Kind)) {
+	case "url":
+		if err := binaryfetch.FetchTree(ctx, binaryfetch.Target{URL: step.URL, SHA256: step.SHA256, Archive: step.Archive}, dest, nil); err != nil {
+			return err
+		}
+		if strings.TrimSpace(step.BinPath) != "" {
+			return flattenComposePrefix(dest, step.BinPath)
+		}
+		return nil
+	case "python-wheels":
+		lockfile := filepath.Join(resourceRoot, filepath.FromSlash(step.Lockfile))
+		if info, err := os.Stat(lockfile); err != nil || info.IsDir() {
+			return fmt.Errorf("lockfile %q is unavailable for target %s: %w", step.Lockfile, platform, err)
+		}
+		if err := os.MkdirAll(dest, 0o755); err != nil {
+			return err
+		}
+		pythonPlatform := uvPlatform(platform)
+		// Wheel-only resolution is part of the reproducibility contract: a
+		// missing target wheel must fail acquisition instead of silently
+		// compiling a package with whatever compiler/network state happens to
+		// exist on the release host.
+		args := []string{"pip", "install", "--only-binary", ":all:", "--target", dest, "--requirement", lockfile, "--python-version", "3.12", "--python-platform", pythonPlatform}
+		command := exec.CommandContext(ctx, "uv", args...)
+		command.Env = append(os.Environ(), "UV_NO_PROGRESS=1")
+		output, err := command.CombinedOutput()
+		if err != nil {
+			return fmt.Errorf("uv wheel resolution failed: %w: %s", err, strings.TrimSpace(string(output)))
+		}
+		return nil
+	default:
+		return fmt.Errorf("unsupported compose step kind %q", step.Kind)
+	}
+}
+
+// flattenComposePrefix removes the conventional single directory emitted by
+// source/runtime archives. Compose steps use bin_path for this archive-root
+// hint; the resulting artifact has stable paths such as runtime/bin/python and
+// source/searx rather than release-specific tarball directory names.
+func flattenComposePrefix(root, prefix string) error {
+	prefixPath := filepath.Join(root, filepath.FromSlash(prefix))
+	info, err := os.Stat(prefixPath)
+	if err != nil {
+		return fmt.Errorf("compose archive root %q is unavailable: %w", prefix, err)
+	}
+	if !info.IsDir() {
+		return fmt.Errorf("compose archive root %q is not a directory", prefix)
+	}
+	flat := root + ".flat"
+	if err := os.Rename(root, flat); err != nil {
+		return err
+	}
+	if err := os.MkdirAll(root, 0o755); err != nil {
+		return err
+	}
+	entries, err := os.ReadDir(filepath.Join(flat, filepath.FromSlash(prefix)))
+	if err != nil {
+		return err
+	}
+	for _, entry := range entries {
+		if err := os.Rename(filepath.Join(flat, filepath.FromSlash(prefix), entry.Name()), filepath.Join(root, entry.Name())); err != nil {
+			return err
+		}
+	}
+	return os.RemoveAll(flat)
+}
+
+func uvPlatform(platform resourcedeployment.Platform) string {
+	switch platform.OS {
+	case "linux":
+		if platform.Arch == "arm64" {
+			return "aarch64-unknown-linux-gnu"
+		}
+		return "x86_64-unknown-linux-gnu"
+	case "macos":
+		if platform.Arch == "arm64" {
+			return "aarch64-apple-darwin"
+		}
+		return "x86_64-apple-darwin"
+	case "windows":
+		return "x86_64-pc-windows-msvc"
+	default:
+		return platform.OS + "-" + platform.Arch
+	}
+}
+
+func updateReleaseArtifactMetadata(outDir, name string, metadata releaseArtifactMetadata) error {
+	all := map[string]releaseArtifactMetadata{}
+	path := filepath.Join(outDir, releaseArtifactMetadataFile)
+	if data, err := os.ReadFile(path); err == nil && len(data) > 0 {
+		if err := json.Unmarshal(data, &all); err != nil {
+			return err
+		}
+	}
+	if metadata.Role == "" {
+		metadata.Role = "managed-service"
+	}
+	if metadata.Provenance == "" {
+		metadata.Provenance = "verified-by-vrooli-stager"
+	}
+	all[name] = metadata
+	data, err := json.MarshalIndent(all, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(path, append(data, '\n'), 0o644)
+}
+
+func readReleaseArtifactMetadata(outDir, name string) (releaseArtifactMetadata, bool) {
+	data, err := os.ReadFile(filepath.Join(outDir, releaseArtifactMetadataFile))
+	if err != nil {
+		return releaseArtifactMetadata{}, false
+	}
+	all := map[string]releaseArtifactMetadata{}
+	if json.Unmarshal(data, &all) != nil {
+		return releaseArtifactMetadata{}, false
+	}
+	value, ok := all[name]
+	return value, ok
 }
 
 func verifyStagerProvenance(ctx context.Context, declaration *binaryfetch.Provenance) error {

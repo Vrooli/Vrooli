@@ -65,6 +65,8 @@ export interface CredentialReadiness {
   description?: string;
   obtain_url?: string;
   required: boolean;
+  provisioning?: "operator" | "derived";
+  derived_from?: string;
   status: "configured" | "unconfigured" | "unsupported";
   detail?: string;
 }

@@ -333,7 +333,7 @@ class CoverageMetric(_message.Message):
     def __init__(self, numerator: _Optional[int] = ..., denominator: _Optional[int] = ..., ratio: _Optional[float] = ...) -> None: ...
 
 class CoverageReport(_message.Message):
-    __slots__ = ("rows", "totals", "by_domain", "by_priority", "maturity")
+    __slots__ = ("rows", "totals", "by_domain", "by_priority", "maturity", "composition_scores", "composition_median", "bespoke_escape_count")
     class TotalsEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -341,17 +341,30 @@ class CoverageReport(_message.Message):
         key: str
         value: int
         def __init__(self, key: _Optional[str] = ..., value: _Optional[int] = ...) -> None: ...
+    class CompositionScoresEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: float
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[float] = ...) -> None: ...
     ROWS_FIELD_NUMBER: _ClassVar[int]
     TOTALS_FIELD_NUMBER: _ClassVar[int]
     BY_DOMAIN_FIELD_NUMBER: _ClassVar[int]
     BY_PRIORITY_FIELD_NUMBER: _ClassVar[int]
     MATURITY_FIELD_NUMBER: _ClassVar[int]
+    COMPOSITION_SCORES_FIELD_NUMBER: _ClassVar[int]
+    COMPOSITION_MEDIAN_FIELD_NUMBER: _ClassVar[int]
+    BESPOKE_ESCAPE_COUNT_FIELD_NUMBER: _ClassVar[int]
     rows: _containers.RepeatedCompositeFieldContainer[CoverageRow]
     totals: _containers.ScalarMap[str, int]
     by_domain: _containers.RepeatedCompositeFieldContainer[Rollup]
     by_priority: _containers.RepeatedCompositeFieldContainer[Rollup]
     maturity: MaturitySummary
-    def __init__(self, rows: _Optional[_Iterable[_Union[CoverageRow, _Mapping]]] = ..., totals: _Optional[_Mapping[str, int]] = ..., by_domain: _Optional[_Iterable[_Union[Rollup, _Mapping]]] = ..., by_priority: _Optional[_Iterable[_Union[Rollup, _Mapping]]] = ..., maturity: _Optional[_Union[MaturitySummary, _Mapping]] = ...) -> None: ...
+    composition_scores: _containers.ScalarMap[str, float]
+    composition_median: float
+    bespoke_escape_count: int
+    def __init__(self, rows: _Optional[_Iterable[_Union[CoverageRow, _Mapping]]] = ..., totals: _Optional[_Mapping[str, int]] = ..., by_domain: _Optional[_Iterable[_Union[Rollup, _Mapping]]] = ..., by_priority: _Optional[_Iterable[_Union[Rollup, _Mapping]]] = ..., maturity: _Optional[_Union[MaturitySummary, _Mapping]] = ..., composition_scores: _Optional[_Mapping[str, float]] = ..., composition_median: _Optional[float] = ..., bespoke_escape_count: _Optional[int] = ...) -> None: ...
 
 class GetCoverageResponse(_message.Message):
     __slots__ = ("report",)
@@ -412,7 +425,7 @@ class GateFinding(_message.Message):
     def __init__(self, code: _Optional[str] = ..., message: _Optional[str] = ..., asset_id: _Optional[str] = ..., severity: _Optional[str] = ..., file: _Optional[str] = ..., line: _Optional[int] = ..., remediation: _Optional[str] = ..., docs_ref: _Optional[str] = ...) -> None: ...
 
 class RunGateResponse(_message.Message):
-    __slots__ = ("gate", "findings", "inspected_files", "runner_errors", "evidence_rows_written", "calibration", "non_discriminating", "surface_verdict_counts")
+    __slots__ = ("gate", "findings", "inspected_files", "runner_errors", "evidence_rows_written", "calibration", "non_discriminating", "surface_verdict_counts", "composition_scores", "composition_median", "bespoke_escape_count", "composition_escapes")
     class SurfaceVerdictCountsEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -420,6 +433,13 @@ class RunGateResponse(_message.Message):
         key: str
         value: int
         def __init__(self, key: _Optional[str] = ..., value: _Optional[int] = ...) -> None: ...
+    class CompositionScoresEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: float
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[float] = ...) -> None: ...
     GATE_FIELD_NUMBER: _ClassVar[int]
     FINDINGS_FIELD_NUMBER: _ClassVar[int]
     INSPECTED_FILES_FIELD_NUMBER: _ClassVar[int]
@@ -428,6 +448,10 @@ class RunGateResponse(_message.Message):
     CALIBRATION_FIELD_NUMBER: _ClassVar[int]
     NON_DISCRIMINATING_FIELD_NUMBER: _ClassVar[int]
     SURFACE_VERDICT_COUNTS_FIELD_NUMBER: _ClassVar[int]
+    COMPOSITION_SCORES_FIELD_NUMBER: _ClassVar[int]
+    COMPOSITION_MEDIAN_FIELD_NUMBER: _ClassVar[int]
+    BESPOKE_ESCAPE_COUNT_FIELD_NUMBER: _ClassVar[int]
+    COMPOSITION_ESCAPES_FIELD_NUMBER: _ClassVar[int]
     gate: str
     findings: _containers.RepeatedCompositeFieldContainer[GateFinding]
     inspected_files: int
@@ -436,7 +460,19 @@ class RunGateResponse(_message.Message):
     calibration: _containers.RepeatedCompositeFieldContainer[CalibrationResult]
     non_discriminating: bool
     surface_verdict_counts: _containers.ScalarMap[str, int]
-    def __init__(self, gate: _Optional[str] = ..., findings: _Optional[_Iterable[_Union[GateFinding, _Mapping]]] = ..., inspected_files: _Optional[int] = ..., runner_errors: _Optional[_Iterable[_Union[GateFinding, _Mapping]]] = ..., evidence_rows_written: _Optional[int] = ..., calibration: _Optional[_Iterable[_Union[CalibrationResult, _Mapping]]] = ..., non_discriminating: _Optional[bool] = ..., surface_verdict_counts: _Optional[_Mapping[str, int]] = ...) -> None: ...
+    composition_scores: _containers.ScalarMap[str, float]
+    composition_median: float
+    bespoke_escape_count: int
+    composition_escapes: _containers.RepeatedCompositeFieldContainer[CompositionEscape]
+    def __init__(self, gate: _Optional[str] = ..., findings: _Optional[_Iterable[_Union[GateFinding, _Mapping]]] = ..., inspected_files: _Optional[int] = ..., runner_errors: _Optional[_Iterable[_Union[GateFinding, _Mapping]]] = ..., evidence_rows_written: _Optional[int] = ..., calibration: _Optional[_Iterable[_Union[CalibrationResult, _Mapping]]] = ..., non_discriminating: _Optional[bool] = ..., surface_verdict_counts: _Optional[_Mapping[str, int]] = ..., composition_scores: _Optional[_Mapping[str, float]] = ..., composition_median: _Optional[float] = ..., bespoke_escape_count: _Optional[int] = ..., composition_escapes: _Optional[_Iterable[_Union[CompositionEscape, _Mapping]]] = ...) -> None: ...
+
+class CompositionEscape(_message.Message):
+    __slots__ = ("asset_id", "reason")
+    ASSET_ID_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    asset_id: str
+    reason: str
+    def __init__(self, asset_id: _Optional[str] = ..., reason: _Optional[str] = ...) -> None: ...
 
 class CalibrationResult(_message.Message):
     __slots__ = ("gate", "fixture", "required_failure_code", "observed_failure_code", "status", "message")

@@ -32,7 +32,22 @@ const (
 	// PhaseDurationKeep bounds the per-(scenario, variant, phase) duration
 	// history used for ETA estimates (last-N smoothed).
 	PhaseDurationKeep = 10
+	// InitiatorTextLimit bounds each recorded provenance string. Command lines
+	// are attacker- and agent-shaped input that can run to kilobytes; the
+	// leading portion identifies the caller, and the record is forensics, not
+	// a transcript.
+	InitiatorTextLimit = 512
 )
+
+// truncateInitiatorText bounds one provenance string, marking any cut so a
+// reader never mistakes a truncated command for the whole one.
+func truncateInitiatorText(value string) string {
+	value = strings.TrimSpace(value)
+	if len(value) <= InitiatorTextLimit {
+		return value
+	}
+	return value[:InitiatorTextLimit] + "…(truncated)"
+}
 
 // Step states within a start operation.
 const (
@@ -61,15 +76,26 @@ type StartOperation struct {
 	Error       string // failure message on failed
 	// InitiatorPID is the orchestrating CLI process. Its liveness is the
 	// staleness signal: a running record with a dead initiator is abandoned.
-	InitiatorPID      *int
-	StartedAt         time.Time
-	UpdatedAt         time.Time
-	FinishedAt        *time.Time
-	CurrentStep       string
-	DependencyCurrent string
-	DependencyIndex   int
-	DependencyTotal   int
-	StepsJSON         string
+	InitiatorPID *int
+	// The remaining initiator fields are provenance, not signal: they answer
+	// "who started this?" after the initiating process is gone. A PID alone
+	// cannot — it is stale within seconds on a host where short-lived CLIs
+	// start work constantly, and PIDs are reused. Argv says what ran,
+	// ParentArgv says who ran it, and Scope says where it belonged (on Linux
+	// the cgroup, which outlives the process and names the pane, service, or
+	// session). All are best-effort and may be empty.
+	InitiatorArgv       string
+	InitiatorParentPID  *int
+	InitiatorParentArgv string
+	InitiatorScope      string
+	StartedAt           time.Time
+	UpdatedAt           time.Time
+	FinishedAt          *time.Time
+	CurrentStep         string
+	DependencyCurrent   string
+	DependencyIndex     int
+	DependencyTotal     int
+	StepsJSON           string
 }
 
 // Steps decodes the recorded step list ([] on empty/corrupt JSON — the
@@ -149,6 +175,11 @@ func (s *SQLiteStore) BeginStartOperation(ctx context.Context, op StartOperation
 		op.Operation = "start"
 	}
 	op.Status = StartOperationStatusRunning
+	// Bound provenance here rather than trusting callers, so the invariant
+	// holds for every writer.
+	op.InitiatorArgv = truncateInitiatorText(op.InitiatorArgv)
+	op.InitiatorParentArgv = truncateInitiatorText(op.InitiatorParentArgv)
+	op.InitiatorScope = truncateInitiatorText(op.InitiatorScope)
 	now := s.now()
 	if op.StartedAt.IsZero() {
 		op.StartedAt = now
@@ -170,11 +201,14 @@ WHERE scenario = ? AND variant = ? AND status = ?`,
 		if _, err := tx.ExecContext(ctx, `
 INSERT INTO runtime_start_operations (
   operation_id, scenario, variant, operation, status, verdict, error, initiator_pid,
+  initiator_argv, initiator_parent_pid, initiator_parent_argv, initiator_scope,
   started_at, updated_at, finished_at, current_step, dependency_current,
   dependency_index, dependency_total, steps_json
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 			op.OperationID, op.Scenario, op.Variant, op.Operation, op.Status, op.Verdict, op.Error,
-			optionalIntValue(op.InitiatorPID), formatTime(op.StartedAt), formatTime(op.UpdatedAt),
+			optionalIntValue(op.InitiatorPID), op.InitiatorArgv, optionalIntValue(op.InitiatorParentPID),
+			op.InitiatorParentArgv, op.InitiatorScope,
+			formatTime(op.StartedAt), formatTime(op.UpdatedAt),
 			formatOptionalTime(op.FinishedAt), op.CurrentStep, op.DependencyCurrent,
 			op.DependencyIndex, op.DependencyTotal, op.StepsJSON); err != nil {
 			return fmt.Errorf("insert start operation: %w", err)
@@ -243,6 +277,7 @@ func (s *SQLiteStore) GetLatestStartOperation(ctx context.Context, scenario, var
 	variant = InstanceKey{Scenario: scenario, Variant: variant}.Normalize().Variant
 	row := s.db.QueryRowContext(ctx, `
 SELECT operation_id, scenario, variant, operation, status, verdict, error, initiator_pid,
+       initiator_argv, initiator_parent_pid, initiator_parent_argv, initiator_scope,
        started_at, updated_at, finished_at, current_step, dependency_current,
        dependency_index, dependency_total, steps_json
 FROM runtime_start_operations
@@ -286,6 +321,7 @@ WHERE operation_id = ? AND status = ?`,
 func (s *SQLiteStore) getStartOperation(ctx context.Context, operationID string) (StartOperation, error) {
 	row := s.db.QueryRowContext(ctx, `
 SELECT operation_id, scenario, variant, operation, status, verdict, error, initiator_pid,
+       initiator_argv, initiator_parent_pid, initiator_parent_argv, initiator_scope,
        started_at, updated_at, finished_at, current_step, dependency_current,
        dependency_index, dependency_total, steps_json
 FROM runtime_start_operations
@@ -351,11 +387,13 @@ GROUP BY phase`, scenario, variant)
 
 func scanStartOperation(row *sql.Row) (StartOperation, error) {
 	var op StartOperation
-	var initiatorPID sql.NullInt64
+	var initiatorPID, initiatorParentPID sql.NullInt64
 	var startedAt, updatedAt string
 	var finishedAt sql.NullString
 	err := row.Scan(&op.OperationID, &op.Scenario, &op.Variant, &op.Operation, &op.Status,
-		&op.Verdict, &op.Error, &initiatorPID, &startedAt, &updatedAt, &finishedAt,
+		&op.Verdict, &op.Error, &initiatorPID,
+		&op.InitiatorArgv, &initiatorParentPID, &op.InitiatorParentArgv, &op.InitiatorScope,
+		&startedAt, &updatedAt, &finishedAt,
 		&op.CurrentStep, &op.DependencyCurrent, &op.DependencyIndex, &op.DependencyTotal,
 		&op.StepsJSON)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -367,6 +405,10 @@ func scanStartOperation(row *sql.Row) (StartOperation, error) {
 	if initiatorPID.Valid {
 		pid := int(initiatorPID.Int64)
 		op.InitiatorPID = &pid
+	}
+	if initiatorParentPID.Valid {
+		pid := int(initiatorParentPID.Int64)
+		op.InitiatorParentPID = &pid
 	}
 	if op.StartedAt, err = parseRequiredTime(startedAt); err != nil {
 		return StartOperation{}, fmt.Errorf("parse start operation started_at: %w", err)

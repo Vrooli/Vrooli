@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file web-console/v1/sessions/sessions.proto.
  */
 export const file_web_console_v1_sessions_sessions: GenFile = /*@__PURE__*/
-  fileDesc("CiZ3ZWItY29uc29sZS92MS9zZXNzaW9ucy9zZXNzaW9ucy5wcm90bxIednJvb2xpLndlYl9jb25zb2xlLnYxLnNlc3Npb25zIjIKEEV4cGlyYXRpb25Qb2xpY3kSDAoEbW9kZRgBIAEoCRIQCghkdXJhdGlvbhgCIAEoCSLiAgoHU2Vzc2lvbhIKCgJpZBgBIAEoCRINCgVzaGVsbBgCIAEoCRISCgpjcmVhdGVkX2F0GAMgASgJEgwKBGNvbHMYBCABKAUSDAoEcm93cxgFIAEoBRIPCgdiYWNrZW5kGAYgASgJEhgKEHN1cnZpdmVzX3Jlc3RhcnQYByABKAgSQAoGcG9saWN5GAggASgLMjAudnJvb2xpLndlYl9jb25zb2xlLnYxLnNlc3Npb25zLkV4cGlyYXRpb25Qb2xpY3kSDAoEYnVzeRgJIAEoCBIRCglyZWNvdmVyZWQYCiABKAgSPQoGb3JpZ2luGAsgASgOMi0udnJvb2xpLndlYl9jb25zb2xlLnYxLnNlc3Npb25zLlNlc3Npb25PcmlnaW4SDQoFb3duZXIYDCABKAkSFQoNZGlzcGxheV9sYWJlbBgNIAEoCRIZChF0cmFja2luZ19kZWdyYWRlZBgOIAEoCCL/AgoSUmVjb3ZlcmFibGVTZXNzaW9uEgoKAmlkGAEgASgJEg8KB2JhY2tlbmQYAiABKAkSDQoFc2hlbGwYAyABKAkSDAoEY29scxgEIAEoBRIMCgRyb3dzGAUgASgFEhIKCmNyZWF0ZWRfYXQYBiABKAkSEwoLb3JwaGFuZWRfYXQYByABKAkSGAoQbGFzdF9hY3Rpdml0eV9hdBgIIAEoCRISCgphZ2VudF90eXBlGAkgASgJEhgKEGFnZW50X3Nlc3Npb25faWQYCiABKAkSFgoObGF1bmNoX2NvbW1hbmQYCyABKAkSCwoDY3dkGAwgASgJEhkKEWxhc3Rfcm9sbG91dF9wYXRoGA0gASgJEhMKC3JlY292ZXJhYmxlGA4gASgIEh4KFm5vdF9yZWNvdmVyYWJsZV9yZWFzb24YDyABKAkSEQoJcGFuZV9uYW1lGBAgASgJEhQKDGhlYWRlcl9jb2xvchgRIAEoCRISCgpncm91cF9uYW1lGBIgASgJItICCg1DcmVhdGVSZXF1ZXN0Eg0KBXNoZWxsGAEgASgJEgwKBGNvbHMYAiABKAUSDAoEcm93cxgDIAEoBRIPCgdiYWNrZW5kGAQgASgJEkAKBnBvbGljeRgFIAEoCzIwLnZyb29saS53ZWJfY29uc29sZS52MS5zZXNzaW9ucy5FeHBpcmF0aW9uUG9saWN5EhIKCmhhc19wb2xpY3kYBiABKAgSFgoObGF1bmNoX2NvbW1hbmQYByABKAkSEgoKYWdlbnRfdHlwZRgIIAEoCRI9CgZvcmlnaW4YCSABKA4yLS52cm9vbGkud2ViX2NvbnNvbGUudjEuc2Vzc2lvbnMuU2Vzc2lvbk9yaWdpbhINCgVvd25lchgKIAEoCRIVCg1kaXNwbGF5X2xhYmVsGAsgASgJEh4KFmV4ZWN1dGVfbGF1bmNoX2NvbW1hbmQYDCABKAgiSgoOQ3JlYXRlUmVzcG9uc2USOAoHc2Vzc2lvbhgBIAEoCzInLnZyb29saS53ZWJfY29uc29sZS52MS5zZXNzaW9ucy5TZXNzaW9uIg0KC0xpc3RSZXF1ZXN0IosBCgxMaXN0UmVzcG9uc2USOQoIc2Vzc2lvbnMYASADKAsyJy52cm9vbGkud2ViX2NvbnNvbGUudjEuc2Vzc2lvbnMuU2Vzc2lvbhJACghyZWNvdmVyeRgCIAEoCzIuLnZyb29saS53ZWJfY29uc29sZS52MS5zZXNzaW9ucy5SZWNvdmVyeVN0YXR1cyK/AgoPQXJjaGl2ZWRTZXNzaW9uEgoKAmlkGAEgASgJEhMKC2FyY2hpdmVkX2F0GAIgASgJEhIKCmNyZWF0ZWRfYXQYAyABKAkSEgoKYWdlbnRfdHlwZRgEIAEoCRIYChBhZ2VudF9zZXNzaW9uX2lkGAUgASgJEgsKA2N3ZBgGIAEoCRIRCglwYW5lX25hbWUYByABKAkSFAoMaGVhZGVyX2NvbG9yGAggASgJEhIKCmdyb3VwX25hbWUYCSABKAkSFQoNbWVzc2FnZV9jb3VudBgKIAEoAxJKCg1yZXN0b3JlX3N0YXRlGAsgASgOMjMudnJvb2xpLndlYl9jb25zb2xlLnYxLnNlc3Npb25zLkFyY2hpdmVSZXN0b3JlU3RhdGUSHAoUcmVzdG9yZV9zdGF0ZV9yZWFzb24YDCABKAkiFQoTTGlzdEFyY2hpdmVkUmVxdWVzdCJoChRMaXN0QXJjaGl2ZWRSZXNwb25zZRJBCghzZXNzaW9ucxgBIAMoCzIvLnZyb29saS53ZWJfY29uc29sZS52MS5zZXNzaW9ucy5BcmNoaXZlZFNlc3Npb24SDQoFdG90YWwYAiABKAUirQEKDlJlY292ZXJ5U3RhdHVzEhMKC2luX3Byb2dyZXNzGAEgASgIEg0KBXRvdGFsGAIgASgFEhEKCXJlY292ZXJlZBgDIAEoBRIZChFhd2FpdGluZ19yZWNvdmVyeRgEIAEoBRIPCgdhZG9wdGVkGAUgASgFEhoKEnN0YXJ0ZWRfYXRfdW5peF9tcxgGIAEoAxIcChRjb21wbGV0ZWRfYXRfdW5peF9tcxgHIAEoAyIYCgpHZXRSZXF1ZXN0EgoKAmlkGAEgASgJIkcKC0dldFJlc3BvbnNlEjgKB3Nlc3Npb24YASABKAsyJy52cm9vbGkud2ViX2NvbnNvbGUudjEuc2Vzc2lvbnMuU2Vzc2lvbiIcCg5BcmNoaXZlUmVxdWVzdBIKCgJpZBgBIAEoCSIdCg9BcmNoaXZlUmVzcG9uc2USCgoCaWQYASABKAkiHgoQVW5hcmNoaXZlUmVxdWVzdBIKCgJpZBgBIAEoCSIfChFVbmFyY2hpdmVSZXNwb25zZRIKCgJpZBgBIAEoCSIbCg1EZWxldGVSZXF1ZXN0EgoKAmlkGAEgASgJIhAKDkRlbGV0ZVJlc3BvbnNlIhgKFkxpc3RSZWNvdmVyYWJsZVJlcXVlc3QiXwoXTGlzdFJlY292ZXJhYmxlUmVzcG9uc2USRAoIc2Vzc2lvbnMYASADKAsyMi52cm9vbGkud2ViX2NvbnNvbGUudjEuc2Vzc2lvbnMuUmVjb3ZlcmFibGVTZXNzaW9uIicKGURpc21pc3NSZWNvdmVyYWJsZVJlcXVlc3QSCgoCaWQYASABKAkiKAoaRGlzbWlzc1JlY292ZXJhYmxlUmVzcG9uc2USCgoCaWQYASABKAkiHAoOUmVjb3ZlclJlcXVlc3QSCgoCaWQYASABKAkihgEKD1JlY292ZXJSZXNwb25zZRIWCg5vbGRfc2Vzc2lvbl9pZBgBIAEoCRIWCg5uZXdfc2Vzc2lvbl9pZBgCIAEoCRISCgphZ2VudF90eXBlGAMgASgJEhQKDGNvbW1hbmRfc2VudBgEIAEoCRIZChFjb2RleF9ob21lX2NvcGllZBgFIAEoCCIeChBHZXRQb2xpY3lSZXF1ZXN0EgoKAmlkGAEgASgJIp8BCgpQb2xpY3lWaWV3EhIKCnNlc3Npb25faWQYASABKAkSQAoGcG9saWN5GAIgASgLMjAudnJvb2xpLndlYl9jb25zb2xlLnYxLnNlc3Npb25zLkV4cGlyYXRpb25Qb2xpY3kSEgoKZXhwaXJlc19hdBgDIAEoCRITCgt0dGxfc2Vjb25kcxgEIAEoARISCgpoYXNfZXhwaXJ5GAUgASgIIk8KEUdldFBvbGljeVJlc3BvbnNlEjoKBnBvbGljeRgBIAEoCzIqLnZyb29saS53ZWJfY29uc29sZS52MS5zZXNzaW9ucy5Qb2xpY3lWaWV3ImMKE1VwZGF0ZVBvbGljeVJlcXVlc3QSCgoCaWQYASABKAkSQAoGcG9saWN5GAIgASgLMjAudnJvb2xpLndlYl9jb25zb2xlLnYxLnNlc3Npb25zLkV4cGlyYXRpb25Qb2xpY3kiUgoUVXBkYXRlUG9saWN5UmVzcG9uc2USOgoGcG9saWN5GAEgASgLMioudnJvb2xpLndlYl9jb25zb2xlLnYxLnNlc3Npb25zLlBvbGljeVZpZXcqggEKDVNlc3Npb25PcmlnaW4SHgoaU0VTU0lPTl9PUklHSU5fVU5TUEVDSUZJRUQQABIVChFTRVNTSU9OX09SSUdJTl9VSRABEh8KG1NFU1NJT05fT1JJR0lOX1BST0dSQU1NQVRJQxACEhkKFVNFU1NJT05fT1JJR0lOX1JFTU9URRADKrUBChNBcmNoaXZlUmVzdG9yZVN0YXRlEiUKIUFSQ0hJVkVfUkVTVE9SRV9TVEFURV9VTlNQRUNJRklFRBAAEiQKIEFSQ0hJVkVfUkVTVE9SRV9TVEFURV9SRU9QRU5BQkxFEAESIwofQVJDSElWRV9SRVNUT1JFX1NUQVRFX1JFQURfT05MWRACEiwKKEFSQ0hJVkVfUkVTVE9SRV9TVEFURV9OT1RISU5HX1RPX1JFU1RPUkUQAzLrCgoPU2Vzc2lvbnNTZXJ2aWNlEmcKBkNyZWF0ZRItLnZyb29saS53ZWJfY29uc29sZS52MS5zZXNzaW9ucy5DcmVhdGVSZXF1ZXN0Gi4udnJvb2xpLndlYl9jb25zb2xlLnYxLnNlc3Npb25zLkNyZWF0ZVJlc3BvbnNlEmEKBExpc3QSKy52cm9vbGkud2ViX2NvbnNvbGUudjEuc2Vzc2lvbnMuTGlzdFJlcXVlc3QaLC52cm9vbGkud2ViX2NvbnNvbGUudjEuc2Vzc2lvbnMuTGlzdFJlc3BvbnNlEnkKDExpc3RBcmNoaXZlZBIzLnZyb29saS53ZWJfY29uc29sZS52MS5zZXNzaW9ucy5MaXN0QXJjaGl2ZWRSZXF1ZXN0GjQudnJvb2xpLndlYl9jb25zb2xlLnYxLnNlc3Npb25zLkxpc3RBcmNoaXZlZFJlc3BvbnNlEl4KA0dldBIqLnZyb29saS53ZWJfY29uc29sZS52MS5zZXNzaW9ucy5HZXRSZXF1ZXN0GisudnJvb2xpLndlYl9jb25zb2xlLnYxLnNlc3Npb25zLkdldFJlc3BvbnNlEmoKB0FyY2hpdmUSLi52cm9vbGkud2ViX2NvbnNvbGUudjEuc2Vzc2lvbnMuQXJjaGl2ZVJlcXVlc3QaLy52cm9vbGkud2ViX2NvbnNvbGUudjEuc2Vzc2lvbnMuQXJjaGl2ZVJlc3BvbnNlEnAKCVVuYXJjaGl2ZRIwLnZyb29saS53ZWJfY29uc29sZS52MS5zZXNzaW9ucy5VbmFyY2hpdmVSZXF1ZXN0GjEudnJvb2xpLndlYl9jb25zb2xlLnYxLnNlc3Npb25zLlVuYXJjaGl2ZVJlc3BvbnNlEmcKBkRlbGV0ZRItLnZyb29saS53ZWJfY29uc29sZS52MS5zZXNzaW9ucy5EZWxldGVSZXF1ZXN0Gi4udnJvb2xpLndlYl9jb25zb2xlLnYxLnNlc3Npb25zLkRlbGV0ZVJlc3BvbnNlEoIBCg9MaXN0UmVjb3ZlcmFibGUSNi52cm9vbGkud2ViX2NvbnNvbGUudjEuc2Vzc2lvbnMuTGlzdFJlY292ZXJhYmxlUmVxdWVzdBo3LnZyb29saS53ZWJfY29uc29sZS52MS5zZXNzaW9ucy5MaXN0UmVjb3ZlcmFibGVSZXNwb25zZRKLAQoSRGlzbWlzc1JlY292ZXJhYmxlEjkudnJvb2xpLndlYl9jb25zb2xlLnYxLnNlc3Npb25zLkRpc21pc3NSZWNvdmVyYWJsZVJlcXVlc3QaOi52cm9vbGkud2ViX2NvbnNvbGUudjEuc2Vzc2lvbnMuRGlzbWlzc1JlY292ZXJhYmxlUmVzcG9uc2USagoHUmVjb3ZlchIuLnZyb29saS53ZWJfY29uc29sZS52MS5zZXNzaW9ucy5SZWNvdmVyUmVxdWVzdBovLnZyb29saS53ZWJfY29uc29sZS52MS5zZXNzaW9ucy5SZWNvdmVyUmVzcG9uc2UScAoJR2V0UG9saWN5EjAudnJvb2xpLndlYl9jb25zb2xlLnYxLnNlc3Npb25zLkdldFBvbGljeVJlcXVlc3QaMS52cm9vbGkud2ViX2NvbnNvbGUudjEuc2Vzc2lvbnMuR2V0UG9saWN5UmVzcG9uc2USeQoMVXBkYXRlUG9saWN5EjMudnJvb2xpLndlYl9jb25zb2xlLnYxLnNlc3Npb25zLlVwZGF0ZVBvbGljeVJlcXVlc3QaNC52cm9vbGkud2ViX2NvbnNvbGUudjEuc2Vzc2lvbnMuVXBkYXRlUG9saWN5UmVzcG9uc2VCVFpSZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby93ZWItY29uc29sZS92MS9zZXNzaW9ucztzZXNzaW9uc192MWIGcHJvdG8z");
+  fileDesc("CiZ3ZWItY29uc29sZS92MS9zZXNzaW9ucy9zZXNzaW9ucy5wcm90bxIednJvb2xpLndlYl9jb25zb2xlLnYxLnNlc3Npb25zIjIKEEV4cGlyYXRpb25Qb2xpY3kSDAoEbW9kZRgBIAEoCRIQCghkdXJhdGlvbhgCIAEoCSLiAgoHU2Vzc2lvbhIKCgJpZBgBIAEoCRINCgVzaGVsbBgCIAEoCRISCgpjcmVhdGVkX2F0GAMgASgJEgwKBGNvbHMYBCABKAUSDAoEcm93cxgFIAEoBRIPCgdiYWNrZW5kGAYgASgJEhgKEHN1cnZpdmVzX3Jlc3RhcnQYByABKAgSQAoGcG9saWN5GAggASgLMjAudnJvb2xpLndlYl9jb25zb2xlLnYxLnNlc3Npb25zLkV4cGlyYXRpb25Qb2xpY3kSDAoEYnVzeRgJIAEoCBIRCglyZWNvdmVyZWQYCiABKAgSPQoGb3JpZ2luGAsgASgOMi0udnJvb2xpLndlYl9jb25zb2xlLnYxLnNlc3Npb25zLlNlc3Npb25PcmlnaW4SDQoFb3duZXIYDCABKAkSFQoNZGlzcGxheV9sYWJlbBgNIAEoCRIZChF0cmFja2luZ19kZWdyYWRlZBgOIAEoCCL/AgoSUmVjb3ZlcmFibGVTZXNzaW9uEgoKAmlkGAEgASgJEg8KB2JhY2tlbmQYAiABKAkSDQoFc2hlbGwYAyABKAkSDAoEY29scxgEIAEoBRIMCgRyb3dzGAUgASgFEhIKCmNyZWF0ZWRfYXQYBiABKAkSEwoLb3JwaGFuZWRfYXQYByABKAkSGAoQbGFzdF9hY3Rpdml0eV9hdBgIIAEoCRISCgphZ2VudF90eXBlGAkgASgJEhgKEGFnZW50X3Nlc3Npb25faWQYCiABKAkSFgoObGF1bmNoX2NvbW1hbmQYCyABKAkSCwoDY3dkGAwgASgJEhkKEWxhc3Rfcm9sbG91dF9wYXRoGA0gASgJEhMKC3JlY292ZXJhYmxlGA4gASgIEh4KFm5vdF9yZWNvdmVyYWJsZV9yZWFzb24YDyABKAkSEQoJcGFuZV9uYW1lGBAgASgJEhQKDGhlYWRlcl9jb2xvchgRIAEoCRISCgpncm91cF9uYW1lGBIgASgJItICCg1DcmVhdGVSZXF1ZXN0Eg0KBXNoZWxsGAEgASgJEgwKBGNvbHMYAiABKAUSDAoEcm93cxgDIAEoBRIPCgdiYWNrZW5kGAQgASgJEkAKBnBvbGljeRgFIAEoCzIwLnZyb29saS53ZWJfY29uc29sZS52MS5zZXNzaW9ucy5FeHBpcmF0aW9uUG9saWN5EhIKCmhhc19wb2xpY3kYBiABKAgSFgoObGF1bmNoX2NvbW1hbmQYByABKAkSEgoKYWdlbnRfdHlwZRgIIAEoCRI9CgZvcmlnaW4YCSABKA4yLS52cm9vbGkud2ViX2NvbnNvbGUudjEuc2Vzc2lvbnMuU2Vzc2lvbk9yaWdpbhINCgVvd25lchgKIAEoCRIVCg1kaXNwbGF5X2xhYmVsGAsgASgJEh4KFmV4ZWN1dGVfbGF1bmNoX2NvbW1hbmQYDCABKAgiSgoOQ3JlYXRlUmVzcG9uc2USOAoHc2Vzc2lvbhgBIAEoCzInLnZyb29saS53ZWJfY29uc29sZS52MS5zZXNzaW9ucy5TZXNzaW9uIg0KC0xpc3RSZXF1ZXN0IosBCgxMaXN0UmVzcG9uc2USOQoIc2Vzc2lvbnMYASADKAsyJy52cm9vbGkud2ViX2NvbnNvbGUudjEuc2Vzc2lvbnMuU2Vzc2lvbhJACghyZWNvdmVyeRgCIAEoCzIuLnZyb29saS53ZWJfY29uc29sZS52MS5zZXNzaW9ucy5SZWNvdmVyeVN0YXR1cyLaAgoPQXJjaGl2ZWRTZXNzaW9uEgoKAmlkGAEgASgJEhMKC2FyY2hpdmVkX2F0GAIgASgJEhIKCmNyZWF0ZWRfYXQYAyABKAkSEgoKYWdlbnRfdHlwZRgEIAEoCRIYChBhZ2VudF9zZXNzaW9uX2lkGAUgASgJEgsKA2N3ZBgGIAEoCRIRCglwYW5lX25hbWUYByABKAkSFAoMaGVhZGVyX2NvbG9yGAggASgJEhIKCmdyb3VwX25hbWUYCSABKAkSFQoNbWVzc2FnZV9jb3VudBgKIAEoAxJKCg1yZXN0b3JlX3N0YXRlGAsgASgOMjMudnJvb2xpLndlYl9jb25zb2xlLnYxLnNlc3Npb25zLkFyY2hpdmVSZXN0b3JlU3RhdGUSHAoUcmVzdG9yZV9zdGF0ZV9yZWFzb24YDCABKAkSGQoRYXdhaXRpbmdfcmVjb3ZlcnkYDSABKAgiFQoTTGlzdEFyY2hpdmVkUmVxdWVzdCJoChRMaXN0QXJjaGl2ZWRSZXNwb25zZRJBCghzZXNzaW9ucxgBIAMoCzIvLnZyb29saS53ZWJfY29uc29sZS52MS5zZXNzaW9ucy5BcmNoaXZlZFNlc3Npb24SDQoFdG90YWwYAiABKAUirQEKDlJlY292ZXJ5U3RhdHVzEhMKC2luX3Byb2dyZXNzGAEgASgIEg0KBXRvdGFsGAIgASgFEhEKCXJlY292ZXJlZBgDIAEoBRIZChFhd2FpdGluZ19yZWNvdmVyeRgEIAEoBRIPCgdhZG9wdGVkGAUgASgFEhoKEnN0YXJ0ZWRfYXRfdW5peF9tcxgGIAEoAxIcChRjb21wbGV0ZWRfYXRfdW5peF9tcxgHIAEoAyIYCgpHZXRSZXF1ZXN0EgoKAmlkGAEgASgJIkcKC0dldFJlc3BvbnNlEjgKB3Nlc3Npb24YASABKAsyJy52cm9vbGkud2ViX2NvbnNvbGUudjEuc2Vzc2lvbnMuU2Vzc2lvbiIcCg5BcmNoaXZlUmVxdWVzdBIKCgJpZBgBIAEoCSIdCg9BcmNoaXZlUmVzcG9uc2USCgoCaWQYASABKAkiHgoQVW5hcmNoaXZlUmVxdWVzdBIKCgJpZBgBIAEoCSIfChFVbmFyY2hpdmVSZXNwb25zZRIKCgJpZBgBIAEoCSIbCg1EZWxldGVSZXF1ZXN0EgoKAmlkGAEgASgJIhAKDkRlbGV0ZVJlc3BvbnNlIhgKFkxpc3RSZWNvdmVyYWJsZVJlcXVlc3QiXwoXTGlzdFJlY292ZXJhYmxlUmVzcG9uc2USRAoIc2Vzc2lvbnMYASADKAsyMi52cm9vbGkud2ViX2NvbnNvbGUudjEuc2Vzc2lvbnMuUmVjb3ZlcmFibGVTZXNzaW9uIicKGURpc21pc3NSZWNvdmVyYWJsZVJlcXVlc3QSCgoCaWQYASABKAkiKAoaRGlzbWlzc1JlY292ZXJhYmxlUmVzcG9uc2USCgoCaWQYASABKAkiHAoOUmVjb3ZlclJlcXVlc3QSCgoCaWQYASABKAkihgEKD1JlY292ZXJSZXNwb25zZRIWCg5vbGRfc2Vzc2lvbl9pZBgBIAEoCRIWCg5uZXdfc2Vzc2lvbl9pZBgCIAEoCRISCgphZ2VudF90eXBlGAMgASgJEhQKDGNvbW1hbmRfc2VudBgEIAEoCRIZChFjb2RleF9ob21lX2NvcGllZBgFIAEoCCIbCg1SZW9wZW5SZXF1ZXN0EgoKAmlkGAEgASgJIoUBCg5SZW9wZW5SZXNwb25zZRIWCg5vbGRfc2Vzc2lvbl9pZBgBIAEoCRIWCg5uZXdfc2Vzc2lvbl9pZBgCIAEoCRISCgphZ2VudF90eXBlGAMgASgJEhQKDGNvbW1hbmRfc2VudBgEIAEoCRIZChFjb2RleF9ob21lX2NvcGllZBgFIAEoCCJnChZBcmNoaXZlUmV0ZW50aW9uUG9saWN5Eh0KFW1lc3NhZ2VfbGVzc19hZ2VfZGF5cxgBIAEoBRIbChNhZ2VudF9ob21lX2FnZV9kYXlzGAIgASgFEhEKCW1heF9ieXRlcxgDIAEoAyKMAQoVQXJjaGl2ZVJldGVudGlvblN0YXRzEhMKC2VudHJ5X2NvdW50GAEgASgDEhUKDW1lc3NhZ2VfY291bnQYAiABKAMSGAoQdHJhbnNjcmlwdF9ieXRlcxgDIAEoAxIYChBhZ2VudF9ob21lX2J5dGVzGAQgASgDEhMKC3RvdGFsX2J5dGVzGAUgASgDIhwKGkdldEFyY2hpdmVSZXRlbnRpb25SZXF1ZXN0IqsBChtHZXRBcmNoaXZlUmV0ZW50aW9uUmVzcG9uc2USRgoGcG9saWN5GAEgASgLMjYudnJvb2xpLndlYl9jb25zb2xlLnYxLnNlc3Npb25zLkFyY2hpdmVSZXRlbnRpb25Qb2xpY3kSRAoFc3RhdHMYAiABKAsyNS52cm9vbGkud2ViX2NvbnNvbGUudjEuc2Vzc2lvbnMuQXJjaGl2ZVJldGVudGlvblN0YXRzIiQKE1BydW5lQXJjaGl2ZVJlcXVlc3QSDQoFYXBwbHkYASABKAgiVgoSQXJjaGl2ZVBydW5lQWN0aW9uEhIKCnNlc3Npb25faWQYASABKAkSDAoEa2luZBgCIAEoCRINCgVieXRlcxgDIAEoAxIPCgdhcHBsaWVkGAQgASgIIpICChRQcnVuZUFyY2hpdmVSZXNwb25zZRIPCgdkcnlfcnVuGAEgASgIEkMKB2FjdGlvbnMYAiADKAsyMi52cm9vbGkud2ViX2NvbnNvbGUudjEuc2Vzc2lvbnMuQXJjaGl2ZVBydW5lQWN0aW9uEhcKD3JlY2xhaW1lZF9ieXRlcxgDIAEoAxJFCgZiZWZvcmUYBCABKAsyNS52cm9vbGkud2ViX2NvbnNvbGUudjEuc2Vzc2lvbnMuQXJjaGl2ZVJldGVudGlvblN0YXRzEkQKBWFmdGVyGAUgASgLMjUudnJvb2xpLndlYl9jb25zb2xlLnYxLnNlc3Npb25zLkFyY2hpdmVSZXRlbnRpb25TdGF0cyIeChBHZXRQb2xpY3lSZXF1ZXN0EgoKAmlkGAEgASgJIp8BCgpQb2xpY3lWaWV3EhIKCnNlc3Npb25faWQYASABKAkSQAoGcG9saWN5GAIgASgLMjAudnJvb2xpLndlYl9jb25zb2xlLnYxLnNlc3Npb25zLkV4cGlyYXRpb25Qb2xpY3kSEgoKZXhwaXJlc19hdBgDIAEoCRITCgt0dGxfc2Vjb25kcxgEIAEoARISCgpoYXNfZXhwaXJ5GAUgASgIIk8KEUdldFBvbGljeVJlc3BvbnNlEjoKBnBvbGljeRgBIAEoCzIqLnZyb29saS53ZWJfY29uc29sZS52MS5zZXNzaW9ucy5Qb2xpY3lWaWV3ImMKE1VwZGF0ZVBvbGljeVJlcXVlc3QSCgoCaWQYASABKAkSQAoGcG9saWN5GAIgASgLMjAudnJvb2xpLndlYl9jb25zb2xlLnYxLnNlc3Npb25zLkV4cGlyYXRpb25Qb2xpY3kiUgoUVXBkYXRlUG9saWN5UmVzcG9uc2USOgoGcG9saWN5GAEgASgLMioudnJvb2xpLndlYl9jb25zb2xlLnYxLnNlc3Npb25zLlBvbGljeVZpZXcqggEKDVNlc3Npb25PcmlnaW4SHgoaU0VTU0lPTl9PUklHSU5fVU5TUEVDSUZJRUQQABIVChFTRVNTSU9OX09SSUdJTl9VSRABEh8KG1NFU1NJT05fT1JJR0lOX1BST0dSQU1NQVRJQxACEhkKFVNFU1NJT05fT1JJR0lOX1JFTU9URRADKrUBChNBcmNoaXZlUmVzdG9yZVN0YXRlEiUKIUFSQ0hJVkVfUkVTVE9SRV9TVEFURV9VTlNQRUNJRklFRBAAEiQKIEFSQ0hJVkVfUkVTVE9SRV9TVEFURV9SRU9QRU5BQkxFEAESIwofQVJDSElWRV9SRVNUT1JFX1NUQVRFX1JFQURfT05MWRACEiwKKEFSQ0hJVkVfUkVTVE9SRV9TVEFURV9OT1RISU5HX1RPX1JFU1RPUkUQAzLgDQoPU2Vzc2lvbnNTZXJ2aWNlEmcKBkNyZWF0ZRItLnZyb29saS53ZWJfY29uc29sZS52MS5zZXNzaW9ucy5DcmVhdGVSZXF1ZXN0Gi4udnJvb2xpLndlYl9jb25zb2xlLnYxLnNlc3Npb25zLkNyZWF0ZVJlc3BvbnNlEmEKBExpc3QSKy52cm9vbGkud2ViX2NvbnNvbGUudjEuc2Vzc2lvbnMuTGlzdFJlcXVlc3QaLC52cm9vbGkud2ViX2NvbnNvbGUudjEuc2Vzc2lvbnMuTGlzdFJlc3BvbnNlEnkKDExpc3RBcmNoaXZlZBIzLnZyb29saS53ZWJfY29uc29sZS52MS5zZXNzaW9ucy5MaXN0QXJjaGl2ZWRSZXF1ZXN0GjQudnJvb2xpLndlYl9jb25zb2xlLnYxLnNlc3Npb25zLkxpc3RBcmNoaXZlZFJlc3BvbnNlEl4KA0dldBIqLnZyb29saS53ZWJfY29uc29sZS52MS5zZXNzaW9ucy5HZXRSZXF1ZXN0GisudnJvb2xpLndlYl9jb25zb2xlLnYxLnNlc3Npb25zLkdldFJlc3BvbnNlEmoKB0FyY2hpdmUSLi52cm9vbGkud2ViX2NvbnNvbGUudjEuc2Vzc2lvbnMuQXJjaGl2ZVJlcXVlc3QaLy52cm9vbGkud2ViX2NvbnNvbGUudjEuc2Vzc2lvbnMuQXJjaGl2ZVJlc3BvbnNlEnAKCVVuYXJjaGl2ZRIwLnZyb29saS53ZWJfY29uc29sZS52MS5zZXNzaW9ucy5VbmFyY2hpdmVSZXF1ZXN0GjEudnJvb2xpLndlYl9jb25zb2xlLnYxLnNlc3Npb25zLlVuYXJjaGl2ZVJlc3BvbnNlEmcKBkRlbGV0ZRItLnZyb29saS53ZWJfY29uc29sZS52MS5zZXNzaW9ucy5EZWxldGVSZXF1ZXN0Gi4udnJvb2xpLndlYl9jb25zb2xlLnYxLnNlc3Npb25zLkRlbGV0ZVJlc3BvbnNlEoIBCg9MaXN0UmVjb3ZlcmFibGUSNi52cm9vbGkud2ViX2NvbnNvbGUudjEuc2Vzc2lvbnMuTGlzdFJlY292ZXJhYmxlUmVxdWVzdBo3LnZyb29saS53ZWJfY29uc29sZS52MS5zZXNzaW9ucy5MaXN0UmVjb3ZlcmFibGVSZXNwb25zZRKLAQoSRGlzbWlzc1JlY292ZXJhYmxlEjkudnJvb2xpLndlYl9jb25zb2xlLnYxLnNlc3Npb25zLkRpc21pc3NSZWNvdmVyYWJsZVJlcXVlc3QaOi52cm9vbGkud2ViX2NvbnNvbGUudjEuc2Vzc2lvbnMuRGlzbWlzc1JlY292ZXJhYmxlUmVzcG9uc2USagoHUmVjb3ZlchIuLnZyb29saS53ZWJfY29uc29sZS52MS5zZXNzaW9ucy5SZWNvdmVyUmVxdWVzdBovLnZyb29saS53ZWJfY29uc29sZS52MS5zZXNzaW9ucy5SZWNvdmVyUmVzcG9uc2USZwoGUmVvcGVuEi0udnJvb2xpLndlYl9jb25zb2xlLnYxLnNlc3Npb25zLlJlb3BlblJlcXVlc3QaLi52cm9vbGkud2ViX2NvbnNvbGUudjEuc2Vzc2lvbnMuUmVvcGVuUmVzcG9uc2USjgEKE0dldEFyY2hpdmVSZXRlbnRpb24SOi52cm9vbGkud2ViX2NvbnNvbGUudjEuc2Vzc2lvbnMuR2V0QXJjaGl2ZVJldGVudGlvblJlcXVlc3QaOy52cm9vbGkud2ViX2NvbnNvbGUudjEuc2Vzc2lvbnMuR2V0QXJjaGl2ZVJldGVudGlvblJlc3BvbnNlEnkKDFBydW5lQXJjaGl2ZRIzLnZyb29saS53ZWJfY29uc29sZS52MS5zZXNzaW9ucy5QcnVuZUFyY2hpdmVSZXF1ZXN0GjQudnJvb2xpLndlYl9jb25zb2xlLnYxLnNlc3Npb25zLlBydW5lQXJjaGl2ZVJlc3BvbnNlEnAKCUdldFBvbGljeRIwLnZyb29saS53ZWJfY29uc29sZS52MS5zZXNzaW9ucy5HZXRQb2xpY3lSZXF1ZXN0GjEudnJvb2xpLndlYl9jb25zb2xlLnYxLnNlc3Npb25zLkdldFBvbGljeVJlc3BvbnNlEnkKDFVwZGF0ZVBvbGljeRIzLnZyb29saS53ZWJfY29uc29sZS52MS5zZXNzaW9ucy5VcGRhdGVQb2xpY3lSZXF1ZXN0GjQudnJvb2xpLndlYl9jb25zb2xlLnYxLnNlc3Npb25zLlVwZGF0ZVBvbGljeVJlc3BvbnNlQlRaUmdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vd2ViLWNvbnNvbGUvdjEvc2Vzc2lvbnM7c2Vzc2lvbnNfdjFiBnByb3RvMw");
 
 /**
  * ExpirationPolicy controls when a session ends. mode is one of
@@ -439,6 +439,13 @@ export type ArchivedSession = Message<"vrooli.web_console.v1.sessions.ArchivedSe
    * @generated from field: string restore_state_reason = 12;
    */
   restoreStateReason: string;
+
+  /**
+   * True when this entry is a crash orphan awaiting an explicit recovery decision.
+   *
+   * @generated from field: bool awaiting_recovery = 13;
+   */
+  awaitingRecovery: boolean;
 };
 
 /**
@@ -788,6 +795,249 @@ export const RecoverResponseSchema: GenMessage<RecoverResponse> = /*@__PURE__*/
   messageDesc(file_web_console_v1_sessions_sessions, 24);
 
 /**
+ * @generated from message vrooli.web_console.v1.sessions.ReopenRequest
+ */
+export type ReopenRequest = Message<"vrooli.web_console.v1.sessions.ReopenRequest"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+};
+
+/**
+ * Describes the message vrooli.web_console.v1.sessions.ReopenRequest.
+ * Use `create(ReopenRequestSchema)` to create a new message.
+ */
+export const ReopenRequestSchema: GenMessage<ReopenRequest> = /*@__PURE__*/
+  messageDesc(file_web_console_v1_sessions_sessions, 25);
+
+/**
+ * @generated from message vrooli.web_console.v1.sessions.ReopenResponse
+ */
+export type ReopenResponse = Message<"vrooli.web_console.v1.sessions.ReopenResponse"> & {
+  /**
+   * @generated from field: string old_session_id = 1;
+   */
+  oldSessionId: string;
+
+  /**
+   * @generated from field: string new_session_id = 2;
+   */
+  newSessionId: string;
+
+  /**
+   * @generated from field: string agent_type = 3;
+   */
+  agentType: string;
+
+  /**
+   * @generated from field: string command_sent = 4;
+   */
+  commandSent: string;
+
+  /**
+   * @generated from field: bool codex_home_copied = 5;
+   */
+  codexHomeCopied: boolean;
+};
+
+/**
+ * Describes the message vrooli.web_console.v1.sessions.ReopenResponse.
+ * Use `create(ReopenResponseSchema)` to create a new message.
+ */
+export const ReopenResponseSchema: GenMessage<ReopenResponse> = /*@__PURE__*/
+  messageDesc(file_web_console_v1_sessions_sessions, 26);
+
+/**
+ * @generated from message vrooli.web_console.v1.sessions.ArchiveRetentionPolicy
+ */
+export type ArchiveRetentionPolicy = Message<"vrooli.web_console.v1.sessions.ArchiveRetentionPolicy"> & {
+  /**
+   * @generated from field: int32 message_less_age_days = 1;
+   */
+  messageLessAgeDays: number;
+
+  /**
+   * @generated from field: int32 agent_home_age_days = 2;
+   */
+  agentHomeAgeDays: number;
+
+  /**
+   * @generated from field: int64 max_bytes = 3;
+   */
+  maxBytes: bigint;
+};
+
+/**
+ * Describes the message vrooli.web_console.v1.sessions.ArchiveRetentionPolicy.
+ * Use `create(ArchiveRetentionPolicySchema)` to create a new message.
+ */
+export const ArchiveRetentionPolicySchema: GenMessage<ArchiveRetentionPolicy> = /*@__PURE__*/
+  messageDesc(file_web_console_v1_sessions_sessions, 27);
+
+/**
+ * @generated from message vrooli.web_console.v1.sessions.ArchiveRetentionStats
+ */
+export type ArchiveRetentionStats = Message<"vrooli.web_console.v1.sessions.ArchiveRetentionStats"> & {
+  /**
+   * @generated from field: int64 entry_count = 1;
+   */
+  entryCount: bigint;
+
+  /**
+   * @generated from field: int64 message_count = 2;
+   */
+  messageCount: bigint;
+
+  /**
+   * @generated from field: int64 transcript_bytes = 3;
+   */
+  transcriptBytes: bigint;
+
+  /**
+   * @generated from field: int64 agent_home_bytes = 4;
+   */
+  agentHomeBytes: bigint;
+
+  /**
+   * @generated from field: int64 total_bytes = 5;
+   */
+  totalBytes: bigint;
+};
+
+/**
+ * Describes the message vrooli.web_console.v1.sessions.ArchiveRetentionStats.
+ * Use `create(ArchiveRetentionStatsSchema)` to create a new message.
+ */
+export const ArchiveRetentionStatsSchema: GenMessage<ArchiveRetentionStats> = /*@__PURE__*/
+  messageDesc(file_web_console_v1_sessions_sessions, 28);
+
+/**
+ * @generated from message vrooli.web_console.v1.sessions.GetArchiveRetentionRequest
+ */
+export type GetArchiveRetentionRequest = Message<"vrooli.web_console.v1.sessions.GetArchiveRetentionRequest"> & {
+};
+
+/**
+ * Describes the message vrooli.web_console.v1.sessions.GetArchiveRetentionRequest.
+ * Use `create(GetArchiveRetentionRequestSchema)` to create a new message.
+ */
+export const GetArchiveRetentionRequestSchema: GenMessage<GetArchiveRetentionRequest> = /*@__PURE__*/
+  messageDesc(file_web_console_v1_sessions_sessions, 29);
+
+/**
+ * @generated from message vrooli.web_console.v1.sessions.GetArchiveRetentionResponse
+ */
+export type GetArchiveRetentionResponse = Message<"vrooli.web_console.v1.sessions.GetArchiveRetentionResponse"> & {
+  /**
+   * @generated from field: vrooli.web_console.v1.sessions.ArchiveRetentionPolicy policy = 1;
+   */
+  policy?: ArchiveRetentionPolicy | undefined;
+
+  /**
+   * @generated from field: vrooli.web_console.v1.sessions.ArchiveRetentionStats stats = 2;
+   */
+  stats?: ArchiveRetentionStats | undefined;
+};
+
+/**
+ * Describes the message vrooli.web_console.v1.sessions.GetArchiveRetentionResponse.
+ * Use `create(GetArchiveRetentionResponseSchema)` to create a new message.
+ */
+export const GetArchiveRetentionResponseSchema: GenMessage<GetArchiveRetentionResponse> = /*@__PURE__*/
+  messageDesc(file_web_console_v1_sessions_sessions, 30);
+
+/**
+ * @generated from message vrooli.web_console.v1.sessions.PruneArchiveRequest
+ */
+export type PruneArchiveRequest = Message<"vrooli.web_console.v1.sessions.PruneArchiveRequest"> & {
+  /**
+   * False is the safe default and only reports planned actions.
+   *
+   * @generated from field: bool apply = 1;
+   */
+  apply: boolean;
+};
+
+/**
+ * Describes the message vrooli.web_console.v1.sessions.PruneArchiveRequest.
+ * Use `create(PruneArchiveRequestSchema)` to create a new message.
+ */
+export const PruneArchiveRequestSchema: GenMessage<PruneArchiveRequest> = /*@__PURE__*/
+  messageDesc(file_web_console_v1_sessions_sessions, 31);
+
+/**
+ * @generated from message vrooli.web_console.v1.sessions.ArchivePruneAction
+ */
+export type ArchivePruneAction = Message<"vrooli.web_console.v1.sessions.ArchivePruneAction"> & {
+  /**
+   * @generated from field: string session_id = 1;
+   */
+  sessionId: string;
+
+  /**
+   * "agent_home" or "transcript".
+   *
+   * @generated from field: string kind = 2;
+   */
+  kind: string;
+
+  /**
+   * @generated from field: int64 bytes = 3;
+   */
+  bytes: bigint;
+
+  /**
+   * @generated from field: bool applied = 4;
+   */
+  applied: boolean;
+};
+
+/**
+ * Describes the message vrooli.web_console.v1.sessions.ArchivePruneAction.
+ * Use `create(ArchivePruneActionSchema)` to create a new message.
+ */
+export const ArchivePruneActionSchema: GenMessage<ArchivePruneAction> = /*@__PURE__*/
+  messageDesc(file_web_console_v1_sessions_sessions, 32);
+
+/**
+ * @generated from message vrooli.web_console.v1.sessions.PruneArchiveResponse
+ */
+export type PruneArchiveResponse = Message<"vrooli.web_console.v1.sessions.PruneArchiveResponse"> & {
+  /**
+   * @generated from field: bool dry_run = 1;
+   */
+  dryRun: boolean;
+
+  /**
+   * @generated from field: repeated vrooli.web_console.v1.sessions.ArchivePruneAction actions = 2;
+   */
+  actions: ArchivePruneAction[];
+
+  /**
+   * @generated from field: int64 reclaimed_bytes = 3;
+   */
+  reclaimedBytes: bigint;
+
+  /**
+   * @generated from field: vrooli.web_console.v1.sessions.ArchiveRetentionStats before = 4;
+   */
+  before?: ArchiveRetentionStats | undefined;
+
+  /**
+   * @generated from field: vrooli.web_console.v1.sessions.ArchiveRetentionStats after = 5;
+   */
+  after?: ArchiveRetentionStats | undefined;
+};
+
+/**
+ * Describes the message vrooli.web_console.v1.sessions.PruneArchiveResponse.
+ * Use `create(PruneArchiveResponseSchema)` to create a new message.
+ */
+export const PruneArchiveResponseSchema: GenMessage<PruneArchiveResponse> = /*@__PURE__*/
+  messageDesc(file_web_console_v1_sessions_sessions, 33);
+
+/**
  * @generated from message vrooli.web_console.v1.sessions.GetPolicyRequest
  */
 export type GetPolicyRequest = Message<"vrooli.web_console.v1.sessions.GetPolicyRequest"> & {
@@ -802,7 +1052,7 @@ export type GetPolicyRequest = Message<"vrooli.web_console.v1.sessions.GetPolicy
  * Use `create(GetPolicyRequestSchema)` to create a new message.
  */
 export const GetPolicyRequestSchema: GenMessage<GetPolicyRequest> = /*@__PURE__*/
-  messageDesc(file_web_console_v1_sessions_sessions, 25);
+  messageDesc(file_web_console_v1_sessions_sessions, 34);
 
 /**
  * PolicyView bundles the policy with derived expiry info. expires_at and
@@ -842,7 +1092,7 @@ export type PolicyView = Message<"vrooli.web_console.v1.sessions.PolicyView"> & 
  * Use `create(PolicyViewSchema)` to create a new message.
  */
 export const PolicyViewSchema: GenMessage<PolicyView> = /*@__PURE__*/
-  messageDesc(file_web_console_v1_sessions_sessions, 26);
+  messageDesc(file_web_console_v1_sessions_sessions, 35);
 
 /**
  * @generated from message vrooli.web_console.v1.sessions.GetPolicyResponse
@@ -859,7 +1109,7 @@ export type GetPolicyResponse = Message<"vrooli.web_console.v1.sessions.GetPolic
  * Use `create(GetPolicyResponseSchema)` to create a new message.
  */
 export const GetPolicyResponseSchema: GenMessage<GetPolicyResponse> = /*@__PURE__*/
-  messageDesc(file_web_console_v1_sessions_sessions, 27);
+  messageDesc(file_web_console_v1_sessions_sessions, 36);
 
 /**
  * @generated from message vrooli.web_console.v1.sessions.UpdatePolicyRequest
@@ -881,7 +1131,7 @@ export type UpdatePolicyRequest = Message<"vrooli.web_console.v1.sessions.Update
  * Use `create(UpdatePolicyRequestSchema)` to create a new message.
  */
 export const UpdatePolicyRequestSchema: GenMessage<UpdatePolicyRequest> = /*@__PURE__*/
-  messageDesc(file_web_console_v1_sessions_sessions, 28);
+  messageDesc(file_web_console_v1_sessions_sessions, 37);
 
 /**
  * @generated from message vrooli.web_console.v1.sessions.UpdatePolicyResponse
@@ -898,7 +1148,7 @@ export type UpdatePolicyResponse = Message<"vrooli.web_console.v1.sessions.Updat
  * Use `create(UpdatePolicyResponseSchema)` to create a new message.
  */
 export const UpdatePolicyResponseSchema: GenMessage<UpdatePolicyResponse> = /*@__PURE__*/
-  messageDesc(file_web_console_v1_sessions_sessions, 29);
+  messageDesc(file_web_console_v1_sessions_sessions, 38);
 
 /**
  * SessionOrigin records who opened a session, so the UI can separate
@@ -1054,6 +1304,33 @@ export const SessionsService: GenService<{
     methodKind: "unary";
     input: typeof RecoverRequestSchema;
     output: typeof RecoverResponseSchema;
+  },
+  /**
+   * Reopen is the archive-facing name for the proven Recover workflow. It
+   * preserves the same idempotency header and result contract.
+   *
+   * @generated from rpc vrooli.web_console.v1.sessions.SessionsService.Reopen
+   */
+  reopen: {
+    methodKind: "unary";
+    input: typeof ReopenRequestSchema;
+    output: typeof ReopenResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.web_console.v1.sessions.SessionsService.GetArchiveRetention
+   */
+  getArchiveRetention: {
+    methodKind: "unary";
+    input: typeof GetArchiveRetentionRequestSchema;
+    output: typeof GetArchiveRetentionResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.web_console.v1.sessions.SessionsService.PruneArchive
+   */
+  pruneArchive: {
+    methodKind: "unary";
+    input: typeof PruneArchiveRequestSchema;
+    output: typeof PruneArchiveResponseSchema;
   },
   /**
    * @generated from rpc vrooli.web_console.v1.sessions.SessionsService.GetPolicy

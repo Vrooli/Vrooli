@@ -2,7 +2,10 @@ package scenarioruntime
 
 import (
 	"context"
+	"database/sql"
 	"errors"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -229,5 +232,128 @@ func TestGetLatestStartOperationNotFound(t *testing.T) {
 	}
 	if _, err := store.UpdateStartOperation(ctx, StartOperation{OperationID: "missing"}); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("update missing error = %v, want ErrNotFound", err)
+	}
+}
+
+// The provenance columns land on databases that already exist — including a
+// 60MB registry with a hundred days of history — so the migration path is the
+// one that must not be assumed to work.
+func TestSchemaMigrationAddsInitiatorProvenanceToExistingDatabase(t *testing.T) {
+	ctx := context.Background()
+	dbPath := filepath.Join(t.TempDir(), "runtime.db")
+
+	// Build a database at the previous version by removing the new columns
+	// from the current shape, so the fixture cannot silently drift from the
+	// real v7 schema the way a hand-copied DDL literal would.
+	raw, err := sql.Open("sqlite", buildDSN(dbPath))
+	if err != nil {
+		t.Fatalf("open raw sqlite: %v", err)
+	}
+	if _, err := raw.ExecContext(ctx, schemaSQL); err != nil {
+		t.Fatalf("apply schema: %v", err)
+	}
+	for _, column := range []string{"initiator_argv", "initiator_parent_pid", "initiator_parent_argv", "initiator_scope"} {
+		if _, err := raw.ExecContext(ctx, "ALTER TABLE runtime_start_operations DROP COLUMN "+column); err != nil {
+			t.Fatalf("drop %s to simulate v7: %v", column, err)
+		}
+	}
+	// A pre-existing row proves the migration preserves history rather than
+	// recreating the table.
+	if _, err := raw.ExecContext(ctx, `
+INSERT INTO runtime_start_operations (operation_id, scenario, variant, operation, status, started_at, updated_at)
+VALUES ('startop-legacy', 'alpha', 'live', 'start', 'succeeded', '2026-05-01T12:00:00Z', '2026-05-01T12:00:00Z')`); err != nil {
+		t.Fatalf("insert legacy row: %v", err)
+	}
+	if _, err := raw.ExecContext(ctx, "PRAGMA user_version = 7"); err != nil {
+		t.Fatalf("stamp v7: %v", err)
+	}
+	if err := raw.Close(); err != nil {
+		t.Fatalf("close raw sqlite: %v", err)
+	}
+
+	clk := newFixedClock(time.Date(2026, 5, 9, 12, 0, 0, 0, time.UTC))
+	store, err := NewSQLiteStore(ctx, Config{DBPath: dbPath, Clock: clk})
+	if err != nil {
+		t.Fatalf("NewSQLiteStore on a v7 database: %v", err)
+	}
+	defer store.Close()
+
+	version, err := readSchemaVersion(ctx, store.db)
+	if err != nil {
+		t.Fatalf("readSchemaVersion: %v", err)
+	}
+	if version != SchemaVersion {
+		t.Fatalf("schema version = %d, want %d", version, SchemaVersion)
+	}
+
+	// History survived.
+	legacy, err := store.getStartOperation(ctx, "startop-legacy")
+	if err != nil {
+		t.Fatalf("read migrated legacy row: %v", err)
+	}
+	if legacy.Scenario != "alpha" || legacy.InitiatorArgv != "" {
+		t.Fatalf("legacy row = %+v, want preserved with empty provenance", legacy)
+	}
+
+	// And new writes carry provenance.
+	pid, parent := 4242, 4241
+	if _, err := store.BeginStartOperation(ctx, StartOperation{
+		Scenario: "alpha", InitiatorPID: &pid, InitiatorArgv: "vrooli scenario start alpha",
+		InitiatorParentPID: &parent, InitiatorParentArgv: "bash -c ...", InitiatorScope: "/user.slice/pane.scope",
+	}); err != nil {
+		t.Fatalf("BeginStartOperation after migration: %v", err)
+	}
+	got, err := store.GetLatestStartOperation(ctx, "alpha", "live")
+	if err != nil {
+		t.Fatalf("GetLatestStartOperation: %v", err)
+	}
+	if got.InitiatorArgv != "vrooli scenario start alpha" || got.InitiatorScope != "/user.slice/pane.scope" {
+		t.Fatalf("provenance = %+v, want the recorded initiator", got)
+	}
+}
+
+// Re-running the step must be safe: it executes against live registries and a
+// half-applied migration would otherwise wedge every future open.
+func TestStartOperationProvenanceMigrationIsIdempotent(t *testing.T) {
+	ctx := context.Background()
+	dbPath := filepath.Join(t.TempDir(), "runtime.db")
+	raw, err := sql.Open("sqlite", buildDSN(dbPath))
+	if err != nil {
+		t.Fatalf("open raw sqlite: %v", err)
+	}
+	defer raw.Close()
+	if _, err := raw.ExecContext(ctx, schemaSQL); err != nil {
+		t.Fatalf("apply schema: %v", err)
+	}
+	// Columns are already present; the step must treat that as done.
+	for attempt := range 2 {
+		if err := addStartOperationProvenance(ctx, raw); err != nil {
+			t.Fatalf("addStartOperationProvenance attempt %d: %v", attempt+1, err)
+		}
+	}
+}
+
+func TestBeginStartOperationBoundsInitiatorText(t *testing.T) {
+	ctx := context.Background()
+	store := newTestStore(t, newFixedClock(time.Date(2026, 5, 9, 12, 0, 0, 0, time.UTC)))
+
+	// Agent-driven command lines run to kilobytes; the record is forensics,
+	// not a transcript.
+	huge := strings.Repeat("x", InitiatorTextLimit*3)
+	pid := 4242
+	if _, err := store.BeginStartOperation(ctx, StartOperation{
+		Scenario: "alpha", InitiatorPID: &pid, InitiatorArgv: huge, InitiatorParentArgv: huge,
+	}); err != nil {
+		t.Fatalf("BeginStartOperation: %v", err)
+	}
+	got, err := store.GetLatestStartOperation(ctx, "alpha", "live")
+	if err != nil {
+		t.Fatalf("GetLatestStartOperation: %v", err)
+	}
+	if len(got.InitiatorArgv) > InitiatorTextLimit+len("…(truncated)") {
+		t.Fatalf("argv length = %d, want bounded", len(got.InitiatorArgv))
+	}
+	if !strings.HasSuffix(got.InitiatorArgv, "(truncated)") {
+		t.Fatalf("truncated argv must say so, got %q", got.InitiatorArgv[len(got.InitiatorArgv)-20:])
 	}
 }

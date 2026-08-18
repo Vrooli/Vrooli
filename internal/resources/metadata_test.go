@@ -376,7 +376,7 @@ func TestLoadResourceEnvironmentSupportsNativeDerivedURLs(t *testing.T) {
 		Name:    "searxng",
 		Driver:  "docker-service",
 		Ports:   []manifestpkg.ResourcePort{{Name: "http", Container: 8080, Host: 8280}},
-		Runtime: manifestpkg.ResourceRuntime{Image: "searxng/searxng:1.0.0"},
+		Runtime: manifestpkg.ResourceRuntime{Image: "example/searxng:1.0.0"},
 		EnvironmentExports: manifestpkg.ResourceEnvironmentExports{
 			Static:    map[string]string{"SEARXNG_SERVICE_HOST": "localhost"},
 			FromPorts: map[string]string{"SEARXNG_PORT": "http"},
@@ -484,18 +484,18 @@ func TestLoadResourceEnvironmentSupportsNativeNonDockerContracts(t *testing.T) {
 			},
 		},
 	})
-	writeEnvManifestFixture(t, root, "home-assistant", manifestpkg.ResourceManifest{
-		Name:        "home-assistant",
-		Driver:      "compose-service",
-		ComposeFile: "compose.yaml",
-		Ports:       []manifestpkg.ResourcePort{{Name: "http", Container: 8123, Host: 8123}},
+	writeEnvManifestFixture(t, root, "fixture-rest", manifestpkg.ResourceManifest{
+		Name:    "fixture-rest",
+		Driver:  "docker-service",
+		Ports:   []manifestpkg.ResourcePort{{Name: "http", Container: 8123, Host: 8123}},
+		Runtime: manifestpkg.ResourceRuntime{Image: "example/fixture-rest:1.0.0"},
 		EnvironmentExports: manifestpkg.ResourceEnvironmentExports{
-			Static:         map[string]string{"HOME_ASSISTANT_HOST": "localhost", "HOME_ASSISTANT_CONTAINER_NAME": "home-assistant"},
-			FromPorts:      map[string]string{"HOME_ASSISTANT_PORT": "http"},
-			FromRuntimeEnv: []string{"HOME_ASSISTANT_TOKEN"},
+			Static:         map[string]string{"FIXTURE_REST_HOST": "localhost", "FIXTURE_REST_NAME": "fixture-rest"},
+			FromPorts:      map[string]string{"FIXTURE_REST_PORT": "http"},
+			FromRuntimeEnv: []string{"FIXTURE_REST_TOKEN"},
 			Derived: map[string]manifestpkg.ResourceDerivedTemplate{
-				"HOME_ASSISTANT_BASE_URL": {Template: "http://${HOME_ASSISTANT_HOST}:${HOME_ASSISTANT_PORT}"},
-				"HOME_ASSISTANT_URL":      {Template: "${HOME_ASSISTANT_BASE_URL}"},
+				"FIXTURE_REST_BASE_URL": {Template: "http://${FIXTURE_REST_HOST}:${FIXTURE_REST_PORT}"},
+				"FIXTURE_REST_URL":      {Template: "${FIXTURE_REST_BASE_URL}"},
 			},
 		},
 	})
@@ -603,15 +603,15 @@ func TestLoadResourceEnvironmentSupportsNativeNonDockerContracts(t *testing.T) {
 		t.Fatal("OpenRouter key from retired file storage was injected")
 	}
 
-	homeAssistantEnv, err := LoadResourceEnvironment(root, home, "home-assistant")
+	fixtureEnv, err = LoadResourceEnvironment(root, home, "fixture-rest")
 	if err != nil {
-		t.Fatalf("LoadResourceEnvironment(home-assistant): %v", err)
+		t.Fatalf("LoadResourceEnvironment(fixture-rest): %v", err)
 	}
-	if got := homeAssistantEnv["HOME_ASSISTANT_URL"]; got != "http://localhost:8123" {
-		t.Fatalf("HOME_ASSISTANT_URL = %q", got)
+	if got := fixtureEnv["FIXTURE_REST_URL"]; got != "http://localhost:8123" {
+		t.Fatalf("FIXTURE_REST_URL = %q", got)
 	}
-	if got := homeAssistantEnv["HOME_ASSISTANT_CONTAINER_NAME"]; got != "home-assistant" {
-		t.Fatalf("HOME_ASSISTANT_CONTAINER_NAME = %q", got)
+	if got := fixtureEnv["FIXTURE_REST_NAME"]; got != "fixture-rest" {
+		t.Fatalf("FIXTURE_REST_NAME = %q", got)
 	}
 
 	whisperEnv, err := LoadResourceEnvironment(root, home, "whisper")
@@ -746,12 +746,12 @@ func TestActualNonDockerResourceManifestsResolveNativeExports(t *testing.T) {
 		t.Fatalf("RESOURCE_OPENROUTER_URL = %q", got)
 	}
 
-	homeAssistantEnv, err := LoadResourceEnvironment(root, home, "home-assistant")
+	searxngEnv, err := LoadResourceEnvironment(root, home, "searxng")
 	if err != nil {
-		t.Fatalf("LoadResourceEnvironment(home-assistant): %v", err)
+		t.Fatalf("LoadResourceEnvironment(searxng): %v", err)
 	}
-	if got := homeAssistantEnv["HOME_ASSISTANT_BASE_URL"]; got != "http://localhost:8123" {
-		t.Fatalf("HOME_ASSISTANT_BASE_URL = %q", got)
+	if got := searxngEnv["SEARXNG_URL"]; got != "http://localhost:8280" {
+		t.Fatalf("SEARXNG_URL = %q", got)
 	}
 
 	whisperEnv, err := LoadResourceEnvironment(root, home, "whisper")

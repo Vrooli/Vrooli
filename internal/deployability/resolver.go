@@ -8,6 +8,7 @@ package deployability
 import (
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -47,16 +48,18 @@ const (
 )
 
 type ResourceRequirements struct {
-	Class      string
-	Weight     float64
-	RAMMB      float64
-	DiskMB     float64
-	CPUCores   float64
-	GPU        bool
-	Network    string
-	Source     string
-	Confidence string
+	Class          string
+	Weight         float64
+	RAMMB          float64
+	DiskMB         float64
+	CPUCores       float64
+	GPURequirement *GPURequirement
+	Network        string
+	Source         string
+	Confidence     string
 }
+
+type GPURequirement struct{ MinCUDACompute string }
 
 type PlatformDeclaration struct {
 	Status    string
@@ -73,19 +76,21 @@ type CapabilityDeclaration struct {
 // resource, scenario, tool, or safeguard. The loader owns translating its
 // manifest into this shape; the resolver only reasons over it.
 type DependencyDeclaration struct {
-	Kind            string
-	Name            string
-	Required        bool
-	Bundling        Bundling
-	Present         bool
-	Artifact        bool
-	PlatformSupport map[HostOS]PlatformDeclaration
+	Kind                    string
+	Name                    string
+	Required                bool
+	Bundling                Bundling
+	Present                 bool
+	Artifact                bool
+	PlatformSupport         map[HostOS]PlatformDeclaration
+	PlatformSupportByTarget map[string]PlatformDeclaration
 	// HostRequirements are authored by a delivery profile and keyed by host
 	// OS because a profile may require different mechanisms per platform.
-	HostRequirements map[HostOS][]string
-	Requirements     *ResourceRequirements
-	Capabilities     []CapabilityDeclaration
-	Children         []TargetDeclaration
+	HostRequirements         map[HostOS][]string
+	HostRequirementsByTarget map[string][]string
+	Requirements             *ResourceRequirements
+	Capabilities             []CapabilityDeclaration
+	Children                 []TargetDeclaration
 }
 
 type TargetDeclaration struct {
@@ -97,6 +102,8 @@ type ResolutionInput struct {
 	Target TargetDeclaration
 	Tier   DeliveryTier
 	OS     HostOS
+	Arch   string
+	Facts  map[string]string
 }
 
 type Reason struct {
@@ -118,6 +125,7 @@ type Resolution struct {
 	Target       string             `json:"target"`
 	Tier         DeliveryTier       `json:"tier"`
 	OS           HostOS             `json:"host_os"`
+	Arch         string             `json:"architecture"`
 	Verdict      Verdict            `json:"verdict"`
 	Reasons      []Reason           `json:"reasons,omitempty"`
 	Dependencies []DependencyResult `json:"dependencies,omitempty"`
@@ -133,7 +141,8 @@ const (
 )
 
 func Resolve(input ResolutionInput) Resolution {
-	result := Resolution{Target: strings.TrimSpace(input.Target.Name), Tier: input.Tier, OS: input.OS, Verdict: VerdictEligible}
+	arch := strings.ToLower(strings.TrimSpace(input.Arch))
+	result := Resolution{Target: strings.TrimSpace(input.Target.Name), Tier: input.Tier, OS: input.OS, Arch: arch, Verdict: VerdictEligible}
 	if result.Target == "" {
 		return unknownResolution(result, Reason{Code: "target_missing", Message: "target name is required"})
 	}
@@ -145,7 +154,7 @@ func Resolve(input ResolutionInput) Resolution {
 	}
 
 	for _, dependency := range input.Target.Dependencies {
-		resolved := resolveDependency(dependency, input.Tier, input.OS, map[string]struct{}{})
+		resolved := resolveDependency(dependency, input.Tier, input.OS, arch, input.Facts, map[string]struct{}{})
 		result.Dependencies = append(result.Dependencies, resolved)
 		result.Reasons = append(result.Reasons, resolved.Reasons...)
 	}
@@ -153,7 +162,7 @@ func Resolve(input ResolutionInput) Resolution {
 	return result
 }
 
-func resolveDependency(dependency DependencyDeclaration, tier DeliveryTier, os HostOS, stack map[string]struct{}) DependencyResult {
+func resolveDependency(dependency DependencyDeclaration, tier DeliveryTier, os HostOS, arch string, facts map[string]string, stack map[string]struct{}) DependencyResult {
 	result := DependencyResult{Kind: strings.TrimSpace(dependency.Kind), Name: strings.TrimSpace(dependency.Name), Required: dependency.Required, Verdict: VerdictEligible}
 	if result.Kind == "" || result.Name == "" {
 		return unknownDependency(result, Reason{Code: "declaration_incomplete", Message: "dependency kind and name are required"})
@@ -161,10 +170,13 @@ func resolveDependency(dependency DependencyDeclaration, tier DeliveryTier, os H
 	if _, exists := stack[result.Kind+":"+result.Name]; exists {
 		return unknownDependency(result, Reason{Code: "dependency_cycle", Dependency: result.Name, Message: "dependency closure contains a cycle"})
 	}
-	if len(dependency.PlatformSupport) == 0 {
+	if len(dependency.PlatformSupport) == 0 && len(dependency.PlatformSupportByTarget) == 0 {
 		return unknownDependency(result, Reason{Code: "platform_declaration_missing", Dependency: result.Name, Message: "dependency does not declare platform support"})
 	}
-	platform, exists := dependency.PlatformSupport[os]
+	platform, exists := dependency.PlatformSupportByTarget[strings.ToLower(string(os)+"-"+arch)]
+	if !exists {
+		platform, exists = dependency.PlatformSupport[os]
+	}
 	if !exists {
 		return unknownDependency(result, Reason{Code: "platform_declaration_missing", Dependency: result.Name, Message: fmt.Sprintf("dependency has no declaration for %s", os)})
 	}
@@ -186,12 +198,20 @@ func resolveDependency(dependency DependencyDeclaration, tier DeliveryTier, os H
 	if err := validateRequirements(*dependency.Requirements); err != nil {
 		return unknownDependency(result, Reason{Code: "requirements_invalid", Dependency: result.Name, Message: err.Error()})
 	}
-	if desktop := desktopEligibility(dependency, tier, os); desktop != nil {
+	if desktop := desktopEligibility(dependency, tier, os, arch); desktop != nil {
 		result.Verdict = combineVerdict(result.Verdict, Verdict(desktop.Verdict))
 		result.Reasons = append(result.Reasons, Reason{Code: "bundling_" + string(desktop.Verdict), Dependency: result.Name, Message: desktop.Reason})
 	}
+	if gpuVerdict, gpuReason := evaluateGPURequirement(dependency.Requirements.GPURequirement, facts); gpuVerdict != VerdictEligible {
+		result.Verdict = combineVerdict(result.Verdict, gpuVerdict)
+		result.Reasons = append(result.Reasons, Reason{Code: "gpu_" + string(gpuVerdict), Dependency: result.Name, Message: gpuReason})
+	}
 	if tier == TierDesktop {
-		for _, requirement := range dependency.HostRequirements[os] {
+		requirements := dependency.HostRequirementsByTarget[strings.ToLower(string(os)+"-"+arch)]
+		if len(requirements) == 0 {
+			requirements = dependency.HostRequirements[os]
+		}
+		for _, requirement := range requirements {
 			requirement = strings.TrimSpace(requirement)
 			if requirement == "" {
 				continue
@@ -205,11 +225,11 @@ func resolveDependency(dependency DependencyDeclaration, tier DeliveryTier, os H
 				Code:        "host_requirement",
 				Dependency:  result.Name,
 				Requirement: requirement,
-				Message:     fmt.Sprintf("desktop profile requires host prerequisite %q on %s", requirement, os),
+				Message:     fmt.Sprintf("desktop profile requires host prerequisite %q on %s/%s", requirement, os, arch),
 			})
 		}
 	}
-	if footprintVerdict, footprintReason := evaluateFootprint(*dependency.Requirements, tier); footprintVerdict != VerdictEligible {
+	if footprintVerdict, footprintReason := evaluateFootprint(*dependency.Requirements, tier, facts); footprintVerdict != VerdictEligible {
 		result.Verdict = combineVerdict(result.Verdict, footprintVerdict)
 		result.Reasons = append(result.Reasons, Reason{Code: "footprint_" + string(footprintVerdict), Dependency: result.Name, Message: footprintReason})
 	}
@@ -217,14 +237,14 @@ func resolveDependency(dependency DependencyDeclaration, tier DeliveryTier, os H
 	childStack := cloneStack(stack)
 	childStack[result.Kind+":"+result.Name] = struct{}{}
 	for _, child := range dependency.Children {
-		childResult := resolveTarget(child, tier, os, childStack)
+		childResult := resolveTarget(child, tier, os, arch, facts, childStack)
 		result.Verdict = combineVerdict(result.Verdict, childResult.Verdict)
 		result.Reasons = append(result.Reasons, childResult.Reasons...)
 	}
 	return result
 }
 
-func resolveTarget(target TargetDeclaration, tier DeliveryTier, os HostOS, stack map[string]struct{}) DependencyResult {
+func resolveTarget(target TargetDeclaration, tier DeliveryTier, os HostOS, arch string, facts map[string]string, stack map[string]struct{}) DependencyResult {
 	result := DependencyResult{Kind: "scenario", Name: strings.TrimSpace(target.Name), Required: true, Verdict: VerdictEligible}
 	if result.Name == "" {
 		return unknownDependency(result, Reason{Code: "target_missing", Message: "child target name is required"})
@@ -236,7 +256,7 @@ func resolveTarget(target TargetDeclaration, tier DeliveryTier, os HostOS, stack
 	stack = cloneStack(stack)
 	stack[key] = struct{}{}
 	for _, child := range target.Dependencies {
-		childResult := resolveDependency(child, tier, os, stack)
+		childResult := resolveDependency(child, tier, os, arch, facts, stack)
 		result.Verdict = combineVerdict(result.Verdict, childResult.Verdict)
 		result.Reasons = append(result.Reasons, childResult.Reasons...)
 	}
@@ -248,7 +268,7 @@ type bundlingResult struct {
 	Reason  string
 }
 
-func desktopEligibility(dependency DependencyDeclaration, tier DeliveryTier, os HostOS) *bundlingResult {
+func desktopEligibility(dependency DependencyDeclaration, tier DeliveryTier, os HostOS, arch string) *bundlingResult {
 	if tier != TierDesktop {
 		return nil
 	}
@@ -260,20 +280,20 @@ func desktopEligibility(dependency DependencyDeclaration, tier DeliveryTier, os 
 		result.Reason = fmt.Sprintf("%s %q is prohibited from desktop bundles", dependency.Kind, dependency.Name)
 	case BundlingHostRequired:
 		if present {
-			result.Reason = fmt.Sprintf("host-required %s %q is present", dependency.Kind, dependency.Name)
+			result.Reason = fmt.Sprintf("host-required %s %q is present on %s/%s", dependency.Kind, dependency.Name, os, arch)
 		} else if dependency.Required {
 			result.Verdict = VerdictIneligible
-			result.Reason = fmt.Sprintf("required host %s %q is absent on %s", dependency.Kind, dependency.Name, os)
+			result.Reason = fmt.Sprintf("required host %s %q is absent on %s/%s", dependency.Kind, dependency.Name, os, arch)
 		} else {
 			result.Verdict = VerdictDegraded
-			result.Reason = fmt.Sprintf("optional host %s %q is absent on %s", dependency.Kind, dependency.Name, os)
+			result.Reason = fmt.Sprintf("optional host %s %q is absent on %s/%s", dependency.Kind, dependency.Name, os, arch)
 		}
 	case BundlingVendorable:
 		if !present {
 			result.Verdict = VerdictIneligible
-			result.Reason = fmt.Sprintf("vendorable %s %q has no artifact for %s", dependency.Kind, dependency.Name, os)
+			result.Reason = fmt.Sprintf("vendorable %s %q has no artifact for %s/%s", dependency.Kind, dependency.Name, os, arch)
 		} else {
-			result.Reason = fmt.Sprintf("vendorable %s %q has an artifact for %s", dependency.Kind, dependency.Name, os)
+			result.Reason = fmt.Sprintf("vendorable %s %q has an artifact for %s/%s", dependency.Kind, dependency.Name, os, arch)
 		}
 	default:
 		result.Verdict = VerdictUnknown
@@ -282,14 +302,36 @@ func desktopEligibility(dependency DependencyDeclaration, tier DeliveryTier, os 
 	return result
 }
 
-func evaluateFootprint(requirements ResourceRequirements, tier DeliveryTier) (Verdict, string) {
+func evaluateFootprint(requirements ResourceRequirements, tier DeliveryTier, facts map[string]string) (Verdict, string) {
 	if tier != TierMobile {
 		return VerdictEligible, ""
 	}
-	if requirements.GPU || requirements.Weight >= minimumMobileWeight || requirements.RAMMB >= minimumMobileRAMMB || requirements.CPUCores >= minimumMobileCPU {
+	if requirements.GPURequirement != nil || requirements.Weight >= minimumMobileWeight || requirements.RAMMB >= minimumMobileRAMMB || requirements.CPUCores >= minimumMobileCPU {
 		return VerdictIneligible, fmt.Sprintf("declared footprint class=%q weight=%.1f ram_mb=%.0f cpu_cores=%.1f is not suitable for mobile delivery", requirements.Class, requirements.Weight, requirements.RAMMB, requirements.CPUCores)
 	}
 	return VerdictEligible, ""
+}
+
+func evaluateGPURequirement(requirement *GPURequirement, facts map[string]string) (Verdict, string) {
+	if requirement == nil || strings.TrimSpace(requirement.MinCUDACompute) == "" {
+		return VerdictEligible, ""
+	}
+	minimum, err := strconv.ParseFloat(strings.TrimSpace(requirement.MinCUDACompute), 64)
+	if err != nil || minimum < 0 {
+		return VerdictUnknown, fmt.Sprintf("minimum CUDA compute capability %q is invalid", requirement.MinCUDACompute)
+	}
+	actualText, ok := facts["gpu.cuda_compute"]
+	if !ok || strings.TrimSpace(actualText) == "" {
+		return VerdictUnknown, "gpu.cuda_compute is not present in the host facts"
+	}
+	actual, err := strconv.ParseFloat(strings.TrimSpace(actualText), 64)
+	if err != nil {
+		return VerdictUnknown, fmt.Sprintf("gpu.cuda_compute fact %q is not numeric", actualText)
+	}
+	if actual < minimum {
+		return VerdictIneligible, fmt.Sprintf("GPU compute capability %.1f is below required %.1f", actual, minimum)
+	}
+	return VerdictEligible, fmt.Sprintf("GPU compute capability %.1f satisfies required %.1f", actual, minimum)
 }
 
 func validateRequirements(requirements ResourceRequirements) error {

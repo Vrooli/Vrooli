@@ -3,6 +3,7 @@ package convert
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	domain "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain"
@@ -50,6 +51,12 @@ func EventToEnvelope(e store.Event) (*domain.EventEnvelope, error) {
 	}
 	if env.OccurredAt == nil {
 		env.OccurredAt = timestamppb.New(e.CreatedAt)
+	}
+	// ReceiptData was originally published under vrooli.events.v1.domain.
+	// Keep historical envelopes queryable while all new writes use the
+	// canonical vrooli.vrooli_events.v1.domain package name.
+	if env.Data != nil && strings.HasSuffix(env.Data.TypeUrl, "/vrooli.events.v1.domain.ReceiptData") {
+		env.Data.TypeUrl = "type.googleapis.com/vrooli.vrooli_events.v1.domain.ReceiptData"
 	}
 	return env, nil
 }

@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"golang.org/x/sys/windows"
 	"golang.org/x/sys/windows/svc"
@@ -174,7 +175,31 @@ func installService(options ServiceInstallOptions) (ServiceInstallResult, error)
 	if err := service.Start(); err != nil && !errors.Is(err, windows.ERROR_SERVICE_ALREADY_RUNNING) {
 		return ServiceInstallResult{}, fmt.Errorf("platform: start Windows service: %w", err)
 	}
+	// Start() returning nil only means the SCM accepted the start request.
+	// Query the settled state so an install cannot report success for a
+	// service that never reached Running.
+	if state := awaitWindowsRunning(service); state != svc.Running {
+		return ServiceInstallResult{UnitName: runtimeSupervisorService, Scope: "machine", Active: false},
+			fmt.Errorf("platform: installed %s but its state is %d, not running", runtimeSupervisorService, state)
+	}
 	return ServiceInstallResult{UnitName: runtimeSupervisorService, Scope: "machine", Active: true}, nil
+}
+
+// awaitWindowsRunning polls the SCM until the service settles, reporting the
+// last observation so a start-then-exit is not mistaken for a start.
+func awaitWindowsRunning(service *mgr.Service) svc.State {
+	var state svc.State
+	for attempt := 0; attempt < 8; attempt++ {
+		if attempt > 0 {
+			time.Sleep(250 * time.Millisecond)
+		}
+		status, err := service.Query()
+		if err != nil {
+			continue
+		}
+		state = status.State
+	}
+	return state
 }
 
 func uninstallService(options ServiceInstallOptions) (ServiceInstallResult, error) {
@@ -201,6 +226,29 @@ func uninstallService(options ServiceInstallOptions) (ServiceInstallResult, erro
 		return ServiceInstallResult{}, fmt.Errorf("platform: delete Windows service: %w", err)
 	}
 	return ServiceInstallResult{UnitName: runtimeSupervisorService, Scope: "machine", Active: false}, nil
+}
+
+func startInstalledService(ServiceInstallOptions) (bool, error) {
+	machine, err := mgr.Connect()
+	if err != nil {
+		return false, fmt.Errorf("platform: connect to Windows SCM: %w", err)
+	}
+	defer machine.Disconnect()
+	service, err := machine.OpenService(runtimeSupervisorService)
+	if err != nil {
+		if errors.Is(err, windows.ERROR_SERVICE_DOES_NOT_EXIST) {
+			return false, nil
+		}
+		return false, fmt.Errorf("platform: open Windows service: %w", err)
+	}
+	defer service.Close()
+	if err := service.Start(); err != nil && !errors.Is(err, windows.ERROR_SERVICE_ALREADY_RUNNING) {
+		return false, fmt.Errorf("platform: start Windows service: %w", err)
+	}
+	if state := awaitWindowsRunning(service); state != svc.Running {
+		return false, fmt.Errorf("platform: started %s but its state is %d, not running", runtimeSupervisorService, state)
+	}
+	return true, nil
 }
 
 func supportsService(user bool) bool {
