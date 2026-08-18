@@ -72,6 +72,105 @@ func NewEvidenceStore(db *sql.DB) *EvidenceStore {
 	return &EvidenceStore{db: db, now: time.Now}
 }
 
+// EvidenceFromResult turns a deterministic runner result into independent
+// asset observations. A clean inspection must be recorded as pass for every
+// inspected asset; otherwise one failing file silently becomes a missing row
+// for every clean asset and the score regresses to the old corpus cliff.
+func EvidenceFromResult(ctx context.Context, root string, gate GateDefinition, result gates.Result, inspectedAssets []string) ([]GateEvidence, error) {
+	_ = ctx
+	if gate.Attribution == "corpus" {
+		resultValue := "pass"
+		if len(result.Findings) > 0 || len(result.RunnerError) > 0 {
+			resultValue = "fail"
+		}
+		return []GateEvidence{{
+			AssetID: "__corpus__", Target: "corpus", Gate: gate.ID,
+			Result: resultValue, SourceRevision: "corpus",
+		}}, nil
+	}
+	assets, err := LoadCatalog(filepath.Join(resolveScenarioRoot(root), "catalog"))
+	if err != nil {
+		return nil, err
+	}
+	impls, err := LoadImplementations(filepath.Join(resolveScenarioRoot(root), "library"))
+	if err != nil {
+		return nil, err
+	}
+	ids := map[string]bool{}
+	for _, id := range inspectedAssets {
+		if id != "" {
+			for _, asset := range assets {
+				if asset.ID == id {
+					ids[id] = true
+					break
+				}
+			}
+		}
+	}
+	for _, id := range result.InspectedAssets {
+		if id != "" {
+			for _, asset := range assets {
+				if asset.ID == id {
+					ids[id] = true
+					break
+				}
+			}
+		}
+	}
+	// Older runners only returned a count. Their declared appliesTo is still a
+	// trustworthy inspection boundary, so derive the built asset set here.
+	if len(ids) == 0 {
+		built := map[string]bool{}
+		for _, impl := range impls {
+			if impl.CatalogID != "" {
+				built[impl.CatalogID] = true
+			}
+		}
+		for _, asset := range assets {
+			if built[asset.ID] && contains(gate.AppliesTo, asset.Kind) {
+				ids[asset.ID] = true
+			}
+		}
+	}
+	fail := map[string]bool{}
+	for _, finding := range result.Findings {
+		if finding.AssetID != "" {
+			fail[finding.AssetID] = true
+		}
+	}
+	versions := map[string]string{}
+	targets := map[string]string{}
+	for _, asset := range assets {
+		target := "react-vite"
+		if len(asset.Targets) > 0 && asset.Targets[0] != "" {
+			target = asset.Targets[0]
+		}
+		targets[asset.ID] = target
+	}
+	for _, impl := range impls {
+		if impl.CatalogID != "" {
+			versions[impl.CatalogID] = impl.Latest
+		}
+	}
+	out := make([]GateEvidence, 0, len(ids))
+	for id := range ids {
+		if !ids[id] || versions[id] == "" {
+			continue
+		}
+		revision, revErr := CurrentRevision(root, id)
+		if revErr != nil {
+			return nil, revErr
+		}
+		resultValue := "pass"
+		if fail[id] {
+			resultValue = "fail"
+		}
+		out = append(out, GateEvidence{AssetID: id, Target: targets[id], Gate: gate.ID, Version: versions[id], Result: resultValue, SourceRevision: revision})
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].AssetID < out[j].AssetID })
+	return out, nil
+}
+
 func (s *EvidenceStore) Save(ctx context.Context, evidence []GateEvidence) error {
 	if s == nil || s.db == nil {
 		return fmt.Errorf("catalog evidence store is not configured")
@@ -133,6 +232,117 @@ func (s *EvidenceStore) List(ctx context.Context) ([]GateEvidence, error) {
 		out = append(out, item)
 	}
 	return out, rows.Err()
+}
+
+// ScoreHistory is the durable trend projection. Each day carries forward the
+// most recent per-asset gate observation, so an asset does not disappear from
+// the chart merely because no gate ran that day.
+type ScoreHistory struct {
+	RecordedAt              string
+	Score                   float64
+	AssetsAt100             int
+	AssetsBelow50           int
+	WeightVectorRegenerated bool
+}
+
+func (s *EvidenceStore) ScoreHistory(ctx context.Context, root, since string) ([]ScoreHistory, error) {
+	if s == nil || s.db == nil {
+		return nil, nil
+	}
+	items, err := s.List(ctx)
+	if err != nil || len(items) == 0 {
+		return nil, err
+	}
+	assets, err := LoadCatalog(filepath.Join(resolveScenarioRoot(root), "catalog"))
+	if err != nil {
+		return nil, err
+	}
+	impls, err := LoadImplementations(filepath.Join(resolveScenarioRoot(root), "library"))
+	if err != nil {
+		return nil, err
+	}
+	definitions, err := LoadGateDefinitions(filepath.Join(resolveScenarioRoot(root), "catalog", "config.json"))
+	if err != nil {
+		return nil, err
+	}
+	start := time.Time{}
+	if strings.TrimSpace(since) != "" {
+		start, err = time.Parse("2006-01-02", strings.TrimSpace(since))
+		if err != nil {
+			return nil, fmt.Errorf("parse score history since: %w", err)
+		}
+	}
+	latest := items[0].RecordedAt
+	for _, item := range items[1:] {
+		if item.RecordedAt > latest {
+			latest = item.RecordedAt
+		}
+	}
+	end, err := time.Parse(time.RFC3339Nano, latest)
+	if err != nil {
+		end = time.Now().UTC()
+	}
+	if end.Before(time.Now().UTC().Truncate(24 * time.Hour)) {
+		end = time.Now().UTC()
+	}
+	first := time.Time{}
+	for _, item := range items {
+		stamp, parseErr := time.Parse(time.RFC3339Nano, item.RecordedAt)
+		if parseErr != nil {
+			continue
+		}
+		day := stamp.UTC().Truncate(24 * time.Hour)
+		if first.IsZero() || day.Before(first) {
+			first = day
+		}
+	}
+	if !start.IsZero() && (first.IsZero() || start.After(first)) {
+		first = start
+	}
+	if first.IsZero() {
+		first = end.UTC().Truncate(24 * time.Hour)
+	}
+	if !start.IsZero() && end.Before(start) {
+		return nil, nil
+	}
+
+	var out []ScoreHistory
+	for day := first; !day.After(end.UTC().Truncate(24 * time.Hour)); day = day.Add(24 * time.Hour) {
+		cutoff := day.Add(24 * time.Hour)
+		asOf := make([]GateEvidence, 0, len(items))
+		for _, item := range items {
+			stamp, parseErr := time.Parse(time.RFC3339Nano, item.RecordedAt)
+			if parseErr == nil && stamp.Before(cutoff) {
+				asOf = append(asOf, item)
+			}
+		}
+		report := ComputeWithEvidence(assets, impls, asOf, definitions)
+		at100, below50 := 0, 0
+		for _, row := range report.Rows {
+			if row.Bucket != BucketPlannedBuilt {
+				continue
+			}
+			if row.AssetScore >= 1 {
+				at100++
+			}
+			if row.AssetScore < 0.5 {
+				below50++
+			}
+		}
+		out = append(out, ScoreHistory{
+			RecordedAt:              day.Format("2006-01-02"),
+			Score:                   report.Score,
+			AssetsAt100:             at100,
+			AssetsBelow50:           below50,
+			WeightVectorRegenerated: day.Equal(first) && fileExists(filepath.Join(resolveScenarioRoot(root), "catalog", "weights.json")),
+		})
+	}
+	return out, nil
+}
+
+func fileExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
 }
 
 func evidenceID(item GateEvidence) string {
@@ -247,6 +457,10 @@ func MergedEvidence(ctx context.Context, root string, store *EvidenceStore) ([]G
 		return nil, err
 	}
 	for _, item := range persisted {
+		if item.AssetID == "__corpus__" && item.SourceRevision == "corpus" {
+			computed = append(computed, item)
+			continue
+		}
 		revision, err := CurrentRevision(root, item.AssetID)
 		if err != nil || revision != item.SourceRevision {
 			continue
@@ -531,6 +745,9 @@ func RecomputeEvidence(root string) ([]GateEvidence, error) {
 	if runners["integration"], err = gates.ValidateIntegration(root); err != nil {
 		return nil, err
 	}
+	for name, runner := range runners {
+		runners[name] = gates.NormalizeResult(root, runner)
+	}
 	var out []GateEvidence
 	for _, asset := range assets {
 		if _, ok := implByAsset[asset.ID]; !ok {
@@ -545,6 +762,9 @@ func RecomputeEvidence(root string) ([]GateEvidence, error) {
 			return nil, err
 		}
 		for _, definition := range definitions {
+			if definition.Attribution == "corpus" {
+				continue
+			}
 			gateName := definition.ID
 			if !containsKind(definition.AppliesTo, asset.Kind) {
 				continue
@@ -554,7 +774,7 @@ func RecomputeEvidence(root string) ([]GateEvidence, error) {
 				continue
 			}
 			result := "pass"
-			if hasFinding(runner.Findings, asset.ID, implByAsset[asset.ID].Name, gateName) {
+			if hasFinding(runner.Findings, asset.ID, implByAsset[asset.ID].Name, gateName) || len(runner.RunnerError) > 0 {
 				result = "fail"
 			} else if runner.Inspected == 0 {
 				result = "skipped"
@@ -567,7 +787,7 @@ func RecomputeEvidence(root string) ([]GateEvidence, error) {
 
 func hasFinding(findings []gates.Finding, assetID, implementation, gate string) bool {
 	for _, finding := range findings {
-		if finding.AssetID == "catalog.runner" || finding.AssetID == assetID || finding.AssetID == implementation {
+		if finding.AssetID == assetID || finding.AssetID == implementation {
 			return true
 		}
 	}

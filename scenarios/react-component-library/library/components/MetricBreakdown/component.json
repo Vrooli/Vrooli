@@ -1,0 +1,11 @@
+{
+  "libraryId": "react-component-library:MetricBreakdown",
+  "catalogId": "data-display.metric-breakdown",
+  "displayName": "MetricBreakdown",
+  "description": "A compact labeled metric list with numerator and denominator context.",
+  "assetKind": "component",
+  "tags": ["data-display", "token-bound"],
+  "latest": "1.0.0",
+  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
+  "dependencies": []
+}

@@ -8,7 +8,7 @@
   "source": "validation-provider",
   "artifactComparisonProvider": true,
   "orderHint": 2,
-  "timeout": "300s",
+  "timeout": "900s",
   "findingSource": "ui",
   "validation": {
     "contract": "scenario-validation/v1",

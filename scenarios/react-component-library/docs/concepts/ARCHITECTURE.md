@@ -31,6 +31,27 @@ This document does not own:
 - deployment and operations: [`../operations/DEPLOYMENT.md`](../operations/DEPLOYMENT.md),
 - commercial strategy: [`../business/MONETIZATION.md`](../business/MONETIZATION.md).
 
+## Per-asset gate scoring and health cockpit
+
+Catalog identity is the join key: every implementation declares one
+`catalogId`, and a gate finding must resolve to a catalog asset or be returned
+as a runner error. The API computes each built asset's score from attributable
+blocking gates, applies the pinned vector in `catalog/weights.json` plus the
+transitive `requires` blast radius, and keeps corpus gates visible as separate
+status rather than assigning corpus drift to an arbitrary asset.
+
+Gate runs persist one row per inspected asset in `catalog_gate_evidence` with
+the target, version, source revision, result, and timestamp. A revision mismatch
+is stale evidence. Score history is reconstructed day by day from the durable
+rows and carries the last observation forward so quiet days remain queryable.
+
+The workbench consumes the same server projection for the score gauge, metric
+breakdown, finding list, progress ladder, health indicator, capture grid, and
+canvas network graph. The graph's node list is the keyboard-accessible
+equivalent of the canvas. `catalog next` defaults to the promote lane; the
+build lane is explicit, and `catalog evidence capture <asset-id>` records the
+declared light/dark viewport capture matrix.
+
 ## Scenario Shape
 
 A scenario is one product expressed through three coordinated surfaces

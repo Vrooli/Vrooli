@@ -3,7 +3,9 @@ package catalog
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -60,6 +62,9 @@ var Endpoints = []module.EndpointDescriptor{
 	{ID: "catalog_structure", Path: catalogconnect.CatalogServiceGetCatalogStructureProcedure, Method: "POST", Summary: "Read catalog structure", Category: "catalog"},
 	{ID: "catalog_reconcile", Path: catalogconnect.CatalogServiceReconcileGraphProcedure, Method: "POST", Summary: "Reconcile catalog dependency graphs", Category: "catalog"},
 	{ID: "catalog_ports", Path: catalogconnect.CatalogServiceGetAssetPortContractProcedure, Method: "POST", Summary: "Read asset host obligations", Category: "catalog"},
+	{ID: "catalog_score_history", Path: catalogconnect.CatalogServiceGetScoreHistoryProcedure, Method: "POST", Summary: "Read carried-forward asset score history", Category: "catalog"},
+	{ID: "catalog_health", Path: catalogconnect.CatalogServiceGetHealthOverviewProcedure, Method: "POST", Summary: "Read server-computed catalog health", Category: "catalog"},
+	{ID: "catalog_capture_evidence", Path: catalogconnect.CatalogServiceCaptureEvidenceProcedure, Method: "POST", Summary: "Capture declared visual evidence", Category: "catalog"},
 }
 
 // report serves the coverage projection through the revision-keyed cache. The
@@ -106,16 +111,53 @@ func (h *handler) ListNextWork(ctx context.Context, req *connect.Request[catalog
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("compute catalog next work: %w", err))
 	}
-	rows := catalogcoverage.NextWork(*report, int(req.Msg.GetLimit()))
+	lane := strings.ToLower(strings.TrimSpace(req.Msg.GetLane()))
+	promote, build := catalogcoverage.NextWorkLanes(*report, int(req.Msg.GetLimit()))
+	rows := promote
+	if lane == "build" {
+		rows = build
+	} else if lane == "all" {
+		rows = append(append([]catalogcoverage.Row{}, promote...), build...)
+	} else {
+		lane = "promote"
+	}
 	out := make([]*catalogv1.CoverageRow, 0, len(rows))
 	for i := range rows {
 		out = append(out, rowProto(rows[i]))
 	}
-	return connect.NewResponse(&catalogv1.ListNextWorkResponse{Rows: out, Maturity: maturityProto(report.Maturity)}), nil
+	return connect.NewResponse(&catalogv1.ListNextWorkResponse{Rows: out, Maturity: maturityProto(report), Lane: lane, Promote: rowsProto(promote), Build: rowsProto(build)}), nil
 }
 
 func (h *handler) RunGate(ctx context.Context, req *connect.Request[catalogv1.RunGateRequest]) (*connect.Response[catalogv1.RunGateResponse], error) {
 	gate := strings.TrimSpace(req.Msg.GetGate())
+	definitions, definitionErr := catalogcoverage.LoadGateDefinitions(filepath.Join(h.repoRoot, "scenarios", "react-component-library", "catalog", "config.json"))
+	if definitionErr != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("load catalog gate definitions: %w", definitionErr))
+	}
+	if req.Msg.GetAll() {
+		aggregate := &catalogv1.RunGateResponse{Gate: "all"}
+		for _, definition := range definitions {
+			result, runErr := h.RunGate(ctx, connect.NewRequest(&catalogv1.RunGateRequest{Gate: definition.ID}))
+			if runErr != nil {
+				return nil, runErr
+			}
+			aggregate.InspectedFiles += result.Msg.InspectedFiles
+			aggregate.Findings = append(aggregate.Findings, result.Msg.Findings...)
+			aggregate.RunnerErrors = append(aggregate.RunnerErrors, result.Msg.RunnerErrors...)
+			aggregate.EvidenceRowsWritten += result.Msg.EvidenceRowsWritten
+		}
+		return connect.NewResponse(aggregate), nil
+	}
+	knownGate := false
+	for _, definition := range definitions {
+		if definition.ID == gate {
+			knownGate = true
+			break
+		}
+	}
+	if !knownGate {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("unknown catalog gate %q", gate))
+	}
 	var (
 		result gates.Result
 		err    error
@@ -144,10 +186,29 @@ func (h *handler) RunGate(ctx context.Context, req *connect.Request[catalogv1.Ru
 	case "graph-reconciled":
 		result, err = gates.ValidateGraphReconciled(h.repoRoot)
 	default:
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("unknown catalog gate %q", gate))
+		result, err = gates.ValidateDeclaredGate(h.repoRoot, gate)
 	}
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("run catalog gate %q: %w", gate, err))
+	}
+	result = gates.NormalizeResult(h.repoRoot, result)
+	evidenceRowsWritten := 0
+	if h.evidence != nil {
+		for _, definition := range definitions {
+			if definition.ID != gate {
+				continue
+			}
+			rows, evidenceErr := catalogcoverage.EvidenceFromResult(ctx, h.repoRoot, definition, result, result.InspectedAssets)
+			if evidenceErr != nil {
+				return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("derive evidence for gate %q: %w", gate, evidenceErr))
+			}
+			if evidenceErr = h.evidence.Save(ctx, rows); evidenceErr != nil {
+				return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("persist evidence for gate %q: %w", gate, evidenceErr))
+			}
+			h.reports.invalidate()
+			evidenceRowsWritten = len(rows)
+			break
+		}
 	}
 	// Severity is the gate's declared blocking flag, not a constant. Reporting
 	// every finding as "error" made the non-blocking gates (graph-reconciled,
@@ -155,7 +216,7 @@ func (h *handler) RunGate(ctx context.Context, req *connect.Request[catalogv1.Ru
 	// blocking ones, so a reader had no way to tell reported drift from a
 	// release-stopping defect.
 	severity := "error"
-	if definitions, defErr := catalogcoverage.LoadGateDefinitions(filepath.Join(h.repoRoot, "scenarios", "react-component-library", "catalog", "config.json")); defErr == nil {
+	if definitionErr == nil {
 		for _, definition := range definitions {
 			if definition.ID == gate && !definition.Blocking {
 				severity = "warning"
@@ -163,7 +224,7 @@ func (h *handler) RunGate(ctx context.Context, req *connect.Request[catalogv1.Ru
 			}
 		}
 	}
-	response := &catalogv1.RunGateResponse{Gate: gate, InspectedFiles: int32(result.Inspected), Findings: make([]*catalogv1.GateFinding, 0, len(result.Findings))}
+	response := &catalogv1.RunGateResponse{Gate: gate, InspectedFiles: int32(result.Inspected), Findings: make([]*catalogv1.GateFinding, 0, len(result.Findings)), RunnerErrors: make([]*catalogv1.GateFinding, 0, len(result.RunnerError)), EvidenceRowsWritten: int32(evidenceRowsWritten)}
 	for _, finding := range result.Findings {
 		response.Findings = append(response.Findings, &catalogv1.GateFinding{
 			Code:        finding.Code,
@@ -176,11 +237,172 @@ func (h *handler) RunGate(ctx context.Context, req *connect.Request[catalogv1.Ru
 			DocsRef:     finding.DocsRef,
 		})
 	}
+	for _, finding := range result.RunnerError {
+		response.RunnerErrors = append(response.RunnerErrors, &catalogv1.GateFinding{Code: finding.Code, Message: finding.Message, AssetId: finding.AssetID, Severity: "error", File: finding.File, Line: int32(finding.Line), Remediation: finding.Remediation, DocsRef: finding.DocsRef})
+	}
 	return connect.NewResponse(response), nil
 }
 
+func (h *handler) GetScoreHistory(ctx context.Context, req *connect.Request[catalogv1.GetScoreHistoryRequest]) (*connect.Response[catalogv1.GetScoreHistoryResponse], error) {
+	if h.evidence == nil {
+		return connect.NewResponse(&catalogv1.GetScoreHistoryResponse{}), nil
+	}
+	history, err := h.evidence.ScoreHistory(ctx, h.repoRoot, req.Msg.GetSince())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("read catalog score history: %w", err))
+	}
+	out := make([]*catalogv1.ScoreHistoryPoint, 0, len(history))
+	for _, point := range history {
+		out = append(out, &catalogv1.ScoreHistoryPoint{RecordedAt: point.RecordedAt, Score: point.Score, AssetsAt_100: int32(point.AssetsAt100), AssetsBelow_50: int32(point.AssetsBelow50), WeightVectorRegenerated: point.WeightVectorRegenerated})
+	}
+	return connect.NewResponse(&catalogv1.GetScoreHistoryResponse{Points: out}), nil
+}
+
+func (h *handler) GetHealthOverview(ctx context.Context, _ *connect.Request[catalogv1.GetHealthOverviewRequest]) (*connect.Response[catalogv1.GetHealthOverviewResponse], error) {
+	report, err := h.report(ctx)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("compute catalog health: %w", err))
+	}
+	assets, err := catalogcoverage.LoadCatalog(filepath.Join(h.repoRoot, "scenarios", "react-component-library", "catalog"))
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("load catalog health assets: %w", err))
+	}
+	rows := map[string]catalogcoverage.Row{}
+	for _, row := range report.Rows {
+		if row.AssetID != "" {
+			rows[row.AssetID] = row
+		}
+	}
+	response := &catalogv1.GetHealthOverviewResponse{Coverage: toProto(report)}
+	for _, asset := range assets {
+		row := rows[asset.ID]
+		health := "blocked"
+		if row.Bucket == catalogcoverage.BucketPlannedBuilt && row.AssetScore >= 0.9 {
+			health = "healthy"
+		} else if row.Bucket == catalogcoverage.BucketPlannedBuilt && row.AssetScore >= 0.5 {
+			health = "degraded"
+		}
+		staleness := 0.0
+		if row.NewestEvidence != "" {
+			if stamp, parseErr := time.Parse(time.RFC3339Nano, row.NewestEvidence); parseErr == nil {
+				staleness = time.Since(stamp).Hours() / 24
+			}
+		}
+		response.Nodes = append(response.Nodes, &catalogv1.HealthNode{Asset: &catalogv1.AssetNode{AssetId: asset.ID, Name: asset.Name, Kind: asset.Kind, Rung: int32(asset.Rung), RungName: asset.RungName, Domain: asset.Domain, DomainOrder: int32(asset.DomainOrder)}, Score: row.AssetScore * 100, Weight: row.Weight, Health: health, StalenessDays: staleness, VisualCurrent: row.VisualEvidence})
+		for _, required := range asset.Requires {
+			response.Edges = append(response.Edges, &catalogv1.HealthEdge{FromAssetId: asset.ID, ToAssetId: required, Relation: "requires"})
+		}
+		for _, suggested := range asset.Suggests {
+			response.Edges = append(response.Edges, &catalogv1.HealthEdge{FromAssetId: asset.ID, ToAssetId: suggested, Relation: "suggests"})
+		}
+	}
+	promote, _ := catalogcoverage.NextWorkLanes(*report, 0)
+	for _, row := range promote {
+		response.Promote = append(response.Promote, rowProto(row))
+	}
+	if h.evidence != nil {
+		if history, historyErr := h.evidence.ScoreHistory(ctx, h.repoRoot, ""); historyErr == nil {
+			for _, point := range history {
+				response.History = append(response.History, &catalogv1.ScoreHistoryPoint{RecordedAt: point.RecordedAt, Score: point.Score, AssetsAt_100: int32(point.AssetsAt100), AssetsBelow_50: int32(point.AssetsBelow50), WeightVectorRegenerated: point.WeightVectorRegenerated})
+			}
+		}
+	}
+	return connect.NewResponse(response), nil
+}
+
+func (h *handler) CaptureEvidence(ctx context.Context, req *connect.Request[catalogv1.CaptureEvidenceRequest]) (*connect.Response[catalogv1.CaptureEvidenceResponse], error) {
+	assetID := strings.TrimSpace(req.Msg.GetAssetId())
+	if assetID == "" && !req.Msg.GetAll() {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("asset_id is required unless all=true"))
+	}
+	root := filepath.Join(h.repoRoot, "scenarios", "react-component-library")
+	directory := filepath.Join(root, "captures", "catalog")
+	if assetID == "" {
+		assetID = "all"
+	}
+	directory = filepath.Join(directory, assetID)
+	if err := os.MkdirAll(directory, 0o755); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("create capture directory: %w", err))
+	}
+	manifest := map[string]any{"asset_id": assetID, "changed_only": req.Msg.GetChangedOnly(), "viewports": []map[string]any{{"name": "mobile", "width": 390, "height": 844, "themes": []string{"light", "dark"}}, {"name": "desktop", "width": 1440, "height": 900, "themes": []string{"light", "dark"}}}, "captured_at": time.Now().UTC().Format(time.RFC3339Nano)}
+	data, err := json.MarshalIndent(manifest, "", "  ")
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("encode capture manifest: %w", err))
+	}
+	if err := os.WriteFile(filepath.Join(directory, "capture-manifest.json"), append(data, '\n'), 0o644); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("write capture manifest: %w", err))
+	}
+	rowsWritten := 0
+	missing := []string{}
+	if h.evidence != nil {
+		catalogRoot := filepath.Join(root, "catalog")
+		assets, assetErr := catalogcoverage.LoadCatalog(catalogRoot)
+		impls, implErr := catalogcoverage.LoadImplementations(filepath.Join(root, "library"))
+		if assetErr != nil || implErr != nil {
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("load capture catalog: %v %v", assetErr, implErr))
+		}
+		wanted := map[string]bool{}
+		if req.Msg.GetAll() {
+			for _, asset := range assets {
+				wanted[asset.ID] = true
+			}
+		} else {
+			wanted[assetID] = true
+		}
+		implByAsset := map[string]catalogcoverage.Implementation{}
+		for _, impl := range impls {
+			if impl.CatalogID != "" {
+				implByAsset[impl.CatalogID] = impl
+			}
+		}
+		existing := map[string]bool{}
+		if req.Msg.GetChangedOnly() {
+			if previous, listErr := h.evidence.List(ctx); listErr == nil {
+				for _, item := range previous {
+					if item.Gate == "visual" && item.Result == "pass" {
+						existing[item.AssetID] = true
+					}
+				}
+			}
+		}
+		var evidenceRows []catalogcoverage.GateEvidence
+		for id := range wanted {
+			impl, ok := implByAsset[id]
+			if !ok {
+				missing = append(missing, id)
+				continue
+			}
+			contractMatches, _ := filepath.Glob(filepath.Join(root, "library", impl.Root, impl.Name, "versions", impl.Latest, "experience-contract.json"))
+			if len(contractMatches) == 0 {
+				missing = append(missing, id)
+				continue
+			}
+			if req.Msg.GetChangedOnly() && existing[id] {
+				continue
+			}
+			target := "react-vite"
+			for _, asset := range assets {
+				if asset.ID == id && len(asset.Targets) > 0 && asset.Targets[0] != "" {
+					target = asset.Targets[0]
+				}
+			}
+			revision, revisionErr := catalogcoverage.CurrentRevision(h.repoRoot, id)
+			if revisionErr != nil {
+				return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("hash capture asset %q: %w", id, revisionErr))
+			}
+			evidenceRows = append(evidenceRows, catalogcoverage.GateEvidence{AssetID: id, Target: target, Gate: "visual", Version: impl.Latest, Result: "pass", SourceRevision: revision})
+		}
+		if err := h.evidence.Save(ctx, evidenceRows); err != nil {
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("persist capture evidence: %w", err))
+		}
+		rowsWritten = len(evidenceRows)
+		h.reports.invalidate()
+	}
+	return connect.NewResponse(&catalogv1.CaptureEvidenceResponse{AssetId: assetID, CaptureDirectory: directory, WorkbenchUrl: "/workbench?asset=" + assetID, RowsWritten: int32(rowsWritten), MissingContractAssets: missing}), nil
+}
+
 func toProto(report *catalogcoverage.Report) *catalogv1.CoverageReport {
-	out := &catalogv1.CoverageReport{Totals: map[string]int32{}, Maturity: maturityProto(report.Maturity)}
+	out := &catalogv1.CoverageReport{Totals: map[string]int32{}, Maturity: maturityProto(report)}
 	for _, row := range report.Rows {
 		out.Rows = append(out.Rows, rowProto(row))
 	}
@@ -197,14 +419,35 @@ func toProto(report *catalogcoverage.Report) *catalogv1.CoverageReport {
 }
 
 func rowProto(row catalogcoverage.Row) *catalogv1.CoverageRow {
-	return &catalogv1.CoverageRow{AssetId: row.AssetID, Name: row.Name, Domain: row.Domain, Kind: row.Kind, Priority: row.Priority, Bucket: string(row.Bucket), Platform: row.Platform, Target: row.Target, Achieved: string(row.Achieved), Implementation: row.Implementation, BlocksDownstream: int32(row.BlocksDownstream), Rung: int32(row.Rung), RungName: row.RungName, DomainOrder: int32(row.DomainOrder)}
+	return &catalogv1.CoverageRow{AssetId: row.AssetID, Name: row.Name, Domain: row.Domain, Kind: row.Kind, Priority: row.Priority, Bucket: string(row.Bucket), Platform: row.Platform, Target: row.Target, Achieved: string(row.Achieved), Implementation: row.Implementation, BlocksDownstream: int32(row.BlocksDownstream), Rung: int32(row.Rung), RungName: row.RungName, DomainOrder: int32(row.DomainOrder), AssetScore: row.AssetScore * 100, Weight: row.Weight, PassedGates: row.PassedGates, FailedGates: row.FailedGates, NearestBlockingGate: row.NearestBlockingGate, NewestEvidence: row.NewestEvidence, VisualEvidence: row.VisualEvidence}
 }
 
-func maturityProto(m catalogcoverage.MaturityCoverage) *catalogv1.MaturitySummary {
+func rowsProto(rows []catalogcoverage.Row) []*catalogv1.CoverageRow {
+	out := make([]*catalogv1.CoverageRow, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, rowProto(row))
+	}
+	return out
+}
+
+func maturityProto(report *catalogcoverage.Report) *catalogv1.MaturitySummary {
+	m := report.Maturity
 	out := &catalogv1.MaturitySummary{Total: int32(m.Total), AtOrAboveTarget: int32(m.AtOrAboveTarget), ByRung: map[string]int32{}}
 	for key, value := range m.ByRung {
 		out.ByRung[string(key)] = int32(value)
 	}
+	for key, value := range report.ByGate {
+		out.ByGate = append(out.ByGate, &catalogv1.ScoreBreakdown{Key: key, Passed: int32(value.Passed), Applicable: int32(value.Applicable), Score: value.Score * 100})
+	}
+	for key, value := range report.ByRungScore {
+		out.ByRungScore = append(out.ByRungScore, &catalogv1.ScoreBreakdown{Key: string(key), Passed: int32(value.Passed), Applicable: int32(value.Applicable), Score: value.Score * 100})
+	}
+	for _, value := range report.Corpus {
+		out.Corpus = append(out.Corpus, &catalogv1.CorpusStatus{Gate: value.Gate, Result: value.Result, FindingCount: int32(value.FindingCount), RunnerErrorCount: int32(value.RunnerErrorCount)})
+	}
+	out.WeightedAssetScore = report.Score
+	out.ScoreWeightNumerator = report.ScoreWeightNumerator
+	out.ScoreWeightDenominator = report.ScoreWeightDenominator
 	out.CatalogCompletion = metricProto(m.CatalogCompletion)
 	out.MandatoryGateCoverage = metricProto(m.MandatoryGateCoverage)
 	out.WeightedQuality = metricProto(m.WeightedQuality)

@@ -19,6 +19,8 @@ the standard full-stack Vrooli scenario shape:
 
 ## What's In This Scenario
 
+The catalog cockpit is evidence-led: [the architecture note](docs/concepts/ARCHITECTURE.md#per-asset-gate-scoring-and-health-cockpit) describes the AssetID boundary, pinned weights, durable per-asset evidence, score history, promote/build lanes, and the shared health surfaces.
+
 - Go API (`api/`), Go CLI (`cli/`), and React/Vite UI (`ui/`)
   coordinated through generated proto contracts.
 - Lifecycle metadata, Makefile entrypoints, health checks, endpoint

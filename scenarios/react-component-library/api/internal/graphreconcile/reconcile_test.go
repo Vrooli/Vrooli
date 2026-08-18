@@ -107,7 +107,7 @@ func TestLiveReconcileReportsEveryCatalogAsset(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(report.Assets) != 410 {
+	if len(report.Assets) != 421 {
 		t.Fatalf("assets=%d", len(report.Assets))
 	}
 	if len(report.Distribution) == 0 {

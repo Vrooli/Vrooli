@@ -33,6 +33,7 @@
   "gates": [
     {
       "id": "graph-reconciled",
+      "attribution": "attributable",
       "rung": "implemented",
       "description": "Reports catalog, manifest, and TypeScript import dependency drift without repairing manifests.",
       "appliesTo": ["foundation", "runtime-hook", "runtime-service", "adapter", "generator", "primitive", "component", "pattern", "page-template", "navigation"],
@@ -41,6 +42,7 @@
     },
     {
       "id": "token-vocabulary",
+      "attribution": "corpus",
       "rung": "implemented",
       "description": "Active library source uses the single retained CSS custom-property vocabulary.",
       "appliesTo": ["foundation", "primitive", "component", "runtime-hook", "runtime-service"],
@@ -49,6 +51,7 @@
     },
     {
       "id": "token-ramp-complete",
+      "attribution": "corpus",
       "rung": "implemented",
       "description": "Every externally required literal custom property is published by the canonical reference ramp.",
       "appliesTo": ["foundation", "primitive", "component", "runtime-hook", "runtime-service"],
@@ -57,6 +60,7 @@
     },
     {
       "id": "released-version-immutable",
+      "attribution": "attributable",
       "rung": "verified",
       "description": "Every indexed released version still matches its on-disk source bytes.",
       "appliesTo": ["foundation", "primitive", "component", "runtime-hook", "runtime-service"],
@@ -65,6 +69,7 @@
     },
     {
       "id": "types",
+      "attribution": "attributable",
       "rung": "scaffolded",
       "description": "Strict compilation with exported public types, no accidental any, and a stable entrypoint.",
       "appliesTo": ["foundation", "runtime-hook", "runtime-service", "adapter", "primitive", "component", "pattern", "page-template", "navigation", "fixture", "generator"],
@@ -73,6 +78,7 @@
     },
     {
       "id": "api",
+      "attribution": "attributable",
       "rung": "implemented",
       "description": "Declared variants, modes, and parts match what the implementation actually exports.",
       "appliesTo": ["foundation", "runtime-hook", "runtime-service", "adapter", "generator", "primitive", "component", "pattern", "page-template", "navigation"],
@@ -81,6 +87,7 @@
     },
     {
       "id": "unit",
+      "attribution": "attributable",
       "rung": "implemented",
       "description": "Pure logic, state transitions, parsing, formatting, and edge cases.",
       "appliesTo": ["runtime-hook", "runtime-service", "adapter", "primitive", "component", "pattern", "page-template", "navigation", "generator"],
@@ -89,6 +96,7 @@
     },
     {
       "id": "interaction",
+      "attribution": "attributable",
       "rung": "implemented",
       "description": "Pointer, touch, keyboard, interruption, cancellation, nested use, and disabled behavior.",
       "appliesTo": ["primitive", "component", "pattern", "page-template", "navigation"],
@@ -97,6 +105,7 @@
     },
     {
       "id": "accessibility",
+      "attribution": "attributable",
       "rung": "verified",
       "description": "Semantics, naming, focus order, announcement, keyboard operation, and contrast, reconciled against captured evidence.",
       "appliesTo": ["primitive", "component", "pattern", "page-template", "navigation"],
@@ -106,6 +115,7 @@
     },
     {
       "id": "responsive",
+      "attribution": "attributable",
       "rung": "verified",
       "description": "Behavior across the kit's baseline viewport matrix, including the declared responsive transformations.",
       "appliesTo": ["primitive", "component", "pattern", "page-template", "navigation"],
@@ -116,6 +126,7 @@
     },
     {
       "id": "visual",
+      "attribution": "attributable",
       "rung": "verified",
       "description": "Approved fixture matrix and screenshot regression coverage in light and dark.",
       "appliesTo": ["primitive", "component", "pattern", "page-template", "navigation"],
@@ -126,6 +137,7 @@
     },
     {
       "id": "rtl",
+      "attribution": "attributable",
       "rung": "verified",
       "description": "Direction-aware layout, keyboard movement, gestures, icon direction, and transitions.",
       "appliesTo": ["primitive", "component", "pattern", "page-template", "navigation"],
@@ -133,6 +145,7 @@
     },
     {
       "id": "reduced-motion",
+      "attribution": "attributable",
       "rung": "verified",
       "description": "Reduced or disabled motion with no meaning lost and no broken lifecycle.",
       "appliesTo": ["primitive", "component", "pattern", "page-template", "navigation"],
@@ -140,6 +153,7 @@
     },
     {
       "id": "forced-colors",
+      "attribution": "attributable",
       "rung": "verified",
       "description": "Usable presentation under operating-system high-contrast mode.",
       "appliesTo": ["primitive", "component", "pattern", "page-template", "navigation"],
@@ -147,6 +161,7 @@
     },
     {
       "id": "stress",
+      "attribution": "attributable",
       "rung": "production-ready",
       "description": "Long text, localization expansion, empty values, large values, many items, and overflow.",
       "appliesTo": ["component", "pattern", "page-template", "navigation"],
@@ -154,6 +169,7 @@
     },
     {
       "id": "performance",
+      "attribution": "corpus",
       "rung": "production-ready",
       "description": "Bundle profile, render benchmark, interaction latency, layout stability, and listener cleanup.",
       "appliesTo": ["runtime-service", "component", "pattern", "page-template", "generator"],
@@ -161,6 +177,7 @@
     },
     {
       "id": "documentation",
+      "attribution": "attributable",
       "rung": "production-ready",
       "description": "Description, usage, API, behavior, accessibility, performance notes, and anti-patterns.",
       "appliesTo": ["foundation", "runtime-hook", "runtime-service", "adapter", "primitive", "component", "pattern", "page-template", "navigation", "generator"],
@@ -168,6 +185,7 @@
     },
     {
       "id": "examples",
+      "attribution": "attributable",
       "rung": "production-ready",
       "description": "Named specimens covering every required state, authored as story contract data.",
       "appliesTo": ["primitive", "component", "pattern", "page-template", "navigation"],
@@ -176,6 +194,7 @@
     },
     {
       "id": "integration",
+      "attribution": "attributable",
       "rung": "production-ready",
       "description": "Works correctly with the shared managers, providers, tokens, and nested overlays it declares ports for.",
       "appliesTo": ["component", "pattern", "page-template", "navigation"],
@@ -183,6 +202,7 @@
     },
     {
       "id": "fixture-adversarial",
+      "attribution": "attributable",
       "rung": "verified",
       "description": "The fixture supplies its declared data shapes and includes overflowing text, absent optional fields, at least one RTL string, a failure record where status is modeled, and a volume variant.",
       "appliesTo": ["fixture"],
@@ -191,6 +211,7 @@
     },
     {
       "id": "tokens",
+      "attribution": "corpus",
       "rung": "verified",
       "description": "Every declared design ramp is present, spacing values stay on the approved grid, contrast pairs meet their floor, and component source does not bypass an available token.",
       "appliesTo": ["foundation"],
@@ -199,6 +220,7 @@
     },
     {
       "id": "conformance",
+      "attribution": "corpus",
       "rung": "verified",
       "description": "Reports design-system type scale, ramp adherence, icon scale, and elevation/radius conformance separately from defect floors.",
       "appliesTo": ["foundation", "primitive", "component", "pattern", "page-template"],
@@ -207,6 +229,7 @@
     },
     {
       "id": "lifecycle",
+      "attribution": "attributable",
       "rung": "verified",
       "description": "Hooks and services clean up listeners and observers, abort superseded work, and access browser capabilities safely during SSR.",
       "appliesTo": ["runtime-hook", "runtime-service", "adapter", "generator"],
@@ -215,6 +238,7 @@
     },
     {
       "id": "migration",
+      "attribution": "attributable",
       "rung": "production-ready",
       "description": "Replacement and codemod information when a public API changes or the asset is deprecated.",
       "appliesTo": ["foundation", "runtime-hook", "runtime-service", "adapter", "primitive", "component", "pattern", "page-template", "navigation", "generator"],

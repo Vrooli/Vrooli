@@ -9,6 +9,12 @@
       "bucket": "BUCKET_REUSE",
       "type": "surface",
       "description": "UI surfaces across every scenario — components, pages, features, and hooks — searchable by what each surface is or does (for example \"settings page\", \"date picker component\", \"health dashboard overview\"). Route here to find an existing UI building block to reuse rather than rebuild.",
+      "routing_profile": {
+        "answer_spaces": ["ui_surface", "component", "page", "frontend_hook"],
+        "intents": ["locate", "reuse", "understand_ui"],
+        "positive_examples": ["find the settings page", "which component renders this control", "reuse an existing health dashboard surface"],
+        "exclusions": ["backend implementation", "service contract", "workflow test evidence"]
+      },
       "scope": "SCOPE_PROJECT",
       "class": "local_index",
       "index_timestamp_field": "lastReconcileAt",

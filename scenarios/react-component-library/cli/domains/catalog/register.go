@@ -18,6 +18,9 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		"CatalogService.GetCatalogStructure":   h.structure,
 		"CatalogService.ReconcileGraph":        h.reconcile,
 		"CatalogService.GetAssetPortContract":  h.ports,
+		"CatalogService.GetScoreHistory":       h.scoreHistory,
+		"CatalogService.GetHealthOverview":     h.health,
+		"CatalogService.CaptureEvidence":       h.evidence,
 	})
 	if err != nil {
 		return cliapp.SubcommandGroup{}, fmt.Errorf("catalog: load from manifest: %w", err)

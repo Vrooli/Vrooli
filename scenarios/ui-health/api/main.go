@@ -164,7 +164,7 @@ func main() {
 		// longer than the platform's 30-second default. The HTTP write deadline
 		// spans handler execution, so keep the response channel alive for the
 		// bounded provider phase instead of returning a misleading EOF to clients.
-		WriteTimeout: 5 * time.Minute,
+		WriteTimeout: 15 * time.Minute,
 		Cleanup: func(ctx context.Context) error {
 			cancelSync()
 			return db.Close()

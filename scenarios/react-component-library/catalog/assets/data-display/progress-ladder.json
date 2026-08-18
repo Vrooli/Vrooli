@@ -1,0 +1,10 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset", "schemaVersion": "1.0.0",
+  "asset": {"id": "data-display.progress-ladder", "name": "ProgressLadder", "kind": "component", "domain": "data-display", "description": "A rung-by-rung maturity ladder showing achieved and target states.", "targets": ["react-vite"], "slot": "primitive", "delivery": "adopted", "target": {"priority": "P1", "maturity": "implemented"}},
+  "dependencies": {"requires": [], "suggests": []},
+  "requiredCapabilities": ["accessible-naming", "non-color-status", "dark-parity"],
+  "requiredStates": ["default", "empty", "request-error"],
+  "qualityGates": ["accessibility", "visual"],
+  "rationale": "Maturity is sequential work; the ladder makes the next rung and the current proof visible."
+}

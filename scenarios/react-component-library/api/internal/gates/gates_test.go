@@ -277,10 +277,10 @@ func TestEveryFindingCarriesRemediation(t *testing.T) {
 			if err != nil {
 				t.Skipf("runner needs inputs this fixture does not supply: %v", err)
 			}
-			if len(result.Findings) == 0 {
+			if len(result.Findings) == 0 && len(result.RunnerError) == 0 {
 				t.Fatalf("%s produced no findings; the zero-input contract should have emitted one", name)
 			}
-			for _, finding := range result.Findings {
+			for _, finding := range append(result.Findings, result.RunnerError...) {
 				if strings.TrimSpace(finding.Remediation) == "" {
 					t.Errorf("finding %q has no remediation; state what to do about it, not only what is wrong", finding.Code)
 				}
@@ -346,7 +346,7 @@ func TestEveryGateRejectsZeroInspectedInputs(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if result.Inspected != 0 || len(result.Findings) == 0 {
+			if result.Inspected != 0 || len(result.Findings)+len(result.RunnerError) == 0 {
 				t.Fatalf("result = %+v, want zero-input finding", result)
 			}
 		})

@@ -1,0 +1,28 @@
+{
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "schema": "scenario-experience-spec/v1",
+    "provenance": "react-component-library:MetricBreakdown@1.0.0"
+  },
+  "component": {
+    "id": "data-display.metric-breakdown",
+    "title": "MetricBreakdown",
+    "purpose": "MetricBreakdown exposes the numerator and denominator behind a score."
+  },
+  "states": [
+    {
+      "id": "default",
+      "example": "default",
+      "description": "Metrics have labels and totals."
+    }
+  ],
+  "claims": [
+    {
+      "id": "metrics-readable",
+      "type": "text",
+      "statement": "Metric labels and totals remain readable.",
+      "tier": "automated",
+      "states": ["default"]
+    }
+  ]
+}

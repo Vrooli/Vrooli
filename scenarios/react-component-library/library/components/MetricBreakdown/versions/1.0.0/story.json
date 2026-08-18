@@ -1,0 +1,1 @@
+{"schemaVersion":3,"kind":"component","title":"MetricBreakdown","args":{"fields":[]},"environment":{"fixtures":[]},"stories":[{"id":"default","name":"Default","args":{"items":[{"id":"passed","label":"Passed","value":8,"total":10}]},"expect":[{"kind":"text","value":"Passed"},{"kind":"text","value":"8 / 10"}],"mode":"pinned"}]}

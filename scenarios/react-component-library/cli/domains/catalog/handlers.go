@@ -37,7 +37,7 @@ func (h *handlers) coverage(ctx cliapp.RunContext) error {
 }
 
 func (h *handlers) next(ctx cliapp.RunContext) error {
-	resp, err := h.client.ListNextWork(context.Background(), connect.NewRequest(&catalogv1.ListNextWorkRequest{Limit: 10}))
+	resp, err := h.client.ListNextWork(context.Background(), connect.NewRequest(&catalogv1.ListNextWorkRequest{Limit: 10, Lane: ctx.Flag("lane")}))
 	if err != nil {
 		return cliapp.WrapAPIError("get catalog next work", err, nil)
 	}
@@ -51,9 +51,55 @@ func (h *handlers) next(ctx cliapp.RunContext) error {
 	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("Next work: %d target(s).", len(rows))}, ResultsHeading: "Ranked next work", Results: rows})
 }
 
+func (h *handlers) scoreHistory(ctx cliapp.RunContext) error {
+	resp, err := h.client.GetScoreHistory(context.Background(), connect.NewRequest(&catalogv1.GetScoreHistoryRequest{Since: ctx.Flag("since")}))
+	if err != nil {
+		return cliapp.WrapAPIError("get catalog score history", err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no catalog score history")
+	}
+	results := make([]string, 0, len(resp.Msg.Points))
+	for _, point := range resp.Msg.Points {
+		results = append(results, fmt.Sprintf("%s score %.1f%%; at 100%% %d; below 50%% %d", point.RecordedAt, point.Score, point.AssetsAt_100, point.AssetsBelow_50))
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("Score history: %d day(s).", len(results))}, ResultsHeading: "Daily score", Results: results})
+}
+
+func (h *handlers) health(ctx cliapp.RunContext) error {
+	resp, err := h.client.GetHealthOverview(context.Background(), connect.NewRequest(&catalogv1.GetHealthOverviewRequest{}))
+	if err != nil {
+		return cliapp.WrapAPIError("get catalog health", err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no catalog health")
+	}
+	results := make([]string, 0, len(resp.Msg.Nodes))
+	for _, node := range resp.Msg.Nodes {
+		if node.Asset != nil {
+			results = append(results, fmt.Sprintf("%s %s score %.1f%% stale %.1fd", node.Asset.AssetId, node.Health, node.Score, node.StalenessDays))
+		}
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("Health nodes: %d; promote: %d.", len(resp.Msg.Nodes), len(resp.Msg.Promote))}, ResultsHeading: "Asset health", Results: results})
+}
+
+func (h *handlers) evidence(ctx cliapp.RunContext) error {
+	if ctx.Positional("action") != "capture" {
+		return fmt.Errorf("usage: catalog evidence capture <asset-id>")
+	}
+	resp, err := h.client.CaptureEvidence(context.Background(), connect.NewRequest(&catalogv1.CaptureEvidenceRequest{AssetId: ctx.Positional("asset-id"), ChangedOnly: ctx.Flag("changed-only") == "true"}))
+	if err != nil {
+		return cliapp.WrapAPIError("capture catalog evidence", err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no catalog evidence capture")
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("Captured %d evidence row(s) for %s.", resp.Msg.RowsWritten, resp.Msg.AssetId)}, ResultsHeading: "Capture", Results: []string{resp.Msg.CaptureDirectory, resp.Msg.WorkbenchUrl}})
+}
+
 func (h *handlers) gate(ctx cliapp.RunContext) error {
 	gate := ctx.Positional("gate")
-	resp, err := h.client.RunGate(context.Background(), connect.NewRequest(&catalogv1.RunGateRequest{Gate: gate}))
+	resp, err := h.client.RunGate(context.Background(), connect.NewRequest(&catalogv1.RunGateRequest{Gate: gate, All: ctx.Flag("all") == "true"}))
 	if err != nil {
 		return cliapp.WrapAPIError("run catalog gate", err, nil)
 	}

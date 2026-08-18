@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"connectrpc.com/connect"
 
@@ -22,7 +23,7 @@ type handlers struct {
 }
 
 func newHandlers(core *cliapp.ScenarioApp) *handlers {
-	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
+	httpClient, baseURL := cliapp.NewConnectHTTPClientWithTimeout(core, 15*time.Minute)
 	return &handlers{
 		core:   core,
 		client: scenariovalidationconnect.NewScenarioValidationServiceClient(httpClient, baseURL),

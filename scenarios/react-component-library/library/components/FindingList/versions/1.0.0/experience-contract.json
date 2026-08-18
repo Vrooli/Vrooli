@@ -1,0 +1,33 @@
+{
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "schema": "scenario-experience-spec/v1",
+    "provenance": "react-component-library:FindingList@1.0.0"
+  },
+  "component": {
+    "id": "data-display.finding-list",
+    "title": "FindingList",
+    "purpose": "FindingList pairs an actionable defect with its asset identity and remediation."
+  },
+  "states": [
+    {
+      "id": "default",
+      "example": "default",
+      "description": "Findings show severity and remediation."
+    },
+    {
+      "id": "empty",
+      "example": "empty",
+      "description": "No findings is explicit."
+    }
+  ],
+  "claims": [
+    {
+      "id": "finding-actionable",
+      "type": "text",
+      "statement": "A finding communicates identity, message, and next action.",
+      "tier": "automated",
+      "states": ["default", "empty"]
+    }
+  ]
+}

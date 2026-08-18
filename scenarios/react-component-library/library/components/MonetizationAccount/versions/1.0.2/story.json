@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 3,
+  "kind": "component",
+  "title": "MonetizationAccount",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "account",
+      "name": "Signed-out account",
+      "harness": "AuthSection",
+      "args": {},
+      "expect": [
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Sign in"
+        }
+      ],
+      "mode": "live"
+    }
+  ]
+}

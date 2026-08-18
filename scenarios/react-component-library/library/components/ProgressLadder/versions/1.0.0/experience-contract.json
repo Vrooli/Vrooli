@@ -1,0 +1,28 @@
+{
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "schema": "scenario-experience-spec/v1",
+    "provenance": "react-component-library:ProgressLadder@1.0.0"
+  },
+  "component": {
+    "id": "data-display.progress-ladder",
+    "title": "ProgressLadder",
+    "purpose": "ProgressLadder makes the next maturity rung explicit."
+  },
+  "states": [
+    {
+      "id": "default",
+      "example": "default",
+      "description": "Completed and current rungs are named."
+    }
+  ],
+  "claims": [
+    {
+      "id": "rung-readable",
+      "type": "text",
+      "statement": "Maturity rungs are readable and ordered.",
+      "tier": "automated",
+      "states": ["default"]
+    }
+  ]
+}

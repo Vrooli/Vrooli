@@ -1,0 +1,11 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {"id": "data-display.score-gauge", "name": "ScoreGauge", "kind": "component", "domain": "data-display", "description": "A bounded score summary with an explicit threshold and accessible value.", "targets": ["react-vite"], "slot": "primitive", "delivery": "adopted", "target": {"priority": "P1", "maturity": "implemented"}},
+  "dependencies": {"requires": [], "suggests": []},
+  "requiredCapabilities": ["accessible-naming", "non-color-status", "dark-parity", "forced-colors-legibility"],
+  "requiredStates": ["default", "loading", "empty", "request-error"],
+  "qualityGates": ["accessibility", "visual", "responsive"],
+  "rationale": "Operators need one stable, readable score primitive before the workbench composes health views."
+}

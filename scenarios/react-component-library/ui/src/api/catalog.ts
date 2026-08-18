@@ -3,12 +3,13 @@ import { buildApiUrl } from "@vrooli/api-base";
 import {
   CatalogService,
   type CoverageReport,
+  type GetHealthOverviewResponse,
   type ListNextWorkResponse,
 } from "@vrooli/proto-types/react-component-library/v1/catalog/catalog_pb";
 
 import { API_BASE, transport } from "./client";
 
-export type { CoverageReport, ListNextWorkResponse };
+export type { CoverageReport, GetHealthOverviewResponse, ListNextWorkResponse };
 
 const catalogClient = createClient(CatalogService, transport);
 
@@ -20,6 +21,10 @@ export async function getCatalogCoverage(): Promise<CoverageReport> {
 
 export async function listCatalogNextWork(limit = 10): Promise<ListNextWorkResponse> {
   return catalogClient.listNextWork({ limit });
+}
+
+export async function getCatalogHealthOverview(): Promise<GetHealthOverviewResponse> {
+  return catalogClient.getHealthOverview({});
 }
 
 export interface CapabilityDefinition {

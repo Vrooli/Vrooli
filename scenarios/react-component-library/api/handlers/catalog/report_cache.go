@@ -40,6 +40,13 @@ type reportCache struct {
 	refreshing  bool
 }
 
+func (c *reportCache) invalidate() {
+	c.mu.Lock()
+	c.report = nil
+	c.fingerprint = ""
+	c.mu.Unlock()
+}
+
 // fingerprintRoots are the trees whose contents can change a coverage verdict:
 // the desired-state catalog, the implementations, and the app sources the
 // `types` runner compiles.

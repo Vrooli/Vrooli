@@ -1,0 +1,11 @@
+{
+  "libraryId": "react-component-library:ProgressLadder",
+  "catalogId": "data-display.progress-ladder",
+  "displayName": "ProgressLadder",
+  "description": "A rung-by-rung maturity ladder showing achieved and target states.",
+  "assetKind": "component",
+  "tags": ["data-display", "token-bound"],
+  "latest": "1.0.0",
+  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
+  "dependencies": []
+}

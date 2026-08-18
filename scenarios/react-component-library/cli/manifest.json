@@ -1685,6 +1685,10 @@
             {
               "name": "limit",
               "description": "Maximum number of targets"
+            },
+            {
+              "name": "lane",
+              "description": "Work lane: promote (default), build, or all"
             }
           ],
           "binding": {
@@ -1707,10 +1711,11 @@
           "positionals": [
             {
               "name": "gate",
-              "required": true,
+              "required": false,
               "description": "Gate: types, api, tokens, conformance, token-vocabulary, token-ramp-complete, released-version-immutable, lifecycle, fixture-adversarial, or examples"
             }
           ],
+          "flags": [{"name": "all", "description": "Run every declared catalog gate"}],
           "binding": {
             "kind": "connect-rpc",
             "service": "CatalogService",
@@ -1754,6 +1759,27 @@
       ],
       "binding": { "kind": "connect-rpc", "service": "CatalogService", "method": "GetAssetPortContract" },
       "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal", "filesystem:read"] }
+    },
+    {
+      "name": "score-history",
+      "description": "Show carried-forward weighted score history",
+      "flags": [{"name": "since", "description": "First day to include (YYYY-MM-DD)"}],
+      "binding": {"kind": "connect-rpc", "service": "CatalogService", "method": "GetScoreHistory"},
+      "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal", "filesystem:read"]}
+    },
+    {
+      "name": "health",
+      "description": "Show server-computed asset health and promotion work",
+      "binding": {"kind": "connect-rpc", "service": "CatalogService", "method": "GetHealthOverview"},
+      "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal", "filesystem:read"]}
+    },
+    {
+      "name": "evidence",
+      "description": "Capture declared light/dark viewport evidence for an asset",
+      "positionals": [{"name": "action", "required": true, "description": "capture", "local_only": true}, {"name": "asset-id", "required": true, "description": "Catalog asset id"}],
+      "flags": [{"name": "changed-only", "description": "Skip unchanged capture inputs"}],
+      "binding": {"kind": "connect-rpc", "service": "CatalogService", "method": "CaptureEvidence"},
+      "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal", "filesystem:write"]}
     }
       ]
     },

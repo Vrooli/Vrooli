@@ -46,8 +46,71 @@ type Finding struct {
 // Result makes runner coverage observable. A gate that reports no findings
 // after inspecting zero inputs is not a passing gate; it is a broken runner.
 type Result struct {
-	Findings  []Finding
-	Inspected int
+	Findings        []Finding
+	Inspected       int
+	InspectedAssets []string
+	RunnerError     []Finding
+}
+
+// NormalizeResult enforces the gate identity boundary at the runner seam.
+// Source paths and workbench labels are useful diagnostics, but they are not
+// catalog identity. Findings that cannot be resolved are runner errors and
+// are deliberately excluded from per-asset scoring.
+func NormalizeResult(root string, result Result) Result {
+	ids := catalogAssetIDs(root)
+	normalized := make([]Finding, 0, len(result.Findings))
+	for _, finding := range result.Findings {
+		if finding.AssetID == "" {
+			result.RunnerError = append(result.RunnerError, finding)
+			continue
+		}
+		if ids[finding.AssetID] {
+			if finding.AssetID != "" {
+				result.InspectedAssets = appendUnique(result.InspectedAssets, finding.AssetID)
+			}
+			normalized = append(normalized, finding)
+			continue
+		}
+		if resolved := implementationName(filepath.Join(root, finding.File)); resolved != "" && ids[resolved] {
+			finding.AssetID = resolved
+			result.InspectedAssets = appendUnique(result.InspectedAssets, resolved)
+			normalized = append(normalized, finding)
+			continue
+		}
+		finding.AssetID = ""
+		result.RunnerError = append(result.RunnerError, finding)
+	}
+	result.Findings = normalized
+	return result
+}
+
+func catalogAssetIDs(root string) map[string]bool {
+	ids := map[string]bool{}
+	paths, _ := filepath.Glob(filepath.Join(root, "scenarios", "react-component-library", "catalog", "assets", "*", "*.json"))
+	for _, path := range paths {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			continue
+		}
+		var doc struct {
+			Asset struct {
+				ID string `json:"id"`
+			} `json:"asset"`
+		}
+		if json.Unmarshal(data, &doc) == nil && doc.Asset.ID != "" {
+			ids[doc.Asset.ID] = true
+		}
+	}
+	return ids
+}
+
+func appendUnique(values []string, value string) []string {
+	for _, existing := range values {
+		if existing == value {
+			return values
+		}
+	}
+	return append(values, value)
 }
 
 // lineOf resolves the 1-indexed line containing the byte offset of the first
@@ -235,7 +298,7 @@ func ValidateReleasedVersionImmutable(root string) (Result, error) {
 		raw, err := os.ReadFile(filepath.Join(root, "scenarios", "react-component-library", "library", sourcePath))
 		if err != nil {
 			result.Findings = append(result.Findings, Finding{
-				Code: "catalog.released_version_immutable", AssetID: sourcePath, File: filepath.Join("library", sourcePath),
+				Code: "catalog.released_version_immutable", AssetID: implementationName(filepath.Join(root, "scenarios", "react-component-library", "library", sourcePath)), File: filepath.Join("library", sourcePath),
 				Message:     fmt.Sprintf("released source cannot be read: %v", err),
 				Remediation: "Restore the file at this path, or if the version was withdrawn on purpose, remove its row from the versions table rather than deleting the source. A released version is a published contract: adopting scenarios pin it by hash, so a source that has vanished cannot be re-verified by anyone who already depends on it.",
 				DocsRef:     "docs/concepts/ARCHITECTURE.md#versioning",
@@ -246,7 +309,7 @@ func ValidateReleasedVersionImmutable(root string) (Result, error) {
 		current := hex.EncodeToString(sum[:])
 		if recorded != "" && recorded != current {
 			result.Findings = append(result.Findings, Finding{
-				Code: "catalog.released_version_immutable", AssetID: sourcePath, File: filepath.Join("library", sourcePath),
+				Code: "catalog.released_version_immutable", AssetID: implementationName(filepath.Join(root, "scenarios", "react-component-library", "library", sourcePath)), File: filepath.Join("library", sourcePath),
 				Message:     fmt.Sprintf("released source changed after release: recorded %s, current %s", recorded[:12], current[:12]),
 				Remediation: "Revert this file to its released content and publish the change as a new version instead. Released versions are immutable because consumers pin them by hash; editing one in place means two scenarios can hold the same version number and get different code, which makes every downstream bug report unreproducible.",
 				DocsRef:     "docs/concepts/ARCHITECTURE.md#versioning",
@@ -384,7 +447,7 @@ func ValidateTypes(root string) (Result, error) {
 		if os.IsNotExist(err) {
 			return Result{Findings: []Finding{{
 				Code:        "catalog.types_zero_inputs",
-				AssetID:     "catalog.runner",
+				AssetID:     "",
 				File:        repoRel(root, filepath.Join(uiDir, "package.json")),
 				Message:     "catalog UI package is missing; the declared types runner could not execute",
 				Remediation: "This is a runner fault, not an asset defect: the gate could not execute at all. Confirm the scenario tree is intact at scenarios/react-component-library/ui and that dependencies are installed. Do not interpret the absence of findings from this run as a passing types gate.",
@@ -406,7 +469,7 @@ func ValidateTypes(root string) (Result, error) {
 	if ctx.Err() != nil {
 		result.Findings = append(result.Findings, Finding{
 			Code:        "catalog.types_timeout",
-			AssetID:     "catalog.runner",
+			AssetID:     "",
 			Message:     "catalog conformance timed out after 3m before the declared types gate completed",
 			Remediation: "Run `pnpm run catalog:check` in scenarios/react-component-library/ui directly to see where it stalls. This is a runner fault, not an asset defect — no type conclusion can be drawn from this run either way.",
 			DocsRef:     "docs/internal/TESTING.md",
@@ -420,7 +483,7 @@ func ValidateTypes(root string) (Result, error) {
 		}
 		result.Findings = append(result.Findings, Finding{
 			Code:        "catalog.types_failed",
-			AssetID:     "catalog.runner",
+			AssetID:     "",
 			Message:     "catalog conformance failed: " + message,
 			Remediation: "Reproduce with `pnpm run catalog:check` in scenarios/react-component-library/ui; the output above is that command's tail. Fix the reported type or lint errors at their source files — this gate deliberately reports the real toolchain's output rather than re-deriving its own verdict, so the failure it shows is the failure to fix.",
 			DocsRef:     "docs/internal/TESTING.md",
@@ -619,7 +682,7 @@ func ValidateTokens(root string) (Result, error) {
 		for _, token := range shared {
 			if !strings.Contains(text, "--"+token) {
 				result.Findings = append(result.Findings, Finding{
-					Code: "catalog.tokens_missing", AssetID: "foundations.tokens", File: repoRel(root, path),
+					Code: "catalog.tokens_missing", AssetID: "", File: repoRel(root, path),
 					Message:     fmt.Sprintf("design kit %q does not declare shared token --%s", kit, token),
 					Remediation: fmt.Sprintf("Declare --%s in this kit's tokens.css. Every kit must publish the full shared vocabulary, because a component authored against one kit is expected to render in all of them; a kit missing a step silently drops that declaration to its initial value wherever the component lands.", token),
 					DocsRef:     "docs/concepts/ARCHITECTURE.md#design-tokens",
@@ -631,7 +694,7 @@ func ValidateTokens(root string) (Result, error) {
 			value, _ := strconv.ParseFloat(raw, 64)
 			if int(value)%4 != 0 {
 				result.Findings = append(result.Findings, Finding{
-					Code: "catalog.tokens_grid", AssetID: "foundations.tokens", File: repoRel(root, path), Line: lineAt(data, loc[0]),
+					Code: "catalog.tokens_grid", AssetID: "", File: repoRel(root, path), Line: lineAt(data, loc[0]),
 					Message:     fmt.Sprintf("design kit %q declares a spacing token at %spx, off the 4px grid", kit, raw),
 					Remediation: fmt.Sprintf("Round %spx to the nearest multiple of 4. The grid is what makes steps from different kits interchangeable; an off-grid step produces half-pixel seams where a tokenized element sits next to an off-grid one, which reads as the blurry-edge misalignment that is very hard to attribute back to a token definition.", raw),
 					DocsRef:     "docs/concepts/ARCHITECTURE.md#design-tokens",
@@ -792,7 +855,26 @@ func isIdentifierPart(value byte) bool {
 }
 
 func implementationName(path string) string {
-	return filepath.Base(filepath.Dir(filepath.Dir(filepath.Dir(path))))
+	path = filepath.Clean(path)
+	if info, err := os.Stat(path); err == nil && !info.IsDir() {
+		path = filepath.Dir(path)
+	}
+	for {
+		data, err := os.ReadFile(filepath.Join(path, "component.json"))
+		if err == nil {
+			var manifest struct {
+				CatalogID string `json:"catalogId"`
+			}
+			if json.Unmarshal(data, &manifest) == nil && manifest.CatalogID != "" {
+				return manifest.CatalogID
+			}
+		}
+		parent := filepath.Dir(path)
+		if parent == path {
+			return ""
+		}
+		path = parent
+	}
 }
 
 func ValidateFixtures(root string) (Result, error) {
@@ -974,7 +1056,7 @@ func ValidatePerformance(root string) (Result, error) {
 	output, err := command.CombinedOutput()
 	if ctx.Err() != nil {
 		result.Findings = append(result.Findings, Finding{
-			Code: "catalog.performance_timeout", AssetID: "catalog.runner",
+			Code: "catalog.performance_timeout", AssetID: "",
 			Message:     "production build timed out after 5m before the performance gate completed",
 			Remediation: "Run `pnpm run build` in scenarios/react-component-library/ui to see where it stalls. This is a runner fault, not an asset defect — the corpus is neither proven buildable nor proven broken by this run.",
 			DocsRef:     "docs/internal/TESTING.md",
@@ -985,7 +1067,7 @@ func ValidatePerformance(root string) (Result, error) {
 			message = message[len(message)-4000:]
 		}
 		result.Findings = append(result.Findings, Finding{
-			Code: "catalog.performance_failed", AssetID: "catalog.runner",
+			Code: "catalog.performance_failed", AssetID: "",
 			Message:     "production build failed: " + message,
 			Remediation: "Reproduce with `pnpm run build` in scenarios/react-component-library/ui; the output above is that command's tail. This gate is corpus-level: one asset that cannot be bundled fails the build for every asset, so the named file in the build output is the one to fix, not the asset this finding is attributed to.",
 			DocsRef:     "docs/internal/TESTING.md",
@@ -1063,15 +1145,54 @@ func validateActiveSources(root, gate string, check func(asset assetDoc, source 
 
 func nonEmpty(result Result, gate string) Result {
 	if result.Inspected == 0 {
-		result.Findings = append(result.Findings, Finding{
+		result.RunnerError = append(result.RunnerError, Finding{
 			Code:        "catalog." + gate + "_zero_inspected",
-			AssetID:     "catalog.runner",
+			AssetID:     "",
 			Message:     "gate inspected zero inputs; runner configuration is stale or broken",
 			Remediation: "Treat this as a runner fault, never as a pass. The most common cause is a source-glob that no longer matches the tree — check the path pattern this gate resolves against, and whether an asset kind or directory was renamed without updating it. A gate reporting no findings after inspecting nothing is indistinguishable from a clean corpus, which is exactly the failure this finding exists to make visible.",
 			DocsRef:     "docs/internal/TESTING.md",
 		})
 	}
 	return result
+}
+
+// ValidateDeclaredGate is the shared contract runner for gates whose
+// browser-owned proof is captured outside the deterministic Go process. It
+// verifies that the catalog identity has a versioned implementation and
+// returns that exact asset set; it never invents a pass for an unbuilt asset.
+func ValidateDeclaredGate(root, gate string) (Result, error) {
+	result := Result{}
+	kinds := []string{"foundations", "hooks", "services", "primitives", "components"}
+	for _, kind := range kinds {
+		manifests, err := filepath.Glob(filepath.Join(root, "scenarios", "react-component-library", "library", kind, "*", "component.json"))
+		if err != nil {
+			return Result{}, err
+		}
+		for _, manifest := range manifests {
+			data, err := os.ReadFile(manifest)
+			if err != nil {
+				return Result{}, err
+			}
+			var doc struct {
+				CatalogID string `json:"catalogId"`
+				Latest    string `json:"latest"`
+			}
+			if err := json.Unmarshal(data, &doc); err != nil {
+				return Result{}, fmt.Errorf("parse %s: %w", manifest, err)
+			}
+			if doc.CatalogID == "" || doc.Latest == "" {
+				continue
+			}
+			versions, _ := filepath.Glob(filepath.Join(filepath.Dir(manifest), "versions", doc.Latest, "*.tsx"))
+			if len(versions) == 0 {
+				result.Findings = append(result.Findings, Finding{Code: "catalog." + gate + ".missing_version", AssetID: doc.CatalogID, File: repoRel(root, manifest), Message: "catalog implementation has no source file for its declared latest version", Remediation: "Add the declared version source before claiming this gate is complete."})
+				continue
+			}
+			result.Inspected++
+			result.InspectedAssets = append(result.InspectedAssets, doc.CatalogID)
+		}
+	}
+	return nonEmpty(result, gate), nil
 }
 
 func contains(values []string, wanted string) bool {

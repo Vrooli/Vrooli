@@ -33,6 +33,7 @@ type Asset struct {
 	Targets      []string
 	Kits         []string
 	Priority     string
+	PinnedWeight float64
 	Maturity     string
 	Requires     []string
 	Suggests     []string
@@ -149,6 +150,7 @@ func LoadCatalog(catalogDir string) ([]Asset, error) {
 		return nil, fmt.Errorf("scan catalog: %w", err)
 	}
 	sort.Strings(paths)
+	weights := loadPinnedWeights(filepath.Join(catalogDir, "weights.json"))
 	out := make([]Asset, 0, len(paths))
 	for _, path := range paths {
 		data, err := os.ReadFile(path)
@@ -168,7 +170,8 @@ func LoadCatalog(catalogDir string) ([]Asset, error) {
 			Targets: raw.Asset.Targets, Kits: raw.Asset.Kits,
 			Priority: raw.Asset.Target.Priority, Maturity: raw.Asset.Target.Maturity,
 			Satisfies: raw.Satisfies, Capabilities: raw.RequiredCapabilities,
-			States: raw.RequiredStates,
+			States:       raw.RequiredStates,
+			PinnedWeight: weights[raw.Asset.ID],
 		}
 		rung, err := assetrung.Of(asset.Kind)
 		if err != nil {
@@ -187,6 +190,20 @@ func LoadCatalog(catalogDir string) ([]Asset, error) {
 		out = append(out, asset)
 	}
 	return out, nil
+}
+
+func loadPinnedWeights(path string) map[string]float64 {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return map[string]float64{}
+	}
+	var doc struct {
+		Weights map[string]float64 `json:"weights"`
+	}
+	if json.Unmarshal(data, &doc) != nil || doc.Weights == nil {
+		return map[string]float64{}
+	}
+	return doc.Weights
 }
 
 func loadDomainOrders(path string) (map[string]int, error) {

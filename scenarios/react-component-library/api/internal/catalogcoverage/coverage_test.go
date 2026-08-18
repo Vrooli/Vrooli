@@ -227,6 +227,47 @@ func TestCoverageMetricsExposeAuditableIndependentDenominators(t *testing.T) {
 	}
 }
 
+func TestWeightedAssetScoreIsPerAssetAndCorpusGatesDoNotInflateIt(t *testing.T) {
+	assets := []Asset{
+		{ID: "data-display.one", Name: "One", Kind: "component", Priority: "P0", Maturity: "verified", Targets: []string{"react-vite"}, PinnedWeight: 3},
+		{ID: "data-display.two", Name: "Two", Kind: "component", Priority: "P1", Maturity: "verified", Targets: []string{"react-vite"}, PinnedWeight: 1},
+	}
+	impls := []Implementation{{Name: "One", CatalogID: "data-display.one"}, {Name: "Two", CatalogID: "data-display.two"}}
+	gates := []GateDefinition{
+		{ID: "types", Rung: RungScaffolded, Blocking: true, Attribution: "attributable", AppliesTo: []string{"component"}},
+		{ID: "visual", Rung: RungVerified, Blocking: true, Attribution: "attributable", AppliesTo: []string{"component"}},
+		{ID: "tokens", Rung: RungVerified, Blocking: true, Attribution: "corpus", AppliesTo: []string{"component"}},
+	}
+	evidence := []GateEvidence{
+		{AssetID: "data-display.one", Target: "react-vite", Gate: "types", Result: "pass"},
+		{AssetID: "data-display.one", Target: "react-vite", Gate: "visual", Result: "pass"},
+		{AssetID: "data-display.two", Target: "react-vite", Gate: "types", Result: "pass"},
+		{AssetID: "data-display.two", Target: "react-vite", Gate: "visual", Result: "fail"},
+		{AssetID: "", Target: "", Gate: "tokens", Result: "pass"},
+	}
+	report := ComputeWithEvidence(assets, impls, evidence, gates)
+	one, two := report.Rows[0], report.Rows[1]
+	if one.AssetScore != 1 || two.AssetScore != 0.5 {
+		t.Fatalf("asset scores = %v, %v; want 1 and .5", one.AssetScore, two.AssetScore)
+	}
+	if report.Score != 87.5 {
+		t.Fatalf("weighted score = %v, want 87.5", report.Score)
+	}
+	if len(report.ByGate) != 2 {
+		t.Fatalf("corpus gate appeared in attributable breakdown: %#v", report.ByGate)
+	}
+}
+
+func TestWeightedScoreIsolationKeepsPassingAssetPassing(t *testing.T) {
+	assets := []Asset{{ID: "a.one", Kind: "component", Maturity: "verified", Targets: []string{"react-vite"}}, {ID: "a.two", Kind: "component", Maturity: "verified", Targets: []string{"react-vite"}}}
+	impls := []Implementation{{Name: "One", CatalogID: "a.one"}, {Name: "Two", CatalogID: "a.two"}}
+	gates := []GateDefinition{{ID: "api", Rung: RungImplemented, Blocking: true, AppliesTo: []string{"component"}}}
+	report := ComputeWithEvidence(assets, impls, []GateEvidence{{AssetID: "a.one", Target: "react-vite", Gate: "api", Result: "pass"}, {AssetID: "a.two", Target: "react-vite", Gate: "api", Result: "fail"}}, gates)
+	if report.Rows[0].AssetScore != 1 || report.Rows[1].AssetScore != 0 {
+		t.Fatalf("one asset failure leaked across rows: %#v", report.Rows)
+	}
+}
+
 func TestMissingOrVacuousExperienceCannotEarnMaturity(t *testing.T) {
 	asset := []Asset{{ID: "controls.button", Name: "Button", Kind: "component", Maturity: "verified", Targets: []string{"react-vite"}}}
 	gates := []GateDefinition{{ID: "types", Rung: RungScaffolded, Blocking: true, AppliesTo: []string{"component"}}}

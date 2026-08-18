@@ -6,6 +6,13 @@ import { DataTable, type DataTableColumn } from "../components/DataTable";
 import { EmptyState } from "../components/EmptyState";
 import { StatusBadge } from "../components/StatusBadge";
 import { getCatalogCoverage, listCatalogNextWork, type CoverageReport } from "../api/catalog";
+import { CaptureGrid } from "../../../library/components/CaptureGrid/versions/1.0.0/CaptureGrid";
+import { FindingList } from "../../../library/components/FindingList/versions/1.0.0/FindingList";
+import { HealthIndicator } from "../../../library/components/HealthIndicator/versions/1.0.0/HealthIndicator";
+import { MetricBreakdown } from "../../../library/components/MetricBreakdown/versions/1.0.0/MetricBreakdown";
+import { NetworkGraph } from "../../../library/components/NetworkGraph/versions/1.0.0/NetworkGraph";
+import { ProgressLadder } from "../../../library/components/ProgressLadder/versions/1.0.0/ProgressLadder";
+import { ScoreGauge } from "../../../library/components/ScoreGauge/versions/1.0.0/ScoreGauge";
 
 const maturityLabels: Record<string, string> = {
   missing: "Missing",
@@ -81,6 +88,16 @@ export function CoveragePage() {
   const maturity = report?.maturity;
   const rows = report?.rows ?? [];
   const nextRows = nextWork.data?.rows ?? [];
+  const score = maturity?.weightedAssetScore ?? 0;
+  const findings = rows.flatMap((row) =>
+    (row.failedGates ?? []).map((gate) => ({
+      id: `${row.assetId}-${gate}`,
+      assetId: row.assetId,
+      severity: "error",
+      message: `${gate} is not passing for ${row.name || row.assetId}.`,
+      remediation: `Promote ${row.name || row.assetId} through the ${gate} gate.`,
+    })),
+  );
 
   if (coverage.isLoading)
     return (
@@ -131,6 +148,129 @@ export function CoveragePage() {
           />
         ))}
       </section>
+      <section
+        aria-labelledby="coverage-score"
+        className="grid gap-space-sm lg:grid-cols-[minmax(14rem,1fr)_2fr]"
+      >
+        <h2 id="coverage-score" className="sr-only">
+          Weighted score
+        </h2>
+        <ScoreGauge value={score} label="Weighted catalog score" />
+        <MetricBreakdown
+          items={[
+            {
+              id: "assets",
+              label: "Assets at target",
+              value: maturity.atOrAboveTarget,
+              total: maturity.total,
+            },
+            {
+              id: "gates",
+              label: "Mandatory gate evidence",
+              value: maturity.mandatoryGateCoverage?.numerator ?? 0,
+              total: maturity.mandatoryGateCoverage?.denominator ?? 0,
+            },
+            {
+              id: "ready",
+              label: "Production ready",
+              value: maturity.productionReadyCoverage?.numerator ?? 0,
+              total: maturity.productionReadyCoverage?.denominator ?? 0,
+            },
+          ]}
+        />
+      </section>
+      <section aria-labelledby="coverage-health" className="grid gap-space-sm lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle id="coverage-health">Asset health</CardTitle>
+            <CardDescription>
+              Server-computed health labels stay readable without chart-only status.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-space-xs">
+            {rows.slice(0, 8).map((row) => (
+              <div
+                key={row.assetId}
+                aria-label={`${row.name || row.assetId} health`}
+                className="flex items-center justify-between gap-space-xs"
+              >
+                <HealthIndicator
+                  state={
+                    row.assetScore >= 90 ? "healthy" : row.assetScore >= 50 ? "degraded" : "blocked"
+                  }
+                  score={row.assetScore}
+                />
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Progress to target</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ProgressLadder
+              rungs={["scaffolded", "implemented", "verified", "production-ready"].map((label) => ({
+                id: label,
+                label:
+                  label === "production-ready"
+                    ? "Production ready"
+                    : `${label.charAt(0).toUpperCase()}${label.slice(1)}`,
+                complete: (maturity.byRung[label] ?? 0) > 0,
+                current: label === "verified",
+              }))}
+            />
+          </CardContent>
+        </Card>
+      </section>
+      <section
+        aria-label="Catalog relationships and capture evidence"
+        className="grid gap-space-sm lg:grid-cols-2"
+      >
+        <Card>
+          <CardHeader>
+            <CardTitle>Dependency health</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <NetworkGraph
+              nodes={rows
+                .filter((row) => row.assetId)
+                .slice(0, 40)
+                .map((row) => ({
+                  id: row.assetId,
+                  label: row.name || row.assetId,
+                  health: row.achieved,
+                }))}
+              edges={[]}
+            />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Evidence capture matrix</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <CaptureGrid
+              cells={rows.slice(0, 8).flatMap((row) =>
+                ["light", "dark"].map((theme) => ({
+                  id: `${row.assetId}-${theme}`,
+                  viewport: "declared",
+                  theme: theme as "light" | "dark",
+                  status: row.visualEvidence ? ("pass" as const) : ("missing" as const),
+                })),
+              )}
+            />
+          </CardContent>
+        </Card>
+      </section>
+      <Card>
+        <CardHeader>
+          <CardTitle>Findings</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <FindingList findings={findings} />
+        </CardContent>
+      </Card>
       <Card>
         <CardHeader>
           <CardTitle>Ranked next work</CardTitle>

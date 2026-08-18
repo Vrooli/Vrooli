@@ -52,6 +52,8 @@ type GateDefinition struct {
 	ID                         string
 	Rung                       AchievedRung
 	Blocking                   bool
+	Attribution                string
+	Runner                     map[string]string `json:"runner"`
 	AppliesTo                  []string
 	ExperienceClaimTypes       []string `json:"x-experience-claim-types"`
 	ExperienceMinimumViewports int      `json:"x-experience-min-viewports"`
@@ -77,7 +79,14 @@ type Row struct {
 	// BlocksDownstream is how many other catalog assets transitively require
 	// this one. It is the work-ordering signal: an unbuilt asset blocking forty
 	// others is worth more than one blocking none.
-	BlocksDownstream int
+	BlocksDownstream    int
+	AssetScore          float64
+	Weight              float64
+	PassedGates         []string
+	FailedGates         []string
+	NearestBlockingGate string
+	NewestEvidence      string
+	VisualEvidence      bool
 }
 
 // Report is the joined view.
@@ -91,7 +100,26 @@ type Report struct {
 	ByPriority map[string]DomainCount
 	// MaturityCoverage is the number of declared asset/target rows at or above
 	// their target, grouped both as a total and by the same catalog rollups.
-	Maturity MaturityCoverage
+	Maturity               MaturityCoverage
+	Score                  float64
+	ScoreWeightNumerator   float64
+	ScoreWeightDenominator float64
+	ByGate                 map[string]ScoreBreakdown
+	ByRungScore            map[AchievedRung]ScoreBreakdown
+	Corpus                 []CorpusStatus
+}
+
+type ScoreBreakdown struct {
+	Passed     int
+	Applicable int
+	Score      float64
+}
+
+type CorpusStatus struct {
+	Gate             string
+	Result           string
+	FindingCount     int
+	RunnerErrorCount int
 }
 
 type MaturityCoverage struct {
@@ -135,6 +163,20 @@ func ComputeWithEvidence(assets []Asset, impls []Implementation, evidence []Gate
 		ByDomain:   map[string]DomainCount{},
 		ByPriority: map[string]DomainCount{},
 		Maturity:   MaturityCoverage{ByDomain: map[string]DomainCount{}, ByPriority: map[string]DomainCount{}, ByRung: map[AchievedRung]int{}},
+		ByGate:     map[string]ScoreBreakdown{}, ByRungScore: map[AchievedRung]ScoreBreakdown{},
+	}
+	for _, gate := range gates {
+		if gate.Attribution != "corpus" {
+			continue
+		}
+		status := CorpusStatus{Gate: gate.ID, Result: "not-run"}
+		for _, item := range evidence {
+			if item.AssetID == "__corpus__" && item.Gate == gate.ID && item.Result != "" {
+				status.Result = item.Result
+				break
+			}
+		}
+		rep.Corpus = append(rep.Corpus, status)
 	}
 	byCatalogID := map[string]Implementation{}
 	claimed := map[string]bool{}
@@ -161,6 +203,12 @@ func ComputeWithEvidence(assets []Asset, impls []Implementation, evidence []Gate
 				row.Bucket = BucketPlannedBuilt
 				row.Implementation = impl.Name
 				row.Achieved = achieved(asset, target, impl, gates, evidence)
+				row.AssetScore, row.PassedGates, row.FailedGates, row.NearestBlockingGate, row.NewestEvidence, row.VisualEvidence = scoreAsset(asset, target, impl, gates, evidence)
+				baseWeight := asset.PinnedWeight
+				if baseWeight <= 0 {
+					baseWeight = 1
+				}
+				row.Weight = baseWeight + float64(row.BlocksDownstream)
 				claimed[impl.Name] = true
 			} else {
 				row.Bucket = BucketPlannedUnbuilt
@@ -199,13 +247,38 @@ func ComputeWithEvidence(assets []Asset, impls []Implementation, evidence []Gate
 			continue
 		}
 		for _, gate := range gates {
-			if !gate.Blocking || !contains(gate.AppliesTo, row.Kind) {
+			if !gate.Blocking || !isAttributable(gate) || !contains(gate.AppliesTo, row.Kind) {
 				continue
 			}
 			rep.Maturity.MandatoryGateCoverage.Denominator++
 			if hasEvidence(evidence, row.AssetID, row.Platform, gate.ID) {
 				rep.Maturity.MandatoryGateCoverage.Numerator++
 			}
+		}
+		if row.Bucket == BucketPlannedBuilt {
+			rep.ScoreWeightNumerator += row.AssetScore * row.Weight
+			rep.ScoreWeightDenominator += row.Weight
+		}
+		for _, gate := range gates {
+			if !gate.Blocking || !isAttributable(gate) || !contains(gate.AppliesTo, row.Kind) || row.Bucket != BucketPlannedBuilt {
+				continue
+			}
+			breakdown := rep.ByGate[gate.ID]
+			breakdown.Applicable++
+			if contains(row.PassedGates, gate.ID) {
+				breakdown.Passed++
+			}
+			breakdown.Score = ratio(breakdown.Passed, breakdown.Applicable)
+			rep.ByGate[gate.ID] = breakdown
+		}
+		if row.Bucket == BucketPlannedBuilt {
+			breakdown := rep.ByRungScore[row.Achieved]
+			breakdown.Applicable++
+			if row.AssetScore >= 1 {
+				breakdown.Passed++
+			}
+			breakdown.Score = ratio(breakdown.Passed, breakdown.Applicable)
+			rep.ByRungScore[row.Achieved] = breakdown
 		}
 		weight := priorityWeight(row.Priority)
 		rep.Maturity.WeightedQuality.Denominator += weight * rungRank(RungProductionReady)
@@ -218,6 +291,9 @@ func ComputeWithEvidence(assets []Asset, impls []Implementation, evidence []Gate
 	rep.Maturity.MandatoryGateCoverage.Ratio = ratio(rep.Maturity.MandatoryGateCoverage.Numerator, rep.Maturity.MandatoryGateCoverage.Denominator)
 	rep.Maturity.WeightedQuality.Ratio = ratio(rep.Maturity.WeightedQuality.Numerator, rep.Maturity.WeightedQuality.Denominator)
 	rep.Maturity.ProductionReadyCoverage.Ratio = ratio(rep.Maturity.ProductionReadyCoverage.Numerator, rep.Maturity.ProductionReadyCoverage.Denominator)
+	if rep.ScoreWeightDenominator > 0 {
+		rep.Score = rep.ScoreWeightNumerator / rep.ScoreWeightDenominator * 100
+	}
 
 	for _, impl := range impls {
 		if impl.CatalogID != "" && claimed[impl.Name] {
@@ -265,7 +341,7 @@ func achieved(asset Asset, target string, impl Implementation, gates []GateDefin
 	// ranking and production-ready reporting.
 	for _, rung := range rungOrder {
 		for _, gate := range gates {
-			if !gate.Blocking || rungRank(gate.Rung) > rungRank(rung) || !contains(gate.AppliesTo, asset.Kind) {
+			if !gate.Blocking || !isAttributable(gate) || rungRank(gate.Rung) > rungRank(rung) || !contains(gate.AppliesTo, asset.Kind) {
 				continue
 			}
 			if results[gate.ID] != "pass" {
@@ -275,6 +351,66 @@ func achieved(asset Asset, target string, impl Implementation, gates []GateDefin
 		current = rung
 	}
 	return current
+}
+
+func scoreAsset(asset Asset, target string, impl Implementation, gates []GateDefinition, evidence []GateEvidence) (float64, []string, []string, string, string, bool) {
+	if impl.CatalogID == "" {
+		return 0, nil, nil, "", "", false
+	}
+	results := map[string]GateEvidence{}
+	for _, item := range evidence {
+		if item.AssetID == asset.ID && item.Target == target && (item.Version == "" || item.Version == impl.Latest) {
+			if existing, ok := results[item.Gate]; !ok || item.RecordedAt > existing.RecordedAt {
+				results[item.Gate] = item
+			}
+		}
+	}
+	var passed, applicable int
+	var passedGates, failedGates []string
+	nearest := ""
+	var newest string
+	visual := false
+	for _, item := range results {
+		if item.RecordedAt > newest {
+			newest = item.RecordedAt
+		}
+	}
+	for _, gate := range gates {
+		if !gate.Blocking || !isAttributable(gate) || !contains(gate.AppliesTo, asset.Kind) {
+			continue
+		}
+		applicable++
+		if strings.EqualFold(results[gate.ID].Result, "pass") {
+			passed++
+			passedGates = append(passedGates, gate.ID)
+		} else {
+			failedGates = append(failedGates, gate.ID)
+			if nearest == "" || rungRank(gate.Rung) < rungRank(gateByID(gates, nearest).Rung) {
+				nearest = gate.ID
+			}
+		}
+		if gate.ID == "visual" && strings.EqualFold(results[gate.ID].Result, "pass") {
+			visual = true
+		}
+	}
+	sort.Strings(passedGates)
+	sort.Strings(failedGates)
+	return ratio(passed, applicable), passedGates, failedGates, nearest, newest, visual
+}
+
+func gateByID(gates []GateDefinition, id string) GateDefinition {
+	for _, gate := range gates {
+		if gate.ID == id {
+			return gate
+		}
+	}
+	return GateDefinition{}
+}
+
+func isAttributable(gate GateDefinition) bool {
+	// Empty is accepted for in-memory compatibility fixtures. Authored config
+	// is schema-required and always supplies one of the two explicit values.
+	return gate.Attribution == "" || gate.Attribution == "attributable"
 }
 
 func hasEvidence(evidence []GateEvidence, assetID, target, gate string) bool {
@@ -334,13 +470,40 @@ func atOrAbove(achieved, target AchievedRung) bool {
 // leverage, priority, then identity. A weakly implemented asset therefore
 // beats a lower-leverage asset that has not started.
 func NextWork(rep Report, limit int) []Row {
+	out := nextWorkRows(rep, false)
+	if limit > 0 && len(out) > limit {
+		out = out[:limit]
+	}
+	return out
+}
+
+// NextWorkLanes keeps promotion work separate from catalog construction.
+// Promotion is the default lane because it turns an existing implementation
+// into a useful, evidenced capability before expanding the backlog.
+func NextWorkLanes(rep Report, limit int) (promote, build []Row) {
+	promote = nextWorkRows(rep, false)
+	build = nextWorkRows(rep, true)
+	if limit > 0 {
+		if len(promote) > limit {
+			promote = promote[:limit]
+		}
+		if len(build) > limit {
+			build = build[:limit]
+		}
+	}
+	return promote, build
+}
+
+func nextWorkRows(rep Report, buildOnly bool) []Row {
 	rank := map[string]int{"P0": 0, "P1": 1, "P2": 2}
 	var out []Row
 	for _, row := range rep.Rows {
-		if row.Bucket == BucketPlannedUnbuilt || !atOrAbove(row.Achieved, AchievedRung(row.Target)) {
-			if row.Target != "" && row.Achieved != RungMissing && row.Bucket == BucketSupplemental {
-				continue
-			}
+		if row.Bucket == BucketSupplemental {
+			continue
+		}
+		unbuilt := row.Bucket == BucketPlannedUnbuilt
+		belowTarget := !atOrAbove(row.Achieved, AchievedRung(row.Target))
+		if (buildOnly && unbuilt) || (!buildOnly && !unbuilt && belowTarget) {
 			out = append(out, row)
 		}
 	}
@@ -359,9 +522,6 @@ func NextWork(rep Report, limit int) []Row {
 		}
 		return out[i].AssetID < out[j].AssetID
 	})
-	if limit > 0 && len(out) > limit {
-		out = out[:limit]
-	}
 	return out
 }
 

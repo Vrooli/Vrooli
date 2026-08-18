@@ -5,7 +5,7 @@
   "description": "Shared account surface primitives for paid scenarios.",
   "assetKind": "component",
   "tags": ["monetization", "account"],
-  "latest": "1.0.1",
+  "latest": "1.0.2",
   "designStyles": [
     {
       "styleId": "vrooli-default",
