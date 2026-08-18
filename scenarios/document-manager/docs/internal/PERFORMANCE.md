@@ -20,7 +20,7 @@ Use this document to answer:
 | API health | responsive under lifecycle health timeout | `/health` check | active |
 | UI health | responsive under lifecycle health timeout | `/health` check | active |
 | Retrieval query (`DOC-P0-023`) | **p95 under 800 ms** at up to **250,000 unit vectors** in one corpus | retrieval benchmark over a seeded corpus | planned |
-| Tier-1 parse, per document | **p95 under 250 ms** end to end, *including* subprocess spawn | derivation benchmark against a fixture corpus | planned |
+| Tier-1 parse, per document | **p95 under 250 ms** end to end, including resource invocation | derivation benchmark against a fixture corpus | measured: selected WASI PDF p95 8 ms |
 | Composer preview render (P2) | **p95 under 1.5 s** for a 20-block spec, *including* subprocess spawn | render benchmark against a fixture spec | planned |
 | Batch render, per document (P2) | **p95 under 10 s** at any declared target | render benchmark | planned |
 
@@ -28,7 +28,12 @@ Use this document to answer:
 
 | Measurement | Value | Source | Date |
 |---|---|---|---|
-| None captured yet. | n/a | n/a | 2026-08-05 |
+| Native document/PDF p95 | 2 ms / 15 ms | 42-fixture `doc-parse` comparison | 2026-08-17 |
+| Selected WASI document/PDF p95 | 5 ms / 8 ms | Same corpus under Wazero | 2026-08-17 |
+| Native/WASI output equality | 42 of 42 fixtures | Portable comparison harness | 2026-08-17 |
+
+The full table and raw CSV are in
+[`doc-parse/docs/measurements.md`](../../../../resources/doc-parse/docs/measurements.md).
 
 ## Known Constraints
 

@@ -134,7 +134,7 @@ jobs:
         # regressions when scenarios add cross-cutting behaviour.
         #
         # `-coverpkg` is wired to every non-testutil, non-main package so
-        # cross-package coverage counts (e.g., handlers/notes tests
+        # cross-package coverage counts (e.g., handlers/<domain> tests
         # exercise internal/server, internal/database, internal/httpx).
         # Without it, Go's default per-package coverage would report
         # internal/server at 0% even though the handler tests drive it

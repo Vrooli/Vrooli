@@ -31,4 +31,10 @@ describe("api/health.fetchHealth", () => {
       cache: "no-store",
     });
   });
+
+  it("decodes a non-2xx health response as an ApiError", async () => {
+    fetchSpy.mockResolvedValueOnce(new Response("not json", { status: 503 }));
+
+    await expect(fetchHealth()).rejects.toMatchObject({ code: "internal", status: 503 });
+  });
 });

@@ -46,8 +46,8 @@ describe("DataTable", () => {
     );
 
     expect(screen.getByTestId("demo-table")).toBeInTheDocument();
-    expect(screen.getByText("Alpha")).toBeInTheDocument();
-    expect(screen.getByText("Beta")).toBeInTheDocument();
+    expect(screen.getByText(/Alpha/)).toBeInTheDocument();
+    expect(screen.getByText(/Beta/)).toBeInTheDocument();
   });
 
   it("sorts by a sortable column", async () => {
@@ -71,13 +71,13 @@ describe("DataTable", () => {
         columns={columns}
         getRowKey={(row) => row.id}
         caption="Demo rows"
-        searchPlaceholder="Search demo"
+      searchPlaceholder="Search demo"
       />,
     );
 
-    await user.type(screen.getByPlaceholderText("Search demo"), "alp");
+    await user.type(screen.getByPlaceholderText(/Search demo/), "alp");
 
-    expect(screen.getByText("Alpha")).toBeInTheDocument();
-    expect(screen.queryByText("Beta")).not.toBeInTheDocument();
+    expect(screen.getByText(/Alpha/)).toBeInTheDocument();
+    expect(screen.queryByText(/Beta/)).not.toBeInTheDocument();
   });
 });

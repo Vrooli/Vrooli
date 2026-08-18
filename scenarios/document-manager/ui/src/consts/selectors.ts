@@ -308,29 +308,6 @@ const literalSelectors = {
   notifications: {
     summary: "notifications-summary",
   },
-  // EXAMPLE-DOMAIN:notes START
-  notes: {
-    surface: "notes-surface",
-    card: "notes-card",
-    list: "notes-list",
-    loading: "notes-loading",
-    empty: "notes-empty",
-    error: "notes-error",
-    createButton: "notes-create-button",
-    createdAt: "notes-created-at",
-    attachmentCount: "notes-attachment-count",
-    attachmentUpload: "notes-attachment-upload",
-    attachmentFile: "notes-attachment-file",
-    attachmentButton: "notes-attachment-button",
-    attachmentStatus: "notes-attachment-status",
-    measure: {
-      card: "notes-measure-card",
-      value: "notes-measure-value",
-      loading: "notes-measure-loading",
-      error: "notes-measure-error",
-    },
-  },
-  // EXAMPLE-DOMAIN:notes END
   layout: {
     shell: "layout-shell",
     topBar: "layout-top-bar",
@@ -344,8 +321,32 @@ const literalSelectors = {
   },
   pages: {
     dashboard: "page-dashboard",
-    notes: "page-notes", // EXAMPLE-DOMAIN:notes
     settings: "page-settings",
+    corpus: "page-corpus",
+    reader: "page-reader",
+    receipt: "page-receipt",
+  },
+  corpus: {
+    empty: "corpus-empty",
+    error: "corpus-error",
+    collections: "corpus-collections",
+    documents: "corpus-documents",
+    locality: "corpus-locality",
+  },
+  reader: {
+    query: "reader-query",
+    partial: "reader-partial",
+    splitView: "reader-split-view",
+    source: "reader-source",
+    units: "reader-units",
+    unitsList: "reader-units-list",
+    locality: "reader-locality",
+    localitySummary: "reader-locality-summary",
+    anchorHighlight: "reader-anchor-highlight",
+  },
+  receipt: {
+    timeline: "receipt-timeline",
+    residencySummary: "receipt-residency-summary",
   },
   errorBoundary: {
     root: "error-boundary-root",
@@ -363,7 +364,9 @@ const dynamicSelectorDefinitions = {
           type: "enum",
           values: [
             "dashboard",
-            "notes", // EXAMPLE-DOMAIN:notes
+            "corpus",
+            "reader",
+            "receipt",
             "settings",
           ] as const,
         },
@@ -377,7 +380,9 @@ const dynamicSelectorDefinitions = {
           type: "enum",
           values: [
             "dashboard",
-            "notes", // EXAMPLE-DOMAIN:notes
+            "corpus",
+            "reader",
+            "receipt",
             "settings",
           ] as const,
         },
@@ -394,6 +399,13 @@ const dynamicSelectorDefinitions = {
       description: "Locale choice radio button on the settings page",
       testIdPattern: "page-settings-locale-${code}",
       params: { code: { type: "enum", values: LOCALE_CODES } },
+    }),
+  },
+  reader: {
+    unit: defineDynamicSelector({
+      description: "Reader derived unit by result index",
+      testIdPattern: "reader-unit-${index}",
+      params: { index: { type: "number" } },
     }),
   },
 } satisfies DynamicSelectorTree;

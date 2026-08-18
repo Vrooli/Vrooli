@@ -10,7 +10,9 @@ import (
 	"strings"
 
 	"document-manager/internal/capabilities"
+	"document-manager/internal/corpus"
 	"document-manager/internal/modules"
+	internalretrieval "document-manager/internal/retrieval"
 	"document-manager/internal/server"
 
 	"github.com/vrooli/api-core/schedule"
@@ -25,8 +27,11 @@ import (
 	_ "modernc.org/sqlite"
 
 	capsH "document-manager/handlers/capabilities"
+	corpusH "document-manager/handlers/corpus"
+	enrichmentH "document-manager/handlers/enrichment"
 	healthH "document-manager/handlers/health"
-	notesH "document-manager/handlers/notes" // EXAMPLE-DOMAIN:notes
+	intakeH "document-manager/handlers/intake"
+	retrievalH "document-manager/handlers/retrieval"
 )
 
 // sqliteDSN resolves the SQLite database file path and wraps it in a DSN
@@ -99,21 +104,23 @@ func scenarioStorageRoots() (storage.Paths, error) {
 // fileRootPath is the template's mandatory file-store seam. Domain stores
 // compose their relative paths from it rather than retaining startup root
 // strings, so X-Vrooli-Test-Mode is honored independently per request.
-//
-//nolint:unused // mandatory routed-storage seam; first caller lands with the corpus artifact store.
 func fileRootPath(ctx context.Context, roots *filerouting.RoutedRoots, class storage.Class, rel string) (string, error) {
 	root, err := roots.Pick(ctx, class)
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(root, rel), nil
+	clean := filepath.Clean(rel)
+	if filepath.IsAbs(rel) || clean == "." || clean == ".." || strings.HasPrefix(clean, ".."+string(filepath.Separator)) {
+		return "", fmt.Errorf("relative storage path escapes the selected root: %q", rel)
+	}
+	return filepath.Join(root, clean), nil // #nosec G703 -- clean is rejected when it escapes the routed storage root.
 }
 
 func sqliteFileDSN(path string) (string, error) {
 	if strings.HasPrefix(path, "file:") {
 		return path, nil
 	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil { // #nosec G703 -- path comes from the control-plane-selected database storage root.
 		return "", fmt.Errorf("prepare sqlite directory: %w", err)
 	}
 	return fmt.Sprintf(
@@ -157,27 +164,20 @@ func main() {
 		server.Deps{Clock: schedule.System(), Logger: log.Default()},
 		healthH.Module(db, "document-manager-api", "1.0.0"),
 		capsH.Module(capabilities.NewRegistry()),
-		notesH.Module(db, schedule.System(), log.Default()), // EXAMPLE-DOMAIN:notes
+		intakeH.ModuleWithCorpus(db, fileRoots, log.Default(), func(ctx context.Context, key string) (string, error) {
+			return fileRootPath(ctx, fileRoots, storage.ClassData, filepath.Join("documents", key))
+		}, corpus.NewService(corpus.NewSQLiteRepository(db))),
+		corpusH.Module(db),
+		enrichmentH.Module(db),
+		retrievalH.Module(db),
 	)
+	internalretrieval.Register(context.Background(), filepath.Join("..", ".vrooli", "search.json"), log.Default())
 
 	// Top-level mux that mounts the API handler plus, when in development
 	// mode, the dev-only RoutingService used by test-genie to install a
 	// runtime test DB pool without restarting this scenario.
 	rootMux := http.NewServeMux()
 	devrouting.RegisterWithFileRoots(rootMux, db, fileRoots)
-
-	// EXAMPLE-DOMAIN:notes START
-	// /measures is the measures-go serve substrate: the central measures
-	// index (measures-health) harvests <prefix>/declarations and the
-	// auto-execution path POSTs <prefix>/execute. The notes domain owns the
-	// one reference measure (notes.count); a real multi-domain scenario
-	// registers each domain's measures on one shared registry here.
-	notesMeasures, err := notesH.MeasuresHandler(db, schedule.System())
-	if err != nil {
-		log.Fatalf("measures registry: %v", err)
-	}
-	rootMux.Handle("/measures/", http.StripPrefix("/measures", notesMeasures))
-	// EXAMPLE-DOMAIN:notes END
 
 	rootMux.Handle("/", srv.Handler())
 

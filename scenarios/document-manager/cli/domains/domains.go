@@ -1,7 +1,10 @@
 package domains
 
 import (
-	"document-manager/cli/domains/notes" // EXAMPLE-DOMAIN:notes
+	"document-manager/cli/domains/corpus"
+	"document-manager/cli/domains/enrichment"
+	"document-manager/cli/domains/intake"
+	"document-manager/cli/domains/retrieval"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
@@ -37,12 +40,25 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 // handlers bindings seam) for the contract.
 func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.SubcommandGroup, error) {
 	groups := []cliapp.SubcommandGroup{}
-	// EXAMPLE-DOMAIN:notes START
-	notesGroup, err := notes.Register(core, manifest)
+	intakeGroup, err := intake.Register(core, manifest)
 	if err != nil {
 		return nil, err
 	}
-	groups = append(groups, notesGroup)
-	// EXAMPLE-DOMAIN:notes END
+	groups = append(groups, intakeGroup)
+	corpusGroup, err := corpus.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	groups = append(groups, corpusGroup)
+	enrichmentGroup, err := enrichment.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	groups = append(groups, enrichmentGroup)
+	retrievalGroup, err := retrieval.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	groups = append(groups, retrievalGroup)
 	return groups, nil
 }

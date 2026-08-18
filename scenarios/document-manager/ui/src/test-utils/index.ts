@@ -45,7 +45,33 @@
  * initialised. The pattern above is hoisting-safe and preserves every
  * non-overridden export of `./api/health` via `importOriginal()`.
  */
-export { renderWithProviders } from "@vrooli/api-base/testing";
+import { createElement, type ReactElement, type ReactNode } from "react";
+import {
+  renderWithProviders as renderWithBaseProviders,
+  type ProviderRenderOptions,
+  type ProviderRenderResult,
+} from "@vrooli/api-base/testing";
+import { i18n } from "../i18n";
+import { ThemeProvider } from "../theme/ThemeProvider";
+
+/** Render with the scenario-owned theme and singleton i18n contexts included. */
+export function renderWithProviders(
+  ui: ReactElement,
+  options: ProviderRenderOptions = {},
+): ProviderRenderResult {
+  const scenarioProviders = options.extraProviders;
+  return renderWithBaseProviders(ui, {
+    ...options,
+    i18n,
+    extraProviders: (children: ReactNode) =>
+      createElement(
+        ThemeProvider,
+        null,
+        scenarioProviders ? scenarioProviders(children) : children,
+      ),
+  });
+}
+
 export type { ProviderRenderOptions, ProviderRenderResult } from "@vrooli/api-base/testing";
 export { interp } from "./interp";
 export { expectNoA11yViolations } from "@vrooli/api-base/testing";
@@ -54,9 +80,8 @@ export { expectNoA11yViolations } from "@vrooli/api-base/testing";
 // schema change is one-import-update; consuming the proto package
 // directly in tests fragments that contract.
 //
-// Domain-specific factories (Note, NotesListResponse, etc.) are NOT
-// re-exported here — they live next to the feature they double for
-// (e.g. `features/notes/mocks/factories.ts`) so deleting a feature
+// Domain-specific factories are NOT re-exported here — they live next to the
+// feature they double for so deleting a feature
 // folder takes them along.
 export { makeHealthResponse } from "./factories";
 export type { HealthResponse } from "./factories";
@@ -110,7 +135,7 @@ export type {
 
 // Internal-seam mock builders for cross-domain HTTP wrappers (the
 // generic `api/health` health/error path). Domain-specific mocks
-// (e.g. `makeNotesMocks`) live with their feature.
+// live with their feature.
 // Use `...makeApiMocks()` *inside* the
 // `vi.mock(..., async (importOriginal) => …)` factory closure — never
 // at module top level. See mocks/api.ts for the canonical usage shape.

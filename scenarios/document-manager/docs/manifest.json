@@ -1095,7 +1095,7 @@
         },
         {
           "path": "reference/anchor-uri.md",
-          "docType": "format-reference",
+          "docType": "citation-reference",
           "title": "Anchor URI",
           "aliases": [
             "anchor-uri",
@@ -1188,7 +1188,7 @@
         },
         {
           "path": "reference/render-matrix.md",
-          "docType": "format-reference",
+          "docType": "render-reference",
           "title": "Render Matrix",
           "aliases": [
             "render",

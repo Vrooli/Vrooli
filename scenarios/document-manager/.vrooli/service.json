@@ -195,8 +195,93 @@
     }
   },
   "dependencies": {
-    "resources": {},
-    "scenarios": {}
+    "resources": {
+      "doc-parse": {
+        "required": true,
+        "notes": "Local content, table, geometry, and PDF classification handler for intake and derivation."
+      },
+      "doc-ocr": {
+        "required": false,
+        "notes": "Portable tier-2 OCR handler for scanned PDFs and raster images."
+      },
+      "unstructured-io": {
+        "required": false,
+        "notes": "Measured Docker fallback for breadth, typed elements, and OCR when available."
+      }
+    },
+    "scenarios": {
+      "ai-gateway": {
+        "required": true,
+        "startup_policy": "try_start",
+        "description": "Gateway-only inference seam for later enrichment and permitted remote tiers.",
+        "degraded_behavior": "Intake and local parsing remain available; enrichment and permitted remote tiers are unavailable until ai-gateway starts."
+      },
+      "storage-manager": {
+        "required": true,
+        "startup_policy": "try_start",
+        "description": "Governed storage and routed file-store contract for raw bytes.",
+        "degraded_behavior": "The scenario keeps its local routed storage seam; external storage-manager-backed operations are unavailable until storage-manager starts."
+      },
+      "search-hub": {
+        "required": true,
+        "startup_policy": "try_start",
+        "description": "Retrieval registration and query seam used by later domains.",
+        "degraded_behavior": "Intake and local parsing remain available; retrieval registration and federated search are unavailable until search-hub starts."
+      }
+    }
+  },
+  "storage": {
+    "entries": {
+    "raw_documents": {
+      "rung": "owned",
+      "subpath": "documents",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Original content-addressed document bytes; never pruned or regenerated."
+      },
+    "derivations": {
+      "rung": "owned",
+      "subpath": "derivations",
+        "kind": "dir",
+        "class": "cache",
+        "regenerable": true,
+        "budget": {
+          "max_bytes": "1TiB",
+          "rationale": "Derived readings are reproducible from the durable raw bytes."
+        },
+      "rationale": "Versioned parser output may be rebuilt after retention."
+    },
+    "retrieval_index": {
+      "rung": "owned",
+      "subpath": "retrieval_index",
+      "kind": "dir",
+      "class": "cache",
+      "regenerable": true,
+      "budget": {
+        "max_bytes": "1TiB",
+        "rationale": "The FTS and vector index is rebuildable from units and enrichment metadata."
+      },
+      "rationale": "Retrieval state is a derived cache and is never the source of corpus truth."
+    },
+      "custody": {
+        "rung": "owned",
+        "subpath": "custody",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Append-only processing evidence; no prune budget by design."
+      },
+      "deployment": {
+        "rung": "owned",
+        "subpath": "deployment",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Lifecycle deployment reports are durable operational evidence retained with the scenario data root."
+      }
+    },
+    "rationale": "Raw bytes and custody evidence are durable; derivations are reproducible cache artifacts."
   },
   "credentials": {},
   "environment": {

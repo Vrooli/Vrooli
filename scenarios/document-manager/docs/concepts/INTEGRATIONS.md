@@ -61,7 +61,7 @@ then edit the service manifest.
 | Routed file-store seam | platform seam | yes | `intake`, `derivation`, `corpus` | `filerouting.RoutedRoots` picked per request | Test-mode isolation breaks if bypassed; enforced by the `storage` phase. |
 | AI Gateway | scenario | yes (P0) | `enrichment`, `sensitivity`, `custody` | Connect-RPC; role + profile requests | Enrichment degrades to unavailable; parse tiers 1–2 keep working. |
 | pdf-inspector | resource | yes (P0) | `derivation` (tier 1) | resource CLI | Tier 1 unavailable → escalate to tier 2 and record the reason. |
-| `unstructured-io` | resource | yes (P0) | `derivation` (tier 2) | `resource-unstructured-io` CLI | Tier 2 unavailable → non-PDF formats cannot be derived; document enters an error state, bytes are retained. |
+| `unstructured-io` | resource | optional | `derivation` (tier 2) | `resource-unstructured-io` CLI | Optional breadth, typed elements, and OCR path. If unavailable, named long-tail formats degrade explicitly; the portable free path remains available. |
 | `storage-manager` | scenario | yes (P0) | `corpus` | storage kind + retention declaration | Retention is unenforced; the corpus grows unbounded. Never a silent condition. |
 | `search-hub` | scenario | yes (P0) | `retrieval` | `.vrooli/search.json` descriptor, self-registered via `searchregister-go` | The corpus stops being *discoverable* — a caller that does not already know it wants this corpus cannot find it, and no query spans sources and findings together. Direct Connect calls still work, and local `retrieval` still answers, so the scenario is fully functional standalone. Registration runs in a background goroutine and must never block startup. |
 | ledger engine (via `vrooli-memory` today) | scenario | **no (P1)** | `handoff` | Connect-RPC; scoped append of *findings* | Publication queues locally and retries. **The corpus stays fully usable — this is an optional integration, not a dependency.** |
@@ -77,7 +77,7 @@ then edit the service manifest.
 | Resource | Status | Reason | Revisit Trigger |
 |---|---|---|---|
 | pdf-inspector | **planned — not packaged** | Tier-1 native PDF classification and extraction. Rust library with Node, Python and CLI bindings; a CLI-shaped resource is the light path. This is the resource that makes the free tier viable, since roughly half of PDFs never need OCR. | Package the resource, then declare. Blocks `DOC-P0-004`. |
-| `unstructured-io` | **exists — unverified** | Tier-2 structural parse for DOCX, HTML, EPUB and tables. Its README states it is mid-migration to the current `docker-service` structure. | Verify it starts and responds before relying on it. Blocks `DOC-P0-005`. |
+| `unstructured-io` | **exists — optional and measured** | Tier-2 structural parse, typed elements, and OCR fallback. The pinned image is Docker-only, linux/amd64-only, ~9.81 GB, with a measured readiness parse. | Absence degrades breadth and OCR by name; it no longer blocks the portable P0 path. |
 | `qdrant` | deferred | Embeddings live in SQLite beside the units they describe as `float32` blobs, scanned in-process — sufficient at single-host corpus sizes and it keeps the scenario dependency-free. This is a *scale* decision, not a boundary one: the boundary is that `retrieval` answers over this corpus only, and no store choice changes that. | If linear scan latency becomes unacceptable. The migration path is `ai-go/search`'s `VectorStore` abstraction, which `signal-inbox` already uses against Qdrant — swapping the semantic half behind it changes no ownership rule and no privacy filter. |
 | `postgres` | not-applicable | SQLite covers metadata, derivations, anchors and custody. The retired scenarios used Postgres for CRUD that no longer exists. | Only if multi-writer concurrency becomes real. |
 | `vault` | deferred | The retired `secure-document-processing` used Vault for an encryption story that was never the differentiator. Encryption at rest is table stakes, not the wedge. | If a buyer requires managed key custody beyond OS-level disk encryption. |
@@ -146,3 +146,10 @@ facts, not scenario-internal ones.
 - [`DATA.md`](DATA.md) — storage ownership
 - [`../reference/configuration.md`](../reference/configuration.md) — environment and service manifest
 - [`../operations/DEPLOYMENT.md`](../operations/DEPLOYMENT.md) — deployment readiness
+## Intake dependencies
+
+The intake domain stores raw bytes through the routed storage seam and calls
+the local `doc-parse` resource for PDF classification. The scenario manifest
+also declares `ai-gateway`, `storage-manager`, and `search-hub` because later
+domains use those governed seams; `doc-ocr` and `unstructured-io` remain
+optional handlers for degraded or higher-fidelity OCR.

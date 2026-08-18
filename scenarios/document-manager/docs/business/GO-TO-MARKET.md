@@ -95,4 +95,4 @@ obligations, not that it is certified).
 - [`../../PRD.md`](../../PRD.md) — product requirements
 - [`MONETIZATION.md`](MONETIZATION.md) — buyer, packaging, and pricing hypothesis
 - [`../concepts/INTEGRATIONS.md`](../concepts/INTEGRATIONS.md) — upstream gaps affecting the claim
-- Project-level monetization strategy: `path:docs/monetization/README.md`.
+- Project-level monetization strategy: `path:../../docs/monetization/README.md`.

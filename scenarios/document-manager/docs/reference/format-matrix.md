@@ -72,10 +72,12 @@ whichever handler has it.
 
 | Handler | Tier | Provides | Runtime | Formats |
 |---|---|---|---|---|
-| `anydoc` | 1 | `content`, `tables` | Rust, invoked as a **subprocess** through a CLI-shaped resource — there is no Go binding. No service, no ML weights. | 14 document formats (see matrix) |
-| `pdf-inspector` | 1 | `geometry`, page classification | Rust, same subprocess model. Embedded inside `anydoc` but its geometry is not surfaced there, so it is invoked separately. | PDF only |
+| `doc-parse` / `anydoc` | 1 | `content`, `tables` | One repo-owned resource boundary. The native Rust backend is the selected production path; the same shim also builds for WASI under Wazero. | 14 document formats (see matrix) |
+| `doc-parse` / `pdf-inspector` | 1 | `geometry`, page classification | The same resource performs the PDF geometry pass and returns normalized positioned items; callers do not invoke a second parser subprocess. | PDF only |
 | `native-text` | 1 | `content` | In-process Go | `.txt`, `.md`, `.ipynb` |
-| `unstructured-io` | 2 | `content`, `geometry`, `tables`, `elements`, `ocr` | Docker service; Tesseract for OCR, layout model for `hi_res` | 24+ formats including everything `anydoc` misses |
+| `native-markup` | 1 | `content` | In-process Go handler; no container runtime | `.html`, `.htm`, `.xml`, `.tsv` |
+| `doc-ocr` | 2 | `ocr`, `geometry` | Native local CLI; checksum-verified model; CPU mode | Scanned PDFs and raster images on conditional desktop pairs |
+| `unstructured-io` | 2 | `content`, `geometry`, `tables`, `elements`, `ocr` | Optional Docker service; Tesseract/layout fallback | Alternative breadth and element typing when Docker is available |
 | `gateway-vision` | 3 | `content`, `geometry`, `ocr` | AI Gateway `vision.default` role — **metered** | Any rasterizable source |
 
 **Tier is a cost class, not a sequence.** Tier 1 is instant and local.
@@ -94,18 +96,18 @@ by the sensitivity gate and never processable at all.
 
 | Family | Extensions | Required chain | Desirable | Anchor kind | Priority |
 |---|---|---|---|---|---|
-| PDF, text-native | `.pdf` | `pdf-inspector` + `anydoc` | — | `geometric` | P0 |
-| PDF, scanned | `.pdf` | `unstructured-io` (`ocr_only`/`hi_res`) | `gateway-vision` | `geometric` | P1 |
-| Word | `.doc` `.docx` `.docm` | `anydoc` | `unstructured-io` (`elements`) | `logical` | P0 |
-| OpenDocument text | `.odt` | `anydoc` | `unstructured-io` | `logical` | P0 |
-| Rich text | `.rtf` | `anydoc` | `unstructured-io` | `logical` | P0 |
-| EPUB | `.epub` | `anydoc` | `unstructured-io` | `logical`, spine-scoped | P0 |
-| Presentations | `.ppt` `.pps` `.pot` `.pptx` `.pptm` `.ppsx` `.ppsm` `.odp` | `anydoc` | `unstructured-io` | `logical`, slide-scoped | P0 |
-| Spreadsheets | `.xls` `.xlsx` `.xlsm` `.xlsb` `.ods` | `anydoc` | — | `tabular` | P0 |
-| Delimited text | `.csv` `.tsv` | `anydoc` (csv), `unstructured-io` (tsv) | — | `tabular` | P0 |
+| PDF, text-native | `.pdf` | `doc-parse` (`content` + `geometry`) | — | `geometric` | P0 |
+| PDF, scanned | `.pdf` | `doc-ocr` (`ocr`) | `unstructured-io` (`ocr_only`/`hi_res`) | `geometric` | P1 |
+| Word | `.doc` `.docx` `.docm` | `doc-parse` (`content`) | `unstructured-io` (`elements`) | `logical` | P0 |
+| OpenDocument text | `.odt` | `doc-parse` (`content`) | `unstructured-io` | `logical` | P0 |
+| Rich text | `.rtf` | `doc-parse` (`content`) | `unstructured-io` | `logical` | P0 |
+| EPUB | `.epub` | `doc-parse` (`content`) | `unstructured-io` | `logical`, spine-scoped | P0 |
+| Presentations | `.ppt` `.pps` `.pot` `.pptx` `.pptm` `.ppsx` `.ppsm` `.odp` | `doc-parse` (`content`) | `unstructured-io` | `logical`, slide-scoped | P0 |
+| Spreadsheets | `.xls` `.xlsx` `.xlsm` `.xlsb` `.ods` | `doc-parse` (`tables`) | — | `tabular` | P0 |
+| Delimited text | `.csv` `.tsv` | `doc-parse` (`tables`) | `unstructured-io` (tsv fallback) | `tabular` | P0 |
 | Plain text, Markdown | `.txt` `.md` | `native-text` | — | `logical` | P0 |
-| HTML, XML | `.html` `.htm` `.xml` | `unstructured-io` | — | `logical`, DOM-path-scoped | P0 |
-| Raster images | `.png` `.jpg` `.jpeg` `.tiff` `.bmp` `.heic` `.webp` | `unstructured-io` (`ocr`) | `gateway-vision` | `geometric` | P1 |
+| HTML, XML | `.html` `.htm` `.xml` | `native-markup` | `unstructured-io` (elements) | `logical`, DOM-path-scoped | P0 |
+| Raster images | `.png` `.jpg` `.jpeg` `.tiff` `.bmp` `.heic` `.webp` | `doc-ocr` (`ocr`) | `unstructured-io` (`ocr`) | `geometric` | P1 |
 | Email | `.eml` `.msg` | `unstructured-io` | — | `logical`, part-scoped | P1 |
 | Notebooks | `.ipynb` | `native-text` | — | `logical`, cell-scoped | P2 |
 | Markup text | `.rst`, `.org` | `unstructured-io` | — | `logical` | P2 |
@@ -133,19 +135,16 @@ most of the time, which is why `anydoc` is tier 1 and why the free tier
 stays fast. The long tail is HTML, email, images and anything scanned —
 none of which `anydoc` touches at all.
 
-`unstructured-io` remains a declared dependency and still needs its
-docker-service migration verified. It is not optional, and its absence
-degrades specific formats in specific ways rather than being invisible.
+`unstructured-io` remains a declared optional dependency for breadth and
+typed elements. Its absence degrades specific formats in specific ways rather
+than being invisible; no P0 required chain names the Docker resource.
 
-**One caveat on the speed comparison.** `anydoc`'s ~4.4 ms is measured
-in-process in Rust. Neither it nor `pdf-inspector` ships a Go binding, so
-our call path is a subprocess per handler per document — two spawns for a
-text-native PDF, which needs `anydoc` for content and `pdf-inspector` for
-geometry. Process spawn and serialization sit on top of the published
-figure and are not yet measured. The resource-packaging work owns that
-measurement, and a long-lived handler process is the escape hatch if the
-free tier's latency claim comes to depend on it. Treat the published
-number as a floor, not a budget.
+The resource boundary is now measured rather than inferred from the library's
+in-process benchmark. The 42-fixture native/WASI comparison is recorded in
+[`doc-parse measurements`](../../../../resources/doc-parse/docs/measurements.md)
+and includes resource invocation, serialization, malformed inputs, scans, and
+password-required terminal states. The selected native path's PDF p95 is 15 ms;
+the 250 ms budget remains the regression gate.
 
 ## Degradation And Anchor Kind
 

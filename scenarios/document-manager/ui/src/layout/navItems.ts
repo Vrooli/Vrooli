@@ -10,7 +10,9 @@ export interface NavItem {
   /** Selector parameter; stable across locales. */
   key:
     | "dashboard"
-    | "notes" // EXAMPLE-DOMAIN:notes
+    | "corpus"
+    | "reader"
+    | "receipt"
     | "settings";
   /** Router path. */
   path: string;
@@ -22,6 +24,8 @@ export interface NavItem {
 
 export const NAV_ITEMS: readonly NavItem[] = [
   { key: "dashboard", path: "/", end: true, labelKey: strings.layout.nav.dashboard },
-  { key: "notes", path: "/notes", labelKey: strings.layout.nav.notes }, // EXAMPLE-DOMAIN:notes
+  { key: "corpus", path: "/corpus", labelKey: strings.layout.nav.corpus },
+  { key: "reader", path: "/reader", labelKey: strings.layout.nav.reader },
+  { key: "receipt", path: "/receipt", labelKey: strings.layout.nav.receipt },
   { key: "settings", path: "/settings", labelKey: strings.layout.nav.settings },
 ];

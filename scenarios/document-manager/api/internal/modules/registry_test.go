@@ -99,7 +99,7 @@ func TestAllSchemas_AppliesIdempotently(t *testing.T) {
 // and the module, so the fix is mechanical: either add the matching
 // EndpointDescriptor (referencing the generated *Procedure constant
 // from the *v1connect package) or remove the rpc from the proto file.
-func TestProtoConnectParity(t *testing.T) {
+func TestProtoConnectParity(t *testing.T) { // [REQ:DOC-P0-020]
 	endpoints := modules.AllEndpoints()
 	byPath := make(map[string]int, len(endpoints))
 	for _, ep := range endpoints {

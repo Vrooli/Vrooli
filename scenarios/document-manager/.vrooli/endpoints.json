@@ -49,212 +49,170 @@
       "path": "/api/v1/capabilities/describe",
       "method": "GET",
       "summary": "Describe declared scenario dependencies and their current recovery actions.",
-      "category": "capabilities"
-    },
-    {
-      "id": "notes_list",
-      "path": "/vrooli.document_manager.v1.notes.NotesService/ListNotes",
-      "method": "POST",
-      "summary": "List notes",
-      "description": "Returns up to 100 notes ordered newest-first by created_at through the generated Connect-RPC Notes service.",
-      "category": "notes",
-      "response": {
-        "type": "object",
-        "properties": {
-          "notes": "array<Note>"
-        }
-      },
-      "errors": [
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "Repository read failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "List notes",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.document_manager.v1.notes.NotesService/ListNotes -H 'Content-Type: application/json' -d '{}'"
-        }
-      ]
-    },
-    {
-      "id": "notes_create",
-      "path": "/vrooli.document_manager.v1.notes.NotesService/CreateNote",
-      "method": "POST",
-      "summary": "Create a note",
-      "description": "Persists a new note. Title is required and validated by notes.Service; body is optional.",
-      "category": "notes",
-      "request": {
-        "type": "object",
-        "properties": {
-          "body": "string",
-          "title": "string (required, non-whitespace)"
-        }
-      },
-      "response": {
-        "type": "object",
-        "properties": {
-          "note": "Note"
-        }
-      },
-      "errors": [
-        {
-          "status": 400,
-          "code": "invalid_argument",
-          "description": "Missing or whitespace-only title"
-        },
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "Repository write failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "Create note",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.document_manager.v1.notes.NotesService/CreateNote -H 'Content-Type: application/json' -d '{\"title\":\"first\",\"body\":\"hello\"}'"
-        }
-      ]
-    },
-    {
-      "id": "notes_get",
-      "path": "/vrooli.document_manager.v1.notes.NotesService/GetNote",
-      "method": "POST",
-      "summary": "Get a note by id",
-      "description": "Returns the note matching the request id through the generated Connect-RPC Notes service.",
-      "category": "notes",
-      "request": {
-        "type": "object",
-        "properties": {
-          "id": "string"
-        }
-      },
-      "response": {
-        "type": "object",
-        "properties": {
-          "note": "Note"
-        }
-      },
-      "errors": [
-        {
-          "status": 404,
-          "code": "not_found",
-          "description": "No note with that id exists"
-        },
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "Repository read failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "Get note",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.document_manager.v1.notes.NotesService/GetNote -H 'Content-Type: application/json' -d '{\"id\":\"abc123\"}'"
-        }
-      ]
-    },
-    {
-      "id": "notes_count",
-      "path": "/vrooli.document_manager.v1.notes.NotesService/CountNotes",
-      "method": "POST",
-      "summary": "Count notes in a time window",
-      "description": "Counts notes created within the requested canonical time window. Bound to the `notes count` measure (read-only, run-eligible) so search-hub can answer analytical questions like \"how many notes were created this week\".",
-      "category": "notes",
-      "request": {
-        "type": "object",
-        "properties": {
-          "window": "TimeWindow (vrooli.measures.v1; e.g. {\"token\":\"TIME_WINDOW_TOKEN_THIS_WEEK\"})"
-        }
-      },
-      "response": {
-        "type": "object",
-        "properties": {
-          "count": "int64 (notes created in the window)"
-        }
-      },
-      "errors": [
-        {
-          "status": 400,
-          "code": "invalid_argument",
-          "description": "Unresolvable or malformed time window"
-        },
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "Repository read failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "Count this week",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.document_manager.v1.notes.NotesService/CountNotes -H 'Content-Type: application/json' -d '{\"window\":{\"token\":\"TIME_WINDOW_TOKEN_THIS_WEEK\"}}'"
-        }
-      ]
-    },
-    {
-      "id": "notes_attach",
-      "path": "/api/v1/notes/{id}/attachments",
-      "method": "POST",
-      "summary": "Upload a note attachment",
-      "description": "Uploads opaque file bytes through the documented REST multipart exception and returns proto-typed attachment metadata.",
-      "category": "notes",
-      "request": {
-        "type": "multipart/form-data",
-        "properties": {
-          "file": "file (required)"
-        }
-      },
-      "response": {
-        "type": "UploadAttachmentResponse",
-        "properties": {
-          "attachment": "Attachment"
-        }
-      },
-      "errors": [
-        {
-          "status": 400,
-          "code": "invalid_request",
-          "description": "Missing file or invalid multipart upload"
-        },
-        {
-          "status": 404,
-          "code": "not_found",
-          "description": "No note with that id exists"
-        },
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "BlobStore or metadata persistence failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "Attach file",
-          "curl": "curl -X POST http://localhost:${API_PORT}/api/v1/notes/abc123/attachments -F file=@./example.png"
-        }
-      ],
+      "description": "",
+      "category": "capabilities",
       "rest_exception": {
-        "reason": "multipart_upload",
-        "note": "Multipart/form-data request transport cannot be expressed in proto. The response payload is still the proto-typed UploadAttachmentResponse message.",
+        "reason": "ops_probe",
+        "note": "Plain GET capability probe is used by lifecycle and operator tooling.",
         "proto_payloads": {
           "request": {
-            "transport": "multipart/form-data",
-            "conformance": "transport_only"
+            "transport": "none",
+            "conformance": "none"
           },
           "response": {
-            "proto_full_name": "vrooli.document_manager.v1.notes.UploadAttachmentResponse",
             "transport": "json",
-            "conformance": "protojson"
+            "conformance": "external_shape"
           },
           "error": {
-            "proto_full_name": "vrooli.document_manager.v1.shared.ErrorEnvelope",
             "transport": "json",
-            "conformance": "protojson"
+            "conformance": "external_shape"
           }
         }
       }
+    },
+    {
+      "id": "intake_ingest",
+      "path": "/vrooli.document_manager.v1.intake.IntakeService/Ingest",
+      "method": "POST",
+      "summary": "Ingest bytes by content hash",
+      "description": "",
+      "category": "intake"
+    },
+    {
+      "id": "intake_get_document",
+      "path": "/vrooli.document_manager.v1.intake.IntakeService/GetDocument",
+      "method": "POST",
+      "summary": "Get an ingested document",
+      "description": "",
+      "category": "intake"
+    },
+    {
+      "id": "intake_list_documents",
+      "path": "/vrooli.document_manager.v1.intake.IntakeService/ListDocuments",
+      "method": "POST",
+      "summary": "List ingested documents",
+      "description": "",
+      "category": "intake"
+    },
+    {
+      "id": "intake_list_sources",
+      "path": "/vrooli.document_manager.v1.intake.IntakeService/ListSources",
+      "method": "POST",
+      "summary": "List document sources",
+      "description": "",
+      "category": "intake"
+    },
+    {
+      "id": "intake_configure_watch",
+      "path": "/vrooli.document_manager.v1.intake.IntakeService/ConfigureWatch",
+      "method": "POST",
+      "summary": "Configure a watched intake path",
+      "description": "",
+      "category": "intake"
+    },
+    {
+      "id": "intake_get_type_verdict",
+      "path": "/vrooli.document_manager.v1.intake.IntakeService/GetTypeVerdict",
+      "method": "POST",
+      "summary": "Read the stored type verdict",
+      "description": "",
+      "category": "intake"
+    },
+    {
+      "id": "corpus_create_collection",
+      "path": "/vrooli.document_manager.v1.corpus.CorpusService/CreateCollection",
+      "method": "POST",
+      "summary": "Create a privacy-scoped collection",
+      "description": "",
+      "category": "corpus"
+    },
+    {
+      "id": "corpus_get_collection",
+      "path": "/vrooli.document_manager.v1.corpus.CorpusService/GetCollection",
+      "method": "POST",
+      "summary": "Get collection metadata",
+      "description": "",
+      "category": "corpus"
+    },
+    {
+      "id": "corpus_list_collections",
+      "path": "/vrooli.document_manager.v1.corpus.CorpusService/ListCollections",
+      "method": "POST",
+      "summary": "List collections",
+      "description": "",
+      "category": "corpus"
+    },
+    {
+      "id": "corpus_add_document",
+      "path": "/vrooli.document_manager.v1.corpus.CorpusService/AddDocument",
+      "method": "POST",
+      "summary": "Add a document to a collection",
+      "description": "",
+      "category": "corpus"
+    },
+    {
+      "id": "corpus_list_documents",
+      "path": "/vrooli.document_manager.v1.corpus.CorpusService/ListDocuments",
+      "method": "POST",
+      "summary": "List collection documents",
+      "description": "",
+      "category": "corpus"
+    },
+    {
+      "id": "corpus_export",
+      "path": "/vrooli.document_manager.v1.corpus.CorpusService/Export",
+      "method": "POST",
+      "summary": "Export a collection as open JSON",
+      "description": "",
+      "category": "corpus"
+    },
+    {
+      "id": "corpus_import",
+      "path": "/vrooli.document_manager.v1.corpus.CorpusService/Import",
+      "method": "POST",
+      "summary": "Import an open JSON collection archive",
+      "description": "",
+      "category": "corpus"
+    },
+    {
+      "id": "corpus_prune",
+      "path": "/vrooli.document_manager.v1.corpus.CorpusService/Prune",
+      "method": "POST",
+      "summary": "Coordinate safe regeneration pruning",
+      "description": "",
+      "category": "corpus"
+    },
+    {
+      "id": "enrichment_enrich",
+      "path": "/vrooli.document_manager.v1.enrichment.EnrichmentService/Enrich",
+      "method": "POST",
+      "summary": "Enrich a document through AI Gateway",
+      "description": "",
+      "category": "enrichment"
+    },
+    {
+      "id": "enrichment_embed",
+      "path": "/vrooli.document_manager.v1.enrichment.EnrichmentService/Embed",
+      "method": "POST",
+      "summary": "Create gateway-governed embedding metadata",
+      "description": "",
+      "category": "enrichment"
+    },
+    {
+      "id": "retrieval_query",
+      "path": "/vrooli.document_manager.v1.retrieval.RetrievalService/Query",
+      "method": "POST",
+      "summary": "Hybrid lexical and semantic corpus query",
+      "description": "",
+      "category": "retrieval"
+    },
+    {
+      "id": "retrieval_similar",
+      "path": "/vrooli.document_manager.v1.retrieval.RetrievalService/Similar",
+      "method": "POST",
+      "summary": "Find similar corpus units",
+      "description": "",
+      "category": "retrieval"
     }
   ]
 }

@@ -4,44 +4,149 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "document-manager",
   "generator": "v1.0.0",
-  "manifest_hash": "a8e151b4ea9fa949ab98d5097405d8a38f811a11c430a8d6e767a43ba8b402cb",
+  "manifest_hash": "8e4343233b1a9bc08572f053eb2e605de738e7ac611ecc69a0fa56b33f1a60af",
   "commands": [
     {
-      "path": "notes attach",
-      "group": "notes",
-      "command": "attach",
-      "declared_exception": "upload",
-      "observed_primitive": "upload"
-    },
-    {
-      "path": "notes count",
-      "group": "notes",
-      "command": "count",
-      "binding": "NotesService.CountNotes",
-      "declared_primitive": "proto_list",
-      "observed_primitive": "proto_list"
-    },
-    {
-      "path": "notes create",
-      "group": "notes",
-      "command": "create",
-      "binding": "NotesService.CreateNote",
+      "path": "corpus add-document",
+      "group": "corpus",
+      "command": "add-document",
+      "binding": "CorpusService.AddDocument",
       "declared_primitive": "proto_mutation",
       "observed_primitive": "proto_mutation"
     },
     {
-      "path": "notes get",
-      "group": "notes",
-      "command": "get",
-      "binding": "NotesService.GetNote",
+      "path": "corpus create",
+      "group": "corpus",
+      "command": "create",
+      "binding": "CorpusService.CreateCollection",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "corpus export",
+      "group": "corpus",
+      "command": "export",
+      "binding": "CorpusService.Export",
       "declared_primitive": "proto_list",
       "observed_primitive": "proto_list"
     },
     {
-      "path": "notes list",
-      "group": "notes",
+      "path": "corpus get",
+      "group": "corpus",
+      "command": "get",
+      "binding": "CorpusService.GetCollection",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "corpus import",
+      "group": "corpus",
+      "command": "import",
+      "binding": "CorpusService.Import",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "corpus list",
+      "group": "corpus",
       "command": "list",
-      "binding": "NotesService.ListNotes",
+      "binding": "CorpusService.ListCollections",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "corpus list-documents",
+      "group": "corpus",
+      "command": "list-documents",
+      "binding": "CorpusService.ListDocuments",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "corpus prune",
+      "group": "corpus",
+      "command": "prune",
+      "binding": "CorpusService.Prune",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "enrichment embed",
+      "group": "enrichment",
+      "command": "embed",
+      "binding": "EnrichmentService.Embed",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "enrichment enrich",
+      "group": "enrichment",
+      "command": "enrich",
+      "binding": "EnrichmentService.Enrich",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "intake get",
+      "group": "intake",
+      "command": "get",
+      "binding": "IntakeService.GetDocument",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "intake ingest",
+      "group": "intake",
+      "command": "ingest",
+      "binding": "IntakeService.Ingest",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "intake list",
+      "group": "intake",
+      "command": "list",
+      "binding": "IntakeService.ListDocuments",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "intake sources",
+      "group": "intake",
+      "command": "sources",
+      "binding": "IntakeService.ListSources",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "intake verdict",
+      "group": "intake",
+      "command": "verdict",
+      "binding": "IntakeService.GetTypeVerdict",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "intake watch",
+      "group": "intake",
+      "command": "watch",
+      "binding": "IntakeService.ConfigureWatch",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "retrieval query",
+      "group": "retrieval",
+      "command": "query",
+      "binding": "RetrievalService.Query",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "retrieval similar",
+      "group": "retrieval",
+      "command": "similar",
+      "binding": "RetrievalService.Similar",
       "declared_primitive": "proto_list",
       "observed_primitive": "proto_list"
     }

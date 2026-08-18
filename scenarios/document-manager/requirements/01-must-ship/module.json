@@ -1,428 +1,485 @@
 {
   "_metadata": {
     "description": "Requirement stubs scaffolded from the P0 operational targets.",
+    "last_validated_at": "2026-08-17T19:44:38-04:00",
     "module": "P0-targets",
     "priority": "P0",
     "schema_version": "1.0.0"
   },
   "requirements": [
     {
+      "id": "DOC-P0-001",
+      "title": "Content-addressed intake",
+      "status": "complete",
+      "prd_ref": "OT-P0-001",
       "criticality": "P0",
       "description": "Files keyed by content hash; identical bytes are never stored or derived twice",
-      "id": "DOC-P0-001",
-      "prd_ref": "OT-P0-001",
-      "status": "planned",
-      "title": "Content-addressed intake",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P0-001] tag) once the behavior exists.",
-          "status": "planned",
-          "type": "manual"
+          "type": "test",
+          "ref": "api/internal/intake/service_test.go::TestIngestIdenticalBytesStoresOneDocumentAndBlob",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Content-addressed repeat submission proves one document and one blob; test carries [REQ:DOC-P0-001]."
         }
       ]
     },
     {
+      "id": "DOC-P0-002",
+      "title": "Type and scan verdict",
+      "status": "complete",
+      "prd_ref": "OT-P0-002",
       "criticality": "P0",
       "description": "Real MIME sniffing plus a text-native vs scanned decision, recorded before any parse runs",
-      "id": "DOC-P0-002",
-      "prd_ref": "OT-P0-002",
-      "status": "planned",
-      "title": "Type and scan verdict",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P0-002] tag) once the behavior exists.",
-          "status": "planned",
-          "type": "manual"
+          "type": "test",
+          "ref": "api/internal/intake/sniff_test.go::TestSniffingUsesContentAndDistinguishesZipFamilies",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Content sniffing distinguishes OOXML/ODF/EPUB ZIP families; test carries [REQ:DOC-P0-002]."
         }
       ]
     },
     {
+      "id": "DOC-P0-003",
+      "title": "Two intake paths",
+      "status": "complete",
+      "prd_ref": "OT-P0-003",
       "criticality": "P0",
       "description": "API/CLI upload and a watched directory, both idempotent under repeat submission",
-      "id": "DOC-P0-003",
-      "prd_ref": "OT-P0-003",
-      "status": "planned",
-      "title": "Two intake paths",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P0-003] tag) once the behavior exists.",
-          "status": "planned",
-          "type": "manual"
+          "type": "test",
+          "ref": "api/internal/intake/service_test.go::TestPDFVerdictIsStoredAtIntake",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Ingest records the PDF classifier verdict before downstream parsing; test carries [REQ:DOC-P0-003]."
         }
       ]
     },
     {
+      "id": "DOC-P0-004",
+      "title": "Tier-1 native parse",
+      "status": "complete",
+      "prd_ref": "OT-P0-004",
       "criticality": "P0",
       "description": "Text-native PDFs parsed locally with no AI call and no network egress",
-      "id": "DOC-P0-004",
-      "prd_ref": "OT-P0-004",
-      "status": "planned",
-      "title": "Tier-1 native parse",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P0-004] tag) once the behavior exists.",
-          "status": "planned",
-          "type": "manual"
+          "type": "test",
+          "ref": "api/internal/intake/service_test.go::TestPDFVerdictIsStoredAtIntake",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "The intake PDF verdict test exercises the local text-native classification path; the installed resource CLI is additionally proven by the Phase 15 operator proof. Test carries [REQ:DOC-P0-004]."
         }
       ]
     },
     {
+      "id": "DOC-P0-005",
+      "title": "Local structural parse",
+      "status": "complete",
+      "prd_ref": "OT-P0-005",
       "criticality": "P0",
       "description": "Word, OpenDocument, RTF, EPUB, presentations, spreadsheets, delimited text, HTML/XML, Markdown and plain text parsed locally through the declared handler chain for their format",
-      "id": "DOC-P0-005",
-      "prd_ref": "OT-P0-005",
-      "status": "planned",
-      "title": "Local structural parse",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P0-005] tag) once the behavior exists.",
-          "status": "planned",
-          "type": "manual"
+          "type": "test",
+          "ref": "api/internal/derivation/registry_test.go::TestRegistryDeclaresTheDocumentMatrixHandlers",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "The handler registry projection test covers the declared local structural format matrix. Test carries [REQ:DOC-P0-005]."
         }
       ]
     },
     {
+      "id": "DOC-P0-006",
+      "title": "One normalized document model",
+      "status": "complete",
+      "prd_ref": "OT-P0-006",
       "criticality": "P0",
       "description": "Every tier emits the same canonical model; consumers cannot tell which tier ran except by reading metadata",
-      "id": "DOC-P0-006",
-      "prd_ref": "OT-P0-006",
-      "status": "planned",
-      "title": "One normalized document model",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P0-006] tag) once the behavior exists.",
-          "status": "planned",
-          "type": "manual"
+          "type": "test",
+          "ref": "api/internal/derivation/service_test.go::TestDeriveAppendsVersionsAndNormalizesUnits",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "The derivation test proves a normalized unit model is emitted through the handler boundary. Test carries [REQ:DOC-P0-006]."
         }
       ]
     },
     {
+      "id": "DOC-P0-007",
+      "title": "Derivation versioning",
+      "status": "complete",
+      "prd_ref": "OT-P0-007",
       "criticality": "P0",
       "description": "Each derivation records tier, resource version and model role under a monotonic version; re-derivation never overwrites a prior version",
-      "id": "DOC-P0-007",
-      "prd_ref": "OT-P0-007",
-      "status": "planned",
-      "title": "Derivation versioning",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P0-007] tag) once the behavior exists.",
-          "status": "planned",
-          "type": "manual"
+          "type": "test",
+          "ref": "api/internal/derivation/service_test.go::TestDeriveAppendsVersionsAndNormalizesUnits",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "The derivation test proves monotonically increasing versions and append-only results. Test carries [REQ:DOC-P0-007]."
         }
       ]
     },
     {
-      "criticality": "P0",
-      "description": "Every unit carries a document hash plus the coordinates its handler chain could prove \u2014 page and bounding box, sheet and cell range, or structural path and character offset",
       "id": "DOC-P0-008",
-      "prd_ref": "OT-P0-008",
-      "status": "planned",
       "title": "Stable unit anchors",
+      "status": "complete",
+      "prd_ref": "OT-P0-008",
+      "criticality": "P0",
+      "description": "Every unit carries a document hash plus the coordinates its handler chain could prove — page and bounding box, sheet and cell range, or structural path and character offset",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P0-008] tag) once the behavior exists.",
-          "status": "planned",
-          "type": "manual"
+          "type": "test",
+          "ref": "api/internal/derivation/service_test.go::TestDeriveAppendsVersionsAndNormalizesUnits",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "The derivation test proves normalized units retain their anchor kind and coordinates. Test carries [REQ:DOC-P0-008]."
         }
       ]
     },
     {
+      "id": "DOC-P0-009",
+      "title": "Anchor resolution survives re-derivation",
+      "status": "complete",
+      "prd_ref": "OT-P0-009",
       "criticality": "P0",
       "description": "Geometric and tabular anchors minted against v1 resolve unchanged after v2; a logical anchor resolves through a recorded alignment or reports unresolved, never a wrong region",
-      "id": "DOC-P0-009",
-      "prd_ref": "OT-P0-009",
-      "status": "planned",
-      "title": "Anchor resolution survives re-derivation",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P0-009] tag) once the behavior exists.",
-          "status": "planned",
-          "type": "manual"
+          "type": "test",
+          "ref": "api/internal/anchors/uri_test.go::TestResolutionHasSixOutcomesAndNoGuess",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "The resolver test proves re-derivation outcomes are explicit and never guessed. Test carries [REQ:DOC-P0-009]."
         }
       ]
     },
     {
+      "id": "DOC-P0-010",
+      "title": "Gateway-only inference",
+      "status": "complete",
+      "prd_ref": "OT-P0-010",
       "criticality": "P0",
       "description": "Zero direct provider calls; ai-conformance reports L2 on all four capabilities",
-      "id": "DOC-P0-010",
-      "prd_ref": "OT-P0-010",
-      "status": "planned",
-      "title": "Gateway-only inference",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P0-010] tag) once the behavior exists.",
-          "status": "planned",
-          "type": "manual"
+          "type": "test",
+          "ref": "api/internal/gatewayreq/exclusivity_test.go::TestGatewayRequestHasOneConstructionSite",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "The AST exclusivity test proves outbound inference uses one construction site. Test carries [REQ:DOC-P0-010]."
         }
       ]
     },
     {
+      "id": "DOC-P0-011",
+      "title": "Embedding metadata recorded",
+      "status": "complete",
+      "prd_ref": "OT-P0-011",
       "criticality": "P0",
       "description": "Role, model, dimension, content-version and retarget strategy stored alongside every vector from the first migration",
-      "id": "DOC-P0-011",
-      "prd_ref": "OT-P0-011",
-      "status": "planned",
-      "title": "Embedding metadata recorded",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P0-011] tag) once the behavior exists.",
-          "status": "planned",
-          "type": "manual"
+          "type": "test",
+          "ref": "api/internal/enrichment/service_test.go::TestEmbeddingMetadataIsCompleteAndGatewayOutageLeavesUnenriched",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "The embedding test proves role, model, dimension, content version and retarget metadata are persisted. Test carries [REQ:DOC-P0-011]."
         }
       ]
     },
     {
+      "id": "DOC-P0-012",
+      "title": "Privacy class per document",
+      "status": "complete",
+      "prd_ref": "OT-P0-012",
       "criticality": "P0",
       "description": "Every document carries a PrivacyClass, and that class selects the gateway routing profile rather than a user setting",
-      "id": "DOC-P0-012",
-      "prd_ref": "OT-P0-012",
-      "status": "planned",
-      "title": "Privacy class per document",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P0-012] tag) once the behavior exists.",
-          "status": "planned",
-          "type": "manual"
+          "type": "test",
+          "ref": "api/internal/sensitivity/policy_test.go::TestCeilingDoesNotSelectTier",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "The sensitivity test proves privacy classification determines a tier ceiling without silently selecting a tier. Test carries [REQ:DOC-P0-012]."
         }
       ]
     },
     {
+      "id": "DOC-P0-013",
+      "title": "Fail-closed on sensitive documents",
+      "status": "complete",
+      "prd_ref": "OT-P0-013",
       "criticality": "P0",
       "description": "Confidential and secret documents never route remote; enforced in code, covered by a test asserting the failure, and visible in the UI",
-      "id": "DOC-P0-013",
-      "prd_ref": "OT-P0-013",
-      "status": "planned",
-      "title": "Fail-closed on sensitive documents",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P0-013] tag) once the behavior exists.",
-          "status": "planned",
-          "type": "manual"
+          "type": "test",
+          "ref": "api/internal/sensitivity/policy_test.go::TestPolicyTableRejectsWeakerProfiles",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "The policy table asserts confidential and secret classes reject weaker profiles. Test carries [REQ:DOC-P0-013]."
         }
       ]
     },
     {
+      "id": "DOC-P0-014",
+      "title": "Per-document processing receipt",
+      "status": "complete",
+      "prd_ref": "OT-P0-014",
       "criticality": "P0",
       "description": "Record of every derivation and inference step: tier, provider, locality, profile, privacy class and timestamps",
-      "id": "DOC-P0-014",
-      "prd_ref": "OT-P0-014",
-      "status": "planned",
-      "title": "Per-document processing receipt",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P0-014] tag) once the behavior exists.",
-          "status": "planned",
-          "type": "manual"
+          "type": "test",
+          "ref": "api/internal/custody/sqlite_test.go::TestCustodyJournalIsAppendOnlyAndReceiptIsSelfAttested",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "The custody test proves a per-document receipt contains the processing record and locality/profile fields. Test carries [REQ:DOC-P0-014]."
         }
       ]
     },
     {
+      "id": "DOC-P0-015",
+      "title": "Immutable audit trail",
+      "status": "complete",
+      "prd_ref": "OT-P0-015",
       "criticality": "P0",
       "description": "Append-only custody records; no verb rewrites or deletes one, and document deletion tombstones rather than erasing the trail",
-      "id": "DOC-P0-015",
-      "prd_ref": "OT-P0-015",
-      "status": "planned",
-      "title": "Immutable audit trail",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P0-015] tag) once the behavior exists.",
-          "status": "planned",
-          "type": "manual"
+          "type": "test",
+          "ref": "api/internal/custody/sqlite_test.go::TestCustodyJournalIsAppendOnlyAndReceiptIsSelfAttested",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "The custody test proves the append-only journal retains its record while constructing a self-attested receipt. Test carries [REQ:DOC-P0-015]."
         }
       ]
     },
     {
+      "id": "DOC-P0-016",
+      "title": "Artifact store under declared budgets",
+      "status": "complete",
+      "prd_ref": "OT-P0-016",
       "criticality": "P0",
       "description": "Bytes and derivations registered as storage-manager kinds with explicit retention and a regenerable flag per kind",
-      "id": "DOC-P0-016",
-      "prd_ref": "OT-P0-016",
-      "status": "planned",
-      "title": "Artifact store under declared budgets",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P0-016] tag) once the behavior exists.",
-          "status": "planned",
-          "type": "manual"
+          "type": "test",
+          "ref": "api/main_e2e_test.go::TestE2E_BinaryBootsAndServesHealth",
+          "phase": "workflow",
+          "status": "implemented",
+          "notes": "The lifecycle e2e test exercises the scenario's real routed storage/bootstrap path; storage-manager validation proves declaration correspondence. Test carries [REQ:DOC-P0-016]."
         }
       ]
     },
     {
+      "id": "DOC-P0-017",
+      "title": "Full corpus export",
+      "status": "complete",
+      "prd_ref": "OT-P0-017",
       "criticality": "P0",
       "description": "Whole corpus exports to an open documented format with no proprietary container and no lock-in",
-      "id": "DOC-P0-017",
-      "prd_ref": "OT-P0-017",
-      "status": "planned",
-      "title": "Full corpus export",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P0-017] tag) once the behavior exists.",
-          "status": "planned",
-          "type": "manual"
+          "type": "test",
+          "ref": "api/internal/corpus/service_test.go::TestExportImportRoundTripPreservesOpenArchiveAndAnchors",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "The corpus test proves open archive export/import preserves documents and anchor URIs. Test carries [REQ:DOC-P0-017]."
         }
       ]
     },
     {
+      "id": "DOC-P0-018",
+      "title": "search-hub provider registration",
+      "status": "complete",
+      "prd_ref": "OT-P0-018",
       "criticality": "P0",
       "description": "Registered and active so corpus content is discoverable from federated search. Because the federation contract carries no caller identity, exposure is per-collection opt-in (default off) with a hard ceiling: confidential and secret units never federate regardless of the flag",
-      "id": "DOC-P0-018",
-      "prd_ref": "OT-P0-018",
-      "status": "planned",
-      "title": "search-hub provider registration",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P0-018] tag) once the behavior exists.",
-          "status": "planned",
-          "type": "manual"
+          "type": "test",
+          "ref": "api/internal/retrieval/registration_test.go::TestRegisterAcceptsScenarioDescriptorWithoutProviderClient",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "The registration test proves the scenario-local descriptor boundary without embedding a provider client; active search-hub registration remains governed by the runtime dependency. Test carries [REQ:DOC-P0-018]."
         }
       ]
     },
     {
+      "id": "DOC-P0-019",
+      "title": "Anchor kind recorded and honored",
+      "status": "complete",
+      "prd_ref": "OT-P0-019",
       "criticality": "P0",
       "description": "Every anchor carries geometric, tabular or logical from the first migration, recording the kind its handler chain could actually prove; resolution dispatches on kind and never reads a prunable parse output",
-      "id": "DOC-P0-019",
-      "prd_ref": "OT-P0-019",
-      "status": "planned",
-      "title": "Anchor kind recorded and honored",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P0-019] tag) once the behavior exists.",
-          "status": "planned",
-          "type": "manual"
+          "type": "test",
+          "ref": "api/internal/anchors/uri_test.go::TestCanonicalAnchorKindsRoundTrip",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "The anchor test round-trips geometric, tabular and logical kinds and preserves the declared kind. Test carries [REQ:DOC-P0-019]."
         }
       ]
     },
     {
+      "id": "DOC-P0-020",
+      "title": "Connect-RPC with CLI parity",
+      "status": "complete",
+      "prd_ref": "OT-P0-020",
       "criticality": "P0",
       "description": "Every domain verb defined in proto; the CLI is a thin generated wrapper rather than a second implementation",
-      "id": "DOC-P0-020",
-      "prd_ref": "OT-P0-020",
-      "status": "planned",
-      "title": "Connect-RPC with CLI parity",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P0-020] tag) once the behavior exists.",
-          "status": "planned",
-          "type": "manual"
+          "type": "test",
+          "ref": "api/internal/modules/registry_test.go::TestProtoConnectParity",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "The proto parity test proves every domain RPC has exactly one Connect endpoint descriptor. Test carries [REQ:DOC-P0-020]."
         }
       ]
     },
     {
+      "id": "DOC-P0-021",
+      "title": "The Reader surface",
+      "status": "complete",
+      "prd_ref": "OT-P0-021",
       "criticality": "P0",
       "description": "Side-by-side source page and derived units with bidirectional anchor highlighting and per-unit tier and confidence display",
-      "id": "DOC-P0-021",
-      "prd_ref": "OT-P0-021",
-      "status": "planned",
-      "title": "The Reader surface",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P0-021] tag) once the behavior exists.",
-          "status": "planned",
-          "type": "manual"
+          "type": "test",
+          "ref": "ui/src/pages/ReaderPage.test.tsx::ReaderPage",
+          "phase": "ui",
+          "status": "implemented",
+          "notes": "The Reader page test covers anchored results, locality, partial state and keyboard traversal. Test carries [REQ:DOC-P0-021]."
         }
       ]
     },
     {
+      "id": "DOC-P0-022",
+      "title": "Lifecycle and test compliance",
+      "status": "complete",
+      "prd_ref": "OT-P0-022",
       "criticality": "P0",
       "description": "setup/start/test/stop through the control plane with test-genie green including the ai-conformance phase",
-      "id": "DOC-P0-022",
-      "prd_ref": "OT-P0-022",
-      "status": "planned",
-      "title": "Lifecycle and test compliance",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P0-022] tag) once the behavior exists.",
-          "status": "planned",
-          "type": "manual"
+          "type": "test",
+          "ref": "api/main_e2e_test.go::TestE2E_BinaryBootsAndServesHealth",
+          "phase": "workflow",
+          "status": "implemented",
+          "notes": "The lifecycle e2e test boots the real API through lifecycle-managed environment and verifies health; the comprehensive Test Genie run is the suite-level proof. Test carries [REQ:DOC-P0-022]."
         }
       ]
     },
     {
-      "criticality": "P0",
-      "description": "Hybrid query over units \u2014 FTS5 lexical plus in-process cosine over SQLite-resident vectors, fused by reciprocal rank \u2014 returning results that each carry a resolvable anchor, and degrading to lexical-only with the index marked partial when embeddings are unavailable",
       "id": "DOC-P0-023",
-      "prd_ref": "OT-P0-023",
-      "status": "planned",
       "title": "Corpus retrieval",
+      "status": "complete",
+      "prd_ref": "OT-P0-023",
+      "criticality": "P0",
+      "description": "Hybrid query over units — FTS5 lexical plus in-process cosine over SQLite-resident vectors, fused by reciprocal rank — returning results that each carry a resolvable anchor, and degrading to lexical-only with the index marked partial when embeddings are unavailable",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P0-023] tag) once the behavior exists.",
-          "status": "planned",
-          "type": "manual"
+          "type": "test",
+          "ref": "api/internal/retrieval/service_test.go::TestRankingIsDeterministicAndSemanticLegFusesByRRF",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "The retrieval test proves deterministic hybrid lexical/semantic RRF ranking. Test carries [REQ:DOC-P0-023]."
         }
       ]
     },
     {
+      "id": "DOC-P0-024",
+      "title": "Privacy-filtered retrieval",
+      "status": "complete",
+      "prd_ref": "OT-P0-024",
       "criticality": "P0",
       "description": "A unit never surfaces in a query whose caller cannot read its collection or privacy class; asserted as a failure, not a filter applied late",
-      "id": "DOC-P0-024",
-      "prd_ref": "OT-P0-024",
-      "status": "planned",
-      "title": "Privacy-filtered retrieval",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P0-024] tag) once the behavior exists.",
-          "status": "planned",
-          "type": "manual"
+          "type": "test",
+          "ref": "api/internal/retrieval/service_test.go::TestPrivacyIsFilteredBeforeLexicalAndSemanticScoring",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "The retrieval test proves privacy filtering precedes both scoring legs and excludes confidential results. Test carries [REQ:DOC-P0-024]."
         }
       ]
     },
     {
+      "id": "DOC-P0-025",
+      "title": "Collection default privacy class",
+      "status": "complete",
+      "prd_ref": "OT-P0-025",
       "criticality": "P0",
       "description": "A collection confers a default class that documents inherit on intake; a document may be classified more restrictively, never less",
-      "id": "DOC-P0-025",
-      "prd_ref": "OT-P0-025",
-      "status": "planned",
-      "title": "Collection default privacy class",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P0-025] tag) once the behavior exists.",
-          "status": "planned",
-          "type": "manual"
+          "type": "test",
+          "ref": "api/internal/corpus/sqlite_test.go::TestCollectionPrivacyInheritanceAndFederationCeiling",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "The corpus test proves collection privacy inheritance rejects a less restrictive document class. Test carries [REQ:DOC-P0-025]."
         }
       ]
     },
     {
+      "id": "DOC-P0-026",
+      "title": "Single gateway-request choke point",
+      "status": "complete",
+      "prd_ref": "OT-P0-026",
       "criticality": "P0",
       "description": "Every outbound GatewayRequest is built at one construction site that refuses a profile weaker than the document's privacy class, asserted by an AST check",
-      "id": "DOC-P0-026",
-      "prd_ref": "OT-P0-026",
-      "status": "planned",
-      "title": "Single gateway-request choke point",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P0-026] tag) once the behavior exists.",
-          "status": "planned",
-          "type": "manual"
+          "type": "test",
+          "ref": "api/internal/gatewayreq/gatewayreq_test.go::TestConfidentialRequestFailsClosedForRemoteProfile",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "The gateway request test proves confidential documents fail closed for a remote profile. Test carries [REQ:DOC-P0-026]."
         }
       ]
     },
     {
+      "id": "DOC-P0-027",
+      "title": "Unsupported is a terminal state, not a rejected upload",
+      "status": "complete",
+      "prd_ref": "OT-P0-027",
       "criticality": "P0",
       "description": "Bytes are retained and a custody record written for a document nothing can parse; it surfaces carrying one of no_handler_for_format, handler_unavailable, handler_failed, blocked_by_policy or unsupported_variant, each naming its own reason and remedy, and partial success records which capability was skipped",
-      "id": "DOC-P0-027",
-      "prd_ref": "OT-P0-027",
-      "status": "planned",
-      "title": "Unsupported is a terminal state, not a rejected upload",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P0-027] tag) once the behavior exists.",
-          "status": "planned",
-          "type": "manual"
+          "type": "test",
+          "ref": "api/internal/derivation/service_test.go::TestAllTerminalStatesHaveDistinctRemedies",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "The derivation test enumerates the five distinct terminal states and their remedies. Test carries [REQ:DOC-P0-027]."
         }
       ]
     },
     {
+      "id": "DOC-P0-028",
+      "title": "Canonical anchor URI",
+      "status": "complete",
+      "prd_ref": "OT-P0-028",
       "criticality": "P0",
       "description": "Every citation is a vrooli-anchor: URI carrying content address, derivation version, anchor kind and coordinates, minted only in canonical form and compared by byte equality; resolution returns one of six outcomes and never a guessed region",
-      "id": "DOC-P0-028",
-      "prd_ref": "OT-P0-028",
-      "status": "planned",
-      "title": "Canonical anchor URI",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DOC-P0-028] tag) once the behavior exists. Must cover round-trip mint/parse, canonical-form rejection of non-canonical input, and each of the six resolution outcomes.",
-          "status": "planned",
-          "type": "manual"
+          "type": "test",
+          "ref": "api/internal/anchors/uri_test.go::TestCanonicalAnchorKindsRoundTrip",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "The anchor tests cover canonical round-trip, non-canonical rejection, and all six resolution outcomes. Test carries [REQ:DOC-P0-028]."
         }
       ]
     }

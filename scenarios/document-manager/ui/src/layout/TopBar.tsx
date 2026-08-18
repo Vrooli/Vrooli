@@ -5,6 +5,12 @@ import { useTheme, type ThemeChoice } from "../theme/ThemeProvider";
 
 const THEME_CHOICES: readonly ThemeChoice[] = ["light", "dark", "system"];
 
+const themeLabel = (choice: ThemeChoice) => {
+  if (choice === "light") return strings.theme.choice.light;
+  if (choice === "dark") return strings.theme.choice.dark;
+  return strings.theme.choice.system;
+};
+
 /**
  * Top app bar. Keep high-frequency chrome compact; full preference controls
  * live on Settings so mobile headers do not accumulate wrapped controls.
@@ -35,11 +41,11 @@ export function TopBar() {
             onChange={(e) => setTheme(e.target.value as ThemeChoice)}
             data-testid={selectors.theme.select}
             aria-label={t(strings.theme.switcherLabel)}
-            className="rounded-control border border-app-border bg-app-surface px-2 py-1 text-app-foreground"
+            className="min-h-11 rounded-control border border-app-border bg-app-surface px-2 py-1 text-app-foreground"
           >
             {THEME_CHOICES.map((c) => (
               <option key={c} value={c}>
-                {t(strings.theme.choice[c])}
+                {t(themeLabel(c))}
               </option>
             ))}
           </select>

@@ -4,11 +4,13 @@
     "description": "Perf interaction helper: drag a target horizontally by dx over stepped pointer moves (mousedown → stepped mousemove → mouseup). Use it to exercise resize handles / draggable dividers whose lag you are auditing. Stepped moves settle transition queues so resize-lag traces reproduce.",
     "labels": {
       "intent": "performance",
+      "requires_confirmation": "true",
+      "routed_isolation": "true",
       "reset": "none",
       "parameters_json": "[{\"name\":\"selector\",\"type\":\"string\",\"required\":true,\"description\":\"CSS selector of the drag handle (use a literal [data-testid=...]; @selector tokens do not resolve on the capture path)\"},{\"name\":\"dx\",\"type\":\"number\",\"required\":false,\"default\":80,\"description\":\"Horizontal drag distance in pixels\"},{\"name\":\"steps\",\"type\":\"number\",\"required\":false,\"default\":20,\"description\":\"Number of intermediate pointer moves\"}]"
     },
     "version": "1",
-    "execution_mode": "observer"
+    "execution_mode": "mutating"
   },
   "settings": {},
   "nodes": [

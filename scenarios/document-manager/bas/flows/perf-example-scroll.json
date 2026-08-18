@@ -4,10 +4,12 @@
     "description": "EXAMPLE perf-capture flow (intent:performance). Assertion-free: it only drives an interaction so performance-health can trace it. Copy + edit the selector for the journey you are auditing, then: test-genie registry build → performance-health audit run <scenario> --workflow perf-example-scroll. NEVER bind a perf flow as a requirement automation case — it must stay out of the functional Playbooks suite.",
     "labels": {
       "intent": "performance",
+      "requires_confirmation": "true",
+      "routed_isolation": "true",
       "reset": "none"
     },
     "version": "1",
-    "execution_mode": "observer"
+    "execution_mode": "mutating"
   },
   "settings": {
     "viewport_width": 1440,

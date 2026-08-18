@@ -25,8 +25,10 @@ const readStoredChoice = (): ThemeChoice => {
 
 const resolveChoice = (choice: ThemeChoice): "light" | "dark" => {
   if (choice === "light" || choice === "dark") return choice;
-  if (typeof window === "undefined" || !window.matchMedia) return "light";
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  if (typeof window === "undefined") return "light";
+  const matchMedia = window.matchMedia;
+  if (typeof matchMedia !== "function") return "light";
+  return matchMedia.call(window, "(prefers-color-scheme: dark)").matches ? "dark" : "light";
 };
 
 const applyTheme = (resolved: "light" | "dark", choice: ThemeChoice) => {
@@ -55,9 +57,11 @@ export function ThemeProvider({ children, initialChoice }: ThemeProviderProps) {
   }, [resolved, choice]);
 
   useEffect(() => {
-    if (typeof window === "undefined" || !window.matchMedia) return undefined;
+    if (typeof window === "undefined") return undefined;
     if (choice !== "system") return undefined;
-    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const matchMedia = window.matchMedia;
+    if (typeof matchMedia !== "function") return undefined;
+    const mq = matchMedia.call(window, "(prefers-color-scheme: dark)");
     const handler = () => setResolved(mq.matches ? "dark" : "light");
     mq.addEventListener("change", handler);
     return () => mq.removeEventListener("change", handler);

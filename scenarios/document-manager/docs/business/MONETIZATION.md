@@ -6,9 +6,9 @@ better than inventing a commercial story.
 
 > **Scope boundary.** This file records the scenario-local hypothesis.
 > Whether to charge, at what price, and which bundle it joins is
-> operator-curated canon under `path:docs/monetization/` and is never
+> operator-curated canon under `path:../../docs/monetization/` and is never
 > decided here. The engineering contract for wiring free / metered /
-> gated is `path:docs/concepts/PAID_FEATURES.md`.
+> gated is `path:../../docs/concepts/PAID_FEATURES.md`.
 
 ## Purpose Of This Document
 
@@ -144,7 +144,7 @@ no buyer has been shown a generated document with its receipt.
 
 ## Free / Metered / Gated
 
-Per `path:docs/concepts/PAID_FEATURES.md`:
+Per `path:../../docs/concepts/PAID_FEATURES.md`:
 
 | Capability | Mode | Reasoning |
 |---|---|---|
@@ -189,4 +189,4 @@ a pricing decision.
 - [`GO-TO-MARKET.md`](GO-TO-MARKET.md) — channel and launch plan
 - [`../concepts/INTEGRATIONS.md`](../concepts/INTEGRATIONS.md) — the upstream gaps that affect the pitch
 - [`../operations/OBSERVABILITY.md`](../operations/OBSERVABILITY.md) — telemetry needed for business validation
-- Project-level monetization strategy: `path:docs/monetization/README.md`.
+- Project-level monetization strategy: `path:../../docs/monetization/README.md`.

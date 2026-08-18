@@ -42,7 +42,7 @@ import (
 	"time"
 )
 
-func TestE2E_BinaryBootsAndServesHealth(t *testing.T) {
+func TestE2E_BinaryBootsAndServesHealth(t *testing.T) { // [REQ:DOC-P0-016] [REQ:DOC-P0-022]
 	if runtime.GOOS == "windows" {
 		// SIGTERM is not portable to Windows; the e2e test is gated to
 		// Unix-likes. Windows CI (when added) gets a separate variant

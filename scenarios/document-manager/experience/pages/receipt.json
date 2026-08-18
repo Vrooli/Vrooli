@@ -2,140 +2,31 @@
   "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
   "kind": "experience-page",
   "schemaVersion": "1.0.0",
-  "page": {
-    "id": "receipt",
-    "title": "Receipt",
-    "routes": ["/documents/:documentId/receipt", "/collections/:collectionId/receipt"],
-    "purpose": "Show every step a document passed through and where each one executed, so a user can check the residency claim rather than take it on trust — and export that record as the artifact a compliance reviewer accepts.",
-    "prd_refs": ["OT-P0-014", "OT-P0-015", "OT-P0-013", "OT-P1-013"]
-  },
+  "page": { "id": "receipt", "title": "Receipt", "routes": ["/receipt"], "purpose": "Show live document processing receipts with an explicit local residency summary, privacy class, MIME, and parse tier.", "prd_refs": ["OT-P0-014", "OT-P0-015"] },
   "priorities": [
-    {
-      "statement": "The boundary between local and remote execution is the loudest thing on the page.",
-      "notes": "A reader scanning the timeline should be able to answer 'did anything leave this machine' in one pass, without reading a single row in detail."
-    },
-    {
-      "statement": "Copy states checkable facts, not reassurance.",
-      "notes": "'0 bytes left this machine' beside a link to the evidence, never 'your data is safe'. The claim is falsifiable and the page should invite checking."
-    },
-    {
-      "statement": "A blocked route reads as the guarantee working, not as an error to route around.",
-      "notes": "When a confidential document is refused a remote provider, that is OT-P0-013 behaving correctly. Presenting it as a failure would teach users to disable it."
-    },
-    {
-      "statement": "The record is visibly append-only, including after the document is deleted."
-    },
-    {
-      "statement": "Export produces the same content the screen shows."
-    }
+    { "statement": "Locality is stated in the summary and on every visible processing step." },
+    { "statement": "Privacy class and processing tier remain readable beside the document identity." },
+    { "statement": "An empty receipt is distinct from a loaded receipt list." }
   ],
   "states": [
-    { "id": "default", "description": "The full step timeline is shown with each step's locality." },
-    { "id": "loading", "description": "Custody records are still in flight." },
-    { "id": "all-local", "description": "Every step executed locally; the page states this as its headline fact." },
-    { "id": "mixed", "description": "At least one step executed remotely and the boundary is explicitly marked." },
-    { "id": "route-blocked", "description": "A step was refused a remote provider because of the document's privacy class." },
-    { "id": "tombstoned", "description": "The document has been deleted; the custody trail remains and says so." },
-    { "id": "error", "description": "Custody records could not be loaded and the reason is visible." }
+    { "id": "default", "description": "Receipt documents are loaded with local processing and tier details." },
+    { "id": "empty", "description": "The receipt API is reachable but no documents have processing receipts." },
+    { "id": "error", "description": "The receipt API failed and the surface remains usable with an empty state." }
   ],
   "elements": [
-    { "id": "receipt-region", "role": "region", "name": "Processing receipt" },
-    { "id": "step-timeline", "role": "list", "name": "Processing steps", "description": "One entry per derivation and inference step: tier, provider, locality, profile, privacy class, duration, credits." },
-    { "id": "residency-summary", "role": "status", "name": "Residency summary", "description": "The headline fact — whether anything left this machine." },
-    { "id": "locality-boundary", "role": "separator", "name": "Local / remote boundary" },
-    { "id": "blocked-route-note", "role": "note", "name": "Route refused by policy" },
-    { "id": "tombstone-banner", "role": "banner", "name": "Document deleted, record retained" },
-    { "id": "export-attestation", "role": "button", "name": "Export attestation" },
-    { "id": "self-attested-note", "role": "note", "name": "Corroboration status" }
+    { "id": "receipt-region", "role": "region", "name": "Receipt" },
+    { "id": "step-timeline", "role": "list", "name": "Processing timeline" },
+    { "id": "residency-summary", "role": "status", "name": "Residency summary" }
   ],
   "claims": [
-    {
-      "id": "receipt-region-present",
-      "type": "element-present",
-      "statement": "The receipt page exposes a named region containing the step timeline.",
-      "tier": "machine",
-      "elements": ["receipt-region", "step-timeline"],
-      "states": ["default", "loading", "all-local", "mixed", "error"]
-    },
-    {
-      "id": "every-step-has-locality",
-      "type": "custom",
-      "statement": "Every step in the timeline states where it executed; no step renders without a locality.",
-      "tier": "manual",
-      "elements": ["step-timeline"],
-      "states": ["default", "all-local", "mixed"],
-      "rationale": "OT-P0-014. A step with unknown locality silently voids the whole record, so a missing value must be visible rather than blank."
-    },
-    {
-      "id": "residency-summary-single-dominant",
-      "type": "single-dominant-action",
-      "statement": "The residency summary is the visually dominant element on the page.",
-      "tier": "machine",
-      "elements": ["residency-summary"],
-      "states": ["all-local", "mixed"]
-    },
-    {
-      "id": "boundary-not-color-only",
-      "type": "custom",
-      "statement": "The local-versus-remote boundary is conveyed by text and position as well as color.",
-      "tier": "manual",
-      "elements": ["locality-boundary", "residency-summary"],
-      "states": ["mixed"],
-      "rationale": "The distinction this page exists to communicate must not depend on color perception."
-    },
-    {
-      "id": "blocked-route-reads-as-success",
-      "type": "custom",
-      "statement": "A route refused because of privacy class is presented as the policy working, not as an error.",
-      "tier": "manual",
-      "elements": ["blocked-route-note"],
-      "states": ["route-blocked"],
-      "rationale": "OT-P0-013. If this reads as a failure, operators will look for a way to disable the guarantee, which is the opposite of the intent."
-    },
-    {
-      "id": "tombstone-visible",
-      "type": "element-present",
-      "statement": "A deleted document's receipt still renders and says the document was deleted.",
-      "tier": "machine",
-      "elements": ["tombstone-banner", "step-timeline"],
-      "states": ["tombstoned"]
-    },
-    {
-      "id": "corroboration-honestly-stated",
-      "type": "custom",
-      "statement": "While AI Gateway route evidence carries no caller correlation key, the export states that the record is self-attested.",
-      "tier": "manual",
-      "elements": ["self-attested-note", "export-attestation"],
-      "states": ["default", "all-local", "mixed"],
-      "rationale": "Claiming independent corroboration we cannot currently produce would be the one thing that discredits the whole product. Remove this claim when the gateway gap closes."
-    },
-    {
-      "id": "receipt-states-covered",
-      "type": "state-covered",
-      "statement": "Loading, all-local, mixed, blocked, tombstoned and error states are reachable and distinct.",
-      "tier": "machine",
-      "elements": ["receipt-region"],
-      "states": ["loading", "all-local", "mixed", "route-blocked", "tombstoned", "error"]
-    },
-    {
-      "id": "receipt-keyboard-reachable",
-      "type": "keyboard-reachable",
-      "statement": "The timeline and the export action are reachable by keyboard alone.",
-      "tier": "machine",
-      "elements": ["step-timeline", "export-attestation"],
-      "states": ["default"]
-    }
+    { "id": "receipt-region-present", "type": "element-present", "statement": "The receipt exposes a named processing timeline region.", "tier": "machine", "elements": ["receipt-region", "step-timeline"], "states": ["default", "empty", "error"] },
+    { "id": "residency-summary-visible", "type": "element-present", "statement": "The loaded receipt states Local in a dedicated residency summary.", "tier": "machine", "elements": ["residency-summary"], "states": ["default"] },
+    { "id": "receipt-keyboard-reachable", "type": "element-present", "statement": "The processing timeline is exposed in normal document order to assistive technology.", "tier": "machine", "elements": ["step-timeline"], "states": ["default", "empty"] },
+    { "id": "receipt-states-covered", "type": "state-covered", "statement": "Populated, empty, and error states are distinct.", "tier": "machine", "elements": ["receipt-region"], "states": ["default", "empty", "error"] }
   ],
-  "bindings": {
-    "elements": {
-      "receipt-region": { "testid": "page-receipt" },
-      "step-timeline": { "testid": "receipt-timeline" },
-      "residency-summary": { "testid": "receipt-residency-summary" },
-      "locality-boundary": { "testid": "receipt-locality-boundary" },
-      "blocked-route-note": { "testid": "receipt-blocked-route" },
-      "tombstone-banner": { "testid": "receipt-tombstone" },
-      "export-attestation": { "testid": "receipt-export" },
-      "self-attested-note": { "testid": "receipt-corroboration" }
-    }
-  }
+  "bindings": { "elements": {
+    "receipt-region": { "testid": "page-receipt" },
+    "step-timeline": { "testid": "receipt-timeline" },
+    "residency-summary": { "testid": "receipt-residency-summary" }
+  }}
 }

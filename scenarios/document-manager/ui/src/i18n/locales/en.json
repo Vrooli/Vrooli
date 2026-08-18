@@ -1,16 +1,17 @@
 {
   "_comment": "Two interpolation surfaces live in this file. (1) Generator-time: tokens like Document Manager are uppercase-snake-case placeholders replaced by `template-manager generate` before the scenario is built — they appear as literal display values at runtime. (2) Runtime: tokens like {{count}} are i18next interpolation, replaced by `t(key, { count })` at render time. Keys that start with an underscore (like this one) are sentinels — skipped by the codegen, parity test, and unused-key audit.",
   "app": {
-    "title": "Document Manager",
-    "eyebrow": "Scenario Template",
-    "description": "This starter UI is intentionally minimal. Replace it with your scenario-specific experience while keeping the styling conventions (Tailwind + shadcn) and API wiring in place."
+    "title": "Document Manager"
   },
   "layout": {
     "sidebarLabel": "Primary navigation",
     "bottomNavLabel": "Mobile navigation",
+    "mainLabel": "Main content",
     "nav": {
       "dashboard": "Dashboard",
-      "notes": "Notes",
+      "corpus": "Corpus",
+      "reader": "Reader",
+      "receipt": "Receipt",
       "settings": "Settings"
     }
   },
@@ -28,13 +29,49 @@
       "description": "Overview of the scenario's health and key metrics. Replace these cards with real surfaces as your product grows.",
       "statPlaceholderLabel": "Stat"
     },
-    "notes": {
-      "title": "Notes"
-    },
     "settings": {
       "title": "Settings",
       "themeHeading": "Appearance",
       "localeHeading": "Language"
+    },
+    "corpus": {
+      "title": "Corpus",
+      "description": "Collections and source documents currently held by this service.",
+      "collections": "Collections",
+      "collectionDescription": "Privacy boundaries and federation policy.",
+      "documents": "Documents",
+      "documentDescription": "Content-addressed source inventory.",
+      "empty": "No collections yet.",
+      "noDocuments": "No documents yet.",
+      "unnamed": "Unnamed source",
+      "federated": "Federated · opt-in",
+      "localOnly": "Local only",
+      "privacy": "Privacy {{value}}"
+    },
+    "reader": {
+      "title": "Reader",
+      "description": "Search derived units and move between citations without a pointer.",
+      "searchLabel": "Search units",
+      "placeholder": "Search the corpus",
+      "partial": "Partial index · semantic leg unavailable",
+      "sourceRegion": "Source region",
+      "derivedUnits": "Derived units",
+      "derivedUnitsLabel": "Derived units",
+      "noMatches": "No matching units.",
+      "sourceHint": "Select a cited unit to highlight its source region.",
+      "confidence": "Confidence {{value}}",
+      "local": "Local",
+      "sourceFor": "Source region for {{anchor}}"
+    },
+    "receipt": {
+      "title": "Receipt",
+      "description": "A per-document processing timeline with explicit locality and privacy.",
+      "timeline": "Processing timeline",
+      "empty": "No processing receipts yet.",
+      "unnamed": "Unnamed source",
+      "privacy": "privacy class {{value}}",
+      "local": "Local",
+      "parsed": "Tier 1 · parsed"
     }
   },
   "health": {
@@ -44,7 +81,6 @@
     "refresh": "Refresh",
     "refreshCount": "Refreshed {{count}} times",
     "refreshCount_one": "Refreshed once",
-    "statusLabel": "Status:",
     "serviceLabel": "Service:",
     "timestampLabel": "Timestamp:"
   },
@@ -52,31 +88,6 @@
     "summary": "{{count}} notifications",
     "summary_zero": "No notifications",
     "summary_one": "1 notification"
-  },
-  "notes": {
-    "title": "Notes",
-    "loading": "Loading notes…",
-    "empty": "No notes yet.",
-    "create": "Create note",
-    "createdAtLabel": "Created:",
-    "attachmentsLabel": "{{count}} attachments",
-    "attachmentsLabel_one": "1 attachment",
-    "table": {
-      "title": "Title",
-      "created": "Created",
-      "attachments": "Attachments",
-      "actions": "Actions",
-      "search": "Search notes"
-    },
-    "uploadAttachment": "Upload attachment",
-    "attachmentFileLabel": "Attachment file",
-    "uploadSuccess": "Uploaded {{name}}.",
-    "noFileSelected": "Select a file before uploading.",
-    "measure": {
-      "title": "Notes this week",
-      "loading": "Counting…",
-      "thisWeek": "{{count}} notes created this week"
-    }
   },
   "errors": {
     "canceled": "Operation canceled.",

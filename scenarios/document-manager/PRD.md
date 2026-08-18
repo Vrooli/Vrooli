@@ -18,34 +18,34 @@
 
 ### 🔴 P0 – Must ship for viability
 
-- [ ] OT-P0-001 | Content-addressed intake | Files keyed by content hash; identical bytes are never stored or derived twice
-- [ ] OT-P0-002 | Type and scan verdict | Real MIME sniffing plus a text-native vs scanned decision, recorded before any parse runs
-- [ ] OT-P0-003 | Two intake paths | API/CLI upload and a watched directory, both idempotent under repeat submission
-- [ ] OT-P0-004 | Tier-1 native parse | Text-native PDFs parsed locally with no AI call and no network egress
-- [ ] OT-P0-005 | Local structural parse | Word, OpenDocument, RTF, EPUB, presentations, spreadsheets, delimited text, HTML/XML, Markdown and plain text parsed locally through the declared handler chain for their format
-- [ ] OT-P0-006 | One normalized document model | Every tier emits the same canonical model; consumers cannot tell which tier ran except by reading metadata
-- [ ] OT-P0-007 | Derivation versioning | Each derivation records tier, resource version and model role under a monotonic version; re-derivation never overwrites a prior version
-- [ ] OT-P0-008 | Stable unit anchors | Every unit carries a document hash plus the coordinates its handler chain could prove — page and bounding box, sheet and cell range, or structural path and character offset
-- [ ] OT-P0-009 | Anchor resolution survives re-derivation | Geometric and tabular anchors minted against v1 resolve unchanged after v2; a logical anchor resolves through a recorded alignment or reports unresolved, never a wrong region
-- [ ] OT-P0-010 | Gateway-only inference | Zero direct provider calls; ai-conformance reports L2 on all four capabilities
-- [ ] OT-P0-011 | Embedding metadata recorded | Role, model, dimension, content-version and retarget strategy stored alongside every vector from the first migration
-- [ ] OT-P0-012 | Privacy class per document | Every document carries a PrivacyClass, and that class selects the gateway routing profile rather than a user setting
-- [ ] OT-P0-013 | Fail-closed on sensitive documents | Confidential and secret documents never route remote; enforced in code, covered by a test asserting the failure, and visible in the UI
-- [ ] OT-P0-014 | Per-document processing receipt | Record of every derivation and inference step: tier, provider, locality, profile, privacy class and timestamps
-- [ ] OT-P0-015 | Immutable audit trail | Append-only custody records; no verb rewrites or deletes one, and document deletion tombstones rather than erasing the trail
-- [ ] OT-P0-016 | Artifact store under declared budgets | Bytes and derivations registered as storage-manager kinds with explicit retention and a regenerable flag per kind
-- [ ] OT-P0-017 | Full corpus export | Whole corpus exports to an open documented format with no proprietary container and no lock-in
-- [ ] OT-P0-018 | search-hub provider registration | Registered and active so corpus content is discoverable from federated search; the only path by which a caller that does not already know this corpus can find it, and the only place sources and findings are queryable together. Because the federation contract carries no caller identity, exposure is per-collection opt-in (default off) with a hard ceiling: confidential and secret units never federate regardless of the flag
-- [ ] OT-P0-019 | Anchor kind recorded and honored | Every anchor carries geometric, tabular or logical from the first migration, recording the kind its handler chain could actually prove; resolution dispatches on kind and never reads a prunable parse output
-- [ ] OT-P0-020 | Connect-RPC with CLI parity | Every domain verb defined in proto; the CLI is a thin generated wrapper rather than a second implementation
-- [ ] OT-P0-021 | The Reader surface | Side-by-side source page and derived units with bidirectional anchor highlighting and per-unit tier and confidence display
-- [ ] OT-P0-022 | Lifecycle and test compliance | setup/start/test/stop through the control plane with test-genie green including the ai-conformance phase
-- [ ] OT-P0-023 | Corpus retrieval | Hybrid query over units — FTS5 lexical plus in-process cosine over SQLite-resident vectors, fused by reciprocal rank — returning results that each carry a resolvable anchor, and degrading to lexical-only with the index marked partial when embeddings are unavailable
-- [ ] OT-P0-024 | Privacy-filtered retrieval | A unit never surfaces in a query whose caller cannot read its collection or privacy class; asserted as a failure, not a filter applied late
-- [ ] OT-P0-025 | Collection default privacy class | A collection confers a default class that documents inherit on intake; a document may be classified more restrictively, never less
-- [ ] OT-P0-026 | Single gateway-request choke point | Every outbound GatewayRequest is built at one construction site that refuses a profile weaker than the document's privacy class, asserted by an AST check
-- [ ] OT-P0-028 | Canonical anchor URI | Every citation is a `vrooli-anchor:` URI carrying content address, derivation version, anchor kind and coordinates, minted only in canonical form and compared by byte equality; resolution returns one of six outcomes and never a guessed region. It is the whole contract with any consumer that cites this corpus, and `OT-P1-023`'s idempotency depends on its byte-stability
-- [ ] OT-P0-027 | Unsupported is a terminal state, not a rejected upload | Bytes are retained and a custody record written for a document nothing can parse; it surfaces carrying one of no_handler_for_format, handler_unavailable, handler_failed, blocked_by_policy or unsupported_variant, each naming its own reason and remedy, and partial success records which capability was skipped
+- [x] OT-P0-001 | Content-addressed intake | Files keyed by content hash; identical bytes are never stored or derived twice
+- [x] OT-P0-002 | Type and scan verdict | Real MIME sniffing plus a text-native vs scanned decision, recorded before any parse runs
+- [x] OT-P0-003 | Two intake paths | API/CLI upload and a watched directory, both idempotent under repeat submission
+- [x] OT-P0-004 | Tier-1 native parse | Text-native PDFs parsed locally with no AI call and no network egress
+- [x] OT-P0-005 | Local structural parse | Word, OpenDocument, RTF, EPUB, presentations, spreadsheets, delimited text, HTML/XML, Markdown and plain text parsed locally through the declared handler chain for their format
+- [x] OT-P0-006 | One normalized document model | Every tier emits the same canonical model; consumers cannot tell which tier ran except by reading metadata
+- [x] OT-P0-007 | Derivation versioning | Each derivation records tier, resource version and model role under a monotonic version; re-derivation never overwrites a prior version
+- [x] OT-P0-008 | Stable unit anchors | Every unit carries a document hash plus the coordinates its handler chain could prove — page and bounding box, sheet and cell range, or structural path and character offset
+- [x] OT-P0-009 | Anchor resolution survives re-derivation | Geometric and tabular anchors minted against v1 resolve unchanged after v2; a logical anchor resolves through a recorded alignment or reports unresolved, never a wrong region
+- [x] OT-P0-010 | Gateway-only inference | Zero direct provider calls; ai-conformance reports L2 on all four capabilities
+- [x] OT-P0-011 | Embedding metadata recorded | Role, model, dimension, content-version and retarget strategy stored alongside every vector from the first migration
+- [x] OT-P0-012 | Privacy class per document | Every document carries a PrivacyClass, and that class selects the gateway routing profile rather than a user setting
+- [x] OT-P0-013 | Fail-closed on sensitive documents | Confidential and secret documents never route remote; enforced in code, covered by a test asserting the failure, and visible in the UI
+- [x] OT-P0-014 | Per-document processing receipt | Record of every derivation and inference step: tier, provider, locality, profile, privacy class and timestamps
+- [x] OT-P0-015 | Immutable audit trail | Append-only custody records; no verb rewrites or deletes one, and document deletion tombstones rather than erasing the trail
+- [x] OT-P0-016 | Artifact store under declared budgets | Bytes and derivations registered as storage-manager kinds with explicit retention and a regenerable flag per kind
+- [x] OT-P0-017 | Full corpus export | Whole corpus exports to an open documented format with no proprietary container and no lock-in
+- [x] OT-P0-018 | search-hub provider registration | Registered and active so corpus content is discoverable from federated search; the only path by which a caller that does not already know this corpus can find it, and the only place sources and findings are queryable together. Because the federation contract carries no caller identity, exposure is per-collection opt-in (default off) with a hard ceiling: confidential and secret units never federate regardless of the flag
+- [x] OT-P0-019 | Anchor kind recorded and honored | Every anchor carries geometric, tabular or logical from the first migration, recording the kind its handler chain could actually prove; resolution dispatches on kind and never reads a prunable parse output
+- [x] OT-P0-020 | Connect-RPC with CLI parity | Every domain verb defined in proto; the CLI is a thin generated wrapper rather than a second implementation
+- [x] OT-P0-021 | The Reader surface | Side-by-side source page and derived units with bidirectional anchor highlighting and per-unit tier and confidence display
+- [x] OT-P0-022 | Lifecycle and test compliance | setup/start/test/stop through the control plane with test-genie green including the ai-conformance phase
+- [x] OT-P0-023 | Corpus retrieval | Hybrid query over units — FTS5 lexical plus in-process cosine over SQLite-resident vectors, fused by reciprocal rank — returning results that each carry a resolvable anchor, and degrading to lexical-only with the index marked partial when embeddings are unavailable
+- [x] OT-P0-024 | Privacy-filtered retrieval | A unit never surfaces in a query whose caller cannot read its collection or privacy class; asserted as a failure, not a filter applied late
+- [x] OT-P0-025 | Collection default privacy class | A collection confers a default class that documents inherit on intake; a document may be classified more restrictively, never less
+- [x] OT-P0-026 | Single gateway-request choke point | Every outbound GatewayRequest is built at one construction site that refuses a profile weaker than the document's privacy class, asserted by an AST check
+- [x] OT-P0-028 | Canonical anchor URI | Every citation is a `vrooli-anchor:` URI carrying content address, derivation version, anchor kind and coordinates, minted only in canonical form and compared by byte equality; resolution returns one of six outcomes and never a guessed region. It is the whole contract with any consumer that cites this corpus, and `OT-P1-023`'s idempotency depends on its byte-stability
+- [x] OT-P0-027 | Unsupported is a terminal state, not a rejected upload | Bytes are retained and a custody record written for a document nothing can parse; it surfaces carrying one of no_handler_for_format, handler_unavailable, handler_failed, blocked_by_policy or unsupported_variant, each naming its own reason and remedy, and partial success records which capability was skipped
 
 ### 🟠 P1 – Should have post-launch
 

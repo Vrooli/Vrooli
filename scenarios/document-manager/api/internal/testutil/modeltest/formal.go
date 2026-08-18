@@ -107,7 +107,7 @@ func LoadFormalArtifact(t TestingT, path string) FormalArtifact {
 			path = filepath.Join(filepath.Dir(callerFile), path)
 		}
 	}
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(path) // #nosec G304 -- generated formal tests pass repository-local artifact paths.
 	if err != nil {
 		t.Fatalf("read formal artifact %s: %v", path, err)
 	}
@@ -310,7 +310,7 @@ func repoPathSHA256(repoPath string) (string, error) {
 		return "", err
 	}
 	if !info.IsDir() {
-		data, err := os.ReadFile(abs)
+		data, err := os.ReadFile(abs) // #nosec G304 -- findRepoPath resolves only repository-owned test artifacts.
 		if err != nil {
 			return "", err
 		}
@@ -345,7 +345,7 @@ func repoTreeSHA256(root string) (string, error) {
 		if !(strings.HasSuffix(slash, ".go") || slash == "go.mod" || strings.HasSuffix(slash, ".schema.json")) {
 			return nil
 		}
-		data, err := os.ReadFile(path)
+		data, err := os.ReadFile(path) // #nosec G304 G122 -- WalkDir is over the repository-owned test tree and excludes generated/untrusted paths.
 		if err != nil {
 			return err
 		}

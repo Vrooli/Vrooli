@@ -2,162 +2,39 @@
   "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
   "kind": "experience-page",
   "schemaVersion": "1.0.0",
-  "page": {
-    "id": "reader",
-    "title": "Reader",
-    "routes": ["/documents/:documentId", "/documents/:documentId/v/:version"],
-    "purpose": "Show the original page beside the units derived from it, with selection linking the two in both directions, so a human can see exactly what the machine understood and correct it where it was wrong.",
-    "prd_refs": ["OT-P0-021", "OT-P0-008", "OT-P0-009", "OT-P0-019", "OT-P1-010"]
-  },
+  "page": { "id": "reader", "title": "Reader", "routes": ["/reader"], "purpose": "Search derived units beside a source region, exposing anchor URIs, confidence, locality, and keyboard traversal.", "prd_refs": ["OT-P0-021", "OT-P0-019"] },
   "priorities": [
-    {
-      "statement": "Selecting a unit highlights its source region, and selecting a region reveals its unit.",
-      "notes": "This bidirectional link is the differentiating interaction. It is what makes 'what did the machine actually understand' answerable at a glance."
-    },
-    {
-      "statement": "Every unit shows which tier produced it and how confident that tier was.",
-      "notes": "Confidence is shown honestly, including when the machine is unsure. Hiding it would make the corrections surface pointless."
-    },
-    {
-      "statement": "A correction creates a new derivation version; it never overwrites the previous reading.",
-      "notes": "The audit trail depends on this. The UI must make the versioning visible so a user understands nothing was destroyed."
-    },
-    {
-      "statement": "Proposed redactions are never applied without explicit confirmation."
-    },
-    {
-      "statement": "An anchor that cannot be resolved says so, rather than highlighting a plausible wrong region."
-    }
+    { "statement": "A result carries its exact anchor URI and can be selected without a pointer." },
+    { "statement": "Confidence and execution locality are visible on each derived unit." },
+    { "statement": "When semantic retrieval is unavailable, the partial-index state is explicit." }
   ],
   "states": [
-    { "id": "default", "description": "Source page and derived units are shown side by side with nothing selected." },
-    { "id": "loading", "description": "The page render or the unit list is still in flight." },
-    { "id": "unit-selected", "description": "A unit is selected and its source region is highlighted." },
-    { "id": "region-selected", "description": "A source region is selected and its unit is scrolled into view." },
-    { "id": "low-confidence", "description": "One or more units are flagged for review and visibly marked." },
-    { "id": "anchor-unresolved", "description": "A logical anchor from an older version has no alignment to this version and reports itself unresolved." },
-    { "id": "redaction-review", "description": "Proposed redactions are shown awaiting explicit confirmation." },
-    { "id": "error", "description": "The document, a derivation version, or the unit list failed to load and the reason is visible." }
+    { "id": "default", "description": "The reader is ready for a corpus query.", "setup": { "route": "/reader" } },
+    { "id": "results", "description": "Anchored derived units are shown beside the source region.", "setup": { "route": "/reader" } },
+    { "id": "partial", "description": "Results are available but the semantic retrieval leg is unavailable.", "setup": { "route": "/reader" } },
+    { "id": "error", "description": "The query failed and the result list returns to an empty state.", "setup": { "route": "/reader" } }
   ],
   "elements": [
     { "id": "reader-region", "role": "region", "name": "Reader" },
-    { "id": "source-pane", "role": "x-panel", "name": "Source page", "description": "The rendered original page with selectable anchor regions." },
-    { "id": "units-pane", "role": "list", "name": "Derived units", "description": "Each entry shows tier, confidence and its anchor." },
-    { "id": "anchor-highlight", "role": "status", "name": "Anchor highlight", "description": "The region in the source pane corresponding to the selected unit." },
-    { "id": "tier-badge", "role": "status", "name": "Tier and confidence" },
-    { "id": "version-selector", "role": "tablist", "name": "Derivation version" },
-    { "id": "correct-unit", "role": "button", "name": "Correct this unit" },
-    { "id": "redaction-confirm", "role": "dialog", "name": "Confirm redactions" },
-    { "id": "unresolved-notice", "role": "alert", "name": "Anchor could not be resolved" },
-    { "id": "locality-status", "role": "status", "name": "Where this document was processed" }
+    { "id": "source-pane", "role": "region", "name": "Source region" },
+    { "id": "units-pane", "role": "listbox", "name": "Derived units" },
+    { "id": "anchor-highlight", "role": "status", "name": "Source anchor" },
+    { "id": "locality-status", "role": "status", "name": "Execution locality" },
+    { "id": "query-input", "role": "textbox", "name": "Search units" }
   ],
   "claims": [
-    {
-      "id": "reader-region-present",
-      "type": "element-present",
-      "statement": "The reader page exposes a named region containing both panes.",
-      "tier": "machine",
-      "elements": ["reader-region", "source-pane", "units-pane"],
-      "states": ["default", "loading", "unit-selected", "region-selected", "error"]
-    },
-    {
-      "id": "unit-to-region-link",
-      "type": "custom",
-      "statement": "Selecting a unit highlights exactly the source region its anchor names.",
-      "tier": "manual",
-      "elements": ["units-pane", "anchor-highlight"],
-      "states": ["unit-selected"],
-      "rationale": "OT-P0-021. This is the interaction the whole surface exists for; an approximate highlight is a correctness bug, not a polish issue."
-    },
-    {
-      "id": "region-to-unit-link",
-      "type": "custom",
-      "statement": "Selecting a source region scrolls its unit into view in the units pane.",
-      "tier": "manual",
-      "elements": ["source-pane", "units-pane"],
-      "states": ["region-selected"],
-      "rationale": "The link has to work in both directions or a reader cannot ask 'what did you make of this paragraph'."
-    },
-    {
-      "id": "tier-and-confidence-shown",
-      "type": "element-present",
-      "statement": "Every unit displays the tier that produced it and its confidence.",
-      "tier": "machine",
-      "elements": ["units-pane", "tier-badge"],
-      "states": ["default", "unit-selected", "low-confidence"]
-    },
-    {
-      "id": "unresolved-anchor-is-explicit",
-      "type": "custom",
-      "statement": "An anchor with no alignment to the displayed version renders an explicit notice and highlights nothing.",
-      "tier": "manual",
-      "elements": ["unresolved-notice", "anchor-highlight"],
-      "states": ["anchor-unresolved"],
-      "rationale": "OT-P0-019. Silently highlighting a plausible wrong region would make every citation untrustworthy without anyone noticing."
-    },
-    {
-      "id": "correction-creates-version",
-      "type": "custom",
-      "statement": "Correcting a unit produces a new derivation version and the version selector reflects it.",
-      "tier": "manual",
-      "elements": ["correct-unit", "version-selector"],
-      "states": ["unit-selected"],
-      "rationale": "Re-derivation never overwrites. If the UI presented a correction as an in-place edit, users would reasonably assume the old reading was destroyed."
-    },
-    {
-      "id": "redaction-requires-confirmation",
-      "type": "custom",
-      "statement": "No proposed redaction is applied until the operator confirms it in the dialog.",
-      "tier": "manual",
-      "elements": ["redaction-confirm"],
-      "states": ["redaction-review"],
-      "rationale": "OT-P1-010. Automated redaction without human review is not defensible, which is the point of the feature."
-    },
-    {
-      "id": "reader-keyboard-anchor-traversal",
-      "type": "keyboard-reachable",
-      "statement": "Units and their source regions can be traversed by keyboard alone, in both directions.",
-      "tier": "machine",
-      "elements": ["units-pane", "source-pane"],
-      "states": ["default", "unit-selected", "region-selected"]
-    },
-    {
-      "id": "reader-reading-order",
-      "type": "reading-order",
-      "statement": "A screen reader moves from a unit to its corresponding source region in a coherent order.",
-      "tier": "manual",
-      "elements": ["reader-region", "units-pane", "source-pane"],
-      "states": ["unit-selected"]
-    },
-    {
-      "id": "reader-states-covered",
-      "type": "state-covered",
-      "statement": "Loading, populated, low-confidence, unresolved-anchor and error states are reachable and distinct.",
-      "tier": "machine",
-      "elements": ["reader-region"],
-      "states": ["loading", "default", "low-confidence", "anchor-unresolved", "error"]
-    }
+    { "id": "reader-region-present", "type": "element-present", "statement": "The reader exposes a named source region and derived-unit list.", "tier": "machine", "elements": ["reader-region", "source-pane", "units-pane"], "states": ["default", "results", "partial", "error"] },
+    { "id": "results-carry-anchors", "type": "element-present", "statement": "Each displayed result exposes its anchor URI and links the result to a source-region description.", "tier": "machine", "elements": ["units-pane", "anchor-highlight"], "states": ["results", "partial"] },
+    { "id": "confidence-and-locality-visible", "type": "element-present", "statement": "Each result displays a bounded confidence score and a readable Local locality label.", "tier": "machine", "elements": ["units-pane", "locality-status"], "states": ["results", "partial"] },
+    { "id": "reader-keyboard-anchor-traversal", "type": "keyboard-reachable", "statement": "Arrow keys move focus through derived units while preserving the selected source relationship.", "tier": "machine", "elements": ["query-input", "units-pane"], "states": ["results", "partial"] },
+    { "id": "reader-states-covered", "type": "state-covered", "statement": "Ready, results, partial, and error states are distinct.", "tier": "machine", "elements": ["reader-region"], "states": ["default", "results", "partial", "error"] }
   ],
-  "bindings": {
-    "elements": {
-      "reader-region": { "testid": "page-reader" },
-      "source-pane": { "testid": "reader-source" },
-      "units-pane": { "testid": "reader-units" },
-      "anchor-highlight": { "testid": "reader-anchor-highlight" },
-      "tier-badge": { "testid": "reader-tier-badge" },
-      "version-selector": { "testid": "reader-versions" },
-      "correct-unit": { "testid": "reader-correct-unit" },
-      "redaction-confirm": { "testid": "reader-redaction-confirm" },
-      "unresolved-notice": { "testid": "reader-anchor-unresolved" },
-      "locality-status": { "testid": "reader-locality" }
-    }
-  },
-  "sketch": {
-    "viewport": "desktop",
-    "regions": [
-      { "id": "source-pane", "note": "Rendered original page; anchor regions are selectable overlays.", "grid": { "x": 0, "y": 0, "w": 6, "h": 10 } },
-      { "id": "units-pane", "note": "Derived units with tier and confidence; correction entry point.", "grid": { "x": 6, "y": 0, "w": 6, "h": 8 } },
-      { "id": "locality-status", "note": "Where processed, plus a link to the full receipt.", "grid": { "x": 6, "y": 8, "w": 6, "h": 2 } }
-    ]
-  }
+  "bindings": { "elements": {
+    "reader-region": { "testid": "page-reader" },
+    "source-pane": { "testid": "reader-source" },
+    "units-pane": { "testid": "reader-units-list" },
+    "anchor-highlight": { "testid": "reader-anchor-highlight" },
+    "locality-status": { "testid": "reader-locality-summary" },
+    "query-input": { "testid": "reader-query" }
+  }}
 }

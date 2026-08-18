@@ -7,7 +7,7 @@
   },
   "schemaVersion": "1.0.0",
   "scenario": "document-manager",
-  "description": "Three surfaces carry Document Manager's read spine: the Corpus (what is here), the Reader (what the machine understood), and the Receipt (where every step ran). Each exists to make one normally invisible thing visible, and the organizing principle across all of them is that locality is a first-class visual property rather than a settings page. Source and watched-directory configuration lives inside the Corpus surface; there is deliberately no separate settings route. Two further surfaces carry the P2 write spine and are marked draft because they are designed but unscheduled: the Composer (what a generated document says, and the agent you say it to) and Templates (how generated documents are allowed to look, and what a restyle would cost). Their organizing principle mirrors the read spine's: the spec is visibly the authority and the rendered artifact visibly a derivation of it, exactly as bytes are the authority on the read side.",
+  "description": "Three active surfaces carry Document Manager's read spine: the Corpus (what is here), the Reader (what the machine understood), and the Receipt (where every step ran). Each exists to make one normally invisible thing visible, and the organizing principle across all of them is that locality is a first-class visual property rather than a settings page. Source and watched-directory configuration lives inside the Corpus surface; there is deliberately no separate settings route. The P2 Composer and Templates documents remain authored as draft design references but are not active routes or runtime validation targets.",
   "pages": [
     {
       "id": "corpus",
@@ -26,18 +26,6 @@
       "path": "pages/receipt.json",
       "title": "Receipt",
       "status": "active"
-    },
-    {
-      "id": "composer",
-      "path": "pages/composer.json",
-      "title": "Composer",
-      "status": "draft"
-    },
-    {
-      "id": "templates",
-      "path": "pages/templates.json",
-      "title": "Templates",
-      "status": "draft"
     }
   ],
   "journeys": [
@@ -46,12 +34,6 @@
       "path": "journeys/ingest-to-citation.json",
       "title": "Ingest a document and cite a passage from it",
       "status": "active"
-    },
-    {
-      "id": "brief-to-generated-document",
-      "path": "journeys/brief-to-generated-document.json",
-      "title": "Author a document from sourced facts and have it land in the corpus",
-      "status": "draft"
     }
   ]
 }

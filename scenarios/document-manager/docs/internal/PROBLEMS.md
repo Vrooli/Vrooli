@@ -67,8 +67,8 @@ have read as coverage that does not exist.
 
 **Real fix:** When each page lands in the UI, add its testid to the
 selector manifest, author the experience-spec case against it, and run
-`test-genie registry build --scenario document-manager` from
-`scenarios/`. The claims in `experience/pages/*.json` name exactly what
+`test-genie registry build --scenario scenarios/document-manager` from the
+repository root. The claims in `experience/pages/*.json` name exactly what
 each case has to assert — the `machine`-tier ones are the automatable
 set.
 
@@ -83,7 +83,6 @@ set.
 `api/internal/notes/`, `api/handlers/notes/`, `cli/domains/notes/`,
 `ui/src/features/notes/` and
 `packages/proto/schemas/document-manager/v1/notes/`. Docs carry it inside
-`<!-- EXAMPLE-DOMAIN:notes -->` fences.
 
 **Root cause:** Not a defect — the fenced form is the template's designed
 removable state, and detemplate is a deliberate step that has not been
@@ -387,6 +386,13 @@ neither is in `.vrooli/dependencies/approved-dependencies.json` today,
 and both are days old, so treat the maturity risk as live.
 
 **Owner:** whoever packages the tier-1 resources.
+
+**Resolution (2026-08-17):** The `doc-parse` resource now owns the boundary and
+has measured it with a 42-fixture native/WASI corpus, including serialization,
+malformed PDFs, scanned PDFs, PPTX, and password-protected DOCX. Native PDF p95
+was 15 ms against the 250 ms budget, and native/WASI outputs matched
+byte-for-byte. Remaining work is artifact packaging and clean-host acceptance,
+not an unmeasured latency claim. Evidence: [`doc-parse measurements`](../../../../resources/doc-parse/docs/measurements.md).
 
 **Refs:** `docs/reference/format-matrix.md` (The Handlers),
 `docs/internal/DECISIONS.md` (CLI-shaped resources row).

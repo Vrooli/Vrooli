@@ -35,16 +35,6 @@ rather than descriptive.
 | Rendered bytes (P2) | inherits the spec | render | `regenerable: true`. The artifact someone was actually shown, which is what a citation points at. |
 | Chat transcripts (P2) | **inherits the document** | composition (custody) | An agent turn about a confidential document is confidential. Recorded as custody events, subject to the same routing gate as any other inference. |
 
-<!-- EXAMPLE-DOMAIN:notes START -->
-The shipped worked-example `notes` domain carries placeholder data only
-(removed by `template-manager detemplate`):
-
-| Data | Sensitivity | Owner | Details |
-|---|---|---|---|
-| Template notes data | low | notes reference | Local development data only; replace with real scenario data classification. |
-| Attachment bytes | unknown | notes reference | Treat as potentially sensitive if retained in product scope. |
-<!-- EXAMPLE-DOMAIN:notes END -->
-
 ## The Central Control
 
 One control carries the product claim, and everything else in this

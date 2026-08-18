@@ -20,7 +20,7 @@ import { cleanup, screen, waitFor } from "@testing-library/react";
 import { QueryClient, useMutation, useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 
-import { renderWithProviders } from "@vrooli/api-base/testing";
+import { renderWithProviders } from "../test-utils";
 import { strings } from "../consts/strings";
 
 afterEach(() => cleanup());

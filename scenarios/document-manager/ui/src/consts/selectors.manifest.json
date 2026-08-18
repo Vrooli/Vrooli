@@ -48,70 +48,6 @@
       "testId": "notifications-summary",
       "selector": "[data-testid=\"notifications-summary\"]"
     },
-    "notes.card": {
-      "testId": "notes-card",
-      "selector": "[data-testid=\"notes-card\"]"
-    },
-    "notes.list": {
-      "testId": "notes-list",
-      "selector": "[data-testid=\"notes-list\"]"
-    },
-    "notes.loading": {
-      "testId": "notes-loading",
-      "selector": "[data-testid=\"notes-loading\"]"
-    },
-    "notes.empty": {
-      "testId": "notes-empty",
-      "selector": "[data-testid=\"notes-empty\"]"
-    },
-    "notes.error": {
-      "testId": "notes-error",
-      "selector": "[data-testid=\"notes-error\"]"
-    },
-    "notes.createButton": {
-      "testId": "notes-create-button",
-      "selector": "[data-testid=\"notes-create-button\"]"
-    },
-    "notes.createdAt": {
-      "testId": "notes-created-at",
-      "selector": "[data-testid=\"notes-created-at\"]"
-    },
-    "notes.attachmentCount": {
-      "testId": "notes-attachment-count",
-      "selector": "[data-testid=\"notes-attachment-count\"]"
-    },
-    "notes.attachmentUpload": {
-      "testId": "notes-attachment-upload",
-      "selector": "[data-testid=\"notes-attachment-upload\"]"
-    },
-    "notes.attachmentFile": {
-      "testId": "notes-attachment-file",
-      "selector": "[data-testid=\"notes-attachment-file\"]"
-    },
-    "notes.attachmentButton": {
-      "testId": "notes-attachment-button",
-      "selector": "[data-testid=\"notes-attachment-button\"]"
-    },
-    "notes.attachmentStatus": {
-      "testId": "notes-attachment-status",
-      "selector": "[data-testid=\"notes-attachment-status\"]"
-    },
-    "notes.measure.card": {
-      "testId": "notes-measure-card",
-      "selector": "[data-testid=\"notes-measure-card\"]"
-    },
-    "notes.measure.value": {
-      "testId": "notes-measure-value",
-      "selector": "[data-testid=\"notes-measure-value\"]"
-    },
-    "notes.measure.loading": {
-      "testId": "notes-measure-loading",
-      "selector": "[data-testid=\"notes-measure-loading\"]"
-    },
-    "notes.measure.error": {
-      "testId": "notes-measure-error",
-      "selector": "[data-testid=\"notes-measure-error\"]"
-    },
     "layout.shell": {
       "testId": "layout-shell",
       "selector": "[data-testid=\"layout-shell\"]"
@@ -144,13 +80,85 @@
       "testId": "page-dashboard",
       "selector": "[data-testid=\"page-dashboard\"]"
     },
-    "pages.notes": {
-      "testId": "page-notes",
-      "selector": "[data-testid=\"page-notes\"]"
-    },
     "pages.settings": {
       "testId": "page-settings",
       "selector": "[data-testid=\"page-settings\"]"
+    },
+    "pages.corpus": {
+      "testId": "page-corpus",
+      "selector": "[data-testid=\"page-corpus\"]"
+    },
+    "pages.reader": {
+      "testId": "page-reader",
+      "selector": "[data-testid=\"page-reader\"]"
+    },
+    "pages.receipt": {
+      "testId": "page-receipt",
+      "selector": "[data-testid=\"page-receipt\"]"
+    },
+    "corpus.empty": {
+      "testId": "corpus-empty",
+      "selector": "[data-testid=\"corpus-empty\"]"
+    },
+    "corpus.error": {
+      "testId": "corpus-error",
+      "selector": "[data-testid=\"corpus-error\"]"
+    },
+    "corpus.collections": {
+      "testId": "corpus-collections",
+      "selector": "[data-testid=\"corpus-collections\"]"
+    },
+    "corpus.documents": {
+      "testId": "corpus-documents",
+      "selector": "[data-testid=\"corpus-documents\"]"
+    },
+    "corpus.locality": {
+      "testId": "corpus-locality",
+      "selector": "[data-testid=\"corpus-locality\"]"
+    },
+    "reader.query": {
+      "testId": "reader-query",
+      "selector": "[data-testid=\"reader-query\"]"
+    },
+    "reader.partial": {
+      "testId": "reader-partial",
+      "selector": "[data-testid=\"reader-partial\"]"
+    },
+    "reader.splitView": {
+      "testId": "reader-split-view",
+      "selector": "[data-testid=\"reader-split-view\"]"
+    },
+    "reader.source": {
+      "testId": "reader-source",
+      "selector": "[data-testid=\"reader-source\"]"
+    },
+    "reader.units": {
+      "testId": "reader-units",
+      "selector": "[data-testid=\"reader-units\"]"
+    },
+    "reader.unitsList": {
+      "testId": "reader-units-list",
+      "selector": "[data-testid=\"reader-units-list\"]"
+    },
+    "reader.locality": {
+      "testId": "reader-locality",
+      "selector": "[data-testid=\"reader-locality\"]"
+    },
+    "reader.localitySummary": {
+      "testId": "reader-locality-summary",
+      "selector": "[data-testid=\"reader-locality-summary\"]"
+    },
+    "reader.anchorHighlight": {
+      "testId": "reader-anchor-highlight",
+      "selector": "[data-testid=\"reader-anchor-highlight\"]"
+    },
+    "receipt.timeline": {
+      "testId": "receipt-timeline",
+      "selector": "[data-testid=\"receipt-timeline\"]"
+    },
+    "receipt.residencySummary": {
+      "testId": "receipt-residency-summary",
+      "selector": "[data-testid=\"receipt-residency-summary\"]"
     },
     "errorBoundary.root": {
       "testId": "error-boundary-root",
@@ -172,7 +180,9 @@
           "type": "enum",
           "values": [
             "dashboard",
-            "notes",
+            "corpus",
+            "reader",
+            "receipt",
             "settings"
           ]
         }
@@ -188,7 +198,9 @@
           "type": "enum",
           "values": [
             "dashboard",
-            "notes",
+            "corpus",
+            "reader",
+            "receipt",
             "settings"
           ]
         }
@@ -223,6 +235,17 @@
             "ja",
             "ar"
           ]
+        }
+      ]
+    },
+    "reader.unit": {
+      "description": "Reader derived unit by result index",
+      "selectorPattern": "[data-testid=\"reader-unit-${index}\"]",
+      "testIdPattern": "reader-unit-${index}",
+      "params": [
+        {
+          "name": "index",
+          "type": "number"
         }
       ]
     }

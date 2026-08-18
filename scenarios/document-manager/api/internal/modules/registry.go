@@ -24,11 +24,17 @@ import (
 	apidb "github.com/vrooli/api-core/database"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
+	corpusH "document-manager/handlers/corpus"
+	enrichmentH "document-manager/handlers/enrichment"
 	healthH "document-manager/handlers/health"
-	notesH "document-manager/handlers/notes" // EXAMPLE-DOMAIN:notes
+	intakeH "document-manager/handlers/intake"
+	retrievalH "document-manager/handlers/retrieval"
 	localdb "document-manager/internal/database"
 
-	notesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/document-manager/v1/notes" // EXAMPLE-DOMAIN:notes
+	corpusv1 "github.com/vrooli/vrooli/packages/proto/gen/go/document-manager/v1/corpus"
+	enrichmentv1 "github.com/vrooli/vrooli/packages/proto/gen/go/document-manager/v1/enrichment"
+	intakev1 "github.com/vrooli/vrooli/packages/proto/gen/go/document-manager/v1/intake"
+	retrievalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/document-manager/v1/retrieval"
 )
 
 // AllEndpoints returns every domain's static endpoint descriptors in a
@@ -39,7 +45,10 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out := make([]module.EndpointDescriptor, 0)
 	out = append(out, healthH.Endpoints...)
 	out = append(out, capsH.Endpoints...)
-	out = append(out, notesH.Endpoints...) // EXAMPLE-DOMAIN:notes
+	out = append(out, intakeH.Endpoints...)
+	out = append(out, corpusH.Endpoints...)
+	out = append(out, enrichmentH.Endpoints...)
+	out = append(out, retrievalH.Endpoints...)
 	return out
 }
 
@@ -66,7 +75,10 @@ type ProtoFileEntry struct {
 // Connect-mounted domain module, in registration order.
 func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
-		{Module: "notes", File: notesv1.File_document_manager_v1_notes_notes_proto}, // EXAMPLE-DOMAIN:notes
+		{Module: "intake", File: intakev1.File_document_manager_v1_intake_intake_proto},
+		{Module: "corpus", File: corpusv1.File_document_manager_v1_corpus_corpus_proto},
+		{Module: "enrichment", File: enrichmentv1.File_document_manager_v1_enrichment_enrichment_proto},
+		{Module: "retrieval", File: retrievalv1.File_document_manager_v1_retrieval_retrieval_proto},
 	}
 }
 
@@ -81,6 +93,9 @@ func AllSchemas() []apidb.SchemaProvider {
 	return []apidb.SchemaProvider{
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(healthH.Schema),
-		apidb.SchemaProviderFunc(notesH.Schema), // EXAMPLE-DOMAIN:notes
+		apidb.SchemaProviderFunc(intakeH.Schema),
+		apidb.SchemaProviderFunc(corpusH.Schema),
+		apidb.SchemaProviderFunc(enrichmentH.Schema),
+		apidb.SchemaProviderFunc(retrievalH.Schema),
 	}
 }
