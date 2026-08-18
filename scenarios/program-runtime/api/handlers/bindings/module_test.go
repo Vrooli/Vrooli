@@ -55,3 +55,13 @@ func TestOrderedSearchHitsHonorsScoreBeforeIdentityTieBreak(t *testing.T) {
 	}})
 	require.Equal(t, []string{"best", "same-a", "same-z", "lower"}, []string{hits[0].GetId(), hits[1].GetId(), hits[2].GetId(), hits[3].GetId()})
 }
+
+func TestReviewedIntentVocabularyMakesDocumentedRunVerdictQueryDiscriminative(t *testing.T) {
+	aliases := bindingIntentAliases(&bindingsv1.Binding{
+		Id:       "test-genie/runs/status",
+		Scenario: "test-genie",
+		Group:    "runs",
+		Command:  "status",
+	})
+	require.Contains(t, aliases, "read test run verdicts")
+}

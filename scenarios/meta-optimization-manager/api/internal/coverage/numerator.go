@@ -52,6 +52,11 @@ type JoinResult struct {
 	AnswerCorpusCapableTotalCells int
 	AnswerEndToEndNowCount        int
 	AnswerEndToEndTotalCells      int
+	ManifestScenarios             int
+	TotalScenarios                int
+	ReachableScenarios            int
+	UnreachableScenarios          int
+	ReachabilityCheckedAt         string
 }
 
 // guideHealthyScore is the prompt-manager graph health-score threshold at or

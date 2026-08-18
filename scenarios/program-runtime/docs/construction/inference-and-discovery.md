@@ -33,6 +33,11 @@ refuses a caller-supplied `temperature`. `ai.write` maps to the overridable
 `ai.batch(sources, schema)` classifies a small corpus in one governed call and
 preserves input order.
 
+For convenience, `ai.classify(source=["one", "two"], labels=["bug", "feature"])`
+uses that same governed batch route and returns one bounded row per input,
+including the input text. `recall` accepts an intent and optional depth only;
+use `describe` or `discover` when you already have a binding id.
+
 `recall("intent")` returns governed records and docs through search-hub;
 `recall("intent", depth="deep")` widens the result set. Inference and delegation
 both draw on the session's spend ceilings, so a long fan-out can be stopped by

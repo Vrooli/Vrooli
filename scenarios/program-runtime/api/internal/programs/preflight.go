@@ -28,6 +28,7 @@ const nearestMatchFloor = 0.62
 type analysis struct {
 	OK       bool           `json:"ok"`
 	Degraded string         `json:"degraded"`
+	Bound    []analysisName `json:"bound"`
 	Free     []analysisName `json:"free"`
 	Shadowed []analysisName `json:"shadowed"`
 }
@@ -124,6 +125,26 @@ func ResolveSource(source string, known []string, analyzerPath string) []*progra
 		return diagnostics[left].GetLine() < diagnostics[right].GetLine()
 	})
 	return diagnostics
+}
+
+// DeclaredNames returns module-scope names that a previous submission made
+// available to later submissions in the same persistent kernel. Preflight is
+// intentionally session-aware: rejecting a persisted local as an unresolved
+// capability would make the documented session-reuse contract impossible.
+// Analyzer failure returns no names; execution remains the authority in that
+// degraded case and reports a real runtime error if the name is absent.
+func DeclaredNames(source, analyzerPath string) []string {
+	result, err := runAnalyzer(source, analyzerPath)
+	if err != nil || result == nil || !result.OK || result.Degraded != "" {
+		return nil
+	}
+	names := make([]string, 0, len(result.Bound))
+	for _, entry := range result.Bound {
+		if entry.Name != "" {
+			names = append(names, entry.Name)
+		}
+	}
+	return names
 }
 
 func runAnalyzer(source, analyzerPath string) (*analysis, error) {

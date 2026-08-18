@@ -15,9 +15,10 @@ import (
 )
 
 type suite struct {
-	Name  string     `json:"name"`
-	Floor int        `json:"floor"`
-	Cases []caseSpec `json:"cases"`
+	Name        string     `json:"name"`
+	Floor       int        `json:"floor"`
+	FloorReason string     `json:"floor_reason,omitempty"`
+	Cases       []caseSpec `json:"cases"`
 }
 
 type caseSpec struct {
@@ -86,7 +87,11 @@ func run(ctx cliapp.RunContext) error {
 	}
 	client, base := cliapp.NewConnectHTTPClient(ctx.Core())
 	registry := bindingsconnect.NewBindingRegistryServiceClient(client, base)
-	out := report{Suite: input.Name, Cases: len(input.Cases), Floor: input.Floor, FloorReason: "provider-direct Search Hub floor is the pre-change reference tier; this runner records the federated baseline before retrieval changes.", Results: make([]caseResult, 0, len(input.Cases))}
+	floorReason := input.FloorReason
+	if floorReason == "" {
+		floorReason = "provider-direct Search Hub floor is the pre-change reference tier; this runner records the federated baseline before retrieval changes."
+	}
+	out := report{Suite: input.Name, Cases: len(input.Cases), Floor: input.Floor, FloorReason: floorReason, Results: make([]caseResult, 0, len(input.Cases))}
 	for _, item := range input.Cases {
 		if item.Negative {
 			out.Negative++

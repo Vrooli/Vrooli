@@ -115,7 +115,9 @@ var pythonVocabulary = map[string]struct{}{
 	"str": {}, "sum": {}, "super": {}, "tuple": {}, "type": {}, "vars": {}, "zip": {},
 	"self": {}, "cls": {}, "args": {}, "kwargs": {}, "exc": {}, "err": {}, "idx": {}, "key": {},
 	"val": {}, "row": {}, "item": {}, "text": {}, "data": {}, "result": {}, "name": {}, "main": {},
-	"paid": {}, "value": {}, "rows": {}, "items": {},
+	"paid": {}, "value": {}, "rows": {}, "items": {}, "handle1": {}, "handle2": {}, "handle_one": {},
+	"handle_two": {}, "prior_result": {}, "data_store": {}, "left": {}, "right": {}, "scenario": {},
+	"left_handle": {}, "right_handle": {},
 }
 
 func looksLikeCapabilityName(name string) bool {

@@ -208,6 +208,7 @@ func main() {
 		log.Fatalf("binding registry initialization failed: %v", err)
 	}
 	bindingRegistry.SetInvocationRecorder(bindings.NewInvocationRepository(db.Primary()))
+	bindingRegistry.SetExerciseReader(bindings.NewReceiptExerciseReader(discovery.ResolveScenarioURLDefault, http.DefaultClient))
 	refusalRepository := bindings.NewRefusalRepository(db.Primary())
 	unresolvedRecorder, _ := refusalRepository.(bindings.UnresolvedRecorder)
 	telemetryStore := telemetry.NewStoreWithDB(db.Primary(), telemetry.NewPublisher(os.Getenv("VROOLI_EVENTS_API_BASE")))
@@ -251,7 +252,8 @@ func main() {
 	}
 	workspaceResolver := sessions.NewTypedWorkspaceResolver(discovery.NewResolver(discovery.ResolverConfig{}), http.DefaultClient)
 	sessionManager := sessions.NewManager(sessions.Options{Store: db.Primary(), WallBudget: envDurationMillis("PROGRAM_RUNTIME_WALL_BUDGET_MILLIS"), CPUBudget: envDurationMillis("PROGRAM_RUNTIME_CPU_BUDGET_MILLIS"), InferenceCeilingMicros: envInt64("PROGRAM_RUNTIME_INFERENCE_CEILING_MICROS"), DelegationCeilingMicros: envInt64("PROGRAM_RUNTIME_DELEGATION_CEILING_MICROS"), WorkspaceResolver: workspaceResolver, OnWorkspaceResolved: runner.SetSessionWorkspace, OnReclaimed: func(id string) { runner.KillSession(id); runner.ClearSessionWorkspace(id) }})
-	programService := programs.NewService(programs.Options{Store: db.Primary(), Runner: runner, Preflight: func(source string) []*programsv1.Diagnostic {
+	var programService *programs.Service
+	programService = programs.NewService(programs.Options{Store: db.Primary(), Runner: runner, Preflight: func(source string) []*programsv1.Diagnostic {
 		current := bindingRegistry.List("", "")
 		known := []string{"discover", "recall", "guide", "validate", "capture", "ai", "agent", "gather", "describe", "reachable", "lib", "vrooli", "__vrooli__", "Handle"}
 		for _, binding := range current {
@@ -261,11 +263,24 @@ func main() {
 			}
 		}
 		return programs.ResolveSource(source, known, filepath.Join(repoRoot, "scenarios", "program-runtime", "kernel", "host", "analyze.py"))
-	}, RecordUnresolved: func(ctx context.Context, sessionID, attemptedName string) error {
+	}, PreflightSession: func(ctx context.Context, sessionID, source string) []*programsv1.Diagnostic {
+		current := bindingRegistry.List("", "")
+		known := []string{"discover", "recall", "guide", "validate", "capture", "ai", "agent", "gather", "describe", "reachable", "lib", "vrooli", "__vrooli__", "Handle"}
+		for _, binding := range current {
+			name := strings.ReplaceAll(binding.GetScenario(), "-", "_")
+			if name != "" && name != "vrooli" {
+				known = append(known, name)
+			}
+		}
+		for _, previous := range programService.List(ctx, sessionID, true) {
+			known = append(known, programs.DeclaredNames(previous.GetSource(), filepath.Join(repoRoot, "scenarios", "program-runtime", "kernel", "host", "analyze.py"))...)
+		}
+		return programs.ResolveSource(source, known, filepath.Join(repoRoot, "scenarios", "program-runtime", "kernel", "host", "analyze.py"))
+	}, RecordUnresolved: func(ctx context.Context, sessionID, attemptedName, provenance string) error {
 		if unresolvedRecorder == nil {
 			return nil
 		}
-		return unresolvedRecorder.RecordUnresolved(ctx, sessionID, attemptedName, time.Now().UTC())
+		return unresolvedRecorder.RecordUnresolved(ctx, sessionID, provenance, attemptedName, time.Now().UTC())
 	}, RecordMemory: func(id string, bytes int64) { _ = sessionManager.SetMemoryBytes(context.Background(), id, bytes) }, ExecutionBudget: func(id string) (programs.ExecutionLimits, error) {
 		budget, err := sessionManager.ExecutionBudget(context.Background(), id)
 		if err != nil {
@@ -331,12 +346,17 @@ func main() {
 			}
 			return envelope.Source, model, nil
 		},
-		RunCase: func(ctx context.Context, source string) (string, string, int64, string, error) {
+		RunCase: func(ctx context.Context, setup, source string) (string, string, int64, string, error) {
 			session, err := sessionManager.Create(ctx, "", "", nil)
 			if err != nil {
 				return "", "", 0, "", err
 			}
 			defer func() { _, _ = sessionManager.Delete(context.Background(), session.ID, "authoring eval case complete") }()
+			if strings.TrimSpace(setup) != "" {
+				if _, err := programService.Submit(ctx, session.ID, setup, programsv1.Provenance_PROVENANCE_TEST, false); err != nil {
+					return "", "", 0, "", fmt.Errorf("authoring setup failed: %w", err)
+				}
+			}
 			p, err := programService.Submit(ctx, session.ID, source, programsv1.Provenance_PROVENANCE_TEST, false)
 			if err != nil {
 				return "", "", 0, "", err
@@ -382,13 +402,16 @@ func main() {
 	}, func() int {
 		return sessionManager.CountDelegations(context.Background())
 	}, func() int {
-		total, _, _ := bindingRegistry.InvocationMeasures(context.Background())
+		total, _, _ := bindingRegistry.ExerciseMeasures(context.Background())
 		return total
+	}, func() int {
+		_, unattributed, _ := bindingRegistry.ExerciseMeasures(context.Background())
+		return unattributed
 	}, func() int {
 		_, failureRate, _ := bindingRegistry.InvocationMeasures(context.Background())
 		return failureRate
 	}, func() int {
-		_, _, dormant := bindingRegistry.InvocationMeasures(context.Background())
+		_, _, dormant := bindingRegistry.ExerciseMeasures(context.Background())
 		return dormant
 	}, func() int {
 		return bindingRegistry.SustainedDegradedCount(context.Background())

@@ -234,6 +234,7 @@ func UnresolvedBridge(manager *sessions.Manager, recorder bindings.UnresolvedRec
 		}
 		var request struct {
 			SessionID     string `json:"session_id"`
+			Provenance    string `json:"provenance"`
 			AttemptedName string `json:"attempted_name"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
@@ -249,7 +250,7 @@ func UnresolvedBridge(manager *sessions.Manager, recorder bindings.UnresolvedRec
 			return
 		}
 		if recorder != nil {
-			if err := recorder.RecordUnresolved(r.Context(), request.SessionID, request.AttemptedName, time.Now().UTC()); err != nil {
+			if err := recorder.RecordUnresolved(r.Context(), request.SessionID, request.Provenance, request.AttemptedName, time.Now().UTC()); err != nil {
 				writeBridgeError(w, http.StatusInternalServerError, err.Error())
 				return
 			}
@@ -317,7 +318,7 @@ func Bridge(registry *bindings.Registry, manager *sessions.Manager, refusalRecor
 		}
 		if _, governed := registry.Binding(request.BindingID); !governed {
 			if unresolved, ok := refusals.(bindings.UnresolvedRecorder); ok {
-				_ = unresolved.RecordUnresolved(r.Context(), request.SessionID, request.BindingID, time.Now().UTC())
+				_ = unresolved.RecordUnresolved(r.Context(), request.SessionID, request.Provenance, request.BindingID, time.Now().UTC())
 			}
 		}
 		// A binding may be a bounded typed inference call. The registry's
@@ -327,7 +328,7 @@ func Bridge(registry *bindings.Registry, manager *sessions.Manager, refusalRecor
 		if err := registry.Authorize(request.BindingID, grants, request.Confirmed); err != nil {
 			registry.RecordInvocation(r.Context(), bindings.Invocation{BindingID: request.BindingID, SessionID: request.SessionID, ProgramID: request.ProgramID, Provenance: request.Provenance, Outcome: "refused", Reason: err.Error(), OccurredAt: time.Now().UTC()})
 			if refusals != nil {
-				_ = refusals.RecordRefusal(r.Context(), request.SessionID, request.BindingID, err.Error(), time.Now().UTC())
+				_ = refusals.RecordRefusal(r.Context(), request.SessionID, request.Provenance, request.BindingID, err.Error(), time.Now().UTC())
 			}
 			writeBridgeError(w, http.StatusBadRequest, err.Error())
 			return
@@ -788,6 +789,9 @@ func (s *service) resolveIntent(ctx context.Context, intent string, limit int32,
 	if err != nil {
 		return unavailableDiscoveryResponse(response, err.Error()), nil
 	}
+	if mode == "fast" && len(ranked) > 0 && ranked[0].GetScore() < minimumFastDiscoveryScore {
+		return nullVerdictDiscoveryResponse(response, fmt.Sprintf("best binding match scored %.2f, below the fast discovery confidence floor", ranked[0].GetScore())), nil
+	}
 	candidates := joinSearchHits(s.registry, ranked, nil, int(limit))
 	response.Bindings = candidates
 	response.Reason = "provider-direct binding discovery"
@@ -831,6 +835,13 @@ func (s *service) resolveIntent(ctx context.Context, intent string, limit int32,
 	response.Result = result
 	return response, nil
 }
+
+// Search Hub's binding provider emits a normalized score. Fast discovery has
+// no judge to recover from a weak lexical match, so returning its arbitrary
+// top hit is more dangerous than an explicit null verdict. The floor is below
+// the reviewed exact/alias matches (1.0 and 0.75 in the live corpus) while
+// rejecting the 0.25 catch-all result returned for unrelated intents.
+const minimumFastDiscoveryScore = 0.5
 
 func (s *service) retrieveIntentCandidates(ctx context.Context, intent string, limit int32, mode string) ([]*routingv1.SearchHit, error) {
 	base, err := discovery.ResolveScenarioURLDefault(ctx, "search-hub")
@@ -1053,11 +1064,22 @@ func (s *service) ResolveActCells(ctx context.Context, req *connect.Request[bind
 			return nil, connect.NewError(connect.CodeUnavailable, err)
 		}
 		verdicts := actspace.Audit(ctx, s.registry, definition)
-		return connect.NewResponse(&bindingsv1.ResolveActCellsResponse{Cells: verdicts, AuditedCells: int32(len(verdicts)), TotalCells: int32(len(verdicts)), DenominatorConfidence: string(actspace.Confidence(verdicts))}), nil
+		return connect.NewResponse(s.actResponse(ctx, verdicts, int32(len(verdicts)), string(actspace.Confidence(verdicts)))), nil
 	}
 	verdicts := s.registry.ResolveActCells(ctx, cells)
 	confidence := string(actspace.Confidence(verdicts))
-	return connect.NewResponse(&bindingsv1.ResolveActCellsResponse{Cells: verdicts, AuditedCells: int32(len(verdicts)), TotalCells: int32(len(cells)), DenominatorConfidence: confidence}), nil
+	return connect.NewResponse(s.actResponse(ctx, verdicts, int32(len(cells)), confidence)), nil
+}
+
+func (s *service) actResponse(ctx context.Context, verdicts []*bindingsv1.ActCellVerdict, total int32, confidence string) *bindingsv1.ResolveActCellsResponse {
+	response := &bindingsv1.ResolveActCellsResponse{Cells: verdicts, AuditedCells: int32(len(verdicts)), TotalCells: total, DenominatorConfidence: confidence}
+	doctor := s.registry.DoctorContext(ctx, "")
+	response.ManifestScenarios = doctor.GetManifestScenarios()
+	response.TotalScenarios = doctor.GetTotalScenarios()
+	response.ReachableScenarios = int32(len(doctor.GetReachableScenarios()))
+	response.UnreachableScenarios = int32(len(doctor.GetUnreachableScenarios()))
+	response.ReachabilityCheckedAt = doctor.GetReachabilityCheckedAt()
+	return response
 }
 
 func (s *service) loadActSpace() (*spacedoc.SpaceDefinition, error) {

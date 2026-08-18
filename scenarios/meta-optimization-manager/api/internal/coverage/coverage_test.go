@@ -57,6 +57,17 @@ func guideDef() *spacedoc.SpaceDefinition {
 	}
 }
 
+func actDef() *spacedoc.SpaceDefinition {
+	return &spacedoc.SpaceDefinition{
+		SchemaVersion:         "v1",
+		Projection:            ProjectionAct,
+		Owner:                 "program-runtime",
+		DenominatorConfidence: spacedoc.ConfidencePartial,
+		Source:                "scenarios/program-runtime/docs/spaces/act-space.md",
+		Cells: []spacedoc.Cell{{ID: "A1", Question: "Act", Owner: "program-runtime.bindings", Status: spacedoc.StatusInReach}},
+	}
+}
+
 // staticJoiner returns a fixed JoinResult.
 type staticJoiner struct{ res JoinResult }
 
@@ -97,6 +108,30 @@ func TestGetStatusComputesCounts(t *testing.T) {
 	}
 	if !st.DeterminismChecked || !st.Deterministic || st.DeterminismEvidence == "" {
 		t.Errorf("determinism self-check = checked:%t deterministic:%t evidence:%q", st.DeterminismChecked, st.Deterministic, st.DeterminismEvidence)
+	}
+}
+
+func TestGetStatusPublishesActReachabilityBasis(t *testing.T) {
+	svc := NewService(Deps{
+		Reader: fakeReader{defs: map[Projection]*spacedoc.SpaceDefinition{ProjectionAct: actDef()}},
+		Joiner: staticJoiner{JoinResult{
+			Available:             true,
+			Statuses:              map[string]spacedoc.CellStatus{"A1": spacedoc.StatusNow},
+			ManifestScenarios:     73,
+			TotalScenarios:        122,
+			ReachableScenarios:    57,
+			UnreachableScenarios:  16,
+			ReachabilityCheckedAt: "2026-08-18T12:00:00Z",
+		}},
+		Clock: fixedClock{},
+	})
+	st, err := svc.GetStatus(context.Background(), ProjectionAct)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pc := st.Projections[0]
+	if pc.ManifestScenarios != 73 || pc.TotalScenarios != 122 || pc.ReachableScenarios != 57 || pc.UnreachableScenarios != 16 || pc.ReachabilityCheckedAt != "2026-08-18T12:00:00Z" {
+		t.Fatalf("act basis = %+v", pc)
 	}
 }
 

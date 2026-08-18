@@ -138,6 +138,11 @@ type ProjectionCoverage struct {
 	EndToEndAnswerableNowCount   int
 	EndToEndAnswerableTotalCells int
 	EndToEndAnswerableRatio      float64
+	ManifestScenarios            int
+	TotalScenarios               int
+	ReachableScenarios           int
+	UnreachableScenarios         int
+	ReachabilityCheckedAt        string
 }
 
 // EmpiricalTrendPoint is the latest trials trend surfaced on the scoreboard.

@@ -76,6 +76,17 @@ when you need the rows themselves, and always pass a limit. Printed output is
 bounded (4 KB by default, 64 KB when the submission opts into materialized
 output), so an unbounded print is truncated rather than expensive.
 
+`group_by(key)` returns a dict-shaped count mapping with a bounded `count()`
+helper for the represented source rows:
+
+```python
+counts = rows.group_by("status")
+print(counts.count())
+```
+
+For joins, use `left.join(right, key="id")` or the additive `on="id"` alias;
+passing both names is rejected.
+
 A `Handle` is not a dict and not a response object: it has no `.get()` and no
 attributes named after response fields. Take the row first, then index it:
 
@@ -84,8 +95,37 @@ row = discover("read test run verdicts").head(1)[0]
 print(row["binding_id"])
 ```
 
+`describe(binding_id="...")` returns a handle of argument rows. Read the
+first row and its `name` field; the handle itself is not a row containing an
+`arguments` field:
+
+```python
+argument = describe(binding_id="test-genie/runs/list").head(1)[0]
+print(argument["name"])
+```
+
 `meta()` returns the response fields that are not rows — latency, routing,
 totals. `raw()` returns the decoded response. Neither escapes the output bound.
+
+## Start with promoted patterns
+
+Before hand-authoring a repeated shape such as fan-out, inspect the frozen
+library for a reviewed implementation. The library is explicit and
+session-scoped: it does not change underneath a running program session.
+
+~~~python
+catalog = lib.list()
+print(catalog.head(20))
+
+# After choosing a reviewed entry from the catalog:
+result = lib.concurrent_fanout()
+print(result.head(3))
+~~~
+
+Use lib.list() first, then call the exact promoted name with the arguments
+shown by its entry. If no suitable entry exists, author the smallest new
+program and keep its output bounded. Start a new session after a library
+version is promoted or its current version changes.
 
 ## Ambiguous responses
 
@@ -253,6 +293,29 @@ else:
 | `"fast"` | sub-second, no inference | you want determinism, or the judge is degraded |
 | `"judged"` (default) | one governed model round-trip | you want the highest-precision single answer |
 | `"deep"` | judged over paraphrases | recall matters more than latency |
+
+## Typed inference and contract aliases
+
+The typed inference helpers accept the model-friendly `text=` alias in addition
+to the canonical `source=` spelling. `describe` likewise accepts
+`binding_id=` in addition to `binding=`. Both spellings are additive and
+backward-compatible; passing both spellings in one call fails with a `TypeError`
+that names the collision rather than choosing silently.
+
+```python
+summary = ai.classify(text="The build is green.")
+contract = describe(binding_id="test-genie/runs/list")
+```
+
+For bounded classification, `labels=["bug", "feature"]` builds the existing
+local JSON-Schema enum path for you. It returns the same validated result as a
+hand-authored schema. Do not pass `labels=` with `schema=`; the two forms are
+mutually exclusive, and labels must be a non-empty list of strings.
+
+For a small corpus, `ai.classify(source=["one", "two"], labels=["bug", "feature"])`
+uses the same governed batch route as `ai.batch` and returns one bounded row per
+input. The single-text form remains unchanged. `recall` accepts an intent and
+optional depth only; use `describe` or `discover` for a binding id.
 
 ## Runtime verbs
 

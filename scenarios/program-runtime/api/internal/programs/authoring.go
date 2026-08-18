@@ -20,15 +20,20 @@ import (
 type AuthoringCase struct {
 	ID     string          `json:"id"`
 	Task   string          `json:"task"`
+	Setup  string          `json:"setup,omitempty"`
 	Oracle AuthoringOracle `json:"oracle"`
 	Notes  string          `json:"notes"`
 }
 
 type AuthoringOracle struct {
-	Kind string   `json:"kind"`
-	Keys []string `json:"keys"`
-	Min  *int     `json:"min"`
-	Text string   `json:"text"`
+	Kind     string   `json:"kind"`
+	Keys     []string `json:"keys"`
+	Min      *int     `json:"min"`
+	Text     string   `json:"text"`
+	Value    any      `json:"value"`
+	Relation string   `json:"relation"`
+	Key      string   `json:"key"`
+	Cause    string   `json:"cause"`
 }
 
 type AuthoringSuite struct {
@@ -80,9 +85,10 @@ type AuthoringDeps struct {
 	// Author asks the code-authoring model for one program. It returns the
 	// program source and the resolved model id.
 	Author func(ctx context.Context, instruction, task string) (source string, model string, err error)
-	// RunCase submits a program into a fresh session and returns its terminal
-	// stdout, cause, and agent-visible byte count.
-	RunCase func(ctx context.Context, source string) (stdout string, cause string, agentBytes int64, failureDetail string, err error)
+	// RunCase submits an optional harness setup program and then the authored
+	// program into one fresh session. Setup is used only by corpus cases that
+	// explicitly test session persistence; it is never authored by the model.
+	RunCase func(ctx context.Context, setup, source string) (stdout string, cause string, agentBytes int64, failureDetail string, err error)
 	// SuitePath locates the corpus on disk.
 	SuitePath string
 }
@@ -186,12 +192,28 @@ func RunAuthoringEval(ctx context.Context, deps AuthoringDeps) AuthoringResult {
 		caseResult.Authored = true
 		source = stripSourceFence(source)
 
-		stdout, cause, agentBytes, detail, err := deps.RunCase(ctx, source)
+		stdout, cause, agentBytes, detail, err := deps.RunCase(ctx, item.Setup, source)
 		caseResult.Cause = cause
 		caseResult.AgentBytes = agentBytes
 		caseResult.FailureDetail = detail
-		if err != nil || cause != "" {
+		if err != nil {
 			result.Missed++
+			result.Cases = append(result.Cases, caseResult)
+			continue
+		}
+		if cause != "" {
+			if item.Oracle.Kind == "cause_equals" && cause == item.Oracle.Cause {
+				caseResult.FirstAttempt = true
+				result.Met++
+			} else {
+				result.Missed++
+			}
+			result.Cases = append(result.Cases, caseResult)
+			continue
+		}
+		if item.Oracle.Kind == "cause_equals" && containsCause(stdout, item.Oracle.Cause) {
+			caseResult.FirstAttempt = true
+			result.Met++
 			result.Cases = append(result.Cases, caseResult)
 			continue
 		}
@@ -250,17 +272,111 @@ func satisfiesOracle(oracle AuthoringOracle, stdout string) bool {
 		}
 		return true
 	case "stdout_contains":
-		return strings.Contains(stdout, oracle.Text)
+		return strings.Contains(stdout, oracle.expectedText())
 	case "stdout_non_empty":
+		return strings.TrimSpace(stdout) != ""
+	case "row_count_relation":
+		expected, ok := oracle.expectedCount()
+		if !ok {
+			return false
+		}
+		return compareCount(stdout, oracle.Relation, expected)
+	case "handle_metadata":
+		return containsJSONKey(stdout, oracle.Key)
+	case "null_verdict":
+		lower := strings.ToLower(stdout)
+		return strings.Contains(lower, "null") || strings.Contains(lower, "nothing") || strings.Contains(lower, "no governed")
+	case "null_verdict_or_success":
 		return strings.TrimSpace(stdout) != ""
 	case "row_count_min":
 		if oracle.Min == nil {
-			return strings.TrimSpace(stdout) != ""
+			return false
 		}
-		return countDigitsAtLeast(stdout, *oracle.Min)
+		return compareCount(stdout, "gte", *oracle.Min)
 	default:
-		return strings.TrimSpace(stdout) != ""
+		return false
 	}
+}
+
+func (o AuthoringOracle) expectedText() string {
+	if o.Text != "" {
+		return o.Text
+	}
+	value, _ := o.Value.(string)
+	return value
+}
+
+func (o AuthoringOracle) expectedCount() (int, bool) {
+	switch value := o.Value.(type) {
+	case float64:
+		return int(value), value == float64(int(value))
+	case int:
+		return value, true
+	case json.Number:
+		parsed, err := value.Int64()
+		return int(parsed), err == nil
+	default:
+		return 0, false
+	}
+}
+
+func containsCause(stdout, cause string) bool {
+	if cause == "" {
+		return false
+	}
+	lower := strings.ToLower(stdout)
+	if strings.Contains(lower, strings.ToLower(cause)) {
+		return true
+	}
+	canonicalPhrases := map[string][]string{
+		"ambiguous_response": {"ambiguous-response", "ambiguous response", "no determinable primary response field"},
+		"refused_no_grant":   {"requires an explicit grant", "destructive binding"},
+	}
+	for _, phrase := range canonicalPhrases[cause] {
+		if strings.Contains(lower, phrase) {
+			return true
+		}
+	}
+	return false
+}
+
+func containsJSONKey(stdout, key string) bool {
+	if key == "" {
+		return false
+	}
+	return strings.Contains(stdout, fmt.Sprintf("%q:", key)) || strings.Contains(stdout, fmt.Sprintf("'%s':", key))
+}
+
+func compareCount(stdout, relation string, expected int) bool {
+	for _, field := range strings.FieldsFunc(stdout, func(r rune) bool { return r < '0' || r > '9' }) {
+		value := 0
+		if _, err := fmt.Sscanf(field, "%d", &value); err != nil {
+			continue
+		}
+		switch relation {
+		case "gt":
+			if value > expected {
+				return true
+			}
+		case "gte":
+			if value >= expected {
+				return true
+			}
+		case "eq":
+			if value == expected {
+				return true
+			}
+		case "lt":
+			if value < expected {
+				return true
+			}
+		case "lte":
+			if value <= expected {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func countDigitsAtLeast(stdout string, minimum int) bool {

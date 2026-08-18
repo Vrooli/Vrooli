@@ -140,7 +140,16 @@ func (j *apiNumeratorJoiner) Join(ctx context.Context, p Projection, cells []spa
 		if err != nil {
 			return JoinResult{Available: false, Reason: rpcReason(owner, "ResolveActCells", err)}
 		}
-		return JoinResult{Available: true, Statuses: recomputeAct(cells, resp.Msg.GetCells()), DenominatorConfidence: actConfidence(resp.Msg.GetDenominatorConfidence())}
+		return JoinResult{
+			Available:             true,
+			Statuses:              recomputeAct(cells, resp.Msg.GetCells()),
+			DenominatorConfidence: actConfidence(resp.Msg.GetDenominatorConfidence()),
+			ManifestScenarios:     int(resp.Msg.GetManifestScenarios()),
+			TotalScenarios:        int(resp.Msg.GetTotalScenarios()),
+			ReachableScenarios:    int(resp.Msg.GetReachableScenarios()),
+			UnreachableScenarios:  int(resp.Msg.GetUnreachableScenarios()),
+			ReachabilityCheckedAt: resp.Msg.GetReachabilityCheckedAt(),
+		}
 
 	default:
 		return JoinResult{Available: false, Reason: "unknown coverage projection: " + string(p)}

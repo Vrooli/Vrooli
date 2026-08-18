@@ -3,7 +3,9 @@ import io
 import time
 from unittest.mock import patch
 
-from host.engine import Handle, SessionKernel, _InferenceSurface
+import pytest
+
+from host.engine import Handle, Namespace, SessionKernel, _InferenceSurface
 
 
 def test_top_level_await_and_final_expression_display():
@@ -211,6 +213,93 @@ def test_inference_facade_forwards_optional_profile_and_batch_shape():
     assert run.calls[0]["profile"] == {"locality": "local"}
     assert run.calls[0]["turns"][0]["text"] == "hi"
     assert batch.calls[0]["items"] == [{"source": "a"}, {"source": "b"}]
+
+
+def test_inference_and_describe_accept_additive_model_facing_aliases():
+    class FakeBinding:
+        def __init__(self):
+            self.calls = []
+
+        def __call__(self, **kwargs):
+            self.calls.append(kwargs)
+            return Handle([kwargs])
+
+    run = FakeBinding()
+    surface = _InferenceSurface("session", "configured", [])
+    surface._run = run
+
+    surface.classify(text="classify this")
+    surface.extract(text="extract this")
+    surface.judge(text="judge this")
+    surface.write(text="write this")
+    assert [call["source"] for call in run.calls] == ["classify this", "extract this", "judge this", "write this"]
+
+    surface.classify(source="classify this", labels=["bug", "feature"])
+    schema = __import__("json").loads(run.calls[-1]["schema_json"])
+    assert schema == {
+        "type": "object",
+        "properties": {"label": {"type": "string", "enum": ["bug", "feature"]}},
+        "required": ["label"],
+    }
+
+    with pytest.raises(TypeError, match=r"source=.*text=|text=.*source="):
+        surface.classify(source="canonical", text="alias")
+    with pytest.raises(TypeError, match=r"schema=.*labels=|labels=.*schema="):
+        surface.classify(text="both", schema={"type": "string"}, labels=["bug"])
+    with pytest.raises(ValueError, match="labels"):
+        surface.classify(text="empty", labels=[])
+    with pytest.raises(TypeError, match="1"):
+        surface.classify(text="non-string", labels=["bug", 1])
+
+
+def test_classify_accepts_small_string_batches_through_governed_batch_route():
+    class FakeBatch:
+        def __call__(self, **kwargs):
+            assert kwargs["items"] == [{"source": "one"}, {"source": "two"}]
+            return Handle(
+                [{
+                    "results": [
+                        {"valueJson": '{"label":"bug"}'},
+                        {"valueJson": '{"label":"feature"}'},
+                    ]
+                }],
+                raw={
+                    "results": [
+                        {"valueJson": '{"label":"bug"}'},
+                        {"valueJson": '{"label":"feature"}'},
+                    ]
+                },
+            )
+
+    surface = _InferenceSurface("session", "configured", [])
+    surface._run_batch = FakeBatch()
+    result = surface.classify(source=["one", "two"], labels=["bug", "feature"])
+    assert result.materialize() == [
+        {"label": "bug", "text": "one"},
+        {"label": "feature", "text": "two"},
+    ]
+    assert result.meta()["role"] == "classify.fast"
+
+
+def test_describe_accepts_binding_id_alias():
+    class Response:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def read(self):
+            return b'{"arguments":[{"name":"scenario"}]}'
+
+    namespace = Namespace(session_id="session", bridge_url="http://127.0.0.1:1/internal/program-runtime/bindings/execute")
+    with patch("host.engine.urllib.request.urlopen", return_value=Response()) as open_url:
+        result = namespace.describe(binding_id="test-genie/runs/list")
+    assert result.head(1)[0]["name"] == "scenario"
+    assert open_url.call_args.args[0].data == b'{"session_id": "session", "binding": "test-genie/runs/list"}'
+
+    with pytest.raises(TypeError, match=r"binding=.*binding_id=|binding_id=.*binding="):
+        namespace.describe(binding="canonical", binding_id="alias")
 
 
 def test_write_facade_carries_sampling_and_omits_it_when_unset():

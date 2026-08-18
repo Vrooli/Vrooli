@@ -114,6 +114,7 @@ type Registry struct {
 	shared            []string
 	semantic          map[string]semanticCounts
 	recorder          InvocationRecorder
+	exerciseReader    ExerciseReader
 	artifactMtime     time.Time
 	generationMtime   time.Time
 	manifestMtimes    map[string]time.Time
@@ -140,6 +141,7 @@ type registryDynamic struct {
 	current        *Registry
 	generation     uint64
 	recorder       InvocationRecorder
+	exerciseReader ExerciseReader
 	resolver       ReachabilityResolver
 }
 
@@ -381,6 +383,7 @@ func (d *registryDynamic) refresh() *Registry {
 		return d.current
 	}
 	next.recorder = d.recorder
+	next.exerciseReader = d.exerciseReader
 	if d.resolver != nil {
 		next.resolver = d.resolver
 	}
@@ -429,6 +432,19 @@ func (r *Registry) SetInvocationRecorder(recorder InvocationRecorder) {
 		return
 	}
 	r.recorder = recorder
+}
+
+func (r *Registry) SetExerciseReader(reader ExerciseReader) {
+	if r.dynamic != nil {
+		r.dynamic.mu.Lock()
+		r.dynamic.exerciseReader = reader
+		if r.dynamic.current != nil {
+			r.dynamic.current.exerciseReader = reader
+		}
+		r.dynamic.mu.Unlock()
+		return
+	}
+	r.exerciseReader = reader
 }
 
 func (r *Registry) RecordInvocation(ctx context.Context, invocation Invocation) {

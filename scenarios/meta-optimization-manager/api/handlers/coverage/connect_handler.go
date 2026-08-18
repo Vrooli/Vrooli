@@ -62,6 +62,11 @@ func (h *connectHandler) GetStatus(ctx context.Context, req *connect.Request[cov
 			EndToEndAnswerableNowCount:   int32(pc.EndToEndAnswerableNowCount),
 			EndToEndAnswerableTotalCells: int32(pc.EndToEndAnswerableTotalCells),
 			EndToEndAnswerableRatio:      proto.Float64(pc.EndToEndAnswerableRatio),
+			ManifestScenarios:            int32(pc.ManifestScenarios),
+			TotalScenarios:               int32(pc.TotalScenarios),
+			ReachableScenarios:           int32(pc.ReachableScenarios),
+			UnreachableScenarios:         int32(pc.UnreachableScenarios),
+			ReachabilityCheckedAt:        pc.ReachabilityCheckedAt,
 		})
 		for _, condition := range pc.ConditionCounts {
 			resp.Projections[len(resp.Projections)-1].ConditionCounts = append(resp.Projections[len(resp.Projections)-1].ConditionCounts, &coveragev1.ConditionCount{Condition: string(condition.Condition), Count: int32(condition.Count)})

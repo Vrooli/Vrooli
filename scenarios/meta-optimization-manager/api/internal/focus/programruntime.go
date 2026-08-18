@@ -271,6 +271,41 @@ func (r *programRuntimeFrictionReader) ReadCondition(ctx context.Context) (Progr
 			return ProgramConditionReport{}, fmt.Errorf("read condition population: %w", err)
 		}
 	}
+	if len(response.Msg.GetScenarioConditions()) > 0 {
+		for _, condition := range response.Msg.GetScenarioConditions() {
+			if condition == nil {
+				continue
+			}
+			scenario := strings.ToLower(strings.TrimSpace(condition.GetScenario()))
+			if allowed != nil {
+				if _, ok := allowed[scenario]; !ok {
+					report.FilteredOut++
+					continue
+				}
+			}
+			status := strings.ToLower(strings.TrimPrefix(condition.GetStatus().String(), "CONDITION_STATUS_"))
+			report.Conditions = append(report.Conditions, ProgramConditionObservation{
+				BindingID: "scenario/" + scenario,
+				Scenario:  condition.GetScenario(),
+				Status:    status,
+				Verdict:   condition.GetVerdict(),
+				Reason:    condition.GetVerdict(),
+			})
+			switch status {
+			case "healthy":
+				report.Healthy++
+			case "degraded":
+				report.Degraded++
+			case "dormant":
+				report.Dormant++
+			case "uninstrumented":
+				report.Uninstrumented++
+			case "unavailable":
+				report.Unavailable++
+			}
+		}
+		return report, nil
+	}
 	for _, condition := range response.Msg.GetConditions() {
 		if condition == nil {
 			continue

@@ -19,6 +19,21 @@ Shape before you materialize. Use `filter`, `map`, `select`, `sort`, `unique`,
 `group_by`, `join`, and `agg` on the handle; call `materialize(limit)` only when
 the rows themselves are the answer, and always pass a limit.
 
+`group_by(key)` returns a dict-shaped count mapping. It also has `count()`,
+which returns the number of source rows represented by the groups:
+
+```python
+counts = rows.group_by("status")
+print(counts.count())
+```
+
+`join` accepts the canonical `key=` argument or the additive `on=` alias;
+supplying both is an explicit error:
+
+```python
+joined = left.join(right, on="id")
+```
+
 Joining two handles keeps both sides in the kernel:
 
 ```python

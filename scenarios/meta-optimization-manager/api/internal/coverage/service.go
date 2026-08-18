@@ -184,6 +184,13 @@ func (s *service) coverageFor(ctx context.Context, p Projection) ProjectionCover
 	if pc.Available && pc.TotalCells > 0 {
 		pc.CoverageRatio = float64(pc.NowCount) / float64(pc.TotalCells)
 	}
+	if p == ProjectionAct {
+		pc.ManifestScenarios = join.ManifestScenarios
+		pc.TotalScenarios = join.TotalScenarios
+		pc.ReachableScenarios = join.ReachableScenarios
+		pc.UnreachableScenarios = join.UnreachableScenarios
+		pc.ReachabilityCheckedAt = join.ReachabilityCheckedAt
+	}
 	if p == ProjectionAnswer && pc.Available {
 		pc.CorpusCapableNowCount = join.AnswerCorpusCapableNowCount
 		pc.CorpusCapableTotalCells = join.AnswerCorpusCapableTotalCells

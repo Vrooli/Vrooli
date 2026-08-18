@@ -179,7 +179,7 @@ func (h *handlers) mineRefusals(ctx cliapp.OperationContext) (*programsv1.MineRe
 }
 
 func (h *handlers) mineUnresolved(ctx cliapp.OperationContext) (*programsv1.MineUnresolvedBindingsResponse, error) {
-	r, e := h.client.MineUnresolvedBindings(context.Background(), connect.NewRequest(&programsv1.MineUnresolvedBindingsRequest{}))
+	r, e := h.client.MineUnresolvedBindings(context.Background(), connect.NewRequest(&programsv1.MineUnresolvedBindingsRequest{IncludeOperator: ctx.BoolFlag("include-operator")}))
 	if e != nil {
 		return nil, cliapp.WrapAPIError("mine unresolved bindings", e, nil)
 	}

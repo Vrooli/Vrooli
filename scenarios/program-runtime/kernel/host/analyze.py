@@ -110,6 +110,7 @@ def analyze(source: str) -> dict:
 
     return {
         "ok": True,
+        "bound": [{"name": name} for name in sorted(module_bound)],
         "free": [{"name": name, "line": free_lines.get(name, 0)} for name in sorted(free)],
         "shadowed": [{"name": name, "line": line} for name, line in sorted(shadow_lines.items())],
     }

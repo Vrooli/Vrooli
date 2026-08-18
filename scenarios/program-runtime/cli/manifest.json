@@ -934,6 +934,13 @@
         {
           "name": "mine-unresolved",
           "description": "Summarize attempted names with no governed binding.",
+          "flags": [
+            {
+              "name": "include-operator",
+              "bool": true,
+              "description": "Include operator submissions."
+            }
+          ],
           "binding": {
             "kind": "connect-rpc",
             "service": "vrooli.program_runtime.v1.programs.ProgramService",

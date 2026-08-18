@@ -18,7 +18,7 @@ from host.safebuiltins import SAFE_BUILTIN_NAMES  # noqa: E402
 
 @pytest.mark.parametrize(
     "name",
-    ["KeyError", "AttributeError", "row", "text", "self", "cls", "exc", "i", "x", "__name__", "__builtins__"],
+    ["KeyError", "AttributeError", "row", "text", "self", "cls", "exc", "i", "x", "__name__", "__builtins__", "handle1", "handle_one", "prior_result", "data_store"],
 )
 def test_python_vocabulary_is_not_a_capability_attempt(name):
     """A language-level miss must never be recorded as an attempted binding."""

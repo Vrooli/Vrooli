@@ -66,7 +66,8 @@ type Options struct {
 		Append(*telemetryv1.ProgramEvent)
 	}
 	Preflight        func(string) []*programsv1.Diagnostic
-	RecordUnresolved func(context.Context, string, string) error
+	PreflightSession func(context.Context, string, string) []*programsv1.Diagnostic
+	RecordUnresolved func(context.Context, string, string, string) error
 }
 
 type Service struct {
@@ -81,7 +82,8 @@ type Service struct {
 		Append(*telemetryv1.ProgramEvent)
 	}
 	preflight        func(string) []*programsv1.Diagnostic
-	recordUnresolved func(context.Context, string, string) error
+	preflightSession func(context.Context, string, string) []*programsv1.Diagnostic
+	recordUnresolved func(context.Context, string, string, string) error
 	repo             Repository
 	eventSequence    atomic.Int64
 
@@ -102,7 +104,7 @@ func NewService(options Options) *Service {
 	if options.Store != nil {
 		repo = NewRepository(options.Store)
 	}
-	return &Service{clock: clock, runner: options.Runner, validateSession: options.ValidateSession, recordMemory: options.RecordMemory, executionBudget: options.ExecutionBudget, chargeExecution: options.ChargeExecution, libraryVersion: options.LibraryVersion, events: options.Events, preflight: options.Preflight, recordUnresolved: options.RecordUnresolved, repo: repo}
+	return &Service{clock: clock, runner: options.Runner, validateSession: options.ValidateSession, recordMemory: options.RecordMemory, executionBudget: options.ExecutionBudget, chargeExecution: options.ChargeExecution, libraryVersion: options.LibraryVersion, events: options.Events, preflight: options.Preflight, preflightSession: options.PreflightSession, recordUnresolved: options.RecordUnresolved, repo: repo}
 }
 
 func (s *Service) SubmitWithDiagnostics(ctx context.Context, sessionID, source string, provenance programsv1.Provenance, includeMaterialized bool, explain bool, async ...bool) (*programsv1.Program, []*programsv1.Diagnostic, error) {
@@ -119,7 +121,9 @@ func (s *Service) SubmitWithDiagnostics(ctx context.Context, sessionID, source s
 		return nil, nil, errors.New("provenance is required")
 	}
 	diagnostics := []*programsv1.Diagnostic(nil)
-	if s.preflight != nil {
+	if s.preflightSession != nil {
+		diagnostics = s.preflightSession(ctx, sessionID, source)
+	} else if s.preflight != nil {
 		diagnostics = s.preflight(source)
 	}
 	if explain || hasDiagnosticErrors(diagnostics) {
@@ -138,7 +142,7 @@ func (s *Service) SubmitWithDiagnostics(ctx context.Context, sessionID, source s
 				// protected-name assignment names something that resolves, so
 				// recording it would corrupt the Act denominator's evidence.
 				if IsUnresolvedNameDiagnostic(diagnostic) && s.recordUnresolved != nil {
-					_ = s.recordUnresolved(ctx, sessionID, diagnostic.GetName())
+					_ = s.recordUnresolved(ctx, sessionID, diagnostic.GetName(), provenance.String())
 				}
 			}
 		}
@@ -493,8 +497,8 @@ func (s *Service) MineRefusals(ctx context.Context, includeOperator bool) []*pro
 	return out
 }
 
-func (s *Service) MineUnresolvedBindings(ctx context.Context) []*programsv1.UnresolvedBindingShape {
-	out, err := s.repo.MineUnresolvedBindings(ctx)
+func (s *Service) MineUnresolvedBindings(ctx context.Context, includeOperator bool) []*programsv1.UnresolvedBindingShape {
+	out, err := s.repo.MineUnresolvedBindings(ctx, includeOperator)
 	if err != nil {
 		return nil
 	}

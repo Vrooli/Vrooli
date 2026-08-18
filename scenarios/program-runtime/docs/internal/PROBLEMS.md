@@ -219,46 +219,137 @@ missing member rather than claiming a clean regression diff.
 **Refs:** plan baseline `program-runtime-trustworthy-results-and-a-self-improving-baseline`,
 `docs/TESTING.md`.
 
-### 2026-08-17 — money-ledger binds an argument with no matching proto field
+### 2026-08-17 — RESOLVED: money-ledger bind census entry was stale
 
-**Symptom:** `program-runtime bindings doctor --json` reports `uncallable: 1`.
-`money-ledger/ledger/accounts-create` maps an argument named `kind` onto
-`CreateAccountRequest`, which has `bookId`, `name`, and `accountKind`.
+**Status:** Resolved during the 2026-08-18 binding-registry repair; the live
+doctor now reports zero uncallable bindings.
+
+**Symptom:** An older doctor census reported one uncallable
+`money-ledger/ledger/accounts-create` binding. The current live census reports
+`uncallable: 0`, `partial: 0` for that scenario, and the binding is callable.
 
 **Root cause:** the manifest argument name does not match any field on the
 request message, and no rename is declared.
 
-**Workaround:** none needed. The binding is refused at generation, so no program
-can call it; the count is honest backlog rather than a live defect.
+**Workaround:** none. This entry is retained only to explain the historical
+census and must not be used as current fleet evidence.
 
-**Real fix:** rename the argument to `accountKind` in
-`scenarios/money-ledger/cli/manifest.json`.
+**Real fix:** The binding-registry repair and the live manifest census now
+resolve the argument as `accountKind`; the stale count is corrected in the
+current doctor output.
 
 **Owner:** money-ledger.
 
 **Refs:** `scenarios/money-ledger/cli/manifest.json`.
 
-### 2026-08-17 — prose-studio binds a control flag as a payload argument
+### 2026-08-17 — RESOLVED: prose-studio control-flag census entry was stale
 
-**Symptom:** `program-runtime bindings doctor --json` reports `uncallable: 10`.
-Every one is a `prose-studio/prose/*` binding whose manifest maps an argument
-named `json` onto a request message with no such field.
+**Status:** Resolved during the 2026-08-18 binding-registry repair; the live
+doctor now reports zero uncallable and zero control-flag-bound bindings.
+
+**Symptom:** An older doctor census reported ten uncallable
+`prose-studio/prose/*` bindings. The current live census reports
+`uncallable: 0`, `control_flags_bound: 0`, and no new findings for that
+scenario.
 
 **Root cause:** `--json` is a CLI renderer control flag, not a proto payload
 field. cli-health's `binding.control_flag_bound` rule exists for exactly this
 shape; the scenario's manifest predates or bypasses it.
 
-**Workaround:** None needed here. The bindings are refused at generation, so no
-program can call them; the count is honest backlog rather than a live defect.
+**Workaround:** none. This entry is historical context, not an open fleet
+problem.
 
-**Real fix:** Remove the `json` argument mapping from those eleven commands in
-`scenarios/prose-studio/cli/manifest.json`.
+**Real fix:** The binding-registry repair and current manifest census no longer
+classify the renderer-only `json` flag as a payload binding.
 
 **Owner:** prose-studio.
 
 **Refs:** `scenarios/prose-studio/cli/manifest.json`,
 `scenarios/cli-health/api/internal/services/manifestvalidation/findings.go`
 (`CodeBindingControlFlagBound`).
+
+### 2026-08-18 — RESOLVED: test and operator provenance polluted empirical mining
+
+**Symptom:** Deliberately exercised authoring cases and operator probes could
+appear in `programs mine`, `mine-refusals`, and `mine-unresolved`, making the
+readiness board rank harness behavior as fleet friction.
+
+**Root cause:** The mining paths did not apply the provenance boundary that
+distinguishes agent behavior from test and operator evidence.
+
+**Real fix:** All three mining surfaces exclude `PROVENANCE_TEST` and
+`PROVENANCE_OPERATOR` by default and expose an explicit opt-in for diagnostics.
+The focus board now has no gap derived from test-provenance evidence.
+
+**Owner:** program-runtime.
+
+**Refs:** `api/internal/programs/repository.go`,
+`api/internal/programs/service.go`, `api/internal/programs/*_test.go`.
+
+### 2026-08-18 — RESOLVED: unresolved-attempt ledger admitted local names
+
+**Symptom:** Historical unresolved rows included local variable names such as
+`handle1`, `handle2`, `handle_one`, `prior_result`, and `data_store`, which are
+not capabilities.
+
+**Root cause:** One or more write paths recorded every unresolved identifier
+without enforcing the capability-shaped-name boundary.
+
+**Real fix:** All write paths now admit capability-shaped names only, purge the
+historical local-name pollution at startup, and cover accepted and rejected
+shapes with regression tests. The live ledger reports capability-shaped rows
+only (currently `test_geni`).
+
+**Owner:** program-runtime.
+
+**Refs:** `api/internal/programs/repository.go`,
+`api/internal/programs/schema.go`, `api/internal/programs/preflight.go`,
+`api/internal/programs/*_test.go`.
+
+### 2026-08-18 — RESOLVED: Cross-stamp authoring result is below the reference pair
+
+**Symptom:** The initial post-change authoring pair measured 4/12 and 4/12,
+and an additional same-stamp pair measured 4/12 and 3/12, against
+`authoring-brief@5(16 rules)`, while the fresh pre-change pair measured 7/12
+and 7/12 against `authoring-brief@3(12 rules)`.
+
+**Root cause:** The post-change brief contained additional rules, while strict
+result oracles exposed under-specified version-2 tasks, an unavailable-data
+assumption, missing session-aware preflight, and two natural kernel call shapes
+(`group_by` values and `join(on=)`) that were not supported. The result was
+measured, but it was not comparable as a like-for-like score and did not
+demonstrate the plan's hoped-for improvement.
+
+**Workaround:** None retained. The version-3 corpus is explicit and the
+version-6 brief names the describe argument-row shape. Incomplete and
+unavailable evaluator attempts remain excluded from the floor calculation.
+
+**Real fix:** Session-aware preflight, grouped-count compatibility, `join(on=)`,
+strict declared-field oracles, explicit corpus tasks, and the describe teaching
+rule are implemented. Two complete runs at `authoring-brief@6(18 rules)` now
+measure 9/12 and 9/12; the floor is re-derived to 8. The before/after result is
+reported as cross-stamp evidence rather than a like-for-like claim.
+
+**Owner:** program-runtime.
+
+**Refs:** `evals/authoring.primary.json`, `internal/harness/contract.json`.
+
+### 2026-08-18 — BLOCKED EXTERNAL: project control-plane authoring case
+
+The `project-cli` corpus case correctly authors
+`vrooli.scenario.status(name="program-runtime")`, but the live root
+`vrooli-api` returns HTTP 500 because its binary expects runtime-registry schema
+7 while the database is schema 8. `vrooli develop --environment development
+--resources none --scenarios none` was attempted through the supported
+lifecycle, but setup stopped on the existing sudo-owned onboarding requirement
+before it could refresh the already-running root API. This case is retained as
+a real integration signal; it is not counted as a Program Runtime surface
+defect, and the 9/12 measurements remain honest about it.
+
+**Owner:** project control plane / operator.
+
+**Refs:** `evals/authoring.primary.json`, `docs/reference/staleness-and-rebuild.md`,
+`internal/scenarioruntime/schema.go`.
 
 ### 2026-08-17 — RESOLVED: the 30-second ceiling nobody set
 
@@ -325,7 +416,7 @@ pre-fix row at 46,048ms with no route recorded at all.
 **Owner:** program-runtime. **Refs:** `api/internal/bindings/registry.go`,
 `api/internal/bindings/schema.sql`.
 
-### 2026-08-17 — the inference and describe surfaces use parameter names models do not reach for
+### 2026-08-18 — RESOLVED: the inference and describe surfaces used parameter names models did not reach for
 
 **Symptom:** two of twelve authoring-eval cases fail on keyword names, not on logic:
 
@@ -341,16 +432,16 @@ program reaches for `text=` and `binding_id=`, and `binding_id` is the exact nam
 this scenario uses for the same value everywhere else (the corpus, the doctor
 output, discovery rows, the CLI). The surface disagrees with its own vocabulary.
 
-**Workaround:** use `source=` and `binding=`. The failure is immediate and its
-message names the offending keyword, so it costs one retry rather than a wrong
-result.
+**Workaround before the repair:** use `source=` and `binding=`. The failure was
+immediate and its message named the offending keyword, so it cost one retry rather
+than a wrong result.
 
-**Real fix:** accept `text=` as an alias for `source=` and `binding_id=` as an
-alias for `binding=`. Both are pure additions that cannot break a caller. This
-was deliberately *not* done in the change that found it: the two comparable runs
-that set the eval floor were measured against `authoring-brief@3`, and altering
-the surface between them would have destroyed their comparability. It is the next
-iteration, with its own before/after measurement.
+**Real fix:** `text=` is now an additive alias for `source=` and `binding_id=` is
+an additive alias for `binding=`. Collision attempts raise explicit `TypeError`s,
+and the alias behavior is covered by the kernel suite. The repair is measured
+under the new `authoring-brief@5(16 rules)` stamp; those post-change authoring
+scores are recorded separately below because they are not like-for-like with the
+earlier `@3` pair.
 
 **Owner:** program-runtime.
 

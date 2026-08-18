@@ -1,5 +1,5 @@
 {
-  "version": 3,
+  "version": 6,
   "preamble": "You write short Python programs for the Vrooli Program Runtime.",
   "closing": "Return only Python source. No markdown fence, no commentary.",
   "rules": [
@@ -44,6 +44,42 @@
       "brief": "ai and agent and lib are namespaces, not callables: use ai.classify/extract/judge/write/batch, agent.start/collect/run, lib.list. The rest are called directly: discover(...), recall(...), validate(...), capture(...), gather(...), describe(...), reachable().",
       "doc_probe": "ai.classify / extract / judge / write / batch",
       "skill_probe": "`ai.classify"
+    },
+    {
+      "id": "inference-keyword-aliases",
+      "brief": "The typed inference helpers accept text= as an additive alias for source= on ai.classify, ai.extract, ai.judge, and ai.write; supplying both names is an explicit TypeError.",
+      "doc_probe": "text=",
+      "skill_probe": "text="
+    },
+    {
+      "id": "describe-keyword-alias",
+      "brief": "describe accepts binding_id= as an additive alias for binding=; supplying both names is an explicit TypeError.",
+      "doc_probe": "binding_id=",
+      "skill_probe": "binding_id="
+    },
+    {
+      "id": "describe-argument-rows",
+      "brief": "describe(binding_id=...) returns a Handle of argument rows; read row = handle.head(1)[0] and then row[\"name\"], not row[\"arguments\"].",
+      "doc_probe": "argument rows",
+      "skill_probe": "argument rows"
+    },
+    {
+      "id": "classify-labels",
+      "brief": "ai.classify accepts labels=[...] as a convenience that desugars to a validated label enum schema; labels= and schema= cannot be supplied together.",
+      "doc_probe": "labels=[\"bug\", \"feature\"]",
+      "skill_probe": "labels=[\"bug\", \"feature\"]"
+    },
+    {
+      "id": "bounded-surface-shapes",
+      "brief": "Handle.group_by(key) returns a count mapping with count() for the grouped source rows; Handle.join accepts key= or its additive on= alias; ai.classify accepts a list of text strings and uses the governed batch route, while recall takes intent= only.",
+      "doc_probe": "group_by",
+      "skill_probe": "source=["
+    },
+    {
+      "id": "library-first",
+      "brief": "Inspect lib.list() before hand-authoring a repeated construction pattern; promoted library entries are explicit and frozen when a session starts.",
+      "doc_probe": "lib.list()",
+      "skill_probe": "lib.list()"
     },
     {
       "id": "gather-takes-callables",

@@ -92,6 +92,62 @@ _SAFE_BUILTINS = dict(_SAFE_BUILTINS)
 _SAFE_BUILTINS["open"] = _guarded_open
 
 
+_MISSING = object()
+
+
+def _resolve_keyword_alias(canonical_name: str, canonical: object, alias_name: str, alias: object) -> Any:
+    """Resolve one additive keyword alias without silently choosing a winner."""
+    canonical_provided = canonical is not _MISSING
+    alias_provided = alias is not _MISSING
+    if canonical_provided and alias_provided:
+        raise TypeError(f"pass either {canonical_name}= or {alias_name}=, not both")
+    if not canonical_provided and not alias_provided:
+        raise TypeError(f"missing required argument: {canonical_name}= (or {alias_name}=)")
+    return canonical if canonical_provided else alias
+
+
+def _resolve_labels_schema(schema: object, labels: object) -> Any:
+    """Turn the bounded classification convenience form into JSON Schema."""
+    schema_provided = schema is not _MISSING
+    labels_provided = labels is not _MISSING
+    if schema_provided and labels_provided:
+        raise TypeError("pass either schema= or labels=, not both")
+    if not labels_provided:
+        return None if not schema_provided else schema
+    if not isinstance(labels, (list, tuple)):
+        raise TypeError(f"labels must be a non-empty list of strings; got {labels!r}")
+    if not labels:
+        raise ValueError("labels must not be empty")
+    for label in labels:
+        if not isinstance(label, str):
+            raise TypeError(f"labels must contain only strings; offending value {label!r}")
+    return {
+        "type": "object",
+        "properties": {"label": {"type": "string", "enum": list(labels)}},
+        "required": ["label"],
+    }
+
+
+class GroupedCount(int):
+    """One group's bounded row count, usable as an int or via ``count()``."""
+
+    def count(self) -> int:
+        return int(self)
+
+
+class GroupedCounts(dict[Any, GroupedCount]):
+    """Mapping returned by ``Handle.group_by`` with a bounded count helper.
+
+    The mapping remains a normal dict for existing callers. ``count`` reports
+    the number of source rows represented by the groups, which makes the
+    common ``handle.group_by(key).count()`` shape explicit without requiring
+    callers to materialize the handle.
+    """
+
+    def count(self) -> int:
+        return sum(self.values())
+
+
 class Handle:
     def __init__(self, rows: Iterable[Any], label: str = "result", *, metadata: dict[str, Any] | None = None, raw: Any = None) -> None:
         self._rows = list(rows)
@@ -150,7 +206,8 @@ class Handle:
             return sum(values) / len(values)
         raise ValueError("agg operation must be one of: sum, min, max, mean")
 
-    def join(self, other: "Handle", key: str) -> "Handle":
+    def join(self, other: "Handle", key: str | object = _MISSING, *, on: str | object = _MISSING) -> "Handle":
+        key = _resolve_keyword_alias("key", key, "on", on)
         if not isinstance(other, Handle):
             raise TypeError("join requires another Handle")
         if len(self._rows) * max(1, len(other._rows)) > 100_000_000:
@@ -169,13 +226,13 @@ class Handle:
                     joined.append((left, match))
         return Handle(joined, f"{self.label}.join")
 
-    def group_by(self, key: str) -> dict[Any, int]:
+    def group_by(self, key: str) -> GroupedCounts:
         if not self._rows:
-            return {}
-        counts: dict[Any, int] = {}
+            return GroupedCounts()
+        counts: GroupedCounts = GroupedCounts()
         for row in self._rows:
             value = _field(row, key, "group_by")
-            counts[value] = counts.get(value, 0) + 1
+            counts[value] = GroupedCount(counts.get(value, 0) + 1)
         return counts
 
     def materialize(self, limit: int | None = None) -> list[Any]:
@@ -220,7 +277,7 @@ def _looks_like_binding_name(name: str) -> bool:
 # made a language mistake, not a capability request.
 _PYTHON_VOCABULARY = frozenset(
     set(dir(builtins))
-    | {"self", "cls", "args", "kwargs", "exc", "err", "idx", "key", "val", "row", "item", "text", "data", "result"}
+    | {"self", "cls", "args", "kwargs", "exc", "err", "idx", "key", "val", "row", "item", "text", "data", "result", "handle1", "handle2", "handle_one", "handle_two", "prior_result", "data_store", "left", "right", "scenario"}
 )
 
 
@@ -289,9 +346,10 @@ class ProgramGlobals(dict):
         if not self._unresolved_url:
             return
         endpoint = self._unresolved_url.rsplit("/", 1)[0] + "/unresolved"
+        provenance = str(_INVOCATION_CONTEXT.get({}).get("provenance", ""))
         request = urllib.request.Request(
             endpoint,
-            data=json.dumps({"session_id": self._session_id, "attempted_name": name}).encode(),
+            data=json.dumps({"session_id": self._session_id, "provenance": provenance, "attempted_name": name}).encode(),
             headers={"Content-Type": "application/json"},
             method="POST",
         )
@@ -427,8 +485,9 @@ class Namespace:
     def agent(self) -> "_DeferredSurface":
         return self._agent
 
-    def describe(self, binding: str) -> Handle:
+    def describe(self, binding: str | object = _MISSING, *, binding_id: str | object = _MISSING) -> Handle:
         """Read a binding contract through the registry's live descriptor path."""
+        binding = _resolve_keyword_alias("binding", binding, "binding_id", binding_id)
         if not self._bridge_url:
             raise RuntimeError("program-runtime binding bridge is unavailable")
         endpoint = self._bridge_url.rsplit("/", 1)[0] + "/describe"
@@ -773,18 +832,70 @@ class _InferenceSurface:
             kwargs["max_output_tokens"] = int(max_output_tokens)
         return self._run(**kwargs)
 
-    def classify(self, source: str, schema: Any = None, instruction: str = "", *, turns: Any = None, attachments: Any = None, profile: str | None = None) -> Any:
+    def classify(self, source: str | Iterable[str] | object = _MISSING, schema: Any | object = _MISSING, instruction: str = "", *, text: str | Iterable[str] | object = _MISSING, labels: Any | object = _MISSING, turns: Any = None, attachments: Any = None, profile: str | None = None) -> Any:
+        source = _resolve_keyword_alias("source", source, "text", text)
+        schema = _resolve_labels_schema(schema, labels)
+        if isinstance(source, (list, tuple)):
+            if turns is not None or attachments is not None or profile is not None:
+                raise TypeError("batch classification accepts source and schema only")
+            return self._classify_batch(source, schema, instruction)
         return self._invoke("classify.fast", source, schema, instruction, turns=turns, attachments=attachments, profile=profile)
 
-    def extract(self, source: str, schema: Any = None, instruction: str = "", *, turns: Any = None, attachments: Any = None, profile: str | None = None) -> Any:
+    def _classify_batch(self, sources: Iterable[str], schema: Any, instruction: str) -> Handle:
+        values = list(sources)
+        if any(not isinstance(value, str) for value in values):
+            raise TypeError("classify source batches must contain only strings")
+        if not values:
+            return Handle([], "ai.classify(batch)", metadata={"role": "classify.fast"})
+        if schema is None:
+            schema_json = ""
+        elif isinstance(schema, str):
+            schema_json = schema
+        else:
+            schema_json = json.dumps(schema, separators=(",", ":"))
+        response = self._run_batch(
+            items=[{"source": value} for value in values],
+            schema_json=schema_json,
+            instruction=instruction,
+            role="classify.fast",
+        )
+        payload = response.raw()
+        results = payload.get("results", []) if isinstance(payload, dict) else []
+        rows: list[dict[str, Any]] = []
+        for source_value, result in zip(values, results):
+            if not isinstance(result, dict):
+                raise RuntimeError("ai-gateway batch returned a malformed result")
+            error = result.get("error")
+            if error:
+                message = error.get("message", str(error)) if isinstance(error, dict) else str(error)
+                raise RuntimeError(f"ai-gateway batch classification failed: {message}")
+            raw_value = result.get("valueJson", result.get("value_json", ""))
+            try:
+                value = json.loads(raw_value) if isinstance(raw_value, str) else raw_value
+            except json.JSONDecodeError as exc:
+                raise RuntimeError("ai-gateway batch returned invalid JSON") from exc
+            if isinstance(value, dict):
+                row = dict(value)
+            else:
+                row = {"value": value}
+            row.setdefault("text", source_value)
+            rows.append(row)
+        if len(results) != len(values):
+            raise RuntimeError("ai-gateway batch returned an incomplete result set")
+        return Handle(rows, "ai.classify(batch)", metadata={"role": "classify.fast"}, raw=payload)
+
+    def extract(self, source: str | object = _MISSING, schema: Any = None, instruction: str = "", *, text: str | object = _MISSING, turns: Any = None, attachments: Any = None, profile: str | None = None) -> Any:
+        source = _resolve_keyword_alias("source", source, "text", text)
         return self._invoke("extract.structured", source, schema, instruction, turns=turns, attachments=attachments, profile=profile)
 
-    def judge(self, source: str, schema: Any = None, instruction: str = "", *, turns: Any = None, attachments: Any = None, profile: str | None = None) -> Any:
+    def judge(self, source: str | object = _MISSING, schema: Any = None, instruction: str = "", *, text: str | object = _MISSING, turns: Any = None, attachments: Any = None, profile: str | None = None) -> Any:
+        source = _resolve_keyword_alias("source", source, "text", text)
         return self._invoke("judge.default", source, schema, instruction, turns=turns, attachments=attachments, profile=profile)
 
-    def write(self, source: str, schema: Any = None, instruction: str = "", *, turns: Any = None, attachments: Any = None, profile: str | None = None, temperature: float | None = None, max_output_tokens: int | None = None) -> Any:
+    def write(self, source: str | object = _MISSING, schema: Any = None, instruction: str = "", *, text: str | object = _MISSING, turns: Any = None, attachments: Any = None, profile: str | None = None, temperature: float | None = None, max_output_tokens: int | None = None) -> Any:
         """Natural-prose generation. Unlike classify/extract/judge this role is
         overridable, so `temperature` is accepted here and refused there."""
+        source = _resolve_keyword_alias("source", source, "text", text)
         return self._invoke("write.default", source, schema, instruction, turns=turns, attachments=attachments, profile=profile, temperature=temperature, max_output_tokens=max_output_tokens)
 
     def batch(self, sources: Iterable[Any], schema: Any = None, instruction: str = "", role: str = "classify.fast") -> Any:

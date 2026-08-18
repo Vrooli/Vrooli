@@ -83,8 +83,8 @@ func (h *handler) MineRefusals(ctx context.Context, req *connect.Request[program
 	return connect.NewResponse(&programsv1.MineRefusalsResponse{Shapes: shapes, Count: int64(len(shapes))}), nil
 }
 
-func (h *handler) MineUnresolvedBindings(ctx context.Context, _ *connect.Request[programsv1.MineUnresolvedBindingsRequest]) (*connect.Response[programsv1.MineUnresolvedBindingsResponse], error) {
-	shapes := h.service.MineUnresolvedBindings(ctx)
+func (h *handler) MineUnresolvedBindings(ctx context.Context, req *connect.Request[programsv1.MineUnresolvedBindingsRequest]) (*connect.Response[programsv1.MineUnresolvedBindingsResponse], error) {
+	shapes := h.service.MineUnresolvedBindings(ctx, req.Msg.GetIncludeOperator())
 	return connect.NewResponse(&programsv1.MineUnresolvedBindingsResponse{Shapes: shapes, Count: int64(len(shapes))}), nil
 }
 

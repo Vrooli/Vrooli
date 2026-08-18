@@ -25,7 +25,7 @@ type Repository interface {
 	List(context.Context, string, bool) ([]*programsv1.Program, error)
 	MineFailures(context.Context, bool, time.Time) ([]*programsv1.FailureShape, error)
 	MineRefusals(context.Context, bool) ([]*programsv1.RefusalShape, error)
-	MineUnresolvedBindings(context.Context) ([]*programsv1.UnresolvedBindingShape, error)
+	MineUnresolvedBindings(context.Context, bool) ([]*programsv1.UnresolvedBindingShape, error)
 }
 
 type sqliteRepository struct{ db SQLExecutor }
@@ -115,8 +115,15 @@ func (r *sqliteRepository) MineFailures(ctx context.Context, includeOperator boo
 	return out, rows.Err()
 }
 
-func (r *sqliteRepository) MineRefusals(ctx context.Context, _ bool) ([]*programsv1.RefusalShape, error) {
-	rows, err := r.db.QueryContext(ctx, `SELECT binding_id, reason, COUNT(*), MAX(occurred_at) FROM refusals GROUP BY binding_id, reason ORDER BY COUNT(*) DESC, binding_id, reason`)
+func (r *sqliteRepository) MineRefusals(ctx context.Context, includeOperator bool) ([]*programsv1.RefusalShape, error) {
+	query := `SELECT binding_id, reason, COUNT(*), MAX(occurred_at) FROM refusals`
+	args := make([]any, 0, 1)
+	if !includeOperator {
+		query += ` WHERE provenance != ?`
+		args = append(args, programsv1.Provenance_PROVENANCE_OPERATOR.String())
+	}
+	query += ` GROUP BY binding_id, reason ORDER BY COUNT(*) DESC, binding_id, reason`
+	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("mine binding refusals: %w", err)
 	}
@@ -132,8 +139,15 @@ func (r *sqliteRepository) MineRefusals(ctx context.Context, _ bool) ([]*program
 	return out, rows.Err()
 }
 
-func (r *sqliteRepository) MineUnresolvedBindings(ctx context.Context) ([]*programsv1.UnresolvedBindingShape, error) {
-	rows, err := r.db.QueryContext(ctx, `SELECT attempted_name, COUNT(*), MAX(occurred_at) FROM unresolved_binding_attempts GROUP BY attempted_name ORDER BY COUNT(*) DESC, attempted_name`)
+func (r *sqliteRepository) MineUnresolvedBindings(ctx context.Context, includeOperator bool) ([]*programsv1.UnresolvedBindingShape, error) {
+	query := `SELECT attempted_name, COUNT(*), MAX(occurred_at) FROM unresolved_binding_attempts`
+	args := make([]any, 0, 1)
+	if !includeOperator {
+		query += ` WHERE provenance != ?`
+		args = append(args, programsv1.Provenance_PROVENANCE_OPERATOR.String())
+	}
+	query += ` GROUP BY attempted_name ORDER BY COUNT(*) DESC, attempted_name`
+	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("mine unresolved binding attempts: %w", err)
 	}
@@ -319,6 +333,6 @@ func (r *memoryRepository) MineRefusals(context.Context, bool) ([]*programsv1.Re
 	return nil, nil
 }
 
-func (r *memoryRepository) MineUnresolvedBindings(context.Context) ([]*programsv1.UnresolvedBindingShape, error) {
+func (r *memoryRepository) MineUnresolvedBindings(context.Context, bool) ([]*programsv1.UnresolvedBindingShape, error) {
 	return nil, nil
 }

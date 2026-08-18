@@ -138,10 +138,29 @@ def test_handle_constructor_is_available_to_isolated_programs():
 
 def test_filter_and_aggregate_run_in_kernel():  # [REQ:PRT-P0-003]
     kernel = SessionKernel()
-    result = kernel.execute("from host.engine import Handle\nrows = Handle([{'kind': 'a'}, {'kind': 'a'}, {'kind': 'b'}])\nprint(rows.filter(lambda x: x['kind'] == 'a').count())\nprint(rows.group_by('kind'))")
+    result = kernel.execute("from host.engine import Handle\nrows = Handle([{'kind': 'a'}, {'kind': 'a'}, {'kind': 'b'}])\nprint(rows.filter(lambda x: x['kind'] == 'a').count())\nprint(rows.group_by('kind'))\nprint(rows.group_by('kind').count())")
     assert result["ok"]
     assert "2" in result["stdout"]
     assert "'a': 2" in result["stdout"]
+    assert "\n3\n" in result["stdout"]
+
+
+def test_group_counts_are_ints_with_a_bounded_count_helper():
+    result = SessionKernel().execute("rows = Handle([{'kind': 'a'}, {'kind': 'a'}])\ngroups = rows.group_by('kind')\nprint(groups['a'] + 1)\nprint(groups['a'].count())")
+    assert result["ok"]
+    assert result["stdout"].splitlines() == ["3", "2"]
+
+
+def test_join_accepts_on_as_an_additive_key_alias():
+    result = SessionKernel().execute("left = Handle([{'id': 1}])\nright = Handle([{'id': 1, 'ok': True}])\nprint(left.join(right, on='id').count())")
+    assert result["ok"]
+    assert result["stdout"].strip() == "1"
+
+
+def test_join_rejects_key_and_on_together():
+    result = SessionKernel().execute("Handle([{'id': 1}]).join(Handle([{'id': 1}]), 'id', on='id')")
+    assert not result["ok"]
+    assert "key" in result["error"] and "on" in result["error"]
 
 
 def test_group_by_reports_missing_key_and_available_fields():

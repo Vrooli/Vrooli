@@ -38,6 +38,15 @@ func (f fakeInvocationRecorder) ListInvocations(context.Context, time.Time, stri
 	return f.rows, nil
 }
 
+type fakeExerciseReader struct {
+	observations []ExerciseObservation
+	err          error
+}
+
+func (f fakeExerciseReader) Aggregate(context.Context, string, time.Time, time.Time) ([]ExerciseObservation, error) {
+	return f.observations, f.err
+}
+
 func TestBindingConditionUsesNearestRankAndReportsUninstrumentedDrift(t *testing.T) { // [REQ:PRT-P1-008]
 	now := time.Now().UTC()
 	r := &Registry{
@@ -49,7 +58,8 @@ func TestBindingConditionUsesNearestRankAndReportsUninstrumentedDrift(t *testing
 			{BindingID: "demo/read/list", SessionID: "s3", Outcome: "success", LatencyMS: 40, OccurredAt: now},
 			{BindingID: "demo/read/list", SessionID: "s4", Outcome: "success", LatencyMS: 50, OccurredAt: now},
 		}},
-		artifactMtime: now.Add(-time.Hour),
+		artifactMtime:  now.Add(-time.Hour),
+		exerciseReader: fakeExerciseReader{observations: []ExerciseObservation{{TargetScenario: "demo", Operation: "demo/read/list", Invocations: 5, DistinctVerifiedCallers: 3}}},
 	}
 	response, err := r.Conditions(context.Background(), "", "", time.Hour)
 	require.NoError(t, err)
@@ -62,7 +72,7 @@ func TestBindingConditionUsesNearestRankAndReportsUninstrumentedDrift(t *testing
 }
 
 func TestBindingConditionReportsDormantAndNotHealthy(t *testing.T) { // [REQ:PRT-P1-008]
-	r := &Registry{bindings: []*bindingsv1.Binding{{Id: "demo/read/never", Scenario: "demo"}}, recorder: fakeInvocationRecorder{}}
+	r := &Registry{bindings: []*bindingsv1.Binding{{Id: "demo/read/never", Scenario: "demo"}}, recorder: fakeInvocationRecorder{}, exerciseReader: fakeExerciseReader{}}
 	response, err := r.Conditions(context.Background(), "", "", time.Hour)
 	require.NoError(t, err)
 	require.Equal(t, bindingsv1.ConditionStatus_CONDITION_STATUS_DORMANT, response.Conditions[0].Status)

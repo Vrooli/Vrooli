@@ -1,6 +1,7 @@
 {
   "name": "discovery.primary",
-  "floor": 35,
+  "floor": 43,
+  "floor_reason": "Re-derived 2026-08-18 from comparable fast-run-1=44/45, fast-run-2=44/45, judged-run-1=44/45, and judged-run-2=45/45; floor is one below the observed minimum and remains above the prior floor 35.",
   "cases": [
     {"id":"act-bindings-list","intent":"inspect the governed callable operations","binding_id":"program-runtime/bindings/list"},
     {"id":"act-bindings-doctor","intent":"check whether the binding registry is healthy","binding_id":"program-runtime/bindings/doctor"},
@@ -22,6 +23,8 @@
     {"id":"program-mine-refusals","intent":"find recurring governance refusal patterns","binding_id":"program-runtime/programs/mine-refusals"},
     {"id":"program-mine-unresolved","intent":"find attempted names with no governed operation","binding_id":"program-runtime/programs/mine-unresolved"},
     {"id":"telemetry-events","intent":"read typed program lifecycle events","binding_id":"program-runtime/telemetry/events"},
+    {"id":"documented-test-verdicts","intent":"read test run verdicts","binding_id":"test-genie/runs/status"},
+    {"id":"documented-live-sessions","intent":"the capability that lists live sessions","binding_id":"program-runtime/sessions/list"},
     {"id":"search-project","intent":"search the project by intent","binding_id":"search-hub/query/query"},
     {"id":"test-wait","intent":"run a test suite and wait for the verdict","binding_id":"test-genie/runs/status"},
     {"id":"capability-find","intent":"find a capability by intent","binding_id":"search-hub/query/query"},

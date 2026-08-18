@@ -130,7 +130,7 @@
       ],
       "validation": [
         {
-          "type": "manual",
+          "type": "test",
           "phase": "acceptance",
           "status": "implemented",
           "notes": "Target `api/internal/sessions/manager_test.go::TestDelegationSpendReceiptAccumulatesAndCeilingRejects` (tagged [REQ:PRT-P1-011]). Agent Manager publishes a terminal per-execution ChargeReceipt with currency, metering basis, and measured/unmeasured semantics; Program Runtime records measured receipts and atomically refuses a charge that would cross the delegated-run ceiling with delegated_run_spend_exceeded."

@@ -16,6 +16,10 @@ func newProgramsTestDB(t *testing.T) *sql.DB {
 	t.Helper()
 	d := db.NewSQLite(t)
 	require.NoError(t, apidb.EnsureSchemas(context.Background(), d, apidb.SchemaProviderFunc(Schema)))
+	_, err := d.ExecContext(context.Background(), `CREATE TABLE refusals (binding_id TEXT, reason TEXT, provenance TEXT, occurred_at TEXT)`)
+	require.NoError(t, err)
+	_, err = d.ExecContext(context.Background(), `CREATE TABLE unresolved_binding_attempts (attempted_name TEXT, provenance TEXT, occurred_at TEXT)`)
+	require.NoError(t, err)
 	return d
 }
 
@@ -63,4 +67,34 @@ func TestSQLiteRepositoryMineFailuresHonorsTimeWindow(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, shapes, 1)
 	require.Equal(t, int64(1), shapes[0].Count)
+}
+
+func TestSQLiteRepositoryMineRefusalsFiltersOperatorByDefault(t *testing.T) {
+	ctx := context.Background()
+	d := newProgramsTestDB(t)
+	repo := NewRepository(d)
+	_, err := d.ExecContext(ctx, `INSERT INTO refusals (binding_id, reason, provenance, occurred_at) VALUES (?, ?, ?, ?), (?, ?, ?, ?)`, "ops/delete", "missing grant", programsv1.Provenance_PROVENANCE_OPERATOR.String(), "2026-08-11T14:00:00Z", "ops/delete", "missing grant", programsv1.Provenance_PROVENANCE_AGENT.String(), "2026-08-11T14:01:00Z")
+	require.NoError(t, err)
+	shapes, err := repo.MineRefusals(ctx, false)
+	require.NoError(t, err)
+	require.Len(t, shapes, 1)
+	require.Equal(t, int64(1), shapes[0].Count)
+	shapes, err = repo.MineRefusals(ctx, true)
+	require.NoError(t, err)
+	require.Equal(t, int64(2), shapes[0].Count)
+}
+
+func TestSQLiteRepositoryMineUnresolvedFiltersOperatorByDefault(t *testing.T) {
+	ctx := context.Background()
+	d := newProgramsTestDB(t)
+	repo := NewRepository(d)
+	_, err := d.ExecContext(ctx, `INSERT INTO unresolved_binding_attempts (attempted_name, provenance, occurred_at) VALUES (?, ?, ?), (?, ?, ?)`, "missing.binding", programsv1.Provenance_PROVENANCE_OPERATOR.String(), "2026-08-11T14:00:00Z", "missing.binding", programsv1.Provenance_PROVENANCE_AGENT.String(), "2026-08-11T14:01:00Z")
+	require.NoError(t, err)
+	shapes, err := repo.MineUnresolvedBindings(ctx, false)
+	require.NoError(t, err)
+	require.Len(t, shapes, 1)
+	require.Equal(t, int64(1), shapes[0].Count)
+	shapes, err = repo.MineUnresolvedBindings(ctx, true)
+	require.NoError(t, err)
+	require.Equal(t, int64(2), shapes[0].Count)
 }

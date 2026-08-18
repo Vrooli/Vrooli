@@ -47,7 +47,7 @@ func TestAuthoringEvalMeasuresRatherThanStubbing(t *testing.T) {
 			}
 			return "print({'rows': 1})", "test-model", nil
 		},
-		RunCase: func(_ context.Context, source string) (string, string, int64, string, error) {
+		RunCase: func(_ context.Context, _, source string) (string, string, int64, string, error) {
 			if source == "" {
 				t.Fatal("authored source must reach submission")
 			}
@@ -69,11 +69,61 @@ func TestAuthoringEvalMeasuresRatherThanStubbing(t *testing.T) {
 	}
 }
 
+func TestAuthoringEvalPassesExplicitSetupBeforeAuthoredProgram(t *testing.T) {
+	setupSeen := false
+	deps := AuthoringDeps{
+		SuitePath: writeSuite(t, AuthoringSuite{
+			Name: "session-reuse",
+			Cases: []AuthoringCase{{
+				ID:     "reuse",
+				Task:   "Reuse prior_result and print its value.",
+				Setup:  "prior_result = {'value': 'reused'}",
+				Oracle: AuthoringOracle{Kind: "stdout_contains", Text: "reused"},
+			}},
+		}),
+		Author: func(context.Context, string, string) (string, string, error) {
+			return "print(prior_result['value'])", "test-model", nil
+		},
+		RunCase: func(_ context.Context, setup, source string) (string, string, int64, string, error) {
+			if setup != "prior_result = {'value': 'reused'}" {
+				t.Fatalf("expected explicit session setup, got %q", setup)
+			}
+			if source == "" {
+				t.Fatal("authored source must reach submission")
+			}
+			setupSeen = true
+			return "reused", "", 7, "", nil
+		},
+	}
+	result := RunAuthoringEval(context.Background(), deps)
+	if !setupSeen || result.Met != 1 || result.Status != "measured" {
+		t.Fatalf("expected setup-backed measured case, got setup=%v status=%q met=%d", setupSeen, result.Status, result.Met)
+	}
+}
+
+func TestAuthoringOraclesUseDeclaredFields(t *testing.T) {
+	if satisfiesOracle(AuthoringOracle{Kind: "stdout_contains", Value: "reused"}, "something else") {
+		t.Fatal("stdout_contains must use the declared value, not merely non-empty output")
+	}
+	if !satisfiesOracle(AuthoringOracle{Kind: "row_count_relation", Relation: "gt", Value: 1}, "2") {
+		t.Fatal("row_count_relation should compare the observed count")
+	}
+	if satisfiesOracle(AuthoringOracle{Kind: "row_count_relation", Relation: "gt", Value: 1}, "1") {
+		t.Fatal("row_count_relation must reject an equal count for gt")
+	}
+	if satisfiesOracle(AuthoringOracle{Kind: "handle_metadata", Key: "role"}, "{'other': 'value'}") {
+		t.Fatal("handle_metadata must require its declared key")
+	}
+	if satisfiesOracle(AuthoringOracle{Kind: "null_verdict"}, "binding-id") {
+		t.Fatal("null_verdict must not accept an arbitrary successful binding")
+	}
+}
+
 func TestAuthoringEvalCountsWrongResultSeparatelyFromFailure(t *testing.T) {
 	deps := AuthoringDeps{
 		SuitePath: writeSuite(t, twoCaseSuite()),
 		Author:    func(_ context.Context, _, _ string) (string, string, error) { return "print('nope')", "m", nil },
-		RunCase: func(_ context.Context, _ string) (string, string, int64, string, error) {
+		RunCase: func(_ context.Context, _, _ string) (string, string, int64, string, error) {
 			return "nope", "", 4, "", nil
 		},
 	}
@@ -88,7 +138,7 @@ func TestAuthoringEvalCountsFailedProgramAsMissed(t *testing.T) {
 	deps := AuthoringDeps{
 		SuitePath: writeSuite(t, twoCaseSuite()),
 		Author:    func(_ context.Context, _, _ string) (string, string, error) { return "print(nope)", "m", nil },
-		RunCase: func(_ context.Context, _ string) (string, string, int64, string, error) {
+		RunCase: func(_ context.Context, _, _ string) (string, string, int64, string, error) {
 			return "", "unresolved_name", 0, "name \"nope\" does not resolve", nil
 		},
 	}
@@ -110,7 +160,7 @@ func TestAuthoringEvalReportsUnavailableOnlyForRealRouteLoss(t *testing.T) {
 		Author: func(_ context.Context, _, _ string) (string, string, error) {
 			return "", "", errors.New("ai-gateway is unreachable: connection refused")
 		},
-		RunCase: func(_ context.Context, _ string) (string, string, int64, string, error) { return "", "", 0, "", nil },
+		RunCase: func(_ context.Context, _, _ string) (string, string, int64, string, error) { return "", "", 0, "", nil },
 	}
 	result := RunAuthoringEval(context.Background(), deps)
 	if result.Status != "unavailable" || result.Unavailable != 1 {

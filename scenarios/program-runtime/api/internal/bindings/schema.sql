@@ -1,6 +1,7 @@
 CREATE TABLE IF NOT EXISTS refusals (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   session_id TEXT NOT NULL,
+  provenance TEXT NOT NULL DEFAULT '',
   binding_id TEXT NOT NULL,
   reason TEXT NOT NULL,
   occurred_at TEXT NOT NULL
@@ -13,6 +14,7 @@ CREATE INDEX IF NOT EXISTS idx_refusals_occurred ON refusals(occurred_at);
 CREATE TABLE IF NOT EXISTS unresolved_binding_attempts (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   session_id TEXT NOT NULL,
+  provenance TEXT NOT NULL DEFAULT '',
   attempted_name TEXT NOT NULL,
   occurred_at TEXT NOT NULL
 );

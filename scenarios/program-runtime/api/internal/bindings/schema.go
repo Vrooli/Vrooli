@@ -16,6 +16,11 @@ var schema string
 func Schema() string { return schema }
 
 func EnsureCompatibility(ctx context.Context, db sessions.SQLExecutor) error {
+	for _, table := range []string{"refusals", "unresolved_binding_attempts"} {
+		if err := ensureProvenanceColumn(ctx, db, table); err != nil {
+			return err
+		}
+	}
 	rows, err := db.QueryContext(ctx, "PRAGMA table_info(binding_invocations)")
 	if err != nil {
 		return fmt.Errorf("inspect binding invocation schema: %w", err)
@@ -49,6 +54,36 @@ func EnsureCompatibility(ctx context.Context, db sessions.SQLExecutor) error {
 	}
 	if _, err := db.ExecContext(ctx, "CREATE INDEX IF NOT EXISTS idx_binding_invocations_class ON binding_invocations(invocation_class)"); err != nil {
 		return fmt.Errorf("index binding invocation class: %w", err)
+	}
+	return nil
+}
+
+func ensureProvenanceColumn(ctx context.Context, db sessions.SQLExecutor, table string) error {
+	rows, err := db.QueryContext(ctx, "PRAGMA table_info("+table+")")
+	if err != nil {
+		return fmt.Errorf("inspect %s schema: %w", table, err)
+	}
+	defer rows.Close()
+	found := false
+	for rows.Next() {
+		var cid, notNull, primary int
+		var name, columnType string
+		var defaultValue any
+		if err := rows.Scan(&cid, &name, &columnType, &notNull, &defaultValue, &primary); err != nil {
+			return fmt.Errorf("scan %s schema: %w", table, err)
+		}
+		if name == "provenance" {
+			found = true
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("read %s schema: %w", table, err)
+	}
+	if found {
+		return nil
+	}
+	if _, err := db.ExecContext(ctx, "ALTER TABLE "+table+" ADD COLUMN provenance TEXT NOT NULL DEFAULT ''"); err != nil {
+		return fmt.Errorf("add %s.provenance: %w", table, err)
 	}
 	return nil
 }
