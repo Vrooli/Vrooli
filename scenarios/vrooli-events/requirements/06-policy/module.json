@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-07-18T12:22:14-04:00"
+    "last_validated_at": "2026-08-18T08:37:27-04:00"
   },
   "requirements": [
     {
       "id": "REQ-POL-001",
       "title": "Access control rules",
-      "status": "in_progress",
+      "status": "complete",
       "criticality": "P1",
       "description": "Rules define which source scenarios can call which target scenarios with effect and priority.",
       "children": [
@@ -18,14 +18,14 @@
           "type": "test",
           "ref": "internal/policy/evaluator_test.go",
           "phase": "unit",
-          "status": "failing"
+          "status": "implemented"
         }
       ]
     },
     {
       "id": "REQ-POL-001A",
       "title": "Priority-based rule matching",
-      "status": "in_progress",
+      "status": "complete",
       "criticality": "P1",
       "description": "Rules evaluated in priority order; highest priority matching rule determines outcome",
       "children": [
@@ -36,7 +36,7 @@
           "type": "test",
           "ref": "internal/policy/sqlite_edge_test.go",
           "phase": "unit",
-          "status": "failing"
+          "status": "implemented"
         }
       ]
     },
@@ -63,7 +63,7 @@
     {
       "id": "REQ-POL-002",
       "title": "Rate limiting rules",
-      "status": "in_progress",
+      "status": "complete",
       "criticality": "P1",
       "description": "Rules define request rate caps per scenario pair with sliding window.",
       "children": [
@@ -75,14 +75,14 @@
           "type": "test",
           "ref": "internal/policy/sqlite_test.go",
           "phase": "unit",
-          "status": "failing"
+          "status": "implemented"
         }
       ]
     },
     {
       "id": "REQ-POL-003",
       "title": "Circuit breaker rules",
-      "status": "in_progress",
+      "status": "complete",
       "criticality": "P1",
       "description": "Per-scenario-pair circuit breaker with three states: closed, open, half-open.",
       "children": [
@@ -92,16 +92,16 @@
       "validation": [
         {
           "type": "test",
-          "ref": "api/handlers_policy_crud_test.go",
+          "ref": "internal/policy/sqlite_test.go",
           "phase": "unit",
-          "status": "failing"
+          "status": "implemented"
         }
       ]
     },
     {
       "id": "REQ-POL-003A",
       "title": "Three-state circuit breaker",
-      "status": "in_progress",
+      "status": "complete",
       "criticality": "P1",
       "description": "Circuit breaker tracks closed, open, and half-open states with configurable thresholds",
       "children": [
@@ -112,7 +112,7 @@
           "type": "test",
           "ref": "internal/policy/sqlite_edge_test.go",
           "phase": "unit",
-          "status": "failing"
+          "status": "implemented"
         }
       ]
     },
@@ -139,7 +139,7 @@
     {
       "id": "REQ-POL-004",
       "title": "Policy CRUD API",
-      "status": "in_progress",
+      "status": "complete",
       "criticality": "P1",
       "description": "REST endpoints for policy rule management with validation.",
       "children": [
@@ -151,14 +151,14 @@
           "type": "test",
           "ref": "internal/policy/sqlite_test.go",
           "phase": "unit",
-          "status": "failing"
+          "status": "implemented"
         }
       ]
     },
     {
       "id": "REQ-POL-005",
       "title": "SSE policy push channel",
-      "status": "in_progress",
+      "status": "complete",
       "criticality": "P1",
       "description": "Dedicated SSE endpoint pushing PolicyUpdate events when rules change.",
       "children": [
@@ -168,22 +168,22 @@
       "validation": [
         {
           "type": "test",
-          "ref": "api/handlers_policy_subscribe_test.go",
+          "ref": "internal/policy/sqlite_test.go",
           "phase": "unit",
-          "status": "failing"
+          "status": "implemented"
         },
         {
           "type": "test",
           "ref": "internal/policy/broadcaster_test.go",
           "phase": "unit",
-          "status": "failing"
+          "status": "implemented"
         }
       ]
     },
     {
       "id": "REQ-POL-006",
       "title": "Policy evaluation engine",
-      "status": "in_progress",
+      "status": "complete",
       "criticality": "P1",
       "description": "Evaluation order: circuit breaker → access control → rate limiting.",
       "children": [
@@ -193,9 +193,9 @@
       "validation": [
         {
           "type": "test",
-          "ref": "api/handlers_policy_eval_test.go",
+          "ref": "internal/policy/sqlite_test.go",
           "phase": "unit",
-          "status": "failing"
+          "status": "implemented"
         }
       ]
     },
@@ -232,7 +232,7 @@
     {
       "id": "REQ-POL-007",
       "title": "Policy violation logging",
-      "status": "in_progress",
+      "status": "complete",
       "criticality": "P1",
       "description": "Denied requests logged as policy_violations records, queryable with filters.",
       "children": [
@@ -242,22 +242,22 @@
       "validation": [
         {
           "type": "test",
-          "ref": "api/handlers_policy_violations_test.go",
+          "ref": "internal/policy/sqlite_test.go",
           "phase": "unit",
-          "status": "failing"
+          "status": "implemented"
         },
         {
           "type": "test",
           "ref": "internal/policy/sqlite_violations_test.go",
           "phase": "unit",
-          "status": "failing"
+          "status": "implemented"
         }
       ]
     },
     {
       "id": "REQ-POL-008",
       "title": "Circuit breaker manual override",
-      "status": "in_progress",
+      "status": "complete",
       "criticality": "P1",
       "description": "POST /api/v1/policies/:id/override to force circuit breaker state.",
       "children": [
@@ -267,9 +267,9 @@
       "validation": [
         {
           "type": "test",
-          "ref": "api/handlers_policy_override_test.go",
+          "ref": "internal/policy/sqlite_test.go",
           "phase": "unit",
-          "status": "failing"
+          "status": "implemented"
         }
       ]
     },

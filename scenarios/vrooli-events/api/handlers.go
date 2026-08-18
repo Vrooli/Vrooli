@@ -61,7 +61,7 @@ func validateReceipt(env *domain.EventEnvelope) *envelopeValidationError {
 	if env.Target == nil || strings.TrimSpace(env.Target.Scenario) == "" || strings.TrimSpace(env.Target.Operation) == "" || strings.TrimSpace(env.Target.Protocol) == "" {
 		return &envelopeValidationError{Field: "target", Message: "receipt target scenario, operation, and protocol are required"}
 	}
-	if env.Data == nil || !strings.HasSuffix(env.Data.TypeUrl, "/vrooli.events.v1.domain.ReceiptData") {
+	if env.Data == nil || !strings.HasSuffix(env.Data.TypeUrl, "/vrooli.vrooli_events.v1.domain.ReceiptData") {
 		return &envelopeValidationError{Field: "data", Message: "receipt data must pack ReceiptData"}
 	}
 	return nil
@@ -275,6 +275,11 @@ func (s *Server) handleIngest(w http.ResponseWriter, r *http.Request) {
 	}
 
 	event.ID = id
+	if err := s.enqueueSubscriptions(r.Context(), event); err != nil {
+		log.Printf("subscription fan-out enqueue error: %v", err)
+		writeError(w, http.StatusInternalServerError, ErrCodeStoreWrite, "failed to enqueue subscription deliveries")
+		return
+	}
 
 	// Broadcast asynchronously so ingestion latency is not affected by slow subscribers.
 	go func() {
@@ -302,7 +307,7 @@ func (s *Server) handleQuery(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	events, err := s.store.Query(r.Context(), filters)
+	events, err := queryStoreEvents(r.Context(), s.store, filters)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, ErrCodeStoreRead, "failed to query events")
 		log.Printf("query error: %v", err)
@@ -310,6 +315,13 @@ func (s *Server) handleQuery(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeEventList(w, filterCanonicalEvents(events, r.URL.Query()))
+}
+
+// queryStoreEvents keeps the Store abstraction at the API boundary. Store
+// implementations own any database cursor; callers receive an already
+// materialized event slice rather than a raw *sql.Rows handle.
+func queryStoreEvents(ctx context.Context, events store.Store, filters store.QueryFilters) ([]store.Event, error) {
+	return events.Query(ctx, filters)
 }
 
 func filterCanonicalEvents(events []store.Event, query map[string][]string) []store.Event {

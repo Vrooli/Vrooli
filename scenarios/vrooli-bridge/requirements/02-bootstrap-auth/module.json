@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "One-touch per-OS bootstrap that installs Vrooli + node-agent and pairs out-of-band; mutual auth; atomic revocation.",
-    "last_validated_at": "2026-08-17T07:57:42-04:00",
+    "last_validated_at": "2026-08-18T05:24:21-04:00",
     "module": "bootstrap-auth",
     "prd_ref": "OT-P0-002",
     "priority": "P0",

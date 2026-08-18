@@ -9,22 +9,22 @@
 - **Purpose**: Central nervous system for all inter-scenario communication in Vrooli. Every call through the discovery package emits a structured event to vrooli-events for durable storage, real-time pub/sub, analytics, compliance auditing, and policy enforcement. Scenarios subscribe to events without point-to-point coupling. Downstream consumers like notification-hub react to any event in the ecosystem without requiring changes to source scenarios.
 - **Primary users/verticals**: Other Vrooli scenarios (as event producers/consumers), notification-hub (event-driven notifications), platform operators (analytics, compliance, policy management), developers (debugging event flows, tracing inter-scenario calls)
 - **Deployment surfaces**: API (event ingestion + query + SSE streaming + policy CRUD + subscription management), CLI (query/subscribe/stats/policy/subscriptions), UI (real-time analytics dashboard, policy management, subscription management, compliance audit views)
-- **Value promise**: Enables enterprise-grade event-driven architecture across scenarios with full traceability, durable history, real-time delivery, policy enforcement (access control, rate limiting, circuit breaking), and compliance auditing. The discovery package automatically emits events for every inter-scenario call — zero code changes needed in existing scenarios. Dual-end policy caching ensures zero-latency enforcement at both sender and receiver without adding round-trip overhead to inter-scenario calls.
+- **Value promise**: Enables event-driven architecture across scenarios with full traceability, durable history, real-time delivery, policy enforcement, and compliance auditing. The discovery package automatically emits events for every inter-scenario call — zero code changes needed in existing scenarios. Dual-end policy caching keeps enforcement local at both sender and receiver without adding a round trip to inter-scenario calls.
 
-## Operational Targets
+## 🎯 Operational Targets
 
-### P0 -- Must ship for viability
-- [x] OT-P0-001 | Event ingestion | POST /api/v1/events accepts EventEnvelope proto payloads, returns 202 Accepted, stores durably in SQLite WAL-mode
-- [x] OT-P0-002 | SSE event subscribe | GET /api/v1/events/subscribe delivers real-time events with glob-pattern filtering on event type, source, and target
-- [x] OT-P0-003 | Event query | GET /api/v1/events returns stored events with filters (type glob, source, correlation_id, since, until, limit, offset)
-- [x] OT-P0-004 | Health endpoint | GET /health reports store stats, subscriber count, policy cache status, and overall health
-- [x] OT-P0-005 | Structured event IDs | Events use `{scenario}.{domain}.{action}.{version}` format with segment-aware glob matching (* = one segment, ** = one or more)
-- [x] OT-P0-006 | Correlation tracking | Events carry correlation_id for distributed trace grouping across scenario boundaries
+### 🔴 P0 – Must ship for viability
+- [ ] OT-P0-001 | Event ingestion | POST /api/v1/events accepts EventEnvelope proto payloads, returns an Accepted response, stores durably in SQLite WAL-mode
+- [ ] OT-P0-002 | SSE event subscribe | GET /api/v1/events/subscribe delivers real-time events with glob-pattern filtering on event type, source, and target
+- [ ] OT-P0-003 | Event query | GET /api/v1/events returns stored events with filters (type glob, source, correlation_id, since, until, limit, offset)
+- [ ] OT-P0-004 | Health endpoint | GET /health reports store stats, subscriber count, policy cache status, and overall health
+- [ ] OT-P0-005 | Structured event IDs | Events use `{scenario}.{domain}.{action}.{version}` format with segment-aware glob matching (* = one segment, ** = one or more)
+- [ ] OT-P0-006 | Correlation tracking | Events carry correlation_id for distributed trace grouping across scenario boundaries
 
-### P1 -- Should have post-launch
-- [x] OT-P1-001 | Last-Event-ID resume | SSE clients reconnect with Last-Event-ID header to replay missed events without data loss
-- [x] OT-P1-002 | Backpressure handling | 64-capacity subscriber channels with drop+notify (dropped_count in heartbeat)
-- [x] OT-P1-003 | Configurable retention | Dual-trigger pruning with user-configurable retention window (default 30 days) and size cap (default 2GB), manageable via API and UI
+### 🟠 P1 – Should have post-launch
+- [ ] OT-P1-001 | Last-Event-ID resume | SSE clients reconnect with Last-Event-ID header to replay missed events without data loss
+- [ ] OT-P1-002 | Backpressure handling | 64-capacity subscriber channels with drop+notify (dropped_count in heartbeat)
+- [ ] OT-P1-003 | Configurable retention | Dual-trigger pruning with user-configurable retention window (default 30 days) and size cap (default 2GB), manageable via API and UI
 - [ ] OT-P1-004 | Policy engine — access control | Rules defining which scenarios can call which endpoints on which target scenarios, evaluated locally from cache
 - [ ] OT-P1-005 | Policy engine — rate limiting | Per-scenario-pair rate limit rules (requests/minute, requests/hour) with sliding window counters
 - [ ] OT-P1-006 | Policy engine — circuit breaking | Automatic circuit breaker per scenario pair: open after N failures in window, half-open probe after cooldown, close on success
@@ -37,7 +37,7 @@
 - [ ] OT-P1-013 | CLI tools | Full CLI via ScenarioApp: query, subscribe, stats, policy CRUD, subscription management, retention config
 - [ ] OT-P1-014 | Graceful degradation | If vrooli-events is unreachable, discovery package holds last-known policy (configurable fail-open or fail-closed per rule), buffers events for retry
 
-### P2 -- Future / expansion
+### 🟢 P2 – Future / expansion
 - [ ] OT-P2-001 | Analytics dashboard | Real-time UI: event throughput charts, per-scenario call volume and error rates, top event types, subscriber status, store growth
 - [ ] OT-P2-002 | Policy management UI | Visual policy editor: access control rules, rate limit configs, circuit breaker thresholds with status indicators (open/closed/half-open)
 - [ ] OT-P2-003 | Subscription management UI | Create/edit/delete persistent subscriptions, test glob patterns against live event stream, subscription health indicators

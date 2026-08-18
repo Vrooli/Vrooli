@@ -1,7 +1,10 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
-export default defineConfig({
+export default defineConfig(({ mode }) => {
+  const isProfile = mode === "profile";
+
+  return {
   // ╔══════════════════════════════════════════════════════════════╗
   // ║  INTEROP-CRITICAL: Relative base for proxy/tunnel contexts  ║
   // ║                                                              ║
@@ -15,6 +18,15 @@ export default defineConfig({
   // ╚══════════════════════════════════════════════════════════════╝
   base: './',
   plugins: [react()],
+  resolve: {
+    alias: isProfile
+      ? {
+          "react-dom/client": "react-dom/profiling",
+          "react-dom$": "react-dom/profiling",
+        }
+      : undefined,
+  },
+  esbuild: isProfile ? { keepNames: true } : undefined,
   test: {
     globals: true,
     environment: 'jsdom',
@@ -42,5 +54,6 @@ export default defineConfig({
         statements: 85
       }
     }
-  }
+  },
+  };
 });

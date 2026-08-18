@@ -1,7 +1,22 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
-  "storage": {"entries":{},"rationale":"No scenario-owned persistent directory was found in the canonical repository storage paths; the scenario uses external storage, generated test paths, or ephemeral runtime state."},
+  "storage": {
+    "entries": {
+      "data": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "The durable SQLite event store is resolved into the scenario-owned data directory.",
+        "budget": {
+          "max_bytes": "2GiB",
+          "rationale": "The event store pruner enforces the same 2 GiB payload ceiling before the durable data surface can grow without bound."
+        }
+      }
+    },
+    "rationale": "The scenario owns its durable SQLite event store; no external resource database is claimed."
+  },
   "service": {
     "parent": "vrooli",
     "name": "vrooli-events",

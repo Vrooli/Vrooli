@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Optional mDNS auto-discovery of the control plane on a trusted LAN; manual URL+code remains the cross-network default.",
-    "last_validated_at": "2026-08-17T07:57:42-04:00",
+    "last_validated_at": "2026-08-18T05:24:21-04:00",
     "module": "lan-discovery",
     "prd_ref": "OT-P1-006",
     "priority": "P1",

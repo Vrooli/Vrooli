@@ -27,11 +27,7 @@ type manifestArtifact struct {
 	// commands are known to Allow, while a node still needs the matching effect
 	// scope to execute one.
 	DefaultGrants []string `json:"default_grants"`
-	Bindings      []struct {
-		Verb   string `json:"verb"`
-		Effect string `json:"effect"`
-	} `json:"typed_bindings"`
-	Outputs []struct {
+	Outputs       []struct {
 		Verb    string `json:"verb"`
 		Entries []struct {
 			Name       string `json:"name"`
@@ -65,44 +61,31 @@ func loadManifest() []string {
 		panic(fmt.Sprintf("decode dispatch manifest: %v", err))
 	}
 	validateDefaultGrants(catalog, artifact.DefaultGrants)
-	bindings := make([]string, 0, len(artifact.Bindings))
-	overrides := make(map[string]struct{}, len(artifact.Bindings))
-	for _, entry := range artifact.Bindings {
-		trimmed := strings.TrimSpace(entry.Verb)
-		if trimmed == "" {
-			continue
-		}
-		effect := strings.TrimSpace(entry.Effect)
-		if effect != string(scopecatalog.EffectRead) && effect != string(scopecatalog.EffectWrite) && effect != string(scopecatalog.EffectDestructive) {
-			panic(fmt.Sprintf("dispatch manifest entry %q has invalid governance effect %q", trimmed, effect))
-		}
-		required := "vrooli-bridge:" + effect
-		if !catalog.HasScope(required) {
-			panic(fmt.Sprintf("dispatch manifest entry %q requires missing derived scope %q", trimmed, required))
-		}
-		overrides[trimmed] = struct{}{}
-		bindings = append(bindings, encodeManifestEntry(trimmed, []string{required}))
-	}
+	bindings := make([]string, 0, len(catalog.Scopes))
 
 	// Project CLI command names are the dispatch vocabulary. Their governance
 	// effects come from the same catalog used by agent-manager and posture
 	// validation, so adding a governed root command cannot silently leave the
 	// node admission surface stale.
-	result := make([]string, 0, len(catalog.Scopes)+len(artifact.Bindings))
+	result := make([]string, 0, len(catalog.Scopes))
 	for _, scope := range catalog.Scopes {
-		if scope.Scenario != scopecatalog.ProjectManifestIdentity || strings.TrimSpace(scope.Command) == "" {
+		if !scope.RunEligible || strings.TrimSpace(scope.Command) == "" {
 			continue
 		}
 		verb := strings.ReplaceAll(scope.Command, "/", " ")
-		if _, overridden := overrides[verb]; overridden {
-			continue
+		if scope.Scenario != scopecatalog.ProjectManifestIdentity {
+			verb = scope.Scenario + " " + verb
 		}
 		effect := string(scope.Effect)
 		required := "vrooli-bridge:" + effect
 		if !catalog.HasScope(required) {
-			panic(fmt.Sprintf("project command %q requires missing derived scope %q", scope.Command, required))
+			panic(fmt.Sprintf("catalog command %q requires missing bridge effect scope %q", scope.Command, required))
 		}
-		result = append(result, encodeManifestEntry(verb, []string{required}))
+		// A node must hold both the effect grant and a verb-pattern grant.
+		// Keeping the two requirements in the derived entry prevents adding a
+		// new catalog command from widening every existing node that only has
+		// the broad effect grant.
+		result = append(result, encodeManifestEntry(verb, []string{required, verb}))
 	}
 	result = append(result, bindings...)
 	sort.Slice(result, func(i, j int) bool { return result[i] < result[j] })
@@ -199,13 +182,25 @@ func anyScopeMatches(scopes []string, verb string, manifest []string) bool {
 		if manifestEntryVerb(entry) != verb {
 			continue
 		}
-		for _, required := range manifestEntryScopes(entry) {
-			if scopeMatchesAny(scopes, required) {
-				return true
+		required := manifestEntryScopes(entry)
+		if len(required) == 0 {
+			// Keep hand-built unit-test manifests useful, while all production
+			// entries emitted by loadManifest carry the paired requirements.
+			return scopeMatchesAny(scopes, verb)
+		}
+		effectMatched, verbMatched := false, false
+		for _, requirement := range required {
+			if strings.HasPrefix(requirement, "vrooli-bridge:") {
+				effectMatched = effectMatched || scopeMatchesAny(scopes, requirement)
+			} else {
+				verbMatched = verbMatched || scopeMatchesAny(scopes, requirement)
 			}
 		}
+		if effectMatched && verbMatched {
+			return true
+		}
 	}
-	return scopeMatchesAny(scopes, verb)
+	return false
 }
 
 func scopeMatchesAny(scopes []string, required string) bool {

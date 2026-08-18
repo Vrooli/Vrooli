@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-07-18T12:22:14-04:00"
+    "last_validated_at": "2026-08-18T08:37:27-04:00"
   },
   "requirements": [
     {
       "id": "REQ-API-001",
       "title": "Event ingestion endpoint",
-      "status": "in_progress",
+      "status": "complete",
       "criticality": "P0",
       "description": "POST /api/v1/events accepts proto-JSON EventEnvelope, validates required fields, returns 202 Accepted.",
       "children": [
@@ -16,9 +16,9 @@
       "validation": [
         {
           "type": "test",
-          "ref": "api/handlers_ingest_test.go",
+          "ref": "api/handlers_hardcut_test.go",
           "phase": "unit",
-          "status": "failing"
+          "status": "implemented"
         }
       ]
     },
@@ -30,6 +30,14 @@
       "description": "Validates required fields (eventId, sourceScenario, eventType) and rejects malformed bodies",
       "children": [
         "REQ-API-001A1"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/handlers_hardcut_test.go",
+          "phase": "unit",
+          "status": "implemented"
+        }
       ]
     },
     {
@@ -40,6 +48,14 @@
       "description": "Returns machine-readable error codes (missing_field, invalid_body) for client-side error handling",
       "children": [
         "REQ-API-001A1a"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/handlers_hardcut_test.go",
+          "phase": "unit",
+          "status": "implemented"
+        }
       ]
     },
     {
@@ -50,12 +66,20 @@
       "description": "X-Dry-Run header skips persistence and broadcast while running full validation",
       "children": [
         "REQ-API-001B1"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/handlers_hardcut_test.go",
+          "phase": "unit",
+          "status": "implemented"
+        }
       ]
     },
     {
       "id": "REQ-API-002",
       "title": "Event query endpoint",
-      "status": "in_progress",
+      "status": "complete",
       "criticality": "P0",
       "description": "GET /api/v1/events with query params: type (glob), source, correlation_id, since, limit",
       "children": [
@@ -65,16 +89,16 @@
       "validation": [
         {
           "type": "test",
-          "ref": "api/handlers_query_test.go",
+          "ref": "api/handlers_hardcut_test.go",
           "phase": "unit",
-          "status": "failing"
+          "status": "implemented"
         }
       ]
     },
     {
       "id": "REQ-API-003",
       "title": "Health endpoint",
-      "status": "in_progress",
+      "status": "complete",
       "criticality": "P0",
       "description": "GET /health returns store stats, subscriber count, status",
       "children": [
@@ -86,7 +110,7 @@
           "type": "test",
           "ref": "api/handlers_health_test.go",
           "phase": "unit",
-          "status": "failing"
+          "status": "implemented"
         }
       ]
     },
@@ -95,14 +119,30 @@
       "title": "Error code to HTTP status mapping",
       "status": "complete",
       "criticality": "P0",
-      "description": "Maps validation error codes to appropriate HTTP status codes (400, 409)"
+      "description": "Maps validation error codes to appropriate HTTP status codes (400, 409)",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/handlers_hardcut_test.go",
+          "phase": "unit",
+          "status": "implemented"
+        }
+      ]
     },
     {
       "id": "REQ-API-001B1",
       "title": "Dry-run validation response",
       "status": "complete",
       "criticality": "P0",
-      "description": "Returns validation result with would-be event ID without persisting"
+      "description": "Returns validation result with would-be event ID without persisting",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/handlers_hardcut_test.go",
+          "phase": "unit",
+          "status": "implemented"
+        }
+      ]
     },
     {
       "id": "REQ-API-002A",
@@ -112,6 +152,14 @@
       "description": "Parses type, source, correlation_id, since, limit with type coercion and bounds",
       "children": [
         "REQ-API-002A1"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/handlers_hardcut_test.go",
+          "phase": "unit",
+          "status": "implemented"
+        }
       ]
     },
     {
@@ -119,14 +167,30 @@
       "title": "Glob pattern filter for type parameter",
       "status": "complete",
       "criticality": "P0",
-      "description": "Type parameter supports glob matching against event_type field"
+      "description": "Type parameter supports glob matching against event_type field",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/handlers_hardcut_test.go",
+          "phase": "unit",
+          "status": "implemented"
+        }
+      ]
     },
     {
       "id": "REQ-API-002B",
       "title": "Response format and pagination",
       "status": "complete",
       "criticality": "P0",
-      "description": "Returns JSON array with total count header for client-side pagination"
+      "description": "Returns JSON array with total count header for client-side pagination",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/handlers_hardcut_test.go",
+          "phase": "unit",
+          "status": "implemented"
+        }
+      ]
     },
     {
       "id": "REQ-API-003A",
@@ -136,6 +200,14 @@
       "description": "Collects event count, database size, and oldest event timestamp from store",
       "children": [
         "REQ-API-003A1"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/handlers_hardcut_test.go",
+          "phase": "unit",
+          "status": "implemented"
+        }
       ]
     },
     {
@@ -143,14 +215,30 @@
       "title": "Size reporting in human-readable format",
       "status": "complete",
       "criticality": "P0",
-      "description": "Database size returned in bytes with human-readable formatted string"
+      "description": "Database size returned in bytes with human-readable formatted string",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/handlers_hardcut_test.go",
+          "phase": "unit",
+          "status": "implemented"
+        }
+      ]
     },
     {
       "id": "REQ-API-003B",
       "title": "Active subscriber count",
       "status": "complete",
       "criticality": "P0",
-      "description": "Reports current SSE subscriber count from broker state"
+      "description": "Reports current SSE subscriber count from broker state",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/handlers_hardcut_test.go",
+          "phase": "unit",
+          "status": "implemented"
+        }
+      ]
     }
   ]
 }

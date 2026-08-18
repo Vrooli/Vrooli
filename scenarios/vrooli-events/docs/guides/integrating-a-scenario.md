@@ -2,7 +2,7 @@
 
 How to connect your scenario to vrooli-events for automatic event emission and policy enforcement.
 
-The platform integration lives in [`packages/api-core/eventbus`](../../../packages/api-core/eventbus), not in a scenario-local SDK. It provides a local policy snapshot cache, a background refresher, HTTP middleware, and non-blocking receipt publication. The detailed platform rules are in [Vrooli Events Platform Contract](../../../docs/concepts/VROOLI_EVENTS_PLATFORM_CONTRACT.md).
+The platform integration lives in `packages/api-core/eventbus`, not in a scenario-local SDK. It provides a local policy snapshot cache, a background refresher, HTTP middleware, and non-blocking receipt publication. The detailed platform rules are in `path:../../docs/concepts/VROOLI_EVENTS_PLATFORM_CONTRACT.md`.
 
 ## Standard API Integration
 

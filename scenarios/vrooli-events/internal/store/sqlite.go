@@ -40,6 +40,9 @@ CREATE TABLE IF NOT EXISTS store_meta (
 INSERT OR IGNORE INTO store_meta (key, value) VALUES ('total_payload_bytes', 0);
 `
 
+// Schema returns the event-store schema for the routed database registry.
+func Schema() string { return schema }
+
 const pragmas = `
 PRAGMA journal_mode=WAL;
 PRAGMA busy_timeout=10000;
@@ -60,7 +63,8 @@ type SQLiteConfig struct {
 
 // SQLiteStore implements Store using SQLite.
 type SQLiteStore struct {
-	db     *sql.DB
+	db     sqlutil.DB
+	rawDB  *sql.DB
 	config SQLiteConfig
 }
 
@@ -114,9 +118,44 @@ func NewSQLiteStore(ctx context.Context, cfg SQLiteConfig) (*SQLiteStore, error)
 		return nil, fmt.Errorf("index receipt expiry: %w", err)
 	}
 
-	s := &SQLiteStore{db: db, config: cfg}
+	s := &SQLiteStore{db: db, rawDB: db, config: cfg}
 	if err := s.reconcileMeta(ctx); err != nil {
 		db.Close()
+		return nil, fmt.Errorf("reconcile meta: %w", err)
+	}
+	return s, nil
+}
+
+// NewSQLiteStoreWithDB constructs an event store over an already-opened
+// database seam. Production uses this with api-core's RoutedDB so requests
+// carrying the Test Genie marker are isolated without restarting the API.
+func NewSQLiteStoreWithDB(ctx context.Context, db sqlutil.DB, cfg SQLiteConfig) (*SQLiteStore, error) {
+	if cfg.MaxAge == 0 {
+		cfg.MaxAge = 30 * 24 * time.Hour
+	}
+	if cfg.MaxSizeBytes == 0 {
+		cfg.MaxSizeBytes = 2 * 1024 * 1024 * 1024
+	}
+	if cfg.QueryLimit <= 0 {
+		cfg.QueryLimit = 100
+	}
+	if cfg.QueryLimitMax <= 0 {
+		cfg.QueryLimitMax = 1000
+	}
+	if cfg.Now == nil {
+		cfg.Now = time.Now
+	}
+	s := &SQLiteStore{db: db, config: cfg}
+	if _, err := db.ExecContext(ctx, schema); err != nil {
+		return nil, fmt.Errorf("apply schema: %w", err)
+	}
+	if _, err := db.ExecContext(ctx, `ALTER TABLE events ADD COLUMN expires_at TEXT`); err != nil && !strings.Contains(err.Error(), "duplicate column name") {
+		return nil, fmt.Errorf("migrate receipt expiry: %w", err)
+	}
+	if _, err := db.ExecContext(ctx, `CREATE INDEX IF NOT EXISTS idx_events_expires ON events(expires_at) WHERE expires_at IS NOT NULL`); err != nil {
+		return nil, fmt.Errorf("index receipt expiry: %w", err)
+	}
+	if err := s.reconcileMeta(ctx); err != nil {
 		return nil, fmt.Errorf("reconcile meta: %w", err)
 	}
 	return s, nil
@@ -434,11 +473,14 @@ func (s *SQLiteStore) Stats(ctx context.Context) (Stats, error) {
 // DB returns the underlying *sql.DB so other packages (e.g. policy) can share
 // the same database connection without opening a second handle.
 func (s *SQLiteStore) DB() *sql.DB {
-	return s.db
+	return s.rawDB
 }
 
 func (s *SQLiteStore) Close() error {
-	return s.db.Close()
+	if s.rawDB == nil {
+		return nil
+	}
+	return s.rawDB.Close()
 }
 
 func (s *SQLiteStore) scanEvents(ctx context.Context, query string, args ...any) ([]Event, error) {

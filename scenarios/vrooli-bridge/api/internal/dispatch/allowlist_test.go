@@ -25,7 +25,7 @@ func TestAllow_Matrix(t *testing.T) {
 		{
 			name:    "allowlisted verb in scope is accepted",
 			job:     dispatch.Job{Verb: "scenario test", Scenario: "web-search", Args: []string{"--json"}},
-			scopes:  []string{"scenario test*"},
+			scopes:  []string{"vrooli-bridge:write", "scenario test*"},
 			wantErr: nil,
 		},
 		{
@@ -48,7 +48,7 @@ func TestAllow_Matrix(t *testing.T) {
 		},
 		{
 			name:    "cataloged destructive verb is out-of-scope with personal grants",
-			job:     dispatch.Job{Verb: "scenario stop-all"},
+			job:     dispatch.Job{Verb: "scenario start-all"},
 			scopes:  []string{"vrooli-bridge:read", "vrooli-bridge:write"},
 			wantErr: dispatch.ErrVerbOutOfScope{},
 		},
@@ -91,7 +91,7 @@ func TestAllow_Matrix(t *testing.T) {
 		{
 			name:    "exact scope (no wildcard) matches exactly",
 			job:     dispatch.Job{Verb: "scenario status", Scenario: "web-search"},
-			scopes:  []string{"scenario status"},
+			scopes:  []string{"vrooli-bridge:read", "scenario status"},
 			wantErr: nil,
 		},
 	}

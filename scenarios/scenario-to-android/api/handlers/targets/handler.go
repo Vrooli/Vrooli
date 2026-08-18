@@ -14,7 +14,7 @@ import (
 func Handler(w http.ResponseWriter, r *http.Request) {
 	prober := targets.Prober{Devices: targets.NewDeviceControlInventory()}
 	var bridgeSources []deliveryramp.BridgeSource
-	if bridge := validationmatrix.NewClientFromEnv(); bridge != nil {
+	if bridge := validationmatrix.NewClientFromEnv(validationmatrix.WithPlatform("android")); bridge != nil {
 		bridgeSources = append(bridgeSources, bridge)
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)

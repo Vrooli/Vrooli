@@ -2,8 +2,11 @@
 package readiness
 
 import (
+	"context"
 	"fmt"
 	"strings"
+
+	deliveryramp "github.com/vrooli/vrooli/packages/delivery-ramp-go"
 )
 
 type State string
@@ -26,7 +29,14 @@ type (
 	Probe struct {
 		DeveloperProgram bool
 		VerifiedIdentity bool
-		MacOSBuildHost   bool
+		// MacOSBuildHost is the resolved build-host observation. Prefer
+		// ObserveBuildHost so the rung reflects live fleet state; this field
+		// remains for callers that have already resolved it.
+		MacOSBuildHost bool
+		// ObserveBuildHost resolves the build-host rung at read time. When set
+		// it overrides MacOSBuildHost, so installing Xcode on a node changes
+		// the ladder without restarting the ramp.
+		ObserveBuildHost func(context.Context) bool
 		SigningReference bool
 		TestFlightAccess bool
 		AppStoreListing  bool
@@ -36,9 +46,38 @@ type (
 	}
 )
 
+// BuildHostObserver turns a target-inventory discovery function into a
+// build-host observation. The rung is satisfied only by an available iOS
+// target, so a reachable macOS node without a usable Xcode cannot satisfy it.
+func BuildHostObserver(discover func(context.Context) (deliveryramp.Inventory, error)) func(context.Context) bool {
+	if discover == nil {
+		return nil
+	}
+	return func(ctx context.Context) bool {
+		inventory, err := discover(ctx)
+		if err != nil {
+			return false
+		}
+		for _, target := range inventory.Targets {
+			if target.Available && target.Platform == "ios" {
+				return true
+			}
+		}
+		return false
+	}
+}
+
 // FromProbe derives all six rung states from current observations. No state is
 // persisted as a literal, so enrollment changes the next action immediately.
 func FromProbe(probe Probe) Ladder {
+	return FromProbeContext(context.Background(), probe)
+}
+
+// FromProbeContext resolves the ladder, consulting any live observers.
+func FromProbeContext(ctx context.Context, probe Probe) Ladder {
+	if probe.ObserveBuildHost != nil {
+		probe.MacOSBuildHost = probe.ObserveBuildHost(ctx)
+	}
 	return Ladder{Rungs: []Rung{
 		rung("developer-program", "Apple Developer Program", probe.DeveloperProgram, "operator", false, "enroll the Apple Developer Program", "apple-developer-program"),
 		rung("verified-identity", "Verified developer identity", probe.VerifiedIdentity, "operator", false, "complete Apple developer identity verification", "apple-developer-identity"),

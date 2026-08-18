@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "deployment-manager calls bridge to native-build/test a scenario across target-OS nodes and aggregate a single cross-OS verdict.",
-    "last_validated_at": "2026-08-17T07:57:42-04:00",
+    "last_validated_at": "2026-08-18T05:24:21-04:00",
     "module": "deployment-gate",
     "prd_ref": "OT-P1-002",
     "priority": "P1",

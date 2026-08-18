@@ -303,7 +303,12 @@ describe("createAuthManager", () => {
     describe("handleCallback", () => {
         it("rejects callbacks that carry tokens", async () => {
             const manager = createAuthManager(deps);
-            await manager.handleCallback("testapp://auth/callback#access_token=at123&refresh_token=rt456");
+            const callback = new URL("testapp://auth/callback");
+            callback.hash = new URLSearchParams({
+                access_token: "at123",
+                refresh_token: "rt456",
+            }).toString();
+            await manager.handleCallback(callback.toString());
 
             expect(deps.authChangeEvents).toContain("session-expired");
             expect(deps.storage._files.has("auth/tokens.enc")).toBe(false);

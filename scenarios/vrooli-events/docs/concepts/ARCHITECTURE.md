@@ -46,7 +46,7 @@ Three types of policy rules, all enforced locally from cache for zero-latency:
 
 ### Dual-End Policy Caching
 
-```
+```text
                     vrooli-events
                     (source of truth)
                          │
@@ -218,7 +218,7 @@ Maps PRD operational targets to their implementation locations.
 | OT-P1-010 | Discovery integration | [CODE: internal/resolver/resolver.go] — EmittingResolver decorator, fire-and-forget emit via [CODE: internal/emitter/emitter.go] | Done |
 | OT-P1-011 | Receiver-side middleware | [CODE: internal/middleware/policy.go] — composable HTTP middleware | Done |
 | OT-P1-012 | Persistent subscriptions | [CODE: api/handlers_subscription.go], [CODE: internal/subscription/sqlite.go], webhook: [CODE: internal/subscription/webhook.go] | Done |
-| OT-P1-013 | CLI tools | [CODE: cli/domains/] — events, store, policy, subscription commands via ScenarioApp | Done |
+| OT-P1-013 | CLI tools | [CODE: cli/domains/events/register.go] — event commands via ScenarioApp | Done |
 | OT-P1-014 | Graceful degradation | [CODE: internal/fallback/fallback.go] — fail-open / fail-closed modes on events API unavailability | Done |
 
 ### P2 — Planned

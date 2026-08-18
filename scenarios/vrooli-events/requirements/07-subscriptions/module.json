@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-07-18T12:22:14-04:00"
+    "last_validated_at": "2026-08-18T08:37:27-04:00"
   },
   "requirements": [
     {
       "id": "REQ-SUB-001",
       "title": "Subscription CRUD API",
-      "status": "in_progress",
+      "status": "complete",
       "criticality": "P1",
       "description": "REST endpoints for subscription create, list, get, update, delete with filters.",
       "children": [
@@ -18,7 +18,7 @@
           "type": "test",
           "ref": "api/handlers_subscription_crud_test.go",
           "phase": "unit",
-          "status": "failing"
+          "status": "implemented"
         }
       ]
     },
@@ -45,7 +45,7 @@
     {
       "id": "REQ-SUB-001B",
       "title": "Subscription SQLite storage",
-      "status": "in_progress",
+      "status": "complete",
       "criticality": "P1",
       "description": "Subscriptions persisted in SQLite with cascade delete for health records",
       "children": [
@@ -56,14 +56,14 @@
           "type": "test",
           "ref": "internal/subscription/sqlite_test.go",
           "phase": "unit",
-          "status": "failing"
+          "status": "implemented"
         }
       ]
     },
     {
       "id": "REQ-SUB-002",
       "title": "Glob pattern matching on subscriptions",
-      "status": "in_progress",
+      "status": "complete",
       "criticality": "P1",
       "description": "Subscriptions use segment-aware glob matching.",
       "children": [
@@ -75,14 +75,14 @@
           "type": "test",
           "ref": "api/handlers_subscription_features_test.go",
           "phase": "unit",
-          "status": "failing"
+          "status": "implemented"
         }
       ]
     },
     {
       "id": "REQ-SUB-003",
       "title": "Webhook delivery",
-      "status": "in_progress",
+      "status": "complete",
       "criticality": "P1",
       "description": "POST matching events to delivery_target URL with retry policy.",
       "children": [
@@ -94,14 +94,14 @@
           "type": "test",
           "ref": "api/handlers_subscription_deliver_test.go",
           "phase": "unit",
-          "status": "failing"
+          "status": "implemented"
         }
       ]
     },
     {
       "id": "REQ-SUB-003A",
       "title": "Webhook HTTP delivery",
-      "status": "in_progress",
+      "status": "complete",
       "criticality": "P1",
       "description": "POST events with subscription ID and HMAC-SHA256 signature headers",
       "children": [
@@ -112,7 +112,7 @@
           "type": "test",
           "ref": "internal/subscription/webhook_test.go",
           "phase": "unit",
-          "status": "failing"
+          "status": "implemented"
         }
       ]
     },
@@ -139,7 +139,7 @@
     {
       "id": "REQ-SUB-004",
       "title": "Subscription health tracking",
-      "status": "in_progress",
+      "status": "complete",
       "criticality": "P1",
       "description": "Track delivery health with auto-disable on consecutive failures.",
       "children": [
@@ -151,14 +151,14 @@
           "type": "test",
           "ref": "api/handlers_subscription_features_test.go",
           "phase": "unit",
-          "status": "failing"
+          "status": "implemented"
         }
       ]
     },
     {
       "id": "REQ-SUB-005",
       "title": "Subscription testing endpoint",
-      "status": "in_progress",
+      "status": "complete",
       "criticality": "P1",
       "description": "POST /api/v1/subscriptions/:id/test sends a synthetic test event.",
       "children": [
@@ -170,7 +170,7 @@
           "type": "test",
           "ref": "api/handlers_subscription_features_test.go",
           "phase": "unit",
-          "status": "failing"
+          "status": "implemented"
         }
       ]
     },

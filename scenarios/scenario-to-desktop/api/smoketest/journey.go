@@ -248,7 +248,20 @@ func (s *DefaultService) runDesktopJourney(ctx context.Context, smokeTestID, sce
 	return s.runDesktopJourneyCapability(ctx, smokeTestID, scenarioName, platform, rec, capability)
 }
 
-func (s *DefaultService) runDesktopJourneyCapabilityLegacy(ctx context.Context, smokeTestID, scenarioName, platform string, rec recordingState, capability string) (result deliveryramp.JourneyResult) {
+type journeySetup struct {
+	base    deliveryramp.JourneyResult
+	clock   Clock
+	started time.Time
+	input   JourneyInput
+	plan    deliveryramp.JourneyPlan
+	driver  DesktopDriver
+	waiter  JourneyWaiter
+	capture JourneyCapture
+	api     JourneyAPIProbe
+	actions map[string]JourneyAction
+}
+
+func (s *DefaultService) prepareJourney(ctx context.Context, smokeTestID, scenarioName, platform string, rec recordingState, capability string) (journeySetup, *deliveryramp.JourneyResult) {
 	clock := s.journeyClock
 	if clock == nil {
 		clock = RealClock{}
@@ -258,10 +271,7 @@ func (s *DefaultService) runDesktopJourneyCapabilityLegacy(ctx context.Context, 
 	fixture, ok := journeyFixture(capability)
 	base := deliveryramp.JourneyResult{SchemaVersion: deliveryramp.JourneySchemaVersion, EvidenceVersion: deliveryramp.JourneyEvidenceVersion, SmokeTestID: smokeTestID, ScenarioName: scenarioName, Capability: capability, Platform: platform, Display: rec.displayID, WindowManager: rec.windowManager, Titlebar: rec.titlebar, RecordingStartedBeforeLaunch: rec.captureID != "", Disposition: deliveryramp.Disposition(journeyPass), CreatedAt: started}
 	if !ok {
-		base.Disposition = deliveryramp.DispositionUnavailable
-		base.DegradedReason = "capability_not_registered"
-		base.CompletedAt = clock.Now().UTC()
-		return base
+		return journeySetup{}, journeyResultWithFailure(base, clock, journeyUnavailable, "capability_not_registered")
 	}
 	plan := fixture.Plan(input)
 	requestedProfile := strings.TrimSpace(os.Getenv("S2D_JOURNEY_PROFILE"))
@@ -269,10 +279,7 @@ func (s *DefaultService) runDesktopJourneyCapabilityLegacy(ctx context.Context, 
 		var profileErr error
 		plan, profileErr = applyJourneyProfile(plan, requestedProfile)
 		if profileErr != nil {
-			base.Disposition = deliveryramp.DispositionUnavailable
-			base.DegradedReason = profileErr.Error()
-			base.CompletedAt = clock.Now().UTC()
-			return base
+			return journeySetup{}, journeyResultWithFailure(base, clock, journeyUnavailable, profileErr.Error())
 		}
 	}
 	base.PlanID, base.Profile = plan.ID, plan.Profile
@@ -283,37 +290,24 @@ func (s *DefaultService) runDesktopJourneyCapabilityLegacy(ctx context.Context, 
 			step := deliveryramp.JourneyStep{ID: "unsupported", Name: "unsupported", Purpose: plan.Purpose, Action: "unsupported", Disposition: deliveryramp.StepUnavailable, Error: reason, StartedAt: started}
 			step = finishJourneyStep(step, clock, started)
 			base.Steps = append(base.Steps, step)
-			base.CompletedAt = clock.Now().UTC()
-			return base
+			return journeySetup{}, journeyResultWithCompletion(base, clock)
 		}
 	}
 	if runtime.GOOS != "linux" {
-		base.Disposition = deliveryramp.DispositionUnavailable
-		base.DegradedReason = "native_visual_runtime_not_supported_on_host"
-		base.CompletedAt = clock.Now().UTC()
-		return base
+		return journeySetup{}, journeyResultWithFailure(base, clock, journeyUnavailable, "native_visual_runtime_not_supported_on_host")
 	}
 	if rec.windowManager == "" || !rec.titlebar {
-		base.Disposition = deliveryramp.DispositionUnavailable
-		base.DegradedReason = "window_manager_capability_unavailable"
-		base.CompletedAt = clock.Now().UTC()
-		return base
+		return journeySetup{}, journeyResultWithFailure(base, clock, journeyUnavailable, "window_manager_capability_unavailable")
 	}
 	driver := s.journeyDriver
 	if driver == nil && s.windowDetector != nil {
 		driver = procmetricsDesktopDriver{detector: s.windowDetector}
 	}
 	if driver == nil || !driver.IsAvailable(ctx) {
-		base.Disposition = deliveryramp.DispositionDegraded
-		base.DegradedReason = "xdotool_unavailable"
-		base.CompletedAt = clock.Now().UTC()
-		return base
+		return journeySetup{}, journeyResultWithFailure(base, clock, journeyDegraded, "xdotool_unavailable")
 	}
 	if err := ctx.Err(); err != nil {
-		base.Disposition = deliveryramp.DispositionFailed
-		base.DegradedReason = "context_" + err.Error()
-		base.CompletedAt = clock.Now().UTC()
-		return base
+		return journeySetup{}, journeyResultWithFailure(base, clock, journeyFailed, "context_"+err.Error())
 	}
 	waiter := s.journeyWaiter
 	if waiter == nil {
@@ -331,144 +325,51 @@ func (s *DefaultService) runDesktopJourneyCapabilityLegacy(ctx context.Context, 
 			api = loopbackJourneyAPI{}
 		}
 	}
-	actions := fixture.Actions()
+	return journeySetup{base: base, clock: clock, started: started, input: input, plan: plan, driver: driver, waiter: waiter, capture: capture, api: api, actions: fixture.Actions()}, nil
+}
+
+func journeyResultWithCompletion(result deliveryramp.JourneyResult, clock Clock) *deliveryramp.JourneyResult {
+	result.CompletedAt = clock.Now().UTC()
+	return &result
+}
+
+func journeyResultWithFailure(result deliveryramp.JourneyResult, clock Clock, disposition, reason string) *deliveryramp.JourneyResult {
+	result.Disposition = deliveryramp.Disposition(disposition)
+	result.DegradedReason = reason
+	return journeyResultWithCompletion(result, clock)
+}
+
+func (s *DefaultService) runDesktopJourneyCapabilityLegacy(ctx context.Context, smokeTestID, scenarioName, platform string, rec recordingState, capability string) (result deliveryramp.JourneyResult) {
+	setup, earlyResult := s.prepareJourney(ctx, smokeTestID, scenarioName, platform, rec, capability)
+	if earlyResult != nil {
+		return *earlyResult
+	}
+	base := setup.base
 	cleanupNeeded := true
 	defer func() {
 		if cleanupNeeded {
 			cleanupCtx, cancel := context.WithTimeout(context.Background(), journeyStepTimeout)
-			if cleanupErr := driver.KeyPress(cleanupCtx, rec.displayID, "alt+F4"); cleanupErr != nil {
+			if cleanupErr := setup.driver.KeyPress(cleanupCtx, rec.displayID, "alt+F4"); cleanupErr != nil {
 				base.Disposition = deliveryramp.DispositionFailed
 				base.DegradedReason = "cleanup_failed"
-				s.recordJourneyEvent(&base, clock, started, "cleanup_failed", "", "clean_shutdown", "", cleanupErr.Error())
+				s.recordJourneyEvent(&base, setup.clock, setup.started, "cleanup_failed", "", "clean_shutdown", "", cleanupErr.Error())
 			} else {
-				s.recordJourneyEvent(&base, clock, started, "cleanup_completed", "", "clean_shutdown", "", "")
+				s.recordJourneyEvent(&base, setup.clock, setup.started, "cleanup_completed", "", "clean_shutdown", "", "")
 			}
 			cancel()
 		}
 		result = base
 	}()
 
-	for _, spec := range plan.Steps {
+	for _, spec := range setup.plan.Steps {
 		if err := ctx.Err(); err != nil {
 			base.Disposition = deliveryramp.DispositionFailed
 			base.DegradedReason = "context_" + err.Error()
 			break
 		}
-		step := deliveryramp.JourneyStep{ID: spec.ID, Name: spec.ID, Purpose: spec.Purpose, Action: spec.Action, Disposition: deliveryramp.StepDisposition(journeyStepPass), Readiness: spec.Readiness, Settle: spec.Settle, StartedAt: clock.Now().UTC()}
-		step.MonotonicStartMs = startedSubMs(started, step.StartedAt)
-		if s.journeyProcess != nil {
-			if observed, observeErr := s.journeyProcess.Observe(ctx); observeErr == nil {
-				step.ProcessBefore = observed
-				s.recordJourneyEvent(&base, clock, started, "process_observed", step.ID, "", observed, "before_action")
-			}
-		}
-		s.recordJourneyEvent(&base, clock, started, "step_started", step.ID, "", "", "")
-		ready, err := waiter.WaitUntil(ctx, spec.Readiness, func(checkCtx context.Context) (bool, string, error) {
-			if spec.Readiness.ID == "target_window_visible" {
-				window, windowErr := driver.LargestVisibleWindow(checkCtx, rec.displayID)
-				if windowErr != nil {
-					return false, "window_probe_error", windowErr
-				}
-				if window != nil && window.Width >= journeyMainWindowMinWidth && window.Height >= journeyMainWindowMinHeight {
-					return true, fmt.Sprintf("usable_window:%dx%d", window.Width, window.Height), nil
-				}
-				return false, "waiting_for_usable_window", nil
-			}
-			return true, "condition_not_required", nil
-		})
-		if err != nil {
-			eventType := "readiness_failed"
-			if strings.Contains(strings.ToLower(err.Error()), "timed out") {
-				eventType = "readiness_timeout"
-			}
-			s.recordJourneyEvent(&base, clock, started, eventType, step.ID, spec.Readiness.ID, ready.Observed, err.Error())
-			step.Disposition = deliveryramp.StepDisposition(dispositionForJourneyError(err))
-			step.Error = err.Error()
-			step.DegradedReason = "readiness_failed"
-			step = finishJourneyStep(step, clock, started)
-			setVideoOffsets(&step, rec.recordingStartedAt)
-			base.Steps = append(base.Steps, step)
-			base.Disposition = deliveryramp.Disposition(dispositionForJourneyError(err))
-			base.DegradedReason = "readiness_" + spec.ID
-			break
-		}
-		if ready.Attempts > 1 {
-			s.recordJourneyEvent(&base, clock, started, "readiness_retry", step.ID, spec.Readiness.ID, ready.Observed, fmt.Sprintf("attempts=%d", ready.Attempts))
-		}
-		s.recordJourneyEvent(&base, clock, started, "readiness_ready", step.ID, spec.Readiness.ID, ready.Observed, "")
-		if spec.Capture {
-			captureCtx, captureCancel := context.WithTimeout(ctx, journeyCaptureTimeout)
-			ref, captureErr := capture.Capture(captureCtx, smokeTestID, scenarioName, rec.displayID, "before-"+spec.ID)
-			captureCancel()
-			if captureErr != nil {
-				step.Disposition, step.Error, base.Disposition = deliveryramp.StepFailed, "before screenshot: "+captureErr.Error(), deliveryramp.DispositionFailed
-				step = finishJourneyStep(step, clock, started)
-				setVideoOffsets(&step, rec.recordingStartedAt)
-				base.Steps = append(base.Steps, step)
-				break
-			}
-			step.BeforeCaptureID = ref.ID
-			step.Evidence = append(step.Evidence, ref)
-		}
-		action := actions[spec.Action]
-		if action == nil {
-			action = genericJourneyAction(spec.Action)
-		}
-		if action == nil {
-			step.Disposition, step.Error, base.Disposition = deliveryramp.StepUnavailable, "action is not supported by the selected capability", deliveryramp.DispositionUnsupported
-			step = finishJourneyStep(step, clock, started)
-			setVideoOffsets(&step, rec.recordingStartedAt)
-			base.Steps = append(base.Steps, step)
-			break
-		}
-		actionCtx, cancel := context.WithTimeout(ctx, journeyStepTimeout)
-		observation, actionErr := action(actionCtx, driver, api, input)
-		cancel()
-		if actionErr != nil {
-			step.Disposition = deliveryramp.StepDisposition(dispositionForJourneyError(actionErr))
-			step.Error = actionErr.Error()
-			base.Disposition = deliveryramp.Disposition(dispositionForJourneyError(actionErr))
-		} else {
-			step.ObservedState = observation.Observed
-			step.Geometry = observation.Geometry
-			step.Route = observation.Route
-			if observation.Provider != nil {
-				base.ProviderObservation = observation.Provider
-			}
-			if spec.Assertion != nil {
-				step.AssertionID, step.ExpectedState = spec.Assertion.ID, spec.Assertion.Expected
-				step.AssertionStatus = assertionStatus(spec.Assertion.Expected, observation.Observed, observation.Geometry, input)
-				if step.AssertionStatus != journeyStepPass {
-					step.Disposition, step.Error, base.Disposition = deliveryramp.StepFailed, "assertion did not match observed result", deliveryramp.DispositionFailed
-				}
-			}
-		}
-		if s.journeyProcess != nil {
-			if observed, observeErr := s.journeyProcess.Observe(ctx); observeErr == nil {
-				step.ProcessAfter = observed
-				s.recordJourneyEvent(&base, clock, started, "process_observed", step.ID, "", observed, "after_action")
-			}
-		}
-		if settleErr := waiter.Settle(ctx, spec.Settle); settleErr != nil && step.Error == "" {
-			step.Disposition, step.Error, base.Disposition = deliveryramp.StepDisposition(dispositionForJourneyError(settleErr)), settleErr.Error(), deliveryramp.Disposition(dispositionForJourneyError(settleErr))
-		}
-		s.recordJourneyEvent(&base, clock, started, "settle_completed", step.ID, spec.Settle.ID, spec.Settle.Reason, "")
-		if spec.Capture {
-			captureCtx, captureCancel := context.WithTimeout(ctx, journeyCaptureTimeout)
-			ref, captureErr := capture.Capture(captureCtx, smokeTestID, scenarioName, rec.displayID, "after-"+spec.ID)
-			captureCancel()
-			if captureErr != nil {
-				step.Disposition, step.Error, base.Disposition = deliveryramp.StepFailed, "after screenshot: "+captureErr.Error(), deliveryramp.DispositionFailed
-			} else {
-				step.AfterCaptureID = ref.ID
-				step.Evidence = append(step.Evidence, ref)
-			}
-		}
-		step = finishJourneyStep(step, clock, started)
-		setVideoOffsets(&step, rec.recordingStartedAt)
+		step, stop := s.runJourneyStep(ctx, &base, setup, spec, smokeTestID, scenarioName, rec)
 		base.Steps = append(base.Steps, step)
-		s.recordJourneyEvent(&base, clock, started, "step_completed", step.ID, "", step.ObservedState, step.Error)
-		if step.Disposition != deliveryramp.StepDisposition(journeyStepPass) {
+		if stop {
 			break
 		}
 		if spec.Action == "quit_app" {
@@ -478,8 +379,137 @@ func (s *DefaultService) runDesktopJourneyCapabilityLegacy(ctx context.Context, 
 	if base.Disposition == deliveryramp.Disposition(journeyPass) && !journeyHasScreenshotPairs(base.Steps) {
 		base.Disposition, base.DegradedReason = deliveryramp.DispositionFailed, "interaction_screenshot_pair_missing"
 	}
-	base.CompletedAt = clock.Now().UTC()
+	base.CompletedAt = setup.clock.Now().UTC()
 	return base
+}
+
+func (s *DefaultService) runJourneyStep(ctx context.Context, base *deliveryramp.JourneyResult, setup journeySetup, spec deliveryramp.JourneyStepSpec, smokeTestID, scenarioName string, rec recordingState) (deliveryramp.JourneyStep, bool) {
+	step := deliveryramp.JourneyStep{ID: spec.ID, Name: spec.ID, Purpose: spec.Purpose, Action: spec.Action, Disposition: deliveryramp.StepDisposition(journeyStepPass), Readiness: spec.Readiness, Settle: spec.Settle, StartedAt: setup.clock.Now().UTC()}
+	step.MonotonicStartMs = startedSubMs(setup.started, step.StartedAt)
+	s.observeJourneyProcess(ctx, base, &step, setup, "before_action")
+	s.recordJourneyEvent(base, setup.clock, setup.started, "step_started", step.ID, "", "", "")
+	ready, err := s.waitForJourneyReadiness(ctx, setup, spec)
+	if err != nil {
+		eventType := "readiness_failed"
+		if strings.Contains(strings.ToLower(err.Error()), "timed out") {
+			eventType = "readiness_timeout"
+		}
+		s.recordJourneyEvent(base, setup.clock, setup.started, eventType, step.ID, spec.Readiness.ID, ready.Observed, err.Error())
+		step.Disposition = deliveryramp.StepDisposition(dispositionForJourneyError(err))
+		step.Error, step.DegradedReason = err.Error(), "readiness_failed"
+		return s.finishJourneyStep(step, rec.recordingStartedAt, setup), true
+	}
+	if ready.Attempts > 1 {
+		s.recordJourneyEvent(base, setup.clock, setup.started, "readiness_retry", step.ID, spec.Readiness.ID, ready.Observed, fmt.Sprintf("attempts=%d", ready.Attempts))
+	}
+	s.recordJourneyEvent(base, setup.clock, setup.started, "readiness_ready", step.ID, spec.Readiness.ID, ready.Observed, "")
+	if spec.Capture {
+		if captureErr := s.captureJourneyStep(ctx, &step, setup.capture, smokeTestID, scenarioName, rec.displayID, spec.ID, "before"); captureErr != nil {
+			step.Disposition, step.Error, base.Disposition = deliveryramp.StepFailed, captureErr.Error(), deliveryramp.DispositionFailed
+			return s.finishJourneyStep(step, rec.recordingStartedAt, setup), true
+		}
+	}
+	action := setup.actions[spec.Action]
+	if action == nil {
+		action = genericJourneyAction(spec.Action)
+	}
+	if action == nil {
+		step.Disposition, step.Error, base.Disposition = deliveryramp.StepUnavailable, "action is not supported by the selected capability", deliveryramp.DispositionUnsupported
+		return s.finishJourneyStep(step, rec.recordingStartedAt, setup), true
+	}
+	actionCtx, cancel := context.WithTimeout(ctx, journeyStepTimeout)
+	observation, actionErr := action(actionCtx, setup.driver, setup.api, setup.input)
+	cancel()
+	applyJourneyObservation(base, &step, spec, observation, actionErr, setup.input)
+	s.observeJourneyProcess(ctx, base, &step, setup, "after_action")
+	if settleErr := setup.waiter.Settle(ctx, spec.Settle); settleErr != nil && step.Error == "" {
+		step.Disposition, step.Error, base.Disposition = deliveryramp.StepDisposition(dispositionForJourneyError(settleErr)), settleErr.Error(), deliveryramp.Disposition(dispositionForJourneyError(settleErr))
+	}
+	s.recordJourneyEvent(base, setup.clock, setup.started, "settle_completed", step.ID, spec.Settle.ID, spec.Settle.Reason, "")
+	if spec.Capture {
+		if captureErr := s.captureJourneyStep(ctx, &step, setup.capture, smokeTestID, scenarioName, rec.displayID, spec.ID, "after"); captureErr != nil {
+			step.Disposition, step.Error, base.Disposition = deliveryramp.StepFailed, captureErr.Error(), deliveryramp.DispositionFailed
+		}
+	}
+	step = s.finishJourneyStep(step, rec.recordingStartedAt, setup)
+	s.recordJourneyEvent(base, setup.clock, setup.started, "step_completed", step.ID, "", step.ObservedState, step.Error)
+	return step, step.Disposition != deliveryramp.StepDisposition(journeyStepPass)
+}
+
+func (s *DefaultService) waitForJourneyReadiness(ctx context.Context, setup journeySetup, spec deliveryramp.JourneyStepSpec) (WaitResult, error) {
+	return setup.waiter.WaitUntil(ctx, spec.Readiness, func(checkCtx context.Context) (bool, string, error) {
+		if spec.Readiness.ID != "target_window_visible" {
+			return true, "condition_not_required", nil
+		}
+		window, err := setup.driver.LargestVisibleWindow(checkCtx, setup.input.Display)
+		if err != nil {
+			return false, "window_probe_error", err
+		}
+		if window != nil && window.Width >= journeyMainWindowMinWidth && window.Height >= journeyMainWindowMinHeight {
+			return true, fmt.Sprintf("usable_window:%dx%d", window.Width, window.Height), nil
+		}
+		return false, "waiting_for_usable_window", nil
+	})
+}
+
+func (s *DefaultService) captureJourneyStep(ctx context.Context, step *deliveryramp.JourneyStep, capture JourneyCapture, smokeTestID, scenarioName, display, stepID, position string) error {
+	if step.Action == "" || capture == nil {
+		return nil
+	}
+	captureCtx, cancel := context.WithTimeout(ctx, journeyCaptureTimeout)
+	ref, err := capture.Capture(captureCtx, smokeTestID, scenarioName, display, position+"-"+stepID)
+	cancel()
+	if err != nil {
+		return fmt.Errorf("%s screenshot: %w", position, err)
+	}
+	if position == "before" {
+		step.BeforeCaptureID = ref.ID
+	} else {
+		step.AfterCaptureID = ref.ID
+	}
+	step.Evidence = append(step.Evidence, ref)
+	return nil
+}
+
+func (s *DefaultService) observeJourneyProcess(ctx context.Context, base *deliveryramp.JourneyResult, step *deliveryramp.JourneyStep, setup journeySetup, phase string) {
+	if s.journeyProcess == nil {
+		return
+	}
+	if observed, err := s.journeyProcess.Observe(ctx); err == nil {
+		if phase == "before_action" {
+			step.ProcessBefore = observed
+		} else {
+			step.ProcessAfter = observed
+		}
+		s.recordJourneyEvent(base, setup.clock, setup.started, "process_observed", step.ID, "", observed, phase)
+	}
+}
+
+func applyJourneyObservation(base *deliveryramp.JourneyResult, step *deliveryramp.JourneyStep, spec deliveryramp.JourneyStepSpec, observation JourneyObservation, actionErr error, input JourneyInput) {
+	if actionErr != nil {
+		step.Disposition = deliveryramp.StepDisposition(dispositionForJourneyError(actionErr))
+		step.Error = actionErr.Error()
+		base.Disposition = deliveryramp.Disposition(dispositionForJourneyError(actionErr))
+		return
+	}
+	step.ObservedState, step.Geometry, step.Route = observation.Observed, observation.Geometry, observation.Route
+	if observation.Provider != nil {
+		base.ProviderObservation = observation.Provider
+	}
+	if spec.Assertion == nil {
+		return
+	}
+	step.AssertionID, step.ExpectedState = spec.Assertion.ID, spec.Assertion.Expected
+	step.AssertionStatus = assertionStatus(spec.Assertion.Expected, observation.Observed, observation.Geometry, input)
+	if step.AssertionStatus != journeyStepPass {
+		step.Disposition, step.Error, base.Disposition = deliveryramp.StepFailed, "assertion did not match observed result", deliveryramp.DispositionFailed
+	}
+}
+
+func (s *DefaultService) finishJourneyStep(step deliveryramp.JourneyStep, recordingStartedAt time.Time, setup journeySetup) deliveryramp.JourneyStep {
+	step = finishJourneyStep(step, setup.clock, setup.started)
+	setVideoOffsets(&step, recordingStartedAt)
+	return step
 }
 
 func genericJourneyAction(action string) JourneyAction {
@@ -597,6 +627,22 @@ func journeyHasScreenshotPairs(steps []deliveryramp.JourneyStep) bool {
 // producer manifest and focused contract tests. It intentionally validates the
 // persisted sidecar, not transient runner state.
 func ValidateJourneyTimeline(journey deliveryramp.JourneyResult) error {
+	if err := validateJourneyHeader(journey); err != nil {
+		return err
+	}
+	if err := validateJourneySteps(journey); err != nil {
+		return err
+	}
+	if err := validateJourneyEvents(journey); err != nil {
+		return err
+	}
+	if journey.SchemaVersion >= deliveryramp.JourneySchemaVersion && len(journey.Steps) == 0 {
+		return fmt.Errorf("versioned journey must contain chapters")
+	}
+	return validateJourneyRedaction(journey)
+}
+
+func validateJourneyHeader(journey deliveryramp.JourneyResult) error {
 	if journey.SchemaVersion != 1 && journey.SchemaVersion != deliveryramp.JourneySchemaVersion {
 		return fmt.Errorf("unsupported journey schema version %d", journey.SchemaVersion)
 	}
@@ -614,6 +660,10 @@ func ValidateJourneyTimeline(journey deliveryramp.JourneyResult) error {
 			return fmt.Errorf("journey completion time is required")
 		}
 	}
+	return nil
+}
+
+func validateJourneySteps(journey deliveryramp.JourneyResult) error {
 	previousEnd := int64(0)
 	stepIDs := make(map[string]struct{}, len(journey.Steps))
 	for index, step := range journey.Steps {
@@ -643,6 +693,10 @@ func ValidateJourneyTimeline(journey deliveryramp.JourneyResult) error {
 			return fmt.Errorf("journey step %d has invalid video offsets", index)
 		}
 	}
+	return nil
+}
+
+func validateJourneyEvents(journey deliveryramp.JourneyResult) error {
 	previousEvent := int64(0)
 	for index, event := range journey.Events {
 		if event.StartedAt.IsZero() || event.CompletedAt.IsZero() || event.CompletedAt.Before(event.StartedAt) || event.MonotonicEndMs < event.MonotonicStartMs || event.MonotonicStartMs < previousEvent {
@@ -650,9 +704,10 @@ func ValidateJourneyTimeline(journey deliveryramp.JourneyResult) error {
 		}
 		previousEvent = event.MonotonicEndMs
 	}
-	if journey.SchemaVersion >= deliveryramp.JourneySchemaVersion && len(journey.Steps) == 0 {
-		return fmt.Errorf("versioned journey must contain chapters")
-	}
+	return nil
+}
+
+func validateJourneyRedaction(journey deliveryramp.JourneyResult) error {
 	data, err := json.Marshal(journey)
 	if err != nil {
 		return fmt.Errorf("serialize journey for redaction check: %w", err)

@@ -337,7 +337,7 @@ func NewServer(port int) *Server {
 		smokeTestStore:       smokeTestStore,
 	}
 	pipelineOrchestrator, pipelineHandler, deployHandler := initPipelineStack(pipelineDeps)
-	bridgeClient := validationmatrix.NewClientFromEnv()
+	bridgeClient := validationmatrix.NewClientFromEnv(validationmatrix.WithPlatform("desktop"))
 	validationMatrixHandler := initValidationMatrixDomain(storePaths, logger, smokeTestService, smokeTestStore, liveDesktopService, capturesService, liveDesktopService, validationprovider.NewWorkflowHealthClient(), bridgeClient, scenarioRoot)
 	targetInventoryHandler := deliveryramp.NewTargetInventoryHandler(desktopprobe.Prober{}, bridgeClient)
 

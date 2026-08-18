@@ -8,8 +8,10 @@ Access control rules, CRUD API, evaluation engine, violation logging, circuit br
 ### P1 — Discovery integration fully implemented (Phase 13.4)
 All 7 discovery-integration requirements are complete. Packages: internal/emitter (fire-and-forget), internal/headers (X-Source-Scenario injection), internal/fallback (zero-dep fallback), internal/resolver (EmittingResolver with sender-side policy cache), internal/middleware (receiver-side policy middleware with graceful degradation). Each has dedicated tests.
 
-### P1 — Persistent subscriptions complete
-CRUD API, glob pattern validation, health tracking endpoint, test endpoint, and webhook delivery infrastructure are all implemented.
+### P1 — Persistent subscription fan-out now has a durable delivery path
+CRUD API, glob pattern validation, health tracking, signed webhook delivery,
+idempotent queue rows, retry, and dead-letter accounting are implemented. The
+remaining operational proof is a live receiver run in the scenario suite.
 
 ### P2 — Retention settings are hardcoded
 Pruning uses hardcoded 30-day retention and 2GB size cap. Configurable settings via API/UI are specified in REQ-ES-004 but not yet implemented.
@@ -29,7 +31,7 @@ OT-P2-008 specifies event replay (re-emit historical events to a subscription). 
 OT-P2-009 specifies Prometheus-compatible /metrics endpoint. Deferred until there's a concrete Grafana/monitoring integration need.
 
 ### Aggregate/count surface over receipts (external obligation)
-`meta-optimization-manager`'s Condition axis names this scenario as the **single fleet-wide source for the Exercise signal family** — how often each capability is actually invoked. See `path:scenarios/meta-optimization-manager/docs/concepts/CONDITION-MODEL.md` § "Fleet-wide exercise". The design is deliberate: `vrooli.events.receipt.v1` is emitted target-side by every scenario served by `api-core/server.Run`, caller-agnostic, so one aggregate here serves all four projections at once and no projection owner has to implement exercise counting independently.
+`meta-optimization-manager`'s Condition axis names this scenario as the **single fleet-wide source for the Exercise signal family** — how often each capability is actually invoked. See `path:../meta-optimization-manager/docs/concepts/CONDITION-MODEL.md` § "Fleet-wide exercise". The design is deliberate: `vrooli.events.receipt.v1` is emitted target-side by every scenario served by `api-core/server.Run`, caller-agnostic, so one aggregate here serves all four projections at once and no projection owner has to implement exercise counting independently.
 
 Three gaps stand between that design and this scenario:
 

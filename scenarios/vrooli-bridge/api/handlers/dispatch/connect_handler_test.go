@@ -83,7 +83,7 @@ func TestDispatchHandler_EndToEndPushesTypedJob(t *testing.T) {
 	clk := schedule.System()
 
 	repo := rmocks.NewFakeRepository()
-	repo.Seed(registry.Node{ID: "n1", Name: "office", OS: "linux", Arch: "amd64", Scopes: []string{"scenario test*"}})
+	repo.Seed(registry.Node{ID: "n1", Name: "office", OS: "linux", Arch: "amd64", Scopes: []string{"vrooli-bridge:write", "scenario test*"}})
 	registrySvc := registry.NewService(repo)
 
 	runsSvc := runs.NewService(runsmocks.NewFakeRepository(), scheduletest.New(time.Now()))

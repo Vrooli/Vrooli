@@ -84,14 +84,18 @@ CREATE TABLE IF NOT EXISTS circuit_breaker_overrides (
 
 // SQLiteStore implements policy.Store using SQLite.
 type SQLiteStore struct {
-	db *sql.DB
+	db sqlutil.DB
 }
+
+// Schema returns the policy schema for the routed database registry.
+func Schema() string { return policySchema }
 
 // NewSQLiteStore opens or reuses a SQLite database for policy storage.
 // It accepts an existing *sql.DB so the policy tables can share the same
 // database file as the event store.
-func NewSQLiteStore(db *sql.DB) (*SQLiteStore, error) {
-	if _, err := db.Exec(policySchema); err != nil {
+func NewSQLiteStore(db sqlutil.DB) (*SQLiteStore, error) {
+	ctx := context.Background()
+	if _, err := db.ExecContext(ctx, policySchema); err != nil {
 		return nil, fmt.Errorf("apply policy schema: %w", err)
 	}
 	// Existing greenfield databases may have been created during an earlier
@@ -104,14 +108,14 @@ func NewSQLiteStore(db *sql.DB) (*SQLiteStore, error) {
 		`ALTER TABLE receipt_projection_rules ADD COLUMN response_type TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE receipt_projection_rules ADD COLUMN read_principals_json TEXT NOT NULL DEFAULT '[]'`,
 	} {
-		if _, err := db.Exec(statement); err != nil && !strings.Contains(err.Error(), "duplicate column name") {
+		if _, err := db.ExecContext(ctx, statement); err != nil && !strings.Contains(err.Error(), "duplicate column name") {
 			return nil, fmt.Errorf("migrate receipt capture policy: %w", err)
 		}
 	}
 	// Vrooli Events has no supported legacy consumers. Rules without a stable
 	// capture-policy identity are from the removed receipt-projection contract
 	// and must never be surfaced or matched after the hard cut.
-	if _, err := db.Exec(`DELETE FROM receipt_projection_rules WHERE policy_id = ''`); err != nil {
+	if _, err := db.ExecContext(ctx, `DELETE FROM receipt_projection_rules WHERE policy_id = ''`); err != nil {
 		return nil, fmt.Errorf("purge legacy receipt projection rules: %w", err)
 	}
 	return &SQLiteStore{db: db}, nil

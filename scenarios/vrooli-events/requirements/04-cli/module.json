@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-07-18T12:22:14-04:00"
+    "last_validated_at": "2026-08-18T08:37:27-04:00"
   },
   "requirements": [
     {
       "id": "REQ-CLI-001",
       "title": "ScenarioApp integration",
-      "status": "in_progress",
+      "status": "complete",
       "criticality": "P1",
       "description": "CLI built on cli-core ScenarioApp with auto-config, API client, and consistent UX",
       "children": [
@@ -18,7 +18,7 @@
           "type": "test",
           "ref": "cli/app_test.go",
           "phase": "unit",
-          "status": "failing"
+          "status": "implemented"
         }
       ]
     },
@@ -55,7 +55,7 @@
     {
       "id": "REQ-CLI-002",
       "title": "Query command",
-      "status": "in_progress",
+      "status": "complete",
       "criticality": "P1",
       "description": "vrooli-events query with --type, --source, --correlation-id, --since, --limit, --json flags",
       "children": [
@@ -65,16 +65,16 @@
       "validation": [
         {
           "type": "test",
-          "ref": "cli/cmd_query_test.go",
+          "ref": "cli/app_test.go",
           "phase": "unit",
-          "status": "failing"
+          "status": "implemented"
         }
       ]
     },
     {
       "id": "REQ-CLI-003",
       "title": "Subscribe command",
-      "status": "in_progress",
+      "status": "complete",
       "criticality": "P1",
       "description": "vrooli-events subscribe with --type, --source, --target, --json flags",
       "children": [
@@ -86,14 +86,14 @@
           "type": "test",
           "ref": "cli/cmd_subscribe_test.go",
           "phase": "unit",
-          "status": "failing"
+          "status": "implemented"
         }
       ]
     },
     {
       "id": "REQ-CLI-004",
       "title": "Stats command",
-      "status": "in_progress",
+      "status": "complete",
       "criticality": "P1",
       "description": "vrooli-events stats shows store health, subscriber count, event count, size",
       "children": [
@@ -103,16 +103,16 @@
       "validation": [
         {
           "type": "test",
-          "ref": "cli/cmd_stats_test.go",
+          "ref": "cli/app_test.go",
           "phase": "unit",
-          "status": "failing"
+          "status": "implemented"
         }
       ]
     },
     {
       "id": "REQ-CLI-005",
       "title": "Ingest command",
-      "status": "in_progress",
+      "status": "complete",
       "criticality": "P1",
       "description": "vrooli-events ingest with --event-id, --type, --source, --target, --correlation-id, --payload, --json flags",
       "children": [
@@ -122,9 +122,9 @@
       "validation": [
         {
           "type": "test",
-          "ref": "cli/cmd_ingest_test.go",
+          "ref": "cli/app_test.go",
           "phase": "unit",
-          "status": "failing"
+          "status": "implemented"
         }
       ]
     },

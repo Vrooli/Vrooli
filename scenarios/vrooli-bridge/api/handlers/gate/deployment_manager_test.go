@@ -46,9 +46,9 @@ func newDMHarness(t *testing.T) *dmHarness {
 
 	// One trusted node per target OS, each scoped to run the validation verb.
 	repo := rmocks.NewFakeRepository()
-	repo.Seed(registry.Node{ID: "ubuntu-1", Name: "ci-linux", OS: "linux", Arch: "amd64", Scopes: []string{"scenario test*"}})
-	repo.Seed(registry.Node{ID: "mac-1", Name: "ci-darwin", OS: "darwin", Arch: "arm64", Scopes: []string{"scenario test*"}})
-	repo.Seed(registry.Node{ID: "win-1", Name: "ci-windows", OS: "windows", Arch: "amd64", Scopes: []string{"scenario test*"}})
+	repo.Seed(registry.Node{ID: "ubuntu-1", Name: "ci-linux", OS: "linux", Arch: "amd64", Scopes: []string{"vrooli-bridge:write", "scenario test*"}})
+	repo.Seed(registry.Node{ID: "mac-1", Name: "ci-darwin", OS: "darwin", Arch: "arm64", Scopes: []string{"vrooli-bridge:write", "scenario test*"}})
+	repo.Seed(registry.Node{ID: "win-1", Name: "ci-windows", OS: "windows", Arch: "amd64", Scopes: []string{"vrooli-bridge:write", "scenario test*"}})
 	registrySvc := registry.NewService(repo)
 
 	runsSvc := runs.NewService(runsmocks.NewFakeRepository(), scheduletest.New(time.Now()))

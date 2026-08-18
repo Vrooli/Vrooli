@@ -265,3 +265,74 @@ a migration handoff with a planned retirement path back into
 - [`SEAMS.md`](SEAMS.md) — boundary registry (load-bearing for tests)
 - [`TESTING.md`](TESTING.md) — test patterns
 - [`../guides/troubleshooting.md`](../guides/troubleshooting.md) — generic-template issues
+
+### 2026-08-18 — No scenario can authenticate to vrooli-bridge
+
+**Symptom:** With bridge discovery correctly wired, the iOS target inventory
+reports a bridge row that is `unavailable` with reason
+`bridge inventory unavailable: unauthenticated`. `POST
+/vrooli.vrooli_bridge.v1.registry.NodeRegistryService/ListNodes` returns HTTP
+401 `{"code":"unauthenticated"}` even though the bridge API is healthy and
+`nodes doctor` reports the macOS node dispatchable.
+
+**Root cause:** vrooli-bridge accepts three authorization schemes —
+`BreakGlass`, `LocalSession` (enrollment-based, `OS1.<claims>.<sig>` signed by
+an enrolled client keypair), and owner `Bearer`. All three are *owner* or
+*enrolled-client* identities. There is no service identity a co-located
+scenario can present, no scenario is enrolled, and `VROOLI_BRIDGE_API_TOKEN`
+— the variable the shared spine reads — appears nowhere else in the
+repository. Scenario-to-bridge authentication has never existed, so the bridge
+transport has never been exercised end to end by any delivery ramp.
+
+**Scope:** Not iOS-specific. `scenario-to-android` and `scenario-to-desktop`
+construct the same client and hit the same 401. Android is unaffected in
+practice only because its devices attach locally through `device-control`
+rather than through bridge discovery.
+
+**Workaround:** None that preserves the trust boundary. Do not embed an owner
+token in a scenario environment: owner credentials are not service
+credentials, and doing so would give every ramp full owner authority over the
+fleet. The honest state is the one now reported — an `unavailable` bridge row
+naming the cause.
+
+**Real fix:** An identity decision, not a wiring fix. Either enroll each ramp
+as a `LocalSession` client with narrowly scoped capabilities, or issue
+scenario-scoped service credentials through `scenario-authenticator` and teach
+bridge to validate them. Whichever is chosen must scope authority to the verbs
+a ramp actually needs (`host inventory` to probe, plus its validation verbs)
+rather than granting owner-equivalent access.
+
+**Owner:** unassigned — needs an identity/delegation decision from the
+repository owner.
+
+**Refs:** `scenarios/vrooli-bridge/api/internal/auth/middleware.go`,
+`scenarios/vrooli-bridge/api/internal/auth/auth.go` (`ValidateLocal`),
+`packages/delivery-ramp-go/validationmatrix/bridge_client.go`, and
+`knw-1787034912555784148`.
+
+### 2026-08-18 — A bridge node cannot report its Apple toolchain until its control plane is updated
+
+**Symptom:** A darwin node answers `host inventory --json` over dispatch, but
+the payload contains no `xcodebuild`, `xcrun`, or `simctl` entries and no
+`apple_toolchain` probe status.
+
+**Root cause:** Toolchain detection was added to `internal/hostinventory` in
+this change. A node runs whatever revision it was provisioned to; `minimouse`
+is on `78c6be32`, which predates it.
+
+**Workaround:** The ramp distinguishes this from a genuinely absent toolchain.
+An unprobed node reports missing capability `host toolchain probe` with the
+next action "update the node's control plane so it reports Apple toolchain
+facts", rather than `xcodebuild` — so nobody installs Xcode on a machine that
+already has it. `TestDiscoverDistinguishesUnprobedToolchainFromAbsentToolchain`
+pins the distinction.
+
+**Real fix:** Provision the node to a revision containing the toolchain probe
+(`vrooli-bridge provision sync <node> --revision <rev>`). Note this requires
+the change to exist in a git revision, which the repository owner's standing
+no-git rule reserves to them.
+
+**Owner:** repository owner (provisioning).
+
+**Refs:** `internal/hostinventory/toolchain.go`,
+`packages/delivery-ramp-go/validationmatrix/host_capabilities.go`.

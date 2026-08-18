@@ -11,10 +11,16 @@ import (
 )
 
 // Module exposes Apple target probing.
-func Module(prober targets.Prober) module.Module {
+//
+// Discovery goes through the shared spine rather than calling the prober
+// directly: on a Linux host the local probe can only report that Apple tooling
+// is unsupported, so a bridge source is the only way an iOS target can ever
+// become available. Calling the prober alone made "no registered macOS bridge
+// node" an unconditional answer.
+func Module(prober targets.Prober, bridgeSources ...deliveryramp.BridgeSource) module.Module {
 	return module.Module{Name: "ios-targets", Mount: func(r *mux.Router) {
 		r.HandleFunc("/api/v1/ios/targets", func(w http.ResponseWriter, req *http.Request) {
-			inventory, err := prober.Probe(req.Context(), deliveryramp.ProbeRequest{})
+			inventory, err := deliveryramp.Discover(req.Context(), prober, bridgeSources...)
 			write(w, inventory, err)
 		}).Methods(http.MethodGet)
 	}, Endpoints: Endpoints}

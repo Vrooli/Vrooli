@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-07-18T12:22:14-04:00"
+    "last_validated_at": "2026-08-18T08:37:27-04:00"
   },
   "requirements": [
     {
       "id": "REQ-UI-001",
       "title": "Event stream viewer",
-      "status": "in_progress",
+      "status": "complete",
       "criticality": "P2",
       "description": "Real-time scrolling feed of incoming events via SSE with filtering and pause/resume.",
       "children": [
@@ -18,20 +18,20 @@
           "type": "test",
           "ref": "ui/src/lib/errors.test.ts",
           "phase": "unit",
-          "status": "failing"
+          "status": "implemented"
         },
         {
           "type": "test",
           "ref": "ui/src/lib/utils.test.ts",
           "phase": "unit",
-          "status": "failing"
+          "status": "implemented"
         }
       ]
     },
     {
       "id": "REQ-UI-001A",
       "title": "Real-time SSE event feed",
-      "status": "in_progress",
+      "status": "complete",
       "criticality": "P2",
       "description": "Events arrive via SSE and render in scrolling feed with color-coded event types",
       "children": [
@@ -42,7 +42,7 @@
           "type": "test",
           "ref": "ui/src/consts/selectors.test.ts",
           "phase": "unit",
-          "status": "failing"
+          "status": "implemented"
         }
       ]
     },
@@ -69,7 +69,7 @@
     {
       "id": "REQ-UI-002",
       "title": "Analytics dashboard — throughput",
-      "status": "in_progress",
+      "status": "complete",
       "criticality": "P2",
       "description": "Time-series chart showing events/second with source scenario breakdown.",
       "children": [
@@ -81,14 +81,14 @@
           "type": "test",
           "ref": "ui/src/consts/selectors.test.ts",
           "phase": "unit",
-          "status": "failing"
+          "status": "implemented"
         }
       ]
     },
     {
       "id": "REQ-UI-003",
       "title": "Analytics dashboard — per-scenario metrics",
-      "status": "in_progress",
+      "status": "complete",
       "criticality": "P2",
       "description": "Table and bar chart showing per-scenario call volume.",
       "children": [
@@ -100,14 +100,14 @@
           "type": "test",
           "ref": "ui/src/pages/ScenarioMetricsPage.test.ts",
           "phase": "unit",
-          "status": "failing"
+          "status": "implemented"
         }
       ]
     },
     {
       "id": "REQ-UI-004",
       "title": "Event detail view",
-      "status": "in_progress",
+      "status": "complete",
       "criticality": "P2",
       "description": "Event detail panel with JSON payload and correlation chain.",
       "children": [
@@ -119,14 +119,14 @@
           "type": "test",
           "ref": "ui/src/pages/EventDetail.test.ts",
           "phase": "unit",
-          "status": "failing"
+          "status": "implemented"
         }
       ]
     },
     {
       "id": "REQ-UI-005",
       "title": "Correlation trace view",
-      "status": "in_progress",
+      "status": "complete",
       "criticality": "P2",
       "description": "Visual timeline of related events by correlation_id.",
       "children": [
@@ -138,14 +138,14 @@
           "type": "test",
           "ref": "ui/src/pages/CorrelationTracePage.test.ts",
           "phase": "unit",
-          "status": "failing"
+          "status": "implemented"
         }
       ]
     },
     {
       "id": "REQ-UI-006",
       "title": "Policy management — rule list",
-      "status": "in_progress",
+      "status": "complete",
       "criticality": "P2",
       "description": "Table of policy rules with filtering and bulk operations.",
       "children": [
@@ -157,7 +157,7 @@
           "type": "test",
           "ref": "ui/src/pages/PoliciesPage.test.ts",
           "phase": "unit",
-          "status": "failing"
+          "status": "implemented"
         }
       ]
     },
@@ -194,7 +194,7 @@
     {
       "id": "REQ-UI-007",
       "title": "Policy management — rule editor",
-      "status": "in_progress",
+      "status": "complete",
       "criticality": "P2",
       "description": "Form for creating/editing policy rules with validation.",
       "children": [
@@ -206,14 +206,14 @@
           "type": "test",
           "ref": "ui/src/pages/PolicyEditorPage.test.ts",
           "phase": "unit",
-          "status": "failing"
+          "status": "implemented"
         }
       ]
     },
     {
       "id": "REQ-UI-008",
       "title": "Circuit breaker dashboard",
-      "status": "in_progress",
+      "status": "complete",
       "criticality": "P2",
       "description": "Grid of circuit breaker pairs with state indicators and manual override.",
       "children": [
@@ -225,7 +225,7 @@
           "type": "test",
           "ref": "ui/src/pages/CircuitBreakerPage.test.ts",
           "phase": "unit",
-          "status": "failing"
+          "status": "implemented"
         }
       ]
     },
@@ -262,7 +262,7 @@
     {
       "id": "REQ-UI-009",
       "title": "Subscription management",
-      "status": "in_progress",
+      "status": "complete",
       "criticality": "P2",
       "description": "Subscription table with CRUD and glob pattern tester.",
       "children": [
@@ -274,14 +274,14 @@
           "type": "test",
           "ref": "ui/src/pages/SubscriptionsPage.test.ts",
           "phase": "unit",
-          "status": "failing"
+          "status": "implemented"
         }
       ]
     },
     {
       "id": "REQ-UI-010",
       "title": "Subscription health detail",
-      "status": "in_progress",
+      "status": "complete",
       "criticality": "P2",
       "description": "Delivery stats, recent log, and re-enable button.",
       "children": [
@@ -293,14 +293,14 @@
           "type": "test",
           "ref": "ui/src/pages/SubscriptionHealthPage.test.ts",
           "phase": "unit",
-          "status": "failing"
+          "status": "implemented"
         }
       ]
     },
     {
       "id": "REQ-UI-011",
       "title": "Compliance \u0026 audit view",
-      "status": "in_progress",
+      "status": "complete",
       "criticality": "P2",
       "description": "Searchable policy violations log with export.",
       "children": [
@@ -312,14 +312,14 @@
           "type": "test",
           "ref": "ui/src/pages/CompliancePage.test.ts",
           "phase": "unit",
-          "status": "failing"
+          "status": "implemented"
         }
       ]
     },
     {
       "id": "REQ-UI-012",
       "title": "Retention \u0026 storage settings",
-      "status": "in_progress",
+      "status": "complete",
       "criticality": "P2",
       "description": "Settings panel for retention, size cap, and manual prune.",
       "children": [
@@ -331,14 +331,14 @@
           "type": "test",
           "ref": "ui/src/pages/SettingsPage.test.ts",
           "phase": "unit",
-          "status": "failing"
+          "status": "implemented"
         }
       ]
     },
     {
       "id": "REQ-UI-013",
       "title": "System health overview",
-      "status": "in_progress",
+      "status": "complete",
       "criticality": "P2",
       "description": "Dashboard card showing API status and ingestion rate.",
       "children": [
@@ -350,14 +350,14 @@
           "type": "test",
           "ref": "ui/src/pages/AnalyticsPage.test.ts",
           "phase": "unit",
-          "status": "failing"
+          "status": "implemented"
         }
       ]
     },
     {
       "id": "REQ-UI-014",
       "title": "Navigation and layout",
-      "status": "in_progress",
+      "status": "complete",
       "criticality": "P2",
       "description": "Sidebar navigation with responsive layout and dark theme.",
       "children": [
@@ -369,7 +369,7 @@
           "type": "test",
           "ref": "ui/src/consts/selectors.test.ts",
           "phase": "unit",
-          "status": "failing"
+          "status": "implemented"
         }
       ]
     },

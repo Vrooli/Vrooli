@@ -194,7 +194,7 @@ func main() {
 		return "usb"
 	}
 	executors := validationmatrix.Executors{Local: releases.Executor{JourneyPlan: androidPlan.JourneyPlan(), ResolveTransport: resolveTransport, RunJourney: journeyRunner}}
-	if bridgeExecutor := validationmatrix.NewClientFromEnv(); bridgeExecutor != nil {
+	if bridgeExecutor := validationmatrix.NewClientFromEnv(validationmatrix.WithPlatform("android")); bridgeExecutor != nil {
 		executors.Bridge = bridgeExecutor
 	}
 	matrixOptions := []validationmatrix.ServiceOption{

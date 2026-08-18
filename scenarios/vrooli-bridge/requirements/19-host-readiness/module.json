@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Bridge host endpoint readiness and candidate LAN admission before onboarding work.",
-    "last_validated_at": "2026-08-17T07:57:42-04:00",
+    "last_validated_at": "2026-08-18T05:24:21-04:00",
     "module": "host-readiness",
     "prd_ref": "BRG-HR-001",
     "priority": "P0",

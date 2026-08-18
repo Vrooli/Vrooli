@@ -31,7 +31,7 @@ func (p *defaultPlatformResolver) ParseKey(key string) (string, string, error) {
 	switch goos {
 	case "win":
 		goos = "windows"
-	case "mac":
+	case "mac", "macos":
 		goos = "darwin"
 	case "darwin", "linux", "windows":
 	default:
@@ -58,9 +58,9 @@ func (p *defaultPlatformResolver) NormalizeRuntime(platform string) string {
 		return "linux-x64"
 	case "linux-arm64", "linux-aarch64":
 		return "linux-arm64"
-	case "mac", "darwin", "mac-x64", "darwin-amd64", "darwin-x64":
+	case "mac", "macos", "darwin", "mac-x64", "macos-x64", "macos-amd64", "darwin-amd64", "darwin-x64":
 		return "darwin-x64"
-	case "mac-arm64", "darwin-arm64":
+	case "mac-arm64", "macos-arm64", "darwin-arm64":
 		return "darwin-arm64"
 	case "win", "windows", "win-x64", "windows-amd64", "windows-x64":
 		return "win-x64"
@@ -133,7 +133,7 @@ func expandShorthandToHostArch(platform string) (string, string) {
 		return "linux", goarch
 	case "win", "windows":
 		return "windows", goarch
-	case "mac", "darwin":
+	case "mac", "macos", "darwin":
 		return "darwin", goarch
 	}
 	return "", ""
@@ -148,9 +148,9 @@ func expandShorthandPlatform(platform string) []string {
 		for _, arch := range archs {
 			keys = append(keys, "win-"+arch, "windows-"+arch)
 		}
-	case "mac", "darwin":
+	case "mac", "macos", "darwin":
 		for _, arch := range archs {
-			keys = append(keys, "darwin-"+arch, "mac-"+arch)
+			keys = append(keys, "darwin-"+arch, "mac-"+arch, "macos-"+arch)
 		}
 	case "linux":
 		for _, arch := range archs {
@@ -169,6 +169,9 @@ func aliasPlatformKey(key string) string {
 	}
 	if strings.HasPrefix(key, "darwin-") {
 		return "mac-" + strings.TrimPrefix(key, "darwin-")
+	}
+	if strings.HasPrefix(key, "macos-") {
+		return "darwin-" + strings.TrimPrefix(key, "macos-")
 	}
 	if strings.HasPrefix(key, "mac-") {
 		return "darwin-" + strings.TrimPrefix(key, "mac-")

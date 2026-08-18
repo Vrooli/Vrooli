@@ -156,29 +156,13 @@ make stop     # Stop
 ## CLI
 
 ```bash
-# Event operations
 vrooli-events query --type "swarm-manager.**" --limit 10
-vrooli-events query --correlation-id "abc123" --json
+vrooli-events query --correlation-id "abc123"
 vrooli-events subscribe --type "*.completed.*"
 vrooli-events stats
-
-# Policy management
-vrooli-events policy list
-vrooli-events policy create --type access --source "swarm-manager" --target "agent-manager" --effect allow
-vrooli-events policy create --type rate_limit --source "*" --target "agent-manager" --max-requests 100 --window 60
-vrooli-events policy create --type circuit_breaker --source "*" --target "flaky-service" --failure-threshold 5 --cooldown 30
-vrooli-events policy violations --since 1h
-
-# Subscription management
-vrooli-events subscriptions list
-vrooli-events subscriptions create --name "backlog-notifications" --pattern "swarm-manager.backlog.**" --delivery-type webhook --target "http://localhost:15200/api/v1/hooks/events"
-vrooli-events subscriptions health --id <id>
-vrooli-events subscriptions test --id <id>
-
-# Settings
-vrooli-events configure api_base http://localhost:15000/api/v1
-vrooli-events retention --retention-days 60 --max-size-gb 4
-vrooli-events status
+vrooli-events capture-preview
+vrooli-events capture-reconcile
+vrooli-events ingest --event-id "example.audit.001" --type "example.audit.v1" --source "example-scenario" --payload '{}'
 ```
 
 ## Integration
@@ -198,14 +182,12 @@ router.Use(discovery.PolicyMiddleware("http://localhost:15000", "my-scenario"))
 
 ### For event consumers (like notification-hub)
 
-Create a persistent subscription:
+Create a persistent subscription through the HTTP API:
 
 ```bash
-vrooli-events subscriptions create \
-  --name "notify-on-completion" \
-  --pattern "swarm-manager.backlog.item-completed.v1" \
-  --delivery-type webhook \
-  --target "http://localhost:15200/api/v1/hooks/events"
+curl -X POST "http://localhost:${API_PORT}/api/v1/subscriptions" \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"notify-on-completion","owner_scenario":"notification-hub","event_pattern":"swarm-manager.backlog.item-completed.v1","delivery_type":"webhook","delivery_target":"http://localhost:15200/api/v1/hooks/events","enabled":true}'
 ```
 
 ### Direct event publishing

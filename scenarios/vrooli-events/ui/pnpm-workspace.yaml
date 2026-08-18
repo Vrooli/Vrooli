@@ -10,5 +10,6 @@
 # Scenarios stay fully isolated — own package.json, own pnpm-lock.yaml, own
 # node_modules — so dependency upgrades here never affect other scenarios.
 # Shared @vrooli/* packages are consumed via file: references (see package.json).
+minimumReleaseAge: 10080
 packages:
   - .

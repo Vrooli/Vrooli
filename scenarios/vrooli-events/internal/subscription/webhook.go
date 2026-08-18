@@ -5,22 +5,34 @@ package subscription
 import (
 	"bytes"
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"time"
 )
 
 // WebhookDeliverer sends event payloads to webhook URLs via HTTP POST.
 type WebhookDeliverer struct {
 	client *http.Client
+	secret []byte
 }
 
 // NewWebhookDeliverer creates a WebhookDeliverer with a 10-second timeout.
 func NewWebhookDeliverer() *WebhookDeliverer {
 	return &WebhookDeliverer{
 		client: &http.Client{Timeout: 10 * time.Second},
+		secret: []byte(os.Getenv("VROOLI_EVENTS_WEBHOOK_SECRET")),
 	}
+}
+
+func NewWebhookDelivererWithSecret(secret string) *WebhookDeliverer {
+	d := NewWebhookDeliverer()
+	d.secret = []byte(secret)
+	return d
 }
 
 // WebhookPayload is the JSON body sent to webhook endpoints.
@@ -45,6 +57,15 @@ func (w *WebhookDeliverer) Deliver(ctx context.Context, target string, payload W
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("User-Agent", "vrooli-events/1.0")
+	req.Header.Set("X-Vrooli-Events-Event-ID", payload.EventID)
+	// Redeliveries carry the stable event identity separately from the body so
+	// receivers can deduplicate before parsing or persisting the payload.
+	req.Header.Set("X-Vrooli-Events-Idempotency-Key", payload.EventID)
+	if len(w.secret) > 0 {
+		mac := hmac.New(sha256.New, w.secret)
+		_, _ = mac.Write(body)
+		req.Header.Set("X-Vrooli-Events-Signature", "sha256="+hex.EncodeToString(mac.Sum(nil)))
+	}
 
 	resp, err := w.client.Do(req)
 	if err != nil {

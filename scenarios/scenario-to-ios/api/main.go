@@ -25,6 +25,7 @@ import (
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/devrouting"
+	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/filerouting"
 	"github.com/vrooli/api-core/preflight"
 	apiserver "github.com/vrooli/api-core/server"
@@ -158,6 +159,18 @@ func main() {
 		log.Fatalf("validation matrix storage configuration failed: %v", err)
 	}
 	prober := targets.Prober{GOOS: runtime.GOOS}
+	// No Apple toolchain runs on Linux, so a macOS bridge node is this ramp's
+	// normal execution path rather than a fallback. Without a bridge source the
+	// inventory can only ever answer "no registered macOS bridge node",
+	// regardless of what the fleet actually holds.
+	bridgeClient := validationmatrix.NewClient(resolveBridgeURL(), os.Getenv("VROOLI_BRIDGE_API_TOKEN"), nil, validationmatrix.WithPlatform("ios"))
+	var bridgeSources []deliveryramp.BridgeSource
+	if bridgeClient != nil {
+		bridgeSources = append(bridgeSources, bridgeClient)
+	}
+	discoverTargets := func(ctx context.Context) (deliveryramp.Inventory, error) {
+		return deliveryramp.Discover(ctx, prober, bridgeSources...)
+	}
 	builder := builds.Builder{GOOS: runtime.GOOS}
 	iosPlan := journeys.Plan()
 	journeySelection := validationmatrix.JourneySelection{
@@ -174,9 +187,16 @@ func main() {
 		return (journeys.Driver{GOOS: runtime.GOOS}).Execute(ctx, request)
 	}
 	matrixExecutor := releases.Executor{JourneyPlan: iosPlan, RunJourney: journeyRunner}
+	// The bridge executor must not be the local one. A Linux host cannot build
+	// or boot an iOS simulator, so running a "bridge" cell locally could only
+	// fail or, worse, attribute a local result to a remote target.
+	executors := validationmatrix.Executors{Local: matrixExecutor}
+	if bridgeClient != nil {
+		executors.Bridge = bridgeClient
+	}
 	matrixService := validationmatrix.NewService(
 		matrixStore,
-		validationmatrix.Executors{Local: matrixExecutor, Bridge: matrixExecutor},
+		executors,
 		validationmatrix.WithCatalogResolver(releases.Catalog{Probe: prober, Journey: journeySelection}),
 	)
 	matrixService.RecoverStale()
@@ -184,7 +204,10 @@ func main() {
 	readinessProbe := readiness.Probe{
 		DeveloperProgram: envBool("APPLE_DEVELOPER_PROGRAM"),
 		VerifiedIdentity: envBool("APPLE_VERIFIED_IDENTITY"),
-		MacOSBuildHost:   envBool("APPLE_MACOS_BUILD_HOST"),
+		// The build-host rung is derived from live fleet state rather than an
+		// environment flag. A remembered flag can claim a macOS host that is not
+		// there, which is exactly what the ladder exists to prevent.
+		ObserveBuildHost: readiness.BuildHostObserver(discoverTargets),
 		SigningReference: envBool("APPLE_SIGNING_REFERENCE"),
 		TestFlightAccess: envBool("APPLE_TESTFLIGHT_ACCESS"),
 		AppStoreListing:  envBool("APPLE_APP_STORE_LISTING"),
@@ -201,14 +224,12 @@ func main() {
 		healthH.Module(db, "scenario-to-ios-api", "1.0.0"),
 		capsH.Module(capabilities.NewRegistry()),
 		buildsH.Module(builder),
-		targetsH.Module(prober),
+		targetsH.Module(prober, bridgeSources...),
 		journeysH.Module(),
 		readinessH.Module(readinessProbe),
 		distributionH.Module(distributor),
 		releasesH.Module([]*validationmatrix.Handler{matrixHandler}, releasesH.Surface{
-			Probe: func(ctx context.Context) (deliveryramp.Inventory, error) {
-				return prober.Probe(ctx, deliveryramp.ProbeRequest{})
-			},
+			Probe:        discoverTargets,
 			ChapterCount: len(iosPlan.Steps),
 		}),
 	)
@@ -237,4 +258,23 @@ func main() {
 func envBool(key string) bool {
 	value := strings.ToLower(strings.TrimSpace(os.Getenv(key)))
 	return value == "1" || value == "true" || value == "yes"
+}
+
+// resolveBridgeURL locates vrooli-bridge, preferring an explicit override and
+// falling back to scenario discovery.
+//
+// Because no Apple toolchain runs on Linux, a macOS bridge node is this ramp's
+// normal execution path. Requiring an environment variable to reach it would let
+// an unset value silently disable remote execution, and the inventory would then
+// report "no registered macOS bridge node" while a healthy fleet ran beside it.
+func resolveBridgeURL() string {
+	if configured := strings.TrimSpace(os.Getenv("VROOLI_BRIDGE_URL")); configured != "" {
+		return configured
+	}
+	resolved, err := discovery.ResolveScenarioURLDefault(context.Background(), "vrooli-bridge")
+	if err != nil {
+		log.Printf("vrooli-bridge discovery failed; iOS bridge targets will report unavailable: %v", err)
+		return ""
+	}
+	return resolved
 }

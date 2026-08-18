@@ -41,7 +41,7 @@ var literalInstanceIdentifier = regexp.MustCompile(`(?i)(?:^|/)[0-9a-f]{8}-[0-9a
 
 func (h *captureValidationHandler) DescribeProvider(_ context.Context, _ *connect.Request[scenariovalidationv1.DescribeProviderRequest]) (*connect.Response[scenariovalidationv1.DescribeProviderResponse], error) {
 	return connect.NewResponse(&scenariovalidationv1.DescribeProviderResponse{
-		Provider: "vrooli-events", Phase: captureConformancePhase, SpecVersion: "1.0.0", Contract: "scenario-validation/v1",
+		Provider: "vrooli-events", Phase: captureConformancePhase, SpecVersion: "2.0.0", Contract: "scenario-validation/v1",
 		Capabilities: &scenariovalidationv1.ProviderCapabilities{DeliveryMode: "inline"},
 	}), nil
 }
@@ -84,7 +84,7 @@ func receiptEmitted(ctx context.Context, events store.Store, rule policy.Receipt
 	if events == nil {
 		return false
 	}
-	items, err := events.Query(ctx, store.QueryFilters{EventType: receiptEventType, Target: rule.TargetScenario, Limit: 1000})
+	items, err := queryStoreEvents(ctx, events, store.QueryFilters{EventType: receiptEventType, Target: rule.TargetScenario, Limit: 1000})
 	if err != nil {
 		return false
 	}

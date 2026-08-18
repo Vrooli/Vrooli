@@ -30,16 +30,43 @@ func NewManifestWriter(service *captures.Service) *ManifestWriter {
 var _ smoketest.EvidenceManifestWriter = (*ManifestWriter)(nil)
 
 func (w *ManifestWriter) WriteManifest(ctx context.Context, input smoketest.EvidenceManifestInput) error {
+	profile, startedAt, completedAt, artifactDigest, items, err := prepareManifestInput(w, input)
+	if err != nil {
+		return err
+	}
+	manifest := newManifest(input, profile, artifactDigest, startedAt, completedAt)
+	if err := populateTimeline(&manifest, input); err != nil {
+		return err
+	}
+	recordingOK, err := w.appendCaptureArtifacts(ctx, &manifest, input, items)
+	if err != nil {
+		return err
+	}
+	if len(manifest.Artifacts) < 2 {
+		return fmt.Errorf("journey and recording captures are both required")
+	}
+	appendPerformanceArtifacts(&manifest, input)
+	setPerformanceSummary(&manifest, input)
+	manifest.Gates = manifestGates(input, profile, recordingOK, startedAt, completedAt)
+	if allRequiredGatesPassed(manifest) {
+		manifest.State = deliveryramp.StatePassed
+	}
+	if err := manifest.Validate(); err != nil {
+		return fmt.Errorf("validate evidence manifest: %w", err)
+	}
+	return persistManifest(manifest)
+}
+
+func prepareManifestInput(w *ManifestWriter, input smoketest.EvidenceManifestInput) (deliveryramp.Profile, time.Time, time.Time, string, []captures.Capture, error) {
 	if w == nil || w.captures == nil {
-		return fmt.Errorf("capture service is unavailable")
+		return "", time.Time{}, time.Time{}, "", nil, fmt.Errorf("capture service is unavailable")
 	}
 	if input.Journey == nil {
-		return fmt.Errorf("journey is required")
+		return "", time.Time{}, time.Time{}, "", nil, fmt.Errorf("journey is required")
 	}
 	if strings.TrimSpace(input.RunID) == "" || strings.TrimSpace(input.ScenarioName) == "" {
-		return fmt.Errorf("run ID and scenario name are required")
+		return "", time.Time{}, time.Time{}, "", nil, fmt.Errorf("run ID and scenario name are required")
 	}
-
 	profile := deliveryramp.Profile(strings.TrimSpace(input.Profile))
 	if profile == "" {
 		profile = deliveryramp.ProfileVisual
@@ -55,114 +82,82 @@ func (w *ManifestWriter) WriteManifest(ctx context.Context, input smoketest.Evid
 	if completedAt.IsZero() || completedAt.Before(startedAt) {
 		completedAt = time.Now().UTC()
 	}
-
 	artifactDigest, err := fileDigest(input.ArtifactPath)
 	if err != nil {
-		return fmt.Errorf("hash built artifact: %w", err)
+		return "", time.Time{}, time.Time{}, "", nil, fmt.Errorf("hash built artifact: %w", err)
 	}
 	items := capturesForRun(input.Captures, input.RunID)
 	if len(items) == 0 {
-		return fmt.Errorf("no persisted captures found for run %q", input.RunID)
+		return "", time.Time{}, time.Time{}, "", nil, fmt.Errorf("no persisted captures found for run %q", input.RunID)
 	}
+	return profile, startedAt, completedAt, artifactDigest, items, nil
+}
 
-	manifest := deliveryramp.Manifest{
-		SchemaVersion: deliveryramp.ManifestSchemaVersion,
-		RunID:         input.RunID,
-		Profile:       profile,
-		State:         deliveryramp.StateFailed,
-		Target: deliveryramp.EvidenceTarget{
-			ID:         input.Journey.TargetID,
-			Ramp:       "scenario-to-desktop",
-			Platform:   strings.ToLower(strings.TrimSpace(input.Platform)),
-			OS:         "linux",
-			DeviceKind: "host",
-		},
-		CellID: input.Journey.CellID,
-		Runner: deliveryramp.Runner{
-			ID:           "linux-xvfb-openbox",
-			Kind:         "native",
-			HostOS:       "linux",
-			TargetOS:     "linux",
-			Isolation:    "xvfb",
-			Capabilities: []string{"xvfb", "openbox", "xdotool", "ffmpeg", "electron"},
-		},
-		Provenance: deliveryramp.Provenance{
-			ArtifactDigest: artifactDigest,
-			GitCommit:      gitCommit(),
-			StartedAt:      startedAt,
-			CompletedAt:    completedAt,
-		},
+func newManifest(input smoketest.EvidenceManifestInput, profile deliveryramp.Profile, artifactDigest string, startedAt, completedAt time.Time) deliveryramp.Manifest {
+	return deliveryramp.Manifest{
+		SchemaVersion: deliveryramp.ManifestSchemaVersion, RunID: input.RunID, Profile: profile, State: deliveryramp.StateFailed,
+		Target:     deliveryramp.EvidenceTarget{ID: input.Journey.TargetID, Ramp: "scenario-to-desktop", Platform: strings.ToLower(strings.TrimSpace(input.Platform)), OS: "linux", DeviceKind: "host"},
+		CellID:     input.Journey.CellID,
+		Runner:     deliveryramp.Runner{ID: "linux-xvfb-openbox", Kind: "native", HostOS: "linux", TargetOS: "linux", Isolation: "xvfb", Capabilities: []string{"xvfb", "openbox", "xdotool", "ffmpeg", "electron"}},
+		Provenance: deliveryramp.Provenance{ArtifactDigest: artifactDigest, GitCommit: gitCommit(), StartedAt: startedAt, CompletedAt: completedAt},
 	}
+}
+
+func populateTimeline(manifest *deliveryramp.Manifest, input smoketest.EvidenceManifestInput) error {
 	if err := smoketest.ValidateJourneyTimeline(*input.Journey); err != nil {
 		return fmt.Errorf("validate journey timeline: %w", err)
 	}
-	manifest.Timeline = deliveryramp.TimelineSummary{
-		Version:          input.Journey.EvidenceVersion,
-		Capability:       input.Journey.Capability,
-		EventCount:       len(input.Journey.Events),
-		Ordered:          true,
-		RedactionStatus:  "verified",
-		WorkflowRequired: input.Journey.WorkflowRequired,
-	}
+	journey := input.Journey
+	manifest.Timeline = deliveryramp.TimelineSummary{Version: journey.EvidenceVersion, Capability: journey.Capability, EventCount: len(journey.Events), Ordered: true, RedactionStatus: "verified", WorkflowRequired: journey.WorkflowRequired}
 	workflowReference := input.WorkflowReference
 	if workflowReference == nil {
-		workflowReference = input.Journey.WorkflowReference
+		workflowReference = journey.WorkflowReference
 	}
 	if workflowReference != nil {
-		manifest.Timeline.Workflow = &deliveryramp.WorkflowManifestReference{
-			Provider: workflowReference.Provider, AssetID: workflowReference.AssetID,
-			ExecutionID: workflowReference.ExecutionID, RunID: workflowReference.RunID,
-			ArtifactDigest: workflowReference.ArtifactDigest, TargetID: workflowReference.TargetID,
-			CellID: workflowReference.CellID, Disposition: workflowReference.Disposition,
-		}
+		manifest.Timeline.Workflow = &deliveryramp.WorkflowManifestReference{Provider: workflowReference.Provider, AssetID: workflowReference.AssetID, ExecutionID: workflowReference.ExecutionID, RunID: workflowReference.RunID, ArtifactDigest: workflowReference.ArtifactDigest, TargetID: workflowReference.TargetID, CellID: workflowReference.CellID, Disposition: workflowReference.Disposition}
 		for _, artifact := range workflowReference.Artifacts {
 			manifest.Timeline.Workflow.Artifacts = append(manifest.Timeline.Workflow.Artifacts, deliveryramp.WorkflowManifestArtifact(artifact))
 		}
 	}
-	if input.Journey.ProviderObservation != nil {
-		manifest.Timeline.ProviderTier = input.Journey.ProviderObservation.ProviderTier
-		manifest.Timeline.SafeRouteClass = input.Journey.ProviderObservation.SafeRouteClass
-		manifest.Timeline.FallbackDecision = input.Journey.ProviderObservation.FallbackDecision
+	if journey.ProviderObservation != nil {
+		manifest.Timeline.ProviderTier = journey.ProviderObservation.ProviderTier
+		manifest.Timeline.SafeRouteClass = journey.ProviderObservation.SafeRouteClass
+		manifest.Timeline.FallbackDecision = journey.ProviderObservation.FallbackDecision
 	}
 	if manifest.Timeline.Version == "" {
 		manifest.Timeline.Version = "journey-evidence.v1"
 	}
-	for _, step := range input.Journey.Steps {
+	for _, step := range journey.Steps {
 		chapterID := step.ID
 		if chapterID == "" {
 			chapterID = step.Name
 		}
 		manifest.Timeline.ChapterIDs = append(manifest.Timeline.ChapterIDs, chapterID)
 	}
+	return nil
+}
 
-	journeyOK := input.Journey.Disposition == "pass"
+func (w *ManifestWriter) appendCaptureArtifacts(ctx context.Context, manifest *deliveryramp.Manifest, input smoketest.EvidenceManifestInput, items []captures.Capture) (bool, error) {
 	recordingOK := false
-	persistenceOK := false
 	for _, item := range items {
-		if item.Type == captures.CaptureRecording {
-			path, pathErr := w.captures.CaptureFilePath(input.ScenarioName, item.ID)
-			if pathErr != nil {
-				return fmt.Errorf("resolve recording capture %q: %w", item.ID, pathErr)
-			}
-			inspection, inspectErr := screenrecording.InspectVideo(ctx, path)
-			if inspectErr == nil {
-				recordingOK = true
-			}
-			manifest.Artifacts = append(manifest.Artifacts, artifactFromCapture(item, path, inspection))
-			continue
+		path, err := w.captures.CaptureFilePath(input.ScenarioName, item.ID)
+		if err != nil {
+			return false, fmt.Errorf("resolve %s capture %q: %w", item.Type, item.ID, err)
 		}
-		if item.Type == captures.CaptureJourney {
-			path, pathErr := w.captures.CaptureFilePath(input.ScenarioName, item.ID)
-			if pathErr != nil {
-				return fmt.Errorf("resolve journey capture %q: %w", item.ID, pathErr)
-			}
+		switch item.Type {
+		case captures.CaptureRecording:
+			inspection, inspectErr := screenrecording.InspectVideo(ctx, path)
+			recordingOK = recordingOK || inspectErr == nil
+			manifest.Artifacts = append(manifest.Artifacts, artifactFromCapture(item, path, inspection))
+		case captures.CaptureJourney:
 			manifest.Timeline.JourneyRef = "capture:" + item.ID
 			manifest.Artifacts = append(manifest.Artifacts, artifactFromCapture(item, path, screenrecording.MediaInspection{}))
 		}
 	}
-	if len(manifest.Artifacts) < 2 {
-		return fmt.Errorf("journey and recording captures are both required")
-	}
+	return recordingOK, nil
+}
+
+func appendPerformanceArtifacts(manifest *deliveryramp.Manifest, input smoketest.EvidenceManifestInput) {
 	for _, tracePath := range []struct {
 		path    string
 		kind    string
@@ -174,101 +169,89 @@ func (w *ManifestWriter) WriteManifest(ctx context.Context, input smoketest.Evid
 		if strings.TrimSpace(tracePath.path) == "" {
 			continue
 		}
-		trace, traceErr := readValidatedLaunchTrace(tracePath.path, tracePath.runKind)
-		if traceErr != nil {
-			manifest.Performance.Status = "degraded"
-			manifest.Performance.Reason = traceErr.Error()
+		trace, err := readValidatedLaunchTrace(tracePath.path, tracePath.runKind)
+		if err != nil {
+			manifest.Performance.Status, manifest.Performance.Reason = "degraded", err.Error()
 			continue
 		}
-		artifact, traceErr := performanceArtifact(tracePath.path, recordingPathFor(manifest.Artifacts))
-		if traceErr != nil {
-			manifest.Performance.Status = "degraded"
-			manifest.Performance.Reason = traceErr.Error()
+		artifact, err := performanceArtifact(tracePath.path, recordingPathFor(manifest.Artifacts))
+		if err != nil {
+			manifest.Performance.Status, manifest.Performance.Reason = "degraded", err.Error()
 			continue
 		}
 		artifact.Kind = tracePath.kind
 		manifest.Artifacts = append(manifest.Artifacts, artifact)
 		manifest.Performance.TraceRefs = append(manifest.Performance.TraceRefs, artifact.ImmutableRef)
-		phases := LaunchPhaseDurations(trace)
 		if tracePath.runKind == smoketest.LaunchRunProtocol {
-			manifest.Performance.ProtocolPhases = phases
+			manifest.Performance.ProtocolPhases = LaunchPhaseDurations(trace)
 		} else {
-			manifest.Performance.DemoPhases = phases
+			manifest.Performance.DemoPhases = LaunchPhaseDurations(trace)
 		}
 	}
 	for _, profileDir := range []string{input.ProtocolProfileDir, input.DemoProfileDir} {
-		if strings.TrimSpace(profileDir) == "" {
+		appendProfileArtifacts(manifest, input, profileDir)
+	}
+}
+
+func appendProfileArtifacts(manifest *deliveryramp.Manifest, input smoketest.EvidenceManifestInput, profileDir string) {
+	if strings.TrimSpace(profileDir) == "" {
+		return
+	}
+	entries, err := os.ReadDir(profileDir)
+	if err != nil {
+		if input.ProfileMode != "" && input.ProfileMode != "disabled" {
+			manifest.Performance.Status, manifest.Performance.Reason = "degraded", fmt.Sprintf("profile directory unavailable: %v", err)
+		}
+		return
+	}
+	for _, entry := range entries {
+		if entry.IsDir() {
 			continue
 		}
-		entries, readErr := os.ReadDir(profileDir)
-		if readErr != nil {
-			if input.ProfileMode != "" && input.ProfileMode != "disabled" {
-				manifest.Performance.Status = "degraded"
-				manifest.Performance.Reason = fmt.Sprintf("profile directory unavailable: %v", readErr)
-			}
+		artifact, err := performanceArtifact(filepath.Join(profileDir, entry.Name()), recordingPathFor(manifest.Artifacts))
+		if err != nil {
+			manifest.Performance.Status, manifest.Performance.Reason = "degraded", err.Error()
 			continue
 		}
-		for _, entry := range entries {
-			if entry.IsDir() {
-				continue
-			}
-			artifact, profileErr := performanceArtifact(filepath.Join(profileDir, entry.Name()), recordingPathFor(manifest.Artifacts))
-			if profileErr != nil {
-				manifest.Performance.Status = "degraded"
-				manifest.Performance.Reason = profileErr.Error()
-				continue
-			}
-			artifact.Kind = "profile"
-			manifest.Artifacts = append(manifest.Artifacts, artifact)
-			manifest.Performance.ProfileRefs = append(manifest.Performance.ProfileRefs, artifact.ImmutableRef)
-		}
+		artifact.Kind = "profile"
+		manifest.Artifacts = append(manifest.Artifacts, artifact)
+		manifest.Performance.ProfileRefs = append(manifest.Performance.ProfileRefs, artifact.ImmutableRef)
 	}
-	manifest.Performance.ProtocolSummary = input.ProtocolResourceSummary
-	manifest.Performance.DemoSummary = input.DemoResourceSummary
-	manifest.Performance.DemoProcessTree = input.DemoProcessTree
-	if manifest.Performance.Status == "" {
-		switch {
-		case input.ProfileMode != "" && input.ProfileMode != "disabled" && len(manifest.Performance.ProfileRefs) == 0:
-			manifest.Performance.Status = "degraded"
-			manifest.Performance.Reason = "profiling was requested but no profile artifact was available"
-		case len(manifest.Performance.TraceRefs) == 2 && input.ProtocolResourceSummary != nil && input.DemoResourceSummary != nil:
-			manifest.Performance.Status = "measured"
-		case len(manifest.Performance.TraceRefs) > 0:
-			manifest.Performance.Status = "degraded"
-			manifest.Performance.Reason = "one or more performance phases lack complete metrics"
-		default:
-			manifest.Performance.Status = "unavailable"
-			manifest.Performance.Reason = "launch traces were not persisted"
-		}
+}
+
+func setPerformanceSummary(manifest *deliveryramp.Manifest, input smoketest.EvidenceManifestInput) {
+	manifest.Performance.ProtocolSummary, manifest.Performance.DemoSummary, manifest.Performance.DemoProcessTree = input.ProtocolResourceSummary, input.DemoResourceSummary, input.DemoProcessTree
+	if manifest.Performance.Status != "" {
+		return
 	}
-	persistenceOK = true
-	governanceOK := profile != deliveryramp.ProfileReleaseVisual || input.GovernanceReported
-	protocolOK := true // this writer is invoked only after the protocol smoke succeeded.
-	visualOK := input.Journey.Disposition == "pass"
-	manifest.Gates = []deliveryramp.GateResult{
-		gate(deliveryramp.GateProtocol, protocolOK, "protocol smoke completed", startedAt, completedAt),
-		gate(deliveryramp.GateVisual, visualOK, "usable application window and visual launch", startedAt, completedAt),
-		gate(deliveryramp.GateJourney, journeyOK, "semantic desktop journey", startedAt, completedAt),
+	switch {
+	case input.ProfileMode != "" && input.ProfileMode != "disabled" && len(manifest.Performance.ProfileRefs) == 0:
+		manifest.Performance.Status, manifest.Performance.Reason = "degraded", "profiling was requested but no profile artifact was available"
+	case len(manifest.Performance.TraceRefs) == 2 && input.ProtocolResourceSummary != nil && input.DemoResourceSummary != nil:
+		manifest.Performance.Status = "measured"
+	case len(manifest.Performance.TraceRefs) > 0:
+		manifest.Performance.Status, manifest.Performance.Reason = "degraded", "one or more performance phases lack complete metrics"
+	default:
+		manifest.Performance.Status, manifest.Performance.Reason = "unavailable", "launch traces were not persisted"
+	}
+}
+
+func manifestGates(input smoketest.EvidenceManifestInput, profile deliveryramp.Profile, recordingOK bool, startedAt, completedAt time.Time) []deliveryramp.GateResult {
+	gates := []deliveryramp.GateResult{
+		gate(deliveryramp.GateProtocol, true, "protocol smoke completed", startedAt, completedAt),
+		gate(deliveryramp.GateVisual, input.Journey.Disposition == "pass", "usable application window and visual launch", startedAt, completedAt),
+		gate(deliveryramp.GateJourney, input.Journey.Disposition == "pass", "semantic desktop journey", startedAt, completedAt),
 		gate(deliveryramp.GateCapture, recordingOK, "MP4 decoded with useful frames", startedAt, completedAt),
-		gate(deliveryramp.GatePersistence, persistenceOK, "journey and recording captures persisted", startedAt, completedAt),
+		gate(deliveryramp.GatePersistence, true, "journey and recording captures persisted", startedAt, completedAt),
 	}
 	if profile == deliveryramp.ProfileReleaseVisual {
-		manifest.Gates = append(manifest.Gates, gate(deliveryramp.GateGovernance, governanceOK, "deployment-manager evidence report", startedAt, completedAt))
+		gates = append(gates, gate(deliveryramp.GateGovernance, input.GovernanceReported, "deployment-manager evidence report", startedAt, completedAt))
 	}
-	if allRequiredGatesPassed(manifest) {
-		manifest.State = deliveryramp.StatePassed
-	}
-	if err := manifest.Validate(); err != nil {
-		return fmt.Errorf("validate evidence manifest: %w", err)
-	}
+	return gates
+}
 
-	recordingPath := ""
-	for _, item := range manifest.Artifacts {
-		if item.Kind == string(captures.CaptureRecording) {
-			recordingPath = item.LocalPath
-			break
-		}
-	}
+func persistManifest(manifest deliveryramp.Manifest) error {
+	recordingPath := recordingPathFor(manifest.Artifacts)
 	if recordingPath == "" {
 		return fmt.Errorf("recording path is missing")
 	}
@@ -276,8 +259,7 @@ func (w *ManifestWriter) WriteManifest(ctx context.Context, input smoketest.Evid
 	if err != nil {
 		return fmt.Errorf("marshal evidence manifest: %w", err)
 	}
-	manifestPath := recordingPath + ".manifest.json"
-	if err := os.WriteFile(manifestPath, append(data, '\n'), 0o600); err != nil {
+	if err := os.WriteFile(recordingPath+".manifest.json", append(data, '\n'), 0o600); err != nil {
 		return fmt.Errorf("persist evidence manifest: %w", err)
 	}
 	return nil
