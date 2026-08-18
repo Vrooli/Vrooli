@@ -25,7 +25,7 @@ import type { CommandSuggestion } from "../index";
 
 // Re-export public types and utilities for consumers and tests
 export type { TranscriptionProvider, VoiceBackend, VoiceState, VoiceMode, VoiceInputState, VoiceSegment, VoiceRejection, LastTurnAudio, CommandSuggestion, StartRecordingOpts, VoiceActivitySnapshot, VoiceActivityPhase } from "../index";
-export { WHISPER_FAILED_SENTINEL, CAP_CHECK_FAIL_THRESHOLD, AUDIO_BITRATE, STREAM_CHUNK_INTERVAL_MS, computeFinalTimeout } from "../index";
+export { WHISPER_FAILED_SENTINEL, AUDIO_BITRATE, STREAM_CHUNK_INTERVAL_MS, computeFinalTimeout } from "../index";
 export { createAudioFilterChain } from "../index";
 export type { VadState, VadRefs, VadAction, CachedNoiseFloor } from "../index";
 export { VAD_FALLBACK_SILENCE_TIMEOUT_MS, VAD_FALLBACK_SEGMENT_SILENCE_MS, VAD_FLOOR_CACHE_MAX_AGE_MS, createVadRefs, createVadRefsFromCache, extractCacheableFloor, loadNoiseFloorCache, saveNoiseFloorCache, computeSlidingNoiseFloor, vadTick } from "../index";

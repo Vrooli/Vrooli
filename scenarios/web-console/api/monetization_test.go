@@ -33,7 +33,7 @@ func TestSQLMonetizationOutboxStoreIsDurableAndIdempotent(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	store := &sqlMonetizationOutboxStore{db: db}
+	store := monetization.NewSQLStore(db, monetization.SQLDialectSQLite)
 	usage := monetization.Usage{
 		OperationID:  "op-1",
 		UserIdentity: "alice@example.com",

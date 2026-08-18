@@ -1,0 +1,684 @@
+<title>Archived sessions — web-console UX proposal</title>
+<style>
+  /* ---------- Document shell: theme-aware ---------- */
+  :root {
+    --ground:      #fbfbfd;
+    --ground-2:    #f2f4f7;
+    --ink:         #111823;
+    --ink-2:       #414d5e;
+    --ink-3:       #6b7788;
+    --rule:        #dfe4ea;
+    --rule-strong: #c3ccd6;
+    --accent:      #0e7490;
+    --accent-soft: #e2f4f8;
+    --flag:        #92400e;
+    --flag-soft:   #fdf3e3;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", "Cascadia Code", Menlo, Consolas, monospace;
+    --sans: ui-sans-serif, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:      #0b1017;
+      --ground-2:    #131b25;
+      --ink:         #e8edf4;
+      --ink-2:       #a6b2c1;
+      --ink-3:       #74818f;
+      --rule:        #1f2b38;
+      --rule-strong: #33414f;
+      --accent:      #22d3ee;
+      --accent-soft: #0d2b33;
+      --flag:        #fbbf24;
+      --flag-soft:   #2a2110;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground:      #0b1017;
+    --ground-2:    #131b25;
+    --ink:         #e8edf4;
+    --ink-2:       #a6b2c1;
+    --ink-3:       #74818f;
+    --rule:        #1f2b38;
+    --rule-strong: #33414f;
+    --accent:      #22d3ee;
+    --accent-soft: #0d2b33;
+    --flag:        #fbbf24;
+    --flag-soft:   #2a2110;
+  }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.62;
+    margin: 0;
+    padding: 0 20px 96px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1000px; margin: 0 auto; }
+  .prose { max-width: 68ch; }
+
+  /* ---------- Type ---------- */
+  h1, h2, h3, .eyebrow, .kicker { font-family: var(--mono); text-wrap: balance; }
+  h1 {
+    font-size: clamp(2rem, 5vw, 3rem);
+    line-height: 1.04;
+    letter-spacing: -0.035em;
+    font-weight: 700;
+    margin: 0 0 14px;
+  }
+  h2 {
+    font-size: 1.32rem;
+    letter-spacing: -0.02em;
+    font-weight: 700;
+    margin: 0 0 4px;
+    padding-top: 4px;
+  }
+  h3 {
+    font-size: 0.94rem;
+    letter-spacing: -0.01em;
+    font-weight: 700;
+    margin: 0 0 8px;
+    color: var(--ink);
+  }
+  p { margin: 0 0 14px; }
+  a { color: var(--accent); }
+  code, .code {
+    font-family: var(--mono);
+    font-size: 0.85em;
+    background: var(--ground-2);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    padding: 0.1em 0.36em;
+  }
+  strong { font-weight: 650; color: var(--ink); }
+  .eyebrow {
+    font-size: 0.7rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--accent);
+    font-weight: 600;
+    margin: 0 0 18px;
+  }
+  .deck { font-size: 1.09rem; color: var(--ink-2); max-width: 62ch; margin: 0 0 8px; }
+  .muted { color: var(--ink-3); }
+
+  /* ---------- Structure ---------- */
+  header.masthead { padding: 64px 0 34px; border-bottom: 2px solid var(--rule-strong); }
+  section { padding: 44px 0 10px; border-top: 1px solid var(--rule); }
+  section:first-of-type { border-top: none; }
+  .sec-head { display: flex; flex-direction: column; gap: 2px; margin-bottom: 22px; }
+  .kicker {
+    font-size: 0.68rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    font-weight: 600;
+  }
+  .stack { display: flex; flex-direction: column; gap: 26px; }
+  .cols { display: grid; gap: 22px; grid-template-columns: repeat(auto-fit, minmax(268px, 1fr)); }
+
+  .facts { display: grid; gap: 1px; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+           background: var(--rule); border: 1px solid var(--rule); border-radius: 8px; overflow: hidden; margin-top: 30px; }
+  .fact { background: var(--ground); padding: 15px 17px; display: flex; flex-direction: column; gap: 5px; }
+  .fact b { font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-3); font-weight: 600; }
+  .fact span { font-size: 0.9rem; color: var(--ink-2); line-height: 1.45; }
+
+  .note {
+    border-left: 3px solid var(--accent);
+    background: var(--accent-soft);
+    padding: 15px 18px;
+    border-radius: 0 7px 7px 0;
+  }
+  .note.warn { border-left-color: var(--flag); background: var(--flag-soft); }
+  .note h3 { margin-bottom: 5px; }
+  .note p:last-child { margin-bottom: 0; }
+  .note .src { font-family: var(--mono); font-size: 0.76rem; color: var(--ink-3); }
+
+  ul.tight { margin: 0 0 14px; padding-left: 1.15em; }
+  ul.tight li { margin-bottom: 7px; }
+
+  .caption {
+    font-family: var(--mono);
+    font-size: 0.74rem;
+    color: var(--ink-3);
+    letter-spacing: 0.02em;
+    margin: 10px 0 0;
+    line-height: 1.5;
+  }
+  .verdict {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 4px;
+    margin-bottom: 10px;
+  }
+  .verdict.yes { background: var(--accent-soft); color: var(--accent); border: 1px solid var(--accent); }
+  .verdict.no  { background: var(--flag-soft); color: var(--flag); border: 1px solid var(--flag); }
+
+  table.ladder { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+  table.ladder th, table.ladder td { text-align: left; padding: 11px 13px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  table.ladder th { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-3); font-weight: 600; }
+  table.ladder td:first-child { font-family: var(--mono); font-weight: 650; white-space: nowrap; color: var(--ink); }
+  .scrollx { overflow-x: auto; }
+
+  ol.flow { counter-reset: step; list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 16px; }
+  ol.flow li { counter-increment: step; display: grid; grid-template-columns: 30px 1fr; gap: 13px; align-items: start; }
+  ol.flow li::before {
+    content: counter(step);
+    font-family: var(--mono); font-size: 0.76rem; font-weight: 700;
+    color: var(--accent); border: 1px solid var(--rule-strong); border-radius: 5px;
+    width: 30px; height: 26px; display: grid; place-items: center;
+  }
+
+  /* =========================================================
+     MOCKUPS — deliberately single-theme.
+     These render web-console's real palette (slate-950 ground,
+     cyan-400 accent) in both doc themes, because a mockup that
+     changes color with the reader's OS would misrepresent the UI.
+     ========================================================= */
+  .mk {
+    --s-base:   #020617;
+    --s-raised: #0f172a;
+    --s-input:  #1e293b;
+    --t-1: #f8fafc;
+    --t-2: #e2e8f0;
+    --t-3: #94a3b8;
+    --t-4: #64748b;
+    --acc: #22d3ee;
+    --acc-fg: #0f172a;
+    --brd: rgba(255,255,255,0.1);
+    --brd-2: rgba(255,255,255,0.18);
+    --ok: #4ade80;
+    --warn: #fbbf24;
+
+    font-family: var(--mono);
+    font-size: 12.5px;
+    line-height: 1.45;
+    background: var(--s-base);
+    color: var(--t-2);
+    border: 1px solid var(--rule-strong);
+    border-radius: 9px;
+    overflow: hidden;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.28), 0 10px 30px -18px rgba(0,0,0,0.55);
+  }
+  .mk * { box-sizing: border-box; }
+  .mk-row { display: flex; align-items: center; gap: 8px; padding: 8px 11px; }
+  .mk-hd { border-bottom: 1px solid var(--brd); background: var(--s-raised); font-weight: 700; color: var(--t-1); justify-content: space-between; }
+  .mk-sub { border-bottom: 1px solid var(--brd); color: var(--t-4); font-size: 11px; }
+
+  .mk-tabs { display: flex; gap: 5px; padding: 7px 8px; border-bottom: 1px solid var(--brd); }
+  .mk-tab {
+    flex: 1 1 0; min-width: 0; display: flex; align-items: center; justify-content: center; gap: 5px;
+    padding: 4px 7px; border-radius: 5px; font-size: 11px; font-weight: 600; color: var(--t-3);
+    white-space: nowrap;
+  }
+  .mk-tab.on { background: var(--s-input); color: var(--t-1); }
+  .mk-tab .n { background: rgba(255,255,255,0.09); border-radius: 3px; padding: 0 4px; font-size: 10px; color: var(--t-3); }
+  .mk-tab.new { color: var(--acc); box-shadow: inset 0 0 0 1px rgba(34,211,238,0.45); }
+  .mk-tab.new .n { background: rgba(34,211,238,0.16); color: var(--acc); }
+  .mk-sep { width: 1px; align-self: stretch; background: var(--brd-2); margin: 2px 3px; flex: 0 0 1px; }
+
+  .mk-grp { padding: 7px 11px 3px; color: var(--t-3); font-size: 11px; display: flex; align-items: center; gap: 6px; }
+  .mk-dot { width: 7px; height: 7px; border-radius: 50%; flex: 0 0 7px; }
+  .mk-item { display: flex; align-items: center; gap: 8px; padding: 6px 11px 6px 22px; }
+  .mk-item.on { background: rgba(34,211,238,0.08); box-shadow: inset 2px 0 0 var(--acc); }
+  .mk-item .nm { color: var(--t-1); flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mk-item .mt { color: var(--t-4); font-size: 10.5px; white-space: nowrap; }
+  .mk-item .x { color: var(--t-4); }
+
+  .mk-foot {
+    display: flex; align-items: center; gap: 8px; padding: 9px 11px;
+    border-top: 1px solid var(--brd-2); background: var(--s-raised); color: var(--t-3); font-size: 11px;
+  }
+  .mk-foot .n { margin-left: auto; background: rgba(255,255,255,0.09); border-radius: 3px; padding: 0 5px; color: var(--t-3); }
+  .mk-foot.new { color: var(--acc); box-shadow: inset 0 1px 0 rgba(34,211,238,0.35); }
+  .mk-foot.new .n { background: rgba(34,211,238,0.16); color: var(--acc); }
+
+  .mk-input {
+    display: flex; align-items: center; gap: 7px; margin: 9px 11px;
+    background: var(--s-input); border: 1px solid var(--brd-2); border-radius: 6px; padding: 6px 9px; color: var(--t-4);
+  }
+  .mk-input.focus { border-color: var(--acc); box-shadow: 0 0 0 2px rgba(34,211,238,0.16); }
+  .mk-input .q { color: var(--t-1); }
+  .mk-input .n { margin-left: auto; font-size: 10.5px; color: var(--t-4); }
+
+  .mk-chiprow { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 11px 10px; }
+  .mk-chip { border: 1px solid var(--brd-2); border-radius: 999px; padding: 2px 9px; font-size: 10.5px; color: var(--t-3); }
+  .mk-chip.on { background: var(--acc); color: var(--acc-fg); border-color: var(--acc); font-weight: 700; }
+
+  .mk-cta {
+    margin: 4px 11px 11px; padding: 7px 10px; text-align: center;
+    border: 1px dashed rgba(34,211,238,0.5); border-radius: 6px; color: var(--acc); font-size: 11px;
+  }
+  .mk-btn { border: 1px solid var(--brd-2); border-radius: 5px; padding: 3px 9px; font-size: 10.5px; color: var(--t-2); white-space: nowrap; }
+  .mk-btn.pri { background: var(--acc); border-color: var(--acc); color: var(--acc-fg); font-weight: 700; }
+  .mk-btn.off { color: var(--t-4); border-style: dashed; }
+
+  .mk-split { display: grid; grid-template-columns: 260px 1fr; min-height: 340px; }
+  .mk-left { border-right: 1px solid var(--brd); }
+  .mk-hit { padding: 10px 11px; border-bottom: 1px solid var(--brd); display: flex; flex-direction: column; gap: 3px; }
+  .mk-hit.on { background: rgba(34,211,238,0.08); box-shadow: inset 2px 0 0 var(--acc); }
+  .mk-hit .who { color: var(--t-1); font-size: 11px; display: flex; align-items: center; gap: 6px; }
+  .mk-hit .ex { color: var(--t-3); font-size: 11px; line-height: 1.4; }
+  .mk-hit .ex mark { background: rgba(34,211,238,0.22); color: var(--acc); border-radius: 2px; padding: 0 1px; }
+  .mk-hit .tm { color: var(--t-4); font-size: 10px; }
+
+  .mk-detail-hd { padding: 11px; border-bottom: 1px solid var(--brd); background: var(--s-raised); display: flex; flex-direction: column; gap: 7px; }
+  .mk-detail-hd .ti { color: var(--t-1); font-weight: 700; }
+  .mk-detail-hd .mt { color: var(--t-4); font-size: 10.5px; }
+  .mk-actions { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+  .mk-state { display: inline-flex; align-items: center; gap: 5px; font-size: 10.5px; }
+  .mk-state.ok { color: var(--ok); }
+  .mk-state.ro { color: var(--warn); }
+
+  .mk-msg { padding: 10px 12px; border-bottom: 1px solid var(--brd); }
+  .mk-msg .mh { display: flex; align-items: baseline; gap: 8px; margin-bottom: 4px; }
+  .mk-msg .au { color: var(--acc); font-weight: 700; font-size: 11px; }
+  .mk-msg .au.u { color: var(--t-3); }
+  .mk-msg .tm { color: var(--t-4); font-size: 10px; margin-left: auto; }
+  .mk-msg .bd { color: var(--t-2); font-size: 11.5px; line-height: 1.55; }
+  .mk-msg .bd mark { background: rgba(34,211,238,0.22); color: var(--acc); border-radius: 2px; padding: 0 2px; }
+  .mk-msg.sel { background: rgba(34,211,238,0.06); box-shadow: inset 2px 0 0 var(--acc); }
+  .mk-msgacts { display: flex; gap: 6px; margin-top: 8px; }
+
+  .mk-toast {
+    display: flex; align-items: center; gap: 12px; padding: 11px 14px;
+    background: var(--s-raised); color: var(--t-1); font-size: 12px;
+  }
+  .mk-toast .u { margin-left: auto; color: var(--acc); font-weight: 700; text-decoration: underline; }
+
+  .mk-cap { padding: 7px 11px; background: var(--s-raised); border-top: 1px solid var(--brd); color: var(--t-4); font-size: 10.5px; }
+
+  @media (max-width: 720px) {
+    .mk-split { grid-template-columns: 1fr; }
+    .mk-left { border-right: none; border-bottom: 1px solid var(--brd); }
+  }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <p class="eyebrow">web-console · interaction proposal</p>
+    <h1>Archived sessions</h1>
+    <p class="deck">Closing a session should file it, not destroy it. Below: where the archive lives in the
+      sidebar, what the deep search surface looks like, and how a filed session comes back.</p>
+    <div class="facts">
+      <div class="fact"><b>Today</b><span>Close is a hard cascading delete — PTY, session row, transcript, checkpoints, uploads.</span></div>
+      <div class="fact"><b>Already built</b><span><span class="code">Recover()</span> restores a session, its transcript, and its pane. It's gated to crash orphans.</span></div>
+      <div class="fact"><b>Already built</b><span>Message-text search exists and works. It's scoped to one session id.</span></div>
+    </div>
+  </header>
+
+  <section>
+    <div class="sec-head">
+      <p class="kicker">Corrections to my last answer</p>
+      <h2>Search is closer than I implied</h2>
+    </div>
+    <div class="stack">
+      <div class="note">
+        <h3>It already searches message text, not session names</h3>
+        <p><span class="code">searchConversation(sessionId, query)</span> drives the navigator panel in the messages
+          view. Server-side it's <span class="code">SELECT … WHERE session_id = ? AND text LIKE ?</span> with a
+          160-char excerpt builder. So the primitive you need exists and is proven — widening it to "all sessions"
+          is dropping one predicate, not building a search engine.</p>
+        <p class="src">ui/src/api/conversation.ts:149 · api/conversation_repository.go:243</p>
+      </div>
+      <div class="note warn">
+        <h3>But <span class="code">LIKE '%…%'</span> won't survive the archive</h3>
+        <p>There is no FTS5 table and no index on <span class="code">text</span>. Scoped to one session that's fine —
+          a few hundred rows. Scanned across every session you've ever closed, it's a full table scan that gets
+          slower every week. Widening the scope and adding an FTS5 index are the same change; don't split them.</p>
+      </div>
+      <div class="note warn">
+        <h3>Semantic search is a real project, not a flag</h3>
+        <p>web-console has one AI provider (Ollama, for generate/summarize) and <em>no</em> embeddings anywhere —
+          no vector store, no embed calls, no backfill. Adding it means an embedding model, somewhere to put the
+          vectors, a job to backfill years of messages, and re-embedding on every write. It's a genuinely good
+          third rung. It should not block the first two, which deliver most of the value.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <p class="kicker">Wireframe 01 · where it lives</p>
+      <h2>The sidebar entry point</h2>
+    </div>
+    <p class="prose">You suggested a fourth tab in the origin strip. It's tempting — the strip is already
+      conditional and it's cheap. My concern is that the strip partitions by <em>who opened the session</em>, and
+      archive is a different axis: <em>whether it's still running</em>. Here's both, side by side.</p>
+
+    <div class="cols" style="margin-top:26px">
+      <div>
+        <span class="verdict no">Option A — fourth origin tab</span>
+        <div class="mk">
+          <div class="mk-row mk-hd"><span>Sessions</span><span style="color:var(--t-3)">+</span></div>
+          <div class="mk-tabs">
+            <div class="mk-tab on">UI <span class="n">4</span></div>
+            <div class="mk-tab">Prog <span class="n">2</span></div>
+            <div class="mk-tab">Remote <span class="n">1</span></div>
+            <div class="mk-tab new">Archive <span class="n">137</span></div>
+          </div>
+          <div class="mk-row mk-sub">⇅ Sort · Activity</div>
+          <div class="mk-grp"><span class="mk-dot" style="background:#22d3ee"></span>Vrooli work</div>
+          <div class="mk-item"><span class="nm">claude · agi</span><span class="mt">2m</span><span class="x">×</span></div>
+          <div class="mk-item on"><span class="nm">codex · docs</span><span class="mt">now</span><span class="x">×</span></div>
+          <div class="mk-grp"><span class="mk-dot" style="background:#64748b"></span>Scratch</div>
+          <div class="mk-item"><span class="nm">terminal</span><span class="mt">1h</span><span class="x">×</span></div>
+          <div class="mk-cap">Four tabs at 137 · the count dwarfs the live ones, and the strip now mixes provenance with lifecycle.</div>
+        </div>
+        <p class="caption">Cheap and discoverable. But inside the Archive tab the origin partition is simply
+          gone — archived UI and archived programmatic sessions land in one undifferentiated list, and a 300px
+          column is a bad place to scroll 137 rows.</p>
+      </div>
+
+      <div>
+        <span class="verdict yes">Option B — lifecycle footer (recommended)</span>
+        <div class="mk">
+          <div class="mk-row mk-hd"><span>Sessions</span><span style="color:var(--t-3)">+</span></div>
+          <div class="mk-tabs">
+            <div class="mk-tab on">UI <span class="n">4</span></div>
+            <div class="mk-tab">Prog <span class="n">2</span></div>
+            <div class="mk-tab">Remote <span class="n">1</span></div>
+          </div>
+          <div class="mk-row mk-sub">⇅ Sort · Activity</div>
+          <div class="mk-grp"><span class="mk-dot" style="background:#22d3ee"></span>Vrooli work</div>
+          <div class="mk-item"><span class="nm">claude · agi</span><span class="mt">2m</span><span class="x">×</span></div>
+          <div class="mk-item on"><span class="nm">codex · docs</span><span class="mt">now</span><span class="x">×</span></div>
+          <div class="mk-grp"><span class="mk-dot" style="background:#64748b"></span>Scratch</div>
+          <div class="mk-item"><span class="nm">terminal</span><span class="mt">1h</span><span class="x">×</span></div>
+          <div class="mk-foot new"><span>▤</span><span>Archive</span><span class="n">137</span></div>
+          <div class="mk-cap">Origin tabs keep their meaning. One pinned row, always visible, never scrolls away.</div>
+        </div>
+        <p class="caption">The origin strip stays a pure provenance filter. The archive gets its own pinned row at
+          the bottom — present whether or not the strip is showing, which matters because the strip only appears
+          when a non-UI session exists.</p>
+      </div>
+    </div>
+
+    <p class="prose" style="margin-top:26px">Both give you the cleanliness win you're after. Option B costs one
+      extra component instead of one extra array entry, and it keeps you from having to answer "what does sorting
+      by unread mean inside the archive tab?"</p>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <p class="kicker">Wireframe 02 · the shallow view</p>
+      <h2>Archive mode in the sidebar</h2>
+    </div>
+    <p class="prose">Clicking the footer swaps the sidebar body rather than opening a modal. Most of the time you
+      want the thing you closed twenty minutes ago, and that shouldn't cost a full-screen context switch. When the
+      shallow list isn't enough, one row escalates you to the deep surface.</p>
+
+    <div style="max-width:340px; margin-top:24px">
+      <div class="mk">
+        <div class="mk-row mk-hd"><span style="color:var(--acc)">← Archive</span><span style="color:var(--t-3);font-size:11px">137</span></div>
+        <div class="mk-input focus"><span>⌕</span><span style="color:var(--t-4)">Filter archived…</span></div>
+        <div class="mk-row mk-sub">Recent</div>
+        <div class="mk-item" style="padding-left:11px; align-items:flex-start; flex-direction:column; gap:2px">
+          <span class="nm" style="width:100%">claude · trusted-receipt-signing</span>
+          <span class="mt">2h ago · 148 messages · reopenable</span>
+        </div>
+        <div class="mk-item" style="padding-left:11px; align-items:flex-start; flex-direction:column; gap:2px">
+          <span class="nm" style="width:100%">codex · storage-manager census</span>
+          <span class="mt">yesterday · 39 messages · reopenable</span>
+        </div>
+        <div class="mk-item" style="padding-left:11px; align-items:flex-start; flex-direction:column; gap:2px">
+          <span class="nm" style="width:100%">terminal · scratch</span>
+          <span class="mt">3d ago · no messages · read-only</span>
+        </div>
+        <div class="mk-cta">Search all 137 sessions →</div>
+        <div class="mk-cap">Shallow list = last ~20. The CTA is the escalation to deep search.</div>
+      </div>
+    </div>
+    <p class="caption" style="max-width:52ch">The filter box here matches session <em>names</em> only — fast,
+      local, no round trip. The moment you want message text, you take the CTA. Two surfaces, one ladder, no
+      ambiguity about what the box you're typing in actually searches.</p>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <p class="kicker">Wireframe 03 · the deep view</p>
+      <h2>Full archive — search first</h2>
+    </div>
+    <p class="prose">This is the surface that does the real job you described: you don't remember which session it
+      was, you remember a phrase. Results are <strong>messages</strong>, with their session as context — not
+      sessions you then have to open and search again. <span class="code">DrawerShell size="full"</span> already
+      exists; the recovery drawer uses it.</p>
+
+    <div class="scrollx" style="margin-top:24px">
+      <div class="mk" style="min-width:640px">
+        <div class="mk-row mk-hd"><span>Archive</span><span style="color:var(--t-4);font-size:11px;font-weight:400">Esc to close</span></div>
+        <div class="mk-input focus">
+          <span>⌕</span><span class="q">receipt signing</span><span class="n">142 messages · 9 sessions</span>
+        </div>
+        <div class="mk-chiprow">
+          <span class="mk-chip on">Text</span>
+          <span class="mk-chip">Semantic</span>
+          <span class="mk-sep" style="height:16px"></span>
+          <span class="mk-chip">All agents ▾</span>
+          <span class="mk-chip">Any time ▾</span>
+          <span class="mk-chip">My messages only</span>
+        </div>
+        <div class="mk-split">
+          <div class="mk-left">
+            <div class="mk-hit on">
+              <span class="who"><span class="mk-dot" style="background:#22d3ee"></span>claude · trusted-receipt-signing</span>
+              <span class="ex">…the <mark>receipt signing</mark> key must never leave the enclave, which means…</span>
+              <span class="tm">3 days ago · you</span>
+            </div>
+            <div class="mk-hit">
+              <span class="who"><span class="mk-dot" style="background:#64748b"></span>codex · docs sweep</span>
+              <span class="ex">…document <mark>receipt signing</mark> under architecture/ rather than…</span>
+              <span class="tm">1 week ago · codex</span>
+            </div>
+            <div class="mk-hit">
+              <span class="who"><span class="mk-dot" style="background:#22d3ee"></span>claude · agi branch</span>
+              <span class="ex">…trusted experiment <mark>receipt signing</mark> is the only path that…</span>
+              <span class="tm">2 weeks ago · you</span>
+            </div>
+            <div class="mk-hit">
+              <span class="who"><span class="mk-dot" style="background:#f59e0b"></span>terminal · scratch</span>
+              <span class="ex">…grep -rn "<mark>receipt signing</mark>" docs/architecture…</span>
+              <span class="tm">3 weeks ago · you</span>
+            </div>
+          </div>
+          <div>
+            <div class="mk-detail-hd">
+              <span class="ti">claude · trusted-receipt-signing</span>
+              <span class="mt">archived 3 days ago · 148 messages · ~/Vrooli · branch agi</span>
+              <div class="mk-actions">
+                <span class="mk-state ok">● Reopenable</span>
+                <span class="mk-btn pri">Reopen</span>
+                <span class="mk-btn">Export</span>
+                <span class="mk-btn off">Delete</span>
+              </div>
+            </div>
+            <div class="mk-msg sel">
+              <div class="mh"><span class="au u">you</span><span class="tm">14:02</span></div>
+              <div class="bd">The <mark>receipt signing</mark> key must never leave the enclave, which means the
+                verifier needs a way to check a signature without ever holding the private half…</div>
+              <div class="mk-msgacts">
+                <span class="mk-btn">Copy</span>
+                <span class="mk-btn pri">→ Send to composer</span>
+                <span class="mk-btn">Jump in thread</span>
+              </div>
+            </div>
+            <div class="mk-msg">
+              <div class="mh"><span class="au">claude</span><span class="tm">14:03</span></div>
+              <div class="bd">That constrains you to a detached-signature scheme. The receipt carries the payload
+                hash and the signature; the enclave never exports material…</div>
+            </div>
+            <div class="mk-msg">
+              <div class="mh"><span class="au u">you</span><span class="tm">14:09</span></div>
+              <div class="bd">Right — and the attestation has to be verifiable offline, otherwise the whole thing
+                collapses back into "trust the server"…</div>
+            </div>
+          </div>
+        </div>
+        <div class="mk-cap">Left: message hits across every archived session. Right: full transcript, scrolled to the hit, read-only.</div>
+      </div>
+    </div>
+
+    <div class="cols" style="margin-top:30px">
+      <div>
+        <h3>Reuse, don't rebuild</h3>
+        <p class="muted" style="font-size:0.93rem">The right pane should be <span class="code">MessagesPane</span>
+          in a read-only mode, not a new viewer. You get markdown, mermaid, the file viewer, and the existing copy
+          and export affordances for free — and they stay consistent with the live messages view forever.</p>
+      </div>
+      <div>
+        <h3>The action that earns the feature</h3>
+        <p class="muted" style="font-size:0.93rem"><strong>→ Send to composer</strong> is the literal job you
+          described: pull a message out of an old conversation and into the one you're in now. It's cheaper to
+          build than Reopen and I'd guess you reach for it ten times more often.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <p class="kicker">Wireframe 04 · the honest state</p>
+      <h2>Not everything can come back</h2>
+    </div>
+    <p class="prose"><span class="code">Recoverability()</span> already refuses claude, opencode and grok sessions
+      with no recorded agent session id, and a plain shell has nothing to resume at all. That distinction has to
+      be visible on the row, before the click — the recovery drawer already does this well with a disabled button
+      and a reason string. Same pattern, three states:</p>
+
+    <div class="stack" style="margin-top:22px; max-width:640px">
+      <div class="mk">
+        <div class="mk-detail-hd">
+          <span class="ti">claude · trusted-receipt-signing</span>
+          <span class="mt">archived 3 days ago · agent transcript on disk</span>
+          <div class="mk-actions">
+            <span class="mk-state ok">● Reopenable</span>
+            <span class="mk-btn pri">Reopen</span>
+            <span class="mk-btn">Export</span>
+          </div>
+        </div>
+        <div class="mk-cap">Agent id recorded and the agent's own history still on disk. Reopen pastes the resume command.</div>
+      </div>
+
+      <div class="mk">
+        <div class="mk-detail-hd">
+          <span class="ti">claude · early experiment</span>
+          <span class="mt">archived 5 months ago · agent transcript pruned</span>
+          <div class="mk-actions">
+            <span class="mk-state ro">● Read-only — agent history no longer on disk</span>
+            <span class="mk-btn off">Reopen</span>
+            <span class="mk-btn">Export</span>
+          </div>
+        </div>
+        <div class="mk-cap">Decayed. The conversation is intact and searchable forever; the live resume is gone.</div>
+      </div>
+
+      <div class="mk">
+        <div class="mk-detail-hd">
+          <span class="ti">terminal · scratch</span>
+          <span class="mt">archived 3 weeks ago · no agent, no messages</span>
+          <div class="mk-actions">
+            <span class="mk-state ro">● Nothing to restore</span>
+            <span class="mk-btn off">Reopen</span>
+            <span class="mk-btn">Delete</span>
+          </div>
+        </div>
+        <div class="mk-cap">A shell session carries no recoverable value. These are the ones retention should expire early.</div>
+      </div>
+    </div>
+
+    <p class="prose" style="margin-top:24px">That middle state is the one worth designing for deliberately.
+      An archive naturally <strong>decays from reopenable to readable</strong> as the agent's own on-disk history
+      gets cleaned up — those directories are far larger than the SQLite rows and are what retention will actually
+      need to prune. Showing the decay is more honest than implying everything reopens forever.</p>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <p class="kicker">Wireframe 05 · the cheapest win</p>
+      <h2>Close → undo</h2>
+    </div>
+    <p class="prose">Before any of the above ships, this one change converts the scariest action in the product
+      into a safe one. Roughly twenty lines.</p>
+    <div style="max-width:460px; margin-top:20px">
+      <div class="mk">
+        <div class="mk-toast">
+          <span style="color:var(--acc)">▤</span>
+          <span>Archived <strong style="color:var(--t-1)">claude · agi</strong></span>
+          <span class="u">Undo</span>
+        </div>
+      </div>
+    </div>
+    <p class="caption" style="max-width:52ch">Toast on close, ~8 seconds. <strong>Archive</strong> becomes the X
+      button's meaning; <strong>Delete</strong> moves to the context menu behind a confirm. Today the default is
+      destructive and silent — this inverts it.</p>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <p class="kicker">The search ladder</p>
+      <h2>Three rungs, in cost order</h2>
+    </div>
+    <div class="scrollx">
+      <table class="ladder">
+        <thead>
+          <tr><th>Rung</th><th>What it matches</th><th>What it needs</th><th>Cost</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Name filter</td>
+            <td>Session and group names in the shallow sidebar list</td>
+            <td>Client-side string match over rows you already have</td>
+            <td>Hours</td>
+          </tr>
+          <tr>
+            <td>Text search</td>
+            <td>Literal substrings in every message of every session</td>
+            <td>Drop the <span class="code">session_id</span> predicate; add an FTS5 index — the existing
+              <span class="code">LIKE</span> won't scale past a few thousand rows</td>
+            <td>Days</td>
+          </tr>
+          <tr>
+            <td>Semantic</td>
+            <td>"that thing about signing receipts offline" with no shared words</td>
+            <td>Embedding model, vector store, backfill job, re-embed on write, drift handling — none of which
+              web-console has today</td>
+            <td>Weeks</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="prose" style="margin-top:22px">Design the UI for all three now — that's the <span class="code">Text
+      / Semantic</span> toggle in wireframe 03 — and ship rungs one and two. Semantic slots into an existing
+      surface later instead of forcing a redesign. My honest read: literal search over your own messages covers
+      most of what you described, because you tend to remember your own phrasing.</p>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <p class="kicker">Before building</p>
+      <h2>Four decisions I can't make for you</h2>
+    </div>
+    <ol class="flow">
+      <li><div><strong>Does reopening copy the transcript or re-point it?</strong> <span class="code">Recover()</span>
+        mints a new session id and <em>copies</em> the conversation rows. Archive → reopen → archive → reopen leaves
+        three copies of one conversation cluttering the archive. Either re-point the rows or thread a lineage so the
+        archive collapses a chain into one entry. This is the detail most likely to make the feature feel broken.</div></li>
+      <li><div><strong>What's the retention policy?</strong> There is none anywhere in web-console — I grepped.
+        Today the delete cascade <em>is</em> the retention policy, and archiving removes it. This has to ship in the
+        same change, not after.</div></li>
+      <li><div><strong>Archive everything, or only sessions with messages?</strong> I'd archive uniformly so there
+        are no surprises, default the archive view to "has messages", and expire message-less shells fast.</div></li>
+      <li><div><strong>Does the archive subsume the recovery banner?</strong> I think it should — a crash orphan is
+        just an involuntarily archived session. One surface, one mental model, and it deletes code.</div></li>
+    </ol>
+  </section>
+
+</div>

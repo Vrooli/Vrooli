@@ -29,7 +29,6 @@ export type { MicReadinessIndicatorProps } from "./MicReadinessIndicator";
 // microphone readiness seam remains host-local where it exists.
 export * from "@vrooli/audio-capture-browser";
 export { WhisperProvider } from "./hooks/voice/WhisperProvider";
-export { WebSpeechProvider } from "./hooks/voice/WebSpeechProvider";
 
 // TTS capability surface.
 // =============================================================================

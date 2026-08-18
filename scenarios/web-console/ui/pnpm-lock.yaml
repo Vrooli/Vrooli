@@ -22,7 +22,7 @@ importers:
         version: 1.2.4(@types/react@18.3.28)(react@18.3.1)
       '@tanstack/react-query':
         specifier: ^5.59.0
-        version: 5.90.21(react@18.3.1)
+        version: 5.59.0(react@18.3.1)
       '@vrooli/api-base':
         specifier: file:../../../packages/api-base
         version: file:../../../packages/api-base(@bufbuild/protobuf@2.12.0)(@testing-library/dom@10.4.1)(express@4.22.1)(ws@8.19.0)
@@ -786,16 +786,8 @@ packages:
   '@tanstack/query-core@5.59.0':
     resolution: {integrity: sha512-WGD8uIhX6/deH/tkZqPNcRyAhDUqs729bWKoByYHSogcshXfFbppOdTER5+qY7mFvu8KEFJwT0nxr8RfPTVh0Q==}
 
-  '@tanstack/query-core@5.90.20':
-    resolution: {integrity: sha512-OMD2HLpNouXEfZJWcKeVKUgQ5n+n3A2JFmBaScpNDUqSrQSjiveC7dKMe53uJUg1nDG16ttFPz2xfilz6i2uVg==}
-
   '@tanstack/react-query@5.59.0':
     resolution: {integrity: sha512-YDXp3OORbYR+8HNQx+lf4F73NoiCmCcSvZvgxE29OifmQFk0sBlO26NWLHpcNERo92tVk3w+JQ53/vkcRUY1hA==}
-    peerDependencies:
-      react: ^18 || ^19
-
-  '@tanstack/react-query@5.90.21':
-    resolution: {integrity: sha512-0Lu6y5t+tvlTJMTO7oh5NSpJfpg/5D41LlThfepTixPYkJ0sE2Jj0m0f6yYqujBwIXlId87e234+MxG3D3g7kg==}
     peerDependencies:
       react: ^18 || ^19
 
@@ -997,6 +989,9 @@ packages:
 
   '@types/react@18.3.28':
     resolution: {integrity: sha512-z9VXpC7MWrhfWipitjNdgCauoMLRdIILQsAEV+ZesIzBq/oUlxk0m3ApZuMFCXdnS4U7KrI+l3WRUEGQ8K1QKw==}
+
+  '@types/react@18.3.31':
+    resolution: {integrity: sha512-vfEqpXTvwT91yhmwdfouStN2hSKwTvyRs8qpLfADyrq/kxDw0hZM7Wk9Ug1FELj8hIby+S/+kQCSRFF32nv2Qw==}
 
   '@types/react@18.3.5':
     resolution: {integrity: sha512-WeqMfGJLGuLCqHGYRGHxnKrXcTitc6L/nBUWfWPcTarG3t9PsquqUMuVeXZeca+mglY4Vo5GZjCi0A3Or2lnxA==}
@@ -4259,16 +4254,9 @@ snapshots:
 
   '@tanstack/query-core@5.59.0': {}
 
-  '@tanstack/query-core@5.90.20': {}
-
   '@tanstack/react-query@5.59.0(react@18.3.1)':
     dependencies:
       '@tanstack/query-core': 5.59.0
-      react: 18.3.1
-
-  '@tanstack/react-query@5.90.21(react@18.3.1)':
-    dependencies:
-      '@tanstack/query-core': 5.90.20
       react: 18.3.1
 
   '@testing-library/dom@10.4.1':
@@ -4500,7 +4488,16 @@ snapshots:
     dependencies:
       '@types/react': 18.3.28
 
+  '@types/react-dom@18.3.7(@types/react@18.3.31)':
+    dependencies:
+      '@types/react': 18.3.31
+
   '@types/react@18.3.28':
+    dependencies:
+      '@types/prop-types': 15.7.15
+      csstype: 3.2.3
+
+  '@types/react@18.3.31':
     dependencies:
       '@types/prop-types': 15.7.15
       csstype: 3.2.3
@@ -4767,6 +4764,8 @@ snapshots:
 
   '@vrooli/audio-capture-browser@file:../../../packages/audio-capture-browser(react@18.3.1)':
     dependencies:
+      '@types/react': 18.3.31
+      '@types/react-dom': 18.3.7(@types/react@18.3.31)
       react: 18.3.1
 
   '@vrooli/iframe-bridge@file:../../../packages/iframe-bridge': {}

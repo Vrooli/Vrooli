@@ -8,6 +8,8 @@ import { strings } from "./consts/strings";
 import { Button } from "./components/ui/button";
 import ErrorBoundary from "./components/ErrorBoundary";
 import TopSafeArea from "./components/TopSafeArea";
+import { AudioUnavailableBanner } from "./components/AudioUnavailableBanner";
+import { useCapabilities } from "./hooks/useCapabilities";
 import { AlertTriangle, X } from "lucide-react";
 
 const Workspace = lazy(() => import("./components/Workspace"));
@@ -33,7 +35,15 @@ export default function App() {
     // Keep polling so banner auto-clears when connection recovers
     refetchInterval: (query) => query.state.status === "error" ? 10_000 : false,
   });
+  const capabilitiesQuery = useCapabilities();
   const { isLoading, error, isFetching } = healthQuery;
+
+  const audioCapability = capabilitiesQuery.data?.capabilities.find((capability) => capability.id === "audio-tools");
+  const audioUnavailableReason = capabilitiesQuery.error
+    ? "discovery_failed"
+    : audioCapability?.status === "unavailable"
+      ? audioCapability.reasonCode || "scenario_not_running"
+      : undefined;
 
   // Reset dismissed state when connection recovers or drops again
   const showBanner = !!error && !dismissed;
@@ -81,6 +91,8 @@ export default function App() {
           </div>
         </TopSafeArea>
       )}
+
+      <AudioUnavailableBanner reason={audioUnavailableReason} className="mx-4 mt-2" />
 
       {/* Always render workspace — even during initial load or error */}
       <Suspense fallback={<PageFallback />}>

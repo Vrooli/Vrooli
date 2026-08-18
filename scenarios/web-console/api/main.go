@@ -486,7 +486,7 @@ func NewServer(db *database.RoutedDB) *Server {
 				return access.AccessToken, err
 			}
 			srv.monetization = monetization.NewGate(entitlementclient.NewClient(resolver.LPBSBaseURL, resolveToken, &http.Client{Timeout: 15 * time.Second}), resolver, "business_suite")
-			store := &sqlMonetizationOutboxStore{db: db}
+			store := monetization.NewSQLStore(db, monetization.SQLDialectSQLite)
 			transport := &lpbsMonetizationTransport{baseURL: resolver.LPBSBaseURL, resolveToken: resolveToken, client: &http.Client{Timeout: 15 * time.Second}}
 			srv.monetizationOutbox = monetization.NewOutbox(store, transport)
 			go srv.drainMonetizationOutbox()
@@ -631,7 +631,7 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/health", healthHandler).Methods("GET")
 	s.router.HandleFunc("/api/v1/health", healthHandler).Methods("GET")
 	voiceGate := monetizationGate{gate: s.monetization, outbox: s.monetizationOutbox}
-	s.router.HandleFunc("/api/v1/monetization/voice", voiceGate.voiceSynthesis).Methods(http.MethodPost)
+	s.router.Handle("/api/v1/monetization/voice", monetization.InjectEntitlement(http.HandlerFunc(voiceGate.voiceSynthesis))).Methods(http.MethodPost)
 
 	// Sessions domain (CRUD, recovery, policy) — Connect-RPC.
 	sessionsH.Module(&sessionsH.Adapter{

@@ -41,7 +41,7 @@ describe("selectStaleLeases", () => {
   const base = { passiveListenerActive: false };
 
   it("flags an active-recording lease only when the workflow is idle", () => {
-    for (const owner of ["voice-stream", "whisper", "web-speech"] as MicOwner[]) {
+    for (const owner of ["voice-stream", "whisper"] as MicOwner[]) {
       expect(
         selectStaleLeases({ ...base, leases: [lease(owner)], voiceState: "idle" }),
       ).toHaveLength(1);

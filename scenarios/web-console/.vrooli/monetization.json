@@ -16,7 +16,7 @@
     {
       "class": "B",
       "limit_key": "voice_minutes",
-      "outbox": "api/monetization.go",
+      "outbox": "../../packages/monetization-go",
       "enforcement_paths": ["api/monetization.go"]
     }
   ]

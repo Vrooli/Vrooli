@@ -11,6 +11,7 @@
     "build": "pnpm run type-check && vite build",
     "preview": "vite preview",
     "lint": "eslint src",
+    "lint:fix": "eslint src --fix",
     "type-check": "pnpm run strings:check && tsc --noEmit",
     "strings:gen": "node scripts/gen-strings.mjs",
     "strings:check": "node scripts/gen-strings.mjs --check",

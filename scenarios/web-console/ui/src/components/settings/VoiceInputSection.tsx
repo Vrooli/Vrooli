@@ -36,7 +36,7 @@ import {
 } from "../../audio-integration";
 import { fetchCapabilities, type CapabilityState } from "../../api/capabilities";
 import { probeWhisperHealth } from "../../audio-integration";
-import { PcmVoiceStreamProvider, WhisperProvider, WebSpeechProvider } from "../../audio-integration";
+import { PcmVoiceStreamProvider, WhisperProvider } from "../../audio-integration";
 import type { TranscriptionProvider } from "../../audio-integration";
 import { getSharedAudioContext } from "../../audio-integration/hooks/voice/sharedAudioContext";
 import { createAudioFilterChain } from "../../audio-integration/hooks/voice/audioUtils";
@@ -1819,14 +1819,13 @@ export default function VoiceInputSection() {
   );
 }
 
-type DetectedBackend = "loading" | "whisper-stream" | "whisper-http" | "web-speech" | "none";
+type DetectedBackend = "loading" | "whisper-stream" | "whisper-http" | "none";
 
 function detectedBackendLabel(t: (key: string) => string, b: DetectedBackend): string {
   switch (b) {
     case "loading": return t(strings.settings.voiceInputSection.testMicDetecting);
     case "whisper-stream": return t(strings.settings.voiceInputSection.testMicBackendWhisperStream);
     case "whisper-http": return t(strings.settings.voiceInputSection.testMicBackendWhisperHttp);
-    case "web-speech": return t(strings.settings.voiceInputSection.testMicBackendWebSpeech);
     case "none": return t(strings.settings.voiceInputSection.testMicBackendNone);
   }
 }
@@ -1851,11 +1850,8 @@ function TestMicrophoneCard() {
         return;
       }
     } catch {
-      // fall through to web-speech check
+      setDetected("none");
     }
-    const Ctor = (window as unknown as { SpeechRecognition?: unknown; webkitSpeechRecognition?: unknown }).SpeechRecognition
-      ?? (window as unknown as { webkitSpeechRecognition?: unknown }).webkitSpeechRecognition;
-    setDetected(Ctor ? "web-speech" : "none");
   }, []);
 
   useEffect(() => { void detect(); }, [detect]);
@@ -1873,9 +1869,6 @@ function TestMicrophoneCard() {
     } else if (backend === "whisper-http") {
       provider = new WhisperProvider();
       providerUsed = t(strings.settings.voiceInputSection.testMicBackendWhisperHttp);
-    } else if (backend === "web-speech") {
-      provider = new WebSpeechProvider();
-      providerUsed = t(strings.settings.voiceInputSection.testMicBackendWebSpeech);
     } else {
       setError(t(strings.settings.voiceInputSection.testMicBackendNone));
       return;

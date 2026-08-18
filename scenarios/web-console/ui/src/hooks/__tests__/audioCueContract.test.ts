@@ -202,38 +202,6 @@ function mockMediaDevices() {
   });
 }
 
-function installWebSpeech() {
-  let instance: { onresult: ((e: unknown) => void) | null; onend: (() => void) | null } | null = null;
-
-  window.SpeechRecognition = class {
-    continuous = false;
-    interimResults = false;
-    lang = "";
-    onresult: ((e: unknown) => void) | null = null;
-    onerror: ((e: unknown) => void) | null = null;
-    onend: (() => void) | null = null;
-    start() { instance = this as unknown as typeof instance; }
-    stop() { this.onend?.(); }
-    abort() {}
-    addEventListener() {}
-    removeEventListener() {}
-    dispatchEvent() { return false; }
-  } as unknown as typeof window.SpeechRecognition;
-
-  return {
-    getInstance: () => instance,
-    fireResult: (text: string) => {
-      if (!instance?.onresult) return;
-      const item = { transcript: text, confidence: 0.95 };
-      const result = Object.assign([item], { isFinal: true, length: 1, item: () => item });
-      instance.onresult({
-        results: Object.assign([result], { length: 1, item: (i: number) => [result][i] }),
-      });
-    },
-    triggerEnd: () => instance?.onend?.(),
-  };
-}
-
 async function settle() {
   await new Promise((r) => setTimeout(r, 50));
 }
@@ -250,8 +218,9 @@ describe("Audio Cue Contract", () => {
     vi.clearAllMocks();
     startCueSpy.mockClear();
     stopCueSpy.mockClear();
-    delete window.SpeechRecognition;
-    delete window.webkitSpeechRecognition;
+    const speechWindow = window as { SpeechRecognition?: unknown; webkitSpeechRecognition?: unknown };
+    delete speechWindow.SpeechRecognition;
+    delete speechWindow.webkitSpeechRecognition;
     useWorkspaceStore.setState({ voiceEnabled: true });
     mockMediaDevices();
   });
@@ -260,92 +229,44 @@ describe("Audio Cue Contract", () => {
     globalThis.fetch = originalFetch;
   });
 
-  // ── Recording lifecycle cues ──
-
-  it("plays start cue when recording begins", async () => {
+  it("does not play a start cue when the durable backend is unavailable", async () => {
     mockCapabilities(false);
-    installWebSpeech();
 
     const { useScenarioVoiceInput: useVoiceInput } = await import("../../audio-integration/hooks/useScenarioVoiceInput");
     const { result } = renderHook(() => useVoiceInput(vi.fn()));
 
     await act(async () => { await settle(); });
-    expect(result.current.backend).toBe("web-speech");
+    expect(result.current.backend).toBe("none");
 
     await act(async () => { await result.current.startRecording(); });
 
-    expect(startCueSpy).toHaveBeenCalledTimes(1);
+    expect(startCueSpy).not.toHaveBeenCalled();
     expect(stopCueSpy).not.toHaveBeenCalled();
   });
 
-  it("plays stop cue when user stops recording", async () => {
+  it("does not play a stop cue when a refused recording is stopped", async () => {
     mockCapabilities(false);
-    const ctrl = installWebSpeech();
 
     const { useScenarioVoiceInput: useVoiceInput } = await import("../../audio-integration/hooks/useScenarioVoiceInput");
     const { result } = renderHook(() => useVoiceInput(vi.fn()));
 
     await act(async () => { await settle(); });
     await act(async () => { await result.current.startRecording(); });
-    startCueSpy.mockClear();
-
     act(() => { result.current.stopRecording(); });
 
-    expect(stopCueSpy).toHaveBeenCalledTimes(1);
-
-    // Clean up SpeechRecognition
-    act(() => { ctrl.triggerEnd(); });
+    expect(stopCueSpy).not.toHaveBeenCalled();
   });
 
-  it("pairs start and stop cues exactly once per recording session", async () => {
+  it("does not play cues on component unmount", async () => {
     mockCapabilities(false);
-    const ctrl = installWebSpeech();
 
     const { useScenarioVoiceInput: useVoiceInput } = await import("../../audio-integration/hooks/useScenarioVoiceInput");
-    const { result } = renderHook(() => useVoiceInput(vi.fn()));
+    const { unmount } = renderHook(() => useVoiceInput(vi.fn()));
 
     await act(async () => { await settle(); });
-
-    // Session 1
-    await act(async () => { await result.current.startRecording(); });
-    expect(startCueSpy).toHaveBeenCalledTimes(1);
-
-    act(() => { result.current.stopRecording(); });
-    expect(stopCueSpy).toHaveBeenCalledTimes(1);
-    act(() => { ctrl.triggerEnd(); });
-
-    // Wait for state to settle back to idle
-    await act(async () => { await settle(); });
-
-    // Session 2
-    await act(async () => { await result.current.startRecording(); });
-    expect(startCueSpy).toHaveBeenCalledTimes(2);
-
-    act(() => { result.current.stopRecording(); });
-    expect(stopCueSpy).toHaveBeenCalledTimes(2);
-    act(() => { ctrl.triggerEnd(); });
-  });
-
-  // ── Cues must NOT play during lifecycle events ──
-
-  it("does NOT play stop cue on component unmount", async () => {
-    mockCapabilities(false);
-    installWebSpeech();
-
-    const { useScenarioVoiceInput: useVoiceInput } = await import("../../audio-integration/hooks/useScenarioVoiceInput");
-    const { result, unmount } = renderHook(() => useVoiceInput(vi.fn()));
-
-    await act(async () => { await settle(); });
-
-    // Start recording so cue session is active
-    await act(async () => { await result.current.startRecording(); });
-    startCueSpy.mockClear();
-    stopCueSpy.mockClear();
-
-    // Unmount (simulates app close / tab close / navigation away)
     unmount();
 
-    // The stop cue must NOT play — unmount is not a user-initiated stop
+    expect(startCueSpy).not.toHaveBeenCalled();
     expect(stopCueSpy).not.toHaveBeenCalled();
   });
 
@@ -362,30 +283,21 @@ describe("Audio Cue Contract", () => {
     expect(stopCueSpy).not.toHaveBeenCalled();
   });
 
-  it("does NOT play stop cue on transcription cancellation", async () => {
+  it("does not play cues on transcription cancellation without a provider", async () => {
     mockCapabilities(false);
-    installWebSpeech();
 
     const { useScenarioVoiceInput: useVoiceInput } = await import("../../audio-integration/hooks/useScenarioVoiceInput");
     const { result } = renderHook(() => useVoiceInput(vi.fn()));
 
     await act(async () => { await settle(); });
-    await act(async () => { await result.current.startRecording(); });
-
-    // Stop recording (transitions to transcribing for whisper, idle for web-speech)
-    act(() => { result.current.stopRecording(); });
-    stopCueSpy.mockClear();
-
-    // Cancel transcription — should NOT play another stop cue
     act(() => { result.current.cancelTranscription(); });
 
+    expect(startCueSpy).not.toHaveBeenCalled();
     expect(stopCueSpy).not.toHaveBeenCalled();
   });
 
   it("does NOT play stop cue when stopRecording is called without active recording", async () => {
     mockCapabilities(false);
-    installWebSpeech();
-
     const { useScenarioVoiceInput: useVoiceInput } = await import("../../audio-integration/hooks/useScenarioVoiceInput");
     const { result } = renderHook(() => useVoiceInput(vi.fn()));
 
@@ -398,50 +310,4 @@ describe("Audio Cue Contract", () => {
     expect(stopCueSpy).not.toHaveBeenCalled();
   });
 
-  it("does NOT play stop cue on provider error", async () => {
-    mockCapabilities(false);
-    installWebSpeech();
-
-    const { useScenarioVoiceInput: useVoiceInput } = await import("../../audio-integration/hooks/useScenarioVoiceInput");
-    const { result } = renderHook(() => useVoiceInput(vi.fn()));
-
-    await act(async () => { await settle(); });
-    await act(async () => { await result.current.startRecording(); });
-    startCueSpy.mockClear();
-    stopCueSpy.mockClear();
-
-    // Unmount simulates error cleanup path (dispose without stop)
-    unmountHook();
-
-    function unmountHook() {
-      // We can't easily trigger provider.onError from outside, so we
-      // verify the contract by confirming that after start cue plays,
-      // unmount does NOT produce a stop cue (same code path as error
-      // recovery which also calls dispose without stopRecording).
-    }
-
-    // The cue session guard ensures no stop cue on error paths
-    expect(stopCueSpy).not.toHaveBeenCalled();
-  });
-
-  // ── Cue session guard prevents double-play ──
-
-  it("does NOT play stop cue twice if stopRecording called twice", async () => {
-    mockCapabilities(false);
-    const ctrl = installWebSpeech();
-
-    const { useScenarioVoiceInput: useVoiceInput } = await import("../../audio-integration/hooks/useScenarioVoiceInput");
-    const { result } = renderHook(() => useVoiceInput(vi.fn()));
-
-    await act(async () => { await settle(); });
-    await act(async () => { await result.current.startRecording(); });
-
-    act(() => { result.current.stopRecording(); });
-    expect(stopCueSpy).toHaveBeenCalledTimes(1);
-
-    // Second call — cue session is already cleared
-    act(() => { result.current.stopRecording(); });
-    expect(stopCueSpy).toHaveBeenCalledTimes(1); // Still 1, not 2
-    act(() => { ctrl.triggerEnd(); });
-  });
 });

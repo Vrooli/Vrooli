@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"context"
-	"database/sql"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -13,7 +12,6 @@ import (
 	"time"
 
 	monetization "github.com/vrooli/vrooli/packages/monetization-go"
-	"web-console/internal/dbx"
 )
 
 // monetizationGate is the only web-console paid-surface decision point. The
@@ -124,85 +122,6 @@ func (t *lpbsMonetizationTransport) Report(ctx context.Context, usage monetizati
 		return fmt.Errorf("LPBS usage report returned status %d", response.StatusCode)
 	}
 	return nil
-}
-
-type sqlMonetizationOutboxStore struct{ db dbx.Handle }
-
-func (s *sqlMonetizationOutboxStore) Append(ctx context.Context, usage monetization.Usage) (bool, error) {
-	payload, err := json.Marshal(usage)
-	if err != nil {
-		return false, fmt.Errorf("marshal monetization usage: %w", err)
-	}
-	result, err := s.db.ExecContext(ctx, `
-		INSERT INTO monetization_usage_outbox (operation_id, user_identity, payload)
-		VALUES (?, ?, ?)
-		ON CONFLICT(operation_id) DO NOTHING
-	`, usage.OperationID, usage.UserIdentity, string(payload))
-	if err != nil {
-		return false, fmt.Errorf("persist monetization usage: %w", err)
-	}
-	count, err := result.RowsAffected()
-	return count > 0, err
-}
-
-func (s *sqlMonetizationOutboxStore) Pending(ctx context.Context, limit int, now time.Time) ([]monetization.OutboxRecord, error) {
-	rows, err := s.db.QueryContext(ctx, `
-		SELECT operation_id, payload, attempts, next_attempt_at, last_error, delivered_at
-		FROM monetization_usage_outbox
-		WHERE status = 'pending' AND next_attempt_at <= ?
-		ORDER BY created_at
-		LIMIT ?
-	`, now.UTC().Format("2006-01-02T15:04:05.000Z"), limit)
-	if err != nil {
-		return nil, fmt.Errorf("query monetization usage: %w", err)
-	}
-	defer rows.Close()
-	result := make([]monetization.OutboxRecord, 0, limit)
-	for rows.Next() {
-		var operationID, payload string
-		var attempts int
-		var nextAttempt, deliveredAt sql.NullString
-		var lastError sql.NullString
-		if err := rows.Scan(&operationID, &payload, &attempts, &nextAttempt, &lastError, &deliveredAt); err != nil {
-			return nil, fmt.Errorf("scan monetization usage: %w", err)
-		}
-		var usage monetization.Usage
-		if err := json.Unmarshal([]byte(payload), &usage); err != nil {
-			return nil, fmt.Errorf("decode monetization usage: %w", err)
-		}
-		next, err := parseMonetizationTime(nextAttempt.String)
-		if err != nil {
-			next = now
-		}
-		record := monetization.OutboxRecord{Usage: usage, Attempts: attempts, NextAttemptAt: next}
-		if lastError.Valid {
-			record.LastError = lastError.String
-		}
-		if deliveredAt.Valid {
-			record.DeliveredAt, _ = parseMonetizationTime(deliveredAt.String)
-		}
-		result = append(result, record)
-	}
-	return result, rows.Err()
-}
-
-func (s *sqlMonetizationOutboxStore) MarkDelivered(ctx context.Context, operationID string, at time.Time) error {
-	_, err := s.db.ExecContext(ctx, `UPDATE monetization_usage_outbox SET status='delivered', delivered_at=?, updated_at=CURRENT_TIMESTAMP WHERE operation_id=?`, at.UTC().Format(time.RFC3339Nano), operationID)
-	return err
-}
-
-func (s *sqlMonetizationOutboxStore) MarkRetry(ctx context.Context, operationID string, next time.Time, reason string) error {
-	_, err := s.db.ExecContext(ctx, `UPDATE monetization_usage_outbox SET attempts=attempts+1, last_error=?, next_attempt_at=?, updated_at=CURRENT_TIMESTAMP WHERE operation_id=?`, reason, next.UTC().Format(time.RFC3339Nano), operationID)
-	return err
-}
-
-func parseMonetizationTime(value string) (time.Time, error) {
-	for _, layout := range []string{time.RFC3339Nano, "2006-01-02T15:04:05.000Z", "2006-01-02 15:04:05"} {
-		if parsed, err := time.Parse(layout, value); err == nil {
-			return parsed, nil
-		}
-	}
-	return time.Time{}, fmt.Errorf("invalid monetization timestamp %q", value)
 }
 
 func (s *Server) drainMonetizationOutbox() {

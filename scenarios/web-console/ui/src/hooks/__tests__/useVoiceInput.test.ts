@@ -60,33 +60,14 @@ const mockMediaDevices = (success: boolean) => {
   return { getUserMedia, mockStream };
 };
 
-/** Minimal SpeechRecognition stub */
-function installSpeechRecognition() {
-  window.SpeechRecognition = class {
-    continuous = false;
-    interimResults = false;
-    lang = "";
-    onresult: ((e: unknown) => void) | null = null;
-    onerror: ((e: unknown) => void) | null = null;
-    onend: (() => void) | null = null;
-    start() {}
-    stop() {}
-    abort() {}
-    addEventListener() {}
-    removeEventListener() {}
-    dispatchEvent() {
-      return false;
-    }
-  } as unknown as typeof window.SpeechRecognition;
-}
-
 function removeSpeechRecognition() {
-  delete window.SpeechRecognition;
-  delete window.webkitSpeechRecognition;
+  const speechWindow = window as { SpeechRecognition?: unknown; webkitSpeechRecognition?: unknown };
+  delete speechWindow.SpeechRecognition;
+  delete speechWindow.webkitSpeechRecognition;
 }
 
 // ---------------------------------------------------------------------------
-// Hook integration tests — backend detection and fallback
+// Hook integration tests — backend detection and durable refusal
 // ---------------------------------------------------------------------------
 
 describe("useVoiceInput", () => {
@@ -107,9 +88,8 @@ describe("useVoiceInput", () => {
     globalThis.fetch = originalFetch;
   });
 
-  it("falls back to web-speech when whisper unavailable", async () => {
+  it("refuses voice input when the durable backend is unavailable", async () => {
     mockCapabilities(false);
-    installSpeechRecognition();
     mockMediaDevices(true);
 
     const onTranscript = vi.fn();
@@ -121,8 +101,10 @@ describe("useVoiceInput", () => {
       await new Promise((r) => setTimeout(r, 50));
     });
 
-    expect(result.current.backend).toBe("web-speech");
-    expect(result.current.supported).toBe(true);
+    expect(result.current.backend).toBe("none");
+    expect(result.current.supported).toBe(false);
+    expect(result.current.error).toBe("Durable audio path unavailable");
+    expect(result.current.fallbackNotice).toContain("audio-tools cannot be reached");
   });
 
   it("uses whisper when available", async () => {
@@ -160,7 +142,6 @@ describe("useVoiceInput", () => {
   it("disables when voiceEnabled is false", async () => {
     useWorkspaceStore.setState({ voiceEnabled: false });
     mockCapabilities(true);
-    installSpeechRecognition();
 
     const onTranscript = vi.fn();
     const { useScenarioVoiceInput: useVoiceInput } = await import("../../audio-integration/hooks/useScenarioVoiceInput");
@@ -194,203 +175,8 @@ describe("useVoiceInput", () => {
 });
 
 // ---------------------------------------------------------------------------
-// WebSpeech deduplication (integration-level via hook)
-// ---------------------------------------------------------------------------
-
-/**
- * Controllable SpeechRecognition stub for testing processedResultCount
- * deduplication through the full hook lifecycle.
- */
-function installControllableSpeechRecognition() {
-  type SRInstance = {
-    continuous: boolean;
-    interimResults: boolean;
-    lang: string;
-    onresult: ((e: unknown) => void) | null;
-    onerror: ((e: unknown) => void) | null;
-    onend: (() => void) | null;
-    start(): void;
-    stop(): void;
-    abort(): void;
-    addEventListener(): void;
-    removeEventListener(): void;
-    dispatchEvent(): boolean;
-  };
-
-  let instance: SRInstance | null = null;
-
-  window.SpeechRecognition = class {
-    continuous = false;
-    interimResults = false;
-    lang = "";
-    onresult: ((e: unknown) => void) | null = null;
-    onerror: ((e: unknown) => void) | null = null;
-    onend: (() => void) | null = null;
-    start() { instance = this as unknown as SRInstance; }
-    stop() { this.onend?.(); }
-    abort() {}
-    addEventListener() {}
-    removeEventListener() {}
-    dispatchEvent() { return false; }
-  } as unknown as typeof window.SpeechRecognition;
-
-  function fireResult(results: Array<{ transcript: string; isFinal: boolean }>) {
-    if (!instance?.onresult) return;
-    const resultList = results.map((r) => {
-      const item = { transcript: r.transcript, confidence: 0.95 };
-      return Object.assign([item], { isFinal: r.isFinal, length: 1, item: () => item });
-    });
-    const event = {
-      results: Object.assign(resultList, {
-        length: resultList.length,
-        item: (i: number) => resultList[i],
-      }),
-    };
-    instance.onresult(event);
-  }
-
-  return {
-    getInstance: () => instance,
-    fireResult,
-    triggerEnd: () => instance?.onend?.(),
-  };
-}
-
-describe("WebSpeechProvider deduplication (via hook)", () => {
-  let originalFetch: typeof globalThis.fetch;
-
-  beforeEach(() => {
-    originalFetch = globalThis.fetch;
-    vi.clearAllMocks();
-    registerBrowserVoiceTransport({
-      buildStreamUrl: () => "ws://voice.test/stream",
-      transcribeRetained: async () => "",
-    });
-    removeSpeechRecognition();
-    useWorkspaceStore.setState({ voiceEnabled: true });
-  });
-
-  afterEach(() => {
-    globalThis.fetch = originalFetch;
-  });
-
-  it("dispatches only new final results, not cumulative duplicates", async () => {
-    mockCapabilities(false);
-    mockMediaDevices(true);
-    const ctrl = installControllableSpeechRecognition();
-
-    const onTranscript = vi.fn();
-    const { useScenarioVoiceInput: useVoiceInput } = await import("../../audio-integration/hooks/useScenarioVoiceInput");
-    const { result } = renderHook(() => useVoiceInput(onTranscript));
-
-    await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
-    expect(result.current.backend).toBe("web-speech");
-
-    await act(async () => { await result.current.startRecording(); });
-
-    act(() => {
-      ctrl.fireResult([{ transcript: "hello", isFinal: true }]);
-    });
-    expect(onTranscript).toHaveBeenCalledTimes(1);
-    expect(onTranscript).toHaveBeenLastCalledWith("hello");
-
-    act(() => {
-      ctrl.fireResult([
-        { transcript: "hello", isFinal: true },
-        { transcript: " world", isFinal: true },
-      ]);
-    });
-    expect(onTranscript).toHaveBeenCalledTimes(2);
-    expect(onTranscript).toHaveBeenLastCalledWith("world");
-  });
-
-  it("interim results update partialTranscript but do not dispatch as final", async () => {
-    mockCapabilities(false);
-    mockMediaDevices(true);
-    const ctrl = installControllableSpeechRecognition();
-
-    const onTranscript = vi.fn();
-    const { useScenarioVoiceInput: useVoiceInput } = await import("../../audio-integration/hooks/useScenarioVoiceInput");
-    const { result } = renderHook(() => useVoiceInput(onTranscript));
-
-    await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
-    await act(async () => { await result.current.startRecording(); });
-
-    act(() => {
-      ctrl.fireResult([{ transcript: "hel", isFinal: false }]);
-    });
-
-    expect(onTranscript).not.toHaveBeenCalled();
-    expect(result.current.partialTranscript).toBe("hel");
-  });
-
-  it("processedResultCount persists across spontaneous recognition restarts", async () => {
-    mockCapabilities(false);
-    mockMediaDevices(true);
-    const ctrl = installControllableSpeechRecognition();
-
-    const onTranscript = vi.fn();
-    const { useScenarioVoiceInput: useVoiceInput } = await import("../../audio-integration/hooks/useScenarioVoiceInput");
-    const { result } = renderHook(() => useVoiceInput(onTranscript));
-
-    await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
-    await act(async () => { await result.current.startRecording(); });
-
-    act(() => {
-      ctrl.fireResult([{ transcript: "hello", isFinal: true }]);
-    });
-    expect(onTranscript).toHaveBeenCalledTimes(1);
-
-    act(() => { ctrl.triggerEnd(); });
-
-    act(() => {
-      ctrl.fireResult([
-        { transcript: "hello", isFinal: true },
-        { transcript: " world", isFinal: true },
-      ]);
-    });
-    expect(onTranscript).toHaveBeenCalledTimes(2);
-    expect(onTranscript).toHaveBeenLastCalledWith("world");
-  });
-});
-
-// ---------------------------------------------------------------------------
 // Capture lifecycle ownership (mic-lease honesty + self-healing)
 // ---------------------------------------------------------------------------
-
-/** SpeechRecognition stub that can fire onerror, for the error-path test. */
-function installErrorableSpeechRecognition() {
-  type SR = {
-    onresult: ((e: unknown) => void) | null;
-    onerror: ((e: unknown) => void) | null;
-    onend: (() => void) | null;
-    continuous: boolean;
-    interimResults: boolean;
-    lang: string;
-    start(): void;
-    stop(): void;
-    abort(): void;
-    addEventListener(): void;
-    removeEventListener(): void;
-    dispatchEvent(): boolean;
-  };
-  let instance: SR | null = null;
-  window.SpeechRecognition = class {
-    onresult: ((e: unknown) => void) | null = null;
-    onerror: ((e: unknown) => void) | null = null;
-    onend: (() => void) | null = null;
-    continuous = false;
-    interimResults = false;
-    lang = "";
-    start() { instance = this as unknown as SR; }
-    stop() {}
-    abort() {}
-    addEventListener() {}
-    removeEventListener() {}
-    dispatchEvent() { return false; }
-  } as unknown as typeof window.SpeechRecognition;
-  return { fireError: (error: string) => instance?.onerror?.({ error, message: error }) };
-}
 
 describe("voice capture lifecycle ownership", () => {
   let originalFetch: typeof globalThis.fetch;
@@ -408,25 +194,19 @@ describe("voice capture lifecycle ownership", () => {
     _resetMicOwnershipForTesting();
   });
 
-  it("a provider error while recording releases the mic lease and returns the UI to idle", async () => {
-    mockCapabilities(false); // web-speech backend (testable without MediaRecorder/WS)
+  it("refuses recording without a durable provider and does not acquire the mic", async () => {
+    mockCapabilities(false);
     mockMediaDevices(true);
-    const ctrl = installErrorableSpeechRecognition();
 
     const onTranscript = vi.fn();
     const { useScenarioVoiceInput: useVoiceInput } = await import("../../audio-integration/hooks/useScenarioVoiceInput");
     const { result } = renderHook(() => useVoiceInput(onTranscript));
 
     await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
-    expect(result.current.backend).toBe("web-speech");
+    expect(result.current.backend).toBe("none");
+    expect(result.current.supported).toBe(false);
 
     await act(async () => { await result.current.startRecording(); });
-    // The provider acquired a registry mic lease for capture.
-    expect(getActiveMicLeases().length).toBeGreaterThan(0);
-
-    await act(async () => { ctrl.fireError("network"); });
-
-    // Idle UI AND no live mic lease — the error path disposed the provider.
     expect(result.current.voiceState).toBe("idle");
     expect(getActiveMicLeases()).toHaveLength(0);
   });

@@ -415,6 +415,19 @@
           "ownerSkills": ["seam-discovery-and-enforcement"]
         },
         {
+          "path": "internal/BUNDLE_INTEGRATION.md",
+          "docType": "bundle-integration",
+          "title": "Bundle Integration",
+          "aliases": ["monetization", "paid-surface", "entitlements"],
+          "description": "Shared paid-surface, signed lease, and Class B usage integration",
+          "audience": ["developers", "agents"],
+          "canonicalFor": ["bundle-integration", "monetization-wiring"],
+          "maturity": "active",
+          "requiredBy": ["implemented", "validated"],
+          "completion": "required",
+          "ownerSkills": ["bundle-integration-steer"]
+        },
+        {
           "path": "internal/ERROR-HANDLING.md",
           "docType": "error-handling",
           "title": "Error Handling",
