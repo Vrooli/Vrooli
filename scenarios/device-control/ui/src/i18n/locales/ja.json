@@ -50,7 +50,21 @@
     "killImmediately": "直ちに停止",
     "killSession": "セッション {{id}} を停止",
     "leaseFailed": "リースの取得に失敗しました",
-    "onboardingFailed": "接続プローブに失敗しました"
+    "onboardingFailed": "接続プローブに失敗しました",
+    "lanDiscovery": "LAN 検出",
+    "discoverDevices": "デバイスを検出",
+    "addDevice": "デバイスを追加",
+    "knownDevice": "既知のデバイス",
+    "notInInventory": "まだインベントリにありません",
+    "unnamedDevice": "名前のないデバイス",
+    "modelUnavailable": "モデル情報なし",
+    "txtMetadata": "TXT: {{metadata}}",
+    "pairTransport": "トランスポートをペアリング",
+    "pairDevice": "{{name}} をペアリング",
+    "pairingStarted": "ハンドシェイクが始まりました。テレビに表示された6文字の16進数コードを入力してください。",
+    "pairingStarting": "ペアリングのハンドシェイクを開始中…",
+    "pair": "ペアリング",
+    "cancel": "キャンセル"
     },
     "auth": {
       "title": "デバイス認証",

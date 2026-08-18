@@ -144,7 +144,7 @@ those capabilities are reported unavailable rather than synthesized.
 3. Wake the television and leave it ready to display an owner pairing prompt.
 4. Run `device-control device pair <id> --pin-stdin`. The command starts the
    Android TV Remote handshake; then type the six-character hexadecimal code shown on the
-   television. The PIN is never retained in
+   television. The pairing code is never retained in
    device state, audit data, shell history, or process list.
 5. Run `device-control device discover --json` again and confirm the
    Remote transport is paired; the Cast transport needs no pairing. Then run

@@ -21,6 +21,9 @@ type ConformanceReport struct {
 // Verify is the fixed strategy grading suite. It is transport-agnostic: a new
 // adapter only implements the floor and declares what its probes prove.
 func Verify(ctx context.Context, s Strategy) ConformanceReport {
+	if fixture, ok := s.(ConformanceTarget); ok {
+		s = fixture.ConformanceTarget()
+	}
 	d, err := s.Describe(ctx)
 	r := ConformanceReport{StrategyID: s.ID(), Passed: []string{}, Failed: []string{}, NextActions: []string{}}
 	if err != nil {

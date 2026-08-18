@@ -71,6 +71,12 @@ type fakeCertificateStore struct {
 	certificate []byte
 }
 
+type fixtureDiscovery []Device
+
+func (f fixtureDiscovery) DiscoverMDNS(context.Context) ([]Device, error) {
+	return append([]Device(nil), f...), nil
+}
+
 func (f *fakeCertificateStore) SavePairingCertificate(_ context.Context, serial string, certificate []byte) error {
 	f.serial, f.certificate = serial, append([]byte(nil), certificate...)
 	return nil
@@ -139,11 +145,30 @@ func TestAndroidTVRemoteConformanceRequiresSecretSafePairer(t *testing.T) {
 	require.Equal(t, strategy.StatusUnavailable, reportStatus(New(), strategy.CapScreenshot))
 }
 
+func TestUnboundAndroidTVRemoteConformanceUsesNonNetworkTarget(t *testing.T) {
+	report := strategy.Verify(context.Background(), New())
+	require.Empty(t, report.Failed)
+	require.Contains(t, report.Passed, "actuate")
+}
+
 func TestAndroidTVRemoteDiscoveryFormatsIPv6Endpoints(t *testing.T) {
 	endpoint := formatEndpoint(net.ParseIP("fe80::1"), 6466)
 	if endpoint != "[fe80::1]:6466" {
 		t.Fatalf("net.JoinHostPort() = %q, want bracketed IPv6 endpoint", endpoint)
 	}
+	require.Equal(t, "[fe80::1%enp0s31f6]:6466", formatEndpointForInterface(net.ParseIP("fe80::1"), 6466, "enp0s31f6"))
+}
+
+func TestEndpointScopedRestoredPairingFallsBackToDurableSerial(t *testing.T) {
+	s := New(WithDiscovery(fixtureDiscovery{
+		{Serial: "tv-serial", Endpoint: "fresh-tv.local:6466"},
+	})).ForDevice("tv-serial").(*Strategy)
+	s = s.ForEndpoint("stale-tv.local:6466").(*Strategy)
+
+	target, err := s.targetDevice(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, "tv-serial", target.Serial)
+	require.Equal(t, "fresh-tv.local:6466", target.Endpoint)
 }
 
 func reportStatus(s *Strategy, capability string) string {

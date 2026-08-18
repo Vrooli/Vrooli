@@ -24,9 +24,10 @@ import (
 )
 
 const (
-	androidTVRemotePort  = 6466
-	androidTVPairingPort = 6467
-	androidTVFrameLimit  = 8 << 20
+	androidTVRemotePort     = 6466
+	androidTVPairingPort    = 6467
+	androidTVFrameLimit     = 8 << 20
+	androidTVActiveFeatures = 622
 )
 
 // wirePairingClient is the production Android TV Remote v2 pairing exchange.
@@ -199,12 +200,30 @@ func (c *wireClient) ensureConnected(ctx context.Context) error {
 		_ = conn.Close()
 		return fmt.Errorf("send Android TV Remote configuration: %w", err)
 	}
-	if err := writeFrame(ctx, conn, remoteSetActiveMessage(622)); err != nil {
-		_ = conn.Close()
-		return fmt.Errorf("activate Android TV Remote session: %w", err)
+	for {
+		frame, err := readFrame(ctx, conn)
+		if err != nil {
+			_ = conn.Close()
+			return fmt.Errorf("receive Android TV Remote session state: %w", err)
+		}
+		switch {
+		case hasBytesField(frame, 2):
+			if err := writeFrame(ctx, conn, remoteSetActiveMessage(androidTVActiveFeatures)); err != nil {
+				_ = conn.Close()
+				return fmt.Errorf("activate Android TV Remote session: %w", err)
+			}
+		case hasBytesField(frame, 40):
+			c.conn = conn
+			return nil
+		case hasBytesField(frame, 8):
+			if response, ok := remotePingResponse(frame); ok {
+				if err := writeFrame(ctx, conn, response); err != nil {
+					_ = conn.Close()
+					return fmt.Errorf("respond to Android TV Remote ping: %w", err)
+				}
+			}
+		}
 	}
-	c.conn = conn
-	return nil
 }
 
 func newCertificateBundle() (certificateBundle, tls.Certificate, error) {
@@ -431,6 +450,26 @@ func remoteConfigureMessage() []byte {
 
 func remoteSetActiveMessage(active uint64) []byte {
 	return appendBytes(nil, 2, appendVarint(nil, 1, active))
+}
+
+func remoteStartMessage(started bool) []byte {
+	value := uint64(0)
+	if started {
+		value = 1
+	}
+	return appendBytes(nil, 40, appendVarint(nil, 1, value))
+}
+
+func remotePingResponse(payload []byte) ([]byte, bool) {
+	request, ok := bytesField(payload, 8)
+	if !ok {
+		return nil, false
+	}
+	value, ok := varintField(request, 1)
+	if !ok {
+		return nil, false
+	}
+	return appendBytes(nil, 9, appendVarint(nil, 1, value)), true
 }
 
 func remoteKeyMessage(code uint64) []byte {

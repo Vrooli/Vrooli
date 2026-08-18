@@ -105,6 +105,30 @@ func TestConnectRejectsInvalidWatchWindow(t *testing.T) {
 	}
 }
 
+func TestDeviceWatchUsesVersionedScenarioPath(t *testing.T) {
+	server := testutil.NewAPIServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet || r.URL.Path != "/api/v1/devices/tv-1/events" {
+			t.Fatalf("request = %s %s, want GET /api/v1/devices/tv-1/events", r.Method, r.URL.Path)
+		}
+		w.Header().Set("Content-Type", "text/event-stream")
+		_, _ = w.Write([]byte("data: {\"attribute\":\"volume\"}\n\n"))
+	}))
+	core, err := cliapp.NewStandardScenarioApp(cliapp.StandardScenarioOptions{
+		Name: "device-control-test", Version: "test", DefaultAPIBase: server.URL, AllowAnonymous: true,
+	})
+	if err != nil {
+		t.Fatalf("NewStandardScenarioApp: %v", err)
+	}
+	var stdout bytes.Buffer
+	ctx := cliapp.NewTestRunContext(cliapp.TestRunContextOptions{Core: core, Stdout: &stdout, Stderr: &stdout})
+	if err := watchDevice(ctx, core, "tv-1"); err != nil {
+		t.Fatalf("watchDevice: %v", err)
+	}
+	if !strings.Contains(stdout.String(), `{"attribute":"volume"}`) {
+		t.Fatalf("watch output = %q, want event payload", stdout.String())
+	}
+}
+
 func TestAgentStartSerializesBooleanFlags(t *testing.T) {
 	server := testutil.NewAPIServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost || r.URL.Path != "/api/v1/agents/start" {

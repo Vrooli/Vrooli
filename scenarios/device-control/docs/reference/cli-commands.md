@@ -133,8 +133,9 @@ device-control device split <canonical-id>
 ```
 
 `--pin-stdin` starts the Android TV Remote handshake before prompting for one
-line of PIN input. The television displays the PIN after the handshake starts;
-the CLI never places it in command arguments or shell history.
+line of pairing-code input. The television displays a six-character hexadecimal
+code after the handshake starts; the CLI never places it in command arguments
+or shell history.
 
 `merge` is an explicit owner assertion and is recorded as such; discovery
 never merges by address, hostname, mDNS instance, or friendly name.

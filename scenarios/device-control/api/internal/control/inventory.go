@@ -499,32 +499,7 @@ func (s *Service) OnboardingLive(ctx context.Context, kind string) []map[string]
 	rungs := s.Onboarding(kind)
 	if strings.ToLower(strings.TrimSpace(kind)) == "google-tv" || strings.ToLower(strings.TrimSpace(kind)) == "googletv" {
 		services, err := s.DiscoverLAN(ctx)
-		found := err == nil && len(services) > 0
-		for i := range rungs {
-			if rungs[i]["id"] == "lan-multicast" {
-				if err == nil {
-					rungs[i]["status"] = "available"
-					rungs[i]["next_action"] = "No action required."
-				} else {
-					rungs[i]["status"] = "unreachable"
-					rungs[i]["next_action"] = "Multicast browse failed: " + err.Error()
-				}
-			}
-			if rungs[i]["id"] == "google-tv-discovery" && found {
-				rungs[i]["status"] = "available"
-				instances := make([]string, 0, len(services))
-				for _, service := range services {
-					if strings.TrimSpace(service.Name) != "" {
-						instances = append(instances, service.Name)
-					}
-				}
-				rungs[i]["next_action"] = "Discovered: " + strings.Join(instances, ", ")
-			}
-			if rungs[i]["id"] == "remote-pairing" && found {
-				rungs[i]["next_action"] = "Enter the six-character hexadecimal code shown by the television with device pair."
-			}
-		}
-		return rungs
+		return applyGoogleTVOnboardingProbe(rungs, services, err)
 	}
 	if strings.ToLower(strings.TrimSpace(kind)) != "android" {
 		return rungs
@@ -572,6 +547,69 @@ func (s *Service) OnboardingLive(ctx context.Context, kind string) []map[string]
 			if rungs[i]["id"] == "usb-debugging" {
 				rungs[i]["status"] = status
 				rungs[i]["next_action"] = reason
+			}
+		}
+	}
+	return rungs
+}
+
+func applyGoogleTVOnboardingProbe(rungs []map[string]string, services []DiscoveredService, discoverErr error) []map[string]string {
+	// A browse can return useful instances from one transport while another
+	// transport reports a timeout. Preserve the successful discovery in the
+	// ladder and make the degraded condition explicit instead of hiding the TV.
+	found := len(services) > 0
+	remoteFound := false
+	remotePaired := false
+	instances := make([]string, 0, len(services))
+	seenInstances := map[string]struct{}{}
+	for _, service := range services {
+		instance := strings.TrimSpace(service.Name)
+		if instance == "" {
+			instance = strings.TrimSpace(service.ID)
+		}
+		if instance != "" {
+			if _, alreadySeen := seenInstances[instance]; !alreadySeen {
+				instances = append(instances, instance)
+				seenInstances[instance] = struct{}{}
+			}
+		}
+		if service.StrategyID == "android-tv-remote" {
+			remoteFound = true
+			remotePaired = remotePaired || service.Paired
+		}
+	}
+	for i := range rungs {
+		switch rungs[i]["id"] {
+		case "lan-multicast":
+			if discoverErr == nil {
+				rungs[i]["status"] = "available"
+				rungs[i]["next_action"] = "No action required."
+			} else if found {
+				rungs[i]["status"] = "degraded"
+				rungs[i]["next_action"] = "Multicast browse partially succeeded: " + discoverErr.Error()
+			} else {
+				rungs[i]["status"] = "unreachable"
+				rungs[i]["next_action"] = "Multicast browse failed: " + discoverErr.Error()
+			}
+		case "google-tv-discovery":
+			if found {
+				rungs[i]["status"] = "available"
+				rungs[i]["next_action"] = "Discovered: " + strings.Join(instances, ", ")
+				if discoverErr != nil {
+					rungs[i]["next_action"] += " (degraded: " + discoverErr.Error() + ")"
+				}
+			}
+		case "remote-pairing":
+			if remotePaired {
+				rungs[i]["status"] = "available"
+				rungs[i]["next_action"] = "No action required; the Android TV Remote certificate is stored."
+			} else if remoteFound {
+				rungs[i]["next_action"] = "Enter the six-character hexadecimal code shown by the television with device pair."
+			}
+		case "paired-transport":
+			if remotePaired {
+				rungs[i]["status"] = "available"
+				rungs[i]["next_action"] = "No action required; the paired transport reconnects without another code."
 			}
 		}
 	}

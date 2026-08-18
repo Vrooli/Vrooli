@@ -41,6 +41,11 @@ func (s *Service) MergeDevices(ctx context.Context, canonicalID, memberID, claim
 		return Device{}, err
 	}
 	_ = s.persistObservedTransportProfiles(ctx, merged)
+	s.mu.Lock()
+	if cancel := s.observerCancels[memberID]; cancel != nil {
+		cancel()
+		delete(s.observerCancels, memberID)
+	}
 	if s.db != nil {
 		_, _ = s.db.ExecContext(ctx, `DELETE FROM device_control_identity_claims WHERE device_id = ?`, memberID)
 		_, _ = s.db.ExecContext(ctx, `DELETE FROM device_control_transport_profiles WHERE device_id = ?`, memberID)
@@ -52,6 +57,8 @@ func (s *Service) MergeDevices(ctx context.Context, canonicalID, memberID, claim
 			delete(s.transportProfiles, key)
 		}
 	}
+	s.startObserverLocked(merged)
+	s.mu.Unlock()
 	return deviceFromRecord(merged), nil
 }
 

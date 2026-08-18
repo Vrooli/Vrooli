@@ -432,7 +432,11 @@ func flowRequest(ctx cliapp.RunContext, core *cliapp.ScenarioApp, path string, r
 func watchDevice(ctx cliapp.RunContext, core *cliapp.ScenarioApp, deviceID string) error {
 	watchCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
-	endpoint := strings.TrimRight(core.APIBase(), "/") + core.APIPath("/devices/"+deviceID+"/events")
+	// APIClient.BaseURL is the unversioned configured root. APIPath applies
+	// the scenario prefix exactly once for both root and already-versioned
+	// --api-base values; APIBase may already contain the prefix and is not a
+	// safe base for a manually streamed request.
+	endpoint := strings.TrimRight(core.APIClient.BaseURL(), "/") + core.APIPath("/devices/"+deviceID+"/events")
 	req, err := http.NewRequestWithContext(watchCtx, http.MethodGet, endpoint, nil)
 	if err != nil {
 		return fmt.Errorf("create watch request: %w", err)

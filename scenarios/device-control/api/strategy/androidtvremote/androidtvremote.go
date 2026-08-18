@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"device-control/internal/discovery"
 	"device-control/strategy"
-	mdns "github.com/vrooli/mdns-go"
 )
 
 type Device struct {
@@ -22,6 +22,10 @@ type Device struct {
 	Endpoint     string
 	IdentityKey  string
 	IdentityKind string
+	Service      string
+	Address      string
+	Port         int
+	TXT          map[string]string
 }
 
 type Client interface {
@@ -29,15 +33,20 @@ type Client interface {
 	Media(context.Context, strategy.MediaCommand) error
 }
 
+type conformanceClient struct{}
+
+func (conformanceClient) Key(context.Context, string) error                  { return nil }
+func (conformanceClient) Media(context.Context, strategy.MediaCommand) error { return nil }
+
 // PairingClient owns the Android TV Remote protocol exchange. Keeping it
 // optional makes the strategy deterministic in fixture tests while allowing a
-// production transport to perform the PIN/certificate handshake.
+// production transport to perform the pairing-code/certificate handshake.
 type PairingClient interface {
 	Pair(context.Context, Device, string) ([]byte, error)
 }
 
 // PairingSession represents the protocol state after the television has been
-// asked to display its pairing code and before the PIN-derived secret is sent.
+// asked to display its pairing code and before the code-derived secret is sent.
 // The session remains in memory only; it is never serialized or persisted.
 type PairingSession interface {
 	Complete(context.Context, string) ([]byte, error)
@@ -45,7 +54,7 @@ type PairingSession interface {
 }
 
 // InteractivePairingClient exposes the two-stage pairing exchange needed by
-// operator surfaces: begin the handshake first, then submit the displayed PIN.
+// operator surfaces: begin the handshake first, then submit the displayed code.
 type InteractivePairingClient interface {
 	Begin(context.Context, Device) (PairingSession, error)
 }
@@ -104,6 +113,15 @@ func New(options ...Option) *Strategy {
 
 func (s *Strategy) ID() string { return "android-tv-remote" }
 
+// ConformanceTarget prevents the generic contract suite from sending a key
+// to an unbound production strategy. Live actuation always uses a device-
+// scoped strategy and never calls this fixture seam.
+func (s *Strategy) ConformanceTarget() strategy.Strategy {
+	clone := *s
+	clone.client = conformanceClient{}
+	return &clone
+}
+
 // SetCertificateStore connects the strategy to the credential authority owned
 // by device-control. The strategy stores a certificate bundle as opaque bytes;
 // it never persists private material in its own database or declarations.
@@ -125,7 +143,7 @@ func (s *Strategy) Describe(context.Context) (strategy.Declaration, error) {
 		Capabilities: map[string]strategy.Capability{
 			strategy.CapInput:        {Name: strategy.CapInput, Status: strategy.StatusAvailable, StateClass: strategy.EventBearing, ProbeEvidence: "Android TV Remote key transport"},
 			strategy.CapMedia:        {Name: strategy.CapMedia, Status: strategy.StatusAvailable, StateClass: strategy.EventBearing, ProbeEvidence: "Android TV Remote media transport"},
-			strategy.CapPairing:      {Name: strategy.CapPairing, Status: strategy.StatusAvailable, StateClass: strategy.EventBearing, ProbeEvidence: "Android TV Remote PIN/certificate exchange"},
+			strategy.CapPairing:      {Name: strategy.CapPairing, Status: strategy.StatusAvailable, StateClass: strategy.EventBearing, ProbeEvidence: "Android TV Remote pairing-code/certificate exchange"},
 			strategy.CapScreenshot:   {Name: strategy.CapScreenshot, Status: strategy.StatusUnavailable, Reason: "Android TV Remote does not expose a screen capture modality"},
 			strategy.CapSemanticTree: {Name: strategy.CapSemanticTree, Status: strategy.StatusUnavailable, Reason: "Android TV Remote does not expose a view hierarchy"},
 		},
@@ -230,18 +248,29 @@ func (s *Strategy) targetDevice(ctx context.Context) (Device, error) {
 	if err != nil {
 		return Device{}, fmt.Errorf("discover Android TV Remote target: %w", err)
 	}
+	var serialMatch *Device
 	for _, device := range devices {
-		if (s.endpoint != "" && strings.TrimSpace(device.Endpoint) == s.endpoint) || (s.endpoint == "" && (s.serial == "" || strings.TrimSpace(device.Serial) == s.serial)) {
-			if strings.TrimSpace(device.Endpoint) == "" {
-				continue
-			}
+		if strings.TrimSpace(device.Endpoint) == "" {
+			continue
+		}
+		if s.endpoint != "" && strings.TrimSpace(device.Endpoint) == s.endpoint {
 			return device, nil
 		}
+		if s.serial != "" && strings.TrimSpace(device.Serial) == s.serial && serialMatch == nil {
+			candidate := device
+			serialMatch = &candidate
+		}
+	}
+	// mDNS endpoints can change across discovery cycles (especially IPv6
+	// link-local addresses).  The durable serial is the safe fallback when an
+	// endpoint-bound profile is stale.
+	if serialMatch != nil {
+		return *serialMatch, nil
 	}
 	return Device{}, fmt.Errorf("android-tv remote target %q was not discovered", s.serial)
 }
 
-// Pair performs the PIN/certificate exchange through the injected protocol
+// Pair performs the pairing-code/certificate exchange through the injected protocol
 // client and persists only the resulting certificate through the credential
 // store. Private material never enters declarations or audit records.
 func (s *Strategy) Pair(ctx context.Context, request strategy.PairRequest) (strategy.PairResult, error) {
@@ -289,7 +318,7 @@ func (p *strategyPairingSession) Close() error { return p.session.Close() }
 
 // BeginPairing opens the protocol through the configuration acknowledgement.
 // At that point the television is showing its pairing code and the caller can
-// safely ask the owner for the PIN.
+// safely ask the owner for the code.
 func (s *Strategy) BeginPairing(ctx context.Context) (PairingSession, error) {
 	if s.pairing == nil {
 		s.pairing = wirePairingClient{}
@@ -310,7 +339,7 @@ func (s *Strategy) BeginPairing(ctx context.Context) (PairingSession, error) {
 	return &strategyPairingSession{session: session, target: target}, nil
 }
 
-// CompletePairing sends the owner-provided PIN, persists the resulting
+// CompletePairing sends the owner-provided pairing code, persists the resulting
 // certificate, and prepares the paired remote client for reconnects.
 func (s *Strategy) CompletePairing(ctx context.Context, session PairingSession, secret []byte) (strategy.PairResult, error) {
 	defer zeroBytes(secret)
@@ -403,8 +432,8 @@ func discoverMDNS(ctx context.Context) ([]Device, error) {
 	// DNS-SD enumeration is kept in the shared multicast browser so all
 	// transports use the same bounded interface and error semantics.
 	var lastErr error
-	for _, service := range []string{"_androidtvremote2._tcp", "_androidtvremote._tcp"} {
-		records, err := mdns.Browse(ctx, []string{service}, mdns.Options{})
+	for _, service := range discovery.AndroidTVRemoteServices {
+		records, err := discovery.Browse(ctx, []string{service}, discovery.Options{})
 		if err != nil {
 			lastErr = err
 			continue
@@ -422,7 +451,7 @@ func discoverMDNS(ctx context.Context) ([]Device, error) {
 				identityKind = "bluetooth-mac"
 			}
 			for _, address := range record.Addrs {
-				endpoint := formatEndpoint(address, record.Port)
+				endpoint := formatEndpointForInterface(address, record.Port, record.Interface)
 				if seen[endpoint] {
 					continue
 				}
@@ -431,7 +460,7 @@ func discoverMDNS(ctx context.Context) ([]Device, error) {
 				if serial == "" {
 					serial = strings.TrimSuffix(record.Instance, ".")
 				}
-				out = append(out, Device{Serial: serial, IdentityKey: identity, IdentityKind: identityKind, Name: record.TXT["fn"], Model: record.TXT["md"], Endpoint: endpoint})
+				out = append(out, Device{Serial: serial, IdentityKey: identity, IdentityKind: identityKind, Name: record.TXT["fn"], Model: record.TXT["md"], Endpoint: endpoint, Service: service, Address: address.String(), Port: record.Port, TXT: cloneTXT(record.TXT)})
 			}
 		}
 		if len(out) == 0 {
@@ -446,8 +475,27 @@ func discoverMDNS(ctx context.Context) ([]Device, error) {
 	return nil, fmt.Errorf("discover Android TV Remote mDNS services: %w", lastErr)
 }
 
+func cloneTXT(values map[string]string) map[string]string {
+	if len(values) == 0 {
+		return nil
+	}
+	clone := make(map[string]string, len(values))
+	for key, value := range values {
+		clone[key] = value
+	}
+	return clone
+}
+
 func formatEndpoint(address net.IP, port int) string {
-	return net.JoinHostPort(address.String(), fmt.Sprintf("%d", port))
+	return formatEndpointForInterface(address, port, "")
+}
+
+func formatEndpointForInterface(address net.IP, port int, iface string) string {
+	host := address.String()
+	if address.IsLinkLocalUnicast() && strings.TrimSpace(iface) != "" {
+		host += "%" + strings.TrimSpace(iface)
+	}
+	return net.JoinHostPort(host, fmt.Sprintf("%d", port))
 }
 
 func toDevices(devices []Device) []strategy.Device {

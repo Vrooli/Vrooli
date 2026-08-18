@@ -256,6 +256,13 @@ type StateObserver interface {
 	ObserveState(context.Context, StateChangeSink) error
 }
 
+// ConformanceTarget lets a transport provide a deterministic, non-network
+// target for the contract suite. It is used only by strategy verification;
+// device-control's live paths continue to use the real scoped adapter.
+type ConformanceTarget interface {
+	ConformanceTarget() Strategy
+}
+
 // UnlockRequest is deliberately not serializable. Secret is populated only
 // after the credential authority resolves a profile reference and is consumed
 // synchronously by the strategy adapter. Adapters must never place it in

@@ -112,9 +112,10 @@ func (s *Service) ActuateDevice(ctx context.Context, deviceID, actor, leaseToken
 		outcome = "failed"
 	}
 	record := Audit{ID: uuid.NewString(), Actor: actor, DeviceID: deviceID, Transport: transport, CausationID: causationID, LeaseID: session.ID, Verb: "direct-actuation", Outcome: outcome, CreatedAt: time.Now().UTC(), RedactionVerified: true, Interactive: true, EvidenceBacked: false}
-	if err == nil {
-		s.persistDirectAudit(ctx, record)
-	}
+	// A command failure is still an interactive actuation attempt and must be
+	// auditable. It remains explicitly non-evidence-backed; only flow runs
+	// create reproducible evidence.
+	s.persistDirectAudit(ctx, record)
 	if err != nil {
 		return Audit{}, err
 	}

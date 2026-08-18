@@ -17,12 +17,12 @@ import (
 )
 
 const (
-	connectionNS     = "urn:x-cast:com.google.cast.tp.connection"
-	receiverNS       = "urn:x-cast:com.google.cast.receiver"
-	mediaNS          = "urn:x-cast:com.google.cast.media"
-	heartbeatNS      = "urn:x-cast:com.google.cast.tp.heartbeat"
-	frameLimit       = 8 << 20
-	heartbeatTimeout = 15 * time.Second
+	connectionNS            = "urn:x-cast:com.google.cast.tp.connection"
+	receiverNS              = "urn:x-cast:com.google.cast.receiver"
+	mediaNS                 = "urn:x-cast:com.google.cast.media"
+	heartbeatNS             = "urn:x-cast:com.google.cast.tp.heartbeat"
+	frameLimit              = 8 << 20
+	defaultHeartbeatTimeout = 15 * time.Second
 )
 
 type castMessage struct {
@@ -33,8 +33,11 @@ type castMessage struct {
 	PayloadUTF8     string `json:"payload_utf8,omitempty"`
 }
 type wireClient struct {
-	endpoint string
-	mu       sync.Mutex
+	endpoint          string
+	mu                sync.Mutex
+	dialer            func(context.Context) (net.Conn, error)
+	heartbeatInterval time.Duration
+	heartbeatTimeout  time.Duration
 }
 
 func newWireClient(endpoint string) (Client, error) {
@@ -45,6 +48,9 @@ func newWireClient(endpoint string) (Client, error) {
 }
 
 func (c *wireClient) dial(ctx context.Context) (net.Conn, error) {
+	if c.dialer != nil {
+		return c.dialer(ctx)
+	}
 	dialer := &net.Dialer{}
 	raw, err := dialer.DialContext(ctx, "tcp", c.endpoint)
 	if err != nil {
@@ -185,21 +191,35 @@ func (c *wireClient) Observe(ctx context.Context, sink Observer) error {
 	if err := writeCast(conn, castMessage{ProtocolVersion: 0, SourceID: "sender-0", DestinationID: "receiver-0", Namespace: receiverNS, PayloadUTF8: `{"type":"GET_STATUS","requestId":1}`}); err != nil {
 		return err
 	}
-	ticker := time.NewTicker(5 * time.Second)
-	defer ticker.Stop()
+	heartbeatInterval := c.heartbeatInterval
+	if heartbeatInterval <= 0 {
+		heartbeatInterval = 5 * time.Second
+	}
+	heartbeatTimeout := c.heartbeatTimeout
+	if heartbeatTimeout <= 0 {
+		heartbeatTimeout = defaultHeartbeatTimeout
+	}
 	var previous *ReceiverStatus
 	lastPeerHeartbeat := time.Now()
+	nextHeartbeat := time.Now().Add(heartbeatInterval)
 	for {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case <-ticker.C:
+		default:
+		}
+		now := time.Now()
+		if !now.Before(nextHeartbeat) {
 			if err := writeCast(conn, castMessage{ProtocolVersion: 0, SourceID: "sender-0", DestinationID: "receiver-0", Namespace: heartbeatNS, PayloadUTF8: `{"type":"PING"}`}); err != nil {
 				return err
 			}
-		default:
+			nextHeartbeat = now.Add(heartbeatInterval)
 		}
-		_ = conn.SetReadDeadline(time.Now().Add(250 * time.Millisecond))
+		readDeadline := now.Add(250 * time.Millisecond)
+		if nextHeartbeat.Before(readDeadline) {
+			readDeadline = nextHeartbeat
+		}
+		_ = conn.SetReadDeadline(readDeadline)
 		msg, readErr := readCast(conn)
 		if readErr != nil {
 			if e, ok := readErr.(net.Error); ok && e.Timeout() {
@@ -213,11 +233,17 @@ func (c *wireClient) Observe(ctx context.Context, sink Observer) error {
 		if msg.Namespace == heartbeatNS {
 			var heartbeat map[string]any
 			if json.Unmarshal([]byte(msg.PayloadUTF8), &heartbeat) == nil {
-				if heartbeat["type"] == "PING" {
+				switch heartbeat["type"] {
+				case "PING":
 					lastPeerHeartbeat = time.Now()
 					if err := writeCast(conn, castMessage{ProtocolVersion: 0, SourceID: "sender-0", DestinationID: "receiver-0", Namespace: heartbeatNS, PayloadUTF8: `{"type":"PONG"}`}); err != nil {
 						return err
 					}
+				case "PONG":
+					// The observer sends PING frames as well as answering peer
+					// PINGs. A receiver's PONG is proof that the long-lived
+					// connection is healthy and must refresh the deadline.
+					lastPeerHeartbeat = time.Now()
 				}
 			}
 			continue

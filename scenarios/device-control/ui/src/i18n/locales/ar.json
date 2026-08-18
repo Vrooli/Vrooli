@@ -50,7 +50,21 @@
     "killImmediately": "إيقاف فوراً",
     "killSession": "إيقاف الجلسة {{id}}",
     "leaseFailed": "فشل الحصول على الإيجار",
-    "onboardingFailed": "فشل فحص الاتصال"
+    "onboardingFailed": "فشل فحص الاتصال",
+    "lanDiscovery": "اكتشاف الشبكة المحلية",
+    "discoverDevices": "اكتشاف الأجهزة",
+    "addDevice": "إضافة جهاز",
+    "knownDevice": "جهاز معروف",
+    "notInInventory": "ليس في المخزون بعد",
+    "unnamedDevice": "جهاز بلا اسم",
+    "modelUnavailable": "الطراز غير متاح",
+    "txtMetadata": "TXT: {{metadata}}",
+    "pairTransport": "إقران وسيلة النقل",
+    "pairDevice": "إقران {{name}}",
+    "pairingStarted": "بدأت المصافحة. أدخل الرمز السداسي المكون من ستة أحرف الظاهر على التلفزيون.",
+    "pairingStarting": "جارٍ بدء مصافحة الإقران…",
+    "pair": "إقران",
+    "cancel": "إلغاء"
     },
     "auth": {
       "title": "مصادقة الجهاز",

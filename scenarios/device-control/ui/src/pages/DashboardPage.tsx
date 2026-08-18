@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/use-unknown-in-catch-callback-variable, no-restricted-syntax */
+/* eslint-disable @typescript-eslint/use-unknown-in-catch-callback-variable */
 import { useEffect, useState } from "react";
 
 import {
@@ -39,7 +39,7 @@ export function DashboardPage() {
   const [pairing, setPairing] = useState<Awaited<ReturnType<typeof discoverDevices>>["services"][number]>();
   const [pairingID, setPairingID] = useState("");
   const [pin, setPin] = useState("");
-  const [onboardingKind, setOnboardingKind] = useState("google-tv");
+  const onboardingKind = "google-tv";
 
   const loadAuthProfiles = () => {
     void listAuthProfiles()
@@ -129,6 +129,13 @@ export function DashboardPage() {
     }
   };
 
+  const addDiscoveredDevice = async () => {
+    // Inventory materialization is owned by the API. Refreshing after an
+    // operator chooses Add device makes the durable row visible without
+    // inventing a second client-side device registry.
+    await refresh();
+  };
+
   return (
     <section data-testid={selectors.pages.dashboard} aria-labelledby="dashboard-heading" className="flex flex-col gap-4">
       <h2 id="dashboard-heading" className="text-2xl font-semibold">
@@ -175,14 +182,18 @@ export function DashboardPage() {
       <AuthenticationProfilesCard profiles={authProfiles} providers={authProviders} />
 
       <Card data-testid={selectors.pages.dashboardDiscovery}>
-        <CardHeader><CardTitle>LAN discovery</CardTitle></CardHeader>
+        <CardHeader><CardTitle>{t(strings.pages.dashboard.lanDiscovery)}</CardTitle></CardHeader>
         <CardContent className="flex flex-col gap-3">
-          <div className="flex gap-2"><select aria-label="Onboarding kind" value={onboardingKind} onChange={(event) => setOnboardingKind(event.target.value)} className="rounded-md border p-2"><option value="google-tv">Google TV</option><option value="android">Android phone</option><option value="ios">iPhone</option></select><Button onClick={() => void discoverDevices().then((result) => { setDiscovered(result.services); setError(result.reason ?? ""); }).catch((cause: Error) => setError(cause.message))}>Discover devices</Button></div>
-          <div data-testid={selectors.pages.dashboardDiscoveryList} className="flex flex-col gap-2">{discovered.map((service) => <div key={`${service.strategy_id}-${service.endpoint}`} className="rounded-md border p-2"><p>{service.name} · {service.transport}</p><p className="text-xs text-app-muted-foreground">{service.endpoint} · {service.model || "model unavailable"}</p>{service.pairing_available && !service.paired && <Button className="mt-2" onClick={() => { setPairing(service); setPairingID(""); setPin(""); setError(""); void startPairing(service.id).then((result) => setPairingID(result.pairing_id)).catch((cause: Error) => setError(cause.message)); }}>Pair transport</Button>}</div>)}</div>
+          <div className="flex gap-2"><Button onClick={() => void discoverDevices().then((result) => { setDiscovered(result.services); setError(result.reason ?? ""); }).catch((cause: Error) => setError(cause.message))}>{t(strings.pages.dashboard.discoverDevices)}</Button></div>
+          <div data-testid={selectors.pages.dashboardDiscoveryList} className="flex flex-col gap-2">{discovered.map((service) => {
+            const known = devices.some((device) => device.id === service.id || (service.identity_key && device.identity_key === service.identity_key) || device.id.endsWith(`:${service.id}`));
+            const metadata = Object.entries(service.txt ?? {}).map(([key, value]) => `${key}=${value}`).join(" · ");
+            return <div key={`${service.strategy_id}-${service.endpoint}`} className="rounded-md border p-2"><p>{service.name || t(strings.pages.dashboard.unnamedDevice)} · {service.service || service.transport}</p><p className="text-xs text-app-muted-foreground">{service.address || service.endpoint}{service.port ? `:${service.port}` : ""} · {service.model || t(strings.pages.dashboard.modelUnavailable)}</p>{metadata && <p className="text-xs text-app-muted-foreground">{t(strings.pages.dashboard.txtMetadata, { metadata })}</p>}<p className="text-xs text-app-muted-foreground">{known ? t(strings.pages.dashboard.knownDevice) : t(strings.pages.dashboard.notInInventory)}</p>{!known && <Button className="mt-2" onClick={() => void addDiscoveredDevice().catch((cause: Error) => setError(cause.message))}>{t(strings.pages.dashboard.addDevice)}</Button>}{service.pairing_available && !service.paired && <Button className="mt-2" onClick={() => { setPairing(service); setPairingID(""); setPin(""); setError(""); void startPairing(service.id).then((result) => setPairingID(result.pairing_id)).catch((cause: Error) => setError(cause.message)); }}>{t(strings.pages.dashboard.pairTransport)}</Button>}</div>;
+          })}</div>
         </CardContent>
       </Card>
 
-      {pairing && <Card data-testid={selectors.pages.dashboardPairDialog}><CardHeader><CardTitle>Pair {pairing.name}</CardTitle></CardHeader><CardContent className="flex flex-col gap-3"><p>{pairingID ? "The handshake has started. Enter the six-character hexadecimal code shown on the television." : "Starting the pairing handshake…"}</p><input data-testid={selectors.pages.dashboardPairPin} disabled={!pairingID} inputMode="text" autoComplete="off" autoCapitalize="characters" spellCheck={false} maxLength={6} value={pin} onChange={(event) => setPin(event.target.value.replace(/[^0-9a-f]/gi, "").toUpperCase())} /><div className="flex gap-2"><Button disabled={!pairingID || pin.length !== 6} onClick={() => void completePairing(pairing.id, pairingID, pin).then(() => { setPin(""); setPairingID(""); setPairing(undefined); return discoverDevices(); }).then((result) => setDiscovered(result.services)).catch((cause: Error) => setError(cause.message))}>Pair</Button><Button onClick={() => { setPairingID(""); setPairing(undefined); }}>Cancel</Button></div></CardContent></Card>}
+      {pairing && <Card data-testid={selectors.pages.dashboardPairDialog}><CardHeader><CardTitle>{t(strings.pages.dashboard.pairDevice, { name: pairing.name || t(strings.pages.dashboard.unnamedDevice) })}</CardTitle></CardHeader><CardContent className="flex flex-col gap-3"><p>{pairingID ? t(strings.pages.dashboard.pairingStarted) : t(strings.pages.dashboard.pairingStarting)}</p><input data-testid={selectors.pages.dashboardPairPin} disabled={!pairingID} inputMode="text" autoComplete="off" autoCapitalize="characters" spellCheck={false} maxLength={6} value={pin} onChange={(event) => setPin(event.target.value.replace(/[^0-9a-f]/gi, "").toUpperCase())} /><div className="flex gap-2"><Button disabled={!pairingID || pin.length !== 6} onClick={() => void completePairing(pairing.id, pairingID, pin).then(() => { setPin(""); setPairingID(""); setPairing(undefined); return discoverDevices(); }).then((result) => setDiscovered(result.services)).catch((cause: Error) => setError(cause.message))}>{t(strings.pages.dashboard.pair)}</Button><Button onClick={() => { setPairingID(""); setPairing(undefined); }}>{t(strings.pages.dashboard.cancel)}</Button></div></CardContent></Card>}
 
       <div className="grid gap-4 xl:grid-cols-2">
         <Card>

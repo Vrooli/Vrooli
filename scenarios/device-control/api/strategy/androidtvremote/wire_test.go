@@ -69,24 +69,28 @@ func TestRemoteWireClientCompletesTLSConfigurationAndSendsKey(t *testing.T) {
 			serverDone <- err
 			return
 		}
-		for i := 0; i < 3; i++ {
-			frame, readErr := readFrame(ctx, tlsConn)
-			if readErr != nil {
-				serverDone <- readErr
-				return
-			}
-			if i == 0 && !hasBytesField(frame, 1) {
-				serverDone <- fmt.Errorf("first client frame was not remote configuration")
-				return
-			}
-			if i == 1 && !hasBytesField(frame, 2) {
-				serverDone <- fmt.Errorf("second client frame was not remote activation")
-				return
-			}
-			if i == 2 && !hasBytesField(frame, 10) {
-				serverDone <- fmt.Errorf("third client frame was not key injection")
-				return
-			}
+		frame, readErr := readFrame(ctx, tlsConn)
+		if readErr != nil || !hasBytesField(frame, 1) {
+			serverDone <- fmt.Errorf("first client frame was not remote configuration: %v", readErr)
+			return
+		}
+		if err := writeFrame(ctx, tlsConn, remoteSetActiveMessage(androidTVActiveFeatures)); err != nil {
+			serverDone <- err
+			return
+		}
+		frame, readErr = readFrame(ctx, tlsConn)
+		if readErr != nil || !hasBytesField(frame, 2) {
+			serverDone <- fmt.Errorf("second client frame was not remote activation: %v", readErr)
+			return
+		}
+		if err := writeFrame(ctx, tlsConn, remoteStartMessage(true)); err != nil {
+			serverDone <- err
+			return
+		}
+		frame, readErr = readFrame(ctx, tlsConn)
+		if readErr != nil || !hasBytesField(frame, 10) {
+			serverDone <- fmt.Errorf("third client frame was not key injection: %v", readErr)
+			return
 		}
 		serverDone <- nil
 	}()

@@ -50,7 +50,21 @@
       "killImmediately": "Kill immediately",
       "killSession": "Kill session {{id}}",
       "leaseFailed": "Lease acquisition failed",
-      "onboardingFailed": "Onboarding probe failed"
+      "onboardingFailed": "Onboarding probe failed",
+      "lanDiscovery": "LAN discovery",
+      "discoverDevices": "Discover devices",
+      "addDevice": "Add device",
+      "knownDevice": "Known device",
+      "notInInventory": "Not yet in inventory",
+      "unnamedDevice": "Unnamed device",
+      "modelUnavailable": "model unavailable",
+      "txtMetadata": "TXT: {{metadata}}",
+      "pairTransport": "Pair transport",
+      "pairDevice": "Pair {{name}}",
+      "pairingStarted": "The handshake has started. Enter the six-character hexadecimal code shown on the television.",
+      "pairingStarting": "Starting the pairing handshake…",
+      "pair": "Pair",
+      "cancel": "Cancel"
     },
     "auth": {
       "title": "Device authentication",

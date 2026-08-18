@@ -151,12 +151,13 @@ func (s *Service) startObserverLocked(record devicedomain.Record) {
 		if !ok {
 			continue
 		}
+		if scoped, scopedOK := base.(strategy.DeviceScoped); scopedOK && record.Serial != "" {
+			base = scoped.ForDevice(record.Serial)
+		}
 		if endpointScoped, endpointOK := base.(interface {
 			ForEndpoint(string) strategy.Strategy
 		}); endpointOK && selected.endpoint != "" {
 			base = endpointScoped.ForEndpoint(selected.endpoint)
-		} else if scoped, scopedOK := base.(strategy.DeviceScoped); scopedOK && record.Serial != "" {
-			base = scoped.ForDevice(record.Serial)
 		}
 		observer, hasObserver := base.(strategy.StateObserver)
 		declaration, describeErr := base.Describe(context.Background())

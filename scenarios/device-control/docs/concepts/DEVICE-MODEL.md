@@ -78,6 +78,6 @@ uses both transports and keeps their capability profiles separate.
 |---|---|---|
 | Class | event-bearing | state-bearing |
 | Operations | keys, text, relative media keys | receiver status, absolute volume, mute, launch, media state |
-| Pairing | six-digit PIN once | none on a trusted LAN |
+| Pairing | six-character hexadecimal code once | none on a trusted LAN |
 | Change notice | command response only | unsolicited push status |
 | Identity key | `bt` TXT key | `id` TXT key |

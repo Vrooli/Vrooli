@@ -227,6 +227,23 @@ func TestDirectActuationRequiresLeaseAndWritesOneNonEvidenceAudit(t *testing.T) 
 	require.Equal(t, "direct-actuation", audits[0].Verb)
 }
 
+func TestFailedDirectActuationStillWritesInteractiveAudit(t *testing.T) {
+	svc, _ := testService(t)
+	fake, ok := svc.registry.Get("fake")
+	require.True(t, ok)
+	fake.(*fakes.Strategy).ActuateErr = errors.New("fixture transport unavailable")
+	lease, err := svc.Acquire("fake", "operator", time.Minute)
+	require.NoError(t, err)
+
+	_, err = svc.ActuateDevice(context.Background(), "fake", "operator", lease.LeaseToken, DirectActuation{Key: "DPAD_DOWN"})
+	require.ErrorContains(t, err, "fixture transport unavailable")
+	audits := svc.Audit()
+	require.Len(t, audits, 1)
+	require.Equal(t, "failed", audits[0].Outcome)
+	require.True(t, audits[0].Interactive)
+	require.False(t, audits[0].EvidenceBacked)
+}
+
 func TestUnlockRequiresHeldLease(t *testing.T) {
 	svc, _ := testService(t)
 	_, err := svc.UnlockDevice(context.Background(), "profile-1", "fake", "operator", "")
@@ -667,6 +684,37 @@ func TestAndroidOnboardingNamesExactSDKRepairCommand(t *testing.T) {
 	t.Fatal("android-sdk rung not returned")
 }
 
+func TestGoogleTVOnboardingReflectsStoredRemotePairing(t *testing.T) {
+	rungs := (&Service{}).Onboarding("google-tv")
+	rungs = applyGoogleTVOnboardingProbe(rungs, []DiscoveredService{
+		{StrategyID: "android-tv-remote", Name: "Living Room", Paired: true},
+		{StrategyID: "google-cast", Name: "SmartTV 4K"},
+	}, nil)
+	byID := map[string]map[string]string{}
+	for _, rung := range rungs {
+		byID[rung["id"]] = rung
+	}
+	require.Equal(t, "available", byID["google-tv-discovery"]["status"])
+	require.Equal(t, "available", byID["remote-pairing"]["status"])
+	require.Equal(t, "available", byID["paired-transport"]["status"])
+	require.Contains(t, byID["paired-transport"]["next_action"], "without another code")
+}
+
+func TestGoogleTVOnboardingPreservesPartialDiscovery(t *testing.T) {
+	rungs := (&Service{}).Onboarding("google-tv")
+	rungs = applyGoogleTVOnboardingProbe(rungs, []DiscoveredService{
+		{StrategyID: "google-cast", Name: "Living Room"},
+	}, errors.New("android-tv-remote: browse deadline exceeded"))
+	byID := map[string]map[string]string{}
+	for _, rung := range rungs {
+		byID[rung["id"]] = rung
+	}
+	require.Equal(t, "degraded", byID["lan-multicast"]["status"])
+	require.Equal(t, "available", byID["google-tv-discovery"]["status"])
+	require.Contains(t, byID["google-tv-discovery"]["next_action"], "Living Room")
+	require.Contains(t, byID["google-tv-discovery"]["next_action"], "degraded")
+}
+
 func TestBridgeFailureDoesNotAddPseudoDeviceBesidePhysicalInventory(t *testing.T) {
 	adapter := &enumeratingFake{
 		Strategy: fakes.New("fake-android", strategy.StatusAvailable, strategy.CapInput, strategy.CapScreenshot),
@@ -733,6 +781,16 @@ func TestBridgeOnlyAttachmentRemainsListedWhenBridgeGoesOffline(t *testing.T) {
 	require.Equal(t, "physical", second[0].Kind)
 	require.Equal(t, strategy.HealthUnreachable, second[0].Status)
 	require.Contains(t, second[0].HealthReason, "host-1")
+}
+
+func TestEnumerationFailureRemainsVisibleAsUnreachableDevice(t *testing.T) {
+	failing := &failingEnumeratingFake{Strategy: fakes.New("lan-failure", strategy.StatusAvailable, strategy.CapInput), err: errors.New("multicast interface unavailable")}
+	svc := New(strategyregistry.New(failing))
+	devices := svc.Devices(context.Background())
+	require.Len(t, devices, 1)
+	require.Equal(t, "unreachable:lan-failure", devices[0].ID)
+	require.Equal(t, strategy.HealthUnreachable, devices[0].Health)
+	require.Contains(t, devices[0].HealthReason, "multicast interface unavailable")
 }
 
 func TestFlowTransportDefaultsToUSBAndWirelessMustBeExplicit(t *testing.T) { // [REQ:DVC-P0-011]
@@ -1249,4 +1307,13 @@ type enumeratingFake struct {
 
 func (f *enumeratingFake) Enumerate(context.Context) ([]strategy.Device, error) {
 	return f.devices, nil
+}
+
+type failingEnumeratingFake struct {
+	*fakes.Strategy
+	err error
+}
+
+func (f *failingEnumeratingFake) Enumerate(context.Context) ([]strategy.Device, error) {
+	return nil, f.err
 }

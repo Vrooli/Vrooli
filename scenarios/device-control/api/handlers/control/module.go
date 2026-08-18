@@ -388,7 +388,10 @@ func (h *handler) listStrategies(w http.ResponseWriter, r *http.Request) {
 	decls := h.service.Strategies(r.Context())
 	out := make([]map[string]any, 0, len(decls))
 	for _, d := range decls {
-		out = append(out, map[string]any{"id": d.StrategyID, "description": d.Description, "status": d.Status, "reason": d.Reason, "supported_host_os": append([]string{}, d.SupportedHostOS...), "capabilities": d.Capabilities, "tiers": append([]string{}, d.Tiers...), "executable_step_kinds": append([]string{}, strategy.StepKinds(d)...), "next_actions": append([]string{}, d.NextActions...), "promotable": d.Promotable, "evidence_class": d.EvidenceClass, "minimum_useful_fps": d.MinimumUsefulFPS})
+		// Tiers are derived from the declared capabilities. Some strategies
+		// intentionally leave Declaration.Tiers empty so the capability model
+		// remains the single source of truth.
+		out = append(out, map[string]any{"id": d.StrategyID, "description": d.Description, "status": d.Status, "reason": d.Reason, "supported_host_os": append([]string{}, d.SupportedHostOS...), "capabilities": d.Capabilities, "tiers": strategy.Tiers(d), "executable_step_kinds": append([]string{}, strategy.StepKinds(d)...), "next_actions": append([]string{}, d.NextActions...), "promotable": d.Promotable, "evidence_class": d.EvidenceClass, "minimum_useful_fps": d.MinimumUsefulFPS})
 	}
 	write(w, http.StatusOK, map[string]any{"strategies": out})
 }

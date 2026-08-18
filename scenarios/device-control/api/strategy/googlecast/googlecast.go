@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"device-control/internal/discovery"
 	"device-control/strategy"
-	mdns "github.com/vrooli/mdns-go"
 )
 
 const defaultPort = 8009
@@ -21,6 +21,10 @@ type Device struct {
 	ID, Name, Model, Endpoint string
 	IdentityKey               string
 	IdentityKind              string
+	Service                   string
+	Address                   string
+	Port                      int
+	TXT                       map[string]string
 }
 
 type ReceiverStatus struct {
@@ -154,7 +158,7 @@ func (s *Strategy) discoveredDevices(ctx context.Context) ([]Device, error) {
 	if len(s.devices) > 0 {
 		return append([]Device(nil), s.devices...), nil
 	}
-	records, err := mdns.Browse(ctx, []string{"_googlecast._tcp"}, mdns.Options{})
+	records, err := discovery.Browse(ctx, discovery.GoogleCastServices, discovery.Options{})
 	if err != nil {
 		return nil, fmt.Errorf("discover Google Cast services: %w", err)
 	}
@@ -169,13 +173,28 @@ func (s *Strategy) discoveredDevices(ctx context.Context) ([]Device, error) {
 			if port == 0 {
 				port = defaultPort
 			}
-			out = append(out, Device{ID: key, IdentityKey: key, IdentityKind: "cast-id", Name: first(record.TXT["fn"], record.Instance), Model: record.TXT["md"], Endpoint: net.JoinHostPort(address.String(), strconv.Itoa(port))})
+			host := address.String()
+			if address.IsLinkLocalUnicast() && strings.TrimSpace(record.Interface) != "" {
+				host += "%" + strings.TrimSpace(record.Interface)
+			}
+			out = append(out, Device{ID: key, IdentityKey: key, IdentityKind: "cast-id", Name: first(record.TXT["fn"], record.Instance), Model: record.TXT["md"], Endpoint: net.JoinHostPort(host, strconv.Itoa(port)), Service: "_googlecast._tcp", Address: address.String(), Port: port, TXT: cloneTXT(record.TXT)})
 		}
 	}
 	if len(out) == 0 {
 		return nil, fmt.Errorf("DNS-SD browse returned no reachable _googlecast._tcp instances")
 	}
 	return out, nil
+}
+
+func cloneTXT(values map[string]string) map[string]string {
+	if len(values) == 0 {
+		return nil
+	}
+	clone := make(map[string]string, len(values))
+	for key, value := range values {
+		clone[key] = value
+	}
+	return clone
 }
 
 func first(values ...string) string {
@@ -195,8 +214,9 @@ func (s *Strategy) boundClient(ctx context.Context) (Client, error) {
 	if err != nil {
 		return nil, err
 	}
+	var serialMatch *Device
 	for _, d := range devices {
-		if (s.endpoint != "" && d.Endpoint == s.endpoint) || (s.endpoint == "" && (s.serial == "" || d.IdentityKey == s.serial || d.ID == s.serial)) {
+		if s.endpoint != "" && d.Endpoint == s.endpoint {
 			client, err := newWireClient(d.Endpoint)
 			if err != nil {
 				return nil, err
@@ -204,6 +224,18 @@ func (s *Strategy) boundClient(ctx context.Context) (Client, error) {
 			s.client = client
 			return client, nil
 		}
+		if s.serial != "" && (d.IdentityKey == s.serial || d.ID == s.serial) && serialMatch == nil {
+			candidate := d
+			serialMatch = &candidate
+		}
+	}
+	if serialMatch != nil {
+		client, err := newWireClient(serialMatch.Endpoint)
+		if err != nil {
+			return nil, err
+		}
+		s.client = client
+		return client, nil
 	}
 	return nil, fmt.Errorf("Google Cast target %q was not discovered", s.serial)
 }

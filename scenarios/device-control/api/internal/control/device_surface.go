@@ -15,16 +15,19 @@ import (
 )
 
 type DiscoveredService struct {
-	StrategyID       string `json:"strategy_id"`
-	Transport        string `json:"transport"`
-	Service          string `json:"service"`
-	ID               string `json:"id"`
-	Name             string `json:"name"`
-	Model            string `json:"model,omitempty"`
-	Endpoint         string `json:"endpoint"`
-	IdentityKey      string `json:"identity_key,omitempty"`
-	Paired           bool   `json:"paired"`
-	PairingAvailable bool   `json:"pairing_available"`
+	StrategyID       string            `json:"strategy_id"`
+	Transport        string            `json:"transport"`
+	Service          string            `json:"service"`
+	ID               string            `json:"id"`
+	Name             string            `json:"name"`
+	Model            string            `json:"model,omitempty"`
+	Endpoint         string            `json:"endpoint"`
+	Address          string            `json:"address,omitempty"`
+	Port             int               `json:"port,omitempty"`
+	TXT              map[string]string `json:"txt,omitempty"`
+	IdentityKey      string            `json:"identity_key,omitempty"`
+	Paired           bool              `json:"paired"`
+	PairingAvailable bool              `json:"pairing_available"`
 }
 
 func (s *Service) DiscoverLAN(ctx context.Context) ([]DiscoveredService, error) {
@@ -59,7 +62,7 @@ func (s *Service) DiscoverLAN(ctx context.Context) ([]DiscoveredService, error) 
 					if identity == "" {
 						identity = strings.TrimSpace(device.Serial)
 					}
-					services = append(services, DiscoveredService{StrategyID: id, Transport: "android-tv-remote", Service: "_androidtvremote2._tcp", ID: "android-tv:" + identity, Name: device.Name, Model: device.Model, Endpoint: device.Endpoint, IdentityKey: device.IdentityKey, Paired: paired, PairingAvailable: pairingAvailable})
+					services = append(services, DiscoveredService{StrategyID: id, Transport: "android-tv-remote", Service: device.Service, ID: "android-tv:" + identity, Name: device.Name, Model: device.Model, Endpoint: device.Endpoint, Address: device.Address, Port: device.Port, TXT: device.TXT, IdentityKey: device.IdentityKey, Paired: paired, PairingAvailable: pairingAvailable})
 				}
 			}
 		case "google-cast":
@@ -73,7 +76,7 @@ func (s *Service) DiscoverLAN(ctx context.Context) ([]DiscoveredService, error) 
 					continue
 				}
 				for _, device := range devices {
-					services = append(services, DiscoveredService{StrategyID: id, Transport: "google-cast", Service: "_googlecast._tcp", ID: device.ID, Name: device.Name, Model: device.Model, Endpoint: device.Endpoint, IdentityKey: device.IdentityKey, PairingAvailable: pairingAvailable})
+					services = append(services, DiscoveredService{StrategyID: id, Transport: "google-cast", Service: device.Service, ID: device.ID, Name: device.Name, Model: device.Model, Endpoint: device.Endpoint, Address: device.Address, Port: device.Port, TXT: device.TXT, IdentityKey: device.IdentityKey, PairingAvailable: pairingAvailable})
 				}
 			}
 		}
@@ -162,8 +165,9 @@ func (s *Service) preparePairingAdapter(ctx context.Context, deviceID string) (s
 }
 
 // BeginPairDevice opens the Android TV Remote handshake through the
-// configuration acknowledgement. The television displays its PIN before this
-// method returns; the returned session is short-lived and memory-only.
+// configuration acknowledgement. The television displays its six-character
+// hexadecimal pairing code before this method returns; the returned session is
+// short-lived and memory-only.
 func (s *Service) BeginPairDevice(ctx context.Context, deviceID string) (string, error) {
 	adapter, err := s.preparePairingAdapter(ctx, deviceID)
 	if err != nil {
@@ -215,7 +219,7 @@ func (s *Service) expirePairing(pairingID string) {
 	}
 }
 
-// CompletePairDevice submits the owner-provided PIN to a previously started
+// CompletePairDevice submits the owner-provided pairing code to a previously started
 // handshake. Invalid input leaves the session available for one retry.
 func (s *Service) CompletePairDevice(ctx context.Context, deviceID, pairingID string, secret []byte) (strategy.PairResult, error) {
 	defer zeroSecret(secret)

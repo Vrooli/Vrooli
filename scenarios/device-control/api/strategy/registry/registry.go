@@ -116,12 +116,13 @@ func (r *Registry) ListDevices(ctx context.Context) []DeviceDeclaration {
 		}
 		for _, device := range devices {
 			driver := base
-			if endpointScoped, ok := base.(interface {
+			if scoped, ok := base.(strategy.DeviceScoped); ok && device.Serial != "" {
+				driver = scoped.ForDevice(device.Serial)
+			}
+			if endpointScoped, ok := driver.(interface {
 				ForEndpoint(string) strategy.Strategy
 			}); ok && device.Endpoint != "" {
 				driver = endpointScoped.ForEndpoint(device.Endpoint)
-			} else if scoped, ok := base.(strategy.DeviceScoped); ok && device.Serial != "" {
-				driver = scoped.ForDevice(device.Serial)
 			}
 			declaration, err := driver.Describe(ctx)
 			if err != nil {

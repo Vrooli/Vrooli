@@ -407,7 +407,7 @@ func (s *Store) SavePairingCertificate(ctx context.Context, serial string, certi
 	if s.resolver == nil {
 		return errors.New("credential authority is unavailable")
 	}
-	identity := CredentialNamespace + "android-tv-remote/" + strings.ToLower(serial)
+	identity := pairingCertificateIdentity(serial)
 	return s.resolver.Provision(ctx, identity, pairingCertificateField, string(certificate))
 }
 
@@ -419,12 +419,27 @@ func (s *Store) LoadPairingCertificate(ctx context.Context, serial string) ([]by
 	if s.resolver == nil {
 		return nil, errors.New("credential authority is unavailable")
 	}
-	identity := CredentialNamespace + "android-tv-remote/" + strings.ToLower(serial)
+	identity := pairingCertificateIdentity(serial)
 	value, err := s.resolver.Resolve(ctx, identity, pairingCertificateField)
 	if err != nil {
 		return nil, err
 	}
 	return []byte(value), nil
+}
+
+func pairingCertificateIdentity(serial string) string {
+	var normalized strings.Builder
+	for _, r := range strings.ToLower(strings.TrimSpace(serial)) {
+		switch {
+		case r >= 'a' && r <= 'z', r >= '0' && r <= '9', r == '-', r == '_', r == '.':
+			normalized.WriteRune(r)
+		case r == ':':
+			// Bluetooth MAC separators are presentation, not identity material.
+		default:
+			normalized.WriteByte('-')
+		}
+	}
+	return CredentialNamespace + "android-tv-remote/" + normalized.String()
 }
 
 // DeleteCredential removes the authority-held value for a profile reference.

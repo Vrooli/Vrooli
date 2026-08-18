@@ -86,6 +86,15 @@ func TestPairingCertificateUsesCredentialAuthority(t *testing.T) {
 	require.Equal(t, "pairing_certificate", resolver.field)
 }
 
+func TestPairingCertificateIdentityCanonicalizesBluetoothMAC(t *testing.T) {
+	resolver := &fakeResolver{status: ProviderStatus{ProviderState: "available"}}
+	store, err := NewStore(nil, resolver)
+	require.NoError(t, err)
+	bundle := []byte(`{"certificate":"fixture-cert","private_key":"fixture-key"}`)
+	require.NoError(t, store.SavePairingCertificate(context.Background(), "E0:D8:C4:C1:2D:B1", bundle))
+	require.Equal(t, CredentialNamespace+"android-tv-remote/e0d8c4c12db1", resolver.identity)
+}
+
 func TestProfileUpdateChangesMetadataWithoutResolvingCredential(t *testing.T) {
 	resolver := &fakeResolver{status: ProviderStatus{ProviderState: "available"}}
 	store, err := NewStore(nil, resolver)

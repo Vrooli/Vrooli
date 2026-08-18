@@ -30,7 +30,7 @@ func (failingRemoteDiscovery) DiscoverMDNS(context.Context) ([]androidtvremote.D
 type castDiscoveryFixture struct{}
 
 func (castDiscoveryFixture) DiscoverCast(context.Context) ([]googlecast.Device, error) {
-	return []googlecast.Device{{ID: "cast-id-1", Name: "Living Room", Endpoint: "192.168.1.158:8009", IdentityKey: "cast-id-1"}}, nil
+	return []googlecast.Device{{ID: "cast-id-1", Name: "Living Room", Endpoint: "192.168.1.158:8009", Address: "192.168.1.158", Port: 8009, Service: "_googlecast._tcp", TXT: map[string]string{"id": "cast-id-1", "fn": "Living Room"}, IdentityKey: "cast-id-1"}}, nil
 }
 
 type remoteDiscoveryFixture struct{}
@@ -162,6 +162,9 @@ func TestDiscoveryReturnsReachableTransportsWhenAnotherBrowseFails(t *testing.T)
 	require.NoError(t, json.Unmarshal(response.Body.Bytes(), &body))
 	require.Len(t, body.Services, 1)
 	require.Equal(t, "google-cast", body.Services[0]["strategy_id"])
+	require.Equal(t, float64(8009), body.Services[0]["port"])
+	require.Equal(t, "192.168.1.158", body.Services[0]["address"])
+	require.Equal(t, map[string]any{"id": "cast-id-1", "fn": "Living Room"}, body.Services[0]["txt"])
 	require.Equal(t, "degraded", body.Health)
 	require.Contains(t, body.Reason, "android-tv-remote")
 }
@@ -174,6 +177,31 @@ func TestDiscoveryUsesCanonicalDeviceIDForPairingTarget(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, found, 1)
 	require.Equal(t, "android-tv:bt-1", found[0].ID)
+}
+
+func TestStrategyListDerivesTiersFromCapabilities(t *testing.T) {
+	service := internal.New(strategyregistry.New(googlecast.New(googlecast.WithDiscovery(castDiscoveryFixture{}))))
+	router := mux.NewRouter()
+	Module(service).Mount(router)
+
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/v1/strategies", nil))
+	require.Equal(t, http.StatusOK, response.Code)
+	var body struct {
+		Strategies []struct {
+			ID    string   `json:"id"`
+			Tiers []string `json:"tiers"`
+		} `json:"strategies"`
+	}
+	require.NoError(t, json.Unmarshal(response.Body.Bytes(), &body))
+	for _, item := range body.Strategies {
+		if item.ID != "google-cast" {
+			continue
+		}
+		require.ElementsMatch(t, []string{"floor", "property", "sensor", "media"}, item.Tiers)
+		return
+	}
+	t.Fatal("google-cast strategy was not returned")
 }
 
 func TestAuthenticationProfileLifecycle(t *testing.T) {

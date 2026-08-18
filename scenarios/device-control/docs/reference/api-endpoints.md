@@ -60,11 +60,12 @@ keys. A browse failure returns `health: unreachable` and a named `reason`.
 
 `POST /api/v1/devices/{id}/pair/start` opens the Android TV Remote handshake
 through the configuration acknowledgement and returns a short-lived pairing
-session id. The television displays its PIN at this boundary.
+session id. The television displays its six-character hexadecimal pairing code
+at this boundary.
 
 `POST /api/v1/devices/{id}/pair/complete` accepts the session id and the
-owner-entered PIN, completes the exchange, and stores the resulting
-certificate. The PIN is passed only through the pairing request, then
+owner-entered pairing code, completes the exchange, and stores the resulting
+certificate. The code is passed only through the pairing request, then
 discarded; it is not logged, audited, serialized in declarations, or returned
 in the response. The legacy `POST /api/v1/devices/{id}/pair` route remains
 available for non-interactive callers, and the CLI `--pin-stdin` path uses the

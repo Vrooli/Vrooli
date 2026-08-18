@@ -116,18 +116,18 @@ describe("DashboardPage", () => {
 
     const user = userEvent.setup();
     renderWithProviders(<DashboardPage />);
-    await user.click(screen.getByRole("button", { name: "Discover devices" }));
+    await user.click(screen.getByRole("button", { name: strings.pages.dashboard.discoverDevices }));
 
     const discovery = await screen.findByTestId(selectors.pages.dashboardDiscoveryList);
     expect(discovery).toHaveTextContent("Living Room · cast");
-    await user.click(within(discovery).getByRole("button", { name: "Pair transport" }));
+    await user.click(within(discovery).getByRole("button", { name: strings.pages.dashboard.pairTransport }));
 
     const dialog = await screen.findByTestId(selectors.pages.dashboardPairDialog);
     await waitFor(() => expect(api.startPairing).toHaveBeenCalledWith(service.id));
     const pin = within(dialog).getByTestId(selectors.pages.dashboardPairPin);
     await waitFor(() => expect(pin).not.toBeDisabled());
     await user.type(pin, "835b64");
-    await user.click(within(dialog).getByRole("button", { name: "Pair" }));
+    await user.click(within(dialog).getByRole("button", { name: strings.pages.dashboard.pair }));
 
     await waitFor(() => expect(api.completePairing).toHaveBeenCalledWith(service.id, "session-1", "835B64"));
     expect(api.discoverDevices).toHaveBeenCalledTimes(2);
