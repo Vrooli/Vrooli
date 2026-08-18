@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/use-unknown-in-catch-callback-variable */
+/* eslint-disable @typescript-eslint/use-unknown-in-catch-callback-variable, no-restricted-syntax */
 import { useEffect, useState } from "react";
 
 import {
@@ -8,6 +8,9 @@ import {
   listDevices,
   listSessions,
   listStrategies,
+  discoverDevices,
+  startPairing,
+  completePairing,
   type Device,
   type OnboardingReport,
   type Session,
@@ -32,6 +35,11 @@ export function DashboardPage() {
   const [authProfiles, setAuthProfiles] = useState<AuthProfile[]>([]);
   const [authProviders, setAuthProviders] = useState<Record<string, ProviderStatus>>({});
   const [error, setError] = useState("");
+  const [discovered, setDiscovered] = useState<Awaited<ReturnType<typeof discoverDevices>>["services"]>([]);
+  const [pairing, setPairing] = useState<Awaited<ReturnType<typeof discoverDevices>>["services"][number]>();
+  const [pairingID, setPairingID] = useState("");
+  const [pin, setPin] = useState("");
+  const [onboardingKind, setOnboardingKind] = useState("google-tv");
 
   const loadAuthProfiles = () => {
     void listAuthProfiles()
@@ -105,7 +113,7 @@ export function DashboardPage() {
   const onboard = async (device: Device) => {
     try {
       setError("");
-      const result = await connectDevice(device.kind === "physical" ? "android" : device.kind);
+      const result = await connectDevice(device.onboarding_kind ?? onboardingKind);
       setOnboarding(result);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : t(strings.pages.dashboard.onboardingFailed));
@@ -115,7 +123,7 @@ export function DashboardPage() {
   const onboardFirstDevice = async () => {
     try {
       setError("");
-      setOnboarding(await connectDevice("android"));
+      setOnboarding(await connectDevice(onboardingKind));
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : t(strings.pages.dashboard.onboardingFailed));
     }
@@ -165,6 +173,16 @@ export function DashboardPage() {
       </div>
 
       <AuthenticationProfilesCard profiles={authProfiles} providers={authProviders} />
+
+      <Card data-testid={selectors.pages.dashboardDiscovery}>
+        <CardHeader><CardTitle>LAN discovery</CardTitle></CardHeader>
+        <CardContent className="flex flex-col gap-3">
+          <div className="flex gap-2"><select aria-label="Onboarding kind" value={onboardingKind} onChange={(event) => setOnboardingKind(event.target.value)} className="rounded-md border p-2"><option value="google-tv">Google TV</option><option value="android">Android phone</option><option value="ios">iPhone</option></select><Button onClick={() => void discoverDevices().then((result) => { setDiscovered(result.services); setError(result.reason ?? ""); }).catch((cause: Error) => setError(cause.message))}>Discover devices</Button></div>
+          <div data-testid={selectors.pages.dashboardDiscoveryList} className="flex flex-col gap-2">{discovered.map((service) => <div key={`${service.strategy_id}-${service.endpoint}`} className="rounded-md border p-2"><p>{service.name} · {service.transport}</p><p className="text-xs text-app-muted-foreground">{service.endpoint} · {service.model || "model unavailable"}</p>{service.pairing_available && !service.paired && <Button className="mt-2" onClick={() => { setPairing(service); setPairingID(""); setPin(""); setError(""); void startPairing(service.id).then((result) => setPairingID(result.pairing_id)).catch((cause: Error) => setError(cause.message)); }}>Pair transport</Button>}</div>)}</div>
+        </CardContent>
+      </Card>
+
+      {pairing && <Card data-testid={selectors.pages.dashboardPairDialog}><CardHeader><CardTitle>Pair {pairing.name}</CardTitle></CardHeader><CardContent className="flex flex-col gap-3"><p>{pairingID ? "The handshake has started. Enter the six-character hexadecimal code shown on the television." : "Starting the pairing handshake…"}</p><input data-testid={selectors.pages.dashboardPairPin} disabled={!pairingID} inputMode="text" autoComplete="off" autoCapitalize="characters" spellCheck={false} maxLength={6} value={pin} onChange={(event) => setPin(event.target.value.replace(/[^0-9a-f]/gi, "").toUpperCase())} /><div className="flex gap-2"><Button disabled={!pairingID || pin.length !== 6} onClick={() => void completePairing(pairing.id, pairingID, pin).then(() => { setPin(""); setPairingID(""); setPairing(undefined); return discoverDevices(); }).then((result) => setDiscovered(result.services)).catch((cause: Error) => setError(cause.message))}>Pair</Button><Button onClick={() => { setPairingID(""); setPairing(undefined); }}>Cancel</Button></div></CardContent></Card>}
 
       <div className="grid gap-4 xl:grid-cols-2">
         <Card>

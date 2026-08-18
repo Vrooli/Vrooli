@@ -48,7 +48,7 @@ such as BlobStore.
 | Run records and chapters | flows | SQLite | `api/internal/flows/schema.sql` | Governed retention; release-relevant runs pinned. | Chapters carry purpose, bounded policies, expected/observed, and capture references. |
 | Capture artifacts | flows | Filesystem, producer-owned | Referenced by checksum from the run record | Same lifecycle as the run, subject to retention. | **Bytes never enter the database or a consumer payload.** Consumers receive `common/v1` `EvidenceRef` only. |
 | Visual anchors | flows | Filesystem + SQLite metadata | `api/internal/flows/schema.sql` | Until the owning flow or anchor is deleted. | Reference images with stable identity for the deterministic middle rung. |
-| Agent run records | agent | SQLite | `api/internal/agent/schema.sql` | Same as flow runs. | Includes the recorded step sequence that makes promotion possible. |
+| Agent run records | agent | Service memory for the current process | `api/internal/control/agent.go` | Until the scenario restarts; promoted flow runs use the existing flow-run store. | Includes typed chapters and executable planned steps; promotion copies them into the deterministic flow export path. |
 
 ## Schema Map
 
@@ -61,7 +61,7 @@ Each domain's schema file lives beside the code that interprets it. The
 | Strategy registrations, conformance results | strategies | `api/internal/strategies/schema.sql` | strategies repository/service/handlers; `strategy verify` |
 | Lease records, verb audit | sessions | `api/internal/sessions/schema.sql` | sessions repository/service/handlers; lease enforcement, kill switch |
 | Flow definitions, runs, chapters, anchor metadata | flows | `api/internal/flows/schema.sql` | flows repository/service/handlers; executor, gap report, evidence sink |
-| Agent run records, promotion provenance | agent | `api/internal/agent/schema.sql` | agent repository/service/handlers; run-to-flow promotion |
+| Agent run records, promotion provenance | agent | `api/internal/control/agent.go` | agent service/handlers; run-to-flow promotion |
 | Capture artifacts, anchor images | flows | Filesystem, producer-owned; referenced by checksum | Never a table. Consumers receive `common/v1` `EvidenceRef` only. |
 | system schema | infrastructure | `api/internal/database/system.sql` | API boot and cross-cutting DB setup |
 

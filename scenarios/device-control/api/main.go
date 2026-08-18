@@ -145,17 +145,19 @@ func main() {
 		log.Fatalf("file storage configuration failed: %v", err)
 	}
 	fileRoots := filerouting.New(primaryFileRoots)
+	gateway := internalflows.NewGateway(http.DefaultClient, discovery.ResolveScenarioURLDefault)
 	controlService, err := control.NewWithDBAndAttached(strategyregistry.Default(), db, control.NewBridgeAttachedReader(http.DefaultClient, nil), fileRoots)
 	if err != nil {
 		log.Fatalf("device-control state initialization failed: %v", err)
 	}
+	controlService.SetAgentPlanner(internalflows.NewGatewayPlanner(gateway))
 
 	srv := server.New(
 		server.Deps{Clock: schedule.System(), Logger: log.Default()},
 		healthH.Module(db, "device-control-api", "1.0.0"),
 		capsH.Module(capabilities.NewRegistry()),
 		controlH.Module(controlService),
-		flowsH.Module(internalflows.NewResolver(internalflows.NewGateway(http.DefaultClient, discovery.ResolveScenarioURLDefault))),
+		flowsH.Module(internalflows.NewResolver(gateway)),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development

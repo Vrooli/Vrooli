@@ -3,9 +3,11 @@ package control
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"sort"
 	"strings"
 	"sync"
@@ -14,6 +16,7 @@ import (
 	authdomain "device-control/internal/auth"
 	devicedomain "device-control/internal/devices"
 	internalflows "device-control/internal/flows"
+	identitydomain "device-control/internal/identity"
 	"device-control/strategy"
 	"device-control/strategy/androidtvremote"
 	strategyregistry "device-control/strategy/registry"
@@ -50,8 +53,13 @@ type Service struct {
 	auth                *authdomain.Store
 	stateEvents         *strategy.EventBus
 	observedStates      map[string]any
+	observerCancels     map[string]context.CancelFunc
+	actuationCauses     map[string]actuationCause
+	auditAliases        map[string]map[string]struct{}
+	agentPlanner        internalflows.AgentPlanner
 	inventoryTimeout    time.Duration
 	sessionQueryTimeout time.Duration
+	pendingPairings     map[string]pendingPairing
 }
 
 type externalRecording struct {
@@ -59,6 +67,41 @@ type externalRecording struct {
 	Actor    string
 	Recorder strategy.SessionRecorder
 	Handle   strategy.RecordingHandle
+}
+
+type interactivePairer interface {
+	BeginPairing(context.Context) (androidtvremote.PairingSession, error)
+	CompletePairing(context.Context, androidtvremote.PairingSession, []byte) (strategy.PairResult, error)
+}
+
+type pendingPairing struct {
+	deviceID  string
+	pairer    interactivePairer
+	session   androidtvremote.PairingSession
+	expiresAt time.Time
+}
+
+// ActuationCorrelationWindow links a transport event to the operator command
+// that just caused it without misattributing a later physical-remote change.
+const ActuationCorrelationWindow = 5 * time.Second
+
+type actuationCause struct {
+	id        string
+	createdAt time.Time
+}
+
+type scopedStateSink struct {
+	service   *Service
+	deviceID  string
+	transport string
+}
+
+func (s scopedStateSink) Publish(event strategy.StateChangeEvent) {
+	event.DeviceID = s.deviceID
+	if strings.TrimSpace(event.Transport) == "" {
+		event.Transport = s.transport
+	}
+	s.service.EmitStateChange(event)
 }
 
 type transportState struct {
@@ -79,7 +122,133 @@ func New(registry *strategyregistry.Registry) *Service {
 		dir = configured
 	}
 	authStore, _ := authdomain.NewStore(nil, nil)
-	return &Service{registry: registry, sessions: map[string]Session{}, audits: []Audit{}, agents: map[string]AgentRun{}, devices: devicedomain.NewStore(), artifacts: map[string]string{}, artifactKinds: map[string]string{}, evidenceDir: dir, activeCancels: map[string]context.CancelFunc{}, transportStrategies: map[string]strategy.Strategy{}, transportStates: map[string]transportState{}, transportProfiles: map[string]transportState{}, anchors: internalflows.NewAnchorStore(), runs: map[string]RunResult{}, flowRuns: map[string]Flow{}, externalRecordings: map[string]externalRecording{}, auth: authStore, stateEvents: strategy.NewEventBus(), observedStates: map[string]any{}, inventoryTimeout: 2 * time.Second, sessionQueryTimeout: 750 * time.Millisecond}
+	return &Service{registry: registry, sessions: map[string]Session{}, audits: []Audit{}, agents: map[string]AgentRun{}, devices: devicedomain.NewStore(), artifacts: map[string]string{}, artifactKinds: map[string]string{}, evidenceDir: dir, activeCancels: map[string]context.CancelFunc{}, observerCancels: map[string]context.CancelFunc{}, actuationCauses: map[string]actuationCause{}, auditAliases: map[string]map[string]struct{}{}, transportStrategies: map[string]strategy.Strategy{}, transportStates: map[string]transportState{}, transportProfiles: map[string]transportState{}, anchors: internalflows.NewAnchorStore(), runs: map[string]RunResult{}, flowRuns: map[string]Flow{}, externalRecordings: map[string]externalRecording{}, auth: authStore, stateEvents: strategy.NewEventBus(), observedStates: map[string]any{}, inventoryTimeout: defaultInventoryTimeout, sessionQueryTimeout: 750 * time.Millisecond, pendingPairings: map[string]pendingPairing{}}
+}
+
+func (s *Service) startObserverLocked(record devicedomain.Record) {
+	if s.observerCancels[record.ID] != nil {
+		return
+	}
+	type candidate struct {
+		strategyID string
+		endpoint   string
+	}
+	candidates := make([]candidate, 0, len(record.Transports)+1)
+	for _, profile := range record.Transports {
+		strategyID := strings.TrimSpace(profile.StrategyID)
+		if strategyID == "" {
+			strategyID = strings.TrimSpace(profile.Name)
+		}
+		if strategyID != "" {
+			candidates = append(candidates, candidate{strategyID: strategyID, endpoint: strings.TrimSpace(profile.Endpoint)})
+		}
+	}
+	if record.StrategyID != "" {
+		candidates = append(candidates, candidate{strategyID: strings.TrimSpace(record.StrategyID), endpoint: strings.TrimSpace(record.Endpoint)})
+	}
+	for _, selected := range candidates {
+		base, ok := s.registry.Get(selected.strategyID)
+		if !ok {
+			continue
+		}
+		if endpointScoped, endpointOK := base.(interface {
+			ForEndpoint(string) strategy.Strategy
+		}); endpointOK && selected.endpoint != "" {
+			base = endpointScoped.ForEndpoint(selected.endpoint)
+		} else if scoped, scopedOK := base.(strategy.DeviceScoped); scopedOK && record.Serial != "" {
+			base = scoped.ForDevice(record.Serial)
+		}
+		observer, hasObserver := base.(strategy.StateObserver)
+		declaration, describeErr := base.Describe(context.Background())
+		if describeErr != nil {
+			continue
+		}
+		mode := declaration.StateObservation.Mode
+		interval := declaration.StateObservation.Interval
+		if mode == "" {
+			mode = declaration.ObservationMode
+		}
+		if interval <= 0 {
+			interval = declaration.ObservationInterval
+		}
+		if !hasObserver && mode != "poll" {
+			continue
+		}
+		if !hasObserver {
+			reader, readerOK := base.(strategy.StateReader)
+			if !readerOK {
+				continue
+			}
+			if interval <= 0 {
+				interval = time.Second
+			}
+			ctx, cancel := context.WithCancel(context.Background())
+			s.observerCancels[record.ID] = cancel
+			go s.runPollObserver(ctx, record.ID, selected.strategyID, reader, interval)
+			return
+		}
+		ctx, cancel := context.WithCancel(context.Background())
+		s.observerCancels[record.ID] = cancel
+		go func() {
+			backoff := time.Second
+			for {
+				err := observer.ObserveState(ctx, scopedStateSink{service: s, deviceID: record.ID, transport: selected.strategyID})
+				if ctx.Err() != nil {
+					return
+				}
+				if err != nil {
+					s.EmitStateChange(strategy.StateChangeEvent{DeviceID: record.ID, Transport: selected.strategyID, Attribute: "transport_health", OldValue: "available", NewValue: "unreachable", StateClass: strategy.EventBearing, CausationID: uuid.NewString()})
+				} else {
+					s.EmitStateChange(strategy.StateChangeEvent{DeviceID: record.ID, Transport: selected.strategyID, Attribute: "transport_health", OldValue: "unreachable", NewValue: "available", StateClass: strategy.EventBearing, CausationID: uuid.NewString()})
+				}
+				timer := time.NewTimer(backoff)
+				select {
+				case <-ctx.Done():
+					if !timer.Stop() {
+						<-timer.C
+					}
+					return
+				case <-timer.C:
+				}
+				if backoff < 30*time.Second {
+					backoff *= 2
+					if backoff > 30*time.Second {
+						backoff = 30 * time.Second
+					}
+				}
+			}
+		}()
+		return
+	}
+}
+
+func (s *Service) runPollObserver(ctx context.Context, deviceID, transport string, reader strategy.StateReader, interval time.Duration) {
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	var previous map[string]strategy.PropertyValue
+	for {
+		state, err := reader.ReadState(ctx)
+		if err != nil {
+			s.EmitStateChange(strategy.StateChangeEvent{DeviceID: deviceID, Transport: transport, Attribute: "transport_health", NewValue: "unreachable", StateClass: strategy.EventBearing})
+		} else {
+			for name, value := range state.Properties {
+				old, existed := previous[name]
+				if !existed || !reflect.DeepEqual(old.Value, value.Value) {
+					var oldValue any
+					if existed {
+						oldValue = old.Value
+					}
+					s.EmitStateChange(strategy.StateChangeEvent{DeviceID: deviceID, Transport: transport, Attribute: name, OldValue: oldValue, NewValue: value.Value, StateClass: strategy.StateBearing})
+				}
+			}
+			previous = state.Properties
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+		}
+	}
 }
 
 func NewWithAttached(registry *strategyregistry.Registry, reader AttachedReader) *Service {
@@ -88,26 +257,42 @@ func NewWithAttached(registry *strategyregistry.Registry, reader AttachedReader)
 	return s
 }
 
+func (s *Service) SetAgentPlanner(planner internalflows.AgentPlanner) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.agentPlanner = planner
+}
+
 // SubscribeStateChanges exposes the local fast-path seam for a future rule
 // engine. It intentionally has no vrooli-events integration.
 func (s *Service) SubscribeStateChanges(buffer int) strategy.StateSubscription {
+	s.mu.Lock()
 	if s.stateEvents == nil {
 		s.stateEvents = strategy.NewEventBus()
 	}
-	return s.stateEvents.Subscribe(buffer)
+	bus := s.stateEvents
+	s.mu.Unlock()
+	return bus.Subscribe(buffer)
 }
 
 func (s *Service) EmitStateChange(event strategy.StateChangeEvent) {
 	if event.ObservedAt.IsZero() {
 		event.ObservedAt = time.Now().UTC()
 	}
+	s.mu.Lock()
 	if strings.TrimSpace(event.CausationID) == "" {
-		event.CausationID = uuid.NewString()
+		if cause, ok := s.actuationCauses[event.DeviceID]; ok && time.Since(cause.createdAt) <= ActuationCorrelationWindow {
+			event.CausationID = cause.id
+		} else {
+			event.CausationID = uuid.NewString()
+		}
 	}
 	if s.stateEvents == nil {
 		s.stateEvents = strategy.NewEventBus()
 	}
-	s.stateEvents.Publish(event)
+	bus := s.stateEvents
+	s.mu.Unlock()
+	bus.Publish(event)
 }
 
 // NewWithDB keeps the in-memory registry fast while making operator state
@@ -137,7 +322,8 @@ CREATE INDEX IF NOT EXISTS device_control_sessions_device ON device_control_sess
 CREATE TABLE IF NOT EXISTS device_control_audits (
  id TEXT PRIMARY KEY, actor TEXT NOT NULL, device_id TEXT NOT NULL, transport TEXT NOT NULL DEFAULT '', causation_id TEXT NOT NULL DEFAULT '', lease_id TEXT NOT NULL,
  verb TEXT NOT NULL, outcome TEXT NOT NULL, created_at TEXT NOT NULL, redaction_verified INTEGER NOT NULL,
- redaction_opted_out INTEGER NOT NULL DEFAULT 0, profile_id TEXT NOT NULL DEFAULT '',
+	redaction_opted_out INTEGER NOT NULL DEFAULT 0, profile_id TEXT NOT NULL DEFAULT '',
+	interactive INTEGER NOT NULL DEFAULT 0, evidence_backed INTEGER NOT NULL DEFAULT 1,
  method TEXT NOT NULL DEFAULT '', attempts INTEGER NOT NULL DEFAULT 0,
  provider_state TEXT NOT NULL DEFAULT '', before_lock_state TEXT NOT NULL DEFAULT '',
  after_lock_state TEXT NOT NULL DEFAULT ''
@@ -152,6 +338,25 @@ CREATE TABLE IF NOT EXISTS device_control_transport_profiles (
  transport TEXT NOT NULL, endpoint TEXT NOT NULL, updated_at TEXT NOT NULL,
  PRIMARY KEY (device_id, strategy_id, transport)
 
+);
+CREATE TABLE IF NOT EXISTS device_control_identity_claims (
+ device_id TEXT NOT NULL, kind TEXT NOT NULL, value TEXT NOT NULL,
+ strategy_id TEXT NOT NULL, evidence TEXT NOT NULL,
+ PRIMARY KEY (device_id, kind, value)
+);
+CREATE TABLE IF NOT EXISTS device_control_identity_merges (
+ canonical_id TEXT NOT NULL, member_id TEXT NOT NULL,
+ claim_kind TEXT NOT NULL, claim_value TEXT NOT NULL,
+ claim_strategy_id TEXT NOT NULL, claim_evidence TEXT NOT NULL,
+ canonical_snapshot TEXT NOT NULL, member_snapshot TEXT NOT NULL,
+ merged_at TEXT NOT NULL,
+ PRIMARY KEY (canonical_id, member_id)
+
+);
+CREATE TABLE IF NOT EXISTS device_control_identity_aliases (
+ canonical_id TEXT NOT NULL, alias_id TEXT NOT NULL,
+ created_at TEXT NOT NULL,
+ PRIMARY KEY (canonical_id, alias_id)
 );`); err != nil {
 		return nil, fmt.Errorf("initialize device-control state: %w", err)
 	}
@@ -159,6 +364,8 @@ CREATE TABLE IF NOT EXISTS device_control_transport_profiles (
 	// migration is intentionally best-effort because SQLite reports a duplicate
 	// column when the database has already been upgraded.
 	_, _ = db.ExecContext(context.Background(), `ALTER TABLE device_control_audits ADD COLUMN redaction_opted_out INTEGER NOT NULL DEFAULT 0`)
+	_, _ = db.ExecContext(context.Background(), `ALTER TABLE device_control_audits ADD COLUMN interactive INTEGER NOT NULL DEFAULT 0`)
+	_, _ = db.ExecContext(context.Background(), `ALTER TABLE device_control_audits ADD COLUMN evidence_backed INTEGER NOT NULL DEFAULT 1`)
 	for _, column := range []string{
 		`transport TEXT NOT NULL DEFAULT ''`,
 		`causation_id TEXT NOT NULL DEFAULT ''`,
@@ -187,6 +394,15 @@ CREATE TABLE IF NOT EXISTS device_control_transport_profiles (
 		return nil, err
 	}
 	if err := s.loadTransportStates(); err != nil {
+		return nil, err
+	}
+	if err := s.loadIdentityClaims(); err != nil {
+		return nil, err
+	}
+	if err := s.loadIdentityMerges(); err != nil {
+		return nil, err
+	}
+	if err := s.loadIdentityAliases(); err != nil {
 		return nil, err
 	}
 	s.restoreTransportStrategies()
@@ -224,19 +440,96 @@ func (s *Service) loadSessions() error {
 func (s *Service) Anchors() *internalflows.AnchorStore { return s.anchors }
 
 func (s *Service) ReadDeviceState(ctx context.Context, deviceID string) (strategy.DeviceState, error) {
-	transport := "usb"
-	if record, found := s.devices.Get(deviceID); found && record.Transport != "" {
-		transport = record.Transport
-	}
-	adapter, ok := s.strategyForFlow(deviceID, transport)
-	if !ok {
+	record, found := s.devices.Get(deviceID)
+	if !found {
 		return strategy.DeviceState{}, fmt.Errorf("unknown or unavailable device %q", deviceID)
 	}
-	reader, ok := adapter.(strategy.StateReader)
-	if !ok {
-		return strategy.DeviceState{}, &strategy.AvailabilityError{Reason: "strategy does not expose device state", NextAction: "Use a strategy that declares device-state reads."}
+	profiles := append([]strategy.DeviceTransport(nil), record.Transports...)
+	if len(profiles) == 0 {
+		name := record.Transport
+		if name == "" {
+			name = "usb"
+		}
+		profiles = append(profiles, strategy.DeviceTransport{StrategyID: record.StrategyID, Name: name, Endpoint: record.Endpoint, Health: record.Health, HealthReason: record.HealthReason, Properties: append([]strategy.PropertyDescriptor(nil), record.Properties...)})
 	}
-	return reader.ReadState(ctx)
+	combined := strategy.DeviceState{Properties: map[string]strategy.PropertyValue{}, Unavailable: map[string]string{}}
+	var readErrors []string
+	readCount := 0
+	propertySources := map[string]strategy.PropertyDescriptor{}
+	for _, profile := range profiles {
+		transport := profile.Name
+		if transport == "" {
+			transport = profile.StrategyID
+		}
+		candidate, ok := s.strategyForFlow(deviceID, transport)
+		if !ok {
+			readErrors = append(readErrors, fmt.Sprintf("%s: strategy unavailable", transport))
+			continue
+		}
+		reader, ok := candidate.(strategy.StateReader)
+		if !ok {
+			readErrors = append(readErrors, fmt.Sprintf("%s: state reader unavailable", transport))
+			for _, descriptor := range profile.Properties {
+				combined.Unavailable[descriptor.Name] = fmt.Sprintf("transport %s does not expose a state reader", transport)
+			}
+			continue
+		}
+		state, err := reader.ReadState(ctx)
+		if err != nil {
+			readErrors = append(readErrors, fmt.Sprintf("%s: %v", transport, err))
+			for _, descriptor := range profile.Properties {
+				combined.Unavailable[descriptor.Name] = fmt.Sprintf("transport %s failed: %v", transport, err)
+			}
+			continue
+		}
+		readCount++
+		if readCount == 1 {
+			combined.ForegroundPackage = state.ForegroundPackage
+			combined.ScreenState = state.ScreenState
+			combined.LockState = state.LockState
+			combined.Orientation = state.Orientation
+			combined.AutoRotate = state.AutoRotate
+			combined.BatteryLevel = state.BatteryLevel
+			combined.Charging = state.Charging
+			combined.ThermalStatus = state.ThermalStatus
+			combined.DisplayWidth = state.DisplayWidth
+			combined.DisplayHeight = state.DisplayHeight
+			combined.DisplayDensity = state.DisplayDensity
+		}
+		for name, value := range state.Properties {
+			candidateDescriptor := descriptorFor(profile.Properties, name)
+			currentDescriptor, already := propertySources[name]
+			if already && currentDescriptor.StateClass == strategy.StateBearing && candidateDescriptor.StateClass != strategy.StateBearing {
+				continue
+			}
+			if !already || value.Status == strategy.StatusAvailable || combined.Properties[name].Status != strategy.StatusAvailable {
+				value.Transport = transport
+				combined.Properties[name] = value
+				propertySources[name] = candidateDescriptor
+			}
+		}
+		for name, reason := range state.Unavailable {
+			if _, available := combined.Properties[name]; !available {
+				combined.Unavailable[name] = reason
+			}
+		}
+	}
+	if readCount == 0 {
+		return combined, &strategy.AvailabilityError{Reason: fmt.Sprintf("no transport could read state for %q: %s", deviceID, strings.Join(readErrors, "; ")), NextAction: "Use a reachable transport that declares state-bearing properties."}
+	}
+	if len(combined.Unavailable) == 0 {
+		combined.Unavailable = nil
+	}
+	return combined, nil
+}
+
+func descriptorFor(descriptors []strategy.PropertyDescriptor, name string) strategy.PropertyDescriptor {
+	for _, descriptor := range descriptors {
+		if descriptor.Name == name {
+			return descriptor
+		}
+	}
+	return strategy.PropertyDescriptor{Name: name, StateClass: strategy.StateBearing}
 }
 
 func (s *Service) loadTransportStates() error {
@@ -257,7 +550,7 @@ func (s *Service) loadTransportStates() error {
 		state.UpdatedAt, _ = time.Parse(time.RFC3339Nano, updated)
 		s.transportProfiles[transportProfileKey(state)] = state
 		if state.DeviceID != "" {
-			s.devices.UpsertIdentity(devicedomain.Record{ID: state.DeviceID, IdentityKey: state.Serial, Kind: "physical", Serial: state.Serial, StrategyID: state.StrategyID, Transport: state.Transport, Endpoint: state.Endpoint, Transports: []strategy.DeviceTransport{{StrategyID: state.StrategyID, Name: state.Transport, Endpoint: state.Endpoint, Health: strategy.HealthUnreachable, HealthReason: "restored transport has not been probed yet", ObservedAt: state.UpdatedAt}}, Status: strategy.HealthUnreachable, Health: strategy.HealthUnreachable, HealthReason: "restored transport has not been probed yet"})
+			s.devices.UpsertIdentity(devicedomain.Record{ID: state.DeviceID, IdentityKey: persistedIdentityKey(state), IdentityKind: persistedIdentityKind(state), Kind: "physical", Serial: state.Serial, StrategyID: state.StrategyID, Transport: state.Transport, Endpoint: state.Endpoint, Transports: []strategy.DeviceTransport{{StrategyID: state.StrategyID, Name: state.Transport, Endpoint: state.Endpoint, Health: strategy.HealthUnreachable, HealthReason: "restored transport has not been probed yet", ObservedAt: state.UpdatedAt}}, Status: strategy.HealthUnreachable, Health: strategy.HealthUnreachable, HealthReason: "restored transport has not been probed yet"})
 		}
 	}
 	profileErr := profileRows.Err()
@@ -280,10 +573,176 @@ func (s *Service) loadTransportStates() error {
 		s.transportStates[state.DeviceID] = state
 		s.transportProfiles[transportProfileKey(state)] = state
 		if state.Transport == "wireless" {
-			s.devices.UpsertIdentity(devicedomain.Record{ID: state.DeviceID, IdentityKey: state.Serial, Kind: "physical", Serial: state.Serial, StrategyID: state.StrategyID, Transport: state.Transport, Endpoint: state.Endpoint, Status: strategy.HealthUnreachable, Health: strategy.HealthUnreachable, HealthReason: "restored wireless transport has not been probed yet"})
+			s.devices.UpsertIdentity(devicedomain.Record{ID: state.DeviceID, IdentityKey: persistedIdentityKey(state), IdentityKind: persistedIdentityKind(state), Kind: "physical", Serial: state.Serial, StrategyID: state.StrategyID, Transport: state.Transport, Endpoint: state.Endpoint, Status: strategy.HealthUnreachable, Health: strategy.HealthUnreachable, HealthReason: "restored wireless transport has not been probed yet"})
 		}
 	}
 	return rows.Err()
+}
+
+func persistedIdentityKey(state transportState) string {
+	if state.StrategyID == "android-tv-remote" || state.StrategyID == "google-cast" {
+		return ""
+	}
+	return state.Serial
+}
+
+func persistedIdentityKind(state transportState) string {
+	switch state.StrategyID {
+	case "android-adb":
+		return string(identitydomain.ADBSerial)
+	case "android-tv-remote":
+		return string(identitydomain.BluetoothMAC)
+	case "google-cast":
+		return string(identitydomain.CastID)
+	default:
+		return ""
+	}
+}
+
+func (s *Service) loadIdentityClaims() error {
+	if s.db == nil {
+		return nil
+	}
+	rows, err := s.db.QueryContext(context.Background(), `SELECT device_id, kind, value, strategy_id, evidence FROM device_control_identity_claims`)
+	if err != nil {
+		return fmt.Errorf("load device identity claims: %w", err)
+	}
+	defer rows.Close()
+	grouped := map[string][]identitydomain.IdentityClaim{}
+	for rows.Next() {
+		var deviceID, kind, value, strategyID, evidence string
+		if err := rows.Scan(&deviceID, &kind, &value, &strategyID, &evidence); err != nil {
+			return fmt.Errorf("read device identity claim: %w", err)
+		}
+		claim, err := identitydomain.NewClaim(kind, value, strategyID, evidence)
+		if err != nil {
+			continue
+		}
+		grouped[deviceID] = append(grouped[deviceID], claim)
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	for deviceID, claims := range grouped {
+		record, ok := s.devices.Get(deviceID)
+		if !ok {
+			record = devicedomain.Record{ID: deviceID, Kind: "physical", Status: strategy.HealthUnreachable, Health: strategy.HealthUnreachable, HealthReason: "identity claims restored before transport probe"}
+		}
+		record.Claims = claims
+		if record.IdentityKey == "" {
+			record.IdentityKey = claims[0].Value
+			record.IdentityKind = string(claims[0].Kind)
+		}
+		s.devices.Upsert(record)
+	}
+	return nil
+}
+
+func (s *Service) loadIdentityMerges() error {
+	if s.db == nil {
+		return nil
+	}
+	rows, err := s.db.QueryContext(context.Background(), `SELECT canonical_id, member_id, claim_kind, claim_value, claim_strategy_id, claim_evidence, canonical_snapshot, member_snapshot FROM device_control_identity_merges`)
+	if err != nil {
+		return fmt.Errorf("load device identity merges: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var canonicalID, memberID, kind, value, strategyID, evidence, canonicalJSON, memberJSON string
+		if err := rows.Scan(&canonicalID, &memberID, &kind, &value, &strategyID, &evidence, &canonicalJSON, &memberJSON); err != nil {
+			return fmt.Errorf("read device identity merge: %w", err)
+		}
+		var canonical, member devicedomain.Record
+		if err := json.Unmarshal([]byte(canonicalJSON), &canonical); err != nil {
+			return fmt.Errorf("decode canonical identity snapshot: %w", err)
+		}
+		if err := json.Unmarshal([]byte(memberJSON), &member); err != nil {
+			return fmt.Errorf("decode member identity snapshot: %w", err)
+		}
+		claim, err := identitydomain.NewClaim(kind, value, strategyID, evidence)
+		if err != nil {
+			return err
+		}
+		s.devices.RestoreMerge(canonicalID, devicedomain.MergeSnapshot{CanonicalBefore: canonical, Members: map[string]devicedomain.Record{memberID: member}, Claim: claim})
+	}
+	return rows.Err()
+}
+
+func (s *Service) loadIdentityAliases() error {
+	if s.db == nil {
+		return nil
+	}
+	rows, err := s.db.QueryContext(context.Background(), `SELECT canonical_id, alias_id FROM device_control_identity_aliases`)
+	if err != nil {
+		return fmt.Errorf("load device identity aliases: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var canonicalID, aliasID string
+		if err := rows.Scan(&canonicalID, &aliasID); err != nil {
+			return err
+		}
+		s.addAuditAlias(canonicalID, aliasID)
+	}
+	return rows.Err()
+}
+
+func (s *Service) persistIdentityClaims(ctx context.Context, record devicedomain.Record) error {
+	if s.db == nil {
+		return nil
+	}
+	for _, claim := range record.Claims {
+		if err := identitydomain.ValidateClaim(claim); err != nil {
+			continue
+		}
+		if _, err := s.db.ExecContext(ctx, `INSERT INTO device_control_identity_claims (device_id, kind, value, strategy_id, evidence) VALUES (?, ?, ?, ?, ?) ON CONFLICT(device_id, kind, value) DO UPDATE SET strategy_id=excluded.strategy_id, evidence=excluded.evidence`, record.ID, claim.Kind, claim.Value, claim.StrategyID, claim.Evidence); err != nil {
+			return fmt.Errorf("persist device identity claim: %w", err)
+		}
+	}
+	return nil
+}
+
+func (s *Service) persistIdentityMerge(ctx context.Context, canonicalID string, snapshot devicedomain.MergeSnapshot) error {
+	if s.db == nil {
+		return nil
+	}
+	canonicalJSON, err := json.Marshal(snapshot.CanonicalBefore)
+	if err != nil {
+		return err
+	}
+	for memberID, member := range snapshot.Members {
+		memberJSON, marshalErr := json.Marshal(member)
+		if marshalErr != nil {
+			return marshalErr
+		}
+		claim := snapshot.Claim
+		if _, execErr := s.db.ExecContext(ctx, `INSERT INTO device_control_identity_merges (canonical_id, member_id, claim_kind, claim_value, claim_strategy_id, claim_evidence, canonical_snapshot, member_snapshot, merged_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(canonical_id, member_id) DO UPDATE SET claim_kind=excluded.claim_kind, claim_value=excluded.claim_value, claim_strategy_id=excluded.claim_strategy_id, claim_evidence=excluded.claim_evidence, canonical_snapshot=excluded.canonical_snapshot, member_snapshot=excluded.member_snapshot, merged_at=excluded.merged_at`, canonicalID, memberID, claim.Kind, claim.Value, claim.StrategyID, claim.Evidence, string(canonicalJSON), string(memberJSON), time.Now().UTC().Format(time.RFC3339Nano)); execErr != nil {
+			return execErr
+		}
+	}
+	return nil
+}
+
+func (s *Service) persistIdentityAlias(ctx context.Context, canonicalID, aliasID string) error {
+	s.addAuditAlias(canonicalID, aliasID)
+	if s.db == nil {
+		return nil
+	}
+	_, err := s.db.ExecContext(ctx, `INSERT INTO device_control_identity_aliases (canonical_id, alias_id, created_at) VALUES (?, ?, ?) ON CONFLICT(canonical_id, alias_id) DO NOTHING`, canonicalID, aliasID, time.Now().UTC().Format(time.RFC3339Nano))
+	return err
+}
+
+func (s *Service) addAuditAlias(canonicalID, aliasID string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.auditAliases == nil {
+		s.auditAliases = map[string]map[string]struct{}{}
+	}
+	if s.auditAliases[canonicalID] == nil {
+		s.auditAliases[canonicalID] = map[string]struct{}{}
+	}
+	s.auditAliases[canonicalID][canonicalID] = struct{}{}
+	s.auditAliases[canonicalID][aliasID] = struct{}{}
 }
 
 func (s *Service) restoreTransportStrategies() {
@@ -558,20 +1017,22 @@ func (s *Service) AuditContext(ctx context.Context) []Audit {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.db != nil {
-		rows, err := s.db.QueryContext(ctx, `SELECT id, actor, device_id, transport, causation_id, lease_id, verb, outcome, profile_id, method, attempts, provider_state, before_lock_state, after_lock_state, created_at, redaction_verified, redaction_opted_out FROM device_control_audits ORDER BY created_at DESC`)
+		rows, err := s.db.QueryContext(ctx, `SELECT id, actor, device_id, transport, causation_id, lease_id, verb, outcome, profile_id, method, attempts, provider_state, before_lock_state, after_lock_state, created_at, redaction_verified, redaction_opted_out, interactive, evidence_backed FROM device_control_audits ORDER BY created_at DESC`)
 		if err == nil {
 			defer rows.Close()
 			out := make([]Audit, 0)
 			for rows.Next() {
 				var v Audit
 				var created string
-				var verified, optedOut int
-				if err := rows.Scan(&v.ID, &v.Actor, &v.DeviceID, &v.Transport, &v.CausationID, &v.LeaseID, &v.Verb, &v.Outcome, &v.ProfileID, &v.Method, &v.Attempts, &v.ProviderState, &v.BeforeLockState, &v.AfterLockState, &created, &verified, &optedOut); err != nil {
+				var verified, optedOut, interactive, evidenceBacked int
+				if err := rows.Scan(&v.ID, &v.Actor, &v.DeviceID, &v.Transport, &v.CausationID, &v.LeaseID, &v.Verb, &v.Outcome, &v.ProfileID, &v.Method, &v.Attempts, &v.ProviderState, &v.BeforeLockState, &v.AfterLockState, &created, &verified, &optedOut, &interactive, &evidenceBacked); err != nil {
 					continue
 				}
 				v.CreatedAt, _ = time.Parse(time.RFC3339Nano, created)
 				v.RedactionVerified = verified != 0
 				v.RedactionOptedOut = optedOut != 0
+				v.Interactive = interactive != 0
+				v.EvidenceBacked = evidenceBacked != 0
 				out = append(out, v)
 			}
 			return out

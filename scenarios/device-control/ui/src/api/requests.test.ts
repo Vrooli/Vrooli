@@ -41,7 +41,7 @@ describe("device-control API request adapters", () => {
     await killSession("session/1");
     await releaseSession("session/1");
     await acquireSession("device/1", "operator");
-    await connectDevice("android");
+    await connectDevice("google-tv");
     await validateFlow("strategy", { steps: [] });
     await runFlow("device/1", "operator", "lease", { steps: [] });
     await auditRecords();

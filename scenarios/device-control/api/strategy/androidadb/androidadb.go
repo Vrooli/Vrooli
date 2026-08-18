@@ -987,7 +987,7 @@ func (a *Adapter) Enumerate(ctx context.Context) ([]strategy.Device, error) {
 				osVersion = strings.TrimSpace(string(version))
 			}
 		}
-		devices = append(devices, strategy.Device{ID: "android-" + hex.EncodeToString(digest[:8]), Serial: identitySerial, Endpoint: endpoint, Model: model, OSVersion: osVersion, StrategyID: a.ID(), Transport: transportForSerial(serial), Health: health, HealthReason: reason, ObservedAt: now})
+		devices = append(devices, strategy.Device{ID: "android-" + hex.EncodeToString(digest[:8]), Serial: identitySerial, IdentityKey: identitySerial, IdentityKind: "adb-serial", Endpoint: endpoint, Model: model, OSVersion: osVersion, StrategyID: a.ID(), Transport: transportForSerial(serial), Health: health, HealthReason: reason, ObservedAt: now})
 	}
 	return devices, nil
 }

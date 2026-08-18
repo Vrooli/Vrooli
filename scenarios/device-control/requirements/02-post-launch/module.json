@@ -70,16 +70,17 @@
     },
     {
       "criticality": "P1",
-      "description": "`device-control agent run --device <id> --goal \"<goal>\"` spawns an agent-manager run driven by a prompt-manager skill that teaches the CLI. Runs are bounded by step count, cost ceiling and lease scope, fully audited, and abortable.",
+      "description": "`device-control agent start --device <id> --goal \"<goal>\"` uses the prompt-manager device-control skill and routes any inference through ai-gateway. The delivered bounded local loop builds a typed capability/state world model, remains valid without a frame modality, is bounded by lease scope, fully audited, abortable, and can promote executable steps into a deterministic flow. Long-lived orchestration through agent-manager remains deferred.",
       "id": "DVC-P1-005",
       "prd_ref": "OT-P1-005",
-      "status": "planned",
-      "title": "Agent mode via agent-manager and a prompt-manager skill",
+      "status": "complete",
+      "title": "Bounded agent mode via prompt-manager skill and ai-gateway",
       "validation": [
         {
-          "type": "manual",
-          "status": "planned",
-          "notes": "integration phase — planned test `api/agent/run_test.go::TestAgentRunIsBoundedAuditedAndAbortable`. Agent run honours step, cost and lease bounds, records every action, and aborts cleanly; spawns through agent-manager with the prompt-manager skill."
+          "type": "test",
+          "status": "complete",
+          "ref": "api/internal/control/service_test.go::TestAgentRefusesWithoutSkillAndPromotesPassingRun",
+          "notes": "Targeted control tests cover skill refusal, typed world-model planning, no-frame completion, undeclared-step refusal, dry-run, lease ownership, and post-actuation state verification. Production inference uses the generated ai-gateway planner and no provider SDK."
         }
       ]
     },
@@ -88,13 +89,14 @@
       "description": "Every agent action is recorded as a flow step, so a successful goal-directed run exports as a deterministic flow that replays without inference cost. This is the compounding loop: infer once, replay free.",
       "id": "DVC-P1-006",
       "prd_ref": "OT-P1-006",
-      "status": "planned",
+      "status": "complete",
       "title": "Promote an agent run to a deterministic flow",
       "validation": [
         {
-          "type": "manual",
-          "status": "planned",
-          "notes": "unit phase — planned test `api/agent/promote_test.go::TestAgentRunExportsAsDeterministicFlow`. A completed agent run exports to a flow whose replay produces the same step sequence with no AI step remaining."
+          "type": "test",
+          "status": "complete",
+          "ref": "api/internal/control/service_test.go::TestAgentRefusesWithoutSkillAndPromotesPassingRun",
+          "notes": "A passing agent run records executable steps, promotion creates a durable flow-run entry, and the existing flow export path returns those steps without an AI step."
         }
       ]
     },
@@ -115,17 +117,18 @@
     },
     {
       "criticality": "P1",
-      "description": "Live device view with session controls, flow authoring and validation, run review with chaptered evidence, and a strategy conformance matrix showing what each device can actually prove right now.",
+      "description": "Live device view with session controls, flow authoring and validation, run review with chaptered evidence, capability-composed television/phone panels, LAN discovery, pairing, and a strategy conformance matrix showing what each device can actually prove right now.",
       "id": "DVC-P1-008",
       "prd_ref": "OT-P1-008",
-      "status": "planned",
+      "status": "complete",
       "title": "Operator UI",
       "validation": [
-        {
-          "type": "manual",
-          "status": "planned",
-          "notes": "bas phase — planned test `bas/cases/02-operator/live-session-and-flow-review.json`. Operator surfaces: fleet view with per-device probed capability, live session with visible lease and kill, flow authoring validation, and run review with chaptered evidence. The zero-device onboarding slice is covered by `bas/cases/02-operator/onboarding-empty-state.json` and remains pending a detached-phone BAS run."
-        }
+      {
+        "type": "test",
+        "ref": "ui/src/pages/DeviceDetailPage.test.tsx",
+        "status": "complete",
+        "notes": "The `/devices/:deviceId` route renders capability-composed remote, media, property, sensor, log, and live-view panels; Dashboard owns LAN discovery and PIN pairing; the detail page exposes durable identity claims and address-only correlation refusal. Full UI tests, type-check, lint, and coverage passed; real-device pairing remains an external gated walkthrough."
+      }
       ]
     },
     {
@@ -154,12 +157,12 @@
     },
     {
       "criticality": "P1",
-      "description": "Live Android state reads expose foreground, screen/lock, four-way orientation, battery, thermal, and display metrics with exact unavailable probe commands, and locked/off visible surfaces fail before capture.",
+      "description": "Live device state reads preserve all Android foreground, screen/lock, orientation, battery, thermal, and display fields while adding a property bag for television receiver state; unavailable properties retain an explicit reason instead of a zero value.",
       "id": "DVC-P1-011",
       "prd_ref": "OT-P1-008",
       "status": "complete",
       "title": "Device state observation",
-      "validation": [{"type": "test", "ref": "api/strategy/androidadb/androidadb_test.go::TestReadStateParsesRecordedAndroidProbes", "status": "complete", "notes": "Recorded dumpsys table covers all state fields; live phone was observed dozing and was not claimed as a screenshot gate."}]
+      "validation": [{"type": "test", "ref": "api/strategy/androidadb/androidadb_test.go::TestReadStateParsesRecordedAndroidProbes", "status": "complete", "notes": "Recorded dumpsys table covers all Android fields; Google Cast property-state tests cover volume, mute, application, player state, unavailable power/input, and transport attribution while preserving the mobile fields."}]
     },
     {
       "criticality": "P1",

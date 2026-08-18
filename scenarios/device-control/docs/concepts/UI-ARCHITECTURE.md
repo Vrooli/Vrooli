@@ -223,3 +223,33 @@ intent into checks.
 - Manifest: `ui/manifest.json`
 - Slot reference: [`ui-manifest.md`](../reference/ui-manifest.md)
 - Adoption resolver: `scenarios/react-component-library/api/internal/adoptions/pathresolver.go`
+# Capability-composed device panels
+
+The `/devices/:deviceId` page is selected by route, while its controls are
+selected by the declared capability set. Available, unavailable, and
+unsupported are separate dispositions; an unavailable capability shows its
+prerequisite and next action.
+
+| Declared capabilities | Panel |
+|---|---|
+| `screenshot` + `input` | polled live view |
+| `input` without `screenshot` | directional remote |
+| `media` | media transport and now-playing |
+| `property` | descriptor-generated controls |
+| `sensor` | sensor readings |
+| `device-logs` | device log panel |
+
+No component branches on a device type name, model, strategy id, or transport
+name to choose a panel. The live view repeats observation at a labeled refresh
+rate; it is not a video stream. A state event updates the existing panel
+without requiring a manual refresh.
+
+```mermaid
+flowchart LR
+    D[Device declaration] --> C{Capabilities}
+    C -->|screenshot + input| L[Polled live view]
+    C -->|input, no screenshot| R[Directional remote]
+    C -->|media| M[Media transport]
+    C -->|property| P[Generated property controls]
+    C -->|sensor| S[Sensor panel]
+```

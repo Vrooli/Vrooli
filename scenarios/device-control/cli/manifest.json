@@ -21,6 +21,44 @@
           "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
         },
         {
+          "name": "discover",
+          "description": "Browse the LAN for DNS-SD device services",
+          "flags": [{ "name": "service" }, { "name": "timeout-seconds", "default": "10" }],
+          "binding": { "kind": "local" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "pair",
+          "description": "Pair a Google TV Android TV Remote transport",
+          "positionals": [{ "name": "id", "required": true }],
+          "flags": [{ "name": "pin" }, { "name": "pin-stdin", "bool": true }],
+          "binding": { "kind": "local" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "merge",
+          "description": "Merge two device identities under an owner-asserted hardware claim",
+          "positionals": [{ "name": "id", "required": true }, { "name": "member", "required": true }],
+          "flags": [{ "name": "claim", "required": true }],
+          "binding": { "kind": "local" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "split",
+          "description": "Split a previously merged device identity",
+          "positionals": [{ "name": "id", "required": true }],
+          "binding": { "kind": "local" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "actuate",
+          "description": "Send one direct lease-owned device command",
+          "positionals": [{ "name": "id", "required": true }],
+          "flags": [{ "name": "key" }, { "name": "text" }, { "name": "media" }, { "name": "property" }, { "name": "value" }, { "name": "transport" }, { "name": "lease", "required": true }, { "name": "actor" }, { "name": "repeat", "default": "1" }],
+          "binding": { "kind": "local" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
           "name": "describe",
           "description": "Describe one device and every transport capability profile",
           "positionals": [{ "name": "id", "required": true }],
@@ -241,7 +279,8 @@
             { "name": "goal", "required": true },
             { "name": "device", "required": true },
             { "name": "actor", "default": "cli" },
-            { "name": "skill-available", "bool": true }
+            { "name": "skill-available", "bool": true },
+            { "name": "dry-run", "bool": true }
           ],
           "binding": { "kind": "local" },
           "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }

@@ -4,9 +4,11 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/hex"
 	"encoding/pem"
 	"fmt"
 	"math/big"
@@ -181,11 +183,60 @@ func TestPairingWireClientCompletesFixtureExchangeAndReturnsBundle(t *testing.T)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	bundleBytes, err := (wirePairingClient{}).Pair(ctx, Device{Serial: "fixture-tv", Endpoint: listener.Addr().String()}, "123456")
+	session, err := (wirePairingClient{}).Begin(ctx, Device{Serial: "fixture-tv", Endpoint: listener.Addr().String()})
+	require.NoError(t, err)
+	// Begin returns only after the configuration acknowledgement. This is the
+	// protocol boundary at which a real television displays its PIN.
+	wireSession, ok := session.(*wirePairingSession)
+	require.True(t, ok)
+	serverCertificate := wireSession.conn.ConnectionState().PeerCertificates[0]
+	code := fixturePairingCode(t, wireSession.clientCertificate, serverCertificate)
+	bundleBytes, err := session.Complete(ctx, code)
+	require.NoError(t, err)
+	require.NoError(t, session.Close())
 	require.NoError(t, err)
 	bundle, err := decodeCertificateBundle(bundleBytes)
 	require.NoError(t, err)
 	_, err = tls.X509KeyPair([]byte(bundle.Certificate), []byte(bundle.PrivateKey))
 	require.NoError(t, err)
 	require.NoError(t, <-serverDone)
+}
+
+func TestPairingSecretUsesChecksumAndLastFourHexCharacters(t *testing.T) {
+	_, client, err := newCertificateBundle()
+	require.NoError(t, err)
+	server := testServerCertificate(t)
+	serverCert, err := x509.ParseCertificate(server.Certificate[0])
+	require.NoError(t, err)
+	code := fixturePairingCode(t, client, serverCert)
+	got, err := pairingSecret(client, tls.ConnectionState{PeerCertificates: []*x509.Certificate{serverCert}}, code)
+	require.NoError(t, err)
+	require.Equal(t, code[:2], fmt.Sprintf("%02X", got[0]))
+	require.Len(t, got, sha256.Size)
+}
+
+func fixturePairingCode(t *testing.T, client tls.Certificate, server *x509.Certificate) string {
+	t.Helper()
+	clientCert, err := x509.ParseCertificate(client.Certificate[0])
+	require.NoError(t, err)
+	clientRSA := clientCert.PublicKey.(*rsa.PublicKey)
+	serverRSA := server.PublicKey.(*rsa.PublicKey)
+	for suffix := 0; suffix <= 0xffff; suffix++ {
+		tail := fmt.Sprintf("%04X", suffix)
+		hash := sha256.New()
+		_, _ = hash.Write(clientRSA.N.Bytes())
+		_, _ = hash.Write(big.NewInt(int64(clientRSA.E)).Bytes())
+		_, _ = hash.Write(serverRSA.N.Bytes())
+		_, _ = hash.Write(big.NewInt(int64(serverRSA.E)).Bytes())
+		tailBytes, decodeErr := hex.DecodeString(tail)
+		require.NoError(t, decodeErr)
+		_, _ = hash.Write(tailBytes)
+		digest := hash.Sum(nil)
+		code := fmt.Sprintf("%02X%s", digest[0], tail)
+		if _, pairingErr := pairingSecret(client, tls.ConnectionState{PeerCertificates: []*x509.Certificate{server}}, code); pairingErr == nil {
+			return code
+		}
+	}
+	t.Fatal("could not construct a valid fixture pairing code")
+	return ""
 }

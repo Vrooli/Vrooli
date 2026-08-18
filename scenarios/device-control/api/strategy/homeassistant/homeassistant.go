@@ -162,7 +162,7 @@ func (s *Strategy) SetProperty(ctx context.Context, set strategy.PropertySet) er
 	domain := strings.SplitN(s.entity.EntityID, ".", 2)[0]
 	value := strings.ToLower(strings.TrimSpace(fmt.Sprint(set.Value)))
 	service := ""
-	var data map[string]any = map[string]any{"entity_id": s.entity.EntityID}
+	data := map[string]any{"entity_id": s.entity.EntityID}
 	switch domain {
 	case "light", "switch":
 		service = "turn_on"

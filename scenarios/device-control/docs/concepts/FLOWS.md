@@ -39,7 +39,7 @@ outcome, statefulness, and validation level.
 | Flow validation | flows | A flow is saved, or a run is requested. | A capability gap report: the set of required capabilities this strategy cannot satisfy. | Stateless pure function over (flow, capability declaration). | Level 3 — matrix over step kind × declared capability. |
 | Flow run | flows | Operator, agent, delivery ramp, or schedule. | A chaptered evidence record with a terminal disposition. | Ordered: validated → leased → running → terminal (passed \| failed \| aborted \| unavailable). Bounded waits inside each step. | Level 5 — this is the flow that produces release-relevant evidence. |
 | Target resolution | flows | Each step that names a target by intent. | A concrete coordinate or element handle, plus the rung used and its confidence. | Stateless per attempt; falls down the ladder, never up. | Level 3 — matrix over rung × strategy tier. |
-| Agent run | agent | `device-control agent run --goal`. | A terminal goal outcome plus a recorded step sequence eligible for promotion. | Bounded: step count, cost ceiling, lease scope. Abortable at any point. | Level 4 — bounds are the safety property. |
+| Agent run | agent | `device-control agent start --device <id> --goal <goal>`. | A terminal goal outcome plus a recorded step sequence eligible for promotion. | Bounded: step count, cost ceiling, lease scope. Abortable at any point. | Level 4 — bounds are the safety property. |
 | Agent-run promotion | agent | Operator promotes a successful agent run. | A deterministic flow whose replay contains no `ai.*` step. | Stateless transform over a completed run's step record. | Level 3 — replay equivalence. |
 
 ### Target resolution

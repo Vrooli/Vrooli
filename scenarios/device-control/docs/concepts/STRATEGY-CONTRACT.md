@@ -19,6 +19,13 @@ interfaces, alongside the existing `SessionRecorder` and `SemanticResolver`:
   attributes.
 - `SensorReader` — read-only typed sensor readings.
 - `MediaController` — play, pause, stop, next, previous, and volume.
+- `StateReader` — returns the typed mobile subset plus every declared property
+  and explicit unavailable reasons.
+- `StateObserver` — runs until cancellation and publishes one event per changed
+  attribute. Push transports use it directly; poll transports declare their
+  interval and use `StateReader` as a bounded fallback.
+- `Pairer` — performs an interactive pairing exchange from a non-serializable
+  secret request and returns only a redacted outcome.
 
 The capability constants added by this model are `CapProperty`, `CapSensor`,
 and `CapMedia`. `CapProperty` describes state that can be read or changed;
@@ -27,6 +34,13 @@ commands. A state-bearing device, such as a light, has a current value that can
 transition. An event-bearing device, such as a doorbell button, reports an
 occurrence without a durable current value. The distinction is preserved in
 state-change events.
+
+`DeviceState` keeps the existing named mobile fields and adds a typed property
+bag. Every property declared by a transport is either present with its value
+and supplying transport or appears in `Unavailable` with a reason; a zero value
+is never used to hide an unreadable television property. Cast declares push
+observation, while transports without push observation may declare a poll
+interval.
 
 Unavailable capabilities are never omitted. A declaration includes the
 capability with `status: unavailable` and a reason or next action. This lets an

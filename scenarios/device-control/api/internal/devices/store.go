@@ -3,19 +3,26 @@
 package devices
 
 import (
+	"fmt"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
+	"device-control/internal/identity"
 	"device-control/strategy"
 )
 
 type Record struct {
 	ID, Name, Kind, Serial, Model, OSVersion, StrategyID string
 	IdentityKey                                          string
+	IdentityKind                                         string
+	Claims                                               []identity.IdentityClaim
+	IdentityReason                                       string
 	Endpoint                                             string
 	Status, Health, HealthReason, HostNodeID, Transport  string
 	Capabilities                                         []strategy.Capability
+	Properties                                           []strategy.PropertyDescriptor
 	FirstSeenAt, LastSeenAt                              time.Time
 	ObservedAt                                           time.Time
 	Transports                                           []strategy.DeviceTransport
@@ -24,9 +31,18 @@ type Record struct {
 type Store struct {
 	mu      sync.RWMutex
 	records map[string]Record
+	merges  map[string]MergeSnapshot
 }
 
-func NewStore() *Store { return &Store{records: map[string]Record{}} }
+type MergeSnapshot struct {
+	CanonicalBefore Record
+	Members         map[string]Record
+	Claim           identity.IdentityClaim
+}
+
+func NewStore() *Store {
+	return &Store{records: map[string]Record{}, merges: map[string]MergeSnapshot{}}
+}
 
 func (s *Store) Upsert(record Record) Record {
 	s.mu.Lock()
@@ -46,6 +62,9 @@ func (s *Store) Upsert(record Record) Record {
 	if len(record.Capabilities) == 0 {
 		record.Capabilities = old.Capabilities
 	}
+	if len(record.Properties) == 0 {
+		record.Properties = old.Properties
+	}
 	s.records[record.ID] = clone(record)
 	return clone(record)
 }
@@ -56,31 +75,46 @@ func (s *Store) Upsert(record Record) Record {
 func (s *Store) UpsertIdentity(record Record) Record {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	record.Claims = normalizedClaims(record)
+	if len(record.Claims) > 0 && record.IdentityKey == "" {
+		record.IdentityKey = record.Claims[0].Value
+	}
 	canonicalID := record.ID
-	if record.Kind == "physical" && record.Serial != "" {
-		for id, existing := range s.records {
-			if id == record.ID || existing.Kind != "physical" {
-				continue
-			}
-			if existing.Serial == record.Serial {
-				canonicalID = existing.ID
-				// Keep the canonical row; only an alternate endpoint-keyed row
-				// is removed when it is not the selected identity.
-				if id != canonicalID {
-					delete(s.records, id)
-				}
-			} else if record.Endpoint != "" && existing.Serial == record.Endpoint && record.Serial != record.Endpoint {
-				// An endpoint-keyed pre-promotion row is replaced by the
-				// stronger hardware identity contributed by the incoming strategy.
-				delete(s.records, id)
-				canonicalID = record.ID
-			}
+	var existing Record
+	var hasExisting bool
+	for id, candidate := range s.records {
+		if candidate.Kind != "physical" || id == record.ID {
+			continue
+		}
+		candidateClaims := candidate.Claims
+		if len(candidateClaims) == 0 {
+			candidateClaims = normalizedClaims(candidate)
+		}
+		if identity.ClaimsMatch(candidateClaims, record.Claims) {
+			canonicalID, existing, hasExisting = id, candidate, true
+			existing.Claims = candidateClaims
+			break
+		}
+		if sameEndpoint(candidate.Endpoint, record.Endpoint) && record.Endpoint != "" {
+			record.IdentityReason = "address-only-correlation-refused"
+			candidate.IdentityReason = "address-only-correlation-refused"
+			s.records[id] = clone(candidate)
 		}
 	}
-	if existing, ok := s.records[canonicalID]; ok {
+	if current, ok := s.records[canonicalID]; ok {
+		if len(current.Claims) > 0 && len(record.Claims) > 0 && !identity.ClaimsMatch(current.Claims, record.Claims) {
+			// A reused transport id with a conflicting hardware claim is a
+			// distinct identity, never an overwrite of the old audit owner.
+			canonicalID = record.ID + "#conflict-" + string(record.Claims[0].Kind)
+		} else {
+			existing, hasExisting = current, true
+		}
+	}
+	if hasExisting {
 		record.ID = canonicalID
 		record.FirstSeenAt = existing.FirstSeenAt
 		record.Transports = mergeTransports(existing.Transports, record)
+		record.Claims = mergeClaims(existing.Claims, record.Claims)
 		if record.StrategyID == "" {
 			record.StrategyID = existing.StrategyID
 		}
@@ -89,6 +123,12 @@ func (s *Store) UpsertIdentity(record Record) Record {
 		}
 		if record.Serial == "" {
 			record.Serial = existing.Serial
+		}
+		if record.IdentityKey == "" {
+			record.IdentityKey = existing.IdentityKey
+		}
+		if record.IdentityKind == "" {
+			record.IdentityKind = existing.IdentityKind
 		}
 	} else {
 		record.Transports = mergeTransports(nil, record)
@@ -108,8 +148,64 @@ func (s *Store) UpsertIdentity(record Record) Record {
 	if len(record.Capabilities) == 0 {
 		record.Capabilities = old.Capabilities
 	}
+	if len(record.Properties) == 0 {
+		record.Properties = old.Properties
+	}
 	s.records[record.ID] = clone(record)
 	return clone(record)
+}
+
+func normalizedClaims(record Record) []identity.IdentityClaim {
+	claims := make([]identity.IdentityClaim, 0, len(record.Claims)+1)
+	for _, claim := range record.Claims {
+		if claim.Valid() {
+			claims = appendUniqueClaim(claims, claim)
+		}
+	}
+	if len(claims) == 0 {
+		kind := strings.TrimSpace(record.IdentityKind)
+		if kind == "" {
+			switch record.StrategyID {
+			case "android-adb":
+				kind = string(identity.ADBSerial)
+			case "android-tv-remote":
+				kind = string(identity.BluetoothMAC)
+			case "google-cast":
+				kind = string(identity.CastID)
+			}
+		}
+		value := strings.TrimSpace(record.IdentityKey)
+		if value == "" && kind == string(identity.ADBSerial) {
+			value = strings.TrimSpace(record.Serial)
+		}
+		if value != "" {
+			if claim, err := identity.NewClaim(kind, value, record.StrategyID, "observed"); err == nil {
+				claims = append(claims, claim)
+			}
+		}
+	}
+	return claims
+}
+
+func appendUniqueClaim(claims []identity.IdentityClaim, claim identity.IdentityClaim) []identity.IdentityClaim {
+	for _, existing := range claims {
+		if existing.Key() == claim.Key() && existing.Evidence == claim.Evidence {
+			return claims
+		}
+	}
+	return append(claims, claim)
+}
+
+func mergeClaims(left, right []identity.IdentityClaim) []identity.IdentityClaim {
+	merged := append([]identity.IdentityClaim(nil), left...)
+	for _, claim := range right {
+		merged = appendUniqueClaim(merged, claim)
+	}
+	return merged
+}
+
+func sameEndpoint(left, right string) bool {
+	return left != "" && right != "" && strings.EqualFold(strings.TrimSpace(left), strings.TrimSpace(right))
 }
 
 func mergeTransports(existing []strategy.DeviceTransport, record Record) []strategy.DeviceTransport {
@@ -121,7 +217,7 @@ func mergeTransports(existing []strategy.DeviceTransport, record Record) []strat
 	if name == "" {
 		name = record.StrategyID
 	}
-	transport := strategy.DeviceTransport{StrategyID: record.StrategyID, Name: name, Endpoint: record.Endpoint, Health: record.Health, HealthReason: record.HealthReason, Capabilities: map[string]strategy.Capability{}, ObservedAt: record.ObservedAt}
+	transport := strategy.DeviceTransport{StrategyID: record.StrategyID, Name: name, Endpoint: record.Endpoint, Health: record.Health, HealthReason: record.HealthReason, Capabilities: map[string]strategy.Capability{}, Properties: append([]strategy.PropertyDescriptor(nil), record.Properties...), ObservedAt: record.ObservedAt}
 	for _, capability := range record.Capabilities {
 		transport.Capabilities[capability.Name] = capability
 	}
@@ -185,7 +281,118 @@ func (s *Store) Forget(id string) bool {
 		return false
 	}
 	delete(s.records, id)
+	for canonical, snapshot := range s.merges {
+		if canonical == id {
+			delete(s.merges, canonical)
+			continue
+		}
+		if _, ok := snapshot.Members[id]; ok {
+			delete(s.merges, canonical)
+		}
+	}
 	return true
+}
+
+// Merge combines two identities only after the caller has supplied a valid
+// shared observed claim or an explicit owner assertion. The pre-merge records
+// are retained so split can restore both identities without losing transport
+// attribution.
+func (s *Store) Merge(canonicalID, memberID string, claim identity.IdentityClaim) (Record, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if err := identity.ValidateClaim(claim); err != nil {
+		return Record{}, err
+	}
+	canonical, ok := s.records[canonicalID]
+	if !ok {
+		return Record{}, fmt.Errorf("identity %q not found", canonicalID)
+	}
+	member, ok := s.records[memberID]
+	if !ok {
+		return Record{}, fmt.Errorf("identity %q not found", memberID)
+	}
+	if canonicalID == memberID {
+		return Record{}, fmt.Errorf("cannot merge an identity with itself")
+	}
+	if claim.Evidence != "owner-asserted" && !identity.ClaimsMatch([]identity.IdentityClaim{claim}, canonical.Claims) {
+		return Record{}, fmt.Errorf("canonical identity %q does not carry claim %s=%s", canonicalID, claim.Kind, claim.Value)
+	}
+	if claim.Evidence != "owner-asserted" && !identity.ClaimsMatch([]identity.IdentityClaim{claim}, member.Claims) {
+		return Record{}, fmt.Errorf("member identity %q does not carry claim %s=%s", memberID, claim.Kind, claim.Value)
+	}
+	canonicalBefore := clone(canonical)
+	merged := canonical
+	merged.Claims = mergeClaims(canonical.Claims, member.Claims)
+	merged.Claims = appendUniqueClaim(merged.Claims, claim)
+	merged.Transports = mergeTransports(canonical.Transports, Record{StrategyID: member.StrategyID, Transport: member.Transport, Endpoint: member.Endpoint, Health: member.Health, HealthReason: member.HealthReason, Capabilities: member.Capabilities, Properties: member.Properties, ObservedAt: member.ObservedAt})
+	for _, transport := range member.Transports {
+		mergeTransport(&merged.Transports, transport)
+	}
+	if merged.Name == "" {
+		merged.Name = member.Name
+	}
+	if merged.Model == "" {
+		merged.Model = member.Model
+	}
+	merged.IdentityReason = "merged-on-" + string(claim.Kind)
+	s.records[canonicalID] = clone(merged)
+	delete(s.records, memberID)
+	if s.merges == nil {
+		s.merges = map[string]MergeSnapshot{}
+	}
+	s.merges[canonicalID] = MergeSnapshot{CanonicalBefore: canonicalBefore, Members: map[string]Record{memberID: clone(member)}, Claim: claim}
+	return clone(merged), nil
+}
+
+// Split restores every pre-merge identity for canonicalID. The operation is
+// intentionally all-or-nothing from the store's perspective.
+func (s *Store) Split(canonicalID string) ([]Record, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	snapshot, ok := s.merges[canonicalID]
+	if !ok {
+		return nil, fmt.Errorf("identity %q has no merge history", canonicalID)
+	}
+	restored := []Record{clone(snapshot.CanonicalBefore)}
+	s.records[canonicalID] = clone(snapshot.CanonicalBefore)
+	for memberID, record := range snapshot.Members {
+		s.records[memberID] = clone(record)
+		restored = append(restored, clone(record))
+	}
+	delete(s.merges, canonicalID)
+	sort.Slice(restored, func(i, j int) bool { return restored[i].ID < restored[j].ID })
+	return restored, nil
+}
+
+// RestoreMerge rehydrates durable merge history before inventory resumes.
+func (s *Store) RestoreMerge(canonicalID string, snapshot MergeSnapshot) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.merges == nil {
+		s.merges = map[string]MergeSnapshot{}
+	}
+	current, ok := s.merges[canonicalID]
+	if !ok {
+		current = MergeSnapshot{CanonicalBefore: clone(snapshot.CanonicalBefore), Members: map[string]Record{}, Claim: snapshot.Claim}
+	}
+	for id, record := range snapshot.Members {
+		current.Members[id] = clone(record)
+	}
+	s.merges[canonicalID] = current
+}
+
+func (s *Store) MergeSnapshot(canonicalID string) (MergeSnapshot, bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	snapshot, ok := s.merges[canonicalID]
+	if !ok {
+		return MergeSnapshot{}, false
+	}
+	copySnapshot := MergeSnapshot{CanonicalBefore: clone(snapshot.CanonicalBefore), Members: map[string]Record{}, Claim: snapshot.Claim}
+	for id, record := range snapshot.Members {
+		copySnapshot.Members[id] = clone(record)
+	}
+	return copySnapshot, true
 }
 
 func (s *Store) List() []Record {
@@ -203,9 +410,12 @@ func clone(record Record) Record {
 	capabilities := make([]strategy.Capability, len(record.Capabilities))
 	copy(capabilities, record.Capabilities)
 	record.Capabilities = capabilities
+	record.Properties = append([]strategy.PropertyDescriptor(nil), record.Properties...)
+	record.Claims = append([]identity.IdentityClaim(nil), record.Claims...)
 	record.Transports = append([]strategy.DeviceTransport(nil), record.Transports...)
 	for i := range record.Transports {
 		record.Transports[i].Capabilities = cloneCapabilities(record.Transports[i].Capabilities)
+		record.Transports[i].Properties = append([]strategy.PropertyDescriptor(nil), record.Transports[i].Properties...)
 	}
 	return record
 }

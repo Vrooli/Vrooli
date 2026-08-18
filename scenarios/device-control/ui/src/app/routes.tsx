@@ -18,6 +18,7 @@ const DashboardPage = lazy(async () => ({ default: (await import("../pages/Dashb
 const SettingsPage = lazy(async () => ({ default: (await import("../pages/SettingsPage")).SettingsPage }));
 const FlowsPage = lazy(async () => ({ default: (await import("../pages/FlowsPage")).FlowsPage }));
 const EvidencePage = lazy(async () => ({ default: (await import("../pages/EvidencePage")).EvidencePage }));
+const DeviceDetailPage = lazy(async () => ({ default: (await import("../pages/DeviceDetailPage")).DeviceDetailPage }));
 
 function PageLoading() {
   const { t } = useTranslation();
@@ -43,6 +44,7 @@ export const routes: RouteObject[] = [
       { path: "flows", element: lazyPage(<FlowsPage />) },
       { path: "evidence", element: lazyPage(<EvidencePage />) },
       { path: "settings", element: lazyPage(<SettingsPage />) },
+      { path: "devices/:deviceId", element: lazyPage(<DeviceDetailPage />) },
     ],
   },
 ];

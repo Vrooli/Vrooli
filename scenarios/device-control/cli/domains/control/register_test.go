@@ -104,3 +104,111 @@ func TestConnectRejectsInvalidWatchWindow(t *testing.T) {
 		t.Fatalf("connect error = %v, want invalid watch window", err)
 	}
 }
+
+func TestAgentStartSerializesBooleanFlags(t *testing.T) {
+	server := testutil.NewAPIServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || r.URL.Path != "/api/v1/agents/start" {
+			t.Fatalf("request = %s %s, want POST /api/v1/agents/start", r.Method, r.URL.Path)
+		}
+		var request struct {
+			Goal           string `json:"goal"`
+			DeviceID       string `json:"device_id"`
+			SkillAvailable bool   `json:"skill_available"`
+			DryRun         bool   `json:"dry_run"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			t.Fatalf("decode request: %v", err)
+		}
+		if request.Goal != "observe the TV" || request.DeviceID != "tv-1" || !request.SkillAvailable || !request.DryRun {
+			t.Fatalf("request = %+v, want both boolean flags true", request)
+		}
+		_, _ = w.Write([]byte(`{"id":"agent-1","state":"completed"}`))
+	}))
+	core, err := cliapp.NewStandardScenarioApp(cliapp.StandardScenarioOptions{
+		Name: "device-control-test", Version: "test", DefaultAPIBase: server.URL, AllowAnonymous: true,
+	})
+	if err != nil {
+		t.Fatalf("NewStandardScenarioApp: %v", err)
+	}
+	var stdout bytes.Buffer
+	var start cliapp.Command
+	for _, candidate := range AgentGroup(core).Subcommands {
+		if candidate.Name == "start" {
+			start = candidate
+			break
+		}
+	}
+	if start.RunCtx == nil {
+		t.Fatal("agent start command has no RunCtx handler")
+	}
+	ctx, err := cliapp.NewTestRunContextFromArgs(start.Args, []string{
+		"--goal", "observe the TV", "--device", "tv-1", "--skill-available", "--dry-run", "--json",
+	}, core, &stdout, &stdout)
+	if err != nil {
+		t.Fatalf("parse context: %v", err)
+	}
+	if err := start.RunCtx(ctx); err != nil {
+		t.Fatalf("agent start: %v", err)
+	}
+}
+
+func TestReadPairingPINReadsOneLineWithoutWaitingForEOF(t *testing.T) {
+	var prompt bytes.Buffer
+	pin, err := readPairingPIN(strings.NewReader("123456\nadditional input"), &prompt)
+	if err != nil {
+		t.Fatalf("readPairingPIN: %v", err)
+	}
+	if pin != "123456" {
+		t.Fatalf("pin = %q, want one six-character line", pin)
+	}
+	if !strings.Contains(prompt.String(), "six-character hexadecimal pairing code") {
+		t.Fatalf("prompt = %q, want an operator prompt", prompt.String())
+	}
+}
+
+func TestPairInteractiveStartsHandshakeBeforeReadingPIN(t *testing.T) {
+	server := testutil.NewAPIServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			t.Fatalf("method = %s, want POST", r.Method)
+		}
+		switch r.URL.Path {
+		case "/api/v1/devices/tv-1/pair/start":
+			_, _ = w.Write([]byte(`{"pairing_id":"session-1"}`))
+		case "/api/v1/devices/tv-1/pair/complete":
+			var request struct {
+				PairingID string `json:"pairing_id"`
+				PIN       string `json:"pin"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+				t.Fatalf("decode completion: %v", err)
+			}
+			if request.PairingID != "session-1" || request.PIN != "835B64" {
+				t.Fatalf("completion = %+v, want session and PIN", request)
+			}
+			_, _ = w.Write([]byte(`{"paired":true,"device_id":"tv-1","outcome":"paired","transport":"android-tv-remote","detail":"certificate stored"}`))
+		default:
+			t.Fatalf("path = %s", r.URL.Path)
+		}
+	}))
+	core, err := cliapp.NewStandardScenarioApp(cliapp.StandardScenarioOptions{
+		Name: "device-control-test", Version: "test", DefaultAPIBase: server.URL, AllowAnonymous: true,
+	})
+	if err != nil {
+		t.Fatalf("NewStandardScenarioApp: %v", err)
+	}
+	var stdout bytes.Buffer
+	ctx, err := cliapp.NewTestRunContextFromArgs(cliapp.ArgSchema{}, []string{"--json"}, core, &stdout, &stdout)
+	if err != nil {
+		t.Fatalf("parse context: %v", err)
+	}
+	var prompt bytes.Buffer
+	if err := pairInteractive(ctx, core, "tv-1", strings.NewReader("835B64\n"), &prompt); err != nil {
+		t.Fatalf("pairInteractive: %v", err)
+	}
+	if !strings.Contains(prompt.String(), "six-character hexadecimal pairing code") {
+		t.Fatalf("prompt = %q, want operator prompt after handshake start", prompt.String())
+	}
+	if !strings.Contains(stdout.String(), "\"paired\": true") {
+		t.Fatalf("output = %q, want pairing result", stdout.String())
+	}
+}

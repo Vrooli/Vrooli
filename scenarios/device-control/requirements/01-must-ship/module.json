@@ -8,7 +8,7 @@
   "requirements": [
     {
       "criticality": "P0",
-      "description": "Every strategy implements exactly three required operations — observe() returning a screen frame with size, scale and timestamp; actuate() accepting pointer and key events; describe() returning a capability declaration. Every richer capability (semantic tree, app lifecycle, permissions, network control, orientation, clipboard, file transfer, video recording, device logs, WebView attach) is optional and declared. Declarations are verified by probing at inventory time; an unprovable capability reports unavailable with the exact missing prerequisite and a next action, never silently present.",
+      "description": "Every strategy implements identity and describe() and may add optional modalities — observe/frames, input actuation, media, properties, sensors, logs, semantic trees, app lifecycle, permissions, network control, orientation, clipboard, file transfer, recording, and WebView attach. Declarations are verified by probing at inventory time; an unprovable capability reports unavailable with the exact missing prerequisite and a next action, never silently present. Screenless devices are valid strategies and do not claim observe or screenshot.",
       "id": "DVC-P0-001",
       "prd_ref": "OT-P0-001",
       "status": "complete",
@@ -194,7 +194,7 @@
     },
     {
       "criticality": "P0",
-      "description": "Every capability is reachable from the CLI with report-shaped JSON output, because the CLI is what the agent skill drives. A capability reachable only from the API or UI is treated as incomplete.",
+      "description": "Every capability is reachable from the CLI with report-shaped JSON output, including LAN discovery, Google TV pairing, direct lease-owned actuation, state reads, and strategy verification. A capability reachable only from the API or UI is treated as incomplete.",
       "id": "DVC-P0-010",
       "prd_ref": "OT-P0-010",
       "status": "complete",
@@ -204,7 +204,7 @@
           "type": "test",
           "ref": "cli/evidence_test.go::TestEveryDeclaredPrimitiveHasEvidence",
           "status": "complete",
-          "notes": "bas phase — planned test `bas/cases/01-foundation/cli-surface-parity.json`. Parity check that every API capability has a CLI command with report-shaped JSON output, because the agent skill drives the CLI."
+          "notes": "Targeted CLI surface exposes device discover, pair, state, direct actuate, and owner-asserted identity merge/split with report-shaped JSON; API/CLI parity remains covered by the primitive evidence check."
         }
       ]
     },
@@ -244,7 +244,7 @@
     },
     {
       "criticality": "P0",
-      "description": "Video evidence is a guaranteed capability, not an optional one. A strategy that declares native recording (adb screenrecord, simctl recordVideo) uses it. A strategy that does not gets a recording synthesized from its floor-level observe() frame stream, which every strategy can produce by definition. Evidence records which path produced the video and its effective frame rate, so a reviewer can tell a native capture from a synthesized one and never mistakes a low-rate reconstruction for a full-rate capture. This is what lets the delivery ramps claim video evidence on every device kind rather than only the well-instrumented ones.",
+      "description": "Recording is honest wherever a strategy exposes a frame modality. Native recording is used when declared; frame-bearing strategies may synthesize a labeled recording. Screenless transports declare screenshot and recording unavailable with a reason, and evidence records method and effective frame rate without labeling synthesized or low-rate capture as native.",
       "id": "DVC-P0-012",
       "prd_ref": "OT-P0-012",
       "status": "complete",
@@ -303,6 +303,24 @@
         "notes": "Metadata updates preserve the authority reference and never resolve or copy a credential."
       }
       ]
+    },
+    {
+      "criticality": "P0",
+      "description": "Google TV transports are discovered through in-process multicast DNS-SD, correlate only on hardware-grade claims, and report explicit unreachable causes when the LAN browse cannot run.",
+      "id": "DVC-P0-014",
+      "prd_ref": "OT-P0-003",
+      "status": "complete",
+      "title": "Reachable Google TV LAN discovery",
+      "validation": [{"type": "test", "ref": "api/strategy/googlecast/googlecast_test.go::TestGoogleCastEnumerationPreservesHardwareIdentity", "status": "complete", "notes": "Targeted mDNS, Cast, Remote, identity refusal, and independent avahi-browse evidence cover the LAN discovery path; live scenario ownership remains provider-gated."}]
+    },
+    {
+      "criticality": "P0",
+      "description": "A discovered Google TV can be paired through a secret-safe PIN exchange, read through Cast receiver state, observed through push events, and controlled through a lease-owned direct CLI/API surface.",
+      "id": "DVC-P0-015",
+      "prd_ref": "OT-P0-010",
+      "status": "complete",
+      "title": "Google TV control surface",
+      "validation": [{"type": "test", "ref": "api/internal/control/service_test.go::TestDirectActuationRequiresLeaseAndWritesOneNonEvidenceAudit", "status": "complete", "notes": "API, CLI, Cast/Remote fixture, state, event, identity, and UI tests pass; real pairing and owner walkthrough are recorded as deferred while the current provider run remains non-terminal."}]
     }
   ]
 }

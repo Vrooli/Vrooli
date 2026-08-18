@@ -32,6 +32,12 @@ Drive owner-authorized physical and virtual devices through pluggable control
 strategies, capability-derived actions, reusable automation flows, and
 agent-driven goal completion.
 
+## What You Get
+
+- LAN discovery and pairing for Google TV transports.
+- Durable multi-transport identities with evidence-bearing claims.
+- Lease-owned actuation, state reads, events, audit records, and bounded flows.
+
 This scenario packages the standard full-stack Vrooli scenario shape:
 
 - Go API (`api/`)

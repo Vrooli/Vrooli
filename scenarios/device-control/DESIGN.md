@@ -185,7 +185,7 @@ vocabulary, which is the single most repeated element in the UI:
 These four are semantic status colours, not accents — they never carry brand
 emphasis, and `app-primary` is reserved for actions.
 
-**Two scenario-specific demands on the design.**
+**Scenario-specific demands on the design.**
 
 1. *A live session must be unmistakable.* This scenario can drive a personal
    phone. Whenever a session is live, the holding consumer, the lease expiry,

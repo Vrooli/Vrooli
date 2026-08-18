@@ -42,6 +42,7 @@ The scenario covers these classes without forcing them through a screen model:
 |---|---|---|
 | Screen-bearing | visual observation, input, semantic | Android phone or desktop |
 | Screenless input-driven | input, media | Google TV through Remote |
+| Google TV receiver | directional input plus receiver state | Android TV Remote + Google Cast |
 | Property-driven | property control | light brightness or lock state |
 | Sensor-only | sensing | motion or temperature sensor |
 | Media-controllable | media control, properties | speaker or media player |
@@ -64,3 +65,19 @@ flowchart TB
 A strategy may expose several modalities, but it must never claim a modality
 because the device class usually has one. Each capability is independently
 declared, probed, and surfaced to operators.
+
+## Google TV transport pair
+
+The Android TV Remote transport is event-bearing: it sends directional, text,
+and media commands but does not expose a screen or unsolicited state. Google
+Cast is state-bearing: it reports receiver/media state, absolute volume, mute,
+and application identity, and pushes receiver status changes. A television
+uses both transports and keeps their capability profiles separate.
+
+| | Android TV Remote | Google Cast |
+|---|---|---|
+| Class | event-bearing | state-bearing |
+| Operations | keys, text, relative media keys | receiver status, absolute volume, mute, launch, media state |
+| Pairing | six-digit PIN once | none on a trusted LAN |
+| Change notice | command response only | unsolicited push status |
+| Identity key | `bt` TXT key | `id` TXT key |

@@ -35,7 +35,7 @@ belong in [`DATA.md`](DATA.md).
 | strategies | Answer "how can this device be driven?" | Own the pluggable adapter registry, the capability floor contract, and the conformance suite that verifies a strategy's declaration. | Strategy registrations, conformance results. | service | registry | Strategy, CapabilityFloor, CapabilityTier, ConformanceResult | `api/internal/strategies/`, `api/internal/strategies/<adapter>/`, `api/handlers/strategies/`, `cli/domains/strategies/`, `ui/src/features/strategies/` |
 | sessions | Answer "who is driving this device right now, and may they?" | Own leases, the live control channel, and the raw verb surface. Enforce single-session safety and immediate kill. | Lease records, session state, verb audit. | service | lifecycle, workflow | Session, Lease, Verb, KillSwitch | `api/internal/sessions/`, `api/handlers/sessions/`, `cli/domains/sessions/`, `ui/src/features/sessions/` |
 | flows | Answer "what should be done, and can this device do it?" | Own the flow envelope, the step vocabularies, target resolution, the pre-execution capability gap report, execution, and chaptered evidence. | Flow definitions, runs, steps, evidence references, visual anchors. | workflow | crud, service | Flow, Step, ResolutionRung, CapabilityGap, Run, Chapter, Anchor | `api/internal/flows/`, `api/handlers/flows/`, `cli/domains/flows/`, `ui/src/features/flows/` |
-| agent | Answer "can something work this out for me?" | Own goal-directed runs: spawn an agent-manager run driven by the prompt-manager skill, bound it, audit it, and promote a successful run into a deterministic flow. | Agent run records, goal state, promotion provenance. | workflow | integration | AgentRun, Goal, Bound, Promotion | `api/internal/agent/`, `api/handlers/agent/`, `cli/domains/agent/`, `ui/src/features/agent/` |
+| agent | Answer "can something work this out for me?" | Own bounded goal loops over typed capability/state world models, lease-owned direct actuation, abort, and promotion into a deterministic flow. | Agent run records, goal state, promotion provenance. | workflow | integration | AgentRun, Goal, Bound, Promotion | `api/internal/control/agent.go`, `api/internal/flows/agent_planner.go`, `api/handlers/control/module.go`, `cli/domains/control/register.go` |
 
 ## Domain Details
 
@@ -88,19 +88,19 @@ belong in [`DATA.md`](DATA.md).
   capability manifest, and the conformance suite.
 - Does not own: what to do with a device (`flows`), or permission to do it
   (`sessions`).
-- The capability floor — every strategy implements exactly these three:
-  - `observe() -> Frame` — a screen image plus size, scale, and timestamp.
-  - `actuate(PointerEvent | KeyEvent)` — press, release, move, key input.
-  - `describe() -> CapabilityDeclaration` — what else this strategy offers.
-- Everything else is optional and declared: semantic tree, app lifecycle,
-  permission control, network control, orientation, clipboard, file
-  transfer, native recording, device logs, WebView attach. Canonical IDs and
-  the construct that exercises each are in
+- The strategy contract is deliberately small: every strategy supplies stable
+  identity (`ID()`) and a `describe()` declaration. Optional interfaces are
+  implemented only for capabilities the transport can actually exercise.
+- Optional modalities include observation (`observe() -> Frame` with image,
+  size, scale, and timestamp), input actuation, media, properties, sensors,
+  semantic tree, app lifecycle, permission control, network control,
+  orientation, clipboard, file transfer, native recording, device logs, and
+  WebView attach. Canonical IDs and the construct that exercises each are in
   [`../reference/capabilities.md`](../reference/capabilities.md).
-- Why the floor is this small: it is the largest set that
-  `ios-mirror` — pixels and synthetic HID events only — can satisfy. Making
-  the floor any richer would exclude a strategy we need, and shared
-  capabilities are built against the floor so they work everywhere.
+- Why the contract is this small: a screenless transport such as Google Cast
+  can be useful through media and property controls without pretending to
+  provide frames or input. Shared capabilities are composed from declarations
+  and optional interfaces so they remain honest per device.
 - Launch strategies: `android-adb` (P0), then `ios-simctl`,
   `ios-xcuitest`, `ios-mirror`, `host-desktop` (P1).
 - Requirements: `DVC-P0-001`, `DVC-P0-002`, `DVC-P0-011`,
@@ -136,17 +136,15 @@ belong in [`DATA.md`](DATA.md).
   to `browser-automation-studio` and merges its result into one timeline.
 - Step vocabularies in one envelope:
   - `device.*` — split by what a strategy must declare to execute them:
-    - *floor-guaranteed*, working on every strategy with no declaration:
-      `tap`, `swipe`, `type`, `key`, `observe`, `record`.
-    - *capability-gated*: `launch`, `install`, `stop`, `uninstall`
+    - *capability-gated*: `tap`, `swipe`, `type`, `key`, `observe`, `record`,
+      `launch`, `install`, `stop`, `uninstall`
       (`app-lifecycle`); `permission` (`permission-control`); `network`
       (`network-control`); `orientation` (`orientation`); `clipboard`
       (`clipboard`); `push` and `pull` (`file-transfer`); `logs`
       (`device-logs`).
 
     Every declared capability has at least one verb that reaches it
-    (`D-012`). `record` is floor-guaranteed despite `native-recording`
-    being optional — see `D-009`. The authoritative step-to-capability
+    (`D-012`). The authoritative step-to-capability
     map is [`../reference/capabilities.md`](../reference/capabilities.md).
   - `ai.*` — see, decide, extract, verify. Always through `ai-gateway`.
   - `flow.*` — conditional, loop, subflow, parallel.
@@ -161,23 +159,24 @@ belong in [`DATA.md`](DATA.md).
   2. `visual-anchor` — match a captured reference image.
      Deterministic, cheap, no semantic tree required.
   3. `vision` — ask `ai-gateway` to locate the target in the frame.
-     Works on any strategy that satisfies the floor; costs tokens and is
-     not deterministic.
+     Works on a strategy that declares a frame modality; costs tokens and
+     is not deterministic.
   The chosen rung and its confidence are recorded in evidence so a reviewer
   can tell a proven result from an inferred one.
 - Why this ladder is the design: it is what makes "shared capabilities work
-  on any strategy" true rather than aspirational. Vision is the universal
-  fallback; semantics are the fast path. The same flow runs on both, and
-  the strategy — not the flow author — determines which rung is used.
-- **Recording is guaranteed, not optional.** Because `observe()` is in the
-  floor, every strategy can produce frames by definition — so every strategy
-  can produce video:
+  on any strategy" true rather than aspirational. Vision is the fallback for
+  transports that declare frames; semantics are the fast path. The same flow
+  runs on both, and the strategy — not the flow author — determines which
+  rung is used.
+- **Recording is capability-gated.** A transport that declares a frame
+  modality may provide native or synthesized recording; a screenless
+  transport such as Google Cast declares screenshot and recording unavailable:
   - *native* — the strategy declares `record_video` and the platform
     captures it (`adb screenrecord`, `simctl io recordVideo`). Full frame
     rate, low overhead.
   - *synthesized* — no native capability, so the frame stream from
     `observe()` is encoded into a video. Lower and variable frame rate,
-    higher overhead, but always available.
+    higher overhead.
   The evidence records **which path produced the video and its effective
   frame rate**. A synthesized capture is never labelled native, and a
   reviewer is never left to assume a 2 fps reconstruction was a full-rate
@@ -192,11 +191,12 @@ belong in [`DATA.md`](DATA.md).
 
 - Purpose: complete a goal on a device when no flow exists yet.
 - Primary archetype: workflow.
-- Secondary traits: integration (agent-manager, prompt-manager).
-- Owns: goal-directed run lifecycle, bounds (step count, cost ceiling,
-  lease scope), abort, and promotion of a successful run into a flow.
-- Does not own: the agent runtime (`agent-manager`) or the operator skill
-  content (`prompt-manager`).
+- Secondary traits: integration (ai-gateway, prompt-manager).
+- Owns: the bounded goal-loop lifecycle, step and wall-clock budgets,
+  lease-scoped direct actuation, abort, and promotion of a successful run
+  into a deterministic flow.
+- Does not own: inference providers or the operator skill content
+  (`prompt-manager`); all inference is sent through `ai-gateway`.
 - Why the CLI is the contract: the skill drives this scenario through its
   CLI, so any capability missing from the CLI is invisible to the agent.
   That is why CLI completeness is a P0 target rather than a convenience.

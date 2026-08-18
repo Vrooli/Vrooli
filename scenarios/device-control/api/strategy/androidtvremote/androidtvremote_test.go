@@ -2,6 +2,7 @@ package androidtvremote
 
 import (
 	"context"
+	"net"
 	"testing"
 
 	"device-control/strategy"
@@ -34,6 +35,32 @@ type fakePairingClient struct {
 	pin    string
 }
 
+type fakePairingSession struct {
+	pin    string
+	closed bool
+}
+
+func (f *fakePairingSession) Complete(_ context.Context, pin string) ([]byte, error) {
+	f.pin = pin
+	return []byte("fixture-certificate"), nil
+}
+
+func (f *fakePairingSession) Close() error {
+	f.closed = true
+	return nil
+}
+
+type fakeInteractivePairingClient struct{ session *fakePairingSession }
+
+func (f *fakeInteractivePairingClient) Pair(context.Context, Device, string) ([]byte, error) {
+	return nil, nil
+}
+
+func (f *fakeInteractivePairingClient) Begin(context.Context, Device) (PairingSession, error) {
+	f.session = &fakePairingSession{}
+	return f.session, nil
+}
+
 func (f *fakePairingClient) Pair(_ context.Context, device Device, pin string) ([]byte, error) {
 	f.serial, f.pin = device.Serial, pin
 	return []byte("fixture-certificate"), nil
@@ -55,7 +82,9 @@ func TestFixtureGoogleTVUsesStableSerialAndTypedCommands(t *testing.T) {
 	devices, err := s.Enumerate(context.Background())
 	require.NoError(t, err)
 	require.Equal(t, "android-tv:google-tv-serial", devices[0].ID)
-	require.Equal(t, "google-tv-serial", devices[0].IdentityKey)
+	// A serial-like value without an explicit accepted claim is only a
+	// transport selector; it must not become durable identity evidence.
+	require.Empty(t, devices[0].IdentityKey)
 	require.NoError(t, s.ForDevice("google-tv-serial").(interface {
 		Actuate(context.Context, strategy.Actuation) error
 	}).Actuate(context.Background(), strategy.Actuation{Key: &strategy.KeyEvent{Key: "DPAD_CENTER"}}))
@@ -76,9 +105,48 @@ func TestPairPerformsProtocolExchangeAndPersistsCertificate(t *testing.T) {
 	pairing := &fakePairingClient{}
 	store := &fakeCertificateStore{}
 	s := New(WithDevices(Device{Serial: "tv-serial", Endpoint: "tv.local:6466"}), WithPairingClient(pairing), WithPairingStore(store))
-	require.NoError(t, s.Pair(context.Background(), "tv-serial", "123456"))
+	result, err := s.ForDevice("tv-serial").(strategy.Pairer).Pair(context.Background(), strategy.PairRequest{Secret: []byte("123456")})
+	require.NoError(t, err)
+	require.Equal(t, "paired", result.Outcome)
 	require.Equal(t, "tv-serial", pairing.serial)
 	require.Equal(t, "123456", pairing.pin)
 	require.Equal(t, "tv-serial", store.serial)
 	require.Equal(t, []byte("fixture-certificate"), store.certificate)
+}
+
+func TestInteractivePairingBeginsBeforePINAndCompletesSession(t *testing.T) {
+	pairing := &fakeInteractivePairingClient{}
+	store := &fakeCertificateStore{}
+	s := New(WithDevices(Device{Serial: "tv-serial", Endpoint: "tv.local:6466"}), WithPairingClient(pairing), WithPairingStore(store))
+	scoped := s.ForDevice("tv-serial").(*Strategy)
+	session, err := scoped.BeginPairing(context.Background())
+	require.NoError(t, err)
+	require.NotNil(t, pairing.session)
+	require.Empty(t, pairing.session.pin, "the PIN must not be consumed during handshake startup")
+
+	result, err := scoped.CompletePairing(context.Background(), session, []byte("123456"))
+	require.NoError(t, err)
+	require.Equal(t, "paired", result.Outcome)
+	require.Equal(t, "123456", pairing.session.pin)
+	require.True(t, pairing.session.closed)
+	require.Equal(t, "tv-serial", store.serial)
+}
+
+func TestAndroidTVRemoteConformanceRequiresSecretSafePairer(t *testing.T) {
+	report := strategy.Verify(context.Background(), New(WithClient(&fakeClient{})))
+	require.Empty(t, report.Failed)
+	require.Contains(t, report.Passed, "pairing")
+	require.Equal(t, strategy.StatusUnavailable, reportStatus(New(), strategy.CapScreenshot))
+}
+
+func TestAndroidTVRemoteDiscoveryFormatsIPv6Endpoints(t *testing.T) {
+	endpoint := formatEndpoint(net.ParseIP("fe80::1"), 6466)
+	if endpoint != "[fe80::1]:6466" {
+		t.Fatalf("net.JoinHostPort() = %q, want bracketed IPv6 endpoint", endpoint)
+	}
+}
+
+func reportStatus(s *Strategy, capability string) string {
+	declaration, _ := s.Describe(context.Background())
+	return declaration.Capabilities[capability].Status
 }

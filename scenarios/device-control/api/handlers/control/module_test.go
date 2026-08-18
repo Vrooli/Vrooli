@@ -12,12 +12,32 @@ import (
 	authdomain "device-control/internal/auth"
 	internal "device-control/internal/control"
 	"device-control/strategy"
+	"device-control/strategy/androidtvremote"
 	"device-control/strategy/fakes"
+	"device-control/strategy/googlecast"
 	strategyregistry "device-control/strategy/registry"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"
 	flowsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/device-control/v1/flows"
 )
+
+type failingRemoteDiscovery struct{}
+
+func (failingRemoteDiscovery) DiscoverMDNS(context.Context) ([]androidtvremote.Device, error) {
+	return nil, errors.New("multicast interface unavailable")
+}
+
+type castDiscoveryFixture struct{}
+
+func (castDiscoveryFixture) DiscoverCast(context.Context) ([]googlecast.Device, error) {
+	return []googlecast.Device{{ID: "cast-id-1", Name: "Living Room", Endpoint: "192.168.1.158:8009", IdentityKey: "cast-id-1"}}, nil
+}
+
+type remoteDiscoveryFixture struct{}
+
+func (remoteDiscoveryFixture) DiscoverMDNS(context.Context) ([]androidtvremote.Device, error) {
+	return []androidtvremote.Device{{Serial: "bt-1", IdentityKey: "bt-1", Name: "Living Room", Endpoint: "192.168.1.158:6466"}}, nil
+}
 
 func TestAcquireRequestUsesDistinctSnakeCaseFields(t *testing.T) {
 	var got acquireRequest
@@ -121,6 +141,39 @@ func TestAndroidConformancePlanAndUnavailableRunAreExplicit(t *testing.T) {
 	require.Contains(t, result.Reason, "not present in device-control inventory")
 	require.NotEmpty(t, result.Verdict.Disposition)
 	require.Contains(t, result.Verdict.Detail, "device_id=phone-1")
+}
+
+func TestDiscoveryReturnsReachableTransportsWhenAnotherBrowseFails(t *testing.T) {
+	remote := androidtvremote.New(androidtvremote.WithDiscovery(failingRemoteDiscovery{}))
+	cast := googlecast.New(googlecast.WithDiscovery(castDiscoveryFixture{}))
+	service := internal.New(strategyregistry.New(remote, cast))
+	router := mux.NewRouter()
+	Module(service).Mount(router)
+
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/v1/devices/discover", nil))
+
+	require.Equal(t, http.StatusOK, response.Code)
+	var body struct {
+		Services []map[string]any `json:"services"`
+		Health   string           `json:"health"`
+		Reason   string           `json:"reason"`
+	}
+	require.NoError(t, json.Unmarshal(response.Body.Bytes(), &body))
+	require.Len(t, body.Services, 1)
+	require.Equal(t, "google-cast", body.Services[0]["strategy_id"])
+	require.Equal(t, "degraded", body.Health)
+	require.Contains(t, body.Reason, "android-tv-remote")
+}
+
+func TestDiscoveryUsesCanonicalDeviceIDForPairingTarget(t *testing.T) {
+	remote := androidtvremote.New(androidtvremote.WithDiscovery(remoteDiscoveryFixture{}))
+	service := internal.New(strategyregistry.New(remote))
+
+	found, err := service.DiscoverLAN(context.Background())
+	require.NoError(t, err)
+	require.Len(t, found, 1)
+	require.Equal(t, "android-tv:bt-1", found[0].ID)
 }
 
 func TestAuthenticationProfileLifecycle(t *testing.T) {

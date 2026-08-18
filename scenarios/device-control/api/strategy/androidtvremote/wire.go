@@ -8,6 +8,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/hex"
 	"encoding/pem"
 	"fmt"
 	"io"
@@ -35,6 +36,15 @@ const (
 type wirePairingClient struct{}
 
 func (wirePairingClient) Pair(ctx context.Context, device Device, pin string) ([]byte, error) {
+	session, err := (wirePairingClient{}).Begin(ctx, device)
+	if err != nil {
+		return nil, err
+	}
+	defer session.Close()
+	return session.Complete(ctx, pin)
+}
+
+func (wirePairingClient) Begin(ctx context.Context, device Device) (PairingSession, error) {
 	bundle, clientCertificate, err := newCertificateBundle()
 	if err != nil {
 		return nil, fmt.Errorf("generate Android TV Remote certificate: %w", err)
@@ -53,27 +63,51 @@ func (wirePairingClient) Pair(ctx context.Context, device Device, pin string) ([
 	if err != nil {
 		return nil, fmt.Errorf("connect Android TV Remote pairing endpoint: %w", err)
 	}
-	defer conn.Close()
 
 	if err := writeFrame(ctx, conn, pairingRequest()); err != nil {
+		_ = conn.Close()
 		return nil, fmt.Errorf("send Android TV Remote pairing request: %w", err)
 	}
 	if _, err := expectFrame(ctx, conn, 11); err != nil {
+		_ = conn.Close()
 		return nil, fmt.Errorf("receive Android TV Remote pairing acknowledgement: %w", err)
 	}
 	if err := writeFrame(ctx, conn, pairingOption()); err != nil {
+		_ = conn.Close()
 		return nil, fmt.Errorf("send Android TV Remote pairing option: %w", err)
 	}
 	if _, err := expectFrame(ctx, conn, 20); err != nil {
+		_ = conn.Close()
 		return nil, fmt.Errorf("receive Android TV Remote pairing option: %w", err)
 	}
 	if err := writeFrame(ctx, conn, pairingConfiguration()); err != nil {
+		_ = conn.Close()
 		return nil, fmt.Errorf("send Android TV Remote pairing configuration: %w", err)
 	}
 	if _, err := expectFrame(ctx, conn, 31); err != nil {
+		_ = conn.Close()
 		return nil, fmt.Errorf("receive Android TV Remote pairing configuration acknowledgement: %w", err)
 	}
-	secret, err := pairingSecret(clientCertificate, conn.ConnectionState(), pin)
+	return &wirePairingSession{bundle: bundle, clientCertificate: clientCertificate, conn: conn}, nil
+}
+
+type wirePairingSession struct {
+	bundle            certificateBundle
+	clientCertificate tls.Certificate
+	conn              *tls.Conn
+	mu                sync.Mutex
+	closed            bool
+}
+
+func (s *wirePairingSession) Complete(ctx context.Context, pin string) ([]byte, error) {
+	s.mu.Lock()
+	if s.closed {
+		s.mu.Unlock()
+		return nil, fmt.Errorf("Android TV Remote pairing session is closed")
+	}
+	conn := s.conn
+	s.mu.Unlock()
+	secret, err := pairingSecret(s.clientCertificate, conn.ConnectionState(), pin)
 	if err != nil {
 		return nil, err
 	}
@@ -83,7 +117,17 @@ func (wirePairingClient) Pair(ctx context.Context, device Device, pin string) ([
 	if _, err := expectFrame(ctx, conn, 41); err != nil {
 		return nil, fmt.Errorf("receive Android TV Remote pairing secret acknowledgement: %w", err)
 	}
-	return encodeCertificateBundle(bundle)
+	return encodeCertificateBundle(s.bundle)
+}
+
+func (s *wirePairingSession) Close() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.closed {
+		return nil
+	}
+	s.closed = true
+	return s.conn.Close()
 }
 
 type wireClient struct {
@@ -301,14 +345,17 @@ func expectFrame(ctx context.Context, conn net.Conn, field protowire.Number) ([]
 }
 
 func pairingSecret(client tls.Certificate, state tls.ConnectionState, pin string) ([]byte, error) {
-	digits := strings.TrimSpace(pin)
-	if len(digits) != 6 {
-		return nil, fmt.Errorf("Android TV Remote pairing PIN must contain six digits")
+	code := strings.TrimSpace(pin)
+	if len(code) != 6 {
+		return nil, fmt.Errorf("Android TV Remote pairing code must contain six hexadecimal characters")
 	}
-	for _, digit := range digits {
-		if digit < '0' || digit > '9' {
-			return nil, fmt.Errorf("Android TV Remote pairing PIN must contain only digits")
-		}
+	checkByte, err := hex.DecodeString(code[:2])
+	if err != nil {
+		return nil, fmt.Errorf("Android TV Remote pairing code must contain only hexadecimal characters")
+	}
+	codeBytes, err := hex.DecodeString(code[2:])
+	if err != nil {
+		return nil, fmt.Errorf("Android TV Remote pairing code must contain only hexadecimal characters")
 	}
 	if len(state.PeerCertificates) == 0 {
 		return nil, fmt.Errorf("Android TV Remote pairing server certificate is missing")
@@ -330,13 +377,12 @@ func pairingSecret(client tls.Certificate, state tls.ConnectionState, pin string
 	_, _ = hash.Write(big.NewInt(int64(clientRSA.E)).Bytes())
 	_, _ = hash.Write(serverRSA.N.Bytes())
 	_, _ = hash.Write(big.NewInt(int64(serverRSA.E)).Bytes())
-	pinBytes := []byte{
-		byte((digits[0]-'0')<<4 | (digits[1] - '0')),
-		byte((digits[2]-'0')<<4 | (digits[3] - '0')),
-		byte((digits[4]-'0')<<4 | (digits[5] - '0')),
+	_, _ = hash.Write(codeBytes)
+	result := hash.Sum(nil)
+	if result[0] != checkByte[0] {
+		return nil, fmt.Errorf("Android TV Remote pairing code does not match this television")
 	}
-	_, _ = hash.Write(pinBytes)
-	return hash.Sum(nil), nil
+	return result, nil
 }
 
 func pairingRequest() []byte {
@@ -407,9 +453,7 @@ func remoteTextMessage(value string) []byte {
 
 func remoteKeyCode(key string) (uint64, bool) {
 	key = strings.ToUpper(strings.TrimSpace(key))
-	if strings.HasPrefix(key, "KEYCODE_") {
-		key = strings.TrimPrefix(key, "KEYCODE_")
-	}
+	key = strings.TrimPrefix(key, "KEYCODE_")
 	codes := map[string]uint64{
 		"HOME": 3, "BACK": 4, "DPAD_UP": 19, "DPAD_DOWN": 20, "DPAD_LEFT": 21, "DPAD_RIGHT": 22, "DPAD_CENTER": 23,
 		"VOLUME_UP": 24, "VOLUME_DOWN": 25, "POWER": 26, "VOLUME_MUTE": 164, "MEDIA_PLAY_PAUSE": 85, "MEDIA_STOP": 86, "MEDIA_NEXT": 87, "MEDIA_PREVIOUS": 88,

@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "device-control",
   "generator": "v1.0.0",
-  "manifest_hash": "68583b7ec19a0a3076161b5af12e162366f408dfb15473f0901f75fa26983c48",
+  "manifest_hash": "6878eb2f22fa6a5e4a2a7e047be39f4d963236571c77a7c94dbd6192b5f3d1f8",
   "commands": [
     {
       "path": "agent abort",
@@ -97,10 +97,28 @@
       "binding": "."
     },
     {
+      "path": "device actuate",
+      "group": "device",
+      "command": "actuate",
+      "binding": "."
+    },
+    {
       "path": "device connect",
       "group": "device",
       "command": "connect",
       "binding": "DeviceService.ConnectDevice"
+    },
+    {
+      "path": "device describe",
+      "group": "device",
+      "command": "describe",
+      "binding": "."
+    },
+    {
+      "path": "device discover",
+      "group": "device",
+      "command": "discover",
+      "binding": "."
     },
     {
       "path": "device forget",
@@ -115,6 +133,18 @@
       "binding": "DeviceService.ListDevices"
     },
     {
+      "path": "device merge",
+      "group": "device",
+      "command": "merge",
+      "binding": "."
+    },
+    {
+      "path": "device pair",
+      "group": "device",
+      "command": "pair",
+      "binding": "."
+    },
+    {
       "path": "device promote",
       "group": "device",
       "command": "promote",
@@ -127,10 +157,21 @@
       "binding": "DeviceService.ReconnectDevice"
     },
     {
+      "path": "device split",
+      "group": "device",
+      "command": "split",
+      "binding": "."
+    },
+    {
       "path": "device state",
       "group": "device",
       "command": "state",
       "binding": "."
+    },
+    {
+      "path": "device watch",
+      "group": "device",
+      "command": "watch"
     },
     {
       "path": "flow export",

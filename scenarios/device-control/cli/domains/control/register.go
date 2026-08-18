@@ -1,10 +1,15 @@
 package control
 
 import (
+	"bufio"
+	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
+	"net/url"
 	"os"
+	"os/signal"
 	"strconv"
 	"strings"
 	"time"
@@ -35,7 +40,64 @@ func Group(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 			}
 			return emit(ctx, b, "Device state")
 		}),
-		command("connect", "Show the guided onboarding ladder", cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "kind", Required: true, Description: "android or ios"}, {Name: "watch", Bool: true, Description: "re-probe until all onboarding rungs are available or the watch window expires"}, {Name: "watch-seconds", Default: "30", Description: "maximum live re-probe window when --watch is set"}}}, func(ctx cliapp.RunContext) error {
+		command("discover", "Browse the LAN for DNS-SD device services", cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "service", Description: "service type to include; repeatable"}, {Name: "timeout-seconds", Default: "10", Description: "bounded browse window"}}}, func(ctx cliapp.RunContext) error {
+			timeout, err := strconv.Atoi(ctx.Flag("timeout-seconds"))
+			if err != nil || timeout < 1 || timeout > 30 {
+				return fmt.Errorf("timeout-seconds must be between 1 and 30")
+			}
+			query := url.Values{"timeout_seconds": []string{strconv.Itoa(timeout)}}
+			for _, service := range ctx.FlagValues("service") {
+				if strings.TrimSpace(service) != "" {
+					query.Add("service", service)
+				}
+			}
+			b, err := core.Request(http.MethodGet, "/devices/discover", query, nil)
+			if err != nil {
+				return err
+			}
+			return emit(ctx, b, "LAN devices")
+		}),
+		command("pair", "Pair a Google TV Android TV Remote transport", cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "id", Required: true, Description: "device id"}}, Flags: []cliapp.Flag{{Name: "pin", Description: "six-character hexadecimal code shown on the television"}, {Name: "pin-stdin", Bool: true, Description: "read the six-character hexadecimal code from standard input"}}}, func(ctx cliapp.RunContext) error {
+			deviceID := ctx.Positional("id")
+			pin := ctx.Flag("pin")
+			if ctx.BoolFlag("pin-stdin") {
+				if pin != "" {
+					return fmt.Errorf("use either --pin or --pin-stdin, not both")
+				}
+				return pairInteractive(ctx, core, deviceID, os.Stdin, os.Stderr)
+			} else if pin == "" {
+				return fmt.Errorf("one of --pin or --pin-stdin is required")
+			}
+			if len(pin) != 6 || strings.Trim(pin, "0123456789abcdefABCDEF") != "" {
+				return fmt.Errorf("pairing code must contain exactly six hexadecimal characters")
+			}
+			defer func() { pin = "" }()
+			return post(ctx, core, "/devices/"+deviceID+"/pair", map[string]string{"pin": pin}, "Device paired")
+		}),
+		command("merge", "Merge two device identities under an owner-asserted hardware claim", cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "id", Required: true, Description: "canonical device id"}, {Name: "member", Required: true, Description: "device identity to merge"}}, Flags: []cliapp.Flag{{Name: "claim", Required: true, Description: "claim such as cast-id=receiver-id"}}}, func(ctx cliapp.RunContext) error {
+			return post(ctx, core, "/devices/"+ctx.Positional("id")+"/merge", map[string]string{"member_id": ctx.Positional("member"), "claim": ctx.Flag("claim")}, "Device identities merged")
+		}),
+		command("split", "Split a previously merged device identity", cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "id", Required: true, Description: "merged canonical device id"}}}, func(ctx cliapp.RunContext) error {
+			return post(ctx, core, "/devices/"+ctx.Positional("id")+"/split", nil, "Device identity split")
+		}),
+		command("actuate", "Send one direct lease-owned device command", cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "id", Required: true, Description: "device id"}}, Flags: []cliapp.Flag{{Name: "key", Description: "key name such as DPAD_DOWN"}, {Name: "text", Description: "text input"}, {Name: "media", Description: "media action"}, {Name: "property", Description: "property name"}, {Name: "value", Description: "property or media value"}, {Name: "transport", Description: "transport profile"}, {Name: "lease", Required: true, Description: "held lease token"}, {Name: "actor", Default: "cli", Description: "audit actor"}, {Name: "repeat", Default: "1", Description: "bounded repeat count for a key"}}}, func(ctx cliapp.RunContext) error {
+			repeat, err := strconv.Atoi(ctx.Flag("repeat"))
+			if err != nil || repeat < 1 || repeat > 10 {
+				return fmt.Errorf("repeat must be between 1 and 10")
+			}
+			body := map[string]any{"actor": ctx.Flag("actor"), "lease_token": ctx.Flag("lease")}
+			for _, key := range []string{"key", "text", "media", "property", "value", "transport"} {
+				if value := ctx.Flag(key); value != "" {
+					body[key] = value
+				}
+			}
+			body["repeat"] = repeat
+			return post(ctx, core, "/devices/"+ctx.Positional("id")+"/actuate", body, "Device actuation")
+		}),
+		command("watch", "Print state changes until interrupted", cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "id", Required: true, Description: "device id"}}}, func(ctx cliapp.RunContext) error {
+			return watchDevice(ctx, core, ctx.Positional("id"))
+		}),
+		command("connect", "Show the guided onboarding ladder", cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "kind", Required: true, Description: "android, ios, or google-tv"}, {Name: "watch", Bool: true, Description: "re-probe until all onboarding rungs are available or the watch window expires"}, {Name: "watch-seconds", Default: "30", Description: "maximum live re-probe window when --watch is set"}}}, func(ctx cliapp.RunContext) error {
 			return connect(ctx, core)
 		}),
 		command("forget", "Forget a retained device identity", cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "id", Required: true, Description: "device id"}}}, func(ctx cliapp.RunContext) error {
@@ -58,6 +120,50 @@ func Group(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 			return post(ctx, core, "/devices/"+ctx.Positional("id")+"/reconnect", nil, "Wireless device reconnect")
 		}),
 	}}
+}
+
+func readPairingPIN(reader io.Reader, prompt io.Writer) (string, error) {
+	if _, err := fmt.Fprint(prompt, "Enter the six-character hexadecimal pairing code shown on the television, then press Enter: "); err != nil {
+		return "", fmt.Errorf("write PIN prompt: %w", err)
+	}
+	scanner := bufio.NewScanner(reader)
+	scanner.Buffer(make([]byte, 0, 64), 64)
+	if !scanner.Scan() {
+		if err := scanner.Err(); err != nil {
+			return "", fmt.Errorf("read PIN from stdin: %w", err)
+		}
+		return "", fmt.Errorf("read PIN from stdin: no PIN provided")
+	}
+	return strings.TrimSpace(scanner.Text()), nil
+}
+
+func pairInteractive(ctx cliapp.RunContext, core *cliapp.ScenarioApp, deviceID string, reader io.Reader, prompt io.Writer) error {
+	startBody, err := core.Request(http.MethodPost, "/devices/"+deviceID+"/pair/start", nil, []byte(`{}`))
+	if err != nil {
+		return err
+	}
+	var started struct {
+		PairingID string `json:"pairing_id"`
+	}
+	if err := json.Unmarshal(startBody, &started); err != nil || strings.TrimSpace(started.PairingID) == "" {
+		return fmt.Errorf("pairing start returned no session")
+	}
+	pin, err := readPairingPIN(reader, prompt)
+	if err != nil {
+		return err
+	}
+	body, err := json.Marshal(map[string]string{"pairing_id": started.PairingID, "pin": pin})
+	if err != nil {
+		return fmt.Errorf("encode pairing completion: %w", err)
+	}
+	response, err := core.Request(http.MethodPost, "/devices/"+deviceID+"/pair/complete", nil, body)
+	for i := range body {
+		body[i] = 0
+	}
+	if err != nil {
+		return err
+	}
+	return emit(ctx, response, "Device paired")
 }
 
 func StrategyGroup(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
@@ -138,8 +244,8 @@ func AuditGroup(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 
 func AgentGroup(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 	return cliapp.SubcommandGroup{Name: "agent", Description: "Run deterministic skill-gated device agents", NeedsAPI: true, Subcommands: []cliapp.Command{
-		command("start", "Start an agent run; refuses without the prompt-manager skill", cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "goal", Required: true, Description: "goal"}, {Name: "device", Required: true, Description: "device id"}, {Name: "actor", Default: "cli", Description: "audit actor"}, {Name: "skill-available", Bool: true, Description: "confirm the prompt-manager skill is installed"}}}, func(ctx cliapp.RunContext) error {
-			return post(ctx, core, "/agents/start", map[string]any{"goal": ctx.Flag("goal"), "device_id": ctx.Flag("device"), "actor": ctx.Flag("actor"), "skill_available": ctx.Flag("skill-available") == "true"}, "Agent")
+		command("start", "Start an agent run; refuses without the prompt-manager skill", cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "goal", Required: true, Description: "goal"}, {Name: "device", Required: true, Description: "device id"}, {Name: "actor", Default: "cli", Description: "audit actor"}, {Name: "skill-available", Bool: true, Description: "confirm the prompt-manager skill is installed"}, {Name: "dry-run", Bool: true, Description: "plan without actuating"}}}, func(ctx cliapp.RunContext) error {
+			return post(ctx, core, "/agents/start", map[string]any{"goal": ctx.Flag("goal"), "device_id": ctx.Flag("device"), "actor": ctx.Flag("actor"), "skill_available": ctx.BoolFlag("skill-available"), "dry_run": ctx.BoolFlag("dry-run")}, "Agent")
 		}),
 		command("abort", "Abort an active agent run", cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "id", Required: true}}}, func(ctx cliapp.RunContext) error {
 			b, e := core.Request(http.MethodPost, "/agents/"+ctx.Positional("id")+"/abort", nil, nil)
@@ -321,6 +427,37 @@ func flowRequest(ctx cliapp.RunContext, core *cliapp.ScenarioApp, path string, r
 		body["strategy_id"] = ctx.Flag("strategy")
 	}
 	return post(ctx, core, path, body, "Flow")
+}
+
+func watchDevice(ctx cliapp.RunContext, core *cliapp.ScenarioApp, deviceID string) error {
+	watchCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer stop()
+	endpoint := strings.TrimRight(core.APIBase(), "/") + core.APIPath("/devices/"+deviceID+"/events")
+	req, err := http.NewRequestWithContext(watchCtx, http.MethodGet, endpoint, nil)
+	if err != nil {
+		return fmt.Errorf("create watch request: %w", err)
+	}
+	core.HTTPClient.ApplyRequestHeaders(req)
+	resp, err := (&http.Client{}).Do(req)
+	if err != nil {
+		return fmt.Errorf("open device event stream: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= http.StatusBadRequest {
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
+		return fmt.Errorf("device event stream returned %s: %s", resp.Status, strings.TrimSpace(string(body)))
+	}
+	scanner := bufio.NewScanner(resp.Body)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if strings.HasPrefix(line, "data:") {
+			_, _ = fmt.Fprintln(ctx.Stdout(), strings.TrimSpace(strings.TrimPrefix(line, "data:")))
+		}
+	}
+	if err := scanner.Err(); err != nil && watchCtx.Err() == nil {
+		return fmt.Errorf("read device event stream: %w", err)
+	}
+	return nil
 }
 
 func emit(ctx cliapp.RunContext, body []byte, title string) error {

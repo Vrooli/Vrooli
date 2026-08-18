@@ -131,20 +131,60 @@ wireless flows.
 
 ## Google TV / Android TV Remote
 
-The Android TV Remote adapter is an attach-only transport. It discovers Google
-TV devices through the host's mDNS resolver and controls directional keys,
-text, playback, and relative volume changes without Home Assistant or Docker.
-The remote protocol does not expose a screen or view hierarchy, so those
-capabilities are reported unavailable rather than synthesized; absolute volume
-levels are intentionally rejected because the protocol only guarantees volume
-key injection.
+The Android TV Remote adapter browses DNS-SD directly and controls directional
+keys, text, playback, and relative volume changes without Home Assistant or
+Docker. The remote protocol does not expose a screen or view hierarchy, so
+those capabilities are reported unavailable rather than synthesized.
 
-Pairing is an owner action on the television. Show the pairing prompt on the
-TV, provide its six-digit PIN to the Android TV Remote client, and retain the
-resulting certificate through the device-control credential authority. Pairing
-material is never returned in a device declaration or written to an audit
-record. A successful discovery reports a stable serial so the same television
-can reconcile with another transport such as ADB.
+### Owner procedure
+
+1. Put the control host and television on the same non-guest LAN segment.
+2. Run `device-control device discover --json` and select the returned
+   television identity that has an `android-tv-remote` transport.
+3. Wake the television and leave it ready to display an owner pairing prompt.
+4. Run `device-control device pair <id> --pin-stdin`. The command starts the
+   Android TV Remote handshake; then type the six-character hexadecimal code shown on the
+   television. The PIN is never retained in
+   device state, audit data, shell history, or process list.
+5. Run `device-control device discover --json` again and confirm the
+   Remote transport is paired; the Cast transport needs no pairing. Then run
+   `device-control device list --json` to materialize both transport profiles
+   in the durable inventory.
+6. If the Remote and Cast observations have different device ids, confirm
+   they are the same television and merge them with the owner-asserted Cast
+   claim: `device-control device merge <remote-id> <cast-id>
+   --claim cast-id=<cast-id-without-prefix>`. Never merge them by address,
+   hostname, or friendly name.
+7. Acquire a lease with `device-control session acquire --device <id>
+   --actor owner`.
+8. Press one key with
+   `device-control device actuate <id> --lease <token> --key DPAD_DOWN`.
+9. Read receiver state with `device-control device state <id> --json`.
+10. Watch externally caused changes with
+   `device-control device watch <id>` or through
+   `GET /api/v1/devices/<id>/events`.
+
+### Google Cast
+
+Google Cast is discovered on `_googlecast._tcp` and requires no pairing on a
+trusted local network. It supplies receiver status, application/media state,
+absolute volume, mute, and application launch. Directional navigation remains
+an Android TV Remote operation.
+
+### Troubleshooting
+
+| Failure | Meaning | Next action |
+|---|---|---|
+| No instances returned | multicast is blocked or the service is not advertised | confirm the LAN segment and host multicast firewall |
+| Instance returned but unreachable | the endpoint stopped answering | wake the television and retry discovery |
+| Pairing refused | the code expired or is not six hexadecimal characters | reopen the TV prompt and pair with the new code |
+| Certificate rejected after a factory reset | the TV discarded the controller certificate | forget the retained identity and pair again |
+| Device on a different subnet | mDNS is link-local | move it to the same segment or configure a static endpoint |
+
+Pairing is an owner action on the television. The `device pair` command sends
+the six-character hexadecimal pairing code directly to the Android TV Remote exchange and retains only
+the resulting certificate through the credential authority. Pairing material
+is never returned in a device declaration or written to an audit record.
 
 ## Home Assistant attach-only entities
 

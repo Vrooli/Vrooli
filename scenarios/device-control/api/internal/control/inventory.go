@@ -10,8 +10,11 @@ import (
 	"time"
 
 	devicedomain "device-control/internal/devices"
+	"device-control/internal/identity"
 	"device-control/strategy"
 )
+
+const defaultInventoryTimeout = 10 * time.Second
 
 func (s *Service) Strategies(ctx context.Context) []strategy.Declaration { return s.registry.List(ctx) }
 func (s *Service) Verify(ctx context.Context, id string) (strategy.ConformanceReport, error) {
@@ -24,7 +27,7 @@ func (s *Service) Devices(ctx context.Context) []Device {
 	}
 	timeout := s.inventoryTimeout
 	if timeout <= 0 {
-		timeout = 2 * time.Second
+		timeout = defaultInventoryTimeout
 	}
 	inventoryCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
@@ -85,7 +88,8 @@ func (s *Service) Devices(ctx context.Context) []Device {
 				}
 				if enumerator, ok := item.(strategy.Enumerator); ok {
 					enumerating = true
-					if discovered, err := enumerator.Enumerate(inventoryCtx); err == nil {
+					discovered, enumerateErr := enumerator.Enumerate(inventoryCtx)
+					if enumerateErr == nil {
 						for _, discoveredDevice := range discovered {
 							if !candidate.promoted {
 								if promotedID, duplicate := promotedEndpoints[strings.TrimSpace(discoveredDevice.Serial)]; duplicate {
@@ -111,14 +115,29 @@ func (s *Service) Devices(ctx context.Context) []Device {
 									}
 								}
 							}
-							record := devicedomain.Record{ID: discoveredDevice.ID, IdentityKey: discoveredDevice.Serial, Name: discoveredDevice.Model, Kind: adbDeviceKind(discoveredDevice.Serial), Serial: discoveredDevice.Serial, Endpoint: discoveredDevice.Endpoint, Model: discoveredDevice.Model, OSVersion: discoveredDevice.OSVersion, StrategyID: discoveredDevice.StrategyID, Status: discoveredDevice.Health, Health: discoveredDevice.Health, HealthReason: discoveredDevice.HealthReason, HostNodeID: hostNodeID, Transport: discoveredDevice.Transport, ObservedAt: discoveredDevice.ObservedAt, Capabilities: mapCaps(deviceDeclaration)}
+							identityKey := discoveredDevice.IdentityKey
+							if identityKey == "" && discoveredDevice.StrategyID == "android-adb" {
+								identityKey = discoveredDevice.Serial
+							}
+							record := devicedomain.Record{ID: discoveredDevice.ID, IdentityKey: identityKey, IdentityKind: discoveredDevice.IdentityKind, Claims: claimsForDevice(discoveredDevice), Name: discoveredDevice.Model, Kind: adbDeviceKind(discoveredDevice.Serial), Serial: discoveredDevice.Serial, Endpoint: discoveredDevice.Endpoint, Model: discoveredDevice.Model, OSVersion: discoveredDevice.OSVersion, StrategyID: discoveredDevice.StrategyID, Status: discoveredDevice.Health, Health: discoveredDevice.Health, HealthReason: discoveredDevice.HealthReason, HostNodeID: hostNodeID, Transport: discoveredDevice.Transport, ObservedAt: discoveredDevice.ObservedAt, Capabilities: mapCaps(deviceDeclaration), Properties: append([]strategy.PropertyDescriptor(nil), deviceDeclaration.Properties...)}
 							if record.Name == "" {
 								record.Name = record.Serial
 							}
 							merged := s.devices.UpsertIdentity(record)
 							_ = s.persistObservedTransportProfiles(inventoryCtx, merged)
+							_ = s.persistIdentityClaims(inventoryCtx, merged)
+							s.startObserverLocked(merged)
 							seen[merged.ID] = true
 						}
+					} else {
+						// Enumeration is part of the device contract. Preserve a
+						// diagnostic row instead of silently dropping the transport.
+						// The synthetic id is transport-scoped and is replaced by a
+						// hardware identity as soon as a browse succeeds.
+						reason := fmt.Sprintf("%s enumeration failed: %v", d.StrategyID, enumerateErr)
+						id := "unreachable:" + d.StrategyID
+						merged := s.devices.Upsert(devicedomain.Record{ID: id, IdentityKey: "", Name: d.Description, Kind: "physical", StrategyID: d.StrategyID, Transport: d.StrategyID, Status: strategy.HealthUnreachable, Health: strategy.HealthUnreachable, HealthReason: reason, HostNodeID: hostNodeID, Capabilities: mapCaps(declaration), ObservedAt: time.Now().UTC()})
+						seen[merged.ID] = true
 					}
 				}
 			}
@@ -208,6 +227,8 @@ func (s *Service) Devices(ctx context.Context) []Device {
 					device.Status, device.Health, device.HealthReason = status, status, reason
 					merged := s.devices.UpsertIdentity(recordFromDevice(*device))
 					_ = s.persistObservedTransportProfiles(inventoryCtx, merged)
+					_ = s.persistIdentityClaims(inventoryCtx, merged)
+					s.startObserverLocked(merged)
 					continue
 				}
 				byID[d.ID] = len(out)
@@ -229,6 +250,8 @@ func (s *Service) Devices(ctx context.Context) []Device {
 				// the strategy id carries the platform-specific driver.
 				merged := s.devices.UpsertIdentity(devicedomain.Record{ID: d.ID, IdentityKey: d.Serial, Name: d.Name, Kind: "physical", Serial: d.Serial, Model: d.Name, OSVersion: d.OSVersion, StrategyID: strategyID, Transport: d.Transport, HostNodeID: d.HostNodeID, Status: status, Health: status, HealthReason: reason, Capabilities: capabilities, ObservedAt: time.Now().UTC()})
 				_ = s.persistObservedTransportProfiles(inventoryCtx, merged)
+				_ = s.persistIdentityClaims(inventoryCtx, merged)
+				s.startObserverLocked(merged)
 				out = append(out, deviceFromRecord(merged))
 			}
 		}
@@ -252,6 +275,25 @@ func (s *Service) Devices(ctx context.Context) []Device {
 		s.devices.UpsertIdentity(recordFromDevice(out[i]))
 	}
 	return out
+}
+
+func claimsForDevice(device strategy.Device) []identity.IdentityClaim {
+	kind := strings.TrimSpace(device.IdentityKind)
+	if kind == "" && device.StrategyID == "android-adb" {
+		kind = string(identity.ADBSerial)
+	}
+	value := strings.TrimSpace(device.IdentityKey)
+	if value == "" && kind == string(identity.ADBSerial) {
+		value = strings.TrimSpace(device.Serial)
+	}
+	if kind == "" || value == "" {
+		return nil
+	}
+	claim, err := identity.NewClaim(kind, value, device.StrategyID, "observed")
+	if err != nil {
+		return nil
+	}
+	return []identity.IdentityClaim{claim}
 }
 
 // DescribeDevice returns the device-oriented declaration after refreshing the
@@ -286,6 +328,10 @@ func (s *Service) ForgetDeviceContext(ctx context.Context, id string) bool {
 	id = strings.TrimSpace(id)
 	forgotten := s.devices.Forget(id)
 	delete(s.transportStrategies, id)
+	if cancel := s.observerCancels[id]; cancel != nil {
+		cancel()
+		delete(s.observerCancels, id)
+	}
 	delete(s.transportStates, id)
 	for key, state := range s.transportProfiles {
 		if state.DeviceID == id {
@@ -295,6 +341,16 @@ func (s *Service) ForgetDeviceContext(ctx context.Context, id string) bool {
 	if s.db != nil {
 		_, _ = s.db.ExecContext(ctx, `DELETE FROM device_control_transports WHERE device_id = ?`, id)
 		_, _ = s.db.ExecContext(ctx, `DELETE FROM device_control_transport_profiles WHERE device_id = ?`, id)
+		_, _ = s.db.ExecContext(ctx, `DELETE FROM device_control_identity_claims WHERE device_id = ?`, id)
+		_, _ = s.db.ExecContext(ctx, `DELETE FROM device_control_identity_merges WHERE canonical_id = ? OR member_id = ?`, id, id)
+		_, _ = s.db.ExecContext(ctx, `DELETE FROM device_control_identity_aliases WHERE canonical_id = ? OR alias_id = ?`, id, id)
+	}
+	delete(s.auditAliases, id)
+	for canonical, aliases := range s.auditAliases {
+		delete(aliases, id)
+		if len(aliases) == 0 {
+			delete(s.auditAliases, canonical)
+		}
 	}
 	return forgotten
 }
@@ -401,7 +457,7 @@ func recordFromDevice(device Device) devicedomain.Record {
 	capabilities := make([]strategy.Capability, len(device.Capabilities))
 	copy(capabilities, device.Capabilities)
 	return devicedomain.Record{
-		ID: device.ID, IdentityKey: device.IdentityKey, Name: device.Name, Kind: device.Kind, Serial: device.Serial,
+		ID: device.ID, IdentityKey: device.IdentityKey, Claims: append([]identity.IdentityClaim(nil), device.Claims...), IdentityReason: device.IdentityReason, Name: device.Name, Kind: device.Kind, Serial: device.Serial,
 		Model: device.Model, OSVersion: device.OSVersion, StrategyID: device.StrategyID,
 		Status: device.Status, Health: device.Health, HealthReason: device.HealthReason,
 		HostNodeID: device.HostNodeID, Transport: device.Transport, Capabilities: capabilities,
@@ -426,14 +482,50 @@ func (s *Service) Onboarding(kind string) []map[string]string {
 			map[string]string{"id": "wireless-adb", "prerequisite": "An Android device is visible through authorized wireless ADB.", "owner": "owner", "status": "unavailable", "next_action": "Enable Wireless debugging and authorize this host."},
 			map[string]string{"id": "usb-debugging", "prerequisite": "USB debugging is enabled and the device authorizes this host.", "owner": "owner", "status": "unavailable", "next_action": "Enable Developer Options and USB debugging, then accept the RSA prompt."})
 	}
+	if kind == "google-tv" || kind == "googletv" {
+		return append(common,
+			map[string]string{"id": "lan-multicast", "prerequisite": "The control host and television share a multicast-reachable LAN segment.", "owner": "owner", "status": "available", "next_action": "No action required."},
+			map[string]string{"id": "google-tv-discovery", "prerequisite": "The television advertises Android TV Remote or Google Cast DNS-SD services.", "owner": "owner", "status": "unavailable", "next_action": "Enable network access on the television and run device discover."},
+			map[string]string{"id": "remote-pairing", "prerequisite": "The owner has opened the Android TV Remote pairing prompt and has its six-character hexadecimal code.", "owner": "owner", "status": "unavailable", "next_action": "Open the pairing prompt on the television, then run device pair with the displayed six-character hexadecimal code."},
+			map[string]string{"id": "paired-transport", "prerequisite": "The Android TV Remote certificate is stored in the credential authority and reconnects.", "owner": "scenario", "status": "unavailable", "next_action": "Complete pairing once; subsequent discovery should show the remote as paired."})
+	}
 	if kind == "ios" {
 		return append(common, map[string]string{"id": "xcode", "prerequisite": "Xcode and the requested simulator runtime are installed on a macOS node.", "owner": "owner", "status": "unavailable", "next_action": "Install Xcode and an iOS Simulator runtime."}, map[string]string{"id": "device-trust", "prerequisite": "The iPhone is attached and trusted.", "owner": "owner", "status": "unavailable", "next_action": "Connect the iPhone to the macOS node and tap Trust."})
 	}
-	return append(common, map[string]string{"id": "kind", "prerequisite": "A supported device kind is selected.", "owner": "owner", "status": "unavailable", "next_action": "Use --kind android or --kind ios."})
+	return append(common, map[string]string{"id": "kind", "prerequisite": "A supported device kind is selected.", "owner": "owner", "status": "unavailable", "next_action": "Select a supported onboarding kind."})
 }
 
 func (s *Service) OnboardingLive(ctx context.Context, kind string) []map[string]string {
 	rungs := s.Onboarding(kind)
+	if strings.ToLower(strings.TrimSpace(kind)) == "google-tv" || strings.ToLower(strings.TrimSpace(kind)) == "googletv" {
+		services, err := s.DiscoverLAN(ctx)
+		found := err == nil && len(services) > 0
+		for i := range rungs {
+			if rungs[i]["id"] == "lan-multicast" {
+				if err == nil {
+					rungs[i]["status"] = "available"
+					rungs[i]["next_action"] = "No action required."
+				} else {
+					rungs[i]["status"] = "unreachable"
+					rungs[i]["next_action"] = "Multicast browse failed: " + err.Error()
+				}
+			}
+			if rungs[i]["id"] == "google-tv-discovery" && found {
+				rungs[i]["status"] = "available"
+				instances := make([]string, 0, len(services))
+				for _, service := range services {
+					if strings.TrimSpace(service.Name) != "" {
+						instances = append(instances, service.Name)
+					}
+				}
+				rungs[i]["next_action"] = "Discovered: " + strings.Join(instances, ", ")
+			}
+			if rungs[i]["id"] == "remote-pairing" && found {
+				rungs[i]["next_action"] = "Enter the six-character hexadecimal code shown by the television with device pair."
+			}
+		}
+		return rungs
+	}
 	if strings.ToLower(strings.TrimSpace(kind)) != "android" {
 		return rungs
 	}

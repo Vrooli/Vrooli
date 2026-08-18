@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"reflect"
 	"runtime"
+	"strings"
 	"time"
 )
 
@@ -29,6 +30,7 @@ const (
 	CapProperty        = "property"
 	CapSensor          = "sensor"
 	CapMedia           = "media"
+	CapPairing         = "pairing"
 )
 
 const (
@@ -107,6 +109,24 @@ type SessionRecorder interface {
 	StopRecording(context.Context, RecordingHandle) (RecordingArtifact, error)
 }
 
+// PairRequest contains operator-provided pairing material. Secret is never
+// serialized, logged, audited, or retained by a strategy after Pair returns.
+type PairRequest struct {
+	Secret []byte
+}
+
+type PairResult struct {
+	Outcome   string `json:"outcome"`
+	Transport string `json:"transport"`
+	Detail    string `json:"detail,omitempty"`
+}
+
+// Pairer performs an interactive transport pairing exchange. The strategy is
+// normally device-scoped before this method is called.
+type Pairer interface {
+	Pair(context.Context, PairRequest) (PairResult, error)
+}
+
 type Frame struct {
 	Width     int       `json:"width"`
 	Height    int       `json:"height"`
@@ -147,8 +167,11 @@ type Device struct {
 	// IdentityKey is the durable reconciliation key. Serial remains populated
 	// for compatibility with existing adapters and is the preferred identity
 	// evidence when present.
-	IdentityKey string            `json:"identity_key,omitempty"`
-	Transports  []DeviceTransport `json:"transports,omitempty"`
+	IdentityKey string `json:"identity_key,omitempty"`
+	// IdentityKind identifies the hardware-grade claim represented by
+	// IdentityKey. It is deliberately not inferred from an address or name.
+	IdentityKind string            `json:"identity_kind,omitempty"`
+	Transports   []DeviceTransport `json:"transports,omitempty"`
 }
 
 // DeviceTransport describes one independently reachable path to a device.
@@ -161,6 +184,7 @@ type DeviceTransport struct {
 	Health       string                `json:"health"`
 	HealthReason string                `json:"health_reason,omitempty"`
 	Capabilities map[string]Capability `json:"capabilities"`
+	Properties   []PropertyDescriptor  `json:"properties,omitempty"`
 	ObservedAt   time.Time             `json:"observed_at,omitempty"`
 }
 
@@ -199,22 +223,37 @@ type SemanticResult struct {
 }
 
 type DeviceState struct {
-	ForegroundPackage string            `json:"foreground_package,omitempty"`
-	ScreenState       string            `json:"screen_state,omitempty"`
-	LockState         string            `json:"lock_state,omitempty"`
-	Orientation       string            `json:"orientation,omitempty"`
-	AutoRotate        bool              `json:"auto_rotate"`
-	BatteryLevel      int               `json:"battery_level,omitempty"`
-	Charging          bool              `json:"charging"`
-	ThermalStatus     string            `json:"thermal_status,omitempty"`
-	DisplayWidth      int               `json:"display_width,omitempty"`
-	DisplayHeight     int               `json:"display_height,omitempty"`
-	DisplayDensity    int               `json:"display_density,omitempty"`
-	Unavailable       map[string]string `json:"unavailable,omitempty"`
+	ForegroundPackage string                   `json:"foreground_package,omitempty"`
+	ScreenState       string                   `json:"screen_state,omitempty"`
+	LockState         string                   `json:"lock_state,omitempty"`
+	Orientation       string                   `json:"orientation,omitempty"`
+	AutoRotate        bool                     `json:"auto_rotate"`
+	BatteryLevel      int                      `json:"battery_level,omitempty"`
+	Charging          bool                     `json:"charging"`
+	ThermalStatus     string                   `json:"thermal_status,omitempty"`
+	DisplayWidth      int                      `json:"display_width,omitempty"`
+	DisplayHeight     int                      `json:"display_height,omitempty"`
+	DisplayDensity    int                      `json:"display_density,omitempty"`
+	Unavailable       map[string]string        `json:"unavailable,omitempty"`
+	Properties        map[string]PropertyValue `json:"properties,omitempty"`
+}
+
+type PropertyValue struct {
+	Value     any    `json:"value,omitempty"`
+	Status    string `json:"status"`
+	Reason    string `json:"reason,omitempty"`
+	Transport string `json:"transport,omitempty"`
 }
 
 type StateReader interface {
 	ReadState(context.Context) (DeviceState, error)
+}
+
+// StateObserver runs until ctx is cancelled and publishes one event for each
+// changed attribute. It is the producer-side contract for world-originated
+// state changes; polling is a declared fallback for transports without push.
+type StateObserver interface {
+	ObserveState(context.Context, StateChangeSink) error
 }
 
 // UnlockRequest is deliberately not serializable. Secret is populated only
@@ -340,6 +379,61 @@ func ValidatePropertyValue(descriptor PropertyDescriptor, value any) error {
 	return nil
 }
 
+// ValidateObservedPropertyValue checks a value returned by a transport. It
+// intentionally does not require Writable: read-only receiver state is valid
+// state and must not be reported as unavailable merely because operators
+// cannot set it.
+func ValidateObservedPropertyValue(descriptor PropertyDescriptor, value any) error {
+	if descriptor.Name == "" {
+		return &PropertyValidationError{Descriptor: "", Reason: "descriptor name is empty"}
+	}
+	if len(descriptor.Enumeration) > 0 {
+		text := fmt.Sprint(value)
+		for _, candidate := range descriptor.Enumeration {
+			if text == candidate {
+				return nil
+			}
+		}
+		return &PropertyValidationError{Descriptor: descriptor.Name, Reason: "value is outside the enumeration"}
+	}
+	if descriptor.ValueType != "" && !observedTypeMatches(descriptor.ValueType, value) {
+		return &PropertyValidationError{Descriptor: descriptor.Name, Reason: "value does not match declared type " + descriptor.ValueType}
+	}
+	if descriptor.Minimum != nil || descriptor.Maximum != nil {
+		valueOf := reflect.ValueOf(value)
+		if !valueOf.IsValid() || !valueOf.Type().ConvertibleTo(reflect.TypeOf(float64(0))) {
+			return &PropertyValidationError{Descriptor: descriptor.Name, Reason: "value is not numeric"}
+		}
+		number := valueOf.Convert(reflect.TypeOf(float64(0))).Float()
+		if descriptor.Minimum != nil && number < *descriptor.Minimum {
+			return &PropertyValidationError{Descriptor: descriptor.Name, Reason: fmt.Sprintf("value is below minimum %v", *descriptor.Minimum)}
+		}
+		if descriptor.Maximum != nil && number > *descriptor.Maximum {
+			return &PropertyValidationError{Descriptor: descriptor.Name, Reason: fmt.Sprintf("value is above maximum %v", *descriptor.Maximum)}
+		}
+	}
+	return nil
+}
+
+func observedTypeMatches(valueType string, value any) bool {
+	switch strings.ToLower(strings.TrimSpace(valueType)) {
+	case "string":
+		_, ok := value.(string)
+		return ok
+	case "boolean", "bool":
+		_, ok := value.(bool)
+		return ok
+	case "number", "float", "float64":
+		kind := reflect.ValueOf(value)
+		return kind.IsValid() && kind.Type().ConvertibleTo(reflect.TypeOf(float64(0)))
+	case "integer", "int":
+		kind := reflect.ValueOf(value)
+		return kind.IsValid() && kind.Kind() >= reflect.Int && kind.Kind() <= reflect.Int64
+	default:
+		return true
+	}
+}
+
 type SensorReading struct {
 	Name       string    `json:"name"`
 	Value      any       `json:"value"`
@@ -363,20 +457,28 @@ type MediaController interface {
 }
 
 type Declaration struct {
-	DeviceID         string                `json:"device_id,omitempty"`
-	Transport        string                `json:"transport,omitempty"`
-	StrategyID       string                `json:"strategy_id"`
-	Description      string                `json:"description"`
-	SupportedHostOS  []string              `json:"supported_host_os"`
-	Reason           string                `json:"reason,omitempty"`
-	Status           string                `json:"status"`
-	Capabilities     map[string]Capability `json:"capabilities"`
-	Tiers            []string              `json:"tiers"`
-	NextActions      []string              `json:"next_actions,omitempty"`
-	Promotable       bool                  `json:"promotable"`
-	EvidenceClass    string                `json:"evidence_class"`
-	MinimumUsefulFPS float64               `json:"minimum_useful_fps"`
-	Properties       []PropertyDescriptor  `json:"properties,omitempty"`
+	DeviceID            string                `json:"device_id,omitempty"`
+	Transport           string                `json:"transport,omitempty"`
+	StrategyID          string                `json:"strategy_id"`
+	Description         string                `json:"description"`
+	SupportedHostOS     []string              `json:"supported_host_os"`
+	Reason              string                `json:"reason,omitempty"`
+	Status              string                `json:"status"`
+	Capabilities        map[string]Capability `json:"capabilities"`
+	Tiers               []string              `json:"tiers"`
+	NextActions         []string              `json:"next_actions,omitempty"`
+	Promotable          bool                  `json:"promotable"`
+	EvidenceClass       string                `json:"evidence_class"`
+	MinimumUsefulFPS    float64               `json:"minimum_useful_fps"`
+	Properties          []PropertyDescriptor  `json:"properties,omitempty"`
+	ObservationMode     string                `json:"observation_mode,omitempty"`
+	ObservationInterval time.Duration         `json:"observation_interval,omitempty"`
+	StateObservation    StateObservation      `json:"state_observation,omitempty"`
+}
+
+type StateObservation struct {
+	Mode     string        `json:"mode,omitempty"`
+	Interval time.Duration `json:"interval,omitempty"`
 }
 
 // HostOS is the host operating-system seam used by strategy resolution. It is

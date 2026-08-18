@@ -52,6 +52,7 @@ func (f *PropertyOnly) ID() string { return f.Declaration.StrategyID }
 func (f *PropertyOnly) Describe(context.Context) (strategy.Declaration, error) {
 	return f.Declaration, nil
 }
+
 func (f *PropertyOnly) GetProperty(_ context.Context, name string) (any, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -61,6 +62,7 @@ func (f *PropertyOnly) GetProperty(_ context.Context, name string) (any, error) 
 	}
 	return value, nil
 }
+
 func (f *PropertyOnly) SetProperty(_ context.Context, set strategy.PropertySet) error {
 	for _, descriptor := range f.Declaration.Properties {
 		if descriptor.Name != set.Name {
@@ -76,6 +78,16 @@ func (f *PropertyOnly) SetProperty(_ context.Context, set strategy.PropertySet) 
 		return nil
 	}
 	return fmt.Errorf("unknown property %q", set.Name)
+}
+
+func (f *PropertyOnly) ReadState(context.Context) (strategy.DeviceState, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	properties := make(map[string]strategy.PropertyValue, len(f.Values))
+	for name, value := range f.Values {
+		properties[name] = strategy.PropertyValue{Value: value, Status: strategy.StatusAvailable, Transport: f.ID()}
+	}
+	return strategy.DeviceState{Properties: properties}, nil
 }
 
 type SensorOnly struct {
@@ -99,6 +111,7 @@ func (f *SensorOnly) ID() string { return f.Declaration.StrategyID }
 func (f *SensorOnly) Describe(context.Context) (strategy.Declaration, error) {
 	return f.Declaration, nil
 }
+
 func (f *SensorOnly) ReadSensors(context.Context) ([]strategy.SensorReading, error) {
 	return append([]strategy.SensorReading(nil), f.Readings...), nil
 }
@@ -122,6 +135,7 @@ func (f *MediaOnly) ID() string { return f.Declaration.StrategyID }
 func (f *MediaOnly) Describe(context.Context) (strategy.Declaration, error) {
 	return f.Declaration, nil
 }
+
 func (f *MediaOnly) ControlMedia(_ context.Context, command strategy.MediaCommand) error {
 	switch command.Action {
 	case "play", "pause", "stop", "next", "previous", "volume":

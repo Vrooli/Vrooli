@@ -7,13 +7,21 @@ transport reconnects, and service restarts. A device-to-transport relation is
 one-to-many: each transport records its strategy id, transport name, endpoint,
 health, and its own capability profile.
 
-The primary reconciliation key is a hardware serial reported by a trusted
-strategy. Strategies also contribute their transport endpoint and a
-strategy-scoped identity key. Two observations with the same verified serial
-merge into one device identity; conflicting serials never merge merely because
-their names or network addresses match. When no serial exists, the adapter's
-stable entity id is retained as a transport-scoped identity until stronger
-evidence is available.
+The primary reconciliation key is a hardware-grade identity claim reported by
+a trusted strategy. Accepted claims are an ADB serial, the Android TV Remote
+`bt` TXT key, and the Google Cast `id` TXT key. Strategies also contribute
+their transport endpoint and capability profile. Two observations merge only
+when accepted claims agree; an IP address, hostname, mDNS instance name, or
+friendly name never merges observations. Without a claim, the observation
+remains transport-scoped until stronger evidence is available.
+
+Each device record exposes the contributing `Claims` with kind, value,
+strategy, and evidence. When observations share only an endpoint, the record
+also exposes `address-only-correlation-refused`; an operator may use
+`device merge <canonical> <member> --claim <kind>=<value>` to record an
+explicit `owner-asserted` claim. `device split <canonical>` restores the
+pre-merge snapshots, while durable alias links keep historical audit records
+reachable from both identities.
 
 ```mermaid
 flowchart LR
@@ -49,6 +57,12 @@ State telemetry stays on a fast local subscription seam. It does not flow
 through `vrooli-events`; that bus is reserved here for rule fires, actuations,
 and authorization decisions.
 
+Google Cast push receiver status is the event producer for receiver state.
+Polling is a declared-degraded fallback only, and its interval is recorded in
+the transport declaration. An event from a Vrooli actuation carries that
+actuation's causation id; a physical remote or phone-originated change gets a
+new observation causation id.
+
 ```mermaid
 flowchart LR
     ACT[Actuation\ncausation_id] --> ADAPTER[Strategy adapter]
@@ -58,11 +72,10 @@ flowchart LR
     SUB -.deferred.-> RULE[Future rule engine\ntriggers / conditions / actions]
 ```
 
-The rule engine is explicitly deferred. Prior art is retained from the
-retired `home-automation` schema at
-`scenarios/home-automation/api/internal/home/schema.sql`; the deleted path is
-historical reference material only, and device-control does not import or
-depend on it. Its former `automation_rules` table had these columns:
+The rule engine is explicitly deferred. Prior art is retained only as
+historical reference material from the retired home-automation schema; the
+deleted path is not part of this scenario, and device-control does not import
+or depend on it. Its former `automation_rules` table had these columns:
 `id`, `name`, `description`, `created_by`, `trigger_type`, `trigger_config`,
 `conditions`, `actions`, `active`, `generated_by_ai`, `source_code`,
 `execution_count`, `last_executed`, `created_at`, and `updated_at`. Its

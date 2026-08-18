@@ -12,7 +12,10 @@ import (
 
 	authdomain "device-control/internal/auth"
 	devicedomain "device-control/internal/devices"
+	internalflows "device-control/internal/flows"
+	identitydomain "device-control/internal/identity"
 	"device-control/strategy"
+	"device-control/strategy/androidtvremote"
 	"device-control/strategy/fakes"
 	strategyregistry "device-control/strategy/registry"
 	"github.com/stretchr/testify/require"
@@ -35,6 +38,72 @@ func testService(t *testing.T) (*Service, *sql.DB) {
 }
 
 type flowAuthResolver struct{ value string }
+
+type pairingDiscoveryFixture struct{}
+
+func (pairingDiscoveryFixture) DiscoverMDNS(context.Context) ([]androidtvremote.Device, error) {
+	return []androidtvremote.Device{{
+		Serial:      "bt-tv-1",
+		IdentityKey: "bt-tv-1",
+		Endpoint:    "tv.local:6466",
+	}}, nil
+}
+
+type pairingClientFixture struct{ pin string }
+
+func (f *pairingClientFixture) Pair(_ context.Context, _ androidtvremote.Device, pin string) ([]byte, error) {
+	f.pin = pin
+	return []byte("fixture-certificate"), nil
+}
+
+type interactivePairingSessionFixture struct {
+	pin    string
+	closed bool
+}
+
+func (f *interactivePairingSessionFixture) Complete(_ context.Context, pin string) ([]byte, error) {
+	f.pin = pin
+	return []byte("fixture-certificate"), nil
+}
+
+func (f *interactivePairingSessionFixture) Close() error {
+	f.closed = true
+	return nil
+}
+
+type interactivePairingClientFixture struct {
+	session *interactivePairingSessionFixture
+}
+
+func (f *interactivePairingClientFixture) Pair(context.Context, androidtvremote.Device, string) ([]byte, error) {
+	return nil, nil
+}
+
+func (f *interactivePairingClientFixture) Begin(context.Context, androidtvremote.Device) (androidtvremote.PairingSession, error) {
+	f.session = &interactivePairingSessionFixture{}
+	return f.session, nil
+}
+
+type leakyPairingClientFixture struct{}
+
+func (leakyPairingClientFixture) Pair(_ context.Context, _ androidtvremote.Device, pin string) ([]byte, error) {
+	return nil, errors.New("remote rejected PIN " + pin)
+}
+
+type pairingStoreFixture struct {
+	serial      string
+	certificate []byte
+}
+
+func (f *pairingStoreFixture) SavePairingCertificate(_ context.Context, serial string, certificate []byte) error {
+	f.serial = serial
+	f.certificate = append([]byte(nil), certificate...)
+	return nil
+}
+
+func (f *pairingStoreFixture) LoadPairingCertificate(context.Context, string) ([]byte, error) {
+	return append([]byte(nil), f.certificate...), nil
+}
 
 func (r *flowAuthResolver) Provision(_ context.Context, _, _, value string) error {
 	r.value = value
@@ -139,10 +208,97 @@ func TestUnlockAuditRetainsSafeTransactionMetadata(t *testing.T) {
 	require.NotContains(t, string(mustJSON(t, records[0])), "runtime-only-fixture")
 }
 
+func TestDirectActuationRequiresLeaseAndWritesOneNonEvidenceAudit(t *testing.T) {
+	svc, _ := testService(t)
+	_, err := svc.ActuateDevice(context.Background(), "fake", "operator", "", DirectActuation{Key: "DPAD_DOWN"})
+	require.ErrorContains(t, err, "requires a lease")
+	require.Empty(t, svc.Audit())
+
+	lease, err := svc.Acquire("fake", "operator", time.Minute)
+	require.NoError(t, err)
+	record, err := svc.ActuateDevice(context.Background(), "fake", "operator", lease.LeaseToken, DirectActuation{Key: "DPAD_DOWN"})
+	require.NoError(t, err)
+	require.True(t, record.Interactive)
+	require.False(t, record.EvidenceBacked)
+	require.NotEmpty(t, record.CausationID)
+	audits := svc.Audit()
+	require.Len(t, audits, 1)
+	require.Equal(t, record.ID, audits[0].ID)
+	require.Equal(t, "direct-actuation", audits[0].Verb)
+}
+
 func TestUnlockRequiresHeldLease(t *testing.T) {
 	svc, _ := testService(t)
 	_, err := svc.UnlockDevice(context.Background(), "profile-1", "fake", "operator", "")
 	require.ErrorContains(t, err, "active device lease")
+}
+
+func TestPairingPINNeverPersistsOutsideInjectedExchange(t *testing.T) {
+	const pin = "835B64"
+	pairing := &pairingClientFixture{}
+	store := &pairingStoreFixture{}
+	remote := androidtvremote.New(
+		androidtvremote.WithDiscovery(pairingDiscoveryFixture{}),
+		androidtvremote.WithPairingClient(pairing),
+		androidtvremote.WithPairingStore(store),
+	)
+	svc := New(strategyregistry.New(remote))
+
+	result, err := svc.PairDeviceSecret(context.Background(), "android-tv:bt-tv-1", []byte(pin))
+	require.NoError(t, err)
+	require.Equal(t, "paired", result.Outcome)
+	require.Equal(t, pin, pairing.pin, "the injected protocol exchange is the only PIN consumer")
+	require.Equal(t, "bt-tv-1", store.serial)
+	require.Equal(t, []byte("fixture-certificate"), store.certificate)
+	materialized, ok := svc.devices.Get("android-tv:bt-tv-1")
+	require.True(t, ok)
+	require.Equal(t, "bt-tv-1", materialized.IdentityKey)
+
+	require.NotContains(t, string(mustJSON(t, result)), pin)
+	require.NotContains(t, string(mustJSON(t, svc.Audit())), pin)
+	declaration, err := remote.Describe(context.Background())
+	require.NoError(t, err)
+	require.NotContains(t, string(mustJSON(t, declaration)), pin)
+	require.Empty(t, svc.artifacts, "pairing must not create evidence artifacts")
+}
+
+func TestPairingFailureDoesNotExposePIN(t *testing.T) {
+	const pin = "654321"
+	remote := androidtvremote.New(
+		androidtvremote.WithDiscovery(pairingDiscoveryFixture{}),
+		androidtvremote.WithPairingClient(leakyPairingClientFixture{}),
+	)
+	svc := New(strategyregistry.New(remote))
+
+	_, err := svc.PairDeviceSecret(context.Background(), "android-tv:bt-tv-1", []byte(pin))
+	require.Error(t, err)
+	require.NotContains(t, err.Error(), pin)
+	require.NotContains(t, err.Error(), "remote rejected")
+	require.NotContains(t, string(mustJSON(t, svc.Audit())), pin)
+}
+
+func TestInteractivePairingStartsHandshakeBeforePINSubmission(t *testing.T) {
+	pairing := &interactivePairingClientFixture{}
+	store := &pairingStoreFixture{}
+	remote := androidtvremote.New(
+		androidtvremote.WithDiscovery(pairingDiscoveryFixture{}),
+		androidtvremote.WithPairingClient(pairing),
+		androidtvremote.WithPairingStore(store),
+	)
+	svc := New(strategyregistry.New(remote))
+
+	pairingID, err := svc.BeginPairDevice(context.Background(), "android-tv:bt-tv-1")
+	require.NoError(t, err)
+	require.NotEmpty(t, pairingID)
+	require.NotNil(t, pairing.session)
+	require.Empty(t, pairing.session.pin, "the PIN must be submitted only after the TV handshake starts")
+
+	result, err := svc.CompletePairDevice(context.Background(), "android-tv:bt-tv-1", pairingID, []byte("835B64"))
+	require.NoError(t, err)
+	require.Equal(t, "paired", result.Outcome)
+	require.Equal(t, "835B64", pairing.session.pin)
+	require.True(t, pairing.session.closed)
+	require.Equal(t, "bt-tv-1", store.serial)
 }
 
 func TestUnlockDeviceUsesPromotedWirelessStrategy(t *testing.T) {
@@ -270,6 +426,117 @@ func TestAgentRefusesWithoutSkillAndPromotesPassingRun(t *testing.T) {
 	promoted, err := svc.PromoteAgent(run.ID)
 	require.NoError(t, err)
 	require.Equal(t, "promoted", promoted.State)
+	require.NotEmpty(t, promoted.PromotedFlowID)
+	export, err := svc.ExportFlow(promoted.PromotedFlowID)
+	require.NoError(t, err)
+	require.NotEmpty(t, export.Flow.Steps)
+}
+
+type framelessAgentStrategy struct {
+	*fakes.Strategy
+	commands []strategy.MediaCommand
+}
+
+func (s *framelessAgentStrategy) ReadState(context.Context) (strategy.DeviceState, error) {
+	return strategy.DeviceState{Properties: map[string]strategy.PropertyValue{
+		"application": {Value: "YouTube", Status: strategy.StatusAvailable, Transport: s.ID()},
+	}}, nil
+}
+
+func (s *framelessAgentStrategy) ControlMedia(_ context.Context, command strategy.MediaCommand) error {
+	s.commands = append(s.commands, command)
+	return nil
+}
+
+func TestFramelessAgentUsesTypedStateAndDryRunDoesNotActuate(t *testing.T) {
+	strategyUnderTest := &framelessAgentStrategy{Strategy: fakes.New("frameless", strategy.StatusAvailable, strategy.CapMedia)}
+	svc := New(strategyregistry.New(strategyUnderTest))
+	svc.devices.Upsert(devicedomain.Record{ID: "frameless", StrategyID: "frameless", Transport: "frameless", Status: strategy.StatusAvailable, Health: strategy.StatusAvailable, Capabilities: []strategy.Capability{{Name: strategy.CapMedia, Status: strategy.StatusAvailable}}})
+
+	run, err := svc.StartAgentWithOptions(context.Background(), "pause whatever is playing", "frameless", "operator", true, true)
+	require.NoError(t, err)
+	require.Equal(t, "completed", run.State)
+	require.Equal(t, "passed", run.Result.Disposition)
+	require.True(t, run.DryRun)
+	require.Empty(t, strategyUnderTest.commands)
+	require.Contains(t, run.Result.Chapters[len(run.Result.Chapters)-1].Message, "without sending an actuation")
+}
+
+type sequenceAgentPlanner struct {
+	plans []internalflows.AgentPlan
+	calls int
+}
+
+func (p *sequenceAgentPlanner) Plan(context.Context, internalflows.AgentWorld) (internalflows.AgentPlan, error) {
+	index := p.calls
+	p.calls++
+	if index >= len(p.plans) {
+		return internalflows.AgentPlan{GoalMet: true}, nil
+	}
+	return p.plans[index], nil
+}
+
+func TestAgentUsesBoundedGoalLoopAndRecordsEachWorldModel(t *testing.T) {
+	strategyUnderTest := &framelessAgentStrategy{Strategy: fakes.New("frameless-loop", strategy.StatusAvailable, strategy.CapMedia)}
+	svc := New(strategyregistry.New(strategyUnderTest))
+	svc.devices.Upsert(devicedomain.Record{ID: "frameless-loop", StrategyID: "frameless-loop", Transport: "frameless-loop", Status: strategy.StatusAvailable, Health: strategy.StatusAvailable, Capabilities: []strategy.Capability{{Name: strategy.CapMedia, Status: strategy.StatusAvailable}}})
+	planner := &sequenceAgentPlanner{plans: []internalflows.AgentPlan{{StepKind: "media-pause", Action: "pause"}, {GoalMet: true}}}
+	svc.SetAgentPlanner(planner)
+
+	run, err := svc.StartAgentWithOptions(context.Background(), "pause and verify", "frameless-loop", "operator", true, true)
+	require.NoError(t, err)
+	require.Equal(t, "completed", run.State)
+	require.Equal(t, "passed", run.Result.Disposition)
+	require.Equal(t, 2, planner.calls)
+	require.Contains(t, run.Result.Chapters[0].ID, "world-model-1")
+	require.Contains(t, run.Result.Chapters[1].ID, "iteration-1")
+	require.Contains(t, run.Result.Chapters[2].ID, "world-model-2")
+	require.Contains(t, run.Result.Chapters[3].ID, "goal-2")
+	require.Empty(t, strategyUnderTest.commands)
+}
+
+type pollingStateStrategy struct{}
+
+func (pollingStateStrategy) ID() string { return "polling-state" }
+func (pollingStateStrategy) Describe(context.Context) (strategy.Declaration, error) {
+	return strategy.Declaration{
+		StrategyID: "polling-state", Status: strategy.StatusAvailable,
+		Capabilities: map[string]strategy.Capability{
+			strategy.CapProperty: {Name: strategy.CapProperty, Status: strategy.StatusAvailable, StateClass: strategy.StateBearing},
+		},
+		Properties:       []strategy.PropertyDescriptor{{Name: "enabled", ValueType: "boolean", StateClass: strategy.StateBearing}},
+		StateObservation: strategy.StateObservation{Mode: "poll", Interval: time.Millisecond},
+	}, nil
+}
+
+func (pollingStateStrategy) ReadState(context.Context) (strategy.DeviceState, error) {
+	return strategy.DeviceState{Properties: map[string]strategy.PropertyValue{
+		"enabled": {Value: true, Status: strategy.StatusAvailable, Transport: "polling-state"},
+	}}, nil
+}
+
+func TestDeclaredPollingTransportStartsObservationWithoutCastSpecialCase(t *testing.T) {
+	svc := New(strategyregistry.New(pollingStateStrategy{}))
+	subscription := svc.SubscribeStateChanges(2)
+	defer subscription.Cancel()
+	svc.startObserverLocked(devicedomain.Record{ID: "poll-device", StrategyID: "polling-state", Transport: "polling-state", Status: strategy.StatusAvailable})
+	defer func() {
+		svc.mu.Lock()
+		if cancel := svc.observerCancels["poll-device"]; cancel != nil {
+			cancel()
+		}
+		svc.mu.Unlock()
+	}()
+
+	select {
+	case event := <-subscription.Events:
+		require.Equal(t, "poll-device", event.DeviceID)
+		require.Equal(t, "polling-state", event.Transport)
+		require.Equal(t, "enabled", event.Attribute)
+		require.Equal(t, true, event.NewValue)
+	case <-time.After(time.Second):
+		t.Fatal("declared polling transport did not emit state")
+	}
 }
 
 func TestBridgeInventoryFailureIsExplicitlyDegraded(t *testing.T) {
@@ -531,10 +798,10 @@ func TestWirelessTransportStateSurvivesServiceReconstruction(t *testing.T) { // 
 func TestObservedTransportProfilesSurviveServiceReconstruction(t *testing.T) {
 	svc, db := testService(t)
 	first := &enumeratingFake{Strategy: fakes.New("android-adb", strategy.StatusAvailable, strategy.CapInput), devices: []strategy.Device{{
-		ID: "tv-usb", Serial: "tv-serial", Model: "Living room TV", StrategyID: "android-adb", Transport: "usb", Endpoint: "usb", Health: strategy.StatusAvailable,
+		ID: "tv-usb", Serial: "tv-serial", IdentityKey: "tv-serial", IdentityKind: string(identitydomain.ADBSerial), Model: "Living room TV", StrategyID: "android-adb", Transport: "usb", Endpoint: "usb", Health: strategy.StatusAvailable,
 	}}}
 	second := &enumeratingFake{Strategy: fakes.New("android-tv-remote", strategy.StatusAvailable, strategy.CapMedia), devices: []strategy.Device{{
-		ID: "tv-remote", Serial: "tv-serial", Model: "Living room TV", StrategyID: "android-tv-remote", Transport: "mdns", Endpoint: "tv.local:6466", Health: strategy.StatusAvailable,
+		ID: "tv-remote", Serial: "tv-serial", IdentityKey: "tv-serial", IdentityKind: string(identitydomain.ADBSerial), Model: "Living room TV", StrategyID: "android-tv-remote", Transport: "mdns", Endpoint: "tv.local:6466", Health: strategy.StatusAvailable,
 	}}}
 	svc.registry = strategyregistry.New(first, second)
 
@@ -553,14 +820,42 @@ func TestObservedTransportProfilesSurviveServiceReconstruction(t *testing.T) {
 	require.Equal(t, 2, count)
 }
 
+func TestIdentityMergeSplitPreservesClaimsAndAuditReachability(t *testing.T) {
+	svc, db := testService(t)
+	claimA := identitydomain.IdentityClaim{Kind: identitydomain.CastID, Value: "cast-a", StrategyID: "google-cast", Evidence: "observed"}
+	claimB := identitydomain.IdentityClaim{Kind: identitydomain.CastID, Value: "cast-b", StrategyID: "google-cast", Evidence: "observed"}
+	svc.devices.UpsertIdentity(devicedomain.Record{ID: "tv-canonical", Kind: "physical", IdentityKey: "cast-a", IdentityKind: string(identitydomain.CastID), Claims: []identitydomain.IdentityClaim{claimA}, StrategyID: "google-cast", Transport: "cast", Endpoint: "192.168.1.10:8009"})
+	svc.devices.UpsertIdentity(devicedomain.Record{ID: "tv-member", Kind: "physical", IdentityKey: "cast-b", IdentityKind: string(identitydomain.CastID), Claims: []identitydomain.IdentityClaim{claimB}, StrategyID: "android-tv-remote", Transport: "mdns", Endpoint: "192.168.1.10:6466"})
+	_, err := db.Exec(`INSERT INTO device_control_audits (id, actor, device_id, lease_id, verb, outcome, created_at, redaction_verified) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, "audit-before-merge", "operator", "tv-member", "lease", "key", "passed", time.Now().UTC().Format(time.RFC3339Nano), 1)
+	require.NoError(t, err)
+
+	merged, err := svc.MergeDevices(context.Background(), "tv-canonical", "tv-member", "cast-id=cast-a")
+	require.NoError(t, err)
+	require.Equal(t, "tv-canonical", merged.ID)
+	require.Len(t, merged.Claims, 3, "the owner assertion and both observed claims remain readable")
+	require.Len(t, svc.AuditForDevice(context.Background(), "tv-canonical"), 1)
+
+	split, err := svc.SplitDevice(context.Background(), "tv-canonical")
+	require.NoError(t, err)
+	require.Len(t, split, 2)
+	require.Len(t, svc.AuditForDevice(context.Background(), "tv-canonical"), 1)
+	require.Len(t, svc.AuditForDevice(context.Background(), "tv-member"), 1)
+
+	reloaded, err := NewWithDB(strategyregistry.New(), db)
+	require.NoError(t, err)
+	require.Len(t, reloaded.AuditForDevice(context.Background(), "tv-canonical"), 1)
+	require.Len(t, reloaded.AuditForDevice(context.Background(), "tv-member"), 1)
+}
+
 func TestFlowsAndAuditsSelectBothGenericTransportProfiles(t *testing.T) {
 	minimum, maximum := 0.0, 100.0
 	first := fakes.NewPropertyOnly("hub-rest", strategy.PropertyDescriptor{Name: "brightness", ValueType: "number", Writable: true, Minimum: &minimum, Maximum: &maximum}, 10.0)
 	second := fakes.NewPropertyOnly("hub-mdns", strategy.PropertyDescriptor{Name: "brightness", ValueType: "number", Writable: true, Minimum: &minimum, Maximum: &maximum}, 20.0)
 	svc, _ := testService(t)
 	svc.registry = strategyregistry.New(first, second)
-	svc.devices.UpsertIdentity(devicedomain.Record{ID: "hub-device", Kind: "physical", Serial: "hub-serial", StrategyID: first.ID(), Transport: "rest", Endpoint: "ha.example", Status: strategy.StatusAvailable, Health: strategy.StatusAvailable})
-	svc.devices.UpsertIdentity(devicedomain.Record{ID: "hub-device-mdns", Kind: "physical", Serial: "hub-serial", StrategyID: second.ID(), Transport: "mdns", Endpoint: "tv.local:6466", Status: strategy.StatusAvailable, Health: strategy.StatusAvailable})
+	claim := identitydomain.IdentityClaim{Kind: identitydomain.ADBSerial, Value: "hub-serial", Evidence: "observed"}
+	svc.devices.UpsertIdentity(devicedomain.Record{ID: "hub-device", Kind: "physical", Serial: "hub-serial", Claims: []identitydomain.IdentityClaim{claim}, StrategyID: first.ID(), Transport: "rest", Endpoint: "ha.example", Status: strategy.StatusAvailable, Health: strategy.StatusAvailable})
+	svc.devices.UpsertIdentity(devicedomain.Record{ID: "hub-device-mdns", Kind: "physical", Serial: "hub-serial", Claims: []identitydomain.IdentityClaim{claim}, StrategyID: second.ID(), Transport: "mdns", Endpoint: "tv.local:6466", Status: strategy.StatusAvailable, Health: strategy.StatusAvailable})
 
 	for _, test := range []struct {
 		transport string
@@ -576,6 +871,23 @@ func TestFlowsAndAuditsSelectBothGenericTransportProfiles(t *testing.T) {
 	audits := svc.Audit()
 	require.Len(t, audits, 2)
 	require.ElementsMatch(t, []string{"rest", "mdns"}, []string{audits[0].Transport, audits[1].Transport})
+}
+
+func TestReadDeviceStateMergesStateBearingTransportProperties(t *testing.T) {
+	minimum, maximum := 0.0, 100.0
+	first := fakes.NewPropertyOnly("state-rest", strategy.PropertyDescriptor{Name: "brightness", ValueType: "number", StateClass: strategy.StateBearing, Minimum: &minimum, Maximum: &maximum}, 30.0)
+	second := fakes.NewPropertyOnly("state-mdns", strategy.PropertyDescriptor{Name: "volume", ValueType: "number", StateClass: strategy.StateBearing, Minimum: &minimum, Maximum: &maximum}, 0.7)
+	svc := New(strategyregistry.New(first, second))
+	claim := identitydomain.IdentityClaim{Kind: identitydomain.CastID, Value: "state-device", Evidence: "observed"}
+	svc.devices.UpsertIdentity(devicedomain.Record{ID: "state-device", Kind: "physical", Claims: []identitydomain.IdentityClaim{claim}, IdentityKey: "state-device", StrategyID: first.ID(), Transport: "rest", Status: strategy.StatusAvailable, Health: strategy.StatusAvailable})
+	svc.devices.UpsertIdentity(devicedomain.Record{ID: "state-device-mdns", Kind: "physical", Claims: []identitydomain.IdentityClaim{claim}, IdentityKey: "state-device", StrategyID: second.ID(), Transport: "mdns", Status: strategy.StatusAvailable, Health: strategy.StatusAvailable})
+
+	state, err := svc.ReadDeviceState(context.Background(), "state-device")
+	require.NoError(t, err)
+	require.Equal(t, 30.0, state.Properties["brightness"].Value)
+	require.Equal(t, 0.7, state.Properties["volume"].Value)
+	require.Equal(t, "rest", state.Properties["brightness"].Transport)
+	require.Equal(t, "mdns", state.Properties["volume"].Transport)
 }
 
 func TestWirelessInventoryUsesRestoredAdapterCapabilities(t *testing.T) {

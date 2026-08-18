@@ -123,7 +123,7 @@
       "id": "conformance-matrix",
       "role": "table",
       "name": "Conformance",
-      "description": "One row per strategy with floor conformance, declared count, probed count, and delta."
+      "description": "One row per strategy with contract conformance, declared count, probed count, and delta."
     },
     {
       "id": "declared-column",
@@ -221,9 +221,9 @@
       "rationale": "The delta is the finding the conformance suite exists to produce. Requiring subtraction to see it buries the page's whole output."
     },
     {
-      "id": "floor-is-a-hard-gate",
+      "id": "contract-is-a-hard-gate",
       "type": "element-present",
-      "statement": "Floor conformance is shown as a pass-or-fail outcome with no intermediate value.",
+      "statement": "Strategy contract conformance is shown as a pass-or-fail outcome with no intermediate value.",
       "tier": "machine",
       "elements": [
         "floor-status"
@@ -232,7 +232,7 @@
         "verified",
         "partial"
       ],
-      "rationale": "D-001. A component that does not implement all three floor operations is not a strategy; a partial floor is not a meaningful state."
+      "rationale": "D-001. Identity and declaration are mandatory; optional modalities are reported separately and are never implied by device kind."
     },
     {
       "id": "executable-steps-are-derived-and-shown",

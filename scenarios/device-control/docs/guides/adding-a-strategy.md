@@ -1,13 +1,13 @@
 # Adding a Strategy — Device Control
 
 A strategy is how one class of device gets driven. Adding one should mean
-implementing three operations, declaring what else you can back, and passing
-a fixed suite — with **no change to the flow executor, the resolver, or the
-evidence layer** (`OT-P0-002`).
+implementing stable identity and a declaration, adding only the optional
+modalities the transport can back, and passing a fixed suite — with **no
+change to the flow executor, the resolver, or the evidence layer** (`OT-P0-002`).
 
 If you find yourself needing to modify the engine to make your strategy work,
-stop: either the floor is wrong or your capability belongs in the declared set.
-Both are worth raising before writing more code.
+stop: either the contract seam is wrong or your capability belongs in the
+declared set. Both are worth raising before writing more code.
 
 ## Before you start
 
@@ -27,15 +27,22 @@ inherit.
 
 | You implement | You get for free |
 |---|---|
-| `observe()`, `actuate()`, `describe()` | Recording, both deterministic resolution rungs, bounded waits, evidence chapters, leases, audit |
+| `ID()`, `Describe()`, and any backed modality | Shared execution, bounded waits, evidence chapters, leases, and audit |
 | A capability declaration | Gap reports, step admission, profile matching |
 | A prober | Honest `unavailable` reporting with next actions |
 
-That ratio is the point of the floor being three operations (`D-001`).
+That narrow contract lets screenless transports participate without claiming a
+frame or input channel (`D-001`).
 
-## Step 1 — Implement the floor
+## Step 1 — Implement identity and the modalities you support
 
-### `observe() -> Frame`
+### `ID() -> string` and `Describe() -> CapabilityDeclaration`
+
+Return a stable strategy identifier and declare only capabilities this
+transport can exercise. Inventory probes verify the declaration and report
+missing prerequisites explicitly.
+
+### `observe() -> Frame` (optional)
 
 Return the current screen as an image plus **size, scale, and timestamp**.
 
@@ -49,7 +56,7 @@ than a tap that fails outright.
 Timestamp matters because a stale frame drives a real device. Return the
 capture time, not the request time.
 
-### `actuate(PointerEvent | KeyEvent) -> error`
+### `actuate(PointerEvent | KeyEvent) -> error` (optional)
 
 Press, release, move, key input. Fail loudly when you cannot deliver.
 
@@ -62,14 +69,9 @@ precondition your `actuate` must check and report — not a race you let the
 caller lose. An event silently swallowed is worse than an error, because the
 flow continues and the evidence looks fine.
 
-### `describe() -> CapabilityDeclaration`
-
-What else this strategy offers, using the capability IDs from the registry.
-See Step 2 — this is where most mistakes happen.
-
 ## Step 2 — Declare only what you can back
 
-`describe()` is a claim. Claims get verified against a probe, and the delta is
+`Describe()` is a claim. Claims get verified against a probe, and the delta is
 the headline output of the conformance suite.
 
 **The realistic failure is not dishonesty — it is inheritance.** An author
@@ -78,7 +80,7 @@ that one capability does not work on their transport. The suite exists to
 catch exactly that, which is why declaration and probing are separate seams
 ([`../internal/SEAMS.md`](../internal/SEAMS.md#why-describe-and-capabilityprober-are-two-seams)).
 
-For `ios-mirror` the honest declaration is **nothing beyond the floor**. And
+For `ios-mirror` the honest declaration is **only the modalities it can back**. And
 this is the subtle part — those absences are `unsupported`, not `unavailable`:
 
 | Capability | Disposition | Why |
@@ -100,7 +102,7 @@ Mirroring."
 ## Step 3 — Implement the prober
 
 The prober answers what can be **proven right now on this host**, independent
-of what `describe()` claimed. Every negative result carries the exact missing
+of what `Describe()` claimed. Every negative result carries the exact missing
 prerequisite and a next action — an `unavailable` without one is a defect,
 not a valid state.
 
@@ -162,17 +164,17 @@ writing one, the boundary is in the wrong place.
 | You do not write | Why it already works |
 |---|---|
 | Video recording | Synthesized from your `observe()` frame stream when you do not declare `native-recording`. Evidence records `method: synthesized` and the effective frame rate (`D-009`). |
-| Target resolution | `visual-anchor` and `vision` are floor-only — they operate on frames. Every strategy gets both. Declare `semantic-tree` and the `semantic` rung is added on top. |
+| Target resolution | `visual-anchor` and `vision` operate on declared frames. A strategy without observation remains valid but cannot claim those rungs. Declare `semantic-tree` and the `semantic` rung is added on top. |
 | Bounded waits | Named policies with upper bounds, enforced by the executor. Never sleep inside an adapter. |
 | Evidence chapters, checksums, redaction | Owned by the evidence layer. Return frames; do not write files. |
 | Leases, audit, session kill | Owned by `sessions`. Your verbs are only ever called with a held lease. |
 | Inference | Routes through `ai-gateway`. An adapter never calls a model. |
 
-The synthesized-recording line is the clearest illustration of why the floor
-is worth conforming to. `ios-mirror` cannot record video at the transport
-level — but because `observe()` is guaranteed, it gets video evidence anyway,
-and the delivery ramps can claim physical-iPhone evidence on a strategy that
-has no recording capability at all.
+The synthesized-recording line is the clearest illustration of why optional
+modalities remain useful. `ios-mirror` cannot record video at the transport
+level, but when observation is available it can still produce synthesized
+evidence; a screenless strategy simply reports that frame-based evidence is
+unavailable.
 
 ## What you must never do
 
@@ -193,14 +195,14 @@ has no recording capability at all.
 
 ## Checklist
 
-- [ ] `observe()` returns image, size, **scale**, and capture timestamp.
-- [ ] `actuate()` verifies its preconditions and reports undeliverable events.
-- [ ] `describe()` declares only capabilities the adapter can back.
+- [ ] `ID()` is stable and `Describe()` declares only capabilities the adapter can back.
+- [ ] If implemented, `observe()` returns image, size, **scale**, and capture timestamp.
+- [ ] If implemented, `actuate()` verifies its preconditions and reports undeliverable events.
 - [ ] Absences are classified `unsupported` vs `unavailable` using the action test.
 - [ ] Prober names a prerequisite **and a next action** for every `unavailable`.
 - [ ] Probe is cheap enough to run on a schedule against an idle device.
 - [ ] Single-session constraint declared if applicable.
-- [ ] `strategy verify` reports floor conformance pass and an **empty delta**.
+- [ ] `strategy verify` reports contract conformance and an **empty delta**.
 - [ ] No recording, resolution, evidence, lease, sleep, or inference code in the adapter.
 - [ ] Executor, resolver, and evidence layer are unmodified.
 

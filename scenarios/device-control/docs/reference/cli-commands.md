@@ -16,7 +16,7 @@ that touches the API).
 The CLI's command surface (groups, commands, positionals, flags,
 RPC bindings, governance metadata) is declared in
 [`cli/manifest.json`](../../cli/manifest.json) and validated against the
-project CLI-manifest schema (`path:.vrooli/schemas/cli-manifest.schema.json`)
+project CLI-manifest schema
 (schema id `cli-manifest/v1`). The manifest is loaded at startup by
 `cliapp.LoadFromManifestPrimitives`, which:
 
@@ -118,6 +118,26 @@ endpoint and renders the result through one of the three output
 contracts below. Document your domain's commands here as you build
 them, one row/section per command, mirroring the endpoints they call
 in [`api-endpoints.md`](api-endpoints.md).
+
+The device group includes the LAN and identity operations:
+
+```bash
+device-control device discover --service _googlecast._tcp --timeout-seconds 10 --json
+device-control device pair <id> --pin <six-hex-characters>
+device-control device pair <id> --pin-stdin
+device-control device actuate <id> --lease <lease-token> --key DPAD_DOWN [--repeat 1]
+device-control device actuate <id> --lease <lease-token> --media pause
+device-control device watch <id>
+device-control device merge <canonical-id> <member-id> --claim cast-id=<receiver-id>
+device-control device split <canonical-id>
+```
+
+`--pin-stdin` starts the Android TV Remote handshake before prompting for one
+line of PIN input. The television displays the PIN after the handshake starts;
+the CLI never places it in command arguments or shell history.
+
+`merge` is an explicit owner assertion and is recorded as such; discovery
+never merges by address, hostname, mDNS instance, or friendly name.
 
 The scaffold ships one fully worked CRUD command group as a copyable
 reference (see the fenced example below); `template-manager detemplate

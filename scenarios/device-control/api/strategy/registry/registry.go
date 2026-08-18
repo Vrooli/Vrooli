@@ -3,11 +3,15 @@ package registry
 import (
 	"context"
 	"fmt"
+	"os"
 	"sort"
+	"strings"
 
+	identitydomain "device-control/internal/identity"
 	"device-control/strategy"
 	"device-control/strategy/androidadb"
 	"device-control/strategy/androidtvremote"
+	"device-control/strategy/googlecast"
 	"device-control/strategy/homeassistant"
 	"device-control/strategy/hostdesktop"
 	"device-control/strategy/iosmirror"
@@ -33,7 +37,44 @@ func New(items ...strategy.Strategy) *Registry {
 }
 
 func Default() *Registry {
-	return New(androidadb.New(), androidtvremote.New(), homeassistant.NewFromEnv(), hostdesktop.New(), iossimctl.New(), iosxcuitest.New(), iosmirror.New())
+	return New(androidadb.New(), configuredAndroidTVRemote(), configuredGoogleCast(), homeassistant.NewFromEnv(), hostdesktop.New(), iossimctl.New(), iosxcuitest.New(), iosmirror.New())
+}
+
+// Static endpoints are an owner-controlled escape hatch for networks where
+// multicast is filtered. They are intentionally opt-in and carry no pairing
+// material; normal operation remains DNS-SD discovery.
+func configuredAndroidTVRemote() strategy.Strategy {
+	endpoint := strings.TrimSpace(os.Getenv("DEVICE_CONTROL_ANDROID_TV_REMOTE_ENDPOINT"))
+	if endpoint == "" {
+		return androidtvremote.New()
+	}
+	configuredIdentity := strings.TrimSpace(os.Getenv("DEVICE_CONTROL_ANDROID_TV_REMOTE_IDENTITY"))
+	device := androidtvremote.Device{Serial: configuredIdentity, IdentityKey: configuredIdentity, Endpoint: endpoint, Name: strings.TrimSpace(os.Getenv("DEVICE_CONTROL_ANDROID_TV_REMOTE_NAME"))}
+	if device.Serial == "" {
+		device.Serial = "configured:" + endpoint
+	}
+	if claim, err := identitydomain.NewClaim(string(identitydomain.BluetoothMAC), configuredIdentity, "android-tv-remote", "owner-configured"); err == nil {
+		device.IdentityKey = claim.Value
+		device.IdentityKind = string(claim.Kind)
+	}
+	return androidtvremote.New(androidtvremote.WithDevices(device))
+}
+
+func configuredGoogleCast() strategy.Strategy {
+	endpoint := strings.TrimSpace(os.Getenv("DEVICE_CONTROL_GOOGLE_CAST_ENDPOINT"))
+	if endpoint == "" {
+		return googlecast.New()
+	}
+	configuredIdentity := strings.TrimSpace(os.Getenv("DEVICE_CONTROL_GOOGLE_CAST_IDENTITY"))
+	device := googlecast.Device{ID: configuredIdentity, IdentityKey: configuredIdentity, Endpoint: endpoint, Name: strings.TrimSpace(os.Getenv("DEVICE_CONTROL_GOOGLE_CAST_NAME"))}
+	if claim, err := identitydomain.NewClaim(string(identitydomain.CastID), configuredIdentity, "google-cast", "owner-configured"); err == nil {
+		device.IdentityKey = claim.Value
+		device.IdentityKind = string(claim.Kind)
+	}
+	if device.ID == "" {
+		device.ID = endpoint
+	}
+	return googlecast.New(googlecast.WithDevices(device))
 }
 func (r *Registry) Get(id string) (strategy.Strategy, bool) { s, ok := r.items[id]; return s, ok }
 func (r *Registry) List(ctx context.Context) []strategy.Declaration {
@@ -75,7 +116,11 @@ func (r *Registry) ListDevices(ctx context.Context) []DeviceDeclaration {
 		}
 		for _, device := range devices {
 			driver := base
-			if scoped, ok := base.(strategy.DeviceScoped); ok && device.Serial != "" {
+			if endpointScoped, ok := base.(interface {
+				ForEndpoint(string) strategy.Strategy
+			}); ok && device.Endpoint != "" {
+				driver = endpointScoped.ForEndpoint(device.Endpoint)
+			} else if scoped, ok := base.(strategy.DeviceScoped); ok && device.Serial != "" {
 				driver = scoped.ForDevice(device.Serial)
 			}
 			declaration, err := driver.Describe(ctx)

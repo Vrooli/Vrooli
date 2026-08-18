@@ -81,7 +81,9 @@ which is how a verb reaches a physical or virtual device.
                   ┌──────────┐        ┌───────────────────────┐
                   │  SQLite  │        │  Strategy adapters    │
                   │ (local)  │        │  android-adb,         │
-                  └──────────┘        │  ios-simctl,          │
+                  └──────────┘        │  android-tv-remote,   │
+                                      │  google-cast,          │
+                                      │  ios-simctl,          │
                                       │  ios-xcuitest,        │
                                       │  ios-mirror,          │
                                       │  host-desktop         │
@@ -146,6 +148,12 @@ The scenario does not own:
 
 Document dependency and resource decisions in
 [`INTEGRATIONS.md`](INTEGRATIONS.md), not here.
+
+LAN discovery is a shared protocol seam rather than a strategy concern:
+`packages/mdns-go` owns multicast DNS-SD browsing, while
+`api/internal/discovery` selects the service types used by Device Control.
+Strategies consume discovered service instances and never shell out to an
+external browser or use the host unicast resolver as an mDNS substitute.
 
 ## Contracts And Data Flow
 
@@ -247,8 +255,9 @@ a different path from a domain. Adding one must require **no engine
 change** — that property is what `DVC-P0-002`'s conformance suite
 exists to protect.
 
-1. Implement the three floor operations — `Observe`, `Actuate`,
-   `Describe` — against the `Strategy` seam.
+1. Implement the mandatory identity and declaration methods — `ID` and
+   `Describe` — against the `Strategy` seam. `Observe` and `Actuate` are
+   optional modalities, not a universal floor.
 2. Declare optional capabilities using the canonical IDs in
    [`../reference/capabilities.md`](../reference/capabilities.md). Never
    invent an ID; an unlisted capability cannot be required by a step or
@@ -269,11 +278,11 @@ exercises it in the same change (`D-012`). Full walkthrough:
 | Area | Maturity | Evidence | Remaining Drift |
 |---|---|---|---|
 | Design | Authored | PRD operational targets, capability registry, decision log, and planned seam register are complete and mutually consistent. | Two design decisions remain open — lease enforcement point and the `ios-mirror` non-promotability mechanism. See [`../internal/PROBLEMS.md`](../internal/PROBLEMS.md). |
-| API | Vertical slices implemented | Device inventory, leases, flows, evidence, and authentication profile/unlock services are wired through the module and Connect surfaces. | Remaining expansion domains (agent promotion, iOS, BAS delegation) are still planned; keep their unavailable/unsupported contracts explicit. |
-| UI | Auth and fleet foundations implemented | Dashboard inventory and authentication-profile status use typed API clients, selectors, translations, and isolated feature tests. | Full live-session authoring and run-review UX remain follow-up work. |
-| CLI | Control surface implemented | Device, session, flow, evidence, and authentication commands expose report-shaped JSON and stdin-only credential provisioning. | Future agent-mode and cross-device commands remain planned. |
+| API | Vertical slices implemented | Device inventory, LAN discovery, pairing, leases, direct actuation, typed state, SSE observation, flows, evidence, authentication, and bounded agent runs are wired through the module. | Agent runtime persistence and iOS/BAS expansion remain separate follow-up work. |
+| UI | Capability-composed control implemented | Dashboard discovery/pairing and `/devices/:deviceId` capability panels use typed API clients, selectors, translations, and isolated feature tests. | Full live hardware walkthrough and broader flow-authoring UX remain follow-up work. |
+| CLI | Control surface implemented | Device discovery, pairing, state, watch, lease-owned actuation, flow, evidence, authentication, and agent commands expose report-shaped JSON and stdin-only secrets. | Additional device classes remain follow-up work. |
 | Docs | Operational and traceable | Security, error, flow, data, agent-skill, onboarding, and credential-authority boundaries describe the implemented authentication lifecycle and its evidence. | Keep maturity values and requirement references synchronized as additional strategies land. |
-| Strategies | Android ADB implemented | `android-adb` (`DVC-P0-011`) provides the Android floor plus bounded numeric unlock and fresh keyguard verification. | iOS and other strategy adapters remain planned and must preserve the same declared-capability contract. |
+| Strategies | Android and Google TV transports implemented | `android-adb` provides the mobile path; `android-tv-remote` and `google-cast` compose a screenless, state-bearing Google TV control path with explicit unavailable capabilities. | iOS and additional device adapters remain planned and must preserve the same declared-capability contract. |
 
 Use `docs/manifest.json` as the documentation contract. The declared
 `maturity` values are expected to be maintained by agents and later

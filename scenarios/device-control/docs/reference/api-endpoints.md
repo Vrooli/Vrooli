@@ -52,6 +52,40 @@ and mirrors `api-core/health.Response` field-for-field.
 
 ---
 
+## LAN device operations
+
+`GET /api/v1/devices/discover` performs a bounded DNS-SD browse and returns
+every service instance with its transport, endpoint, and TXT-derived identity
+keys. A browse failure returns `health: unreachable` and a named `reason`.
+
+`POST /api/v1/devices/{id}/pair/start` opens the Android TV Remote handshake
+through the configuration acknowledgement and returns a short-lived pairing
+session id. The television displays its PIN at this boundary.
+
+`POST /api/v1/devices/{id}/pair/complete` accepts the session id and the
+owner-entered PIN, completes the exchange, and stores the resulting
+certificate. The PIN is passed only through the pairing request, then
+discarded; it is not logged, audited, serialized in declarations, or returned
+in the response. The legacy `POST /api/v1/devices/{id}/pair` route remains
+available for non-interactive callers, and the CLI `--pin-stdin` path uses the
+two-stage handshake.
+
+`POST /api/v1/devices/{id}/actuate` accepts exactly one lease-owned direct key,
+text, media, or property command. Media uses `{ "media": "pause" }`; a key may
+include a bounded `repeat` count. It writes exactly one interactive audit
+record and produces no flow document or evidence artifact. A lease token is
+required.
+
+`POST /api/v1/devices/{id}/merge` accepts `{ "member_id": "…", "claim":
+"cast-id=…" }` and records the claim as `owner-asserted` before combining the
+two identities. `POST /api/v1/devices/{id}/split` restores the snapshots from
+the most recent merge. Historical audit aliases remain queryable from both
+resulting identities.
+
+`GET /api/v1/devices/{id}/events` streams `text/event-stream` state-change
+events from the existing local event bus. Each event is emitted as an SSE
+`data:` record.
+
 ## Domain endpoints — `<domain>`
 
 Each product domain exposes its endpoints under

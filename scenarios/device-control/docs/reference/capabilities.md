@@ -22,21 +22,20 @@ this document is stale.
 That distinction is not pedantry. "Android phones usually have X" is exactly
 the inference this scenario exists to refuse.
 
-## The floor
+## The mandatory contract
 
-Three operations, required of every strategy. A component that does not
-implement all three is not a strategy.
+Every strategy supplies stable identity and a declaration. Modalities are
+optional interfaces, and each declared modality is verified by probing.
 
 | Operation | Signature intent | Guarantees |
 |---|---|---|
-| `observe()` | returns a `Frame` — image plus size, scale, timestamp | A frame stream exists on every strategy by construction. |
-| `actuate()` | accepts pointer and key events | Press, release, move, key input. |
-| `describe()` | returns a `CapabilityDeclaration` | What else this strategy claims. Claims are verified separately — see [`../internal/SEAMS.md`](../internal/SEAMS.md#why-describe-and-capabilityprober-are-two-seams). |
+| `ID()` | returns a stable strategy identifier | Inventory can correlate transports without guessing from names or addresses. |
+| `Describe()` | returns a `CapabilityDeclaration` | What this strategy claims; claims are verified separately — see [`../internal/SEAMS.md`](../internal/SEAMS.md#why-describe-and-capabilityprober-are-two-seams). |
+| Optional `observe()` / `actuate()` | returns frames or accepts input events | Only the corresponding declared capabilities and step kinds are available. |
 
-The floor is deliberately this small because it is the largest set
-`ios-mirror` can satisfy (`D-001`). Every shared capability is built against
-the floor, which is what makes it work on every strategy rather than only the
-well-instrumented ones.
+The contract is deliberately this small because screenless transports such as
+Google Cast can provide media and property control without claiming a frame or
+input channel (`D-001`).
 
 ## Optional capabilities
 
@@ -56,64 +55,71 @@ and gap reports.
 | `device-logs` | Device logs | Read the device's system or application log stream. |
 | `webview-attach` | WebView attach | Attach a debugger to an application WebView. Required by `bas.*` delegation. |
 | `multi-touch` | Multi-touch pointer streams | Two simultaneous normalized pointer streams are available for gestures such as pinch. |
+| `property` | Property control | Read or write typed, declared device properties. |
+| `sensor` | Sensor readings | Read typed observations that may change over time. |
+| `media` | Media transport | Play, pause, stop, next, previous, or set absolute volume. |
+| `pairing` | Interactive pairing | Complete a secret-bearing transport pairing exchange without serializing the secret. |
 
 ## Step kinds and what they require
 
-The most important column is the last one. A **floor-guaranteed** step works
-on every strategy, always, with no declaration required — those steps are the
-portable core of the flow vocabulary.
+The mandatory floor is identity plus declaration. Every device step below is
+capability-gated; a screenless or read-only transport is valid and simply has
+fewer executable steps.
 
 ### `device.*`
 
-| Step | Requires | Floor-guaranteed |
-|---|---|---|
-| `device.observe` | — | ✅ |
-| `device.tap` | — | ✅ |
-| `device.swipe` | — | ✅ |
-| `device.long-press` | — | ✅ |
-| `device.double-tap` | — | ✅ |
-| `device.drag` | — | ✅ |
-| `device.fling` | — | ✅ |
-| `device.pinch` | `multi-touch` | — |
-| `device.scroll-to` | `semantic-tree` or a resolver rung | — |
-| `device.type` | — | ✅ |
-| `device.key` | — | ✅ |
-| `device.record` | — *(see exception below)* | ✅ |
-| `device.install` | `app-lifecycle` | — |
-| `device.launch` | `app-lifecycle` | — |
-| `device.share` | `app-lifecycle` | — |
-| `device.stop` | `app-lifecycle` | — |
-| `device.uninstall` | `app-lifecycle` | — |
-| `device.permission` | `permission-control` | — |
-| `device.network` | `network-control` | — |
-| `device.orientation` | `orientation` | — |
-| `device.clipboard` | `clipboard` | — |
-| `device.push` / `device.pull` | `file-transfer` | — |
-| `device.logs` | `device-logs` | — |
+| Step | Requires |
+|---|---|
+| `device.observe` | `screenshot` |
+| `device.tap` | `input` |
+| `device.swipe` | `input` |
+| `device.long-press` | `input` |
+| `device.double-tap` | `input` |
+| `device.drag` | `input` |
+| `device.fling` | `input` |
+| `device.pinch` | `input` + `multi-touch` |
+| `device.scroll-to` | `semantic-tree` or a resolver rung |
+| `device.type` | `input` |
+| `device.key` | `input` |
+| `device.record` | `screenshot` or `native-recording` |
+| `device.install` | `app-lifecycle` |
+| `device.launch` | `app-lifecycle` |
+| `device.share` | `app-lifecycle` |
+| `device.stop` | `app-lifecycle` |
+| `device.uninstall` | `app-lifecycle` |
+| `device.permission` | `permission-control` |
+| `device.network` | `network-control` |
+| `device.orientation` | `orientation` |
+| `device.clipboard` | `clipboard` |
+| `device.push` / `device.pull` | `file-transfer` |
+| `device.logs` | `device-logs` |
+| `device.property-get` / `device.property-set` | `property` |
+| `device.sensor-read` | `sensor` |
+| `device.media-play` / `device.media-pause` / `device.media-stop` | `media` |
+| `device.media-next` / `device.media-previous` / `device.media-volume` | `media` |
 
 ### `ai.*`, `flow.*`, `wait.*`, `bas.*`
 
 | Step | Requires | Notes |
 |---|---|---|
-| `ai.see` | floor + `ai-gateway` visual request kind | Blocked today (`D-005`). |
-| `ai.extract` | floor + `ai-gateway` visual request kind | Blocked today. |
-| `ai.verify` | floor + `ai-gateway` visual request kind | Blocked today. |
+| `ai.see` | `screenshot` + `ai-gateway` visual request kind | Requires a frame-bearing transport. |
+| `ai.extract` | `screenshot` + `ai-gateway` visual request kind | Requires a frame-bearing transport. |
+| `ai.verify` | `screenshot` + `ai-gateway` visual request kind | Requires a frame-bearing transport. |
 | `ai.decide` | `ai-gateway` text generation | Not blocked — takes prior step results, not a frame. |
 | `flow.*` | — | Executor-level. Never touches a device. |
 | `wait.*` (fixed duration) | — | Executor-level. |
 | `wait.*` (until target appears) | at least one resolution rung | Inherits the rung's requirements. |
 | `bas.*` | `webview-attach` | Delegates to `browser-automation-studio`. |
 
-### The `device.record` exception
+### The `device.record` recording paths
 
-`device.record` is the **one step that requires no capability yet produces a
-capability-grade artifact**, and it is a deliberate exception to "a step
-requires its capability" (`D-009`, `OT-P0-012`).
+`device.record` requires a frame or native-recording capability. It is not
+available to a screenless transport such as Google Cast.
 
 | Strategy declares | Path taken | Evidence records |
 |---|---|---|
 | `native-recording` | Transport's own capture (`adb screenrecord`, `simctl recordVideo`) | `method: native`, plus effective frame rate |
-| *not declared* | Synthesized from the `observe()` frame stream | `method: synthesized`, plus effective frame rate |
+| `screenshot` without `native-recording` | Synthesized from the `observe()` frame stream | `method: synthesized`, plus effective frame rate |
 
 Both are legitimate evidence. They support different claims, so the method
 and the effective frame rate are structural fields on the result, not
@@ -121,9 +127,8 @@ optional metadata — a reviewer must be able to distinguish a 2 fps
 reconstruction from a 60 fps native capture without opening the file. See
 the provenance rule in [`../internal/SEAMS.md`](../internal/SEAMS.md#the-provenance-rule).
 
-This exception exists because the delivery ramps require video evidence on
-exactly the device kinds where native capture is least likely — physical
-iPhone via mirroring being the clearest case.
+This fallback exists because frame-bearing devices may lack native capture;
+the declaration still makes the frame prerequisite explicit.
 
 ## Resolution rungs
 
@@ -133,14 +138,13 @@ supports. Rung requirements are capability requirements:
 | Rung | Requires | Cost | Deterministic |
 |---|---|---|---|
 | `semantic` | `semantic-tree` | Free, local | Yes |
-| `visual-anchor` | floor + a captured reference in the anchor library | Free, local | Yes |
-| `vision` | floor + `ai-gateway` visual request kind | Tokens + round trip | No |
+| `visual-anchor` | `screenshot` + a captured reference in the anchor library | Free, local | Yes |
+| `vision` | `screenshot` + `ai-gateway` visual request kind | Tokens + round trip | No |
 
-Note that **`visual-anchor` and `vision` are both floor-only** — they operate
-on frames. So every strategy has at least one deterministic rung available as
-soon as an anchor exists, and `vision` is the universal fallback rather than
-the universal requirement. The chosen rung and its confidence are always
-recorded.
+Note that **`visual-anchor` and `vision` both require a frame**. A screenless
+transport can still use typed state and declared non-visual step kinds; it is
+not forced to claim a visual rung. The chosen rung and its confidence are
+always recorded.
 
 ## Profiles, not tiers
 
@@ -160,9 +164,9 @@ labels for recognizable combinations, and carry no authority:
 
 | Profile | Means | Typical use |
 |---|---|---|
-| `observer` | Floor only | Can watch and drive, cannot manage. Exploration and vision-driven control. |
-| `driver` | Floor + `semantic-tree` | Deterministic targeting. Assertions become meaningful. |
-| `manager` | Floor + `app-lifecycle` | The app is under our control — install, relaunch, upgrade, remove. |
+| `observer` | `screenshot` + `input` | Can watch and drive, but cannot manage applications. |
+| `driver` | `screenshot` + `input` + `semantic-tree` | Deterministic targeting. |
+| `manager` | `app-lifecycle` plus the modalities it declares | The app is under our control — install, relaunch, upgrade, remove. |
 | `full` | All ten optional capabilities | Reference class. |
 
 A strategy may match several profiles, or none. **Matching no profile is not
@@ -181,20 +185,27 @@ cannot run a conformance journey.
 **Expectation only. The probe decides.** `?` marks a genuine unknown that
 implementation will resolve — recorded as unknown rather than guessed.
 
-| Capability | `android-adb` | `ios-simctl` | `ios-xcuitest` | `ios-mirror` | `host-desktop` |
-|---|---|---|---|---|---|
-| *floor* | ✅ | ✅ | ✅ | ✅ | ✅ |
-| `semantic-tree` | ✅ | ✅ | ✅ | ❌ | ? |
-| `app-lifecycle` | ✅ | ✅ | ✅ | ❌ | ✅ |
-| `permission-control` | ✅ | ✅ | ⚠️ | ❌ | ➖ |
-| `network-control` | ✅ | ⚠️ | ❌ | ❌ | ✅ |
-| `orientation` | ✅ | ✅ | ✅ | ❌ | ➖ |
-| `clipboard` | ✅ | ✅ | ? | ? | ✅ |
-| `file-transfer` | ✅ | ✅ | ✅ | ❌ | ✅ |
-| `native-recording` | ✅ | ✅ | ❌ | ❌ | ✅ |
-| `device-logs` | ✅ | ✅ | ✅ | ❌ | ✅ |
-| `webview-attach` | ✅ | ✅ | ✅ | ❌ | ✅ |
-| **Expected profile** | `full` | `driver`+`manager` | `driver`+`manager` | `observer` | `manager` |
+| Capability | `android-adb` | `android-tv-remote` | `google-cast` | `ios-simctl` | `ios-xcuitest` | `ios-mirror` | `host-desktop` |
+|---|---|---|---|---|---|---|---|
+| ID + declaration | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `screenshot` | ✅ | ❌ | ❌ | ✅ | ✅ | ❌ | ✅ |
+| `input` | ✅ | ✅ | ❌ | ✅ | ✅ | ✅ | ✅ |
+| `media` | ✅ | ✅ | ✅ | ? | ? | ❌ | ? |
+| `property` | ✅ | ❌ | ✅ | ? | ? | ❌ | ? |
+| `sensor` | ✅ | ❌ | ✅ | ? | ? | ❌ | ? |
+| `pairing` | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| `push` observation | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
+| `semantic-tree` | ✅ | ❌ | ❌ | ✅ | ✅ | ❌ | ? |
+| `app-lifecycle` | ✅ | ❌ | ❌ | ✅ | ✅ | ❌ | ? |
+| `permission-control` | ✅ | ❌ | ❌ | ✅ | ⚠️ | ❌ | ➖ |
+| `network-control` | ✅ | ❌ | ❌ | ⚠️ | ❌ | ❌ | ✅ |
+| `orientation` | ✅ | ❌ | ❌ | ✅ | ✅ | ❌ | ➖ |
+| `clipboard` | ✅ | ❌ | ❌ | ✅ | ? | ? | ✅ |
+| `file-transfer` | ✅ | ❌ | ❌ | ✅ | ✅ | ❌ | ✅ |
+| `native-recording` | ✅ | ❌ | ❌ | ✅ | ❌ | ❌ | ✅ |
+| `device-logs` | ✅ | ❌ | ❌ | ✅ | ✅ | ❌ | ✅ |
+| `webview-attach` | ✅ | ❌ | ❌ | ✅ | ✅ | ❌ | ✅ |
+| **Expected profile** | `full` | `remote` | `cast-state` | `driver`+`manager` | `driver`+`manager` | `observer` | `manager` |
 
 Legend: ✅ expected · ❌ expected absent · ⚠️ partial · ➖ not meaningful · ? unknown
 
@@ -210,7 +221,7 @@ Notes on the non-obvious cells:
 - **`ios-simctl` / `network-control` — partial.** No `simctl` equivalent;
   conditioning happens on the host, so it affects the whole simulator rather
   than one app.
-- **`ios-mirror` — floor only, by design.** Mirroring exposes pixels and
+- **`ios-mirror` — visual/input only, by design.** Mirroring exposes pixels and
   synthetic HID. Everything else is `unsupported` rather than `unavailable`:
   no action makes a semantic tree exist over a mirroring session
   (`../internal/ERROR-HANDLING.md`).
@@ -223,7 +234,7 @@ Notes on the non-obvious cells:
 
 | Field | Content |
 |---|---|
-| Floor conformance | Pass or fail. The only hard gate. |
+| Identity/declaration conformance | Pass or fail. The only mandatory gate. |
 | Declared capabilities | What `describe()` claimed. |
 | Probed capabilities | What verification proved. |
 | Delta | Declared-but-unprovable, reported per capability with the missing prerequisite. |

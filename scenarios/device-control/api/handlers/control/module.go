@@ -1,8 +1,10 @@
 package control
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -23,9 +25,17 @@ func Module(s *internal.Service) module.Module {
 	h := &handler{service: s, anchors: anchors}
 	return module.Module{Name: "device-control", Mount: func(r *mux.Router) {
 		r.HandleFunc("/api/v1/devices", h.listDevices).Methods(http.MethodGet)
+		r.HandleFunc("/api/v1/devices/discover", h.discoverDevices).Methods(http.MethodGet)
 		r.HandleFunc("/api/v1/devices/{id}", h.describeDevice).Methods(http.MethodGet)
 		r.HandleFunc("/api/v1/devices/{id}", h.forgetDevice).Methods(http.MethodDelete)
 		r.HandleFunc("/api/v1/devices/{id}/state", h.deviceState).Methods(http.MethodGet)
+		r.HandleFunc("/api/v1/devices/{id}/pair/start", h.startPairDevice).Methods(http.MethodPost)
+		r.HandleFunc("/api/v1/devices/{id}/pair/complete", h.completePairDevice).Methods(http.MethodPost)
+		r.HandleFunc("/api/v1/devices/{id}/pair", h.pairDevice).Methods(http.MethodPost)
+		r.HandleFunc("/api/v1/devices/{id}/actuate", h.actuateDevice).Methods(http.MethodPost)
+		r.HandleFunc("/api/v1/devices/{id}/merge", h.mergeDevice).Methods(http.MethodPost)
+		r.HandleFunc("/api/v1/devices/{id}/split", h.splitDevice).Methods(http.MethodPost)
+		r.HandleFunc("/api/v1/devices/{id}/events", h.deviceEvents).Methods(http.MethodGet)
 		r.HandleFunc("/api/v1/devices/{id}/webview/attach", h.attachWebView).Methods(http.MethodPost)
 		r.HandleFunc("/api/v1/auth/profiles", h.listAuthProfiles).Methods(http.MethodGet)
 		r.HandleFunc("/api/v1/auth/profiles", h.createAuthProfile).Methods(http.MethodPost)
@@ -101,6 +111,176 @@ func (h *handler) deviceState(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	write(w, http.StatusOK, state)
+}
+
+func (h *handler) discoverDevices(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	if seconds, parseErr := strconv.Atoi(r.URL.Query().Get("timeout_seconds")); parseErr == nil && seconds > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, time.Duration(seconds)*time.Second)
+		defer cancel()
+	}
+	services, err := h.service.DiscoverLAN(ctx)
+	if err != nil && len(services) == 0 {
+		write(w, http.StatusServiceUnavailable, map[string]any{"services": services, "health": "unreachable", "reason": err.Error()})
+		return
+	}
+	requested := r.URL.Query()["service"]
+	if len(requested) > 0 {
+		allowed := map[string]bool{}
+		for _, service := range requested {
+			allowed[strings.ToLower(strings.TrimSpace(service))] = true
+		}
+		filtered := services[:0]
+		for _, service := range services {
+			if allowed[strings.ToLower(service.Service)] {
+				filtered = append(filtered, service)
+			}
+		}
+		services = filtered
+	}
+	response := map[string]any{"services": services}
+	if err != nil {
+		response["health"] = "degraded"
+		response["reason"] = err.Error()
+	}
+	write(w, http.StatusOK, response)
+}
+
+type pairRequest struct {
+	PIN string `json:"pin"`
+}
+
+type pairCompleteRequest struct {
+	PairingID string `json:"pairing_id"`
+	PIN       string `json:"pin"`
+}
+
+func (h *handler) startPairDevice(w http.ResponseWriter, r *http.Request) {
+	pairingID, err := h.service.BeginPairDevice(r.Context(), mux.Vars(r)["id"])
+	if err != nil {
+		writeError(w, http.StatusConflict, "pairing_start_failed", err.Error())
+		return
+	}
+	write(w, http.StatusOK, map[string]any{"pairing_started": true, "pairing_id": pairingID, "device_id": mux.Vars(r)["id"], "transport": "android-tv-remote"})
+}
+
+func (h *handler) completePairDevice(w http.ResponseWriter, r *http.Request) {
+	var in pairCompleteRequest
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid_request", "pairing completion request is invalid")
+		return
+	}
+	secret := []byte(strings.TrimSpace(in.PIN))
+	defer func() {
+		for i := range secret {
+			secret[i] = 0
+		}
+	}()
+	result, err := h.service.CompletePairDevice(r.Context(), mux.Vars(r)["id"], in.PairingID, secret)
+	if err != nil {
+		writeError(w, http.StatusConflict, "pairing_failed", err.Error())
+		return
+	}
+	write(w, http.StatusOK, map[string]any{"paired": true, "device_id": mux.Vars(r)["id"], "outcome": result.Outcome, "transport": result.Transport, "detail": result.Detail})
+}
+
+func (h *handler) pairDevice(w http.ResponseWriter, r *http.Request) {
+	var in pairRequest
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid_request", "pairing request is invalid")
+		return
+	}
+	secret := []byte(strings.TrimSpace(in.PIN))
+	defer func() {
+		for i := range secret {
+			secret[i] = 0
+		}
+	}()
+	result, err := h.service.PairDeviceSecret(r.Context(), mux.Vars(r)["id"], secret)
+	if err != nil {
+		writeError(w, http.StatusConflict, "pairing_failed", err.Error())
+		return
+	}
+	write(w, http.StatusOK, map[string]any{"paired": true, "device_id": mux.Vars(r)["id"], "outcome": result.Outcome, "transport": result.Transport, "detail": result.Detail})
+}
+
+func (h *handler) actuateDevice(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		internal.DirectActuation
+		Actor      string `json:"actor"`
+		LeaseToken string `json:"lease_token"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid_request", "actuation request is invalid")
+		return
+	}
+	record, err := h.service.ActuateDevice(r.Context(), mux.Vars(r)["id"], in.Actor, in.LeaseToken, in.DirectActuation)
+	if err != nil {
+		writeError(w, http.StatusConflict, leaseErrorCode(err), err.Error())
+		return
+	}
+	write(w, http.StatusOK, map[string]any{"audit": record, "interactive": true, "evidence_backed": false})
+}
+
+func (h *handler) mergeDevice(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		MemberID string `json:"member_id"`
+		Claim    string `json:"claim"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid_request", "merge request is invalid")
+		return
+	}
+	device, err := h.service.MergeDevices(r.Context(), mux.Vars(r)["id"], in.MemberID, in.Claim)
+	if err != nil {
+		writeError(w, http.StatusConflict, "identity_merge_failed", err.Error())
+		return
+	}
+	write(w, http.StatusOK, map[string]any{"device": device, "merged": true})
+}
+
+func (h *handler) splitDevice(w http.ResponseWriter, r *http.Request) {
+	devices, err := h.service.SplitDevice(r.Context(), mux.Vars(r)["id"])
+	if err != nil {
+		writeError(w, http.StatusConflict, "identity_split_failed", err.Error())
+		return
+	}
+	write(w, http.StatusOK, map[string]any{"devices": devices, "split": true})
+}
+
+func (h *handler) deviceEvents(w http.ResponseWriter, r *http.Request) {
+	subscription := h.service.SubscribeStateChanges(32)
+	defer subscription.Cancel()
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		writeError(w, http.StatusNotImplemented, "stream_unavailable", "event streaming is unavailable")
+		return
+	}
+	for {
+		select {
+		case <-r.Context().Done():
+			return
+		case event, open := <-subscription.Events:
+			if !open {
+				return
+			}
+			if event.DeviceID != mux.Vars(r)["id"] {
+				continue
+			}
+			payload, err := json.Marshal(event)
+			if err != nil {
+				continue
+			}
+			_, _ = w.Write([]byte("data: "))
+			_, _ = w.Write(payload)
+			_, _ = w.Write([]byte("\n\n"))
+			flusher.Flush()
+		}
+	}
 }
 
 type webViewAttachRequest struct {
@@ -472,12 +652,13 @@ func (h *handler) startAgent(w http.ResponseWriter, r *http.Request) {
 		DeviceID       string `json:"device_id"`
 		Actor          string `json:"actor"`
 		SkillAvailable bool   `json:"skill_available"`
+		DryRun         bool   `json:"dry_run"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid_request", err.Error())
 		return
 	}
-	a, err := h.service.StartAgent(r.Context(), in.Goal, in.DeviceID, in.Actor, in.SkillAvailable)
+	a, err := h.service.StartAgentWithOptions(r.Context(), in.Goal, in.DeviceID, in.Actor, in.SkillAvailable, in.DryRun)
 	if err != nil {
 		writeError(w, http.StatusPreconditionFailed, "agent_unavailable", err.Error())
 		return
@@ -515,7 +696,15 @@ func writeError(w http.ResponseWriter, status int, code, message string) {
 
 var Endpoints = []module.EndpointDescriptor{
 	{ID: "devices_list", Path: "/api/v1/devices", Method: "GET", Summary: "List devices and probed capabilities", Category: "devices", RESTException: module.ThirdPartyJSONREST("GET")},
+	{ID: "devices_discover", Path: "/api/v1/devices/discover", Method: "GET", Summary: "Browse the LAN for DNS-SD device services", Category: "devices", RESTException: module.ThirdPartyJSONREST("GET")},
 	{ID: "devices_state", Path: "/api/v1/devices/{id}/state", Method: "GET", Summary: "Read live device state", Category: "devices", RESTException: module.ThirdPartyJSONREST("GET")},
+	{ID: "devices_pair_start", Path: "/api/v1/devices/{id}/pair/start", Method: "POST", Summary: "Start the owner-present Android TV Remote pairing handshake", Category: "devices", RESTException: module.ThirdPartyJSONREST("POST")},
+	{ID: "devices_pair_complete", Path: "/api/v1/devices/{id}/pair/complete", Method: "POST", Summary: "Complete an owner-present Android TV Remote pairing handshake", Category: "devices", RESTException: module.ThirdPartyJSONREST("POST")},
+	{ID: "devices_pair", Path: "/api/v1/devices/{id}/pair", Method: "POST", Summary: "Pair a Google TV Android TV Remote transport", Category: "devices", RESTException: module.ThirdPartyJSONREST("POST")},
+	{ID: "devices_actuate", Path: "/api/v1/devices/{id}/actuate", Method: "POST", Summary: "Send one lease-owned direct device command", Category: "devices", RESTException: module.ThirdPartyJSONREST("POST")},
+	{ID: "devices_merge", Path: "/api/v1/devices/{id}/merge", Method: "POST", Summary: "Merge identities under an owner-asserted claim", Category: "devices", RESTException: module.ThirdPartyJSONREST("POST")},
+	{ID: "devices_split", Path: "/api/v1/devices/{id}/split", Method: "POST", Summary: "Split a previously merged identity", Category: "devices", RESTException: module.ThirdPartyJSONREST("POST")},
+	{ID: "devices_events", Path: "/api/v1/devices/{id}/events", Method: "GET", Summary: "Stream device state changes over SSE", Category: "devices", RESTException: module.ThirdPartyJSONREST("GET")},
 	{ID: "webview_attach", Path: "/api/v1/devices/{id}/webview/attach", Method: "POST", Summary: "Attach to an application WebView under a device lease", Category: "devices", RESTException: module.ThirdPartyJSONREST("POST")},
 	{ID: "auth_profiles_list", Path: "/api/v1/auth/profiles", Method: "GET", Summary: "List authentication profiles", Category: "auth", RESTException: module.ThirdPartyJSONREST("GET")},
 	{ID: "auth_profile_create", Path: "/api/v1/auth/profiles", Method: "POST", Summary: "Create a reference-only authentication profile", Category: "auth", RESTException: module.ThirdPartyJSONREST("POST")},

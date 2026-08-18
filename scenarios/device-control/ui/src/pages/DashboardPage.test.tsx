@@ -9,6 +9,9 @@ import { strings } from "../consts/strings";
 const api = vi.hoisted(() => ({
   acquireSession: vi.fn(),
   connectDevice: vi.fn(),
+  discoverDevices: vi.fn(),
+  startPairing: vi.fn(),
+  completePairing: vi.fn(),
   killSession: vi.fn(),
   listDevices: vi.fn(),
   listSessions: vi.fn(),
@@ -50,6 +53,9 @@ beforeEach(() => {
   api.listSessions.mockResolvedValue({ sessions: [] });
   api.killSession.mockResolvedValue({});
   api.listAuthProfiles.mockResolvedValue({ profiles: [] });
+  api.discoverDevices.mockResolvedValue({ services: [], reason: "" });
+  api.startPairing.mockResolvedValue({ pairing_started: true, pairing_id: "session-1" });
+  api.completePairing.mockResolvedValue({ paired: true });
 });
 
 describe("DashboardPage", () => {
@@ -76,7 +82,7 @@ describe("DashboardPage", () => {
     expect(report).toHaveTextContent("file-transfer");
     expect(report).toHaveTextContent("Choose File Transfer on the phone.");
     expect(report).toHaveTextContent("rsa-authorized");
-    expect(api.connectDevice).toHaveBeenCalledWith("android");
+    expect(api.connectDevice).toHaveBeenCalledWith("google-tv");
   });
 
   it("offers onboarding from the zero-device state", async () => {
@@ -91,8 +97,40 @@ describe("DashboardPage", () => {
     renderWithProviders(<DashboardPage />);
 
     await user.click(await screen.findByTestId(selectors.pages.dashboardEmptyReprobe));
-    expect(api.connectDevice).toHaveBeenCalledWith("android");
+    expect(api.connectDevice).toHaveBeenCalledWith("google-tv");
     expect(await screen.findByTestId(selectors.pages.onboardingReport)).toHaveTextContent("usb-bus");
+  });
+
+  it("discovers a reported television transport and pairs it through the UI", async () => {
+    const service = {
+      id: "google-cast:cast-id-1",
+      name: "Living Room",
+      model: "SmartTV 4K",
+      endpoint: "192.168.1.158:8009",
+      strategy_id: "google-cast",
+      transport: "cast",
+      pairing_available: true,
+      paired: false,
+    };
+    api.discoverDevices.mockResolvedValue({ services: [service], reason: "" });
+
+    const user = userEvent.setup();
+    renderWithProviders(<DashboardPage />);
+    await user.click(screen.getByRole("button", { name: "Discover devices" }));
+
+    const discovery = await screen.findByTestId(selectors.pages.dashboardDiscoveryList);
+    expect(discovery).toHaveTextContent("Living Room · cast");
+    await user.click(within(discovery).getByRole("button", { name: "Pair transport" }));
+
+    const dialog = await screen.findByTestId(selectors.pages.dashboardPairDialog);
+    await waitFor(() => expect(api.startPairing).toHaveBeenCalledWith(service.id));
+    const pin = within(dialog).getByTestId(selectors.pages.dashboardPairPin);
+    await waitFor(() => expect(pin).not.toBeDisabled());
+    await user.type(pin, "835b64");
+    await user.click(within(dialog).getByRole("button", { name: "Pair" }));
+
+    await waitFor(() => expect(api.completePairing).toHaveBeenCalledWith(service.id, "session-1", "835B64"));
+    expect(api.discoverDevices).toHaveBeenCalledTimes(2);
   });
 
   it("kills a live lease from the dashboard controls", async () => {

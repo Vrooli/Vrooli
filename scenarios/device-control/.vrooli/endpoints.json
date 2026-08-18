@@ -97,10 +97,218 @@
       }
     },
     {
+      "id": "devices_discover",
+      "path": "/api/v1/devices/discover",
+      "method": "GET",
+      "summary": "Browse the LAN for DNS-SD device services",
+      "description": "",
+      "category": "devices",
+      "rest_exception": {
+        "reason": "third_party_shape",
+        "note": "Scenario-owned JSON projection remains REST until its proto envelope is published.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
       "id": "devices_state",
       "path": "/api/v1/devices/{id}/state",
       "method": "GET",
       "summary": "Read live device state",
+      "description": "",
+      "category": "devices",
+      "rest_exception": {
+        "reason": "third_party_shape",
+        "note": "Scenario-owned JSON projection remains REST until its proto envelope is published.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "devices_pair_start",
+      "path": "/api/v1/devices/{id}/pair/start",
+      "method": "POST",
+      "summary": "Start the owner-present Android TV Remote pairing handshake",
+      "description": "",
+      "category": "devices",
+      "rest_exception": {
+        "reason": "third_party_shape",
+        "note": "Scenario-owned JSON projection remains REST until its proto envelope is published.",
+        "proto_payloads": {
+          "request": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "devices_pair_complete",
+      "path": "/api/v1/devices/{id}/pair/complete",
+      "method": "POST",
+      "summary": "Complete an owner-present Android TV Remote pairing handshake",
+      "description": "",
+      "category": "devices",
+      "rest_exception": {
+        "reason": "third_party_shape",
+        "note": "Scenario-owned JSON projection remains REST until its proto envelope is published.",
+        "proto_payloads": {
+          "request": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "devices_pair",
+      "path": "/api/v1/devices/{id}/pair",
+      "method": "POST",
+      "summary": "Pair a Google TV Android TV Remote transport",
+      "description": "",
+      "category": "devices",
+      "rest_exception": {
+        "reason": "third_party_shape",
+        "note": "Scenario-owned JSON projection remains REST until its proto envelope is published.",
+        "proto_payloads": {
+          "request": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "devices_actuate",
+      "path": "/api/v1/devices/{id}/actuate",
+      "method": "POST",
+      "summary": "Send one lease-owned direct device command",
+      "description": "",
+      "category": "devices",
+      "rest_exception": {
+        "reason": "third_party_shape",
+        "note": "Scenario-owned JSON projection remains REST until its proto envelope is published.",
+        "proto_payloads": {
+          "request": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "devices_merge",
+      "path": "/api/v1/devices/{id}/merge",
+      "method": "POST",
+      "summary": "Merge identities under an owner-asserted claim",
+      "description": "",
+      "category": "devices",
+      "rest_exception": {
+        "reason": "third_party_shape",
+        "note": "Scenario-owned JSON projection remains REST until its proto envelope is published.",
+        "proto_payloads": {
+          "request": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "devices_split",
+      "path": "/api/v1/devices/{id}/split",
+      "method": "POST",
+      "summary": "Split a previously merged identity",
+      "description": "",
+      "category": "devices",
+      "rest_exception": {
+        "reason": "third_party_shape",
+        "note": "Scenario-owned JSON projection remains REST until its proto envelope is published.",
+        "proto_payloads": {
+          "request": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "devices_events",
+      "path": "/api/v1/devices/{id}/events",
+      "method": "GET",
+      "summary": "Stream device state changes over SSE",
       "description": "",
       "category": "devices",
       "rest_exception": {

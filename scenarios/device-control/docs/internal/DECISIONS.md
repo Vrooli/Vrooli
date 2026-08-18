@@ -21,7 +21,7 @@ Known unresolved issues belong in [`PROBLEMS.md`](PROBLEMS.md).
 | ID | Date | Decision | Revisit Trigger |
 |---|---|---|---|
 | D-000 | 2026-08-10 | Use the generated `react-vite` scenario documentation contract. | Scenario adopts a different template or doc contract. |
-| D-001 | 2026-08-10 | The capability floor is exactly three operations. | A strategy we need cannot satisfy the floor, or every strategy exceeds it. |
+| D-001 | 2026-08-10 | The strategy contract requires stable identity and a declaration; observation, input, media, properties, and other modalities are optional and probed. | A transport needs a mandatory interface beyond identity and declaration. |
 | D-002 | 2026-08-10 | Capabilities are probed, never inferred from device kind. | Never — this is the scenario's core honesty property. |
 | D-003 | 2026-08-10 | One flow envelope, several step vocabularies. | A vocabulary needs semantics the shared envelope cannot express. |
 | D-004 | 2026-08-10 | Target resolution is a ladder, not a strategy choice. | A fourth rung appears, or rung ordering stops holding. |
@@ -44,21 +44,21 @@ stubs and maturity metadata in `docs/manifest.json`. Maturity values are
 maintained to match actual content in both directions — a doc that
 over-claims `active` is as much a defect as one that under-claims `stub`.
 
-### D-001 — The capability floor is exactly three operations
+### D-001 — Identity and declaration are mandatory; modalities are optional
 
-`observe()`, `actuate()`, `describe()`. Everything richer is optional and
-declared.
+Every strategy supplies stable identity (`ID()`) and `Describe()`. Observation,
+input actuation, media, properties, sensors, and other modalities are optional
+interfaces backed by the declaration and an inventory-time probe.
 
-*Why this size:* the floor is the largest set that `ios-mirror` — iPhone
-Mirroring driving synthetic HID events with OCR, no accessibility tree at
-all — can satisfy. A richer floor would exclude a strategy we need. Shared
-capabilities (vision understanding, vision-driven control) are built once
-against the floor, which is what makes them work on every strategy rather
-than only on the well-instrumented ones.
+*Why this size:* a screenless transport such as Google Cast can provide media
+and property control without claiming a frame or input channel. Requiring
+those modalities would exclude useful transports and make capability claims
+less honest. Shared capabilities are composed from the interfaces each
+transport actually implements.
 
-*Rejected alternative:* require a semantic tree. It would have made flows
-simpler and excluded physical iPhone control entirely until Apple Developer
-enrollment exists.
+*Rejected alternative:* require observation and input. It would exclude
+screenless media transports and incorrectly imply that every useful device has
+a visual surface.
 
 ### D-002 — Capabilities are probed, never inferred from device kind
 
@@ -126,8 +126,8 @@ it was free is expensive.
 
 CLI completeness is a P0 target rather than a convenience.
 
-*Why:* agent mode spawns an `agent-manager` run driven by a `prompt-manager`
-skill, and that skill controls devices through this scenario's CLI. Any
+*Why:* the prompt-manager skill drives devices through this scenario's CLI,
+while the bounded agent loop uses the same lease-owned control surface. Any
 capability reachable only from the API or UI is invisible to the agent, so
 CLI parity is a functional requirement, not ergonomics.
 
@@ -152,24 +152,19 @@ it appends the refusal to the dispatch audit trail. This keeps the trust-plane
 check at the point where reach is granted without moving device operation into
 bridge.
 
-### D-009 — Recording is a guaranteed capability with a synthesized fallback
+### D-009 — Recording is capability-gated with a synthesized fallback
 
 Native when the strategy declares it; synthesized from the `observe()` frame
 stream otherwise. The evidence always records which path produced the video
 and its effective frame rate.
 
-*Why not leave recording optional:* the delivery ramps
-(`scenario-to-ios`, `scenario-to-android`) require video evidence for their
-conformance journeys. If recording were merely an optional declared
-capability, a strategy could legitimately not have it and the ramp would
-lose the evidence it exists to produce — on exactly the device kinds
-(physical iPhone via mirroring) where the evidence is most valuable.
+Recording is optional because a screenless transport cannot honestly produce
+frames. A frame-bearing strategy may use native recording or synthesize a
+labeled recording from its observation stream; Google Cast declares the
+screen and recording capabilities unavailable.
 
-*Why the fallback is sound:* `observe()` is in the floor, so a frame stream
-is available on every strategy by construction. Encoding frames into video
-is a local, deterministic operation. This is the same "build the shared
-capability once against the floor" pattern as vision — applied to evidence
-production instead of control.
+*Why the fallback is sound:* the strategy declaration makes the frame stream
+explicit, and encoding it into video is a local, deterministic operation.
 
 *What it must never do:* label a synthesized capture as native, or omit the
 effective frame rate. A 2 fps reconstruction and a 60 fps native capture are

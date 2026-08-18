@@ -20,8 +20,15 @@ func AuthGroup(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 			return emit(ctx, b, "Authentication profiles")
 		}),
 		command("create", "Create a reference-only authentication profile", cliapp.ArgSchema{Flags: []cliapp.Flag{
-			{Name: "device", Required: true}, {Name: "method", Required: true}, {Name: "credential-identity", Required: true}, {Name: "credential-field", Required: true},
-			{Name: "verification", Default: "fresh_lock_state_unlocked"}, {Name: "max-attempts", Default: "1"}, {Name: "attempt-limit-ms", Default: "15000"}, {Name: "settle-ms", Default: "750"}, {Name: "actor", Default: "cli"},
+			{Name: "device", Required: true},
+			{Name: "method", Required: true},
+			{Name: "credential-identity", Required: true},
+			{Name: "credential-field", Required: true},
+			{Name: "verification", Default: "fresh_lock_state_unlocked"},
+			{Name: "max-attempts", Default: "1"},
+			{Name: "attempt-limit-ms", Default: "15000"},
+			{Name: "settle-ms", Default: "750"},
+			{Name: "actor", Default: "cli"},
 		}}, func(ctx cliapp.RunContext) error {
 			maxAttempts, err := strconv.Atoi(ctx.Flag("max-attempts"))
 			if err != nil {

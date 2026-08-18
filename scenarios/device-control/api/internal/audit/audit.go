@@ -20,4 +20,6 @@ type Record struct {
 	CreatedAt         time.Time `json:"created_at"`
 	RedactionVerified bool      `json:"redaction_verified"`
 	RedactionOptedOut bool      `json:"redaction_opted_out,omitempty"`
+	Interactive       bool      `json:"interactive"`
+	EvidenceBacked    bool      `json:"evidence_backed"`
 }

@@ -47,10 +47,19 @@ func Verify(ctx context.Context, s Strategy) ConformanceReport {
 		actuator, ok := s.(InputActuator)
 		if !ok {
 			r.Failed = append(r.Failed, "actuate: declared input capability without InputActuator")
-		} else if err := actuator.Actuate(ctx, Actuation{Pointer: &PointerEvent{Kind: "move", X: 0, Y: 0}}); err != nil {
-			r.Failed = append(r.Failed, "actuate: "+err.Error())
 		} else {
-			r.Passed = append(r.Passed, "actuate")
+			// A screen-bearing adapter is probed with a neutral pointer event;
+			// a frameless adapter may legitimately expose only key input (for
+			// example Android TV Remote), so its conformance probe uses ENTER.
+			probe := Actuation{Pointer: &PointerEvent{Kind: "move", X: 0, Y: 0}}
+			if d.Capabilities[CapScreenshot].Status != StatusAvailable {
+				probe = Actuation{Key: &KeyEvent{Kind: "press", Key: "ENTER"}}
+			}
+			if err := actuator.Actuate(ctx, probe); err != nil {
+				r.Failed = append(r.Failed, "actuate: "+err.Error())
+			} else {
+				r.Passed = append(r.Passed, "actuate")
+			}
 		}
 	} else {
 		if _, ok := s.(Observer); !ok {
@@ -58,6 +67,65 @@ func Verify(ctx context.Context, s Strategy) ConformanceReport {
 		}
 		if _, ok := s.(InputActuator); !ok {
 			r.Passed = append(r.Passed, "non-actuating-floor")
+		}
+	}
+	if d.Capabilities[CapProperty].Status == StatusAvailable {
+		if _, ok := s.(PropertyActuator); !ok {
+			r.Failed = append(r.Failed, "property: declared property capability without PropertyActuator")
+		} else if len(d.Properties) == 0 {
+			r.Failed = append(r.Failed, "property: available property capability without descriptors")
+		} else {
+			invalid := false
+			for _, descriptor := range d.Properties {
+				if descriptor.Name == "" || descriptor.ValueType == "" {
+					invalid = true
+					break
+				}
+			}
+			if invalid {
+				r.Failed = append(r.Failed, "property: descriptor name and value type are required")
+			} else {
+				r.Passed = append(r.Passed, "property")
+			}
+		}
+	}
+	if len(d.Properties) > 0 {
+		if _, ok := s.(StateReader); !ok {
+			r.Failed = append(r.Failed, "state-reader: property-bearing strategy without StateReader")
+		} else {
+			r.Passed = append(r.Passed, "state-reader")
+		}
+	}
+	if d.Capabilities[CapSensor].Status == StatusAvailable {
+		if _, ok := s.(SensorReader); !ok {
+			r.Failed = append(r.Failed, "sensor: declared sensor capability without SensorReader")
+		} else {
+			r.Passed = append(r.Passed, "sensor")
+		}
+	}
+	if d.Capabilities[CapMedia].Status == StatusAvailable {
+		if _, ok := s.(MediaController); !ok {
+			r.Failed = append(r.Failed, "media: declared media capability without MediaController")
+		} else {
+			r.Passed = append(r.Passed, "media")
+		}
+	}
+	if d.Capabilities[CapPairing].Status == StatusAvailable {
+		if _, ok := s.(Pairer); !ok {
+			r.Failed = append(r.Failed, "pairing: declared pairing capability without Pairer")
+		} else {
+			r.Passed = append(r.Passed, "pairing")
+		}
+	}
+	observationMode := d.StateObservation.Mode
+	if observationMode == "" {
+		observationMode = d.ObservationMode
+	}
+	if observationMode == "push" {
+		if _, ok := s.(StateObserver); !ok {
+			r.Failed = append(r.Failed, "state-observation: push mode without StateObserver")
+		} else {
+			r.Passed = append(r.Passed, "state-observation")
 		}
 	}
 	if len(r.Failed) > 0 {

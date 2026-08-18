@@ -864,7 +864,11 @@ func (s *Service) strategyForFlow(deviceID, requestedTransport string) (strategy
 		if !found {
 			return nil, false
 		}
-		if scoped, scopedOK := base.(strategy.DeviceScoped); scopedOK && record.Serial != "" {
+		if endpointScoped, endpointOK := base.(interface {
+			ForEndpoint(string) strategy.Strategy
+		}); endpointOK && profile.Endpoint != "" {
+			base = endpointScoped.ForEndpoint(profile.Endpoint)
+		} else if scoped, scopedOK := base.(strategy.DeviceScoped); scopedOK && record.Serial != "" {
 			base = scoped.ForDevice(record.Serial)
 		}
 		return base, true
