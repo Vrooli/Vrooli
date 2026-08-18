@@ -211,3 +211,80 @@ their existing behavioral assertions:
 **Refs:** `packages/api-core/schedule/fake.go`,
 `scenarios/offer-desk/api/handlers/offers/module_test.go`, and the fake-clock
 migration phase in the monetization repair plan.
+
+### 2026-08-17 — obligation denominator remains `sketch`, deliberately
+
+**Symptom:** `docs/spaces/offers.json` and `SpaceService.GetProjection` both
+report `denominator_confidence: sketch`.
+
+**Root cause:** not a defect. The rationale in that file names its own exit
+condition — one observed reconciliation cycle between `infra-health` and the
+monetization team against an independent obligation inventory. That cycle has
+not run, so no external roster exists to weight the three cells against.
+
+**Workaround:** none needed. Consumers read the confidence field and the
+rationale together; the value is honest as it stands.
+
+**Real fix:** run the reconciliation cycle, then raise the confidence to match
+what was actually observed. Raising it without that evidence would be exactly
+the fabricated-denominator failure the fleet contract exists to prevent, so this
+entry exists to stop a future agent from "fixing" it by editing the value.
+
+**Owner:** monetization team plus `infra-health`.
+
+**Refs:** `docs/spaces/offers.json`, `handlers/offers/module.go` GetProjection.
+
+### 2026-08-17 — five drill fixtures remain in the live catalog
+
+**Symptom:** `catalog-list` returns 33 nodes, five of which are test artifacts:
+`Level 3 drill active offer`, `Phase 5 live operator node`, `Phase 5 refusal
+drill node`, `Phase 5 multi-clause trigger node`, `Phase 6 proposal live drill`.
+
+**Root cause:** they were created by Level 3 behavioural drills against the live
+database rather than a scratch variant.
+
+**Workaround:** they are `RETIRED` and, since the board-ranking fix, sort last on
+every board read, so they no longer occupy the operator's attention surface.
+`catalog-verify` does not flag them because the sources are judgment-only and
+therefore `comparable=false`.
+
+**Real fix:** needs an operator decision, not an implementation. The decision log
+records that `catalog-merge` is *the one operation permitted to delete a node
+row*, and these have no surviving counterpart to merge into. Removing them means
+either extending that delete authority to provably sourceless records or
+accepting them permanently as retired history. Both are legitimate; neither
+should be chosen silently by an agent.
+
+**Owner:** operator.
+
+**Refs:** `DECISIONS.md` (2026-08-17 catalog-merge row).
+
+### 2026-08-18 — experience capture flake on `dirty-state-guard/prompt-open`
+
+**Symptom:** The Test Genie `experience` phase intermittently fails with two
+`experience.capture_bindings_unjoined` errors: the accessibility capture for
+component `dirty-state-guard` state `prompt-open` "joined zero of 4 declared
+bindings".
+
+**Root cause:** capture-side, not a contract defect. The same provider run
+directly — `experience-manager spec validate offer-desk --json` — reports
+`PASSED` at **L3 with zero findings** against the same running UI. The phase
+passed in runs `20260818-034654-1a00e50b` and `20260818-035751-975366f3` and
+failed in `20260818-040653-ebb621f9` with no intervening UI change; this
+repair touched only the API, CLI, and docs. `prompt-open` requires driving the
+component into a dirty state before capture, which is the timing-sensitive step.
+
+**Workaround:** trust the direct validation. Per the 2026-08-15 entry above, a
+capture-provider result is recorded as an infrastructure boundary only when all
+other scenario phases and direct experience validation pass — both hold here
+(20/21 with `experience` the sole failure, direct validation clean).
+
+**Real fix:** make the `prompt-open` capture await the rendered prompt rather
+than a settle delay, in the capture provider. Do **not** weaken the four
+declared bindings to make the phase green — they are correct, and the direct
+validator proves they resolve.
+
+**Owner:** experience-manager / BAS capture, not this scenario.
+
+**Refs:** `experience/components/dirty-state-guard.json`; runs
+`20260818-040653-ebb621f9` (failed) vs `20260818-035751-975366f3` (passed).

@@ -255,6 +255,30 @@ message ListEvidenceResponse {
   repeated ReconciliationEvidence evidence = 3;
 }
 
+message MeasuredBounds {
+  double x = 1;
+  double y = 2;
+  double width = 3;
+  double height = 4;
+}
+
+message MeasuredSubject {
+  string element_id = 1;
+  string test_id = 2;
+  MeasuredBounds bounds = 3;
+  string context_id = 4;
+  string value = 5;
+}
+
+message ClaimMeasurement {
+  string metric = 1;
+  optional double observed = 2;
+  optional double required = 3;
+  string unit = 4;
+  string comparator = 5;
+  repeated MeasuredSubject subjects = 6;
+}
+
 message ReconciliationEvidence {
   string id = 1;
   string scenario = 2;
@@ -275,6 +299,7 @@ message ReconciliationEvidence {
   string component_id = 17;
   string component_title = 18;
   string example_name = 19;
+  ClaimMeasurement measurement = 20;
 }
 
 message SuggestBindingsRequest {

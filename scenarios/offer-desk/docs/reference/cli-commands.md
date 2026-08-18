@@ -37,3 +37,19 @@ actuals into zero.
 
 Use `make start`, `make test`, `make logs`, and `make stop` for lifecycle. The
 comprehensive suite is `vrooli scenario test offer-desk`.
+
+## Catalog
+
+| Command | Purpose |
+|---|---|
+| `offers catalog-create --name <n> --kind <k> --status <s>` | Create a node. `--kind` is one of `offer`, `variant`, `channel`, `revenue-line`, `deliverable`; an unknown kind is refused rather than defaulted. |
+| `offers catalog-map-account --node-id <id> --account-id <acct>` | Attach the Money Ledger account whose postings are this node's actuals. Omit `--account-id` to clear. Audited. |
+| `offers catalog-merge --surviving-id <a> --duplicate-id <b>` | Audited duplicate-identity collapse. Dry-runs by default. |
+| `offers catalog-verify --source-path <dir> --source-mode operator-supplied` | Reconcile the declared source tree against the live graph. Non-zero exit on drift. |
+
+## Gates
+
+| Command | Purpose |
+|---|---|
+| `offers gates-trigger --node-id <id> --fact-name <f> --operator <op> --threshold <n>` | Declare a single-clause trigger. |
+| `… --clauses '[{"fact_name":…,"operator":…,"threshold":…}]' --composition all\|any` | Declare a multi-clause trigger. `all` requires every clause; a missing fact is `unknown`, which blocks rather than fires. |

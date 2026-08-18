@@ -40,7 +40,10 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/
 service SessionsService {
   rpc Create(CreateRequest) returns (CreateResponse);
   rpc List(ListRequest) returns (ListResponse);
+  rpc ListArchived(ListArchivedRequest) returns (ListArchivedResponse);
   rpc Get(GetRequest) returns (GetResponse);
+  rpc Archive(ArchiveRequest) returns (ArchiveResponse);
+  rpc Unarchive(UnarchiveRequest) returns (UnarchiveResponse);
   rpc Delete(DeleteRequest) returns (DeleteResponse);
   rpc ListRecoverable(ListRecoverableRequest) returns (ListRecoverableResponse);
   rpc DismissRecoverable(DismissRecoverableRequest) returns (DismissRecoverableResponse);
@@ -161,6 +164,35 @@ message ListResponse {
   RecoveryStatus recovery = 2;
 }
 
+enum ArchiveRestoreState {
+  ARCHIVE_RESTORE_STATE_UNSPECIFIED = 0;
+  ARCHIVE_RESTORE_STATE_REOPENABLE = 1;
+  ARCHIVE_RESTORE_STATE_READ_ONLY = 2;
+  ARCHIVE_RESTORE_STATE_NOTHING_TO_RESTORE = 3;
+}
+
+message ArchivedSession {
+  string id = 1;
+  string archived_at = 2;
+  string created_at = 3;
+  string agent_type = 4;
+  string agent_session_id = 5;
+  string cwd = 6;
+  string pane_name = 7;
+  string header_color = 8;
+  string group_name = 9;
+  int64 message_count = 10;
+  ArchiveRestoreState restore_state = 11;
+  string restore_state_reason = 12;
+}
+
+message ListArchivedRequest {}
+
+message ListArchivedResponse {
+  repeated ArchivedSession sessions = 1;
+  int32 total = 2;
+}
+
 // RecoveryStatus is a snapshot of startup persistent-session recovery.
 message RecoveryStatus {
   bool in_progress = 1;
@@ -181,6 +213,22 @@ message GetRequest {
 
 message GetResponse {
   Session session = 1;
+}
+
+message ArchiveRequest {
+  string id = 1;
+}
+
+message ArchiveResponse {
+  string id = 1;
+}
+
+message UnarchiveRequest {
+  string id = 1;
+}
+
+message UnarchiveResponse {
+  string id = 1;
 }
 
 message DeleteRequest {

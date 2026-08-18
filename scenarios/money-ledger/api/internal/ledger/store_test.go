@@ -312,3 +312,41 @@ func TestGoalReparentingPreservesSustainMetadata(t *testing.T) {
 	require.NoError(t, s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM ledger_audit WHERE entity_type='goal' AND entity_id=?`, original.Id).Scan(&audits))
 	require.Equal(t, 1, audits)
 }
+
+// Position excludes archived books; an unfiltered journal read must agree with
+// it, or the journal page shows retired drill data as the live ledger.
+func TestUnfilteredJournalReadExcludesArchivedBooks(t *testing.T) {
+	s, ctx := testStore(t)
+	live, err := s.CreateBook(ctx, "Monetization Operating", "USD")
+	require.NoError(t, err)
+	liveAccount, err := s.CreateAccount(ctx, live.Id, "Operating Cash", ledgerpb.AccountKind_ASSET)
+	require.NoError(t, err)
+	drill, err := s.CreateBook(ctx, "Drill", "USD")
+	require.NoError(t, err)
+	drillAccount, err := s.CreateAccount(ctx, drill.Id, "Drill Cash", ledgerpb.AccountKind_ASSET)
+	require.NoError(t, err)
+
+	ingest := func(account, book, external string, amount int64) {
+		_, _, err := s.Ingest(ctx, &sharedpb.MoneyEvent{
+			ExternalId: external, AdapterId: "manual", AccountId: account, BookId: book,
+			AmountMinor: amount, Currency: "USD", OccurredAt: timestamppb.Now(), FetchedAt: timestamppb.Now(),
+			Basis: sharedpb.Basis_BASIS_OPERATOR_ASSERTED,
+		}, "operator")
+		require.NoError(t, err)
+	}
+	ingest(liveAccount.Id, live.Id, "live-1", 100000)
+	ingest(drillAccount.Id, drill.Id, "drill-1", 999)
+
+	_, err = s.ArchiveBook(ctx, drill.Id, "operator")
+	require.NoError(t, err)
+
+	unfiltered, err := s.ListPostings(ctx, "", "", "", "", 100)
+	require.NoError(t, err)
+	require.Len(t, unfiltered, 1, "only the live book's postings are returned")
+	require.Equal(t, live.Id, unfiltered[0].Event.BookId)
+
+	// An explicitly named archived book stays readable for deliberate history.
+	explicit, err := s.ListPostings(ctx, "", drill.Id, "", "", 100)
+	require.NoError(t, err)
+	require.Len(t, explicit, 1)
+}

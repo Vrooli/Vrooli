@@ -325,8 +325,50 @@ class ListEvidenceResponse(_message.Message):
     evidence: _containers.RepeatedCompositeFieldContainer[ReconciliationEvidence]
     def __init__(self, scenario: _Optional[str] = ..., page: _Optional[str] = ..., evidence: _Optional[_Iterable[_Union[ReconciliationEvidence, _Mapping]]] = ...) -> None: ...
 
+class MeasuredBounds(_message.Message):
+    __slots__ = ("x", "y", "width", "height")
+    X_FIELD_NUMBER: _ClassVar[int]
+    Y_FIELD_NUMBER: _ClassVar[int]
+    WIDTH_FIELD_NUMBER: _ClassVar[int]
+    HEIGHT_FIELD_NUMBER: _ClassVar[int]
+    x: float
+    y: float
+    width: float
+    height: float
+    def __init__(self, x: _Optional[float] = ..., y: _Optional[float] = ..., width: _Optional[float] = ..., height: _Optional[float] = ...) -> None: ...
+
+class MeasuredSubject(_message.Message):
+    __slots__ = ("element_id", "test_id", "bounds", "context_id", "value")
+    ELEMENT_ID_FIELD_NUMBER: _ClassVar[int]
+    TEST_ID_FIELD_NUMBER: _ClassVar[int]
+    BOUNDS_FIELD_NUMBER: _ClassVar[int]
+    CONTEXT_ID_FIELD_NUMBER: _ClassVar[int]
+    VALUE_FIELD_NUMBER: _ClassVar[int]
+    element_id: str
+    test_id: str
+    bounds: MeasuredBounds
+    context_id: str
+    value: str
+    def __init__(self, element_id: _Optional[str] = ..., test_id: _Optional[str] = ..., bounds: _Optional[_Union[MeasuredBounds, _Mapping]] = ..., context_id: _Optional[str] = ..., value: _Optional[str] = ...) -> None: ...
+
+class ClaimMeasurement(_message.Message):
+    __slots__ = ("metric", "observed", "required", "unit", "comparator", "subjects")
+    METRIC_FIELD_NUMBER: _ClassVar[int]
+    OBSERVED_FIELD_NUMBER: _ClassVar[int]
+    REQUIRED_FIELD_NUMBER: _ClassVar[int]
+    UNIT_FIELD_NUMBER: _ClassVar[int]
+    COMPARATOR_FIELD_NUMBER: _ClassVar[int]
+    SUBJECTS_FIELD_NUMBER: _ClassVar[int]
+    metric: str
+    observed: float
+    required: float
+    unit: str
+    comparator: str
+    subjects: _containers.RepeatedCompositeFieldContainer[MeasuredSubject]
+    def __init__(self, metric: _Optional[str] = ..., observed: _Optional[float] = ..., required: _Optional[float] = ..., unit: _Optional[str] = ..., comparator: _Optional[str] = ..., subjects: _Optional[_Iterable[_Union[MeasuredSubject, _Mapping]]] = ...) -> None: ...
+
 class ReconciliationEvidence(_message.Message):
-    __slots__ = ("id", "scenario", "page", "route", "state", "claim", "claim_type", "verdict", "capture_ref", "ax_node_json", "message", "checked_at", "viewport", "viewport_width", "viewport_height", "document_kind", "component_id", "component_title", "example_name")
+    __slots__ = ("id", "scenario", "page", "route", "state", "claim", "claim_type", "verdict", "capture_ref", "ax_node_json", "message", "checked_at", "viewport", "viewport_width", "viewport_height", "document_kind", "component_id", "component_title", "example_name", "measurement")
     ID_FIELD_NUMBER: _ClassVar[int]
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     PAGE_FIELD_NUMBER: _ClassVar[int]
@@ -346,6 +388,7 @@ class ReconciliationEvidence(_message.Message):
     COMPONENT_ID_FIELD_NUMBER: _ClassVar[int]
     COMPONENT_TITLE_FIELD_NUMBER: _ClassVar[int]
     EXAMPLE_NAME_FIELD_NUMBER: _ClassVar[int]
+    MEASUREMENT_FIELD_NUMBER: _ClassVar[int]
     id: str
     scenario: str
     page: str
@@ -365,7 +408,8 @@ class ReconciliationEvidence(_message.Message):
     component_id: str
     component_title: str
     example_name: str
-    def __init__(self, id: _Optional[str] = ..., scenario: _Optional[str] = ..., page: _Optional[str] = ..., route: _Optional[str] = ..., state: _Optional[str] = ..., claim: _Optional[str] = ..., claim_type: _Optional[str] = ..., verdict: _Optional[str] = ..., capture_ref: _Optional[str] = ..., ax_node_json: _Optional[str] = ..., message: _Optional[str] = ..., checked_at: _Optional[str] = ..., viewport: _Optional[str] = ..., viewport_width: _Optional[int] = ..., viewport_height: _Optional[int] = ..., document_kind: _Optional[str] = ..., component_id: _Optional[str] = ..., component_title: _Optional[str] = ..., example_name: _Optional[str] = ...) -> None: ...
+    measurement: ClaimMeasurement
+    def __init__(self, id: _Optional[str] = ..., scenario: _Optional[str] = ..., page: _Optional[str] = ..., route: _Optional[str] = ..., state: _Optional[str] = ..., claim: _Optional[str] = ..., claim_type: _Optional[str] = ..., verdict: _Optional[str] = ..., capture_ref: _Optional[str] = ..., ax_node_json: _Optional[str] = ..., message: _Optional[str] = ..., checked_at: _Optional[str] = ..., viewport: _Optional[str] = ..., viewport_width: _Optional[int] = ..., viewport_height: _Optional[int] = ..., document_kind: _Optional[str] = ..., component_id: _Optional[str] = ..., component_title: _Optional[str] = ..., example_name: _Optional[str] = ..., measurement: _Optional[_Union[ClaimMeasurement, _Mapping]] = ...) -> None: ...
 
 class SuggestBindingsRequest(_message.Message):
     __slots__ = ("scenario", "path", "page", "limit")

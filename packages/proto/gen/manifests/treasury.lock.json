@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "scenario": "treasury",
+  "input_digest": "sha256:5631d9501b98fa9501e05cc66257ac934c2f95e88a8c25f3c6f31a651ee093b9",
+  "input_files": [
+    "schemas/measures/v1/measures.proto",
+    "schemas/treasury/v1/notes/attachments.proto",
+    "schemas/treasury/v1/notes/notes.proto",
+    "schemas/treasury/v1/shared/errors.proto",
+    "schemas/treasury/v1/shared/health.proto",
+    "vendor/protovalidate/buf/validate/validate.proto"
+  ],
+  "toolchain": {
+    "buf": "1.37.0",
+    "buf_gen_yaml_digest": "sha256:25a429d557cd66037be08fe549418750c7bd895d3e6078c5afe55a84afd37e84",
+    "plugins": {
+      "protoc": "34.1",
+      "protoc-gen-connect-go": "v1.19.2",
+      "protoc-gen-es": "2.12.0",
+      "protoc-gen-go": "v1.36.11"
+    }
+  },
+  "outputs": {
+    "gen/go/treasury/v1/notes/attachments.pb.go": "sha256:bb56b1eaa72d713a7c7083dcafc2af73684c662fc18dcbf5d8234f6846892a73",
+    "gen/go/treasury/v1/notes/notes.pb.go": "sha256:1875808f3979f81acd9aa61cf0b0ee30a3d170aa7fd32f87ca012798aa58631a",
+    "gen/go/treasury/v1/notes/notes_v1connect/notes.connect.go": "sha256:56049d0029b3bd55f6d3e36d3b3ae77622719ec01b973082f8aa175c09a3a802",
+    "gen/go/treasury/v1/shared/errors.pb.go": "sha256:ce0ec7af3190ecd7e38adcc47ce6597298c0720afb945c30bb0192abe93b4f30",
+    "gen/go/treasury/v1/shared/health.pb.go": "sha256:46635aaa3348abaac25a01b5b0da23f9f9db59c2038cd9e113656e29eaeb8ff3",
+    "gen/python/treasury/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/treasury/v1/notes/attachments_pb2.py": "sha256:21c030b58d44a3b426ade563868c709aff462bc88698968a02127bf3aa4340f9",
+    "gen/python/treasury/v1/notes/attachments_pb2.pyi": "sha256:5594188beec26dac8bb0ab7d1ece27e28d425bc57b7544c9e509610cbb5e37fa",
+    "gen/python/treasury/v1/notes/notes_pb2.py": "sha256:c09752ac58f5750727feeac7c62bd09d72a2616ee0d8e35e3c23f5dfff58d0a7",
+    "gen/python/treasury/v1/notes/notes_pb2.pyi": "sha256:359aac5d47799ae41e88608988e03caee63bd56ec270e6b9959e4bcd3b139386",
+    "gen/python/treasury/v1/notes/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/treasury/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/treasury/v1/shared/errors_pb2.py": "sha256:bddfa73252285146a980d8f91e8e0841c407c290ca1fdc3c987ca3f954d673d3",
+    "gen/python/treasury/v1/shared/errors_pb2.pyi": "sha256:4fab4b85533131b72b50e57a69d84a6878a0c10aa64e5b6791a598b7b9716dd1",
+    "gen/python/treasury/v1/shared/health_pb2.py": "sha256:250a87e3a20cc7deb0c857d2ca1e68ff3493ff1226554b346d21ade439b30eb2",
+    "gen/python/treasury/v1/shared/health_pb2.pyi": "sha256:b9ec00d86e0bdde26187240212eb1746c8be4ebac7b5320be40d8097822a8a04",
+    "gen/python/treasury/v1/shared/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/typescript/js/treasury/v1/notes/attachments_pb.js": "sha256:ecfff204241c15f65846572df21d81a20b6b2b9878fc84022eff4ec7a1c941e0",
+    "gen/typescript/js/treasury/v1/notes/notes_pb.js": "sha256:44da776e1c92cb31ff1185548f32aeceb2b5225d9126252d7b8946ca67f8ec59",
+    "gen/typescript/js/treasury/v1/shared/errors_pb.js": "sha256:285e6a6603ad698081a53a4ac176e7c1697521b0882e177d3f428b2d6fdebc93",
+    "gen/typescript/js/treasury/v1/shared/health_pb.js": "sha256:9553dfe51dde745f0be90d8dba8c63fa95462a892af0f8d0a5d1a643df6c3e68",
+    "gen/typescript/treasury/v1/notes/attachments_pb.ts": "sha256:6e24e6053ca9bb6cf01c7099f465dd07f3daeb1ddd38a3738ff50aae2839c861",
+    "gen/typescript/treasury/v1/notes/notes_pb.ts": "sha256:6ec1789e07c86e1b6a1e293cbbd2221c97e40bbf3f05f28c2f0722fb8c1329d1",
+    "gen/typescript/treasury/v1/shared/errors_pb.ts": "sha256:8f71b28a70a5fec4cb9183287ace495d811c44cf55bc2f2b128441524c09e9a9",
+    "gen/typescript/treasury/v1/shared/health_pb.ts": "sha256:de10faff32cc8e6a9314b7703c64e827461ad3b072e657ff838cc867f131458e"
+  }
+}

@@ -66,6 +66,12 @@ message ProjectionCoverage {
   int32 end_to_end_answerable_now_count = 15;
   int32 end_to_end_answerable_total_cells = 16;
   optional double end_to_end_answerable_ratio = 17;
+  // Act-only audit basis copied from program-runtime's live registry census.
+  int32 manifest_scenarios = 18;
+  int32 total_scenarios = 19;
+  int32 reachable_scenarios = 20;
+  int32 unreachable_scenarios = 21;
+  string reachability_checked_at = 22;
 }
 
 message ConditionCount {

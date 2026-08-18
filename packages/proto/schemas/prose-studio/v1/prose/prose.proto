@@ -201,6 +201,27 @@ message Section {
   string committed_candidate_id = 7;
   ContextSnapshot context = 8;
 }
+// OutlineSection is one planned cell of a document: what the section is for,
+// what it should say, and how long it should be.
+message OutlineSection {
+  string intent = 1;
+  string summary = 2;
+  int32 target_words = 3;
+}
+
+// DocumentProvenance is what an assembled document actually consumed. A
+// long-form run costs one outline request plus one per section plus any repair,
+// and none of that is visible in a single round's accounting.
+message DocumentProvenance {
+  int32 section_count = 1;
+  int32 word_count = 2;
+  int64 total_cost_micros = 3;
+  int64 input_tokens = 4;
+  int64 output_tokens = 5;
+  repeated string providers = 6;
+  repeated string models = 7;
+}
+
 message Document {
   string id = 1;
   string title = 2;
@@ -212,7 +233,38 @@ message Document {
   string assembled_text = 8;
   google.protobuf.Struct coherence = 9;
   repeated Section sections = 10;
+  string outline_text = 11;
+  repeated OutlineSection outline = 12;
+  DocumentProvenance document_provenance = 13;
+  // created_at is RFC3339. It exists so a reader can ask for the most recent
+  // documents without knowing an identifier they were never told.
+  string created_at = 14;
 }
+
+// DocumentSummary is the listing shape: enough to choose which document to
+// read, without carrying the prose of every document into the response.
+message DocumentSummary {
+  string id = 1;
+  string title = 2;
+  string profile_key = 3;
+  string status = 4;
+  int32 word_count = 5;
+  int32 section_count = 6;
+  int64 total_cost_micros = 7;
+  string created_at = 8;
+  bool coherent = 9;
+}
+
+message ListDocumentsRequest {
+  // limit bounds the newest-first page. Zero uses the server default.
+  int32 limit = 1;
+  // status filters by lifecycle state, e.g. assembled. Empty returns all.
+  string status = 2;
+}
+message ListDocumentsResponse { repeated DocumentSummary documents = 1; }
+
+message GetDocumentRequest { string id = 1; }
+message GetDocumentResponse { Document document = 1; }
 message CreateDocumentRequest { Document document = 1; repeated Section sections = 2; }
 message CreateDocumentResponse { Document document = 1; }
 message AssembleDocumentRequest { string id = 1; }
@@ -232,6 +284,8 @@ service ProseStudioService {
   rpc SessionAction(SessionActionRequest) returns (SessionActionResponse);
   rpc ReindexDeclarations(ReindexDeclarationsRequest) returns (ReindexDeclarationsResponse);
   rpc ValidateDeclarations(ValidateDeclarationsRequest) returns (ValidateDeclarationsResponse);
+  rpc ListDocuments(ListDocumentsRequest) returns (ListDocumentsResponse);
+  rpc GetDocument(GetDocumentRequest) returns (GetDocumentResponse);
   rpc CreateDocument(CreateDocumentRequest) returns (CreateDocumentResponse);
   rpc AssembleDocument(AssembleDocumentRequest) returns (AssembleDocumentResponse);
   rpc ResumeDocument(ResumeDocumentRequest) returns (ResumeDocumentResponse);

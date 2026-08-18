@@ -1,0 +1,25 @@
+{
+  "id": ".",
+  "name": "Treasury",
+  "short_name": "treasury",
+  "description": "Holds what an agent is permitted to spend and permitted to charge, evaluates every attempt against a grant a human made, and settles it through whichever rail fits",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff",
+  "icons": [
+    {
+      "src": "manifest-icon-192.maskable.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "manifest-icon-512.maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

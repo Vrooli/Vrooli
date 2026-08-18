@@ -108,6 +108,8 @@ Two reasons to record it as a packaging option rather than leaving it implicit:
 - **It inverts the integration-count problem.** The direct-product thesis explicitly refuses to compete on integration count (`GO-TO-MARKET.md`), because that axis is unwinnable against incumbents with years of adapter work. A published contract makes integration count something *other people* contribute to, which is the only version of that axis worth being on.
 - **It is what the architecture already is.** `OT-P0-004` defines one inbound door and no privileged path; `INTEGRATIONS.md` states outright that the scenario "does not integrate with named systems — it defines one inbound shape and lets systems satisfy it." Publishing the shape costs a specification and a conformance test, not a new capability.
 
+The specification is published at [`../reference/money-event-contract.md`](../reference/money-event-contract.md), with its conformance bar stated there.
+
 Two honest limits. A contract with one implementation is a file, not a standard — this stays `candidate` until at least one adapter exists that we did not write. And it is a *distribution* strategy, not a *revenue* strategy: it plausibly makes the OSS-discovery channel work, and it does not by itself make anyone pay. Do not let it become a reason to defer the demand testing the direct-product hypothesis still needs.
 
 **Revisit trigger:** the manual, file, and commerce adapters are all green — proving the contract against three genuinely different source shapes — **and** an external party has asked how to feed the ledger from a source we do not support.

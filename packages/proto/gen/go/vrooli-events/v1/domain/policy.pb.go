@@ -416,15 +416,15 @@ var File_vrooli_events_v1_domain_policy_proto protoreflect.FileDescriptor
 
 const file_vrooli_events_v1_domain_policy_proto_rawDesc = "" +
 	"\n" +
-	"$vrooli-events/v1/domain/policy.proto\x12\x17vrooli.events.v1.domain\x1a&vrooli-events/v1/domain/envelope.proto\"\x84\x03\n" +
+	"$vrooli-events/v1/domain/policy.proto\x12\x1evrooli.vrooli_events.v1.domain\x1a&vrooli-events/v1/domain/envelope.proto\"\x92\x03\n" +
 	"\x14ReceiptCapturePolicy\x12\x1b\n" +
 	"\tpolicy_id\x18\x01 \x01(\tR\bpolicyId\x12\x18\n" +
-	"\aenabled\x18\x02 \x01(\bR\aenabled\x12M\n" +
-	"\bselector\x18\x03 \x01(\v21.vrooli.events.v1.domain.ReceiptOperationSelectorR\bselector\x12#\n" +
+	"\aenabled\x18\x02 \x01(\bR\aenabled\x12T\n" +
+	"\bselector\x18\x03 \x01(\v28.vrooli.vrooli_events.v1.domain.ReceiptOperationSelectorR\bselector\x12#\n" +
 	"\rresponse_type\x18\x04 \x01(\tR\fresponseType\x12:\n" +
 	"\x19response_projection_paths\x18\x05 \x03(\tR\x17responseProjectionPaths\x12%\n" +
-	"\x0eretention_days\x18\x06 \x01(\rR\rretentionDays\x12D\n" +
-	"\x06access\x18\a \x01(\v2,.vrooli.events.v1.domain.ReceiptAccessPolicyR\x06access\x12\x18\n" +
+	"\x0eretention_days\x18\x06 \x01(\rR\rretentionDays\x12K\n" +
+	"\x06access\x18\a \x01(\v23.vrooli.vrooli_events.v1.domain.ReceiptAccessPolicyR\x06access\x12\x18\n" +
 	"\aversion\x18\b \x01(\tR\aversion\"\x9c\x01\n" +
 	"\x18ReceiptOperationSelector\x12'\n" +
 	"\x0ftarget_scenario\x18\x01 \x01(\tR\x0etargetScenario\x12\x1c\n" +
@@ -449,9 +449,9 @@ const file_vrooli_events_v1_domain_policy_proto_rawDesc = "" +
 	"\n" +
 	"page_token\x18\n" +
 	" \x01(\tR\tpageToken\x12\x1b\n" +
-	"\tpage_size\x18\v \x01(\rR\bpageSize\"|\n" +
-	"\x12ReceiptQueryResult\x12>\n" +
-	"\x06events\x18\x01 \x03(\v2&.vrooli.events.v1.domain.EventEnvelopeR\x06events\x12&\n" +
+	"\tpage_size\x18\v \x01(\rR\bpageSize\"\x83\x01\n" +
+	"\x12ReceiptQueryResult\x12E\n" +
+	"\x06events\x18\x01 \x03(\v2-.vrooli.vrooli_events.v1.domain.EventEnvelopeR\x06events\x12&\n" +
 	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageTokenBOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain;domainb\x06proto3"
 
 var (
@@ -468,17 +468,17 @@ func file_vrooli_events_v1_domain_policy_proto_rawDescGZIP() []byte {
 
 var file_vrooli_events_v1_domain_policy_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
 var file_vrooli_events_v1_domain_policy_proto_goTypes = []any{
-	(*ReceiptCapturePolicy)(nil),     // 0: vrooli.events.v1.domain.ReceiptCapturePolicy
-	(*ReceiptOperationSelector)(nil), // 1: vrooli.events.v1.domain.ReceiptOperationSelector
-	(*ReceiptAccessPolicy)(nil),      // 2: vrooli.events.v1.domain.ReceiptAccessPolicy
-	(*ReceiptQueryFilter)(nil),       // 3: vrooli.events.v1.domain.ReceiptQueryFilter
-	(*ReceiptQueryResult)(nil),       // 4: vrooli.events.v1.domain.ReceiptQueryResult
-	(*EventEnvelope)(nil),            // 5: vrooli.events.v1.domain.EventEnvelope
+	(*ReceiptCapturePolicy)(nil),     // 0: vrooli.vrooli_events.v1.domain.ReceiptCapturePolicy
+	(*ReceiptOperationSelector)(nil), // 1: vrooli.vrooli_events.v1.domain.ReceiptOperationSelector
+	(*ReceiptAccessPolicy)(nil),      // 2: vrooli.vrooli_events.v1.domain.ReceiptAccessPolicy
+	(*ReceiptQueryFilter)(nil),       // 3: vrooli.vrooli_events.v1.domain.ReceiptQueryFilter
+	(*ReceiptQueryResult)(nil),       // 4: vrooli.vrooli_events.v1.domain.ReceiptQueryResult
+	(*EventEnvelope)(nil),            // 5: vrooli.vrooli_events.v1.domain.EventEnvelope
 }
 var file_vrooli_events_v1_domain_policy_proto_depIdxs = []int32{
-	1, // 0: vrooli.events.v1.domain.ReceiptCapturePolicy.selector:type_name -> vrooli.events.v1.domain.ReceiptOperationSelector
-	2, // 1: vrooli.events.v1.domain.ReceiptCapturePolicy.access:type_name -> vrooli.events.v1.domain.ReceiptAccessPolicy
-	5, // 2: vrooli.events.v1.domain.ReceiptQueryResult.events:type_name -> vrooli.events.v1.domain.EventEnvelope
+	1, // 0: vrooli.vrooli_events.v1.domain.ReceiptCapturePolicy.selector:type_name -> vrooli.vrooli_events.v1.domain.ReceiptOperationSelector
+	2, // 1: vrooli.vrooli_events.v1.domain.ReceiptCapturePolicy.access:type_name -> vrooli.vrooli_events.v1.domain.ReceiptAccessPolicy
+	5, // 2: vrooli.vrooli_events.v1.domain.ReceiptQueryResult.events:type_name -> vrooli.vrooli_events.v1.domain.EventEnvelope
 	3, // [3:3] is the sub-list for method output_type
 	3, // [3:3] is the sub-list for method input_type
 	3, // [3:3] is the sub-list for extension type_name

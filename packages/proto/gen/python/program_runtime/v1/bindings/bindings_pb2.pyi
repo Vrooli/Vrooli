@@ -319,18 +319,20 @@ class FreshnessCondition(_message.Message):
     def __init__(self, family: _Optional[_Union[ConditionFamily, _Mapping]] = ..., age_seconds: _Optional[int] = ..., drift_status: _Optional[_Union[ConditionStatus, str]] = ..., drift_reason: _Optional[str] = ..., source_path: _Optional[str] = ..., source_mtime: _Optional[str] = ..., generation_mtime: _Optional[str] = ...) -> None: ...
 
 class ExerciseCondition(_message.Message):
-    __slots__ = ("family", "invocations", "distinct_callers", "last_invoked_at", "synthetic_invocations")
+    __slots__ = ("family", "invocations", "distinct_callers", "last_invoked_at", "synthetic_invocations", "unattributed_remainder")
     FAMILY_FIELD_NUMBER: _ClassVar[int]
     INVOCATIONS_FIELD_NUMBER: _ClassVar[int]
     DISTINCT_CALLERS_FIELD_NUMBER: _ClassVar[int]
     LAST_INVOKED_AT_FIELD_NUMBER: _ClassVar[int]
     SYNTHETIC_INVOCATIONS_FIELD_NUMBER: _ClassVar[int]
+    UNATTRIBUTED_REMAINDER_FIELD_NUMBER: _ClassVar[int]
     family: ConditionFamily
     invocations: int
     distinct_callers: int
     last_invoked_at: str
     synthetic_invocations: int
-    def __init__(self, family: _Optional[_Union[ConditionFamily, _Mapping]] = ..., invocations: _Optional[int] = ..., distinct_callers: _Optional[int] = ..., last_invoked_at: _Optional[str] = ..., synthetic_invocations: _Optional[int] = ...) -> None: ...
+    unattributed_remainder: int
+    def __init__(self, family: _Optional[_Union[ConditionFamily, _Mapping]] = ..., invocations: _Optional[int] = ..., distinct_callers: _Optional[int] = ..., last_invoked_at: _Optional[str] = ..., synthetic_invocations: _Optional[int] = ..., unattributed_remainder: _Optional[int] = ...) -> None: ...
 
 class BindingCondition(_message.Message):
     __slots__ = ("binding_id", "scenario", "status", "verdict", "serving", "freshness", "exercise", "sustained_degradation", "sustained_degradation_reason")
@@ -463,16 +465,26 @@ class ResolveActCellsRequest(_message.Message):
     def __init__(self, cells: _Optional[_Iterable[_Union[ActCell, _Mapping]]] = ...) -> None: ...
 
 class ResolveActCellsResponse(_message.Message):
-    __slots__ = ("cells", "audited_cells", "total_cells", "denominator_confidence")
+    __slots__ = ("cells", "audited_cells", "total_cells", "denominator_confidence", "manifest_scenarios", "total_scenarios", "reachable_scenarios", "unreachable_scenarios", "reachability_checked_at")
     CELLS_FIELD_NUMBER: _ClassVar[int]
     AUDITED_CELLS_FIELD_NUMBER: _ClassVar[int]
     TOTAL_CELLS_FIELD_NUMBER: _ClassVar[int]
     DENOMINATOR_CONFIDENCE_FIELD_NUMBER: _ClassVar[int]
+    MANIFEST_SCENARIOS_FIELD_NUMBER: _ClassVar[int]
+    TOTAL_SCENARIOS_FIELD_NUMBER: _ClassVar[int]
+    REACHABLE_SCENARIOS_FIELD_NUMBER: _ClassVar[int]
+    UNREACHABLE_SCENARIOS_FIELD_NUMBER: _ClassVar[int]
+    REACHABILITY_CHECKED_AT_FIELD_NUMBER: _ClassVar[int]
     cells: _containers.RepeatedCompositeFieldContainer[ActCellVerdict]
     audited_cells: int
     total_cells: int
     denominator_confidence: str
-    def __init__(self, cells: _Optional[_Iterable[_Union[ActCellVerdict, _Mapping]]] = ..., audited_cells: _Optional[int] = ..., total_cells: _Optional[int] = ..., denominator_confidence: _Optional[str] = ...) -> None: ...
+    manifest_scenarios: int
+    total_scenarios: int
+    reachable_scenarios: int
+    unreachable_scenarios: int
+    reachability_checked_at: str
+    def __init__(self, cells: _Optional[_Iterable[_Union[ActCellVerdict, _Mapping]]] = ..., audited_cells: _Optional[int] = ..., total_cells: _Optional[int] = ..., denominator_confidence: _Optional[str] = ..., manifest_scenarios: _Optional[int] = ..., total_scenarios: _Optional[int] = ..., reachable_scenarios: _Optional[int] = ..., unreachable_scenarios: _Optional[int] = ..., reachability_checked_at: _Optional[str] = ...) -> None: ...
 
 class ResolveIntentRequest(_message.Message):
     __slots__ = ("intent", "limit", "mode")

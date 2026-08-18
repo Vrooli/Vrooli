@@ -20,7 +20,7 @@ class RunComponentTestRequest(_message.Message):
     def __init__(self, component_id: _Optional[str] = ..., version: _Optional[str] = ..., include_closure: _Optional[bool] = ...) -> None: ...
 
 class ComponentTestResult(_message.Message):
-    __slots__ = ("stage", "asset_library_id", "version", "subject", "verdict", "message", "remediation")
+    __slots__ = ("stage", "asset_library_id", "version", "subject", "verdict", "message", "remediation", "evidence")
     STAGE_FIELD_NUMBER: _ClassVar[int]
     ASSET_LIBRARY_ID_FIELD_NUMBER: _ClassVar[int]
     VERSION_FIELD_NUMBER: _ClassVar[int]
@@ -28,6 +28,7 @@ class ComponentTestResult(_message.Message):
     VERDICT_FIELD_NUMBER: _ClassVar[int]
     MESSAGE_FIELD_NUMBER: _ClassVar[int]
     REMEDIATION_FIELD_NUMBER: _ClassVar[int]
+    EVIDENCE_FIELD_NUMBER: _ClassVar[int]
     stage: str
     asset_library_id: str
     version: str
@@ -35,7 +36,16 @@ class ComponentTestResult(_message.Message):
     verdict: str
     message: str
     remediation: str
-    def __init__(self, stage: _Optional[str] = ..., asset_library_id: _Optional[str] = ..., version: _Optional[str] = ..., subject: _Optional[str] = ..., verdict: _Optional[str] = ..., message: _Optional[str] = ..., remediation: _Optional[str] = ...) -> None: ...
+    evidence: _containers.RepeatedCompositeFieldContainer[ComponentTestEvidence]
+    def __init__(self, stage: _Optional[str] = ..., asset_library_id: _Optional[str] = ..., version: _Optional[str] = ..., subject: _Optional[str] = ..., verdict: _Optional[str] = ..., message: _Optional[str] = ..., remediation: _Optional[str] = ..., evidence: _Optional[_Iterable[_Union[ComponentTestEvidence, _Mapping]]] = ...) -> None: ...
+
+class ComponentTestEvidence(_message.Message):
+    __slots__ = ("kind", "json")
+    KIND_FIELD_NUMBER: _ClassVar[int]
+    JSON_FIELD_NUMBER: _ClassVar[int]
+    kind: str
+    json: str
+    def __init__(self, kind: _Optional[str] = ..., json: _Optional[str] = ...) -> None: ...
 
 class ComponentTestArtifact(_message.Message):
     __slots__ = ("kind", "label", "asset_library_id", "version", "reference")

@@ -57,6 +57,12 @@ const (
 	// ProseStudioServiceValidateDeclarationsProcedure is the fully-qualified name of the
 	// ProseStudioService's ValidateDeclarations RPC.
 	ProseStudioServiceValidateDeclarationsProcedure = "/vrooli.prose_studio.v1.prose.ProseStudioService/ValidateDeclarations"
+	// ProseStudioServiceListDocumentsProcedure is the fully-qualified name of the ProseStudioService's
+	// ListDocuments RPC.
+	ProseStudioServiceListDocumentsProcedure = "/vrooli.prose_studio.v1.prose.ProseStudioService/ListDocuments"
+	// ProseStudioServiceGetDocumentProcedure is the fully-qualified name of the ProseStudioService's
+	// GetDocument RPC.
+	ProseStudioServiceGetDocumentProcedure = "/vrooli.prose_studio.v1.prose.ProseStudioService/GetDocument"
 	// ProseStudioServiceCreateDocumentProcedure is the fully-qualified name of the ProseStudioService's
 	// CreateDocument RPC.
 	ProseStudioServiceCreateDocumentProcedure = "/vrooli.prose_studio.v1.prose.ProseStudioService/CreateDocument"
@@ -82,6 +88,8 @@ type ProseStudioServiceClient interface {
 	SessionAction(context.Context, *connect.Request[prose.SessionActionRequest]) (*connect.Response[prose.SessionActionResponse], error)
 	ReindexDeclarations(context.Context, *connect.Request[prose.ReindexDeclarationsRequest]) (*connect.Response[prose.ReindexDeclarationsResponse], error)
 	ValidateDeclarations(context.Context, *connect.Request[prose.ValidateDeclarationsRequest]) (*connect.Response[prose.ValidateDeclarationsResponse], error)
+	ListDocuments(context.Context, *connect.Request[prose.ListDocumentsRequest]) (*connect.Response[prose.ListDocumentsResponse], error)
+	GetDocument(context.Context, *connect.Request[prose.GetDocumentRequest]) (*connect.Response[prose.GetDocumentResponse], error)
 	CreateDocument(context.Context, *connect.Request[prose.CreateDocumentRequest]) (*connect.Response[prose.CreateDocumentResponse], error)
 	AssembleDocument(context.Context, *connect.Request[prose.AssembleDocumentRequest]) (*connect.Response[prose.AssembleDocumentResponse], error)
 	ResumeDocument(context.Context, *connect.Request[prose.ResumeDocumentRequest]) (*connect.Response[prose.ResumeDocumentResponse], error)
@@ -148,6 +156,18 @@ func NewProseStudioServiceClient(httpClient connect.HTTPClient, baseURL string, 
 			connect.WithSchema(proseStudioServiceMethods.ByName("ValidateDeclarations")),
 			connect.WithClientOptions(opts...),
 		),
+		listDocuments: connect.NewClient[prose.ListDocumentsRequest, prose.ListDocumentsResponse](
+			httpClient,
+			baseURL+ProseStudioServiceListDocumentsProcedure,
+			connect.WithSchema(proseStudioServiceMethods.ByName("ListDocuments")),
+			connect.WithClientOptions(opts...),
+		),
+		getDocument: connect.NewClient[prose.GetDocumentRequest, prose.GetDocumentResponse](
+			httpClient,
+			baseURL+ProseStudioServiceGetDocumentProcedure,
+			connect.WithSchema(proseStudioServiceMethods.ByName("GetDocument")),
+			connect.WithClientOptions(opts...),
+		),
 		createDocument: connect.NewClient[prose.CreateDocumentRequest, prose.CreateDocumentResponse](
 			httpClient,
 			baseURL+ProseStudioServiceCreateDocumentProcedure,
@@ -185,6 +205,8 @@ type proseStudioServiceClient struct {
 	sessionAction        *connect.Client[prose.SessionActionRequest, prose.SessionActionResponse]
 	reindexDeclarations  *connect.Client[prose.ReindexDeclarationsRequest, prose.ReindexDeclarationsResponse]
 	validateDeclarations *connect.Client[prose.ValidateDeclarationsRequest, prose.ValidateDeclarationsResponse]
+	listDocuments        *connect.Client[prose.ListDocumentsRequest, prose.ListDocumentsResponse]
+	getDocument          *connect.Client[prose.GetDocumentRequest, prose.GetDocumentResponse]
 	createDocument       *connect.Client[prose.CreateDocumentRequest, prose.CreateDocumentResponse]
 	assembleDocument     *connect.Client[prose.AssembleDocumentRequest, prose.AssembleDocumentResponse]
 	resumeDocument       *connect.Client[prose.ResumeDocumentRequest, prose.ResumeDocumentResponse]
@@ -231,6 +253,16 @@ func (c *proseStudioServiceClient) ValidateDeclarations(ctx context.Context, req
 	return c.validateDeclarations.CallUnary(ctx, req)
 }
 
+// ListDocuments calls vrooli.prose_studio.v1.prose.ProseStudioService.ListDocuments.
+func (c *proseStudioServiceClient) ListDocuments(ctx context.Context, req *connect.Request[prose.ListDocumentsRequest]) (*connect.Response[prose.ListDocumentsResponse], error) {
+	return c.listDocuments.CallUnary(ctx, req)
+}
+
+// GetDocument calls vrooli.prose_studio.v1.prose.ProseStudioService.GetDocument.
+func (c *proseStudioServiceClient) GetDocument(ctx context.Context, req *connect.Request[prose.GetDocumentRequest]) (*connect.Response[prose.GetDocumentResponse], error) {
+	return c.getDocument.CallUnary(ctx, req)
+}
+
 // CreateDocument calls vrooli.prose_studio.v1.prose.ProseStudioService.CreateDocument.
 func (c *proseStudioServiceClient) CreateDocument(ctx context.Context, req *connect.Request[prose.CreateDocumentRequest]) (*connect.Response[prose.CreateDocumentResponse], error) {
 	return c.createDocument.CallUnary(ctx, req)
@@ -262,6 +294,8 @@ type ProseStudioServiceHandler interface {
 	SessionAction(context.Context, *connect.Request[prose.SessionActionRequest]) (*connect.Response[prose.SessionActionResponse], error)
 	ReindexDeclarations(context.Context, *connect.Request[prose.ReindexDeclarationsRequest]) (*connect.Response[prose.ReindexDeclarationsResponse], error)
 	ValidateDeclarations(context.Context, *connect.Request[prose.ValidateDeclarationsRequest]) (*connect.Response[prose.ValidateDeclarationsResponse], error)
+	ListDocuments(context.Context, *connect.Request[prose.ListDocumentsRequest]) (*connect.Response[prose.ListDocumentsResponse], error)
+	GetDocument(context.Context, *connect.Request[prose.GetDocumentRequest]) (*connect.Response[prose.GetDocumentResponse], error)
 	CreateDocument(context.Context, *connect.Request[prose.CreateDocumentRequest]) (*connect.Response[prose.CreateDocumentResponse], error)
 	AssembleDocument(context.Context, *connect.Request[prose.AssembleDocumentRequest]) (*connect.Response[prose.AssembleDocumentResponse], error)
 	ResumeDocument(context.Context, *connect.Request[prose.ResumeDocumentRequest]) (*connect.Response[prose.ResumeDocumentResponse], error)
@@ -323,6 +357,18 @@ func NewProseStudioServiceHandler(svc ProseStudioServiceHandler, opts ...connect
 		connect.WithSchema(proseStudioServiceMethods.ByName("ValidateDeclarations")),
 		connect.WithHandlerOptions(opts...),
 	)
+	proseStudioServiceListDocumentsHandler := connect.NewUnaryHandler(
+		ProseStudioServiceListDocumentsProcedure,
+		svc.ListDocuments,
+		connect.WithSchema(proseStudioServiceMethods.ByName("ListDocuments")),
+		connect.WithHandlerOptions(opts...),
+	)
+	proseStudioServiceGetDocumentHandler := connect.NewUnaryHandler(
+		ProseStudioServiceGetDocumentProcedure,
+		svc.GetDocument,
+		connect.WithSchema(proseStudioServiceMethods.ByName("GetDocument")),
+		connect.WithHandlerOptions(opts...),
+	)
 	proseStudioServiceCreateDocumentHandler := connect.NewUnaryHandler(
 		ProseStudioServiceCreateDocumentProcedure,
 		svc.CreateDocument,
@@ -365,6 +411,10 @@ func NewProseStudioServiceHandler(svc ProseStudioServiceHandler, opts ...connect
 			proseStudioServiceReindexDeclarationsHandler.ServeHTTP(w, r)
 		case ProseStudioServiceValidateDeclarationsProcedure:
 			proseStudioServiceValidateDeclarationsHandler.ServeHTTP(w, r)
+		case ProseStudioServiceListDocumentsProcedure:
+			proseStudioServiceListDocumentsHandler.ServeHTTP(w, r)
+		case ProseStudioServiceGetDocumentProcedure:
+			proseStudioServiceGetDocumentHandler.ServeHTTP(w, r)
 		case ProseStudioServiceCreateDocumentProcedure:
 			proseStudioServiceCreateDocumentHandler.ServeHTTP(w, r)
 		case ProseStudioServiceAssembleDocumentProcedure:
@@ -412,6 +462,14 @@ func (UnimplementedProseStudioServiceHandler) ReindexDeclarations(context.Contex
 
 func (UnimplementedProseStudioServiceHandler) ValidateDeclarations(context.Context, *connect.Request[prose.ValidateDeclarationsRequest]) (*connect.Response[prose.ValidateDeclarationsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.prose_studio.v1.prose.ProseStudioService.ValidateDeclarations is not implemented"))
+}
+
+func (UnimplementedProseStudioServiceHandler) ListDocuments(context.Context, *connect.Request[prose.ListDocumentsRequest]) (*connect.Response[prose.ListDocumentsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.prose_studio.v1.prose.ProseStudioService.ListDocuments is not implemented"))
+}
+
+func (UnimplementedProseStudioServiceHandler) GetDocument(context.Context, *connect.Request[prose.GetDocumentRequest]) (*connect.Response[prose.GetDocumentResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.prose_studio.v1.prose.ProseStudioService.GetDocument is not implemented"))
 }
 
 func (UnimplementedProseStudioServiceHandler) CreateDocument(context.Context, *connect.Request[prose.CreateDocumentRequest]) (*connect.Response[prose.CreateDocumentResponse], error) {

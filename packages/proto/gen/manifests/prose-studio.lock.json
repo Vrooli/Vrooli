@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "prose-studio",
-  "input_digest": "sha256:31a38e595ff93a4a2b4a04628c984c9ce9a0590165673f1ee372c1ba69e27478",
+  "input_digest": "sha256:0e4f3c639b1996ee18486a8092379d61c02deb7aa931cc75bf0e2c3a481e7162",
   "input_files": [
     "schemas/prose-studio/v1/prose/prose.proto",
     "schemas/prose-studio/v1/shared/errors.proto",
@@ -18,13 +18,13 @@
     }
   },
   "outputs": {
-    "gen/go/prose-studio/v1/prose/prose.pb.go": "sha256:e37747f2e2b0ce344529f0212f531d6b5dde81a67abe08f2b0a7dbd2d86702f5",
-    "gen/go/prose-studio/v1/prose/prose_v1connect/prose.connect.go": "sha256:8b30237fb56b7c30ef1f8af6d4042db76f13db8563841641c4c43f327e261ccd",
+    "gen/go/prose-studio/v1/prose/prose.pb.go": "sha256:a1414bc04eaee2937f0dd7df46ffdef6d7ecd3304dc1a54c1b27025b23bbcaf2",
+    "gen/go/prose-studio/v1/prose/prose_v1connect/prose.connect.go": "sha256:f18979c8cbec300c5ff9de63a813d5601aaee26cdd5a82a4663714108cebe7fa",
     "gen/go/prose-studio/v1/shared/errors.pb.go": "sha256:10206c16f06f6d38e015954d0479b00a96b7446ce62c5ca0d9d65f8f6205a736",
     "gen/go/prose-studio/v1/shared/health.pb.go": "sha256:c60d0e439f318475ecb1dd44e0e92ed896fdc68f72a5f4a39df0971133f24c60",
     "gen/python/prose_studio/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "gen/python/prose_studio/v1/prose/prose_pb2.py": "sha256:6edea314dee8854c57083aa07b002a80ab66d348682bf85f7bb0d935cab9eb27",
-    "gen/python/prose_studio/v1/prose/prose_pb2.pyi": "sha256:8f86472477477b3a0d4f5e65ce92d7b79727dc39b0c54d5608c72cc9caa1dc2f",
+    "gen/python/prose_studio/v1/prose/prose_pb2.py": "sha256:c9d0bdbeda3b99ae6a0705dc195aecea3634b5d28aace434c167b0e33bdfc4b9",
+    "gen/python/prose_studio/v1/prose/prose_pb2.pyi": "sha256:7ba600ab0c755ac93950941ae459047e9af5c0eca441c26ccc9330687efd864e",
     "gen/python/prose_studio/v1/prose/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/prose_studio/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/prose_studio/v1/shared/errors_pb2.py": "sha256:67ac48f983f4fed84ec1b5d607c9726158d7184ab1f9fbe3977da0e1a4e35f10",
@@ -32,10 +32,10 @@
     "gen/python/prose_studio/v1/shared/health_pb2.py": "sha256:3c933b386f75b58de603dd4910c65ea441910c5c618d2282e75717bd3dfd8a23",
     "gen/python/prose_studio/v1/shared/health_pb2.pyi": "sha256:b9ec00d86e0bdde26187240212eb1746c8be4ebac7b5320be40d8097822a8a04",
     "gen/python/prose_studio/v1/shared/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "gen/typescript/js/prose-studio/v1/prose/prose_pb.js": "sha256:8b33e18ca4f3d75cdbc9a6ae705f141c09c161b7ba7bdfa97d33a19ebf643086",
+    "gen/typescript/js/prose-studio/v1/prose/prose_pb.js": "sha256:6bebcf2aa77f5826c95602ceb0ba5f257b680c3f1a972f99101d06f53873bdaa",
     "gen/typescript/js/prose-studio/v1/shared/errors_pb.js": "sha256:5de57781fffea401494ce5680e9c3a75278f8e8a63f32cd0fae6089cf18fa8c3",
     "gen/typescript/js/prose-studio/v1/shared/health_pb.js": "sha256:e87d37e82063d6d8f2c6a5b387e71f4cd1a9a8e99b68cb2a43df1e12345cb124",
-    "gen/typescript/prose-studio/v1/prose/prose_pb.ts": "sha256:8f8c7166625975cdb9dc8b207aa2c6c3a85ff1ef36691473ceb25bfd21b04187",
+    "gen/typescript/prose-studio/v1/prose/prose_pb.ts": "sha256:9e2cd28060646214c4461e00862a7f8ab108a0271d776acaa32ea38cd8a62b3b",
     "gen/typescript/prose-studio/v1/shared/errors_pb.ts": "sha256:555d8e926e13da4b97f52186a9a0e5824a604ab5047128b0254c99119c6fa53e",
     "gen/typescript/prose-studio/v1/shared/health_pb.ts": "sha256:8e1934c212786c890e3277e84f8032b92dde2d35105d9ab0e3c406d226169884"
   }

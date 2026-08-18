@@ -44,13 +44,23 @@ func (s *Store) OperatorInputStatus(ctx context.Context, bookID string) ([]Opera
 			fields = append(fields, field)
 			continue
 		}
+		// Both reads are book-scoped. An unspecified book must never widen into
+		// "any book", because archived books hold retired drill data: reporting a
+		// field `current` from a book no consumer reads is precisely the
+		// unjudgeable figure this scenario refuses to produce. Position, goals,
+		// and the Offer Desk board are all book-scoped, so this surface must be
+		// too or the two disagree about whether an input exists.
 		var observed string
 		var err error
 		if kind == "measure" {
-			err = s.db.QueryRowContext(ctx, `SELECT observed_at FROM operator_measures WHERE path=? ORDER BY observed_at DESC,id DESC LIMIT 1`, path).Scan(&observed)
+			if bookID == "" {
+				err = s.db.QueryRowContext(ctx, `SELECT m.observed_at FROM operator_measures m JOIN books b ON b.id=m.book_id WHERE m.path=? AND b.archived=0 ORDER BY m.observed_at DESC,m.id DESC LIMIT 1`, path).Scan(&observed)
+			} else {
+				err = s.db.QueryRowContext(ctx, `SELECT observed_at FROM operator_measures WHERE path=? AND book_id=? ORDER BY observed_at DESC,id DESC LIMIT 1`, path, bookID).Scan(&observed)
+			}
 		} else {
 			if bookID == "" {
-				err = s.db.QueryRowContext(ctx, `SELECT occurred_at FROM postings WHERE category=? ORDER BY occurred_at DESC,id DESC LIMIT 1`, path).Scan(&observed)
+				err = s.db.QueryRowContext(ctx, `SELECT p.occurred_at FROM postings p JOIN books b ON b.id=p.book_id WHERE p.category=? AND b.archived=0 ORDER BY p.occurred_at DESC,p.id DESC LIMIT 1`, path).Scan(&observed)
 			} else {
 				err = s.db.QueryRowContext(ctx, `SELECT occurred_at FROM postings WHERE category=? AND book_id=? ORDER BY occurred_at DESC,id DESC LIMIT 1`, path, bookID).Scan(&observed)
 			}
@@ -63,8 +73,12 @@ func (s *Store) OperatorInputStatus(ctx context.Context, bookID string) ([]Opera
 			return nil, err
 		}
 		if strings.TrimSpace(observed) == "" {
-			field.Status = "current"
-			field.Reason = "observation timestamp unavailable"
+			// An observation with no timestamp cannot be aged, so its freshness is
+			// unknowable. Reporting it `current` asserts a freshness nothing
+			// established; `unknown` is the honest verdict and keeps the field out
+			// of every "we have this input" count.
+			field.Status = "unknown"
+			field.Reason = "observation exists but carries no timestamp, so its age cannot be judged"
 			fields = append(fields, field)
 			continue
 		}
@@ -137,8 +151,17 @@ func (s *Store) importOperatorInputs(ctx context.Context, data []byte, sourcePat
 	if err := json.Unmarshal(data, &root); err != nil {
 		return nil, fmt.Errorf("operator-inputs JSON: %w", err)
 	}
-	if strings.TrimSpace(adapterID) == "" || strings.TrimSpace(bookID) == "" || strings.TrimSpace(accountID) == "" {
-		return nil, errors.New("adapter_id, book_id, and account_id are required")
+	if strings.TrimSpace(adapterID) == "" || strings.TrimSpace(bookID) == "" {
+		return nil, errors.New("adapter_id and book_id are required")
+	}
+	// account_id is an optional single-target override. Left empty, each monetary
+	// field routes to the account whose kind Position() actually reads for that
+	// figure. Routing everything into one account silently produced revenue=0,
+	// expense=0 and burn=0 no matter what the operator typed, so the entry path
+	// could not move runway or any goal verdict.
+	bookCurrency, err := s.bookCurrency(ctx, bookID)
+	if err != nil {
+		return nil, err
 	}
 	report := &OperatorImportReport{}
 	type prepared struct {
@@ -206,8 +229,23 @@ func (s *Store) importOperatorInputs(ctx context.Context, data []byte, sourcePat
 		if p.status == "pending-operator" || p.status == "absent" || p.status == "not-applicable-pre-launch" || p.kind == "derived-rate" || p.status == "stale" || p.kind == "measure" {
 			continue
 		}
+		target := accountID
+		if strings.TrimSpace(target) == "" {
+			resolved, reason, resolveErr := s.resolveOperatorAccount(ctx, bookID, p.path)
+			if resolveErr != nil {
+				return nil, resolveErr
+			}
+			if resolved == "" {
+				// Never guess an account. A misrouted posting is a wrong figure
+				// that looks right, which is worse than a named absence.
+				field.Status, field.Reason = "unroutable", reason
+				report.Findings++
+				continue
+			}
+			target = resolved
+		}
 		now := s.now().UTC()
-		event := &sharedpb.MoneyEvent{ExternalId: "operator-inputs:" + p.path, AdapterId: adapterID, AccountId: accountID, BookId: bookID, AmountMinor: int64(p.value), Currency: "USD", OccurredAt: timestamppb.New(now), FetchedAt: timestamppb.New(now), Basis: sharedpb.Basis_BASIS_OPERATOR_ASSERTED, Category: p.path, Description: "Imported operator input from " + sourcePath}
+		event := &sharedpb.MoneyEvent{ExternalId: "operator-inputs:" + p.path, AdapterId: adapterID, AccountId: target, BookId: bookID, AmountMinor: int64(p.value), Currency: bookCurrency, OccurredAt: timestamppb.New(now), FetchedAt: timestamppb.New(now), Basis: sharedpb.Basis_BASIS_OPERATOR_ASSERTED, Category: p.path, Description: "Imported operator input from " + sourcePath}
 		_, duplicate, err := s.journal.Ingest(ctx, event, "operator")
 		if err != nil {
 			return nil, fmt.Errorf("operator-inputs field %s: %w", p.path, err)
@@ -217,7 +255,10 @@ func (s *Store) importOperatorInputs(ctx context.Context, data []byte, sourcePat
 			report.Written++
 		}
 	}
-	if _, err := s.db.ExecContext(ctx, `DELETE FROM operator_measures WHERE source_path=?`, sourcePath); err != nil {
+	// Supersede only within the book being imported. A re-import for one book
+	// must not delete another book's measures, which the source_path-only
+	// predicate did whenever two books shared an entry surface.
+	if _, err := s.db.ExecContext(ctx, `DELETE FROM operator_measures WHERE source_path=? AND book_id=?`, sourcePath, bookID); err != nil {
 		return nil, err
 	}
 	for _, p := range preparedFields {
@@ -226,7 +267,7 @@ func (s *Store) importOperatorInputs(ctx context.Context, data []byte, sourcePat
 			if p.observed != nil {
 				observed = p.observed.Format(time.RFC3339Nano)
 			}
-			if _, err := s.db.ExecContext(ctx, `INSERT INTO operator_measures(path,value,unit,window_days,observed_at,status,source_path) VALUES(?,?,?,?,?,?,?)`, p.path, p.value, p.unit, p.window, observed, p.status, sourcePath); err != nil {
+			if _, err := s.db.ExecContext(ctx, `INSERT INTO operator_measures(path,value,unit,window_days,observed_at,status,source_path,book_id) VALUES(?,?,?,?,?,?,?,?)`, p.path, p.value, p.unit, p.window, observed, p.status, sourcePath, bookID); err != nil {
 				return nil, err
 			}
 		}
@@ -244,7 +285,11 @@ func (s *Store) importOperatorInputs(ctx context.Context, data []byte, sourcePat
 
 func operatorFieldClass(path string) (kind, unit string, window int) {
 	switch {
-	case strings.HasPrefix(path, "timeAllocation."), path == "servicesTime.hoursThisWindow":
+	case path == "servicesTime.hoursThisWindow":
+		// Named and documented as hours (PROGRESS.md: "Hours spent on active
+		// services in the current window"), not a share of the time budget.
+		return "measure", "hours", 7
+	case strings.HasPrefix(path, "timeAllocation."):
 		return "measure", "share-of-time-budget", 7
 	case path == "subscriptions.mrr":
 		return "derived-rate", "currency-major-per-month", 30
@@ -268,4 +313,92 @@ func nestedValue(root map[string]any, parts []string) (any, bool) {
 		}
 	}
 	return current, true
+}
+
+// operatorAccountTarget declares which account kind holds each monetary operator
+// input. The mapping is not cosmetic: Position() derives cash, revenue and
+// expense by joining postings to accounts.kind and computes burn as
+// expense - revenue, so a field posted to the wrong kind is silently excluded
+// from the figure it was supplied to inform.
+//
+// nameHints disambiguate when a book carries more than one account of the kind
+// (a book with both "Subscription Revenue" and "Services Revenue", for example).
+// Hints are matched case-insensitively against the account name; an unresolved
+// or ambiguous target is reported, never guessed.
+func operatorAccountTarget(path string) (kind string, nameHints []string, ok bool) {
+	switch {
+	case path == "cash":
+		return "ASSET", []string{"operating cash", "cash"}, true
+	case strings.HasPrefix(path, "monthlyBurn."):
+		return "EXPENSE", []string{"operating expenses", "expenses", "expense"}, true
+	case strings.HasPrefix(path, "servicesRevenue."):
+		return "REVENUE", []string{"services revenue", "service revenue"}, true
+	default:
+		return "", nil, false
+	}
+}
+
+// resolveOperatorAccount returns the account a monetary operator input should
+// post to, or an empty id plus a human reason when the book cannot supply an
+// unambiguous target. It never falls back to an arbitrary account.
+func (s *Store) resolveOperatorAccount(ctx context.Context, bookID, path string) (string, string, error) {
+	kind, hints, ok := operatorAccountTarget(path)
+	if !ok {
+		return "", fmt.Sprintf("no declared account kind for operator input %s", path), nil
+	}
+	rows, err := s.db.QueryContext(ctx, `SELECT id,name FROM accounts WHERE book_id=? AND UPPER(kind)=? ORDER BY name,id`, bookID, kind)
+	if err != nil {
+		return "", "", err
+	}
+	defer rows.Close()
+	type account struct{ id, name string }
+	var candidates []account
+	for rows.Next() {
+		var a account
+		if err := rows.Scan(&a.id, &a.name); err != nil {
+			return "", "", err
+		}
+		candidates = append(candidates, a)
+	}
+	if err := rows.Err(); err != nil {
+		return "", "", err
+	}
+	switch len(candidates) {
+	case 0:
+		return "", fmt.Sprintf("book has no %s account, which is where %s must post to be read by position", kind, path), nil
+	case 1:
+		return candidates[0].id, "", nil
+	}
+	var matched []account
+	for _, candidate := range candidates {
+		normalized := strings.ToLower(strings.TrimSpace(candidate.name))
+		for _, hint := range hints {
+			if strings.Contains(normalized, hint) {
+				matched = append(matched, candidate)
+				break
+			}
+		}
+	}
+	if len(matched) == 1 {
+		return matched[0].id, "", nil
+	}
+	names := make([]string, 0, len(candidates))
+	for _, candidate := range candidates {
+		names = append(names, candidate.name)
+	}
+	return "", fmt.Sprintf("book has %d %s accounts (%s) and none uniquely matches %s; supply account_id explicitly", len(candidates), kind, strings.Join(names, ", "), path), nil
+}
+
+// bookCurrency reads the declared currency of the target book. The importer
+// previously hardcoded USD, which would have mislabelled every posting in a
+// non-USD book while the book itself reported the correct code.
+func (s *Store) bookCurrency(ctx context.Context, bookID string) (string, error) {
+	var currency string
+	if err := s.db.QueryRowContext(ctx, `SELECT currency FROM books WHERE id=?`, bookID).Scan(&currency); err != nil {
+		return "", fmt.Errorf("resolve book currency for %q: %w", bookID, err)
+	}
+	if strings.TrimSpace(currency) == "" {
+		return "", fmt.Errorf("book %q declares no currency", bookID)
+	}
+	return currency, nil
 }

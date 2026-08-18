@@ -729,3 +729,62 @@ func (s *Store) recordLatestProposalDecline(ctx context.Context, nodeID, actor, 
 	_, err := s.db.ExecContext(ctx, `INSERT INTO proposal_declines(id,proposal_id,actor,reason,created_at) VALUES(?,?,?,?,?)`, uuid.NewString(), proposalID, actor, reason, s.now().UTC().Format(time.RFC3339Nano))
 	return err
 }
+
+// MapAccount attaches (or clears) the Money Ledger account whose postings
+// represent what a node actually earned.
+//
+// This exists because actual_account_id was previously settable only at
+// CreateNode, while the operator importer writes an empty string for every
+// record it materializes. The result was a catalog in which no node could ever
+// be joined to actuals, so the board reported "no ledger account mapping" for
+// every row and the pair's headline claim — an offer that is active and has
+// earned nothing — was structurally unreachable.
+//
+// The change is audited like any other state change: corrections are new audit
+// rows, never edits, and the prior value is returned so a caller can see what
+// it replaced.
+func (s *Store) MapAccount(ctx context.Context, request *offerspb.MapAccountRequest) (*offerspb.Node, string, error) {
+	if request == nil || strings.TrimSpace(request.NodeId) == "" {
+		return nil, "", errors.New("map-account requires node_id")
+	}
+	if strings.TrimSpace(request.Actor) == "" {
+		return nil, "", errors.New("map-account requires an actor")
+	}
+	var node offerspb.Node
+	var kind, status int32
+	var created string
+	if err := s.db.QueryRowContext(ctx, `SELECT id,kind,name,status,trigger_id,created_at,actual_account_id FROM nodes WHERE id=?`, request.NodeId).
+		Scan(&node.Id, &kind, &node.Name, &status, &node.TriggerId, &created, &node.ActualAccountId); err != nil {
+		return nil, "", fmt.Errorf("node %q not found: %w", request.NodeId, err)
+	}
+	node.Kind = offerspb.NodeKind(kind)
+	node.Status = offerspb.Status(status)
+	prior := node.ActualAccountId
+	next := strings.TrimSpace(request.ActualAccountId)
+	if prior == next {
+		return &node, prior, nil
+	}
+	reason := strings.TrimSpace(request.Reason)
+	if reason == "" {
+		if next == "" {
+			reason = "cleared ledger account mapping"
+		} else {
+			reason = "mapped node to ledger account " + next
+		}
+	}
+	if _, err := s.db.ExecContext(ctx, `UPDATE nodes SET actual_account_id=? WHERE id=?`, next, request.NodeId); err != nil {
+		return nil, "", err
+	}
+	priorLabel := prior
+	if priorLabel == "" {
+		priorLabel = "(unmapped)"
+	}
+	if _, err := s.db.ExecContext(ctx,
+		`INSERT INTO catalog_audit(id,node_id,actor,prior_status,next_status,reason,created_at) VALUES(?,?,?,?,?,?,?)`,
+		uuid.NewString(), request.NodeId, request.Actor, int32(node.Status), int32(node.Status),
+		reason+" (prior: "+priorLabel+")", s.now().UTC().Format(time.RFC3339Nano)); err != nil {
+		return nil, "", err
+	}
+	node.ActualAccountId = next
+	return &node, prior, nil
+}

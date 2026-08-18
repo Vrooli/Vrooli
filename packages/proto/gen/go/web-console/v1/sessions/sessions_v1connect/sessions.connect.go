@@ -37,8 +37,16 @@ const (
 	SessionsServiceCreateProcedure = "/vrooli.web_console.v1.sessions.SessionsService/Create"
 	// SessionsServiceListProcedure is the fully-qualified name of the SessionsService's List RPC.
 	SessionsServiceListProcedure = "/vrooli.web_console.v1.sessions.SessionsService/List"
+	// SessionsServiceListArchivedProcedure is the fully-qualified name of the SessionsService's
+	// ListArchived RPC.
+	SessionsServiceListArchivedProcedure = "/vrooli.web_console.v1.sessions.SessionsService/ListArchived"
 	// SessionsServiceGetProcedure is the fully-qualified name of the SessionsService's Get RPC.
 	SessionsServiceGetProcedure = "/vrooli.web_console.v1.sessions.SessionsService/Get"
+	// SessionsServiceArchiveProcedure is the fully-qualified name of the SessionsService's Archive RPC.
+	SessionsServiceArchiveProcedure = "/vrooli.web_console.v1.sessions.SessionsService/Archive"
+	// SessionsServiceUnarchiveProcedure is the fully-qualified name of the SessionsService's Unarchive
+	// RPC.
+	SessionsServiceUnarchiveProcedure = "/vrooli.web_console.v1.sessions.SessionsService/Unarchive"
 	// SessionsServiceDeleteProcedure is the fully-qualified name of the SessionsService's Delete RPC.
 	SessionsServiceDeleteProcedure = "/vrooli.web_console.v1.sessions.SessionsService/Delete"
 	// SessionsServiceListRecoverableProcedure is the fully-qualified name of the SessionsService's
@@ -61,7 +69,10 @@ const (
 type SessionsServiceClient interface {
 	Create(context.Context, *connect.Request[sessions.CreateRequest]) (*connect.Response[sessions.CreateResponse], error)
 	List(context.Context, *connect.Request[sessions.ListRequest]) (*connect.Response[sessions.ListResponse], error)
+	ListArchived(context.Context, *connect.Request[sessions.ListArchivedRequest]) (*connect.Response[sessions.ListArchivedResponse], error)
 	Get(context.Context, *connect.Request[sessions.GetRequest]) (*connect.Response[sessions.GetResponse], error)
+	Archive(context.Context, *connect.Request[sessions.ArchiveRequest]) (*connect.Response[sessions.ArchiveResponse], error)
+	Unarchive(context.Context, *connect.Request[sessions.UnarchiveRequest]) (*connect.Response[sessions.UnarchiveResponse], error)
 	Delete(context.Context, *connect.Request[sessions.DeleteRequest]) (*connect.Response[sessions.DeleteResponse], error)
 	ListRecoverable(context.Context, *connect.Request[sessions.ListRecoverableRequest]) (*connect.Response[sessions.ListRecoverableResponse], error)
 	DismissRecoverable(context.Context, *connect.Request[sessions.DismissRecoverableRequest]) (*connect.Response[sessions.DismissRecoverableResponse], error)
@@ -94,10 +105,28 @@ func NewSessionsServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(sessionsServiceMethods.ByName("List")),
 			connect.WithClientOptions(opts...),
 		),
+		listArchived: connect.NewClient[sessions.ListArchivedRequest, sessions.ListArchivedResponse](
+			httpClient,
+			baseURL+SessionsServiceListArchivedProcedure,
+			connect.WithSchema(sessionsServiceMethods.ByName("ListArchived")),
+			connect.WithClientOptions(opts...),
+		),
 		get: connect.NewClient[sessions.GetRequest, sessions.GetResponse](
 			httpClient,
 			baseURL+SessionsServiceGetProcedure,
 			connect.WithSchema(sessionsServiceMethods.ByName("Get")),
+			connect.WithClientOptions(opts...),
+		),
+		archive: connect.NewClient[sessions.ArchiveRequest, sessions.ArchiveResponse](
+			httpClient,
+			baseURL+SessionsServiceArchiveProcedure,
+			connect.WithSchema(sessionsServiceMethods.ByName("Archive")),
+			connect.WithClientOptions(opts...),
+		),
+		unarchive: connect.NewClient[sessions.UnarchiveRequest, sessions.UnarchiveResponse](
+			httpClient,
+			baseURL+SessionsServiceUnarchiveProcedure,
+			connect.WithSchema(sessionsServiceMethods.ByName("Unarchive")),
 			connect.WithClientOptions(opts...),
 		),
 		delete: connect.NewClient[sessions.DeleteRequest, sessions.DeleteResponse](
@@ -143,7 +172,10 @@ func NewSessionsServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 type sessionsServiceClient struct {
 	create             *connect.Client[sessions.CreateRequest, sessions.CreateResponse]
 	list               *connect.Client[sessions.ListRequest, sessions.ListResponse]
+	listArchived       *connect.Client[sessions.ListArchivedRequest, sessions.ListArchivedResponse]
 	get                *connect.Client[sessions.GetRequest, sessions.GetResponse]
+	archive            *connect.Client[sessions.ArchiveRequest, sessions.ArchiveResponse]
+	unarchive          *connect.Client[sessions.UnarchiveRequest, sessions.UnarchiveResponse]
 	delete             *connect.Client[sessions.DeleteRequest, sessions.DeleteResponse]
 	listRecoverable    *connect.Client[sessions.ListRecoverableRequest, sessions.ListRecoverableResponse]
 	dismissRecoverable *connect.Client[sessions.DismissRecoverableRequest, sessions.DismissRecoverableResponse]
@@ -162,9 +194,24 @@ func (c *sessionsServiceClient) List(ctx context.Context, req *connect.Request[s
 	return c.list.CallUnary(ctx, req)
 }
 
+// ListArchived calls vrooli.web_console.v1.sessions.SessionsService.ListArchived.
+func (c *sessionsServiceClient) ListArchived(ctx context.Context, req *connect.Request[sessions.ListArchivedRequest]) (*connect.Response[sessions.ListArchivedResponse], error) {
+	return c.listArchived.CallUnary(ctx, req)
+}
+
 // Get calls vrooli.web_console.v1.sessions.SessionsService.Get.
 func (c *sessionsServiceClient) Get(ctx context.Context, req *connect.Request[sessions.GetRequest]) (*connect.Response[sessions.GetResponse], error) {
 	return c.get.CallUnary(ctx, req)
+}
+
+// Archive calls vrooli.web_console.v1.sessions.SessionsService.Archive.
+func (c *sessionsServiceClient) Archive(ctx context.Context, req *connect.Request[sessions.ArchiveRequest]) (*connect.Response[sessions.ArchiveResponse], error) {
+	return c.archive.CallUnary(ctx, req)
+}
+
+// Unarchive calls vrooli.web_console.v1.sessions.SessionsService.Unarchive.
+func (c *sessionsServiceClient) Unarchive(ctx context.Context, req *connect.Request[sessions.UnarchiveRequest]) (*connect.Response[sessions.UnarchiveResponse], error) {
+	return c.unarchive.CallUnary(ctx, req)
 }
 
 // Delete calls vrooli.web_console.v1.sessions.SessionsService.Delete.
@@ -202,7 +249,10 @@ func (c *sessionsServiceClient) UpdatePolicy(ctx context.Context, req *connect.R
 type SessionsServiceHandler interface {
 	Create(context.Context, *connect.Request[sessions.CreateRequest]) (*connect.Response[sessions.CreateResponse], error)
 	List(context.Context, *connect.Request[sessions.ListRequest]) (*connect.Response[sessions.ListResponse], error)
+	ListArchived(context.Context, *connect.Request[sessions.ListArchivedRequest]) (*connect.Response[sessions.ListArchivedResponse], error)
 	Get(context.Context, *connect.Request[sessions.GetRequest]) (*connect.Response[sessions.GetResponse], error)
+	Archive(context.Context, *connect.Request[sessions.ArchiveRequest]) (*connect.Response[sessions.ArchiveResponse], error)
+	Unarchive(context.Context, *connect.Request[sessions.UnarchiveRequest]) (*connect.Response[sessions.UnarchiveResponse], error)
 	Delete(context.Context, *connect.Request[sessions.DeleteRequest]) (*connect.Response[sessions.DeleteResponse], error)
 	ListRecoverable(context.Context, *connect.Request[sessions.ListRecoverableRequest]) (*connect.Response[sessions.ListRecoverableResponse], error)
 	DismissRecoverable(context.Context, *connect.Request[sessions.DismissRecoverableRequest]) (*connect.Response[sessions.DismissRecoverableResponse], error)
@@ -230,10 +280,28 @@ func NewSessionsServiceHandler(svc SessionsServiceHandler, opts ...connect.Handl
 		connect.WithSchema(sessionsServiceMethods.ByName("List")),
 		connect.WithHandlerOptions(opts...),
 	)
+	sessionsServiceListArchivedHandler := connect.NewUnaryHandler(
+		SessionsServiceListArchivedProcedure,
+		svc.ListArchived,
+		connect.WithSchema(sessionsServiceMethods.ByName("ListArchived")),
+		connect.WithHandlerOptions(opts...),
+	)
 	sessionsServiceGetHandler := connect.NewUnaryHandler(
 		SessionsServiceGetProcedure,
 		svc.Get,
 		connect.WithSchema(sessionsServiceMethods.ByName("Get")),
+		connect.WithHandlerOptions(opts...),
+	)
+	sessionsServiceArchiveHandler := connect.NewUnaryHandler(
+		SessionsServiceArchiveProcedure,
+		svc.Archive,
+		connect.WithSchema(sessionsServiceMethods.ByName("Archive")),
+		connect.WithHandlerOptions(opts...),
+	)
+	sessionsServiceUnarchiveHandler := connect.NewUnaryHandler(
+		SessionsServiceUnarchiveProcedure,
+		svc.Unarchive,
+		connect.WithSchema(sessionsServiceMethods.ByName("Unarchive")),
 		connect.WithHandlerOptions(opts...),
 	)
 	sessionsServiceDeleteHandler := connect.NewUnaryHandler(
@@ -278,8 +346,14 @@ func NewSessionsServiceHandler(svc SessionsServiceHandler, opts ...connect.Handl
 			sessionsServiceCreateHandler.ServeHTTP(w, r)
 		case SessionsServiceListProcedure:
 			sessionsServiceListHandler.ServeHTTP(w, r)
+		case SessionsServiceListArchivedProcedure:
+			sessionsServiceListArchivedHandler.ServeHTTP(w, r)
 		case SessionsServiceGetProcedure:
 			sessionsServiceGetHandler.ServeHTTP(w, r)
+		case SessionsServiceArchiveProcedure:
+			sessionsServiceArchiveHandler.ServeHTTP(w, r)
+		case SessionsServiceUnarchiveProcedure:
+			sessionsServiceUnarchiveHandler.ServeHTTP(w, r)
 		case SessionsServiceDeleteProcedure:
 			sessionsServiceDeleteHandler.ServeHTTP(w, r)
 		case SessionsServiceListRecoverableProcedure:
@@ -309,8 +383,20 @@ func (UnimplementedSessionsServiceHandler) List(context.Context, *connect.Reques
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_console.v1.sessions.SessionsService.List is not implemented"))
 }
 
+func (UnimplementedSessionsServiceHandler) ListArchived(context.Context, *connect.Request[sessions.ListArchivedRequest]) (*connect.Response[sessions.ListArchivedResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_console.v1.sessions.SessionsService.ListArchived is not implemented"))
+}
+
 func (UnimplementedSessionsServiceHandler) Get(context.Context, *connect.Request[sessions.GetRequest]) (*connect.Response[sessions.GetResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_console.v1.sessions.SessionsService.Get is not implemented"))
+}
+
+func (UnimplementedSessionsServiceHandler) Archive(context.Context, *connect.Request[sessions.ArchiveRequest]) (*connect.Response[sessions.ArchiveResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_console.v1.sessions.SessionsService.Archive is not implemented"))
+}
+
+func (UnimplementedSessionsServiceHandler) Unarchive(context.Context, *connect.Request[sessions.UnarchiveRequest]) (*connect.Response[sessions.UnarchiveResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_console.v1.sessions.SessionsService.Unarchive is not implemented"))
 }
 
 func (UnimplementedSessionsServiceHandler) Delete(context.Context, *connect.Request[sessions.DeleteRequest]) (*connect.Response[sessions.DeleteResponse], error) {

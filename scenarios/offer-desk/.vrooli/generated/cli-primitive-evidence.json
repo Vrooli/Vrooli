@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "offer-desk",
   "generator": "v1.0.0",
-  "manifest_hash": "86c7a5cf688c21276803636167d4565f25899fa39ee85b3cd3a38f9c8edbba97",
+  "manifest_hash": "a85ca16f28ffe547ceec5d51cca6ca23e4fde9643c850fe09b60cb473768224b",
   "commands": [
     {
       "path": "offers board-show",
@@ -53,6 +53,14 @@
       "binding": "CatalogService.ListNodes",
       "declared_primitive": "proto_list",
       "observed_primitive": "proto_list"
+    },
+    {
+      "path": "offers catalog-map-account",
+      "group": "offers",
+      "command": "catalog-map-account",
+      "binding": "CatalogService.MapAccount",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
     },
     {
       "path": "offers catalog-merge",

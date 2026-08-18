@@ -25,7 +25,7 @@ _sym_db = _symbol_database.Default()
 from vrooli_events.v1.domain import envelope_pb2 as vrooli__events_dot_v1_dot_domain_dot_envelope__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n$vrooli-events/v1/domain/policy.proto\x12\x17vrooli.events.v1.domain\x1a&vrooli-events/v1/domain/envelope.proto\"\x84\x03\n\x14ReceiptCapturePolicy\x12\x1b\n\tpolicy_id\x18\x01 \x01(\tR\x08policyId\x12\x18\n\x07\x65nabled\x18\x02 \x01(\x08R\x07\x65nabled\x12M\n\x08selector\x18\x03 \x01(\x0b\x32\x31.vrooli.events.v1.domain.ReceiptOperationSelectorR\x08selector\x12#\n\rresponse_type\x18\x04 \x01(\tR\x0cresponseType\x12:\n\x19response_projection_paths\x18\x05 \x03(\tR\x17responseProjectionPaths\x12%\n\x0eretention_days\x18\x06 \x01(\rR\rretentionDays\x12\x44\n\x06\x61\x63\x63\x65ss\x18\x07 \x01(\x0b\x32,.vrooli.events.v1.domain.ReceiptAccessPolicyR\x06\x61\x63\x63\x65ss\x12\x18\n\x07version\x18\x08 \x01(\tR\x07version\"\x9c\x01\n\x18ReceiptOperationSelector\x12\'\n\x0ftarget_scenario\x18\x01 \x01(\tR\x0etargetScenario\x12\x1c\n\toperation\x18\x02 \x01(\tR\toperation\x12\x1a\n\x08protocol\x18\x03 \x01(\tR\x08protocol\x12\x1d\n\nevent_type\x18\x04 \x01(\tR\teventType\">\n\x13ReceiptAccessPolicy\x12\'\n\x0fread_principals\x18\x01 \x03(\tR\x0ereadPrincipals\"\x8e\x03\n\x12ReceiptQueryFilter\x12\x1d\n\nevent_type\x18\x01 \x01(\tR\teventType\x12\'\n\x0ftarget_scenario\x18\x02 \x01(\tR\x0etargetScenario\x12\x1c\n\toperation\x18\x03 \x01(\tR\toperation\x12 \n\x0c\x61gent_run_id\x18\x04 \x01(\tR\nagentRunId\x12\x17\n\x07task_id\x18\x05 \x01(\tR\x06taskId\x12\x32\n\x15workflow_execution_id\x18\x06 \x01(\tR\x13workflowExecutionId\x12(\n\x10workflow_node_id\x18\x07 \x01(\tR\x0eworkflowNodeId\x12\x18\n\x07\x61ttempt\x18\x08 \x01(\rR\x07\x61ttempt\x12#\n\rverified_only\x18\t \x01(\x08R\x0cverifiedOnly\x12\x1d\n\npage_token\x18\n \x01(\tR\tpageToken\x12\x1b\n\tpage_size\x18\x0b \x01(\rR\x08pageSize\"|\n\x12ReceiptQueryResult\x12>\n\x06\x65vents\x18\x01 \x03(\x0b\x32&.vrooli.events.v1.domain.EventEnvelopeR\x06\x65vents\x12&\n\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageTokenBOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain;domainb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n$vrooli-events/v1/domain/policy.proto\x12\x1evrooli.vrooli_events.v1.domain\x1a&vrooli-events/v1/domain/envelope.proto\"\x92\x03\n\x14ReceiptCapturePolicy\x12\x1b\n\tpolicy_id\x18\x01 \x01(\tR\x08policyId\x12\x18\n\x07\x65nabled\x18\x02 \x01(\x08R\x07\x65nabled\x12T\n\x08selector\x18\x03 \x01(\x0b\x32\x38.vrooli.vrooli_events.v1.domain.ReceiptOperationSelectorR\x08selector\x12#\n\rresponse_type\x18\x04 \x01(\tR\x0cresponseType\x12:\n\x19response_projection_paths\x18\x05 \x03(\tR\x17responseProjectionPaths\x12%\n\x0eretention_days\x18\x06 \x01(\rR\rretentionDays\x12K\n\x06\x61\x63\x63\x65ss\x18\x07 \x01(\x0b\x32\x33.vrooli.vrooli_events.v1.domain.ReceiptAccessPolicyR\x06\x61\x63\x63\x65ss\x12\x18\n\x07version\x18\x08 \x01(\tR\x07version\"\x9c\x01\n\x18ReceiptOperationSelector\x12\'\n\x0ftarget_scenario\x18\x01 \x01(\tR\x0etargetScenario\x12\x1c\n\toperation\x18\x02 \x01(\tR\toperation\x12\x1a\n\x08protocol\x18\x03 \x01(\tR\x08protocol\x12\x1d\n\nevent_type\x18\x04 \x01(\tR\teventType\">\n\x13ReceiptAccessPolicy\x12\'\n\x0fread_principals\x18\x01 \x03(\tR\x0ereadPrincipals\"\x8e\x03\n\x12ReceiptQueryFilter\x12\x1d\n\nevent_type\x18\x01 \x01(\tR\teventType\x12\'\n\x0ftarget_scenario\x18\x02 \x01(\tR\x0etargetScenario\x12\x1c\n\toperation\x18\x03 \x01(\tR\toperation\x12 \n\x0c\x61gent_run_id\x18\x04 \x01(\tR\nagentRunId\x12\x17\n\x07task_id\x18\x05 \x01(\tR\x06taskId\x12\x32\n\x15workflow_execution_id\x18\x06 \x01(\tR\x13workflowExecutionId\x12(\n\x10workflow_node_id\x18\x07 \x01(\tR\x0eworkflowNodeId\x12\x18\n\x07\x61ttempt\x18\x08 \x01(\rR\x07\x61ttempt\x12#\n\rverified_only\x18\t \x01(\x08R\x0cverifiedOnly\x12\x1d\n\npage_token\x18\n \x01(\tR\tpageToken\x12\x1b\n\tpage_size\x18\x0b \x01(\rR\x08pageSize\"\x83\x01\n\x12ReceiptQueryResult\x12\x45\n\x06\x65vents\x18\x01 \x03(\x0b\x32-.vrooli.vrooli_events.v1.domain.EventEnvelopeR\x06\x65vents\x12&\n\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageTokenBOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain;domainb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -33,14 +33,14 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'vrooli_events.v1.domain.pol
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'ZMgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain;domain'
-  _globals['_RECEIPTCAPTUREPOLICY']._serialized_start=106
-  _globals['_RECEIPTCAPTUREPOLICY']._serialized_end=494
-  _globals['_RECEIPTOPERATIONSELECTOR']._serialized_start=497
-  _globals['_RECEIPTOPERATIONSELECTOR']._serialized_end=653
-  _globals['_RECEIPTACCESSPOLICY']._serialized_start=655
-  _globals['_RECEIPTACCESSPOLICY']._serialized_end=717
-  _globals['_RECEIPTQUERYFILTER']._serialized_start=720
-  _globals['_RECEIPTQUERYFILTER']._serialized_end=1118
-  _globals['_RECEIPTQUERYRESULT']._serialized_start=1120
-  _globals['_RECEIPTQUERYRESULT']._serialized_end=1244
+  _globals['_RECEIPTCAPTUREPOLICY']._serialized_start=113
+  _globals['_RECEIPTCAPTUREPOLICY']._serialized_end=515
+  _globals['_RECEIPTOPERATIONSELECTOR']._serialized_start=518
+  _globals['_RECEIPTOPERATIONSELECTOR']._serialized_end=674
+  _globals['_RECEIPTACCESSPOLICY']._serialized_start=676
+  _globals['_RECEIPTACCESSPOLICY']._serialized_end=738
+  _globals['_RECEIPTQUERYFILTER']._serialized_start=741
+  _globals['_RECEIPTQUERYFILTER']._serialized_end=1139
+  _globals['_RECEIPTQUERYRESULT']._serialized_start=1142
+  _globals['_RECEIPTQUERYRESULT']._serialized_end=1273
 # @@protoc_insertion_point(module_scope)

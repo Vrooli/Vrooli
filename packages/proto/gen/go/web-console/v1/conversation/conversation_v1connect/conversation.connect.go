@@ -38,6 +38,9 @@ const (
 	// ConversationServiceSearchProcedure is the fully-qualified name of the ConversationService's
 	// Search RPC.
 	ConversationServiceSearchProcedure = "/vrooli.web_console.v1.conversation.ConversationService/Search"
+	// ConversationServiceSearchArchivedProcedure is the fully-qualified name of the
+	// ConversationService's SearchArchived RPC.
+	ConversationServiceSearchArchivedProcedure = "/vrooli.web_console.v1.conversation.ConversationService/SearchArchived"
 	// ConversationServiceGetRangeProcedure is the fully-qualified name of the ConversationService's
 	// GetRange RPC.
 	ConversationServiceGetRangeProcedure = "/vrooli.web_console.v1.conversation.ConversationService/GetRange"
@@ -54,6 +57,7 @@ const (
 type ConversationServiceClient interface {
 	Get(context.Context, *connect.Request[conversation.GetRequest]) (*connect.Response[conversation.GetResponse], error)
 	Search(context.Context, *connect.Request[conversation.SearchRequest]) (*connect.Response[conversation.SearchResponse], error)
+	SearchArchived(context.Context, *connect.Request[conversation.SearchArchivedRequest]) (*connect.Response[conversation.SearchArchivedResponse], error)
 	GetRange(context.Context, *connect.Request[conversation.GetRangeRequest]) (*connect.Response[conversation.GetResponse], error)
 	UpdateCursor(context.Context, *connect.Request[conversation.UpdateCursorRequest]) (*connect.Response[conversation.UpdateCursorResponse], error)
 	SummarizeEvent(context.Context, *connect.Request[conversation.SummarizeEventRequest]) (*connect.Response[conversation.SummarizeEventResponse], error)
@@ -83,6 +87,12 @@ func NewConversationServiceClient(httpClient connect.HTTPClient, baseURL string,
 			connect.WithSchema(conversationServiceMethods.ByName("Search")),
 			connect.WithClientOptions(opts...),
 		),
+		searchArchived: connect.NewClient[conversation.SearchArchivedRequest, conversation.SearchArchivedResponse](
+			httpClient,
+			baseURL+ConversationServiceSearchArchivedProcedure,
+			connect.WithSchema(conversationServiceMethods.ByName("SearchArchived")),
+			connect.WithClientOptions(opts...),
+		),
 		getRange: connect.NewClient[conversation.GetRangeRequest, conversation.GetResponse](
 			httpClient,
 			baseURL+ConversationServiceGetRangeProcedure,
@@ -108,6 +118,7 @@ func NewConversationServiceClient(httpClient connect.HTTPClient, baseURL string,
 type conversationServiceClient struct {
 	get            *connect.Client[conversation.GetRequest, conversation.GetResponse]
 	search         *connect.Client[conversation.SearchRequest, conversation.SearchResponse]
+	searchArchived *connect.Client[conversation.SearchArchivedRequest, conversation.SearchArchivedResponse]
 	getRange       *connect.Client[conversation.GetRangeRequest, conversation.GetResponse]
 	updateCursor   *connect.Client[conversation.UpdateCursorRequest, conversation.UpdateCursorResponse]
 	summarizeEvent *connect.Client[conversation.SummarizeEventRequest, conversation.SummarizeEventResponse]
@@ -121,6 +132,11 @@ func (c *conversationServiceClient) Get(ctx context.Context, req *connect.Reques
 // Search calls vrooli.web_console.v1.conversation.ConversationService.Search.
 func (c *conversationServiceClient) Search(ctx context.Context, req *connect.Request[conversation.SearchRequest]) (*connect.Response[conversation.SearchResponse], error) {
 	return c.search.CallUnary(ctx, req)
+}
+
+// SearchArchived calls vrooli.web_console.v1.conversation.ConversationService.SearchArchived.
+func (c *conversationServiceClient) SearchArchived(ctx context.Context, req *connect.Request[conversation.SearchArchivedRequest]) (*connect.Response[conversation.SearchArchivedResponse], error) {
+	return c.searchArchived.CallUnary(ctx, req)
 }
 
 // GetRange calls vrooli.web_console.v1.conversation.ConversationService.GetRange.
@@ -143,6 +159,7 @@ func (c *conversationServiceClient) SummarizeEvent(ctx context.Context, req *con
 type ConversationServiceHandler interface {
 	Get(context.Context, *connect.Request[conversation.GetRequest]) (*connect.Response[conversation.GetResponse], error)
 	Search(context.Context, *connect.Request[conversation.SearchRequest]) (*connect.Response[conversation.SearchResponse], error)
+	SearchArchived(context.Context, *connect.Request[conversation.SearchArchivedRequest]) (*connect.Response[conversation.SearchArchivedResponse], error)
 	GetRange(context.Context, *connect.Request[conversation.GetRangeRequest]) (*connect.Response[conversation.GetResponse], error)
 	UpdateCursor(context.Context, *connect.Request[conversation.UpdateCursorRequest]) (*connect.Response[conversation.UpdateCursorResponse], error)
 	SummarizeEvent(context.Context, *connect.Request[conversation.SummarizeEventRequest]) (*connect.Response[conversation.SummarizeEventResponse], error)
@@ -165,6 +182,12 @@ func NewConversationServiceHandler(svc ConversationServiceHandler, opts ...conne
 		ConversationServiceSearchProcedure,
 		svc.Search,
 		connect.WithSchema(conversationServiceMethods.ByName("Search")),
+		connect.WithHandlerOptions(opts...),
+	)
+	conversationServiceSearchArchivedHandler := connect.NewUnaryHandler(
+		ConversationServiceSearchArchivedProcedure,
+		svc.SearchArchived,
+		connect.WithSchema(conversationServiceMethods.ByName("SearchArchived")),
 		connect.WithHandlerOptions(opts...),
 	)
 	conversationServiceGetRangeHandler := connect.NewUnaryHandler(
@@ -191,6 +214,8 @@ func NewConversationServiceHandler(svc ConversationServiceHandler, opts ...conne
 			conversationServiceGetHandler.ServeHTTP(w, r)
 		case ConversationServiceSearchProcedure:
 			conversationServiceSearchHandler.ServeHTTP(w, r)
+		case ConversationServiceSearchArchivedProcedure:
+			conversationServiceSearchArchivedHandler.ServeHTTP(w, r)
 		case ConversationServiceGetRangeProcedure:
 			conversationServiceGetRangeHandler.ServeHTTP(w, r)
 		case ConversationServiceUpdateCursorProcedure:
@@ -212,6 +237,10 @@ func (UnimplementedConversationServiceHandler) Get(context.Context, *connect.Req
 
 func (UnimplementedConversationServiceHandler) Search(context.Context, *connect.Request[conversation.SearchRequest]) (*connect.Response[conversation.SearchResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_console.v1.conversation.ConversationService.Search is not implemented"))
+}
+
+func (UnimplementedConversationServiceHandler) SearchArchived(context.Context, *connect.Request[conversation.SearchArchivedRequest]) (*connect.Response[conversation.SearchArchivedResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_console.v1.conversation.ConversationService.SearchArchived is not implemented"))
 }
 
 func (UnimplementedConversationServiceHandler) GetRange(context.Context, *connect.Request[conversation.GetRangeRequest]) (*connect.Response[conversation.GetResponse], error) {

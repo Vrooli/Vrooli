@@ -1,58 +1,25 @@
-# Template proto sources
+# Notification Hub proto sources
 
-This folder is **not** a regular template directory.
+This directory is the canonical wire-contract source for notification-hub.
+Generated Go, TypeScript, and Python bindings are produced from these files by
+the governed proto generator.
 
-At scenario generation time, `template-manager generate` reads the
-`relocations` block in `template.json` and copies this entire `proto/`
-tree into `packages/proto/schemas/<your-scenario>/`, substituting
-`notification-hub` and `notification_hub` in both path components
-and file content. The `proto/` folder does **not** appear inside the
-generated scenario.
+## Domains
 
-After relocation, the generator runs `make generate` in
-`packages/proto/` so the scenario's `api/`, `ui/`, and `cli/` can
-import generated Go and TypeScript types immediately.
+- `v1/recipients/` — owners, devices, addresses, push subscriptions, quiet
+  windows, and escalation policy.
+- `v1/notifications/` — notification intake, lifecycle, and history.
+- `v1/routing/` — channel selection, sensitivity policy, and suppression.
+- `v1/delivery/` — attempts, receipts, timelines, and analytics.
+- `v1/conversations/` — questions, answers, waits, and escalation state.
+- `v1/shared/` — common types, errors, and health contracts.
 
-## What's here
+After changing a schema, regenerate bindings through the package-owned command:
 
-- `v1/shared/health.proto` — wire contract for the `/health` endpoint.
-  Mirrors `packages/api-core/health/health.go`'s `Response` and
-  `DependencyStatus` types field-for-field with matching JSON names so
-  the api-core handler chain produces JSON that decodes into the
-  generated proto type without translation.
+```bash
+cd packages/proto
+make generate SCENARIO=notification-hub
+```
 
-  After relocation this lands at
-  `packages/proto/schemas/<your-scenario>/v1/shared/health.proto`. The
-  namespace comes from the relocation `to` path in `template.json`,
-  not from a directory inside `proto/` — matching the convention used
-  by every existing scenario in `packages/proto/schemas/`.
-
-The `notes` example-domain proto files carry `@template react-vite/example`.
-That annotation is intentional. It lets proto-health distinguish scaffold
-reference contracts from scenario-owned contracts without guessing based on
-generic domain names. Generated scenarios should remove the annotation only
-when the contract is intentionally adopted as real scenario surface or
-replaced by the scenario's own domain proto. The shared `health` and `errors`
-contracts are conventional infrastructure contracts, not example-domain
-scaffold, so they do not carry `@template`.
-
-## Adding a new schema
-
-After the scenario is generated, add new `.proto` files under
-`packages/proto/schemas/<your-scenario>/v1/` (or a `v1/<domain>/`
-subdirectory if the domain warrants its own folder). Then run
-`cd packages/proto && make generate && make lint` and commit the
-regenerated artifacts in `packages/proto/gen/`.
-
-## Why this layout
-
-`packages/proto/schemas/` is the canonical source of truth for every
-scenario's wire contracts. Keeping the template's protos here as a
-relocation source — rather than directly in `packages/proto/schemas/` —
-prevents the template's protos from leaking into builds: a scenario's
-generated artifacts always come from its own substituted copy at
-`packages/proto/schemas/<your-scenario>/`, never from this template tree.
-
-See `templates/scenarios/react-vite/template.json::relocations` for the
-generator wiring and `internal/cli/scenariohandlers/template_runtime.go`
-for the relocation implementation.
+The generated artifacts under `packages/proto/gen/` are part of the checked-in
+contract surface and must remain synchronized with these sources.

@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "offer-desk",
-  "input_digest": "sha256:9871f1bc51306a3dcb6ac50de933787870db422fb7781967df122e5fc2fd558e",
+  "input_digest": "sha256:760fa5b0a762a963fb29abd19797e158043101c4b00c2054bca6624c6a649d56",
   "input_files": [
     "schemas/money-ledger/v1/ledger/ledger.proto",
     "schemas/money-ledger/v1/shared/ledger_types.proto",
@@ -23,16 +23,16 @@
   },
   "outputs": {
     "gen/go/offer-desk/v1/capabilities/capabilities.pb.go": "sha256:125c10a13139d3619769e1aa60a0ed69684f0736ef2e63fc043f4ed92e6ca254",
-    "gen/go/offer-desk/v1/offers/offers.pb.go": "sha256:8c588b43cc52e06f3b2c83c809993b58125609ced455e3eaa15cdac08138a895",
-    "gen/go/offer-desk/v1/offers/offers_v1connect/offers.connect.go": "sha256:4f96087f1349785afb44a31d5162efd02c823c2583e5da34b669cdf39b69c124",
+    "gen/go/offer-desk/v1/offers/offers.pb.go": "sha256:d1dc53b558419ab6d55869d45f6bb2530b37acfe58f8dcb6d2a7a2f82217feda",
+    "gen/go/offer-desk/v1/offers/offers_v1connect/offers.connect.go": "sha256:a44d1575f64ac241fa663e955ebdcfbc85b65b1f6f4fa008e29b9fa66a4c3522",
     "gen/go/offer-desk/v1/shared/errors.pb.go": "sha256:4d7dc18d92889c99204525efe7751a5ccd9b842c8e1e73762eba48e1edc58919",
     "gen/go/offer-desk/v1/shared/health.pb.go": "sha256:3115229464d345d307e6ee324baef2479bb97ced016c23161fc2249dff5ae653",
     "gen/python/offer_desk/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/offer_desk/v1/capabilities/capabilities_pb2.py": "sha256:ff1a2e679c4adf93d677e591e48a271f7c3d37d43a36a2e1431b9a7777d0720a",
     "gen/python/offer_desk/v1/capabilities/capabilities_pb2.pyi": "sha256:b3ae7d413bb526c018e7d42df4b359a4770a944f6ab28fd55c76f3a1868eb07f",
     "gen/python/offer_desk/v1/capabilities/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "gen/python/offer_desk/v1/offers/offers_pb2.py": "sha256:2a7272b885c339bb526ce997b78edf03272e0f1d2216b6c215669607a551c263",
-    "gen/python/offer_desk/v1/offers/offers_pb2.pyi": "sha256:64b96266a58166b0f89ea1c5721f5e2a5a604eafcb9838a60001e6d1acd25463",
+    "gen/python/offer_desk/v1/offers/offers_pb2.py": "sha256:3fc72fae80bb3978baa239f0f9786b5f1f024612927ee656f137f9ffb69a335a",
+    "gen/python/offer_desk/v1/offers/offers_pb2.pyi": "sha256:3bc15c01361225ea80d9e9b44a55421ffd79658c487cdce7f9c44b982bd16b4b",
     "gen/python/offer_desk/v1/offers/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/offer_desk/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/offer_desk/v1/shared/errors_pb2.py": "sha256:63b95fe4973b385da4bfcf2f6badf195cb1931150669ce896f468beca6bdf993",
@@ -41,11 +41,11 @@
     "gen/python/offer_desk/v1/shared/health_pb2.pyi": "sha256:b9ec00d86e0bdde26187240212eb1746c8be4ebac7b5320be40d8097822a8a04",
     "gen/python/offer_desk/v1/shared/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/typescript/js/offer-desk/v1/capabilities/capabilities_pb.js": "sha256:3d74b8ed4e12e59faf0297dd7eabdeb287b4e5938a6a83e13157c183b820ff0b",
-    "gen/typescript/js/offer-desk/v1/offers/offers_pb.js": "sha256:6d037170d5511f20880926a65a159ba6ea157e47902307e32e5f0e695ea74162",
+    "gen/typescript/js/offer-desk/v1/offers/offers_pb.js": "sha256:27024b14a156653dcd2863bb7e39eb0344b6bd929b79cfd539d3c9dc5129b1b0",
     "gen/typescript/js/offer-desk/v1/shared/errors_pb.js": "sha256:594d45a233dbf1c6ea77c0a0d98b7dacaadfc596b0d93eee41a086fd205a0701",
     "gen/typescript/js/offer-desk/v1/shared/health_pb.js": "sha256:4574c2b2c93f69161dd9fe436e8da646ab4c428a39aa51570d41f5a06d3010ea",
     "gen/typescript/offer-desk/v1/capabilities/capabilities_pb.ts": "sha256:e37f1277d2290dafb0d6fdcbcaec37163ae12f4783aabc1c59bc9ee0b86c9c76",
-    "gen/typescript/offer-desk/v1/offers/offers_pb.ts": "sha256:13a9202ea2a96a97cedd6b70819539b55305a476d02a42c070d6276972da329d",
+    "gen/typescript/offer-desk/v1/offers/offers_pb.ts": "sha256:a58b54a6b9ddbc9754a1400f3c025f13848a2996c0c497877c04e2c69b77fee2",
     "gen/typescript/offer-desk/v1/shared/errors_pb.ts": "sha256:ca6c331090886380d26b08505e129312a14178a18b723fa48efab3a483a9ada9",
     "gen/typescript/offer-desk/v1/shared/health_pb.ts": "sha256:506d28c1616dc2182618bc0509013b07221f5cc795a5cae3cf6e578a44077d69"
   }

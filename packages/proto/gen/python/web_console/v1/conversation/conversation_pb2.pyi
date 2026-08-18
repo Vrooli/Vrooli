@@ -38,6 +38,48 @@ class SearchResponse(_message.Message):
     total_matches: int
     def __init__(self, matches: _Optional[_Iterable[_Union[SearchMatch, _Mapping]]] = ..., truncated: _Optional[bool] = ..., total_matches: _Optional[int] = ...) -> None: ...
 
+class SearchArchivedRequest(_message.Message):
+    __slots__ = ("query", "limit", "agent_type", "role", "created_after")
+    QUERY_FIELD_NUMBER: _ClassVar[int]
+    LIMIT_FIELD_NUMBER: _ClassVar[int]
+    AGENT_TYPE_FIELD_NUMBER: _ClassVar[int]
+    ROLE_FIELD_NUMBER: _ClassVar[int]
+    CREATED_AFTER_FIELD_NUMBER: _ClassVar[int]
+    query: str
+    limit: int
+    agent_type: str
+    role: str
+    created_after: str
+    def __init__(self, query: _Optional[str] = ..., limit: _Optional[int] = ..., agent_type: _Optional[str] = ..., role: _Optional[str] = ..., created_after: _Optional[str] = ...) -> None: ...
+
+class ArchivedSearchMatch(_message.Message):
+    __slots__ = ("event_id", "session_id", "sequence", "role", "created_at", "excerpt")
+    EVENT_ID_FIELD_NUMBER: _ClassVar[int]
+    SESSION_ID_FIELD_NUMBER: _ClassVar[int]
+    SEQUENCE_FIELD_NUMBER: _ClassVar[int]
+    ROLE_FIELD_NUMBER: _ClassVar[int]
+    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    EXCERPT_FIELD_NUMBER: _ClassVar[int]
+    event_id: str
+    session_id: str
+    sequence: int
+    role: str
+    created_at: str
+    excerpt: str
+    def __init__(self, event_id: _Optional[str] = ..., session_id: _Optional[str] = ..., sequence: _Optional[int] = ..., role: _Optional[str] = ..., created_at: _Optional[str] = ..., excerpt: _Optional[str] = ...) -> None: ...
+
+class SearchArchivedResponse(_message.Message):
+    __slots__ = ("matches", "truncated", "total_matches", "distinct_sessions")
+    MATCHES_FIELD_NUMBER: _ClassVar[int]
+    TRUNCATED_FIELD_NUMBER: _ClassVar[int]
+    TOTAL_MATCHES_FIELD_NUMBER: _ClassVar[int]
+    DISTINCT_SESSIONS_FIELD_NUMBER: _ClassVar[int]
+    matches: _containers.RepeatedCompositeFieldContainer[ArchivedSearchMatch]
+    truncated: bool
+    total_matches: int
+    distinct_sessions: int
+    def __init__(self, matches: _Optional[_Iterable[_Union[ArchivedSearchMatch, _Mapping]]] = ..., truncated: _Optional[bool] = ..., total_matches: _Optional[int] = ..., distinct_sessions: _Optional[int] = ...) -> None: ...
+
 class GetRangeRequest(_message.Message):
     __slots__ = ("session_id", "from_sequence", "to_sequence")
     SESSION_ID_FIELD_NUMBER: _ClassVar[int]

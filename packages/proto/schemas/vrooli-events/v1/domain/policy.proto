@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package vrooli.events.v1.domain;
+package vrooli.vrooli_events.v1.domain;
 
 import "vrooli-events/v1/domain/envelope.proto";
 

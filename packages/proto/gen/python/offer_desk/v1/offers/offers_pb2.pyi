@@ -324,6 +324,26 @@ class TransitionRequest(_message.Message):
     actor: str
     def __init__(self, node_id: _Optional[str] = ..., status: _Optional[_Union[Status, str]] = ..., actor: _Optional[str] = ...) -> None: ...
 
+class MapAccountRequest(_message.Message):
+    __slots__ = ("node_id", "actual_account_id", "actor", "reason")
+    NODE_ID_FIELD_NUMBER: _ClassVar[int]
+    ACTUAL_ACCOUNT_ID_FIELD_NUMBER: _ClassVar[int]
+    ACTOR_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    node_id: str
+    actual_account_id: str
+    actor: str
+    reason: str
+    def __init__(self, node_id: _Optional[str] = ..., actual_account_id: _Optional[str] = ..., actor: _Optional[str] = ..., reason: _Optional[str] = ...) -> None: ...
+
+class MapAccountResponse(_message.Message):
+    __slots__ = ("node", "prior_account_id")
+    NODE_FIELD_NUMBER: _ClassVar[int]
+    PRIOR_ACCOUNT_ID_FIELD_NUMBER: _ClassVar[int]
+    node: Node
+    prior_account_id: str
+    def __init__(self, node: _Optional[_Union[Node, _Mapping]] = ..., prior_account_id: _Optional[str] = ...) -> None: ...
+
 class TransitionResponse(_message.Message):
     __slots__ = ("node",)
     NODE_FIELD_NUMBER: _ClassVar[int]

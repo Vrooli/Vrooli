@@ -470,8 +470,36 @@ class Section(_message.Message):
     context: ContextSnapshot
     def __init__(self, id: _Optional[str] = ..., document_id: _Optional[str] = ..., position: _Optional[int] = ..., intent: _Optional[str] = ..., profile_key: _Optional[str] = ..., session_id: _Optional[str] = ..., committed_candidate_id: _Optional[str] = ..., context: _Optional[_Union[ContextSnapshot, _Mapping]] = ...) -> None: ...
 
+class OutlineSection(_message.Message):
+    __slots__ = ("intent", "summary", "target_words")
+    INTENT_FIELD_NUMBER: _ClassVar[int]
+    SUMMARY_FIELD_NUMBER: _ClassVar[int]
+    TARGET_WORDS_FIELD_NUMBER: _ClassVar[int]
+    intent: str
+    summary: str
+    target_words: int
+    def __init__(self, intent: _Optional[str] = ..., summary: _Optional[str] = ..., target_words: _Optional[int] = ...) -> None: ...
+
+class DocumentProvenance(_message.Message):
+    __slots__ = ("section_count", "word_count", "total_cost_micros", "input_tokens", "output_tokens", "providers", "models")
+    SECTION_COUNT_FIELD_NUMBER: _ClassVar[int]
+    WORD_COUNT_FIELD_NUMBER: _ClassVar[int]
+    TOTAL_COST_MICROS_FIELD_NUMBER: _ClassVar[int]
+    INPUT_TOKENS_FIELD_NUMBER: _ClassVar[int]
+    OUTPUT_TOKENS_FIELD_NUMBER: _ClassVar[int]
+    PROVIDERS_FIELD_NUMBER: _ClassVar[int]
+    MODELS_FIELD_NUMBER: _ClassVar[int]
+    section_count: int
+    word_count: int
+    total_cost_micros: int
+    input_tokens: int
+    output_tokens: int
+    providers: _containers.RepeatedScalarFieldContainer[str]
+    models: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, section_count: _Optional[int] = ..., word_count: _Optional[int] = ..., total_cost_micros: _Optional[int] = ..., input_tokens: _Optional[int] = ..., output_tokens: _Optional[int] = ..., providers: _Optional[_Iterable[str]] = ..., models: _Optional[_Iterable[str]] = ...) -> None: ...
+
 class Document(_message.Message):
-    __slots__ = ("id", "title", "profile_key", "style_key", "outline_id", "section_ids", "status", "assembled_text", "coherence", "sections")
+    __slots__ = ("id", "title", "profile_key", "style_key", "outline_id", "section_ids", "status", "assembled_text", "coherence", "sections", "outline_text", "outline", "document_provenance", "created_at")
     ID_FIELD_NUMBER: _ClassVar[int]
     TITLE_FIELD_NUMBER: _ClassVar[int]
     PROFILE_KEY_FIELD_NUMBER: _ClassVar[int]
@@ -482,6 +510,10 @@ class Document(_message.Message):
     ASSEMBLED_TEXT_FIELD_NUMBER: _ClassVar[int]
     COHERENCE_FIELD_NUMBER: _ClassVar[int]
     SECTIONS_FIELD_NUMBER: _ClassVar[int]
+    OUTLINE_TEXT_FIELD_NUMBER: _ClassVar[int]
+    OUTLINE_FIELD_NUMBER: _ClassVar[int]
+    DOCUMENT_PROVENANCE_FIELD_NUMBER: _ClassVar[int]
+    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
     id: str
     title: str
     profile_key: str
@@ -492,7 +524,59 @@ class Document(_message.Message):
     assembled_text: str
     coherence: _struct_pb2.Struct
     sections: _containers.RepeatedCompositeFieldContainer[Section]
-    def __init__(self, id: _Optional[str] = ..., title: _Optional[str] = ..., profile_key: _Optional[str] = ..., style_key: _Optional[str] = ..., outline_id: _Optional[str] = ..., section_ids: _Optional[_Iterable[str]] = ..., status: _Optional[str] = ..., assembled_text: _Optional[str] = ..., coherence: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., sections: _Optional[_Iterable[_Union[Section, _Mapping]]] = ...) -> None: ...
+    outline_text: str
+    outline: _containers.RepeatedCompositeFieldContainer[OutlineSection]
+    document_provenance: DocumentProvenance
+    created_at: str
+    def __init__(self, id: _Optional[str] = ..., title: _Optional[str] = ..., profile_key: _Optional[str] = ..., style_key: _Optional[str] = ..., outline_id: _Optional[str] = ..., section_ids: _Optional[_Iterable[str]] = ..., status: _Optional[str] = ..., assembled_text: _Optional[str] = ..., coherence: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., sections: _Optional[_Iterable[_Union[Section, _Mapping]]] = ..., outline_text: _Optional[str] = ..., outline: _Optional[_Iterable[_Union[OutlineSection, _Mapping]]] = ..., document_provenance: _Optional[_Union[DocumentProvenance, _Mapping]] = ..., created_at: _Optional[str] = ...) -> None: ...
+
+class DocumentSummary(_message.Message):
+    __slots__ = ("id", "title", "profile_key", "status", "word_count", "section_count", "total_cost_micros", "created_at", "coherent")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    TITLE_FIELD_NUMBER: _ClassVar[int]
+    PROFILE_KEY_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    WORD_COUNT_FIELD_NUMBER: _ClassVar[int]
+    SECTION_COUNT_FIELD_NUMBER: _ClassVar[int]
+    TOTAL_COST_MICROS_FIELD_NUMBER: _ClassVar[int]
+    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    COHERENT_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    title: str
+    profile_key: str
+    status: str
+    word_count: int
+    section_count: int
+    total_cost_micros: int
+    created_at: str
+    coherent: bool
+    def __init__(self, id: _Optional[str] = ..., title: _Optional[str] = ..., profile_key: _Optional[str] = ..., status: _Optional[str] = ..., word_count: _Optional[int] = ..., section_count: _Optional[int] = ..., total_cost_micros: _Optional[int] = ..., created_at: _Optional[str] = ..., coherent: _Optional[bool] = ...) -> None: ...
+
+class ListDocumentsRequest(_message.Message):
+    __slots__ = ("limit", "status")
+    LIMIT_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    limit: int
+    status: str
+    def __init__(self, limit: _Optional[int] = ..., status: _Optional[str] = ...) -> None: ...
+
+class ListDocumentsResponse(_message.Message):
+    __slots__ = ("documents",)
+    DOCUMENTS_FIELD_NUMBER: _ClassVar[int]
+    documents: _containers.RepeatedCompositeFieldContainer[DocumentSummary]
+    def __init__(self, documents: _Optional[_Iterable[_Union[DocumentSummary, _Mapping]]] = ...) -> None: ...
+
+class GetDocumentRequest(_message.Message):
+    __slots__ = ("id",)
+    ID_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    def __init__(self, id: _Optional[str] = ...) -> None: ...
+
+class GetDocumentResponse(_message.Message):
+    __slots__ = ("document",)
+    DOCUMENT_FIELD_NUMBER: _ClassVar[int]
+    document: Document
+    def __init__(self, document: _Optional[_Union[Document, _Mapping]] = ...) -> None: ...
 
 class CreateDocumentRequest(_message.Message):
     __slots__ = ("document", "sections")

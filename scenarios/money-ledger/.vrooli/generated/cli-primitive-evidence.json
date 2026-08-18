@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "money-ledger",
   "generator": "v1.0.0",
-  "manifest_hash": "f6a30f136138ba0b391680865d510700c4f659d552b1ce16a39cd8f4b8f141ea",
+  "manifest_hash": "c9a0b143e5e7f71549b3852197ec1ebfccfa352da5ae633d918f87ba5410f77d",
   "commands": [
     {
       "path": "ingest adapter-register",

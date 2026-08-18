@@ -16,7 +16,8 @@ CREATE INDEX IF NOT EXISTS postings_account_time ON postings(account_id, occurre
 CREATE INDEX IF NOT EXISTS postings_book_time ON postings(book_id, occurred_at);
 CREATE TABLE IF NOT EXISTS operator_measures (
   id INTEGER PRIMARY KEY AUTOINCREMENT, path TEXT NOT NULL, value REAL NOT NULL, unit TEXT NOT NULL,
-  window_days INTEGER NOT NULL, observed_at TEXT NOT NULL DEFAULT '', status TEXT NOT NULL, source_path TEXT NOT NULL
+  window_days INTEGER NOT NULL, observed_at TEXT NOT NULL DEFAULT '', status TEXT NOT NULL, source_path TEXT NOT NULL,
+  book_id TEXT NOT NULL DEFAULT ''
 );
 CREATE INDEX IF NOT EXISTS operator_measures_path_observed ON operator_measures(path, observed_at);
 CREATE TABLE IF NOT EXISTS operator_input_findings (

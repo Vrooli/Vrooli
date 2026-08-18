@@ -1905,6 +1905,234 @@ func (x *ListEvidenceResponse) GetEvidence() []*ReconciliationEvidence {
 	return nil
 }
 
+type MeasuredBounds struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	X             float64                `protobuf:"fixed64,1,opt,name=x,proto3" json:"x,omitempty"`
+	Y             float64                `protobuf:"fixed64,2,opt,name=y,proto3" json:"y,omitempty"`
+	Width         float64                `protobuf:"fixed64,3,opt,name=width,proto3" json:"width,omitempty"`
+	Height        float64                `protobuf:"fixed64,4,opt,name=height,proto3" json:"height,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MeasuredBounds) Reset() {
+	*x = MeasuredBounds{}
+	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[30]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MeasuredBounds) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MeasuredBounds) ProtoMessage() {}
+
+func (x *MeasuredBounds) ProtoReflect() protoreflect.Message {
+	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[30]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MeasuredBounds.ProtoReflect.Descriptor instead.
+func (*MeasuredBounds) Descriptor() ([]byte, []int) {
+	return file_experience_manager_v1_contract_contract_proto_rawDescGZIP(), []int{30}
+}
+
+func (x *MeasuredBounds) GetX() float64 {
+	if x != nil {
+		return x.X
+	}
+	return 0
+}
+
+func (x *MeasuredBounds) GetY() float64 {
+	if x != nil {
+		return x.Y
+	}
+	return 0
+}
+
+func (x *MeasuredBounds) GetWidth() float64 {
+	if x != nil {
+		return x.Width
+	}
+	return 0
+}
+
+func (x *MeasuredBounds) GetHeight() float64 {
+	if x != nil {
+		return x.Height
+	}
+	return 0
+}
+
+type MeasuredSubject struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ElementId     string                 `protobuf:"bytes,1,opt,name=element_id,json=elementId,proto3" json:"element_id,omitempty"`
+	TestId        string                 `protobuf:"bytes,2,opt,name=test_id,json=testId,proto3" json:"test_id,omitempty"`
+	Bounds        *MeasuredBounds        `protobuf:"bytes,3,opt,name=bounds,proto3" json:"bounds,omitempty"`
+	ContextId     string                 `protobuf:"bytes,4,opt,name=context_id,json=contextId,proto3" json:"context_id,omitempty"`
+	Value         string                 `protobuf:"bytes,5,opt,name=value,proto3" json:"value,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MeasuredSubject) Reset() {
+	*x = MeasuredSubject{}
+	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[31]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MeasuredSubject) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MeasuredSubject) ProtoMessage() {}
+
+func (x *MeasuredSubject) ProtoReflect() protoreflect.Message {
+	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[31]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MeasuredSubject.ProtoReflect.Descriptor instead.
+func (*MeasuredSubject) Descriptor() ([]byte, []int) {
+	return file_experience_manager_v1_contract_contract_proto_rawDescGZIP(), []int{31}
+}
+
+func (x *MeasuredSubject) GetElementId() string {
+	if x != nil {
+		return x.ElementId
+	}
+	return ""
+}
+
+func (x *MeasuredSubject) GetTestId() string {
+	if x != nil {
+		return x.TestId
+	}
+	return ""
+}
+
+func (x *MeasuredSubject) GetBounds() *MeasuredBounds {
+	if x != nil {
+		return x.Bounds
+	}
+	return nil
+}
+
+func (x *MeasuredSubject) GetContextId() string {
+	if x != nil {
+		return x.ContextId
+	}
+	return ""
+}
+
+func (x *MeasuredSubject) GetValue() string {
+	if x != nil {
+		return x.Value
+	}
+	return ""
+}
+
+type ClaimMeasurement struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Metric        string                 `protobuf:"bytes,1,opt,name=metric,proto3" json:"metric,omitempty"`
+	Observed      *float64               `protobuf:"fixed64,2,opt,name=observed,proto3,oneof" json:"observed,omitempty"`
+	Required      *float64               `protobuf:"fixed64,3,opt,name=required,proto3,oneof" json:"required,omitempty"`
+	Unit          string                 `protobuf:"bytes,4,opt,name=unit,proto3" json:"unit,omitempty"`
+	Comparator    string                 `protobuf:"bytes,5,opt,name=comparator,proto3" json:"comparator,omitempty"`
+	Subjects      []*MeasuredSubject     `protobuf:"bytes,6,rep,name=subjects,proto3" json:"subjects,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ClaimMeasurement) Reset() {
+	*x = ClaimMeasurement{}
+	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[32]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ClaimMeasurement) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ClaimMeasurement) ProtoMessage() {}
+
+func (x *ClaimMeasurement) ProtoReflect() protoreflect.Message {
+	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[32]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ClaimMeasurement.ProtoReflect.Descriptor instead.
+func (*ClaimMeasurement) Descriptor() ([]byte, []int) {
+	return file_experience_manager_v1_contract_contract_proto_rawDescGZIP(), []int{32}
+}
+
+func (x *ClaimMeasurement) GetMetric() string {
+	if x != nil {
+		return x.Metric
+	}
+	return ""
+}
+
+func (x *ClaimMeasurement) GetObserved() float64 {
+	if x != nil && x.Observed != nil {
+		return *x.Observed
+	}
+	return 0
+}
+
+func (x *ClaimMeasurement) GetRequired() float64 {
+	if x != nil && x.Required != nil {
+		return *x.Required
+	}
+	return 0
+}
+
+func (x *ClaimMeasurement) GetUnit() string {
+	if x != nil {
+		return x.Unit
+	}
+	return ""
+}
+
+func (x *ClaimMeasurement) GetComparator() string {
+	if x != nil {
+		return x.Comparator
+	}
+	return ""
+}
+
+func (x *ClaimMeasurement) GetSubjects() []*MeasuredSubject {
+	if x != nil {
+		return x.Subjects
+	}
+	return nil
+}
+
 type ReconciliationEvidence struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	Id             string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -1926,13 +2154,14 @@ type ReconciliationEvidence struct {
 	ComponentId    string                 `protobuf:"bytes,17,opt,name=component_id,json=componentId,proto3" json:"component_id,omitempty"`
 	ComponentTitle string                 `protobuf:"bytes,18,opt,name=component_title,json=componentTitle,proto3" json:"component_title,omitempty"`
 	ExampleName    string                 `protobuf:"bytes,19,opt,name=example_name,json=exampleName,proto3" json:"example_name,omitempty"`
+	Measurement    *ClaimMeasurement      `protobuf:"bytes,20,opt,name=measurement,proto3" json:"measurement,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
 
 func (x *ReconciliationEvidence) Reset() {
 	*x = ReconciliationEvidence{}
-	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[30]
+	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1944,7 +2173,7 @@ func (x *ReconciliationEvidence) String() string {
 func (*ReconciliationEvidence) ProtoMessage() {}
 
 func (x *ReconciliationEvidence) ProtoReflect() protoreflect.Message {
-	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[30]
+	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1957,7 +2186,7 @@ func (x *ReconciliationEvidence) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReconciliationEvidence.ProtoReflect.Descriptor instead.
 func (*ReconciliationEvidence) Descriptor() ([]byte, []int) {
-	return file_experience_manager_v1_contract_contract_proto_rawDescGZIP(), []int{30}
+	return file_experience_manager_v1_contract_contract_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *ReconciliationEvidence) GetId() string {
@@ -2093,6 +2322,13 @@ func (x *ReconciliationEvidence) GetExampleName() string {
 	return ""
 }
 
+func (x *ReconciliationEvidence) GetMeasurement() *ClaimMeasurement {
+	if x != nil {
+		return x.Measurement
+	}
+	return nil
+}
+
 type SuggestBindingsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Scenario      string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
@@ -2105,7 +2341,7 @@ type SuggestBindingsRequest struct {
 
 func (x *SuggestBindingsRequest) Reset() {
 	*x = SuggestBindingsRequest{}
-	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[31]
+	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2117,7 +2353,7 @@ func (x *SuggestBindingsRequest) String() string {
 func (*SuggestBindingsRequest) ProtoMessage() {}
 
 func (x *SuggestBindingsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[31]
+	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2130,7 +2366,7 @@ func (x *SuggestBindingsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SuggestBindingsRequest.ProtoReflect.Descriptor instead.
 func (*SuggestBindingsRequest) Descriptor() ([]byte, []int) {
-	return file_experience_manager_v1_contract_contract_proto_rawDescGZIP(), []int{31}
+	return file_experience_manager_v1_contract_contract_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *SuggestBindingsRequest) GetScenario() string {
@@ -2172,7 +2408,7 @@ type SuggestBindingsResponse struct {
 
 func (x *SuggestBindingsResponse) Reset() {
 	*x = SuggestBindingsResponse{}
-	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[32]
+	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2184,7 +2420,7 @@ func (x *SuggestBindingsResponse) String() string {
 func (*SuggestBindingsResponse) ProtoMessage() {}
 
 func (x *SuggestBindingsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[32]
+	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2197,7 +2433,7 @@ func (x *SuggestBindingsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SuggestBindingsResponse.ProtoReflect.Descriptor instead.
 func (*SuggestBindingsResponse) Descriptor() ([]byte, []int) {
-	return file_experience_manager_v1_contract_contract_proto_rawDescGZIP(), []int{32}
+	return file_experience_manager_v1_contract_contract_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *SuggestBindingsResponse) GetScenario() string {
@@ -2235,7 +2471,7 @@ type RenderSpecRequest struct {
 
 func (x *RenderSpecRequest) Reset() {
 	*x = RenderSpecRequest{}
-	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[33]
+	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2247,7 +2483,7 @@ func (x *RenderSpecRequest) String() string {
 func (*RenderSpecRequest) ProtoMessage() {}
 
 func (x *RenderSpecRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[33]
+	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2260,7 +2496,7 @@ func (x *RenderSpecRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RenderSpecRequest.ProtoReflect.Descriptor instead.
 func (*RenderSpecRequest) Descriptor() ([]byte, []int) {
-	return file_experience_manager_v1_contract_contract_proto_rawDescGZIP(), []int{33}
+	return file_experience_manager_v1_contract_contract_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *RenderSpecRequest) GetScenario() string {
@@ -2305,7 +2541,7 @@ type RenderSpecResponse struct {
 
 func (x *RenderSpecResponse) Reset() {
 	*x = RenderSpecResponse{}
-	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[34]
+	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2317,7 +2553,7 @@ func (x *RenderSpecResponse) String() string {
 func (*RenderSpecResponse) ProtoMessage() {}
 
 func (x *RenderSpecResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[34]
+	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2330,7 +2566,7 @@ func (x *RenderSpecResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RenderSpecResponse.ProtoReflect.Descriptor instead.
 func (*RenderSpecResponse) Descriptor() ([]byte, []int) {
-	return file_experience_manager_v1_contract_contract_proto_rawDescGZIP(), []int{34}
+	return file_experience_manager_v1_contract_contract_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *RenderSpecResponse) GetScenario() string {
@@ -2390,7 +2626,7 @@ type CompareVariantsRequest struct {
 
 func (x *CompareVariantsRequest) Reset() {
 	*x = CompareVariantsRequest{}
-	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[35]
+	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2402,7 +2638,7 @@ func (x *CompareVariantsRequest) String() string {
 func (*CompareVariantsRequest) ProtoMessage() {}
 
 func (x *CompareVariantsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[35]
+	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2415,7 +2651,7 @@ func (x *CompareVariantsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CompareVariantsRequest.ProtoReflect.Descriptor instead.
 func (*CompareVariantsRequest) Descriptor() ([]byte, []int) {
-	return file_experience_manager_v1_contract_contract_proto_rawDescGZIP(), []int{35}
+	return file_experience_manager_v1_contract_contract_proto_rawDescGZIP(), []int{38}
 }
 
 func (x *CompareVariantsRequest) GetScenario() string {
@@ -2468,7 +2704,7 @@ type CompareVariantsResponse struct {
 
 func (x *CompareVariantsResponse) Reset() {
 	*x = CompareVariantsResponse{}
-	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[36]
+	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2480,7 +2716,7 @@ func (x *CompareVariantsResponse) String() string {
 func (*CompareVariantsResponse) ProtoMessage() {}
 
 func (x *CompareVariantsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[36]
+	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2493,7 +2729,7 @@ func (x *CompareVariantsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CompareVariantsResponse.ProtoReflect.Descriptor instead.
 func (*CompareVariantsResponse) Descriptor() ([]byte, []int) {
-	return file_experience_manager_v1_contract_contract_proto_rawDescGZIP(), []int{36}
+	return file_experience_manager_v1_contract_contract_proto_rawDescGZIP(), []int{39}
 }
 
 func (x *CompareVariantsResponse) GetScenario() string {
@@ -2557,7 +2793,7 @@ type PromoteVariantRequest struct {
 
 func (x *PromoteVariantRequest) Reset() {
 	*x = PromoteVariantRequest{}
-	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[37]
+	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2569,7 +2805,7 @@ func (x *PromoteVariantRequest) String() string {
 func (*PromoteVariantRequest) ProtoMessage() {}
 
 func (x *PromoteVariantRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[37]
+	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2582,7 +2818,7 @@ func (x *PromoteVariantRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PromoteVariantRequest.ProtoReflect.Descriptor instead.
 func (*PromoteVariantRequest) Descriptor() ([]byte, []int) {
-	return file_experience_manager_v1_contract_contract_proto_rawDescGZIP(), []int{37}
+	return file_experience_manager_v1_contract_contract_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *PromoteVariantRequest) GetScenario() string {
@@ -2626,7 +2862,7 @@ type PromoteVariantResponse struct {
 
 func (x *PromoteVariantResponse) Reset() {
 	*x = PromoteVariantResponse{}
-	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[38]
+	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[41]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2638,7 +2874,7 @@ func (x *PromoteVariantResponse) String() string {
 func (*PromoteVariantResponse) ProtoMessage() {}
 
 func (x *PromoteVariantResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[38]
+	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[41]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2651,7 +2887,7 @@ func (x *PromoteVariantResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PromoteVariantResponse.ProtoReflect.Descriptor instead.
 func (*PromoteVariantResponse) Descriptor() ([]byte, []int) {
-	return file_experience_manager_v1_contract_contract_proto_rawDescGZIP(), []int{38}
+	return file_experience_manager_v1_contract_contract_proto_rawDescGZIP(), []int{41}
 }
 
 func (x *PromoteVariantResponse) GetScenario() string {
@@ -2700,7 +2936,7 @@ type SpecVariant struct {
 
 func (x *SpecVariant) Reset() {
 	*x = SpecVariant{}
-	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[39]
+	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[42]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2712,7 +2948,7 @@ func (x *SpecVariant) String() string {
 func (*SpecVariant) ProtoMessage() {}
 
 func (x *SpecVariant) ProtoReflect() protoreflect.Message {
-	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[39]
+	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[42]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2725,7 +2961,7 @@ func (x *SpecVariant) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SpecVariant.ProtoReflect.Descriptor instead.
 func (*SpecVariant) Descriptor() ([]byte, []int) {
-	return file_experience_manager_v1_contract_contract_proto_rawDescGZIP(), []int{39}
+	return file_experience_manager_v1_contract_contract_proto_rawDescGZIP(), []int{42}
 }
 
 func (x *SpecVariant) GetId() string {
@@ -2760,7 +2996,7 @@ type RenderedVariant struct {
 
 func (x *RenderedVariant) Reset() {
 	*x = RenderedVariant{}
-	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[40]
+	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[43]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2772,7 +3008,7 @@ func (x *RenderedVariant) String() string {
 func (*RenderedVariant) ProtoMessage() {}
 
 func (x *RenderedVariant) ProtoReflect() protoreflect.Message {
-	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[40]
+	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[43]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2785,7 +3021,7 @@ func (x *RenderedVariant) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RenderedVariant.ProtoReflect.Descriptor instead.
 func (*RenderedVariant) Descriptor() ([]byte, []int) {
-	return file_experience_manager_v1_contract_contract_proto_rawDescGZIP(), []int{40}
+	return file_experience_manager_v1_contract_contract_proto_rawDescGZIP(), []int{43}
 }
 
 func (x *RenderedVariant) GetId() string {
@@ -2824,7 +3060,7 @@ type AuthoringSession struct {
 
 func (x *AuthoringSession) Reset() {
 	*x = AuthoringSession{}
-	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[41]
+	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[44]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2836,7 +3072,7 @@ func (x *AuthoringSession) String() string {
 func (*AuthoringSession) ProtoMessage() {}
 
 func (x *AuthoringSession) ProtoReflect() protoreflect.Message {
-	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[41]
+	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[44]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2849,7 +3085,7 @@ func (x *AuthoringSession) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AuthoringSession.ProtoReflect.Descriptor instead.
 func (*AuthoringSession) Descriptor() ([]byte, []int) {
-	return file_experience_manager_v1_contract_contract_proto_rawDescGZIP(), []int{41}
+	return file_experience_manager_v1_contract_contract_proto_rawDescGZIP(), []int{44}
 }
 
 func (x *AuthoringSession) GetId() string {
@@ -2913,7 +3149,7 @@ type PageDraft struct {
 
 func (x *PageDraft) Reset() {
 	*x = PageDraft{}
-	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[42]
+	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[45]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2925,7 +3161,7 @@ func (x *PageDraft) String() string {
 func (*PageDraft) ProtoMessage() {}
 
 func (x *PageDraft) ProtoReflect() protoreflect.Message {
-	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[42]
+	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[45]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2938,7 +3174,7 @@ func (x *PageDraft) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PageDraft.ProtoReflect.Descriptor instead.
 func (*PageDraft) Descriptor() ([]byte, []int) {
-	return file_experience_manager_v1_contract_contract_proto_rawDescGZIP(), []int{42}
+	return file_experience_manager_v1_contract_contract_proto_rawDescGZIP(), []int{45}
 }
 
 func (x *PageDraft) GetId() string {
@@ -2981,7 +3217,7 @@ type FileDiff struct {
 
 func (x *FileDiff) Reset() {
 	*x = FileDiff{}
-	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[43]
+	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[46]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2993,7 +3229,7 @@ func (x *FileDiff) String() string {
 func (*FileDiff) ProtoMessage() {}
 
 func (x *FileDiff) ProtoReflect() protoreflect.Message {
-	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[43]
+	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[46]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3006,7 +3242,7 @@ func (x *FileDiff) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FileDiff.ProtoReflect.Descriptor instead.
 func (*FileDiff) Descriptor() ([]byte, []int) {
-	return file_experience_manager_v1_contract_contract_proto_rawDescGZIP(), []int{43}
+	return file_experience_manager_v1_contract_contract_proto_rawDescGZIP(), []int{46}
 }
 
 func (x *FileDiff) GetPath() string {
@@ -3049,7 +3285,7 @@ type SpecDocument struct {
 
 func (x *SpecDocument) Reset() {
 	*x = SpecDocument{}
-	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[44]
+	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[47]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3061,7 +3297,7 @@ func (x *SpecDocument) String() string {
 func (*SpecDocument) ProtoMessage() {}
 
 func (x *SpecDocument) ProtoReflect() protoreflect.Message {
-	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[44]
+	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[47]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3074,7 +3310,7 @@ func (x *SpecDocument) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SpecDocument.ProtoReflect.Descriptor instead.
 func (*SpecDocument) Descriptor() ([]byte, []int) {
-	return file_experience_manager_v1_contract_contract_proto_rawDescGZIP(), []int{44}
+	return file_experience_manager_v1_contract_contract_proto_rawDescGZIP(), []int{47}
 }
 
 func (x *SpecDocument) GetId() string {
@@ -3118,7 +3354,7 @@ type BindingSuggestion struct {
 
 func (x *BindingSuggestion) Reset() {
 	*x = BindingSuggestion{}
-	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[45]
+	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[48]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3130,7 +3366,7 @@ func (x *BindingSuggestion) String() string {
 func (*BindingSuggestion) ProtoMessage() {}
 
 func (x *BindingSuggestion) ProtoReflect() protoreflect.Message {
-	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[45]
+	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[48]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3143,7 +3379,7 @@ func (x *BindingSuggestion) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BindingSuggestion.ProtoReflect.Descriptor instead.
 func (*BindingSuggestion) Descriptor() ([]byte, []int) {
-	return file_experience_manager_v1_contract_contract_proto_rawDescGZIP(), []int{45}
+	return file_experience_manager_v1_contract_contract_proto_rawDescGZIP(), []int{48}
 }
 
 func (x *BindingSuggestion) GetElementId() string {
@@ -3201,7 +3437,7 @@ type PageForm struct {
 
 func (x *PageForm) Reset() {
 	*x = PageForm{}
-	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[46]
+	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[49]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3213,7 +3449,7 @@ func (x *PageForm) String() string {
 func (*PageForm) ProtoMessage() {}
 
 func (x *PageForm) ProtoReflect() protoreflect.Message {
-	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[46]
+	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[49]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3226,7 +3462,7 @@ func (x *PageForm) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PageForm.ProtoReflect.Descriptor instead.
 func (*PageForm) Descriptor() ([]byte, []int) {
-	return file_experience_manager_v1_contract_contract_proto_rawDescGZIP(), []int{46}
+	return file_experience_manager_v1_contract_contract_proto_rawDescGZIP(), []int{49}
 }
 
 func (x *PageForm) GetId() string {
@@ -3323,7 +3559,7 @@ type PriorityForm struct {
 
 func (x *PriorityForm) Reset() {
 	*x = PriorityForm{}
-	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[47]
+	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[50]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3335,7 +3571,7 @@ func (x *PriorityForm) String() string {
 func (*PriorityForm) ProtoMessage() {}
 
 func (x *PriorityForm) ProtoReflect() protoreflect.Message {
-	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[47]
+	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[50]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3348,7 +3584,7 @@ func (x *PriorityForm) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PriorityForm.ProtoReflect.Descriptor instead.
 func (*PriorityForm) Descriptor() ([]byte, []int) {
-	return file_experience_manager_v1_contract_contract_proto_rawDescGZIP(), []int{47}
+	return file_experience_manager_v1_contract_contract_proto_rawDescGZIP(), []int{50}
 }
 
 func (x *PriorityForm) GetStatement() string {
@@ -3375,7 +3611,7 @@ type StateForm struct {
 
 func (x *StateForm) Reset() {
 	*x = StateForm{}
-	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[48]
+	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[51]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3387,7 +3623,7 @@ func (x *StateForm) String() string {
 func (*StateForm) ProtoMessage() {}
 
 func (x *StateForm) ProtoReflect() protoreflect.Message {
-	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[48]
+	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[51]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3400,7 +3636,7 @@ func (x *StateForm) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StateForm.ProtoReflect.Descriptor instead.
 func (*StateForm) Descriptor() ([]byte, []int) {
-	return file_experience_manager_v1_contract_contract_proto_rawDescGZIP(), []int{48}
+	return file_experience_manager_v1_contract_contract_proto_rawDescGZIP(), []int{51}
 }
 
 func (x *StateForm) GetId() string {
@@ -3429,7 +3665,7 @@ type ElementForm struct {
 
 func (x *ElementForm) Reset() {
 	*x = ElementForm{}
-	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[49]
+	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[52]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3441,7 +3677,7 @@ func (x *ElementForm) String() string {
 func (*ElementForm) ProtoMessage() {}
 
 func (x *ElementForm) ProtoReflect() protoreflect.Message {
-	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[49]
+	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[52]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3454,7 +3690,7 @@ func (x *ElementForm) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ElementForm.ProtoReflect.Descriptor instead.
 func (*ElementForm) Descriptor() ([]byte, []int) {
-	return file_experience_manager_v1_contract_contract_proto_rawDescGZIP(), []int{49}
+	return file_experience_manager_v1_contract_contract_proto_rawDescGZIP(), []int{52}
 }
 
 func (x *ElementForm) GetId() string {
@@ -3502,7 +3738,7 @@ type ClaimForm struct {
 
 func (x *ClaimForm) Reset() {
 	*x = ClaimForm{}
-	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[50]
+	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[53]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3514,7 +3750,7 @@ func (x *ClaimForm) String() string {
 func (*ClaimForm) ProtoMessage() {}
 
 func (x *ClaimForm) ProtoReflect() protoreflect.Message {
-	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[50]
+	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[53]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3527,7 +3763,7 @@ func (x *ClaimForm) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ClaimForm.ProtoReflect.Descriptor instead.
 func (*ClaimForm) Descriptor() ([]byte, []int) {
-	return file_experience_manager_v1_contract_contract_proto_rawDescGZIP(), []int{50}
+	return file_experience_manager_v1_contract_contract_proto_rawDescGZIP(), []int{53}
 }
 
 func (x *ClaimForm) GetId() string {
@@ -3605,7 +3841,7 @@ type BindingForm struct {
 
 func (x *BindingForm) Reset() {
 	*x = BindingForm{}
-	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[51]
+	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[54]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3617,7 +3853,7 @@ func (x *BindingForm) String() string {
 func (*BindingForm) ProtoMessage() {}
 
 func (x *BindingForm) ProtoReflect() protoreflect.Message {
-	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[51]
+	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[54]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3630,7 +3866,7 @@ func (x *BindingForm) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BindingForm.ProtoReflect.Descriptor instead.
 func (*BindingForm) Descriptor() ([]byte, []int) {
-	return file_experience_manager_v1_contract_contract_proto_rawDescGZIP(), []int{51}
+	return file_experience_manager_v1_contract_contract_proto_rawDescGZIP(), []int{54}
 }
 
 func (x *BindingForm) GetElementId() string {
@@ -3671,7 +3907,7 @@ type SketchRegionForm struct {
 
 func (x *SketchRegionForm) Reset() {
 	*x = SketchRegionForm{}
-	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[52]
+	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[55]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3683,7 +3919,7 @@ func (x *SketchRegionForm) String() string {
 func (*SketchRegionForm) ProtoMessage() {}
 
 func (x *SketchRegionForm) ProtoReflect() protoreflect.Message {
-	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[52]
+	mi := &file_experience_manager_v1_contract_contract_proto_msgTypes[55]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3696,7 +3932,7 @@ func (x *SketchRegionForm) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SketchRegionForm.ProtoReflect.Descriptor instead.
 func (*SketchRegionForm) Descriptor() ([]byte, []int) {
-	return file_experience_manager_v1_contract_contract_proto_rawDescGZIP(), []int{52}
+	return file_experience_manager_v1_contract_contract_proto_rawDescGZIP(), []int{55}
 }
 
 func (x *SketchRegionForm) GetId() string {
@@ -3867,7 +4103,31 @@ const file_experience_manager_v1_contract_contract_proto_rawDesc = "" +
 	"\x14ListEvidenceResponse\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x12\n" +
 	"\x04page\x18\x02 \x01(\tR\x04page\x12Y\n" +
-	"\bevidence\x18\x03 \x03(\v2=.vrooli.experience_manager.v1.contract.ReconciliationEvidenceR\bevidence\"\xcf\x04\n" +
+	"\bevidence\x18\x03 \x03(\v2=.vrooli.experience_manager.v1.contract.ReconciliationEvidenceR\bevidence\"Z\n" +
+	"\x0eMeasuredBounds\x12\f\n" +
+	"\x01x\x18\x01 \x01(\x01R\x01x\x12\f\n" +
+	"\x01y\x18\x02 \x01(\x01R\x01y\x12\x14\n" +
+	"\x05width\x18\x03 \x01(\x01R\x05width\x12\x16\n" +
+	"\x06height\x18\x04 \x01(\x01R\x06height\"\xcd\x01\n" +
+	"\x0fMeasuredSubject\x12\x1d\n" +
+	"\n" +
+	"element_id\x18\x01 \x01(\tR\telementId\x12\x17\n" +
+	"\atest_id\x18\x02 \x01(\tR\x06testId\x12M\n" +
+	"\x06bounds\x18\x03 \x01(\v25.vrooli.experience_manager.v1.contract.MeasuredBoundsR\x06bounds\x12\x1d\n" +
+	"\n" +
+	"context_id\x18\x04 \x01(\tR\tcontextId\x12\x14\n" +
+	"\x05value\x18\x05 \x01(\tR\x05value\"\x8e\x02\n" +
+	"\x10ClaimMeasurement\x12\x16\n" +
+	"\x06metric\x18\x01 \x01(\tR\x06metric\x12\x1f\n" +
+	"\bobserved\x18\x02 \x01(\x01H\x00R\bobserved\x88\x01\x01\x12\x1f\n" +
+	"\brequired\x18\x03 \x01(\x01H\x01R\brequired\x88\x01\x01\x12\x12\n" +
+	"\x04unit\x18\x04 \x01(\tR\x04unit\x12\x1e\n" +
+	"\n" +
+	"comparator\x18\x05 \x01(\tR\n" +
+	"comparator\x12R\n" +
+	"\bsubjects\x18\x06 \x03(\v26.vrooli.experience_manager.v1.contract.MeasuredSubjectR\bsubjectsB\v\n" +
+	"\t_observedB\v\n" +
+	"\t_required\"\xaa\x05\n" +
 	"\x16ReconciliationEvidence\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1a\n" +
 	"\bscenario\x18\x02 \x01(\tR\bscenario\x12\x12\n" +
@@ -3892,7 +4152,8 @@ const file_experience_manager_v1_contract_contract_proto_rawDesc = "" +
 	"\rdocument_kind\x18\x10 \x01(\tR\fdocumentKind\x12!\n" +
 	"\fcomponent_id\x18\x11 \x01(\tR\vcomponentId\x12'\n" +
 	"\x0fcomponent_title\x18\x12 \x01(\tR\x0ecomponentTitle\x12!\n" +
-	"\fexample_name\x18\x13 \x01(\tR\vexampleName\"r\n" +
+	"\fexample_name\x18\x13 \x01(\tR\vexampleName\x12Y\n" +
+	"\vmeasurement\x18\x14 \x01(\v27.vrooli.experience_manager.v1.contract.ClaimMeasurementR\vmeasurement\"r\n" +
 	"\x16SuggestBindingsRequest\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x12\n" +
 	"\x04path\x18\x02 \x01(\tR\x04path\x12\x12\n" +
@@ -4063,7 +4324,7 @@ func file_experience_manager_v1_contract_contract_proto_rawDescGZIP() []byte {
 	return file_experience_manager_v1_contract_contract_proto_rawDescData
 }
 
-var file_experience_manager_v1_contract_contract_proto_msgTypes = make([]protoimpl.MessageInfo, 53)
+var file_experience_manager_v1_contract_contract_proto_msgTypes = make([]protoimpl.MessageInfo, 56)
 var file_experience_manager_v1_contract_contract_proto_goTypes = []any{
 	(*ValidateScenarioRequest)(nil),       // 0: vrooli.experience_manager.v1.contract.ValidateScenarioRequest
 	(*ValidateScenarioResponse)(nil),      // 1: vrooli.experience_manager.v1.contract.ValidateScenarioResponse
@@ -4095,105 +4356,111 @@ var file_experience_manager_v1_contract_contract_proto_goTypes = []any{
 	(*ShowSpecResponse)(nil),              // 27: vrooli.experience_manager.v1.contract.ShowSpecResponse
 	(*ListEvidenceRequest)(nil),           // 28: vrooli.experience_manager.v1.contract.ListEvidenceRequest
 	(*ListEvidenceResponse)(nil),          // 29: vrooli.experience_manager.v1.contract.ListEvidenceResponse
-	(*ReconciliationEvidence)(nil),        // 30: vrooli.experience_manager.v1.contract.ReconciliationEvidence
-	(*SuggestBindingsRequest)(nil),        // 31: vrooli.experience_manager.v1.contract.SuggestBindingsRequest
-	(*SuggestBindingsResponse)(nil),       // 32: vrooli.experience_manager.v1.contract.SuggestBindingsResponse
-	(*RenderSpecRequest)(nil),             // 33: vrooli.experience_manager.v1.contract.RenderSpecRequest
-	(*RenderSpecResponse)(nil),            // 34: vrooli.experience_manager.v1.contract.RenderSpecResponse
-	(*CompareVariantsRequest)(nil),        // 35: vrooli.experience_manager.v1.contract.CompareVariantsRequest
-	(*CompareVariantsResponse)(nil),       // 36: vrooli.experience_manager.v1.contract.CompareVariantsResponse
-	(*PromoteVariantRequest)(nil),         // 37: vrooli.experience_manager.v1.contract.PromoteVariantRequest
-	(*PromoteVariantResponse)(nil),        // 38: vrooli.experience_manager.v1.contract.PromoteVariantResponse
-	(*SpecVariant)(nil),                   // 39: vrooli.experience_manager.v1.contract.SpecVariant
-	(*RenderedVariant)(nil),               // 40: vrooli.experience_manager.v1.contract.RenderedVariant
-	(*AuthoringSession)(nil),              // 41: vrooli.experience_manager.v1.contract.AuthoringSession
-	(*PageDraft)(nil),                     // 42: vrooli.experience_manager.v1.contract.PageDraft
-	(*FileDiff)(nil),                      // 43: vrooli.experience_manager.v1.contract.FileDiff
-	(*SpecDocument)(nil),                  // 44: vrooli.experience_manager.v1.contract.SpecDocument
-	(*BindingSuggestion)(nil),             // 45: vrooli.experience_manager.v1.contract.BindingSuggestion
-	(*PageForm)(nil),                      // 46: vrooli.experience_manager.v1.contract.PageForm
-	(*PriorityForm)(nil),                  // 47: vrooli.experience_manager.v1.contract.PriorityForm
-	(*StateForm)(nil),                     // 48: vrooli.experience_manager.v1.contract.StateForm
-	(*ElementForm)(nil),                   // 49: vrooli.experience_manager.v1.contract.ElementForm
-	(*ClaimForm)(nil),                     // 50: vrooli.experience_manager.v1.contract.ClaimForm
-	(*BindingForm)(nil),                   // 51: vrooli.experience_manager.v1.contract.BindingForm
-	(*SketchRegionForm)(nil),              // 52: vrooli.experience_manager.v1.contract.SketchRegionForm
-	(*v1.MaturityAssessment)(nil),         // 53: common.v1.MaturityAssessment
+	(*MeasuredBounds)(nil),                // 30: vrooli.experience_manager.v1.contract.MeasuredBounds
+	(*MeasuredSubject)(nil),               // 31: vrooli.experience_manager.v1.contract.MeasuredSubject
+	(*ClaimMeasurement)(nil),              // 32: vrooli.experience_manager.v1.contract.ClaimMeasurement
+	(*ReconciliationEvidence)(nil),        // 33: vrooli.experience_manager.v1.contract.ReconciliationEvidence
+	(*SuggestBindingsRequest)(nil),        // 34: vrooli.experience_manager.v1.contract.SuggestBindingsRequest
+	(*SuggestBindingsResponse)(nil),       // 35: vrooli.experience_manager.v1.contract.SuggestBindingsResponse
+	(*RenderSpecRequest)(nil),             // 36: vrooli.experience_manager.v1.contract.RenderSpecRequest
+	(*RenderSpecResponse)(nil),            // 37: vrooli.experience_manager.v1.contract.RenderSpecResponse
+	(*CompareVariantsRequest)(nil),        // 38: vrooli.experience_manager.v1.contract.CompareVariantsRequest
+	(*CompareVariantsResponse)(nil),       // 39: vrooli.experience_manager.v1.contract.CompareVariantsResponse
+	(*PromoteVariantRequest)(nil),         // 40: vrooli.experience_manager.v1.contract.PromoteVariantRequest
+	(*PromoteVariantResponse)(nil),        // 41: vrooli.experience_manager.v1.contract.PromoteVariantResponse
+	(*SpecVariant)(nil),                   // 42: vrooli.experience_manager.v1.contract.SpecVariant
+	(*RenderedVariant)(nil),               // 43: vrooli.experience_manager.v1.contract.RenderedVariant
+	(*AuthoringSession)(nil),              // 44: vrooli.experience_manager.v1.contract.AuthoringSession
+	(*PageDraft)(nil),                     // 45: vrooli.experience_manager.v1.contract.PageDraft
+	(*FileDiff)(nil),                      // 46: vrooli.experience_manager.v1.contract.FileDiff
+	(*SpecDocument)(nil),                  // 47: vrooli.experience_manager.v1.contract.SpecDocument
+	(*BindingSuggestion)(nil),             // 48: vrooli.experience_manager.v1.contract.BindingSuggestion
+	(*PageForm)(nil),                      // 49: vrooli.experience_manager.v1.contract.PageForm
+	(*PriorityForm)(nil),                  // 50: vrooli.experience_manager.v1.contract.PriorityForm
+	(*StateForm)(nil),                     // 51: vrooli.experience_manager.v1.contract.StateForm
+	(*ElementForm)(nil),                   // 52: vrooli.experience_manager.v1.contract.ElementForm
+	(*ClaimForm)(nil),                     // 53: vrooli.experience_manager.v1.contract.ClaimForm
+	(*BindingForm)(nil),                   // 54: vrooli.experience_manager.v1.contract.BindingForm
+	(*SketchRegionForm)(nil),              // 55: vrooli.experience_manager.v1.contract.SketchRegionForm
+	(*v1.MaturityAssessment)(nil),         // 56: common.v1.MaturityAssessment
 }
 var file_experience_manager_v1_contract_contract_proto_depIdxs = []int32{
 	12, // 0: vrooli.experience_manager.v1.contract.ValidateScenarioResponse.report:type_name -> vrooli.experience_manager.v1.contract.ExperienceContractReport
-	53, // 1: vrooli.experience_manager.v1.contract.ValidateScenarioResponse.assessment:type_name -> common.v1.MaturityAssessment
+	56, // 1: vrooli.experience_manager.v1.contract.ValidateScenarioResponse.assessment:type_name -> common.v1.MaturityAssessment
 	4,  // 2: vrooli.experience_manager.v1.contract.ListFleetResponse.scenarios:type_name -> vrooli.experience_manager.v1.contract.FleetScenario
 	11, // 3: vrooli.experience_manager.v1.contract.AppendAttestationResponse.attestation:type_name -> vrooli.experience_manager.v1.contract.ManualAttestation
-	43, // 4: vrooli.experience_manager.v1.contract.ScaffoldCasesResponse.diffs:type_name -> vrooli.experience_manager.v1.contract.FileDiff
+	46, // 4: vrooli.experience_manager.v1.contract.ScaffoldCasesResponse.diffs:type_name -> vrooli.experience_manager.v1.contract.FileDiff
 	13, // 5: vrooli.experience_manager.v1.contract.ExperienceContractReport.findings:type_name -> vrooli.experience_manager.v1.contract.ExperienceFinding
-	41, // 6: vrooli.experience_manager.v1.contract.StartAuthoringSessionResponse.session:type_name -> vrooli.experience_manager.v1.contract.AuthoringSession
-	46, // 7: vrooli.experience_manager.v1.contract.SubmitPageRequest.page:type_name -> vrooli.experience_manager.v1.contract.PageForm
-	41, // 8: vrooli.experience_manager.v1.contract.SubmitPageResponse.session:type_name -> vrooli.experience_manager.v1.contract.AuthoringSession
-	42, // 9: vrooli.experience_manager.v1.contract.SubmitPageResponse.page:type_name -> vrooli.experience_manager.v1.contract.PageDraft
-	41, // 10: vrooli.experience_manager.v1.contract.PreviewSessionResponse.session:type_name -> vrooli.experience_manager.v1.contract.AuthoringSession
-	43, // 11: vrooli.experience_manager.v1.contract.PreviewSessionResponse.diffs:type_name -> vrooli.experience_manager.v1.contract.FileDiff
+	44, // 6: vrooli.experience_manager.v1.contract.StartAuthoringSessionResponse.session:type_name -> vrooli.experience_manager.v1.contract.AuthoringSession
+	49, // 7: vrooli.experience_manager.v1.contract.SubmitPageRequest.page:type_name -> vrooli.experience_manager.v1.contract.PageForm
+	44, // 8: vrooli.experience_manager.v1.contract.SubmitPageResponse.session:type_name -> vrooli.experience_manager.v1.contract.AuthoringSession
+	45, // 9: vrooli.experience_manager.v1.contract.SubmitPageResponse.page:type_name -> vrooli.experience_manager.v1.contract.PageDraft
+	44, // 10: vrooli.experience_manager.v1.contract.PreviewSessionResponse.session:type_name -> vrooli.experience_manager.v1.contract.AuthoringSession
+	46, // 11: vrooli.experience_manager.v1.contract.PreviewSessionResponse.diffs:type_name -> vrooli.experience_manager.v1.contract.FileDiff
 	1,  // 12: vrooli.experience_manager.v1.contract.PreviewSessionResponse.validation:type_name -> vrooli.experience_manager.v1.contract.ValidateScenarioResponse
-	41, // 13: vrooli.experience_manager.v1.contract.ApplySessionResponse.session:type_name -> vrooli.experience_manager.v1.contract.AuthoringSession
-	43, // 14: vrooli.experience_manager.v1.contract.ApplySessionResponse.diffs:type_name -> vrooli.experience_manager.v1.contract.FileDiff
+	44, // 13: vrooli.experience_manager.v1.contract.ApplySessionResponse.session:type_name -> vrooli.experience_manager.v1.contract.AuthoringSession
+	46, // 14: vrooli.experience_manager.v1.contract.ApplySessionResponse.diffs:type_name -> vrooli.experience_manager.v1.contract.FileDiff
 	1,  // 15: vrooli.experience_manager.v1.contract.ApplySessionResponse.validation:type_name -> vrooli.experience_manager.v1.contract.ValidateScenarioResponse
-	44, // 16: vrooli.experience_manager.v1.contract.ListSpecResponse.pages:type_name -> vrooli.experience_manager.v1.contract.SpecDocument
-	44, // 17: vrooli.experience_manager.v1.contract.ListSpecResponse.journeys:type_name -> vrooli.experience_manager.v1.contract.SpecDocument
-	44, // 18: vrooli.experience_manager.v1.contract.ListSpecResponse.components:type_name -> vrooli.experience_manager.v1.contract.SpecDocument
-	30, // 19: vrooli.experience_manager.v1.contract.ListEvidenceResponse.evidence:type_name -> vrooli.experience_manager.v1.contract.ReconciliationEvidence
-	45, // 20: vrooli.experience_manager.v1.contract.SuggestBindingsResponse.suggestions:type_name -> vrooli.experience_manager.v1.contract.BindingSuggestion
-	39, // 21: vrooli.experience_manager.v1.contract.CompareVariantsRequest.variants:type_name -> vrooli.experience_manager.v1.contract.SpecVariant
-	40, // 22: vrooli.experience_manager.v1.contract.CompareVariantsResponse.variants:type_name -> vrooli.experience_manager.v1.contract.RenderedVariant
-	39, // 23: vrooli.experience_manager.v1.contract.PromoteVariantRequest.variant:type_name -> vrooli.experience_manager.v1.contract.SpecVariant
-	40, // 24: vrooli.experience_manager.v1.contract.PromoteVariantResponse.variant:type_name -> vrooli.experience_manager.v1.contract.RenderedVariant
-	43, // 25: vrooli.experience_manager.v1.contract.PromoteVariantResponse.diffs:type_name -> vrooli.experience_manager.v1.contract.FileDiff
-	1,  // 26: vrooli.experience_manager.v1.contract.PromoteVariantResponse.validation:type_name -> vrooli.experience_manager.v1.contract.ValidateScenarioResponse
-	46, // 27: vrooli.experience_manager.v1.contract.SpecVariant.page:type_name -> vrooli.experience_manager.v1.contract.PageForm
-	47, // 28: vrooli.experience_manager.v1.contract.PageForm.priorities:type_name -> vrooli.experience_manager.v1.contract.PriorityForm
-	48, // 29: vrooli.experience_manager.v1.contract.PageForm.states:type_name -> vrooli.experience_manager.v1.contract.StateForm
-	49, // 30: vrooli.experience_manager.v1.contract.PageForm.elements:type_name -> vrooli.experience_manager.v1.contract.ElementForm
-	50, // 31: vrooli.experience_manager.v1.contract.PageForm.claims:type_name -> vrooli.experience_manager.v1.contract.ClaimForm
-	51, // 32: vrooli.experience_manager.v1.contract.PageForm.bindings:type_name -> vrooli.experience_manager.v1.contract.BindingForm
-	52, // 33: vrooli.experience_manager.v1.contract.PageForm.sketch_regions:type_name -> vrooli.experience_manager.v1.contract.SketchRegionForm
-	0,  // 34: vrooli.experience_manager.v1.contract.ContractService.ValidateScenario:input_type -> vrooli.experience_manager.v1.contract.ValidateScenarioRequest
-	2,  // 35: vrooli.experience_manager.v1.contract.ContractService.ListFleet:input_type -> vrooli.experience_manager.v1.contract.ListFleetRequest
-	5,  // 36: vrooli.experience_manager.v1.contract.ContractService.AppendAttestation:input_type -> vrooli.experience_manager.v1.contract.AppendAttestationRequest
-	7,  // 37: vrooli.experience_manager.v1.contract.ContractService.ScaffoldCases:input_type -> vrooli.experience_manager.v1.contract.ScaffoldCasesRequest
-	9,  // 38: vrooli.experience_manager.v1.contract.ContractService.GetReadinessProfile:input_type -> vrooli.experience_manager.v1.contract.GetReadinessProfileRequest
-	14, // 39: vrooli.experience_manager.v1.contract.StudioSessionService.StartAuthoringSession:input_type -> vrooli.experience_manager.v1.contract.StartAuthoringSessionRequest
-	16, // 40: vrooli.experience_manager.v1.contract.StudioSessionService.SubmitPage:input_type -> vrooli.experience_manager.v1.contract.SubmitPageRequest
-	18, // 41: vrooli.experience_manager.v1.contract.StudioSessionService.PreviewSession:input_type -> vrooli.experience_manager.v1.contract.PreviewSessionRequest
-	20, // 42: vrooli.experience_manager.v1.contract.StudioSessionService.ApplySession:input_type -> vrooli.experience_manager.v1.contract.ApplySessionRequest
-	22, // 43: vrooli.experience_manager.v1.contract.StudioSessionService.DiscardSession:input_type -> vrooli.experience_manager.v1.contract.DiscardSessionRequest
-	24, // 44: vrooli.experience_manager.v1.contract.StudioSessionService.ListSpec:input_type -> vrooli.experience_manager.v1.contract.ListSpecRequest
-	26, // 45: vrooli.experience_manager.v1.contract.StudioSessionService.ShowSpec:input_type -> vrooli.experience_manager.v1.contract.ShowSpecRequest
-	28, // 46: vrooli.experience_manager.v1.contract.StudioSessionService.ListEvidence:input_type -> vrooli.experience_manager.v1.contract.ListEvidenceRequest
-	31, // 47: vrooli.experience_manager.v1.contract.StudioSessionService.SuggestBindings:input_type -> vrooli.experience_manager.v1.contract.SuggestBindingsRequest
-	33, // 48: vrooli.experience_manager.v1.contract.StudioSessionService.RenderSpec:input_type -> vrooli.experience_manager.v1.contract.RenderSpecRequest
-	35, // 49: vrooli.experience_manager.v1.contract.StudioSessionService.CompareVariants:input_type -> vrooli.experience_manager.v1.contract.CompareVariantsRequest
-	37, // 50: vrooli.experience_manager.v1.contract.StudioSessionService.PromoteVariant:input_type -> vrooli.experience_manager.v1.contract.PromoteVariantRequest
-	1,  // 51: vrooli.experience_manager.v1.contract.ContractService.ValidateScenario:output_type -> vrooli.experience_manager.v1.contract.ValidateScenarioResponse
-	3,  // 52: vrooli.experience_manager.v1.contract.ContractService.ListFleet:output_type -> vrooli.experience_manager.v1.contract.ListFleetResponse
-	6,  // 53: vrooli.experience_manager.v1.contract.ContractService.AppendAttestation:output_type -> vrooli.experience_manager.v1.contract.AppendAttestationResponse
-	8,  // 54: vrooli.experience_manager.v1.contract.ContractService.ScaffoldCases:output_type -> vrooli.experience_manager.v1.contract.ScaffoldCasesResponse
-	10, // 55: vrooli.experience_manager.v1.contract.ContractService.GetReadinessProfile:output_type -> vrooli.experience_manager.v1.contract.GetReadinessProfileResponse
-	15, // 56: vrooli.experience_manager.v1.contract.StudioSessionService.StartAuthoringSession:output_type -> vrooli.experience_manager.v1.contract.StartAuthoringSessionResponse
-	17, // 57: vrooli.experience_manager.v1.contract.StudioSessionService.SubmitPage:output_type -> vrooli.experience_manager.v1.contract.SubmitPageResponse
-	19, // 58: vrooli.experience_manager.v1.contract.StudioSessionService.PreviewSession:output_type -> vrooli.experience_manager.v1.contract.PreviewSessionResponse
-	21, // 59: vrooli.experience_manager.v1.contract.StudioSessionService.ApplySession:output_type -> vrooli.experience_manager.v1.contract.ApplySessionResponse
-	23, // 60: vrooli.experience_manager.v1.contract.StudioSessionService.DiscardSession:output_type -> vrooli.experience_manager.v1.contract.DiscardSessionResponse
-	25, // 61: vrooli.experience_manager.v1.contract.StudioSessionService.ListSpec:output_type -> vrooli.experience_manager.v1.contract.ListSpecResponse
-	27, // 62: vrooli.experience_manager.v1.contract.StudioSessionService.ShowSpec:output_type -> vrooli.experience_manager.v1.contract.ShowSpecResponse
-	29, // 63: vrooli.experience_manager.v1.contract.StudioSessionService.ListEvidence:output_type -> vrooli.experience_manager.v1.contract.ListEvidenceResponse
-	32, // 64: vrooli.experience_manager.v1.contract.StudioSessionService.SuggestBindings:output_type -> vrooli.experience_manager.v1.contract.SuggestBindingsResponse
-	34, // 65: vrooli.experience_manager.v1.contract.StudioSessionService.RenderSpec:output_type -> vrooli.experience_manager.v1.contract.RenderSpecResponse
-	36, // 66: vrooli.experience_manager.v1.contract.StudioSessionService.CompareVariants:output_type -> vrooli.experience_manager.v1.contract.CompareVariantsResponse
-	38, // 67: vrooli.experience_manager.v1.contract.StudioSessionService.PromoteVariant:output_type -> vrooli.experience_manager.v1.contract.PromoteVariantResponse
-	51, // [51:68] is the sub-list for method output_type
-	34, // [34:51] is the sub-list for method input_type
-	34, // [34:34] is the sub-list for extension type_name
-	34, // [34:34] is the sub-list for extension extendee
-	0,  // [0:34] is the sub-list for field type_name
+	47, // 16: vrooli.experience_manager.v1.contract.ListSpecResponse.pages:type_name -> vrooli.experience_manager.v1.contract.SpecDocument
+	47, // 17: vrooli.experience_manager.v1.contract.ListSpecResponse.journeys:type_name -> vrooli.experience_manager.v1.contract.SpecDocument
+	47, // 18: vrooli.experience_manager.v1.contract.ListSpecResponse.components:type_name -> vrooli.experience_manager.v1.contract.SpecDocument
+	33, // 19: vrooli.experience_manager.v1.contract.ListEvidenceResponse.evidence:type_name -> vrooli.experience_manager.v1.contract.ReconciliationEvidence
+	30, // 20: vrooli.experience_manager.v1.contract.MeasuredSubject.bounds:type_name -> vrooli.experience_manager.v1.contract.MeasuredBounds
+	31, // 21: vrooli.experience_manager.v1.contract.ClaimMeasurement.subjects:type_name -> vrooli.experience_manager.v1.contract.MeasuredSubject
+	32, // 22: vrooli.experience_manager.v1.contract.ReconciliationEvidence.measurement:type_name -> vrooli.experience_manager.v1.contract.ClaimMeasurement
+	48, // 23: vrooli.experience_manager.v1.contract.SuggestBindingsResponse.suggestions:type_name -> vrooli.experience_manager.v1.contract.BindingSuggestion
+	42, // 24: vrooli.experience_manager.v1.contract.CompareVariantsRequest.variants:type_name -> vrooli.experience_manager.v1.contract.SpecVariant
+	43, // 25: vrooli.experience_manager.v1.contract.CompareVariantsResponse.variants:type_name -> vrooli.experience_manager.v1.contract.RenderedVariant
+	42, // 26: vrooli.experience_manager.v1.contract.PromoteVariantRequest.variant:type_name -> vrooli.experience_manager.v1.contract.SpecVariant
+	43, // 27: vrooli.experience_manager.v1.contract.PromoteVariantResponse.variant:type_name -> vrooli.experience_manager.v1.contract.RenderedVariant
+	46, // 28: vrooli.experience_manager.v1.contract.PromoteVariantResponse.diffs:type_name -> vrooli.experience_manager.v1.contract.FileDiff
+	1,  // 29: vrooli.experience_manager.v1.contract.PromoteVariantResponse.validation:type_name -> vrooli.experience_manager.v1.contract.ValidateScenarioResponse
+	49, // 30: vrooli.experience_manager.v1.contract.SpecVariant.page:type_name -> vrooli.experience_manager.v1.contract.PageForm
+	50, // 31: vrooli.experience_manager.v1.contract.PageForm.priorities:type_name -> vrooli.experience_manager.v1.contract.PriorityForm
+	51, // 32: vrooli.experience_manager.v1.contract.PageForm.states:type_name -> vrooli.experience_manager.v1.contract.StateForm
+	52, // 33: vrooli.experience_manager.v1.contract.PageForm.elements:type_name -> vrooli.experience_manager.v1.contract.ElementForm
+	53, // 34: vrooli.experience_manager.v1.contract.PageForm.claims:type_name -> vrooli.experience_manager.v1.contract.ClaimForm
+	54, // 35: vrooli.experience_manager.v1.contract.PageForm.bindings:type_name -> vrooli.experience_manager.v1.contract.BindingForm
+	55, // 36: vrooli.experience_manager.v1.contract.PageForm.sketch_regions:type_name -> vrooli.experience_manager.v1.contract.SketchRegionForm
+	0,  // 37: vrooli.experience_manager.v1.contract.ContractService.ValidateScenario:input_type -> vrooli.experience_manager.v1.contract.ValidateScenarioRequest
+	2,  // 38: vrooli.experience_manager.v1.contract.ContractService.ListFleet:input_type -> vrooli.experience_manager.v1.contract.ListFleetRequest
+	5,  // 39: vrooli.experience_manager.v1.contract.ContractService.AppendAttestation:input_type -> vrooli.experience_manager.v1.contract.AppendAttestationRequest
+	7,  // 40: vrooli.experience_manager.v1.contract.ContractService.ScaffoldCases:input_type -> vrooli.experience_manager.v1.contract.ScaffoldCasesRequest
+	9,  // 41: vrooli.experience_manager.v1.contract.ContractService.GetReadinessProfile:input_type -> vrooli.experience_manager.v1.contract.GetReadinessProfileRequest
+	14, // 42: vrooli.experience_manager.v1.contract.StudioSessionService.StartAuthoringSession:input_type -> vrooli.experience_manager.v1.contract.StartAuthoringSessionRequest
+	16, // 43: vrooli.experience_manager.v1.contract.StudioSessionService.SubmitPage:input_type -> vrooli.experience_manager.v1.contract.SubmitPageRequest
+	18, // 44: vrooli.experience_manager.v1.contract.StudioSessionService.PreviewSession:input_type -> vrooli.experience_manager.v1.contract.PreviewSessionRequest
+	20, // 45: vrooli.experience_manager.v1.contract.StudioSessionService.ApplySession:input_type -> vrooli.experience_manager.v1.contract.ApplySessionRequest
+	22, // 46: vrooli.experience_manager.v1.contract.StudioSessionService.DiscardSession:input_type -> vrooli.experience_manager.v1.contract.DiscardSessionRequest
+	24, // 47: vrooli.experience_manager.v1.contract.StudioSessionService.ListSpec:input_type -> vrooli.experience_manager.v1.contract.ListSpecRequest
+	26, // 48: vrooli.experience_manager.v1.contract.StudioSessionService.ShowSpec:input_type -> vrooli.experience_manager.v1.contract.ShowSpecRequest
+	28, // 49: vrooli.experience_manager.v1.contract.StudioSessionService.ListEvidence:input_type -> vrooli.experience_manager.v1.contract.ListEvidenceRequest
+	34, // 50: vrooli.experience_manager.v1.contract.StudioSessionService.SuggestBindings:input_type -> vrooli.experience_manager.v1.contract.SuggestBindingsRequest
+	36, // 51: vrooli.experience_manager.v1.contract.StudioSessionService.RenderSpec:input_type -> vrooli.experience_manager.v1.contract.RenderSpecRequest
+	38, // 52: vrooli.experience_manager.v1.contract.StudioSessionService.CompareVariants:input_type -> vrooli.experience_manager.v1.contract.CompareVariantsRequest
+	40, // 53: vrooli.experience_manager.v1.contract.StudioSessionService.PromoteVariant:input_type -> vrooli.experience_manager.v1.contract.PromoteVariantRequest
+	1,  // 54: vrooli.experience_manager.v1.contract.ContractService.ValidateScenario:output_type -> vrooli.experience_manager.v1.contract.ValidateScenarioResponse
+	3,  // 55: vrooli.experience_manager.v1.contract.ContractService.ListFleet:output_type -> vrooli.experience_manager.v1.contract.ListFleetResponse
+	6,  // 56: vrooli.experience_manager.v1.contract.ContractService.AppendAttestation:output_type -> vrooli.experience_manager.v1.contract.AppendAttestationResponse
+	8,  // 57: vrooli.experience_manager.v1.contract.ContractService.ScaffoldCases:output_type -> vrooli.experience_manager.v1.contract.ScaffoldCasesResponse
+	10, // 58: vrooli.experience_manager.v1.contract.ContractService.GetReadinessProfile:output_type -> vrooli.experience_manager.v1.contract.GetReadinessProfileResponse
+	15, // 59: vrooli.experience_manager.v1.contract.StudioSessionService.StartAuthoringSession:output_type -> vrooli.experience_manager.v1.contract.StartAuthoringSessionResponse
+	17, // 60: vrooli.experience_manager.v1.contract.StudioSessionService.SubmitPage:output_type -> vrooli.experience_manager.v1.contract.SubmitPageResponse
+	19, // 61: vrooli.experience_manager.v1.contract.StudioSessionService.PreviewSession:output_type -> vrooli.experience_manager.v1.contract.PreviewSessionResponse
+	21, // 62: vrooli.experience_manager.v1.contract.StudioSessionService.ApplySession:output_type -> vrooli.experience_manager.v1.contract.ApplySessionResponse
+	23, // 63: vrooli.experience_manager.v1.contract.StudioSessionService.DiscardSession:output_type -> vrooli.experience_manager.v1.contract.DiscardSessionResponse
+	25, // 64: vrooli.experience_manager.v1.contract.StudioSessionService.ListSpec:output_type -> vrooli.experience_manager.v1.contract.ListSpecResponse
+	27, // 65: vrooli.experience_manager.v1.contract.StudioSessionService.ShowSpec:output_type -> vrooli.experience_manager.v1.contract.ShowSpecResponse
+	29, // 66: vrooli.experience_manager.v1.contract.StudioSessionService.ListEvidence:output_type -> vrooli.experience_manager.v1.contract.ListEvidenceResponse
+	35, // 67: vrooli.experience_manager.v1.contract.StudioSessionService.SuggestBindings:output_type -> vrooli.experience_manager.v1.contract.SuggestBindingsResponse
+	37, // 68: vrooli.experience_manager.v1.contract.StudioSessionService.RenderSpec:output_type -> vrooli.experience_manager.v1.contract.RenderSpecResponse
+	39, // 69: vrooli.experience_manager.v1.contract.StudioSessionService.CompareVariants:output_type -> vrooli.experience_manager.v1.contract.CompareVariantsResponse
+	41, // 70: vrooli.experience_manager.v1.contract.StudioSessionService.PromoteVariant:output_type -> vrooli.experience_manager.v1.contract.PromoteVariantResponse
+	54, // [54:71] is the sub-list for method output_type
+	37, // [37:54] is the sub-list for method input_type
+	37, // [37:37] is the sub-list for extension type_name
+	37, // [37:37] is the sub-list for extension extendee
+	0,  // [0:37] is the sub-list for field type_name
 }
 
 func init() { file_experience_manager_v1_contract_contract_proto_init() }
@@ -4201,13 +4468,14 @@ func file_experience_manager_v1_contract_contract_proto_init() {
 	if File_experience_manager_v1_contract_contract_proto != nil {
 		return
 	}
+	file_experience_manager_v1_contract_contract_proto_msgTypes[32].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_experience_manager_v1_contract_contract_proto_rawDesc), len(file_experience_manager_v1_contract_contract_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   53,
+			NumMessages:   56,
 			NumExtensions: 0,
 			NumServices:   2,
 		},

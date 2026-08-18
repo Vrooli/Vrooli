@@ -12,7 +12,7 @@ import { useSurfaceState } from "../hooks/useSurfaceState";
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { useTranslation } from "../i18n";
-import { configuredBookId, fetchAccounts, fetchAdapters, fetchBooks, fetchOperatorInputStatus, importFile, importOperatorInputsJSON, registerAdapter, runAdapter } from "../api/ledger";
+import { configuredBookId, fetchAdapters, fetchBooks, fetchOperatorInputStatus, importFile, importOperatorInputsJSON, registerAdapter, runAdapter } from "../api/ledger";
 import { AdapterKind } from "@vrooli/proto-types/money-ledger/v1/ingest/ingest_pb";
 import { formatDate } from "../i18n/format";
 
@@ -39,7 +39,6 @@ export function AdaptersPage() {
   const adapters = useQuery({ queryKey: ["adapters"], queryFn: fetchAdapters, retry: false });
   const books = useQuery({ queryKey: ["operator-books"], queryFn: fetchBooks, retry: false });
   const operatorBookId = configuredBookId() || books.data?.books[0]?.id || "";
-  const accounts = useQuery({ queryKey: ["operator-accounts", operatorBookId], queryFn: () => fetchAccounts(operatorBookId), retry: false, enabled: Boolean(operatorBookId) });
   const operatorStatus = useQuery({ queryKey: ["operator-input-status", operatorBookId], queryFn: () => fetchOperatorInputStatus(operatorBookId), retry: false, enabled: Boolean(operatorBookId) });
   const unavailable = Boolean(adapters.data?.adapters.some((adapter) => !adapter.enabled || adapter.availabilityReason));
   const surface = useSurfaceState({
@@ -64,7 +63,12 @@ export function AdaptersPage() {
         return { value: raw.trim() === "" ? null : Number(raw), status: raw.trim() === "" ? "pending-operator" : "current", updatedAt: raw.trim() === "" ? null : new Date().toISOString() };
       };
       const payload = { cash: field("cash"), monthlyBurn: { aiApi: field("monthlyBurn.aiApi"), infrastructure: field("monthlyBurn.infrastructure"), saas: field("monthlyBurn.saas"), tooling: field("monthlyBurn.tooling") }, timeAllocation: { product: field("timeAllocation.product"), services: field("timeAllocation.services"), ops: field("timeAllocation.ops") }, servicesRevenue: { leadGen: field("servicesRevenue.leadGen"), doneForYou: field("servicesRevenue.doneForYou"), consulting: field("servicesRevenue.consulting") }, servicesTime: { hoursThisWindow: field("servicesTime.hoursThisWindow") }, subscriptions: { mrr: field("subscriptions.mrr") } };
-      return importOperatorInputsJSON({ bookId: operatorBookId, accountId: accounts.data?.accounts[0]?.id ?? "", adapterId: "operator-console", sourceJson: new TextEncoder().encode(JSON.stringify(payload)), apply });
+      // accountId is deliberately empty: the API routes each field to the account
+      // kind position actually reads (cash -> ASSET, monthlyBurn.* -> EXPENSE,
+      // servicesRevenue.* -> REVENUE). Passing accounts[0] posted every figure
+      // into one asset account, so position reported revenue=0 and burn=0 no
+      // matter what was typed here.
+      return importOperatorInputsJSON({ bookId: operatorBookId, accountId: "", adapterId: "operator-console", sourceJson: new TextEncoder().encode(JSON.stringify(payload)), apply });
     },
     onSuccess: async (report, apply) => {
       setOperatorReport(report);
@@ -145,7 +149,7 @@ export function AdaptersPage() {
           <form className="grid gap-3 sm:grid-cols-2" onSubmit={(event) => { event.preventDefault(); operatorMutation.mutate(false); }}>
             {operatorFields.filter(([, , kind]) => kind !== "derived-rate").map(([path, label, kind]) => <label key={path} className="grid gap-1" htmlFor={`operator-${path.replace(/\./g, "-")}`}><span>{label} <small className="text-app-muted-foreground">({kind})</small></span><Input id={`operator-${path.replace(/\./g, "-")}`} type="number" value={operatorValues[path] ?? ""} onChange={(event) => setOperatorValues({ ...operatorValues, [path]: event.target.value })} placeholder={t(strings.pages.adapters.absentUntilSupplied)} /></label>)}
             <p id="operator-input-derived-rate-refusal" data-testid="operator-input-derived-rate-refusal" role="note" className="rounded border p-2 text-sm text-app-muted-foreground">{t(strings.pages.adapters.derivedRateRefusal)}</p>
-            <div className="flex flex-wrap gap-2 sm:col-span-2"><Button type="submit" disabled={operatorMutation.isPending || !operatorBookId || !accounts.data?.accounts[0]?.id}>{t(strings.pages.adapters.previewImport)}</Button><Button type="button" variant="secondary" disabled={operatorMutation.isPending || !operatorReport || !operatorBookId || !accounts.data?.accounts[0]?.id} onClick={() => operatorMutation.mutate(true)}>{t(strings.pages.adapters.applyReviewedImport)}</Button></div>
+            <div className="flex flex-wrap gap-2 sm:col-span-2"><Button type="submit" disabled={operatorMutation.isPending || !operatorBookId}>{t(strings.pages.adapters.previewImport)}</Button><Button type="button" variant="secondary" disabled={operatorMutation.isPending || !operatorReport || !operatorBookId} onClick={() => operatorMutation.mutate(true)}>{t(strings.pages.adapters.applyReviewedImport)}</Button></div>
           </form>
           {operatorReport && <div data-testid="operator-input-report" role="status" className="rounded border p-3 text-sm"><p className="font-medium">{t(strings.pages.adapters.reportTitle)}</p><ul className="mt-2 grid gap-1">{operatorReport.fields.map((field) => <li key={field.path}>{field.path}: {field.status}{field.written ? ` · ${t(strings.pages.adapters.written)}` : ""}{field.reason ? ` · ${field.reason}` : ""}</li>)}</ul></div>}
         </CardContent>

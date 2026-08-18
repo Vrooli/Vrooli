@@ -1,0 +1,36 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "prepare-a-persona-for-first-use",
+    "title": "Set up an identity worth trusting",
+    "purpose": "Bring a persona from nothing to genuinely usable. The journey is deliberately front-loaded with the legal basis, because everything downstream asserts it and it can never be edited afterwards."
+  },
+  "steps": [
+    {
+      "page": "personas",
+      "state": "empty",
+      "intent": "Understand that a persona represents a real person or entity, not a throwaway account.",
+      "via": "Arrive with no personas configured."
+    },
+    {
+      "page": "personas",
+      "state": "default",
+      "intent": "Create the persona by declaring its kind and its legal basis as a deliberate statement.",
+      "via": "Complete the creation form."
+    },
+    {
+      "page": "persona-detail",
+      "state": "partial",
+      "intent": "See plainly what is still missing before this identity can be used for anything.",
+      "via": "Land on the new record."
+    },
+    {
+      "page": "persona-detail",
+      "state": "default",
+      "intent": "Confirm the persona can receive mail and codes, points at the documents it needs, and names who may act as it.",
+      "via": "Bind a channel, bind documents, and set the ACL."
+    }
+  ]
+}

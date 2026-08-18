@@ -41,6 +41,9 @@ const (
 	// ConfigServiceVerifyCredentialsProcedure is the fully-qualified name of the ConfigService's
 	// VerifyCredentials RPC.
 	ConfigServiceVerifyCredentialsProcedure = "/vrooli.tunnel_manager.v1.config.ConfigService/VerifyCredentials"
+	// ConfigServiceBootstrapCloudflareProcedure is the fully-qualified name of the ConfigService's
+	// BootstrapCloudflare RPC.
+	ConfigServiceBootstrapCloudflareProcedure = "/vrooli.tunnel_manager.v1.config.ConfigService/BootstrapCloudflare"
 	// ConfigServiceSetCloudflareCredentialsProcedure is the fully-qualified name of the ConfigService's
 	// SetCloudflareCredentials RPC.
 	ConfigServiceSetCloudflareCredentialsProcedure = "/vrooli.tunnel_manager.v1.config.ConfigService/SetCloudflareCredentials"
@@ -82,6 +85,10 @@ type ConfigServiceClient interface {
 	// per-check verdict with remediation. It is the opt-in counterpart to the
 	// presence-only GetCredentialStatus and never returns credential values.
 	VerifyCredentials(context.Context, *connect.Request[config.VerifyCredentialsRequest]) (*connect.Response[config.VerifyCredentialsResponse], error)
+	// BootstrapCloudflare adopts or creates the named tunnel from one
+	// write-only API token, then stores all derived authority fields. The token
+	// is never returned.
+	BootstrapCloudflare(context.Context, *connect.Request[config.BootstrapCloudflareRequest]) (*connect.Response[config.BootstrapCloudflareResponse], error)
 	// SetCloudflareCredentials stores write-only Cloudflare credential values in
 	// the configured operator secret store. Secret values are never echoed back.
 	SetCloudflareCredentials(context.Context, *connect.Request[config.SetCloudflareCredentialsRequest]) (*connect.Response[config.SetCloudflareCredentialsResponse], error)
@@ -148,6 +155,12 @@ func NewConfigServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			httpClient,
 			baseURL+ConfigServiceVerifyCredentialsProcedure,
 			connect.WithSchema(configServiceMethods.ByName("VerifyCredentials")),
+			connect.WithClientOptions(opts...),
+		),
+		bootstrapCloudflare: connect.NewClient[config.BootstrapCloudflareRequest, config.BootstrapCloudflareResponse](
+			httpClient,
+			baseURL+ConfigServiceBootstrapCloudflareProcedure,
+			connect.WithSchema(configServiceMethods.ByName("BootstrapCloudflare")),
 			connect.WithClientOptions(opts...),
 		),
 		setCloudflareCredentials: connect.NewClient[config.SetCloudflareCredentialsRequest, config.SetCloudflareCredentialsResponse](
@@ -218,6 +231,7 @@ type configServiceClient struct {
 	getConfig                  *connect.Client[config.GetConfigRequest, config.GetConfigResponse]
 	getCredentialStatus        *connect.Client[config.GetCredentialStatusRequest, config.GetCredentialStatusResponse]
 	verifyCredentials          *connect.Client[config.VerifyCredentialsRequest, config.VerifyCredentialsResponse]
+	bootstrapCloudflare        *connect.Client[config.BootstrapCloudflareRequest, config.BootstrapCloudflareResponse]
 	setCloudflareCredentials   *connect.Client[config.SetCloudflareCredentialsRequest, config.SetCloudflareCredentialsResponse]
 	clearCloudflareCredentials *connect.Client[config.ClearCloudflareCredentialsRequest, config.ClearCloudflareCredentialsResponse]
 	sync                       *connect.Client[config.SyncRequest, config.SyncResponse]
@@ -243,6 +257,11 @@ func (c *configServiceClient) GetCredentialStatus(ctx context.Context, req *conn
 // VerifyCredentials calls vrooli.tunnel_manager.v1.config.ConfigService.VerifyCredentials.
 func (c *configServiceClient) VerifyCredentials(ctx context.Context, req *connect.Request[config.VerifyCredentialsRequest]) (*connect.Response[config.VerifyCredentialsResponse], error) {
 	return c.verifyCredentials.CallUnary(ctx, req)
+}
+
+// BootstrapCloudflare calls vrooli.tunnel_manager.v1.config.ConfigService.BootstrapCloudflare.
+func (c *configServiceClient) BootstrapCloudflare(ctx context.Context, req *connect.Request[config.BootstrapCloudflareRequest]) (*connect.Response[config.BootstrapCloudflareResponse], error) {
+	return c.bootstrapCloudflare.CallUnary(ctx, req)
 }
 
 // SetCloudflareCredentials calls
@@ -309,6 +328,10 @@ type ConfigServiceHandler interface {
 	// per-check verdict with remediation. It is the opt-in counterpart to the
 	// presence-only GetCredentialStatus and never returns credential values.
 	VerifyCredentials(context.Context, *connect.Request[config.VerifyCredentialsRequest]) (*connect.Response[config.VerifyCredentialsResponse], error)
+	// BootstrapCloudflare adopts or creates the named tunnel from one
+	// write-only API token, then stores all derived authority fields. The token
+	// is never returned.
+	BootstrapCloudflare(context.Context, *connect.Request[config.BootstrapCloudflareRequest]) (*connect.Response[config.BootstrapCloudflareResponse], error)
 	// SetCloudflareCredentials stores write-only Cloudflare credential values in
 	// the configured operator secret store. Secret values are never echoed back.
 	SetCloudflareCredentials(context.Context, *connect.Request[config.SetCloudflareCredentialsRequest]) (*connect.Response[config.SetCloudflareCredentialsResponse], error)
@@ -371,6 +394,12 @@ func NewConfigServiceHandler(svc ConfigServiceHandler, opts ...connect.HandlerOp
 		ConfigServiceVerifyCredentialsProcedure,
 		svc.VerifyCredentials,
 		connect.WithSchema(configServiceMethods.ByName("VerifyCredentials")),
+		connect.WithHandlerOptions(opts...),
+	)
+	configServiceBootstrapCloudflareHandler := connect.NewUnaryHandler(
+		ConfigServiceBootstrapCloudflareProcedure,
+		svc.BootstrapCloudflare,
+		connect.WithSchema(configServiceMethods.ByName("BootstrapCloudflare")),
 		connect.WithHandlerOptions(opts...),
 	)
 	configServiceSetCloudflareCredentialsHandler := connect.NewUnaryHandler(
@@ -441,6 +470,8 @@ func NewConfigServiceHandler(svc ConfigServiceHandler, opts ...connect.HandlerOp
 			configServiceGetCredentialStatusHandler.ServeHTTP(w, r)
 		case ConfigServiceVerifyCredentialsProcedure:
 			configServiceVerifyCredentialsHandler.ServeHTTP(w, r)
+		case ConfigServiceBootstrapCloudflareProcedure:
+			configServiceBootstrapCloudflareHandler.ServeHTTP(w, r)
 		case ConfigServiceSetCloudflareCredentialsProcedure:
 			configServiceSetCloudflareCredentialsHandler.ServeHTTP(w, r)
 		case ConfigServiceClearCloudflareCredentialsProcedure:
@@ -480,6 +511,10 @@ func (UnimplementedConfigServiceHandler) GetCredentialStatus(context.Context, *c
 
 func (UnimplementedConfigServiceHandler) VerifyCredentials(context.Context, *connect.Request[config.VerifyCredentialsRequest]) (*connect.Response[config.VerifyCredentialsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.tunnel_manager.v1.config.ConfigService.VerifyCredentials is not implemented"))
+}
+
+func (UnimplementedConfigServiceHandler) BootstrapCloudflare(context.Context, *connect.Request[config.BootstrapCloudflareRequest]) (*connect.Response[config.BootstrapCloudflareResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.tunnel_manager.v1.config.ConfigService.BootstrapCloudflare is not implemented"))
 }
 
 func (UnimplementedConfigServiceHandler) SetCloudflareCredentials(context.Context, *connect.Request[config.SetCloudflareCredentialsRequest]) (*connect.Response[config.SetCloudflareCredentialsResponse], error) {

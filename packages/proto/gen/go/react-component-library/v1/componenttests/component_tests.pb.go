@@ -83,14 +83,15 @@ func (x *RunComponentTestRequest) GetIncludeClosure() bool {
 }
 
 type ComponentTestResult struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	Stage          string                 `protobuf:"bytes,1,opt,name=stage,proto3" json:"stage,omitempty"`
-	AssetLibraryId string                 `protobuf:"bytes,2,opt,name=asset_library_id,json=assetLibraryId,proto3" json:"asset_library_id,omitempty"`
-	Version        string                 `protobuf:"bytes,3,opt,name=version,proto3" json:"version,omitempty"`
-	Subject        string                 `protobuf:"bytes,4,opt,name=subject,proto3" json:"subject,omitempty"`
-	Verdict        string                 `protobuf:"bytes,5,opt,name=verdict,proto3" json:"verdict,omitempty"`
-	Message        string                 `protobuf:"bytes,6,opt,name=message,proto3" json:"message,omitempty"`
-	Remediation    string                 `protobuf:"bytes,7,opt,name=remediation,proto3" json:"remediation,omitempty"`
+	state          protoimpl.MessageState   `protogen:"open.v1"`
+	Stage          string                   `protobuf:"bytes,1,opt,name=stage,proto3" json:"stage,omitempty"`
+	AssetLibraryId string                   `protobuf:"bytes,2,opt,name=asset_library_id,json=assetLibraryId,proto3" json:"asset_library_id,omitempty"`
+	Version        string                   `protobuf:"bytes,3,opt,name=version,proto3" json:"version,omitempty"`
+	Subject        string                   `protobuf:"bytes,4,opt,name=subject,proto3" json:"subject,omitempty"`
+	Verdict        string                   `protobuf:"bytes,5,opt,name=verdict,proto3" json:"verdict,omitempty"`
+	Message        string                   `protobuf:"bytes,6,opt,name=message,proto3" json:"message,omitempty"`
+	Remediation    string                   `protobuf:"bytes,7,opt,name=remediation,proto3" json:"remediation,omitempty"`
+	Evidence       []*ComponentTestEvidence `protobuf:"bytes,8,rep,name=evidence,proto3" json:"evidence,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -174,6 +175,65 @@ func (x *ComponentTestResult) GetRemediation() string {
 	return ""
 }
 
+func (x *ComponentTestResult) GetEvidence() []*ComponentTestEvidence {
+	if x != nil {
+		return x.Evidence
+	}
+	return nil
+}
+
+type ComponentTestEvidence struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Kind          string                 `protobuf:"bytes,1,opt,name=kind,proto3" json:"kind,omitempty"`
+	Json          string                 `protobuf:"bytes,2,opt,name=json,proto3" json:"json,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ComponentTestEvidence) Reset() {
+	*x = ComponentTestEvidence{}
+	mi := &file_react_component_library_v1_componenttests_component_tests_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ComponentTestEvidence) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ComponentTestEvidence) ProtoMessage() {}
+
+func (x *ComponentTestEvidence) ProtoReflect() protoreflect.Message {
+	mi := &file_react_component_library_v1_componenttests_component_tests_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ComponentTestEvidence.ProtoReflect.Descriptor instead.
+func (*ComponentTestEvidence) Descriptor() ([]byte, []int) {
+	return file_react_component_library_v1_componenttests_component_tests_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *ComponentTestEvidence) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *ComponentTestEvidence) GetJson() string {
+	if x != nil {
+		return x.Json
+	}
+	return ""
+}
+
 type ComponentTestArtifact struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	Kind           string                 `protobuf:"bytes,1,opt,name=kind,proto3" json:"kind,omitempty"`
@@ -187,7 +247,7 @@ type ComponentTestArtifact struct {
 
 func (x *ComponentTestArtifact) Reset() {
 	*x = ComponentTestArtifact{}
-	mi := &file_react_component_library_v1_componenttests_component_tests_proto_msgTypes[2]
+	mi := &file_react_component_library_v1_componenttests_component_tests_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -199,7 +259,7 @@ func (x *ComponentTestArtifact) String() string {
 func (*ComponentTestArtifact) ProtoMessage() {}
 
 func (x *ComponentTestArtifact) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_componenttests_component_tests_proto_msgTypes[2]
+	mi := &file_react_component_library_v1_componenttests_component_tests_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -212,7 +272,7 @@ func (x *ComponentTestArtifact) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ComponentTestArtifact.ProtoReflect.Descriptor instead.
 func (*ComponentTestArtifact) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_componenttests_component_tests_proto_rawDescGZIP(), []int{2}
+	return file_react_component_library_v1_componenttests_component_tests_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *ComponentTestArtifact) GetKind() string {
@@ -266,7 +326,7 @@ type ComponentTestReport struct {
 
 func (x *ComponentTestReport) Reset() {
 	*x = ComponentTestReport{}
-	mi := &file_react_component_library_v1_componenttests_component_tests_proto_msgTypes[3]
+	mi := &file_react_component_library_v1_componenttests_component_tests_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -278,7 +338,7 @@ func (x *ComponentTestReport) String() string {
 func (*ComponentTestReport) ProtoMessage() {}
 
 func (x *ComponentTestReport) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_componenttests_component_tests_proto_msgTypes[3]
+	mi := &file_react_component_library_v1_componenttests_component_tests_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -291,7 +351,7 @@ func (x *ComponentTestReport) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ComponentTestReport.ProtoReflect.Descriptor instead.
 func (*ComponentTestReport) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_componenttests_component_tests_proto_rawDescGZIP(), []int{3}
+	return file_react_component_library_v1_componenttests_component_tests_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *ComponentTestReport) GetId() string {
@@ -359,7 +419,7 @@ type RunComponentTestResponse struct {
 
 func (x *RunComponentTestResponse) Reset() {
 	*x = RunComponentTestResponse{}
-	mi := &file_react_component_library_v1_componenttests_component_tests_proto_msgTypes[4]
+	mi := &file_react_component_library_v1_componenttests_component_tests_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -371,7 +431,7 @@ func (x *RunComponentTestResponse) String() string {
 func (*RunComponentTestResponse) ProtoMessage() {}
 
 func (x *RunComponentTestResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_componenttests_component_tests_proto_msgTypes[4]
+	mi := &file_react_component_library_v1_componenttests_component_tests_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -384,7 +444,7 @@ func (x *RunComponentTestResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunComponentTestResponse.ProtoReflect.Descriptor instead.
 func (*RunComponentTestResponse) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_componenttests_component_tests_proto_rawDescGZIP(), []int{4}
+	return file_react_component_library_v1_componenttests_component_tests_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *RunComponentTestResponse) GetReport() *ComponentTestReport {
@@ -403,7 +463,7 @@ type RerunComponentTestRequest struct {
 
 func (x *RerunComponentTestRequest) Reset() {
 	*x = RerunComponentTestRequest{}
-	mi := &file_react_component_library_v1_componenttests_component_tests_proto_msgTypes[5]
+	mi := &file_react_component_library_v1_componenttests_component_tests_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -415,7 +475,7 @@ func (x *RerunComponentTestRequest) String() string {
 func (*RerunComponentTestRequest) ProtoMessage() {}
 
 func (x *RerunComponentTestRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_componenttests_component_tests_proto_msgTypes[5]
+	mi := &file_react_component_library_v1_componenttests_component_tests_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -428,7 +488,7 @@ func (x *RerunComponentTestRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RerunComponentTestRequest.ProtoReflect.Descriptor instead.
 func (*RerunComponentTestRequest) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_componenttests_component_tests_proto_rawDescGZIP(), []int{5}
+	return file_react_component_library_v1_componenttests_component_tests_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *RerunComponentTestRequest) GetReportId() string {
@@ -447,7 +507,7 @@ type RerunComponentTestResponse struct {
 
 func (x *RerunComponentTestResponse) Reset() {
 	*x = RerunComponentTestResponse{}
-	mi := &file_react_component_library_v1_componenttests_component_tests_proto_msgTypes[6]
+	mi := &file_react_component_library_v1_componenttests_component_tests_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -459,7 +519,7 @@ func (x *RerunComponentTestResponse) String() string {
 func (*RerunComponentTestResponse) ProtoMessage() {}
 
 func (x *RerunComponentTestResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_componenttests_component_tests_proto_msgTypes[6]
+	mi := &file_react_component_library_v1_componenttests_component_tests_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -472,7 +532,7 @@ func (x *RerunComponentTestResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RerunComponentTestResponse.ProtoReflect.Descriptor instead.
 func (*RerunComponentTestResponse) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_componenttests_component_tests_proto_rawDescGZIP(), []int{6}
+	return file_react_component_library_v1_componenttests_component_tests_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *RerunComponentTestResponse) GetReport() *ComponentTestReport {
@@ -491,7 +551,7 @@ type GetComponentTestReportRequest struct {
 
 func (x *GetComponentTestReportRequest) Reset() {
 	*x = GetComponentTestReportRequest{}
-	mi := &file_react_component_library_v1_componenttests_component_tests_proto_msgTypes[7]
+	mi := &file_react_component_library_v1_componenttests_component_tests_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -503,7 +563,7 @@ func (x *GetComponentTestReportRequest) String() string {
 func (*GetComponentTestReportRequest) ProtoMessage() {}
 
 func (x *GetComponentTestReportRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_componenttests_component_tests_proto_msgTypes[7]
+	mi := &file_react_component_library_v1_componenttests_component_tests_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -516,7 +576,7 @@ func (x *GetComponentTestReportRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetComponentTestReportRequest.ProtoReflect.Descriptor instead.
 func (*GetComponentTestReportRequest) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_componenttests_component_tests_proto_rawDescGZIP(), []int{7}
+	return file_react_component_library_v1_componenttests_component_tests_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *GetComponentTestReportRequest) GetId() string {
@@ -535,7 +595,7 @@ type GetComponentTestReportResponse struct {
 
 func (x *GetComponentTestReportResponse) Reset() {
 	*x = GetComponentTestReportResponse{}
-	mi := &file_react_component_library_v1_componenttests_component_tests_proto_msgTypes[8]
+	mi := &file_react_component_library_v1_componenttests_component_tests_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -547,7 +607,7 @@ func (x *GetComponentTestReportResponse) String() string {
 func (*GetComponentTestReportResponse) ProtoMessage() {}
 
 func (x *GetComponentTestReportResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_componenttests_component_tests_proto_msgTypes[8]
+	mi := &file_react_component_library_v1_componenttests_component_tests_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -560,7 +620,7 @@ func (x *GetComponentTestReportResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetComponentTestReportResponse.ProtoReflect.Descriptor instead.
 func (*GetComponentTestReportResponse) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_componenttests_component_tests_proto_rawDescGZIP(), []int{8}
+	return file_react_component_library_v1_componenttests_component_tests_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *GetComponentTestReportResponse) GetReport() *ComponentTestReport {
@@ -581,7 +641,7 @@ type ListComponentTestReportsRequest struct {
 
 func (x *ListComponentTestReportsRequest) Reset() {
 	*x = ListComponentTestReportsRequest{}
-	mi := &file_react_component_library_v1_componenttests_component_tests_proto_msgTypes[9]
+	mi := &file_react_component_library_v1_componenttests_component_tests_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -593,7 +653,7 @@ func (x *ListComponentTestReportsRequest) String() string {
 func (*ListComponentTestReportsRequest) ProtoMessage() {}
 
 func (x *ListComponentTestReportsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_componenttests_component_tests_proto_msgTypes[9]
+	mi := &file_react_component_library_v1_componenttests_component_tests_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -606,7 +666,7 @@ func (x *ListComponentTestReportsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListComponentTestReportsRequest.ProtoReflect.Descriptor instead.
 func (*ListComponentTestReportsRequest) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_componenttests_component_tests_proto_rawDescGZIP(), []int{9}
+	return file_react_component_library_v1_componenttests_component_tests_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *ListComponentTestReportsRequest) GetComponentId() string {
@@ -639,7 +699,7 @@ type ListComponentTestReportsResponse struct {
 
 func (x *ListComponentTestReportsResponse) Reset() {
 	*x = ListComponentTestReportsResponse{}
-	mi := &file_react_component_library_v1_componenttests_component_tests_proto_msgTypes[10]
+	mi := &file_react_component_library_v1_componenttests_component_tests_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -651,7 +711,7 @@ func (x *ListComponentTestReportsResponse) String() string {
 func (*ListComponentTestReportsResponse) ProtoMessage() {}
 
 func (x *ListComponentTestReportsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_componenttests_component_tests_proto_msgTypes[10]
+	mi := &file_react_component_library_v1_componenttests_component_tests_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -664,7 +724,7 @@ func (x *ListComponentTestReportsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListComponentTestReportsResponse.ProtoReflect.Descriptor instead.
 func (*ListComponentTestReportsResponse) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_componenttests_component_tests_proto_rawDescGZIP(), []int{10}
+	return file_react_component_library_v1_componenttests_component_tests_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *ListComponentTestReportsResponse) GetReports() []*ComponentTestReport {
@@ -682,7 +742,7 @@ const file_react_component_library_v1_componenttests_component_tests_proto_rawDe
 	"\x17RunComponentTestRequest\x12!\n" +
 	"\fcomponent_id\x18\x01 \x01(\tR\vcomponentId\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\tR\aversion\x12'\n" +
-	"\x0finclude_closure\x18\x03 \x01(\bR\x0eincludeClosure\"\xdf\x01\n" +
+	"\x0finclude_closure\x18\x03 \x01(\bR\x0eincludeClosure\"\xc4\x02\n" +
 	"\x13ComponentTestResult\x12\x14\n" +
 	"\x05stage\x18\x01 \x01(\tR\x05stage\x12(\n" +
 	"\x10asset_library_id\x18\x02 \x01(\tR\x0eassetLibraryId\x12\x18\n" +
@@ -690,7 +750,11 @@ const file_react_component_library_v1_componenttests_component_tests_proto_rawDe
 	"\asubject\x18\x04 \x01(\tR\asubject\x12\x18\n" +
 	"\averdict\x18\x05 \x01(\tR\averdict\x12\x18\n" +
 	"\amessage\x18\x06 \x01(\tR\amessage\x12 \n" +
-	"\vremediation\x18\a \x01(\tR\vremediation\"\xa3\x01\n" +
+	"\vremediation\x18\a \x01(\tR\vremediation\x12c\n" +
+	"\bevidence\x18\b \x03(\v2G.vrooli.react_component_library.v1.componenttests.ComponentTestEvidenceR\bevidence\"?\n" +
+	"\x15ComponentTestEvidence\x12\x12\n" +
+	"\x04kind\x18\x01 \x01(\tR\x04kind\x12\x12\n" +
+	"\x04json\x18\x02 \x01(\tR\x04json\"\xa3\x01\n" +
 	"\x15ComponentTestArtifact\x12\x12\n" +
 	"\x04kind\x18\x01 \x01(\tR\x04kind\x12\x14\n" +
 	"\x05label\x18\x02 \x01(\tR\x05label\x12(\n" +
@@ -741,42 +805,44 @@ func file_react_component_library_v1_componenttests_component_tests_proto_rawDes
 	return file_react_component_library_v1_componenttests_component_tests_proto_rawDescData
 }
 
-var file_react_component_library_v1_componenttests_component_tests_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
+var file_react_component_library_v1_componenttests_component_tests_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
 var file_react_component_library_v1_componenttests_component_tests_proto_goTypes = []any{
 	(*RunComponentTestRequest)(nil),          // 0: vrooli.react_component_library.v1.componenttests.RunComponentTestRequest
 	(*ComponentTestResult)(nil),              // 1: vrooli.react_component_library.v1.componenttests.ComponentTestResult
-	(*ComponentTestArtifact)(nil),            // 2: vrooli.react_component_library.v1.componenttests.ComponentTestArtifact
-	(*ComponentTestReport)(nil),              // 3: vrooli.react_component_library.v1.componenttests.ComponentTestReport
-	(*RunComponentTestResponse)(nil),         // 4: vrooli.react_component_library.v1.componenttests.RunComponentTestResponse
-	(*RerunComponentTestRequest)(nil),        // 5: vrooli.react_component_library.v1.componenttests.RerunComponentTestRequest
-	(*RerunComponentTestResponse)(nil),       // 6: vrooli.react_component_library.v1.componenttests.RerunComponentTestResponse
-	(*GetComponentTestReportRequest)(nil),    // 7: vrooli.react_component_library.v1.componenttests.GetComponentTestReportRequest
-	(*GetComponentTestReportResponse)(nil),   // 8: vrooli.react_component_library.v1.componenttests.GetComponentTestReportResponse
-	(*ListComponentTestReportsRequest)(nil),  // 9: vrooli.react_component_library.v1.componenttests.ListComponentTestReportsRequest
-	(*ListComponentTestReportsResponse)(nil), // 10: vrooli.react_component_library.v1.componenttests.ListComponentTestReportsResponse
-	(*timestamppb.Timestamp)(nil),            // 11: google.protobuf.Timestamp
+	(*ComponentTestEvidence)(nil),            // 2: vrooli.react_component_library.v1.componenttests.ComponentTestEvidence
+	(*ComponentTestArtifact)(nil),            // 3: vrooli.react_component_library.v1.componenttests.ComponentTestArtifact
+	(*ComponentTestReport)(nil),              // 4: vrooli.react_component_library.v1.componenttests.ComponentTestReport
+	(*RunComponentTestResponse)(nil),         // 5: vrooli.react_component_library.v1.componenttests.RunComponentTestResponse
+	(*RerunComponentTestRequest)(nil),        // 6: vrooli.react_component_library.v1.componenttests.RerunComponentTestRequest
+	(*RerunComponentTestResponse)(nil),       // 7: vrooli.react_component_library.v1.componenttests.RerunComponentTestResponse
+	(*GetComponentTestReportRequest)(nil),    // 8: vrooli.react_component_library.v1.componenttests.GetComponentTestReportRequest
+	(*GetComponentTestReportResponse)(nil),   // 9: vrooli.react_component_library.v1.componenttests.GetComponentTestReportResponse
+	(*ListComponentTestReportsRequest)(nil),  // 10: vrooli.react_component_library.v1.componenttests.ListComponentTestReportsRequest
+	(*ListComponentTestReportsResponse)(nil), // 11: vrooli.react_component_library.v1.componenttests.ListComponentTestReportsResponse
+	(*timestamppb.Timestamp)(nil),            // 12: google.protobuf.Timestamp
 }
 var file_react_component_library_v1_componenttests_component_tests_proto_depIdxs = []int32{
-	11, // 0: vrooli.react_component_library.v1.componenttests.ComponentTestReport.created_at:type_name -> google.protobuf.Timestamp
-	1,  // 1: vrooli.react_component_library.v1.componenttests.ComponentTestReport.results:type_name -> vrooli.react_component_library.v1.componenttests.ComponentTestResult
-	2,  // 2: vrooli.react_component_library.v1.componenttests.ComponentTestReport.artifacts:type_name -> vrooli.react_component_library.v1.componenttests.ComponentTestArtifact
-	3,  // 3: vrooli.react_component_library.v1.componenttests.RunComponentTestResponse.report:type_name -> vrooli.react_component_library.v1.componenttests.ComponentTestReport
-	3,  // 4: vrooli.react_component_library.v1.componenttests.RerunComponentTestResponse.report:type_name -> vrooli.react_component_library.v1.componenttests.ComponentTestReport
-	3,  // 5: vrooli.react_component_library.v1.componenttests.GetComponentTestReportResponse.report:type_name -> vrooli.react_component_library.v1.componenttests.ComponentTestReport
-	3,  // 6: vrooli.react_component_library.v1.componenttests.ListComponentTestReportsResponse.reports:type_name -> vrooli.react_component_library.v1.componenttests.ComponentTestReport
-	0,  // 7: vrooli.react_component_library.v1.componenttests.ComponentTestsService.RunComponentTest:input_type -> vrooli.react_component_library.v1.componenttests.RunComponentTestRequest
-	5,  // 8: vrooli.react_component_library.v1.componenttests.ComponentTestsService.RerunComponentTest:input_type -> vrooli.react_component_library.v1.componenttests.RerunComponentTestRequest
-	7,  // 9: vrooli.react_component_library.v1.componenttests.ComponentTestsService.GetComponentTestReport:input_type -> vrooli.react_component_library.v1.componenttests.GetComponentTestReportRequest
-	9,  // 10: vrooli.react_component_library.v1.componenttests.ComponentTestsService.ListComponentTestReports:input_type -> vrooli.react_component_library.v1.componenttests.ListComponentTestReportsRequest
-	4,  // 11: vrooli.react_component_library.v1.componenttests.ComponentTestsService.RunComponentTest:output_type -> vrooli.react_component_library.v1.componenttests.RunComponentTestResponse
-	6,  // 12: vrooli.react_component_library.v1.componenttests.ComponentTestsService.RerunComponentTest:output_type -> vrooli.react_component_library.v1.componenttests.RerunComponentTestResponse
-	8,  // 13: vrooli.react_component_library.v1.componenttests.ComponentTestsService.GetComponentTestReport:output_type -> vrooli.react_component_library.v1.componenttests.GetComponentTestReportResponse
-	10, // 14: vrooli.react_component_library.v1.componenttests.ComponentTestsService.ListComponentTestReports:output_type -> vrooli.react_component_library.v1.componenttests.ListComponentTestReportsResponse
-	11, // [11:15] is the sub-list for method output_type
-	7,  // [7:11] is the sub-list for method input_type
-	7,  // [7:7] is the sub-list for extension type_name
-	7,  // [7:7] is the sub-list for extension extendee
-	0,  // [0:7] is the sub-list for field type_name
+	2,  // 0: vrooli.react_component_library.v1.componenttests.ComponentTestResult.evidence:type_name -> vrooli.react_component_library.v1.componenttests.ComponentTestEvidence
+	12, // 1: vrooli.react_component_library.v1.componenttests.ComponentTestReport.created_at:type_name -> google.protobuf.Timestamp
+	1,  // 2: vrooli.react_component_library.v1.componenttests.ComponentTestReport.results:type_name -> vrooli.react_component_library.v1.componenttests.ComponentTestResult
+	3,  // 3: vrooli.react_component_library.v1.componenttests.ComponentTestReport.artifacts:type_name -> vrooli.react_component_library.v1.componenttests.ComponentTestArtifact
+	4,  // 4: vrooli.react_component_library.v1.componenttests.RunComponentTestResponse.report:type_name -> vrooli.react_component_library.v1.componenttests.ComponentTestReport
+	4,  // 5: vrooli.react_component_library.v1.componenttests.RerunComponentTestResponse.report:type_name -> vrooli.react_component_library.v1.componenttests.ComponentTestReport
+	4,  // 6: vrooli.react_component_library.v1.componenttests.GetComponentTestReportResponse.report:type_name -> vrooli.react_component_library.v1.componenttests.ComponentTestReport
+	4,  // 7: vrooli.react_component_library.v1.componenttests.ListComponentTestReportsResponse.reports:type_name -> vrooli.react_component_library.v1.componenttests.ComponentTestReport
+	0,  // 8: vrooli.react_component_library.v1.componenttests.ComponentTestsService.RunComponentTest:input_type -> vrooli.react_component_library.v1.componenttests.RunComponentTestRequest
+	6,  // 9: vrooli.react_component_library.v1.componenttests.ComponentTestsService.RerunComponentTest:input_type -> vrooli.react_component_library.v1.componenttests.RerunComponentTestRequest
+	8,  // 10: vrooli.react_component_library.v1.componenttests.ComponentTestsService.GetComponentTestReport:input_type -> vrooli.react_component_library.v1.componenttests.GetComponentTestReportRequest
+	10, // 11: vrooli.react_component_library.v1.componenttests.ComponentTestsService.ListComponentTestReports:input_type -> vrooli.react_component_library.v1.componenttests.ListComponentTestReportsRequest
+	5,  // 12: vrooli.react_component_library.v1.componenttests.ComponentTestsService.RunComponentTest:output_type -> vrooli.react_component_library.v1.componenttests.RunComponentTestResponse
+	7,  // 13: vrooli.react_component_library.v1.componenttests.ComponentTestsService.RerunComponentTest:output_type -> vrooli.react_component_library.v1.componenttests.RerunComponentTestResponse
+	9,  // 14: vrooli.react_component_library.v1.componenttests.ComponentTestsService.GetComponentTestReport:output_type -> vrooli.react_component_library.v1.componenttests.GetComponentTestReportResponse
+	11, // 15: vrooli.react_component_library.v1.componenttests.ComponentTestsService.ListComponentTestReports:output_type -> vrooli.react_component_library.v1.componenttests.ListComponentTestReportsResponse
+	12, // [12:16] is the sub-list for method output_type
+	8,  // [8:12] is the sub-list for method input_type
+	8,  // [8:8] is the sub-list for extension type_name
+	8,  // [8:8] is the sub-list for extension extendee
+	0,  // [0:8] is the sub-list for field type_name
 }
 
 func init() { file_react_component_library_v1_componenttests_component_tests_proto_init() }
@@ -790,7 +856,7 @@ func file_react_component_library_v1_componenttests_component_tests_proto_init()
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_react_component_library_v1_componenttests_component_tests_proto_rawDesc), len(file_react_component_library_v1_componenttests_component_tests_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   11,
+			NumMessages:   12,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

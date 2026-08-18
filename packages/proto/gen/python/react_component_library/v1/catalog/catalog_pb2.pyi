@@ -196,7 +196,7 @@ class GetCoverageRequest(_message.Message):
     def __init__(self) -> None: ...
 
 class CoverageRow(_message.Message):
-    __slots__ = ("asset_id", "name", "domain", "kind", "priority", "bucket", "platform", "target", "achieved", "implementation", "blocks_downstream", "rung", "rung_name", "domain_order")
+    __slots__ = ("asset_id", "name", "domain", "kind", "priority", "bucket", "platform", "target", "achieved", "implementation", "blocks_downstream", "rung", "rung_name", "domain_order", "asset_score", "weight", "passed_gates", "failed_gates", "nearest_blocking_gate", "newest_evidence", "visual_evidence")
     ASSET_ID_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     DOMAIN_FIELD_NUMBER: _ClassVar[int]
@@ -211,6 +211,13 @@ class CoverageRow(_message.Message):
     RUNG_FIELD_NUMBER: _ClassVar[int]
     RUNG_NAME_FIELD_NUMBER: _ClassVar[int]
     DOMAIN_ORDER_FIELD_NUMBER: _ClassVar[int]
+    ASSET_SCORE_FIELD_NUMBER: _ClassVar[int]
+    WEIGHT_FIELD_NUMBER: _ClassVar[int]
+    PASSED_GATES_FIELD_NUMBER: _ClassVar[int]
+    FAILED_GATES_FIELD_NUMBER: _ClassVar[int]
+    NEAREST_BLOCKING_GATE_FIELD_NUMBER: _ClassVar[int]
+    NEWEST_EVIDENCE_FIELD_NUMBER: _ClassVar[int]
+    VISUAL_EVIDENCE_FIELD_NUMBER: _ClassVar[int]
     asset_id: str
     name: str
     domain: str
@@ -225,7 +232,14 @@ class CoverageRow(_message.Message):
     rung: int
     rung_name: str
     domain_order: int
-    def __init__(self, asset_id: _Optional[str] = ..., name: _Optional[str] = ..., domain: _Optional[str] = ..., kind: _Optional[str] = ..., priority: _Optional[str] = ..., bucket: _Optional[str] = ..., platform: _Optional[str] = ..., target: _Optional[str] = ..., achieved: _Optional[str] = ..., implementation: _Optional[str] = ..., blocks_downstream: _Optional[int] = ..., rung: _Optional[int] = ..., rung_name: _Optional[str] = ..., domain_order: _Optional[int] = ...) -> None: ...
+    asset_score: float
+    weight: float
+    passed_gates: _containers.RepeatedScalarFieldContainer[str]
+    failed_gates: _containers.RepeatedScalarFieldContainer[str]
+    nearest_blocking_gate: str
+    newest_evidence: str
+    visual_evidence: bool
+    def __init__(self, asset_id: _Optional[str] = ..., name: _Optional[str] = ..., domain: _Optional[str] = ..., kind: _Optional[str] = ..., priority: _Optional[str] = ..., bucket: _Optional[str] = ..., platform: _Optional[str] = ..., target: _Optional[str] = ..., achieved: _Optional[str] = ..., implementation: _Optional[str] = ..., blocks_downstream: _Optional[int] = ..., rung: _Optional[int] = ..., rung_name: _Optional[str] = ..., domain_order: _Optional[int] = ..., asset_score: _Optional[float] = ..., weight: _Optional[float] = ..., passed_gates: _Optional[_Iterable[str]] = ..., failed_gates: _Optional[_Iterable[str]] = ..., nearest_blocking_gate: _Optional[str] = ..., newest_evidence: _Optional[str] = ..., visual_evidence: _Optional[bool] = ...) -> None: ...
 
 class Rollup(_message.Message):
     __slots__ = ("key", "planned", "built")
@@ -238,7 +252,7 @@ class Rollup(_message.Message):
     def __init__(self, key: _Optional[str] = ..., planned: _Optional[int] = ..., built: _Optional[int] = ...) -> None: ...
 
 class MaturitySummary(_message.Message):
-    __slots__ = ("total", "at_or_above_target", "by_rung", "catalog_completion", "mandatory_gate_coverage", "weighted_quality", "production_ready_coverage")
+    __slots__ = ("total", "at_or_above_target", "by_rung", "catalog_completion", "mandatory_gate_coverage", "weighted_quality", "production_ready_coverage", "weighted_asset_score", "score_weight_numerator", "score_weight_denominator", "by_gate", "by_rung_score", "corpus", "pass_evidence", "fail_evidence", "unmeasured_evidence", "kind_mismatch_count", "instrument_moved_count")
     class ByRungEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -253,6 +267,17 @@ class MaturitySummary(_message.Message):
     MANDATORY_GATE_COVERAGE_FIELD_NUMBER: _ClassVar[int]
     WEIGHTED_QUALITY_FIELD_NUMBER: _ClassVar[int]
     PRODUCTION_READY_COVERAGE_FIELD_NUMBER: _ClassVar[int]
+    WEIGHTED_ASSET_SCORE_FIELD_NUMBER: _ClassVar[int]
+    SCORE_WEIGHT_NUMERATOR_FIELD_NUMBER: _ClassVar[int]
+    SCORE_WEIGHT_DENOMINATOR_FIELD_NUMBER: _ClassVar[int]
+    BY_GATE_FIELD_NUMBER: _ClassVar[int]
+    BY_RUNG_SCORE_FIELD_NUMBER: _ClassVar[int]
+    CORPUS_FIELD_NUMBER: _ClassVar[int]
+    PASS_EVIDENCE_FIELD_NUMBER: _ClassVar[int]
+    FAIL_EVIDENCE_FIELD_NUMBER: _ClassVar[int]
+    UNMEASURED_EVIDENCE_FIELD_NUMBER: _ClassVar[int]
+    KIND_MISMATCH_COUNT_FIELD_NUMBER: _ClassVar[int]
+    INSTRUMENT_MOVED_COUNT_FIELD_NUMBER: _ClassVar[int]
     total: int
     at_or_above_target: int
     by_rung: _containers.ScalarMap[str, int]
@@ -260,7 +285,42 @@ class MaturitySummary(_message.Message):
     mandatory_gate_coverage: CoverageMetric
     weighted_quality: CoverageMetric
     production_ready_coverage: CoverageMetric
-    def __init__(self, total: _Optional[int] = ..., at_or_above_target: _Optional[int] = ..., by_rung: _Optional[_Mapping[str, int]] = ..., catalog_completion: _Optional[_Union[CoverageMetric, _Mapping]] = ..., mandatory_gate_coverage: _Optional[_Union[CoverageMetric, _Mapping]] = ..., weighted_quality: _Optional[_Union[CoverageMetric, _Mapping]] = ..., production_ready_coverage: _Optional[_Union[CoverageMetric, _Mapping]] = ...) -> None: ...
+    weighted_asset_score: float
+    score_weight_numerator: float
+    score_weight_denominator: float
+    by_gate: _containers.RepeatedCompositeFieldContainer[ScoreBreakdown]
+    by_rung_score: _containers.RepeatedCompositeFieldContainer[ScoreBreakdown]
+    corpus: _containers.RepeatedCompositeFieldContainer[CorpusStatus]
+    pass_evidence: int
+    fail_evidence: int
+    unmeasured_evidence: int
+    kind_mismatch_count: int
+    instrument_moved_count: int
+    def __init__(self, total: _Optional[int] = ..., at_or_above_target: _Optional[int] = ..., by_rung: _Optional[_Mapping[str, int]] = ..., catalog_completion: _Optional[_Union[CoverageMetric, _Mapping]] = ..., mandatory_gate_coverage: _Optional[_Union[CoverageMetric, _Mapping]] = ..., weighted_quality: _Optional[_Union[CoverageMetric, _Mapping]] = ..., production_ready_coverage: _Optional[_Union[CoverageMetric, _Mapping]] = ..., weighted_asset_score: _Optional[float] = ..., score_weight_numerator: _Optional[float] = ..., score_weight_denominator: _Optional[float] = ..., by_gate: _Optional[_Iterable[_Union[ScoreBreakdown, _Mapping]]] = ..., by_rung_score: _Optional[_Iterable[_Union[ScoreBreakdown, _Mapping]]] = ..., corpus: _Optional[_Iterable[_Union[CorpusStatus, _Mapping]]] = ..., pass_evidence: _Optional[int] = ..., fail_evidence: _Optional[int] = ..., unmeasured_evidence: _Optional[int] = ..., kind_mismatch_count: _Optional[int] = ..., instrument_moved_count: _Optional[int] = ...) -> None: ...
+
+class ScoreBreakdown(_message.Message):
+    __slots__ = ("key", "passed", "applicable", "score")
+    KEY_FIELD_NUMBER: _ClassVar[int]
+    PASSED_FIELD_NUMBER: _ClassVar[int]
+    APPLICABLE_FIELD_NUMBER: _ClassVar[int]
+    SCORE_FIELD_NUMBER: _ClassVar[int]
+    key: str
+    passed: int
+    applicable: int
+    score: float
+    def __init__(self, key: _Optional[str] = ..., passed: _Optional[int] = ..., applicable: _Optional[int] = ..., score: _Optional[float] = ...) -> None: ...
+
+class CorpusStatus(_message.Message):
+    __slots__ = ("gate", "result", "finding_count", "runner_error_count")
+    GATE_FIELD_NUMBER: _ClassVar[int]
+    RESULT_FIELD_NUMBER: _ClassVar[int]
+    FINDING_COUNT_FIELD_NUMBER: _ClassVar[int]
+    RUNNER_ERROR_COUNT_FIELD_NUMBER: _ClassVar[int]
+    gate: str
+    result: str
+    finding_count: int
+    runner_error_count: int
+    def __init__(self, gate: _Optional[str] = ..., result: _Optional[str] = ..., finding_count: _Optional[int] = ..., runner_error_count: _Optional[int] = ...) -> None: ...
 
 class CoverageMetric(_message.Message):
     __slots__ = ("numerator", "denominator", "ratio")
@@ -300,24 +360,36 @@ class GetCoverageResponse(_message.Message):
     def __init__(self, report: _Optional[_Union[CoverageReport, _Mapping]] = ...) -> None: ...
 
 class ListNextWorkRequest(_message.Message):
-    __slots__ = ("limit",)
+    __slots__ = ("limit", "lane")
     LIMIT_FIELD_NUMBER: _ClassVar[int]
+    LANE_FIELD_NUMBER: _ClassVar[int]
     limit: int
-    def __init__(self, limit: _Optional[int] = ...) -> None: ...
+    lane: str
+    def __init__(self, limit: _Optional[int] = ..., lane: _Optional[str] = ...) -> None: ...
 
 class ListNextWorkResponse(_message.Message):
-    __slots__ = ("rows", "maturity")
+    __slots__ = ("rows", "maturity", "lane", "promote", "build")
     ROWS_FIELD_NUMBER: _ClassVar[int]
     MATURITY_FIELD_NUMBER: _ClassVar[int]
+    LANE_FIELD_NUMBER: _ClassVar[int]
+    PROMOTE_FIELD_NUMBER: _ClassVar[int]
+    BUILD_FIELD_NUMBER: _ClassVar[int]
     rows: _containers.RepeatedCompositeFieldContainer[CoverageRow]
     maturity: MaturitySummary
-    def __init__(self, rows: _Optional[_Iterable[_Union[CoverageRow, _Mapping]]] = ..., maturity: _Optional[_Union[MaturitySummary, _Mapping]] = ...) -> None: ...
+    lane: str
+    promote: _containers.RepeatedCompositeFieldContainer[CoverageRow]
+    build: _containers.RepeatedCompositeFieldContainer[CoverageRow]
+    def __init__(self, rows: _Optional[_Iterable[_Union[CoverageRow, _Mapping]]] = ..., maturity: _Optional[_Union[MaturitySummary, _Mapping]] = ..., lane: _Optional[str] = ..., promote: _Optional[_Iterable[_Union[CoverageRow, _Mapping]]] = ..., build: _Optional[_Iterable[_Union[CoverageRow, _Mapping]]] = ...) -> None: ...
 
 class RunGateRequest(_message.Message):
-    __slots__ = ("gate",)
+    __slots__ = ("gate", "all", "calibration_only")
     GATE_FIELD_NUMBER: _ClassVar[int]
+    ALL_FIELD_NUMBER: _ClassVar[int]
+    CALIBRATION_ONLY_FIELD_NUMBER: _ClassVar[int]
     gate: str
-    def __init__(self, gate: _Optional[str] = ...) -> None: ...
+    all: bool
+    calibration_only: bool
+    def __init__(self, gate: _Optional[str] = ..., all: _Optional[bool] = ..., calibration_only: _Optional[bool] = ...) -> None: ...
 
 class GateFinding(_message.Message):
     __slots__ = ("code", "message", "asset_id", "severity", "file", "line", "remediation", "docs_ref")
@@ -340,11 +412,182 @@ class GateFinding(_message.Message):
     def __init__(self, code: _Optional[str] = ..., message: _Optional[str] = ..., asset_id: _Optional[str] = ..., severity: _Optional[str] = ..., file: _Optional[str] = ..., line: _Optional[int] = ..., remediation: _Optional[str] = ..., docs_ref: _Optional[str] = ...) -> None: ...
 
 class RunGateResponse(_message.Message):
-    __slots__ = ("gate", "findings", "inspected_files")
+    __slots__ = ("gate", "findings", "inspected_files", "runner_errors", "evidence_rows_written", "calibration", "non_discriminating", "surface_verdict_counts")
+    class SurfaceVerdictCountsEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: int
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[int] = ...) -> None: ...
     GATE_FIELD_NUMBER: _ClassVar[int]
     FINDINGS_FIELD_NUMBER: _ClassVar[int]
     INSPECTED_FILES_FIELD_NUMBER: _ClassVar[int]
+    RUNNER_ERRORS_FIELD_NUMBER: _ClassVar[int]
+    EVIDENCE_ROWS_WRITTEN_FIELD_NUMBER: _ClassVar[int]
+    CALIBRATION_FIELD_NUMBER: _ClassVar[int]
+    NON_DISCRIMINATING_FIELD_NUMBER: _ClassVar[int]
+    SURFACE_VERDICT_COUNTS_FIELD_NUMBER: _ClassVar[int]
     gate: str
     findings: _containers.RepeatedCompositeFieldContainer[GateFinding]
     inspected_files: int
-    def __init__(self, gate: _Optional[str] = ..., findings: _Optional[_Iterable[_Union[GateFinding, _Mapping]]] = ..., inspected_files: _Optional[int] = ...) -> None: ...
+    runner_errors: _containers.RepeatedCompositeFieldContainer[GateFinding]
+    evidence_rows_written: int
+    calibration: _containers.RepeatedCompositeFieldContainer[CalibrationResult]
+    non_discriminating: bool
+    surface_verdict_counts: _containers.ScalarMap[str, int]
+    def __init__(self, gate: _Optional[str] = ..., findings: _Optional[_Iterable[_Union[GateFinding, _Mapping]]] = ..., inspected_files: _Optional[int] = ..., runner_errors: _Optional[_Iterable[_Union[GateFinding, _Mapping]]] = ..., evidence_rows_written: _Optional[int] = ..., calibration: _Optional[_Iterable[_Union[CalibrationResult, _Mapping]]] = ..., non_discriminating: _Optional[bool] = ..., surface_verdict_counts: _Optional[_Mapping[str, int]] = ...) -> None: ...
+
+class CalibrationResult(_message.Message):
+    __slots__ = ("gate", "fixture", "required_failure_code", "observed_failure_code", "status", "message")
+    GATE_FIELD_NUMBER: _ClassVar[int]
+    FIXTURE_FIELD_NUMBER: _ClassVar[int]
+    REQUIRED_FAILURE_CODE_FIELD_NUMBER: _ClassVar[int]
+    OBSERVED_FAILURE_CODE_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    gate: str
+    fixture: str
+    required_failure_code: str
+    observed_failure_code: str
+    status: str
+    message: str
+    def __init__(self, gate: _Optional[str] = ..., fixture: _Optional[str] = ..., required_failure_code: _Optional[str] = ..., observed_failure_code: _Optional[str] = ..., status: _Optional[str] = ..., message: _Optional[str] = ...) -> None: ...
+
+class ScoreHistoryPoint(_message.Message):
+    __slots__ = ("recorded_at", "score", "assets_at_100", "assets_below_50", "weight_vector_regenerated", "scoring_model_version", "source_revision", "instrument_moved_count", "kind_mismatch_count", "events")
+    RECORDED_AT_FIELD_NUMBER: _ClassVar[int]
+    SCORE_FIELD_NUMBER: _ClassVar[int]
+    ASSETS_AT_100_FIELD_NUMBER: _ClassVar[int]
+    ASSETS_BELOW_50_FIELD_NUMBER: _ClassVar[int]
+    WEIGHT_VECTOR_REGENERATED_FIELD_NUMBER: _ClassVar[int]
+    SCORING_MODEL_VERSION_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_REVISION_FIELD_NUMBER: _ClassVar[int]
+    INSTRUMENT_MOVED_COUNT_FIELD_NUMBER: _ClassVar[int]
+    KIND_MISMATCH_COUNT_FIELD_NUMBER: _ClassVar[int]
+    EVENTS_FIELD_NUMBER: _ClassVar[int]
+    recorded_at: str
+    score: float
+    assets_at_100: int
+    assets_below_50: int
+    weight_vector_regenerated: bool
+    scoring_model_version: int
+    source_revision: str
+    instrument_moved_count: int
+    kind_mismatch_count: int
+    events: _containers.RepeatedCompositeFieldContainer[ScoreHistoryEvent]
+    def __init__(self, recorded_at: _Optional[str] = ..., score: _Optional[float] = ..., assets_at_100: _Optional[int] = ..., assets_below_50: _Optional[int] = ..., weight_vector_regenerated: _Optional[bool] = ..., scoring_model_version: _Optional[int] = ..., source_revision: _Optional[str] = ..., instrument_moved_count: _Optional[int] = ..., kind_mismatch_count: _Optional[int] = ..., events: _Optional[_Iterable[_Union[ScoreHistoryEvent, _Mapping]]] = ...) -> None: ...
+
+class ScoreHistoryEvent(_message.Message):
+    __slots__ = ("type", "asset_id", "source_revision", "declared_kind", "derived_kind")
+    TYPE_FIELD_NUMBER: _ClassVar[int]
+    ASSET_ID_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_REVISION_FIELD_NUMBER: _ClassVar[int]
+    DECLARED_KIND_FIELD_NUMBER: _ClassVar[int]
+    DERIVED_KIND_FIELD_NUMBER: _ClassVar[int]
+    type: str
+    asset_id: str
+    source_revision: str
+    declared_kind: str
+    derived_kind: str
+    def __init__(self, type: _Optional[str] = ..., asset_id: _Optional[str] = ..., source_revision: _Optional[str] = ..., declared_kind: _Optional[str] = ..., derived_kind: _Optional[str] = ...) -> None: ...
+
+class GetScoreHistoryRequest(_message.Message):
+    __slots__ = ("since",)
+    SINCE_FIELD_NUMBER: _ClassVar[int]
+    since: str
+    def __init__(self, since: _Optional[str] = ...) -> None: ...
+
+class GetScoreHistoryResponse(_message.Message):
+    __slots__ = ("points",)
+    POINTS_FIELD_NUMBER: _ClassVar[int]
+    points: _containers.RepeatedCompositeFieldContainer[ScoreHistoryPoint]
+    def __init__(self, points: _Optional[_Iterable[_Union[ScoreHistoryPoint, _Mapping]]] = ...) -> None: ...
+
+class HealthNode(_message.Message):
+    __slots__ = ("asset", "score", "weight", "health", "staleness_days", "visual_current")
+    ASSET_FIELD_NUMBER: _ClassVar[int]
+    SCORE_FIELD_NUMBER: _ClassVar[int]
+    WEIGHT_FIELD_NUMBER: _ClassVar[int]
+    HEALTH_FIELD_NUMBER: _ClassVar[int]
+    STALENESS_DAYS_FIELD_NUMBER: _ClassVar[int]
+    VISUAL_CURRENT_FIELD_NUMBER: _ClassVar[int]
+    asset: AssetNode
+    score: float
+    weight: float
+    health: str
+    staleness_days: float
+    visual_current: bool
+    def __init__(self, asset: _Optional[_Union[AssetNode, _Mapping]] = ..., score: _Optional[float] = ..., weight: _Optional[float] = ..., health: _Optional[str] = ..., staleness_days: _Optional[float] = ..., visual_current: _Optional[bool] = ...) -> None: ...
+
+class HealthEdge(_message.Message):
+    __slots__ = ("from_asset_id", "to_asset_id", "relation")
+    FROM_ASSET_ID_FIELD_NUMBER: _ClassVar[int]
+    TO_ASSET_ID_FIELD_NUMBER: _ClassVar[int]
+    RELATION_FIELD_NUMBER: _ClassVar[int]
+    from_asset_id: str
+    to_asset_id: str
+    relation: str
+    def __init__(self, from_asset_id: _Optional[str] = ..., to_asset_id: _Optional[str] = ..., relation: _Optional[str] = ...) -> None: ...
+
+class GetHealthOverviewRequest(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class GetHealthOverviewResponse(_message.Message):
+    __slots__ = ("coverage", "history", "nodes", "edges", "promote", "quarantined_gates", "kind_mismatch_count", "instrument_moved_count", "kind_mismatches")
+    COVERAGE_FIELD_NUMBER: _ClassVar[int]
+    HISTORY_FIELD_NUMBER: _ClassVar[int]
+    NODES_FIELD_NUMBER: _ClassVar[int]
+    EDGES_FIELD_NUMBER: _ClassVar[int]
+    PROMOTE_FIELD_NUMBER: _ClassVar[int]
+    QUARANTINED_GATES_FIELD_NUMBER: _ClassVar[int]
+    KIND_MISMATCH_COUNT_FIELD_NUMBER: _ClassVar[int]
+    INSTRUMENT_MOVED_COUNT_FIELD_NUMBER: _ClassVar[int]
+    KIND_MISMATCHES_FIELD_NUMBER: _ClassVar[int]
+    coverage: CoverageReport
+    history: _containers.RepeatedCompositeFieldContainer[ScoreHistoryPoint]
+    nodes: _containers.RepeatedCompositeFieldContainer[HealthNode]
+    edges: _containers.RepeatedCompositeFieldContainer[HealthEdge]
+    promote: _containers.RepeatedCompositeFieldContainer[CoverageRow]
+    quarantined_gates: _containers.RepeatedScalarFieldContainer[str]
+    kind_mismatch_count: int
+    instrument_moved_count: int
+    kind_mismatches: _containers.RepeatedCompositeFieldContainer[KindMismatch]
+    def __init__(self, coverage: _Optional[_Union[CoverageReport, _Mapping]] = ..., history: _Optional[_Iterable[_Union[ScoreHistoryPoint, _Mapping]]] = ..., nodes: _Optional[_Iterable[_Union[HealthNode, _Mapping]]] = ..., edges: _Optional[_Iterable[_Union[HealthEdge, _Mapping]]] = ..., promote: _Optional[_Iterable[_Union[CoverageRow, _Mapping]]] = ..., quarantined_gates: _Optional[_Iterable[str]] = ..., kind_mismatch_count: _Optional[int] = ..., instrument_moved_count: _Optional[int] = ..., kind_mismatches: _Optional[_Iterable[_Union[KindMismatch, _Mapping]]] = ...) -> None: ...
+
+class KindMismatch(_message.Message):
+    __slots__ = ("asset_id", "declared_kind", "derived_kind", "message")
+    ASSET_ID_FIELD_NUMBER: _ClassVar[int]
+    DECLARED_KIND_FIELD_NUMBER: _ClassVar[int]
+    DERIVED_KIND_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    asset_id: str
+    declared_kind: str
+    derived_kind: str
+    message: str
+    def __init__(self, asset_id: _Optional[str] = ..., declared_kind: _Optional[str] = ..., derived_kind: _Optional[str] = ..., message: _Optional[str] = ...) -> None: ...
+
+class CaptureEvidenceRequest(_message.Message):
+    __slots__ = ("asset_id", "all", "changed_only")
+    ASSET_ID_FIELD_NUMBER: _ClassVar[int]
+    ALL_FIELD_NUMBER: _ClassVar[int]
+    CHANGED_ONLY_FIELD_NUMBER: _ClassVar[int]
+    asset_id: str
+    all: bool
+    changed_only: bool
+    def __init__(self, asset_id: _Optional[str] = ..., all: _Optional[bool] = ..., changed_only: _Optional[bool] = ...) -> None: ...
+
+class CaptureEvidenceResponse(_message.Message):
+    __slots__ = ("asset_id", "capture_directory", "workbench_url", "rows_written", "missing_contract_assets")
+    ASSET_ID_FIELD_NUMBER: _ClassVar[int]
+    CAPTURE_DIRECTORY_FIELD_NUMBER: _ClassVar[int]
+    WORKBENCH_URL_FIELD_NUMBER: _ClassVar[int]
+    ROWS_WRITTEN_FIELD_NUMBER: _ClassVar[int]
+    MISSING_CONTRACT_ASSETS_FIELD_NUMBER: _ClassVar[int]
+    asset_id: str
+    capture_directory: str
+    workbench_url: str
+    rows_written: int
+    missing_contract_assets: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, asset_id: _Optional[str] = ..., capture_directory: _Optional[str] = ..., workbench_url: _Optional[str] = ..., rows_written: _Optional[int] = ..., missing_contract_assets: _Optional[_Iterable[str]] = ...) -> None: ...

@@ -53,6 +53,15 @@ const (
 	// CatalogServiceGetAssetPortContractProcedure is the fully-qualified name of the CatalogService's
 	// GetAssetPortContract RPC.
 	CatalogServiceGetAssetPortContractProcedure = "/vrooli.react_component_library.v1.catalog.CatalogService/GetAssetPortContract"
+	// CatalogServiceGetScoreHistoryProcedure is the fully-qualified name of the CatalogService's
+	// GetScoreHistory RPC.
+	CatalogServiceGetScoreHistoryProcedure = "/vrooli.react_component_library.v1.catalog.CatalogService/GetScoreHistory"
+	// CatalogServiceGetHealthOverviewProcedure is the fully-qualified name of the CatalogService's
+	// GetHealthOverview RPC.
+	CatalogServiceGetHealthOverviewProcedure = "/vrooli.react_component_library.v1.catalog.CatalogService/GetHealthOverview"
+	// CatalogServiceCaptureEvidenceProcedure is the fully-qualified name of the CatalogService's
+	// CaptureEvidence RPC.
+	CatalogServiceCaptureEvidenceProcedure = "/vrooli.react_component_library.v1.catalog.CatalogService/CaptureEvidence"
 )
 
 // CatalogServiceClient is a client for the vrooli.react_component_library.v1.catalog.CatalogService
@@ -65,6 +74,9 @@ type CatalogServiceClient interface {
 	GetCatalogStructure(context.Context, *connect.Request[catalog.GetCatalogStructureRequest]) (*connect.Response[catalog.GetCatalogStructureResponse], error)
 	ReconcileGraph(context.Context, *connect.Request[catalog.ReconcileGraphRequest]) (*connect.Response[catalog.ReconcileGraphResponse], error)
 	GetAssetPortContract(context.Context, *connect.Request[catalog.GetAssetPortContractRequest]) (*connect.Response[catalog.GetAssetPortContractResponse], error)
+	GetScoreHistory(context.Context, *connect.Request[catalog.GetScoreHistoryRequest]) (*connect.Response[catalog.GetScoreHistoryResponse], error)
+	GetHealthOverview(context.Context, *connect.Request[catalog.GetHealthOverviewRequest]) (*connect.Response[catalog.GetHealthOverviewResponse], error)
+	CaptureEvidence(context.Context, *connect.Request[catalog.CaptureEvidenceRequest]) (*connect.Response[catalog.CaptureEvidenceResponse], error)
 }
 
 // NewCatalogServiceClient constructs a client for the
@@ -121,6 +133,24 @@ func NewCatalogServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(catalogServiceMethods.ByName("GetAssetPortContract")),
 			connect.WithClientOptions(opts...),
 		),
+		getScoreHistory: connect.NewClient[catalog.GetScoreHistoryRequest, catalog.GetScoreHistoryResponse](
+			httpClient,
+			baseURL+CatalogServiceGetScoreHistoryProcedure,
+			connect.WithSchema(catalogServiceMethods.ByName("GetScoreHistory")),
+			connect.WithClientOptions(opts...),
+		),
+		getHealthOverview: connect.NewClient[catalog.GetHealthOverviewRequest, catalog.GetHealthOverviewResponse](
+			httpClient,
+			baseURL+CatalogServiceGetHealthOverviewProcedure,
+			connect.WithSchema(catalogServiceMethods.ByName("GetHealthOverview")),
+			connect.WithClientOptions(opts...),
+		),
+		captureEvidence: connect.NewClient[catalog.CaptureEvidenceRequest, catalog.CaptureEvidenceResponse](
+			httpClient,
+			baseURL+CatalogServiceCaptureEvidenceProcedure,
+			connect.WithSchema(catalogServiceMethods.ByName("CaptureEvidence")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -133,6 +163,9 @@ type catalogServiceClient struct {
 	getCatalogStructure   *connect.Client[catalog.GetCatalogStructureRequest, catalog.GetCatalogStructureResponse]
 	reconcileGraph        *connect.Client[catalog.ReconcileGraphRequest, catalog.ReconcileGraphResponse]
 	getAssetPortContract  *connect.Client[catalog.GetAssetPortContractRequest, catalog.GetAssetPortContractResponse]
+	getScoreHistory       *connect.Client[catalog.GetScoreHistoryRequest, catalog.GetScoreHistoryResponse]
+	getHealthOverview     *connect.Client[catalog.GetHealthOverviewRequest, catalog.GetHealthOverviewResponse]
+	captureEvidence       *connect.Client[catalog.CaptureEvidenceRequest, catalog.CaptureEvidenceResponse]
 }
 
 // GetCoverage calls vrooli.react_component_library.v1.catalog.CatalogService.GetCoverage.
@@ -173,6 +206,22 @@ func (c *catalogServiceClient) GetAssetPortContract(ctx context.Context, req *co
 	return c.getAssetPortContract.CallUnary(ctx, req)
 }
 
+// GetScoreHistory calls vrooli.react_component_library.v1.catalog.CatalogService.GetScoreHistory.
+func (c *catalogServiceClient) GetScoreHistory(ctx context.Context, req *connect.Request[catalog.GetScoreHistoryRequest]) (*connect.Response[catalog.GetScoreHistoryResponse], error) {
+	return c.getScoreHistory.CallUnary(ctx, req)
+}
+
+// GetHealthOverview calls
+// vrooli.react_component_library.v1.catalog.CatalogService.GetHealthOverview.
+func (c *catalogServiceClient) GetHealthOverview(ctx context.Context, req *connect.Request[catalog.GetHealthOverviewRequest]) (*connect.Response[catalog.GetHealthOverviewResponse], error) {
+	return c.getHealthOverview.CallUnary(ctx, req)
+}
+
+// CaptureEvidence calls vrooli.react_component_library.v1.catalog.CatalogService.CaptureEvidence.
+func (c *catalogServiceClient) CaptureEvidence(ctx context.Context, req *connect.Request[catalog.CaptureEvidenceRequest]) (*connect.Response[catalog.CaptureEvidenceResponse], error) {
+	return c.captureEvidence.CallUnary(ctx, req)
+}
+
 // CatalogServiceHandler is an implementation of the
 // vrooli.react_component_library.v1.catalog.CatalogService service.
 type CatalogServiceHandler interface {
@@ -183,6 +232,9 @@ type CatalogServiceHandler interface {
 	GetCatalogStructure(context.Context, *connect.Request[catalog.GetCatalogStructureRequest]) (*connect.Response[catalog.GetCatalogStructureResponse], error)
 	ReconcileGraph(context.Context, *connect.Request[catalog.ReconcileGraphRequest]) (*connect.Response[catalog.ReconcileGraphResponse], error)
 	GetAssetPortContract(context.Context, *connect.Request[catalog.GetAssetPortContractRequest]) (*connect.Response[catalog.GetAssetPortContractResponse], error)
+	GetScoreHistory(context.Context, *connect.Request[catalog.GetScoreHistoryRequest]) (*connect.Response[catalog.GetScoreHistoryResponse], error)
+	GetHealthOverview(context.Context, *connect.Request[catalog.GetHealthOverviewRequest]) (*connect.Response[catalog.GetHealthOverviewResponse], error)
+	CaptureEvidence(context.Context, *connect.Request[catalog.CaptureEvidenceRequest]) (*connect.Response[catalog.CaptureEvidenceResponse], error)
 }
 
 // NewCatalogServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -234,6 +286,24 @@ func NewCatalogServiceHandler(svc CatalogServiceHandler, opts ...connect.Handler
 		connect.WithSchema(catalogServiceMethods.ByName("GetAssetPortContract")),
 		connect.WithHandlerOptions(opts...),
 	)
+	catalogServiceGetScoreHistoryHandler := connect.NewUnaryHandler(
+		CatalogServiceGetScoreHistoryProcedure,
+		svc.GetScoreHistory,
+		connect.WithSchema(catalogServiceMethods.ByName("GetScoreHistory")),
+		connect.WithHandlerOptions(opts...),
+	)
+	catalogServiceGetHealthOverviewHandler := connect.NewUnaryHandler(
+		CatalogServiceGetHealthOverviewProcedure,
+		svc.GetHealthOverview,
+		connect.WithSchema(catalogServiceMethods.ByName("GetHealthOverview")),
+		connect.WithHandlerOptions(opts...),
+	)
+	catalogServiceCaptureEvidenceHandler := connect.NewUnaryHandler(
+		CatalogServiceCaptureEvidenceProcedure,
+		svc.CaptureEvidence,
+		connect.WithSchema(catalogServiceMethods.ByName("CaptureEvidence")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.react_component_library.v1.catalog.CatalogService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case CatalogServiceGetCoverageProcedure:
@@ -250,6 +320,12 @@ func NewCatalogServiceHandler(svc CatalogServiceHandler, opts ...connect.Handler
 			catalogServiceReconcileGraphHandler.ServeHTTP(w, r)
 		case CatalogServiceGetAssetPortContractProcedure:
 			catalogServiceGetAssetPortContractHandler.ServeHTTP(w, r)
+		case CatalogServiceGetScoreHistoryProcedure:
+			catalogServiceGetScoreHistoryHandler.ServeHTTP(w, r)
+		case CatalogServiceGetHealthOverviewProcedure:
+			catalogServiceGetHealthOverviewHandler.ServeHTTP(w, r)
+		case CatalogServiceCaptureEvidenceProcedure:
+			catalogServiceCaptureEvidenceHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -285,4 +361,16 @@ func (UnimplementedCatalogServiceHandler) ReconcileGraph(context.Context, *conne
 
 func (UnimplementedCatalogServiceHandler) GetAssetPortContract(context.Context, *connect.Request[catalog.GetAssetPortContractRequest]) (*connect.Response[catalog.GetAssetPortContractResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.react_component_library.v1.catalog.CatalogService.GetAssetPortContract is not implemented"))
+}
+
+func (UnimplementedCatalogServiceHandler) GetScoreHistory(context.Context, *connect.Request[catalog.GetScoreHistoryRequest]) (*connect.Response[catalog.GetScoreHistoryResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.react_component_library.v1.catalog.CatalogService.GetScoreHistory is not implemented"))
+}
+
+func (UnimplementedCatalogServiceHandler) GetHealthOverview(context.Context, *connect.Request[catalog.GetHealthOverviewRequest]) (*connect.Response[catalog.GetHealthOverviewResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.react_component_library.v1.catalog.CatalogService.GetHealthOverview is not implemented"))
+}
+
+func (UnimplementedCatalogServiceHandler) CaptureEvidence(context.Context, *connect.Request[catalog.CaptureEvidenceRequest]) (*connect.Response[catalog.CaptureEvidenceResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.react_component_library.v1.catalog.CatalogService.CaptureEvidence is not implemented"))
 }

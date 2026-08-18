@@ -240,8 +240,10 @@ class MineRefusalsResponse(_message.Message):
     def __init__(self, shapes: _Optional[_Iterable[_Union[RefusalShape, _Mapping]]] = ..., count: _Optional[int] = ...) -> None: ...
 
 class MineUnresolvedBindingsRequest(_message.Message):
-    __slots__ = ()
-    def __init__(self) -> None: ...
+    __slots__ = ("include_operator",)
+    INCLUDE_OPERATOR_FIELD_NUMBER: _ClassVar[int]
+    include_operator: bool
+    def __init__(self, include_operator: _Optional[bool] = ...) -> None: ...
 
 class UnresolvedBindingShape(_message.Message):
     __slots__ = ("attempted_name", "count", "last_seen")

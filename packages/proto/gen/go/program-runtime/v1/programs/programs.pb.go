@@ -1249,9 +1249,10 @@ func (x *MineRefusalsResponse) GetCount() int64 {
 }
 
 type MineUnresolvedBindingsRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	IncludeOperator bool                   `protobuf:"varint,1,opt,name=include_operator,json=includeOperator,proto3" json:"include_operator,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *MineUnresolvedBindingsRequest) Reset() {
@@ -1282,6 +1283,13 @@ func (x *MineUnresolvedBindingsRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use MineUnresolvedBindingsRequest.ProtoReflect.Descriptor instead.
 func (*MineUnresolvedBindingsRequest) Descriptor() ([]byte, []int) {
 	return file_program_runtime_v1_programs_programs_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *MineUnresolvedBindingsRequest) GetIncludeOperator() bool {
+	if x != nil {
+		return x.IncludeOperator
+	}
+	return false
 }
 
 type UnresolvedBindingShape struct {
@@ -1756,8 +1764,9 @@ const file_program_runtime_v1_programs_programs_proto_rawDesc = "" +
 	"\tlast_seen\x18\x04 \x01(\tR\blastSeen\"v\n" +
 	"\x14MineRefusalsResponse\x12H\n" +
 	"\x06shapes\x18\x01 \x03(\v20.vrooli.program_runtime.v1.programs.RefusalShapeR\x06shapes\x12\x14\n" +
-	"\x05count\x18\x02 \x01(\x03R\x05count\"\x1f\n" +
-	"\x1dMineUnresolvedBindingsRequest\"r\n" +
+	"\x05count\x18\x02 \x01(\x03R\x05count\"J\n" +
+	"\x1dMineUnresolvedBindingsRequest\x12)\n" +
+	"\x10include_operator\x18\x01 \x01(\bR\x0fincludeOperator\"r\n" +
 	"\x16UnresolvedBindingShape\x12%\n" +
 	"\x0eattempted_name\x18\x01 \x01(\tR\rattemptedName\x12\x14\n" +
 	"\x05count\x18\x02 \x01(\x03R\x05count\x12\x1b\n" +

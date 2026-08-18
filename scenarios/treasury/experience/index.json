@@ -1,0 +1,75 @@
+{
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-index",
+  "contract": {
+    "kind": "scenario-experience",
+    "schema": "scenario-experience-spec/v1"
+  },
+  "schemaVersion": "1.0.0",
+  "scenario": "treasury",
+  "description": "Experience contract for Treasury. The operator console has one job that outranks the rest: let a human judge a pending charge quickly and correctly. Approvals is therefore the landing surface, and every other page exists to answer a question that judgement raises \u2014 what may be spent (budgets), what authority exists (mandates), what actually happened (activity), and whether a spend could physically occur (rails). Claims are aspirational until the UI has stable roles and testids; they state intent the validator cannot yet check.",
+  "pages": [
+    {
+      "id": "approvals",
+      "path": "pages/approvals.json",
+      "title": "Approvals",
+      "status": "active"
+    },
+    {
+      "id": "budgets",
+      "path": "pages/budgets.json",
+      "title": "Budgets",
+      "status": "active"
+    },
+    {
+      "id": "mandates",
+      "path": "pages/mandates.json",
+      "title": "Mandates",
+      "status": "active"
+    },
+    {
+      "id": "activity",
+      "path": "pages/activity.json",
+      "title": "Activity",
+      "status": "active"
+    },
+    {
+      "id": "rails",
+      "path": "pages/rails.json",
+      "title": "Rails",
+      "status": "active"
+    },
+    {
+      "id": "settings",
+      "path": "pages/settings.json",
+      "title": "Settings",
+      "status": "active"
+    },
+    {
+      "id": "notes",
+      "path": "pages/notes.json",
+      "title": "Notes",
+      "status": "active"
+    }
+  ],
+  "journeys": [
+    {
+      "id": "approve-a-pending-charge",
+      "path": "journeys/approve-a-pending-charge.json",
+      "title": "Approve a pending charge",
+      "status": "active"
+    },
+    {
+      "id": "investigate-a-declined-charge",
+      "path": "journeys/investigate-a-declined-charge.json",
+      "title": "Understand why a charge was refused",
+      "status": "active"
+    },
+    {
+      "id": "stop-everything",
+      "path": "journeys/stop-everything.json",
+      "title": "Stop all spending immediately",
+      "status": "active"
+    }
+  ]
+}

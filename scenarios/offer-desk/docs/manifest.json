@@ -166,11 +166,11 @@
           ],
           "validation": {
             "requiredHeadings": [
-              "🎯 Overview",
-              "🎯 Operational Targets",
-              "🧱 Tech Direction Snapshot",
-              "🤝 Dependencies & Launch Plan",
-              "🎨 UX & Branding"
+              "\ud83c\udfaf Overview",
+              "\ud83c\udfaf Operational Targets",
+              "\ud83e\uddf1 Tech Direction Snapshot",
+              "\ud83e\udd1d Dependencies & Launch Plan",
+              "\ud83c\udfa8 UX & Branding"
             ],
             "forbiddenPlaceholders": [
               "[Summarize the permanent capability this scenario adds]",
@@ -245,10 +245,10 @@
           "validation": {
             "requiredHeadings": [
               "Prerequisites",
-              "1 — Setup",
-              "2 — Start",
-              "3 — Open",
-              "5 — Run the tests"
+              "1 \u2014 Setup",
+              "2 \u2014 Start",
+              "3 \u2014 Open",
+              "5 \u2014 Run the tests"
             ],
             "forbiddenPlaceholders": [
               "[TODO]"
@@ -666,7 +666,7 @@
             "pricing-hypothesis",
             "sku-fit"
           ],
-          "maturity": "deferred",
+          "maturity": "active",
           "requiredBy": [
             "monetizable"
           ],
@@ -713,7 +713,7 @@
             "launch-strategy",
             "market-validation"
           ],
-          "maturity": "deferred",
+          "maturity": "active",
           "requiredBy": [
             "monetizable"
           ],
@@ -767,7 +767,7 @@
             "delivery-tiers",
             "release-readiness"
           ],
-          "maturity": "deferred",
+          "maturity": "active",
           "requiredBy": [
             "deployable"
           ],
@@ -854,7 +854,7 @@
             "health-signals",
             "alerts"
           ],
-          "maturity": "deferred",
+          "maturity": "active",
           "requiredBy": [
             "deployable",
             "monetizable"
@@ -1005,7 +1005,7 @@
             "requiredHeadings": [
               "Global flags (provided by cli-core)",
               "Built-in commands (auto-provided by `cli-core`)",
-              "Scenario commands — `notes` (CRUD reference)",
+              "Scenario commands \u2014 `notes` (CRUD reference)",
               "Output contracts",
               "Adding a new command",
               "Cross-references"
@@ -1113,7 +1113,7 @@
             "boundaries",
             "boundary-registry"
           ],
-          "description": "Boundary registry — every interface and its production / test fake",
+          "description": "Boundary registry \u2014 every interface and its production / test fake",
           "audience": [
             "developers",
             "agents"
@@ -1223,7 +1223,7 @@
           ],
           "validation": {
             "requiredHeadings": [
-              "TL;DR — the canonical examples",
+              "TL;DR \u2014 the canonical examples",
               "API testing",
               "UI testing",
               "CLI testing",
@@ -1262,7 +1262,7 @@
             "threat-model",
             "secrets"
           ],
-          "maturity": "deferred",
+          "maturity": "active",
           "requiredBy": [
             "deployable"
           ],
@@ -1305,7 +1305,7 @@
             "budgets",
             "measurements"
           ],
-          "maturity": "deferred",
+          "maturity": "active",
           "requiredBy": [
             "validated",
             "deployable"
@@ -1432,7 +1432,7 @@
             "changelog",
             "handoff-log"
           ],
-          "description": "Lifecycle log — append a row whenever work lands",
+          "description": "Lifecycle log \u2014 append a row whenever work lands",
           "audience": [
             "developers",
             "agents"

@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file web-console/v1/conversation/conversation.proto.
  */
 export const file_web_console_v1_conversation_conversation: GenFile = /*@__PURE__*/
-  fileDesc("Ci53ZWItY29uc29sZS92MS9jb252ZXJzYXRpb24vY29udmVyc2F0aW9uLnByb3RvEiJ2cm9vbGkud2ViX2NvbnNvbGUudjEuY29udmVyc2F0aW9uIlYKDVNlYXJjaFJlcXVlc3QSEgoKc2Vzc2lvbl9pZBgBIAEoCRINCgVxdWVyeRgCIAEoCRINCgVsaW1pdBgDIAEoBRITCgtyb2xlX2ZpbHRlchgEIAEoCSJCCgtTZWFyY2hNYXRjaBIQCghldmVudF9pZBgBIAEoCRIQCghzZXF1ZW5jZRgCIAEoAxIPCgdleGNlcnB0GAMgASgJInwKDlNlYXJjaFJlc3BvbnNlEkAKB21hdGNoZXMYASADKAsyLy52cm9vbGkud2ViX2NvbnNvbGUudjEuY29udmVyc2F0aW9uLlNlYXJjaE1hdGNoEhEKCXRydW5jYXRlZBgCIAEoCBIVCg10b3RhbF9tYXRjaGVzGAMgASgDIlEKD0dldFJhbmdlUmVxdWVzdBISCgpzZXNzaW9uX2lkGAEgASgJEhUKDWZyb21fc2VxdWVuY2UYAiABKAMSEwoLdG9fc2VxdWVuY2UYAyABKAMingIKEUNvbnZlcnNhdGlvbkV2ZW50EgoKAmlkGAEgASgJEhIKCnNlc3Npb25faWQYAiABKAkSDgoGc291cmNlGAMgASgJEgwKBHJvbGUYBCABKAkSDAoEdGV4dBgFIAEoCRIZChFzcGVlY2hfcGFyYWdyYXBocxgGIAMoCRIiChpvcmlnaW5hbF9zcGVlY2hfcGFyYWdyYXBocxgHIAMoCRISCgpzdW1tYXJpemVkGAggASgIEhIKCmNyZWF0ZWRfYXQYCSABKAkSEAoIc2VxdWVuY2UYCiABKAMSFgoOZGVsaXZlcnlfc3RhdGUYCyABKAkSEQoJdHRzX3N0YXRlGAwgASgJEhkKEWNvbnN1bXB0aW9uX3N0YXRlGA0gASgJIlAKEkNvbnZlcnNhdGlvbkN1cnNvchIaChJsYXN0X3NlZW5fc2VxdWVuY2UYASABKAMSHgoWbGFzdF9saXN0ZW5lZF9zZXF1ZW5jZRgCIAEoAyJgCgpHZXRSZXF1ZXN0EhIKCnNlc3Npb25faWQYASABKAkSFgoOc2luY2Vfc2VxdWVuY2UYAiABKAMSDQoFbGltaXQYAyABKAUSFwoPYmVmb3JlX3NlcXVlbmNlGAQgASgDIokCCgtHZXRSZXNwb25zZRISCgpzZXNzaW9uX2lkGAEgASgJEkUKBmV2ZW50cxgCIAMoCzI1LnZyb29saS53ZWJfY29uc29sZS52MS5jb252ZXJzYXRpb24uQ29udmVyc2F0aW9uRXZlbnQSRgoGY3Vyc29yGAMgASgLMjYudnJvb2xpLndlYl9jb25zb2xlLnYxLmNvbnZlcnNhdGlvbi5Db252ZXJzYXRpb25DdXJzb3ISEAoIaGFzX21vcmUYBCABKAgSFwoPb2xkZXN0X3NlcXVlbmNlGAUgASgDEhcKD25ld2VzdF9zZXF1ZW5jZRgGIAEoAxITCgt0b3RhbF9jb3VudBgHIAEoAyKpAQoTVXBkYXRlQ3Vyc29yUmVxdWVzdBISCgpzZXNzaW9uX2lkGAEgASgJEhoKEmxhc3Rfc2Vlbl9zZXF1ZW5jZRgCIAEoAxIeChZoYXNfbGFzdF9zZWVuX3NlcXVlbmNlGAMgASgIEh4KFmxhc3RfbGlzdGVuZWRfc2VxdWVuY2UYBCABKAMSIgoaaGFzX2xhc3RfbGlzdGVuZWRfc2VxdWVuY2UYBSABKAgiXgoUVXBkYXRlQ3Vyc29yUmVzcG9uc2USRgoGY3Vyc29yGAEgASgLMjYudnJvb2xpLndlYl9jb25zb2xlLnYxLmNvbnZlcnNhdGlvbi5Db252ZXJzYXRpb25DdXJzb3IiPQoVU3VtbWFyaXplRXZlbnRSZXF1ZXN0EhIKCnNlc3Npb25faWQYASABKAkSEAoIZXZlbnRfaWQYAiABKAkiVgoWU3VtbWFyaXplRXZlbnRSZXNwb25zZRISCgpzdW1tYXJpemVkGAEgASgIEhkKEXNwZWVjaF9wYXJhZ3JhcGhzGAIgAygJEg0KBWVycm9yGAMgASgJMu4EChNDb252ZXJzYXRpb25TZXJ2aWNlEmYKA0dldBIuLnZyb29saS53ZWJfY29uc29sZS52MS5jb252ZXJzYXRpb24uR2V0UmVxdWVzdBovLnZyb29saS53ZWJfY29uc29sZS52MS5jb252ZXJzYXRpb24uR2V0UmVzcG9uc2USbwoGU2VhcmNoEjEudnJvb2xpLndlYl9jb25zb2xlLnYxLmNvbnZlcnNhdGlvbi5TZWFyY2hSZXF1ZXN0GjIudnJvb2xpLndlYl9jb25zb2xlLnYxLmNvbnZlcnNhdGlvbi5TZWFyY2hSZXNwb25zZRJwCghHZXRSYW5nZRIzLnZyb29saS53ZWJfY29uc29sZS52MS5jb252ZXJzYXRpb24uR2V0UmFuZ2VSZXF1ZXN0Gi8udnJvb2xpLndlYl9jb25zb2xlLnYxLmNvbnZlcnNhdGlvbi5HZXRSZXNwb25zZRKBAQoMVXBkYXRlQ3Vyc29yEjcudnJvb2xpLndlYl9jb25zb2xlLnYxLmNvbnZlcnNhdGlvbi5VcGRhdGVDdXJzb3JSZXF1ZXN0GjgudnJvb2xpLndlYl9jb25zb2xlLnYxLmNvbnZlcnNhdGlvbi5VcGRhdGVDdXJzb3JSZXNwb25zZRKHAQoOU3VtbWFyaXplRXZlbnQSOS52cm9vbGkud2ViX2NvbnNvbGUudjEuY29udmVyc2F0aW9uLlN1bW1hcml6ZUV2ZW50UmVxdWVzdBo6LnZyb29saS53ZWJfY29uc29sZS52MS5jb252ZXJzYXRpb24uU3VtbWFyaXplRXZlbnRSZXNwb25zZUJcWlpnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3dlYi1jb25zb2xlL3YxL2NvbnZlcnNhdGlvbjtjb252ZXJzYXRpb25fdjFiBnByb3RvMw");
+  fileDesc("Ci53ZWItY29uc29sZS92MS9jb252ZXJzYXRpb24vY29udmVyc2F0aW9uLnByb3RvEiJ2cm9vbGkud2ViX2NvbnNvbGUudjEuY29udmVyc2F0aW9uIlYKDVNlYXJjaFJlcXVlc3QSEgoKc2Vzc2lvbl9pZBgBIAEoCRINCgVxdWVyeRgCIAEoCRINCgVsaW1pdBgDIAEoBRITCgtyb2xlX2ZpbHRlchgEIAEoCSJCCgtTZWFyY2hNYXRjaBIQCghldmVudF9pZBgBIAEoCRIQCghzZXF1ZW5jZRgCIAEoAxIPCgdleGNlcnB0GAMgASgJInwKDlNlYXJjaFJlc3BvbnNlEkAKB21hdGNoZXMYASADKAsyLy52cm9vbGkud2ViX2NvbnNvbGUudjEuY29udmVyc2F0aW9uLlNlYXJjaE1hdGNoEhEKCXRydW5jYXRlZBgCIAEoCBIVCg10b3RhbF9tYXRjaGVzGAMgASgDIm4KFVNlYXJjaEFyY2hpdmVkUmVxdWVzdBINCgVxdWVyeRgBIAEoCRINCgVsaW1pdBgCIAEoBRISCgphZ2VudF90eXBlGAMgASgJEgwKBHJvbGUYBCABKAkSFQoNY3JlYXRlZF9hZnRlchgFIAEoCSKAAQoTQXJjaGl2ZWRTZWFyY2hNYXRjaBIQCghldmVudF9pZBgBIAEoCRISCgpzZXNzaW9uX2lkGAIgASgJEhAKCHNlcXVlbmNlGAMgASgDEgwKBHJvbGUYBCABKAkSEgoKY3JlYXRlZF9hdBgFIAEoCRIPCgdleGNlcnB0GAYgASgJIqcBChZTZWFyY2hBcmNoaXZlZFJlc3BvbnNlEkgKB21hdGNoZXMYASADKAsyNy52cm9vbGkud2ViX2NvbnNvbGUudjEuY29udmVyc2F0aW9uLkFyY2hpdmVkU2VhcmNoTWF0Y2gSEQoJdHJ1bmNhdGVkGAIgASgIEhUKDXRvdGFsX21hdGNoZXMYAyABKAMSGQoRZGlzdGluY3Rfc2Vzc2lvbnMYBCABKAMiUQoPR2V0UmFuZ2VSZXF1ZXN0EhIKCnNlc3Npb25faWQYASABKAkSFQoNZnJvbV9zZXF1ZW5jZRgCIAEoAxITCgt0b19zZXF1ZW5jZRgDIAEoAyKeAgoRQ29udmVyc2F0aW9uRXZlbnQSCgoCaWQYASABKAkSEgoKc2Vzc2lvbl9pZBgCIAEoCRIOCgZzb3VyY2UYAyABKAkSDAoEcm9sZRgEIAEoCRIMCgR0ZXh0GAUgASgJEhkKEXNwZWVjaF9wYXJhZ3JhcGhzGAYgAygJEiIKGm9yaWdpbmFsX3NwZWVjaF9wYXJhZ3JhcGhzGAcgAygJEhIKCnN1bW1hcml6ZWQYCCABKAgSEgoKY3JlYXRlZF9hdBgJIAEoCRIQCghzZXF1ZW5jZRgKIAEoAxIWCg5kZWxpdmVyeV9zdGF0ZRgLIAEoCRIRCgl0dHNfc3RhdGUYDCABKAkSGQoRY29uc3VtcHRpb25fc3RhdGUYDSABKAkiUAoSQ29udmVyc2F0aW9uQ3Vyc29yEhoKEmxhc3Rfc2Vlbl9zZXF1ZW5jZRgBIAEoAxIeChZsYXN0X2xpc3RlbmVkX3NlcXVlbmNlGAIgASgDImAKCkdldFJlcXVlc3QSEgoKc2Vzc2lvbl9pZBgBIAEoCRIWCg5zaW5jZV9zZXF1ZW5jZRgCIAEoAxINCgVsaW1pdBgDIAEoBRIXCg9iZWZvcmVfc2VxdWVuY2UYBCABKAMiiQIKC0dldFJlc3BvbnNlEhIKCnNlc3Npb25faWQYASABKAkSRQoGZXZlbnRzGAIgAygLMjUudnJvb2xpLndlYl9jb25zb2xlLnYxLmNvbnZlcnNhdGlvbi5Db252ZXJzYXRpb25FdmVudBJGCgZjdXJzb3IYAyABKAsyNi52cm9vbGkud2ViX2NvbnNvbGUudjEuY29udmVyc2F0aW9uLkNvbnZlcnNhdGlvbkN1cnNvchIQCghoYXNfbW9yZRgEIAEoCBIXCg9vbGRlc3Rfc2VxdWVuY2UYBSABKAMSFwoPbmV3ZXN0X3NlcXVlbmNlGAYgASgDEhMKC3RvdGFsX2NvdW50GAcgASgDIqkBChNVcGRhdGVDdXJzb3JSZXF1ZXN0EhIKCnNlc3Npb25faWQYASABKAkSGgoSbGFzdF9zZWVuX3NlcXVlbmNlGAIgASgDEh4KFmhhc19sYXN0X3NlZW5fc2VxdWVuY2UYAyABKAgSHgoWbGFzdF9saXN0ZW5lZF9zZXF1ZW5jZRgEIAEoAxIiChpoYXNfbGFzdF9saXN0ZW5lZF9zZXF1ZW5jZRgFIAEoCCJeChRVcGRhdGVDdXJzb3JSZXNwb25zZRJGCgZjdXJzb3IYASABKAsyNi52cm9vbGkud2ViX2NvbnNvbGUudjEuY29udmVyc2F0aW9uLkNvbnZlcnNhdGlvbkN1cnNvciI9ChVTdW1tYXJpemVFdmVudFJlcXVlc3QSEgoKc2Vzc2lvbl9pZBgBIAEoCRIQCghldmVudF9pZBgCIAEoCSJWChZTdW1tYXJpemVFdmVudFJlc3BvbnNlEhIKCnN1bW1hcml6ZWQYASABKAgSGQoRc3BlZWNoX3BhcmFncmFwaHMYAiADKAkSDQoFZXJyb3IYAyABKAky+AUKE0NvbnZlcnNhdGlvblNlcnZpY2USZgoDR2V0Ei4udnJvb2xpLndlYl9jb25zb2xlLnYxLmNvbnZlcnNhdGlvbi5HZXRSZXF1ZXN0Gi8udnJvb2xpLndlYl9jb25zb2xlLnYxLmNvbnZlcnNhdGlvbi5HZXRSZXNwb25zZRJvCgZTZWFyY2gSMS52cm9vbGkud2ViX2NvbnNvbGUudjEuY29udmVyc2F0aW9uLlNlYXJjaFJlcXVlc3QaMi52cm9vbGkud2ViX2NvbnNvbGUudjEuY29udmVyc2F0aW9uLlNlYXJjaFJlc3BvbnNlEocBCg5TZWFyY2hBcmNoaXZlZBI5LnZyb29saS53ZWJfY29uc29sZS52MS5jb252ZXJzYXRpb24uU2VhcmNoQXJjaGl2ZWRSZXF1ZXN0GjoudnJvb2xpLndlYl9jb25zb2xlLnYxLmNvbnZlcnNhdGlvbi5TZWFyY2hBcmNoaXZlZFJlc3BvbnNlEnAKCEdldFJhbmdlEjMudnJvb2xpLndlYl9jb25zb2xlLnYxLmNvbnZlcnNhdGlvbi5HZXRSYW5nZVJlcXVlc3QaLy52cm9vbGkud2ViX2NvbnNvbGUudjEuY29udmVyc2F0aW9uLkdldFJlc3BvbnNlEoEBCgxVcGRhdGVDdXJzb3ISNy52cm9vbGkud2ViX2NvbnNvbGUudjEuY29udmVyc2F0aW9uLlVwZGF0ZUN1cnNvclJlcXVlc3QaOC52cm9vbGkud2ViX2NvbnNvbGUudjEuY29udmVyc2F0aW9uLlVwZGF0ZUN1cnNvclJlc3BvbnNlEocBCg5TdW1tYXJpemVFdmVudBI5LnZyb29saS53ZWJfY29uc29sZS52MS5jb252ZXJzYXRpb24uU3VtbWFyaXplRXZlbnRSZXF1ZXN0GjoudnJvb2xpLndlYl9jb25zb2xlLnYxLmNvbnZlcnNhdGlvbi5TdW1tYXJpemVFdmVudFJlc3BvbnNlQlxaWmdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vd2ViLWNvbnNvbGUvdjEvY29udmVyc2F0aW9uO2NvbnZlcnNhdGlvbl92MWIGcHJvdG8z");
 
 /**
  * @generated from message vrooli.web_console.v1.conversation.SearchRequest
@@ -99,6 +99,117 @@ export const SearchResponseSchema: GenMessage<SearchResponse> = /*@__PURE__*/
   messageDesc(file_web_console_v1_conversation_conversation, 2);
 
 /**
+ * @generated from message vrooli.web_console.v1.conversation.SearchArchivedRequest
+ */
+export type SearchArchivedRequest = Message<"vrooli.web_console.v1.conversation.SearchArchivedRequest"> & {
+  /**
+   * @generated from field: string query = 1;
+   */
+  query: string;
+
+  /**
+   * @generated from field: int32 limit = 2;
+   */
+  limit: number;
+
+  /**
+   * @generated from field: string agent_type = 3;
+   */
+  agentType: string;
+
+  /**
+   * @generated from field: string role = 4;
+   */
+  role: string;
+
+  /**
+   * @generated from field: string created_after = 5;
+   */
+  createdAfter: string;
+};
+
+/**
+ * Describes the message vrooli.web_console.v1.conversation.SearchArchivedRequest.
+ * Use `create(SearchArchivedRequestSchema)` to create a new message.
+ */
+export const SearchArchivedRequestSchema: GenMessage<SearchArchivedRequest> = /*@__PURE__*/
+  messageDesc(file_web_console_v1_conversation_conversation, 3);
+
+/**
+ * @generated from message vrooli.web_console.v1.conversation.ArchivedSearchMatch
+ */
+export type ArchivedSearchMatch = Message<"vrooli.web_console.v1.conversation.ArchivedSearchMatch"> & {
+  /**
+   * @generated from field: string event_id = 1;
+   */
+  eventId: string;
+
+  /**
+   * @generated from field: string session_id = 2;
+   */
+  sessionId: string;
+
+  /**
+   * @generated from field: int64 sequence = 3;
+   */
+  sequence: bigint;
+
+  /**
+   * @generated from field: string role = 4;
+   */
+  role: string;
+
+  /**
+   * @generated from field: string created_at = 5;
+   */
+  createdAt: string;
+
+  /**
+   * @generated from field: string excerpt = 6;
+   */
+  excerpt: string;
+};
+
+/**
+ * Describes the message vrooli.web_console.v1.conversation.ArchivedSearchMatch.
+ * Use `create(ArchivedSearchMatchSchema)` to create a new message.
+ */
+export const ArchivedSearchMatchSchema: GenMessage<ArchivedSearchMatch> = /*@__PURE__*/
+  messageDesc(file_web_console_v1_conversation_conversation, 4);
+
+/**
+ * @generated from message vrooli.web_console.v1.conversation.SearchArchivedResponse
+ */
+export type SearchArchivedResponse = Message<"vrooli.web_console.v1.conversation.SearchArchivedResponse"> & {
+  /**
+   * @generated from field: repeated vrooli.web_console.v1.conversation.ArchivedSearchMatch matches = 1;
+   */
+  matches: ArchivedSearchMatch[];
+
+  /**
+   * @generated from field: bool truncated = 2;
+   */
+  truncated: boolean;
+
+  /**
+   * @generated from field: int64 total_matches = 3;
+   */
+  totalMatches: bigint;
+
+  /**
+   * @generated from field: int64 distinct_sessions = 4;
+   */
+  distinctSessions: bigint;
+};
+
+/**
+ * Describes the message vrooli.web_console.v1.conversation.SearchArchivedResponse.
+ * Use `create(SearchArchivedResponseSchema)` to create a new message.
+ */
+export const SearchArchivedResponseSchema: GenMessage<SearchArchivedResponse> = /*@__PURE__*/
+  messageDesc(file_web_console_v1_conversation_conversation, 5);
+
+/**
  * @generated from message vrooli.web_console.v1.conversation.GetRangeRequest
  */
 export type GetRangeRequest = Message<"vrooli.web_console.v1.conversation.GetRangeRequest"> & {
@@ -123,7 +234,7 @@ export type GetRangeRequest = Message<"vrooli.web_console.v1.conversation.GetRan
  * Use `create(GetRangeRequestSchema)` to create a new message.
  */
 export const GetRangeRequestSchema: GenMessage<GetRangeRequest> = /*@__PURE__*/
-  messageDesc(file_web_console_v1_conversation_conversation, 3);
+  messageDesc(file_web_console_v1_conversation_conversation, 6);
 
 /**
  * ConversationEvent is one stored entry in a session's transcript. Mirrors the
@@ -213,7 +324,7 @@ export type ConversationEvent = Message<"vrooli.web_console.v1.conversation.Conv
  * Use `create(ConversationEventSchema)` to create a new message.
  */
 export const ConversationEventSchema: GenMessage<ConversationEvent> = /*@__PURE__*/
-  messageDesc(file_web_console_v1_conversation_conversation, 4);
+  messageDesc(file_web_console_v1_conversation_conversation, 7);
 
 /**
  * @generated from message vrooli.web_console.v1.conversation.ConversationCursor
@@ -235,7 +346,7 @@ export type ConversationCursor = Message<"vrooli.web_console.v1.conversation.Con
  * Use `create(ConversationCursorSchema)` to create a new message.
  */
 export const ConversationCursorSchema: GenMessage<ConversationCursor> = /*@__PURE__*/
-  messageDesc(file_web_console_v1_conversation_conversation, 5);
+  messageDesc(file_web_console_v1_conversation_conversation, 8);
 
 /**
  * GetRequest fetches the conversation history for one session.
@@ -275,7 +386,7 @@ export type GetRequest = Message<"vrooli.web_console.v1.conversation.GetRequest"
  * Use `create(GetRequestSchema)` to create a new message.
  */
 export const GetRequestSchema: GenMessage<GetRequest> = /*@__PURE__*/
-  messageDesc(file_web_console_v1_conversation_conversation, 6);
+  messageDesc(file_web_console_v1_conversation_conversation, 9);
 
 /**
  * @generated from message vrooli.web_console.v1.conversation.GetResponse
@@ -322,7 +433,7 @@ export type GetResponse = Message<"vrooli.web_console.v1.conversation.GetRespons
  * Use `create(GetResponseSchema)` to create a new message.
  */
 export const GetResponseSchema: GenMessage<GetResponse> = /*@__PURE__*/
-  messageDesc(file_web_console_v1_conversation_conversation, 7);
+  messageDesc(file_web_console_v1_conversation_conversation, 10);
 
 /**
  * UpdateCursorRequest applies a partial update to the session's cursor.
@@ -362,7 +473,7 @@ export type UpdateCursorRequest = Message<"vrooli.web_console.v1.conversation.Up
  * Use `create(UpdateCursorRequestSchema)` to create a new message.
  */
 export const UpdateCursorRequestSchema: GenMessage<UpdateCursorRequest> = /*@__PURE__*/
-  messageDesc(file_web_console_v1_conversation_conversation, 8);
+  messageDesc(file_web_console_v1_conversation_conversation, 11);
 
 /**
  * @generated from message vrooli.web_console.v1.conversation.UpdateCursorResponse
@@ -379,7 +490,7 @@ export type UpdateCursorResponse = Message<"vrooli.web_console.v1.conversation.U
  * Use `create(UpdateCursorResponseSchema)` to create a new message.
  */
 export const UpdateCursorResponseSchema: GenMessage<UpdateCursorResponse> = /*@__PURE__*/
-  messageDesc(file_web_console_v1_conversation_conversation, 9);
+  messageDesc(file_web_console_v1_conversation_conversation, 12);
 
 /**
  * SummarizeEventRequest triggers on-demand TTS summarization for a specific
@@ -404,7 +515,7 @@ export type SummarizeEventRequest = Message<"vrooli.web_console.v1.conversation.
  * Use `create(SummarizeEventRequestSchema)` to create a new message.
  */
 export const SummarizeEventRequestSchema: GenMessage<SummarizeEventRequest> = /*@__PURE__*/
-  messageDesc(file_web_console_v1_conversation_conversation, 10);
+  messageDesc(file_web_console_v1_conversation_conversation, 13);
 
 /**
  * SummarizeEventResponse mirrors the legacy shape: summarized=false plus an
@@ -436,7 +547,7 @@ export type SummarizeEventResponse = Message<"vrooli.web_console.v1.conversation
  * Use `create(SummarizeEventResponseSchema)` to create a new message.
  */
 export const SummarizeEventResponseSchema: GenMessage<SummarizeEventResponse> = /*@__PURE__*/
-  messageDesc(file_web_console_v1_conversation_conversation, 11);
+  messageDesc(file_web_console_v1_conversation_conversation, 14);
 
 /**
  * @generated from service vrooli.web_console.v1.conversation.ConversationService
@@ -457,6 +568,14 @@ export const ConversationService: GenService<{
     methodKind: "unary";
     input: typeof SearchRequestSchema;
     output: typeof SearchResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.web_console.v1.conversation.ConversationService.SearchArchived
+   */
+  searchArchived: {
+    methodKind: "unary";
+    input: typeof SearchArchivedRequestSchema;
+    output: typeof SearchArchivedResponseSchema;
   },
   /**
    * @generated from rpc vrooli.web_console.v1.conversation.ConversationService.GetRange

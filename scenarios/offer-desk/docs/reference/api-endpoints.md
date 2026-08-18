@@ -71,3 +71,19 @@ Change the proto first, regenerate through the scenario lifecycle, update the
 thin handler and CLI binding, and refresh endpoint metadata through the
 scenario tooling. Do not hand-edit `.vrooli/endpoints.json`. Validate against
 [`cli-commands.md`](cli-commands.md) and the API/contract suites.
+
+## CatalogService.MapAccount
+
+`POST /vrooli.offer_desk.v1.offers.CatalogService/MapAccount`
+
+Attaches an existing node to the Money Ledger account holding its actuals, or
+clears the mapping when `actual_account_id` is empty. Requires `actor`. Returns
+the updated node and `prior_account_id` so a caller can see what it replaced.
+
+This exists because `actual_account_id` was previously settable only at
+`CreateNode`, while the operator importer writes an empty value for every record
+it materializes — leaving the entire imported catalog permanently unjoinable to
+actuals.
+
+Every call writes a `catalog_audit` row. Corrections are new entries, never
+edits, consistent with `OT-P0-007`.

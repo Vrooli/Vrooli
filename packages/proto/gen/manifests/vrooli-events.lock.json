@@ -1,8 +1,9 @@
 {
   "schema_version": 1,
   "scenario": "vrooli-events",
-  "input_digest": "sha256:d0e585ed95f1382233f96491dc8d07c3bec2792b35800e2cf64067b2a3e8ea25",
+  "input_digest": "sha256:c1f449d038c49c10d445c5f67f3f159c900a5e5f80a3a130903048fef17d3d90",
   "input_files": [
+    "schemas/vrooli-events/v1/domain/aggregate.proto",
     "schemas/vrooli-events/v1/domain/envelope.proto",
     "schemas/vrooli-events/v1/domain/policy.proto",
     "schemas/vrooli-events/v1/domain/sse.proto"
@@ -18,23 +19,29 @@
     }
   },
   "outputs": {
-    "gen/go/vrooli-events/v1/domain/envelope.pb.go": "sha256:56ae6a8df3c11e1cc2ddb3f5ec0a850417ecb4a71815149456c582e4ae3d16bb",
-    "gen/go/vrooli-events/v1/domain/policy.pb.go": "sha256:f1f1b2a4ba31fa00f205d56eb2535ea37396c06ae46a134aff1b39575e2943e5",
-    "gen/go/vrooli-events/v1/domain/sse.pb.go": "sha256:089cea067dc3bdea14c2fb6deb8188119efaf9e17fb675ebb9ee2babae89f532",
+    "gen/go/vrooli-events/v1/domain/aggregate.pb.go": "sha256:07ad87d5fa76981fa2569fbfdfca41a1503e28e99051fbff93382640460910a2",
+    "gen/go/vrooli-events/v1/domain/domainconnect/aggregate.connect.go": "sha256:3e71af0b899f2c9661af184743193a221de54505f689ad13d45a143ac96f81fc",
+    "gen/go/vrooli-events/v1/domain/envelope.pb.go": "sha256:263c3abee8b845be7d074488544aeddb09649046b3d8728592bbc509e3195b9e",
+    "gen/go/vrooli-events/v1/domain/policy.pb.go": "sha256:8bad721460678f1888f91d0c88dd9490b90b28ecac2ab56303fa269d50fed56b",
+    "gen/go/vrooli-events/v1/domain/sse.pb.go": "sha256:8a337a0606efdc3b6317bea57e9a95bb17642a5743520471bdcc182caec339a0",
     "gen/python/vrooli_events/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "gen/python/vrooli_events/v1/domain/envelope_pb2.py": "sha256:e213b93765245fd68b400f8f4960c55655066653da25e2c1c2c73647d740c713",
+    "gen/python/vrooli_events/v1/domain/aggregate_pb2.py": "sha256:1405c2e37838a02dae7b4a92ae04feeb5c26e211bfb3179637d6c9a1d785f4ce",
+    "gen/python/vrooli_events/v1/domain/aggregate_pb2.pyi": "sha256:2e0b013678c055ac280211b3ba48b3af0908eddb01e247d7cca219520b027b6a",
+    "gen/python/vrooli_events/v1/domain/envelope_pb2.py": "sha256:2f3008d7af59376455cc96af766e0ae9834d7787b40057e5057ec2c1c17e2b91",
     "gen/python/vrooli_events/v1/domain/envelope_pb2.pyi": "sha256:36dea5f925419cdf703165b78f57c415751e6f7cd41b0b15a953e4b0546e69f3",
-    "gen/python/vrooli_events/v1/domain/policy_pb2.py": "sha256:6b312aaa5f53fd2fa1d878af39cd6b2daed1dc5a94c16168339166e928759d31",
+    "gen/python/vrooli_events/v1/domain/policy_pb2.py": "sha256:8145b5912a0c6c75e325a8e7a6d808928701cf9963c8ad3cbc60e1cb9439fb74",
     "gen/python/vrooli_events/v1/domain/policy_pb2.pyi": "sha256:19dcc4e28f5713d77b6cb523cb26a78470a7dc7c637c3c0669dbcaa96b73e46d",
     "gen/python/vrooli_events/v1/domain/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "gen/python/vrooli_events/v1/domain/sse_pb2.py": "sha256:635acf9d8c31c08019cf747100dd917e84cf4b9ed7e66ab82f6e2ebf4d72f8f2",
+    "gen/python/vrooli_events/v1/domain/sse_pb2.py": "sha256:d197b7313922ac270441ae9f7aced916ffd616bad62cf579eedaa9f478fae9c1",
     "gen/python/vrooli_events/v1/domain/sse_pb2.pyi": "sha256:b7d67c5d84c3c4d97d1435c85a5f9b476feb3d8df67df1c3f3422790fd090ede",
     "gen/python/vrooli_events/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "gen/typescript/js/vrooli-events/v1/domain/envelope_pb.js": "sha256:b69dff7ccf7197005c6fc81f5c3d76c11665b795d2a98f711485e6f26a7d81f2",
-    "gen/typescript/js/vrooli-events/v1/domain/policy_pb.js": "sha256:8b47e6e242b9205da020daf986f3617045e94f6ae117e465b84e6fb2266746d9",
-    "gen/typescript/js/vrooli-events/v1/domain/sse_pb.js": "sha256:454307b5fea4538eeaec932ad7e4ca49db1f4a719fd01d8bfd1763bab1743467",
-    "gen/typescript/vrooli-events/v1/domain/envelope_pb.ts": "sha256:7a77f7acfe776d353ea9c9ffadd19a99585034c7aa1762b8698c67c02844ec3c",
-    "gen/typescript/vrooli-events/v1/domain/policy_pb.ts": "sha256:75eab7adb99065634ba7b98b463d069f5b97db7903c369fa1bfe78a9496dcb03",
-    "gen/typescript/vrooli-events/v1/domain/sse_pb.ts": "sha256:f860b76aeddb49820ea6b765bf32bc4eb42b13f5f692daafd54fda596a8b766c"
+    "gen/typescript/js/vrooli-events/v1/domain/aggregate_pb.js": "sha256:0290d77482f256827d0f5482977d0fac887334f5388b4d483352d604aba16d32",
+    "gen/typescript/js/vrooli-events/v1/domain/envelope_pb.js": "sha256:f95a85985773cc5a8386f961d692ce226a91482101827a69a9ee3963b2a156bd",
+    "gen/typescript/js/vrooli-events/v1/domain/policy_pb.js": "sha256:3173d859c617bff76af8c45e9cb82694b36342d9dd9628c91b2a8fb8bfbbb96c",
+    "gen/typescript/js/vrooli-events/v1/domain/sse_pb.js": "sha256:165d2361de9c9fe8a8acd999fccec44b49256b11512b436fefb14f307e2b4fee",
+    "gen/typescript/vrooli-events/v1/domain/aggregate_pb.ts": "sha256:499cde2b17d722d6f2f18e308d7d41b26bbe8cd2ab2810a249b303f976c9b8ff",
+    "gen/typescript/vrooli-events/v1/domain/envelope_pb.ts": "sha256:9b5c6f1a3269b00f95c0a5327a14155b15a82216652f5862845f6fbfca0b119e",
+    "gen/typescript/vrooli-events/v1/domain/policy_pb.ts": "sha256:ce7087a209e6080dcae3009d4f7a39fb6578c71e82b518d836820bffb7fa30d8",
+    "gen/typescript/vrooli-events/v1/domain/sse_pb.ts": "sha256:99198a8237558c768dd98c7be496dcd4cbd26a732f61cae3abd722f17f7d1ce9"
   }
 }

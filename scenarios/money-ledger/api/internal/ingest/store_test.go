@@ -201,3 +201,183 @@ func TestFailedAdapterIsVisibleAndNeverWritesZero(t *testing.T) { // [REQ:POS-00
 	require.EqualValues(t, 0, position.CashMinor)
 	require.Len(t, position.Availability, 1)
 }
+
+// operatorBookWithStandardAccounts builds the four-account shape the production
+// monetization book uses, including two REVENUE accounts so routing has to
+// disambiguate rather than pick the first row.
+func operatorBookWithStandardAccounts(t *testing.T, s *Store, ctx context.Context, name string) (*ledgerpb.Book, map[string]string) {
+	t.Helper()
+	book, err := s.journal.CreateBook(ctx, name, "USD")
+	require.NoError(t, err)
+	ids := map[string]string{}
+	for _, spec := range []struct {
+		name string
+		kind ledgerpb.AccountKind
+	}{
+		{"Operating Cash", ledgerpb.AccountKind_ASSET},
+		{"Operating Expenses", ledgerpb.AccountKind_EXPENSE},
+		{"Subscription Revenue", ledgerpb.AccountKind_REVENUE},
+		{"Services Revenue", ledgerpb.AccountKind_REVENUE},
+	} {
+		account, err := s.journal.CreateAccount(ctx, book.Id, spec.name, spec.kind)
+		require.NoError(t, err)
+		ids[spec.name] = account.Id
+	}
+	return book, ids
+}
+
+func operatorPayload(t *testing.T, values map[string]any) []byte {
+	t.Helper()
+	present := func(path string) map[string]any {
+		if v, ok := values[path]; ok {
+			return map[string]any{"value": v, "status": "current"}
+		}
+		return map[string]any{"value": nil, "status": "pending-operator"}
+	}
+	root := map[string]any{
+		"cash": present("cash"),
+		"monthlyBurn": map[string]any{
+			"aiApi": present("monthlyBurn.aiApi"), "infrastructure": present("monthlyBurn.infrastructure"),
+			"saas": present("monthlyBurn.saas"), "tooling": present("monthlyBurn.tooling"),
+		},
+		"timeAllocation": map[string]any{
+			"product": present("timeAllocation.product"), "services": present("timeAllocation.services"),
+			"ops": present("timeAllocation.ops"),
+		},
+		"servicesRevenue": map[string]any{
+			"leadGen": present("servicesRevenue.leadGen"), "doneForYou": present("servicesRevenue.doneForYou"),
+			"consulting": present("servicesRevenue.consulting"),
+		},
+		"servicesTime":  map[string]any{"hoursThisWindow": present("servicesTime.hoursThisWindow")},
+		"subscriptions": map[string]any{"mrr": present("subscriptions.mrr")},
+	}
+	data, err := json.Marshal(root)
+	require.NoError(t, err)
+	return data
+}
+
+// The entry path exists to move position. Cash must reach the ASSET account and
+// burn must reach the EXPENSE account, because Position derives both from
+// accounts.kind — routing everything to one account yielded revenue=0/burn=0
+// regardless of what the operator supplied. [REQ:CTR-006] [REQ:POS-001]
+func TestOperatorInputsRouteToTheAccountKindPositionReads(t *testing.T) {
+	s, ctx := newIngestStore(t)
+	book, accounts := operatorBookWithStandardAccounts(t, s, ctx, "Monetization Operating")
+	_, err := s.RegisterAdapter(ctx, &ingestpb.Adapter{Id: "operator-console", Name: "Operator console", Kind: ingestpb.AdapterKind_ADAPTER_KIND_MANUAL, Enabled: true})
+	require.NoError(t, err)
+
+	data := operatorPayload(t, map[string]any{
+		"cash":                       100000.0,
+		"monthlyBurn.aiApi":          4000.0,
+		"monthlyBurn.infrastructure": 1500.0,
+		"servicesRevenue.consulting": 2500.0,
+	})
+	report, err := s.ImportOperatorInputsJSON(ctx, data, true, "operator-console", book.Id, "")
+	require.NoError(t, err)
+	require.Equal(t, 4, report.Written)
+
+	assertAccount := func(category, wantAccount string) {
+		var got string
+		require.NoError(t, s.db.QueryRowContext(ctx, `SELECT account_id FROM postings WHERE category=?`, category).Scan(&got))
+		require.Equal(t, accounts[wantAccount], got, "%s must post to %s", category, wantAccount)
+	}
+	assertAccount("cash", "Operating Cash")
+	assertAccount("monthlyBurn.aiApi", "Operating Expenses")
+	assertAccount("monthlyBurn.infrastructure", "Operating Expenses")
+	assertAccount("servicesRevenue.consulting", "Services Revenue")
+
+	position, err := s.journal.Position(ctx, book.Id)
+	require.NoError(t, err)
+	require.EqualValues(t, 100000, position.CashMinor)
+	require.EqualValues(t, 5500, position.ExpenseMinor)
+	require.EqualValues(t, 2500, position.RevenueMinor)
+	require.EqualValues(t, 3000, position.BurnMinor)
+	require.True(t, position.RunwayAvailable, "runway must be computable once cash and burn are both observed")
+}
+
+// A book that cannot supply an unambiguous target must produce a named finding.
+// Guessing an account yields a wrong figure that looks right. [REQ:CTR-006]
+func TestUnroutableOperatorInputIsReportedRatherThanGuessed(t *testing.T) {
+	s, ctx := newIngestStore(t)
+	book, err := s.journal.CreateBook(ctx, "Cash Only", "USD")
+	require.NoError(t, err)
+	_, err = s.journal.CreateAccount(ctx, book.Id, "Operating Cash", ledgerpb.AccountKind_ASSET)
+	require.NoError(t, err)
+	_, err = s.RegisterAdapter(ctx, &ingestpb.Adapter{Id: "operator-console", Name: "Operator console", Kind: ingestpb.AdapterKind_ADAPTER_KIND_MANUAL, Enabled: true})
+	require.NoError(t, err)
+
+	data := operatorPayload(t, map[string]any{"cash": 100000.0, "monthlyBurn.aiApi": 4000.0})
+	report, err := s.ImportOperatorInputsJSON(ctx, data, true, "operator-console", book.Id, "")
+	require.NoError(t, err)
+	require.Equal(t, 1, report.Written, "only cash is routable in a book with no expense account")
+
+	var burn *OperatorFieldReport
+	for i := range report.Fields {
+		if report.Fields[i].Path == "monthlyBurn.aiApi" {
+			burn = &report.Fields[i]
+		}
+	}
+	require.NotNil(t, burn)
+	require.Equal(t, "unroutable", burn.Status)
+	require.Contains(t, burn.Reason, "EXPENSE")
+	require.False(t, burn.Written)
+
+	var count int
+	require.NoError(t, s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM postings WHERE category=?`, "monthlyBurn.aiApi").Scan(&count))
+	require.Zero(t, count, "an unroutable field must not post anywhere")
+}
+
+// Status is a per-book question. An archived drill book must never make a field
+// look supplied to the live book. [REQ:CTR-006] [REQ:POS-004]
+func TestOperatorInputStatusIsBookScopedAndIgnoresArchivedBooks(t *testing.T) {
+	s, ctx := newIngestStore(t)
+	drill, _ := operatorBookWithStandardAccounts(t, s, ctx, "Drill Book")
+	live, _ := operatorBookWithStandardAccounts(t, s, ctx, "Monetization Operating")
+	_, err := s.RegisterAdapter(ctx, &ingestpb.Adapter{Id: "operator-console", Name: "Operator console", Kind: ingestpb.AdapterKind_ADAPTER_KIND_MANUAL, Enabled: true})
+	require.NoError(t, err)
+
+	data := operatorPayload(t, map[string]any{"cash": 5000.0, "timeAllocation.services": 0.4})
+	_, err = s.ImportOperatorInputsJSON(ctx, data, true, "operator-console", drill.Id, "")
+	require.NoError(t, err)
+	_, err = s.journal.ArchiveBook(ctx, drill.Id, "operator")
+	require.NoError(t, err)
+
+	statusFor := func(bookID string) map[string]string {
+		fields, err := s.OperatorInputStatus(ctx, bookID)
+		require.NoError(t, err)
+		out := map[string]string{}
+		for _, f := range fields {
+			out[f.Path] = f.Status
+		}
+		return out
+	}
+
+	liveStatus := statusFor(live.Id)
+	require.Equal(t, "absent", liveStatus["cash"], "the live book has no cash observation")
+	require.Equal(t, "absent", liveStatus["timeAllocation.services"], "measures are book-scoped too")
+
+	unscoped := statusFor("")
+	require.Equal(t, "absent", unscoped["cash"], "an archived book must not satisfy an unscoped read")
+	require.Equal(t, "absent", unscoped["timeAllocation.services"])
+}
+
+// A stored observation with no timestamp cannot be aged, so its freshness is
+// unknowable; reporting it `current` asserts a freshness nothing established.
+func TestObservationWithoutATimestampIsUnknownNotCurrent(t *testing.T) {
+	s, ctx := newIngestStore(t)
+	book, _ := operatorBookWithStandardAccounts(t, s, ctx, "Monetization Operating")
+	_, err := s.db.ExecContext(ctx, `INSERT INTO operator_measures(path,value,unit,window_days,observed_at,status,source_path,book_id) VALUES(?,?,?,?,?,?,?,?)`,
+		"timeAllocation.ops", 0.2, "share-of-time-budget", 7, "", "current", "console", book.Id)
+	require.NoError(t, err)
+
+	fields, err := s.OperatorInputStatus(ctx, book.Id)
+	require.NoError(t, err)
+	for _, f := range fields {
+		if f.Path == "timeAllocation.ops" {
+			require.Equal(t, "unknown", f.Status)
+			require.Contains(t, f.Reason, "age cannot be judged")
+			return
+		}
+	}
+	t.Fatal("timeAllocation.ops was not reported")
+}

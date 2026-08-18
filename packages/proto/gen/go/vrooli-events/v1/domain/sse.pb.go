@@ -193,14 +193,14 @@ var File_vrooli_events_v1_domain_sse_proto protoreflect.FileDescriptor
 
 const file_vrooli_events_v1_domain_sse_proto_rawDesc = "" +
 	"\n" +
-	"!vrooli-events/v1/domain/sse.proto\x12\x17vrooli.events.v1.domain\x1a\x1fgoogle/protobuf/timestamp.proto\x1a&vrooli-events/v1/domain/envelope.proto\x1a$vrooli-events/v1/domain/policy.proto\"\x80\x01\n" +
+	"!vrooli-events/v1/domain/sse.proto\x12\x1evrooli.vrooli_events.v1.domain\x1a\x1fgoogle/protobuf/timestamp.proto\x1a&vrooli-events/v1/domain/envelope.proto\x1a$vrooli-events/v1/domain/policy.proto\"\x87\x01\n" +
 	"\x11EventNotification\x12'\n" +
-	"\x0fstream_sequence\x18\x01 \x01(\x03R\x0estreamSequence\x12B\n" +
-	"\benvelope\x18\x02 \x01(\v2&.vrooli.events.v1.domain.EventEnvelopeR\benvelope\"\xd2\x01\n" +
+	"\x0fstream_sequence\x18\x01 \x01(\x03R\x0estreamSequence\x12I\n" +
+	"\benvelope\x18\x02 \x01(\v2-.vrooli.vrooli_events.v1.domain.EventEnvelopeR\benvelope\"\xd9\x01\n" +
 	"\x0ePolicySnapshot\x12\x18\n" +
 	"\aversion\x18\x01 \x01(\tR\aversion\x12=\n" +
-	"\fgenerated_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\vgeneratedAt\x12g\n" +
-	"\x18receipt_capture_policies\x18\x03 \x03(\v2-.vrooli.events.v1.domain.ReceiptCapturePolicyR\x16receiptCapturePolicies\"q\n" +
+	"\fgenerated_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\vgeneratedAt\x12n\n" +
+	"\x18receipt_capture_policies\x18\x03 \x03(\v24.vrooli.vrooli_events.v1.domain.ReceiptCapturePolicyR\x16receiptCapturePolicies\"q\n" +
 	"\x10HeartbeatMessage\x128\n" +
 	"\ttimestamp\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\x12#\n" +
 	"\rdropped_count\x18\x02 \x01(\x03R\fdroppedCountBOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain;domainb\x06proto3"
@@ -219,18 +219,18 @@ func file_vrooli_events_v1_domain_sse_proto_rawDescGZIP() []byte {
 
 var file_vrooli_events_v1_domain_sse_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
 var file_vrooli_events_v1_domain_sse_proto_goTypes = []any{
-	(*EventNotification)(nil),     // 0: vrooli.events.v1.domain.EventNotification
-	(*PolicySnapshot)(nil),        // 1: vrooli.events.v1.domain.PolicySnapshot
-	(*HeartbeatMessage)(nil),      // 2: vrooli.events.v1.domain.HeartbeatMessage
-	(*EventEnvelope)(nil),         // 3: vrooli.events.v1.domain.EventEnvelope
+	(*EventNotification)(nil),     // 0: vrooli.vrooli_events.v1.domain.EventNotification
+	(*PolicySnapshot)(nil),        // 1: vrooli.vrooli_events.v1.domain.PolicySnapshot
+	(*HeartbeatMessage)(nil),      // 2: vrooli.vrooli_events.v1.domain.HeartbeatMessage
+	(*EventEnvelope)(nil),         // 3: vrooli.vrooli_events.v1.domain.EventEnvelope
 	(*timestamppb.Timestamp)(nil), // 4: google.protobuf.Timestamp
-	(*ReceiptCapturePolicy)(nil),  // 5: vrooli.events.v1.domain.ReceiptCapturePolicy
+	(*ReceiptCapturePolicy)(nil),  // 5: vrooli.vrooli_events.v1.domain.ReceiptCapturePolicy
 }
 var file_vrooli_events_v1_domain_sse_proto_depIdxs = []int32{
-	3, // 0: vrooli.events.v1.domain.EventNotification.envelope:type_name -> vrooli.events.v1.domain.EventEnvelope
-	4, // 1: vrooli.events.v1.domain.PolicySnapshot.generated_at:type_name -> google.protobuf.Timestamp
-	5, // 2: vrooli.events.v1.domain.PolicySnapshot.receipt_capture_policies:type_name -> vrooli.events.v1.domain.ReceiptCapturePolicy
-	4, // 3: vrooli.events.v1.domain.HeartbeatMessage.timestamp:type_name -> google.protobuf.Timestamp
+	3, // 0: vrooli.vrooli_events.v1.domain.EventNotification.envelope:type_name -> vrooli.vrooli_events.v1.domain.EventEnvelope
+	4, // 1: vrooli.vrooli_events.v1.domain.PolicySnapshot.generated_at:type_name -> google.protobuf.Timestamp
+	5, // 2: vrooli.vrooli_events.v1.domain.PolicySnapshot.receipt_capture_policies:type_name -> vrooli.vrooli_events.v1.domain.ReceiptCapturePolicy
+	4, // 3: vrooli.vrooli_events.v1.domain.HeartbeatMessage.timestamp:type_name -> google.protobuf.Timestamp
 	4, // [4:4] is the sub-list for method output_type
 	4, // [4:4] is the sub-list for method input_type
 	4, // [4:4] is the sub-list for extension type_name

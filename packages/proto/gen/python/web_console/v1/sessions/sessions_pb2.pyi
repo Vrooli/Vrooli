@@ -13,10 +13,21 @@ class SessionOrigin(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     SESSION_ORIGIN_UI: _ClassVar[SessionOrigin]
     SESSION_ORIGIN_PROGRAMMATIC: _ClassVar[SessionOrigin]
     SESSION_ORIGIN_REMOTE: _ClassVar[SessionOrigin]
+
+class ArchiveRestoreState(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    ARCHIVE_RESTORE_STATE_UNSPECIFIED: _ClassVar[ArchiveRestoreState]
+    ARCHIVE_RESTORE_STATE_REOPENABLE: _ClassVar[ArchiveRestoreState]
+    ARCHIVE_RESTORE_STATE_READ_ONLY: _ClassVar[ArchiveRestoreState]
+    ARCHIVE_RESTORE_STATE_NOTHING_TO_RESTORE: _ClassVar[ArchiveRestoreState]
 SESSION_ORIGIN_UNSPECIFIED: SessionOrigin
 SESSION_ORIGIN_UI: SessionOrigin
 SESSION_ORIGIN_PROGRAMMATIC: SessionOrigin
 SESSION_ORIGIN_REMOTE: SessionOrigin
+ARCHIVE_RESTORE_STATE_UNSPECIFIED: ArchiveRestoreState
+ARCHIVE_RESTORE_STATE_REOPENABLE: ArchiveRestoreState
+ARCHIVE_RESTORE_STATE_READ_ONLY: ArchiveRestoreState
+ARCHIVE_RESTORE_STATE_NOTHING_TO_RESTORE: ArchiveRestoreState
 
 class ExpirationPolicy(_message.Message):
     __slots__ = ("mode", "duration")
@@ -144,6 +155,46 @@ class ListResponse(_message.Message):
     recovery: RecoveryStatus
     def __init__(self, sessions: _Optional[_Iterable[_Union[Session, _Mapping]]] = ..., recovery: _Optional[_Union[RecoveryStatus, _Mapping]] = ...) -> None: ...
 
+class ArchivedSession(_message.Message):
+    __slots__ = ("id", "archived_at", "created_at", "agent_type", "agent_session_id", "cwd", "pane_name", "header_color", "group_name", "message_count", "restore_state", "restore_state_reason")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    ARCHIVED_AT_FIELD_NUMBER: _ClassVar[int]
+    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    AGENT_TYPE_FIELD_NUMBER: _ClassVar[int]
+    AGENT_SESSION_ID_FIELD_NUMBER: _ClassVar[int]
+    CWD_FIELD_NUMBER: _ClassVar[int]
+    PANE_NAME_FIELD_NUMBER: _ClassVar[int]
+    HEADER_COLOR_FIELD_NUMBER: _ClassVar[int]
+    GROUP_NAME_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_COUNT_FIELD_NUMBER: _ClassVar[int]
+    RESTORE_STATE_FIELD_NUMBER: _ClassVar[int]
+    RESTORE_STATE_REASON_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    archived_at: str
+    created_at: str
+    agent_type: str
+    agent_session_id: str
+    cwd: str
+    pane_name: str
+    header_color: str
+    group_name: str
+    message_count: int
+    restore_state: ArchiveRestoreState
+    restore_state_reason: str
+    def __init__(self, id: _Optional[str] = ..., archived_at: _Optional[str] = ..., created_at: _Optional[str] = ..., agent_type: _Optional[str] = ..., agent_session_id: _Optional[str] = ..., cwd: _Optional[str] = ..., pane_name: _Optional[str] = ..., header_color: _Optional[str] = ..., group_name: _Optional[str] = ..., message_count: _Optional[int] = ..., restore_state: _Optional[_Union[ArchiveRestoreState, str]] = ..., restore_state_reason: _Optional[str] = ...) -> None: ...
+
+class ListArchivedRequest(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class ListArchivedResponse(_message.Message):
+    __slots__ = ("sessions", "total")
+    SESSIONS_FIELD_NUMBER: _ClassVar[int]
+    TOTAL_FIELD_NUMBER: _ClassVar[int]
+    sessions: _containers.RepeatedCompositeFieldContainer[ArchivedSession]
+    total: int
+    def __init__(self, sessions: _Optional[_Iterable[_Union[ArchivedSession, _Mapping]]] = ..., total: _Optional[int] = ...) -> None: ...
+
 class RecoveryStatus(_message.Message):
     __slots__ = ("in_progress", "total", "recovered", "awaiting_recovery", "adopted", "started_at_unix_ms", "completed_at_unix_ms")
     IN_PROGRESS_FIELD_NUMBER: _ClassVar[int]
@@ -173,6 +224,30 @@ class GetResponse(_message.Message):
     SESSION_FIELD_NUMBER: _ClassVar[int]
     session: Session
     def __init__(self, session: _Optional[_Union[Session, _Mapping]] = ...) -> None: ...
+
+class ArchiveRequest(_message.Message):
+    __slots__ = ("id",)
+    ID_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    def __init__(self, id: _Optional[str] = ...) -> None: ...
+
+class ArchiveResponse(_message.Message):
+    __slots__ = ("id",)
+    ID_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    def __init__(self, id: _Optional[str] = ...) -> None: ...
+
+class UnarchiveRequest(_message.Message):
+    __slots__ = ("id",)
+    ID_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    def __init__(self, id: _Optional[str] = ...) -> None: ...
+
+class UnarchiveResponse(_message.Message):
+    __slots__ = ("id",)
+    ID_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    def __init__(self, id: _Optional[str] = ...) -> None: ...
 
 class DeleteRequest(_message.Message):
     __slots__ = ("id",)

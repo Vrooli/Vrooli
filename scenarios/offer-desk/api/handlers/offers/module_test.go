@@ -130,3 +130,41 @@ func TestActiveWithZeroActualsStillSaysEarningNothing(t *testing.T) {
 	require.Equal(t, "active and earning nothing", rankReason(offerspb.Status_ACTIVE, true, 0, "money-ledger.actuals"))
 	require.Equal(t, "active and earning", rankReason(offerspb.Status_ACTIVE, true, 100, "money-ledger.actuals"))
 }
+
+// The board's declared first priority is "which triggers fired since I last
+// looked". Ordering must express that: a fired trigger has to be reachable
+// without scrolling past retired drill rows. [REQ:INT-003]
+func TestBoardOrdersFiredTriggersFirstAndRetiredLast(t *testing.T) {
+	cases := []struct {
+		name             string
+		status           offerspb.Status
+		actualsAvailable bool
+		actualMinor      int64
+	}{
+		{"retired", offerspb.Status_RETIRED, false, 0},
+		{"idea", offerspb.Status_IDEA, false, 0},
+		{"candidate", offerspb.Status_CANDIDATE, false, 0},
+		{"active earning", offerspb.Status_ACTIVE, true, 500},
+		{"active unknown earnings", offerspb.Status_ACTIVE, false, 0},
+		{"active earning nothing", offerspb.Status_ACTIVE, true, 0},
+		{"proposed", offerspb.Status_PROPOSED, false, 0},
+		{"trigger met", offerspb.Status_TRIGGER_MET, false, 0},
+	}
+	ranks := make([]int, len(cases))
+	for i, c := range cases {
+		ranks[i] = boardRank(c.status, c.actualsAvailable, c.actualMinor)
+	}
+	byName := map[string]int{}
+	for i, c := range cases {
+		byName[c.name] = ranks[i]
+	}
+
+	require.Less(t, byName["trigger met"], byName["proposed"], "a fired trigger outranks a pending proposal")
+	require.Less(t, byName["proposed"], byName["active earning nothing"], "a decision waiting on the operator outranks a standing condition")
+	require.Less(t, byName["active earning nothing"], byName["active unknown earnings"],
+		"a confirmed zero outranks an unavailable read; missing evidence is not a business finding")
+	require.Less(t, byName["active unknown earnings"], byName["active earning"])
+	require.Less(t, byName["active earning"], byName["candidate"])
+	require.Less(t, byName["candidate"], byName["idea"])
+	require.Less(t, byName["idea"], byName["retired"], "retired rows must never outrank live work")
+}

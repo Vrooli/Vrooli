@@ -31,6 +31,7 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/
 service ConversationService {
   rpc Get(GetRequest) returns (GetResponse);
   rpc Search(SearchRequest) returns (SearchResponse);
+  rpc SearchArchived(SearchArchivedRequest) returns (SearchArchivedResponse);
   rpc GetRange(GetRangeRequest) returns (GetResponse);
   rpc UpdateCursor(UpdateCursorRequest) returns (UpdateCursorResponse);
   rpc SummarizeEvent(SummarizeEventRequest) returns (SummarizeEventResponse);
@@ -53,6 +54,30 @@ message SearchResponse {
   repeated SearchMatch matches = 1;
   bool truncated = 2;
   int64 total_matches = 3;
+}
+
+message SearchArchivedRequest {
+  string query = 1;
+  int32 limit = 2;
+  string agent_type = 3;
+  string role = 4;
+  string created_after = 5;
+}
+
+message ArchivedSearchMatch {
+  string event_id = 1;
+  string session_id = 2;
+  int64 sequence = 3;
+  string role = 4;
+  string created_at = 5;
+  string excerpt = 6;
+}
+
+message SearchArchivedResponse {
+  repeated ArchivedSearchMatch matches = 1;
+  bool truncated = 2;
+  int64 total_matches = 3;
+  int64 distinct_sessions = 4;
 }
 
 message GetRangeRequest {

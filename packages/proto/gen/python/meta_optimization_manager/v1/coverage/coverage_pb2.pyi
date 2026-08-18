@@ -12,7 +12,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class ProjectionCoverage(_message.Message):
-    __slots__ = ("projection", "now_count", "in_reach_count", "missing_count", "total_cells", "coverage_ratio", "denominator_confidence", "confidence_rationale", "available", "unavailable_reason", "condition_counts", "corpus_capable_now_count", "corpus_capable_total_cells", "corpus_capable_ratio", "end_to_end_answerable_now_count", "end_to_end_answerable_total_cells", "end_to_end_answerable_ratio")
+    __slots__ = ("projection", "now_count", "in_reach_count", "missing_count", "total_cells", "coverage_ratio", "denominator_confidence", "confidence_rationale", "available", "unavailable_reason", "condition_counts", "corpus_capable_now_count", "corpus_capable_total_cells", "corpus_capable_ratio", "end_to_end_answerable_now_count", "end_to_end_answerable_total_cells", "end_to_end_answerable_ratio", "manifest_scenarios", "total_scenarios", "reachable_scenarios", "unreachable_scenarios", "reachability_checked_at")
     PROJECTION_FIELD_NUMBER: _ClassVar[int]
     NOW_COUNT_FIELD_NUMBER: _ClassVar[int]
     IN_REACH_COUNT_FIELD_NUMBER: _ClassVar[int]
@@ -30,6 +30,11 @@ class ProjectionCoverage(_message.Message):
     END_TO_END_ANSWERABLE_NOW_COUNT_FIELD_NUMBER: _ClassVar[int]
     END_TO_END_ANSWERABLE_TOTAL_CELLS_FIELD_NUMBER: _ClassVar[int]
     END_TO_END_ANSWERABLE_RATIO_FIELD_NUMBER: _ClassVar[int]
+    MANIFEST_SCENARIOS_FIELD_NUMBER: _ClassVar[int]
+    TOTAL_SCENARIOS_FIELD_NUMBER: _ClassVar[int]
+    REACHABLE_SCENARIOS_FIELD_NUMBER: _ClassVar[int]
+    UNREACHABLE_SCENARIOS_FIELD_NUMBER: _ClassVar[int]
+    REACHABILITY_CHECKED_AT_FIELD_NUMBER: _ClassVar[int]
     projection: _model_pb2.Projection
     now_count: int
     in_reach_count: int
@@ -47,7 +52,12 @@ class ProjectionCoverage(_message.Message):
     end_to_end_answerable_now_count: int
     end_to_end_answerable_total_cells: int
     end_to_end_answerable_ratio: float
-    def __init__(self, projection: _Optional[_Union[_model_pb2.Projection, str]] = ..., now_count: _Optional[int] = ..., in_reach_count: _Optional[int] = ..., missing_count: _Optional[int] = ..., total_cells: _Optional[int] = ..., coverage_ratio: _Optional[float] = ..., denominator_confidence: _Optional[_Union[_model_pb2.DenominatorConfidence, str]] = ..., confidence_rationale: _Optional[str] = ..., available: _Optional[bool] = ..., unavailable_reason: _Optional[str] = ..., condition_counts: _Optional[_Iterable[_Union[ConditionCount, _Mapping]]] = ..., corpus_capable_now_count: _Optional[int] = ..., corpus_capable_total_cells: _Optional[int] = ..., corpus_capable_ratio: _Optional[float] = ..., end_to_end_answerable_now_count: _Optional[int] = ..., end_to_end_answerable_total_cells: _Optional[int] = ..., end_to_end_answerable_ratio: _Optional[float] = ...) -> None: ...
+    manifest_scenarios: int
+    total_scenarios: int
+    reachable_scenarios: int
+    unreachable_scenarios: int
+    reachability_checked_at: str
+    def __init__(self, projection: _Optional[_Union[_model_pb2.Projection, str]] = ..., now_count: _Optional[int] = ..., in_reach_count: _Optional[int] = ..., missing_count: _Optional[int] = ..., total_cells: _Optional[int] = ..., coverage_ratio: _Optional[float] = ..., denominator_confidence: _Optional[_Union[_model_pb2.DenominatorConfidence, str]] = ..., confidence_rationale: _Optional[str] = ..., available: _Optional[bool] = ..., unavailable_reason: _Optional[str] = ..., condition_counts: _Optional[_Iterable[_Union[ConditionCount, _Mapping]]] = ..., corpus_capable_now_count: _Optional[int] = ..., corpus_capable_total_cells: _Optional[int] = ..., corpus_capable_ratio: _Optional[float] = ..., end_to_end_answerable_now_count: _Optional[int] = ..., end_to_end_answerable_total_cells: _Optional[int] = ..., end_to_end_answerable_ratio: _Optional[float] = ..., manifest_scenarios: _Optional[int] = ..., total_scenarios: _Optional[int] = ..., reachable_scenarios: _Optional[int] = ..., unreachable_scenarios: _Optional[int] = ..., reachability_checked_at: _Optional[str] = ...) -> None: ...
 
 class ConditionCount(_message.Message):
     __slots__ = ("condition", "count")

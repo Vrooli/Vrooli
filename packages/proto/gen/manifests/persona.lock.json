@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "scenario": "persona",
+  "input_digest": "sha256:7ca5263ea2b800962f2abd8ac5c28b6a03b960db463d845836fc513dbda60a77",
+  "input_files": [
+    "schemas/measures/v1/measures.proto",
+    "schemas/persona/v1/notes/attachments.proto",
+    "schemas/persona/v1/notes/notes.proto",
+    "schemas/persona/v1/shared/errors.proto",
+    "schemas/persona/v1/shared/health.proto",
+    "vendor/protovalidate/buf/validate/validate.proto"
+  ],
+  "toolchain": {
+    "buf": "1.37.0",
+    "buf_gen_yaml_digest": "sha256:25a429d557cd66037be08fe549418750c7bd895d3e6078c5afe55a84afd37e84",
+    "plugins": {
+      "protoc": "34.1",
+      "protoc-gen-connect-go": "v1.19.2",
+      "protoc-gen-es": "2.12.0",
+      "protoc-gen-go": "v1.36.11"
+    }
+  },
+  "outputs": {
+    "gen/go/persona/v1/notes/attachments.pb.go": "sha256:98bc98a9a9dd6b0abce6c45b844ee3929df4a25c828bae8f6264a1c71a7cce9c",
+    "gen/go/persona/v1/notes/notes.pb.go": "sha256:28e1834420aa42b17992276b97a1514a5227f238a9f7923b61544b9660e6c881",
+    "gen/go/persona/v1/notes/notes_v1connect/notes.connect.go": "sha256:100c5260c1481e01575eba0d21ee3dda3ddc025a3449ee9970058b98ef36b0e8",
+    "gen/go/persona/v1/shared/errors.pb.go": "sha256:5bb00ac04ba126c302a4956ba5ee1de7480bd626fd8c4e03657737e980a7c3c0",
+    "gen/go/persona/v1/shared/health.pb.go": "sha256:def5f3c9acbdf23fdc91687afe00dda55d6d0504a41a653e6c8261f44a607cec",
+    "gen/python/persona/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/persona/v1/notes/attachments_pb2.py": "sha256:36200f2eedba0b98cd371d4cd899d93349f702527e4f26bf7931a57477666a01",
+    "gen/python/persona/v1/notes/attachments_pb2.pyi": "sha256:5594188beec26dac8bb0ab7d1ece27e28d425bc57b7544c9e509610cbb5e37fa",
+    "gen/python/persona/v1/notes/notes_pb2.py": "sha256:55409af08229d664579a68469a692cac0f8cf563e6b73f2224f2169fa9e40d2b",
+    "gen/python/persona/v1/notes/notes_pb2.pyi": "sha256:359aac5d47799ae41e88608988e03caee63bd56ec270e6b9959e4bcd3b139386",
+    "gen/python/persona/v1/notes/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/persona/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/persona/v1/shared/errors_pb2.py": "sha256:aae7c85431391c296a0169e03202ace4b8065da1efbe9496772f35209dd36eb9",
+    "gen/python/persona/v1/shared/errors_pb2.pyi": "sha256:4fab4b85533131b72b50e57a69d84a6878a0c10aa64e5b6791a598b7b9716dd1",
+    "gen/python/persona/v1/shared/health_pb2.py": "sha256:cb0b537efd3b203ed045edaa02a5cdc6a814ddd4a57df740979cdf7280241ed3",
+    "gen/python/persona/v1/shared/health_pb2.pyi": "sha256:b9ec00d86e0bdde26187240212eb1746c8be4ebac7b5320be40d8097822a8a04",
+    "gen/python/persona/v1/shared/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/typescript/js/persona/v1/notes/attachments_pb.js": "sha256:be4e7d341808d07d01bce732b1cf0bbc67a4a4aacb6de340ea03d564e0f557bb",
+    "gen/typescript/js/persona/v1/notes/notes_pb.js": "sha256:0fc8880ec2990ae04b93974619fc92412f639a89c9eafc4dece42e49b75557bb",
+    "gen/typescript/js/persona/v1/shared/errors_pb.js": "sha256:066d6c18c10f3b3d90ad7fd60ceb7b6c0d02eca649ae0b98493c1b26e93b9326",
+    "gen/typescript/js/persona/v1/shared/health_pb.js": "sha256:288ab518a33985bcc407ab83d4afb5649ed692269d6996b0c447a1861c5dd55b",
+    "gen/typescript/persona/v1/notes/attachments_pb.ts": "sha256:bfc287958f041a9fb3a7fa0113217ce79fffa72a47a22817e5162229f88a463a",
+    "gen/typescript/persona/v1/notes/notes_pb.ts": "sha256:d67135992a9aa202d0892c2813ef6b328b4eaf10c1e73740ae09cb111ac28f54",
+    "gen/typescript/persona/v1/shared/errors_pb.ts": "sha256:d8cdc3c9f8d580c7dac5ef2f66ad3949bee0f6b4209238d45872fd8c17f1e50f",
+    "gen/typescript/persona/v1/shared/health_pb.ts": "sha256:2792be55520a81097f21c4edfc34d2bd3060bfc91d5804f7cf54b8d1639d9872"
+  }
+}

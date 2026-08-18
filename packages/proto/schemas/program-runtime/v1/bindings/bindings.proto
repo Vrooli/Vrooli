@@ -207,6 +207,7 @@ message ExerciseCondition {
   int64 distinct_callers = 3;
   string last_invoked_at = 4;
   int64 synthetic_invocations = 5;
+  int64 unattributed_remainder = 6;
 }
 
 message BindingCondition {
@@ -299,6 +300,11 @@ message ResolveActCellsResponse {
   int32 audited_cells = 2;
   int32 total_cells = 3;
   string denominator_confidence = 4;
+  int32 manifest_scenarios = 5;
+  int32 total_scenarios = 6;
+  int32 reachable_scenarios = 7;
+  int32 unreachable_scenarios = 8;
+  string reachability_checked_at = 9;
 }
 
 message ResolveIntentRequest {

@@ -31,6 +31,10 @@ service ConfigService {
   // per-check verdict with remediation. It is the opt-in counterpart to the
   // presence-only GetCredentialStatus and never returns credential values.
   rpc VerifyCredentials(VerifyCredentialsRequest) returns (VerifyCredentialsResponse);
+  // BootstrapCloudflare adopts or creates the named tunnel from one
+  // write-only API token, then stores all derived authority fields. The token
+  // is never returned.
+  rpc BootstrapCloudflare(BootstrapCloudflareRequest) returns (BootstrapCloudflareResponse);
   // SetCloudflareCredentials stores write-only Cloudflare credential values in
   // the configured operator secret store. Secret values are never echoed back.
   rpc SetCloudflareCredentials(SetCloudflareCredentialsRequest) returns (SetCloudflareCredentialsResponse);
@@ -239,6 +243,24 @@ message VerifyCredentialsResponse {
   repeated CredentialCheck checks = 1;
   // True only when every check is OK.
   bool ready = 2;
+}
+
+message BootstrapCloudflareRequest {
+  // Write-only operator token. It is accepted only over the local operator
+  // authorization boundary and is never logged or returned.
+  string api_token = 1;
+  string account_id = 2;
+  string tunnel_id = 3;
+  string tunnel_name = 4;
+  bool dry_run = 5;
+}
+
+message BootstrapCloudflareResponse {
+  string account_id = 1;
+  string tunnel_id = 2;
+  bool adopted = 3;
+  bool created = 4;
+  bool written = 5;
 }
 
 message SetCloudflareCredentialsRequest {

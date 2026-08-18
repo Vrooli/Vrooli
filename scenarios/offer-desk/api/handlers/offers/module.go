@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"sort"
 	"strings"
 	"time"
 
@@ -105,6 +106,44 @@ func (s *Service) startScheduler() {
 }
 func invalid(err error) error  { return connect.NewError(connect.CodeInvalidArgument, err) }
 func internal(err error) error { return connect.NewError(connect.CodeInternal, err) }
+
+// boardRank orders the board by how much operator attention a row deserves. The
+// page's declared first priority is "which triggers fired since I last looked",
+// so a fired trigger must be reachable without scrolling past retired drills.
+//
+// Ranking is deliberately separate from rankReason: the reason explains a row,
+// the rank places it, and conflating them made the board explain rows it never
+// ordered. Lower is more urgent.
+func boardRank(status offerspb.Status, actualsAvailable bool, actualMinor int64) int {
+	switch status {
+	case offerspb.Status_TRIGGER_MET:
+		// A condition the operator declared has been satisfied. This is the only
+		// row class that represents a decision the system is waiting on.
+		return 0
+	case offerspb.Status_PROPOSED:
+		// An agent has proposed a promotion; only an operator can complete it.
+		return 1
+	case offerspb.Status_ACTIVE, offerspb.Status_SHIPPED:
+		// Earning nothing while active outranks earning something. An unavailable
+		// actuals read is NOT treated as zero: it sorts below a confirmed zero,
+		// because missing evidence must never be promoted to a business finding.
+		if actualsAvailable && actualMinor == 0 {
+			return 2
+		}
+		if !actualsAvailable {
+			return 3
+		}
+		return 4
+	case offerspb.Status_CANDIDATE:
+		return 5
+	case offerspb.Status_IDEA:
+		return 6
+	case offerspb.Status_RETIRED:
+		return 7
+	default:
+		return 8
+	}
+}
 
 func rankReason(status offerspb.Status, actualsAvailable bool, actualMinor int64, unavailableSource string) string {
 	if !actualsAvailable {
@@ -218,6 +257,14 @@ func (s *Service) MergeNodes(ctx context.Context, r *connect.Request[offerspb.Me
 		return nil, invalid(err)
 	}
 	return connect.NewResponse(response), nil
+}
+
+func (s *Service) MapAccount(ctx context.Context, r *connect.Request[offerspb.MapAccountRequest]) (*connect.Response[offerspb.MapAccountResponse], error) {
+	node, prior, err := s.store.MapAccount(ctx, r.Msg)
+	if err != nil {
+		return nil, invalid(err)
+	}
+	return connect.NewResponse(&offerspb.MapAccountResponse{Node: node, PriorAccountId: prior}), nil
 }
 
 func (s *Service) VerifyCatalog(ctx context.Context, r *connect.Request[offerspb.VerifyCatalogRequest]) (*connect.Response[offerspb.VerifyCatalogResponse], error) {
@@ -374,6 +421,16 @@ func (s *Service) GetBoard(ctx context.Context, _ *connect.Request[offerspb.Proj
 		entry.RankReason = rankReason(n.Status, entry.ActualsAvailable, entry.ActualMinor, actualsSource)
 		out = append(out, entry)
 	}
+	// Stable sort on (rank, title) so equal-urgency rows keep a predictable,
+	// human-scannable order and the board does not reshuffle between reads.
+	sort.SliceStable(out, func(i, j int) bool {
+		ri := boardRank(out[i].Status, out[i].ActualsAvailable, out[i].ActualMinor)
+		rj := boardRank(out[j].Status, out[j].ActualsAvailable, out[j].ActualMinor)
+		if ri != rj {
+			return ri < rj
+		}
+		return strings.ToLower(out[i].Title) < strings.ToLower(out[j].Title)
+	})
 	response.Entries = out
 	result, scored, reason, at, evaluationErr := s.store.LatestEvaluation(ctx)
 	if evaluationErr == nil {
@@ -426,7 +483,7 @@ func ep(id, path, summary string) module.EndpointDescriptor {
 }
 
 var Endpoints = []module.EndpointDescriptor{
-	ep("catalog_create", "/vrooli.offer_desk.v1.offers.CatalogService/CreateNode", "Create a typed offer-graph node"), ep("catalog_list", "/vrooli.offer_desk.v1.offers.CatalogService/ListNodes", "List offer-graph nodes"), ep("catalog_transition", "/vrooli.offer_desk.v1.offers.CatalogService/Transition", "Transition a node through the enforced lifecycle"), ep("catalog_edge", "/vrooli.offer_desk.v1.offers.CatalogService/CreateEdge", "Create a typed graph edge"), ep("catalog_edges", "/vrooli.offer_desk.v1.offers.CatalogService/ListEdges", "List typed graph edges"), ep("catalog_import", "/vrooli.offer_desk.v1.offers.CatalogService/ImportCatalog", "Rehearse or apply a declared catalog source"), ep("catalog_merge", "/vrooli.offer_desk.v1.offers.CatalogService/MergeNodes", "Dry-run or apply an audited duplicate-node merge"), ep("catalog_verify", "/vrooli.offer_desk.v1.offers.CatalogService/VerifyCatalog", "Verify source counts and graph identity reconciliation"),
+	ep("catalog_create", "/vrooli.offer_desk.v1.offers.CatalogService/CreateNode", "Create a typed offer-graph node"), ep("catalog_list", "/vrooli.offer_desk.v1.offers.CatalogService/ListNodes", "List offer-graph nodes"), ep("catalog_transition", "/vrooli.offer_desk.v1.offers.CatalogService/Transition", "Transition a node through the enforced lifecycle"), ep("catalog_edge", "/vrooli.offer_desk.v1.offers.CatalogService/CreateEdge", "Create a typed graph edge"), ep("catalog_edges", "/vrooli.offer_desk.v1.offers.CatalogService/ListEdges", "List typed graph edges"), ep("catalog_import", "/vrooli.offer_desk.v1.offers.CatalogService/ImportCatalog", "Rehearse or apply a declared catalog source"), ep("catalog_map_account", "/vrooli.offer_desk.v1.offers.CatalogService/MapAccount", "Map a node to the ledger account holding its actuals"), ep("catalog_merge", "/vrooli.offer_desk.v1.offers.CatalogService/MergeNodes", "Dry-run or apply an audited duplicate-node merge"), ep("catalog_verify", "/vrooli.offer_desk.v1.offers.CatalogService/VerifyCatalog", "Verify source counts and graph identity reconciliation"),
 	ep("gates_trigger", "/vrooli.offer_desk.v1.offers.GatesService/DeclareTrigger", "Declare a machine-evaluable trigger"), ep("gates_fact", "/vrooli.offer_desk.v1.offers.GatesService/AddFact", "Record an observed fact"), ep("gates_evaluate", "/vrooli.offer_desk.v1.offers.GatesService/Evaluate", "Evaluate candidate triggers"), ep("gates_promote", "/vrooli.offer_desk.v1.offers.GatesService/Promote", "Create an operator promotion proposal"), ep("gates_proposals", "/vrooli.offer_desk.v1.offers.GatesService/ListProposals", "List promotion proposals and decline history"), ep("board_show", "/vrooli.offer_desk.v1.offers.BoardService/GetBoard", "Read the ranked offer board"),
 	ep("space_projection", "/vrooli.offer_desk.v1.offers.SpaceService/GetProjection", "Read monetization obligation cells"),
 }

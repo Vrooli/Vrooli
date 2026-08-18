@@ -1641,6 +1641,131 @@ func (x *TransitionRequest) GetActor() string {
 	return ""
 }
 
+// MapAccount attaches an existing node to the Money Ledger account whose
+// postings represent what that node actually earned. Without it the mapping
+// could only be set at CreateNode, so every imported node carried an empty
+// mapping permanently and the actuals join could never fire. Clearing the
+// mapping (empty actual_account_id) is allowed and is an audited change.
+type MapAccountRequest struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	NodeId          string                 `protobuf:"bytes,1,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
+	ActualAccountId string                 `protobuf:"bytes,2,opt,name=actual_account_id,json=actualAccountId,proto3" json:"actual_account_id,omitempty"`
+	Actor           string                 `protobuf:"bytes,3,opt,name=actor,proto3" json:"actor,omitempty"`
+	Reason          string                 `protobuf:"bytes,4,opt,name=reason,proto3" json:"reason,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *MapAccountRequest) Reset() {
+	*x = MapAccountRequest{}
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MapAccountRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MapAccountRequest) ProtoMessage() {}
+
+func (x *MapAccountRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MapAccountRequest.ProtoReflect.Descriptor instead.
+func (*MapAccountRequest) Descriptor() ([]byte, []int) {
+	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *MapAccountRequest) GetNodeId() string {
+	if x != nil {
+		return x.NodeId
+	}
+	return ""
+}
+
+func (x *MapAccountRequest) GetActualAccountId() string {
+	if x != nil {
+		return x.ActualAccountId
+	}
+	return ""
+}
+
+func (x *MapAccountRequest) GetActor() string {
+	if x != nil {
+		return x.Actor
+	}
+	return ""
+}
+
+func (x *MapAccountRequest) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+type MapAccountResponse struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Node           *Node                  `protobuf:"bytes,1,opt,name=node,proto3" json:"node,omitempty"`
+	PriorAccountId string                 `protobuf:"bytes,2,opt,name=prior_account_id,json=priorAccountId,proto3" json:"prior_account_id,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *MapAccountResponse) Reset() {
+	*x = MapAccountResponse{}
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MapAccountResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MapAccountResponse) ProtoMessage() {}
+
+func (x *MapAccountResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MapAccountResponse.ProtoReflect.Descriptor instead.
+func (*MapAccountResponse) Descriptor() ([]byte, []int) {
+	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *MapAccountResponse) GetNode() *Node {
+	if x != nil {
+		return x.Node
+	}
+	return nil
+}
+
+func (x *MapAccountResponse) GetPriorAccountId() string {
+	if x != nil {
+		return x.PriorAccountId
+	}
+	return ""
+}
+
 type TransitionResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Node          *Node                  `protobuf:"bytes,1,opt,name=node,proto3" json:"node,omitempty"`
@@ -1650,7 +1775,7 @@ type TransitionResponse struct {
 
 func (x *TransitionResponse) Reset() {
 	*x = TransitionResponse{}
-	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[17]
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1662,7 +1787,7 @@ func (x *TransitionResponse) String() string {
 func (*TransitionResponse) ProtoMessage() {}
 
 func (x *TransitionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[17]
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1675,7 +1800,7 @@ func (x *TransitionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TransitionResponse.ProtoReflect.Descriptor instead.
 func (*TransitionResponse) Descriptor() ([]byte, []int) {
-	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{17}
+	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *TransitionResponse) GetNode() *Node {
@@ -1694,7 +1819,7 @@ type CreateEdgeRequest struct {
 
 func (x *CreateEdgeRequest) Reset() {
 	*x = CreateEdgeRequest{}
-	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[18]
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1706,7 +1831,7 @@ func (x *CreateEdgeRequest) String() string {
 func (*CreateEdgeRequest) ProtoMessage() {}
 
 func (x *CreateEdgeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[18]
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1719,7 +1844,7 @@ func (x *CreateEdgeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateEdgeRequest.ProtoReflect.Descriptor instead.
 func (*CreateEdgeRequest) Descriptor() ([]byte, []int) {
-	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{18}
+	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *CreateEdgeRequest) GetEdge() *Edge {
@@ -1738,7 +1863,7 @@ type CreateEdgeResponse struct {
 
 func (x *CreateEdgeResponse) Reset() {
 	*x = CreateEdgeResponse{}
-	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[19]
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1750,7 +1875,7 @@ func (x *CreateEdgeResponse) String() string {
 func (*CreateEdgeResponse) ProtoMessage() {}
 
 func (x *CreateEdgeResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[19]
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1763,7 +1888,7 @@ func (x *CreateEdgeResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateEdgeResponse.ProtoReflect.Descriptor instead.
 func (*CreateEdgeResponse) Descriptor() ([]byte, []int) {
-	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{19}
+	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *CreateEdgeResponse) GetEdge() *Edge {
@@ -1782,7 +1907,7 @@ type DeclareTriggerRequest struct {
 
 func (x *DeclareTriggerRequest) Reset() {
 	*x = DeclareTriggerRequest{}
-	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[20]
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1794,7 +1919,7 @@ func (x *DeclareTriggerRequest) String() string {
 func (*DeclareTriggerRequest) ProtoMessage() {}
 
 func (x *DeclareTriggerRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[20]
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1807,7 +1932,7 @@ func (x *DeclareTriggerRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeclareTriggerRequest.ProtoReflect.Descriptor instead.
 func (*DeclareTriggerRequest) Descriptor() ([]byte, []int) {
-	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{20}
+	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *DeclareTriggerRequest) GetTrigger() *Trigger {
@@ -1826,7 +1951,7 @@ type DeclareTriggerResponse struct {
 
 func (x *DeclareTriggerResponse) Reset() {
 	*x = DeclareTriggerResponse{}
-	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[21]
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1838,7 +1963,7 @@ func (x *DeclareTriggerResponse) String() string {
 func (*DeclareTriggerResponse) ProtoMessage() {}
 
 func (x *DeclareTriggerResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[21]
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1851,7 +1976,7 @@ func (x *DeclareTriggerResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeclareTriggerResponse.ProtoReflect.Descriptor instead.
 func (*DeclareTriggerResponse) Descriptor() ([]byte, []int) {
-	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{21}
+	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *DeclareTriggerResponse) GetTrigger() *Trigger {
@@ -1870,7 +1995,7 @@ type AddFactRequest struct {
 
 func (x *AddFactRequest) Reset() {
 	*x = AddFactRequest{}
-	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[22]
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1882,7 +2007,7 @@ func (x *AddFactRequest) String() string {
 func (*AddFactRequest) ProtoMessage() {}
 
 func (x *AddFactRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[22]
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1895,7 +2020,7 @@ func (x *AddFactRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AddFactRequest.ProtoReflect.Descriptor instead.
 func (*AddFactRequest) Descriptor() ([]byte, []int) {
-	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{22}
+	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *AddFactRequest) GetFact() *Fact {
@@ -1914,7 +2039,7 @@ type AddFactResponse struct {
 
 func (x *AddFactResponse) Reset() {
 	*x = AddFactResponse{}
-	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[23]
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1926,7 +2051,7 @@ func (x *AddFactResponse) String() string {
 func (*AddFactResponse) ProtoMessage() {}
 
 func (x *AddFactResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[23]
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1939,7 +2064,7 @@ func (x *AddFactResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AddFactResponse.ProtoReflect.Descriptor instead.
 func (*AddFactResponse) Descriptor() ([]byte, []int) {
-	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{23}
+	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *AddFactResponse) GetFact() *Fact {
@@ -1958,7 +2083,7 @@ type EvaluateRequest struct {
 
 func (x *EvaluateRequest) Reset() {
 	*x = EvaluateRequest{}
-	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[24]
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1970,7 +2095,7 @@ func (x *EvaluateRequest) String() string {
 func (*EvaluateRequest) ProtoMessage() {}
 
 func (x *EvaluateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[24]
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1983,7 +2108,7 @@ func (x *EvaluateRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EvaluateRequest.ProtoReflect.Descriptor instead.
 func (*EvaluateRequest) Descriptor() ([]byte, []int) {
-	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{24}
+	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *EvaluateRequest) GetDryRun() bool {
@@ -2002,7 +2127,7 @@ type EvaluateResponse struct {
 
 func (x *EvaluateResponse) Reset() {
 	*x = EvaluateResponse{}
-	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[25]
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2014,7 +2139,7 @@ func (x *EvaluateResponse) String() string {
 func (*EvaluateResponse) ProtoMessage() {}
 
 func (x *EvaluateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[25]
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2027,7 +2152,7 @@ func (x *EvaluateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EvaluateResponse.ProtoReflect.Descriptor instead.
 func (*EvaluateResponse) Descriptor() ([]byte, []int) {
-	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{25}
+	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *EvaluateResponse) GetEvaluations() []*Evaluation {
@@ -2048,7 +2173,7 @@ type PromoteRequest struct {
 
 func (x *PromoteRequest) Reset() {
 	*x = PromoteRequest{}
-	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[26]
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2060,7 +2185,7 @@ func (x *PromoteRequest) String() string {
 func (*PromoteRequest) ProtoMessage() {}
 
 func (x *PromoteRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[26]
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2073,7 +2198,7 @@ func (x *PromoteRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PromoteRequest.ProtoReflect.Descriptor instead.
 func (*PromoteRequest) Descriptor() ([]byte, []int) {
-	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{26}
+	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *PromoteRequest) GetNodeId() string {
@@ -2106,7 +2231,7 @@ type PromoteResponse struct {
 
 func (x *PromoteResponse) Reset() {
 	*x = PromoteResponse{}
-	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[27]
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2118,7 +2243,7 @@ func (x *PromoteResponse) String() string {
 func (*PromoteResponse) ProtoMessage() {}
 
 func (x *PromoteResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[27]
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2131,7 +2256,7 @@ func (x *PromoteResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PromoteResponse.ProtoReflect.Descriptor instead.
 func (*PromoteResponse) Descriptor() ([]byte, []int) {
-	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{27}
+	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *PromoteResponse) GetProposal() *Proposal {
@@ -2151,7 +2276,7 @@ type ListProposalsRequest struct {
 
 func (x *ListProposalsRequest) Reset() {
 	*x = ListProposalsRequest{}
-	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[28]
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2163,7 +2288,7 @@ func (x *ListProposalsRequest) String() string {
 func (*ListProposalsRequest) ProtoMessage() {}
 
 func (x *ListProposalsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[28]
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2176,7 +2301,7 @@ func (x *ListProposalsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListProposalsRequest.ProtoReflect.Descriptor instead.
 func (*ListProposalsRequest) Descriptor() ([]byte, []int) {
-	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{28}
+	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *ListProposalsRequest) GetNodeId() string {
@@ -2202,7 +2327,7 @@ type ListProposalsResponse struct {
 
 func (x *ListProposalsResponse) Reset() {
 	*x = ListProposalsResponse{}
-	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[29]
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2214,7 +2339,7 @@ func (x *ListProposalsResponse) String() string {
 func (*ListProposalsResponse) ProtoMessage() {}
 
 func (x *ListProposalsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[29]
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2227,7 +2352,7 @@ func (x *ListProposalsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListProposalsResponse.ProtoReflect.Descriptor instead.
 func (*ListProposalsResponse) Descriptor() ([]byte, []int) {
-	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{29}
+	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *ListProposalsResponse) GetProposals() []*Proposal {
@@ -2246,7 +2371,7 @@ type ListAuditRequest struct {
 
 func (x *ListAuditRequest) Reset() {
 	*x = ListAuditRequest{}
-	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[30]
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2258,7 +2383,7 @@ func (x *ListAuditRequest) String() string {
 func (*ListAuditRequest) ProtoMessage() {}
 
 func (x *ListAuditRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[30]
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2271,7 +2396,7 @@ func (x *ListAuditRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListAuditRequest.ProtoReflect.Descriptor instead.
 func (*ListAuditRequest) Descriptor() ([]byte, []int) {
-	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{30}
+	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *ListAuditRequest) GetNodeId() string {
@@ -2290,7 +2415,7 @@ type ListAuditResponse struct {
 
 func (x *ListAuditResponse) Reset() {
 	*x = ListAuditResponse{}
-	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[31]
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2302,7 +2427,7 @@ func (x *ListAuditResponse) String() string {
 func (*ListAuditResponse) ProtoMessage() {}
 
 func (x *ListAuditResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[31]
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2315,7 +2440,7 @@ func (x *ListAuditResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListAuditResponse.ProtoReflect.Descriptor instead.
 func (*ListAuditResponse) Descriptor() ([]byte, []int) {
-	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{31}
+	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *ListAuditResponse) GetEntries() []string {
@@ -2334,7 +2459,7 @@ type ListEdgesRequest struct {
 
 func (x *ListEdgesRequest) Reset() {
 	*x = ListEdgesRequest{}
-	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[32]
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2346,7 +2471,7 @@ func (x *ListEdgesRequest) String() string {
 func (*ListEdgesRequest) ProtoMessage() {}
 
 func (x *ListEdgesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[32]
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2359,7 +2484,7 @@ func (x *ListEdgesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListEdgesRequest.ProtoReflect.Descriptor instead.
 func (*ListEdgesRequest) Descriptor() ([]byte, []int) {
-	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{32}
+	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *ListEdgesRequest) GetNodeId() string {
@@ -2378,7 +2503,7 @@ type ListEdgesResponse struct {
 
 func (x *ListEdgesResponse) Reset() {
 	*x = ListEdgesResponse{}
-	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[33]
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2390,7 +2515,7 @@ func (x *ListEdgesResponse) String() string {
 func (*ListEdgesResponse) ProtoMessage() {}
 
 func (x *ListEdgesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[33]
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2403,7 +2528,7 @@ func (x *ListEdgesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListEdgesResponse.ProtoReflect.Descriptor instead.
 func (*ListEdgesResponse) Descriptor() ([]byte, []int) {
-	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{33}
+	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *ListEdgesResponse) GetEdges() []*Edge {
@@ -2422,7 +2547,7 @@ type ProjectionRequest struct {
 
 func (x *ProjectionRequest) Reset() {
 	*x = ProjectionRequest{}
-	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[34]
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2434,7 +2559,7 @@ func (x *ProjectionRequest) String() string {
 func (*ProjectionRequest) ProtoMessage() {}
 
 func (x *ProjectionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[34]
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2447,7 +2572,7 @@ func (x *ProjectionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProjectionRequest.ProtoReflect.Descriptor instead.
 func (*ProjectionRequest) Descriptor() ([]byte, []int) {
-	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{34}
+	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *ProjectionRequest) GetProjection() string {
@@ -2469,7 +2594,7 @@ type ImportCatalogRequest struct {
 
 func (x *ImportCatalogRequest) Reset() {
 	*x = ImportCatalogRequest{}
-	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[35]
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2481,7 +2606,7 @@ func (x *ImportCatalogRequest) String() string {
 func (*ImportCatalogRequest) ProtoMessage() {}
 
 func (x *ImportCatalogRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[35]
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2494,7 +2619,7 @@ func (x *ImportCatalogRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ImportCatalogRequest.ProtoReflect.Descriptor instead.
 func (*ImportCatalogRequest) Descriptor() ([]byte, []int) {
-	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{35}
+	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *ImportCatalogRequest) GetSourcePath() string {
@@ -2539,7 +2664,7 @@ type ImportFileReport struct {
 
 func (x *ImportFileReport) Reset() {
 	*x = ImportFileReport{}
-	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[36]
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2551,7 +2676,7 @@ func (x *ImportFileReport) String() string {
 func (*ImportFileReport) ProtoMessage() {}
 
 func (x *ImportFileReport) ProtoReflect() protoreflect.Message {
-	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[36]
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2564,7 +2689,7 @@ func (x *ImportFileReport) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ImportFileReport.ProtoReflect.Descriptor instead.
 func (*ImportFileReport) Descriptor() ([]byte, []int) {
-	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{36}
+	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{38}
 }
 
 func (x *ImportFileReport) GetPath() string {
@@ -2621,7 +2746,7 @@ type StatusMapEntry struct {
 
 func (x *StatusMapEntry) Reset() {
 	*x = StatusMapEntry{}
-	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[37]
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2633,7 +2758,7 @@ func (x *StatusMapEntry) String() string {
 func (*StatusMapEntry) ProtoMessage() {}
 
 func (x *StatusMapEntry) ProtoReflect() protoreflect.Message {
-	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[37]
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2646,7 +2771,7 @@ func (x *StatusMapEntry) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StatusMapEntry.ProtoReflect.Descriptor instead.
 func (*StatusMapEntry) Descriptor() ([]byte, []int) {
-	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{37}
+	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{39}
 }
 
 func (x *StatusMapEntry) GetPath() string {
@@ -2689,7 +2814,7 @@ type ImportFinding struct {
 
 func (x *ImportFinding) Reset() {
 	*x = ImportFinding{}
-	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[38]
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2701,7 +2826,7 @@ func (x *ImportFinding) String() string {
 func (*ImportFinding) ProtoMessage() {}
 
 func (x *ImportFinding) ProtoReflect() protoreflect.Message {
-	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[38]
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2714,7 +2839,7 @@ func (x *ImportFinding) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ImportFinding.ProtoReflect.Descriptor instead.
 func (*ImportFinding) Descriptor() ([]byte, []int) {
-	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{38}
+	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *ImportFinding) GetPath() string {
@@ -2758,7 +2883,7 @@ type ImportCatalogResponse struct {
 
 func (x *ImportCatalogResponse) Reset() {
 	*x = ImportCatalogResponse{}
-	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[39]
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[41]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2770,7 +2895,7 @@ func (x *ImportCatalogResponse) String() string {
 func (*ImportCatalogResponse) ProtoMessage() {}
 
 func (x *ImportCatalogResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[39]
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[41]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2783,7 +2908,7 @@ func (x *ImportCatalogResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ImportCatalogResponse.ProtoReflect.Descriptor instead.
 func (*ImportCatalogResponse) Descriptor() ([]byte, []int) {
-	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{39}
+	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{41}
 }
 
 func (x *ImportCatalogResponse) GetFiles() []*ImportFileReport {
@@ -2833,7 +2958,7 @@ type MergeNodesRequest struct {
 
 func (x *MergeNodesRequest) Reset() {
 	*x = MergeNodesRequest{}
-	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[40]
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[42]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2845,7 +2970,7 @@ func (x *MergeNodesRequest) String() string {
 func (*MergeNodesRequest) ProtoMessage() {}
 
 func (x *MergeNodesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[40]
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[42]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2858,7 +2983,7 @@ func (x *MergeNodesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MergeNodesRequest.ProtoReflect.Descriptor instead.
 func (*MergeNodesRequest) Descriptor() ([]byte, []int) {
-	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{40}
+	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{42}
 }
 
 func (x *MergeNodesRequest) GetSurvivingId() string {
@@ -2904,7 +3029,7 @@ type MergeNodesResponse struct {
 
 func (x *MergeNodesResponse) Reset() {
 	*x = MergeNodesResponse{}
-	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[41]
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[43]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2916,7 +3041,7 @@ func (x *MergeNodesResponse) String() string {
 func (*MergeNodesResponse) ProtoMessage() {}
 
 func (x *MergeNodesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[41]
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[43]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2929,7 +3054,7 @@ func (x *MergeNodesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MergeNodesResponse.ProtoReflect.Descriptor instead.
 func (*MergeNodesResponse) Descriptor() ([]byte, []int) {
-	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{41}
+	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{43}
 }
 
 func (x *MergeNodesResponse) GetSurviving() *Node {
@@ -2991,7 +3116,7 @@ type VerifyCatalogRequest struct {
 
 func (x *VerifyCatalogRequest) Reset() {
 	*x = VerifyCatalogRequest{}
-	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[42]
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[44]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3003,7 +3128,7 @@ func (x *VerifyCatalogRequest) String() string {
 func (*VerifyCatalogRequest) ProtoMessage() {}
 
 func (x *VerifyCatalogRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[42]
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[44]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3016,7 +3141,7 @@ func (x *VerifyCatalogRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VerifyCatalogRequest.ProtoReflect.Descriptor instead.
 func (*VerifyCatalogRequest) Descriptor() ([]byte, []int) {
-	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{42}
+	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{44}
 }
 
 func (x *VerifyCatalogRequest) GetSourcePath() string {
@@ -3044,7 +3169,7 @@ type VerifyFileReport struct {
 
 func (x *VerifyFileReport) Reset() {
 	*x = VerifyFileReport{}
-	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[43]
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[45]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3056,7 +3181,7 @@ func (x *VerifyFileReport) String() string {
 func (*VerifyFileReport) ProtoMessage() {}
 
 func (x *VerifyFileReport) ProtoReflect() protoreflect.Message {
-	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[43]
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[45]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3069,7 +3194,7 @@ func (x *VerifyFileReport) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VerifyFileReport.ProtoReflect.Descriptor instead.
 func (*VerifyFileReport) Descriptor() ([]byte, []int) {
-	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{43}
+	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{45}
 }
 
 func (x *VerifyFileReport) GetPath() string {
@@ -3120,7 +3245,7 @@ type VerifyCatalogResponse struct {
 
 func (x *VerifyCatalogResponse) Reset() {
 	*x = VerifyCatalogResponse{}
-	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[44]
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[46]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3132,7 +3257,7 @@ func (x *VerifyCatalogResponse) String() string {
 func (*VerifyCatalogResponse) ProtoMessage() {}
 
 func (x *VerifyCatalogResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[44]
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[46]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3145,7 +3270,7 @@ func (x *VerifyCatalogResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VerifyCatalogResponse.ProtoReflect.Descriptor instead.
 func (*VerifyCatalogResponse) Descriptor() ([]byte, []int) {
-	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{44}
+	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{46}
 }
 
 func (x *VerifyCatalogResponse) GetFiles() []*VerifyFileReport {
@@ -3218,7 +3343,7 @@ type SpaceCell struct {
 
 func (x *SpaceCell) Reset() {
 	*x = SpaceCell{}
-	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[45]
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[47]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3230,7 +3355,7 @@ func (x *SpaceCell) String() string {
 func (*SpaceCell) ProtoMessage() {}
 
 func (x *SpaceCell) ProtoReflect() protoreflect.Message {
-	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[45]
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[47]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3243,7 +3368,7 @@ func (x *SpaceCell) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SpaceCell.ProtoReflect.Descriptor instead.
 func (*SpaceCell) Descriptor() ([]byte, []int) {
-	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{45}
+	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{47}
 }
 
 func (x *SpaceCell) GetId() string {
@@ -3303,7 +3428,7 @@ type SpaceResponse struct {
 
 func (x *SpaceResponse) Reset() {
 	*x = SpaceResponse{}
-	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[46]
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[48]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3315,7 +3440,7 @@ func (x *SpaceResponse) String() string {
 func (*SpaceResponse) ProtoMessage() {}
 
 func (x *SpaceResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[46]
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[48]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3328,7 +3453,7 @@ func (x *SpaceResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SpaceResponse.ProtoReflect.Descriptor instead.
 func (*SpaceResponse) Descriptor() ([]byte, []int) {
-	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{46}
+	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{48}
 }
 
 func (x *SpaceResponse) GetSchemaVersion() string {
@@ -3502,7 +3627,15 @@ const file_offer_desk_v1_offers_offers_proto_rawDesc = "" +
 	"\x11TransitionRequest\x12\x17\n" +
 	"\anode_id\x18\x01 \x01(\tR\x06nodeId\x12;\n" +
 	"\x06status\x18\x02 \x01(\x0e2#.vrooli.offer_desk.v1.offers.StatusR\x06status\x12\x14\n" +
-	"\x05actor\x18\x03 \x01(\tR\x05actor\"K\n" +
+	"\x05actor\x18\x03 \x01(\tR\x05actor\"\x86\x01\n" +
+	"\x11MapAccountRequest\x12\x17\n" +
+	"\anode_id\x18\x01 \x01(\tR\x06nodeId\x12*\n" +
+	"\x11actual_account_id\x18\x02 \x01(\tR\x0factualAccountId\x12\x14\n" +
+	"\x05actor\x18\x03 \x01(\tR\x05actor\x12\x16\n" +
+	"\x06reason\x18\x04 \x01(\tR\x06reason\"u\n" +
+	"\x12MapAccountResponse\x125\n" +
+	"\x04node\x18\x01 \x01(\v2!.vrooli.offer_desk.v1.offers.NodeR\x04node\x12(\n" +
+	"\x10prior_account_id\x18\x02 \x01(\tR\x0epriorAccountId\"K\n" +
 	"\x12TransitionResponse\x125\n" +
 	"\x04node\x18\x01 \x01(\v2!.vrooli.offer_desk.v1.offers.NodeR\x04node\"R\n" +
 	"\x11CreateEdgeRequest\x12=\n" +
@@ -3666,7 +3799,7 @@ const file_offer_desk_v1_offers_offers_proto_rawDesc = "" +
 	"\x12TriggerComposition\x12#\n" +
 	"\x1fTRIGGER_COMPOSITION_UNSPECIFIED\x10\x00\x12\a\n" +
 	"\x03ALL\x10\x01\x12\a\n" +
-	"\x03ANY\x10\x022\x94\a\n" +
+	"\x03ANY\x10\x022\x83\b\n" +
 	"\x0eCatalogService\x12m\n" +
 	"\n" +
 	"CreateNode\x12..vrooli.offer_desk.v1.offers.CreateNodeRequest\x1a/.vrooli.offer_desk.v1.offers.CreateNodeResponse\x12j\n" +
@@ -3677,6 +3810,8 @@ const file_offer_desk_v1_offers_offers_proto_rawDesc = "" +
 	"CreateEdge\x12..vrooli.offer_desk.v1.offers.CreateEdgeRequest\x1a/.vrooli.offer_desk.v1.offers.CreateEdgeResponse\x12j\n" +
 	"\tListEdges\x12-.vrooli.offer_desk.v1.offers.ListEdgesRequest\x1a..vrooli.offer_desk.v1.offers.ListEdgesResponse\x12v\n" +
 	"\rImportCatalog\x121.vrooli.offer_desk.v1.offers.ImportCatalogRequest\x1a2.vrooli.offer_desk.v1.offers.ImportCatalogResponse\x12m\n" +
+	"\n" +
+	"MapAccount\x12..vrooli.offer_desk.v1.offers.MapAccountRequest\x1a/.vrooli.offer_desk.v1.offers.MapAccountResponse\x12m\n" +
 	"\n" +
 	"MergeNodes\x12..vrooli.offer_desk.v1.offers.MergeNodesRequest\x1a/.vrooli.offer_desk.v1.offers.MergeNodesResponse\x12v\n" +
 	"\rVerifyCatalog\x121.vrooli.offer_desk.v1.offers.VerifyCatalogRequest\x1a2.vrooli.offer_desk.v1.offers.VerifyCatalogResponse2\xb6\x04\n" +
@@ -3704,7 +3839,7 @@ func file_offer_desk_v1_offers_offers_proto_rawDescGZIP() []byte {
 }
 
 var file_offer_desk_v1_offers_offers_proto_enumTypes = make([]protoimpl.EnumInfo, 6)
-var file_offer_desk_v1_offers_offers_proto_msgTypes = make([]protoimpl.MessageInfo, 47)
+var file_offer_desk_v1_offers_offers_proto_msgTypes = make([]protoimpl.MessageInfo, 49)
 var file_offer_desk_v1_offers_offers_proto_goTypes = []any{
 	(NodeKind)(0),                   // 0: vrooli.offer_desk.v1.offers.NodeKind
 	(Status)(0),                     // 1: vrooli.offer_desk.v1.offers.Status
@@ -3729,63 +3864,65 @@ var file_offer_desk_v1_offers_offers_proto_goTypes = []any{
 	(*ListNodesRequest)(nil),        // 20: vrooli.offer_desk.v1.offers.ListNodesRequest
 	(*ListNodesResponse)(nil),       // 21: vrooli.offer_desk.v1.offers.ListNodesResponse
 	(*TransitionRequest)(nil),       // 22: vrooli.offer_desk.v1.offers.TransitionRequest
-	(*TransitionResponse)(nil),      // 23: vrooli.offer_desk.v1.offers.TransitionResponse
-	(*CreateEdgeRequest)(nil),       // 24: vrooli.offer_desk.v1.offers.CreateEdgeRequest
-	(*CreateEdgeResponse)(nil),      // 25: vrooli.offer_desk.v1.offers.CreateEdgeResponse
-	(*DeclareTriggerRequest)(nil),   // 26: vrooli.offer_desk.v1.offers.DeclareTriggerRequest
-	(*DeclareTriggerResponse)(nil),  // 27: vrooli.offer_desk.v1.offers.DeclareTriggerResponse
-	(*AddFactRequest)(nil),          // 28: vrooli.offer_desk.v1.offers.AddFactRequest
-	(*AddFactResponse)(nil),         // 29: vrooli.offer_desk.v1.offers.AddFactResponse
-	(*EvaluateRequest)(nil),         // 30: vrooli.offer_desk.v1.offers.EvaluateRequest
-	(*EvaluateResponse)(nil),        // 31: vrooli.offer_desk.v1.offers.EvaluateResponse
-	(*PromoteRequest)(nil),          // 32: vrooli.offer_desk.v1.offers.PromoteRequest
-	(*PromoteResponse)(nil),         // 33: vrooli.offer_desk.v1.offers.PromoteResponse
-	(*ListProposalsRequest)(nil),    // 34: vrooli.offer_desk.v1.offers.ListProposalsRequest
-	(*ListProposalsResponse)(nil),   // 35: vrooli.offer_desk.v1.offers.ListProposalsResponse
-	(*ListAuditRequest)(nil),        // 36: vrooli.offer_desk.v1.offers.ListAuditRequest
-	(*ListAuditResponse)(nil),       // 37: vrooli.offer_desk.v1.offers.ListAuditResponse
-	(*ListEdgesRequest)(nil),        // 38: vrooli.offer_desk.v1.offers.ListEdgesRequest
-	(*ListEdgesResponse)(nil),       // 39: vrooli.offer_desk.v1.offers.ListEdgesResponse
-	(*ProjectionRequest)(nil),       // 40: vrooli.offer_desk.v1.offers.ProjectionRequest
-	(*ImportCatalogRequest)(nil),    // 41: vrooli.offer_desk.v1.offers.ImportCatalogRequest
-	(*ImportFileReport)(nil),        // 42: vrooli.offer_desk.v1.offers.ImportFileReport
-	(*StatusMapEntry)(nil),          // 43: vrooli.offer_desk.v1.offers.StatusMapEntry
-	(*ImportFinding)(nil),           // 44: vrooli.offer_desk.v1.offers.ImportFinding
-	(*ImportCatalogResponse)(nil),   // 45: vrooli.offer_desk.v1.offers.ImportCatalogResponse
-	(*MergeNodesRequest)(nil),       // 46: vrooli.offer_desk.v1.offers.MergeNodesRequest
-	(*MergeNodesResponse)(nil),      // 47: vrooli.offer_desk.v1.offers.MergeNodesResponse
-	(*VerifyCatalogRequest)(nil),    // 48: vrooli.offer_desk.v1.offers.VerifyCatalogRequest
-	(*VerifyFileReport)(nil),        // 49: vrooli.offer_desk.v1.offers.VerifyFileReport
-	(*VerifyCatalogResponse)(nil),   // 50: vrooli.offer_desk.v1.offers.VerifyCatalogResponse
-	(*SpaceCell)(nil),               // 51: vrooli.offer_desk.v1.offers.SpaceCell
-	(*SpaceResponse)(nil),           // 52: vrooli.offer_desk.v1.offers.SpaceResponse
-	(*timestamppb.Timestamp)(nil),   // 53: google.protobuf.Timestamp
-	(*ledger.PositionResponse)(nil), // 54: vrooli.money_ledger.v1.ledger.PositionResponse
-	(*ledger.GoalVerdict)(nil),      // 55: vrooli.money_ledger.v1.ledger.GoalVerdict
+	(*MapAccountRequest)(nil),       // 23: vrooli.offer_desk.v1.offers.MapAccountRequest
+	(*MapAccountResponse)(nil),      // 24: vrooli.offer_desk.v1.offers.MapAccountResponse
+	(*TransitionResponse)(nil),      // 25: vrooli.offer_desk.v1.offers.TransitionResponse
+	(*CreateEdgeRequest)(nil),       // 26: vrooli.offer_desk.v1.offers.CreateEdgeRequest
+	(*CreateEdgeResponse)(nil),      // 27: vrooli.offer_desk.v1.offers.CreateEdgeResponse
+	(*DeclareTriggerRequest)(nil),   // 28: vrooli.offer_desk.v1.offers.DeclareTriggerRequest
+	(*DeclareTriggerResponse)(nil),  // 29: vrooli.offer_desk.v1.offers.DeclareTriggerResponse
+	(*AddFactRequest)(nil),          // 30: vrooli.offer_desk.v1.offers.AddFactRequest
+	(*AddFactResponse)(nil),         // 31: vrooli.offer_desk.v1.offers.AddFactResponse
+	(*EvaluateRequest)(nil),         // 32: vrooli.offer_desk.v1.offers.EvaluateRequest
+	(*EvaluateResponse)(nil),        // 33: vrooli.offer_desk.v1.offers.EvaluateResponse
+	(*PromoteRequest)(nil),          // 34: vrooli.offer_desk.v1.offers.PromoteRequest
+	(*PromoteResponse)(nil),         // 35: vrooli.offer_desk.v1.offers.PromoteResponse
+	(*ListProposalsRequest)(nil),    // 36: vrooli.offer_desk.v1.offers.ListProposalsRequest
+	(*ListProposalsResponse)(nil),   // 37: vrooli.offer_desk.v1.offers.ListProposalsResponse
+	(*ListAuditRequest)(nil),        // 38: vrooli.offer_desk.v1.offers.ListAuditRequest
+	(*ListAuditResponse)(nil),       // 39: vrooli.offer_desk.v1.offers.ListAuditResponse
+	(*ListEdgesRequest)(nil),        // 40: vrooli.offer_desk.v1.offers.ListEdgesRequest
+	(*ListEdgesResponse)(nil),       // 41: vrooli.offer_desk.v1.offers.ListEdgesResponse
+	(*ProjectionRequest)(nil),       // 42: vrooli.offer_desk.v1.offers.ProjectionRequest
+	(*ImportCatalogRequest)(nil),    // 43: vrooli.offer_desk.v1.offers.ImportCatalogRequest
+	(*ImportFileReport)(nil),        // 44: vrooli.offer_desk.v1.offers.ImportFileReport
+	(*StatusMapEntry)(nil),          // 45: vrooli.offer_desk.v1.offers.StatusMapEntry
+	(*ImportFinding)(nil),           // 46: vrooli.offer_desk.v1.offers.ImportFinding
+	(*ImportCatalogResponse)(nil),   // 47: vrooli.offer_desk.v1.offers.ImportCatalogResponse
+	(*MergeNodesRequest)(nil),       // 48: vrooli.offer_desk.v1.offers.MergeNodesRequest
+	(*MergeNodesResponse)(nil),      // 49: vrooli.offer_desk.v1.offers.MergeNodesResponse
+	(*VerifyCatalogRequest)(nil),    // 50: vrooli.offer_desk.v1.offers.VerifyCatalogRequest
+	(*VerifyFileReport)(nil),        // 51: vrooli.offer_desk.v1.offers.VerifyFileReport
+	(*VerifyCatalogResponse)(nil),   // 52: vrooli.offer_desk.v1.offers.VerifyCatalogResponse
+	(*SpaceCell)(nil),               // 53: vrooli.offer_desk.v1.offers.SpaceCell
+	(*SpaceResponse)(nil),           // 54: vrooli.offer_desk.v1.offers.SpaceResponse
+	(*timestamppb.Timestamp)(nil),   // 55: google.protobuf.Timestamp
+	(*ledger.PositionResponse)(nil), // 56: vrooli.money_ledger.v1.ledger.PositionResponse
+	(*ledger.GoalVerdict)(nil),      // 57: vrooli.money_ledger.v1.ledger.GoalVerdict
 }
 var file_offer_desk_v1_offers_offers_proto_depIdxs = []int32{
 	0,  // 0: vrooli.offer_desk.v1.offers.Node.kind:type_name -> vrooli.offer_desk.v1.offers.NodeKind
 	1,  // 1: vrooli.offer_desk.v1.offers.Node.status:type_name -> vrooli.offer_desk.v1.offers.Status
-	53, // 2: vrooli.offer_desk.v1.offers.Node.created_at:type_name -> google.protobuf.Timestamp
-	53, // 3: vrooli.offer_desk.v1.offers.Fact.observed_at:type_name -> google.protobuf.Timestamp
+	55, // 2: vrooli.offer_desk.v1.offers.Node.created_at:type_name -> google.protobuf.Timestamp
+	55, // 3: vrooli.offer_desk.v1.offers.Fact.observed_at:type_name -> google.protobuf.Timestamp
 	8,  // 4: vrooli.offer_desk.v1.offers.Trigger.clauses:type_name -> vrooli.offer_desk.v1.offers.TriggerClause
 	5,  // 5: vrooli.offer_desk.v1.offers.Trigger.composition:type_name -> vrooli.offer_desk.v1.offers.TriggerComposition
 	2,  // 6: vrooli.offer_desk.v1.offers.Evaluation.verdict:type_name -> vrooli.offer_desk.v1.offers.Verdict
-	53, // 7: vrooli.offer_desk.v1.offers.Evaluation.evaluated_at:type_name -> google.protobuf.Timestamp
-	53, // 8: vrooli.offer_desk.v1.offers.ProposalDecline.created_at:type_name -> google.protobuf.Timestamp
+	55, // 7: vrooli.offer_desk.v1.offers.Evaluation.evaluated_at:type_name -> google.protobuf.Timestamp
+	55, // 8: vrooli.offer_desk.v1.offers.ProposalDecline.created_at:type_name -> google.protobuf.Timestamp
 	1,  // 9: vrooli.offer_desk.v1.offers.Proposal.requested_status:type_name -> vrooli.offer_desk.v1.offers.Status
-	53, // 10: vrooli.offer_desk.v1.offers.Proposal.created_at:type_name -> google.protobuf.Timestamp
+	55, // 10: vrooli.offer_desk.v1.offers.Proposal.created_at:type_name -> google.protobuf.Timestamp
 	12, // 11: vrooli.offer_desk.v1.offers.Proposal.decline_history:type_name -> vrooli.offer_desk.v1.offers.ProposalDecline
-	53, // 12: vrooli.offer_desk.v1.offers.Availability.last_success_at:type_name -> google.protobuf.Timestamp
+	55, // 12: vrooli.offer_desk.v1.offers.Availability.last_success_at:type_name -> google.protobuf.Timestamp
 	1,  // 13: vrooli.offer_desk.v1.offers.BoardEntry.status:type_name -> vrooli.offer_desk.v1.offers.Status
 	14, // 14: vrooli.offer_desk.v1.offers.BoardEntry.availability:type_name -> vrooli.offer_desk.v1.offers.Availability
-	53, // 15: vrooli.offer_desk.v1.offers.EvaluationCondition.last_run_at:type_name -> google.protobuf.Timestamp
+	55, // 15: vrooli.offer_desk.v1.offers.EvaluationCondition.last_run_at:type_name -> google.protobuf.Timestamp
 	4,  // 16: vrooli.offer_desk.v1.offers.EvaluationCondition.last_result:type_name -> vrooli.offer_desk.v1.offers.EvaluationResult
 	15, // 17: vrooli.offer_desk.v1.offers.BoardResponse.entries:type_name -> vrooli.offer_desk.v1.offers.BoardEntry
-	54, // 18: vrooli.offer_desk.v1.offers.BoardResponse.position:type_name -> vrooli.money_ledger.v1.ledger.PositionResponse
+	56, // 18: vrooli.offer_desk.v1.offers.BoardResponse.position:type_name -> vrooli.money_ledger.v1.ledger.PositionResponse
 	14, // 19: vrooli.offer_desk.v1.offers.BoardResponse.availability:type_name -> vrooli.offer_desk.v1.offers.Availability
 	16, // 20: vrooli.offer_desk.v1.offers.BoardResponse.evaluation:type_name -> vrooli.offer_desk.v1.offers.EvaluationCondition
-	55, // 21: vrooli.offer_desk.v1.offers.BoardResponse.goals:type_name -> vrooli.money_ledger.v1.ledger.GoalVerdict
+	57, // 21: vrooli.offer_desk.v1.offers.BoardResponse.goals:type_name -> vrooli.money_ledger.v1.ledger.GoalVerdict
 	0,  // 22: vrooli.offer_desk.v1.offers.CreateNodeRequest.kind:type_name -> vrooli.offer_desk.v1.offers.NodeKind
 	1,  // 23: vrooli.offer_desk.v1.offers.CreateNodeRequest.status:type_name -> vrooli.offer_desk.v1.offers.Status
 	6,  // 24: vrooli.offer_desk.v1.offers.CreateNodeResponse.node:type_name -> vrooli.offer_desk.v1.offers.Node
@@ -3793,63 +3930,66 @@ var file_offer_desk_v1_offers_offers_proto_depIdxs = []int32{
 	1,  // 26: vrooli.offer_desk.v1.offers.ListNodesRequest.status:type_name -> vrooli.offer_desk.v1.offers.Status
 	6,  // 27: vrooli.offer_desk.v1.offers.ListNodesResponse.nodes:type_name -> vrooli.offer_desk.v1.offers.Node
 	1,  // 28: vrooli.offer_desk.v1.offers.TransitionRequest.status:type_name -> vrooli.offer_desk.v1.offers.Status
-	6,  // 29: vrooli.offer_desk.v1.offers.TransitionResponse.node:type_name -> vrooli.offer_desk.v1.offers.Node
-	7,  // 30: vrooli.offer_desk.v1.offers.CreateEdgeRequest.edge:type_name -> vrooli.offer_desk.v1.offers.Edge
-	7,  // 31: vrooli.offer_desk.v1.offers.CreateEdgeResponse.edge:type_name -> vrooli.offer_desk.v1.offers.Edge
-	10, // 32: vrooli.offer_desk.v1.offers.DeclareTriggerRequest.trigger:type_name -> vrooli.offer_desk.v1.offers.Trigger
-	10, // 33: vrooli.offer_desk.v1.offers.DeclareTriggerResponse.trigger:type_name -> vrooli.offer_desk.v1.offers.Trigger
-	9,  // 34: vrooli.offer_desk.v1.offers.AddFactRequest.fact:type_name -> vrooli.offer_desk.v1.offers.Fact
-	9,  // 35: vrooli.offer_desk.v1.offers.AddFactResponse.fact:type_name -> vrooli.offer_desk.v1.offers.Fact
-	11, // 36: vrooli.offer_desk.v1.offers.EvaluateResponse.evaluations:type_name -> vrooli.offer_desk.v1.offers.Evaluation
-	13, // 37: vrooli.offer_desk.v1.offers.PromoteResponse.proposal:type_name -> vrooli.offer_desk.v1.offers.Proposal
-	1,  // 38: vrooli.offer_desk.v1.offers.ListProposalsRequest.status:type_name -> vrooli.offer_desk.v1.offers.Status
-	13, // 39: vrooli.offer_desk.v1.offers.ListProposalsResponse.proposals:type_name -> vrooli.offer_desk.v1.offers.Proposal
-	7,  // 40: vrooli.offer_desk.v1.offers.ListEdgesResponse.edges:type_name -> vrooli.offer_desk.v1.offers.Edge
-	3,  // 41: vrooli.offer_desk.v1.offers.ImportCatalogRequest.source_mode:type_name -> vrooli.offer_desk.v1.offers.SourceMode
-	0,  // 42: vrooli.offer_desk.v1.offers.ImportFileReport.node_kind:type_name -> vrooli.offer_desk.v1.offers.NodeKind
-	1,  // 43: vrooli.offer_desk.v1.offers.StatusMapEntry.status:type_name -> vrooli.offer_desk.v1.offers.Status
-	42, // 44: vrooli.offer_desk.v1.offers.ImportCatalogResponse.files:type_name -> vrooli.offer_desk.v1.offers.ImportFileReport
-	43, // 45: vrooli.offer_desk.v1.offers.ImportCatalogResponse.status_map:type_name -> vrooli.offer_desk.v1.offers.StatusMapEntry
-	44, // 46: vrooli.offer_desk.v1.offers.ImportCatalogResponse.findings:type_name -> vrooli.offer_desk.v1.offers.ImportFinding
-	6,  // 47: vrooli.offer_desk.v1.offers.MergeNodesResponse.surviving:type_name -> vrooli.offer_desk.v1.offers.Node
-	3,  // 48: vrooli.offer_desk.v1.offers.VerifyCatalogRequest.source_mode:type_name -> vrooli.offer_desk.v1.offers.SourceMode
-	49, // 49: vrooli.offer_desk.v1.offers.VerifyCatalogResponse.files:type_name -> vrooli.offer_desk.v1.offers.VerifyFileReport
-	51, // 50: vrooli.offer_desk.v1.offers.SpaceResponse.cells:type_name -> vrooli.offer_desk.v1.offers.SpaceCell
-	18, // 51: vrooli.offer_desk.v1.offers.CatalogService.CreateNode:input_type -> vrooli.offer_desk.v1.offers.CreateNodeRequest
-	20, // 52: vrooli.offer_desk.v1.offers.CatalogService.ListNodes:input_type -> vrooli.offer_desk.v1.offers.ListNodesRequest
-	22, // 53: vrooli.offer_desk.v1.offers.CatalogService.Transition:input_type -> vrooli.offer_desk.v1.offers.TransitionRequest
-	24, // 54: vrooli.offer_desk.v1.offers.CatalogService.CreateEdge:input_type -> vrooli.offer_desk.v1.offers.CreateEdgeRequest
-	38, // 55: vrooli.offer_desk.v1.offers.CatalogService.ListEdges:input_type -> vrooli.offer_desk.v1.offers.ListEdgesRequest
-	41, // 56: vrooli.offer_desk.v1.offers.CatalogService.ImportCatalog:input_type -> vrooli.offer_desk.v1.offers.ImportCatalogRequest
-	46, // 57: vrooli.offer_desk.v1.offers.CatalogService.MergeNodes:input_type -> vrooli.offer_desk.v1.offers.MergeNodesRequest
-	48, // 58: vrooli.offer_desk.v1.offers.CatalogService.VerifyCatalog:input_type -> vrooli.offer_desk.v1.offers.VerifyCatalogRequest
-	26, // 59: vrooli.offer_desk.v1.offers.GatesService.DeclareTrigger:input_type -> vrooli.offer_desk.v1.offers.DeclareTriggerRequest
-	28, // 60: vrooli.offer_desk.v1.offers.GatesService.AddFact:input_type -> vrooli.offer_desk.v1.offers.AddFactRequest
-	30, // 61: vrooli.offer_desk.v1.offers.GatesService.Evaluate:input_type -> vrooli.offer_desk.v1.offers.EvaluateRequest
-	32, // 62: vrooli.offer_desk.v1.offers.GatesService.Promote:input_type -> vrooli.offer_desk.v1.offers.PromoteRequest
-	34, // 63: vrooli.offer_desk.v1.offers.GatesService.ListProposals:input_type -> vrooli.offer_desk.v1.offers.ListProposalsRequest
-	40, // 64: vrooli.offer_desk.v1.offers.BoardService.GetBoard:input_type -> vrooli.offer_desk.v1.offers.ProjectionRequest
-	40, // 65: vrooli.offer_desk.v1.offers.SpaceService.GetProjection:input_type -> vrooli.offer_desk.v1.offers.ProjectionRequest
-	19, // 66: vrooli.offer_desk.v1.offers.CatalogService.CreateNode:output_type -> vrooli.offer_desk.v1.offers.CreateNodeResponse
-	21, // 67: vrooli.offer_desk.v1.offers.CatalogService.ListNodes:output_type -> vrooli.offer_desk.v1.offers.ListNodesResponse
-	23, // 68: vrooli.offer_desk.v1.offers.CatalogService.Transition:output_type -> vrooli.offer_desk.v1.offers.TransitionResponse
-	25, // 69: vrooli.offer_desk.v1.offers.CatalogService.CreateEdge:output_type -> vrooli.offer_desk.v1.offers.CreateEdgeResponse
-	39, // 70: vrooli.offer_desk.v1.offers.CatalogService.ListEdges:output_type -> vrooli.offer_desk.v1.offers.ListEdgesResponse
-	45, // 71: vrooli.offer_desk.v1.offers.CatalogService.ImportCatalog:output_type -> vrooli.offer_desk.v1.offers.ImportCatalogResponse
-	47, // 72: vrooli.offer_desk.v1.offers.CatalogService.MergeNodes:output_type -> vrooli.offer_desk.v1.offers.MergeNodesResponse
-	50, // 73: vrooli.offer_desk.v1.offers.CatalogService.VerifyCatalog:output_type -> vrooli.offer_desk.v1.offers.VerifyCatalogResponse
-	27, // 74: vrooli.offer_desk.v1.offers.GatesService.DeclareTrigger:output_type -> vrooli.offer_desk.v1.offers.DeclareTriggerResponse
-	29, // 75: vrooli.offer_desk.v1.offers.GatesService.AddFact:output_type -> vrooli.offer_desk.v1.offers.AddFactResponse
-	31, // 76: vrooli.offer_desk.v1.offers.GatesService.Evaluate:output_type -> vrooli.offer_desk.v1.offers.EvaluateResponse
-	33, // 77: vrooli.offer_desk.v1.offers.GatesService.Promote:output_type -> vrooli.offer_desk.v1.offers.PromoteResponse
-	35, // 78: vrooli.offer_desk.v1.offers.GatesService.ListProposals:output_type -> vrooli.offer_desk.v1.offers.ListProposalsResponse
-	17, // 79: vrooli.offer_desk.v1.offers.BoardService.GetBoard:output_type -> vrooli.offer_desk.v1.offers.BoardResponse
-	52, // 80: vrooli.offer_desk.v1.offers.SpaceService.GetProjection:output_type -> vrooli.offer_desk.v1.offers.SpaceResponse
-	66, // [66:81] is the sub-list for method output_type
-	51, // [51:66] is the sub-list for method input_type
-	51, // [51:51] is the sub-list for extension type_name
-	51, // [51:51] is the sub-list for extension extendee
-	0,  // [0:51] is the sub-list for field type_name
+	6,  // 29: vrooli.offer_desk.v1.offers.MapAccountResponse.node:type_name -> vrooli.offer_desk.v1.offers.Node
+	6,  // 30: vrooli.offer_desk.v1.offers.TransitionResponse.node:type_name -> vrooli.offer_desk.v1.offers.Node
+	7,  // 31: vrooli.offer_desk.v1.offers.CreateEdgeRequest.edge:type_name -> vrooli.offer_desk.v1.offers.Edge
+	7,  // 32: vrooli.offer_desk.v1.offers.CreateEdgeResponse.edge:type_name -> vrooli.offer_desk.v1.offers.Edge
+	10, // 33: vrooli.offer_desk.v1.offers.DeclareTriggerRequest.trigger:type_name -> vrooli.offer_desk.v1.offers.Trigger
+	10, // 34: vrooli.offer_desk.v1.offers.DeclareTriggerResponse.trigger:type_name -> vrooli.offer_desk.v1.offers.Trigger
+	9,  // 35: vrooli.offer_desk.v1.offers.AddFactRequest.fact:type_name -> vrooli.offer_desk.v1.offers.Fact
+	9,  // 36: vrooli.offer_desk.v1.offers.AddFactResponse.fact:type_name -> vrooli.offer_desk.v1.offers.Fact
+	11, // 37: vrooli.offer_desk.v1.offers.EvaluateResponse.evaluations:type_name -> vrooli.offer_desk.v1.offers.Evaluation
+	13, // 38: vrooli.offer_desk.v1.offers.PromoteResponse.proposal:type_name -> vrooli.offer_desk.v1.offers.Proposal
+	1,  // 39: vrooli.offer_desk.v1.offers.ListProposalsRequest.status:type_name -> vrooli.offer_desk.v1.offers.Status
+	13, // 40: vrooli.offer_desk.v1.offers.ListProposalsResponse.proposals:type_name -> vrooli.offer_desk.v1.offers.Proposal
+	7,  // 41: vrooli.offer_desk.v1.offers.ListEdgesResponse.edges:type_name -> vrooli.offer_desk.v1.offers.Edge
+	3,  // 42: vrooli.offer_desk.v1.offers.ImportCatalogRequest.source_mode:type_name -> vrooli.offer_desk.v1.offers.SourceMode
+	0,  // 43: vrooli.offer_desk.v1.offers.ImportFileReport.node_kind:type_name -> vrooli.offer_desk.v1.offers.NodeKind
+	1,  // 44: vrooli.offer_desk.v1.offers.StatusMapEntry.status:type_name -> vrooli.offer_desk.v1.offers.Status
+	44, // 45: vrooli.offer_desk.v1.offers.ImportCatalogResponse.files:type_name -> vrooli.offer_desk.v1.offers.ImportFileReport
+	45, // 46: vrooli.offer_desk.v1.offers.ImportCatalogResponse.status_map:type_name -> vrooli.offer_desk.v1.offers.StatusMapEntry
+	46, // 47: vrooli.offer_desk.v1.offers.ImportCatalogResponse.findings:type_name -> vrooli.offer_desk.v1.offers.ImportFinding
+	6,  // 48: vrooli.offer_desk.v1.offers.MergeNodesResponse.surviving:type_name -> vrooli.offer_desk.v1.offers.Node
+	3,  // 49: vrooli.offer_desk.v1.offers.VerifyCatalogRequest.source_mode:type_name -> vrooli.offer_desk.v1.offers.SourceMode
+	51, // 50: vrooli.offer_desk.v1.offers.VerifyCatalogResponse.files:type_name -> vrooli.offer_desk.v1.offers.VerifyFileReport
+	53, // 51: vrooli.offer_desk.v1.offers.SpaceResponse.cells:type_name -> vrooli.offer_desk.v1.offers.SpaceCell
+	18, // 52: vrooli.offer_desk.v1.offers.CatalogService.CreateNode:input_type -> vrooli.offer_desk.v1.offers.CreateNodeRequest
+	20, // 53: vrooli.offer_desk.v1.offers.CatalogService.ListNodes:input_type -> vrooli.offer_desk.v1.offers.ListNodesRequest
+	22, // 54: vrooli.offer_desk.v1.offers.CatalogService.Transition:input_type -> vrooli.offer_desk.v1.offers.TransitionRequest
+	26, // 55: vrooli.offer_desk.v1.offers.CatalogService.CreateEdge:input_type -> vrooli.offer_desk.v1.offers.CreateEdgeRequest
+	40, // 56: vrooli.offer_desk.v1.offers.CatalogService.ListEdges:input_type -> vrooli.offer_desk.v1.offers.ListEdgesRequest
+	43, // 57: vrooli.offer_desk.v1.offers.CatalogService.ImportCatalog:input_type -> vrooli.offer_desk.v1.offers.ImportCatalogRequest
+	23, // 58: vrooli.offer_desk.v1.offers.CatalogService.MapAccount:input_type -> vrooli.offer_desk.v1.offers.MapAccountRequest
+	48, // 59: vrooli.offer_desk.v1.offers.CatalogService.MergeNodes:input_type -> vrooli.offer_desk.v1.offers.MergeNodesRequest
+	50, // 60: vrooli.offer_desk.v1.offers.CatalogService.VerifyCatalog:input_type -> vrooli.offer_desk.v1.offers.VerifyCatalogRequest
+	28, // 61: vrooli.offer_desk.v1.offers.GatesService.DeclareTrigger:input_type -> vrooli.offer_desk.v1.offers.DeclareTriggerRequest
+	30, // 62: vrooli.offer_desk.v1.offers.GatesService.AddFact:input_type -> vrooli.offer_desk.v1.offers.AddFactRequest
+	32, // 63: vrooli.offer_desk.v1.offers.GatesService.Evaluate:input_type -> vrooli.offer_desk.v1.offers.EvaluateRequest
+	34, // 64: vrooli.offer_desk.v1.offers.GatesService.Promote:input_type -> vrooli.offer_desk.v1.offers.PromoteRequest
+	36, // 65: vrooli.offer_desk.v1.offers.GatesService.ListProposals:input_type -> vrooli.offer_desk.v1.offers.ListProposalsRequest
+	42, // 66: vrooli.offer_desk.v1.offers.BoardService.GetBoard:input_type -> vrooli.offer_desk.v1.offers.ProjectionRequest
+	42, // 67: vrooli.offer_desk.v1.offers.SpaceService.GetProjection:input_type -> vrooli.offer_desk.v1.offers.ProjectionRequest
+	19, // 68: vrooli.offer_desk.v1.offers.CatalogService.CreateNode:output_type -> vrooli.offer_desk.v1.offers.CreateNodeResponse
+	21, // 69: vrooli.offer_desk.v1.offers.CatalogService.ListNodes:output_type -> vrooli.offer_desk.v1.offers.ListNodesResponse
+	25, // 70: vrooli.offer_desk.v1.offers.CatalogService.Transition:output_type -> vrooli.offer_desk.v1.offers.TransitionResponse
+	27, // 71: vrooli.offer_desk.v1.offers.CatalogService.CreateEdge:output_type -> vrooli.offer_desk.v1.offers.CreateEdgeResponse
+	41, // 72: vrooli.offer_desk.v1.offers.CatalogService.ListEdges:output_type -> vrooli.offer_desk.v1.offers.ListEdgesResponse
+	47, // 73: vrooli.offer_desk.v1.offers.CatalogService.ImportCatalog:output_type -> vrooli.offer_desk.v1.offers.ImportCatalogResponse
+	24, // 74: vrooli.offer_desk.v1.offers.CatalogService.MapAccount:output_type -> vrooli.offer_desk.v1.offers.MapAccountResponse
+	49, // 75: vrooli.offer_desk.v1.offers.CatalogService.MergeNodes:output_type -> vrooli.offer_desk.v1.offers.MergeNodesResponse
+	52, // 76: vrooli.offer_desk.v1.offers.CatalogService.VerifyCatalog:output_type -> vrooli.offer_desk.v1.offers.VerifyCatalogResponse
+	29, // 77: vrooli.offer_desk.v1.offers.GatesService.DeclareTrigger:output_type -> vrooli.offer_desk.v1.offers.DeclareTriggerResponse
+	31, // 78: vrooli.offer_desk.v1.offers.GatesService.AddFact:output_type -> vrooli.offer_desk.v1.offers.AddFactResponse
+	33, // 79: vrooli.offer_desk.v1.offers.GatesService.Evaluate:output_type -> vrooli.offer_desk.v1.offers.EvaluateResponse
+	35, // 80: vrooli.offer_desk.v1.offers.GatesService.Promote:output_type -> vrooli.offer_desk.v1.offers.PromoteResponse
+	37, // 81: vrooli.offer_desk.v1.offers.GatesService.ListProposals:output_type -> vrooli.offer_desk.v1.offers.ListProposalsResponse
+	17, // 82: vrooli.offer_desk.v1.offers.BoardService.GetBoard:output_type -> vrooli.offer_desk.v1.offers.BoardResponse
+	54, // 83: vrooli.offer_desk.v1.offers.SpaceService.GetProjection:output_type -> vrooli.offer_desk.v1.offers.SpaceResponse
+	68, // [68:84] is the sub-list for method output_type
+	52, // [52:68] is the sub-list for method input_type
+	52, // [52:52] is the sub-list for extension type_name
+	52, // [52:52] is the sub-list for extension extendee
+	0,  // [0:52] is the sub-list for field type_name
 }
 
 func init() { file_offer_desk_v1_offers_offers_proto_init() }
@@ -3863,7 +4003,7 @@ func file_offer_desk_v1_offers_offers_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_offer_desk_v1_offers_offers_proto_rawDesc), len(file_offer_desk_v1_offers_offers_proto_rawDesc)),
 			NumEnums:      6,
-			NumMessages:   47,
+			NumMessages:   49,
 			NumExtensions: 0,
 			NumServices:   4,
 		},

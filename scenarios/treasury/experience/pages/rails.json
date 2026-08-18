@@ -1,0 +1,92 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "rails",
+    "title": "Rails",
+    "routes": [
+      "/rails"
+    ],
+    "purpose": "Show which payment mechanisms are available, which instruments exist, and what each is scoped to. An operator uses this page to answer whether a spend could physically happen.",
+    "prd_refs": [
+      "OT-P0-007",
+      "OT-P1-001",
+      "OT-P1-002",
+      "OT-P1-003"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "Which rails are usable right now, and which are refusing, is readable at a glance"
+    },
+    {
+      "statement": "Each instrument's scope is shown so an over-broad instrument is visible"
+    },
+    {
+      "statement": "Inbound metering status is shown alongside outbound, since both share the rail"
+    },
+    {
+      "statement": "No credential material appears anywhere on this page"
+    },
+    {
+      "statement": "A rail refusing because a dependency is down is distinguishable from one not configured"
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "Rails are registered and reporting status."
+    },
+    {
+      "id": "loading",
+      "description": "Rail status is being fetched."
+    },
+    {
+      "id": "empty",
+      "description": "Only the manual rail is configured; the page frames this as a valid starting state, not a gap."
+    },
+    {
+      "id": "partial",
+      "description": "Some rails report status and others are unreachable."
+    },
+    {
+      "id": "request-error",
+      "description": "Rail status could not be fetched."
+    },
+    {
+      "id": "offline",
+      "description": "The facilitator is unreachable; inbound metering reports unavailable rather than serving unpaid."
+    },
+    {
+      "id": "stale",
+      "description": "Displayed data is older than its refresh interval and states its age."
+    }
+  ],
+  "claims": [
+    {
+      "id": "rails-no-credentials",
+      "type": "element-absent",
+      "statement": "No credential material \u2014 card number, key, or secret \u2014 appears in any state of this page.",
+      "tier": "aspirational"
+    },
+    {
+      "id": "rails-scope-visible",
+      "type": "element-present",
+      "statement": "Each instrument displays the mandate scope it is bound to.",
+      "tier": "aspirational"
+    },
+    {
+      "id": "rails-unconfigured-vs-down",
+      "type": "state-distinct",
+      "statement": "A rail that is not configured is distinguishable from one that is configured and refusing.",
+      "tier": "aspirational"
+    },
+    {
+      "id": "rails-both-directions",
+      "type": "element-present",
+      "statement": "Inbound metering status appears alongside outbound rail status.",
+      "tier": "aspirational"
+    }
+  ]
+}

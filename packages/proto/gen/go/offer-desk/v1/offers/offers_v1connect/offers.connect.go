@@ -57,6 +57,9 @@ const (
 	// CatalogServiceImportCatalogProcedure is the fully-qualified name of the CatalogService's
 	// ImportCatalog RPC.
 	CatalogServiceImportCatalogProcedure = "/vrooli.offer_desk.v1.offers.CatalogService/ImportCatalog"
+	// CatalogServiceMapAccountProcedure is the fully-qualified name of the CatalogService's MapAccount
+	// RPC.
+	CatalogServiceMapAccountProcedure = "/vrooli.offer_desk.v1.offers.CatalogService/MapAccount"
 	// CatalogServiceMergeNodesProcedure is the fully-qualified name of the CatalogService's MergeNodes
 	// RPC.
 	CatalogServiceMergeNodesProcedure = "/vrooli.offer_desk.v1.offers.CatalogService/MergeNodes"
@@ -90,6 +93,7 @@ type CatalogServiceClient interface {
 	CreateEdge(context.Context, *connect.Request[offers.CreateEdgeRequest]) (*connect.Response[offers.CreateEdgeResponse], error)
 	ListEdges(context.Context, *connect.Request[offers.ListEdgesRequest]) (*connect.Response[offers.ListEdgesResponse], error)
 	ImportCatalog(context.Context, *connect.Request[offers.ImportCatalogRequest]) (*connect.Response[offers.ImportCatalogResponse], error)
+	MapAccount(context.Context, *connect.Request[offers.MapAccountRequest]) (*connect.Response[offers.MapAccountResponse], error)
 	MergeNodes(context.Context, *connect.Request[offers.MergeNodesRequest]) (*connect.Response[offers.MergeNodesResponse], error)
 	VerifyCatalog(context.Context, *connect.Request[offers.VerifyCatalogRequest]) (*connect.Response[offers.VerifyCatalogResponse], error)
 }
@@ -141,6 +145,12 @@ func NewCatalogServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(catalogServiceMethods.ByName("ImportCatalog")),
 			connect.WithClientOptions(opts...),
 		),
+		mapAccount: connect.NewClient[offers.MapAccountRequest, offers.MapAccountResponse](
+			httpClient,
+			baseURL+CatalogServiceMapAccountProcedure,
+			connect.WithSchema(catalogServiceMethods.ByName("MapAccount")),
+			connect.WithClientOptions(opts...),
+		),
 		mergeNodes: connect.NewClient[offers.MergeNodesRequest, offers.MergeNodesResponse](
 			httpClient,
 			baseURL+CatalogServiceMergeNodesProcedure,
@@ -164,6 +174,7 @@ type catalogServiceClient struct {
 	createEdge    *connect.Client[offers.CreateEdgeRequest, offers.CreateEdgeResponse]
 	listEdges     *connect.Client[offers.ListEdgesRequest, offers.ListEdgesResponse]
 	importCatalog *connect.Client[offers.ImportCatalogRequest, offers.ImportCatalogResponse]
+	mapAccount    *connect.Client[offers.MapAccountRequest, offers.MapAccountResponse]
 	mergeNodes    *connect.Client[offers.MergeNodesRequest, offers.MergeNodesResponse]
 	verifyCatalog *connect.Client[offers.VerifyCatalogRequest, offers.VerifyCatalogResponse]
 }
@@ -198,6 +209,11 @@ func (c *catalogServiceClient) ImportCatalog(ctx context.Context, req *connect.R
 	return c.importCatalog.CallUnary(ctx, req)
 }
 
+// MapAccount calls vrooli.offer_desk.v1.offers.CatalogService.MapAccount.
+func (c *catalogServiceClient) MapAccount(ctx context.Context, req *connect.Request[offers.MapAccountRequest]) (*connect.Response[offers.MapAccountResponse], error) {
+	return c.mapAccount.CallUnary(ctx, req)
+}
+
 // MergeNodes calls vrooli.offer_desk.v1.offers.CatalogService.MergeNodes.
 func (c *catalogServiceClient) MergeNodes(ctx context.Context, req *connect.Request[offers.MergeNodesRequest]) (*connect.Response[offers.MergeNodesResponse], error) {
 	return c.mergeNodes.CallUnary(ctx, req)
@@ -217,6 +233,7 @@ type CatalogServiceHandler interface {
 	CreateEdge(context.Context, *connect.Request[offers.CreateEdgeRequest]) (*connect.Response[offers.CreateEdgeResponse], error)
 	ListEdges(context.Context, *connect.Request[offers.ListEdgesRequest]) (*connect.Response[offers.ListEdgesResponse], error)
 	ImportCatalog(context.Context, *connect.Request[offers.ImportCatalogRequest]) (*connect.Response[offers.ImportCatalogResponse], error)
+	MapAccount(context.Context, *connect.Request[offers.MapAccountRequest]) (*connect.Response[offers.MapAccountResponse], error)
 	MergeNodes(context.Context, *connect.Request[offers.MergeNodesRequest]) (*connect.Response[offers.MergeNodesResponse], error)
 	VerifyCatalog(context.Context, *connect.Request[offers.VerifyCatalogRequest]) (*connect.Response[offers.VerifyCatalogResponse], error)
 }
@@ -264,6 +281,12 @@ func NewCatalogServiceHandler(svc CatalogServiceHandler, opts ...connect.Handler
 		connect.WithSchema(catalogServiceMethods.ByName("ImportCatalog")),
 		connect.WithHandlerOptions(opts...),
 	)
+	catalogServiceMapAccountHandler := connect.NewUnaryHandler(
+		CatalogServiceMapAccountProcedure,
+		svc.MapAccount,
+		connect.WithSchema(catalogServiceMethods.ByName("MapAccount")),
+		connect.WithHandlerOptions(opts...),
+	)
 	catalogServiceMergeNodesHandler := connect.NewUnaryHandler(
 		CatalogServiceMergeNodesProcedure,
 		svc.MergeNodes,
@@ -290,6 +313,8 @@ func NewCatalogServiceHandler(svc CatalogServiceHandler, opts ...connect.Handler
 			catalogServiceListEdgesHandler.ServeHTTP(w, r)
 		case CatalogServiceImportCatalogProcedure:
 			catalogServiceImportCatalogHandler.ServeHTTP(w, r)
+		case CatalogServiceMapAccountProcedure:
+			catalogServiceMapAccountHandler.ServeHTTP(w, r)
 		case CatalogServiceMergeNodesProcedure:
 			catalogServiceMergeNodesHandler.ServeHTTP(w, r)
 		case CatalogServiceVerifyCatalogProcedure:
@@ -325,6 +350,10 @@ func (UnimplementedCatalogServiceHandler) ListEdges(context.Context, *connect.Re
 
 func (UnimplementedCatalogServiceHandler) ImportCatalog(context.Context, *connect.Request[offers.ImportCatalogRequest]) (*connect.Response[offers.ImportCatalogResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.offer_desk.v1.offers.CatalogService.ImportCatalog is not implemented"))
+}
+
+func (UnimplementedCatalogServiceHandler) MapAccount(context.Context, *connect.Request[offers.MapAccountRequest]) (*connect.Response[offers.MapAccountResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.offer_desk.v1.offers.CatalogService.MapAccount is not implemented"))
 }
 
 func (UnimplementedCatalogServiceHandler) MergeNodes(context.Context, *connect.Request[offers.MergeNodesRequest]) (*connect.Response[offers.MergeNodesResponse], error) {

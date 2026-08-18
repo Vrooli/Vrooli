@@ -2470,25 +2470,188 @@ func (x *Section) GetContext() *ContextSnapshot {
 	return nil
 }
 
-type Document struct {
+// OutlineSection is one planned cell of a document: what the section is for,
+// what it should say, and how long it should be.
+type OutlineSection struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Title         string                 `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
-	ProfileKey    string                 `protobuf:"bytes,3,opt,name=profile_key,json=profileKey,proto3" json:"profile_key,omitempty"`
-	StyleKey      string                 `protobuf:"bytes,4,opt,name=style_key,json=styleKey,proto3" json:"style_key,omitempty"`
-	OutlineId     string                 `protobuf:"bytes,5,opt,name=outline_id,json=outlineId,proto3" json:"outline_id,omitempty"`
-	SectionIds    []string               `protobuf:"bytes,6,rep,name=section_ids,json=sectionIds,proto3" json:"section_ids,omitempty"`
-	Status        string                 `protobuf:"bytes,7,opt,name=status,proto3" json:"status,omitempty"`
-	AssembledText string                 `protobuf:"bytes,8,opt,name=assembled_text,json=assembledText,proto3" json:"assembled_text,omitempty"`
-	Coherence     *structpb.Struct       `protobuf:"bytes,9,opt,name=coherence,proto3" json:"coherence,omitempty"`
-	Sections      []*Section             `protobuf:"bytes,10,rep,name=sections,proto3" json:"sections,omitempty"`
+	Intent        string                 `protobuf:"bytes,1,opt,name=intent,proto3" json:"intent,omitempty"`
+	Summary       string                 `protobuf:"bytes,2,opt,name=summary,proto3" json:"summary,omitempty"`
+	TargetWords   int32                  `protobuf:"varint,3,opt,name=target_words,json=targetWords,proto3" json:"target_words,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *OutlineSection) Reset() {
+	*x = OutlineSection{}
+	mi := &file_prose_studio_v1_prose_prose_proto_msgTypes[34]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *OutlineSection) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*OutlineSection) ProtoMessage() {}
+
+func (x *OutlineSection) ProtoReflect() protoreflect.Message {
+	mi := &file_prose_studio_v1_prose_prose_proto_msgTypes[34]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use OutlineSection.ProtoReflect.Descriptor instead.
+func (*OutlineSection) Descriptor() ([]byte, []int) {
+	return file_prose_studio_v1_prose_prose_proto_rawDescGZIP(), []int{34}
+}
+
+func (x *OutlineSection) GetIntent() string {
+	if x != nil {
+		return x.Intent
+	}
+	return ""
+}
+
+func (x *OutlineSection) GetSummary() string {
+	if x != nil {
+		return x.Summary
+	}
+	return ""
+}
+
+func (x *OutlineSection) GetTargetWords() int32 {
+	if x != nil {
+		return x.TargetWords
+	}
+	return 0
+}
+
+// DocumentProvenance is what an assembled document actually consumed. A
+// long-form run costs one outline request plus one per section plus any repair,
+// and none of that is visible in a single round's accounting.
+type DocumentProvenance struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	SectionCount    int32                  `protobuf:"varint,1,opt,name=section_count,json=sectionCount,proto3" json:"section_count,omitempty"`
+	WordCount       int32                  `protobuf:"varint,2,opt,name=word_count,json=wordCount,proto3" json:"word_count,omitempty"`
+	TotalCostMicros int64                  `protobuf:"varint,3,opt,name=total_cost_micros,json=totalCostMicros,proto3" json:"total_cost_micros,omitempty"`
+	InputTokens     int64                  `protobuf:"varint,4,opt,name=input_tokens,json=inputTokens,proto3" json:"input_tokens,omitempty"`
+	OutputTokens    int64                  `protobuf:"varint,5,opt,name=output_tokens,json=outputTokens,proto3" json:"output_tokens,omitempty"`
+	Providers       []string               `protobuf:"bytes,6,rep,name=providers,proto3" json:"providers,omitempty"`
+	Models          []string               `protobuf:"bytes,7,rep,name=models,proto3" json:"models,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *DocumentProvenance) Reset() {
+	*x = DocumentProvenance{}
+	mi := &file_prose_studio_v1_prose_prose_proto_msgTypes[35]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DocumentProvenance) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DocumentProvenance) ProtoMessage() {}
+
+func (x *DocumentProvenance) ProtoReflect() protoreflect.Message {
+	mi := &file_prose_studio_v1_prose_prose_proto_msgTypes[35]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DocumentProvenance.ProtoReflect.Descriptor instead.
+func (*DocumentProvenance) Descriptor() ([]byte, []int) {
+	return file_prose_studio_v1_prose_prose_proto_rawDescGZIP(), []int{35}
+}
+
+func (x *DocumentProvenance) GetSectionCount() int32 {
+	if x != nil {
+		return x.SectionCount
+	}
+	return 0
+}
+
+func (x *DocumentProvenance) GetWordCount() int32 {
+	if x != nil {
+		return x.WordCount
+	}
+	return 0
+}
+
+func (x *DocumentProvenance) GetTotalCostMicros() int64 {
+	if x != nil {
+		return x.TotalCostMicros
+	}
+	return 0
+}
+
+func (x *DocumentProvenance) GetInputTokens() int64 {
+	if x != nil {
+		return x.InputTokens
+	}
+	return 0
+}
+
+func (x *DocumentProvenance) GetOutputTokens() int64 {
+	if x != nil {
+		return x.OutputTokens
+	}
+	return 0
+}
+
+func (x *DocumentProvenance) GetProviders() []string {
+	if x != nil {
+		return x.Providers
+	}
+	return nil
+}
+
+func (x *DocumentProvenance) GetModels() []string {
+	if x != nil {
+		return x.Models
+	}
+	return nil
+}
+
+type Document struct {
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	Id                 string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Title              string                 `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
+	ProfileKey         string                 `protobuf:"bytes,3,opt,name=profile_key,json=profileKey,proto3" json:"profile_key,omitempty"`
+	StyleKey           string                 `protobuf:"bytes,4,opt,name=style_key,json=styleKey,proto3" json:"style_key,omitempty"`
+	OutlineId          string                 `protobuf:"bytes,5,opt,name=outline_id,json=outlineId,proto3" json:"outline_id,omitempty"`
+	SectionIds         []string               `protobuf:"bytes,6,rep,name=section_ids,json=sectionIds,proto3" json:"section_ids,omitempty"`
+	Status             string                 `protobuf:"bytes,7,opt,name=status,proto3" json:"status,omitempty"`
+	AssembledText      string                 `protobuf:"bytes,8,opt,name=assembled_text,json=assembledText,proto3" json:"assembled_text,omitempty"`
+	Coherence          *structpb.Struct       `protobuf:"bytes,9,opt,name=coherence,proto3" json:"coherence,omitempty"`
+	Sections           []*Section             `protobuf:"bytes,10,rep,name=sections,proto3" json:"sections,omitempty"`
+	OutlineText        string                 `protobuf:"bytes,11,opt,name=outline_text,json=outlineText,proto3" json:"outline_text,omitempty"`
+	Outline            []*OutlineSection      `protobuf:"bytes,12,rep,name=outline,proto3" json:"outline,omitempty"`
+	DocumentProvenance *DocumentProvenance    `protobuf:"bytes,13,opt,name=document_provenance,json=documentProvenance,proto3" json:"document_provenance,omitempty"`
+	// created_at is RFC3339. It exists so a reader can ask for the most recent
+	// documents without knowing an identifier they were never told.
+	CreatedAt     string `protobuf:"bytes,14,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Document) Reset() {
 	*x = Document{}
-	mi := &file_prose_studio_v1_prose_prose_proto_msgTypes[34]
+	mi := &file_prose_studio_v1_prose_prose_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2500,7 +2663,7 @@ func (x *Document) String() string {
 func (*Document) ProtoMessage() {}
 
 func (x *Document) ProtoReflect() protoreflect.Message {
-	mi := &file_prose_studio_v1_prose_prose_proto_msgTypes[34]
+	mi := &file_prose_studio_v1_prose_prose_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2513,7 +2676,7 @@ func (x *Document) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Document.ProtoReflect.Descriptor instead.
 func (*Document) Descriptor() ([]byte, []int) {
-	return file_prose_studio_v1_prose_prose_proto_rawDescGZIP(), []int{34}
+	return file_prose_studio_v1_prose_prose_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *Document) GetId() string {
@@ -2586,6 +2749,330 @@ func (x *Document) GetSections() []*Section {
 	return nil
 }
 
+func (x *Document) GetOutlineText() string {
+	if x != nil {
+		return x.OutlineText
+	}
+	return ""
+}
+
+func (x *Document) GetOutline() []*OutlineSection {
+	if x != nil {
+		return x.Outline
+	}
+	return nil
+}
+
+func (x *Document) GetDocumentProvenance() *DocumentProvenance {
+	if x != nil {
+		return x.DocumentProvenance
+	}
+	return nil
+}
+
+func (x *Document) GetCreatedAt() string {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return ""
+}
+
+// DocumentSummary is the listing shape: enough to choose which document to
+// read, without carrying the prose of every document into the response.
+type DocumentSummary struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Id              string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Title           string                 `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
+	ProfileKey      string                 `protobuf:"bytes,3,opt,name=profile_key,json=profileKey,proto3" json:"profile_key,omitempty"`
+	Status          string                 `protobuf:"bytes,4,opt,name=status,proto3" json:"status,omitempty"`
+	WordCount       int32                  `protobuf:"varint,5,opt,name=word_count,json=wordCount,proto3" json:"word_count,omitempty"`
+	SectionCount    int32                  `protobuf:"varint,6,opt,name=section_count,json=sectionCount,proto3" json:"section_count,omitempty"`
+	TotalCostMicros int64                  `protobuf:"varint,7,opt,name=total_cost_micros,json=totalCostMicros,proto3" json:"total_cost_micros,omitempty"`
+	CreatedAt       string                 `protobuf:"bytes,8,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	Coherent        bool                   `protobuf:"varint,9,opt,name=coherent,proto3" json:"coherent,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *DocumentSummary) Reset() {
+	*x = DocumentSummary{}
+	mi := &file_prose_studio_v1_prose_prose_proto_msgTypes[37]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DocumentSummary) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DocumentSummary) ProtoMessage() {}
+
+func (x *DocumentSummary) ProtoReflect() protoreflect.Message {
+	mi := &file_prose_studio_v1_prose_prose_proto_msgTypes[37]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DocumentSummary.ProtoReflect.Descriptor instead.
+func (*DocumentSummary) Descriptor() ([]byte, []int) {
+	return file_prose_studio_v1_prose_prose_proto_rawDescGZIP(), []int{37}
+}
+
+func (x *DocumentSummary) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *DocumentSummary) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *DocumentSummary) GetProfileKey() string {
+	if x != nil {
+		return x.ProfileKey
+	}
+	return ""
+}
+
+func (x *DocumentSummary) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *DocumentSummary) GetWordCount() int32 {
+	if x != nil {
+		return x.WordCount
+	}
+	return 0
+}
+
+func (x *DocumentSummary) GetSectionCount() int32 {
+	if x != nil {
+		return x.SectionCount
+	}
+	return 0
+}
+
+func (x *DocumentSummary) GetTotalCostMicros() int64 {
+	if x != nil {
+		return x.TotalCostMicros
+	}
+	return 0
+}
+
+func (x *DocumentSummary) GetCreatedAt() string {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return ""
+}
+
+func (x *DocumentSummary) GetCoherent() bool {
+	if x != nil {
+		return x.Coherent
+	}
+	return false
+}
+
+type ListDocumentsRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// limit bounds the newest-first page. Zero uses the server default.
+	Limit int32 `protobuf:"varint,1,opt,name=limit,proto3" json:"limit,omitempty"`
+	// status filters by lifecycle state, e.g. assembled. Empty returns all.
+	Status        string `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListDocumentsRequest) Reset() {
+	*x = ListDocumentsRequest{}
+	mi := &file_prose_studio_v1_prose_prose_proto_msgTypes[38]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListDocumentsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListDocumentsRequest) ProtoMessage() {}
+
+func (x *ListDocumentsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_prose_studio_v1_prose_prose_proto_msgTypes[38]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListDocumentsRequest.ProtoReflect.Descriptor instead.
+func (*ListDocumentsRequest) Descriptor() ([]byte, []int) {
+	return file_prose_studio_v1_prose_prose_proto_rawDescGZIP(), []int{38}
+}
+
+func (x *ListDocumentsRequest) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+func (x *ListDocumentsRequest) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+type ListDocumentsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Documents     []*DocumentSummary     `protobuf:"bytes,1,rep,name=documents,proto3" json:"documents,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListDocumentsResponse) Reset() {
+	*x = ListDocumentsResponse{}
+	mi := &file_prose_studio_v1_prose_prose_proto_msgTypes[39]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListDocumentsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListDocumentsResponse) ProtoMessage() {}
+
+func (x *ListDocumentsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_prose_studio_v1_prose_prose_proto_msgTypes[39]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListDocumentsResponse.ProtoReflect.Descriptor instead.
+func (*ListDocumentsResponse) Descriptor() ([]byte, []int) {
+	return file_prose_studio_v1_prose_prose_proto_rawDescGZIP(), []int{39}
+}
+
+func (x *ListDocumentsResponse) GetDocuments() []*DocumentSummary {
+	if x != nil {
+		return x.Documents
+	}
+	return nil
+}
+
+type GetDocumentRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetDocumentRequest) Reset() {
+	*x = GetDocumentRequest{}
+	mi := &file_prose_studio_v1_prose_prose_proto_msgTypes[40]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetDocumentRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetDocumentRequest) ProtoMessage() {}
+
+func (x *GetDocumentRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_prose_studio_v1_prose_prose_proto_msgTypes[40]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetDocumentRequest.ProtoReflect.Descriptor instead.
+func (*GetDocumentRequest) Descriptor() ([]byte, []int) {
+	return file_prose_studio_v1_prose_prose_proto_rawDescGZIP(), []int{40}
+}
+
+func (x *GetDocumentRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+type GetDocumentResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Document      *Document              `protobuf:"bytes,1,opt,name=document,proto3" json:"document,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetDocumentResponse) Reset() {
+	*x = GetDocumentResponse{}
+	mi := &file_prose_studio_v1_prose_prose_proto_msgTypes[41]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetDocumentResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetDocumentResponse) ProtoMessage() {}
+
+func (x *GetDocumentResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_prose_studio_v1_prose_prose_proto_msgTypes[41]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetDocumentResponse.ProtoReflect.Descriptor instead.
+func (*GetDocumentResponse) Descriptor() ([]byte, []int) {
+	return file_prose_studio_v1_prose_prose_proto_rawDescGZIP(), []int{41}
+}
+
+func (x *GetDocumentResponse) GetDocument() *Document {
+	if x != nil {
+		return x.Document
+	}
+	return nil
+}
+
 type CreateDocumentRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Document      *Document              `protobuf:"bytes,1,opt,name=document,proto3" json:"document,omitempty"`
@@ -2596,7 +3083,7 @@ type CreateDocumentRequest struct {
 
 func (x *CreateDocumentRequest) Reset() {
 	*x = CreateDocumentRequest{}
-	mi := &file_prose_studio_v1_prose_prose_proto_msgTypes[35]
+	mi := &file_prose_studio_v1_prose_prose_proto_msgTypes[42]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2608,7 +3095,7 @@ func (x *CreateDocumentRequest) String() string {
 func (*CreateDocumentRequest) ProtoMessage() {}
 
 func (x *CreateDocumentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_prose_studio_v1_prose_prose_proto_msgTypes[35]
+	mi := &file_prose_studio_v1_prose_prose_proto_msgTypes[42]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2621,7 +3108,7 @@ func (x *CreateDocumentRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateDocumentRequest.ProtoReflect.Descriptor instead.
 func (*CreateDocumentRequest) Descriptor() ([]byte, []int) {
-	return file_prose_studio_v1_prose_prose_proto_rawDescGZIP(), []int{35}
+	return file_prose_studio_v1_prose_prose_proto_rawDescGZIP(), []int{42}
 }
 
 func (x *CreateDocumentRequest) GetDocument() *Document {
@@ -2647,7 +3134,7 @@ type CreateDocumentResponse struct {
 
 func (x *CreateDocumentResponse) Reset() {
 	*x = CreateDocumentResponse{}
-	mi := &file_prose_studio_v1_prose_prose_proto_msgTypes[36]
+	mi := &file_prose_studio_v1_prose_prose_proto_msgTypes[43]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2659,7 +3146,7 @@ func (x *CreateDocumentResponse) String() string {
 func (*CreateDocumentResponse) ProtoMessage() {}
 
 func (x *CreateDocumentResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_prose_studio_v1_prose_prose_proto_msgTypes[36]
+	mi := &file_prose_studio_v1_prose_prose_proto_msgTypes[43]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2672,7 +3159,7 @@ func (x *CreateDocumentResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateDocumentResponse.ProtoReflect.Descriptor instead.
 func (*CreateDocumentResponse) Descriptor() ([]byte, []int) {
-	return file_prose_studio_v1_prose_prose_proto_rawDescGZIP(), []int{36}
+	return file_prose_studio_v1_prose_prose_proto_rawDescGZIP(), []int{43}
 }
 
 func (x *CreateDocumentResponse) GetDocument() *Document {
@@ -2691,7 +3178,7 @@ type AssembleDocumentRequest struct {
 
 func (x *AssembleDocumentRequest) Reset() {
 	*x = AssembleDocumentRequest{}
-	mi := &file_prose_studio_v1_prose_prose_proto_msgTypes[37]
+	mi := &file_prose_studio_v1_prose_prose_proto_msgTypes[44]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2703,7 +3190,7 @@ func (x *AssembleDocumentRequest) String() string {
 func (*AssembleDocumentRequest) ProtoMessage() {}
 
 func (x *AssembleDocumentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_prose_studio_v1_prose_prose_proto_msgTypes[37]
+	mi := &file_prose_studio_v1_prose_prose_proto_msgTypes[44]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2716,7 +3203,7 @@ func (x *AssembleDocumentRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AssembleDocumentRequest.ProtoReflect.Descriptor instead.
 func (*AssembleDocumentRequest) Descriptor() ([]byte, []int) {
-	return file_prose_studio_v1_prose_prose_proto_rawDescGZIP(), []int{37}
+	return file_prose_studio_v1_prose_prose_proto_rawDescGZIP(), []int{44}
 }
 
 func (x *AssembleDocumentRequest) GetId() string {
@@ -2735,7 +3222,7 @@ type AssembleDocumentResponse struct {
 
 func (x *AssembleDocumentResponse) Reset() {
 	*x = AssembleDocumentResponse{}
-	mi := &file_prose_studio_v1_prose_prose_proto_msgTypes[38]
+	mi := &file_prose_studio_v1_prose_prose_proto_msgTypes[45]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2747,7 +3234,7 @@ func (x *AssembleDocumentResponse) String() string {
 func (*AssembleDocumentResponse) ProtoMessage() {}
 
 func (x *AssembleDocumentResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_prose_studio_v1_prose_prose_proto_msgTypes[38]
+	mi := &file_prose_studio_v1_prose_prose_proto_msgTypes[45]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2760,7 +3247,7 @@ func (x *AssembleDocumentResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AssembleDocumentResponse.ProtoReflect.Descriptor instead.
 func (*AssembleDocumentResponse) Descriptor() ([]byte, []int) {
-	return file_prose_studio_v1_prose_prose_proto_rawDescGZIP(), []int{38}
+	return file_prose_studio_v1_prose_prose_proto_rawDescGZIP(), []int{45}
 }
 
 func (x *AssembleDocumentResponse) GetDocument() *Document {
@@ -2779,7 +3266,7 @@ type ResumeDocumentRequest struct {
 
 func (x *ResumeDocumentRequest) Reset() {
 	*x = ResumeDocumentRequest{}
-	mi := &file_prose_studio_v1_prose_prose_proto_msgTypes[39]
+	mi := &file_prose_studio_v1_prose_prose_proto_msgTypes[46]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2791,7 +3278,7 @@ func (x *ResumeDocumentRequest) String() string {
 func (*ResumeDocumentRequest) ProtoMessage() {}
 
 func (x *ResumeDocumentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_prose_studio_v1_prose_prose_proto_msgTypes[39]
+	mi := &file_prose_studio_v1_prose_prose_proto_msgTypes[46]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2804,7 +3291,7 @@ func (x *ResumeDocumentRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResumeDocumentRequest.ProtoReflect.Descriptor instead.
 func (*ResumeDocumentRequest) Descriptor() ([]byte, []int) {
-	return file_prose_studio_v1_prose_prose_proto_rawDescGZIP(), []int{39}
+	return file_prose_studio_v1_prose_prose_proto_rawDescGZIP(), []int{46}
 }
 
 func (x *ResumeDocumentRequest) GetId() string {
@@ -2823,7 +3310,7 @@ type ResumeDocumentResponse struct {
 
 func (x *ResumeDocumentResponse) Reset() {
 	*x = ResumeDocumentResponse{}
-	mi := &file_prose_studio_v1_prose_prose_proto_msgTypes[40]
+	mi := &file_prose_studio_v1_prose_prose_proto_msgTypes[47]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2835,7 +3322,7 @@ func (x *ResumeDocumentResponse) String() string {
 func (*ResumeDocumentResponse) ProtoMessage() {}
 
 func (x *ResumeDocumentResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_prose_studio_v1_prose_prose_proto_msgTypes[40]
+	mi := &file_prose_studio_v1_prose_prose_proto_msgTypes[47]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2848,7 +3335,7 @@ func (x *ResumeDocumentResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResumeDocumentResponse.ProtoReflect.Descriptor instead.
 func (*ResumeDocumentResponse) Descriptor() ([]byte, []int) {
-	return file_prose_studio_v1_prose_prose_proto_rawDescGZIP(), []int{40}
+	return file_prose_studio_v1_prose_prose_proto_rawDescGZIP(), []int{47}
 }
 
 func (x *ResumeDocumentResponse) GetDocument() *Document {
@@ -2868,7 +3355,7 @@ type ConformanceRequest struct {
 
 func (x *ConformanceRequest) Reset() {
 	*x = ConformanceRequest{}
-	mi := &file_prose_studio_v1_prose_prose_proto_msgTypes[41]
+	mi := &file_prose_studio_v1_prose_prose_proto_msgTypes[48]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2880,7 +3367,7 @@ func (x *ConformanceRequest) String() string {
 func (*ConformanceRequest) ProtoMessage() {}
 
 func (x *ConformanceRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_prose_studio_v1_prose_prose_proto_msgTypes[41]
+	mi := &file_prose_studio_v1_prose_prose_proto_msgTypes[48]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2893,7 +3380,7 @@ func (x *ConformanceRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConformanceRequest.ProtoReflect.Descriptor instead.
 func (*ConformanceRequest) Descriptor() ([]byte, []int) {
-	return file_prose_studio_v1_prose_prose_proto_rawDescGZIP(), []int{41}
+	return file_prose_studio_v1_prose_prose_proto_rawDescGZIP(), []int{48}
 }
 
 func (x *ConformanceRequest) GetStyleKey() string {
@@ -2919,7 +3406,7 @@ type ConformanceResponse struct {
 
 func (x *ConformanceResponse) Reset() {
 	*x = ConformanceResponse{}
-	mi := &file_prose_studio_v1_prose_prose_proto_msgTypes[42]
+	mi := &file_prose_studio_v1_prose_prose_proto_msgTypes[49]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2931,7 +3418,7 @@ func (x *ConformanceResponse) String() string {
 func (*ConformanceResponse) ProtoMessage() {}
 
 func (x *ConformanceResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_prose_studio_v1_prose_prose_proto_msgTypes[42]
+	mi := &file_prose_studio_v1_prose_prose_proto_msgTypes[49]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2944,7 +3431,7 @@ func (x *ConformanceResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConformanceResponse.ProtoReflect.Descriptor instead.
 func (*ConformanceResponse) Descriptor() ([]byte, []int) {
-	return file_prose_studio_v1_prose_prose_proto_rawDescGZIP(), []int{42}
+	return file_prose_studio_v1_prose_prose_proto_rawDescGZIP(), []int{49}
 }
 
 func (x *ConformanceResponse) GetReport() *structpb.Struct {
@@ -3183,7 +3670,20 @@ const file_prose_studio_v1_prose_prose_proto_rawDesc = "" +
 	"\n" +
 	"session_id\x18\x06 \x01(\tR\tsessionId\x124\n" +
 	"\x16committed_candidate_id\x18\a \x01(\tR\x14committedCandidateId\x12G\n" +
-	"\acontext\x18\b \x01(\v2-.vrooli.prose_studio.v1.prose.ContextSnapshotR\acontext\"\xe7\x02\n" +
+	"\acontext\x18\b \x01(\v2-.vrooli.prose_studio.v1.prose.ContextSnapshotR\acontext\"e\n" +
+	"\x0eOutlineSection\x12\x16\n" +
+	"\x06intent\x18\x01 \x01(\tR\x06intent\x12\x18\n" +
+	"\asummary\x18\x02 \x01(\tR\asummary\x12!\n" +
+	"\ftarget_words\x18\x03 \x01(\x05R\vtargetWords\"\x82\x02\n" +
+	"\x12DocumentProvenance\x12#\n" +
+	"\rsection_count\x18\x01 \x01(\x05R\fsectionCount\x12\x1d\n" +
+	"\n" +
+	"word_count\x18\x02 \x01(\x05R\twordCount\x12*\n" +
+	"\x11total_cost_micros\x18\x03 \x01(\x03R\x0ftotalCostMicros\x12!\n" +
+	"\finput_tokens\x18\x04 \x01(\x03R\vinputTokens\x12#\n" +
+	"\routput_tokens\x18\x05 \x01(\x03R\foutputTokens\x12\x1c\n" +
+	"\tproviders\x18\x06 \x03(\tR\tproviders\x12\x16\n" +
+	"\x06models\x18\a \x03(\tR\x06models\"\xd4\x04\n" +
 	"\bDocument\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12\x1f\n" +
@@ -3198,7 +3698,34 @@ const file_prose_studio_v1_prose_prose_proto_rawDesc = "" +
 	"\x0eassembled_text\x18\b \x01(\tR\rassembledText\x125\n" +
 	"\tcoherence\x18\t \x01(\v2\x17.google.protobuf.StructR\tcoherence\x12A\n" +
 	"\bsections\x18\n" +
-	" \x03(\v2%.vrooli.prose_studio.v1.prose.SectionR\bsections\"\x9e\x01\n" +
+	" \x03(\v2%.vrooli.prose_studio.v1.prose.SectionR\bsections\x12!\n" +
+	"\foutline_text\x18\v \x01(\tR\voutlineText\x12F\n" +
+	"\aoutline\x18\f \x03(\v2,.vrooli.prose_studio.v1.prose.OutlineSectionR\aoutline\x12a\n" +
+	"\x13document_provenance\x18\r \x01(\v20.vrooli.prose_studio.v1.prose.DocumentProvenanceR\x12documentProvenance\x12\x1d\n" +
+	"\n" +
+	"created_at\x18\x0e \x01(\tR\tcreatedAt\"\x9b\x02\n" +
+	"\x0fDocumentSummary\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
+	"\x05title\x18\x02 \x01(\tR\x05title\x12\x1f\n" +
+	"\vprofile_key\x18\x03 \x01(\tR\n" +
+	"profileKey\x12\x16\n" +
+	"\x06status\x18\x04 \x01(\tR\x06status\x12\x1d\n" +
+	"\n" +
+	"word_count\x18\x05 \x01(\x05R\twordCount\x12#\n" +
+	"\rsection_count\x18\x06 \x01(\x05R\fsectionCount\x12*\n" +
+	"\x11total_cost_micros\x18\a \x01(\x03R\x0ftotalCostMicros\x12\x1d\n" +
+	"\n" +
+	"created_at\x18\b \x01(\tR\tcreatedAt\x12\x1a\n" +
+	"\bcoherent\x18\t \x01(\bR\bcoherent\"D\n" +
+	"\x14ListDocumentsRequest\x12\x14\n" +
+	"\x05limit\x18\x01 \x01(\x05R\x05limit\x12\x16\n" +
+	"\x06status\x18\x02 \x01(\tR\x06status\"d\n" +
+	"\x15ListDocumentsResponse\x12K\n" +
+	"\tdocuments\x18\x01 \x03(\v2-.vrooli.prose_studio.v1.prose.DocumentSummaryR\tdocuments\"$\n" +
+	"\x12GetDocumentRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\"Y\n" +
+	"\x13GetDocumentResponse\x12B\n" +
+	"\bdocument\x18\x01 \x01(\v2&.vrooli.prose_studio.v1.prose.DocumentR\bdocument\"\x9e\x01\n" +
 	"\x15CreateDocumentRequest\x12B\n" +
 	"\bdocument\x18\x01 \x01(\v2&.vrooli.prose_studio.v1.prose.DocumentR\bdocument\x12A\n" +
 	"\bsections\x18\x02 \x03(\v2%.vrooli.prose_studio.v1.prose.SectionR\bsections\"\\\n" +
@@ -3216,7 +3743,7 @@ const file_prose_studio_v1_prose_prose_proto_rawDesc = "" +
 	"\tstyle_key\x18\x01 \x01(\tR\bstyleKey\x12\x12\n" +
 	"\x04text\x18\x02 \x01(\tR\x04text\"F\n" +
 	"\x13ConformanceResponse\x12/\n" +
-	"\x06report\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x06report2\xc9\v\n" +
+	"\x06report\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x06report2\xb7\r\n" +
 	"\x12ProseStudioService\x12i\n" +
 	"\bRegistry\x12-.vrooli.prose_studio.v1.prose.RegistryRequest\x1a..vrooli.prose_studio.v1.prose.RegistryResponse\x12r\n" +
 	"\vCreateStyle\x120.vrooli.prose_studio.v1.prose.CreateStyleRequest\x1a1.vrooli.prose_studio.v1.prose.CreateStyleResponse\x12{\n" +
@@ -3225,7 +3752,9 @@ const file_prose_studio_v1_prose_prose_proto_rawDesc = "" +
 	"\x06Reroll\x12+.vrooli.prose_studio.v1.prose.RerollRequest\x1a,.vrooli.prose_studio.v1.prose.RerollResponse\x12x\n" +
 	"\rSessionAction\x122.vrooli.prose_studio.v1.prose.SessionActionRequest\x1a3.vrooli.prose_studio.v1.prose.SessionActionResponse\x12\x8a\x01\n" +
 	"\x13ReindexDeclarations\x128.vrooli.prose_studio.v1.prose.ReindexDeclarationsRequest\x1a9.vrooli.prose_studio.v1.prose.ReindexDeclarationsResponse\x12\x8d\x01\n" +
-	"\x14ValidateDeclarations\x129.vrooli.prose_studio.v1.prose.ValidateDeclarationsRequest\x1a:.vrooli.prose_studio.v1.prose.ValidateDeclarationsResponse\x12{\n" +
+	"\x14ValidateDeclarations\x129.vrooli.prose_studio.v1.prose.ValidateDeclarationsRequest\x1a:.vrooli.prose_studio.v1.prose.ValidateDeclarationsResponse\x12x\n" +
+	"\rListDocuments\x122.vrooli.prose_studio.v1.prose.ListDocumentsRequest\x1a3.vrooli.prose_studio.v1.prose.ListDocumentsResponse\x12r\n" +
+	"\vGetDocument\x120.vrooli.prose_studio.v1.prose.GetDocumentRequest\x1a1.vrooli.prose_studio.v1.prose.GetDocumentResponse\x12{\n" +
 	"\x0eCreateDocument\x123.vrooli.prose_studio.v1.prose.CreateDocumentRequest\x1a4.vrooli.prose_studio.v1.prose.CreateDocumentResponse\x12\x81\x01\n" +
 	"\x10AssembleDocument\x125.vrooli.prose_studio.v1.prose.AssembleDocumentRequest\x1a6.vrooli.prose_studio.v1.prose.AssembleDocumentResponse\x12{\n" +
 	"\x0eResumeDocument\x123.vrooli.prose_studio.v1.prose.ResumeDocumentRequest\x1a4.vrooli.prose_studio.v1.prose.ResumeDocumentResponse\x12r\n" +
@@ -3243,7 +3772,7 @@ func file_prose_studio_v1_prose_prose_proto_rawDescGZIP() []byte {
 	return file_prose_studio_v1_prose_prose_proto_rawDescData
 }
 
-var file_prose_studio_v1_prose_prose_proto_msgTypes = make([]protoimpl.MessageInfo, 46)
+var file_prose_studio_v1_prose_prose_proto_msgTypes = make([]protoimpl.MessageInfo, 53)
 var file_prose_studio_v1_prose_prose_proto_goTypes = []any{
 	(*RegistryRequest)(nil),              // 0: vrooli.prose_studio.v1.prose.RegistryRequest
 	(*RegistryKind)(nil),                 // 1: vrooli.prose_studio.v1.prose.RegistryKind
@@ -3279,33 +3808,40 @@ var file_prose_studio_v1_prose_prose_proto_goTypes = []any{
 	(*ValidateDeclarationsResponse)(nil), // 31: vrooli.prose_studio.v1.prose.ValidateDeclarationsResponse
 	(*ContextSnapshot)(nil),              // 32: vrooli.prose_studio.v1.prose.ContextSnapshot
 	(*Section)(nil),                      // 33: vrooli.prose_studio.v1.prose.Section
-	(*Document)(nil),                     // 34: vrooli.prose_studio.v1.prose.Document
-	(*CreateDocumentRequest)(nil),        // 35: vrooli.prose_studio.v1.prose.CreateDocumentRequest
-	(*CreateDocumentResponse)(nil),       // 36: vrooli.prose_studio.v1.prose.CreateDocumentResponse
-	(*AssembleDocumentRequest)(nil),      // 37: vrooli.prose_studio.v1.prose.AssembleDocumentRequest
-	(*AssembleDocumentResponse)(nil),     // 38: vrooli.prose_studio.v1.prose.AssembleDocumentResponse
-	(*ResumeDocumentRequest)(nil),        // 39: vrooli.prose_studio.v1.prose.ResumeDocumentRequest
-	(*ResumeDocumentResponse)(nil),       // 40: vrooli.prose_studio.v1.prose.ResumeDocumentResponse
-	(*ConformanceRequest)(nil),           // 41: vrooli.prose_studio.v1.prose.ConformanceRequest
-	(*ConformanceResponse)(nil),          // 42: vrooli.prose_studio.v1.prose.ConformanceResponse
-	nil,                                  // 43: vrooli.prose_studio.v1.prose.Style.TargetsEntry
-	nil,                                  // 44: vrooli.prose_studio.v1.prose.Style.AxisDefaultsEntry
-	nil,                                  // 45: vrooli.prose_studio.v1.prose.Profile.SelectionParamsEntry
-	(*structpb.Struct)(nil),              // 46: google.protobuf.Struct
+	(*OutlineSection)(nil),               // 34: vrooli.prose_studio.v1.prose.OutlineSection
+	(*DocumentProvenance)(nil),           // 35: vrooli.prose_studio.v1.prose.DocumentProvenance
+	(*Document)(nil),                     // 36: vrooli.prose_studio.v1.prose.Document
+	(*DocumentSummary)(nil),              // 37: vrooli.prose_studio.v1.prose.DocumentSummary
+	(*ListDocumentsRequest)(nil),         // 38: vrooli.prose_studio.v1.prose.ListDocumentsRequest
+	(*ListDocumentsResponse)(nil),        // 39: vrooli.prose_studio.v1.prose.ListDocumentsResponse
+	(*GetDocumentRequest)(nil),           // 40: vrooli.prose_studio.v1.prose.GetDocumentRequest
+	(*GetDocumentResponse)(nil),          // 41: vrooli.prose_studio.v1.prose.GetDocumentResponse
+	(*CreateDocumentRequest)(nil),        // 42: vrooli.prose_studio.v1.prose.CreateDocumentRequest
+	(*CreateDocumentResponse)(nil),       // 43: vrooli.prose_studio.v1.prose.CreateDocumentResponse
+	(*AssembleDocumentRequest)(nil),      // 44: vrooli.prose_studio.v1.prose.AssembleDocumentRequest
+	(*AssembleDocumentResponse)(nil),     // 45: vrooli.prose_studio.v1.prose.AssembleDocumentResponse
+	(*ResumeDocumentRequest)(nil),        // 46: vrooli.prose_studio.v1.prose.ResumeDocumentRequest
+	(*ResumeDocumentResponse)(nil),       // 47: vrooli.prose_studio.v1.prose.ResumeDocumentResponse
+	(*ConformanceRequest)(nil),           // 48: vrooli.prose_studio.v1.prose.ConformanceRequest
+	(*ConformanceResponse)(nil),          // 49: vrooli.prose_studio.v1.prose.ConformanceResponse
+	nil,                                  // 50: vrooli.prose_studio.v1.prose.Style.TargetsEntry
+	nil,                                  // 51: vrooli.prose_studio.v1.prose.Style.AxisDefaultsEntry
+	nil,                                  // 52: vrooli.prose_studio.v1.prose.Profile.SelectionParamsEntry
+	(*structpb.Struct)(nil),              // 53: google.protobuf.Struct
 }
 var file_prose_studio_v1_prose_prose_proto_depIdxs = []int32{
-	46, // 0: vrooli.prose_studio.v1.prose.RegistryKind.parameter_schema:type_name -> google.protobuf.Struct
+	53, // 0: vrooli.prose_studio.v1.prose.RegistryKind.parameter_schema:type_name -> google.protobuf.Struct
 	1,  // 1: vrooli.prose_studio.v1.prose.RegistryResponse.samplers:type_name -> vrooli.prose_studio.v1.prose.RegistryKind
 	1,  // 2: vrooli.prose_studio.v1.prose.RegistryResponse.policies:type_name -> vrooli.prose_studio.v1.prose.RegistryKind
 	1,  // 3: vrooli.prose_studio.v1.prose.RegistryResponse.metrics:type_name -> vrooli.prose_studio.v1.prose.RegistryKind
 	1,  // 4: vrooli.prose_studio.v1.prose.RegistryResponse.transforms:type_name -> vrooli.prose_studio.v1.prose.RegistryKind
-	43, // 5: vrooli.prose_studio.v1.prose.Style.targets:type_name -> vrooli.prose_studio.v1.prose.Style.TargetsEntry
-	44, // 6: vrooli.prose_studio.v1.prose.Style.axis_defaults:type_name -> vrooli.prose_studio.v1.prose.Style.AxisDefaultsEntry
+	50, // 5: vrooli.prose_studio.v1.prose.Style.targets:type_name -> vrooli.prose_studio.v1.prose.Style.TargetsEntry
+	51, // 6: vrooli.prose_studio.v1.prose.Style.axis_defaults:type_name -> vrooli.prose_studio.v1.prose.Style.AxisDefaultsEntry
 	3,  // 7: vrooli.prose_studio.v1.prose.CreateStyleRequest.style:type_name -> vrooli.prose_studio.v1.prose.Style
 	3,  // 8: vrooli.prose_studio.v1.prose.CreateStyleResponse.style:type_name -> vrooli.prose_studio.v1.prose.Style
 	6,  // 9: vrooli.prose_studio.v1.prose.Profile.sampler:type_name -> vrooli.prose_studio.v1.prose.Sampler
 	7,  // 10: vrooli.prose_studio.v1.prose.Profile.constraints:type_name -> vrooli.prose_studio.v1.prose.Constraints
-	45, // 11: vrooli.prose_studio.v1.prose.Profile.selection_params:type_name -> vrooli.prose_studio.v1.prose.Profile.SelectionParamsEntry
+	52, // 11: vrooli.prose_studio.v1.prose.Profile.selection_params:type_name -> vrooli.prose_studio.v1.prose.Profile.SelectionParamsEntry
 	8,  // 12: vrooli.prose_studio.v1.prose.Profile.budget:type_name -> vrooli.prose_studio.v1.prose.Budget
 	9,  // 13: vrooli.prose_studio.v1.prose.Profile.context_policy:type_name -> vrooli.prose_studio.v1.prose.ContextPolicy
 	10, // 14: vrooli.prose_studio.v1.prose.ResolveProfileResponse.profile:type_name -> vrooli.prose_studio.v1.prose.Profile
@@ -3313,13 +3849,13 @@ var file_prose_studio_v1_prose_prose_proto_depIdxs = []int32{
 	13, // 16: vrooli.prose_studio.v1.prose.GenerateRequest.negative:type_name -> vrooli.prose_studio.v1.prose.NegativeContext
 	6,  // 17: vrooli.prose_studio.v1.prose.Provenance.strategy_parameters:type_name -> vrooli.prose_studio.v1.prose.Sampler
 	32, // 18: vrooli.prose_studio.v1.prose.Provenance.context_snapshot:type_name -> vrooli.prose_studio.v1.prose.ContextSnapshot
-	46, // 19: vrooli.prose_studio.v1.prose.Candidate.measurements:type_name -> google.protobuf.Struct
-	46, // 20: vrooli.prose_studio.v1.prose.Candidate.set_measurements:type_name -> google.protobuf.Struct
+	53, // 19: vrooli.prose_studio.v1.prose.Candidate.measurements:type_name -> google.protobuf.Struct
+	53, // 20: vrooli.prose_studio.v1.prose.Candidate.set_measurements:type_name -> google.protobuf.Struct
 	17, // 21: vrooli.prose_studio.v1.prose.Candidate.provenance:type_name -> vrooli.prose_studio.v1.prose.Provenance
 	16, // 22: vrooli.prose_studio.v1.prose.Candidate.verbalized_hint:type_name -> vrooli.prose_studio.v1.prose.VerbalizedHint
 	15, // 23: vrooli.prose_studio.v1.prose.Candidate.eligibility:type_name -> vrooli.prose_studio.v1.prose.Eligibility
 	6,  // 24: vrooli.prose_studio.v1.prose.Round.strategy:type_name -> vrooli.prose_studio.v1.prose.Sampler
-	46, // 25: vrooli.prose_studio.v1.prose.Round.sampling_key:type_name -> google.protobuf.Struct
+	53, // 25: vrooli.prose_studio.v1.prose.Round.sampling_key:type_name -> google.protobuf.Struct
 	13, // 26: vrooli.prose_studio.v1.prose.Round.negative_context:type_name -> vrooli.prose_studio.v1.prose.NegativeContext
 	20, // 27: vrooli.prose_studio.v1.prose.GenerateResponse.session:type_name -> vrooli.prose_studio.v1.prose.Session
 	19, // 28: vrooli.prose_studio.v1.prose.GenerateResponse.round:type_name -> vrooli.prose_studio.v1.prose.Round
@@ -3329,47 +3865,55 @@ var file_prose_studio_v1_prose_prose_proto_depIdxs = []int32{
 	21, // 32: vrooli.prose_studio.v1.prose.GenerateResponse.degraded:type_name -> vrooli.prose_studio.v1.prose.DegradedOutcome
 	22, // 33: vrooli.prose_studio.v1.prose.RerollResponse.result:type_name -> vrooli.prose_studio.v1.prose.GenerateResponse
 	20, // 34: vrooli.prose_studio.v1.prose.SessionActionResponse.session:type_name -> vrooli.prose_studio.v1.prose.Session
-	46, // 35: vrooli.prose_studio.v1.prose.Declaration.record:type_name -> google.protobuf.Struct
+	53, // 35: vrooli.prose_studio.v1.prose.Declaration.record:type_name -> google.protobuf.Struct
 	27, // 36: vrooli.prose_studio.v1.prose.ReindexDeclarationsResponse.declarations:type_name -> vrooli.prose_studio.v1.prose.Declaration
 	27, // 37: vrooli.prose_studio.v1.prose.ValidateDeclarationsResponse.declarations:type_name -> vrooli.prose_studio.v1.prose.Declaration
 	32, // 38: vrooli.prose_studio.v1.prose.Section.context:type_name -> vrooli.prose_studio.v1.prose.ContextSnapshot
-	46, // 39: vrooli.prose_studio.v1.prose.Document.coherence:type_name -> google.protobuf.Struct
+	53, // 39: vrooli.prose_studio.v1.prose.Document.coherence:type_name -> google.protobuf.Struct
 	33, // 40: vrooli.prose_studio.v1.prose.Document.sections:type_name -> vrooli.prose_studio.v1.prose.Section
-	34, // 41: vrooli.prose_studio.v1.prose.CreateDocumentRequest.document:type_name -> vrooli.prose_studio.v1.prose.Document
-	33, // 42: vrooli.prose_studio.v1.prose.CreateDocumentRequest.sections:type_name -> vrooli.prose_studio.v1.prose.Section
-	34, // 43: vrooli.prose_studio.v1.prose.CreateDocumentResponse.document:type_name -> vrooli.prose_studio.v1.prose.Document
-	34, // 44: vrooli.prose_studio.v1.prose.AssembleDocumentResponse.document:type_name -> vrooli.prose_studio.v1.prose.Document
-	34, // 45: vrooli.prose_studio.v1.prose.ResumeDocumentResponse.document:type_name -> vrooli.prose_studio.v1.prose.Document
-	46, // 46: vrooli.prose_studio.v1.prose.ConformanceResponse.report:type_name -> google.protobuf.Struct
-	0,  // 47: vrooli.prose_studio.v1.prose.ProseStudioService.Registry:input_type -> vrooli.prose_studio.v1.prose.RegistryRequest
-	4,  // 48: vrooli.prose_studio.v1.prose.ProseStudioService.CreateStyle:input_type -> vrooli.prose_studio.v1.prose.CreateStyleRequest
-	11, // 49: vrooli.prose_studio.v1.prose.ProseStudioService.ResolveProfile:input_type -> vrooli.prose_studio.v1.prose.ResolveProfileRequest
-	14, // 50: vrooli.prose_studio.v1.prose.ProseStudioService.Generate:input_type -> vrooli.prose_studio.v1.prose.GenerateRequest
-	23, // 51: vrooli.prose_studio.v1.prose.ProseStudioService.Reroll:input_type -> vrooli.prose_studio.v1.prose.RerollRequest
-	25, // 52: vrooli.prose_studio.v1.prose.ProseStudioService.SessionAction:input_type -> vrooli.prose_studio.v1.prose.SessionActionRequest
-	28, // 53: vrooli.prose_studio.v1.prose.ProseStudioService.ReindexDeclarations:input_type -> vrooli.prose_studio.v1.prose.ReindexDeclarationsRequest
-	30, // 54: vrooli.prose_studio.v1.prose.ProseStudioService.ValidateDeclarations:input_type -> vrooli.prose_studio.v1.prose.ValidateDeclarationsRequest
-	35, // 55: vrooli.prose_studio.v1.prose.ProseStudioService.CreateDocument:input_type -> vrooli.prose_studio.v1.prose.CreateDocumentRequest
-	37, // 56: vrooli.prose_studio.v1.prose.ProseStudioService.AssembleDocument:input_type -> vrooli.prose_studio.v1.prose.AssembleDocumentRequest
-	39, // 57: vrooli.prose_studio.v1.prose.ProseStudioService.ResumeDocument:input_type -> vrooli.prose_studio.v1.prose.ResumeDocumentRequest
-	41, // 58: vrooli.prose_studio.v1.prose.ProseStudioService.Conformance:input_type -> vrooli.prose_studio.v1.prose.ConformanceRequest
-	2,  // 59: vrooli.prose_studio.v1.prose.ProseStudioService.Registry:output_type -> vrooli.prose_studio.v1.prose.RegistryResponse
-	5,  // 60: vrooli.prose_studio.v1.prose.ProseStudioService.CreateStyle:output_type -> vrooli.prose_studio.v1.prose.CreateStyleResponse
-	12, // 61: vrooli.prose_studio.v1.prose.ProseStudioService.ResolveProfile:output_type -> vrooli.prose_studio.v1.prose.ResolveProfileResponse
-	22, // 62: vrooli.prose_studio.v1.prose.ProseStudioService.Generate:output_type -> vrooli.prose_studio.v1.prose.GenerateResponse
-	24, // 63: vrooli.prose_studio.v1.prose.ProseStudioService.Reroll:output_type -> vrooli.prose_studio.v1.prose.RerollResponse
-	26, // 64: vrooli.prose_studio.v1.prose.ProseStudioService.SessionAction:output_type -> vrooli.prose_studio.v1.prose.SessionActionResponse
-	29, // 65: vrooli.prose_studio.v1.prose.ProseStudioService.ReindexDeclarations:output_type -> vrooli.prose_studio.v1.prose.ReindexDeclarationsResponse
-	31, // 66: vrooli.prose_studio.v1.prose.ProseStudioService.ValidateDeclarations:output_type -> vrooli.prose_studio.v1.prose.ValidateDeclarationsResponse
-	36, // 67: vrooli.prose_studio.v1.prose.ProseStudioService.CreateDocument:output_type -> vrooli.prose_studio.v1.prose.CreateDocumentResponse
-	38, // 68: vrooli.prose_studio.v1.prose.ProseStudioService.AssembleDocument:output_type -> vrooli.prose_studio.v1.prose.AssembleDocumentResponse
-	40, // 69: vrooli.prose_studio.v1.prose.ProseStudioService.ResumeDocument:output_type -> vrooli.prose_studio.v1.prose.ResumeDocumentResponse
-	42, // 70: vrooli.prose_studio.v1.prose.ProseStudioService.Conformance:output_type -> vrooli.prose_studio.v1.prose.ConformanceResponse
-	59, // [59:71] is the sub-list for method output_type
-	47, // [47:59] is the sub-list for method input_type
-	47, // [47:47] is the sub-list for extension type_name
-	47, // [47:47] is the sub-list for extension extendee
-	0,  // [0:47] is the sub-list for field type_name
+	34, // 41: vrooli.prose_studio.v1.prose.Document.outline:type_name -> vrooli.prose_studio.v1.prose.OutlineSection
+	35, // 42: vrooli.prose_studio.v1.prose.Document.document_provenance:type_name -> vrooli.prose_studio.v1.prose.DocumentProvenance
+	37, // 43: vrooli.prose_studio.v1.prose.ListDocumentsResponse.documents:type_name -> vrooli.prose_studio.v1.prose.DocumentSummary
+	36, // 44: vrooli.prose_studio.v1.prose.GetDocumentResponse.document:type_name -> vrooli.prose_studio.v1.prose.Document
+	36, // 45: vrooli.prose_studio.v1.prose.CreateDocumentRequest.document:type_name -> vrooli.prose_studio.v1.prose.Document
+	33, // 46: vrooli.prose_studio.v1.prose.CreateDocumentRequest.sections:type_name -> vrooli.prose_studio.v1.prose.Section
+	36, // 47: vrooli.prose_studio.v1.prose.CreateDocumentResponse.document:type_name -> vrooli.prose_studio.v1.prose.Document
+	36, // 48: vrooli.prose_studio.v1.prose.AssembleDocumentResponse.document:type_name -> vrooli.prose_studio.v1.prose.Document
+	36, // 49: vrooli.prose_studio.v1.prose.ResumeDocumentResponse.document:type_name -> vrooli.prose_studio.v1.prose.Document
+	53, // 50: vrooli.prose_studio.v1.prose.ConformanceResponse.report:type_name -> google.protobuf.Struct
+	0,  // 51: vrooli.prose_studio.v1.prose.ProseStudioService.Registry:input_type -> vrooli.prose_studio.v1.prose.RegistryRequest
+	4,  // 52: vrooli.prose_studio.v1.prose.ProseStudioService.CreateStyle:input_type -> vrooli.prose_studio.v1.prose.CreateStyleRequest
+	11, // 53: vrooli.prose_studio.v1.prose.ProseStudioService.ResolveProfile:input_type -> vrooli.prose_studio.v1.prose.ResolveProfileRequest
+	14, // 54: vrooli.prose_studio.v1.prose.ProseStudioService.Generate:input_type -> vrooli.prose_studio.v1.prose.GenerateRequest
+	23, // 55: vrooli.prose_studio.v1.prose.ProseStudioService.Reroll:input_type -> vrooli.prose_studio.v1.prose.RerollRequest
+	25, // 56: vrooli.prose_studio.v1.prose.ProseStudioService.SessionAction:input_type -> vrooli.prose_studio.v1.prose.SessionActionRequest
+	28, // 57: vrooli.prose_studio.v1.prose.ProseStudioService.ReindexDeclarations:input_type -> vrooli.prose_studio.v1.prose.ReindexDeclarationsRequest
+	30, // 58: vrooli.prose_studio.v1.prose.ProseStudioService.ValidateDeclarations:input_type -> vrooli.prose_studio.v1.prose.ValidateDeclarationsRequest
+	38, // 59: vrooli.prose_studio.v1.prose.ProseStudioService.ListDocuments:input_type -> vrooli.prose_studio.v1.prose.ListDocumentsRequest
+	40, // 60: vrooli.prose_studio.v1.prose.ProseStudioService.GetDocument:input_type -> vrooli.prose_studio.v1.prose.GetDocumentRequest
+	42, // 61: vrooli.prose_studio.v1.prose.ProseStudioService.CreateDocument:input_type -> vrooli.prose_studio.v1.prose.CreateDocumentRequest
+	44, // 62: vrooli.prose_studio.v1.prose.ProseStudioService.AssembleDocument:input_type -> vrooli.prose_studio.v1.prose.AssembleDocumentRequest
+	46, // 63: vrooli.prose_studio.v1.prose.ProseStudioService.ResumeDocument:input_type -> vrooli.prose_studio.v1.prose.ResumeDocumentRequest
+	48, // 64: vrooli.prose_studio.v1.prose.ProseStudioService.Conformance:input_type -> vrooli.prose_studio.v1.prose.ConformanceRequest
+	2,  // 65: vrooli.prose_studio.v1.prose.ProseStudioService.Registry:output_type -> vrooli.prose_studio.v1.prose.RegistryResponse
+	5,  // 66: vrooli.prose_studio.v1.prose.ProseStudioService.CreateStyle:output_type -> vrooli.prose_studio.v1.prose.CreateStyleResponse
+	12, // 67: vrooli.prose_studio.v1.prose.ProseStudioService.ResolveProfile:output_type -> vrooli.prose_studio.v1.prose.ResolveProfileResponse
+	22, // 68: vrooli.prose_studio.v1.prose.ProseStudioService.Generate:output_type -> vrooli.prose_studio.v1.prose.GenerateResponse
+	24, // 69: vrooli.prose_studio.v1.prose.ProseStudioService.Reroll:output_type -> vrooli.prose_studio.v1.prose.RerollResponse
+	26, // 70: vrooli.prose_studio.v1.prose.ProseStudioService.SessionAction:output_type -> vrooli.prose_studio.v1.prose.SessionActionResponse
+	29, // 71: vrooli.prose_studio.v1.prose.ProseStudioService.ReindexDeclarations:output_type -> vrooli.prose_studio.v1.prose.ReindexDeclarationsResponse
+	31, // 72: vrooli.prose_studio.v1.prose.ProseStudioService.ValidateDeclarations:output_type -> vrooli.prose_studio.v1.prose.ValidateDeclarationsResponse
+	39, // 73: vrooli.prose_studio.v1.prose.ProseStudioService.ListDocuments:output_type -> vrooli.prose_studio.v1.prose.ListDocumentsResponse
+	41, // 74: vrooli.prose_studio.v1.prose.ProseStudioService.GetDocument:output_type -> vrooli.prose_studio.v1.prose.GetDocumentResponse
+	43, // 75: vrooli.prose_studio.v1.prose.ProseStudioService.CreateDocument:output_type -> vrooli.prose_studio.v1.prose.CreateDocumentResponse
+	45, // 76: vrooli.prose_studio.v1.prose.ProseStudioService.AssembleDocument:output_type -> vrooli.prose_studio.v1.prose.AssembleDocumentResponse
+	47, // 77: vrooli.prose_studio.v1.prose.ProseStudioService.ResumeDocument:output_type -> vrooli.prose_studio.v1.prose.ResumeDocumentResponse
+	49, // 78: vrooli.prose_studio.v1.prose.ProseStudioService.Conformance:output_type -> vrooli.prose_studio.v1.prose.ConformanceResponse
+	65, // [65:79] is the sub-list for method output_type
+	51, // [51:65] is the sub-list for method input_type
+	51, // [51:51] is the sub-list for extension type_name
+	51, // [51:51] is the sub-list for extension extendee
+	0,  // [0:51] is the sub-list for field type_name
 }
 
 func init() { file_prose_studio_v1_prose_prose_proto_init() }
@@ -3383,7 +3927,7 @@ func file_prose_studio_v1_prose_prose_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_prose_studio_v1_prose_prose_proto_rawDesc), len(file_prose_studio_v1_prose_prose_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   46,
+			NumMessages:   53,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

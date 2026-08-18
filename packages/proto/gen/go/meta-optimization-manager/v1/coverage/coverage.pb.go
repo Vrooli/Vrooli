@@ -50,8 +50,14 @@ type ProjectionCoverage struct {
 	EndToEndAnswerableNowCount   int32    `protobuf:"varint,15,opt,name=end_to_end_answerable_now_count,json=endToEndAnswerableNowCount,proto3" json:"end_to_end_answerable_now_count,omitempty"`
 	EndToEndAnswerableTotalCells int32    `protobuf:"varint,16,opt,name=end_to_end_answerable_total_cells,json=endToEndAnswerableTotalCells,proto3" json:"end_to_end_answerable_total_cells,omitempty"`
 	EndToEndAnswerableRatio      *float64 `protobuf:"fixed64,17,opt,name=end_to_end_answerable_ratio,json=endToEndAnswerableRatio,proto3,oneof" json:"end_to_end_answerable_ratio,omitempty"`
-	unknownFields                protoimpl.UnknownFields
-	sizeCache                    protoimpl.SizeCache
+	// Act-only audit basis copied from program-runtime's live registry census.
+	ManifestScenarios     int32  `protobuf:"varint,18,opt,name=manifest_scenarios,json=manifestScenarios,proto3" json:"manifest_scenarios,omitempty"`
+	TotalScenarios        int32  `protobuf:"varint,19,opt,name=total_scenarios,json=totalScenarios,proto3" json:"total_scenarios,omitempty"`
+	ReachableScenarios    int32  `protobuf:"varint,20,opt,name=reachable_scenarios,json=reachableScenarios,proto3" json:"reachable_scenarios,omitempty"`
+	UnreachableScenarios  int32  `protobuf:"varint,21,opt,name=unreachable_scenarios,json=unreachableScenarios,proto3" json:"unreachable_scenarios,omitempty"`
+	ReachabilityCheckedAt string `protobuf:"bytes,22,opt,name=reachability_checked_at,json=reachabilityCheckedAt,proto3" json:"reachability_checked_at,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *ProjectionCoverage) Reset() {
@@ -201,6 +207,41 @@ func (x *ProjectionCoverage) GetEndToEndAnswerableRatio() float64 {
 		return *x.EndToEndAnswerableRatio
 	}
 	return 0
+}
+
+func (x *ProjectionCoverage) GetManifestScenarios() int32 {
+	if x != nil {
+		return x.ManifestScenarios
+	}
+	return 0
+}
+
+func (x *ProjectionCoverage) GetTotalScenarios() int32 {
+	if x != nil {
+		return x.TotalScenarios
+	}
+	return 0
+}
+
+func (x *ProjectionCoverage) GetReachableScenarios() int32 {
+	if x != nil {
+		return x.ReachableScenarios
+	}
+	return 0
+}
+
+func (x *ProjectionCoverage) GetUnreachableScenarios() int32 {
+	if x != nil {
+		return x.UnreachableScenarios
+	}
+	return 0
+}
+
+func (x *ProjectionCoverage) GetReachabilityCheckedAt() string {
+	if x != nil {
+		return x.ReachabilityCheckedAt
+	}
+	return ""
 }
 
 type ConditionCount struct {
@@ -1075,7 +1116,8 @@ var File_meta_optimization_manager_v1_coverage_coverage_proto protoreflect.FileD
 
 const file_meta_optimization_manager_v1_coverage_coverage_proto_rawDesc = "" +
 	"\n" +
-	"4meta-optimization-manager/v1/coverage/coverage.proto\x12,vrooli.meta_optimization_manager.v1.coverage\x1a\x1bcommon/v1/attestation.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a/meta-optimization-manager/v1/shared/model.proto\"\xce\b\n" +
+	"4meta-optimization-manager/v1/coverage/coverage.proto\x12,vrooli.meta_optimization_manager.v1.coverage\x1a\x1bcommon/v1/attestation.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a/meta-optimization-manager/v1/shared/model.proto\"\xc4\n" +
+	"\n" +
 	"\x12ProjectionCoverage\x12V\n" +
 	"\n" +
 	"projection\x18\x01 \x01(\x0e26.vrooli.meta_optimization_manager.v1.shared.ProjectionR\n" +
@@ -1097,7 +1139,12 @@ const file_meta_optimization_manager_v1_coverage_coverage_proto_rawDesc = "" +
 	"\x14corpus_capable_ratio\x18\x0e \x01(\x01H\x01R\x12corpusCapableRatio\x88\x01\x01\x12C\n" +
 	"\x1fend_to_end_answerable_now_count\x18\x0f \x01(\x05R\x1aendToEndAnswerableNowCount\x12G\n" +
 	"!end_to_end_answerable_total_cells\x18\x10 \x01(\x05R\x1cendToEndAnswerableTotalCells\x12A\n" +
-	"\x1bend_to_end_answerable_ratio\x18\x11 \x01(\x01H\x02R\x17endToEndAnswerableRatio\x88\x01\x01B\x11\n" +
+	"\x1bend_to_end_answerable_ratio\x18\x11 \x01(\x01H\x02R\x17endToEndAnswerableRatio\x88\x01\x01\x12-\n" +
+	"\x12manifest_scenarios\x18\x12 \x01(\x05R\x11manifestScenarios\x12'\n" +
+	"\x0ftotal_scenarios\x18\x13 \x01(\x05R\x0etotalScenarios\x12/\n" +
+	"\x13reachable_scenarios\x18\x14 \x01(\x05R\x12reachableScenarios\x123\n" +
+	"\x15unreachable_scenarios\x18\x15 \x01(\x05R\x14unreachableScenarios\x126\n" +
+	"\x17reachability_checked_at\x18\x16 \x01(\tR\x15reachabilityCheckedAtB\x11\n" +
 	"\x0f_coverage_ratioB\x17\n" +
 	"\x15_corpus_capable_ratioB\x1e\n" +
 	"\x1c_end_to_end_answerable_ratio\"D\n" +

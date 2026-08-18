@@ -45,7 +45,57 @@ var declaredAccountKinds = map[ledgerpb.AccountKind]string{
 
 const acceptedAccountKinds = "ASSET, LIABILITY, REVENUE, EXPENSE, EQUITY"
 
+// columnExists reports whether a table already carries a column. It is the
+// shared guard for the additive migrations below, which must stay safe to run
+// against a database that has already been migrated.
+func (s *Store) columnExists(ctx context.Context, table, column string) (bool, error) {
+	rows, err := s.db.QueryContext(ctx, `PRAGMA table_info(`+table+`)`)
+	if err != nil {
+		return false, err
+	}
+	defer rows.Close()
+	found := false
+	for rows.Next() {
+		var cid int
+		var name, columnType string
+		var notNull, primaryKey int
+		var defaultValue sql.NullString
+		if err := rows.Scan(&cid, &name, &columnType, &notNull, &defaultValue, &primaryKey); err != nil {
+			return false, err
+		}
+		if name == column {
+			found = true
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return false, err
+	}
+	return found, rows.Close()
+}
+
 func (s *Store) EnsureMigrations(ctx context.Context) error {
+	// operator_measures predates books carrying a scope. Without this column a
+	// time-allocation measure recorded against a retired drill book is
+	// indistinguishable from one recorded against the live book, which is the
+	// exact "a figure whose basis cannot be judged" failure this scenario exists
+	// to refuse. Existing rows keep an empty book id and are therefore reported
+	// as unattributed rather than silently adopted by the live book.
+	hasMeasureBook, err := s.columnExists(ctx, "operator_measures", "book_id")
+	if err != nil {
+		return err
+	}
+	if !hasMeasureBook {
+		if _, err := s.db.ExecContext(ctx, `ALTER TABLE operator_measures ADD COLUMN book_id TEXT NOT NULL DEFAULT ''`); err != nil {
+			return err
+		}
+	}
+	// The index must be created here rather than in schema.sql: schema
+	// application runs before migrations, so an index over a column this
+	// migration adds cannot exist at schema time on an already-created table.
+	if _, err := s.db.ExecContext(ctx, `CREATE INDEX IF NOT EXISTS operator_measures_book_path ON operator_measures(book_id, path, observed_at)`); err != nil {
+		return err
+	}
+
 	for _, table := range []string{"books", "goals"} {
 		rows, err := s.db.QueryContext(ctx, `PRAGMA table_info(`+table+`)`)
 		if err != nil {
@@ -342,40 +392,38 @@ func (s *Store) ListPostings(ctx context.Context, accountID, bookID, from, to st
 	if limit <= 0 || limit > 500 {
 		limit = 100
 	}
-	q := `SELECT id,external_id,adapter_id,account_id,book_id,amount_minor,currency,occurred_at,fetched_at,basis,description,category,reversal_of,actor FROM postings`
+	// An unfiltered read must not surface postings from archived books. Position
+	// already excludes them, so returning them here made the journal page show
+	// retired drill data as though it were the live ledger — one surface
+	// disagreeing with another about what exists.
+	q := `SELECT p.id,p.external_id,p.adapter_id,p.account_id,p.book_id,p.amount_minor,p.currency,p.occurred_at,p.fetched_at,p.basis,p.description,p.category,p.reversal_of,p.actor FROM postings p JOIN books b ON b.id=p.book_id`
+	conditions := []string{}
 	args := []any{}
-	if accountID != "" {
-		q += ` WHERE account_id=?`
-		args = append(args, accountID)
-	}
-	if bookID != "" {
-		if len(args) == 0 {
-			q += ` WHERE `
-		} else {
-			q += ` AND `
-		}
-		q += `book_id=?`
+	if bookID == "" {
+		// An explicitly named book is still honoured even when archived, so a
+		// deliberate historical read stays possible; only the unscoped read is
+		// narrowed.
+		conditions = append(conditions, `b.archived=0`)
+	} else {
+		conditions = append(conditions, `p.book_id=?`)
 		args = append(args, bookID)
 	}
+	if accountID != "" {
+		conditions = append(conditions, `p.account_id=?`)
+		args = append(args, accountID)
+	}
 	if from != "" {
-		if len(args) == 0 {
-			q += ` WHERE `
-		} else {
-			q += ` AND `
-		}
-		q += `occurred_at>=?`
+		conditions = append(conditions, `p.occurred_at>=?`)
 		args = append(args, from)
 	}
 	if to != "" {
-		if len(args) == 0 {
-			q += ` WHERE `
-		} else {
-			q += ` AND `
-		}
-		q += `occurred_at<=?`
+		conditions = append(conditions, `p.occurred_at<=?`)
 		args = append(args, to)
 	}
-	q += ` ORDER BY occurred_at DESC,id DESC LIMIT ?`
+	if len(conditions) > 0 {
+		q += ` WHERE ` + strings.Join(conditions, ` AND `)
+	}
+	q += ` ORDER BY p.occurred_at DESC,p.id DESC LIMIT ?`
 	args = append(args, limit)
 	rows, err := s.db.QueryContext(ctx, q, args...)
 	if err != nil {

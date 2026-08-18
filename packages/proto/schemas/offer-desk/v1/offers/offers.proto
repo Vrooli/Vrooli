@@ -34,6 +34,13 @@ message CreateNodeResponse { Node node = 1; }
 message ListNodesRequest { NodeKind kind = 1; Status status = 2; }
 message ListNodesResponse { repeated Node nodes = 1; }
 message TransitionRequest { string node_id = 1; Status status = 2; string actor = 3; }
+// MapAccount attaches an existing node to the Money Ledger account whose
+// postings represent what that node actually earned. Without it the mapping
+// could only be set at CreateNode, so every imported node carried an empty
+// mapping permanently and the actuals join could never fire. Clearing the
+// mapping (empty actual_account_id) is allowed and is an audited change.
+message MapAccountRequest { string node_id = 1; string actual_account_id = 2; string actor = 3; string reason = 4; }
+message MapAccountResponse { Node node = 1; string prior_account_id = 2; }
 message TransitionResponse { Node node = 1; }
 message CreateEdgeRequest { Edge edge = 1 [(buf.validate.field).required = true]; }
 message CreateEdgeResponse { Edge edge = 1; }
@@ -105,6 +112,7 @@ service CatalogService {
   rpc CreateEdge(CreateEdgeRequest) returns (CreateEdgeResponse);
   rpc ListEdges(ListEdgesRequest) returns (ListEdgesResponse);
   rpc ImportCatalog(ImportCatalogRequest) returns (ImportCatalogResponse);
+  rpc MapAccount(MapAccountRequest) returns (MapAccountResponse);
   rpc MergeNodes(MergeNodesRequest) returns (MergeNodesResponse);
   rpc VerifyCatalog(VerifyCatalogRequest) returns (VerifyCatalogResponse);
 }

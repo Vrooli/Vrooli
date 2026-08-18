@@ -1150,23 +1150,30 @@ func (*GetCoverageRequest) Descriptor() ([]byte, []int) {
 }
 
 type CoverageRow struct {
-	state            protoimpl.MessageState `protogen:"open.v1"`
-	AssetId          string                 `protobuf:"bytes,1,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
-	Name             string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Domain           string                 `protobuf:"bytes,3,opt,name=domain,proto3" json:"domain,omitempty"`
-	Kind             string                 `protobuf:"bytes,4,opt,name=kind,proto3" json:"kind,omitempty"`
-	Priority         string                 `protobuf:"bytes,5,opt,name=priority,proto3" json:"priority,omitempty"`
-	Bucket           string                 `protobuf:"bytes,6,opt,name=bucket,proto3" json:"bucket,omitempty"`
-	Platform         string                 `protobuf:"bytes,7,opt,name=platform,proto3" json:"platform,omitempty"`
-	Target           string                 `protobuf:"bytes,8,opt,name=target,proto3" json:"target,omitempty"`
-	Achieved         string                 `protobuf:"bytes,9,opt,name=achieved,proto3" json:"achieved,omitempty"`
-	Implementation   string                 `protobuf:"bytes,10,opt,name=implementation,proto3" json:"implementation,omitempty"`
-	BlocksDownstream int32                  `protobuf:"varint,11,opt,name=blocks_downstream,json=blocksDownstream,proto3" json:"blocks_downstream,omitempty"`
-	Rung             int32                  `protobuf:"varint,12,opt,name=rung,proto3" json:"rung,omitempty"`
-	RungName         string                 `protobuf:"bytes,13,opt,name=rung_name,json=rungName,proto3" json:"rung_name,omitempty"`
-	DomainOrder      int32                  `protobuf:"varint,14,opt,name=domain_order,json=domainOrder,proto3" json:"domain_order,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	AssetId             string                 `protobuf:"bytes,1,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
+	Name                string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Domain              string                 `protobuf:"bytes,3,opt,name=domain,proto3" json:"domain,omitempty"`
+	Kind                string                 `protobuf:"bytes,4,opt,name=kind,proto3" json:"kind,omitempty"`
+	Priority            string                 `protobuf:"bytes,5,opt,name=priority,proto3" json:"priority,omitempty"`
+	Bucket              string                 `protobuf:"bytes,6,opt,name=bucket,proto3" json:"bucket,omitempty"`
+	Platform            string                 `protobuf:"bytes,7,opt,name=platform,proto3" json:"platform,omitempty"`
+	Target              string                 `protobuf:"bytes,8,opt,name=target,proto3" json:"target,omitempty"`
+	Achieved            string                 `protobuf:"bytes,9,opt,name=achieved,proto3" json:"achieved,omitempty"`
+	Implementation      string                 `protobuf:"bytes,10,opt,name=implementation,proto3" json:"implementation,omitempty"`
+	BlocksDownstream    int32                  `protobuf:"varint,11,opt,name=blocks_downstream,json=blocksDownstream,proto3" json:"blocks_downstream,omitempty"`
+	Rung                int32                  `protobuf:"varint,12,opt,name=rung,proto3" json:"rung,omitempty"`
+	RungName            string                 `protobuf:"bytes,13,opt,name=rung_name,json=rungName,proto3" json:"rung_name,omitempty"`
+	DomainOrder         int32                  `protobuf:"varint,14,opt,name=domain_order,json=domainOrder,proto3" json:"domain_order,omitempty"`
+	AssetScore          float64                `protobuf:"fixed64,15,opt,name=asset_score,json=assetScore,proto3" json:"asset_score,omitempty"`
+	Weight              float64                `protobuf:"fixed64,16,opt,name=weight,proto3" json:"weight,omitempty"`
+	PassedGates         []string               `protobuf:"bytes,17,rep,name=passed_gates,json=passedGates,proto3" json:"passed_gates,omitempty"`
+	FailedGates         []string               `protobuf:"bytes,18,rep,name=failed_gates,json=failedGates,proto3" json:"failed_gates,omitempty"`
+	NearestBlockingGate string                 `protobuf:"bytes,19,opt,name=nearest_blocking_gate,json=nearestBlockingGate,proto3" json:"nearest_blocking_gate,omitempty"`
+	NewestEvidence      string                 `protobuf:"bytes,20,opt,name=newest_evidence,json=newestEvidence,proto3" json:"newest_evidence,omitempty"`
+	VisualEvidence      bool                   `protobuf:"varint,21,opt,name=visual_evidence,json=visualEvidence,proto3" json:"visual_evidence,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *CoverageRow) Reset() {
@@ -1297,6 +1304,55 @@ func (x *CoverageRow) GetDomainOrder() int32 {
 	return 0
 }
 
+func (x *CoverageRow) GetAssetScore() float64 {
+	if x != nil {
+		return x.AssetScore
+	}
+	return 0
+}
+
+func (x *CoverageRow) GetWeight() float64 {
+	if x != nil {
+		return x.Weight
+	}
+	return 0
+}
+
+func (x *CoverageRow) GetPassedGates() []string {
+	if x != nil {
+		return x.PassedGates
+	}
+	return nil
+}
+
+func (x *CoverageRow) GetFailedGates() []string {
+	if x != nil {
+		return x.FailedGates
+	}
+	return nil
+}
+
+func (x *CoverageRow) GetNearestBlockingGate() string {
+	if x != nil {
+		return x.NearestBlockingGate
+	}
+	return ""
+}
+
+func (x *CoverageRow) GetNewestEvidence() string {
+	if x != nil {
+		return x.NewestEvidence
+	}
+	return ""
+}
+
+func (x *CoverageRow) GetVisualEvidence() bool {
+	if x != nil {
+		return x.VisualEvidence
+	}
+	return false
+}
+
 type Rollup struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Key           string                 `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
@@ -1366,6 +1422,17 @@ type MaturitySummary struct {
 	MandatoryGateCoverage   *CoverageMetric        `protobuf:"bytes,5,opt,name=mandatory_gate_coverage,json=mandatoryGateCoverage,proto3" json:"mandatory_gate_coverage,omitempty"`
 	WeightedQuality         *CoverageMetric        `protobuf:"bytes,6,opt,name=weighted_quality,json=weightedQuality,proto3" json:"weighted_quality,omitempty"`
 	ProductionReadyCoverage *CoverageMetric        `protobuf:"bytes,7,opt,name=production_ready_coverage,json=productionReadyCoverage,proto3" json:"production_ready_coverage,omitempty"`
+	WeightedAssetScore      float64                `protobuf:"fixed64,8,opt,name=weighted_asset_score,json=weightedAssetScore,proto3" json:"weighted_asset_score,omitempty"`
+	ScoreWeightNumerator    float64                `protobuf:"fixed64,9,opt,name=score_weight_numerator,json=scoreWeightNumerator,proto3" json:"score_weight_numerator,omitempty"`
+	ScoreWeightDenominator  float64                `protobuf:"fixed64,10,opt,name=score_weight_denominator,json=scoreWeightDenominator,proto3" json:"score_weight_denominator,omitempty"`
+	ByGate                  []*ScoreBreakdown      `protobuf:"bytes,11,rep,name=by_gate,json=byGate,proto3" json:"by_gate,omitempty"`
+	ByRungScore             []*ScoreBreakdown      `protobuf:"bytes,12,rep,name=by_rung_score,json=byRungScore,proto3" json:"by_rung_score,omitempty"`
+	Corpus                  []*CorpusStatus        `protobuf:"bytes,13,rep,name=corpus,proto3" json:"corpus,omitempty"`
+	PassEvidence            int32                  `protobuf:"varint,14,opt,name=pass_evidence,json=passEvidence,proto3" json:"pass_evidence,omitempty"`
+	FailEvidence            int32                  `protobuf:"varint,15,opt,name=fail_evidence,json=failEvidence,proto3" json:"fail_evidence,omitempty"`
+	UnmeasuredEvidence      int32                  `protobuf:"varint,16,opt,name=unmeasured_evidence,json=unmeasuredEvidence,proto3" json:"unmeasured_evidence,omitempty"`
+	KindMismatchCount       int32                  `protobuf:"varint,17,opt,name=kind_mismatch_count,json=kindMismatchCount,proto3" json:"kind_mismatch_count,omitempty"`
+	InstrumentMovedCount    int32                  `protobuf:"varint,18,opt,name=instrument_moved_count,json=instrumentMovedCount,proto3" json:"instrument_moved_count,omitempty"`
 	unknownFields           protoimpl.UnknownFields
 	sizeCache               protoimpl.SizeCache
 }
@@ -1449,6 +1516,219 @@ func (x *MaturitySummary) GetProductionReadyCoverage() *CoverageMetric {
 	return nil
 }
 
+func (x *MaturitySummary) GetWeightedAssetScore() float64 {
+	if x != nil {
+		return x.WeightedAssetScore
+	}
+	return 0
+}
+
+func (x *MaturitySummary) GetScoreWeightNumerator() float64 {
+	if x != nil {
+		return x.ScoreWeightNumerator
+	}
+	return 0
+}
+
+func (x *MaturitySummary) GetScoreWeightDenominator() float64 {
+	if x != nil {
+		return x.ScoreWeightDenominator
+	}
+	return 0
+}
+
+func (x *MaturitySummary) GetByGate() []*ScoreBreakdown {
+	if x != nil {
+		return x.ByGate
+	}
+	return nil
+}
+
+func (x *MaturitySummary) GetByRungScore() []*ScoreBreakdown {
+	if x != nil {
+		return x.ByRungScore
+	}
+	return nil
+}
+
+func (x *MaturitySummary) GetCorpus() []*CorpusStatus {
+	if x != nil {
+		return x.Corpus
+	}
+	return nil
+}
+
+func (x *MaturitySummary) GetPassEvidence() int32 {
+	if x != nil {
+		return x.PassEvidence
+	}
+	return 0
+}
+
+func (x *MaturitySummary) GetFailEvidence() int32 {
+	if x != nil {
+		return x.FailEvidence
+	}
+	return 0
+}
+
+func (x *MaturitySummary) GetUnmeasuredEvidence() int32 {
+	if x != nil {
+		return x.UnmeasuredEvidence
+	}
+	return 0
+}
+
+func (x *MaturitySummary) GetKindMismatchCount() int32 {
+	if x != nil {
+		return x.KindMismatchCount
+	}
+	return 0
+}
+
+func (x *MaturitySummary) GetInstrumentMovedCount() int32 {
+	if x != nil {
+		return x.InstrumentMovedCount
+	}
+	return 0
+}
+
+type ScoreBreakdown struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Key           string                 `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
+	Passed        int32                  `protobuf:"varint,2,opt,name=passed,proto3" json:"passed,omitempty"`
+	Applicable    int32                  `protobuf:"varint,3,opt,name=applicable,proto3" json:"applicable,omitempty"`
+	Score         float64                `protobuf:"fixed64,4,opt,name=score,proto3" json:"score,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ScoreBreakdown) Reset() {
+	*x = ScoreBreakdown{}
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ScoreBreakdown) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ScoreBreakdown) ProtoMessage() {}
+
+func (x *ScoreBreakdown) ProtoReflect() protoreflect.Message {
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ScoreBreakdown.ProtoReflect.Descriptor instead.
+func (*ScoreBreakdown) Descriptor() ([]byte, []int) {
+	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *ScoreBreakdown) GetKey() string {
+	if x != nil {
+		return x.Key
+	}
+	return ""
+}
+
+func (x *ScoreBreakdown) GetPassed() int32 {
+	if x != nil {
+		return x.Passed
+	}
+	return 0
+}
+
+func (x *ScoreBreakdown) GetApplicable() int32 {
+	if x != nil {
+		return x.Applicable
+	}
+	return 0
+}
+
+func (x *ScoreBreakdown) GetScore() float64 {
+	if x != nil {
+		return x.Score
+	}
+	return 0
+}
+
+type CorpusStatus struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	Gate             string                 `protobuf:"bytes,1,opt,name=gate,proto3" json:"gate,omitempty"`
+	Result           string                 `protobuf:"bytes,2,opt,name=result,proto3" json:"result,omitempty"`
+	FindingCount     int32                  `protobuf:"varint,3,opt,name=finding_count,json=findingCount,proto3" json:"finding_count,omitempty"`
+	RunnerErrorCount int32                  `protobuf:"varint,4,opt,name=runner_error_count,json=runnerErrorCount,proto3" json:"runner_error_count,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *CorpusStatus) Reset() {
+	*x = CorpusStatus{}
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CorpusStatus) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CorpusStatus) ProtoMessage() {}
+
+func (x *CorpusStatus) ProtoReflect() protoreflect.Message {
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CorpusStatus.ProtoReflect.Descriptor instead.
+func (*CorpusStatus) Descriptor() ([]byte, []int) {
+	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *CorpusStatus) GetGate() string {
+	if x != nil {
+		return x.Gate
+	}
+	return ""
+}
+
+func (x *CorpusStatus) GetResult() string {
+	if x != nil {
+		return x.Result
+	}
+	return ""
+}
+
+func (x *CorpusStatus) GetFindingCount() int32 {
+	if x != nil {
+		return x.FindingCount
+	}
+	return 0
+}
+
+func (x *CorpusStatus) GetRunnerErrorCount() int32 {
+	if x != nil {
+		return x.RunnerErrorCount
+	}
+	return 0
+}
+
 type CoverageMetric struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Numerator     int32                  `protobuf:"varint,1,opt,name=numerator,proto3" json:"numerator,omitempty"`
@@ -1460,7 +1740,7 @@ type CoverageMetric struct {
 
 func (x *CoverageMetric) Reset() {
 	*x = CoverageMetric{}
-	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[23]
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1472,7 +1752,7 @@ func (x *CoverageMetric) String() string {
 func (*CoverageMetric) ProtoMessage() {}
 
 func (x *CoverageMetric) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[23]
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1485,7 +1765,7 @@ func (x *CoverageMetric) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CoverageMetric.ProtoReflect.Descriptor instead.
 func (*CoverageMetric) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{23}
+	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *CoverageMetric) GetNumerator() int32 {
@@ -1522,7 +1802,7 @@ type CoverageReport struct {
 
 func (x *CoverageReport) Reset() {
 	*x = CoverageReport{}
-	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[24]
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1534,7 +1814,7 @@ func (x *CoverageReport) String() string {
 func (*CoverageReport) ProtoMessage() {}
 
 func (x *CoverageReport) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[24]
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1547,7 +1827,7 @@ func (x *CoverageReport) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CoverageReport.ProtoReflect.Descriptor instead.
 func (*CoverageReport) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{24}
+	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *CoverageReport) GetRows() []*CoverageRow {
@@ -1594,7 +1874,7 @@ type GetCoverageResponse struct {
 
 func (x *GetCoverageResponse) Reset() {
 	*x = GetCoverageResponse{}
-	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[25]
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1606,7 +1886,7 @@ func (x *GetCoverageResponse) String() string {
 func (*GetCoverageResponse) ProtoMessage() {}
 
 func (x *GetCoverageResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[25]
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1619,7 +1899,7 @@ func (x *GetCoverageResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetCoverageResponse.ProtoReflect.Descriptor instead.
 func (*GetCoverageResponse) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{25}
+	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *GetCoverageResponse) GetReport() *CoverageReport {
@@ -1632,13 +1912,14 @@ func (x *GetCoverageResponse) GetReport() *CoverageReport {
 type ListNextWorkRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Limit         int32                  `protobuf:"varint,1,opt,name=limit,proto3" json:"limit,omitempty"`
+	Lane          string                 `protobuf:"bytes,2,opt,name=lane,proto3" json:"lane,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ListNextWorkRequest) Reset() {
 	*x = ListNextWorkRequest{}
-	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[26]
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1650,7 +1931,7 @@ func (x *ListNextWorkRequest) String() string {
 func (*ListNextWorkRequest) ProtoMessage() {}
 
 func (x *ListNextWorkRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[26]
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1663,7 +1944,7 @@ func (x *ListNextWorkRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListNextWorkRequest.ProtoReflect.Descriptor instead.
 func (*ListNextWorkRequest) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{26}
+	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *ListNextWorkRequest) GetLimit() int32 {
@@ -1673,17 +1954,27 @@ func (x *ListNextWorkRequest) GetLimit() int32 {
 	return 0
 }
 
+func (x *ListNextWorkRequest) GetLane() string {
+	if x != nil {
+		return x.Lane
+	}
+	return ""
+}
+
 type ListNextWorkResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Rows          []*CoverageRow         `protobuf:"bytes,1,rep,name=rows,proto3" json:"rows,omitempty"`
 	Maturity      *MaturitySummary       `protobuf:"bytes,2,opt,name=maturity,proto3" json:"maturity,omitempty"`
+	Lane          string                 `protobuf:"bytes,3,opt,name=lane,proto3" json:"lane,omitempty"`
+	Promote       []*CoverageRow         `protobuf:"bytes,4,rep,name=promote,proto3" json:"promote,omitempty"`
+	Build         []*CoverageRow         `protobuf:"bytes,5,rep,name=build,proto3" json:"build,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ListNextWorkResponse) Reset() {
 	*x = ListNextWorkResponse{}
-	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[27]
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1695,7 +1986,7 @@ func (x *ListNextWorkResponse) String() string {
 func (*ListNextWorkResponse) ProtoMessage() {}
 
 func (x *ListNextWorkResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[27]
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1708,7 +1999,7 @@ func (x *ListNextWorkResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListNextWorkResponse.ProtoReflect.Descriptor instead.
 func (*ListNextWorkResponse) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{27}
+	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *ListNextWorkResponse) GetRows() []*CoverageRow {
@@ -1725,16 +2016,39 @@ func (x *ListNextWorkResponse) GetMaturity() *MaturitySummary {
 	return nil
 }
 
+func (x *ListNextWorkResponse) GetLane() string {
+	if x != nil {
+		return x.Lane
+	}
+	return ""
+}
+
+func (x *ListNextWorkResponse) GetPromote() []*CoverageRow {
+	if x != nil {
+		return x.Promote
+	}
+	return nil
+}
+
+func (x *ListNextWorkResponse) GetBuild() []*CoverageRow {
+	if x != nil {
+		return x.Build
+	}
+	return nil
+}
+
 type RunGateRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Gate          string                 `protobuf:"bytes,1,opt,name=gate,proto3" json:"gate,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Gate            string                 `protobuf:"bytes,1,opt,name=gate,proto3" json:"gate,omitempty"`
+	All             bool                   `protobuf:"varint,2,opt,name=all,proto3" json:"all,omitempty"`
+	CalibrationOnly bool                   `protobuf:"varint,3,opt,name=calibration_only,json=calibrationOnly,proto3" json:"calibration_only,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *RunGateRequest) Reset() {
 	*x = RunGateRequest{}
-	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[28]
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1746,7 +2060,7 @@ func (x *RunGateRequest) String() string {
 func (*RunGateRequest) ProtoMessage() {}
 
 func (x *RunGateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[28]
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1759,7 +2073,7 @@ func (x *RunGateRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunGateRequest.ProtoReflect.Descriptor instead.
 func (*RunGateRequest) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{28}
+	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *RunGateRequest) GetGate() string {
@@ -1767,6 +2081,20 @@ func (x *RunGateRequest) GetGate() string {
 		return x.Gate
 	}
 	return ""
+}
+
+func (x *RunGateRequest) GetAll() bool {
+	if x != nil {
+		return x.All
+	}
+	return false
+}
+
+func (x *RunGateRequest) GetCalibrationOnly() bool {
+	if x != nil {
+		return x.CalibrationOnly
+	}
+	return false
 }
 
 type GateFinding struct {
@@ -1794,7 +2122,7 @@ type GateFinding struct {
 
 func (x *GateFinding) Reset() {
 	*x = GateFinding{}
-	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[29]
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1806,7 +2134,7 @@ func (x *GateFinding) String() string {
 func (*GateFinding) ProtoMessage() {}
 
 func (x *GateFinding) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[29]
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1819,7 +2147,7 @@ func (x *GateFinding) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GateFinding.ProtoReflect.Descriptor instead.
 func (*GateFinding) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{29}
+	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *GateFinding) GetCode() string {
@@ -1879,17 +2207,22 @@ func (x *GateFinding) GetDocsRef() string {
 }
 
 type RunGateResponse struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	Gate           string                 `protobuf:"bytes,1,opt,name=gate,proto3" json:"gate,omitempty"`
-	Findings       []*GateFinding         `protobuf:"bytes,2,rep,name=findings,proto3" json:"findings,omitempty"`
-	InspectedFiles int32                  `protobuf:"varint,3,opt,name=inspected_files,json=inspectedFiles,proto3" json:"inspected_files,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	state                protoimpl.MessageState `protogen:"open.v1"`
+	Gate                 string                 `protobuf:"bytes,1,opt,name=gate,proto3" json:"gate,omitempty"`
+	Findings             []*GateFinding         `protobuf:"bytes,2,rep,name=findings,proto3" json:"findings,omitempty"`
+	InspectedFiles       int32                  `protobuf:"varint,3,opt,name=inspected_files,json=inspectedFiles,proto3" json:"inspected_files,omitempty"`
+	RunnerErrors         []*GateFinding         `protobuf:"bytes,4,rep,name=runner_errors,json=runnerErrors,proto3" json:"runner_errors,omitempty"`
+	EvidenceRowsWritten  int32                  `protobuf:"varint,5,opt,name=evidence_rows_written,json=evidenceRowsWritten,proto3" json:"evidence_rows_written,omitempty"`
+	Calibration          []*CalibrationResult   `protobuf:"bytes,6,rep,name=calibration,proto3" json:"calibration,omitempty"`
+	NonDiscriminating    bool                   `protobuf:"varint,7,opt,name=non_discriminating,json=nonDiscriminating,proto3" json:"non_discriminating,omitempty"`
+	SurfaceVerdictCounts map[string]int32       `protobuf:"bytes,8,rep,name=surface_verdict_counts,json=surfaceVerdictCounts,proto3" json:"surface_verdict_counts,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *RunGateResponse) Reset() {
 	*x = RunGateResponse{}
-	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[30]
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1901,7 +2234,7 @@ func (x *RunGateResponse) String() string {
 func (*RunGateResponse) ProtoMessage() {}
 
 func (x *RunGateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[30]
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1914,7 +2247,7 @@ func (x *RunGateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunGateResponse.ProtoReflect.Descriptor instead.
 func (*RunGateResponse) Descriptor() ([]byte, []int) {
-	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{30}
+	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *RunGateResponse) GetGate() string {
@@ -1936,6 +2269,897 @@ func (x *RunGateResponse) GetInspectedFiles() int32 {
 		return x.InspectedFiles
 	}
 	return 0
+}
+
+func (x *RunGateResponse) GetRunnerErrors() []*GateFinding {
+	if x != nil {
+		return x.RunnerErrors
+	}
+	return nil
+}
+
+func (x *RunGateResponse) GetEvidenceRowsWritten() int32 {
+	if x != nil {
+		return x.EvidenceRowsWritten
+	}
+	return 0
+}
+
+func (x *RunGateResponse) GetCalibration() []*CalibrationResult {
+	if x != nil {
+		return x.Calibration
+	}
+	return nil
+}
+
+func (x *RunGateResponse) GetNonDiscriminating() bool {
+	if x != nil {
+		return x.NonDiscriminating
+	}
+	return false
+}
+
+func (x *RunGateResponse) GetSurfaceVerdictCounts() map[string]int32 {
+	if x != nil {
+		return x.SurfaceVerdictCounts
+	}
+	return nil
+}
+
+type CalibrationResult struct {
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	Gate                string                 `protobuf:"bytes,1,opt,name=gate,proto3" json:"gate,omitempty"`
+	Fixture             string                 `protobuf:"bytes,2,opt,name=fixture,proto3" json:"fixture,omitempty"`
+	RequiredFailureCode string                 `protobuf:"bytes,3,opt,name=required_failure_code,json=requiredFailureCode,proto3" json:"required_failure_code,omitempty"`
+	ObservedFailureCode string                 `protobuf:"bytes,4,opt,name=observed_failure_code,json=observedFailureCode,proto3" json:"observed_failure_code,omitempty"`
+	Status              string                 `protobuf:"bytes,5,opt,name=status,proto3" json:"status,omitempty"`
+	Message             string                 `protobuf:"bytes,6,opt,name=message,proto3" json:"message,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
+}
+
+func (x *CalibrationResult) Reset() {
+	*x = CalibrationResult{}
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[33]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CalibrationResult) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CalibrationResult) ProtoMessage() {}
+
+func (x *CalibrationResult) ProtoReflect() protoreflect.Message {
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[33]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CalibrationResult.ProtoReflect.Descriptor instead.
+func (*CalibrationResult) Descriptor() ([]byte, []int) {
+	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{33}
+}
+
+func (x *CalibrationResult) GetGate() string {
+	if x != nil {
+		return x.Gate
+	}
+	return ""
+}
+
+func (x *CalibrationResult) GetFixture() string {
+	if x != nil {
+		return x.Fixture
+	}
+	return ""
+}
+
+func (x *CalibrationResult) GetRequiredFailureCode() string {
+	if x != nil {
+		return x.RequiredFailureCode
+	}
+	return ""
+}
+
+func (x *CalibrationResult) GetObservedFailureCode() string {
+	if x != nil {
+		return x.ObservedFailureCode
+	}
+	return ""
+}
+
+func (x *CalibrationResult) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *CalibrationResult) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+type ScoreHistoryPoint struct {
+	state                   protoimpl.MessageState `protogen:"open.v1"`
+	RecordedAt              string                 `protobuf:"bytes,1,opt,name=recorded_at,json=recordedAt,proto3" json:"recorded_at,omitempty"`
+	Score                   float64                `protobuf:"fixed64,2,opt,name=score,proto3" json:"score,omitempty"`
+	AssetsAt_100            int32                  `protobuf:"varint,3,opt,name=assets_at_100,json=assetsAt100,proto3" json:"assets_at_100,omitempty"`
+	AssetsBelow_50          int32                  `protobuf:"varint,4,opt,name=assets_below_50,json=assetsBelow50,proto3" json:"assets_below_50,omitempty"`
+	WeightVectorRegenerated bool                   `protobuf:"varint,5,opt,name=weight_vector_regenerated,json=weightVectorRegenerated,proto3" json:"weight_vector_regenerated,omitempty"`
+	ScoringModelVersion     int32                  `protobuf:"varint,6,opt,name=scoring_model_version,json=scoringModelVersion,proto3" json:"scoring_model_version,omitempty"`
+	SourceRevision          string                 `protobuf:"bytes,7,opt,name=source_revision,json=sourceRevision,proto3" json:"source_revision,omitempty"`
+	InstrumentMovedCount    int32                  `protobuf:"varint,8,opt,name=instrument_moved_count,json=instrumentMovedCount,proto3" json:"instrument_moved_count,omitempty"`
+	KindMismatchCount       int32                  `protobuf:"varint,9,opt,name=kind_mismatch_count,json=kindMismatchCount,proto3" json:"kind_mismatch_count,omitempty"`
+	Events                  []*ScoreHistoryEvent   `protobuf:"bytes,10,rep,name=events,proto3" json:"events,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
+}
+
+func (x *ScoreHistoryPoint) Reset() {
+	*x = ScoreHistoryPoint{}
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[34]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ScoreHistoryPoint) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ScoreHistoryPoint) ProtoMessage() {}
+
+func (x *ScoreHistoryPoint) ProtoReflect() protoreflect.Message {
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[34]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ScoreHistoryPoint.ProtoReflect.Descriptor instead.
+func (*ScoreHistoryPoint) Descriptor() ([]byte, []int) {
+	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{34}
+}
+
+func (x *ScoreHistoryPoint) GetRecordedAt() string {
+	if x != nil {
+		return x.RecordedAt
+	}
+	return ""
+}
+
+func (x *ScoreHistoryPoint) GetScore() float64 {
+	if x != nil {
+		return x.Score
+	}
+	return 0
+}
+
+func (x *ScoreHistoryPoint) GetAssetsAt_100() int32 {
+	if x != nil {
+		return x.AssetsAt_100
+	}
+	return 0
+}
+
+func (x *ScoreHistoryPoint) GetAssetsBelow_50() int32 {
+	if x != nil {
+		return x.AssetsBelow_50
+	}
+	return 0
+}
+
+func (x *ScoreHistoryPoint) GetWeightVectorRegenerated() bool {
+	if x != nil {
+		return x.WeightVectorRegenerated
+	}
+	return false
+}
+
+func (x *ScoreHistoryPoint) GetScoringModelVersion() int32 {
+	if x != nil {
+		return x.ScoringModelVersion
+	}
+	return 0
+}
+
+func (x *ScoreHistoryPoint) GetSourceRevision() string {
+	if x != nil {
+		return x.SourceRevision
+	}
+	return ""
+}
+
+func (x *ScoreHistoryPoint) GetInstrumentMovedCount() int32 {
+	if x != nil {
+		return x.InstrumentMovedCount
+	}
+	return 0
+}
+
+func (x *ScoreHistoryPoint) GetKindMismatchCount() int32 {
+	if x != nil {
+		return x.KindMismatchCount
+	}
+	return 0
+}
+
+func (x *ScoreHistoryPoint) GetEvents() []*ScoreHistoryEvent {
+	if x != nil {
+		return x.Events
+	}
+	return nil
+}
+
+type ScoreHistoryEvent struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Type           string                 `protobuf:"bytes,1,opt,name=type,proto3" json:"type,omitempty"`
+	AssetId        string                 `protobuf:"bytes,2,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
+	SourceRevision string                 `protobuf:"bytes,3,opt,name=source_revision,json=sourceRevision,proto3" json:"source_revision,omitempty"`
+	DeclaredKind   string                 `protobuf:"bytes,4,opt,name=declared_kind,json=declaredKind,proto3" json:"declared_kind,omitempty"`
+	DerivedKind    string                 `protobuf:"bytes,5,opt,name=derived_kind,json=derivedKind,proto3" json:"derived_kind,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *ScoreHistoryEvent) Reset() {
+	*x = ScoreHistoryEvent{}
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[35]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ScoreHistoryEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ScoreHistoryEvent) ProtoMessage() {}
+
+func (x *ScoreHistoryEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[35]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ScoreHistoryEvent.ProtoReflect.Descriptor instead.
+func (*ScoreHistoryEvent) Descriptor() ([]byte, []int) {
+	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{35}
+}
+
+func (x *ScoreHistoryEvent) GetType() string {
+	if x != nil {
+		return x.Type
+	}
+	return ""
+}
+
+func (x *ScoreHistoryEvent) GetAssetId() string {
+	if x != nil {
+		return x.AssetId
+	}
+	return ""
+}
+
+func (x *ScoreHistoryEvent) GetSourceRevision() string {
+	if x != nil {
+		return x.SourceRevision
+	}
+	return ""
+}
+
+func (x *ScoreHistoryEvent) GetDeclaredKind() string {
+	if x != nil {
+		return x.DeclaredKind
+	}
+	return ""
+}
+
+func (x *ScoreHistoryEvent) GetDerivedKind() string {
+	if x != nil {
+		return x.DerivedKind
+	}
+	return ""
+}
+
+type GetScoreHistoryRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Since         string                 `protobuf:"bytes,1,opt,name=since,proto3" json:"since,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetScoreHistoryRequest) Reset() {
+	*x = GetScoreHistoryRequest{}
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[36]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetScoreHistoryRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetScoreHistoryRequest) ProtoMessage() {}
+
+func (x *GetScoreHistoryRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[36]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetScoreHistoryRequest.ProtoReflect.Descriptor instead.
+func (*GetScoreHistoryRequest) Descriptor() ([]byte, []int) {
+	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{36}
+}
+
+func (x *GetScoreHistoryRequest) GetSince() string {
+	if x != nil {
+		return x.Since
+	}
+	return ""
+}
+
+type GetScoreHistoryResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Points        []*ScoreHistoryPoint   `protobuf:"bytes,1,rep,name=points,proto3" json:"points,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetScoreHistoryResponse) Reset() {
+	*x = GetScoreHistoryResponse{}
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[37]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetScoreHistoryResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetScoreHistoryResponse) ProtoMessage() {}
+
+func (x *GetScoreHistoryResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[37]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetScoreHistoryResponse.ProtoReflect.Descriptor instead.
+func (*GetScoreHistoryResponse) Descriptor() ([]byte, []int) {
+	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{37}
+}
+
+func (x *GetScoreHistoryResponse) GetPoints() []*ScoreHistoryPoint {
+	if x != nil {
+		return x.Points
+	}
+	return nil
+}
+
+type HealthNode struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Asset         *AssetNode             `protobuf:"bytes,1,opt,name=asset,proto3" json:"asset,omitempty"`
+	Score         float64                `protobuf:"fixed64,2,opt,name=score,proto3" json:"score,omitempty"`
+	Weight        float64                `protobuf:"fixed64,3,opt,name=weight,proto3" json:"weight,omitempty"`
+	Health        string                 `protobuf:"bytes,4,opt,name=health,proto3" json:"health,omitempty"`
+	StalenessDays float64                `protobuf:"fixed64,5,opt,name=staleness_days,json=stalenessDays,proto3" json:"staleness_days,omitempty"`
+	VisualCurrent bool                   `protobuf:"varint,6,opt,name=visual_current,json=visualCurrent,proto3" json:"visual_current,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *HealthNode) Reset() {
+	*x = HealthNode{}
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[38]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *HealthNode) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HealthNode) ProtoMessage() {}
+
+func (x *HealthNode) ProtoReflect() protoreflect.Message {
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[38]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HealthNode.ProtoReflect.Descriptor instead.
+func (*HealthNode) Descriptor() ([]byte, []int) {
+	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{38}
+}
+
+func (x *HealthNode) GetAsset() *AssetNode {
+	if x != nil {
+		return x.Asset
+	}
+	return nil
+}
+
+func (x *HealthNode) GetScore() float64 {
+	if x != nil {
+		return x.Score
+	}
+	return 0
+}
+
+func (x *HealthNode) GetWeight() float64 {
+	if x != nil {
+		return x.Weight
+	}
+	return 0
+}
+
+func (x *HealthNode) GetHealth() string {
+	if x != nil {
+		return x.Health
+	}
+	return ""
+}
+
+func (x *HealthNode) GetStalenessDays() float64 {
+	if x != nil {
+		return x.StalenessDays
+	}
+	return 0
+}
+
+func (x *HealthNode) GetVisualCurrent() bool {
+	if x != nil {
+		return x.VisualCurrent
+	}
+	return false
+}
+
+type HealthEdge struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	FromAssetId   string                 `protobuf:"bytes,1,opt,name=from_asset_id,json=fromAssetId,proto3" json:"from_asset_id,omitempty"`
+	ToAssetId     string                 `protobuf:"bytes,2,opt,name=to_asset_id,json=toAssetId,proto3" json:"to_asset_id,omitempty"`
+	Relation      string                 `protobuf:"bytes,3,opt,name=relation,proto3" json:"relation,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *HealthEdge) Reset() {
+	*x = HealthEdge{}
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[39]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *HealthEdge) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HealthEdge) ProtoMessage() {}
+
+func (x *HealthEdge) ProtoReflect() protoreflect.Message {
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[39]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HealthEdge.ProtoReflect.Descriptor instead.
+func (*HealthEdge) Descriptor() ([]byte, []int) {
+	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{39}
+}
+
+func (x *HealthEdge) GetFromAssetId() string {
+	if x != nil {
+		return x.FromAssetId
+	}
+	return ""
+}
+
+func (x *HealthEdge) GetToAssetId() string {
+	if x != nil {
+		return x.ToAssetId
+	}
+	return ""
+}
+
+func (x *HealthEdge) GetRelation() string {
+	if x != nil {
+		return x.Relation
+	}
+	return ""
+}
+
+type GetHealthOverviewRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetHealthOverviewRequest) Reset() {
+	*x = GetHealthOverviewRequest{}
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[40]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetHealthOverviewRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetHealthOverviewRequest) ProtoMessage() {}
+
+func (x *GetHealthOverviewRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[40]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetHealthOverviewRequest.ProtoReflect.Descriptor instead.
+func (*GetHealthOverviewRequest) Descriptor() ([]byte, []int) {
+	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{40}
+}
+
+type GetHealthOverviewResponse struct {
+	state                protoimpl.MessageState `protogen:"open.v1"`
+	Coverage             *CoverageReport        `protobuf:"bytes,1,opt,name=coverage,proto3" json:"coverage,omitempty"`
+	History              []*ScoreHistoryPoint   `protobuf:"bytes,2,rep,name=history,proto3" json:"history,omitempty"`
+	Nodes                []*HealthNode          `protobuf:"bytes,3,rep,name=nodes,proto3" json:"nodes,omitempty"`
+	Edges                []*HealthEdge          `protobuf:"bytes,4,rep,name=edges,proto3" json:"edges,omitempty"`
+	Promote              []*CoverageRow         `protobuf:"bytes,5,rep,name=promote,proto3" json:"promote,omitempty"`
+	QuarantinedGates     []string               `protobuf:"bytes,6,rep,name=quarantined_gates,json=quarantinedGates,proto3" json:"quarantined_gates,omitempty"`
+	KindMismatchCount    int32                  `protobuf:"varint,7,opt,name=kind_mismatch_count,json=kindMismatchCount,proto3" json:"kind_mismatch_count,omitempty"`
+	InstrumentMovedCount int32                  `protobuf:"varint,8,opt,name=instrument_moved_count,json=instrumentMovedCount,proto3" json:"instrument_moved_count,omitempty"`
+	KindMismatches       []*KindMismatch        `protobuf:"bytes,9,rep,name=kind_mismatches,json=kindMismatches,proto3" json:"kind_mismatches,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
+}
+
+func (x *GetHealthOverviewResponse) Reset() {
+	*x = GetHealthOverviewResponse{}
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[41]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetHealthOverviewResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetHealthOverviewResponse) ProtoMessage() {}
+
+func (x *GetHealthOverviewResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[41]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetHealthOverviewResponse.ProtoReflect.Descriptor instead.
+func (*GetHealthOverviewResponse) Descriptor() ([]byte, []int) {
+	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{41}
+}
+
+func (x *GetHealthOverviewResponse) GetCoverage() *CoverageReport {
+	if x != nil {
+		return x.Coverage
+	}
+	return nil
+}
+
+func (x *GetHealthOverviewResponse) GetHistory() []*ScoreHistoryPoint {
+	if x != nil {
+		return x.History
+	}
+	return nil
+}
+
+func (x *GetHealthOverviewResponse) GetNodes() []*HealthNode {
+	if x != nil {
+		return x.Nodes
+	}
+	return nil
+}
+
+func (x *GetHealthOverviewResponse) GetEdges() []*HealthEdge {
+	if x != nil {
+		return x.Edges
+	}
+	return nil
+}
+
+func (x *GetHealthOverviewResponse) GetPromote() []*CoverageRow {
+	if x != nil {
+		return x.Promote
+	}
+	return nil
+}
+
+func (x *GetHealthOverviewResponse) GetQuarantinedGates() []string {
+	if x != nil {
+		return x.QuarantinedGates
+	}
+	return nil
+}
+
+func (x *GetHealthOverviewResponse) GetKindMismatchCount() int32 {
+	if x != nil {
+		return x.KindMismatchCount
+	}
+	return 0
+}
+
+func (x *GetHealthOverviewResponse) GetInstrumentMovedCount() int32 {
+	if x != nil {
+		return x.InstrumentMovedCount
+	}
+	return 0
+}
+
+func (x *GetHealthOverviewResponse) GetKindMismatches() []*KindMismatch {
+	if x != nil {
+		return x.KindMismatches
+	}
+	return nil
+}
+
+type KindMismatch struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AssetId       string                 `protobuf:"bytes,1,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
+	DeclaredKind  string                 `protobuf:"bytes,2,opt,name=declared_kind,json=declaredKind,proto3" json:"declared_kind,omitempty"`
+	DerivedKind   string                 `protobuf:"bytes,3,opt,name=derived_kind,json=derivedKind,proto3" json:"derived_kind,omitempty"`
+	Message       string                 `protobuf:"bytes,4,opt,name=message,proto3" json:"message,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *KindMismatch) Reset() {
+	*x = KindMismatch{}
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[42]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *KindMismatch) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*KindMismatch) ProtoMessage() {}
+
+func (x *KindMismatch) ProtoReflect() protoreflect.Message {
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[42]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use KindMismatch.ProtoReflect.Descriptor instead.
+func (*KindMismatch) Descriptor() ([]byte, []int) {
+	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{42}
+}
+
+func (x *KindMismatch) GetAssetId() string {
+	if x != nil {
+		return x.AssetId
+	}
+	return ""
+}
+
+func (x *KindMismatch) GetDeclaredKind() string {
+	if x != nil {
+		return x.DeclaredKind
+	}
+	return ""
+}
+
+func (x *KindMismatch) GetDerivedKind() string {
+	if x != nil {
+		return x.DerivedKind
+	}
+	return ""
+}
+
+func (x *KindMismatch) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+type CaptureEvidenceRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AssetId       string                 `protobuf:"bytes,1,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
+	All           bool                   `protobuf:"varint,2,opt,name=all,proto3" json:"all,omitempty"`
+	ChangedOnly   bool                   `protobuf:"varint,3,opt,name=changed_only,json=changedOnly,proto3" json:"changed_only,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CaptureEvidenceRequest) Reset() {
+	*x = CaptureEvidenceRequest{}
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[43]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CaptureEvidenceRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CaptureEvidenceRequest) ProtoMessage() {}
+
+func (x *CaptureEvidenceRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[43]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CaptureEvidenceRequest.ProtoReflect.Descriptor instead.
+func (*CaptureEvidenceRequest) Descriptor() ([]byte, []int) {
+	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{43}
+}
+
+func (x *CaptureEvidenceRequest) GetAssetId() string {
+	if x != nil {
+		return x.AssetId
+	}
+	return ""
+}
+
+func (x *CaptureEvidenceRequest) GetAll() bool {
+	if x != nil {
+		return x.All
+	}
+	return false
+}
+
+func (x *CaptureEvidenceRequest) GetChangedOnly() bool {
+	if x != nil {
+		return x.ChangedOnly
+	}
+	return false
+}
+
+type CaptureEvidenceResponse struct {
+	state                 protoimpl.MessageState `protogen:"open.v1"`
+	AssetId               string                 `protobuf:"bytes,1,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
+	CaptureDirectory      string                 `protobuf:"bytes,2,opt,name=capture_directory,json=captureDirectory,proto3" json:"capture_directory,omitempty"`
+	WorkbenchUrl          string                 `protobuf:"bytes,3,opt,name=workbench_url,json=workbenchUrl,proto3" json:"workbench_url,omitempty"`
+	RowsWritten           int32                  `protobuf:"varint,4,opt,name=rows_written,json=rowsWritten,proto3" json:"rows_written,omitempty"`
+	MissingContractAssets []string               `protobuf:"bytes,5,rep,name=missing_contract_assets,json=missingContractAssets,proto3" json:"missing_contract_assets,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
+}
+
+func (x *CaptureEvidenceResponse) Reset() {
+	*x = CaptureEvidenceResponse{}
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[44]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CaptureEvidenceResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CaptureEvidenceResponse) ProtoMessage() {}
+
+func (x *CaptureEvidenceResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_react_component_library_v1_catalog_catalog_proto_msgTypes[44]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CaptureEvidenceResponse.ProtoReflect.Descriptor instead.
+func (*CaptureEvidenceResponse) Descriptor() ([]byte, []int) {
+	return file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP(), []int{44}
+}
+
+func (x *CaptureEvidenceResponse) GetAssetId() string {
+	if x != nil {
+		return x.AssetId
+	}
+	return ""
+}
+
+func (x *CaptureEvidenceResponse) GetCaptureDirectory() string {
+	if x != nil {
+		return x.CaptureDirectory
+	}
+	return ""
+}
+
+func (x *CaptureEvidenceResponse) GetWorkbenchUrl() string {
+	if x != nil {
+		return x.WorkbenchUrl
+	}
+	return ""
+}
+
+func (x *CaptureEvidenceResponse) GetRowsWritten() int32 {
+	if x != nil {
+		return x.RowsWritten
+	}
+	return 0
+}
+
+func (x *CaptureEvidenceResponse) GetMissingContractAssets() []string {
+	if x != nil {
+		return x.MissingContractAssets
+	}
+	return nil
 }
 
 var File_react_component_library_v1_catalog_catalog_proto protoreflect.FileDescriptor
@@ -2021,7 +3245,7 @@ const file_react_component_library_v1_catalog_catalog_proto_rawDesc = "" +
 	"unmetPorts\"x\n" +
 	"\x1cGetAssetPortContractResponse\x12X\n" +
 	"\bcontract\x18\x01 \x01(\v2<.vrooli.react_component_library.v1.catalog.AssetPortContractR\bcontract\"\x14\n" +
-	"\x12GetCoverageRequest\"\x95\x03\n" +
+	"\x12GetCoverageRequest\"\x9a\x05\n" +
 	"\vCoverageRow\x12\x19\n" +
 	"\basset_id\x18\x01 \x01(\tR\aassetId\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x16\n" +
@@ -2037,11 +3261,20 @@ const file_react_component_library_v1_catalog_catalog_proto_rawDesc = "" +
 	"\x11blocks_downstream\x18\v \x01(\x05R\x10blocksDownstream\x12\x12\n" +
 	"\x04rung\x18\f \x01(\x05R\x04rung\x12\x1b\n" +
 	"\trung_name\x18\r \x01(\tR\brungName\x12!\n" +
-	"\fdomain_order\x18\x0e \x01(\x05R\vdomainOrder\"J\n" +
+	"\fdomain_order\x18\x0e \x01(\x05R\vdomainOrder\x12\x1f\n" +
+	"\vasset_score\x18\x0f \x01(\x01R\n" +
+	"assetScore\x12\x16\n" +
+	"\x06weight\x18\x10 \x01(\x01R\x06weight\x12!\n" +
+	"\fpassed_gates\x18\x11 \x03(\tR\vpassedGates\x12!\n" +
+	"\ffailed_gates\x18\x12 \x03(\tR\vfailedGates\x122\n" +
+	"\x15nearest_blocking_gate\x18\x13 \x01(\tR\x13nearestBlockingGate\x12'\n" +
+	"\x0fnewest_evidence\x18\x14 \x01(\tR\x0enewestEvidence\x12'\n" +
+	"\x0fvisual_evidence\x18\x15 \x01(\bR\x0evisualEvidence\"J\n" +
 	"\x06Rollup\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x18\n" +
 	"\aplanned\x18\x02 \x01(\x05R\aplanned\x12\x14\n" +
-	"\x05built\x18\x03 \x01(\x05R\x05built\"\xaa\x05\n" +
+	"\x05built\x18\x03 \x01(\x05R\x05built\"\xb1\n" +
+	"\n" +
 	"\x0fMaturitySummary\x12\x14\n" +
 	"\x05total\x18\x01 \x01(\x05R\x05total\x12+\n" +
 	"\x12at_or_above_target\x18\x02 \x01(\x05R\x0fatOrAboveTarget\x12_\n" +
@@ -2049,10 +3282,34 @@ const file_react_component_library_v1_catalog_catalog_proto_rawDesc = "" +
 	"\x12catalog_completion\x18\x04 \x01(\v29.vrooli.react_component_library.v1.catalog.CoverageMetricR\x11catalogCompletion\x12q\n" +
 	"\x17mandatory_gate_coverage\x18\x05 \x01(\v29.vrooli.react_component_library.v1.catalog.CoverageMetricR\x15mandatoryGateCoverage\x12d\n" +
 	"\x10weighted_quality\x18\x06 \x01(\v29.vrooli.react_component_library.v1.catalog.CoverageMetricR\x0fweightedQuality\x12u\n" +
-	"\x19production_ready_coverage\x18\a \x01(\v29.vrooli.react_component_library.v1.catalog.CoverageMetricR\x17productionReadyCoverage\x1a9\n" +
+	"\x19production_ready_coverage\x18\a \x01(\v29.vrooli.react_component_library.v1.catalog.CoverageMetricR\x17productionReadyCoverage\x120\n" +
+	"\x14weighted_asset_score\x18\b \x01(\x01R\x12weightedAssetScore\x124\n" +
+	"\x16score_weight_numerator\x18\t \x01(\x01R\x14scoreWeightNumerator\x128\n" +
+	"\x18score_weight_denominator\x18\n" +
+	" \x01(\x01R\x16scoreWeightDenominator\x12R\n" +
+	"\aby_gate\x18\v \x03(\v29.vrooli.react_component_library.v1.catalog.ScoreBreakdownR\x06byGate\x12]\n" +
+	"\rby_rung_score\x18\f \x03(\v29.vrooli.react_component_library.v1.catalog.ScoreBreakdownR\vbyRungScore\x12O\n" +
+	"\x06corpus\x18\r \x03(\v27.vrooli.react_component_library.v1.catalog.CorpusStatusR\x06corpus\x12#\n" +
+	"\rpass_evidence\x18\x0e \x01(\x05R\fpassEvidence\x12#\n" +
+	"\rfail_evidence\x18\x0f \x01(\x05R\ffailEvidence\x12/\n" +
+	"\x13unmeasured_evidence\x18\x10 \x01(\x05R\x12unmeasuredEvidence\x12.\n" +
+	"\x13kind_mismatch_count\x18\x11 \x01(\x05R\x11kindMismatchCount\x124\n" +
+	"\x16instrument_moved_count\x18\x12 \x01(\x05R\x14instrumentMovedCount\x1a9\n" +
 	"\vByRungEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\x05R\x05value:\x028\x01\"f\n" +
+	"\x05value\x18\x02 \x01(\x05R\x05value:\x028\x01\"p\n" +
+	"\x0eScoreBreakdown\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x16\n" +
+	"\x06passed\x18\x02 \x01(\x05R\x06passed\x12\x1e\n" +
+	"\n" +
+	"applicable\x18\x03 \x01(\x05R\n" +
+	"applicable\x12\x14\n" +
+	"\x05score\x18\x04 \x01(\x01R\x05score\"\x8d\x01\n" +
+	"\fCorpusStatus\x12\x12\n" +
+	"\x04gate\x18\x01 \x01(\tR\x04gate\x12\x16\n" +
+	"\x06result\x18\x02 \x01(\tR\x06result\x12#\n" +
+	"\rfinding_count\x18\x03 \x01(\x05R\ffindingCount\x12,\n" +
+	"\x12runner_error_count\x18\x04 \x01(\x05R\x10runnerErrorCount\"f\n" +
 	"\x0eCoverageMetric\x12\x1c\n" +
 	"\tnumerator\x18\x01 \x01(\x05R\tnumerator\x12 \n" +
 	"\vdenominator\x18\x02 \x01(\x05R\vdenominator\x12\x14\n" +
@@ -2068,14 +3325,20 @@ const file_react_component_library_v1_catalog_catalog_proto_rawDesc = "" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\x05R\x05value:\x028\x01\"h\n" +
 	"\x13GetCoverageResponse\x12Q\n" +
-	"\x06report\x18\x01 \x01(\v29.vrooli.react_component_library.v1.catalog.CoverageReportR\x06report\"+\n" +
+	"\x06report\x18\x01 \x01(\v29.vrooli.react_component_library.v1.catalog.CoverageReportR\x06report\"?\n" +
 	"\x13ListNextWorkRequest\x12\x14\n" +
-	"\x05limit\x18\x01 \x01(\x05R\x05limit\"\xba\x01\n" +
+	"\x05limit\x18\x01 \x01(\x05R\x05limit\x12\x12\n" +
+	"\x04lane\x18\x02 \x01(\tR\x04lane\"\xee\x02\n" +
 	"\x14ListNextWorkResponse\x12J\n" +
 	"\x04rows\x18\x01 \x03(\v26.vrooli.react_component_library.v1.catalog.CoverageRowR\x04rows\x12V\n" +
-	"\bmaturity\x18\x02 \x01(\v2:.vrooli.react_component_library.v1.catalog.MaturitySummaryR\bmaturity\"$\n" +
+	"\bmaturity\x18\x02 \x01(\v2:.vrooli.react_component_library.v1.catalog.MaturitySummaryR\bmaturity\x12\x12\n" +
+	"\x04lane\x18\x03 \x01(\tR\x04lane\x12P\n" +
+	"\apromote\x18\x04 \x03(\v26.vrooli.react_component_library.v1.catalog.CoverageRowR\apromote\x12L\n" +
+	"\x05build\x18\x05 \x03(\v26.vrooli.react_component_library.v1.catalog.CoverageRowR\x05build\"a\n" +
 	"\x0eRunGateRequest\x12\x12\n" +
-	"\x04gate\x18\x01 \x01(\tR\x04gate\"\xd7\x01\n" +
+	"\x04gate\x18\x01 \x01(\tR\x04gate\x12\x10\n" +
+	"\x03all\x18\x02 \x01(\bR\x03all\x12)\n" +
+	"\x10calibration_only\x18\x03 \x01(\bR\x0fcalibrationOnly\"\xd7\x01\n" +
 	"\vGateFinding\x12\x12\n" +
 	"\x04code\x18\x01 \x01(\tR\x04code\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\x12\x19\n" +
@@ -2084,11 +3347,88 @@ const file_react_component_library_v1_catalog_catalog_proto_rawDesc = "" +
 	"\x04file\x18\x05 \x01(\tR\x04file\x12\x12\n" +
 	"\x04line\x18\x06 \x01(\x05R\x04line\x12 \n" +
 	"\vremediation\x18\a \x01(\tR\vremediation\x12\x19\n" +
-	"\bdocs_ref\x18\b \x01(\tR\adocsRef\"\xa2\x01\n" +
+	"\bdocs_ref\x18\b \x01(\tR\adocsRef\"\x98\x05\n" +
 	"\x0fRunGateResponse\x12\x12\n" +
 	"\x04gate\x18\x01 \x01(\tR\x04gate\x12R\n" +
 	"\bfindings\x18\x02 \x03(\v26.vrooli.react_component_library.v1.catalog.GateFindingR\bfindings\x12'\n" +
-	"\x0finspected_files\x18\x03 \x01(\x05R\x0einspectedFiles2\xca\b\n" +
+	"\x0finspected_files\x18\x03 \x01(\x05R\x0einspectedFiles\x12[\n" +
+	"\rrunner_errors\x18\x04 \x03(\v26.vrooli.react_component_library.v1.catalog.GateFindingR\frunnerErrors\x122\n" +
+	"\x15evidence_rows_written\x18\x05 \x01(\x05R\x13evidenceRowsWritten\x12^\n" +
+	"\vcalibration\x18\x06 \x03(\v2<.vrooli.react_component_library.v1.catalog.CalibrationResultR\vcalibration\x12-\n" +
+	"\x12non_discriminating\x18\a \x01(\bR\x11nonDiscriminating\x12\x8a\x01\n" +
+	"\x16surface_verdict_counts\x18\b \x03(\v2T.vrooli.react_component_library.v1.catalog.RunGateResponse.SurfaceVerdictCountsEntryR\x14surfaceVerdictCounts\x1aG\n" +
+	"\x19SurfaceVerdictCountsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\x05R\x05value:\x028\x01\"\xdb\x01\n" +
+	"\x11CalibrationResult\x12\x12\n" +
+	"\x04gate\x18\x01 \x01(\tR\x04gate\x12\x18\n" +
+	"\afixture\x18\x02 \x01(\tR\afixture\x122\n" +
+	"\x15required_failure_code\x18\x03 \x01(\tR\x13requiredFailureCode\x122\n" +
+	"\x15observed_failure_code\x18\x04 \x01(\tR\x13observedFailureCode\x12\x16\n" +
+	"\x06status\x18\x05 \x01(\tR\x06status\x12\x18\n" +
+	"\amessage\x18\x06 \x01(\tR\amessage\"\xeb\x03\n" +
+	"\x11ScoreHistoryPoint\x12\x1f\n" +
+	"\vrecorded_at\x18\x01 \x01(\tR\n" +
+	"recordedAt\x12\x14\n" +
+	"\x05score\x18\x02 \x01(\x01R\x05score\x12\"\n" +
+	"\rassets_at_100\x18\x03 \x01(\x05R\vassetsAt100\x12&\n" +
+	"\x0fassets_below_50\x18\x04 \x01(\x05R\rassetsBelow50\x12:\n" +
+	"\x19weight_vector_regenerated\x18\x05 \x01(\bR\x17weightVectorRegenerated\x122\n" +
+	"\x15scoring_model_version\x18\x06 \x01(\x05R\x13scoringModelVersion\x12'\n" +
+	"\x0fsource_revision\x18\a \x01(\tR\x0esourceRevision\x124\n" +
+	"\x16instrument_moved_count\x18\b \x01(\x05R\x14instrumentMovedCount\x12.\n" +
+	"\x13kind_mismatch_count\x18\t \x01(\x05R\x11kindMismatchCount\x12T\n" +
+	"\x06events\x18\n" +
+	" \x03(\v2<.vrooli.react_component_library.v1.catalog.ScoreHistoryEventR\x06events\"\xb3\x01\n" +
+	"\x11ScoreHistoryEvent\x12\x12\n" +
+	"\x04type\x18\x01 \x01(\tR\x04type\x12\x19\n" +
+	"\basset_id\x18\x02 \x01(\tR\aassetId\x12'\n" +
+	"\x0fsource_revision\x18\x03 \x01(\tR\x0esourceRevision\x12#\n" +
+	"\rdeclared_kind\x18\x04 \x01(\tR\fdeclaredKind\x12!\n" +
+	"\fderived_kind\x18\x05 \x01(\tR\vderivedKind\".\n" +
+	"\x16GetScoreHistoryRequest\x12\x14\n" +
+	"\x05since\x18\x01 \x01(\tR\x05since\"o\n" +
+	"\x17GetScoreHistoryResponse\x12T\n" +
+	"\x06points\x18\x01 \x03(\v2<.vrooli.react_component_library.v1.catalog.ScoreHistoryPointR\x06points\"\xec\x01\n" +
+	"\n" +
+	"HealthNode\x12J\n" +
+	"\x05asset\x18\x01 \x01(\v24.vrooli.react_component_library.v1.catalog.AssetNodeR\x05asset\x12\x14\n" +
+	"\x05score\x18\x02 \x01(\x01R\x05score\x12\x16\n" +
+	"\x06weight\x18\x03 \x01(\x01R\x06weight\x12\x16\n" +
+	"\x06health\x18\x04 \x01(\tR\x06health\x12%\n" +
+	"\x0estaleness_days\x18\x05 \x01(\x01R\rstalenessDays\x12%\n" +
+	"\x0evisual_current\x18\x06 \x01(\bR\rvisualCurrent\"l\n" +
+	"\n" +
+	"HealthEdge\x12\"\n" +
+	"\rfrom_asset_id\x18\x01 \x01(\tR\vfromAssetId\x12\x1e\n" +
+	"\vto_asset_id\x18\x02 \x01(\tR\ttoAssetId\x12\x1a\n" +
+	"\brelation\x18\x03 \x01(\tR\brelation\"\x1a\n" +
+	"\x18GetHealthOverviewRequest\"\xab\x05\n" +
+	"\x19GetHealthOverviewResponse\x12U\n" +
+	"\bcoverage\x18\x01 \x01(\v29.vrooli.react_component_library.v1.catalog.CoverageReportR\bcoverage\x12V\n" +
+	"\ahistory\x18\x02 \x03(\v2<.vrooli.react_component_library.v1.catalog.ScoreHistoryPointR\ahistory\x12K\n" +
+	"\x05nodes\x18\x03 \x03(\v25.vrooli.react_component_library.v1.catalog.HealthNodeR\x05nodes\x12K\n" +
+	"\x05edges\x18\x04 \x03(\v25.vrooli.react_component_library.v1.catalog.HealthEdgeR\x05edges\x12P\n" +
+	"\apromote\x18\x05 \x03(\v26.vrooli.react_component_library.v1.catalog.CoverageRowR\apromote\x12+\n" +
+	"\x11quarantined_gates\x18\x06 \x03(\tR\x10quarantinedGates\x12.\n" +
+	"\x13kind_mismatch_count\x18\a \x01(\x05R\x11kindMismatchCount\x124\n" +
+	"\x16instrument_moved_count\x18\b \x01(\x05R\x14instrumentMovedCount\x12`\n" +
+	"\x0fkind_mismatches\x18\t \x03(\v27.vrooli.react_component_library.v1.catalog.KindMismatchR\x0ekindMismatches\"\x8b\x01\n" +
+	"\fKindMismatch\x12\x19\n" +
+	"\basset_id\x18\x01 \x01(\tR\aassetId\x12#\n" +
+	"\rdeclared_kind\x18\x02 \x01(\tR\fdeclaredKind\x12!\n" +
+	"\fderived_kind\x18\x03 \x01(\tR\vderivedKind\x12\x18\n" +
+	"\amessage\x18\x04 \x01(\tR\amessage\"h\n" +
+	"\x16CaptureEvidenceRequest\x12\x19\n" +
+	"\basset_id\x18\x01 \x01(\tR\aassetId\x12\x10\n" +
+	"\x03all\x18\x02 \x01(\bR\x03all\x12!\n" +
+	"\fchanged_only\x18\x03 \x01(\bR\vchangedOnly\"\xe1\x01\n" +
+	"\x17CaptureEvidenceResponse\x12\x19\n" +
+	"\basset_id\x18\x01 \x01(\tR\aassetId\x12+\n" +
+	"\x11capture_directory\x18\x02 \x01(\tR\x10captureDirectory\x12#\n" +
+	"\rworkbench_url\x18\x03 \x01(\tR\fworkbenchUrl\x12!\n" +
+	"\frows_written\x18\x04 \x01(\x05R\vrowsWritten\x126\n" +
+	"\x17missing_contract_assets\x18\x05 \x03(\tR\x15missingContractAssets2\xa1\f\n" +
 	"\x0eCatalogService\x12\x8c\x01\n" +
 	"\vGetCoverage\x12=.vrooli.react_component_library.v1.catalog.GetCoverageRequest\x1a>.vrooli.react_component_library.v1.catalog.GetCoverageResponse\x12\x8f\x01\n" +
 	"\fListNextWork\x12>.vrooli.react_component_library.v1.catalog.ListNextWorkRequest\x1a?.vrooli.react_component_library.v1.catalog.ListNextWorkResponse\x12\x80\x01\n" +
@@ -2096,7 +3436,10 @@ const file_react_component_library_v1_catalog_catalog_proto_rawDesc = "" +
 	"\x15GetAssetRelationships\x12G.vrooli.react_component_library.v1.catalog.GetAssetRelationshipsRequest\x1aH.vrooli.react_component_library.v1.catalog.GetAssetRelationshipsResponse\x12\xa4\x01\n" +
 	"\x13GetCatalogStructure\x12E.vrooli.react_component_library.v1.catalog.GetCatalogStructureRequest\x1aF.vrooli.react_component_library.v1.catalog.GetCatalogStructureResponse\x12\x95\x01\n" +
 	"\x0eReconcileGraph\x12@.vrooli.react_component_library.v1.catalog.ReconcileGraphRequest\x1aA.vrooli.react_component_library.v1.catalog.ReconcileGraphResponse\x12\xa7\x01\n" +
-	"\x14GetAssetPortContract\x12F.vrooli.react_component_library.v1.catalog.GetAssetPortContractRequest\x1aG.vrooli.react_component_library.v1.catalog.GetAssetPortContractResponseB^Z\\github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/catalog;catalog_v1b\x06proto3"
+	"\x14GetAssetPortContract\x12F.vrooli.react_component_library.v1.catalog.GetAssetPortContractRequest\x1aG.vrooli.react_component_library.v1.catalog.GetAssetPortContractResponse\x12\x98\x01\n" +
+	"\x0fGetScoreHistory\x12A.vrooli.react_component_library.v1.catalog.GetScoreHistoryRequest\x1aB.vrooli.react_component_library.v1.catalog.GetScoreHistoryResponse\x12\x9e\x01\n" +
+	"\x11GetHealthOverview\x12C.vrooli.react_component_library.v1.catalog.GetHealthOverviewRequest\x1aD.vrooli.react_component_library.v1.catalog.GetHealthOverviewResponse\x12\x98\x01\n" +
+	"\x0fCaptureEvidence\x12A.vrooli.react_component_library.v1.catalog.CaptureEvidenceRequest\x1aB.vrooli.react_component_library.v1.catalog.CaptureEvidenceResponseB^Z\\github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/catalog;catalog_v1b\x06proto3"
 
 var (
 	file_react_component_library_v1_catalog_catalog_proto_rawDescOnce sync.Once
@@ -2110,7 +3453,7 @@ func file_react_component_library_v1_catalog_catalog_proto_rawDescGZIP() []byte 
 	return file_react_component_library_v1_catalog_catalog_proto_rawDescData
 }
 
-var file_react_component_library_v1_catalog_catalog_proto_msgTypes = make([]protoimpl.MessageInfo, 34)
+var file_react_component_library_v1_catalog_catalog_proto_msgTypes = make([]protoimpl.MessageInfo, 49)
 var file_react_component_library_v1_catalog_catalog_proto_goTypes = []any{
 	(*AssetNode)(nil),                     // 0: vrooli.react_component_library.v1.catalog.AssetNode
 	(*RungBand)(nil),                      // 1: vrooli.react_component_library.v1.catalog.RungBand
@@ -2135,17 +3478,32 @@ var file_react_component_library_v1_catalog_catalog_proto_goTypes = []any{
 	(*CoverageRow)(nil),                   // 20: vrooli.react_component_library.v1.catalog.CoverageRow
 	(*Rollup)(nil),                        // 21: vrooli.react_component_library.v1.catalog.Rollup
 	(*MaturitySummary)(nil),               // 22: vrooli.react_component_library.v1.catalog.MaturitySummary
-	(*CoverageMetric)(nil),                // 23: vrooli.react_component_library.v1.catalog.CoverageMetric
-	(*CoverageReport)(nil),                // 24: vrooli.react_component_library.v1.catalog.CoverageReport
-	(*GetCoverageResponse)(nil),           // 25: vrooli.react_component_library.v1.catalog.GetCoverageResponse
-	(*ListNextWorkRequest)(nil),           // 26: vrooli.react_component_library.v1.catalog.ListNextWorkRequest
-	(*ListNextWorkResponse)(nil),          // 27: vrooli.react_component_library.v1.catalog.ListNextWorkResponse
-	(*RunGateRequest)(nil),                // 28: vrooli.react_component_library.v1.catalog.RunGateRequest
-	(*GateFinding)(nil),                   // 29: vrooli.react_component_library.v1.catalog.GateFinding
-	(*RunGateResponse)(nil),               // 30: vrooli.react_component_library.v1.catalog.RunGateResponse
-	nil,                                   // 31: vrooli.react_component_library.v1.catalog.ReconciliationDistribution.CountsEntry
-	nil,                                   // 32: vrooli.react_component_library.v1.catalog.MaturitySummary.ByRungEntry
-	nil,                                   // 33: vrooli.react_component_library.v1.catalog.CoverageReport.TotalsEntry
+	(*ScoreBreakdown)(nil),                // 23: vrooli.react_component_library.v1.catalog.ScoreBreakdown
+	(*CorpusStatus)(nil),                  // 24: vrooli.react_component_library.v1.catalog.CorpusStatus
+	(*CoverageMetric)(nil),                // 25: vrooli.react_component_library.v1.catalog.CoverageMetric
+	(*CoverageReport)(nil),                // 26: vrooli.react_component_library.v1.catalog.CoverageReport
+	(*GetCoverageResponse)(nil),           // 27: vrooli.react_component_library.v1.catalog.GetCoverageResponse
+	(*ListNextWorkRequest)(nil),           // 28: vrooli.react_component_library.v1.catalog.ListNextWorkRequest
+	(*ListNextWorkResponse)(nil),          // 29: vrooli.react_component_library.v1.catalog.ListNextWorkResponse
+	(*RunGateRequest)(nil),                // 30: vrooli.react_component_library.v1.catalog.RunGateRequest
+	(*GateFinding)(nil),                   // 31: vrooli.react_component_library.v1.catalog.GateFinding
+	(*RunGateResponse)(nil),               // 32: vrooli.react_component_library.v1.catalog.RunGateResponse
+	(*CalibrationResult)(nil),             // 33: vrooli.react_component_library.v1.catalog.CalibrationResult
+	(*ScoreHistoryPoint)(nil),             // 34: vrooli.react_component_library.v1.catalog.ScoreHistoryPoint
+	(*ScoreHistoryEvent)(nil),             // 35: vrooli.react_component_library.v1.catalog.ScoreHistoryEvent
+	(*GetScoreHistoryRequest)(nil),        // 36: vrooli.react_component_library.v1.catalog.GetScoreHistoryRequest
+	(*GetScoreHistoryResponse)(nil),       // 37: vrooli.react_component_library.v1.catalog.GetScoreHistoryResponse
+	(*HealthNode)(nil),                    // 38: vrooli.react_component_library.v1.catalog.HealthNode
+	(*HealthEdge)(nil),                    // 39: vrooli.react_component_library.v1.catalog.HealthEdge
+	(*GetHealthOverviewRequest)(nil),      // 40: vrooli.react_component_library.v1.catalog.GetHealthOverviewRequest
+	(*GetHealthOverviewResponse)(nil),     // 41: vrooli.react_component_library.v1.catalog.GetHealthOverviewResponse
+	(*KindMismatch)(nil),                  // 42: vrooli.react_component_library.v1.catalog.KindMismatch
+	(*CaptureEvidenceRequest)(nil),        // 43: vrooli.react_component_library.v1.catalog.CaptureEvidenceRequest
+	(*CaptureEvidenceResponse)(nil),       // 44: vrooli.react_component_library.v1.catalog.CaptureEvidenceResponse
+	nil,                                   // 45: vrooli.react_component_library.v1.catalog.ReconciliationDistribution.CountsEntry
+	nil,                                   // 46: vrooli.react_component_library.v1.catalog.MaturitySummary.ByRungEntry
+	nil,                                   // 47: vrooli.react_component_library.v1.catalog.CoverageReport.TotalsEntry
+	nil,                                   // 48: vrooli.react_component_library.v1.catalog.RunGateResponse.SurfaceVerdictCountsEntry
 }
 var file_react_component_library_v1_catalog_catalog_proto_depIdxs = []int32{
 	0,  // 0: vrooli.react_component_library.v1.catalog.RungBand.assets:type_name -> vrooli.react_component_library.v1.catalog.AssetNode
@@ -2161,46 +3519,69 @@ var file_react_component_library_v1_catalog_catalog_proto_depIdxs = []int32{
 	7,  // 10: vrooli.react_component_library.v1.catalog.CatalogStructure.invariants:type_name -> vrooli.react_component_library.v1.catalog.StructureInvariant
 	8,  // 11: vrooli.react_component_library.v1.catalog.CatalogStructure.blast_radius:type_name -> vrooli.react_component_library.v1.catalog.BlastRadiusRow
 	9,  // 12: vrooli.react_component_library.v1.catalog.GetCatalogStructureResponse.structure:type_name -> vrooli.react_component_library.v1.catalog.CatalogStructure
-	31, // 13: vrooli.react_component_library.v1.catalog.ReconciliationDistribution.counts:type_name -> vrooli.react_component_library.v1.catalog.ReconciliationDistribution.CountsEntry
+	45, // 13: vrooli.react_component_library.v1.catalog.ReconciliationDistribution.counts:type_name -> vrooli.react_component_library.v1.catalog.ReconciliationDistribution.CountsEntry
 	12, // 14: vrooli.react_component_library.v1.catalog.ReconcileGraphResponse.assets:type_name -> vrooli.react_component_library.v1.catalog.ReconciliationAsset
 	13, // 15: vrooli.react_component_library.v1.catalog.ReconcileGraphResponse.distribution:type_name -> vrooli.react_component_library.v1.catalog.ReconciliationDistribution
 	0,  // 16: vrooli.react_component_library.v1.catalog.UnmetPort.demanding_assets:type_name -> vrooli.react_component_library.v1.catalog.AssetNode
 	0,  // 17: vrooli.react_component_library.v1.catalog.UnmetPort.candidate_satisfiers:type_name -> vrooli.react_component_library.v1.catalog.AssetNode
 	16, // 18: vrooli.react_component_library.v1.catalog.AssetPortContract.unmet_ports:type_name -> vrooli.react_component_library.v1.catalog.UnmetPort
 	17, // 19: vrooli.react_component_library.v1.catalog.GetAssetPortContractResponse.contract:type_name -> vrooli.react_component_library.v1.catalog.AssetPortContract
-	32, // 20: vrooli.react_component_library.v1.catalog.MaturitySummary.by_rung:type_name -> vrooli.react_component_library.v1.catalog.MaturitySummary.ByRungEntry
-	23, // 21: vrooli.react_component_library.v1.catalog.MaturitySummary.catalog_completion:type_name -> vrooli.react_component_library.v1.catalog.CoverageMetric
-	23, // 22: vrooli.react_component_library.v1.catalog.MaturitySummary.mandatory_gate_coverage:type_name -> vrooli.react_component_library.v1.catalog.CoverageMetric
-	23, // 23: vrooli.react_component_library.v1.catalog.MaturitySummary.weighted_quality:type_name -> vrooli.react_component_library.v1.catalog.CoverageMetric
-	23, // 24: vrooli.react_component_library.v1.catalog.MaturitySummary.production_ready_coverage:type_name -> vrooli.react_component_library.v1.catalog.CoverageMetric
-	20, // 25: vrooli.react_component_library.v1.catalog.CoverageReport.rows:type_name -> vrooli.react_component_library.v1.catalog.CoverageRow
-	33, // 26: vrooli.react_component_library.v1.catalog.CoverageReport.totals:type_name -> vrooli.react_component_library.v1.catalog.CoverageReport.TotalsEntry
-	21, // 27: vrooli.react_component_library.v1.catalog.CoverageReport.by_domain:type_name -> vrooli.react_component_library.v1.catalog.Rollup
-	21, // 28: vrooli.react_component_library.v1.catalog.CoverageReport.by_priority:type_name -> vrooli.react_component_library.v1.catalog.Rollup
-	22, // 29: vrooli.react_component_library.v1.catalog.CoverageReport.maturity:type_name -> vrooli.react_component_library.v1.catalog.MaturitySummary
-	24, // 30: vrooli.react_component_library.v1.catalog.GetCoverageResponse.report:type_name -> vrooli.react_component_library.v1.catalog.CoverageReport
-	20, // 31: vrooli.react_component_library.v1.catalog.ListNextWorkResponse.rows:type_name -> vrooli.react_component_library.v1.catalog.CoverageRow
-	22, // 32: vrooli.react_component_library.v1.catalog.ListNextWorkResponse.maturity:type_name -> vrooli.react_component_library.v1.catalog.MaturitySummary
-	29, // 33: vrooli.react_component_library.v1.catalog.RunGateResponse.findings:type_name -> vrooli.react_component_library.v1.catalog.GateFinding
-	19, // 34: vrooli.react_component_library.v1.catalog.CatalogService.GetCoverage:input_type -> vrooli.react_component_library.v1.catalog.GetCoverageRequest
-	26, // 35: vrooli.react_component_library.v1.catalog.CatalogService.ListNextWork:input_type -> vrooli.react_component_library.v1.catalog.ListNextWorkRequest
-	28, // 36: vrooli.react_component_library.v1.catalog.CatalogService.RunGate:input_type -> vrooli.react_component_library.v1.catalog.RunGateRequest
-	3,  // 37: vrooli.react_component_library.v1.catalog.CatalogService.GetAssetRelationships:input_type -> vrooli.react_component_library.v1.catalog.GetAssetRelationshipsRequest
-	5,  // 38: vrooli.react_component_library.v1.catalog.CatalogService.GetCatalogStructure:input_type -> vrooli.react_component_library.v1.catalog.GetCatalogStructureRequest
-	11, // 39: vrooli.react_component_library.v1.catalog.CatalogService.ReconcileGraph:input_type -> vrooli.react_component_library.v1.catalog.ReconcileGraphRequest
-	15, // 40: vrooli.react_component_library.v1.catalog.CatalogService.GetAssetPortContract:input_type -> vrooli.react_component_library.v1.catalog.GetAssetPortContractRequest
-	25, // 41: vrooli.react_component_library.v1.catalog.CatalogService.GetCoverage:output_type -> vrooli.react_component_library.v1.catalog.GetCoverageResponse
-	27, // 42: vrooli.react_component_library.v1.catalog.CatalogService.ListNextWork:output_type -> vrooli.react_component_library.v1.catalog.ListNextWorkResponse
-	30, // 43: vrooli.react_component_library.v1.catalog.CatalogService.RunGate:output_type -> vrooli.react_component_library.v1.catalog.RunGateResponse
-	4,  // 44: vrooli.react_component_library.v1.catalog.CatalogService.GetAssetRelationships:output_type -> vrooli.react_component_library.v1.catalog.GetAssetRelationshipsResponse
-	10, // 45: vrooli.react_component_library.v1.catalog.CatalogService.GetCatalogStructure:output_type -> vrooli.react_component_library.v1.catalog.GetCatalogStructureResponse
-	14, // 46: vrooli.react_component_library.v1.catalog.CatalogService.ReconcileGraph:output_type -> vrooli.react_component_library.v1.catalog.ReconcileGraphResponse
-	18, // 47: vrooli.react_component_library.v1.catalog.CatalogService.GetAssetPortContract:output_type -> vrooli.react_component_library.v1.catalog.GetAssetPortContractResponse
-	41, // [41:48] is the sub-list for method output_type
-	34, // [34:41] is the sub-list for method input_type
-	34, // [34:34] is the sub-list for extension type_name
-	34, // [34:34] is the sub-list for extension extendee
-	0,  // [0:34] is the sub-list for field type_name
+	46, // 20: vrooli.react_component_library.v1.catalog.MaturitySummary.by_rung:type_name -> vrooli.react_component_library.v1.catalog.MaturitySummary.ByRungEntry
+	25, // 21: vrooli.react_component_library.v1.catalog.MaturitySummary.catalog_completion:type_name -> vrooli.react_component_library.v1.catalog.CoverageMetric
+	25, // 22: vrooli.react_component_library.v1.catalog.MaturitySummary.mandatory_gate_coverage:type_name -> vrooli.react_component_library.v1.catalog.CoverageMetric
+	25, // 23: vrooli.react_component_library.v1.catalog.MaturitySummary.weighted_quality:type_name -> vrooli.react_component_library.v1.catalog.CoverageMetric
+	25, // 24: vrooli.react_component_library.v1.catalog.MaturitySummary.production_ready_coverage:type_name -> vrooli.react_component_library.v1.catalog.CoverageMetric
+	23, // 25: vrooli.react_component_library.v1.catalog.MaturitySummary.by_gate:type_name -> vrooli.react_component_library.v1.catalog.ScoreBreakdown
+	23, // 26: vrooli.react_component_library.v1.catalog.MaturitySummary.by_rung_score:type_name -> vrooli.react_component_library.v1.catalog.ScoreBreakdown
+	24, // 27: vrooli.react_component_library.v1.catalog.MaturitySummary.corpus:type_name -> vrooli.react_component_library.v1.catalog.CorpusStatus
+	20, // 28: vrooli.react_component_library.v1.catalog.CoverageReport.rows:type_name -> vrooli.react_component_library.v1.catalog.CoverageRow
+	47, // 29: vrooli.react_component_library.v1.catalog.CoverageReport.totals:type_name -> vrooli.react_component_library.v1.catalog.CoverageReport.TotalsEntry
+	21, // 30: vrooli.react_component_library.v1.catalog.CoverageReport.by_domain:type_name -> vrooli.react_component_library.v1.catalog.Rollup
+	21, // 31: vrooli.react_component_library.v1.catalog.CoverageReport.by_priority:type_name -> vrooli.react_component_library.v1.catalog.Rollup
+	22, // 32: vrooli.react_component_library.v1.catalog.CoverageReport.maturity:type_name -> vrooli.react_component_library.v1.catalog.MaturitySummary
+	26, // 33: vrooli.react_component_library.v1.catalog.GetCoverageResponse.report:type_name -> vrooli.react_component_library.v1.catalog.CoverageReport
+	20, // 34: vrooli.react_component_library.v1.catalog.ListNextWorkResponse.rows:type_name -> vrooli.react_component_library.v1.catalog.CoverageRow
+	22, // 35: vrooli.react_component_library.v1.catalog.ListNextWorkResponse.maturity:type_name -> vrooli.react_component_library.v1.catalog.MaturitySummary
+	20, // 36: vrooli.react_component_library.v1.catalog.ListNextWorkResponse.promote:type_name -> vrooli.react_component_library.v1.catalog.CoverageRow
+	20, // 37: vrooli.react_component_library.v1.catalog.ListNextWorkResponse.build:type_name -> vrooli.react_component_library.v1.catalog.CoverageRow
+	31, // 38: vrooli.react_component_library.v1.catalog.RunGateResponse.findings:type_name -> vrooli.react_component_library.v1.catalog.GateFinding
+	31, // 39: vrooli.react_component_library.v1.catalog.RunGateResponse.runner_errors:type_name -> vrooli.react_component_library.v1.catalog.GateFinding
+	33, // 40: vrooli.react_component_library.v1.catalog.RunGateResponse.calibration:type_name -> vrooli.react_component_library.v1.catalog.CalibrationResult
+	48, // 41: vrooli.react_component_library.v1.catalog.RunGateResponse.surface_verdict_counts:type_name -> vrooli.react_component_library.v1.catalog.RunGateResponse.SurfaceVerdictCountsEntry
+	35, // 42: vrooli.react_component_library.v1.catalog.ScoreHistoryPoint.events:type_name -> vrooli.react_component_library.v1.catalog.ScoreHistoryEvent
+	34, // 43: vrooli.react_component_library.v1.catalog.GetScoreHistoryResponse.points:type_name -> vrooli.react_component_library.v1.catalog.ScoreHistoryPoint
+	0,  // 44: vrooli.react_component_library.v1.catalog.HealthNode.asset:type_name -> vrooli.react_component_library.v1.catalog.AssetNode
+	26, // 45: vrooli.react_component_library.v1.catalog.GetHealthOverviewResponse.coverage:type_name -> vrooli.react_component_library.v1.catalog.CoverageReport
+	34, // 46: vrooli.react_component_library.v1.catalog.GetHealthOverviewResponse.history:type_name -> vrooli.react_component_library.v1.catalog.ScoreHistoryPoint
+	38, // 47: vrooli.react_component_library.v1.catalog.GetHealthOverviewResponse.nodes:type_name -> vrooli.react_component_library.v1.catalog.HealthNode
+	39, // 48: vrooli.react_component_library.v1.catalog.GetHealthOverviewResponse.edges:type_name -> vrooli.react_component_library.v1.catalog.HealthEdge
+	20, // 49: vrooli.react_component_library.v1.catalog.GetHealthOverviewResponse.promote:type_name -> vrooli.react_component_library.v1.catalog.CoverageRow
+	42, // 50: vrooli.react_component_library.v1.catalog.GetHealthOverviewResponse.kind_mismatches:type_name -> vrooli.react_component_library.v1.catalog.KindMismatch
+	19, // 51: vrooli.react_component_library.v1.catalog.CatalogService.GetCoverage:input_type -> vrooli.react_component_library.v1.catalog.GetCoverageRequest
+	28, // 52: vrooli.react_component_library.v1.catalog.CatalogService.ListNextWork:input_type -> vrooli.react_component_library.v1.catalog.ListNextWorkRequest
+	30, // 53: vrooli.react_component_library.v1.catalog.CatalogService.RunGate:input_type -> vrooli.react_component_library.v1.catalog.RunGateRequest
+	3,  // 54: vrooli.react_component_library.v1.catalog.CatalogService.GetAssetRelationships:input_type -> vrooli.react_component_library.v1.catalog.GetAssetRelationshipsRequest
+	5,  // 55: vrooli.react_component_library.v1.catalog.CatalogService.GetCatalogStructure:input_type -> vrooli.react_component_library.v1.catalog.GetCatalogStructureRequest
+	11, // 56: vrooli.react_component_library.v1.catalog.CatalogService.ReconcileGraph:input_type -> vrooli.react_component_library.v1.catalog.ReconcileGraphRequest
+	15, // 57: vrooli.react_component_library.v1.catalog.CatalogService.GetAssetPortContract:input_type -> vrooli.react_component_library.v1.catalog.GetAssetPortContractRequest
+	36, // 58: vrooli.react_component_library.v1.catalog.CatalogService.GetScoreHistory:input_type -> vrooli.react_component_library.v1.catalog.GetScoreHistoryRequest
+	40, // 59: vrooli.react_component_library.v1.catalog.CatalogService.GetHealthOverview:input_type -> vrooli.react_component_library.v1.catalog.GetHealthOverviewRequest
+	43, // 60: vrooli.react_component_library.v1.catalog.CatalogService.CaptureEvidence:input_type -> vrooli.react_component_library.v1.catalog.CaptureEvidenceRequest
+	27, // 61: vrooli.react_component_library.v1.catalog.CatalogService.GetCoverage:output_type -> vrooli.react_component_library.v1.catalog.GetCoverageResponse
+	29, // 62: vrooli.react_component_library.v1.catalog.CatalogService.ListNextWork:output_type -> vrooli.react_component_library.v1.catalog.ListNextWorkResponse
+	32, // 63: vrooli.react_component_library.v1.catalog.CatalogService.RunGate:output_type -> vrooli.react_component_library.v1.catalog.RunGateResponse
+	4,  // 64: vrooli.react_component_library.v1.catalog.CatalogService.GetAssetRelationships:output_type -> vrooli.react_component_library.v1.catalog.GetAssetRelationshipsResponse
+	10, // 65: vrooli.react_component_library.v1.catalog.CatalogService.GetCatalogStructure:output_type -> vrooli.react_component_library.v1.catalog.GetCatalogStructureResponse
+	14, // 66: vrooli.react_component_library.v1.catalog.CatalogService.ReconcileGraph:output_type -> vrooli.react_component_library.v1.catalog.ReconcileGraphResponse
+	18, // 67: vrooli.react_component_library.v1.catalog.CatalogService.GetAssetPortContract:output_type -> vrooli.react_component_library.v1.catalog.GetAssetPortContractResponse
+	37, // 68: vrooli.react_component_library.v1.catalog.CatalogService.GetScoreHistory:output_type -> vrooli.react_component_library.v1.catalog.GetScoreHistoryResponse
+	41, // 69: vrooli.react_component_library.v1.catalog.CatalogService.GetHealthOverview:output_type -> vrooli.react_component_library.v1.catalog.GetHealthOverviewResponse
+	44, // 70: vrooli.react_component_library.v1.catalog.CatalogService.CaptureEvidence:output_type -> vrooli.react_component_library.v1.catalog.CaptureEvidenceResponse
+	61, // [61:71] is the sub-list for method output_type
+	51, // [51:61] is the sub-list for method input_type
+	51, // [51:51] is the sub-list for extension type_name
+	51, // [51:51] is the sub-list for extension extendee
+	0,  // [0:51] is the sub-list for field type_name
 }
 
 func init() { file_react_component_library_v1_catalog_catalog_proto_init() }
@@ -2214,7 +3595,7 @@ func file_react_component_library_v1_catalog_catalog_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_react_component_library_v1_catalog_catalog_proto_rawDesc), len(file_react_component_library_v1_catalog_catalog_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   34,
+			NumMessages:   49,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

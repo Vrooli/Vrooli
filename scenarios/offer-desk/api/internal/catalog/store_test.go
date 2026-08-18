@@ -306,3 +306,56 @@ func TestMergeCollapsesDuplicateEdgeAndReportsIt(t *testing.T) { // [REQ:GRAPH-0
 	require.Len(t, edges, 1)
 	require.Equal(t, kept.Id, edges[0].Id)
 }
+
+// An imported node carries an empty actual_account_id, and before MapAccount
+// existed there was no way to set one — so the board reported "no ledger
+// account mapping" for every row forever and the actuals join could not fire.
+// [REQ:INT-002]
+func TestMapAccountAttachesAnImportedNodeAndAuditsTheChange(t *testing.T) {
+	s, ctx := testCatalog(t)
+	node, err := s.CreateNode(ctx, offerspb.NodeKind_OFFER, "business", offerspb.Status_ACTIVE, "", "")
+	require.NoError(t, err)
+	require.Empty(t, node.ActualAccountId, "a created node starts unmapped, as the importer leaves it")
+
+	mapped, prior, err := s.MapAccount(ctx, &offerspb.MapAccountRequest{
+		NodeId: node.Id, ActualAccountId: "acct-subscription-revenue", Actor: "operator", Reason: "adoption wiring",
+	})
+	require.NoError(t, err)
+	require.Equal(t, "acct-subscription-revenue", mapped.ActualAccountId)
+	require.Empty(t, prior)
+
+	var stored string
+	require.NoError(t, s.db.QueryRowContext(ctx, `SELECT actual_account_id FROM nodes WHERE id=?`, node.Id).Scan(&stored))
+	require.Equal(t, "acct-subscription-revenue", stored)
+
+	var audits int
+	require.NoError(t, s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM catalog_audit WHERE node_id=?`, node.Id).Scan(&audits))
+	require.Equal(t, 1, audits, "the mapping change must leave an audit row")
+
+	var reason string
+	require.NoError(t, s.db.QueryRowContext(ctx, `SELECT reason FROM catalog_audit WHERE node_id=?`, node.Id).Scan(&reason))
+	require.Contains(t, reason, "adoption wiring")
+	require.Contains(t, reason, "(unmapped)", "the audit must record what the mapping replaced")
+
+	// Remapping records the prior value rather than overwriting history.
+	_, prior, err = s.MapAccount(ctx, &offerspb.MapAccountRequest{
+		NodeId: node.Id, ActualAccountId: "acct-services-revenue", Actor: "operator",
+	})
+	require.NoError(t, err)
+	require.Equal(t, "acct-subscription-revenue", prior)
+
+	require.NoError(t, s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM catalog_audit WHERE node_id=?`, node.Id).Scan(&audits))
+	require.Equal(t, 2, audits, "corrections are new audit entries, never edits")
+}
+
+func TestMapAccountRefusesAnUnknownNodeAndRequiresAnActor(t *testing.T) {
+	s, ctx := testCatalog(t)
+	node, err := s.CreateNode(ctx, offerspb.NodeKind_OFFER, "business", offerspb.Status_IDEA, "", "")
+	require.NoError(t, err)
+
+	_, _, err = s.MapAccount(ctx, &offerspb.MapAccountRequest{NodeId: "missing", ActualAccountId: "x", Actor: "operator"})
+	require.Error(t, err)
+
+	_, _, err = s.MapAccount(ctx, &offerspb.MapAccountRequest{NodeId: node.Id, ActualAccountId: "x"})
+	require.ErrorContains(t, err, "actor")
+}

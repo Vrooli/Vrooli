@@ -470,17 +470,17 @@ var File_vrooli_events_v1_domain_envelope_proto protoreflect.FileDescriptor
 
 const file_vrooli_events_v1_domain_envelope_proto_rawDesc = "" +
 	"\n" +
-	"&vrooli-events/v1/domain/envelope.proto\x12\x17vrooli.events.v1.domain\x1a\x19google/protobuf/any.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xc6\x03\n" +
+	"&vrooli-events/v1/domain/envelope.proto\x12\x1evrooli.vrooli_events.v1.domain\x1a\x19google/protobuf/any.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xe2\x03\n" +
 	"\rEventEnvelope\x12\x19\n" +
 	"\bevent_id\x18\x01 \x01(\tR\aeventId\x12\x1d\n" +
 	"\n" +
 	"event_type\x18\x02 \x01(\tR\teventType\x12;\n" +
 	"\voccurred_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
-	"occurredAt\x12<\n" +
-	"\x06source\x18\x04 \x01(\v2$.vrooli.events.v1.domain.EventSourceR\x06source\x12<\n" +
-	"\x06target\x18\x05 \x01(\v2$.vrooli.events.v1.domain.EventTargetR\x06target\x12K\n" +
-	"\vcorrelation\x18\x06 \x01(\v2).vrooli.events.v1.domain.EventCorrelationR\vcorrelation\x12K\n" +
-	"\vattribution\x18\a \x01(\v2).vrooli.events.v1.domain.EventAttributionR\vattribution\x12(\n" +
+	"occurredAt\x12C\n" +
+	"\x06source\x18\x04 \x01(\v2+.vrooli.vrooli_events.v1.domain.EventSourceR\x06source\x12C\n" +
+	"\x06target\x18\x05 \x01(\v2+.vrooli.vrooli_events.v1.domain.EventTargetR\x06target\x12R\n" +
+	"\vcorrelation\x18\x06 \x01(\v20.vrooli.vrooli_events.v1.domain.EventCorrelationR\vcorrelation\x12R\n" +
+	"\vattribution\x18\a \x01(\v20.vrooli.vrooli_events.v1.domain.EventAttributionR\vattribution\x12(\n" +
 	"\x04data\x18\b \x01(\v2\x14.google.protobuf.AnyR\x04data\"H\n" +
 	"\vEventSource\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x1d\n" +
@@ -530,24 +530,24 @@ func file_vrooli_events_v1_domain_envelope_proto_rawDescGZIP() []byte {
 
 var file_vrooli_events_v1_domain_envelope_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_vrooli_events_v1_domain_envelope_proto_goTypes = []any{
-	(*EventEnvelope)(nil),         // 0: vrooli.events.v1.domain.EventEnvelope
-	(*EventSource)(nil),           // 1: vrooli.events.v1.domain.EventSource
-	(*EventTarget)(nil),           // 2: vrooli.events.v1.domain.EventTarget
-	(*EventCorrelation)(nil),      // 3: vrooli.events.v1.domain.EventCorrelation
-	(*EventAttribution)(nil),      // 4: vrooli.events.v1.domain.EventAttribution
-	(*ReceiptData)(nil),           // 5: vrooli.events.v1.domain.ReceiptData
+	(*EventEnvelope)(nil),         // 0: vrooli.vrooli_events.v1.domain.EventEnvelope
+	(*EventSource)(nil),           // 1: vrooli.vrooli_events.v1.domain.EventSource
+	(*EventTarget)(nil),           // 2: vrooli.vrooli_events.v1.domain.EventTarget
+	(*EventCorrelation)(nil),      // 3: vrooli.vrooli_events.v1.domain.EventCorrelation
+	(*EventAttribution)(nil),      // 4: vrooli.vrooli_events.v1.domain.EventAttribution
+	(*ReceiptData)(nil),           // 5: vrooli.vrooli_events.v1.domain.ReceiptData
 	(*timestamppb.Timestamp)(nil), // 6: google.protobuf.Timestamp
 	(*anypb.Any)(nil),             // 7: google.protobuf.Any
 	(*structpb.Struct)(nil),       // 8: google.protobuf.Struct
 }
 var file_vrooli_events_v1_domain_envelope_proto_depIdxs = []int32{
-	6, // 0: vrooli.events.v1.domain.EventEnvelope.occurred_at:type_name -> google.protobuf.Timestamp
-	1, // 1: vrooli.events.v1.domain.EventEnvelope.source:type_name -> vrooli.events.v1.domain.EventSource
-	2, // 2: vrooli.events.v1.domain.EventEnvelope.target:type_name -> vrooli.events.v1.domain.EventTarget
-	3, // 3: vrooli.events.v1.domain.EventEnvelope.correlation:type_name -> vrooli.events.v1.domain.EventCorrelation
-	4, // 4: vrooli.events.v1.domain.EventEnvelope.attribution:type_name -> vrooli.events.v1.domain.EventAttribution
-	7, // 5: vrooli.events.v1.domain.EventEnvelope.data:type_name -> google.protobuf.Any
-	8, // 6: vrooli.events.v1.domain.ReceiptData.projection:type_name -> google.protobuf.Struct
+	6, // 0: vrooli.vrooli_events.v1.domain.EventEnvelope.occurred_at:type_name -> google.protobuf.Timestamp
+	1, // 1: vrooli.vrooli_events.v1.domain.EventEnvelope.source:type_name -> vrooli.vrooli_events.v1.domain.EventSource
+	2, // 2: vrooli.vrooli_events.v1.domain.EventEnvelope.target:type_name -> vrooli.vrooli_events.v1.domain.EventTarget
+	3, // 3: vrooli.vrooli_events.v1.domain.EventEnvelope.correlation:type_name -> vrooli.vrooli_events.v1.domain.EventCorrelation
+	4, // 4: vrooli.vrooli_events.v1.domain.EventEnvelope.attribution:type_name -> vrooli.vrooli_events.v1.domain.EventAttribution
+	7, // 5: vrooli.vrooli_events.v1.domain.EventEnvelope.data:type_name -> google.protobuf.Any
+	8, // 6: vrooli.vrooli_events.v1.domain.ReceiptData.projection:type_name -> google.protobuf.Struct
 	7, // [7:7] is the sub-list for method output_type
 	7, // [7:7] is the sub-list for method input_type
 	7, // [7:7] is the sub-list for extension type_name

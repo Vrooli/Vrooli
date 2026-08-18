@@ -2,6 +2,7 @@ package offers
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -83,11 +84,42 @@ func (h *handlers) space(c cliapp.OperationContext) (*offerspb.SpaceResponse, er
 }
 
 func (h *handlers) create(c cliapp.OperationContext) (*offerspb.CreateNodeResponse, error) {
-	r, e := h.c.CreateNode(context.Background(), connect.NewRequest(&offerspb.CreateNodeRequest{Name: c.Flag("name"), Kind: offerspb.NodeKind_OFFER, ActualAccountId: c.Flag("actual-account-id")}))
+	// Kind was previously hardcoded to OFFER, so no deliverable, channel,
+	// variant, or revenue-line node could be created outside the importer.
+	kind, err := parseKind(c.Flag("kind"))
+	if err != nil {
+		return nil, err
+	}
+	status := offerspb.Status_IDEA
+	if raw := strings.TrimSpace(c.Flag("status")); raw != "" {
+		status = parseStatus(raw)
+	}
+	r, e := h.c.CreateNode(context.Background(), connect.NewRequest(&offerspb.CreateNodeRequest{
+		Name: c.Flag("name"), Kind: kind, Status: status, ActualAccountId: c.Flag("actual-account-id"),
+	}))
 	if e != nil {
 		return nil, e
 	}
 	return r.Msg, nil
+}
+
+// parseKind refuses an unrecognised kind rather than defaulting, because a
+// silent default would file a record under the wrong half of the graph.
+func parseKind(v string) (offerspb.NodeKind, error) {
+	switch strings.ToLower(strings.TrimSpace(v)) {
+	case "", "offer":
+		return offerspb.NodeKind_OFFER, nil
+	case "variant":
+		return offerspb.NodeKind_VARIANT, nil
+	case "channel":
+		return offerspb.NodeKind_CHANNEL, nil
+	case "revenue-line", "revenue_line":
+		return offerspb.NodeKind_REVENUE_LINE, nil
+	case "deliverable":
+		return offerspb.NodeKind_DELIVERABLE, nil
+	default:
+		return offerspb.NodeKind_OFFER, fmt.Errorf("unknown node kind %q; expected offer, variant, channel, revenue-line, or deliverable", v)
+	}
 }
 
 func (h *handlers) transition(c cliapp.OperationContext) (*offerspb.TransitionResponse, error) {
@@ -115,7 +147,32 @@ func (h *handlers) edgesList(_ cliapp.OperationContext) (*offerspb.ListEdgesResp
 }
 
 func (h *handlers) trigger(c cliapp.OperationContext) (*offerspb.DeclareTriggerResponse, error) {
-	r, e := h.g.DeclareTrigger(context.Background(), connect.NewRequest(&offerspb.DeclareTriggerRequest{Trigger: &offerspb.Trigger{NodeId: c.Flag("node-id"), FactName: c.Flag("fact-name"), Operator: c.Flag("operator"), Threshold: parseFloat(c.Flag("threshold"))}}))
+	trigger := &offerspb.Trigger{NodeId: c.Flag("node-id"), FactName: c.Flag("fact-name"), Operator: c.Flag("operator"), Threshold: parseFloat(c.Flag("threshold"))}
+	// The store already supports multi-clause triggers, but the CLI could only
+	// declare a single clause — so a real revisit condition with more than one
+	// part could not be filed as a record at all.
+	if raw := strings.TrimSpace(c.Flag("clauses")); raw != "" {
+		var clauses []struct {
+			FactName  string  `json:"fact_name"`
+			Operator  string  `json:"operator"`
+			Threshold float64 `json:"threshold"`
+		}
+		if err := json.Unmarshal([]byte(raw), &clauses); err != nil {
+			return nil, fmt.Errorf("parse --clauses as JSON array of {fact_name,operator,threshold}: %w", err)
+		}
+		for _, clause := range clauses {
+			trigger.Clauses = append(trigger.Clauses, &offerspb.TriggerClause{FactName: clause.FactName, Operator: clause.Operator, Threshold: clause.Threshold})
+		}
+	}
+	switch strings.ToLower(strings.TrimSpace(c.Flag("composition"))) {
+	case "", "all":
+		trigger.Composition = offerspb.TriggerComposition_ALL
+	case "any":
+		trigger.Composition = offerspb.TriggerComposition_ANY
+	default:
+		return nil, fmt.Errorf("unknown --composition %q; expected all or any", c.Flag("composition"))
+	}
+	r, e := h.g.DeclareTrigger(context.Background(), connect.NewRequest(&offerspb.DeclareTriggerRequest{Trigger: trigger}))
 	if e != nil {
 		return nil, e
 	}
@@ -217,6 +274,28 @@ func boardReport(_ cliapp.OperationContext, m *offerspb.BoardResponse) cliapp.Li
 
 func catalogImportReport(_ cliapp.OperationContext, m *offerspb.ImportCatalogResponse) cliapp.MutationReport {
 	return cliapp.MutationReport{Result: []string{fmt.Sprintf("Catalog import inspected %d source file(s), applied=%t, findings=%d.", len(m.Files), m.Applied, m.TotalFindings)}}
+}
+
+func (h *handlers) catalogMapAccount(c cliapp.OperationContext) (*offerspb.MapAccountResponse, error) {
+	r, err := h.c.MapAccount(context.Background(), connect.NewRequest(&offerspb.MapAccountRequest{
+		NodeId: c.Flag("node-id"), ActualAccountId: c.Flag("account-id"), Actor: "operator", Reason: c.Flag("reason"),
+	}))
+	if err != nil {
+		return nil, err
+	}
+	return r.Msg, nil
+}
+
+func catalogMapAccountReport(_ cliapp.OperationContext, m *offerspb.MapAccountResponse) cliapp.MutationReport {
+	prior := m.PriorAccountId
+	if strings.TrimSpace(prior) == "" {
+		prior = "(unmapped)"
+	}
+	next := m.Node.GetActualAccountId()
+	if strings.TrimSpace(next) == "" {
+		next = "(unmapped)"
+	}
+	return cliapp.MutationReport{Result: []string{fmt.Sprintf("Mapped %s (%s): %s -> %s.", m.Node.GetName(), m.Node.GetId(), prior, next)}}
 }
 
 func catalogMergeReport(_ cliapp.OperationContext, m *offerspb.MergeNodesResponse) cliapp.MutationReport {

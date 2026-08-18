@@ -81,6 +81,58 @@ func (SessionOrigin) EnumDescriptor() ([]byte, []int) {
 	return file_web_console_v1_sessions_sessions_proto_rawDescGZIP(), []int{0}
 }
 
+type ArchiveRestoreState int32
+
+const (
+	ArchiveRestoreState_ARCHIVE_RESTORE_STATE_UNSPECIFIED        ArchiveRestoreState = 0
+	ArchiveRestoreState_ARCHIVE_RESTORE_STATE_REOPENABLE         ArchiveRestoreState = 1
+	ArchiveRestoreState_ARCHIVE_RESTORE_STATE_READ_ONLY          ArchiveRestoreState = 2
+	ArchiveRestoreState_ARCHIVE_RESTORE_STATE_NOTHING_TO_RESTORE ArchiveRestoreState = 3
+)
+
+// Enum value maps for ArchiveRestoreState.
+var (
+	ArchiveRestoreState_name = map[int32]string{
+		0: "ARCHIVE_RESTORE_STATE_UNSPECIFIED",
+		1: "ARCHIVE_RESTORE_STATE_REOPENABLE",
+		2: "ARCHIVE_RESTORE_STATE_READ_ONLY",
+		3: "ARCHIVE_RESTORE_STATE_NOTHING_TO_RESTORE",
+	}
+	ArchiveRestoreState_value = map[string]int32{
+		"ARCHIVE_RESTORE_STATE_UNSPECIFIED":        0,
+		"ARCHIVE_RESTORE_STATE_REOPENABLE":         1,
+		"ARCHIVE_RESTORE_STATE_READ_ONLY":          2,
+		"ARCHIVE_RESTORE_STATE_NOTHING_TO_RESTORE": 3,
+	}
+)
+
+func (x ArchiveRestoreState) Enum() *ArchiveRestoreState {
+	p := new(ArchiveRestoreState)
+	*p = x
+	return p
+}
+
+func (x ArchiveRestoreState) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ArchiveRestoreState) Descriptor() protoreflect.EnumDescriptor {
+	return file_web_console_v1_sessions_sessions_proto_enumTypes[1].Descriptor()
+}
+
+func (ArchiveRestoreState) Type() protoreflect.EnumType {
+	return &file_web_console_v1_sessions_sessions_proto_enumTypes[1]
+}
+
+func (x ArchiveRestoreState) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ArchiveRestoreState.Descriptor instead.
+func (ArchiveRestoreState) EnumDescriptor() ([]byte, []int) {
+	return file_web_console_v1_sessions_sessions_proto_rawDescGZIP(), []int{1}
+}
+
 // ExpirationPolicy controls when a session ends. mode is one of
 // "never" | "preset" | "custom"; duration is Go-style "1h30m" only when
 // mode is "custom".
@@ -741,6 +793,226 @@ func (x *ListResponse) GetRecovery() *RecoveryStatus {
 	return nil
 }
 
+type ArchivedSession struct {
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	Id                 string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	ArchivedAt         string                 `protobuf:"bytes,2,opt,name=archived_at,json=archivedAt,proto3" json:"archived_at,omitempty"`
+	CreatedAt          string                 `protobuf:"bytes,3,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	AgentType          string                 `protobuf:"bytes,4,opt,name=agent_type,json=agentType,proto3" json:"agent_type,omitempty"`
+	AgentSessionId     string                 `protobuf:"bytes,5,opt,name=agent_session_id,json=agentSessionId,proto3" json:"agent_session_id,omitempty"`
+	Cwd                string                 `protobuf:"bytes,6,opt,name=cwd,proto3" json:"cwd,omitempty"`
+	PaneName           string                 `protobuf:"bytes,7,opt,name=pane_name,json=paneName,proto3" json:"pane_name,omitempty"`
+	HeaderColor        string                 `protobuf:"bytes,8,opt,name=header_color,json=headerColor,proto3" json:"header_color,omitempty"`
+	GroupName          string                 `protobuf:"bytes,9,opt,name=group_name,json=groupName,proto3" json:"group_name,omitempty"`
+	MessageCount       int64                  `protobuf:"varint,10,opt,name=message_count,json=messageCount,proto3" json:"message_count,omitempty"`
+	RestoreState       ArchiveRestoreState    `protobuf:"varint,11,opt,name=restore_state,json=restoreState,proto3,enum=vrooli.web_console.v1.sessions.ArchiveRestoreState" json:"restore_state,omitempty"`
+	RestoreStateReason string                 `protobuf:"bytes,12,opt,name=restore_state_reason,json=restoreStateReason,proto3" json:"restore_state_reason,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
+}
+
+func (x *ArchivedSession) Reset() {
+	*x = ArchivedSession{}
+	mi := &file_web_console_v1_sessions_sessions_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ArchivedSession) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ArchivedSession) ProtoMessage() {}
+
+func (x *ArchivedSession) ProtoReflect() protoreflect.Message {
+	mi := &file_web_console_v1_sessions_sessions_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ArchivedSession.ProtoReflect.Descriptor instead.
+func (*ArchivedSession) Descriptor() ([]byte, []int) {
+	return file_web_console_v1_sessions_sessions_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *ArchivedSession) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *ArchivedSession) GetArchivedAt() string {
+	if x != nil {
+		return x.ArchivedAt
+	}
+	return ""
+}
+
+func (x *ArchivedSession) GetCreatedAt() string {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return ""
+}
+
+func (x *ArchivedSession) GetAgentType() string {
+	if x != nil {
+		return x.AgentType
+	}
+	return ""
+}
+
+func (x *ArchivedSession) GetAgentSessionId() string {
+	if x != nil {
+		return x.AgentSessionId
+	}
+	return ""
+}
+
+func (x *ArchivedSession) GetCwd() string {
+	if x != nil {
+		return x.Cwd
+	}
+	return ""
+}
+
+func (x *ArchivedSession) GetPaneName() string {
+	if x != nil {
+		return x.PaneName
+	}
+	return ""
+}
+
+func (x *ArchivedSession) GetHeaderColor() string {
+	if x != nil {
+		return x.HeaderColor
+	}
+	return ""
+}
+
+func (x *ArchivedSession) GetGroupName() string {
+	if x != nil {
+		return x.GroupName
+	}
+	return ""
+}
+
+func (x *ArchivedSession) GetMessageCount() int64 {
+	if x != nil {
+		return x.MessageCount
+	}
+	return 0
+}
+
+func (x *ArchivedSession) GetRestoreState() ArchiveRestoreState {
+	if x != nil {
+		return x.RestoreState
+	}
+	return ArchiveRestoreState_ARCHIVE_RESTORE_STATE_UNSPECIFIED
+}
+
+func (x *ArchivedSession) GetRestoreStateReason() string {
+	if x != nil {
+		return x.RestoreStateReason
+	}
+	return ""
+}
+
+type ListArchivedRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListArchivedRequest) Reset() {
+	*x = ListArchivedRequest{}
+	mi := &file_web_console_v1_sessions_sessions_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListArchivedRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListArchivedRequest) ProtoMessage() {}
+
+func (x *ListArchivedRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_web_console_v1_sessions_sessions_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListArchivedRequest.ProtoReflect.Descriptor instead.
+func (*ListArchivedRequest) Descriptor() ([]byte, []int) {
+	return file_web_console_v1_sessions_sessions_proto_rawDescGZIP(), []int{8}
+}
+
+type ListArchivedResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Sessions      []*ArchivedSession     `protobuf:"bytes,1,rep,name=sessions,proto3" json:"sessions,omitempty"`
+	Total         int32                  `protobuf:"varint,2,opt,name=total,proto3" json:"total,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListArchivedResponse) Reset() {
+	*x = ListArchivedResponse{}
+	mi := &file_web_console_v1_sessions_sessions_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListArchivedResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListArchivedResponse) ProtoMessage() {}
+
+func (x *ListArchivedResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_web_console_v1_sessions_sessions_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListArchivedResponse.ProtoReflect.Descriptor instead.
+func (*ListArchivedResponse) Descriptor() ([]byte, []int) {
+	return file_web_console_v1_sessions_sessions_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *ListArchivedResponse) GetSessions() []*ArchivedSession {
+	if x != nil {
+		return x.Sessions
+	}
+	return nil
+}
+
+func (x *ListArchivedResponse) GetTotal() int32 {
+	if x != nil {
+		return x.Total
+	}
+	return 0
+}
+
 // RecoveryStatus is a snapshot of startup persistent-session recovery.
 type RecoveryStatus struct {
 	state      protoimpl.MessageState `protogen:"open.v1"`
@@ -760,7 +1032,7 @@ type RecoveryStatus struct {
 
 func (x *RecoveryStatus) Reset() {
 	*x = RecoveryStatus{}
-	mi := &file_web_console_v1_sessions_sessions_proto_msgTypes[7]
+	mi := &file_web_console_v1_sessions_sessions_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -772,7 +1044,7 @@ func (x *RecoveryStatus) String() string {
 func (*RecoveryStatus) ProtoMessage() {}
 
 func (x *RecoveryStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_web_console_v1_sessions_sessions_proto_msgTypes[7]
+	mi := &file_web_console_v1_sessions_sessions_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -785,7 +1057,7 @@ func (x *RecoveryStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RecoveryStatus.ProtoReflect.Descriptor instead.
 func (*RecoveryStatus) Descriptor() ([]byte, []int) {
-	return file_web_console_v1_sessions_sessions_proto_rawDescGZIP(), []int{7}
+	return file_web_console_v1_sessions_sessions_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *RecoveryStatus) GetInProgress() bool {
@@ -846,7 +1118,7 @@ type GetRequest struct {
 
 func (x *GetRequest) Reset() {
 	*x = GetRequest{}
-	mi := &file_web_console_v1_sessions_sessions_proto_msgTypes[8]
+	mi := &file_web_console_v1_sessions_sessions_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -858,7 +1130,7 @@ func (x *GetRequest) String() string {
 func (*GetRequest) ProtoMessage() {}
 
 func (x *GetRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_web_console_v1_sessions_sessions_proto_msgTypes[8]
+	mi := &file_web_console_v1_sessions_sessions_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -871,7 +1143,7 @@ func (x *GetRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRequest.ProtoReflect.Descriptor instead.
 func (*GetRequest) Descriptor() ([]byte, []int) {
-	return file_web_console_v1_sessions_sessions_proto_rawDescGZIP(), []int{8}
+	return file_web_console_v1_sessions_sessions_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *GetRequest) GetId() string {
@@ -890,7 +1162,7 @@ type GetResponse struct {
 
 func (x *GetResponse) Reset() {
 	*x = GetResponse{}
-	mi := &file_web_console_v1_sessions_sessions_proto_msgTypes[9]
+	mi := &file_web_console_v1_sessions_sessions_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -902,7 +1174,7 @@ func (x *GetResponse) String() string {
 func (*GetResponse) ProtoMessage() {}
 
 func (x *GetResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_web_console_v1_sessions_sessions_proto_msgTypes[9]
+	mi := &file_web_console_v1_sessions_sessions_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -915,7 +1187,7 @@ func (x *GetResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetResponse.ProtoReflect.Descriptor instead.
 func (*GetResponse) Descriptor() ([]byte, []int) {
-	return file_web_console_v1_sessions_sessions_proto_rawDescGZIP(), []int{9}
+	return file_web_console_v1_sessions_sessions_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *GetResponse) GetSession() *Session {
@@ -923,6 +1195,182 @@ func (x *GetResponse) GetSession() *Session {
 		return x.Session
 	}
 	return nil
+}
+
+type ArchiveRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ArchiveRequest) Reset() {
+	*x = ArchiveRequest{}
+	mi := &file_web_console_v1_sessions_sessions_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ArchiveRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ArchiveRequest) ProtoMessage() {}
+
+func (x *ArchiveRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_web_console_v1_sessions_sessions_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ArchiveRequest.ProtoReflect.Descriptor instead.
+func (*ArchiveRequest) Descriptor() ([]byte, []int) {
+	return file_web_console_v1_sessions_sessions_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *ArchiveRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+type ArchiveResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ArchiveResponse) Reset() {
+	*x = ArchiveResponse{}
+	mi := &file_web_console_v1_sessions_sessions_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ArchiveResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ArchiveResponse) ProtoMessage() {}
+
+func (x *ArchiveResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_web_console_v1_sessions_sessions_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ArchiveResponse.ProtoReflect.Descriptor instead.
+func (*ArchiveResponse) Descriptor() ([]byte, []int) {
+	return file_web_console_v1_sessions_sessions_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *ArchiveResponse) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+type UnarchiveRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UnarchiveRequest) Reset() {
+	*x = UnarchiveRequest{}
+	mi := &file_web_console_v1_sessions_sessions_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UnarchiveRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UnarchiveRequest) ProtoMessage() {}
+
+func (x *UnarchiveRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_web_console_v1_sessions_sessions_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UnarchiveRequest.ProtoReflect.Descriptor instead.
+func (*UnarchiveRequest) Descriptor() ([]byte, []int) {
+	return file_web_console_v1_sessions_sessions_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *UnarchiveRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+type UnarchiveResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UnarchiveResponse) Reset() {
+	*x = UnarchiveResponse{}
+	mi := &file_web_console_v1_sessions_sessions_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UnarchiveResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UnarchiveResponse) ProtoMessage() {}
+
+func (x *UnarchiveResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_web_console_v1_sessions_sessions_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UnarchiveResponse.ProtoReflect.Descriptor instead.
+func (*UnarchiveResponse) Descriptor() ([]byte, []int) {
+	return file_web_console_v1_sessions_sessions_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *UnarchiveResponse) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
 }
 
 type DeleteRequest struct {
@@ -934,7 +1382,7 @@ type DeleteRequest struct {
 
 func (x *DeleteRequest) Reset() {
 	*x = DeleteRequest{}
-	mi := &file_web_console_v1_sessions_sessions_proto_msgTypes[10]
+	mi := &file_web_console_v1_sessions_sessions_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -946,7 +1394,7 @@ func (x *DeleteRequest) String() string {
 func (*DeleteRequest) ProtoMessage() {}
 
 func (x *DeleteRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_web_console_v1_sessions_sessions_proto_msgTypes[10]
+	mi := &file_web_console_v1_sessions_sessions_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -959,7 +1407,7 @@ func (x *DeleteRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteRequest.ProtoReflect.Descriptor instead.
 func (*DeleteRequest) Descriptor() ([]byte, []int) {
-	return file_web_console_v1_sessions_sessions_proto_rawDescGZIP(), []int{10}
+	return file_web_console_v1_sessions_sessions_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *DeleteRequest) GetId() string {
@@ -977,7 +1425,7 @@ type DeleteResponse struct {
 
 func (x *DeleteResponse) Reset() {
 	*x = DeleteResponse{}
-	mi := &file_web_console_v1_sessions_sessions_proto_msgTypes[11]
+	mi := &file_web_console_v1_sessions_sessions_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -989,7 +1437,7 @@ func (x *DeleteResponse) String() string {
 func (*DeleteResponse) ProtoMessage() {}
 
 func (x *DeleteResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_web_console_v1_sessions_sessions_proto_msgTypes[11]
+	mi := &file_web_console_v1_sessions_sessions_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1002,7 +1450,7 @@ func (x *DeleteResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteResponse.ProtoReflect.Descriptor instead.
 func (*DeleteResponse) Descriptor() ([]byte, []int) {
-	return file_web_console_v1_sessions_sessions_proto_rawDescGZIP(), []int{11}
+	return file_web_console_v1_sessions_sessions_proto_rawDescGZIP(), []int{18}
 }
 
 type ListRecoverableRequest struct {
@@ -1013,7 +1461,7 @@ type ListRecoverableRequest struct {
 
 func (x *ListRecoverableRequest) Reset() {
 	*x = ListRecoverableRequest{}
-	mi := &file_web_console_v1_sessions_sessions_proto_msgTypes[12]
+	mi := &file_web_console_v1_sessions_sessions_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1025,7 +1473,7 @@ func (x *ListRecoverableRequest) String() string {
 func (*ListRecoverableRequest) ProtoMessage() {}
 
 func (x *ListRecoverableRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_web_console_v1_sessions_sessions_proto_msgTypes[12]
+	mi := &file_web_console_v1_sessions_sessions_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1038,7 +1486,7 @@ func (x *ListRecoverableRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListRecoverableRequest.ProtoReflect.Descriptor instead.
 func (*ListRecoverableRequest) Descriptor() ([]byte, []int) {
-	return file_web_console_v1_sessions_sessions_proto_rawDescGZIP(), []int{12}
+	return file_web_console_v1_sessions_sessions_proto_rawDescGZIP(), []int{19}
 }
 
 type ListRecoverableResponse struct {
@@ -1050,7 +1498,7 @@ type ListRecoverableResponse struct {
 
 func (x *ListRecoverableResponse) Reset() {
 	*x = ListRecoverableResponse{}
-	mi := &file_web_console_v1_sessions_sessions_proto_msgTypes[13]
+	mi := &file_web_console_v1_sessions_sessions_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1062,7 +1510,7 @@ func (x *ListRecoverableResponse) String() string {
 func (*ListRecoverableResponse) ProtoMessage() {}
 
 func (x *ListRecoverableResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_web_console_v1_sessions_sessions_proto_msgTypes[13]
+	mi := &file_web_console_v1_sessions_sessions_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1075,7 +1523,7 @@ func (x *ListRecoverableResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListRecoverableResponse.ProtoReflect.Descriptor instead.
 func (*ListRecoverableResponse) Descriptor() ([]byte, []int) {
-	return file_web_console_v1_sessions_sessions_proto_rawDescGZIP(), []int{13}
+	return file_web_console_v1_sessions_sessions_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *ListRecoverableResponse) GetSessions() []*RecoverableSession {
@@ -1094,7 +1542,7 @@ type DismissRecoverableRequest struct {
 
 func (x *DismissRecoverableRequest) Reset() {
 	*x = DismissRecoverableRequest{}
-	mi := &file_web_console_v1_sessions_sessions_proto_msgTypes[14]
+	mi := &file_web_console_v1_sessions_sessions_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1106,7 +1554,7 @@ func (x *DismissRecoverableRequest) String() string {
 func (*DismissRecoverableRequest) ProtoMessage() {}
 
 func (x *DismissRecoverableRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_web_console_v1_sessions_sessions_proto_msgTypes[14]
+	mi := &file_web_console_v1_sessions_sessions_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1119,7 +1567,7 @@ func (x *DismissRecoverableRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DismissRecoverableRequest.ProtoReflect.Descriptor instead.
 func (*DismissRecoverableRequest) Descriptor() ([]byte, []int) {
-	return file_web_console_v1_sessions_sessions_proto_rawDescGZIP(), []int{14}
+	return file_web_console_v1_sessions_sessions_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *DismissRecoverableRequest) GetId() string {
@@ -1138,7 +1586,7 @@ type DismissRecoverableResponse struct {
 
 func (x *DismissRecoverableResponse) Reset() {
 	*x = DismissRecoverableResponse{}
-	mi := &file_web_console_v1_sessions_sessions_proto_msgTypes[15]
+	mi := &file_web_console_v1_sessions_sessions_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1150,7 +1598,7 @@ func (x *DismissRecoverableResponse) String() string {
 func (*DismissRecoverableResponse) ProtoMessage() {}
 
 func (x *DismissRecoverableResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_web_console_v1_sessions_sessions_proto_msgTypes[15]
+	mi := &file_web_console_v1_sessions_sessions_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1163,7 +1611,7 @@ func (x *DismissRecoverableResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DismissRecoverableResponse.ProtoReflect.Descriptor instead.
 func (*DismissRecoverableResponse) Descriptor() ([]byte, []int) {
-	return file_web_console_v1_sessions_sessions_proto_rawDescGZIP(), []int{15}
+	return file_web_console_v1_sessions_sessions_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *DismissRecoverableResponse) GetId() string {
@@ -1182,7 +1630,7 @@ type RecoverRequest struct {
 
 func (x *RecoverRequest) Reset() {
 	*x = RecoverRequest{}
-	mi := &file_web_console_v1_sessions_sessions_proto_msgTypes[16]
+	mi := &file_web_console_v1_sessions_sessions_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1194,7 +1642,7 @@ func (x *RecoverRequest) String() string {
 func (*RecoverRequest) ProtoMessage() {}
 
 func (x *RecoverRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_web_console_v1_sessions_sessions_proto_msgTypes[16]
+	mi := &file_web_console_v1_sessions_sessions_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1207,7 +1655,7 @@ func (x *RecoverRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RecoverRequest.ProtoReflect.Descriptor instead.
 func (*RecoverRequest) Descriptor() ([]byte, []int) {
-	return file_web_console_v1_sessions_sessions_proto_rawDescGZIP(), []int{16}
+	return file_web_console_v1_sessions_sessions_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *RecoverRequest) GetId() string {
@@ -1230,7 +1678,7 @@ type RecoverResponse struct {
 
 func (x *RecoverResponse) Reset() {
 	*x = RecoverResponse{}
-	mi := &file_web_console_v1_sessions_sessions_proto_msgTypes[17]
+	mi := &file_web_console_v1_sessions_sessions_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1242,7 +1690,7 @@ func (x *RecoverResponse) String() string {
 func (*RecoverResponse) ProtoMessage() {}
 
 func (x *RecoverResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_web_console_v1_sessions_sessions_proto_msgTypes[17]
+	mi := &file_web_console_v1_sessions_sessions_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1255,7 +1703,7 @@ func (x *RecoverResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RecoverResponse.ProtoReflect.Descriptor instead.
 func (*RecoverResponse) Descriptor() ([]byte, []int) {
-	return file_web_console_v1_sessions_sessions_proto_rawDescGZIP(), []int{17}
+	return file_web_console_v1_sessions_sessions_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *RecoverResponse) GetOldSessionId() string {
@@ -1302,7 +1750,7 @@ type GetPolicyRequest struct {
 
 func (x *GetPolicyRequest) Reset() {
 	*x = GetPolicyRequest{}
-	mi := &file_web_console_v1_sessions_sessions_proto_msgTypes[18]
+	mi := &file_web_console_v1_sessions_sessions_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1314,7 +1762,7 @@ func (x *GetPolicyRequest) String() string {
 func (*GetPolicyRequest) ProtoMessage() {}
 
 func (x *GetPolicyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_web_console_v1_sessions_sessions_proto_msgTypes[18]
+	mi := &file_web_console_v1_sessions_sessions_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1327,7 +1775,7 @@ func (x *GetPolicyRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetPolicyRequest.ProtoReflect.Descriptor instead.
 func (*GetPolicyRequest) Descriptor() ([]byte, []int) {
-	return file_web_console_v1_sessions_sessions_proto_rawDescGZIP(), []int{18}
+	return file_web_console_v1_sessions_sessions_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *GetPolicyRequest) GetId() string {
@@ -1352,7 +1800,7 @@ type PolicyView struct {
 
 func (x *PolicyView) Reset() {
 	*x = PolicyView{}
-	mi := &file_web_console_v1_sessions_sessions_proto_msgTypes[19]
+	mi := &file_web_console_v1_sessions_sessions_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1364,7 +1812,7 @@ func (x *PolicyView) String() string {
 func (*PolicyView) ProtoMessage() {}
 
 func (x *PolicyView) ProtoReflect() protoreflect.Message {
-	mi := &file_web_console_v1_sessions_sessions_proto_msgTypes[19]
+	mi := &file_web_console_v1_sessions_sessions_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1377,7 +1825,7 @@ func (x *PolicyView) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PolicyView.ProtoReflect.Descriptor instead.
 func (*PolicyView) Descriptor() ([]byte, []int) {
-	return file_web_console_v1_sessions_sessions_proto_rawDescGZIP(), []int{19}
+	return file_web_console_v1_sessions_sessions_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *PolicyView) GetSessionId() string {
@@ -1424,7 +1872,7 @@ type GetPolicyResponse struct {
 
 func (x *GetPolicyResponse) Reset() {
 	*x = GetPolicyResponse{}
-	mi := &file_web_console_v1_sessions_sessions_proto_msgTypes[20]
+	mi := &file_web_console_v1_sessions_sessions_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1436,7 +1884,7 @@ func (x *GetPolicyResponse) String() string {
 func (*GetPolicyResponse) ProtoMessage() {}
 
 func (x *GetPolicyResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_web_console_v1_sessions_sessions_proto_msgTypes[20]
+	mi := &file_web_console_v1_sessions_sessions_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1449,7 +1897,7 @@ func (x *GetPolicyResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetPolicyResponse.ProtoReflect.Descriptor instead.
 func (*GetPolicyResponse) Descriptor() ([]byte, []int) {
-	return file_web_console_v1_sessions_sessions_proto_rawDescGZIP(), []int{20}
+	return file_web_console_v1_sessions_sessions_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *GetPolicyResponse) GetPolicy() *PolicyView {
@@ -1469,7 +1917,7 @@ type UpdatePolicyRequest struct {
 
 func (x *UpdatePolicyRequest) Reset() {
 	*x = UpdatePolicyRequest{}
-	mi := &file_web_console_v1_sessions_sessions_proto_msgTypes[21]
+	mi := &file_web_console_v1_sessions_sessions_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1481,7 +1929,7 @@ func (x *UpdatePolicyRequest) String() string {
 func (*UpdatePolicyRequest) ProtoMessage() {}
 
 func (x *UpdatePolicyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_web_console_v1_sessions_sessions_proto_msgTypes[21]
+	mi := &file_web_console_v1_sessions_sessions_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1494,7 +1942,7 @@ func (x *UpdatePolicyRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdatePolicyRequest.ProtoReflect.Descriptor instead.
 func (*UpdatePolicyRequest) Descriptor() ([]byte, []int) {
-	return file_web_console_v1_sessions_sessions_proto_rawDescGZIP(), []int{21}
+	return file_web_console_v1_sessions_sessions_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *UpdatePolicyRequest) GetId() string {
@@ -1520,7 +1968,7 @@ type UpdatePolicyResponse struct {
 
 func (x *UpdatePolicyResponse) Reset() {
 	*x = UpdatePolicyResponse{}
-	mi := &file_web_console_v1_sessions_sessions_proto_msgTypes[22]
+	mi := &file_web_console_v1_sessions_sessions_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1532,7 +1980,7 @@ func (x *UpdatePolicyResponse) String() string {
 func (*UpdatePolicyResponse) ProtoMessage() {}
 
 func (x *UpdatePolicyResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_web_console_v1_sessions_sessions_proto_msgTypes[22]
+	mi := &file_web_console_v1_sessions_sessions_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1545,7 +1993,7 @@ func (x *UpdatePolicyResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdatePolicyResponse.ProtoReflect.Descriptor instead.
 func (*UpdatePolicyResponse) Descriptor() ([]byte, []int) {
-	return file_web_console_v1_sessions_sessions_proto_rawDescGZIP(), []int{22}
+	return file_web_console_v1_sessions_sessions_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *UpdatePolicyResponse) GetPolicy() *PolicyView {
@@ -1625,7 +2073,29 @@ const file_web_console_v1_sessions_sessions_proto_rawDesc = "" +
 	"\vListRequest\"\x9f\x01\n" +
 	"\fListResponse\x12C\n" +
 	"\bsessions\x18\x01 \x03(\v2'.vrooli.web_console.v1.sessions.SessionR\bsessions\x12J\n" +
-	"\brecovery\x18\x02 \x01(\v2..vrooli.web_console.v1.sessions.RecoveryStatusR\brecovery\"\x8a\x02\n" +
+	"\brecovery\x18\x02 \x01(\v2..vrooli.web_console.v1.sessions.RecoveryStatusR\brecovery\"\xcc\x03\n" +
+	"\x0fArchivedSession\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1f\n" +
+	"\varchived_at\x18\x02 \x01(\tR\n" +
+	"archivedAt\x12\x1d\n" +
+	"\n" +
+	"created_at\x18\x03 \x01(\tR\tcreatedAt\x12\x1d\n" +
+	"\n" +
+	"agent_type\x18\x04 \x01(\tR\tagentType\x12(\n" +
+	"\x10agent_session_id\x18\x05 \x01(\tR\x0eagentSessionId\x12\x10\n" +
+	"\x03cwd\x18\x06 \x01(\tR\x03cwd\x12\x1b\n" +
+	"\tpane_name\x18\a \x01(\tR\bpaneName\x12!\n" +
+	"\fheader_color\x18\b \x01(\tR\vheaderColor\x12\x1d\n" +
+	"\n" +
+	"group_name\x18\t \x01(\tR\tgroupName\x12#\n" +
+	"\rmessage_count\x18\n" +
+	" \x01(\x03R\fmessageCount\x12X\n" +
+	"\rrestore_state\x18\v \x01(\x0e23.vrooli.web_console.v1.sessions.ArchiveRestoreStateR\frestoreState\x120\n" +
+	"\x14restore_state_reason\x18\f \x01(\tR\x12restoreStateReason\"\x15\n" +
+	"\x13ListArchivedRequest\"y\n" +
+	"\x14ListArchivedResponse\x12K\n" +
+	"\bsessions\x18\x01 \x03(\v2/.vrooli.web_console.v1.sessions.ArchivedSessionR\bsessions\x12\x14\n" +
+	"\x05total\x18\x02 \x01(\x05R\x05total\"\x8a\x02\n" +
 	"\x0eRecoveryStatus\x12\x1f\n" +
 	"\vin_progress\x18\x01 \x01(\bR\n" +
 	"inProgress\x12\x14\n" +
@@ -1639,7 +2109,15 @@ const file_web_console_v1_sessions_sessions_proto_rawDesc = "" +
 	"GetRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"P\n" +
 	"\vGetResponse\x12A\n" +
-	"\asession\x18\x01 \x01(\v2'.vrooli.web_console.v1.sessions.SessionR\asession\"\x1f\n" +
+	"\asession\x18\x01 \x01(\v2'.vrooli.web_console.v1.sessions.SessionR\asession\" \n" +
+	"\x0eArchiveRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\"!\n" +
+	"\x0fArchiveResponse\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\"\"\n" +
+	"\x10UnarchiveRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\"#\n" +
+	"\x11UnarchiveResponse\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\"\x1f\n" +
 	"\rDeleteRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"\x10\n" +
 	"\x0eDeleteResponse\"\x18\n" +
@@ -1683,11 +2161,20 @@ const file_web_console_v1_sessions_sessions_proto_rawDesc = "" +
 	"\x1aSESSION_ORIGIN_UNSPECIFIED\x10\x00\x12\x15\n" +
 	"\x11SESSION_ORIGIN_UI\x10\x01\x12\x1f\n" +
 	"\x1bSESSION_ORIGIN_PROGRAMMATIC\x10\x02\x12\x19\n" +
-	"\x15SESSION_ORIGIN_REMOTE\x10\x032\x92\b\n" +
+	"\x15SESSION_ORIGIN_REMOTE\x10\x03*\xb5\x01\n" +
+	"\x13ArchiveRestoreState\x12%\n" +
+	"!ARCHIVE_RESTORE_STATE_UNSPECIFIED\x10\x00\x12$\n" +
+	" ARCHIVE_RESTORE_STATE_REOPENABLE\x10\x01\x12#\n" +
+	"\x1fARCHIVE_RESTORE_STATE_READ_ONLY\x10\x02\x12,\n" +
+	"(ARCHIVE_RESTORE_STATE_NOTHING_TO_RESTORE\x10\x032\xeb\n" +
+	"\n" +
 	"\x0fSessionsService\x12g\n" +
 	"\x06Create\x12-.vrooli.web_console.v1.sessions.CreateRequest\x1a..vrooli.web_console.v1.sessions.CreateResponse\x12a\n" +
-	"\x04List\x12+.vrooli.web_console.v1.sessions.ListRequest\x1a,.vrooli.web_console.v1.sessions.ListResponse\x12^\n" +
-	"\x03Get\x12*.vrooli.web_console.v1.sessions.GetRequest\x1a+.vrooli.web_console.v1.sessions.GetResponse\x12g\n" +
+	"\x04List\x12+.vrooli.web_console.v1.sessions.ListRequest\x1a,.vrooli.web_console.v1.sessions.ListResponse\x12y\n" +
+	"\fListArchived\x123.vrooli.web_console.v1.sessions.ListArchivedRequest\x1a4.vrooli.web_console.v1.sessions.ListArchivedResponse\x12^\n" +
+	"\x03Get\x12*.vrooli.web_console.v1.sessions.GetRequest\x1a+.vrooli.web_console.v1.sessions.GetResponse\x12j\n" +
+	"\aArchive\x12..vrooli.web_console.v1.sessions.ArchiveRequest\x1a/.vrooli.web_console.v1.sessions.ArchiveResponse\x12p\n" +
+	"\tUnarchive\x120.vrooli.web_console.v1.sessions.UnarchiveRequest\x1a1.vrooli.web_console.v1.sessions.UnarchiveResponse\x12g\n" +
 	"\x06Delete\x12-.vrooli.web_console.v1.sessions.DeleteRequest\x1a..vrooli.web_console.v1.sessions.DeleteResponse\x12\x82\x01\n" +
 	"\x0fListRecoverable\x126.vrooli.web_console.v1.sessions.ListRecoverableRequest\x1a7.vrooli.web_console.v1.sessions.ListRecoverableResponse\x12\x8b\x01\n" +
 	"\x12DismissRecoverable\x129.vrooli.web_console.v1.sessions.DismissRecoverableRequest\x1a:.vrooli.web_console.v1.sessions.DismissRecoverableResponse\x12j\n" +
@@ -1707,71 +2194,87 @@ func file_web_console_v1_sessions_sessions_proto_rawDescGZIP() []byte {
 	return file_web_console_v1_sessions_sessions_proto_rawDescData
 }
 
-var file_web_console_v1_sessions_sessions_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_web_console_v1_sessions_sessions_proto_msgTypes = make([]protoimpl.MessageInfo, 23)
+var file_web_console_v1_sessions_sessions_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
+var file_web_console_v1_sessions_sessions_proto_msgTypes = make([]protoimpl.MessageInfo, 30)
 var file_web_console_v1_sessions_sessions_proto_goTypes = []any{
 	(SessionOrigin)(0),                 // 0: vrooli.web_console.v1.sessions.SessionOrigin
-	(*ExpirationPolicy)(nil),           // 1: vrooli.web_console.v1.sessions.ExpirationPolicy
-	(*Session)(nil),                    // 2: vrooli.web_console.v1.sessions.Session
-	(*RecoverableSession)(nil),         // 3: vrooli.web_console.v1.sessions.RecoverableSession
-	(*CreateRequest)(nil),              // 4: vrooli.web_console.v1.sessions.CreateRequest
-	(*CreateResponse)(nil),             // 5: vrooli.web_console.v1.sessions.CreateResponse
-	(*ListRequest)(nil),                // 6: vrooli.web_console.v1.sessions.ListRequest
-	(*ListResponse)(nil),               // 7: vrooli.web_console.v1.sessions.ListResponse
-	(*RecoveryStatus)(nil),             // 8: vrooli.web_console.v1.sessions.RecoveryStatus
-	(*GetRequest)(nil),                 // 9: vrooli.web_console.v1.sessions.GetRequest
-	(*GetResponse)(nil),                // 10: vrooli.web_console.v1.sessions.GetResponse
-	(*DeleteRequest)(nil),              // 11: vrooli.web_console.v1.sessions.DeleteRequest
-	(*DeleteResponse)(nil),             // 12: vrooli.web_console.v1.sessions.DeleteResponse
-	(*ListRecoverableRequest)(nil),     // 13: vrooli.web_console.v1.sessions.ListRecoverableRequest
-	(*ListRecoverableResponse)(nil),    // 14: vrooli.web_console.v1.sessions.ListRecoverableResponse
-	(*DismissRecoverableRequest)(nil),  // 15: vrooli.web_console.v1.sessions.DismissRecoverableRequest
-	(*DismissRecoverableResponse)(nil), // 16: vrooli.web_console.v1.sessions.DismissRecoverableResponse
-	(*RecoverRequest)(nil),             // 17: vrooli.web_console.v1.sessions.RecoverRequest
-	(*RecoverResponse)(nil),            // 18: vrooli.web_console.v1.sessions.RecoverResponse
-	(*GetPolicyRequest)(nil),           // 19: vrooli.web_console.v1.sessions.GetPolicyRequest
-	(*PolicyView)(nil),                 // 20: vrooli.web_console.v1.sessions.PolicyView
-	(*GetPolicyResponse)(nil),          // 21: vrooli.web_console.v1.sessions.GetPolicyResponse
-	(*UpdatePolicyRequest)(nil),        // 22: vrooli.web_console.v1.sessions.UpdatePolicyRequest
-	(*UpdatePolicyResponse)(nil),       // 23: vrooli.web_console.v1.sessions.UpdatePolicyResponse
+	(ArchiveRestoreState)(0),           // 1: vrooli.web_console.v1.sessions.ArchiveRestoreState
+	(*ExpirationPolicy)(nil),           // 2: vrooli.web_console.v1.sessions.ExpirationPolicy
+	(*Session)(nil),                    // 3: vrooli.web_console.v1.sessions.Session
+	(*RecoverableSession)(nil),         // 4: vrooli.web_console.v1.sessions.RecoverableSession
+	(*CreateRequest)(nil),              // 5: vrooli.web_console.v1.sessions.CreateRequest
+	(*CreateResponse)(nil),             // 6: vrooli.web_console.v1.sessions.CreateResponse
+	(*ListRequest)(nil),                // 7: vrooli.web_console.v1.sessions.ListRequest
+	(*ListResponse)(nil),               // 8: vrooli.web_console.v1.sessions.ListResponse
+	(*ArchivedSession)(nil),            // 9: vrooli.web_console.v1.sessions.ArchivedSession
+	(*ListArchivedRequest)(nil),        // 10: vrooli.web_console.v1.sessions.ListArchivedRequest
+	(*ListArchivedResponse)(nil),       // 11: vrooli.web_console.v1.sessions.ListArchivedResponse
+	(*RecoveryStatus)(nil),             // 12: vrooli.web_console.v1.sessions.RecoveryStatus
+	(*GetRequest)(nil),                 // 13: vrooli.web_console.v1.sessions.GetRequest
+	(*GetResponse)(nil),                // 14: vrooli.web_console.v1.sessions.GetResponse
+	(*ArchiveRequest)(nil),             // 15: vrooli.web_console.v1.sessions.ArchiveRequest
+	(*ArchiveResponse)(nil),            // 16: vrooli.web_console.v1.sessions.ArchiveResponse
+	(*UnarchiveRequest)(nil),           // 17: vrooli.web_console.v1.sessions.UnarchiveRequest
+	(*UnarchiveResponse)(nil),          // 18: vrooli.web_console.v1.sessions.UnarchiveResponse
+	(*DeleteRequest)(nil),              // 19: vrooli.web_console.v1.sessions.DeleteRequest
+	(*DeleteResponse)(nil),             // 20: vrooli.web_console.v1.sessions.DeleteResponse
+	(*ListRecoverableRequest)(nil),     // 21: vrooli.web_console.v1.sessions.ListRecoverableRequest
+	(*ListRecoverableResponse)(nil),    // 22: vrooli.web_console.v1.sessions.ListRecoverableResponse
+	(*DismissRecoverableRequest)(nil),  // 23: vrooli.web_console.v1.sessions.DismissRecoverableRequest
+	(*DismissRecoverableResponse)(nil), // 24: vrooli.web_console.v1.sessions.DismissRecoverableResponse
+	(*RecoverRequest)(nil),             // 25: vrooli.web_console.v1.sessions.RecoverRequest
+	(*RecoverResponse)(nil),            // 26: vrooli.web_console.v1.sessions.RecoverResponse
+	(*GetPolicyRequest)(nil),           // 27: vrooli.web_console.v1.sessions.GetPolicyRequest
+	(*PolicyView)(nil),                 // 28: vrooli.web_console.v1.sessions.PolicyView
+	(*GetPolicyResponse)(nil),          // 29: vrooli.web_console.v1.sessions.GetPolicyResponse
+	(*UpdatePolicyRequest)(nil),        // 30: vrooli.web_console.v1.sessions.UpdatePolicyRequest
+	(*UpdatePolicyResponse)(nil),       // 31: vrooli.web_console.v1.sessions.UpdatePolicyResponse
 }
 var file_web_console_v1_sessions_sessions_proto_depIdxs = []int32{
-	1,  // 0: vrooli.web_console.v1.sessions.Session.policy:type_name -> vrooli.web_console.v1.sessions.ExpirationPolicy
+	2,  // 0: vrooli.web_console.v1.sessions.Session.policy:type_name -> vrooli.web_console.v1.sessions.ExpirationPolicy
 	0,  // 1: vrooli.web_console.v1.sessions.Session.origin:type_name -> vrooli.web_console.v1.sessions.SessionOrigin
-	1,  // 2: vrooli.web_console.v1.sessions.CreateRequest.policy:type_name -> vrooli.web_console.v1.sessions.ExpirationPolicy
+	2,  // 2: vrooli.web_console.v1.sessions.CreateRequest.policy:type_name -> vrooli.web_console.v1.sessions.ExpirationPolicy
 	0,  // 3: vrooli.web_console.v1.sessions.CreateRequest.origin:type_name -> vrooli.web_console.v1.sessions.SessionOrigin
-	2,  // 4: vrooli.web_console.v1.sessions.CreateResponse.session:type_name -> vrooli.web_console.v1.sessions.Session
-	2,  // 5: vrooli.web_console.v1.sessions.ListResponse.sessions:type_name -> vrooli.web_console.v1.sessions.Session
-	8,  // 6: vrooli.web_console.v1.sessions.ListResponse.recovery:type_name -> vrooli.web_console.v1.sessions.RecoveryStatus
-	2,  // 7: vrooli.web_console.v1.sessions.GetResponse.session:type_name -> vrooli.web_console.v1.sessions.Session
-	3,  // 8: vrooli.web_console.v1.sessions.ListRecoverableResponse.sessions:type_name -> vrooli.web_console.v1.sessions.RecoverableSession
-	1,  // 9: vrooli.web_console.v1.sessions.PolicyView.policy:type_name -> vrooli.web_console.v1.sessions.ExpirationPolicy
-	20, // 10: vrooli.web_console.v1.sessions.GetPolicyResponse.policy:type_name -> vrooli.web_console.v1.sessions.PolicyView
-	1,  // 11: vrooli.web_console.v1.sessions.UpdatePolicyRequest.policy:type_name -> vrooli.web_console.v1.sessions.ExpirationPolicy
-	20, // 12: vrooli.web_console.v1.sessions.UpdatePolicyResponse.policy:type_name -> vrooli.web_console.v1.sessions.PolicyView
-	4,  // 13: vrooli.web_console.v1.sessions.SessionsService.Create:input_type -> vrooli.web_console.v1.sessions.CreateRequest
-	6,  // 14: vrooli.web_console.v1.sessions.SessionsService.List:input_type -> vrooli.web_console.v1.sessions.ListRequest
-	9,  // 15: vrooli.web_console.v1.sessions.SessionsService.Get:input_type -> vrooli.web_console.v1.sessions.GetRequest
-	11, // 16: vrooli.web_console.v1.sessions.SessionsService.Delete:input_type -> vrooli.web_console.v1.sessions.DeleteRequest
-	13, // 17: vrooli.web_console.v1.sessions.SessionsService.ListRecoverable:input_type -> vrooli.web_console.v1.sessions.ListRecoverableRequest
-	15, // 18: vrooli.web_console.v1.sessions.SessionsService.DismissRecoverable:input_type -> vrooli.web_console.v1.sessions.DismissRecoverableRequest
-	17, // 19: vrooli.web_console.v1.sessions.SessionsService.Recover:input_type -> vrooli.web_console.v1.sessions.RecoverRequest
-	19, // 20: vrooli.web_console.v1.sessions.SessionsService.GetPolicy:input_type -> vrooli.web_console.v1.sessions.GetPolicyRequest
-	22, // 21: vrooli.web_console.v1.sessions.SessionsService.UpdatePolicy:input_type -> vrooli.web_console.v1.sessions.UpdatePolicyRequest
-	5,  // 22: vrooli.web_console.v1.sessions.SessionsService.Create:output_type -> vrooli.web_console.v1.sessions.CreateResponse
-	7,  // 23: vrooli.web_console.v1.sessions.SessionsService.List:output_type -> vrooli.web_console.v1.sessions.ListResponse
-	10, // 24: vrooli.web_console.v1.sessions.SessionsService.Get:output_type -> vrooli.web_console.v1.sessions.GetResponse
-	12, // 25: vrooli.web_console.v1.sessions.SessionsService.Delete:output_type -> vrooli.web_console.v1.sessions.DeleteResponse
-	14, // 26: vrooli.web_console.v1.sessions.SessionsService.ListRecoverable:output_type -> vrooli.web_console.v1.sessions.ListRecoverableResponse
-	16, // 27: vrooli.web_console.v1.sessions.SessionsService.DismissRecoverable:output_type -> vrooli.web_console.v1.sessions.DismissRecoverableResponse
-	18, // 28: vrooli.web_console.v1.sessions.SessionsService.Recover:output_type -> vrooli.web_console.v1.sessions.RecoverResponse
-	21, // 29: vrooli.web_console.v1.sessions.SessionsService.GetPolicy:output_type -> vrooli.web_console.v1.sessions.GetPolicyResponse
-	23, // 30: vrooli.web_console.v1.sessions.SessionsService.UpdatePolicy:output_type -> vrooli.web_console.v1.sessions.UpdatePolicyResponse
-	22, // [22:31] is the sub-list for method output_type
-	13, // [13:22] is the sub-list for method input_type
-	13, // [13:13] is the sub-list for extension type_name
-	13, // [13:13] is the sub-list for extension extendee
-	0,  // [0:13] is the sub-list for field type_name
+	3,  // 4: vrooli.web_console.v1.sessions.CreateResponse.session:type_name -> vrooli.web_console.v1.sessions.Session
+	3,  // 5: vrooli.web_console.v1.sessions.ListResponse.sessions:type_name -> vrooli.web_console.v1.sessions.Session
+	12, // 6: vrooli.web_console.v1.sessions.ListResponse.recovery:type_name -> vrooli.web_console.v1.sessions.RecoveryStatus
+	1,  // 7: vrooli.web_console.v1.sessions.ArchivedSession.restore_state:type_name -> vrooli.web_console.v1.sessions.ArchiveRestoreState
+	9,  // 8: vrooli.web_console.v1.sessions.ListArchivedResponse.sessions:type_name -> vrooli.web_console.v1.sessions.ArchivedSession
+	3,  // 9: vrooli.web_console.v1.sessions.GetResponse.session:type_name -> vrooli.web_console.v1.sessions.Session
+	4,  // 10: vrooli.web_console.v1.sessions.ListRecoverableResponse.sessions:type_name -> vrooli.web_console.v1.sessions.RecoverableSession
+	2,  // 11: vrooli.web_console.v1.sessions.PolicyView.policy:type_name -> vrooli.web_console.v1.sessions.ExpirationPolicy
+	28, // 12: vrooli.web_console.v1.sessions.GetPolicyResponse.policy:type_name -> vrooli.web_console.v1.sessions.PolicyView
+	2,  // 13: vrooli.web_console.v1.sessions.UpdatePolicyRequest.policy:type_name -> vrooli.web_console.v1.sessions.ExpirationPolicy
+	28, // 14: vrooli.web_console.v1.sessions.UpdatePolicyResponse.policy:type_name -> vrooli.web_console.v1.sessions.PolicyView
+	5,  // 15: vrooli.web_console.v1.sessions.SessionsService.Create:input_type -> vrooli.web_console.v1.sessions.CreateRequest
+	7,  // 16: vrooli.web_console.v1.sessions.SessionsService.List:input_type -> vrooli.web_console.v1.sessions.ListRequest
+	10, // 17: vrooli.web_console.v1.sessions.SessionsService.ListArchived:input_type -> vrooli.web_console.v1.sessions.ListArchivedRequest
+	13, // 18: vrooli.web_console.v1.sessions.SessionsService.Get:input_type -> vrooli.web_console.v1.sessions.GetRequest
+	15, // 19: vrooli.web_console.v1.sessions.SessionsService.Archive:input_type -> vrooli.web_console.v1.sessions.ArchiveRequest
+	17, // 20: vrooli.web_console.v1.sessions.SessionsService.Unarchive:input_type -> vrooli.web_console.v1.sessions.UnarchiveRequest
+	19, // 21: vrooli.web_console.v1.sessions.SessionsService.Delete:input_type -> vrooli.web_console.v1.sessions.DeleteRequest
+	21, // 22: vrooli.web_console.v1.sessions.SessionsService.ListRecoverable:input_type -> vrooli.web_console.v1.sessions.ListRecoverableRequest
+	23, // 23: vrooli.web_console.v1.sessions.SessionsService.DismissRecoverable:input_type -> vrooli.web_console.v1.sessions.DismissRecoverableRequest
+	25, // 24: vrooli.web_console.v1.sessions.SessionsService.Recover:input_type -> vrooli.web_console.v1.sessions.RecoverRequest
+	27, // 25: vrooli.web_console.v1.sessions.SessionsService.GetPolicy:input_type -> vrooli.web_console.v1.sessions.GetPolicyRequest
+	30, // 26: vrooli.web_console.v1.sessions.SessionsService.UpdatePolicy:input_type -> vrooli.web_console.v1.sessions.UpdatePolicyRequest
+	6,  // 27: vrooli.web_console.v1.sessions.SessionsService.Create:output_type -> vrooli.web_console.v1.sessions.CreateResponse
+	8,  // 28: vrooli.web_console.v1.sessions.SessionsService.List:output_type -> vrooli.web_console.v1.sessions.ListResponse
+	11, // 29: vrooli.web_console.v1.sessions.SessionsService.ListArchived:output_type -> vrooli.web_console.v1.sessions.ListArchivedResponse
+	14, // 30: vrooli.web_console.v1.sessions.SessionsService.Get:output_type -> vrooli.web_console.v1.sessions.GetResponse
+	16, // 31: vrooli.web_console.v1.sessions.SessionsService.Archive:output_type -> vrooli.web_console.v1.sessions.ArchiveResponse
+	18, // 32: vrooli.web_console.v1.sessions.SessionsService.Unarchive:output_type -> vrooli.web_console.v1.sessions.UnarchiveResponse
+	20, // 33: vrooli.web_console.v1.sessions.SessionsService.Delete:output_type -> vrooli.web_console.v1.sessions.DeleteResponse
+	22, // 34: vrooli.web_console.v1.sessions.SessionsService.ListRecoverable:output_type -> vrooli.web_console.v1.sessions.ListRecoverableResponse
+	24, // 35: vrooli.web_console.v1.sessions.SessionsService.DismissRecoverable:output_type -> vrooli.web_console.v1.sessions.DismissRecoverableResponse
+	26, // 36: vrooli.web_console.v1.sessions.SessionsService.Recover:output_type -> vrooli.web_console.v1.sessions.RecoverResponse
+	29, // 37: vrooli.web_console.v1.sessions.SessionsService.GetPolicy:output_type -> vrooli.web_console.v1.sessions.GetPolicyResponse
+	31, // 38: vrooli.web_console.v1.sessions.SessionsService.UpdatePolicy:output_type -> vrooli.web_console.v1.sessions.UpdatePolicyResponse
+	27, // [27:39] is the sub-list for method output_type
+	15, // [15:27] is the sub-list for method input_type
+	15, // [15:15] is the sub-list for extension type_name
+	15, // [15:15] is the sub-list for extension extendee
+	0,  // [0:15] is the sub-list for field type_name
 }
 
 func init() { file_web_console_v1_sessions_sessions_proto_init() }
@@ -1784,8 +2287,8 @@ func file_web_console_v1_sessions_sessions_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_web_console_v1_sessions_sessions_proto_rawDesc), len(file_web_console_v1_sessions_sessions_proto_rawDesc)),
-			NumEnums:      1,
-			NumMessages:   23,
+			NumEnums:      2,
+			NumMessages:   30,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

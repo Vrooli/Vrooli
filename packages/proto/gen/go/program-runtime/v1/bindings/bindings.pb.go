@@ -1571,14 +1571,15 @@ func (x *FreshnessCondition) GetGenerationMtime() string {
 }
 
 type ExerciseCondition struct {
-	state                protoimpl.MessageState `protogen:"open.v1"`
-	Family               *ConditionFamily       `protobuf:"bytes,1,opt,name=family,proto3" json:"family,omitempty"`
-	Invocations          int64                  `protobuf:"varint,2,opt,name=invocations,proto3" json:"invocations,omitempty"`
-	DistinctCallers      int64                  `protobuf:"varint,3,opt,name=distinct_callers,json=distinctCallers,proto3" json:"distinct_callers,omitempty"`
-	LastInvokedAt        string                 `protobuf:"bytes,4,opt,name=last_invoked_at,json=lastInvokedAt,proto3" json:"last_invoked_at,omitempty"`
-	SyntheticInvocations int64                  `protobuf:"varint,5,opt,name=synthetic_invocations,json=syntheticInvocations,proto3" json:"synthetic_invocations,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	state                 protoimpl.MessageState `protogen:"open.v1"`
+	Family                *ConditionFamily       `protobuf:"bytes,1,opt,name=family,proto3" json:"family,omitempty"`
+	Invocations           int64                  `protobuf:"varint,2,opt,name=invocations,proto3" json:"invocations,omitempty"`
+	DistinctCallers       int64                  `protobuf:"varint,3,opt,name=distinct_callers,json=distinctCallers,proto3" json:"distinct_callers,omitempty"`
+	LastInvokedAt         string                 `protobuf:"bytes,4,opt,name=last_invoked_at,json=lastInvokedAt,proto3" json:"last_invoked_at,omitempty"`
+	SyntheticInvocations  int64                  `protobuf:"varint,5,opt,name=synthetic_invocations,json=syntheticInvocations,proto3" json:"synthetic_invocations,omitempty"`
+	UnattributedRemainder int64                  `protobuf:"varint,6,opt,name=unattributed_remainder,json=unattributedRemainder,proto3" json:"unattributed_remainder,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *ExerciseCondition) Reset() {
@@ -1642,6 +1643,13 @@ func (x *ExerciseCondition) GetLastInvokedAt() string {
 func (x *ExerciseCondition) GetSyntheticInvocations() int64 {
 	if x != nil {
 		return x.SyntheticInvocations
+	}
+	return 0
+}
+
+func (x *ExerciseCondition) GetUnattributedRemainder() int64 {
+	if x != nil {
+		return x.UnattributedRemainder
 	}
 	return 0
 }
@@ -2375,6 +2383,11 @@ type ResolveActCellsResponse struct {
 	AuditedCells          int32                  `protobuf:"varint,2,opt,name=audited_cells,json=auditedCells,proto3" json:"audited_cells,omitempty"`
 	TotalCells            int32                  `protobuf:"varint,3,opt,name=total_cells,json=totalCells,proto3" json:"total_cells,omitempty"`
 	DenominatorConfidence string                 `protobuf:"bytes,4,opt,name=denominator_confidence,json=denominatorConfidence,proto3" json:"denominator_confidence,omitempty"`
+	ManifestScenarios     int32                  `protobuf:"varint,5,opt,name=manifest_scenarios,json=manifestScenarios,proto3" json:"manifest_scenarios,omitempty"`
+	TotalScenarios        int32                  `protobuf:"varint,6,opt,name=total_scenarios,json=totalScenarios,proto3" json:"total_scenarios,omitempty"`
+	ReachableScenarios    int32                  `protobuf:"varint,7,opt,name=reachable_scenarios,json=reachableScenarios,proto3" json:"reachable_scenarios,omitempty"`
+	UnreachableScenarios  int32                  `protobuf:"varint,8,opt,name=unreachable_scenarios,json=unreachableScenarios,proto3" json:"unreachable_scenarios,omitempty"`
+	ReachabilityCheckedAt string                 `protobuf:"bytes,9,opt,name=reachability_checked_at,json=reachabilityCheckedAt,proto3" json:"reachability_checked_at,omitempty"`
 	unknownFields         protoimpl.UnknownFields
 	sizeCache             protoimpl.SizeCache
 }
@@ -2433,6 +2446,41 @@ func (x *ResolveActCellsResponse) GetTotalCells() int32 {
 func (x *ResolveActCellsResponse) GetDenominatorConfidence() string {
 	if x != nil {
 		return x.DenominatorConfidence
+	}
+	return ""
+}
+
+func (x *ResolveActCellsResponse) GetManifestScenarios() int32 {
+	if x != nil {
+		return x.ManifestScenarios
+	}
+	return 0
+}
+
+func (x *ResolveActCellsResponse) GetTotalScenarios() int32 {
+	if x != nil {
+		return x.TotalScenarios
+	}
+	return 0
+}
+
+func (x *ResolveActCellsResponse) GetReachableScenarios() int32 {
+	if x != nil {
+		return x.ReachableScenarios
+	}
+	return 0
+}
+
+func (x *ResolveActCellsResponse) GetUnreachableScenarios() int32 {
+	if x != nil {
+		return x.UnreachableScenarios
+	}
+	return 0
+}
+
+func (x *ResolveActCellsResponse) GetReachabilityCheckedAt() string {
+	if x != nil {
+		return x.ReachabilityCheckedAt
 	}
 	return ""
 }
@@ -2833,13 +2881,14 @@ const file_program_runtime_v1_bindings_bindings_proto_rawDesc = "" +
 	"\vsource_path\x18\x05 \x01(\tR\n" +
 	"sourcePath\x12!\n" +
 	"\fsource_mtime\x18\x06 \x01(\tR\vsourceMtime\x12)\n" +
-	"\x10generation_mtime\x18\a \x01(\tR\x0fgenerationMtime\"\x8a\x02\n" +
+	"\x10generation_mtime\x18\a \x01(\tR\x0fgenerationMtime\"\xc1\x02\n" +
 	"\x11ExerciseCondition\x12K\n" +
 	"\x06family\x18\x01 \x01(\v23.vrooli.program_runtime.v1.bindings.ConditionFamilyR\x06family\x12 \n" +
 	"\vinvocations\x18\x02 \x01(\x03R\vinvocations\x12)\n" +
 	"\x10distinct_callers\x18\x03 \x01(\x03R\x0fdistinctCallers\x12&\n" +
 	"\x0flast_invoked_at\x18\x04 \x01(\tR\rlastInvokedAt\x123\n" +
-	"\x15synthetic_invocations\x18\x05 \x01(\x03R\x14syntheticInvocations\"\xa4\x04\n" +
+	"\x15synthetic_invocations\x18\x05 \x01(\x03R\x14syntheticInvocations\x125\n" +
+	"\x16unattributed_remainder\x18\x06 \x01(\x03R\x15unattributedRemainder\"\xa4\x04\n" +
 	"\x10BindingCondition\x12\x1d\n" +
 	"\n" +
 	"binding_id\x18\x01 \x01(\tR\tbindingId\x12\x1a\n" +
@@ -2901,13 +2950,18 @@ const file_program_runtime_v1_bindings_bindings_proto_rawDesc = "" +
 	"\x0fauthored_status\x18\x06 \x01(\tR\x0eauthoredStatus\x12\x18\n" +
 	"\aaudited\x18\a \x01(\bR\aaudited\"[\n" +
 	"\x16ResolveActCellsRequest\x12A\n" +
-	"\x05cells\x18\x01 \x03(\v2+.vrooli.program_runtime.v1.bindings.ActCellR\x05cells\"\xe0\x01\n" +
+	"\x05cells\x18\x01 \x03(\v2+.vrooli.program_runtime.v1.bindings.ActCellR\x05cells\"\xd6\x03\n" +
 	"\x17ResolveActCellsResponse\x12H\n" +
 	"\x05cells\x18\x01 \x03(\v22.vrooli.program_runtime.v1.bindings.ActCellVerdictR\x05cells\x12#\n" +
 	"\raudited_cells\x18\x02 \x01(\x05R\fauditedCells\x12\x1f\n" +
 	"\vtotal_cells\x18\x03 \x01(\x05R\n" +
 	"totalCells\x125\n" +
-	"\x16denominator_confidence\x18\x04 \x01(\tR\x15denominatorConfidence\"X\n" +
+	"\x16denominator_confidence\x18\x04 \x01(\tR\x15denominatorConfidence\x12-\n" +
+	"\x12manifest_scenarios\x18\x05 \x01(\x05R\x11manifestScenarios\x12'\n" +
+	"\x0ftotal_scenarios\x18\x06 \x01(\x05R\x0etotalScenarios\x12/\n" +
+	"\x13reachable_scenarios\x18\a \x01(\x05R\x12reachableScenarios\x123\n" +
+	"\x15unreachable_scenarios\x18\b \x01(\x05R\x14unreachableScenarios\x126\n" +
+	"\x17reachability_checked_at\x18\t \x01(\tR\x15reachabilityCheckedAt\"X\n" +
 	"\x14ResolveIntentRequest\x12\x16\n" +
 	"\x06intent\x18\x01 \x01(\tR\x06intent\x12\x14\n" +
 	"\x05limit\x18\x02 \x01(\x05R\x05limit\x12\x12\n" +

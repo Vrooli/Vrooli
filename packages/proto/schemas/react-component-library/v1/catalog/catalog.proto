@@ -12,6 +12,9 @@ service CatalogService {
 	rpc GetCatalogStructure(GetCatalogStructureRequest) returns (GetCatalogStructureResponse);
 	rpc ReconcileGraph(ReconcileGraphRequest) returns (ReconcileGraphResponse);
 	rpc GetAssetPortContract(GetAssetPortContractRequest) returns (GetAssetPortContractResponse);
+	rpc GetScoreHistory(GetScoreHistoryRequest) returns (GetScoreHistoryResponse);
+	rpc GetHealthOverview(GetHealthOverviewRequest) returns (GetHealthOverviewResponse);
+	rpc CaptureEvidence(CaptureEvidenceRequest) returns (CaptureEvidenceResponse);
 }
 
 message AssetNode {
@@ -101,6 +104,13 @@ message CoverageRow {
   int32 rung = 12;
   string rung_name = 13;
   int32 domain_order = 14;
+  double asset_score = 15;
+  double weight = 16;
+  repeated string passed_gates = 17;
+  repeated string failed_gates = 18;
+  string nearest_blocking_gate = 19;
+  string newest_evidence = 20;
+  bool visual_evidence = 21;
 }
 
 message Rollup {
@@ -117,6 +127,31 @@ message MaturitySummary {
   CoverageMetric mandatory_gate_coverage = 5;
   CoverageMetric weighted_quality = 6;
   CoverageMetric production_ready_coverage = 7;
+  double weighted_asset_score = 8;
+  double score_weight_numerator = 9;
+  double score_weight_denominator = 10;
+	repeated ScoreBreakdown by_gate = 11;
+	repeated ScoreBreakdown by_rung_score = 12;
+	repeated CorpusStatus corpus = 13;
+	int32 pass_evidence = 14;
+	int32 fail_evidence = 15;
+	int32 unmeasured_evidence = 16;
+	int32 kind_mismatch_count = 17;
+	int32 instrument_moved_count = 18;
+}
+
+message ScoreBreakdown {
+  string key = 1;
+  int32 passed = 2;
+  int32 applicable = 3;
+  double score = 4;
+}
+
+message CorpusStatus {
+  string gate = 1;
+  string result = 2;
+  int32 finding_count = 3;
+  int32 runner_error_count = 4;
 }
 
 message CoverageMetric {
@@ -139,14 +174,20 @@ message GetCoverageResponse {
 
 message ListNextWorkRequest {
   int32 limit = 1;
+  string lane = 2;
 }
 message ListNextWorkResponse {
   repeated CoverageRow rows = 1;
   MaturitySummary maturity = 2;
+  string lane = 3;
+  repeated CoverageRow promote = 4;
+  repeated CoverageRow build = 5;
 }
 
 message RunGateRequest {
   string gate = 1;
+  bool all = 2;
+	bool calibration_only = 3;
 }
 message GateFinding {
   string code = 1;
@@ -171,4 +212,78 @@ message RunGateResponse {
   string gate = 1;
   repeated GateFinding findings = 2;
   int32 inspected_files = 3;
+  repeated GateFinding runner_errors = 4;
+  int32 evidence_rows_written = 5;
+	repeated CalibrationResult calibration = 6;
+	bool non_discriminating = 7;
+	map<string, int32> surface_verdict_counts = 8;
+}
+
+message CalibrationResult {
+	string gate = 1;
+	string fixture = 2;
+	string required_failure_code = 3;
+	string observed_failure_code = 4;
+	string status = 5;
+	string message = 6;
+}
+
+message ScoreHistoryPoint {
+  string recorded_at = 1;
+  double score = 2;
+  int32 assets_at_100 = 3;
+  int32 assets_below_50 = 4;
+	bool weight_vector_regenerated = 5;
+	int32 scoring_model_version = 6;
+	string source_revision = 7;
+	int32 instrument_moved_count = 8;
+	int32 kind_mismatch_count = 9;
+	repeated ScoreHistoryEvent events = 10;
+}
+message ScoreHistoryEvent {
+	string type = 1;
+	string asset_id = 2;
+	string source_revision = 3;
+	string declared_kind = 4;
+	string derived_kind = 5;
+}
+message GetScoreHistoryRequest { string since = 1; }
+message GetScoreHistoryResponse { repeated ScoreHistoryPoint points = 1; }
+
+message HealthNode {
+  AssetNode asset = 1;
+  double score = 2;
+  double weight = 3;
+  string health = 4;
+  double staleness_days = 5;
+  bool visual_current = 6;
+}
+message HealthEdge { string from_asset_id = 1; string to_asset_id = 2; string relation = 3; }
+message GetHealthOverviewRequest {}
+message GetHealthOverviewResponse {
+  CoverageReport coverage = 1;
+  repeated ScoreHistoryPoint history = 2;
+  repeated HealthNode nodes = 3;
+  repeated HealthEdge edges = 4;
+	repeated CoverageRow promote = 5;
+	repeated string quarantined_gates = 6;
+	int32 kind_mismatch_count = 7;
+	int32 instrument_moved_count = 8;
+	repeated KindMismatch kind_mismatches = 9;
+}
+
+message KindMismatch {
+	string asset_id = 1;
+	string declared_kind = 2;
+	string derived_kind = 3;
+	string message = 4;
+}
+
+message CaptureEvidenceRequest { string asset_id = 1; bool all = 2; bool changed_only = 3; }
+message CaptureEvidenceResponse {
+  string asset_id = 1;
+  string capture_directory = 2;
+  string workbench_url = 3;
+  int32 rows_written = 4;
+  repeated string missing_contract_assets = 5;
 }
