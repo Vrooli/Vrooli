@@ -2,12 +2,78 @@
   "schemaVersion": 3,
   "kind": "component",
   "title": "FormField",
-  "args": { "fields": [] },
-  "environment": { "fixtures": [] },
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
   "stories": [
-    { "id": "default", "name": "Default field", "harness": "Default", "args": {}, "expect": [{ "kind": "role", "role": "textbox", "name": "Workspace name" }] },
-    { "id": "required", "name": "Required field", "harness": "Required", "args": {}, "expect": [{ "kind": "role", "role": "textbox", "name": "Email address" }] },
-    { "id": "error", "name": "Validation error", "harness": "Error", "args": {}, "expect": [{ "kind": "role", "role": "textbox", "name": "Project slug" }, { "kind": "attribute", "selector": "[data-rcl-form-field-control]", "attribute": "aria-invalid", "value": "true" }, { "kind": "role", "role": "alert" }] },
-    { "id": "disabled", "name": "Disabled field", "harness": "Disabled", "args": {}, "expect": [{ "kind": "role", "role": "textbox", "name": "Billing plan" }] }
+    {
+      "id": "default",
+      "name": "Default field",
+      "harness": "Default",
+      "args": {},
+      "expect": [
+        {
+          "kind": "role",
+          "role": "textbox",
+          "name": "Workspace name"
+        }
+      ],
+      "mode": "live"
+    },
+    {
+      "id": "required",
+      "name": "Required field",
+      "harness": "Required",
+      "args": {},
+      "expect": [
+        {
+          "kind": "role",
+          "role": "textbox",
+          "name": "Email address"
+        }
+      ],
+      "mode": "live"
+    },
+    {
+      "id": "error",
+      "name": "Validation error",
+      "harness": "Error",
+      "args": {},
+      "expect": [
+        {
+          "kind": "role",
+          "role": "textbox",
+          "name": "Project slug"
+        },
+        {
+          "kind": "attribute",
+          "selector": "[data-rcl-form-field-control]",
+          "attribute": "aria-invalid",
+          "value": "true"
+        },
+        {
+          "kind": "role",
+          "role": "alert"
+        }
+      ],
+      "mode": "live"
+    },
+    {
+      "id": "disabled",
+      "name": "Disabled field",
+      "harness": "Disabled",
+      "args": {},
+      "expect": [
+        {
+          "kind": "role",
+          "role": "textbox",
+          "name": "Billing plan"
+        }
+      ],
+      "mode": "live"
+    }
   ]
 }

@@ -39,14 +39,14 @@
   "claims": [
     {
       "id": "supporting-activity-observable",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Supporting activity is rendered through AsyncPanel and exposes its lifecycle via ExperienceSurface.",
       "tier": "manual",
       "states": ["loading", "ready", "empty", "partial", "error"]
     },
     {
       "id": "asset-task-resilient",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Preview and metadata remain structurally available when only supporting activity is partial or failed.",
       "tier": "manual",
       "states": ["partial", "error"]

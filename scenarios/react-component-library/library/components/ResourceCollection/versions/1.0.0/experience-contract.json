@@ -39,14 +39,14 @@
   "claims": [
     {
       "id": "responsive-collection",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "The collection controls and results transform with the available container width without horizontal overflow.",
       "tier": "manual",
       "states": ["default"]
     },
     {
       "id": "recovery-preserves-context",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Refresh, offline, and request-error states keep the user's collection context available for recovery.",
       "tier": "manual",
       "states": ["refreshing", "offline", "request-error"]

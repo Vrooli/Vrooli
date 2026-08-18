@@ -4,11 +4,7 @@
   "displayName": "NavigationTree",
   "description": "A hierarchical navigation surface that preserves reading order and keyboard semantics.",
   "assetKind": "component",
-  "tags": [
-    "navigation",
-    "accessibility",
-    "token-bound"
-  ],
+  "tags": ["navigation", "accessibility", "token-bound"],
   "latest": "1.1.0",
   "designStyles": [
     {

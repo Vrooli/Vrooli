@@ -129,7 +129,7 @@ export function ApplicationShell({ children }: Props) {
             aria-label={t("nav.settings", { defaultValue: "Settings" })}
             className="touch-target inline-flex items-center justify-center rounded-control text-app-muted-foreground hover:bg-app-surface-muted hover:text-app-foreground"
           >
-            <SettingsIcon aria-hidden className="h-4 w-4" />
+            <SettingsIcon aria-hidden className="h-icon-sm w-icon-sm" />
           </Link>
         }
         inventorySlot={<CatalogBrowser compact onNavigate={closeDrawer} />}
@@ -151,7 +151,7 @@ export function ApplicationShell({ children }: Props) {
             data-testid="workspace-header-open-sidebar"
             className="touch-target inline-flex items-center justify-center rounded-control text-app-muted-foreground hover:bg-app-surface-muted hover:text-app-foreground"
           >
-            <Menu aria-hidden className="h-5 w-5" />
+            <Menu aria-hidden className="h-icon-md w-icon-md" />
           </button>
         ) : undefined
       }
@@ -172,7 +172,7 @@ export function ApplicationShell({ children }: Props) {
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 placeholder={t("catalog.search", { defaultValue: "Search" })}
-                className="h-9 w-44"
+                className="h-control-sm w-field-wide"
               />
             </form>
             <span className="hidden text-xs text-app-muted-foreground md:inline">

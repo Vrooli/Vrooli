@@ -1,19 +1,122 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 3,
   "kind": "component",
   "title": "Status Badge",
   "args": {
     "fields": [
-      { "path": "tone", "label": "Tone", "kind": "enum", "required": true, "default": "success", "options": ["neutral", "success", "warning", "info", "danger"] },
-      { "path": "children", "label": "Label", "kind": "structured", "required": true, "default": { "$text": "Current" } }
+      {
+        "path": "tone",
+        "label": "Tone",
+        "kind": "enum",
+        "required": true,
+        "default": "success",
+        "options": [
+          "neutral",
+          "success",
+          "warning",
+          "info",
+          "danger"
+        ]
+      },
+      {
+        "path": "children",
+        "label": "Label",
+        "kind": "structured",
+        "required": true,
+        "default": {
+          "$text": "Current"
+        }
+      }
     ]
   },
-  "environment": { "fixtures": [] },
+  "environment": {
+    "fixtures": []
+  },
   "stories": [
-    { "id": "neutral", "name": "Neutral", "args": { "tone": "neutral", "children": { "$text": "Current" } }, "expect": [{ "kind": "text", "value": "Current" }] },
-    { "id": "success", "name": "Success", "args": { "tone": "success", "children": { "$text": "Current" } }, "expect": [{ "kind": "text", "value": "Current" }] },
-    { "id": "warning", "name": "Warning", "args": { "tone": "warning", "children": { "$text": "Behind" } }, "expect": [{ "kind": "text", "value": "Behind" }] },
-    { "id": "long-label", "name": "Long Label", "args": { "tone": "info", "children": { "$text": "Requires manual review" } }, "expect": [{ "kind": "text", "value": "Requires manual review" }] },
-    { "id": "danger", "name": "Danger", "args": { "tone": "danger", "children": { "$text": "Blocked" } }, "expect": [{ "kind": "text", "value": "Blocked" }] }
+    {
+      "id": "neutral",
+      "name": "Neutral",
+      "args": {
+        "tone": "neutral",
+        "children": {
+          "$text": "Current"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Current"
+        }
+      ],
+      "mode": "pinned"
+    },
+    {
+      "id": "success",
+      "name": "Success",
+      "args": {
+        "tone": "success",
+        "children": {
+          "$text": "Current"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Current"
+        }
+      ],
+      "mode": "pinned"
+    },
+    {
+      "id": "warning",
+      "name": "Warning",
+      "args": {
+        "tone": "warning",
+        "children": {
+          "$text": "Behind"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Behind"
+        }
+      ],
+      "mode": "pinned"
+    },
+    {
+      "id": "long-label",
+      "name": "Long Label",
+      "args": {
+        "tone": "info",
+        "children": {
+          "$text": "Requires manual review"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Requires manual review"
+        }
+      ],
+      "mode": "pinned"
+    },
+    {
+      "id": "danger",
+      "name": "Danger",
+      "args": {
+        "tone": "danger",
+        "children": {
+          "$text": "Blocked"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Blocked"
+        }
+      ],
+      "mode": "pinned"
+    }
   ]
 }

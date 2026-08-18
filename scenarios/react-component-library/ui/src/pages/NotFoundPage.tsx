@@ -18,7 +18,7 @@ export function NotFoundPage() {
       <Link
         to="/"
         data-testid="not-found-home"
-        className="inline-flex h-9 items-center rounded-control bg-app-primary px-space-sm text-sm font-medium text-app-primary-foreground hover:brightness-95"
+        className="inline-flex h-control-sm items-center rounded-control bg-app-primary px-space-sm text-sm font-medium text-app-primary-foreground hover:brightness-95"
       >
         {t("notFound.home", { defaultValue: "Back to dashboard" })}
       </Link>

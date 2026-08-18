@@ -44,7 +44,7 @@
   "claims": [
     {
       "id": "stable-selection-context",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Selection count and scope remain visible through idle, pending, success, partial, and request-error states.",
       "tier": "manual",
       "states": [
@@ -58,21 +58,21 @@
     },
     {
       "id": "partial-recovery",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Partial results identify failed items and provide a retry path without hiding successful work.",
       "tier": "manual",
       "states": ["partial"]
     },
     {
       "id": "responsive-actions",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Actions reflow into full-width touch targets at narrow widths without horizontal overflow.",
       "tier": "manual",
       "states": ["default", "request-error"]
     },
     {
       "id": "dark-parity",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "The contextual action surface remains legible across the declared kits and dark mode.",
       "tier": "manual",
       "states": ["default", "partial", "request-error"]

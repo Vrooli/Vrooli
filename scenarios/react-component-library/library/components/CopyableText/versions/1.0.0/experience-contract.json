@@ -20,7 +20,7 @@
   "claims": [
     {
       "id": "contract-present",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "CopyableText makes copy feedback explicit without changing its footprint.",
       "tier": "manual",
       "states": ["ready", "copied"]

@@ -1,1 +1,33 @@
-{"schemaVersion":1,"kind":"component","title":"RelativeTime","args":{"fields":[{"path":"value","kind":"text","default":"just now"}]},"environment":{"fixtures":[]},"stories":[{"id":"default","name":"Just now","args":{"value":"just now"},"expect":[{"kind":"text","value":"just now"}]}]}
+{
+  "schemaVersion": 3,
+  "kind": "component",
+  "title": "RelativeTime",
+  "args": {
+    "fields": [
+      {
+        "path": "value",
+        "kind": "text",
+        "default": "just now"
+      }
+    ]
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Just now",
+      "args": {
+        "value": "just now"
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "just now"
+        }
+      ],
+      "mode": "pinned"
+    }
+  ]
+}

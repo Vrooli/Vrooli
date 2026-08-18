@@ -1,34 +1,34 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 3,
   "kind": "component",
   "title": "Input",
   "args": {
     "fields": [
-        {
-          "path": "type",
-          "label": "Type",
-          "kind": "text",
-          "default": "text"
-        },
-        {
-          "path": "placeholder",
-          "label": "Placeholder",
-          "kind": "text",
-          "default": "Component name"
-        },
-        {
-          "path": "defaultValue",
-          "label": "Default Value",
-          "kind": "text",
-          "default": "Button"
-        },
-        {
-          "path": "disabled",
-          "label": "Disabled",
-          "kind": "boolean",
-          "default": true
-        }
-      ]
+      {
+        "path": "type",
+        "label": "Type",
+        "kind": "text",
+        "default": "text"
+      },
+      {
+        "path": "placeholder",
+        "label": "Placeholder",
+        "kind": "text",
+        "default": "Component name"
+      },
+      {
+        "path": "defaultValue",
+        "label": "Default Value",
+        "kind": "text",
+        "default": "Button"
+      },
+      {
+        "path": "disabled",
+        "label": "Disabled",
+        "kind": "boolean",
+        "default": true
+      }
+    ]
   },
   "environment": {
     "fixtures": []
@@ -55,7 +55,8 @@
           "name": "placeholder",
           "value": "Component name"
         }
-      ]
+      ],
+      "mode": "pinned"
     },
     {
       "id": "search",
@@ -72,7 +73,8 @@
           "role": "textbox",
           "name": "Filter components"
         }
-      ]
+      ],
+      "mode": "pinned"
     },
     {
       "id": "disabled",
@@ -89,7 +91,8 @@
           "name": "disabled",
           "value": ""
         }
-      ]
+      ],
+      "mode": "pinned"
     }
   ]
 }

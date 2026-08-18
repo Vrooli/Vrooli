@@ -39,28 +39,28 @@
   "claims": [
     {
       "id": "input-preservation",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Validation, server rejection, and cancellation preserve the values the user entered.",
       "tier": "manual",
       "states": ["default", "request-error"]
     },
     {
       "id": "shared-async-runtime",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Loading, refresh, stale, partial, offline, and request-error presentation delegates to AsyncBoundary.",
       "tier": "manual",
       "states": ["loading", "request-error", "offline"]
     },
     {
       "id": "recovery-and-navigation",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "The flow exposes retry, cancellation, useful server field errors, and an explicit success handoff.",
       "tier": "manual",
       "states": ["request-error", "success"]
     },
     {
       "id": "responsive",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Header controls, fields, and actions remain usable when the surface becomes narrow.",
       "tier": "manual",
       "states": ["default", "request-error", "success"]

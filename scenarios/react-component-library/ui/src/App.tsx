@@ -36,7 +36,7 @@ function RouteSkeleton() {
       aria-live="polite"
       className="flex items-center gap-space-2xs text-sm text-app-muted-foreground"
     >
-      <span className="inline-block h-3 w-3 animate-pulse rounded-pill bg-app-surface-muted" />
+      <span className="inline-block h-icon-xs w-icon-xs animate-pulse rounded-pill bg-app-surface-muted" />
       {t("route.loading", { defaultValue: "Loading…" })}
     </div>
   );

@@ -559,7 +559,7 @@ function PathSourceBadge({ resolving, source, warnings }: PathSourceBadgeProps) 
         {label}
       </span>
       {warnings.length > 0 && (
-        <ul className="mt-space-3xs space-y-0.5 text-[11px] text-app-warning">
+        <ul className="mt-space-3xs space-y-space-4xs text-[11px] text-app-warning">
           {warnings.map((w, idx) => (
             <li key={idx} data-testid={selectors.adoptions.createPathWarning}>
               {w}

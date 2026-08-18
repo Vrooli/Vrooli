@@ -1,47 +1,236 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 3,
   "kind": "component",
   "title": "InspectorLayout",
   "args": {
     "fields": [
-      { "path": "title", "label": "Title", "kind": "text", "default": "Workflow editor" },
-      { "path": "toolbar", "label": "Toolbar", "kind": "structured", "default": { "$node": "button", "children": [{ "$text": "Run" }] } },
-      { "path": "canvas", "label": "Canvas", "kind": "structured", "default": { "$node": "p", "children": [{ "$text": "Workflow canvas" }] } },
-      { "path": "inspector", "label": "Inspector", "kind": "structured", "default": { "$node": "p", "children": [{ "$text": "Selected step details" }] } },
-      { "path": "inspectorState", "label": "Inspector State", "kind": "text", "default": "ready" }
+      {
+        "path": "title",
+        "label": "Title",
+        "kind": "text",
+        "default": "Workflow editor"
+      },
+      {
+        "path": "toolbar",
+        "label": "Toolbar",
+        "kind": "structured",
+        "default": {
+          "$node": "button",
+          "children": [
+            {
+              "$text": "Run"
+            }
+          ]
+        }
+      },
+      {
+        "path": "canvas",
+        "label": "Canvas",
+        "kind": "structured",
+        "default": {
+          "$node": "p",
+          "children": [
+            {
+              "$text": "Workflow canvas"
+            }
+          ]
+        }
+      },
+      {
+        "path": "inspector",
+        "label": "Inspector",
+        "kind": "structured",
+        "default": {
+          "$node": "p",
+          "children": [
+            {
+              "$text": "Selected step details"
+            }
+          ]
+        }
+      },
+      {
+        "path": "inspectorState",
+        "label": "Inspector State",
+        "kind": "text",
+        "default": "ready"
+      }
     ]
   },
-  "environment": { "fixtures": [] },
+  "environment": {
+    "fixtures": []
+  },
   "stories": [
     {
       "id": "ready-inspector",
       "name": "Ready inspector",
-      "args": { "title": "Workflow editor", "toolbar": { "$node": "button", "children": [{ "$text": "Run" }] }, "canvas": { "$node": "p", "children": [{ "$text": "Workflow canvas" }] }, "inspector": { "$node": "p", "children": [{ "$text": "Selected step details" }] }, "inspectorSurfaceId": "inspector" },
-      "expect": [{ "kind": "role", "role": "main" }, { "kind": "text", "value": "Workflow canvas" }, { "kind": "attribute", "selector": "[data-experience-surface=\"inspector\"]", "name": "data-experience-state", "value": "ready" }]
+      "args": {
+        "title": "Workflow editor",
+        "toolbar": {
+          "$node": "button",
+          "children": [
+            {
+              "$text": "Run"
+            }
+          ]
+        },
+        "canvas": {
+          "$node": "p",
+          "children": [
+            {
+              "$text": "Workflow canvas"
+            }
+          ]
+        },
+        "inspector": {
+          "$node": "p",
+          "children": [
+            {
+              "$text": "Selected step details"
+            }
+          ]
+        },
+        "inspectorSurfaceId": "inspector"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "main"
+        },
+        {
+          "kind": "text",
+          "value": "Workflow canvas"
+        },
+        {
+          "kind": "attribute",
+          "selector": "[data-experience-surface=\"inspector\"]",
+          "name": "data-experience-state",
+          "value": "ready"
+        }
+      ],
+      "mode": "pinned"
     },
     {
       "id": "empty-inspector",
       "name": "Empty inspector",
-      "args": { "title": "Workflow editor", "canvas": { "$node": "p", "children": [{ "$text": "Workflow canvas" }] }, "inspectorState": "empty" },
-      "expect": [{ "kind": "text", "value": "Nothing to show yet." }]
+      "args": {
+        "title": "Workflow editor",
+        "canvas": {
+          "$node": "p",
+          "children": [
+            {
+              "$text": "Workflow canvas"
+            }
+          ]
+        },
+        "inspectorState": "empty"
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Nothing to show yet."
+        }
+      ],
+      "mode": "pinned"
     },
     {
       "id": "loading-inspector",
       "name": "Loading inspector",
-      "args": { "title": "Workflow editor", "canvas": { "$node": "p", "children": [{ "$text": "Workflow canvas" }] }, "inspector": { "$node": "p", "children": [{ "$text": "Loading step details…" }] }, "inspectorState": "loading" },
-      "expect": [{ "kind": "attribute", "selector": "[data-experience-surface=\"inspector\"]", "name": "data-experience-state", "value": "loading" }]
+      "args": {
+        "title": "Workflow editor",
+        "canvas": {
+          "$node": "p",
+          "children": [
+            {
+              "$text": "Workflow canvas"
+            }
+          ]
+        },
+        "inspector": {
+          "$node": "p",
+          "children": [
+            {
+              "$text": "Loading step details…"
+            }
+          ]
+        },
+        "inspectorState": "loading"
+      },
+      "expect": [
+        {
+          "kind": "attribute",
+          "selector": "[data-experience-surface=\"inspector\"]",
+          "name": "data-experience-state",
+          "value": "loading"
+        }
+      ],
+      "mode": "pinned"
     },
     {
       "id": "partial-inspector",
       "name": "Partial inspector",
-      "args": { "title": "Workflow editor", "canvas": { "$node": "p", "children": [{ "$text": "Workflow canvas" }] }, "inspector": { "$node": "p", "children": [{ "$text": "Some step details are unavailable." }] }, "inspectorState": "partial" },
-      "expect": [{ "kind": "attribute", "selector": "[data-experience-surface=\"inspector\"]", "name": "data-experience-state", "value": "partial" }]
+      "args": {
+        "title": "Workflow editor",
+        "canvas": {
+          "$node": "p",
+          "children": [
+            {
+              "$text": "Workflow canvas"
+            }
+          ]
+        },
+        "inspector": {
+          "$node": "p",
+          "children": [
+            {
+              "$text": "Some step details are unavailable."
+            }
+          ]
+        },
+        "inspectorState": "partial"
+      },
+      "expect": [
+        {
+          "kind": "attribute",
+          "selector": "[data-experience-surface=\"inspector\"]",
+          "name": "data-experience-state",
+          "value": "partial"
+        }
+      ],
+      "mode": "pinned"
     },
     {
       "id": "error-inspector",
       "name": "Inspector error",
-      "args": { "title": "Workflow editor", "canvas": { "$node": "p", "children": [{ "$text": "Workflow canvas" }] }, "inspector": { "$node": "p", "children": [{ "$text": "Step details are unavailable." }] }, "inspectorState": "error" },
-      "expect": [{ "kind": "attribute", "selector": "[data-experience-surface=\"inspector\"]", "name": "data-experience-state", "value": "error" }]
+      "args": {
+        "title": "Workflow editor",
+        "canvas": {
+          "$node": "p",
+          "children": [
+            {
+              "$text": "Workflow canvas"
+            }
+          ]
+        },
+        "inspector": {
+          "$node": "p",
+          "children": [
+            {
+              "$text": "Step details are unavailable."
+            }
+          ]
+        },
+        "inspectorState": "error"
+      },
+      "expect": [
+        {
+          "kind": "attribute",
+          "selector": "[data-experience-surface=\"inspector\"]",
+          "name": "data-experience-state",
+          "value": "error"
+        }
+      ],
+      "mode": "pinned"
     }
   ]
 }

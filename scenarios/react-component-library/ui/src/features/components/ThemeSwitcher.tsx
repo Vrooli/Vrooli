@@ -72,7 +72,7 @@ export function ThemeSwitcher({
       <AnchoredMenu
         label={t(strings.components.themeSwitcher.appearanceLabel)}
         summary={t(activeMode?.label ?? strings.components.themeSwitcher.mode.system)}
-        icon={<Palette aria-hidden className="h-4 w-4" />}
+        icon={<Palette aria-hidden className="h-icon-sm w-icon-sm" />}
         triggerTestId={selectors.components.themeSwitcher.appearanceToggle}
         panelTestId={selectors.components.themeSwitcher.appearancePanel}
         compactOnMobile={compactOnMobile}
@@ -103,7 +103,7 @@ export function ThemeSwitcher({
                 data-testid={option.testid}
                 variant={colorScheme === option.value ? "primary" : "secondary"}
                 aria-pressed={colorScheme === option.value}
-                className="h-11 min-h-11 rounded-none border-0 px-space-xs text-xs"
+                className="h-touch min-h-touch rounded-none border-0 px-space-xs text-xs"
                 onClick={() => setColorScheme(option.value)}
               >
                 {t(option.label)}
@@ -128,7 +128,7 @@ export function ThemeSwitcher({
               data-testid={selectors.components.themeSwitcher.kitSelect}
               value={kit}
               onChange={(event) => setKit(event.target.value as PreviewKit)}
-              className="h-9 min-h-9 w-full rounded-md border border-app-border bg-app-surface px-space-2xs text-xs text-app-foreground"
+              className="h-control-sm min-h-control-sm w-full rounded-md border border-app-border bg-app-surface px-space-2xs text-xs text-app-foreground"
             >
               {PREVIEW_KITS.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -144,7 +144,7 @@ export function ThemeSwitcher({
             id="rcl-appearance-vision"
             className="flex items-center gap-space-2xs text-sm font-semibold text-app-foreground"
           >
-            <Eye aria-hidden className="h-4 w-4" />
+            <Eye aria-hidden className="h-icon-sm w-icon-sm" />
             {t(strings.components.themeSwitcher.visualLabel)}
           </h3>
           <p className="mt-space-3xs text-xs text-app-muted-foreground">
@@ -163,7 +163,7 @@ export function ThemeSwitcher({
             onChange={(event) =>
               filters.setVisionFilter(event.target.value as DeviceFiltersValue["visionFilter"])
             }
-            className="mt-space-3xs h-9 min-h-9 text-xs"
+            className="mt-space-3xs h-control-sm min-h-control-sm text-xs"
             options={[
               { value: "none", label: t(strings.components.emulator.visionFilter.normal) },
               { value: "grayscale", label: t(strings.components.emulator.visionFilter.grayscale) },
@@ -195,9 +195,9 @@ export function ThemeSwitcher({
               step={1}
               value={filters.blurPx}
               onChange={(event) => filters.setBlurPx(Number(event.target.value))}
-              className="h-6 min-h-0 flex-1 rounded-none border-0 bg-transparent p-0 accent-app-primary"
+              className="h-icon-lg min-h-0 flex-1 rounded-none border-0 bg-transparent p-0 accent-app-primary"
             />
-            <span className="w-9 font-mono">
+            <span className="w-control-sm font-mono">
               {t(strings.components.emulator.blurValue, { px: filters.blurPx })}
             </span>
           </label>

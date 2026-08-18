@@ -1,17 +1,111 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "kind": "hook",
   "title": "useVoiceInput 3.0",
   "args": {
     "fields": [
-      { "path": "enabled", "label": "Enabled", "kind": "boolean", "required": true, "default": true },
-      { "path": "mode", "label": "Mode", "kind": "enum", "required": true, "default": "always-on", "options": ["always-on", "timeout"] }
+      {
+        "path": "enabled",
+        "label": "Enabled",
+        "kind": "boolean",
+        "required": true,
+        "default": true
+      },
+      {
+        "path": "mode",
+        "label": "Mode",
+        "kind": "enum",
+        "required": true,
+        "default": "always-on",
+        "options": [
+          "always-on",
+          "timeout"
+        ]
+      }
     ]
   },
-  "environment": { "fixtures": [{ "key": "voiceInput", "adapter": "voice-input", "options": ["idle", "recording", "permission-denied"] }] },
+  "environment": {
+    "fixtures": [
+      {
+        "key": "voiceInput",
+        "adapter": "voice-input",
+        "options": [
+          "idle",
+          "recording",
+          "permission-denied"
+        ]
+      }
+    ]
+  },
   "stories": [
-    { "id": "idle", "name": "Idle shared-core binding", "args": { "enabled": true, "mode": "always-on" }, "environment": { "voiceInput": "idle" }, "interactions": [{ "kind": "settle" }], "expect": [{ "kind": "role", "role": "status" }] },
-    { "id": "recording", "name": "Recording after fixture action", "args": { "enabled": true, "mode": "always-on" }, "environment": { "voiceInput": "recording" }, "interactions": [{ "kind": "settle" }], "expect": [{ "kind": "role", "role": "status" }] },
-    { "id": "permission-denied", "name": "Permission denied", "args": { "enabled": true, "mode": "timeout" }, "environment": { "voiceInput": "permission-denied" }, "interactions": [{ "kind": "settle" }], "expect": [{ "kind": "role", "role": "status" }] }
+    {
+      "id": "idle",
+      "name": "Idle shared-core binding",
+      "args": {
+        "enabled": true,
+        "mode": "always-on"
+      },
+      "environment": {
+        "voiceInput": "idle"
+      },
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "expect": [
+        {
+          "kind": "role",
+          "role": "status"
+        }
+      ],
+      "mode": "pinned"
+    },
+    {
+      "id": "recording",
+      "name": "Recording after fixture action",
+      "args": {
+        "enabled": true,
+        "mode": "always-on"
+      },
+      "environment": {
+        "voiceInput": "recording"
+      },
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "expect": [
+        {
+          "kind": "role",
+          "role": "status"
+        }
+      ],
+      "mode": "pinned"
+    },
+    {
+      "id": "permission-denied",
+      "name": "Permission denied",
+      "args": {
+        "enabled": true,
+        "mode": "timeout"
+      },
+      "environment": {
+        "voiceInput": "permission-denied"
+      },
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "expect": [
+        {
+          "kind": "role",
+          "role": "status"
+        }
+      ],
+      "mode": "pinned"
+    }
   ]
 }

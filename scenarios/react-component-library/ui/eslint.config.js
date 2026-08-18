@@ -222,17 +222,11 @@ export default tseslint.config(
       // ════════════════════════════════════════════════════════════════════════
       // DESIGN RAMP
       //
-      // Landed at "warn" against a recorded baseline of 382 findings across 36
-      // files (see docs/internal/PROBLEMS.md). The debt predates the rule, so
-      // erroring immediately would have meant one large mechanical change
-      // across 36 files before anything was verifiable. The contract is that
-      // the count only ever goes down; when it reaches zero this flips to
-      // "error" and the baseline line in PROBLEMS.md is deleted.
-      //
-      // Do NOT add files to an ignore list to make this quieter — a
-      // grandfathered file is one nothing will ever come back to.
+      // Every workspace class list must use a published semantic dimension.
+      // The catalog config applies the same rule to released component source,
+      // keeping the authoring surface and the adoptable surface aligned.
       // ════════════════════════════════════════════════════════════════════════
-      "design-system/no-raw-dimensions": "warn",
+      "design-system/no-raw-dimensions": "error",
     },
   },
   {

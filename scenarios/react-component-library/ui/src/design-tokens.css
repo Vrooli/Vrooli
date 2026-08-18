@@ -100,6 +100,37 @@
   --skeleton-line-height: 1rem;
   --space-4xl: 6rem;
   --space-4xs: 2px;
+  --icon-size-xs: 12px;
+  --icon-size-compact: 14px;
+  --control-height-compact: 1.75rem;
+  --control-height-tight: 2rem;
+  --control-height-md: 2.5rem;
+  --control-height-xl: 3rem;
+  --control-height-2xl: 3.5rem;
+  --layout-field-compact: 7rem;
+  --layout-field: 9rem;
+  --layout-field-medium: 10rem;
+  --layout-field-wide: 11rem;
+  --layout-field-short: 8rem;
+  --layout-column: 12rem;
+  --layout-column-wide: 14rem;
+  --layout-panel-compact: 16rem;
+  --layout-panel: 20rem;
+  --layout-content-compact: 28rem;
+  --layout-content: 34rem;
+  --layout-content-wide: 42rem;
+  --layout-surface-short: 6rem;
+  --layout-surface: 8rem;
+  --layout-surface-tall: 10rem;
+  --layout-content-short: 12rem;
+  --layout-surface-tiny: 5rem;
+  --layout-avatar-sm: 4rem;
+  --layout-avatar-md: 5rem;
+  --layout-stage-empty: 18rem;
+  --layout-stage-panel: min(30rem, calc(100% - var(--space-sm)));
+  --layout-inline-overlay: calc(100% - var(--space-sm));
+  --layout-overlay-label: 45%;
+  --layout-separator: 0.25rem;
   --spinner-border: var(--color-border);
   --surface-border: var(--color-border);
   --text-code: 500 0.8125rem/1.25rem var(--font-mono);
@@ -175,7 +206,7 @@
   color-scheme: light;
 }
 /* rcl:tokens:begin */
-  /* managed token declarations are synchronized from adoption requirements */
+/* managed token declarations are synchronized from adoption requirements */
 /* rcl:tokens:end */
 
 :root[data-resolved-theme="dark"],

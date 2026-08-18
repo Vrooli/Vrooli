@@ -275,6 +275,15 @@ func renderHarnessHTML(id string, b preview.Bundle, ex harnessStory, designSyste
 	sb.WriteString(`
   html, body { margin: 0; padding: 0; min-height: 100vh; background: var(--color-background); color: var(--color-foreground); font-family: var(--font-sans, ui-sans-serif), system-ui, sans-serif; }
   #root { min-height: 100vh; box-sizing: border-box; background: var(--color-background); }
+  html[data-rcl-capture="deterministic"] *,
+  html[data-rcl-capture="deterministic"] *::before,
+  html[data-rcl-capture="deterministic"] *::after {
+    animation-duration: 0s !important;
+    animation-delay: 0s !important;
+    transition-duration: 0s !important;
+    transition-delay: 0s !important;
+    caret-color: transparent !important;
+  }
   .rcl-preview-gallery,
   .rcl-preview-gallery #root { min-height: 100%; height: 100%; overflow: hidden; }
   .rcl-preview-gallery .rcl-preview-specimen { min-height: 100%; height: 100%; padding: 24px; }
@@ -638,8 +647,28 @@ window.addEventListener("message", (ev) => {
 const errEl = document.getElementById("preview-error");
 const storyResultEl = document.getElementById("rcl-story-result");
 const harnessRoot = document.getElementById("root");
+const captureParams = new URLSearchParams(window.location.search);
+const captureTheme = captureParams.get("theme");
+const captureMotion = captureParams.get("motion");
+const captureSeed = captureParams.get("seed");
+if (captureMotion === "reduce") {
+  document.documentElement.dataset.rclCapture = "deterministic";
+  document.documentElement.style.setProperty("--rcl-capture-motion", "reduced");
+}
+if (captureSeed) {
+  document.documentElement.dataset.rclCaptureSeed = captureSeed;
+  window.__RCL_CAPTURE_SEED__ = captureSeed;
+}
+if (captureTheme === "light" || captureTheme === "dark") {
+  document.documentElement.dataset.resolvedTheme = captureTheme;
+  document.documentElement.style.colorScheme = captureTheme;
+}
 const setHarnessState = (state) => {
   if (harnessRoot) harnessRoot.dataset.experienceState = state;
+  const requestedTheme = captureTheme;
+  if (harnessRoot && (requestedTheme === "light" || requestedTheme === "dark")) {
+    harnessRoot.dataset.rclTheme = requestedTheme;
+  }
 };
 const showPreviewError = (message) => {
   setHarnessState("error");
@@ -671,6 +700,9 @@ const tag = (el && el.tagName ? el.tagName.toLowerCase() : "");
   if (tag === "main") return "main";
   if (tag === "form") return "form";
   if (tag === "table") return "table";
+  if (tag === "nav") return "navigation";
+  if (tag === "aside") return "complementary";
+  if (tag === "section" && el.hasAttribute("aria-label")) return "region";
   if (/^h[1-6]$/.test(tag)) return "heading";
   return "";
 };

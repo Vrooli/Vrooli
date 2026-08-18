@@ -24,21 +24,21 @@
   "claims": [
     {
       "id": "priority",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "The primary submit action is distinct from secondary and destructive-adjacent actions.",
       "tier": "manual",
       "states": ["default"]
     },
     {
       "id": "pending-semantics",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Pending submission disables actions and exposes a busy submit state.",
       "tier": "manual",
       "states": ["pending"]
     },
     {
       "id": "responsive-layout",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Actions become full-width and touch-friendly on narrow viewports.",
       "tier": "manual",
       "states": ["default", "pending"]

@@ -44,14 +44,14 @@
   "claims": [
     {
       "id": "field-choice",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Every conflict field exposes local and remote values with native keyboard-operable choices.",
       "tier": "manual",
       "states": ["default"]
     },
     {
       "id": "preserve-on-error",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Request failure preserves the user's choices and provides an explicit retry path.",
       "tier": "manual",
       "states": ["request-error", "retry"]

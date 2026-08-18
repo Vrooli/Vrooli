@@ -2,16 +2,140 @@
   "schemaVersion": 3,
   "kind": "component",
   "title": "Progress",
-  "args": { "fields": [] },
-  "environment": { "fixtures": [] },
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
   "stories": [
-    { "id": "determinate", "name": "Determinate", "harness": "Determinate", "args": {}, "expect": [{ "kind": "role", "role": "progressbar" }, { "kind": "attribute", "selector": "[role=progressbar]", "attribute": "aria-valuenow", "value": "68" }] },
-    { "id": "buffered", "name": "Buffered", "harness": "Buffered", "args": {}, "expect": [{ "kind": "role", "role": "progressbar" }] },
-    { "id": "segmented", "name": "Segmented", "harness": "Segmented", "args": {}, "expect": [{ "kind": "role", "role": "progressbar" }] },
-    { "id": "indeterminate", "name": "Indeterminate", "harness": "Indeterminate", "args": {}, "expect": [{ "kind": "role", "role": "progressbar" }, { "kind": "attribute", "selector": "[role=progressbar]", "attribute": "aria-label", "value": "Searching" }] },
-    { "id": "circular", "name": "Circular", "harness": "Circular", "args": {}, "expect": [{ "kind": "role", "role": "progressbar" }] },
-    { "id": "success", "name": "Success", "harness": "Success", "args": {}, "expect": [{ "kind": "role", "role": "progressbar" }] },
-    { "id": "error", "name": "Error", "harness": "Error", "args": {}, "expect": [{ "kind": "role", "role": "progressbar" }] },
-    { "id": "toggle", "name": "Interactive progress", "harness": "ToggleProgress", "args": {}, "expect": [{ "kind": "role", "role": "progressbar" }], "interactions": [{ "kind": "click", "target": { "role": "button", "name": "Advance task" } }, { "kind": "settle" }] }
+    {
+      "id": "determinate",
+      "name": "Determinate",
+      "harness": "Determinate",
+      "args": {},
+      "expect": [
+        {
+          "kind": "role",
+          "role": "progressbar"
+        },
+        {
+          "kind": "attribute",
+          "selector": "[role=progressbar]",
+          "attribute": "aria-valuenow",
+          "value": "68"
+        }
+      ],
+      "mode": "live"
+    },
+    {
+      "id": "buffered",
+      "name": "Buffered",
+      "harness": "Buffered",
+      "args": {},
+      "expect": [
+        {
+          "kind": "role",
+          "role": "progressbar"
+        }
+      ],
+      "mode": "live"
+    },
+    {
+      "id": "segmented",
+      "name": "Segmented",
+      "harness": "Segmented",
+      "args": {},
+      "expect": [
+        {
+          "kind": "role",
+          "role": "progressbar"
+        }
+      ],
+      "mode": "live"
+    },
+    {
+      "id": "indeterminate",
+      "name": "Indeterminate",
+      "harness": "Indeterminate",
+      "args": {},
+      "expect": [
+        {
+          "kind": "role",
+          "role": "progressbar"
+        },
+        {
+          "kind": "attribute",
+          "selector": "[role=progressbar]",
+          "attribute": "aria-label",
+          "value": "Searching"
+        }
+      ],
+      "mode": "live"
+    },
+    {
+      "id": "circular",
+      "name": "Circular",
+      "harness": "Circular",
+      "args": {},
+      "expect": [
+        {
+          "kind": "role",
+          "role": "progressbar"
+        }
+      ],
+      "mode": "live"
+    },
+    {
+      "id": "success",
+      "name": "Success",
+      "harness": "Success",
+      "args": {},
+      "expect": [
+        {
+          "kind": "role",
+          "role": "progressbar"
+        }
+      ],
+      "mode": "live"
+    },
+    {
+      "id": "error",
+      "name": "Error",
+      "harness": "Error",
+      "args": {},
+      "expect": [
+        {
+          "kind": "role",
+          "role": "progressbar"
+        }
+      ],
+      "mode": "live"
+    },
+    {
+      "id": "toggle",
+      "name": "Interactive progress",
+      "harness": "ToggleProgress",
+      "args": {},
+      "expect": [
+        {
+          "kind": "role",
+          "role": "progressbar"
+        }
+      ],
+      "interactions": [
+        {
+          "kind": "click",
+          "target": {
+            "role": "button",
+            "name": "Advance task"
+          }
+        },
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live"
+    }
   ]
 }

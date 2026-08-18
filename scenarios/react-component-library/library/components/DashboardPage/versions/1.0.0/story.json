@@ -1,1 +1,189 @@
-{"schemaVersion":1,"kind":"component","title":"DashboardPage","args":{"fields":[]},"environment":{"fixtures":[]},"stories":[{"id":"default","name":"default","args":{"state":"ready","data":{"metrics":[{"label":"Active","value":"42"}]}},"expect":[{"kind":"text","value":"42"}]},{"id":"loading","name":"loading","args":{"state":"loading","data":{"metrics":[{"label":"Active","value":"42"}]}},"expect":[{"kind":"text","value":"Loading"}]},{"id":"refreshing","name":"refreshing","args":{"state":"refreshing","data":{"metrics":[{"label":"Active","value":"42"}]}},"expect":[{"kind":"text","value":"Refreshing"}]},{"id":"stale","name":"stale","args":{"state":"stale","data":{"metrics":[{"label":"Active","value":"42"}]}},"expect":[{"kind":"text","value":"Showing stale data"}]},{"id":"empty","name":"empty","args":{"state":"empty","data":{"metrics":[{"label":"Active","value":"42"}]}},"expect":[{"kind":"text","value":"Nothing here"}]},{"id":"partial-error","name":"partial-error","args":{"state":"partial-error","data":{"metrics":[{"label":"Active","value":"42"}]}},"expect":[{"kind":"text","value":"Some sections need attention"}]},{"id":"fatal-error","name":"fatal-error","args":{"state":"fatal-error","data":{"metrics":[{"label":"Active","value":"42"}]}},"expect":[{"kind":"text","value":"Unable to load this page"}]},{"id":"offline","name":"offline","args":{"state":"offline","data":{"metrics":[{"label":"Active","value":"42"}]}},"expect":[{"kind":"text","value":"Offline"}]}]}
+{
+  "schemaVersion": 3,
+  "kind": "component",
+  "title": "DashboardPage",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "default",
+      "name": "default",
+      "args": {
+        "state": "ready",
+        "data": {
+          "metrics": [
+            {
+              "label": "Active",
+              "value": "42"
+            }
+          ]
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "42"
+        }
+      ],
+      "mode": "pinned"
+    },
+    {
+      "id": "loading",
+      "name": "loading",
+      "args": {
+        "state": "loading",
+        "data": {
+          "metrics": [
+            {
+              "label": "Active",
+              "value": "42"
+            }
+          ]
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Loading"
+        }
+      ],
+      "mode": "pinned"
+    },
+    {
+      "id": "refreshing",
+      "name": "refreshing",
+      "args": {
+        "state": "refreshing",
+        "data": {
+          "metrics": [
+            {
+              "label": "Active",
+              "value": "42"
+            }
+          ]
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Refreshing"
+        }
+      ],
+      "mode": "pinned"
+    },
+    {
+      "id": "stale",
+      "name": "stale",
+      "args": {
+        "state": "stale",
+        "data": {
+          "metrics": [
+            {
+              "label": "Active",
+              "value": "42"
+            }
+          ]
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Showing stale data"
+        }
+      ],
+      "mode": "pinned"
+    },
+    {
+      "id": "empty",
+      "name": "empty",
+      "args": {
+        "state": "empty",
+        "data": {
+          "metrics": [
+            {
+              "label": "Active",
+              "value": "42"
+            }
+          ]
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Nothing here"
+        }
+      ],
+      "mode": "pinned"
+    },
+    {
+      "id": "partial-error",
+      "name": "partial-error",
+      "args": {
+        "state": "partial-error",
+        "data": {
+          "metrics": [
+            {
+              "label": "Active",
+              "value": "42"
+            }
+          ]
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Some sections need attention"
+        }
+      ],
+      "mode": "pinned"
+    },
+    {
+      "id": "fatal-error",
+      "name": "fatal-error",
+      "args": {
+        "state": "fatal-error",
+        "data": {
+          "metrics": [
+            {
+              "label": "Active",
+              "value": "42"
+            }
+          ]
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Unable to load this page"
+        }
+      ],
+      "mode": "pinned"
+    },
+    {
+      "id": "offline",
+      "name": "offline",
+      "args": {
+        "state": "offline",
+        "data": {
+          "metrics": [
+            {
+              "label": "Active",
+              "value": "42"
+            }
+          ]
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Offline"
+        }
+      ],
+      "mode": "pinned"
+    }
+  ]
+}

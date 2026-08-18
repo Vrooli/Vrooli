@@ -1,1 +1,79 @@
-{"schemaVersion":3,"kind":"component","title":"Sortable","args":{"fields":[]} ,"environment":{"fixtures":[]} ,"stories":[{"id":"default","name":"Sortable work","harness":"Default","args":{},"interactions":[{"kind":"key","target":{"role":"button","name":"Reorder Research brief"},"text":" "},{"kind":"key","target":{"role":"button","name":"Reorder Research brief"},"text":"ArrowDown"},{"kind":"key","target":{"role":"button","name":"Reorder Research brief"},"text":"Enter"},{"kind":"waitFor","text":"300"},{"kind":"settle"}],"expect":[{"kind":"text","value":"Order is an intentional interaction"},{"kind":"role","role":"list","name":"Sortable list"},{"kind":"role","role":"button","name":"Reorder Research brief"},{"kind":"text","value":"persistence is optimistic"},{"kind":"attribute","selector":"[data-rcl-sortable-item]","name":"aria-setsize","value":"3"}]}]}
+{
+  "schemaVersion": 3,
+  "kind": "component",
+  "title": "Sortable",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Sortable work",
+      "harness": "Default",
+      "args": {},
+      "interactions": [
+        {
+          "kind": "key",
+          "target": {
+            "role": "button",
+            "name": "Reorder Research brief"
+          },
+          "text": " "
+        },
+        {
+          "kind": "key",
+          "target": {
+            "role": "button",
+            "name": "Reorder Research brief"
+          },
+          "text": "ArrowDown"
+        },
+        {
+          "kind": "key",
+          "target": {
+            "role": "button",
+            "name": "Reorder Research brief"
+          },
+          "text": "Enter"
+        },
+        {
+          "kind": "waitFor",
+          "text": "300"
+        },
+        {
+          "kind": "settle"
+        }
+      ],
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Order is an intentional interaction"
+        },
+        {
+          "kind": "role",
+          "role": "list",
+          "name": "Sortable list"
+        },
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Reorder Research brief"
+        },
+        {
+          "kind": "text",
+          "value": "persistence is optimistic"
+        },
+        {
+          "kind": "attribute",
+          "selector": "[data-rcl-sortable-item]",
+          "name": "aria-setsize",
+          "value": "3"
+        }
+      ],
+      "mode": "live"
+    }
+  ]
+}

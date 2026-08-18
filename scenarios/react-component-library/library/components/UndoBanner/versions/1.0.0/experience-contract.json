@@ -34,21 +34,21 @@
   "claims": [
     {
       "id": "recovery",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Undo is available before expiry, while rollback progress, completion, and failure remain explicit.",
       "tier": "manual",
       "states": ["default", "submitting", "success", "request-error"]
     },
     {
       "id": "reflow",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "The action becomes a full-width mobile control without clipping the explanation.",
       "tier": "manual",
       "states": ["default", "request-error"]
     },
     {
       "id": "forced-colors",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Border and action affordances retain non-color meaning in forced-colors mode.",
       "tier": "manual",
       "states": ["default", "request-error"]

@@ -88,7 +88,7 @@ export function ComponentsCard() {
       sortValue: (component) => component.displayName,
       searchValue: componentSearchValue,
       accessor: (component) => (
-        <div className="min-w-64">
+        <div className="min-w-panel-compact">
           <div
             data-testid={selectors.components.itemDisplayName}
             className="font-medium text-app-foreground"
@@ -155,7 +155,7 @@ export function ComponentsCard() {
         return (
           <div
             data-testid={selectors.components.itemDesignStyles}
-            className="flex max-w-80 flex-wrap gap-space-3xs text-xs"
+            className="flex max-w-sidebar flex-wrap gap-space-3xs text-xs"
             aria-label={t(strings.components.designStylesLabel, {
               styles: designStylesSummary,
             })}
@@ -177,7 +177,7 @@ export function ComponentsCard() {
       header: "Tags",
       searchValue: (component) => component.tags.join(" "),
       accessor: (component) => (
-        <div data-testid={selectors.components.itemTags} className="max-w-64 text-xs">
+        <div data-testid={selectors.components.itemTags} className="max-w-panel-compact text-xs">
           {component.tags.length > 0
             ? t(strings.components.tagsLabel, { tags: component.tags.join(", ") })
             : t(strings.components.noTags)}
@@ -192,7 +192,7 @@ export function ComponentsCard() {
         <div className="flex items-center justify-end gap-space-2xs">
           <Link
             to={assetPath(component.id, currentTab ? { tab: currentTab } : {})}
-            className="inline-flex min-h-8 items-center justify-center rounded-control border border-app-border bg-app-surface px-space-xs text-xs font-medium text-app-foreground transition hover:bg-app-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-primary/50"
+            className="inline-flex min-h-control-tight items-center justify-center rounded-control border border-app-border bg-app-surface px-space-xs text-xs font-medium text-app-foreground transition hover:bg-app-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-primary/50"
           >
             {t(strings.components.openAction)}
           </Link>

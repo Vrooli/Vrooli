@@ -1,10 +1,10 @@
 /**
  * @vrooliComponentSource react-component-library:AppNavigation
- * @vrooliComponentVersion 1.0.0
+ * @vrooliComponentVersion 1.1.0
  * @vrooliComponentAdoption c503e6de-f602-43df-bc0b-c2e5b9cce4cd
- * @vrooliComponentAppliedAt 2026-08-12T11:40:47Z
- * @vrooliComponentSourceSha256 cda6537a821b5366a7b91d3434daa1afbf23fc60df731dff01a7efbd38d1afce
- * @vrooliComponentDriftHash b3bebdb7241b3081b623fd8d1e277ef78dd600becc2f118230f0d9c8daa0e008
+ * @vrooliComponentAppliedAt 2026-08-18T01:12:43Z
+ * @vrooliComponentSourceSha256 4b7339bac5ea3161c7220540110fe378e63f79f908f7b60ae87428fa549aa6ab
+ * @vrooliComponentDriftHash 1ec676240fb7cffeebe7881bc8f8cde0c455612e208958ae7486c9ef8a2f6585
  * @vrooliComponentTokenTranslation none
  *
  * This file was copied from React Component Library. Local edits are allowed;
@@ -13,6 +13,21 @@
 import type { ReactNode } from "react";
 import { Home, LayoutGrid, Settings } from "lucide-react";
 
+/**
+ * 1.1.0 — icons sized in CSS instead of through the icon library's `size` prop.
+ *
+ * 1.0.0 passed `size="var(--space-sm)"` to the lucide icons in `defaultItems`.
+ * That prop is forwarded straight to the SVG `width`/`height` attributes, whose
+ * grammar is `<length>`; `var()` is not a length, so the browser rejected them:
+ *
+ *   Error: <svg> attribute width: Expected length, "var(--space-sm)"
+ *
+ * With no accepted geometry the icons fell back to the replaced-element default
+ * and rendered far larger than the nav rows containing them. Sizing them from
+ * the stylesheet keeps the token indirection the prop was reaching for while
+ * using a property that actually accepts it, and matches how SidebarShell
+ * already sizes its icons.
+ */
 const appNavigationStyles = `
 [data-rcl-app-navigation] { display: grid; min-inline-size: 0; gap: var(--space-sm); border: var(--border-hairline) solid var(--color-border); border-radius: var(--radius-panel); background: var(--color-surface); color: var(--color-foreground); padding: var(--space-sm); box-shadow: var(--elev-raised); }
 [data-rcl-app-navigation] [data-rcl-app-navigation-brand] { display: flex; min-block-size: var(--tap-target-min); align-items: center; gap: var(--space-xs); border-block-end: var(--border-hairline) solid var(--color-border); color: var(--color-foreground); padding: 0 var(--space-2xs) var(--space-sm); font: var(--text-heading-sm); }

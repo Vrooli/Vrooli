@@ -1,1 +1,37 @@
-{"schemaVersion":2,"kind":"hook","title":"Press","args":{"fields":[{"path":"label","label":"Label","kind":"text","required":true,"default":"Press"}]},"environment":{"fixtures":[]},"stories":[{"id":"default","name":"Default","harness":"Default","args":{"label":"Press"},"expect":[{"kind":"role","role":"button","name":"Press"}]}]}
+{
+  "schemaVersion": 3,
+  "kind": "hook",
+  "title": "Press",
+  "args": {
+    "fields": [
+      {
+        "path": "label",
+        "label": "Label",
+        "kind": "text",
+        "required": true,
+        "default": "Press"
+      }
+    ]
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Default",
+      "harness": "Default",
+      "args": {
+        "label": "Press"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Press"
+        }
+      ],
+      "mode": "live"
+    }
+  ]
+}

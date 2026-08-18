@@ -1,18 +1,48 @@
 {
-  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "$schema": "../../../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
   "kind": "experience-component",
   "schemaVersion": "1.1.0",
-  "component": { "id": "sidebar-shell", "title": "SidebarShell", "purpose": "A responsive, dismissible navigation container with safe-area and resize affordances.", "storyRef": "../../library/components/SidebarShell/versions/1.2.0/story.json" },
+  "component": {
+    "id": "sidebar-shell",
+    "title": "SidebarShell",
+    "purpose": "A responsive, dismissible navigation container with safe-area and resize affordances.",
+    "storyRef": "../../library/components/SidebarShell/versions/1.2.0/story.json"
+  },
   "states": [
-    { "id": "default", "example": "persistent", "description": "The desktop navigation rail is visible." },
-    { "id": "mobile-open", "example": "overlay-open", "description": "The mobile drawer is open and dismissible." }
+    {
+      "id": "default",
+      "example": "persistent",
+      "description": "The desktop navigation rail is visible."
+    },
+    {
+      "id": "mobile-open",
+      "example": "overlay-open",
+      "description": "The mobile drawer is open and dismissible."
+    }
   ],
   "elements": [
-    { "id": "shell", "role": "x-navigation-shell", "description": "The responsive navigation shell." }
+    {
+      "id": "shell",
+      "role": "x-navigation-shell",
+      "description": "The responsive navigation shell."
+    }
   ],
   "claims": [
-    { "id": "shell-present", "type": "element-present", "statement": "The responsive shell exposes a navigation surface.", "tier": "machine", "elements": ["shell"], "states": ["default", "mobile-open"] },
-    { "id": "shell-no-overflow", "type": "no-document-horizontal-overflow", "statement": "The shell remains bounded by the document viewport in both presentations.", "tier": "machine", "states": ["default", "mobile-open"] }
+    {
+      "id": "shell-present",
+      "type": "element-present",
+      "statement": "The responsive shell exposes a navigation surface.",
+      "tier": "machine",
+      "elements": ["shell"],
+      "states": ["default", "mobile-open"]
+    },
+    {
+      "id": "shell-no-overflow",
+      "type": "no-document-horizontal-overflow",
+      "statement": "The shell remains bounded by the document viewport in both presentations.",
+      "tier": "machine",
+      "states": ["default", "mobile-open"]
+    }
   ],
   "bindings": { "elements": { "shell": { "testid": "sidebar-shell" } } }
 }

@@ -34,6 +34,7 @@ import (
 // reader a grep.
 type Finding struct {
 	Code        string
+	Category    string
 	AssetID     string
 	Message     string
 	File        string
@@ -649,6 +650,9 @@ func ValidateTokens(root string) (Result, error) {
 		}
 		result.Inspected++
 		result.Findings = append(result.Findings, literalDimensionFindings(root, path, data)...)
+	}
+	for index := range result.Findings {
+		result.Findings[index].Category = "conformance"
 	}
 	return nonEmpty(result, "tokens"), nil
 }

@@ -2,7 +2,7 @@
  * @vrooliComponentSource react-component-library:VoiceInputButton
  * @vrooliComponentVersion 4.1.0
  * @vrooliComponentAdoption 1636c81c-83d8-4a90-854d-990050b400b0
- * @vrooliComponentAppliedAt 2026-08-11T00:35:31Z
+ * @vrooliComponentAppliedAt 2026-08-18T01:12:49Z
  * @vrooliComponentSourceSha256 fe2c5be8d35f2877f8c7613534ad70bafe462945bbdc25023a362f8c5e5ba033
  * @vrooliComponentDriftHash f59f8ab6f3086b7103a25b3abb73e71d10f3a907b5049db722616a282fde3261
  * @vrooliComponentTokenTranslation bg-app-danger/20->bg-app-danger/20,bg-app-info/20->bg-app-info/20,bg-app-primary/20->bg-app-primary/20,bg-app-primary/60->bg-app-primary/60,bg-app-surface->bg-app-surface,bg-app-warning/10->bg-app-warning/10,bg-app-warning/70->bg-app-warning/70,border-app-border->border-app-border,border-app-danger->border-app-danger,border-app-info->border-app-info,border-app-primary->border-app-primary,border-app-warning->border-app-warning,border-app-warning/50->border-app-warning/50,text-app-danger->text-app-danger,text-app-info->text-app-info,text-app-muted-foreground->text-app-muted-foreground,text-app-primary->text-app-primary,text-app-warning->text-app-warning

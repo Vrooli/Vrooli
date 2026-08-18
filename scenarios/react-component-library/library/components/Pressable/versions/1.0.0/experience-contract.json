@@ -38,7 +38,7 @@
     },
     {
       "id": "pending-contract",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Pressable preserves bounded tone and pending behavior without resizing ready or icon-only controls.",
       "tier": "manual",
       "states": ["default", "pending"]

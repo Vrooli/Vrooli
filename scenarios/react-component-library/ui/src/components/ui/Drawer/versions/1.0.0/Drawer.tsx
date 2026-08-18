@@ -2,9 +2,9 @@
  * @vrooliComponentSource react-component-library:Drawer
  * @vrooliComponentVersion 1.0.0
  * @vrooliComponentAdoption af7d2d72-40c6-4f05-83f5-5374630bdd5c
- * @vrooliComponentAppliedAt 2026-08-12T12:59:53Z
- * @vrooliComponentSourceSha256 b39466e766e591d8b18589eacdde3db9d554d0f28e89dac4a39e3e89d9227bae
- * @vrooliComponentDriftHash 7f61007cce2fec767148aa2c31df4d1ade4442b7acb31ba981effef31cedc0af
+ * @vrooliComponentAppliedAt 2026-08-17T23:22:48Z
+ * @vrooliComponentSourceSha256 220b576832958f44969f5f09a975f4b265a9586cf335ffc2230000420e7a79e9
+ * @vrooliComponentDriftHash 2ab6dd9cb1289997cbe7c5dbda5a05c1ed7b095b247ca95cc7a72afee7a4bba4
  * @vrooliComponentTokenTranslation none
  *
  * This file was copied from React Component Library. Local edits are allowed;

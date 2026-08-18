@@ -185,7 +185,7 @@ export function AdoptionsCard({
       sortValue: (adoption) => adoption.scenario,
       searchValue: adoptionSearchValue,
       accessor: (adoption) => (
-        <div className="min-w-56">
+        <div className="min-w-column-wide">
           <div data-testid={selectors.adoptions.itemScenario} className="font-medium">
             {adoption.scenario}
           </div>
@@ -207,7 +207,7 @@ export function AdoptionsCard({
       sortValue: (adoption) => adoption.libraryId,
       searchValue: (adoption) => `${adoption.libraryId} ${adoption.adoptedVersion}`,
       accessor: (adoption) => (
-        <div className="min-w-48 text-xs">
+        <div className="min-w-column text-xs">
           <div data-testid={selectors.adoptions.itemLibraryId}>{adoption.libraryId}</div>
           {adoption.adoptedVersion && (
             <div
@@ -230,7 +230,7 @@ export function AdoptionsCard({
         const statusLabel = statusLabelFor(adoption.libraryVersionStatus, t);
         const localLabel = localStatusLabelFor(adoption.localStatus, t);
         return (
-          <div className="flex min-w-48 flex-col gap-space-2xs">
+          <div className="flex min-w-column flex-col gap-space-2xs">
             <div className="flex flex-wrap gap-space-2xs">
               <StatusBadge
                 data-testid={selectors.adoptions.itemStatus}
@@ -274,7 +274,7 @@ export function AdoptionsCard({
           data-testid={selectors.adoptions.itemDeleteButton}
           onClick={() => deleteMutation.mutate(adoption.id)}
           disabled={deleteMutation.isPending}
-          className="h-8 px-space-xs text-xs"
+          className="h-control-tight px-space-xs text-xs"
         >
           {deleteMutation.isPending
             ? t(strings.adoptions.deleting)
@@ -317,7 +317,7 @@ export function AdoptionsCard({
                         defaultValue: "Unavailable candidate",
                       })}
                 </StatusBadge>
-                <ul className="mt-space-3xs list-disc space-y-0.5 ps-space-sm text-app-muted-foreground">
+                <ul className="mt-space-3xs list-disc space-y-space-4xs ps-space-sm text-app-muted-foreground">
                   {item.reasons.map((reason) => (
                     <li key={reason}>{reason}</li>
                   ))}
@@ -511,7 +511,7 @@ export function AdoptionsCard({
                         defaultValue: "Unavailable candidate",
                       })}
                 </p>
-                <ul className="mt-space-3xs list-disc space-y-0.5 ps-space-sm text-app-muted-foreground">
+                <ul className="mt-space-3xs list-disc space-y-space-4xs ps-space-sm text-app-muted-foreground">
                   {item.reasons.map((reason) => (
                     <li key={reason}>{reason}</li>
                   ))}

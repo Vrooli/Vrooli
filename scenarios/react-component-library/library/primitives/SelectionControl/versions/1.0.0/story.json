@@ -2,10 +2,58 @@
   "schemaVersion": 3,
   "kind": "component",
   "title": "SelectionControl",
-  "args": { "fields": [] },
-  "environment": { "fixtures": [] },
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
   "stories": [
-    { "id": "default", "name": "Checkbox", "harness": "Default", "args": {}, "expect": [{ "kind": "role", "role": "checkbox", "name": "Keep me signed in" }, { "kind": "text", "value": "private device" }], "interactions": [{ "kind": "settle" }] },
-    { "id": "states", "name": "Selection states", "harness": "States", "args": {}, "expect": [{ "kind": "role", "role": "switch", "name": "Quiet hours" }, { "kind": "role", "role": "alert" }], "interactions": [{ "kind": "settle" }] }
+    {
+      "id": "default",
+      "name": "Checkbox",
+      "harness": "Default",
+      "args": {},
+      "expect": [
+        {
+          "kind": "role",
+          "role": "checkbox",
+          "name": "Keep me signed in"
+        },
+        {
+          "kind": "text",
+          "value": "private device"
+        }
+      ],
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live"
+    },
+    {
+      "id": "states",
+      "name": "Selection states",
+      "harness": "States",
+      "args": {},
+      "expect": [
+        {
+          "kind": "role",
+          "role": "switch",
+          "name": "Quiet hours"
+        },
+        {
+          "kind": "role",
+          "role": "alert"
+        }
+      ],
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live"
+    }
   ]
 }

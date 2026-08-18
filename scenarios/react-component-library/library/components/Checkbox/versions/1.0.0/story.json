@@ -2,10 +2,54 @@
   "schemaVersion": 3,
   "kind": "component",
   "title": "Checkbox",
-  "args": { "fields": [] },
-  "environment": { "fixtures": [] },
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
   "stories": [
-    { "id": "default", "name": "Default", "harness": "Default", "args": {}, "expect": [{ "kind": "role", "role": "checkbox", "name": "Keep me signed in" }], "interactions": [{ "kind": "settle" }] },
-    { "id": "invalid", "name": "Invalid", "harness": "Invalid", "args": {}, "expect": [{ "kind": "role", "role": "checkbox", "name": "Billing alerts" }, { "kind": "role", "role": "alert" }], "interactions": [{ "kind": "settle" }] }
+    {
+      "id": "default",
+      "name": "Default",
+      "harness": "Default",
+      "args": {},
+      "expect": [
+        {
+          "kind": "role",
+          "role": "checkbox",
+          "name": "Keep me signed in"
+        }
+      ],
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live"
+    },
+    {
+      "id": "invalid",
+      "name": "Invalid",
+      "harness": "Invalid",
+      "args": {},
+      "expect": [
+        {
+          "kind": "role",
+          "role": "checkbox",
+          "name": "Billing alerts"
+        },
+        {
+          "kind": "role",
+          "role": "alert"
+        }
+      ],
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live"
+    }
   ]
 }

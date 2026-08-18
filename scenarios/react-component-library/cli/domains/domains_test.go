@@ -12,7 +12,14 @@ import (
 
 func TestCommandGroups(t *testing.T) {
 	got := CommandGroups(&cliapp.ScenarioApp{})
-	require.Nil(t, got, "CommandGroups should return nil until a domain registers a flat group")
+	require.Len(t, got, 2)
+	if len(got) == 2 {
+		require.Equal(t, "Coverage", got[0].Title)
+		require.Len(t, got[0].Commands, 1)
+		require.Equal(t, "coverage", got[0].Commands[0].Name)
+		require.Equal(t, "Findings", got[1].Title)
+		require.Equal(t, "findings", got[1].Commands[0].Name)
+	}
 }
 
 func TestSubcommandGroups(t *testing.T) {

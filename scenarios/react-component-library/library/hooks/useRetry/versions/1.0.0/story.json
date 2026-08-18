@@ -2,10 +2,56 @@
   "schemaVersion": 3,
   "kind": "hook",
   "title": "useRetry",
-  "args": { "fields": [] },
-  "environment": { "fixtures": [] },
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
   "stories": [
-    { "id": "default", "name": "Bounded retry", "harness": "Default", "args": {}, "expect": [{ "kind": "role", "role": "button", "name": "Try connection" }, { "kind": "role", "role": "status" }], "interactions": [{ "kind": "click", "target": { "role": "button", "name": "Try connection" } }, { "kind": "settle" }] },
-    { "id": "non-retryable", "name": "Non-retryable failure", "harness": "NonRetryable", "args": {}, "expect": [{ "kind": "role", "role": "button", "name": "Run classified failure" }] }
+    {
+      "id": "default",
+      "name": "Bounded retry",
+      "harness": "Default",
+      "args": {},
+      "expect": [
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Try connection"
+        },
+        {
+          "kind": "role",
+          "role": "status"
+        }
+      ],
+      "interactions": [
+        {
+          "kind": "click",
+          "target": {
+            "role": "button",
+            "name": "Try connection"
+          }
+        },
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live"
+    },
+    {
+      "id": "non-retryable",
+      "name": "Non-retryable failure",
+      "harness": "NonRetryable",
+      "args": {},
+      "expect": [
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Run classified failure"
+        }
+      ],
+      "mode": "live"
+    }
   ]
 }

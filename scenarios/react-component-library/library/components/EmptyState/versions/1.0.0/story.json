@@ -1,53 +1,53 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 3,
   "kind": "component",
   "title": "EmptyState",
   "args": {
     "fields": [
-        {
-          "path": "title",
-          "label": "Title",
-          "kind": "text",
-          "default": "No components indexed"
-        },
-        {
-          "path": "description",
-          "label": "Description",
-          "kind": "text",
-          "default": "Run the indexer to discover catalog source."
-        },
-        {
-          "path": "icon",
-          "label": "Icon",
-          "kind": "structured",
-          "default": {
-            "$icon": "PackageSearch"
-          }
-        },
-        {
-          "path": "action",
-          "label": "Action",
-          "kind": "structured",
-          "default": {
-            "$node": "button",
-            "props": {
-              "type": "button",
-              "className": "rounded-control bg-app-primary px-3 py-2 text-app-primary-foreground"
-            },
-            "children": [
-              {
-                "$text": "Create adoption"
-              }
-            ]
-          }
-        },
-        {
-          "path": "className",
-          "label": "Class Name",
-          "kind": "text",
-          "default": "max-w-sm"
+      {
+        "path": "title",
+        "label": "Title",
+        "kind": "text",
+        "default": "No components indexed"
+      },
+      {
+        "path": "description",
+        "label": "Description",
+        "kind": "text",
+        "default": "Run the indexer to discover catalog source."
+      },
+      {
+        "path": "icon",
+        "label": "Icon",
+        "kind": "structured",
+        "default": {
+          "$icon": "PackageSearch"
         }
-      ]
+      },
+      {
+        "path": "action",
+        "label": "Action",
+        "kind": "structured",
+        "default": {
+          "$node": "button",
+          "props": {
+            "type": "button",
+            "className": "rounded-control bg-app-primary px-3 py-2 text-app-primary-foreground"
+          },
+          "children": [
+            {
+              "$text": "Create adoption"
+            }
+          ]
+        }
+      },
+      {
+        "path": "className",
+        "label": "Class Name",
+        "kind": "text",
+        "default": "max-w-sm"
+      }
+    ]
   },
   "environment": {
     "fixtures": []
@@ -72,7 +72,8 @@
           "kind": "text",
           "value": "Run the indexer"
         }
-      ]
+      ],
+      "mode": "pinned"
     },
     {
       "id": "with-action",
@@ -106,7 +107,8 @@
           "kind": "text",
           "value": "No adoptions yet"
         }
-      ]
+      ],
+      "mode": "pinned"
     },
     {
       "id": "compact",
@@ -120,7 +122,8 @@
           "kind": "text",
           "value": "Nothing to review"
         }
-      ]
+      ],
+      "mode": "pinned"
     }
   ]
 }

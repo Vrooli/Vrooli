@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 3,
+  "kind": "component",
+  "title": "PendingSyncBadge",
+  "args": { "fields": [] },
+  "environment": { "fixtures": [] },
+  "stories": [{ "id": "pending", "name": "Pending sync", "harness": "PendingStory", "args": {}, "expect": [{ "kind": "role", "role": "status" }], "mode": "live" }]
+}

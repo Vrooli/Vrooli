@@ -39,14 +39,14 @@
   "claims": [
     {
       "id": "primary-region-observable",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "The primary region is rendered through AsyncPanel and exposes its lifecycle through ExperienceSurface.",
       "tier": "manual",
       "states": ["loading", "ready", "empty", "partial", "error"]
     },
     {
       "id": "operational-context-preserved",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Navigation and summary metrics remain structurally available in every primary-region lifecycle state.",
       "tier": "manual",
       "states": ["loading", "ready", "empty", "partial", "error"]

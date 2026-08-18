@@ -1,1 +1,124 @@
-{"schemaVersion":3,"kind":"component","title":"GlobalCommandSystem","args":{"fields":[]},"environment":{"fixtures":[]},"stories":[{"id":"default","name":"Command launcher","harness":"Default","args":{},"expect":[{"kind":"role","role":"button","name":"Open command palette"},{"kind":"text","value":"One command language, everywhere"}]},{"id":"open-recent","name":"Open command palette","harness":"OpenRecent","args":{},"expect":[{"kind":"role","role":"dialog","name":"Command palette"},{"kind":"role","role":"combobox","name":"Search commands"},{"kind":"role","role":"listbox","name":"Available commands"}]},{"id":"interactive","name":"Keyboard execution","harness":"Interactive","args":{},"interactions":[{"kind":"click","target":{"role":"button","name":"Open command palette"}},{"kind":"settle"},{"kind":"type","target":{"role":"combobox","name":"Search commands"},"text":"release"},{"kind":"settle"},{"kind":"key","target":{"role":"combobox","name":"Search commands"},"text":"Enter"},{"kind":"settle"}],"expect":[{"kind":"text","value":"Ran: Open release brief"}]},{"id":"request-error","name":"Refresh recovery","harness":"RequestError","args":{},"expect":[{"kind":"role","role":"dialog","name":"Command palette"},{"kind":"role","role":"alert"},{"kind":"text","value":"command index could not be refreshed"}]}]}
+{
+  "schemaVersion": 3,
+  "kind": "component",
+  "title": "GlobalCommandSystem",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Command launcher",
+      "harness": "Default",
+      "args": {},
+      "expect": [
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Open command palette"
+        },
+        {
+          "kind": "text",
+          "value": "One command language, everywhere"
+        }
+      ],
+      "mode": "live"
+    },
+    {
+      "id": "open-recent",
+      "name": "Open command palette",
+      "harness": "OpenRecent",
+      "args": {},
+      "expect": [
+        {
+          "kind": "role",
+          "role": "dialog",
+          "name": "Command palette"
+        },
+        {
+          "kind": "role",
+          "role": "combobox",
+          "name": "Search commands"
+        },
+        {
+          "kind": "role",
+          "role": "listbox",
+          "name": "Available commands"
+        }
+      ],
+      "mode": "live"
+    },
+    {
+      "id": "interactive",
+      "name": "Keyboard execution",
+      "harness": "Interactive",
+      "args": {},
+      "interactions": [
+        {
+          "kind": "click",
+          "target": {
+            "role": "button",
+            "name": "Open command palette"
+          }
+        },
+        {
+          "kind": "settle"
+        },
+        {
+          "kind": "type",
+          "target": {
+            "role": "combobox",
+            "name": "Search commands"
+          },
+          "text": "release"
+        },
+        {
+          "kind": "settle"
+        },
+        {
+          "kind": "key",
+          "target": {
+            "role": "combobox",
+            "name": "Search commands"
+          },
+          "text": "Enter"
+        },
+        {
+          "kind": "settle"
+        }
+      ],
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Ran: Open release brief"
+        }
+      ],
+      "mode": "live"
+    },
+    {
+      "id": "request-error",
+      "name": "Refresh recovery",
+      "harness": "RequestError",
+      "args": {},
+      "expect": [
+        {
+          "kind": "role",
+          "role": "dialog",
+          "name": "Command palette"
+        },
+        {
+          "kind": "role",
+          "role": "alert"
+        },
+        {
+          "kind": "text",
+          "value": "command index could not be refreshed"
+        }
+      ],
+      "mode": "live"
+    }
+  ]
+}

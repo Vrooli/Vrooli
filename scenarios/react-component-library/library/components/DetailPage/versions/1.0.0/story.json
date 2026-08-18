@@ -1,1 +1,197 @@
-{"schemaVersion":1,"kind":"component","title":"DetailPage","args":{"fields":[]},"environment":{"fixtures":[]},"stories":[{"id":"default","name":"default","args":{"state":"ready","data":{"title":"Alpha","entries":[{"term":"Owner","description":"Platform"}]}},"expect":[{"kind":"text","value":"Alpha"}]},{"id":"loading","name":"loading","args":{"state":"loading","data":{"title":"Alpha","entries":[{"term":"Owner","description":"Platform"}]}},"expect":[{"kind":"text","value":"Loading"}]},{"id":"refreshing","name":"refreshing","args":{"state":"refreshing","data":{"title":"Alpha","entries":[{"term":"Owner","description":"Platform"}]}},"expect":[{"kind":"text","value":"Refreshing"}]},{"id":"stale","name":"stale","args":{"state":"stale","data":{"title":"Alpha","entries":[{"term":"Owner","description":"Platform"}]}},"expect":[{"kind":"text","value":"Showing stale data"}]},{"id":"empty","name":"empty","args":{"state":"empty","data":{"title":"Alpha","entries":[{"term":"Owner","description":"Platform"}]}},"expect":[{"kind":"text","value":"Nothing here"}]},{"id":"partial-error","name":"partial-error","args":{"state":"partial-error","data":{"title":"Alpha","entries":[{"term":"Owner","description":"Platform"}]}},"expect":[{"kind":"text","value":"Some sections need attention"}]},{"id":"fatal-error","name":"fatal-error","args":{"state":"fatal-error","data":{"title":"Alpha","entries":[{"term":"Owner","description":"Platform"}]}},"expect":[{"kind":"text","value":"Unable to load this page"}]},{"id":"offline","name":"offline","args":{"state":"offline","data":{"title":"Alpha","entries":[{"term":"Owner","description":"Platform"}]}},"expect":[{"kind":"text","value":"Offline"}]}]}
+{
+  "schemaVersion": 3,
+  "kind": "component",
+  "title": "DetailPage",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "default",
+      "name": "default",
+      "args": {
+        "state": "ready",
+        "data": {
+          "title": "Alpha",
+          "entries": [
+            {
+              "term": "Owner",
+              "description": "Platform"
+            }
+          ]
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Alpha"
+        }
+      ],
+      "mode": "pinned"
+    },
+    {
+      "id": "loading",
+      "name": "loading",
+      "args": {
+        "state": "loading",
+        "data": {
+          "title": "Alpha",
+          "entries": [
+            {
+              "term": "Owner",
+              "description": "Platform"
+            }
+          ]
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Loading"
+        }
+      ],
+      "mode": "pinned"
+    },
+    {
+      "id": "refreshing",
+      "name": "refreshing",
+      "args": {
+        "state": "refreshing",
+        "data": {
+          "title": "Alpha",
+          "entries": [
+            {
+              "term": "Owner",
+              "description": "Platform"
+            }
+          ]
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Refreshing"
+        }
+      ],
+      "mode": "pinned"
+    },
+    {
+      "id": "stale",
+      "name": "stale",
+      "args": {
+        "state": "stale",
+        "data": {
+          "title": "Alpha",
+          "entries": [
+            {
+              "term": "Owner",
+              "description": "Platform"
+            }
+          ]
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Showing stale data"
+        }
+      ],
+      "mode": "pinned"
+    },
+    {
+      "id": "empty",
+      "name": "empty",
+      "args": {
+        "state": "empty",
+        "data": {
+          "title": "Alpha",
+          "entries": [
+            {
+              "term": "Owner",
+              "description": "Platform"
+            }
+          ]
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Nothing here"
+        }
+      ],
+      "mode": "pinned"
+    },
+    {
+      "id": "partial-error",
+      "name": "partial-error",
+      "args": {
+        "state": "partial-error",
+        "data": {
+          "title": "Alpha",
+          "entries": [
+            {
+              "term": "Owner",
+              "description": "Platform"
+            }
+          ]
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Some sections need attention"
+        }
+      ],
+      "mode": "pinned"
+    },
+    {
+      "id": "fatal-error",
+      "name": "fatal-error",
+      "args": {
+        "state": "fatal-error",
+        "data": {
+          "title": "Alpha",
+          "entries": [
+            {
+              "term": "Owner",
+              "description": "Platform"
+            }
+          ]
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Unable to load this page"
+        }
+      ],
+      "mode": "pinned"
+    },
+    {
+      "id": "offline",
+      "name": "offline",
+      "args": {
+        "state": "offline",
+        "data": {
+          "title": "Alpha",
+          "entries": [
+            {
+              "term": "Owner",
+              "description": "Platform"
+            }
+          ]
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Offline"
+        }
+      ],
+      "mode": "pinned"
+    }
+  ]
+}

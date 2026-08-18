@@ -4,10 +4,7 @@
   "displayName": "Icon",
   "description": "Icon resolves named glyphs through the semantic icon registry.",
   "assetKind": "primitive",
-  "tags": [
-    "primitive",
-    "token-bound"
-  ],
+  "tags": ["primitive", "token-bound"],
   "latest": "1.1.0",
   "designStyles": [
     {

@@ -1,10 +1,16 @@
 package gates
 
 import (
+	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/vrooli/api-core/database"
+	_ "modernc.org/sqlite"
 )
 
 func liveRoot(t *testing.T) string {
@@ -14,6 +20,47 @@ func liveRoot(t *testing.T) string {
 		t.Fatal(err)
 	}
 	return filepath.Clean(filepath.Join(wd, "..", "..", "..", "..", ".."))
+}
+
+func TestReleasedVersionImmutableRejectsSyntheticDrift(t *testing.T) {
+	root := t.TempDir()
+	dbDir := filepath.Join(root, "scenarios", "react-component-library", "data")
+	sourcePath := filepath.Join(root, "scenarios", "react-component-library", "library", "components", "Fixture", "versions", "1.0.0", "Fixture.tsx")
+	if err := os.MkdirAll(filepath.Dir(sourcePath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(dbDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	released := []byte("export const Fixture = () => null;")
+	drifted := []byte("export const Fixture = () => <div>drifted</div>;")
+	if err := os.WriteFile(sourcePath, drifted, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	hash := sha256.Sum256(released)
+	db, err := database.Open(context.Background(), database.Config{Driver: database.DriverSQLite, DSN: "file:" + filepath.Join(dbDir, "react-component-library.db") + "?_pragma=foreign_keys(ON)"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	_, err = db.ExecContext(context.Background(), `CREATE TABLE component_versions (status TEXT NOT NULL, source_path TEXT NOT NULL, content_sha256 TEXT NOT NULL)`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = db.ExecContext(context.Background(), `INSERT INTO component_versions(status, source_path, content_sha256) VALUES ('released', ?, ?)`, "components/Fixture/versions/1.0.0/Fixture.tsx", hex.EncodeToString(hash[:]))
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := ValidateReleasedVersionImmutable(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Inspected != 1 || len(result.Findings) != 1 {
+		t.Fatalf("result = %+v, want one synthetic drift finding", result)
+	}
+	if result.Findings[0].Code != "catalog.released_version_immutable" {
+		t.Fatalf("finding = %+v", result.Findings[0])
+	}
 }
 
 func TestLiveTokenGate(t *testing.T) {
@@ -212,16 +259,17 @@ func TestLifecycleGateAcceptsDocumentGuard(t *testing.T) {
 func TestEveryFindingCarriesRemediation(t *testing.T) {
 	root := t.TempDir()
 	runners := map[string]func(string) (Result, error){
-		"api":        ValidateAPI,
-		"tokens":     ValidateTokens,
-		"lifecycle":  ValidateLifecycle,
-		"fixtures":   ValidateFixtures,
-		"examples":   ValidateExamples,
-		"rtl":        ValidateRTL,
-		"stress":     ValidateStress,
-		"reduced":    ValidateReducedMotion,
-		"integrate":  ValidateIntegration,
-		"vocabulary": ValidateTokenVocabulary,
+		"api":         ValidateAPI,
+		"tokens":      ValidateTokens,
+		"conformance": ValidateConformance,
+		"lifecycle":   ValidateLifecycle,
+		"fixtures":    ValidateFixtures,
+		"examples":    ValidateExamples,
+		"rtl":         ValidateRTL,
+		"stress":      ValidateStress,
+		"reduced":     ValidateReducedMotion,
+		"integrate":   ValidateIntegration,
+		"vocabulary":  ValidateTokenVocabulary,
 	}
 	for name, run := range runners {
 		t.Run(name, func(t *testing.T) {
@@ -288,6 +336,7 @@ func TestEveryGateRejectsZeroInspectedInputs(t *testing.T) {
 	}{
 		{name: "api", run: ValidateAPI},
 		{name: "tokens", run: ValidateTokens},
+		{name: "conformance", run: ValidateConformance},
 		{name: "lifecycle", run: ValidateLifecycle},
 		{name: "fixtures", run: ValidateFixtures},
 	}
@@ -301,6 +350,46 @@ func TestEveryGateRejectsZeroInspectedInputs(t *testing.T) {
 				t.Fatalf("result = %+v, want zero-input finding", result)
 			}
 		})
+	}
+}
+
+func TestConformanceMeasuresStaySeparateAndNonVacuous(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "scenarios", "react-component-library", "ui", "src", "Fixture.tsx")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte(`
+const Fixture = () => <div className="text-xs text-xs text-xs text-xs text-xs text-lg gap-3 h-4 w-4 rounded-[13px] shadow-[0_0_4px_#000]" />;
+export default Fixture;
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	result, err := ValidateConformance(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Inspected != 1 {
+		t.Fatalf("inspected = %d, want one workbench source", result.Inspected)
+	}
+	want := map[string]bool{
+		"conformance.type-scale":       false,
+		"conformance.ramp-adherence":   false,
+		"conformance.icon-scale":       false,
+		"conformance.elevation-radius": false,
+	}
+	for _, finding := range result.Findings {
+		if finding.Category != "conformance" {
+			t.Errorf("finding category = %q, want conformance", finding.Category)
+		}
+		if _, ok := want[finding.Code]; ok {
+			want[finding.Code] = true
+		}
+	}
+	for code, found := range want {
+		if !found {
+			t.Errorf("missing conformance measure %q in %+v", code, result.Findings)
+		}
 	}
 }
 

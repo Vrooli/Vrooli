@@ -19,7 +19,7 @@
   "claims": [
     {
       "id": "scoped-state",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Drag state is scoped to one interaction region and exposes cancellation as a first-class outcome.",
       "tier": "manual",
       "states": ["idle", "pointer", "keyboard"]

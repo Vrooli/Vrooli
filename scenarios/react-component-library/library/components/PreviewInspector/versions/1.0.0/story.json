@@ -2,7 +2,44 @@
   "schemaVersion": 3,
   "kind": "component",
   "title": "Preview inspector",
-  "args": { "fields": [{ "path": "title", "label": "Title", "kind": "text", "default": "Preview inspector" }, { "path": "open", "label": "Open", "kind": "boolean", "default": true }] },
-  "environment": { "fixtures": [] },
-  "stories": [{ "id": "default", "name": "Dismissible inspector", "harness": "Default", "mode": "pinned", "args": {}, "expect": [{ "kind": "role", "role": "complementary", "name": "Preview inspector" }, { "kind": "role", "role": "button", "name": "Close inspector" }] }]
+  "args": {
+    "fields": [
+      {
+        "path": "title",
+        "label": "Title",
+        "kind": "text",
+        "default": "Preview inspector"
+      },
+      {
+        "path": "open",
+        "label": "Open",
+        "kind": "boolean",
+        "default": true
+      }
+    ]
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Dismissible inspector",
+      "harness": "Default",
+      "mode": "live",
+      "args": {},
+      "expect": [
+        {
+          "kind": "role",
+          "role": "complementary",
+          "name": "Preview inspector"
+        },
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Close inspector"
+        }
+      ]
+    }
+  ]
 }

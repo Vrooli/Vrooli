@@ -1,35 +1,35 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 3,
   "kind": "component",
   "title": "WorkspaceHeader",
   "args": {
     "fields": [
-        {
-          "path": "title",
-          "label": "Title",
-          "kind": "text",
-          "default": "Component Library"
-        },
-        {
-          "path": "description",
-          "label": "Description",
-          "kind": "text",
-          "default": "Browse reusable UI assets"
-        },
-        {
-          "path": "primaryAction",
-          "label": "Primary Action",
-          "kind": "structured",
-          "default": {
-            "$node": "button",
-            "children": [
-              {
-                "$text": "Add component"
-              }
-            ]
-          }
+      {
+        "path": "title",
+        "label": "Title",
+        "kind": "text",
+        "default": "Component Library"
+      },
+      {
+        "path": "description",
+        "label": "Description",
+        "kind": "text",
+        "default": "Browse reusable UI assets"
+      },
+      {
+        "path": "primaryAction",
+        "label": "Primary Action",
+        "kind": "structured",
+        "default": {
+          "$node": "button",
+          "children": [
+            {
+              "$text": "Add component"
+            }
+          ]
         }
-      ]
+      }
+    ]
   },
   "environment": {
     "fixtures": []
@@ -55,7 +55,8 @@
           "kind": "text",
           "value": "Component Library"
         }
-      ]
+      ],
+      "mode": "pinned"
     }
   ]
 }

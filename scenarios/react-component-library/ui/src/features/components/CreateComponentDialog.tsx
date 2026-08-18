@@ -164,7 +164,7 @@ export function CreateComponentDialog({ onClose }: CreateComponentDialogProps) {
                   onKeyDown={tagKeyDown}
                   onBlur={() => addTags(tagDraft)}
                   placeholder={t(strings.components.create.tagsPlaceholder)}
-                  className="min-w-28 flex-1 border-0 bg-transparent"
+                  className="min-w-field-compact flex-1 border-0 bg-transparent"
                 />
               </div>
             </label>
@@ -175,7 +175,7 @@ export function CreateComponentDialog({ onClose }: CreateComponentDialogProps) {
               data-testid={selectors.components.create.description}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="mt-space-3xs min-h-20"
+              className="mt-space-3xs min-h-surface-tiny"
             />
           </label>
           <label className="block text-xs text-app-muted-foreground">
@@ -185,7 +185,7 @@ export function CreateComponentDialog({ onClose }: CreateComponentDialogProps) {
               value={initialSource}
               onChange={(e) => setInitialSource(e.target.value)}
               placeholder={t(strings.components.create.initialSourcePlaceholder)}
-              className="mt-space-3xs min-h-32 font-mono text-xs"
+              className="mt-space-3xs min-h-surface font-mono text-xs"
             />
           </label>
           {mutation.error && (

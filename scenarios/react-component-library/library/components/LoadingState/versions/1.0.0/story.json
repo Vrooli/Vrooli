@@ -2,7 +2,29 @@
   "schemaVersion": 3,
   "kind": "component",
   "title": "LoadingState",
-  "args": { "fields": [] },
-  "environment": { "fixtures": [] },
-  "stories": [{ "id": "loading", "name": "Loading workspace", "harness": "Loading", "args": {}, "expect": [{ "kind": "role", "role": "status" }, { "kind": "text", "value": "Loading workspace" }] }]
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "loading",
+      "name": "Loading workspace",
+      "harness": "Loading",
+      "args": {},
+      "expect": [
+        {
+          "kind": "role",
+          "role": "status"
+        },
+        {
+          "kind": "text",
+          "value": "Loading workspace"
+        }
+      ],
+      "mode": "live"
+    }
+  ]
 }

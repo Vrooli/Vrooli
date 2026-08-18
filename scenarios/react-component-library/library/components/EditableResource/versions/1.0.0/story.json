@@ -1,1 +1,109 @@
-{"schemaVersion":3,"kind":"component","title":"EditableResource","args":{"fields":[]},"environment":{"fixtures":[]},"stories":[{"id":"default","name":"Editable resource","harness":"Default","args":{},"expect":[{"kind":"role","role":"heading","name":"Release brief"},{"kind":"role","role":"button","name":"Edit"}]},{"id":"editing","name":"Editing state","harness":"Editing","args":{},"expect":[{"kind":"role","role":"textbox","name":"Name"},{"kind":"role","role":"button","name":"Save changes"},{"kind":"role","role":"button","name":"Cancel"}]},{"id":"interactive","name":"Edit and save","harness":"Interactive","args":{},"interactions":[{"kind":"click","target":{"role":"button","name":"Edit"}},{"kind":"settle"},{"kind":"type","target":{"role":"textbox","name":"Name"},"text":"Release brief v2"},{"kind":"click","target":{"role":"button","name":"Save changes"}},{"kind":"waitFor","text":"120"},{"kind":"settle"}],"expect":[{"kind":"role","role":"heading","name":"Release brief v2"},{"kind":"role","role":"button","name":"Edit"}]}]}
+{
+  "schemaVersion": 3,
+  "kind": "component",
+  "title": "EditableResource",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Editable resource",
+      "harness": "Default",
+      "args": {},
+      "expect": [
+        {
+          "kind": "role",
+          "role": "heading",
+          "name": "Release brief"
+        },
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Edit"
+        }
+      ],
+      "mode": "live"
+    },
+    {
+      "id": "editing",
+      "name": "Editing state",
+      "harness": "Editing",
+      "args": {},
+      "expect": [
+        {
+          "kind": "role",
+          "role": "textbox",
+          "name": "Name"
+        },
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Save changes"
+        },
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Cancel"
+        }
+      ],
+      "mode": "live"
+    },
+    {
+      "id": "interactive",
+      "name": "Edit and save",
+      "harness": "Interactive",
+      "args": {},
+      "interactions": [
+        {
+          "kind": "click",
+          "target": {
+            "role": "button",
+            "name": "Edit"
+          }
+        },
+        {
+          "kind": "settle"
+        },
+        {
+          "kind": "type",
+          "target": {
+            "role": "textbox",
+            "name": "Name"
+          },
+          "text": "Release brief v2"
+        },
+        {
+          "kind": "click",
+          "target": {
+            "role": "button",
+            "name": "Save changes"
+          }
+        },
+        {
+          "kind": "waitFor",
+          "text": "120"
+        },
+        {
+          "kind": "settle"
+        }
+      ],
+      "expect": [
+        {
+          "kind": "role",
+          "role": "heading",
+          "name": "Release brief v2"
+        },
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Edit"
+        }
+      ],
+      "mode": "live"
+    }
+  ]
+}

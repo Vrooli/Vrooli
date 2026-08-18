@@ -132,7 +132,7 @@ export function DashboardPage() {
           aria-labelledby="attention-heading"
         >
           <div className="flex items-center gap-space-2xs">
-            <AlertTriangle aria-hidden className="h-4 w-4 text-app-warning" />
+            <AlertTriangle aria-hidden className="h-icon-sm w-icon-sm text-app-warning" />
             <h2 id="attention-heading" className="font-semibold">
               {t("dashboard.attention", { defaultValue: "Needs your attention" })}
             </h2>
@@ -150,7 +150,7 @@ export function DashboardPage() {
             </p>
           ) : (
             <p className="mt-space-xs flex items-center gap-space-2xs text-sm text-app-muted-foreground">
-              <CheckCircle2 aria-hidden className="h-4 w-4 text-app-success" />
+              <CheckCircle2 aria-hidden className="h-icon-sm w-icon-sm text-app-success" />
               {t("dashboard.clear", { defaultValue: "No adoption drift needs review." })}
             </p>
           )}
@@ -160,7 +160,7 @@ export function DashboardPage() {
           aria-labelledby="evolved-heading"
         >
           <div className="flex items-center gap-space-2xs">
-            <Clock3 aria-hidden className="h-4 w-4 text-app-muted-foreground" />
+            <Clock3 aria-hidden className="h-icon-sm w-icon-sm text-app-muted-foreground" />
             <h2 id="evolved-heading" className="font-semibold">
               {t("dashboard.recentlyEvolved", { defaultValue: "Recently evolved" })}
             </h2>
@@ -182,7 +182,7 @@ export function DashboardPage() {
           aria-labelledby="adoption-heading"
         >
           <div className="flex items-center gap-space-2xs">
-            <Boxes aria-hidden className="h-4 w-4 text-app-muted-foreground" />
+            <Boxes aria-hidden className="h-icon-sm w-icon-sm text-app-muted-foreground" />
             <h2 id="adoption-heading" className="font-semibold">
               {t("dashboard.adoptionHealth", { defaultValue: "Adoption health by scenario" })}
             </h2>
@@ -210,7 +210,7 @@ export function DashboardPage() {
           aria-labelledby="moves-heading"
         >
           <div className="flex items-center gap-space-2xs">
-            <RefreshCw aria-hidden className="h-4 w-4 text-app-muted-foreground" />
+            <RefreshCw aria-hidden className="h-icon-sm w-icon-sm text-app-muted-foreground" />
             <h2 id="moves-heading" className="font-semibold">
               {t("dashboard.nextMoves", { defaultValue: "Suggested next moves" })}
             </h2>
@@ -223,7 +223,7 @@ export function DashboardPage() {
               <span>
                 {t("dashboard.browseAssets", { defaultValue: "Browse and refine assets" })}
               </span>
-              <ArrowRight aria-hidden className="h-4 w-4" />
+              <ArrowRight aria-hidden className="h-icon-sm w-icon-sm" />
             </Link>
             <Link
               to="/settings"
@@ -232,7 +232,7 @@ export function DashboardPage() {
               <span>
                 {t("dashboard.reviewPreferences", { defaultValue: "Review workspace preferences" })}
               </span>
-              <Palette aria-hidden className="h-4 w-4" />
+              <Palette aria-hidden className="h-icon-sm w-icon-sm" />
             </Link>
           </div>
         </section>

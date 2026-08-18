@@ -1,1 +1,56 @@
-{"schemaVersion":1,"kind":"component","title":"Chip","args":{"fields":[{"path":"children","kind":"text","default":"Filter"},{"path":"selected","kind":"boolean","default":false}]},"environment":{"fixtures":[]},"stories":[{"id":"unselected","name":"Unselected","args":{"children":"Filter","selected":false},"expect":[{"kind":"role","role":"button","name":"Filter"}]},{"id":"selected","name":"Selected","args":{"children":"Filter","selected":true},"expect":[{"kind":"role","role":"button","name":"Filter"}]}]}
+{
+  "schemaVersion": 3,
+  "kind": "component",
+  "title": "Chip",
+  "args": {
+    "fields": [
+      {
+        "path": "children",
+        "kind": "text",
+        "default": "Filter"
+      },
+      {
+        "path": "selected",
+        "kind": "boolean",
+        "default": false
+      }
+    ]
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "unselected",
+      "name": "Unselected",
+      "args": {
+        "children": "Filter",
+        "selected": false
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Filter"
+        }
+      ],
+      "mode": "pinned"
+    },
+    {
+      "id": "selected",
+      "name": "Selected",
+      "args": {
+        "children": "Filter",
+        "selected": true
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Filter"
+        }
+      ],
+      "mode": "pinned"
+    }
+  ]
+}

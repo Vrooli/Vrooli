@@ -2,11 +2,66 @@
   "schemaVersion": 3,
   "kind": "component",
   "title": "AttachmentPreview",
-  "args": { "fields": [] },
-  "environment": { "fixtures": [] },
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
   "stories": [
-    { "id": "uploading", "name": "Uploading", "harness": "Uploading", "args": {}, "expect": [{ "kind": "role", "role": "progressbar" }, { "kind": "role", "role": "button", "name": "Cancel" }] },
-    { "id": "success", "name": "Ready", "harness": "Success", "args": {}, "expect": [{ "kind": "role", "role": "button", "name": "Open" }, { "kind": "text", "value": "Ready to view" }] },
-    { "id": "recovery", "name": "Recovery", "harness": "Recovery", "args": {}, "expect": [{ "kind": "role", "role": "alert" }, { "kind": "role", "role": "button", "name": "Retry upload" }] }
+    {
+      "id": "uploading",
+      "name": "Uploading",
+      "harness": "Uploading",
+      "args": {},
+      "expect": [
+        {
+          "kind": "role",
+          "role": "progressbar"
+        },
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Cancel"
+        }
+      ],
+      "mode": "live"
+    },
+    {
+      "id": "success",
+      "name": "Ready",
+      "harness": "Success",
+      "args": {},
+      "expect": [
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Open"
+        },
+        {
+          "kind": "text",
+          "value": "Ready to view"
+        }
+      ],
+      "mode": "live"
+    },
+    {
+      "id": "recovery",
+      "name": "Recovery",
+      "harness": "Recovery",
+      "args": {},
+      "expect": [
+        {
+          "kind": "role",
+          "role": "alert"
+        },
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Retry upload"
+        }
+      ],
+      "mode": "live"
+    }
   ]
 }

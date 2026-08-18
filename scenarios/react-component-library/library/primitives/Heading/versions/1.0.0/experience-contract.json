@@ -29,7 +29,7 @@
   "claims": [
     {
       "id": "contract-present",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Heading separates semantic document level from the shared typography style.",
       "tier": "manual",
       "states": ["semantic-heading", "display-level", "compact-heading"]

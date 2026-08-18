@@ -60,7 +60,7 @@
   "claims": [
     {
       "id": "stable-surface-identity",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Every example exposes its stable surface identity and lifecycle state through the component's machine-readable attributes.",
       "tier": "manual",
       "elements": ["surface"],
@@ -68,7 +68,7 @@
     },
     {
       "id": "loading-busy-state",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Loading examples expose aria-busy=true on the semantic surface.",
       "tier": "manual",
       "elements": ["surface"],

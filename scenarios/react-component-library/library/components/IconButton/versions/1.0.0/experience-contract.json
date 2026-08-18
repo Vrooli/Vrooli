@@ -29,14 +29,14 @@
     },
     {
       "id": "disabled-state",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Disabled actions expose the native disabled state.",
       "tier": "manual",
       "states": ["disabled"]
     },
     {
       "id": "pressed-state",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Toggled actions expose aria-pressed.",
       "tier": "manual",
       "states": ["toggled"]

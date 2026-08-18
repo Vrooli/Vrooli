@@ -1,1 +1,41 @@
-{"schemaVersion":1,"kind":"component","title":"SearchResults","args":{"fields":[]},"environment":{"fixtures":[]},"stories":[{"id":"default","name":"Default","args":{"query":"alpha","items":["Alpha"]},"expect":[{"kind":"text","value":"1 result"}]},{"id":"empty","name":"Empty","args":{"query":"alpha","items":["Alpha"]}}]}
+{
+  "schemaVersion": 3,
+  "kind": "component",
+  "title": "SearchResults",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Default",
+      "args": {
+        "query": "alpha",
+        "items": [
+          "Alpha"
+        ]
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "1 result"
+        }
+      ],
+      "mode": "pinned"
+    },
+    {
+      "id": "empty",
+      "name": "Empty",
+      "args": {
+        "query": "alpha",
+        "items": [
+          "Alpha"
+        ]
+      },
+      "mode": "pinned"
+    }
+  ]
+}

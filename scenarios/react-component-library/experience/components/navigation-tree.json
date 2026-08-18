@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "$schema": "../../../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
   "kind": "experience-component",
   "schemaVersion": "1.1.0",
   "component": {
@@ -21,8 +21,16 @@
     }
   ],
   "elements": [
-    { "id": "navigation", "role": "navigation", "description": "The named tree navigation landmark." },
-    { "id": "link", "role": "link", "description": "A hierarchical navigation destination." }
+    {
+      "id": "navigation",
+      "role": "navigation",
+      "description": "The named tree navigation landmark."
+    },
+    {
+      "id": "link",
+      "role": "link",
+      "description": "A hierarchical navigation destination."
+    }
   ],
   "claims": [
     {

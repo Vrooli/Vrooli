@@ -1,12 +1,13 @@
 {
-  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
-  "kind": "experience-component",
-  "schemaVersion": "1.1.0",
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "schema": "scenario-experience-spec/v1",
+    "provenance": "react-component-library:Tabs@1.0.0"
+  },
   "component": {
-    "id": "tabs",
+    "id": "navigation.tabs",
     "title": "Tabs",
-    "purpose": "Tabs preserves responsive navigation semantics and token ownership.",
-    "storyRef": "../../library/components/Tabs/versions/1.0.0/story.json"
+    "purpose": "Tabs preserves responsive navigation semantics and token ownership."
   },
   "states": [
     {
@@ -20,29 +21,13 @@
       "description": "Long labels remain operable."
     }
   ],
-  "elements": [
-    { "id": "tablist", "role": "tablist", "description": "The responsive tab navigation." },
-    { "id": "panel", "role": "tabpanel", "description": "The selected tab panel." }
-  ],
   "claims": [
     {
       "id": "contract-present",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Tabs preserves responsive navigation semantics and token ownership.",
       "tier": "manual",
       "states": ["default", "long-content"]
-    }
-  ],
-  "bindings": {
-    "elements": {
-      "tablist": { "selector": "[data-rcl-tablist]" },
-      "panel": { "selector": "[data-rcl-tab-panel]" }
-    }
-  },
-  "floorOptOuts": [
-    {
-      "floor": "no-document-horizontal-overflow",
-      "reason": "Long tab labels are intentionally scrollable inside the bounded tablist viewport; the surrounding document remains viewport-contained."
     }
   ]
 }

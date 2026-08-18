@@ -26,7 +26,7 @@
   "claims": [
     {
       "id": "contract-present",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "StatusIndicator emits an explicit live status for each state.",
       "tier": "manual",
       "states": ["idle", "pending", "success", "error"]

@@ -24,14 +24,14 @@
   "claims": [
     {
       "id": "native-checkbox",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Checkbox exposes a native checkbox role and label association.",
       "tier": "manual",
       "states": ["default", "invalid"]
     },
     {
       "id": "error-associated",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "An invalid checkbox associates its error text through aria-describedby and exposes an alert.",
       "tier": "manual",
       "states": ["invalid"]

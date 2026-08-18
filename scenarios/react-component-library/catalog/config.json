@@ -198,6 +198,14 @@
       "runner": { "react-vite": "react-component-library catalog gates tokens" }
     },
     {
+      "id": "conformance",
+      "rung": "verified",
+      "description": "Reports design-system type scale, ramp adherence, icon scale, and elevation/radius conformance separately from defect floors.",
+      "appliesTo": ["foundation", "primitive", "component", "pattern", "page-template"],
+      "blocking": false,
+      "runner": { "react-vite": "react-component-library catalog gates conformance" }
+    },
+    {
       "id": "lifecycle",
       "rung": "verified",
       "description": "Hooks and services clean up listeners and observers, abort superseded work, and access browser capabilities safely during SSR.",

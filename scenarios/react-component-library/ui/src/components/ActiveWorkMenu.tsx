@@ -46,7 +46,7 @@ export function ActiveWorkMenu() {
         aria-haspopup="dialog"
         className="touch-target inline-flex items-center gap-space-3xs rounded-control px-space-2xs text-xs text-app-muted-foreground hover:bg-app-surface-muted hover:text-app-foreground"
       >
-        <Activity aria-hidden className="h-4 w-4" />
+        <Activity aria-hidden className="h-icon-sm w-icon-sm" />
         {activeCount > 0 && <span>{activeCount}</span>}
         <span className="sr-only">{t("workflows.active", { defaultValue: "Active work" })}</span>
       </button>
@@ -54,7 +54,7 @@ export function ActiveWorkMenu() {
         <section
           role="dialog"
           aria-label={t("workflows.active", { defaultValue: "Active work" })}
-          className="absolute end-0 z-50 mt-space-2xs w-80 rounded-panel border border-app-border bg-app-surface p-space-xs shadow-lg"
+          className="absolute end-0 z-50 mt-space-2xs w-sidebar rounded-panel border border-app-border bg-app-surface p-space-xs shadow-lg"
         >
           <h2 className="text-sm font-semibold">
             {t("workflows.active", { defaultValue: "Active work" })}
@@ -97,7 +97,7 @@ export function ActiveWorkMenu() {
                         onClick={() => stop.mutate(workflow.id)}
                         className="inline-flex items-center gap-space-3xs rounded-control px-space-2xs py-space-3xs hover:bg-app-background"
                       >
-                        <Square aria-hidden className="h-3 w-3" />
+                        <Square aria-hidden className="h-icon-xs w-icon-xs" />
                         {t("workflows.stop", { defaultValue: "Stop" })}
                       </button>
                     )}
@@ -107,7 +107,7 @@ export function ActiveWorkMenu() {
                         onClick={() => retry.mutate(workflow.id)}
                         className="inline-flex items-center gap-space-3xs rounded-control px-space-2xs py-space-3xs hover:bg-app-background"
                       >
-                        <RotateCcw aria-hidden className="h-3 w-3" />
+                        <RotateCcw aria-hidden className="h-icon-xs w-icon-xs" />
                         {t("workflows.retry", { defaultValue: "Retry" })}
                       </button>
                     )}

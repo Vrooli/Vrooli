@@ -39,28 +39,28 @@
   "claims": [
     {
       "id": "native-keyboard",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Local filtering, Arrow/Home/End movement, Escape dismissal, and Enter selection use a native combobox/listbox contract.",
       "tier": "manual",
       "states": ["default", "create"]
     },
     {
       "id": "error-association",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Validation errors are linked to the input and exposed through an alert without changing the entered query.",
       "tier": "manual",
       "states": ["validation-error"]
     },
     {
       "id": "remote-composition",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Remote option loading reuses the version-pinned async-options cancellation, debounce, pagination, and retry engine.",
       "tier": "manual",
       "states": ["request-error"]
     },
     {
       "id": "responsive",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Long labels, descriptions, and creation affordances wrap without horizontal overflow on narrow screens.",
       "tier": "manual",
       "states": ["default", "create"]

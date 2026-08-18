@@ -1,11 +1,23 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 3,
   "kind": "component",
   "title": "FocusTrapPanel",
   "args": {
     "fields": [
-      {"path": "open", "label": "Open", "kind": "boolean", "default": true},
-      {"path": "children", "label": "Content", "kind": "structured", "default": {"$text": "Trapped panel content"}}
+      {
+        "path": "open",
+        "label": "Open",
+        "kind": "boolean",
+        "default": true
+      },
+      {
+        "path": "children",
+        "label": "Content",
+        "kind": "structured",
+        "default": {
+          "$text": "Trapped panel content"
+        }
+      }
     ]
   },
   "environment": {
@@ -15,14 +27,40 @@
     {
       "id": "open",
       "name": "Open",
-      "args": {"open": true, "children": {"$text": "Trapped panel content"}},
-      "expect": [{"kind": "role", "role": "dialog"}, {"kind": "text", "value": "Trapped panel content"}]
+      "args": {
+        "open": true,
+        "children": {
+          "$text": "Trapped panel content"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "dialog"
+        },
+        {
+          "kind": "text",
+          "value": "Trapped panel content"
+        }
+      ],
+      "mode": "pinned"
     },
     {
       "id": "closed",
       "name": "Closed",
-      "args": {"open": false, "children": {"$text": "Trapped panel content"}},
-      "expect": [{"kind": "notVisible", "selector": "[role=dialog]"}]
+      "args": {
+        "open": false,
+        "children": {
+          "$text": "Trapped panel content"
+        }
+      },
+      "expect": [
+        {
+          "kind": "notVisible",
+          "selector": "[role=dialog]"
+        }
+      ],
+      "mode": "pinned"
     }
   ]
 }

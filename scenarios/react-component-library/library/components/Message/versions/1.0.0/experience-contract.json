@@ -44,35 +44,35 @@
   "claims": [
     {
       "id": "reading-order",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "The DOM order follows actor, content, activity, attachments, citations, recovery, actions, and footer so screen-reader reading order matches the visual hierarchy.",
       "tier": "manual",
       "states": ["default", "partial", "request-error"]
     },
     {
       "id": "identity",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Actor identity is named through Avatar while presence remains a separate non-color-only status surface.",
       "tier": "manual",
       "states": ["default", "loading", "success"]
     },
     {
       "id": "recovery",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Request error and retry states preserve message context and expose a keyboard-operable retry action.",
       "tier": "manual",
       "states": ["request-error", "retry"]
     },
     {
       "id": "responsive-evidence",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Long content, sources, and action labels reflow without clipping across the declared kits and mobile viewport.",
       "tier": "manual",
       "states": ["default", "request-error"]
     },
     {
       "id": "theme-parity",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "The conversation surface remains readable in light and dark native/compatible kits.",
       "tier": "manual",
       "states": ["default", "success", "request-error"]

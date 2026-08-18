@@ -19,7 +19,7 @@
   "claims": [
     {
       "id": "contract-present",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "InspectorPanel preserves host context while layered.",
       "tier": "manual",
       "states": ["open"]

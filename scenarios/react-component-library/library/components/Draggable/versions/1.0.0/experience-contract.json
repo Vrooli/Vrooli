@@ -34,21 +34,21 @@
   "claims": [
     {
       "id": "pointer-and-keyboard",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Pointer capture and keyboard movement share one drag state and outcome channel.",
       "tier": "manual",
       "states": ["default", "keyboard"]
     },
     {
       "id": "announced",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Pickup, movement, drop, and cancellation are announced through the shared live announcer.",
       "tier": "manual",
       "states": ["keyboard"]
     },
     {
       "id": "reduced-motion",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Dragging removes layout animation and respects reduced-motion settling.",
       "tier": "manual",
       "states": ["default", "bounds"]

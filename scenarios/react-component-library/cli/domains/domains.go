@@ -4,6 +4,8 @@ import (
 	"react-component-library/cli/domains/adoptions"
 	"react-component-library/cli/domains/catalog"
 	"react-component-library/cli/domains/components"
+	"react-component-library/cli/domains/coverage"
+	"react-component-library/cli/domains/findings"
 	"react-component-library/cli/domains/preview"
 	"react-component-library/cli/domains/versions"
 	"react-component-library/cli/domains/workflows"
@@ -13,7 +15,7 @@ import (
 
 func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 	_ = core
-	return nil
+	return []cliapp.CommandGroup{coverage.Commands(), findings.Commands()}
 }
 
 // SubcommandGroups aggregates hierarchical command groups from domain packages.

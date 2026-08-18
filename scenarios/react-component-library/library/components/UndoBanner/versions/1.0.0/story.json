@@ -2,13 +2,104 @@
   "schemaVersion": 3,
   "kind": "component",
   "title": "UndoBanner",
-  "args": { "fields": [] },
-  "environment": { "fixtures": [] },
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
   "stories": [
-    { "id": "default", "name": "Undo available", "harness": "Default", "args": {}, "expect": [{ "kind": "role", "role": "status" }, { "kind": "role", "role": "button", "name": "Undo" }] },
-    { "id": "submitting", "name": "Rollback in progress", "harness": "Submitting", "args": {}, "expect": [{ "kind": "text", "value": "Restoring your change" }, { "kind": "role", "role": "button", "name": "Restoring…" }] },
-    { "id": "success", "name": "Rollback complete", "harness": "Success", "args": {}, "expect": [{ "kind": "text", "value": "Project brief restored" }] },
-    { "id": "request-error", "name": "Rollback failed", "harness": "RequestError", "args": {}, "expect": [{ "kind": "role", "role": "alert" }, { "kind": "role", "role": "button", "name": "Retry undo" }] },
-    { "id": "interactive", "name": "Interactive rollback", "harness": "Interactive", "args": {}, "interactions": [{ "kind": "click", "target": { "role": "button", "name": "Undo" } }, { "kind": "settle" }], "expect": [{ "kind": "text", "value": "Project brief restored" }] }
+    {
+      "id": "default",
+      "name": "Undo available",
+      "harness": "Default",
+      "args": {},
+      "expect": [
+        {
+          "kind": "role",
+          "role": "status"
+        },
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Undo"
+        }
+      ],
+      "mode": "live"
+    },
+    {
+      "id": "submitting",
+      "name": "Rollback in progress",
+      "harness": "Submitting",
+      "args": {},
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Restoring your change"
+        },
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Restoring…"
+        }
+      ],
+      "mode": "live"
+    },
+    {
+      "id": "success",
+      "name": "Rollback complete",
+      "harness": "Success",
+      "args": {},
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Project brief restored"
+        }
+      ],
+      "mode": "live"
+    },
+    {
+      "id": "request-error",
+      "name": "Rollback failed",
+      "harness": "RequestError",
+      "args": {},
+      "expect": [
+        {
+          "kind": "role",
+          "role": "alert"
+        },
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Retry undo"
+        }
+      ],
+      "mode": "live"
+    },
+    {
+      "id": "interactive",
+      "name": "Interactive rollback",
+      "harness": "Interactive",
+      "args": {},
+      "interactions": [
+        {
+          "kind": "click",
+          "target": {
+            "role": "button",
+            "name": "Undo"
+          }
+        },
+        {
+          "kind": "settle"
+        }
+      ],
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Project brief restored"
+        }
+      ],
+      "mode": "live"
+    }
   ]
 }

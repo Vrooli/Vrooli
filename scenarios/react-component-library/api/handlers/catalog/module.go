@@ -127,6 +127,8 @@ func (h *handler) RunGate(ctx context.Context, req *connect.Request[catalogv1.Ru
 		result, err = gates.ValidateAPI(h.repoRoot)
 	case "tokens":
 		result, err = gates.ValidateTokens(h.repoRoot)
+	case "conformance":
+		result, err = gates.ValidateConformance(h.repoRoot)
 	case "token-vocabulary":
 		result, err = gates.ValidateTokenVocabulary(h.repoRoot)
 	case "token-ramp-complete":

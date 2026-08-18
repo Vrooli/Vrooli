@@ -19,7 +19,7 @@
   "claims": [
     {
       "id": "contract-present",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Skeleton exposes a bounded public contract backed by shared tokens.",
       "tier": "manual",
       "states": ["default"]

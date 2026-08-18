@@ -24,14 +24,14 @@
   "claims": [
     {
       "id": "semantic-search",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "The filter surface exposes a named search region and keyboard-operable filter controls.",
       "tier": "manual",
       "states": ["default", "interactive"]
     },
     {
       "id": "responsive-surface",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Search, actions, and filter chips wrap without horizontal overflow.",
       "tier": "manual",
       "states": ["default", "interactive"]

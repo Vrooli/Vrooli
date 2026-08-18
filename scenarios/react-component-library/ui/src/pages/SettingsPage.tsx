@@ -89,7 +89,7 @@ export function SettingsPage() {
               onChange={(event) =>
                 void setLocale(event.target.value as (typeof SUPPORTED_LOCALES)[number])
               }
-              className="w-auto min-w-40"
+              className="w-auto min-w-field-medium"
             />
           </Field>
         </Section>
@@ -155,7 +155,7 @@ function AppearanceCards({
             data-testid={`${testid}-${o.value}`}
             onClick={() => onChange(o.value)}
             className={[
-              "min-h-24 rounded-panel border p-space-xs text-left text-sm",
+              "min-h-surface-short rounded-panel border p-space-xs text-left text-sm",
               active
                 ? "border-app-primary bg-app-surface-muted text-app-foreground ring-1 ring-app-primary"
                 : "border-app-border bg-app-surface text-app-foreground hover:bg-app-surface-muted",

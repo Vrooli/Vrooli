@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 3,
   "kind": "component",
   "title": "Card",
   "args": {
@@ -93,7 +93,8 @@
           "kind": "text",
           "value": "8 scenarios current"
         }
-      ]
+      ],
+      "mode": "pinned"
     },
     {
       "id": "empty-tool",
@@ -119,7 +120,8 @@
           "kind": "text",
           "value": "No drift detected"
         }
-      ]
+      ],
+      "mode": "pinned"
     },
     {
       "id": "compact-record",
@@ -144,7 +146,8 @@
           "kind": "text",
           "value": "Button / v1.2.0 / native"
         }
-      ]
+      ],
+      "mode": "pinned"
     }
   ]
 }

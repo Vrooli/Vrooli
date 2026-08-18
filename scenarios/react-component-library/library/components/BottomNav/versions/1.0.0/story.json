@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 3,
   "kind": "component",
   "title": "BottomNav",
   "args": {
@@ -97,7 +97,8 @@
           "name": "aria-label",
           "value": "Primary navigation"
         }
-      ]
+      ],
+      "mode": "pinned"
     },
     {
       "id": "disabled-item",
@@ -140,7 +141,8 @@
           "kind": "text",
           "value": "Overview"
         }
-      ]
+      ],
+      "mode": "pinned"
     },
     {
       "id": "long-labels",
@@ -181,7 +183,8 @@
           "kind": "text",
           "value": "Integrations"
         }
-      ]
+      ],
+      "mode": "pinned"
     }
   ]
 }

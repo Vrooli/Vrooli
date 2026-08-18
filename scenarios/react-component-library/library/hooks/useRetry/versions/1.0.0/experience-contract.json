@@ -5,19 +5,19 @@
     {
       "id": "bounded",
       "description": "Attempts are bounded and the final error remains available to the caller.",
-      "type": "custom",
+      "type": "manual-review",
       "tier": "manual"
     },
     {
       "id": "cancellable",
       "description": "Superseded work and backoff timers are abortable and cleaned up on unmount.",
-      "type": "custom",
+      "type": "manual-review",
       "tier": "manual"
     },
     {
       "id": "classified",
       "description": "Non-retryable errors stop immediately instead of creating noisy repeated requests.",
-      "type": "custom",
+      "type": "manual-review",
       "tier": "manual"
     }
   ]

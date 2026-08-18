@@ -24,21 +24,21 @@
   "claims": [
     {
       "id": "shared-runtime",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Generated fields compose the shared form, field, section, action, summary, conditional, computed, array, and object contracts rather than duplicating them.",
       "tier": "manual",
       "states": ["default", "validation"]
     },
     {
       "id": "error-recovery",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Validation preserves values, announces a summary, and leaves the failing field available for correction.",
       "tier": "manual",
       "states": ["validation"]
     },
     {
       "id": "schema-responsive",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "The same field graph remains legible at narrow widths as sections and compound fields reflow.",
       "tier": "manual",
       "states": ["default", "validation"]

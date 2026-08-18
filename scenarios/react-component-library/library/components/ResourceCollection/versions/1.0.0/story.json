@@ -2,8 +2,12 @@
   "schemaVersion": 3,
   "kind": "component",
   "title": "Resource Collection",
-  "args": { "fields": [] },
-  "environment": { "fixtures": [] },
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
   "stories": [
     {
       "id": "default",
@@ -11,11 +15,27 @@
       "harness": "Default",
       "args": {},
       "expect": [
-        { "kind": "role", "role": "heading", "name": "Resources" },
-        { "kind": "role", "role": "search", "name": "Search resources" },
-        { "kind": "text", "value": "6 results" }
+        {
+          "kind": "role",
+          "role": "heading",
+          "name": "Resources"
+        },
+        {
+          "kind": "role",
+          "role": "search",
+          "name": "Search resources"
+        },
+        {
+          "kind": "text",
+          "value": "6 results"
+        }
       ],
-      "interactions": [{ "kind": "settle" }]
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live"
     },
     {
       "id": "refreshing",
@@ -23,9 +43,16 @@
       "harness": "Refreshing",
       "args": {},
       "expect": [
-        { "kind": "role", "role": "status" },
-        { "kind": "text", "value": "Checking resource health" }
-      ]
+        {
+          "kind": "role",
+          "role": "status"
+        },
+        {
+          "kind": "text",
+          "value": "Checking resource health"
+        }
+      ],
+      "mode": "live"
     },
     {
       "id": "offline",
@@ -33,9 +60,16 @@
       "harness": "Offline",
       "args": {},
       "expect": [
-        { "kind": "text", "value": "Showing saved resources" },
-        { "kind": "text", "value": "Saved recently" }
-      ]
+        {
+          "kind": "text",
+          "value": "Showing saved resources"
+        },
+        {
+          "kind": "text",
+          "value": "Saved recently"
+        }
+      ],
+      "mode": "live"
     },
     {
       "id": "request-error",
@@ -43,9 +77,16 @@
       "harness": "RequestError",
       "args": {},
       "expect": [
-        { "kind": "role", "role": "alert" },
-        { "kind": "text", "value": "Try again" }
-      ]
+        {
+          "kind": "role",
+          "role": "alert"
+        },
+        {
+          "kind": "text",
+          "value": "Try again"
+        }
+      ],
+      "mode": "live"
     },
     {
       "id": "empty",
@@ -53,9 +94,16 @@
       "harness": "Empty",
       "args": {},
       "expect": [
-        { "kind": "text", "value": "No resources match" },
-        { "kind": "text", "value": "Clear the search" }
-      ]
+        {
+          "kind": "text",
+          "value": "No resources match"
+        },
+        {
+          "kind": "text",
+          "value": "Clear the search"
+        }
+      ],
+      "mode": "live"
     }
   ]
 }

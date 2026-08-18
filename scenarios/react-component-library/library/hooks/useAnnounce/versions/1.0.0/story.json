@@ -1,1 +1,26 @@
-{"schemaVersion":2,"kind":"hook","title":"useAnnounce","args":{"fields":[]},"environment":{"fixtures":[]},"stories":[{"id":"default","name":"Default","harness":"Default","args":{},"expect":[{"kind":"role","role":"status"}]}]}
+{
+  "schemaVersion": 3,
+  "kind": "hook",
+  "title": "useAnnounce",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Default",
+      "harness": "Default",
+      "args": {},
+      "expect": [
+        {
+          "kind": "role",
+          "role": "status"
+        }
+      ],
+      "mode": "live"
+    }
+  ]
+}

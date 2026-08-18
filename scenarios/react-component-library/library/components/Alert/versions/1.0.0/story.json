@@ -2,12 +2,93 @@
   "schemaVersion": 3,
   "kind": "component",
   "title": "Alert",
-  "args": { "fields": [] },
-  "environment": { "fixtures": [] },
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
   "stories": [
-    { "id": "default", "name": "Dismissible information", "harness": "Default", "args": {}, "expect": [{ "kind": "role", "role": "status" }, { "kind": "text", "value": "Message dismissed." }], "interactions": [{ "kind": "click", "target": { "role": "button", "name": "Dismiss message" } }, { "kind": "settle" }] },
-    { "id": "success", "name": "Success", "harness": "Success", "args": {}, "expect": [{ "kind": "role", "role": "status" }, { "kind": "text", "value": "Export ready" }] },
-    { "id": "warning", "name": "Warning with recovery", "harness": "Warning", "args": {}, "expect": [{ "kind": "role", "role": "status" }, { "kind": "role", "role": "button", "name": "Retry now" }] },
-    { "id": "danger", "name": "Error", "harness": "Danger", "args": {}, "expect": [{ "kind": "role", "role": "alert" }, { "kind": "text", "value": "Could not save changes" }] }
+    {
+      "id": "default",
+      "name": "Dismissible information",
+      "harness": "Default",
+      "args": {},
+      "expect": [
+        {
+          "kind": "role",
+          "role": "status"
+        },
+        {
+          "kind": "text",
+          "value": "Message dismissed."
+        }
+      ],
+      "interactions": [
+        {
+          "kind": "click",
+          "target": {
+            "role": "button",
+            "name": "Dismiss message"
+          }
+        },
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live"
+    },
+    {
+      "id": "success",
+      "name": "Success",
+      "harness": "Success",
+      "args": {},
+      "expect": [
+        {
+          "kind": "role",
+          "role": "status"
+        },
+        {
+          "kind": "text",
+          "value": "Export ready"
+        }
+      ],
+      "mode": "live"
+    },
+    {
+      "id": "warning",
+      "name": "Warning with recovery",
+      "harness": "Warning",
+      "args": {},
+      "expect": [
+        {
+          "kind": "role",
+          "role": "status"
+        },
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Retry now"
+        }
+      ],
+      "mode": "live"
+    },
+    {
+      "id": "danger",
+      "name": "Error",
+      "harness": "Danger",
+      "args": {},
+      "expect": [
+        {
+          "kind": "role",
+          "role": "alert"
+        },
+        {
+          "kind": "text",
+          "value": "Could not save changes"
+        }
+      ],
+      "mode": "live"
+    }
   ]
 }

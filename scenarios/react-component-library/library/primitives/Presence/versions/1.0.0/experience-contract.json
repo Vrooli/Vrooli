@@ -24,7 +24,7 @@
   "claims": [
     {
       "id": "contract-present",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Presence exposes a bounded public contract backed by shared duration, easing, and reduced-motion policy.",
       "tier": "manual",
       "states": ["default"]

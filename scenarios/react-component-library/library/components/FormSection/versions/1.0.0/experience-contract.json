@@ -29,21 +29,21 @@
   "claims": [
     {
       "id": "semantic-group",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "The section preserves heading, field grouping, and live validation context without requiring consumer layout glue.",
       "tier": "manual",
       "states": ["default", "validation"]
     },
     {
       "id": "keyboard-collapse",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Collapsible sections use a native button with an accurate expanded relationship and remain keyboard-operable.",
       "tier": "manual",
       "states": ["collapsed"]
     },
     {
       "id": "responsive-rhythm",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Section padding and field rhythm remain readable on narrow screens without horizontal overflow.",
       "tier": "manual",
       "states": ["default", "validation", "collapsed"]

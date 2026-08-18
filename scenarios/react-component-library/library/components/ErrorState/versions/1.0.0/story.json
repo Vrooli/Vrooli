@@ -2,7 +2,30 @@
   "schemaVersion": 3,
   "kind": "component",
   "title": "ErrorState",
-  "args": { "fields": [] },
-  "environment": { "fixtures": [] },
-  "stories": [{ "id": "error", "name": "Retryable sync error", "harness": "Error", "args": {}, "expect": [{ "kind": "role", "role": "alert" }, { "kind": "role", "role": "button", "name": "Try again" }] }]
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "error",
+      "name": "Retryable sync error",
+      "harness": "Error",
+      "args": {},
+      "expect": [
+        {
+          "kind": "role",
+          "role": "alert"
+        },
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Try again"
+        }
+      ],
+      "mode": "live"
+    }
+  ]
 }

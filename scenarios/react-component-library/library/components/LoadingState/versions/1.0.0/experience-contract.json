@@ -19,7 +19,7 @@
   "claims": [
     {
       "id": "contract-present",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "LoadingState communicates progress without shifting the promised region.",
       "tier": "manual",
       "states": ["loading"]

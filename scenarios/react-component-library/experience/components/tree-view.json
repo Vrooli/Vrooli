@@ -1,9 +1,9 @@
 {
-  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "$schema": "../../../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
   "kind": "experience-component",
   "schemaVersion": "1.1.0",
   "component": {
-    "id": "tree-view",
+    "id": "data-display.tree-view",
     "title": "TreeView",
     "purpose": "A navigable hierarchical surface for files and structured resources.",
     "storyRef": "../../library/components/TreeView/versions/1.0.0/story.json"
@@ -53,14 +53,14 @@
     },
     {
       "id": "keyboard-navigation",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Arrow, Home, End, Enter, and Space keys provide predictable navigation, disclosure, and selection behavior.",
       "tier": "manual",
       "states": ["default", "collapsed"]
     },
     {
       "id": "responsive-legibility",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Long labels truncate without collapsing the hierarchy or introducing horizontal overflow.",
       "tier": "manual",
       "states": ["default", "collapsed"]

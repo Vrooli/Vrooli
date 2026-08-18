@@ -2,9 +2,9 @@
  * @vrooliComponentSource react-component-library:Tokens
  * @vrooliComponentVersion 1.0.0
  * @vrooliComponentAdoption 3300c045-811e-474a-8de2-3994ae86b436
- * @vrooliComponentAppliedAt 2026-08-12T12:59:50Z
- * @vrooliComponentSourceSha256 00f634de4489f6d8b01d18f688b4b665da39125beabcfebb6a16e00259fb4a29
- * @vrooliComponentDriftHash ba44f2db85cc9f763fb597ff2735ee7b2c955b49a565c4672809f22358690cd8
+ * @vrooliComponentAppliedAt 2026-08-18T01:12:35Z
+ * @vrooliComponentSourceSha256 2d6bafc607b47128180982d8f940356e8ac545313dd948b14c1e24ad7668c516
+ * @vrooliComponentDriftHash 3c7ac48257e5358626416f3749aed923343ba5d46e0d65a71fe7e767b63f2c86
  * @vrooliComponentTokenTranslation none
  *
  * This file was copied from React Component Library. Local edits are allowed;
@@ -56,20 +56,20 @@ export const TOKEN_RAMPS = {
 } as const;
 
 export const SEMANTIC_TOKENS = {
-  background: "var(--app-background)",
-  foreground: "var(--app-foreground)",
-  surface: "var(--app-surface)",
-  surfaceMuted: "var(--app-surface-muted)",
-  border: "var(--app-border)",
-  muted: "var(--app-muted-foreground)",
-  primary: "var(--app-primary)",
-  primaryForeground: "var(--app-primary-foreground)",
-  accent: "var(--app-accent)",
-  success: "var(--app-success)",
-  warning: "var(--app-warning)",
-  danger: "var(--app-danger)",
-  info: "var(--app-info)",
-  focus: "var(--app-focus)",
+  background: "var(--color-background)",
+  foreground: "var(--color-foreground)",
+  surface: "var(--color-surface)",
+  surfaceMuted: "var(--color-surface-muted)",
+  border: "var(--color-border)",
+  muted: "var(--color-muted-foreground)",
+  primary: "var(--color-primary)",
+  primaryForeground: "var(--color-primary-foreground)",
+  accent: "var(--color-accent)",
+  success: "var(--color-success)",
+  warning: "var(--color-warning)",
+  danger: "var(--color-danger)",
+  info: "var(--color-info)",
+  focus: "var(--color-focus)",
 } as const;
 
 export const COMPONENT_TOKENS = {

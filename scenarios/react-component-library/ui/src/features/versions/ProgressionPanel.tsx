@@ -104,7 +104,7 @@ export function ProgressionPanel({ libraryId }: { libraryId: string }) {
               <span className="text-xs text-app-muted-foreground">{rows.length} releases</span>
             </div>
             <div className="mt-space-sm overflow-x-auto">
-              <table className="w-full min-w-[34rem] text-left text-xs">
+              <table className="w-full min-w-content text-left text-xs">
                 <thead className="border-b border-app-border text-app-muted-foreground">
                   <tr>
                     <th className="pb-space-xs font-medium">Release</th>
@@ -123,7 +123,7 @@ export function ProgressionPanel({ libraryId }: { libraryId: string }) {
                         {row.adoptionCurrent} current · {row.adoptionPeak} peak
                       </td>
                       <td className="py-space-xs">
-                        <span className="rounded-pill bg-app-surface-muted px-2 py-1">
+                        <span className="rounded-pill bg-app-surface-muted px-space-2xs py-space-3xs">
                           {lifecycleLabel(row.lifecycleState)}
                         </span>
                       </td>

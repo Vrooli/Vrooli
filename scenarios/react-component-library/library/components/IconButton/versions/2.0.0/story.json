@@ -1,28 +1,301 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 3,
   "kind": "component",
   "title": "IconButton 2.0",
-  "args": { "fields": [
-    { "path": "aria-label", "label": "Accessible label", "kind": "text", "default": "Close panel" },
-    { "path": "children", "label": "Icon", "kind": "structured", "default": { "$icon": "X" } },
-    { "path": "variant", "label": "Variant", "kind": "enum", "required": true, "default": "ghost", "options": ["primary", "secondary", "ghost", "danger"] },
-    { "path": "size", "label": "Size", "kind": "enum", "required": true, "default": "icon", "options": ["xs", "sm", "md", "lg", "xl", "icon"] },
-    { "path": "density", "label": "Density", "kind": "enum", "required": true, "default": "comfortable", "options": ["comfortable", "compact"] },
-    { "path": "disabled", "label": "Disabled", "kind": "boolean", "default": false }
-  ] },
-  "environment": { "fixtures": [] },
+  "args": {
+    "fields": [
+      {
+        "path": "aria-label",
+        "label": "Accessible label",
+        "kind": "text",
+        "default": "Close panel"
+      },
+      {
+        "path": "children",
+        "label": "Icon",
+        "kind": "structured",
+        "default": {
+          "$icon": "X"
+        }
+      },
+      {
+        "path": "variant",
+        "label": "Variant",
+        "kind": "enum",
+        "required": true,
+        "default": "ghost",
+        "options": [
+          "primary",
+          "secondary",
+          "ghost",
+          "danger"
+        ]
+      },
+      {
+        "path": "size",
+        "label": "Size",
+        "kind": "enum",
+        "required": true,
+        "default": "icon",
+        "options": [
+          "xs",
+          "sm",
+          "md",
+          "lg",
+          "xl",
+          "icon"
+        ]
+      },
+      {
+        "path": "density",
+        "label": "Density",
+        "kind": "enum",
+        "required": true,
+        "default": "comfortable",
+        "options": [
+          "comfortable",
+          "compact"
+        ]
+      },
+      {
+        "path": "disabled",
+        "label": "Disabled",
+        "kind": "boolean",
+        "default": false
+      }
+    ]
+  },
+  "environment": {
+    "fixtures": []
+  },
   "stories": [
-    { "id": "variant-primary", "name": "Primary", "args": { "aria-label": "Play", "children": { "$icon": "Play" }, "variant": "primary" }, "expect": [{ "kind": "role", "role": "button", "name": "Play" }] },
-    { "id": "variant-secondary", "name": "Secondary", "args": { "aria-label": "Settings", "children": { "$icon": "Settings" }, "variant": "secondary" }, "expect": [{ "kind": "role", "role": "button", "name": "Settings" }] },
-    { "id": "variant-ghost", "name": "Ghost", "args": { "aria-label": "Close", "children": { "$icon": "X" }, "variant": "ghost" }, "expect": [{ "kind": "role", "role": "button", "name": "Close" }] },
-    { "id": "variant-danger", "name": "Danger", "args": { "aria-label": "Delete", "children": { "$icon": "Trash2" }, "variant": "danger" }, "expect": [{ "kind": "role", "role": "button", "name": "Delete" }] },
-    { "id": "size-xs", "name": "XS", "args": { "aria-label": "XS", "children": { "$icon": "Circle" }, "size": "xs" }, "expect": [{ "kind": "role", "role": "button", "name": "XS" }] },
-    { "id": "size-sm", "name": "SM", "args": { "aria-label": "SM", "children": { "$icon": "Circle" }, "size": "sm" }, "expect": [{ "kind": "role", "role": "button", "name": "SM" }] },
-    { "id": "size-md", "name": "MD", "args": { "aria-label": "MD", "children": { "$icon": "Circle" }, "size": "md" }, "expect": [{ "kind": "role", "role": "button", "name": "MD" }] },
-    { "id": "size-lg", "name": "LG", "args": { "aria-label": "LG", "children": { "$icon": "Circle" }, "size": "lg" }, "expect": [{ "kind": "role", "role": "button", "name": "LG" }] },
-    { "id": "size-xl", "name": "XL", "args": { "aria-label": "XL", "children": { "$icon": "Circle" }, "size": "xl" }, "expect": [{ "kind": "role", "role": "button", "name": "XL" }] },
-    { "id": "size-icon", "name": "Icon", "args": { "aria-label": "Icon", "children": { "$icon": "Circle" }, "size": "icon" }, "expect": [{ "kind": "role", "role": "button", "name": "Icon" }] },
-    { "id": "density-comfortable", "name": "Comfortable", "args": { "aria-label": "Comfortable", "children": { "$icon": "Circle" }, "density": "comfortable" }, "expect": [{ "kind": "role", "role": "button", "name": "Comfortable" }] },
-    { "id": "density-compact", "name": "Compact", "args": { "aria-label": "Compact", "children": { "$icon": "Circle" }, "density": "compact" }, "expect": [{ "kind": "role", "role": "button", "name": "Compact" }] }
+    {
+      "id": "variant-primary",
+      "name": "Primary",
+      "args": {
+        "aria-label": "Play",
+        "children": {
+          "$icon": "Play"
+        },
+        "variant": "primary"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Play"
+        }
+      ],
+      "mode": "pinned"
+    },
+    {
+      "id": "variant-secondary",
+      "name": "Secondary",
+      "args": {
+        "aria-label": "Settings",
+        "children": {
+          "$icon": "Settings"
+        },
+        "variant": "secondary"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Settings"
+        }
+      ],
+      "mode": "pinned"
+    },
+    {
+      "id": "variant-ghost",
+      "name": "Ghost",
+      "args": {
+        "aria-label": "Close",
+        "children": {
+          "$icon": "X"
+        },
+        "variant": "ghost"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Close"
+        }
+      ],
+      "mode": "pinned"
+    },
+    {
+      "id": "variant-danger",
+      "name": "Danger",
+      "args": {
+        "aria-label": "Delete",
+        "children": {
+          "$icon": "Trash2"
+        },
+        "variant": "danger"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Delete"
+        }
+      ],
+      "mode": "pinned"
+    },
+    {
+      "id": "size-xs",
+      "name": "XS",
+      "args": {
+        "aria-label": "XS",
+        "children": {
+          "$icon": "Circle"
+        },
+        "size": "xs"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "XS"
+        }
+      ],
+      "mode": "pinned"
+    },
+    {
+      "id": "size-sm",
+      "name": "SM",
+      "args": {
+        "aria-label": "SM",
+        "children": {
+          "$icon": "Circle"
+        },
+        "size": "sm"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "SM"
+        }
+      ],
+      "mode": "pinned"
+    },
+    {
+      "id": "size-md",
+      "name": "MD",
+      "args": {
+        "aria-label": "MD",
+        "children": {
+          "$icon": "Circle"
+        },
+        "size": "md"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "MD"
+        }
+      ],
+      "mode": "pinned"
+    },
+    {
+      "id": "size-lg",
+      "name": "LG",
+      "args": {
+        "aria-label": "LG",
+        "children": {
+          "$icon": "Circle"
+        },
+        "size": "lg"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "LG"
+        }
+      ],
+      "mode": "pinned"
+    },
+    {
+      "id": "size-xl",
+      "name": "XL",
+      "args": {
+        "aria-label": "XL",
+        "children": {
+          "$icon": "Circle"
+        },
+        "size": "xl"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "XL"
+        }
+      ],
+      "mode": "pinned"
+    },
+    {
+      "id": "size-icon",
+      "name": "Icon",
+      "args": {
+        "aria-label": "Icon",
+        "children": {
+          "$icon": "Circle"
+        },
+        "size": "icon"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Icon"
+        }
+      ],
+      "mode": "pinned"
+    },
+    {
+      "id": "density-comfortable",
+      "name": "Comfortable",
+      "args": {
+        "aria-label": "Comfortable",
+        "children": {
+          "$icon": "Circle"
+        },
+        "density": "comfortable"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Comfortable"
+        }
+      ],
+      "mode": "pinned"
+    },
+    {
+      "id": "density-compact",
+      "name": "Compact",
+      "args": {
+        "aria-label": "Compact",
+        "children": {
+          "$icon": "Circle"
+        },
+        "density": "compact"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Compact"
+        }
+      ],
+      "mode": "pinned"
+    }
   ]
 }

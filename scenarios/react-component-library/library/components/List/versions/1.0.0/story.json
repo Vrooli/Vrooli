@@ -2,11 +2,51 @@
   "schemaVersion": 3,
   "kind": "component",
   "title": "List",
-  "args": { "fields": [] },
-  "environment": { "fixtures": [] },
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
   "stories": [
-    { "id": "default", "name": "Activity list", "harness": "Default", "args": {}, "expect": [{ "kind": "text", "value": "Deploy completed" }] },
-    { "id": "long-content", "name": "Long content", "harness": "LongContent", "args": {}, "expect": [{ "kind": "text", "value": "A descriptive activity" }] },
-    { "id": "empty", "name": "Empty collection", "harness": "Empty", "args": {}, "expect": [{ "kind": "role", "role": "status" }] }
+    {
+      "id": "default",
+      "name": "Activity list",
+      "harness": "Default",
+      "args": {},
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Deploy completed"
+        }
+      ],
+      "mode": "live"
+    },
+    {
+      "id": "long-content",
+      "name": "Long content",
+      "harness": "LongContent",
+      "args": {},
+      "expect": [
+        {
+          "kind": "text",
+          "value": "A descriptive activity"
+        }
+      ],
+      "mode": "live"
+    },
+    {
+      "id": "empty",
+      "name": "Empty collection",
+      "harness": "Empty",
+      "args": {},
+      "expect": [
+        {
+          "kind": "role",
+          "role": "status"
+        }
+      ],
+      "mode": "live"
+    }
   ]
 }

@@ -1,1 +1,46 @@
-{"schemaVersion":3,"kind":"component","title":"NavigationTree","args":{"fields":[]},"environment":{"fixtures":[]},"frame":{"asset":"navigation.page","region":"navigation","fixture":"fixtures.user-directory"},"stories":[{"id":"default","name":"Default","args":{"items":["Overview","Activity"]},"expect":[{"kind":"text","value":"Overview"}]},{"id":"long-content","name":"Long content","args":{"items":["Overview","Activity"]}}]}
+{
+  "schemaVersion": 3,
+  "kind": "component",
+  "title": "NavigationTree",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "frame": {
+    "asset": "navigation.page",
+    "region": "navigation",
+    "fixture": "fixtures.user-directory"
+  },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Default",
+      "args": {
+        "items": [
+          "Overview",
+          "Activity"
+        ]
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Overview"
+        }
+      ],
+      "mode": "pinned"
+    },
+    {
+      "id": "long-content",
+      "name": "Long content",
+      "args": {
+        "items": [
+          "Overview",
+          "Activity"
+        ]
+      },
+      "mode": "pinned"
+    }
+  ]
+}

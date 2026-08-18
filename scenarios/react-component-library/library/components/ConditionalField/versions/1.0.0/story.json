@@ -2,10 +2,65 @@
   "schemaVersion": 3,
   "kind": "component",
   "title": "ConditionalField",
-  "args": { "fields": [] },
-  "environment": { "fixtures": [] },
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
   "stories": [
-    { "id": "default", "name": "Visible dependency", "harness": "Default", "args": {}, "expect": [{ "kind": "role", "role": "combobox", "name": "Plan" }, { "kind": "role", "role": "textbox", "name": "Billing email" }] },
-    { "id": "reset-on-hide", "name": "Reset on hide", "harness": "ResetOnHide", "args": {}, "expect": [{ "kind": "role", "role": "combobox", "name": "Plan" }, { "kind": "role", "role": "status" }, { "kind": "text", "value": "Tax details cleared when the plan changes." }], "interactions": [{ "kind": "click", "target": { "role": "button", "name": "Hide tax details" } }, { "kind": "settle" }] }
+    {
+      "id": "default",
+      "name": "Visible dependency",
+      "harness": "Default",
+      "args": {},
+      "expect": [
+        {
+          "kind": "role",
+          "role": "combobox",
+          "name": "Plan"
+        },
+        {
+          "kind": "role",
+          "role": "textbox",
+          "name": "Billing email"
+        }
+      ],
+      "mode": "live"
+    },
+    {
+      "id": "reset-on-hide",
+      "name": "Reset on hide",
+      "harness": "ResetOnHide",
+      "args": {},
+      "expect": [
+        {
+          "kind": "role",
+          "role": "combobox",
+          "name": "Plan"
+        },
+        {
+          "kind": "role",
+          "role": "status"
+        },
+        {
+          "kind": "text",
+          "value": "Tax details cleared when the plan changes."
+        }
+      ],
+      "interactions": [
+        {
+          "kind": "click",
+          "target": {
+            "role": "button",
+            "name": "Hide tax details"
+          }
+        },
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live"
+    }
   ]
 }

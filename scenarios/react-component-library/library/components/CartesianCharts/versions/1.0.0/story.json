@@ -2,8 +2,12 @@
   "schemaVersion": 3,
   "kind": "component",
   "title": "Cartesian charts",
-  "args": { "fields": [] },
-  "environment": { "fixtures": [] },
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
   "stories": [
     {
       "id": "default",
@@ -11,44 +15,87 @@
       "harness": "Default",
       "args": {},
       "expect": [
-        { "kind": "role", "role": "img", "name": "Progression" },
-        { "kind": "role", "role": "table" }
-      ]
+        {
+          "kind": "role",
+          "role": "img",
+          "name": "Progression"
+        },
+        {
+          "kind": "role",
+          "role": "table"
+        }
+      ],
+      "mode": "live"
     },
     {
       "id": "area",
       "name": "Area chart",
       "harness": "Area",
       "args": {},
-      "expect": [{ "kind": "role", "role": "img", "name": "Progression" }]
+      "expect": [
+        {
+          "kind": "role",
+          "role": "img",
+          "name": "Progression"
+        }
+      ],
+      "mode": "live"
     },
     {
       "id": "bar",
       "name": "Bar chart",
       "harness": "Bar",
       "args": {},
-      "expect": [{ "kind": "role", "role": "img", "name": "Progression" }]
+      "expect": [
+        {
+          "kind": "role",
+          "role": "img",
+          "name": "Progression"
+        }
+      ],
+      "mode": "live"
     },
     {
       "id": "stacked-bar",
       "name": "Stacked bar chart",
       "harness": "StackedBar",
       "args": {},
-      "expect": [{ "kind": "role", "role": "img", "name": "Progression" }]
+      "expect": [
+        {
+          "kind": "role",
+          "role": "img",
+          "name": "Progression"
+        }
+      ],
+      "mode": "live"
     },
     {
       "id": "scatter",
       "name": "Scatter chart",
       "harness": "Scatter",
       "args": {},
-      "expect": [{ "kind": "role", "role": "img", "name": "Progression" }]
+      "expect": [
+        {
+          "kind": "role",
+          "role": "img",
+          "name": "Progression"
+        }
+      ],
+      "mode": "live"
     },
     {
       "id": "histogram",
       "name": "Histogram",
       "harness": "Histogram",
       "args": {},
-      "expect": [{ "kind": "role", "role": "img", "name": "Progression" }]
+      "expect": [
+        {
+          "kind": "role",
+          "role": "img",
+          "name": "Progression"
+        }
+      ],
+      "mode": "live"
     }
   ]
 }

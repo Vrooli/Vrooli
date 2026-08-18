@@ -111,7 +111,7 @@ export function MarkdownRenderer({
         </a>
       ),
       blockquote: ({ children }: { children?: ReactNode }) => (
-        <blockquote className="my-space-xs border-l-2 border-[var(--markdown-link)] pl-3 italic text-[var(--markdown-muted)]">
+        <blockquote className="my-space-xs border-l-2 border-[var(--markdown-link)] pl-space-xs italic text-[var(--markdown-muted)]">
           {children}
         </blockquote>
       ),

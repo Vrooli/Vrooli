@@ -24,7 +24,7 @@
   "claims": [
     {
       "id": "contract-present",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "ResourceDetail preserves data-source ownership and honest state composition.",
       "tier": "manual",
       "states": ["default", "empty"]

@@ -1,25 +1,12 @@
 {
-  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
-  "kind": "experience-component",
-  "schemaVersion": "1.1.0",
+  "schemaVersion": "1.0.0",
+  "kind": "component-experience-contract",
   "component": {
     "id": "input",
     "title": "Input",
-    "purpose": "Provide a token-bound text-entry control that remains recognizable across text, search, and disabled examples.",
-    "storyRef": "../../library/components/Input/versions/1.1.0/story.json",
-    "prd_refs": ["OT-P0-001", "OT-P0-003"]
+    "purpose": "Provide a token-bound text-entry control with stable text, search, and disabled behavior.",
+    "storyRef": "../../library/components/Input/versions/1.1.0/story.json"
   },
-  "priorities": [
-    {
-      "statement": "Each example communicates that it accepts or displays text input."
-    },
-    {
-      "statement": "The search example remains a recognizable text-entry control."
-    },
-    {
-      "statement": "The disabled example preserves context while preventing edits."
-    }
-  ],
   "states": [
     {
       "id": "text",
@@ -35,13 +22,6 @@
       "id": "disabled",
       "example": "disabled",
       "description": "Disabled field that preserves its displayed value."
-    }
-  ],
-  "elements": [
-    {
-      "id": "field",
-      "role": "x-field",
-      "description": "The rendered native text-entry field."
     }
   ],
   "claims": [
@@ -78,9 +58,16 @@
       "states": ["disabled"]
     }
   ],
+  "elements": [
+    {
+      "id": "field",
+      "role": "textbox",
+      "description": "The native text-entry field."
+    }
+  ],
   "bindings": {
     "elements": {
-      "field": { "selector": "input" }
+      "field": { "selector": "[data-rcl-input]" }
     }
   }
 }

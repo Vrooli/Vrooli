@@ -97,13 +97,13 @@ export function ComponentEditorTools(props: ToolProps) {
             data-testid={selectors.components.editor.previewEventsClear}
             type="button"
             variant="secondary"
-            className="h-7 px-space-2xs text-xs"
+            className="h-control-compact px-space-2xs text-xs"
             onClick={onClearEvents}
           >
             {t(strings.components.editor.clearEvents)}
           </Button>
         </div>
-        <ol className="max-h-48 space-y-space-3xs overflow-auto font-mono text-xs">
+        <ol className="max-h-content-short space-y-space-3xs overflow-auto font-mono text-xs">
           {previewEvents
             .filter((event) => !activeExample?.storyId || event.story === activeExample.storyId)
             .map((event, index) => (

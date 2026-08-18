@@ -22,33 +22,76 @@
         "title": "Application workspace",
         "navigation": {
           "$node": "nav",
-          "props": { "aria-label": "Application navigation" },
+          "props": {
+            "aria-label": "Application navigation"
+          },
           "children": [
             {
               "$node": "a",
-              "props": { "href": "#workspace", "aria-current": "page" },
-              "children": [{ "$icon": "LayoutDashboard" }, { "$text": "Workspace" }]
+              "props": {
+                "href": "#workspace",
+                "aria-current": "page"
+              },
+              "children": [
+                {
+                  "$icon": "LayoutDashboard"
+                },
+                {
+                  "$text": "Workspace"
+                }
+              ]
             },
             {
               "$node": "a",
-              "props": { "href": "#components" },
-              "children": [{ "$icon": "Blocks" }, { "$text": "Components" }]
+              "props": {
+                "href": "#components"
+              },
+              "children": [
+                {
+                  "$icon": "Blocks"
+                },
+                {
+                  "$text": "Components"
+                }
+              ]
             },
             {
               "$node": "a",
-              "props": { "href": "#templates" },
-              "children": [{ "$icon": "PanelsTopLeft" }, { "$text": "Templates" }]
+              "props": {
+                "href": "#templates"
+              },
+              "children": [
+                {
+                  "$icon": "PanelsTopLeft"
+                },
+                {
+                  "$text": "Templates"
+                }
+              ]
             },
             {
               "$node": "a",
-              "props": { "href": "#settings" },
-              "children": [{ "$icon": "Settings" }, { "$text": "Settings" }]
+              "props": {
+                "href": "#settings"
+              },
+              "children": [
+                {
+                  "$icon": "Settings"
+                },
+                {
+                  "$text": "Settings"
+                }
+              ]
             }
           ]
         },
         "children": {
           "$node": "section",
-          "children": [{ "$text": "Workspace content" }]
+          "children": [
+            {
+              "$text": "Workspace content"
+            }
+          ]
         }
       },
       "expect": [
@@ -57,8 +100,16 @@
           "role": "complementary",
           "name": "Application navigation"
         },
-        { "kind": "role", "role": "main", "name": "Application workspace" },
-        { "kind": "role", "role": "link", "name": "Skip to content" },
+        {
+          "kind": "role",
+          "role": "main",
+          "name": "Application workspace"
+        },
+        {
+          "kind": "role",
+          "role": "link",
+          "name": "Skip to content"
+        },
         {
           "kind": "layout",
           "selector": "[data-rcl-app-shell]",
@@ -73,8 +124,12 @@
           "minHeight": 120,
           "noOverflow": true
         },
-        { "kind": "text", "value": "Workspace content" }
-      ]
+        {
+          "kind": "text",
+          "value": "Workspace content"
+        }
+      ],
+      "mode": "pinned"
     },
     {
       "id": "long-content",
@@ -83,27 +138,66 @@
         "title": "Application workspace",
         "navigation": {
           "$node": "nav",
-          "props": { "aria-label": "Application navigation" },
+          "props": {
+            "aria-label": "Application navigation"
+          },
           "children": [
             {
               "$node": "a",
-              "props": { "href": "#workspace", "aria-current": "page" },
-              "children": [{ "$icon": "LayoutDashboard" }, { "$text": "Workspace" }]
+              "props": {
+                "href": "#workspace",
+                "aria-current": "page"
+              },
+              "children": [
+                {
+                  "$icon": "LayoutDashboard"
+                },
+                {
+                  "$text": "Workspace"
+                }
+              ]
             },
             {
               "$node": "a",
-              "props": { "href": "#components" },
-              "children": [{ "$icon": "Blocks" }, { "$text": "Components" }]
+              "props": {
+                "href": "#components"
+              },
+              "children": [
+                {
+                  "$icon": "Blocks"
+                },
+                {
+                  "$text": "Components"
+                }
+              ]
             },
             {
               "$node": "a",
-              "props": { "href": "#templates" },
-              "children": [{ "$icon": "PanelsTopLeft" }, { "$text": "Templates" }]
+              "props": {
+                "href": "#templates"
+              },
+              "children": [
+                {
+                  "$icon": "PanelsTopLeft"
+                },
+                {
+                  "$text": "Templates"
+                }
+              ]
             },
             {
               "$node": "a",
-              "props": { "href": "#settings" },
-              "children": [{ "$icon": "Settings" }, { "$text": "Settings" }]
+              "props": {
+                "href": "#settings"
+              },
+              "children": [
+                {
+                  "$icon": "Settings"
+                },
+                {
+                  "$text": "Settings"
+                }
+              ]
             }
           ]
         },
@@ -117,7 +211,11 @@
         }
       },
       "expect": [
-        { "kind": "role", "role": "main", "name": "Application workspace" },
+        {
+          "kind": "role",
+          "role": "main",
+          "name": "Application workspace"
+        },
         {
           "kind": "attribute",
           "selector": "[data-rcl-app-shell-main]",
@@ -138,7 +236,8 @@
           "minHeight": 120,
           "noOverflow": true
         }
-      ]
+      ],
+      "mode": "pinned"
     }
   ]
 }

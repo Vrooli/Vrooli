@@ -1,9 +1,13 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "kind": "component",
   "title": "Tabs",
-  "args": { "fields": [] },
-  "environment": { "fixtures": [] },
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
   "stories": [
     {
       "id": "default",
@@ -11,15 +15,37 @@
       "harness": "Default",
       "args": {},
       "expect": [
-        { "kind": "role", "role": "tablist", "name": "Workspace sections" },
-        { "kind": "role", "role": "tabpanel" },
-        { "kind": "text", "value": "Arrow keys move between tabs" },
-        { "kind": "text", "value": "Recent activity appears here." }
+        {
+          "kind": "role",
+          "role": "tablist",
+          "name": "Workspace sections"
+        },
+        {
+          "kind": "role",
+          "role": "tabpanel"
+        },
+        {
+          "kind": "text",
+          "value": "Arrow keys move between tabs"
+        },
+        {
+          "kind": "text",
+          "value": "Recent activity appears here."
+        }
       ],
       "interactions": [
-        { "kind": "click", "target": { "role": "tab", "name": "Activity" } },
-        { "kind": "settle" }
-      ]
+        {
+          "kind": "click",
+          "target": {
+            "role": "tab",
+            "name": "Activity"
+          }
+        },
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live"
     },
     {
       "id": "long-content",
@@ -27,10 +53,22 @@
       "harness": "LongContent",
       "args": {},
       "expect": [
-        { "kind": "role", "role": "tab", "name": "Preferences" },
-        { "kind": "role", "role": "tabpanel" }
+        {
+          "kind": "role",
+          "role": "tab",
+          "name": "Preferences"
+        },
+        {
+          "kind": "role",
+          "role": "tabpanel"
+        }
       ],
-      "interactions": [{ "kind": "settle" }]
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live"
     }
   ]
 }

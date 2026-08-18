@@ -24,21 +24,21 @@
   "claims": [
     {
       "id": "alert-summary",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Errors are exposed as an alert with a heading and field-specific links.",
       "tier": "manual",
       "states": ["errors"]
     },
     {
       "id": "empty-layout",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "The component renders no summary surface when the error map is empty.",
       "tier": "manual",
       "states": ["empty"]
     },
     {
       "id": "recovery-path",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Each listed field provides a direct navigation path back to the field target.",
       "tier": "manual",
       "states": ["errors"]

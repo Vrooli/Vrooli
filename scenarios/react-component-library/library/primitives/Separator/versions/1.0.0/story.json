@@ -1,1 +1,40 @@
-{"schemaVersion":1,"kind":"component","title":"Separator","args":{"fields":[{"path":"orientation","label":"Orientation","kind":"enum","default":"horizontal","options":["horizontal","vertical"]}]},"environment":{"fixtures":[]},"stories":[{"id":"orientation-horizontal","name":"orientation horizontal","args":{"orientation":"horizontal"}},{"id":"orientation-vertical","name":"orientation vertical","args":{"orientation":"vertical"}}]}
+{
+  "schemaVersion": 3,
+  "kind": "component",
+  "title": "Separator",
+  "args": {
+    "fields": [
+      {
+        "path": "orientation",
+        "label": "Orientation",
+        "kind": "enum",
+        "default": "horizontal",
+        "options": [
+          "horizontal",
+          "vertical"
+        ]
+      }
+    ]
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "orientation-horizontal",
+      "name": "orientation horizontal",
+      "args": {
+        "orientation": "horizontal"
+      },
+      "mode": "pinned"
+    },
+    {
+      "id": "orientation-vertical",
+      "name": "orientation vertical",
+      "args": {
+        "orientation": "vertical"
+      },
+      "mode": "pinned"
+    }
+  ]
+}

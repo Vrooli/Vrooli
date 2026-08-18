@@ -77,7 +77,7 @@
     },
     {
       "id": "typography-contract",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Text exposes bounded typography styles backed by shared tokens.",
       "tier": "manual",
       "states": [

@@ -34,14 +34,14 @@
   "claims": [
     {
       "id": "pressed-semantics",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Toggle uses a native button with aria-pressed and keeps the shared ControlBase focus, hover, press, and reduced-motion behavior.",
       "tier": "manual",
       "states": ["default", "interactive", "pressed", "disabled"]
     },
     {
       "id": "controlled-state",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Controlled consumers receive exactly one pressed-state callback per activation.",
       "tier": "manual",
       "states": ["interactive"]

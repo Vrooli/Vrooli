@@ -34,28 +34,28 @@
   "claims": [
     {
       "id": "keyboard",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "The grid uses a roving tab stop and delegates arrow/Home/End movement to useRovingFocus.",
       "tier": "manual",
       "states": ["default", "range"]
     },
     {
       "id": "selection-modes",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Single, multiple, range, week, and month modes preserve explicit value semantics through onChange.",
       "tier": "manual",
       "states": ["default", "range", "multiple"]
     },
     {
       "id": "constraints",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Minimum, maximum, and consumer disabled-date constraints use native disabled semantics and preserve calendar orientation.",
       "tier": "manual",
       "states": ["constrained"]
     },
     {
       "id": "responsive-parity",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "The calendar remains legible and operable on narrow viewports and across declared compatible kits.",
       "tier": "manual",
       "states": ["default", "range", "constrained"]

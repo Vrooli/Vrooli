@@ -2,13 +2,86 @@
   "schemaVersion": 3,
   "kind": "component",
   "title": "Combobox",
-  "args": { "fields": [] },
-  "environment": { "fixtures": [] },
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
   "stories": [
-    { "id": "default", "name": "Searchable selection", "harness": "Default", "args": {}, "expect": [{ "kind": "role", "role": "combobox", "name": "Workspace team" }, { "kind": "text", "value": "Design systems" }] },
-    { "id": "create", "name": "Create a value", "harness": "Create", "args": {}, "expect": [{ "kind": "role", "role": "combobox", "name": "Add a capability" }] },
-    { "id": "empty", "name": "No local matches", "harness": "Empty", "args": {}, "expect": [{ "kind": "role", "role": "combobox", "name": "Workspace team" }] },
-    { "id": "validation-error", "name": "Validation error", "harness": "ValidationError", "args": {}, "expect": [{ "kind": "role", "role": "alert", "name": "Choose the owning team before continuing." }] },
-    { "id": "request-error", "name": "Remote request error", "harness": "RequestError", "args": {}, "expect": [{ "kind": "role", "role": "combobox", "name": "Remote workspace" }] }
+    {
+      "id": "default",
+      "name": "Searchable selection",
+      "harness": "Default",
+      "args": {},
+      "expect": [
+        {
+          "kind": "role",
+          "role": "combobox",
+          "name": "Workspace team"
+        },
+        {
+          "kind": "text",
+          "value": "Design systems"
+        }
+      ],
+      "mode": "live"
+    },
+    {
+      "id": "create",
+      "name": "Create a value",
+      "harness": "Create",
+      "args": {},
+      "expect": [
+        {
+          "kind": "role",
+          "role": "combobox",
+          "name": "Add a capability"
+        }
+      ],
+      "mode": "live"
+    },
+    {
+      "id": "empty",
+      "name": "No local matches",
+      "harness": "Empty",
+      "args": {},
+      "expect": [
+        {
+          "kind": "role",
+          "role": "combobox",
+          "name": "Workspace team"
+        }
+      ],
+      "mode": "live"
+    },
+    {
+      "id": "validation-error",
+      "name": "Validation error",
+      "harness": "ValidationError",
+      "args": {},
+      "expect": [
+        {
+          "kind": "role",
+          "role": "alert",
+          "name": "Choose the owning team before continuing."
+        }
+      ],
+      "mode": "live"
+    },
+    {
+      "id": "request-error",
+      "name": "Remote request error",
+      "harness": "RequestError",
+      "args": {},
+      "expect": [
+        {
+          "kind": "role",
+          "role": "combobox",
+          "name": "Remote workspace"
+        }
+      ],
+      "mode": "live"
+    }
   ]
 }

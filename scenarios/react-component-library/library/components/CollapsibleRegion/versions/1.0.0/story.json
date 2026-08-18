@@ -1,1 +1,35 @@
-{"schemaVersion":1,"kind":"component","title":"CollapsibleRegion","args":{"fields":[{"path":"open","kind":"boolean","default":true}]},"environment":{"fixtures":[]},"stories":[{"id":"open","name":"Open","args":{"open":true}},{"id":"closed","name":"Closed","args":{"open":false}}]}
+{
+  "schemaVersion": 3,
+  "kind": "component",
+  "title": "CollapsibleRegion",
+  "args": {
+    "fields": [
+      {
+        "path": "open",
+        "kind": "boolean",
+        "default": true
+      }
+    ]
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "open",
+      "name": "Open",
+      "args": {
+        "open": true
+      },
+      "mode": "pinned"
+    },
+    {
+      "id": "closed",
+      "name": "Closed",
+      "args": {
+        "open": false
+      },
+      "mode": "pinned"
+    }
+  ]
+}

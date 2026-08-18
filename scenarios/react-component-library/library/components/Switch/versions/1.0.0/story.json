@@ -2,10 +2,50 @@
   "schemaVersion": 3,
   "kind": "component",
   "title": "Switch",
-  "args": { "fields": [] },
-  "environment": { "fixtures": [] },
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
   "stories": [
-    { "id": "default", "name": "Off", "harness": "Default", "args": {}, "expect": [{ "kind": "role", "role": "switch", "name": "Quiet hours" }], "interactions": [{ "kind": "settle" }] },
-    { "id": "enabled", "name": "On", "harness": "Enabled", "args": {}, "expect": [{ "kind": "role", "role": "switch", "name": "Automatic updates" }], "interactions": [{ "kind": "settle" }] }
+    {
+      "id": "default",
+      "name": "Off",
+      "harness": "Default",
+      "args": {},
+      "expect": [
+        {
+          "kind": "role",
+          "role": "switch",
+          "name": "Quiet hours"
+        }
+      ],
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live"
+    },
+    {
+      "id": "enabled",
+      "name": "On",
+      "harness": "Enabled",
+      "args": {},
+      "expect": [
+        {
+          "kind": "role",
+          "role": "switch",
+          "name": "Automatic updates"
+        }
+      ],
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live"
+    }
   ]
 }

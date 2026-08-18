@@ -49,7 +49,7 @@
   "claims": [
     {
       "id": "stable-region",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "AsyncBoundary keeps a single bounded region while state messaging changes.",
       "tier": "manual",
       "states": [
@@ -64,21 +64,21 @@
     },
     {
       "id": "preserved-content",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Refresh-like states preserve useful content and avoid avoidable layout collapse.",
       "tier": "manual",
       "states": ["refreshing", "stale", "partial-error", "offline"]
     },
     {
       "id": "accessible-recovery",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Loading and failure states expose live semantics, descriptive copy, and a focusable retry path.",
       "tier": "manual",
       "states": ["pending", "error"]
     },
     {
       "id": "motion-settlement",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Loading motion and retry transitions settle without animation under reduced-motion preferences.",
       "tier": "manual",
       "states": ["pending", "error"]

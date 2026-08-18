@@ -29,21 +29,21 @@
   "claims": [
     {
       "id": "accessible-label",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Meaningful icon states expose an accessible image name.",
       "tier": "manual",
       "states": ["compatible", "fallback", "interactive"]
     },
     {
       "id": "reduced-motion",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Reduced motion resolves immediately without losing the semantic state change.",
       "tier": "manual",
       "states": ["compatible", "fallback", "interactive"]
     },
     {
       "id": "strategy-fallback",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "The requested morph strategy falls back safely when registry geometry is incompatible.",
       "tier": "manual",
       "states": ["fallback"]

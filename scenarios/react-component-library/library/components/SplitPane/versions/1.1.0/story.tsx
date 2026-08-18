@@ -56,7 +56,9 @@ function Pane({
       >
         {detail}
       </p>
-      <strong style={{ color: "var(--color-primary)", font: "var(--text-title)" }}>
+      <strong
+        style={{ color: "var(--color-primary)", font: "var(--text-title)" }}
+      >
         {value}
       </strong>
     </section>

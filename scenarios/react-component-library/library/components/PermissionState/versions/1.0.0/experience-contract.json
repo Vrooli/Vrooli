@@ -19,7 +19,7 @@
   "claims": [
     {
       "id": "contract-present",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "PermissionState explains the next allowed action.",
       "tier": "manual",
       "states": ["restricted"]

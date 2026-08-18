@@ -2,7 +2,7 @@
  * @vrooliComponentSource react-component-library:useNetworkStatus
  * @vrooliComponentVersion 1.0.0
  * @vrooliComponentAdoption 7c90f0e8-28c5-4e9a-8bde-6aac847eb275
- * @vrooliComponentAppliedAt 2026-08-11T00:35:31Z
+ * @vrooliComponentAppliedAt 2026-08-17T23:22:42Z
  * @vrooliComponentSourceSha256 37997d937bd2782f47e9b8dd6c318d6e023fd40fd67da51d4dc2a70b00750dc7
  * @vrooliComponentDriftHash 38b8b2d0c13a7918f6af3917a19413ae8dde269c4ba9b80708b17ef003623ea7
  * @vrooliComponentTokenTranslation none

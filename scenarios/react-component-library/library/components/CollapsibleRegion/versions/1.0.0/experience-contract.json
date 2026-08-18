@@ -24,7 +24,7 @@
   "claims": [
     {
       "id": "contract-present",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "CollapsibleRegion preserves expanded semantics while content changes.",
       "tier": "manual",
       "states": ["open", "closed"]

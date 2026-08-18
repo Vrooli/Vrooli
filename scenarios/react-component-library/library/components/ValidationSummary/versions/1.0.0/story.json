@@ -2,11 +2,63 @@
   "schemaVersion": 3,
   "kind": "component",
   "title": "ValidationSummary",
-  "args": { "fields": [] },
-  "environment": { "fixtures": [] },
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
   "stories": [
-    { "id": "default", "name": "Field errors", "harness": "Default", "args": {}, "expect": [{ "kind": "role", "role": "alert" }, { "kind": "text", "value": "Workspace name" }, { "kind": "text", "value": "Email address" }] },
-    { "id": "custom-title", "name": "Custom title", "harness": "CustomTitle", "args": {}, "expect": [{ "kind": "role", "role": "alert" }, { "kind": "text", "value": "Almost there" }] },
-    { "id": "empty", "name": "No errors", "harness": "Empty", "args": {}, "expect": [{ "kind": "text", "value": "Everything looks good." }] }
+    {
+      "id": "default",
+      "name": "Field errors",
+      "harness": "Default",
+      "args": {},
+      "expect": [
+        {
+          "kind": "role",
+          "role": "alert"
+        },
+        {
+          "kind": "text",
+          "value": "Workspace name"
+        },
+        {
+          "kind": "text",
+          "value": "Email address"
+        }
+      ],
+      "mode": "live"
+    },
+    {
+      "id": "custom-title",
+      "name": "Custom title",
+      "harness": "CustomTitle",
+      "args": {},
+      "expect": [
+        {
+          "kind": "role",
+          "role": "alert"
+        },
+        {
+          "kind": "text",
+          "value": "Almost there"
+        }
+      ],
+      "mode": "live"
+    },
+    {
+      "id": "empty",
+      "name": "No errors",
+      "harness": "Empty",
+      "args": {},
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Everything looks good."
+        }
+      ],
+      "mode": "live"
+    }
   ]
 }

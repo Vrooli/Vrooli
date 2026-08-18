@@ -2,10 +2,81 @@
   "schemaVersion": 3,
   "kind": "component",
   "title": "Menu",
-  "args": { "fields": [] },
-  "environment": { "fixtures": [] },
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
   "stories": [
-    { "id": "default", "name": "Command menu", "harness": "Default", "args": {}, "expect": [{ "kind": "role", "role": "menu", "name": "Workspace commands" }, { "kind": "role", "role": "menuitemcheckbox", "name": "Show activity" }, { "kind": "role", "role": "menuitemradio", "name": "Use system theme" }] },
-    { "id": "interactive", "name": "Interactive dismissal", "harness": "Interactive", "args": {}, "interactions": [{ "kind": "click", "target": { "role": "button", "name": "Workspace menu" } }, { "kind": "settle" }, { "kind": "key", "target": { "role": "menu", "name": "Workspace commands" }, "text": "ArrowDown" }, { "kind": "key", "target": { "role": "menu", "name": "Workspace commands" }, "text": "Escape" }, { "kind": "settle" }], "expect": [{ "kind": "role", "role": "button", "name": "Workspace menu" }] }
+    {
+      "id": "default",
+      "name": "Command menu",
+      "harness": "Default",
+      "args": {},
+      "expect": [
+        {
+          "kind": "role",
+          "role": "menu",
+          "name": "Workspace commands"
+        },
+        {
+          "kind": "role",
+          "role": "menuitemcheckbox",
+          "name": "Show activity"
+        },
+        {
+          "kind": "role",
+          "role": "menuitemradio",
+          "name": "Use system theme"
+        }
+      ],
+      "mode": "live"
+    },
+    {
+      "id": "interactive",
+      "name": "Interactive dismissal",
+      "harness": "Interactive",
+      "args": {},
+      "interactions": [
+        {
+          "kind": "click",
+          "target": {
+            "role": "button",
+            "name": "Workspace menu"
+          }
+        },
+        {
+          "kind": "settle"
+        },
+        {
+          "kind": "key",
+          "target": {
+            "role": "menu",
+            "name": "Workspace commands"
+          },
+          "text": "ArrowDown"
+        },
+        {
+          "kind": "key",
+          "target": {
+            "role": "menu",
+            "name": "Workspace commands"
+          },
+          "text": "Escape"
+        },
+        {
+          "kind": "settle"
+        }
+      ],
+      "expect": [
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Workspace menu"
+        }
+      ],
+      "mode": "live"
+    }
   ]
 }

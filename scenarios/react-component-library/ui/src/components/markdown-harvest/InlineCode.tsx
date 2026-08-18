@@ -66,7 +66,7 @@ export function InlineCode({
         type="button"
         aria-label={copyLabel}
         onClick={() => void copy(text)}
-        className="ml-1 hidden rounded px-space-3xs text-[10px] text-[var(--markdown-muted)] group-hover:inline hover:opacity-80"
+        className="ml-space-3xs hidden rounded px-space-3xs text-[10px] text-[var(--markdown-muted)] group-hover:inline hover:opacity-80"
       >
         {copied ? "Copied" : "Copy"}
       </button>

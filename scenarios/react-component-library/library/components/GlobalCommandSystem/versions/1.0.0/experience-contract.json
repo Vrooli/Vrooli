@@ -34,21 +34,21 @@
   "claims": [
     {
       "id": "shared-command-language",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Commands registered once are discoverable through the palette and invokable through the scoped shortcut registry.",
       "tier": "manual",
       "states": ["default", "loading"]
     },
     {
       "id": "keyboard-first",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Opening focuses search, arrow keys move the active command, Enter executes it, and Escape restores the prior focus target.",
       "tier": "manual",
       "states": ["default"]
     },
     {
       "id": "recovery",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Empty and request-error states preserve the command surface and expose useful recovery copy instead of silently disappearing.",
       "tier": "manual",
       "states": ["empty", "request-error"]

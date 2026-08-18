@@ -2,9 +2,9 @@
  * @vrooliComponentSource react-component-library:Tabs
  * @vrooliComponentVersion 1.0.0
  * @vrooliComponentAdoption b3a33386-5e25-423e-9ee8-022f86679c1f
- * @vrooliComponentAppliedAt 2026-08-11T01:25:09Z
- * @vrooliComponentSourceSha256 705ed2f927f1d61ea44b5bf6eaa096f612d14b75c0b0e95b505ee63fd0762ddc
- * @vrooliComponentDriftHash 02b9514f2255703a5731c91e94fa9a3e06111599efb60442f1cf8240ecaebf34
+ * @vrooliComponentAppliedAt 2026-08-18T01:12:45Z
+ * @vrooliComponentSourceSha256 86dbc0d466ef720576b93e2fd09f0126fe55ad9939beeb6ef40d65e4881ba063
+ * @vrooliComponentDriftHash b0037422167cbe79216026e13bb18913ca0de96863c451d3ca1d7132f992b9f3
  * @vrooliComponentTokenTranslation none
  *
  * This file was copied from React Component Library. Local edits are allowed;

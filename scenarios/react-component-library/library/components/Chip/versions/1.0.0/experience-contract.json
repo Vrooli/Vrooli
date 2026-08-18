@@ -24,7 +24,7 @@
   "claims": [
     {
       "id": "contract-present",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Chip maintains a full touch target in both selection states.",
       "tier": "manual",
       "states": ["unselected", "selected"]

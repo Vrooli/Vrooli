@@ -5,31 +5,31 @@
     {
       "id": "recovery",
       "description": "Leaving with dirty work presents an explicit recovery decision.",
-      "type": "custom",
+      "type": "manual-review",
       "tier": "manual"
     },
     {
       "id": "preservation",
       "description": "The flow can preserve a private draft without forcing data loss.",
-      "type": "custom",
+      "type": "manual-review",
       "tier": "manual"
     },
     {
       "id": "error-honesty",
       "description": "Save errors remain visible and retryable while the work stays in place.",
-      "type": "custom",
+      "type": "manual-review",
       "tier": "manual"
     },
     {
       "id": "keyboard",
       "description": "The composed alert dialog preserves focus order and native keyboard actions.",
-      "type": "custom",
+      "type": "manual-review",
       "tier": "manual"
     },
     {
       "id": "responsive",
       "description": "The decision surface becomes a full-width mobile action stack.",
-      "type": "custom",
+      "type": "manual-review",
       "tier": "manual"
     }
   ]

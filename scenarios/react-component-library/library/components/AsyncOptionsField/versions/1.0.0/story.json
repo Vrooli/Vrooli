@@ -2,8 +2,12 @@
   "schemaVersion": 3,
   "kind": "component",
   "title": "AsyncOptionsField",
-  "args": { "fields": [] },
-  "environment": { "fixtures": [] },
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
   "stories": [
     {
       "id": "default",
@@ -11,9 +15,17 @@
       "harness": "Default",
       "args": {},
       "expect": [
-        { "kind": "role", "role": "combobox", "name": "Workspace" },
-        { "kind": "text", "value": "Search the right context" }
-      ]
+        {
+          "kind": "role",
+          "role": "combobox",
+          "name": "Workspace"
+        },
+        {
+          "kind": "text",
+          "value": "Search the right context"
+        }
+      ],
+      "mode": "live"
     },
     {
       "id": "selected",
@@ -21,15 +33,45 @@
       "harness": "Selected",
       "args": {},
       "expect": [
-        { "kind": "role", "role": "combobox", "name": "Workspace" },
-        { "kind": "text", "value": "A selection that stays legible" }
+        {
+          "kind": "role",
+          "role": "combobox",
+          "name": "Workspace"
+        },
+        {
+          "kind": "text",
+          "value": "A selection that stays legible"
+        }
       ],
       "interactions": [
-        { "kind": "click", "target": { "role": "combobox", "name": "Workspace" } },
-        { "kind": "key", "target": { "role": "combobox", "name": "Workspace" }, "text": "ArrowDown" },
-        { "kind": "key", "target": { "role": "combobox", "name": "Workspace" }, "text": "Enter" },
-        { "kind": "settle" }
-      ]
+        {
+          "kind": "click",
+          "target": {
+            "role": "combobox",
+            "name": "Workspace"
+          }
+        },
+        {
+          "kind": "key",
+          "target": {
+            "role": "combobox",
+            "name": "Workspace"
+          },
+          "text": "ArrowDown"
+        },
+        {
+          "kind": "key",
+          "target": {
+            "role": "combobox",
+            "name": "Workspace"
+          },
+          "text": "Enter"
+        },
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live"
     },
     {
       "id": "error-state",
@@ -37,9 +79,17 @@
       "harness": "ErrorState",
       "args": {},
       "expect": [
-        { "kind": "role", "role": "combobox", "name": "Workspace" },
-        { "kind": "text", "value": "Workspace search is temporarily unavailable." }
-      ]
+        {
+          "kind": "role",
+          "role": "combobox",
+          "name": "Workspace"
+        },
+        {
+          "kind": "text",
+          "value": "Workspace search is temporarily unavailable."
+        }
+      ],
+      "mode": "live"
     }
   ]
 }

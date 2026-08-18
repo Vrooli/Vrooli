@@ -29,21 +29,21 @@
   "claims": [
     {
       "id": "state-honesty",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "The attachment communicates upload, scanning, success, and request-error states without implying an adapter action occurred.",
       "tier": "manual",
       "states": ["uploading", "success", "recovery"]
     },
     {
       "id": "independent-progress",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Progress is associated with the individual file and remains accessible through a named progressbar.",
       "tier": "manual",
       "states": ["uploading"]
     },
     {
       "id": "responsive-recovery",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Actions and recovery copy reflow into a readable narrow layout without document overflow.",
       "tier": "manual",
       "states": ["uploading", "recovery"]

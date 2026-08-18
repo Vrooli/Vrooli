@@ -1,1 +1,31 @@
-{"schemaVersion":2,"kind":"hook","title":"useOptimisticAction","args":{"fields":[]},"environment":{"fixtures":[]},"stories":[{"id":"default","name":"Optimistic action","harness":"Default","args":{},"expect":[{"kind":"text","value":"Optimistic commit with honest rollback"},{"kind":"role","role":"status","name":"idle"}]}]}
+{
+  "schemaVersion": 3,
+  "kind": "hook",
+  "title": "useOptimisticAction",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Optimistic action",
+      "harness": "Default",
+      "args": {},
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Optimistic commit with honest rollback"
+        },
+        {
+          "kind": "role",
+          "role": "status",
+          "name": "idle"
+        }
+      ],
+      "mode": "live"
+    }
+  ]
+}

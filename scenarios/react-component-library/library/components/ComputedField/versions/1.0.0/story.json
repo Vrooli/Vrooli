@@ -2,9 +2,31 @@
   "schemaVersion": 3,
   "kind": "component",
   "title": "ComputedField",
-  "args": { "fields": [] },
-  "environment": { "fixtures": [] },
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
   "stories": [
-    { "id": "default", "name": "Calculated value", "harness": "Default", "args": {}, "expect": [{ "kind": "attribute", "selector": "[data-rcl-computed-output]", "attribute": "aria-label", "value": "Estimated total calculated value" }, { "kind": "text", "value": "$288.00" }] }
+    {
+      "id": "default",
+      "name": "Calculated value",
+      "harness": "Default",
+      "args": {},
+      "expect": [
+        {
+          "kind": "attribute",
+          "selector": "[data-rcl-computed-output]",
+          "attribute": "aria-label",
+          "value": "Estimated total calculated value"
+        },
+        {
+          "kind": "text",
+          "value": "$288.00"
+        }
+      ],
+      "mode": "live"
+    }
   ]
 }

@@ -39,14 +39,14 @@
   "claims": [
     {
       "id": "compact-drill-in",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Compact selection drills into detail while preserving a return path to the collection.",
       "tier": "manual",
       "states": ["default"]
     },
     {
       "id": "states-complete",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Loading, empty, partial, and request-error states retain the same workspace hierarchy.",
       "tier": "manual",
       "states": ["loading", "empty", "partial", "request-error"]

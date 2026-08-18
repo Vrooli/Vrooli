@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 3,
   "kind": "component",
   "title": "DataTable",
   "args": {
@@ -161,7 +161,8 @@
           "kind": "role",
           "role": "table"
         }
-      ]
+      ],
+      "mode": "pinned"
     },
     {
       "id": "empty",
@@ -197,7 +198,8 @@
           "kind": "role",
           "role": "table"
         }
-      ]
+      ],
+      "mode": "pinned"
     },
     {
       "id": "filtered",
@@ -256,7 +258,8 @@
           "role": "button",
           "name": "Behind"
         }
-      ]
+      ],
+      "mode": "pinned"
     }
   ]
 }

@@ -34,21 +34,21 @@
   "claims": [
     {
       "id": "reversible-action",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "A successful destructive action immediately creates a time-bounded undo record with explicit success and failure states.",
       "tier": "manual",
       "states": ["default", "submitting", "success", "request-error"]
     },
     {
       "id": "responsive-reflow",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "The recovery surface and retry controls reflow to full-width mobile controls without clipping content.",
       "tier": "manual",
       "states": ["default", "request-error"]
     },
     {
       "id": "non-color-status",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "State is communicated through text, roles, and labels in addition to tone color.",
       "tier": "manual",
       "states": ["submitting", "success", "request-error"]

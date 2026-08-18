@@ -29,21 +29,21 @@
   "claims": [
     {
       "id": "semantic-shell",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "The form exposes a named form landmark and live status region.",
       "tier": "manual",
       "states": ["default", "validation-error", "offline"]
     },
     {
       "id": "lifecycle-state",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Validation, save, error, success, and offline phases are represented in the DOM without replacing form content.",
       "tier": "manual",
       "states": ["default", "validation-error", "offline"]
     },
     {
       "id": "composable-content",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Fields and actions remain caller-owned content so the shell can compose with the rest of the library.",
       "tier": "manual",
       "states": ["default", "validation-error"]

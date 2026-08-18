@@ -2,8 +2,12 @@
   "schemaVersion": 3,
   "kind": "component",
   "title": "SearchFilterResults",
-  "args": { "fields": [] },
-  "environment": { "fixtures": [] },
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
   "stories": [
     {
       "id": "default",
@@ -11,11 +15,27 @@
       "harness": "Default",
       "args": {},
       "expect": [
-        { "kind": "role", "role": "search", "name": "Filter results" },
-        { "kind": "role", "role": "heading", "name": "Results" },
-        { "kind": "text", "value": "3 results" }
+        {
+          "kind": "role",
+          "role": "search",
+          "name": "Filter results"
+        },
+        {
+          "kind": "role",
+          "role": "heading",
+          "name": "Results"
+        },
+        {
+          "kind": "text",
+          "value": "3 results"
+        }
       ],
-      "interactions": [{ "kind": "settle" }]
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live"
     },
     {
       "id": "no-match",
@@ -23,10 +43,21 @@
       "harness": "NoMatch",
       "args": {},
       "expect": [
-        { "kind": "text", "value": "No matches" },
-        { "kind": "text", "value": "No results match this search" }
+        {
+          "kind": "text",
+          "value": "No matches"
+        },
+        {
+          "kind": "text",
+          "value": "No results match this search"
+        }
       ],
-      "interactions": [{ "kind": "settle" }]
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live"
     },
     {
       "id": "empty",
@@ -34,10 +65,21 @@
       "harness": "Empty",
       "args": {},
       "expect": [
-        { "kind": "text", "value": "No results yet" },
-        { "kind": "text", "value": "Nothing has been added yet" }
+        {
+          "kind": "text",
+          "value": "No results yet"
+        },
+        {
+          "kind": "text",
+          "value": "Nothing has been added yet"
+        }
       ],
-      "interactions": [{ "kind": "settle" }]
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live"
     },
     {
       "id": "error",
@@ -45,11 +87,26 @@
       "harness": "ErrorState",
       "args": {},
       "expect": [
-        { "kind": "role", "role": "alert" },
-        { "kind": "role", "role": "button", "name": "Try again" },
-        { "kind": "text", "value": "query is preserved" }
+        {
+          "kind": "role",
+          "role": "alert"
+        },
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Try again"
+        },
+        {
+          "kind": "text",
+          "value": "query is preserved"
+        }
       ],
-      "interactions": [{ "kind": "settle" }]
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live"
     }
   ]
 }

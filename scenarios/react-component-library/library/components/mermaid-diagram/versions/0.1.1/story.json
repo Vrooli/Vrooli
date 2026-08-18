@@ -1,9 +1,27 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 3,
   "kind": "component",
-  "args": { "fields": [] },
-  "environment": { "fixtures": [] },
-  "stories": [{ "id": "default", "name": "Default", "args": { "code": "graph TD; A-->B;" }, "expect": [
-    { "kind": "role", "role": "button", "name": "Open" }
-  ] }]
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Default",
+      "args": {
+        "code": "graph TD; A-->B;"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Open"
+        }
+      ],
+      "mode": "pinned"
+    }
+  ]
 }

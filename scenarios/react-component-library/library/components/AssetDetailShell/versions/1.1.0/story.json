@@ -1,47 +1,295 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 3,
   "kind": "component",
   "title": "AssetDetailShell",
   "args": {
     "fields": [
-      { "path": "title", "label": "Title", "kind": "text", "default": "Release artifact" },
-      { "path": "preview", "label": "Preview", "kind": "structured", "default": { "$node": "div", "children": [{ "$text": "Release artifact preview" }] } },
-      { "path": "metadata", "label": "Metadata", "kind": "structured", "default": { "$node": "dl", "children": [{ "$node": "dt", "children": [{ "$text": "Version" }] }, { "$node": "dd", "children": [{ "$text": "1.2.0" }] }] } },
-      { "path": "activity", "label": "Activity", "kind": "structured", "default": { "$node": "p", "children": [{ "$text": "Validated by 12 checks." }] } },
-      { "path": "activityState", "label": "Activity State", "kind": "text", "default": "ready" }
+      {
+        "path": "title",
+        "label": "Title",
+        "kind": "text",
+        "default": "Release artifact"
+      },
+      {
+        "path": "preview",
+        "label": "Preview",
+        "kind": "structured",
+        "default": {
+          "$node": "div",
+          "children": [
+            {
+              "$text": "Release artifact preview"
+            }
+          ]
+        }
+      },
+      {
+        "path": "metadata",
+        "label": "Metadata",
+        "kind": "structured",
+        "default": {
+          "$node": "dl",
+          "children": [
+            {
+              "$node": "dt",
+              "children": [
+                {
+                  "$text": "Version"
+                }
+              ]
+            },
+            {
+              "$node": "dd",
+              "children": [
+                {
+                  "$text": "1.2.0"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "path": "activity",
+        "label": "Activity",
+        "kind": "structured",
+        "default": {
+          "$node": "p",
+          "children": [
+            {
+              "$text": "Validated by 12 checks."
+            }
+          ]
+        }
+      },
+      {
+        "path": "activityState",
+        "label": "Activity State",
+        "kind": "text",
+        "default": "ready"
+      }
     ]
   },
-  "environment": { "fixtures": [] },
+  "environment": {
+    "fixtures": []
+  },
   "stories": [
     {
       "id": "ready-detail",
       "name": "Ready asset detail",
-      "args": { "title": "Release artifact", "preview": { "$node": "div", "children": [{ "$text": "Release artifact preview" }] }, "metadata": { "$node": "dl", "children": [{ "$node": "dt", "children": [{ "$text": "Version" }] }, { "$node": "dd", "children": [{ "$text": "1.2.0" }] }] }, "activity": { "$node": "p", "children": [{ "$text": "Validated by 12 checks." }] }, "activitySurfaceId": "asset-activity" },
-      "expect": [{ "kind": "role", "role": "main" }, { "kind": "text", "value": "Validated by 12 checks." }, { "kind": "attribute", "selector": "[data-experience-surface=\"asset-activity\"]", "name": "data-experience-state", "value": "ready" }]
+      "args": {
+        "title": "Release artifact",
+        "preview": {
+          "$node": "div",
+          "children": [
+            {
+              "$text": "Release artifact preview"
+            }
+          ]
+        },
+        "metadata": {
+          "$node": "dl",
+          "children": [
+            {
+              "$node": "dt",
+              "children": [
+                {
+                  "$text": "Version"
+                }
+              ]
+            },
+            {
+              "$node": "dd",
+              "children": [
+                {
+                  "$text": "1.2.0"
+                }
+              ]
+            }
+          ]
+        },
+        "activity": {
+          "$node": "p",
+          "children": [
+            {
+              "$text": "Validated by 12 checks."
+            }
+          ]
+        },
+        "activitySurfaceId": "asset-activity"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "main"
+        },
+        {
+          "kind": "text",
+          "value": "Validated by 12 checks."
+        },
+        {
+          "kind": "attribute",
+          "selector": "[data-experience-surface=\"asset-activity\"]",
+          "name": "data-experience-state",
+          "value": "ready"
+        }
+      ],
+      "mode": "pinned"
     },
     {
       "id": "activity-partial",
       "name": "Partial activity",
-      "args": { "title": "Release artifact", "preview": { "$node": "div", "children": [{ "$text": "Artifact preview" }] }, "metadata": { "$node": "p", "children": [{ "$text": "Version 1.2.0" }] }, "activityState": "partial" },
-      "expect": [{ "kind": "role", "role": "status", "name": "Some information is unavailable." }]
+      "args": {
+        "title": "Release artifact",
+        "preview": {
+          "$node": "div",
+          "children": [
+            {
+              "$text": "Artifact preview"
+            }
+          ]
+        },
+        "metadata": {
+          "$node": "p",
+          "children": [
+            {
+              "$text": "Version 1.2.0"
+            }
+          ]
+        },
+        "activityState": "partial"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "status",
+          "name": "Some information is unavailable."
+        }
+      ],
+      "mode": "pinned"
     },
     {
       "id": "activity-loading",
       "name": "Loading activity",
-      "args": { "title": "Release artifact", "preview": { "$node": "div", "children": [{ "$text": "Artifact preview" }] }, "metadata": { "$node": "p", "children": [{ "$text": "Version 1.2.0" }] }, "activityState": "loading", "activityLoading": { "$node": "p", "children": [{ "$text": "Loading checks…" }] } },
-      "expect": [{ "kind": "attribute", "selector": "[data-experience-surface=\"asset-activity\"]", "name": "data-experience-state", "value": "loading" }]
+      "args": {
+        "title": "Release artifact",
+        "preview": {
+          "$node": "div",
+          "children": [
+            {
+              "$text": "Artifact preview"
+            }
+          ]
+        },
+        "metadata": {
+          "$node": "p",
+          "children": [
+            {
+              "$text": "Version 1.2.0"
+            }
+          ]
+        },
+        "activityState": "loading",
+        "activityLoading": {
+          "$node": "p",
+          "children": [
+            {
+              "$text": "Loading checks…"
+            }
+          ]
+        }
+      },
+      "expect": [
+        {
+          "kind": "attribute",
+          "selector": "[data-experience-surface=\"asset-activity\"]",
+          "name": "data-experience-state",
+          "value": "loading"
+        }
+      ],
+      "mode": "pinned"
     },
     {
       "id": "activity-empty",
       "name": "Empty activity",
-      "args": { "title": "Release artifact", "preview": { "$node": "div", "children": [{ "$text": "Artifact preview" }] }, "metadata": { "$node": "p", "children": [{ "$text": "Version 1.2.0" }] }, "activityState": "empty", "activityEmpty": { "$node": "p", "children": [{ "$text": "No checks yet." }] } },
-      "expect": [{ "kind": "attribute", "selector": "[data-experience-surface=\"asset-activity\"]", "name": "data-experience-state", "value": "empty" }]
+      "args": {
+        "title": "Release artifact",
+        "preview": {
+          "$node": "div",
+          "children": [
+            {
+              "$text": "Artifact preview"
+            }
+          ]
+        },
+        "metadata": {
+          "$node": "p",
+          "children": [
+            {
+              "$text": "Version 1.2.0"
+            }
+          ]
+        },
+        "activityState": "empty",
+        "activityEmpty": {
+          "$node": "p",
+          "children": [
+            {
+              "$text": "No checks yet."
+            }
+          ]
+        }
+      },
+      "expect": [
+        {
+          "kind": "attribute",
+          "selector": "[data-experience-surface=\"asset-activity\"]",
+          "name": "data-experience-state",
+          "value": "empty"
+        }
+      ],
+      "mode": "pinned"
     },
     {
       "id": "activity-error",
       "name": "Activity error",
-      "args": { "title": "Release artifact", "preview": { "$node": "div", "children": [{ "$text": "Artifact preview" }] }, "metadata": { "$node": "p", "children": [{ "$text": "Version 1.2.0" }] }, "activityState": "error", "activityError": { "$node": "p", "children": [{ "$text": "Checks could not be loaded." }] } },
-      "expect": [{ "kind": "attribute", "selector": "[data-experience-surface=\"asset-activity\"]", "name": "data-experience-state", "value": "error" }]
+      "args": {
+        "title": "Release artifact",
+        "preview": {
+          "$node": "div",
+          "children": [
+            {
+              "$text": "Artifact preview"
+            }
+          ]
+        },
+        "metadata": {
+          "$node": "p",
+          "children": [
+            {
+              "$text": "Version 1.2.0"
+            }
+          ]
+        },
+        "activityState": "error",
+        "activityError": {
+          "$node": "p",
+          "children": [
+            {
+              "$text": "Checks could not be loaded."
+            }
+          ]
+        }
+      },
+      "expect": [
+        {
+          "kind": "attribute",
+          "selector": "[data-experience-surface=\"asset-activity\"]",
+          "name": "data-experience-state",
+          "value": "error"
+        }
+      ],
+      "mode": "pinned"
     }
   ]
 }

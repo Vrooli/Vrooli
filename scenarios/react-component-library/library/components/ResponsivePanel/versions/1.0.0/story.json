@@ -1,1 +1,42 @@
-{"schemaVersion":1,"kind":"component","title":"ResponsivePanel","args":{"fields":[{"path":"open","kind":"boolean","default":true}]},"environment":{"fixtures":[]},"stories":[{"id":"open-desktop-to-mobile","name":"Open across breakpoints","args":{"open":true},"expect":[{"kind":"role","role":"dialog","name":"Responsive panel"}],"interactions":[{"kind":"settle"},{"kind":"settle"}]}]}
+{
+  "schemaVersion": 3,
+  "kind": "component",
+  "title": "ResponsivePanel",
+  "args": {
+    "fields": [
+      {
+        "path": "open",
+        "kind": "boolean",
+        "default": true
+      }
+    ]
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "open-desktop-to-mobile",
+      "name": "Open across breakpoints",
+      "args": {
+        "open": true
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "dialog",
+          "name": "Responsive panel"
+        }
+      ],
+      "interactions": [
+        {
+          "kind": "settle"
+        },
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "pinned"
+    }
+  ]
+}

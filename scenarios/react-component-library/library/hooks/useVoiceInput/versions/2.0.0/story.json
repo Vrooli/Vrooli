@@ -1,8 +1,34 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 3,
   "kind": "hook",
   "title": "useVoiceInput 2.0",
-  "args": { "fields": [{ "path": "enabled", "label": "Enabled", "kind": "boolean", "default": true }] },
-  "environment": { "fixtures": [] },
-  "stories": [{ "id": "shared-core", "name": "Shared PCM core binding", "args": { "enabled": true }, "expect": [{ "kind": "role", "role": "status" }] }]
+  "args": {
+    "fields": [
+      {
+        "path": "enabled",
+        "label": "Enabled",
+        "kind": "boolean",
+        "default": true
+      }
+    ]
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "shared-core",
+      "name": "Shared PCM core binding",
+      "args": {
+        "enabled": true
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "status"
+        }
+      ],
+      "mode": "pinned"
+    }
+  ]
 }

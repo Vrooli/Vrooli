@@ -24,7 +24,7 @@
   "claims": [
     {
       "id": "contract-present",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "ScrollableTabs preserves responsive navigation semantics and token ownership.",
       "tier": "manual",
       "states": ["default", "long-content"]

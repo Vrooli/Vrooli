@@ -1,27 +1,22 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen, within } from "@testing-library/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { cleanup, screen, within } from "@testing-library/react";
+import { QueryClient } from "@tanstack/react-query";
 
 import { selectors } from "../../consts/selectors";
 import { listVersionLedger } from "../../api/versionLedger";
 import { ProgressionPanel } from "./ProgressionPanel";
+import { renderWithProviders } from "../../test-utils";
 
 vi.mock("../../api/versionLedger", () => ({
   listVersionLedger: vi.fn(),
 }));
 
 function renderPanel() {
-  return render(
-    <QueryClientProvider
-      client={
-        new QueryClient({
-          defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
-        })
-      }
-    >
-      <ProgressionPanel libraryId="react-component-library:Chart" />
-    </QueryClientProvider>,
-  );
+  return renderWithProviders(<ProgressionPanel libraryId="react-component-library:Chart" />, {
+    queryClient: new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    }),
+  });
 }
 
 describe("ProgressionPanel", () => {

@@ -29,21 +29,21 @@
   "claims": [
     {
       "id": "state-preserved-across-breakpoint",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "One controlled open state remains mounted while the responsive presentation changes between desktop and mobile.",
       "tier": "manual",
       "states": ["desktop-open", "mobile-open"]
     },
     {
       "id": "mobile-modal-accessibility",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "The mobile presentation uses dialog semantics, focus containment, focus restoration, safe-area geometry, scroll locking, and top-layer Escape dismissal.",
       "tier": "manual",
       "states": ["mobile-open"]
     },
     {
       "id": "desktop-resize-persistence",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "The desktop presentation exposes a keyboard and pointer resize handle and persists the chosen width when storage is available.",
       "tier": "manual",
       "states": ["desktop-open"]

@@ -2,16 +2,31 @@
   "schemaVersion": 3,
   "kind": "component",
   "title": "MotionPrimitive",
-  "args": { "fields": [] },
-  "environment": { "fixtures": [] },
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
   "stories": [
     {
       "id": "default",
       "name": "Tokenized transition",
       "harness": "Default",
       "args": {},
-      "expect": [{ "kind": "role", "role": "status", "name": "Motion example" }],
-      "interactions": [{ "kind": "settle" }]
+      "expect": [
+        {
+          "kind": "role",
+          "role": "status",
+          "name": "Motion example"
+        }
+      ],
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live"
     },
     {
       "id": "interactive",
@@ -19,11 +34,28 @@
       "harness": "Interactive",
       "args": {},
       "expect": [
-        { "kind": "role", "role": "button", "name": "Hide card" },
-        { "kind": "role", "role": "button", "name": "Set direct value" },
-        { "kind": "role", "role": "status", "name": "Interactive motion value example" }
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Hide card"
+        },
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Set direct value"
+        },
+        {
+          "kind": "role",
+          "role": "status",
+          "name": "Interactive motion value example"
+        }
       ],
-      "interactions": [{ "kind": "settle" }]
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live"
     }
   ]
 }

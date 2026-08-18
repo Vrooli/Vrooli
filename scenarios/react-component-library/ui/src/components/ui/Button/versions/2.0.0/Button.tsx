@@ -2,7 +2,7 @@
  * @vrooliComponentSource react-component-library:Button
  * @vrooliComponentVersion 2.0.0
  * @vrooliComponentAdoption 40e6ea2c-1740-46d9-9809-bb8402ee5287
- * @vrooliComponentAppliedAt 2026-08-12T12:57:16Z
+ * @vrooliComponentAppliedAt 2026-08-18T01:12:42Z
  * @vrooliComponentSourceSha256 4fa4e66fa4d6c195614e06020fe013660a77043c759177acc011401309539105
  * @vrooliComponentDriftHash bd828f44dca7498c8172e88b548f8a83ccc69ae551c8a536d90b750501315514
  * @vrooliComponentTokenTranslation none

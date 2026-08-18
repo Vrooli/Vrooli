@@ -491,6 +491,9 @@ func RecomputeEvidence(root string) ([]GateEvidence, error) {
 	if runners["tokens"], err = gates.ValidateTokens(root); err != nil {
 		return nil, err
 	}
+	if runners["conformance"], err = gates.ValidateConformance(root); err != nil {
+		return nil, err
+	}
 	if _, statErr := os.Stat(filepath.Join(root, "scenarios", "react-component-library", "ui", "src", "design-tokens.css")); statErr == nil {
 		if runners["token-vocabulary"], err = gates.ValidateTokenVocabulary(root); err != nil {
 			return nil, err

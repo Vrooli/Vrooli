@@ -2,7 +2,39 @@
   "schemaVersion": 3,
   "kind": "component",
   "title": "Story palette",
-  "args": { "fields": [{ "path": "selectedId", "label": "Selected story", "kind": "text", "default": "ready" }] },
-  "environment": { "fixtures": [] },
-  "stories": [{ "id": "default", "name": "Declared stories", "harness": "Default", "mode": "live", "args": {}, "expect": [{ "kind": "role", "role": "navigation", "name": "Preview stories" }, { "kind": "attribute", "selector": "button[aria-current=\"true\"]", "name": "aria-current", "value": "true" }] }]
+  "args": {
+    "fields": [
+      {
+        "path": "selectedId",
+        "label": "Selected story",
+        "kind": "text",
+        "default": "ready"
+      }
+    ]
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Declared stories",
+      "harness": "Default",
+      "mode": "live",
+      "args": {},
+      "expect": [
+        {
+          "kind": "role",
+          "role": "navigation",
+          "name": "Preview stories"
+        },
+        {
+          "kind": "attribute",
+          "selector": "button[aria-current=\"true\"]",
+          "name": "aria-current",
+          "value": "true"
+        }
+      ]
+    }
+  ]
 }

@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "$schema": "../../../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
   "kind": "experience-component",
   "schemaVersion": "1.1.0",
   "component": {
@@ -67,7 +67,7 @@
     },
     {
       "id": "disabled-state-reflected",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "The disabled action retains its visible label and cannot be activated.",
       "tier": "manual",
       "elements": ["action"],

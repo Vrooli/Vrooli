@@ -185,21 +185,24 @@ export function useDeviceEmulation(): DeviceEmulationValue {
     setState((prev) => ({ ...prev, zoom: 1 }));
   }, []);
 
-  const fitToPane = useCallback((target?: HTMLElement | null) => {
-    const frame = target?.querySelector<HTMLElement>("[data-emulator-viewport-frame]") ?? null;
-    const availableWidth = frame?.clientWidth ?? 0;
-    const availableHeight = frame?.clientHeight ?? 0;
-    if (availableWidth <= 0 || availableHeight <= 0) {
-      setState((prev) => ({ ...prev, zoom: 1 }));
-      return;
-    }
-    const horizontalPadding = 24;
-    const nextZoom = Math.min(
-      (availableWidth - horizontalPadding) / displayWidth,
-      (availableHeight - horizontalPadding) / displayHeight,
-    );
-    setState((prev) => ({ ...prev, zoom: clampZoom(nextZoom) }));
-  }, [displayHeight, displayWidth]);
+  const fitToPane = useCallback(
+    (target?: HTMLElement | null) => {
+      const frame = target?.querySelector<HTMLElement>("[data-emulator-viewport-frame]") ?? null;
+      const availableWidth = frame?.clientWidth ?? 0;
+      const availableHeight = frame?.clientHeight ?? 0;
+      if (availableWidth <= 0 || availableHeight <= 0) {
+        setState((prev) => ({ ...prev, zoom: 1 }));
+        return;
+      }
+      const horizontalPadding = 24;
+      const nextZoom = Math.min(
+        (availableWidth - horizontalPadding) / displayWidth,
+        (availableHeight - horizontalPadding) / displayHeight,
+      );
+      setState((prev) => ({ ...prev, zoom: clampZoom(nextZoom) }));
+    },
+    [displayHeight, displayWidth],
+  );
 
   const rotate = useCallback(() => {
     setState((prev) => ({ ...prev, isRotated: !prev.isRotated }));

@@ -2,8 +2,12 @@
   "schemaVersion": 3,
   "kind": "component",
   "title": "UnsavedChangesFlow",
-  "args": { "fields": [] },
-  "environment": { "fixtures": [] },
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
   "stories": [
     {
       "id": "default",
@@ -11,12 +15,33 @@
       "harness": "Default",
       "args": {},
       "expect": [
-        { "kind": "role", "role": "textbox", "name": "Working title" },
-        { "kind": "role", "role": "alertdialog", "name": "Keep your work before leaving?" },
-        { "kind": "role", "role": "button", "name": "Save changes" },
-        { "kind": "role", "role": "button", "name": "Discard changes" },
-        { "kind": "role", "role": "button", "name": "Keep editing" }
-      ]
+        {
+          "kind": "role",
+          "role": "textbox",
+          "name": "Working title"
+        },
+        {
+          "kind": "role",
+          "role": "alertdialog",
+          "name": "Keep your work before leaving?"
+        },
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Save changes"
+        },
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Discard changes"
+        },
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Keep editing"
+        }
+      ],
+      "mode": "live"
     },
     {
       "id": "request-error",
@@ -24,9 +49,18 @@
       "harness": "RequestError",
       "args": {},
       "expect": [
-        { "kind": "role", "role": "alertdialog", "name": "Keep your work before leaving?" },
-        { "kind": "role", "role": "alert", "name": "The workspace service is temporarily unavailable. Retry, keep editing, or preserve a private draft." }
-      ]
+        {
+          "kind": "role",
+          "role": "alertdialog",
+          "name": "Keep your work before leaving?"
+        },
+        {
+          "kind": "role",
+          "role": "alert",
+          "name": "The workspace service is temporarily unavailable. Retry, keep editing, or preserve a private draft."
+        }
+      ],
+      "mode": "live"
     },
     {
       "id": "success",
@@ -34,9 +68,17 @@
       "harness": "Success",
       "args": {},
       "expect": [
-        { "kind": "role", "role": "textbox", "name": "Working title" },
-        { "kind": "text", "value": "Saved just now · safe to leave" }
-      ]
+        {
+          "kind": "role",
+          "role": "textbox",
+          "name": "Working title"
+        },
+        {
+          "kind": "text",
+          "value": "Saved just now · safe to leave"
+        }
+      ],
+      "mode": "live"
     }
   ]
 }

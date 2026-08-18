@@ -135,6 +135,30 @@ describe("PropsExperimentPanel", () => {
     expect(screen.getByTestId(selectors.components.editor.propsError)).toBeInTheDocument();
   });
 
+  it("renders object, array, and structured fields as editable JSON controls", () => {
+    renderWithProviders(
+      <PropsExperimentPanel
+        storyContract={{
+          ...storyContract,
+          argsJson: JSON.stringify({
+            fields: [
+              { path: "metadata", kind: "object", default: { tone: "info" } },
+              { path: "items", kind: "array", default: ["one", "two"] },
+              { path: "content", kind: "structured", default: { $text: "Hello" } },
+            ],
+          }),
+          storiesJson: '[{"id":"primary","args":{}}]',
+        }}
+        storyId="primary"
+        onApply={vi.fn()}
+        onReset={vi.fn()}
+      />,
+    );
+    expect(screen.getByLabelText("metadata")).toHaveValue('{\n  "tone": "info"\n}');
+    expect(screen.getByLabelText("items")).toHaveValue('[\n  "one",\n  "two"\n]');
+    expect(screen.getByLabelText("content")).toHaveValue('{\n  "$text": "Hello"\n}');
+  });
+
   it("degrades malformed and unsupported story schemas to a safe empty control set", () => {
     const { rerender } = renderWithProviders(
       <PropsExperimentPanel

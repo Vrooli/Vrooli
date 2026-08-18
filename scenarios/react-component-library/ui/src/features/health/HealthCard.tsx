@@ -73,7 +73,7 @@ export function HealthCard() {
         onClick={handleRefresh}
       >
         {t(strings.health.refresh)}
-        <ArrowRight aria-hidden="true" className="ms-space-2xs h-4 w-4" />
+        <ArrowRight aria-hidden="true" className="ms-space-2xs h-icon-sm w-icon-sm" />
       </Button>
       {refreshCount > 0 && (
         <p

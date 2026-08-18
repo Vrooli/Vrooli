@@ -19,7 +19,7 @@
   "claims": [
     {
       "id": "contract-present",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "The hook exposes its documented public behavior through a stable versioned entrypoint.",
       "tier": "manual",
       "states": ["default"]

@@ -2,7 +2,7 @@
  * @vrooliComponentSource react-component-library:IconRegistry
  * @vrooliComponentVersion 1.0.0
  * @vrooliComponentAdoption 3300c045-811e-474a-8de2-3994ae86b436
- * @vrooliComponentAppliedAt 2026-08-12T12:59:50Z
+ * @vrooliComponentAppliedAt 2026-08-18T01:12:35Z
  * @vrooliComponentSourceSha256 2e65fbbb7a0d43134d40fdaf5b0cddb00043321b905e0337aa079c2a1cba736d
  * @vrooliComponentDriftHash 8ce41b035e1b008b7bd6772aa882fefd5103cf5e3a56a5c8e18ed4a448af0292
  * @vrooliComponentTokenTranslation none

@@ -67,7 +67,7 @@
     },
     {
       "id": "disabled-state-reflected",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "The disabled action retains its visible label and cannot be activated.",
       "tier": "manual",
       "elements": ["action"],

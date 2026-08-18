@@ -2,8 +2,12 @@
   "schemaVersion": 3,
   "kind": "component",
   "title": "Popover",
-  "args": { "fields": [] },
-  "environment": { "fixtures": [] },
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
   "stories": [
     {
       "id": "default",
@@ -11,18 +15,42 @@
       "harness": "Default",
       "args": {},
       "expect": [
-        { "kind": "role", "role": "dialog", "name": "Workspace actions" },
-        { "kind": "role", "role": "button", "name": "Open workspace menu" }
+        {
+          "kind": "role",
+          "role": "dialog",
+          "name": "Workspace actions"
+        },
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Open workspace menu"
+        }
       ],
-      "interactions": [{ "kind": "settle" }]
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live"
     },
     {
       "id": "interactive",
       "name": "Interactive dismissal",
       "harness": "Interactive",
       "args": {},
-      "expect": [{ "kind": "role", "role": "button", "name": "Open workspace menu" }],
-      "interactions": [{ "kind": "settle" }]
+      "expect": [
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Open workspace menu"
+        }
+      ],
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live"
     }
   ]
 }

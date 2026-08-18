@@ -1,41 +1,41 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 3,
   "kind": "component",
   "title": "ExperienceSurface",
   "args": {
     "fields": [
-        {
-          "path": "surfaceId",
-          "label": "Surface Id",
-          "kind": "text",
-          "default": "results"
-        },
-        {
-          "path": "state",
-          "label": "State",
-          "kind": "text",
-          "default": "ready"
-        },
-        {
-          "path": "children",
-          "label": "Children",
-          "kind": "structured",
-          "default": {
-            "$node": "p",
-            "children": [
-              {
-                "$text": "Results are ready"
-              }
-            ]
-          }
-        },
-        {
-          "path": "statusMessage",
-          "label": "Status Message",
-          "kind": "text",
-          "default": "Loading results"
+      {
+        "path": "surfaceId",
+        "label": "Surface Id",
+        "kind": "text",
+        "default": "results"
+      },
+      {
+        "path": "state",
+        "label": "State",
+        "kind": "text",
+        "default": "ready"
+      },
+      {
+        "path": "children",
+        "label": "Children",
+        "kind": "structured",
+        "default": {
+          "$node": "p",
+          "children": [
+            {
+              "$text": "Results are ready"
+            }
+          ]
         }
-      ]
+      },
+      {
+        "path": "statusMessage",
+        "label": "Status Message",
+        "kind": "text",
+        "default": "Loading results"
+      }
+    ]
   },
   "environment": {
     "fixtures": []
@@ -61,7 +61,8 @@
           "kind": "text",
           "value": "Results are ready"
         }
-      ]
+      ],
+      "mode": "pinned"
     },
     {
       "id": "static",
@@ -83,7 +84,8 @@
           "kind": "text",
           "value": "Static guidance"
         }
-      ]
+      ],
+      "mode": "pinned"
     },
     {
       "id": "loading",
@@ -107,7 +109,8 @@
           "role": "status",
           "name": "Loading results"
         }
-      ]
+      ],
+      "mode": "pinned"
     },
     {
       "id": "empty",
@@ -129,7 +132,8 @@
           "kind": "text",
           "value": "No results"
         }
-      ]
+      ],
+      "mode": "pinned"
     },
     {
       "id": "partial",
@@ -153,7 +157,8 @@
           "role": "status",
           "name": "Some results are unavailable"
         }
-      ]
+      ],
+      "mode": "pinned"
     },
     {
       "id": "error",
@@ -177,7 +182,8 @@
           "role": "status",
           "name": "Results could not load"
         }
-      ]
+      ],
+      "mode": "pinned"
     }
   ]
 }

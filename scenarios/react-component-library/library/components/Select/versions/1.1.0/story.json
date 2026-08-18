@@ -1,43 +1,43 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 3,
   "kind": "component",
   "title": "Select",
   "args": {
     "fields": [
-        {
-          "path": "placeholder",
-          "label": "Placeholder",
-          "kind": "text",
-          "default": "Choose status"
-        },
-        {
-          "path": "options",
-          "label": "Options",
-          "kind": "structured",
-          "default": [
-            {
-              "value": "current",
-              "label": "Current"
-            },
-            {
-              "value": "behind",
-              "label": "Behind"
-            }
-          ]
-        },
-        {
-          "path": "defaultValue",
-          "label": "Default Value",
-          "kind": "text",
-          "default": "native"
-        },
-        {
-          "path": "disabled",
-          "label": "Disabled",
-          "kind": "boolean",
-          "default": true
-        }
-      ]
+      {
+        "path": "placeholder",
+        "label": "Placeholder",
+        "kind": "text",
+        "default": "Choose status"
+      },
+      {
+        "path": "options",
+        "label": "Options",
+        "kind": "structured",
+        "default": [
+          {
+            "value": "current",
+            "label": "Current"
+          },
+          {
+            "value": "behind",
+            "label": "Behind"
+          }
+        ]
+      },
+      {
+        "path": "defaultValue",
+        "label": "Default Value",
+        "kind": "text",
+        "default": "native"
+      },
+      {
+        "path": "disabled",
+        "label": "Disabled",
+        "kind": "boolean",
+        "default": true
+      }
+    ]
   },
   "environment": {
     "fixtures": []
@@ -64,7 +64,8 @@
           "kind": "role",
           "role": "combobox"
         }
-      ]
+      ],
+      "mode": "pinned"
     },
     {
       "id": "selected",
@@ -88,7 +89,8 @@
           "role": "combobox",
           "name": "native"
         }
-      ]
+      ],
+      "mode": "pinned"
     },
     {
       "id": "disabled",
@@ -119,7 +121,8 @@
           "role": "combobox",
           "name": "locked"
         }
-      ]
+      ],
+      "mode": "pinned"
     }
   ]
 }

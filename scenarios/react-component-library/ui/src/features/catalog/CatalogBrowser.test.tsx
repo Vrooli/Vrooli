@@ -101,7 +101,7 @@ describe("CatalogBrowser", () => {
     await user.click(controls[2]!);
 
     expect(controls[2]).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByTestId(selectors.catalog.asset).className).toContain("min-h-24");
+    expect(screen.getByTestId(selectors.catalog.asset).className).toContain("min-h-surface-short");
   });
 
   it("starts assisted extraction only through the RCL workflow service", async () => {

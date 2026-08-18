@@ -1,1 +1,17 @@
-{"schemaVersion":1,"kind":"component","title":"SplitPane","args":{},"environment":{"fixtures":[]},"stories":[{"id":"default","name":"Two panes","args":{}}]}
+{
+  "schemaVersion": 3,
+  "kind": "component",
+  "title": "SplitPane",
+  "args": {},
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Two panes",
+      "args": {},
+      "mode": "pinned"
+    }
+  ]
+}

@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "$schema": "../../../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
   "kind": "experience-component",
   "schemaVersion": "1.1.0",
   "component": {
@@ -11,7 +11,7 @@
   "states": [
     {
       "id": "default",
-      "example": "variant-primary",
+      "example": "default",
       "description": "Named icon-only action."
     }
   ],

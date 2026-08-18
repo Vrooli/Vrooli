@@ -19,14 +19,14 @@
   "claims": [
     {
       "id": "outside-pointer",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "A pointer interaction outside the surface invokes the outside callback.",
       "tier": "manual",
       "states": ["default"]
     },
     {
       "id": "escape",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Escape invokes the dismissal callback without requiring consumer listener glue.",
       "tier": "manual",
       "states": ["default"]

@@ -1,49 +1,49 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 3,
   "kind": "component",
   "title": "DrawerShell",
   "args": {
     "fields": [
-        {
-          "path": "open",
-          "label": "Open",
-          "kind": "boolean",
-          "default": true
-        },
-        {
-          "path": "title",
-          "label": "Title",
-          "kind": "text",
-          "default": "Drawer title"
-        },
-        {
-          "path": "children",
-          "label": "Children",
-          "kind": "structured",
-          "default": {
-            "$text": "Drawer content"
-          }
-        },
-        {
-          "path": "size",
-          "label": "Size",
-          "kind": "text",
-          "default": "compact"
-        },
-        {
-          "path": "headerActions",
-          "label": "Header Actions",
-          "kind": "structured",
-          "default": {
-            "$node": "button",
-            "children": [
-              {
-                "$text": "Save"
-              }
-            ]
-          }
+      {
+        "path": "open",
+        "label": "Open",
+        "kind": "boolean",
+        "default": true
+      },
+      {
+        "path": "title",
+        "label": "Title",
+        "kind": "text",
+        "default": "Drawer title"
+      },
+      {
+        "path": "children",
+        "label": "Children",
+        "kind": "structured",
+        "default": {
+          "$text": "Drawer content"
         }
-      ]
+      },
+      {
+        "path": "size",
+        "label": "Size",
+        "kind": "text",
+        "default": "compact"
+      },
+      {
+        "path": "headerActions",
+        "label": "Header Actions",
+        "kind": "structured",
+        "default": {
+          "$node": "button",
+          "children": [
+            {
+              "$text": "Save"
+            }
+          ]
+        }
+      }
+    ]
   },
   "environment": {
     "fixtures": []
@@ -65,7 +65,8 @@
           "role": "dialog",
           "name": "Drawer title"
         }
-      ]
+      ],
+      "mode": "pinned"
     },
     {
       "id": "compact-open",
@@ -83,7 +84,8 @@
           "kind": "text",
           "value": "Compact content"
         }
-      ]
+      ],
+      "mode": "pinned"
     },
     {
       "id": "with-header-actions",
@@ -108,7 +110,8 @@
           "kind": "text",
           "value": "Save"
         }
-      ]
+      ],
+      "mode": "pinned"
     }
   ]
 }

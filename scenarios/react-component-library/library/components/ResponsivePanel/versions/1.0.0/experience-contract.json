@@ -24,7 +24,7 @@
   "claims": [
     {
       "id": "contract-present",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "ResponsivePanel preserves open state while its presentation changes.",
       "tier": "manual",
       "states": ["closed", "open"]

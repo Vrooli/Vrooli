@@ -41,7 +41,7 @@
     },
     {
       "id": "disabled-state-reflected",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "The disabled example prevents activation while retaining its visible action label.",
       "tier": "manual",
       "states": ["disabled"]

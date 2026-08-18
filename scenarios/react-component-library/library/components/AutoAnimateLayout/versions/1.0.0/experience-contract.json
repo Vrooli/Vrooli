@@ -19,21 +19,21 @@
   "claims": [
     {
       "id": "layout-difference",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "The boundary snapshots keyed rectangles and animates only transform differences after insertion, removal, reorder, or resize.",
       "tier": "manual",
       "states": ["default"]
     },
     {
       "id": "reduced-motion",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "The shared reduced-motion hook disables layout animation while preserving the resulting geometry.",
       "tier": "manual",
       "states": ["default"]
     },
     {
       "id": "causality",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Rows move as a consequence of the change that caused their displacement rather than independently drifting.",
       "tier": "manual",
       "states": ["default"]

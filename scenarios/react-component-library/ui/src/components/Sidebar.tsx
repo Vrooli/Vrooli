@@ -25,7 +25,7 @@ export function SidebarContent({
   const location = useLocation();
   const navClass = ({ isActive }: { isActive: boolean }) =>
     [
-      "group flex min-h-11 items-center gap-space-2xs rounded-control px-space-xs py-space-2xs text-sm transition-colors",
+      "group flex min-h-touch items-center gap-space-2xs rounded-control px-space-xs py-space-2xs text-sm transition-colors",
       isActive
         ? "bg-app-surface-muted font-semibold text-app-foreground shadow-sm"
         : "text-app-muted-foreground hover:bg-app-surface-muted hover:text-app-foreground",
@@ -44,7 +44,7 @@ export function SidebarContent({
           className="flex items-center gap-space-2xs text-app-foreground"
           data-testid="app-brand"
         >
-          <BrandMark className="h-7 w-7 shrink-0 text-app-primary" />
+          <BrandMark className="h-control-compact w-control-compact shrink-0 text-app-primary" />
           <span className="text-sm font-semibold tracking-tight">
             {t("app.brand", { defaultValue: "Component Library" })}
           </span>
@@ -59,7 +59,7 @@ export function SidebarContent({
               data-testid="sidebar-collapse"
               className="touch-target inline-flex items-center justify-center rounded-control text-app-muted-foreground hover:bg-app-surface-muted hover:text-app-foreground"
             >
-              <PanelLeftClose aria-hidden className="h-4 w-4" />
+              <PanelLeftClose aria-hidden className="h-icon-sm w-icon-sm" />
             </button>
           ) : null}
         </div>
@@ -78,7 +78,7 @@ export function SidebarContent({
                 aria-current={isCatalogActive ? "page" : undefined}
                 className={navClass({ isActive: isCatalogActive })}
               >
-                <FolderTree aria-hidden className="h-4 w-4 shrink-0 text-app-primary" />
+                <FolderTree aria-hidden className="h-icon-sm w-icon-sm shrink-0 text-app-primary" />
                 <span className="truncate">
                   {t("nav.browseAssets", { defaultValue: "Browse assets" })}
                 </span>
@@ -86,13 +86,13 @@ export function SidebarContent({
             </li>
             <li>
               <NavLink to="/coverage" onClick={onNavigate} className={navClass}>
-                <BarChart3 aria-hidden className="h-4 w-4 shrink-0" />
+                <BarChart3 aria-hidden className="h-icon-sm w-icon-sm shrink-0" />
                 <span className="truncate">Catalog coverage</span>
               </NavLink>
             </li>
             <li>
               <NavLink to="/capabilities" onClick={onNavigate} className={navClass}>
-                <Sparkles aria-hidden className="h-4 w-4 shrink-0" />
+                <Sparkles aria-hidden className="h-icon-sm w-icon-sm shrink-0" />
                 <span className="truncate">Capability readiness</span>
               </NavLink>
             </li>

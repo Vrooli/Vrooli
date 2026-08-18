@@ -2,8 +2,12 @@
   "schemaVersion": 3,
   "kind": "component",
   "title": "DataToolbar",
-  "args": { "fields": [] },
-  "environment": { "fixtures": [] },
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
   "stories": [
     {
       "id": "default",
@@ -11,11 +15,27 @@
       "harness": "Default",
       "args": {},
       "expect": [
-        { "kind": "role", "role": "search", "name": "Filter records" },
-        { "kind": "role", "role": "toolbar", "name": "Collection actions" },
-        { "kind": "text", "value": "A calm command surface for busy data" }
+        {
+          "kind": "role",
+          "role": "search",
+          "name": "Filter records"
+        },
+        {
+          "kind": "role",
+          "role": "toolbar",
+          "name": "Collection actions"
+        },
+        {
+          "kind": "text",
+          "value": "A calm command surface for busy data"
+        }
       ],
-      "interactions": [{ "kind": "settle" }]
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live"
     },
     {
       "id": "refreshing",
@@ -23,10 +43,21 @@
       "harness": "Refreshing",
       "args": {},
       "expect": [
-        { "kind": "role", "role": "status" },
-        { "kind": "text", "value": "Updating results" }
+        {
+          "kind": "role",
+          "role": "status"
+        },
+        {
+          "kind": "text",
+          "value": "Updating results"
+        }
       ],
-      "interactions": [{ "kind": "settle" }]
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live"
     },
     {
       "id": "offline",
@@ -34,11 +65,25 @@
       "harness": "Offline",
       "args": {},
       "expect": [
-        { "kind": "role", "role": "status" },
-        { "kind": "text", "value": "Offline" },
-        { "kind": "text", "value": "Saved 8 minutes ago" }
+        {
+          "kind": "role",
+          "role": "status"
+        },
+        {
+          "kind": "text",
+          "value": "Offline"
+        },
+        {
+          "kind": "text",
+          "value": "Saved 8 minutes ago"
+        }
       ],
-      "interactions": [{ "kind": "settle" }]
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live"
     }
   ]
 }

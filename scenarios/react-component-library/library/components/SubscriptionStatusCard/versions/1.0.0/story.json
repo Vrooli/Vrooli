@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 3,
+  "kind": "component",
+  "title": "SubscriptionStatusCard",
+  "args": { "fields": [] },
+  "environment": { "fixtures": [] },
+  "stories": [{ "id": "active", "name": "Active plan", "harness": "StatusStory", "args": {}, "expect": [], "mode": "live" }]
+}

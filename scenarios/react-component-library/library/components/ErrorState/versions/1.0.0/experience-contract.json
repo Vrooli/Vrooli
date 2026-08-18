@@ -19,7 +19,7 @@
   "claims": [
     {
       "id": "contract-present",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "ErrorState exposes a clear retry path without layout collapse.",
       "tier": "manual",
       "states": ["error"]

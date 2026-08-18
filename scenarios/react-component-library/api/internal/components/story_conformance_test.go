@@ -2,6 +2,7 @@ package components
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -65,6 +66,27 @@ func TestCatalogStoryConformance(t *testing.T) {
 			}
 			if string(contract.Kind) != asset.Kind {
 				failures = append(failures, prefix+": story kind "+string(contract.Kind)+" does not match inventory kind "+asset.Kind)
+			}
+			if contract.SchemaVersion != 3 {
+				failures = append(failures, prefix+": story schemaVersion must be 3")
+			}
+			liveSource := false
+			if _, statErr := os.Stat(filepath.Join(versionDir, "story.tsx")); statErr == nil {
+				liveSource = true
+			} else if !os.IsNotExist(statErr) {
+				failures = append(failures, prefix+": inspect story.tsx: "+statErr.Error())
+			}
+			for storyIndex, story := range contract.Stories {
+				if story.Mode != StoryModeLive && story.Mode != StoryModePinned {
+					failures = append(failures, fmt.Sprintf("%s: story %d must declare mode live or pinned", prefix, storyIndex))
+					continue
+				}
+				if liveSource && story.Mode != StoryModeLive {
+					failures = append(failures, fmt.Sprintf("%s: story %q has story.tsx but is not live", prefix, story.ID))
+				}
+				if !liveSource && story.Mode != StoryModePinned {
+					failures = append(failures, fmt.Sprintf("%s: story %q has no story.tsx but is not pinned", prefix, story.ID))
+				}
 			}
 			for _, legacy := range []string{"examples.json", "test-contract.json", "setup.json", "controls.json"} {
 				if _, err := os.Stat(filepath.Join(versionDir, legacy)); err == nil {

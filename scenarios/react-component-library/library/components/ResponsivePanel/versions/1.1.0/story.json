@@ -4,13 +4,38 @@
   "title": "ResponsivePanel",
   "args": {
     "fields": [
-      { "path": "open", "kind": "boolean", "default": true },
-      { "path": "title", "kind": "text", "default": "Workspace filters" },
-      { "path": "description", "kind": "text", "default": "Refine the current view" },
-      { "path": "children", "kind": "structured", "default": { "$node": "p", "children": [{ "$text": "Choose filters to focus the workspace." }] } }
+      {
+        "path": "open",
+        "kind": "boolean",
+        "default": true
+      },
+      {
+        "path": "title",
+        "kind": "text",
+        "default": "Workspace filters"
+      },
+      {
+        "path": "description",
+        "kind": "text",
+        "default": "Refine the current view"
+      },
+      {
+        "path": "children",
+        "kind": "structured",
+        "default": {
+          "$node": "p",
+          "children": [
+            {
+              "$text": "Choose filters to focus the workspace."
+            }
+          ]
+        }
+      }
     ]
   },
-  "environment": { "fixtures": [] },
+  "environment": {
+    "fixtures": []
+  },
   "stories": [
     {
       "id": "open-across-breakpoints",
@@ -19,14 +44,38 @@
         "open": true,
         "title": "Workspace filters",
         "description": "Refine the current view",
-        "children": { "$node": "p", "children": [{ "$text": "Choose filters to focus the workspace." }] }
+        "children": {
+          "$node": "p",
+          "children": [
+            {
+              "$text": "Choose filters to focus the workspace."
+            }
+          ]
+        }
       },
       "expect": [
-        { "kind": "attribute", "selector": "[data-rcl-responsive-panel]", "name": "data-open", "value": "true" },
-        { "kind": "text", "value": "Workspace filters" },
-        { "kind": "role", "role": "button", "name": "Close panel" }
+        {
+          "kind": "attribute",
+          "selector": "[data-rcl-responsive-panel]",
+          "name": "data-open",
+          "value": "true"
+        },
+        {
+          "kind": "text",
+          "value": "Workspace filters"
+        },
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Close panel"
+        }
       ],
-      "interactions": [{ "kind": "settle" }]
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "pinned"
     }
   ]
 }

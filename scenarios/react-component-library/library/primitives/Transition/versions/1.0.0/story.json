@@ -2,10 +2,49 @@
   "schemaVersion": 3,
   "kind": "component",
   "title": "Transition",
-  "args": { "fields": [] },
-  "environment": { "fixtures": [] },
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
   "stories": [
-    { "id": "default", "name": "Shared transition grammar", "harness": "Default", "args": {}, "expect": [{ "kind": "role", "role": "status" }], "interactions": [{ "kind": "settle" }] },
-    { "id": "interactive", "name": "Interruptible transition", "harness": "Interactive", "args": {}, "expect": [{ "kind": "role", "role": "button", "name": "Hide transition" }], "interactions": [{ "kind": "settle" }] }
+    {
+      "id": "default",
+      "name": "Shared transition grammar",
+      "harness": "Default",
+      "args": {},
+      "expect": [
+        {
+          "kind": "role",
+          "role": "status"
+        }
+      ],
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live"
+    },
+    {
+      "id": "interactive",
+      "name": "Interruptible transition",
+      "harness": "Interactive",
+      "args": {},
+      "expect": [
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Hide transition"
+        }
+      ],
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live"
+    }
   ]
 }

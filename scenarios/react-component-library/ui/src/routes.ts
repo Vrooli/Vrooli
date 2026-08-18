@@ -24,7 +24,12 @@ export type AssetInfoTab =
   | "progression"
   | "adoptions"
   | "relationships";
-export type AssetRouteState = { tab?: AssetInfoTab; story?: string; testReport?: string; view?: "focus" | "canvas" };
+export type AssetRouteState = {
+  tab?: AssetInfoTab;
+  story?: string;
+  testReport?: string;
+  view?: "focus" | "canvas";
+};
 
 const assetTabs = new Set<AssetInfoTab>([
   "overview",

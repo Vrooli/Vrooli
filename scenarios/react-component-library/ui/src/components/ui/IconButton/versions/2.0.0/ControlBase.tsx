@@ -2,7 +2,7 @@
  * @vrooliComponentSource react-component-library:ControlBase
  * @vrooliComponentVersion 1.0.0
  * @vrooliComponentAdoption 863eaaab-f7a2-436a-8be6-b79623789b44
- * @vrooliComponentAppliedAt 2026-08-12T12:57:20Z
+ * @vrooliComponentAppliedAt 2026-08-18T01:12:40Z
  * @vrooliComponentSourceSha256 16389ca051fbbe63df470e938c61bf07028e2ccb4ab6a893f341ef697551c3d4
  * @vrooliComponentDriftHash eca7809528d46f910d8ff6b9bd6cf386c43af8bce7a1a47a6e65bbb8e07e574e
  * @vrooliComponentTokenTranslation none

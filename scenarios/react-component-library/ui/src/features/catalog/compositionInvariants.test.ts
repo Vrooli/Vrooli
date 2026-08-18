@@ -197,11 +197,9 @@ describe("composition invariants", () => {
 
     it("catches padding outside the ramp's range entirely", () => {
       const root = mount(`<main><div data-testid="row">Item</div></main>`);
-      const findings = checkSpacingQuantization(
-        root,
-        fakeView({ row: { paddingTop: "64px" } }),
-        { ramp },
-      );
+      const findings = checkSpacingQuantization(root, fakeView({ row: { paddingTop: "64px" } }), {
+        ramp,
+      });
       expect(findings).toHaveLength(1);
       expect(findings[0]?.code).toBe("composition.spacing_off_ramp");
       // The bounding step is named so the fix is unambiguous.
@@ -224,11 +222,9 @@ describe("composition invariants", () => {
 
     it("catches spacing smaller than the smallest published step", () => {
       const root = mount(`<main><div data-testid="row">Item</div></main>`);
-      const findings = checkSpacingQuantization(
-        root,
-        fakeView({ row: { rowGap: "1px" } }),
-        { ramp },
-      );
+      const findings = checkSpacingQuantization(root, fakeView({ row: { rowGap: "1px" } }), {
+        ramp,
+      });
       expect(findings).toHaveLength(1);
       expect(findings[0]?.message).toContain("outside the published ramp range");
     });
@@ -245,11 +241,9 @@ describe("composition invariants", () => {
 
     it("ignores zero, which is the absence of spacing rather than an off-ramp amount", () => {
       const root = mount(`<main><div data-testid="row">Item</div></main>`);
-      const findings = checkSpacingQuantization(
-        root,
-        fakeView({ row: { paddingTop: "0px" } }),
-        { ramp },
-      );
+      const findings = checkSpacingQuantization(root, fakeView({ row: { paddingTop: "0px" } }), {
+        ramp,
+      });
       expect(findings).toEqual([]);
     });
   });

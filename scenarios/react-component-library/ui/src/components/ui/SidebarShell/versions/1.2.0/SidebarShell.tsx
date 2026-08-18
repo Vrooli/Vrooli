@@ -2,7 +2,7 @@
  * @vrooliComponentSource react-component-library:SidebarShell
  * @vrooliComponentVersion 1.2.0
  * @vrooliComponentAdoption dd1e7ab7-681b-46b4-aad9-ebc580c0e9a7
- * @vrooliComponentAppliedAt 2026-08-12T11:40:33Z
+ * @vrooliComponentAppliedAt 2026-08-18T01:12:44Z
  * @vrooliComponentSourceSha256 e911576710b48907a8b5bc87fcdc96a41dfb6af5875c606f0a7d66d94db16278
  * @vrooliComponentDriftHash c789f980eab887028c955eaf6073f53915bd0444947c0758c7038e41455d5c4c
  * @vrooliComponentTokenTranslation none
@@ -12,7 +12,7 @@
  */
 import { type CSSProperties, type HTMLAttributes, type ReactNode, forwardRef } from "react";
 import { X } from "lucide-react";
-import { useEscapeKey } from "../../../../../hooks/useEscapeKey/versions/1.0.0/useEscapeKey";
+import { useEscapeKey } from "../../../../hooks/useEscapeKey/versions/1.0.0/useEscapeKey";
 import { sidebarShellStyles } from "./styles";
 
 export interface SidebarShellProps {

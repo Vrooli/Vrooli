@@ -1,1 +1,21 @@
-{"schemaVersion":2,"kind":"hook","title":"useDrag","args":{"fields":[]},"environment":{"fixtures":[]},"stories":[{"id":"default","name":"Default","harness":"Default","args":{},"expect":[]}]}
+{
+  "schemaVersion": 3,
+  "kind": "hook",
+  "title": "useDrag",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Default",
+      "harness": "Default",
+      "args": {},
+      "expect": [],
+      "mode": "live"
+    }
+  ]
+}

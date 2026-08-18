@@ -1,1 +1,54 @@
-{"schemaVersion":3,"kind":"component","title":"Page","args":{"fields":[]},"environment":{"fixtures":[]},"frame":{"asset":"navigation.app-shell","region":"content","fixture":"fixtures.user-directory"},"stories":[{"id":"default","name":"Default","args":{"children":{"$node":"p","children":[{"$text":"Page content"}]}},"expect":[{"kind":"text","value":"Page content"}]},{"id":"long-content","name":"Long content","args":{"children":{"$node":"p","children":[{"$text":"Page content"}]}}}]}
+{
+  "schemaVersion": 3,
+  "kind": "component",
+  "title": "Page",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "frame": {
+    "asset": "navigation.app-shell",
+    "region": "content",
+    "fixture": "fixtures.user-directory"
+  },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Default",
+      "args": {
+        "children": {
+          "$node": "p",
+          "children": [
+            {
+              "$text": "Page content"
+            }
+          ]
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Page content"
+        }
+      ],
+      "mode": "pinned"
+    },
+    {
+      "id": "long-content",
+      "name": "Long content",
+      "args": {
+        "children": {
+          "$node": "p",
+          "children": [
+            {
+              "$text": "Page content"
+            }
+          ]
+        }
+      },
+      "mode": "pinned"
+    }
+  ]
+}

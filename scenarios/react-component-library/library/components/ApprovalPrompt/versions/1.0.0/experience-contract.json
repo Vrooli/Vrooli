@@ -44,28 +44,28 @@
   "claims": [
     {
       "id": "scope-before-consent",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "The exact action, target, and scope are rendered immediately before the approval control.",
       "tier": "manual",
       "states": ["default", "retry"]
     },
     {
       "id": "no-default-focus",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Approval is a native keyboard-operable action without automatic focus capture.",
       "tier": "manual",
       "states": ["default"]
     },
     {
       "id": "recovery",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Request errors and permission denial preserve context and expose distinct recovery paths.",
       "tier": "manual",
       "states": ["request-error", "permission-denied"]
     },
     {
       "id": "dark-parity",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "The decision surface remains readable across the declared kits and dark mode.",
       "tier": "manual",
       "states": ["default", "success", "request-error"]

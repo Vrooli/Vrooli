@@ -70,7 +70,7 @@ export default function ColorPicker({
   const mark = (color?: string) => (
     <CheckIcon
       aria-hidden
-      className={`h-3.5 w-3.5 ${isLightColor(color) ? "text-app-foreground" : "text-app-background"}`}
+      className={`h-icon-compact w-icon-compact ${isLightColor(color) ? "text-app-foreground" : "text-app-background"}`}
     />
   );
   const swatch = (color: string, suffix: string) => (
@@ -78,7 +78,7 @@ export default function ColorPicker({
       key={suffix}
       type="button"
       data-testid={`${testIdPrefix}-${suffix}`}
-      className={`flex h-8 w-8 items-center justify-center rounded-full border transition-shadow focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-primary ${selected(color) ? "border-app-primary ring-2 ring-app-primary/50" : "border-app-border hover:ring-1 hover:ring-app-muted-foreground"}`}
+      className={`flex h-control-tight w-control-tight items-center justify-center rounded-full border transition-shadow focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-primary ${selected(color) ? "border-app-primary ring-2 ring-app-primary/50" : "border-app-border hover:ring-1 hover:ring-app-muted-foreground"}`}
       style={{ backgroundColor: color }}
       onClick={() => choose(color)}
       title={color}
@@ -100,7 +100,7 @@ export default function ColorPicker({
           <button
             type="button"
             data-testid={`${testIdPrefix}-slot-0`}
-            className="h-8 w-8 rounded-md border border-app-border"
+            className="h-control-tight w-control-tight rounded-md border border-app-border"
             style={colors[0] ? { backgroundColor: colors[0] } : undefined}
             onClick={() => setActiveSlot(0)}
             aria-label={labels.primary ?? labels.heading ?? "Color picker"}
@@ -111,7 +111,7 @@ export default function ColorPicker({
               <button
                 type="button"
                 data-testid={`${testIdPrefix}-slot-1`}
-                className="h-8 w-8 rounded-md border border-app-border"
+                className="h-control-tight w-control-tight rounded-md border border-app-border"
                 style={colors[1] ? { backgroundColor: colors[1] } : undefined}
                 onClick={() => setActiveSlot(1)}
                 aria-label={labels.secondary ?? labels.heading ?? "Color picker"}
@@ -120,24 +120,24 @@ export default function ColorPicker({
               <button
                 type="button"
                 data-testid={`${testIdPrefix}-remove-gradient`}
-                className="flex h-8 w-8 items-center justify-center rounded border border-app-border"
+                className="flex h-control-tight w-control-tight items-center justify-center rounded border border-app-border"
                 onClick={() => {
                   setActiveSlot(0);
                   onChange(serializeColorValue(colors.slice(0, 1)));
                 }}
                 aria-label={labels.removeGradient ?? "Remove gradient"}
               >
-                <RemoveIcon aria-hidden className="h-4 w-4" />
+                <RemoveIcon aria-hidden className="h-icon-sm w-icon-sm" />
               </button>
             </>
           ) : (
             <button
               type="button"
               data-testid={`${testIdPrefix}-add-gradient`}
-              className="flex h-8 items-center gap-space-3xs rounded border border-dashed border-app-border px-space-2xs text-xs"
+              className="flex h-control-tight items-center gap-space-3xs rounded border border-dashed border-app-border px-space-2xs text-xs"
               onClick={() => setActiveSlot(1)}
             >
-              <AddIcon aria-hidden className="h-3.5 w-3.5" />
+              <AddIcon aria-hidden className="h-icon-compact w-icon-compact" />
               {labels.addGradient ?? "Add gradient"}
             </button>
           )}
@@ -147,7 +147,7 @@ export default function ColorPicker({
         <button
           type="button"
           data-testid={`${testIdPrefix}-transparent`}
-          className={`flex h-8 w-8 items-center justify-center rounded-full border ${transparent ? "border-app-primary ring-2 ring-app-primary/50" : "border-app-border"}`}
+          className={`flex h-control-tight w-control-tight items-center justify-center rounded-full border ${transparent ? "border-app-primary ring-2 ring-app-primary/50" : "border-app-border"}`}
           onClick={() => {
             setActiveSlot(0);
             onChange("transparent");
@@ -160,7 +160,7 @@ export default function ColorPicker({
         {palette.map((color) => swatch(color, `palette-${color}`))}
         <label
           data-testid={`${testIdPrefix}-custom`}
-          className={`relative flex h-8 w-8 cursor-pointer items-center justify-center overflow-hidden rounded-full border border-app-border ${isHexColor(activeColor) && !palette.includes(activeColor) ? "ring-2 ring-app-primary/50" : ""}`}
+          className={`relative flex h-control-tight w-control-tight cursor-pointer items-center justify-center overflow-hidden rounded-full border border-app-border ${isHexColor(activeColor) && !palette.includes(activeColor) ? "ring-2 ring-app-primary/50" : ""}`}
           style={
             isHexColor(activeColor) && !palette.includes(activeColor)
               ? { backgroundColor: activeColor }
@@ -171,7 +171,7 @@ export default function ColorPicker({
           {isHexColor(activeColor) && !palette.includes(activeColor) ? (
             mark(activeColor)
           ) : (
-            <CustomIcon aria-hidden className="h-4 w-4 text-app-muted-foreground" />
+            <CustomIcon aria-hidden className="h-icon-sm w-icon-sm text-app-muted-foreground" />
           )}
           <input
             type="color"

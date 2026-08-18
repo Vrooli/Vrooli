@@ -1,1 +1,49 @@
-{"schemaVersion":1,"kind":"component","title":"Container","args":{"fields":[{"path":"width","label":"Width","kind":"enum","default":"content","options":["content","wide","full"]}]},"environment":{"fixtures":[]},"stories":[{"id":"width-content","name":"width content","args":{"width":"content"}},{"id":"width-wide","name":"width wide","args":{"width":"wide"}},{"id":"width-full","name":"width full","args":{"width":"full"}}]}
+{
+  "schemaVersion": 3,
+  "kind": "component",
+  "title": "Container",
+  "args": {
+    "fields": [
+      {
+        "path": "width",
+        "label": "Width",
+        "kind": "enum",
+        "default": "content",
+        "options": [
+          "content",
+          "wide",
+          "full"
+        ]
+      }
+    ]
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "width-content",
+      "name": "width content",
+      "args": {
+        "width": "content"
+      },
+      "mode": "pinned"
+    },
+    {
+      "id": "width-wide",
+      "name": "width wide",
+      "args": {
+        "width": "wide"
+      },
+      "mode": "pinned"
+    },
+    {
+      "id": "width-full",
+      "name": "width full",
+      "args": {
+        "width": "full"
+      },
+      "mode": "pinned"
+    }
+  ]
+}

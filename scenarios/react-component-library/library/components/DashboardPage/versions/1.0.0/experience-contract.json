@@ -54,7 +54,7 @@
   "claims": [
     {
       "id": "contract-present",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "DashboardPage preserves data-source ownership and honest state composition.",
       "tier": "manual",
       "states": [

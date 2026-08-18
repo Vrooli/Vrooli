@@ -26,18 +26,40 @@
             "label": "src",
             "defaultExpanded": true,
             "children": [
-              { "id": "app", "label": "App.tsx" },
-              { "id": "styles", "label": "styles.css" }
+              {
+                "id": "app",
+                "label": "App.tsx"
+              },
+              {
+                "id": "styles",
+                "label": "styles.css"
+              }
             ]
           },
-          { "id": "package", "label": "package.json" }
+          {
+            "id": "package",
+            "label": "package.json"
+          }
         ]
       },
       "expect": [
-        { "kind": "role", "role": "tree", "name": "Project files" },
-        { "kind": "role", "role": "treeitem", "name": "src" },
-        { "kind": "role", "role": "treeitem", "name": "App.tsx" }
-      ]
+        {
+          "kind": "role",
+          "role": "tree",
+          "name": "Project files"
+        },
+        {
+          "kind": "role",
+          "role": "treeitem",
+          "name": "src"
+        },
+        {
+          "kind": "role",
+          "role": "treeitem",
+          "name": "App.tsx"
+        }
+      ],
+      "mode": "pinned"
     },
     {
       "id": "collapsed",
@@ -48,28 +70,49 @@
           {
             "id": "src",
             "label": "src",
-            "children": [{ "id": "app", "label": "App.tsx" }]
+            "children": [
+              {
+                "id": "app",
+                "label": "App.tsx"
+              }
+            ]
           }
         ]
       },
       "expect": [
-        { "kind": "role", "role": "tree", "name": "Project files" },
+        {
+          "kind": "role",
+          "role": "tree",
+          "name": "Project files"
+        },
         {
           "kind": "attribute",
           "selector": "[role=treeitem]",
           "name": "aria-expanded",
           "value": "false"
         }
-      ]
+      ],
+      "mode": "pinned"
     },
     {
       "id": "empty",
       "name": "Empty",
-      "args": { "label": "Project files", "items": [] },
+      "args": {
+        "label": "Project files",
+        "items": []
+      },
       "expect": [
-        { "kind": "role", "role": "tree", "name": "Project files" },
-        { "kind": "role", "role": "status" }
-      ]
+        {
+          "kind": "role",
+          "role": "tree",
+          "name": "Project files"
+        },
+        {
+          "kind": "role",
+          "role": "status"
+        }
+      ],
+      "mode": "pinned"
     }
   ]
 }

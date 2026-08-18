@@ -24,21 +24,21 @@
   "claims": [
     {
       "id": "native-semantics",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "The primitive keeps native checkbox and radio semantics and uses the switch role only for switch intent.",
       "tier": "manual",
       "states": ["default", "states"]
     },
     {
       "id": "reduced-motion",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Selection state transitions settle immediately when reduced motion is requested.",
       "tier": "manual",
       "states": ["default", "states"]
     },
     {
       "id": "error-context",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Invalid state exposes an alert and associates it with the native control.",
       "tier": "manual",
       "states": ["states"]

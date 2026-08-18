@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 3,
   "kind": "component",
   "title": "CommandCenterShell",
   "args": {
@@ -198,7 +198,8 @@
           "name": "data-experience-state",
           "value": "ready"
         }
-      ]
+      ],
+      "mode": "pinned"
     },
     {
       "id": "partial-workspace",
@@ -227,43 +228,125 @@
           "role": "status",
           "name": "Some information is unavailable."
         }
-      ]
+      ],
+      "mode": "pinned"
     },
     {
       "id": "loading-workspace",
       "name": "Loading workspace",
       "args": {
         "title": "Operations command center",
-        "navigation": { "$node": "nav", "children": [{ "$text": "Runs" }] },
-        "metrics": [{ "label": "Active runs", "value": "12" }],
+        "navigation": {
+          "$node": "nav",
+          "children": [
+            {
+              "$text": "Runs"
+            }
+          ]
+        },
+        "metrics": [
+          {
+            "label": "Active runs",
+            "value": "12"
+          }
+        ],
         "regionState": "loading",
-        "loading": { "$node": "p", "children": [{ "$text": "Loading recent runs…" }] }
+        "loading": {
+          "$node": "p",
+          "children": [
+            {
+              "$text": "Loading recent runs…"
+            }
+          ]
+        }
       },
-      "expect": [{ "kind": "attribute", "selector": "[data-experience-surface=\"command-center-primary\"]", "name": "data-experience-state", "value": "loading" }]
+      "expect": [
+        {
+          "kind": "attribute",
+          "selector": "[data-experience-surface=\"command-center-primary\"]",
+          "name": "data-experience-state",
+          "value": "loading"
+        }
+      ],
+      "mode": "pinned"
     },
     {
       "id": "empty-workspace",
       "name": "Empty workspace",
       "args": {
         "title": "Operations command center",
-        "navigation": { "$node": "nav", "children": [{ "$text": "Runs" }] },
-        "metrics": [{ "label": "Active runs", "value": "0" }],
+        "navigation": {
+          "$node": "nav",
+          "children": [
+            {
+              "$text": "Runs"
+            }
+          ]
+        },
+        "metrics": [
+          {
+            "label": "Active runs",
+            "value": "0"
+          }
+        ],
         "regionState": "empty",
-        "empty": { "$node": "p", "children": [{ "$text": "No recent runs." }] }
+        "empty": {
+          "$node": "p",
+          "children": [
+            {
+              "$text": "No recent runs."
+            }
+          ]
+        }
       },
-      "expect": [{ "kind": "attribute", "selector": "[data-experience-surface=\"command-center-primary\"]", "name": "data-experience-state", "value": "empty" }]
+      "expect": [
+        {
+          "kind": "attribute",
+          "selector": "[data-experience-surface=\"command-center-primary\"]",
+          "name": "data-experience-state",
+          "value": "empty"
+        }
+      ],
+      "mode": "pinned"
     },
     {
       "id": "error-workspace",
       "name": "Workspace error",
       "args": {
         "title": "Operations command center",
-        "navigation": { "$node": "nav", "children": [{ "$text": "Runs" }] },
-        "metrics": [{ "label": "Active runs", "value": "12" }],
+        "navigation": {
+          "$node": "nav",
+          "children": [
+            {
+              "$text": "Runs"
+            }
+          ]
+        },
+        "metrics": [
+          {
+            "label": "Active runs",
+            "value": "12"
+          }
+        ],
         "regionState": "error",
-        "error": { "$node": "p", "children": [{ "$text": "Recent runs are unavailable." }] }
+        "error": {
+          "$node": "p",
+          "children": [
+            {
+              "$text": "Recent runs are unavailable."
+            }
+          ]
+        }
       },
-      "expect": [{ "kind": "attribute", "selector": "[data-experience-surface=\"command-center-primary\"]", "name": "data-experience-state", "value": "error" }]
+      "expect": [
+        {
+          "kind": "attribute",
+          "selector": "[data-experience-surface=\"command-center-primary\"]",
+          "name": "data-experience-state",
+          "value": "error"
+        }
+      ],
+      "mode": "pinned"
     }
   ]
 }

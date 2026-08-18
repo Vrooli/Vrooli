@@ -34,21 +34,21 @@
   "claims": [
     {
       "id": "truthful-count",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Every rendered row exposes its position and the full collection size while the live status describes the visible window.",
       "tier": "manual",
       "states": ["default", "dense"]
     },
     {
       "id": "measured-window",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Rows are dynamically measured and overscanned instead of relying on a fixed-height rendering assumption.",
       "tier": "manual",
       "states": ["default", "dense"]
     },
     {
       "id": "focus-and-scroll",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Focus and restored scroll position remain part of the component contract when the rendered window changes.",
       "tier": "manual",
       "states": ["restored-scroll"]

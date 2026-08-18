@@ -2,10 +2,64 @@
   "schemaVersion": 3,
   "kind": "component",
   "title": "GeneratedForm",
-  "args": { "fields": [] },
-  "environment": { "fixtures": [] },
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
   "stories": [
-    { "id": "default", "name": "Generated settings", "harness": "Default", "args": {}, "expect": [{ "kind": "role", "role": "form", "name": "Workspace settings" }, { "kind": "text", "value": "Estimated monthly total" }, { "kind": "role", "role": "button", "name": "Save changes" }] },
-    { "id": "validation", "name": "Generated recovery", "harness": "Validation", "interactions": [{ "kind": "click", "target": { "role": "button", "name": "Save changes" } }, { "kind": "settle" }], "args": {}, "expect": [{ "kind": "role", "role": "alert" }, { "kind": "text", "value": "Billing email" }] }
+    {
+      "id": "default",
+      "name": "Generated settings",
+      "harness": "Default",
+      "args": {},
+      "expect": [
+        {
+          "kind": "role",
+          "role": "form",
+          "name": "Workspace settings"
+        },
+        {
+          "kind": "text",
+          "value": "Estimated monthly total"
+        },
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Save changes"
+        }
+      ],
+      "mode": "live"
+    },
+    {
+      "id": "validation",
+      "name": "Generated recovery",
+      "harness": "Validation",
+      "interactions": [
+        {
+          "kind": "click",
+          "target": {
+            "role": "button",
+            "name": "Save changes"
+          }
+        },
+        {
+          "kind": "settle"
+        }
+      ],
+      "args": {},
+      "expect": [
+        {
+          "kind": "role",
+          "role": "alert"
+        },
+        {
+          "kind": "text",
+          "value": "Billing email"
+        }
+      ],
+      "mode": "live"
+    }
   ]
 }

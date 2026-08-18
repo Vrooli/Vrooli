@@ -14,7 +14,7 @@
   "claims": [
     {
       "id": "single-live-region",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Announcements are queued through one shared, atomic live region.",
       "tier": "manual",
       "states": ["idle", "announcing"]

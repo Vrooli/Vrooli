@@ -1708,7 +1708,7 @@
             {
               "name": "gate",
               "required": true,
-              "description": "Gate: types, api, tokens, token-vocabulary, token-ramp-complete, released-version-immutable, lifecycle, fixture-adversarial, or examples"
+              "description": "Gate: types, api, tokens, conformance, token-vocabulary, token-ramp-complete, released-version-immutable, lifecycle, fixture-adversarial, or examples"
             }
           ],
           "binding": {
@@ -1755,6 +1755,54 @@
       "binding": { "kind": "connect-rpc", "service": "CatalogService", "method": "GetAssetPortContract" },
       "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal", "filesystem:read"] }
     }
+      ]
+    },
+    {
+      "name": "coverage",
+      "flat": true,
+      "description": "Inspect and prune generated validation evidence",
+      "commands": [
+        {
+          "name": "coverage",
+          "description": "Report or prune the local coverage cache",
+          "positionals": [
+            {
+              "name": "operation",
+              "required": true,
+              "description": "Only supported operation: prune"
+            }
+          ],
+          "flags": [
+            { "name": "apply", "bool": true, "description": "Apply selected deletions" },
+            { "name": "json", "bool": true, "description": "Emit JSON" },
+            { "name": "root", "description": "Override the coverage cache root" }
+          ],
+          "binding": { "kind": "local" },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": true,
+            "requires_confirmation": true,
+            "permissions": ["filesystem:read", "filesystem:write"]
+          }
+        }
+      ]
+    },
+    {
+      "name": "findings",
+      "flat": true,
+      "description": "Read the deduplicated validation finding ledger in priority order",
+      "commands": [
+        {
+          "name": "findings",
+          "description": "List findings ordered by adoption count, target rung, and severity",
+          "positionals": [{"name": "operation", "required": true, "description": "Only supported operation: list"}],
+          "flags": [
+            {"name": "json", "bool": true, "description": "Emit JSON"},
+            {"name": "root", "description": "Override the findings ledger path"}
+          ],
+          "binding": {"kind": "local"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["filesystem:read"]}
+        }
       ]
     }
   ],

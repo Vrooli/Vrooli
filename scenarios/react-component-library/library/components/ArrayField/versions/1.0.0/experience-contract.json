@@ -24,21 +24,21 @@
   "claims": [
     {
       "id": "item-actions",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Move, duplicate, and remove actions are native buttons with names that identify the item they affect.",
       "tier": "manual",
       "states": ["default"]
     },
     {
       "id": "constraint-recovery",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Minimum and maximum item constraints remain visible and do not silently discard user values.",
       "tier": "manual",
       "states": ["empty", "default"]
     },
     {
       "id": "responsive-collection",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Item controls reflow below the control at narrow widths without document overflow.",
       "tier": "manual",
       "states": ["default"]

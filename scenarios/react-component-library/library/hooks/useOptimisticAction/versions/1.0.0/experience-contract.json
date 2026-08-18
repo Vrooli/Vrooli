@@ -19,14 +19,14 @@
   "claims": [
     {
       "id": "rollback",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "A rejected action restores the exact previous value and exposes the async error state.",
       "tier": "manual",
       "states": ["default"]
     },
     {
       "id": "cancellation",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Cancellation stops the underlying async action and exposes cancelled status without falsely committing the prediction.",
       "tier": "manual",
       "states": ["default"]

@@ -75,7 +75,7 @@ export function EmulatorToolbar({ emulator, compactOnMobile = false }: EmulatorT
       <AnchoredMenu
         label={t(strings.components.emulator.viewportLabel)}
         summary={summary}
-        icon={<MonitorSmartphone aria-hidden className="h-4 w-4" />}
+        icon={<MonitorSmartphone aria-hidden className="h-icon-sm w-icon-sm" />}
         triggerTestId={selectors.components.emulator.viewportToggle}
         panelTestId={selectors.components.emulator.viewportPanel}
         compactOnMobile={compactOnMobile}
@@ -102,7 +102,7 @@ export function EmulatorToolbar({ emulator, compactOnMobile = false }: EmulatorT
                       data-preset={preset.id}
                       variant={active ? "primary" : "secondary"}
                       aria-pressed={active}
-                      className="h-auto min-h-12 min-w-11 justify-between px-space-xs py-space-2xs text-left text-xs"
+                      className="h-auto min-h-control-xl min-w-touch justify-between px-space-xs py-space-2xs text-left text-xs"
                       onClick={() => emulator.setPreset(preset.id)}
                     >
                       <span>{preset.label}</span>
@@ -130,7 +130,7 @@ export function EmulatorToolbar({ emulator, compactOnMobile = false }: EmulatorT
             data-preset="responsive"
             variant={emulator.isResponsive ? "primary" : "secondary"}
             aria-pressed={emulator.isResponsive}
-            className="mt-space-2xs h-9 px-space-xs text-xs"
+            className="mt-space-2xs h-control-sm px-space-xs text-xs"
             onClick={() => emulator.setPreset("responsive")}
           >
             {t(strings.components.emulator.responsiveLabel)}
@@ -149,7 +149,7 @@ export function EmulatorToolbar({ emulator, compactOnMobile = false }: EmulatorT
                   min={1}
                   value={Math.round(emulator.displayWidth)}
                   onChange={(event) => emulator.setDimension("width", Number(event.target.value))}
-                  className="mt-space-3xs h-9 min-h-9 font-mono text-xs"
+                  className="mt-space-3xs h-control-sm min-h-control-sm font-mono text-xs"
                 />
               </label>
               <label className="text-xs text-app-muted-foreground" htmlFor={heightInputId}>
@@ -161,7 +161,7 @@ export function EmulatorToolbar({ emulator, compactOnMobile = false }: EmulatorT
                   min={1}
                   value={Math.round(emulator.displayHeight)}
                   onChange={(event) => emulator.setDimension("height", Number(event.target.value))}
-                  className="mt-space-3xs h-9 min-h-9 font-mono text-xs"
+                  className="mt-space-3xs h-control-sm min-h-control-sm font-mono text-xs"
                 />
               </label>
             </div>
@@ -171,7 +171,7 @@ export function EmulatorToolbar({ emulator, compactOnMobile = false }: EmulatorT
         <section className="pt-space-xs">
           <label className="text-xs text-app-muted-foreground" htmlFor={zoomId}>
             <span className="flex items-center gap-space-2xs">
-              <ZoomIn aria-hidden className="h-3.5 w-3.5" />
+              <ZoomIn aria-hidden className="h-icon-compact w-icon-compact" />
               {t(strings.components.emulator.zoomLabel)}
             </span>
             <Select
@@ -179,7 +179,7 @@ export function EmulatorToolbar({ emulator, compactOnMobile = false }: EmulatorT
               data-testid={selectors.components.emulator.zoomValue}
               value={emulator.zoom}
               onChange={(event) => emulator.setZoom(Number(event.target.value))}
-              className="mt-space-3xs h-9 min-h-9 text-xs"
+              className="mt-space-3xs h-control-sm min-h-control-sm text-xs"
               options={emulator.zoomLevels.map((level) => ({
                 value: String(level),
                 label: t(strings.components.emulator.zoomValue, {
@@ -195,9 +195,9 @@ export function EmulatorToolbar({ emulator, compactOnMobile = false }: EmulatorT
               onClick={emulator.rotate}
               aria-pressed={emulator.isRotated}
               variant="secondary"
-              className="h-9 flex-1 gap-space-2xs px-space-2xs text-xs"
+              className="h-control-sm flex-1 gap-space-2xs px-space-2xs text-xs"
             >
-              <RotateCw aria-hidden className="h-3.5 w-3.5" />
+              <RotateCw aria-hidden className="h-icon-compact w-icon-compact" />
               {t(strings.components.emulator.rotate)}
             </Button>
             <Button
@@ -205,9 +205,9 @@ export function EmulatorToolbar({ emulator, compactOnMobile = false }: EmulatorT
               data-testid={selectors.components.emulator.reset}
               onClick={emulator.reset}
               variant="secondary"
-              className="h-9 flex-1 gap-space-2xs px-space-2xs text-xs"
+              className="h-control-sm flex-1 gap-space-2xs px-space-2xs text-xs"
             >
-              <Undo2 aria-hidden className="h-3.5 w-3.5" />
+              <Undo2 aria-hidden className="h-icon-compact w-icon-compact" />
               {t(strings.components.emulator.reset)}
             </Button>
             <Button
@@ -220,7 +220,7 @@ export function EmulatorToolbar({ emulator, compactOnMobile = false }: EmulatorT
                 )
               }
               variant="secondary"
-              className="h-9 flex-1 px-space-2xs text-xs"
+              className="h-control-sm flex-1 px-space-2xs text-xs"
             >
               {t(strings.components.emulator.fit)}
             </Button>

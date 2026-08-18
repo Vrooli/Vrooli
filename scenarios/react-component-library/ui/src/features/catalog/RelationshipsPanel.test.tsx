@@ -23,8 +23,24 @@ function renderPanel(assetId = "root") {
 const result = {
   root: { assetId: "root", name: "Root", rung: 3 },
   directDependencies: [{ assetId: "dep", name: "Dependency", rung: 2 }],
-  closure: [{ assetId: "root", name: "Root", rung: 3 }, { assetId: "dep", name: "Dependency", rung: 2 }],
-  closureBands: [{ rung: 3, rungName: "component", count: 1, assets: [{ assetId: "root", name: "Root", rung: 3 }] }, { rung: 2, rungName: "primitive", count: 1, assets: [{ assetId: "dep", name: "Dependency", rung: 2 }] }],
+  closure: [
+    { assetId: "root", name: "Root", rung: 3 },
+    { assetId: "dep", name: "Dependency", rung: 2 },
+  ],
+  closureBands: [
+    {
+      rung: 3,
+      rungName: "component",
+      count: 1,
+      assets: [{ assetId: "root", name: "Root", rung: 3 }],
+    },
+    {
+      rung: 2,
+      rungName: "primitive",
+      count: 1,
+      assets: [{ assetId: "dep", name: "Dependency", rung: 2 }],
+    },
+  ],
   directDependents: [{ assetId: "consumer", name: "Consumer", rung: 4 }],
   transitiveDependents: [{ assetId: "consumer", name: "Consumer", rung: 4 }],
 } as never;
@@ -42,14 +58,18 @@ describe("RelationshipsPanel", () => {
   it("renders an error state", async () => {
     getAssetRelationships.mockRejectedValue(new Error("offline"));
     renderPanel();
-    expect(await screen.findByRole("alert")).toHaveTextContent("Unable to load asset relationships");
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Unable to load asset relationships",
+    );
     expect(screen.getByTestId("relationships-panel")).toHaveAttribute("data-state", "error");
   });
 
   it("renders an empty state", async () => {
     getAssetRelationships.mockResolvedValue(null);
     renderPanel();
-    await waitFor(() => expect(screen.getByTestId("relationships-panel")).toHaveAttribute("data-state", "empty"));
+    await waitFor(() =>
+      expect(screen.getByTestId("relationships-panel")).toHaveAttribute("data-state", "empty"),
+    );
     expect(screen.getByText("No relationship data")).toBeInTheDocument();
   });
 
@@ -60,7 +80,11 @@ describe("RelationshipsPanel", () => {
     expect(screen.getByText("Used by")).toBeInTheDocument();
     expect(screen.getByText("Blast radius")).toBeInTheDocument();
     expect(screen.getAllByLabelText("Rung 2").length).toBeGreaterThan(0);
-    expect(screen.getAllByRole("link", { name: /Dependency/ }).every((link) => link.getAttribute("href") === "/assets/dep?tab=relationships")).toBe(true);
+    expect(
+      screen
+        .getAllByRole("link", { name: /Dependency/ })
+        .every((link) => link.getAttribute("href") === "/assets/dep?tab=relationships"),
+    ).toBe(true);
     expect(screen.getByText("Rung 3 · component")).toBeInTheDocument();
   });
 });

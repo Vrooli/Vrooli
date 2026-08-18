@@ -1,1 +1,43 @@
-{"schemaVersion":3,"kind":"component","title":"NavLink","args":{"fields":[]},"environment":{"fixtures":[]},"frame":{"asset":"navigation.page","region":"navigation","fixture":"fixtures.user-directory"},"stories":[{"id":"default","name":"Default","args":{"label":"Overview","current":true},"expect":[{"kind":"role","role":"link","name":"Overview"}]},{"id":"long-content","name":"Long content","args":{"label":"Overview","current":true}}]}
+{
+  "schemaVersion": 3,
+  "kind": "component",
+  "title": "NavLink",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "frame": {
+    "asset": "navigation.page",
+    "region": "navigation",
+    "fixture": "fixtures.user-directory"
+  },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Default",
+      "args": {
+        "label": "Overview",
+        "current": true
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "link",
+          "name": "Overview"
+        }
+      ],
+      "mode": "pinned"
+    },
+    {
+      "id": "long-content",
+      "name": "Long content",
+      "args": {
+        "label": "Overview",
+        "current": true
+      },
+      "mode": "pinned"
+    }
+  ]
+}

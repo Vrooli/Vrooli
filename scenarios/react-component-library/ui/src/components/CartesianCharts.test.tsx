@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, screen } from "@testing-library/react";
+
+import { renderWithProviders } from "../test-utils";
 
 import { CartesianCharts } from "./CartesianCharts";
 
@@ -7,7 +9,7 @@ describe("CartesianCharts", () => {
   afterEach(() => cleanup());
 
   it("renders an accessible empty state", () => {
-    render(
+    renderWithProviders(
       <CartesianCharts title="Version progression" description="Chart description" data={[]} />,
     );
 
@@ -17,7 +19,7 @@ describe("CartesianCharts", () => {
   });
 
   it("renders a point without requiring detail text", () => {
-    render(
+    renderWithProviders(
       <CartesianCharts
         title="Version progression"
         data={[{ id: "1.0.0", label: "1.0.0", value: 80 }]}

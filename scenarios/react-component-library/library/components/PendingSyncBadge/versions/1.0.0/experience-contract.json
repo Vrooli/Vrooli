@@ -1,0 +1,28 @@
+{
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "schema": "scenario-experience-spec/v1",
+    "provenance": "react-component-library:PendingSyncBadge@1.0.0"
+  },
+  "component": {
+    "id": "monetization.pending-sync-badge",
+    "title": "PendingSyncBadge",
+    "purpose": "Show pending synchronization work."
+  },
+  "states": [
+    {
+      "id": "pending",
+      "example": "pending",
+      "description": "Pending work is announced."
+    }
+  ],
+  "claims": [
+    {
+      "id": "pending-state-is-announced",
+      "type": "manual-review",
+      "statement": "Pending synchronization is exposed as a status region.",
+      "tier": "manual",
+      "states": ["pending"]
+    }
+  ]
+}

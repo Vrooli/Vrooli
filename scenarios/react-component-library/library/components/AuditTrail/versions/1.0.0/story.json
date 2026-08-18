@@ -1,1 +1,45 @@
-{"schemaVersion":1,"kind":"component","title":"AuditTrail","args":{"fields":[]},"environment":{"fixtures":[]},"stories":[{"id":"default","name":"Default","args":{"entries":[{"actor":"Alex","action":"updated"}]},"expect":[{"kind":"text","value":"Alex"}]},{"id":"empty","name":"Empty","args":{"entries":[{"actor":"Alex","action":"updated"}]}}]}
+{
+  "schemaVersion": 3,
+  "kind": "component",
+  "title": "AuditTrail",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Default",
+      "args": {
+        "entries": [
+          {
+            "actor": "Alex",
+            "action": "updated"
+          }
+        ]
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Alex"
+        }
+      ],
+      "mode": "pinned"
+    },
+    {
+      "id": "empty",
+      "name": "Empty",
+      "args": {
+        "entries": [
+          {
+            "actor": "Alex",
+            "action": "updated"
+          }
+        ]
+      },
+      "mode": "pinned"
+    }
+  ]
+}

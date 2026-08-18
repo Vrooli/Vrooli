@@ -2,7 +2,7 @@
  * @vrooliComponentSource react-component-library:SidebarShell
  * @vrooliComponentVersion 1.2.0
  * @vrooliComponentAdoption dd1e7ab7-681b-46b4-aad9-ebc580c0e9a7
- * @vrooliComponentAppliedAt 2026-08-12T11:40:33Z
+ * @vrooliComponentAppliedAt 2026-08-18T01:12:44Z
  * @vrooliComponentSourceSha256 c31b5829265f61dfedcec92e10ed98f3effd6bd1180bae5a9ee616806b766bc8
  * @vrooliComponentDriftHash c31b5829265f61dfedcec92e10ed98f3effd6bd1180bae5a9ee616806b766bc8
  * @vrooliComponentTokenTranslation none

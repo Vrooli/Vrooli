@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 3,
   "kind": "component",
   "title": "AsyncPanel",
   "args": {
@@ -48,7 +48,8 @@
           "role": "status",
           "name": "Loading…"
         }
-      ]
+      ],
+      "mode": "pinned"
     },
     {
       "id": "ready",
@@ -70,7 +71,8 @@
           "kind": "text",
           "value": "Recent activity"
         }
-      ]
+      ],
+      "mode": "pinned"
     },
     {
       "id": "empty",
@@ -84,7 +86,8 @@
           "kind": "text",
           "value": "Nothing to show yet."
         }
-      ]
+      ],
+      "mode": "pinned"
     },
     {
       "id": "partial",
@@ -99,7 +102,8 @@
           "role": "status",
           "name": "Some information is unavailable."
         }
-      ]
+      ],
+      "mode": "pinned"
     },
     {
       "id": "error",
@@ -114,7 +118,8 @@
           "role": "status",
           "name": "This section could not be loaded."
         }
-      ]
+      ],
+      "mode": "pinned"
     }
   ]
 }

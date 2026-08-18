@@ -2,7 +2,38 @@
   "schemaVersion": 3,
   "kind": "component",
   "title": "Preview dock",
-  "args": { "fields": [{ "path": "label", "label": "Label", "kind": "text", "default": "Preview controls" }] },
-  "environment": { "fixtures": [] },
-  "stories": [{ "id": "default", "name": "Overlay controls", "harness": "Default", "mode": "pinned", "args": {}, "expect": [{ "kind": "role", "role": "toolbar", "name": "Preview controls" }, { "kind": "role", "role": "button", "name": "Focus" }] }]
+  "args": {
+    "fields": [
+      {
+        "path": "label",
+        "label": "Label",
+        "kind": "text",
+        "default": "Preview controls"
+      }
+    ]
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Overlay controls",
+      "harness": "Default",
+      "mode": "live",
+      "args": {},
+      "expect": [
+        {
+          "kind": "role",
+          "role": "toolbar",
+          "name": "Preview controls"
+        },
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Focus"
+        }
+      ]
+    }
+  ]
 }

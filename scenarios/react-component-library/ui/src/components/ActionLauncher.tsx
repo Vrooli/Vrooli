@@ -61,8 +61,8 @@ function SearchablePicker({
         }
         className={
           multiple
-            ? "min-h-24 rounded-control border border-app-border bg-app-background px-space-xs"
-            : "min-h-11 rounded-control border border-app-border bg-app-background px-space-xs"
+            ? "min-h-surface-short rounded-control border border-app-border bg-app-background px-space-xs"
+            : "min-h-touch rounded-control border border-app-border bg-app-background px-space-xs"
         }
       >
         {!multiple && <option value="">Select an option</option>}
@@ -181,12 +181,12 @@ export function ActionLauncher({
           onClick={() => onActionChange("menu")}
           size="icon"
           shape="pill"
-          className="fixed bottom-6 end-6 z-40 h-14 w-14 rounded-full p-0 shadow-lg"
+          className="fixed bottom-6 end-6 z-40 h-control-2xl w-control-2xl rounded-full p-0 shadow-lg"
           style={{
             insetBlockEnd: "calc(var(--space-md) + env(safe-area-inset-bottom, 0px))",
           }}
         >
-          <Plus aria-hidden className="h-6 w-6" />
+          <Plus aria-hidden className="h-icon-lg w-icon-lg" />
         </Button>
       )}
       <Dialog

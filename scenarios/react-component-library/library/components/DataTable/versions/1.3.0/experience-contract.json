@@ -90,7 +90,7 @@
     },
     {
       "id": "mobile-transformation",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Narrow screens transform each row into a labelled card without changing reading order.",
       "tier": "manual",
       "states": ["default", "partial"]

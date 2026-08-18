@@ -264,7 +264,7 @@ export function ComponentEditorImpl({
   const [overrideMessages, setOverrideMessages] = useState<Record<string, string>>({});
   const [previewEvents, setPreviewEvents] = useState<PreviewEvent[]>([]);
   const [previewKit, setPreviewKit] = useState<PreviewKit>(() =>
-    readPreviewPreference("rcl.preview.kit", "vrooli-default" as PreviewKit),
+    readPreviewPreference("rcl.preview.kit", "vrooli-default"),
   );
   const [frameEnabled] = useState(() => readPreviewPreference("rcl.preview.frame", true));
   const previewReloadKey = 0;
@@ -739,7 +739,7 @@ export function ComponentEditorImpl({
 
   const paneHeader = (pane: WorkspacePane, index: number, label: string, icon: ReactNode) => {
     return (
-      <header className="flex h-10 shrink-0 items-center justify-between gap-space-2xs border-b border-app-border bg-app-surface px-space-2xs">
+      <header className="flex h-control-md shrink-0 items-center justify-between gap-space-2xs border-b border-app-border bg-app-surface px-space-2xs">
         <details className="relative min-w-0">
           <summary
             data-testid="components-editor-split-pane-switcher"
@@ -749,13 +749,13 @@ export function ComponentEditorImpl({
             {icon}
             <span className="truncate">{label}</span>
           </summary>
-          <div className="absolute left-0 z-20 mt-space-3xs w-36 rounded-control border border-app-border bg-app-surface p-space-3xs shadow-lg">
+          <div className="absolute left-0 z-20 mt-space-3xs w-field rounded-control border border-app-border bg-app-surface p-space-3xs shadow-lg">
             {availablePanes.map((candidate) => (
               <Button
                 key={candidate}
                 type="button"
                 variant="secondary"
-                className="h-8 w-full justify-start px-space-2xs text-xs"
+                className="h-control-tight w-full justify-start px-space-2xs text-xs"
                 onClick={() => selectSplitPane(index, candidate)}
               >
                 {paneLabels[candidate]}
@@ -887,7 +887,7 @@ export function ComponentEditorImpl({
                 data-testid="workspace-header-open-sidebar"
                 className="touch-target inline-flex items-center justify-center rounded-control text-app-muted-foreground hover:bg-app-surface-muted hover:text-app-foreground"
               >
-                <Menu aria-hidden className="h-5 w-5" />
+                <Menu aria-hidden className="h-icon-md w-icon-md" />
               </button>
             ) : undefined
           }
@@ -909,9 +909,9 @@ export function ComponentEditorImpl({
                   aria-label={t("components.editor.splitView", { defaultValue: "Split view" })}
                   aria-pressed={splitView}
                   onClick={toggleSplitView}
-                  className={`hidden h-8 min-h-8 min-w-8 lg:inline-flex ${splitView ? "bg-app-primary text-app-primary-foreground" : "border border-app-border bg-app-surface"}`}
+                  className={`hidden h-control-tight min-h-control-tight min-w-control-tight lg:inline-flex ${splitView ? "bg-app-primary text-app-primary-foreground" : "border border-app-border bg-app-surface"}`}
                 >
-                  <PanelsLeftRight aria-hidden className="h-3.5 w-3.5" />
+                  <PanelsLeftRight aria-hidden className="h-icon-compact w-icon-compact" />
                 </IconButton>
               )}
               {renderable && (
@@ -919,9 +919,9 @@ export function ComponentEditorImpl({
                   data-testid={selectors.components.editor.closeButton}
                   aria-label={t(strings.components.editor.close)}
                   onClick={onClose}
-                  className="h-11 min-h-11 min-w-11 border border-app-border bg-app-surface"
+                  className="h-touch min-h-touch min-w-touch border border-app-border bg-app-surface"
                 >
-                  <ArrowLeft aria-hidden className="h-3.5 w-3.5" />
+                  <ArrowLeft aria-hidden className="h-icon-compact w-icon-compact" />
                 </IconButton>
               )}
             </div>
@@ -1040,13 +1040,13 @@ export function ComponentEditorImpl({
                               "preview",
                               index,
                               paneLabels.preview,
-                              <Eye aria-hidden className="h-3.5 w-3.5" />,
+                              <Eye aria-hidden className="h-icon-compact w-icon-compact" />,
                             )}
                           <div
                             data-preview-floating-dock
                             role="toolbar"
                             aria-label="Preview controls"
-                            className="absolute left-space-xs right-space-xs top-space-xs z-20 flex min-w-0 max-w-[calc(100%-var(--space-sm))] flex-wrap items-center gap-space-2xs rounded-panel border border-app-border/80 bg-app-surface/95 px-space-2xs py-space-2xs shadow-xl backdrop-blur"
+                            className="absolute left-space-xs right-space-xs top-space-xs z-20 flex min-w-0 max-w-inline-overlay flex-wrap items-center gap-space-2xs rounded-panel border border-app-border/80 bg-app-surface/95 px-space-2xs py-space-2xs shadow-xl backdrop-blur"
                           >
                             <nav
                               className="order-last min-w-0 max-w-full basis-full overflow-x-auto border-t border-app-border/70 pt-space-2xs"
@@ -1062,7 +1062,7 @@ export function ComponentEditorImpl({
                                       data-testid={selectors.components.editor.storyPickerItem}
                                       type="button"
                                       variant={selected ? "primary" : "secondary"}
-                                      className="h-8 min-w-11 shrink-0 px-space-2xs text-xs"
+                                      className="h-control-tight min-w-touch shrink-0 px-space-2xs text-xs"
                                       aria-current={selected ? "true" : undefined}
                                       title={example?.description}
                                       onClick={() => activateSpecimen(identity)}
@@ -1089,12 +1089,12 @@ export function ComponentEditorImpl({
                               onClick={() => {
                                 void togglePreviewFullscreen();
                               }}
-                              className="h-11 min-h-11 min-w-11 border border-app-border bg-app-surface"
+                              className="h-touch min-h-touch min-w-touch border border-app-border bg-app-surface"
                             >
                               {previewFullscreen ? (
-                                <Minimize2 aria-hidden className="h-3.5 w-3.5" />
+                                <Minimize2 aria-hidden className="h-icon-compact w-icon-compact" />
                               ) : (
-                                <Maximize2 aria-hidden className="h-3.5 w-3.5" />
+                                <Maximize2 aria-hidden className="h-icon-compact w-icon-compact" />
                               )}
                             </IconButton>
                             <ThemeSwitcher
@@ -1109,7 +1109,7 @@ export function ComponentEditorImpl({
                             <Button
                               type="button"
                               variant={stageMode ? "primary" : "secondary"}
-                              className="h-8 px-space-2xs text-xs"
+                              className="h-control-tight px-space-2xs text-xs"
                               aria-pressed={stageMode}
                               data-testid="components-editor-stage-mode"
                               onClick={() => {
@@ -1133,15 +1133,21 @@ export function ComponentEditorImpl({
                                         defaultValue: "Hide controls",
                                       })
                                 }
-                                className="ml-auto h-11 min-h-11 min-w-11 border border-app-border bg-app-surface"
+                                className="ml-auto h-touch min-h-touch min-w-touch border border-app-border bg-app-surface"
                                 aria-expanded={!previewToolsCollapsed}
                                 aria-controls="component-preview-tools"
                                 onClick={togglePreviewTools}
                               >
                                 {previewToolsCollapsed ? (
-                                  <ChevronUp aria-hidden className="h-3.5 w-3.5" />
+                                  <ChevronUp
+                                    aria-hidden
+                                    className="h-icon-compact w-icon-compact"
+                                  />
                                 ) : (
-                                  <ChevronDown aria-hidden className="h-3.5 w-3.5" />
+                                  <ChevronDown
+                                    aria-hidden
+                                    className="h-icon-compact w-icon-compact"
+                                  />
                                 )}
                               </IconButton>
                             )}
@@ -1204,7 +1210,7 @@ export function ComponentEditorImpl({
                             "details",
                             index,
                             paneLabels.details,
-                            <Info aria-hidden className="h-3.5 w-3.5" />,
+                            <Info aria-hidden className="h-icon-compact w-icon-compact" />,
                           )}
                         <div
                           data-testid={selectors.components.editor.infoDialog}
@@ -1221,7 +1227,7 @@ export function ComponentEditorImpl({
                   </div>
                 </Panel>
                 {index < visiblePanes.length - 1 && (
-                  <Separator className="w-1 shrink-0 bg-app-border hover:bg-app-primary" />
+                  <Separator className="w-separator shrink-0 bg-app-border hover:bg-app-primary" />
                 )}
               </Fragment>
             ))}

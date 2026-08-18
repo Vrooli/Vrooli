@@ -1,61 +1,61 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 3,
   "kind": "component",
   "title": "InspectorLayout",
   "args": {
     "fields": [
-        {
-          "path": "title",
-          "label": "Title",
-          "kind": "text",
-          "default": "Workflow editor"
-        },
-        {
-          "path": "toolbar",
-          "label": "Toolbar",
-          "kind": "structured",
-          "default": {
-            "$node": "button",
-            "children": [
-              {
-                "$text": "Run"
-              }
-            ]
-          }
-        },
-        {
-          "path": "canvas",
-          "label": "Canvas",
-          "kind": "structured",
-          "default": {
-            "$node": "p",
-            "children": [
-              {
-                "$text": "Workflow canvas"
-              }
-            ]
-          }
-        },
-        {
-          "path": "inspector",
-          "label": "Inspector",
-          "kind": "structured",
-          "default": {
-            "$node": "p",
-            "children": [
-              {
-                "$text": "Selected step details"
-              }
-            ]
-          }
-        },
-        {
-          "path": "inspectorState",
-          "label": "Inspector State",
-          "kind": "text",
-          "default": "empty"
+      {
+        "path": "title",
+        "label": "Title",
+        "kind": "text",
+        "default": "Workflow editor"
+      },
+      {
+        "path": "toolbar",
+        "label": "Toolbar",
+        "kind": "structured",
+        "default": {
+          "$node": "button",
+          "children": [
+            {
+              "$text": "Run"
+            }
+          ]
         }
-      ]
+      },
+      {
+        "path": "canvas",
+        "label": "Canvas",
+        "kind": "structured",
+        "default": {
+          "$node": "p",
+          "children": [
+            {
+              "$text": "Workflow canvas"
+            }
+          ]
+        }
+      },
+      {
+        "path": "inspector",
+        "label": "Inspector",
+        "kind": "structured",
+        "default": {
+          "$node": "p",
+          "children": [
+            {
+              "$text": "Selected step details"
+            }
+          ]
+        }
+      },
+      {
+        "path": "inspectorState",
+        "label": "Inspector State",
+        "kind": "text",
+        "default": "empty"
+      }
+    ]
   },
   "environment": {
     "fixtures": []
@@ -107,7 +107,8 @@
           "name": "data-experience-state",
           "value": "ready"
         }
-      ]
+      ],
+      "mode": "pinned"
     },
     {
       "id": "empty-inspector",
@@ -129,40 +130,107 @@
           "kind": "text",
           "value": "Nothing to show yet."
         }
-      ]
+      ],
+      "mode": "pinned"
     },
     {
       "id": "loading-inspector",
       "name": "Loading inspector",
       "args": {
         "title": "Workflow editor",
-        "canvas": { "$node": "p", "children": [{ "$text": "Workflow canvas" }] },
-        "inspector": { "$node": "p", "children": [{ "$text": "Loading step details…" }] },
+        "canvas": {
+          "$node": "p",
+          "children": [
+            {
+              "$text": "Workflow canvas"
+            }
+          ]
+        },
+        "inspector": {
+          "$node": "p",
+          "children": [
+            {
+              "$text": "Loading step details…"
+            }
+          ]
+        },
         "inspectorState": "loading"
       },
-      "expect": [{ "kind": "attribute", "selector": "[data-experience-surface=\"inspector\"]", "name": "data-experience-state", "value": "loading" }]
+      "expect": [
+        {
+          "kind": "attribute",
+          "selector": "[data-experience-surface=\"inspector\"]",
+          "name": "data-experience-state",
+          "value": "loading"
+        }
+      ],
+      "mode": "pinned"
     },
     {
       "id": "partial-inspector",
       "name": "Partial inspector",
       "args": {
         "title": "Workflow editor",
-        "canvas": { "$node": "p", "children": [{ "$text": "Workflow canvas" }] },
-        "inspector": { "$node": "p", "children": [{ "$text": "Some step details are unavailable." }] },
+        "canvas": {
+          "$node": "p",
+          "children": [
+            {
+              "$text": "Workflow canvas"
+            }
+          ]
+        },
+        "inspector": {
+          "$node": "p",
+          "children": [
+            {
+              "$text": "Some step details are unavailable."
+            }
+          ]
+        },
         "inspectorState": "partial"
       },
-      "expect": [{ "kind": "attribute", "selector": "[data-experience-surface=\"inspector\"]", "name": "data-experience-state", "value": "partial" }]
+      "expect": [
+        {
+          "kind": "attribute",
+          "selector": "[data-experience-surface=\"inspector\"]",
+          "name": "data-experience-state",
+          "value": "partial"
+        }
+      ],
+      "mode": "pinned"
     },
     {
       "id": "error-inspector",
       "name": "Inspector error",
       "args": {
         "title": "Workflow editor",
-        "canvas": { "$node": "p", "children": [{ "$text": "Workflow canvas" }] },
-        "inspector": { "$node": "p", "children": [{ "$text": "Step details are unavailable." }] },
+        "canvas": {
+          "$node": "p",
+          "children": [
+            {
+              "$text": "Workflow canvas"
+            }
+          ]
+        },
+        "inspector": {
+          "$node": "p",
+          "children": [
+            {
+              "$text": "Step details are unavailable."
+            }
+          ]
+        },
         "inspectorState": "error"
       },
-      "expect": [{ "kind": "attribute", "selector": "[data-experience-surface=\"inspector\"]", "name": "data-experience-state", "value": "error" }]
+      "expect": [
+        {
+          "kind": "attribute",
+          "selector": "[data-experience-surface=\"inspector\"]",
+          "name": "data-experience-state",
+          "value": "error"
+        }
+      ],
+      "mode": "pinned"
     }
   ]
 }

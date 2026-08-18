@@ -51,7 +51,8 @@ function controlsFor(storyContract?: ComponentStory): ControlDefinition[] {
           const controlKind = ["object", "array", "structured"].includes(String(kind))
             ? "json"
             : kind;
-          if (!["text", "number", "boolean", "select", "json"].includes(String(controlKind))) return [];
+          if (!["text", "number", "boolean", "select", "json"].includes(String(controlKind)))
+            return [];
           return [
             {
               key: value.path,
@@ -273,14 +274,14 @@ export function PropsExperimentPanel({
           {control.label || control.key}
           {control.kind === "boolean" ? (
             <input
-              className="ml-2 h-4 w-4 align-middle"
+              className="ml-space-2xs h-icon-sm w-icon-sm align-middle"
               type="checkbox"
               checked={Boolean(valueAtPath(values, control.key))}
               onChange={(event) => setValue(control.key, event.target.checked)}
             />
           ) : control.kind === "select" ? (
             <select
-              className="mt-space-3xs h-9 w-full rounded-md border border-app-border bg-app-background px-space-2xs text-sm"
+              className="mt-space-3xs h-control-sm w-full rounded-md border border-app-border bg-app-background px-space-2xs text-sm"
               value={String(valueAtPath(values, control.key) ?? "")}
               onChange={(event) => setValue(control.key, event.target.value)}
             >
@@ -292,8 +293,12 @@ export function PropsExperimentPanel({
             </select>
           ) : control.kind === "json" ? (
             <textarea
-              className="mt-space-3xs min-h-20 w-full resize-y rounded-md border border-app-border bg-app-background p-space-2xs font-mono text-xs"
-              value={JSON.stringify(valueAtPath(values, control.key) ?? (control.kind === "json" ? {} : null), null, 2)}
+              className="mt-space-3xs min-h-surface-tiny w-full resize-y rounded-md border border-app-border bg-app-background p-space-2xs font-mono text-xs"
+              value={JSON.stringify(
+                valueAtPath(values, control.key) ?? (control.kind === "json" ? {} : null),
+                null,
+                2,
+              )}
               onChange={(event) => {
                 try {
                   setValue(control.key, JSON.parse(event.target.value));
@@ -304,7 +309,7 @@ export function PropsExperimentPanel({
             />
           ) : (
             <input
-              className="mt-space-3xs h-9 w-full rounded-md border border-app-border bg-app-background px-space-2xs text-sm"
+              className="mt-space-3xs h-control-sm w-full rounded-md border border-app-border bg-app-background px-space-2xs text-sm"
               type={control.kind === "number" ? "number" : "text"}
               min={control.minimum}
               max={control.maximum}
@@ -339,7 +344,7 @@ export function PropsExperimentPanel({
             >
               {fixture.label}
               <select
-                className="mt-space-3xs h-9 w-full rounded-md border border-app-border bg-app-background px-space-2xs text-sm"
+                className="mt-space-3xs h-control-sm w-full rounded-md border border-app-border bg-app-background px-space-2xs text-sm"
                 value={environment[fixture.key] ?? fixture.options[0] ?? ""}
                 onChange={(event) =>
                   setEnvironment((current) => ({ ...current, [fixture.key]: event.target.value }))
@@ -359,7 +364,7 @@ export function PropsExperimentPanel({
         <Button
           type="button"
           variant="ghost"
-          className="mt-space-xs h-8 px-0 text-xs text-app-primary"
+          className="mt-space-xs h-control-tight px-0 text-xs text-app-primary"
           aria-expanded={showAdvanced}
           onClick={() => setShowAdvanced((visible) => !visible)}
         >
@@ -380,7 +385,7 @@ export function PropsExperimentPanel({
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
             spellCheck={false}
-            className="mt-space-3xs min-h-40 w-full resize-y rounded-md border border-app-border bg-app-background p-space-2xs font-mono text-xs text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-primary/50"
+            className="mt-space-3xs min-h-surface-tall w-full resize-y rounded-md border border-app-border bg-app-background p-space-2xs font-mono text-xs text-app-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-primary/50"
           />
         </>
       )}
@@ -396,7 +401,7 @@ export function PropsExperimentPanel({
         <Button
           data-testid={selectors.components.editor.propsApply}
           type="button"
-          className="h-8 px-space-xs text-xs"
+          className="h-control-tight px-space-xs text-xs"
           disabled={status === "applying"}
           onClick={apply}
         >
@@ -408,7 +413,7 @@ export function PropsExperimentPanel({
           data-testid={selectors.components.editor.propsReset}
           type="button"
           variant="secondary"
-          className="h-8 px-space-xs text-xs"
+          className="h-control-tight px-space-xs text-xs"
           onClick={onReset}
         >
           {t(strings.components.editor.resetIndexedProps)}

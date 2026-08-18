@@ -2,9 +2,9 @@
  * @vrooliComponentSource react-component-library:VisualRecipes
  * @vrooliComponentVersion 1.0.0
  * @vrooliComponentAdoption 7b949fe5-bb55-4df0-93cd-506549c841d7
- * @vrooliComponentAppliedAt 2026-08-11T00:35:31Z
- * @vrooliComponentSourceSha256 002adc8d4ef7854cbd4fb08eb2156e2b0deb04eff5a91ece409fa3431a255fdd
- * @vrooliComponentDriftHash b65df4be4778bcc33701c60ca4ca6105d2db5a7ff26f8f7e9aa5542610c192df
+ * @vrooliComponentAppliedAt 2026-08-18T01:12:51Z
+ * @vrooliComponentSourceSha256 c6dc5df5c70cba2137dc0af74be35acee4fdae44f914e43775e78a7bda9ffd57
+ * @vrooliComponentDriftHash 8c162e977ab1d31c6dc217d0059f8162c67a942a213ca752209012d87059591b
  * @vrooliComponentTokenTranslation none
  *
  * This file was copied from React Component Library. Local edits are allowed;
@@ -34,19 +34,19 @@ export const motionTransition = (
 };
 export const CONTROL_VARIANTS = {
   primary: recipe(
-    "bg-[var(--app-primary)]",
-    "text-[var(--app-primary-foreground)]",
+    "bg-[var(--color-primary)]",
+    "text-[var(--color-primary-foreground)]",
     "border-transparent",
   ),
   secondary: recipe(
-    "bg-[var(--app-surface)]",
-    "text-[var(--app-foreground)]",
-    "border-[var(--app-border)]",
+    "bg-[var(--color-surface)]",
+    "text-[var(--color-foreground)]",
+    "border-[var(--color-border)]",
   ),
-  ghost: recipe("bg-transparent", "text-[var(--app-foreground)]", "border-transparent"),
+  ghost: recipe("bg-transparent", "text-[var(--color-foreground)]", "border-transparent"),
   danger: recipe(
-    "bg-[var(--app-danger)]",
-    "text-[var(--app-primary-foreground)]",
+    "bg-[var(--color-danger)]",
+    "text-[var(--color-primary-foreground)]",
     "border-transparent",
   ),
 } as const;

@@ -2,7 +2,7 @@
  * @vrooliComponentSource react-component-library:AsyncBoundary
  * @vrooliComponentVersion 1.0.0
  * @vrooliComponentAdoption ea21d62b-0215-49e0-8816-95046b0c66f5
- * @vrooliComponentAppliedAt 2026-08-12T12:57:22Z
+ * @vrooliComponentAppliedAt 2026-08-18T01:12:39Z
  * @vrooliComponentSourceSha256 f7576b33187e1852b4cc0877c0cf405443f7499a0d6ac613a9e1f2c6b24a5d1f
  * @vrooliComponentDriftHash d0a049d53065455c679898950ab531a2e6da31b9e5f54cbe63980dd1a9062309
  * @vrooliComponentTokenTranslation none

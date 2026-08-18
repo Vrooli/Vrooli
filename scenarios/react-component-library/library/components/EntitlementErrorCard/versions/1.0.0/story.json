@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 3,
+  "kind": "component",
+  "title": "EntitlementErrorCard",
+  "args": { "fields": [] },
+  "environment": { "fixtures": [] },
+  "stories": [{ "id": "payment-required", "name": "Payment required", "harness": "ErrorStory", "args": {}, "expect": [{ "kind": "role", "role": "alert" }], "mode": "live" }]
+}

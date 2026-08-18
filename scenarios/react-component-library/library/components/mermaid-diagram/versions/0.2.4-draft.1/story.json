@@ -1,7 +1,19 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 3,
   "kind": "component",
-  "args": { "fields": [] },
-  "environment": { "fixtures": [] },
-  "stories": [{ "id": "default", "name": "Default", "args": {}, "expect": [] }]
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Default",
+      "args": {},
+      "expect": [],
+      "mode": "pinned"
+    }
+  ]
 }

@@ -100,10 +100,10 @@ export function ComponentEditorStage({
   const identityFor = (example?: PreviewSpecimen): SpecimenIdentity =>
     `${example?.version || "__current__"}:${example?.name || "__default__"}`;
   return (
-    <div id="component-preview-workbench" className="relative min-h-0 flex-1 pt-48">
+    <div id="component-preview-workbench" className="relative min-h-0 flex-1 pt-space-2xl">
       <div className="relative h-full min-h-0">
         {comparisonActive && (
-          <div className="absolute bottom-space-xs left-space-xs z-10 flex max-w-[calc(100%-var(--space-sm))] items-center gap-space-2xs rounded-md border border-app-primary/30 bg-app-surface/95 px-space-xs py-space-2xs text-xs shadow-md backdrop-blur">
+          <div className="absolute bottom-space-xs left-space-xs z-10 flex max-w-inline-overlay items-center gap-space-2xs rounded-md border border-app-primary/30 bg-app-surface/95 px-space-xs py-space-2xs text-xs shadow-md backdrop-blur">
             <p
               data-testid={selectors.components.editor.comparisonToolbar}
               className="text-app-foreground"
@@ -114,7 +114,7 @@ export function ComponentEditorStage({
               data-testid={selectors.components.editor.comparisonClear}
               type="button"
               variant="secondary"
-              className="h-7 shrink-0 px-space-2xs text-xs"
+              className="h-control-compact shrink-0 px-space-2xs text-xs"
               onClick={onClearComparison}
             >
               {t(strings.components.editor.showAllStories)}
@@ -124,7 +124,7 @@ export function ComponentEditorStage({
         <p
           data-testid={selectors.components.editor.galleryStatus}
           aria-live="polite"
-          className="pointer-events-none absolute bottom-space-xs right-space-xs z-10 max-w-[45%] truncate rounded-md bg-app-surface/90 px-space-2xs py-space-3xs text-xs text-app-muted-foreground shadow-sm backdrop-blur"
+          className="pointer-events-none absolute bottom-space-xs right-space-xs z-10 max-w-overlay-label truncate rounded-md bg-app-surface/90 px-space-2xs py-space-3xs text-xs text-app-muted-foreground shadow-sm backdrop-blur"
         >
           {previewMessage ||
             t(strings.components.editor.storyStatus, {
@@ -246,7 +246,7 @@ export function ComponentEditorStage({
                               disabled={
                                 !comparedSpecimens.has(identity) && comparedSpecimens.size >= 2
                               }
-                              className="h-7 px-space-2xs text-xs"
+                              className="h-control-compact px-space-2xs text-xs"
                               onClick={() => onToggleComparison(identity)}
                             >
                               {t(strings.components.editor.compareStory)}
@@ -266,14 +266,14 @@ export function ComponentEditorStage({
                     {error ? (
                       <div
                         data-testid={selectors.components.editor.specimenError}
-                        className="flex min-h-[18rem] flex-col items-center justify-center gap-space-xs bg-app-danger/5 p-space-sm text-center"
+                        className="flex min-h-stage-empty flex-col items-center justify-center gap-space-xs bg-app-danger/5 p-space-sm text-center"
                       >
                         <p className="text-xs text-app-danger">{error}</p>
                         <Button
                           data-testid={selectors.components.editor.specimenRetry}
                           type="button"
                           variant="secondary"
-                          className="h-8 px-space-xs text-xs"
+                          className="h-control-tight px-space-xs text-xs"
                           onClick={() => onRetrySpecimen(identity)}
                         >
                           {t(strings.components.editor.previewRetry)}
@@ -325,7 +325,7 @@ export function ComponentEditorStage({
           id="component-preview-tools"
           data-testid={selectors.components.editor.previewToolsPanel}
           aria-label={t("components.editor.showTools", { defaultValue: "Preview controls" })}
-          className="absolute bottom-space-xs right-space-xs top-48 z-30 flex w-[min(30rem,calc(100%-var(--space-sm)))] min-w-0 flex-col overflow-hidden rounded-panel border border-app-border bg-app-surface/98 shadow-2xl backdrop-blur"
+          className="absolute bottom-space-xs right-space-xs top-48 z-30 flex w-stage-panel min-w-0 flex-col overflow-hidden rounded-panel border border-app-border bg-app-surface/98 shadow-2xl backdrop-blur"
         >
           <div className="flex shrink-0 items-center justify-between gap-space-xs border-b border-app-border px-space-xs py-space-2xs">
             <div>
@@ -339,7 +339,7 @@ export function ComponentEditorStage({
             <Button
               type="button"
               variant="secondary"
-              className="h-8 shrink-0 px-space-2xs text-xs"
+              className="h-control-tight shrink-0 px-space-2xs text-xs"
               onClick={onCloseTools}
             >
               {t("common.close", { defaultValue: "Close" })}

@@ -2,9 +2,9 @@
  * @vrooliComponentSource react-component-library:AppShell
  * @vrooliComponentVersion 1.0.0
  * @vrooliComponentAdoption 2c80bd09-6377-45af-9f5d-83bce616b8d9
- * @vrooliComponentAppliedAt 2026-08-12T12:35:49Z
- * @vrooliComponentSourceSha256 5e9e48c6b3dcca75fb9c2cdc65e0172259395f0bf1eda5671f320c384e236cad
- * @vrooliComponentDriftHash 576d9cf42a6d7331a578ab1b48a509a3ed835d0b26eea5812345b3d48eab5227
+ * @vrooliComponentAppliedAt 2026-08-17T23:22:40Z
+ * @vrooliComponentSourceSha256 2cf737c46aa9ffc910951b082c485b238b3597a69f03ff1498df58e31cc95eef
+ * @vrooliComponentDriftHash dbb90ad3457f949a57bd9c8bcc664dcf72aadae2d30fc1f8d967b2c3af378652
  * @vrooliComponentTokenTranslation none
  *
  * This file was copied from React Component Library. Local edits are allowed;
@@ -45,7 +45,7 @@ const appShellStyles = `
 [data-rcl-app-shell] [data-rcl-app-shell-nav] a[aria-current="page"] { font-weight: 650; box-shadow: inset var(--space-3xs) 0 var(--color-primary); }
 [data-rcl-app-shell] .rcl-app-shell-skip { position: fixed; inset-block-start: var(--space-sm); inset-inline-start: var(--space-sm); z-index: var(--layer-toast); inline-size: var(--tap-target-min); block-size: var(--tap-target-min); overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; padding: 0; border-radius: var(--radius-control); background: var(--color-primary); color: var(--color-primary-foreground); font: var(--text-label); text-decoration: none; }
 [data-rcl-app-shell] .rcl-app-shell-skip:focus-visible { inline-size: auto; block-size: auto; overflow: visible; clip-path: none; white-space: normal; padding: var(--space-xs) var(--space-sm); outline: var(--focus-ring-width) solid var(--color-focus-ring); outline-offset: var(--focus-ring-offset); }
-@media (max-width: 48rem) { [data-rcl-app-shell] { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); } [data-rcl-app-shell] [data-rcl-app-shell-nav] { border-block-end: var(--border-hairline) solid var(--color-border); border-inline-end: 0; padding: var(--space-xs); } [data-rcl-app-shell] [data-rcl-app-shell-nav] nav { display: flex; flex-wrap: wrap; max-inline-size: 100%; overflow: hidden; scrollbar-width: none; } [data-rcl-app-shell] [data-rcl-app-shell-nav] a { flex: 1 1 auto; min-inline-size: 0; max-inline-size: 100%; overflow-wrap: anywhere; white-space: normal; } [data-rcl-app-shell] [data-rcl-app-shell-header] { padding-inline: var(--space-sm); } [data-rcl-app-shell] [data-rcl-app-shell-main] { padding: var(--space-sm); } [data-rcl-app-shell][data-navigation-mode="managed"] { grid-template-rows: minmax(0, 1fr); } [data-rcl-app-shell][data-navigation-mode="managed"] > [data-rcl-app-shell-nav] { display: contents; } }
+@media (max-width: 48rem) { [data-rcl-app-shell] { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); } [data-rcl-app-shell] [data-rcl-app-shell-nav] { border-block-end: var(--border-hairline) solid var(--color-border); border-inline-end: 0; padding: var(--space-xs); } [data-rcl-app-shell] [data-rcl-app-shell-nav] nav { display: flex; flex-wrap: wrap; max-inline-size: 100%; overflow: hidden; scrollbar-width: none; } [data-rcl-app-shell] [data-rcl-app-shell-nav] a { flex: 1 1 auto; min-inline-size: 0; max-inline-size: 100%; overflow-wrap: anywhere; white-space: normal; } [data-rcl-app-shell] [data-rcl-app-shell-header] { padding-inline: var(--space-sm); } [data-rcl-app-shell] [data-rcl-app-shell-main] { padding: var(--space-sm); } }
 [data-rcl-app-shell][data-navigation-mode="managed"] { grid-template-columns: minmax(0, auto) minmax(0, 1fr); }
 [data-rcl-app-shell][data-navigation-mode="managed"] [data-rcl-app-shell-nav] { block-size: 100dvh; max-block-size: 100dvh; min-block-size: 0; overflow: hidden; padding: 0; border: 0; background: transparent; }
 [data-rcl-app-shell][data-navigation-mode="managed"] [data-rcl-app-shell-content] { min-inline-size: 0; }

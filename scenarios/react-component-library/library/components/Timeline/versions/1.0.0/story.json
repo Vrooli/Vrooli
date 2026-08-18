@@ -1,1 +1,45 @@
-{"schemaVersion":1,"kind":"component","title":"Timeline","args":{"fields":[]},"environment":{"fixtures":[]},"stories":[{"id":"default","name":"Default","args":{"events":[{"label":"Created","detail":"Today"}]},"expect":[{"kind":"text","value":"Created"}]},{"id":"empty","name":"Empty","args":{"events":[{"label":"Created","detail":"Today"}]}}]}
+{
+  "schemaVersion": 3,
+  "kind": "component",
+  "title": "Timeline",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Default",
+      "args": {
+        "events": [
+          {
+            "label": "Created",
+            "detail": "Today"
+          }
+        ]
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Created"
+        }
+      ],
+      "mode": "pinned"
+    },
+    {
+      "id": "empty",
+      "name": "Empty",
+      "args": {
+        "events": [
+          {
+            "label": "Created",
+            "detail": "Today"
+          }
+        ]
+      },
+      "mode": "pinned"
+    }
+  ]
+}

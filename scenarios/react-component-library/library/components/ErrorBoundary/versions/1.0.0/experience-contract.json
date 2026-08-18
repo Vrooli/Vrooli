@@ -24,28 +24,28 @@
   "claims": [
     {
       "id": "partial-degradation",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "The boundary replaces only its failed subtree; the host surface remains mounted.",
       "tier": "manual",
       "states": ["request-error"]
     },
     {
       "id": "recovery",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "The failure fallback exposes a keyboard-operable retry action and reset-key recovery without automatic focus capture.",
       "tier": "manual",
       "states": ["request-error", "retry"]
     },
     {
       "id": "diagnostic-safety",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Technical details are opt-in and bounded to the error message rather than exposing a raw stack by default.",
       "tier": "manual",
       "states": ["request-error"]
     },
     {
       "id": "theme-parity",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Contained errors remain legible across native and compatible preview kits.",
       "tier": "manual",
       "states": ["request-error", "retry"]

@@ -45,12 +45,12 @@ export async function runComponentTest(input: {
 }): Promise<ComponentTestReport> {
   const response = await invoke<{ report?: ComponentTestReport }>("RunComponentTest", input);
   if (!response.report) throw new Error("The server returned no component test report.");
-  return response.report as unknown as ComponentTestReport;
+  return response.report;
 }
 export async function getComponentTestReport(id: string): Promise<ComponentTestReport> {
   const response = await invoke<{ report?: ComponentTestReport }>("GetComponentTestReport", { id });
   if (!response.report) throw new Error("The server returned no component test report.");
-  return response.report as unknown as ComponentTestReport;
+  return response.report;
 }
 export async function listComponentTestReports(input: {
   componentId: string;
@@ -61,5 +61,5 @@ export async function listComponentTestReports(input: {
     "ListComponentTestReports",
     input,
   );
-  return (response.reports ?? []) as unknown as ComponentTestReport[];
+  return response.reports ?? [];
 }

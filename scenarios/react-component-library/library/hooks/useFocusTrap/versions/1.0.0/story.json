@@ -1,8 +1,40 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "kind": "hook",
   "title": "useFocusTrap",
-  "args": {"fields": [{"path":"active","label":"Active","kind":"boolean","default":true}]},
-  "environment": {"fixtures": []},
-  "stories": [{"id": "trap-active", "name": "Focus trap active", "harness":"Default", "args": {"active":true}, "interactions": [{"kind": "settle"}], "expect": [{"kind":"role","role":"status"}]}]
+  "args": {
+    "fields": [
+      {
+        "path": "active",
+        "label": "Active",
+        "kind": "boolean",
+        "default": true
+      }
+    ]
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "trap-active",
+      "name": "Focus trap active",
+      "harness": "Default",
+      "args": {
+        "active": true
+      },
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "expect": [
+        {
+          "kind": "role",
+          "role": "status"
+        }
+      ],
+      "mode": "live"
+    }
+  ]
 }

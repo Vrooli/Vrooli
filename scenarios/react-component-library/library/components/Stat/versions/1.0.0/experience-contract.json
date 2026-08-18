@@ -24,7 +24,7 @@
   "claims": [
     {
       "id": "contract-present",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Stat preserves semantic structure and token ownership.",
       "tier": "manual",
       "states": ["default", "empty"]

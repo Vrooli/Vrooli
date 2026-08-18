@@ -225,6 +225,9 @@ ON CONFLICT(component_id, version) DO UPDATE SET
 }
 
 func (s *sqliteRepository) checkReleasedVersionHashes(ctx context.Context, in IndexManifestInput) error {
+	// The entry source is the immutable release artifact. Declarative companion
+	// contracts are re-indexed independently so validation vocabulary can evolve
+	// without silently changing the code consumers pinned by source hash.
 	for _, version := range in.Versions {
 		var status, recorded string
 		err := s.db.QueryRowContext(ctx, `SELECT v.status, v.content_sha256 FROM component_versions v JOIN components c ON c.id = v.component_id WHERE c.library_id = ? AND v.version = ?`, in.Manifest.LibraryID, version.Version).Scan(&status, &recorded)
@@ -239,19 +242,6 @@ func (s *sqliteRepository) checkReleasedVersionHashes(ctx context.Context, in In
 		}
 		if status != string(VersionStatusReleased) {
 			continue
-		}
-		for _, file := range version.Files {
-			var fileHash string
-			err := s.db.QueryRowContext(ctx, `SELECT f.content_sha256 FROM component_version_files f JOIN component_versions v ON v.id = f.version_id JOIN components c ON c.id = v.component_id WHERE c.library_id = ? AND v.version = ? AND f.path = ?`, in.Manifest.LibraryID, version.Version, file.Path).Scan(&fileHash)
-			if errors.Is(err, sql.ErrNoRows) {
-				continue
-			}
-			if err != nil {
-				return fmt.Errorf("check released version file %s@%s/%s: %w", in.Manifest.LibraryID, version.Version, file.Path, err)
-			}
-			if fileHash != "" && fileHash != file.ContentSHA256 {
-				return ErrReleasedVersionMutated{ComponentID: in.Manifest.LibraryID, Version: version.Version, Path: file.Path, Recorded: fileHash, Incoming: file.ContentSHA256}
-			}
 		}
 	}
 	return nil

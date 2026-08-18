@@ -49,10 +49,14 @@ function StageRow({ result }: { result: ComponentTestResult }) {
   return (
     <li className="grid gap-space-2xs rounded-control border border-app-border bg-app-background p-space-xs sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:items-start">
       <span
-        className={`mt-space-3xs flex h-7 w-7 items-center justify-center rounded-pill ${isPassing ? "bg-app-success/10 text-app-success" : "bg-app-danger/10 text-app-danger"}`}
+        className={`mt-space-3xs flex h-control-compact w-control-compact items-center justify-center rounded-pill ${isPassing ? "bg-app-success/10 text-app-success" : "bg-app-danger/10 text-app-danger"}`}
         aria-hidden
       >
-        {isPassing ? <CheckCircle2 className="h-4 w-4" /> : <CircleAlert className="h-4 w-4" />}
+        {isPassing ? (
+          <CheckCircle2 className="h-icon-sm w-icon-sm" />
+        ) : (
+          <CircleAlert className="h-icon-sm w-icon-sm" />
+        )}
       </span>
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-space-2xs">
@@ -91,13 +95,13 @@ function Report({ report }: { report: ComponentTestReport }) {
         <div className="flex flex-wrap items-start justify-between gap-space-xs">
           <div className="flex items-start gap-space-xs">
             <span
-              className={`flex h-10 w-10 items-center justify-center rounded-control ${hasIssues ? "bg-app-warning/10 text-app-warning" : "bg-app-success/10 text-app-success"}`}
+              className={`flex h-control-md w-control-md items-center justify-center rounded-control ${hasIssues ? "bg-app-warning/10 text-app-warning" : "bg-app-success/10 text-app-success"}`}
               aria-hidden
             >
               {hasIssues ? (
-                <CircleAlert className="h-5 w-5" />
+                <CircleAlert className="h-icon-md w-icon-md" />
               ) : (
-                <ShieldCheck className="h-5 w-5" />
+                <ShieldCheck className="h-icon-md w-icon-md" />
               )}
             </span>
             <div>
@@ -147,7 +151,7 @@ function Report({ report }: { report: ComponentTestReport }) {
             className="rounded-control border border-app-border bg-app-background p-space-xs"
           >
             <div className="flex items-center gap-space-2xs">
-              <FileCheck2 aria-hidden className="h-4 w-4 text-app-info" />
+              <FileCheck2 aria-hidden className="h-icon-sm w-icon-sm text-app-info" />
               <h4 id="test-evidence-heading" className="text-sm font-semibold">
                 Evidence
               </h4>
@@ -183,15 +187,15 @@ function TestHistorySkeleton() {
     >
       <div className="flex items-start justify-between gap-space-sm">
         <div className="space-y-space-2xs">
-          <span className="block h-4 w-28 rounded-pill bg-app-surface-muted" />
-          <span className="block h-3 w-64 max-w-full rounded-pill bg-app-surface-muted" />
+          <span className="block h-icon-sm w-field-compact rounded-pill bg-app-surface-muted" />
+          <span className="block h-icon-xs w-panel-compact max-w-full rounded-pill bg-app-surface-muted" />
         </div>
-        <span className="block h-6 w-16 rounded-pill bg-app-surface-muted" />
+        <span className="block h-icon-lg w-avatar-sm rounded-pill bg-app-surface-muted" />
       </div>
       <div className="mt-space-md space-y-space-2xs">
-        <span className="block h-3 w-20 rounded-pill bg-app-surface-muted" />
-        <span className="block h-14 rounded-control bg-app-surface-muted" />
-        <span className="block h-14 rounded-control bg-app-surface-muted" />
+        <span className="block h-icon-xs w-avatar-md rounded-pill bg-app-surface-muted" />
+        <span className="block h-control-2xl rounded-control bg-app-surface-muted" />
+        <span className="block h-control-2xl rounded-control bg-app-surface-muted" />
       </div>
       <span className="sr-only">Loading test history…</span>
     </div>
@@ -243,7 +247,7 @@ export function ComponentTestPanel({
           </p>
         </div>
         <Button size="sm" onClick={() => run.mutate()} disabled={run.isPending || !version}>
-          <Play aria-hidden className="h-4 w-4" />
+          <Play aria-hidden className="h-icon-sm w-icon-sm" />
           {run.isPending ? "Running checks…" : "Run component tests"}
         </Button>
       </header>
@@ -312,7 +316,7 @@ export function ComponentTestPanel({
                   </span>
                   <ChevronRight
                     aria-hidden
-                    className="h-4 w-4 shrink-0 text-app-muted-foreground"
+                    className="h-icon-sm w-icon-sm shrink-0 text-app-muted-foreground"
                   />
                 </Link>
               </li>

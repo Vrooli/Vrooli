@@ -1,21 +1,47 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "kind": "component",
   "title": "ButtonGroup",
   "args": {
     "fields": [
-      { "path": "label", "kind": "text", "default": "Actions" },
+      {
+        "path": "label",
+        "kind": "text",
+        "default": "Actions"
+      },
       {
         "path": "children",
         "kind": "structured",
         "default": [
-          { "$node": "button", "props": { "type": "button" }, "children": [{ "$text": "Save" }] },
-          { "$node": "button", "props": { "type": "button" }, "children": [{ "$text": "Share" }] }
+          {
+            "$node": "button",
+            "props": {
+              "type": "button"
+            },
+            "children": [
+              {
+                "$text": "Save"
+              }
+            ]
+          },
+          {
+            "$node": "button",
+            "props": {
+              "type": "button"
+            },
+            "children": [
+              {
+                "$text": "Share"
+              }
+            ]
+          }
         ]
       }
     ]
   },
-  "environment": { "fixtures": [] },
+  "environment": {
+    "fixtures": []
+  },
   "stories": [
     {
       "id": "default",
@@ -24,15 +50,47 @@
       "args": {
         "label": "Actions",
         "children": [
-          { "$node": "button", "props": { "type": "button" }, "children": [{ "$text": "Save" }] },
-          { "$node": "button", "props": { "type": "button" }, "children": [{ "$text": "Share" }] }
+          {
+            "$node": "button",
+            "props": {
+              "type": "button"
+            },
+            "children": [
+              {
+                "$text": "Save"
+              }
+            ]
+          },
+          {
+            "$node": "button",
+            "props": {
+              "type": "button"
+            },
+            "children": [
+              {
+                "$text": "Share"
+              }
+            ]
+          }
         ]
       },
       "expect": [
-        { "kind": "role", "role": "group", "name": "Actions" },
-        { "kind": "text", "value": "Save" }
+        {
+          "kind": "role",
+          "role": "group",
+          "name": "Actions"
+        },
+        {
+          "kind": "text",
+          "value": "Save"
+        }
       ],
-      "interactions": [{ "kind": "settle" }]
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live"
     }
   ]
 }

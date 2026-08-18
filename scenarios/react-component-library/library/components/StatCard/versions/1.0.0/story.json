@@ -1,1 +1,39 @@
-{"schemaVersion":1,"kind":"component","title":"StatCard","args":{"fields":[]},"environment":{"fixtures":[]},"stories":[{"id":"default","name":"Default","args":{"label":"Active","value":"42","trend":"Up"},"expect":[{"kind":"text","value":"42"}]},{"id":"empty","name":"Empty","args":{"label":"Active","value":"42","trend":"Up"}}]}
+{
+  "schemaVersion": 3,
+  "kind": "component",
+  "title": "StatCard",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Default",
+      "args": {
+        "label": "Active",
+        "value": "42",
+        "trend": "Up"
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "42"
+        }
+      ],
+      "mode": "pinned"
+    },
+    {
+      "id": "empty",
+      "name": "Empty",
+      "args": {
+        "label": "Active",
+        "value": "42",
+        "trend": "Up"
+      },
+      "mode": "pinned"
+    }
+  ]
+}

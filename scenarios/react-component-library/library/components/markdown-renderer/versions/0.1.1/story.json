@@ -1,9 +1,26 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 3,
   "kind": "component",
-  "args": { "fields": [] },
-  "environment": { "fixtures": [] },
-  "stories": [{ "id": "default", "name": "Default", "args": { "content": "# Markdown renderer" }, "expect": [
-    { "kind": "text", "value": "Markdown renderer" }
-  ] }]
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Default",
+      "args": {
+        "content": "# Markdown renderer"
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Markdown renderer"
+        }
+      ],
+      "mode": "pinned"
+    }
+  ]
 }

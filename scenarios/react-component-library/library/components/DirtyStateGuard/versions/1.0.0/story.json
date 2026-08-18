@@ -2,8 +2,12 @@
   "schemaVersion": 3,
   "kind": "component",
   "title": "DirtyStateGuard",
-  "args": { "fields": [] },
-  "environment": { "fixtures": [] },
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
   "stories": [
     {
       "id": "default",
@@ -11,14 +15,35 @@
       "harness": "Default",
       "args": {},
       "expect": [
-        { "kind": "role", "role": "textbox", "name": "Working title" },
-        { "kind": "role", "role": "button", "name": "Preview leave protection" },
-        { "kind": "role", "role": "alertdialog", "name": "You have unsaved changes" }
+        {
+          "kind": "role",
+          "role": "textbox",
+          "name": "Working title"
+        },
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Preview leave protection"
+        },
+        {
+          "kind": "role",
+          "role": "alertdialog",
+          "name": "You have unsaved changes"
+        }
       ],
       "interactions": [
-        { "kind": "click", "target": { "role": "button", "name": "Preview leave protection" } },
-        { "kind": "settle" }
-      ]
+        {
+          "kind": "click",
+          "target": {
+            "role": "button",
+            "name": "Preview leave protection"
+          }
+        },
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live"
     },
     {
       "id": "prompt-open",
@@ -26,11 +51,28 @@
       "harness": "PromptOpen",
       "args": {},
       "expect": [
-        { "kind": "role", "role": "alertdialog", "name": "You have unsaved changes" },
-        { "kind": "role", "role": "button", "name": "Save changes" },
-        { "kind": "role", "role": "button", "name": "Discard changes" },
-        { "kind": "role", "role": "button", "name": "Keep editing" }
-      ]
+        {
+          "kind": "role",
+          "role": "alertdialog",
+          "name": "You have unsaved changes"
+        },
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Save changes"
+        },
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Discard changes"
+        },
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Keep editing"
+        }
+      ],
+      "mode": "live"
     }
   ]
 }

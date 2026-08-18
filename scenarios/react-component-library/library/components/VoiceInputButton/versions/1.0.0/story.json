@@ -1,62 +1,62 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 3,
   "kind": "component",
   "title": "VoiceInputButton",
   "args": {
     "fields": [
-        {
-          "path": "state",
-          "label": "State",
-          "kind": "text",
-          "default": "idle"
-        },
-        {
-          "path": "mode",
-          "label": "Mode",
-          "kind": "text",
-          "default": "always-on"
-        },
-        {
-          "path": "level",
-          "label": "Level",
-          "kind": "number",
-          "default": 0.8
-        },
-        {
-          "path": "timeoutProgress",
-          "label": "Timeout Progress",
-          "kind": "number",
-          "default": 0.65
-        },
-        {
-          "path": "rejectionReason",
-          "label": "Rejection Reason",
-          "kind": "text",
-          "default": "Speaker could not be verified"
-        },
-        {
-          "path": "onTranscribeAnyway",
-          "label": "On Transcribe Anyway",
-          "kind": "structured",
-          "default": {
-            "$handler": "continue"
-          }
-        },
-        {
-          "path": "error",
-          "label": "Error",
-          "kind": "text",
-          "default": "Voice connection interrupted"
-        },
-        {
-          "path": "onDismissError",
-          "label": "On Dismiss Error",
-          "kind": "structured",
-          "default": {
-            "$handler": "dismiss"
-          }
+      {
+        "path": "state",
+        "label": "State",
+        "kind": "text",
+        "default": "idle"
+      },
+      {
+        "path": "mode",
+        "label": "Mode",
+        "kind": "text",
+        "default": "always-on"
+      },
+      {
+        "path": "level",
+        "label": "Level",
+        "kind": "number",
+        "default": 0.8
+      },
+      {
+        "path": "timeoutProgress",
+        "label": "Timeout Progress",
+        "kind": "number",
+        "default": 0.65
+      },
+      {
+        "path": "rejectionReason",
+        "label": "Rejection Reason",
+        "kind": "text",
+        "default": "Speaker could not be verified"
+      },
+      {
+        "path": "onTranscribeAnyway",
+        "label": "On Transcribe Anyway",
+        "kind": "structured",
+        "default": {
+          "$handler": "continue"
         }
-      ]
+      },
+      {
+        "path": "error",
+        "label": "Error",
+        "kind": "text",
+        "default": "Voice connection interrupted"
+      },
+      {
+        "path": "onDismissError",
+        "label": "On Dismiss Error",
+        "kind": "structured",
+        "default": {
+          "$handler": "dismiss"
+        }
+      }
+    ]
   },
   "environment": {
     "fixtures": []
@@ -74,7 +74,8 @@
           "role": "button",
           "name": "Start voice input"
         }
-      ]
+      ],
+      "mode": "pinned"
     },
     {
       "id": "preparing",
@@ -88,7 +89,8 @@
           "role": "button",
           "name": "Preparing microphone"
         }
-      ]
+      ],
+      "mode": "pinned"
     },
     {
       "id": "recording-always-on",
@@ -104,7 +106,8 @@
           "role": "button",
           "name": "Stop voice input"
         }
-      ]
+      ],
+      "mode": "pinned"
     },
     {
       "id": "recording-level-low",
@@ -120,7 +123,8 @@
           "role": "button",
           "name": "Stop voice input"
         }
-      ]
+      ],
+      "mode": "pinned"
     },
     {
       "id": "recording-level-high",
@@ -136,7 +140,8 @@
           "role": "button",
           "name": "Stop voice input"
         }
-      ]
+      ],
+      "mode": "pinned"
     },
     {
       "id": "recording-timeout",
@@ -152,7 +157,8 @@
           "role": "button",
           "name": "Stop voice input"
         }
-      ]
+      ],
+      "mode": "pinned"
     },
     {
       "id": "speaker-rejected",
@@ -169,7 +175,8 @@
           "kind": "text",
           "value": "Transcribe anyway"
         }
-      ]
+      ],
+      "mode": "pinned"
     },
     {
       "id": "recovering",
@@ -183,7 +190,8 @@
           "role": "button",
           "name": "Listening for voice input"
         }
-      ]
+      ],
+      "mode": "pinned"
     },
     {
       "id": "unavailable",
@@ -198,7 +206,8 @@
           "name": "disabled",
           "value": ""
         }
-      ]
+      ],
+      "mode": "pinned"
     },
     {
       "id": "error",
@@ -220,7 +229,8 @@
           "kind": "text",
           "value": "Voice connection interrupted"
         }
-      ]
+      ],
+      "mode": "pinned"
     }
   ]
 }

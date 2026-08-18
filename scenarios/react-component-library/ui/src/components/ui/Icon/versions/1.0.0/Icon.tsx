@@ -1,10 +1,10 @@
 /**
  * @vrooliComponentSource react-component-library:Icon
- * @vrooliComponentVersion 1.0.0
+ * @vrooliComponentVersion 1.1.0
  * @vrooliComponentAdoption 3300c045-811e-474a-8de2-3994ae86b436
- * @vrooliComponentAppliedAt 2026-08-12T12:59:50Z
- * @vrooliComponentSourceSha256 35659cb3622fb3e5d05927b3b01d98c96240df28eb05c644a2b2e3a0f9221c1a
- * @vrooliComponentDriftHash 1f5a2e6aa98a0a1bd6f308a0edfc9a4738c5837892c514f59a4f33aff5b1b2ad
+ * @vrooliComponentAppliedAt 2026-08-18T01:12:35Z
+ * @vrooliComponentSourceSha256 b6d27671e51cf4c9f345910559849601e7790059b77a0ae3320c22cb882a0a32
+ * @vrooliComponentDriftHash b6b30f771ba055fde0ccc98cb9ed6cd0bd549e23540e905a6e6bfcf6f9b048ec
  * @vrooliComponentTokenTranslation none
  *
  * This file was copied from React Component Library. Local edits are allowed;
@@ -27,6 +27,26 @@ const toneColors: Record<IconTone, string> = {
   danger: SEMANTIC_TOKENS.danger,
 };
 
+/**
+ * 1.1.0 — size through CSS rather than SVG presentation attributes.
+ *
+ * 1.0.0 applied the token to `width=`/`height=`, but those are SVG geometry
+ * attributes and their grammar is `<length>`; `var()` is not a length, so the
+ * browser rejected the whole attribute:
+ *
+ *   Error: <svg> attribute width: Expected length, "var(--icon-size-md, 1.25rem)"
+ *
+ * A rejected geometry attribute means the element has no author-specified
+ * size, so it falls back to the replaced-element default (300x150) and renders
+ * enormous. `iconSize()` has always returned a `var()` expression, so every
+ * icon rendered through this primitive was affected — the defect is invisible
+ * in any test that does not measure the laid-out box.
+ *
+ * The CSS `inline-size`/`block-size` properties do accept `var()`, and being
+ * logical they also mirror correctly under `dir="rtl"`. Explicit width/height
+ * props still pass through as attributes for callers that supply real lengths,
+ * and are mirrored into CSS so the two cannot disagree.
+ */
 export function Icon({
   name,
   label,
@@ -41,6 +61,7 @@ export function Icon({
   tone?: IconTone;
 } & SVGElementProps) {
   const icon = ICON_REGISTRY[name];
+  const resolved = iconSize(size);
   return (
     <svg
       {...props}
@@ -48,18 +69,14 @@ export function Icon({
       aria-label={label}
       role={label ? "img" : undefined}
       viewBox={icon.viewBox}
-      // Sized in CSS below, not here: SVG width/height are geometry attributes
-      // whose grammar is <length>, and iconSize() returns a var() expression
-      // that the browser rejects outright — leaving the icon at the 300x150
-      // replaced-element default. Tracks primitives.icon@1.1.0.
       fill="none"
       stroke="currentColor"
       strokeWidth={props.strokeWidth ?? 2}
       strokeLinecap="round"
       strokeLinejoin="round"
       style={{
-        inlineSize: props.width ?? iconSize(size),
-        blockSize: props.height ?? iconSize(size),
+        inlineSize: props.width ?? resolved,
+        blockSize: props.height ?? resolved,
         color: toneColors[tone],
         ...style,
       }}

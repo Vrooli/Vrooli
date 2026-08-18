@@ -338,3 +338,59 @@ legible and deterministic than a force-directed graph at catalog scale.
 manifest, and import drift without writing `library/**`. Host obligations are
 derived from port-facet capabilities over the closure and remain distinct from
 behavior claims.
+# Trustworthy validation instrument — Phase 1 decisions
+
+## Coverage evidence is a bounded local cache
+
+Visual captures remain local under `coverage/` because browser traces and
+screenshots are large, generated artifacts. The checked-in contract is the
+retention policy and the durable verdict/evaluator/hash records, not pixels.
+The CLI owns pruning and defaults to a dry run so an operator can review the
+deletion set before applying it.
+
+## Calibration fixtures will live outside catalog coverage
+
+The calibration set introduced in Phase 2 will live under
+`scenarios/react-component-library/calibration/`. It is a checked-in oracle,
+not a catalog asset, so it will be excluded from catalog coverage denominators.
+
+## Parked plans are superseded by this execution
+
+`preview-stage-rebuild-a-canvas-workbench-built-from-library` and
+`ui-platform-trust-repair-make-component-validation-prove` are superseded by
+this plan. Their delivered preview-stage and validation-instrument work is
+retained; their unfinished prove-it phases are covered by this plan's
+calibration, performance, floor, finding, and dogfooding phases.
+
+## Released source remains immutable
+
+The existing `released-version-immutable` catalog gate is the single source
+immutability check. Phase 1 adds a synthetic drift regression test and repairs
+the existing drifted adoption records by publishing corrected versions or
+restoring released bytes as appropriate.
+
+## Capture determinism is an explicit harness contract
+
+The capture helper uses the direct preview harness URL, an explicit light/dark
+theme, a fixed seed, a reduced-motion query, the DOM readiness selector
+`#root[data-experience-state=ready][data-rcl-theme]`, and a bounded worker pool.
+The harness freezes animation/transition timing and caret rendering only when
+the capture query requests deterministic motion. A revision manifest lets
+changed-only runs skip unchanged asset/theme/viewport inputs while durable
+verdict and timing records remain reviewable.
+
+## Companion contracts evolve independently from released entry code
+
+Released entry source bytes are protected by the immutable-source gate. Story
+and experience contracts are version-local declarative validation data and may
+be re-indexed when the contract schema, evaluator vocabulary, or proof policy
+changes. This keeps runtime releases immutable while allowing the validation
+instrument to mature; source drift still fails the gate and requires a new
+released version or restoration of the recorded source bytes.
+# Calibration corpus and evaluator evidence
+
+The frozen calibration corpus lives under `scenarios/react-component-library/calibration/`. It references versioned library assets, is excluded from catalog coverage ratios, and stores the P2 oracle in `verdicts.json`; later capture-performance work must compare against that file rather than regenerate it. `content-not-clipped` is the first computed visual-bar check: it consumes BAS accessibility nodes enriched with client/scroll dimensions and computed overflow, failing only when overflow is clipped without a reachable scroll affordance.
+
+# Final validation evidence is split by oracle
+
+The targeted checks are the authoritative evidence for the instrument changes: they directly cover the modified evaluator, floor, gate, story, capture, conformance, and adoption paths. The required producer-owned baseline diff is also retained, but its fresh member run terminates with the generic `phase did not apply to one or both captured targets` regression classification. Because that classifier does not identify a failing implementation assertion and repeats after managed recovery, it is reported as validation-infrastructure friction rather than converted into a false pass.

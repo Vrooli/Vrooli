@@ -206,7 +206,7 @@ function HookWorkspace({
               </StatusBadge>
             </div>
             {tab === "overview" && (
-              <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-2 text-xs">
+              <dl className="grid grid-cols-[auto_1fr] gap-x-space-xs gap-y-space-2xs text-xs">
                 <dt className="text-app-muted-foreground">
                   {t("catalog.kind", { defaultValue: "Kind" })}
                 </dt>
@@ -497,7 +497,7 @@ export function ComponentDetailPage() {
                   <h3 className="font-medium">
                     {t("componentDetail.info.identity", { defaultValue: "Identity" })}
                   </h3>
-                  <dl className="mt-space-2xs grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
+                  <dl className="mt-space-2xs grid grid-cols-[auto_1fr] gap-x-space-xs gap-y-space-3xs text-xs">
                     <dt className="text-app-muted-foreground">
                       {t(strings.components.editor.libraryIdLabel)}
                     </dt>

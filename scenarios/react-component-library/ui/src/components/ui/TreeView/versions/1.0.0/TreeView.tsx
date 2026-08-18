@@ -2,7 +2,7 @@
  * @vrooliComponentSource react-component-library:TreeView
  * @vrooliComponentVersion 1.0.0
  * @vrooliComponentAdoption e1fc3b09-3ca2-4472-ad43-9b1187d21fec
- * @vrooliComponentAppliedAt 2026-08-12T12:57:24Z
+ * @vrooliComponentAppliedAt 2026-08-18T01:12:38Z
  * @vrooliComponentSourceSha256 0d780b9681d488e414531e4c50e2adb52d8b9356c24e6b2960b5631c9c34f0a9
  * @vrooliComponentDriftHash 08828437dfa0c0b044ca2cdf46d2559128f6835f0272da506aa95cd654890fb0
  * @vrooliComponentTokenTranslation none
@@ -25,8 +25,6 @@ import { ChevronDown, ChevronRight, File, FolderOpen } from "lucide-react";
 export interface TreeNode {
   id: string;
   label: ReactNode;
-  /** Optional stable test hook attached to the selectable tree row. */
-  testId?: string;
   /** Optional accessible name when the visible label contains badges or icons. */
   ariaLabel?: string;
   children?: TreeNode[];
@@ -232,7 +230,6 @@ export function TreeView({
           aria-selected={selectedId === node.id}
           aria-expanded={hasChildren ? isExpanded : undefined}
           aria-disabled={node.disabled || undefined}
-          data-testid={node.testId}
           tabIndex={
             selectedId === node.id || (!selectedId && visibleNodes[0]?.node.id === node.id) ? 0 : -1
           }

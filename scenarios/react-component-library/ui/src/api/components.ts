@@ -118,7 +118,7 @@ export async function getComponentExperience(componentId: string): Promise<Compo
     includeExperience: true,
   });
   if (!response.experience) throw new Error("component experience was not returned");
-  return response.experience as ComponentExperience;
+  return response.experience;
 }
 
 export async function listComponentStories(

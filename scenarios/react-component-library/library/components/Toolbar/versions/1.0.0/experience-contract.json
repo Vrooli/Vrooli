@@ -29,21 +29,21 @@
   "claims": [
     {
       "id": "toolbar-semantics",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Toolbar exposes a named toolbar region and uses shared ControlBase/Toggle controls for action semantics.",
       "tier": "manual",
       "states": ["default", "interactive", "vertical"]
     },
     {
       "id": "roving-focus",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Arrow keys, Home, and End move focus among enabled items while disabled items are skipped.",
       "tier": "manual",
       "states": ["default", "interactive", "vertical"]
     },
     {
       "id": "responsive-overflow",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Horizontal toolbars preserve item geometry and allow bounded overflow on narrow surfaces.",
       "tier": "manual",
       "states": ["default", "interactive"]

@@ -34,21 +34,21 @@
   "claims": [
     {
       "id": "accessible-value",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Determinate progress exposes an accessible numeric value and a stable label.",
       "tier": "manual",
       "states": ["default", "success", "request-error"]
     },
     {
       "id": "motion-policy",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Indeterminate motion respects reduced-motion preference.",
       "tier": "manual",
       "states": ["loading"]
     },
     {
       "id": "stable-geometry",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Changing progress state preserves the progress track dimensions.",
       "tier": "manual",
       "states": ["default", "loading", "success", "request-error"]

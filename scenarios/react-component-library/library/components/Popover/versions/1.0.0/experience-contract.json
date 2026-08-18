@@ -24,21 +24,21 @@
   "claims": [
     {
       "id": "anchored-and-collision-aware",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "The surface measures its trigger, flips at viewport edges, clamps within safe margins, and keeps its arrow aligned to the trigger.",
       "tier": "manual",
       "states": ["default", "interactive"]
     },
     {
       "id": "layered-focus-dismissal",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "The trigger exposes dialog relationships, the top layer owns Escape, outside interactions dismiss, keyboard focus is bounded, and focus returns to the trigger.",
       "tier": "manual",
       "states": ["default", "interactive"]
     },
     {
       "id": "responsive-reduced-motion",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "The anchored surface becomes a mobile sheet with safe-area spacing and inherits shared Presence reduced-motion behavior.",
       "tier": "manual",
       "states": ["default", "interactive"]

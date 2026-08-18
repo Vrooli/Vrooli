@@ -39,14 +39,14 @@
   "claims": [
     {
       "id": "surface-lifecycle-preserved",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Every panel state is exposed through the embedded ExperienceSurface lifecycle attributes.",
       "tier": "manual",
       "states": ["loading", "ready", "empty", "partial", "error"]
     },
     {
       "id": "terminal-status-announced",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Loading, partial, and error states provide a polite status announcement.",
       "tier": "manual",
       "states": ["loading", "partial", "error"]

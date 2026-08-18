@@ -19,14 +19,14 @@
   "claims": [
     {
       "id": "pointer-independence",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Hover opens only for hover-capable mouse/pen pointers while keyboard focus remains an explicit path and touch does not engage hover.",
       "tier": "manual",
       "states": ["default"]
     },
     {
       "id": "related-surface",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Leaving the trigger for a declared related surface does not schedule closure.",
       "tier": "manual",
       "states": ["default"]

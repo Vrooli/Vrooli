@@ -2,13 +2,108 @@
   "schemaVersion": 3,
   "kind": "component",
   "title": "Chart",
-  "args": { "fields": [] },
-  "environment": { "fixtures": [] },
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
   "stories": [
-    { "id": "default", "name": "Interactive trend", "harness": "Default", "args": {}, "expect": [{ "kind": "role", "role": "img", "name": "Weekly activation" }, { "kind": "role", "role": "button", "name": "Sat 84" }, { "kind": "role", "role": "table" }], "interactions": [{ "kind": "click", "target": { "role": "button", "name": "Thu 76" } }, { "kind": "settle" }] },
-    { "id": "loading", "name": "Loading", "harness": "Loading", "args": {}, "expect": [{ "kind": "role", "role": "status" }] },
-    { "id": "empty", "name": "Empty", "harness": "Empty", "args": {}, "expect": [{ "kind": "role", "role": "status" }, { "kind": "text", "value": "Connect a data source" }] },
-    { "id": "request-error", "name": "Request error", "harness": "RequestError", "args": {}, "expect": [{ "kind": "role", "role": "alert" }, { "kind": "role", "role": "button", "name": "Try again" }] },
-    { "id": "offline", "name": "Offline", "harness": "Offline", "args": {}, "expect": [{ "kind": "role", "role": "status" }] }
+    {
+      "id": "default",
+      "name": "Interactive trend",
+      "harness": "Default",
+      "args": {},
+      "expect": [
+        {
+          "kind": "role",
+          "role": "img",
+          "name": "Weekly activation"
+        },
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Sat 84"
+        },
+        {
+          "kind": "role",
+          "role": "table"
+        }
+      ],
+      "interactions": [
+        {
+          "kind": "click",
+          "target": {
+            "role": "button",
+            "name": "Thu 76"
+          }
+        },
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live"
+    },
+    {
+      "id": "loading",
+      "name": "Loading",
+      "harness": "Loading",
+      "args": {},
+      "expect": [
+        {
+          "kind": "role",
+          "role": "status"
+        }
+      ],
+      "mode": "live"
+    },
+    {
+      "id": "empty",
+      "name": "Empty",
+      "harness": "Empty",
+      "args": {},
+      "expect": [
+        {
+          "kind": "role",
+          "role": "status"
+        },
+        {
+          "kind": "text",
+          "value": "Connect a data source"
+        }
+      ],
+      "mode": "live"
+    },
+    {
+      "id": "request-error",
+      "name": "Request error",
+      "harness": "RequestError",
+      "args": {},
+      "expect": [
+        {
+          "kind": "role",
+          "role": "alert"
+        },
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Try again"
+        }
+      ],
+      "mode": "live"
+    },
+    {
+      "id": "offline",
+      "name": "Offline",
+      "harness": "Offline",
+      "args": {},
+      "expect": [
+        {
+          "kind": "role",
+          "role": "status"
+        }
+      ],
+      "mode": "live"
+    }
   ]
 }

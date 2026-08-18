@@ -57,7 +57,7 @@
     },
     {
       "id": "empty-state-craft",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "The empty state explains why it is empty and offers the most relevant next action.",
       "tier": "manual",
       "states": ["no-content", "with-action", "compact"]

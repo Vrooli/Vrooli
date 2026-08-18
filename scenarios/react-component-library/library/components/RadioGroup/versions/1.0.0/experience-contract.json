@@ -29,21 +29,21 @@
   "claims": [
     {
       "id": "native-group",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "RadioGroup exposes a named radiogroup and native radio inputs sharing one name.",
       "tier": "manual",
       "states": ["default", "interactive", "disabled"]
     },
     {
       "id": "controlled-selection",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Controlled selection updates the consumer-visible value when a radio is chosen.",
       "tier": "manual",
       "states": ["interactive"]
     },
     {
       "id": "disabled-context",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Disabled options retain their labels and descriptions while preventing interaction.",
       "tier": "manual",
       "states": ["disabled"]

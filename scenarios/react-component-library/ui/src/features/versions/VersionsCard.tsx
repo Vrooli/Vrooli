@@ -96,7 +96,7 @@ export function VersionsCard({
           <Button
             type="button"
             variant={selectedVersion ? "secondary" : "primary"}
-            className="mt-space-xs h-8 px-space-xs text-xs"
+            className="mt-space-xs h-control-tight px-space-xs text-xs"
             onClick={() => onSelectVersion?.(undefined)}
           >
             {t(strings.versions.currentSource)}
@@ -124,7 +124,7 @@ export function VersionsCard({
                     {t(strings.versions.shaLabel, { sha: v.contentSha256.slice(0, 12) })}
                   </span>
                 </div>
-                <div className="mt-space-3xs flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-app-muted-foreground">
+                <div className="mt-space-3xs flex flex-wrap items-center gap-x-space-xs gap-y-space-3xs text-xs text-app-muted-foreground">
                   <span data-testid={selectors.versions.itemRecordedAt}>
                     {t(strings.versions.createdAt, {
                       when: v.createdAt?.seconds
@@ -142,7 +142,7 @@ export function VersionsCard({
                 <Button
                   type="button"
                   variant={selectedVersion === v.version ? "primary" : "secondary"}
-                  className="mt-space-2xs h-7 px-space-2xs text-xs"
+                  className="mt-space-2xs h-control-compact px-space-2xs text-xs"
                   onClick={() => onSelectVersion?.(v.version)}
                 >
                   {selectedVersion === v.version
@@ -169,7 +169,7 @@ export function VersionsCard({
               data-testid={selectors.versions.diff.fromSelect}
               value={from}
               onChange={(e) => setFrom(e.target.value)}
-              className="min-h-8 w-32 border-app-border bg-app-surface px-space-2xs py-space-3xs text-sm text-app-foreground"
+              className="min-h-control-tight w-field-short border-app-border bg-app-surface px-space-2xs py-space-3xs text-sm text-app-foreground"
               options={versionOptions.map((version) => ({ value: version, label: version }))}
               placeholder="—"
             />
@@ -180,7 +180,7 @@ export function VersionsCard({
               data-testid={selectors.versions.diff.toSelect}
               value={to}
               onChange={(e) => setTo(e.target.value)}
-              className="min-h-8 w-32 border-app-border bg-app-surface px-space-2xs py-space-3xs text-sm text-app-foreground"
+              className="min-h-control-tight w-field-short border-app-border bg-app-surface px-space-2xs py-space-3xs text-sm text-app-foreground"
               options={versionOptions.map((version) => ({ value: version, label: version }))}
               placeholder="—"
             />
@@ -189,7 +189,7 @@ export function VersionsCard({
             data-testid={selectors.versions.diff.runButton}
             onClick={() => diffMutation.mutate()}
             disabled={!from || !to || diffMutation.isPending}
-            className="h-7 px-space-xs text-xs"
+            className="h-control-compact px-space-xs text-xs"
           >
             {diffMutation.isPending
               ? t(strings.versions.diff.running)

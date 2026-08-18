@@ -51,7 +51,7 @@
     },
     {
       "id": "disabled-field-prevents-editing",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "The disabled example cannot be edited while its displayed value remains available.",
       "tier": "manual",
       "elements": ["field"],

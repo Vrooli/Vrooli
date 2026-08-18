@@ -2,16 +2,153 @@
   "schemaVersion": 3,
   "kind": "component",
   "title": "AsyncBoundary",
-  "args": { "fields": [] },
-  "environment": { "fixtures": [] },
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
   "stories": [
-    { "id": "default", "name": "Ready content", "harness": "Default", "args": {}, "expect": [{ "kind": "text", "value": "Revenue overview" }] },
-    { "id": "pending", "name": "Initial loading", "harness": "Pending", "args": {}, "expect": [{ "kind": "role", "role": "status" }, { "kind": "text", "value": "Preparing your workspace" }] },
-    { "id": "refreshing", "name": "Refreshing in place", "harness": "Refreshing", "args": {}, "expect": [{ "kind": "text", "value": "Refreshing" }, { "kind": "text", "value": "Revenue overview" }] },
-    { "id": "stale", "name": "Stale but useful", "harness": "Stale", "args": {}, "expect": [{ "kind": "text", "value": "Showing saved content" }, { "kind": "text", "value": "Revenue overview" }] },
-    { "id": "partial-error", "name": "Partial failure", "harness": "PartialError", "args": {}, "expect": [{ "kind": "text", "value": "needs attention" }, { "kind": "text", "value": "Revenue overview" }] },
-    { "id": "offline", "name": "Offline with saved content", "harness": "Offline", "args": {}, "expect": [{ "kind": "role", "role": "status" }, { "kind": "text", "value": "Showing the latest content" }] },
-    { "id": "error-static", "name": "Error with retry", "harness": "Error", "args": {}, "expect": [{ "kind": "role", "role": "alert" }, { "kind": "role", "role": "button", "name": "Try again" }] },
-    { "id": "error", "name": "Recoverable error", "harness": "ErrorRecovery", "args": {}, "expect": [{ "kind": "text", "value": "Revenue overview" }], "interactions": [{ "kind": "click", "target": { "role": "button", "name": "Try again" } }, { "kind": "settle" }] }
+    {
+      "id": "default",
+      "name": "Ready content",
+      "harness": "Default",
+      "args": {},
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Revenue overview"
+        }
+      ],
+      "mode": "live"
+    },
+    {
+      "id": "pending",
+      "name": "Initial loading",
+      "harness": "Pending",
+      "args": {},
+      "expect": [
+        {
+          "kind": "role",
+          "role": "status"
+        },
+        {
+          "kind": "text",
+          "value": "Preparing your workspace"
+        }
+      ],
+      "mode": "live"
+    },
+    {
+      "id": "refreshing",
+      "name": "Refreshing in place",
+      "harness": "Refreshing",
+      "args": {},
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Refreshing"
+        },
+        {
+          "kind": "text",
+          "value": "Revenue overview"
+        }
+      ],
+      "mode": "live"
+    },
+    {
+      "id": "stale",
+      "name": "Stale but useful",
+      "harness": "Stale",
+      "args": {},
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Showing saved content"
+        },
+        {
+          "kind": "text",
+          "value": "Revenue overview"
+        }
+      ],
+      "mode": "live"
+    },
+    {
+      "id": "partial-error",
+      "name": "Partial failure",
+      "harness": "PartialError",
+      "args": {},
+      "expect": [
+        {
+          "kind": "text",
+          "value": "needs attention"
+        },
+        {
+          "kind": "text",
+          "value": "Revenue overview"
+        }
+      ],
+      "mode": "live"
+    },
+    {
+      "id": "offline",
+      "name": "Offline with saved content",
+      "harness": "Offline",
+      "args": {},
+      "expect": [
+        {
+          "kind": "role",
+          "role": "status"
+        },
+        {
+          "kind": "text",
+          "value": "Showing the latest content"
+        }
+      ],
+      "mode": "live"
+    },
+    {
+      "id": "error-static",
+      "name": "Error with retry",
+      "harness": "Error",
+      "args": {},
+      "expect": [
+        {
+          "kind": "role",
+          "role": "alert"
+        },
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Try again"
+        }
+      ],
+      "mode": "live"
+    },
+    {
+      "id": "error",
+      "name": "Recoverable error",
+      "harness": "ErrorRecovery",
+      "args": {},
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Revenue overview"
+        }
+      ],
+      "interactions": [
+        {
+          "kind": "click",
+          "target": {
+            "role": "button",
+            "name": "Try again"
+          }
+        },
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live"
+    }
   ]
 }

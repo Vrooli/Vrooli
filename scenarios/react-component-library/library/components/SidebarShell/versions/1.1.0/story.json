@@ -1,83 +1,83 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 3,
   "kind": "component",
   "title": "SidebarShell",
   "args": {
     "fields": [
-        {
-          "path": "mode",
-          "label": "Mode",
-          "kind": "text",
-          "default": "persistent"
-        },
-        {
-          "path": "mobileOpen",
-          "label": "Mobile Open",
-          "kind": "boolean",
-          "default": false
-        },
-        {
-          "path": "mobileLabel",
-          "label": "Mobile Label",
-          "kind": "text",
-          "default": "Workspace navigation"
-        },
-        {
-          "path": "desktopLabel",
-          "label": "Desktop Label",
-          "kind": "text",
-          "default": "Workspace"
-        },
-        {
-          "path": "closeLabel",
-          "label": "Close Label",
-          "kind": "text",
-          "default": "Close navigation"
-        },
-        {
-          "path": "width",
-          "label": "Width",
-          "kind": "number",
-          "default": 280
-        },
-        {
-          "path": "children",
-          "label": "Children",
-          "kind": "structured",
-          "default": {
-            "$node": "nav",
-            "props": {
-              "className": "p-3"
-            },
-            "children": [
-              {
-                "$text": "Dashboard Components Adoptions"
-              }
-            ]
-          }
-        },
-        {
-          "path": "mobileHeader",
-          "label": "Mobile Header",
-          "kind": "structured",
-          "default": {
-            "$node": "strong",
-            "children": [
-              {
-                "$text": "Menu"
-              }
-            ]
-          }
-        },
-        {
-          "path": "onMobileClose",
-          "label": "On Mobile Close",
-          "kind": "structured",
-          "default": {
-            "$handler": "close"
-          }
+      {
+        "path": "mode",
+        "label": "Mode",
+        "kind": "text",
+        "default": "persistent"
+      },
+      {
+        "path": "mobileOpen",
+        "label": "Mobile Open",
+        "kind": "boolean",
+        "default": false
+      },
+      {
+        "path": "mobileLabel",
+        "label": "Mobile Label",
+        "kind": "text",
+        "default": "Workspace navigation"
+      },
+      {
+        "path": "desktopLabel",
+        "label": "Desktop Label",
+        "kind": "text",
+        "default": "Workspace"
+      },
+      {
+        "path": "closeLabel",
+        "label": "Close Label",
+        "kind": "text",
+        "default": "Close navigation"
+      },
+      {
+        "path": "width",
+        "label": "Width",
+        "kind": "number",
+        "default": 280
+      },
+      {
+        "path": "children",
+        "label": "Children",
+        "kind": "structured",
+        "default": {
+          "$node": "nav",
+          "props": {
+            "className": "p-3"
+          },
+          "children": [
+            {
+              "$text": "Dashboard Components Adoptions"
+            }
+          ]
         }
-      ]
+      },
+      {
+        "path": "mobileHeader",
+        "label": "Mobile Header",
+        "kind": "structured",
+        "default": {
+          "$node": "strong",
+          "children": [
+            {
+              "$text": "Menu"
+            }
+          ]
+        }
+      },
+      {
+        "path": "onMobileClose",
+        "label": "On Mobile Close",
+        "kind": "structured",
+        "default": {
+          "$handler": "close"
+        }
+      }
+    ]
   },
   "environment": {
     "fixtures": []
@@ -115,7 +115,8 @@
           "kind": "text",
           "value": "Dashboard Components Adoptions"
         }
-      ]
+      ],
+      "mode": "pinned"
     },
     {
       "id": "overlay-open",
@@ -158,7 +159,8 @@
           "kind": "text",
           "value": "Settings and account"
         }
-      ]
+      ],
+      "mode": "pinned"
     },
     {
       "id": "responsive-closed",
@@ -195,7 +197,8 @@
           "name": "data-mode",
           "value": "responsive"
         }
-      ]
+      ],
+      "mode": "pinned"
     }
   ]
 }

@@ -1,1 +1,45 @@
-{"schemaVersion":1,"kind":"component","title":"Table","args":{"fields":[]},"environment":{"fixtures":[]},"stories":[{"id":"default","name":"Default","args":{"rows":[{"Name":"Alpha","State":"Ready"}]},"expect":[{"kind":"role","role":"table"}]},{"id":"empty","name":"Empty","args":{"rows":[{"Name":"Alpha","State":"Ready"}]}}]}
+{
+  "schemaVersion": 3,
+  "kind": "component",
+  "title": "Table",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Default",
+      "args": {
+        "rows": [
+          {
+            "Name": "Alpha",
+            "State": "Ready"
+          }
+        ]
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "table"
+        }
+      ],
+      "mode": "pinned"
+    },
+    {
+      "id": "empty",
+      "name": "Empty",
+      "args": {
+        "rows": [
+          {
+            "Name": "Alpha",
+            "State": "Ready"
+          }
+        ]
+      },
+      "mode": "pinned"
+    }
+  ]
+}

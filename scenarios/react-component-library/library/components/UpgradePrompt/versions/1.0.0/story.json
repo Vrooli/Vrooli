@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 3,
+  "kind": "component",
+  "title": "UpgradePrompt",
+  "args": { "fields": [] },
+  "environment": { "fixtures": [] },
+  "stories": [{ "id": "gated-feature", "name": "Gated feature", "harness": "UpgradeStory", "args": {}, "expect": [{ "kind": "role", "role": "alert" }], "mode": "live" }]
+}

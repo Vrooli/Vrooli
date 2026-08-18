@@ -19,7 +19,7 @@
   "claims": [
     {
       "id": "contract-present",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "OfflineState distinguishes connectivity from application failure.",
       "tier": "manual",
       "states": ["offline"]

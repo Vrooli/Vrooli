@@ -19,7 +19,7 @@
   "claims": [
     {
       "id": "contract-present",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "ButtonGroup preserves action grouping and touch-target rhythm.",
       "tier": "manual",
       "states": ["default"]

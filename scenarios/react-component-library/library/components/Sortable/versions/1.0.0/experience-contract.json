@@ -29,21 +29,21 @@
   "claims": [
     {
       "id": "gesture-alternative",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Every pointer reorder has a keyboard pickup, Arrow movement, Enter commit, and Escape cancellation path.",
       "tier": "manual",
       "states": ["default"]
     },
     {
       "id": "optimistic-rollback",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "The rendered order updates immediately and returns to the prior order when persistence rejects.",
       "tier": "manual",
       "states": ["pending", "rollback"]
     },
     {
       "id": "displacement-motion",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Non-dragged rows animate keyed displacement through AutoAnimateLayout, while reduced motion settles directly.",
       "tier": "manual",
       "states": ["default", "pending"]

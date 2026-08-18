@@ -53,14 +53,14 @@
     },
     {
       "id": "keyboard-navigation",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Arrow, Home, End, Enter, and Space keys provide predictable navigation, disclosure, and selection behavior.",
       "tier": "manual",
       "states": ["default", "collapsed"]
     },
     {
       "id": "responsive-legibility",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Long labels truncate without collapsing the hierarchy or introducing horizontal overflow.",
       "tier": "manual",
       "states": ["default", "collapsed"]

@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 3,
   "kind": "component",
   "title": "Button",
   "args": {
@@ -49,7 +49,8 @@
           "role": "button",
           "name": "Save changes"
         }
-      ]
+      ],
+      "mode": "pinned"
     },
     {
       "id": "destructive",
@@ -70,7 +71,8 @@
           "role": "button",
           "name": "Delete record"
         }
-      ]
+      ],
+      "mode": "pinned"
     },
     {
       "id": "disabled-long-label",
@@ -93,7 +95,8 @@
           "name": "disabled",
           "value": ""
         }
-      ]
+      ],
+      "mode": "pinned"
     },
     {
       "id": "icon-start",
@@ -119,7 +122,8 @@
           "role": "button",
           "name": "Save draft"
         }
-      ]
+      ],
+      "mode": "pinned"
     }
   ]
 }

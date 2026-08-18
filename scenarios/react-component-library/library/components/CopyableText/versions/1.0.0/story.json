@@ -1,1 +1,46 @@
-{"schemaVersion":1,"kind":"component","title":"CopyableText","args":{"fields":[{"path":"value","kind":"text","default":"component-id"}]},"environment":{"fixtures":[]},"stories":[{"id":"ready","name":"Ready","args":{"value":"component-id"},"expect":[{"kind":"role","role":"button","name":"Copy text"}],"interactions":[{"kind":"click","target":{"role":"button","name":"Copy text"}},{"kind":"settle"}]}]}
+{
+  "schemaVersion": 3,
+  "kind": "component",
+  "title": "CopyableText",
+  "args": {
+    "fields": [
+      {
+        "path": "value",
+        "kind": "text",
+        "default": "component-id"
+      }
+    ]
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "ready",
+      "name": "Ready",
+      "args": {
+        "value": "component-id"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Copy text"
+        }
+      ],
+      "interactions": [
+        {
+          "kind": "click",
+          "target": {
+            "role": "button",
+            "name": "Copy text"
+          }
+        },
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "pinned"
+    }
+  ]
+}

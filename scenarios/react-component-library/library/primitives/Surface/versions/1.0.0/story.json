@@ -1,1 +1,89 @@
-{"schemaVersion":1,"kind":"component","title":"Surface","args":{"fields":[{"path":"elevation","label":"Elevation","kind":"enum","default":"flat","options":["flat","raised","floating","overlay"]}]},"environment":{"fixtures":[]},"stories":[{"id":"elevation-flat","name":"elevation flat","args":{"elevation":"flat"}},{"id":"elevation-raised","name":"elevation raised","args":{"elevation":"raised"}},{"id":"elevation-floating","name":"elevation floating","args":{"elevation":"floating"}},{"id":"elevation-overlay","name":"elevation overlay","args":{"elevation":"overlay"}}]}
+{
+  "schemaVersion": 3,
+  "kind": "component",
+  "title": "Surface",
+  "args": {
+    "fields": [
+      {
+        "path": "elevation",
+        "label": "Elevation",
+        "kind": "enum",
+        "default": "flat",
+        "options": [
+          "flat",
+          "raised",
+          "floating",
+          "overlay"
+        ]
+      },
+      {
+        "path": "variant",
+        "label": "Variant",
+        "kind": "enum",
+        "default": "solid",
+        "options": [
+          "solid",
+          "translucent"
+        ]
+      }
+    ]
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "elevation-flat",
+      "name": "elevation flat",
+      "args": {
+        "elevation": "flat",
+        "variant": "solid"
+      },
+      "mode": "live",
+      "harness": "Specimen",
+      "expect": [
+        {
+          "kind": "role",
+          "role": "region",
+          "name": "Component specimen"
+        }
+      ]
+    },
+    {
+      "id": "elevation-raised",
+      "name": "elevation raised",
+      "args": {
+        "elevation": "raised",
+        "variant": "solid"
+      },
+      "mode": "live",
+      "harness": "Specimen"
+    },
+    {
+      "id": "elevation-floating",
+      "name": "elevation floating",
+      "args": {
+        "elevation": "floating",
+        "variant": "translucent"
+      },
+      "mode": "live"
+      ,"harness": "Specimen",
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Translucent surface"
+        }
+      ]
+    },
+    {
+      "id": "elevation-overlay",
+      "name": "elevation overlay",
+      "args": {
+        "elevation": "overlay",
+        "variant": "solid"
+      },
+      "mode": "live",
+      "harness": "Specimen"
+    }
+  ]
+}

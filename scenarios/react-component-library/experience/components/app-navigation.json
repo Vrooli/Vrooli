@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "$schema": "../../../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
   "kind": "experience-component",
   "schemaVersion": "1.1.0",
   "component": {
@@ -9,16 +9,45 @@
     "storyRef": "../../library/components/AppNavigation/versions/1.0.0/story.json"
   },
   "states": [
-    { "id": "default", "example": "desktop", "description": "The desktop navigation surface is available." },
-    { "id": "long-content", "example": "mobile", "description": "Long labels remain operable across responsive presentations." }
+    {
+      "id": "default",
+      "example": "default",
+      "description": "The desktop navigation surface is available."
+    },
+    {
+      "id": "long-content",
+      "example": "mobile",
+      "description": "Long labels remain operable across responsive presentations."
+    }
   ],
   "elements": [
-    { "id": "navigation", "role": "navigation", "description": "The named application navigation landmark." },
-    { "id": "active-link", "role": "link", "description": "The current navigation destination." }
+    {
+      "id": "navigation",
+      "role": "navigation",
+      "description": "The named application navigation landmark."
+    },
+    {
+      "id": "active-link",
+      "role": "link",
+      "description": "The current navigation destination."
+    }
   ],
   "claims": [
-    { "id": "named-navigation", "type": "element-present", "statement": "The asset exposes a named application navigation landmark with links.", "tier": "machine", "elements": ["navigation", "active-link"], "states": ["default", "long-content"] },
-    { "id": "navigation-no-overflow", "type": "no-document-horizontal-overflow", "statement": "Navigation presentation changes do not create document-level horizontal overflow.", "tier": "machine", "states": ["default", "long-content"] }
+    {
+      "id": "named-navigation",
+      "type": "element-present",
+      "statement": "The asset exposes a named application navigation landmark with links.",
+      "tier": "machine",
+      "elements": ["navigation", "active-link"],
+      "states": ["default", "long-content"]
+    },
+    {
+      "id": "navigation-no-overflow",
+      "type": "no-document-horizontal-overflow",
+      "statement": "Navigation presentation changes do not create document-level horizontal overflow.",
+      "tier": "machine",
+      "states": ["default", "long-content"]
+    }
   ],
   "bindings": {
     "elements": {

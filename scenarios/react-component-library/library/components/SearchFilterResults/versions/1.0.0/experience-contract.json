@@ -59,7 +59,7 @@
     },
     {
       "id": "empty-distinct",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "No matches and no indexed results use distinct headings and guidance.",
       "tier": "manual",
       "states": ["no-match", "empty"]

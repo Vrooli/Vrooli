@@ -2,8 +2,12 @@
   "schemaVersion": 3,
   "kind": "component",
   "title": "DataTable",
-  "args": { "fields": [] },
-  "environment": { "fixtures": [] },
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
   "stories": [
     {
       "id": "default",
@@ -11,10 +15,21 @@
       "harness": "Default",
       "args": {},
       "expect": [
-        { "kind": "text", "value": "Search rows" },
-        { "kind": "text", "value": "6 results" }
+        {
+          "kind": "text",
+          "value": "Search rows"
+        },
+        {
+          "kind": "text",
+          "value": "6 results"
+        }
       ],
-      "interactions": [{ "kind": "settle" }]
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live"
     },
     {
       "id": "refreshing",
@@ -22,10 +37,21 @@
       "harness": "Refreshing",
       "args": {},
       "expect": [
-        { "kind": "role", "role": "status" },
-        { "kind": "text", "value": "Checking 6 resources for changes" }
+        {
+          "kind": "role",
+          "role": "status"
+        },
+        {
+          "kind": "text",
+          "value": "Checking 6 resources for changes"
+        }
       ],
-      "interactions": [{ "kind": "settle" }]
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live"
     },
     {
       "id": "partial",
@@ -33,9 +59,17 @@
       "harness": "Partial",
       "args": {},
       "expect": [
-        { "kind": "text", "value": "Two resources could not be refreshed" }
+        {
+          "kind": "text",
+          "value": "Two resources could not be refreshed"
+        }
       ],
-      "interactions": [{ "kind": "settle" }]
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live"
     },
     {
       "id": "empty",
@@ -43,10 +77,21 @@
       "harness": "Empty",
       "args": {},
       "expect": [
-        { "kind": "role", "role": "status" },
-        { "kind": "text", "value": "No resources match" }
+        {
+          "kind": "role",
+          "role": "status"
+        },
+        {
+          "kind": "text",
+          "value": "No resources match"
+        }
       ],
-      "interactions": [{ "kind": "settle" }]
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live"
     },
     {
       "id": "request-error",
@@ -54,11 +99,26 @@
       "harness": "RequestError",
       "args": {},
       "expect": [
-        { "kind": "role", "role": "alert" },
-        { "kind": "role", "role": "button", "name": "Try again" },
-        { "kind": "text", "value": "filters are still here" }
+        {
+          "kind": "role",
+          "role": "alert"
+        },
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Try again"
+        },
+        {
+          "kind": "text",
+          "value": "filters are still here"
+        }
       ],
-      "interactions": [{ "kind": "settle" }]
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live"
     },
     {
       "id": "permission-denied",
@@ -66,10 +126,21 @@
       "harness": "PermissionDenied",
       "args": {},
       "expect": [
-        { "kind": "role", "role": "status" },
-        { "kind": "text", "value": "Ask a workspace administrator" }
+        {
+          "kind": "role",
+          "role": "status"
+        },
+        {
+          "kind": "text",
+          "value": "Ask a workspace administrator"
+        }
       ],
-      "interactions": [{ "kind": "settle" }]
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live"
     }
   ]
 }

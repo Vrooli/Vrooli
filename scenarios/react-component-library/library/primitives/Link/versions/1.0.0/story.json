@@ -1,1 +1,19 @@
-{"schemaVersion":1,"kind":"component","title":"Link","args":{"fields":[]},"environment":{"fixtures":[]},"stories":[{"id":"default","name":"Default","args":{}}]}
+{
+  "schemaVersion": 3,
+  "kind": "component",
+  "title": "Link",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Default",
+      "args": {},
+      "mode": "pinned"
+    }
+  ]
+}

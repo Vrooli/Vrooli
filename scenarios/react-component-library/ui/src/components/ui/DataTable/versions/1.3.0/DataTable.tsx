@@ -2,9 +2,9 @@
  * @vrooliComponentSource react-component-library:DataTable
  * @vrooliComponentVersion 1.3.0
  * @vrooliComponentAdoption ea21d62b-0215-49e0-8816-95046b0c66f5
- * @vrooliComponentAppliedAt 2026-08-12T12:57:22Z
- * @vrooliComponentSourceSha256 ad024a947d7d8117dc384e2850194ad0194a1f5f50e3cb84812037470617b833
- * @vrooliComponentDriftHash f4e95cab9c1d68c6c5ba261eb432b006c6ab8d5301bdb1abfc1c90d8ff9bce1a
+ * @vrooliComponentAppliedAt 2026-08-18T01:12:39Z
+ * @vrooliComponentSourceSha256 fb10ccc2dfd910d060a6ed46110c677388771c1ab56e0dcaa65ac19ed51862a5
+ * @vrooliComponentDriftHash 6a45a5dc4b14aa2364e7976725ce13c463ed03ea588f038d49bca6f249c35b1c
  * @vrooliComponentTokenTranslation none
  *
  * This file was copied from React Component Library. Local edits are allowed;
@@ -22,7 +22,7 @@ import {
 } from "react";
 import { AsyncBoundary, type AsyncBoundaryStatus } from "./AsyncBoundary";
 import { Table } from "./Table";
-import { useSelectionStore } from "../../../../../services/SelectionStore/versions/1.0.0/SelectionStore";
+import { useSelectionStore } from "../../../../services/SelectionStore/versions/1.0.0/SelectionStore";
 
 export interface DataTableColumn<Row> {
   id: string;

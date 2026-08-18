@@ -24,7 +24,7 @@
   "claims": [
     {
       "id": "layout-reserved",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "The frame establishes aspect ratio before its child content resolves, preventing layout shift.",
       "tier": "manual",
       "states": ["default", "wide"]

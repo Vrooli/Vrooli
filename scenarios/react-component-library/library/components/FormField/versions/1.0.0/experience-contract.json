@@ -24,21 +24,21 @@
   "claims": [
     {
       "id": "accessible-name",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "The rendered control is named by its visible label.",
       "tier": "manual",
       "states": ["default", "validation-error"]
     },
     {
       "id": "error-association",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "An error state marks the control invalid and renders an alert associated with the field.",
       "tier": "manual",
       "states": ["validation-error"]
     },
     {
       "id": "stable-structure",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Adding help or error text does not replace or remove the control element.",
       "tier": "manual",
       "states": ["default", "validation-error"]

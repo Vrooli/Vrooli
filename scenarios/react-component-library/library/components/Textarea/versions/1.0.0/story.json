@@ -1,28 +1,28 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 3,
   "kind": "component",
   "title": "Textarea",
   "args": {
     "fields": [
-        {
-          "path": "placeholder",
-          "label": "Placeholder",
-          "kind": "text",
-          "default": "Write release notes"
-        },
-        {
-          "path": "defaultValue",
-          "label": "Default Value",
-          "kind": "text",
-          "default": "Improves preview coverage."
-        },
-        {
-          "path": "disabled",
-          "label": "Disabled",
-          "kind": "boolean",
-          "default": true
-        }
-      ]
+      {
+        "path": "placeholder",
+        "label": "Placeholder",
+        "kind": "text",
+        "default": "Write release notes"
+      },
+      {
+        "path": "defaultValue",
+        "label": "Default Value",
+        "kind": "text",
+        "default": "Improves preview coverage."
+      },
+      {
+        "path": "disabled",
+        "label": "Disabled",
+        "kind": "boolean",
+        "default": true
+      }
+    ]
   },
   "environment": {
     "fixtures": []
@@ -48,7 +48,8 @@
           "name": "placeholder",
           "value": "Write release notes"
         }
-      ]
+      ],
+      "mode": "pinned"
     },
     {
       "id": "empty",
@@ -64,7 +65,8 @@
           "name": "placeholder",
           "value": "Describe the component"
         }
-      ]
+      ],
+      "mode": "pinned"
     },
     {
       "id": "disabled",
@@ -84,7 +86,8 @@
           "kind": "text",
           "value": "Locked by release"
         }
-      ]
+      ],
+      "mode": "pinned"
     }
   ]
 }

@@ -2,7 +2,34 @@
   "schemaVersion": 3,
   "kind": "component",
   "title": "OfflineState",
-  "args": { "fields": [] },
-  "environment": { "fixtures": [] },
-  "stories": [{ "id": "offline", "name": "Offline snapshot", "harness": "Offline", "args": {}, "expect": [{ "kind": "role", "role": "status" }, { "kind": "role", "role": "button", "name": "Try again" }, { "kind": "text", "value": "Saved workspace snapshot" }] }]
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "offline",
+      "name": "Offline snapshot",
+      "harness": "Offline",
+      "args": {},
+      "expect": [
+        {
+          "kind": "role",
+          "role": "status"
+        },
+        {
+          "kind": "role",
+          "role": "button",
+          "name": "Try again"
+        },
+        {
+          "kind": "text",
+          "value": "Saved workspace snapshot"
+        }
+      ],
+      "mode": "live"
+    }
+  ]
 }

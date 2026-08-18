@@ -19,21 +19,21 @@
   "claims": [
     {
       "id": "derived-value",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "The output recalculates from current store values rather than requiring consumer synchronization state.",
       "tier": "manual",
       "states": ["calculated"]
     },
     {
       "id": "honest-status",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "The field labels the value as calculated and exposes an accessible live status without pretending it is an editable input.",
       "tier": "manual",
       "states": ["calculated"]
     },
     {
       "id": "responsive-surface",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "The derived value remains legible in the same responsive form rhythm as its source fields.",
       "tier": "manual",
       "states": ["calculated"]

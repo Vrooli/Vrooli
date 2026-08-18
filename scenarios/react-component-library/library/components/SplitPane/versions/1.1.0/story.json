@@ -2,8 +2,12 @@
   "schemaVersion": 3,
   "kind": "component",
   "title": "SplitPane",
-  "args": { "fields": [] },
-  "environment": { "fixtures": [] },
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
   "stories": [
     {
       "id": "default",
@@ -11,11 +15,26 @@
       "harness": "Default",
       "args": {},
       "expect": [
-        { "kind": "role", "role": "heading", "name": "Keep both decisions in view" },
-        { "kind": "text", "value": "Needs review" },
-        { "kind": "text", "value": "Ready to ship" }
+        {
+          "kind": "role",
+          "role": "heading",
+          "name": "Keep both decisions in view"
+        },
+        {
+          "kind": "text",
+          "value": "Needs review"
+        },
+        {
+          "kind": "text",
+          "value": "Ready to ship"
+        }
       ],
-      "interactions": [{ "kind": "settle" }]
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live"
     }
   ]
 }

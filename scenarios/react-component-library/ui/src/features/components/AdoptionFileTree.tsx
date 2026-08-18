@@ -93,7 +93,7 @@ function TreeRows({
                 className="flex items-center gap-space-2xs py-space-3xs text-xs text-app-muted-foreground"
                 style={indent}
               >
-                <Folder aria-hidden className="h-3.5 w-3.5 shrink-0" />
+                <Folder aria-hidden className="h-icon-compact w-icon-compact shrink-0" />
                 <span className="truncate">{child.name}</span>
               </div>
               <ul>
@@ -118,14 +118,14 @@ function TreeRows({
               data-entry={file.isEntry ? "true" : "false"}
               aria-current={active ? "true" : undefined}
               onClick={() => onSelectFile(fileKey(file))}
-              className={`flex w-full items-center gap-space-2xs rounded-control py-space-3xs pr-2 text-left text-xs transition-colors ${
+              className={`flex w-full items-center gap-space-2xs rounded-control py-space-3xs pr-space-2xs text-left text-xs transition-colors ${
                 active
                   ? "bg-app-primary/10 text-app-foreground"
                   : "text-app-muted-foreground hover:bg-app-surface-muted hover:text-app-foreground"
               }`}
               style={indent}
             >
-              <FileCode2 aria-hidden className="h-3.5 w-3.5 shrink-0" />
+              <FileCode2 aria-hidden className="h-icon-compact w-icon-compact shrink-0" />
               <span className="truncate font-mono">{child.name}</span>
               {file.slot && (
                 <span className="ml-auto shrink-0 rounded bg-app-surface-muted px-space-2xs py-space-3xs text-[10px] uppercase tracking-wide text-app-muted-foreground">

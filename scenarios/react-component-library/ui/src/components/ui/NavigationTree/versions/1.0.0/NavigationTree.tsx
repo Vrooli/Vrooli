@@ -1,10 +1,10 @@
 /**
  * @vrooliComponentSource react-component-library:NavigationTree
- * @vrooliComponentVersion 1.0.0
+ * @vrooliComponentVersion 1.1.0
  * @vrooliComponentAdoption 4a5e1190-da32-4358-91b8-d20fc9cf5dfa
- * @vrooliComponentAppliedAt 2026-08-12T11:54:25Z
- * @vrooliComponentSourceSha256 e774d6d5b50730a55d984bf72a12201166da06a10f45a4264a74f4829b15b237
- * @vrooliComponentDriftHash 8e46ea86d4733ff45e5197a2c7773a7d0bd4ee8a9dd03f84d22ba791709bc38e
+ * @vrooliComponentAppliedAt 2026-08-17T23:22:49Z
+ * @vrooliComponentSourceSha256 1e6b9517c884d79f15509aaea99a20f92585a8152ac6a86327a3ab90a0d52fe0
+ * @vrooliComponentDriftHash 6b57f72d3e8dc8d526d763dc62b96d70e2929a8c1be1fcee18efbd4fccd9b047
  * @vrooliComponentTokenTranslation none
  *
  * This file was copied from React Component Library. Local edits are allowed;
@@ -23,8 +23,8 @@ const navigationTreeStyles = `
 [data-rcl-navigation-tree] [data-rcl-navigation-tree-item] { min-inline-size: 0; }
 /* Icons are sized here rather than through the icon library's size prop: that
    prop lands on the SVG width/height geometry attributes, whose grammar is
-   <length>, so a var() expression is rejected and the icon falls back to the
-   300x150 replaced-element default. */
+   <length>, so a var() expression is rejected outright and the icon falls back
+   to the 300x150 replaced-element default. */
 [data-rcl-navigation-tree] svg { inline-size: var(--icon-size-sm); block-size: var(--icon-size-sm); flex: 0 0 auto; }
 `;
 

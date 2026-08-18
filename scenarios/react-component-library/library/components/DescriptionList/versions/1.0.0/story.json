@@ -1,1 +1,45 @@
-{"schemaVersion":1,"kind":"component","title":"DescriptionList","args":{"fields":[]},"environment":{"fixtures":[]},"stories":[{"id":"default","name":"Default","args":{"entries":[{"term":"Owner","description":"Platform"}]},"expect":[{"kind":"text","value":"Owner"}]},{"id":"empty","name":"Empty","args":{"entries":[{"term":"Owner","description":"Platform"}]}}]}
+{
+  "schemaVersion": 3,
+  "kind": "component",
+  "title": "DescriptionList",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Default",
+      "args": {
+        "entries": [
+          {
+            "term": "Owner",
+            "description": "Platform"
+          }
+        ]
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Owner"
+        }
+      ],
+      "mode": "pinned"
+    },
+    {
+      "id": "empty",
+      "name": "Empty",
+      "args": {
+        "entries": [
+          {
+            "term": "Owner",
+            "description": "Platform"
+          }
+        ]
+      },
+      "mode": "pinned"
+    }
+  ]
+}

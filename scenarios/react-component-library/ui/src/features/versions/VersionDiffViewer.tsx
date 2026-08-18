@@ -53,45 +53,47 @@ export function VersionDiffViewer({ rows }: VersionDiffViewerProps) {
           <Button
             type="button"
             variant={mode === "split" ? "primary" : "secondary"}
-            className="h-7 gap-space-3xs px-space-2xs text-xs"
+            className="h-control-compact gap-space-3xs px-space-2xs text-xs"
             onClick={() => setMode("split")}
             aria-pressed={mode === "split"}
           >
-            <Columns2 aria-hidden className="h-3.5 w-3.5" /> {t(strings.versions.diff.split)}
+            <Columns2 aria-hidden className="h-icon-compact w-icon-compact" />{" "}
+            {t(strings.versions.diff.split)}
           </Button>
           <Button
             type="button"
             variant={mode === "unified" ? "primary" : "secondary"}
-            className="h-7 gap-space-3xs px-space-2xs text-xs"
+            className="h-control-compact gap-space-3xs px-space-2xs text-xs"
             onClick={() => setMode("unified")}
             aria-pressed={mode === "unified"}
           >
-            <Rows3 aria-hidden className="h-3.5 w-3.5" /> {t(strings.versions.diff.unified)}
+            <Rows3 aria-hidden className="h-icon-compact w-icon-compact" />{" "}
+            {t(strings.versions.diff.unified)}
           </Button>
         </div>
         <Button
           type="button"
           variant="secondary"
-          className="h-7 gap-space-3xs px-space-2xs text-xs"
+          className="h-control-compact gap-space-3xs px-space-2xs text-xs"
           onClick={() => void copyDiff()}
         >
           {copied ? (
-            <Check aria-hidden className="h-3.5 w-3.5" />
+            <Check aria-hidden className="h-icon-compact w-icon-compact" />
           ) : (
-            <Copy aria-hidden className="h-3.5 w-3.5" />
+            <Copy aria-hidden className="h-icon-compact w-icon-compact" />
           )}
           {copied ? t(strings.versions.diff.copied) : t(strings.versions.diff.copy)}
         </Button>
       </header>
-      <div className="max-h-[32rem] overflow-auto font-mono text-[0.7rem] leading-5">
+      <div className="max-h-content-wide overflow-auto font-mono text-[0.7rem] leading-5">
         {mode === "split" ? (
-          <div role="table" className="min-w-[42rem]">
+          <div role="table" className="min-w-content-wide">
             {rows.map((row, index) => (
               <SplitHunkRow key={index} row={row} />
             ))}
           </div>
         ) : (
-          <div role="table" className="min-w-[28rem]">
+          <div role="table" className="min-w-content-compact">
             {rows.flatMap((row, index) =>
               unifiedLines(row).map((line, lineIndex) => (
                 <UnifiedHunkLine key={`${index}-${lineIndex}`} line={line} />
@@ -129,7 +131,7 @@ function unifiedLines(row: DiffRow): DiffCell[] {
 }
 
 function DiffLine({ cell }: { cell: DiffCell | undefined }) {
-  if (!cell || cell.op === DiffOp.EMPTY) return <div role="cell" className="min-h-5" />;
+  if (!cell || cell.op === DiffOp.EMPTY) return <div role="cell" className="min-h-icon-md" />;
   const marker = cell.op === DiffOp.ADD ? "+" : cell.op === DiffOp.REMOVE ? "-" : " ";
   const tone =
     cell.op === DiffOp.ADD
@@ -139,10 +141,10 @@ function DiffLine({ cell }: { cell: DiffCell | undefined }) {
         : "text-app-muted-foreground";
   return (
     <div role="cell" className={`flex min-w-0 px-space-2xs ${tone}`}>
-      <span className="w-8 shrink-0 select-none text-right text-app-muted-foreground">
+      <span className="w-control-tight shrink-0 select-none text-right text-app-muted-foreground">
         {cell.lineNumber || ""}
       </span>
-      <span className="mx-space-2xs w-3 shrink-0 select-none text-app-muted-foreground">
+      <span className="mx-space-2xs w-icon-xs shrink-0 select-none text-app-muted-foreground">
         {marker}
       </span>
       <HighlightedSource source={cell.text} />

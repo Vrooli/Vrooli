@@ -17,7 +17,9 @@ type LiveStoryProps = {
  */
 export function Live({ args, environment, log }: LiveStoryProps) {
   const [state, setState] = useState<VoiceInputButtonState>(
-    environment?.voiceInput === "recording" ? "recording" : (args.state ?? "idle"),
+    environment?.voiceInput === "recording"
+      ? "recording"
+      : (args.state ?? "idle"),
   );
   const nextState = state === "recording" ? "idle" : "recording";
 

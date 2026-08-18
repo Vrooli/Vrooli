@@ -38,14 +38,14 @@
     },
     {
       "id": "accessible-contract",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Icon distinguishes meaningful named icons from decorative glyphs for assistive technology.",
       "tier": "manual",
       "states": ["accessible"]
     },
     {
       "id": "registry-contract",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Icon resolves bounded geometry and optical size from the shared icon registry.",
       "tier": "manual",
       "states": ["registry"]

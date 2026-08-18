@@ -1,1 +1,54 @@
-{"schemaVersion":3,"kind":"component","title":"ResizableSidebar","args":{"fields":[]},"environment":{"fixtures":[]},"frame":{"asset":"navigation.page","region":"navigation","fixture":"fixtures.user-directory"},"stories":[{"id":"default","name":"Default","args":{"children":{"$node":"p","children":[{"$text":"Filters"}]}},"expect":[{"kind":"text","value":"Filters"}]},{"id":"long-content","name":"Long content","args":{"children":{"$node":"p","children":[{"$text":"Filters"}]}}}]}
+{
+  "schemaVersion": 3,
+  "kind": "component",
+  "title": "ResizableSidebar",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "frame": {
+    "asset": "navigation.page",
+    "region": "navigation",
+    "fixture": "fixtures.user-directory"
+  },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Default",
+      "args": {
+        "children": {
+          "$node": "p",
+          "children": [
+            {
+              "$text": "Filters"
+            }
+          ]
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Filters"
+        }
+      ],
+      "mode": "pinned"
+    },
+    {
+      "id": "long-content",
+      "name": "Long content",
+      "args": {
+        "children": {
+          "$node": "p",
+          "children": [
+            {
+              "$text": "Filters"
+            }
+          ]
+        }
+      },
+      "mode": "pinned"
+    }
+  ]
+}

@@ -34,21 +34,21 @@
   "claims": [
     {
       "id": "identity-name",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Every avatar exposes a stable accessible identity name independent of image availability.",
       "tier": "manual",
       "states": ["default", "loading", "request-error"]
     },
     {
       "id": "presence",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Presence is a separately announced status and is not communicated by color alone.",
       "tier": "manual",
       "states": ["default"]
     },
     {
       "id": "group-overflow",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Avatar groups announce the number of hidden people through the overflow affordance.",
       "tier": "manual",
       "states": ["group"]

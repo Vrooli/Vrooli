@@ -29,21 +29,21 @@
   "claims": [
     {
       "id": "keyboard-combobox",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "The field exposes combobox and listbox semantics with arrow-key navigation, selection, and escape-to-close behavior.",
       "tier": "manual",
       "states": ["default", "selected"]
     },
     {
       "id": "async-recovery",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Cancellation, retry, empty, and offline states are represented as deliberate user-facing surfaces rather than silent failures.",
       "tier": "manual",
       "states": ["default", "error-state"]
     },
     {
       "id": "responsive-surface",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "The field and option descriptions remain readable without horizontal overflow on narrow viewports.",
       "tier": "manual",
       "states": ["default", "selected", "error-state"]

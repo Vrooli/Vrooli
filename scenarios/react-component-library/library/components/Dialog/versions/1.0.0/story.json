@@ -1,67 +1,67 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 3,
   "kind": "component",
   "title": "Dialog",
   "args": {
     "fields": [
-        {
-          "path": "open",
-          "label": "Open",
-          "kind": "boolean",
-          "default": true
-        },
-        {
-          "path": "title",
-          "label": "Title",
-          "kind": "text",
-          "default": "Archive component"
-        },
-        {
-          "path": "description",
-          "label": "Description",
-          "kind": "text",
-          "default": "This keeps prior versions available for audit."
-        },
-        {
-          "path": "children",
-          "label": "Children",
-          "kind": "structured",
-          "default": {
-            "$text": "Archive Button v1.0.0?"
-          }
-        },
-        {
-          "path": "footer",
-          "label": "Footer",
-          "kind": "structured",
-          "default": {
-            "$node": "button",
-            "props": {
-              "type": "button",
-              "className": "rounded-control bg-app-primary px-3 py-2 text-app-primary-foreground"
-            },
-            "children": [
-              {
-                "$text": "Archive"
-              }
-            ]
-          }
-        },
-        {
-          "path": "onClose",
-          "label": "On Close",
-          "kind": "structured",
-          "default": {
-            "$handler": "close"
-          }
-        },
-        {
-          "path": "closeLabel",
-          "label": "Close Label",
-          "kind": "text",
-          "default": "Close dialog"
+      {
+        "path": "open",
+        "label": "Open",
+        "kind": "boolean",
+        "default": true
+      },
+      {
+        "path": "title",
+        "label": "Title",
+        "kind": "text",
+        "default": "Archive component"
+      },
+      {
+        "path": "description",
+        "label": "Description",
+        "kind": "text",
+        "default": "This keeps prior versions available for audit."
+      },
+      {
+        "path": "children",
+        "label": "Children",
+        "kind": "structured",
+        "default": {
+          "$text": "Archive Button v1.0.0?"
         }
-      ]
+      },
+      {
+        "path": "footer",
+        "label": "Footer",
+        "kind": "structured",
+        "default": {
+          "$node": "button",
+          "props": {
+            "type": "button",
+            "className": "rounded-control bg-app-primary px-3 py-2 text-app-primary-foreground"
+          },
+          "children": [
+            {
+              "$text": "Archive"
+            }
+          ]
+        }
+      },
+      {
+        "path": "onClose",
+        "label": "On Close",
+        "kind": "structured",
+        "default": {
+          "$handler": "close"
+        }
+      },
+      {
+        "path": "closeLabel",
+        "label": "Close Label",
+        "kind": "text",
+        "default": "Close dialog"
+      }
+    ]
   },
   "environment": {
     "fixtures": []
@@ -104,7 +104,8 @@
           "kind": "text",
           "value": "Archive Button v1.0.0?"
         }
-      ]
+      ],
+      "mode": "pinned"
     },
     {
       "id": "details-open",
@@ -130,7 +131,8 @@
           "role": "dialog",
           "name": "Component details"
         }
-      ]
+      ],
+      "mode": "pinned"
     },
     {
       "id": "minimal-open",
@@ -156,7 +158,8 @@
           "kind": "text",
           "value": "Short confirmation copy"
         }
-      ]
+      ],
+      "mode": "pinned"
     }
   ]
 }

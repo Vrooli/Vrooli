@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 3,
+  "kind": "component",
+  "title": "AuthSection",
+  "args": { "fields": [] },
+  "environment": { "fixtures": [] },
+  "stories": [{ "id": "signed-out", "name": "Signed out", "harness": "AuthStory", "args": {}, "expect": [{ "kind": "role", "role": "button", "name": "Sign in" }], "mode": "live" }]
+}

@@ -1,1 +1,23 @@
-{"schemaVersion":1,"kind":"component","title":"PermissionState","args":{},"environment":{"fixtures":[]},"stories":[{"id":"restricted","name":"Restricted","args":{},"expect":[{"kind":"role","role":"status"}]}]}
+{
+  "schemaVersion": 3,
+  "kind": "component",
+  "title": "PermissionState",
+  "args": {},
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "restricted",
+      "name": "Restricted",
+      "args": {},
+      "expect": [
+        {
+          "kind": "role",
+          "role": "status"
+        }
+      ],
+      "mode": "pinned"
+    }
+  ]
+}

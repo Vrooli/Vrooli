@@ -93,7 +93,7 @@ export function ComponentEditorSource({
       className="flex h-full min-h-0 flex-col bg-app-background"
     >
       {splitView && (
-        <header className="flex h-10 shrink-0 items-center border-b border-app-border bg-app-surface px-space-2xs text-xs font-semibold">
+        <header className="flex h-control-md shrink-0 items-center border-b border-app-border bg-app-surface px-space-2xs text-xs font-semibold">
           {t(strings.components.editor.files)}
         </header>
       )}
@@ -101,10 +101,10 @@ export function ComponentEditorSource({
         <IconButton
           data-testid={selectors.components.editor.filesTreeTab}
           aria-label={t("components.editor.fileTree", { defaultValue: "Files" })}
-          className={`h-7 min-h-7 min-w-7 shrink-0 ${filesView === "tree" ? "bg-app-primary text-app-primary-foreground" : "border border-app-border bg-app-surface"}`}
+          className={`h-control-compact min-h-control-compact min-w-control-compact shrink-0 ${filesView === "tree" ? "bg-app-primary text-app-primary-foreground" : "border border-app-border bg-app-surface"}`}
           onClick={() => onFilesViewChange("tree")}
         >
-          <FileCode2 aria-hidden className="h-3.5 w-3.5" />
+          <FileCode2 aria-hidden className="h-icon-compact w-icon-compact" />
         </IconButton>
         <div className="min-w-0 flex-1">
           <Tabs
@@ -150,7 +150,7 @@ export function ComponentEditorSource({
             className="shrink-0"
             onClick={onCloseComparison}
           >
-            <X aria-hidden className="h-3.5 w-3.5" />
+            <X aria-hidden className="h-icon-compact w-icon-compact" />
           </IconButton>
         )}
       </div>
@@ -183,18 +183,18 @@ export function ComponentEditorSource({
                 }
                 onClick={onSave}
                 disabled={readOnly || !dirty || savePending || contentLoading}
-                className="h-7 min-h-7 min-w-7 bg-app-primary text-app-primary-foreground"
+                className="h-control-compact min-h-control-compact min-w-control-compact bg-app-primary text-app-primary-foreground"
               >
-                <Save aria-hidden className="h-3.5 w-3.5" />
+                <Save aria-hidden className="h-icon-compact w-icon-compact" />
               </IconButton>
               <IconButton
                 data-testid={selectors.components.editor.filesRevertButton}
                 aria-label={t("components.editor.revert", { defaultValue: "Revert" })}
                 onClick={onRevert}
                 disabled={readOnly || !dirty}
-                className="h-7 min-h-7 min-w-7 border border-app-border bg-app-surface"
+                className="h-control-compact min-h-control-compact min-w-control-compact border border-app-border bg-app-surface"
               >
-                <RotateCcw aria-hidden className="h-3.5 w-3.5" />
+                <RotateCcw aria-hidden className="h-icon-compact w-icon-compact" />
               </IconButton>
             </div>
             <div className="flex items-center gap-space-3xs">
@@ -203,9 +203,9 @@ export function ComponentEditorSource({
                 aria-label={t("components.editor.wrap", { defaultValue: "Wrap" })}
                 aria-pressed={wordWrap === "on"}
                 onClick={onToggleWordWrap}
-                className={`h-7 min-h-7 min-w-7 ${wordWrap === "on" ? "bg-app-primary text-app-primary-foreground" : "border border-app-border bg-app-surface"}`}
+                className={`h-control-compact min-h-control-compact min-w-control-compact ${wordWrap === "on" ? "bg-app-primary text-app-primary-foreground" : "border border-app-border bg-app-surface"}`}
               >
-                <FileCode2 aria-hidden className="h-3.5 w-3.5" />
+                <FileCode2 aria-hidden className="h-icon-compact w-icon-compact" />
               </IconButton>
               <Button
                 data-testid={selectors.components.editor.filesFontDecrease}
@@ -216,9 +216,9 @@ export function ComponentEditorSource({
                 })}
                 onClick={onDecreaseFont}
                 disabled={fontSize <= 11}
-                className="h-7 w-7 p-0"
+                className="h-control-compact w-control-compact p-0"
               >
-                <Minus aria-hidden className="h-3.5 w-3.5" />
+                <Minus aria-hidden className="h-icon-compact w-icon-compact" />
               </Button>
               <Button
                 data-testid={selectors.components.editor.filesFontIncrease}
@@ -229,9 +229,9 @@ export function ComponentEditorSource({
                 })}
                 onClick={onIncreaseFont}
                 disabled={fontSize >= 20}
-                className="h-7 w-7 p-0"
+                className="h-control-compact w-control-compact p-0"
               >
-                <Plus aria-hidden className="h-3.5 w-3.5" />
+                <Plus aria-hidden className="h-icon-compact w-icon-compact" />
               </Button>
             </div>
           </div>

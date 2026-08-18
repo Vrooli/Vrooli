@@ -1,1 +1,44 @@
-{"schemaVersion":3,"kind":"component","title":"TopBar","args":{"fields":[]},"environment":{"fixtures":[]},"frame":{"asset":"navigation.page","region":"navigation","fixture":"fixtures.user-directory"},"stories":[{"id":"default","name":"Default","args":{"children":{"$text":"Workspace"}},"expect":[{"kind":"text","value":"Workspace"}]},{"id":"long-content","name":"Long content","args":{"children":{"$text":"Workspace"}}}]}
+{
+  "schemaVersion": 3,
+  "kind": "component",
+  "title": "TopBar",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "frame": {
+    "asset": "navigation.page",
+    "region": "navigation",
+    "fixture": "fixtures.user-directory"
+  },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Default",
+      "args": {
+        "children": {
+          "$text": "Workspace"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Workspace"
+        }
+      ],
+      "mode": "pinned"
+    },
+    {
+      "id": "long-content",
+      "name": "Long content",
+      "args": {
+        "children": {
+          "$text": "Workspace"
+        }
+      },
+      "mode": "pinned"
+    }
+  ]
+}

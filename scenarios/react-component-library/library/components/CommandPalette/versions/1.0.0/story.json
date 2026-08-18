@@ -1,1 +1,34 @@
-{"schemaVersion":1,"kind":"component","title":"CommandPalette","args":{"fields":[{"path":"open","kind":"boolean","default":true}]},"environment":{"fixtures":[]},"stories":[{"id":"open","name":"Open","args":{"open":true},"expect":[{"kind":"role","role":"dialog","name":"Command palette"}]}]}
+{
+  "schemaVersion": 3,
+  "kind": "component",
+  "title": "CommandPalette",
+  "args": {
+    "fields": [
+      {
+        "path": "open",
+        "kind": "boolean",
+        "default": true
+      }
+    ]
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "open",
+      "name": "Open",
+      "args": {
+        "open": true
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "dialog",
+          "name": "Command palette"
+        }
+      ],
+      "mode": "pinned"
+    }
+  ]
+}

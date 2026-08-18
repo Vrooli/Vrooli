@@ -16,7 +16,7 @@
   "claims": [
     {
       "id": "contract-present",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "SearchInput preserves label, touch target, and query geometry.",
       "tier": "manual",
       "states": ["empty", "query"]

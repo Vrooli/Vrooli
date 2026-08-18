@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "$schema": "../../../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
   "kind": "experience-component",
   "schemaVersion": "1.1.0",
   "component": {
@@ -38,7 +38,7 @@
     },
     {
       "id": "pending-contract",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Pressable preserves bounded tone and pending behavior without resizing ready or icon-only controls.",
       "tier": "manual",
       "states": ["default", "pending"]

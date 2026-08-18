@@ -2,7 +2,7 @@
  * @vrooliComponentSource react-component-library:Pressable
  * @vrooliComponentVersion 1.0.0
  * @vrooliComponentAdoption 87e1db9e-2394-48fe-9e56-a302efc09f0e
- * @vrooliComponentAppliedAt 2026-08-12T12:59:49Z
+ * @vrooliComponentAppliedAt 2026-08-18T01:12:37Z
  * @vrooliComponentSourceSha256 2dd98ba6b5fdc594c07014c6b28bf1ceb63ad53b4eb2b382c020bc12e40d5d17
  * @vrooliComponentDriftHash a359edbd880ce2cb6eccb331ccaa1fdb2fbeaf68440fd2f4644526610d2a2a80
  * @vrooliComponentTokenTranslation none

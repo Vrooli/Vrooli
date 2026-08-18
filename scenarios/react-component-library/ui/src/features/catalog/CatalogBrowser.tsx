@@ -48,16 +48,18 @@ function catalogGroups(assets: CatalogAsset[], other: string) {
   for (const asset of assets) {
     const domain = asset.catalogDomain || asset.slot || asset.category || other;
     const rung = asset.catalogRung ?? -1;
-    const group = domains.get(domain) ?? { order: asset.catalogDomainOrder || Number.MAX_SAFE_INTEGER, rungs: new Map<number, CatalogAsset[]>() };
+    const group = domains.get(domain) ?? {
+      order: asset.catalogDomainOrder || Number.MAX_SAFE_INTEGER,
+      rungs: new Map<number, CatalogAsset[]>(),
+    };
     group.rungs.set(rung, [...(group.rungs.get(rung) ?? []), asset]);
     domains.set(domain, group);
   }
   return [...domains.entries()]
     .sort(([, a], [, b]) => a.order - b.order)
-    .map(([domain, group]) => [
-      domain,
-      [...group.rungs.entries()].sort(([a], [b]) => a - b),
-    ] as const);
+    .map(
+      ([domain, group]) => [domain, [...group.rungs.entries()].sort(([a], [b]) => a - b)] as const,
+    );
 }
 
 function AssetRow({
@@ -83,9 +85,9 @@ function AssetRow({
       <span className="flex min-w-0 flex-1 items-center gap-space-2xs">
         <span
           aria-hidden
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-control bg-app-surface-muted text-app-primary"
+          className="flex h-control-compact w-control-compact shrink-0 items-center justify-center rounded-control bg-app-surface-muted text-app-primary"
         >
-          <FileCode2 className="h-4 w-4" />
+          <FileCode2 className="h-icon-sm w-icon-sm" />
         </span>
         <span className="min-w-0">
           <span className="block truncate font-medium">{asset.displayName || asset.libraryId}</span>
@@ -122,7 +124,7 @@ function AssetRow({
       aria-selected={isTree ? selected : undefined}
       className={[
         presentation === "cards"
-          ? "flex min-h-24 flex-col justify-between rounded-panel border p-space-xs"
+          ? "flex min-h-surface-short flex-col justify-between rounded-panel border p-space-xs"
           : isTree
             ? "touch-target flex items-center justify-between gap-space-xs rounded-control border border-transparent px-space-xs py-space-2xs"
             : "touch-target flex items-center justify-between gap-space-2xs rounded-control px-space-2xs py-space-2xs",
@@ -252,7 +254,10 @@ export function CatalogBrowser({ compact = false, onNavigate, surfaceId }: Props
     () =>
       groups.map(([domain, rungGroups]) => {
         const domainAssets = rungGroups.flatMap(([, groupedAssets]) => groupedAssets);
-        const adoptionTotal = domainAssets.reduce((total, asset) => total + adoptionCounts(asset).direct, 0);
+        const adoptionTotal = domainAssets.reduce(
+          (total, asset) => total + adoptionCounts(asset).direct,
+          0,
+        );
         return {
           id: `catalog-domain:${domain}`,
           label: (
@@ -273,13 +278,19 @@ export function CatalogBrowser({ compact = false, onNavigate, surfaceId }: Props
           defaultExpanded: true,
           children: rungGroups.map(([rung, groupedAssets]) => ({
             id: `catalog-rung:${domain}:${rung}`,
-            label: <span className="text-label font-medium capitalize">{groupedAssets[0]?.catalogRungName || `Rung ${rung}`}</span>,
+            label: (
+              <span className="text-label font-medium capitalize">
+                {groupedAssets[0]?.catalogRungName || `Rung ${rung}`}
+              </span>
+            ),
             defaultExpanded: true,
             children: groupedAssets
               .sort((a, b) => a.id.localeCompare(b.id))
               .map((asset) => {
                 const counts = adoptionCounts(asset);
-                const isHook = (asset.assetKind as unknown) === 2 || (asset.assetKind as unknown) === "ASSET_KIND_HOOK";
+                const isHook =
+                  (asset.assetKind as unknown) === 2 ||
+                  (asset.assetKind as unknown) === "ASSET_KIND_HOOK";
                 return {
                   id: asset.id,
                   testId: selectors.catalog.asset,
@@ -305,12 +316,14 @@ export function CatalogBrowser({ compact = false, onNavigate, surfaceId }: Props
                         title={`${counts.direct} direct adoptions${isHook ? `, ${counts.effective} effective` : ""}${asset.transitiveDependentCount ? `, ${asset.transitiveDependentCount} downstream dependents` : ""}`}
                       >
                         {counts.direct}
-                        {asset.transitiveDependentCount ? ` · ${asset.transitiveDependentCount}↓` : ""}
+                        {asset.transitiveDependentCount
+                          ? ` · ${asset.transitiveDependentCount}↓`
+                          : ""}
                       </span>
                     </span>
                   ),
                   ariaLabel: `${asset.displayName || asset.libraryId}, ${asset.libraryId}, ${counts.direct} direct adoptions${asset.transitiveDependentCount ? `, ${asset.transitiveDependentCount} downstream dependents` : ""}`,
-                  icon: <FileCode2 aria-hidden className="h-4 w-4" />,
+                  icon: <FileCode2 aria-hidden className="h-icon-sm w-icon-sm" />,
                 };
               }),
           })),
@@ -364,7 +377,7 @@ export function CatalogBrowser({ compact = false, onNavigate, surfaceId }: Props
         <span className="sr-only">{t("catalog.search", { defaultValue: "Search catalog" })}</span>
         <Search
           aria-hidden
-          className="absolute start-2 top-2.5 h-4 w-4 text-app-muted-foreground"
+          className="absolute start-2 top-2.5 h-icon-sm w-icon-sm text-app-muted-foreground"
         />
         <Input
           data-testid={selectors.catalog.search}
@@ -399,7 +412,7 @@ export function CatalogBrowser({ compact = false, onNavigate, surfaceId }: Props
                   : "touch-target rounded-control p-space-2xs text-app-muted-foreground hover:bg-app-surface-muted"
               }
             >
-              <Icon aria-hidden className="h-4 w-4" />
+              <Icon aria-hidden className="h-icon-sm w-icon-sm" />
             </button>
           ))}
         </div>

@@ -4,38 +4,113 @@
   "title": "Presence",
   "args": {
     "fields": [
-      { "path": "present", "label": "Present", "kind": "boolean", "default": true },
-      { "path": "children", "label": "Content", "kind": "text", "default": "Ready to continue" },
-      { "path": "initial", "label": "Animate initial mount", "kind": "boolean", "default": true },
-      { "path": "keepMounted", "label": "Keep exit boundary mounted", "kind": "boolean", "default": false }
+      {
+        "path": "present",
+        "label": "Present",
+        "kind": "boolean",
+        "default": true
+      },
+      {
+        "path": "children",
+        "label": "Content",
+        "kind": "text",
+        "default": "Ready to continue"
+      },
+      {
+        "path": "initial",
+        "label": "Animate initial mount",
+        "kind": "boolean",
+        "default": true
+      },
+      {
+        "path": "keepMounted",
+        "label": "Keep exit boundary mounted",
+        "kind": "boolean",
+        "default": false
+      }
     ]
   },
-  "environment": { "fixtures": [] },
+  "environment": {
+    "fixtures": []
+  },
   "stories": [
     {
       "id": "present",
       "name": "Entering and entered",
-      "args": { "present": true, "children": "Ready to continue", "initial": true },
-      "expect": [{ "kind": "text", "value": "Ready to continue" }],
-      "interactions": [{ "kind": "settle" }]
+      "harness": "TogglePresence",
+      "args": {
+        "present": true,
+        "children": "Ready to continue",
+        "initial": true
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Ready to continue"
+        }
+      ],
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live"
     },
     {
       "id": "absent",
       "name": "Unmounted after exit",
-      "args": { "present": false, "children": "Ready to continue", "initial": true, "keepMounted": true },
-      "expect": [{ "kind": "attribute", "selector": "[data-rcl-presence]", "attribute": "data-presence-hidden", "value": "true" }],
-      "interactions": [{ "kind": "settle" }]
+      "harness": "TogglePresence",
+      "args": {
+        "present": false,
+        "children": "Ready to continue",
+        "initial": true,
+        "keepMounted": true
+      },
+      "expect": [
+        {
+          "kind": "attribute",
+          "selector": "[data-rcl-presence]",
+          "attribute": "data-presence-hidden",
+          "value": "true"
+        }
+      ],
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live"
     },
     {
       "id": "toggle",
       "name": "Interruptible toggle",
       "harness": "TogglePresence",
-      "args": { "present": true, "children": "Ready to continue" },
-      "expect": [{ "kind": "attribute", "selector": "[data-rcl-presence]", "attribute": "data-presence-hidden", "value": "true" }],
+      "args": {
+        "present": true,
+        "children": "Ready to continue"
+      },
+      "expect": [
+        {
+          "kind": "attribute",
+          "selector": "[data-rcl-presence]",
+          "attribute": "data-presence-hidden",
+          "value": "true"
+        }
+      ],
       "interactions": [
-        { "kind": "click", "target": { "role": "button", "name": "Toggle presence" } },
-        { "kind": "waitFor", "text": "160" }
-      ]
+        {
+          "kind": "click",
+          "target": {
+            "role": "button",
+            "name": "Toggle presence"
+          }
+        },
+        {
+          "kind": "waitFor",
+          "text": "160"
+        }
+      ],
+      "mode": "live"
     }
   ]
 }

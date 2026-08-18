@@ -2,10 +2,47 @@
   "schemaVersion": 3,
   "kind": "component",
   "title": "ObjectField",
-  "args": { "fields": [] },
-  "environment": { "fixtures": [] },
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
   "stories": [
-    { "id": "default", "name": "Nested group", "harness": "Default", "args": {}, "expect": [{ "kind": "role", "role": "textbox", "name": "City" }, { "kind": "text", "value": "Mailing address" }] },
-    { "id": "validation", "name": "Group validation", "harness": "Validation", "args": {}, "expect": [{ "kind": "role", "role": "alert" }, { "kind": "text", "value": "Add a city before saving." }] }
+    {
+      "id": "default",
+      "name": "Nested group",
+      "harness": "Default",
+      "args": {},
+      "expect": [
+        {
+          "kind": "role",
+          "role": "textbox",
+          "name": "City"
+        },
+        {
+          "kind": "text",
+          "value": "Mailing address"
+        }
+      ],
+      "mode": "live"
+    },
+    {
+      "id": "validation",
+      "name": "Group validation",
+      "harness": "Validation",
+      "args": {},
+      "expect": [
+        {
+          "kind": "role",
+          "role": "alert"
+        },
+        {
+          "kind": "text",
+          "value": "Add a city before saving."
+        }
+      ],
+      "mode": "live"
+    }
   ]
 }

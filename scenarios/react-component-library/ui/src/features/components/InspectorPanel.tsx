@@ -54,7 +54,7 @@ export function InspectorPanel({ inspector, specimenLabel }: InspectorPanelProps
           <Button
             data-testid={selectors.components.inspector.toggleButton}
             onClick={() => (active ? stopInspect() : startInspect())}
-            className="h-7 px-space-xs text-xs"
+            className="h-control-compact px-space-xs text-xs"
             variant={active ? "secondary" : "primary"}
           >
             {active
@@ -75,7 +75,7 @@ export function InspectorPanel({ inspector, specimenLabel }: InspectorPanelProps
 
       {selected && (
         <div className="mt-space-2xs space-y-space-2xs text-xs text-app-foreground">
-          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+          <div className="flex flex-wrap items-baseline gap-x-space-xs gap-y-space-3xs">
             <span
               data-testid={selectors.components.inspector.selectedTag}
               className="font-mono text-app-foreground"

@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 3,
   "kind": "component",
   "title": "Status Badge",
   "args": {
@@ -10,36 +10,78 @@
         "kind": "enum",
         "required": true,
         "default": "success",
-        "options": ["success", "warning", "info", "danger"]
+        "options": [
+          "success",
+          "warning",
+          "info",
+          "danger"
+        ]
       },
       {
         "path": "children",
         "label": "Label",
         "kind": "structured",
         "required": true,
-        "default": {"$text": "Current"}
+        "default": {
+          "$text": "Current"
+        }
       }
     ]
   },
-  "environment": {"fixtures": []},
+  "environment": {
+    "fixtures": []
+  },
   "stories": [
     {
       "id": "success",
       "name": "Success",
-      "args": {"tone": "success", "children": {"$text": "Current"}},
-      "expect": [{"kind": "text", "value": "Current"}]
+      "args": {
+        "tone": "success",
+        "children": {
+          "$text": "Current"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Current"
+        }
+      ],
+      "mode": "pinned"
     },
     {
       "id": "warning",
       "name": "Warning",
-      "args": {"tone": "warning", "children": {"$text": "Behind"}},
-      "expect": [{"kind": "text", "value": "Behind"}]
+      "args": {
+        "tone": "warning",
+        "children": {
+          "$text": "Behind"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Behind"
+        }
+      ],
+      "mode": "pinned"
     },
     {
       "id": "long-label",
       "name": "Long Label",
-      "args": {"tone": "info", "children": {"$text": "Requires manual review"}},
-      "expect": [{"kind": "text", "value": "Requires manual review"}]
+      "args": {
+        "tone": "info",
+        "children": {
+          "$text": "Requires manual review"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Requires manual review"
+        }
+      ],
+      "mode": "pinned"
     }
   ]
 }

@@ -19,7 +19,7 @@
   "claims": [
     {
       "id": "contract-present",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "The foundation exposes a stable versioned contract for downstream assets.",
       "tier": "manual",
       "states": ["default"]

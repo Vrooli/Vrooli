@@ -1,89 +1,89 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 3,
   "kind": "component",
   "title": "DrawerShell",
   "args": {
     "fields": [
-        {
-          "path": "open",
-          "label": "Open",
-          "kind": "boolean",
-          "default": true
-        },
-        {
-          "path": "title",
-          "label": "Title",
-          "kind": "text",
-          "default": "Component details"
-        },
-        {
-          "path": "onClose",
-          "label": "On Close",
-          "kind": "structured",
-          "default": {
-            "$handler": "close"
-          }
-        },
-        {
-          "path": "children",
-          "label": "Children",
-          "kind": "structured",
-          "default": {
-            "$text": "Full-page drawer body content"
-          }
-        },
-        {
-          "path": "size",
-          "label": "Size",
-          "kind": "text",
-          "default": "compact"
-        },
-        {
-          "path": "headerActions",
-          "label": "Header Actions",
-          "kind": "structured",
-          "default": {
-            "$node": "button",
-            "props": {
-              "type": "button",
-              "className": "min-h-[44px] min-w-[44px] rounded-control px-2 py-1 text-app-primary"
-            },
-            "children": [
-              {
-                "$text": "Save"
-              }
-            ]
-          }
-        },
-        {
-          "path": "headerExtra",
-          "label": "Header Extra",
-          "kind": "structured",
-          "default": {
-            "$node": "p",
-            "props": {
-              "className": "mt-1 text-xs text-wc-text-muted"
-            },
-            "children": [
-              {
-                "$text": "Updated 2 minutes ago"
-              }
-            ]
-          }
-        },
-        {
-          "path": "avoidKeyboard",
-          "label": "Avoid Keyboard",
-          "kind": "boolean",
-          "default": true
-        },
-        {
-          "path": "closeAriaLabel",
-          "label": "Close Aria Label",
-          "kind": "text",
-          "default": "Close composer"
+      {
+        "path": "open",
+        "label": "Open",
+        "kind": "boolean",
+        "default": true
+      },
+      {
+        "path": "title",
+        "label": "Title",
+        "kind": "text",
+        "default": "Component details"
+      },
+      {
+        "path": "onClose",
+        "label": "On Close",
+        "kind": "structured",
+        "default": {
+          "$handler": "close"
         }
-      ]
+      },
+      {
+        "path": "children",
+        "label": "Children",
+        "kind": "structured",
+        "default": {
+          "$text": "Full-page drawer body content"
+        }
+      },
+      {
+        "path": "size",
+        "label": "Size",
+        "kind": "text",
+        "default": "compact"
+      },
+      {
+        "path": "headerActions",
+        "label": "Header Actions",
+        "kind": "structured",
+        "default": {
+          "$node": "button",
+          "props": {
+            "type": "button",
+            "className": "min-h-[44px] min-w-[44px] rounded-control px-2 py-1 text-app-primary"
+          },
+          "children": [
+            {
+              "$text": "Save"
+            }
+          ]
+        }
+      },
+      {
+        "path": "headerExtra",
+        "label": "Header Extra",
+        "kind": "structured",
+        "default": {
+          "$node": "p",
+          "props": {
+            "className": "mt-1 text-xs text-wc-text-muted"
+          },
+          "children": [
+            {
+              "$text": "Updated 2 minutes ago"
+            }
+          ]
+        }
+      },
+      {
+        "path": "avoidKeyboard",
+        "label": "Avoid Keyboard",
+        "kind": "boolean",
+        "default": true
+      },
+      {
+        "path": "closeAriaLabel",
+        "label": "Close Aria Label",
+        "kind": "text",
+        "default": "Close composer"
+      }
+    ]
   },
   "environment": {
     "fixtures": []
@@ -112,7 +112,8 @@
           "kind": "text",
           "value": "Full-page drawer body content"
         }
-      ]
+      ],
+      "mode": "pinned"
     },
     {
       "id": "compact-open",
@@ -138,7 +139,8 @@
           "kind": "text",
           "value": "Compact centered panel"
         }
-      ]
+      ],
+      "mode": "pinned"
     },
     {
       "id": "with-header-actions",
@@ -175,7 +177,8 @@
           "kind": "text",
           "value": "Body with a header action"
         }
-      ]
+      ],
+      "mode": "pinned"
     },
     {
       "id": "with-header-extra",
@@ -210,7 +213,8 @@
           "kind": "text",
           "value": "Scrollable log content"
         }
-      ]
+      ],
+      "mode": "pinned"
     },
     {
       "id": "keyboard-aware",
@@ -237,7 +241,8 @@
           "kind": "text",
           "value": "Composer body lifted above the keyboard"
         }
-      ]
+      ],
+      "mode": "pinned"
     }
   ]
 }

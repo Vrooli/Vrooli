@@ -2,7 +2,7 @@
  * @vrooliComponentSource react-component-library:VoiceInputButton
  * @vrooliComponentVersion 4.1.0
  * @vrooliComponentAdoption 1636c81c-83d8-4a90-854d-990050b400b0
- * @vrooliComponentAppliedAt 2026-08-11T00:35:31Z
+ * @vrooliComponentAppliedAt 2026-08-18T01:12:49Z
  * @vrooliComponentSourceSha256 569a2880e958577c52b6555aeda44bfd6c67a7bd380137fcd5832e78338f055e
  * @vrooliComponentDriftHash 569a2880e958577c52b6555aeda44bfd6c67a7bd380137fcd5832e78338f055e
  * @vrooliComponentTokenTranslation none

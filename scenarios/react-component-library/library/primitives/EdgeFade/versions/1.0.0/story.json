@@ -1,1 +1,40 @@
-{"schemaVersion":1,"kind":"component","title":"EdgeFade","args":{"fields":[{"path":"side","label":"Side","kind":"enum","default":"inline-start","options":["inline-start","inline-end"]}]},"environment":{"fixtures":[]},"stories":[{"id":"side-inline-start","name":"side inline-start","args":{"side":"inline-start"}},{"id":"side-inline-end","name":"side inline-end","args":{"side":"inline-end"}}]}
+{
+  "schemaVersion": 3,
+  "kind": "component",
+  "title": "EdgeFade",
+  "args": {
+    "fields": [
+      {
+        "path": "side",
+        "label": "Side",
+        "kind": "enum",
+        "default": "inline-start",
+        "options": [
+          "inline-start",
+          "inline-end"
+        ]
+      }
+    ]
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "side-inline-start",
+      "name": "side inline-start",
+      "args": {
+        "side": "inline-start"
+      },
+      "mode": "pinned"
+    },
+    {
+      "id": "side-inline-end",
+      "name": "side inline-end",
+      "args": {
+        "side": "inline-end"
+      },
+      "mode": "pinned"
+    }
+  ]
+}

@@ -29,7 +29,7 @@
     },
     {
       "id": "dismissal-contract",
-      "type": "custom",
+      "type": "manual-review",
       "statement": "Drawer uses the shared layer coordinator and bounded dismissal.",
       "tier": "manual",
       "states": ["open"]
