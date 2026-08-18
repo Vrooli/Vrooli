@@ -1,6 +1,6 @@
 {
   "_metadata": {
-    "description": "Requirement stubs scaffolded from the P1 operational targets.",
+    "description": "P1 operational targets for the owner notification spine. Amended 2026-08-17 to promote acknowledgement and escalation from P2 and to add the blocking ask primitive; that trio leads this tier.",
     "module": "P1-targets",
     "priority": "P1",
     "schema_version": "1.0.0"
@@ -121,6 +121,51 @@
       "validation": [
         {
           "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:NOTIFICA-P1-008] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "The system should accept an acknowledgement or a chosen action from a delivered notification and should return it to the requesting scenario, so a notification can carry a decision back rather than only carrying information out.",
+      "id": "NOTIFICA-P1-009",
+      "prd_ref": "OT-P1-009",
+      "status": "planned",
+      "title": "Acknowledgement and response",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:NOTIFICA-P1-009] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "The system should expose a request that delivers a question and blocks until the recipient answers or a caller-supplied deadline expires, and should return the answer or a stated timeout to the caller. This is the calling convention an agent needs; NOTIFICA-P1-009 is the data path underneath it.",
+      "id": "NOTIFICA-P1-010",
+      "prd_ref": "OT-P1-010",
+      "status": "planned",
+      "title": "Blocking ask primitive",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:NOTIFICA-P1-010] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "When a notification marked critical is not acknowledged within its timeout, the system should escalate it to the next channel in the recipient's chain and should record each escalation step. Ships with NOTIFICA-P1-009 and NOTIFICA-P1-010, because an unanswered approval is the case that needs escalating.",
+      "id": "NOTIFICA-P1-011",
+      "prd_ref": "OT-P1-011",
+      "status": "planned",
+      "title": "Escalation chains",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:NOTIFICA-P1-011] tag) once the behavior exists.",
           "status": "planned",
           "type": "manual"
         }

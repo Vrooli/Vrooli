@@ -19,25 +19,6 @@ Use this document to answer:
 | UI build | 5-10 minutes accepted for current Vite module graph | lifecycle/test-genie build logs | inherited |
 | API health | responsive under lifecycle health timeout | `/health` check | active |
 | UI health | responsive under lifecycle health timeout | `/health` check | active |
-| Send request acceptance | p95 under 100ms | API timing on the send endpoint | planned with OT-P0-002 |
-| Routing decision | p95 under 10ms | Unit benchmark; the decision is a pure function over cached reads | planned with OT-P0-005 |
-| Accept to first delivery attempt | p95 under 5s for non-held notifications | `notifications` and `deliveries` timestamps | planned with OT-P0-004 |
-| Accept to delivered | p95 under 30s, local channels | Same | planned with OT-P0-004 |
-| Timeline query | p95 under 200ms over a full retention window | API timing on the list endpoint | planned with OT-P0-004 |
-| Relayed delivery overhead | under 5s added versus local, node online | Delivery timestamps by path | planned with OT-P1-001 |
-
-**Throughput is deliberately not a budget.** The expected load is tens
-of notifications a day for one owner, not thousands a second. The
-previous implementation's stated ~100/second ceiling was never the
-constraint that mattered; delivering zero of them was. Latency and
-correctness budgets are listed here because they affect whether a
-notification is useful when it arrives; throughput would be a number
-tracked for its own sake.
-
-If throughput ever does become the constraint, that is the revisit
-trigger for the in-process queue decision in
-[`DECISIONS.md`](DECISIONS.md) — and the evidence must be a measurement,
-not an intuition.
 
 ## Current Measurements
 

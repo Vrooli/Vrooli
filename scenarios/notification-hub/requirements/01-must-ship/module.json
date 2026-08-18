@@ -1,6 +1,6 @@
 {
   "_metadata": {
-    "description": "Requirement stubs scaffolded from the P0 operational targets.",
+    "description": "P0 operational targets for the owner notification spine. Amended 2026-08-17 to make sensitivity labelling default-deny, to name the missing push-provider resource, and to add unroutable visibility, request idempotency, and bounded delivery history.",
     "module": "P0-targets",
     "priority": "P0",
     "schema_version": "1.0.0"
@@ -8,7 +8,7 @@
   "requirements": [
     {
       "criticality": "P0",
-      "description": "The system shall deliver a notification to the owner's registered iPhone through a push channel and shall record a delivery receipt for it.",
+      "description": "The system shall deliver a notification to the owner's registered iPhone through a push channel and shall record a delivery receipt for it. This requires a push provider declared as a cloud-api resource; no such resource exists yet, so creating it is in scope for this requirement.",
       "id": "NOTIFICA-P0-001",
       "prd_ref": "OT-P0-001",
       "status": "planned",
@@ -143,14 +143,59 @@
     },
     {
       "criticality": "P0",
-      "description": "The system shall carry a sensitivity label on every notification and shall withhold body content from any channel not approved for that label.",
+      "description": "The system shall require a sensitivity label on every notification at the ingress contract, and shall treat a channel as unapproved for a label unless that channel declares approval. When a channel is unapproved for a notification's label, the system shall deliver a content-free pointer to the console instead of the body, and shall never omit the notification silently.",
       "id": "NOTIFICA-P0-010",
       "prd_ref": "OT-P0-010",
       "status": "planned",
-      "title": "Sensitivity labelling",
+      "title": "Sensitivity labelling with default-deny",
       "validation": [
         {
           "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:NOTIFICA-P0-010] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "When no approved channel and no reachable node can serve a notification, the system shall mark it unroutable with a stated reason and shall surface it in the API, the CLI, and the UI. It shall never leave such a notification in a pending state, because a silently pending notification is indistinguishable from one that was never requested.",
+      "id": "NOTIFICA-P0-011",
+      "prd_ref": "OT-P0-011",
+      "status": "planned",
+      "title": "Unroutable delivery is visible",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:NOTIFICA-P0-011] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "When a caller retries a notification request carrying the same idempotency key, the system shall return the original notification id and shall not create a second notification. This is distinct from duplicate suppression: it protects a caller whose request timed out in flight, regardless of any dedupe window.",
+      "id": "NOTIFICA-P0-012",
+      "prd_ref": "OT-P0-012",
+      "status": "planned",
+      "title": "Request idempotency",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:NOTIFICA-P0-012] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "The system shall enforce a stated retention rule on notification and delivery-attempt records, and shall record that rule in the data documentation. Retry multiplies attempt rows, so an unbounded history is a defect rather than a deferred feature.",
+      "id": "NOTIFICA-P0-013",
+      "prd_ref": "OT-P0-013",
+      "status": "planned",
+      "title": "Bounded delivery history",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:NOTIFICA-P0-013] tag) once the behavior exists.",
           "status": "planned",
           "type": "manual"
         }

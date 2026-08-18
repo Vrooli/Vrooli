@@ -49,108 +49,77 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 ## Entries
 
-### 2026-08-17 — `vrooli-events` never fans out webhook subscriptions
+### 2026-08-17 — Template scaffold still documented as if it were the product
 
-**Symptom:** A durable webhook subscription in `vrooli-events` targeting
-this scenario is stored, reports healthy, and never fires. Event-driven
-notifications (OT-P1-003) cannot work today no matter what is built
-here.
+**Symptom:** `DOMAINS.md`, `DATA.md`, `SECURITY.md`, `SEAMS.md`, and
+`TESTING.md` describe a `notes` domain, and `DATA.md` still carries
+`_(your data)_` placeholder rows. A reader who trusts those documents
+will conclude this scenario is a CRUD notes app with no auth model.
 
-**Root cause:** On ingest, `vrooli-events` publishes to its SSE broker
-and nothing else. `subscription.WebhookDeliverer.Deliver` is reachable
-only from a manual "trigger this subscription" handler. There is no
-matcher, no retry queue, and no delivery engine. The `vrooli-events`
-README and its `docs/guides/creating-subscriptions.md` both describe
-this scenario as the primary consumer of a path that does not run.
+**Root cause:** `template-manager detemplate notification-hub` has not
+run, because no real domain exists to replace the worked example yet.
+The PRD and the requirements registry are scenario-specific; the rest of
+`docs/` is generic template text.
 
-**Workaround:** Build the ingress receiver here and test it against a
-synthetic caller so it is ready. Use direct API and CLI requests as the
-primary ingress, which is why they are P0 and event ingress is P1.
+**Workaround:** Treat `PRD.md`, `requirements/`, `DECISIONS.md`, and
+`INTEGRATIONS.md` as the authoritative charter. Everything else under
+`docs/` is scaffold until the first real domain lands.
 
-**Real fix:** A subscription fan-out engine in `vrooli-events`. That
-work belongs upstream and must be filed against that scenario rather
-than absorbed here.
-
-**Owner:** unassigned — needs a bug filed against `vrooli-events`.
-
-**Refs:** `scenarios/vrooli-events/api/handlers.go` (ingest publishes to
-broker only), `scenarios/vrooli-events/api/handlers_subscription.go`
-(manual deliver handler), `scenarios/vrooli-events/internal/subscription/`
-(no engine).
-
-### 2026-08-17 — Generated `PROGRESS.md` inherited the template's own history
-
-**Symptom:** The freshly generated scenario's `docs/internal/PROGRESS.md`
-contained two 2026-07-07 entries describing work on the `react-vite`
-template itself, directly contradicting the same file's statement that
-"this file ships empty in newly generated scenarios".
-
-**Root cause:** The template's `docs/internal/PROGRESS.md` is copied
-verbatim rather than being emptied during generation.
-
-**Workaround:** Deleted here by hand and replaced with this scenario's
-real log.
-
-**Real fix:** The generator should truncate the progress table when
-copying the template. Affects every scenario generated from `react-vite`
-1.6.5, not just this one.
-
-**Owner:** unassigned — belongs to `template-manager`.
-
-**Refs:** `templates/scenarios/react-vite/docs/internal/PROGRESS.md`.
-
-### 2026-08-17 — `docs/manifest.json` requires headings that `detemplate` will delete
-
-**Symptom:** The generated `docs/manifest.json` requires the heading
-`"Notes (CRUD reference)"` in `docs/reference/api-endpoints.md`, which
-the generated document does not contain — it uses
-`## Domain endpoints — <domain>` with the notes material under a fenced
-`### Example domain` subheading. The same pattern appears in the
-`cli-commands.md` contract, which requires
-`"Scenario commands — \`notes\` (CRUD reference)"`.
-
-**Root cause:** The manifest's required headings were written against an
-older shape of the reference docs, and they name the *example domain*.
-Because `template-manager detemplate` removes every example-domain
-block, any scenario that completes the `example-domain-removed`
-orientation gate would then permanently fail its own documentation
-contract.
-
-**Workaround:** Changed the `api-endpoints.md` requirement here to
-`"Domain endpoints"`, which is present now and survives `detemplate`.
-
-**Real fix:** The template should not require example-domain headings in
-any document contract. Affects every scenario generated from
-`react-vite` 1.6.5.
-
-**Owner:** unassigned — belongs to `template-manager`.
-
-**Refs:** `templates/scenarios/react-vite/docs/manifest.json`,
-`docs/reference/api-endpoints.md`, `docs/reference/cli-commands.md`.
-
-### 2026-08-17 — No end-to-end proof that a notification reached a human
-
-**Symptom:** The system can prove it handed a payload to a provider. It
-cannot prove the phone showed it. Every automated signal can be green
-while the owner sees nothing.
-
-**Root cause:** Push delivery is fire-and-forget by construction. The
-provider acknowledging receipt is not the device rendering a
-notification.
-
-**Workaround:** A manual real-device gate in the release checklist, and
-an explicit statement in `../operations/OBSERVABILITY.md` that the
-scenario measures dispatch rather than receipt. This is the single most
-important thing to stay honest about, because the predecessor scenario
-reported healthy for ten months while delivering nothing.
-
-**Real fix:** Acknowledgement (OT-P2-004) closes it partially — a human
-acting on a notification proves it arrived. Nothing closes it fully.
+**Real fix:** Build the first real domain, run `template-manager
+detemplate notification-hub`, then rewrite the concept docs against the
+actual domain map. Raise each document's `maturity` in
+`docs/manifest.json` only as it earns it.
 
 **Owner:** unassigned.
 
-**Refs:** `docs/operations/DEPLOYMENT.md` release checklist,
-`docs/operations/OBSERVABILITY.md` telemetry gaps.
+**Refs:** `docs/manifest.json`, `api/internal/notes/`, `cli/domains/notes/`.
+
+### 2026-08-17 — OT-P0-001 has a missing prerequisite: no push provider resource exists
+
+**Symptom:** OT-P0-001 requires a real delivery to the owner's iPhone,
+and the PRD names "a new `ntfy` resource" as its dependency. No such
+resource exists under `resources/`, and no `ntfy` blueprint exists under
+`.vrooli/resources/blueprints/`.
+
+**Root cause:** The provider decision was made before the resource was
+scaffolded. "Deliver to the iPhone" reads as one task and is two.
+
+**Workaround:** None. The channel adapter cannot be credentialed until
+the resource exists, because credential descriptors live in resource
+manifests by governance rule.
+
+**Real fix:** Scaffold `ntfy` as a `cloud-api` resource via
+`template-manager resource-template generate cloud-api`, following the
+`twilio` manifest shape. Alternatively promote the existing `pushover`
+blueprint (`status: candidate`) instead and revise the PRD.
+
+**Owner:** unassigned.
+
+**Refs:** `resources/twilio/resource.json`,
+`.vrooli/resources/blueprints/pushover.json`,
+`path:docs/resources/resource-templates.md`.
+
+### 2026-08-17 — Event ingress blocked on an upstream gap in vrooli-events
+
+**Symptom:** `vrooli-events` documents this scenario as its primary
+consumer and publishes a webhook subscription contract, but a
+subscription never fires on its own.
+
+**Root cause:** On ingest, `vrooli-events` publishes to the SSE broker
+only. `WebhookDeliverer.Deliver` is reachable solely from a manual
+"trigger this subscription" endpoint. There is no matcher, no retry
+queue, and no delivery engine.
+
+**Workaround:** Use direct Connect-RPC and CLI ingress, which is the P0
+path and self-contained.
+
+**Real fix:** Belongs to `vrooli-events`, not here. File it there.
+OT-P1-003 stays P1 until it lands.
+
+**Owner:** unassigned — upstream.
+
+**Refs:** `scenarios/vrooli-events/api/handlers.go`,
+`scenarios/vrooli-events/internal/subscription/webhook.go`.
 
 ## Architecture Drift
 

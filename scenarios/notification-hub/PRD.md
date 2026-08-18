@@ -11,6 +11,8 @@
 
 The permanent capability it adds is *reaching a human reliably*. Every scenario and agent in Vrooli can produce something worth telling someone about; none of them should own retry logic, quiet hours, device addresses, or channel credentials. Those live here once.
 
+The traffic runs both ways. Once a notification can carry a decision back (OT-P1-009 through OT-P1-011), this stops being an outbound pipe and becomes the human-in-the-loop gate for the whole fleet: an agent that needs permission, or that has stalled, asks through here and waits for an answer. That is the capability neither a hosted notification platform nor a self-hosted push pipe provides — the former has no fleet to route across, the latter has no routing layer at all. Restraint is part of the same job: a spine that fires too often gets muted, and a muted spine voids every promise downstream of it.
+
 **Primary users**
 
 - The machine owner, who registers devices, sets quiet hours, and reads the delivery timeline.
@@ -30,7 +32,7 @@ The permanent capability it adds is *reaching a human reliably*. Every scenario 
 
 ### 🔴 P0 – Must ship for viability
 
-- [ ] OT-P0-001 | Real delivery to a personal device | The system shall deliver a notification to the owner's registered iPhone through a push channel and shall record a delivery receipt for it.
+- [ ] OT-P0-001 | Real delivery to a personal device | The system shall deliver a notification to the owner's registered iPhone through a push channel and shall record a delivery receipt for it. This requires a push provider declared as a `cloud-api` resource; no such resource exists yet, so creating it is in scope for this target rather than assumed.
 - [ ] OT-P0-002 | Direct notification request | When an agent, scenario, or operator submits a notification request, the system shall persist it and shall return a durable notification id.
 - [ ] OT-P0-003 | Device and channel registry | The system shall record the owner's devices, the channels each device accepts, and the address used for each channel.
 - [ ] OT-P0-004 | Observable delivery state | The system shall record every delivery attempt with its outcome and shall expose the state of any notification through the API, the CLI, and the UI.
@@ -39,9 +41,14 @@ The permanent capability it adds is *reaching a human reliably*. Every scenario 
 - [ ] OT-P0-007 | Identity without local accounts | The system shall resolve identity from scenario-authenticator tokens and shall key recipients by that identity, so no password, profile table, or scenario-issued API key exists here.
 - [ ] OT-P0-008 | Retry with terminal failure | When a delivery attempt fails retryably, the system shall retry with backoff, and shall mark the delivery failed with a stated reason once the retry budget is spent.
 - [ ] OT-P0-009 | Runs without Docker | The system shall declare no resource dependency that requires Docker, so the same build runs on a Linux host and on a macOS fleet node.
-- [ ] OT-P0-010 | Sensitivity labelling | The system shall carry a sensitivity label on every notification and shall withhold body content from any channel not approved for that label.
+- [ ] OT-P0-010 | Sensitivity labelling with default-deny | The system shall require a sensitivity label on every notification at the ingress contract, and shall treat a channel as unapproved for a label unless that channel declares approval. When a channel is unapproved, the system shall deliver a content-free pointer to the console instead of the body, and shall never drop the notification silently.
+- [ ] OT-P0-011 | Unroutable delivery is visible | When no approved channel and no reachable node can serve a notification, the system shall mark it unroutable with a stated reason and shall surface it through the API, the CLI, and the UI. It shall never leave such a notification pending, because a silently pending notification is indistinguishable from one that was never requested.
+- [ ] OT-P0-012 | Request idempotency | When a caller retries a request carrying the same idempotency key, the system shall return the original notification id and shall not create a second notification. This is distinct from OT-P0-006: it protects a caller whose request timed out in flight, regardless of any dedupe window.
+- [ ] OT-P0-013 | Bounded delivery history | The system shall enforce a stated retention rule on notification and delivery-attempt records, and shall record that rule in the data documentation. Retry multiplies attempt rows, so an unbounded history is a defect rather than a deferred feature.
 
 ### 🟠 P1 – Should have post-launch
+
+> Numbering is identity, not order. The acknowledgement trio — OT-P1-009 through OT-P1-011 — leads this tier and ships ahead of digest collapsing, scheduled delivery, and analytics.
 
 - [ ] OT-P1-001 | Cross-node delivery relay | When this host cannot serve a channel, the system should forward the delivery to a fleet node that advertises the capability through vrooli-bridge durable dispatch.
 - [ ] OT-P1-002 | iMessage delivery from a Mac node | When a recipient channel is iMessage, the system should deliver it through the paired Mac node and should record the same receipt shape as a local delivery.
@@ -51,20 +58,23 @@ The permanent capability it adds is *reaching a human reliably*. Every scenario 
 - [ ] OT-P1-006 | Scheduled delivery | The system should deliver a notification at a caller-specified future time and should survive a restart between acceptance and delivery.
 - [ ] OT-P1-007 | Delivery analytics | The system should report delivery counts, failure rates, and per-channel latency over a selectable window.
 - [ ] OT-P1-008 | Self-hosted push endpoint | The system should support an owner-hosted push server so notification bodies need not transit a third-party service.
+- [ ] OT-P1-009 | Acknowledgement and response | The system should accept an acknowledgement or a chosen action from a delivered notification and should return it to the requesting scenario, so a notification can carry a decision back rather than only carrying information out.
+- [ ] OT-P1-010 | Blocking ask primitive | The system should expose a request that delivers a question and blocks until the recipient answers or a caller-supplied deadline expires, and should return the answer or a stated timeout to the caller. This is the calling convention an agent needs; OT-P1-009 is the data path underneath it.
+- [ ] OT-P1-011 | Escalation chains | When a notification marked critical is not acknowledged within its timeout, the system should escalate it to the next channel in the recipient's chain and should record each escalation step. Ships with OT-P1-009 and OT-P1-010, because an unanswered approval is the case that needs escalating.
 
 ### 🟢 P2 – Future / expansion
 
 - [ ] OT-P2-001 | First-party web push | The system may deliver push through a service worker on the installed progressive web app, which removes the third-party push dependency.
 - [ ] OT-P2-002 | SMS channel | The system may deliver notifications over SMS using credentials supplied by the twilio resource.
 - [ ] OT-P2-003 | Multi-user routing | When the install runs a shared or hosted trust posture, the system may route notifications per authenticated identity.
-- [ ] OT-P2-004 | Acknowledgement and response | The system may accept an acknowledgement or a chosen action from a delivered notification and may return it to the requesting scenario.
-- [ ] OT-P2-005 | Escalation chains | The system may escalate an unacknowledged critical notification to a second channel after a timeout.
 
 ## 🧱 Tech Direction Snapshot
 
 **Preferred stack** — The `react-vite` template shape without deviation: a Go API on Connect-RPC with proto-defined contracts, a React and TypeScript UI on the `vrooli-default` design kit, and a Go CLI on `cli-core`. The webhook receiver is the one sanctioned REST exception.
 
-**Data** — SQLite through the `api-core` storage seam. No PostgreSQL, no Redis, no Docker. The queue, the retry schedule, and the rate-limit counters are in-process and SQLite-backed. This is a capability decision, not a shortcut: PostgreSQL and Redis are still Docker-backed and are recorded `unsupported` on macOS and Windows, so depending on either would make the scenario unable to run on the Mac node the relay lane exists to reach.
+**Data** — SQLite through the `api-core` storage seam. No PostgreSQL, no Redis, no Docker. The queue, the retry schedule, and the rate-limit counters are in-process and SQLite-backed. This is a capability decision, not a shortcut: PostgreSQL and Redis are still Docker-backed and are recorded `unsupported` on macOS and Windows, so depending on either would make the scenario unable to run on the Mac node the relay lane exists to reach. Retention is set before the schema is written, not after: retry multiplies delivery-attempt rows, and an unbounded attempt table is a known failure mode elsewhere in this repo.
+
+**Ingress contract** — The sensitivity label and the idempotency key are required fields on the request from the first version of the proto. Both are cheap to specify now and expensive to retrofit, because adding a required field later is a breaking change across the API, the CLI, and the UI at once. The label is set by the caller, since only the caller knows whether the body is safe on a locked screen.
 
 **Channel integration** — One routing core, many thin channel adapters. A delivery provider supplies credentials and reachability as a `cloud-api` resource; the hub owns the send call. This follows the `twilio` resource, whose entire CLI surface is `provider-check`. A provider is promoted from `cloud-api` to `managed-service` only when the owner self-hosts it.
 
@@ -76,7 +86,9 @@ The permanent capability it adds is *reaching a human reliably*. Every scenario 
 
 ## 🤝 Dependencies & Launch Plan
 
-**Resources** — None required. The core carries no resource dependency at all. Channel credentials arrive through optional `cloud-api` resources: a new `ntfy` resource for push, and the existing `twilio` resource if SMS is added.
+**Resources** — None required. The core carries no resource dependency at all. Channel credentials arrive through optional `cloud-api` resources.
+
+The push provider resource **does not exist yet**: there is no `ntfy` resource under `resources/` and no `ntfy` blueprint, and the nearest artifact is the archived `pushover` blueprint at `status: candidate`. Scaffolding it is part of OT-P0-001, following the `twilio` manifest shape. The existing `twilio` resource is adopted only when SMS activates at P2.
 
 **Scenario dependencies**
 
@@ -95,9 +107,10 @@ The permanent capability it adds is *reaching a human reliably*. Every scenario 
 
 1. One real delivery to the owner's iPhone, before any abstraction is built.
 2. The routing core — recipients, devices, preferences, quiet hours, duplicate suppression, retry.
-3. Capability-aware cross-node relay through the bridge, with the Mac node as its first consumer.
-4. iMessage from that Mac node, as a best-effort secondary that does not gate the release.
-5. Event ingress, once the upstream fan-out engine exists.
+3. Acknowledgement, the blocking ask primitive, and escalation, as one slice. This is the differentiating capability and it needs no second machine, so it comes before the fleet work.
+4. Capability-aware cross-node relay through the bridge, with the Mac node as its first consumer.
+5. iMessage from that Mac node, as a best-effort secondary that does not gate the release.
+6. Event ingress, once the upstream fan-out engine exists.
 
 ## 🎨 UX & Branding
 

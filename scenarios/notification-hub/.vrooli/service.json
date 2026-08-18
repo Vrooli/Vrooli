@@ -195,31 +195,36 @@
     }
   },
   "dependencies": {
-    "resources": {},
     "scenarios": {
       "scenario-authenticator": {
         "type": "scenario",
         "enabled": true,
         "required": true,
         "startup_policy": "try_start",
-        "degraded_behavior": "Cached JWKS keeps token verification working through a brief outage; once the cache expires, authenticated calls fail closed. Never fail open — an open notification API is a spam vector aimed at the owner's devices.",
-        "description": "Owner identity. This scenario stores no password, issues no API key, and keys recipients by the authenticator token subject."
+        "runtime_only": true,
+        "runtime_only_rationale": "Identity is verified locally against the authenticator's published JWKS through packages/api-core/owneridentity. The authenticator is resolved by slug at runtime over HTTP; no Go package from that scenario is imported here, so no import-graph edge exists.",
+        "degraded_behavior": "Authenticated surfaces fail closed when the authenticator is unreachable: the API rejects requests it cannot attribute to a verified identity. Already-accepted notifications continue to drain through the delivery worker, because their recipient was resolved at acceptance time.",
+        "description": "Owner identity for every authenticated API, CLI, and UI surface. This scenario issues no API key and stores no password."
       },
       "vrooli-bridge": {
         "type": "scenario",
         "enabled": true,
         "required": false,
         "startup_policy": "ignore",
-        "degraded_behavior": "Channels only a remote node can serve are reported unavailable and routing falls through to a locally servable channel. Local delivery is never blocked by a bridge outage.",
-        "description": "Fleet node registry and durable dispatch for cross-node delivery (OT-P1-001, OT-P1-002)."
+        "runtime_only": true,
+        "runtime_only_rationale": "Cross-node delivery is handed to Bridge durable dispatch across its API boundary. Node capability data is read from the same surface. No Bridge Go package is imported here.",
+        "degraded_behavior": "Without Bridge, the hub delivers only channels this host can reach itself and marks every host-bound channel unroutable with a stated reason. It never silently holds a notification it cannot deliver.",
+        "description": "Fleet node registry and durable dispatch for cross-node delivery relay."
       },
       "vrooli-events": {
         "type": "scenario",
         "enabled": true,
         "required": false,
         "startup_policy": "ignore",
-        "degraded_behavior": "Event-raised notifications stop; direct API and CLI requests are unaffected and remain the primary ingress.",
-        "description": "Event-driven ingress (OT-P1-003). Blocked upstream until vrooli-events grows a subscription fan-out engine; see docs/internal/PROBLEMS.md."
+        "runtime_only": true,
+        "runtime_only_rationale": "Event ingress is inbound: vrooli-events POSTs to this scenario's webhook receiver, and subscriptions are managed across its API boundary. No events Go package is imported here.",
+        "degraded_behavior": "Without vrooli-events, event-driven ingress is unavailable and the hub accepts direct Connect-RPC and CLI requests only. No notification path that was working stops working.",
+        "description": "Event-driven ingress via durable subscription webhook delivery."
       }
     }
   },

@@ -162,33 +162,10 @@ constraints:
 
 `DESIGN.md` is the source of truth for scenario UI decisions. Stack-specific adapters may translate these tokens into CSS, Tailwind, egui, native mobile themes, or future targets, but adapters must not redefine the design language.
 
-**Why this design language fits Notification Hub.** The scenario is an
-instrument panel, not a marketing surface. Its primary screen is a
-delivery timeline whose job is to answer one question at a glance — did
-the thing I was promised would reach me actually reach me — and the
-Operational Console kit is built for exactly that reading: dense rows,
-summary before detail, and semantic status colour held separate from the
-accent.
-
-The audience is a single operator scanning quickly, usually while doing
-something else, and often on a phone. That makes the kit's mobile-first
-responsive baseline and its neutral-operational palette load-bearing
-rather than incidental — a notification console that is pleasant to read
-on a laptop and unusable on a phone has failed its main use.
-
-Two accessibility needs are specific to this scenario and go beyond the
-kit's WCAG 2.2 AA floor. First, **delivery state must carry form as well
-as colour.** `pending`, `held`, `delivered`, and `failed` are the whole
-vocabulary of the timeline, and encoding them in hue alone would make
-the primary screen unreadable for a colour-blind operator and unreliable
-in bright sunlight, which is where a phone is often read. Each state
-therefore carries a distinct shape or glyph alongside its colour.
-Second, **failure must be legible without opening anything.** A row that
-failed says which device and why, in the row, because the operator's
-next action depends on the reason and a row that only says "error"
-forces a detour.
-
-The token contract is otherwise adopted intact.
+> ORIENTATION-TODO: scenario-design-adaptation — Replace this marker with a
+> short note explaining why this design language fits the generated scenario's
+> users, density, workflow, and accessibility needs. Keep the token contract
+> intact unless the scenario intentionally adopts another design kit.
 
 ## How To Read This Document
 

@@ -2,50 +2,22 @@
 
 Owner-facing notification spine that routes alerts to the right device and channel, relaying through the fleet when this host cannot deliver
 
-Something happened. Decide who should hear about it and how, then make
-sure they did. That sentence is the whole scenario.
+This scenario was generated from the `react-vite` template and packages
+the standard full-stack Vrooli scenario shape:
 
-Every scenario and agent in Vrooli produces things worth telling a human
-about, and none of them should own retry logic, quiet hours, device
-addresses, or channel credentials. Those live here once. A caller
-supplies what happened and how urgent it is; this scenario decides the
-channel, the timing, and — when this machine cannot reach the target
-device — which other machine in the fleet can.
-
-> **Status: regenerated 2026-08-17, documentation-first.** The contract
-> in [`PRD.md`](PRD.md) and `docs/` is authored and validating; the
-> implementation is the generated scaffold plus the template's `notes`
-> reference domain. No product code exists yet, and the predecessor
-> scenario's habit of reporting success while delivering nothing is
-> exactly what the release checklist in
-> [`docs/operations/DEPLOYMENT.md`](docs/operations/DEPLOYMENT.md) now
-> guards against.
+- Go API (`api/`)
+- React + TypeScript + Vite UI (`ui/`)
+- CLI wrapper (`cli/`)
+- Lifecycle + health wiring (`.vrooli/service.json`)
+- Requirements registry, generated L0 experience contract, and progress log
+  (`requirements/`, `experience/`, `docs/internal/PROGRESS.md`)
 
 > **Start here:** open [`docs/START-HERE.md`](docs/START-HERE.md). It
 > owns the first-session initialization protocol — charter, requirements,
 > domain map, design language, placeholder replacement, and first real
 > vertical slice. Run `make orient` for a machine-readable gate status.
 
-## What You Get
-
-The product shape, once built:
-
-- **One send call.** Recipient, title, body, urgency, sensitivity.
-  Everything else is this scenario's problem.
-- **A device and channel registry** — which devices the owner has, which
-  channels each accepts, and the address for each.
-- **A routing core** that applies preferences, quiet hours, and
-  duplicate suppression before anything leaves the machine, and that can
-  be tested exhaustively without a network.
-- **Delivery with retry and a stated terminal reason**, plus a timeline
-  that answers "did it arrive" and "why that channel" for every
-  notification.
-- **Cross-node relay** so a channel this host cannot serve — macOS
-  Notification Center, iMessage — is delivered by a fleet node that can.
-- **A sensitivity model** so a notification body is safe on a locked
-  screen, in a shared room, and in a third-party provider's logs.
-
-The scaffold it is built on:
+## What's In This Scenario
 
 - Go API (`api/`), Go CLI (`cli/`), and React/Vite UI (`ui/`)
   coordinated through generated proto contracts.
@@ -75,25 +47,7 @@ The scaffold it is built on:
   runbooks, observability, security, performance, and durable
   decisions.
 
-## Customize Safely
-
-Three decisions are load-bearing and should not be undone without
-superseding them in
-[`docs/internal/DECISIONS.md`](docs/internal/DECISIONS.md):
-
-1. **No resource dependencies.** `resource-postgres` and
-   `resource-redis` are OCI-acquired and recorded `unsupported` on macOS
-   and Windows. Adding either would make the scenario unable to run on
-   the Mac node the relay lane exists to reach. Check
-   `path:docs/reference/platform-support.md` before adding anything to
-   `.vrooli/service.json`.
-2. **No local accounts.** Identity comes from `scenario-authenticator`
-   and recipients are keyed by the token subject. Do not add a profile
-   table, an API key, or a password field. Multi-user support arrives by
-   trust posture, not by schema.
-3. **Sensitivity is NOT NULL with no default.** A caller decides once
-   whether a body may leave the machine. A default would make the unsafe
-   case silent.
+## Placeholders vs. Durable Scaffolding
 
 The generated scaffold is intentionally not the product. When you build
 the real UX, treat these as **placeholders** to replace:

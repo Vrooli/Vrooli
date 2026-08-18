@@ -1,6 +1,6 @@
 {
   "_metadata": {
-    "description": "Requirement stubs scaffolded from the P2 operational targets.",
+    "description": "P2 operational targets for the owner notification spine. Amended 2026-08-17: acknowledgement and escalation were promoted to P1 as NOTIFICA-P1-009 and NOTIFICA-P1-011.",
     "module": "P2-targets",
     "priority": "P2",
     "schema_version": "1.0.0"
@@ -46,36 +46,6 @@
       "validation": [
         {
           "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:NOTIFICA-P2-003] tag) once the behavior exists.",
-          "status": "planned",
-          "type": "manual"
-        }
-      ]
-    },
-    {
-      "criticality": "P2",
-      "description": "The system may accept an acknowledgement or a chosen action from a delivered notification and may return it to the requesting scenario.",
-      "id": "NOTIFICA-P2-004",
-      "prd_ref": "OT-P2-004",
-      "status": "planned",
-      "title": "Acknowledgement and response",
-      "validation": [
-        {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:NOTIFICA-P2-004] tag) once the behavior exists.",
-          "status": "planned",
-          "type": "manual"
-        }
-      ]
-    },
-    {
-      "criticality": "P2",
-      "description": "The system may escalate an unacknowledged critical notification to a second channel after a timeout.",
-      "id": "NOTIFICA-P2-005",
-      "prd_ref": "OT-P2-005",
-      "status": "planned",
-      "title": "Escalation chains",
-      "validation": [
-        {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:NOTIFICA-P2-005] tag) once the behavior exists.",
           "status": "planned",
           "type": "manual"
         }

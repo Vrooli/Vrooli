@@ -26,118 +26,13 @@ outcome, statefulness, and validation level.
 
 | Flow | Domain | Trigger | Outcome | Statefulness | Validation |
 |---|---|---|---|---|---|
-| Notification lifecycle | notifications | A caller submits a send request, or a scheduled notification comes due. | The notification reaches a terminal state and the caller can see which. | Eight states, four of them terminal; holds, cancellation, and duplicate suppression. | Level 4 — declarative `*.flow.json` contract with matrix and trace tests. |
-| Delivery attempt | delivery | Routing produces a decision for one channel. | A receipt, or a stated terminal failure. | Retry with backoff under a budget; stale completion after cancellation. | Level 4 — contract plus injected-clock retry tests. |
-| Quiet-hour hold and release | notifications, routing | A notification arrives inside a quiet window. | The notification is held and later released, or delivered immediately because it is critical. | Timed hold with a release trigger; survives restart. | Level 3 — matrix and trace tests across timezone and midnight-crossing cases. |
-| Duplicate suppression | notifications | A send request carries a dedupe key already seen inside its window. | The duplicate is collapsed onto the original and marked suppressed. | Windowed, per recipient. | Level 3 — matrix tests. |
-| Relayed delivery (P1) | relay, delivery | Routing decides this host cannot serve the channel. | A delivery performed by a fleet node, with the same receipt shape as a local one. | Dispatch acknowledgement, node absence, timeout, duplicate dispatch. | Level 4 — contract with a stubbed dispatch seam. |
-| Event ingress (P1) | ingress | An inbound webhook arrives from `vrooli-events` or a third party. | A notification request, or an explicit no-match. | Idempotent on redelivery via receipts. | Level 3 — matrix tests against a synthetic caller. |
+| _(your flow)_ | _(owning domain)_ | What starts it. | What it produces. | States, retries, cancellation, stale completion. | Target maturity level. |
 
 ## Flow Details
 
 Document each real flow here with its owner domain, trigger, inputs,
 ordered steps, outputs, failure modes, retry/cancel behavior, tests, and
 generated subpackages. The worked example below shows the expected shape.
-
-### Notification lifecycle — `notifications`
-
-The spine of the scenario. Everything else is a step inside it.
-
-- **Trigger** — an authenticated send request from a scenario, an agent,
-  the CLI, or the UI; or the scheduler finding a notification whose
-  `scheduled_for` has passed.
-- **Inputs** — recipient, title, body, urgency, sensitivity, optional
-  dedupe key and window, optional scheduled time, optional link.
-- **Ordered steps**
-  1. Validate and persist as `accepted`. The caller gets an id here, and
-     the id is durable before any delivery is attempted. A caller that
-     received an id can always find out what happened.
-  2. Check the dedupe key against the recipient's window. A hit
-     terminates this notification as `suppressed` and records which
-     notification absorbed it.
-  3. Ask `routing` for a decision. Routing reads recipient preferences,
-     quiet windows, channel availability, and the sensitivity label.
-  4. If the decision is to hold, move to `held` with a release time.
-     Otherwise move to `routed`.
-  5. Create one delivery row per selected channel and move to
-     `delivering`.
-  6. When deliveries settle, move to `delivered` if any channel
-     succeeded, or `failed` if all of them exhausted their budget.
-- **Outputs** — a terminal state, a transition history, and one delivery
-  row per attempted channel.
-- **Failure modes** — storage unavailable at step 1 rejects the request
-  rather than accepting something that cannot be persisted; no reachable
-  channel at step 3 fails the notification immediately with a stated
-  reason rather than leaving it pending forever.
-- **Retry and cancel** — retries belong to the delivery flow, not here.
-  Cancellation is permitted from `accepted`, `held`, and `routed`, and
-  is refused once a delivery has left for a provider, because the
-  provider cannot be asked to take it back.
-- **Tests** — transition matrix over every state/event pair; a negative
-  test per illegal transition; trace replay for the hold-then-release
-  and suppress paths.
-
-### Delivery attempt — `delivery`
-
-- **Trigger** — a routing decision for exactly one channel.
-- **Inputs** — notification id, channel, resolved address, redacted body
-  appropriate to the sensitivity label, retry budget from the channel
-  adapter.
-- **Ordered steps**
-  1. Persist the attempt as `pending` with the routing reason recorded.
-  2. Hand the payload to the channel adapter.
-  3. On success, record the provider message id and settle as
-     `delivered`.
-  4. On a retryable error, schedule the next attempt with backoff and
-     stay `pending`.
-  5. On a terminal error, or once the budget is spent, settle as
-     `failed` with a reason the operator can act on.
-- **Outputs** — a settled delivery row and a receipt.
-- **Failure modes** — a provider 4xx is terminal (the topic or address
-  is wrong, and retrying cannot fix it); a 5xx or timeout is retryable.
-  Conflating the two is how delivery systems retry forever against a
-  configuration mistake.
-- **Retry and cancel** — exponential backoff with jitter, bounded by the
-  channel's budget. A completion arriving after the parent notification
-  was cancelled is discarded as stale rather than flipping a terminal
-  state.
-- **Tests** — retry and backoff run against an injected clock; no test
-  sleeps. Adapter behavior is exercised through a fake transport; no
-  test performs a real send.
-
-### Quiet-hour hold and release — `notifications`, `routing`
-
-- **Trigger** — a notification whose recipient has a quiet window
-  covering the current local time.
-- **Ordered steps** — routing returns a hold decision with a release
-  time; the notification moves to `held`; the scheduler releases it when
-  the window closes and re-runs routing, because preferences or channel
-  availability may have changed while it waited.
-- **Failure modes** — a hold that outlives its usefulness. A held
-  notification older than a configurable staleness bound is released
-  early or dropped with a stated reason rather than arriving as
-  yesterday's news.
-- **Edge cases that carry tests** — windows that cross midnight, windows
-  in a timezone other than the host's, a recipient with two overlapping
-  windows, and a `critical` urgency that must ignore all of them.
-
-### Relayed delivery — `relay`, `delivery` (P1)
-
-- **Trigger** — routing determines the selected channel cannot be served
-  by this host.
-- **Ordered steps** — look up nodes advertising the channel capability;
-  pick one that is present and owns the recipient's device; submit a
-  durable dispatch job through `vrooli-bridge`; record `node_id` and the
-  correlation on the delivery row; settle when the node reports back.
-- **Failure modes** — no node advertises the capability, so the channel
-  is unavailable and routing falls through; the node is offline, so the
-  dispatch waits rather than failing immediately (this is exactly why
-  durable dispatch is used instead of the synchronous relay call); the
-  dispatch times out, so the delivery fails with a reason naming the
-  node.
-- **Note** — the delivery row shape is identical for local and relayed
-  deliveries. A reader of the timeline should not have to care which
-  machine sent it, only whether it arrived.
 
 <!-- EXAMPLE-DOMAIN:notes START -->
 ### Example domain — `notes` (removed by `template-manager detemplate`)
@@ -195,16 +90,7 @@ enforced. Plain CRUD with no ordering constraints does not appear here.
 
 | Domain/Flow | States | Illegal Transitions | Enforcement |
 |---|---|---|---|
-| notifications / lifecycle | accepted, held, routed, delivering, delivered, failed, cancelled, suppressed | Any escape from a terminal state; `delivering` before `routed`; `delivered` with no settled delivery row; cancellation after a payload has left for a provider; suppression after routing has begun | `*.flow.json` contract, generated Quint model, transition matrix, trace replay |
-| delivery / attempt | pending, delivered, failed | Settling twice; a completion applied after the parent was cancelled; a retry scheduled past the budget; `delivered` without a provider message id | `*.flow.json` contract, injected-clock retry tests, stale-completion tests |
-| notifications / quiet hold | held, released, expired | Release before the window closes for non-critical urgency; a critical notification entering `held` at all; release without re-running routing | contract plus timezone and midnight-crossing matrix tests |
-| relay / dispatch (P1) | selected, dispatched, acknowledged, timed_out | Dispatch to a node that advertises no matching capability; dispatch of a `secret`-sensitivity body; two dispatches for one delivery | contract with a stubbed dispatch seam |
-| UI / send composer | idle, editing, submitting, submitted, failed | Submit before validation passes; stale success applied after the form was reset; double submit producing two notifications | `*.flow.json` contract, attempt-id stale completion tests |
-
-The three that matter most are terminal-state escape, stale completion,
-and double submit. Each of them produces the same user-visible bug — a
-notification that appears to have arrived when it did not, or arrived
-twice — which is the failure this scenario exists to prevent.
+| _(your flow)_ | The ordered/terminal states. | Transitions the contract forbids. | `*.flow.json` contract, generated Quint model, replay tests. |
 
 ## Maturity Ladder
 
@@ -338,10 +224,7 @@ To add or rename a state/event:
 
 | Flow | Risk | Next Step |
 |---|---|---|
-| Digest collapsing (OT-P1-005) | A digest window is a second timed hold running alongside quiet hours, and two independent hold mechanisms interacting is where scheduling bugs live. | Model it as a variant of the quiet hold rather than a parallel mechanism, so there is one release path, not two. |
-| Acknowledgement return path (OT-P2-004) | Introduces an inbound state change on an already-terminal notification, which the current state machine forbids by design. | Model acknowledgement as a separate entity referencing the notification, not as a new notification state. Decide before OT-P2-004 starts. |
-| Escalation chains (OT-P2-005) | A timer that fires a second delivery is easy to build and easy to make loop. | Requires acknowledgement first, plus an explicit maximum chain depth in the contract. |
-| Self-hosted push migration (OT-P1-008) | Moving a device from a hosted topic to a self-hosted endpoint mid-flight can strand in-flight deliveries. | Treat it as re-registering the channel address rather than editing it, so in-flight deliveries settle against the old address. |
+| None yet. | Generated scaffold. | Add real scenario workflows when domains have stateful behavior. |
 
 ## Cross-References
 
