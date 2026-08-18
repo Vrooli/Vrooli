@@ -194,6 +194,13 @@ func (r *sqliteRepository) SaveExecution(ctx context.Context, e Execution) error
 		if _, err := r.db.ExecContext(ctx, upsertBaselineSetSQL, e.ID, string(raw), updated); err != nil {
 			return fmt.Errorf("upsert execution baseline set %q: %w", e.ID, err)
 		}
+	} else {
+		// Adoption can intentionally clear an execution-owned legacy baseline.
+		// Remove the prior row as well; leaving it behind would resurrect the
+		// stale adoption gate on the next read from SQLite.
+		if _, err := r.db.ExecContext(ctx, `DELETE FROM execution_baseline_sets WHERE execution_id = ?`, e.ID); err != nil {
+			return fmt.Errorf("delete execution baseline set %q: %w", e.ID, err)
+		}
 	}
 	scopeRaw, err := json.Marshal(executionScopeDocument{
 		PhaseValidationGenerations: e.PhaseValidationGenerations,

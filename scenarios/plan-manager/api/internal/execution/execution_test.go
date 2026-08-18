@@ -451,6 +451,15 @@ func TestExplicitLegacyPlanRequiresBaselineAdoption(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "baseline_adoption_required", step.StepKind)
 	require.Equal(t, []string{"exec", "baseline-adopt", e.ID, "--mode", "recapture", "--name", "<collection-name>", "--members", "<scenario,...>", "--reason", "<why this is a trustworthy before-state>"}, step.NextActions[0].Argv)
+
+	_, _, _, err = h.svc.AdoptBaseline(context.Background(), e.ID, execution.BaselineAdoptionRequest{
+		Mode:   execution.BaselineAdoptionDegraded,
+		Reason: "the producer is unavailable and no trustworthy before-state can be recreated",
+	})
+	require.NoError(t, err)
+	_, _, step, err = h.svc.GetStatus(context.Background(), e.ID)
+	require.NoError(t, err)
+	require.Equal(t, "phase_context", step.StepKind, "degraded adoption must clear the persisted legacy gate")
 }
 
 func TestRecaptureBaselineCanSupersedeExistingTicketWithNewName(t *testing.T) {

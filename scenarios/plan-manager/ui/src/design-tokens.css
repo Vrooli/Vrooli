@@ -30,6 +30,17 @@
   --sidebar-max-width: 30rem;
   color-scheme: light;
 }
+/* rcl:tokens:begin */
+  --border-hairline: 1px;
+  --border-strong: 2px;
+  --space-2xs: 8px;
+  --space-3xs: 4px;
+  --space-sm: 16px;
+  --space-xs: 12px;
+  --text-body: 400 var(--text-body-size) / var(--text-body-line) var(--font-sans);
+  --text-caption: 600 var(--text-caption-size) / var(--text-caption-line) var(--font-sans);
+  --text-label: 500 var(--text-label-size) / var(--text-label-line) var(--font-sans);
+/* rcl:tokens:end */
 
 :root[data-resolved-theme="dark"],
 .dark {
