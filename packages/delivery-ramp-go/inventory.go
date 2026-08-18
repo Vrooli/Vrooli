@@ -72,7 +72,14 @@ func Discover(ctx context.Context, prober Prober, bridgeSources ...BridgeSource)
 		}
 		targets, sourceErr := source.Discover(ctx)
 		if sourceErr != nil {
-			targets = []Target{UnavailableTarget("bridge inventory unavailable", "bridge inventory")}
+			// Carry the cause. An unavailable target must name what is missing
+			// and what to do next; collapsing every failure into one generic
+			// string hides an unreachable endpoint, a rejected credential, and a
+			// malformed response behind identical text.
+			targets = []Target{UnavailableTarget(
+				fmt.Sprintf("bridge inventory unavailable: %v", sourceErr),
+				"bridge inventory",
+			)}
 		}
 		result.Targets = append(result.Targets, targets...)
 	}

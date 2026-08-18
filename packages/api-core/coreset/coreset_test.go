@@ -7,14 +7,15 @@ import (
 
 func TestCoreSeedScenariosShape(t *testing.T) {
 	seed := CoreSeedScenarios()
-	if len(seed) != 9 {
-		t.Fatalf("expected 9 seed scenarios, got %d: %v", len(seed), seed)
+	if len(seed) != 10 {
+		t.Fatalf("expected 10 seed scenarios, got %d: %v", len(seed), seed)
 	}
 
 	want := map[string]bool{
 		"agent-manager":                true,
 		"data-backup-manager":          true,
 		"git-control-tower":            true,
+		"notification-hub":             true,
 		"prompt-manager":               true,
 		"scenario-dependency-analyzer": true,
 		"swarm-manager":                true,

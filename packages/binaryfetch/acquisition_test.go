@@ -44,7 +44,7 @@ func TestAcquisitionResolveReportsUnsupportedTarget(t *testing.T) {
 
 func TestAcquisitionValidateRejectsAmbiguousDeclarations(t *testing.T) {
 	validDigest := "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
-	valid := Acquisition{Kind: "url", Targets: []AcquisitionTarget{{URL: "https://example.test/tool", SHA256: validDigest}}}
+	valid := Acquisition{Kind: "url", Targets: []AcquisitionTarget{{URL: "https://example.test/tool", SHA256: validDigest, Archive: "tar.bz2", Layout: "file", BinPath: "bin/tool"}}}
 	if err := valid.Validate(); err != nil {
 		t.Fatalf("valid acquisition rejected: %v", err)
 	}

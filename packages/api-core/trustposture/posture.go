@@ -11,6 +11,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/vrooli/api-core/operatorsession"
 )
 
 const stateRelativePath = ".vrooli/operator-state.json"
@@ -83,8 +85,9 @@ var ErrInvalidPosture = errors.New("invalid trust posture")
 // State is the typed reader result. Source is either the state file path or
 // "default" when no operator-state file exists.
 type State struct {
-	Posture Posture
-	Source  string
+	Posture    Posture
+	Source     string
+	Enrollment operatorsession.Enrollment
 }
 
 // TransitionEvent is the typed audit payload an operator workflow records
@@ -121,7 +124,12 @@ func Transition(from State, to Posture, actor string, at time.Time) (TransitionE
 // the small runtime seam used by agents and scenarios.
 func Parse(data []byte, source string) (State, error) {
 	var doc struct {
-		TrustPosture string `json:"trust_posture"`
+		TrustPosture        string    `json:"trust_posture"`
+		OperatorID          string    `json:"operator_id"`
+		IdentityProvider    string    `json:"identity_provider"`
+		SessionMode         string    `json:"session_mode"`
+		EnrollmentReference string    `json:"enrollment_reference"`
+		EnrolledAt          time.Time `json:"enrolled_at"`
 	}
 	if err := json.Unmarshal(data, &doc); err != nil {
 		return State{}, fmt.Errorf("decode operator state: %w", err)
@@ -136,7 +144,14 @@ func Parse(data []byte, source string) (State, error) {
 	if strings.TrimSpace(source) == "" {
 		source = "default"
 	}
-	return State{Posture: p, Source: source}, nil
+	state := State{Posture: p, Source: source}
+	if strings.TrimSpace(doc.OperatorID) != "" || strings.TrimSpace(doc.IdentityProvider) != "" || strings.TrimSpace(doc.SessionMode) != "" || strings.TrimSpace(doc.EnrollmentReference) != "" {
+		state.Enrollment = operatorsession.Enrollment{OperatorID: doc.OperatorID, IdentityProvider: doc.IdentityProvider, Mode: operatorsession.Mode(doc.SessionMode), Reference: doc.EnrollmentReference, EnrolledAt: doc.EnrolledAt}
+		if err := state.Enrollment.Validate(); err != nil {
+			return State{}, err
+		}
+	}
+	return state, nil
 }
 
 // Load loads the state rooted at root. A missing file is the documented

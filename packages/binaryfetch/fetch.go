@@ -37,6 +37,51 @@ type Target struct {
 	Mode string
 }
 
+// FetchTree downloads and verifies an archive, then extracts its complete
+// contents into destDir. It is the generic archive primitive used by composed
+// managed-service artifacts whose source tree is not itself an executable.
+func FetchTree(ctx context.Context, spec Target, destDir string, onProgress ProgressFunc) error {
+	if strings.TrimSpace(spec.URL) == "" {
+		return fmt.Errorf("binaryfetch: tree target URL is required")
+	}
+	if strings.TrimSpace(spec.SHA256) == "" {
+		return fmt.Errorf("binaryfetch: tree target SHA256 is required")
+	}
+	format := normalizeArchive(spec.Archive)
+	if format == "" {
+		return fmt.Errorf("binaryfetch: tree target requires a supported archive")
+	}
+	tmpDir, err := os.MkdirTemp("", "binaryfetch-tree-*")
+	if err != nil {
+		return fmt.Errorf("binaryfetch: tree temp dir: %w", err)
+	}
+	defer os.RemoveAll(tmpDir)
+	downloadPath := filepath.Join(tmpDir, "download")
+	if err := download(ctx, spec.URL, downloadPath, onProgress); err != nil {
+		return err
+	}
+	onProgress.emit(Progress{Stage: StageVerifying})
+	if err := verifyChecksum(downloadPath, spec.SHA256); err != nil {
+		return err
+	}
+	onProgress.emit(Progress{Stage: StageExtracting})
+	stageDir := filepath.Join(tmpDir, "extracted")
+	if err := extractAll(downloadPath, format, stageDir); err != nil {
+		return err
+	}
+	if err := os.RemoveAll(destDir); err != nil {
+		return fmt.Errorf("binaryfetch: clean tree destination: %w", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(destDir), 0o755); err != nil {
+		return fmt.Errorf("binaryfetch: create tree parent: %w", err)
+	}
+	if err := os.Rename(stageDir, destDir); err != nil {
+		return fmt.Errorf("binaryfetch: place tree: %w", err)
+	}
+	onProgress.emit(Progress{Stage: StageInstalling})
+	return nil
+}
+
 // Stage names the phase reported through ProgressFunc.
 type Stage string
 

@@ -119,6 +119,18 @@ func (c *Client) Validate(ctx context.Context, raw string) (Identity, error) {
 	return payload.identity(c.now())
 }
 
+// Reachable performs a read-only health check against the authenticator's
+// published JWKS. It deliberately bypasses the grace cache: callers use this
+// to report current dependency reachability, while Validate may continue to
+// use a recently fetched key set during a short provider outage.
+func (c *Client) Reachable(ctx context.Context) error {
+	if c == nil {
+		return fmt.Errorf("%w: nil client", ErrUnavailable)
+	}
+	_, err := c.fetch(ctx)
+	return err
+}
+
 type tokenHeader struct {
 	Alg string `json:"alg"`
 	Kid string `json:"kid"`

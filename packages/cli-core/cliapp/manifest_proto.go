@@ -49,7 +49,7 @@ func RequireProtoServiceCoverage(t *testing.T, raw []byte, fd protoreflect.FileD
 	bound := make(map[string]string) // method -> "<group>/<command>"
 	for _, g := range m.Groups {
 		for _, c := range g.Commands {
-			if c.Binding.Service != serviceName {
+			if c.Binding.Service != serviceName && c.Binding.Service != string(service.FullName()) && c.Binding.Service != string(service.Name()) {
 				continue
 			}
 			key := c.Binding.Method
@@ -62,7 +62,7 @@ func RequireProtoServiceCoverage(t *testing.T, raw []byte, fd protoreflect.FileD
 
 	omitted := make(map[string]string)
 	for _, o := range m.Omitted {
-		if o.Service != serviceName {
+		if o.Service != serviceName && o.Service != string(service.FullName()) && o.Service != string(service.Name()) {
 			continue
 		}
 		if _, dup := omitted[o.Method]; dup {
@@ -114,7 +114,7 @@ func lookupService(fd protoreflect.FileDescriptor, name string) protoreflect.Ser
 	services := fd.Services()
 	for i := 0; i < services.Len(); i++ {
 		s := services.Get(i)
-		if string(s.Name()) == name {
+		if string(s.Name()) == name || string(s.FullName()) == name {
 			return s
 		}
 	}

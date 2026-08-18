@@ -38,15 +38,39 @@ type Dispatcher interface {
 
 type Runs interface {
 	WaitRun(context.Context, *connect.Request[runsv1.WaitRunRequest]) (*connect.Response[runsv1.WaitRunResponse], error)
+	// GetRun is required because WaitRun reports only terminal status. A
+	// dispatched probe's payload arrives as run log events, so recovering it
+	// needs the run detail.
+	GetRun(context.Context, *connect.Request[runsv1.GetRunRequest]) (*connect.Response[runsv1.GetRunResponse], error)
 }
 
 type Client struct {
 	registry   Registry
 	dispatcher Dispatcher
 	runs       Runs
+	// platform scopes discovery to one ramp's targets. A single probed node may
+	// serve several platforms, and each ramp must see only its own.
+	platform   string
+	hostProber HostProber
 }
 
-func NewClient(baseURL, token string, httpClient *http.Client) *Client {
+// ClientOption configures optional discovery behaviour without widening the
+// constructor for every ramp that does not need it.
+type ClientOption func(*Client)
+
+// WithPlatform scopes discovered targets to one platform ("ios", "android",
+// "desktop"). Without it a client reports every platform a node can serve.
+func WithPlatform(platform string) ClientOption {
+	return func(c *Client) { c.platform = strings.ToLower(strings.TrimSpace(platform)) }
+}
+
+// WithHostProber overrides remote host-fact resolution, so tests can classify
+// nodes without dispatching a job.
+func WithHostProber(prober HostProber) ClientOption {
+	return func(c *Client) { c.hostProber = prober }
+}
+
+func NewClient(baseURL, token string, httpClient *http.Client, options ...ClientOption) *Client {
 	if strings.TrimSpace(baseURL) == "" {
 		return nil
 	}
@@ -61,15 +85,28 @@ func NewClient(baseURL, token string, httpClient *http.Client) *Client {
 		httpClient = &http.Client{Transport: bearerTransport{base: transport, token: token}, Timeout: httpClient.Timeout}
 	}
 	baseURL = strings.TrimRight(baseURL, "/")
-	return &Client{
+	client := &Client{
 		registry:   registryconnect.NewNodeRegistryServiceClient(httpClient, baseURL),
 		dispatcher: dispatchconnect.NewDispatchServiceClient(httpClient, baseURL),
 		runs:       runsconnect.NewRunsServiceClient(httpClient, baseURL),
 	}
+	for _, option := range options {
+		option(client)
+	}
+	if client.hostProber == nil {
+		client.hostProber = newDispatchHostProber(client.dispatcher, client.runs)
+	}
+	return client
 }
 
-func NewClientFromEnv() *Client {
-	return NewClient(os.Getenv("VROOLI_BRIDGE_URL"), os.Getenv("VROOLI_BRIDGE_API_TOKEN"), nil)
+// NewClientFromEnv builds a bridge client from an explicitly configured URL.
+//
+// It returns nil when no URL is set. A ramp whose primary execution path is a
+// bridge node must not accept that silently: resolve the bridge scenario URL at
+// the composition root and use NewClient, so an unset variable cannot disable
+// remote execution while a healthy fleet runs beside it.
+func NewClientFromEnv(options ...ClientOption) *Client {
+	return NewClient(os.Getenv("VROOLI_BRIDGE_URL"), os.Getenv("VROOLI_BRIDGE_API_TOKEN"), nil, options...)
 }
 
 type bearerTransport struct {
@@ -85,8 +122,15 @@ func (t bearerTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 
 // NewClientForTesting binds typed fakes without exposing generated transport
 // details to the matrix service tests.
-func NewClientForTesting(registry Registry, dispatcher Dispatcher, runs Runs) *Client {
-	return &Client{registry: registry, dispatcher: dispatcher, runs: runs}
+func NewClientForTesting(registry Registry, dispatcher Dispatcher, runs Runs, options ...ClientOption) *Client {
+	client := &Client{registry: registry, dispatcher: dispatcher, runs: runs}
+	for _, option := range options {
+		option(client)
+	}
+	if client.hostProber == nil {
+		client.hostProber = newDispatchHostProber(dispatcher, runs)
+	}
+	return client
 }
 
 func (c *Client) Discover(ctx context.Context) ([]deliveryramp.Target, error) {
@@ -105,7 +149,15 @@ func (c *Client) Discover(ctx context.Context) ([]deliveryramp.Target, error) {
 		if node == nil {
 			continue
 		}
-		targets = append(targets, nodeTarget(node))
+		// Only a reachable, authorized node is worth probing; probing an
+		// offline node would spend a dispatch to learn what its status already
+		// says.
+		var facts HostFacts
+		var factsErr error
+		if nodeReachable(node) {
+			facts, factsErr = c.probeHost(ctx, node.Id)
+		}
+		targets = append(targets, nodeTarget(node, facts, factsErr, c.platform))
 	}
 	if len(targets) == 0 {
 		targets = append(targets, unavailableTarget("bridge fleet has no registered nodes"))
@@ -163,54 +215,73 @@ func (c *Client) Execute(ctx context.Context, request CellRequest) CellResult {
 	}
 }
 
-func nodeTarget(node *registryv1.Node) deliveryramp.Target {
-	capabilities := make([]string, 0, len(node.Capabilities))
-	android := false
-	for _, raw := range node.Capabilities {
-		normalized := strings.ToLower(strings.TrimSpace(raw))
-		if strings.HasSuffix(normalized, "cdp") || normalized == "desktop" {
-			capabilities = append(capabilities, deliveryramp.CapabilityCDP)
-			continue
-		}
-		switch normalized {
-		case "native-window", "desktop.native-window":
-			capabilities = append(capabilities, deliveryramp.CapabilityNativeWindow)
-		case "process-metrics", "desktop.process-metrics":
-			capabilities = append(capabilities, deliveryramp.CapabilityProcessMetrics)
-		case "offline-network", "desktop.offline-network":
-			capabilities = append(capabilities, deliveryramp.CapabilityOfflineNetwork)
-		case "android", "adb", "android-adb", "android.device-control":
-			android = true
-			capabilities = append(capabilities, deliveryramp.CapabilityDeviceControl)
-		case "android-webview", "android.webview":
-			android = true
-			capabilities = append(capabilities, deliveryramp.CapabilityAndroidWebView)
-		case "android-emulator", "android.emulator":
-			android = true
-			capabilities = append(capabilities, deliveryramp.CapabilityAndroidEmulator)
-		case "screen-recording", "android.screen-recording":
-			android = true
-			capabilities = append(capabilities, deliveryramp.CapabilityScreenRecording)
-		}
+// nodeReachable reports whether a node can accept a dispatched job right now.
+func nodeReachable(node *registryv1.Node) bool {
+	return node != nil && node.Online &&
+		node.Status == registryv1.NodeStatus_NODE_STATUS_ONLINE &&
+		hasDispatchScope(node.Scopes)
+}
+
+func (c *Client) probeHost(ctx context.Context, nodeID string) (HostFacts, error) {
+	if c == nil || c.hostProber == nil {
+		return HostFacts{}, fmt.Errorf("host prober is not configured")
 	}
-	available := node.Online && node.Status == registryv1.NodeStatus_NODE_STATUS_ONLINE && len(capabilities) > 0 && hasDispatchScope(node.Scopes)
-	reason := targetmodel.ReasonBridgeOffline
-	if node.Online && node.Status == registryv1.NodeStatus_NODE_STATUS_ONLINE && len(capabilities) == 0 {
-		reason = targetmodel.ReasonBridgeNoCapability
-		available = false
-	} else if node.Online && node.Status == registryv1.NodeStatus_NODE_STATUS_ONLINE && !hasDispatchScope(node.Scopes) {
-		reason = targetmodel.ReasonBridgeNoDispatchScope
-	} else if available && android {
-		reason = targetmodel.ReasonBridgeAuthorizedAndroid
-	} else if available {
-		reason = targetmodel.ReasonBridgeAuthorizedDesktop
+	return c.hostProber.ProbeHost(ctx, nodeID)
+}
+
+// nodeTarget projects one registry node into a target for the requested
+// platform.
+//
+// Platform capability comes from probed host facts, never from
+// node.Capabilities: that field carries the node's allowlisted dispatch verbs
+// ("host inventory*", "setup*"), which share no vocabulary with platform names.
+// Deriving capability from it reported every node as capability-less.
+func nodeTarget(node *registryv1.Node, facts HostFacts, factsErr error, platform string) deliveryramp.Target {
+	var (
+		capabilities []string
+		available    bool
+		reason       string
+		missing      string
+		nextAction   string
+		deviceKind   = "host"
+	)
+
+	switch {
+	case node.Status == registryv1.NodeStatus_NODE_STATUS_REVOKED:
+		reason, missing = targetmodel.ReasonBridgeRevoked, "trusted bridge node"
+		nextAction = "re-register the node before dispatching to it"
+	case !node.Online || node.Status != registryv1.NodeStatus_NODE_STATUS_ONLINE:
+		reason, missing = targetmodel.ReasonBridgeOffline, "online bridge node"
+		nextAction = "bring the node online, then probe again"
+	case !hasDispatchScope(node.Scopes):
+		reason, missing = targetmodel.ReasonBridgeNoDispatchScope, "bridge dispatch scope"
+		nextAction = "grant the node a bridge write scope, then probe again"
+	case factsErr != nil:
+		reason, missing = targetmodel.ReasonBridgeNoHostProbe, "host toolchain probe"
+		nextAction = "ensure the node answers `host inventory --json` over dispatch, then probe again"
+	default:
+		class, matched := selectPlatformClass(facts, platform)
+		if !matched {
+			reason = targetmodel.ReasonBridgeNoCapability
+			missing = platformCapabilityName(platform)
+			nextAction = "install the toolchain for this platform on the node, then probe again"
+			break
+		}
+		capabilities, deviceKind = class.Capabilities, class.DeviceKind
+		if class.Missing != "" {
+			reason, missing, nextAction = targetmodel.ReasonBridgeNoCapability, class.Missing, class.NextAction
+			break
+		}
+		available, reason = true, class.Reason
+		missing, nextAction = "", ""
 	}
-	platform, deviceKind, missing, nextAction := "desktop", "desktop", "bridge desktop capability", "register a bridge node with the required desktop capability"
-	if android {
-		platform, deviceKind, missing, nextAction = "android", "physical", "bridge Android capability", "register a bridge node with Android device-control and screen-recording capabilities"
+
+	resolvedPlatform := platform
+	if resolvedPlatform == "" {
+		resolvedPlatform = "desktop"
 	}
 	return deliveryramp.Target{
-		ID: "bridge:" + node.Id, Label: node.Name, Platform: platform, DeviceKind: deviceKind, Capabilities: capabilities,
+		ID: "bridge:" + node.Id, Label: node.Name, Platform: resolvedPlatform, DeviceKind: deviceKind, Capabilities: capabilities,
 		NodeID: node.Id, OS: node.Os, Architecture: node.Arch, Mode: "remote", Reason: reason,
 		Available: available, MissingCapability: missing, NextAction: nextAction,
 		Transport: deliveryramp.Transport{Kind: deliveryramp.TransportBridge, ID: node.Id, Trust: "bridge", Available: available, Reason: reason},
@@ -250,14 +321,45 @@ func bridgeHealth(node *registryv1.Node, available bool) string {
 	return "offline"
 }
 
+// hasDispatchScope reports whether a node's granted scopes permit dispatch.
+//
+// Bridge grants coarse scopes ("vrooli-bridge:read", "vrooli-bridge:write") and
+// separately allowlists verbs per node. Matching the legacy "scenario test"
+// string rejected every real node, because no node has ever carried a scope by
+// that name.
 func hasDispatchScope(scopes []string) bool {
 	for _, scope := range scopes {
-		normalized := strings.ToLower(strings.TrimSpace(scope))
-		if normalized == "scenario test" || normalized == "scenario test*" {
+		switch strings.ToLower(strings.TrimSpace(scope)) {
+		case "vrooli-bridge:write", "vrooli-bridge:admin":
 			return true
 		}
 	}
 	return false
+}
+
+// selectPlatformClass resolves the class a node can serve for the requested
+// platform. An empty request means "any class this node can prove", which keeps
+// a platform-agnostic caller working.
+func selectPlatformClass(facts HostFacts, platform string) (platformClass, bool) {
+	classes := classifyHost(facts)
+	if len(classes) == 0 {
+		return platformClass{}, false
+	}
+	if strings.TrimSpace(platform) == "" {
+		return classes[0], true
+	}
+	return capabilityClassFor(classes, platform)
+}
+
+func platformCapabilityName(platform string) string {
+	switch platform {
+	case "ios":
+		return "Apple build toolchain"
+	case "android":
+		return "Android SDK platform-tools"
+	default:
+		return "bridge host capability"
+	}
 }
 
 func bridgeTrustReason(node *registryv1.Node) string {

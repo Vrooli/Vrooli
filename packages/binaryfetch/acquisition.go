@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"path/filepath"
 	"strconv"
 	"strings"
 )
@@ -41,6 +42,18 @@ type Acquisition struct {
 	Provenance *Provenance         `json:"provenance,omitempty"`
 }
 
+type ComposeStep struct {
+	Role     string `json:"role"`
+	Kind     string `json:"kind"`
+	Dest     string `json:"dest"`
+	URL      string `json:"url,omitempty"`
+	SHA256   string `json:"sha256,omitempty"`
+	Archive  string `json:"archive,omitempty"`
+	BinPath  string `json:"bin_path,omitempty"`
+	Mode     string `json:"mode,omitempty"`
+	Lockfile string `json:"lockfile,omitempty"`
+}
+
 // AcquisitionTarget is one ordered candidate source. The first target whose
 // predicate matches wins. An unsupported target is useful as a terminal,
 // explicit declaration for a platform the item does not serve.
@@ -56,6 +69,7 @@ type AcquisitionTarget struct {
 	Mode           string            `json:"mode,omitempty"`
 	RuntimeEnv     map[string]string `json:"runtime_env,omitempty"`
 	Unsupported    string            `json:"unsupported,omitempty"`
+	Compose        []ComposeStep     `json:"compose,omitempty"`
 }
 
 // IsDir reports whether the acquired artifact is an executable tree.
@@ -78,7 +92,7 @@ type Provenance struct {
 func (a Acquisition) Validate() error {
 	kind := strings.ToLower(strings.TrimSpace(a.Kind))
 	switch kind {
-	case "url", "oci-image", "none":
+	case "url", "oci-image", "none", "composed":
 	default:
 		return fmt.Errorf("acquisition kind %q is invalid", a.Kind)
 	}
@@ -91,7 +105,7 @@ func (a Acquisition) Validate() error {
 		}
 		unsupported := strings.TrimSpace(target.Unsupported)
 		if unsupported != "" {
-			if target.URL != "" || target.Image != "" || target.SHA256 != "" || target.ArtifactSHA256 != "" || target.Archive != "" || target.Layout != "" || target.BinPath != "" || len(target.RuntimeEnv) != 0 {
+			if target.URL != "" || target.Image != "" || target.SHA256 != "" || target.ArtifactSHA256 != "" || target.Archive != "" || target.Layout != "" || target.BinPath != "" || len(target.RuntimeEnv) != 0 || len(target.Compose) != 0 {
 				return fmt.Errorf("acquisition target %d: unsupported target cannot also declare an artifact", index)
 			}
 			continue
@@ -114,8 +128,23 @@ func (a Acquisition) Validate() error {
 			}
 		case "none":
 			return fmt.Errorf("acquisition target %d: kind none requires unsupported", index)
+		case "composed":
+			if target.Layout != "dir" {
+				return fmt.Errorf("acquisition target %d: composed acquisition requires layout dir", index)
+			}
+			if !isDigest(target.ArtifactSHA256) {
+				return fmt.Errorf("acquisition target %d: composed acquisition requires artifact_sha256", index)
+			}
+			if len(target.Compose) == 0 {
+				return fmt.Errorf("acquisition target %d: composed acquisition requires compose steps", index)
+			}
+			for stepIndex, step := range target.Compose {
+				if err := step.Validate(); err != nil {
+					return fmt.Errorf("acquisition target %d compose step %d: %w", index, stepIndex, err)
+				}
+			}
 		}
-		if target.Archive != "" && target.Archive != "tar.gz" && target.Archive != "tar.zst" && target.Archive != "zip" && target.Archive != "none" {
+		if target.Archive != "" && target.Archive != "tar.gz" && target.Archive != "tar.bz2" && target.Archive != "tar.zst" && target.Archive != "zip" && target.Archive != "none" {
 			return fmt.Errorf("acquisition target %d: archive %q is invalid", index, target.Archive)
 		}
 		if target.Layout != "" && target.Layout != "file" && target.Layout != "dir" {
@@ -140,6 +169,35 @@ func (a Acquisition) Validate() error {
 				return errors.New("acquisition gpg-checksums provenance fingerprint is required")
 			}
 		}
+	}
+	return nil
+}
+
+func (s ComposeStep) Validate() error {
+	if strings.TrimSpace(s.Role) == "" || strings.TrimSpace(s.Kind) == "" || strings.TrimSpace(s.Dest) == "" {
+		return errors.New("compose step requires role, kind, and dest")
+	}
+	if filepath.IsAbs(s.Dest) || strings.HasPrefix(filepath.Clean(s.Dest), "..") {
+		return fmt.Errorf("compose step dest %q must stay under the artifact root", s.Dest)
+	}
+	switch strings.ToLower(strings.TrimSpace(s.Kind)) {
+	case "url":
+		parsed, err := url.Parse(s.URL)
+		if err != nil || parsed.Scheme == "" || parsed.Host == "" {
+			return errors.New("url compose step requires an absolute URL")
+		}
+		if !isDigest(s.SHA256) {
+			return errors.New("url compose step requires sha256")
+		}
+		if s.Archive != "tar.gz" && s.Archive != "tar.bz2" && s.Archive != "tar.zst" && s.Archive != "zip" {
+			return fmt.Errorf("url compose step archive %q is invalid", s.Archive)
+		}
+	case "python-wheels":
+		if strings.TrimSpace(s.Lockfile) == "" {
+			return errors.New("python-wheels compose step requires lockfile")
+		}
+	default:
+		return fmt.Errorf("compose step kind %q is invalid", s.Kind)
 	}
 	return nil
 }

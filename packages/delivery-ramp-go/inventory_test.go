@@ -101,3 +101,42 @@ func containsAll(value string, wanted ...string) bool {
 	}
 	return true
 }
+
+// failingBridgeSource reports a specific transport failure.
+type failingBridgeSource struct{ err error }
+
+func (f failingBridgeSource) Discover(context.Context) ([]Target, error) { return nil, f.err }
+
+// An unavailable target must name what is missing and what to do next.
+// Collapsing every bridge failure into one generic string hid an unreachable
+// endpoint, a rejected credential, and a malformed response behind identical
+// text, which made a live auth rejection undiagnosable from the inventory.
+func TestDiscoverCarriesBridgeFailureCause(t *testing.T) {
+	inventory, err := Discover(context.Background(), stubProber{},
+		failingBridgeSource{err: errors.New("unauthenticated")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var bridgeTarget *Target
+	for i := range inventory.Targets {
+		if inventory.Targets[i].MissingCapability == "bridge inventory" {
+			bridgeTarget = &inventory.Targets[i]
+		}
+	}
+	if bridgeTarget == nil {
+		t.Fatalf("expected an unavailable bridge target, got %#v", inventory.Targets)
+	}
+	if !strings.Contains(bridgeTarget.Reason, "unauthenticated") {
+		t.Fatalf("reason must carry the cause, got %q", bridgeTarget.Reason)
+	}
+}
+
+type stubProber struct{}
+
+func (stubProber) Probe(context.Context, ProbeRequest) (Inventory, error) {
+	return Inventory{Targets: []Target{{
+		ID: "local", Platform: "ios", Transport: Transport{Kind: TransportLocal, ID: "local"},
+		Available: false, MissingCapability: "apple toolchain", NextAction: "use a macOS node",
+		Health: TargetHealth{Status: "unsupported"},
+	}}}, nil
+}

@@ -88,6 +88,8 @@ const (
 	ReasonBridgeNoDispatchScope   = "bridge node is online but lacks an authorized scenario-test dispatch scope"
 	ReasonBridgeAuthorizedAndroid = "bridge node is online and authorized; Android evidence remains target-owned"
 	ReasonBridgeAuthorizedDesktop = "bridge node is online and authorized; desktop evidence remains target-owned"
+	ReasonBridgeAuthorizedIOS     = "bridge node is online and authorized; iOS evidence remains target-owned"
+	ReasonBridgeNoHostProbe       = "bridge node is online but its host toolchain could not be probed"
 	ReasonBridgeRevoked           = "bridge node is revoked"
 )
 

@@ -1,6 +1,7 @@
 package trustposture
 
 import (
+	"bytes"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/ed25519"
@@ -10,10 +11,12 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	osuser "os/user"
 	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/packages/proto/privilegedops"
 	"golang.org/x/crypto/argon2"
 )
 
@@ -27,17 +30,26 @@ const (
 	breakGlassThreads   = 2
 	breakGlassKeySize   = 32
 
-	// BreakGlassUninstallAudience and BreakGlassUninstallScope are the shared
-	// purpose contract used by the control-plane destructive gate and its
-	// issuer. Keeping them here prevents those strings from drifting again.
-	BreakGlassUninstallAudience = "vrooli:uninstall"
-	BreakGlassUninstallScope    = "vrooli:uninstall"
+	// BreakGlassUninstallAudience and BreakGlassUninstallScope are compatibility
+	// aliases for the single wire-level vocabulary. The declaration lives in
+	// privilegedops so the helper, CLI, verifier, and proto contract cannot
+	// silently drift.
+	BreakGlassUninstallAudience = privilegedops.BreakGlassAudience
+	BreakGlassUninstallScope    = privilegedops.BreakGlassScope
+	// BreakGlassClockSkew is the maximum clock difference tolerated between an
+	// operator/control-plane clock and the target node. It is intentionally
+	// short because the tolerance extends the effective capability lifetime.
+	BreakGlassClockSkew = 2 * time.Minute
 )
 
 var (
-	ErrBreakGlassAudienceMismatch = errors.New("break-glass: audience mismatch")
-	ErrBreakGlassPassphrase       = errors.New("break-glass: passphrase authorization failed")
-	ErrBreakGlassTargetMismatch   = errors.New("break-glass: target mismatch")
+	ErrBreakGlassAudienceMismatch   = errors.New("break-glass: audience mismatch")
+	ErrBreakGlassPassphrase         = errors.New("break-glass: passphrase authorization failed")
+	ErrBreakGlassTargetMismatch     = errors.New("break-glass: target mismatch")
+	ErrBreakGlassBindingMismatch    = errors.New("break-glass: bound claim mismatch")
+	ErrBreakGlassBindingMissing     = errors.New("break-glass: bound claim is missing")
+	ErrBreakGlassAlreadyProvisioned = errors.New("break-glass: existing material")
+	ErrBreakGlassClockSkew          = errors.New("break-glass: clock skew exceeds tolerance")
 )
 
 // KeyMaterial is the local private/public credential pair. PrivateKey must
@@ -84,7 +96,7 @@ type wrappedPrivateEnvelope struct {
 func ResolveKeyPaths() (KeyPaths, error) {
 	dir := strings.TrimSpace(os.Getenv("VROOLI_BREAK_GLASS_DIR"))
 	if dir == "" {
-		home, err := os.UserHomeDir()
+		home, err := resolveUserHome()
 		if err != nil || strings.TrimSpace(home) == "" {
 			return KeyPaths{}, errors.New("break-glass: resolve user home")
 		}
@@ -102,7 +114,7 @@ func ResolveKeyPaths() (KeyPaths, error) {
 // plaintext server-side migration cannot accidentally weaken the operator
 // credential stored under ResolveKeyPaths.
 func ResolveAuthenticatorKeyPaths() (KeyPaths, error) {
-	dir, err := os.UserHomeDir()
+	dir, err := resolveUserHome()
 	if err != nil || strings.TrimSpace(dir) == "" {
 		return KeyPaths{}, errors.New("break-glass: resolve user home")
 	}
@@ -111,6 +123,21 @@ func ResolveAuthenticatorKeyPaths() (KeyPaths, error) {
 		Dir: dir, Private: filepath.Join(dir, "private.key"),
 		Public: filepath.Join(dir, "public.key"), Metadata: filepath.Join(dir, "provisioning.json"),
 	}, nil
+}
+
+// resolveUserHome handles managed service environments that intentionally omit
+// HOME. os.UserHomeDir follows that environment variable on Unix, while the
+// process identity's passwd record remains available on both Linux and macOS.
+func resolveUserHome() (string, error) {
+	if home := strings.TrimSpace(os.Getenv("HOME")); home != "" {
+		return home, nil
+	}
+	if current, err := osuser.Current(); err == nil {
+		if home := strings.TrimSpace(current.HomeDir); home != "" {
+			return home, nil
+		}
+	}
+	return os.UserHomeDir()
 }
 
 // Provision creates the local key pair once and records the account scope
@@ -179,7 +206,7 @@ func ProvisionWrapped(paths KeyPaths, passphrase, accountID, audience, target st
 		if err != nil {
 			return errors.New("break-glass: existing key material could not be opened")
 		}
-		zeroBytes(private)
+		defer zeroBytes(private)
 		var existing provisionMetadata
 		if json.Unmarshal(metadataRaw, &existing) != nil || existing.AccountID != metadata.AccountID || existing.Audience != metadata.Audience || existing.Target != metadata.Target {
 			return errors.New("break-glass: existing key material belongs to another target or purpose")
@@ -187,7 +214,11 @@ func ProvisionWrapped(paths KeyPaths, passphrase, accountID, audience, target st
 		if len(publicRaw) != ed25519.PublicKeySize {
 			return errors.New("break-glass: invalid existing public key")
 		}
-		return nil
+		expectedPublic, ok := ed25519.PrivateKey(private).Public().(ed25519.PublicKey)
+		if !ok || !bytes.Equal(publicRaw, expectedPublic) {
+			return errors.New("break-glass: existing public key does not match private key")
+		}
+		return fmt.Errorf("%w: wrapped_private, public, metadata", ErrBreakGlassAlreadyProvisioned)
 	}
 	if !errors.Is(wrappedErr, os.ErrNotExist) || !errors.Is(publicErr, os.ErrNotExist) || !errors.Is(metadataErr, os.ErrNotExist) {
 		return errors.New("break-glass: inspect existing wrapped key material")
@@ -262,11 +293,27 @@ func IssueFromProvisionForTarget(paths KeyPaths, target string, requested []stri
 // duration of signing. Audience and target are explicit issuance inputs and
 // must match the provisioned purpose and machine binding.
 func IssueFromWrappedProvision(paths KeyPaths, passphrase, audience, target string, requested []string, now time.Time, ttl time.Duration) (string, error) {
+	return issueFromWrappedProvision(paths, passphrase, audience, target, requested, nil, now, ttl)
+}
+
+// IssueFromWrappedProvisionBound is the cleanup-capability issuer. It opens
+// the operator-wrapped key only for signing and carries the complete frozen
+// operation context in the signed claims.
+func IssueFromWrappedProvisionBound(paths KeyPaths, passphrase, audience, target string, requested []string, binding BreakGlassBinding, now time.Time, ttl time.Duration) (string, error) {
+	return issueFromWrappedProvision(paths, passphrase, audience, target, requested, &binding, now, ttl)
+}
+
+func issueFromWrappedProvision(paths KeyPaths, passphrase, audience, target string, requested []string, binding *BreakGlassBinding, now time.Time, ttl time.Duration) (string, error) {
 	if strings.TrimSpace(passphrase) == "" || strings.TrimSpace(audience) == "" || strings.TrimSpace(target) == "" {
 		return "", errors.New("break-glass: passphrase, audience and target are required")
 	}
 	if ttl <= 0 || now.IsZero() {
 		return "", errors.New("break-glass: lifetime is required")
+	}
+	if binding != nil {
+		if err := validateBinding(*binding); err != nil {
+			return "", err
+		}
 	}
 	wrapper, err := os.ReadFile(paths.WrappedPrivate)
 	if err != nil {
@@ -277,6 +324,14 @@ func IssueFromWrappedProvision(paths KeyPaths, passphrase, audience, target stri
 		return "", err
 	}
 	defer zeroBytes(private)
+	publicRaw, err := os.ReadFile(paths.Public)
+	if err != nil {
+		return "", fmt.Errorf("break-glass: read pinned public key: %w", err)
+	}
+	expectedPublic, ok := ed25519.PrivateKey(private).Public().(ed25519.PublicKey)
+	if !ok || !bytes.Equal(publicRaw, expectedPublic) {
+		return "", errors.New("break-glass: provisioned public key does not match private key")
+	}
 	metadata, err := readProvisionMetadata(paths.Metadata)
 	if err != nil {
 		return "", err
@@ -284,10 +339,114 @@ func IssueFromWrappedProvision(paths KeyPaths, passphrase, audience, target stri
 	if metadata.Audience != strings.TrimSpace(audience) || metadata.Target != strings.TrimSpace(target) {
 		return "", errors.New("break-glass: issuance purpose or target does not match provisioning")
 	}
-	return IssueForAccount(ed25519.PrivateKey(private), metadata.Scopes, requested, BreakGlassClaims{
+	claims := BreakGlassClaims{
 		Subject: metadata.AccountID, Audience: metadata.Audience, Target: metadata.Target,
 		IssuedAt: now.Unix(), ExpiresAt: now.Add(ttl).Unix(),
-	})
+	}
+	if binding != nil {
+		claims.OperatorID = binding.OperatorID
+		claims.MachineID = binding.MachineID
+		claims.NodeID = binding.NodeID
+		claims.Scope = binding.Scope
+		claims.PlanHash = binding.PlanHash
+		claims.OperationID = binding.OperationID
+	}
+	return IssueForAccount(ed25519.PrivateKey(private), metadata.Scopes, requested, claims)
+}
+
+// RotateWrapped replaces the signing key while retaining the operator's
+// existing passphrase and the provisioned account/target metadata. Rotation is
+// deliberately separate from provisioning: it requires possession of the
+// current passphrase and never silently turns a partial or foreign material
+// set into a new credential.
+func RotateWrapped(paths KeyPaths, passphrase string, now time.Time) error {
+	if strings.TrimSpace(passphrase) == "" || now.IsZero() {
+		return errors.New("break-glass: passphrase and timestamp are required")
+	}
+	wrapped, err := os.ReadFile(paths.WrappedPrivate)
+	if err != nil {
+		return fmt.Errorf("break-glass: read wrapped private key: %w", err)
+	}
+	private, err := UnwrapPrivate(wrapped, passphrase)
+	if err != nil {
+		return err
+	}
+	defer zeroBytes(private)
+	if len(private) != ed25519.PrivateKeySize {
+		return errors.New("break-glass: existing private key is invalid")
+	}
+	publicRaw, err := os.ReadFile(paths.Public)
+	if err != nil {
+		return fmt.Errorf("break-glass: read public key: %w", err)
+	}
+	if len(publicRaw) != ed25519.PublicKeySize || !ed25519.PublicKey(publicRaw).Equal(ed25519.PrivateKey(private).Public()) {
+		return errors.New("break-glass: existing public key does not match private key")
+	}
+	metadata, err := readProvisionMetadata(paths.Metadata)
+	if err != nil {
+		return err
+	}
+	keys, err := GenerateKeyMaterial()
+	if err != nil {
+		return err
+	}
+	newWrapped, err := WrapPrivate(keys.PrivateKey, passphrase)
+	zeroBytes(keys.PrivateKey)
+	if err != nil {
+		return err
+	}
+	metadata.Provisioned = now.Unix()
+	metadataRaw, err := json.MarshalIndent(metadata, "", "  ")
+	if err != nil {
+		return fmt.Errorf("break-glass: encode rotation metadata: %w", err)
+	}
+	if err := replaceKeyAtomic(paths.WrappedPrivate, newWrapped, 0o600); err != nil {
+		return err
+	}
+	if err := replaceKeyAtomic(paths.Public, keys.PublicKey, 0o644); err != nil {
+		return err
+	}
+	if err := replaceKeyAtomic(paths.Metadata, append(metadataRaw, '\n'), 0o600); err != nil {
+		return err
+	}
+	return nil
+}
+
+// ResetWrapped retires all operator-controlled break-glass material at the
+// managed location. It is intentionally separate from RotateWrapped: reset
+// does not mint a replacement key and does not accept a passphrase. The
+// Bridge typed recovery operation uses it only to recover from abandoned or
+// unknown protection state before a fresh operator explicitly provisions a
+// new passphrase.
+//
+// Each path is checked with Lstat before removal so a malicious symlink cannot
+// turn this narrow recovery operation into deletion outside the managed
+// directory. Missing files are treated as an idempotent success.
+func ResetWrapped(paths KeyPaths) error {
+	items := []string{paths.WrappedPrivate, paths.Public, paths.Metadata, paths.Credential}
+	for _, path := range items {
+		path = strings.TrimSpace(path)
+		if path == "" {
+			continue
+		}
+		info, err := os.Lstat(path)
+		if errors.Is(err, os.ErrNotExist) {
+			continue
+		}
+		if err != nil {
+			return fmt.Errorf("break-glass: inspect reset path %s: %w", path, err)
+		}
+		if info.Mode()&os.ModeSymlink != 0 {
+			return fmt.Errorf("break-glass: refusing to reset symlink %s", path)
+		}
+		if !info.Mode().IsRegular() {
+			return fmt.Errorf("break-glass: refusing to reset non-regular path %s", path)
+		}
+		if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("break-glass: remove %s: %w", path, err)
+		}
+	}
+	return nil
 }
 
 func uniqueScopes(scopes []string) []string {
@@ -316,12 +475,30 @@ func GenerateKeyMaterial() (KeyMaterial, error) {
 
 // BreakGlassClaims are the signed, time-boxed capability claims.
 type BreakGlassClaims struct {
-	Subject   string   `json:"sub"`
-	Audience  string   `json:"aud"`
-	Target    string   `json:"target"`
-	Scopes    []string `json:"scope"`
-	IssuedAt  int64    `json:"iat"`
-	ExpiresAt int64    `json:"exp"`
+	Subject     string   `json:"sub"`
+	Audience    string   `json:"aud"`
+	Target      string   `json:"target"`
+	Scopes      []string `json:"scope"`
+	IssuedAt    int64    `json:"iat"`
+	ExpiresAt   int64    `json:"exp"`
+	OperatorID  string   `json:"operator_id,omitempty"`
+	MachineID   string   `json:"machine_id,omitempty"`
+	NodeID      string   `json:"node_id,omitempty"`
+	Scope       string   `json:"cleanup_scope,omitempty"`
+	PlanHash    string   `json:"plan_hash,omitempty"`
+	OperationID string   `json:"operation_id,omitempty"`
+}
+
+// BreakGlassBinding is the context that a destructive cleanup capability must
+// match. Empty values are allowed for legacy non-cleanup credentials; the
+// bound verifier requires every field supplied by the cleanup path.
+type BreakGlassBinding struct {
+	OperatorID  string
+	MachineID   string
+	NodeID      string
+	Scope       string
+	PlanHash    string
+	OperationID string
 }
 
 type breakGlassHeader struct {
@@ -400,13 +577,57 @@ func Verify(public ed25519.PublicKey, token, audience, target string, now time.T
 	if claims.Target != target {
 		return BreakGlassClaims{}, fmt.Errorf("%w: expected %q", ErrBreakGlassTargetMismatch, target)
 	}
-	if now.Unix() < claims.IssuedAt || now.Unix() >= claims.ExpiresAt {
-		return BreakGlassClaims{}, errors.New("break-glass: credential expired or not yet valid")
+	if now.Unix()+int64(BreakGlassClockSkew/time.Second) < claims.IssuedAt || now.Unix() >= claims.ExpiresAt+int64(BreakGlassClockSkew/time.Second) {
+		return BreakGlassClaims{}, ErrBreakGlassClockSkew
 	}
 	if claims.Scopes == nil {
 		return BreakGlassClaims{}, errors.New("break-glass: scope claim is required")
 	}
 	return claims, nil
+}
+
+// VerifyBound verifies a normal credential and then checks every supplied
+// cleanup binding. The error names the first mismatched field so a blocked
+// operation is actionable without exposing credential material.
+func VerifyBound(public ed25519.PublicKey, token, audience, target string, binding BreakGlassBinding, now time.Time) (BreakGlassClaims, error) {
+	if err := validateBinding(binding); err != nil {
+		return BreakGlassClaims{}, err
+	}
+	claims, err := Verify(public, token, audience, target, now)
+	if err != nil {
+		return BreakGlassClaims{}, err
+	}
+	checks := []struct{ field, want, got string }{
+		{"operator_id", binding.OperatorID, claims.OperatorID},
+		{"machine_id", binding.MachineID, claims.MachineID},
+		{"node_id", binding.NodeID, claims.NodeID},
+		{"cleanup_scope", binding.Scope, claims.Scope},
+		{"plan_hash", binding.PlanHash, claims.PlanHash},
+		{"operation_id", binding.OperationID, claims.OperationID},
+	}
+	for _, check := range checks {
+		if check.want != check.got {
+			return BreakGlassClaims{}, fmt.Errorf("%w: %s", ErrBreakGlassBindingMismatch, check.field)
+		}
+	}
+	return claims, nil
+}
+
+func validateBinding(binding BreakGlassBinding) error {
+	checks := []struct{ field, value string }{
+		{"operator_id", binding.OperatorID},
+		{"machine_id", binding.MachineID},
+		{"node_id", binding.NodeID},
+		{"cleanup_scope", binding.Scope},
+		{"plan_hash", binding.PlanHash},
+		{"operation_id", binding.OperationID},
+	}
+	for _, check := range checks {
+		if strings.TrimSpace(check.value) == "" {
+			return fmt.Errorf("%w: %s", ErrBreakGlassBindingMissing, check.field)
+		}
+	}
+	return nil
 }
 
 // ScopeCeiling ensures every break-glass scope is granted by the account.
@@ -652,6 +873,37 @@ func writeKey(path string, key []byte, mode os.FileMode, replace bool) error {
 	}
 	if err := f.Close(); err != nil {
 		return fmt.Errorf("break-glass: close key file: %w", err)
+	}
+	return nil
+}
+
+func replaceKeyAtomic(path string, key []byte, mode os.FileMode) error {
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		return fmt.Errorf("break-glass: create key directory: %w", err)
+	}
+	tmp, err := os.CreateTemp(filepath.Dir(path), ".break-glass-*")
+	if err != nil {
+		return fmt.Errorf("break-glass: create replacement: %w", err)
+	}
+	tmpPath := tmp.Name()
+	defer os.Remove(tmpPath)
+	if err := tmp.Chmod(mode); err != nil {
+		_ = tmp.Close()
+		return fmt.Errorf("break-glass: secure replacement: %w", err)
+	}
+	if _, err := tmp.Write(key); err != nil {
+		_ = tmp.Close()
+		return fmt.Errorf("break-glass: write replacement: %w", err)
+	}
+	if err := tmp.Sync(); err != nil {
+		_ = tmp.Close()
+		return fmt.Errorf("break-glass: sync replacement: %w", err)
+	}
+	if err := tmp.Close(); err != nil {
+		return fmt.Errorf("break-glass: close replacement: %w", err)
+	}
+	if err := os.Rename(tmpPath, path); err != nil {
+		return fmt.Errorf("break-glass: replace key file: %w", err)
 	}
 	return nil
 }

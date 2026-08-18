@@ -7,6 +7,7 @@ import (
 	"compress/gzip"
 	"context"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"errors"
 	"net/http"
@@ -141,6 +142,36 @@ func TestFetchTarGzExtract(t *testing.T) {
 	got, _ := os.ReadFile(path)
 	if !bytes.Equal(got, bin) {
 		t.Fatalf("extracted bytes differ")
+	}
+}
+
+func TestFetchTarBzip2Extract(t *testing.T) {
+	// This embedded tar.bz2 fixture contains one executable entry larger than
+	// binaryfetch's minimum artifact-size floor. Keeping it embedded tests the
+	// archive contract without depending on a host bzip2 command during package
+	// tests.
+	archiveFixture, fixtureErr := base64.StdEncoding.DecodeString("QlpoOTFBWSZTWXi7EJoAAe7/////////////////////////////////////////////wAL8AAACTAATAAEwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAASYACYAAmAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACTAATAAEwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACqoiMiaNNNPVPUYg9I0aHqPUbQDTUeieoMmCaZBkD1GT0jTaA0E0DCMRkDDUwmAgNMgyNGRpoGgAGgZMBMTCaDTaJmSelTSzyJAggq5IgEMEFkiWumn5ZaZisR0CBWREVoQxhLitiLMCUFcEyK6JA5ATQ5EckK8K+LAOTHKDlRywmxYRy45gWIcyOaFjHNib5wc6Jwc8OfE6OgHQiyCeFlFmGHtApL9ZxaxhJmdQSIUCjiQKAUMlQwiJahEoRabbGFsiRxHiiPK9EIwtw6QUQ6UdMOnHUC3i4DqRcRchcxdBdR1Quw6sXcXgdYOtHXDrxeReh2A7EdkOzHaCw0YnB2o7YXsXwduKQX0StN3IoKWGfoBSQ90Ib+L/SjA4KiEsMPgxWowlo4wgw0WmFZEnhhJylvEjC1EmIortcxAkos1iZQTUMiG4xBXpcRh3YxQ7wd6O+HfjwBixjBjRjh4I8IY8ZAZEeGPEGSGTHijxh448geSMoMqMsMuKceUMwMyM0M2PLGcGdGeGfGgGhGiHmDzR5w88egPRGjHpDSDSj0x6g9UesNMNOPXHsDUD2R7Q1I1Q9se4NWPdGsHvD3x8A+EfENaPjHyD5R8w+cfQPpH1D6x9g+0fcPvGuH4D8R+Q/MfoNeNgP1GxGyGzG0G1G2G3H7DcDcjdD9xuxvBvRvh/A34/kf0P7H+DgD/RwRT1AyQ4Q4Y/4cQcUVIlEEEFUKocYf+KsccXckU4UJB4uxCa")
+	if fixtureErr != nil {
+		t.Fatal(fixtureErr)
+	}
+	archive := archiveFixture
+	srv := serve(t, archive)
+	path, err := Fetch(context.Background(), Target{
+		Name:    "tool",
+		URL:     srv.URL,
+		SHA256:  sha256hex(archive),
+		Archive: "tar.bz2",
+		BinPath: "bin/tool",
+	}, t.TempDir(), nil)
+	if err != nil {
+		t.Fatalf("Fetch tar.bz2: %v", err)
+	}
+	got, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 2073 || string(got[:25]) != "portable-sherpa-artifact-" {
+		t.Fatalf("extracted length/prefix = %d/%q", len(got), string(got[:min(len(got), 25)]))
 	}
 }
 

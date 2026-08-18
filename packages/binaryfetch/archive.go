@@ -3,6 +3,7 @@ package binaryfetch
 import (
 	"archive/tar"
 	"archive/zip"
+	"compress/bzip2"
 	"compress/gzip"
 	"errors"
 	"fmt"
@@ -65,11 +66,13 @@ func registeredArchiveDecompressor(format string) (ArchiveDecompressor, bool) {
 // extractBinary pulls the binary identified by binPath out of the archive at
 // archivePath and writes it to destFile. When binPath is empty it selects the
 // archive's sole regular file (erroring if there are zero or many). format is
-// "tar.gz" or "zip".
+// "tar.gz", "tar.bz2", or "zip".
 func extractBinary(archivePath, format, binPath, destFile string) error {
 	switch format {
 	case "tar.gz", "tgz":
 		return extractFromTarGz(archivePath, binPath, destFile)
+	case "tar.bz2", "tbz2", "tbz":
+		return extractFromTarBzip2(archivePath, binPath, destFile)
 	case "tar.zst":
 		return extractFromTarZstd(archivePath, binPath, destFile)
 	case "zip":
@@ -185,6 +188,50 @@ func extractFromTarGz(archivePath, binPath, destFile string) error {
 	return extractFromTarGz(archivePath, candidates[0], destFile)
 }
 
+func extractFromTarBzip2(archivePath, binPath, destFile string) error {
+	f, err := os.Open(archivePath) //nolint:gosec // archivePath is fetched into a controlled temp dir
+	if err != nil {
+		return err
+	}
+	decompressed := bzip2.NewReader(f)
+	tr := tar.NewReader(decompressed)
+	var (
+		candidates []string
+		matchName  = filepath.Clean(binPath)
+	)
+	for {
+		hdr, err := tr.Next()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			_ = f.Close()
+			return fmt.Errorf("binaryfetch: read tar.bz2: %w", err)
+		}
+		if hdr.Typeflag != tar.TypeReg {
+			continue
+		}
+		name := filepath.Clean(hdr.Name)
+		if binPath != "" {
+			if name == matchName || filepath.Base(name) == filepath.Base(matchName) {
+				err := writeReader(tr, destFile)
+				_ = f.Close()
+				return err
+			}
+			continue
+		}
+		candidates = append(candidates, name)
+	}
+	_ = f.Close()
+	if binPath != "" {
+		return fmt.Errorf("%w: %q not in archive", ErrNoBinaryInArchive, binPath)
+	}
+	if len(candidates) != 1 {
+		return fmt.Errorf("%w: archive has %d regular files; set binPath to disambiguate", ErrNoBinaryInArchive, len(candidates))
+	}
+	return extractFromTarBzip2(archivePath, candidates[0], destFile)
+}
+
 func extractFromZip(archivePath, binPath, destFile string) error {
 	zr, err := zip.OpenReader(archivePath)
 	if err != nil {
@@ -219,7 +266,7 @@ func extractFromZip(archivePath, binPath, destFile string) error {
 // extractAll extracts every regular file in the archive at archivePath into
 // destDir, preserving relative paths. Directory entries are created as needed.
 // Path-traversal entries (those that resolve outside destDir, e.g. via "..") are
-// rejected. format is "tar.gz" or "zip".
+// rejected. format is "tar.gz", "tar.bz2", or "zip".
 func extractAll(archivePath, format, destDir string) error {
 	if err := os.MkdirAll(destDir, 0o755); err != nil {
 		return fmt.Errorf("binaryfetch: create extract dir: %w", err)
@@ -227,6 +274,8 @@ func extractAll(archivePath, format, destDir string) error {
 	switch format {
 	case "tar.gz", "tgz":
 		return extractAllTarGz(archivePath, destDir)
+	case "tar.bz2", "tbz2", "tbz":
+		return extractAllTarBzip2(archivePath, destDir)
 	case "tar.zst":
 		return extractAllTarZstd(archivePath, destDir)
 	case "zip":
@@ -375,6 +424,20 @@ func extractAllTarGz(archivePath, destDir string) error {
 	return nil
 }
 
+func extractAllTarBzip2(archivePath, destDir string) error {
+	f, err := os.Open(archivePath) //nolint:gosec // archivePath is fetched into a controlled temp dir
+	if err != nil {
+		return err
+	}
+	decompressed := bzip2.NewReader(f)
+	err = extractAllTarReader(tar.NewReader(decompressed), destDir)
+	_ = f.Close()
+	if err != nil {
+		return fmt.Errorf("binaryfetch: read tar.bz2: %w", err)
+	}
+	return nil
+}
+
 func createSafeSymlink(root, name, linkname, target string) error {
 	if filepath.IsAbs(filepath.FromSlash(linkname)) {
 		return fmt.Errorf("binaryfetch: symlink %q has an absolute target", name)
@@ -477,6 +540,8 @@ func normalizeArchive(value string) string {
 		return ""
 	case "tar.gz", "tgz":
 		return "tar.gz"
+	case "tar.bz2", "tbz2", "tbz":
+		return "tar.bz2"
 	case "zip":
 		return "zip"
 	default:
