@@ -1,5 +1,6 @@
 import type { Config } from '../config';
 import type { SessionPhase, SessionState } from '../types';
+import { isSessionActive } from './session-decisions';
 
 export interface SessionInfo {
   id: string;
@@ -37,33 +38,86 @@ export interface SessionListEntry {
 
 export function inspectSession(session: SessionState): SessionInfo {
   let url = 'about:blank';
-  try { if (!session.page.isClosed()) url = session.page.url(); } catch { /* closed page */ }
-  return { id: session.id, phase: session.phase, instructionCount: session.instructionCount, createdAt: session.createdAt.toISOString(), lastUsedAt: session.lastUsedAt.toISOString(), isRecording: session.pipelineManager?.isRecording() ?? false, url };
+  try {
+    if (!session.page.isClosed()) url = session.page.url();
+  } catch {
+    /* closed page */
+  }
+  return {
+    id: session.id,
+    phase: session.phase,
+    instructionCount: session.instructionCount,
+    createdAt: session.createdAt.toISOString(),
+    lastUsedAt: session.lastUsedAt.toISOString(),
+    isRecording: session.pipelineManager?.isRecording() ?? false,
+    url,
+  };
 }
 
-export function summarizeSessions(sessions: Iterable<SessionState>, config: Config, now = Date.now()): SessionSummary {
-  let total = 0; let active = 0; let activeRecordings = 0;
+export function summarizeSessions(
+  sessions: Iterable<SessionState>,
+  config: Config,
+  now = Date.now()
+): SessionSummary {
+  let total = 0;
+  let active = 0;
+  let activeRecordings = 0;
   for (const session of sessions) {
     total++;
-    if (now - session.lastUsedAt.getTime() < config.session.idleTimeoutMs) active++;
+    if (isSessionActive(session, config.session.idleTimeoutMs, now)) active++;
     if (session.pipelineManager?.isRecording()) activeRecordings++;
   }
-  return { total, active, idle: total - active, active_recordings: activeRecordings, idle_timeout_ms: config.session.idleTimeoutMs, capacity: config.session.maxConcurrent };
+  return {
+    total,
+    active,
+    idle: total - active,
+    active_recordings: activeRecordings,
+    idle_timeout_ms: config.session.idleTimeoutMs,
+    capacity: config.session.maxConcurrent,
+  };
 }
 
-export function listSessions(sessions: Iterable<SessionState>, config: Config, now = Date.now()): SessionListEntry[] {
+export function listSessions(
+  sessions: Iterable<SessionState>,
+  config: Config,
+  now = Date.now()
+): SessionListEntry[] {
   const list: SessionListEntry[] = [];
   for (const session of sessions) {
     const idleTimeMs = now - session.lastUsedAt.getTime();
+    const active = isSessionActive(session, config.session.idleTimeoutMs, now);
     let currentUrl: string | undefined;
-    try { currentUrl = session.page.url(); } catch { /* closed page */ }
-    list.push({ id: session.id, phase: session.phase, created_at: session.createdAt.toISOString(), last_used_at: session.lastUsedAt.toISOString(), idle_time_ms: idleTimeMs, is_idle: idleTimeMs >= config.session.idleTimeoutMs, is_recording: session.pipelineManager?.isRecording() ?? false, instruction_count: session.instructionCount, owner_execution_id: session.ownerExecutionId, workflow_id: session.spec.workflow_id, current_url: currentUrl, page_count: session.pages.length });
+    try {
+      currentUrl = session.page.url();
+    } catch {
+      /* closed page */
+    }
+    list.push({
+      id: session.id,
+      phase: session.phase,
+      created_at: session.createdAt.toISOString(),
+      last_used_at: session.lastUsedAt.toISOString(),
+      idle_time_ms: idleTimeMs,
+      is_idle: !active,
+      is_recording: session.pipelineManager?.isRecording() ?? false,
+      instruction_count: session.instructionCount,
+      owner_execution_id: session.ownerExecutionId,
+      workflow_id: session.spec.workflow_id,
+      current_url: currentUrl,
+      page_count: session.pages.length,
+    });
   }
-  return list.sort((a, b) => new Date(b.last_used_at).getTime() - new Date(a.last_used_at).getTime());
+  return list.sort(
+    (a, b) => new Date(b.last_used_at).getTime() - new Date(a.last_used_at).getTime()
+  );
 }
 
-export function countActiveSessions(sessions: Iterable<SessionState>, idleTimeoutMs: number, now = Date.now()): number {
+export function countActiveSessions(
+  sessions: Iterable<SessionState>,
+  idleTimeoutMs: number,
+  now = Date.now()
+): number {
   let count = 0;
-  for (const session of sessions) if (now - session.lastUsedAt.getTime() < idleTimeoutMs) count++;
+  for (const session of sessions) if (isSessionActive(session, idleTimeoutMs, now)) count++;
   return count;
 }

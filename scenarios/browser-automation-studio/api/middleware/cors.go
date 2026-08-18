@@ -91,18 +91,18 @@ func CorsMiddleware(log *logrus.Logger) func(http.Handler) http.Handler {
 
 			w.Header().Add("Vary", "Origin")
 
-			if origin == "" {
-				// Requests without Origin header (non-browser clients) are allowed without CORS headers
-			} else if isOriginAllowed(origin, cfg.AllowedOrigins) {
-				w.Header().Set("Access-Control-Allow-Origin", origin)
-				w.Header().Set("Access-Control-Allow-Credentials", "true")
-			} else {
-				log.WithFields(logrus.Fields{
-					"origin":          origin,
-					"allowed_origins": strings.Join(cfg.AllowedOrigins, ","),
-				}).Warn("Rejected CORS request from unauthorized origin")
-				http.Error(w, "Origin not allowed", http.StatusForbidden)
-				return
+			if origin != "" {
+				if isOriginAllowed(origin, cfg.AllowedOrigins) {
+					w.Header().Set("Access-Control-Allow-Origin", origin)
+					w.Header().Set("Access-Control-Allow-Credentials", "true")
+				} else {
+					log.WithFields(logrus.Fields{
+						"origin":          origin,
+						"allowed_origins": strings.Join(cfg.AllowedOrigins, ","),
+					}).Warn("Rejected CORS request from unauthorized origin")
+					http.Error(w, "Origin not allowed", http.StatusForbidden)
+					return
+				}
 			}
 
 			// Set common headers when CORS is active

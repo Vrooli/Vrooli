@@ -2,7 +2,7 @@ import { Lock, Crown, Sparkles, Video, Image, ArrowUpRight, X, type LucideIcon }
 import { useEntitlementStore, TIER_CONFIG } from '@stores/entitlementStore';
 import type { SubscriptionTier } from '@stores/entitlementStore';
 import ResponsiveDialog from '@shared/layout/ResponsiveDialog';
-import { TierBadge } from '@shared/ui';
+import { PlanBadge } from '@shared/ui';
 
 // Get landing page URL from environment or use default
 const landingPageEnv = (import.meta.env as { VITE_LANDING_PAGE_URL?: unknown }).VITE_LANDING_PAGE_URL;
@@ -107,7 +107,7 @@ export function FeatureGateModal({ isOpen, onClose, feature, onOpenSettings }: F
             </h2>
             <div className="flex items-center gap-2 mt-1">
               <span className="text-sm text-gray-400">Requires</span>
-              <TierBadge tier={config.requiredTier} size="sm" />
+              <PlanBadge plan={config.requiredTier} size="sm" />
               <span className="text-sm text-gray-400">or higher</span>
             </div>
           </div>
@@ -140,7 +140,7 @@ export function FeatureGateModal({ isOpen, onClose, feature, onOpenSettings }: F
         {status && (
           <div className="flex items-center justify-between p-3 rounded-lg bg-gray-800/30 border border-gray-700 mb-6">
             <span className="text-sm text-gray-400">Your current plan:</span>
-            <TierBadge tier={status.tier} size="sm" />
+              <PlanBadge plan={status.tier} size="sm" />
           </div>
         )}
 

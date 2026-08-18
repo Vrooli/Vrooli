@@ -11,6 +11,6 @@
   ],
   "meters": [
     {"limit_key": "ai_credits", "class": "A", "enforcement_paths": ["api/services/credits/service.go", "api/handlers/ai/ai_analysis.go"]},
-    {"limit_key": "workflow_executions", "class": "B", "outbox": "api/services/credits", "enforcement_paths": ["api/services/entitlement/service.go", "api/services/credits/service.go"]}
+    {"limit_key": "workflow_executions", "class": "B", "outbox": "../../packages/monetization-go", "enforcement_paths": ["api/services/entitlement/service.go", "api/services/credits/service.go"]}
   ]
 }

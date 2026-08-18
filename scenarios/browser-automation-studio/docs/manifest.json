@@ -584,6 +584,19 @@
           "completion": "required"
         },
         {
+          "path": "BUNDLE_INTEGRATION.md",
+          "title": "Bundle Integration",
+          "description": "Shared paid-surface, entitlement, usage, and desktop session wiring",
+          "internal": true,
+          "docType": "doc-BUNDLE-INTEGRATION-md",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented",
+            "validated"
+          ],
+          "completion": "required"
+        },
+        {
           "path": "ENVIRONMENT.md",
           "title": "Environment",
           "description": "Environment configuration",

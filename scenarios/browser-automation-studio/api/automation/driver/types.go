@@ -22,6 +22,7 @@ type Viewport struct {
 type ObservedSession struct {
 	ID               string `json:"id"`
 	OwnerExecutionID string `json:"owner_execution_id"`
+	WorkflowID       string `json:"workflow_id"`
 	CreatedAt        string `json:"created_at"`
 	LastUsedAt       string `json:"last_used_at"`
 }

@@ -566,10 +566,7 @@ export default defineConfig(({ mode }): UserConfig => {
           }
           // UI component libraries
           if (id.includes('node_modules/lucide-react') ||
-            id.includes('node_modules/react-hot-toast') ||
-            id.includes('node_modules/react-markdown') ||
-            id.includes('node_modules/react-syntax-highlighter') ||
-            id.includes('node_modules/react-split')) {
+            id.includes('node_modules/react-hot-toast')) {
             return 'ui-vendor';
           }
           // State management
@@ -582,10 +579,9 @@ export default defineConfig(({ mode }): UserConfig => {
             id.includes('node_modules/tailwind-merge')) {
             return 'utils-vendor';
           }
-          // All other node_modules
-          if (id.includes('node_modules')) {
-            return 'vendor';
-          }
+          // Leave the remaining dependencies in the route graph. A single
+          // catch-all vendor chunk would make every route's optional
+          // dependency part of the initial modulepreload set.
         },
       },
     },

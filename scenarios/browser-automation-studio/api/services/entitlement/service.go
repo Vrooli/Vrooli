@@ -110,41 +110,59 @@ func (s *Service) GetEntitlement(ctx context.Context, userIdentity string) (*Ent
 // CanExecuteWorkflow checks if the user can execute a workflow based on their tier limits.
 // Returns true if execution is allowed, false if limit reached.
 func (s *Service) CanExecuteWorkflow(ctx context.Context, userIdentity string, currentMonthCount int) bool {
-	ent, err := s.GetEntitlement(ctx, userIdentity)
-	if err != nil {
-		s.log.WithError(err).Warn("Failed to check entitlement; denying workflow until subscription is verified")
+	decision := s.gate.Meter(ctx, userIdentity, "workflow_executions")
+	if !decision.Allowed || !decision.LimitFound {
 		return false
 	}
-
-	limit, ok := ent.LimitValue("workflow_executions")
-	if !ok {
-		return false
-	}
-	if limit < 0 {
+	if decision.Limit < 0 {
 		// Unlimited
 		return true
 	}
 
-	return int64(currentMonthCount) < limit
+	return int64(currentMonthCount) < decision.Limit
+}
+
+// CanExecuteWorkflowOffline evaluates the cached, signed Class B lease. It
+// never refreshes the authority, so a transient outage cannot block local
+// work while an unexpired lease remains valid.
+func (s *Service) CanExecuteWorkflowOffline(userIdentity string, currentMonthCount int) bool {
+	decision := s.gate.CachedMeter(userIdentity, "workflow_executions")
+	return decisionAllowsCount(decision, currentMonthCount)
+}
+
+// CanUseFeatureOffline evaluates a feature from the verified lease cache and
+// never contacts LPBS. It is intended for local Class B capability checks.
+func (s *Service) CanUseFeatureOffline(userIdentity, feature string, minPlanRank int32) bool {
+	return s.gate.CachedFeature(userIdentity, feature, minPlanRank).Allowed
+}
+
+// CanExecuteWorkflowAt evaluates the cached lease at an explicit instant.
+// The method makes the signed expiry boundary testable without changing the
+// process clock or mutating production state.
+func (s *Service) CanExecuteWorkflowAt(userIdentity string, currentMonthCount int, now time.Time) bool {
+	decision := s.gate.CachedMeterAt(userIdentity, "workflow_executions", now)
+	return decisionAllowsCount(decision, currentMonthCount)
+}
+
+func decisionAllowsCount(decision monetization.Decision, currentMonthCount int) bool {
+	if !decision.Allowed || !decision.LimitFound {
+		return false
+	}
+	return decision.Limit < 0 || int64(currentMonthCount) < decision.Limit
 }
 
 // GetRemainingExecutions returns how many executions the user has remaining this month.
 // Returns -1 for unlimited.
 func (s *Service) GetRemainingExecutions(ctx context.Context, userIdentity string, currentMonthCount int) int {
-	ent, err := s.GetEntitlement(ctx, userIdentity)
-	if err != nil {
+	decision := s.gate.Meter(ctx, userIdentity, "workflow_executions")
+	if !decision.Allowed || !decision.LimitFound {
 		return 0
 	}
-
-	limit, ok := ent.LimitValue("workflow_executions")
-	if !ok {
-		return 0
-	}
-	if limit < 0 {
+	if decision.Limit < 0 {
 		return -1
 	}
 
-	remaining := int(limit) - currentMonthCount
+	remaining := int(decision.Limit) - currentMonthCount
 	if remaining < 0 {
 		return 0
 	}
@@ -153,33 +171,21 @@ func (s *Service) GetRemainingExecutions(ctx context.Context, userIdentity strin
 
 // RequiresWatermark returns true if exports for this user should be watermarked.
 func (s *Service) RequiresWatermark(ctx context.Context, userIdentity string) bool {
-	ent, err := s.GetEntitlement(ctx, userIdentity)
-	if err != nil {
-		return true
-	}
-	return !ent.HasFeature(FeatureWatermarkFree)
+	return !s.gate.Feature(ctx, userIdentity, FeatureWatermarkFree, 0).Allowed
 }
 
 // CanUseAI returns true if the user has access to AI-powered features.
 func (s *Service) CanUseAI(ctx context.Context, userIdentity string) bool {
-	ent, err := s.GetEntitlement(ctx, userIdentity)
-	if err != nil {
-		return false
-	}
-	return ent.HasFeature(FeatureAI)
+	return s.gate.Feature(ctx, userIdentity, FeatureAI, 0).Allowed
 }
 
 // CanUseRecording returns true if the user has access to live recording features.
 func (s *Service) CanUseRecording(ctx context.Context, userIdentity string) bool {
-	ent, err := s.GetEntitlement(ctx, userIdentity)
-	if err != nil {
-		return false
-	}
-	return ent.HasFeature(FeatureRecording)
+	return s.gate.Feature(ctx, userIdentity, FeatureRecording, 0).Allowed
 }
 
 // InvalidateCache removes a user's cached entitlement, forcing a refresh on next check.
-func (s *Service) InvalidateCache(userIdentity string) {
+func (s *Service) InvalidateCache(_ string) {
 	// entitlementclient owns the verified lease cache. Invalidation is
 	// intentionally not a local billing decision; forcing a fresh lease is
 	// represented by rebuilding the shared client.
@@ -205,7 +211,16 @@ func (s *Service) fetchEntitlement(ctx context.Context, userIdentity string) (*E
 		s.gate.Entitlements.HTTPClient != s.httpClient {
 		s.rebuildGateForURL(serviceURL)
 	}
-	lease, err := s.gate.Lease(ctx, userIdentity)
+	var lease entitlementclient.Payload
+	var err error
+	if token := accessTokenFromContext(ctx); token != "" {
+		// Bypass the identity-keyed cache whenever the caller supplied a
+		// bearer. LPBS then checks that the requested identity matches the
+		// verified token before this process accepts the lease.
+		lease, err = s.gate.Entitlements.GetWithAccess(ctx, userIdentity, token)
+	} else {
+		lease, err = s.gate.Lease(ctx, userIdentity)
+	}
 	if err != nil {
 		if errors.Is(err, entitlementclient.ErrLeaseUnauthorized) {
 			return nil, fmt.Errorf("%w: %v", ErrEntitlementUnauthorized, err)
@@ -277,7 +292,7 @@ func (s *Service) CanUseAIWithEntitlement(ent *Entitlement) bool {
 	if ent == nil {
 		return false
 	}
-	return ent.HasFeature(FeatureAI)
+	return monetization.HasFeature(entitlementclient.Payload{Features: ent.Features}, FeatureAI)
 }
 
 // CanUseRecordingWithEntitlement checks recording access using features array first.
@@ -287,7 +302,7 @@ func (s *Service) CanUseRecordingWithEntitlement(ent *Entitlement) bool {
 	if ent == nil {
 		return false
 	}
-	return ent.HasFeature(FeatureRecording)
+	return monetization.HasFeature(entitlementclient.Payload{Features: ent.Features}, FeatureRecording)
 }
 
 // RequiresWatermarkWithEntitlement checks if watermark is required using features array first.
@@ -297,5 +312,5 @@ func (s *Service) RequiresWatermarkWithEntitlement(ent *Entitlement) bool {
 	if ent == nil {
 		return true // Fail safe: require watermark
 	}
-	return !ent.HasFeature(FeatureWatermarkFree)
+	return !monetization.HasFeature(entitlementclient.Payload{Features: ent.Features}, FeatureWatermarkFree)
 }

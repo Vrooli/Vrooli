@@ -14,6 +14,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
+	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/connectx"
@@ -200,12 +201,11 @@ func main() {
 
 	if cfg.Entitlement.ServiceURL != "" {
 		log.WithFields(logrus.Fields{
-			"service_url":  cfg.Entitlement.ServiceURL,
-			"cache_ttl":    cfg.Entitlement.CacheTTL,
-			"default_tier": cfg.Entitlement.DefaultTier,
+			"service_url": cfg.Entitlement.ServiceURL,
+			"cache_ttl":   cfg.Entitlement.CacheTTL,
 		}).Info("✅ Entitlement service configured")
 	} else {
-		log.WithField("default_tier", cfg.Entitlement.DefaultTier).Info("ℹ️  No entitlement service URL - using default tier")
+		log.Info("ℹ️  No entitlement service URL - paid features remain unavailable until a verified lease is available")
 	}
 
 	// Initialize unified credits service (always enabled for tracking)
@@ -621,16 +621,111 @@ func main() {
 				w.Header().Set("Content-Type", "application/json")
 				_ = json.NewEncoder(w).Encode(result)
 			}
+			lpbsURL := strings.TrimRight(cfg.Entitlement.ServiceURL, "/")
+			if lpbsURL == "" {
+				lpbsURL = strings.TrimRight(cfg.AIProvider.VrooliAPIURL, "/")
+			}
+			resolveJourneyAccess := func(ctx context.Context) (string, error) {
+				token := entitlement.AccessTokenFromContext(ctx)
+				if token != "" {
+					return token, nil
+				}
+				if subscriptionResolver == nil || lpbsURL == "" {
+					return "", fmt.Errorf("LPBS authority or shared subscription resolver is unavailable")
+				}
+				access, err := subscriptionResolver.ResolveAt(ctx, lpbsURL)
+				if err != nil || strings.TrimSpace(access.AccessToken) == "" {
+					return "", fmt.Errorf("resolve shared consumer session: %w", err)
+				}
+				return access.AccessToken, nil
+			}
+			resolveJourneyUser := func(ctx context.Context) (string, error) {
+				if user := strings.TrimSpace(strings.ToLower(os.Getenv("SMOKE_TEST_MONETIZATION_EMAIL"))); user != "" {
+					return user, nil
+				}
+				token, err := resolveJourneyAccess(ctx)
+				if err != nil {
+					return "", err
+				}
+				request, err := http.NewRequestWithContext(ctx, http.MethodGet, lpbsURL+"/api/v1/auth/me", nil)
+				if err != nil {
+					return "", fmt.Errorf("create LPBS identity request: %w", err)
+				}
+				request.Header.Set("Authorization", "Bearer "+token)
+				response, err := (&http.Client{Timeout: 15 * time.Second}).Do(request) // #nosec G704 -- LPBS URL is operator-configured.
+				if err != nil {
+					return "", fmt.Errorf("resolve LPBS consumer identity: %w", err)
+				}
+				defer response.Body.Close()
+				if response.StatusCode != http.StatusOK {
+					return "", fmt.Errorf("LPBS identity endpoint returned HTTP %d", response.StatusCode)
+				}
+				var payload struct {
+					User struct {
+						Email string `json:"email"`
+					} `json:"user"`
+				}
+				if err := json.NewDecoder(response.Body).Decode(&payload); err != nil {
+					return "", fmt.Errorf("decode LPBS consumer identity: %w", err)
+				}
+				user := strings.TrimSpace(strings.ToLower(payload.User.Email))
+				if user == "" {
+					return "", fmt.Errorf("LPBS consumer identity is missing an email")
+				}
+				return user, nil
+			}
+			fetchJourneyUsage := func(ctx context.Context, token string) (int64, error) {
+				if lpbsURL == "" || strings.TrimSpace(token) == "" {
+					return 0, fmt.Errorf("LPBS authority and access token are required for usage reconciliation")
+				}
+				request, err := http.NewRequestWithContext(ctx, http.MethodGet, lpbsURL+"/api/v1/usage/summary", nil)
+				if err != nil {
+					return 0, err
+				}
+				request.Header.Set("Authorization", "Bearer "+token)
+				response, err := (&http.Client{Timeout: 20 * time.Second}).Do(request) // #nosec G704 -- LPBS URL is operator-configured.
+				if err != nil {
+					return 0, fmt.Errorf("fetch LPBS usage summary: %w", err)
+				}
+				defer response.Body.Close()
+				if response.StatusCode != http.StatusOK {
+					return 0, fmt.Errorf("LPBS usage summary returned HTTP %d", response.StatusCode)
+				}
+				var summary struct {
+					Usage map[string]int64 `json:"usage"`
+				}
+				if err := json.NewDecoder(response.Body).Decode(&summary); err != nil {
+					return 0, fmt.Errorf("decode LPBS usage summary: %w", err)
+				}
+				return summary.Usage["workflow_executions"], nil
+			}
 			switch operation {
 			case "signin_shared_session":
 				if subscriptionResolver == nil {
 					http.Error(w, "shared subscription resolver unavailable", http.StatusServiceUnavailable)
 					return
 				}
+				if lpbsURL == "" {
+					http.Error(w, "LPBS authority is unavailable", http.StatusServiceUnavailable)
+					return
+				}
+				access, err := subscriptionResolver.ResolveAt(journeyCtx, lpbsURL)
+				if err != nil || strings.TrimSpace(access.AccessToken) == "" {
+					http.Error(w, "shared session resolution failed: "+fmt.Sprint(err), http.StatusServiceUnavailable)
+					return
+				}
 				respond(map[string]string{"observed": "session=shared", "route": "credential-authority"})
 			case "second_app_resolves":
-				if subscriptionResolver == nil {
+				if credentialClient == nil || lpbsURL == "" {
 					http.Error(w, "shared subscription resolver unavailable", http.StatusServiceUnavailable)
+					return
+				}
+				// A fresh resolver models a second application process. It shares
+				// only the credential-authority client, never BAS's in-memory access.
+				secondResolver := &credentialclient.ConsumerSessionResolver{Credentials: credentialClient, LPBSBaseURL: lpbsURL}
+				access, err := secondResolver.ResolveAt(journeyCtx, lpbsURL)
+				if err != nil || strings.TrimSpace(access.AccessToken) == "" {
+					http.Error(w, "second app could not resolve shared session: "+fmt.Sprint(err), http.StatusServiceUnavailable)
 					return
 				}
 				respond(map[string]string{"observed": "session=reused", "route": "credential-authority"})
@@ -659,7 +754,12 @@ func main() {
 				body, _ := json.Marshal(map[string]any{
 					"role":     "chat.default",
 					"messages": []map[string]string{{"role": "user", "content": "desktop monetization boundary probe"}},
-					"metadata": map[string]string{"app_bundle_key": "browser-automation-studio", "operation": "desktop.monetization.boundary"},
+					"metadata": map[string]string{
+						"app_bundle_key":         "business_suite",
+						"operation":              "desktop.monetization.boundary",
+						"local_plan_rank":        "2147483647",
+						"local_feature_override": "ai",
+					},
 				})
 				request, err := http.NewRequestWithContext(req.Context(), http.MethodPost, baseURL+"/api/v1/ai/inference", bytes.NewReader(body))
 				if err != nil {
@@ -674,7 +774,7 @@ func main() {
 					return
 				}
 				defer response.Body.Close()
-				if response.StatusCode == http.StatusPaymentRequired || response.StatusCode == http.StatusForbidden {
+				if response.StatusCode == http.StatusPaymentRequired || response.StatusCode == http.StatusForbidden || response.StatusCode == http.StatusBadRequest {
 					respond(map[string]string{"observed": "class_a=refused", "route": fmt.Sprintf("lpbs-http-%d", response.StatusCode)})
 					return
 				}
@@ -688,11 +788,12 @@ func main() {
 				// Its fixture identity is explicit process configuration, never
 				// caller-controlled request data. Prefer it over a persisted BAS
 				// UI identity so the access token and lease identity stay paired.
-				user := strings.TrimSpace(os.Getenv("SMOKE_TEST_MONETIZATION_EMAIL"))
-				if user == "" {
-					user = entitlement.UserIdentityFromContext(journeyCtx)
+				user, err := resolveJourneyUser(journeyCtx)
+				if err != nil {
+					http.Error(w, "resolve Class B consumer identity: "+err.Error(), http.StatusServiceUnavailable)
+					return
 				}
-				_, err := entitlementSvc.GetEntitlement(journeyCtx, user)
+				_, err = entitlementSvc.GetEntitlement(journeyCtx, user)
 				if err != nil {
 					http.Error(w, "resolve signed plan for Class B probe: "+err.Error(), http.StatusServiceUnavailable)
 					return
@@ -706,12 +807,95 @@ func main() {
 				}
 				respond(map[string]string{"observed": "class_b=refused", "route": "local-capacity"})
 			case "offline_class_b":
+				user, err := resolveJourneyUser(journeyCtx)
+				if err != nil {
+					http.Error(w, err.Error(), http.StatusServiceUnavailable)
+					return
+				}
+				if _, err := entitlementSvc.GetEntitlement(journeyCtx, user); err != nil {
+					http.Error(w, "seed verified lease cache: "+err.Error(), http.StatusServiceUnavailable)
+					return
+				}
+				if !entitlementSvc.CanExecuteWorkflowOffline(user, 0) {
+					http.Error(w, "cached Class B lease did not allow workflow execution", http.StatusPaymentRequired)
+					return
+				}
 				respond(map[string]string{"observed": "offline_class_b=allowed", "route": "cached-lease"})
 			case "offline_gate_degrades":
+				user, err := resolveJourneyUser(journeyCtx)
+				if err != nil {
+					http.Error(w, err.Error(), http.StatusServiceUnavailable)
+					return
+				}
+				// This is a lease-survival probe, not a second meter probe. An
+				// empty feature key asks the shared gate to validate only the
+				// cached signed status and validity window, which is the common
+				// boundary for local Class B feature gates.
+				if !entitlementSvc.CanUseFeatureOffline(user, "", 0) {
+					http.Error(w, "cached entitlement did not preserve local access", http.StatusPaymentRequired)
+					return
+				}
 				respond(map[string]string{"observed": "cached_lease=allowed", "route": "entitlement-cache"})
 			case "outbox_drains_once":
+				user, err := resolveJourneyUser(journeyCtx)
+				if err != nil {
+					http.Error(w, err.Error(), http.StatusServiceUnavailable)
+					return
+				}
+				token := entitlement.AccessTokenFromContext(journeyCtx)
+				if token == "" && subscriptionResolver != nil {
+					access, resolveErr := subscriptionResolver.ResolveAt(journeyCtx, lpbsURL)
+					if resolveErr != nil {
+						http.Error(w, "resolve usage session: "+resolveErr.Error(), http.StatusServiceUnavailable)
+						return
+					}
+					token = access.AccessToken
+				}
+				before, err := fetchJourneyUsage(journeyCtx, token)
+				if err != nil {
+					http.Error(w, err.Error(), http.StatusBadGateway)
+					return
+				}
+				opID := uuid.NewString()
+				usage, err := creditService.EnqueueJourneyUsage(journeyCtx, user, opID)
+				if err != nil {
+					http.Error(w, "enqueue Class B usage: "+err.Error(), http.StatusServiceUnavailable)
+					return
+				}
+				delivered, drainErr := creditService.DrainOutbox(journeyCtx, 1)
+				if drainErr != nil || delivered != 1 {
+					http.Error(w, fmt.Sprintf("drain Class B outbox: delivered=%d err=%v", delivered, drainErr), http.StatusBadGateway)
+					return
+				}
+				if err := creditService.ReplayJourneyUsage(journeyCtx, usage); err != nil {
+					http.Error(w, "replay Class B usage: "+err.Error(), http.StatusBadGateway)
+					return
+				}
+				after, err := fetchJourneyUsage(journeyCtx, token)
+				if err != nil {
+					http.Error(w, err.Error(), http.StatusBadGateway)
+					return
+				}
+				if after-before != usage.Units {
+					http.Error(w, fmt.Sprintf("LPBS ledger delta=%d, want exactly %d", after-before, usage.Units), http.StatusBadGateway)
+					return
+				}
 				respond(map[string]string{"observed": "outbox=exactly_once", "route": "lpbs-ledger"})
 			case "expired_lease_falls_back":
+				user, err := resolveJourneyUser(journeyCtx)
+				if err != nil {
+					http.Error(w, err.Error(), http.StatusServiceUnavailable)
+					return
+				}
+				ent, err := entitlementSvc.GetEntitlement(journeyCtx, user)
+				if err != nil {
+					http.Error(w, "seed lease expiry proof: "+err.Error(), http.StatusServiceUnavailable)
+					return
+				}
+				if entitlementSvc.CanExecuteWorkflowAt(user, 0, ent.ExpiresAt) {
+					http.Error(w, "expired signed lease still allowed Class B work", http.StatusBadGateway)
+					return
+				}
 				respond(map[string]string{"observed": "expired_lease=free", "route": "lease-expiry"})
 			default:
 				http.Error(w, "unknown monetization journey operation", http.StatusBadRequest)

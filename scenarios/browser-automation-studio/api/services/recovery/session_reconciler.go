@@ -3,6 +3,7 @@ package recovery
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -18,6 +19,13 @@ const DefaultSessionReconcileInterval = time.Minute
 // DefaultSessionTerminalGrace gives normal close/release cleanup a short
 // opportunity to finish before recovery force-closes the orphan.
 const DefaultSessionTerminalGrace = 15 * time.Second
+
+// DefaultSoakOrphanGrace bounds cleanup for the out-of-band audio-tools soak.
+// That workflow is server-owned rather than represented by a Test Genie
+// execution row, so last activity is its only durable liveness signal.
+const DefaultSoakOrphanGrace = 5 * time.Minute
+
+const audioToolsSoakWorkflowID = "audio-tools-long-form-dictation-soak"
 
 type sessionInventory interface {
 	ListObservedSessions(context.Context) ([]driver.ObservedSession, error)
@@ -86,11 +94,21 @@ func (r *SessionReconciler) ReconcileOnce(ctx context.Context) (SessionReconcile
 	for _, session := range sessions {
 		ownerID, err := uuid.Parse(session.OwnerExecutionID)
 		if err != nil {
+			if r.reconcileOrphanedSoak(ctx, session, &result) {
+				continue
+			}
 			result.Skipped++
 			continue
 		}
 		execution, err := r.repo.GetExecution(ctx, ownerID)
-		if err != nil || execution == nil || !database.IsTerminalStatus(execution.Status) {
+		if err != nil || execution == nil {
+			if r.reconcileOrphanedSoak(ctx, session, &result) {
+				continue
+			}
+			result.Skipped++
+			continue
+		}
+		if !database.IsTerminalStatus(execution.Status) {
 			result.Skipped++
 			continue
 		}
@@ -111,6 +129,24 @@ func (r *SessionReconciler) ReconcileOnce(ctx context.Context) (SessionReconcile
 		result.Closed++
 	}
 	return result, nil
+}
+
+func (r *SessionReconciler) reconcileOrphanedSoak(ctx context.Context, session driver.ObservedSession, result *SessionReconcileResult) bool {
+	if session.WorkflowID != audioToolsSoakWorkflowID || strings.TrimSpace(session.LastUsedAt) == "" {
+		return false
+	}
+	lastUsed, err := time.Parse(time.RFC3339Nano, session.LastUsedAt)
+	if err != nil || r.now().Before(lastUsed.Add(DefaultSoakOrphanGrace)) {
+		return false
+	}
+	if err := r.driver.ForceCloseSession(ctx, session.ID); err != nil {
+		if r.log != nil {
+			r.log.WithError(err).WithField("session_id", session.ID).Warn("orphaned soak session reconciliation failed")
+		}
+		return true
+	}
+	result.Closed++
+	return true
 }
 
 // Run owns the periodic loop; callers cancel its context during API shutdown.

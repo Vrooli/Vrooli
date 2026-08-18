@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 	"sync"
@@ -168,7 +169,7 @@ func NewService(opts ServiceOptions) *Service {
 		cache:               make(map[string]*usageCache),
 	}
 	if service.db != nil && service.lpbsURL != "" {
-		service.monetizationOutbox = monetization.NewOutbox(&sqlUsageOutboxStore{db: service.db}, &lpbsUsageTransport{service: service})
+		service.monetizationOutbox = monetization.NewOutbox(monetization.NewSQLStore(service.db, monetization.SQLDialectSQLite), &lpbsUsageTransport{service: service})
 	}
 	return service
 }
@@ -982,7 +983,8 @@ func (s *Service) sendLPBSReport(ctx context.Context, report lpbsUsageReport, ac
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		return fmt.Errorf("status %d", resp.StatusCode)
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
+		return fmt.Errorf("status %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
 	}
 	return nil
 }
@@ -1047,14 +1049,14 @@ func (s *Service) reportUsageToLPBS(ctx context.Context, userIdentity string, op
 // DrainOutbox delivers pending reports using the current consumer session.
 // A delivered operation remains durably marked; LPBS also deduplicates by the
 // operation_id carried in the payload, making retries exactly-once upstream.
-func (s *Service) DrainOutbox(ctx context.Context, max int) (int, error) {
-	if s.lpbsURL == "" || max <= 0 {
+func (s *Service) DrainOutbox(ctx context.Context, limit int) (int, error) {
+	if s.lpbsURL == "" || limit <= 0 {
 		return 0, nil
 	}
 	if s.monetizationOutbox == nil {
 		return 0, errors.New("shared usage outbox is unavailable")
 	}
-	return s.monetizationOutbox.Drain(ctx, max)
+	return s.monetizationOutbox.Drain(ctx, limit)
 }
 
 func (s *Service) resolveLPBSAccess(ctx context.Context) (string, error) {

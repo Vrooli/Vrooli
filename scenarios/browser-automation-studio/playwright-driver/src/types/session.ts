@@ -5,6 +5,7 @@ import type { ServiceWorkerControl } from './service-worker';
 import type { ServiceWorkerController } from '../service-worker';
 import type { PerformanceTracer, AccessibilitySnapshotter } from '../tracing';
 import type { AudioStrategy, HostAudioCapability } from '../session/audio';
+import type { BrowserCaptureDeviceEvidence } from '../session/audio/device-evidence';
 
 export type ReuseMode = 'fresh' | 'clean' | 'reuse';
 
@@ -62,6 +63,10 @@ export interface SessionSpec {
     /** Absolute WAV path used as the fake microphone capture source. */
     microphone_wav?: string;
   };
+  /** Optional inter-clip pause for host-device qualification playback. */
+  audio_playback_pause_ms?: number;
+  /** Opt this session into the user-owned PipeWire capture qualification device. */
+  audio_device_evidence?: boolean;
   storage_state?: {
     cookies: Array<{
       name: string;
@@ -243,6 +248,12 @@ export interface SessionState {
   /** Audio delivery evidence selected for this session. */
   audioStrategy?: AudioStrategy;
   audioCapability?: HostAudioCapability;
+  /** Metadata-only host-device qualification returned at session start. */
+  audioDeviceEvidence?: BrowserCaptureDeviceEvidence;
+  /** Stops the session-owned host-device corpus playback loop. */
+  audioPlaybackStop?: () => Promise<void>;
+  /** Returns a playback failure observed after session creation, if any. */
+  audioPlaybackFailure?: () => string | undefined;
   context: BrowserContext;
   page: Page;
   spec: SessionSpec;
@@ -441,6 +452,8 @@ export interface StartSessionRequest {
    * Optional: Deterministic fake media devices (see SessionSpec.fake_media).
    */
   fake_media?: SessionSpec['fake_media'];
+  audio_playback_pause_ms?: SessionSpec['audio_playback_pause_ms'];
+  audio_device_evidence?: SessionSpec['audio_device_evidence'];
   app_target?: SessionSpec['app_target'];
   validation_context?: SessionSpec['validation_context'];
 }
@@ -483,6 +496,8 @@ export interface StartSessionResponse {
    * May differ from requested dimensions due to browser profile fingerprint overrides.
    */
   actual_viewport?: ActualViewportResponse;
+  /** Present only for the opt-in PipeWire host-device qualification lane. */
+  audio_device_evidence?: BrowserCaptureDeviceEvidence;
 }
 
 export interface CloseSessionRequest {

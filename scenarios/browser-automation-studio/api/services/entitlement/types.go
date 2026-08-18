@@ -29,35 +29,37 @@ import (
 	"time"
 
 	entitlementclient "github.com/vrooli/vrooli/packages/entitlementclient-go"
+	monetization "github.com/vrooli/vrooli/packages/monetization-go"
 )
 
-// Legacy plan labels are display values only. Authorization uses PlanRank
-// from the verified LPBS lease and never compares these names locally.
+// Plan labels and status vocabulary are owned by the shared monetization
+// package. These aliases preserve the entitlement service's public API while
+// preventing BAS from maintaining a second catalog.
 const (
-	TierFree     = "free"
-	TierSolo     = "solo"
-	TierPro      = "pro"
-	TierStudio   = "studio"
-	TierBusiness = "business"
+	TierFree     = string(monetization.PlanFree)
+	TierSolo     = string(monetization.PlanSolo)
+	TierPro      = string(monetization.PlanPro)
+	TierStudio   = string(monetization.PlanStudio)
+	TierBusiness = string(monetization.PlanBusiness)
 )
 
 // Status represents the subscription status.
-type Status string
+type Status = monetization.SubscriptionStatus
 
 const (
-	StatusActive   Status = "active"
-	StatusTrialing Status = "trialing"
-	StatusPastDue  Status = "past_due"
-	StatusCanceled Status = "canceled"
-	StatusInactive Status = "inactive"
+	StatusActive   = monetization.StatusActive
+	StatusTrialing = monetization.StatusTrialing
+	StatusPastDue  = monetization.StatusPastDue
+	StatusCanceled = monetization.StatusCanceled
+	StatusInactive = monetization.StatusInactive
 )
 
 // Feature constants for type-safe feature checks.
 // These are the canonical feature strings that can appear in the Features array.
 const (
-	FeatureAI            = "ai"
-	FeatureRecording     = "recording"
-	FeatureWatermarkFree = "watermark_free"
+	FeatureAI            = monetization.FeatureAI
+	FeatureRecording     = monetization.FeatureRecording
+	FeatureWatermarkFree = monetization.FeatureWatermarkFree
 )
 
 // Entitlement represents a user's current subscription and capabilities.
@@ -164,25 +166,4 @@ func (e *Entitlement) GetBillingPeriod(t time.Time) (start, end time.Time) {
 func (e *Entitlement) GetBillingMonth(t time.Time) string {
 	start, _ := e.GetBillingPeriod(t)
 	return start.Format("2006-01-02")
-}
-
-// entitlementResponse matches the response from landing-page-business-suite /api/v1/entitlements.
-type entitlementResponse struct {
-	Lease             string                `json:"lease"`
-	Status            string                `json:"status"`
-	PlanTier          string                `json:"plan_tier"`
-	PriceID           string                `json:"price_id"`
-	Features          []string              `json:"features"`
-	BillingCycleStart int                   `json:"billing_cycle_start"`
-	Credits           *credits              `json:"credits"`
-	Subscription      *subscriptionIdentity `json:"subscription"`
-}
-
-type credits struct {
-	CustomerEmail  string `json:"customer_email"`
-	BalanceCredits int64  `json:"balance_credits"`
-}
-
-type subscriptionIdentity struct {
-	UserIdentity string `json:"user_identity"`
 }

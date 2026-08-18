@@ -61,8 +61,12 @@ export const HomeTab: React.FC<HomeTabProps> = ({
     clearLastEdited,
   } = useDashboardStore();
 
-  // Track validated last edited workflow (null if validation pending or failed)
-  const [validatedLastEdited, setValidatedLastEdited] = useState<typeof lastEditedWorkflow>(null);
+  // Start from the locally remembered workflow so the hero is stable on the
+  // first paint. The effect below still verifies it and removes stale state
+  // after the dashboard is interactive.
+  const [validatedLastEdited, setValidatedLastEdited] = useState<typeof lastEditedWorkflow>(
+    lastEditedWorkflow,
+  );
 
   // Validate lastEditedWorkflow exists on mount and when it changes
   useEffect(() => {

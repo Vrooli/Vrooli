@@ -29,7 +29,7 @@
     "@bufbuild/protobuf": "^2.10.1",
     "@ghostery/adblocker-playwright": "^2.13.2",
     "@vrooli/proto-types": "file:../../../packages/proto/gen/typescript",
-    "js-yaml": "4.3.0",
+    "js-yaml": "4.3.1",
     "prom-client": "^15.1.0",
     "rebrowser-playwright": "^1.52.0",
     "uuid": "^9.0.1",
@@ -58,8 +58,8 @@
   },
   "pnpm": {
     "overrides": {
-      "brace-expansion@^1.1.0": "1.1.16",
-      "js-yaml@^3.13.0": "4.3.0"
+      "brace-expansion@^1.1.0": "1.1.18",
+      "js-yaml@^3.13.0": "4.3.1"
     }
   },
   "license": "MIT",

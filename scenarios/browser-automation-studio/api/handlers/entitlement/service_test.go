@@ -182,9 +182,11 @@ func TestModule_RequiresProvider(t *testing.T) {
 
 func TestGetStatus_HappyPath(t *testing.T) {
 	prov := newDefaultProvider()
-	client := newTestClient(t, clientDeps{provider: prov})
+	settings := newFakeSettings()
+	settings.store["user_identity"] = "alice@example.com"
+	client := newTestClient(t, clientDeps{provider: prov, settings: settings})
 
-	resp, err := client.GetStatus(context.Background(), connect.NewRequest(&entitlementv1.GetStatusRequest{User: "alice@example.com"}))
+	resp, err := client.GetStatus(context.Background(), connect.NewRequest(&entitlementv1.GetStatusRequest{User: "attacker@example.com"}))
 	require.NoError(t, err)
 
 	s := resp.Msg.GetStatus()
@@ -205,7 +207,7 @@ func TestGetStatus_UsesStoredSettingsFallback(t *testing.T) {
 	settings.store["user_identity"] = "stored@example.com"
 	client := newTestClient(t, clientDeps{provider: prov, settings: settings})
 
-	resp, err := client.GetStatus(context.Background(), connect.NewRequest(&entitlementv1.GetStatusRequest{}))
+	resp, err := client.GetStatus(context.Background(), connect.NewRequest(&entitlementv1.GetStatusRequest{User: "attacker@example.com"}))
 	require.NoError(t, err)
 	require.Equal(t, "stored@example.com", resp.Msg.GetStatus().UserIdentity)
 }
@@ -222,6 +224,7 @@ func TestGetStatus_AnonymousFallback(t *testing.T) {
 func TestGetStatus_IgnoresStaleLocalTierSetting(t *testing.T) {
 	prov := newDefaultProvider()
 	settings := newFakeSettings()
+	settings.store["user_identity"] = "alice@example.com"
 	settings.store["entitlement_override_tier"] = entsvc.TierBusiness
 	client := newTestClient(t, clientDeps{provider: prov, settings: settings})
 
@@ -307,8 +310,10 @@ func TestRefreshStatus_RequiresUser(t *testing.T) {
 
 func TestRefreshStatus_InvalidatesAndReturns(t *testing.T) {
 	prov := newDefaultProvider()
-	client := newTestClient(t, clientDeps{provider: prov})
-	resp, err := client.RefreshStatus(context.Background(), connect.NewRequest(&entitlementv1.RefreshStatusRequest{User: "alice@example.com"}))
+	settings := newFakeSettings()
+	settings.store["user_identity"] = "alice@example.com"
+	client := newTestClient(t, clientDeps{provider: prov, settings: settings})
+	resp, err := client.RefreshStatus(context.Background(), connect.NewRequest(&entitlementv1.RefreshStatusRequest{User: "attacker@example.com"}))
 	require.NoError(t, err)
 	require.Contains(t, prov.invalidated, "alice@example.com")
 	require.Equal(t, "alice@example.com", resp.Msg.GetStatus().UserIdentity)

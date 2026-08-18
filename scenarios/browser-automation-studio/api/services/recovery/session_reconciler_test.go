@@ -50,3 +50,22 @@ func TestSessionReconciler_ForceClosesOnlyTerminalOwnersPastGrace(t *testing.T) 
 	require.Equal(t, 1, result.Closed)
 	require.Equal(t, []string{"terminal-session"}, inventory.closed)
 }
+
+func TestSessionReconciler_ClosesOnlyStaleUnknownAudioSoakOwners(t *testing.T) {
+	now := time.Date(2026, 7, 22, 12, 0, 0, 0, time.UTC)
+	old := now.Add(-(DefaultSoakOrphanGrace + time.Second)).Format(time.RFC3339Nano)
+	fresh := now.Add(-time.Minute).Format(time.RFC3339Nano)
+	inventory := &fakeSessionInventory{sessions: []driver.ObservedSession{
+		{ID: "stale-soak", OwnerExecutionID: "browser-soak-legacy", WorkflowID: audioToolsSoakWorkflowID, LastUsedAt: old},
+		{ID: "fresh-soak", OwnerExecutionID: uuid.NewString(), WorkflowID: audioToolsSoakWorkflowID, LastUsedAt: fresh},
+		{ID: "stale-other", OwnerExecutionID: "missing-owner", WorkflowID: "another-workflow", LastUsedAt: old},
+	}}
+	reconciler := newSessionReconciler(inventory, &fakeExecutionLookup{executions: map[uuid.UUID]*database.ExecutionIndex{}}, logrus.New())
+	reconciler.now = func() time.Time { return now }
+
+	result, err := reconciler.ReconcileOnce(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, 3, result.Observed)
+	require.Equal(t, 1, result.Closed)
+	require.Equal(t, []string{"stale-soak"}, inventory.closed)
+}

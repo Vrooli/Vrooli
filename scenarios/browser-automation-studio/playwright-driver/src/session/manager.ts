@@ -1,7 +1,21 @@
-import type { SessionSpec, SessionState, SessionPhase, SessionCloseResult, AppTargetSpec } from '../types';
+import type {
+  SessionSpec,
+  SessionState,
+  SessionPhase,
+  SessionCloseResult,
+  AppTargetSpec,
+} from '../types';
+import type { Browser, BrowserContext } from 'rebrowser-playwright';
 import path from 'node:path';
 import type { Config } from '../config';
-import { logger, metrics, SessionNotFoundError, ResourceLimitError, scopedLog, LogContext } from '../utils';
+import {
+  logger,
+  metrics,
+  SessionNotFoundError,
+  ResourceLimitError,
+  scopedLog,
+  LogContext,
+} from '../utils';
 import { buildContext, type ActualViewport } from './context-builder';
 import { v4 as uuidv4 } from 'uuid';
 import { RecordingPipelineManager, createRecordingContextInitializer } from '../recording';
@@ -9,15 +23,41 @@ import { ServiceWorkerController } from '../service-worker';
 import { createInFlightGuard, type InFlightGuard } from '../infra';
 import { BrowserManager, type BrowserStatus } from './browser-manager';
 import { applySilentSinkToCurrentPage, generateSilentSinkPatch, type AudioStrategy } from './audio';
+import {
+  createPipeWireQualificationDevice,
+  PIPEWIRE_QUALIFICATION_DEVICE_NAME,
+  verifyBrowserCaptureDevice,
+  type BrowserCaptureDeviceEvidence,
+  type PipeWireQualificationDevice,
+} from './audio/device-evidence';
 import { transition, canTransition, canAcceptInstructions } from './state-machine';
-import { findByExecutionId, findByLabels, shouldAttemptReuse, makeReuseDecision, findIdleSessions } from './session-decisions';
+import {
+  findByExecutionId,
+  findByLabels,
+  shouldAttemptReuse,
+  makeReuseDecision,
+  findIdleSessions,
+} from './session-decisions';
 import { setupDiagnosticLogging } from './diagnostic-logger';
 import { resolveInstrumentation, safeInvoke, type Instrumentation } from '../instrumentation';
 import { PerformanceTracer, injectWebVitalsObserver, AccessibilitySnapshotter } from '../tracing';
-import { countActiveSessions, inspectSession, listSessions, summarizeSessions, type SessionInfo, type SessionListEntry, type SessionSummary } from './session-inspection';
+import {
+  countActiveSessions,
+  inspectSession,
+  listSessions,
+  summarizeSessions,
+  type SessionInfo,
+  type SessionListEntry,
+  type SessionSummary,
+} from './session-inspection';
 import { resetSessionState } from './session-reset';
 import { teardownSessionResources } from './session-teardown';
-import { selectAppTargetPage, validateAppTargetCapabilities, validateAppTargetSpec, verifyAppTargetRenderer } from './electron-target';
+import {
+  selectAppTargetPage,
+  validateAppTargetCapabilities,
+  validateAppTargetSpec,
+  verifyAppTargetRenderer,
+} from './electron-target';
 
 /**
  * SessionManager - Browser Session Lifecycle Management
@@ -65,6 +105,7 @@ export class SessionManager {
   private sessions: Map<string, SessionState> = new Map();
   private browserManager: BrowserManager;
   private config: Config;
+  private qualificationDevice: Promise<PipeWireQualificationDevice> | null = null;
 
   /**
    * Cross-cutting instrumentation seam (no-op by default). Session-level
@@ -115,6 +156,20 @@ export class SessionManager {
    */
   getBrowserStatus(): BrowserStatus {
     return this.browserManager.getBrowserStatus();
+  }
+
+  /** Close the shared qualification topology when no session owns it. */
+  private async closeQualificationDeviceIfIdle(): Promise<void> {
+    if (this.sessions.size !== 0 || !this.qualificationDevice) return;
+    const qualificationDevice = this.qualificationDevice;
+    this.qualificationDevice = null;
+    await qualificationDevice
+      .then((device) => device.close())
+      .catch((error: unknown) =>
+        logger.warn(scopedLog(LogContext.CLEANUP, 'qualification device cleanup failed'), {
+          error: getErrorMessage(error),
+        })
+      );
   }
 
   /**
@@ -281,247 +336,347 @@ export class SessionManager {
     });
 
     const fakeMicrophoneWav = spec.fake_media?.microphone_wav?.trim();
-    if (fakeMicrophoneWav) {
-      // Fake capture devices only serve pages that were granted microphone
-      // access; grant it at the context level so getUserMedia never prompts.
-      const permissions = new Set(spec.permissions ?? []);
-      permissions.add('microphone');
-      spec = { ...spec, permissions: [...permissions] };
-    }
-    const audioCapability = await this.browserManager.getHostAudioCapability();
-    const audioStrategy: AudioStrategy = await this.browserManager.getAudioStrategy();
-    const browser = await this.browserManager.getBrowser(fakeMicrophoneWav, audioStrategy);
-
-    // Build context (includes actualViewport with source attribution)
-    const {
-      context,
-      harPath,
-      tracePath,
-      videoDir,
-      serviceWorkerController,
-      recordingInitializer,
-      actualViewport,
-    } = await buildContext(browser, spec, this.config, audioStrategy);
-
-    const page = await context.newPage();
-    if (audioStrategy === 'synthetic_sink') {
-      // Init scripts do not retroactively patch the initial about:blank page.
-      await applySilentSinkToCurrentPage(page, generateSilentSinkPatch());
-    }
-
-    // Log page errors (warn level - these are important signals for debugging)
-    page.on('pageerror', (err: unknown) => {
-      logger.warn(scopedLog(LogContext.BROWSER, 'page error'), {
-        sessionId,
-        error: getErrorMessage(err),
-        hint: 'Check the page JavaScript for errors that may affect automation',
-      });
-    });
-
-    // Log console errors (warn level - only errors, not all console output)
-    page.on('console', (msg) => {
-      if (msg.type() === 'error') {
-        logger.warn(scopedLog(LogContext.BROWSER, 'console error'), {
-          sessionId,
-          text: msg.text(),
-        });
-      }
-    });
-
-    // Network events are collected by telemetry, not logged individually
-    // (reduces noise while still capturing data for debugging)
-
-    // Create recording pipeline manager (eager instantiation)
-    // This allows early verification and ensures the pipeline is ready before recording starts
-    const pipelineManager = new RecordingPipelineManager(page, context, recordingInitializer, {
-      sessionId,
-      logger,
-    });
-
-    // Create session state
-    const session: SessionState = {
-      id: sessionId,
-      ownerExecutionId: spec.execution_id,
-      leaseId: uuidv4(),
-      browser,
-      audioCapability,
-      audioStrategy,
-      context,
-      page,
-      spec,
-      createdAt,
-      lastUsedAt: new Date(),
-      tracing: !!tracePath,
-      video: !!videoDir,
-      harPath,
-      tracePath,
-      videoDir,
-      phase: 'ready',
-      instructionCount: 0,
-      frameStack: [],
-      pages: [page],
-      currentPageIndex: 0,
-      pageIdMap: new Map(),
-      pageToIdMap: new WeakMap(),
-      activeMocks: new Map(),
-      // Idempotency: Track executed instructions for replay safety
-      executedInstructions: new Map(),
-      // Service worker control
-      serviceWorkerController,
-      // Recording context initializer (binding + init script)
-      recordingInitializer,
-      // Recording pipeline manager (single source of truth for recording state)
-      pipelineManager,
-    };
-
-    // Assign an ID to the initial page and track it
-    const initialPageId = crypto.randomUUID();
-    session.pageIdMap.set(initialPageId, page);
-    session.pageToIdMap.set(page, initialPageId);
-
-    this.sessions.set(sessionId, session);
-
+    // Prefer the explicit per-session request. Keep the environment switch as
+    // a compatibility seam for the dedicated operator qualification service,
+    // but do not make every BAS session mutate the host audio topology just
+    // because that process happens to share an environment.
+    const deviceEvidenceEnabled =
+      spec.audio_device_evidence === true || process.env.VROOLI_AUDIO_DEVICE_EVIDENCE === '1';
+    let audioPlaybackStop: (() => Promise<void>) | undefined;
+    let audioPlaybackFailure: string | undefined;
+    let contextForCleanup: BrowserContext | undefined;
+    let browserForCleanup: Browser | undefined;
     try {
-      // Setup diagnostic logging for redirect loop debugging
-      // Enable with DIAGNOSTIC_LOGGING=true environment variable
-      setupDiagnosticLogging(context, sessionId);
+      if (deviceEvidenceEnabled && !this.qualificationDevice) {
+        this.qualificationDevice = createPipeWireQualificationDevice();
+      }
+      if (deviceEvidenceEnabled) {
+        // A host-device qualification must use getUserMedia; fake-media launch
+        // flags would prove a Chromium fixture rather than the OS device.
+        const permissions = new Set(spec.permissions ?? []);
+        permissions.add('microphone');
+        spec = { ...spec, permissions: [...permissions] };
+        await this.qualificationDevice;
+      }
+      if (fakeMicrophoneWav) {
+        // Fake capture devices only serve pages that were granted microphone
+        // access; grant it at the context level so getUserMedia never prompts.
+        const permissions = new Set(spec.permissions ?? []);
+        permissions.add('microphone');
+        spec = { ...spec, permissions: [...permissions] };
+      }
+      const audioCapability = await this.browserManager.getHostAudioCapability();
+      const audioStrategy: AudioStrategy = await this.browserManager.getAudioStrategy();
+      const browser = await this.browserManager.getBrowser(
+        deviceEvidenceEnabled ? undefined : fakeMicrophoneWav,
+        audioStrategy
+      );
+      browserForCleanup = browser;
 
-      // Initialize recording pipeline (early verification)
-      // This runs injection and verification so the pipeline is ready before recording starts
-      // The promise is stored in session.pipelineReadyPromise so consumers can await it
-      const pipelineReadyPromise = pipelineManager
-        .initialize()
-        .then(() => {
-          return pipelineManager.verifyPipeline({ timeoutMs: 5000, retries: 1 });
-        })
-        .then((verification) => {
-          if (verification.scriptLoaded && verification.scriptReady && verification.inMainContext) {
-            logger.debug(scopedLog(LogContext.SESSION, 'recording pipeline verified'), {
-              sessionId,
-              handlersCount: verification.handlersCount,
-            });
-            return true;
-          } else {
-            logger.warn(
-              scopedLog(LogContext.SESSION, 'recording pipeline verification incomplete'),
-              {
-                sessionId,
-                verification,
-                hint: 'Recording may require re-verification on first use',
+      // Build context (includes actualViewport with source attribution)
+      const {
+        context,
+        harPath,
+        tracePath,
+        videoDir,
+        serviceWorkerController,
+        recordingInitializer,
+        actualViewport,
+      } = await buildContext(browser, spec, this.config, audioStrategy);
+      contextForCleanup = context;
+
+      const page = await context.newPage();
+      let audioDeviceEvidence: BrowserCaptureDeviceEvidence | undefined;
+      if (deviceEvidenceEnabled) {
+        if (!spec.base_url) {
+          throw new Error(
+            'device evidence requires base_url so mediaDevices can be verified on an application origin'
+          );
+        }
+        // about:blank has an opaque origin and does not expose mediaDevices.
+        // Verify on the caller's application origin in a short-lived page so
+        // the session's normal initial page remains unchanged for the caller.
+        const evidencePage = await context.newPage();
+        try {
+          await evidencePage.goto(spec.base_url, {
+            waitUntil: 'domcontentloaded',
+            timeout: 30_000,
+          });
+          const evidence = await verifyBrowserCaptureDevice(
+            evidencePage,
+            PIPEWIRE_QUALIFICATION_DEVICE_NAME.replaceAll(' ', '_')
+          );
+          if (!evidence.enumerated) {
+            throw new Error(`browser did not enumerate ${PIPEWIRE_QUALIFICATION_DEVICE_NAME}`);
+          }
+          audioDeviceEvidence = evidence;
+          logger.info('browser: host capture device evidence recorded', evidence);
+          if (fakeMicrophoneWav) {
+            const qualificationDevice = this.qualificationDevice
+              ? await this.qualificationDevice
+              : null;
+            if (!qualificationDevice)
+              throw new Error('host capture qualification device is unavailable');
+            audioPlaybackStop = qualificationDevice.startWavLoop(
+              fakeMicrophoneWav,
+              spec.audio_playback_pause_ms ?? 0,
+              (error) => {
+                audioPlaybackFailure = error.message;
+                logger.error(
+                  scopedLog(LogContext.RECORDING, 'host capture qualification playback failed'),
+                  {
+                    sessionId,
+                    error: error.message,
+                  }
+                );
               }
             );
-            return false;
+            logger.info('browser: host capture qualification playback started', {
+              path: fakeMicrophoneWav,
+              pauseMs: spec.audio_playback_pause_ms ?? 0,
+            });
           }
-        })
-        .catch((err: unknown) => {
-          logger.warn(scopedLog(LogContext.SESSION, 'recording pipeline init failed'), {
-            sessionId,
-            error: getErrorMessage(err),
-            hint: 'Recording will retry initialization when started',
-          });
-          return false;
-        });
-
-      // Store the promise in session state for consumers to await
-      session.pipelineReadyPromise = pipelineReadyPromise;
-
-      // Enable service worker monitoring and handle unregisterOnStart
-      await serviceWorkerController.enable(page);
-      const swControl = spec.service_worker_control;
-      if (swControl?.unregisterOnStart || swControl?.mode === 'unregister-all') {
-        const unregisteredCount = await serviceWorkerController.unregisterAll();
-        if (unregisteredCount > 0) {
-          logger.debug(scopedLog(LogContext.SESSION, 'SWs unregistered on start'), {
-            sessionId,
-            count: unregisteredCount,
-          });
+        } finally {
+          await evidencePage.close().catch(() => undefined);
         }
       }
-
-      logger.info(scopedLog(LogContext.SESSION, 'ready'), {
-        sessionId,
-        executionId: spec.execution_id,
-        phase: 'ready',
-        totalSessions: this.sessions.size,
-        viewport: spec.viewport,
-        initialPageId,
-      });
-
-      // Update metrics
-      metrics.sessionCount.set({ state: 'active' }, this.getActiveSessionCount());
-      metrics.sessionCount.set({ state: 'total' }, this.sessions.size);
-
-      // Performance tracing (Tier 0 CDP trace + web-vitals). Started here —
-      // after the page exists but before the first navigate instruction — so
-      // the web-vitals init script applies to the page under test and the CDP
-      // trace spans the entire session. Best-effort: a failure leaves the
-      // session fully functional, just without a perf artifact.
-      if (spec.required_capabilities?.performance_trace) {
-        const perfDir =
-          spec.artifact_paths?.perf_dir?.trim() ||
-          (spec.artifact_paths?.root?.trim()
-            ? path.join(spec.artifact_paths.root.trim(), 'performance')
-            : '');
-        if (perfDir) {
-          await injectWebVitalsObserver(context);
-          const tracer = new PerformanceTracer(perfDir);
-          await tracer.start(page);
-          session.perfTracer = tracer;
-        } else {
-          logger.warn(
-            scopedLog(LogContext.TELEMETRY, 'performance trace requested without artifact path'),
-            {
-              sessionId,
-              hint: 'set artifact_paths.perf_dir or artifact_paths.root to capture a perf trace',
-            }
-          );
-        }
+      if (audioStrategy === 'synthetic_sink') {
+        // Init scripts do not retroactively patch the initial about:blank page.
+        await applySilentSinkToCurrentPage(page, generateSilentSinkPatch());
       }
 
-      // Accessibility snapshot. Registered here (no session-spanning state to
-      // start) so the output dir + capability gate are captured at start; the
-      // snapshot itself fires at session close, on the final settled page —
-      // after wait_for and any interaction, the same point the final screenshot
-      // fires. Best-effort: a missing artifact path just skips the capability.
-      if (spec.required_capabilities?.accessibility) {
-        const accessibilityDir =
-          spec.artifact_paths?.accessibility_dir?.trim() ||
-          (spec.artifact_paths?.root?.trim()
-            ? path.join(spec.artifact_paths.root.trim(), 'accessibility')
-            : '');
-        if (accessibilityDir) {
-          session.accessibilitySnapshotter = new AccessibilitySnapshotter(accessibilityDir);
-        } else {
-          logger.warn(
-            scopedLog(
-              LogContext.TELEMETRY,
-              'accessibility snapshot requested without artifact path'
-            ),
-            {
-              sessionId,
-              hint: 'set artifact_paths.accessibility_dir or artifact_paths.root to capture an AX snapshot',
-            }
-          );
-        }
-      }
-
-      // Session-level instrumentation hook (no-op by default).
-      await safeInvoke(this.instrumentation.onSessionStart?.bind(this.instrumentation), {
-        sessionId,
-        executionId: spec.execution_id,
-      });
-
-      // Return actualViewport from buildContext (includes source attribution)
-      return { sessionId, leaseId: session.leaseId, reused: false, createdAt, actualViewport };
-    } catch (error) {
-      // The map insertion precedes several async initializers. A failed
-      // initializer must release browser resources and capacity immediately.
-      await this.closeSession(sessionId).catch((closeError: unknown) => {
-        logger.warn(scopedLog(LogContext.CLEANUP, 'partial session cleanup failed'), {
+      // Log page errors (warn level - these are important signals for debugging)
+      page.on('pageerror', (err: unknown) => {
+        logger.warn(scopedLog(LogContext.BROWSER, 'page error'), {
           sessionId,
-          error: getErrorMessage(closeError),
+          error: getErrorMessage(err),
+          hint: 'Check the page JavaScript for errors that may affect automation',
         });
       });
+
+      // Log console errors (warn level - only errors, not all console output)
+      page.on('console', (msg) => {
+        if (msg.type() === 'error') {
+          logger.warn(scopedLog(LogContext.BROWSER, 'console error'), {
+            sessionId,
+            text: msg.text(),
+          });
+        }
+      });
+
+      // Network events are collected by telemetry, not logged individually
+      // (reduces noise while still capturing data for debugging)
+
+      // Create recording pipeline manager (eager instantiation)
+      // This allows early verification and ensures the pipeline is ready before recording starts
+      const pipelineManager = new RecordingPipelineManager(page, context, recordingInitializer, {
+        sessionId,
+        logger,
+      });
+
+      // Create session state
+      const session: SessionState = {
+        id: sessionId,
+        ownerExecutionId: spec.execution_id,
+        leaseId: uuidv4(),
+        browser,
+        audioCapability,
+        audioStrategy,
+        audioDeviceEvidence,
+        audioPlaybackStop,
+        audioPlaybackFailure: () => audioPlaybackFailure,
+        context,
+        page,
+        spec,
+        createdAt,
+        lastUsedAt: new Date(),
+        tracing: !!tracePath,
+        video: !!videoDir,
+        harPath,
+        tracePath,
+        videoDir,
+        phase: 'ready',
+        instructionCount: 0,
+        frameStack: [],
+        pages: [page],
+        currentPageIndex: 0,
+        pageIdMap: new Map(),
+        pageToIdMap: new WeakMap(),
+        activeMocks: new Map(),
+        // Idempotency: Track executed instructions for replay safety
+        executedInstructions: new Map(),
+        // Service worker control
+        serviceWorkerController,
+        // Recording context initializer (binding + init script)
+        recordingInitializer,
+        // Recording pipeline manager (single source of truth for recording state)
+        pipelineManager,
+      };
+
+      // Assign an ID to the initial page and track it
+      const initialPageId = crypto.randomUUID();
+      session.pageIdMap.set(initialPageId, page);
+      session.pageToIdMap.set(page, initialPageId);
+
+      this.sessions.set(sessionId, session);
+
+      try {
+        // Setup diagnostic logging for redirect loop debugging
+        // Enable with DIAGNOSTIC_LOGGING=true environment variable
+        setupDiagnosticLogging(context, sessionId);
+
+        // Initialize recording pipeline (early verification)
+        // This runs injection and verification so the pipeline is ready before recording starts
+        // The promise is stored in session.pipelineReadyPromise so consumers can await it
+        const pipelineReadyPromise = pipelineManager
+          .initialize()
+          .then(() => {
+            return pipelineManager.verifyPipeline({ timeoutMs: 5000, retries: 1 });
+          })
+          .then((verification) => {
+            if (
+              verification.scriptLoaded &&
+              verification.scriptReady &&
+              verification.inMainContext
+            ) {
+              logger.debug(scopedLog(LogContext.SESSION, 'recording pipeline verified'), {
+                sessionId,
+                handlersCount: verification.handlersCount,
+              });
+              return true;
+            } else {
+              logger.warn(
+                scopedLog(LogContext.SESSION, 'recording pipeline verification incomplete'),
+                {
+                  sessionId,
+                  verification,
+                  hint: 'Recording may require re-verification on first use',
+                }
+              );
+              return false;
+            }
+          })
+          .catch((err: unknown) => {
+            logger.warn(scopedLog(LogContext.SESSION, 'recording pipeline init failed'), {
+              sessionId,
+              error: getErrorMessage(err),
+              hint: 'Recording will retry initialization when started',
+            });
+            return false;
+          });
+
+        // Store the promise in session state for consumers to await
+        session.pipelineReadyPromise = pipelineReadyPromise;
+
+        // Enable service worker monitoring and handle unregisterOnStart
+        await serviceWorkerController.enable(page);
+        const swControl = spec.service_worker_control;
+        if (swControl?.unregisterOnStart || swControl?.mode === 'unregister-all') {
+          const unregisteredCount = await serviceWorkerController.unregisterAll();
+          if (unregisteredCount > 0) {
+            logger.debug(scopedLog(LogContext.SESSION, 'SWs unregistered on start'), {
+              sessionId,
+              count: unregisteredCount,
+            });
+          }
+        }
+
+        logger.info(scopedLog(LogContext.SESSION, 'ready'), {
+          sessionId,
+          executionId: spec.execution_id,
+          phase: 'ready',
+          totalSessions: this.sessions.size,
+          viewport: spec.viewport,
+          initialPageId,
+        });
+
+        // Update metrics
+        metrics.sessionCount.set({ state: 'active' }, this.getActiveSessionCount());
+        metrics.sessionCount.set({ state: 'total' }, this.sessions.size);
+
+        // Performance tracing (Tier 0 CDP trace + web-vitals). Started here —
+        // after the page exists but before the first navigate instruction — so
+        // the web-vitals init script applies to the page under test and the CDP
+        // trace spans the entire session. Best-effort: a failure leaves the
+        // session fully functional, just without a perf artifact.
+        if (spec.required_capabilities?.performance_trace) {
+          const perfDir =
+            spec.artifact_paths?.perf_dir?.trim() ||
+            (spec.artifact_paths?.root?.trim()
+              ? path.join(spec.artifact_paths.root.trim(), 'performance')
+              : '');
+          if (perfDir) {
+            await injectWebVitalsObserver(context);
+            const tracer = new PerformanceTracer(perfDir);
+            await tracer.start(page);
+            session.perfTracer = tracer;
+          } else {
+            logger.warn(
+              scopedLog(LogContext.TELEMETRY, 'performance trace requested without artifact path'),
+              {
+                sessionId,
+                hint: 'set artifact_paths.perf_dir or artifact_paths.root to capture a perf trace',
+              }
+            );
+          }
+        }
+
+        // Accessibility snapshot. Registered here (no session-spanning state to
+        // start) so the output dir + capability gate are captured at start; the
+        // snapshot itself fires at session close, on the final settled page —
+        // after wait_for and any interaction, the same point the final screenshot
+        // fires. Best-effort: a missing artifact path just skips the capability.
+        if (spec.required_capabilities?.accessibility) {
+          const accessibilityDir =
+            spec.artifact_paths?.accessibility_dir?.trim() ||
+            (spec.artifact_paths?.root?.trim()
+              ? path.join(spec.artifact_paths.root.trim(), 'accessibility')
+              : '');
+          if (accessibilityDir) {
+            session.accessibilitySnapshotter = new AccessibilitySnapshotter(accessibilityDir);
+          } else {
+            logger.warn(
+              scopedLog(
+                LogContext.TELEMETRY,
+                'accessibility snapshot requested without artifact path'
+              ),
+              {
+                sessionId,
+                hint: 'set artifact_paths.accessibility_dir or artifact_paths.root to capture an AX snapshot',
+              }
+            );
+          }
+        }
+
+        // Session-level instrumentation hook (no-op by default).
+        await safeInvoke(this.instrumentation.onSessionStart?.bind(this.instrumentation), {
+          sessionId,
+          executionId: spec.execution_id,
+        });
+
+        // Return actualViewport from buildContext (includes source attribution)
+        return { sessionId, leaseId: session.leaseId, reused: false, createdAt, actualViewport };
+      } catch (error) {
+        // The map insertion precedes several async initializers. A failed
+        // initializer must release browser resources and capacity immediately.
+        await this.closeSession(sessionId).catch((closeError: unknown) => {
+          logger.warn(scopedLog(LogContext.CLEANUP, 'partial session cleanup failed'), {
+            sessionId,
+            error: getErrorMessage(closeError),
+          });
+        });
+        throw error;
+      }
+    } catch (error) {
+      // Device qualification is prepared before the session is inserted into
+      // the manager. If browser/context setup or device verification fails at
+      // that boundary, the normal session cleanup path cannot see it.
+      if (!this.sessions.has(sessionId)) {
+        await audioPlaybackStop?.().catch(() => undefined);
+        await contextForCleanup?.close().catch(() => undefined);
+        await browserForCleanup?.close().catch(() => undefined);
+        await this.closeQualificationDeviceIfIdle();
+      }
       throw error;
     }
   }
@@ -540,7 +695,10 @@ export class SessionManager {
     if (validationContext.context_id !== target.context_id) {
       throw new Error('Electron validation context does not match target context');
     }
-    if (validationContext.scenario_name !== target.scenario_name || validationContext.artifact_digest !== target.artifact_digest) {
+    if (
+      validationContext.scenario_name !== target.scenario_name ||
+      validationContext.artifact_digest !== target.artifact_digest
+    ) {
       throw new Error('Electron validation context does not match target identity');
     }
     // The provider workflow identity identifies the selected catalog asset,
@@ -548,19 +706,27 @@ export class SessionManager {
     // Adhoc executions deliberately use different values for those domains;
     // the target, scenario, artifact, context, and lease invariants above are
     // the shared validation-cell identity.
-    if (validationContext.target_id !== target.target_id || !validationContext.workflow_id?.trim()) {
+    if (
+      validationContext.target_id !== target.target_id ||
+      !validationContext.workflow_id?.trim()
+    ) {
       throw new Error('Electron validation context does not match session identity');
     }
     if (!validationContext.isolation_lease_id?.trim()) {
       throw new Error('Electron validation context requires an isolation lease');
     }
     await verifyAppTargetRenderer(target);
-    const browser = await this.browserManager.connectOverCDP(target.cdp_endpoint, target.target_kind === 'android-webview');
+    const browser = await this.browserManager.connectOverCDP(
+      target.cdp_endpoint,
+      target.target_kind === 'android-webview'
+    );
     let sessionId = '';
     try {
       const contexts = browser.contexts();
       if (contexts.length !== 1) {
-        throw new Error(`Electron target must expose exactly one browser context; found ${contexts.length}`);
+        throw new Error(
+          `Electron target must expose exactly one browser context; found ${contexts.length}`
+        );
       }
       const context = contexts[0];
       if (!context) throw new Error('Electron target browser context is missing');
@@ -617,7 +783,10 @@ export class SessionManager {
       session.pipelineReadyPromise = pipelineManager
         .initialize()
         .then(() => pipelineManager.verifyPipeline({ timeoutMs: 5000, retries: 1 }))
-        .then((verification) => verification.scriptLoaded && verification.scriptReady && verification.inMainContext)
+        .then(
+          (verification) =>
+            verification.scriptLoaded && verification.scriptReady && verification.inMainContext
+        )
         .catch((error: unknown) => {
           logger.warn(scopedLog(LogContext.SESSION, 'external target recording init failed'), {
             sessionId,
@@ -935,6 +1104,7 @@ export class SessionManager {
       this.closingSessionIds.delete(sessionId);
       metrics.sessionCount.set({ state: 'active' }, this.getActiveSessionCount());
       metrics.sessionCount.set({ state: 'total' }, this.sessions.size);
+      await this.closeQualificationDeviceIfIdle();
     }
     return {
       videoPaths,
@@ -1019,6 +1189,7 @@ export class SessionManager {
     }
 
     await this.browserManager.shutdown();
+    await this.closeQualificationDeviceIfIdle();
 
     logger.info('session-manager: shutdown complete');
   }

@@ -1,6 +1,8 @@
+import React from 'react';
 import { installChunkReloadGuard } from '@vrooli/api-base';
 import { initIframeBridgeChild } from '@vrooli/iframe-bridge';
 import { mountApp } from './renderApp';
+import { onProfilerRender } from './lib/profiler';
 import { logger } from './utils/logger';
 
 // ╔══════════════════════════════════════════════════════════════╗
@@ -61,5 +63,12 @@ if (pathname.startsWith('/export/replay') || pathname.startsWith('/export/compos
       logger.error('Failed to bootstrap replay export view', { component: 'main' }, error);
     });
 } else {
-  mountApp(container, { strictMode: true });
+  mountApp(container, {
+    strictMode: true,
+    rootWrapper: (children) => (
+      <React.Profiler id="App" onRender={onProfilerRender}>
+        {children}
+      </React.Profiler>
+    ),
+  });
 }

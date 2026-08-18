@@ -20,7 +20,7 @@
 ### 🟠 P1 – Should have post-launch
 
 - [ ] OT-P1-001 | Deployable tenant controls | Add authentication, authorization, tenant isolation, retention/deletion controls, capacity limits, and service-level objectives before public multi-tenant deployment.
-- [ ] OT-P1-002 | Marketing-ready demo production | Produce repeatable evidence-backed demo videos from validated scenario workflows.
+- [x] OT-P1-002 | Marketing-ready demo production | Produce repeatable evidence-backed demo videos from validated scenario workflows.
 
 ### 🟢 P2 – Future / expansion
 

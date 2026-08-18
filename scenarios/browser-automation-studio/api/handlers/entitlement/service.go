@@ -27,7 +27,7 @@ func (s *service) GetStatus(
 	req *connect.Request[entitlementv1.GetStatusRequest],
 ) (*connect.Response[entitlementv1.GetStatusResponse], error) {
 	ctx = withConsumerAccessToken(ctx, req.Header().Get("Authorization"))
-	user := s.resolveUserIdentity(ctx, req.Msg.GetUser())
+	user := s.resolveUserIdentity(ctx)
 	status, err := s.buildStatus(ctx, user)
 	if err != nil {
 		return nil, err
@@ -91,8 +91,8 @@ func (s *service) RefreshStatus(
 	req *connect.Request[entitlementv1.RefreshStatusRequest],
 ) (*connect.Response[entitlementv1.GetStatusResponse], error) {
 	ctx = withConsumerAccessToken(ctx, req.Header().Get("Authorization"))
-	user := strings.TrimSpace(req.Msg.GetUser())
-	if user == "" {
+	user := s.resolveUserIdentity(ctx)
+	if user == "" || user == "anonymous" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errUserRequired)
 	}
 	s.deps.Provider.InvalidateCache(user)
@@ -117,12 +117,12 @@ func withConsumerAccessToken(ctx context.Context, authorization string) context.
 
 func (s *service) GetUsage(
 	ctx context.Context,
-	req *connect.Request[entitlementv1.GetUsageRequest],
+	_ *connect.Request[entitlementv1.GetUsageRequest],
 ) (*connect.Response[entitlementv1.UsageSummary], error) {
 	if s.deps.Credits == nil {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errCreditsUnavailable)
 	}
-	user := s.resolveUserIdentityRaw(ctx, req.Msg.GetUser())
+	user := s.resolveUserIdentityRaw(ctx)
 	summary, err := s.deps.Credits.GetUsage(ctx, user)
 	if err != nil {
 		s.deps.Logger.WithError(err).Error("entitlement.GetUsage failed")
@@ -138,7 +138,7 @@ func (s *service) GetUsageHistory(
 	if s.deps.Credits == nil {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errCreditsUnavailable)
 	}
-	user := s.resolveUserIdentity(ctx, req.Msg.GetUser())
+	user := s.resolveUserIdentity(ctx)
 	months := int(req.Msg.GetMonths())
 	if months <= 0 {
 		months = defaultHistoryMonths
@@ -170,7 +170,7 @@ func (s *service) GetOperationLog(
 	if s.deps.Credits == nil {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errCreditsUnavailable)
 	}
-	user := s.resolveUserIdentity(ctx, req.Msg.GetUser())
+	user := s.resolveUserIdentity(ctx)
 	limit := int(req.Msg.GetLimit())
 	if limit <= 0 {
 		limit = defaultOperationLogLimit
@@ -208,25 +208,28 @@ func (s *service) ClearOverride(
 	return nil, connect.NewError(connect.CodeUnimplemented, errLocalControlsRemoved)
 }
 
+//nolint:revive // Name is fixed by the generated Connect service interface.
 func (s *service) GetApiSource(
 	_ context.Context,
 	_ *connect.Request[entitlementv1.GetApiSourceRequest],
 ) (*connect.Response[entitlementv1.ApiSourceConfig], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errApiSourceRemoved)
+	return nil, connect.NewError(connect.CodeUnimplemented, errAPISourceRemoved)
 }
 
+//nolint:revive // Name is fixed by the generated Connect service interface.
 func (s *service) SetApiSource(
 	_ context.Context,
 	_ *connect.Request[entitlementv1.SetApiSourceRequest],
 ) (*connect.Response[entitlementv1.ApiSourceConfig], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errApiSourceRemoved)
+	return nil, connect.NewError(connect.CodeUnimplemented, errAPISourceRemoved)
 }
 
+//nolint:revive // Name is fixed by the generated Connect service interface.
 func (s *service) ClearApiSource(
 	_ context.Context,
 	_ *connect.Request[entitlementv1.ClearApiSourceRequest],
 ) (*connect.Response[entitlementv1.ClearApiSourceResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errApiSourceRemoved)
+	return nil, connect.NewError(connect.CodeUnimplemented, errAPISourceRemoved)
 }
 
 // ---------------------------------------------------------------------------
@@ -239,14 +242,12 @@ const (
 	defaultOperationLogLimit = 20
 )
 
-// resolveUserIdentity matches the legacy fallback chain:
-// context → query-arg → stored setting → "anonymous".
-func (s *service) resolveUserIdentity(ctx context.Context, requested string) string {
+// resolveUserIdentity returns only the request-scoped verified identity or
+// the shared-session hint. Request message fields are never accepted as an
+// account selector.
+func (s *service) resolveUserIdentity(ctx context.Context) string {
 	if id := entsvc.UserIdentityFromContext(ctx); id != "" {
 		return id
-	}
-	if t := strings.TrimSpace(requested); t != "" {
-		return t
 	}
 	if s.deps.Settings != nil {
 		if saved, err := s.deps.Settings.GetSetting(ctx, userIdentitySettingKey); err == nil && saved != "" {
@@ -256,14 +257,18 @@ func (s *service) resolveUserIdentity(ctx context.Context, requested string) str
 	return "anonymous"
 }
 
-// resolveUserIdentityRaw is the variant used by GetUsage, which historically
-// did not fall back to stored settings nor to "anonymous" (it just passed an
-// empty string through to the credit service when nothing was found).
-func (s *service) resolveUserIdentityRaw(ctx context.Context, requested string) string {
+// resolveUserIdentityRaw is the usage variant. It has the same trust rule as
+// resolveUserIdentity but does not invent an anonymous account.
+func (s *service) resolveUserIdentityRaw(ctx context.Context) string {
 	if id := entsvc.UserIdentityFromContext(ctx); id != "" {
 		return id
 	}
-	return strings.TrimSpace(requested)
+	if s.deps.Settings != nil {
+		if saved, err := s.deps.Settings.GetSetting(ctx, userIdentitySettingKey); err == nil {
+			return strings.TrimSpace(strings.ToLower(saved))
+		}
+	}
+	return ""
 }
 
 // buildStatus assembles the full EntitlementStatus payload, replicating the

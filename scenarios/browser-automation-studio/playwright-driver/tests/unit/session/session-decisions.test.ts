@@ -2,8 +2,11 @@ import type { SessionPhase, SessionState } from '../../../src/types';
 import {
   findByExecutionId,
   findByLabels,
+  findIdleSessions,
+  isSessionActive,
   isSafeForLabelReuse,
   makeReuseDecision,
+  shouldCleanupSession,
 } from '../../../src/session/session-decisions';
 
 function makeSession(overrides: {
@@ -11,6 +14,7 @@ function makeSession(overrides: {
   labels?: Record<string, string>;
   phase?: SessionPhase;
   leaseReleasedAt?: Date;
+  lastUsedAt?: Date;
 }): SessionState {
   return {
     id: `session-${overrides.executionId ?? 'x'}`,
@@ -20,6 +24,7 @@ function makeSession(overrides: {
     },
     phase: overrides.phase ?? 'ready',
     leaseReleasedAt: overrides.leaseReleasedAt,
+    lastUsedAt: overrides.lastUsedAt ?? new Date(),
   } as unknown as SessionState;
 }
 
@@ -96,6 +101,25 @@ describe('session decisions', () => {
       const spec = stuck.spec;
       expect(makeReuseDecision(stuck, spec, 'execution_id_match').shouldRecoverPhase).toBe(true);
       expect(makeReuseDecision(stuck, spec, 'label_match').shouldRecoverPhase).toBe(false);
+    });
+  });
+
+  describe('idle cleanup', () => {
+    it('keeps an executing session active beyond the idle timeout', () => {
+      const old = new Date(0);
+      const executing = makeSession({ phase: 'executing', lastUsedAt: old });
+
+      expect(isSessionActive(executing, 100, 1000)).toBe(true);
+      expect(shouldCleanupSession(executing, 100, 1000)).toBe(false);
+      expect(findIdleSessions(new Map([[executing.id, executing]]), 100, 1000)).toEqual([]);
+    });
+
+    it('still cleans an old ready session', () => {
+      const ready = makeSession({ phase: 'ready', lastUsedAt: new Date(0) });
+
+      expect(isSessionActive(ready, 100, 1000)).toBe(false);
+      expect(shouldCleanupSession(ready, 100, 1000)).toBe(true);
+      expect(findIdleSessions(new Map([[ready.id, ready]]), 100, 1000)).toEqual([ready.id]);
     });
   });
 });

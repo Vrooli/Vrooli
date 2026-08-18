@@ -9,9 +9,11 @@ import type {
 import type { Timestamp } from '@bufbuild/protobuf/wkt';
 
 import { entitlementClient } from '../api/entitlement';
+import { PLAN_CONFIG, type PlanTier } from '@components/MonetizationAccount';
 
-// Subscription tier types
-export type SubscriptionTier = 'free' | 'solo' | 'pro' | 'studio' | 'business';
+// Subscription tier names and presentation are owned by the shared account
+// component; this alias keeps the store focused on transport/state mapping.
+export type SubscriptionTier = PlanTier;
 export type SubscriptionStatus = 'active' | 'trialing' | 'past_due' | 'canceled' | 'inactive';
 
 // API response type (kept in snake_case for downstream consumer compatibility).
@@ -117,39 +119,7 @@ export const isValidEmail = (email: string): boolean => {
   return domain.length > 0 && domain.includes('.') && !domain.endsWith('.');
 };
 
-// Tier display configuration
-export const TIER_CONFIG: Record<SubscriptionTier, { label: string; color: string; bgColor: string; borderColor: string }> = {
-  free: {
-    label: 'Free',
-    color: 'text-gray-400',
-    bgColor: 'bg-gray-700/50',
-    borderColor: 'border-gray-600',
-  },
-  solo: {
-    label: 'Solo',
-    color: 'text-blue-400',
-    bgColor: 'bg-blue-900/30',
-    borderColor: 'border-blue-600',
-  },
-  pro: {
-    label: 'Pro',
-    color: 'text-purple-400',
-    bgColor: 'bg-purple-900/30',
-    borderColor: 'border-purple-600',
-  },
-  studio: {
-    label: 'Studio',
-    color: 'text-amber-400',
-    bgColor: 'bg-amber-900/30',
-    borderColor: 'border-amber-600',
-  },
-  business: {
-    label: 'Business',
-    color: 'text-emerald-400',
-    bgColor: 'bg-gradient-to-r from-emerald-900/30 to-teal-900/30',
-    borderColor: 'border-emerald-600',
-  },
-};
+export const TIER_CONFIG = PLAN_CONFIG;
 
 // Status display configuration
 export const STATUS_CONFIG: Record<SubscriptionStatus, { label: string; color: string; icon: 'check' | 'clock' | 'alert' | 'x' }> = {

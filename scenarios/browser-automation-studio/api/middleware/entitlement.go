@@ -42,11 +42,11 @@ func NewEntitlementMiddleware(
 // This runs on all requests to make entitlement info available to handlers.
 func (m *EntitlementMiddleware) InjectEntitlement(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Extract user identity from request
-		userIdentity := resolveUserIdentity(r)
-		if userIdentity == "" {
-			userIdentity = m.resolveStoredUserIdentity(r.Context())
-		}
+		// Request headers, query parameters, and bodies never select an
+		// entitlement lease. The stored identity is only a lookup hint for the
+		// shared consumer session; LPBS overwrites it with the verified lease
+		// identity before the request is allowed to use paid state.
+		userIdentity := m.resolveStoredUserIdentity(r.Context())
 
 		// Carry the consumer access token through the request context. The
 		// entitlement authority derives the authoritative identity from this
@@ -131,29 +131,6 @@ func (m *EntitlementMiddleware) RequireRecordingAccess(next http.Handler) http.H
 	})
 }
 
-// resolveUserIdentity extracts a local lookup hint from the request. The hint
-// is never trusted as billing identity: a fetched signed lease replaces it in
-// the request context, and LPBS independently derives identity from the bearer
-// token for Class A operations.
-func resolveUserIdentity(r *http.Request) string {
-	// 1. Check X-User-Email header (standard for our apps)
-	if email := strings.TrimSpace(r.Header.Get("X-User-Email")); email != "" {
-		return strings.ToLower(email)
-	}
-
-	// 2. Check user query parameter (for simple GET requests)
-	if email := strings.TrimSpace(r.URL.Query().Get("user")); email != "" {
-		return strings.ToLower(email)
-	}
-
-	// 3. Check X-User-Identity header (alternative)
-	if identity := strings.TrimSpace(r.Header.Get("X-User-Identity")); identity != "" {
-		return strings.ToLower(identity)
-	}
-
-	return ""
-}
-
 func bearerToken(authorization string) string {
 	const prefix = "Bearer "
 	if !strings.HasPrefix(authorization, prefix) {
@@ -162,7 +139,7 @@ func bearerToken(authorization string) string {
 	return strings.TrimSpace(strings.TrimPrefix(authorization, prefix))
 }
 
-func (m *EntitlementMiddleware) entitlementsEnabled(ctx context.Context) bool {
+func (m *EntitlementMiddleware) entitlementsEnabled(_ context.Context) bool {
 	// Entitlement enforcement is fail-closed. A missing lease is not an
 	// entitlement, and must not turn a protected route into an unprotected one.
 	return true

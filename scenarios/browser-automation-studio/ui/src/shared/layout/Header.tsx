@@ -23,6 +23,7 @@ import { usePopoverPosition } from "@hooks/usePopoverPosition";
 import ResponsiveDialog from "./ResponsiveDialog";
 import { selectors } from "@constants/selectors";
 import { SubscriptionBadge } from "@shared/components";
+import { useEntitlementStore, useIsEntitlementsEnabled } from "@stores/entitlementStore";
 import Breadcrumbs from "./Breadcrumbs";
 
 type HeaderWorkflow = Pick<
@@ -65,6 +66,8 @@ function Header({
   onOpenSettings,
 }: HeaderProps) {
   const currentWorkflow = useWorkflowStore((state) => state.currentWorkflow);
+  const entitlement = useEntitlementStore((state) => state.status);
+  const entitlementsEnabled = useIsEntitlementsEnabled();
   const saveWorkflow = useWorkflowStore((state) => state.saveWorkflow);
   const updateWorkflow = useWorkflowStore((state) => state.updateWorkflow);
   const loadWorkflow = useWorkflowStore((state) => state.loadWorkflow);
@@ -831,7 +834,14 @@ function Header({
           </div>
 
           <div className="flex items-center gap-1 sm:gap-2">
-            <SubscriptionBadge onClick={onOpenSettings} />
+            {entitlementsEnabled && entitlement ? (
+              <SubscriptionBadge
+                plan={entitlement.tier}
+                status={entitlement.status}
+                credits={entitlement.monthly_remaining}
+                onClick={onOpenSettings}
+              />
+            ) : null}
             {onOpenHelp && (
               <button
                 onClick={onOpenHelp}

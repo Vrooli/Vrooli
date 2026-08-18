@@ -15,6 +15,8 @@ export async function teardownSessionResources(session: SessionState): Promise<s
     if (operation) metrics.cleanupFailures.inc({ operation });
   };
   try {
+    await session.audioPlaybackStop?.().catch((error: unknown) => warn('audio playback stop failed', error, 'audio_playback_stop'));
+    session.audioPlaybackStop = undefined;
     if (session.pipelineManager?.isRecording()) await session.pipelineManager.stopRecording().catch((error: unknown) => warn('recording stop failed', error, 'recording_stop'));
     removeRecordingBuffer(session.id);
     await session.serviceWorkerController?.disable().catch((error: unknown) => warn('SW controller disable failed', error));

@@ -511,10 +511,6 @@ type EntitlementConfig struct {
 	// Should be short to avoid blocking user operations.
 	// Env: BAS_ENTITLEMENT_REQUEST_TIMEOUT_MS (default: 5000)
 	RequestTimeout time.Duration
-
-	// DefaultTier is the tier to use when no subscription is found or service is unavailable.
-	// Env: BAS_ENTITLEMENT_DEFAULT_TIER (default: "free")
-	DefaultTier string
 }
 
 // PerformanceConfig controls debug performance mode for frame streaming diagnostics.
@@ -716,7 +712,6 @@ func loadFromEnv() *Config {
 			ServiceURL:     parseString("BAS_ENTITLEMENT_SERVICE_URL", ""),
 			CacheTTL:       parseDurationMs("BAS_ENTITLEMENT_CACHE_TTL_MS", 300000),
 			RequestTimeout: parseDurationMs("BAS_ENTITLEMENT_REQUEST_TIMEOUT_MS", 5000),
-			DefaultTier:    parseString("BAS_ENTITLEMENT_DEFAULT_TIER", "free"),
 		},
 		Performance: PerformanceConfig{
 			Enabled:            parseBool("BAS_PERF_ENABLED", true),

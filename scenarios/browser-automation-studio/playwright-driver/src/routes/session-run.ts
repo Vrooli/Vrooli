@@ -80,6 +80,7 @@ function withAudioCapability(outcome: unknown, session: SessionState): unknown {
     audio_strategy: session.audioStrategy,
     host_audio_outcome: session.audioCapability?.outcome,
     host_audio_reason: session.audioCapability?.reason,
+    audio_playback_failure: session.audioPlaybackFailure?.(),
   };
 }
 

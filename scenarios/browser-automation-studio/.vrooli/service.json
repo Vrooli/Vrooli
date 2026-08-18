@@ -231,7 +231,7 @@
         },
         {
           "name": "start-api",
-          "run": "if [ -z \"${PLAYWRIGHT_DRIVER_URL:-}\" ]; then export PLAYWRIGHT_DRIVER_URL=\"http://127.0.0.1:${PLAYWRIGHT_DRIVER_PORT}\"; fi; cd api && ./browser-automation-studio-api",
+          "run": "export REQUEST_TIMEOUT_MS=7200000 SESSION_IDLE_TIMEOUT_MS=7200000 BAS_DRIVER_EXECUTION_TIMEOUT_MS=7200000 BAS_EXECUTION_MAX_TIMEOUT_MS=7200000; if [ -z \"${PLAYWRIGHT_DRIVER_URL:-}\" ]; then export PLAYWRIGHT_DRIVER_URL=\"http://127.0.0.1:${PLAYWRIGHT_DRIVER_PORT}\"; fi; if lpbs_api_port=\"$(vrooli scenario port landing-page-business-suite API_PORT 2>/dev/null)\"; then export BAS_ENTITLEMENT_SERVICE_URL=\"http://127.0.0.1:${lpbs_api_port}\"; fi; cd api && ./browser-automation-studio-api",
           "description": "Start Go API server in background",
           "background": true,
           "condition": {
@@ -312,7 +312,17 @@
         "required": true,
         "version": "0.0.1",
         "versionRange": ">=0.0.1",
-        "description": "Import-level dependency detected via go_import"
+        "description": "Import-level dependency detected via go_import",
+        "degraded_behavior": "Readiness-profile resolution is unavailable while experience-manager is stopped; capture and execution APIs continue with their bounded default readiness behavior."
+      },
+      "landing-page-business-suite": {
+        "required": true,
+        "version": "0.0.1",
+        "versionRange": ">=0.0.1",
+        "description": "LPBS is the authoritative monetization and subscription provider",
+        "runtime_only": true,
+        "runtime_only_rationale": "BAS reaches LPBS through its configured entitlement HTTP boundary and the control-plane-discovered local port; no Go package import is expected or desirable across scenario modules.",
+        "degraded_behavior": "LPBS-backed Class-A entitlement and shared-session operations report unavailable while the authority is stopped; local Class-B work remains usable under a still-valid cached lease."
       }
     }
   },

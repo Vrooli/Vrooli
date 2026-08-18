@@ -111,6 +111,8 @@ export async function handleSessionStart(
       storage_state: request.storage_state,
       browser_profile: request.browser_profile,
       fake_media: request.fake_media,
+      audio_playback_pause_ms: request.audio_playback_pause_ms,
+      audio_device_evidence: request.audio_device_evidence,
       app_target: request.app_target,
       validation_context: request.validation_context,
     };
@@ -153,6 +155,7 @@ export async function handleSessionStart(
       created_at: createdAt.toISOString(),
       reused: reused || undefined, // Only include if true
       actual_viewport: actualViewport, // Report actual Playwright viewport
+      audio_device_evidence: sessionManager.peekSession(sessionId).audioDeviceEvidence,
     };
 
     sendJson(res, 200, response);

@@ -47,6 +47,34 @@ func TestCORSMiddlewareAllowsAppMonitorByDefault(t *testing.T) {
 	}
 }
 
+func TestCORSMiddlewareAllowsOriginlessLocalProbe(t *testing.T) {
+	ResetCorsConfigForTesting()
+	t.Setenv("CORS_ALLOWED_ORIGINS", "https://allowed.example")
+	t.Setenv("ALLOWED_ORIGINS", "")
+	t.Setenv("CORS_ALLOWED_ORIGIN", "")
+
+	log := logrus.New()
+	middleware := CorsMiddleware(log)
+
+	rr := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/health", nil)
+
+	called := false
+	handler := middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		called = true
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	handler.ServeHTTP(rr, req)
+
+	if !called || rr.Code != http.StatusOK {
+		t.Fatalf("expected originless probe to reach handler with 200, called=%t status=%d", called, rr.Code)
+	}
+	if got := rr.Header().Get("Access-Control-Allow-Origin"); got != "" {
+		t.Fatalf("originless probe must not receive an allow-origin header, got %q", got)
+	}
+}
+
 func TestCORSMiddlewareRejectsUnauthorizedOrigin(t *testing.T) {
 	ResetCorsConfigForTesting()
 	t.Setenv("CORS_ALLOWED_ORIGINS", "https://allowed.example")

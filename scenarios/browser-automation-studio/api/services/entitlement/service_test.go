@@ -26,7 +26,6 @@ func createTestService(t *testing.T) *Service {
 	cfg := config.EntitlementConfig{
 		RequestTimeout: 5 * time.Second,
 		CacheTTL:       5 * time.Minute,
-		DefaultTier:    "free",
 		ServiceURL:     "https://vrooli.com",
 	}
 
@@ -78,7 +77,7 @@ func TestGetEntitlementBindsAuthorityQueryAndResponseIdentity(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if ent.UserIdentity != "alice@example.com" || ent.Tier != TierPro || ent.Credits != 41 {
+	if ent.UserIdentity != "alice@example.com" || ent.Tier != "pro" || ent.Credits != 41 {
 		t.Fatalf("entitlement = %#v", ent)
 	}
 }
@@ -129,11 +128,11 @@ func TestEntitlement_IsActive(t *testing.T) {
 		status   Status
 		expected bool
 	}{
-		{StatusActive, true},
-		{StatusTrialing, true},
-		{StatusPastDue, false},
-		{StatusCanceled, false},
-		{StatusInactive, false},
+		{Status("active"), true},
+		{Status("trialing"), true},
+		{Status("past_due"), false},
+		{Status("canceled"), false},
+		{Status("inactive"), false},
 	}
 
 	for _, tc := range testCases {
@@ -189,7 +188,7 @@ func TestCanUseAIWithEntitlement_FeaturesArray_HasAI(t *testing.T) {
 
 	// Entitlement with AI feature in features array (free tier normally can't use AI)
 	ent := &Entitlement{
-		Tier:     TierFree,
+		Tier:     "free",
 		Features: []string{FeatureAI},
 	}
 
@@ -204,7 +203,7 @@ func TestCanUseAIWithEntitlement_FeaturesArray_NoAI(t *testing.T) {
 
 	// Entitlement without AI feature (pro tier normally can use AI)
 	ent := &Entitlement{
-		Tier:     TierPro,
+		Tier:     "pro",
 		Features: []string{FeatureRecording, FeatureWatermarkFree}, // No AI
 	}
 
@@ -227,7 +226,7 @@ func TestCanUseRecordingWithEntitlement_FeaturesArray_HasRecording(t *testing.T)
 
 	// Solo tier normally can't use recording, but features array grants it
 	ent := &Entitlement{
-		Tier:     TierSolo,
+		Tier:     "solo",
 		Features: []string{FeatureRecording},
 	}
 
@@ -241,7 +240,7 @@ func TestCanUseRecordingWithEntitlement_FeaturesArray_NoRecording(t *testing.T) 
 
 	// Pro tier normally can use recording, but features array denies it
 	ent := &Entitlement{
-		Tier:     TierPro,
+		Tier:     "pro",
 		Features: []string{FeatureAI}, // No recording
 	}
 
@@ -263,7 +262,7 @@ func TestRequiresWatermarkWithEntitlement_FeaturesArray_WatermarkFree(t *testing
 
 	// Free tier normally requires watermark, but features array grants watermark-free
 	ent := &Entitlement{
-		Tier:     TierFree,
+		Tier:     "free",
 		Features: []string{FeatureWatermarkFree},
 	}
 
@@ -277,7 +276,7 @@ func TestRequiresWatermarkWithEntitlement_FeaturesArray_NoWatermarkFree(t *testi
 
 	// Pro tier normally doesn't require watermark, but features array doesn't grant watermark-free
 	ent := &Entitlement{
-		Tier:     TierPro,
+		Tier:     "pro",
 		Features: []string{FeatureAI, FeatureRecording}, // No watermark_free
 	}
 

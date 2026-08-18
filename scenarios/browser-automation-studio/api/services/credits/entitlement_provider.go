@@ -1,8 +1,4 @@
 // Package credits provides unified credit management for all billable operations.
-//
-// This file defines the EntitlementProvider interface, a testing seam that allows
-// the credit service to be tested without depending on the concrete entitlement service.
-
 package credits
 
 import (
@@ -123,14 +119,14 @@ type MockEntitlementProvider struct {
 }
 
 // GetEntitlement returns the configured mock entitlement.
-func (m *MockEntitlementProvider) GetEntitlement(ctx context.Context, userIdentity string) (*entitlement.Entitlement, error) {
+func (m *MockEntitlementProvider) GetEntitlement(_ context.Context, userIdentity string) (*entitlement.Entitlement, error) {
 	m.GetEntitlementCalls++
 	m.LastUserIdentity = userIdentity
 	return m.Entitlement, m.GetEntitlementError
 }
 
 // CanUseAIWithEntitlement returns the configured mock value.
-func (m *MockEntitlementProvider) CanUseAIWithEntitlement(ent *entitlement.Entitlement) bool {
+func (m *MockEntitlementProvider) CanUseAIWithEntitlement(_ *entitlement.Entitlement) bool {
 	return m.CanUseAI
 }
 

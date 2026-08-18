@@ -6,6 +6,7 @@
     "schema_version": "1.0.0"
   },
   "imports": [
+    "90-uncovered-targets/module.json",
     "01-foundation/projects/dialog.json",
     "01-foundation/ui/user-flows.json",
     "01-foundation/persistence/version-history.json",

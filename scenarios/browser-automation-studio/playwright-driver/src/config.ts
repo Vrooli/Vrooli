@@ -100,7 +100,7 @@ export const CONFIG_TIER_METADATA: Record<string, ConfigOptionMetadata> = {
   CONSOLE_ENABLED: { tier: ConfigTier.ADVANCED, defaultValue: true, description: 'Console log collection', dataType: 'boolean', editable: true },
   NETWORK_ENABLED: { tier: ConfigTier.ADVANCED, defaultValue: true, description: 'Network event collection', dataType: 'boolean', editable: true },
   SESSION_POOL_SIZE: { tier: ConfigTier.ADVANCED, defaultValue: 5, description: 'Pre-warmed session pool', dataType: 'integer', min: 1, max: 50, editable: false },
-  SESSION_IDLE_TIMEOUT_MS: { tier: ConfigTier.ADVANCED, defaultValue: 300000, description: 'Session idle TTL (5 min default)', dataType: 'integer', min: 10000, max: 3600000, editable: true },
+  SESSION_IDLE_TIMEOUT_MS: { tier: ConfigTier.ADVANCED, defaultValue: 300000, description: 'Session idle TTL (5 min default)', dataType: 'integer', min: 10000, max: 7200000, editable: true },
 
   // === Tier 2: AI Navigation (Advanced) ===
   AI_MAX_STEPS: { tier: ConfigTier.ADVANCED, defaultValue: 20, description: 'Vision agent max steps per navigation', dataType: 'integer', min: 1, max: 100, editable: true },
@@ -110,7 +110,7 @@ export const CONFIG_TIER_METADATA: Record<string, ConfigOptionMetadata> = {
   // === Tier 3: Internal ===
   PLAYWRIGHT_DRIVER_HOST: { tier: ConfigTier.INTERNAL, defaultValue: '127.0.0.1', description: 'HTTP server host', dataType: 'string', editable: false },
   PLAYWRIGHT_DRIVER_ADMIN_SECRET: { tier: ConfigTier.INTERNAL, defaultValue: '', description: 'Shared secret required for loopback administrative session recovery', dataType: 'string', editable: false },
-  REQUEST_TIMEOUT_MS: { tier: ConfigTier.INTERNAL, defaultValue: 300000, description: 'Request timeout', dataType: 'integer', min: 1000, max: 600000, editable: true },
+  REQUEST_TIMEOUT_MS: { tier: ConfigTier.INTERNAL, defaultValue: 300000, description: 'Request timeout', dataType: 'integer', min: 1000, max: 7200000, editable: true },
   MAX_REQUEST_SIZE: { tier: ConfigTier.INTERNAL, defaultValue: 5242880, description: 'Max request body size (bytes)', dataType: 'integer', min: 1024, max: 52428800, editable: false },
   HEADLESS: { tier: ConfigTier.INTERNAL, defaultValue: false, description: 'Use headless_shell binary (false = regular Chromium with --headless=new)', dataType: 'boolean', editable: false },
   BROWSER_EXECUTABLE_PATH: { tier: ConfigTier.INTERNAL, defaultValue: undefined, description: 'Custom browser path', dataType: 'string', editable: false },
@@ -167,7 +167,7 @@ const ConfigSchema = z.object({
   server: z.object({
     port: z.number().min(1).max(65535).default(39400),
     host: z.string().default('127.0.0.1'),
-    requestTimeout: z.number().min(1000).max(600000).default(300000), // 5 minutes - playwright operations can be slow
+    requestTimeout: z.number().min(1000).max(7200000).default(300000), // 5 minutes by default; long-form qualification may opt into 2 hours
     maxRequestSize: z.number().min(1024).max(50 * 1024 * 1024).default(5 * 1024 * 1024),
     adminSecret: z.string().default(''),
   }),
@@ -203,7 +203,7 @@ const ConfigSchema = z.object({
   }),
   session: z.object({
     maxConcurrent: z.number().min(1).max(100).default(10),
-    idleTimeoutMs: z.number().min(10000).max(3600000).default(300000),
+    idleTimeoutMs: z.number().min(10000).max(7200000).default(300000),
     poolSize: z.number().min(1).max(50).default(5),
     cleanupIntervalMs: z.number().min(5000).max(600000).default(60000),
   }),

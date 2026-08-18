@@ -11,7 +11,7 @@ import {
   Upload,
 } from "lucide-react";
 import { useProjectStore, type Project, buildProjectFolderPath } from "@/domains/projects/store";
-import { ResponsiveDialog } from "@shared/layout";
+import ResponsiveDialog from "@shared/layout/ResponsiveDialog";
 import { selectors } from "@constants/selectors";
 
 export type WorkflowCreationType = "record" | "ai" | "visual" | "import";

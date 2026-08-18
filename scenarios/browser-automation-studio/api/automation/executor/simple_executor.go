@@ -1655,8 +1655,9 @@ const (
 	perStepTimeoutWithSubflows = 15 * time.Second
 	// minExecutionTimeout prevents unreasonably short timeouts for small workflows.
 	minExecutionTimeout = 90 * time.Second
-	// maxExecutionTimeout prevents timeouts from exceeding the HTTP client timeout (5 minutes).
-	// The 30-second buffer accounts for network overhead and response processing.
+	// maxExecutionTimeout is the conservative default. Long-form callers can
+	// opt into the separately bounded explicit timeout; the driver/API HTTP
+	// ceilings are sized for that two-hour qualification upper bound.
 	maxExecutionTimeout = 270 * time.Second // 4.5 minutes
 )
 

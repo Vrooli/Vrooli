@@ -1,0 +1,109 @@
+{
+  "_metadata": {
+    "last_validated_at": "2026-08-16T20:57:26-04:00"
+  },
+  "requirements": [
+    {
+      "id": "BAS-OT-P0-001",
+      "title": "Typed execution is supervised by the managed Playwright driver",
+      "status": "complete",
+      "prd_ref": "OT-P0-001",
+      "criticality": "P0",
+      "description": "The execution path uses the managed Playwright driver and lifecycle supervision for typed workflows.",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "PRD.md#OT-P0-001",
+          "phase": "business",
+          "status": "implemented",
+          "notes": "Covered by BAS driver, execution, and monetization conformance suites."
+        }
+      ]
+    },
+    {
+      "id": "BAS-OT-P0-002",
+      "title": "Validation evidence is persisted with integrity metadata",
+      "status": "complete",
+      "prd_ref": "OT-P0-002",
+      "criticality": "P0",
+      "description": "Replay and validation evidence is retained with integrity metadata and exercised through Test Genie.",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "PRD.md#OT-P0-002",
+          "phase": "business",
+          "status": "implemented",
+          "notes": "Covered by BAS replay, Test Genie, and monetization conformance suites."
+        }
+      ]
+    },
+    {
+      "id": "BAS-OT-P0-003",
+      "title": "Product boundaries remain maintainable and governed",
+      "status": "complete",
+      "prd_ref": "OT-P0-003",
+      "criticality": "P0",
+      "description": "UI, API, storage, driver, and proto boundaries remain documented, testable, and governed.",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "PRD.md#OT-P0-003",
+          "phase": "business",
+          "status": "implemented",
+          "notes": "Covered by BAS architecture, contracts, and shared monetization kit checks."
+        }
+      ]
+    },
+    {
+      "id": "BAS-OT-P1-001",
+      "title": "Tenant controls are required before public multi-tenant deployment",
+      "status": "pending",
+      "prd_ref": "OT-P1-001",
+      "criticality": "P1",
+      "description": "Authentication, authorization, tenant isolation, retention, capacity, and service-level controls remain launch prerequisites.",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "PRD.md#OT-P1-001",
+          "phase": "business",
+          "status": "implemented",
+          "notes": "The PRD explicitly keeps public multi-tenant deployment gated on these controls."
+        }
+      ]
+    },
+    {
+      "id": "BAS-OT-P1-002",
+      "title": "Validated workflows can produce repeatable demonstration evidence",
+      "status": "complete",
+      "prd_ref": "OT-P1-002",
+      "criticality": "P1",
+      "description": "Validated replay artifacts support repeatable evidence-backed demonstration production.",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "PRD.md#OT-P1-002",
+          "phase": "business",
+          "status": "implemented",
+          "notes": "Covered by the generated-app and desktop trust-boundary journeys."
+        }
+      ]
+    },
+    {
+      "id": "BAS-OT-P2-001",
+      "title": "Commercial automation controls remain evidence-gated",
+      "status": "pending",
+      "prd_ref": "OT-P2-001",
+      "criticality": "P2",
+      "description": "Commercial automation capabilities remain gated on the operational controls and evidence required for productization.",
+      "validation": [
+        {
+          "type": "manual",
+          "ref": "PRD.md#OT-P2-001",
+          "phase": "business",
+          "status": "implemented",
+          "notes": "The PRD explicitly gates commercial productization on operational controls and evidence."
+        }
+      ]
+    }
+  ]
+}

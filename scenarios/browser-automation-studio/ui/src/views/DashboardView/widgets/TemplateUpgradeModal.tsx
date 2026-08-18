@@ -2,7 +2,7 @@ import { ArrowUpRight, Crown, CreditCard, Sparkles, X, Zap, Star, type LucideIco
 import { useEntitlementStore, TIER_CONFIG } from '@stores/entitlementStore';
 import type { SubscriptionTier } from '@stores/entitlementStore';
 import ResponsiveDialog from '@shared/layout/ResponsiveDialog';
-import { TierBadge } from '@shared/ui';
+import { PlanBadge } from '@shared/ui';
 
 // Get landing page URL from environment or use default
 const landingPageEnv = (import.meta.env as { VITE_LANDING_PAGE_URL?: unknown }).VITE_LANDING_PAGE_URL;
@@ -112,7 +112,7 @@ export function TemplateUpgradeModal({ isOpen, onClose, onOpenSettings }: Templa
         {status && (
           <div className="flex items-center justify-between p-3 rounded-lg bg-gray-800/30 border border-gray-700 mb-4">
             <span className="text-sm text-gray-400">Your current plan:</span>
-            <TierBadge tier={status.tier} size="sm" />
+            <PlanBadge plan={status.tier} size="sm" />
           </div>
         )}
 

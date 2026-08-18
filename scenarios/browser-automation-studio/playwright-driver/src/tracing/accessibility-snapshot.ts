@@ -524,6 +524,13 @@ async function computedStylesByTestID(page: Page): Promise<Map<string, Record<st
           const value = computed.getPropertyValue(property).trim();
           if (value) style[property] = value;
         }
+        style.clientWidth = String(element.clientWidth);
+        style.scrollWidth = String(element.scrollWidth);
+        style.clientHeight = String(element.clientHeight);
+        style.scrollHeight = String(element.scrollHeight);
+        style.overflow = computed.overflow;
+        style['overflow-x'] = computed.overflowX;
+        style['overflow-y'] = computed.overflowY;
         if (Object.keys(style).length > 0) result.push({ testid, style });
       }
       return result;
@@ -539,9 +546,13 @@ function mergeComputedStyles(
 ): void {
   if (stylesByTestID.size === 0) return;
   for (const info of domInfo.values()) {
-    if (!info.testid || info.computedStyle) continue;
+    if (!info.testid) continue;
     const style = stylesByTestID.get(info.testid);
-    if (style) info.computedStyle = style;
+    if (!style) continue;
+    info.computedStyle ??= {};
+    for (const [property, value] of Object.entries(style)) {
+      if (!(property in info.computedStyle)) info.computedStyle[property] = value;
+    }
   }
 }
 
@@ -586,9 +597,7 @@ export class AccessibilitySnapshotter {
           computedStyles: [...COMPUTED_STYLE_PROPERTIES],
         });
         domInfo = parseDomSnapshot(snap);
-        if (![...domInfo.values()].some((info) => info.computedStyle)) {
-          mergeComputedStyles(domInfo, await computedStylesByTestID(page));
-        }
+        mergeComputedStyles(domInfo, await computedStylesByTestID(page));
       } catch (error) {
         logger.warn(scopedLog(LogContext.TELEMETRY, 'accessibility DOM join failed'), {
           error: error instanceof Error ? error.message : String(error),

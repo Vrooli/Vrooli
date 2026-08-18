@@ -274,11 +274,14 @@ class FakeAccessibilityCDP {
 }
 
 /** A fake page with just the surface the snapshotter reads. */
-function fakePage(url: string): Page {
+function fakePage(
+  url: string,
+  styles: Array<{ testid: string; style: Record<string, string> }> = []
+): Page {
   return {
     url: () => url,
     viewportSize: () => ({ width: 1440, height: 900 }),
-    evaluate: () => Promise.resolve(1),
+    evaluate: () => Promise.resolve(styles),
   } as unknown as Page;
 }
 
@@ -327,7 +330,22 @@ describe('AccessibilitySnapshotter', () => {
       Promise.resolve(cdp as unknown as CDPSession)
     );
 
-    await snapshotter.capture(fakePage('https://example.com/dashboard'));
+    await snapshotter.capture(
+      fakePage('https://example.com/dashboard', [
+        {
+          testid: 'submit-btn',
+          style: {
+            clientWidth: '100',
+            scrollWidth: '180',
+            clientHeight: '32',
+            scrollHeight: '32',
+            overflow: 'hidden',
+            'overflow-x': 'hidden',
+            'overflow-y': 'hidden',
+          },
+        },
+      ])
+    );
 
     const raw = await readFile(path.join(dir, ACCESSIBILITY_SNAPSHOT_FILE), 'utf8');
     const parsed = JSON.parse(raw) as AccessibilitySnapshot;
@@ -342,6 +360,13 @@ describe('AccessibilitySnapshotter', () => {
       color: 'rgb(15, 23, 42)',
       'background-color': 'rgb(255, 255, 255)',
       'border-color': '14px',
+      clientWidth: '100',
+      scrollWidth: '180',
+      clientHeight: '32',
+      scrollHeight: '32',
+      overflow: 'hidden',
+      'overflow-x': 'hidden',
+      'overflow-y': 'hidden',
     });
     expect(cdp.sends).toContain('Accessibility.getFullAXTree');
     expect(cdp.sends).toContain('DOMSnapshot.captureSnapshot');

@@ -36,7 +36,10 @@ require (
 	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1 // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
 	github.com/sony/gobreaker/v2 v2.3.0 // indirect
+	github.com/vrooli/binaryfetch v0.0.0 // indirect
+	github.com/vrooli/platform-go v0.0.0 // indirect
 	github.com/vrooli/repo-contract-go v0.0.0 // indirect
+	github.com/vrooli/vrooli v0.0.0 // indirect
 	github.com/vrooli/vrooli-cli-go v0.0.0 // indirect
 	golang.org/x/crypto v0.54.0 // indirect
 	golang.org/x/net v0.56.0 // indirect
