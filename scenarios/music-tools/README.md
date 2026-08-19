@@ -17,7 +17,7 @@ the standard full-stack Vrooli scenario shape:
 > domain map, design language, placeholder replacement, and first real
 > vertical slice. Run `make orient` for a machine-readable gate status.
 
-## What's In This Scenario
+## What You Get
 
 - Go API (`api/`), Go CLI (`cli/`), and React/Vite UI (`ui/`)
   coordinated through generated proto contracts.
@@ -47,7 +47,7 @@ the standard full-stack Vrooli scenario shape:
   runbooks, observability, security, performance, and durable
   decisions.
 
-## Placeholders vs. Durable Scaffolding
+## Customize Safely
 
 The generated scaffold is intentionally not the product. When you build
 the real UX, treat these as **placeholders** to replace:

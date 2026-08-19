@@ -26,13 +26,97 @@ outcome, statefulness, and validation level.
 
 | Flow | Domain | Trigger | Outcome | Statefulness | Validation |
 |---|---|---|---|---|---|
-| _(your flow)_ | _(owning domain)_ | What starts it. | What it produces. | States, retries, cancellation, stale completion. | Target maturity level. |
+| Library scan | library | Source root added, or rescan | Track index updated | Incremental and resumable; distinguishes moved, missing, and deleted | Level 4 |
+| Decomposition batch | decomposition | New or changed tracks | Attributes cached locally | Resumable, per-track partial, tolerates upstream unavailability | Level 4 |
+| Playback session | playback | Listener starts playback | Audio output plus interaction events | Queue and transport states, gapless boundaries, transcode cache miss | Level 5 |
+| Comparison round | elicitation | Listener opens the compare surface | Comparisons recorded, profile refit | Informative pair selection, undo, ordering effects | Level 4 |
+| Preference refit | preference | New comparison, new signal, or reset | Updated profile | Background; never blocks playback; versioned and reversible | Level 4 |
+| Ranking with explanation | ranking | The queue needs a next track | Ranked track plus its reason | Single pass; exploration and exploitation distinguished | Level 4 |
+| Generation loop | generation | Background schedule or directed request | Candidate tracks | Queue, budget eviction, retention on confirmation | Level 5 |
 
 ## Flow Details
 
 Document each real flow here with its owner domain, trigger, inputs,
 ordered steps, outputs, failure modes, retry/cancel behavior, tests, and
 generated subpackages. The worked example below shows the expected shape.
+
+### Playback session — `playback`
+
+- Trigger: listener starts playback.
+- Steps: resolve the next track through `ranking`, ensure a playable rendition
+  (cache hit, or transcode), start transport, emit interaction events, prepare the
+  following track before the current one ends.
+- Illegal transitions: an audible gap at a gapless boundary; a transport command
+  that does not take effect within the interaction budget.
+- Failure modes: transcode cache miss on an uncommon format (must stay within the
+  transport budget); source file missing (mark missing, skip, do not delete).
+- Why Level 5: correctness here is judged by the listener's ear, and the
+  next-track path overlaps live playback.
+
+### Ranking with explanation — `ranking`
+
+- Trigger: the queue needs a next track.
+- Steps: retrieve a shortlist from the vector index, score it against the active
+  context profile, apply calibration, apply the exploration policy, emit the chosen
+  track **with the reason that produced it**.
+- Invariants: the explanation is produced by the same pass that produced the
+  ranking — never reconstructed afterwards; a track chosen for exploration is
+  labelled as such rather than presented as a confident recommendation.
+- Blindness rule: this flow cannot observe offer state. `offers` decorates the
+  finished ranking and may not reorder or filter it.
+- Failure modes: profile unfitted (say so plainly and route to comparison rather
+  than presenting arbitrary output as recommendation).
+
+### Comparison round — `elicitation`
+
+- Trigger: listener opens the compare surface.
+- Steps: select the pair that most reduces model uncertainty, present, record the
+  judgment, trigger a background refit.
+- Statefulness: undo is supported; deleting a comparison refits rather than leaving
+  a stale profile.
+- Known confound: presentation order affects choice, so ordering is randomised and
+  recorded.
+
+### Preference refit — `preference`
+
+- Trigger: new comparison, accumulated implicit signal, or an explicit reset.
+- Statefulness: background, incremental where possible, versioned so a reset is a
+  refit rather than an amnesia — raw history is retained.
+- Hard rule: a refit never blocks playback.
+- Compatibility: a profile records the embedding model it was fitted against. If
+  that model changes upstream, the profile is marked stale and requires an explicit
+  refit rather than being read against a different coordinate space.
+
+### Library scan — `library`
+
+- Trigger: source root added, or a rescan.
+- Steps: walk the root, derive content identity, reconcile against the index,
+  extract embedded metadata, enqueue changed tracks for decomposition.
+- Invariant: **source files are opened read-only.** No path in this flow writes to
+  a source root.
+- Statefulness: incremental and resumable; a track whose path disappears is marked
+  missing and re-links by content when it returns, preserving ratings and history.
+
+### Decomposition batch — `decomposition`
+
+- Trigger: tracks entering the index or their attributes going stale.
+- Statefulness: resumable across restarts; per-track partial results are recorded as
+  partial rather than complete.
+- Failure modes: `music-tools` unavailable (queue and report; playback and browsing
+  are unaffected because attributes are cached).
+- Reality: for a large library this is an overnight-or-longer job. Progress
+  reporting must be truthful about that rather than implying imminent completion.
+
+### Generation loop — `generation`
+
+- Trigger: background schedule, or a directed listener request.
+- Steps: sample target regions from the profile under the exploration policy, submit
+  composition to `music-tools`, decompose the result through the same path as owned
+  audio, admit it to the candidate pool.
+- Statefulness: budgeted; unconfirmed candidates evicted oldest-first.
+- Invariant: generated audio is **always disclosed as generated**, in the interface
+  and in exported metadata.
+- Blindness rule: like `ranking`, this flow cannot observe offer state.
 
 <!-- EXAMPLE-DOMAIN:notes START -->
 ### Example domain — `notes` (removed by `template-manager detemplate`)
@@ -90,7 +174,12 @@ enforced. Plain CRUD with no ordering constraints does not appear here.
 
 | Domain/Flow | States | Illegal Transitions | Enforcement |
 |---|---|---|---|
-| _(your flow)_ | The ordered/terminal states. | Transitions the contract forbids. | `*.flow.json` contract, generated Quint model, replay tests. |
+| playback / session | `idle` → `loading` → `playing` ⇄ `paused` → `ended`; `loading` → `unplayable` | An audible gap at a gapless boundary; `playing` without a resolved rendition | `*.flow.json` contract, replay tests, and audio-level assertion of the boundary |
+| decomposition / batch | `pending` → `running` → `partial` \| `complete`; `running` → `blocked` when upstream is down | Reporting `complete` when any layer failed; losing progress across restart | Contract plus resumability replay tests |
+| preference / refit | `fitted` → `stale` → `refitting` → `fitted`; `unfitted` initial | Ranking as if `fitted` while `unfitted` or `stale`; refitting on the playback path | Contract test; a stale profile must surface as such in ranking output |
+| elicitation / comparison | `pair-selected` → `shown` → `judged` \| `skipped` → `recorded` | Recording a judgment without a presented pair; reusing a pair within a round | Contract tests including undo and ordering randomisation |
+| generation / candidate | `queued` → `generating` → `decomposing` → `available` → `confirmed` \| `evicted` | `available` before decomposition; evicting a `confirmed` candidate; surfacing a candidate without its generated-content disclosure | Contract tests; disclosure asserted at the surface, not only at the record |
+| library / scan | `idle` → `scanning` → `reconciling` → `idle` | Any write to a source root; deleting a track whose file is merely missing | Read-only open enforced and tested; missing-versus-deleted asserted |
 
 ## Maturity Ladder
 
@@ -222,9 +311,17 @@ To add or rename a state/event:
 
 ## Deferred / Unmodeled Flows
 
-| Flow | Risk | Next Step |
-|---|---|---|
-| None yet. | Generated scaffold. | Add real scenario workflows when domains have stateful behavior. |
+These are known but deliberately unmodelled today:
+
+- **Section-level skip attribution** — designed and reliability-gated, but held as a
+  hypothesis with no prior art. It is not modelled as a load-bearing flow because
+  nothing depends on it. See [`../internal/DECISIONS.md`](../internal/DECISIONS.md).
+- **Multi-listener profiles** — the first deployment is single-listener. Scoping and
+  isolation must be specified before any shared deployment.
+- **Offline synchronisation** — real work inherited from owning the player, but no
+  ordered-state model until the delivery surface is chosen.
+- **Adapter-based personalisation** — blocked on hardware; personalisation today is
+  a light head over frozen embeddings.
 
 ## Cross-References
 

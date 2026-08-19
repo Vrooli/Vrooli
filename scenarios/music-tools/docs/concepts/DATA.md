@@ -1,114 +1,137 @@
 # Data — Music Tools
 
-This document is the canonical data ownership and storage map for the
-scenario. Update it when domains add tables, files, blobs, external
-records, retention rules, migrations, imports, or exports.
+Storage ownership, schemas, retention, and the size arithmetic that constrains
+the design. Domain ownership is in [`DOMAINS.md`](DOMAINS.md); system structure is
+in [`ARCHITECTURE.md`](ARCHITECTURE.md).
 
 ## Purpose Of This Document
 
 Use this document to answer:
 
-- What data does the scenario persist?
-- Which domain owns each data shape?
-- Where is the source of truth?
-- What is the retention/deletion story?
-- How are schema changes handled?
+- What does this scenario persist, and which domain owns it?
+- Where does audio live, and what is derived versus source?
+- What is the storage budget, and what happens when it is exhausted?
+- What is retained, for how long, and what deletes it?
 
 ## Storage Overview
 
-The template default is embedded SQLite through `modernc.org/sqlite`.
-The lifecycle sets `SQLITE_PATH` through `.vrooli/service.json`, and
-the API applies schemas on startup through `api-core/database`.
+This scenario holds **no product data of its own**. It owns operational state —
+the model registry, job records, style definitions, budget accounting — plus
+derived audio artifacts that are treated as a cache, not a record.
 
-External storage resources should be introduced only when a real
-domain needs them. Document those decisions in
-[`INTEGRATIONS.md`](INTEGRATIONS.md) before editing
-`.vrooli/service.json`.
+| Store | Backend | Holds |
+|---|---|---|
+| Scenario database | SQLite by default | Registry and install state, job records, style definitions, budget ledger, measure samples |
+| Blob storage | shared api-core BlobStore seam | Generated audio, separated stems, rendered artifacts |
+| Model weights | scenario data directory | Downloaded weights, checksum-verified |
+| Runtime environments | scenario data directory | Provisioned virtualenv for the embedding stack |
+
+Outputs go through the BlobStore seam with ownership metadata rather than to
+ad-hoc filesystem paths.
 
 ## Data Ownership
 
-Each domain owns its own tables and is the source of truth for its data.
-The `health` domain owns no product data — it only probes configured
-database reachability. As you build real domains, add a row per data
-shape they persist: name it, name the owning domain, the storage backend,
-the schema file that is the source of truth, the retention rule, and any
-remarks. Keep blob/opaque bytes outside proto payloads, behind a seam
-such as BlobStore.
+| Domain | Owns | Notes |
+|---|---|---|
+| models | Registry records, install state, licence lane, checksums | The registry seed is read-only; install state is mutable |
+| jobs | Job records, status, progress | Server-owned; survive client disconnect |
+| storage | Blob references, derived-artifact budget, LRU accounting | Owns eviction policy |
+| styles | Style definitions | Built-in styles read-only; custom styles mutable |
+| capacity | Claim state | Mirrors the control-plane broker; never the authority |
+| measures | Latency, queue wait, degradation frequency samples | Aggregated, bounded retention |
 
-| Data | Owning Domain | Storage | Source Of Truth | Retention | Notes |
-|---|---|---|---|---|---|
-| _(your data)_ | _(owning domain)_ | SQLite (default) | `api/internal/<domain>/schema.sql` | Product-defined delete trigger. | Per-domain ownership. |
+Source audio is **never owned by this scenario**. Callers pass audio in; this
+scenario does not manage anyone's library.
 
 ## Schema Map
 
-Each domain's schema file lives beside the code that interprets it. The
-`system schema` is the only cross-cutting, non-domain table set.
+| Table | Domain | Key fields |
+|---|---|---|
+| `models` | models | id, operations, architecture, disk bytes, min VRAM, licence, lane, checksum, enabled |
+| `model_installs` | models | model id, state, installed bytes, verified at |
+| `jobs` | jobs | id, operation, params, state, progress, applied profile rung, error |
+| `blobs` | storage | id, kind (generated / stem / render), source track ref, bytes, last accessed |
+| `budget` | storage | kind, budget bytes, used bytes |
+| `styles` | styles | id, caption template, params, built-in flag |
+| `measures` | measures | operation, duration, queue wait, degraded flag, timestamp |
 
-| Table/File/Object | Owner | Defined In | Used By |
-|---|---|---|---|
-| _(your domain tables)_ | _(owning domain)_ | `api/internal/<domain>/schema.sql` | That domain's repository/service/handlers |
-| system schema | infrastructure | `api/internal/database/system.sql` | API boot and cross-cutting DB setup |
+Every generated blob records the model, licence lane, and applied profile rung that
+produced it, so a degraded or restricted-lane output is never mistaken for a
+full-quality permissive one.
 
-<!-- EXAMPLE-DOMAIN:notes START -->
-### Example domain — `notes` (removed by `template-manager detemplate`)
+## The size arithmetic
 
-The template ships the `notes` domain as a worked CRUD slice with a
-binary attachment-upload exception, showing how a real domain owns its
-tables, metadata, and opaque blob bytes. Copy its shape, then remove it.
+This is the constraint that shapes the storage design, so it is recorded rather
+than rediscovered.
 
-Its Data Ownership rows:
+| Artifact | Per track | At 10,000 tracks |
+|---|---|---|
+| Four separated stems, lossless | ~100 MB | **~1 TB** |
+| Four separated stems, compressed lossless | ~60 MB | **~1 TB scale** |
+| Pooled or segment-level embeddings | ~100 KB | ~1 GB |
+| Frame-level embeddings, multi-layer | **~900 MB** | far beyond any available disk |
 
-| Data | Owning Domain | Storage | Source Of Truth | Retention | Notes |
-|---|---|---|---|---|---|
-| Notes | notes | SQLite | `api/internal/notes/schema.sql` | Until deleted by future product behavior | Template reference data; remove with notes domain. |
-| Attachment metadata | notes | SQLite | `api/internal/notes/schema.sql` | Until parent note or attachment is deleted by future product behavior | Metadata only; bytes are stored through BlobStore. |
-| Attachment bytes | notes | Filesystem BlobStore by default | BlobStore implementation in notes handler module | Same lifecycle as metadata | Opaque bytes stay outside proto payloads. |
+The reference host has 274 GB free on a volume at 85%. Stems for a large library
+exceed available disk by roughly an order of magnitude, and frame-level embeddings
+exceed pooled ones by about four orders of magnitude per track.
 
-Its Schema Map row:
+Two consequences, both structural:
 
-| Table/File/Object | Owner | Defined In | Used By |
-|---|---|---|---|
-| notes tables | notes | `api/internal/notes/schema.sql` | notes repository/service/handlers |
-
-Its Retention And Deletion row:
-
-| Data | Delete Trigger | Retention Rule | Current Gap |
-|---|---|---|---|
-| Template notes data | Domain removal or future product delete behavior | Local development data only | Real scenarios must define product-specific deletion semantics. |
-<!-- EXAMPLE-DOMAIN:notes END -->
+- **There is no library-wide stem materialisation path.** Separation is on-demand
+  under an LRU budget. The absence of a batch entrypoint is deliberate.
+- **Embeddings persist pooled or segment-level.** Frame-level output requires
+  explicit opt-in for a single track, is treated as interactive, and is never
+  written to the shared index.
 
 ## Migrations And Compatibility
 
-The generated template uses idempotent schema bootstrap. Domain schema
-files should use `CREATE TABLE IF NOT EXISTS` and live beside the code
-that interprets them.
+The registry seed carries a schema version. Registry changes are additive:
+new fields default to a safe value, and an unknown licence defaults to the
+restricted lane rather than the permissive one. Removing a model from the seed does
+not delete its installed weights; installs are reconciled explicitly so a removed
+model cannot silently orphan disk.
 
-For production data migrations that need column drops, renames, or data
-backfills, add a scenario-specific migration plan here and update
-[`../internal/DECISIONS.md`](../internal/DECISIONS.md) with the tradeoff.
+Job records are forward-compatible: an unknown operation or profile rung is
+retained and reported rather than dropped.
 
 ## Import / Export
 
-| Path | Format | Owner | Status |
-|---|---|---|---|
-| None yet. | n/a | n/a | Add when product requirements include import/export. |
+- **Model weights** are acquired from declared sources with checksum verification;
+  an install refuses to start when free disk is below the declared floor.
+- **Custom styles** import and export as data, so a house sound is portable.
+- **Derived audio** is exportable through the BlobStore seam with its provenance
+  metadata attached.
+- There is no bulk import of anyone's music library. That is the consumer's
+  concern.
 
 ## Retention And Deletion
 
-| Data | Delete Trigger | Retention Rule | Current Gap |
-|---|---|---|---|
-| _(your data)_ | What removes it. | How long it is kept. | Real scenarios must define product-specific deletion semantics. |
+| Class | Retention |
+|---|---|
+| Generated audio | Retained until the consumer releases it or the budget evicts it |
+| Stems and renders | Cache — LRU eviction under a declared budget, regenerable on demand |
+| Frame-level embeddings | Not persisted |
+| Job records | Bounded retention; terminal jobs pruned after a retention window |
+| Measure samples | Aggregated and bounded |
+| Model weights | Retained until explicitly uninstalled |
+
+Because every derived artifact is regenerable, eviction is always safe. Nothing in
+this scenario is the only copy of anything a person cares about.
 
 ## Privacy Notes
 
-Generated template data is local development data. If a scenario stores
-personal, regulated, customer, financial, or sensitive business data,
-update this document and [`../internal/SECURITY.md`](../internal/SECURITY.md)
-before implementation expands.
+This scenario sees audio it is asked to process and the captions used to generate
+it. It does not see listening behaviour, ratings, or taste — those never leave the
+consumer scenario. Prompts and captions may contain personal content and are
+treated as caller data: retained with the job, pruned with it, and never
+transmitted off-host except through an explicitly configured BYOK provider.
+
+Generated output records its provenance so downstream disclosure obligations can be
+met by the consumer.
 
 ## Cross-References
 
-- [`DOMAINS.md`](DOMAINS.md) — data ownership by domain
-- [`INTEGRATIONS.md`](INTEGRATIONS.md) — external resources and scenarios
-- [`../reference/configuration.md`](../reference/configuration.md) — runtime configuration
-- [`../internal/SECURITY.md`](../internal/SECURITY.md) — privacy/security posture
+- [`ARCHITECTURE.md`](ARCHITECTURE.md) — storage strategy in context
+- [`DOMAINS.md`](DOMAINS.md) — domain ownership
+- [`../reference/model-registry.md`](../reference/model-registry.md) — registry disk budget
+- [`../internal/PERFORMANCE.md`](../internal/PERFORMANCE.md) — cost of producing these artifacts

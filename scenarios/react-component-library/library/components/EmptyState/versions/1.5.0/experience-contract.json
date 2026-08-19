@@ -1,0 +1,72 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-component",
+  "schemaVersion": "1.1.0",
+  "component": {
+    "id": "empty-state",
+    "title": "EmptyState",
+    "purpose": "Explain an empty surface and offer its most relevant next action.",
+    "storyRef": "../../library/components/EmptyState/versions/1.5.0-draft.1/story.json"
+  },
+  "states": [
+    {
+      "id": "no-content",
+      "example": "no-components",
+      "description": "No content exists yet."
+    },
+    {
+      "id": "with-action",
+      "example": "with-action",
+      "description": "The empty state offers a recovery action."
+    },
+    {
+      "id": "compact",
+      "example": "compact",
+      "description": "The compact empty state preserves hierarchy."
+    }
+  ],
+  "elements": [
+    {
+      "id": "region",
+      "role": "region",
+      "description": "The labelled empty-state region."
+    },
+    {
+      "id": "action",
+      "role": "button",
+      "description": "The optional recovery action."
+    }
+  ],
+  "claims": [
+    {
+      "id": "region-present",
+      "type": "element-present",
+      "statement": "The empty state presents a labelled region.",
+      "tier": "machine",
+      "elements": ["region"],
+      "states": ["no-content", "with-action", "compact"]
+    },
+    {
+      "id": "recovery-affordance",
+      "type": "affordance-present",
+      "statement": "The actionable empty state offers a next step.",
+      "tier": "machine",
+      "elements": ["action"],
+      "params": { "affordances": ["action"] },
+      "states": ["with-action"]
+    },
+    {
+      "id": "empty-state-craft",
+      "type": "manual-review",
+      "statement": "The empty state explains why it is empty and offers the most relevant next action.",
+      "tier": "manual",
+      "states": ["no-content", "with-action", "compact"]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "region": { "selector": "[data-rcl-empty-state]" },
+      "action": { "selector": "button" }
+    }
+  }
+}

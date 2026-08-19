@@ -50,4 +50,4 @@ Look and feel: an operations console, not a DAW — dense, keyboard-reachable, h
 
 ## 📎 Appendix
 
-Model stack, VRAM tiers, the three-runtime split, and licence lanes are recorded in `docs/concepts/ARCHITECTURE.md`; the durable choices behind them are in `docs/internal/DECISIONS.md`.
+The three-runtime split, residency policy, and licence lanes are in `docs/concepts/ARCHITECTURE.md`. The model stack itself — identifiers, disk cost, VRAM tiers, per-model licences, and the confidence label on every figure — is in `docs/reference/model-registry.md`. The durable choices behind them, and the alternatives rejected, are in `docs/internal/DECISIONS.md`. Nothing has been measured on target hardware yet; see `docs/internal/PERFORMANCE.md`.

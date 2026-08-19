@@ -3,9 +3,30 @@
   "catalogId": "feedback.empty-state",
   "displayName": "Empty State",
   "description": "Compact empty-state panel with icon, copy, and optional action slots.",
-  "tags": ["feedback", "surface"],
+  "tags": [
+    "feedback",
+    "surface"
+  ],
   "slot": "ui-pattern",
   "category": "feedback",
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:Card",
+      "version": "1.1.0"
+    },
+    {
+      "libraryId": "react-component-library:Button",
+      "version": "2.2.0"
+    },
+    {
+      "libraryId": "react-component-library:Heading",
+      "version": "1.0.0"
+    },
+    {
+      "libraryId": "react-component-library:Text",
+      "version": "1.0.0"
+    }
+  ],
   "designStyles": [
     {
       "styleId": "vrooli-default",
@@ -20,7 +41,10 @@
       "affinity": "compatible"
     }
   ],
-  "latest": "1.2.0",
+  "latest": "1.6.0",
   "draft": "",
-  "deprecatedVersions": []
+  "deprecatedVersions": [
+    "1.4.0",
+    "1.5.0"
+  ]
 }

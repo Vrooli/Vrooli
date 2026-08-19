@@ -279,6 +279,25 @@ func (s *FSContentStore) RollbackVersion(ctx context.Context, c Component, versi
 	return nil
 }
 
+// RemoveVersion deletes an exact, already-superseded version directory. It is
+// called only after the replacement release has indexed successfully, so a
+// failed publish can still roll back to the original draft directory.
+func (s *FSContentStore) RemoveVersion(_ context.Context, c Component, version string) error {
+	if err := validateVersionToken(version); err != nil {
+		return err
+	}
+	relativeGuard := filepath.ToSlash(filepath.Join(componentAssetRoot(c), c.Slug, "versions", version, "remove.guard"))
+	resolvedGuard, err := s.resolveCreatable(relativeGuard)
+	if err != nil {
+		return err
+	}
+	versionDir := filepath.Dir(resolvedGuard)
+	if err := os.RemoveAll(versionDir); err != nil {
+		return fmt.Errorf("remove superseded version directory: %w", err)
+	}
+	return nil
+}
+
 // componentAssetRoot keeps source authoring aligned with the manifest that
 // was indexed. New components still default to components/, while existing
 // primitives (and any future renderable root) retain their real location.

@@ -126,6 +126,7 @@ func TestAuthoringWorkflowBeginsChecksAndPublishesByLibraryID(t *testing.T) {
 	require.Equal(t, "1.1.0", released.Version.Version)
 	require.Equal(t, "1.1.0", released.Component.LatestVersion)
 	require.Empty(t, released.Component.DraftVersion)
+	require.NoDirExists(t, filepath.Join(root, "components", "Button", "versions", draft.Version.Version))
 	releaseStory, err := os.ReadFile(filepath.Join(root, "components", "Button", "versions", "1.1.0", "story.json"))
 	require.NoError(t, err)
 	require.Equal(t, authoredStory, releaseStory, "publish must preserve the exact checked story contract")

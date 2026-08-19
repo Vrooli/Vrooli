@@ -588,6 +588,15 @@ func (s *service) CreateComponentVersion(ctx context.Context, in CreateComponent
 	if err != nil {
 		return CreateComponentVersionResult{}, rollback(err)
 	}
+	if intent == VersionIntentRelease && strings.Contains(strings.TrimSpace(in.FromVersion), "-") {
+		if store, ok := s.source.(interface {
+			RemoveVersion(context.Context, Component, string) error
+		}); ok {
+			if err := store.RemoveVersion(ctx, previous, in.FromVersion); err != nil {
+				return CreateComponentVersionResult{}, rollback(err)
+			}
+		}
+	}
 	return CreateComponentVersionResult{Component: c, Version: v, SourcePath: sourcePath}, nil
 }
 

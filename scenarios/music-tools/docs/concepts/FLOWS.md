@@ -26,13 +26,75 @@ outcome, statefulness, and validation level.
 
 | Flow | Domain | Trigger | Outcome | Statefulness | Validation |
 |---|---|---|---|---|---|
-| _(your flow)_ | _(owning domain)_ | What starts it. | What it produces. | States, retries, cancellation, stale completion. | Target maturity level. |
+| Model install | models | Operator or CLI requests a model | Weights verified and available | Staged and resumable; refuses below the disk floor; checksum failure leaves the model unavailable | Level 3 |
+| GPU-bearing operation | capacity + jobs | Any operation needing the card | Artifact plus the applied profile rung | Claim, admit or queue or degrade, execute, release; release on failure and on crash | Level 5 |
+| Composition job | composition + jobs | Caption and optional lyrics submitted | Audio with provenance | Long-running, progress-reporting, cancellable, survives client disconnect | Level 5 |
+| Track decomposition | analysis | Consumer requests attributes | Structured description | Partial success when a runtime is unavailable; never silently incomplete | Level 4 |
+| Derived-artifact eviction | storage | Budget exceeded | Space reclaimed | LRU over regenerable artifacts only | Level 3 |
 
 ## Flow Details
 
 Document each real flow here with its owner domain, trigger, inputs,
 ordered steps, outputs, failure modes, retry/cancel behavior, tests, and
 generated subpackages. The worked example below shows the expected shape.
+
+### GPU-bearing operation — `capacity` + `jobs`
+
+The flow every heavyweight operation passes through. It exists because the card is
+shared and no two heavyweight models co-reside.
+
+- Owner domains: `capacity` (admission) and `jobs` (lifecycle).
+- Trigger: any composition, transformation, or structure operation.
+- Steps:
+  1. Resolve the model, honouring the configured licence lane.
+  2. Declare ordered profile rungs — variant, planner size, precision, batch.
+  3. Claim capacity through the control-plane broker.
+  4. On denial, queue with a stated reason. On contention, step down a rung.
+  5. Execute under an exclusive lease, heartbeating.
+  6. Release, recording the applied rung with the result.
+- Illegal transitions: executing without a granted claim; completing without
+  releasing; degrading without recording the rung.
+- Failure modes: admission denied (queue); lease lost (fail explicitly, release);
+  process crash (broker reconciliation expires the claim).
+- Why Level 5: the release path must hold under crash and cancellation, and a
+  leaked lease starves every other tenant on the host.
+
+### Composition job — `composition` + `jobs`
+
+- Trigger: caption and optional lyrics submitted via API or CLI.
+- Steps: validate and compile the caption, acquire the GPU lease above, generate,
+  write through the BlobStore seam with provenance, release.
+- Statefulness: server-owned; survives client disconnect; progress observable;
+  cancellation releases the lease rather than orphaning it.
+- Failure modes: composition runtime stopped (fail explicitly — never silently
+  substitute a cloud provider); budget exhausted (evict, then proceed).
+
+### Track decomposition — `analysis`
+
+- Trigger: a consumer asks for the attributes of a track.
+- Steps: deterministic measures first (cheap, exact, no GPU), then embeddings from
+  the resident pool, then structure and beats under an exclusive lease.
+- Statefulness: each layer succeeds or fails independently.
+- Key rule: when a runtime is unavailable the result is **explicitly partial**, not
+  quietly short. A consumer must be able to tell a missing attribute from an absent
+  one.
+
+### Model install — `models`
+
+- Trigger: operator or CLI request.
+- Steps: check the declared free-disk floor, download from the declared source,
+  verify the checksum, mark installed.
+- Illegal transitions: marking installed without verification; beginning a download
+  below the disk floor.
+- Failure modes: disk floor breach (refuse to start); checksum mismatch (model stays
+  unavailable rather than running unverified).
+
+### Derived-artifact eviction — `storage`
+
+- Trigger: a write that would exceed the declared budget.
+- Steps: evict least-recently-used regenerable artifacts until the write fits.
+- Invariant: **only regenerable artifacts are evictable.** Nothing here is ever the
+  only copy of anything.
 
 <!-- EXAMPLE-DOMAIN:notes START -->
 ### Example domain — `notes` (removed by `template-manager detemplate`)
@@ -90,7 +152,12 @@ enforced. Plain CRUD with no ordering constraints does not appear here.
 
 | Domain/Flow | States | Illegal Transitions | Enforcement |
 |---|---|---|---|
-| _(your flow)_ | The ordered/terminal states. | Transitions the contract forbids. | `*.flow.json` contract, generated Quint model, replay tests. |
+| capacity / GPU lease | `requested` → `queued` → `granted` → `degraded`* → `released`; terminal `denied`, `expired` | Executing without `granted`; completing without `released`; `degraded` without recording the applied rung | `*.flow.json` contract, generated Quint model, replay tests; broker reconciliation expires leaked leases |
+| jobs / long operation | `submitted` → `running` → `succeeded` \| `failed` \| `cancelled` | Any terminal state that leaves a lease held; `succeeded` without a persisted artifact | Contract plus replay tests over client-disconnect and crash traces |
+| models / install | `declared` → `downloading` → `verifying` → `installed`; terminal `refused`, `failed` | `installed` without passing `verifying`; `downloading` below the declared disk floor | Contract tests; checksum verification is a hard gate |
+| storage / eviction | `within-budget` → `over-budget` → `evicting` → `within-budget` | Evicting a non-regenerable artifact | Contract test asserting only regenerable kinds are evictable |
+
+\* `degraded` is a re-entrant rung step, not a terminal state.
 
 ## Maturity Ladder
 
@@ -222,9 +289,19 @@ To add or rename a state/event:
 
 ## Deferred / Unmodeled Flows
 
-| Flow | Risk | Next Step |
-|---|---|---|
-| None yet. | Generated scaffold. | Add real scenario workflows when domains have stateful behavior. |
+These are known but deliberately unmodelled today:
+
+- **Style compilation** — currently a pure function from style to caption plus
+  parameters, with no ordered states. It becomes a flow only if styles gain
+  validation or derivation steps.
+- **Adapter training** — a P2 target gated on hardware the reference host does not
+  have. It will be a long-running stateful flow when it exists; modelling it now
+  would be speculative.
+- **Multi-track composition** — depends on an upstream capability whose availability
+  on the fitting model variant is unresolved. See
+  [`../internal/PROBLEMS.md`](../internal/PROBLEMS.md).
+- **Batch decomposition** — orchestration across many tracks belongs to the
+  consumer, which owns progress and resumability. This scenario stays per-track.
 
 ## Cross-References
 
