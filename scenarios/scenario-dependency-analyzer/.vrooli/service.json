@@ -218,26 +218,6 @@
           "description": "Execute phased scenario test suite"
         }
       ]
-    },
-    "stop": {
-      "description": "Stop all dependency analyzer services",
-      "steps": [
-        {
-          "name": "stop-api",
-          "run": "pkill -f \"scenario-dependency-analyzer-api\" || true; sleep 1; pkill -9 -f \"scenario-dependency-analyzer-api\" 2>/dev/null || true",
-          "description": "Stop API process"
-        },
-        {
-          "name": "stop-ui",
-          "run": "true",
-          "description": "Stop UI process"
-        },
-        {
-          "name": "cleanup-temp-files",
-          "run": "find /tmp -name 'dependency-analysis-*' -mtime +1 -delete 2>/dev/null || true",
-          "description": "Clean up temporary analysis files"
-        }
-      ]
     }
   },
   "dependencies": {

@@ -141,21 +141,6 @@
           "description": "Run all test phases via test-genie"
         }
       ]
-    },
-    "stop": {
-      "description": "Stop background processes",
-      "steps": [
-        {
-          "name": "stop-api",
-          "run": "pkill -f 'scenario-stack-governor-api' || true",
-          "description": "Stop Go API"
-        },
-        {
-          "name": "stop-ui",
-          "run": "pkill -f 'node server.js' || true",
-          "description": "Stop UI server"
-        }
-      ]
     }
   },
   "dependencies": {

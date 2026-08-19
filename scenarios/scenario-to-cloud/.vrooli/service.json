@@ -174,29 +174,6 @@
         }
       ]
     },
-    "production": {
-      "description": "Start API and production UI bundle",
-      "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && exec ./scenario-to-cloud-api",
-          "background": true,
-          "description": "Start Go API server",
-          "condition": {
-            "file_exists": "api/scenario-to-cloud-api"
-          }
-        },
-        {
-          "name": "start-ui",
-          "run": "cd ui && node server.js",
-          "background": true,
-          "description": "Serve production UI bundle",
-          "condition": {
-            "file_exists": "ui/dist/index.html"
-          }
-        }
-      ]
-    },
     "test": {
       "description": "Execute test suite via test-genie",
       "steps": [
@@ -204,21 +181,6 @@
           "name": "run-tests",
           "run": "test-genie execute scenario-to-cloud structure standards dependencies lint docs unit integration business",
           "description": "Run test-genie orchestrated test suite (fast, deterministic phases)"
-        }
-      ]
-    },
-    "stop": {
-      "description": "Stop background processes",
-      "steps": [
-        {
-          "name": "stop-api",
-          "run": "pkill -f 'scenario-to-cloud-api' || true",
-          "description": "Stop Go API"
-        },
-        {
-          "name": "stop-ui",
-          "run": "pkill -f 'node server.js' || true",
-          "description": "Stop UI server"
         }
       ]
     }

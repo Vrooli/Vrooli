@@ -86,7 +86,7 @@ gap in the acting surface even when the underlying capability plainly exists.
 | A15 | Query durable memory / work records | `vrooli-memory` | COVERED | |
 | A16 | Write a work record, note, or capture | `vrooli-memory`, `swarm-manager` | COVERED | The write side of the learning loop. |
 | A17 | Read & write plans, backlog items, goals | `plan-manager`, `swarm-manager` | PARTIAL | Reachable, but `swarm-manager` is not yet reliable enough to depend on. |
-| A18 | Read & write requirements / PoRs | `prompt-manager`, per-scenario `requirements/` | PARTIAL | **Audited.** Prompt Manager is present but has no resolved governed binding for this compound owner; filesystem-shaped requirements remain partial. |
+| A18 | Read & write requirements / PoRs | `prompt-manager`, per-scenario `requirements/` | NOW | **Audited.** The live registry resolves Prompt Manager for this compound operation; per-scenario requirement files remain an implementation detail rather than an ungoverned runtime fallback. |
 | **Delegate & infer** | | | | |
 | A19 | Typed inference — classify / extract / judge | `ai-gateway` | NOW | `program-runtime` exposes governed `vrooli.ai.classify`, `vrooli.ai.extract`, and `vrooli.ai.judge` facades over ai-gateway's locally validated inference RPC and catalog roles; the live cell explanation confirms the status. |
 | A20 | Spawn a delegated agent run and collect its evidence | `agent-manager` | COVERED | Program Runtime owns a non-blocking `agent.start`/`agent.collect` path with session-scoped execution identities. |
@@ -123,10 +123,9 @@ now downgraded to `IN-REACH` rather than counted as executable coverage.
 Every cell remains audited with an explicit reason, and the doctor surface
 separately reports reachable versus unreachable bound scenarios.
 
-The measured manifest ceiling is **63 of 117 scenarios**: 63 scenario
-manifests were present in the registry input, while 117 scenario targets were
-enumerated. This is an evidence-backed ceiling for the manifest-bound surface,
-not a claim that every manifest-bearing scenario is currently reachable.
+That historical audit measured a manifest ceiling of **63 of 117 scenarios**.
+The current ceiling is reported in the dated snapshot below; historical values
+are retained only to explain how the join moved.
 
 ## Post-sweep condition snapshot — 2026-08-13
 
@@ -142,6 +141,42 @@ expected: this sweep is a point-in-time exercise and has not spanned the
 seven-day sustained window. Act cell coverage remains **14 NOW / 13 IN-REACH /
 1 MISSING**; condition reports beside coverage and does not change those cell
 statuses.
+
+## Prompt Manager binding re-audit — 2026-08-19
+
+Before correcting the stale A18 authored row, the live 28-cell audit reported
+**20 NOW, 7 IN-REACH, and 1 MISSING** (coverage ratio **0.7142857143**). That
+correction moved the typed join to **21 NOW, 6 IN-REACH, and 1 MISSING**. The
+same validation then exposed and repaired a registry traversal defect that had
+dropped Connect commands inside nested CLI-manifest groups. With those real
+control-plane bindings restored, the final live Meta Optimization Manager join
+reports **25 NOW, 2 IN-REACH, and 1 MISSING** (coverage ratio
+**0.8928571429**) with `PARTIAL` denominator confidence. A1 and A18 both
+resolve to `ACT_VERDICT_NOW`, and no cell retains the old
+`prompt-manager: scenario has no governed binding` reason. The denominator
+remains exactly 28; every promotion comes from a callable governed binding,
+not from documentation alone.
+
+## Current live snapshot — 2026-08-19
+
+`program-runtime bindings doctor --json` reports **1,482 bindings**, **1,480
+callable**, **0 uncallable**, and **2 partial**, from **78 manifest-bearing
+scenarios out of 122 scenario targets**. It reports **61 reachable** and **15
+unreachable** manifest-bearing scenarios; a manifest is therefore a ceiling,
+not proof of live reachability.
+
+`program-runtime bindings act --json` audits all 28 cells and returns 25
+`ACT_VERDICT_NOW`, 1 `ACT_VERDICT_IN_REACH`, and 2
+`ACT_VERDICT_AUTHORED`. The consumer command
+`meta-optimization-manager coverage status --json` conservatively maps those
+authored results to **25 NOW, 2 IN-REACH, and 1 MISSING**, for a coverage ratio
+of **0.8928571428571429** with `PARTIAL` denominator confidence.
+
+`program-runtime bindings condition --json` reports the exercise basis
+explicitly: the local invocation ledger instruments **719 of 1,482 bindings**
+from **1,799 invocations**, while the fleet receipt aggregate instruments **3
+of 1,482 bindings** from **8 invocations** in the 24-hour window. These bases
+must not be combined into one ambiguous instrumentation percentage.
 
 Suggested live-join rule, mirroring the sibling projections: a cell is `NOW` only when **every**
 operation it names resolves to a manifest-bound Connect method whose binding generates cleanly and
@@ -160,8 +195,8 @@ authored statuses remain authored rather than being fabricated as `MISSING`.
 - **The taxonomy is a first cut.** 28 operation classes across 7 groups is a starting shape. Expect
   splits and merges once real programs are observed — the strongest future signal is telemetry from
   actual programs, which reveals the operations agents *try* to invoke and cannot.
-- **`cli/manifest.json` coverage bounds everything.** The current doctor census
-  measures 63 of 117 scenario targets with a manifest. A large share of the
+- **`cli/manifest.json` coverage bounds everything.** The 2026-08-19 doctor census
+  measures 78 of 122 scenario targets with a manifest. A large share of the
   fleet therefore has no bindable surface at all. Act cannot exceed that
   ceiling, and raising it is likely the highest-leverage single action this
   projection will surface.

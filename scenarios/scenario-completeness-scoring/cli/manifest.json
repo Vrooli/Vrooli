@@ -128,20 +128,24 @@
           "name": "fleet-below-rung",
           "description": "Count scenarios whose latest snapshot in a time window is below a maturity rung threshold.",
           "flags": [
-            {
-              "name": "window",
-              "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)."
+        {
+          "name": "window",
+          "description": "Analytical time window as an inline TimeWindow JSON object.",
+          "bind": {
+            "field": "window",
+            "kind": "json_inline"
+          }
             },
             {
               "name": "rung",
               "description": "Rung threshold enum (RUNG_THRESHOLD_R0 through RUNG_THRESHOLD_R4)."
             }
           ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "MeasuresService",
-            "method": "CountFleetBelowRung"
-          },
+      "binding": {
+        "kind": "connect-rpc",
+        "service": "MeasuresService",
+        "method": "CountFleetBelowRung"
+      },
           "governance": {
             "effect": "read",
             "run_eligible": true,
@@ -179,16 +183,20 @@
           "name": "average-composite",
           "description": "Average latest composite score across scenarios scored in a time window.",
           "flags": [
-            {
-              "name": "window",
-              "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)."
+        {
+          "name": "window",
+          "description": "Analytical time window as an inline TimeWindow JSON object.",
+          "bind": {
+            "field": "window",
+            "kind": "json_inline"
+          }
             }
           ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "MeasuresService",
-            "method": "AverageComposite"
-          },
+      "binding": {
+        "kind": "connect-rpc",
+        "service": "MeasuresService",
+        "method": "AverageComposite"
+      },
           "governance": {
             "effect": "read",
             "run_eligible": true,
@@ -222,16 +230,20 @@
           "name": "score-series",
           "description": "Fleet-average scenario completeness score series over a time window.",
           "flags": [
-            {
-              "name": "window",
-              "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)."
+        {
+          "name": "window",
+          "description": "Analytical time window as an inline TimeWindow JSON object.",
+          "bind": {
+            "field": "window",
+            "kind": "json_inline"
+          }
             }
           ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "MeasuresService",
-            "method": "ScoreSeries"
-          },
+      "binding": {
+        "kind": "connect-rpc",
+        "service": "MeasuresService",
+        "method": "ScoreSeries"
+      },
           "governance": {
             "effect": "read",
             "run_eligible": true,

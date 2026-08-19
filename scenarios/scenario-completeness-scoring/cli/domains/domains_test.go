@@ -34,6 +34,10 @@ func TestSubcommandGroups(t *testing.T) {
 	got, err := SubcommandGroups(&cliapp.ScenarioApp{}, manifest)
 	require.NoError(t, err, "SubcommandGroups must build cleanly from cli/manifest.json")
 	require.NotNil(t, got, "SubcommandGroups must return a slice (possibly empty), not nil")
+	require.Len(t, got, 2, "score and scoring measure groups must both be registered")
+	require.Equal(t, "score", got[0].Name)
+	require.Equal(t, "scoring", got[1].Name)
+	require.Len(t, got[1].Subcommands, 3, "every MeasuresService command must be reachable")
 	for i, g := range got {
 		require.NotEmpty(t, g.Name, "group[%d].Name must be set", i)
 		require.NotEmpty(t, g.Subcommands, "group[%d] (%s) must register at least one subcommand", i, g.Name)

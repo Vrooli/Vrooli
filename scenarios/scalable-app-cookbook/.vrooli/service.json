@@ -186,21 +186,6 @@
           "description": "Execute phased scenario test suite"
         }
       ]
-    },
-    "stop": {
-      "description": "Stop services",
-      "steps": [
-        {
-          "name": "stop-api",
-          "run": "pkill -f \"scalable-app-cookbook-api\" || true; sleep 1; pkill -9 -f \"scalable-app-cookbook-api\" 2>/dev/null || true",
-          "description": "Stop API process"
-        },
-        {
-          "name": "stop-ui",
-          "run": "pkill -f \"scenarios/scalable-app-cookbook.*vite\" || true; sleep 1; pkill -9 -f \"scenarios/scalable-app-cookbook.*vite\" 2>/dev/null || true",
-          "description": "Stop UI process"
-        }
-      ]
     }
   },
   "dependencies": {

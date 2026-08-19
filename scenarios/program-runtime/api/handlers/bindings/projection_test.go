@@ -35,10 +35,11 @@ func TestNoVerbEverEmitsARenderedNil(t *testing.T) {
 		"recall":   {"intent": "retention policy"},
 		"validate": {"scenario": "program-runtime"},
 		"capture":  {"text": "a note"},
+		"guide":    {"intent": "author an implementation plan"},
 	}
 	for verb, spec := range projectionVerbs {
 		if spec.build == nil {
-			continue // `guide` has no binding to compose and no builder.
+			continue // Explicitly unavailable verbs have no builder.
 		}
 		fields, declared := minimalInputs[verb]
 		if !declared {
@@ -159,6 +160,25 @@ func TestRecallRequiresAnIntent(t *testing.T) {
 	}
 	if args["limit"] != 10 {
 		t.Fatalf("default limit = %v, want 10", args["limit"])
+	}
+}
+
+func TestGuideMapsIntentToDiscoveryQuery(t *testing.T) {
+	if _, err := projectionVerbs["guide"].build(projectionRequestFrom(map[string]any{})); err == nil {
+		t.Fatal("guide must refuse an empty intent")
+	}
+	args, err := projectionVerbs["guide"].build(projectionRequestFrom(map[string]any{
+		"task": "author an implementation plan",
+	}))
+	if err != nil {
+		t.Fatalf("guide must accept the task alias: %v", err)
+	}
+	queries, ok := args["queries"].([]string)
+	if !ok || len(queries) != 1 || queries[0] != "author an implementation plan" {
+		t.Fatalf("queries = %#v, want one repeated request value containing the supplied task", args["queries"])
+	}
+	if len(args) != 1 {
+		t.Fatalf("guide invented discovery arguments: %v", args)
 	}
 }
 

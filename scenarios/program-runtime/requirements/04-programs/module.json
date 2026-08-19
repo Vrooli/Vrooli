@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Accept a program, execute it in its session, return only what it materializes, and retain the corpus. Owns handles, inference and delegation callables, and provenance.",
-    "last_validated_at": "2026-08-16T15:17:16-04:00",
+    "last_validated_at": "2026-08-19T05:14:08-04:00",
     "module": "programs",
     "prd_ref": "PRD.md",
     "priority": "P0",
@@ -45,6 +45,43 @@
           "phase": "unit",
           "status": "implemented",
           "notes": "Target `api/internal/programs/scaling_test.go::TestKernelAgentBytesStayBoundedAcrossResultSizes` (tag the test [REQ:PRT-P0-003]). A real kernel executes the same bounded query against result sets differing by four orders of magnitude; post-truncation agent-facing bytes remain in a constant band while explicitly materialized output exceeds that band."
+        }
+      ]
+    },
+    {
+      "id": "PRT-P0-010",
+      "title": "Bounded asynchronous execution",
+      "status": "complete",
+      "prd_ref": "OT-P0-010",
+      "category": "programs.execution",
+      "criticality": "P0",
+      "description": "When work cannot complete within the synchronous response budget, the Program Runtime MUST return a durable program identifier and provide one bounded wait operation that reports either terminal completion or the current non-terminal state without client polling.",
+      "tags": [
+        "async",
+        "wait",
+        "polling"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/programs/wait_test.go::TestWaitWakesOnTheTerminalTransition",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "The API wait path wakes on the terminal transition instead of discovering completion through a polling interval."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/programs/wait_test.go::TestWaitReturnsNonTerminalAtItsDeadline",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "A bounded wait returns the current program and an explicit non-terminal result when its deadline expires."
+        },
+        {
+          "type": "test",
+          "ref": "cli/evidence_test.go::TestProgramsWaitCommandUsesGovernedRPC",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "The public programs wait command is a governed read bound to ProgramService.WaitForProgram through the standard proto-list primitive."
         }
       ]
     },

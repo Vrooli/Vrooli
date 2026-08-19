@@ -452,7 +452,11 @@ earlier `@3` pair.
 **Refs:** `kernel/host/engine.py` (`_InferenceSurface._invoke`,
 `Namespace.describe`), `evals/authoring.primary.json`.
 
-### 2026-08-17 — `WaitForProgram` shipped ahead of an operational target
+### 2026-08-17 — RESOLVED: `WaitForProgram` shipped ahead of an operational target
+
+**Status:** Resolved on 2026-08-19. `OT-P0-010` now promises bounded
+asynchronous execution and `PRT-P0-010` traces it to the notification/deadline
+API tests and to the governed `programs wait` CLI binding test.
 
 **Symptom:** `ProgramService.WaitForProgram` and `program-runtime programs wait`
 are live, tested, and documented, but no PRD operational target names them and
@@ -469,16 +473,22 @@ false trace.
 has a public capability its PRD does not promise, so `business-health` cannot
 grade it and the work ladder's W1 rung has nothing to check.
 
-**Real fix:** author an operational target for bounded asynchronous execution
-through `prompt-manager skill read prd-authoring`, then add the requirement with
-validation refs to `internal/programs/wait_test.go` and the CLI evidence.
+**Real fix:** The P0 operational target and its evidence-linked requirement are
+now authored. `vrooli scenario requirements validate program-runtime` and the
+business-health producer are the structural and live traceability gates.
 
 **Owner:** program-runtime, with operator approval for the contract change.
 
 **Refs:** `packages/proto/schemas/program-runtime/v1/programs/programs.proto`,
 `api/internal/programs/service.go` (`Wait`), `cli/domains/programs/register.go`.
 
-### 2026-08-17 — the `guide` verb has no governed binding to compose
+### 2026-08-17 — RESOLVED: the `guide` verb had no governed binding to compose
+
+**Status:** Resolved on 2026-08-19. `guide` composes the callable
+`prompt-manager/discover/discover` binding, projects `results`, and accepts the
+runtime intent aliases while mapping them to the repeated `queries` request
+field. Live program `prog_6f4b6093-d245-4208-87f8-dd855d92fc25` returned ten
+rows and binding metadata.
 
 **Symptom:** `guide("...")` fails with `projection "guide" is unavailable:
 prompt-manager exposes no governed binding in the live registry`.
@@ -488,11 +498,10 @@ so there is no typed operation for the verb to call. The other three projection
 verbs compose `search-hub/query/query`, `test-genie/runs/list`, and
 `vrooli-memory/journal/note`.
 
-**Workaround:** Read skills with `prompt-manager skill read <name>` outside a
-program.
+**Workaround:** None required after the repair.
 
-**Real fix:** prompt-manager ships a `cli/manifest.json` binding for skill and
-action lookup; the verb then needs only a binding id and an argument builder.
+**Real fix:** Prompt Manager now ships the typed discovery binding and Program
+Runtime's projection bridge supplies the schema-aware argument builder.
 
 **Owner:** prompt-manager, with a one-line follow-up here.
 
@@ -520,7 +529,7 @@ governance contract, at which point the verb gains a `wait` mode.
 
 **Refs:** `api/handlers/bindings/module.go` (`projectionVerbs`), `docs/TESTING.md`.
 
-### 2026-08-17 — the authoring eval was a stub that reported honest degradation
+### 2026-08-17 — RESOLVED: the authoring eval was a stub that reported honest degradation
 
 **Symptom:** `program-runtime authoring eval --json` always returned
 `{"status": "unavailable", "reason": "no ai-gateway code-authoring route
@@ -549,26 +558,40 @@ result-shaped oracle. `unavailable` is now reachable only on real route loss
 and carries the underlying error. Six tests cover measured, wrong-result,
 missed, route-loss, missing-corpus, and fence-stripping paths.
 
-**Remaining — the eval needs an asynchronous shape.** A full 12-case run authors
-and executes twelve programs, so its wall time is twelve model round-trips plus
-twelve kernel spawns. That exceeds the API server's response deadline and the
-run ends as `unavailable: unexpected EOF` before it can return counts. The
-measurement path itself is proven: a single authoring call against
-`author.generator` returns a correct program (`z-ai/glm-5.2` via openrouter,
-`validated: true`) using the object schema
-`{"type":"object","properties":{"source":{"type":"string"}},"required":["source"]}`,
-and the corpus/oracle/submission path is covered by six unit tests. What is
-missing is the submission shape: `RunAuthoringEval` should accept and return
-like `programs submit --async`, with a run id the caller blocks on once, rather
-than holding one long request open.
-
-Until that lands, the floor in `evals/authoring.primary.json` stays `0` and must
-not be treated as a gate. It has never been derived from a measured run.
+**Closing evidence:** The shared budget ladder removed the accidental 30-second
+server deadline, the measured evaluator now completes its 12-case corpus, and
+two complete `authoring-brief@6(18 rules)` runs scored 9/12 and 9/12 against a
+derived floor of 8. Final-plan validation repeats a same-stamp pair so this
+entry cannot regress into a single-run claim.
 
 **Owner:** program-runtime.
 
 **Refs:** `api/internal/programs/authoring.go`,
 `api/internal/programs/authoring_test.go`, `api/handlers/programs/module.go`.
+
+### 2026-08-19 — Symbol Search is absent from the Act supply chain
+
+**Symptom:** Act cell A10 remains `IN-REACH`; the named `symbol-search`
+contributor cannot resolve to a governed binding.
+
+**Root cause:** Repository-wide inspection found no `scenarios/symbol-search`
+directory, no `scenarios/symbol-search/cli/manifest.json`, and no
+`packages/proto/schemas/symbol-search` package. This is a missing capability,
+not a Program Runtime registry defect.
+
+**Workaround:** A10 also names `code-facts`, `go-code-graph`, and
+`typescript-code-graph`; programs can use the governed portions of that supply
+while the compound cell remains conservatively partial.
+
+**Real fix:** The Symbol Search capability owner must create or nominate the
+scenario, then publish a typed proto contract and governed CLI manifest. Program
+Runtime can re-audit A10 after those artifacts exist.
+
+**Owner:** Symbol Search capability owner; Program Runtime owns the A10
+consumer re-audit.
+
+**Refs:** Scenario QA bug `knw-1787130446936328892`; `docs/spaces/act-space.md`
+cell A10; `program-runtime bindings act --json` captured 2026-08-19.
 
 ## Architecture Drift
 
@@ -591,6 +614,7 @@ a migration handoff with a planned retirement path back into
 ## Work ladder
 
 - Rung: W0
-- Evidence: `swarm-manager goals list --json` with the required named-mention filter returned no goal whose name, title, or description contains `program-runtime`; the plan-manager objective is a separate execution artifact and is not a swarm-manager goal.
-- Blocker: The contract cannot be compared against an approved named scenario goal, so W0 is unverifiable under the Scenario Work Ladder.
-- Measured: 2026-08-07
+- Evidence: On 2026-08-19, `swarm-manager goals list --json` with the required named-mention filter again returned no goal whose name, title, description, or targets contain `program-runtime`. The canonical PRD was compared in both directions with the approved Plan Manager execution contract; the only uncovered shipped capability was bounded asynchronous execution.
+- Decision: The operator explicitly authorized full execution of this plan, whose Phase 18 requires the bounded-async operational target. `OT-P0-010` and `PRT-P0-010` close that contract gap without mapping the behavior falsely onto an older target.
+- Result: W0 passed for this approved change. No separate `docs/decisions/` record exists for Program Runtime, and no unrelated product scope was added.
+- Measured: 2026-08-19

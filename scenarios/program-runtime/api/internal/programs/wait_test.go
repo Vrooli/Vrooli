@@ -51,7 +51,7 @@ func TestWaitReturnsImmediatelyForATerminalProgram(t *testing.T) {
 	}
 }
 
-// TestWaitWakesOnTheTerminalTransition is the property that lets the wait
+// TestWaitWakesOnTheTerminalTransition is the property that lets the wait [REQ:PRT-P0-010]
 // replace a polling loop: completion notifies the waiter rather than the waiter
 // discovering it on a later tick.
 func TestWaitWakesOnTheTerminalTransition(t *testing.T) {
@@ -95,7 +95,7 @@ func TestWaitWakesOnTheTerminalTransition(t *testing.T) {
 	}
 }
 
-// TestWaitReturnsNonTerminalAtItsDeadline states the contract that keeps a
+// TestWaitReturnsNonTerminalAtItsDeadline states the contract that keeps a [REQ:PRT-P0-010]
 // caller from busy-looping: exceeding the wait is a stated outcome carrying the
 // current program, not an error.
 func TestWaitReturnsNonTerminalAtItsDeadline(t *testing.T) {

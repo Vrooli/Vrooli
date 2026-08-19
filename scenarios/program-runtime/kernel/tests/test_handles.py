@@ -225,6 +225,62 @@ def test_projection_verbs_accept_measured_keyword_vocabulary():
     assert b'"intent": "retention"' in open_url.call_args.args[0].data
 
 
+def test_guide_returns_prompt_manager_discovery_rows_and_maps_aliases():
+    class Response:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def read(self):
+            return b'{"verb":"guide","binding_id":"prompt-manager/discover/discover","owner":"prompt-manager","rows_field":"results","result":{"results":[{"name":"implementation-plan-authoring","type":"skill"}],"total":1}}'
+
+    kernel = SessionKernel([], session_id="phase-guide", bridge_url="http://bridge/internal/program-runtime/bindings/execute")
+    with patch("host.engine.urllib.request.urlopen", return_value=Response()) as open_url:
+        result = kernel.execute('row = guide(intent="author a plan").head(1)[0]\nprint(row["name"])\nprint(guide(query="find tests").count())')
+    assert result["ok"]
+    assert "implementation-plan-authoring" in result["stdout"]
+    assert result["stdout"].splitlines()[-1] == "1"
+    assert b'"task": "find tests"' in open_url.call_args.args[0].data
+
+
+def test_nested_manifest_command_paths_remain_callable():
+    class ReachabilityResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def read(self):
+            return b'{"vrooli":{"reachable":true}}'
+
+    class ExecuteResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def read(self):
+            return b'{"bindings":[{"id":"one"}]}'
+
+    kernel = SessionKernel([
+        {
+            "id": "vrooli/bindings/audit/doctor",
+            "scenario": "vrooli",
+            "group": "bindings",
+            "command": "audit/doctor",
+            "rows_field": "bindings",
+        }
+    ], session_id="nested-manifest", bridge_url="http://bridge/internal/program-runtime/bindings/execute")
+    with patch("host.engine.urllib.request.urlopen", side_effect=[ReachabilityResponse(), ExecuteResponse()]):
+        result = kernel.execute("print(vrooli.bindings.audit.doctor().count())")
+    assert result["ok"]
+    assert result["stdout"].strip() == "1"
+
+
 def test_projection_verbs_reject_alias_collisions_and_report_accepted_keywords():
     kernel = SessionKernel()
 

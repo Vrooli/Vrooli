@@ -192,21 +192,6 @@
           "description": "Execute phased scenario test suite"
         }
       ]
-    },
-    "stop": {
-      "description": "Stop Scenario Auditor services",
-      "steps": [
-        {
-          "name": "stop-api",
-          "run": "pkill -f \"scenario-auditor-api\" || true; sleep 1; pkill -9 -f \"scenario-auditor-api\" 2>/dev/null || true",
-          "description": "Stop API process"
-        },
-        {
-          "name": "stop-ui",
-          "run": "pkill -f \"vite.*scenario-auditor\" || true; sleep 1; pkill -9 -f \"vite.*scenario-auditor\" 2>/dev/null || true",
-          "description": "Stop Vite dev server"
-        }
-      ]
     }
   },
   "dependencies": {

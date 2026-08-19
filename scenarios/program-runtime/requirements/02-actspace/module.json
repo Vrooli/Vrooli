@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Serve the Act denominator through the shared space verb, report the live binding numerator, and audit the denominator once the numerator exists.",
-    "last_validated_at": "2026-08-16T15:17:16-04:00",
+    "last_validated_at": "2026-08-19T04:56:04-04:00",
     "module": "actspace",
     "prd_ref": "PRD.md",
     "priority": "P0",

@@ -485,10 +485,7 @@ class _ProjectNamespace:
 
     def __getattr__(self, group: str) -> Any:
         if group in self._bindings:
-            value = self._bindings[group]
-            if _is_scenario_map(value):
-                return _NamespaceScenario(group, value, self._invocations)
-            return _NamespaceGroup(group, value, self._invocations)
+            return _NamespaceGroup(group, self._bindings[group], self._invocations)
         if group in _RUNTIME_VERB_NAMES:
             raise AttributeError(
                 f"{group!r} is a runtime verb, not a project command: call {group}(...) at the top level. "
@@ -1046,6 +1043,8 @@ class _NamespaceGroup:
         if command not in self._commands:
             raise AttributeError(f"no governed binding command {command!r}")
         value = self._commands[command]
+        if isinstance(value, dict):
+            return _NamespaceGroup(f"{self._group}/{command}", value, self._invocations)
         if not callable(value):
             return value
         if getattr(value, "_records_invocation", False):
@@ -1176,7 +1175,19 @@ class SessionKernel:
                 reason = spec.get("reachability_reason", "")
                 reachability[scenario] = {"reachable": reachable, "reason": reason}
                 reachability_url = bridge_url.rsplit("/", 1)[0] + "/reachability" if bridge_url else ""
-                mapped.setdefault(scenario, {}).setdefault(group, {})[command] = BridgeBinding(spec["id"], spec.get("effect", ""), session_id, bridge_url, self.invocations, reachable, reason, spec.get("rows_field", ""), spec.get("meta_fields", []), spec.get("row_field_candidates", []), reachability_url)
+                command_segments = [_segment(segment) for segment in str(command).split("/") if segment]
+                if not command_segments:
+                    raise ValueError(f"binding {spec.get('id', '')!r} has an empty command path")
+                commands = mapped.setdefault(scenario, {}).setdefault(group, {})
+                for segment in command_segments[:-1]:
+                    child = commands.setdefault(segment, {})
+                    if not isinstance(child, dict):
+                        raise ValueError(f"binding command path collides at {scenario}.{group}.{segment}")
+                    commands = child
+                leaf = command_segments[-1]
+                if leaf in commands:
+                    raise ValueError(f"binding command path collides at {scenario}.{group}.{'.'.join(command_segments)}")
+                commands[leaf] = BridgeBinding(spec["id"], spec.get("effect", ""), session_id, bridge_url, self.invocations, reachable, reason, spec.get("rows_field", ""), spec.get("meta_fields", []), spec.get("row_field_candidates", []), reachability_url)
             bindings = mapped
         else:
             reachability = {scenario: {"reachable": True, "reason": ""} for scenario in bindings}
@@ -1198,7 +1209,7 @@ class SessionKernel:
             # are both valid. A keyword-only surface reads as an inconsistency
             # next to `discover` and is a needless first-attempt failure.
             "recall": _projection_verb(root, "recall", "intent", aliases=("query",), options=("depth", "rows")),
-            "guide": _projection_verb(root, "guide", "task", options=("rows",)),
+            "guide": _projection_verb(root, "guide", "task", aliases=("intent", "query", "text"), options=("rows",)),
             "validate": _projection_verb(root, "validate", "scenario", options=("depth", "rows")),
             "capture": _projection_verb(root, "capture", "text", options=("kind", "trigger", "approach", "evidence", "outcome", "rows")),
             "ai": root.ai,

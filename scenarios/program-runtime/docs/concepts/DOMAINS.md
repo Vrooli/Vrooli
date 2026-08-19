@@ -151,7 +151,7 @@ named availability gap and does not suppress other focus sources.
 - API: `api/internal/programs/`.
 - Kernel: `kernel/host/` — handle implementation and materialization.
 - Storage: submissions, results, failure detail.
-- Requirements: `requirements/04-programs/` — `PRT-P0-003`, `PRT-P1-002`,
+- Requirements: `requirements/04-programs/` — `PRT-P0-003`, `PRT-P0-010`, `PRT-P1-002`,
   `PRT-P1-003`, `PRT-P1-006`, `PRT-P1-008`, `PRT-P2-002`.
 - Tests: bounded repr, explicit materialization, in-kernel aggregation,
   the context-bytes-per-query budget, inference routing, delegation.

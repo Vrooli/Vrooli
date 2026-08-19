@@ -95,8 +95,9 @@ func TestProjectManifestBindsControlPlaneMethods(t *testing.T) {
 	r, err := Load(repoRoot(t))
 	require.NoError(t, err)
 	bindings := r.List("vrooli", "scenario")
-	require.Len(t, bindings, 6)
+	require.Len(t, bindings, 7)
 	want := map[string]struct{}{
+		"ListScenarios":     {},
 		"GetScenarioStatus": {}, "GetScenarioLogs": {},
 		"StartScenario": {}, "StopScenario": {}, "RestartScenario": {}, "SetupScenario": {},
 	}
@@ -164,6 +165,17 @@ func TestNewManifestNeedsNoScenarioCode(t *testing.T) {
 	if got := len(r.List("program-runtime", "records")); got != 1 {
 		t.Fatalf("fixture produced %d bindings, want 1", got)
 	}
+}
+
+func TestNestedManifestCommandsRetainTheirInvocationPath(t *testing.T) {
+	manifest := `{"name":"program-runtime","groups":[{"name":"bindings","commands":[{"name":"list","binding":{"kind":"connect-rpc","service":"BindingRegistryService","method":"ListBindings"},"governance":{"effect":"read","run_eligible":true}}],"groups":[{"name":"compatibility","flat":true,"commands":[{"name":"describe","binding":{"kind":"connect-rpc","service":"BindingRegistryService","method":"DescribeBinding"},"governance":{"effect":"read","run_eligible":true}}]},{"name":"audit","commands":[{"name":"doctor","binding":{"kind":"connect-rpc","service":"BindingRegistryService","method":"ListBindings"},"governance":{"effect":"read","run_eligible":true}}]}]}]}`
+	r := fixtureRegistry(t, manifest)
+
+	require.NotNil(t, r.byID["program-runtime/bindings/list"])
+	require.NotNil(t, r.byID["program-runtime/bindings/describe"], "flat child commands dispatch at the parent path")
+	require.NotNil(t, r.byID["program-runtime/bindings/audit/doctor"], "non-flat child commands retain the complete invocation path")
+	require.Equal(t, "bindings", r.byID["program-runtime/bindings/audit/doctor"].GetGroup())
+	require.Equal(t, "audit/doctor", r.byID["program-runtime/bindings/audit/doctor"].GetCommand())
 }
 
 func TestMalformedManifestIsSkippedAndReported(t *testing.T) {

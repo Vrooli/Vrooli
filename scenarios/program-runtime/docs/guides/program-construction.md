@@ -327,6 +327,7 @@ optional depth only; use `describe` or `discover` for a binding id.
 | `recall(intent, depth="fast", rows="ranked")` | Search-hub's selected repeated response field; `ranked` is the default. `query=` is an additive alias for `intent=`. `depth="deep"` widens the result set. |
 | `validate(scenario, depth="fast", rows="runs")` | The latest recorded test-genie run rows; `runs` is the default. It does not start a run. |
 | `capture(text, kind="note")` | A one-row Handle containing the append response because the operation has no repeated response field. `kind="work-record"` also accepts `trigger`, `approach`, `evidence`, `outcome`. |
+| `guide(intent, rows="results")` | Prompt Manager's ranked skill/action discovery results; `results` is the default. `task=`, `query=`, and `text=` are additive aliases for `intent=`. |
 | `ai.classify / extract / judge / write / batch` | Bounded typed inference through ai-gateway, schema-validated locally. `classify`, `extract`, and `judge` are deterministic and refuse a caller-supplied `temperature`; only `ai.write` accepts `temperature=` and `max_output_tokens=`. |
 | `agent.start / collect / run` | A delegated agent-manager run and its evidence. |
 | `gather(*callables)` | Concurrent fan-out. |
@@ -337,7 +338,8 @@ optional depth only; use `describe` or `discover` for a binding id.
 Each verb takes its primary argument positionally or by keyword:
 `recall("retention")` and `recall(intent="retention")` are the same call.
 The measured model-facing form `recall(query="retention")` is also accepted.
-`validate` accepts `scenario=` and `capture` accepts `text=`. Supplying two
+`validate` accepts `scenario=`, `capture` accepts `text=`, and `guide` accepts
+`task=`. Supplying two
 spellings of one value raises a `TypeError`; an unknown keyword names the
 offending keyword and lists the accepted keywords so the caller can recover
 without guessing.
@@ -353,10 +355,11 @@ test-genie exposes as run-ineligible, so no governed binding exists for it.
 Start runs through the lifecycle (`vrooli scenario test <name>`) and block once
 on the run id; never poll.
 
-**`guide` is currently unavailable.** prompt-manager ships no resolved manifest
-binding, so there is nothing typed to compose. The verb stays declared and fails
-closed naming that reason rather than silently disappearing. Read skills through
-`prompt-manager skill read <name>` until a binding exists.
+**`guide` is a governed discovery composition.** It maps the caller's intent to
+`prompt-manager/discover/discover`, defaults to the response's `results` rows,
+and returns the same bounded Handle as every other runtime verb. If Prompt
+Manager or that exact binding is unavailable, the verb fails closed naming the
+dependency and reason.
 
 Every verb fails closed and names its unavailable dependency. None of them falls
 back to a shell call or a direct provider call.

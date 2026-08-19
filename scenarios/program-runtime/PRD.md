@@ -49,6 +49,7 @@ product contract, not implementation details.
 - [x] OT-P0-007 | Act projection ownership | The Program Runtime MUST serve the Act denominator through the shared space projection verb.
 - [x] OT-P0-008 | Act numerator registry RPC | The Program Runtime MUST expose a binding-registry RPC that reports, per Act operation class, whether every operation it names resolves to a manifest-bound governed binding, so meta-optimization-manager computes the Act numerator live and never stores it.
 - [x] OT-P0-009 | Domain measure coverage | Every stateful domain the Program Runtime owns MUST carry at least one declared measure in the CLI manifest, or a `measures.omitted` waiver naming the domain and its reason, so measures-health grades the scenario on a stated position rather than an absence.
+- [x] OT-P0-010 | Bounded asynchronous execution | When work cannot complete within the synchronous response budget, the Program Runtime MUST return a durable program identifier and provide one bounded wait operation that reports either terminal completion or the current non-terminal state without client polling.
 
 ### 🟠 P1 – Should have post-launch
 
@@ -112,12 +113,12 @@ Scenario-language independence is structural, not a convention: transport is Con
 | Obligation | Owner | What it unblocks | Consequence if it stalls |
 |---|---|---|---|
 | Publish a per-run delegated charge receipt | `agent-manager` | PRT-P1-011 delegated-run spend ceiling | Receipt contract is live; provider executions without metered attribution remain explicitly unmeasured and do not fabricate zero cost |
-| Raise `cli/manifest.json` coverage beyond 63 of 117 scenarios | fleet-wide; surfaced by `cli-health` and ranked by `meta-optimization-manager` `focus next` | The ceiling on the entire Act surface | Act coverage remains capped by the current manifest-bearing fleet surface no matter how complete this scenario is |
+| Raise `cli/manifest.json` coverage beyond the live `program-runtime bindings doctor --json` census | fleet-wide; surfaced by `cli-health` and ranked by `meta-optimization-manager` `focus next` | The ceiling on the entire Act surface | Act coverage remains capped by the current manifest-bearing fleet surface no matter how complete this scenario is |
 
 **Operational risks.**
 
 1. *Identity propagation is unsolved and deliberately deferred.* Agent identity reaches event receipts today through Go shared packages. The kernel is a non-Go sidecar, so identity across agent to program-runtime to program to ai-gateway does not inherit and must be carried explicitly. This blocks trustworthy attribution of in-program inference; it does not block the runtime.
-2. *Manifest coverage bounds the Act surface.* 63 of 117 scenarios ship a CLI manifest. The callable surface cannot exceed manifest coverage, and the Act numerator reports that honestly rather than concealing it. Raising the ceiling is fleet work, not this scenario's — it is listed under External obligations with a named owner so it is scheduled rather than merely acknowledged.
+2. *Manifest coverage bounds the Act surface.* The live manifest and fleet counts come from `program-runtime bindings doctor --json`; they are intentionally not frozen in this charter. The callable surface cannot exceed manifest coverage, and the Act numerator reports that honestly rather than concealing it. Raising the ceiling is fleet work, not this scenario's — it is listed under External obligations with a named owner so it is scheduled rather than merely acknowledged.
 3. *Execution is not adversarially contained.* Recorded as a stated boundary, not a defect.
 4. *Handle discipline carries the whole value.* Bindings without bounded materialization produce the same context cost with different syntax. This is a design risk, not an implementation detail, and it is why context bytes per query is an acceptance signal rather than a nice-to-have.
 

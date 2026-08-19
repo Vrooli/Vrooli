@@ -192,21 +192,6 @@
         }
       ]
     },
-    "stop": {
-      "description": "Stop services",
-      "steps": [
-        {
-          "name": "stop-api",
-          "run": "pkill -f \"product-manager-agent-api\" || true; sleep 1; pkill -9 -f \"product-manager-agent-api\" 2>/dev/null || true",
-          "description": "Stop API process"
-        },
-        {
-          "name": "stop-ui",
-          "run": "pkill -f \"scenarios/product-manager-agent.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/product-manager-agent.*server\\.js\" 2>/dev/null || true",
-          "description": "Stop UI process"
-        }
-      ]
-    },
     "test": {
       "description": "Comprehensive phased testing for product-manager-agent",
       "steps": [

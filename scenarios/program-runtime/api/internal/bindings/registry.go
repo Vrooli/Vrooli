@@ -636,65 +636,66 @@ func (r *Registry) addManifest(path string, serviceMethods map[string][]methodIn
 		return &bindingsv1.SkippedManifest{Path: path, Scenario: manifestScenario(path, data), ParseError: fmt.Sprintf("parse CLI manifest: %v", err)}, nil
 	}
 	scenario := m.Name
-	for _, group := range m.Groups {
-		for _, command := range group.Commands {
-			b := command.Binding
-			if b.Kind == "local" {
-				r.addUnbound(&bindingsv1.UnboundCapability{Scenario: scenario, Group: group.Name, Command: command.Name, Reason: bindingsv1.UnboundReason_UNBOUND_REASON_LOCAL_BINDING, Detail: "manifest declares a local binding"})
-				continue
+	for _, entry := range manifestCommandEntries(m.Groups, nil) {
+		groupName := entry.group
+		commandName := entry.commandPath
+		command := entry.command
+		b := command.Binding
+		if b.Kind == "local" {
+			r.addUnbound(&bindingsv1.UnboundCapability{Scenario: scenario, Group: groupName, Command: commandName, Reason: bindingsv1.UnboundReason_UNBOUND_REASON_LOCAL_BINDING, Detail: "manifest declares a local binding"})
+			continue
+		}
+		if !command.Governance.RunEligible {
+			r.addUnbound(&bindingsv1.UnboundCapability{Scenario: scenario, Group: groupName, Command: commandName, Service: b.Service, Method: b.Method, Reason: bindingsv1.UnboundReason_UNBOUND_REASON_EXTERNAL_TOOL_ONLY, Detail: "manifest governance declares run_eligible=false"})
+			continue
+		}
+		info, err := resolveMethod(scenario, b.Service+"."+b.Method, serviceMethods, sharedPrefixes)
+		if err != nil {
+			r.addUnbound(&bindingsv1.UnboundCapability{Scenario: scenario, Group: groupName, Command: commandName, Service: b.Service, Method: b.Method, Reason: bindingsv1.UnboundReason_UNBOUND_REASON_OMITTED_RPC, Detail: "manifest binding does not resolve in the descriptor image"})
+			continue
+		}
+		id := scenario + "/" + groupName + "/" + commandName
+		requiresConfirmation := command.Governance.RequiresConfirmation != nil && *command.Governance.RequiresConfirmation
+		if command.Governance.RequiresConfirmation == nil && command.Governance.Effect == "destructive" {
+			requiresConfirmation = true
+		}
+		binding := &bindingsv1.Binding{
+			Id: id, Scenario: scenario, Group: groupName, Command: commandName,
+			Service: b.Service, Method: b.Method, RequestType: string(info.input.FullName()), ResponseType: string(info.output.FullName()),
+			Effect: command.Governance.Effect, RunEligible: true, RequiresConfirmation: requiresConfirmation,
+			Permissions: append([]string(nil), command.Governance.Permissions...), Description: command.Description,
+			Signature: fmt.Sprintf("%s.%s(%s) -> %s", b.Service, b.Method, info.input.FullName(), info.output.FullName()),
+		}
+		projection := responseProjectionFor(info.output, "")
+		if command.Architecture != nil {
+			projection = responseProjectionFor(info.output, command.Architecture.PrimaryField)
+		}
+		binding.RowsField = projection.rowsField
+		binding.MetaFields = append([]string(nil), projection.metaFields...)
+		binding.RowFieldCandidates = append([]string(nil), projection.candidateFields...)
+		r.bindings = append(r.bindings, binding)
+		r.byID[id] = binding
+		r.methods[id] = info
+		req := make(map[string]bool)
+		for _, p := range command.Positionals {
+			if p.Required && !p.LocalOnly {
+				req[p.Name] = true
 			}
-			if !command.Governance.RunEligible {
-				r.addUnbound(&bindingsv1.UnboundCapability{Scenario: scenario, Group: group.Name, Command: command.Name, Service: b.Service, Method: b.Method, Reason: bindingsv1.UnboundReason_UNBOUND_REASON_EXTERNAL_TOOL_ONLY, Detail: "manifest governance declares run_eligible=false"})
-				continue
+		}
+		for _, f := range command.Flags {
+			if f.Required && !f.LocalOnly {
+				req[f.Name] = true
 			}
-			info, err := resolveMethod(scenario, b.Service+"."+b.Method, serviceMethods, sharedPrefixes)
-			if err != nil {
-				r.addUnbound(&bindingsv1.UnboundCapability{Scenario: scenario, Group: group.Name, Command: command.Name, Service: b.Service, Method: b.Method, Reason: bindingsv1.UnboundReason_UNBOUND_REASON_OMITTED_RPC, Detail: "manifest binding does not resolve in the descriptor image"})
-				continue
-			}
-			id := scenario + "/" + group.Name + "/" + command.Name
-			requiresConfirmation := command.Governance.RequiresConfirmation != nil && *command.Governance.RequiresConfirmation
-			if command.Governance.RequiresConfirmation == nil && command.Governance.Effect == "destructive" {
-				requiresConfirmation = true
-			}
-			binding := &bindingsv1.Binding{
-				Id: id, Scenario: scenario, Group: group.Name, Command: command.Name,
-				Service: b.Service, Method: b.Method, RequestType: string(info.input.FullName()), ResponseType: string(info.output.FullName()),
-				Effect: command.Governance.Effect, RunEligible: true, RequiresConfirmation: requiresConfirmation,
-				Permissions: append([]string(nil), command.Governance.Permissions...), Description: command.Description,
-				Signature: fmt.Sprintf("%s.%s(%s) -> %s", b.Service, b.Method, info.input.FullName(), info.output.FullName()),
-			}
-			projection := responseProjectionFor(info.output, "")
-			if command.Architecture != nil {
-				projection = responseProjectionFor(info.output, command.Architecture.PrimaryField)
-			}
-			binding.RowsField = projection.rowsField
-			binding.MetaFields = append([]string(nil), projection.metaFields...)
-			binding.RowFieldCandidates = append([]string(nil), projection.candidateFields...)
-			r.bindings = append(r.bindings, binding)
-			r.byID[id] = binding
-			r.methods[id] = info
-			req := make(map[string]bool)
-			for _, p := range command.Positionals {
-				if p.Required && !p.LocalOnly {
-					req[p.Name] = true
-				}
-			}
-			for _, f := range command.Flags {
-				if f.Required && !f.LocalOnly {
-					req[f.Name] = true
-				}
-			}
-			r.required[id] = req
-			schema, err := cliapp.ManifestArgs(command)
-			if err != nil {
-				return nil, fmt.Errorf("manifest %s command %s/%s: %w", path, group.Name, command.Name, err)
-			}
-			r.schemas[id] = schema
-			r.addSemanticCounts(scenario, command, info.input, schema)
-			for _, key := range []string{normalizeField(command.Name), normalizeField(group.Name + "/" + command.Name), normalizeField(b.Service + "." + b.Method), normalizeField(id)} {
-				r.operation[key] = append(r.operation[key], binding)
-			}
+		}
+		r.required[id] = req
+		schema, err := cliapp.ManifestArgs(command)
+		if err != nil {
+			return nil, fmt.Errorf("manifest %s command %s/%s: %w", path, groupName, commandName, err)
+		}
+		r.schemas[id] = schema
+		r.addSemanticCounts(scenario, command, info.input, schema)
+		for _, key := range []string{normalizeField(command.Name), normalizeField(commandName), normalizeField(groupName + "/" + commandName), normalizeField(b.Service + "." + b.Method), normalizeField(id)} {
+			r.operation[key] = append(r.operation[key], binding)
 		}
 	}
 	for _, omitted := range m.Omitted {
@@ -704,6 +705,39 @@ func (r *Registry) addManifest(path string, serviceMethods map[string][]methodIn
 		r.addUnbound(&bindingsv1.UnboundCapability{Scenario: scenario, Command: exception.Command, Reason: bindingsv1.UnboundReason_UNBOUND_REASON_EXTERNAL_TOOL_ONLY, Detail: exception.Reason})
 	}
 	return nil, nil
+}
+
+type manifestCommandEntry struct {
+	group       string
+	commandPath string
+	command     cliapp.ManifestCommand
+}
+
+// manifestCommandEntries projects an arbitrarily nested CLI manifest into the
+// binding registry's scenario/group/command shape without losing the real CLI
+// invocation path. The first non-flat segment remains the binding group and
+// deeper non-flat segments become a slash-delimited command path. A flat child
+// contributes no segment, matching cli-core dispatch semantics. Top-level
+// groups retain their name for backward-compatible three-part binding IDs even
+// when the CLI dispatches that group flat at its own root.
+func manifestCommandEntries(groups []cliapp.ManifestGroup, parentPath []string) []manifestCommandEntry {
+	entries := make([]manifestCommandEntry, 0)
+	for _, group := range groups {
+		path := append([]string(nil), parentPath...)
+		if len(path) == 0 || !group.Flat {
+			path = append(path, group.Name)
+		}
+		for _, command := range group.Commands {
+			commandParts := append(append([]string(nil), path[1:]...), command.Name)
+			entries = append(entries, manifestCommandEntry{
+				group:       path[0],
+				commandPath: strings.Join(commandParts, "/"),
+				command:     command,
+			})
+		}
+		entries = append(entries, manifestCommandEntries(group.Groups, path)...)
+	}
+	return entries
 }
 
 // manifestScenarioPath provides the stable owner name for freshness metadata

@@ -1,7 +1,11 @@
 package domains
 
 import (
+	"fmt"
+
 	"scenario-completeness-scoring/cli/domains/scores"
+
+	measuresv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-completeness-scoring/v1/measures"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
@@ -39,5 +43,13 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 	if err != nil {
 		return nil, err
 	}
-	return []cliapp.SubcommandGroup{scoreGroup}, nil
+	measuresService := measuresv1.File_scenario_completeness_scoring_v1_measures_measures_proto.Services().ByName("MeasuresService")
+	if measuresService == nil {
+		return nil, fmt.Errorf("scoring: MeasuresService descriptor not found")
+	}
+	measuresGroup, err := cliapp.LoadProtoGroupFromManifest(core, measuresService.FullName(), manifest, "scoring", cliapp.ProtoBindingOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("scoring: load measures group: %w", err)
+	}
+	return []cliapp.SubcommandGroup{scoreGroup, measuresGroup}, nil
 }

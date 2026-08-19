@@ -464,12 +464,27 @@ var projectionVerbs = map[string]projectionVerb{
 			return args, nil
 		},
 	},
-	// `guide` has no governed binding: prompt-manager ships no resolved
-	// manifest binding in the live registry, so there is nothing typed to
-	// compose. It stays declared and fails closed with that reason rather than
-	// disappearing, so the gap is visible to the agent and to the unbound
-	// census instead of silently absent.
-	"guide": {owner: "prompt-manager", rows: "results"},
+	// `guide` composes Prompt Manager's discovery surface. The binding returns
+	// ranked skills and actions for a natural-language operation, which is the
+	// same intent-shaped lookup this runtime verb promises. Keeping the mapping
+	// here means guide inherits the registry's schema validation, reachability,
+	// and invocation ledger instead of growing a private Prompt Manager client.
+	"guide": {
+		binding: "prompt-manager/discover/discover",
+		owner:   "prompt-manager",
+		rows:    "results",
+		build: func(request projectionRequest) (map[string]any, error) {
+			intent := request.first("intent", "task", "query", "text")
+			if intent == "" {
+				return nil, errors.New("guide requires a non-empty intent")
+			}
+			// DiscoverRequest models its positional CLI queries as a repeated
+			// field. Preserve that typed shape even though guide accepts one
+			// intent: sending the response's scalar `query` field would fail
+			// descriptor validation before the call reached Prompt Manager.
+			return map[string]any{"queries": []string{intent}}, nil
+		},
+	},
 }
 
 // projectionWholeResponse is the explicit row projection for operations whose

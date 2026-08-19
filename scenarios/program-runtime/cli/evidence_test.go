@@ -77,3 +77,33 @@ func TestEveryDeclaredPrimitiveHasEvidence(t *testing.T) {
 		}
 	}
 }
+
+// TestProgramsWaitCommandUsesGovernedRPC pins the public, single-block wait
+// surface to its typed read-only RPC. [REQ:PRT-P0-010]
+func TestProgramsWaitCommandUsesGovernedRPC(t *testing.T) {
+	m, err := cliapp.ParseManifest(manifestBytes)
+	if err != nil {
+		t.Fatalf("parse manifest: %v", err)
+	}
+	for _, group := range m.Groups {
+		if group.Name != "programs" {
+			continue
+		}
+		for _, command := range group.Commands {
+			if command.Name != "wait" {
+				continue
+			}
+			if command.Binding.Kind != "connect-rpc" || command.Binding.Service != "ProgramService" || command.Binding.Method != "WaitForProgram" {
+				t.Fatalf("programs wait binding = %#v, want ProgramService.WaitForProgram over Connect", command.Binding)
+			}
+			if command.Governance.Effect != "read" || !command.Governance.RunEligible {
+				t.Fatalf("programs wait governance = %#v, want run-eligible read", command.Governance)
+			}
+			if command.Architecture == nil || command.Architecture.Primitive != string(cliapp.PrimitiveProtoList) {
+				t.Fatalf("programs wait architecture = %#v, want proto_list", command.Architecture)
+			}
+			return
+		}
+	}
+	t.Fatal("programs wait command is absent from the CLI manifest")
+}
