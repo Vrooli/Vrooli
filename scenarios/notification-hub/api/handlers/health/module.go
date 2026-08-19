@@ -1,6 +1,7 @@
 package health
 
 import (
+	"context"
 	"net/http"
 
 	"notification-hub/internal/database"
@@ -15,8 +16,20 @@ import (
 // probe convention infrastructure (LB, Kubernetes) reaches for;
 // /api/v1/health is what API clients use so they only have to know
 // one base path.
-func Module(pinger database.Pinger, service, version string) module.Module {
-	h := NewHandler(Deps{Pinger: pinger, Service: service, Version: version})
+
+func Module(pinger database.Pinger, service, version string, postures ...string) module.Module {
+	return ModuleWithIdentity(pinger, nil, service, version, postures...)
+}
+
+// ModuleWithIdentity additionally reports authenticator reachability. The
+// optional seam keeps isolated handler tests focused on the database while
+// production wires the shared owneridentity client.
+func ModuleWithIdentity(pinger database.Pinger, identityChecker interface{ Reachable(context.Context) error }, service, version string, postures ...string) module.Module {
+	posture := "personal"
+	if len(postures) > 0 && postures[0] != "" {
+		posture = postures[0]
+	}
+	h := NewHandler(Deps{Pinger: pinger, Identity: identityChecker, Service: service, Version: version, TrustPosture: posture})
 	return module.Module{
 		Name: "health",
 		Mount: func(r *mux.Router) {

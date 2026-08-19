@@ -170,4 +170,4 @@ proposal for the monetization team to accept or reject.
 - [`../operations/OBSERVABILITY.md`](../operations/OBSERVABILITY.md) — telemetry needed for business validation
 - Project-level monetization strategy: `path:docs/monetization/README.md`
 - Revenue lines: `path:docs/monetization/catalogs/revenue-lines/subscription.md`
-- Channel registry: `path:docs/monetization/catalogs/channels/README.md`
+- Channel registry: `path:../../docs/monetization/catalogs/channels/README.md`

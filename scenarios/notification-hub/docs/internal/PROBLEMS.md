@@ -51,75 +51,121 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 ### 2026-08-17 — Template scaffold still documented as if it were the product
 
-**Symptom:** `DOMAINS.md`, `DATA.md`, `SECURITY.md`, `SEAMS.md`, and
-`TESTING.md` describe a `notes` domain, and `DATA.md` still carries
-`_(your data)_` placeholder rows. A reader who trusts those documents
-will conclude this scenario is a CRUD notes app with no auth model.
+**Status: RESOLVED 2026-08-18.** The reference set was rewritten against the
+five-domain implementation and each registered document is now tracked at
+`active` maturity.
 
-**Root cause:** `template-manager detemplate notification-hub` has not
-run, because no real domain exists to replace the worked example yet.
-The PRD and the requirements registry are scenario-specific; the rest of
-`docs/` is generic template text.
+**Symptom:** `SEAMS.md`, `TESTING.md`, `ARCHITECTURE.md`, and the
+`reference/` documents still contain generic scaffold prose. `DOMAINS.md`,
+`DATA.md`, `FLOWS.md`, `SECURITY.md`, and `INTEGRATIONS.md` were rewritten
+against the real domain map on 2026-08-18 and no longer describe the removed
+example domain.
+A reader who trusts the old generic documents would have concluded this
+scenario was still the generated example app.
 
-**Workaround:** Treat `PRD.md`, `requirements/`, `DECISIONS.md`, and
-`INTEGRATIONS.md` as the authoritative charter. Everything else under
-`docs/` is scaffold until the first real domain lands.
+**Root cause:** the generated documentation set was not fully rewritten when
+the real notification domains first landed.
 
-**Real fix:** Build the first real domain, run `template-manager
-detemplate notification-hub`, then rewrite the concept docs against the
-actual domain map. Raise each document's `maturity` in
-`docs/manifest.json` only as it earns it.
+**Resolution:** Rewrote the remaining reference and internal documents
+against the actual domain map and raised their manifest maturity only after
+the documentation-health checks passed.
 
-**Owner:** unassigned.
+**Owner:** codex.
 
-**Refs:** `docs/manifest.json`, `api/internal/notes/`, `cli/domains/notes/`.
+**Refs:** `docs/manifest.json`, `api/internal/hub/`, `cli/domains/`.
 
 ### 2026-08-17 — OT-P0-001 has a missing prerequisite: no push provider resource exists
 
-**Symptom:** OT-P0-001 requires a real delivery to the owner's iPhone,
-and the PRD names "a new `ntfy` resource" as its dependency. No such
-resource exists under `resources/`, and no `ntfy` blueprint exists under
-`.vrooli/resources/blueprints/`.
+**Status: RESOLVED 2026-08-18 — the prerequisite was removed, not met.**
 
-**Root cause:** The provider decision was made before the resource was
-scaffolded. "Deliver to the iPhone" reads as one task and is two.
-
-**Workaround:** None. The channel adapter cannot be credentialed until
-the resource exists, because credential descriptors live in resource
-manifests by governance rule.
-
-**Real fix:** Scaffold `ntfy` as a `cloud-api` resource via
-`template-manager resource-template generate cloud-api`, following the
-`twilio` manifest shape. Alternatively promote the existing `pushover`
-blueprint (`status: candidate`) instead and revise the PRD.
-
-**Owner:** unassigned.
-
-**Refs:** `resources/twilio/resource.json`,
-`.vrooli/resources/blueprints/pushover.json`,
-`path:docs/resources/resource-templates.md`.
+OT-P0-001 now delivers through Web Push from this scenario's own installed
+progressive web app. No push resource exists and none is needed. The
+rejected relay design is preserved at
+`.vrooli/resources/blueprints/ntfy.json` at `status: candidate`. See the
+2026-08-18 decision rows in `DECISIONS.md`.
 
 ### 2026-08-17 — Event ingress blocked on an upstream gap in vrooli-events
 
-**Symptom:** `vrooli-events` documents this scenario as its primary
-consumer and publishes a webhook subscription contract, but a
-subscription never fires on its own.
+**Status: RESOLVED 2026-08-18.** `vrooli-events` now enqueues matching
+webhook subscriptions and drains them with retry/signature/health updates;
+notification-hub also reconciles its optional subscription at startup and
+accepts the actual nested webhook payload shape.
 
-**Root cause:** On ingest, `vrooli-events` publishes to the SSE broker
-only. `WebhookDeliverer.Deliver` is reachable solely from a manual
-"trigger this subscription" endpoint. There is no matcher, no retry
-queue, and no delivery engine.
+The former upstream gap is retained only as historical context. The active
+contract is documented in `concepts/INTEGRATIONS.md` and covered by
+`internal/integrations/events_test.go`.
 
-**Workaround:** Use direct Connect-RPC and CLI ingress, which is the P0
-path and self-contained.
+### 2026-08-18 — Three confirmed defects in vrooli-events block event ingress
 
-**Real fix:** Belongs to `vrooli-events`, not here. File it there.
-OT-P1-003 stays P1 until it lands.
+**Status: RESOLVED 2026-08-18.** The upstream queue, matcher, retry,
+signature, and health-writer paths are now present and covered by that
+scenario's fan-out tests.
 
-**Owner:** unassigned — upstream.
+The former fan-out, retry/signature, and health-writer defects were fixed in
+`vrooli-events`. This entry remains as an audit trail; notification-hub's
+current receiver and startup reconciliation are covered by
+`internal/integrations/events_test.go`.
 
-**Refs:** `scenarios/vrooli-events/api/handlers.go`,
-`scenarios/vrooli-events/internal/subscription/webhook.go`.
+### 2026-08-18 — vrooli-bridge needs a per-scenario change to carry a new verb
+
+**Status: RESOLVED 2026-08-18.** Bridge dispatch vocabulary is now derived
+from the shared scope catalog. Notification-hub relays through its own
+cataloged `notification-hub notifications relay` command and resolves a
+machine's current node lineage through MachineService.
+
+The former per-scenario bridge allowlist was replaced by catalog-derived,
+run-eligible vocabulary and paired effect/verb grants. Notification-hub now
+dispatches the typed `notification-hub notifications relay` command and
+resolves the target machine's current node lineage before dispatch.
+
+**Refs:** `scenarios/vrooli-bridge/api/internal/dispatch/allowlist.go`,
+`packages/api-core/scopecatalog/catalog.go`,
+`api/internal/hub/bridge.go`.
+
+### 2026-08-18 — Escalation can cross a sensitivity tier
+
+**Status: RESOLVED 2026-08-18.** Each escalation step re-evaluates channel
+approval and emits a content-free pointer when the next channel is not
+approved for the notification label.
+
+**Symptom:** An unanswered critical ask escalates to the next channel in
+the recipient's chain. That channel may hold a lower sensitivity approval
+than the channel the first attempt used.
+
+**Root cause:** Design gap found while writing `SECURITY.md`. The
+sensitivity policy is evaluated once at routing time, and escalation
+reuses the resulting decision rather than re-evaluating per step.
+
+The escalation worker now re-evaluates approval for each step and falls back
+to a content-free pointer when the next channel is not approved.
+
+**Refs:** `docs/internal/SECURITY.md`, `api/internal/hub/escalation.go`,
+OT-P0-010, OT-P1-011.
+
+### 2026-08-18 — External push acceptance environment is not provisioned
+
+**Status: OPEN — operator/platform action required.**
+
+**Symptom:** The implementation and local suites pass, but the stable
+`notification-hub.itsagitime.com` origin does not resolve and no operator
+iPhone or paired Mac evidence is available for the required real-device
+acceptance.
+
+**Root cause:** tunnel-manager has no Cloudflare account ID, tunnel ID, or API
+token configured in this host environment; the remaining acceptance steps
+also require direct operator actions on iOS and macOS.
+
+**Workaround:** Provision the three tunnel-manager credentials, reconcile the
+managed core route, then install the PWA from the stable origin and record the
+push body, timestamp, endpoint prefix, and paired-Mac delivery evidence.
+
+**Real fix:** Complete the operator-owned acceptance for OT-P0-001 and
+OT-P0-015 without changing the stable-origin design.
+
+**Owner:** operator/platform.
+
+**Refs:** `OT-P0-001`, `OT-P0-015`, `docs/concepts/INTEGRATIONS.md`,
+`tunnel-manager config credentials-status --json`.
 
 ## Architecture Drift
 

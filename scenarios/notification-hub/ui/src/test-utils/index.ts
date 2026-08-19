@@ -45,7 +45,21 @@
  * initialised. The pattern above is hoisting-safe and preserves every
  * non-overridden export of `./api/health` via `importOriginal()`.
  */
-export { renderWithProviders } from "@vrooli/api-base/testing";
+import { createElement, type ReactElement } from "react";
+import {
+  renderWithProviders as renderWithBaseProviders,
+  type ProviderRenderOptions,
+  type ProviderRenderResult,
+} from "@vrooli/api-base/testing";
+import { ThemeProvider } from "../theme/ThemeProvider";
+
+export function renderWithProviders(
+  ui: ReactElement,
+  options?: ProviderRenderOptions,
+): ProviderRenderResult {
+  return renderWithBaseProviders(createElement(ThemeProvider, null, ui), options);
+}
+
 export type { ProviderRenderOptions, ProviderRenderResult } from "@vrooli/api-base/testing";
 export { interp } from "./interp";
 export { expectNoA11yViolations } from "@vrooli/api-base/testing";
@@ -56,7 +70,7 @@ export { expectNoA11yViolations } from "@vrooli/api-base/testing";
 //
 // Domain-specific factories (Note, NotesListResponse, etc.) are NOT
 // re-exported here — they live next to the feature they double for
-// (e.g. `features/notes/mocks/factories.ts`) so deleting a feature
+// (e.g. a feature-local mock factory) so deleting a feature
 // folder takes them along.
 export { makeHealthResponse } from "./factories";
 export type { HealthResponse } from "./factories";

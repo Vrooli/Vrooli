@@ -1,114 +1,175 @@
 # Data — Notification Hub
 
-This document is the canonical data ownership and storage map for the
-scenario. Update it when domains add tables, files, blobs, external
-records, retention rules, migrations, imports, or exports.
+Storage model: what is persisted, which domain owns it, how long it is
+kept, and what must never be written here.
 
 ## Purpose Of This Document
 
-Use this document to answer:
-
-- What data does the scenario persist?
-- Which domain owns each data shape?
-- Where is the source of truth?
-- What is the retention/deletion story?
-- How are schema changes handled?
+This document fixes the data shape before the tables exist. Two decisions
+in particular are cheap now and expensive later: the retention rule, and
+which fields are required at ingress. Both are recorded here rather than
+discovered after the first million rows.
 
 ## Storage Overview
 
-The template default is embedded SQLite through `modernc.org/sqlite`.
-The lifecycle sets `SQLITE_PATH` through `.vrooli/service.json`, and
-the API applies schemas on startup through `api-core/database`.
+SQLite through the `api-core` storage seam. One database file, WAL mode,
+owned by the scenario.
 
-External storage resources should be introduced only when a real
-domain needs them. Document those decisions in
-[`INTEGRATIONS.md`](INTEGRATIONS.md) before editing
-`.vrooli/service.json`.
+There is no PostgreSQL, no Redis, and no Docker. This is a capability
+decision, not a convenience one: both `resource-postgres` and
+`resource-redis` remain Docker-backed and are recorded `unsupported` on
+macOS and Windows in `docs/reference/platform-support.md`. Depending on
+either would prevent this scenario from running on the macOS fleet node
+that cross-node delivery exists to reach.
+
+The queue, the retry schedule, the dedupe counters, and the deadline
+sweeper are all in-process and SQLite-backed. At single-owner volume — tens
+to hundreds of notifications a day — this is not a compromise.
 
 ## Data Ownership
 
-Each domain owns its own tables and is the source of truth for its data.
-The `health` domain owns no product data — it only probes configured
-database reachability. As you build real domains, add a row per data
-shape they persist: name it, name the owning domain, the storage backend,
-the schema file that is the source of truth, the retention rule, and any
-remarks. Keep blob/opaque bytes outside proto payloads, behind a seam
-such as BlobStore.
+Each domain owns its own schema file and no domain reads another's tables
+directly. Cross-domain reads go through a service seam.
 
-| Data | Owning Domain | Storage | Source Of Truth | Retention | Notes |
-|---|---|---|---|---|---|
-| _(your data)_ | _(owning domain)_ | SQLite (default) | `api/internal/<domain>/schema.sql` | Product-defined delete trigger. | Per-domain ownership. |
+| Domain | Schema file | Owns |
+|---|---|---|
+| recipients | `api/internal/recipients/schema.sql` | `recipients`, `devices`, `channel_addresses`, `push_subscriptions`, `quiet_windows`, `escalation_chains` |
+| notifications | `api/internal/notifications/schema.sql` | `notifications`, `notification_events` |
+| routing | `api/internal/routing/schema.sql` | `routing_decisions`, `holds`, `suppressions` |
+| delivery | `api/internal/delivery/schema.sql` | `delivery_attempts`, `receipts`, `machine_channel_status` |
+| conversations | `api/internal/conversations/schema.sql` | `asks`, `answers`, `escalation_steps` |
 
 ## Schema Map
 
-Each domain's schema file lives beside the code that interprets it. The
-`system schema` is the only cross-cutting, non-domain table set.
+### recipients
 
-| Table/File/Object | Owner | Defined In | Used By |
-|---|---|---|---|
-| _(your domain tables)_ | _(owning domain)_ | `api/internal/<domain>/schema.sql` | That domain's repository/service/handlers |
-| system schema | infrastructure | `api/internal/database/system.sql` | API boot and cross-cutting DB setup |
+- `recipients` — one row per verified identity. Keyed by the
+  `scenario-authenticator` subject claim. No password, no API key, no
+  profile. Created on first authenticated sight.
+- `devices` — a named endpoint belonging to a recipient: a phone, a
+  laptop, a Mac node. Carries an optional `machine_id` when the device is
+  a fleet machine.
+- `channel_addresses` — one row per `(device, channel)`. The address shape
+  depends on the channel: an email address, a phone number, or a machine
+  reference for a host-bound channel.
+- `push_subscriptions` — endpoint, `p256dh`, `auth`, and the browser and
+  origin it was created against. One row per browser per recipient. This
+  table is expected to churn; see Retention.
+- `quiet_windows` — per recipient, a weekday and time range in the
+  recipient's timezone, plus whether critical urgency overrides it.
+- `escalation_chains` — ordered channel preference used when a critical
+  notification is not acknowledged.
 
-<!-- EXAMPLE-DOMAIN:notes START -->
-### Example domain — `notes` (removed by `template-manager detemplate`)
+### notifications
 
-The template ships the `notes` domain as a worked CRUD slice with a
-binary attachment-upload exception, showing how a real domain owns its
-tables, metadata, and opaque blob bytes. Copy its shape, then remove it.
+- `notifications` — the durable record returned to every caller. Required
+  at ingress and never nullable: `sensitivity_label`, `urgency`,
+  `idempotency_key`, `requested_by`. A unique index on
+  `(requested_by, idempotency_key)` is what makes OT-P0-012 true in the
+  database rather than in a handler.
+- `notification_events` — append-only state transitions with a timestamp
+  and a reason. This is what the timeline reads. A notification's current
+  state is derived from its last event, so no state is lost to an update.
 
-Its Data Ownership rows:
+### routing
 
-| Data | Owning Domain | Storage | Source Of Truth | Retention | Notes |
-|---|---|---|---|---|---|
-| Notes | notes | SQLite | `api/internal/notes/schema.sql` | Until deleted by future product behavior | Template reference data; remove with notes domain. |
-| Attachment metadata | notes | SQLite | `api/internal/notes/schema.sql` | Until parent note or attachment is deleted by future product behavior | Metadata only; bytes are stored through BlobStore. |
-| Attachment bytes | notes | Filesystem BlobStore by default | BlobStore implementation in notes handler module | Same lifecycle as metadata | Opaque bytes stay outside proto payloads. |
+- `routing_decisions` — the chosen channels, the machine each was routed
+  to, and the rule that selected them. Recorded once and never
+  recomputed, so the timeline can explain a past choice even after
+  preferences change.
+- `holds` — a notification waiting for a quiet window to close, with the
+  release time. The sweeper reads this table.
+- `suppressions` — dedupe keys and their windows, recording which
+  notification a suppressed request collapsed into.
 
-Its Schema Map row:
+### delivery
 
-| Table/File/Object | Owner | Defined In | Used By |
-|---|---|---|---|
-| notes tables | notes | `api/internal/notes/schema.sql` | notes repository/service/handlers |
+- `delivery_attempts` — one row per attempt, not per notification. Carries
+  channel, machine, outcome, error reason, and attempt number. **This is
+  the table that grows fastest**, because retry multiplies rows.
+- `receipts` — the terminal record for a successful delivery.
+- `machine_channel_status` — the cached answer to "can machine M serve
+  channel C", with the disposition, the stated reason, and when it was
+  observed. This is a cache with a stated lifetime, not a source of
+  truth; the source is the remote instance's own
+  `notification-hub channels status`; delivery itself uses the cataloged
+  `notification-hub notifications relay` verb.
 
-Its Retention And Deletion row:
+### conversations
 
-| Data | Delete Trigger | Retention Rule | Current Gap |
-|---|---|---|---|
-| Template notes data | Domain removal or future product delete behavior | Local development data only | Real scenarios must define product-specific deletion semantics. |
-<!-- EXAMPLE-DOMAIN:notes END -->
+- `asks` — a question, its allowed answers, its deadline, and its state.
+  Durable so a restart between question and answer does not strand a
+  blocked caller.
+- `answers` — the chosen answer, who gave it, and when.
+- `escalation_steps` — each escalation taken for an unanswered critical
+  ask, with the channel tried and the outcome.
 
 ## Migrations And Compatibility
 
-The generated template uses idempotent schema bootstrap. Domain schema
-files should use `CREATE TABLE IF NOT EXISTS` and live beside the code
-that interprets them.
+Schema is applied through the shared `database.EnsureSchemas` seam with
+per-domain providers. Each domain contributes its own embedded
+`schema.sql`.
 
-For production data migrations that need column drops, renames, or data
-backfills, add a scenario-specific migration plan here and update
-[`../internal/DECISIONS.md`](../internal/DECISIONS.md) with the tradeoff.
+Two fields are required from the first proto version rather than added
+later: `sensitivity_label` and `idempotency_key`. Adding a required field
+after release is a breaking change across the API, the CLI, and the UI at
+once, and the cost of carrying them from the start is one column each.
 
 ## Import / Export
 
-| Path | Format | Owner | Status |
-|---|---|---|---|
-| None yet. | n/a | n/a | Add when product requirements include import/export. |
+The delivery timeline is exportable as JSON through the CLI for offline
+analysis. There is no import path: a notification's history is a record of
+what this scenario did, and accepting a foreign history would make the
+timeline unfalsifiable.
+
+Push subscription material is never exported. It is credential-equivalent:
+anyone holding an endpoint plus its keys can push to that browser.
 
 ## Retention And Deletion
 
-| Data | Delete Trigger | Retention Rule | Current Gap |
-|---|---|---|---|
-| _(your data)_ | What removes it. | How long it is kept. | Real scenarios must define product-specific deletion semantics. |
+Retention is defined before the tables exist, because an unbounded attempt
+table is a known failure mode elsewhere in this repository, not a
+hypothetical one.
+
+| Table | Rule | Reason |
+|---|---|---|
+| `notifications` | 90 days | The timeline is an operational surface, not an archive. |
+| `notification_events` | Deleted with the parent notification. | Events have no meaning without the record. |
+| `delivery_attempts` | 30 days | Grows fastest. Retry multiplies rows per notification. |
+| `receipts` | 90 days, with the notification. | Evidence a delivery happened. |
+| `routing_decisions` | 90 days, with the notification. | Needed to explain a past choice. |
+| `holds`, `suppressions` | Deleted when released or expired. | Working state, not history. |
+| `machine_channel_status` | Overwritten per observation; no history. | A cache. |
+| `asks`, `answers`, `escalation_steps` | 90 days | Audit of decisions taken through the fleet gate. |
+| `push_subscriptions` | Deleted immediately when the push service reports the endpoint gone. | A dead subscription that looks alive is the failure mode OT-P0-014 exists to prevent. |
+
+A retention pass runs on a schedule and records how many rows it removed.
+A pass that removes nothing for a table that is growing is a signal, not a
+success.
 
 ## Privacy Notes
 
-Generated template data is local development data. If a scenario stores
-personal, regulated, customer, financial, or sensitive business data,
-update this document and [`../internal/SECURITY.md`](../internal/SECURITY.md)
-before implementation expands.
+Notification bodies can carry anything a caller puts in them, which is why
+`sensitivity_label` is required at ingress rather than inferred. Only the
+caller knows whether a body is safe on a locked screen.
+
+Web Push payloads are encrypted end to end under RFC 8291 with keys held
+only by this scenario and the recipient's browser. No push service can
+read a body. This is stronger than keeping bodies on an owner-run server
+that the phone must then reach, and it is why the self-hosted relay design
+was rejected.
+
+Push subscription rows are credential-equivalent and must be treated as
+secrets: never logged, never exported, never included in a support bundle.
+
+Delivery attempt error reasons are written to the timeline and may be
+shown in the UI. An adapter must not put body content into an error
+reason.
 
 ## Cross-References
 
-- [`DOMAINS.md`](DOMAINS.md) — data ownership by domain
-- [`INTEGRATIONS.md`](INTEGRATIONS.md) — external resources and scenarios
-- [`../reference/configuration.md`](../reference/configuration.md) — runtime configuration
-- [`../internal/SECURITY.md`](../internal/SECURITY.md) — privacy/security posture
+- [`DOMAINS.md`](DOMAINS.md) — which domain owns each table.
+- [`FLOWS.md`](FLOWS.md) — the order these tables are written in.
+- [`../internal/SECURITY.md`](../internal/SECURITY.md) — threat model and
+  secret handling.
+- [`../../PRD.md`](../../PRD.md) — OT-P0-013 and OT-P0-014.

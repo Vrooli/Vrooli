@@ -109,5 +109,5 @@ taxonomy.
 - [`MONETIZATION.md`](MONETIZATION.md) — market position, packaging, and pricing hypothesis
 - [`../../PRD.md`](../../PRD.md) — product outcomes and sequencing
 - [`../operations/OBSERVABILITY.md`](../operations/OBSERVABILITY.md) — validation signals and telemetry
-- Channel registry: `path:docs/monetization/catalogs/channels/README.md`
+- Channel registry: `path:../../docs/monetization/catalogs/channels/README.md`
 - Publication-source skills: `path:skills/README.md`

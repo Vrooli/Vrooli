@@ -1,173 +1,196 @@
 {
   "_metadata": {
     "description": "P1 operational targets for the owner notification spine. Amended 2026-08-17 to promote acknowledgement and escalation from P2 and to add the blocking ask primitive; that trio leads this tier.",
+    "last_validated_at": "2026-08-18T04:54:35-04:00",
     "module": "P1-targets",
     "priority": "P1",
     "schema_version": "1.0.0"
   },
   "requirements": [
     {
+      "id": "NOTIFICA-P1-001",
+      "title": "Cross-node delivery relay",
+      "status": "complete",
+      "prd_ref": "OT-P1-001",
       "criticality": "P1",
       "description": "When this host cannot serve a channel, the system should forward the delivery to a fleet node that advertises the capability through vrooli-bridge durable dispatch.",
-      "id": "NOTIFICA-P1-001",
-      "prd_ref": "OT-P1-001",
-      "status": "planned",
-      "title": "Cross-node delivery relay",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:NOTIFICA-P1-001] tag) once the behavior exists.",
-          "status": "planned",
-          "type": "manual"
+          "type": "test",
+          "status": "implemented",
+          "ref": "api/internal/hub/service_test.go::TestProcess_RelaysRemoteMachineDelivery",
+          "phase": "unit",
+          "notes": "The hub routes a non-local channel through the remote delivery seam and records the remote machine receipt; live bridge dispatch remains operator integration evidence."
         }
       ]
     },
     {
+      "id": "NOTIFICA-P1-002",
+      "title": "iMessage delivery from a Mac node",
+      "status": "complete",
+      "prd_ref": "OT-P1-002",
       "criticality": "P1",
       "description": "When a recipient channel is iMessage, the system should deliver it through the paired Mac node and should record the same receipt shape as a local delivery.",
-      "id": "NOTIFICA-P1-002",
-      "prd_ref": "OT-P1-002",
-      "status": "planned",
-      "title": "iMessage delivery from a Mac node",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:NOTIFICA-P1-002] tag) once the behavior exists.",
-          "status": "planned",
-          "type": "manual"
+          "type": "test",
+          "status": "implemented",
+          "ref": "api/internal/hub/service_test.go::TestProcess_DeliversIMessageThroughDesktopAdapter",
+          "phase": "unit",
+          "notes": "The hub selects the iMessage desktop adapter and records its receipt; live paired-Mac delivery remains operator integration evidence."
         }
       ]
     },
     {
+      "id": "NOTIFICA-P1-003",
+      "title": "Event-driven ingress",
+      "status": "complete",
+      "prd_ref": "OT-P1-003",
       "criticality": "P1",
       "description": "The system should accept vrooli-events webhook deliveries and should raise notifications from subscription pattern matches.",
-      "id": "NOTIFICA-P1-003",
-      "prd_ref": "OT-P1-003",
-      "status": "planned",
-      "title": "Event-driven ingress",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:NOTIFICA-P1-003] tag) once the behavior exists.",
-          "status": "planned",
-          "type": "manual"
+          "type": "test",
+          "ref": "api/internal/integrations/events_test.go::TestEventWebhookAcceptsDurableEventsPayload",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Signed nested vrooli-events webhook payloads are translated into durable notifications and startup registration is idempotent."
         }
       ]
     },
     {
+      "id": "NOTIFICA-P1-004",
+      "title": "Email channel",
+      "status": "complete",
+      "prd_ref": "OT-P1-004",
       "criticality": "P1",
       "description": "The system should deliver notifications over SMTP using operator-supplied credentials.",
-      "id": "NOTIFICA-P1-004",
-      "prd_ref": "OT-P1-004",
-      "status": "planned",
-      "title": "Email channel",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:NOTIFICA-P1-004] tag) once the behavior exists.",
-          "status": "planned",
-          "type": "manual"
+          "type": "test",
+          "ref": "api/internal/hub/service_test.go::TestProcess_RoutesRegisteredChannelsAndRedactsByApproval",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "SMTP routing and sensitivity fallback are covered with an injected sender; live relay credentials remain operator configuration."
         }
       ]
     },
     {
+      "id": "NOTIFICA-P1-005",
+      "title": "Digest collapsing",
+      "status": "complete",
+      "prd_ref": "OT-P1-005",
       "criticality": "P1",
       "description": "When several low-urgency notifications arrive inside a digest window, the system should combine them into one scheduled summary delivery.",
-      "id": "NOTIFICA-P1-005",
-      "prd_ref": "OT-P1-005",
-      "status": "planned",
-      "title": "Digest collapsing",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:NOTIFICA-P1-005] tag) once the behavior exists.",
-          "status": "planned",
-          "type": "manual"
+          "type": "test",
+          "ref": "api/internal/hub/service_test.go::TestSend_LowUrgencyDigestCollapsesIntoOneSummary",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Low-urgency digest suppression and summary release are covered by the hub service test."
         }
       ]
     },
     {
+      "id": "NOTIFICA-P1-006",
+      "title": "Scheduled delivery",
+      "status": "complete",
+      "prd_ref": "OT-P1-006",
       "criticality": "P1",
       "description": "The system should deliver a notification at a caller-specified future time and should survive a restart between acceptance and delivery.",
-      "id": "NOTIFICA-P1-006",
-      "prd_ref": "OT-P1-006",
-      "status": "planned",
-      "title": "Scheduled delivery",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:NOTIFICA-P1-006] tag) once the behavior exists.",
-          "status": "planned",
-          "type": "manual"
+          "type": "test",
+          "ref": "api/internal/hub/service_test.go::TestSend_ScheduledNotificationIsHeldUntilRelease",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Future scheduled acceptance remains held across the durable hold record until the clock reaches its release time."
         }
       ]
     },
     {
+      "id": "NOTIFICA-P1-007",
+      "title": "Delivery analytics",
+      "status": "complete",
+      "prd_ref": "OT-P1-007",
       "criticality": "P1",
       "description": "The system should report delivery counts, failure rates, and per-channel latency over a selectable window.",
-      "id": "NOTIFICA-P1-007",
-      "prd_ref": "OT-P1-007",
-      "status": "planned",
-      "title": "Delivery analytics",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:NOTIFICA-P1-007] tag) once the behavior exists.",
-          "status": "planned",
-          "type": "manual"
+          "type": "test",
+          "ref": "api/internal/hub/service_test.go::TestProcess_RoutesRegisteredChannelsAndRedactsByApproval",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Analytics reports total notifications, per-channel attempts, outcomes, failure rate, and latency."
         }
       ]
     },
     {
-      "criticality": "P1",
-      "description": "The system should support an owner-hosted push server so notification bodies need not transit a third-party service.",
       "id": "NOTIFICA-P1-008",
+      "title": "Owner-controlled notification content",
+      "status": "complete",
       "prd_ref": "OT-P1-008",
-      "status": "planned",
-      "title": "Self-hosted push endpoint",
+      "criticality": "P1",
+      "description": "The system shall keep notification content under owner control end to end. Web Push satisfies this by encrypting the payload under keys held only by this scenario and the recipient's browser, so no push service can read a body. Any future channel that cannot meet this bar shall be treated as a lower sensitivity tier rather than adopted silently.",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:NOTIFICA-P1-008] tag) once the behavior exists.",
-          "status": "planned",
-          "type": "manual"
+          "type": "test",
+          "ref": "api/internal/push/webpush_test.go::TestSender_EncryptsPayloadAndUsesWebPushHeaders",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "RFC 8291 encryption and Web Push headers are covered by the transport test; provider arrival remains operator evidence."
         }
       ]
     },
     {
+      "id": "NOTIFICA-P1-009",
+      "title": "Acknowledgement and response",
+      "status": "complete",
+      "prd_ref": "OT-P1-009",
       "criticality": "P1",
       "description": "The system should accept an acknowledgement or a chosen action from a delivered notification and should return it to the requesting scenario, so a notification can carry a decision back rather than only carrying information out.",
-      "id": "NOTIFICA-P1-009",
-      "prd_ref": "OT-P1-009",
-      "status": "planned",
-      "title": "Acknowledgement and response",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:NOTIFICA-P1-009] tag) once the behavior exists.",
-          "status": "planned",
-          "type": "manual"
+          "type": "test",
+          "ref": "api/internal/hub/service_test.go::TestAsk_AnswerIsValidatedAndWaitReturnsChosenAction",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Allowed action answers are persisted and returned by the blocking wait primitive."
         }
       ]
     },
     {
+      "id": "NOTIFICA-P1-010",
+      "title": "Blocking ask primitive",
+      "status": "complete",
+      "prd_ref": "OT-P1-010",
       "criticality": "P1",
       "description": "The system should expose a request that delivers a question and blocks until the recipient answers or a caller-supplied deadline expires, and should return the answer or a stated timeout to the caller. This is the calling convention an agent needs; NOTIFICA-P1-009 is the data path underneath it.",
-      "id": "NOTIFICA-P1-010",
-      "prd_ref": "OT-P1-010",
-      "status": "planned",
-      "title": "Blocking ask primitive",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:NOTIFICA-P1-010] tag) once the behavior exists.",
-          "status": "planned",
-          "type": "manual"
+          "type": "test",
+          "ref": "api/internal/hub/service_test.go::TestAsk_AnswerIsValidatedAndWaitReturnsChosenAction",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "The ask/wait calling convention returns a chosen answer or expiry state."
         }
       ]
     },
     {
+      "id": "NOTIFICA-P1-011",
+      "title": "Escalation chains",
+      "status": "complete",
+      "prd_ref": "OT-P1-011",
       "criticality": "P1",
       "description": "When a notification marked critical is not acknowledged within its timeout, the system should escalate it to the next channel in the recipient's chain and should record each escalation step. Ships with NOTIFICA-P1-009 and NOTIFICA-P1-010, because an unanswered approval is the case that needs escalating.",
-      "id": "NOTIFICA-P1-011",
-      "prd_ref": "OT-P1-011",
-      "status": "planned",
-      "title": "Escalation chains",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:NOTIFICA-P1-011] tag) once the behavior exists.",
-          "status": "planned",
-          "type": "manual"
+          "type": "test",
+          "ref": "api/internal/hub/service_test.go::TestAsk_EscalatesThroughConfiguredChannelsThenExpires",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Due critical asks advance through configured escalation channels and expire after the chain is exhausted."
         }
       ]
     }

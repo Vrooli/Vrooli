@@ -4,13 +4,17 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"notification-hub/internal/capabilities"
+	"notification-hub/internal/hub"
+	"notification-hub/internal/integrations"
 	"notification-hub/internal/modules"
+	"notification-hub/internal/push"
 	"notification-hub/internal/server"
 
 	"github.com/vrooli/api-core/schedule"
@@ -18,16 +22,29 @@ import (
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/devrouting"
+	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/filerouting"
+	"github.com/vrooli/api-core/owneridentity"
 	"github.com/vrooli/api-core/preflight"
 	apiserver "github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
+	"github.com/vrooli/api-core/trustposture"
 	_ "modernc.org/sqlite"
 
 	capsH "notification-hub/handlers/capabilities"
+	conversationH "notification-hub/handlers/conversations"
+	deliveryH "notification-hub/handlers/delivery"
 	healthH "notification-hub/handlers/health"
-	notesH "notification-hub/handlers/notes" // EXAMPLE-DOMAIN:notes
+	notificationH "notification-hub/handlers/notifications"
+	recipientsH "notification-hub/handlers/recipients"
+	routingH "notification-hub/handlers/routing"
 )
+
+type pushAdapter struct{ sender *push.Sender }
+
+func (a pushAdapter) Send(ctx context.Context, subscription hub.PushSubscription, title, body string) (string, error) {
+	return a.sender.Send(ctx, push.Subscription{Endpoint: subscription.Endpoint, P256DH: subscription.P256DH, Auth: subscription.Auth}, title, body)
+}
 
 // sqliteDSN resolves the SQLite database file path and wraps it in a DSN
 // with the canonical pragma string. Resolution order:
@@ -150,12 +167,29 @@ func main() {
 		log.Fatalf("file storage configuration failed: %v", err)
 	}
 	fileRoots := filerouting.New(primaryFileRoots)
+	service := hub.New(db, schedule.System(), log.Default())
+	service.SetDefaultRecipient(strings.TrimSpace(os.Getenv("VROOLI_NOTIFICATION_RECIPIENT")))
+	configureWebPush(service, fileRoots)
+	posture := "personal"
+	if state, postureErr := trustposture.LoadWorkingTree(); postureErr != nil {
+		slog.Warn("trust posture unavailable; using fail-safe personal posture", "error", postureErr)
+	} else {
+		posture = string(state.Posture)
+	}
+	ownerVerifier := owneridentity.NewClient(owneridentity.Config{Resolver: discovery.NewResolver(discovery.ResolverConfig{})})
+	service.SetEmailSender(hub.NewSMTPSenderFromEnvironment(os.Getenv))
+	service.SetDesktopSender(hub.NewMacOSDesktopSender())
+	service.SetRemoteDelivery(hub.NewBridgeRemoteFromEnvironment())
 
 	srv := server.New(
 		server.Deps{Clock: schedule.System(), Logger: log.Default()},
-		healthH.Module(db, "notification-hub-api", "1.0.0"),
+		healthH.ModuleWithIdentity(db, ownerVerifier, "notification-hub-api", "1.0.0", posture),
 		capsH.Module(capabilities.NewRegistry()),
-		notesH.Module(db, schedule.System(), log.Default()), // EXAMPLE-DOMAIN:notes
+		notificationH.ModuleWithVerifier(service, ownerVerifier),
+		recipientsH.ModuleWithVerifier(service, ownerVerifier),
+		routingH.ModuleWithVerifier(service, ownerVerifier),
+		deliveryH.ModuleWithVerifier(service, ownerVerifier),
+		conversationH.ModuleWithVerifier(service, ownerVerifier),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development
@@ -163,19 +197,10 @@ func main() {
 	// runtime test DB pool without restarting this scenario.
 	rootMux := http.NewServeMux()
 	devrouting.RegisterWithFileRoots(rootMux, db, fileRoots)
-
-	// EXAMPLE-DOMAIN:notes START
-	// /measures is the measures-go serve substrate: the central measures
-	// index (measures-health) harvests <prefix>/declarations and the
-	// auto-execution path POSTs <prefix>/execute. The notes domain owns the
-	// one reference measure (notes.count); a real multi-domain scenario
-	// registers each domain's measures on one shared registry here.
-	notesMeasures, err := notesH.MeasuresHandler(db, schedule.System())
-	if err != nil {
-		log.Fatalf("measures registry: %v", err)
+	rootMux.Handle("/api/v1/integrations/events", integrations.EventWebhook(service, os.Getenv("VROOLI_EVENTS_WEBHOOK_SECRET")))
+	if err := integrations.EnsureEventSubscription(context.Background(), os.Getenv("VROOLI_EVENTS_API_BASE"), os.Getenv("VROOLI_NOTIFICATION_EVENTS_WEBHOOK_URL"), os.Getenv("VROOLI_NOTIFICATION_EVENTS_PATTERN")); err != nil {
+		slog.Warn("event subscription reconciliation unavailable", "error", err)
 	}
-	rootMux.Handle("/measures/", http.StripPrefix("/measures", notesMeasures))
-	// EXAMPLE-DOMAIN:notes END
 
 	rootMux.Handle("/", srv.Handler())
 
@@ -190,4 +215,35 @@ func main() {
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}
+}
+
+func configureWebPush(service *hub.Service, fileRoots *filerouting.RoutedRoots) {
+	if service == nil {
+		return
+	}
+	subject := strings.TrimSpace(os.Getenv("VROOLI_WEBPUSH_VAPID_SUBJECT"))
+	if subject == "" {
+		subject = "mailto:notification-hub@localhost"
+	}
+	privateValue := strings.TrimSpace(os.Getenv("VROOLI_WEBPUSH_VAPID_PRIVATE_KEY"))
+	publicValue := strings.TrimSpace(os.Getenv("VROOLI_WEBPUSH_VAPID_PUBLIC_KEY"))
+	if privateValue == "" {
+		keyPath, err := fileRootPath(context.Background(), fileRoots, storage.ClassState, "vapid-private-key")
+		if err != nil {
+			slog.Warn("web push transport disabled", "error", fmt.Errorf("resolve VAPID state path: %w", err))
+			return
+		}
+		privateValue, err = push.LoadOrCreatePrivateKey(keyPath)
+		if err != nil {
+			slog.Warn("web push transport disabled", "error", err)
+			return
+		}
+	}
+	sender, err := push.NewFromValues(privateValue, publicValue, subject)
+	if err != nil {
+		slog.Warn("web push transport disabled", "error", err)
+		return
+	}
+	service.SetPushSender(pushAdapter{sender: sender})
+	service.SetWebPushPublicKey(sender.PublicKeyValue())
 }

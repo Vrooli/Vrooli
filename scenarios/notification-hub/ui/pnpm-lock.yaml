@@ -22,7 +22,7 @@ importers:
         version: 1.2.4(@types/react@18.3.28)(react@18.3.1)
       '@tanstack/react-query':
         specifier: ^5.59.0
-        version: 5.100.9(react@18.3.1)
+        version: 5.59.0(react@18.3.1)
       '@vrooli/api-base':
         specifier: file:../../../packages/api-base
         version: file:../../../packages/api-base(@bufbuild/protobuf@2.12.0)(@testing-library/dom@10.4.1)(express@4.22.1)(ws@8.20.0)
@@ -698,16 +698,8 @@ packages:
   '@rtsao/scc@1.1.0':
     resolution: {integrity: sha512-zt6OdqaDoOnJ1ZYsCYGt9YmWzDXl4vQdKTyJev62gFhRGKdx7mcT54V9KIjg+d2wi9EXsPvAPKe7i7WjfVWB8g==}
 
-  '@tanstack/query-core@5.100.9':
-    resolution: {integrity: sha512-SJSFw1S8+kQ0+knv/XGfrbocWoAlT7vDKsSImtLx3ZPQmEcR46hkDjLSvynSy25N8Ms4tIEini1FuBd5k7IscQ==}
-
   '@tanstack/query-core@5.59.0':
     resolution: {integrity: sha512-WGD8uIhX6/deH/tkZqPNcRyAhDUqs729bWKoByYHSogcshXfFbppOdTER5+qY7mFvu8KEFJwT0nxr8RfPTVh0Q==}
-
-  '@tanstack/react-query@5.100.9':
-    resolution: {integrity: sha512-Oa44XkaI3kCNN6ME0KByU3xT3SEUNOMfZpHxL6+wFoTm+OeUFYHKdeYVe0aOXlRDm/f15sgLwEt2HDorIdW8+A==}
-    peerDependencies:
-      react: ^18 || ^19
 
   '@tanstack/react-query@5.59.0':
     resolution: {integrity: sha512-YDXp3OORbYR+8HNQx+lf4F73NoiCmCcSvZvgxE29OifmQFk0sBlO26NWLHpcNERo92tVk3w+JQ53/vkcRUY1hA==}
@@ -3422,14 +3414,7 @@ snapshots:
 
   '@rtsao/scc@1.1.0': {}
 
-  '@tanstack/query-core@5.100.9': {}
-
   '@tanstack/query-core@5.59.0': {}
-
-  '@tanstack/react-query@5.100.9(react@18.3.1)':
-    dependencies:
-      '@tanstack/query-core': 5.100.9
-      react: 18.3.1
 
   '@tanstack/react-query@5.59.0(react@18.3.1)':
     dependencies:

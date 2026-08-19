@@ -49,212 +49,218 @@
       "path": "/api/v1/capabilities/describe",
       "method": "GET",
       "summary": "Describe declared scenario dependencies and their current recovery actions.",
-      "category": "capabilities"
-    },
-    {
-      "id": "notes_list",
-      "path": "/vrooli.notification_hub.v1.notes.NotesService/ListNotes",
-      "method": "POST",
-      "summary": "List notes",
-      "description": "Returns up to 100 notes ordered newest-first by created_at through the generated Connect-RPC Notes service.",
-      "category": "notes",
-      "response": {
-        "type": "object",
-        "properties": {
-          "notes": "array<Note>"
-        }
-      },
-      "errors": [
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "Repository read failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "List notes",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.notification_hub.v1.notes.NotesService/ListNotes -H 'Content-Type: application/json' -d '{}'"
-        }
-      ]
-    },
-    {
-      "id": "notes_create",
-      "path": "/vrooli.notification_hub.v1.notes.NotesService/CreateNote",
-      "method": "POST",
-      "summary": "Create a note",
-      "description": "Persists a new note. Title is required and validated by notes.Service; body is optional.",
-      "category": "notes",
-      "request": {
-        "type": "object",
-        "properties": {
-          "body": "string",
-          "title": "string (required, non-whitespace)"
-        }
-      },
-      "response": {
-        "type": "object",
-        "properties": {
-          "note": "Note"
-        }
-      },
-      "errors": [
-        {
-          "status": 400,
-          "code": "invalid_argument",
-          "description": "Missing or whitespace-only title"
-        },
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "Repository write failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "Create note",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.notification_hub.v1.notes.NotesService/CreateNote -H 'Content-Type: application/json' -d '{\"title\":\"first\",\"body\":\"hello\"}'"
-        }
-      ]
-    },
-    {
-      "id": "notes_get",
-      "path": "/vrooli.notification_hub.v1.notes.NotesService/GetNote",
-      "method": "POST",
-      "summary": "Get a note by id",
-      "description": "Returns the note matching the request id through the generated Connect-RPC Notes service.",
-      "category": "notes",
-      "request": {
-        "type": "object",
-        "properties": {
-          "id": "string"
-        }
-      },
-      "response": {
-        "type": "object",
-        "properties": {
-          "note": "Note"
-        }
-      },
-      "errors": [
-        {
-          "status": 404,
-          "code": "not_found",
-          "description": "No note with that id exists"
-        },
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "Repository read failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "Get note",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.notification_hub.v1.notes.NotesService/GetNote -H 'Content-Type: application/json' -d '{\"id\":\"abc123\"}'"
-        }
-      ]
-    },
-    {
-      "id": "notes_count",
-      "path": "/vrooli.notification_hub.v1.notes.NotesService/CountNotes",
-      "method": "POST",
-      "summary": "Count notes in a time window",
-      "description": "Counts notes created within the requested canonical time window. Bound to the `notes count` measure (read-only, run-eligible) so search-hub can answer analytical questions like \"how many notes were created this week\".",
-      "category": "notes",
-      "request": {
-        "type": "object",
-        "properties": {
-          "window": "TimeWindow (vrooli.measures.v1; e.g. {\"token\":\"TIME_WINDOW_TOKEN_THIS_WEEK\"})"
-        }
-      },
-      "response": {
-        "type": "object",
-        "properties": {
-          "count": "int64 (notes created in the window)"
-        }
-      },
-      "errors": [
-        {
-          "status": 400,
-          "code": "invalid_argument",
-          "description": "Unresolvable or malformed time window"
-        },
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "Repository read failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "Count this week",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.notification_hub.v1.notes.NotesService/CountNotes -H 'Content-Type: application/json' -d '{\"window\":{\"token\":\"TIME_WINDOW_TOKEN_THIS_WEEK\"}}'"
-        }
-      ]
-    },
-    {
-      "id": "notes_attach",
-      "path": "/api/v1/notes/{id}/attachments",
-      "method": "POST",
-      "summary": "Upload a note attachment",
-      "description": "Uploads opaque file bytes through the documented REST multipart exception and returns proto-typed attachment metadata.",
-      "category": "notes",
-      "request": {
-        "type": "multipart/form-data",
-        "properties": {
-          "file": "file (required)"
-        }
-      },
-      "response": {
-        "type": "UploadAttachmentResponse",
-        "properties": {
-          "attachment": "Attachment"
-        }
-      },
-      "errors": [
-        {
-          "status": 400,
-          "code": "invalid_request",
-          "description": "Missing file or invalid multipart upload"
-        },
-        {
-          "status": 404,
-          "code": "not_found",
-          "description": "No note with that id exists"
-        },
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "BlobStore or metadata persistence failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "Attach file",
-          "curl": "curl -X POST http://localhost:${API_PORT}/api/v1/notes/abc123/attachments -F file=@./example.png"
-        }
-      ],
+      "description": "",
+      "category": "capabilities",
       "rest_exception": {
-        "reason": "multipart_upload",
-        "note": "Multipart/form-data request transport cannot be expressed in proto. The response payload is still the proto-typed UploadAttachmentResponse message.",
+        "reason": "ops_probe",
+        "note": "The capability descriptor is a plain operational JSON probe used by the control plane.",
         "proto_payloads": {
           "request": {
-            "transport": "multipart/form-data",
-            "conformance": "transport_only"
+            "transport": "none",
+            "conformance": "none"
           },
           "response": {
-            "proto_full_name": "vrooli.notification_hub.v1.notes.UploadAttachmentResponse",
             "transport": "json",
-            "conformance": "protojson"
+            "conformance": "external_shape"
           },
           "error": {
-            "proto_full_name": "vrooli.notification_hub.v1.shared.ErrorEnvelope",
             "transport": "json",
-            "conformance": "protojson"
+            "conformance": "external_shape"
           }
         }
       }
+    },
+    {
+      "id": "conversations_ask",
+      "path": "/vrooli.notification_hub.v1.conversations.ConversationsService/Ask",
+      "method": "POST",
+      "summary": "Ask a question and persist its deadline",
+      "description": "",
+      "category": "conversations"
+    },
+    {
+      "id": "conversations_answer",
+      "path": "/vrooli.notification_hub.v1.conversations.ConversationsService/Answer",
+      "method": "POST",
+      "summary": "Record an allowed answer",
+      "description": "",
+      "category": "conversations"
+    },
+    {
+      "id": "conversations_wait",
+      "path": "/vrooli.notification_hub.v1.conversations.ConversationsService/Wait",
+      "method": "POST",
+      "summary": "Block until an ask is answered or expires",
+      "description": "",
+      "category": "conversations"
+    },
+    {
+      "id": "delivery_timeline",
+      "path": "/vrooli.notification_hub.v1.delivery.DeliveryService/GetTimeline",
+      "method": "POST",
+      "summary": "Read the delivery timeline",
+      "description": "",
+      "category": "delivery"
+    },
+    {
+      "id": "delivery_deliver",
+      "path": "/vrooli.notification_hub.v1.delivery.DeliveryService/Deliver",
+      "method": "POST",
+      "summary": "Deliver a durable notification",
+      "description": "",
+      "category": "delivery"
+    },
+    {
+      "id": "delivery_analytics",
+      "path": "/vrooli.notification_hub.v1.delivery.DeliveryService/GetAnalytics",
+      "method": "POST",
+      "summary": "Report delivery counts, failure rates, and latency",
+      "description": "",
+      "category": "delivery"
+    },
+    {
+      "id": "notifications_send",
+      "path": "/vrooli.notification_hub.v1.notifications.NotificationsService/Send",
+      "method": "POST",
+      "summary": "Accept a notification and return its durable id",
+      "description": "",
+      "category": "notifications"
+    },
+    {
+      "id": "notifications_relay",
+      "path": "/vrooli.notification_hub.v1.notifications.NotificationsService/Relay",
+      "method": "POST",
+      "summary": "Accept a bridge-safe base64 notification payload",
+      "description": "",
+      "category": "notifications"
+    },
+    {
+      "id": "notifications_get",
+      "path": "/vrooli.notification_hub.v1.notifications.NotificationsService/Get",
+      "method": "POST",
+      "summary": "Read notification state and receipts",
+      "description": "",
+      "category": "notifications"
+    },
+    {
+      "id": "notifications_list",
+      "path": "/vrooli.notification_hub.v1.notifications.NotificationsService/List",
+      "method": "POST",
+      "summary": "List the delivery timeline",
+      "description": "",
+      "category": "notifications"
+    },
+    {
+      "id": "recipients_get",
+      "path": "/vrooli.notification_hub.v1.recipients.RecipientsService/GetRecipient",
+      "method": "POST",
+      "summary": "Read the authenticated recipient projection",
+      "description": "",
+      "category": "recipients"
+    },
+    {
+      "id": "recipients_push_subscribe",
+      "path": "/vrooli.notification_hub.v1.recipients.RecipientsService/RegisterPushSubscription",
+      "method": "POST",
+      "summary": "Register a browser push subscription",
+      "description": "",
+      "category": "recipients"
+    },
+    {
+      "id": "recipients_push_remove",
+      "path": "/vrooli.notification_hub.v1.recipients.RecipientsService/RemovePushSubscription",
+      "method": "POST",
+      "summary": "Remove a dead browser push subscription",
+      "description": "",
+      "category": "recipients"
+    },
+    {
+      "id": "recipients_devices_list",
+      "path": "/vrooli.notification_hub.v1.recipients.RecipientsService/ListDevices",
+      "method": "POST",
+      "summary": "List recipient devices",
+      "description": "",
+      "category": "recipients"
+    },
+    {
+      "id": "recipients_device_upsert",
+      "path": "/vrooli.notification_hub.v1.recipients.RecipientsService/UpsertDevice",
+      "method": "POST",
+      "summary": "Register or update a device",
+      "description": "",
+      "category": "recipients"
+    },
+    {
+      "id": "recipients_device_remove",
+      "path": "/vrooli.notification_hub.v1.recipients.RecipientsService/RemoveDevice",
+      "method": "POST",
+      "summary": "Remove a device",
+      "description": "",
+      "category": "recipients"
+    },
+    {
+      "id": "recipients_address_upsert",
+      "path": "/vrooli.notification_hub.v1.recipients.RecipientsService/UpsertChannelAddress",
+      "method": "POST",
+      "summary": "Register or update a channel address",
+      "description": "",
+      "category": "recipients"
+    },
+    {
+      "id": "recipients_address_remove",
+      "path": "/vrooli.notification_hub.v1.recipients.RecipientsService/RemoveChannelAddress",
+      "method": "POST",
+      "summary": "Remove a channel address",
+      "description": "",
+      "category": "recipients"
+    },
+    {
+      "id": "recipients_quiet_window_set",
+      "path": "/vrooli.notification_hub.v1.recipients.RecipientsService/SetQuietWindow",
+      "method": "POST",
+      "summary": "Configure quiet hours",
+      "description": "",
+      "category": "recipients"
+    },
+    {
+      "id": "recipients_quiet_window_list",
+      "path": "/vrooli.notification_hub.v1.recipients.RecipientsService/ListQuietWindows",
+      "method": "POST",
+      "summary": "List quiet hours",
+      "description": "",
+      "category": "recipients"
+    },
+    {
+      "id": "recipients_quiet_window_delete",
+      "path": "/vrooli.notification_hub.v1.recipients.RecipientsService/DeleteQuietWindow",
+      "method": "POST",
+      "summary": "Delete quiet hours",
+      "description": "",
+      "category": "recipients"
+    },
+    {
+      "id": "recipients_escalation_set",
+      "path": "/vrooli.notification_hub.v1.recipients.RecipientsService/SetEscalationChain",
+      "method": "POST",
+      "summary": "Set ordered escalation channels",
+      "description": "",
+      "category": "recipients"
+    },
+    {
+      "id": "recipients_escalation_get",
+      "path": "/vrooli.notification_hub.v1.recipients.RecipientsService/GetEscalationChain",
+      "method": "POST",
+      "summary": "Read ordered escalation channels",
+      "description": "",
+      "category": "recipients"
+    },
+    {
+      "id": "routing_channels_status",
+      "path": "/vrooli.notification_hub.v1.routing.RoutingService/ChannelsStatus",
+      "method": "POST",
+      "summary": "Report this machine's channel dispositions",
+      "description": "",
+      "category": "routing"
     }
   ]
 }

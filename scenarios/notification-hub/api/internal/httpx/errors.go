@@ -13,7 +13,7 @@
 package httpx
 
 import (
-	"log"
+	"log/slog"
 	"net/http"
 
 	"google.golang.org/protobuf/encoding/protojson"
@@ -46,7 +46,7 @@ const (
 //
 // Handlers reach for WriteError on every non-2xx path so the wire
 // vocabulary stays consistent. Translation from typed sentinels (e.g.,
-// notes.ErrNoteNotFound, notes.ErrInvalidNote) to (status, code,
+// domain errors) to (status, code,
 // message) tuples is the handler's responsibility — this writer just
 // emits.
 //
@@ -72,7 +72,7 @@ func WriteError(w http.ResponseWriter, status int, code, message string) {
 		// comment). If a future shape change makes this firable, the
 		// scenario MUST thread a logger through WriteError instead of
 		// keeping this global-log fallback.
-		log.Printf("httpx.WriteError: protojson marshal failed: %v", err)
+		slog.Default().Error("httpx.WriteError: protojson marshal failed", "error", err)
 		body = []byte(`{"code":"internal","message":"error envelope marshal failed"}`)
 		status = http.StatusInternalServerError
 	}
@@ -86,7 +86,7 @@ func WriteError(w http.ResponseWriter, status int, code, message string) {
 func WriteProto(w http.ResponseWriter, status int, msg proto.Message) {
 	body, err := (protojson.MarshalOptions{UseProtoNames: true}).Marshal(msg)
 	if err != nil {
-		log.Printf("httpx.WriteProto: protojson marshal failed: %v", err)
+		slog.Default().Error("httpx.WriteProto: protojson marshal failed", "error", err)
 		WriteError(w, http.StatusInternalServerError, CodeInternal, "response marshal failed")
 		return
 	}

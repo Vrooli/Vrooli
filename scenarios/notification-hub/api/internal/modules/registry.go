@@ -20,15 +20,27 @@ import (
 	"notification-hub/internal/module"
 
 	capsH "notification-hub/handlers/capabilities"
+	conversationH "notification-hub/handlers/conversations"
+	deliveryH "notification-hub/handlers/delivery"
+	notificationH "notification-hub/handlers/notifications"
+	recipientsH "notification-hub/handlers/recipients"
+	routingH "notification-hub/handlers/routing"
 
 	apidb "github.com/vrooli/api-core/database"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
+	conversationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/conversations"
+	deliveryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/delivery"
+	notificationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/notifications"
+	recipientsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/recipients"
+	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/routing"
 	healthH "notification-hub/handlers/health"
-	notesH "notification-hub/handlers/notes" // EXAMPLE-DOMAIN:notes
+	conversationSchema "notification-hub/internal/conversations"
 	localdb "notification-hub/internal/database"
-
-	notesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/notes" // EXAMPLE-DOMAIN:notes
+	deliverySchema "notification-hub/internal/delivery"
+	notificationSchema "notification-hub/internal/notifications"
+	recipientSchema "notification-hub/internal/recipients"
+	routingSchema "notification-hub/internal/routing"
 )
 
 // AllEndpoints returns every domain's static endpoint descriptors in a
@@ -39,7 +51,11 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out := make([]module.EndpointDescriptor, 0)
 	out = append(out, healthH.Endpoints...)
 	out = append(out, capsH.Endpoints...)
-	out = append(out, notesH.Endpoints...) // EXAMPLE-DOMAIN:notes
+	out = append(out, conversationH.Endpoints...)
+	out = append(out, deliveryH.Endpoints...)
+	out = append(out, notificationH.Endpoints...)
+	out = append(out, recipientsH.Endpoints...)
+	out = append(out, routingH.Endpoints...)
 	return out
 }
 
@@ -66,7 +82,11 @@ type ProtoFileEntry struct {
 // Connect-mounted domain module, in registration order.
 func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
-		{Module: "notes", File: notesv1.File_notification_hub_v1_notes_notes_proto}, // EXAMPLE-DOMAIN:notes
+		{Module: "conversations", File: conversationv1.File_notification_hub_v1_conversations_conversations_proto},
+		{Module: "delivery", File: deliveryv1.File_notification_hub_v1_delivery_delivery_proto},
+		{Module: "notifications", File: notificationv1.File_notification_hub_v1_notifications_notifications_proto},
+		{Module: "recipients", File: recipientsv1.File_notification_hub_v1_recipients_recipients_proto},
+		{Module: "routing", File: routingv1.File_notification_hub_v1_routing_routing_proto},
 	}
 }
 
@@ -81,6 +101,10 @@ func AllSchemas() []apidb.SchemaProvider {
 	return []apidb.SchemaProvider{
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(healthH.Schema),
-		apidb.SchemaProviderFunc(notesH.Schema), // EXAMPLE-DOMAIN:notes
+		apidb.SchemaProviderFunc(recipientSchema.Schema),
+		apidb.SchemaProviderFunc(notificationSchema.Schema),
+		apidb.SchemaProviderFunc(routingSchema.Schema),
+		apidb.SchemaProviderFunc(deliverySchema.Schema),
+		apidb.SchemaProviderFunc(conversationSchema.Schema),
 	}
 }

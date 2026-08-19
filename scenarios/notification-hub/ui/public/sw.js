@@ -19,6 +19,36 @@ self.addEventListener("activate", (event) => {
   );
 });
 
+self.addEventListener("push", (event) => {
+  let payload = {};
+  try {
+    payload = event.data ? event.data.json() : {};
+  } catch {
+    payload = { body: event.data ? event.data.text() : "Notification available" };
+  }
+  event.waitUntil(self.registration.showNotification(payload.title || "Notification Hub", {
+    body: payload.body || "Notification available",
+    tag: payload.id || undefined,
+    data: { id: payload.id || "" },
+  }));
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  event.waitUntil(clients.matchAll({ type: "window", includeUncontrolled: true }).then((windows) => {
+    const existing = windows[0];
+    return existing ? existing.focus() : clients.openWindow("./");
+  }));
+});
+
+self.addEventListener("pushsubscriptionchange", (event) => {
+  event.waitUntil((async () => {
+    const replacement = await self.registration.pushManager.subscribe({ userVisibleOnly: true });
+    const openClients = await clients.matchAll({ type: "window", includeUncontrolled: true });
+    openClients.forEach((client) => client.postMessage({ type: "push-subscription-changed", subscription: replacement.toJSON() }));
+  })());
+});
+
 self.addEventListener("fetch", (event) => {
   const request = event.request;
   if (request.mode === "navigate") {

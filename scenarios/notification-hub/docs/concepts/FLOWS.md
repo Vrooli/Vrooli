@@ -1,96 +1,132 @@
 # Flows — Notification Hub
 
-This document is the canonical workflow and state-transition map for
-the scenario. Use it when behavior depends on ordered states, retries,
-cancellation, stale completion, background jobs, polling, or mutually
-exclusive UI modes.
+Ordered, stateful behavior in this scenario: what moves through the
+system, in what order, and which states are illegal.
 
 ## Purpose Of This Document
 
-Use this document to answer:
-
-- Which user/system workflows matter?
-- Which workflows have explicit states and events?
-- Which transitions are illegal?
-- Which tests prove workflow correctness?
-- Which flows are known but not modeled yet?
-
-Plain CRUD with no meaningful ordering constraints does not need a
-workflow model.
+A notification is not a CRUD record. It is accepted, judged, held,
+attempted, retried, and finally resolved — and at several points it can
+end in a state that looks like success from outside while nothing reached
+a human. This document names those flows so the failure modes are
+designed for rather than discovered.
 
 ## Flow Inventory
 
-`health` is a stateless reporting domain and ships no workflows. List
-each real stateful flow your domains add below, with its owner, trigger,
-outcome, statefulness, and validation level.
-
-| Flow | Domain | Trigger | Outcome | Statefulness | Validation |
-|---|---|---|---|---|---|
-| _(your flow)_ | _(owning domain)_ | What starts it. | What it produces. | States, retries, cancellation, stale completion. | Target maturity level. |
+| Flow | Owner | Risk if unmodeled | Level |
+|---|---|---|---|
+| Notification lifecycle | `notifications` | A notification sits in `pending` forever and is indistinguishable from one never requested. | Target 4 |
+| Delivery attempt and retry | `delivery` | Retry runs without a budget and a dead channel is retried indefinitely. | Target 4 |
+| Quiet-hour hold and release | `routing` | A held notification is never released, or is released twice. | Target 3 |
+| Ask, answer, escalate | `conversations` | A blocked caller waits forever after a restart. | Target 4 |
+| Push subscription lifecycle | `recipients` | An expired subscription looks healthy and every send silently succeeds into nothing. | Target 3 |
 
 ## Flow Details
 
-Document each real flow here with its owner domain, trigger, inputs,
-ordered steps, outputs, failure modes, retry/cancel behavior, tests, and
-generated subpackages. The worked example below shows the expected shape.
+### Notification lifecycle
 
-<!-- EXAMPLE-DOMAIN:notes START -->
-### Example domain — `notes` (removed by `template-manager detemplate`)
+Every ingress path constructs the same record, so there is one lifecycle
+regardless of whether the request came from an agent, the CLI, a rule, or
+a webhook.
 
-The template ships an `Attachment upload` flow on the `notes` domain as a
-worked Level 5 temporal-workflow vertical slice. Copy its shape for your
-own stateful flows, then remove it.
+```mermaid
+flowchart TD
+    A[Ingress: RPC, CLI, rule, or webhook] --> B{Idempotency key seen?}
+    B -- yes --> B1[Return original id] --> Z((end))
+    B -- no --> C[Persist notification, return durable id]
+    C --> D{Dedupe key inside window?}
+    D -- yes --> D1[Record suppression, collapse into original] --> Z
+    D -- no --> E[routing: select channels for label and urgency]
+    E --> F{Any approved channel?}
+    F -- no --> F1[Mark unroutable with stated reason] --> Z
+    F -- yes --> G{Inside a quiet window?}
+    G -- yes, not critical --> G1[Hold until window closes] --> H
+    G -- no --> H[delivery: attempt per channel]
+    H --> I{Attempt outcome}
+    I -- delivered --> I1[Record receipt] --> Z
+    I -- retryable --> I2[Schedule retry with backoff] --> H
+    I -- budget spent --> I3[Mark failed with stated reason] --> Z
+```
 
-Add this row to the Flow Inventory above:
+The two branches that matter most are the ones that end quietly.
+`unroutable` and `failed` are terminal states with a stated reason, and
+both are surfaced in the API, the CLI, and the UI. No path leaves a
+notification in `pending` (OT-P0-011).
 
-| Flow | Domain | Trigger | Outcome | Statefulness | Validation |
-|---|---|---|---|---|---|
-| Attachment upload | notes | User/CLI uploads a file for a note. | Blob is stored and metadata is persisted. | Stateful upload request with validation and failure paths. | Level 5 workflow tests: matrix, traces, declarative spec, checked Quint model, generated artifacts, and production replay. |
+### Cross-node delivery
 
-#### Attachment upload
+When the selected channel is host-bound, `delivery` asks this scenario's
+own instance on the machine that owns the channel. The channel vocabulary
+never enters `vrooli-bridge`.
 
-- Owner domain: notes.
-- Trigger: multipart upload request from UI or CLI.
-- Inputs: note id, file key/name, file bytes, content type, file size.
-- Steps:
-  1. Parse multipart request.
-  2. Validate note id and file metadata.
-  3. Store opaque bytes through BlobStore.
-  4. Persist attachment metadata through notes repository seam.
-  5. Return proto-typed metadata response.
-- Outputs: uploaded attachment metadata or typed error response.
-- Failure modes: missing note id, missing file, invalid metadata, blob
-  write failure, metadata persistence failure.
-- Retry/cancel behavior: caller may retry after transport/storage
-  failure; duplicate handling belongs to the owning real domain when
-  product requirements demand it.
-- Tests: `api/handlers/notes/attachments_handler_test.go`,
-  `api/internal/notes/attachments_service_test.go`,
-  `api/internal/notes/flow/flow_test.go`,
-  `ui/src/features/notes/AttachmentUpload.test.tsx`, and
-  `ui/src/features/notes/flow/flow.test.ts`.
-- Generated subpackages: `api/internal/notes/flow/generated/`
-  (`model.qnt`, `artifact.json`, `runtime.go`, `replay.go`) and
-  `ui/src/features/notes/flow/generated/` (`model.qnt`, `artifact.json`,
-  `runtime.ts`, `replay.helper.ts`).
-- Requirements: template starter only.
+```mermaid
+sequenceDiagram
+    participant R as routing
+    participant D as delivery (this host)
+    participant B as vrooli-bridge
+    participant N as notification-hub (Mac)
+    participant M as macOS channel
 
-These example state machines belong in the State Machines table below:
+    R->>D: deliver notification via imessage on machine M
+    D->>D: read machine_channel_status cache
+    alt cache stale or absent
+        D->>B: dispatch "notification-hub channels status --json" to M
+        B->>B: check verb in scope catalog and node grants
+        B->>N: run verb
+        N->>M: probe channel
+        M-->>N: signed in / not configured
+        N-->>B: disposition + reason
+        B-->>D: bounded response
+        D->>D: update cache with observed_at
+    end
+    alt disposition = ready
+        D->>B: dispatch "notification-hub notifications relay --payload-base64 ..." to M
+        B->>N: run verb
+        N->>M: send
+        M-->>N: sent
+        N-->>B: receipt
+        B-->>D: receipt
+        D->>D: record receipt, same shape as a local delivery
+    else disposition != ready
+        D->>D: mark unroutable with the stated reason
+    end
+```
 
-| Domain/Flow | States | Illegal Transitions | Enforcement |
-|---|---|---|---|
-| notes / attachment upload API | received, bytes_stored, metadata_recorded, failed | metadata before bytes, terminal-state escape, duplicate terminal events | `*.flow.json` contract, generated Quint model, generated formal artifact replay, side-effect cleanup tests |
-| notes / attachment upload UI | idle, selected, uploading, succeeded, failed | start before select, stale completion after reset/reselect, retry without file context | `*.flow.json` contract, generated Quint model, generated formal artifact replay, attempt-id stale completion tests |
-<!-- EXAMPLE-DOMAIN:notes END -->
+`vrooli-bridge` answers only three questions here: does the machine exist,
+is it online, and may this caller send it anything. It carries the call
+and learns nothing about notifications.
+
+### Ask, answer, escalate
+
+An ask is an ordinary notification carrying a question, plus a durable
+pending record that outlives an API restart.
+
+```mermaid
+stateDiagram-v2
+    [*] --> pending: caller opens an ask
+    pending --> answered: recipient chooses an allowed answer
+    pending --> escalated: deadline slice elapsed, chain has a next channel
+    escalated --> answered: recipient answers on any channel
+    escalated --> escalated: next chain step
+    escalated --> expired: chain exhausted or deadline reached
+    pending --> expired: deadline reached, no chain
+    answered --> [*]
+    expired --> [*]
+```
+
+The blocking call returns on `answered` or `expired`. It never returns on
+`escalated`, which is an intermediate state. A caller that disconnects
+does not cancel the ask; the answer is still recorded.
 
 ## State Machines
 
-List each modeled flow's states, illegal transitions, and how they are
-enforced. Plain CRUD with no ordering constraints does not appear here.
-
 | Domain/Flow | States | Illegal Transitions | Enforcement |
 |---|---|---|---|
-| _(your flow)_ | The ordered/terminal states. | Transitions the contract forbids. | `*.flow.json` contract, generated Quint model, replay tests. |
+| notifications | `pending`, `held`, `routed`, `delivered`, `failed`, `unroutable`, `suppressed` | `pending` to `delivered` without a routing decision; any terminal state to any other state; remaining in `pending` past the sweeper interval | `flow.json` contract, generated model, replay tests, plus a sweeper test that proves no record stays `pending` |
+| delivery attempt | `scheduled`, `in_flight`, `delivered`, `retry_scheduled`, `failed` | `retry_scheduled` after the retry budget is spent; `in_flight` without a parent routing decision | `flow.json` contract and replay tests |
+| ask | `pending`, `escalated`, `answered`, `expired` | `answered` after `expired`; escalation past the end of the chain | `flow.json` contract, deadline sweeper tests |
+| push subscription | `active`, `stale`, `gone` | `gone` back to `active` without a new subscribe; sending to `gone` | Repository constraint plus a delivery-path guard |
+| hold | `held`, `released` | Releasing twice; releasing before the window closes | Unique release record per hold |
 
 ## Maturity Ladder
 
@@ -222,13 +258,15 @@ To add or rename a state/event:
 
 ## Deferred / Unmodeled Flows
 
-| Flow | Risk | Next Step |
+| Flow | Why deferred | Revisit trigger |
 |---|---|---|
-| None yet. | Generated scaffold. | Add real scenario workflows when domains have stateful behavior. |
+| Digest collapsing (OT-P1-005) | A digest is a `routing` behavior until it needs its own content assembly. Modelling it now would fix a shape before there is a real example. | When a digest needs composition rules rather than a list of collapsed titles. |
+| Scheduled delivery (OT-P1-006) | The hold mechanism quiet hours already needs covers the simple future-send case. | When callers need recurrence or calendar-aware windows. |
+| Event subscription matching (OT-P1-003) | The matching engine lives in `vrooli-events`, not here. This scenario only receives the resulting webhook. | When the upstream fan-out engine exists. |
 
 ## Cross-References
 
-- [`DOMAINS.md`](DOMAINS.md) — owning domain map
-- [`DATA.md`](DATA.md) — persisted state and retention
-- [`../internal/SEAMS.md`](../internal/SEAMS.md) — side-effect boundaries
-- [`../internal/TESTING.md`](../internal/TESTING.md#temporal-workflow-tests) — matrix and trace testing
+- [`DOMAINS.md`](DOMAINS.md) — which domain owns each flow.
+- [`DATA.md`](DATA.md) — the tables these transitions write.
+- [`INTEGRATIONS.md`](INTEGRATIONS.md) — the scenarios involved in cross-node delivery.
+- [`../internal/SEAMS.md`](../internal/SEAMS.md) — substitutable boundaries.

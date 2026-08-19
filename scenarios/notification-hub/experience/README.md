@@ -18,11 +18,11 @@ Machine-tier claims should only be added when the UI has stable selectors and
 the claim can be checked by the experience phase. Manual claims need
 attestations with expiry; aspirational claims are useful intent but never gate.
 
-The generated `notes` page is part of the removable example domain. Running
+The generated example page is part of the removable scaffold. Running
 `template-manager detemplate notification-hub` removes its page spec and registry
-entry with the rest of the notes example.
+entry with the rest of the scaffold.
 
-The Notes example also demonstrates the generated semantic foundation: its
-`notes` region is bound to `data-experience-surface="notes"` and reports the
+The dashboard demonstrates the generated semantic foundation: its
+region is bound to `data-experience-surface="dashboard"` and reports the
 canonical lifecycle vocabulary. Keep this boundary for every independently
 meaningful async region; passive UI primitives inherit their parent state.

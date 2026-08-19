@@ -1,7 +1,11 @@
 package domains
 
 import (
-	"notification-hub/cli/domains/notes" // EXAMPLE-DOMAIN:notes
+	"notification-hub/cli/domains/channels"
+	"notification-hub/cli/domains/conversations"
+	"notification-hub/cli/domains/delivery"
+	"notification-hub/cli/domains/notifications"
+	"notification-hub/cli/domains/recipients"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
@@ -36,13 +40,25 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 // templates/scenarios/react-vite/docs/internal/SEAMS.md (manifest ↔
 // handlers bindings seam) for the contract.
 func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.SubcommandGroup, error) {
-	groups := []cliapp.SubcommandGroup{}
-	// EXAMPLE-DOMAIN:notes START
-	notesGroup, err := notes.Register(core, manifest)
+	group, err := notifications.Register(core, manifest)
 	if err != nil {
 		return nil, err
 	}
-	groups = append(groups, notesGroup)
-	// EXAMPLE-DOMAIN:notes END
-	return groups, nil
+	channelsGroup, err := channels.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	deliveryGroup, err := delivery.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	conversationsGroup, err := conversations.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	recipientsGroup, err := recipients.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	return []cliapp.SubcommandGroup{group, channelsGroup, deliveryGroup, conversationsGroup, recipientsGroup}, nil
 }

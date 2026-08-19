@@ -16,9 +16,9 @@ import {
   type HTMLAttributes,
   type ReactNode,
   forwardRef,
-  useEffect,
 } from "react";
 import { X } from "lucide-react";
+import { useDismissOnEscape } from "../../hooks/useDismissOnEscape";
 
 export interface SidebarShellProps {
   children: ReactNode;
@@ -64,16 +64,7 @@ export const SidebarShell = forwardRef<HTMLDivElement, SidebarShellProps>(
     const isPersistent = mode === "persistent";
     const isDialogOpen = !isPersistent && mobileOpen;
 
-    useEffect(() => {
-      if (!isDialogOpen) return;
-      const handleKeyDown = (event: KeyboardEvent) => {
-        if (event.key === "Escape") {
-          onMobileClose();
-        }
-      };
-      window.addEventListener("keydown", handleKeyDown);
-      return () => window.removeEventListener("keydown", handleKeyDown);
-    }, [isDialogOpen, onMobileClose]);
+    useDismissOnEscape(isDialogOpen, onMobileClose);
 
     const style: CSSProperties = width ? { width } : {};
     const backdropClasses = isResponsive

@@ -4,46 +4,151 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "notification-hub",
   "generator": "v1.0.0",
-  "manifest_hash": "8587ba74a780aab8d094326e1b4d32c242f648f73827d67bec80b3a6c0337800",
+  "manifest_hash": "3327eae4aa13a4ebe48f3b5d712eec6374bbfcee10b5fd49998c890ccf6670c0",
   "commands": [
     {
-      "path": "notes attach",
-      "group": "notes",
-      "command": "attach",
-      "declared_exception": "upload",
-      "observed_primitive": "upload"
+      "path": "channels status",
+      "group": "channels",
+      "command": "status",
+      "binding": "RoutingService.ChannelsStatus"
     },
     {
-      "path": "notes count",
-      "group": "notes",
-      "command": "count",
-      "binding": "NotesService.CountNotes",
-      "declared_primitive": "proto_list",
-      "observed_primitive": "proto_list"
+      "path": "conversations answer",
+      "group": "conversations",
+      "command": "answer",
+      "binding": "ConversationsService.Answer"
     },
     {
-      "path": "notes create",
-      "group": "notes",
-      "command": "create",
-      "binding": "NotesService.CreateNote",
-      "declared_primitive": "proto_mutation",
-      "observed_primitive": "proto_mutation"
+      "path": "conversations ask",
+      "group": "conversations",
+      "command": "ask",
+      "binding": "ConversationsService.Ask"
     },
     {
-      "path": "notes get",
-      "group": "notes",
+      "path": "conversations wait",
+      "group": "conversations",
+      "command": "wait",
+      "binding": "ConversationsService.Wait"
+    },
+    {
+      "path": "delivery analytics",
+      "group": "delivery",
+      "command": "analytics",
+      "binding": "DeliveryService.GetAnalytics"
+    },
+    {
+      "path": "delivery deliver",
+      "group": "delivery",
+      "command": "deliver",
+      "binding": "DeliveryService.Deliver"
+    },
+    {
+      "path": "delivery timeline",
+      "group": "delivery",
+      "command": "timeline",
+      "binding": "DeliveryService.GetTimeline"
+    },
+    {
+      "path": "notifications get",
+      "group": "notifications",
       "command": "get",
-      "binding": "NotesService.GetNote",
-      "declared_primitive": "proto_list",
-      "observed_primitive": "proto_list"
+      "binding": "NotificationsService.Get"
     },
     {
-      "path": "notes list",
-      "group": "notes",
+      "path": "notifications list",
+      "group": "notifications",
       "command": "list",
-      "binding": "NotesService.ListNotes",
-      "declared_primitive": "proto_list",
-      "observed_primitive": "proto_list"
+      "binding": "NotificationsService.List"
+    },
+    {
+      "path": "notifications relay",
+      "group": "notifications",
+      "command": "relay",
+      "binding": "NotificationsService.Relay"
+    },
+    {
+      "path": "notifications send",
+      "group": "notifications",
+      "command": "send",
+      "binding": "NotificationsService.Send"
+    },
+    {
+      "path": "recipients address-remove",
+      "group": "recipients",
+      "command": "address-remove",
+      "binding": "RecipientsService.RemoveChannelAddress"
+    },
+    {
+      "path": "recipients address-upsert",
+      "group": "recipients",
+      "command": "address-upsert",
+      "binding": "RecipientsService.UpsertChannelAddress"
+    },
+    {
+      "path": "recipients device-list",
+      "group": "recipients",
+      "command": "device-list",
+      "binding": "RecipientsService.ListDevices"
+    },
+    {
+      "path": "recipients device-remove",
+      "group": "recipients",
+      "command": "device-remove",
+      "binding": "RecipientsService.RemoveDevice"
+    },
+    {
+      "path": "recipients device-upsert",
+      "group": "recipients",
+      "command": "device-upsert",
+      "binding": "RecipientsService.UpsertDevice"
+    },
+    {
+      "path": "recipients escalation-get",
+      "group": "recipients",
+      "command": "escalation-get",
+      "binding": "RecipientsService.GetEscalationChain"
+    },
+    {
+      "path": "recipients escalation-set",
+      "group": "recipients",
+      "command": "escalation-set",
+      "binding": "RecipientsService.SetEscalationChain"
+    },
+    {
+      "path": "recipients get",
+      "group": "recipients",
+      "command": "get",
+      "binding": "RecipientsService.GetRecipient"
+    },
+    {
+      "path": "recipients push-remove",
+      "group": "recipients",
+      "command": "push-remove",
+      "binding": "RecipientsService.RemovePushSubscription"
+    },
+    {
+      "path": "recipients push-subscribe",
+      "group": "recipients",
+      "command": "push-subscribe",
+      "binding": "RecipientsService.RegisterPushSubscription"
+    },
+    {
+      "path": "recipients quiet-delete",
+      "group": "recipients",
+      "command": "quiet-delete",
+      "binding": "RecipientsService.DeleteQuietWindow"
+    },
+    {
+      "path": "recipients quiet-list",
+      "group": "recipients",
+      "command": "quiet-list",
+      "binding": "RecipientsService.ListQuietWindows"
+    },
+    {
+      "path": "recipients quiet-set",
+      "group": "recipients",
+      "command": "quiet-set",
+      "binding": "RecipientsService.SetQuietWindow"
     }
   ]
 }

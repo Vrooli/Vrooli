@@ -8,5 +8,6 @@
     "routes": ["/settings"],
     "purpose": "Expose the minimum configuration surface needed to understand and operate Notification Hub safely.",
     "prd_refs": ["OT-P1-001"]
-  }
+  },
+  "states": [{ "id": "default" }]
 }

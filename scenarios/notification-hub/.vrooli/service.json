@@ -1,6 +1,82 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
+  "storage": {
+    "entries": {
+      "notification-db": {
+        "class": "data",
+        "kind": "file",
+        "subpath": "notification-hub.db",
+        "format": "sqlite",
+        "rung": "owned",
+        "regenerable": false,
+        "budget": {
+          "max_bytes": "2GiB",
+          "max_age": "90d",
+          "rationale": "Notification history is actively retained for 90 days and the SQLite working set is bounded to 2 GiB by the scenario maintenance pass."
+        },
+        "rationale": "Durable notifications, recipient projections, routing decisions, delivery attempts, receipts, and conversation state."
+      },
+      "notification-db-wal": {
+        "class": "data",
+        "kind": "file",
+        "subpath": "notification-hub.db-wal",
+        "format": "sqlite",
+        "rung": "owned",
+        "regenerable": true,
+        "rationale": "SQLite write-ahead log sidecar for the durable notification database."
+      },
+      "notification-db-shm": {
+        "class": "data",
+        "kind": "file",
+        "subpath": "notification-hub.db-shm",
+        "format": "sqlite",
+        "rung": "owned",
+        "regenerable": true,
+        "rationale": "SQLite shared-memory sidecar for the durable notification database."
+      },
+      "deployment-report": {
+        "class": "data",
+        "kind": "file",
+        "subpath": "deployment/deployment-report.json",
+        "format": "json",
+        "rung": "owned",
+        "regenerable": false,
+        "budget": {
+          "max_age": "30d",
+          "rationale": "Lifecycle deployment report retained as owner data and budgeted by age."
+        },
+        "rationale": "The lifecycle deployment report is written under the scenario data root."
+      },
+      "vapid-private-key": {
+        "class": "state",
+        "kind": "file",
+        "subpath": "vapid-private-key",
+        "rung": "owned",
+        "regenerable": false,
+        "sensitive": true,
+        "budget": {
+          "max_bytes": "1KiB",
+          "rationale": "The encoded P-256 VAPID private key is a single small stable secret; size bounds catch accidental replacement with unrelated data without rotating subscriptions."
+        },
+        "rationale": "Scenario-owned VAPID private key used to authenticate encrypted Web Push deliveries; the public half is returned to the authenticated UI and the private half never leaves state storage."
+      },
+      "retention-receipts": {
+        "class": "state",
+        "kind": "dir",
+        "subpath": "retention",
+        "rung": "owned",
+        "regenerable": true,
+        "budget": {
+          "max_bytes": "1MiB",
+          "max_age": "30d",
+          "rationale": "Control-plane retention enforcement receipts are small, regenerable operational state bounded by size and age."
+        },
+        "rationale": "The storage manager records retention enforcement receipts under the scenario-owned state namespace."
+      }
+    },
+    "rationale": "The scenario owns one SQLite database and its WAL/SHM sidecars through the api-core storage resolver."
+  },
   "service": {
     "parent": "vrooli",
     "name": "notification-hub",
@@ -62,7 +138,7 @@
     "ui": {
       "env_var": "UI_PORT",
       "description": "React UI",
-      "range": "20000-24999"
+      "port": 20001
     }
   },
   "lifecycle": {
@@ -206,6 +282,16 @@
         "degraded_behavior": "Authenticated surfaces fail closed when the authenticator is unreachable: the API rejects requests it cannot attribute to a verified identity. Already-accepted notifications continue to drain through the delivery worker, because their recipient was resolved at acceptance time.",
         "description": "Owner identity for every authenticated API, CLI, and UI surface. This scenario issues no API key and stores no password."
       },
+      "tunnel-manager": {
+        "type": "scenario",
+        "enabled": true,
+        "required": true,
+        "startup_policy": "try_start",
+        "runtime_only": true,
+        "runtime_only_rationale": "Public exposure is reconciled by tunnel-manager against the core-set authority. This scenario imports no tunnel-manager Go package; it only requires that its own origin stays reachable and stable.",
+        "degraded_behavior": "Without tunnel-manager, no new device can subscribe to push and the push channel reports unavailable with a stated reason. Already-registered subscriptions continue to receive deliveries while the origin remains resolvable. No local channel is affected.",
+        "description": "Stable, never-expiring public origin for the installed progressive web app. A Web Push subscription is bound to an origin and dies with it."
+      },
       "vrooli-bridge": {
         "type": "scenario",
         "enabled": true,
@@ -228,7 +314,17 @@
       }
     }
   },
-  "credentials": {},
+  "credentials": {
+    "descriptors": [
+      {
+        "logical_id": "notification-hub/smtp",
+        "field": "password",
+        "label": "Notification Hub SMTP password",
+        "required": false,
+        "description": "Optional SMTP password used for email notification delivery when SMTP is configured."
+      }
+    ]
+  },
   "environment": {
     "SQLITE_PATH": "${SCENARIO_DATA_DIR}/notification-hub.db"
   }

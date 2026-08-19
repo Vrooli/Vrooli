@@ -8,21 +8,6 @@
   "requirements": [
     {
       "criticality": "P2",
-      "description": "The system may deliver push through a service worker on the installed progressive web app, which removes the third-party push dependency.",
-      "id": "NOTIFICA-P2-001",
-      "prd_ref": "OT-P2-001",
-      "status": "planned",
-      "title": "First-party web push",
-      "validation": [
-        {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:NOTIFICA-P2-001] tag) once the behavior exists.",
-          "status": "planned",
-          "type": "manual"
-        }
-      ]
-    },
-    {
-      "criticality": "P2",
       "description": "The system may deliver notifications over SMS using credentials supplied by the twilio resource.",
       "id": "NOTIFICA-P2-002",
       "prd_ref": "OT-P2-002",

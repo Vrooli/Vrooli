@@ -52,7 +52,7 @@ the standard full-stack Vrooli scenario shape:
 The generated scaffold is intentionally not the product. When you build
 the real UX, treat these as **placeholders** to replace:
 
-- The `notes` domain (proto, API, CLI, UI feature) — a worked vertical
+- The notification domains (proto, API, CLI, UI feature) — the live vertical
   slice meant to be copied once and then deleted.
 - Starter page content such as the dashboard metric placeholders.
 - The bare-minimum settings surface once your scenario needs more than
@@ -79,7 +79,7 @@ an `EndpointDescriptor`, stop — use a proto service method instead.
 Codegen rejects literal Paths that lack an explicit `RESTException`
 tag; the four allowed REST reasons (multipart upload, webhook
 receiver, third-party shape, ops probe) are enumerated in
-`api/internal/module/module.go`. The notes attachments endpoint is
+`api/internal/module/module.go`. The delivery endpoints are
 the worked REST example.
 
 [`docs/START-HERE.md`](docs/START-HERE.md) describes the replacement

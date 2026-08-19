@@ -33,7 +33,7 @@ durable infrastructure below. In particular:
   mobile, desktop sidebar navigation, theme controls, and Settings-owned
   locale switching. Keep those floors unless your scenario has an explicit
   experience-spec opt-out.
-- The starter page content and the `notes` domain remain illustrative. Replace
+- The starter page content and generated examples remain illustrative. Replace
   them with scenario-specific surfaces once the real product shape is known.
 - Durable seams you should keep: i18n wiring (`SUPPORTED_LOCALES`,
   `useTranslation`, the locale switcher behavior), accessibility
@@ -365,10 +365,8 @@ becomes real:
 - [ ] Validate after every meaningful edit:
       `experience-manager spec validate notification-hub --json`.
 
-The notes page spec is part of the removable example domain. When you
-run `template-manager detemplate notification-hub`, the notes page spec
-and its registry entry should disappear with the notes UI/API/CLI
-example.
+The generated example page spec is removable scaffold. The registry should
+contain only real notification-hub routes after detemplating.
 
 **Exit criteria:** every real route has at least an L0 page spec, the
 registry has no stale route references, and `experience-manager spec
