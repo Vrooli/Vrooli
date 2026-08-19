@@ -11,10 +11,10 @@
         "required": false
       },
       "antigravity": {
-        "description": "Google Antigravity coding CLI (optional external-cli; sudo-free install, conversation/permission state backed up; NOT yet an agent-manager runner)",
-        "enabled": true,
-        "required": false
-      },
+		"description": "Google Antigravity coding CLI (optional external-cli; sudo-free install, conversation/permission state backed up; agent-manager runner)",
+		"enabled": true,
+		"required": false
+	      },
       "claude-code": {
         "description": "Claude Code development assistant",
         "enabled": true,
@@ -22,11 +22,6 @@
       },
       "codex": {
         "description": "AI-powered code generation and completion via OpenAI GPT models",
-        "enabled": true,
-        "required": false
-      },
-      "gemini": {
-        "description": "Google Gemini AI API integration",
         "enabled": true,
         "required": false
       },
@@ -47,7 +42,7 @@
       },
       "kokoro": {
         "description": "Text-to-speech synthesis service",
-        "enabled": true,
+        "enabled": false,
         "required": false
       },
       "kopia": {
@@ -127,7 +122,7 @@
         "required": true
       },
       "speaker-verification": {
-        "enabled": true
+        "enabled": false
       },
       "twilio": {
         "data_dir": "~/.vrooli/twilio",
@@ -157,15 +152,6 @@
       "name": "clock",
       "notes": "Checks clock against remote HTTP time sources; syncs via hwclock/ntpdate/timedatectl if \u003e5 minutes off",
       "reason": "Verify system clock accuracy for TLS certificate validation and JWT operations",
-      "required": false,
-      "when": [
-        "setup"
-      ]
-    },
-    {
-      "name": "cloudflared_recovery_privileges",
-      "notes": "Writes /etc/sudoers.d/tunnel-manager (mode 0440, visudo-validated) granting the invoking user NOPASSWD `systemctl restart cloudflared` + `reset-failed cloudflared`. Auto-skips on hosts without cloudflared.service. Optional, but self-promotes to required under `sudo vrooli setup`.",
-      "reason": "Let tunnel-manager's non-root auto-recovery loop restart the root cloudflared unit without an interactive sudo prompt (sudo paid once at setup)",
       "required": false,
       "when": [
         "setup"

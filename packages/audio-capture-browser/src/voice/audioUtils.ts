@@ -7,6 +7,70 @@
 export { downsample } from "../pcm";
 
 /**
+ * Time-domain window the level meter analyses, in samples.
+ *
+ * This was 128 (and only half of it was ever read), which is ~1.3ms at a 48kHz
+ * AudioContext — a fraction of one glottal period, since a speaking voice runs
+ * 85-255Hz and so pulses every 3.9-11.8ms. Successive reads therefore landed at
+ * effectively random points in the waveform, and because speech is peaky most
+ * of them landed between pulses: the meter reported the gaps, not the phrase.
+ * 1024 samples covers ~21ms at 48kHz, long enough to be an envelope rather than
+ * an instantaneous sample.
+ */
+export const LEVEL_ANALYSER_FFT_SIZE = 1024;
+
+/**
+ * Release time constant of the meter's envelope follower. Attack is immediate:
+ * a rising level is adopted on the tick it appears, a falling one decays over
+ * this window so the bar traces the shape of a phrase.
+ */
+export const LEVEL_METER_RELEASE_MS = 300;
+
+/** Decibels above the adaptive noise floor that map to a full bar. */
+export const LEVEL_METER_RANGE_DB = 26;
+
+/** Level-monitor tick interval (~15Hz). Audio analysis does not need 60fps. */
+export const LEVEL_TICK_MS = 66;
+
+/**
+ * Advance the meter's envelope by one tick. Pure so the curve is testable
+ * without an AudioContext.
+ */
+export function advanceMeterEnvelope(
+  previous: number,
+  rms: number,
+  elapsedMs: number,
+  releaseMs: number = LEVEL_METER_RELEASE_MS,
+): number {
+  if (!Number.isFinite(rms) || rms < 0) return previous;
+  if (rms >= previous) return rms;
+  const decay = Math.exp(-Math.max(0, elapsedMs) / Math.max(1, releaseMs));
+  return Math.max(rms, previous * decay);
+}
+
+/**
+ * Map an envelope onto a 0-1 bar height, measured in dB above the VAD's own
+ * adaptive noise floor rather than on a fixed absolute scale.
+ *
+ * The previous mapping was `min(1, rms * 4)`, which assumes one microphone gain
+ * and one room. The VAD does not make that assumption — it compares the same
+ * RMS against thresholds it derives from the running noise floor, which is why
+ * speech detection kept working on a meter that read flat. This mapping shares
+ * that floor, so the bar self-calibrates the same way.
+ */
+export function meterLevelFromEnvelope(
+  envelope: number,
+  noiseFloor: number,
+  rangeDb: number = LEVEL_METER_RANGE_DB,
+): number {
+  if (!Number.isFinite(envelope) || !Number.isFinite(noiseFloor)) return 0;
+  if (envelope <= 0 || noiseFloor <= 0 || envelope <= noiseFloor) return 0;
+  const db = 20 * Math.log10(envelope / noiseFloor);
+  if (!Number.isFinite(db) || db <= 0) return 0;
+  return Math.min(1, db / Math.max(1, rangeDb));
+}
+
+/**
  * Build a bandpass filter chain targeting the speech band (80Hz-8kHz).
  * Returns an AnalyserNode (for level monitoring) and a filtered MediaStream
  * suitable for MediaRecorder input.
@@ -27,7 +91,7 @@ export function createAudioFilterChain(
 
   const destination = ctx.createMediaStreamDestination();
   const analyser = ctx.createAnalyser();
-  analyser.fftSize = 128;
+  analyser.fftSize = LEVEL_ANALYSER_FFT_SIZE;
 
   // Chain: source -> highpass -> lowpass -> destination
   //                                     +-> analyser (for level monitoring)

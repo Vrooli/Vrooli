@@ -7,9 +7,6 @@ import type { StreamTurnDiagnostic } from "../streamDiagnostic";
 /** Sentinel error value indicating Whisper transcription failed after retries. */
 export const WHISPER_FAILED_SENTINEL = "__WHISPER_FAILED__";
 
-/** Number of consecutive capability check failures before downgrading from Whisper. */
-export const CAP_CHECK_FAIL_THRESHOLD = 2;
-
 /** 48kbps balances Whisper accuracy with minimal bandwidth (~6KB/s on localhost). */
 export const AUDIO_BITRATE = 48_000;
 
@@ -92,7 +89,7 @@ export function classifyMicError(err: unknown): string {
   }
 }
 
-export type VoiceBackend = "whisper" | "web-speech" | "none";
+export type VoiceBackend = "whisper" | "none";
 
 /** Explicit state machine replacing the old isRecording/isTranscribing boolean combo.
  *  "listening" is the persistent voice mode equivalent of "recording" — the mic
@@ -157,9 +154,8 @@ export type VoiceRejectionCause = "speaker-rejected" | "empty-transcript";
  *
  * `retryable` is emitted when the provider retained the turn's audio — the UI
  * can offer a one-tap retry (see `cause` for what the retry does). `explanatory`
- * is emitted when the provider cannot retain audio (e.g. `WebSpeechProvider`,
- * which does not hold the raw bytes); the UI shows the reason but hides the
- * retry action.
+ * is emitted when the provider cannot retain the raw bytes; the UI shows the
+ * reason but hides the retry action.
  *
  * Discriminated union enforces at compile time that every consumer handles
  * both kinds.
@@ -197,7 +193,7 @@ export interface VoiceInputState {
   audioLevel: number;
   /** UI-safe VAD snapshot derived from the same sample as audioLevel. */
   voiceActivity: VoiceActivitySnapshot;
-  /** Transient notice shown when falling back to a different backend. */
+  /** Transient, user-visible notice for a degradation or terminal reason. */
   fallbackNotice: string | null;
   /** Optional host-facing notice when a streaming turn degrades to buffering. */
   streamingDegradationNotice?: string | null;

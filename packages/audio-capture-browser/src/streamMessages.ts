@@ -4,6 +4,8 @@ export interface StreamMessage {
   code?: string;
   text?: string;
   processedSequence?: number;
+  providerId?: string;
+  modelId?: string;
   segmentId?: string;
   segmentIndex?: number;
   score?: number;
@@ -30,7 +32,7 @@ export const STREAM_MESSAGE_TYPES = {
 } as const;
 
 export interface StreamMessageHandlers {
-  onStatus(code: string, text: string, processedSequence?: bigint): void;
+  onStatus(code: string, text: string, processedSequence?: bigint, providerIdentity?: { providerId?: string; modelId?: string }): void;
   onPartial(text: string): void;
   onSegmentFinal(text: string, index: number): void;
   onSegmentAccepted(index: number, score: number, threshold: number): void;
@@ -57,10 +59,18 @@ export function dispatchStreamMessage(raw: unknown, handlers: StreamMessageHandl
     case "status":
       handlers.onStatus(
         message.code ?? "stream_status",
-        message.text ?? "Streaming transcription status updated.",
+        // No fabricated copy. Most status frames are protocol housekeeping —
+        // `processed_acknowledgement` arrives per acknowledged wire batch,
+        // several times a second — and inventing a sentence for them turned
+        // every acknowledgement into a user-facing notice. A status carries
+        // human-readable text only when its emitter meant a human to read it.
+        message.text ?? "",
         typeof message.processedSequence === "number" && Number.isSafeInteger(message.processedSequence) && message.processedSequence >= 0
           ? BigInt(message.processedSequence)
           : undefined,
+        ...(message.providerId || message.modelId
+          ? [{ providerId: message.providerId, modelId: message.modelId }]
+          : []),
       );
       return;
     case "partial":

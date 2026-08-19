@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "storage-manager",
-  "input_digest": "sha256:5fc7f12b07ce6b474278ba67bb8a58556fd390e75b05887b63911c3db82a5b8a",
+  "input_digest": "sha256:1e60f8ba171d1419f257a89c98c34578dea7740bad5f156b39161686f3db2b88",
   "input_files": [
     "schemas/storage-manager/v1/advisor/advisor.proto",
     "schemas/storage-manager/v1/cleanup/cleanup.proto",
@@ -22,7 +22,7 @@
   "outputs": {
     "gen/go/storage-manager/v1/advisor/advisor.pb.go": "sha256:497f07e11dbf49ec0d0bd1c3a25ea5eccd3c92c20a3165620c99d1ff91319e36",
     "gen/go/storage-manager/v1/advisor/advisor_v1connect/advisor.connect.go": "sha256:6cc0f5ea965bd6f0af77d156140e55fc9ff7cd2e02972036739fd471f7e2d98e",
-    "gen/go/storage-manager/v1/cleanup/cleanup.pb.go": "sha256:56463e470694e877fbc4124c92cc55deeaba66ab018059bda49308222dfff27d",
+    "gen/go/storage-manager/v1/cleanup/cleanup.pb.go": "sha256:ddfa0273d6e10e9941ea21b4c354fa73da3d08c2356fa4451c3a19ad87861a8b",
     "gen/go/storage-manager/v1/cleanup/cleanup_v1connect/cleanup.connect.go": "sha256:271fdb4e6fe4ef84346ff15b3d5b9a4bb8633928e71c9f9549cd99f09c9b2847",
     "gen/go/storage-manager/v1/fleet/fleet.pb.go": "sha256:f99d0247a196a1fb31d2c3543ca0465be3eb65e9b7447b1a9d0f51bff3fa4fe4",
     "gen/go/storage-manager/v1/fleet/fleet_v1connect/fleet.connect.go": "sha256:70c346fcaa5536f4132b2bec689d5d0572bff7f6b4856e51d87bd5dd38cadaef",
@@ -32,8 +32,8 @@
     "gen/python/storage_manager/v1/advisor/advisor_pb2.py": "sha256:42b0efc2b6e2196f941fb27d38e52a350d3a97402de4b331a47a11c74a41cc20",
     "gen/python/storage_manager/v1/advisor/advisor_pb2.pyi": "sha256:f2e45a9e58799b72cab313f319c66fcacd043be6793c67f106ef282e330efb9e",
     "gen/python/storage_manager/v1/advisor/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "gen/python/storage_manager/v1/cleanup/cleanup_pb2.py": "sha256:2f50a24b598079ea22ca148d2e79a04c4549617ddd381f72ba24d2dc8834b7ee",
-    "gen/python/storage_manager/v1/cleanup/cleanup_pb2.pyi": "sha256:7c6f92b9c29da54bfd8bef4f98e59aa7db4c347455d058362d8f20649af69cc8",
+    "gen/python/storage_manager/v1/cleanup/cleanup_pb2.py": "sha256:00d197fa8d4c6779e54671297195edc163fafe905b143aced9cc9dbbff89b912",
+    "gen/python/storage_manager/v1/cleanup/cleanup_pb2.pyi": "sha256:02307ce6107d280661ff04e08a458a70966991da209800a7f87a5f490a480437",
     "gen/python/storage_manager/v1/cleanup/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/storage_manager/v1/fleet/fleet_pb2.py": "sha256:eabfa8011f69573858bbe0083b578522a67135d7ed80fae3e29b3b03bf734eda",
     "gen/python/storage_manager/v1/fleet/fleet_pb2.pyi": "sha256:1555b66b10e40b10e227d26948df5ca9d70a60909b2fca0cd9925813c149fb2c",
@@ -45,12 +45,12 @@
     "gen/python/storage_manager/v1/shared/health_pb2.pyi": "sha256:b9ec00d86e0bdde26187240212eb1746c8be4ebac7b5320be40d8097822a8a04",
     "gen/python/storage_manager/v1/shared/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/typescript/js/storage-manager/v1/advisor/advisor_pb.js": "sha256:84f78243c5f79f68ea7aa4e5df18168ec1ed20edcaa6c8a8f7a1842a4d9610fb",
-    "gen/typescript/js/storage-manager/v1/cleanup/cleanup_pb.js": "sha256:1b96dfd80d2ad445c375672aebb817fa394c8ca6685332f0e41e9fa6a4ecea3c",
+    "gen/typescript/js/storage-manager/v1/cleanup/cleanup_pb.js": "sha256:bb8efedfbaefdaa4664071b3bacab46909ae587e0cd1cbd8ffbf0ff11eff76ea",
     "gen/typescript/js/storage-manager/v1/fleet/fleet_pb.js": "sha256:b24fb25d3396d9ed358e40bce8e49e7b05463711b8f4068ec3fec6de9f5c62fe",
     "gen/typescript/js/storage-manager/v1/shared/errors_pb.js": "sha256:6b449a366f4a75e131b770f439fe6b102a556ac0132b133f7bcfa775621df488",
     "gen/typescript/js/storage-manager/v1/shared/health_pb.js": "sha256:89b0a53cf337f9ab9a88e6c70432ab9e862b1f14d57b92e4c07fa66929d1726b",
     "gen/typescript/storage-manager/v1/advisor/advisor_pb.ts": "sha256:55121a605d5ecb060c41437bd0bfa0776690333cfa2358b160d3c3cc7d3adea7",
-    "gen/typescript/storage-manager/v1/cleanup/cleanup_pb.ts": "sha256:35cba14d36705dda9ce0ad7a05323c8b04669e9b4a123aa190104292cce162c1",
+    "gen/typescript/storage-manager/v1/cleanup/cleanup_pb.ts": "sha256:4e04c83d8a1f91fd2bacc9ccce10261c5942d2a6729b974112888b2e745ed3f9",
     "gen/typescript/storage-manager/v1/fleet/fleet_pb.ts": "sha256:af0913523e15b8a2ead683af138477b91d214229f60250eef86e5ed21b565393",
     "gen/typescript/storage-manager/v1/shared/errors_pb.ts": "sha256:f578325572c4b87ef9d018e4042431dd7915bc55ebea6f7409fd3c2e4c6a2d4e",
     "gen/typescript/storage-manager/v1/shared/health_pb.ts": "sha256:190c1b9d3fe50395a95f53e6f58ecc9b08d884515537e1c6da3b53033bc534ed"

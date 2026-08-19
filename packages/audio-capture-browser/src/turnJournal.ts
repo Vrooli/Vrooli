@@ -45,7 +45,16 @@ interface IncrementalTurnJournalStore extends TurnJournalStore {
 export class TurnJournal {
   private snapshot: JournalSnapshot;
   private pendingRecords = 0;
-  private static readonly COMPACTION_RECORDS = 128;
+  // Appends run on the capture write chain while processed acknowledgements
+  // arrive on an independent network callback. Serialize their IndexedDB
+  // transactions here; otherwise a compaction can delete records while an
+  // append transaction is still active, producing browser-level AbortError
+  // and falsely reducing durability during a healthy stream.
+  private persistenceQueue: Promise<void> = Promise.resolve();
+  // Keep the un-compacted record tail below the 16 MiB journal quota while
+  // avoiding a cursor transaction for every small batch during long-form
+  // capture. At 3,200 bytes per 100 ms PCM frame this is about 3.3 MiB.
+  private static readonly COMPACTION_RECORDS = 1024;
 
   constructor(
     private readonly store: TurnJournalStore,
@@ -145,18 +154,25 @@ export class TurnJournal {
   }
 
   private async persist(record: JournalRecord): Promise<void> {
-    const key = TurnJournal.key(this.snapshot.sessionId, this.snapshot.generation);
-    const incremental = this.store as Partial<IncrementalTurnJournalStore>;
-    if (incremental.appendRecord && incremental.compactRecords) {
-      await incremental.appendRecord(key, record);
-      this.pendingRecords += 1;
-      if (this.pendingRecords >= TurnJournal.COMPACTION_RECORDS) {
-        await incremental.compactRecords(key, this.read());
-        this.pendingRecords = 0;
+    const operation = this.persistenceQueue.then(async () => {
+      const key = TurnJournal.key(this.snapshot.sessionId, this.snapshot.generation);
+      const incremental = this.store as Partial<IncrementalTurnJournalStore>;
+      if (incremental.appendRecord && incremental.compactRecords) {
+        await incremental.appendRecord(key, record);
+        this.pendingRecords += 1;
+        if (this.pendingRecords >= TurnJournal.COMPACTION_RECORDS) {
+          await incremental.compactRecords(key, this.read());
+          this.pendingRecords = 0;
+        }
+        return;
       }
-      return;
-    }
-    await this.store.save(key, this.read());
+      await this.store.save(key, this.read());
+    });
+    // A failed operation must not poison every later append/ack. The caller
+    // still observes this operation's failure, while subsequent persistence
+    // attempts get a usable chain for diagnostics and recovery.
+    this.persistenceQueue = operation.catch(() => undefined);
+    await operation;
   }
 }
 
@@ -199,18 +215,14 @@ export class IndexedDBTurnJournalStore implements TurnJournalStore {
       const transaction = database.transaction(["turns", "turnRecords"], "readwrite");
       transaction.objectStore("turns").delete(key);
       const records = transaction.objectStore("turnRecords");
-      const request = records.getAll();
-      const keysRequest = records.getAllKeys();
-      const finish = () => {
-        if (!request.result || !keysRequest.result) return;
-        (request.result as Array<{ key: string }>).forEach((entry, index) => {
-          if (entry.key === key) records.delete((keysRequest.result as IDBValidKey[])[index]!);
-        });
+      const request = records.openCursor();
+      request.onsuccess = () => {
+        const cursor = request.result;
+        if (!cursor) return;
+        if ((cursor.value as { key?: string }).key === key) cursor.delete();
+        cursor.continue();
       };
-      request.onsuccess = finish;
-      keysRequest.onsuccess = finish;
       request.onerror = () => reject(request.error ?? new Error("remove IndexedDB journal records"));
-      keysRequest.onerror = () => reject(keysRequest.error ?? new Error("remove IndexedDB journal keys"));
       transaction.oncomplete = () => resolve();
       transaction.onerror = () => reject(transaction.error ?? new Error("remove IndexedDB journal transaction"));
     });
@@ -264,21 +276,20 @@ export class IndexedDBTurnJournalStore implements TurnJournalStore {
     await new Promise<void>((resolve, reject) => {
       const transaction = database.transaction(["turns", "turnRecords"], "readwrite");
       const records = transaction.objectStore("turnRecords");
-      const request = records.getAll();
-      const keysRequest = records.getAllKeys();
-      const finish = () => {
-        if (!request.result || !keysRequest.result) return;
-        const entries = request.result as Array<{ key: string; record: JournalRecord }>;
-        const ids = keysRequest.result as IDBValidKey[];
-        entries.forEach((entry, index) => {
-          if (entry.key === key) records.delete(ids[index]!);
-        });
+      const request = records.openCursor();
+      request.onsuccess = () => {
+        const cursor = request.result;
+        if (cursor) {
+          if ((cursor.value as { key?: string }).key === key) cursor.delete();
+          cursor.continue();
+          return;
+        }
+        // The cursor and snapshot write share one transaction. No second
+        // getAll/getAllKeys callback can race this put or reactivate an
+        // inactive transaction.
         transaction.objectStore("turns").put(snapshot, key);
       };
-      request.onsuccess = finish;
-      keysRequest.onsuccess = finish;
       request.onerror = () => reject(request.error ?? new Error("compact IndexedDB journal records"));
-      keysRequest.onerror = () => reject(keysRequest.error ?? new Error("compact IndexedDB journal keys"));
       transaction.oncomplete = () => resolve();
       transaction.onerror = () => reject(transaction.error ?? new Error("compact IndexedDB journal transaction"));
     });

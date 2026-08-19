@@ -6,7 +6,7 @@ import "web-console/v1/shared/target.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/targets;targets_v1";
 
-// @stability stable
+// @stability beta
 
 // TargetCatalogService is the operator-facing discovery contract for session
 // locations. Bridge credentials and node authorization remain server-side;

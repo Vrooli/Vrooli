@@ -29,7 +29,6 @@
 export type MicOwner =
   | "voice-stream"
   | "whisper"
-  | "web-speech"
   | "passive-wake-word"
   | "wake-word-enrollment"
   | "wake-word-test"
@@ -63,7 +62,7 @@ export type MicLeaseMetadata = Record<string, string | number | boolean | undefi
 /** Active-recording owners keep the mic open by user intent; passive / prewarm /
  *  settings owners must release on tab-hidden. */
 export function isActiveRecordingOwner(owner: MicOwner): boolean {
-  return owner === "voice-stream" || owner === "whisper" || owner === "web-speech";
+  return owner === "voice-stream" || owner === "whisper";
 }
 
 export interface MicLease {

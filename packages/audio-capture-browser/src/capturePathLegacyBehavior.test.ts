@@ -254,6 +254,22 @@ describe("ported capture-path behavior", () => {
     expect(transcribeRetained).not.toHaveBeenCalled();
   });
 
+  it("accepts an empty terminal final after durable segment text", async () => {
+    const socket = await start();
+    pushFrame();
+    await settle();
+    const result = vi.fn();
+    provider.onResult = result;
+    provider.stop();
+    socket.onmessage?.({ data: JSON.stringify({ type: "segment-final", text: "committed segment", segmentId: "segment-1", segmentIndex: 0 }) });
+    socket.onmessage?.({ data: JSON.stringify({ type: "final", text: "" }) });
+    await settle();
+
+    expect(result).toHaveBeenCalledWith("");
+    expect(provider.getDiagnostic()).toMatchObject({ state: "completed", terminalReason: "final" });
+    expect(transcribeRetained).not.toHaveBeenCalled();
+  });
+
   it("retains a WAV turn snapshot until the consumer disposes it", async () => {
     await start();
     pushFrame(256);

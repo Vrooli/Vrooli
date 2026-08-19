@@ -257,7 +257,7 @@
         "type": {
           "type": "string",
           "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$",
-          "description": "Open vocabulary. v1 machine-checkable types (checked against the BAS-captured accessibility tree): element-present, element-absent, single-dominant-action, visible-without-scroll, reading-order (order of `elements` array; direction-aware per locale), state-covered (the state renders dedicated content, not blank/default), state-distinct (two states are distinguishable), keyboard-reachable, affordance-present (params.affordances names required controls such as sort/filter/search, scoped by params.targetRole or the first referenced element role), spacing (two elements plus params.minSeparation), state-contrast (a state, background, and params.minContrastRatio), and size-parity (two elements plus optional params.tolerance). `custom` = free-form claim that always parses and may not be machine tier. Unknown types parse and are treated as aspirational until the validator learns them."
+          "description": "Open vocabulary. v1 machine-checkable types (checked against the BAS-captured accessibility tree): element-present, element-absent, single-dominant-action, visible-without-scroll, reading-order (order of `elements` array; direction-aware per locale), state-covered (the state renders dedicated content, not blank/default), state-distinct (two states are distinguishable), keyboard-reachable, affordance-present (params.affordances names required controls such as sort/filter/search, scoped by params.targetRole or the first referenced element role), spacing (two elements plus params.minSeparation), state-contrast (a state, background, and params.minContrastRatio), size-parity (two elements plus optional params.tolerance), and differential (two captured contexts must meet their expected values and differ). `custom` = free-form claim that always parses and may not be machine tier. Unknown types parse and are treated as aspirational until the validator learns them."
         },
         "statement": {
           "type": "string",
@@ -293,7 +293,25 @@
           "type": "object",
           "description": "Type-specific parameters (e.g. {\"maxSteps\": 3}). Free-form by design."
         },
-        "rationale": { "type": "string" }
+        "rationale": { "type": "string" },
+        "subject": { "$ref": "#/$defs/Id" },
+        "metric": { "type": "string", "minLength": 1 },
+        "contexts": {
+          "type": "array",
+          "minItems": 2,
+          "items": {
+            "type": "object",
+            "required": ["id", "story", "expect"],
+            "properties": {
+              "id": { "$ref": "#/$defs/Id" },
+              "story": { "type": "string", "minLength": 1 },
+              "parent": { "type": "string", "minLength": 1 },
+              "expect": { "type": "string", "minLength": 1 }
+            },
+            "additionalProperties": false
+          }
+        },
+        "require": { "type": "string" }
       },
       "patternProperties": { "^x-": {} },
       "additionalProperties": false,
@@ -305,6 +323,16 @@
           },
           "then": {
             "properties": { "tier": { "enum": ["manual", "aspirational"] } }
+          }
+        },
+        {
+          "if": {
+            "properties": { "type": { "const": "differential" } },
+            "required": ["type"]
+          },
+          "then": {
+            "required": ["subject", "metric", "contexts", "require"],
+            "properties": { "require": { "const": "contexts-differ" } }
           }
         }
       ]

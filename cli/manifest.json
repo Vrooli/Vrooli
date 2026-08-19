@@ -4,405 +4,57 @@
   "description": "Governed project CLI for the Vrooli control plane and scenario fleet.",
   "groups": [
     {
-      "name": "scenario",
-      "description": "Inspect and manage the Vrooli scenario fleet.",
+      "name": "agent",
+      "description": "Run an interactive coding-agent CLI through the governed project surface.",
       "commands": [
         {
-          "name": "status",
-          "description": "Read one scenario's runtime and manifest status.",
-          "positionals": [
-            {
-          "name": "name",
-          "required": true,
-          "description": "Scenario name."
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "ScenarioControlPlaneService",
-            "method": "GetScenarioStatus"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "architecture": {
-            "primitive": "proto_list"
-          },
-          "semantics": {
-            "kind": "verify",
-            "verdict": {
-              "path": "success",
-              "pass": "true",
-              "fail": "false"
-            }
-          }
-        },
-        {
-          "name": "logs",
-          "description": "Read a bounded tail of one scenario's lifecycle log.",
-          "positionals": [
-          {
-            "name": "name",
-            "required": true,
-            "description": "Scenario name."
-            }
-          ],
+          "name": "launch",
+          "description": "Launch an allowlisted coding-agent CLI with inherited terminal input and output.",
           "flags": [
             {
-              "name": "tail-lines",
-              "description": "Maximum number of log lines to return."
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "ScenarioControlPlaneService",
-            "method": "GetScenarioLogs"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "architecture": {
-            "primitive": "proto_list"
-          }
-        },
-        {
-          "name": "start",
-          "description": "Start one scenario through the managed lifecycle.",
-          "positionals": [
-          {
-            "name": "name",
-            "required": true,
-            "description": "Scenario name."
-            }
-          ],
-          "flags": [
+              "name": "runner",
+              "default": "claude",
+              "values": ["claude", "claude-code", "codex", "opencode", "grok"],
+              "description": "Coding-agent runner to launch."
+            },
             {
-              "name": "timeout-seconds",
-              "description": "Lifecycle start ceiling in seconds."
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "ScenarioControlPlaneService",
-            "method": "StartScenario"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ],
-            "requires_confirmation": true
-          },
-          "architecture": {
-            "primitive": "proto_mutation"
-          }
-        },
-        {
-          "name": "stop",
-          "description": "Stop one scenario through the managed lifecycle.",
-          "positionals": [
-          {
-            "name": "name",
-            "required": true,
-            "description": "Scenario name."
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "ScenarioControlPlaneService",
-            "method": "StopScenario"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ],
-            "requires_confirmation": true
-          },
-          "architecture": {
-            "primitive": "proto_mutation"
-          }
-        },
-        {
-          "name": "restart",
-          "description": "Restart one scenario through the managed lifecycle.",
-          "positionals": [
-          {
-            "name": "name",
-            "required": true,
-            "description": "Scenario name."
-            }
-          ],
-          "flags": [
+              "name": "prompt",
+              "description": "Optional non-interactive prompt passed to the runner."
+            },
             {
-              "name": "timeout-seconds",
-              "description": "Lifecycle restart ceiling in seconds."
+              "name": "cwd",
+              "description": "Optional working directory for the runner."
+            },
+            {
+              "name": "arg",
+              "repeatable": true,
+              "description": "Additional argv token passed to the runner."
             }
           ],
           "binding": {
-            "kind": "connect-rpc",
-            "service": "ScenarioControlPlaneService",
-            "method": "RestartScenario"
+            "kind": "local"
           },
           "governance": {
             "effect": "write",
             "run_eligible": true,
             "permissions": [
-              "network:internal"
-            ],
-            "requires_confirmation": true
+              "filesystem:read",
+              "filesystem:write",
+              "network:external"
+            ]
           },
           "architecture": {
-            "primitive": "proto_mutation"
-          }
-        },
-        {
-          "name": "setup",
-          "description": "Run one scenario's governed setup phase.",
-          "positionals": [
-          {
-            "name": "name",
-            "required": true,
-            "description": "Scenario name."
+            "exception": {
+              "class": "external_delegation",
+              "reason": "The governed command delegates to one explicitly allowlisted coding-agent executable while preserving argv boundaries and the caller's terminal streams."
             }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "ScenarioControlPlaneService",
-            "method": "SetupScenario"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ],
-            "requires_confirmation": true
-          },
-          "architecture": {
-            "primitive": "proto_mutation"
-          }
-        },
-        {
-          "name": "info",
-          "description": "Scenario management command: info.",
-          "binding": {
-            "kind": "local"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "filesystem:read"
-            ]
-          }
-        },
-        {
-          "name": "validate-env",
-          "description": "Scenario management command: validate-env.",
-          "binding": {
-            "kind": "local"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "filesystem:read"
-            ]
-          }
-        },
-        {
-          "name": "freshness",
-          "description": "Scenario management command: freshness.",
-          "binding": {
-            "kind": "local"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "filesystem:read"
-            ]
-          }
-        },
-        {
-          "name": "run",
-          "description": "Scenario management command: run.",
-          "binding": {
-            "kind": "local"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": true,
-            "permissions": [
-              "filesystem:read",
-              "filesystem:write"
-            ]
-          }
-        },
-        {
-          "name": "start-all",
-          "description": "Scenario management command: start-all.",
-          "binding": {
-            "kind": "local"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": true,
-            "permissions": [
-              "filesystem:read",
-              "filesystem:write"
-            ]
-          }
-        },
-        {
-          "name": "wait",
-          "description": "Scenario management command: wait.",
-          "binding": {
-            "kind": "local"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "filesystem:read"
-            ]
-          }
-        },
-        {
-          "name": "stop-all",
-          "description": "Scenario management command: stop-all.",
-          "binding": {
-            "kind": "local"
-          },
-          "governance": {
-            "effect": "destructive",
-            "run_eligible": false,
-            "permissions": [
-              "filesystem:read",
-              "filesystem:write"
-            ],
-            "requires_confirmation": true
-          }
-        },
-        {
-          "name": "test",
-          "description": "Scenario management command: test.",
-          "binding": {
-            "kind": "local"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": true,
-            "permissions": [
-              "filesystem:read",
-              "filesystem:write"
-            ]
-          }
-        },
-        {
-          "name": "screenshot",
-          "description": "Scenario management command: screenshot.",
-          "binding": {
-            "kind": "local"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": true,
-            "permissions": [
-              "filesystem:read",
-              "filesystem:write"
-            ]
-          }
-        },
-        {
-          "name": "open",
-          "description": "Scenario management command: open.",
-          "binding": {
-            "kind": "local"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": true,
-            "permissions": [
-              "filesystem:read",
-              "filesystem:write"
-            ]
-          }
-        },
-        {
-          "name": "port",
-          "description": "Scenario management command: port.",
-          "binding": {
-            "kind": "local"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "filesystem:read"
-            ]
-          }
-        },
-        {
-          "name": "requirements",
-          "description": "Scenario management command: requirements.",
-          "binding": {
-            "kind": "local"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "filesystem:read"
-            ]
-          }
-        },
-        {
-          "name": "completeness",
-          "description": "Scenario management command: completeness.",
-          "binding": {
-            "kind": "local"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "filesystem:read"
-            ]
-          }
-        },
-        {
-          "name": "heal-from-sandbox",
-          "description": "Scenario management command: heal-from-sandbox.",
-          "binding": {
-            "kind": "local"
-          },
-          "governance": {
-            "effect": "destructive",
-            "run_eligible": false,
-            "permissions": [
-              "filesystem:read",
-              "filesystem:write"
-            ],
-            "requires_confirmation": true
           }
         }
       ]
     },
     {
-      "name": "scenario-primitives",
-      "description": "Scenario control-plane commands migrated to cli-core primitives.",
+      "name": "scenario",
+      "description": "Inspect and manage the Vrooli scenario fleet.",
       "commands": [
         {
           "name": "list",
@@ -437,6 +89,406 @@
               "fail": "false"
             }
           }
+        }
+      ],
+      "groups": [
+        {
+          "name": "management",
+          "description": "Scenario management commands retained under the scenario invocation path.",
+          "flat": true,
+          "commands": [
+            {
+              "name": "status",
+              "description": "Read one scenario's runtime and manifest status.",
+              "positionals": [
+                {
+                  "name": "name",
+                  "required": true,
+                  "description": "Scenario name."
+                }
+              ],
+              "binding": {
+                "kind": "connect-rpc",
+                "service": "ScenarioControlPlaneService",
+                "method": "GetScenarioStatus"
+              },
+              "governance": {
+                "effect": "read",
+                "run_eligible": true,
+                "permissions": [
+                  "network:internal"
+                ]
+              },
+              "architecture": {
+                "primitive": "proto_list"
+              },
+              "semantics": {
+                "kind": "verify",
+                "verdict": {
+                  "path": "success",
+                  "pass": "true",
+                  "fail": "false"
+                }
+              }
+            },
+            {
+              "name": "logs",
+              "description": "Read a bounded tail of one scenario's lifecycle log.",
+              "positionals": [
+                {
+                  "name": "name",
+                  "required": true,
+                  "description": "Scenario name."
+                }
+              ],
+              "flags": [
+                {
+                  "name": "tail-lines",
+                  "description": "Maximum number of log lines to return."
+                }
+              ],
+              "binding": {
+                "kind": "connect-rpc",
+                "service": "ScenarioControlPlaneService",
+                "method": "GetScenarioLogs"
+              },
+              "governance": {
+                "effect": "read",
+                "run_eligible": true,
+                "permissions": [
+                  "network:internal"
+                ]
+              },
+              "architecture": {
+                "primitive": "proto_list"
+              }
+            },
+            {
+              "name": "start",
+              "description": "Start one scenario through the managed lifecycle.",
+              "positionals": [
+                {
+                  "name": "name",
+                  "required": true,
+                  "description": "Scenario name."
+                }
+              ],
+              "flags": [
+                {
+                  "name": "timeout-seconds",
+                  "description": "Lifecycle start ceiling in seconds."
+                }
+              ],
+              "binding": {
+                "kind": "connect-rpc",
+                "service": "ScenarioControlPlaneService",
+                "method": "StartScenario"
+              },
+              "governance": {
+                "effect": "write",
+                "run_eligible": true,
+                "permissions": [
+                  "network:internal"
+                ],
+                "requires_confirmation": true
+              },
+              "architecture": {
+                "primitive": "proto_mutation"
+              }
+            },
+            {
+              "name": "stop",
+              "description": "Stop one scenario through the managed lifecycle.",
+              "positionals": [
+                {
+                  "name": "name",
+                  "required": true,
+                  "description": "Scenario name."
+                }
+              ],
+              "binding": {
+                "kind": "connect-rpc",
+                "service": "ScenarioControlPlaneService",
+                "method": "StopScenario"
+              },
+              "governance": {
+                "effect": "write",
+                "run_eligible": true,
+                "permissions": [
+                  "network:internal"
+                ],
+                "requires_confirmation": true
+              },
+              "architecture": {
+                "primitive": "proto_mutation"
+              }
+            },
+            {
+              "name": "restart",
+              "description": "Restart one scenario through the managed lifecycle.",
+              "positionals": [
+                {
+                  "name": "name",
+                  "required": true,
+                  "description": "Scenario name."
+                }
+              ],
+              "flags": [
+                {
+                  "name": "timeout-seconds",
+                  "description": "Lifecycle restart ceiling in seconds."
+                }
+              ],
+              "binding": {
+                "kind": "connect-rpc",
+                "service": "ScenarioControlPlaneService",
+                "method": "RestartScenario"
+              },
+              "governance": {
+                "effect": "write",
+                "run_eligible": true,
+                "permissions": [
+                  "network:internal"
+                ],
+                "requires_confirmation": true
+              },
+              "architecture": {
+                "primitive": "proto_mutation"
+              }
+            },
+            {
+              "name": "setup",
+              "description": "Run one scenario's governed setup phase.",
+              "positionals": [
+                {
+                  "name": "name",
+                  "required": true,
+                  "description": "Scenario name."
+                }
+              ],
+              "binding": {
+                "kind": "connect-rpc",
+                "service": "ScenarioControlPlaneService",
+                "method": "SetupScenario"
+              },
+              "governance": {
+                "effect": "write",
+                "run_eligible": true,
+                "permissions": [
+                  "network:internal"
+                ],
+                "requires_confirmation": true
+              },
+              "architecture": {
+                "primitive": "proto_mutation"
+              }
+            },
+            {
+              "name": "info",
+              "description": "Scenario management command: info.",
+              "binding": {
+                "kind": "local"
+              },
+              "governance": {
+                "effect": "read",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read"
+                ]
+              }
+            },
+            {
+              "name": "validate-env",
+              "description": "Scenario management command: validate-env.",
+              "binding": {
+                "kind": "local"
+              },
+              "governance": {
+                "effect": "read",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read"
+                ]
+              }
+            },
+            {
+              "name": "freshness",
+              "description": "Scenario management command: freshness.",
+              "binding": {
+                "kind": "local"
+              },
+              "governance": {
+                "effect": "read",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read"
+                ]
+              }
+            },
+            {
+              "name": "run",
+              "description": "Scenario management command: run.",
+              "binding": {
+                "kind": "local"
+              },
+              "governance": {
+                "effect": "write",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read",
+                  "filesystem:write"
+                ]
+              }
+            },
+            {
+              "name": "start-all",
+              "description": "Scenario management command: start-all.",
+              "binding": {
+                "kind": "local"
+              },
+              "governance": {
+                "effect": "write",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read",
+                  "filesystem:write"
+                ]
+              }
+            },
+            {
+              "name": "wait",
+              "description": "Scenario management command: wait.",
+              "binding": {
+                "kind": "local"
+              },
+              "governance": {
+                "effect": "read",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read"
+                ]
+              }
+            },
+            {
+              "name": "stop-all",
+              "description": "Scenario management command: stop-all.",
+              "binding": {
+                "kind": "local"
+              },
+              "governance": {
+                "effect": "destructive",
+                "run_eligible": false,
+                "permissions": [
+                  "filesystem:read",
+                  "filesystem:write"
+                ],
+                "requires_confirmation": true
+              }
+            },
+            {
+              "name": "test",
+              "description": "Scenario management command: test.",
+              "binding": {
+                "kind": "local"
+              },
+              "governance": {
+                "effect": "write",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read",
+                  "filesystem:write"
+                ]
+              }
+            },
+            {
+              "name": "screenshot",
+              "description": "Scenario management command: screenshot.",
+              "binding": {
+                "kind": "local"
+              },
+              "governance": {
+                "effect": "write",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read",
+                  "filesystem:write"
+                ]
+              }
+            },
+            {
+              "name": "open",
+              "description": "Scenario management command: open.",
+              "binding": {
+                "kind": "local"
+              },
+              "governance": {
+                "effect": "write",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read",
+                  "filesystem:write"
+                ]
+              }
+            },
+            {
+              "name": "port",
+              "description": "Scenario management command: port.",
+              "binding": {
+                "kind": "local"
+              },
+              "governance": {
+                "effect": "read",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read"
+                ]
+              }
+            },
+            {
+              "name": "requirements",
+              "description": "Scenario management command: requirements.",
+              "binding": {
+                "kind": "local"
+              },
+              "governance": {
+                "effect": "read",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read"
+                ]
+              }
+            },
+            {
+              "name": "completeness",
+              "description": "Scenario management command: completeness.",
+              "binding": {
+                "kind": "local"
+              },
+              "governance": {
+                "effect": "read",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read"
+                ]
+              }
+            },
+            {
+              "name": "heal-from-sandbox",
+              "description": "Scenario management command: heal-from-sandbox.",
+              "binding": {
+                "kind": "local"
+              },
+              "governance": {
+                "effect": "destructive",
+                "run_eligible": false,
+                "permissions": [
+                  "filesystem:read",
+                  "filesystem:write"
+                ],
+                "requires_confirmation": true
+              }
+            }
+          ]
         }
       ]
     },
@@ -1405,235 +1457,184 @@
             ]
           }
         }
-      ]
-    },
-    {
-      "name": "resource-archive",
-      "description": "Resource archive command",
-      "commands": [
+      ],
+      "groups": [
         {
-          "name": "gc",
-          "description": "Resource archive command: gc.",
-          "binding": {
-            "kind": "local"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "filesystem:read"
-            ]
-          }
+          "name": "archive",
+          "description": "Resource archive command (formerly resource-archive).",
+          "commands": [
+            {
+              "name": "gc",
+              "description": "Resource archive command: gc.",
+              "binding": { "kind": "local" },
+              "governance": { "effect": "read", "run_eligible": true, "permissions": ["filesystem:read"] }
+            },
+            {
+              "name": "gc-blueprints",
+              "description": "Resource archive command: gc-blueprints.",
+              "binding": { "kind": "local" },
+              "governance": { "effect": "read", "run_eligible": true, "permissions": ["filesystem:read"] }
+            }
+          ]
         },
         {
-          "name": "gc-blueprints",
-          "description": "Resource archive command: gc-blueprints.",
-          "binding": {
-            "kind": "local"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "filesystem:read"
-            ]
-          }
+          "name": "blueprint",
+          "description": "Resource blueprint command (formerly resource-blueprint).",
+          "commands": [
+            {
+              "name": "list",
+              "description": "Resource blueprint command: list.",
+              "binding": { "kind": "local" },
+              "governance": { "effect": "read", "run_eligible": true, "permissions": ["filesystem:read"] }
+            },
+            {
+              "name": "info",
+              "description": "Resource blueprint command: info.",
+              "binding": { "kind": "local" },
+              "governance": { "effect": "read", "run_eligible": true, "permissions": ["filesystem:read"] }
+            },
+            {
+              "name": "search",
+              "description": "Resource blueprint command: search.",
+              "binding": { "kind": "local" },
+              "governance": { "effect": "read", "run_eligible": true, "permissions": ["filesystem:read"] }
+            },
+            {
+              "name": "validate",
+              "description": "Resource blueprint command: validate.",
+              "binding": { "kind": "local" },
+              "governance": { "effect": "read", "run_eligible": true, "permissions": ["filesystem:read"] }
+            }
+          ]
+        },
+        {
+          "name": "schema",
+          "description": "Resource schema command (formerly resource-schema).",
+          "commands": [
+            {
+              "name": "validate",
+              "description": "Resource schema command: validate.",
+              "binding": { "kind": "local" },
+              "governance": { "effect": "read", "run_eligible": true, "permissions": ["filesystem:read"] }
+            },
+            {
+              "name": "sync",
+              "description": "Resource schema command: sync.",
+              "binding": { "kind": "local" },
+              "governance": { "effect": "write", "run_eligible": true, "permissions": ["filesystem:read", "filesystem:write"] }
+            }
+          ]
         }
       ]
     },
     {
-      "name": "resource-blueprint",
-      "description": "Resource blueprint command",
-      "commands": [
+      "name": "runtime",
+      "description": "Runtime management command",
+      "groups": [
         {
-          "name": "list",
-          "description": "Resource blueprint command: list.",
-          "binding": {
-            "kind": "local"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "filesystem:read"
-            ]
-          }
+          "name": "supervisor",
+          "description": "Runtime supervisor command (formerly runtime-supervisor).",
+          "commands": [
+            {
+              "name": "run",
+              "description": "Runtime supervisor command: run.",
+              "binding": {
+                "kind": "local"
+              },
+              "governance": {
+                "effect": "read",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read"
+                ]
+              }
+            },
+            {
+              "name": "status",
+              "description": "Runtime supervisor command: status.",
+              "binding": {
+                "kind": "local"
+              },
+              "governance": {
+                "effect": "read",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read"
+                ]
+              }
+            },
+            {
+              "name": "install",
+              "description": "Runtime supervisor command: install.",
+              "binding": {
+                "kind": "local"
+              },
+              "governance": {
+                "effect": "write",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read",
+                  "filesystem:write"
+                ]
+              }
+            },
+            {
+              "name": "uninstall",
+              "description": "Runtime supervisor command: uninstall.",
+              "binding": {
+                "kind": "local"
+              },
+              "governance": {
+                "effect": "destructive",
+                "run_eligible": false,
+                "permissions": [
+                  "filesystem:read",
+                  "filesystem:write"
+                ],
+                "requires_confirmation": true
+              }
+            }
+          ]
         },
         {
-          "name": "info",
-          "description": "Resource blueprint command: info.",
-          "binding": {
-            "kind": "local"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "filesystem:read"
-            ]
-          }
-        },
-        {
-          "name": "search",
-          "description": "Resource blueprint command: search.",
-          "binding": {
-            "kind": "local"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "filesystem:read"
-            ]
-          }
-        },
-        {
-          "name": "validate",
-          "description": "Resource blueprint command: validate.",
-          "binding": {
-            "kind": "local"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "filesystem:read"
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "name": "resource-schema",
-      "description": "Resource schema command",
-      "commands": [
-        {
-          "name": "validate",
-          "description": "Resource schema command: validate.",
-          "binding": {
-            "kind": "local"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "filesystem:read"
-            ]
-          }
-        },
-        {
-          "name": "sync",
-          "description": "Resource schema command: sync.",
-          "binding": {
-            "kind": "local"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": true,
-            "permissions": [
-              "filesystem:read",
-              "filesystem:write"
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "name": "runtime-supervisor",
-      "description": "Runtime supervisor command",
-      "commands": [
-        {
-          "name": "run",
-          "description": "Runtime supervisor command: run.",
-          "binding": {
-            "kind": "local"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "filesystem:read"
-            ]
-          }
-        },
-        {
-          "name": "status",
-          "description": "Runtime supervisor command: status.",
-          "binding": {
-            "kind": "local"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "filesystem:read"
-            ]
-          }
-        },
-        {
-          "name": "install",
-          "description": "Runtime supervisor command: install.",
-          "binding": {
-            "kind": "local"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": true,
-            "permissions": [
-              "filesystem:read",
-              "filesystem:write"
-            ]
-          }
-        },
-        {
-          "name": "uninstall",
-          "description": "Runtime supervisor command: uninstall.",
-          "binding": {
-            "kind": "local"
-          },
-          "governance": {
-            "effect": "destructive",
-            "run_eligible": false,
-            "permissions": [
-              "filesystem:read",
-              "filesystem:write"
-            ],
-            "requires_confirmation": true
-          }
-        }
-      ]
-    },
-    {
-      "name": "runtime-recovery-policy",
-      "description": "Runtime recovery policy command",
-      "commands": [
-        {
-          "name": "set",
-          "description": "Runtime recovery policy command: set.",
-          "binding": {
-            "kind": "local"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "filesystem:read"
-            ]
-          }
-        },
-        {
-          "name": "list",
-          "description": "Runtime recovery policy command: list.",
-          "binding": {
-            "kind": "local"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "filesystem:read"
-            ]
-          }
+          "name": "recovery",
+          "description": "Runtime recovery command",
+          "groups": [
+            {
+              "name": "policy",
+              "description": "Runtime recovery policy command (formerly runtime-recovery-policy).",
+              "commands": [
+                {
+                  "name": "set",
+                  "description": "Runtime recovery policy command: set.",
+                  "binding": {
+                    "kind": "local"
+                  },
+                  "governance": {
+                    "effect": "read",
+                    "run_eligible": true,
+                    "permissions": [
+                      "filesystem:read"
+                    ]
+                  }
+                },
+                {
+                  "name": "list",
+                  "description": "Runtime recovery policy command: list.",
+                  "binding": {
+                    "kind": "local"
+                  },
+                  "governance": {
+                    "effect": "read",
+                    "run_eligible": true,
+                    "permissions": [
+                      "filesystem:read"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
         }
       ]
     },
@@ -1823,25 +1824,19 @@
             ]
           }
         }
-      ]
-    },
-    {
-      "name": "contract-resolve",
-      "description": "Contract resolution command",
-      "commands": [
+      ],
+      "groups": [
         {
-          "name": "scenario",
-          "description": "Contract resolution command: scenario.",
-          "binding": {
-            "kind": "local"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "filesystem:read"
-            ]
-          }
+          "name": "resolve",
+          "description": "Contract resolution command (formerly contract-resolve).",
+          "commands": [
+            {
+              "name": "scenario",
+              "description": "Contract resolution command: scenario.",
+              "binding": { "kind": "local" },
+              "governance": { "effect": "read", "run_eligible": true, "permissions": ["filesystem:read"] }
+            }
+          ]
         }
       ]
     },
@@ -2375,215 +2370,38 @@
             ]
           }
         }
-      ]
-    },
-    {
-      "name": "credentials-store",
-      "description": "Credential store command",
-      "commands": [
+      ],
+      "groups": [
         {
-          "name": "status",
-          "description": "Credential store command: status.",
-          "binding": {
-            "kind": "local"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "filesystem:read"
-            ]
-          }
+          "name": "store",
+          "description": "Credential store command (formerly credentials-store).",
+          "commands": [
+            { "name": "status", "description": "Credential store command: status.", "binding": { "kind": "local" }, "governance": { "effect": "read", "run_eligible": true, "permissions": ["filesystem:read"] } },
+            { "name": "init", "description": "Credential store command: init.", "binding": { "kind": "local" }, "governance": { "effect": "write", "run_eligible": true, "permissions": ["filesystem:read", "filesystem:write"] } },
+            { "name": "unlock", "description": "Credential store command: unlock.", "binding": { "kind": "local" }, "governance": { "effect": "write", "run_eligible": true, "permissions": ["filesystem:read", "filesystem:write"] } },
+            { "name": "lock", "description": "Credential store command: lock.", "binding": { "kind": "local" }, "governance": { "effect": "write", "run_eligible": true, "permissions": ["filesystem:read", "filesystem:write"] } },
+            { "name": "rewrap", "description": "Credential store command: rewrap.", "binding": { "kind": "local" }, "governance": { "effect": "write", "run_eligible": true, "permissions": ["filesystem:read", "filesystem:write"] } },
+            { "name": "change-passphrase", "description": "Credential store command: change-passphrase.", "binding": { "kind": "local" }, "governance": { "effect": "write", "run_eligible": true, "permissions": ["filesystem:read", "filesystem:write"] } }
+          ]
         },
         {
-          "name": "init",
-          "description": "Credential store command: init.",
-          "binding": {
-            "kind": "local"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": true,
-            "permissions": [
-              "filesystem:read",
-              "filesystem:write"
-            ]
-          }
+          "name": "keyring",
+          "description": "Credential keyring command (formerly credentials-keyring).",
+          "commands": [
+            { "name": "status", "description": "Credential keyring command: status.", "binding": { "kind": "local" }, "governance": { "effect": "read", "run_eligible": true, "permissions": ["filesystem:read"] } },
+            { "name": "inspect", "description": "Credential keyring command: inspect.", "binding": { "kind": "local" }, "governance": { "effect": "read", "run_eligible": true, "permissions": ["filesystem:read"] } },
+            { "name": "repair", "description": "Credential keyring command: repair.", "binding": { "kind": "local" }, "governance": { "effect": "write", "run_eligible": true, "permissions": ["filesystem:read", "filesystem:write"] } },
+            { "name": "unlock", "description": "Credential keyring command: unlock.", "binding": { "kind": "local" }, "governance": { "effect": "write", "run_eligible": true, "permissions": ["filesystem:read", "filesystem:write"] } }
+          ]
         },
         {
-          "name": "unlock",
-          "description": "Credential store command: unlock.",
-          "binding": {
-            "kind": "local"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": true,
-            "permissions": [
-              "filesystem:read",
-              "filesystem:write"
-            ]
-          }
-        },
-        {
-          "name": "lock",
-          "description": "Credential store command: lock.",
-          "binding": {
-            "kind": "local"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": true,
-            "permissions": [
-              "filesystem:read",
-              "filesystem:write"
-            ]
-          }
-        },
-        {
-          "name": "rewrap",
-          "description": "Credential store command: rewrap.",
-          "binding": {
-            "kind": "local"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": true,
-            "permissions": [
-              "filesystem:read",
-              "filesystem:write"
-            ]
-          }
-        },
-        {
-          "name": "change-passphrase",
-          "description": "Credential store command: change-passphrase.",
-          "binding": {
-            "kind": "local"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": true,
-            "permissions": [
-              "filesystem:read",
-              "filesystem:write"
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "name": "credentials-keyring",
-      "description": "Credential keyring command",
-      "commands": [
-        {
-          "name": "status",
-          "description": "Credential keyring command: status.",
-          "binding": {
-            "kind": "local"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "filesystem:read"
-            ]
-          }
-        },
-        {
-          "name": "inspect",
-          "description": "Credential keyring command: inspect.",
-          "binding": {
-            "kind": "local"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "filesystem:read"
-            ]
-          }
-        },
-        {
-          "name": "repair",
-          "description": "Credential keyring command: repair.",
-          "binding": {
-            "kind": "local"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": true,
-            "permissions": [
-              "filesystem:read",
-              "filesystem:write"
-            ]
-          }
-        },
-        {
-          "name": "unlock",
-          "description": "Credential keyring command: unlock.",
-          "binding": {
-            "kind": "local"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": true,
-            "permissions": [
-              "filesystem:read",
-              "filesystem:write"
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "name": "credentials-recovery",
-      "description": "Credential recovery command",
-      "commands": [
-        {
-          "name": "export",
-          "description": "Credential recovery command: export.",
-          "binding": {
-            "kind": "local"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": true,
-            "permissions": [
-              "filesystem:read",
-              "filesystem:write"
-            ]
-          }
-        },
-        {
-          "name": "verify",
-          "description": "Credential recovery command: verify.",
-          "binding": {
-            "kind": "local"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "filesystem:read"
-            ]
-          }
-        },
-        {
-          "name": "restore",
-          "description": "Credential recovery command: restore.",
-          "binding": {
-            "kind": "local"
-          },
-          "governance": {
-            "effect": "destructive",
-            "run_eligible": false,
-            "permissions": [
-              "filesystem:read",
-              "filesystem:write"
-            ],
-            "requires_confirmation": true
-          }
+          "name": "recovery",
+          "description": "Credential recovery command (formerly credentials-recovery).",
+          "commands": [
+            { "name": "export", "description": "Credential recovery command: export.", "binding": { "kind": "local" }, "governance": { "effect": "write", "run_eligible": true, "permissions": ["filesystem:read", "filesystem:write"] } },
+            { "name": "verify", "description": "Credential recovery command: verify.", "binding": { "kind": "local" }, "governance": { "effect": "read", "run_eligible": true, "permissions": ["filesystem:read"] } },
+            { "name": "restore", "description": "Credential recovery command: restore.", "binding": { "kind": "local" }, "governance": { "effect": "destructive", "run_eligible": false, "permissions": ["filesystem:read", "filesystem:write"], "requires_confirmation": true } }
+          ]
         }
       ]
     },

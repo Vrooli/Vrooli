@@ -129,20 +129,28 @@ class CreatePlanResponse(_message.Message):
     def __init__(self, plan: _Optional[_Union[Plan, _Mapping]] = ...) -> None: ...
 
 class Plan(_message.Message):
-    __slots__ = ("id", "policy_version", "created_at", "total_bytes", "total_items", "providers")
+    __slots__ = ("id", "policy_version", "created_at", "total_bytes", "total_items", "providers", "census_id", "census_status", "census_started_at", "census_completed_at")
     ID_FIELD_NUMBER: _ClassVar[int]
     POLICY_VERSION_FIELD_NUMBER: _ClassVar[int]
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
     TOTAL_BYTES_FIELD_NUMBER: _ClassVar[int]
     TOTAL_ITEMS_FIELD_NUMBER: _ClassVar[int]
     PROVIDERS_FIELD_NUMBER: _ClassVar[int]
+    CENSUS_ID_FIELD_NUMBER: _ClassVar[int]
+    CENSUS_STATUS_FIELD_NUMBER: _ClassVar[int]
+    CENSUS_STARTED_AT_FIELD_NUMBER: _ClassVar[int]
+    CENSUS_COMPLETED_AT_FIELD_NUMBER: _ClassVar[int]
     id: str
     policy_version: str
     created_at: _timestamp_pb2.Timestamp
     total_bytes: int
     total_items: int
     providers: _containers.RepeatedCompositeFieldContainer[ProviderPlan]
-    def __init__(self, id: _Optional[str] = ..., policy_version: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., total_bytes: _Optional[int] = ..., total_items: _Optional[int] = ..., providers: _Optional[_Iterable[_Union[ProviderPlan, _Mapping]]] = ...) -> None: ...
+    census_id: str
+    census_status: str
+    census_started_at: _timestamp_pb2.Timestamp
+    census_completed_at: _timestamp_pb2.Timestamp
+    def __init__(self, id: _Optional[str] = ..., policy_version: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., total_bytes: _Optional[int] = ..., total_items: _Optional[int] = ..., providers: _Optional[_Iterable[_Union[ProviderPlan, _Mapping]]] = ..., census_id: _Optional[str] = ..., census_status: _Optional[str] = ..., census_started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., census_completed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class ProviderPlan(_message.Message):
     __slots__ = ("provider_id", "provider_version", "estimated_bytes", "item_count", "blocked_reason", "items", "warnings", "approval_mode")

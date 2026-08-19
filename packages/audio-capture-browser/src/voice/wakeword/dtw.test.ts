@@ -23,6 +23,12 @@ describe("wake-word DTW scoring", () => {
     expect(dtwDistance(input, [])).toBe(Infinity);
   });
 
+  it("reaches the corner for very unequal finite sequences", () => {
+    const distance = dtwDistance(sequence(10), sequence(25, 100));
+    expect(Number.isFinite(distance)).toBe(true);
+    expect(distance).toBeGreaterThan(0);
+  });
+
   it("keeps c0 energy offsets out of the default distance", () => {
     const input = sequence(12);
     const shifted = input.map((item) => [(item[0] ?? 0) + 10, ...item.slice(1)]);
@@ -44,5 +50,7 @@ describe("wake-word DTW scoring", () => {
       expect(score).toBeLessThanOrEqual(previous + 1e-12);
       previous = score;
     }
+    expect(uncalibratedScore(10)).toBeLessThan(0.05);
+    expect(uncalibratedScore(Infinity)).toBe(0);
   });
 });

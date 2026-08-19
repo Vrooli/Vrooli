@@ -6,7 +6,7 @@
 // The SINGLE authority for transitioning provider/capture ownership in
 // useVoiceCore. Before this seam, provider replacement, disposal, and error
 // cleanup were scattered across several branches of useVoiceCore — a provider
-// could be replaced (`providerRef.current = new WebSpeechProvider()`) without
+// could be replaced directly without
 // disposing the old one first, leaking a live mic track. This controller makes
 // every such transition go through one idempotent, replay-safe path.
 //
@@ -51,7 +51,6 @@ export interface VoiceCaptureControllerOptions {
 const ACTIVE_OWNERS: ReadonlySet<MicOwner> = new Set<MicOwner>([
   "voice-stream",
   "whisper",
-  "web-speech",
 ]);
 
 export class VoiceCaptureController {

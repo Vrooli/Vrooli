@@ -544,9 +544,11 @@ type CreateRequest struct {
 	Origin        SessionOrigin          `protobuf:"varint,9,opt,name=origin,proto3,enum=vrooli.web_console.v1.sessions.SessionOrigin" json:"origin,omitempty"`
 	Owner         string                 `protobuf:"bytes,10,opt,name=owner,proto3" json:"owner,omitempty"`                                   // free-form provenance tag, e.g. "agent-manager"
 	DisplayLabel  string                 `protobuf:"bytes,11,opt,name=display_label,json=displayLabel,proto3" json:"display_label,omitempty"` // human-facing label for the sidebar
-	// execute_launch_command asks the server to paste launch_command into the
-	// fresh session's stdin after create. Consumed by the server-side launch
-	// path; the store does not persist this intent.
+	// execute_launch_command asks the server-side launch path to paste
+	// launch_command into the fresh session's stdin. Local sessions receive it
+	// immediately after create; remote sessions receive it exactly once when
+	// their first terminal transport attaches. The store does not persist this
+	// intent.
 	ExecuteLaunchCommand bool `protobuf:"varint,12,opt,name=execute_launch_command,json=executeLaunchCommand,proto3" json:"execute_launch_command,omitempty"`
 	// Empty creates a local session. Otherwise this is a target catalog id.
 	TargetId      string `protobuf:"bytes,13,opt,name=target_id,json=targetId,proto3" json:"target_id,omitempty"`

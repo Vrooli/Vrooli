@@ -311,9 +311,11 @@ export type CreateRequest = Message<"vrooli.web_console.v1.sessions.CreateReques
   displayLabel: string;
 
   /**
-   * execute_launch_command asks the server to paste launch_command into the
-   * fresh session's stdin after create. Consumed by the server-side launch
-   * path; the store does not persist this intent.
+   * execute_launch_command asks the server-side launch path to paste
+   * launch_command into the fresh session's stdin. Local sessions receive it
+   * immediately after create; remote sessions receive it exactly once when
+   * their first terminal transport attaches. The store does not persist this
+   * intent.
    *
    * @generated from field: bool execute_launch_command = 12;
    */

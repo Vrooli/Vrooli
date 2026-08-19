@@ -16,8 +16,16 @@ export interface StreamTurnDiagnostic {
   durability: DurabilityLevel;
   state: "preparing" | "recording" | "reconnecting" | "recovering" | "completed" | "failed" | "cancelled";
   capturedSequence: number;
+  capturedSamples: number;
+  /** True once a captured frame contains non-trivial PCM amplitude. */
+  signalObserved?: boolean;
   sentSequence: number;
   processedSequence: number;
+  retainedBytes: number;
+  firstPartialLatencyMs: number | null;
+  committedTextLagMs: number | null;
+  providerId?: string;
+  modelId?: string;
   doneSent: boolean;
   terminalReason?: string;
   statusCodes: string[];
@@ -31,12 +39,90 @@ export interface StreamDiagnosticEvent {
   code: string;
 }
 
+/**
+ * Metadata-only telemetry channel for automated product-path qualification.
+ * The browser exposes only the latest bounded diagnostic snapshot; it never
+ * exposes transcript text, audio bytes, URLs, or backend error payloads.
+ *
+ * BAS and other browser-owned harnesses read the global channel while a run is
+ * active. Normal product code may subscribe without changing user-visible
+ * state. Keeping this channel beside the diagnostic recorder makes the
+ * machine-readable path available without making the recovery banner a test
+ * control.
+ */
+export interface StreamDiagnosticTelemetry {
+  schemaVersion: 1;
+  updatedAtMs: number;
+  latest: StreamTurnDiagnostic;
+}
+
+export const STREAM_DIAGNOSTIC_GLOBAL = "__VROOLI_AUDIO_STREAM_DIAGNOSTIC__" as const;
+
+let latestTelemetry: StreamDiagnosticTelemetry | null = null;
+const telemetrySubscribers = new Set<(telemetry: StreamDiagnosticTelemetry) => void>();
+
+export function publishStreamDiagnostic(diagnostic: StreamTurnDiagnostic): void {
+  const telemetry: StreamDiagnosticTelemetry = {
+    schemaVersion: 1,
+    updatedAtMs: Date.now(),
+    latest: {
+      ...diagnostic,
+      statusCodes: [...diagnostic.statusCodes],
+      errorCodes: [...diagnostic.errorCodes],
+      events: diagnostic.events.map((event) => ({ ...event })),
+    },
+  };
+  latestTelemetry = telemetry;
+
+  // The global is intentionally a plain metadata snapshot so browser
+  // automation can collect it through page.evaluate without a test-only
+  // bundle or a product-side network endpoint.
+  if (typeof globalThis === "object") {
+    (globalThis as typeof globalThis & { [STREAM_DIAGNOSTIC_GLOBAL]?: StreamDiagnosticTelemetry })[
+      STREAM_DIAGNOSTIC_GLOBAL
+    ] = telemetry;
+  }
+  for (const subscriber of telemetrySubscribers) subscriber(telemetry);
+}
+
+export function readStreamDiagnosticTelemetry(): StreamDiagnosticTelemetry | null {
+  return latestTelemetry ? {
+    ...latestTelemetry,
+    latest: {
+      ...latestTelemetry.latest,
+      statusCodes: [...latestTelemetry.latest.statusCodes],
+      errorCodes: [...latestTelemetry.latest.errorCodes],
+      events: latestTelemetry.latest.events.map((event) => ({ ...event })),
+    },
+  } : null;
+}
+
+export function subscribeStreamDiagnosticTelemetry(
+  subscriber: (telemetry: StreamDiagnosticTelemetry) => void,
+): () => void {
+  telemetrySubscribers.add(subscriber);
+  return () => telemetrySubscribers.delete(subscriber);
+}
+
+/** Test-only reset so one browser test cannot credit another run. */
+export function _resetStreamDiagnosticTelemetryForTesting(): void {
+  latestTelemetry = null;
+  if (typeof globalThis === "object") {
+    delete (globalThis as typeof globalThis & { [STREAM_DIAGNOSTIC_GLOBAL]?: StreamDiagnosticTelemetry })[
+      STREAM_DIAGNOSTIC_GLOBAL
+    ];
+  }
+  telemetrySubscribers.clear();
+}
+
 const MAX_EVENTS = 32;
 const MAX_CODES = 12;
 
 /** A bounded in-memory recorder; persistence remains the host's policy. */
 export class StreamDiagnosticRecorder {
   private snapshot: StreamTurnDiagnostic;
+  private firstCaptureAtMs = 0;
+  private lastCaptureAtMs = 0;
 
   constructor(sessionId = "", generation = 0, durability: DurabilityLevel = "reduced") {
     this.snapshot = {
@@ -47,8 +133,13 @@ export class StreamDiagnosticRecorder {
       durability,
       state: "preparing",
       capturedSequence: -1,
+      capturedSamples: 0,
+      signalObserved: false,
       sentSequence: -1,
       processedSequence: -1,
+      retainedBytes: 0,
+      firstPartialLatencyMs: null,
+      committedTextLagMs: null,
       doneSent: false,
       statusCodes: [],
       errorCodes: [],
@@ -57,7 +148,10 @@ export class StreamDiagnosticRecorder {
   }
 
   reset(sessionId: string, generation: number, durability: DurabilityLevel): void {
-    this.snapshot = new StreamDiagnosticRecorder(sessionId, generation, durability).read();
+    const fresh = new StreamDiagnosticRecorder(sessionId, generation, durability);
+    this.snapshot = fresh.read();
+    this.firstCaptureAtMs = 0;
+    this.lastCaptureAtMs = 0;
   }
 
   state(state: StreamTurnDiagnostic["state"], code: string = state): void {
@@ -69,12 +163,53 @@ export class StreamDiagnosticRecorder {
     this.snapshot.capturedSequence = Number(sequence);
   }
 
+  capturedSamples(samples: bigint): void {
+    this.snapshot.capturedSamples = Number(samples);
+  }
+
+  signalObserved(): void {
+    this.snapshot.signalObserved = true;
+  }
+
   sent(sequence: bigint): void {
     this.snapshot.sentSequence = Math.max(this.snapshot.sentSequence, Number(sequence));
   }
 
   processed(sequence: bigint): void {
     this.snapshot.processedSequence = Math.max(this.snapshot.processedSequence, Number(sequence));
+  }
+
+  retained(bytes: number): void {
+    this.snapshot.retainedBytes = Math.max(0, bytes);
+  }
+
+  partial(): void {
+    if (this.snapshot.firstPartialLatencyMs !== null) return;
+    this.snapshot.firstPartialLatencyMs = this.firstCaptureAtMs > 0
+      ? Math.max(0, Date.now() - this.firstCaptureAtMs)
+      : null;
+  }
+
+  committed(): void {
+    this.snapshot.committedTextLagMs = this.lastCaptureAtMs > 0
+      ? Math.max(0, Date.now() - this.lastCaptureAtMs)
+      : null;
+  }
+
+  providerIdentity(providerId?: string, modelId?: string): void {
+    if (providerId) this.snapshot.providerId = providerId;
+    if (modelId) this.snapshot.modelId = modelId;
+  }
+
+  captureStarted(): void {
+    this.event("state", "capture_started");
+  }
+
+  captureObserved(): void {
+    const now = Date.now();
+    if (this.firstCaptureAtMs === 0) this.firstCaptureAtMs = now;
+    this.lastCaptureAtMs = now;
+    this.event("state", "captured");
   }
 
   done(): void {

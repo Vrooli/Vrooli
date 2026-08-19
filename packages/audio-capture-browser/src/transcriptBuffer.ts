@@ -13,13 +13,31 @@ function normalize(text: string): string {
   return text.trim();
 }
 
-function joinText(left: string, right: string): string {
+/**
+ * The one spacing rule every dictation surface must agree on: punctuation
+ * attaches to the word before it, anything else gets a single separating space.
+ *
+ * Returns the separator rather than the joined string because the composer
+ * overlays draw settled and unsettled text as two separate elements and need
+ * the gap between them, while the buffer needs the concatenation. Both call
+ * this so a surface can never drift from the transcript it is previewing.
+ */
+export function transcriptSeparator(left: string, right: string): string {
+  if (!left || !right) return "";
+  if (/\s$/.test(left)) return "";
+  return /^[,.!?;:]/.test(right) ? "" : " ";
+}
+
+/** Join settled text to the text that follows it. See `transcriptSeparator`. */
+export function joinTranscriptText(left: string, right: string): string {
   const a = normalize(left);
   const b = normalize(right);
   if (!a) return b;
   if (!b) return a;
-  return /^[,.!?;:]/.test(b) ? `${a}${b}` : `${a} ${b}`;
+  return `${a}${transcriptSeparator(a, b)}${b}`;
 }
+
+const joinText = joinTranscriptText;
 
 /**
  * Stateful transcript boundary handling for streaming dictation.

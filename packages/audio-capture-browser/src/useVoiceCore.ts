@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { PcmVoiceStreamProvider } from "./pcmVoiceStreamProvider";
 import { buildVoiceActivitySnapshot, IDLE_VOICE_ACTIVITY, voiceActivitySnapshotsEqual } from "./voice/activity";
-import { createVadRefs, createVadRefsFromCache, extractCacheableFloor, loadNoiseFloorCache, saveNoiseFloorCache, vadTick, VAD_FLOOR_CACHE_MAX_AGE_MS } from "./voice/vad";
+import { createVadRefs, createVadRefsFromCache, extractCacheableFloor, loadNoiseFloorCache, saveNoiseFloorCache, vadTick, VAD_FLOOR_CACHE_MAX_AGE_MS, VAD_MIN_SILENCE_THRESHOLD } from "./voice/vad";
+import { advanceMeterEnvelope, LEVEL_ANALYSER_FFT_SIZE, LEVEL_TICK_MS, meterLevelFromEnvelope } from "./voice/audioUtils";
 import { getSharedAudioContext, ensureRunningSharedAudioContext, suspendSharedAudioContext, armIdleSuspend, keepAudioContextAwake } from "./voice/sharedAudioContext";
 import { installMicLifecycleCleanup, subscribeMicLeases, getActiveMicLeases } from "./voice/micOwnership";
 import { VoiceCaptureController } from "./voice/voiceCaptureController";
@@ -10,8 +11,9 @@ import type { LifecycleReleaseScope, MicReleaseReason, MicLeaseSnapshot } from "
 import { setServerVadState, resetServerVadState, useServerVadStateStore, SERVER_VAD_STALE_MS } from "./voice/useServerVadStateStore";
 import { decideAutoStop } from "./voice/autoStopDecision";
 import { decidePassiveArm } from "./voice/passiveArmDecision";
+import { decidePersistentMode, PERSISTENT_STREAMING_UNAVAILABLE_MESSAGE } from "./voice/persistentModeDecision";
 import { TranscriptBuffer } from "./transcriptBuffer";
-import { CAP_CHECK_FAIL_THRESHOLD, WHISPER_FAILED_SENTINEL } from "./voice/types";
+import { WHISPER_FAILED_SENTINEL } from "./voice/types";
 import type { TranscriptionProvider, VoiceBackend, VoiceInputState, VoiceMode, VoiceSegment, VoiceRejection, CommandSuggestion, StartRecordingOpts } from "./voice/types";
 import type { AudioFeatures, WakeWordEngine, WakeWordTemplate } from "./voice/wakeword";
 import type { VoiceCoreServices } from "./voice/services";
@@ -57,18 +59,63 @@ const REJECTION_RETENTION_TTL_MS = 5 * 60 * 1000;
  *  tiny non-zero noise, which the old ===0 check missed. */
 const NO_AUDIO_LEVEL_THRESHOLD = 0.01;
 
-function getBrowserSpeechRecognition(): unknown {
-  if (typeof window === "undefined") return undefined;
-  const speechWindow = window as Window & {
-    SpeechRecognition?: unknown;
-    webkitSpeechRecognition?: unknown;
-  };
-  return speechWindow.SpeechRecognition ?? speechWindow.webkitSpeechRecognition;
-}
+/**
+ * Stream status codes are a mixed vocabulary: some report a condition a person
+ * should act on, most are protocol bookkeeping between the browser and the
+ * speech backend. Treating the whole vocabulary as user-facing — with a
+ * deny-list of the few codes known to be noise — made every newly added
+ * protocol code a user-visible notice by default. `processed_acknowledgement`
+ * arrives per acknowledged wire batch, so that default produced a banner that
+ * appeared and vanished several times a second while the operator was talking.
+ *
+ * The rule is now the other way round: a status reaches the operator only when
+ * its emitter supplied copy written for a human (see `dispatchStreamMessage`,
+ * which no longer invents any). These two sets cover the codes that need
+ * behaviour beyond that default.
+ */
+const SILENT_STREAM_STATUS = new Set([
+  // Pure bookkeeping. These carry sequence numbers and provider identity, and
+  // must never reach the operator even if a future server build adds text.
+  "processed_acknowledgement",
+  "provider_identity",
+]);
+
+/** Codes meaning "whatever was wrong is fine now" — they retire the notice. */
+const NOTICE_CLEARING_STREAM_STATUS = new Set([
+  "stream_connected",
+  "transcription_complete",
+  "buffered_recovery_completed",
+  "mic_reacquired",
+  "mic_unmuted",
+]);
+
+/** Codes that additionally record a streaming-quality degradation. */
+const DEGRADATION_STREAM_STATUS = new Set([
+  "backend_degraded",
+  "reconnect_exhausted",
+  "buffered_recovery",
+]);
 
 /** Generate a stable id for a new rejection. Opaque to consumers. */
 function generateRejectionId(): string {
   return `rej-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+/** Convert capture-start failures into an actionable, privacy-safe UI error. */
+function describeProviderStartFailure(error: unknown): string {
+  if (typeof DOMException !== "undefined" && error instanceof DOMException) {
+    if (error.name === "NotAllowedError" || error.name === "PermissionDeniedError") {
+      return "Microphone permission was denied; allow microphone access and try again.";
+    }
+    if (error.name === "NotFoundError" || error.name === "DevicesNotFoundError") {
+      return "No microphone device is available; connect a microphone and try again.";
+    }
+    if (error.name === "NotReadableError" || error.name === "TrackStartError") {
+      return "The microphone could not be opened; it may be in use by another application.";
+    }
+  }
+  if (error instanceof Error && error.message.trim()) return error.message.trim();
+  return "Voice input could not start; check microphone access and try again.";
 }
 
 /**
@@ -80,8 +127,6 @@ export interface VoiceCapabilityProbe {
   /** Whether the Whisper backend supports voice-streaming (WS). Defaults to true when omitted. */
   streamingAvailable?: boolean;
 }
-
-export type VoiceCoreWebSpeechProvider = TranscriptionProvider & { lang: string };
 
 export interface UseVoiceCoreOptions {
   readonly services: VoiceCoreServices;
@@ -438,7 +483,11 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
       analyserRef.current = analyser;
       audioNodesRef.current = [source, ...nodes];
 
-      const data = new Uint8Array(analyser.frequencyBinCount);
+      // Read the WHOLE time-domain window. This used to allocate
+      // `frequencyBinCount` (half of fftSize), so even the short window that
+      // was configured was only half-read. `|| LEVEL_ANALYSER_FFT_SIZE` keeps
+      // test doubles that leave fftSize at 0 out of a zero-length buffer.
+      const data = new Uint8Array(analyser.fftSize || LEVEL_ANALYSER_FFT_SIZE);
       lastTickRef.current = 0;
       levelMonitorActiveRef.current = true;
       /** Counts non-throttled ticks in this session for early diagnostic logging. */
@@ -453,6 +502,9 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
        *  delivering samples (muted / suspended). Prevents per-tick log spam;
        *  reset when the source recovers. */
       let unhealthyStopSuppressed = false;
+      /** Meter envelope, carried across ticks. Session-local: a fresh capture
+       *  starts from silence rather than inheriting the last turn's loudness. */
+      let meterEnvelope = 0;
 
       const tick = () => {
         // Zombie guard: if stopLevelMonitor was called (e.g. VAD-triggered
@@ -462,7 +514,8 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
 
         // Throttle to ~15 Hz -- audio analysis doesn't need 60 fps.
         const now = performance.now();
-        if (now - lastTickRef.current < 66) {
+        const sinceLastTick = lastTickRef.current > 0 ? now - lastTickRef.current : LEVEL_TICK_MS;
+        if (sinceLastTick < LEVEL_TICK_MS) {
           rafRef.current = requestAnimationFrame(tick);
           return;
         }
@@ -475,8 +528,22 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
           sum += v * v;
         }
         const rms = Math.sqrt(sum / data.length);
+        // RAW absolute reading. The no-audio watchdog below is calibrated to
+        // this scale, so it must not become the display value.
         const audioLevel = Math.min(1, rms * 4);
         audioLevelRef.current = audioLevel;
+
+        // DISPLAY reading. A meter and a watchdog want different things: the
+        // watchdog asks "is anything arriving at all", the meter asks "how loud
+        // is this against the room". Sharing one number meant the meter
+        // inherited the watchdog's fixed absolute scale and sat near the floor
+        // on any normal microphone. This one follows an envelope and is
+        // measured against the VAD's adaptive noise floor.
+        meterEnvelope = advanceMeterEnvelope(meterEnvelope, rms, sinceLastTick);
+        const meterLevel = meterLevelFromEnvelope(
+          meterEnvelope,
+          Math.max(vadRef.current.silenceThreshold, VAD_MIN_SILENCE_THRESHOLD),
+        );
 
         // Audio-source health, evaluated every tick so a mid-capture failure is
         // caught immediately. `muted === true` means no samples flow even though
@@ -498,7 +565,7 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
         }
         // Periodic heartbeat: first 5 ticks + every 150th (~10s) for diagnostics.
         if (tickCount <= 5 || tickCount % 150 === 0) {
-          console.info(`[voice] S${sessionId} tick#${tickCount}: rms=${rms.toFixed(4)}, ctx.state=${ctx.state}, trackAlive=${trackAlive}, trackMuted=${trackMuted}, vadState=${vadActiveRef.current ? vadRef.current.state : "inactive"}`);
+          console.info(`[voice] S${sessionId} tick#${tickCount}: rms=${rms.toFixed(4)}, meter=${meterLevel.toFixed(2)}, floor=${vadRef.current.silenceThreshold.toFixed(4)}, ctx.state=${ctx.state}, trackAlive=${trackAlive}, trackMuted=${trackMuted}, vadState=${vadActiveRef.current ? vadRef.current.state : "inactive"}`);
         }
 
         // VAD check
@@ -599,20 +666,23 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
 
         if (!levelMonitorActiveRef.current) return;
 
+        // `audioLevel` on the snapshot is the display value; `rms` stays raw so
+        // consumers that want the underlying signal (and the thresholds it is
+        // judged against) still have it.
         const voiceActivity = buildVoiceActivitySnapshot({
           vadActive: vadActiveRef.current,
           vad: vadRef.current,
           rms,
-          audioLevel,
+          audioLevel: meterLevel,
           nowMs: vadNow,
           silenceTimeoutMs: vadSilenceTimeoutRef.current,
           voiceMode: persistentModeRef.current ? "persistent" : "one-shot",
         });
         setState((s) => {
-          if (Math.abs(s.audioLevel - audioLevel) < 0.01 && voiceActivitySnapshotsEqual(s.voiceActivity, voiceActivity)) {
+          if (Math.abs(s.audioLevel - meterLevel) < 0.01 && voiceActivitySnapshotsEqual(s.voiceActivity, voiceActivity)) {
             return s;
           }
-          return { ...s, audioLevel, voiceActivity };
+          return { ...s, audioLevel: meterLevel, voiceActivity };
         });
 
         rafRef.current = requestAnimationFrame(tick);
@@ -658,7 +728,6 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
   };
 
   const fallbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const capCheckFailCountRef = useRef(0);
   /**
    * TTL timer for the currently-displayed rejection. Replaced on every new
    * rejection so only the freshest rejection's 5-minute clock is active.
@@ -841,18 +910,10 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
       if (cancelled) return;
       capCheckResolvedRef.current = true;
 
-      // Whisper unavailable -- downgrade (but don't disrupt an in-progress recording)
-      const Ctor = getBrowserSpeechRecognition();
-      if (Ctor) {
-        console.info("[voice] Backend: web-speech (Whisper unavailable)");
-        setState((s) => s.voiceState !== "idle" ? s : { ...s, backend: "web-speech" });
-        return;
-      }
-
-      console.info("[voice] Backend: none (no voice backend available)");
+      console.info("[voice] Backend: none (durable audio path unavailable)");
       setState((s) => s.voiceState !== "idle"
-        ? { ...s, error: "Voice not available" }
-        : { ...s, supported: false, backend: "none" });
+        ? { ...s, supported: false, backend: "none", error: "Durable audio path unavailable" }
+        : { ...s, supported: false, backend: "none", error: "Durable audio path unavailable", fallbackNotice: "Voice input is unavailable because audio-tools cannot be reached." });
     })();
 
     // Background capability refresh — keeps the snapshot warm so
@@ -960,13 +1021,47 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
       }
     } catch { /* AudioContext unavailable */ }
 
-    // Determine the mode for this session
+    // Determine the mode for this session. Persistent mode is an explicit
+    // long-form reliability contract: it must never silently become a
+    // one-shot/buffered turn when the durable streaming path is unavailable.
     const isPersistent = persistentModeRef.current;
 
-    // Persistent mode requires Whisper streaming — if not available, disable persistent mode
-    if (isPersistent && (backendRef.current !== "whisper" || !streamingAvailableRef.current)) {
-      console.warn("[voice] Persistent mode requires Whisper streaming, falling back to one-shot");
-      persistentModeRef.current = false;
+    // A user can press the control before the mount probe's promise resolves.
+    // Resolve that probe on the explicit long-form start path so the initial
+    // `false` ref value is never mistaken for a real streaming outage.
+    if (!capCheckResolvedRef.current) {
+      try {
+        const probe = await capabilityCheckRef.current();
+        streamingAvailableRef.current = probe.whisperHealthy && (probe.streamingAvailable ?? true);
+        capCheckResolvedRef.current = true;
+        if (!probe.whisperHealthy) {
+          setState((s) => ({ ...s, supported: false, backend: "none", error: "Durable audio path unavailable" }));
+        }
+      } catch {
+        capCheckResolvedRef.current = true;
+        streamingAvailableRef.current = false;
+      }
+    }
+
+    if (!controller.isCurrentStart(startToken)) {
+      controller.shutdown("hidden");
+      setState((s) => s.voiceState === "preparing" ? { ...s, voiceState: "idle" } : s);
+      return;
+    }
+
+    const persistentDecision = decidePersistentMode(isPersistent, backendRef.current, streamingAvailableRef.current);
+    if (!persistentDecision.allowed) {
+      const reason = persistentDecision.reason ?? PERSISTENT_STREAMING_UNAVAILABLE_MESSAGE;
+      console.warn("[voice] %s", reason);
+      controller.shutdown("provider-error");
+      setState((s) => ({
+        ...s,
+        voiceState: "idle",
+        error: reason,
+        fallbackNotice: reason,
+        streamingDegradationNotice: "Streaming is unavailable. No buffered or one-shot fallback was selected.",
+      }));
+      return;
     }
 
     try {
@@ -979,46 +1074,25 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
       // a stale "unhealthy" state can flip back to "healthy" on next start.
       capabilityCheckRef.current().then((probe) => {
         if (!probe.whisperHealthy) {
-          capCheckFailCountRef.current++;
-          if (capCheckFailCountRef.current >= CAP_CHECK_FAIL_THRESHOLD && backendRef.current === "whisper") {
-            const Ctor = getBrowserSpeechRecognition();
-            if (Ctor) {
-              controller.shutdown("owner-replaced");
-              setState((s) => ({
-                ...s,
-                backend: "web-speech",
-                fallbackNotice: "Whisper unavailable — using browser speech recognition",
-              }));
-              if (fallbackTimerRef.current) clearTimeout(fallbackTimerRef.current);
-              fallbackTimerRef.current = setTimeout(() => {
-                setState((s) => (s.fallbackNotice ? { ...s, fallbackNotice: null } : s));
-              }, 5000);
-            }
-          }
+          controller.shutdown("provider-error");
+          setState((s) => ({ ...s, supported: false, backend: "none", error: "Durable audio path unavailable", fallbackNotice: "Voice input is unavailable because audio-tools cannot be reached." }));
         } else {
-          capCheckFailCountRef.current = 0;
           streamingAvailableRef.current = probe.streamingAvailable ?? true;
-          if (backendRef.current === "web-speech") {
-            controller.shutdown("owner-replaced");
-            setState((s) => ({ ...s, backend: "whisper", fallbackNotice: null }));
-          }
+          setState((s) => ({ ...s, supported: true, backend: "whisper", error: null, fallbackNotice: null }));
         }
       }).catch(() => {});
 
-      // Lazily create provider on first use (backendRef reflects any fallback
-      // changes). All assignment goes through the controller — never a direct
-      // `providerRef.current = …` — so a stray provider can never be orphaned.
+      // Lazily create the durable provider on first use. All assignment goes
+      // through the controller so a failed provider can never be orphaned.
       if (!providerRef.current) {
         if (backendRef.current === "whisper") {
           controller.set(streamingAvailableRef.current
             ? new services.PcmVoiceStreamProvider()
             : new services.WhisperProvider());
           console.info("[voice] Provider:", streamingAvailableRef.current ? "PCMVoiceStreamV2" : "WhisperHTTP");
-        } else if (backendRef.current === "web-speech") {
-          controller.set(new services.WebSpeechProvider());
-          console.info("[voice] Provider: WebSpeech");
         } else {
-          setState((s) => ({ ...s, voiceState: "idle" }));
+          const reason = "Voice input is unavailable because audio-tools cannot be reached.";
+          setState((s) => ({ ...s, supported: false, voiceState: "idle", backend: "none", error: reason, fallbackNotice: reason }));
           return;
         }
       }
@@ -1033,11 +1107,6 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
       }
       const langCode = voiceLanguage === "auto" ? "" : (voiceLanguage.split("-")[0] ?? "en");
       if ("language" in provider) provider.language = langCode;
-      if ("lang" in provider) {
-        (provider as VoiceCoreWebSpeechProvider).lang = voiceLanguage === "auto"
-          ? (navigator.language || "en-US")
-          : voiceLanguage;
-      }
 
       // Wire up segment-final handler for persistent mode
       if (isStreamingProvider(provider)) {
@@ -1171,39 +1240,19 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
         // with whatever audio was retained.
         surfacePendingRejection();
 
-        // Whisper failed after retry -- try falling back to Web Speech.
-        // Replace ATOMICALLY through the controller so the failed
-        // VoiceStreamProvider is disposed (its mic lease released) BEFORE the
-        // WebSpeechProvider is installed — the leak this plan closes.
+        // Whisper failed after retry. Refuse the weaker browser-only path;
+        // release the mic and preserve an explicit terminal reason.
         if (error === WHISPER_FAILED_SENTINEL) {
-          const Ctor = getBrowserSpeechRecognition();
-          if (Ctor) {
-            controller.replace(new services.WebSpeechProvider(), "provider-error");
-            setState((s) => ({
-              ...s,
-              voiceState: "idle",
-              error: null,
-              audioLevel: 0,
-              voiceActivity: IDLE_VOICE_ACTIVITY,
-              backend: "web-speech",
-              fallbackNotice: "Whisper unavailable — using browser speech recognition",
-            }));
-            if (fallbackTimerRef.current) clearTimeout(fallbackTimerRef.current);
-            fallbackTimerRef.current = setTimeout(() => {
-              setState((s) => (s.fallbackNotice ? { ...s, fallbackNotice: null } : s));
-            }, 5000);
-            return;
-          }
-          // No fallback available — dispose the failed provider (releasing its
-          // mic lease) before going idle. Bug class #1: an error path must never
-          // leave the UI idle while the provider still owns a live mic track.
           controller.shutdown("provider-error");
           setState((s) => ({
             ...s,
             voiceState: "idle",
-            error: "Transcription failed",
+            error: "Durable transcription path failed; audio was retained for recovery",
             audioLevel: 0,
             voiceActivity: IDLE_VOICE_ACTIVITY,
+            backend: "none",
+            supported: false,
+            fallbackNotice: "Voice input stopped because the durable audio path failed. Retry after audio-tools recovers.",
           }));
           return;
         }
@@ -1225,13 +1274,22 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
         provider.onPartial = (text) => {
           dismissedFallbackNoticeRef.current = null;
           const transcript = transcriptBufferRef.current.partial(text);
+          // A partial proves the stream is alive, so it retires any streaming
+          // notice — but only when one is actually up. Writing `fallbackNotice:
+          // null` unconditionally allocated a new state object per partial and,
+          // paired with a status that re-set it, drove the notice on and off at
+          // the partial rate.
+          const applyPartial = (interimText: string) => (s: VoiceInputState): VoiceInputState =>
+            s.partialTranscript === interimText && s.fallbackNotice === null
+              ? s
+              : { ...s, partialTranscript: interimText, fallbackNotice: null };
           // Coalesce the RENDER to one paint per frame: at a high partial rate,
           // a setState per partial janks the main thread and re-introduces
           // client-side backpressure. The latest pending text wins.
-          setState((s) => ({ ...s, partialTranscript: transcript.interimText, fallbackNotice: null }));
+          setState(applyPartial(transcript.interimText));
           pendingPartialRenderRef.current = transcript.interimText;
           if (typeof requestAnimationFrame !== "function") {
-            setState((s) => ({ ...s, partialTranscript: transcript.interimText, fallbackNotice: null }));
+            setState(applyPartial(transcript.interimText));
             return;
           }
           if (partialRenderRafRef.current === 0) {
@@ -1240,7 +1298,7 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
               const pending = pendingPartialRenderRef.current;
               pendingPartialRenderRef.current = null;
               if (pending !== null) {
-                setState((s) => ({ ...s, partialTranscript: pending, fallbackNotice: null }));
+                setState(applyPartial(pending));
               }
             });
           }
@@ -1248,19 +1306,25 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
       }
       if (provider.onStatus !== undefined) {
 		provider.onStatus = ({ code, message }: { code: string; message: string }) => {
-          if (code === "backend_degraded" || code === "reconnect_exhausted") {
+          if (SILENT_STREAM_STATUS.has(code)) return;
+
+          if (DEGRADATION_STREAM_STATUS.has(code)) {
             setState((s) => ({
               ...s,
               streamingDegradationNotice: message || "Streaming degraded — buffered mode is active for this transcription.",
             }));
           }
-          if (code === "stream_connected" || code === "transcription_complete") {
+          if (NOTICE_CLEARING_STREAM_STATUS.has(code)) {
             setState((s) => (s.fallbackNotice ? { ...s, fallbackNotice: null } : s));
             dismissedFallbackNoticeRef.current = null;
             return;
           }
+          // No copy means the emitter had nothing to tell the operator.
+          if (!message) return;
           if (dismissedFallbackNoticeRef.current === message) return;
-          setState((s) => ({ ...s, fallbackNotice: message }));
+          // Re-asserting the same notice is not a change; returning `s`
+          // unchanged keeps a repeating status from re-rendering the host.
+          setState((s) => (s.fallbackNotice === message ? s : { ...s, fallbackNotice: message }));
         };
       }
       if (provider.onDiagnostic !== undefined) {
@@ -1273,7 +1337,31 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
       // getUserMedia). We no longer inject a pre-warmed stream — holding the mic
       // idle to save start latency was the audio-session/ducking anti-pattern.
       const providerStartTime = Date.now();
-      await provider.start();
+      try {
+        await provider.start();
+      } catch (error: unknown) {
+        // Provider startup owns the microphone acquisition boundary. A
+        // rejected getUserMedia/capture setup promise must never leave the
+        // shared hook stuck in `preparing` (which otherwise looks like a
+        // hung microphone and also prevents the diagnostic channel from
+        // reaching a terminal state).
+        const message = describeProviderStartFailure(error);
+        console.warn("[voice] S%d provider.start() failed after %dms: %s",
+          sessionCountRef.current, Date.now() - providerStartTime, message);
+        provider.onError?.(message);
+        if (!provider.onError) {
+          controller.shutdown("provider-error");
+          setState((s) => ({
+            ...s,
+            voiceState: "idle",
+            audioLevel: 0,
+            voiceActivity: IDLE_VOICE_ACTIVITY,
+            error: message,
+            fallbackNotice: null,
+          }));
+        }
+        return;
+      }
       console.info("[voice] Provider.start() took %dms (includes getUserMedia)", Date.now() - providerStartTime);
 
       // ── Late-resolve cancellation (Phase 6) ──
@@ -1438,8 +1526,6 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
     vadActiveRef.current = false;
     vadRef.current.state = "idle";
     stopLevelMonitor();
-    const stopProviderSynchronously = provider instanceof services.WebSpeechProvider;
-
     if (isListening) {
       // Persistent mode: stop cleanly, the final segment-final will be
       // the last retranscription from the backend's "done" handler.
@@ -1466,8 +1552,6 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
     // settle delay so the encoder's final ondataavailable still ships.
     if (reason === "auto") {
       provider.dropTail();
-      provider.stop();
-    } else if (stopProviderSynchronously) {
       provider.stop();
     } else {
       setTimeout(() => provider.stop(), 120);

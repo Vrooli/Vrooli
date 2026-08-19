@@ -24,7 +24,6 @@ export interface VoiceCoreServices {
   playRecordingStartCue: () => void;
   playRecordingStopCue: () => void;
   WhisperProvider: new () => TranscriptionProvider;
-  WebSpeechProvider: new () => TranscriptionProvider & { lang: string };
   bytesToFeatures: (audio: Uint8Array, engine: WakeWordEngine) => Promise<AudioFeatures>;
   createWakeWordEngine: () => WakeWordEngine;
   PassiveListener: new (options: PassiveListenerOpts) => {

@@ -36,6 +36,36 @@
     "description": {
       "type": "string"
     },
+    "execution": {
+      "type": "object",
+      "description": "The execution-plane contract for a coding-agent resource. install_only resources are intentionally provisioned but not runnable by agent-manager.",
+      "additionalProperties": false,
+      "properties": {
+        "runner_type": {
+          "type": "string",
+          "minLength": 1
+        },
+        "codec": {
+          "type": "string",
+          "minLength": 1
+        },
+        "detection_signal": {
+          "type": "string",
+          "minLength": 1
+        },
+        "hook_surface": {
+          "type": "string",
+          "minLength": 1
+        },
+        "install_only": {
+          "type": "boolean"
+        },
+        "rationale": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
     "cli": {
       "$ref": "service.schema.json#/definitions/cliConfig",
       "description": "Installed artifact contract for the resource CLI, including build/install/invoke/freshness semantics."

@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "web-console",
-  "input_digest": "sha256:8653982df871887c391b4803be4401d797b8793a7fdee23f3912eeceba81b5d8",
+  "input_digest": "sha256:a547f37a7eff1c2fa969d8316732976ece131237885bac42963f66cb50ed785d",
   "input_files": [
     "schemas/web-console/v1/ai/ai.proto",
     "schemas/web-console/v1/audio_admin/audio_admin.proto",
@@ -53,7 +53,7 @@
     "gen/go/web-console/v1/health/health.pb.go": "sha256:61f8eda796ed7b10b364a9d89c7c44efe457ed5178fa71699e3f9d4bcd4634eb",
     "gen/go/web-console/v1/metrics/metrics.pb.go": "sha256:baa4a2ac8501c03926b7e61cc82e7ab4f888bb67af3b501e7fdba71f1cbf47d5",
     "gen/go/web-console/v1/metrics/metrics_v1connect/metrics.connect.go": "sha256:ce96b1940a80f7cec0f4a01c750237ac5e88cbdc5df49ec6ed9547b063a21191",
-    "gen/go/web-console/v1/sessions/sessions.pb.go": "sha256:14a56d448fcde8b6ca4b885bdef0640865f7a77ce7a25926190526db66276fd2",
+    "gen/go/web-console/v1/sessions/sessions.pb.go": "sha256:3a66b017dea0696776614cfa325f15b5393483dd379add0acc3eb0ae629c5ead",
     "gen/go/web-console/v1/sessions/sessions_v1connect/sessions.connect.go": "sha256:9a2449a837a512d6ca9c79c9cbf268ec071cfc9a5d9a611651401debdfc98b85",
     "gen/go/web-console/v1/settings/settings.pb.go": "sha256:af04e9a4e8820774c46c99d64d6ebe5eab669bb3f985ca01c98589ae5b78bff5",
     "gen/go/web-console/v1/settings/settings_v1connect/settings.connect.go": "sha256:90a0d98fb783ec9cb539ad067c0a37b51dfb7947024bf99c25ea7f15ae24d775",
@@ -151,7 +151,7 @@
     "gen/typescript/web-console/v1/file_preview/file_preview_pb.ts": "sha256:6b8a07b996042f543a17434e5d98a0d7000c0385dccff20fad60f0db7d93d6fb",
     "gen/typescript/web-console/v1/health/health_pb.ts": "sha256:16f87a77d5779169a3f99833678e3cdc3f3699be0385c76c5bcc985ab7aea5de",
     "gen/typescript/web-console/v1/metrics/metrics_pb.ts": "sha256:0c777a1a17f3d5b56aa7e29eb6fa331db69d82aa0053c27014448783a66d78ae",
-    "gen/typescript/web-console/v1/sessions/sessions_pb.ts": "sha256:809c76915abb78420d5231dd7a825e9936fb49c482c8c4f407781e2c66118ea6",
+    "gen/typescript/web-console/v1/sessions/sessions_pb.ts": "sha256:2acb9f04cb6dc9baea63bbed2dc6f825e57d78cad8f00011ba81c9ba192969a7",
     "gen/typescript/web-console/v1/settings/settings_pb.ts": "sha256:c92144a6ad6927a66cff38519b5c2ddfd68f4ef448e020a5e951b7e283e33747",
     "gen/typescript/web-console/v1/shared/target_pb.ts": "sha256:5ee23bf28db388ee8c8699b20c4bd65c447ff420002a0d179d6ca46a0af7c712",
     "gen/typescript/web-console/v1/shortcuts/shortcuts_pb.ts": "sha256:ddad9b099effdd5e2f9b6654a6d394c130f7974ce329e0e1be2a65b84b362f7e",

@@ -76,7 +76,7 @@ export class PassiveListener {
   private speechStartMark = 0;
   private speechStartTime = 0;
   private lastFailedMatchTime = 0;
-  private timeDomainData: Float32Array<ArrayBuffer> | null = null;
+  private timeDomainData: Float32Array | null = null;
 
   constructor(opts: PassiveListenerOpts) {
     this.engine = opts.engine;

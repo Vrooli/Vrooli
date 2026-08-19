@@ -262,6 +262,13 @@
       ],
       "additionalProperties": false
     },
+    "environment": {
+      "type": "object",
+      "description": "Scenario-scoped environment variables merged into every lifecycle step's environment. Values may reference declared port names and runtime paths with ${NAME}; internal/ports expands them before the step runs.",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
     "hostTools": {
       "type": "array",
       "items": {
@@ -347,6 +354,7 @@
     },
     "lifecycle": {
       "type": "object",
+      "description": "Lifecycle phases. This schema governs both the root project manifest and scenario manifests, so it admits every phase name the runtime resolves in internal/lifecycle phaseFor. Which phases a given target kind may declare is a narrower policy question enforced by structure-health, not here: a scenario declaring `clean` is valid JSON against a real runtime phase and still a governance violation.",
       "properties": {
         "version": {
           "type": "string",
@@ -358,13 +366,28 @@
         "develop": {
           "$ref": "#/definitions/lifecyclePhase"
         },
+        "build": {
+          "$ref": "#/definitions/lifecyclePhase"
+        },
+        "deploy": {
+          "$ref": "#/definitions/lifecyclePhase"
+        },
+        "clean": {
+          "$ref": "#/definitions/lifecyclePhase"
+        },
         "test": {
           "$ref": "#/definitions/lifecyclePhase"
         },
-        "stop": {
+        "backup": {
           "$ref": "#/definitions/lifecyclePhase"
         },
-        "shutdown": {
+        "restore": {
+          "$ref": "#/definitions/lifecyclePhase"
+        },
+        "production": {
+          "$ref": "#/definitions/lifecyclePhase"
+        },
+        "stop": {
           "$ref": "#/definitions/lifecyclePhase"
         },
         "health": {
@@ -375,6 +398,29 @@
     },
     "credentials": {
       "$ref": "common.schema.json#/definitions/credentials"
+    },
+    "integrations": {
+      "type": "array",
+      "description": "Declarative external integration requirements. Onboarding reports these requirements but does not create connections.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "connector": {
+            "type": "string",
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+          },
+          "scopes": {
+            "type": "array",
+            "items": {"type": "string"},
+            "uniqueItems": true
+          },
+          "purpose": {"type": "string"},
+          "required": {"type": "boolean", "default": false},
+          "multi": {"type": "boolean", "default": false}
+        },
+        "required": ["connector"],
+        "additionalProperties": false
+      }
     }
   },
   "additionalProperties": false,
@@ -448,11 +494,20 @@
             }
           },
           "additionalProperties": false
+        },
+        "manifest_sha": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$",
+          "description": "Digest of the template manifest this scenario was generated from, used to detect template drift."
+        },
+        "content_sha": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$",
+          "description": "Digest of the generated content, used to detect local divergence from the template output."
         }
       },
       "required": [
-        "template",
-        "generated_at"
+        "template"
       ],
       "additionalProperties": false
     },

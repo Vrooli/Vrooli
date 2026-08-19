@@ -87,6 +87,10 @@ message Plan {
   int64 total_bytes = 4;
   int32 total_items = 5;
   repeated ProviderPlan providers = 6;
+  string census_id = 7;
+  string census_status = 8;
+  google.protobuf.Timestamp census_started_at = 9;
+  google.protobuf.Timestamp census_completed_at = 10;
 }
 
 message ProviderPlan {

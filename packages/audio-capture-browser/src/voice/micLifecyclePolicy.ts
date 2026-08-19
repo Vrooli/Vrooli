@@ -93,7 +93,7 @@ export interface StaleLeaseInput {
  * live mic stream while the UI is not honestly representing it. These are the
  * "UI idle/off but the OS mic indicator is on" violations.
  *
- *   - Active-recording owners (voice-stream / whisper / web-speech) are stale
+ *   - Active-recording owners (voice-stream / whisper) are stale
  *     whenever the workflow is `idle` (a recording/listening turn would keep
  *     the owner expected; `transcribing` legitimately holds the lease for the
  *     ~120 ms final-chunk settle window, so it is not flagged).
