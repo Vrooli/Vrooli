@@ -4,6 +4,8 @@ import (
 	"sync"
 	"time"
 
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/shared"
+
 	"web-console/internal/backend"
 	"web-console/internal/policy"
 )
@@ -31,6 +33,12 @@ type Response struct {
 	Origin       string `json:"origin,omitempty"`
 	Owner        string `json:"owner,omitempty"`
 	DisplayLabel string `json:"display_label,omitempty"`
+	// Target is a safe projection only; credentials and transport fields never
+	// enter this cache or the SessionsService response.
+	Target *sharedv1.Target `json:"target,omitempty"`
+	// Fingerprint is an internal request digest used to reject accidental reuse
+	// of one idempotency key for a different create request.
+	Fingerprint string `json:"-"`
 }
 
 type idempotencyEntry struct {

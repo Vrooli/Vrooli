@@ -264,7 +264,10 @@
     "cancel": "إلغاء النسخ",
     "releaseMic": "تحرير الميكروفون",
     "stopSpeech": "إيقاف النطق",
-    "exportDiagnostic": "تصدير التشخيص"
+    "errorTitle": "مشكلة في الإدخال الصوتي",
+    "transcribingTitle": "جارٍ تفريغ كلامك",
+    "staleMicTitle": "الميكروفون ما زال نشطًا",
+    "ttsSpeakingTitle": "جارٍ قراءة الرد بصوت عالٍ"
   },
   "voiceRejection": {
     "title": "الكلام لم يطابق صوتك",
@@ -538,7 +541,38 @@
     "timeoutLabel": "المهلة:",
     "persistentHint": "الجلسات الدائمة تظل قائمة عبر إعادة تشغيل وحدة التحكم باستخدام tmux.",
     "creating": "جارٍ إنشاء الجلسة...",
-    "closeAriaLabel": "إغلاق المشغّل"
+    "closeAriaLabel": "إغلاق المشغّل",
+    "eyebrow": "جلسة جديدة",
+    "description": "اختر مكان تشغيل الجلسة، ثم اختر ما تريد تشغيله.",
+    "locations": "الموقع",
+    "thisMachine": "هذا الجهاز",
+    "remoteNodes": "العقد البعيدة",
+    "noRemoteNodes": "لا توجد عقد تطابق هذا البحث.",
+    "searchNodes": "البحث في العقد",
+    "refreshTargets": "تحديث المواقع",
+    "loadingTargets": "جارٍ تحميل المواقع...",
+    "configuredEmpty": "Bridge متصل، لكن لا توجد عقد بعيدة مسجلة.",
+    "unconfigured": "العقد البعيدة غير مهيأة لوحدة التحكم هذه.",
+    "registryError": "تعذر تحميل فهرس العقد البعيدة.",
+    "dispatchable": "جاهز",
+    "offline": "غير متصل",
+    "needsUpdate": "يحتاج إلى تحديث",
+    "unavailable": "غير متاح",
+    "lastSeen": "آخر ظهور",
+    "neverSeen": "لم يظهر بعد",
+    "platform": "المنصة",
+    "readiness": "الجاهزية",
+    "launchOn": "تشغيل على {{label}}",
+    "chooseReadyLocation": "اختر موقعاً جاهزاً للمتابعة.",
+    "targetUnavailable": "لا يمكن لهذا الموقع بدء جلسة بعد.",
+    "actions": "البدء باستخدام",
+    "codexSignIn": "تسجيل الدخول إلى Codex",
+    "codexSignInDescription": "افتح مصادقة جهاز Codex في الطرفية.",
+    "codexSignInHint": "سيظهر رابط ورمز لمرة واحدة في الطرفية. لا تخزن وحدة التحكم بيانات الاعتماد.",
+    "workingDirectory": "مجلد العمل",
+    "workingDirectoryPlaceholder": "مجلد العمل الافتراضي",
+    "advancedHint": "سلوك جلسة اختياري",
+    "refreshing": "جارٍ التحديث..."
   },
   "settings": {
     "title": "الإعدادات",
@@ -1007,5 +1041,24 @@
     "deleteConfirm": "حذف",
     "assignSession": "إضافة الجلسة الحالية",
     "removeSession": "إزالة الجلسة الحالية"
+  },
+  "banners": {
+    "regionLabel": "الإشعارات",
+    "dismiss": "إغلاق",
+    "moreNotices": "{{count}} إشعارات أخرى",
+    "showLess": "عرض أقل",
+    "trackingDegraded": "قد يتأخر تتبع المحادثة لجلسة Claude المستعادة هذه. نشاط الطرفية مستمر.",
+    "audioUnavailable": {
+      "title": "ميزات الصوت غير متاحة",
+      "discoveryFailed": "تعذر الوصول إلى خدمة audio-tools. تم تعطيل الإدخال الصوتي والتركيب الصوتي.",
+      "scenarioNotRunning": "سيناريو audio-tools غير قيد التشغيل. شغّله لتفعيل ميزات الصوت.",
+      "envMisconfigured": "لم يتم ضبط عنوان audio-tools. عيّن AUDIO_TOOLS_URL أو شغّل سيناريو audio-tools.",
+      "resolverNotConfigured": "اكتشاف audio-tools غير مُهيأ في هذه النسخة من Web Console.",
+      "generic": "audio-tools غير متاح ({{reason}}).",
+      "starting": "جارٍ تشغيل audio-tools — ستعود ميزات الصوت قريبًا.",
+      "startFailed": "فشل تشغيل audio-tools. راجع السجلات ثم أعد تشغيله.",
+      "statusUnknown": "تعذر تحديد ما إذا كان audio-tools قيد التشغيل.",
+      "degraded": "audio-tools قيد التشغيل لكنه غير سليم. قد تكون ميزات الصوت غير موثوقة."
+    }
   }
 }

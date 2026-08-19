@@ -742,7 +742,9 @@ func (s *Server) setupRoutes() {
 		},
 		AgentHistorySize:  archivedAgentHistorySize,
 		PruneAgentHistory: pruneArchivedAgentHistory,
+		Remote:            s,
 	}, nil).Mount(s.router)
+	s.mountTargetCatalog()
 
 	// Terminal — Connect-RPC TerminalService (GetScreen, SendInput,
 	// WaitIdle) plus REST exceptions for the WebSocket bridge

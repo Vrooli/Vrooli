@@ -43,7 +43,7 @@ type ShortcutProfileStore struct {
 var defaultShortcuts = []ShortcutEntry{
 	{
 		Label:       "Claude Code",
-		Command:     "claude --dangerously-skip-permissions",
+		Command:     "vrooli agent launch --runner claude --arg=--dangerously-skip-permissions",
 		Description: "AI coding assistant with full permissions",
 	},
 	{
@@ -60,6 +60,26 @@ var defaultShortcuts = []ShortcutEntry{
 		Label:       "Grok",
 		Command:     "grok",
 		Description: "xAI Grok CLI — conversation captured from its session transcript",
+	},
+	{
+		Label:       "Claude Code (attributed)",
+		Command:     "if command -v vrooli-agent-launcher >/dev/null 2>&1; then exec vrooli-agent-launcher --agent claude -- --dangerously-skip-permissions; fi; exec vrooli agent launch --runner claude --arg=--dangerously-skip-permissions",
+		Description: "Claude Code with best-effort Agent Manager attribution; direct fallback stays available",
+	},
+	{
+		Label:       "Codex (attributed)",
+		Command:     "if command -v vrooli-agent-launcher >/dev/null 2>&1; then exec vrooli-agent-launcher --agent codex -- --yolo; fi; exec codex --yolo",
+		Description: "Codex with best-effort Agent Manager attribution; direct fallback stays available",
+	},
+	{
+		Label:       "OpenCode (attributed)",
+		Command:     "if command -v vrooli-agent-launcher >/dev/null 2>&1; then exec vrooli-agent-launcher --agent opencode --; fi; exec opencode",
+		Description: "OpenCode with best-effort Agent Manager attribution; direct fallback stays available",
+	},
+	{
+		Label:       "Grok (attributed)",
+		Command:     "if command -v vrooli-agent-launcher >/dev/null 2>&1; then exec vrooli-agent-launcher --agent grok --; fi; exec grok",
+		Description: "Grok with best-effort Agent Manager attribution; direct fallback stays available",
 	},
 }
 
@@ -81,6 +101,28 @@ var legacyDefaultShortcutSets = [][]ShortcutEntry{
 			Label:       "Codex",
 			Command:     "codex --yolo",
 			Description: "OpenAI Codex CLI in auto-approve mode",
+		},
+	},
+	{
+		{
+			Label:       "Claude Code",
+			Command:     "claude --dangerously-skip-permissions",
+			Description: "AI coding assistant with full permissions",
+		},
+		{
+			Label:       "Codex",
+			Command:     "codex --yolo",
+			Description: "OpenAI Codex CLI in auto-approve mode",
+		},
+		{
+			Label:       "OpenCode",
+			Command:     "opencode",
+			Description: "OpenCode TUI — conversation captured via its local server API",
+		},
+		{
+			Label:       "Grok",
+			Command:     "grok",
+			Description: "xAI Grok CLI — conversation captured from its session transcript",
 		},
 	},
 }

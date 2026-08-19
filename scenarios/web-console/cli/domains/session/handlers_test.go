@@ -3,6 +3,7 @@ package session
 import (
 	"bytes"
 	"context"
+	"net/http"
 	"strings"
 	"testing"
 
@@ -10,6 +11,7 @@ import (
 
 	sessionsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/sessions"
 	sessionsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/sessions/sessions_v1connect"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/shared"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
@@ -26,8 +28,11 @@ func createSchema() cliapp.ArgSchema {
 			{Name: "origin"},
 			{Name: "owner"},
 			{Name: "label"},
+			{Name: "target"},
+			{Name: "working-dir"},
 			{Name: "launch-command"},
 			{Name: "execute-launch-command", Bool: true},
+			{Name: "idempotency-key"},
 			{Name: "body-file"},
 		},
 	}
@@ -39,11 +44,13 @@ func createSchema() cliapp.ArgSchema {
 type stubClient struct {
 	sessionsconnect.SessionsServiceClient
 	lastCreate *sessionsv1.CreateRequest
+	lastHeader http.Header
 	reply      *sessionsv1.Session
 }
 
 func (s *stubClient) Create(_ context.Context, req *connect.Request[sessionsv1.CreateRequest]) (*connect.Response[sessionsv1.CreateResponse], error) {
 	s.lastCreate = req.Msg
+	s.lastHeader = req.Header().Clone()
 	reply := s.reply
 	if reply == nil {
 		reply = &sessionsv1.Session{Id: "sess-1"}
@@ -124,6 +131,8 @@ func TestCreateMapsProvenanceFlags(t *testing.T) {
 			"origin":         "programmatic",
 			"owner":          "agent-manager",
 			"label":          "nightly build",
+			"target":         "bridge-node:node-a",
+			"working-dir":    "/workspaces/demo",
 			"launch-command": "echo hi",
 		},
 		map[string]bool{"execute-launch-command": true},
@@ -147,8 +156,29 @@ func TestCreateMapsProvenanceFlags(t *testing.T) {
 	if got.GetLaunchCommand() != "echo hi" {
 		t.Errorf("LaunchCommand = %q, want %q", got.GetLaunchCommand(), "echo hi")
 	}
+	if got.GetTargetId() != "bridge-node:node-a" {
+		t.Errorf("TargetId = %q, want bridge-node:node-a", got.GetTargetId())
+	}
+	if got.GetWorkingDir() != "/workspaces/demo" {
+		t.Errorf("WorkingDir = %q, want /workspaces/demo", got.GetWorkingDir())
+	}
 	if !got.GetExecuteLaunchCommand() {
 		t.Errorf("ExecuteLaunchCommand = false, want true")
+	}
+}
+
+func TestCreateMapsIdempotencyKeyToConnectHeader(t *testing.T) {
+	stub := &stubClient{}
+	h := &handlers{client: stub}
+	if err := h.create(newCreateCtx(
+		map[string]string{"idempotency-key": "remote-create-1"}, nil,
+	)); err != nil {
+		t.Fatalf("create returned error: %v", err)
+	}
+	if got := stub.lastCreate; got == nil {
+		t.Fatal("client.Create was not called")
+	} else if value := stub.lastHeader.Get("X-Idempotency-Key"); value != "remote-create-1" {
+		t.Fatalf("idempotency header = %q, want remote-create-1", value)
 	}
 }
 
@@ -186,6 +216,12 @@ func TestSessionRowsRenderProvenance(t *testing.T) {
 			Rows:    40,
 			Origin:  sessionsv1.SessionOrigin_SESSION_ORIGIN_UI,
 		},
+		{
+			Id:      "remote-session",
+			Shell:   "bash",
+			Backend: "standard",
+			Target:  &sharedv1.Target{Id: "bridge-node:node-a", Label: "Build host"},
+		},
 	})
 	if !strings.Contains(rows[0], "origin=programmatic") || !strings.Contains(rows[0], "owner=agent-manager") {
 		t.Fatalf("row 0 missing provenance: %q", rows[0])
@@ -195,5 +231,8 @@ func TestSessionRowsRenderProvenance(t *testing.T) {
 	}
 	if strings.Contains(rows[1], "owner=") {
 		t.Fatalf("row 1 should omit empty owner: %q", rows[1])
+	}
+	if !strings.Contains(rows[2], "target=Build host (bridge-node:node-a)") {
+		t.Fatalf("row 2 missing target: %q", rows[2])
 	}
 }

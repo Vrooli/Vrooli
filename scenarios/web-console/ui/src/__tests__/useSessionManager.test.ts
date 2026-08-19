@@ -334,8 +334,37 @@ describe("useSessionManager", () => {
         launch_command: "codex --yolo",
         execute_launch_command: true,
         agent_type: "codex",
+        idempotency_key: expect.stringMatching(/^ui-session-/),
       }),
     );
+  });
+
+  it("passes remote target, working directory, and replay key to the typed create call", async () => {
+    const mockSession = { id: "remote-1", shell: "/bin/bash", cols: 80, rows: 24, created_at: "2026-01-01T00:00:00Z", policy: {} };
+    mockCreateSession.mockResolvedValueOnce(mockSession);
+
+    const { result } = renderHook(() => useSessionManager());
+
+    await act(async () => {
+      await result.current.launchSession({
+        command: "codex login --device-auth",
+        target: {
+          id: "bridge-node:build-a",
+          kind: "bridge-node",
+          label: "Build node A",
+          available: true,
+          state: "dispatchable",
+        },
+        workingDir: "/workspaces/project",
+      });
+    });
+
+    expect(mockCreateSession).toHaveBeenCalledWith(expect.objectContaining({
+      target_id: "bridge-node:build-a",
+      working_dir: "/workspaces/project",
+      execute_launch_command: true,
+      idempotency_key: expect.stringMatching(/^ui-session-/),
+    }));
   });
 
   it("does not request server execution when launching without a command", async () => {

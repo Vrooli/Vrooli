@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"testing"
 )
 
@@ -191,12 +192,11 @@ func TestSQLShortcutStore_UnicodeShortcuts(t *testing.T) {
 	}
 }
 
-// setLegacyDefaultRow forces the seeded "default" profile to the first known
-// legacy (pre-OpenCode/Grok) shortcut list, simulating a DB created before the
-// new defaults shipped.
-func setLegacyDefaultRow(t *testing.T, db *sql.DB) {
+// setLegacyDefaultRow forces the seeded "default" profile to a known legacy
+// shortcut list, simulating a DB created before the current defaults shipped.
+func setLegacyDefaultRow(t *testing.T, db *sql.DB, index int) {
 	t.Helper()
-	legacy, err := json.Marshal(legacyDefaultShortcutSets[0])
+	legacy, err := json.Marshal(legacyDefaultShortcutSets[index])
 	if err != nil {
 		t.Fatalf("marshal legacy default: %v", err)
 	}
@@ -212,32 +212,36 @@ func setLegacyDefaultRow(t *testing.T, db *sql.DB) {
 // persisted default profile still equal to the legacy seed is bumped to the
 // current built-in defaults.
 func TestReconcileDefaultShortcutProfile_UpgradesUnmodifiedSeed(t *testing.T) {
-	db := setupTestDB(t)
-	setLegacyDefaultRow(t, db)
+	for index := range legacyDefaultShortcutSets {
+		t.Run(fmt.Sprintf("legacy-%d", index), func(t *testing.T) {
+			db := setupTestDB(t)
+			setLegacyDefaultRow(t, db, index)
 
-	if err := reconcileDefaultShortcutProfile(context.Background(), db); err != nil {
-		t.Fatalf("reconcile: %v", err)
-	}
+			if err := reconcileDefaultShortcutProfile(context.Background(), db); err != nil {
+				t.Fatalf("reconcile: %v", err)
+			}
 
-	store := NewSQLShortcutStore(db)
-	p, ok := store.Get(context.Background(), "default")
-	if !ok {
-		t.Fatal("default profile missing after reconcile")
-	}
-	if len(p.Shortcuts) != len(defaultShortcuts) {
-		t.Fatalf("expected %d shortcuts after upgrade, got %d", len(defaultShortcuts), len(p.Shortcuts))
-	}
-	if !shortcutsEqual(p.Shortcuts, defaultShortcuts) {
-		t.Errorf("upgraded shortcuts do not match current defaults: %+v", p.Shortcuts)
-	}
+			store := NewSQLShortcutStore(db)
+			p, ok := store.Get(context.Background(), "default")
+			if !ok {
+				t.Fatal("default profile missing after reconcile")
+			}
+			if len(p.Shortcuts) != len(defaultShortcuts) {
+				t.Fatalf("expected %d shortcuts after upgrade, got %d", len(defaultShortcuts), len(p.Shortcuts))
+			}
+			if !shortcutsEqual(p.Shortcuts, defaultShortcuts) {
+				t.Errorf("upgraded shortcuts do not match current defaults: %+v", p.Shortcuts)
+			}
 
-	// Idempotent: a second run is a no-op (content now differs from legacy).
-	if err := reconcileDefaultShortcutProfile(context.Background(), db); err != nil {
-		t.Fatalf("reconcile (2nd): %v", err)
-	}
-	p2, _ := store.Get(context.Background(), "default")
-	if !shortcutsEqual(p2.Shortcuts, defaultShortcuts) {
-		t.Errorf("second reconcile changed content: %+v", p2.Shortcuts)
+			// Idempotent: a second run is a no-op (content now differs from legacy).
+			if err := reconcileDefaultShortcutProfile(context.Background(), db); err != nil {
+				t.Fatalf("reconcile (2nd): %v", err)
+			}
+			p2, _ := store.Get(context.Background(), "default")
+			if !shortcutsEqual(p2.Shortcuts, defaultShortcuts) {
+				t.Errorf("second reconcile changed content: %+v", p2.Shortcuts)
+			}
+		})
 	}
 }
 

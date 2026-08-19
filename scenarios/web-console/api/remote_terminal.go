@@ -21,6 +21,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
+	sharedsession "github.com/vrooli/api-core/operatorsession"
 	"google.golang.org/protobuf/proto"
 
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/registry"
@@ -29,30 +30,48 @@ import (
 )
 
 type remoteTerminalTarget struct {
-	ID          string   `json:"id"`
-	Kind        string   `json:"kind"`
-	Label       string   `json:"label"`
-	Available   bool     `json:"available"`
-	Readiness   []string `json:"readiness,omitempty"`
-	FailureRung string   `json:"failureRung,omitempty"`
-	BaseURL     string   `json:"-"`
-	NodeID      string   `json:"-"`
-	OwnerToken  string   `json:"-"`
-	ReauthToken string   `json:"-"`
+	ID              string                `json:"id"`
+	Kind            string                `json:"kind"`
+	Label           string                `json:"label"`
+	OS              string                `json:"os,omitempty"`
+	Arch            string                `json:"arch,omitempty"`
+	Revision        string                `json:"revision,omitempty"`
+	Status          string                `json:"status,omitempty"`
+	Online          bool                  `json:"online"`
+	LastSeenAt      time.Time             `json:"last_seen_at,omitempty"`
+	Available       bool                  `json:"available"`
+	Readiness       []string              `json:"readiness,omitempty"`
+	FailureRung     string                `json:"failureRung,omitempty"`
+	State           string                `json:"state,omitempty"`
+	RecoveryAction  string                `json:"recoveryAction,omitempty"`
+	SurvivesRestart bool                  `json:"survives_restart"`
+	ReadinessFacts  []remoteReadinessFact `json:"-"`
+	BaseURL         string                `json:"-"`
+	NodeID          string                `json:"-"`
+	OwnerToken      string                `json:"-"`
+	ReauthToken     string                `json:"-"`
+}
+
+type remoteReadinessFact struct {
+	Key    string
+	Label  string
+	Passed bool
+	Detail string
 }
 
 type remoteTerminalSession struct {
-	ID            string
-	Target        remoteTerminalTarget
-	Shell         string
-	WorkingDir    string
-	LaunchCommand string
-	Cols          int
-	Rows          int
-	CreatedAt     time.Time
-	Launched      bool
-	NextBridgeSeq uint64
-	cancel        context.CancelFunc
+	ID                   string
+	Target               remoteTerminalTarget
+	Shell                string
+	WorkingDir           string
+	LaunchCommand        string
+	ExecuteLaunchCommand bool
+	Cols                 int
+	Rows                 int
+	CreatedAt            time.Time
+	Launched             bool
+	NextBridgeSeq        uint64
+	cancel               context.CancelFunc
 }
 
 type remoteTerminalRegistry struct {
@@ -133,16 +152,24 @@ func (s *Server) remoteRegistry() *remoteTerminalRegistry {
 }
 
 func configuredRemoteTarget() remoteTerminalTarget {
+	ownerToken, reauthToken := resolveBridgeOwnerCredentials()
 	t := remoteTerminalTarget{
-		ID:          "bridge-node:" + strings.TrimSpace(getEnvOrDefault("WEB_CONSOLE_BRIDGE_NODE_ID", "")),
-		Kind:        "bridge-node",
-		Label:       getEnvOrDefault("WEB_CONSOLE_BRIDGE_LABEL", "Bridge node"),
-		BaseURL:     strings.TrimRight(strings.TrimSpace(os.Getenv("WEB_CONSOLE_BRIDGE_URL")), "/"),
-		NodeID:      strings.TrimSpace(os.Getenv("WEB_CONSOLE_BRIDGE_NODE_ID")),
-		OwnerToken:  strings.TrimSpace(os.Getenv("WEB_CONSOLE_BRIDGE_OWNER_TOKEN")),
-		ReauthToken: strings.TrimSpace(os.Getenv("WEB_CONSOLE_BRIDGE_REAUTH_TOKEN")),
+		ID:             "bridge-node:" + strings.TrimSpace(getEnvOrDefault("WEB_CONSOLE_BRIDGE_NODE_ID", "")),
+		Kind:           "bridge-node",
+		Label:          getEnvOrDefault("WEB_CONSOLE_BRIDGE_LABEL", "Bridge node"),
+		State:          "unconfigured",
+		RecoveryAction: "Configure Bridge access on the Web Console server",
+		BaseURL:        strings.TrimRight(strings.TrimSpace(os.Getenv("WEB_CONSOLE_BRIDGE_URL")), "/"),
+		NodeID:         strings.TrimSpace(os.Getenv("WEB_CONSOLE_BRIDGE_NODE_ID")),
+		OwnerToken:     ownerToken,
+		ReauthToken:    reauthToken,
 	}
-	if t.BaseURL == "" || t.NodeID == "" || t.OwnerToken == "" || t.ReauthToken == "" {
+	localSession := hasExplicitAuthScheme(t.OwnerToken, "LocalSession")
+	if t.BaseURL == "" {
+		t.FailureRung = "Bridge URL not configured"
+		return t
+	}
+	if t.OwnerToken == "" || (!localSession && t.ReauthToken == "") {
 		t.FailureRung = "bridge credentials not configured"
 		return t
 	}
@@ -152,8 +179,33 @@ func configuredRemoteTarget() remoteTerminalTarget {
 		return t
 	}
 	t.Available = true
-	t.Readiness = []string{"Bridge URL configured", "node identity configured", "owner re-authentication configured"}
+	t.State = "dispatchable"
+	t.RecoveryAction = ""
+	if localSession {
+		t.Readiness = []string{"Bridge URL configured", "node identity configured", "enrolled local session configured"}
+	} else {
+		t.Readiness = []string{"Bridge URL configured", "node identity configured", "owner re-authentication configured"}
+	}
 	return t
+}
+
+// resolveBridgeOwnerCredentials prefers the enrolled operator session on the
+// Web Console host. The enrollment store contains only a signing key and
+// metadata; Resolve mints the short-lived LocalSession token immediately
+// before the server talks to Bridge. Static environment credentials remain a
+// compatibility fallback for deployments that have not enrolled the host.
+func resolveBridgeOwnerCredentials() (string, string) {
+	if store, err := sharedsession.DefaultFileStore(); err == nil {
+		if resolution, resolveErr := (sharedsession.LocalResolver{Store: store}).Resolve(); resolveErr == nil && strings.TrimSpace(resolution.Token) != "" {
+			return sharedsession.LocalSessionScheme + " " + resolution.Token, ""
+		}
+	}
+	return strings.TrimSpace(os.Getenv("WEB_CONSOLE_BRIDGE_OWNER_TOKEN")), strings.TrimSpace(os.Getenv("WEB_CONSOLE_BRIDGE_REAUTH_TOKEN"))
+}
+
+func hasExplicitAuthScheme(value, scheme string) bool {
+	prefix := strings.TrimSpace(scheme) + " "
+	return strings.HasPrefix(strings.TrimSpace(value), prefix)
 }
 
 // bridgeOwnerTransport keeps Bridge credentials on the web-console server.
@@ -167,8 +219,10 @@ type bridgeOwnerTransport struct {
 
 func (t bridgeOwnerTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	clone := req.Clone(req.Context())
-	clone.Header.Set("Authorization", "Bearer "+t.owner)
-	clone.Header.Set("X-Bridge-Owner-Reauth", t.reauth)
+	clone.Header.Set("Authorization", currentOwnerAuthorization(t.owner))
+	if strings.TrimSpace(t.reauth) != "" {
+		clone.Header.Set("X-Bridge-Owner-Reauth", t.reauth)
+	}
 	return t.base.RoundTrip(clone)
 }
 
@@ -217,8 +271,20 @@ func targetFromRegistryNode(base remoteTerminalTarget, node *registryv1.Node) re
 	target.ID = "bridge-node:" + node.GetId()
 	target.Kind = targetKind(node)
 	target.Label = node.GetName()
+	if target.Label == "" {
+		target.Label = node.GetId()
+	}
 	target.NodeID = node.GetId()
+	target.OS = node.GetOs()
+	target.Arch = node.GetArch()
+	target.Revision = node.GetRevision()
+	target.Status = node.GetStatus().String()
+	target.Online = node.GetOnline()
+	if node.GetLastSeenAt() != nil {
+		target.LastSeenAt = node.GetLastSeenAt().AsTime()
+	}
 	target.Readiness = readinessFacts(node)
+	target.ReadinessFacts = readinessFactsForNode(node)
 	target.Available = node.GetDispatchable() && node.GetKind() == registryv1.NodeKind_NODE_KIND_AGENT
 	if !target.Available {
 		if failure := readinessFailure(node); failure != "" {
@@ -226,7 +292,9 @@ func targetFromRegistryNode(base remoteTerminalTarget, node *registryv1.Node) re
 		} else {
 			target.FailureRung = "session backend unavailable for " + target.Kind
 		}
+		target.RecoveryAction = recoveryActionForNode(node, target.FailureRung)
 	}
+	target.State = targetStateForNode(node, target.Available)
 	return target
 }
 
@@ -271,12 +339,13 @@ func (s *Server) remoteTargets() []remoteTerminalTarget {
 }
 
 type remoteTerminalCreateRequest struct {
-	TargetID      string `json:"target_id"`
-	Shell         string `json:"shell"`
-	WorkingDir    string `json:"working_dir"`
-	LaunchCommand string `json:"launch_command"`
-	Cols          int    `json:"cols"`
-	Rows          int    `json:"rows"`
+	TargetID             string `json:"target_id"`
+	Shell                string `json:"shell"`
+	WorkingDir           string `json:"working_dir"`
+	LaunchCommand        string `json:"launch_command"`
+	ExecuteLaunchCommand bool   `json:"execute_launch_command"`
+	Cols                 int    `json:"cols"`
+	Rows                 int    `json:"rows"`
 }
 
 func (s *Server) handleRemoteTerminalTargets(w http.ResponseWriter, _ *http.Request) {
@@ -310,11 +379,12 @@ func (s *Server) handleRemoteTerminalCreate(w http.ResponseWriter, r *http.Reque
 		req.Rows = 24
 	}
 	id := "remote:" + uuid.NewString()
-	s.remoteRegistry().put(remoteTerminalSession{ID: id, Target: target, Shell: req.Shell, WorkingDir: req.WorkingDir, LaunchCommand: req.LaunchCommand, Cols: req.Cols, Rows: req.Rows, CreatedAt: time.Now().UTC()})
+	now := time.Now().UTC()
+	s.remoteRegistry().put(remoteTerminalSession{ID: id, Target: target, Shell: req.Shell, WorkingDir: req.WorkingDir, LaunchCommand: req.LaunchCommand, ExecuteLaunchCommand: req.ExecuteLaunchCommand, Cols: req.Cols, Rows: req.Rows, CreatedAt: now})
 	writeRemoteJSON(w, http.StatusCreated, map[string]any{
-		"id": id, "shell": req.Shell, "created_at": time.Now().UTC(), "cols": req.Cols, "rows": req.Rows,
+		"id": id, "shell": req.Shell, "created_at": now, "cols": req.Cols, "rows": req.Rows,
 		"backend": "standard", "survives_restart": false, "policy": map[string]any{"mode": "never"},
-		"busy": false, "origin": "remote", "owner": "target:" + target.ID, "display_label": target.Label,
+		"busy": false, "origin": "remote", "owner": "target:" + target.ID, "display_label": target.Label, "target": target,
 	})
 }
 
@@ -325,7 +395,7 @@ func (s *Server) handleRemoteTerminalList(w http.ResponseWriter, _ *http.Request
 		items = append(items, map[string]any{
 			"id": current.ID, "shell": current.Shell, "created_at": current.CreatedAt, "cols": current.Cols, "rows": current.Rows,
 			"backend": "standard", "survives_restart": false, "policy": map[string]any{"mode": "never"}, "busy": false,
-			"origin": "remote", "owner": "target:" + current.Target.ID, "display_label": current.Target.Label,
+			"origin": "remote", "owner": "target:" + current.Target.ID, "display_label": current.Target.Label, "target": current.Target,
 		})
 	}
 	s.remoteRegistry().mu.RUnlock()
@@ -368,8 +438,10 @@ func (s *Server) handleRemoteTerminalWS(w http.ResponseWriter, r *http.Request, 
 	}
 	bridgeURL.RawQuery = q.Encode()
 	header := http.Header{}
-	header.Set("Authorization", "Bearer "+remote.Target.OwnerToken)
-	header.Set("X-Bridge-Owner-Reauth", remote.Target.ReauthToken)
+	header.Set("Authorization", currentOwnerAuthorization(remote.Target.OwnerToken))
+	if strings.TrimSpace(remote.Target.ReauthToken) != "" {
+		header.Set("X-Bridge-Owner-Reauth", remote.Target.ReauthToken)
+	}
 	upstream, _, err := websocket.DefaultDialer.DialContext(ctx, bridgeURL.String(), header)
 	if err != nil {
 		http.Error(w, "bridge session unavailable", http.StatusBadGateway)
@@ -406,7 +478,7 @@ func (s *Server) handleRemoteTerminalWS(w http.ResponseWriter, r *http.Request, 
 	// reconnects so the same PTY session can be reattached without a gap.
 	pending := make(map[uint64]int64)
 	var pendingMu sync.Mutex
-	if remote.LaunchCommand != "" && s.remoteRegistry().claimLaunch(remote.ID) {
+	if remote.ExecuteLaunchCommand && remote.LaunchCommand != "" && s.remoteRegistry().claimLaunch(remote.ID) {
 		sequence, ok := s.remoteRegistry().nextBridgeSequence(remote.ID)
 		if !ok {
 			return
@@ -501,6 +573,36 @@ func (s *Server) handleRemoteTerminalWS(w http.ResponseWriter, r *http.Request, 
 			return
 		}
 	}
+}
+
+func ownerAuthorization(value string) string {
+	value = strings.TrimSpace(value)
+	if hasExplicitAuthScheme(value, "LocalSession") || hasExplicitAuthScheme(value, "Bearer") {
+		return value
+	}
+	return "Bearer " + value
+}
+
+// currentOwnerAuthorization refreshes an enrolled local session immediately
+// before a Bridge request. LocalSession credentials are intentionally
+// short-lived; retaining the token captured at Web Console startup would make
+// an otherwise healthy operator surface fail after the 15-minute TTL. The
+// fallback preserves explicit test/configuration tokens when this process has
+// no local enrollment to mint from.
+func currentOwnerAuthorization(value string) string {
+	value = strings.TrimSpace(value)
+	if !hasExplicitAuthScheme(value, sharedsession.LocalSessionScheme) {
+		return ownerAuthorization(value)
+	}
+	store, err := sharedsession.DefaultFileStore()
+	if err != nil {
+		return ownerAuthorization(value)
+	}
+	resolution, err := (sharedsession.LocalResolver{Store: store}).Resolve()
+	if err != nil || strings.TrimSpace(resolution.Token) == "" {
+		return ownerAuthorization(value)
+	}
+	return sharedsession.LocalSessionScheme + " " + resolution.Token
 }
 
 func writeBridgeFrame(conn *websocket.Conn, frame *sessionv1.Frame) error {

@@ -1,7 +1,13 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import VoiceMicButton from "../components/VoiceMicButton";
-import VoiceRecoveryBanner from "../components/VoiceRecoveryBanner";
+import { BannerHarness } from "../components/banners/__tests__/harness";
+import {
+  ttsSpeakingBanner,
+  voiceErrorBanner,
+  voiceStaleMicBanner,
+  voiceTranscribingBanner,
+} from "../components/banners/descriptors";
 
 /**
  * The microphone button renders the button and nothing else.
@@ -44,9 +50,9 @@ describe("VoiceMicButton footprint", () => {
       // The library control injects its own <style> element, which is not
       // rendered text, so drop stylesheets before reading the copy.
       const clone = container.cloneNode(true) as HTMLElement;
-      clone.querySelectorAll("style, script").forEach((node) => node.remove());
+      clone.querySelectorAll("style, script").forEach((node) => { node.remove(); });
       clone.querySelector('[data-testid="mic"]')?.remove();
-      expect((clone.textContent ?? "").trim()).toBe("");
+      expect(clone.textContent.trim()).toBe("");
     });
   }
 
@@ -81,49 +87,67 @@ describe("VoiceMicButton footprint", () => {
   });
 });
 
-describe("VoiceRecoveryBanner", () => {
+/**
+ * The recovery affordances the button no longer shows now live in the banner
+ * region — as four independent notices rather than one strip holding five
+ * unrelated conditions behind a row of buttons.
+ */
+describe("voice recovery notices", () => {
   it("stays out of the layout when there is nothing to recover from", () => {
-    const { container } = render(<VoiceRecoveryBanner />);
+    const { container } = render(<BannerHarness build={() => []} />);
     expect(container.firstChild).toBeNull();
   });
 
   it("surfaces the error the button no longer shows", () => {
-    render(<VoiceRecoveryBanner error="backend unavailable" />);
-    expect(screen.getByTestId("voice-recovery-error").textContent).toBe("backend unavailable");
-    expect(screen.getByTestId("voice-recovery-banner").getAttribute("role")).toBe("alert");
+    render(<BannerHarness build={(t) => voiceErrorBanner(t, "backend unavailable")} />);
+    expect(screen.getByTestId("voice-error-banner")).toHaveTextContent("backend unavailable");
   });
 
   it("offers cancel only while a transcription is actually in flight", () => {
     const onCancel = vi.fn();
-    const { rerender } = render(<VoiceRecoveryBanner isTranscribing={false} onCancel={onCancel} />);
-    expect(screen.queryByTestId("voice-recovery-cancel")).toBeNull();
+    const { rerender } = render(<BannerHarness build={() => []} />);
+    expect(screen.queryByTestId("voice-transcribing-banner-cancel")).toBeNull();
 
-    rerender(<VoiceRecoveryBanner isTranscribing onCancel={onCancel} />);
-    screen.getByTestId("voice-recovery-cancel").click();
+    rerender(<BannerHarness build={(t) => voiceTranscribingBanner(t, onCancel)} />);
+    fireEvent.click(screen.getByTestId("voice-transcribing-banner-cancel"));
     expect(onCancel).toHaveBeenCalledOnce();
   });
 
-  it("offers every recovery action its signal calls for", () => {
+  it("raises one banner per condition, and collapses the rest behind a summary", () => {
     render(
-      <VoiceRecoveryBanner
-        isTranscribing
-        onCancel={vi.fn()}
-        staleLiveMic
-        onReleaseMic={vi.fn()}
-        isTtsSpeaking
-        onTtsStop={vi.fn()}
-        canExportDiagnostic
-        onExportDiagnostic={() => null}
+      <BannerHarness
+        build={(t) => [
+          voiceTranscribingBanner(t, vi.fn()),
+          voiceStaleMicBanner(t, vi.fn()),
+          ttsSpeakingBanner(t, vi.fn()),
+          voiceErrorBanner(t, "backend unavailable"),
+        ]}
       />,
     );
-    expect(screen.getByTestId("voice-recovery-cancel")).toBeTruthy();
-    expect(screen.getByTestId("voice-recovery-release-mic")).toBeTruthy();
-    expect(screen.getByTestId("voice-recovery-stop-speech")).toBeTruthy();
-    expect(screen.getByTestId("voice-recovery-export-diagnostic")).toBeTruthy();
+    // Four active conditions cost one banner plus a summary row — not four
+    // stacked strips shoving the workspace down mid-sentence.
+    expect(screen.getAllByTestId(/-banner$/)).toHaveLength(1);
+    expect(screen.getByTestId("voice-error-banner")).toBeTruthy();
+    expect(screen.getByTestId("banner-overflow-toggle")).toBeTruthy();
+
+    fireEvent.click(screen.getByTestId("banner-overflow-toggle"));
+    expect(screen.getByTestId("voice-stale-mic-banner-release-mic")).toBeTruthy();
+    expect(screen.getByTestId("tts-speaking-banner-stop-speech")).toBeTruthy();
+    expect(screen.getByTestId("voice-transcribing-banner-cancel")).toBeTruthy();
   });
 
-  it("reports itself as status, not alert, when only actions are available", () => {
-    render(<VoiceRecoveryBanner staleLiveMic onReleaseMic={vi.fn()} />);
-    expect(screen.getByTestId("voice-recovery-banner").getAttribute("role")).toBe("status");
+  it("no longer offers a diagnostic export", () => {
+    render(
+      <BannerHarness
+        build={(t) => [voiceTranscribingBanner(t, vi.fn()), voiceErrorBanner(t, "boom")]}
+      />,
+    );
+    fireEvent.click(screen.getByTestId("banner-overflow-toggle"));
+    expect(screen.queryByText(/export/i)).toBeNull();
+  });
+
+  it("reports itself as status, not alert, when nothing is broken", () => {
+    render(<BannerHarness build={(t) => voiceStaleMicBanner(t, vi.fn())} />);
+    expect(screen.getByTestId("voice-stale-mic-banner").getAttribute("role")).toBe("status");
   });
 });

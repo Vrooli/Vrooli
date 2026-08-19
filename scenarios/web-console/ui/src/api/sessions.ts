@@ -1,9 +1,10 @@
 import { createClient } from "@connectrpc/connect";
 import { ArchiveRestoreState, SessionsService, SessionOrigin } from "@vrooli/proto-types/web-console/v1/sessions/sessions_pb";
+import type { Target } from "@vrooli/proto-types/web-console/v1/shared/target_pb";
 import { resolveApiBase, buildWsUrl } from "@vrooli/api-base";
 
 import { transport } from "./client";
-import { deleteRemoteSession, listRemoteSessions } from "./remoteSessions";
+import { decodeTarget, type TerminalTarget } from "./targets";
 
 // sessionsClient is the Connect-Web client for SessionsService. Consumers
 // should prefer the typed wrappers below, which surface the snake_case
@@ -58,6 +59,7 @@ export interface SessionInfo {
   /** Human-facing label set by the creator (empty when unset). */
   display_label: string;
   tracking_degraded?: boolean;
+  target?: TerminalTarget;
 }
 
 export interface PolicyResponse {
@@ -157,6 +159,7 @@ type ProtoSession = {
   owner?: string;
   displayLabel?: string;
   trackingDegraded?: boolean;
+  target?: Target;
 };
 
 type ProtoRecoverable = {
@@ -215,7 +218,7 @@ export function coerceOriginName(s: string | undefined): SessionOriginName {
   }
 }
 
-function decodeSession(s: ProtoSession | undefined): SessionInfo {
+export function decodeSession(s: ProtoSession | undefined): SessionInfo {
   const policy = s?.policy;
   return {
     id: s?.id ?? "",
@@ -235,6 +238,7 @@ function decodeSession(s: ProtoSession | undefined): SessionInfo {
     owner: s?.owner ?? "",
     display_label: s?.displayLabel ?? "",
     ...(s?.trackingDegraded ? { tracking_degraded: true } : {}),
+    ...(s?.target ? { target: decodeTarget(s.target) } : {}),
   };
 }
 
@@ -303,9 +307,12 @@ export async function createSession(opts?: {
   // PTY (via server-side paste) so the command runs exactly once without the
   // client typing it after the WebSocket connects.
   execute_launch_command?: boolean;
-  agent_type?: AgentType;
+	agent_type?: AgentType;
 	owner?: string;
 	display_label?: string;
+	target_id?: string;
+	working_dir?: string;
+	idempotency_key?: string;
 }): Promise<SessionInfo> {
   const resp = await sessionsClient.create({
     shell: opts?.shell ?? "",
@@ -316,7 +323,9 @@ export async function createSession(opts?: {
     executeLaunchCommand: opts?.execute_launch_command ?? false,
     agentType: opts?.agent_type ?? "",
 		owner: opts?.owner ?? "",
-		displayLabel: opts?.display_label ?? "",
+    displayLabel: opts?.display_label ?? "",
+	targetId: opts?.target_id ?? "",
+	workingDir: opts?.working_dir ?? "",
     // First-party UI client: tag provenance explicitly so an origin-less
     // create (which the server normalizes to programmatic) can only come from
     // a non-UI caller.
@@ -324,7 +333,7 @@ export async function createSession(opts?: {
     ...(opts?.policy
       ? { policy: { mode: opts.policy.mode, duration: opts.policy.duration ?? "" }, hasPolicy: true }
       : {}),
-  });
+  }, opts?.idempotency_key ? { headers: { "X-Idempotency-Key": opts.idempotency_key } } : undefined);
   return decodeSession(resp.session);
 }
 
@@ -349,16 +358,8 @@ export async function listSessionsWithRecovery(): Promise<{
 }> {
   const resp = await sessionsClient.list({});
   const r = resp.recovery;
-  const localSessions = resp.sessions.map(decodeSession);
-  let remoteSessions: SessionInfo[] = [];
-  try {
-    remoteSessions = await listRemoteSessions();
-  } catch {
-    // Remote federation is optional; local hydration remains authoritative
-    // when Bridge is not configured or temporarily unavailable.
-  }
   return {
-    sessions: [...localSessions, ...remoteSessions],
+	    sessions: resp.sessions.map(decodeSession),
     recovery: {
       in_progress: r?.inProgress ?? false,
       total: r?.total ?? 0,
@@ -374,26 +375,17 @@ export async function listSessions(): Promise<SessionInfo[]> {
 }
 
 export async function getSession(id: string): Promise<SessionInfo> {
-  if (id.startsWith("remote:")) {
-    const remote = await listRemoteSessions();
-    const found = remote.find((s) => s.id === id);
-    if (found) return found;
-  }
-  const resp = await sessionsClient.get({ id });
+	const resp = await sessionsClient.get({ id });
   return decodeSession(resp.session);
 }
 
 export async function deleteSession(id: string): Promise<void> {
-  if (id.startsWith("remote:")) {
-    await deleteRemoteSession(id);
-    return;
-  }
-  await sessionsClient.delete({ id });
+	await sessionsClient.delete({ id });
 }
 
 export async function archiveSession(id: string): Promise<void> {
-  if (id.startsWith("remote:")) {
-    await deleteRemoteSession(id);
+	if (id.startsWith("remote:")) {
+		await sessionsClient.delete({ id });
     return;
   }
   await sessionsClient.archive({ id });

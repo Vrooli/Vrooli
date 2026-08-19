@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 // Regression guard for the template's REST-exception contract.
 //
 // Every UI -> API call goes through Connect-RPC. The only sanctioned
-// exceptions are the three files allowlisted below, each tied to one
+// exceptions are the files allowlisted below, each tied to one
 // of the template's enumerated RESTReason values:
 //
 //   health.ts   -> RESTReasonOpsProbe
@@ -16,9 +16,6 @@ import { fileURLToPath } from "node:url";
 //                  web-console-internal surface that never crosses scenario
 //                  boundaries; all audio synthesis flows through Connect
 //                  against audio-tools)
-//   remoteSessions.ts -> RESTReasonOpsProbe (the browser JSON terminal ↔
-//                  Bridge binary-session federation adapter)
-//
 // See docs/internal/SEAMS.md for the registry. Adding a fourth REST
 // surface requires picking another enumerated RESTReason and updating
 // SEAMS.md AND this allowlist in the same change.
@@ -26,7 +23,7 @@ import { fileURLToPath } from "node:url";
 const THIS_FILE = fileURLToPath(import.meta.url);
 const API_DIR = resolve(THIS_FILE, "..", "..");
 
-const ALLOWLIST = new Set(["health.ts", "uploads.ts", "ttsHook.ts", "remoteSessions.ts"]);
+const ALLOWLIST = new Set(["health.ts", "uploads.ts", "ttsHook.ts"]);
 
 function listApiFiles(dir: string): string[] {
   const out: string[] = [];

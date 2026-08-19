@@ -434,7 +434,11 @@ describe("Workspace", () => {
     mockStoreState.panes = [{ sessionId: mockSession.id, name: "/bin/bash", headerColor: "transparent" }];
     hookState.createError = { message: "Server error", retry: true };
     render(<Workspace />);
-    expect(screen.getByTestId("mock-error-banner")).toBeTruthy();
+    // In pane view the failure is top chrome, arbitrated with every other
+    // notice. In the empty state it stays inline beside the button that
+    // produced it, so the two never say the same thing twice.
+    expect(screen.getByTestId("create-error-banner")).toBeTruthy();
+    expect(screen.queryByTestId("mock-error-banner")).toBeNull();
     expect(screen.getByText("Server error")).toBeTruthy();
   });
 
@@ -522,7 +526,9 @@ describe("Workspace", () => {
     expect(screen.getByTestId("tab-bar").className).not.toContain("--wc-safe-top");
   });
 
-  it("renders the voice status notice as a dismissible top-edge banner", () => {
+  // Workspace ships the real damping policy, so a warning notice paints only
+  // after it has outlasted the enter delay. That wait is the feature.
+  it("renders the voice status notice as a dismissible top-edge banner", async () => {
     hookState.panes = [{ session: mockSession }];
     mockStoreState.displayMode = "tabs";
     mockStoreState.activePane = mockSession.id;
@@ -533,25 +539,48 @@ describe("Workspace", () => {
 
     render(<Workspace />);
 
-    expect(screen.getByTestId("voice-status-banner").textContent).toContain("Waiting for the speech backend");
-    expect(screen.getByTestId("workspace-top-edge-fill").className).toContain("bg-amber-500/10");
+    const notice = await screen.findByTestId("voice-status-banner");
+    expect(notice.textContent).toContain("Waiting for the speech backend");
+    // The safe-area strip is tinted by whatever banner is on top, so the notch
+    // matches the notice instead of the surface beneath it.
+    expect(screen.getByTestId("workspace-top-edge-fill").className).toContain("wc-banner-fill-warning");
 
-    fireEvent.click(screen.getByTestId("voice-status-dismiss"));
+    fireEvent.click(screen.getByTestId("voice-status-banner-dismiss"));
     expect(mockVoiceInputState.dismissFallbackNotice).toHaveBeenCalledTimes(1);
   });
 
-  it("does not double-reserve top safe area when parent already owns it", () => {
+  it("arbitrates App's notices into its own region rather than stacking a second one", async () => {
     hookState.panes = [{ session: mockSession }];
     mockStoreState.displayMode = "tabs";
     mockStoreState.activePane = mockSession.id;
     mockStoreState.panes = [
       { sessionId: mockSession.id, name: "Primary", headerColor: "transparent", supportsMessagesView: true },
     ];
+    mockVoiceInputState.fallbackNotice = "Waiting for the speech backend to acknowledge the stream.";
 
-    render(<Workspace topSafeAreaReserved />);
+    render(
+      <Workspace
+        appBanners={[
+          {
+            id: "connection-lost",
+            testId: "connection-banner",
+            tone: "danger",
+            priority: 90,
+            title: "Unable to reach the API",
+          },
+        ]}
+      />,
+    );
 
-    expect(screen.queryByTestId("workspace-top-edge-fill")).toBeNull();
-    expect(screen.getByTestId("tab-bar")).toBeTruthy();
+    // App no longer owns a second TopSafeArea; Workspace always owns the edge.
+    expect(screen.getByTestId("workspace-top-edge-fill")).toBeTruthy();
+    // A danger notice paints at once — something is broken and waiting would
+    // be the wrong trade. The voice warning arrives after its enter delay and
+    // collapses behind the summary rather than stacking below.
+    expect(screen.getByTestId("connection-banner")).toBeTruthy();
+    expect(screen.queryByTestId("voice-status-banner")).toBeNull();
+    expect(await screen.findByTestId("banner-overflow-toggle")).toBeTruthy();
+    expect(screen.getByTestId("workspace-top-edge-fill").className).toContain("wc-banner-fill-danger");
   });
 
   it("renders sidebar mode as tab-like stacked panes with desktop sidebar", () => {

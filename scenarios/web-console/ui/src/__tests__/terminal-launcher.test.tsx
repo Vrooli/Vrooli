@@ -22,9 +22,10 @@ import { shortcutsClient as _shortcutsClient } from "../api/shortcuts";
 const shortcutsClient = asMockedClient(_shortcutsClient);
 
 import TerminalLauncher, { type TerminalTarget } from "../components/TerminalLauncher";
+import type { TargetCatalog } from "../api/targets";
 
 const testShortcuts: ShortcutEntry[] = [
-  { label: "Claude Code", command: "claude --dangerously-skip-permissions", description: "AI coding assistant" },
+  { label: "Claude Code", command: "vrooli agent launch --runner claude --arg=--dangerously-skip-permissions", description: "AI coding assistant" },
   { label: "Codex", command: "codex --yolo", description: "OpenAI Codex CLI" },
 ];
 
@@ -82,7 +83,7 @@ describe("TerminalLauncher", () => {
     );
     fireEvent.click(screen.getByTestId("launcher-shortcut-claude-code"));
     expect(onLaunch).toHaveBeenCalledWith(
-      expect.objectContaining({ command: "claude --dangerously-skip-permissions" }),
+      expect.objectContaining({ command: "vrooli agent launch --runner claude --arg=--dangerously-skip-permissions" }),
     );
   });
 
@@ -219,18 +220,67 @@ describe("TerminalLauncher", () => {
 
   it("selects an available remote target and exposes its readiness facts", () => {
     const targets: TerminalTarget[] = [
-      { id: "node-1", kind: "bridge-node", label: "Mac mini", available: true, readiness: ["heartbeat fresh", "dispatchable"] },
-      { id: "node-2", kind: "bridge-node", label: "Offline host", available: false, failureRung: "live channel" },
+      { id: "node-1", kind: "bridge-node", label: "Mac mini", available: true, state: "dispatchable", readiness: [{ key: "heartbeat", label: "Heartbeat fresh", passed: true, detail: "fresh" }, { key: "dispatch", label: "Dispatchable", passed: true, detail: "ready" }] },
+      { id: "node-2", kind: "bridge-node", label: "Offline host", available: false, state: "offline", failure_rung: "live channel", recovery_action: "Reconnect the Bridge agent" },
     ];
     render(
       <TerminalLauncher open={true} onClose={onClose} onLaunch={onLaunch} shortcuts={testShortcuts} availableTargets={targets} />,
     );
     fireEvent.click(screen.getByTestId("launcher-options-toggle"));
     const select = screen.getByTestId("launcher-target-select") as HTMLSelectElement;
-    expect(select.options[2]?.disabled).toBe(true);
+    expect(select.options[2]?.disabled).toBe(false);
     fireEvent.change(select, { target: { value: "node-1" } });
-    expect(screen.getByText("✓ heartbeat fresh")).toBeTruthy();
+    expect(screen.getByText("Heartbeat fresh")).toBeTruthy();
     fireEvent.click(screen.getByTestId("launcher-empty-shell"));
     expect(onLaunch).toHaveBeenCalledWith(expect.objectContaining({ target: expect.objectContaining({ id: "node-1" }) }));
+  });
+
+  it("puts remote locations in the primary surface and keeps unavailable nodes inspectable", () => {
+    const targets: TerminalTarget[] = [
+      { id: "node-1", kind: "bridge-node", label: "Build node", available: true, state: "dispatchable", os: "linux", arch: "amd64" },
+      { id: "node-2", kind: "bridge-node", label: "Offline host", available: false, state: "offline", failure_rung: "heartbeat freshness", recovery_action: "Reconnect the Bridge agent, then refresh" },
+    ];
+    render(<TerminalLauncher open onClose={onClose} onLaunch={onLaunch} shortcuts={testShortcuts} availableTargets={targets} />);
+
+    expect(screen.getByTestId("launcher-target-card-node-1")).toBeTruthy();
+    expect(screen.getByTestId("launcher-target-card-node-2")).toBeTruthy();
+    fireEvent.click(screen.getByTestId("launcher-target-card-node-2"));
+    expect(screen.getByText("Reconnect the Bridge agent, then refresh")).toBeTruthy();
+    expect(screen.getByTestId("launcher-empty-shell")).toBeDisabled();
+  });
+
+  it("supports arrow-key navigation across target cards", () => {
+    const targets: TerminalTarget[] = [
+      { id: "node-1", kind: "bridge-node", label: "Build node", available: true, state: "dispatchable" },
+      { id: "node-2", kind: "bridge-node", label: "Test node", available: true, state: "dispatchable" },
+    ];
+    render(<TerminalLauncher open onClose={onClose} onLaunch={onLaunch} shortcuts={testShortcuts} availableTargets={targets} />);
+
+    const local = screen.getByTestId("launcher-target-card-local");
+    const firstRemote = screen.getByTestId("launcher-target-card-node-1");
+    local.focus();
+    fireEvent.keyDown(local, { key: "ArrowDown" });
+    expect(firstRemote).toHaveFocus();
+    expect(firstRemote).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("offers Codex device authentication as an explicit launch action", () => {
+    render(<TerminalLauncher open onClose={onClose} onLaunch={onLaunch} shortcuts={testShortcuts} />);
+    fireEvent.click(screen.getByTestId("launcher-codex-sign-in"));
+    expect(onLaunch).toHaveBeenCalledWith(expect.objectContaining({ command: "codex login --device-auth" }));
+  });
+
+  it("shows catalog recovery state and refresh affordance", () => {
+    const onRefreshTargets = vi.fn();
+    const targetCatalog: TargetCatalog = {
+      status: "unconfigured",
+      targets: [],
+      message: "Remote nodes are not configured",
+      recovery_action: "Configure Bridge access on the Web Console server",
+    };
+    render(<TerminalLauncher open onClose={onClose} onLaunch={onLaunch} shortcuts={testShortcuts} targetCatalog={targetCatalog} onRefreshTargets={onRefreshTargets} />);
+    expect(screen.getByTestId("launcher-target-catalog-state")).toHaveTextContent(strings.terminalLauncher.unconfigured);
+    fireEvent.click(screen.getByTestId("launcher-target-refresh"));
+    expect(onRefreshTargets).toHaveBeenCalledOnce();
   });
 });

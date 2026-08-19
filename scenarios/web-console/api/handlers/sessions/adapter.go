@@ -2,6 +2,9 @@ package sessions
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -71,6 +74,7 @@ type Adapter struct {
 	AgentHistorySize    func(sessionstore.Metadata) (int64, error)
 	PruneAgentHistory   func(sessionstore.Metadata) (int64, error)
 	Now                 func() time.Time
+	Remote              RemoteService
 
 	// ArchiveGracePeriod is the server-owned undo window. Zero uses the
 	// product default; tests may set a negative duration for immediate finalization.
@@ -91,11 +95,30 @@ func (a *Adapter) logger() *log.Logger {
 // -----------------------------------------------------------------------------
 
 func (a *Adapter) Create(ctx context.Context, in CreateInput) (Session, error) {
-	if in.IdempotencyKey != "" {
+	fingerprint := createFingerprint(in)
+	if in.IdempotencyKey != "" && a.Idempotency != nil {
 		if cached, ok := a.Idempotency.Get(in.IdempotencyKey); ok {
+			if cached.Fingerprint != "" && cached.Fingerprint != fingerprint {
+				return Session{}, fmt.Errorf("%w: %s", ErrIdempotencyConflict, in.IdempotencyKey)
+			}
 			a.logger().Printf("create-session: idempotency hit for key %q, returning cached session %s", in.IdempotencyKey, cached.ID)
 			return responseToHandlerSession(cached), nil
 		}
+	}
+	if targetID := strings.TrimSpace(in.TargetID); targetID != "" && targetID != "local" {
+		if a.Remote == nil {
+			return Session{}, fmt.Errorf("%w: remote session service is not configured", ErrRemoteUnavailable)
+		}
+		created, err := a.Remote.Create(ctx, in)
+		if err != nil {
+			return Session{}, err
+		}
+		if in.IdempotencyKey != "" && a.Idempotency != nil {
+			cached := handlerSessionToResponse(created)
+			cached.Fingerprint = fingerprint
+			a.Idempotency.Set(in.IdempotencyKey, cached)
+		}
+		return created, nil
 	}
 
 	var policyPtr *policy.Policy
@@ -116,7 +139,13 @@ func (a *Adapter) Create(ctx context.Context, in CreateInput) (Session, error) {
 	// testmode.go.
 	bid, policyPtr := applyTestLeaseShape(ctx, backend.ID(in.Backend), policyPtr)
 
-	sess, err := a.Manager.Create(ctx, in.Shell, uint16(in.Cols), uint16(in.Rows), bid, policyPtr)
+	var sess *session.Session
+	var err error
+	if strings.TrimSpace(in.WorkingDir) != "" {
+		sess, err = a.Manager.CreateWithWorkingDir(ctx, in.Shell, uint16(in.Cols), uint16(in.Rows), bid, policyPtr, in.WorkingDir)
+	} else {
+		sess, err = a.Manager.Create(ctx, in.Shell, uint16(in.Cols), uint16(in.Rows), bid, policyPtr)
+	}
 	if err != nil {
 		return Session{}, mapCreateError(err)
 	}
@@ -172,7 +201,8 @@ func (a *Adapter) Create(ctx context.Context, in CreateInput) (Session, error) {
 	resp.Origin = string(origin)
 	resp.Owner = in.Owner
 	resp.DisplayLabel = in.DisplayLabel
-	if in.IdempotencyKey != "" {
+	if in.IdempotencyKey != "" && a.Idempotency != nil {
+		resp.Fingerprint = fingerprint
 		a.Idempotency.Set(in.IdempotencyKey, resp)
 	}
 	return responseToHandlerSession(resp), nil
@@ -203,6 +233,13 @@ func (a *Adapter) List(ctx context.Context) ([]Session, error) {
 			s.TrackingDegraded = true
 		}
 		out = append(out, s)
+	}
+	if a.Remote != nil {
+		remote, err := a.Remote.List(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("%w: list remote sessions: %v", ErrRemoteUnavailable, err)
+		}
+		out = append(out, remote...)
 	}
 	return out, nil
 }
@@ -521,6 +558,12 @@ func (a *Adapter) RecoveryStatus(ctx context.Context) RecoveryStatus {
 }
 
 func (a *Adapter) Get(ctx context.Context, id string) (Session, error) {
+	if strings.HasPrefix(id, "remote:") {
+		if a.Remote == nil {
+			return Session{}, fmt.Errorf("%w: remote session service is not configured", ErrRemoteUnavailable)
+		}
+		return a.Remote.Get(ctx, id)
+	}
 	sess, ok := a.Manager.Get(id)
 	if !ok {
 		return Session{}, fmt.Errorf("session %q: %w", sanitizeID(id), ErrNotFound)
@@ -535,6 +578,12 @@ func (a *Adapter) Get(ctx context.Context, id string) (Session, error) {
 }
 
 func (a *Adapter) Delete(ctx context.Context, id string) error {
+	if strings.HasPrefix(id, "remote:") {
+		if a.Remote == nil {
+			return fmt.Errorf("%w: remote session service is not configured", ErrRemoteUnavailable)
+		}
+		return a.Remote.Delete(ctx, id)
+	}
 	a.cancelArchiveTimer(id)
 	_, managed := a.Manager.Get(id)
 	persisted := false
@@ -900,7 +949,54 @@ func responseToHandlerSession(r intsessions.Response) Session {
 		Origin:          r.Origin,
 		Owner:           r.Owner,
 		DisplayLabel:    r.DisplayLabel,
+		Target:          r.Target,
 	}
+}
+
+func handlerSessionToResponse(s Session) intsessions.Response {
+	return intsessions.Response{
+		ID:              s.ID,
+		Shell:           s.Shell,
+		CreatedAt:       s.CreatedAt,
+		Cols:            s.Cols,
+		Rows:            s.Rows,
+		Backend:         backend.ID(s.Backend),
+		SurvivesRestart: s.SurvivesRestart,
+		Policy:          policy.Policy{Mode: policy.Mode(s.Policy.Mode), Duration: s.Policy.Duration},
+		Busy:            s.Busy,
+		Recovered:       s.Recovered,
+		Origin:          s.Origin,
+		Owner:           s.Owner,
+		DisplayLabel:    s.DisplayLabel,
+		Target:          s.Target,
+	}
+}
+
+func createFingerprint(in CreateInput) string {
+	payload, _ := json.Marshal(struct {
+		Shell                string
+		Cols                 int
+		Rows                 int
+		Backend              string
+		Policy               Policy
+		HasPolicy            bool
+		LaunchCommand        string
+		ExecuteLaunchCommand bool
+		AgentType            string
+		Origin               string
+		Owner                string
+		DisplayLabel         string
+		TargetID             string
+		WorkingDir           string
+	}{
+		Shell: in.Shell, Cols: in.Cols, Rows: in.Rows, Backend: in.Backend,
+		Policy: in.Policy, HasPolicy: in.HasPolicy, LaunchCommand: in.LaunchCommand,
+		ExecuteLaunchCommand: in.ExecuteLaunchCommand, AgentType: in.AgentType,
+		Origin: in.Origin, Owner: in.Owner, DisplayLabel: in.DisplayLabel,
+		TargetID: in.TargetID, WorkingDir: in.WorkingDir,
+	})
+	digest := sha256.Sum256(payload)
+	return hex.EncodeToString(digest[:])
 }
 
 func toHandlerRecoverable(m sessionstore.Metadata) RecoverableSession {

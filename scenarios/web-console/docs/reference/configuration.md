@@ -20,17 +20,25 @@ Set these in your environment or `.env` file before starting the API.
 
 ### Optional Bridge Federation
 
-The web-console can expose an authenticated Bridge node as a terminal-launcher
-target. All four values are required; if any is absent, the target is shown as
-unavailable and no remote session can be created. Tokens are server-side only.
+The web-console exposes registered Bridge nodes as terminal-launcher targets.
+The server owns the Bridge connection and projects only safe metadata to the UI
+and CLI. If configuration or registry access is incomplete, the catalog reports
+an explicit state (`UNCONFIGURED`, `CONFIGURED_EMPTY`, or `REGISTRY_ERROR`) and
+keeps unavailable nodes visible with readiness facts and a recovery action.
+Tokens are server-side only.
 
 | Variable | Purpose |
 |----------|---------|
 | `WEB_CONSOLE_BRIDGE_URL` | Base HTTP(S) URL of the vrooli-bridge control plane |
-| `WEB_CONSOLE_BRIDGE_NODE_ID` | Registered Bridge node identity |
-| `WEB_CONSOLE_BRIDGE_OWNER_TOKEN` | Owner bearer token used by the server-side proxy |
-| `WEB_CONSOLE_BRIDGE_REAUTH_TOKEN` | Short-lived owner re-authentication proof |
+| `WEB_CONSOLE_BRIDGE_NODE_ID` | Optional registered node identity retained for compatibility with single-node Bridge deployments |
+| `WEB_CONSOLE_BRIDGE_OWNER_TOKEN` | Explicit fallback owner credential; an enrolled local operator session is preferred when available |
+| `WEB_CONSOLE_BRIDGE_REAUTH_TOKEN` | Explicit fallback short-lived owner re-authentication proof |
 | `WEB_CONSOLE_BRIDGE_LABEL` | Optional launcher label; defaults to `Bridge node` |
+
+Remote sessions currently report `survives_restart=false`: the Web Console
+keeps the short-lived federation registry in memory and preserves reconnect
+sequence state while it is running. A future Bridge-owned lease/session
+contract is required before remote restart recovery can be promised.
 
 ### Session & Memory
 
@@ -114,8 +122,22 @@ UI configuration is centralized in [CODE: ui/src/consts/config.ts]. These are co
 
 The terminal launcher presents configurable shortcut entries alongside the empty shell option. Default shortcuts are defined in [CODE: ui/src/consts/shortcuts.ts] as `DEFAULT_SHORTCUTS`:
 
-- **Claude Code**: `claude --dangerously-skip-permissions`
+- **Claude Code**: `vrooli agent launch --runner claude --arg=--dangerously-skip-permissions`
 - **Codex**: `codex --yolo`
+- **Attributed Claude Code**: checks for `vrooli-agent-launcher`, then runs the
+  same direct Claude command when the launcher is absent.
+- **Attributed Codex**: checks for `vrooli-agent-launcher`, then runs the same
+  direct Codex command when the launcher is absent.
+- **Attributed OpenCode** and **Attributed Grok** use the same additive
+  preflight pattern.
+
+The source for the ambient shell functions is
+[CODE: lib/coding-agent-shell-functions.sh]. It defines `claude`, `codex`, and
+`grok` functions that call the shared launcher when it is on `PATH` and use the
+raw binary otherwise. The functions never construct a shell command from the
+agent's arguments and never retry the agent after a launcher failure. Source
+the file from an interactive shell profile only after verifying the launcher
+degradation suite.
 
 The `TerminalLauncher` component accepts a `shortcuts` prop, enabling parent scenarios to inject custom shortcut lists without modifying the component. This is the extension point for OT-P1-002 (Shortcut Profile Management).
 

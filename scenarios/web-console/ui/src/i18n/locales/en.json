@@ -264,7 +264,10 @@
     "cancel": "Cancel transcription",
     "releaseMic": "Release microphone",
     "stopSpeech": "Stop speech",
-    "exportDiagnostic": "Export diagnostic"
+    "errorTitle": "Voice input problem",
+    "transcribingTitle": "Transcribing your speech",
+    "staleMicTitle": "Microphone is still active",
+    "ttsSpeakingTitle": "Reading the reply aloud"
   },
   "voiceRejection": {
     "title": "Speech didn't match your voice",
@@ -540,7 +543,38 @@
     "timeoutLabel": "Timeout:",
     "persistentHint": "Persistent sessions survive web console restarts using tmux.",
     "creating": "Creating session...",
-    "closeAriaLabel": "Close launcher"
+    "closeAriaLabel": "Close launcher",
+    "eyebrow": "New session",
+    "description": "Choose where this session runs, then choose what to launch.",
+    "locations": "Location",
+    "thisMachine": "This machine",
+    "remoteNodes": "Remote nodes",
+    "noRemoteNodes": "No nodes match this search.",
+    "searchNodes": "Search nodes",
+    "refreshTargets": "Refresh locations",
+    "loadingTargets": "Loading locations...",
+    "configuredEmpty": "Bridge is connected, but no remote nodes are registered.",
+    "unconfigured": "Remote nodes are not configured for this Web Console.",
+    "registryError": "The remote node catalog could not be loaded.",
+    "dispatchable": "Ready",
+    "offline": "Offline",
+    "needsUpdate": "Needs update",
+    "unavailable": "Unavailable",
+    "lastSeen": "Last seen",
+    "neverSeen": "Not seen yet",
+    "platform": "Platform",
+    "readiness": "Readiness",
+    "launchOn": "Launch on {{label}}",
+    "chooseReadyLocation": "Choose a ready location to continue.",
+    "targetUnavailable": "This location cannot start a session yet.",
+    "actions": "Start with",
+    "codexSignIn": "Sign in to Codex",
+    "codexSignInDescription": "Open Codex device authentication in the terminal.",
+    "codexSignInHint": "A one-time URL and code will appear in the terminal. No credentials are stored by Web Console.",
+    "workingDirectory": "Working directory",
+    "workingDirectoryPlaceholder": "Default working directory",
+    "advancedHint": "Optional session behavior",
+    "refreshing": "Refreshing..."
   },
   "settings": {
     "title": "Settings",
@@ -1009,5 +1043,25 @@
     "deleteConfirm": "Delete",
     "assignSession": "Add current session",
     "removeSession": "Remove current session"
+  },
+  "banners": {
+    "regionLabel": "Notices",
+    "dismiss": "Dismiss",
+    "moreNotices": "{{count}} more notices",
+    "moreNotices_one": "1 more notice",
+    "showLess": "Show less",
+    "trackingDegraded": "Conversation tracking may be delayed for this recovered Claude session. Terminal activity is continuing.",
+    "audioUnavailable": {
+      "title": "Voice features are unavailable",
+      "discoveryFailed": "Could not reach the audio-tools service. Voice input and synthesis are disabled.",
+      "scenarioNotRunning": "The audio-tools scenario is not running. Start it to enable voice features.",
+      "envMisconfigured": "audio-tools URL is not configured. Set AUDIO_TOOLS_URL or start the audio-tools scenario.",
+      "resolverNotConfigured": "Audio-tools discovery is not wired in this build of web-console.",
+      "generic": "Audio-tools is unavailable ({{reason}}).",
+      "starting": "Audio-tools is starting — voice features will return shortly.",
+      "startFailed": "Audio-tools failed to start. Check its logs, then start it again.",
+      "statusUnknown": "Couldn't determine whether audio-tools is running.",
+      "degraded": "Audio-tools is running but is not healthy. Voice features may be unreliable."
+    }
   }
 }

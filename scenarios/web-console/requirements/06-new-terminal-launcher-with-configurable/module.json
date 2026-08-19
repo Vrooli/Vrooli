@@ -1,5 +1,5 @@
 {
-  "description": "New-terminal flow offers empty shell and configurable shortcut entries; default entries include `claude --dangerously-skip-permissions` and `codex --yolo`",
+  "description": "New-terminal flow offers empty shell and configurable shortcut entries; the Claude entry uses the governed `vrooli agent launch --runner claude --arg=--dangerously-skip-permissions` path and the Codex entry uses `codex --yolo`",
   "module_id": "MOD-P0-006",
   "prd_ref": "OT-P0-006",
   "priority": "P0",
@@ -46,7 +46,7 @@
     {
       "category": "core",
       "children": ["REQ-P0-006b-i"],
-      "description": "Shortcut entries configurable via API. Default shortcuts include `claude --dangerously-skip-permissions` and `codex --yolo`. Shortcut selection creates session with specified command.",
+      "description": "Shortcut entries configurable via API. The default Claude shortcut uses `vrooli agent launch --runner claude --arg=--dangerously-skip-permissions`, and the Codex shortcut uses `codex --yolo`. Shortcut selection creates a session with the specified command.",
       "id": "REQ-P0-006b",
       "prd_ref": "OT-P0-006",
       "status": "in_progress",

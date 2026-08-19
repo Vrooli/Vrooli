@@ -2,13 +2,17 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import { toErrorInfo, type ErrorInfo } from "../lib/errors";
 import { getWorkspaceLayout, updateWorkspacePane } from "../api/workspace";
 import { archiveSession, createSession, deleteSession, listSessions, unarchiveSession, type SessionInfo, type BackendID, type PolicyMode, type AgentType } from "../api/sessions";
-import { createRemoteSession } from "../api/remoteSessions";
+import type { TerminalTarget } from "../api/targets";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import { orderPanesByGroupBlocks } from "../lib/workspaceNavigation";
 import { DEFAULT_COLS, DEFAULT_ROWS, ERROR_AUTO_DISMISS_MS } from "../consts/config";
 import type { TerminalPaneHandle } from "../components/TerminalPane";
 import type { GateResult, InputSource } from "../components/terminal/inputGate";
 import { ttsPlaybackRegistry } from "../audio-integration";
+
+function newLaunchIdempotencyKey(): string {
+	return `ui-session-${globalThis.crypto.randomUUID()}`;
+}
 
 // DOC: docs/concepts/ARCHITECTURE.md#session-creation
 // DOC: docs/internal/SEAMS.md#1b-session-orchestration
@@ -43,6 +47,23 @@ function supportsMessagesViewForCommand(command?: string): boolean {
 export function agentTypeFromCommand(command?: string): AgentType {
   if (!command) return "none";
   const trimmed = command.trim().toLowerCase();
+  const launcherMatch = trimmed.match(/vrooli-agent-launcher\s+--agent(?:=|\s+)(claude|claude-code|codex|opencode|grok)\b/);
+  if (launcherMatch) {
+    const runner = launcherMatch[1];
+    if (runner === "claude" || runner === "claude-code") return "claude";
+    if (runner === "codex") return "codex";
+    if (runner === "opencode") return "opencode";
+    if (runner === "grok") return "grok";
+  }
+  const governedLaunch = trimmed.match(/^vrooli\s+agent\s+launch\b(?:\s+--runner(?:=|\s+)(claude|claude-code|codex|opencode|grok))?/);
+  if (governedLaunch) {
+    const runner = governedLaunch[1];
+    if (runner === "claude" || runner === "claude-code") return "claude";
+    if (runner === "codex") return "codex";
+    if (runner === "opencode") return "opencode";
+    if (runner === "grok") return "grok";
+    return "claude";
+  }
   if (trimmed === "claude" || trimmed.startsWith("claude ")) return "claude";
   if (trimmed === "codex" || trimmed.startsWith("codex ")) return "codex";
   if (trimmed === "opencode" || trimmed.startsWith("opencode ")) return "opencode";
@@ -251,7 +272,8 @@ export function useSessionManager() {
     command?: string;
     backend?: BackendID;
     policy?: { mode: PolicyMode; duration?: string };
-	target?: { id: string; kind: string; label: string };
+	 target?: TerminalTarget;
+	workingDir?: string;
   }) => {
     const command = opts?.command;
     // Replay guard: if a creation is already in-flight, skip silently.
@@ -260,14 +282,7 @@ export function useSessionManager() {
     setIsCreating(true);
     setCreateError(null);
     try {
-		const session = opts?.target && opts.target.kind !== "local"
-			? await createRemoteSession({
-				target_id: opts.target.id,
-				cols: DEFAULT_COLS,
-				rows: DEFAULT_ROWS,
-				launch_command: command,
-			})
-			: await createSession({
+		const session = await createSession({
 			cols: DEFAULT_COLS,
         rows: DEFAULT_ROWS,
         backend: opts?.backend,
@@ -277,9 +292,12 @@ export function useSessionManager() {
         // it runs exactly once. The client no longer types it after connect.
         execute_launch_command: Boolean(command),
         agent_type: agentTypeFromCommand(command),
+			target_id: opts?.target && opts.target.kind !== "local" ? opts.target.id : undefined,
+			working_dir: opts?.workingDir,
 			owner: opts?.target && opts.target.kind !== "local" ? `target:${opts.target.id}` : undefined,
 			display_label: opts?.target?.label,
-			});
+			idempotency_key: newLaunchIdempotencyKey(),
+		});
       setPanes((prev) => [...prev, { session, supportsMessagesView: supportsMessagesViewForCommand(command) }]);
       return session;
     } catch (err) {

@@ -49,12 +49,29 @@ These Connect-RPC methods are defined by `SessionsService` and `ConversationServ
 
 `SessionsService.Delete` remains the explicit permanent-delete operation. UI callers expose it only through a destructive confirmation.
 
-**Create provenance & launch fields.** `CreateRequest` (proto `web-console/v1/sessions`) carries provenance and launch intent alongside the shell/backend fields:
+**Create provenance, target, and launch fields.** `CreateRequest` (proto `web-console/v1/sessions`) carries provenance, target selection, working directory, and launch intent alongside the shell/backend fields:
 
 - `origin` (`SessionOrigin`): who opened the session. The taxonomy is `SESSION_ORIGIN_UI` (human-opened browser tab), `SESSION_ORIGIN_PROGRAMMATIC` (agent/CLI caller), and `SESSION_ORIGIN_REMOTE`. `SESSION_ORIGIN_UNSPECIFIED` is **normalized to `SESSION_ORIGIN_PROGRAMMATIC`** on create — every first-party UI client sets `UI` explicitly, so an origin-less create can only have come from a programmatic caller. Persisted to `sessions.origin`.
 - `owner`: free-form provenance tag (e.g. `agent-manager`). Persisted to `sessions.owner`.
 - `display_label`: human-facing sidebar label. Persisted to `sessions.display_label`.
-- `launch_command`: command staged in the new session. By default it is only staged; set `execute_launch_command=true` to have the server paste it into the fresh session's stdin immediately after create (headless launch — the command runs with no browser attached, reusing the same paste seam as recovery). `execute_launch_command` is a create-time intent and is not persisted.
+- `target_id`: target catalog ID. Empty or `local` creates on this Web Console host; a `bridge-node:<node-id>` ID routes creation through the server-owned Bridge adapter. Clients must discover IDs from `TargetCatalogService.List` rather than constructing Bridge URLs or sending credentials.
+- `working_dir`: requested working directory on the selected target. The server validates and applies it at session creation; it is never used to select a target.
+- `launch_command`: command staged in the new session. By default it is only staged; set `execute_launch_command=true` to have the server-side launch path paste it into the fresh session's stdin. Local sessions receive it immediately after create. Remote sessions receive it exactly once when the first terminal WebSocket attaches, because the Bridge PTY transport is established at attachment time. `execute_launch_command` is a create-time intent and is not persisted.
+- `X-Idempotency-Key`: optional stable retry key for Create. Replaying the same request returns the original session, while reusing the key for different create inputs returns an explicit conflict instead of allocating a second session.
+
+Remote sessions are intentionally honest about durability: they report `survives_restart=false` because the current Bridge session registry is process-local. Browser reconnects preserve the Bridge sequence while the Web Console process remains alive; restart recovery and durable remote leases require a future Bridge-owned session lease contract.
+
+## Target catalog
+
+`TargetCatalogService` is the single discovery and readiness surface for terminal locations. It returns a safe projection only: IDs, labels, platform, online/last-seen state, readiness facts, dispatchability, failure rung, recovery action, and restart durability. Owner tokens, re-authentication proofs, Bridge URLs, and device-auth material never appear in the response.
+
+| Connect method | Behavior |
+|---|---|
+| `TargetCatalogService.List` | Returns the local Web Console host plus registered remote nodes and an explicit catalog state: `READY`, `CONFIGURED_EMPTY`, `UNCONFIGURED`, or `REGISTRY_ERROR`. |
+| `TargetCatalogService.Get` | Returns one safe target projection by catalog ID. |
+| `TargetCatalogService.Doctor` | Returns the target projection plus a concise summary for operational surfaces. |
+
+Unavailable nodes remain visible so an operator can distinguish offline, protocol-update, unconfigured, and registry failures. Creation is rejected with a typed Connect error until the target is dispatchable.
 
 Rows that predate these columns are backfilled to `origin='ui'` by an additive `ALTER TABLE` migration; see [data-model](./data-model.md#sessions).
 

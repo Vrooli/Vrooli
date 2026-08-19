@@ -20,6 +20,31 @@ Fetch the snapshot returned by `GET /api/v1/metrics`.
 [CODE: cli/domains/capabilities/register.go]
 Show capability inventory and liveness from `GET /api/v1/capabilities`.
 
+## `web-console target`
+[CODE: cli/domains/targets/register.go]
+
+The target catalog is the supported way to discover remote session locations. It uses `TargetCatalogService`; it does not accept Bridge URLs or credentials from callers.
+
+| Subcommand | Description |
+|---|---|
+| `list` | List local and remote locations, platform, readiness state, and dispatchability. |
+| `get <target-id>` | Show the safe metadata for one location. |
+| `doctor <target-id>` | Explain readiness facts and the first recovery action. |
+
+Example:
+
+```bash
+web-console target list
+web-console target doctor bridge-node:build-host
+web-console session create \
+  --target bridge-node:build-host \
+  --working-dir /workspaces/project \
+  --launch-command 'codex login --device-auth' \
+  --execute-launch-command
+```
+
+Use `--json` with target commands for the lossless proto JSON projection. It contains no owner token, re-authentication proof, or Bridge endpoint.
+
 ## `web-console session`
 [CODE: cli/domains/session/register.go]
 
@@ -27,7 +52,7 @@ Show capability inventory and liveness from `GET /api/v1/capabilities`.
 |---|---|
 | `list` / `ls` | List active sessions |
 | `get` / `show` | Show one session |
-| `create` | Create a session (optionally `--body-file PATH`). Provenance/launch flags: `--origin ui\|programmatic\|remote` (default `programmatic`), `--owner <tag>`, `--label <text>`, `--launch-command <cmd>`, `--execute-launch-command` (run the launch command headlessly instead of only staging it) |
+| `create` | Create a session (optionally `--body-file PATH`). Target/launch flags: `--target <target-id>` (use `target list`), `--working-dir <path>`, `--origin ui\|programmatic\|remote` (default `programmatic`), `--owner <tag>`, `--label <text>`, `--launch-command <cmd>`, `--execute-launch-command` (run the launch command immediately for local sessions, or once on first terminal attach for remote sessions), and `--idempotency-key <key>` (make retries replay-safe) |
 | `delete` / `rm` | Permanently delete a session and its retained data |
 | `archive` | Archive a session non-destructively |
 | `unarchive` | Undo an archive by clearing its archive marker |

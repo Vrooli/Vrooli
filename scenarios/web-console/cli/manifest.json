@@ -1,7 +1,7 @@
 {
   "$schema": "../../../.vrooli/schemas/cli-manifest.schema.json",
   "name": "web-console",
-  "description": "Web Console CLI surface. Single source of truth for the proto-bound domains (ai, capabilities, conversation, events, metrics, session, settings, shortcuts, workspace): schema-validated against cli-manifest/v1 and cross-validated against the Connect-RPC service descriptors at gen-endpoints time. Loaded by each domain's Register via cliapp.LoadFromManifest. The audio_admin, audio_runtime, and terminal Connect services have no CLI command today and are declared in omitted[].",
+  "description": "Web Console CLI surface. Single source of truth for the proto-bound domains (ai, capabilities, conversation, events, metrics, session, settings, shortcuts, target, workspace): schema-validated against cli-manifest/v1 and cross-validated against the Connect-RPC service descriptors at gen-endpoints time. Loaded by each domain's Register via cliapp.LoadFromManifest. The audio_admin, audio_runtime, and terminal Connect services have no CLI command today and are declared in omitted[].",
   "groups": [
     {
       "name": "ai",
@@ -403,6 +403,70 @@
       ]
     },
     {
+      "name": "target",
+      "description": "Inspect local and remote terminal locations",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List terminal locations and readiness state",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TargetCatalogService",
+            "method": "List"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "get",
+          "description": "Show one terminal location",
+          "positionals": [
+            {
+              "name": "target-id",
+              "required": true,
+              "description": "Target catalog ID",
+              "bind": {"field": "id"}
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TargetCatalogService",
+            "method": "Get"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "doctor",
+          "description": "Explain target readiness and recovery action",
+          "positionals": [
+            {
+              "name": "target-id",
+              "required": true,
+              "description": "Target catalog ID",
+              "bind": {"field": "id"}
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TargetCatalogService",
+            "method": "Doctor"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        }
+      ]
+    },
+    {
       "name": "session",
       "description": "Manage PTY terminal sessions",
       "commands": [
@@ -481,6 +545,14 @@
               "description": "Human-facing label for the sidebar"
             },
             {
+              "name": "target",
+              "description": "Target catalog ID (local by default; use `target list` to discover remote nodes)"
+            },
+            {
+              "name": "working-dir",
+              "description": "Working directory on the selected target"
+            },
+            {
               "name": "launch-command",
               "description": "Command staged (or executed) in the new session"
             },
@@ -488,6 +560,10 @@
               "name": "execute-launch-command",
               "bool": true,
               "description": "Run the launch command immediately instead of only staging it"
+            },
+            {
+              "name": "idempotency-key",
+              "description": "Stable retry key for replay-safe session creation"
             },
             {
               "name": "body-file",

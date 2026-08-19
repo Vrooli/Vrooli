@@ -1,8 +1,10 @@
-// Tests for VoiceRejectionBanner.
+// Tests for the voice-rejection banner descriptor, rendered through
+// BannerRegion the way Workspace renders it.
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
-import VoiceRejectionBanner from "../VoiceRejectionBanner";
+import { BannerHarness } from "../banners/__tests__/harness";
+import { voiceRejectionBanner } from "../banners/descriptors";
 import type { VoiceRejection } from "../../audio-integration";
 import { strings } from "../../consts/strings";
 import { i18n } from "../../i18n";
@@ -34,121 +36,92 @@ function explanatory(): VoiceRejection {
   };
 }
 
-describe("VoiceRejectionBanner", () => {
+function renderRejection(
+  rejection: VoiceRejection,
+  handlers: { onRetry?: () => void; onDismiss?: () => void } = {},
+) {
+  return render(
+    <BannerHarness
+      build={(t) =>
+        voiceRejectionBanner(t, rejection, {
+          onRetry: handlers.onRetry ?? vi.fn(),
+          onDismiss: handlers.onDismiss ?? vi.fn(),
+        })
+      }
+    />,
+  );
+}
+
+const RETRY = "voice-rejection-banner-retry";
+const DISMISS = "voice-rejection-banner-dismiss";
+
+describe("voice rejection banner", () => {
   it("shows Transcribe-anyway and Dismiss for retryable rejection", () => {
-    render(
-      <VoiceRejectionBanner
-        rejection={retryable()}
-        onRetry={vi.fn()}
-        onDismiss={vi.fn()}
-      />,
-    );
-    expect(screen.getByTestId("voice-rejection-retry")).toHaveTextContent(strings.voiceRejection.transcribeAnyway);
-    expect(screen.getByTestId("voice-rejection-dismiss")).toBeInTheDocument();
+    renderRejection(retryable());
+    expect(screen.getByTestId(RETRY)).toHaveTextContent(strings.voiceRejection.transcribeAnyway);
+    expect(screen.getByTestId(DISMISS)).toBeInTheDocument();
   });
 
-  it("applies horizontal safe-area padding", () => {
-    render(
-      <VoiceRejectionBanner
-        rejection={retryable()}
-        onRetry={vi.fn()}
-        onDismiss={vi.fn()}
-      />,
-    );
-    const className = screen.getByTestId("voice-rejection-banner").className;
-    expect(className).toContain("--wc-safe-left");
-    expect(className).toContain("--wc-safe-right");
+  it("renders through the shared banner base rather than bespoke markup", () => {
+    renderRejection(retryable());
+    const banner = screen.getByTestId("voice-rejection-banner");
+    // Padding, safe-area insets and colour now come from `[data-wc-banner]` in
+    // styles.css. The invariant a unit test can hold is that this notice opts
+    // into that base at all — before the refactor each banner hand-rolled its
+    // own `ps-[max(0.75rem,var(--wc-safe-left,0px))]` and its own palette.
+    expect(banner).toHaveAttribute("data-wc-banner");
+    expect(banner).toHaveAttribute("data-tone", "warning");
   });
 
   it("only shows Dismiss for explanatory rejection", () => {
-    render(
-      <VoiceRejectionBanner
-        rejection={explanatory()}
-        onRetry={vi.fn()}
-        onDismiss={vi.fn()}
-      />,
-    );
-    expect(screen.queryByTestId("voice-rejection-retry")).toBeNull();
-    expect(screen.getByTestId("voice-rejection-dismiss")).toBeInTheDocument();
+    renderRejection(explanatory());
+    expect(screen.queryByTestId(RETRY)).toBeNull();
+    expect(screen.getByTestId(DISMISS)).toBeInTheDocument();
   });
 
   it("calls onRetry when Transcribe-anyway is clicked", () => {
     const onRetry = vi.fn();
-    render(
-      <VoiceRejectionBanner
-        rejection={retryable()}
-        onRetry={onRetry}
-        onDismiss={vi.fn()}
-      />,
-    );
-    fireEvent.click(screen.getByTestId("voice-rejection-retry"));
+    renderRejection(retryable(), { onRetry });
+    fireEvent.click(screen.getByTestId(RETRY));
     expect(onRetry).toHaveBeenCalledTimes(1);
   });
 
   it("calls onDismiss when Dismiss is clicked", () => {
     const onDismiss = vi.fn();
-    render(
-      <VoiceRejectionBanner
-        rejection={retryable()}
-        onRetry={vi.fn()}
-        onDismiss={onDismiss}
-      />,
-    );
-    fireEvent.click(screen.getByTestId("voice-rejection-dismiss"));
+    renderRejection(retryable(), { onDismiss });
+    fireEvent.click(screen.getByTestId(DISMISS));
     expect(onDismiss).toHaveBeenCalledTimes(1);
   });
 
-  it("disables both buttons while retrying", () => {
-    render(
-      <VoiceRejectionBanner
-        rejection={retryable({ status: "retrying" })}
-        onRetry={vi.fn()}
-        onDismiss={vi.fn()}
-      />,
-    );
-    expect(screen.getByTestId("voice-rejection-retry")).toBeDisabled();
-    expect(screen.getByTestId("voice-rejection-dismiss")).toBeDisabled();
-    expect(screen.getByTestId("voice-rejection-retry")).toHaveTextContent(strings.voiceRejection.transcribing);
+  it("disables retry and dismiss while retrying", () => {
+    renderRejection(retryable({ status: "retrying" }));
+    expect(screen.getByTestId(RETRY)).toBeDisabled();
+    expect(screen.getByTestId(RETRY)).toHaveTextContent(strings.voiceRejection.transcribing);
+    // Dismissing mid-retry would drop the retained audio the retry is using.
+    // The button stays in place and goes disabled, so the banner does not
+    // change size while the reader is looking at it.
+    expect(screen.getByTestId(DISMISS)).toBeDisabled();
   });
 
   it("shows Retry + error text on failed status", () => {
-    render(
-      <VoiceRejectionBanner
-        rejection={retryable({ status: "failed", errorMessage: "Network error" })}
-        onRetry={vi.fn()}
-        onDismiss={vi.fn()}
-      />,
-    );
-    expect(screen.getByTestId("voice-rejection-retry")).toHaveTextContent(strings.voiceRejection.retry);
-    expect(screen.getByTestId("voice-rejection-error")).toHaveTextContent("Network error");
-    expect(screen.getByTestId("voice-rejection-retry")).not.toBeDisabled();
+    renderRejection(retryable({ status: "failed", errorMessage: "Network error" }));
+    expect(screen.getByTestId(RETRY)).toHaveTextContent(strings.voiceRejection.retry);
+    expect(screen.getByTestId("voice-rejection-banner-detail")).toHaveTextContent("Network error");
+    expect(screen.getByTestId(RETRY)).not.toBeDisabled();
   });
 
   it("shows the empty-transcript copy and a Retry action for cause=empty-transcript", () => {
-    render(
-      <VoiceRejectionBanner
-        rejection={retryable({ cause: "empty-transcript", score: 0, threshold: 0 })}
-        onRetry={vi.fn()}
-        onDismiss={vi.fn()}
-      />,
-    );
-    const banner = screen.getByTestId("voice-rejection-banner");
-    expect(banner).toHaveAttribute("data-cause", "empty-transcript");
+    renderRejection(retryable({ cause: "empty-transcript", score: 0, threshold: 0 }));
+    expect(screen.getByTestId("voice-rejection-banner")).toHaveAttribute("data-cause", "empty-transcript");
     // Empty-transcript turns are framed as "Retry", never "Transcribe anyway".
-    expect(screen.getByTestId("voice-rejection-retry")).toHaveTextContent(strings.voiceRejection.retry);
-    expect(screen.getByTestId("voice-rejection-retry")).not.toHaveTextContent(strings.voiceRejection.transcribeAnyway);
-    expect(screen.getByTestId("voice-rejection-dismiss")).toBeInTheDocument();
+    expect(screen.getByTestId(RETRY)).toHaveTextContent(strings.voiceRejection.retry);
+    expect(screen.getByTestId(RETRY)).not.toHaveTextContent(strings.voiceRejection.transcribeAnyway);
+    expect(screen.getByTestId(DISMISS)).toBeInTheDocument();
   });
 
   it("renders empty-transcript title/detail in en locale", async () => {
     await i18n.changeLanguage("en");
-    render(
-      <VoiceRejectionBanner
-        rejection={retryable({ cause: "empty-transcript", durationMs: 8_200 })}
-        onRetry={vi.fn()}
-        onDismiss={vi.fn()}
-      />,
-    );
+    renderRejection(retryable({ cause: "empty-transcript", durationMs: 8_200 }));
     expect(screen.getByText(/Couldn't transcribe your speech/)).toBeInTheDocument();
     expect(screen.getByText(/8\.2s kept/)).toBeInTheDocument();
   });
@@ -162,13 +135,7 @@ describe("VoiceRejectionBanner", () => {
     });
 
     it("includes the score, threshold, and duration in the retryable variant", () => {
-      render(
-        <VoiceRejectionBanner
-          rejection={retryable({ score: 0.42, threshold: 0.85, durationMs: 5_500 })}
-          onRetry={vi.fn()}
-          onDismiss={vi.fn()}
-        />,
-      );
+      renderRejection(retryable({ score: 0.42, threshold: 0.85, durationMs: 5_500 }));
       expect(screen.getByText(/0\.42/)).toBeInTheDocument();
       expect(screen.getByText(/0\.85/)).toBeInTheDocument();
       expect(screen.getByText(/5\.5s retained/)).toBeInTheDocument();

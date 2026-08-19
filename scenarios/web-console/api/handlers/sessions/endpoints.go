@@ -15,14 +15,19 @@ var Endpoints = []module.EndpointDescriptor{
 		Path:        sessionsconnect.SessionsServiceCreateProcedure,
 		Method:      "POST",
 		Summary:     "Create a terminal session",
-		Description: "Spawns a PTY (ephemeral) or tmux pane (persistent). X-Idempotency-Key replays the cached response for 5 minutes.",
+		Description: "Spawns a local PTY/tmux pane or routes creation to a dispatchable target catalog node. X-Idempotency-Key replays the cached response for 5 minutes.",
 		Category:    "sessions",
+		Request: &module.Schema{Type: "object", Properties: map[string]string{
+			"target_id": "string (optional target catalog ID)", "working_dir": "string (optional)",
+		}},
 		Response: &module.Schema{
 			Type:       "object",
 			Properties: map[string]string{"session": "Session"},
 		},
 		Errors: []module.ErrorDesc{
 			{Status: 400, Code: "invalid_argument", Description: "Malformed body or invalid policy"},
+			{Status: 404, Code: "not_found", Description: "Target catalog ID not found"},
+			{Status: 412, Code: "failed_precondition", Description: "Target is not dispatchable"},
 			{Status: 429, Code: "resource_exhausted", Description: "Configured session limit reached"},
 			{Status: 503, Code: "unavailable", Description: "Backend unavailable (e.g. tmux missing)"},
 		},

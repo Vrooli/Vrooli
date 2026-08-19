@@ -10,6 +10,7 @@ import (
 	"web-console/cli/domains/session"
 	"web-console/cli/domains/settings"
 	"web-console/cli/domains/shortcuts"
+	targets "web-console/cli/domains/targets"
 	"web-console/cli/domains/terminal"
 	"web-console/cli/domains/workspace"
 
@@ -26,7 +27,7 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 
 // SubcommandGroups aggregates hierarchical command groups. Proto-bound
 // domains (ai, capabilities, conversation, events, metrics, session,
-// settings, shortcuts, workspace) are built from the embedded
+// settings, shortcuts, target, workspace) are built from the embedded
 // cli/manifest.json — the single source of truth for the CLI surface — by
 // each domain's Register(core, manifest) calling cliapp.LoadFromManifest.
 // The capabilities/events/metrics groups expose a single command whose name
@@ -66,6 +67,10 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 	if err != nil {
 		return nil, err
 	}
+	targetGroup, err := targets.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
 	settingsGroup, err := settings.Register(core, manifest)
 	if err != nil {
 		return nil, err
@@ -80,6 +85,7 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 	}
 	return []cliapp.SubcommandGroup{
 		sessionGroup,
+		targetGroup,
 		terminal.Register(core),
 		workspaceGroup,
 		settingsGroup,

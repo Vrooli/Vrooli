@@ -61,6 +61,14 @@ var (
 	// is not awaiting_recovery, or a claude session missing its agent id).
 	// Mapped to CodeFailedPrecondition.
 	ErrFailedPrecondition = errors.New("failed precondition")
+
+	// ErrRemoteUnavailable means the remote target or federation transport
+	// cannot satisfy the requested operation. It is mapped to an actionable
+	// failed-precondition/unavailable Connect error instead of a false create.
+	ErrRemoteUnavailable   = errors.New("remote federation unavailable")
+	ErrTargetUnavailable   = errors.New("remote target unavailable")
+	ErrTargetNotFound      = errors.New("remote target not found")
+	ErrIdempotencyConflict = errors.New("idempotency key reused for a different session create")
 )
 
 const idempotencyHeader = "X-Idempotency-Key"
@@ -77,6 +85,8 @@ func (h *connectHandler) Create(ctx context.Context, req *connect.Request[sessio
 		Origin:               originToString(req.Msg.GetOrigin()),
 		Owner:                req.Msg.GetOwner(),
 		DisplayLabel:         req.Msg.GetDisplayLabel(),
+		TargetID:             req.Msg.GetTargetId(),
+		WorkingDir:           req.Msg.GetWorkingDir(),
 		IdempotencyKey:       req.Header().Get(idempotencyHeader),
 	}
 	if req.Msg.GetHasPolicy() && req.Msg.GetPolicy() != nil {
@@ -321,6 +331,14 @@ func (h *connectHandler) classify(err error, op string) error {
 		return connect.NewError(connect.CodeInvalidArgument, err)
 	case errors.Is(err, ErrFailedPrecondition):
 		return connect.NewError(connect.CodeFailedPrecondition, err)
+	case errors.Is(err, ErrTargetUnavailable):
+		return connect.NewError(connect.CodeFailedPrecondition, err)
+	case errors.Is(err, ErrTargetNotFound):
+		return connect.NewError(connect.CodeNotFound, err)
+	case errors.Is(err, ErrIdempotencyConflict):
+		return connect.NewError(connect.CodeAlreadyExists, err)
+	case errors.Is(err, ErrRemoteUnavailable):
+		return connect.NewError(connect.CodeUnavailable, err)
 	case errors.Is(err, ErrResourceExhausted):
 		return connect.NewError(connect.CodeResourceExhausted, err)
 	case errors.Is(err, ErrUnavailable):
@@ -358,6 +376,7 @@ func sessionToProto(s Session) *sessionsv1.Session {
 		Owner:            s.Owner,
 		DisplayLabel:     s.DisplayLabel,
 		TrackingDegraded: s.TrackingDegraded,
+		Target:           s.Target,
 	}
 }
 

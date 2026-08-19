@@ -1,60 +1,99 @@
 import { describe, it, expect, vi } from "vitest";
+import { useState } from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import EnableAudioBanner from "../EnableAudioBanner";
+import { useTranslation } from "react-i18next";
+import BannerRegion from "../banners/BannerRegion";
+import { enableAudioBanner } from "../banners/descriptors";
+import { INSTANT_DAMPING } from "../banners/damping";
 import { strings } from "../../consts/strings";
 
-describe("EnableAudioBanner", () => {
+const ENABLE = "enable-audio-banner-enable";
+const DISMISS = "enable-audio-banner-dismiss";
+
+/**
+ * Mirrors Workspace: the in-flight guard lives in the host, because a
+ * descriptor is data and cannot hold state across the await.
+ */
+function Host({
+  onEnable,
+  onDismiss,
+}: {
+  onEnable: () => Promise<boolean>;
+  onDismiss: () => void;
+}) {
+  const { t } = useTranslation();
+  const [enabling, setEnabling] = useState(false);
+  return (
+    <BannerRegion
+      damping={INSTANT_DAMPING}
+      banners={[
+        enableAudioBanner(t, {
+          enabling,
+          onEnable: () => {
+            if (enabling) return;
+            setEnabling(true);
+            void onEnable().finally(() => { setEnabling(false); });
+          },
+          onDismiss,
+        }),
+      ]}
+    />
+  );
+}
+
+describe("enable audio banner", () => {
   it("renders enable and dismiss buttons with copy explaining the block", () => {
-    render(<EnableAudioBanner onEnable={vi.fn().mockResolvedValue(true)} onDismiss={vi.fn()} />);
+    render(<Host onEnable={vi.fn().mockResolvedValue(true)} onDismiss={vi.fn()} />);
     expect(screen.getByTestId("enable-audio-banner")).toBeInTheDocument();
-    expect(screen.getByTestId("enable-audio-banner-enable")).toBeInTheDocument();
-    expect(screen.getByTestId("enable-audio-banner-dismiss")).toBeInTheDocument();
+    expect(screen.getByTestId(ENABLE)).toBeInTheDocument();
+    expect(screen.getByTestId(DISMISS)).toBeInTheDocument();
     expect(screen.getByText(strings.enableAudioBanner.title)).toBeInTheDocument();
   });
 
   it("clicking enable invokes onEnable exactly once", async () => {
     const onEnable = vi.fn().mockResolvedValue(true);
-    render(<EnableAudioBanner onEnable={onEnable} onDismiss={vi.fn()} />);
-    fireEvent.click(screen.getByTestId("enable-audio-banner-enable"));
-    await waitFor(() => expect(onEnable).toHaveBeenCalledTimes(1));
+    render(<Host onEnable={onEnable} onDismiss={vi.fn()} />);
+    fireEvent.click(screen.getByTestId(ENABLE));
+    await waitFor(() => { expect(onEnable).toHaveBeenCalledTimes(1); });
   });
 
   it("clicking dismiss invokes onDismiss exactly once", () => {
     const onDismiss = vi.fn();
-    render(<EnableAudioBanner onEnable={vi.fn().mockResolvedValue(true)} onDismiss={onDismiss} />);
-    fireEvent.click(screen.getByTestId("enable-audio-banner-dismiss"));
+    render(<Host onEnable={vi.fn().mockResolvedValue(true)} onDismiss={onDismiss} />);
+    fireEvent.click(screen.getByTestId(DISMISS));
     expect(onDismiss).toHaveBeenCalledTimes(1);
   });
 
-  it("shows Enabling… and disables both buttons while enable is in flight", async () => {
+  it("shows Enabling… and blocks dismiss while enable is in flight", async () => {
     // Defer resolution so the enabling state is observable.
     let resolveEnable: ((v: boolean) => void) | undefined;
     const onEnable = vi.fn(() => new Promise<boolean>((r) => { resolveEnable = r; }));
     const onDismiss = vi.fn();
-    render(<EnableAudioBanner onEnable={onEnable} onDismiss={onDismiss} />);
+    render(<Host onEnable={onEnable} onDismiss={onDismiss} />);
 
-    fireEvent.click(screen.getByTestId("enable-audio-banner-enable"));
-    await waitFor(() => expect(screen.getByText(strings.enableAudioBanner.enabling)).toBeInTheDocument());
-    expect(screen.getByTestId("enable-audio-banner-enable")).toBeDisabled();
-    expect(screen.getByTestId("enable-audio-banner-dismiss")).toBeDisabled();
-
-    // Dismiss is ignored while enabling.
-    fireEvent.click(screen.getByTestId("enable-audio-banner-dismiss"));
+    fireEvent.click(screen.getByTestId(ENABLE));
+    await waitFor(() => { expect(screen.getByText(strings.enableAudioBanner.enabling)).toBeInTheDocument(); });
+    expect(screen.getByTestId(ENABLE)).toBeDisabled();
+    // Dismissing mid-unlock would strand the pending TTS event. The button
+    // stays put and goes disabled — withdrawing it would resize the banner
+    // while the reader is looking at it.
+    expect(screen.getByTestId(DISMISS)).toBeDisabled();
+    fireEvent.click(screen.getByTestId(DISMISS));
     expect(onDismiss).not.toHaveBeenCalled();
 
     resolveEnable?.(true);
-    await waitFor(() => expect(screen.getByText(strings.enableAudioBanner.enable)).toBeInTheDocument());
+    await waitFor(() => { expect(screen.getByText(strings.enableAudioBanner.enable)).toBeInTheDocument(); });
   });
 
   it("role=status for assistive tech", () => {
-    render(<EnableAudioBanner onEnable={vi.fn().mockResolvedValue(true)} onDismiss={vi.fn()} />);
+    render(<Host onEnable={vi.fn().mockResolvedValue(true)} onDismiss={vi.fn()} />);
     expect(screen.getByTestId("enable-audio-banner").getAttribute("role")).toBe("status");
   });
 
-  it("applies horizontal safe-area padding", () => {
-    render(<EnableAudioBanner onEnable={vi.fn().mockResolvedValue(true)} onDismiss={vi.fn()} />);
-    const className = screen.getByTestId("enable-audio-banner").className;
-    expect(className).toContain("--wc-safe-left");
-    expect(className).toContain("--wc-safe-right");
+  it("renders through the shared banner base", () => {
+    render(<Host onEnable={vi.fn().mockResolvedValue(true)} onDismiss={vi.fn()} />);
+    const banner = screen.getByTestId("enable-audio-banner");
+    expect(banner).toHaveAttribute("data-wc-banner");
+    expect(banner).toHaveAttribute("data-tone", "info");
   });
 });

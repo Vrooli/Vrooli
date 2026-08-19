@@ -64,7 +64,7 @@ Web Console is designed for personal server use — a single operator running th
   - Empty terminal
   - Configured shortcut entries
 - Default shortcut entries:
-  - `claude --dangerously-skip-permissions`
+  - `vrooli agent launch --runner claude --arg=--dangerously-skip-permissions`
   - `codex --yolo`
 
 ### Mobile Toolbar

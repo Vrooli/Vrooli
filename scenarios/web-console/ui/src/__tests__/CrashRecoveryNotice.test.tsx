@@ -1,20 +1,26 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import CrashRecoveryNotice from "../components/CrashRecoveryNotice";
+import BannerRegion from "../components/banners/BannerRegion";
+import { useCrashRecoveryBanner } from "../components/banners/useRecoveryBanners";
+import { INSTANT_DAMPING } from "../components/banners/damping";
 
 const listMock = vi.hoisted(() => vi.fn());
 vi.mock("../api/sessions", () => ({ listRecoverableSessions: listMock }));
 
-describe("CrashRecoveryNotice", () => {
+function Host({ onOpenArchive }: { onOpenArchive: () => void }) {
+  return <BannerRegion banners={[useCrashRecoveryBanner(onOpenArchive)]} damping={INSTANT_DAMPING} />;
+}
+
+describe("crash recovery banner", () => {
   beforeEach(() => {
     listMock.mockReset();
   });
 
   it("renders nothing when no crash orphans exist", async () => {
     listMock.mockResolvedValue([]);
-    const { container } = render(<CrashRecoveryNotice onOpenArchive={vi.fn()} />);
-    await waitFor(() => expect(listMock).toHaveBeenCalled());
+    const { container } = render(<Host onOpenArchive={vi.fn()} />);
+    await waitFor(() => { expect(listMock).toHaveBeenCalled(); });
     expect(container.querySelector("[data-testid='crash-recovery-notice']")).toBeNull();
   });
 
@@ -24,11 +30,13 @@ describe("CrashRecoveryNotice", () => {
       { id: "two", agent_type: "grok", recoverable: false },
     ]);
     const onOpenArchive = vi.fn();
-    render(<CrashRecoveryNotice onOpenArchive={onOpenArchive} topSafe />);
+    render(<Host onOpenArchive={onOpenArchive} />);
     const notice = await screen.findByTestId("crash-recovery-notice");
     expect(notice).toHaveTextContent("recoverableSessions.heading");
-    expect(notice.className).toContain("--wc-safe-top");
-    fireEvent.click(screen.getByRole("button", { name: "recoverableSessions.viewArchive" }));
+    // The top safe-area inset is owned by TopSafeArea around the whole region
+    // now, not bolted onto this one notice with a `topSafe` prop.
+    expect(notice).toHaveAttribute("data-wc-banner");
+    fireEvent.click(screen.getByTestId("crash-recovery-notice-view-archive"));
     expect(onOpenArchive).toHaveBeenCalledOnce();
   });
 });

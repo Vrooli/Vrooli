@@ -15,7 +15,7 @@
           "type": "test",
           "ref": "ui/src/__tests__/terminal-launcher.test.tsx",
           "phase": "unit",
-          "status": "failing"
+          "status": "passing"
         }
       ]
     },
@@ -29,9 +29,9 @@
       "validation": [
         {
           "type": "test",
-          "ref": "cli/domains/terminal/register.go",
+          "ref": "cli/domains/targets/register.go",
           "phase": "unit",
-          "status": "failing"
+          "status": "passing"
         }
       ]
     }

@@ -12,6 +12,7 @@ import (
 	"github.com/vrooli/api-core/connectx"
 
 	sessionsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/sessions/sessions_v1connect"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/shared"
 
 	"web-console/internal/module"
 )
@@ -37,6 +38,17 @@ type Service interface {
 
 	GetPolicy(ctx context.Context, id string) (PolicyView, error)
 	UpdatePolicy(ctx context.Context, id string, policy Policy) (PolicyView, error)
+}
+
+// RemoteService is the server-side federation seam. It returns the same
+// transport-neutral session shape as local creation so the generated
+// SessionsService remains the single control surface for UI and CLI callers.
+// Implementations own Bridge credentials and the binary terminal transport.
+type RemoteService interface {
+	Create(ctx context.Context, in CreateInput) (Session, error)
+	List(ctx context.Context) ([]Session, error)
+	Get(ctx context.Context, id string) (Session, error)
+	Delete(ctx context.Context, id string) error
 }
 
 // Policy is the transport-neutral expiration policy.
@@ -75,6 +87,7 @@ type Session struct {
 	Owner            string
 	DisplayLabel     string
 	TrackingDegraded bool
+	Target           *sharedv1.Target
 }
 
 type RestoreState string
@@ -168,6 +181,8 @@ type CreateInput struct {
 	Origin       string
 	Owner        string
 	DisplayLabel string
+	TargetID     string
+	WorkingDir   string
 }
 
 // RecoverInput bundles inputs for the recovery RPC.

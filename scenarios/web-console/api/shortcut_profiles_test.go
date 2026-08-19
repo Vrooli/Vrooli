@@ -26,8 +26,14 @@ func TestShortcutProfileStore_DefaultProfile(t *testing.T) {
 	if profiles[0].Scope != "service" {
 		t.Errorf("expected service scope, got %q", profiles[0].Scope)
 	}
-	if len(profiles[0].Shortcuts) != 4 {
-		t.Errorf("expected 4 default shortcuts, got %d", len(profiles[0].Shortcuts))
+	if len(profiles[0].Shortcuts) != 8 {
+		t.Errorf("expected 8 default shortcuts, got %d", len(profiles[0].Shortcuts))
+	}
+	if got := profiles[0].Shortcuts[0].Command; got != "vrooli agent launch --runner claude --arg=--dangerously-skip-permissions" {
+		t.Errorf("default Claude shortcut = %q, want governed project invocation", got)
+	}
+	if got := profiles[0].Shortcuts[4].Command; got != "if command -v vrooli-agent-launcher >/dev/null 2>&1; then exec vrooli-agent-launcher --agent claude -- --dangerously-skip-permissions; fi; exec vrooli agent launch --runner claude --arg=--dangerously-skip-permissions" {
+		t.Errorf("attributed Claude shortcut = %q, want PATH preflight", got)
 	}
 }
 
@@ -157,8 +163,11 @@ func TestConnect_GetEffective(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetEffective: %v", err)
 	}
-	if len(resp.Msg.GetShortcuts()) != 4 {
-		t.Errorf("expected 4 shortcuts, got %d", len(resp.Msg.GetShortcuts()))
+	if len(resp.Msg.GetShortcuts()) != 8 {
+		t.Errorf("expected 8 shortcuts, got %d", len(resp.Msg.GetShortcuts()))
+	}
+	if got := resp.Msg.GetShortcuts()[0].GetCommand(); got != "vrooli agent launch --runner claude --arg=--dangerously-skip-permissions" {
+		t.Errorf("effective Claude shortcut = %q, want governed project invocation", got)
 	}
 }
 

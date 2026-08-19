@@ -310,7 +310,6 @@ const literalSelectors: LiteralSelectorTree = {
   voice: {
     micButton: 'voice-mic-btn',
     errorTooltip: 'voice-error-tooltip',
-    exportDiagnostic: 'voice-export-diagnostic',
   },
   ai: {
     input: 'ai-input',

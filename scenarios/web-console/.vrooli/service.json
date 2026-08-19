@@ -180,58 +180,6 @@
           "description": "Sync requirement validations to phase-results for scoring"
         }
       ]
-    },
-    "production": {
-      "description": "Build and run production services",
-      "steps": [
-        {
-          "name": "build-api",
-          "run": "cd api && GOWORK=off go build -o web-console-api .",
-          "description": "Build Go API binary"
-        },
-        {
-          "name": "build-ui",
-          "run": "cd ui && pnpm run build",
-          "description": "Build production UI bundle"
-        },
-        {
-          "name": "start-api",
-          "run": "cd api && ./web-console-api",
-          "background": true,
-          "description": "Start Go API server"
-        },
-        {
-          "name": "start-ui",
-          "run": "cd ui && node server.js",
-          "background": true,
-          "description": "Serve production UI bundle"
-        },
-        {
-          "name": "register-tts-hook",
-          "run": "bash -c 'source lib/tts-hooks.sh && wc::register_tts_hook'",
-          "description": "Register Claude Code Stop hook for auto-TTS"
-        }
-      ]
-    },
-    "stop": {
-      "description": "Stop background processes",
-      "steps": [
-        {
-          "name": "deregister-tts-hook",
-          "run": "bash -c 'source lib/tts-hooks.sh && wc::deregister_tts_hook'",
-          "description": "Deregister Claude Code Stop hook before shutdown"
-        },
-        {
-          "name": "stop-api",
-          "run": "pkill -f 'web-console-api' || true",
-          "description": "Stop Go API"
-        },
-        {
-          "name": "stop-ui",
-          "run": "pkill -f 'node server.js' || true",
-          "description": "Stop UI server"
-        }
-      ]
     }
   },
   "capabilities": {

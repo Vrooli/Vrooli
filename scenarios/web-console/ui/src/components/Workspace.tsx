@@ -33,8 +33,8 @@ import { uploadFile } from "../api/uploads";
 import { fetchCapabilities } from "../api/capabilities";
 import { getSessionDefaults } from "../api/settings";
 import { getSession, type BackendOption, type BackendID, type ExpirationPolicy, type RecoverResult, type SessionOriginName } from "../api/sessions";
-import { listRemoteTerminalTargets, type RemoteTerminalTarget } from "../api/remoteSessions";
-import type { LaunchOptions, TerminalTarget } from "./TerminalLauncher";
+import { listTargetCatalog, type TargetCatalog, type TerminalTarget } from "../api/targets";
+import type { LaunchOptions } from "./TerminalLauncher";
 import ErrorBanner from "./ErrorBanner";
 import GridSplitter from "./GridSplitter";
 import TerminalLauncher from "./TerminalLauncher";
@@ -47,8 +47,25 @@ import VoiceMicButton from "./VoiceMicButton";
 import { useComposerDraft } from "../hooks/useComposerDraft";
 import { useComposerAttachments } from "../hooks/useComposerAttachments";
 import { useComposerHotkey } from "../hooks/useComposerHotkey";
-import VoiceRejectionBanner from "./VoiceRejectionBanner";
-import VoiceRecoveryBanner from "./VoiceRecoveryBanner";
+import BannerRegion from "./banners/BannerRegion";
+import { bannerFillClassName, arbitrateBanners } from "./banners/arbitrate";
+import type { MaybeBanner } from "./banners/types";
+import {
+  createErrorBanner,
+  enableAudioBanner,
+  summarizeErrorBanner,
+  trackingDegradedBanner,
+  ttsSpeakingBanner,
+  voiceErrorBanner,
+  voiceFallbackBanner,
+  voiceRejectionBanner,
+  voiceStaleMicBanner,
+  voiceTranscribingBanner,
+} from "./banners/descriptors";
+import {
+  useCrashRecoveryBanner,
+  useSessionRecoveryBanner,
+} from "./banners/useRecoveryBanners";
 import WorkspaceMinimap from "./WorkspaceMinimap";
 import SettingsModal from "./SettingsModal";
 import AppearanceModal from "./AppearanceModal";
@@ -58,11 +75,8 @@ import WorkspacePaneShell from "./WorkspacePaneShell";
 import TabBar from "./TabBar";
 import SessionSidebar from "./SessionSidebar";
 import AudioPlayerBar from "./AudioPlayerBar";
-import SummarizeErrorBanner, { type SummarizeErrorState } from "./SummarizeErrorBanner";
-import EnableAudioBanner from "./EnableAudioBanner";
-import CrashRecoveryNotice from "./CrashRecoveryNotice";
+import type { SummarizeErrorState } from "../types/summarize";
 import ArchiveDrawer from "./ArchiveDrawer";
-import SessionRecoveryBanner from "./SessionRecoveryBanner";
 import TopSafeArea from "./TopSafeArea";
 import { useConversationStore, type PaneViewMode } from "../stores/useConversationStore";
 import type { TTSPlaybackState } from "../audio-integration";
@@ -95,11 +109,12 @@ const SIDEBAR_HEADER_PRESS_MOVE_THRESHOLD = 8;
 
 interface WorkspaceProps {
   /**
-   * True when a parent surface, such as App's connection banner, already owns
-   * the top safe area. Workspace then avoids adding a second notch/status-bar
-   * inset before its own top chrome.
+   * Notices raised by App (connection health, audio-tools reachability).
+   * They are arbitrated together with Workspace's own in a single
+   * `BannerRegion`, so there is exactly one top-chrome owner and one
+   * safe-area owner.
    */
-  topSafeAreaReserved?: boolean;
+  appBanners?: readonly MaybeBanner[];
 }
 
 /**
@@ -114,23 +129,33 @@ interface WorkspaceProps {
  * [REQ:P0-001a] Responsive Pane Grid Layout
  * [REQ:P0-001b] Independent Pane Session Lifecycle
  */
-export default function Workspace({ topSafeAreaReserved = false }: WorkspaceProps = {}) {
+export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
   const { t } = useTranslation();
-  const [remoteTargets, setRemoteTargets] = useState<RemoteTerminalTarget[]>([]);
-  useEffect(() => {
-    let cancelled = false;
-    void listRemoteTerminalTargets()
-      .then((targets) => {
-        if (!cancelled) setRemoteTargets(targets);
-      })
-      .catch(() => {
-        if (!cancelled) setRemoteTargets([]);
+  const [targetCatalog, setTargetCatalog] = useState<TargetCatalog>({
+    status: "ready",
+    targets: [],
+  });
+  const [targetsLoading, setTargetsLoading] = useState(true);
+  const refreshTargetCatalog = useCallback(async () => {
+    setTargetsLoading(true);
+    try {
+      setTargetCatalog(await listTargetCatalog());
+    } catch (error) {
+      console.error("target catalog unavailable", error);
+      setTargetCatalog({
+        status: "registry-error",
+        targets: [],
+        message: "The target catalog could not be loaded.",
+        recovery_action: "Check Web Console and Bridge health, then try again.",
       });
-    return () => {
-      cancelled = true;
-    };
+    } finally {
+      setTargetsLoading(false);
+    }
   }, []);
-  const availableTargets: TerminalTarget[] = remoteTargets.map((target) => ({ ...target }));
+  useEffect(() => {
+    void refreshTargetCatalog();
+  }, [refreshTargetCatalog]);
+  const availableTargets: TerminalTarget[] = targetCatalog.targets;
   const {
     panes: sessionPanes,
     isHydrated,
@@ -899,12 +924,22 @@ export default function Workspace({ topSafeAreaReserved = false }: WorkspaceProp
     setEnableAudio(payload);
   }, []);
 
+  // In-flight guard for the unlock gesture. It has to live here rather than
+  // inside the banner because the banner is now a descriptor, not a component
+  // — and the button must stay disabled across the await either way.
+  const [enablingAudio, setEnablingAudio] = useState(false);
+
   const handleEnableAudio = useCallback(async (): Promise<boolean> => {
-    if (!enableAudio) return false;
-    const ok = await enableAudio.enable();
-    if (ok) setEnableAudio(null);
-    return ok;
-  }, [enableAudio]);
+    if (!enableAudio || enablingAudio) return false;
+    setEnablingAudio(true);
+    try {
+      const ok = await enableAudio.enable();
+      if (ok) setEnableAudio(null);
+      return ok;
+    } finally {
+      setEnablingAudio(false);
+    }
+  }, [enableAudio, enablingAudio]);
 
   const handleDismissEnableAudio = useCallback(() => {
     setEnableAudioSuppressed(true);
@@ -1225,6 +1260,61 @@ export default function Workspace({ topSafeAreaReserved = false }: WorkspaceProp
     },
   });
 
+  // ── Top-chrome notices ──────────────────────────────────────────────────
+  // Every condition that can raise a banner, declared in one place as data.
+  // Falsy entries are inactive conditions. `BannerRegion` sorts by priority,
+  // shows the top one, and collapses the rest — nothing here decides layout,
+  // and no condition can quietly render a second surface.
+  //
+  // Assembled before the early returns below so the empty and hydrating
+  // states get the same arbitration as the populated workspace.
+  const sessionRecoveryNotice = useSessionRecoveryBanner();
+  const crashRecoveryNotice = useCrashRecoveryBanner(openCrashArchive);
+
+  const banners: MaybeBanner[] = [
+    ...appBanners,
+    sessionRecoveryNotice,
+    crashRecoveryNotice,
+    voiceInput.fallbackNotice &&
+      voiceFallbackBanner(t, voiceInput.fallbackNotice, voiceInput.dismissFallbackNotice),
+    voiceInput.rejectedAudio &&
+      voiceRejectionBanner(t, voiceInput.rejectedAudio, {
+        onRetry: () => { void voiceInput.retryWithoutFilter(); },
+        onDismiss: voiceInput.dismissRejection,
+      }),
+    // What used to be one `VoiceRecoveryBanner` holding five unrelated
+    // conditions and a row of buttons. They are independent states with
+    // independent urgency, so they are independent banners.
+    voiceInput.error && voiceErrorBanner(t, voiceInput.error),
+    voiceInput.isTranscribing && voiceTranscribingBanner(t, handleVoiceCancel),
+    voiceInput.staleLiveMicLease && voiceStaleMicBanner(t, voiceInput.releaseMicrophone),
+    isTtsSpeaking && ttsSpeakingBanner(t, handleTtsStop),
+    summarizeError &&
+      summarizeErrorBanner(t, summarizeError, {
+        onRetry: handleRetrySummarize,
+        onDismiss: handleDismissSummarizeError,
+      }),
+    enableAudio &&
+      !enableAudioSuppressed &&
+      enableAudioBanner(t, {
+        enabling: enablingAudio,
+        onEnable: () => void handleEnableAudio(),
+        onDismiss: handleDismissEnableAudio,
+      }),
+    // Only once there are panes. In the empty state the same failure already
+    // renders as a card directly beneath the "New terminal" button that
+    // produced it, which is the better place for it — a top-chrome copy would
+    // just say the same thing twice.
+    sessionPanes.length > 0 &&
+      createError &&
+      createErrorBanner(t, createError, {
+        onDismiss: clearError,
+        onRetry: createError.retry ? handleRetry : undefined,
+      }),
+    activeSessionTrackingDegraded && activeViewMode === "messages" && trackingDegradedBanner(t),
+  ];
+  const bannerFill = bannerFillClassName(arbitrateBanners(banners).primary);
+
   // While session hydration is in flight, show a loading screen to prevent
   // the empty state ("New Terminal" button) from flashing before we know
   // whether any sessions exist.
@@ -1242,11 +1332,9 @@ export default function Workspace({ topSafeAreaReserved = false }: WorkspaceProp
       <div className="flex h-wc-app flex-col bg-wc-surface-base text-wc-text-primary">
         <TopSafeArea
           testId="workspace-top-edge"
-          enabled={!topSafeAreaReserved}
-          fillClassName="bg-wc-surface-base"
+          fillClassName={bannerFill ?? "bg-wc-surface-base"}
         >
-          <SessionRecoveryBanner />
-          <CrashRecoveryNotice onOpenArchive={openCrashArchive} />
+          <BannerRegion banners={banners} />
         </TopSafeArea>
         <div className="flex flex-1 items-center justify-center">
           <div className="text-center">
@@ -1290,6 +1378,9 @@ export default function Workspace({ topSafeAreaReserved = false }: WorkspaceProp
           defaultPolicy={defaultPolicy}
           availableBackends={availableBackends}
           availableTargets={availableTargets}
+          targetCatalog={targetCatalog}
+          targetsLoading={targetsLoading}
+          onRefreshTargets={refreshTargetCatalog}
         />
         <ArchiveDrawer
           open={archiveDrawerOpen}
@@ -1429,12 +1520,11 @@ export default function Workspace({ topSafeAreaReserved = false }: WorkspaceProp
   // count of its own, and a real unread count outranks it).
   const sidebarHasFlagged = orderedPanes.some((pane) => pane.manuallyUnread);
   const hasTopChrome = workspace.displayMode === "tabs" || workspace.displayMode === "sidebar";
-  const workspaceTopSafeEnabled = !topSafeAreaReserved;
-  const statusFillClassName = voiceInput.fallbackNotice
-    ? "bg-amber-500/10"
-    : hasTopChrome
-      ? "wc-chrome-surface"
-      : "bg-wc-surface-base";
+  // Whatever banner is on top owns the notch. This used to be a ternary wired
+  // to the voice fallback notice alone, so the other ten notices left the
+  // status strip showing the surface underneath them.
+  const statusFillClassName =
+    bannerFill ?? (hasTopChrome ? "wc-chrome-surface" : "bg-wc-surface-base");
 
   // h-wc-app maps to var(--wc-app-height, 100dvh) — the actual visible
   // viewport height set by useAppViewport(). This is the root layout
@@ -1473,88 +1563,9 @@ export default function Workspace({ topSafeAreaReserved = false }: WorkspaceProp
 
       <TopSafeArea
         testId="workspace-top-edge"
-        enabled={workspaceTopSafeEnabled}
         fillClassName={statusFillClassName}
       >
-        {/* Voice fallback notice */}
-        {voiceInput.fallbackNotice && (
-          <div
-            data-testid="voice-status-banner"
-            className="wc-stable-theme flex items-center gap-2 border-b border-amber-500/30 bg-amber-500/10 py-1.5 ps-[max(0.75rem,var(--wc-safe-left,0px))] pe-[max(0.75rem,var(--wc-safe-right,0px))] text-xs text-amber-300"
-            role="status"
-          >
-            <span className="min-w-0 flex-1 break-words">{voiceInput.fallbackNotice}</span>
-            <button
-              type="button"
-              data-testid="voice-status-dismiss"
-              onClick={voiceInput.dismissFallbackNotice}
-              className="shrink-0 rounded border border-amber-400/40 bg-amber-500/20 p-1 text-amber-100 transition active:bg-amber-500/30"
-              aria-label={t(strings.app.connectionBanner.dismissAriaLabel)}
-              title={t(strings.app.connectionBanner.dismissAriaLabel)}
-            >
-              <X className="h-3.5 w-3.5" aria-hidden />
-            </button>
-          </div>
-        )}
-        {voiceInput.rejectedAudio && (
-          <VoiceRejectionBanner
-            rejection={voiceInput.rejectedAudio}
-            onRetry={voiceInput.retryWithoutFilter}
-            onDismiss={voiceInput.dismissRejection}
-          />
-        )}
-
-        {/* Voice error text and recovery actions. These used to render inside
-            the microphone button's own wrapper, which changed the control's
-            footprint mid-sentence; they are app chrome and belong here. */}
-        <VoiceRecoveryBanner
-          error={voiceInput.error}
-          isTranscribing={voiceInput.isTranscribing}
-          onCancel={handleVoiceCancel}
-          staleLiveMic={voiceInput.staleLiveMicLease}
-          onReleaseMic={voiceInput.releaseMicrophone}
-          isTtsSpeaking={isTtsSpeaking}
-          onTtsStop={handleTtsStop}
-          canExportDiagnostic={voiceInput.turnDiagnostic !== null}
-          onExportDiagnostic={voiceInput.exportTurnDiagnostic}
-        />
-
-        {summarizeError && (
-          <SummarizeErrorBanner
-            state={summarizeError}
-            onRetry={handleRetrySummarize}
-            onDismiss={handleDismissSummarizeError}
-          />
-        )}
-
-        {enableAudio && !enableAudioSuppressed && (
-          <EnableAudioBanner
-            onEnable={handleEnableAudio}
-            onDismiss={handleDismissEnableAudio}
-          />
-        )}
-
-        {/* Error banner */}
-        {createError && (
-          <ErrorBanner
-            error={createError}
-            onDismiss={clearError}
-            onRetry={createError.retry ? handleRetry : undefined}
-            className="border-b border-wc-error"
-          />
-        )}
-
-        {/* Async startup recovery indicator — hidden unless recovery is (or was
-            just) running, so steady-state UI is unchanged. */}
-        <SessionRecoveryBanner />
-        {/* Recoverable sessions surface — banner is hidden when nothing is
-            awaiting recovery, so steady-state UI is unchanged. */}
-        <CrashRecoveryNotice onOpenArchive={openCrashArchive} />
-        {activeSessionTrackingDegraded && activeViewMode === "messages" && (
-          <div role="status" className="border-b border-amber-700/40 bg-amber-900/20 px-3 py-1 text-xs text-amber-100">
-            Conversation tracking may be delayed for this recovered Claude session. Terminal activity is continuing.
-          </div>
-        )}
+        <BannerRegion banners={banners} />
 
         {/* Tab bar (only in tabs mode) */}
         {workspace.displayMode === "tabs" && (
@@ -1958,6 +1969,9 @@ export default function Workspace({ topSafeAreaReserved = false }: WorkspaceProp
         defaultPolicy={defaultPolicy}
         availableBackends={availableBackends}
         availableTargets={availableTargets}
+        targetCatalog={targetCatalog}
+        targetsLoading={targetsLoading}
+        onRefreshTargets={refreshTargetCatalog}
       />
 
       {/* Settings Modal */}

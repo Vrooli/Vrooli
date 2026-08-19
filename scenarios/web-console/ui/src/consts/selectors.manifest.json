@@ -84,10 +84,6 @@
       "testId": "voice-error-tooltip",
       "selector": "[data-testid=\"voice-error-tooltip\"]"
     },
-    "voice.exportDiagnostic": {
-      "testId": "voice-export-diagnostic",
-      "selector": "[data-testid=\"voice-export-diagnostic\"]"
-    },
     "ai.input": {
       "testId": "ai-input",
       "selector": "[data-testid=\"ai-input\"]"

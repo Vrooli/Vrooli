@@ -5,12 +5,13 @@ import { useTranslation } from "react-i18next";
 import { fetchHealth } from "./api/health";
 import { HEALTH_RETRY_COUNT, HEALTH_RETRY_DELAY_MS } from "./consts/config";
 import { strings } from "./consts/strings";
-import { Button } from "./components/ui/button";
 import ErrorBoundary from "./components/ErrorBoundary";
-import TopSafeArea from "./components/TopSafeArea";
-import { AudioUnavailableBanner } from "./components/AudioUnavailableBanner";
+import {
+  audioUnavailableBanner,
+  connectionBanner,
+} from "./components/banners/descriptors";
+import type { MaybeBanner } from "./components/banners/types";
 import { useCapabilities } from "./hooks/useCapabilities";
-import { AlertTriangle, X } from "lucide-react";
 
 const Workspace = lazy(() => import("./components/Workspace"));
 
@@ -39,67 +40,49 @@ export default function App() {
   const { isLoading, error, isFetching } = healthQuery;
 
   const audioCapability = capabilitiesQuery.data?.capabilities.find((capability) => capability.id === "audio-tools");
-  const audioUnavailableReason = capabilitiesQuery.error
-    ? "discovery_failed"
+  // The API's own `message` rides along: it covers every reason code, including
+  // the ones the UI has no bespoke copy for.
+  const audioUnavailable = capabilitiesQuery.error
+    ? { reason: "discovery_failed" }
     : audioCapability?.status === "unavailable"
-      ? audioCapability.reasonCode || "scenario_not_running"
-      : undefined;
+      ? {
+          reason: audioCapability.reasonCode || "scenario_not_running",
+          message: audioCapability.message,
+        }
+      : null;
 
   // Reset dismissed state when connection recovers or drops again
   const showBanner = !!error && !dismissed;
 
+  /**
+   * App-level notices are handed to Workspace rather than rendered here.
+   * Two stacked banner surfaces meant two safe-area owners — App reserved the
+   * notch and told Workspace to skip it via a `topSafeAreaReserved` prop — and
+   * nothing arbitrated between them. One region, one owner, one arbitration.
+   */
+  const appBanners: MaybeBanner[] = [
+    showBanner &&
+      connectionBanner(t, {
+        retrying: isFetching,
+        onRetry: () => {
+          setDismissed(false);
+          void queryClient.invalidateQueries({ queryKey: ["health"] });
+        },
+        onDismiss: () => { setDismissed(true); },
+      }),
+    audioUnavailableBanner(t, audioUnavailable),
+  ];
+
   return (
     <ErrorBoundary region="app">
       <div className="wc-ios-tint-edge wc-ios-tint-edge-bottom" aria-hidden="true" />
-
-      {/* Connection banner — shown above workspace when API is unreachable */}
-      {showBanner && (
-        <TopSafeArea
-          testId="connection-top-edge"
-          fillClassName="wc-stable-theme bg-wc-error-surface"
-        >
-          <div
-            data-testid="connection-banner"
-            className="wc-stable-theme flex items-center gap-2 bg-wc-error-surface border-b border-wc-error py-2 ps-[max(1rem,var(--wc-safe-left,0px))] pe-[max(1rem,var(--wc-safe-right,0px))] text-sm text-wc-error-text"
-          >
-            <AlertTriangle className="h-4 w-4 shrink-0" />
-            <span className="flex-1">
-              {t(strings.app.connectionBanner.message)}
-            </span>
-            <Button
-              data-testid="health-retry-button"
-              variant="outline"
-              size="sm"
-              className="shrink-0 text-xs h-7"
-              onClick={() => {
-                setDismissed(false);
-                queryClient.invalidateQueries({ queryKey: ["health"] });
-              }}
-              disabled={isFetching}
-            >
-              {isFetching ? t(strings.app.connectionBanner.retrying) : t(strings.app.connectionBanner.retry)}
-            </Button>
-            <button
-              data-testid="connection-banner-dismiss"
-              onClick={() => setDismissed(true)}
-              className="shrink-0 p-0.5 hover:text-red-100"
-              aria-label={t(strings.app.connectionBanner.dismissAriaLabel)}
-              type="button"
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
-          </div>
-        </TopSafeArea>
-      )}
-
-      <AudioUnavailableBanner reason={audioUnavailableReason} className="mx-4 mt-2" />
 
       {/* Always render workspace — even during initial load or error */}
       <Suspense fallback={<PageFallback />}>
         {isLoading && !error ? (
           <PageFallback />
         ) : (
-          <Workspace topSafeAreaReserved={showBanner} />
+          <Workspace appBanners={appBanners} />
         )}
       </Suspense>
     </ErrorBoundary>

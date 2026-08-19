@@ -137,6 +137,10 @@ func (h *handlers) get(ctx cliapp.RunContext) error {
 	if label := sess.GetDisplayLabel(); label != "" {
 		results = append(results, fmt.Sprintf("Label: %s", label))
 	}
+	if target := sess.GetTarget(); target != nil {
+		results = append(results, fmt.Sprintf("Target: %s (%s)", target.GetLabel(), target.GetId()))
+		results = append(results, fmt.Sprintf("Target state: %s; dispatchable=%t", target.GetState().String(), target.GetDispatchable()))
+	}
 	results = append(results, fmt.Sprintf("Policy: %s", policyString(sess.GetPolicy())))
 
 	report := cliapp.ListReport{
@@ -167,6 +171,8 @@ type createBody struct {
 	Origin               string         `json:"origin,omitempty"`
 	Owner                string         `json:"owner,omitempty"`
 	DisplayLabel         string         `json:"displayLabel,omitempty"`
+	TargetID             string         `json:"targetId,omitempty"`
+	WorkingDir           string         `json:"workingDir,omitempty"`
 	ExecuteLaunchCommand bool           `json:"executeLaunchCommand,omitempty"`
 	Extra                map[string]any `json:"-"`
 }
@@ -195,6 +201,8 @@ func (h *handlers) create(ctx cliapp.RunContext) error {
 		Origin:               strings.TrimSpace(ctx.Flag("origin")),
 		Owner:                strings.TrimSpace(ctx.Flag("owner")),
 		DisplayLabel:         strings.TrimSpace(ctx.Flag("label")),
+		TargetID:             strings.TrimSpace(ctx.Flag("target")),
+		WorkingDir:           strings.TrimSpace(ctx.Flag("working-dir")),
 		ExecuteLaunchCommand: ctx.BoolFlag("execute-launch-command"),
 	}
 	if bodyFile := strings.TrimSpace(ctx.Flag("body-file")); bodyFile != "" {
@@ -224,11 +232,16 @@ func (h *handlers) create(ctx cliapp.RunContext) error {
 		Origin:               origin,
 		Owner:                body.Owner,
 		DisplayLabel:         body.DisplayLabel,
+		TargetId:             body.TargetID,
+		WorkingDir:           body.WorkingDir,
 		ExecuteLaunchCommand: body.ExecuteLaunchCommand,
 	})
 	if body.Policy != nil {
 		req.Msg.Policy = &sessionsv1.ExpirationPolicy{Mode: body.Policy.Mode, Duration: body.Policy.Duration}
 		req.Msg.HasPolicy = true
+	}
+	if key := strings.TrimSpace(ctx.Flag("idempotency-key")); key != "" {
+		req.Header().Set("X-Idempotency-Key", key)
 	}
 
 	resp, err := h.client.Create(context.Background(), req)
@@ -247,6 +260,9 @@ func (h *handlers) create(ctx cliapp.RunContext) error {
 	}
 	if label := sess.GetDisplayLabel(); label != "" {
 		changes = append(changes, fmt.Sprintf("Label: %s", label))
+	}
+	if target := sess.GetTarget(); target != nil {
+		changes = append(changes, fmt.Sprintf("Target: %s (%s)", target.GetLabel(), target.GetId()))
 	}
 
 	report := cliapp.MutationReport{
@@ -463,6 +479,9 @@ func sessionRows(sessions []*sessionsv1.Session) []string {
 			support.ShortID(s.GetId()), s.GetShell(), s.GetBackend(), s.GetCols(), s.GetRows(), s.GetBusy(), originString(s.GetOrigin()))
 		if owner := s.GetOwner(); owner != "" {
 			row += " | owner=" + owner
+		}
+		if target := s.GetTarget(); target != nil {
+			row += " | target=" + target.GetLabel() + " (" + target.GetId() + ")"
 		}
 		rows = append(rows, row)
 	}

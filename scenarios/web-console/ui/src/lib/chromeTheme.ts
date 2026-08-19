@@ -49,6 +49,12 @@ const detected = new Map<string, string>();
 let appliedColor: string | null = null;
 let initialized = false;
 let metaEl: HTMLMetaElement | null = null;
+// An active top-chrome banner outranks the terminal-derived tint for the OS
+// status bar only. The banner is the most urgent thing on screen, so the notch
+// should match it; the in-app chrome tokens stay terminal-derived so the rest
+// of the UI does not flash when a banner appears. Owned by BannerRegion.
+let bannerOverride: string | null = null;
+let appliedMeta: string | null = null;
 
 function resolveColor(): string | null {
   if (!config.enabled || !config.ownerSessionId) return null;
@@ -58,18 +64,25 @@ function resolveColor(): string | null {
   return null;
 }
 
-function setMeta(color: string): void {
+/** Resolve and write `<meta name="theme-color">`: banner ▸ chrome ▸ default. */
+function applyMeta(chromeColor: string | null): void {
   if (typeof document === "undefined") return;
+  const next = bannerOverride ?? chromeColor ?? DEFAULT_THEME_COLOR;
+  if (next === appliedMeta) return;
+  appliedMeta = next;
   if (!metaEl) {
     metaEl = document.querySelector('meta[name="theme-color"]');
   }
-  metaEl?.setAttribute("content", color);
+  metaEl?.setAttribute("content", next);
 }
 
 function apply(): void {
   if (typeof document === "undefined") return;
   const color = resolveColor();
-  if (initialized && color === appliedColor) return; // change-guard: no-op tick
+  if (initialized && color === appliedColor) {
+    applyMeta(color); // the banner override may still have moved
+    return;           // change-guard: no-op tick for the token work
+  }
   appliedColor = color;
   initialized = true;
   const root = document.documentElement.style;
@@ -81,7 +94,6 @@ function apply(): void {
     document.documentElement.dataset.wcAdaptiveChrome = "true";
     root.setProperty("--wc-chrome-color", color);
     root.setProperty("--wc-chrome-fg", `rgb(${palette["--wc-text-secondary"]})`);
-    setMeta(color);
   } else {
     for (const name of CHROME_PALETTE_TOKEN_NAMES) {
       root.removeProperty(name);
@@ -89,8 +101,8 @@ function apply(): void {
     delete document.documentElement.dataset.wcAdaptiveChrome;
     root.removeProperty("--wc-chrome-color");
     root.removeProperty("--wc-chrome-fg");
-    setMeta(DEFAULT_THEME_COLOR);
   }
+  applyMeta(color);
 }
 
 export const chromeTheme = {
@@ -119,6 +131,17 @@ export const chromeTheme = {
     }
     if (sessionId === config.ownerSessionId) apply();
   },
+  /**
+   * Let the active top-chrome banner own the OS status-bar colour. Pass `null`
+   * when no banner is showing. Only `<meta name="theme-color">` is affected —
+   * the in-app chrome tokens stay terminal-derived.
+   */
+  setBannerOverride(color: string | null): void {
+    const next = color && isHexColor(color) ? color : null;
+    if (next === bannerOverride) return;
+    bannerOverride = next;
+    applyMeta(appliedColor);
+  },
   /** Current applied chrome color, or `null` when the default chrome is shown. */
   getAppliedColor(): string | null {
     return appliedColor;
@@ -130,5 +153,7 @@ export const chromeTheme = {
     appliedColor = null;
     initialized = false;
     metaEl = null;
+    bannerOverride = null;
+    appliedMeta = null;
   },
 };

@@ -260,7 +260,10 @@
     "cancel": "文字起こしをキャンセル",
     "releaseMic": "マイクを解放",
     "stopSpeech": "読み上げを停止",
-    "exportDiagnostic": "診断情報を書き出す"
+    "errorTitle": "音声入力の問題",
+    "transcribingTitle": "音声を文字起こししています",
+    "staleMicTitle": "マイクがまだ有効です",
+    "ttsSpeakingTitle": "返信を読み上げています"
   },
   "voiceRejection": {
     "title": "話者があなたの声と一致しませんでした",
@@ -533,7 +536,38 @@
     "timeoutLabel": "タイムアウト:",
     "persistentHint": "永続セッションはtmuxを使用してwebコンソール再起動後も維持されます。",
     "creating": "セッションを作成中...",
-    "closeAriaLabel": "ランチャーを閉じる"
+    "closeAriaLabel": "ランチャーを閉じる",
+    "eyebrow": "新しいセッション",
+    "description": "実行場所を選び、起動する内容を選択します。",
+    "locations": "場所",
+    "thisMachine": "このマシン",
+    "remoteNodes": "リモートノード",
+    "noRemoteNodes": "検索に一致するノードはありません。",
+    "searchNodes": "ノードを検索",
+    "refreshTargets": "場所を更新",
+    "loadingTargets": "場所を読み込み中...",
+    "configuredEmpty": "Bridgeには接続していますが、登録されたリモートノードがありません。",
+    "unconfigured": "このWeb Consoleではリモートノードが設定されていません。",
+    "registryError": "リモートノードカタログを読み込めませんでした。",
+    "dispatchable": "準備完了",
+    "offline": "オフライン",
+    "needsUpdate": "更新が必要",
+    "unavailable": "利用不可",
+    "lastSeen": "最終確認",
+    "neverSeen": "未確認",
+    "platform": "プラットフォーム",
+    "readiness": "準備状態",
+    "launchOn": "{{label}}で起動",
+    "chooseReadyLocation": "準備完了の場所を選択してください。",
+    "targetUnavailable": "この場所ではまだセッションを開始できません。",
+    "actions": "開始方法",
+    "codexSignIn": "Codexにサインイン",
+    "codexSignInDescription": "ターミナルでCodexデバイス認証を開始します。",
+    "codexSignInHint": "ターミナルに一度限りのURLとコードが表示されます。Web Consoleは認証情報を保存しません。",
+    "workingDirectory": "作業ディレクトリ",
+    "workingDirectoryPlaceholder": "既定の作業ディレクトリ",
+    "advancedHint": "セッションの任意設定",
+    "refreshing": "更新中..."
   },
   "settings": {
     "title": "設定",
@@ -997,5 +1031,24 @@
     "deleteConfirm": "削除",
     "assignSession": "現在のセッションを追加",
     "removeSession": "現在のセッションを外す"
+  },
+  "banners": {
+    "regionLabel": "通知",
+    "dismiss": "閉じる",
+    "moreNotices": "他に {{count}} 件の通知",
+    "showLess": "折りたたむ",
+    "trackingDegraded": "復元されたこの Claude セッションでは会話の追跡が遅れる場合があります。ターミナルの動作は継続しています。",
+    "audioUnavailable": {
+      "title": "音声機能を利用できません",
+      "discoveryFailed": "audio-tools サービスに接続できませんでした。音声入力と音声合成は無効です。",
+      "scenarioNotRunning": "audio-tools シナリオが実行されていません。音声機能を使うには起動してください。",
+      "envMisconfigured": "audio-tools の URL が設定されていません。AUDIO_TOOLS_URL を設定するか、audio-tools シナリオを起動してください。",
+      "resolverNotConfigured": "このビルドの Web Console では audio-tools の検出が構成されていません。",
+      "generic": "audio-tools を利用できません（{{reason}}）。",
+      "starting": "audio-tools を起動しています。音声機能はまもなく利用できます。",
+      "startFailed": "audio-tools の起動に失敗しました。ログを確認してから再度起動してください。",
+      "statusUnknown": "audio-tools が実行中かどうかを判別できませんでした。",
+      "degraded": "audio-tools は実行中ですが正常ではありません。音声機能が不安定になる可能性があります。"
+    }
   }
 }

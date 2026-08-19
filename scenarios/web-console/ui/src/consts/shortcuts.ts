@@ -21,7 +21,7 @@ export interface ShortcutEntry {
 export const DEFAULT_SHORTCUTS: ShortcutEntry[] = [
   {
     label: "Claude Code",
-    command: "claude --dangerously-skip-permissions",
+    command: "vrooli agent launch --runner claude --arg=--dangerously-skip-permissions",
     description: "AI coding assistant with full permissions",
   },
   {
@@ -38,5 +38,25 @@ export const DEFAULT_SHORTCUTS: ShortcutEntry[] = [
     label: "Grok",
     command: "grok",
     description: "xAI Grok CLI — conversation captured from its session transcript",
+  },
+  {
+    label: "Claude Code (attributed)",
+    command: "if command -v vrooli-agent-launcher >/dev/null 2>&1; then exec vrooli-agent-launcher --agent claude -- --dangerously-skip-permissions; fi; exec vrooli agent launch --runner claude --arg=--dangerously-skip-permissions",
+    description: "Claude Code with best-effort Agent Manager attribution; direct fallback stays available",
+  },
+  {
+    label: "Codex (attributed)",
+    command: "if command -v vrooli-agent-launcher >/dev/null 2>&1; then exec vrooli-agent-launcher --agent codex -- --yolo; fi; exec codex --yolo",
+    description: "Codex with best-effort Agent Manager attribution; direct fallback stays available",
+  },
+  {
+    label: "OpenCode (attributed)",
+    command: "if command -v vrooli-agent-launcher >/dev/null 2>&1; then exec vrooli-agent-launcher --agent opencode --; fi; exec opencode",
+    description: "OpenCode with best-effort Agent Manager attribution; direct fallback stays available",
+  },
+  {
+    label: "Grok (attributed)",
+    command: "if command -v vrooli-agent-launcher >/dev/null 2>&1; then exec vrooli-agent-launcher --agent grok --; fi; exec grok",
+    description: "Grok with best-effort Agent Manager attribution; direct fallback stays available",
   },
 ];
