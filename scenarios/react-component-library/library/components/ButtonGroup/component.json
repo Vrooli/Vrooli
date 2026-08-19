@@ -4,8 +4,18 @@
   "displayName": "ButtonGroup",
   "description": "A grouped control surface that preserves touch targets and action spacing across responsive layouts.",
   "assetKind": "component",
-  "tags": ["control", "token-bound"],
-  "latest": "1.0.0",
-  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
-  "dependencies": []
+  "tags": [
+    "control",
+    "token-bound"
+  ],
+  "latest": "1.1.1",
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native"
+    }
+  ],
+  "dependencies": [],
+  "draft": "",
+  "deprecatedVersions": []
 }

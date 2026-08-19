@@ -1,0 +1,85 @@
+{
+  "schemaVersion": 3,
+  "kind": "component",
+  "title": "Container",
+  "args": {
+    "fields": [
+      {
+        "path": "width",
+        "label": "Width",
+        "kind": "enum",
+        "default": "content",
+        "options": [
+          "compact",
+          "content",
+          "comfortable",
+          "wide",
+          "full"
+        ]
+      },
+      {
+        "path": "gutter",
+        "label": "Gutter",
+        "kind": "enum",
+        "default": "none",
+        "options": [
+          "none",
+          "sm",
+          "md",
+          "lg",
+          "responsive"
+        ]
+      }
+    ]
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "width-content",
+      "name": "width content",
+      "args": {
+        "width": "content",
+        "gutter": "none"
+      },
+      "mode": "pinned"
+    },
+    {
+      "id": "width-compact",
+      "name": "width compact",
+      "args": {
+        "width": "compact",
+        "gutter": "sm"
+      },
+      "mode": "pinned"
+    },
+    {
+      "id": "width-comfortable",
+      "name": "width comfortable",
+      "args": {
+        "width": "comfortable",
+        "gutter": "md"
+      },
+      "mode": "pinned"
+    },
+    {
+      "id": "width-wide",
+      "name": "width wide",
+      "args": {
+        "width": "wide",
+        "gutter": "lg"
+      },
+      "mode": "pinned"
+    },
+    {
+      "id": "width-full",
+      "name": "width full",
+      "args": {
+        "width": "full",
+        "gutter": "responsive"
+      },
+      "mode": "pinned"
+    }
+  ]
+}

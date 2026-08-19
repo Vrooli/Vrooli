@@ -1,0 +1,96 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-component",
+  "schemaVersion": "1.1.0",
+  "component": {
+    "id": "text",
+    "title": "Text",
+    "purpose": "A token-bound structural typography primitive.",
+    "storyRef": "../../library/primitives/Text/versions/1.1.0/story.json"
+  },
+  "states": [
+    {
+      "id": "display",
+      "example": "style-display",
+      "description": "Display typography."
+    },
+    {
+      "id": "title",
+      "example": "style-title",
+      "description": "Title typography."
+    },
+    {
+      "id": "heading",
+      "example": "style-heading",
+      "description": "Heading typography."
+    },
+    {
+      "id": "body",
+      "example": "style-body",
+      "description": "Body typography."
+    },
+    {
+      "id": "label",
+      "example": "style-label",
+      "description": "Label typography."
+    },
+    {
+      "id": "caption",
+      "example": "style-caption",
+      "description": "Caption typography."
+    },
+    {
+      "id": "code",
+      "example": "style-code",
+      "description": "Code typography."
+    },
+    {
+      "id": "overline",
+      "example": "style-overline",
+      "description": "Overline typography."
+    }
+  ],
+  "elements": [
+    {
+      "id": "text",
+      "role": "x-text",
+      "description": "The visible text output."
+    }
+  ],
+  "claims": [
+    {
+      "id": "text-present",
+      "type": "element-present",
+      "statement": "The selected style renders visible text.",
+      "tier": "machine",
+      "elements": ["text"],
+      "states": [
+        "display",
+        "title",
+        "heading",
+        "body",
+        "label",
+        "caption",
+        "code",
+        "overline"
+      ]
+    },
+    {
+      "id": "typography-contract",
+      "type": "manual-review",
+      "statement": "Text exposes bounded typography styles backed by shared tokens.",
+      "tier": "manual",
+      "states": [
+        "display",
+        "title",
+        "heading",
+        "body",
+        "label",
+        "caption",
+        "code",
+        "overline"
+      ]
+    }
+  ],
+  "bindings": { "elements": { "text": { "selector": "[data-text-style]" } } }
+}

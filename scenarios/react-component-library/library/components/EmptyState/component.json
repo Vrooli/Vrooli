@@ -19,12 +19,24 @@
       "version": "2.2.0"
     },
     {
+      "libraryId": "react-component-library:ButtonGroup",
+      "version": "1.1.1"
+    },
+    {
       "libraryId": "react-component-library:Heading",
-      "version": "1.0.0"
+      "version": "1.1.0"
+    },
+    {
+      "libraryId": "react-component-library:Container",
+      "version": "1.1.0"
+    },
+    {
+      "libraryId": "react-component-library:Stack",
+      "version": "1.2.1"
     },
     {
       "libraryId": "react-component-library:Text",
-      "version": "1.0.0"
+      "version": "1.1.0"
     }
   ],
   "designStyles": [
@@ -41,7 +53,7 @@
       "affinity": "compatible"
     }
   ],
-  "latest": "1.6.0",
+  "latest": "1.7.1",
   "draft": "",
   "deprecatedVersions": [
     "1.4.0",
