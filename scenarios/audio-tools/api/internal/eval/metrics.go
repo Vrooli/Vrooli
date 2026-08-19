@@ -2,7 +2,9 @@ package eval
 
 import (
 	"sort"
+	"strings"
 	"time"
+	"unicode"
 )
 
 // EditCounts is the substitution/insertion/deletion breakdown of one
@@ -35,6 +37,49 @@ type WERResult struct {
 	EditCounts
 	RefWords int
 	HypWords int
+}
+
+// PresentationMetrics records the two display properties that can otherwise
+// disappear when an engine comparison reports only normalized WER. Rates are
+// calculated over whitespace-delimited output words: punctuation rate is the
+// share of words containing at least one Unicode punctuation mark, and
+// capitalisation rate is the share whose first letter is uppercase.
+type PresentationMetrics struct {
+	WordCount          int
+	PunctuationRate    float64
+	CapitalisationRate float64
+}
+
+func MeasurePresentation(text string) PresentationMetrics {
+	words := strings.Fields(text)
+	metrics := PresentationMetrics{WordCount: len(words)}
+	if len(words) == 0 {
+		return metrics
+	}
+	for _, word := range words {
+		punctuated := false
+		capitalised := false
+		seenLetter := false
+		for _, r := range word {
+			if unicode.IsPunct(r) {
+				punctuated = true
+			}
+			if !seenLetter && unicode.IsLetter(r) {
+				seenLetter = true
+				capitalised = unicode.IsUpper(r)
+			}
+		}
+		if punctuated {
+			metrics.PunctuationRate++
+		}
+		if capitalised {
+			metrics.CapitalisationRate++
+		}
+	}
+	denom := float64(len(words))
+	metrics.PunctuationRate /= denom
+	metrics.CapitalisationRate /= denom
+	return metrics
 }
 
 // Rate is the word error rate (S+I+D)/N_ref. By convention an empty

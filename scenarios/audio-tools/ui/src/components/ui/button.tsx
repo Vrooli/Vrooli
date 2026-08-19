@@ -15,10 +15,12 @@ const buttonVariants = cva(
         link: "text-app-primary underline-offset-4 hover:underline",
       },
       size: {
-        default: "h-10 px-4",
+        default: "h-12 px-4",
         sm: "h-8 px-3 text-xs",
         lg: "h-12 px-6 text-base",
-        icon: "h-9 w-9 p-0",
+        // Icon controls are used in the mobile shell as well as desktop.
+        // Keep the smallest touch target at the WCAG-friendly 44px floor.
+        icon: "h-12 w-12 p-0",
       },
     },
     defaultVariants: { variant: "default", size: "default" },

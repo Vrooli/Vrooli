@@ -1,0 +1,12 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "diagnostics",
+    "title": "Diagnostics",
+    "routes": ["/diagnostics"],
+    "purpose": "Exercise configured audio capabilities and show provider, readiness, latency, and failure results without hiding unavailable dependencies.",
+    "prd_refs": ["OT-P0-002"]
+  }
+}

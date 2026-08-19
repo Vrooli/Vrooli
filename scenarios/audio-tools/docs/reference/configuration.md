@@ -13,7 +13,7 @@
 | `AUDIO_WHISPER_URL` | `http://localhost:8090` | Local STT resource. |
 | `AUDIO_KYUTAI_URL` | `http://localhost:8094` | Local Kyutai streaming STT resource. |
 | `AUDIO_KYUTAI_MODEL_ID` | `kyutai/stt-1b-en_fr` | Exact Kyutai model provenance recorded on evaluation and qualification evidence. Set this whenever `KYUTAI_STT_HF_REPO` changes; a new model requires a fresh promotion profile. |
-| `AUDIO_KOKORO_URL` | `http://localhost:8880` | Local TTS resource. |
+| `AUDIO_SHERPA_URL` | `http://localhost:8880` | Native local TTS, streaming STT, speaker, and separation resource. |
 | `AUDIO_OLLAMA_URL` | `http://localhost:11434` | Local summarize resource. |
 | `AUDIO_LPBS_BASE_URL` | `""` | LPBS base URL (Vrooli tier). |
 | `AUDIO_LPBS_APP_BUNDLE_KEY` | `audio-tools` | LPBS app-bundle key for usage attribution. |
@@ -21,7 +21,7 @@
 | `AUDIO_AVAIL_TTL_VROOLI` | `30s` | Vrooli availability cache TTL. |
 | `AUDIO_SUMMARIZE_DEFAULT_MODEL` | `llama3.2:3b` | Local summarize default model. Empty or known reasoning defaults are coerced to the safe fallback at startup. |
 
-Declares the resource dependencies (`whisper`, `kokoro`, `ollama`, `postgres`) — all `required: false` so audio-tools starts cleanly with zero local resources — and the LPBS scenario dependency (`required: false`, flag-off).
+Declares the resource dependencies (`whisper`, `kyutai-stt`, `sherpa-onnx`, `ollama`, `postgres`) — all `required: false` so audio-tools starts cleanly with zero local resources — and the LPBS scenario dependency (`required: false`, flag-off).
 
 How this scenario is configured — env vars consumed by the binaries,
 the `.vrooli/service.json` manifest, and the per-user CLI config file.
@@ -201,8 +201,8 @@ CPU, or quality.
 
 | Lever | Type | Default | Range | Audience | Trade-off |
 |---|---|---|---|---|---|
-| `stt.engine_id` | string (manifest id) | `whisper-local` | from `ListEngines` | operator | Active STT engine. `whisper-local` = faster-whisper (batch; VAD/overlap/buffered). `kyutai` = native-streaming (Passthrough only, ~0.5s delay, GPU). Only the Local tier honors it; BYOK/Vrooli stream natively. Read valid ids from `ListEngines`/`audio-tools stt engines` — never hardcode. Switching consults `GetEngineSwitchImpact` (shared-resource awareness). |
-| `stt.streaming_mode` | enum: `auto`, `off` | `auto` | — | operator | `off` forces a single batch `Transcribe` at `StreamEnd` — cheapest, no partials. `auto` selects the best (strategy, provider) pair for the negotiated tier. |
+| `stt.engine_id` | string (manifest id) | `whisper-local` | from `ListEngines` | operator | Active STT engine. `whisper-local` = native whisper.cpp batch (VAD/overlap/buffered strategies). `kyutai` = native Kyutai streaming (Passthrough only). `sherpa-streaming` = native sherpa-onnx Zipformer streaming with punctuation/casing. Only the Local tier honors it; BYOK/Vrooli stream natively. Read valid ids from `ListEngines`/`audio-tools stt engines` — never hardcode. Switching consults `GetEngineSwitchImpact` (shared-resource awareness). |
+| `stt.streaming_mode` | enum: `auto`, `off` | `auto` | — | operator | `off` forces a single batch `Transcribe` at `StreamEnd` — cheapest, no partials. `auto` selects the best (strategy, provider) pair for the negotiated tier and fails closed if no streaming-capable provider is usable; it never silently buffers an unlimited turn. |
 | `stt.strategy_preference` | enum: `auto`, `vad`, `overlap` | `auto` | — | operator | `vad` = silence-bounded segments; one Segment per utterance, lower CPU. `overlap` = growing-buffer LocalAgreement-N with VAD-anchored triggering, word-aligned cursor advance, and bounded agreement window; incremental Segments mid-utterance. Ignored for native-streaming providers (Deepgram, Azure, Google, future LPBS). `auto` picks per-provider defaults: **Local Whisper → `vad`** (the seamless one-segment-per-utterance default), native-stream providers → `passthrough`. Pick `overlap` explicitly if you want mid-utterance incremental commits; it is no longer the auto default while its low-latency UX is being honed (2026-05-29). See PROBLEMS.md "OverlapAgree commit gap" for the algorithm history. |
 | `stt.vad_silence_ms` | integer | `700` | `200–3000` | operator | Silence window that closes a VAD segment. Lower = snappier but may chop natural pauses; higher = preserves long sentences, increases end-of-segment latency. Only meaningful when `VADSegmentStrategy` is active. |
 | `stt.overlap_window_ms` | integer | `2000` | `1000–5000` | operator | Sliding window size for `OverlapAgreeStrategy`. Bigger = better agreement, more CPU per partial. Only meaningful for Local Whisper + `overlap`. |
@@ -252,7 +252,7 @@ stage may `Drop` (suppress entirely, excluded from final text), `Reject`
 | Lever | Type | Default | Range | Audience | Trade-off |
 |---|---|---|---|---|---|
 | `stt.hallucination_filter_enabled` | bool | `true` | — | operator | Text-domain stage: drops segments whose text matches Whisper's known silence-hallucination phrases ("thank you for watching", "please subscribe", …). Off = raw text passes through (debugging). |
-| `stt.vad_filter_enabled` | bool | `true` | — | operator | Enables faster-whisper's built-in voice-activity filter on each `/asr` request (`vad_filter=true`). Strips silence **before** decode — the source-level hallucination fix. Off = Whisper decodes silence and may narrate it. |
+| `stt.vad_filter_enabled` | bool | `true` | — | operator | Enables the historical Whisper-compatible silence-filter control on each batch `/asr` request (`vad_filter=true`). The native pipeline also applies its own bounded VAD strategy and post-recognition hallucination gate; this switch is not a guarantee that every backend performs source-level VAD. |
 | `stt.no_speech_threshold` | double | `0.6` | `(0, 1]` | operator | Signal-domain stage: a segment drops when its mean `no_speech_prob` **exceeds** this **and** `avg_logprob` is below `logprob_threshold`. Higher = more permissive (fewer drops). |
 | `stt.logprob_threshold` | double | `-1.0` | `[-10, 0)` | operator | Paired with `no_speech_threshold`. A segment must clear **both** conditions to be dropped, so a confidently-decoded segment containing a pause is kept. Lower (more negative) = more permissive. |
 
@@ -314,8 +314,8 @@ speaker (e.g. background music, a second person). It is configured via a
 `audio-tools` speaker commands), not the `StreamConfig` levers above,
 because it carries enrolled-profile bindings. It applies only to segments
 that carry audio (the Whisper PCM path); Passthrough engines bypass it.
-Enrollment + verification are backed by the `speaker-verification`
-resource (SpeechBrain ECAPA-TDNN), which owns the embeddings. A profile is one
+Enrollment + verification are backed by the native `sherpa-onnx` resource,
+which owns the embeddings. A profile is one
 identity holding **N labeled enrollment clips** (different devices / speaking
 styles); the resource trims each clip to its voiced span before embedding (Silero
 VAD by default, automatic fallback to energy VAD when the model load fails) and
@@ -346,7 +346,7 @@ real-mic session and a second person; confirm the genuine session score lands in
 a confident band above the cutoff and the impostor clearly below, and adjust
 `speaker.threshold`. Record the chosen number here when set.
 
-Resource-side embedding knobs (env vars on the `speaker-verification` resource,
+Resource-side embedding knobs (env vars on the `sherpa-onnx` resource,
 not per-session levers): `SPEAKER_VAD` (`silero`|`energy`|`none`, default
 `silero` — falls back to `energy` automatically when the Silero weights are not
 loadable), `SPEAKER_MIN_ENROLL_VOICED_SECONDS` (`3.0`),
@@ -381,7 +381,7 @@ Where verification (above) DROPS a finished segment's text when it doesn't match
 the enrolled speaker, **extraction removes the interfering voice from the audio
 itself, BEFORE recognition** — so the recognizer only ever hears the enrolled
 speaker. It is a pre-recognition ingress stage (source separation + ECAPA
-target-selection in the `speaker-verification` resource), gated by config:
+target-selection in the `sherpa-onnx` resource), gated by config:
 
 | Lever | Type | Default | Audience | Trade-off |
 |---|---|---|---|---|
@@ -423,7 +423,7 @@ audio-tools stt speaker-config --mode advisory
 
 > **Scope — Whisper VAD path only.** The gate runs over each segment's
 > canonical PCM, which only the VAD/overlap (Whisper) strategies produce.
-> Native-streaming engines (Kyutai `passthrough`) emit no per-segment audio,
+> Native-streaming engines (Kyutai and sherpa-onnx `passthrough`) emit no per-segment audio,
 > so verification cannot run on them and segments pass through unverified.
 > Audio-domain *target extraction* (isolating your voice before recognition)
 > is the engine-agnostic answer and is tracked separately.
@@ -484,7 +484,11 @@ Current policy:
 ## STT streaming pipeline levers
 
 The local Whisper provider hands every VAD-bounded audio segment to Whisper as
-its own batch. Two knobs trade boundary-word accuracy against perceived latency:
+its own batch. Silence remains the preferred boundary, but uninterrupted
+speech is force-cut at a bounded 15-second segment window so request cost and
+retained PCM stay flat for long turns. Each cut carries the configured
+pre-roll and uses bounded text-overlap deduplication. The operator-controlled
+knobs trade boundary-word accuracy against perceived latency:
 
 | Knob | Default | Bounds | Effect |
 |---|---|---|---|

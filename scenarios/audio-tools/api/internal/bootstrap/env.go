@@ -66,8 +66,7 @@ func Duration(key string, def time.Duration) time.Duration {
 type Env struct {
 	WhisperURL            string
 	KyutaiURL             string
-	SpeakerURL            string
-	KokoroURL             string
+	SherpaURL             string
 	OllamaURL             string
 	OpenRouterURL         string
 	OpenRouterAPIKey      string
@@ -91,8 +90,7 @@ func Load() Env {
 	return Env{
 		WhisperURL:            ResourceURL("AUDIO_WHISPER_URL", "WHISPER_URL"),
 		KyutaiURL:             ResourceURL("AUDIO_KYUTAI_URL", "KYUTAI_URL"),
-		SpeakerURL:            ResourceURL("AUDIO_SPEAKER_URL", "SPEAKER_URL"),
-		KokoroURL:             ResourceURL("AUDIO_KOKORO_URL", "KOKORO_URL"),
+		SherpaURL:             ResourceURL("AUDIO_SHERPA_URL", "SHERPA_ONNX_URL"),
 		OllamaURL:             ResourceURL("AUDIO_OLLAMA_URL", "OLLAMA_URL"),
 		OpenRouterURL:         Or("AUDIO_OPENROUTER_URL", "https://openrouter.ai"),
 		OpenRouterAPIKey:      Optional("OPENROUTER_API_KEY"),

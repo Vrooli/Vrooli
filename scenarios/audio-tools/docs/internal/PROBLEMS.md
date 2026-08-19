@@ -7,6 +7,127 @@ re-discovering the same constraint.
 This file ships empty in newly generated scenarios. Append entries as
 they appear.
 
+### 2026-08-18 — Swarm voice route fix is deployed; product qualification remains open
+
+**Finding:** The bounded control `browser-soak-1787070923294255803` reached
+non-silent capture but lost the WebSocket upgrade at the Swarm UI boundary,
+so it fell back to batch transcription and is non-credit.
+
+**Resolution:** The UI now targets `/ws/voice/stream`, and Swarm's embedded
+proxy rewrites that route to `/api/v1/voice/stream`. Focused URL tests and the
+production build pass; managed health and a direct routed handshake returned
+`stream_connected`.
+
+**Remaining gate:** No replacement long run was started. Swarm still lacks a
+qualifying product-path artifact with provider identity, committed intervals,
+and rendered interim evidence.
+
+**Owner:** audio-tools/swarm-manager integration.
+
+### 2026-08-18 — Rebuilt Swarm Quick Capture still fails before recording (startup root cause fixed)
+
+**Symptom:** After rebuilding the served Swarm Manager UI and restoring all
+declared dependencies, the bounded accelerated control
+`browser-soak-1787068170138937224` timed out waiting for
+`[data-testid="captures-quick-input-mic"][data-state="recording"]`. No
+voice-stream request or qualification diagnostic was observed.
+
+**Root cause identified:** The shared `useVoiceCore` hook awaited provider
+startup without handling rejection. A failed microphone acquisition therefore
+left the control in `preparing` without a terminal diagnostic or visible error.
+
+**Workaround:** Keep Swarm Manager product-path qualification non-credit and
+use the already-qualified Audio Tools 60-minute shapes for current evidence
+until one bounded control proves the served integration path.
+
+**Real fix:** `useVoiceCore` now catches provider-start rejection, returns to
+idle with an actionable error, and disposes the provider. The focused startup
+regression passes. The original product-path artifact remains non-credit and
+the integration still needs one bounded post-fix control.
+
+**Owner:** audio-tools/swarm-manager integration.
+
+### 2026-08-18 — Swarm streaming admission and WebSocket route needed hardening
+
+**Symptom:** The post-startup Quick Capture control
+`browser-soak-1787069020597299475` captured non-silent audio but exposed no
+provider identity, stream diagnostic, server ledger, or interim text. It fell
+back to batch `AudioRuntimeService/Transcribe`. A second control,
+`browser-soak-1787069315005755975`, recorded WER 0.0 but showed the same
+missing streaming evidence, so neither is qualification evidence.
+
+**Root causes:** Swarm's WebSocket builder received an API base already ending
+in `/api/v1` and appended the versioned route again. Separately, the shared
+hook could enter its first one-shot turn before its asynchronous capability
+probe resolved, leaving `streamingAvailable` false and selecting the weaker
+HTTP provider.
+
+**Fix:** Normalize the Swarm WebSocket base to the server root before appending
+`/api/v1/voice/stream`, and await unresolved capability admission for all voice
+modes. The URL regression suite passes 9/9. A fresh bounded runtime control is
+still required after the final managed bundle is confirmed; no long soak has
+been run for this fix.
+
+**Owner:** audio-tools/swarm-manager integration.
+
+### 2026-08-18 — Fault qualification still needs realtime product-path execution
+
+**Symptom:** The realtime product-path portion of the eleven-fault trust-floor rubric is not yet complete.
+
+**Root cause:** The browser soak now emits durable per-profile fault evidence, and the current coverage directory contains four-passing-assertion accelerated artifacts for all eleven required profiles on the virtual provider cell. The realtime product-path executions have not all been run against the current provider cells.
+
+**Workaround:** Keep the promotion verdict red until the realtime product-path evidence rows exist for the required supported cells; do not infer that coverage from the accelerated virtual matrix, injector source, or unit tests.
+
+**Real fix:** Run the server-owned realtime matrix and inspect the persisted evidence rows for every supported cell.
+
+**Owner:** audio-tools qualification workflow.
+
+### 2026-08-18 — Swarm Manager Quick Capture does not yet expose qualification telemetry
+
+**Symptom:** The governed soak driver can open Swarm Manager Quick Capture and
+observe non-silent host capture, but the host surface does not currently expose
+provider identity, committed interval coverage, or rendered interim telemetry
+for a qualifying realtime turn. A 30-second turn also remained in the shared
+voice control's processing state beyond the 60-second terminal budget.
+
+**Root cause:** Swarm Manager consumes the shared voice core through its own
+API adapter and composer host, but the current host configuration/path does not
+produce the same diagnostic and terminal evidence contract as Audio Tools
+Dictation Studio.
+
+**Workaround:** Treat the Swarm smoke artifacts as diagnostic only. Do not
+promote Swarm Manager from the passing Audio Tools 60-minute evidence or from a
+short capture/control result.
+
+**Real fix:** Make the Swarm host surface expose the shared bounded diagnostic,
+provider identity, committed coverage, and interim rendering contract, then run
+one bounded product-path qualification against it.
+
+**Owner:** audio-tools/swarm-manager integration.
+
+### 2026-08-18 — Long-turn fallback ignored the durable journal tail (resolved)
+
+**Symptom:** After the browser's bounded complete-turn retry copy filled during
+a healthy long streaming session, a later backend failure could not use the
+still-unacknowledged PCM already present in the durable journal.
+
+**Root cause:** The fallback predicate and WAV builder consulted only the
+bounded whole-turn memory copy. The journal was correctly compacting processed
+coverage, but its remaining recovery tail was not selected after the memory
+copy overflowed.
+
+**Resolution:** Short turns retain the complete bounded copy for retry UX. Once
+that copy overflows, fallback builds its request from the journal's
+unacknowledged chunks. Committed terminal finals also delete the journal
+records. Focused long-session tests cover both recovery and cleanup.
+
+**Remaining boundary:** The journal quota is finite by design. If a backend is
+unavailable longer than that quota, the provider fails visibly with a
+durability reason rather than claiming silent success.
+
+**Owner:** audio-capture-browser.
+
+
 ## What belongs here
 
 - **Known bugs** that are real but not yet worth fixing
@@ -48,6 +169,25 @@ Use this shape so entries are scannable. Append newest at the bottom.
 ```
 
 ## Entries
+### 2026-08-18 — BAS host-device verification raced client navigation (resolved)
+
+**Symptom:** A host-device qualification could fail during session startup with
+`page.evaluate: Execution context was destroyed, most likely because of a navigation`.
+
+**Root cause:** BAS navigates the target page during startup, and device
+enumeration ran immediately after `domcontentloaded` without allowing that
+client-side navigation to settle.
+
+**Resolution:** Device verification retries only navigation-context failures,
+with a bounded three-attempt limit; unrelated failures still surface
+immediately. The regression test and driver build pass. An interrupted
+continuous qualification that encountered the old failure remains non-credit.
+
+**Owner:** browser-automation-studio.
+
+**Refs:** `playwright-driver/src/session/audio/device-evidence.ts`,
+`playwright-driver/tests/unit/session/audio-device-evidence.test.ts`.
+
 ### 2026-06-29 — Eval auto-tune sweep/apply RPC deferred
 
 **Symptom:** Dictation Studio experiment reports now recommend a winning
@@ -256,6 +396,13 @@ without prompt leakage or visible reasoning.
 **Owner:** unassigned.
 
 **Refs:** plan §G3; `api/internal/testutil/`.
+
+## Work ladder
+
+- Rung: W0
+- Evidence: The audio-tools PRD names long-form dictation trust, provider-parity stable engines, and explicit speaker-policy safety as P0 targets; the required named-goal comparison could not be completed because `swarm-manager goals list --json` reported that swarm-manager was stopped, and its lifecycle start remained in a dependency-start operation before the local API became available.
+- Blocker: W0 contract comparison is unverifiable until the swarm-manager goal search and every returned goal can be read; no W1–W3 gate is claimed from this pass.
+- Measured: 2026-08-16
 
 
 ### 2026-05-17 — Pre-existing standards drift not in cleanup scope
@@ -746,6 +893,188 @@ with max dropped span 0. The final 60-minute run
 with max dropped span 1 against threshold 4, measured WER 0.022994, RTF
 0.031923, 226 commits, and 488.8ms p95 finalization latency.
 
+### 2026-08-17 — Native audio-resource migration remains release-evidence-blocked
+
+**Symptom:** The portable-native resource phases cannot be fully promoted.
+`resources/sherpa-onnx` now exists and implements the TTS, streaming STT,
+speaker, and separation contracts, while the old Kokoro/speaker/Kyutai
+resources remain present until signed adapter artifacts and target smoke
+evidence exist. Whisper still lacks macOS target delivery and complete
+cross-platform smoke evidence. The verified Linux Whisper CPU path is not
+blocked on the consumer quality smoke: its provider path, clean-speech WER,
+latency, and no-speech suppression pass.
+
+**Root cause:** The repository lacked a native audio stack when the plan
+started. The Whisper slice now has a verified v1.9.2 server archive, a
+verified medium GGML model, a live Linux CPU contract adapter, and shared
+egress suppression for native silence hallucinations. The sherpa resource has
+the corresponding resource-local adapters and a qualified Linux build, but
+the release boundary and target evidence are not complete. A native CPU path
+is not evidence of CUDA parity or macOS/Windows readiness.
+
+**Workaround:** Keep only the still-unmigrated Docker resources and their
+truthful platform claims. Do not mark the Whisper Linux result as a
+cross-platform qualification or hand-stage any artifact.
+
+**Real fix:** Publish signed target-native sherpa adapter bundles, add the
+remaining Whisper platform artifacts and smoke evidence, run the
+cross-platform target matrix and same-corpus comparisons, then delete the
+remaining replaced Docker resources only after those gates pass.
+
+The missing Whisper macOS build step is now explicit and fail-closed in
+`resources/whisper/Makefile`; it can only produce a candidate on a Darwin/arm64
+host from a source tree pinned to whisper.cpp v1.9.2. That narrows the release
+work without changing the unsupported platform claim. Signing, checksum
+publication, managed-service smoke, and acquisition wiring remain unresolved.
+
+The local release-authority prerequisite is now resolved: the managed RSA-3072
+authority is initialized in the native secure store and its public trust anchor
+matches. This changes signing from unavailable to actionable; it does not
+substitute for target-native builds, external artifact publication, or target
+smoke evidence.
+
+The signer/verification mismatch for `layout=dir` managed-service artifacts is
+also resolved. `SignStage` now computes directory tree digests rather than
+trying to read a service bundle as one regular file; the focused production
+verification regression passes.
+
+The scenario's monetization declaration gap is resolved for the current
+implementation boundary: `.vrooli/monetization.json` declares the hosted
+`ai_credits` Class-A meter and its real LPBS seams, with BYOK explicitly exempt
+from the hosted charge. The LPBS gateway remains disabled pending its endpoint
+implementation, so no hosted revenue readiness is claimed.
+
+**Owner:** unassigned.
+
+**Refs:** `resources/whisper/docs/whisper-cpp-managed-service-assessment.md`,
+`docs/resources/deployment-contract.md`, `.vrooli/schemas/acquisition.schema.json`,
+the active plan phases 9–13.
+
+### 2026-08-18 — Realtime qualification was still using Chromium fake media (resolved)
+
+**Symptom:** The realtime soak driver supplied a WAV through BAS's
+`fake_media.microphone_wav`, so even a successful realtime run could only
+prove Chromium's synthetic capture path rather than an operating-system audio
+device.
+
+**Root cause:** BAS's PipeWire qualification implementation existed, but was
+selected only through a process-wide environment variable. The soak driver had
+no per-session way to request it.
+
+**Fix/evidence:** Added `audio_device_evidence` to the BAS session contract and
+made the realtime soak request it explicitly while retaining the WAV as the
+corpus played into the user-owned PipeWire sink. After a lifecycle restart, a
+bounded start/inspect/close smoke returned the browser label
+`Vrooli_Qualification_Microphone`, sample rate 48 kHz, mono; BAS reported zero
+sessions after close and `wpctl status` contained no qualification nodes.
+BAS TypeScript and focused soak-driver checks passed. The soak handler now
+persists the existing cell-keyed `browser_product_path` and `device`
+qualification records, including failed runs. A short live realtime smoke
+returned both records through `audio-tools experiment list-evidence`, with the
+device record passed and explicitly scoped to the OS/browser capture path. The
+actual 15/60-minute swarm-manager qualification runs remain open.
+
+**Owner:** audio-tools / browser-automation-studio.
+
+**Refs:** `scenarios/audio-tools/api/internal/soak/driver.go`,
+`scenarios/browser-automation-studio/playwright-driver/src/routes/session-start.ts`,
+`scenarios/browser-automation-studio/playwright-driver/src/session/manager.ts`,
+`scenarios/browser-automation-studio/playwright-driver/src/session/audio/device-evidence.ts`.
+
+### 2026-08-18 — Deterministic backend-restart recovery was terminalized too early (resolved)
+
+**Symptom:** The existing reconnect workflow ended in `Recording failed.`
+after the one-shot `backend_restart` fault instead of recovering the turn.
+
+**Root cause:** The server fault seam marked the shared session ledger terminal
+before the browser could reconnect and replay the durably received chunk. The
+browser also forwarded the recoverable fault through its terminal `onError`
+callback, allowing the host UI to fail the recording before reconnect.
+
+**Fix/evidence:** Recoverable backend restart now leaves the ledger open for
+resume, while the browser records the event as status and lets `onclose` run
+the bounded replay path. `pnpm vitest run src/longSession.test.ts` passed 19/19
+and the focused STT transport-fault handler tests passed. The full scenario
+workflow was not rerun in this focused pass.
+
+**Owner:** audio-tools.
+
+### 2026-08-18 — Retained recovery did not identify its actual batch provider (resolved)
+
+**Symptom:** A Kyutai streaming turn that entered retained-audio recovery gave
+no explicit browser status that the turn had moved to bounded batch
+transcription. The short product-path diagnostic then showed the batch request
+falling through to Whisper, whose activity-edge companion was unavailable.
+
+**Root cause:** The shared transport contract returned only transcript text for
+retained recovery, so the browser could not record the unary response's
+provider/model identity or announce the recovery boundary separately from the
+original stream failure.
+
+**Fix/evidence:** Recovery now emits a bounded-batch status before the request,
+accepts optional provider/model metadata, records it in the metadata-only
+diagnostic, and reports completion with the actual identity when available.
+The audio-tools adapter maps the Connect transcription response into that
+metadata-preserving seam. The focused recovery regression passed; package
+build and UI TypeScript checks passed. The short end-to-end diagnostic remains
+failure evidence for the unhealthy Whisper companion, not quality evidence.
+
+**Owner:** audio-tools.
+
+**Refs:** `packages/audio-capture-browser/src/transport.ts`,
+`packages/audio-capture-browser/src/pcmVoiceStreamProvider.ts`,
+`scenarios/audio-tools/ui/src/audio-integration/api/voice.ts`,
+`/tmp/audio-tools-soak-diagnostic.json`.
+
+The attempted server-owned realistic 60-minute Kyutai run on 2026-08-18
+exited nonzero without persisting its requested evidence file. It is retained
+as an invalid attempt only; no duration or quality credit is assigned. A
+replacement continuous-shape Swarm Manager run is currently server-owned under
+`/tmp/audio-tools-swarm-continuous-qualification.log`, with its requested
+artifact at
+`coverage/browser-soak-swarm-continuous-authoritative.json`; no credit is
+assigned until that artifact is complete and qualified.
+
+### 2026-08-18 — Native sherpa publication is reproducible but not promoted
+
+The sherpa resource now owns a target-native `release-stage` path that bundles
+the cgo server with its matching shared runtime tree, computes the same
+deterministic tree digest used by managed-service acquisition, emits a
+deterministic tar/gzip archive and `entry_path`, and signs the stage through
+the managed release authority. The path rejects foreign hosts and has build
+recipes for Linux amd64/arm64, macOS arm64, and Windows amd64. This removes
+local packaging ambiguity, but it does not create external publication or
+target smoke evidence by itself. Keep acquisition and deployment targets
+explicitly unsupported until each signed artifact is published and exercised
+on its target operating system.
+
+### 2026-08-18 — Correction: device qualification is automated
+
+Earlier entries described a planned manual microphone gate. That wording is
+stale for the current long-form plan: the qualification lane creates a
+user-owned PipeWire device, feeds the canonical corpus through the operating
+system capture path, verifies browser enumeration, and records a durable
+`device` evidence row. It proves the operating-system path, not a particular
+microphone's analog front end, so no human microphone confirmation is required
+for this automated gate. Audio Tools now has passing 60-minute device cells
+`browser-soak-1787058809596672412.json` and
+`browser-soak-1787062594020835127.json`; the current Swarm Manager product-path
+qualification remains open.
+
+### 2026-08-18 — Qualification evidence must follow the conformance verdict
+
+**Symptom:** `browser-soak-1787053929357290181.json` failed only its committed
+text-lag assertion, but the server had persisted `browser_product_path` and
+`device` rows with `passed=true` because the HTTP request itself completed.
+
+**Fix/evidence:** The soak handler now requires
+`conformance.Run.Evaluate().Qualified` (and no run error) before any browser,
+device, or fault evidence can pass. `handlers/soak` focused tests cover both a
+failed assertion and a run error. Corrective failed rows were appended for the
+invalid artifact, so the promotion aggregator retains the failure history and
+cannot credit that run. Future runs use the corrected source identity
+`e407507ad7aa401280994117847642c57893ef11f7bd6694e5a69bc380d15190`.
+
 ## Cross-references
 
 - [`PROGRESS.md`](PROGRESS.md) — lifecycle log (forward-looking)
@@ -756,6 +1085,6 @@ with max dropped span 1 against threshold 4, measured WER 0.022994, RTF
 ## Work ladder
 
 - Rung: W0 (goal/problem contract comparison)
-- Evidence: Search found the requested reliability plan and related records, but no swarm-manager goal directly represents this audio-tools extraction work. The user-supplied plan is therefore the active contract; no unrelated goal was substituted.
-- Constraint: Physical microphone confirmation remains an operator-only gate and is not claimed by this work record.
-- Measured: 2026-08-03.
+- Evidence: The deterministic named-mention search `swarm-manager goals list --json | jq ... test("audio-tools")` returned no matching swarm-manager goal. The user-supplied reliability objective and plan remain the active contract; the PRD's P0 targets cover long-form no-loss trust, provider-parity trust floors, and explicit speaker-policy safety. No unrelated goal was substituted.
+- Historical constraint: the formal W0 comparison was unverifiable without a named swarm-manager goal, and physical-microphone confirmation was never the intended automated claim. The current qualification lane uses a named Swarm Manager workflow and PipeWire device evidence to prove the operating-system capture path; it does not claim any particular microphone's analog front end.
+- Measured: 2026-08-18.

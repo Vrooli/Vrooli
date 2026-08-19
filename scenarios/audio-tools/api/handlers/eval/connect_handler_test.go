@@ -135,7 +135,7 @@ func TestPromotionVerdicts_CreditsDurationButBlocksMissingQualificationCategorie
 	require.NotContains(t, verdicts[0].Reasons, "missing duration profile: 60_minutes")
 	require.Contains(t, verdicts[0].Reasons, "missing fault profile: provider_busy")
 	require.Contains(t, verdicts[0].Reasons, "browser product-path evidence is missing")
-	require.Contains(t, verdicts[0].Reasons, "manual device evidence is missing")
+	require.Contains(t, verdicts[0].Reasons, "automated operating-system device evidence is missing")
 }
 
 func TestPromotionVerdicts_RejectsObservedSafetyFailure(t *testing.T) {
@@ -168,7 +168,7 @@ func TestPromotionVerdicts_DoesNotCreditDeterministicDurationAsRealtimeEvidence(
 func TestReportToProto_MapsScalingAnalysis(t *testing.T) {
 	report := inteval.EvalReport{
 		QualityMeasured:   true,
-		PromotionVerdicts: []inteval.PromotionVerdict{{EngineID: "kyutai", Stable: false, Reasons: []string{"manual device evidence is missing"}}},
+		PromotionVerdicts: []inteval.PromotionVerdict{{EngineID: "kyutai", Stable: false, Reasons: []string{"automated operating-system device evidence is missing"}}},
 		PerStrategy: []inteval.StrategyReport{{
 			Label:      "batch",
 			EngineID:   "kyutai",

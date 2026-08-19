@@ -84,7 +84,7 @@ beforeAll(() => {
 });
 
 function renderApp() {
-  return renderWithProviders(<App />);
+  return renderWithProviders(<App />, { withoutRouter: true });
 }
 
 beforeEach(() => {

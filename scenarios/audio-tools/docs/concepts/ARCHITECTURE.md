@@ -137,7 +137,12 @@ probe.
 `vrooli.audio_tools.v1.provider_lifecycle.ProviderLifecycleService` is
 the operator-facing surface for starting, stopping, restarting, and
 pulling models on the four local-tier providers audio-tools owns
-(`whisper-stt`, `kokoro-tts`, `speaker-verification`, `ollama`). It
+(`whisper-stt`, `kokoro-tts`, `speaker-verification`, `ollama`). The native
+`sherpa-onnx` resource backs the Kokoro-compatible TTS, streaming STT, speaker,
+and source-separation capabilities while those logical capability names remain
+stable for API and UI consumers. `whisper` remains the native batch STT
+resource; these logical names do not imply separate Docker resources.
+It
 wraps `vrooli resource <verb> <slug>` through the
 `capabilities.ResourceController` seam (production:
 `capabilities.CLIController` resolved once at startup;
@@ -340,12 +345,14 @@ engine-id branch logic anywhere else:
   active isolation method is set and the session wired an isolation).
 - the **Segmenter** derives whether inbound chunks need PCM normalization for a
   Passthrough engine from `RequiresPCM` (the engine's `requires.pcm16kMono`), so
-  a native-streaming engine like Kyutai still receives canonical PCM while a
+  a native-streaming engine like Kyutai or sherpa-onnx still receives canonical PCM while a
   Passthrough BYOK vendor that decodes for itself does not.
 
-Two engines ship today: **`whisper-local`** (faster-whisper, batch; VAD-segment /
-overlap-agree / buffered strategies; confidence signals) and **`kyutai`** (native
-streaming; Passthrough only; no confidence signals). Switching engines via the
+Three engines are declared today: **`whisper-local`** (native whisper.cpp,
+batch; VAD-segment / overlap-agree / buffered strategies; confidence signals),
+**`kyutai`** (native streaming; Passthrough only; no confidence signals), and
+**`sherpa-streaming`** (native English-only Zipformer streaming with punctuation
+and casing restoration; Passthrough only). Switching engines via the
 admin picker consults `GetEngineSwitchImpact`, which scans every scenario's
 `.vrooli/service.json` (`ScanResourceConsumers`, over an injected `fs.FS`) to
 report who else uses the outgoing engine's resource — audio-tools never
@@ -380,7 +387,7 @@ is enabled. The audio-domain stage is **engine-independent** (it operates on the
 segment's canonical-PCM bytes, not the transcript) and pluggable: the manifest's
 active `speakerIsolation.active` method selects the `egress.SpeakerIsolation`
 implementation (`verification` today wraps `pipeline.EvaluateSpeaker` against the
-`speaker-verification` resource). A **profile is one identity holding N labeled
+native `sherpa-onnx` resource). A **profile is one identity holding N labeled
 enrollment clips**; the resource trims each clip to its voiced span before
 embedding (energy VAD) and verifies against the profile centroid + each clip
 (hybrid score). The egress decision is **session-stateful** — a per-session
@@ -401,7 +408,7 @@ the symmetric counterpart of egress): ordered `ingress.Enhancer`s wrap the
 canonical-PCM stream before the VAD/strategy see it. Production enhancers are
 `DenoiseEnhancer` (ffmpeg afftdn, gated on `denoise_enabled`) and
 `ExtractionEnhancer` (target-speaker extraction via the `ingress.TargetExtractor`
-seam — source separation + ECAPA target-selection in the `speaker-verification`
+seam — source separation + speaker-embedding target-selection in the `sherpa-onnx`
 resource, gated on `extraction_enabled` + a bound profile). Both are config-gated
 (no manifest flag) and engine-agnostic in principle; v1 wires them on the Whisper
 PCM path. The extraction adapter also lives in the handler layer to avoid the
@@ -424,8 +431,9 @@ that ingests or emits audio routes through it:
   Whisper's own bundled ffmpeg decodes them, so the batch path needs no
   local ffmpeg.
 - **TTS egress:** `OutputFormat` is the single source of truth for the TTS
-  format vocabulary + content types; the kokoro engine encodes to the
-  requested format itself (symmetric with Whisper decoding on ingress).
+  format vocabulary + content types; the native sherpa-onnx adapter exposes
+  the Kokoro voice catalogue and encodes the requested format itself
+  (symmetric with Whisper decoding on ingress).
 
 Zone/import rule: `audioformat` may import stdlib and the `internal/audio`
 one-shot `Runner` seam only; it is imported by `internal/stt/*`,

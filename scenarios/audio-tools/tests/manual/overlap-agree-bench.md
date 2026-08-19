@@ -128,5 +128,5 @@ the strategy and re-run this bench.
 Bench run by: `<your name>`
 Date: `<YYYY-MM-DD>`
 Audio-tools commit: `<git rev-parse HEAD>`
-Whisper resource image / model: `<docker inspect ... | grep Image>` /
-  `<echo $AUDIO_WHISPER_MODEL>`
+Whisper resource: `vrooli resource status whisper`; model: `AUDIO_WHISPER_MODEL`
+or the checksum-pinned GGML artifact reported by `vrooli resource install whisper`.

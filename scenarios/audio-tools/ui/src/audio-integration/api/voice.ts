@@ -27,6 +27,14 @@ import {
 
 import type { SpeakerConfig, SpeakerProfile, StreamConfig as StreamConfigMsg, WakeWordConfig as WakeWordConfigMsg, WakeWordTemplate as WakeWordTemplateMsg } from "@vrooli/proto-types/audio-tools/v1/stt/stt_pb";
 
+export interface VoiceTranscriptionResult {
+  text: string;
+  providerIdentity?: {
+    providerId?: string;
+    modelId?: string;
+  };
+}
+
 // Mirrors audio-tools' StreamConfig (proto) end-to-end. The five advanced
 // fields (streamingMode, strategyPreference, vadSilenceMs, overlapWindowMs,
 // overlapCommitRuns) are the authoritative source for client-side VAD
@@ -213,16 +221,22 @@ export function createVoiceApi(client: AudioToolsClient) {
       // audioformat substrate's identity decoder). See PcmVoiceStreamProvider
       // + handlers/stt/stream_ws.go::buildStreamStart.
       const params = new URLSearchParams({ format: "pcm_s16le" });
-		// Browser automation cannot set arbitrary WebSocket handshake headers.
-		// The boot-only server qualification gate accepts this explicit URL pair
-		// solely for deterministic browser fault cases; ordinary pages never set
-		// it, and a normal server ignores it even if they do.
+      // Browser automation cannot set arbitrary WebSocket handshake headers.
+      // The boot-only server qualification gate accepts this explicit URL pair
+      // solely for deterministic browser fault cases; ordinary pages never set
+      // it, and a normal server ignores it even if they do.
 		if (typeof window !== "undefined") {
 			const pageParams = new URLSearchParams(window.location.search);
-			const fault = pageParams.get("stt_test_fault");
-			if (pageParams.get("stt_test_mode") === "1" && fault) {
+        const fault = pageParams.get("stt_test_fault");
+        if (pageParams.get("stt_test_mode") === "1" && fault) {
+          params.set("test_mode", "1");
+          params.set("test_fault", fault);
+        }
+        const engine = pageParams.get("stt_engine_id");
+			if (engine) params.set("engine_id", engine);
+			if (pageParams.get("stt_test_mode") === "1" && pageParams.get("stt_capture_source") === "virtual") {
 				params.set("test_mode", "1");
-				params.set("test_fault", fault);
+				params.set("capture_source", "virtual");
 			}
 		}
       if (language) params.set("language", language);
@@ -232,7 +246,7 @@ export function createVoiceApi(client: AudioToolsClient) {
       return `${wsBase}/api/v1/voice/stream?${params.toString()}`;
     },
 
-    async transcribeAudio(audioBlob: Blob, language?: string): Promise<string> {
+    async transcribeAudioDetailed(audioBlob: Blob, language?: string): Promise<VoiceTranscriptionResult> {
       const resp = await client.stt.transcribe({
         audio: await blobToBytes(audioBlob),
         format: audioFormatFromString(blobFormat(audioBlob)),
@@ -240,7 +254,14 @@ export function createVoiceApi(client: AudioToolsClient) {
         skipSpeakerVerification: false,
         initialPrompt: "",
       });
-      return resp.text;
+      const providerIdentity = resp.providerId || resp.modelId
+        ? { providerId: resp.providerId || undefined, modelId: resp.modelId || undefined }
+        : undefined;
+      return { text: resp.text, providerIdentity };
+    },
+
+    async transcribeAudio(audioBlob: Blob, language?: string): Promise<string> {
+      return (await api.transcribeAudioDetailed(audioBlob, language)).text;
     },
 
     async transcribeAudioBypassFilter(audioBlob: Blob, language?: string): Promise<string> {
@@ -255,10 +276,14 @@ export function createVoiceApi(client: AudioToolsClient) {
     },
 
     async transcribeAudioWithRetry(audioBlob: Blob, maxAttempts = 2, language?: string): Promise<string> {
+      return (await api.transcribeAudioWithRetryDetailed(audioBlob, maxAttempts, language)).text;
+    },
+
+    async transcribeAudioWithRetryDetailed(audioBlob: Blob, maxAttempts = 2, language?: string): Promise<VoiceTranscriptionResult> {
       let lastError: unknown;
       for (let attempt = 0; attempt < maxAttempts; attempt++) {
         try {
-          return await api.transcribeAudio(audioBlob, language);
+          return await api.transcribeAudioDetailed(audioBlob, language);
         } catch (err) {
           lastError = err;
           if (attempt < maxAttempts - 1) {
@@ -452,8 +477,10 @@ function lazy() {
 
 export function buildVoiceStreamWsUrl(language?: string, sessionId?: string, resumeToken?: string): string { return lazy().buildVoiceStreamWsUrl(language, sessionId, resumeToken); }
 export function transcribeAudio(audioBlob: Blob, language?: string): Promise<string> { return lazy().transcribeAudio(audioBlob, language); }
+export function transcribeAudioDetailed(audioBlob: Blob, language?: string): Promise<VoiceTranscriptionResult> { return lazy().transcribeAudioDetailed(audioBlob, language); }
 export function transcribeAudioBypassFilter(audioBlob: Blob, language?: string): Promise<string> { return lazy().transcribeAudioBypassFilter(audioBlob, language); }
 export function transcribeAudioWithRetry(audioBlob: Blob, maxAttempts = 2, language?: string): Promise<string> { return lazy().transcribeAudioWithRetry(audioBlob, maxAttempts, language); }
+export function transcribeAudioWithRetryDetailed(audioBlob: Blob, maxAttempts = 2, language?: string): Promise<VoiceTranscriptionResult> { return lazy().transcribeAudioWithRetryDetailed(audioBlob, maxAttempts, language); }
 export function getVoiceStreamConfig(): Promise<VoiceStreamConfig> { return lazy().getVoiceStreamConfig(); }
 export function updateVoiceStreamConfig(patch: Partial<VoiceStreamConfig>): Promise<VoiceStreamConfig> { return lazy().updateVoiceStreamConfig(patch); }
 export function getWakeWordConfig(): Promise<WakeWordConfig> { return lazy().getWakeWordConfig(); }

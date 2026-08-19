@@ -18,7 +18,8 @@
     "description": "Verify Dictation Studio records and renders deterministic WAV-backed microphone input.",
     "labels": {
       "requires_confirmation": "true",
-      "routed_isolation": "true"
+      "routed_isolation": "true",
+      "spec_entry_id": "dictation-studio"
     },
     "execution_mode": "mutating"
   },
@@ -208,6 +209,42 @@
         }
       },
       {
+        "id": "assert-diagnostic-retention-observable",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/dictationStudio.turnProcessedStatus",
+            "mode": "ASSERTION_MODE_ATTRIBUTE_CONTAINS",
+            "expected": {
+              "string_value": ""
+            },
+            "attribute_name": "data-retained-bytes",
+            "timeout_ms": 5000
+          },
+          "metadata": {
+            "label": "Assert the product path exposes bounded retention telemetry"
+          }
+        }
+      },
+      {
+        "id": "assert-diagnostic-timing-observable",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/dictationStudio.turnProcessedStatus",
+            "mode": "ASSERTION_MODE_ATTRIBUTE_CONTAINS",
+            "expected": {
+              "string_value": ""
+            },
+            "attribute_name": "data-first-partial-latency-ms",
+            "timeout_ms": 5000
+          },
+          "metadata": {
+            "label": "Assert the product path exposes first-partial timing telemetry"
+          }
+        }
+      },
+      {
         "id": "stop-capture",
         "action": {
           "type": "ACTION_TYPE_CLICK",
@@ -320,6 +357,18 @@
       {
         "id": "e13",
         "source": "assert-fixture-pcm-processed",
+        "target": "assert-diagnostic-retention-observable",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e14",
+        "source": "assert-diagnostic-retention-observable",
+        "target": "assert-diagnostic-timing-observable",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e15",
+        "source": "assert-diagnostic-timing-observable",
         "target": "capture-terminal-ui",
         "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
       }

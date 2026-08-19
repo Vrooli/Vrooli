@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"testing"
 
+	testutil "audio-tools/cli/internal/testutil"
 	"github.com/vrooli/cli-core/cliapp"
-	testutil "github.com/vrooli/cli-core/cliapptest"
 
 	settv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/settings"
 )

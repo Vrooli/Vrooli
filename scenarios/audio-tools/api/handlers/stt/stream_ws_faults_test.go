@@ -36,6 +36,14 @@ func TestStreamTestFaultFromRequest_RequiresBothGates(t *testing.T) {
 	}
 }
 
+func TestStreamTestFaultsAuthorized_AllowsExplicitStandaloneHarness(t *testing.T) {
+	t.Setenv(streamFaultHarnessEnv, "1")
+	require.True(t, streamTestFaultsAuthorized(Deps{}))
+
+	t.Setenv(streamFaultHarnessEnv, "0")
+	require.False(t, streamTestFaultsAuthorized(Deps{}))
+}
+
 func TestStreamTestFaultFromRequest_ParsesSupportedDeterministicFaults(t *testing.T) {
 	busy, err := streamTestFaultFromRequest(faultRequest("provider_busy", true), true)
 	require.NoError(t, err)

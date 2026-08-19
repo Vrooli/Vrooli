@@ -30,6 +30,7 @@ function renderDrawer(open: boolean, onClose = vi.fn()) {
         <SettingsDrawer open={open} onClose={onClose} />
       </PreferencesProvider>
     </MemoryRouter>,
+    { withoutRouter: true },
   );
 }
 

@@ -35,6 +35,7 @@ function renderTopBar(props: Partial<Parameters<typeof TopBar>[0]> = {}) {
     <MemoryRouter future={routerFuture}>
       <TopBar onOpenSettings={vi.fn()} {...props} />
     </MemoryRouter>,
+    { withoutRouter: true },
   );
 }
 

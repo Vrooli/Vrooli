@@ -37,7 +37,7 @@ type TargetExtractor interface {
 //
 // It operates in the canonical-PCM audio domain, so like the denoise enhancer
 // it is wired on the PCM-decode path (Whisper VAD/Overlap) in v1. Covering
-// native-streaming engines (Kyutai), which consume the raw stream rather than
+// native-streaming engines (Kyutai and sherpa-onnx), which consume the raw stream rather than
 // canonical PCM, would require normalize→extract→re-encode and is future work.
 //
 // seam: ExtractionEnhancer is an ingress audio-enhancement seam (SEAMS.md row

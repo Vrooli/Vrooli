@@ -40,7 +40,7 @@ regardless of which (strategy, provider) pair is in use. Consumers
 (UI, CLIs, other scenarios) never learn about strategies; the
 abstraction terminates inside audio-tools.
 
-## Current Architecture (as of 2026-05-17)
+## Current Architecture (as of 2026-08-18)
 
 > **One-shot auto-stop is server-VAD-led.** The browser's mic-button ring and
 > the stop trigger consume the same source — `useServerVadStateStore` — via
@@ -52,9 +52,10 @@ abstraction terminates inside audio-tools.
 
 
 
-Two transports exist; they run parallel, partially-overlapping
-pipelines, and the streaming chain skeleton already exists in
-`internal/ai/sttchain/` but is not yet wired by any transport.
+Two transports use the same transport-free segmenting boundary. The browser
+WebSocket and Connect bidi surfaces translate their wire formats into the
+shared `sttchain` event stream; they do not select providers or implement
+their own retention policy.
 
 ```
 ┌─────────────────────────┐         ┌──────────────────────────────┐
@@ -67,51 +68,49 @@ pipelines, and the streaming chain skeleton already exists in
            │ delegates to                          │ accumulates all
            ▼                                       │ chunks, then calls
 ┌──────────────────────────────┐                   ▼
-│  internal/voice/Service      │      ┌──────────────────────────────┐
-│  ─────────────────────────   │      │  sttchain.Chain.Execute      │
-│  Hard-coded pipeline:        │      │  (BATCH — single audio blob) │
-│    • VAD                     │      │                              │
-│    • wake-word               │      │  Emits 1 Segment + 1 Done    │
-│    • speaker verify          │      │  at StreamEnd. No live       │
-│    • LOCAL WHISPER           │      │  partials, no wake-word      │
-│    • event emission          │      │  events, no barge-in signal. │
-│                              │      └──────────────────────────────┘
-│  Local-tier-specific. No     │
-│  tier negotiation. No        │      ┌──────────────────────────────┐
-│  strategy abstraction.       │      │  sttchain.Chain.Stream       │
-└──────────────────────────────┘      │  (capability-negotiated      │
-                                      │   streaming entry point)     │
-                                      │                              │
-                                      │  EXISTS in code, but every   │
-                                      │  Provider returns            │
-                                      │  StreamingCapability=false   │
-                                      │  today → buffered fallback.  │
-                                      │  No transport calls it yet.  │
+│  Segmenter + sttchain         │      ┌──────────────────────────────┐
+│  ─────────────────────────   │      │  Batch strategies             │
+│  Shared pipeline owns:       │      │  VADSegment / OverlapAgree / │
+│    • strategy selection      │      │  BufferedFallback             │
+│    • provider identity       │      │  call native whisper.cpp      │
+│    • bounded retention       │      └──────────────────────────────┘
+│    • speaker/policy gates    │
+│    • durable event ordering  │      ┌──────────────────────────────┐
+└──────────────────────────────┘      │  Native streaming strategies │
+                                      │  Kyutai or sherpa-streaming  │
+                                      │  emit partials, segments,    │
+                                      │  processed acks, and done.    │
                                       └──────────────────────────────┘
 ```
 
-What's already in place (groundwork from the prior
-`audio-tools-web-console-restoration` plan):
+The shipped implementation provides:
 
-- `sttchain.Provider` declares `StreamingCapability()` and
-  `TranscribeStreaming(start, chunks) -> events` per tier.
+- `sttchain.Provider` declares provider traits and streaming behavior.
 - `sttchain.Chain.Stream(...)` negotiates a streaming-capable tier
-  (BYOK → Vrooli → Local) and falls back to a buffered single-shot
-  when none accept. See [`SEAMS.md`](../../internal/SEAMS.md#streaming-chain-seams-audio-tools-web-console-restoration-plan).
+  and supports an explicit buffered strategy for `streaming_mode=off`.
+  Production auto/streaming entry points fail closed when no native stream
+  is available; they do not silently accumulate an unlimited whole-turn
+  buffer. See [`SEAMS.md`](../../internal/SEAMS.md#streaming-chain-seams-audio-tools-web-console-restoration-plan).
+- `StrategySelector` chooses a compatible strategy/provider cell from the
+  manifest and operator preference.
+- `whisper-local` uses the native whisper.cpp managed service for batch
+  strategies; `kyutai` and `sherpa-streaming` use native passthrough
+  streaming providers.
+- Both transports preserve durable segments, acknowledgements, errors, and
+  terminal events while allowing disposable partial/status snapshots to be
+  coalesced.
 
-What is missing:
+Persistent voice mode is a strict native-streaming contract. If the capability
+probe cannot confirm the durable streaming path, the shared voice core waits
+for the probe when necessary and then refuses to start persistent capture with
+a visible unavailable message. It does not silently change the request into a
+one-shot or buffered transcription. Buffered recovery remains an explicit,
+bounded error-recovery path for an already-started stream; one-shot mode must
+be selected explicitly when a caller wants batch transcription.
 
-1. No `Provider` returns `StreamingCapability()=true` today, so every
-   call lands in the buffered fallback.
-2. The **strategy** axis does not exist as a first-class abstraction.
-   `internal/voice/Service` hard-codes VAD + wake-word + speaker-verify
-   + local-Whisper-batch as one fused pipeline. Adding a second
-   strategy (overlap-and-agree) would require forking that file.
-3. Neither transport calls `Chain.Stream`. The WS handler still calls
-   `voice.Service.HandleStreamWS` directly; the Connect bidi handler
-   buffers and calls `Chain.Execute`.
-4. The two transports share neither code nor an event-sequence parity
-   test, so they are guaranteed to drift.
+The remaining work is qualification, not missing architecture: clean
+15/60-minute real-time device evidence, same-corpus comparison reports, and
+signed target-native resource publication are still required before promotion.
 
 ## Target Architecture
 
@@ -201,7 +200,7 @@ matches the operator's preference (or the configured `auto` default).
 
 | Provider | Tier | Batch | Native Stream | Suitable Strategies |
 |---|---|---|---|---|
-| LocalWhisper (whisper.cpp / faster-whisper) | Local | yes | no | VADSegment, OverlapAgree |
+| Whisper local managed service (whisper.cpp compatibility edge) | Local | yes | no | VADSegment, OverlapAgree, BufferedFallback |
 | OpenAIWhisperAPI | BYOK | yes | no | VADSegment (overlap-and-agree forbidden — see below) |
 | Deepgram | BYOK | yes | yes | Passthrough |
 | AzureSpeechStreaming | BYOK | (not used) | yes | Passthrough |
@@ -213,11 +212,11 @@ matches the operator's preference (or the configured `auto` default).
 The selector enforces this table; pairs marked **forbidden** raise a
 selector error rather than silently falling back.
 
-| Strategy ↓ / Provider → | LocalWhisper | OpenAIWhisperAPI | Deepgram | Azure/Google | VrooliLPBS |
-|---|---|---|---|---|---|
-| VADSegment | ✅ **default for Local Whisper** (silence-bounded segments; one Segment per utterance; the most seamless batch strategy today) | ✅ only choice (API has no streaming) | ⛔ forbidden — Deepgram has native streaming, use Passthrough | ⛔ forbidden | ✅ until LPBS streaming lands |
-| OverlapAgree | ✅ opt-in via explicit `preference=overlap` (growing-buffer LocalAgreement-N + VAD-anchored triggering; incremental Segment events mid-utterance; bounded prompt context; word-aligned cursor advance). No longer the auto default while its long-form quality is being qualified. | ⛔ forbidden — would burn money on each overlapping API call | ⛔ forbidden | ⛔ forbidden | ⛔ forbidden |
-| Passthrough | ⛔ forbidden — provider can't stream | ⛔ forbidden — provider can't stream | ✅ only choice | ✅ only choice | ✅ when LPBS streaming flag flipped |
+| Strategy ↓ / Provider → | WhisperLocal | Kyutai | SherpaStreaming | OpenAIWhisperAPI | Deepgram | Azure/Google | VrooliLPBS |
+|---|---|---|---|---|---|---|---|
+| VADSegment | ✅ **default for native Whisper** (silence-bounded segments; one Segment per utterance; the most seamless batch strategy today) | ⛔ forbidden — native streaming | ⛔ forbidden — native streaming | ✅ only choice (API has no streaming) | ⛔ forbidden — native streaming, use Passthrough | ⛔ forbidden | ✅ until LPBS streaming lands |
+| OverlapAgree | ✅ opt-in via explicit `preference=overlap` (growing-buffer LocalAgreement-N + VAD-anchored triggering; incremental Segment events mid-utterance; bounded prompt context; word-aligned cursor advance). No longer the auto default while its long-form quality is being qualified. | ⛔ forbidden — native streaming | ⛔ forbidden — native streaming | ⛔ forbidden — would burn money on each overlapping API call | ⛔ forbidden | ⛔ forbidden | ⛔ forbidden |
+| Passthrough | ⛔ forbidden — provider is batch | ✅ native streaming | ✅ native streaming | ⛔ forbidden — provider is batch | ✅ only choice | ✅ only choice | ✅ when LPBS streaming flag flipped |
 
 The "forbidden" cells are not theoretical; the selector returns a
 typed error so misconfiguration shows up at startup or first call,
@@ -271,7 +270,7 @@ observer fanout, or transport details — those live in the Segmenter.
 
 | Strategy | What it owns | What it calls into Provider for |
 |---|---|---|
-| VADSegmentStrategy | Silero-style VAD over the chunk stream; segment boundary detection; wake-word/speaker-verify stage composition | `Provider.Transcribe(audio)` once per VAD-bounded segment |
+| VADSegmentStrategy | Energy VAD over the chunk stream; silence or bounded continuous-speech segment boundaries; wake-word/speaker-verify stage composition | `Provider.Transcribe(audio)` once per bounded segment |
 | OverlapAgreeStrategy | Sliding-window scheduling; LocalAgreement prefix commit; partial emission | `Provider.Transcribe(audio)` per overlapping window (Whisper-local only) |
 | PassthroughStrategy | Thin wire translation; backpressure between client and vendor | `Provider.TranscribeStreaming(start, chunks)` once per session; forwards events |
 
@@ -306,6 +305,17 @@ append-log-plus-compaction pattern for receive, acknowledgement, commit, and
 terminal mutations. Both sides surface reduced durability or quota failure
 instead of discarding unacknowledged audio. Replay is at-least-once; the ledger
 deduplicates the identical sequence/range/digest and rejects conflicts or gaps.
+
+The browser's complete-turn retry copy is deliberately bounded and exists for
+short-turn empty-result or speaker-policy retry UX; it is not the lifetime
+storage for a long dictation. If that copy reaches its ceiling during a
+healthy long session, streaming continues and a later backend failure recovers
+from the journal's still-unacknowledged PCM tail. This preserves audio the
+server has not durably consumed without making memory grow with session length.
+If the bounded journal quota itself is exhausted while acknowledgements are
+unavailable, capture fails visibly with a durability/quota reason rather than
+silently dropping words. A committed terminal final also deletes the durable
+journal records, preventing completed turns from accumulating in IndexedDB.
 
 For supported same-tab reload recovery, the browser also retains only the
 opaque session/resume identity in session storage. It restores that identity
@@ -359,7 +369,8 @@ with a drain-then-close teardown**:
   user speaks instead of stalling as one volatile partial until the end
   flush. This is a sibling knob to `KYUTAI_STT_SILENCE_COMMIT_FRAMES`
   (the pause-triggered commit) — see
-  `resources/kyutai-stt/docker/server.py` in the workspace.
+  `resources/kyutai-stt` resource server in the workspace. The same bounded
+  contract is implemented by the native `resources/sherpa-onnx` adapter.
 - **Non-graceful closes are the drop metric.** A `nil` reader error is
   a graceful end (idle-timeout or client `done`) whose final flush was
   delivered; a non-graceful close is counted as a potential tail drop
@@ -414,14 +425,31 @@ while committed text remains lossless and ordered.
 the relay egress buffer, and the browser WS handler) consume the single predicate
 `sttchain.StreamEvent.Durable()` / `IsDroppable()`
 (`internal/ai/sttchain/interface.go`) rather than re-deriving the rule inline.
-The kyutai resource (`resources/kyutai-stt/docker/server.py`) applies the same
-semantics on its send worker, and the web-console client renders `partial`
+The kyutai resource (`resources/kyutai-stt`) applies the same semantics on its
+send worker, and the native sherpa adapter follows the same contract. The
+web-console client renders `partial`
 disposably (coalesced) while treating `segment`/`final` durably.
 
 **TTS twin.** A synthesized spoken reply is N ordered paragraphs; each paragraph
 is a **durable ordered unit**. A single-paragraph fault is isolated (surfaced on
 that unit) and MUST NOT truncate the paragraphs after it — the same durable-
 ordered-delivery rule as an STT segment, applied to playback.
+
+## Product-surface qualification
+
+The browser qualification driver can exercise either Audio Tools Dictation
+Studio (the default) or the Swarm Manager Plan surface with
+`--surface swarm-manager`. The latter opens Quick Capture through the graph
+action launcher and drives the shared `MessageComposer` microphone, interim
+composer text, and terminal microphone state. Swarm Manager owns the composer;
+Audio Tools owns the recorder, but both surfaces consume the same browser audio
+capture and voice-core contract.
+
+The Swarm Manager selectors are contract-owned in
+`scenarios/swarm-manager/ui/src/consts/selectors.ts` and are exposed as
+`captures-quick-input-mic`, `captures-quick-composer`, and the launcher action
+selector. Qualification evidence records the selected surface so a passing
+Audio Tools run is never presented as Swarm Manager evidence.
 
 ## Why decouple? — and what it costs
 

@@ -54,7 +54,9 @@ func TestSegmenter_ContextCancel_PropagatesToStrategy(t *testing.T) {
 	events := make(chan sttchain.StreamEvent, 4)
 
 	runDone := make(chan error, 1)
-	go func() { runDone <- seg.Run(ctx, sttchain.StreamStart{}, stt.StreamConfig{}, chunks, events) }()
+	go func() {
+		runDone <- seg.Run(ctx, sttchain.StreamStart{}, stt.StreamConfig{Mode: stt.ModeOff}, chunks, events)
+	}()
 
 	cancel()
 
@@ -92,7 +94,7 @@ func TestSegmenter_ExecutorError(t *testing.T) {
 	close(chunks)
 
 	events := make(chan sttchain.StreamEvent, 4)
-	_ = seg.Run(ctx, sttchain.StreamStart{}, stt.StreamConfig{}, chunks, events)
+	_ = seg.Run(ctx, sttchain.StreamStart{}, stt.StreamConfig{Mode: stt.ModeOff}, chunks, events)
 	out := drain(events)
 	if len(out) != 2 {
 		t.Fatalf("want Error+Done, got %d (%+v)", len(out), out)
@@ -129,5 +131,33 @@ func TestSegmenter_ModeOffShortCircuit(t *testing.T) {
 	last := out[len(out)-1]
 	if last.Kind != sttchain.StreamEventDone || last.Done == nil || last.Done.FinalText != "tldr" {
 		t.Fatalf("want Done.FinalText=tldr, got %+v", last)
+	}
+}
+
+func TestSegmenter_AutoFailsClosedWithoutStreamingProvider(t *testing.T) {
+	run := false
+	exec := &sttmocks.FakeBatchExecutor{ExecuteFn: func(context.Context, sttchain.Request) (*sttchain.Result, error) {
+		run = true
+		return &sttchain.Result{Text: "must not run"}, nil
+	}}
+	chain := sttchain.NewChain(sttchain.Options{})
+	seg := New(Deps{Chain: chain, Selector: stt.NewSelector(exec)})
+
+	chunks := make(chan sttchain.AudioChunk)
+	close(chunks)
+	events := make(chan sttchain.StreamEvent, 4)
+	err := seg.Run(context.Background(), sttchain.StreamStart{}, stt.StreamConfig{Mode: stt.ModeAuto}, chunks, events)
+	if !errors.Is(err, stt.ErrNoEligibleProvider) {
+		t.Fatalf("want ErrNoEligibleProvider, got %v", err)
+	}
+	out := drain(events)
+	if len(out) != 2 || out[0].Kind != sttchain.StreamEventError || out[1].Kind != sttchain.StreamEventDone {
+		t.Fatalf("want Error+Done, got %+v", out)
+	}
+	if out[1].Done == nil || out[1].Done.FellBackToUnary {
+		t.Fatalf("strict auto failure must not claim unary fallback: %+v", out[1].Done)
+	}
+	if run {
+		t.Fatal("strict auto failure must not invoke unary executor")
 	}
 }

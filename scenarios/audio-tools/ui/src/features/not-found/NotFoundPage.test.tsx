@@ -18,6 +18,7 @@ describe("NotFoundPage", () => {
       <MemoryRouter future={routerFuture}>
         <NotFoundPage />
       </MemoryRouter>,
+      { withoutRouter: true },
     );
     expect(screen.getByText(strings.notFound.title)).toBeInTheDocument();
     expect(screen.getByText(strings.notFound.description)).toBeInTheDocument();
@@ -28,6 +29,7 @@ describe("NotFoundPage", () => {
       <MemoryRouter future={routerFuture}>
         <NotFoundPage />
       </MemoryRouter>,
+      { withoutRouter: true },
     );
     const link = screen.getByRole("link", { name: strings.notFound.backToOverview });
     expect(link).toBeInTheDocument();

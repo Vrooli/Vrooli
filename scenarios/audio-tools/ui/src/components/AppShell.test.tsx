@@ -49,6 +49,7 @@ function renderShell(initialPath = "/") {
         <AppShell />
       </PreferencesProvider>
     </MemoryRouter>,
+    { withoutRouter: true },
   );
 }
 

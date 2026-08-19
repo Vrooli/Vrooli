@@ -50,6 +50,10 @@ export default defineConfig(({ mode }): UserConfig => {
       globals: true,
       environment: 'jsdom',
       setupFiles: ['./src/test-setup.ts'],
+      // The shared audio package is a workspace file. Inline it so Vitest
+      // resolves its TypeScript graph through Vite instead of asking Node to
+      // load extensionless ESM imports from the package's dist/ directory.
+      server: { deps: { inline: [/@vrooli\/audio-capture-browser/] } },
       coverage: {
         provider: 'v8',
         reporter: ['text', 'json-summary', 'json'],

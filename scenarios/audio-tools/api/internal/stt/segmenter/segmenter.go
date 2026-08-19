@@ -114,16 +114,19 @@ func (s *Segmenter) Run(
 	}
 
 	selection, err := s.deps.Selector.Select(ctx, cfg, start, eligibility)
-	if err != nil && selection.Strategy == nil {
-		// Hard selection failure with no fallback strategy. Surface as
-		// an error + Done so consumers see a consistent shape.
+	if err != nil {
+		// Auto/explicit streaming sessions fail closed. A selector error
+		// paired with BufferedFallback is not permission to silently turn
+		// an unlimited dictation into an unbounded whole-turn buffer.
+		// ModeOff has no selector error and is the sole intentional unary
+		// path.
 		emitTerminal(events, err)
 		return err
 	}
-	// The selector may return a non-nil error alongside a fallback
-	// strategy (e.g. ErrNoEligibleProvider returns BufferedFallback).
-	// In that case we proceed with the strategy and let its event
-	// stream carry the underlying problem.
+	// Native-streaming strategies retain the strict marker for any provider
+	// adapter that re-enters Chain.Stream. The direct Passthrough strategy
+	// already fails explicitly on provider startup errors.
+	start.RequireStreaming = cfg.Mode != stt.ModeOff && selection.Kind == sttchain.StrategyPassthrough
 
 	// PCM-consuming strategies (VADSegment, OverlapAgree) require canonical
 	// PCM. Route the inbound chunks through the audioformat substrate here
@@ -342,5 +345,5 @@ func (s *Segmenter) requiresPCM(kind sttchain.StrategyKind, engineID string) boo
 
 func emitTerminal(events chan<- sttchain.StreamEvent, err error) {
 	events <- sttchain.StreamEvent{Kind: sttchain.StreamEventError, Error: err}
-	events <- sttchain.StreamEvent{Kind: sttchain.StreamEventDone, Done: &sttchain.DoneEvent{FellBackToUnary: true}}
+	events <- sttchain.StreamEvent{Kind: sttchain.StreamEventDone, Done: &sttchain.DoneEvent{}}
 }

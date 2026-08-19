@@ -3,6 +3,7 @@ package strategy_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 	"testing"
 
@@ -30,12 +31,24 @@ type recordingProvider struct {
 	mu       sync.Mutex
 	audioLen []int
 	fail     bool
+	unique   bool
+	count    int
 }
 
 func (r *recordingProvider) record(n int) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.audioLen = append(r.audioLen, n)
+}
+
+func (r *recordingProvider) resultText(base string) string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.count++
+	if r.unique {
+		return fmt.Sprintf("%s %d", base, r.count)
+	}
+	return base
 }
 
 func (r *recordingProvider) lengths() []int {
@@ -52,9 +65,58 @@ func newRecordingProvider(t *testing.T, rec *recordingProvider, text string) stt
 		if rec.fail {
 			return nil, errors.New("provider unavailable")
 		}
-		return &sttchain.Result{Text: text, Tier: sttchain.TierLocal, ProviderID: "fake", ModelID: "fake"}, nil
+		return &sttchain.Result{Text: rec.resultText(text), Tier: sttchain.TierLocal, ProviderID: "fake", ModelID: "fake"}, nil
 	}
 	return prov
+}
+
+func TestVADSegmenter_ForceCutsContinuousSpeechAndCompactsPCM(t *testing.T) {
+	rec := &recordingProvider{unique: true}
+	strat := &strategy.VADSegmenter{
+		Provider:          newRecordingProvider(t, rec, "segment"),
+		SilenceMs:         60000,
+		PreRollMs:         0,
+		MaxSegmentMs:      1000,
+		PreviewIntervalMs: 0,
+	}
+	events := runStrategy(t, context.Background(), strat, sttchain.StreamStart{}, continuousVoiced(1, 3500))
+
+	var segments int
+	for _, ev := range events {
+		if ev.Kind == sttchain.StreamEventSegment {
+			segments++
+		}
+	}
+	require.GreaterOrEqual(t, segments, 3, "continuous speech must commit bounded durable segments before the turn ends")
+
+	maxBytes := testaudio.PCMByteCount(testaudio.SampleRateHz, 1000)
+	for _, n := range rec.lengths() {
+		require.LessOrEqual(t, n, maxBytes, "forced batch requests must stay within the configured segment bound")
+	}
+}
+
+func TestVADSegmenter_SimulatedHourKeepsContinuousSpeechBounded(t *testing.T) {
+	rec := &recordingProvider{unique: true}
+	strat := &strategy.VADSegmenter{
+		Provider:          newRecordingProvider(t, rec, "hour segment"),
+		SilenceMs:         60000,
+		MaxSegmentMs:      15000,
+		PreviewIntervalMs: 0,
+	}
+	events := runStrategy(t, context.Background(), strat, sttchain.StreamStart{}, continuousVoicedRepeated(60, 60000))
+
+	var segments int
+	for _, ev := range events {
+		if ev.Kind == sttchain.StreamEventSegment {
+			segments++
+		}
+	}
+	require.GreaterOrEqual(t, segments, 200, "a continuous simulated hour must commit durable text throughout the turn")
+
+	maxBytes := testaudio.PCMByteCount(testaudio.SampleRateHz, 15000)
+	for _, n := range rec.lengths() {
+		require.LessOrEqual(t, n, maxBytes, "the simulated-hour batch path must keep every provider request bounded")
+	}
 }
 
 // continuousVoiced sends n chunks of chunkMs voiced PCM with no silence, so no
@@ -65,6 +127,18 @@ func continuousVoiced(n, chunkMs int) <-chan sttchain.AudioChunk {
 		ch <- sttchain.AudioChunk{Audio: testaudio.SineSamples(440, chunkMs)}
 	}
 	close(ch)
+	return ch
+}
+
+func continuousVoicedRepeated(n, chunkMs int) <-chan sttchain.AudioChunk {
+	pcm := testaudio.SineSamples(440, chunkMs)
+	ch := make(chan sttchain.AudioChunk)
+	go func() {
+		defer close(ch)
+		for i := 0; i < n; i++ {
+			ch <- sttchain.AudioChunk{Audio: pcm}
+		}
+	}()
 	return ch
 }
 

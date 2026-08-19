@@ -18,7 +18,8 @@
     "description": "Verify the real browser capture path reconnects after a received-chunk socket close.",
     "labels": {
       "requires_confirmation": "true",
-      "routed_isolation": "true"
+      "routed_isolation": "true",
+      "spec_entry_id": "dictation-studio"
     },
     "execution_mode": "mutating"
   },

@@ -9,7 +9,59 @@ import { strings } from "../../../consts/strings";
 import { selectors } from "../../../consts/selectors";
 import { useMicPermission } from "../../diagnostics/useMicPermission";
 import { extractPcm16FromWav, pcm16DurationMs } from "../audioWav";
-import type { StreamTurnDiagnostic } from "@vrooli/audio-capture-browser";
+import { joinTranscriptText, type StreamTurnDiagnostic } from "@vrooli/audio-capture-browser";
+
+type VirtualCaptureShape = "burst" | "chunked";
+
+function virtualCaptureConfig(): { url: string; shape: VirtualCaptureShape; targetSamples: number } | null {
+  if (typeof window === "undefined") return null;
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("stt_test_mode") !== "1" || params.get("stt_capture_source") !== "virtual") return null;
+  const url = params.get("stt_corpus_url");
+  if (!url) return null;
+  const shape = params.get("stt_capture_shape") === "chunked" ? "chunked" : "burst";
+  const targetSamples = Number(params.get("stt_virtual_samples") ?? "0");
+  if (!Number.isSafeInteger(targetSamples) || targetSamples <= 0) return null;
+  return { url, shape, targetSamples };
+}
+
+function emptyMediaStream(): MediaStream {
+  return { getTracks: () => [] } as unknown as MediaStream;
+}
+
+async function createVirtualCapture(
+  config: { url: string; shape: VirtualCaptureShape; targetSamples: number },
+  onFrame: (samples: Float32Array, sampleRate: number) => void,
+): Promise<{ stop(): void }> {
+  const response = await fetch(config.url, { credentials: "same-origin" });
+  if (!response.ok) throw new Error(`virtual corpus request failed (${response.status})`);
+  const { pcm, sampleRateHz } = extractPcm16FromWav(await response.arrayBuffer());
+  if (pcm.byteLength === 0 || sampleRateHz <= 0) throw new Error("virtual corpus clip is empty");
+  const view = new DataView(pcm.buffer, pcm.byteOffset, pcm.byteLength);
+  const baseSamples = pcm.byteLength / 2;
+  const frameSamples = config.shape === "chunked" ? 1_600 : baseSamples;
+  let stopped = false;
+  let offset = 0;
+  const pump = () => {
+    if (stopped) return;
+    // Yield between bounded batches. The provider must be able to open the
+    // WebSocket and receive processed acknowledgements while a large
+    // accelerated turn is being journaled; generating the whole turn in one
+    // synchronous callback queues every IndexedDB append ahead of compaction.
+    for (let batch = 0; batch < 256 && offset < config.targetSamples; batch += 1) {
+      const length = Math.min(frameSamples, config.targetSamples - offset);
+      const samples = new Float32Array(length);
+      for (let index = 0; index < length; index += 1) {
+        samples[index] = view.getInt16(((offset + index) % baseSamples) * 2, true) / 32_768;
+      }
+      onFrame(samples, sampleRateHz);
+      offset += length;
+    }
+    if (offset < config.targetSamples) setTimeout(pump, 0);
+  };
+  setTimeout(pump, 0);
+  return { stop: () => { stopped = true; } };
+}
 
 export interface CapturedClip {
   /** raw signed-16-bit little-endian PCM */
@@ -22,6 +74,8 @@ export interface CapturedClip {
 
 interface Props {
   onCaptured: (clip: CapturedClip) => void;
+  /** Receives streamed text even when the bounded replay copy is unavailable. */
+  onTranscript?: (text: string) => void;
 }
 
 type RecorderState = "idle" | "preparing" | "recording" | "transcribing" | "captured" | "failed" | "cancelled";
@@ -30,7 +84,7 @@ type RecorderState = "idle" | "preparing" | "recording" | "transcribing" | "capt
 // path the diagnostics LiveTry uses — to record one turn, surface the batch
 // transcript, and hand the retained PCM (via getLastTurnAudio) up for
 // corpus storage. It never touches MediaRecorder directly.
-export function DictationRecorder({ onCaptured }: Props) {
+export function DictationRecorder({ onCaptured, onTranscript }: Props) {
   const { t } = useTranslation();
   const providerRef = useRef<PcmVoiceStreamProvider | null>(null);
   const rafRef = useRef<number>(0);
@@ -47,6 +101,7 @@ export function DictationRecorder({ onCaptured }: Props) {
   const [capturedSeconds, setCapturedSeconds] = useState<number | null>(null);
   const [noAudioDetected, setNoAudioDetected] = useState(false);
   const [diagnostic, setDiagnostic] = useState<StreamTurnDiagnostic | null>(null);
+  const committedTextRef = useRef("");
   const micPermission = useMicPermission();
 
   const stopLevelMonitor = () => {
@@ -75,7 +130,7 @@ export function DictationRecorder({ onCaptured }: Props) {
       webkitAudioContext?: typeof AudioContext;
     };
     const AudioContextCtor = win.AudioContext ?? win.webkitAudioContext;
-    if (!stream || !AudioContextCtor) return;
+    if (!stream || !AudioContextCtor || virtualCaptureConfig()) return;
 
     try {
       const ctx = new AudioContextCtor();
@@ -115,6 +170,10 @@ export function DictationRecorder({ onCaptured }: Props) {
     const last = provider?.getLastTurnAudio() ?? null;
     if (!last) {
       setCaptureMissing(true);
+      // A bounded whole-turn replay copy is deliberately not retained forever.
+      // The stream may still have delivered a complete transcript, so do not
+      // leave the recorder in "transcribing" with no recoverable outcome.
+      setState("failed");
       return;
     }
     try {
@@ -133,12 +192,32 @@ export function DictationRecorder({ onCaptured }: Props) {
 
   function ensureProvider(): PcmVoiceStreamProvider {
     if (providerRef.current === null) {
-      const p = new PcmVoiceStreamProvider();
+      const virtual = virtualCaptureConfig();
+      const p = new PcmVoiceStreamProvider(virtual ? {
+        getUserMedia: async () => emptyMediaStream(),
+        captureFactory: (_stream, onFrame) => createVirtualCapture(virtual, onFrame),
+        // The accelerated source is not a realtime/device claim. Preserve
+        // exact sample-range accounting while reducing browser persistence
+        // overhead from 100 ms to 1 s wire batches. Real microphone and BAS
+        // fake-media runs retain the package's production default.
+        wireBatchSamples: 16_000,
+      } : undefined);
       p.onResult = (text) => {
         setPartial("");
-        setFinalText(text);
+        // Passthrough providers may commit durable segments before sending
+        // the terminal envelope. The envelope's final text is intentionally
+        // empty in that case; preserve the committed composer text instead of
+        // replacing it with an empty string.
+        if (text.trim()) {
+          committedTextRef.current = text;
+          setFinalText(text);
+        } else {
+          setFinalText(committedTextRef.current);
+        }
         stopLevelMonitor();
-        void captureTurn(text);
+        const transcript = text.trim() || committedTextRef.current;
+        onTranscript?.(transcript);
+        void captureTurn(transcript);
       };
       p.onError = (msg) => {
         setError(msg);
@@ -146,6 +225,10 @@ export function DictationRecorder({ onCaptured }: Props) {
         stopLevelMonitor();
       };
       p.onPartial = (text) => setPartial(text);
+      p.onSegmentFinal = (text) => {
+        committedTextRef.current = joinTranscriptText(committedTextRef.current, text);
+        setFinalText(committedTextRef.current);
+      };
 
       p.onStatus = ({ code, message }) => {
         // Processed coverage is a durability signal consumed by the
@@ -176,6 +259,7 @@ export function DictationRecorder({ onCaptured }: Props) {
     setStreamStatus("Connecting to speech stream…");
     setPartial("");
     setFinalText("");
+    committedTextRef.current = "";
     setCaptureMissing(false);
     setCapturedSeconds(null);
     setNoAudioDetected(false);
@@ -268,7 +352,7 @@ export function DictationRecorder({ onCaptured }: Props) {
         <MicReadinessIndicator state={micPermission} />
       </div>
 
-      <div className="flex flex-col gap-1" data-testid={selectors.dictationStudio.recordState}>
+      <div className="flex flex-col gap-1" data-testid={selectors.dictationStudio.recordState} data-recorder-state={state}>
         <p className="text-sm text-app-muted-foreground">{stateLabel}</p>
         <div
           className="h-2 w-full overflow-hidden rounded-full bg-app-surface-muted"
@@ -318,8 +402,11 @@ export function DictationRecorder({ onCaptured }: Props) {
             className="sr-only"
             data-testid={selectors.dictationStudio.turnProcessedStatus}
             data-has-processed-audio={diagnostic.processedSequence >= 0 ? "true" : "false"}
+            data-retained-bytes={String(diagnostic.retainedBytes)}
+            data-first-partial-latency-ms={diagnostic.firstPartialLatencyMs === null ? "" : String(diagnostic.firstPartialLatencyMs)}
+            data-committed-text-lag-ms={diagnostic.committedTextLagMs === null ? "" : String(diagnostic.committedTextLagMs)}
           />
-          {diagnostic.processedSequence >= 0 ? <span className="sr-only" data-testid={selectors.dictationStudio.turnProcessedReady} /> : null}
+          {diagnostic.state !== "preparing" && diagnostic.state !== "recording" && diagnostic.capturedSequence >= 0 && diagnostic.processedSequence + 1 >= diagnostic.capturedSequence ? <span className="sr-only" data-testid={selectors.dictationStudio.turnProcessedReady} /> : null}
           <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
             <dt className="text-app-muted-foreground">{t(strings.dictationStudio.turnState)}</dt><dd>{diagnostic.state}</dd>
             <dt className="text-app-muted-foreground">{t(strings.dictationStudio.turnDurability)}</dt><dd>{diagnostic.durability}</dd>
@@ -339,7 +426,7 @@ export function DictationRecorder({ onCaptured }: Props) {
           <p className="mb-1 text-xs uppercase tracking-wide text-app-muted-foreground">
             {t(strings.dictationStudio.partialLabel)}
           </p>
-          <p className="whitespace-pre-wrap">{partial}</p>
+          <p className="whitespace-pre-wrap" data-testid={selectors.dictationStudio.interimTranscript}>{partial}</p>
         </div>
       ) : null}
       {finalText ? (

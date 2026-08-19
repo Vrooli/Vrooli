@@ -100,6 +100,14 @@ type VADSegmenter struct {
 	// Clamped to the tail of the in-flight segment. 0 means no clamp.
 	PreviewWindowMs int
 
+	// MaxSegmentMs bounds a voiced segment when the speaker never produces
+	// enough silence for VAD to cut it. Without this safety boundary a
+	// continuous turn becomes one ever-growing Whisper request and the raw PCM
+	// buffer retains the whole turn. The cut uses the same pre-roll and
+	// bounded text deduplication as a normal silence boundary. Zero uses the
+	// production default.
+	MaxSegmentMs int
+
 	// Clock is the wall-clock seam used for per-segment latency
 	// measurement. Defaults to schedule.System().
 	Clock schedule.Clock
@@ -175,6 +183,7 @@ func (v *VADSegmenter) Run(
 	var lastTier sttchain.ProviderTier
 	var lastProviderID, lastModelID string
 	var totalLatencyMs float64
+	var lastPreviewEnd int
 
 	var (
 		tickSeq           uint64
@@ -289,6 +298,26 @@ func (v *VADSegmenter) Run(
 		}
 		segStart = advanceWithPreRoll(end, preRollBytes)
 		hasVoiced = false
+
+		// The segmenter owns the PCM buffer, so discard the committed prefix
+		// immediately. Preview goroutines already own copies of their windows;
+		// no asynchronous reader depends on this backing array. Keep only the
+		// configured pre-roll for the next segment and translate all offsets
+		// back to the compacted buffer coordinate system.
+		if segStart > 0 {
+			prefix := segStart
+			copy(buf, buf[prefix:])
+			buf = buf[:len(buf)-prefix]
+			nextFrame -= prefix
+			if nextFrame < 0 {
+				nextFrame = 0
+			}
+			lastPreviewEnd -= prefix
+			if lastPreviewEnd < 0 {
+				lastPreviewEnd = 0
+			}
+			segStart = 0
+		}
 	}
 
 	// Preview lane. Single-flight and asynchronous: the provider call must
@@ -298,8 +327,6 @@ func (v *VADSegmenter) Run(
 	previewSlot := make(chan struct{}, 1)
 	previewIntervalBytes := v.SampleRate * v.PreviewIntervalMs / 1000 * sampleBytes
 	previewWindowBytes := v.SampleRate * v.PreviewWindowMs / 1000 * sampleBytes
-	lastPreviewEnd := 0
-
 	maybePreview := func() {
 		if v.PreviewIntervalMs <= 0 || !hasVoiced {
 			return
@@ -457,6 +484,18 @@ func (v *VADSegmenter) Run(
 				)
 				flushSegment(cut)
 				silentFrames = 0
+			} else if hasVoiced && v.MaxSegmentMs > 0 &&
+				nextFrame+frameBytes-segStart >= v.SampleRate*v.MaxSegmentMs/1000*sampleBytes {
+				// Continuous speech has no VAD silence boundary. Cut at the
+				// current complete frame so the next provider request remains
+				// bounded and the committed PCM can be released immediately.
+				cut := nextFrame + frameBytes
+				logger.Printf("[stt-vad] forced segment cut: max_segment_ms=%d segment_bytes=%d segment_ms=%d",
+					v.MaxSegmentMs, cut-segStart,
+					(cut-segStart)/(v.SampleRate*sampleBytes/1000),
+				)
+				flushSegment(cut)
+				silentFrames = 0
 			}
 			nextFrame += frameBytes
 		}
@@ -521,6 +560,12 @@ func (v *VADSegmenter) applyDefaults() {
 		// Long enough for Whisper to have real context, short enough that a
 		// preview costs about the same at minute 60 as at minute 1.
 		v.PreviewWindowMs = 8000
+	}
+	if v.MaxSegmentMs == 0 {
+		// Keep the native batch request comfortably below Whisper's fixed
+		// audio context while still giving it enough speech context to decode
+		// natural phrases. This is a boundedness default, not a latency claim.
+		v.MaxSegmentMs = 15000
 	}
 	// PreRollMs/TrailingPadMs/InitialPromptWords are additive — zero is
 	// a valid "disable" value for each. Operator config supplies real

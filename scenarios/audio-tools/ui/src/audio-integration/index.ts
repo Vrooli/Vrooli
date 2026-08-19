@@ -7,12 +7,13 @@
 // README.md.
 
 import { registerVoiceTransport as registerBrowserVoiceTransport } from "@vrooli/audio-capture-browser";
-import { buildVoiceStreamWsUrl, transcribeAudioWithRetry } from "./api/voice";
+import { buildVoiceStreamWsUrl, transcribeAudioWithRetry, transcribeAudioWithRetryDetailed } from "./api/voice";
 
 export function registerVoiceTransport(): void {
   registerBrowserVoiceTransport({
     buildStreamUrl: (language, sessionId, resumeToken) => buildVoiceStreamWsUrl(language, sessionId, resumeToken),
     transcribeRetained: (blob, language) => transcribeAudioWithRetry(blob, 2, language),
+    transcribeRetainedWithIdentity: (blob, language) => transcribeAudioWithRetryDetailed(blob, 2, language),
   });
 }
 
@@ -48,7 +49,6 @@ export type {
 // microphone readiness seam remains host-local where it exists.
 export * from "@vrooli/audio-capture-browser";
 export { WhisperProvider } from "./hooks/voice/WhisperProvider";
-export { WebSpeechProvider } from "./hooks/voice/WebSpeechProvider";
 
 // TTS capability surface.
 // =============================================================================

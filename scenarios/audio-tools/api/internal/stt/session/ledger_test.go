@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/filerouting"
@@ -258,6 +259,47 @@ func TestDiskRegistryRestoresReplayAfterProcessRestart(t *testing.T) {
 	}
 }
 
+func TestDiskRegistryRemovesTerminalSessionAndReplaySpool(t *testing.T) {
+	dir := t.TempDir()
+	registry, err := NewDiskRegistry(dir, 8)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ledger, _, err := registry.Open("session-a", "token-a")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ledger.Receive(Chunk{Sequence: 0, StartSample: 0, EndSample: 2, Audio: []byte{1, 2}}); err != nil {
+		t.Fatal(err)
+	}
+	ledger.Fail(TerminalCompleted)
+	if err := registry.Persist(ledger); err != nil {
+		t.Fatal(err)
+	}
+	if err := registry.Remove("session-a"); err != nil {
+		t.Fatal(err)
+	}
+	for _, suffix := range []string{".json", ".jsonl"} {
+		if _, err := os.Stat(filepath.Join(dir, "session-a"+suffix)); !errors.Is(err, os.ErrNotExist) {
+			t.Fatalf("terminal spool %s still exists, err=%v", suffix, err)
+		}
+	}
+	if _, resumed, err := registry.Open("session-a", "token-a"); err != nil || resumed {
+		t.Fatalf("removed session reopened as resumed=%t err=%v", resumed, err)
+	}
+}
+
+func TestRegistryExpiresAbandonedSessionAfterRecoveryWindow(t *testing.T) {
+	registry := newRegistry(8, 10*time.Millisecond)
+	if _, resumed, err := registry.Open("session-a", "token-a"); err != nil || resumed {
+		t.Fatalf("initial open resumed=%t err=%v", resumed, err)
+	}
+	time.Sleep(40 * time.Millisecond)
+	if _, resumed, err := registry.Open("session-a", "token-a"); err != nil || resumed {
+		t.Fatalf("expired session reopened as resumed=%t err=%v", resumed, err)
+	}
+}
+
 func TestRoutedDiskRegistryWritesIntoTheLeasedDataRoot(t *testing.T) {
 	primary := t.TempDir()
 	leased := t.TempDir()
@@ -288,5 +330,18 @@ func TestRoutedDiskRegistryWritesIntoTheLeasedDataRoot(t *testing.T) {
 	}
 	if roots.LeaseStats().TestRootWrites == 0 {
 		t.Fatal("expected leased file-write evidence")
+	}
+	newLease := t.TempDir()
+	if err := roots.ClearTestRoots("lease-a"); err != nil {
+		t.Fatal(err)
+	}
+	if err := roots.InstallTestRoots(storage.Paths{DataDir: newLease}, "lease-b", 0); err != nil {
+		t.Fatal(err)
+	}
+	if err := registry.RemoveContext(ctx, "session-a"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(leased, "stt-session-spool", "session-a.json")); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("original leased ledger should be removed after lease change, err=%v", err)
 	}
 }

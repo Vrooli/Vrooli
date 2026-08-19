@@ -26,6 +26,7 @@ import (
 	plH "audio-tools/handlers/provider_lifecycle"
 	sessionH "audio-tools/handlers/session"
 	settingsH "audio-tools/handlers/settings"
+	soakH "audio-tools/handlers/soak"
 	sttH "audio-tools/handlers/stt"
 	summarizeH "audio-tools/handlers/summarize"
 	ttsH "audio-tools/handlers/tts"
@@ -69,6 +70,7 @@ func AllEndpoints() []modulekit.EndpointDescriptor {
 	out = append(out, summarizeH.Endpoints...)
 	out = append(out, ttsH.Endpoints...)
 	out = append(out, usageH.Endpoints...)
+	out = append(out, soakH.Endpoints...)
 	return out
 }
 

@@ -26,7 +26,7 @@ func TestBuild_EndToEnd(t *testing.T) {
 
 	dir := t.TempDir()
 	t.Setenv("AUDIO_WHISPER_URL", whisper.URL)
-	t.Setenv("AUDIO_KOKORO_URL", kokoro.URL)
+	t.Setenv("AUDIO_SHERPA_URL", kokoro.URL)
 	t.Setenv("AUDIO_OLLAMA_URL", ollama.URL)
 	t.Setenv("SQLITE_PATH", filepath.Join(dir, "bootstrap.db"))
 	t.Setenv("AUDIO_TOOLS_DB_KEY_PATH", filepath.Join(dir, "byok.key"))
@@ -52,5 +52,15 @@ func TestBuild_EndToEnd(t *testing.T) {
 	srv.Handler().ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("GET /health = %d, want 200; body=%s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestLoadNativeSherpaEndpointFeedsSpeakerAndTTS(t *testing.T) {
+	t.Setenv("SHERPA_ONNX_URL", "")
+	t.Setenv("AUDIO_SHERPA_URL", "http://sherpa-native:8880")
+
+	env := bootstrap.Load()
+	if env.SherpaURL != "http://sherpa-native:8880" {
+		t.Fatalf("native sherpa endpoint was not loaded: sherpa=%q", env.SherpaURL)
 	}
 }

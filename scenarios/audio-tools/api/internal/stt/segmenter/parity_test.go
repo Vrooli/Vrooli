@@ -125,7 +125,9 @@ func TestStreamingParity(t *testing.T) {
 		},
 	}
 
-	cfg := stt.Defaults()
+	// The test intentionally exercises the explicit unary compatibility path;
+	// auto mode now fails closed when no streaming provider is available.
+	cfg := stt.StreamConfig{Mode: stt.ModeOff}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			direct := runDirect(t, tc.audio, cfg)

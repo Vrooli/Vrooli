@@ -15,6 +15,7 @@ function renderNav() {
     <MemoryRouter future={routerFuture}>
       <MobileNav />
     </MemoryRouter>,
+    { withoutRouter: true },
   );
 }
 

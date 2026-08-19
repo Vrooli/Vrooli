@@ -44,6 +44,12 @@ const (
 
 const wsV2AudioHeaderBytes = 60
 
+// A browser PCM wire batch is normally 100 ms (3.2 KiB) and the qualification
+// path uses at most one second (32 KiB). Keep a generous ceiling while making
+// ReadMessage unable to materialize an unbounded or accidental whole-turn
+// audio frame in the API heap.
+const maxWSMessageBytes = 1 << 20
+
 // decodeWSV2AudioFrame reads the versioned browser framing: ASCII ATV2,
 // uint64 chunk sequence, int64 absolute start/end samples (big endian), a
 // SHA-256 digest, then canonical audio bytes. It has no transport state so both the WebSocket
@@ -97,8 +103,15 @@ type wsCoalescingWriter struct {
 	vad     *wsMessage
 	status  *wsMessage
 	closed  bool
-	signal  chan struct{}
-	done    chan struct{}
+	// finished records that run() has returned, so no goroutine is draining the
+	// queue any more. Producers other than the events loop (notably the reader
+	// goroutine's deterministic fault paths) can still enqueue after that, and
+	// a durable queued into a dead writer used to disappear with no signal --
+	// including the incomplete_coverage error that tells the operator their
+	// audio was not fully accounted for.
+	finished bool
+	signal   chan struct{}
+	done     chan struct{}
 }
 
 func newWSCoalescingWriter(conn *websocket.Conn) *wsCoalescingWriter {
@@ -141,6 +154,16 @@ func (w *wsCoalescingWriter) enqueue(m wsMessage) {
 			w.vad = nil
 			w.status = nil
 		}
+		if w.finished {
+			// run() is gone, so nothing will ever drain this. Write it here
+			// instead: with the drain goroutine returned there is no concurrent
+			// writer, and losing a durable silently is the one outcome the
+			// durability contract exists to prevent. A dead consumer just makes
+			// this fail fast -- the handler's deferred conn.Close() follows.
+			w.mu.Unlock()
+			_ = w.conn.WriteJSON(m)
+			return
+		}
 		w.durable = append(w.durable, m)
 	}
 	w.mu.Unlock()
@@ -152,10 +175,10 @@ func (w *wsCoalescingWriter) enqueue(m wsMessage) {
 // them durable would let a high-rate status source grow an unbounded queue.
 func wsMessageDeliveryClass(m wsMessage) sttchain.DeliveryClass {
 	// A processed acknowledgement advances the browser's durable recovery
-	// cursor. Unlike ordinary status snapshots, it must survive terminal
-	// final/done delivery: dropping it leaves the browser retaining audio that
-	// the server has already processed and makes completion unverifiable.
-	if m.Type == wsMsgStatus && m.Code == "processed_acknowledgement" {
+	// cursor. Provider identity is also durable qualification evidence: it must
+	// survive terminal final/done delivery or the browser cannot prove which
+	// provider cell actually handled the turn.
+	if m.Type == wsMsgStatus && (m.Code == "processed_acknowledgement" || m.Code == "provider_identity") {
 		return sttchain.DeliveryDurable
 	}
 	switch m.Type {
@@ -188,6 +211,9 @@ func (w *wsCoalescingWriter) run() {
 				has = true
 			}
 			finished := w.closed && !has
+			if finished {
+				w.finished = true
+			}
 			w.mu.Unlock()
 			if !has {
 				if finished {
@@ -230,6 +256,8 @@ type wsMessage struct {
 	SegmentIndex      int     `json:"segmentIndex,omitempty"`
 	ReceivedSequence  int64   `json:"receivedSequence,omitempty"`
 	ProcessedSequence int64   `json:"processedSequence,omitempty"`
+	ProviderID        string  `json:"providerId,omitempty"`
+	ModelID           string  `json:"modelId,omitempty"`
 	Score             float64 `json:"score,omitempty"`
 	Threshold         float64 `json:"threshold,omitempty"`
 	ProfileID         string  `json:"profileId,omitempty"`
@@ -278,6 +306,7 @@ func StreamWSHandler(d Deps) http.Handler {
 			return
 		}
 		defer conn.Close()
+		conn.SetReadLimit(maxWSMessageBytes)
 
 		// No absolute wall-clock cap: bound the session by INACTIVITY instead.
 		// The old context.WithTimeout(..., 5*time.Minute) fired on active
@@ -308,6 +337,17 @@ func StreamWSHandler(d Deps) http.Handler {
 		var ledger *session.Ledger
 		var ledgers *session.Registry
 		resumed := false
+		// Reaching a terminal state does NOT release the session. The server
+		// cannot know whether the browser received the terminal, so every
+		// outcome keeps the two things a reconnect needs: the committed
+		// segments, so replay re-emits the same segment identity instead of
+		// re-transcribing into a duplicate, and the terminal reason, so the
+		// server's own evidence of a lost turn is distinguishable from a clean
+		// one. Eager cleanup here destroyed both — a reconnecting browser got a
+		// fresh empty session, and a soak reading the ledger saw no terminal
+		// reason at all. The registry's bounded recovery expiry
+		// (defaultSessionRecoveryTTL) is what reclaims these, and it already
+		// re-arms on every open.
 		if start.ProtocolVersion == 2 {
 			ledgers = d.Sessions
 			if ledgers == nil {
@@ -320,9 +360,56 @@ func StreamWSHandler(d Deps) http.Handler {
 				writer.close(wsWriterDrainTimeout)
 				return
 			}
+			// A deterministic transport fault belongs to one logical browser
+			// session, not to every reconnect handshake. Re-arming a close fault
+			// on a resumed session creates an artificial infinite recovery loop
+			// and prevents the product from ever surfacing a terminal outcome.
+			if resumed && fault.enabled() {
+				fault = streamTestFault{}
+			}
 		}
 		cfg := resolveStreamPipelineConfigFromDeps(ctx, d)
-		seg := segmenter.New(segmenter.Deps{Chain: d.Chain, Selector: d.Selector, Engine: d.Engine, Registry: d.Registry, SpeakerIsolation: currentSpeakerIsolation(d), SpeakerExtraction: currentSpeakerExtraction(d)})
+		virtualReplayAuthorized := streamVirtualReplayAuthorized(d, r)
+		// An explicit engine_id on the WebSocket request is the per-session
+		// selection used by the browser product path and by the long-form soak.
+		// The persisted stream config supplies defaults and policy levers, but it
+		// must not overwrite a request-scoped engine choice; doing so made a soak
+		// labelled whisper-local actually run Kyutai and invalidated its cell
+		// evidence. Reject unknown ids instead of silently falling back.
+		if start.EngineID != "" {
+			if d.Registry != nil {
+				// virtual-replay is intentionally absent from the production
+				// manifest. It is valid only when the request carries the
+				// explicit virtual-capture pair and the server qualification
+				// gate is active; all other unknown engine ids remain rejected.
+				virtualReplayRequest := start.EngineID == "virtual-replay" && virtualReplayAuthorized
+				if _, ok := d.Registry.Engine(start.EngineID); !ok && !virtualReplayRequest {
+					writer.enqueue(wsMessage{Type: wsMsgError, Code: "invalid_engine", Text: fmt.Sprintf("unknown engine_id %q", start.EngineID)})
+					writer.enqueue(wsMessage{Type: wsMsgDone})
+					writer.close(wsWriterDrainTimeout)
+					return
+				}
+			}
+			cfg.EngineID = start.EngineID
+		}
+		// The accelerated browser soak uses a virtual capture source. It must
+		// cross the explicit test-mode query pair plus either the server-owned
+		// isolation lease or the operator's server environment gate. The provider
+		// is absent from the production engine manifest, so this cannot silently
+		// become a user-facing fallback.
+		if virtualReplayAuthorized {
+			cfg.EngineID = "virtual-replay"
+		}
+		speakerIsolation := currentSpeakerIsolation(d)
+		if virtualReplayAuthorized {
+			// The replay provider qualifies browser/ledger durability and native
+			// streaming semantics. Speaker verification is an independent,
+			// operator-persisted policy and would turn this deterministic test
+			// into retained-audio fallback when no enrolled profile is present.
+			// The production and realtime paths retain the live speaker policy.
+			speakerIsolation = nil
+		}
+		seg := segmenter.New(segmenter.Deps{Chain: d.Chain, Selector: d.Selector, Engine: d.Engine, Registry: d.Registry, SpeakerIsolation: speakerIsolation, SpeakerExtraction: currentSpeakerExtraction(d)})
 
 		idle := time.Duration(cfg.SessionIdleTimeoutMs) * time.Millisecond
 		if idle <= 0 {
@@ -417,6 +504,12 @@ func StreamWSHandler(d Deps) http.Handler {
 						// durably received the chunk. The resumed handler feeds the retained
 						// duplicate back into its fresh segmenter, while the browser replays
 						// the same journal entry against the same session.
+						if fault.profile == "backend_restart" {
+							// A backend restart is a recoverable transport interruption,
+							// not a terminal ledger outcome. Keep the session open so the
+							// resumed handler can accept the replayed/duplicate chunk.
+							writer.enqueue(wsMessage{Type: wsMsgError, Code: "backend_restart", Text: "The speech backend restarted during deterministic qualification."})
+						}
 						writer.close(wsWriterDrainTimeout)
 						cancel()
 						readerErr <- errors.New("deterministic stream fault: recoverable close after configured chunk")
@@ -469,6 +562,8 @@ func StreamWSHandler(d Deps) http.Handler {
 			}
 		}
 		var finalText string
+		var providerID string
+		var modelID string
 		providerCloseReason := "provider_done"
 		for ev := range events {
 			switch ev.Kind {
@@ -502,6 +597,9 @@ func StreamWSHandler(d Deps) http.Handler {
 				}
 			case sttchain.StreamEventSegment:
 				if ev.Segment != nil {
+					if virtualReplayAuthorized {
+						d.Logger.Printf("voice-ws: virtual replay segment event start_sample=%d end_sample=%d", ev.Segment.StartSample, ev.Segment.EndSample)
+					}
 					segmentID := ev.Segment.SegmentID
 					if segmentID == "" {
 						segmentID = fmt.Sprintf("%s:%d:%d:%d", start.SessionID, start.Generation, ev.Segment.StartSample, ev.Segment.EndSample)
@@ -579,8 +677,25 @@ func StreamWSHandler(d Deps) http.Handler {
 			case sttchain.StreamEventDone:
 				if ev.Done != nil {
 					finalText = ev.Done.FinalText
+					providerID = ev.Done.ProviderID
+					modelID = ev.Done.ModelID
 				}
 			}
+		}
+		if fault.closeAfterChunksRecoverable > 0 && !resumed {
+			// A recoverable qualification close is a transport boundary, not a
+			// terminal turn outcome. The browser will reconnect with the same
+			// session and replay token; finalising this first handler would mark
+			// the ledger terminal before that resume could occur and surface a
+			// false "Recording failed." state to the composer.
+			<-runErr
+			var readerCloseErr error
+			select {
+			case readerCloseErr = <-readerErr:
+			default:
+			}
+			emitStreamDeliveryTelemetry(d, segIdx, false, readerCloseErr, "recoverable_transport_boundary")
+			return
 		}
 		// The Done event carries `committed` — the full concatenation of
 		// every segment-final emitted this session. Re-sending it as
@@ -626,6 +741,9 @@ func StreamWSHandler(d Deps) http.Handler {
 					Text: "Captured audio processing coverage updated.",
 				})
 			}
+		}
+		if providerID != "" || modelID != "" {
+			writer.enqueue(wsMessage{Type: wsMsgStatus, Code: "provider_identity", ProviderID: providerID, ModelID: modelID, Text: "Streaming provider identity observed."})
 		}
 		if segIdx > 0 {
 			writer.enqueue(wsMessage{Type: wsMsgFinal, Text: ""})
@@ -732,6 +850,7 @@ func buildStreamStart(r *http.Request) sttchain.StreamStart {
 		}(),
 		SessionID:    q.Get("session_id"),
 		ResumeToken:  q.Get("resume_token"),
+		EngineID:     q.Get("engine_id"),
 		Language:     q.Get("language"),
 		InputFormat:  q.Get("format"),
 		BYOKProvider: env.Provider,

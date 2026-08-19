@@ -2,7 +2,7 @@
   "engines": [
     {
       "id": "whisper-local",
-      "displayName": "Whisper (faster-whisper, local)",
+      "displayName": "Whisper (native, local)",
       "kind": "local_resource",
       "resource": "whisper",
       "provides": {
@@ -27,13 +27,27 @@
       },
       "requires": { "pcm16kMono": true },
       "strategies": ["passthrough"]
+    },
+    {
+      "id": "sherpa-streaming",
+      "displayName": "sherpa-onnx Zipformer (streaming, local)",
+      "kind": "local_resource",
+      "resource": "sherpa-onnx",
+      "provides": {
+        "nativeStreaming": true,
+        "builtinVad": true,
+        "confidenceSignals": [],
+        "wordTimestamps": false
+      },
+      "requires": { "pcm16kMono": true },
+      "strategies": ["passthrough"]
     }
   ],
   "speakerIsolation": {
     "active": "verification",
     "methods": {
       "verification": {
-        "backendResource": "speaker-verification",
+        "backendResource": "sherpa-onnx",
         "defaultThreshold": 0.5
       }
     }

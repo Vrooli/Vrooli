@@ -18,7 +18,8 @@
     "description": "Verify Dictation Studio preserves recovery evidence when audio coverage cannot be confirmed.",
     "labels": {
       "requires_confirmation": "true",
-      "routed_isolation": "true"
+      "routed_isolation": "true",
+      "spec_entry_id": "dictation-studio"
     },
     "execution_mode": "mutating"
   },
@@ -170,9 +171,9 @@
     "edges": [
       { "id": "e1", "source": "navigate-dictation", "target": "wait-recorder", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
       { "id": "e2", "source": "wait-recorder", "target": "start-fake-microphone", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
-      { "id": "e3", "source": "start-fake-microphone", "target": "assert-recording-ready", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
-      { "id": "e4", "source": "assert-recording-ready", "target": "wait-stream-connected", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
-      { "id": "e5", "source": "wait-stream-connected", "target": "feed-fixture", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+      { "id": "e3", "source": "start-fake-microphone", "target": "wait-stream-connected", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+      { "id": "e4", "source": "wait-stream-connected", "target": "assert-recording-ready", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+      { "id": "e5", "source": "assert-recording-ready", "target": "feed-fixture", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
       { "id": "e6", "source": "feed-fixture", "target": "assert-captured", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
       { "id": "e7", "source": "assert-captured", "target": "stop-capture", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
       { "id": "e8", "source": "stop-capture", "target": "wait-incomplete-coverage", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },

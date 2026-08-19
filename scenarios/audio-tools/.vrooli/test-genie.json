@@ -1,0 +1,93 @@
+{
+  "$schema": "https://vrooli.dev/schemas/test-genie-phase-descriptor.schema.json",
+  "schemaVersion": "1.0.0",
+  "scenario": "audio-tools",
+  "phase": "soak",
+  "displayName": "Long-form dictation soak",
+  "description": "Runs the provider-owned accelerated browser qualification for the virtual-replay dictation cell and gates on its complete conformance artifact.",
+  "source": "validation-provider",
+  "orderHint": 8,
+  "timeout": "900s",
+  "findingSource": "coverage",
+  "phaseClass": "capability",
+  "runtimeClass": "execution",
+  "dimensions": ["performance", "tests"],
+  "evidenceKinds": ["qualification", "browser-product-path"],
+  "validation": {
+    "contract": "scenario-validation/v1",
+    "includeExecution": true
+  },
+  "targets": {
+    "kinds": ["scenario"],
+    "selection": "enumerate"
+  },
+  "applicability": {
+    "default": "not_applicable",
+    "any": [
+      { "fileExists": "bas/fixtures/dictation-reference.wav" }
+    ]
+  },
+  "policy": {
+    "selection": "default_when_applicable",
+    "providerReadiness": "required_when_applicable",
+    "providerLifecycle": "start_if_needed",
+    "freshness": "require_live_contract",
+    "resultGating": "gating",
+    "unavailable": "fail"
+  },
+  "runnability": {
+    "needsUI": true,
+    "needsAPI": true,
+    "requiredResources": []
+  },
+  "docs": {
+    "path": "scenarios/audio-tools/docs/test-genie/soak/README.md"
+  },
+  "maturity": {
+    "version": "1.0.0",
+    "capabilities": [
+      {
+        "id": "qualification",
+        "label": "Browser qualification",
+        "description": "The browser, capture ledger, server, and virtual-replay provider complete the declared accelerated qualification.",
+        "levels": [
+          { "id": "L0", "name": "Unavailable", "description": "The qualification cannot run or has no valid result.", "entry_criteria": [], "exit_criteria": ["A complete conformance artifact is produced by the registered provider phase."] },
+          { "id": "L1", "name": "Measured", "description": "The provider produced a complete conformance artifact.", "entry_criteria": ["A complete conformance artifact is produced by the registered provider phase."], "exit_criteria": ["Every required assertion passes."] },
+          { "id": "L2", "name": "Qualified", "description": "Every required accelerated assertion passes for the exact provider cell.", "entry_criteria": ["Every required accelerated assertion passes."], "exit_criteria": [] }
+        ]
+      }
+    ],
+    "findings": {
+      "SOAK_CONFIGURATION_MISSING": {
+        "capability_id": "qualification",
+        "local_level_impact": "L0",
+        "global_impact": "foundation_blocker",
+        "dimension": "tests",
+        "severity_default": "SEVERITY_ERROR",
+        "recommended_skill_ids": ["scenario-work-ladder"],
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "A live browser driver and UI endpoint are deployment-specific qualification inputs."
+      },
+      "SOAK_QUALIFICATION_FAILED": {
+        "capability_id": "qualification",
+        "local_level_impact": "L0",
+        "global_impact": "safety_blocker",
+        "dimension": "performance",
+        "severity_default": "SEVERITY_ERROR",
+        "recommended_skill_ids": ["scientific-debugging"],
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "A failed product-path qualification requires inspection of the provider-owned conformance artifact."
+      }
+    },
+    "fallback": {
+      "capability_id": "qualification",
+      "local_level_impact": "L0",
+      "global_impact": "unknown",
+      "dimension": "performance",
+      "severity_default": "SEVERITY_ERROR",
+      "clean_requirement": "required"
+    }
+  }
+}

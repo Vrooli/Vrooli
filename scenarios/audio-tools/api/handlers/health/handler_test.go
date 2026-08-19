@@ -1,6 +1,7 @@
 package health_test
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -17,6 +18,7 @@ import (
 	"audio-tools/internal/server"
 	"audio-tools/internal/testutil/mocks"
 	"github.com/vrooli/api-core/apihttptest"
+	apihealth "github.com/vrooli/api-core/health"
 	httpx "github.com/vrooli/api-core/servertest"
 
 	"github.com/vrooli/api-core/schedule"
@@ -167,4 +169,29 @@ func TestHealthHandler_ProvidersDownDoesNotFlipReadiness(t *testing.T) {
 	require.True(t, ok)
 	require.False(t, providers.Connected)
 	require.Contains(t, fmt.Sprint(providers.Error), "whisper-stt")
+}
+
+func TestHealthHandler_ReportsBuildIdentity(t *testing.T) {
+	h := health.NewHandler(health.Deps{
+		Pinger:         &mocks.FakePinger{},
+		Service:        "audio-tools-api",
+		Version:        "1.0.0",
+		BuildTime:      "2026-08-16T22:00:00Z",
+		SourceIdentity: "api-source-sha256",
+	})
+	mod := modulekit.Module{
+		Name:  "health",
+		Mount: func(r *mux.Router) { r.HandleFunc("/health", h).Methods(http.MethodGet) },
+	}
+	srv := server.New(
+		server.Deps{Clock: schedule.System(), Logger: logx.Std{L: log.New(io.Discard, "", 0)}},
+		mod,
+	)
+	live := httpx.NewLiveServer(t, srv)
+
+	_, body := live.Do(t, http.MethodGet, "/health", nil)
+	var got apihealth.Response
+	require.NoError(t, json.Unmarshal(body, &got))
+	require.Equal(t, "2026-08-16T22:00:00Z", got.Metrics["build_time"])
+	require.Equal(t, "api-source-sha256", got.Metrics["source_identity"])
 }

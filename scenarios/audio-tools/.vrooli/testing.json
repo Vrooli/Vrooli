@@ -186,6 +186,11 @@
         "baseline_duplication_line_debt": 8530,
         "ratchet": true
       }
+    },
+    "soak": {
+      "enabled": true,
+      "timeout": "900s",
+      "require_runtime": true
     }
   }
 }

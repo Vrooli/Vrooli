@@ -84,8 +84,8 @@ func BuildWithDeps(ctx context.Context) (*server.Server, *Deps, func() error, er
 	summCfg := intsumm.DefaultSummarizeConfig()
 	summCfg.Model = env.SummarizeDefaultModel
 	whisperChecker := &capabilities.WhisperChecker{BaseURL: env.WhisperURL, Doer: doer}
-	kokoroChecker := &capabilities.KokoroChecker{BaseURL: env.KokoroURL, Doer: doer}
-	speakerChecker := &capabilities.ResourceChecker{URL: env.SpeakerURL + "/ready", Doer: doer}
+	kokoroChecker := &capabilities.KokoroChecker{BaseURL: env.SherpaURL, Doer: doer}
+	speakerChecker := &capabilities.ResourceChecker{URL: env.SherpaURL + "/ready", Doer: doer}
 	ollamaChecker := &capabilities.OllamaChecker{BaseURL: env.OllamaURL, Doer: doer, ModelFn: func() string {
 		return summCfg.Model
 	}}
@@ -114,14 +114,14 @@ func BuildWithDeps(ctx context.Context) (*server.Server, *Deps, func() error, er
 	capsRegistry.SetLivenessCheckers(map[string]capabilities.Checker{
 		"whisper-stt":          &capabilities.ResourceChecker{URL: env.WhisperURL + "/", Doer: livenessDoer},
 		"kyutai-stt":           &capabilities.ResourceChecker{URL: env.KyutaiURL + "/ready", Doer: livenessDoer},
-		"kokoro-tts":           &capabilities.ResourceChecker{URL: env.KokoroURL + "/v1/audio/voices", Doer: livenessDoer},
-		"speaker-verification": &capabilities.ResourceChecker{URL: env.SpeakerURL + "/ready", Doer: livenessDoer},
+		"kokoro-tts":           &capabilities.ResourceChecker{URL: env.SherpaURL + "/v1/audio/voices", Doer: livenessDoer},
+		"speaker-verification": &capabilities.ResourceChecker{URL: env.SherpaURL + "/ready", Doer: livenessDoer},
 		"ollama":               &capabilities.ResourceChecker{URL: env.OllamaURL + "/api/tags", Doer: livenessDoer},
 		"openrouter":           openRouterChecker,
 		"audio-tools": capabilities.AggregateChecker{Checkers: []capabilities.Checker{
 			&capabilities.ResourceChecker{URL: env.WhisperURL + "/", Doer: livenessDoer},
-			&capabilities.ResourceChecker{URL: env.SpeakerURL + "/ready", Doer: livenessDoer},
-			&capabilities.ResourceChecker{URL: env.KokoroURL + "/v1/audio/voices", Doer: livenessDoer},
+			&capabilities.ResourceChecker{URL: env.SherpaURL + "/ready", Doer: livenessDoer},
+			&capabilities.ResourceChecker{URL: env.SherpaURL + "/v1/audio/voices", Doer: livenessDoer},
 			&capabilities.ResourceChecker{URL: env.OllamaURL + "/api/tags", Doer: livenessDoer},
 		}},
 	})
@@ -135,10 +135,11 @@ func BuildWithDeps(ctx context.Context) (*server.Server, *Deps, func() error, er
 	// truth). The selector derives the Local tier's eligible strategies from
 	// it; the Segmenter derives the egress-gate stage set from it.
 	engineRegistry := sttengine.Default()
-	// Speaker-verification resource client (resources/speaker-verification).
-	// Wired here so streaming speaker isolation + enrollment reach the real
-	// ECAPA embedding service; nil base URL would make every verify fall back.
-	speakerClient := &sttpipeline.SpeakerClient{BaseURL: env.SpeakerURL, Doer: doer}
+	// Native sherpa-onnx speaker runtime client. The logical capability name
+	// remains speaker-verification for API compatibility.
+	// Wired here so streaming speaker isolation + enrollment reach the native
+	// sherpa embedding service; nil base URL would make every verify fall back.
+	speakerClient := &sttpipeline.SpeakerClient{BaseURL: env.SherpaURL, Doer: doer}
 	voiceSvc := sttpipeline.NewService(
 		sttpipeline.Config{},
 		"", nil, "",
@@ -157,15 +158,24 @@ func BuildWithDeps(ctx context.Context) (*server.Server, *Deps, func() error, er
 	voiceSvc.SetAutoEnsure(sttpipeline.AutoEnsureEnabledFromEnv())
 
 	ttsCache := inttts.NewCache(64 * 1024 * 1024)
-	kokoroSynth := &inttts.KokoroSynthesizer{BaseURL: env.KokoroURL, Doer: httpc.DefaultDoer()}
+	kokoroSynth := &inttts.KokoroSynthesizer{BaseURL: env.SherpaURL, Doer: httpc.DefaultDoer()}
 	ttsCfg := inttts.DefaultConfig()
 	ttsSvc := inttts.NewService(inttts.Deps{
 		Logger:        logger,
 		GetConfig:     func() inttts.Config { return ttsCfg },
 		SetConfig:     func(c inttts.Config) { ttsCfg = c },
 		PersistConfig: func(inttts.Config) error { return nil },
+		// Ask the capability registry, which owns the real KokoroChecker probe
+		// and a 30s cache. This used to return a hardcoded "available", so
+		// `audio-tools settings providers` reported the local TTS tier as up
+		// with the Kokoro port closed and no process running — the operator
+		// surface asserted health instead of observing it, and Synthesize's own
+		// readiness gate could never fire.
 		KokoroCapability: func(ctx context.Context) (string, string) {
-			return "available", "Kokoro (Local)"
+			if capsRegistry.IsAvailable(ctx, "kokoro-tts") {
+				return "available", "Kokoro (Local)"
+			}
+			return "unavailable", "Kokoro (Local)"
 		},
 		SynthesizeAudio: func(ctx context.Context, in inttts.SynthesizeInput) (io.ReadCloser, string, error) {
 			return kokoroSynth.Synthesize(ctx, inttts.SynthesizeRequest{
@@ -254,6 +264,8 @@ func BuildWithDeps(ctx context.Context) (*server.Server, *Deps, func() error, er
 			return sttchain.NewLocalProvider(voiceSvc)
 		case "kyutai":
 			return sttchain.NewKyutaiProvider(env.KyutaiURL)
+		case "sherpa-streaming":
+			return sttchain.NewSherpaProvider(env.SherpaURL)
 		default:
 			return nil
 		}

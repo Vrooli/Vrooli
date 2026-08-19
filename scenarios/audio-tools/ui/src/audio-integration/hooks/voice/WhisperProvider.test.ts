@@ -173,7 +173,7 @@ describe("WhisperProvider", () => {
     expect(onResult).toHaveBeenCalledWith("hello world");
   });
 
-  it("onstop does NOT call onResult when text is whitespace-only", async () => {
+  it("onstop resolves onResult with an empty string when text is whitespace-only", async () => {
     const p = new WhisperProvider();
     const onResult = vi.fn();
     p.onResult = onResult;
@@ -184,7 +184,7 @@ describe("WhisperProvider", () => {
     mr.pushChunk(new Blob(["data"]));
     await mr.fireStop();
 
-    expect(onResult).not.toHaveBeenCalled();
+    expect(onResult).toHaveBeenCalledWith("");
   });
 
   it("onstop retains lastTurnAudio before calling transcribe", async () => {

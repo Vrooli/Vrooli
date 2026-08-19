@@ -67,6 +67,37 @@ per-case + aggregate report.
    ingress/selector/egress construction point as live STT without reading or
    mutating the live stream-config row.
 
+## Long-form capture qualification
+
+The browser capture package publishes a bounded metadata-only snapshot at
+`globalThis.__VROOLI_AUDIO_STREAM_DIAGNOSTIC__`. It contains capture sample
+count, sent/processed sequence coverage, retained bytes, first-partial latency,
+committed-text lag, bounded status/error codes, and terminal state. It never
+contains audio bytes, transcript text, URLs, or backend payloads. Product UI
+state remains sourced from provider callbacks; the channel is an observation
+seam for automation and support evidence.
+
+The deterministic microphone smoke case drives the real `getUserMedia` WAV
+fixture through PCM-v2, the real WebSocket product route, terminal completion,
+and asserts that retention and first-partial telemetry are exposed on the
+processed-turn surface. It is product-path evidence, not a real-time duration
+claim. The accelerated package soak remains the invariant gate for bounded
+browser retention and capture accounting.
+
+For real-device qualification, Browser Automation Studio has an opt-in
+PipeWire host-device lane (`VROOLI_AUDIO_DEVICE_EVIDENCE=1`). It creates a
+user-owned virtual source/sink with `pw-loopback`, opens that source through
+browser `getUserMedia`, records the track label/sample settings, plays a WAV
+through `pw-cat`, and tears the topology down. Linux/PipeWire is the measured
+device lane; other hosts must record device evidence as not measured rather
+than silently substituting a fake browser source.
+
+The repository treats accelerated and real-time runs as separate claims:
+accelerated evidence may qualify invariants but cannot earn latency, lag, or
+duration credit. A promotion-grade run must carry one run identity, code
+fingerprints, and provider-cell identity in a `conformance.Run`; missing or
+`not_measured` required assertions fail its verdict.
+
 ### Provider cells
 
 `ExperimentRecipe.cells` is the provider-neutral execution surface. A
@@ -433,3 +464,121 @@ project-level CI regression gate in v1. A *local* baseline-metrics
 comparison inside audio-tools is the intended evolution; an exportable
 manifest (reference text + tags + metric baselines, audio stays local) is a
 stretch follow-up.
+
+## Browser-to-composer soak evidence
+
+`audio-tools soak run` is the single product-path instrument for dictation
+qualification. It drives Dictation Studio through the Playwright driver, uses
+the real browser capture package and WebSocket handler, snapshots the browser
+diagnostic and server ledger, and emits one `conformance.Run` document. The
+provider cell is mandatory and is checked against identity delivered by the
+stream itself; provider identity is durable transport evidence, not a CLI
+label.
+
+Example bounded realtime run:
+
+Always pass `--api-base` for a qualification. Web Console terminals can expose
+another scenario's API variables, and an ambient auto-detected endpoint must
+never consume a long-run window.
+
+```bash
+audio-tools soak run \
+  --api-base http://127.0.0.1:19630 \
+  --driver-url http://127.0.0.1:24485 \
+  --ui-url http://127.0.0.1:20004 \
+  --fixture /absolute/path/to/dictation-reference.wav \
+  --lane realtime --profile realistic --turns 3 --feed-ms 4000 \
+  --engine-id kyutai --model-id kyutai/stt-1b-en_fr \
+  --strategy passthrough --policy default --json
+```
+
+The run refuses qualification when any required assertion is absent. Text
+quality is deliberately `not_measured` until the caller supplies an
+independent `--reference-text`; the driver never treats the product's own
+transcript as its reference. Realtime-only latency and lag claims are not
+derived from accelerated or unit runs. The accelerated lane uses the fixed
+`quick-brown-fox` corpus route and repeats its known 31,268-sample clip to an
+explicit sample target. `burst` and `chunked` shapes both traverse the real
+browser provider, WebSocket, ledger, strategy, and composer. Quality is
+measured against the independent reference on both lanes; only latency remains
+realtime-only. The canonical fixture says `the quick brown fox jumps.`; for a
+realtime turn longer than one fixture cycle, the driver expands that reference
+by the observed captured-cycle count before calculating WER. This prevents a
+looped fixture from being incorrectly graded against only its first 1.95-second
+phrase while retaining a strict independent quality oracle.
+
+For realtime runs, `--profile realistic|continuous` selects the host-device
+shape: realistic inserts the existing 250 ms sub-timeout inter-clip pause,
+while continuous explicitly uses no pause. Realtime evidence records those
+names; the accelerated-only `--shape burst|chunked` default cannot relabel a
+realtime run. The realtime conformance contract also samples the
+`dictation-interim-transcript` surface at every feed checkpoint and requires
+`continuous_interim_text_visible`; a run cannot claim a healthy continuous
+composer unless every sampled checkpoint exposed unsettled text. A checkpoint
+whose metadata diagnostic is absent is still counted; it cannot disappear from
+the denominator and make the assertion pass. The probe also requires the
+interim element to be rendered and non-hidden, not merely present in the DOM.
+Latency and committed-text-lag stability compare the periodic feed checkpoints;
+the terminal flush snapshot is covered by terminal-delivery and exact-coverage
+assertions rather than being mistaken for live-stream drift. Committed lag
+allows only bounded measurement jitter: the final periodic value must remain
+within `first + max(5ms, first*0.2)`. Larger growth is a failed stability gate.
+
+Accelerated evidence includes `accelerated_duration_target` and
+`accelerated_wall_budget`. The explicit, server-gated `virtual-replay` test
+cell qualified both shapes on 2026-08-17: burst evidence is in
+`coverage/soak-accelerated-replay-burst-60m-20260817-v4.json` and chunked
+evidence is in `coverage/soak-accelerated-replay-chunked-60m-v2-20260817.json`.
+Each covered 60 simulated minutes (57,600,000 samples) in under 60 seconds
+with WER 0.0 and bounded browser/server retention. This qualifies the
+capture/transport/ledger/composer invariants for the accelerated test cell;
+it is not a Kyutai quality, realtime-latency, device, or production-provider
+duration claim. The earlier one-minute Kyutai replay failure remains retained
+as historical evidence and is not reclassified.
+
+The accelerated lane is also an explicit scenario gate:
+
+```bash
+make -C scenarios/audio-tools soak-accelerated \
+  SOAK_API_BASE=http://127.0.0.1:19630 \
+  SOAK_DRIVER_URL=http://127.0.0.1:24485 \
+  SOAK_UI_URL=http://127.0.0.1:20004 \
+  SOAK_EVIDENCE_PATH=coverage/soak-accelerated-gate.json
+```
+
+The gate requires the API, BAS Playwright driver, and UI to be running and
+fails closed when any conformance assertion is failed or not measured. It is
+kept as a scenario Make target because Test Genie executes registered phase
+descriptors, not arbitrary Make commands. The package gate remains
+`vrooli package test audio-capture-browser`. The API must be started in the
+explicit accelerated qualification environment (`VROOLI_AUDIO_SOAK_REPLAY=1`);
+the virtual replay provider is absent from the production manifest and the
+Make target cannot change the environment of an already-running server.
+
+The first promotion-grade realtime duration rung for the Kyutai cell is
+`coverage/soak-realtime-15m-kyutai-burst-20260817-final.json`. It drove three
+five-minute turns through the fake-media BAS path and passed every required
+assertion in 902.8 seconds: interval accounting, bounded browser/server
+retention, unique committed segments, terminal outcomes, provider identity,
+wire rate, first-partial latency, committed-text lag, and measured quality.
+The fixture is 1.954 seconds long and loops during realtime capture, so the
+independent quality reference for this run contains 150 known repetitions per
+turn; the five-word reference used by short smoke probes is not a valid
+reference for a looping duration run.
+
+The first automated host-device 60-minute attempt is retained as a failure,
+not promotion evidence: `coverage/soak-realtime-60m-device-continuous-20260817.json`
+passed capture/transport/retention/latency/lag invariants but failed the heap
+flatness bound and measured WER at 0.7909–0.8873. A 30-second realistic device
+smoke likewise passed signal, retention, heap, latency, and lag checks but
+measured WER 0.3733. These results prove that the OS/browser capture path is
+active while leaving device-path quality and long-run heap behavior unresolved.
+The BAS qualification device is torn down after the final session and its
+default-source change is restored or cleared during cleanup.
+
+The accelerated fault matrix is persisted as one conformance document per
+profile under `coverage/fault-*-1m-20260817-schema2.json`. All eleven required
+profiles pass the explicit fault contract, including interval ordering and
+cross-turn committed-ID uniqueness. They are accelerated-only deterministic
+transport/product-path evidence and do not imply native-resource or physical
+microphone qualification.

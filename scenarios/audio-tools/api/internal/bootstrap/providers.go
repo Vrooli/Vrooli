@@ -40,11 +40,19 @@ func BuildChains(
 	// IsAvailable probe and is dropped from candidates / hidden in the picker.
 	whisperLocal := sttchain.NewLocalProvider(voiceSvc)
 	kyutaiLocal := sttchain.NewKyutaiProvider(env.KyutaiURL)
+	sherpaLocal := sttchain.NewSherpaProvider(env.SherpaURL)
+	virtualReplay := sttchain.NewVirtualReplayProvider()
 	stt := sttchain.NewChain(sttchain.Options{
 		Local: whisperLocal,
 		LocalEngines: map[string]sttchain.Provider{
-			"whisper-local": whisperLocal,
-			"kyutai":        kyutaiLocal,
+			"whisper-local":    whisperLocal,
+			"kyutai":           kyutaiLocal,
+			"sherpa-streaming": sherpaLocal,
+			// This engine is deliberately absent from sttengine/manifest.json.
+			// The soak handler inserts it only inside a leased test-isolation
+			// session, allowing accelerated coverage tests without crediting a
+			// production model or realtime provider run.
+			"virtual-replay": virtualReplay,
 		},
 		BYOK:           sttchain.NewBYOKProvider(byokRegistries.STT),
 		EnableLocal:    env.EnableLocal,

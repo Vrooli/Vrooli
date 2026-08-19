@@ -13,10 +13,9 @@ import (
 // constrains the inbound provider_id through ResourceSlugForProviderID;
 // this second check is defence-in-depth against future regressions.
 var allowedSlugs = map[string]struct{}{
-	"whisper":              {},
-	"kokoro":               {},
-	"speaker-verification": {},
-	"ollama":               {},
+	"whisper":     {},
+	"sherpa-onnx": {},
+	"ollama":      {},
 }
 
 // allowedVerbs is the whitelist of `vrooli resource …` subcommands the

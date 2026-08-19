@@ -13,16 +13,19 @@ import (
 	plH "audio-tools/handlers/provider_lifecycle"
 	sessionH "audio-tools/handlers/session"
 	settingsH "audio-tools/handlers/settings"
+	soakH "audio-tools/handlers/soak"
 	sttH "audio-tools/handlers/stt"
 	summarizeH "audio-tools/handlers/summarize"
 	ttsH "audio-tools/handlers/tts"
 	usageH "audio-tools/handlers/usage"
+	validationH "audio-tools/handlers/validation"
 
 	"audio-tools/internal/ai/chains"
 	"audio-tools/internal/ai/sttchain"
 	"audio-tools/internal/ai/summarizechain"
 	"audio-tools/internal/ai/ttschain"
 	"audio-tools/internal/audioformat"
+	"audio-tools/internal/buildidentity"
 	"audio-tools/internal/byokstore"
 	"audio-tools/internal/capabilities"
 	intcorpus "audio-tools/internal/corpus"
@@ -137,7 +140,10 @@ func Compose(d CompositionDeps) *Server {
 
 	return New(
 		Deps{Clock: schedule.System(), Logger: logger},
-		healthH.Module(db, capsRegistry, "audio-tools-api", "1.0.0"),
+		healthH.Module(db, capsRegistry, "audio-tools-api", "1.0.0", healthH.BuildIdentity{
+			BuildTime:      buildidentity.RuntimeBuildTime(),
+			SourceIdentity: buildidentity.SourceIdentity,
+		}),
 		hsH.Module(hsH.Deps{Registry: capsRegistry, Logger: logger, Clock: schedule.System()}),
 		plH.Module(plH.Deps{Registry: capsRegistry, Controller: capabilities.NewCLIController(), Logger: logger, Clock: schedule.System()}),
 		audioH.Module(logger),
@@ -151,7 +157,9 @@ func Compose(d CompositionDeps) *Server {
 		usageH.Module(usageH.Deps{Logger: logger, Clock: schedule.System(), Store: stores.Usage}),
 		corpusH.Module(corpusH.Deps{Logger: logger, Clock: schedule.System(), Service: corpus}),
 		experimentH.Module(experimentH.Deps{Logger: logger, Manager: experimentManager, Service: experiments, EstimateClipSeconds: expreport.EstimateClipSeconds(corpus)}),
+		validationH.Module(validationH.Deps{ScenarioDir: "", StreamLedgers: streamLedgers}),
 		diagH.Module(diagnostics, logger),
+		soakH.Module(soakH.Deps{Ledgers: streamLedgers, Experiments: experiments, TestIsolationActive: env.TestIsolationActive}),
 	)
 }
 

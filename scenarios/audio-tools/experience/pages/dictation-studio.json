@@ -1,0 +1,25 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "dictation-studio",
+    "title": "Dictation Studio",
+    "routes": ["/dictation-studio"],
+    "purpose": "Capture a long-form voice turn, expose streamed and committed text, retain recoverable audio, and make incomplete coverage or terminal failure explicit.",
+    "prd_refs": ["OT-P0-001", "OT-P1-002"]
+  },
+  "priorities": [
+    { "statement": "Make the current capture state and microphone readiness understandable before the operator speaks." },
+    { "statement": "Keep interim and committed transcript text visible without presenting an unacknowledged turn as complete." },
+    { "statement": "Expose captured, sent, processed, durability, and terminal-outcome diagnostics for recovery decisions." },
+    { "statement": "Preserve a clear retry or recovery path when provider, transport, or acknowledgement coverage fails." }
+  ],
+  "states": [
+    { "id": "preparing", "description": "Microphone and speech stream are being acquired; capture has not yet started." },
+    { "id": "recording", "description": "PCM capture is active and the operator may stop the turn." },
+    { "id": "transcribing", "description": "Capture has stopped and the terminal result or bounded recovery is pending." },
+    { "id": "captured", "description": "A bounded replay copy and terminal result are available to the product." },
+    { "id": "failed", "description": "The turn did not complete successfully; the reason and retained-audio state remain inspectable." }
+  ]
+}

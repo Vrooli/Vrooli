@@ -547,7 +547,7 @@
     "builderHint": "Build a persisted async experiment from the corpus, with long-form recipes, augmentation, streaming knobs, and speaker dimensions.",
     "experimentNameLabel": "Experiment name",
     "enginesLabel": "Engines",
-    "enginesPlaceholder": "whisper-local,kyutai",
+    "enginesPlaceholder": "whisper-local,kyutai,sherpa-streaming",
     "enginesHint": "Each selected engine is evaluated against every selected strategy; incompatible cells fail explicitly rather than being rerouted.",
     "enginesRequired": "Choose at least one engine for a provider-aware comparison.",
     "strategiesLabel": "Strategies",

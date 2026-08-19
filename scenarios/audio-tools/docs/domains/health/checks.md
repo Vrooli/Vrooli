@@ -149,8 +149,8 @@ truth for what audio-tools advertises:
 | ID | Kind | Features |
 |---|---|---|
 | `whisper-stt` | resource | `voice-input`, `voice-streaming` |
-| `speaker-verification` | resource | `voice-speaker-verification`, `voice-enrollment` |
-| `kokoro-tts` | resource | `voice-output` |
+| `speaker-verification` | logical capability backed by `sherpa-onnx` | `voice-speaker-verification`, `voice-enrollment` |
+| `kokoro-tts` | logical capability backed by `sherpa-onnx` | `voice-output` |
 | `ollama` | resource | `ai-command-generation` |
 | `openrouter` | resource | `ai-command-generation` |
 | `audio-tools` | scenario | All of the above plus `tts-summarization`, `tts-cache`, `tts-paragraph-split`, `audio-provider-routing` |

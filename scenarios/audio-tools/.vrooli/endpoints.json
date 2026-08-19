@@ -789,6 +789,32 @@
       "summary": "",
       "description": "",
       "category": "usage"
+    },
+    {
+      "id": "validation.soak",
+      "path": "/api/v1/validation/soak",
+      "method": "POST",
+      "summary": "Drive Dictation Studio through the real browser capture and ledger path",
+      "description": "Leased test-only endpoint. Returns one conformance.Run document and never stores audio or transcript payloads.",
+      "category": "validation",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Out-of-band qualification coordination endpoint; the request and response are owned JSON transport for the existing conformance.Run schema.",
+        "proto_payloads": {
+          "request": {
+            "transport": "json",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "none"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "none"
+          }
+        }
+      }
     }
   ]
 }

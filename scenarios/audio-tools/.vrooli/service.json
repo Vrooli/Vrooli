@@ -78,7 +78,7 @@
     "ui": {
       "env_var": "UI_PORT",
       "description": "React UI",
-      "port": 20004
+      "range": "20000-24999"
     }
   },
   "hostTools": [
@@ -144,7 +144,7 @@
       "steps": [
         {
           "name": "build-api",
-          "run": "go -C api mod download && go -C api build -o audio-tools-api .",
+          "run": "go -C api mod download \u0026\u0026 go -C api run ./cmd/build",
           "description": "Build Go API server"
         },
         {
@@ -167,7 +167,7 @@
       "steps": [
         {
           "name": "start-api",
-          "run": "go -C api run .",
+          "run": "./api/audio-tools-api",
           "description": "Start Go API through the managed Go module lifecycle",
           "background": true,
           "condition": {
@@ -184,66 +184,37 @@
           }
         }
       ]
-    },
-    "build": {},
-    "deploy": {},
-    "clean": {},
-    "test": {
-      "description": "Execute phased test suite via test-genie",
-      "steps": [
-        {
-          "name": "check-temporal-models",
-          "run": "flow-verifier verify check --root .",
-          "description": "Verify formal flow artifacts via the flow-verifier scenario CLI"
-        },
-        {
-          "name": "run-tests",
-          "run": "test-genie execute audio-tools --preset comprehensive",
-          "description": "Run all test phases via test-genie"
-        }
-      ]
-    },
-    "backup": {},
-    "restore": {},
-    "production": {},
-    "stop": {
-      "description": "Lifecycle manager stops registered background processes",
-      "steps": []
     }
   },
   "dependencies": {
     "resources": {
       "whisper": {
         "required": false,
-        "notes": "Local STT tier (faster-whisper engine)"
+        "description": "Local STT tier (faster-whisper engine)"
       },
       "kyutai-stt": {
         "required": false,
-        "notes": "Local streaming STT engine (Kyutai); selectable alongside whisper"
+        "description": "Optional Linux/CUDA streaming STT accelerator"
       },
-      "kokoro": {
+      "sherpa-onnx": {
         "required": false,
-        "notes": "Local TTS tier"
-      },
-      "speaker-verification": {
-        "required": false,
-        "notes": "Speaker enrollment + verification gate for the streaming STT path"
+        "description": "Native local TTS, streaming STT, speaker enrollment/verification, and source separation"
       },
       "ollama": {
         "required": false,
-        "notes": "Local summarize tier"
+        "description": "Local summarize tier"
       },
       "openrouter": {
         "type": "openrouter",
         "required": false,
-        "notes": "Cloud summarize tier (BYOK); model resolved via OpenRouter policy role",
         "model_roles": [
           "summarize.default"
-        ]
+        ],
+        "description": "Cloud summarize tier (BYOK); model resolved via OpenRouter policy role"
       },
       "postgres": {
         "required": false,
-        "notes": "Optional usage history backend; sqlite is default"
+        "description": "Optional usage history backend; sqlite is default"
       }
     },
     "scenarios": {
@@ -259,8 +230,7 @@
     "SQLITE_PATH": "${SCENARIO_DATA_DIR}/audio-tools.db",
     "AUDIO_WHISPER_URL": "http://localhost:8090",
     "AUDIO_KYUTAI_URL": "http://localhost:8094",
-    "AUDIO_SPEAKER_URL": "http://localhost:11452",
-    "AUDIO_KOKORO_URL": "http://localhost:8880",
+    "AUDIO_SHERPA_URL": "http://localhost:8880",
     "AUDIO_OLLAMA_URL": "http://localhost:11434",
     "AUDIO_LPBS_BASE_URL": "",
     "AUDIO_AI_ENABLE_BYOK": "true",

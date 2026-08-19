@@ -143,7 +143,7 @@ fail the request (`api/internal/byokstore/store.go:87`).
 
 Voice overrides are read by each TTS provider at synthesis time:
 
-- Local Kokoro consults `overrides["local:kokoro-local"]`
+- Local sherpa-onnx/Kokoro consults `overrides["local:kokoro-local"]`
   (`api/internal/ai/ttschain/provider_local.go:73`).
 - BYOK adapters consult `overrides["byok:openai-tts"]`,
   `overrides["byok:elevenlabs"]`, etc.

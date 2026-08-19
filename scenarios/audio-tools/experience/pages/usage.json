@@ -1,0 +1,12 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "usage",
+    "title": "Usage",
+    "routes": ["/usage"],
+    "purpose": "Show attributable audio operations, provider identity, latency, status, and credits without implying that a disabled hosted gateway is live.",
+    "prd_refs": ["OT-P1-001"]
+  }
+}

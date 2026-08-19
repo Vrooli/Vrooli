@@ -18,7 +18,8 @@
     "description": "Verify Dictation Studio exposes typed provider-busy recovery through the product UI.",
     "labels": {
       "requires_confirmation": "true",
-      "routed_isolation": "true"
+      "routed_isolation": "true",
+      "spec_entry_id": "dictation-studio"
     },
     "execution_mode": "mutating"
   },

@@ -16,8 +16,8 @@ func TestResourceSlugForProviderID(t *testing.T) {
 		ok   bool
 	}{
 		{"whisper-stt", "whisper", true},
-		{"kokoro-tts", "kokoro", true},
-		{"speaker-verification", "speaker-verification", true},
+		{"kokoro-tts", "sherpa-onnx", true},
+		{"speaker-verification", "sherpa-onnx", true},
 		{"ollama", "ollama", true},
 		{"openrouter", "", false},
 		{"audio-tools", "", false},

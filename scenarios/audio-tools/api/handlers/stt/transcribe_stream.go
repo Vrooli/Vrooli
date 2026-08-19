@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strings"
 
 	"connectrpc.com/connect"
 
@@ -82,6 +83,9 @@ func (h *connectHandler) TranscribeStream(
 	startCfg := startPayload.Start
 	if startCfg.ProtocolVersion != 2 || startCfg.SessionId == "" || startCfg.ResumeToken == "" {
 		return connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("TranscribeStream requires protocol_version=2, session_id, and resume_token"))
+	}
+	if err := validateStreamStartEngine(startCfg, h.deps.Registry); err != nil {
+		return connect.NewError(connect.CodeInvalidArgument, err)
 	}
 	registry := h.deps.Sessions
 	if registry == nil {
@@ -178,6 +182,13 @@ func (h *connectHandler) TranscribeStream(
 	events := make(chan sttchain.StreamEvent, 16)
 	seg := segmenter.New(segmenter.Deps{Chain: h.deps.Chain, Selector: h.deps.Selector, Engine: h.deps.Engine, Registry: h.deps.Registry, SpeakerIsolation: currentSpeakerIsolation(h.deps), SpeakerExtraction: currentSpeakerExtraction(h.deps)})
 	cfg := h.resolveStreamPipelineConfig(ctx)
+	// StreamStart.config is the Connect transport's per-session override. The
+	// WebSocket transport already applies its request-scoped engine_id before
+	// entering the Segmenter; ignoring this field here made the two transports
+	// run different engines for the same explicit request.
+	if engineID := streamStartEngineID(startCfg); engineID != "" {
+		cfg.EngineID = engineID
+	}
 
 	// Report transcription activity to the capacity broker for the whole session
 	// (advisory, best-effort): mark the backing local resource active now and
@@ -274,6 +285,37 @@ func (h *connectHandler) TranscribeStream(
 		if err := stream.Send(out); err != nil {
 			return err
 		}
+	}
+	// The terminal event is delivered, but delivered is not acted on: a client
+	// that reconnects with the same session must replay the SAME committed
+	// segment rather than re-transcribe into a duplicate identity. Removing the
+	// session here made the Connect transport diverge from the WebSocket
+	// transport on exactly the contract
+	// TestStreamWS_V2ReplayReemitsCommittedSegmentWithStableIdentity pins.
+	// Growth is already bounded without the transport having to guess when
+	// recovery is over: every Open and Persist re-arms the registry's recovery
+	// expiry, so an idle terminal session is reclaimed on its own.
+	return nil
+}
+
+// streamStartEngineID returns only the explicit per-session engine selection.
+// The rest of StreamConfig remains operator-owned until the proto grows field
+// presence for request-level overrides; engine identity is special because a
+// transport must never silently replace the engine the caller selected.
+func streamStartEngineID(start *sttv1.StreamStart) string {
+	if start == nil || start.GetConfig() == nil {
+		return ""
+	}
+	return strings.TrimSpace(start.GetConfig().GetEngineId())
+}
+
+func validateStreamStartEngine(start *sttv1.StreamStart, registry *sttengine.Registry) error {
+	engineID := streamStartEngineID(start)
+	if engineID == "" || registry == nil {
+		return nil
+	}
+	if _, ok := registry.Engine(engineID); !ok {
+		return fmt.Errorf("unknown engine_id %q (see ListEngines)", engineID)
 	}
 	return nil
 }

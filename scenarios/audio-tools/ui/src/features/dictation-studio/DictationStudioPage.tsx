@@ -158,7 +158,10 @@ export function DictationStudioPage() {
               ) : null}
 
               <Panel title={t(strings.dictationStudio.recordTitle)}>
-                <DictationRecorder onCaptured={onCaptured} />
+                <DictationRecorder
+                  onCaptured={onCaptured}
+                  onTranscript={(text) => setTranscript(mode === "scripted" ? scriptedPrompt : text)}
+                />
               </Panel>
 
               <Panel title={t(strings.dictationStudio.transcriptTitle)}>

@@ -11,6 +11,7 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+	"time"
 
 	"audio-tools/internal/capabilities"
 	"audio-tools/internal/database"
@@ -24,10 +25,12 @@ import (
 // dependency that aggregates capability checkers so /health surfaces
 // provider degradation without flipping readiness.
 type Deps struct {
-	Pinger   database.Pinger
-	Registry *capabilities.Registry
-	Service  string
-	Version  string
+	Pinger         database.Pinger
+	Registry       *capabilities.Registry
+	Service        string
+	Version        string
+	BuildTime      string
+	SourceIdentity string
 }
 
 // NewHandler returns a handler that reports overall health, service
@@ -37,8 +40,18 @@ type Deps struct {
 // HTTP 503; providers being down only degrade the response, never the
 // readiness flag — the API can still route to other tiers.
 func NewHandler(d Deps) http.HandlerFunc {
+	buildTime := strings.TrimSpace(d.BuildTime)
+	if buildTime == "" {
+		buildTime = "unknown"
+	}
+	sourceIdentity := strings.TrimSpace(d.SourceIdentity)
+	if sourceIdentity == "" {
+		sourceIdentity = "unknown"
+	}
 	b := apihealth.New(d.Service).
 		Version(d.Version).
+		Metric("build_time", func(time.Time) any { return buildTime }).
+		Metric("source_identity", func(time.Time) any { return sourceIdentity }).
 		Check(apihealth.Func("database", func(ctx context.Context) error {
 			return d.Pinger.PingContext(ctx)
 		}), apihealth.Critical)

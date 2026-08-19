@@ -8,6 +8,7 @@ import (
 	"audio-tools/cli/domains/health"
 	"audio-tools/cli/domains/provider"
 	"audio-tools/cli/domains/settings"
+	"audio-tools/cli/domains/soak"
 	"audio-tools/cli/domains/stt"
 	"audio-tools/cli/domains/summarize"
 	"audio-tools/cli/domains/tts"
@@ -47,6 +48,7 @@ func SubcommandGroupsWithClock(core *cliapp.ScenarioApp, manifest []byte, now fu
 
 func subcommandGroups(core *cliapp.ScenarioApp, manifest []byte, now func() time.Time, newTicker func(time.Duration) *time.Ticker, getenv func(string) string, getwd func() (string, error)) ([]cliapp.SubcommandGroup, error) {
 	validationGroup := validation.Register(core, now, newTicker, getenv, getwd)
+	soakGroup := soak.Register(core, now, getenv)
 	sttGroup, err := stt.Register(core, manifest)
 	if err != nil {
 		return nil, err
@@ -93,6 +95,7 @@ func subcommandGroups(core *cliapp.ScenarioApp, manifest []byte, now func() time
 	}
 	return []cliapp.SubcommandGroup{
 		validationGroup,
+		soakGroup,
 		sttGroup,
 		ttsGroup,
 		summarizeGroup,

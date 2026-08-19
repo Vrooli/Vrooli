@@ -62,6 +62,7 @@ function render() {
     <MemoryRouter>
       <OverviewPage />
     </MemoryRouter>,
+    { withoutRouter: true },
   );
 }
 

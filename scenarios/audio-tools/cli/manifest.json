@@ -63,6 +63,40 @@
       ]
     },
     {
+      "name": "soak",
+      "description": "Real browser-to-composer long-form dictation qualification",
+      "commands": [
+        {
+          "name": "run",
+          "description": "Drive Dictation Studio through BAS and emit one conformance.Run document",
+          "flags": [
+            {"name": "driver-url", "description": "Playwright driver URL (defaults to PLAYWRIGHT_DRIVER_URL)"},
+            {"name": "ui-url", "description": "Audio-tools UI URL (defaults to AUDIO_TOOLS_UI_URL or UI_BASE_URL)"},
+            {"name": "surface", "description": "Product surface: audio-tools or swarm-manager (defaults to audio-tools)"},
+            {"name": "fixture", "description": "Absolute WAV fixture path used by BAS fake_media"},
+            {"name": "lane", "description": "accelerated or realtime"},
+            {"name": "profile", "description": "realistic or continuous"},
+            {"name": "turns", "description": "Number of product turns"},
+            {"name": "feed-ms", "description": "Wall-clock fixture feed time per turn"},
+            {"name": "fault", "description": "Optional leased fault profile"},
+            {"name": "reference-text", "description": "Reference transcript for realtime quality assertions"},
+            {"name": "engine-id", "description": "Exact provider engine id"},
+            {"name": "model-id", "description": "Exact provider model id"},
+            {"name": "strategy", "description": "Streaming strategy"},
+            {"name": "policy", "description": "Dictation policy profile"},
+            {"name": "shape", "description": "Accelerated virtual corpus shape: burst or chunked; realtime shape: realistic or continuous"},
+            {"name": "evidence-path", "description": "Evidence JSON path (defaults to coverage/<run-id>.json)"}
+          ],
+          "binding": {"kind": "local"},
+          "governance": {
+            "effect": "read",
+            "run_eligible": false,
+            "permissions": ["network:internal", "filesystem:read"]
+          }
+        }
+      ]
+    },
+    {
       "name": "stt",
       "description": "Speech-to-text operations",
       "commands": [
@@ -246,7 +280,7 @@
             },
             {
               "name": "vad-filter",
-              "description": "true|false \u2014 enable faster-whisper's built-in silence filter on /asr (default true)"
+              "description": "true|false \u2014 enable the Whisper-compatible silence-filter control on batch /asr calls (default true)"
             },
             {
               "name": "no-speech-threshold",

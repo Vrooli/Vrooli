@@ -293,7 +293,7 @@ func Evaluate(e Evidence, thresholds Thresholds) Verdict {
 		v.Reasons = append(v.Reasons, "browser product-path evidence is missing")
 	}
 	if !e.HasDeviceEvidence {
-		v.Reasons = append(v.Reasons, "manual device evidence is missing")
+		v.Reasons = append(v.Reasons, "automated operating-system device evidence is missing")
 	}
 	v.Stable = len(v.Reasons) == 0
 	return v

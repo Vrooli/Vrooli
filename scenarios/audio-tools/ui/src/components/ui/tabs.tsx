@@ -77,7 +77,7 @@ export function Tabs({ items, value, defaultValue, onValueChange, className, ari
               onClick={() => select(item.value)}
               onKeyDown={onKeyDown}
               className={cn(
-                "rounded-control px-3 py-1.5 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50",
+                "min-h-12 rounded-control px-3 py-1.5 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50",
                 isActive
                   ? "bg-app-surface text-app-foreground shadow-sm"
                   : "text-app-muted-foreground hover:text-app-foreground",

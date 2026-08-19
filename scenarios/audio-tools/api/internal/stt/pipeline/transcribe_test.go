@@ -10,6 +10,8 @@ func TestIsWhisperHallucination(t *testing.T) {
 		"thanks for watching":  true,
 		"Thanks for watching.": true,
 		"THANKS!":              true,
+		"(beep)":               true,
+		"[BLANK_AUDIO]":        true,
 		"good morning":         false,
 		"genuine text here":    false,
 	}

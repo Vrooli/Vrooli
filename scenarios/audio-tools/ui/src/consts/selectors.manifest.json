@@ -124,6 +124,10 @@
       "testId": "dictation-final-transcript",
       "selector": "[data-testid=\"dictation-final-transcript\"]"
     },
+    "dictationStudio.interimTranscript": {
+      "testId": "dictation-interim-transcript",
+      "selector": "[data-testid=\"dictation-interim-transcript\"]"
+    },
     "dictationStudio.transcriptEditor": {
       "testId": "dictation-transcript-editor",
       "selector": "[data-testid=\"dictation-transcript-editor\"]"

@@ -16,6 +16,7 @@ function renderSidebar(initialPath = "/") {
     <MemoryRouter initialEntries={[initialPath]} future={routerFuture}>
       <Sidebar />
     </MemoryRouter>,
+    { withoutRouter: true },
   );
 }
 

@@ -14,7 +14,7 @@
 //   - cooldown-guarded — repeated failures within a short window return the
 //     cached result instead of thrashing the lifecycle;
 //   - allowlisted — only resources audio-tools declares as STT backends
-//     (whisper, kyutai-stt) are ever started; never an arbitrary name.
+//     (whisper, kyutai-stt, sherpa-onnx) are ever started; never an arbitrary name.
 //
 // It is best-effort and bounded: a missing vrooli binary or a start timeout
 // surfaces as an error the caller maps to a typed, user-actionable message — it
@@ -38,8 +38,9 @@ var ErrResourceNotAllowed = errors.New("resource is not a declared STT backend")
 // ever start. Mirrors sttcapacity.allowedResources plus whisper (which IS a
 // startable backend here even though its capacity activity is reported edge-side).
 var allowedResources = map[string]struct{}{
-	"whisper":    {},
-	"kyutai-stt": {},
+	"whisper":     {},
+	"kyutai-stt":  {},
+	"sherpa-onnx": {},
 }
 
 // DefaultEnsureTimeout bounds a single `vrooli resource start` so a hung

@@ -4,22 +4,26 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
 )
 
 // The fault seam is deliberately double-gated. The target must have a live
-// server-owned DB-and-file isolation lease, and the individual WebSocket
+// server-owned DB-and-file isolation lease (or an explicit standalone soak
+// fault-harness gate), and the individual WebSocket
 // upgrade must carry an explicit test-mode signal. Browser qualification uses
 // query parameters because browser JavaScript cannot attach custom headers to
 // a WebSocket handshake. Ordinary deployments cannot trigger a qualification
-// fault because they never install the development-only isolation lease.
+// fault because they do not install the development-only lease or environment
+// gate.
 const (
 	streamTestModeHeader  = "X-Vrooli-Test-Mode"
 	streamTestFaultHeader = "X-Audio-Tools-STT-Fault"
 	streamTestModeQuery   = "test_mode"
 	streamTestFaultQuery  = "test_fault"
+	streamFaultHarnessEnv = "VROOLI_AUDIO_SOAK_FAULTS"
 )
 
 type streamTestFault struct {
@@ -145,7 +149,25 @@ func streamTestFaultFromRequest(r *http.Request, isolationActive bool) (streamTe
 }
 
 func streamTestFaultsAuthorized(d Deps) bool {
-	return d.TestIsolationActive != nil && d.TestIsolationActive()
+	if d.TestIsolationActive != nil && d.TestIsolationActive() {
+		return true
+	}
+	return strings.EqualFold(strings.TrimSpace(os.Getenv(streamFaultHarnessEnv)), "1")
+}
+
+// streamVirtualReplayAuthorized keeps the accelerated replay lane out of
+// ordinary deployments even though the standalone soak endpoint is allowed to
+// observe a product path without a test-genie database lease. The explicit
+// server environment gate is required in addition to the browser query pair;
+// when a test-genie isolation lease is present it remains the stronger gate.
+func streamVirtualReplayAuthorized(d Deps, r *http.Request) bool {
+	if r.URL.Query().Get("test_mode") != "1" || r.URL.Query().Get("capture_source") != "virtual" {
+		return false
+	}
+	if streamTestFaultsAuthorized(d) {
+		return true
+	}
+	return strings.EqualFold(strings.TrimSpace(os.Getenv("VROOLI_AUDIO_SOAK_REPLAY")), "1")
 }
 
 // waitStreamTestFaultDelay is cancellable so a qualification delay never turns

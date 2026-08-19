@@ -39,8 +39,8 @@ Use this document to answer:
 
 | Capability | Rung 1 — local | Rung 2 — BYOK | Rung 3 — Vrooli |
 |---|---|---|---|
-| STT | `whisper` resource | `openai-whisper`, `deepgram` | LPBS-gated |
-| TTS | `kokoro` resource | `openai-tts`, `elevenlabs` | LPBS-gated |
+| STT | `whisper` batch and optional `sherpa-onnx` streaming resource | `openai-whisper`, `deepgram` | LPBS-gated |
+| TTS | `sherpa-onnx` native adapter with the Kokoro voice catalogue | `openai-tts`, `elevenlabs` | LPBS-gated |
 | Summarize | `ollama` resource | `openrouter` | LPBS-gated |
 
 Credentials travel per-request in `X-Audio-BYOK-{Provider,Key}`; the Vrooli tier

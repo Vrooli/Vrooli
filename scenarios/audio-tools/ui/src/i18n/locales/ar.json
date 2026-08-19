@@ -547,7 +547,7 @@
     "builderHint": "ابنِ تجربة غير متزامنة دائمة من المجموعة، مع وصفات طويلة وتعزيز وأدوات ضبط البث وأبعاد المتحدث.",
     "experimentNameLabel": "اسم التجربة",
     "enginesLabel": "المحركات",
-    "enginesPlaceholder": "whisper-local,kyutai",
+    "enginesPlaceholder": "whisper-local,kyutai,sherpa-streaming",
     "enginesHint": "يُقيَّم كل محرك محدد مقابل كل استراتيجية محددة؛ وتفشل الخلايا غير المتوافقة صراحةً بدلاً من إعادة توجيهها.",
     "enginesRequired": "اختر محركًا واحدًا على الأقل لإجراء مقارنة تراعي المزود.",
     "strategiesLabel": "الاستراتيجيات",

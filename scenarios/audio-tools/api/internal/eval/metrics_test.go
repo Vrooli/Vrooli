@@ -129,6 +129,17 @@ func TestWERResult_RateGuards(t *testing.T) {
 	require.InDelta(t, 1.0, WERResult{RefWords: 0, HypWords: 3, EditCounts: EditCounts{Insertions: 3}}.Rate(), 1e-9)
 }
 
+func TestMeasurePresentationRecordsPunctuationAndCapitalisation(t *testing.T) {
+	got := MeasurePresentation("Hello world! this is Vrooli.")
+	require.Equal(t, 5, got.WordCount)
+	require.InDelta(t, 0.4, got.PunctuationRate, 1e-9)
+	require.InDelta(t, 0.4, got.CapitalisationRate, 1e-9)
+}
+
+func TestMeasurePresentationDoesNotInventRatesForEmptyText(t *testing.T) {
+	require.Equal(t, PresentationMetrics{}, MeasurePresentation("  \n"))
+}
+
 func TestSafetyGates_CleanPasses(t *testing.T) {
 	opts := DefaultNormalizeOptions()
 	ref := Tokenize("alpha bravo charlie", opts)

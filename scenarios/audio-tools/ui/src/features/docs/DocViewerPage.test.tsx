@@ -26,6 +26,7 @@ function renderAt(path: string) {
         <Route path="/docs/*" element={<DocViewerPage />} />
       </Routes>
     </MemoryRouter>,
+    { withoutRouter: true },
   );
 }
 

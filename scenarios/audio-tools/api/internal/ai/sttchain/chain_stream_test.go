@@ -2,6 +2,7 @@ package sttchain
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"go.uber.org/goleak"
@@ -48,6 +49,22 @@ func TestStream_BufferedFallback_NoStreamingCapableProvider(t *testing.T) {
 	}
 	if !sawDone {
 		t.Fatal("expected done event")
+	}
+}
+
+func TestStream_RequireStreamingFailsClosedWithoutProvider(t *testing.T) {
+	defer goleak.VerifyNone(t)
+
+	chain := NewChain(Options{EnableLocal: false, EnableBYOK: false, EnableVrooli: false})
+	chunks := make(chan AudioChunk)
+	close(chunks)
+
+	events, err := chain.Stream(context.Background(), StreamStart{RequireStreaming: true}, chunks)
+	if events != nil {
+		t.Fatal("strict streaming must not return a buffered event channel")
+	}
+	if !errors.Is(err, ErrStreamingUnavailable) {
+		t.Fatalf("want ErrStreamingUnavailable, got %v", err)
 	}
 }
 

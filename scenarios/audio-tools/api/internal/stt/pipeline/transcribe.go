@@ -300,6 +300,8 @@ var whisperHallucinations = map[string]struct{}{
 	"":                       {},
 	"...":                    {},
 	"bye":                    {},
+	"beep":                   {},
+	"blank_audio":            {},
 	"goodbye":                {},
 	"like and subscribe":     {},
 	"please subscribe":       {},
@@ -312,10 +314,13 @@ var whisperHallucinations = map[string]struct{}{
 	"thanks":                 {},
 	"thanks for watching":    {},
 	"you":                    {},
+	"[blank_audio]":          {},
+	"(blank_audio)":          {},
 }
 
 func IsWhisperHallucination(text string) bool {
 	normalized := strings.ToLower(strings.TrimSpace(text))
+	normalized = strings.Trim(normalized, "[]()")
 	normalized = strings.TrimRight(normalized, ".,;:!?")
 	_, found := whisperHallucinations[normalized]
 	return found

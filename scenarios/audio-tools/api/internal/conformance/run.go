@@ -24,7 +24,9 @@
 package conformance
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
 	"sort"
 	"strings"
 )
@@ -107,14 +109,26 @@ type Assertion struct {
 
 // Run is one soak execution, start to finish, observed by one process.
 type Run struct {
-	SchemaVersion int         `json:"schemaVersion"`
-	RunID         string      `json:"runId"`
-	Lane          Lane        `json:"lane"`
-	Profile       string      `json:"profile"`
-	Cell          Cell        `json:"cell"`
-	Code          Code        `json:"code"`
-	DurationMs    int64       `json:"durationMs"`
-	Assertions    []Assertion `json:"assertions"`
+	SchemaVersion int    `json:"schemaVersion"`
+	RunID         string `json:"runId"`
+	Lane          Lane   `json:"lane"`
+	Profile       string `json:"profile"`
+	// Shape identifies the browser session shape exercised by the run. It is
+	// recorded in the evidence rather than inferred from an output filename.
+	Shape string `json:"shape,omitempty"`
+	// SimulatedMinutes is the accelerated virtual-corpus target. It is zero for
+	// realtime runs, where wall-clock duration is the meaningful measure.
+	SimulatedMinutes int `json:"simulatedMinutes,omitempty"`
+	Turns            int `json:"turns,omitempty"`
+	// Fault identifies a deterministic fault-matrix run. Fault runs have a
+	// deliberately smaller assertion contract: an explicit terminal failure is
+	// the expected outcome for some profiles, while recovery is expected for
+	// others. They must not be judged as ordinary healthy-turn soaks.
+	Fault      string      `json:"fault,omitempty"`
+	Cell       Cell        `json:"cell"`
+	Code       Code        `json:"code"`
+	DurationMs int64       `json:"durationMs"`
+	Assertions []Assertion `json:"assertions"`
 }
 
 // SchemaVersion is the current Run schema.
@@ -125,11 +139,13 @@ const SchemaVersion = 1
 // not a weaker lane — it is an incomplete instrument.
 var InvariantAssertions = []string{
 	"interval_accounting_exactly_once",
+	"capture_signal_observed",
 	"browser_retention_bounded",
 	"server_retention_bounded",
 	"per_frame_cost_constant",
 	"zero_duplicate_committed_segments",
 	"zero_silent_terminal_outcomes",
+	"provider_cell_identity",
 	"peak_memory_flat",
 	"wire_rate_within_budget",
 }
@@ -140,16 +156,51 @@ var InvariantAssertions = []string{
 var RealtimeAssertions = []string{
 	"first_partial_latency_stable",
 	"committed_text_lag_stable",
+	"continuous_interim_text_visible",
+}
+
+// QualityAssertions are required on both lanes. Recognition quality is not a
+// wall-clock claim, so an accelerated run must measure it from an independent
+// reference just as a realtime run does.
+var QualityAssertions = []string{
 	"word_error_rate_stable",
+	"punctuation_rate_recorded",
+	"capitalisation_rate_recorded",
+}
+
+// AcceleratedAssertions are the virtual-clock-specific proof obligations.
+var AcceleratedAssertions = []string{"accelerated_duration_target", "accelerated_wall_budget"}
+
+// FaultAssertions are the obligations shared by every deterministic fault
+// profile. They prove the injected fault was observed, committed segments
+// remained idempotent, and the turn either recovered or ended explicitly.
+var FaultAssertions = []string{
+	"fault_profile_observed",
+	"fault_interval_accounting",
+	"fault_no_duplicate_committed_segments",
+	"fault_recovered_or_terminal",
 }
 
 // RequiredAssertions returns the names a run on this lane must carry.
 func RequiredAssertions(lane Lane) []string {
 	required := append([]string(nil), InvariantAssertions...)
+	required = append(required, QualityAssertions...)
 	if lane == LaneRealtime {
 		required = append(required, RealtimeAssertions...)
+	} else if lane == LaneAccelerated {
+		required = append(required, AcceleratedAssertions...)
 	}
 	return required
+}
+
+// RequiredAssertionsForRun returns the contract for the run shape. A fault
+// profile is not a healthy-turn qualification and must not receive accidental
+// quality or duration credit.
+func RequiredAssertionsForRun(r Run) []string {
+	if strings.TrimSpace(r.Fault) != "" {
+		return append([]string(nil), FaultAssertions...)
+	}
+	return RequiredAssertions(r.Lane)
 }
 
 // Verdict is the decision derived from a run. Qualified is true only when
@@ -190,7 +241,7 @@ func (r Run) Evaluate() Verdict {
 		seen[a.Name] = a
 	}
 
-	for _, name := range RequiredAssertions(r.Lane) {
+	for _, name := range RequiredAssertionsForRun(r) {
 		a, ok := seen[name]
 		if !ok {
 			reasons = append(reasons, fmt.Sprintf("required assertion %q is absent; an unreported claim is not a passing one", name))
@@ -245,4 +296,16 @@ func Measured(name string, held bool, detail string) Assertion {
 // becomes permanent.
 func NotMeasured(name, why string) Assertion {
 	return Assertion{Name: name, Outcome: OutcomeNotMeasured, Detail: why}
+}
+
+// WriteJSON writes exactly one self-contained run document. The writer does
+// not merge with an existing artifact: a run identity must own the complete
+// observation set, including failed assertions.
+func (r Run) WriteJSON(w io.Writer) error {
+	if w == nil {
+		return fmt.Errorf("conformance: nil output writer")
+	}
+	encoder := json.NewEncoder(w)
+	encoder.SetIndent("", "  ")
+	return encoder.Encode(r)
 }

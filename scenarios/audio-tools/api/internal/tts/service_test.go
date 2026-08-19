@@ -138,3 +138,35 @@ func TestServiceListVoicesRequiresAvailableKokoro(t *testing.T) {
 		t.Fatalf("expected ErrUnavailable, got %v", err)
 	}
 }
+
+// The local TTS tier used to answer "available" from a hardcoded constant, so
+// `audio-tools settings providers` reported Kokoro up with its port closed and
+// no process running. Readiness is now one predicate that Synthesize and the
+// provider chain both consult, so an availability answer cannot disagree with
+// what the next request would actually do.
+func TestLocalBackendReadyFollowsTheCapabilityProbe(t *testing.T) {
+	deps := testDeps()
+	capability := "available"
+	deps.KokoroCapability = func(context.Context) (string, string) { return capability, "Kokoro (Local)" }
+	svc := NewService(deps)
+
+	if !svc.LocalBackendReady(context.Background()) {
+		t.Fatal("expected ready while the capability probe reports available")
+	}
+
+	capability = "unavailable"
+	if svc.LocalBackendReady(context.Background()) {
+		t.Fatal("expected not ready once the capability probe reports unavailable")
+	}
+	if _, err := svc.Synthesize(context.Background(), SynthesizeInput{Input: "hello"}); !errors.Is(err, ErrUnavailable) {
+		t.Fatalf("expected ErrUnavailable from Synthesize, got %v", err)
+	}
+}
+
+func TestLocalBackendNotReadyWithoutSynthesisWiring(t *testing.T) {
+	deps := testDeps()
+	deps.SynthesizeAudio = nil
+	if NewService(deps).LocalBackendReady(context.Background()) {
+		t.Fatal("expected not ready when synthesis is not wired")
+	}
+}

@@ -28,16 +28,15 @@ const kyutaiDrainTimeout = 5 * time.Second
 // replay instead of relying on socket-buffer growth as an implicit queue.
 const kyutaiMaxInFlightBatches = 8
 
-// KyutaiProvider is the Local-tier adapter for the Kyutai streaming STT
-// engine (resources/kyutai-stt). Unlike the Whisper LocalProvider (batch),
-// Kyutai is NATIVELY streaming: it declares Traits{Stream:true,
+// KyutaiProvider is the reusable Local-tier adapter for native streaming STT
+// engines such as resources/kyutai-stt and sherpa-onnx. Unlike the Whisper
+// LocalProvider (batch), native streaming engines declare Traits{Stream:true,
 // Strategies:[passthrough]} so the selector pairs it with the Passthrough
 // strategy and the Segmenter skips its own VAD chunking. Both engines are
 // Local-tier; the chain distinguishes them via StreamStart.EngineID.
 //
-// The adapter speaks the resource's STABLE WebSocket contract (documented in
-// resources/kyutai-stt/docs/API.md), NOT the upstream moshi-server protocol —
-// the resource owns that translation (wrap-not-use). Contract:
+// The adapter speaks the stable Vrooli WebSocket contract (documented by each
+// resource), not an upstream vendor protocol. Contract:
 //   - client TEXT  {"type":"start","sample_rate":16000,"language":"en"}
 //   - client BINARY frames: canonical PCM s16le, 16 kHz, mono
 //   - client TEXT  {"type":"end"}
@@ -61,19 +60,80 @@ type KyutaiProvider struct {
 	// ModelID is the engine model identifier reported by Model(); resolved at
 	// construction from the manifest/env. Empty falls back to "kyutai".
 	ModelID string
-	Doer    httpc.Doer
-	Clock   schedule.Clock
+	// ProviderID lets this stable WS adapter serve another native streaming
+	// resource without duplicating its bounded backpressure implementation.
+	ProviderID string
+	HealthPath string
+	Doer       httpc.Doer
+	Clock      schedule.Clock
 }
+
+// sentChunkQueue maps the resource's absolute processed-batches cursor back to
+// the captured chunk that owns that coverage. Once the resource acknowledges a
+// prefix, the audio bytes in that prefix are no longer needed by the adapter and
+// must be released. Keeping the entire session history here turns a long-form
+// stream into an unbounded heap, even though the wire protocol has a bounded
+// in-flight window.
+type sentChunkQueue struct {
+	chunks []AudioChunk
+	base   int64
+}
+
+func (q *sentChunkQueue) append(chunk AudioChunk) {
+	q.chunks = append(q.chunks, chunk)
+}
+
+func (q *sentChunkQueue) acknowledge(processed int64) (AudioChunk, bool) {
+	if processed <= q.base || processed > q.base+int64(len(q.chunks)) {
+		return AudioChunk{}, false
+	}
+	index := int(processed - q.base - 1)
+	chunk := q.chunks[index]
+	for i := 0; i <= index; i++ {
+		q.chunks[i] = AudioChunk{}
+	}
+	q.chunks = q.chunks[index+1:]
+	q.base = processed
+	if len(q.chunks) == 0 {
+		q.chunks = nil
+	}
+	return chunk, true
+}
+
+func (q *sentChunkQueue) retained() int { return len(q.chunks) }
 
 // NewKyutaiProvider constructs the Kyutai adapter for the given resource base
 // URL. baseURL is the http(s) base; the WS stream URL is derived from it.
 func NewKyutaiProvider(baseURL string) *KyutaiProvider {
 	return &KyutaiProvider{
-		BaseURL: baseURL,
-		ModelID: kyutaiModelID(),
-		Doer:    httpc.DefaultDoer(),
-		Clock:   schedule.System(),
+		BaseURL:    baseURL,
+		ModelID:    kyutaiModelID(),
+		ProviderID: "kyutai",
+		HealthPath: "/health",
+		Doer:       httpc.DefaultDoer(),
+		Clock:      schedule.System(),
 	}
+}
+
+// NewSherpaProvider constructs the shared stable streaming adapter for the
+// native sherpa-onnx resource. Only resource identity, health path, and model
+// provenance vary; the wire contract remains the same Vrooli stream contract.
+func NewSherpaProvider(baseURL string) *KyutaiProvider {
+	model := strings.TrimSpace(os.Getenv("AUDIO_SHERPA_MODEL_ID"))
+	if model == "" {
+		model = "sherpa-onnx/streaming-zipformer-en-2023-06-26"
+	}
+	return &KyutaiProvider{
+		BaseURL: baseURL, ModelID: model, ProviderID: "sherpa-streaming",
+		HealthPath: "/healthz", Doer: httpc.DefaultDoer(), Clock: schedule.System(),
+	}
+}
+
+func (p *KyutaiProvider) providerID() string {
+	if p == nil || p.ProviderID == "" {
+		return "kyutai"
+	}
+	return p.ProviderID
 }
 
 // kyutaiModelID is explicit runtime provenance, not the engine id. Operators
@@ -108,7 +168,11 @@ func (p *KyutaiProvider) IsAvailable(ctx context.Context) bool {
 	if p == nil || p.BaseURL == "" || p.Doer == nil {
 		return false
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, p.endpoint("/health"), nil)
+	healthPath := p.HealthPath
+	if healthPath == "" {
+		healthPath = "/health"
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, p.endpoint(healthPath), nil)
 	if err != nil {
 		return false
 	}
@@ -121,20 +185,21 @@ func (p *KyutaiProvider) IsAvailable(ctx context.Context) bool {
 		return false
 	}
 	var body struct {
-		Status      string `json:"status"`
-		ModelLoaded bool   `json:"model_loaded"`
+		Status               string `json:"status"`
+		ModelLoaded          bool   `json:"model_loaded"`
+		StreamingModelLoaded bool   `json:"streaming_model_loaded"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
 		return false
 	}
-	return body.ModelLoaded
+	return body.ModelLoaded || body.StreamingModelLoaded
 }
 
 // Transcribe is unsupported: Kyutai is a streaming-only engine. The unary
 // chain never reaches it (the Local unary slot is always Whisper); this guards
 // against a future caller wiring Kyutai into a batch path by mistake.
 func (p *KyutaiProvider) Transcribe(_ context.Context, _ Request) (*Result, error) {
-	return nil, fmt.Errorf("audio-tools/sttchain: kyutai is a streaming-only engine; use TranscribeStreaming")
+	return nil, fmt.Errorf("audio-tools/sttchain: %s is a streaming-only engine; use TranscribeStreaming", p.providerID())
 }
 
 // Traits declares Kyutai as native-streaming, Passthrough-only. The manifest
@@ -158,7 +223,7 @@ func (p *KyutaiProvider) Traits() ProviderTraits {
 // lock.
 func (p *KyutaiProvider) TranscribeStreaming(ctx context.Context, start StreamStart, chunks <-chan AudioChunk) (<-chan StreamEvent, error) {
 	if p == nil || p.BaseURL == "" {
-		return nil, fmt.Errorf("audio-tools/sttchain: kyutai provider not configured")
+		return nil, fmt.Errorf("audio-tools/sttchain: %s provider not configured", p.providerID())
 	}
 	streamURL := p.StreamEndpoint
 	if streamURL == "" {
@@ -166,11 +231,12 @@ func (p *KyutaiProvider) TranscribeStreaming(ctx context.Context, start StreamSt
 	}
 	events := make(chan StreamEvent, 16)
 	model := p.Model()
+	providerID := p.providerID()
 	go func() {
 		first, ok := awaitFirstAudioChunk(ctx, chunks)
 		if !ok {
 			events <- StreamEvent{Kind: StreamEventDone, Done: &DoneEvent{
-				LockedTier: TierLocal, ProviderID: "kyutai", ModelID: model,
+				LockedTier: TierLocal, ProviderID: providerID, ModelID: model,
 			}}
 			close(events)
 			return
@@ -186,7 +252,7 @@ func (p *KyutaiProvider) TranscribeStreaming(ctx context.Context, start StreamSt
 		if err != nil {
 			events <- StreamEvent{Kind: StreamEventError, Error: fmt.Errorf("kyutai: ws dial: %w", err)}
 			events <- StreamEvent{Kind: StreamEventDone, Done: &DoneEvent{
-				LockedTier: TierLocal, ProviderID: "kyutai", ModelID: model,
+				LockedTier: TierLocal, ProviderID: providerID, ModelID: model,
 			}}
 			close(events)
 			return
@@ -206,7 +272,7 @@ func (p *KyutaiProvider) TranscribeStreaming(ctx context.Context, start StreamSt
 			_ = conn.Close()
 			events <- StreamEvent{Kind: StreamEventError, Error: fmt.Errorf("kyutai: write start: %w", err)}
 			events <- StreamEvent{Kind: StreamEventDone, Done: &DoneEvent{
-				LockedTier: TierLocal, ProviderID: "kyutai", ModelID: model,
+				LockedTier: TierLocal, ProviderID: providerID, ModelID: model,
 			}}
 			close(events)
 			return
@@ -240,11 +306,11 @@ func (p *KyutaiProvider) TranscribeStreaming(ctx context.Context, start StreamSt
 		// chunk identities so the reader can acknowledge coverage only after
 		// that backend confirmation, never merely when a local write is queued.
 		var sentMu sync.Mutex
-		sentChunks := make([]AudioChunk, 0, kyutaiMaxInFlightBatches)
+		var sentChunks sentChunkQueue
 		acknowledgedBatches := int64(0)
 		recordAudio := func(chunk AudioChunk) {
 			sentMu.Lock()
-			sentChunks = append(sentChunks, chunk)
+			sentChunks.append(chunk)
 			sentMu.Unlock()
 		}
 		credits := make(chan struct{}, kyutaiMaxInFlightBatches)
@@ -344,7 +410,7 @@ func (p *KyutaiProvider) TranscribeStreaming(ctx context.Context, start StreamSt
 		defer close(events)
 		defer close(streamDone)
 		defer conn.Close()
-		var finalText string
+		var finalText strings.Builder
 		segmentOrdinal := 0
 		var processedBatches int64
 		grantProcessedBatches := func(processed int64) {
@@ -359,11 +425,15 @@ func (p *KyutaiProvider) TranscribeStreaming(ctx context.Context, start StreamSt
 		}
 		emitProcessedAcknowledgement := func(processed int64) {
 			sentMu.Lock()
-			if processed <= acknowledgedBatches || processed <= 0 || processed > int64(len(sentChunks)) {
+			if processed <= acknowledgedBatches || processed <= 0 {
 				sentMu.Unlock()
 				return
 			}
-			chunk := sentChunks[processed-1]
+			chunk, ok := sentChunks.acknowledge(processed)
+			if !ok {
+				sentMu.Unlock()
+				return
+			}
 			acknowledgedBatches = processed
 			sentMu.Unlock()
 			events <- StreamEvent{Kind: StreamEventAcknowledgement, Acknowledgement: &AcknowledgementEvent{
@@ -376,8 +446,8 @@ func (p *KyutaiProvider) TranscribeStreaming(ctx context.Context, start StreamSt
 			if err != nil {
 				events <- StreamEvent{Kind: StreamEventError, Error: fmt.Errorf("kyutai: unexpected websocket close before done: %w", err)}
 				events <- StreamEvent{Kind: StreamEventDone, Done: &DoneEvent{
-					FinalText: strings.TrimSpace(finalText), LockedTier: TierLocal,
-					ProviderID: "kyutai", ModelID: model,
+					FinalText: strings.TrimSpace(finalText.String()), LockedTier: TierLocal,
+					ProviderID: providerID, ModelID: model,
 				}}
 				return
 			}
@@ -423,11 +493,14 @@ func (p *KyutaiProvider) TranscribeStreaming(ctx context.Context, start StreamSt
 				if msg.Text == "" {
 					continue
 				}
-				finalText += " " + msg.Text
+				if finalText.Len() > 0 {
+					_ = finalText.WriteByte(' ')
+				}
+				_, _ = finalText.WriteString(msg.Text)
 				segmentOrdinal++
 				events <- StreamEvent{Kind: StreamEventSegment, Segment: &SegmentEvent{
 					Text:             msg.Text,
-					SegmentID:        fmt.Sprintf("%s:%d:kyutai:%d", start.SessionID, start.Generation, segmentOrdinal),
+					SegmentID:        fmt.Sprintf("%s:%d:%s:%d", start.SessionID, start.Generation, providerID, segmentOrdinal),
 					Generation:       start.Generation,
 					StartMs:          msg.StartMs,
 					EndMs:            msg.EndMs,
@@ -436,7 +509,7 @@ func (p *KyutaiProvider) TranscribeStreaming(ctx context.Context, start StreamSt
 					AlignmentQuality: "approximate",
 					DetectedLanguage: start.Language,
 					ProviderTier:     TierLocal,
-					ProviderID:       "kyutai",
+					ProviderID:       providerID,
 					ModelID:          model,
 				}}
 			case "error":
@@ -453,8 +526,8 @@ func (p *KyutaiProvider) TranscribeStreaming(ctx context.Context, start StreamSt
 				events <- StreamEvent{Kind: StreamEventError, Error: fmt.Errorf("kyutai: %s: %s", msg.Code, msg.Message)}
 			case "done":
 				events <- StreamEvent{Kind: StreamEventDone, Done: &DoneEvent{
-					FinalText: strings.TrimSpace(finalText), LockedTier: TierLocal,
-					ProviderID: "kyutai", ModelID: model,
+					FinalText: strings.TrimSpace(finalText.String()), LockedTier: TierLocal,
+					ProviderID: providerID, ModelID: model,
 				}}
 				return
 			}

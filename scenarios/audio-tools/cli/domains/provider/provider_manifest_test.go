@@ -3,8 +3,8 @@ package provider
 import (
 	"testing"
 
+	testutil "audio-tools/cli/internal/testutil"
 	"github.com/vrooli/cli-core/cliapp"
-	testutil "github.com/vrooli/cli-core/cliapptest"
 
 	plv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/provider_lifecycle"
 )

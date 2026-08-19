@@ -3,11 +3,12 @@
 # This Makefile ensures scenarios are always run through the Vrooli lifecycle system.
 # NEVER run scenarios directly (./api/audio-tools-api). ALWAYS use these commands.
 
-.PHONY: help start run stop restart test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui check setup open orient temporal-models endpoints
+.PHONY: help start run stop restart test soak-accelerated logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui check setup open orient temporal-models endpoints
 
 .DEFAULT_GOAL := help
 
 SCENARIO_NAME := $(notdir $(CURDIR))
+SOAK_REFERENCE_TEXT ?= the quick brown fox jumps.
 
 help: ## Show the supported scenario entrypoints
 	@printf "Vrooli scenario entrypoints for %s\n\n" "$(SCENARIO_NAME)"
@@ -18,6 +19,7 @@ help: ## Show the supported scenario entrypoints
 	@printf "  make status                     Show scenario runtime status\n"
 	@printf "  make logs                       Show scenario logs\n"
 	@printf "  make test                       Run scenario tests\n"
+	@printf "  make soak-accelerated           Run the gated 60-minute accelerated browser soak\n"
 	@printf "  make temporal-models            Check formal temporal-model artifacts\n"
 	@printf "  make open                       Open the scenario in a browser\n"
 	@printf "  make orient                     Show generated-scenario orientation progress\n"
@@ -44,6 +46,23 @@ logs: ## Show scenario logs
 
 test: ## Run scenario tests
 	@vrooli scenario test "$(SCENARIO_NAME)"
+
+# This is an explicit local/integration gate because it needs the running
+# audio-tools API, BAS Playwright driver, and Dictation Studio UI. Test Genie
+# does not execute arbitrary Make targets; its registered phase descriptors
+# remain the owner of scenario-suite phases.
+soak-accelerated: ## Run the gated 60-minute accelerated browser soak
+	@test -n "$(SOAK_DRIVER_URL)" || { echo "SOAK_DRIVER_URL is required (for example http://127.0.0.1:24485)" >&2; exit 2; }
+	@test -n "$(SOAK_UI_URL)" || { echo "SOAK_UI_URL is required (for example http://127.0.0.1:20004)" >&2; exit 2; }
+	@test -n "$(SOAK_API_BASE)" || { echo "SOAK_API_BASE is required (for example http://127.0.0.1:19630)" >&2; exit 2; }
+	@audio-tools --api-base "$(SOAK_API_BASE)" soak run \
+		--driver-url "$(SOAK_DRIVER_URL)" --ui-url "$(SOAK_UI_URL)" \
+		--fixture "$(CURDIR)/bas/fixtures/dictation-reference.wav" \
+		--lane accelerated --profile continuous --turns 3 --feed-ms 2000 \
+		--reference-text "$(SOAK_REFERENCE_TEXT)" \
+		--engine-id virtual-replay --model-id virtual-corpus \
+		--strategy passthrough --policy default --shape burst \
+		--simulated-minutes 60 --evidence-path "$(SOAK_EVIDENCE_PATH)" --json
 
 clean: ## Clean build artifacts
 	@rm -rf ui/dist 2>/dev/null || true

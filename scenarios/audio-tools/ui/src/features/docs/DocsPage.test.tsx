@@ -18,6 +18,7 @@ describe("DocsPage", () => {
       <MemoryRouter future={routerFuture}>
         <DocsPage />
       </MemoryRouter>,
+      { withoutRouter: true },
     );
     expect(screen.getByText(strings.docs.title)).toBeInTheDocument();
     expect(screen.getByText(strings.docs.groupPRD)).toBeInTheDocument();
@@ -31,6 +32,7 @@ describe("DocsPage", () => {
       <MemoryRouter future={routerFuture}>
         <DocsPage />
       </MemoryRouter>,
+      { withoutRouter: true },
     );
     const prd = screen.getByRole("link", { name: /PRD/ });
     expect(prd).toHaveAttribute("href", "/docs/PRD.md");

@@ -177,9 +177,10 @@ type Provider interface {
 	//   - Emit StreamEvent values on the returned channel.
 	//   - Close the returned channel after emitting the final event.
 	// Returning a nil channel + non-nil error means stream-start was
-	// rejected (provider not eligible); the chain falls through to the
-	// next tier or to buffered mode. Returning a nil channel + nil error
-	// is reserved for adapters whose Traits().Stream is false.
+	// rejected (provider not eligible). Callers that set RequireStreaming
+	// receive that failure instead of an implicit whole-turn fallback.
+	// Returning a nil channel + nil error is reserved for adapters whose
+	// Traits().Stream is false.
 	TranscribeStreaming(ctx context.Context, start StreamStart, chunks <-chan AudioChunk) (<-chan StreamEvent, error)
 }
 
@@ -212,10 +213,10 @@ type StreamStart struct {
 	// resolved StreamConfig before handing the start to a batch strategy.
 	VADFilter bool
 	// EngineID is the active STT engine selection (sttengine manifest id,
-	// e.g. "whisper-local" or "kyutai"). The Segmenter stamps it from the
+	// e.g. "whisper-local", "kyutai", or "sherpa-streaming"). The Segmenter stamps it from
 	// resolved StreamConfig before enumerating candidates so the chain can
-	// resolve which Local-tier provider serves the session — both Whisper
-	// and Kyutai are Local-tier engines, distinguished only by this id.
+	// resolve which Local-tier provider serves the session — local engines are
+	// distinguished only by this id.
 	// Empty resolves to the chain's default local provider (Whisper).
 	EngineID string
 	// Per-request creds (same shape as Request) so streaming sessions
@@ -224,6 +225,12 @@ type StreamStart struct {
 	BYOKKey      string
 	LPBSToken    string
 	UserIdentity string
+	// RequireStreaming makes stream negotiation fail closed. It is set by
+	// production streaming entry points so a missing or failed native
+	// streaming provider cannot silently accumulate an arbitrarily long
+	// turn for unary transcription. The intentional streaming_mode=off
+	// path leaves this false and selects BufferedFallback explicitly.
+	RequireStreaming bool
 }
 
 // AudioChunk is one chunk of audio bytes in the stream input channel.
@@ -499,3 +506,7 @@ var ErrUnknownBYOKProvider = errors.New("audio-tools: unknown BYOK provider")
 // ErrMissingBYOKProvider is returned when the BYOK key header is set but the
 // BYOK provider header is absent — silent provider selection is forbidden.
 var ErrMissingBYOKProvider = errors.New("audio-tools: BYOK key set without BYOK provider")
+
+// ErrStreamingUnavailable is returned when a caller explicitly requires a
+// native streaming provider but none can accept the session.
+var ErrStreamingUnavailable = errors.New("audio-tools: native streaming unavailable")

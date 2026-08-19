@@ -42,10 +42,14 @@ func main() {
 			protocols.SetHTTP1(true)
 			protocols.SetUnencryptedHTTP2(true)
 			httpServer = &http.Server{
-				Addr:         addr,
-				Handler:      handler,
-				ReadTimeout:  30 * time.Second,
-				WriteTimeout: 180 * time.Second,
+				Addr:        addr,
+				Handler:     handler,
+				ReadTimeout: 30 * time.Second,
+				// The out-of-band browser qualification endpoint owns a
+				// wall-clock 15/60-minute run and returns one conformance
+				// document only after the browser session closes. A three-minute
+				// write deadline truncates a valid turn into an EOF.
+				WriteTimeout: 2 * time.Hour,
 				IdleTimeout:  120 * time.Second,
 				Protocols:    protocols,
 			}

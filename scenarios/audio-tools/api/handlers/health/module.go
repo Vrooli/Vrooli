@@ -20,8 +20,12 @@ import (
 // `reg` may be nil — the providers dependency is only registered when
 // a capabilities.Registry is supplied. This keeps the test path
 // (and other minimal embeds) free of the registry dep.
-func Module(pinger database.Pinger, reg *capabilities.Registry, service, version string) modulekit.Module {
-	h := NewHandler(Deps{Pinger: pinger, Registry: reg, Service: service, Version: version})
+func Module(pinger database.Pinger, reg *capabilities.Registry, service, version string, identity ...BuildIdentity) modulekit.Module {
+	var build BuildIdentity
+	if len(identity) > 0 {
+		build = identity[0]
+	}
+	h := NewHandler(Deps{Pinger: pinger, Registry: reg, Service: service, Version: version, BuildTime: build.BuildTime, SourceIdentity: build.SourceIdentity})
 	return modulekit.Module{
 		Name: "health",
 		Mount: func(r *mux.Router) {
@@ -30,6 +34,12 @@ func Module(pinger database.Pinger, reg *capabilities.Registry, service, version
 		},
 		Endpoints: Endpoints,
 	}
+}
+
+// BuildIdentity is the runtime provenance exposed through /health.
+type BuildIdentity struct {
+	BuildTime      string
+	SourceIdentity string
 }
 
 // Schema returns "" — health is stateless, no tables to own. The

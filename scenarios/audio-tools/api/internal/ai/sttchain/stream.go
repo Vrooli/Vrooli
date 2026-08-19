@@ -3,6 +3,7 @@ package sttchain
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"audio-tools/internal/ai/chains/tiered"
 )
@@ -65,7 +66,10 @@ func (c *Chain) resolveLocalEngine(engineID string) Provider {
 // Tier negotiation mirrors Execute()'s precedence, filtered by
 // Traits().Stream=true. When no streaming-capable tier accepts, falls
 // back to buffered mode (drain chunks, run Execute on concatenated
-// audio, emit synthetic Segment+Done).
+// audio, emit synthetic Segment+Done) unless RequireStreaming is set.
+// RequireStreaming is the production fail-closed boundary: native provider
+// failure must be visible immediately rather than becoming an unbounded
+// whole-turn buffer.
 //
 // The returned channel is closed after the final Done. Caller must drain.
 func (c *Chain) Stream(ctx context.Context, start StreamStart, chunks <-chan AudioChunk) (<-chan StreamEvent, error) {
@@ -74,24 +78,45 @@ func (c *Chain) Stream(ctx context.Context, start StreamStart, chunks <-chan Aud
 	if c.byok != nil && c.Eligible(ctx, tiered.SlotBYOK, req) && c.byok.Traits().Stream {
 		out, err := c.byok.TranscribeStreaming(ctx, start, chunks)
 		if err != nil {
+			if start.RequireStreaming {
+				return nil, fmt.Errorf("%w: byok: %v", ErrStreamingUnavailable, err)
+			}
 			if errors.Is(err, ErrUnknownBYOKProvider) || errors.Is(err, ErrMissingBYOKProvider) {
 				return nil, err
 			}
 		} else if out != nil {
 			return out, nil
+		} else if start.RequireStreaming {
+			return nil, fmt.Errorf("%w: byok returned no event channel", ErrStreamingUnavailable)
 		}
 	}
 	if c.vrooli != nil && c.Eligible(ctx, tiered.SlotVrooli, req) && c.vrooli.Traits().Stream {
 		out, err := c.vrooli.TranscribeStreaming(ctx, start, chunks)
+		if err != nil && start.RequireStreaming {
+			return nil, fmt.Errorf("%w: vrooli: %v", ErrStreamingUnavailable, err)
+		}
 		if err == nil && out != nil {
 			return out, nil
+		}
+		if start.RequireStreaming && err == nil {
+			return nil, fmt.Errorf("%w: vrooli returned no event channel", ErrStreamingUnavailable)
 		}
 	}
 	if local := c.resolveLocalEngine(start.EngineID); local != nil && c.enableLocal && local.IsAvailable(ctx) && local.Traits().Stream {
 		out, err := local.TranscribeStreaming(ctx, start, chunks)
+		if err != nil && start.RequireStreaming {
+			return nil, fmt.Errorf("%w: local: %v", ErrStreamingUnavailable, err)
+		}
 		if err == nil && out != nil {
 			return out, nil
 		}
+		if start.RequireStreaming && err == nil {
+			return nil, fmt.Errorf("%w: local returned no event channel", ErrStreamingUnavailable)
+		}
+	}
+
+	if start.RequireStreaming {
+		return nil, ErrStreamingUnavailable
 	}
 
 	return c.bufferedFallback(ctx, start, chunks), nil

@@ -6,7 +6,6 @@
 export const WHISPER_FAILED_SENTINEL = "__WHISPER_FAILED__";
 
 /** Number of consecutive capability check failures before downgrading from Whisper. */
-export const CAP_CHECK_FAIL_THRESHOLD = 2;
 
 /** 48kbps balances Whisper accuracy with minimal bandwidth (~6KB/s on localhost). */
 export const AUDIO_BITRATE = 48_000;
@@ -19,7 +18,7 @@ export function computeFinalTimeout(recordingDurationMs: number): number {
   return Math.min(60_000, Math.max(10_000, recordingDurationMs * 2));
 }
 
-export type VoiceBackend = "whisper" | "web-speech" | "none";
+export type VoiceBackend = "whisper" | "none";
 
 /** Explicit state machine replacing the old isRecording/isTranscribing boolean combo.
  *  "listening" is the persistent voice mode equivalent of "recording" — the mic
@@ -73,8 +72,8 @@ export interface LastTurnAudio {
  * `retryable` is emitted when the provider retained the turn's audio and the
  * server offers a bypass endpoint — the UI can offer a "Transcribe anyway"
  * button. `explanatory` is emitted when the provider cannot retain audio (e.g.
- * `WebSpeechProvider`, which does not hold the raw bytes); the UI shows the
- * reason but hides the retry action.
+ * which does not hold the raw bytes); the UI shows the reason but hides the
+ * retry action.
  *
  * Discriminated union enforces at compile time that every consumer handles
  * both kinds.

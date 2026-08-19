@@ -144,10 +144,24 @@ type SpeakerExtractionResult struct {
 	AudioSeconds float64
 }
 
-// SpeakerClient is the HTTP client for the speaker-verification resource.
+// SpeakerClient is the HTTP client for the native sherpa-onnx speaker runtime.
 type SpeakerClient struct {
 	BaseURL string
 	Doer    httpc.Doer
+}
+
+// SpeakerModelMismatchError is returned when durable enrollment data belongs
+// to a different embedding model. Callers must surface re-enrollment rather
+// than treating the failure as a low verification score.
+type SpeakerModelMismatchError struct {
+	Message string
+}
+
+func (e *SpeakerModelMismatchError) Error() string {
+	if e == nil || e.Message == "" {
+		return "speaker profile requires re-enrollment"
+	}
+	return e.Message
 }
 
 func (c *SpeakerClient) endpoint(path string) string {
@@ -187,6 +201,13 @@ func (c *SpeakerClient) doJSON(req *http.Request, out any) error {
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
+		var failure struct {
+			Error string `json:"error"`
+			Code  string `json:"code"`
+		}
+		if json.Unmarshal(body, &failure) == nil && failure.Code == "speaker_model_mismatch" {
+			return &SpeakerModelMismatchError{Message: failure.Error}
+		}
 		return fmt.Errorf("unexpected status %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
 	}
 	if out == nil {
@@ -360,6 +381,13 @@ func (c *SpeakerClient) Extract(
 
 	if resp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
+		var failure struct {
+			Error string `json:"error"`
+			Code  string `json:"code"`
+		}
+		if json.Unmarshal(respBody, &failure) == nil && failure.Code == "speaker_model_mismatch" {
+			return SpeakerExtractionResult{}, &SpeakerModelMismatchError{Message: failure.Error}
+		}
 		return SpeakerExtractionResult{}, fmt.Errorf("extract: unexpected status %d: %s", resp.StatusCode, strings.TrimSpace(string(respBody)))
 	}
 

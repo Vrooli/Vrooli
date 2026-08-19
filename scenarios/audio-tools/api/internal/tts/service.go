@@ -155,12 +155,24 @@ func (s *Service) RecordPlaybackEvent(_ context.Context, ev PlaybackEvent) error
 	return nil
 }
 
+// LocalBackendReady reports whether the local synthesis backend is wired and
+// its capability probe currently says it can serve. It is the single readiness
+// predicate: Synthesize gates on it, and the provider chain answers
+// IsAvailable with it, so an availability answer can never disagree with what
+// a subsequent request would do.
+func (s *Service) LocalBackendReady(ctx context.Context) bool {
+	if s == nil || s.deps.SynthesizeAudio == nil || s.deps.KokoroCapability == nil {
+		return false
+	}
+	capability, _ := s.deps.KokoroCapability(ctx)
+	return capability == "available"
+}
+
 func (s *Service) Synthesize(ctx context.Context, in SynthesizeInput) (SynthesizeResult, error) {
 	if s.deps.SynthesizeAudio == nil {
 		return SynthesizeResult{}, fmt.Errorf("%w: TTS synthesis is not configured", ErrFailedPrecondition)
 	}
-	kokoroCapability, _ := s.deps.KokoroCapability(ctx)
-	if kokoroCapability != "available" {
+	if !s.LocalBackendReady(ctx) {
 		return SynthesizeResult{}, fmt.Errorf("%w: Kokoro TTS is not available", ErrUnavailable)
 	}
 

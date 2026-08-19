@@ -7,7 +7,7 @@ export const BUFFERED_MODE_NOTICE = "Streaming degraded — buffered mode is act
 export function useStreamDegradation() {
   const [notice, setNotice] = useState<string | null>(null);
   const observeStatus = useCallback((code: string, message?: string) => {
-    if (code === "backend_degraded") {
+    if (code === "backend_degraded" || code === "reconnect_exhausted" || code === "buffered_recovery") {
       setNotice(message?.trim() || BUFFERED_MODE_NOTICE);
     }
   }, []);

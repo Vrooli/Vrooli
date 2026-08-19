@@ -547,7 +547,7 @@
     "builderHint": "長文レシピ・拡張・ストリーミング調整・話者次元を備えた、永続的な非同期実験をコーパスから構築します。",
     "experimentNameLabel": "実験名",
     "enginesLabel": "エンジン",
-    "enginesPlaceholder": "whisper-local,kyutai",
+    "enginesPlaceholder": "whisper-local,kyutai,sherpa-streaming",
     "enginesHint": "選択した各エンジンを選択した各戦略で評価します。非互換のセルは別の経路へ切り替えず、明示的に失敗します。",
     "enginesRequired": "プロバイダーを意識した比較には、少なくとも 1 つのエンジンを選択してください。",
     "strategiesLabel": "戦略",

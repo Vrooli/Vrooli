@@ -63,6 +63,7 @@ type Snapshot struct {
 	SessionID         string
 	ReceivedSequence  int64
 	ProcessedSequence int64
+	RetainedBytes     int
 	TerminalReason    TerminalReason
 	Replay            []Chunk
 	Committed         []Segment
@@ -269,7 +270,7 @@ func Restore(state PersistedState) (*Ledger, error) {
 }
 
 func (l *Ledger) snapshotLocked() Snapshot {
-	s := Snapshot{SessionID: l.cfg.SessionID, ReceivedSequence: l.receivedSequence, ProcessedSequence: l.processedSequence, TerminalReason: l.terminal}
+	s := Snapshot{SessionID: l.cfg.SessionID, ReceivedSequence: l.receivedSequence, ProcessedSequence: l.processedSequence, RetainedBytes: l.retainedBytes, TerminalReason: l.terminal}
 	for sequence := l.processedSequence + 1; sequence <= l.receivedSequence; sequence++ {
 		if chunk, ok := l.received[protoint.ToUint64(sequence)]; ok {
 			chunk.Audio = append([]byte(nil), chunk.Audio...)

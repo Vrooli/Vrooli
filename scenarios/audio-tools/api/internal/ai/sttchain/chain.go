@@ -22,8 +22,8 @@ type Chain struct {
 	vrooli *VrooliProvider
 
 	// localEngines maps an sttengine manifest engine id to the Local-tier
-	// provider that serves it on the STREAMING path. Whisper and Kyutai are
-	// both Local-tier engines; StreamCandidates resolves the right one from
+	// provider that serves it on the STREAMING path. Whisper, Kyutai, and
+	// sherpa-onnx are Local-tier engines; StreamCandidates resolves the right one from
 	// StreamStart.EngineID. The UNARY path (Execute) always uses `local`
 	// (Whisper) — only Whisper is batch-capable. Empty/unknown ids fall back
 	// to `local`. The map is supplied by bootstrap (which owns both the
@@ -43,6 +43,9 @@ type Options struct {
 	// {"whisper-local": Local, "kyutai": kyutaiProvider}). Optional; when nil
 	// the streaming path uses Local for every engine id. The map values for
 	// batch-only engines may point at the same *LocalProvider as Local.
+	// Test-only engines may also be supplied here. They are never selectable
+	// from the production manifest; the transport must independently gate the
+	// request before putting their engine id into StreamStart.
 	LocalEngines map[string]Provider
 
 	EnableLocal  bool

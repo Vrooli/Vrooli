@@ -7,7 +7,7 @@
 | Resource | Required | Used by | Degraded behavior |
 |---|---|---|---|
 | `whisper` | false | Local STT (`internal/voice.Service.Transcribe`) | Local STT tier reports unavailable; chain falls to BYOK/Vrooli or errors. |
-| `kokoro` | false | Local TTS (`internal/tts.Service.Synthesize`) | Local TTS tier reports unavailable; chain falls to BYOK or errors. |
+| `sherpa-onnx` | false | Native Kokoro-compatible TTS, streaming STT, speaker profiles, and source separation | The affected native capability reports unavailable; each chain follows its explicit fallback policy or errors. |
 | `ollama` | false | Local summarize (`internal/tts.Summarizer`) | Local summarize tier reports unavailable; chain falls to BYOK or errors. |
 | `postgres` | false | Optional usage backend (SQLite is default) | Usage rows store in SQLite. |
 

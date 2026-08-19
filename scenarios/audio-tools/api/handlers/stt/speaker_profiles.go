@@ -69,7 +69,7 @@ func (h *connectHandler) EnrollSpeakerProfile(ctx context.Context, req *connect.
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("audio required"))
 	}
 	if h.deps.SpeakerResource == nil {
-		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("speaker-verification resource not configured"))
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("native speaker runtime not configured"))
 	}
 	id := m.GetProfileId()
 	if id == "" {
@@ -82,14 +82,18 @@ func (h *connectHandler) EnrollSpeakerProfile(ctx context.Context, req *connect.
 	// browser's lossy WebM/Opus while verification embeddings come from clean
 	// decoded PCM — an apples-to-oranges pairing that degrades matching.
 	enrollAudio, enrollFilename := h.normalizeEnrollAudio(ctx, m.GetAudio(), m.GetFormat())
-	// Enroll against the speaker-verification resource: it computes and OWNS
+	// Enroll against the native speaker runtime: it computes and OWNS
 	// the real ECAPA embedding (keyed by profile id) used by streaming verify.
 	// audio-tools persists the profile metadata + binding locally — the
 	// embedding never round-trips back, so the resource stays the single
 	// authority for identity comparison.
 	enroll, err := h.deps.SpeakerResource.Enroll(ctx, enrollAudio, id, m.GetDisplayName(), m.GetNotes(), m.GetLabel(), enrollFilename)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeUnavailable, fmt.Errorf("speaker-verification enroll: %w", err))
+		var mismatch *sttpipeline.SpeakerModelMismatchError
+		if errors.As(err, &mismatch) {
+			return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("speaker_reenrollment_required: %w", mismatch))
+		}
+		return nil, connect.NewError(connect.CodeUnavailable, fmt.Errorf("native speaker enrollment: %w", err))
 	}
 	if enroll.ProfileID != "" {
 		id = enroll.ProfileID
@@ -251,7 +255,7 @@ func speakerClipToProto(c sttpipeline.SpeakerProfileClip) *sttv1.SpeakerProfileC
 
 func (h *connectHandler) ListSpeakerProfileClips(ctx context.Context, req *connect.Request[sttv1.ListSpeakerProfileClipsRequest]) (*connect.Response[sttv1.ListSpeakerProfileClipsResponse], error) {
 	if h.deps.SpeakerResource == nil {
-		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("speaker-verification resource not configured"))
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("native speaker runtime not configured"))
 	}
 	id := req.Msg.GetProfileId()
 	list, err := h.deps.SpeakerResource.ListClips(ctx, id)
@@ -271,7 +275,7 @@ func (h *connectHandler) ListSpeakerProfileClips(ctx context.Context, req *conne
 
 func (h *connectHandler) DeleteSpeakerProfileClip(ctx context.Context, req *connect.Request[sttv1.DeleteSpeakerProfileClipRequest]) (*connect.Response[sttv1.DeleteSpeakerProfileClipResponse], error) {
 	if h.deps.SpeakerResource == nil {
-		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("speaker-verification resource not configured"))
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("native speaker runtime not configured"))
 	}
 	id := req.Msg.GetProfileId()
 	clipID := req.Msg.GetClipId()

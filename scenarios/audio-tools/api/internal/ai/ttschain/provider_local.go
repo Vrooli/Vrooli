@@ -29,14 +29,17 @@ func NewLocalProviderWith(svc *tts.Service, clk schedule.Clock) *LocalProvider {
 
 func (p *LocalProvider) Type() ProviderTier { return TierLocal }
 
+// IsAvailable reports whether the local TTS backend can actually serve a
+// request. It consults the same readiness signal Synthesize gates on, so the
+// availability a caller is shown and the availability it will get are the same
+// fact. Returning an unconditional true here made every operator surface --
+// `settings providers`, the TTS status capability label -- report the local
+// tier as up while Kokoro was not running at all.
 func (p *LocalProvider) IsAvailable(ctx context.Context) bool {
 	if p == nil || p.svc == nil {
 		return false
 	}
-	// tts.Service exposes Kokoro readiness via Deps.KokoroCapability inside
-	// Synthesize; ttschain treats absence of an explicit error as ready.
-	// A future enhancement may add a dedicated probe.
-	return true
+	return p.svc.LocalBackendReady(ctx)
 }
 
 func (p *LocalProvider) Synthesize(ctx context.Context, req Request) (*Result, error) {

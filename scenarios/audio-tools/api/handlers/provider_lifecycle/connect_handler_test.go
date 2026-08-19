@@ -229,7 +229,7 @@ func TestStop_Restart_InvokeController(t *testing.T) {
 
 	_, err = h.RestartProvider(context.Background(), connect.NewRequest(&plv1.RestartProviderRequest{ProviderId: "kokoro-tts"}))
 	require.NoError(t, err)
-	require.Equal(t, []string{"kokoro"}, ctrl.RestartCalls)
+	require.Equal(t, []string{"sherpa-onnx"}, ctrl.RestartCalls)
 }
 
 func contains(haystack, needle string) bool { return strings.Contains(haystack, needle) }

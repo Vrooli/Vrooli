@@ -19,7 +19,22 @@ describe("dispatchStreamMessage", () => {
   it("[REQ:ATD-P0-004] forwards processed acknowledgements as durable bigint cursors", () => {
     const target = handlers();
     dispatchStreamMessage(JSON.stringify({ type: "status", code: "processed_acknowledgement", processedSequence: 4 }), target, new Set());
-    expect(target.onStatus).toHaveBeenCalledWith("processed_acknowledgement", "Streaming transcription status updated.", 4n);
+    expect(target.onStatus).toHaveBeenCalledWith("processed_acknowledgement", "", 4n);
+  });
+
+  it("forwards provider-cell identity only when the server supplies it", () => {
+    const target = handlers();
+    dispatchStreamMessage(
+      JSON.stringify({ type: "status", code: "ready", providerId: "kyutai", modelId: "kyutai/stt-1b-en_fr" }),
+      target,
+      new Set(),
+    );
+    expect(target.onStatus).toHaveBeenCalledWith(
+      "ready",
+      "",
+      undefined,
+      { providerId: "kyutai", modelId: "kyutai/stt-1b-en_fr" },
+    );
   });
 
   it("[REQ:ATD-P0-001] de-duplicates a durable segment identity across replay", () => {
@@ -43,6 +58,6 @@ describe("dispatchStreamMessage", () => {
   it("does not turn an invalid acknowledgement cursor into a handler exception", () => {
     const target = handlers();
     expect(() => dispatchStreamMessage(JSON.stringify({ type: "status", code: "processed_acknowledgement", processedSequence: 0.5 }), target, new Set())).not.toThrow();
-    expect(target.onStatus).toHaveBeenCalledWith("processed_acknowledgement", "Streaming transcription status updated.", undefined);
+    expect(target.onStatus).toHaveBeenCalledWith("processed_acknowledgement", "", undefined);
   });
 });

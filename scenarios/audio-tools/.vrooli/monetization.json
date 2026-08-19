@@ -1,0 +1,21 @@
+{
+  "$schema": "../../../.vrooli/schemas/monetization.schema.json",
+  "version": 2,
+  "bundle_key": "business_suite",
+  "app_key": "audio-tools",
+  "requires_entitlement": true,
+  "features": [],
+  "meters": [
+    {
+      "limit_key": "ai_credits",
+      "class": "A",
+      "byok": true,
+      "enforcement_paths": [
+        "api/internal/ai/sttchain/provider_vrooli.go",
+        "api/internal/ai/ttschain/provider_vrooli.go",
+        "api/internal/ai/summarizechain/provider_vrooli.go",
+        "api/integrations/lpbs/remote_reporter.go"
+      ]
+    }
+  ]
+}

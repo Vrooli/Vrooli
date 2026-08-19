@@ -2,7 +2,7 @@
 
 This document is the canonical architecture reference for text-to-speech
 inside audio-tools. It explains how a `Synthesize` request is routed
-through the three provider tiers (BYOK → Vrooli/LPBS → Local Kokoro)
+through the three provider tiers (BYOK → Vrooli/LPBS → Local sherpa-onnx/Kokoro)
 and how the chain keeps a single wire shape across unary and streaming
 calls.
 
@@ -12,7 +12,7 @@ Read this first when:
   vendors),
 - enabling native streaming on a tier that currently buffered-falls-back,
 - debugging "why did my BYOK key get used when I expected Vrooli?" or
-  "why did the chain fall through to Kokoro?",
+  "why did the chain fall through to local sherpa-onnx?",
 - changing voice-override resolution or the canonical voice catalog.
 
 For the streaming STT counterpart, see
@@ -53,7 +53,7 @@ The `Synthesize` and `SynthesizeStream` Connect-RPC methods
 | `Text` | request body | Required. Caller should pre-normalize via `NormalizeForSpeech` for best quality. |
 | `Voice` | request body | Canonical id (`voice.feminine.warm`, etc.). Adapter-specific names are resolved per tier. |
 | `VoiceOverrides` | request body | Map keyed `tier:provider-id`; lets an operator pin a canonical voice to a vendor voice id. See [`../settings/byok-and-voice-overrides.md`](../settings/byok-and-voice-overrides.md). |
-| `Speed` | request body | Multiplier; Kokoro clamps to `[0.5, 4.0]`. |
+| `Speed` | request body | Multiplier; the native sherpa-onnx/Kokoro adapter clamps to `[0.5, 4.0]`. |
 | `ResponseFormat` | request body | `mp3` \| `wav` \| `opus` \| `flac`. |
 | `BYOKProvider`, `BYOKKey` | `X-BYOK-Provider` / decrypted from BYOK store via `envelope.FromConnectRequest` | Absence skips the BYOK tier. |
 | `LPBSToken`, `UserIdentity` | Authorization / `X-User-Identity` via envelope | Absence skips the Vrooli tier. |
@@ -111,7 +111,7 @@ ttschain.Chain.Execute / Stream      ← tier ordering + availability gates
             tts.Service.Synthesize            (api/internal/tts/service.go:156)
                 │
                 ▼
-            Kokoro HTTP endpoint              (api/internal/tts/kokoro_synthesize.go)
+            sherpa-onnx HTTP endpoint          (api/internal/tts/kokoro_synthesize.go)
 ```
 
 Execution order (`api/internal/ai/ttschain/chain.go:59`):
@@ -136,7 +136,7 @@ buffered single-frame wrapper when nothing accepts. Today:
 |---|---|---|
 | BYOK | Aggregated across registered adapters | `api/internal/ai/ttschain/provider_byok.go:55` |
 | Vrooli | `false` (LPBS audio-gateway streaming is out of scope, PRD OT-P2-002) | `api/internal/ai/ttschain/provider_vrooli.go:60` |
-| Local (Kokoro) | `false` (incremental synthesis lands in Phase D) | `api/internal/ai/ttschain/provider_local.go:64` |
+| Local (sherpa-onnx/Kokoro) | `false` (incremental synthesis lands in Phase D) | `api/internal/ai/ttschain/provider_local.go:64` |
 
 So every streaming call lands in the buffered fallback today unless a
 BYOK adapter (e.g., a future ElevenLabs streaming adapter) flips its
@@ -147,7 +147,7 @@ capability bit to true.
 Canonical voice ids (`voice.feminine.warm`, etc.) are resolved per
 tier:
 
-- Local Kokoro uses `resolveLocalVoice`
+- Local sherpa-onnx/Kokoro uses `resolveLocalVoice`
   (`api/internal/ai/ttschain/provider_local.go:72`), consulting the
   voice-overrides map (`local:kokoro-local` key) then a hard-coded
   fallback table.
@@ -174,7 +174,7 @@ registry; the TTS-relevant entries are:
 | TTS provider | `ttschain.Provider` (`api/internal/ai/ttschain/interface.go:52`) | `LocalProvider`, `BYOKProvider`, `VrooliProvider` | Stubs returning canned `Result` / `AudioFrame` per chain test (`api/internal/ai/ttschain/chain_test.go`) |
 | BYOK adapter | `ttschain.BYOKAdapter` (`api/internal/ai/ttschain/provider_byok.go:8`) | `NewOpenAITTS()`, `NewElevenLabsTTS()` (`api/internal/byok/registry.go:32`) | Per-test fakes |
 | Vrooli client | `ttschain.VrooliClient` (`api/internal/ai/ttschain/provider_vrooli.go:8`) | LPBS HTTP client | Per-test fake |
-| Kokoro backend | `tts.Deps.SynthesizeAudio` (`api/internal/tts/service.go:48`) | `internal/tts/kokoro_synthesize.go` | Function literal in service tests |
+| sherpa-onnx/Kokoro backend | `tts.Deps.SynthesizeAudio` (`api/internal/tts/service.go:48`) | `internal/tts/kokoro_synthesize.go` | Function literal in service tests |
 | Cache | `tts.Deps.GetCache` / `PutCache` (`api/internal/tts/service.go:49`) | `internal/tts.Cache` | In-process map in tests |
 
 The chain's runtime reconfigure surface
@@ -191,7 +191,7 @@ domain via `chains.Coordinator` when an operator toggles tiers; see
 | BYOK adapter HTTP error (timeout, 5xx) | Vendor outage / network issue | Records `lastErr`, falls through to Vrooli then Local | `CodeInternal` if no tier succeeds |
 | LPBS reports insufficient credits | Vrooli tier returns `ErrInsufficientCredits` | Short-circuits — does NOT fall through to Local | `CodeResourceExhausted` |
 | LPBS transport error | Vrooli unreachable | Records `lastErr`, falls through to Local | `CodeInternal` if Local also fails |
-| Kokoro returns unsupported format | Local tier rejects | `tts.Service` returns `ErrInvalidArgument` | `CodeInternal` (wrapped) |
+| sherpa-onnx/Kokoro returns unsupported format | Local tier rejects | `tts.Service` returns `ErrInvalidArgument` | `CodeInternal` (wrapped) |
 | All tiers disabled / unavailable | No eligible provider | Returns `ErrAllProvidersFailed` | `CodeUnavailable` |
 | Streaming negotiation: nothing streams | All `StreamingCapability()=false` | Buffered fallback emits one final frame | Success — wire-shape preserved |
 | Chain not wired (`Deps.Chain == nil`) | Bootstrap regression | Handler returns early | `CodeUnavailable` ("tts chain not configured") |
@@ -209,10 +209,10 @@ sessions hold one goroutine per active session per provider for the
 duration of synthesis; for the buffered fallback that's the duration
 of `Execute()` plus the one-frame send.
 
-The local Kokoro backend is the dominant bottleneck on a single host:
-synthesis runs CPU-bound (or single-GPU) and serializes inside the
-Kokoro container regardless of how many chain calls hit it in
-parallel. BYOK and Vrooli scale with the upstream service; the chain
+The local sherpa-onnx/Kokoro backend is the dominant bottleneck on a single
+host: synthesis runs CPU-bound (or accelerator-backed) and is serialized by
+the native resource's model runtime regardless of how many chain calls hit it
+in parallel. BYOK and Vrooli scale with the upstream service; the chain
 adds only the constant overhead of envelope parse and tier-loop
 evaluation.
 

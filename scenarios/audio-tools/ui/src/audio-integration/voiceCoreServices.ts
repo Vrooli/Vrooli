@@ -8,7 +8,6 @@ import { getVoiceStreamConfig, getWakeWordConfig, transcribeAudio, transcribeAud
 import { createAudioFilterChain } from "./hooks/voice/audioUtils";
 import { playRecordingStartCue, playRecordingStopCue } from "./hooks/voice/audioCues";
 import { WhisperProvider } from "./hooks/voice/WhisperProvider";
-import { WebSpeechProvider } from "./hooks/voice/WebSpeechProvider";
 import { PcmVoiceStreamProvider } from "./hooks/voice/PcmVoiceStreamProvider";
 
 // The package owns orchestration and lifecycle policy. This object is the
@@ -36,7 +35,6 @@ export const voiceCoreServices: VoiceCoreServices = {
   playRecordingStartCue,
   playRecordingStopCue,
   WhisperProvider,
-  WebSpeechProvider,
   bytesToFeatures,
   createWakeWordEngine,
   PassiveListener,

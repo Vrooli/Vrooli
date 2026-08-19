@@ -54,7 +54,7 @@ belong in [`DATA.md`](DATA.md).
 
 - Purpose: synthesize audio from text via the same three-tier chain; cache results by content hash; emit playback events for analytics.
 - Primary archetype: synthesis / chain-routed.
-- Owns: voice catalog snapshot + verification gate, TTS config doc, audio cache, normalizer (text → speech-ready text), kokoro local synth client, summarize-adjacent voice surface.
+- Owns: voice catalog snapshot + verification gate, TTS config doc, audio cache, normalizer (text → speech-ready text), the sherpa-onnx local synth client, and the summarize-adjacent voice surface.
 - Does not own: text summarization (summarize), provider credentials (settings).
 - API: `api/handlers/tts/`.
 - CLI: `cli/domains/tts/`.

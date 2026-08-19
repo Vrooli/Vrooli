@@ -49,6 +49,7 @@ function render() {
     <MemoryRouter future={routerFuture}>
       <ServiceStatusPill />
     </MemoryRouter>,
+    { withoutRouter: true },
   );
 }
 

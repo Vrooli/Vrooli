@@ -38,6 +38,12 @@ func TestBuildStreamStart(t *testing.T) {
 	require.Empty(t, buildStreamStart(bare).Language)
 }
 
+func TestBuildStreamStartPreservesExplicitEngineSelection(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/voice/stream?engine_id=whisper-local", nil)
+	start := buildStreamStart(req)
+	require.Equal(t, "whisper-local", start.EngineID)
+}
+
 // TestStreamWS_UpgradeRejectedWithoutChain asserts that when the chain
 // is not wired the handler returns 503 instead of upgrading. This
 // exercises the early-return guard path.
@@ -90,6 +96,42 @@ func newNoProviderDeps(t *testing.T) Deps {
 	}
 }
 
+// newLiveProviderDeps builds a session that stays open until the client ends
+// it. Use this for anything asserting MID-STREAM behaviour.
+//
+// newNoProviderDeps terminates the turn the instant it starts, which is the
+// right shape for handshake and no-provider tests and the wrong shape for
+// everything else: the events loop can tear the egress down before the reader
+// goroutine has even seen the client's first frame, so a mid-stream assertion
+// races the teardown and passes only on favourable scheduling. Several tests in
+// this file were flaky for exactly that reason.
+func newLiveProviderDeps(t *testing.T) Deps {
+	t.Helper()
+	adapter := &sttmocks.FakeBYOK{
+		IDStr: "fake", Available: true,
+		TranscribeFn: func(_ context.Context, _ string, _ sttchain.Request) (*sttchain.Result, error) {
+			return &sttchain.Result{Text: "live stream transcript", Tier: sttchain.TierBYOK, ProviderID: "fake", ModelID: "fake-model"}, nil
+		},
+	}
+	chain := sttchain.NewChain(sttchain.Options{
+		BYOK:       sttchain.NewBYOKProvider(map[string]sttchain.BYOKAdapter{"fake": adapter}),
+		EnableBYOK: true,
+	})
+	return Deps{
+		Chain:        chain,
+		Selector:     sttpkg.NewSelector(chain),
+		Logger:       &mocks.FakeLogger{},
+		StreamConfig: staticStreamConfig{raw: `{"streaming_mode":"off"}`},
+	}
+}
+
+// withLiveProvider sets the headers newLiveProviderDeps' chain requires.
+func withLiveProvider(header http.Header) http.Header {
+	header.Set(envelope.HeaderProvider, "fake")
+	header.Set(envelope.HeaderBYOKKey, "secret")
+	return header
+}
+
 type staticStreamConfig struct{ raw string }
 
 func (s staticStreamConfig) Get(context.Context) (string, bool, error) { return s.raw, true, nil }
@@ -139,15 +181,38 @@ func TestStreamWS_HandshakeAndTerminalDone(t *testing.T) {
 	require.True(t, sawDone, "expected a terminal done frame")
 }
 
+// TestStreamWS_EmitsInitialStatus checks the connection announcement on a
+// session that stays open.
+//
+// It used to run against newNoProviderDeps, which terminates the turn the
+// instant it starts. stream_connected is an ordinary status, and the
+// event-durability contract makes ordinary statuses disposable: they hold a
+// latest-value slot, and a terminal final clears that slot outright
+// (docs/domains/stt/streaming-pipeline.md#event-durability-contract). So the
+// old setup raced the writer goroutine against its own terminal sequence and
+// passed only when scheduling happened to favour it. A live provider with no
+// audio yet has nothing to supersede the announcement, which is the condition
+// under which the contract actually promises it.
 func TestStreamWS_EmitsInitialStatus(t *testing.T) {
+	adapter := &sttmocks.FakeBYOK{
+		IDStr: "fake", Available: true,
+		TranscribeFn: func(_ context.Context, _ string, _ sttchain.Request) (*sttchain.Result, error) {
+			return &sttchain.Result{Text: "unused", Tier: sttchain.TierBYOK, ProviderID: "fake", ModelID: "fake-model"}, nil
+		},
+	}
+	chain := sttchain.NewChain(sttchain.Options{BYOK: sttchain.NewBYOKProvider(map[string]sttchain.BYOKAdapter{"fake": adapter}), EnableBYOK: true})
+	deps := Deps{Chain: chain, Selector: sttpkg.NewSelector(chain), Logger: &mocks.FakeLogger{}, StreamConfig: staticStreamConfig{raw: `{"streaming_mode":"off"}`}}
 	r := mux.NewRouter()
-	r.Handle("/api/v1/voice/stream", StreamWSHandler(newNoProviderDeps(t))).Methods(http.MethodGet)
+	r.Handle("/api/v1/voice/stream", StreamWSHandler(deps)).Methods(http.MethodGet)
 	srv := httptest.NewServer(r)
 	t.Cleanup(srv.Close)
 
-	wsURL, _ := url.Parse(srv.URL + "/api/v1/voice/stream")
+	wsURL, _ := url.Parse(srv.URL + "/api/v1/voice/stream?language=en&format=pcm_s16le")
 	wsURL.Scheme = "ws"
-	c, resp, err := websocket.DefaultDialer.Dial(wsURL.String(), nil)
+	header := http.Header{}
+	header.Set(envelope.HeaderProvider, "fake")
+	header.Set(envelope.HeaderBYOKKey, "secret")
+	c, resp, err := websocket.DefaultDialer.Dial(wsURL.String(), header)
 	require.NoError(t, err)
 	require.Equal(t, http.StatusSwitchingProtocols, resp.StatusCode)
 	t.Cleanup(func() { _ = c.Close() })
@@ -172,6 +237,12 @@ func TestWSMessageDeliveryClass_ProcessedAcknowledgementIsDurable(t *testing.T) 
 		Code:              "processed_acknowledgement",
 		ReceivedSequence:  4,
 		ProcessedSequence: 4,
+	}))
+	require.Equal(t, sttchain.DeliveryDurable, wsMessageDeliveryClass(wsMessage{
+		Type:       wsMsgStatus,
+		Code:       "provider_identity",
+		ProviderID: "kyutai",
+		ModelID:    "kyutai/stt-1b-en_fr",
 	}))
 }
 
@@ -256,17 +327,38 @@ func TestStreamWS_TestOnlyProviderBusyFault(t *testing.T) {
 	require.True(t, sawBusy)
 }
 
+// TestStreamWS_TestOnlyCloseAfterChunkFault drives the close-after-chunk fault
+// on a session that is actually alive when the chunk lands.
+//
+// It used to run against newNoProviderDeps. That terminates the turn
+// immediately, so the events loop could close the coalescing writer before the
+// reader goroutine ever saw the client's chunk — the fault then fired into a
+// torn-down egress and the typed incomplete_coverage error never reached the
+// browser. The fault under test is a MID-STREAM transport interruption; it
+// needs a stream.
 func TestStreamWS_TestOnlyCloseAfterChunkFault(t *testing.T) {
-	deps := newNoProviderDeps(t)
-	deps.TestIsolationActive = func() bool { return true }
+	adapter := &sttmocks.FakeBYOK{
+		IDStr: "fake", Available: true,
+		TranscribeFn: func(_ context.Context, _ string, _ sttchain.Request) (*sttchain.Result, error) {
+			return &sttchain.Result{Text: "chunk fault transcript", Tier: sttchain.TierBYOK, ProviderID: "fake", ModelID: "fake-model"}, nil
+		},
+	}
+	chain := sttchain.NewChain(sttchain.Options{BYOK: sttchain.NewBYOKProvider(map[string]sttchain.BYOKAdapter{"fake": adapter}), EnableBYOK: true})
+	deps := Deps{
+		Chain: chain, Selector: sttpkg.NewSelector(chain), Logger: &mocks.FakeLogger{},
+		StreamConfig:        staticStreamConfig{raw: `{"streaming_mode":"off"}`},
+		TestIsolationActive: func() bool { return true },
+	}
 	r := mux.NewRouter()
 	r.Handle("/api/v1/voice/stream", StreamWSHandler(deps)).Methods(http.MethodGet)
 	srv := httptest.NewServer(r)
 	t.Cleanup(srv.Close)
 
-	wsURL, _ := url.Parse(srv.URL + "/api/v1/voice/stream")
+	wsURL, _ := url.Parse(srv.URL + "/api/v1/voice/stream?language=en&format=pcm_s16le")
 	wsURL.Scheme = "ws"
 	headers := http.Header{}
+	headers.Set(envelope.HeaderProvider, "fake")
+	headers.Set(envelope.HeaderBYOKKey, "secret")
 	headers.Set(streamTestModeHeader, "1")
 	headers.Set(streamTestFaultHeader, "close_after_chunk:1")
 	c, _, err := websocket.DefaultDialer.Dial(wsURL.String(), headers)
@@ -307,16 +399,16 @@ func TestStreamWS_RequiredFaultProfilesAreMidSpeechObservable(t *testing.T) {
 	}
 	for _, profile := range profiles {
 		t.Run(profile.name, func(t *testing.T) {
-			deps := newNoProviderDeps(t)
+			deps := newLiveProviderDeps(t)
 			deps.TestIsolationActive = func() bool { return true }
 			r := mux.NewRouter()
 			r.Handle("/api/v1/voice/stream", StreamWSHandler(deps)).Methods(http.MethodGet)
 			srv := httptest.NewServer(r)
 			t.Cleanup(srv.Close)
 
-			wsURL, _ := url.Parse(srv.URL + "/api/v1/voice/stream?test_mode=1&test_fault=" + profile.name)
+			wsURL, _ := url.Parse(srv.URL + "/api/v1/voice/stream?language=en&format=pcm_s16le&test_mode=1&test_fault=" + profile.name)
 			wsURL.Scheme = "ws"
-			c, _, err := websocket.DefaultDialer.Dial(wsURL.String(), nil)
+			c, _, err := websocket.DefaultDialer.Dial(wsURL.String(), withLiveProvider(http.Header{}))
 			require.NoError(t, err)
 			t.Cleanup(func() { _ = c.Close() })
 			require.NoError(t, c.WriteMessage(websocket.BinaryMessage, []byte("mid-speech qualification audio")))
@@ -350,16 +442,16 @@ func TestStreamWS_TransportFaultProfilesTriggerAfterAudio(t *testing.T) {
 	}
 	for _, profile := range profiles {
 		t.Run(profile.name, func(t *testing.T) {
-			deps := newNoProviderDeps(t)
+			deps := newLiveProviderDeps(t)
 			deps.TestIsolationActive = func() bool { return true }
 			r := mux.NewRouter()
 			r.Handle("/api/v1/voice/stream", StreamWSHandler(deps)).Methods(http.MethodGet)
 			srv := httptest.NewServer(r)
 			t.Cleanup(srv.Close)
 
-			wsURL, _ := url.Parse(srv.URL + "/api/v1/voice/stream?test_mode=1&test_fault=" + profile.name)
+			wsURL, _ := url.Parse(srv.URL + "/api/v1/voice/stream?language=en&format=pcm_s16le&test_mode=1&test_fault=" + profile.name)
 			wsURL.Scheme = "ws"
-			c, _, err := websocket.DefaultDialer.Dial(wsURL.String(), nil)
+			c, _, err := websocket.DefaultDialer.Dial(wsURL.String(), withLiveProvider(http.Header{}))
 			require.NoError(t, err)
 			t.Cleanup(func() { _ = c.Close() })
 			started := time.Now()
@@ -955,3 +1047,90 @@ func TestEmitStreamDeliveryTelemetry_NoRecorderIsSafe(t *testing.T) {
 
 // ensure the package-internal ctx alias compiles into tests too.
 var _ context.Context = context.Background()
+
+// TestStreamWS_TerminalSessionsStayRecoverable pins the terminal-retention
+// contract: reaching a terminal state does not release the session, and the
+// reason it reached that state is recorded either way.
+//
+// Cleanup used to release the session on ANY terminal reason. That destroyed
+// the replay tail and the terminal reason of exactly the turns that needed
+// them — a browser reconnecting got a fresh empty session, and the server's own
+// evidence of a lost turn was indistinguishable from a clean one. Bounding
+// retention is the recovery expiry's job, not this handler's.
+func TestStreamWS_TerminalSessionsStayRecoverable(t *testing.T) {
+	newDeps := func(sessions *session.Registry) Deps {
+		adapter := &sttmocks.FakeBYOK{
+			IDStr: "fake", Available: true,
+			TranscribeFn: func(_ context.Context, _ string, _ sttchain.Request) (*sttchain.Result, error) {
+				return &sttchain.Result{Text: "retention transcript", Tier: sttchain.TierBYOK, ProviderID: "fake", ModelID: "fake-model"}, nil
+			},
+		}
+		chain := sttchain.NewChain(sttchain.Options{BYOK: sttchain.NewBYOKProvider(map[string]sttchain.BYOKAdapter{"fake": adapter}), EnableBYOK: true})
+		return Deps{
+			Chain: chain, Selector: sttpkg.NewSelector(chain), Logger: &mocks.FakeLogger{},
+			StreamConfig: staticStreamConfig{raw: `{"streaming_mode":"off"}`}, Sessions: sessions,
+			TestIsolationActive: func() bool { return true },
+		}
+	}
+	drive := func(t *testing.T, sessions *session.Registry, sessionID, token string, faultHeader string) {
+		t.Helper()
+		r := mux.NewRouter()
+		r.Handle("/api/v1/voice/stream", StreamWSHandler(newDeps(sessions))).Methods(http.MethodGet)
+		srv := httptest.NewServer(r)
+		t.Cleanup(srv.Close)
+		wsURL, _ := url.Parse(srv.URL + "/api/v1/voice/stream?language=en&format=pcm_s16le&protocol_version=2&session_id=" + sessionID + "&resume_token=" + token)
+		wsURL.Scheme = "ws"
+		header := http.Header{}
+		header.Set(envelope.HeaderProvider, "fake")
+		header.Set(envelope.HeaderBYOKKey, "secret")
+		if faultHeader != "" {
+			header.Set(streamTestModeHeader, "1")
+			header.Set(streamTestFaultHeader, faultHeader)
+		}
+		c, _, err := websocket.DefaultDialer.Dial(wsURL.String(), header)
+		require.NoError(t, err)
+		t.Cleanup(func() { _ = c.Close() })
+		require.NoError(t, c.WriteMessage(websocket.BinaryMessage, encodeWSV2AudioFrameForTest(0, 0, 2, []byte{1, 0, 2, 0})))
+		require.NoError(t, c.WriteMessage(websocket.TextMessage, []byte(`{"type":"done"}`)))
+		_ = c.SetReadDeadline(time.Now().Add(2 * time.Second))
+		for {
+			_, raw, readErr := c.ReadMessage()
+			require.NoError(t, readErr)
+			var message wsMessage
+			require.NoError(t, json.Unmarshal(raw, &message))
+			if message.Type == wsMsgDone {
+				break
+			}
+		}
+		// The `done` frame is enqueued BEFORE the handler drains its writer,
+		// classifies the reader close, and runs its deferred session cleanup.
+		// Asserting on registry state the moment the client sees `done` races
+		// that tail. Closing the server waits for the handler goroutine to
+		// return, which makes the cleanup an established fact rather than a
+		// likely one.
+		_ = c.Close()
+		srv.Close()
+	}
+
+	t.Run("clean completion stays resumable so replay can re-emit", func(t *testing.T) {
+		sessions := session.NewRegistry(0)
+		drive(t, sessions, "clean-session", "clean-token", "")
+		ledger, resumed, err := sessions.Open("clean-session", "clean-token")
+		require.NoError(t, err)
+		require.True(t, resumed, "a completed session must stay resumable until recovery expiry")
+		state := ledger.Snapshot()
+		require.Equal(t, session.TerminalCompleted, state.TerminalReason)
+		require.Len(t, state.Committed, 1, "the committed segment must survive for stable-identity replay")
+	})
+
+	t.Run("incomplete coverage retains the session for recovery", func(t *testing.T) {
+		sessions := session.NewRegistry(0)
+		drive(t, sessions, "unclean-session", "unclean-token", "missing_acknowledgement")
+		ledger, resumed, err := sessions.Open("unclean-session", "unclean-token")
+		require.NoError(t, err)
+		require.True(t, resumed, "an unacknowledged session must remain resumable")
+		state := ledger.Snapshot()
+		require.Equal(t, session.TerminalIncompleteCoverage, state.TerminalReason)
+		require.Len(t, state.Replay, 1, "the unacknowledged replay tail must survive for reconnect")
+	})
+}
