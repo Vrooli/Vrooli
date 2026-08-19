@@ -205,6 +205,11 @@ func (s *FSContentStore) CreateVersion(_ context.Context, c Component, in Create
 		if file.IsEntry {
 			body = strings.TrimSpace(body)
 			body = ensureHeaderFields(body, c.LibraryID, c.DisplayName, c.Description, version, c.Tags)
+		} else if file.Path == "experience-contract.json" {
+			// Experience contracts travel with a version folder. Keep their
+			// story binding local to the copy being created instead of carrying
+			// the source release's path into a draft or replacement release.
+			body = normalizeExperienceContractStoryRef(body, version)
 		}
 		path := filepath.Join(filepath.Dir(sourceAbs), file.Path)
 		if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
@@ -343,6 +348,16 @@ func writeParityReport(path string, report IngestParityReport) error {
 		return fmt.Errorf("write ingest parity report %q: %w", path, err)
 	}
 	return nil
+}
+
+var experienceStoryRefRe = regexp.MustCompile(`(/versions/)[^/"\s]+(/story\.json)`)
+
+func normalizeExperienceContractStoryRef(body, version string) string {
+	version = strings.TrimSpace(version)
+	if version == "" || strings.TrimSpace(body) == "" {
+		return body
+	}
+	return experienceStoryRefRe.ReplaceAllString(body, `${1}`+version+`${2}`)
 }
 
 func hasEntryFile(files []ComponentVersionFile) bool {

@@ -137,6 +137,96 @@ func TestAuthoringWorkflowBeginsChecksAndPublishesByLibraryID(t *testing.T) {
 	}
 }
 
+func TestAuthoringCheckRefreshesSelectedManifestBeforeResolvingDependencies(t *testing.T) {
+	repo := mocks.NewFakeRepository()
+	root := t.TempDir()
+	svc := components.NewServiceWithContent(repo, components.NewFSContentStore(root))
+	authoring := svc.(components.AuthoringService)
+
+	created, err := svc.InitializeComponent(context.Background(), components.InitializeComponentInput{
+		LibraryID:        "react-component-library:EmptyState",
+		Slug:             "EmptyState",
+		DisplayName:      "Empty State",
+		InitialVersion:   "1.0.0",
+		InitialSource:    `export function EmptyState() { return <section />; }`,
+		ScaffoldExamples: true,
+	})
+	require.NoError(t, err)
+	draft, err := authoring.BeginComponentVersion(context.Background(), components.BeginComponentVersionInput{
+		Component: created.Component.LibraryID,
+		Bump:      "patch",
+	})
+	require.NoError(t, err)
+
+	// Simulate an editor adding a library dependency after the draft was
+	// indexed. Without the focused refresh, the stale registry row still
+	// reports an empty dependency closure and the check incorrectly passes.
+	manifestPath := filepath.Join(root, "components", "EmptyState", "component.json")
+	require.NoError(t, os.WriteFile(manifestPath, []byte(`{
+  "libraryId": "react-component-library:EmptyState",
+  "displayName": "Empty State",
+  "description": "Compact empty-state panel.",
+  "tags": ["feedback"],
+  "latest": "1.0.0",
+  "draft": "`+draft.Version.Version+`",
+  "dependencies": [{"libraryId":"react-component-library:MissingPrimitive","version":"1.0.0"}]
+}
+`), 0o600))
+
+	checked, err := authoring.CheckComponentVersion(context.Background(), created.Component.LibraryID, draft.Version.Version)
+	require.NoError(t, err)
+	require.False(t, checked.Passed)
+	var dependencyFailure *components.ComponentVersionCheck
+	for index := range checked.Checks {
+		if checked.Checks[index].Stage == "dependencies" {
+			dependencyFailure = &checked.Checks[index]
+			break
+		}
+	}
+	require.NotNil(t, dependencyFailure)
+	require.Equal(t, "failed", dependencyFailure.Verdict)
+}
+
+func TestAuthoringVersionCopiesRewriteExperienceStoryRef(t *testing.T) {
+	repo := mocks.NewFakeRepository()
+	root := t.TempDir()
+	svc := components.NewServiceWithContent(repo, components.NewFSContentStore(root))
+	authoring := svc.(components.AuthoringService)
+
+	created, err := svc.InitializeComponent(context.Background(), components.InitializeComponentInput{
+		LibraryID:        "react-component-library:Panel",
+		Slug:             "Panel",
+		DisplayName:      "Panel",
+		InitialVersion:   "1.0.0",
+		InitialSource:    `export function Panel() { return <section />; }`,
+		ScaffoldExamples: true,
+	})
+	require.NoError(t, err)
+	baselineContract := filepath.Join(root, "components", "Panel", "versions", "1.0.0", "experience-contract.json")
+	require.NoError(t, os.WriteFile(baselineContract, []byte(`{
+  "kind": "experience-component",
+  "component": {"storyRef": "../../library/components/Panel/versions/1.0.0/story.json"}
+}
+`), 0o600))
+
+	draft, err := authoring.BeginComponentVersion(context.Background(), components.BeginComponentVersionInput{
+		Component: created.Component.LibraryID,
+		Bump:      "patch",
+	})
+	require.NoError(t, err)
+	draftContract, err := os.ReadFile(filepath.Join(root, "components", "Panel", "versions", draft.Version.Version, "experience-contract.json"))
+	require.NoError(t, err)
+	require.Contains(t, string(draftContract), "/versions/1.0.1-draft.1/story.json")
+	require.NotContains(t, string(draftContract), "/versions/1.0.0/story.json")
+
+	released, err := authoring.PublishComponentVersion(context.Background(), components.PublishComponentVersionInput{Component: created.Component.LibraryID})
+	require.NoError(t, err)
+	releaseContract, err := os.ReadFile(filepath.Join(root, "components", "Panel", "versions", released.Version.Version, "experience-contract.json"))
+	require.NoError(t, err)
+	require.Contains(t, string(releaseContract), "/versions/1.0.1/story.json")
+	require.NotContains(t, string(releaseContract), "/versions/1.0.1-draft.1/story.json")
+}
+
 func TestAuthoringBeginRollsBackFilesystemAndManifestWhenIndexingFails(t *testing.T) {
 	repo := mocks.NewFakeRepository()
 	root := t.TempDir()

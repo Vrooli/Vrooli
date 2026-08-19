@@ -394,6 +394,16 @@ func (s *service) CheckComponentVersion(ctx context.Context, componentID, versio
 	if err != nil {
 		return CheckComponentVersionResult{}, err
 	}
+	// A focused check is also the freshness boundary for authoring. The
+	// registry is an index, not the source of truth; re-index this one manifest
+	// before resolving its version and dependency closure so edits to a draft
+	// cannot be hidden behind a stale catalog row. This deliberately avoids a
+	// global walk, keeping the rapid component loop independent of unrelated
+	// catalog errors.
+	refreshed, refreshErr := NewIndexer(s.repo, s.source.Root(), nil).IndexManifest(ctx, c.ManifestPath)
+	if refreshErr == nil {
+		c = refreshed
+	}
 	version = firstNonEmpty(strings.TrimSpace(version), c.DraftVersion, c.LatestVersion)
 	result := CheckComponentVersionResult{Component: c, Version: version, Passed: true}
 	add := func(stage, verdict, message, remediation string) {
@@ -401,6 +411,10 @@ func (s *service) CheckComponentVersion(ctx context.Context, componentID, versio
 		if verdict != "passed" {
 			result.Passed = false
 		}
+	}
+	if refreshErr != nil {
+		add("index", "failed", "focused source refresh failed: "+refreshErr.Error(), "repair the selected component before checking it again")
+		return result, nil
 	}
 	v, err := s.repo.GetVersion(ctx, c.ID, version)
 	if err != nil {

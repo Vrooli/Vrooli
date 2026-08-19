@@ -53,7 +53,7 @@
       "affinity": "compatible"
     }
   ],
-  "latest": "1.7.1",
+  "latest": "1.7.3",
   "draft": "",
   "deprecatedVersions": [
     "1.4.0",
