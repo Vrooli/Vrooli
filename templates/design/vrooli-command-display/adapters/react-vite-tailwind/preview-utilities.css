@@ -18,6 +18,9 @@
 .visible {
     visibility: visible
 }
+.invisible {
+    visibility: hidden
+}
 .collapse {
     visibility: collapse
 }
@@ -343,6 +346,9 @@
 .flex-wrap {
     flex-wrap: wrap
 }
+.place-items-center {
+    place-items: center
+}
 .items-start {
     align-items: flex-start
 }
@@ -357,6 +363,9 @@
 }
 .justify-between {
     justify-content: space-between
+}
+.justify-items-center {
+    justify-items: center
 }
 .gap-0\.5 {
     gap: 0.125rem
@@ -376,6 +385,15 @@
 .gap-4 {
     gap: 1rem
 }
+.gap-space-2xs {
+    gap: var(--space-2xs)
+}
+.gap-space-md {
+    gap: var(--space-md)
+}
+.gap-space-xs {
+    gap: var(--space-xs)
+}
 .space-y-2 > :not([hidden]) ~ :not([hidden]) {
     --tw-space-y-reverse: 0;
     margin-top: calc(0.5rem * calc(1 - var(--tw-space-y-reverse)));
@@ -390,6 +408,16 @@
     --tw-space-y-reverse: 0;
     margin-top: calc(1rem * calc(1 - var(--tw-space-y-reverse)));
     margin-bottom: calc(1rem * var(--tw-space-y-reverse))
+}
+.space-y-space-sm > :not([hidden]) ~ :not([hidden]) {
+    --tw-space-y-reverse: 0;
+    margin-top: calc(var(--space-sm) * calc(1 - var(--tw-space-y-reverse)));
+    margin-bottom: calc(var(--space-sm) * var(--tw-space-y-reverse))
+}
+.space-y-space-xs > :not([hidden]) ~ :not([hidden]) {
+    --tw-space-y-reverse: 0;
+    margin-top: calc(var(--space-xs) * calc(1 - var(--tw-space-y-reverse)));
+    margin-bottom: calc(var(--space-xs) * var(--tw-space-y-reverse))
 }
 .overflow-auto {
     overflow: auto
@@ -490,6 +518,10 @@
 .border-\[var\(--markdown-link\)\] {
     border-color: var(--markdown-link)
 }
+.border-amber-300 {
+    --tw-border-opacity: 1;
+    border-color: rgb(252 211 77 / var(--tw-border-opacity, 1))
+}
 .border-app-border {
     border-color: var(--color-border)
 }
@@ -505,9 +537,25 @@
 .border-app-warning {
     border-color: var(--color-warning)
 }
+.border-blue-300 {
+    --tw-border-opacity: 1;
+    border-color: rgb(147 197 253 / var(--tw-border-opacity, 1))
+}
 .border-cyan-500 {
     --tw-border-opacity: 1;
     border-color: rgb(6 182 212 / var(--tw-border-opacity, 1))
+}
+.border-gray-300 {
+    --tw-border-opacity: 1;
+    border-color: rgb(209 213 219 / var(--tw-border-opacity, 1))
+}
+.border-pink-300 {
+    --tw-border-opacity: 1;
+    border-color: rgb(249 168 212 / var(--tw-border-opacity, 1))
+}
+.border-purple-300 {
+    --tw-border-opacity: 1;
+    border-color: rgb(216 180 254 / var(--tw-border-opacity, 1))
 }
 .border-slate-700 {
     --tw-border-opacity: 1;
@@ -537,6 +585,10 @@
 .bg-\[var\(--markdown-code-surface\2c \#020617\)\] {
     background-color: var(--markdown-code-surface,#020617)
 }
+.bg-amber-100 {
+    --tw-bg-opacity: 1;
+    background-color: rgb(254 243 199 / var(--tw-bg-opacity, 1))
+}
 .bg-app-primary {
     background-color: var(--color-primary)
 }
@@ -546,8 +598,24 @@
 .bg-app-surface-muted {
     background-color: var(--color-surface-muted)
 }
+.bg-blue-100 {
+    --tw-bg-opacity: 1;
+    background-color: rgb(219 234 254 / var(--tw-bg-opacity, 1))
+}
 .bg-cyan-500\/15 {
     background-color: rgb(6 182 212 / 0.15)
+}
+.bg-gray-100 {
+    --tw-bg-opacity: 1;
+    background-color: rgb(243 244 246 / var(--tw-bg-opacity, 1))
+}
+.bg-pink-100 {
+    --tw-bg-opacity: 1;
+    background-color: rgb(252 231 243 / var(--tw-bg-opacity, 1))
+}
+.bg-purple-100 {
+    --tw-bg-opacity: 1;
+    background-color: rgb(243 232 255 / var(--tw-bg-opacity, 1))
 }
 .bg-slate-800 {
     --tw-bg-opacity: 1;
@@ -581,6 +649,9 @@
 }
 .p-4 {
     padding: 1rem
+}
+.p-space-lg {
+    padding: var(--space-lg)
 }
 .px-1 {
     padding-left: 0.25rem;
@@ -618,6 +689,14 @@
     padding-left: var(--space-sm);
     padding-right: var(--space-sm)
 }
+.px-space-2xs {
+    padding-left: var(--space-2xs);
+    padding-right: var(--space-2xs)
+}
+.px-space-md {
+    padding-left: var(--space-md);
+    padding-right: var(--space-md)
+}
 .py-0\.5 {
     padding-top: 0.125rem;
     padding-bottom: 0.125rem
@@ -641,6 +720,10 @@
 .py-6 {
     padding-top: 1.5rem;
     padding-bottom: 1.5rem
+}
+.py-space-xs {
+    padding-top: var(--space-xs);
+    padding-bottom: var(--space-xs)
 }
 .pl-3 {
     padding-left: 0.75rem
@@ -666,6 +749,12 @@
 .text-base {
     font-size: 1rem;
     line-height: 1.5rem
+}
+.text-caption {
+    font-size: var(--text-caption-size);
+    line-height: var(--text-caption-line);
+    letter-spacing: 0.06em;
+    font-weight: 600
 }
 .text-sm {
     font-size: 0.875rem;
@@ -746,6 +835,10 @@
 .text-\[var\(--text-label\)\] {
     color: var(--text-label)
 }
+.text-amber-600 {
+    --tw-text-opacity: 1;
+    color: rgb(217 119 6 / var(--tw-text-opacity, 1))
+}
 .text-app-background {
     color: var(--color-background)
 }
@@ -776,6 +869,10 @@
 .text-black\/70 {
     color: rgb(0 0 0 / 0.7)
 }
+.text-blue-600 {
+    --tw-text-opacity: 1;
+    color: rgb(37 99 235 / var(--tw-text-opacity, 1))
+}
 .text-cyan-200 {
     --tw-text-opacity: 1;
     color: rgb(165 243 252 / var(--tw-text-opacity, 1))
@@ -783,6 +880,18 @@
 .text-cyan-300 {
     --tw-text-opacity: 1;
     color: rgb(103 232 249 / var(--tw-text-opacity, 1))
+}
+.text-gray-600 {
+    --tw-text-opacity: 1;
+    color: rgb(75 85 99 / var(--tw-text-opacity, 1))
+}
+.text-pink-600 {
+    --tw-text-opacity: 1;
+    color: rgb(219 39 119 / var(--tw-text-opacity, 1))
+}
+.text-purple-600 {
+    --tw-text-opacity: 1;
+    color: rgb(147 51 234 / var(--tw-text-opacity, 1))
 }
 .text-red-300 {
     --tw-text-opacity: 1;
@@ -823,6 +932,9 @@
 }
 .opacity-0 {
     opacity: 0
+}
+.opacity-40 {
+    opacity: 0.4
 }
 .opacity-50 {
     opacity: 0.5

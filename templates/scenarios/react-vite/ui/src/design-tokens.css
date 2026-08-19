@@ -303,6 +303,10 @@
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
+.bottom-safe {
+  bottom: max(env(safe-area-inset-bottom, 0px), 24px);
+}
+
 .pt-safe {
   padding-top: env(safe-area-inset-top, 0px);
 }

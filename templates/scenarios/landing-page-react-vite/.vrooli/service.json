@@ -180,44 +180,6 @@
           "description": "Run all test phases via test-genie"
         }
       ]
-    },
-    "production": {
-      "description": "Production deployment with optimized settings",
-      "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && exec ./{{SCENARIO_ID}}-api",
-          "background": true,
-          "condition": {
-            "file_exists": "api/{{SCENARIO_ID}}-api"
-          },
-          "description": "Start Go API server in production mode"
-        },
-        {
-          "name": "start-ui",
-          "run": "cd ui && node server.js",
-          "background": true,
-          "condition": {
-            "file_exists": "ui/dist/index.html"
-          },
-          "description": "Serve production UI bundle with optimized settings"
-        }
-      ]
-    },
-    "stop": {
-      "description": "Stop background processes",
-      "steps": [
-        {
-          "name": "stop-api",
-          "run": "pkill -f '{{SCENARIO_ID}}-api' || true",
-          "description": "Stop Go API"
-        },
-        {
-          "name": "stop-ui",
-          "run": "pkill -f 'node server.js' || true",
-          "description": "Stop UI server"
-        }
-      ]
     }
   },
   "dependencies": {

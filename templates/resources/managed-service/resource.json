@@ -18,8 +18,32 @@
   "managed_service": {
     "provider_policy": {"target_defaults": {"control-plane": "managed-shared", "desktop-bundle": "managed-private"}, "allowed_modes": ["managed-private", "managed-shared", "attach-only", "remote-vrooli", "managed-discovered"], "shared_reuse_requires_consent": true, "external_management": "forbidden", "external_access_capabilities": ["read-only"]},
     "artifact": {"path": "server/{{RESOURCE_NAME}}", "version": "{{SERVICE_VERSION}}", "sha256": "{{SERVICE_SHA256}}", "bundle_artifact": "{{RESOURCE_NAME}}_${os}_${arch}"},
+    "acquisition": {
+      "kind": "url",
+      "targets": [
+        {
+          "when": {"os": "linux", "arch": "amd64"},
+          "url": "https://example.invalid/{{RESOURCE_NAME}}-linux-amd64.tar.gz",
+          "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+          "archive": "tar.gz",
+          "layout": "file",
+          "bin_path": "server/{{RESOURCE_NAME}}"
+        },
+        {
+          "when": {"os": "linux", "arch": "arm64"},
+          "url": "https://example.invalid/{{RESOURCE_NAME}}-linux-arm64.tar.gz",
+          "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+          "archive": "tar.gz",
+          "layout": "file",
+          "bin_path": "server/{{RESOURCE_NAME}}"
+        },
+        {"when": {"os": "macos"}, "unsupported": "Replace with a reproducible native macOS artifact before claiming macOS support."},
+        {"when": {"os": "windows"}, "unsupported": "Replace with a reproducible native Windows artifact before claiming Windows support."}
+      ]
+    },
     "attach_health_path": "/health",
     "arguments": ["server", "-config=${RESOURCE_CONFIG_DIR}/service.conf"],
+    "shutdown": {"signal": "terminate"},
     "config": {"path": "service.conf", "content": "data_dir=${RESOURCE_DATA_DIR}\\n"}
   },
   "deployment": {"profiles": {"desktop": {
