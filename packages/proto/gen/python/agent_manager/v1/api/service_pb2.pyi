@@ -710,6 +710,44 @@ class CreateRunRequest(_message.Message):
     execution_mode: _types_pb2.ExecutionMode
     def __init__(self, task_id: _Optional[str] = ..., agent_profile_id: _Optional[str] = ..., tag: _Optional[str] = ..., run_mode: _Optional[_Union[_types_pb2.RunMode, str]] = ..., inline_config: _Optional[_Union[_profile_pb2.RunConfigOverrides, _Mapping]] = ..., force: _Optional[bool] = ..., idempotency_key: _Optional[str] = ..., profile_ref: _Optional[_Union[ProfileRef, _Mapping]] = ..., prompt: _Optional[str] = ..., existing_sandbox_id: _Optional[str] = ..., environment: _Optional[_Mapping[str, str]] = ..., conversation_id: _Optional[str] = ..., parent_run_id: _Optional[str] = ..., execution_mode: _Optional[_Union[_types_pb2.ExecutionMode, str]] = ...) -> None: ...
 
+class AttachRunRequest(_message.Message):
+    __slots__ = ("task_id", "harness_kind", "harness_session_id", "process_id", "harness_title")
+    TASK_ID_FIELD_NUMBER: _ClassVar[int]
+    HARNESS_KIND_FIELD_NUMBER: _ClassVar[int]
+    HARNESS_SESSION_ID_FIELD_NUMBER: _ClassVar[int]
+    PROCESS_ID_FIELD_NUMBER: _ClassVar[int]
+    HARNESS_TITLE_FIELD_NUMBER: _ClassVar[int]
+    task_id: str
+    harness_kind: str
+    harness_session_id: str
+    process_id: int
+    harness_title: str
+    def __init__(self, task_id: _Optional[str] = ..., harness_kind: _Optional[str] = ..., harness_session_id: _Optional[str] = ..., process_id: _Optional[int] = ..., harness_title: _Optional[str] = ...) -> None: ...
+
+class AttachRunResponse(_message.Message):
+    __slots__ = ("run", "identity_token", "expires_at")
+    RUN_FIELD_NUMBER: _ClassVar[int]
+    IDENTITY_TOKEN_FIELD_NUMBER: _ClassVar[int]
+    EXPIRES_AT_FIELD_NUMBER: _ClassVar[int]
+    run: _run_pb2.Run
+    identity_token: str
+    expires_at: _timestamp_pb2.Timestamp
+    def __init__(self, run: _Optional[_Union[_run_pb2.Run, _Mapping]] = ..., identity_token: _Optional[str] = ..., expires_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+
+class DetachRunRequest(_message.Message):
+    __slots__ = ("run_id", "reason")
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    run_id: str
+    reason: str
+    def __init__(self, run_id: _Optional[str] = ..., reason: _Optional[str] = ...) -> None: ...
+
+class DetachRunResponse(_message.Message):
+    __slots__ = ("run",)
+    RUN_FIELD_NUMBER: _ClassVar[int]
+    run: _run_pb2.Run
+    def __init__(self, run: _Optional[_Union[_run_pb2.Run, _Mapping]] = ...) -> None: ...
+
 class DeleteRunRequest(_message.Message):
     __slots__ = ("run_id",)
     RUN_ID_FIELD_NUMBER: _ClassVar[int]

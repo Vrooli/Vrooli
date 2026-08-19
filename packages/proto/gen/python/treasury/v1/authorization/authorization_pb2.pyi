@@ -32,7 +32,7 @@ AUTHORIZATION_VERDICT_RELEASED: AuthorizationVerdict
 AUTHORIZATION_VERDICT_SETTLED: AuthorizationVerdict
 
 class AuthorizationRecord(_message.Message):
-    __slots__ = ("id", "mandate_id", "requesting_agent", "amount_minor", "currency", "counterparty", "verdict", "violated_constraint", "remediation", "hold_minor", "created_at", "expires_at", "idempotency_key", "budget_id")
+    __slots__ = ("id", "mandate_id", "requesting_agent", "amount_minor", "currency", "counterparty", "verdict", "violated_constraint", "remediation", "hold_minor", "created_at", "expires_at", "idempotency_key", "budget_id", "book_id")
     ID_FIELD_NUMBER: _ClassVar[int]
     MANDATE_ID_FIELD_NUMBER: _ClassVar[int]
     REQUESTING_AGENT_FIELD_NUMBER: _ClassVar[int]
@@ -47,6 +47,7 @@ class AuthorizationRecord(_message.Message):
     EXPIRES_AT_FIELD_NUMBER: _ClassVar[int]
     IDEMPOTENCY_KEY_FIELD_NUMBER: _ClassVar[int]
     BUDGET_ID_FIELD_NUMBER: _ClassVar[int]
+    BOOK_ID_FIELD_NUMBER: _ClassVar[int]
     id: str
     mandate_id: str
     requesting_agent: str
@@ -61,7 +62,8 @@ class AuthorizationRecord(_message.Message):
     expires_at: _timestamp_pb2.Timestamp
     idempotency_key: str
     budget_id: str
-    def __init__(self, id: _Optional[str] = ..., mandate_id: _Optional[str] = ..., requesting_agent: _Optional[str] = ..., amount_minor: _Optional[int] = ..., currency: _Optional[str] = ..., counterparty: _Optional[str] = ..., verdict: _Optional[_Union[AuthorizationVerdict, str]] = ..., violated_constraint: _Optional[str] = ..., remediation: _Optional[str] = ..., hold_minor: _Optional[int] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., expires_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., idempotency_key: _Optional[str] = ..., budget_id: _Optional[str] = ...) -> None: ...
+    book_id: str
+    def __init__(self, id: _Optional[str] = ..., mandate_id: _Optional[str] = ..., requesting_agent: _Optional[str] = ..., amount_minor: _Optional[int] = ..., currency: _Optional[str] = ..., counterparty: _Optional[str] = ..., verdict: _Optional[_Union[AuthorizationVerdict, str]] = ..., violated_constraint: _Optional[str] = ..., remediation: _Optional[str] = ..., hold_minor: _Optional[int] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., expires_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., idempotency_key: _Optional[str] = ..., budget_id: _Optional[str] = ..., book_id: _Optional[str] = ...) -> None: ...
 
 class ProposeChargeRequest(_message.Message):
     __slots__ = ("id", "idempotency_key", "mandate_id", "amount_minor", "currency", "counterparty")
@@ -266,10 +268,12 @@ class ResolveApprovalResponse(_message.Message):
     def __init__(self, approval: _Optional[_Union[_approval_pb2.ApprovalRequest, _Mapping]] = ...) -> None: ...
 
 class ListApprovalsRequest(_message.Message):
-    __slots__ = ("status",)
+    __slots__ = ("status", "book_id")
     STATUS_FIELD_NUMBER: _ClassVar[int]
+    BOOK_ID_FIELD_NUMBER: _ClassVar[int]
     status: _approval_pb2.ApprovalStatus
-    def __init__(self, status: _Optional[_Union[_approval_pb2.ApprovalStatus, str]] = ...) -> None: ...
+    book_id: str
+    def __init__(self, status: _Optional[_Union[_approval_pb2.ApprovalStatus, str]] = ..., book_id: _Optional[str] = ...) -> None: ...
 
 class ListApprovalsResponse(_message.Message):
     __slots__ = ("approvals",)
@@ -336,6 +340,18 @@ class UnfreezeBookResponse(_message.Message):
 class FreezeAllRequest(_message.Message):
     __slots__ = ()
     def __init__(self) -> None: ...
+
+class GetFreezeStatusRequest(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class GetFreezeStatusResponse(_message.Message):
+    __slots__ = ("frozen", "updated_at")
+    FROZEN_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
+    frozen: bool
+    updated_at: _timestamp_pb2.Timestamp
+    def __init__(self, frozen: _Optional[bool] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class FreezeAllResponse(_message.Message):
     __slots__ = ("frozen", "updated_at")

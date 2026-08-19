@@ -36,6 +36,7 @@ message AuthorizationRecord {
   google.protobuf.Timestamp expires_at = 12;
   string idempotency_key = 13;
   string budget_id = 14;
+  string book_id = 15;
 }
 
 message ProposeChargeRequest {
@@ -170,6 +171,7 @@ message ResolveApprovalResponse {
 
 message ListApprovalsRequest {
   vrooli.treasury.v1.approval.ApprovalStatus status = 1;
+  string book_id = 2;
 }
 
 message ListApprovalsResponse {
@@ -213,6 +215,13 @@ message UnfreezeBookResponse {
 }
 
 message FreezeAllRequest {}
+
+message GetFreezeStatusRequest {}
+
+message GetFreezeStatusResponse {
+  bool frozen = 1;
+  google.protobuf.Timestamp updated_at = 2;
+}
 
 message FreezeAllResponse {
   bool frozen = 1;
@@ -262,6 +271,7 @@ service TreasuryAdmin {
   rpc FreezeBook(FreezeBookRequest) returns (FreezeBookResponse);
   rpc UnfreezeBook(UnfreezeBookRequest) returns (UnfreezeBookResponse);
   rpc FreezeAll(FreezeAllRequest) returns (FreezeAllResponse);
+  rpc GetFreezeStatus(GetFreezeStatusRequest) returns (GetFreezeStatusResponse);
   rpc UnfreezeAll(UnfreezeAllRequest) returns (UnfreezeAllResponse);
   rpc RegisterInstrument(RegisterInstrumentRequest) returns (RegisterInstrumentResponse);
   rpc ReportManualOutcome(ReportManualOutcomeRequest) returns (ReportManualOutcomeResponse);

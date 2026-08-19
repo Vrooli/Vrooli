@@ -326,9 +326,12 @@ type Run struct {
 	// Origin of label: harness, derived, generated, or manual.
 	LabelSource string `protobuf:"bytes,49,opt,name=label_source,json=labelSource,proto3" json:"label_source,omitempty"`
 	// Bounded subjects derived from recorded tool-call evidence.
-	Subject       []string `protobuf:"bytes,50,rep,name=subject,proto3" json:"subject,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Subject []string `protobuf:"bytes,50,rep,name=subject,proto3" json:"subject,omitempty"`
+	// Harness identity supplied when an operator-started session is attached.
+	HarnessKind      string `protobuf:"bytes,51,opt,name=harness_kind,json=harnessKind,proto3" json:"harness_kind,omitempty"`
+	HarnessSessionId string `protobuf:"bytes,52,opt,name=harness_session_id,json=harnessSessionId,proto3" json:"harness_session_id,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *Run) Reset() {
@@ -695,6 +698,20 @@ func (x *Run) GetSubject() []string {
 		return x.Subject
 	}
 	return nil
+}
+
+func (x *Run) GetHarnessKind() string {
+	if x != nil {
+		return x.HarnessKind
+	}
+	return ""
+}
+
+func (x *Run) GetHarnessSessionId() string {
+	if x != nil {
+		return x.HarnessSessionId
+	}
+	return ""
 }
 
 // FinalOutputCandidate is one assistant message considered by the resolver.
@@ -3593,7 +3610,7 @@ var File_agent_manager_v1_domain_run_proto protoreflect.FileDescriptor
 
 const file_agent_manager_v1_domain_run_proto_rawDesc = "" +
 	"\n" +
-	"!agent-manager/v1/domain/run.proto\x12\x10agent_manager.v1\x1a%agent-manager/v1/domain/profile.proto\x1a#agent-manager/v1/domain/types.proto\x1a\x1bbuf/validate/validate.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xf2\x13\n" +
+	"!agent-manager/v1/domain/run.proto\x12\x10agent_manager.v1\x1a%agent-manager/v1/domain/profile.proto\x1a#agent-manager/v1/domain/types.proto\x1a\x1bbuf/validate/validate.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xc3\x14\n" +
 	"\x03Run\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12!\n" +
 	"\atask_id\x18\x02 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x06taskId\x12-\n" +
@@ -3653,7 +3670,9 @@ const file_agent_manager_v1_domain_run_proto_rawDesc = "" +
 	"\agoal_id\x18, \x01(\tR\x06goalId\x12\x14\n" +
 	"\x05label\x180 \x01(\tR\x05label\x12!\n" +
 	"\flabel_source\x181 \x01(\tR\vlabelSource\x12\x18\n" +
-	"\asubject\x182 \x03(\tR\asubjectB\x13\n" +
+	"\asubject\x182 \x03(\tR\asubject\x12!\n" +
+	"\fharness_kind\x183 \x01(\tR\vharnessKind\x12,\n" +
+	"\x12harness_session_id\x184 \x01(\tR\x10harnessSessionIdB\x13\n" +
 	"\x11_agent_profile_idB\r\n" +
 	"\v_sandbox_idB\r\n" +
 	"\v_started_atB\v\n" +

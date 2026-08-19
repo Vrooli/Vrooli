@@ -110,18 +110,89 @@ Read values back without an argument:
 scenario-to-plugin configure api_base
 ```
 
-## Scenario commands — `<domain>`
+## Scenario commands
 
-Each product domain exposes its commands as a subcommand group
-(`scenario-to-plugin <domain> <verb>`). Every command calls a single API
-endpoint and renders the result through one of the three output
-contracts below. Document your domain's commands here as you build
-them, one row/section per command, mirroring the endpoints they call
-in [`api-endpoints.md`](api-endpoints.md).
+> **Status: planned surface.** This documents the CLI this scenario is
+> contracted to expose, derived from `PRD.md` and
+> `docs/concepts/DOMAINS.md`. Nothing is implemented yet, and this
+> document is marked `draft` in `docs/manifest.json` to say so. The
+> authority once code exists is `cli/manifest.json`, and every command
+> below must be declared there (bound to a `connect-rpc` service/method
+> with an `architecture.primitive`) or listed in `omitted[]`.
 
-The scaffold ships one fully worked CRUD command group as a copyable
-reference (see the fenced example below); `template-manager detemplate
-<scenario>` removes it once your real domains are green.
+Each domain exposes a subcommand group. Every command calls a single API
+endpoint and renders through one of the three output contracts below.
+
+The CLI is the primary operator surface for this scenario: publishing is
+an infrequent, deliberate, evidence-heavy act, and it is far more likely
+to be driven from a terminal or CI than from a browser.
+
+### `readiness` — publish eligibility
+
+| Command | Calls | Purpose |
+|---|---|---|
+| `scenario-to-plugin readiness` | `ListReadiness` | Fleet board: which scenarios may publish, and what blocks the rest. |
+| `scenario-to-plugin readiness <scenario>` | `GetReadiness` | One scenario's prerequisites, blocking one named first. |
+| `scenario-to-plugin declaration show <scenario>` | `GetDeclaration` | The resolved declaration snapshot. |
+
+### `package` — composition
+
+| Command | Calls | Purpose |
+|---|---|---|
+| `scenario-to-plugin package build <scenario>` | `BuildPackage` | Compose an Agent Plugins tree at the current source commit. |
+| `scenario-to-plugin package show <package-id>` | `GetPackage` | Gate-ladder position and component inventory. |
+| `scenario-to-plugin package list` | `ListPackages` | Filter by scenario, state, or commit. |
+
+### `check` — conformance
+
+| Command | Calls | Purpose |
+|---|---|---|
+| `scenario-to-plugin check run <package-id>` | `RunCheck` | Run every conformance rule. Exits non-zero on any finding. |
+| `scenario-to-plugin check show <run-id>` | `GetRun` | Findings with file, offset, and rule id. |
+| `scenario-to-plugin check drift <package-id>` | `GetDriftDetail` | Unresolved commands and the pinned manifest revision. |
+
+### `attest` — supply-chain attestation
+
+| Command | Calls | Purpose |
+|---|---|---|
+| `scenario-to-plugin attest run <package-id>` | `RunAttestation` | Scan, redaction-check, sign, attach provenance and SBOM. |
+| `scenario-to-plugin attest show <package-id>` | `GetAttestation` | Signature, provenance, and SBOM references. |
+| `scenario-to-plugin attest verify <package-id>` | `VerifyAttestation` | Re-verify against the recorded digest. Read-only. |
+
+### `rehearse` — clean-room validation
+
+| Command | Calls | Purpose |
+|---|---|---|
+| `scenario-to-plugin rehearse run <package-id>` | `StartRehearsal` | Install in a sandbox, twice, and exercise documented commands. |
+| `scenario-to-plugin rehearse show <rehearsal-id>` | `GetRehearsal` | Journey manifest and per-command results. |
+| `scenario-to-plugin rehearse cancel <rehearsal-id>` | `CancelRehearsal` | Cancel with guaranteed teardown. Result is `unavailable`. |
+
+### `publish` / `revoke` — distribution
+
+| Command | Calls | Purpose |
+|---|---|---|
+| `scenario-to-plugin publish <package-id>` | `Publish` | Publish to selected channels. Refuses without a release decision for the same commit. |
+| `scenario-to-plugin publish status <package-id>` | `GetPublication` | Per-channel state, including unconfirmed. |
+| `scenario-to-plugin revoke <package-id>` | `Revoke` | Withdraw from every channel that received it. |
+| `scenario-to-plugin revoke status <package-id>` | `GetRevocation` | Includes `revoked_partial` and the channels still carrying it. |
+| `scenario-to-plugin channels list` | `ListChannels` | Adapters and their capabilities, including withdrawal support. |
+| `scenario-to-plugin attribution <plugin>` | `GetAttribution` | Per-channel install and referrer counts. |
+
+### Exit-code contract
+
+This scenario's exit codes are load-bearing for CI, and the distinction
+below is the important one:
+
+| Code | Meaning |
+|---|---|
+| `0` | The operation succeeded. |
+| `1` | **A gate closed.** The package was judged and did not pass. This is the tool working correctly; the output names the finding and the remedy. |
+| `2` | Usage error — bad arguments or an unknown package. |
+| `3` | **`unavailable`.** The operation could not complete and the package was *not* judged: a timeout, an unreachable dependency, a cancelled rehearsal. |
+
+Never conflate `1` and `3`. A CI job that treats `unavailable` as a
+failed package attributes an infrastructure problem to an author; one
+that treats a closed gate as retryable will loop forever.
 
 <!-- EXAMPLE-DOMAIN:notes START -->
 ### Example domain — `notes` (removed by `template-manager detemplate`)

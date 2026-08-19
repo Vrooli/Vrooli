@@ -7,7 +7,7 @@
 
 ## 🎯 Overview
 
-- **Purpose**: Add the agent-runtime delivery ramp. Scenario to Plugin takes a Vrooli scenario that is already standalone-installable and produces a signed, publishable **Agent Plugin** — an Agent Plugins 1.0.0 folder carrying Agent Skills (`SKILL.md`) and MCP server declarations (`mcp.json`) — then proves that package installs and works in a clean room before any channel receives it. It is the fifth deployment ramp alongside `scenario-to-desktop`, `scenario-to-android`, `scenario-to-ios`, and `scenario-to-cloud`, and it implements the same common ramp contract: consume a target plan, produce artifacts, run target-native validation, emit evidence, and ask `deployment-manager` for the release decision before publishing.
+- **Purpose**: Add the agent-runtime delivery ramp. Scenario to Plugin takes a Vrooli scenario that is already standalone-installable and produces a signed, publishable **Agent Plugin** — an Agent Plugins 1.0.0 folder carrying Agent Skills (`SKILL.md`) and MCP server declarations (`mcp.json`) — then proves that package installs and works in a clean room before any channel receives it. It joins the deployment ramp family — `scenario-to-desktop` (implemented), `scenario-to-android`, `scenario-to-ios`, `scenario-to-cloud` (reserved or in progress), and `scenario-to-extension` (a registered scenario that is absent from the packaging matrix and whose ramp status is unsettled) — and it implements the same common ramp contract: consume a target plan, produce artifacts, run target-native validation, emit evidence, and ask `deployment-manager` for the release decision before publishing.
 - **Primary users / verticals**: Vrooli scenario owners deciding whether a capability is publishable and preparing it; release operators approving what reaches an external audience; the monetization team measuring the `skill-registries` channel; and — indirectly but decisively — the external coding agents (Claude Code, Codex CLI, Cursor, Copilot, Kiro, Windsurf) that install the published result and must be able to trust it.
 - **Deployment surfaces**: Go API (Connect RPC) as the authority; `scenario-to-plugin` CLI as the primary operator surface; React UI for the readiness board, package inspection, evidence review, and publication history; emitted plugin artifacts and attestations as the outward-facing product.
 - **Value promise**: Publishing a capability to an agent registry stops being a hand-run supply-chain chore and becomes a gated, evidenced ramp. Every published plugin carries a signature, provenance, an SBOM, a scanner verdict, and — uniquely — a machine-checked guarantee that the commands its skill documents actually exist in the CLI it wraps. In a market where hundreds of thousands of scraped skills carry no review at all, verifiable non-drift is the differentiator that earns registry curation and the trust an external agent needs before it runs anything.
@@ -24,6 +24,7 @@
 - [ ] OT-P0-006 | Clean-room install rehearsal | Before any publication, the ramp shall install the package in an isolated workspace and record a protocol-profile journey proving the declared commands run without the full Vrooli runtime.
 - [ ] OT-P0-007 | Gate-bound publication | The ramp shall refuse to publish to any channel until deployment-manager returns a passing release decision for the same source commit and target.
 - [ ] OT-P0-008 | Published-version revocation | When an operator revokes a published version, the ramp shall withdraw or flag that artifact in every channel it reached and record the per-channel outcome.
+- [ ] OT-P0-009 | Standalone-install precondition | When a scenario is not standalone-installable, the ramp shall mark it ineligible, name standalone install as the blocking prerequisite, and refuse composition rather than deferring the failure to rehearsal.
 
 ### 🟠 P1 – Should have post-launch
 
@@ -69,4 +70,6 @@
 - `scenarios/deployment-manager/docs/decisions/005-governance-plane-boundary.md` — ADR-005, the four-plane split that assigns this scenario the ramp plane.
 - `scenarios/deployment-manager/docs/guides/packaging-matrix.md` — the common ramp contract this scenario implements.
 - `packages/delivery-ramp-go` — the provider-neutral journey, evidence, verdict, and validation-matrix spine.
-- `docs/reference/scenario-to-desktop-evidence-and-tier-contract.md` — the precedent for a root-level cross-plane evidence contract.
+- `docs/reference/plugin-publication-evidence-contract.md` — the cross-plane contract defining what a publication verdict asserts, its `protocol`-profile gate vocabulary, and the six required evidence classes.
+- `scenarios/deployment-manager/docs/scenarios/scenario-to-plugin.md` — this ramp's governance-facing reference and its must-not list.
+- `docs/reference/scenario-to-desktop-evidence-and-tier-contract.md` — the precedent the contract above follows.

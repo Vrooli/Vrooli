@@ -49,6 +49,10 @@ const (
 	// xAI's Grok-based coding assistant CLI.
 	// Supports: streaming (streaming-json), continuation (--resume).
 	RunnerType_RUNNER_TYPE_GROK RunnerType = 4
+	// Google Antigravity CLI (resource-antigravity).
+	// Google's maintained successor to Gemini CLI.
+	// Supports: print-mode text output and continuation by conversation.
+	RunnerType_RUNNER_TYPE_ANTIGRAVITY RunnerType = 5
 )
 
 // Enum value maps for RunnerType.
@@ -59,6 +63,7 @@ var (
 		2: "RUNNER_TYPE_CODEX",
 		3: "RUNNER_TYPE_OPENCODE",
 		4: "RUNNER_TYPE_GROK",
+		5: "RUNNER_TYPE_ANTIGRAVITY",
 	}
 	RunnerType_value = map[string]int32{
 		"RUNNER_TYPE_UNSPECIFIED": 0,
@@ -66,6 +71,7 @@ var (
 		"RUNNER_TYPE_CODEX":       2,
 		"RUNNER_TYPE_OPENCODE":    3,
 		"RUNNER_TYPE_GROK":        4,
+		"RUNNER_TYPE_ANTIGRAVITY": 5,
 	}
 )
 
@@ -811,6 +817,9 @@ const (
 	ExecutionMode_EXECUTION_MODE_INTERACTIVE ExecutionMode = 2
 	// Read-only historical evidence adopted from an external harness.
 	ExecutionMode_EXECUTION_MODE_IMPORTED ExecutionMode = 3
+	// An operator-started harness session identified by agent-manager without
+	// being spawned or transcript-tailed by it.
+	ExecutionMode_EXECUTION_MODE_ATTACHED ExecutionMode = 4
 )
 
 // Enum value maps for ExecutionMode.
@@ -820,12 +829,14 @@ var (
 		1: "EXECUTION_MODE_CODEC_PIPE",
 		2: "EXECUTION_MODE_INTERACTIVE",
 		3: "EXECUTION_MODE_IMPORTED",
+		4: "EXECUTION_MODE_ATTACHED",
 	}
 	ExecutionMode_value = map[string]int32{
 		"EXECUTION_MODE_UNSPECIFIED": 0,
 		"EXECUTION_MODE_CODEC_PIPE":  1,
 		"EXECUTION_MODE_INTERACTIVE": 2,
 		"EXECUTION_MODE_IMPORTED":    3,
+		"EXECUTION_MODE_ATTACHED":    4,
 	}
 )
 
@@ -1759,14 +1770,15 @@ const file_agent_manager_v1_domain_types_proto_rawDesc = "" +
 	"\fFeatureFlags\x12%\n" +
 	"\x0eenable_browser\x18\x01 \x01(\bR\renableBrowser\"%\n" +
 	"\rExtraFlagList\x12\x14\n" +
-	"\x05flags\x18\x01 \x03(\tR\x05flags*\x8d\x01\n" +
+	"\x05flags\x18\x01 \x03(\tR\x05flags*\xaa\x01\n" +
 	"\n" +
 	"RunnerType\x12\x1b\n" +
 	"\x17RUNNER_TYPE_UNSPECIFIED\x10\x00\x12\x1b\n" +
 	"\x17RUNNER_TYPE_CLAUDE_CODE\x10\x01\x12\x15\n" +
 	"\x11RUNNER_TYPE_CODEX\x10\x02\x12\x18\n" +
 	"\x14RUNNER_TYPE_OPENCODE\x10\x03\x12\x14\n" +
-	"\x10RUNNER_TYPE_GROK\x10\x04*\x83\x01\n" +
+	"\x10RUNNER_TYPE_GROK\x10\x04\x12\x1b\n" +
+	"\x17RUNNER_TYPE_ANTIGRAVITY\x10\x05*\x83\x01\n" +
 	"\x12ModelSelectionType\x12$\n" +
 	" MODEL_SELECTION_TYPE_UNSPECIFIED\x10\x00\x12\x1e\n" +
 	"\x1aMODEL_SELECTION_TYPE_MODEL\x10\x01\x12'\n" +
@@ -1840,12 +1852,13 @@ const file_agent_manager_v1_domain_types_proto_rawDesc = "" +
 	"\aRunMode\x12\x18\n" +
 	"\x14RUN_MODE_UNSPECIFIED\x10\x00\x12\x16\n" +
 	"\x12RUN_MODE_SANDBOXED\x10\x01\x12\x15\n" +
-	"\x11RUN_MODE_IN_PLACE\x10\x02*\x8b\x01\n" +
+	"\x11RUN_MODE_IN_PLACE\x10\x02*\xa8\x01\n" +
 	"\rExecutionMode\x12\x1e\n" +
 	"\x1aEXECUTION_MODE_UNSPECIFIED\x10\x00\x12\x1d\n" +
 	"\x19EXECUTION_MODE_CODEC_PIPE\x10\x01\x12\x1e\n" +
 	"\x1aEXECUTION_MODE_INTERACTIVE\x10\x02\x12\x1b\n" +
-	"\x17EXECUTION_MODE_IMPORTED\x10\x03*\xc5\x01\n" +
+	"\x17EXECUTION_MODE_IMPORTED\x10\x03\x12\x1b\n" +
+	"\x17EXECUTION_MODE_ATTACHED\x10\x04*\xc5\x01\n" +
 	"\rApprovalState\x12\x1e\n" +
 	"\x1aAPPROVAL_STATE_UNSPECIFIED\x10\x00\x12\x17\n" +
 	"\x13APPROVAL_STATE_NONE\x10\x01\x12\x1a\n" +

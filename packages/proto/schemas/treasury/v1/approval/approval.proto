@@ -27,4 +27,5 @@ message ApprovalRequest {
   google.protobuf.Timestamp created_at = 10;
   google.protobuf.Timestamp resolved_at = 11;
   google.protobuf.Timestamp expires_at = 12;
+  string book_id = 13;
 }

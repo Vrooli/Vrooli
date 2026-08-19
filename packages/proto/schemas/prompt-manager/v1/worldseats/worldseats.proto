@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+package vrooli.prompt_manager.v1.worldseats;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/worldseats;worldseats_v1";
+
+service WorldSeatsService { rpc GetWorldSeats(GetWorldSeatsRequest) returns (WorldSeats); rpc SetWorldSeats(SetWorldSeatsRequest) returns (WorldSeats); }
+message Position { double x = 1; double y = 2; double z = 3; }
+message Seat { Position position = 1; double rotation = 2; }
+message SeatGroup { string furniture_type = 1; repeated Seat seats = 2; }
+message WorldSeats { repeated SeatGroup groups = 1; }
+message GetWorldSeatsRequest {}
+message SetWorldSeatsRequest { WorldSeats seats = 1; }

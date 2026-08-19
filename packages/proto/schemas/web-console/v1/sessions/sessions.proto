@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package vrooli.web_console.v1.sessions;
 
+import "web-console/v1/shared/target.proto";
+
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/sessions;sessions_v1";
 
 // =============================================================================
@@ -102,6 +104,9 @@ message Session {
   // True when a recovered Claude pane has terminal output but no new tracked
   // conversation event after the recovery grace period.
   bool tracking_degraded = 14;
+  // Present for sessions hosted by a remote target. Safe node metadata only;
+  // credentials and transport proofs never cross this boundary.
+  vrooli.web_console.v1.shared.Target target = 15;
 }
 
 // RecoverableSession describes an awaiting_recovery row.
@@ -146,6 +151,9 @@ message CreateRequest {
   // fresh session's stdin after create. Consumed by the server-side launch
   // path; the store does not persist this intent.
   bool execute_launch_command = 12;
+  // Empty creates a local session. Otherwise this is a target catalog id.
+  string target_id = 13;
+  string working_dir = 14;
 }
 
 message CreateResponse {

@@ -144,6 +144,9 @@ const (
 	// AgentManagerServiceCreateRunProcedure is the fully-qualified name of the AgentManagerService's
 	// CreateRun RPC.
 	AgentManagerServiceCreateRunProcedure = "/agent_manager.v1.AgentManagerService/CreateRun"
+	// AgentManagerServiceAttachRunProcedure is the fully-qualified name of the AgentManagerService's
+	// AttachRun RPC.
+	AgentManagerServiceAttachRunProcedure = "/agent_manager.v1.AgentManagerService/AttachRun"
 	// AgentManagerServiceGetRunProcedure is the fully-qualified name of the AgentManagerService's
 	// GetRun RPC.
 	AgentManagerServiceGetRunProcedure = "/agent_manager.v1.AgentManagerService/GetRun"
@@ -168,6 +171,9 @@ const (
 	// AgentManagerServiceStopAllRunsProcedure is the fully-qualified name of the AgentManagerService's
 	// StopAllRuns RPC.
 	AgentManagerServiceStopAllRunsProcedure = "/agent_manager.v1.AgentManagerService/StopAllRuns"
+	// AgentManagerServiceDetachRunProcedure is the fully-qualified name of the AgentManagerService's
+	// DetachRun RPC.
+	AgentManagerServiceDetachRunProcedure = "/agent_manager.v1.AgentManagerService/DetachRun"
 	// AgentManagerServiceQuiesceScenarioProcedure is the fully-qualified name of the
 	// AgentManagerService's QuiesceScenario RPC.
 	AgentManagerServiceQuiesceScenarioProcedure = "/agent_manager.v1.AgentManagerService/QuiesceScenario"
@@ -301,6 +307,9 @@ type AgentManagerServiceClient interface {
 	CancelTask(context.Context, *connect.Request[api.CancelTaskRequest]) (*connect.Response[api.CancelTaskResponse], error)
 	// CreateRun starts a new run for a task.
 	CreateRun(context.Context, *connect.Request[api.CreateRunRequest]) (*connect.Response[api.CreateRunResponse], error)
+	// AttachRun identifies an operator-started harness session without taking
+	// ownership of its process or transcript.
+	AttachRun(context.Context, *connect.Request[api.AttachRunRequest]) (*connect.Response[api.AttachRunResponse], error)
 	// GetRun retrieves a run by ID.
 	GetRun(context.Context, *connect.Request[api.GetRunRequest]) (*connect.Response[api.GetRunResponse], error)
 	// GetRunReport returns the bounded diagnostic projection used by CLI, UI,
@@ -319,6 +328,8 @@ type AgentManagerServiceClient interface {
 	StopRunByTag(context.Context, *connect.Request[api.StopRunByTagRequest]) (*connect.Response[api.StopRunByTagResponse], error)
 	// StopAllRuns stops all running runs, optionally filtered by tag prefix.
 	StopAllRuns(context.Context, *connect.Request[api.StopAllRunsRequest]) (*connect.Response[api.StopAllRunsResponse], error)
+	// DetachRun closes an attached run without touching the harness process.
+	DetachRun(context.Context, *connect.Request[api.DetachRunRequest]) (*connect.Response[api.DetachRunResponse], error)
 	// QuiesceScenario drains in-flight runs targeting a scenario so a Baseline
 	// Modes promote can re-point and restart its live instance without killing
 	// in-flight agent work.
@@ -601,6 +612,12 @@ func NewAgentManagerServiceClient(httpClient connect.HTTPClient, baseURL string,
 			connect.WithSchema(agentManagerServiceMethods.ByName("CreateRun")),
 			connect.WithClientOptions(opts...),
 		),
+		attachRun: connect.NewClient[api.AttachRunRequest, api.AttachRunResponse](
+			httpClient,
+			baseURL+AgentManagerServiceAttachRunProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("AttachRun")),
+			connect.WithClientOptions(opts...),
+		),
 		getRun: connect.NewClient[api.GetRunRequest, api.GetRunResponse](
 			httpClient,
 			baseURL+AgentManagerServiceGetRunProcedure,
@@ -647,6 +664,12 @@ func NewAgentManagerServiceClient(httpClient connect.HTTPClient, baseURL string,
 			httpClient,
 			baseURL+AgentManagerServiceStopAllRunsProcedure,
 			connect.WithSchema(agentManagerServiceMethods.ByName("StopAllRuns")),
+			connect.WithClientOptions(opts...),
+		),
+		detachRun: connect.NewClient[api.DetachRunRequest, api.DetachRunResponse](
+			httpClient,
+			baseURL+AgentManagerServiceDetachRunProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("DetachRun")),
 			connect.WithClientOptions(opts...),
 		),
 		quiesceScenario: connect.NewClient[api.QuiesceScenarioRequest, api.QuiesceScenarioResponse](
@@ -817,6 +840,7 @@ type agentManagerServiceClient struct {
 	deleteTask                      *connect.Client[api.DeleteTaskRequest, api.DeleteTaskResponse]
 	cancelTask                      *connect.Client[api.CancelTaskRequest, api.CancelTaskResponse]
 	createRun                       *connect.Client[api.CreateRunRequest, api.CreateRunResponse]
+	attachRun                       *connect.Client[api.AttachRunRequest, api.AttachRunResponse]
 	getRun                          *connect.Client[api.GetRunRequest, api.GetRunResponse]
 	getRunReport                    *connect.Client[api.GetRunReportRequest, api.RunReport]
 	getRunByTag                     *connect.Client[api.GetRunByTagRequest, api.GetRunByTagResponse]
@@ -825,6 +849,7 @@ type agentManagerServiceClient struct {
 	stopRun                         *connect.Client[api.StopRunRequest, api.StopRunResponse]
 	stopRunByTag                    *connect.Client[api.StopRunByTagRequest, api.StopRunByTagResponse]
 	stopAllRuns                     *connect.Client[api.StopAllRunsRequest, api.StopAllRunsResponse]
+	detachRun                       *connect.Client[api.DetachRunRequest, api.DetachRunResponse]
 	quiesceScenario                 *connect.Client[api.QuiesceScenarioRequest, api.QuiesceScenarioResponse]
 	recoverRun                      *connect.Client[api.RecoverRunRequest, api.RecoverRunResponse]
 	getRunEvents                    *connect.Client[api.GetRunEventsRequest, api.GetRunEventsResponse]
@@ -1034,6 +1059,11 @@ func (c *agentManagerServiceClient) CreateRun(ctx context.Context, req *connect.
 	return c.createRun.CallUnary(ctx, req)
 }
 
+// AttachRun calls agent_manager.v1.AgentManagerService.AttachRun.
+func (c *agentManagerServiceClient) AttachRun(ctx context.Context, req *connect.Request[api.AttachRunRequest]) (*connect.Response[api.AttachRunResponse], error) {
+	return c.attachRun.CallUnary(ctx, req)
+}
+
 // GetRun calls agent_manager.v1.AgentManagerService.GetRun.
 func (c *agentManagerServiceClient) GetRun(ctx context.Context, req *connect.Request[api.GetRunRequest]) (*connect.Response[api.GetRunResponse], error) {
 	return c.getRun.CallUnary(ctx, req)
@@ -1072,6 +1102,11 @@ func (c *agentManagerServiceClient) StopRunByTag(ctx context.Context, req *conne
 // StopAllRuns calls agent_manager.v1.AgentManagerService.StopAllRuns.
 func (c *agentManagerServiceClient) StopAllRuns(ctx context.Context, req *connect.Request[api.StopAllRunsRequest]) (*connect.Response[api.StopAllRunsResponse], error) {
 	return c.stopAllRuns.CallUnary(ctx, req)
+}
+
+// DetachRun calls agent_manager.v1.AgentManagerService.DetachRun.
+func (c *agentManagerServiceClient) DetachRun(ctx context.Context, req *connect.Request[api.DetachRunRequest]) (*connect.Response[api.DetachRunResponse], error) {
+	return c.detachRun.CallUnary(ctx, req)
 }
 
 // QuiesceScenario calls agent_manager.v1.AgentManagerService.QuiesceScenario.
@@ -1250,6 +1285,9 @@ type AgentManagerServiceHandler interface {
 	CancelTask(context.Context, *connect.Request[api.CancelTaskRequest]) (*connect.Response[api.CancelTaskResponse], error)
 	// CreateRun starts a new run for a task.
 	CreateRun(context.Context, *connect.Request[api.CreateRunRequest]) (*connect.Response[api.CreateRunResponse], error)
+	// AttachRun identifies an operator-started harness session without taking
+	// ownership of its process or transcript.
+	AttachRun(context.Context, *connect.Request[api.AttachRunRequest]) (*connect.Response[api.AttachRunResponse], error)
 	// GetRun retrieves a run by ID.
 	GetRun(context.Context, *connect.Request[api.GetRunRequest]) (*connect.Response[api.GetRunResponse], error)
 	// GetRunReport returns the bounded diagnostic projection used by CLI, UI,
@@ -1268,6 +1306,8 @@ type AgentManagerServiceHandler interface {
 	StopRunByTag(context.Context, *connect.Request[api.StopRunByTagRequest]) (*connect.Response[api.StopRunByTagResponse], error)
 	// StopAllRuns stops all running runs, optionally filtered by tag prefix.
 	StopAllRuns(context.Context, *connect.Request[api.StopAllRunsRequest]) (*connect.Response[api.StopAllRunsResponse], error)
+	// DetachRun closes an attached run without touching the harness process.
+	DetachRun(context.Context, *connect.Request[api.DetachRunRequest]) (*connect.Response[api.DetachRunResponse], error)
 	// QuiesceScenario drains in-flight runs targeting a scenario so a Baseline
 	// Modes promote can re-point and restart its live instance without killing
 	// in-flight agent work.
@@ -1546,6 +1586,12 @@ func NewAgentManagerServiceHandler(svc AgentManagerServiceHandler, opts ...conne
 		connect.WithSchema(agentManagerServiceMethods.ByName("CreateRun")),
 		connect.WithHandlerOptions(opts...),
 	)
+	agentManagerServiceAttachRunHandler := connect.NewUnaryHandler(
+		AgentManagerServiceAttachRunProcedure,
+		svc.AttachRun,
+		connect.WithSchema(agentManagerServiceMethods.ByName("AttachRun")),
+		connect.WithHandlerOptions(opts...),
+	)
 	agentManagerServiceGetRunHandler := connect.NewUnaryHandler(
 		AgentManagerServiceGetRunProcedure,
 		svc.GetRun,
@@ -1592,6 +1638,12 @@ func NewAgentManagerServiceHandler(svc AgentManagerServiceHandler, opts ...conne
 		AgentManagerServiceStopAllRunsProcedure,
 		svc.StopAllRuns,
 		connect.WithSchema(agentManagerServiceMethods.ByName("StopAllRuns")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagerServiceDetachRunHandler := connect.NewUnaryHandler(
+		AgentManagerServiceDetachRunProcedure,
+		svc.DetachRun,
+		connect.WithSchema(agentManagerServiceMethods.ByName("DetachRun")),
 		connect.WithHandlerOptions(opts...),
 	)
 	agentManagerServiceQuiesceScenarioHandler := connect.NewUnaryHandler(
@@ -1796,6 +1848,8 @@ func NewAgentManagerServiceHandler(svc AgentManagerServiceHandler, opts ...conne
 			agentManagerServiceCancelTaskHandler.ServeHTTP(w, r)
 		case AgentManagerServiceCreateRunProcedure:
 			agentManagerServiceCreateRunHandler.ServeHTTP(w, r)
+		case AgentManagerServiceAttachRunProcedure:
+			agentManagerServiceAttachRunHandler.ServeHTTP(w, r)
 		case AgentManagerServiceGetRunProcedure:
 			agentManagerServiceGetRunHandler.ServeHTTP(w, r)
 		case AgentManagerServiceGetRunReportProcedure:
@@ -1812,6 +1866,8 @@ func NewAgentManagerServiceHandler(svc AgentManagerServiceHandler, opts ...conne
 			agentManagerServiceStopRunByTagHandler.ServeHTTP(w, r)
 		case AgentManagerServiceStopAllRunsProcedure:
 			agentManagerServiceStopAllRunsHandler.ServeHTTP(w, r)
+		case AgentManagerServiceDetachRunProcedure:
+			agentManagerServiceDetachRunHandler.ServeHTTP(w, r)
 		case AgentManagerServiceQuiesceScenarioProcedure:
 			agentManagerServiceQuiesceScenarioHandler.ServeHTTP(w, r)
 		case AgentManagerServiceRecoverRunProcedure:
@@ -2011,6 +2067,10 @@ func (UnimplementedAgentManagerServiceHandler) CreateRun(context.Context, *conne
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.CreateRun is not implemented"))
 }
 
+func (UnimplementedAgentManagerServiceHandler) AttachRun(context.Context, *connect.Request[api.AttachRunRequest]) (*connect.Response[api.AttachRunResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.AttachRun is not implemented"))
+}
+
 func (UnimplementedAgentManagerServiceHandler) GetRun(context.Context, *connect.Request[api.GetRunRequest]) (*connect.Response[api.GetRunResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.GetRun is not implemented"))
 }
@@ -2041,6 +2101,10 @@ func (UnimplementedAgentManagerServiceHandler) StopRunByTag(context.Context, *co
 
 func (UnimplementedAgentManagerServiceHandler) StopAllRuns(context.Context, *connect.Request[api.StopAllRunsRequest]) (*connect.Response[api.StopAllRunsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.StopAllRuns is not implemented"))
+}
+
+func (UnimplementedAgentManagerServiceHandler) DetachRun(context.Context, *connect.Request[api.DetachRunRequest]) (*connect.Response[api.DetachRunResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.DetachRun is not implemented"))
 }
 
 func (UnimplementedAgentManagerServiceHandler) QuiesceScenario(context.Context, *connect.Request[api.QuiesceScenarioRequest]) (*connect.Response[api.QuiesceScenarioResponse], error) {

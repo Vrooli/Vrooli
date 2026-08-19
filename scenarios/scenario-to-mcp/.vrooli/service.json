@@ -186,21 +186,6 @@
           "description": "Execute phased scenario test suite"
         }
       ]
-    },
-    "stop": {
-      "description": "Stop all services",
-      "steps": [
-        {
-          "name": "stop-api",
-          "run": "pkill -f \"scenario-to-mcp-api\" || true; sleep 1; pkill -9 -f \"scenario-to-mcp-api\" 2>/dev/null || true",
-          "description": "Stop API process"
-        },
-        {
-          "name": "stop-ui",
-          "run": "pkill -f \"npm run dev\" || true; pkill -f \"vite\" || true",
-          "description": "Stop UI development server"
-        }
-      ]
     }
   },
   "dependencies": {

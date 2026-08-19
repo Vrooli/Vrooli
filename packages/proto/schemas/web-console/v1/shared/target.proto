@@ -1,0 +1,49 @@
+syntax = "proto3";
+
+package vrooli.web_console.v1.shared;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/shared;shared_v1";
+
+// @stability stable
+
+// TargetState describes whether a local or remote session location can accept
+// a new session. It is shared because both the target catalog and session
+// lifecycle expose the same safe target projection.
+enum TargetState {
+  TARGET_STATE_UNSPECIFIED = 0;
+  TARGET_STATE_DISPATCHABLE = 1;
+  TARGET_STATE_OFFLINE = 2;
+  TARGET_STATE_NEEDS_UPDATE = 3;
+  TARGET_STATE_UNAVAILABLE = 4;
+}
+
+message ReadinessFact {
+  string key = 1;
+  string label = 2;
+  bool passed = 3;
+  string detail = 4;
+}
+
+// Target is a safe projection of a local or Bridge-backed session location.
+// It intentionally contains no owner token, re-authentication proof, or
+// device-auth material.
+message Target {
+  string id = 1;
+  string kind = 2; // local | bridge-node | ssh | attached
+  string label = 3;
+  string os = 4;
+  string arch = 5;
+  string node_id = 6;
+  string revision = 7;
+  string status = 8;
+  bool online = 9;
+  google.protobuf.Timestamp last_seen_at = 10;
+  repeated ReadinessFact readiness = 11;
+  bool dispatchable = 12;
+  string failure_rung = 13;
+  TargetState state = 14;
+  string recovery_action = 15;
+  bool survives_restart = 16;
+}

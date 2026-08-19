@@ -23,7 +23,7 @@ APPROVAL_STATUS_DECLINED: ApprovalStatus
 APPROVAL_STATUS_EXPIRED: ApprovalStatus
 
 class ApprovalRequest(_message.Message):
-    __slots__ = ("id", "authorization_id", "mandate_id", "requesting_agent", "amount_minor", "currency", "counterparty", "status", "resolver_identity", "created_at", "resolved_at", "expires_at")
+    __slots__ = ("id", "authorization_id", "mandate_id", "requesting_agent", "amount_minor", "currency", "counterparty", "status", "resolver_identity", "created_at", "resolved_at", "expires_at", "book_id")
     ID_FIELD_NUMBER: _ClassVar[int]
     AUTHORIZATION_ID_FIELD_NUMBER: _ClassVar[int]
     MANDATE_ID_FIELD_NUMBER: _ClassVar[int]
@@ -36,6 +36,7 @@ class ApprovalRequest(_message.Message):
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
     RESOLVED_AT_FIELD_NUMBER: _ClassVar[int]
     EXPIRES_AT_FIELD_NUMBER: _ClassVar[int]
+    BOOK_ID_FIELD_NUMBER: _ClassVar[int]
     id: str
     authorization_id: str
     mandate_id: str
@@ -48,4 +49,5 @@ class ApprovalRequest(_message.Message):
     created_at: _timestamp_pb2.Timestamp
     resolved_at: _timestamp_pb2.Timestamp
     expires_at: _timestamp_pb2.Timestamp
-    def __init__(self, id: _Optional[str] = ..., authorization_id: _Optional[str] = ..., mandate_id: _Optional[str] = ..., requesting_agent: _Optional[str] = ..., amount_minor: _Optional[int] = ..., currency: _Optional[str] = ..., counterparty: _Optional[str] = ..., status: _Optional[_Union[ApprovalStatus, str]] = ..., resolver_identity: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., resolved_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., expires_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+    book_id: str
+    def __init__(self, id: _Optional[str] = ..., authorization_id: _Optional[str] = ..., mandate_id: _Optional[str] = ..., requesting_agent: _Optional[str] = ..., amount_minor: _Optional[int] = ..., currency: _Optional[str] = ..., counterparty: _Optional[str] = ..., status: _Optional[_Union[ApprovalStatus, str]] = ..., resolver_identity: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., resolved_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., expires_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., book_id: _Optional[str] = ...) -> None: ...

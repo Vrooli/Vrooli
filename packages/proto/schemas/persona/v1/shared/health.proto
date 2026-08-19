@@ -30,7 +30,7 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/persona/v1/s
 //   - Tests: ui/src/test-utils/factories.ts builds Response instances
 //          via `create(ResponseSchema, overrides)` for component tests.
 //
-// Notes:
+// Additional context:
 //   - The `metrics` field on api-core/health.Response is omitted here
 //     because `map<string, google.protobuf.Value>` requires importing
 //     the well-known Any/Value types. The template doesn't ship metrics;

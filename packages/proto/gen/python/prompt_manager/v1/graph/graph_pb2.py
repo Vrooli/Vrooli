@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n#prompt-manager/v1/graph/graph.proto\x12\x1evrooli.prompt_manager.v1.graph\"\x18\n\x16GetHealthScoresRequest\"^\n\x17GetHealthScoresResponse\x12\x43\n\x06scores\x18\x01 \x03(\x0b\x32+.vrooli.prompt_manager.v1.graph.HealthScoreR\x06scores\"\x97\x02\n\x0bHealthScore\x12\x17\n\x07node_id\x18\x01 \x01(\tR\x06nodeId\x12\x14\n\x05score\x18\x02 \x01(\x01R\x05score\x12R\n\x07\x66\x61\x63tors\x18\x03 \x03(\x0b\x32\x38.vrooli.prompt_manager.v1.graph.HealthScore.FactorsEntryR\x07\x66\x61\x63tors\x12I\n\x08messages\x18\x04 \x03(\x0b\x32-.vrooli.prompt_manager.v1.graph.HealthMessageR\x08messages\x1a:\n\x0c\x46\x61\x63torsEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n\x05value\x18\x02 \x01(\x01R\x05value:\x02\x38\x01\"\xea\x01\n\rHealthMessage\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12\x1a\n\x08severity\x18\x02 \x01(\tR\x08severity\x12\x16\n\x06\x66\x61\x63tor\x18\x03 \x01(\tR\x06\x66\x61\x63tor\x12\x18\n\x07summary\x18\x04 \x01(\tR\x07summary\x12\x16\n\x06\x64\x65tail\x18\x05 \x01(\tR\x06\x64\x65tail\x12&\n\x0erecommendation\x18\x06 \x01(\tR\x0erecommendation\x12!\n\x0cmetric_value\x18\x07 \x01(\x01R\x0bmetricValue\x12\x16\n\x06target\x18\x08 \x01(\tR\x06target2\x93\x01\n\x0cGraphService\x12\x82\x01\n\x0fGetHealthScores\x12\x36.vrooli.prompt_manager.v1.graph.GetHealthScoresRequest\x1a\x37.vrooli.prompt_manager.v1.graph.GetHealthScoresResponseBQZOgithub.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/graph;graph_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n#prompt-manager/v1/graph/graph.proto\x12\x1evrooli.prompt_manager.v1.graph\"\x11\n\x0fGetGraphRequest\"\x18\n\x16RegenerateGraphRequest\"\x12\n\x10ListNodesRequest\"/\n\x17ListPopularNodesRequest\x12\x14\n\x05limit\x18\x01 \x01(\x05R\x05limit\"\x13\n\x11ListCyclesRequest\")\n\x0eGetNodeRequest\x12\x17\n\x07node_id\x18\x01 \x01(\tR\x06nodeId\"/\n\x14ListNodeEdgesRequest\x12\x17\n\x07node_id\x18\x01 \x01(\tR\x06nodeId\"\x18\n\x16GetHealthConfigRequest\"a\n\x19UpdateHealthConfigRequest\x12\x44\n\x06\x63onfig\x18\x01 \x01(\x0b\x32,.vrooli.prompt_manager.v1.graph.HealthConfigR\x06\x63onfig\"l\n\nGraphIndex\x12!\n\x0cgenerated_at\x18\x01 \x01(\tR\x0bgeneratedAt\x12;\n\x05graph\x18\x02 \x01(\x0b\x32%.vrooli.prompt_manager.v1.graph.GraphR\x05graph\"\xd1\x01\n\x05Graph\x12:\n\x05nodes\x18\x01 \x03(\x0b\x32$.vrooli.prompt_manager.v1.graph.NodeR\x05nodes\x12:\n\x05\x65\x64ges\x18\x02 \x03(\x0b\x32$.vrooli.prompt_manager.v1.graph.EdgeR\x05\x65\x64ges\x12P\n\rhealth_scores\x18\x03 \x03(\x0b\x32+.vrooli.prompt_manager.v1.graph.HealthScoreR\x0chealthScores\"\x8e\x01\n\x04Node\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n\x04type\x18\x02 \x01(\tR\x04type\x12\x14\n\x05label\x18\x03 \x01(\tR\x05label\x12 \n\x0b\x64\x65scription\x18\x04 \x01(\tR\x0b\x64\x65scription\x12\x16\n\x06status\x18\x05 \x01(\tR\x06status\x12\x12\n\x04tags\x18\x06 \x03(\tR\x04tags\"\xf9\x01\n\x04\x45\x64ge\x12\x12\n\x04\x66rom\x18\x01 \x01(\tR\x04\x66rom\x12\x0e\n\x02to\x18\x02 \x01(\tR\x02to\x12\x12\n\x04kind\x18\x03 \x01(\tR\x04kind\x12\x1a\n\x08\x63\x61tegory\x18\x04 \x01(\tR\x08\x63\x61tegory\x12\x18\n\x07\x63ommand\x18\x05 \x01(\tR\x07\x63ommand\x12\x1e\n\nsubcommand\x18\x06 \x01(\tR\nsubcommand\x12!\n\x0c\x63ommand_text\x18\x07 \x01(\tR\x0b\x63ommandText\x12\x1f\n\x0bsource_file\x18\x08 \x01(\tR\nsourceFile\x12\x1f\n\x0bline_number\x18\t \x01(\x05R\nlineNumber\"O\n\x11ListNodesResponse\x12:\n\x05nodes\x18\x01 \x03(\x0b\x32$.vrooli.prompt_manager.v1.graph.NodeR\x05nodes\"O\n\x11ListEdgesResponse\x12:\n\x05\x65\x64ges\x18\x01 \x03(\x0b\x32$.vrooli.prompt_manager.v1.graph.EdgeR\x05\x65\x64ges\"S\n\x12ListCyclesResponse\x12=\n\x06\x63ycles\x18\x01 \x03(\x0b\x32%.vrooli.prompt_manager.v1.graph.CycleR\x06\x63ycles\"\"\n\x05\x43ycle\x12\x19\n\x08node_ids\x18\x01 \x03(\tR\x07nodeIds\"\xe3\x01\n\nNodeDetail\x12\x38\n\x04node\x18\x01 \x01(\x0b\x32$.vrooli.prompt_manager.v1.graph.NodeR\x04node\x12K\n\x0e\x61\x64jacent_edges\x18\x02 \x03(\x0b\x32$.vrooli.prompt_manager.v1.graph.EdgeR\radjacentEdges\x12N\n\x0chealth_score\x18\x03 \x01(\x0b\x32+.vrooli.prompt_manager.v1.graph.HealthScoreR\x0bhealthScore\"\x8a\x04\n\rHealthWeights\x12%\n\x0eoutgoing_edges\x18\x01 \x01(\x01R\routgoingEdges\x12%\n\x0eincoming_edges\x18\x02 \x01(\x01R\rincomingEdges\x12\x1d\n\ncode_usage\x18\x03 \x01(\x01R\tcodeUsage\x12\'\n\x0frecent_activity\x18\x04 \x01(\x01R\x0erecentActivity\x12\x30\n\x14skill_content_length\x18\x05 \x01(\x01R\x12skillContentLength\x12,\n\x12\x61gent_context_load\x18\x06 \x01(\x01R\x10\x61gentContextLoad\x12\x39\n\x19team_member_count_balance\x18\x07 \x01(\x01R\x16teamMemberCountBalance\x12,\n\x12team_role_coverage\x18\x08 \x01(\x01R\x10teamRoleCoverage\x12\'\n\x0f\x61\x63tion_contract\x18\t \x01(\x01R\x0e\x61\x63tionContract\x12%\n\x0e\x61\x63tion_command\x18\n \x01(\x01R\ractionCommand\x12\'\n\x0f\x61\x63tion_examples\x18\x0b \x01(\x01R\x0e\x61\x63tionExamples\x12!\n\x0c\x61\x63tion_owner\x18\x0c \x01(\x01R\x0b\x61\x63tionOwner\"\xa4\x01\n\x0f\x43LIHealthConfig\x12)\n\x10neutral_commands\x18\x01 \x03(\tR\x0fneutralCommands\x12.\n\x13\x65xternal_tool_score\x18\x02 \x01(\x01R\x11\x65xternalToolScore\x12\x36\n\x17scenario_fallback_score\x18\x03 \x01(\x01R\x15scenarioFallbackScore\"\xe5\x02\n\x0cHealthConfig\x12\x41\n\x04team\x18\x01 \x01(\x0b\x32-.vrooli.prompt_manager.v1.graph.HealthWeightsR\x04team\x12\x43\n\x05\x61gent\x18\x02 \x01(\x0b\x32-.vrooli.prompt_manager.v1.graph.HealthWeightsR\x05\x61gent\x12\x43\n\x05skill\x18\x03 \x01(\x0b\x32-.vrooli.prompt_manager.v1.graph.HealthWeightsR\x05skill\x12\x45\n\x06\x61\x63tion\x18\x04 \x01(\x0b\x32-.vrooli.prompt_manager.v1.graph.HealthWeightsR\x06\x61\x63tion\x12\x41\n\x03\x63li\x18\x05 \x01(\x0b\x32/.vrooli.prompt_manager.v1.graph.CLIHealthConfigR\x03\x63li\"\x18\n\x16GetHealthScoresRequest\"^\n\x17GetHealthScoresResponse\x12\x43\n\x06scores\x18\x01 \x03(\x0b\x32+.vrooli.prompt_manager.v1.graph.HealthScoreR\x06scores\"\x97\x02\n\x0bHealthScore\x12\x17\n\x07node_id\x18\x01 \x01(\tR\x06nodeId\x12\x14\n\x05score\x18\x02 \x01(\x01R\x05score\x12R\n\x07\x66\x61\x63tors\x18\x03 \x03(\x0b\x32\x38.vrooli.prompt_manager.v1.graph.HealthScore.FactorsEntryR\x07\x66\x61\x63tors\x12I\n\x08messages\x18\x04 \x03(\x0b\x32-.vrooli.prompt_manager.v1.graph.HealthMessageR\x08messages\x1a:\n\x0c\x46\x61\x63torsEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n\x05value\x18\x02 \x01(\x01R\x05value:\x02\x38\x01\"\xea\x01\n\rHealthMessage\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12\x1a\n\x08severity\x18\x02 \x01(\tR\x08severity\x12\x16\n\x06\x66\x61\x63tor\x18\x03 \x01(\tR\x06\x66\x61\x63tor\x12\x18\n\x07summary\x18\x04 \x01(\tR\x07summary\x12\x16\n\x06\x64\x65tail\x18\x05 \x01(\tR\x06\x64\x65tail\x12&\n\x0erecommendation\x18\x06 \x01(\tR\x0erecommendation\x12!\n\x0cmetric_value\x18\x07 \x01(\x01R\x0bmetricValue\x12\x16\n\x06target\x18\x08 \x01(\tR\x06target2\xae\x0c\n\x0cGraphService\x12g\n\x08GetGraph\x12/.vrooli.prompt_manager.v1.graph.GetGraphRequest\x1a*.vrooli.prompt_manager.v1.graph.GraphIndex\x12u\n\x0fRegenerateGraph\x12\x36.vrooli.prompt_manager.v1.graph.RegenerateGraphRequest\x1a*.vrooli.prompt_manager.v1.graph.GraphIndex\x12y\n\x12ListOrphanedSkills\x12\x30.vrooli.prompt_manager.v1.graph.ListNodesRequest\x1a\x31.vrooli.prompt_manager.v1.graph.ListNodesResponse\x12z\n\x13ListSkilllessAgents\x12\x30.vrooli.prompt_manager.v1.graph.ListNodesRequest\x1a\x31.vrooli.prompt_manager.v1.graph.ListNodesResponse\x12u\n\x0eListEmptyTeams\x12\x30.vrooli.prompt_manager.v1.graph.ListNodesRequest\x1a\x31.vrooli.prompt_manager.v1.graph.ListNodesResponse\x12}\n\x16ListUnaffiliatedAgents\x12\x30.vrooli.prompt_manager.v1.graph.ListNodesRequest\x1a\x31.vrooli.prompt_manager.v1.graph.ListNodesResponse\x12~\n\x10ListPopularNodes\x12\x37.vrooli.prompt_manager.v1.graph.ListPopularNodesRequest\x1a\x31.vrooli.prompt_manager.v1.graph.ListNodesResponse\x12s\n\nListCycles\x12\x31.vrooli.prompt_manager.v1.graph.ListCyclesRequest\x1a\x32.vrooli.prompt_manager.v1.graph.ListCyclesResponse\x12\x65\n\x07GetNode\x12..vrooli.prompt_manager.v1.graph.GetNodeRequest\x1a*.vrooli.prompt_manager.v1.graph.NodeDetail\x12x\n\rListNodeEdges\x12\x34.vrooli.prompt_manager.v1.graph.ListNodeEdgesRequest\x1a\x31.vrooli.prompt_manager.v1.graph.ListEdgesResponse\x12\x82\x01\n\x0fGetHealthScores\x12\x36.vrooli.prompt_manager.v1.graph.GetHealthScoresRequest\x1a\x37.vrooli.prompt_manager.v1.graph.GetHealthScoresResponse\x12w\n\x0fGetHealthConfig\x12\x36.vrooli.prompt_manager.v1.graph.GetHealthConfigRequest\x1a,.vrooli.prompt_manager.v1.graph.HealthConfig\x12}\n\x12UpdateHealthConfig\x12\x39.vrooli.prompt_manager.v1.graph.UpdateHealthConfigRequest\x1a,.vrooli.prompt_manager.v1.graph.HealthConfigBQZOgithub.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/graph;graph_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -34,16 +34,58 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._serialized_options = b'ZOgithub.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/graph;graph_v1'
   _globals['_HEALTHSCORE_FACTORSENTRY']._loaded_options = None
   _globals['_HEALTHSCORE_FACTORSENTRY']._serialized_options = b'8\001'
-  _globals['_GETHEALTHSCORESREQUEST']._serialized_start=71
-  _globals['_GETHEALTHSCORESREQUEST']._serialized_end=95
-  _globals['_GETHEALTHSCORESRESPONSE']._serialized_start=97
-  _globals['_GETHEALTHSCORESRESPONSE']._serialized_end=191
-  _globals['_HEALTHSCORE']._serialized_start=194
-  _globals['_HEALTHSCORE']._serialized_end=473
-  _globals['_HEALTHSCORE_FACTORSENTRY']._serialized_start=415
-  _globals['_HEALTHSCORE_FACTORSENTRY']._serialized_end=473
-  _globals['_HEALTHMESSAGE']._serialized_start=476
-  _globals['_HEALTHMESSAGE']._serialized_end=710
-  _globals['_GRAPHSERVICE']._serialized_start=713
-  _globals['_GRAPHSERVICE']._serialized_end=860
+  _globals['_GETGRAPHREQUEST']._serialized_start=71
+  _globals['_GETGRAPHREQUEST']._serialized_end=88
+  _globals['_REGENERATEGRAPHREQUEST']._serialized_start=90
+  _globals['_REGENERATEGRAPHREQUEST']._serialized_end=114
+  _globals['_LISTNODESREQUEST']._serialized_start=116
+  _globals['_LISTNODESREQUEST']._serialized_end=134
+  _globals['_LISTPOPULARNODESREQUEST']._serialized_start=136
+  _globals['_LISTPOPULARNODESREQUEST']._serialized_end=183
+  _globals['_LISTCYCLESREQUEST']._serialized_start=185
+  _globals['_LISTCYCLESREQUEST']._serialized_end=204
+  _globals['_GETNODEREQUEST']._serialized_start=206
+  _globals['_GETNODEREQUEST']._serialized_end=247
+  _globals['_LISTNODEEDGESREQUEST']._serialized_start=249
+  _globals['_LISTNODEEDGESREQUEST']._serialized_end=296
+  _globals['_GETHEALTHCONFIGREQUEST']._serialized_start=298
+  _globals['_GETHEALTHCONFIGREQUEST']._serialized_end=322
+  _globals['_UPDATEHEALTHCONFIGREQUEST']._serialized_start=324
+  _globals['_UPDATEHEALTHCONFIGREQUEST']._serialized_end=421
+  _globals['_GRAPHINDEX']._serialized_start=423
+  _globals['_GRAPHINDEX']._serialized_end=531
+  _globals['_GRAPH']._serialized_start=534
+  _globals['_GRAPH']._serialized_end=743
+  _globals['_NODE']._serialized_start=746
+  _globals['_NODE']._serialized_end=888
+  _globals['_EDGE']._serialized_start=891
+  _globals['_EDGE']._serialized_end=1140
+  _globals['_LISTNODESRESPONSE']._serialized_start=1142
+  _globals['_LISTNODESRESPONSE']._serialized_end=1221
+  _globals['_LISTEDGESRESPONSE']._serialized_start=1223
+  _globals['_LISTEDGESRESPONSE']._serialized_end=1302
+  _globals['_LISTCYCLESRESPONSE']._serialized_start=1304
+  _globals['_LISTCYCLESRESPONSE']._serialized_end=1387
+  _globals['_CYCLE']._serialized_start=1389
+  _globals['_CYCLE']._serialized_end=1423
+  _globals['_NODEDETAIL']._serialized_start=1426
+  _globals['_NODEDETAIL']._serialized_end=1653
+  _globals['_HEALTHWEIGHTS']._serialized_start=1656
+  _globals['_HEALTHWEIGHTS']._serialized_end=2178
+  _globals['_CLIHEALTHCONFIG']._serialized_start=2181
+  _globals['_CLIHEALTHCONFIG']._serialized_end=2345
+  _globals['_HEALTHCONFIG']._serialized_start=2348
+  _globals['_HEALTHCONFIG']._serialized_end=2705
+  _globals['_GETHEALTHSCORESREQUEST']._serialized_start=2707
+  _globals['_GETHEALTHSCORESREQUEST']._serialized_end=2731
+  _globals['_GETHEALTHSCORESRESPONSE']._serialized_start=2733
+  _globals['_GETHEALTHSCORESRESPONSE']._serialized_end=2827
+  _globals['_HEALTHSCORE']._serialized_start=2830
+  _globals['_HEALTHSCORE']._serialized_end=3109
+  _globals['_HEALTHSCORE_FACTORSENTRY']._serialized_start=3051
+  _globals['_HEALTHSCORE_FACTORSENTRY']._serialized_end=3109
+  _globals['_HEALTHMESSAGE']._serialized_start=3112
+  _globals['_HEALTHMESSAGE']._serialized_end=3346
+  _globals['_GRAPHSERVICE']._serialized_start=3349
+  _globals['_GRAPHSERVICE']._serialized_end=4931
 # @@protoc_insertion_point(module_scope)

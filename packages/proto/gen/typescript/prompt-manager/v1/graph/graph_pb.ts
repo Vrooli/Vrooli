@@ -10,7 +10,519 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file prompt-manager/v1/graph/graph.proto.
  */
 export const file_prompt_manager_v1_graph_graph: GenFile = /*@__PURE__*/
-  fileDesc("CiNwcm9tcHQtbWFuYWdlci92MS9ncmFwaC9ncmFwaC5wcm90bxIednJvb2xpLnByb21wdF9tYW5hZ2VyLnYxLmdyYXBoIhgKFkdldEhlYWx0aFNjb3Jlc1JlcXVlc3QiVgoXR2V0SGVhbHRoU2NvcmVzUmVzcG9uc2USOwoGc2NvcmVzGAEgAygLMisudnJvb2xpLnByb21wdF9tYW5hZ2VyLnYxLmdyYXBoLkhlYWx0aFNjb3JlIukBCgtIZWFsdGhTY29yZRIPCgdub2RlX2lkGAEgASgJEg0KBXNjb3JlGAIgASgBEkkKB2ZhY3RvcnMYAyADKAsyOC52cm9vbGkucHJvbXB0X21hbmFnZXIudjEuZ3JhcGguSGVhbHRoU2NvcmUuRmFjdG9yc0VudHJ5Ej8KCG1lc3NhZ2VzGAQgAygLMi0udnJvb2xpLnByb21wdF9tYW5hZ2VyLnYxLmdyYXBoLkhlYWx0aE1lc3NhZ2UaLgoMRmFjdG9yc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoAToCOAEinQEKDUhlYWx0aE1lc3NhZ2USCwoDa2V5GAEgASgJEhAKCHNldmVyaXR5GAIgASgJEg4KBmZhY3RvchgDIAEoCRIPCgdzdW1tYXJ5GAQgASgJEg4KBmRldGFpbBgFIAEoCRIWCg5yZWNvbW1lbmRhdGlvbhgGIAEoCRIUCgxtZXRyaWNfdmFsdWUYByABKAESDgoGdGFyZ2V0GAggASgJMpMBCgxHcmFwaFNlcnZpY2USggEKD0dldEhlYWx0aFNjb3JlcxI2LnZyb29saS5wcm9tcHRfbWFuYWdlci52MS5ncmFwaC5HZXRIZWFsdGhTY29yZXNSZXF1ZXN0GjcudnJvb2xpLnByb21wdF9tYW5hZ2VyLnYxLmdyYXBoLkdldEhlYWx0aFNjb3Jlc1Jlc3BvbnNlQlFaT2dpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vcHJvbXB0LW1hbmFnZXIvdjEvZ3JhcGg7Z3JhcGhfdjFiBnByb3RvMw");
+  fileDesc("CiNwcm9tcHQtbWFuYWdlci92MS9ncmFwaC9ncmFwaC5wcm90bxIednJvb2xpLnByb21wdF9tYW5hZ2VyLnYxLmdyYXBoIhEKD0dldEdyYXBoUmVxdWVzdCIYChZSZWdlbmVyYXRlR3JhcGhSZXF1ZXN0IhIKEExpc3ROb2Rlc1JlcXVlc3QiKAoXTGlzdFBvcHVsYXJOb2Rlc1JlcXVlc3QSDQoFbGltaXQYASABKAUiEwoRTGlzdEN5Y2xlc1JlcXVlc3QiIQoOR2V0Tm9kZVJlcXVlc3QSDwoHbm9kZV9pZBgBIAEoCSInChRMaXN0Tm9kZUVkZ2VzUmVxdWVzdBIPCgdub2RlX2lkGAEgASgJIhgKFkdldEhlYWx0aENvbmZpZ1JlcXVlc3QiWQoZVXBkYXRlSGVhbHRoQ29uZmlnUmVxdWVzdBI8CgZjb25maWcYASABKAsyLC52cm9vbGkucHJvbXB0X21hbmFnZXIudjEuZ3JhcGguSGVhbHRoQ29uZmlnIlgKCkdyYXBoSW5kZXgSFAoMZ2VuZXJhdGVkX2F0GAEgASgJEjQKBWdyYXBoGAIgASgLMiUudnJvb2xpLnByb21wdF9tYW5hZ2VyLnYxLmdyYXBoLkdyYXBoIrUBCgVHcmFwaBIzCgVub2RlcxgBIAMoCzIkLnZyb29saS5wcm9tcHRfbWFuYWdlci52MS5ncmFwaC5Ob2RlEjMKBWVkZ2VzGAIgAygLMiQudnJvb2xpLnByb21wdF9tYW5hZ2VyLnYxLmdyYXBoLkVkZ2USQgoNaGVhbHRoX3Njb3JlcxgDIAMoCzIrLnZyb29saS5wcm9tcHRfbWFuYWdlci52MS5ncmFwaC5IZWFsdGhTY29yZSJiCgROb2RlEgoKAmlkGAEgASgJEgwKBHR5cGUYAiABKAkSDQoFbGFiZWwYAyABKAkSEwoLZGVzY3JpcHRpb24YBCABKAkSDgoGc3RhdHVzGAUgASgJEgwKBHRhZ3MYBiADKAkipQEKBEVkZ2USDAoEZnJvbRgBIAEoCRIKCgJ0bxgCIAEoCRIMCgRraW5kGAMgASgJEhAKCGNhdGVnb3J5GAQgASgJEg8KB2NvbW1hbmQYBSABKAkSEgoKc3ViY29tbWFuZBgGIAEoCRIUCgxjb21tYW5kX3RleHQYByABKAkSEwoLc291cmNlX2ZpbGUYCCABKAkSEwoLbGluZV9udW1iZXIYCSABKAUiSAoRTGlzdE5vZGVzUmVzcG9uc2USMwoFbm9kZXMYASADKAsyJC52cm9vbGkucHJvbXB0X21hbmFnZXIudjEuZ3JhcGguTm9kZSJIChFMaXN0RWRnZXNSZXNwb25zZRIzCgVlZGdlcxgBIAMoCzIkLnZyb29saS5wcm9tcHRfbWFuYWdlci52MS5ncmFwaC5FZGdlIksKEkxpc3RDeWNsZXNSZXNwb25zZRI1CgZjeWNsZXMYASADKAsyJS52cm9vbGkucHJvbXB0X21hbmFnZXIudjEuZ3JhcGguQ3ljbGUiGQoFQ3ljbGUSEAoIbm9kZV9pZHMYASADKAkiwQEKCk5vZGVEZXRhaWwSMgoEbm9kZRgBIAEoCzIkLnZyb29saS5wcm9tcHRfbWFuYWdlci52MS5ncmFwaC5Ob2RlEjwKDmFkamFjZW50X2VkZ2VzGAIgAygLMiQudnJvb2xpLnByb21wdF9tYW5hZ2VyLnYxLmdyYXBoLkVkZ2USQQoMaGVhbHRoX3Njb3JlGAMgASgLMisudnJvb2xpLnByb21wdF9tYW5hZ2VyLnYxLmdyYXBoLkhlYWx0aFNjb3JlIsUCCg1IZWFsdGhXZWlnaHRzEhYKDm91dGdvaW5nX2VkZ2VzGAEgASgBEhYKDmluY29taW5nX2VkZ2VzGAIgASgBEhIKCmNvZGVfdXNhZ2UYAyABKAESFwoPcmVjZW50X2FjdGl2aXR5GAQgASgBEhwKFHNraWxsX2NvbnRlbnRfbGVuZ3RoGAUgASgBEhoKEmFnZW50X2NvbnRleHRfbG9hZBgGIAEoARIhChl0ZWFtX21lbWJlcl9jb3VudF9iYWxhbmNlGAcgASgBEhoKEnRlYW1fcm9sZV9jb3ZlcmFnZRgIIAEoARIXCg9hY3Rpb25fY29udHJhY3QYCSABKAESFgoOYWN0aW9uX2NvbW1hbmQYCiABKAESFwoPYWN0aW9uX2V4YW1wbGVzGAsgASgBEhQKDGFjdGlvbl9vd25lchgMIAEoASJpCg9DTElIZWFsdGhDb25maWcSGAoQbmV1dHJhbF9jb21tYW5kcxgBIAMoCRIbChNleHRlcm5hbF90b29sX3Njb3JlGAIgASgBEh8KF3NjZW5hcmlvX2ZhbGxiYWNrX3Njb3JlGAMgASgBIsQCCgxIZWFsdGhDb25maWcSOwoEdGVhbRgBIAEoCzItLnZyb29saS5wcm9tcHRfbWFuYWdlci52MS5ncmFwaC5IZWFsdGhXZWlnaHRzEjwKBWFnZW50GAIgASgLMi0udnJvb2xpLnByb21wdF9tYW5hZ2VyLnYxLmdyYXBoLkhlYWx0aFdlaWdodHMSPAoFc2tpbGwYAyABKAsyLS52cm9vbGkucHJvbXB0X21hbmFnZXIudjEuZ3JhcGguSGVhbHRoV2VpZ2h0cxI9CgZhY3Rpb24YBCABKAsyLS52cm9vbGkucHJvbXB0X21hbmFnZXIudjEuZ3JhcGguSGVhbHRoV2VpZ2h0cxI8CgNjbGkYBSABKAsyLy52cm9vbGkucHJvbXB0X21hbmFnZXIudjEuZ3JhcGguQ0xJSGVhbHRoQ29uZmlnIhgKFkdldEhlYWx0aFNjb3Jlc1JlcXVlc3QiVgoXR2V0SGVhbHRoU2NvcmVzUmVzcG9uc2USOwoGc2NvcmVzGAEgAygLMisudnJvb2xpLnByb21wdF9tYW5hZ2VyLnYxLmdyYXBoLkhlYWx0aFNjb3JlIukBCgtIZWFsdGhTY29yZRIPCgdub2RlX2lkGAEgASgJEg0KBXNjb3JlGAIgASgBEkkKB2ZhY3RvcnMYAyADKAsyOC52cm9vbGkucHJvbXB0X21hbmFnZXIudjEuZ3JhcGguSGVhbHRoU2NvcmUuRmFjdG9yc0VudHJ5Ej8KCG1lc3NhZ2VzGAQgAygLMi0udnJvb2xpLnByb21wdF9tYW5hZ2VyLnYxLmdyYXBoLkhlYWx0aE1lc3NhZ2UaLgoMRmFjdG9yc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoAToCOAEinQEKDUhlYWx0aE1lc3NhZ2USCwoDa2V5GAEgASgJEhAKCHNldmVyaXR5GAIgASgJEg4KBmZhY3RvchgDIAEoCRIPCgdzdW1tYXJ5GAQgASgJEg4KBmRldGFpbBgFIAEoCRIWCg5yZWNvbW1lbmRhdGlvbhgGIAEoCRIUCgxtZXRyaWNfdmFsdWUYByABKAESDgoGdGFyZ2V0GAggASgJMq4MCgxHcmFwaFNlcnZpY2USZwoIR2V0R3JhcGgSLy52cm9vbGkucHJvbXB0X21hbmFnZXIudjEuZ3JhcGguR2V0R3JhcGhSZXF1ZXN0GioudnJvb2xpLnByb21wdF9tYW5hZ2VyLnYxLmdyYXBoLkdyYXBoSW5kZXgSdQoPUmVnZW5lcmF0ZUdyYXBoEjYudnJvb2xpLnByb21wdF9tYW5hZ2VyLnYxLmdyYXBoLlJlZ2VuZXJhdGVHcmFwaFJlcXVlc3QaKi52cm9vbGkucHJvbXB0X21hbmFnZXIudjEuZ3JhcGguR3JhcGhJbmRleBJ5ChJMaXN0T3JwaGFuZWRTa2lsbHMSMC52cm9vbGkucHJvbXB0X21hbmFnZXIudjEuZ3JhcGguTGlzdE5vZGVzUmVxdWVzdBoxLnZyb29saS5wcm9tcHRfbWFuYWdlci52MS5ncmFwaC5MaXN0Tm9kZXNSZXNwb25zZRJ6ChNMaXN0U2tpbGxsZXNzQWdlbnRzEjAudnJvb2xpLnByb21wdF9tYW5hZ2VyLnYxLmdyYXBoLkxpc3ROb2Rlc1JlcXVlc3QaMS52cm9vbGkucHJvbXB0X21hbmFnZXIudjEuZ3JhcGguTGlzdE5vZGVzUmVzcG9uc2USdQoOTGlzdEVtcHR5VGVhbXMSMC52cm9vbGkucHJvbXB0X21hbmFnZXIudjEuZ3JhcGguTGlzdE5vZGVzUmVxdWVzdBoxLnZyb29saS5wcm9tcHRfbWFuYWdlci52MS5ncmFwaC5MaXN0Tm9kZXNSZXNwb25zZRJ9ChZMaXN0VW5hZmZpbGlhdGVkQWdlbnRzEjAudnJvb2xpLnByb21wdF9tYW5hZ2VyLnYxLmdyYXBoLkxpc3ROb2Rlc1JlcXVlc3QaMS52cm9vbGkucHJvbXB0X21hbmFnZXIudjEuZ3JhcGguTGlzdE5vZGVzUmVzcG9uc2USfgoQTGlzdFBvcHVsYXJOb2RlcxI3LnZyb29saS5wcm9tcHRfbWFuYWdlci52MS5ncmFwaC5MaXN0UG9wdWxhck5vZGVzUmVxdWVzdBoxLnZyb29saS5wcm9tcHRfbWFuYWdlci52MS5ncmFwaC5MaXN0Tm9kZXNSZXNwb25zZRJzCgpMaXN0Q3ljbGVzEjEudnJvb2xpLnByb21wdF9tYW5hZ2VyLnYxLmdyYXBoLkxpc3RDeWNsZXNSZXF1ZXN0GjIudnJvb2xpLnByb21wdF9tYW5hZ2VyLnYxLmdyYXBoLkxpc3RDeWNsZXNSZXNwb25zZRJlCgdHZXROb2RlEi4udnJvb2xpLnByb21wdF9tYW5hZ2VyLnYxLmdyYXBoLkdldE5vZGVSZXF1ZXN0GioudnJvb2xpLnByb21wdF9tYW5hZ2VyLnYxLmdyYXBoLk5vZGVEZXRhaWwSeAoNTGlzdE5vZGVFZGdlcxI0LnZyb29saS5wcm9tcHRfbWFuYWdlci52MS5ncmFwaC5MaXN0Tm9kZUVkZ2VzUmVxdWVzdBoxLnZyb29saS5wcm9tcHRfbWFuYWdlci52MS5ncmFwaC5MaXN0RWRnZXNSZXNwb25zZRKCAQoPR2V0SGVhbHRoU2NvcmVzEjYudnJvb2xpLnByb21wdF9tYW5hZ2VyLnYxLmdyYXBoLkdldEhlYWx0aFNjb3Jlc1JlcXVlc3QaNy52cm9vbGkucHJvbXB0X21hbmFnZXIudjEuZ3JhcGguR2V0SGVhbHRoU2NvcmVzUmVzcG9uc2USdwoPR2V0SGVhbHRoQ29uZmlnEjYudnJvb2xpLnByb21wdF9tYW5hZ2VyLnYxLmdyYXBoLkdldEhlYWx0aENvbmZpZ1JlcXVlc3QaLC52cm9vbGkucHJvbXB0X21hbmFnZXIudjEuZ3JhcGguSGVhbHRoQ29uZmlnEn0KElVwZGF0ZUhlYWx0aENvbmZpZxI5LnZyb29saS5wcm9tcHRfbWFuYWdlci52MS5ncmFwaC5VcGRhdGVIZWFsdGhDb25maWdSZXF1ZXN0GiwudnJvb2xpLnByb21wdF9tYW5hZ2VyLnYxLmdyYXBoLkhlYWx0aENvbmZpZ0JRWk9naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3Byb21wdC1tYW5hZ2VyL3YxL2dyYXBoO2dyYXBoX3YxYgZwcm90bzM");
+
+/**
+ * @generated from message vrooli.prompt_manager.v1.graph.GetGraphRequest
+ */
+export type GetGraphRequest = Message<"vrooli.prompt_manager.v1.graph.GetGraphRequest"> & {
+};
+
+/**
+ * Describes the message vrooli.prompt_manager.v1.graph.GetGraphRequest.
+ * Use `create(GetGraphRequestSchema)` to create a new message.
+ */
+export const GetGraphRequestSchema: GenMessage<GetGraphRequest> = /*@__PURE__*/
+  messageDesc(file_prompt_manager_v1_graph_graph, 0);
+
+/**
+ * @generated from message vrooli.prompt_manager.v1.graph.RegenerateGraphRequest
+ */
+export type RegenerateGraphRequest = Message<"vrooli.prompt_manager.v1.graph.RegenerateGraphRequest"> & {
+};
+
+/**
+ * Describes the message vrooli.prompt_manager.v1.graph.RegenerateGraphRequest.
+ * Use `create(RegenerateGraphRequestSchema)` to create a new message.
+ */
+export const RegenerateGraphRequestSchema: GenMessage<RegenerateGraphRequest> = /*@__PURE__*/
+  messageDesc(file_prompt_manager_v1_graph_graph, 1);
+
+/**
+ * @generated from message vrooli.prompt_manager.v1.graph.ListNodesRequest
+ */
+export type ListNodesRequest = Message<"vrooli.prompt_manager.v1.graph.ListNodesRequest"> & {
+};
+
+/**
+ * Describes the message vrooli.prompt_manager.v1.graph.ListNodesRequest.
+ * Use `create(ListNodesRequestSchema)` to create a new message.
+ */
+export const ListNodesRequestSchema: GenMessage<ListNodesRequest> = /*@__PURE__*/
+  messageDesc(file_prompt_manager_v1_graph_graph, 2);
+
+/**
+ * @generated from message vrooli.prompt_manager.v1.graph.ListPopularNodesRequest
+ */
+export type ListPopularNodesRequest = Message<"vrooli.prompt_manager.v1.graph.ListPopularNodesRequest"> & {
+  /**
+   * @generated from field: int32 limit = 1;
+   */
+  limit: number;
+};
+
+/**
+ * Describes the message vrooli.prompt_manager.v1.graph.ListPopularNodesRequest.
+ * Use `create(ListPopularNodesRequestSchema)` to create a new message.
+ */
+export const ListPopularNodesRequestSchema: GenMessage<ListPopularNodesRequest> = /*@__PURE__*/
+  messageDesc(file_prompt_manager_v1_graph_graph, 3);
+
+/**
+ * @generated from message vrooli.prompt_manager.v1.graph.ListCyclesRequest
+ */
+export type ListCyclesRequest = Message<"vrooli.prompt_manager.v1.graph.ListCyclesRequest"> & {
+};
+
+/**
+ * Describes the message vrooli.prompt_manager.v1.graph.ListCyclesRequest.
+ * Use `create(ListCyclesRequestSchema)` to create a new message.
+ */
+export const ListCyclesRequestSchema: GenMessage<ListCyclesRequest> = /*@__PURE__*/
+  messageDesc(file_prompt_manager_v1_graph_graph, 4);
+
+/**
+ * @generated from message vrooli.prompt_manager.v1.graph.GetNodeRequest
+ */
+export type GetNodeRequest = Message<"vrooli.prompt_manager.v1.graph.GetNodeRequest"> & {
+  /**
+   * @generated from field: string node_id = 1;
+   */
+  nodeId: string;
+};
+
+/**
+ * Describes the message vrooli.prompt_manager.v1.graph.GetNodeRequest.
+ * Use `create(GetNodeRequestSchema)` to create a new message.
+ */
+export const GetNodeRequestSchema: GenMessage<GetNodeRequest> = /*@__PURE__*/
+  messageDesc(file_prompt_manager_v1_graph_graph, 5);
+
+/**
+ * @generated from message vrooli.prompt_manager.v1.graph.ListNodeEdgesRequest
+ */
+export type ListNodeEdgesRequest = Message<"vrooli.prompt_manager.v1.graph.ListNodeEdgesRequest"> & {
+  /**
+   * @generated from field: string node_id = 1;
+   */
+  nodeId: string;
+};
+
+/**
+ * Describes the message vrooli.prompt_manager.v1.graph.ListNodeEdgesRequest.
+ * Use `create(ListNodeEdgesRequestSchema)` to create a new message.
+ */
+export const ListNodeEdgesRequestSchema: GenMessage<ListNodeEdgesRequest> = /*@__PURE__*/
+  messageDesc(file_prompt_manager_v1_graph_graph, 6);
+
+/**
+ * @generated from message vrooli.prompt_manager.v1.graph.GetHealthConfigRequest
+ */
+export type GetHealthConfigRequest = Message<"vrooli.prompt_manager.v1.graph.GetHealthConfigRequest"> & {
+};
+
+/**
+ * Describes the message vrooli.prompt_manager.v1.graph.GetHealthConfigRequest.
+ * Use `create(GetHealthConfigRequestSchema)` to create a new message.
+ */
+export const GetHealthConfigRequestSchema: GenMessage<GetHealthConfigRequest> = /*@__PURE__*/
+  messageDesc(file_prompt_manager_v1_graph_graph, 7);
+
+/**
+ * @generated from message vrooli.prompt_manager.v1.graph.UpdateHealthConfigRequest
+ */
+export type UpdateHealthConfigRequest = Message<"vrooli.prompt_manager.v1.graph.UpdateHealthConfigRequest"> & {
+  /**
+   * @generated from field: vrooli.prompt_manager.v1.graph.HealthConfig config = 1;
+   */
+  config?: HealthConfig | undefined;
+};
+
+/**
+ * Describes the message vrooli.prompt_manager.v1.graph.UpdateHealthConfigRequest.
+ * Use `create(UpdateHealthConfigRequestSchema)` to create a new message.
+ */
+export const UpdateHealthConfigRequestSchema: GenMessage<UpdateHealthConfigRequest> = /*@__PURE__*/
+  messageDesc(file_prompt_manager_v1_graph_graph, 8);
+
+/**
+ * @generated from message vrooli.prompt_manager.v1.graph.GraphIndex
+ */
+export type GraphIndex = Message<"vrooli.prompt_manager.v1.graph.GraphIndex"> & {
+  /**
+   * @generated from field: string generated_at = 1;
+   */
+  generatedAt: string;
+
+  /**
+   * @generated from field: vrooli.prompt_manager.v1.graph.Graph graph = 2;
+   */
+  graph?: Graph | undefined;
+};
+
+/**
+ * Describes the message vrooli.prompt_manager.v1.graph.GraphIndex.
+ * Use `create(GraphIndexSchema)` to create a new message.
+ */
+export const GraphIndexSchema: GenMessage<GraphIndex> = /*@__PURE__*/
+  messageDesc(file_prompt_manager_v1_graph_graph, 9);
+
+/**
+ * @generated from message vrooli.prompt_manager.v1.graph.Graph
+ */
+export type Graph = Message<"vrooli.prompt_manager.v1.graph.Graph"> & {
+  /**
+   * @generated from field: repeated vrooli.prompt_manager.v1.graph.Node nodes = 1;
+   */
+  nodes: Node[];
+
+  /**
+   * @generated from field: repeated vrooli.prompt_manager.v1.graph.Edge edges = 2;
+   */
+  edges: Edge[];
+
+  /**
+   * @generated from field: repeated vrooli.prompt_manager.v1.graph.HealthScore health_scores = 3;
+   */
+  healthScores: HealthScore[];
+};
+
+/**
+ * Describes the message vrooli.prompt_manager.v1.graph.Graph.
+ * Use `create(GraphSchema)` to create a new message.
+ */
+export const GraphSchema: GenMessage<Graph> = /*@__PURE__*/
+  messageDesc(file_prompt_manager_v1_graph_graph, 10);
+
+/**
+ * @generated from message vrooli.prompt_manager.v1.graph.Node
+ */
+export type Node = Message<"vrooli.prompt_manager.v1.graph.Node"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string type = 2;
+   */
+  type: string;
+
+  /**
+   * @generated from field: string label = 3;
+   */
+  label: string;
+
+  /**
+   * @generated from field: string description = 4;
+   */
+  description: string;
+
+  /**
+   * @generated from field: string status = 5;
+   */
+  status: string;
+
+  /**
+   * @generated from field: repeated string tags = 6;
+   */
+  tags: string[];
+};
+
+/**
+ * Describes the message vrooli.prompt_manager.v1.graph.Node.
+ * Use `create(NodeSchema)` to create a new message.
+ */
+export const NodeSchema: GenMessage<Node> = /*@__PURE__*/
+  messageDesc(file_prompt_manager_v1_graph_graph, 11);
+
+/**
+ * @generated from message vrooli.prompt_manager.v1.graph.Edge
+ */
+export type Edge = Message<"vrooli.prompt_manager.v1.graph.Edge"> & {
+  /**
+   * @generated from field: string from = 1;
+   */
+  from: string;
+
+  /**
+   * @generated from field: string to = 2;
+   */
+  to: string;
+
+  /**
+   * @generated from field: string kind = 3;
+   */
+  kind: string;
+
+  /**
+   * @generated from field: string category = 4;
+   */
+  category: string;
+
+  /**
+   * @generated from field: string command = 5;
+   */
+  command: string;
+
+  /**
+   * @generated from field: string subcommand = 6;
+   */
+  subcommand: string;
+
+  /**
+   * @generated from field: string command_text = 7;
+   */
+  commandText: string;
+
+  /**
+   * @generated from field: string source_file = 8;
+   */
+  sourceFile: string;
+
+  /**
+   * @generated from field: int32 line_number = 9;
+   */
+  lineNumber: number;
+};
+
+/**
+ * Describes the message vrooli.prompt_manager.v1.graph.Edge.
+ * Use `create(EdgeSchema)` to create a new message.
+ */
+export const EdgeSchema: GenMessage<Edge> = /*@__PURE__*/
+  messageDesc(file_prompt_manager_v1_graph_graph, 12);
+
+/**
+ * @generated from message vrooli.prompt_manager.v1.graph.ListNodesResponse
+ */
+export type ListNodesResponse = Message<"vrooli.prompt_manager.v1.graph.ListNodesResponse"> & {
+  /**
+   * @generated from field: repeated vrooli.prompt_manager.v1.graph.Node nodes = 1;
+   */
+  nodes: Node[];
+};
+
+/**
+ * Describes the message vrooli.prompt_manager.v1.graph.ListNodesResponse.
+ * Use `create(ListNodesResponseSchema)` to create a new message.
+ */
+export const ListNodesResponseSchema: GenMessage<ListNodesResponse> = /*@__PURE__*/
+  messageDesc(file_prompt_manager_v1_graph_graph, 13);
+
+/**
+ * @generated from message vrooli.prompt_manager.v1.graph.ListEdgesResponse
+ */
+export type ListEdgesResponse = Message<"vrooli.prompt_manager.v1.graph.ListEdgesResponse"> & {
+  /**
+   * @generated from field: repeated vrooli.prompt_manager.v1.graph.Edge edges = 1;
+   */
+  edges: Edge[];
+};
+
+/**
+ * Describes the message vrooli.prompt_manager.v1.graph.ListEdgesResponse.
+ * Use `create(ListEdgesResponseSchema)` to create a new message.
+ */
+export const ListEdgesResponseSchema: GenMessage<ListEdgesResponse> = /*@__PURE__*/
+  messageDesc(file_prompt_manager_v1_graph_graph, 14);
+
+/**
+ * @generated from message vrooli.prompt_manager.v1.graph.ListCyclesResponse
+ */
+export type ListCyclesResponse = Message<"vrooli.prompt_manager.v1.graph.ListCyclesResponse"> & {
+  /**
+   * @generated from field: repeated vrooli.prompt_manager.v1.graph.Cycle cycles = 1;
+   */
+  cycles: Cycle[];
+};
+
+/**
+ * Describes the message vrooli.prompt_manager.v1.graph.ListCyclesResponse.
+ * Use `create(ListCyclesResponseSchema)` to create a new message.
+ */
+export const ListCyclesResponseSchema: GenMessage<ListCyclesResponse> = /*@__PURE__*/
+  messageDesc(file_prompt_manager_v1_graph_graph, 15);
+
+/**
+ * @generated from message vrooli.prompt_manager.v1.graph.Cycle
+ */
+export type Cycle = Message<"vrooli.prompt_manager.v1.graph.Cycle"> & {
+  /**
+   * @generated from field: repeated string node_ids = 1;
+   */
+  nodeIds: string[];
+};
+
+/**
+ * Describes the message vrooli.prompt_manager.v1.graph.Cycle.
+ * Use `create(CycleSchema)` to create a new message.
+ */
+export const CycleSchema: GenMessage<Cycle> = /*@__PURE__*/
+  messageDesc(file_prompt_manager_v1_graph_graph, 16);
+
+/**
+ * @generated from message vrooli.prompt_manager.v1.graph.NodeDetail
+ */
+export type NodeDetail = Message<"vrooli.prompt_manager.v1.graph.NodeDetail"> & {
+  /**
+   * @generated from field: vrooli.prompt_manager.v1.graph.Node node = 1;
+   */
+  node?: Node | undefined;
+
+  /**
+   * @generated from field: repeated vrooli.prompt_manager.v1.graph.Edge adjacent_edges = 2;
+   */
+  adjacentEdges: Edge[];
+
+  /**
+   * @generated from field: vrooli.prompt_manager.v1.graph.HealthScore health_score = 3;
+   */
+  healthScore?: HealthScore | undefined;
+};
+
+/**
+ * Describes the message vrooli.prompt_manager.v1.graph.NodeDetail.
+ * Use `create(NodeDetailSchema)` to create a new message.
+ */
+export const NodeDetailSchema: GenMessage<NodeDetail> = /*@__PURE__*/
+  messageDesc(file_prompt_manager_v1_graph_graph, 17);
+
+/**
+ * @generated from message vrooli.prompt_manager.v1.graph.HealthWeights
+ */
+export type HealthWeights = Message<"vrooli.prompt_manager.v1.graph.HealthWeights"> & {
+  /**
+   * @generated from field: double outgoing_edges = 1;
+   */
+  outgoingEdges: number;
+
+  /**
+   * @generated from field: double incoming_edges = 2;
+   */
+  incomingEdges: number;
+
+  /**
+   * @generated from field: double code_usage = 3;
+   */
+  codeUsage: number;
+
+  /**
+   * @generated from field: double recent_activity = 4;
+   */
+  recentActivity: number;
+
+  /**
+   * @generated from field: double skill_content_length = 5;
+   */
+  skillContentLength: number;
+
+  /**
+   * @generated from field: double agent_context_load = 6;
+   */
+  agentContextLoad: number;
+
+  /**
+   * @generated from field: double team_member_count_balance = 7;
+   */
+  teamMemberCountBalance: number;
+
+  /**
+   * @generated from field: double team_role_coverage = 8;
+   */
+  teamRoleCoverage: number;
+
+  /**
+   * @generated from field: double action_contract = 9;
+   */
+  actionContract: number;
+
+  /**
+   * @generated from field: double action_command = 10;
+   */
+  actionCommand: number;
+
+  /**
+   * @generated from field: double action_examples = 11;
+   */
+  actionExamples: number;
+
+  /**
+   * @generated from field: double action_owner = 12;
+   */
+  actionOwner: number;
+};
+
+/**
+ * Describes the message vrooli.prompt_manager.v1.graph.HealthWeights.
+ * Use `create(HealthWeightsSchema)` to create a new message.
+ */
+export const HealthWeightsSchema: GenMessage<HealthWeights> = /*@__PURE__*/
+  messageDesc(file_prompt_manager_v1_graph_graph, 18);
+
+/**
+ * @generated from message vrooli.prompt_manager.v1.graph.CLIHealthConfig
+ */
+export type CLIHealthConfig = Message<"vrooli.prompt_manager.v1.graph.CLIHealthConfig"> & {
+  /**
+   * @generated from field: repeated string neutral_commands = 1;
+   */
+  neutralCommands: string[];
+
+  /**
+   * @generated from field: double external_tool_score = 2;
+   */
+  externalToolScore: number;
+
+  /**
+   * @generated from field: double scenario_fallback_score = 3;
+   */
+  scenarioFallbackScore: number;
+};
+
+/**
+ * Describes the message vrooli.prompt_manager.v1.graph.CLIHealthConfig.
+ * Use `create(CLIHealthConfigSchema)` to create a new message.
+ */
+export const CLIHealthConfigSchema: GenMessage<CLIHealthConfig> = /*@__PURE__*/
+  messageDesc(file_prompt_manager_v1_graph_graph, 19);
+
+/**
+ * @generated from message vrooli.prompt_manager.v1.graph.HealthConfig
+ */
+export type HealthConfig = Message<"vrooli.prompt_manager.v1.graph.HealthConfig"> & {
+  /**
+   * @generated from field: vrooli.prompt_manager.v1.graph.HealthWeights team = 1;
+   */
+  team?: HealthWeights | undefined;
+
+  /**
+   * @generated from field: vrooli.prompt_manager.v1.graph.HealthWeights agent = 2;
+   */
+  agent?: HealthWeights | undefined;
+
+  /**
+   * @generated from field: vrooli.prompt_manager.v1.graph.HealthWeights skill = 3;
+   */
+  skill?: HealthWeights | undefined;
+
+  /**
+   * @generated from field: vrooli.prompt_manager.v1.graph.HealthWeights action = 4;
+   */
+  action?: HealthWeights | undefined;
+
+  /**
+   * @generated from field: vrooli.prompt_manager.v1.graph.CLIHealthConfig cli = 5;
+   */
+  cli?: CLIHealthConfig | undefined;
+};
+
+/**
+ * Describes the message vrooli.prompt_manager.v1.graph.HealthConfig.
+ * Use `create(HealthConfigSchema)` to create a new message.
+ */
+export const HealthConfigSchema: GenMessage<HealthConfig> = /*@__PURE__*/
+  messageDesc(file_prompt_manager_v1_graph_graph, 20);
 
 /**
  * GetHealthScoresRequest currently carries no parameters; add filters here.
@@ -25,7 +537,7 @@ export type GetHealthScoresRequest = Message<"vrooli.prompt_manager.v1.graph.Get
  * Use `create(GetHealthScoresRequestSchema)` to create a new message.
  */
 export const GetHealthScoresRequestSchema: GenMessage<GetHealthScoresRequest> = /*@__PURE__*/
-  messageDesc(file_prompt_manager_v1_graph_graph, 0);
+  messageDesc(file_prompt_manager_v1_graph_graph, 21);
 
 /**
  * GetHealthScoresResponse is the body returned by GraphService.GetHealthScores.
@@ -46,7 +558,7 @@ export type GetHealthScoresResponse = Message<"vrooli.prompt_manager.v1.graph.Ge
  * Use `create(GetHealthScoresResponseSchema)` to create a new message.
  */
 export const GetHealthScoresResponseSchema: GenMessage<GetHealthScoresResponse> = /*@__PURE__*/
-  messageDesc(file_prompt_manager_v1_graph_graph, 1);
+  messageDesc(file_prompt_manager_v1_graph_graph, 22);
 
 /**
  * HealthScore contains computed health metrics for a single graph node.
@@ -88,7 +600,7 @@ export type HealthScore = Message<"vrooli.prompt_manager.v1.graph.HealthScore"> 
  * Use `create(HealthScoreSchema)` to create a new message.
  */
 export const HealthScoreSchema: GenMessage<HealthScore> = /*@__PURE__*/
-  messageDesc(file_prompt_manager_v1_graph_graph, 2);
+  messageDesc(file_prompt_manager_v1_graph_graph, 23);
 
 /**
  * HealthMessage explains why a node's health was scored a certain way and
@@ -159,12 +671,92 @@ export type HealthMessage = Message<"vrooli.prompt_manager.v1.graph.HealthMessag
  * Use `create(HealthMessageSchema)` to create a new message.
  */
 export const HealthMessageSchema: GenMessage<HealthMessage> = /*@__PURE__*/
-  messageDesc(file_prompt_manager_v1_graph_graph, 3);
+  messageDesc(file_prompt_manager_v1_graph_graph, 24);
 
 /**
  * @generated from service vrooli.prompt_manager.v1.graph.GraphService
  */
 export const GraphService: GenService<{
+  /**
+   * @generated from rpc vrooli.prompt_manager.v1.graph.GraphService.GetGraph
+   */
+  getGraph: {
+    methodKind: "unary";
+    input: typeof GetGraphRequestSchema;
+    output: typeof GraphIndexSchema;
+  },
+  /**
+   * @generated from rpc vrooli.prompt_manager.v1.graph.GraphService.RegenerateGraph
+   */
+  regenerateGraph: {
+    methodKind: "unary";
+    input: typeof RegenerateGraphRequestSchema;
+    output: typeof GraphIndexSchema;
+  },
+  /**
+   * @generated from rpc vrooli.prompt_manager.v1.graph.GraphService.ListOrphanedSkills
+   */
+  listOrphanedSkills: {
+    methodKind: "unary";
+    input: typeof ListNodesRequestSchema;
+    output: typeof ListNodesResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.prompt_manager.v1.graph.GraphService.ListSkilllessAgents
+   */
+  listSkilllessAgents: {
+    methodKind: "unary";
+    input: typeof ListNodesRequestSchema;
+    output: typeof ListNodesResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.prompt_manager.v1.graph.GraphService.ListEmptyTeams
+   */
+  listEmptyTeams: {
+    methodKind: "unary";
+    input: typeof ListNodesRequestSchema;
+    output: typeof ListNodesResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.prompt_manager.v1.graph.GraphService.ListUnaffiliatedAgents
+   */
+  listUnaffiliatedAgents: {
+    methodKind: "unary";
+    input: typeof ListNodesRequestSchema;
+    output: typeof ListNodesResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.prompt_manager.v1.graph.GraphService.ListPopularNodes
+   */
+  listPopularNodes: {
+    methodKind: "unary";
+    input: typeof ListPopularNodesRequestSchema;
+    output: typeof ListNodesResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.prompt_manager.v1.graph.GraphService.ListCycles
+   */
+  listCycles: {
+    methodKind: "unary";
+    input: typeof ListCyclesRequestSchema;
+    output: typeof ListCyclesResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.prompt_manager.v1.graph.GraphService.GetNode
+   */
+  getNode: {
+    methodKind: "unary";
+    input: typeof GetNodeRequestSchema;
+    output: typeof NodeDetailSchema;
+  },
+  /**
+   * @generated from rpc vrooli.prompt_manager.v1.graph.GraphService.ListNodeEdges
+   */
+  listNodeEdges: {
+    methodKind: "unary";
+    input: typeof ListNodeEdgesRequestSchema;
+    output: typeof ListEdgesResponseSchema;
+  },
   /**
    * GetHealthScores returns the computed per-node health scores from the
    * current graph index. Read-only; the response mirrors the legacy REST
@@ -176,6 +768,22 @@ export const GraphService: GenService<{
     methodKind: "unary";
     input: typeof GetHealthScoresRequestSchema;
     output: typeof GetHealthScoresResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.prompt_manager.v1.graph.GraphService.GetHealthConfig
+   */
+  getHealthConfig: {
+    methodKind: "unary";
+    input: typeof GetHealthConfigRequestSchema;
+    output: typeof HealthConfigSchema;
+  },
+  /**
+   * @generated from rpc vrooli.prompt_manager.v1.graph.GraphService.UpdateHealthConfig
+   */
+  updateHealthConfig: {
+    methodKind: "unary";
+    input: typeof UpdateHealthConfigRequestSchema;
+    output: typeof HealthConfigSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_prompt_manager_v1_graph_graph, 0);

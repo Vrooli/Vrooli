@@ -1,0 +1,61 @@
+syntax = "proto3";
+
+package vrooli.persona.v1.channels;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/persona/v1/channels;channels_v1";
+
+service ChannelsService {
+  rpc BindChannel(BindChannelRequest) returns (BindChannelResponse);
+  rpc ListChannels(ListChannelsRequest) returns (ListChannelsResponse);
+  rpc SendMessage(SendMessageRequest) returns (SendMessageResponse);
+  rpc RetrieveCode(RetrieveCodeRequest) returns (RetrieveCodeResponse);
+}
+
+enum ChannelKind {
+  CHANNEL_KIND_UNSPECIFIED = 0;
+  CHANNEL_KIND_EMAIL = 1;
+  CHANNEL_KIND_SMS = 2;
+  CHANNEL_KIND_DEVICE = 3;
+}
+
+message Channel {
+  string id = 1;
+  string persona_id = 2;
+  ChannelKind kind = 3;
+  string address = 4;
+  string credential_ref = 5;
+  string adapter = 6;
+  bool enabled = 7;
+  google.protobuf.Timestamp created_at = 8;
+}
+message BindChannelRequest {
+  string persona_id = 1;
+  ChannelKind kind = 2;
+  string address = 3;
+  string credential_ref = 4;
+  string adapter = 5;
+}
+message BindChannelResponse { Channel channel = 1; }
+message ListChannelsRequest { string persona_id = 1; }
+message ListChannelsResponse { repeated Channel channels = 1; }
+message SendMessageRequest {
+  string persona_id = 1;
+  string channel_id = 2;
+  string recipient = 3;
+  string subject = 4;
+  string body = 5;
+}
+message SendMessageResponse {
+  string channel_id = 1;
+  string message_id = 2;
+  string from_address = 3;
+}
+message RetrieveCodeRequest { string persona_id = 1; string channel_id = 2; string purpose = 3; }
+message RetrieveCodeResponse {
+  string channel_id = 1;
+  string code = 2;
+  google.protobuf.Timestamp expires_at = 3;
+  string adapter = 4;
+}

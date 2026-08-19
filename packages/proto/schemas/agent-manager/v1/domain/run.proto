@@ -211,6 +211,10 @@ message Run {
 
   // Bounded subjects derived from recorded tool-call evidence.
   repeated string subject = 50;
+
+  // Harness identity supplied when an operator-started session is attached.
+  string harness_kind = 51;
+  string harness_session_id = 52;
 }
 
 // FinalOutputSelectionStatus describes whether provider evidence identifies a

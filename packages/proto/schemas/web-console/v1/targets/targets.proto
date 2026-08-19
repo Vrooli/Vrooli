@@ -1,0 +1,52 @@
+syntax = "proto3";
+
+package vrooli.web_console.v1.targets;
+
+import "web-console/v1/shared/target.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/targets;targets_v1";
+
+// @stability stable
+
+// TargetCatalogService is the operator-facing discovery contract for session
+// locations. Bridge credentials and node authorization remain server-side;
+// clients receive only safe identity and readiness facts.
+service TargetCatalogService {
+  rpc List(ListRequest) returns (ListResponse);
+  rpc Get(GetRequest) returns (GetResponse);
+  rpc Doctor(DoctorRequest) returns (DoctorResponse);
+}
+
+enum CatalogState {
+  CATALOG_STATE_UNSPECIFIED = 0;
+  CATALOG_STATE_READY = 1;
+  CATALOG_STATE_CONFIGURED_EMPTY = 2;
+  CATALOG_STATE_UNCONFIGURED = 3;
+  CATALOG_STATE_REGISTRY_ERROR = 4;
+}
+
+message ListRequest {}
+
+message ListResponse {
+  CatalogState state = 1;
+  repeated vrooli.web_console.v1.shared.Target targets = 2;
+  string message = 3;
+  string recovery_action = 4;
+}
+
+message GetRequest {
+  string id = 1;
+}
+
+message GetResponse {
+  vrooli.web_console.v1.shared.Target target = 1;
+}
+
+message DoctorRequest {
+  string id = 1;
+}
+
+message DoctorResponse {
+  vrooli.web_console.v1.shared.Target target = 1;
+  string summary = 2;
+}

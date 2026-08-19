@@ -25,7 +25,7 @@ _sym_db = _symbol_database.Default()
 from google.protobuf import timestamp_pb2 as google_dot_protobuf_dot_timestamp__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n#treasury/v1/approval/approval.proto\x12\x1bvrooli.treasury.v1.approval\x1a\x1fgoogle/protobuf/timestamp.proto\"\x9e\x04\n\x0f\x41pprovalRequest\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12)\n\x10\x61uthorization_id\x18\x02 \x01(\tR\x0f\x61uthorizationId\x12\x1d\n\nmandate_id\x18\x03 \x01(\tR\tmandateId\x12)\n\x10requesting_agent\x18\x04 \x01(\tR\x0frequestingAgent\x12!\n\x0c\x61mount_minor\x18\x05 \x01(\x03R\x0b\x61mountMinor\x12\x1a\n\x08\x63urrency\x18\x06 \x01(\tR\x08\x63urrency\x12\"\n\x0c\x63ounterparty\x18\x07 \x01(\tR\x0c\x63ounterparty\x12\x43\n\x06status\x18\x08 \x01(\x0e\x32+.vrooli.treasury.v1.approval.ApprovalStatusR\x06status\x12+\n\x11resolver_identity\x18\t \x01(\tR\x10resolverIdentity\x12\x39\n\ncreated_at\x18\n \x01(\x0b\x32\x1a.google.protobuf.TimestampR\tcreatedAt\x12;\n\x0bresolved_at\x18\x0b \x01(\x0b\x32\x1a.google.protobuf.TimestampR\nresolvedAt\x12\x39\n\nexpires_at\x18\x0c \x01(\x0b\x32\x1a.google.protobuf.TimestampR\texpiresAt*\xa6\x01\n\x0e\x41pprovalStatus\x12\x1f\n\x1b\x41PPROVAL_STATUS_UNSPECIFIED\x10\x00\x12\x1a\n\x16\x41PPROVAL_STATUS_QUEUED\x10\x01\x12\x1c\n\x18\x41PPROVAL_STATUS_APPROVED\x10\x02\x12\x1c\n\x18\x41PPROVAL_STATUS_DECLINED\x10\x03\x12\x1b\n\x17\x41PPROVAL_STATUS_EXPIRED\x10\x04\x42QZOgithub.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/approval;approval_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n#treasury/v1/approval/approval.proto\x12\x1bvrooli.treasury.v1.approval\x1a\x1fgoogle/protobuf/timestamp.proto\"\xb7\x04\n\x0f\x41pprovalRequest\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12)\n\x10\x61uthorization_id\x18\x02 \x01(\tR\x0f\x61uthorizationId\x12\x1d\n\nmandate_id\x18\x03 \x01(\tR\tmandateId\x12)\n\x10requesting_agent\x18\x04 \x01(\tR\x0frequestingAgent\x12!\n\x0c\x61mount_minor\x18\x05 \x01(\x03R\x0b\x61mountMinor\x12\x1a\n\x08\x63urrency\x18\x06 \x01(\tR\x08\x63urrency\x12\"\n\x0c\x63ounterparty\x18\x07 \x01(\tR\x0c\x63ounterparty\x12\x43\n\x06status\x18\x08 \x01(\x0e\x32+.vrooli.treasury.v1.approval.ApprovalStatusR\x06status\x12+\n\x11resolver_identity\x18\t \x01(\tR\x10resolverIdentity\x12\x39\n\ncreated_at\x18\n \x01(\x0b\x32\x1a.google.protobuf.TimestampR\tcreatedAt\x12;\n\x0bresolved_at\x18\x0b \x01(\x0b\x32\x1a.google.protobuf.TimestampR\nresolvedAt\x12\x39\n\nexpires_at\x18\x0c \x01(\x0b\x32\x1a.google.protobuf.TimestampR\texpiresAt\x12\x17\n\x07\x62ook_id\x18\r \x01(\tR\x06\x62ookId*\xa6\x01\n\x0e\x41pprovalStatus\x12\x1f\n\x1b\x41PPROVAL_STATUS_UNSPECIFIED\x10\x00\x12\x1a\n\x16\x41PPROVAL_STATUS_QUEUED\x10\x01\x12\x1c\n\x18\x41PPROVAL_STATUS_APPROVED\x10\x02\x12\x1c\n\x18\x41PPROVAL_STATUS_DECLINED\x10\x03\x12\x1b\n\x17\x41PPROVAL_STATUS_EXPIRED\x10\x04\x42QZOgithub.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/approval;approval_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -33,8 +33,8 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'treasury.v1.approval.approv
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'ZOgithub.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/approval;approval_v1'
-  _globals['_APPROVALSTATUS']._serialized_start=647
-  _globals['_APPROVALSTATUS']._serialized_end=813
+  _globals['_APPROVALSTATUS']._serialized_start=672
+  _globals['_APPROVALSTATUS']._serialized_end=838
   _globals['_APPROVALREQUEST']._serialized_start=102
-  _globals['_APPROVALREQUEST']._serialized_end=644
+  _globals['_APPROVALREQUEST']._serialized_end=669
 # @@protoc_insertion_point(module_scope)

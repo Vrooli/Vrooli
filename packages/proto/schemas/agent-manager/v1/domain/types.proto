@@ -59,6 +59,11 @@ enum RunnerType {
   // xAI's Grok-based coding assistant CLI.
   // Supports: streaming (streaming-json), continuation (--resume).
   RUNNER_TYPE_GROK = 4;
+
+  // Google Antigravity CLI (resource-antigravity).
+  // Google's maintained successor to Gemini CLI.
+  // Supports: print-mode text output and continuation by conversation.
+  RUNNER_TYPE_ANTIGRAVITY = 5;
 }
 
 // ModelSelectionType distinguishes a pinned model identifier from an explicit
@@ -432,6 +437,10 @@ enum ExecutionMode {
 
   // Read-only historical evidence adopted from an external harness.
   EXECUTION_MODE_IMPORTED = 3;
+
+  // An operator-started harness session identified by agent-manager without
+  // being spawned or transcript-tailed by it.
+  EXECUTION_MODE_ATTACHED = 4;
 }
 
 // =============================================================================

@@ -162,10 +162,30 @@ constraints:
 
 `DESIGN.md` is the source of truth for scenario UI decisions. Stack-specific adapters may translate these tokens into CSS, Tailwind, egui, native mobile themes, or future targets, but adapters must not redefine the design language.
 
-> ORIENTATION-TODO: scenario-design-adaptation — Replace this marker with a
-> short note explaining why this design language fits the generated scenario's
-> users, density, workflow, and accessibility needs. Keep the token contract
-> intact unless the scenario intentionally adopts another design kit.
+> **Scenario adaptation — Scenario to Plugin.** The `vrooli-default` kit is
+> adopted unchanged in its binding contract, and it fits this scenario well:
+> the audience is release operators reading evidence, the density target is
+> high, and the calm/operational feel is right for a surface whose job is to
+> refuse things safely rather than to delight.
+>
+> Three scenario-specific readings of the binding contract govern the UI:
+>
+> 1. **Status color is evidence, never decoration.** Green means a gate passed
+>    *with recorded evidence*. A check that has not run is grey ("not yet
+>    run"), never green — a ladder that renders green from an absent check
+>    would make the entire product untrustworthy. Amber is degraded or
+>    expiring; red is a closed gate.
+> 2. **Every status is redundantly encoded.** Icon and text accompany color on
+>    every gate, badge, and channel state. A closed gate must be legible to a
+>    reader who cannot distinguish red from green, because the consequence of
+>    misreading it is publishing something unverified.
+> 3. **The gate ladder is the dominant layout object.** Composition →
+>    conformance → attestation → rehearsal → publication. Motion is used only
+>    to show progression along it; nothing else animates.
+>
+> The token contract, type scale, spacing, radius, motion table, and
+> accessibility floors are inherited unmodified. WCAG 2.2 AA is the floor and
+> is tested rather than asserted.
 
 ## How To Read This Document
 

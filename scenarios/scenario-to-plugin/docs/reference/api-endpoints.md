@@ -52,18 +52,84 @@ and mirrors `api-core/health.Response` field-for-field.
 
 ---
 
-## Domain endpoints — `<domain>`
+## Domain endpoints
+
+> **Status: planned surface.** This section documents the API this
+> scenario is contracted to expose, derived from `PRD.md` and
+> `docs/concepts/DOMAINS.md`. No handler is implemented yet, and this
+> document is marked `draft` in `docs/manifest.json` to say so.
+> Regenerate it from the proto once the first domain ships.
 
 Each product domain exposes its endpoints under
 `POST /vrooli.scenario_to_plugin.v1.<domain>.<Domain>Service/<Method>`
 for proto-typed Connect-RPC calls, with REST exceptions (such as
-multipart uploads) mounted at explicit REST paths. Document your
-domain's endpoints here as you build them — one section per RPC, with
-its auth, request/response proto shapes, error codes, and CLI mirror.
+multipart uploads) mounted at explicit REST paths.
 
-The scaffold ships one fully worked CRUD vertical slice as a copyable
-reference (see the fenced example below); `template-manager detemplate
-<scenario>` removes it once your real domains are green.
+Errors use standard Connect codes. Two conventions are specific to this
+scenario and are load-bearing:
+
+- **`failed_precondition` means a gate is closed.** It is the response
+  for every ordering refusal — signing before conformance, publishing
+  before a release decision. The message names the closed gate and the
+  remedy. It is never a generic error.
+- **A refusal is a successful response, not a fault.** Callers must not
+  treat `failed_precondition` as a transport problem to retry.
+
+### `declaration` — `DeclarationService`
+
+| Method | Purpose | Notes |
+|---|---|---|
+| `GetDeclaration` | Resolve and return a scenario's plugin declaration snapshot. | `not_found` when the scenario declares nothing. `invalid_argument` when the declaration fails schema validation. |
+| `ListReadiness` | Fleet publish-readiness for every scenario. | Returns each prerequisite with its state and marks the first blocking one. Backs the readiness board. |
+| `GetReadiness` | Publish-readiness for one scenario. | Names the blocking prerequisite explicitly; never a bare boolean. |
+
+### `composition` — `CompositionService`
+
+| Method | Purpose | Notes |
+|---|---|---|
+| `BuildPackage` | Compose an Agent Plugins tree for a scenario at a source commit. | `failed_precondition` when readiness reports a blocking prerequisite. A failed build is terminal; retry produces a new package. |
+| `GetPackage` | One package with its gate-ladder position. | The primary read for "why can't I publish this". |
+| `ListPackages` | Packages filtered by scenario, state, or commit. | |
+| `ListComponents` | Per-component status for one package. | Components validate independently; one invalid component does not mark others invalid. |
+| `GetArtifact` (REST) | `GET /api/v1/packages/{id}/artifact` | REST exception for opaque bytes, mirroring the example domain's attachment path. Metadata stays proto-typed. |
+
+### `conformance` — `ConformanceService`
+
+| Method | Purpose | Notes |
+|---|---|---|
+| `RunCheck` | Run every conformance rule against a composed package. | All rules run even after the first failure, so one call returns the complete finding list. |
+| `GetRun` | One conformance run with its findings. | |
+| `ListFindings` | Findings filtered by rule, severity, or file. | Each finding carries file, offset, and rule id — never skill body content. |
+| `GetDriftDetail` | Drift outcome plus the pinned `cli-manifest` revision. | The revision is what distinguishes a skill regression from a CLI change. |
+
+### `attestation` — `AttestationService`
+
+| Method | Purpose | Notes |
+|---|---|---|
+| `RunAttestation` | Scan, redaction-check, sign, and attach provenance and SBOM. | `failed_precondition` when the conformance record is absent or failing. Non-resumable: a failure restarts from scan. |
+| `GetAttestation` | Signature, provenance, and SBOM references for a package. | References only; bytes are fetched from the capture store. |
+| `VerifyAttestation` | Re-verify a signature and provenance against the recorded digest. | Read-only. Safe to call on published versions. |
+
+### `rehearsal` — `RehearsalService`
+
+| Method | Purpose | Notes |
+|---|---|---|
+| `StartRehearsal` | Provision a sandbox, install twice, exercise documented commands. | Long-running. `failed_precondition` unless the package is `attested`. |
+| `GetRehearsal` | Journey manifest, gate dispositions, per-command results. | |
+| `CancelRehearsal` | Cancel a running rehearsal. | Teardown is guaranteed. Result is `unavailable`, never `failed` — the package was not judged. |
+| `StreamRehearsal` | Server-stream progress events. | Redacted at capture time. |
+
+### `distribution` — `DistributionService`
+
+| Method | Purpose | Notes |
+|---|---|---|
+| `ReportVerdict` | Emit the `TargetVerdict` to `deployment-manager`. | Evidence references only; never artifact bytes. |
+| `Publish` | Publish a rehearsed package to selected channels. | `failed_precondition` without a passing release decision for the same source commit. Per-channel outcomes; no implicit rollback. |
+| `GetPublication` | Per-channel publication state for one package. | A channel is `published` only after retrieval confirmation. |
+| `Revoke` | Withdraw a published version from every channel that received it. | Deliberately not gated on a release decision. Idempotent. |
+| `GetRevocation` | Revocation state, including `revoked_partial` and the channels still carrying the artifact. | |
+| `ListChannels` | Configured channel adapters and their capabilities. | Includes whether a channel supports withdrawal. |
+| `GetAttribution` | Per-plugin, per-channel install and referrer counts. | Aggregates only — no IPs, user ids, or fingerprints. |
 
 <!-- EXAMPLE-DOMAIN:notes START -->
 ### Example domain — `notes` (removed by `template-manager detemplate`)

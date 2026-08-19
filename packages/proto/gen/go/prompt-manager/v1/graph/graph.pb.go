@@ -21,6 +21,1170 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type GetGraphRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetGraphRequest) Reset() {
+	*x = GetGraphRequest{}
+	mi := &file_prompt_manager_v1_graph_graph_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetGraphRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetGraphRequest) ProtoMessage() {}
+
+func (x *GetGraphRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_prompt_manager_v1_graph_graph_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetGraphRequest.ProtoReflect.Descriptor instead.
+func (*GetGraphRequest) Descriptor() ([]byte, []int) {
+	return file_prompt_manager_v1_graph_graph_proto_rawDescGZIP(), []int{0}
+}
+
+type RegenerateGraphRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RegenerateGraphRequest) Reset() {
+	*x = RegenerateGraphRequest{}
+	mi := &file_prompt_manager_v1_graph_graph_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RegenerateGraphRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RegenerateGraphRequest) ProtoMessage() {}
+
+func (x *RegenerateGraphRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_prompt_manager_v1_graph_graph_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RegenerateGraphRequest.ProtoReflect.Descriptor instead.
+func (*RegenerateGraphRequest) Descriptor() ([]byte, []int) {
+	return file_prompt_manager_v1_graph_graph_proto_rawDescGZIP(), []int{1}
+}
+
+type ListNodesRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListNodesRequest) Reset() {
+	*x = ListNodesRequest{}
+	mi := &file_prompt_manager_v1_graph_graph_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListNodesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListNodesRequest) ProtoMessage() {}
+
+func (x *ListNodesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_prompt_manager_v1_graph_graph_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListNodesRequest.ProtoReflect.Descriptor instead.
+func (*ListNodesRequest) Descriptor() ([]byte, []int) {
+	return file_prompt_manager_v1_graph_graph_proto_rawDescGZIP(), []int{2}
+}
+
+type ListPopularNodesRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Limit         int32                  `protobuf:"varint,1,opt,name=limit,proto3" json:"limit,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListPopularNodesRequest) Reset() {
+	*x = ListPopularNodesRequest{}
+	mi := &file_prompt_manager_v1_graph_graph_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListPopularNodesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListPopularNodesRequest) ProtoMessage() {}
+
+func (x *ListPopularNodesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_prompt_manager_v1_graph_graph_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListPopularNodesRequest.ProtoReflect.Descriptor instead.
+func (*ListPopularNodesRequest) Descriptor() ([]byte, []int) {
+	return file_prompt_manager_v1_graph_graph_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *ListPopularNodesRequest) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+type ListCyclesRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListCyclesRequest) Reset() {
+	*x = ListCyclesRequest{}
+	mi := &file_prompt_manager_v1_graph_graph_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListCyclesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListCyclesRequest) ProtoMessage() {}
+
+func (x *ListCyclesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_prompt_manager_v1_graph_graph_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListCyclesRequest.ProtoReflect.Descriptor instead.
+func (*ListCyclesRequest) Descriptor() ([]byte, []int) {
+	return file_prompt_manager_v1_graph_graph_proto_rawDescGZIP(), []int{4}
+}
+
+type GetNodeRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	NodeId        string                 `protobuf:"bytes,1,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetNodeRequest) Reset() {
+	*x = GetNodeRequest{}
+	mi := &file_prompt_manager_v1_graph_graph_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetNodeRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetNodeRequest) ProtoMessage() {}
+
+func (x *GetNodeRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_prompt_manager_v1_graph_graph_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetNodeRequest.ProtoReflect.Descriptor instead.
+func (*GetNodeRequest) Descriptor() ([]byte, []int) {
+	return file_prompt_manager_v1_graph_graph_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *GetNodeRequest) GetNodeId() string {
+	if x != nil {
+		return x.NodeId
+	}
+	return ""
+}
+
+type ListNodeEdgesRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	NodeId        string                 `protobuf:"bytes,1,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListNodeEdgesRequest) Reset() {
+	*x = ListNodeEdgesRequest{}
+	mi := &file_prompt_manager_v1_graph_graph_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListNodeEdgesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListNodeEdgesRequest) ProtoMessage() {}
+
+func (x *ListNodeEdgesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_prompt_manager_v1_graph_graph_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListNodeEdgesRequest.ProtoReflect.Descriptor instead.
+func (*ListNodeEdgesRequest) Descriptor() ([]byte, []int) {
+	return file_prompt_manager_v1_graph_graph_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *ListNodeEdgesRequest) GetNodeId() string {
+	if x != nil {
+		return x.NodeId
+	}
+	return ""
+}
+
+type GetHealthConfigRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetHealthConfigRequest) Reset() {
+	*x = GetHealthConfigRequest{}
+	mi := &file_prompt_manager_v1_graph_graph_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetHealthConfigRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetHealthConfigRequest) ProtoMessage() {}
+
+func (x *GetHealthConfigRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_prompt_manager_v1_graph_graph_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetHealthConfigRequest.ProtoReflect.Descriptor instead.
+func (*GetHealthConfigRequest) Descriptor() ([]byte, []int) {
+	return file_prompt_manager_v1_graph_graph_proto_rawDescGZIP(), []int{7}
+}
+
+type UpdateHealthConfigRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Config        *HealthConfig          `protobuf:"bytes,1,opt,name=config,proto3" json:"config,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateHealthConfigRequest) Reset() {
+	*x = UpdateHealthConfigRequest{}
+	mi := &file_prompt_manager_v1_graph_graph_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateHealthConfigRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateHealthConfigRequest) ProtoMessage() {}
+
+func (x *UpdateHealthConfigRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_prompt_manager_v1_graph_graph_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateHealthConfigRequest.ProtoReflect.Descriptor instead.
+func (*UpdateHealthConfigRequest) Descriptor() ([]byte, []int) {
+	return file_prompt_manager_v1_graph_graph_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *UpdateHealthConfigRequest) GetConfig() *HealthConfig {
+	if x != nil {
+		return x.Config
+	}
+	return nil
+}
+
+type GraphIndex struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	GeneratedAt   string                 `protobuf:"bytes,1,opt,name=generated_at,json=generatedAt,proto3" json:"generated_at,omitempty"`
+	Graph         *Graph                 `protobuf:"bytes,2,opt,name=graph,proto3" json:"graph,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GraphIndex) Reset() {
+	*x = GraphIndex{}
+	mi := &file_prompt_manager_v1_graph_graph_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GraphIndex) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GraphIndex) ProtoMessage() {}
+
+func (x *GraphIndex) ProtoReflect() protoreflect.Message {
+	mi := &file_prompt_manager_v1_graph_graph_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GraphIndex.ProtoReflect.Descriptor instead.
+func (*GraphIndex) Descriptor() ([]byte, []int) {
+	return file_prompt_manager_v1_graph_graph_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *GraphIndex) GetGeneratedAt() string {
+	if x != nil {
+		return x.GeneratedAt
+	}
+	return ""
+}
+
+func (x *GraphIndex) GetGraph() *Graph {
+	if x != nil {
+		return x.Graph
+	}
+	return nil
+}
+
+type Graph struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Nodes         []*Node                `protobuf:"bytes,1,rep,name=nodes,proto3" json:"nodes,omitempty"`
+	Edges         []*Edge                `protobuf:"bytes,2,rep,name=edges,proto3" json:"edges,omitempty"`
+	HealthScores  []*HealthScore         `protobuf:"bytes,3,rep,name=health_scores,json=healthScores,proto3" json:"health_scores,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Graph) Reset() {
+	*x = Graph{}
+	mi := &file_prompt_manager_v1_graph_graph_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Graph) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Graph) ProtoMessage() {}
+
+func (x *Graph) ProtoReflect() protoreflect.Message {
+	mi := &file_prompt_manager_v1_graph_graph_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Graph.ProtoReflect.Descriptor instead.
+func (*Graph) Descriptor() ([]byte, []int) {
+	return file_prompt_manager_v1_graph_graph_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *Graph) GetNodes() []*Node {
+	if x != nil {
+		return x.Nodes
+	}
+	return nil
+}
+
+func (x *Graph) GetEdges() []*Edge {
+	if x != nil {
+		return x.Edges
+	}
+	return nil
+}
+
+func (x *Graph) GetHealthScores() []*HealthScore {
+	if x != nil {
+		return x.HealthScores
+	}
+	return nil
+}
+
+type Node struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Type          string                 `protobuf:"bytes,2,opt,name=type,proto3" json:"type,omitempty"`
+	Label         string                 `protobuf:"bytes,3,opt,name=label,proto3" json:"label,omitempty"`
+	Description   string                 `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
+	Status        string                 `protobuf:"bytes,5,opt,name=status,proto3" json:"status,omitempty"`
+	Tags          []string               `protobuf:"bytes,6,rep,name=tags,proto3" json:"tags,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Node) Reset() {
+	*x = Node{}
+	mi := &file_prompt_manager_v1_graph_graph_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Node) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Node) ProtoMessage() {}
+
+func (x *Node) ProtoReflect() protoreflect.Message {
+	mi := &file_prompt_manager_v1_graph_graph_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Node.ProtoReflect.Descriptor instead.
+func (*Node) Descriptor() ([]byte, []int) {
+	return file_prompt_manager_v1_graph_graph_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *Node) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *Node) GetType() string {
+	if x != nil {
+		return x.Type
+	}
+	return ""
+}
+
+func (x *Node) GetLabel() string {
+	if x != nil {
+		return x.Label
+	}
+	return ""
+}
+
+func (x *Node) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *Node) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *Node) GetTags() []string {
+	if x != nil {
+		return x.Tags
+	}
+	return nil
+}
+
+type Edge struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	From          string                 `protobuf:"bytes,1,opt,name=from,proto3" json:"from,omitempty"`
+	To            string                 `protobuf:"bytes,2,opt,name=to,proto3" json:"to,omitempty"`
+	Kind          string                 `protobuf:"bytes,3,opt,name=kind,proto3" json:"kind,omitempty"`
+	Category      string                 `protobuf:"bytes,4,opt,name=category,proto3" json:"category,omitempty"`
+	Command       string                 `protobuf:"bytes,5,opt,name=command,proto3" json:"command,omitempty"`
+	Subcommand    string                 `protobuf:"bytes,6,opt,name=subcommand,proto3" json:"subcommand,omitempty"`
+	CommandText   string                 `protobuf:"bytes,7,opt,name=command_text,json=commandText,proto3" json:"command_text,omitempty"`
+	SourceFile    string                 `protobuf:"bytes,8,opt,name=source_file,json=sourceFile,proto3" json:"source_file,omitempty"`
+	LineNumber    int32                  `protobuf:"varint,9,opt,name=line_number,json=lineNumber,proto3" json:"line_number,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Edge) Reset() {
+	*x = Edge{}
+	mi := &file_prompt_manager_v1_graph_graph_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Edge) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Edge) ProtoMessage() {}
+
+func (x *Edge) ProtoReflect() protoreflect.Message {
+	mi := &file_prompt_manager_v1_graph_graph_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Edge.ProtoReflect.Descriptor instead.
+func (*Edge) Descriptor() ([]byte, []int) {
+	return file_prompt_manager_v1_graph_graph_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *Edge) GetFrom() string {
+	if x != nil {
+		return x.From
+	}
+	return ""
+}
+
+func (x *Edge) GetTo() string {
+	if x != nil {
+		return x.To
+	}
+	return ""
+}
+
+func (x *Edge) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *Edge) GetCategory() string {
+	if x != nil {
+		return x.Category
+	}
+	return ""
+}
+
+func (x *Edge) GetCommand() string {
+	if x != nil {
+		return x.Command
+	}
+	return ""
+}
+
+func (x *Edge) GetSubcommand() string {
+	if x != nil {
+		return x.Subcommand
+	}
+	return ""
+}
+
+func (x *Edge) GetCommandText() string {
+	if x != nil {
+		return x.CommandText
+	}
+	return ""
+}
+
+func (x *Edge) GetSourceFile() string {
+	if x != nil {
+		return x.SourceFile
+	}
+	return ""
+}
+
+func (x *Edge) GetLineNumber() int32 {
+	if x != nil {
+		return x.LineNumber
+	}
+	return 0
+}
+
+type ListNodesResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Nodes         []*Node                `protobuf:"bytes,1,rep,name=nodes,proto3" json:"nodes,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListNodesResponse) Reset() {
+	*x = ListNodesResponse{}
+	mi := &file_prompt_manager_v1_graph_graph_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListNodesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListNodesResponse) ProtoMessage() {}
+
+func (x *ListNodesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_prompt_manager_v1_graph_graph_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListNodesResponse.ProtoReflect.Descriptor instead.
+func (*ListNodesResponse) Descriptor() ([]byte, []int) {
+	return file_prompt_manager_v1_graph_graph_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *ListNodesResponse) GetNodes() []*Node {
+	if x != nil {
+		return x.Nodes
+	}
+	return nil
+}
+
+type ListEdgesResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Edges         []*Edge                `protobuf:"bytes,1,rep,name=edges,proto3" json:"edges,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListEdgesResponse) Reset() {
+	*x = ListEdgesResponse{}
+	mi := &file_prompt_manager_v1_graph_graph_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListEdgesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListEdgesResponse) ProtoMessage() {}
+
+func (x *ListEdgesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_prompt_manager_v1_graph_graph_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListEdgesResponse.ProtoReflect.Descriptor instead.
+func (*ListEdgesResponse) Descriptor() ([]byte, []int) {
+	return file_prompt_manager_v1_graph_graph_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *ListEdgesResponse) GetEdges() []*Edge {
+	if x != nil {
+		return x.Edges
+	}
+	return nil
+}
+
+type ListCyclesResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Cycles        []*Cycle               `protobuf:"bytes,1,rep,name=cycles,proto3" json:"cycles,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListCyclesResponse) Reset() {
+	*x = ListCyclesResponse{}
+	mi := &file_prompt_manager_v1_graph_graph_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListCyclesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListCyclesResponse) ProtoMessage() {}
+
+func (x *ListCyclesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_prompt_manager_v1_graph_graph_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListCyclesResponse.ProtoReflect.Descriptor instead.
+func (*ListCyclesResponse) Descriptor() ([]byte, []int) {
+	return file_prompt_manager_v1_graph_graph_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *ListCyclesResponse) GetCycles() []*Cycle {
+	if x != nil {
+		return x.Cycles
+	}
+	return nil
+}
+
+type Cycle struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	NodeIds       []string               `protobuf:"bytes,1,rep,name=node_ids,json=nodeIds,proto3" json:"node_ids,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Cycle) Reset() {
+	*x = Cycle{}
+	mi := &file_prompt_manager_v1_graph_graph_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Cycle) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Cycle) ProtoMessage() {}
+
+func (x *Cycle) ProtoReflect() protoreflect.Message {
+	mi := &file_prompt_manager_v1_graph_graph_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Cycle.ProtoReflect.Descriptor instead.
+func (*Cycle) Descriptor() ([]byte, []int) {
+	return file_prompt_manager_v1_graph_graph_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *Cycle) GetNodeIds() []string {
+	if x != nil {
+		return x.NodeIds
+	}
+	return nil
+}
+
+type NodeDetail struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Node          *Node                  `protobuf:"bytes,1,opt,name=node,proto3" json:"node,omitempty"`
+	AdjacentEdges []*Edge                `protobuf:"bytes,2,rep,name=adjacent_edges,json=adjacentEdges,proto3" json:"adjacent_edges,omitempty"`
+	HealthScore   *HealthScore           `protobuf:"bytes,3,opt,name=health_score,json=healthScore,proto3" json:"health_score,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *NodeDetail) Reset() {
+	*x = NodeDetail{}
+	mi := &file_prompt_manager_v1_graph_graph_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NodeDetail) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NodeDetail) ProtoMessage() {}
+
+func (x *NodeDetail) ProtoReflect() protoreflect.Message {
+	mi := &file_prompt_manager_v1_graph_graph_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NodeDetail.ProtoReflect.Descriptor instead.
+func (*NodeDetail) Descriptor() ([]byte, []int) {
+	return file_prompt_manager_v1_graph_graph_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *NodeDetail) GetNode() *Node {
+	if x != nil {
+		return x.Node
+	}
+	return nil
+}
+
+func (x *NodeDetail) GetAdjacentEdges() []*Edge {
+	if x != nil {
+		return x.AdjacentEdges
+	}
+	return nil
+}
+
+func (x *NodeDetail) GetHealthScore() *HealthScore {
+	if x != nil {
+		return x.HealthScore
+	}
+	return nil
+}
+
+type HealthWeights struct {
+	state                  protoimpl.MessageState `protogen:"open.v1"`
+	OutgoingEdges          float64                `protobuf:"fixed64,1,opt,name=outgoing_edges,json=outgoingEdges,proto3" json:"outgoing_edges,omitempty"`
+	IncomingEdges          float64                `protobuf:"fixed64,2,opt,name=incoming_edges,json=incomingEdges,proto3" json:"incoming_edges,omitempty"`
+	CodeUsage              float64                `protobuf:"fixed64,3,opt,name=code_usage,json=codeUsage,proto3" json:"code_usage,omitempty"`
+	RecentActivity         float64                `protobuf:"fixed64,4,opt,name=recent_activity,json=recentActivity,proto3" json:"recent_activity,omitempty"`
+	SkillContentLength     float64                `protobuf:"fixed64,5,opt,name=skill_content_length,json=skillContentLength,proto3" json:"skill_content_length,omitempty"`
+	AgentContextLoad       float64                `protobuf:"fixed64,6,opt,name=agent_context_load,json=agentContextLoad,proto3" json:"agent_context_load,omitempty"`
+	TeamMemberCountBalance float64                `protobuf:"fixed64,7,opt,name=team_member_count_balance,json=teamMemberCountBalance,proto3" json:"team_member_count_balance,omitempty"`
+	TeamRoleCoverage       float64                `protobuf:"fixed64,8,opt,name=team_role_coverage,json=teamRoleCoverage,proto3" json:"team_role_coverage,omitempty"`
+	ActionContract         float64                `protobuf:"fixed64,9,opt,name=action_contract,json=actionContract,proto3" json:"action_contract,omitempty"`
+	ActionCommand          float64                `protobuf:"fixed64,10,opt,name=action_command,json=actionCommand,proto3" json:"action_command,omitempty"`
+	ActionExamples         float64                `protobuf:"fixed64,11,opt,name=action_examples,json=actionExamples,proto3" json:"action_examples,omitempty"`
+	ActionOwner            float64                `protobuf:"fixed64,12,opt,name=action_owner,json=actionOwner,proto3" json:"action_owner,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
+}
+
+func (x *HealthWeights) Reset() {
+	*x = HealthWeights{}
+	mi := &file_prompt_manager_v1_graph_graph_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *HealthWeights) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HealthWeights) ProtoMessage() {}
+
+func (x *HealthWeights) ProtoReflect() protoreflect.Message {
+	mi := &file_prompt_manager_v1_graph_graph_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HealthWeights.ProtoReflect.Descriptor instead.
+func (*HealthWeights) Descriptor() ([]byte, []int) {
+	return file_prompt_manager_v1_graph_graph_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *HealthWeights) GetOutgoingEdges() float64 {
+	if x != nil {
+		return x.OutgoingEdges
+	}
+	return 0
+}
+
+func (x *HealthWeights) GetIncomingEdges() float64 {
+	if x != nil {
+		return x.IncomingEdges
+	}
+	return 0
+}
+
+func (x *HealthWeights) GetCodeUsage() float64 {
+	if x != nil {
+		return x.CodeUsage
+	}
+	return 0
+}
+
+func (x *HealthWeights) GetRecentActivity() float64 {
+	if x != nil {
+		return x.RecentActivity
+	}
+	return 0
+}
+
+func (x *HealthWeights) GetSkillContentLength() float64 {
+	if x != nil {
+		return x.SkillContentLength
+	}
+	return 0
+}
+
+func (x *HealthWeights) GetAgentContextLoad() float64 {
+	if x != nil {
+		return x.AgentContextLoad
+	}
+	return 0
+}
+
+func (x *HealthWeights) GetTeamMemberCountBalance() float64 {
+	if x != nil {
+		return x.TeamMemberCountBalance
+	}
+	return 0
+}
+
+func (x *HealthWeights) GetTeamRoleCoverage() float64 {
+	if x != nil {
+		return x.TeamRoleCoverage
+	}
+	return 0
+}
+
+func (x *HealthWeights) GetActionContract() float64 {
+	if x != nil {
+		return x.ActionContract
+	}
+	return 0
+}
+
+func (x *HealthWeights) GetActionCommand() float64 {
+	if x != nil {
+		return x.ActionCommand
+	}
+	return 0
+}
+
+func (x *HealthWeights) GetActionExamples() float64 {
+	if x != nil {
+		return x.ActionExamples
+	}
+	return 0
+}
+
+func (x *HealthWeights) GetActionOwner() float64 {
+	if x != nil {
+		return x.ActionOwner
+	}
+	return 0
+}
+
+type CLIHealthConfig struct {
+	state                 protoimpl.MessageState `protogen:"open.v1"`
+	NeutralCommands       []string               `protobuf:"bytes,1,rep,name=neutral_commands,json=neutralCommands,proto3" json:"neutral_commands,omitempty"`
+	ExternalToolScore     float64                `protobuf:"fixed64,2,opt,name=external_tool_score,json=externalToolScore,proto3" json:"external_tool_score,omitempty"`
+	ScenarioFallbackScore float64                `protobuf:"fixed64,3,opt,name=scenario_fallback_score,json=scenarioFallbackScore,proto3" json:"scenario_fallback_score,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
+}
+
+func (x *CLIHealthConfig) Reset() {
+	*x = CLIHealthConfig{}
+	mi := &file_prompt_manager_v1_graph_graph_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CLIHealthConfig) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CLIHealthConfig) ProtoMessage() {}
+
+func (x *CLIHealthConfig) ProtoReflect() protoreflect.Message {
+	mi := &file_prompt_manager_v1_graph_graph_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CLIHealthConfig.ProtoReflect.Descriptor instead.
+func (*CLIHealthConfig) Descriptor() ([]byte, []int) {
+	return file_prompt_manager_v1_graph_graph_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *CLIHealthConfig) GetNeutralCommands() []string {
+	if x != nil {
+		return x.NeutralCommands
+	}
+	return nil
+}
+
+func (x *CLIHealthConfig) GetExternalToolScore() float64 {
+	if x != nil {
+		return x.ExternalToolScore
+	}
+	return 0
+}
+
+func (x *CLIHealthConfig) GetScenarioFallbackScore() float64 {
+	if x != nil {
+		return x.ScenarioFallbackScore
+	}
+	return 0
+}
+
+type HealthConfig struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Team          *HealthWeights         `protobuf:"bytes,1,opt,name=team,proto3" json:"team,omitempty"`
+	Agent         *HealthWeights         `protobuf:"bytes,2,opt,name=agent,proto3" json:"agent,omitempty"`
+	Skill         *HealthWeights         `protobuf:"bytes,3,opt,name=skill,proto3" json:"skill,omitempty"`
+	Action        *HealthWeights         `protobuf:"bytes,4,opt,name=action,proto3" json:"action,omitempty"`
+	Cli           *CLIHealthConfig       `protobuf:"bytes,5,opt,name=cli,proto3" json:"cli,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *HealthConfig) Reset() {
+	*x = HealthConfig{}
+	mi := &file_prompt_manager_v1_graph_graph_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *HealthConfig) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HealthConfig) ProtoMessage() {}
+
+func (x *HealthConfig) ProtoReflect() protoreflect.Message {
+	mi := &file_prompt_manager_v1_graph_graph_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HealthConfig.ProtoReflect.Descriptor instead.
+func (*HealthConfig) Descriptor() ([]byte, []int) {
+	return file_prompt_manager_v1_graph_graph_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *HealthConfig) GetTeam() *HealthWeights {
+	if x != nil {
+		return x.Team
+	}
+	return nil
+}
+
+func (x *HealthConfig) GetAgent() *HealthWeights {
+	if x != nil {
+		return x.Agent
+	}
+	return nil
+}
+
+func (x *HealthConfig) GetSkill() *HealthWeights {
+	if x != nil {
+		return x.Skill
+	}
+	return nil
+}
+
+func (x *HealthConfig) GetAction() *HealthWeights {
+	if x != nil {
+		return x.Action
+	}
+	return nil
+}
+
+func (x *HealthConfig) GetCli() *CLIHealthConfig {
+	if x != nil {
+		return x.Cli
+	}
+	return nil
+}
+
 // GetHealthScoresRequest currently carries no parameters; add filters here.
 type GetHealthScoresRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -30,7 +1194,7 @@ type GetHealthScoresRequest struct {
 
 func (x *GetHealthScoresRequest) Reset() {
 	*x = GetHealthScoresRequest{}
-	mi := &file_prompt_manager_v1_graph_graph_proto_msgTypes[0]
+	mi := &file_prompt_manager_v1_graph_graph_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -42,7 +1206,7 @@ func (x *GetHealthScoresRequest) String() string {
 func (*GetHealthScoresRequest) ProtoMessage() {}
 
 func (x *GetHealthScoresRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_prompt_manager_v1_graph_graph_proto_msgTypes[0]
+	mi := &file_prompt_manager_v1_graph_graph_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -55,7 +1219,7 @@ func (x *GetHealthScoresRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetHealthScoresRequest.ProtoReflect.Descriptor instead.
 func (*GetHealthScoresRequest) Descriptor() ([]byte, []int) {
-	return file_prompt_manager_v1_graph_graph_proto_rawDescGZIP(), []int{0}
+	return file_prompt_manager_v1_graph_graph_proto_rawDescGZIP(), []int{21}
 }
 
 // GetHealthScoresResponse is the body returned by GraphService.GetHealthScores.
@@ -69,7 +1233,7 @@ type GetHealthScoresResponse struct {
 
 func (x *GetHealthScoresResponse) Reset() {
 	*x = GetHealthScoresResponse{}
-	mi := &file_prompt_manager_v1_graph_graph_proto_msgTypes[1]
+	mi := &file_prompt_manager_v1_graph_graph_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -81,7 +1245,7 @@ func (x *GetHealthScoresResponse) String() string {
 func (*GetHealthScoresResponse) ProtoMessage() {}
 
 func (x *GetHealthScoresResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_prompt_manager_v1_graph_graph_proto_msgTypes[1]
+	mi := &file_prompt_manager_v1_graph_graph_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -94,7 +1258,7 @@ func (x *GetHealthScoresResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetHealthScoresResponse.ProtoReflect.Descriptor instead.
 func (*GetHealthScoresResponse) Descriptor() ([]byte, []int) {
-	return file_prompt_manager_v1_graph_graph_proto_rawDescGZIP(), []int{1}
+	return file_prompt_manager_v1_graph_graph_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *GetHealthScoresResponse) GetScores() []*HealthScore {
@@ -121,7 +1285,7 @@ type HealthScore struct {
 
 func (x *HealthScore) Reset() {
 	*x = HealthScore{}
-	mi := &file_prompt_manager_v1_graph_graph_proto_msgTypes[2]
+	mi := &file_prompt_manager_v1_graph_graph_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -133,7 +1297,7 @@ func (x *HealthScore) String() string {
 func (*HealthScore) ProtoMessage() {}
 
 func (x *HealthScore) ProtoReflect() protoreflect.Message {
-	mi := &file_prompt_manager_v1_graph_graph_proto_msgTypes[2]
+	mi := &file_prompt_manager_v1_graph_graph_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -146,7 +1310,7 @@ func (x *HealthScore) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HealthScore.ProtoReflect.Descriptor instead.
 func (*HealthScore) Descriptor() ([]byte, []int) {
-	return file_prompt_manager_v1_graph_graph_proto_rawDescGZIP(), []int{2}
+	return file_prompt_manager_v1_graph_graph_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *HealthScore) GetNodeId() string {
@@ -203,7 +1367,7 @@ type HealthMessage struct {
 
 func (x *HealthMessage) Reset() {
 	*x = HealthMessage{}
-	mi := &file_prompt_manager_v1_graph_graph_proto_msgTypes[3]
+	mi := &file_prompt_manager_v1_graph_graph_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -215,7 +1379,7 @@ func (x *HealthMessage) String() string {
 func (*HealthMessage) ProtoMessage() {}
 
 func (x *HealthMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_prompt_manager_v1_graph_graph_proto_msgTypes[3]
+	mi := &file_prompt_manager_v1_graph_graph_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -228,7 +1392,7 @@ func (x *HealthMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HealthMessage.ProtoReflect.Descriptor instead.
 func (*HealthMessage) Descriptor() ([]byte, []int) {
-	return file_prompt_manager_v1_graph_graph_proto_rawDescGZIP(), []int{3}
+	return file_prompt_manager_v1_graph_graph_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *HealthMessage) GetKey() string {
@@ -291,7 +1455,87 @@ var File_prompt_manager_v1_graph_graph_proto protoreflect.FileDescriptor
 
 const file_prompt_manager_v1_graph_graph_proto_rawDesc = "" +
 	"\n" +
-	"#prompt-manager/v1/graph/graph.proto\x12\x1evrooli.prompt_manager.v1.graph\"\x18\n" +
+	"#prompt-manager/v1/graph/graph.proto\x12\x1evrooli.prompt_manager.v1.graph\"\x11\n" +
+	"\x0fGetGraphRequest\"\x18\n" +
+	"\x16RegenerateGraphRequest\"\x12\n" +
+	"\x10ListNodesRequest\"/\n" +
+	"\x17ListPopularNodesRequest\x12\x14\n" +
+	"\x05limit\x18\x01 \x01(\x05R\x05limit\"\x13\n" +
+	"\x11ListCyclesRequest\")\n" +
+	"\x0eGetNodeRequest\x12\x17\n" +
+	"\anode_id\x18\x01 \x01(\tR\x06nodeId\"/\n" +
+	"\x14ListNodeEdgesRequest\x12\x17\n" +
+	"\anode_id\x18\x01 \x01(\tR\x06nodeId\"\x18\n" +
+	"\x16GetHealthConfigRequest\"a\n" +
+	"\x19UpdateHealthConfigRequest\x12D\n" +
+	"\x06config\x18\x01 \x01(\v2,.vrooli.prompt_manager.v1.graph.HealthConfigR\x06config\"l\n" +
+	"\n" +
+	"GraphIndex\x12!\n" +
+	"\fgenerated_at\x18\x01 \x01(\tR\vgeneratedAt\x12;\n" +
+	"\x05graph\x18\x02 \x01(\v2%.vrooli.prompt_manager.v1.graph.GraphR\x05graph\"\xd1\x01\n" +
+	"\x05Graph\x12:\n" +
+	"\x05nodes\x18\x01 \x03(\v2$.vrooli.prompt_manager.v1.graph.NodeR\x05nodes\x12:\n" +
+	"\x05edges\x18\x02 \x03(\v2$.vrooli.prompt_manager.v1.graph.EdgeR\x05edges\x12P\n" +
+	"\rhealth_scores\x18\x03 \x03(\v2+.vrooli.prompt_manager.v1.graph.HealthScoreR\fhealthScores\"\x8e\x01\n" +
+	"\x04Node\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
+	"\x04type\x18\x02 \x01(\tR\x04type\x12\x14\n" +
+	"\x05label\x18\x03 \x01(\tR\x05label\x12 \n" +
+	"\vdescription\x18\x04 \x01(\tR\vdescription\x12\x16\n" +
+	"\x06status\x18\x05 \x01(\tR\x06status\x12\x12\n" +
+	"\x04tags\x18\x06 \x03(\tR\x04tags\"\xf9\x01\n" +
+	"\x04Edge\x12\x12\n" +
+	"\x04from\x18\x01 \x01(\tR\x04from\x12\x0e\n" +
+	"\x02to\x18\x02 \x01(\tR\x02to\x12\x12\n" +
+	"\x04kind\x18\x03 \x01(\tR\x04kind\x12\x1a\n" +
+	"\bcategory\x18\x04 \x01(\tR\bcategory\x12\x18\n" +
+	"\acommand\x18\x05 \x01(\tR\acommand\x12\x1e\n" +
+	"\n" +
+	"subcommand\x18\x06 \x01(\tR\n" +
+	"subcommand\x12!\n" +
+	"\fcommand_text\x18\a \x01(\tR\vcommandText\x12\x1f\n" +
+	"\vsource_file\x18\b \x01(\tR\n" +
+	"sourceFile\x12\x1f\n" +
+	"\vline_number\x18\t \x01(\x05R\n" +
+	"lineNumber\"O\n" +
+	"\x11ListNodesResponse\x12:\n" +
+	"\x05nodes\x18\x01 \x03(\v2$.vrooli.prompt_manager.v1.graph.NodeR\x05nodes\"O\n" +
+	"\x11ListEdgesResponse\x12:\n" +
+	"\x05edges\x18\x01 \x03(\v2$.vrooli.prompt_manager.v1.graph.EdgeR\x05edges\"S\n" +
+	"\x12ListCyclesResponse\x12=\n" +
+	"\x06cycles\x18\x01 \x03(\v2%.vrooli.prompt_manager.v1.graph.CycleR\x06cycles\"\"\n" +
+	"\x05Cycle\x12\x19\n" +
+	"\bnode_ids\x18\x01 \x03(\tR\anodeIds\"\xe3\x01\n" +
+	"\n" +
+	"NodeDetail\x128\n" +
+	"\x04node\x18\x01 \x01(\v2$.vrooli.prompt_manager.v1.graph.NodeR\x04node\x12K\n" +
+	"\x0eadjacent_edges\x18\x02 \x03(\v2$.vrooli.prompt_manager.v1.graph.EdgeR\radjacentEdges\x12N\n" +
+	"\fhealth_score\x18\x03 \x01(\v2+.vrooli.prompt_manager.v1.graph.HealthScoreR\vhealthScore\"\x8a\x04\n" +
+	"\rHealthWeights\x12%\n" +
+	"\x0eoutgoing_edges\x18\x01 \x01(\x01R\routgoingEdges\x12%\n" +
+	"\x0eincoming_edges\x18\x02 \x01(\x01R\rincomingEdges\x12\x1d\n" +
+	"\n" +
+	"code_usage\x18\x03 \x01(\x01R\tcodeUsage\x12'\n" +
+	"\x0frecent_activity\x18\x04 \x01(\x01R\x0erecentActivity\x120\n" +
+	"\x14skill_content_length\x18\x05 \x01(\x01R\x12skillContentLength\x12,\n" +
+	"\x12agent_context_load\x18\x06 \x01(\x01R\x10agentContextLoad\x129\n" +
+	"\x19team_member_count_balance\x18\a \x01(\x01R\x16teamMemberCountBalance\x12,\n" +
+	"\x12team_role_coverage\x18\b \x01(\x01R\x10teamRoleCoverage\x12'\n" +
+	"\x0faction_contract\x18\t \x01(\x01R\x0eactionContract\x12%\n" +
+	"\x0eaction_command\x18\n" +
+	" \x01(\x01R\ractionCommand\x12'\n" +
+	"\x0faction_examples\x18\v \x01(\x01R\x0eactionExamples\x12!\n" +
+	"\faction_owner\x18\f \x01(\x01R\vactionOwner\"\xa4\x01\n" +
+	"\x0fCLIHealthConfig\x12)\n" +
+	"\x10neutral_commands\x18\x01 \x03(\tR\x0fneutralCommands\x12.\n" +
+	"\x13external_tool_score\x18\x02 \x01(\x01R\x11externalToolScore\x126\n" +
+	"\x17scenario_fallback_score\x18\x03 \x01(\x01R\x15scenarioFallbackScore\"\xe5\x02\n" +
+	"\fHealthConfig\x12A\n" +
+	"\x04team\x18\x01 \x01(\v2-.vrooli.prompt_manager.v1.graph.HealthWeightsR\x04team\x12C\n" +
+	"\x05agent\x18\x02 \x01(\v2-.vrooli.prompt_manager.v1.graph.HealthWeightsR\x05agent\x12C\n" +
+	"\x05skill\x18\x03 \x01(\v2-.vrooli.prompt_manager.v1.graph.HealthWeightsR\x05skill\x12E\n" +
+	"\x06action\x18\x04 \x01(\v2-.vrooli.prompt_manager.v1.graph.HealthWeightsR\x06action\x12A\n" +
+	"\x03cli\x18\x05 \x01(\v2/.vrooli.prompt_manager.v1.graph.CLIHealthConfigR\x03cli\"\x18\n" +
 	"\x16GetHealthScoresRequest\"^\n" +
 	"\x17GetHealthScoresResponse\x12C\n" +
 	"\x06scores\x18\x01 \x03(\v2+.vrooli.prompt_manager.v1.graph.HealthScoreR\x06scores\"\x97\x02\n" +
@@ -311,9 +1555,22 @@ const file_prompt_manager_v1_graph_graph_proto_rawDesc = "" +
 	"\x06detail\x18\x05 \x01(\tR\x06detail\x12&\n" +
 	"\x0erecommendation\x18\x06 \x01(\tR\x0erecommendation\x12!\n" +
 	"\fmetric_value\x18\a \x01(\x01R\vmetricValue\x12\x16\n" +
-	"\x06target\x18\b \x01(\tR\x06target2\x93\x01\n" +
-	"\fGraphService\x12\x82\x01\n" +
-	"\x0fGetHealthScores\x126.vrooli.prompt_manager.v1.graph.GetHealthScoresRequest\x1a7.vrooli.prompt_manager.v1.graph.GetHealthScoresResponseBQZOgithub.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/graph;graph_v1b\x06proto3"
+	"\x06target\x18\b \x01(\tR\x06target2\xae\f\n" +
+	"\fGraphService\x12g\n" +
+	"\bGetGraph\x12/.vrooli.prompt_manager.v1.graph.GetGraphRequest\x1a*.vrooli.prompt_manager.v1.graph.GraphIndex\x12u\n" +
+	"\x0fRegenerateGraph\x126.vrooli.prompt_manager.v1.graph.RegenerateGraphRequest\x1a*.vrooli.prompt_manager.v1.graph.GraphIndex\x12y\n" +
+	"\x12ListOrphanedSkills\x120.vrooli.prompt_manager.v1.graph.ListNodesRequest\x1a1.vrooli.prompt_manager.v1.graph.ListNodesResponse\x12z\n" +
+	"\x13ListSkilllessAgents\x120.vrooli.prompt_manager.v1.graph.ListNodesRequest\x1a1.vrooli.prompt_manager.v1.graph.ListNodesResponse\x12u\n" +
+	"\x0eListEmptyTeams\x120.vrooli.prompt_manager.v1.graph.ListNodesRequest\x1a1.vrooli.prompt_manager.v1.graph.ListNodesResponse\x12}\n" +
+	"\x16ListUnaffiliatedAgents\x120.vrooli.prompt_manager.v1.graph.ListNodesRequest\x1a1.vrooli.prompt_manager.v1.graph.ListNodesResponse\x12~\n" +
+	"\x10ListPopularNodes\x127.vrooli.prompt_manager.v1.graph.ListPopularNodesRequest\x1a1.vrooli.prompt_manager.v1.graph.ListNodesResponse\x12s\n" +
+	"\n" +
+	"ListCycles\x121.vrooli.prompt_manager.v1.graph.ListCyclesRequest\x1a2.vrooli.prompt_manager.v1.graph.ListCyclesResponse\x12e\n" +
+	"\aGetNode\x12..vrooli.prompt_manager.v1.graph.GetNodeRequest\x1a*.vrooli.prompt_manager.v1.graph.NodeDetail\x12x\n" +
+	"\rListNodeEdges\x124.vrooli.prompt_manager.v1.graph.ListNodeEdgesRequest\x1a1.vrooli.prompt_manager.v1.graph.ListEdgesResponse\x12\x82\x01\n" +
+	"\x0fGetHealthScores\x126.vrooli.prompt_manager.v1.graph.GetHealthScoresRequest\x1a7.vrooli.prompt_manager.v1.graph.GetHealthScoresResponse\x12w\n" +
+	"\x0fGetHealthConfig\x126.vrooli.prompt_manager.v1.graph.GetHealthConfigRequest\x1a,.vrooli.prompt_manager.v1.graph.HealthConfig\x12}\n" +
+	"\x12UpdateHealthConfig\x129.vrooli.prompt_manager.v1.graph.UpdateHealthConfigRequest\x1a,.vrooli.prompt_manager.v1.graph.HealthConfigBQZOgithub.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/graph;graph_v1b\x06proto3"
 
 var (
 	file_prompt_manager_v1_graph_graph_proto_rawDescOnce sync.Once
@@ -327,25 +1584,86 @@ func file_prompt_manager_v1_graph_graph_proto_rawDescGZIP() []byte {
 	return file_prompt_manager_v1_graph_graph_proto_rawDescData
 }
 
-var file_prompt_manager_v1_graph_graph_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_prompt_manager_v1_graph_graph_proto_msgTypes = make([]protoimpl.MessageInfo, 26)
 var file_prompt_manager_v1_graph_graph_proto_goTypes = []any{
-	(*GetHealthScoresRequest)(nil),  // 0: vrooli.prompt_manager.v1.graph.GetHealthScoresRequest
-	(*GetHealthScoresResponse)(nil), // 1: vrooli.prompt_manager.v1.graph.GetHealthScoresResponse
-	(*HealthScore)(nil),             // 2: vrooli.prompt_manager.v1.graph.HealthScore
-	(*HealthMessage)(nil),           // 3: vrooli.prompt_manager.v1.graph.HealthMessage
-	nil,                             // 4: vrooli.prompt_manager.v1.graph.HealthScore.FactorsEntry
+	(*GetGraphRequest)(nil),           // 0: vrooli.prompt_manager.v1.graph.GetGraphRequest
+	(*RegenerateGraphRequest)(nil),    // 1: vrooli.prompt_manager.v1.graph.RegenerateGraphRequest
+	(*ListNodesRequest)(nil),          // 2: vrooli.prompt_manager.v1.graph.ListNodesRequest
+	(*ListPopularNodesRequest)(nil),   // 3: vrooli.prompt_manager.v1.graph.ListPopularNodesRequest
+	(*ListCyclesRequest)(nil),         // 4: vrooli.prompt_manager.v1.graph.ListCyclesRequest
+	(*GetNodeRequest)(nil),            // 5: vrooli.prompt_manager.v1.graph.GetNodeRequest
+	(*ListNodeEdgesRequest)(nil),      // 6: vrooli.prompt_manager.v1.graph.ListNodeEdgesRequest
+	(*GetHealthConfigRequest)(nil),    // 7: vrooli.prompt_manager.v1.graph.GetHealthConfigRequest
+	(*UpdateHealthConfigRequest)(nil), // 8: vrooli.prompt_manager.v1.graph.UpdateHealthConfigRequest
+	(*GraphIndex)(nil),                // 9: vrooli.prompt_manager.v1.graph.GraphIndex
+	(*Graph)(nil),                     // 10: vrooli.prompt_manager.v1.graph.Graph
+	(*Node)(nil),                      // 11: vrooli.prompt_manager.v1.graph.Node
+	(*Edge)(nil),                      // 12: vrooli.prompt_manager.v1.graph.Edge
+	(*ListNodesResponse)(nil),         // 13: vrooli.prompt_manager.v1.graph.ListNodesResponse
+	(*ListEdgesResponse)(nil),         // 14: vrooli.prompt_manager.v1.graph.ListEdgesResponse
+	(*ListCyclesResponse)(nil),        // 15: vrooli.prompt_manager.v1.graph.ListCyclesResponse
+	(*Cycle)(nil),                     // 16: vrooli.prompt_manager.v1.graph.Cycle
+	(*NodeDetail)(nil),                // 17: vrooli.prompt_manager.v1.graph.NodeDetail
+	(*HealthWeights)(nil),             // 18: vrooli.prompt_manager.v1.graph.HealthWeights
+	(*CLIHealthConfig)(nil),           // 19: vrooli.prompt_manager.v1.graph.CLIHealthConfig
+	(*HealthConfig)(nil),              // 20: vrooli.prompt_manager.v1.graph.HealthConfig
+	(*GetHealthScoresRequest)(nil),    // 21: vrooli.prompt_manager.v1.graph.GetHealthScoresRequest
+	(*GetHealthScoresResponse)(nil),   // 22: vrooli.prompt_manager.v1.graph.GetHealthScoresResponse
+	(*HealthScore)(nil),               // 23: vrooli.prompt_manager.v1.graph.HealthScore
+	(*HealthMessage)(nil),             // 24: vrooli.prompt_manager.v1.graph.HealthMessage
+	nil,                               // 25: vrooli.prompt_manager.v1.graph.HealthScore.FactorsEntry
 }
 var file_prompt_manager_v1_graph_graph_proto_depIdxs = []int32{
-	2, // 0: vrooli.prompt_manager.v1.graph.GetHealthScoresResponse.scores:type_name -> vrooli.prompt_manager.v1.graph.HealthScore
-	4, // 1: vrooli.prompt_manager.v1.graph.HealthScore.factors:type_name -> vrooli.prompt_manager.v1.graph.HealthScore.FactorsEntry
-	3, // 2: vrooli.prompt_manager.v1.graph.HealthScore.messages:type_name -> vrooli.prompt_manager.v1.graph.HealthMessage
-	0, // 3: vrooli.prompt_manager.v1.graph.GraphService.GetHealthScores:input_type -> vrooli.prompt_manager.v1.graph.GetHealthScoresRequest
-	1, // 4: vrooli.prompt_manager.v1.graph.GraphService.GetHealthScores:output_type -> vrooli.prompt_manager.v1.graph.GetHealthScoresResponse
-	4, // [4:5] is the sub-list for method output_type
-	3, // [3:4] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	20, // 0: vrooli.prompt_manager.v1.graph.UpdateHealthConfigRequest.config:type_name -> vrooli.prompt_manager.v1.graph.HealthConfig
+	10, // 1: vrooli.prompt_manager.v1.graph.GraphIndex.graph:type_name -> vrooli.prompt_manager.v1.graph.Graph
+	11, // 2: vrooli.prompt_manager.v1.graph.Graph.nodes:type_name -> vrooli.prompt_manager.v1.graph.Node
+	12, // 3: vrooli.prompt_manager.v1.graph.Graph.edges:type_name -> vrooli.prompt_manager.v1.graph.Edge
+	23, // 4: vrooli.prompt_manager.v1.graph.Graph.health_scores:type_name -> vrooli.prompt_manager.v1.graph.HealthScore
+	11, // 5: vrooli.prompt_manager.v1.graph.ListNodesResponse.nodes:type_name -> vrooli.prompt_manager.v1.graph.Node
+	12, // 6: vrooli.prompt_manager.v1.graph.ListEdgesResponse.edges:type_name -> vrooli.prompt_manager.v1.graph.Edge
+	16, // 7: vrooli.prompt_manager.v1.graph.ListCyclesResponse.cycles:type_name -> vrooli.prompt_manager.v1.graph.Cycle
+	11, // 8: vrooli.prompt_manager.v1.graph.NodeDetail.node:type_name -> vrooli.prompt_manager.v1.graph.Node
+	12, // 9: vrooli.prompt_manager.v1.graph.NodeDetail.adjacent_edges:type_name -> vrooli.prompt_manager.v1.graph.Edge
+	23, // 10: vrooli.prompt_manager.v1.graph.NodeDetail.health_score:type_name -> vrooli.prompt_manager.v1.graph.HealthScore
+	18, // 11: vrooli.prompt_manager.v1.graph.HealthConfig.team:type_name -> vrooli.prompt_manager.v1.graph.HealthWeights
+	18, // 12: vrooli.prompt_manager.v1.graph.HealthConfig.agent:type_name -> vrooli.prompt_manager.v1.graph.HealthWeights
+	18, // 13: vrooli.prompt_manager.v1.graph.HealthConfig.skill:type_name -> vrooli.prompt_manager.v1.graph.HealthWeights
+	18, // 14: vrooli.prompt_manager.v1.graph.HealthConfig.action:type_name -> vrooli.prompt_manager.v1.graph.HealthWeights
+	19, // 15: vrooli.prompt_manager.v1.graph.HealthConfig.cli:type_name -> vrooli.prompt_manager.v1.graph.CLIHealthConfig
+	23, // 16: vrooli.prompt_manager.v1.graph.GetHealthScoresResponse.scores:type_name -> vrooli.prompt_manager.v1.graph.HealthScore
+	25, // 17: vrooli.prompt_manager.v1.graph.HealthScore.factors:type_name -> vrooli.prompt_manager.v1.graph.HealthScore.FactorsEntry
+	24, // 18: vrooli.prompt_manager.v1.graph.HealthScore.messages:type_name -> vrooli.prompt_manager.v1.graph.HealthMessage
+	0,  // 19: vrooli.prompt_manager.v1.graph.GraphService.GetGraph:input_type -> vrooli.prompt_manager.v1.graph.GetGraphRequest
+	1,  // 20: vrooli.prompt_manager.v1.graph.GraphService.RegenerateGraph:input_type -> vrooli.prompt_manager.v1.graph.RegenerateGraphRequest
+	2,  // 21: vrooli.prompt_manager.v1.graph.GraphService.ListOrphanedSkills:input_type -> vrooli.prompt_manager.v1.graph.ListNodesRequest
+	2,  // 22: vrooli.prompt_manager.v1.graph.GraphService.ListSkilllessAgents:input_type -> vrooli.prompt_manager.v1.graph.ListNodesRequest
+	2,  // 23: vrooli.prompt_manager.v1.graph.GraphService.ListEmptyTeams:input_type -> vrooli.prompt_manager.v1.graph.ListNodesRequest
+	2,  // 24: vrooli.prompt_manager.v1.graph.GraphService.ListUnaffiliatedAgents:input_type -> vrooli.prompt_manager.v1.graph.ListNodesRequest
+	3,  // 25: vrooli.prompt_manager.v1.graph.GraphService.ListPopularNodes:input_type -> vrooli.prompt_manager.v1.graph.ListPopularNodesRequest
+	4,  // 26: vrooli.prompt_manager.v1.graph.GraphService.ListCycles:input_type -> vrooli.prompt_manager.v1.graph.ListCyclesRequest
+	5,  // 27: vrooli.prompt_manager.v1.graph.GraphService.GetNode:input_type -> vrooli.prompt_manager.v1.graph.GetNodeRequest
+	6,  // 28: vrooli.prompt_manager.v1.graph.GraphService.ListNodeEdges:input_type -> vrooli.prompt_manager.v1.graph.ListNodeEdgesRequest
+	21, // 29: vrooli.prompt_manager.v1.graph.GraphService.GetHealthScores:input_type -> vrooli.prompt_manager.v1.graph.GetHealthScoresRequest
+	7,  // 30: vrooli.prompt_manager.v1.graph.GraphService.GetHealthConfig:input_type -> vrooli.prompt_manager.v1.graph.GetHealthConfigRequest
+	8,  // 31: vrooli.prompt_manager.v1.graph.GraphService.UpdateHealthConfig:input_type -> vrooli.prompt_manager.v1.graph.UpdateHealthConfigRequest
+	9,  // 32: vrooli.prompt_manager.v1.graph.GraphService.GetGraph:output_type -> vrooli.prompt_manager.v1.graph.GraphIndex
+	9,  // 33: vrooli.prompt_manager.v1.graph.GraphService.RegenerateGraph:output_type -> vrooli.prompt_manager.v1.graph.GraphIndex
+	13, // 34: vrooli.prompt_manager.v1.graph.GraphService.ListOrphanedSkills:output_type -> vrooli.prompt_manager.v1.graph.ListNodesResponse
+	13, // 35: vrooli.prompt_manager.v1.graph.GraphService.ListSkilllessAgents:output_type -> vrooli.prompt_manager.v1.graph.ListNodesResponse
+	13, // 36: vrooli.prompt_manager.v1.graph.GraphService.ListEmptyTeams:output_type -> vrooli.prompt_manager.v1.graph.ListNodesResponse
+	13, // 37: vrooli.prompt_manager.v1.graph.GraphService.ListUnaffiliatedAgents:output_type -> vrooli.prompt_manager.v1.graph.ListNodesResponse
+	13, // 38: vrooli.prompt_manager.v1.graph.GraphService.ListPopularNodes:output_type -> vrooli.prompt_manager.v1.graph.ListNodesResponse
+	15, // 39: vrooli.prompt_manager.v1.graph.GraphService.ListCycles:output_type -> vrooli.prompt_manager.v1.graph.ListCyclesResponse
+	17, // 40: vrooli.prompt_manager.v1.graph.GraphService.GetNode:output_type -> vrooli.prompt_manager.v1.graph.NodeDetail
+	14, // 41: vrooli.prompt_manager.v1.graph.GraphService.ListNodeEdges:output_type -> vrooli.prompt_manager.v1.graph.ListEdgesResponse
+	22, // 42: vrooli.prompt_manager.v1.graph.GraphService.GetHealthScores:output_type -> vrooli.prompt_manager.v1.graph.GetHealthScoresResponse
+	20, // 43: vrooli.prompt_manager.v1.graph.GraphService.GetHealthConfig:output_type -> vrooli.prompt_manager.v1.graph.HealthConfig
+	20, // 44: vrooli.prompt_manager.v1.graph.GraphService.UpdateHealthConfig:output_type -> vrooli.prompt_manager.v1.graph.HealthConfig
+	32, // [32:45] is the sub-list for method output_type
+	19, // [19:32] is the sub-list for method input_type
+	19, // [19:19] is the sub-list for extension type_name
+	19, // [19:19] is the sub-list for extension extendee
+	0,  // [0:19] is the sub-list for field type_name
 }
 
 func init() { file_prompt_manager_v1_graph_graph_proto_init() }
@@ -359,7 +1677,7 @@ func file_prompt_manager_v1_graph_graph_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_prompt_manager_v1_graph_graph_proto_rawDesc), len(file_prompt_manager_v1_graph_graph_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   5,
+			NumMessages:   26,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

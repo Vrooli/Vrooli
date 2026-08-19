@@ -91,6 +91,9 @@ const (
 	TreasuryAdminUnfreezeBookProcedure = "/vrooli.treasury.v1.authorization.TreasuryAdmin/UnfreezeBook"
 	// TreasuryAdminFreezeAllProcedure is the fully-qualified name of the TreasuryAdmin's FreezeAll RPC.
 	TreasuryAdminFreezeAllProcedure = "/vrooli.treasury.v1.authorization.TreasuryAdmin/FreezeAll"
+	// TreasuryAdminGetFreezeStatusProcedure is the fully-qualified name of the TreasuryAdmin's
+	// GetFreezeStatus RPC.
+	TreasuryAdminGetFreezeStatusProcedure = "/vrooli.treasury.v1.authorization.TreasuryAdmin/GetFreezeStatus"
 	// TreasuryAdminUnfreezeAllProcedure is the fully-qualified name of the TreasuryAdmin's UnfreezeAll
 	// RPC.
 	TreasuryAdminUnfreezeAllProcedure = "/vrooli.treasury.v1.authorization.TreasuryAdmin/UnfreezeAll"
@@ -294,6 +297,7 @@ type TreasuryAdminClient interface {
 	FreezeBook(context.Context, *connect.Request[authorization.FreezeBookRequest]) (*connect.Response[authorization.FreezeBookResponse], error)
 	UnfreezeBook(context.Context, *connect.Request[authorization.UnfreezeBookRequest]) (*connect.Response[authorization.UnfreezeBookResponse], error)
 	FreezeAll(context.Context, *connect.Request[authorization.FreezeAllRequest]) (*connect.Response[authorization.FreezeAllResponse], error)
+	GetFreezeStatus(context.Context, *connect.Request[authorization.GetFreezeStatusRequest]) (*connect.Response[authorization.GetFreezeStatusResponse], error)
 	UnfreezeAll(context.Context, *connect.Request[authorization.UnfreezeAllRequest]) (*connect.Response[authorization.UnfreezeAllResponse], error)
 	RegisterInstrument(context.Context, *connect.Request[authorization.RegisterInstrumentRequest]) (*connect.Response[authorization.RegisterInstrumentResponse], error)
 	ReportManualOutcome(context.Context, *connect.Request[authorization.ReportManualOutcomeRequest]) (*connect.Response[authorization.ReportManualOutcomeResponse], error)
@@ -400,6 +404,12 @@ func NewTreasuryAdminClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithSchema(treasuryAdminMethods.ByName("FreezeAll")),
 			connect.WithClientOptions(opts...),
 		),
+		getFreezeStatus: connect.NewClient[authorization.GetFreezeStatusRequest, authorization.GetFreezeStatusResponse](
+			httpClient,
+			baseURL+TreasuryAdminGetFreezeStatusProcedure,
+			connect.WithSchema(treasuryAdminMethods.ByName("GetFreezeStatus")),
+			connect.WithClientOptions(opts...),
+		),
 		unfreezeAll: connect.NewClient[authorization.UnfreezeAllRequest, authorization.UnfreezeAllResponse](
 			httpClient,
 			baseURL+TreasuryAdminUnfreezeAllProcedure,
@@ -438,6 +448,7 @@ type treasuryAdminClient struct {
 	freezeBook            *connect.Client[authorization.FreezeBookRequest, authorization.FreezeBookResponse]
 	unfreezeBook          *connect.Client[authorization.UnfreezeBookRequest, authorization.UnfreezeBookResponse]
 	freezeAll             *connect.Client[authorization.FreezeAllRequest, authorization.FreezeAllResponse]
+	getFreezeStatus       *connect.Client[authorization.GetFreezeStatusRequest, authorization.GetFreezeStatusResponse]
 	unfreezeAll           *connect.Client[authorization.UnfreezeAllRequest, authorization.UnfreezeAllResponse]
 	registerInstrument    *connect.Client[authorization.RegisterInstrumentRequest, authorization.RegisterInstrumentResponse]
 	reportManualOutcome   *connect.Client[authorization.ReportManualOutcomeRequest, authorization.ReportManualOutcomeResponse]
@@ -518,6 +529,11 @@ func (c *treasuryAdminClient) FreezeAll(ctx context.Context, req *connect.Reques
 	return c.freezeAll.CallUnary(ctx, req)
 }
 
+// GetFreezeStatus calls vrooli.treasury.v1.authorization.TreasuryAdmin.GetFreezeStatus.
+func (c *treasuryAdminClient) GetFreezeStatus(ctx context.Context, req *connect.Request[authorization.GetFreezeStatusRequest]) (*connect.Response[authorization.GetFreezeStatusResponse], error) {
+	return c.getFreezeStatus.CallUnary(ctx, req)
+}
+
 // UnfreezeAll calls vrooli.treasury.v1.authorization.TreasuryAdmin.UnfreezeAll.
 func (c *treasuryAdminClient) UnfreezeAll(ctx context.Context, req *connect.Request[authorization.UnfreezeAllRequest]) (*connect.Response[authorization.UnfreezeAllResponse], error) {
 	return c.unfreezeAll.CallUnary(ctx, req)
@@ -551,6 +567,7 @@ type TreasuryAdminHandler interface {
 	FreezeBook(context.Context, *connect.Request[authorization.FreezeBookRequest]) (*connect.Response[authorization.FreezeBookResponse], error)
 	UnfreezeBook(context.Context, *connect.Request[authorization.UnfreezeBookRequest]) (*connect.Response[authorization.UnfreezeBookResponse], error)
 	FreezeAll(context.Context, *connect.Request[authorization.FreezeAllRequest]) (*connect.Response[authorization.FreezeAllResponse], error)
+	GetFreezeStatus(context.Context, *connect.Request[authorization.GetFreezeStatusRequest]) (*connect.Response[authorization.GetFreezeStatusResponse], error)
 	UnfreezeAll(context.Context, *connect.Request[authorization.UnfreezeAllRequest]) (*connect.Response[authorization.UnfreezeAllResponse], error)
 	RegisterInstrument(context.Context, *connect.Request[authorization.RegisterInstrumentRequest]) (*connect.Response[authorization.RegisterInstrumentResponse], error)
 	ReportManualOutcome(context.Context, *connect.Request[authorization.ReportManualOutcomeRequest]) (*connect.Response[authorization.ReportManualOutcomeResponse], error)
@@ -653,6 +670,12 @@ func NewTreasuryAdminHandler(svc TreasuryAdminHandler, opts ...connect.HandlerOp
 		connect.WithSchema(treasuryAdminMethods.ByName("FreezeAll")),
 		connect.WithHandlerOptions(opts...),
 	)
+	treasuryAdminGetFreezeStatusHandler := connect.NewUnaryHandler(
+		TreasuryAdminGetFreezeStatusProcedure,
+		svc.GetFreezeStatus,
+		connect.WithSchema(treasuryAdminMethods.ByName("GetFreezeStatus")),
+		connect.WithHandlerOptions(opts...),
+	)
 	treasuryAdminUnfreezeAllHandler := connect.NewUnaryHandler(
 		TreasuryAdminUnfreezeAllProcedure,
 		svc.UnfreezeAll,
@@ -703,6 +726,8 @@ func NewTreasuryAdminHandler(svc TreasuryAdminHandler, opts ...connect.HandlerOp
 			treasuryAdminUnfreezeBookHandler.ServeHTTP(w, r)
 		case TreasuryAdminFreezeAllProcedure:
 			treasuryAdminFreezeAllHandler.ServeHTTP(w, r)
+		case TreasuryAdminGetFreezeStatusProcedure:
+			treasuryAdminGetFreezeStatusHandler.ServeHTTP(w, r)
 		case TreasuryAdminUnfreezeAllProcedure:
 			treasuryAdminUnfreezeAllHandler.ServeHTTP(w, r)
 		case TreasuryAdminRegisterInstrumentProcedure:
@@ -776,6 +801,10 @@ func (UnimplementedTreasuryAdminHandler) UnfreezeBook(context.Context, *connect.
 
 func (UnimplementedTreasuryAdminHandler) FreezeAll(context.Context, *connect.Request[authorization.FreezeAllRequest]) (*connect.Response[authorization.FreezeAllResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.treasury.v1.authorization.TreasuryAdmin.FreezeAll is not implemented"))
+}
+
+func (UnimplementedTreasuryAdminHandler) GetFreezeStatus(context.Context, *connect.Request[authorization.GetFreezeStatusRequest]) (*connect.Response[authorization.GetFreezeStatusResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.treasury.v1.authorization.TreasuryAdmin.GetFreezeStatus is not implemented"))
 }
 
 func (UnimplementedTreasuryAdminHandler) UnfreezeAll(context.Context, *connect.Request[authorization.UnfreezeAllRequest]) (*connect.Response[authorization.UnfreezeAllResponse], error) {

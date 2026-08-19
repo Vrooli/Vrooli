@@ -91,6 +91,7 @@ type ApprovalRequest struct {
 	CreatedAt        *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	ResolvedAt       *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=resolved_at,json=resolvedAt,proto3" json:"resolved_at,omitempty"`
 	ExpiresAt        *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
+	BookId           string                 `protobuf:"bytes,13,opt,name=book_id,json=bookId,proto3" json:"book_id,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -209,11 +210,18 @@ func (x *ApprovalRequest) GetExpiresAt() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *ApprovalRequest) GetBookId() string {
+	if x != nil {
+		return x.BookId
+	}
+	return ""
+}
+
 var File_treasury_v1_approval_approval_proto protoreflect.FileDescriptor
 
 const file_treasury_v1_approval_approval_proto_rawDesc = "" +
 	"\n" +
-	"#treasury/v1/approval/approval.proto\x12\x1bvrooli.treasury.v1.approval\x1a\x1fgoogle/protobuf/timestamp.proto\"\x9e\x04\n" +
+	"#treasury/v1/approval/approval.proto\x12\x1bvrooli.treasury.v1.approval\x1a\x1fgoogle/protobuf/timestamp.proto\"\xb7\x04\n" +
 	"\x0fApprovalRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12)\n" +
 	"\x10authorization_id\x18\x02 \x01(\tR\x0fauthorizationId\x12\x1d\n" +
@@ -231,7 +239,8 @@ const file_treasury_v1_approval_approval_proto_rawDesc = "" +
 	"\vresolved_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\n" +
 	"resolvedAt\x129\n" +
 	"\n" +
-	"expires_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt*\xa6\x01\n" +
+	"expires_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\x12\x17\n" +
+	"\abook_id\x18\r \x01(\tR\x06bookId*\xa6\x01\n" +
 	"\x0eApprovalStatus\x12\x1f\n" +
 	"\x1bAPPROVAL_STATUS_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16APPROVAL_STATUS_QUEUED\x10\x01\x12\x1c\n" +

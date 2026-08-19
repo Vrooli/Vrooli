@@ -298,6 +298,15 @@ service AgentManagerService {
     };
   }
 
+  // AttachRun identifies an operator-started harness session without taking
+  // ownership of its process or transcript.
+  rpc AttachRun(AttachRunRequest) returns (AttachRunResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/runs/attach"
+      body: "*"
+    };
+  }
+
   // GetRun retrieves a run by ID.
   rpc GetRun(GetRunRequest) returns (GetRunResponse) {
     option (google.api.http) = {get: "/api/v1/runs/{run_id}"};
@@ -341,6 +350,11 @@ service AgentManagerService {
       post: "/api/v1/runs/stop-all"
       body: "*"
     };
+  }
+
+  // DetachRun closes an attached run without touching the harness process.
+  rpc DetachRun(DetachRunRequest) returns (DetachRunResponse) {
+    option (google.api.http) = {post: "/api/v1/runs/{run_id}/detach"};
   }
 
   // QuiesceScenario drains in-flight runs targeting a scenario so a Baseline
@@ -1125,6 +1139,50 @@ message CreateRunRequest {
     defined_only: true
     not_in: [0]
   }];
+}
+
+// AttachRunRequest identifies an operator-started coding-agent session.
+message AttachRunRequest {
+  // Optional task to associate with the session. When absent, the run has no
+  // task rather than receiving a synthetic placeholder.
+  optional string task_id = 1 [(buf.validate.field).string.uuid = true];
+
+  // Stable harness/resource kind, for example "claude-code" or "codex".
+  string harness_kind = 2 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 100
+  }];
+
+  // Harness-owned session identifier.
+  string harness_session_id = 3 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 512
+  }];
+
+  // Optional PID for harnesses that can report it. The token-bearing process
+  // environment remains the primary liveness signal.
+  optional int32 process_id = 4 [(buf.validate.field).int32.gt = 0];
+
+  // Optional title already present in the harness transcript metadata.
+  optional string harness_title = 5 [(buf.validate.field).string.max_len = 512];
+}
+
+// AttachRunResponse returns the attached run and its one-time plaintext token.
+message AttachRunResponse {
+  Run run = 1;
+  string identity_token = 2;
+  google.protobuf.Timestamp expires_at = 3;
+}
+
+// DetachRunRequest identifies an attached run to close.
+message DetachRunRequest {
+  string run_id = 1 [(buf.validate.field).string.uuid = true];
+  optional string reason = 2 [(buf.validate.field).string.max_len = 512];
+}
+
+// DetachRunResponse returns the terminal attached run.
+message DetachRunResponse {
+  Run run = 1;
 }
 
 // DeleteRunRequest identifies a run to delete.

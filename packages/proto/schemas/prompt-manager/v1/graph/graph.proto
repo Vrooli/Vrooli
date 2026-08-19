@@ -33,11 +33,52 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manag
 // =============================================================================
 
 service GraphService {
+  rpc GetGraph(GetGraphRequest) returns (GraphIndex);
+  rpc RegenerateGraph(RegenerateGraphRequest) returns (GraphIndex);
+  rpc ListOrphanedSkills(ListNodesRequest) returns (ListNodesResponse);
+  rpc ListSkilllessAgents(ListNodesRequest) returns (ListNodesResponse);
+  rpc ListEmptyTeams(ListNodesRequest) returns (ListNodesResponse);
+  rpc ListUnaffiliatedAgents(ListNodesRequest) returns (ListNodesResponse);
+  rpc ListPopularNodes(ListPopularNodesRequest) returns (ListNodesResponse);
+  rpc ListCycles(ListCyclesRequest) returns (ListCyclesResponse);
+  rpc GetNode(GetNodeRequest) returns (NodeDetail);
+  rpc ListNodeEdges(ListNodeEdgesRequest) returns (ListEdgesResponse);
   // GetHealthScores returns the computed per-node health scores from the
   // current graph index. Read-only; the response mirrors the legacy REST
   // GET /api/v1/graph/health body.
   rpc GetHealthScores(GetHealthScoresRequest) returns (GetHealthScoresResponse);
+  rpc GetHealthConfig(GetHealthConfigRequest) returns (HealthConfig);
+  rpc UpdateHealthConfig(UpdateHealthConfigRequest) returns (HealthConfig);
 }
+
+message GetGraphRequest {}
+message RegenerateGraphRequest {}
+message ListNodesRequest {}
+message ListPopularNodesRequest { int32 limit = 1; }
+message ListCyclesRequest {}
+message GetNodeRequest { string node_id = 1; }
+message ListNodeEdgesRequest { string node_id = 1; }
+message GetHealthConfigRequest {}
+message UpdateHealthConfigRequest { HealthConfig config = 1; }
+
+message GraphIndex { string generated_at = 1; Graph graph = 2; }
+message Graph { repeated Node nodes = 1; repeated Edge edges = 2; repeated HealthScore health_scores = 3; }
+message Node { string id = 1; string type = 2; string label = 3; string description = 4; string status = 5; repeated string tags = 6; }
+message Edge { string from = 1; string to = 2; string kind = 3; string category = 4; string command = 5; string subcommand = 6; string command_text = 7; string source_file = 8; int32 line_number = 9; }
+message ListNodesResponse { repeated Node nodes = 1; }
+message ListEdgesResponse { repeated Edge edges = 1; }
+message ListCyclesResponse { repeated Cycle cycles = 1; }
+message Cycle { repeated string node_ids = 1; }
+message NodeDetail { Node node = 1; repeated Edge adjacent_edges = 2; HealthScore health_score = 3; }
+
+message HealthWeights {
+  double outgoing_edges = 1; double incoming_edges = 2; double code_usage = 3;
+  double recent_activity = 4; double skill_content_length = 5; double agent_context_load = 6;
+  double team_member_count_balance = 7; double team_role_coverage = 8;
+  double action_contract = 9; double action_command = 10; double action_examples = 11; double action_owner = 12;
+}
+message CLIHealthConfig { repeated string neutral_commands = 1; double external_tool_score = 2; double scenario_fallback_score = 3; }
+message HealthConfig { HealthWeights team = 1; HealthWeights agent = 2; HealthWeights skill = 3; HealthWeights action = 4; CLIHealthConfig cli = 5; }
 
 // GetHealthScoresRequest currently carries no parameters; add filters here.
 message GetHealthScoresRequest {}

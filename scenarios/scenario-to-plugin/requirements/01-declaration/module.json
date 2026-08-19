@@ -54,11 +54,11 @@
     },
     {
       "id": "PLG-DECL-STANDALONE",
-      "title": "If a scenario is not standalone-installable, then the readiness report shall mark it ineligible and name standalone install as the blocking prerequisite.",
+      "title": "If a scenario is not standalone-installable, then the ramp shall mark it ineligible, name standalone install as the blocking prerequisite, and refuse composition rather than deferring the failure to rehearsal.",
       "status": "planned",
-      "prd_ref": "OT-P1-005",
+      "prd_ref": "OT-P0-009",
       "category": "declaration.readiness",
-      "description": "Standalone install is the stated gating prerequisite for the skill-registries channel. A package for a capability that cannot install without the full Vrooli runtime is a trust violation, so ineligibility must be explicit and attributed rather than surfacing later as a rehearsal failure.",
+      "description": "Standalone install is the stated gating prerequisite for the skill-registries channel. A package for a capability that cannot install without the full Vrooli runtime is a trust violation, so ineligibility must be explicit, attributed, and enforced at composition rather than surfacing later as a rehearsal failure. The fleet readiness board (OT-P1-005) presents this verdict; the refusal itself is a viability invariant and does not depend on the board existing.",
       "tags": [
         "readiness",
         "prerequisite",

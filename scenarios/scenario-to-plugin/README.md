@@ -1,6 +1,53 @@
 # Scenario to Plugin
 
-Deployment ramp that packages, signs, and publishes a Vrooli scenario as an Agent Plugin — Agent Skills plus MCP servers — to agent runtimes and skill registries
+**The agent-runtime delivery ramp.** Scenario to Plugin takes a Vrooli
+scenario that is already standalone-installable and produces a signed,
+publishable **Agent Plugin** — an [Agent Plugins 1.0.0](https://agent-plugins.org/specification)
+folder carrying [Agent Skills](https://agentskills.io/specification)
+(`SKILL.md`) and MCP server declarations (`mcp.json`) — then proves that
+package installs and works in a clean room before any channel receives it.
+
+It is the fifth deployment ramp alongside `scenario-to-desktop`,
+`scenario-to-android`, `scenario-to-ios`, and `scenario-to-cloud`, and it
+implements the same common ramp contract: consume a target plan, produce
+artifacts, run target-native validation, emit evidence, and ask
+`deployment-manager` for the release decision before publishing.
+
+### Why it exists
+
+Skill directories now index hundreds of thousands of entries scraped from
+public repositories with no security review. Volume is not scarce;
+**verifiability is.** Every package this ramp publishes carries a Cosign
+signature, SLSA provenance, an SBOM, a scanner verdict, and one thing no
+registry scanner checks: a machine-verified guarantee that the commands
+its skill documents actually exist in the CLI it wraps, recorded against a
+pinned manifest revision.
+
+### The gate ladder
+
+A package advances through five gates, and each one is a refusal point
+rather than a step. No gate may be skipped, and a gate never reports green
+from an absent check.
+
+```
+declaration → composition → conformance → attestation → rehearsal → publication
+                                 │             │            │            │
+                            skill spec,     scan, sign,  clean-room   release gate,
+                            CLI drift,      provenance,  install +    channels,
+                            install safety  SBOM         exercise     revocation
+```
+
+### Status
+
+**Pre-implementation.** The product contract is complete and validates
+clean — `PRD.md`, a 40-requirement registry across six domain modules, the
+full documentation set, and an experience contract with seven product
+pages and four journeys. **No domain code exists yet.** See
+[`docs/internal/PROGRESS.md`](docs/internal/PROGRESS.md) for what landed
+and [`docs/internal/PROBLEMS.md`](docs/internal/PROBLEMS.md) for known
+gaps.
+
+---
 
 This scenario was generated from the `react-vite` template and packages
 the standard full-stack Vrooli scenario shape:
@@ -9,13 +56,12 @@ the standard full-stack Vrooli scenario shape:
 - React + TypeScript + Vite UI (`ui/`)
 - CLI wrapper (`cli/`)
 - Lifecycle + health wiring (`.vrooli/service.json`)
-- Requirements registry, generated L0 experience contract, and progress log
+- Requirements registry, experience contract, and progress log
   (`requirements/`, `experience/`, `docs/internal/PROGRESS.md`)
 
 > **Start here:** open [`docs/START-HERE.md`](docs/START-HERE.md). It
-> owns the first-session initialization protocol — charter, requirements,
-> domain map, design language, placeholder replacement, and first real
-> vertical slice. Run `make orient` for a machine-readable gate status.
+> owns the initialization protocol. Gates 1–5b are closed; Gates 0, 6, and
+> 7 remain. Run `make orient` for machine-readable gate status.
 
 ## What's In This Scenario
 
@@ -115,6 +161,9 @@ finer-grained presets.
 | Capture monetization and launch strategy | [`docs/business/MONETIZATION.md`](docs/business/MONETIZATION.md), [`docs/business/GO-TO-MARKET.md`](docs/business/GO-TO-MARKET.md) |
 | Prepare deployment and operations | [`docs/operations/DEPLOYMENT.md`](docs/operations/DEPLOYMENT.md), [`docs/operations/RUNBOOK.md`](docs/operations/RUNBOOK.md), [`docs/operations/OBSERVABILITY.md`](docs/operations/OBSERVABILITY.md) |
 | Write tests | [`docs/internal/TESTING.md`](docs/internal/TESTING.md) |
+| Understand the threat model | [`docs/internal/SECURITY.md`](docs/internal/SECURITY.md) |
+| Check a settled decision before re-litigating it | [`docs/internal/DECISIONS.md`](docs/internal/DECISIONS.md) |
+| See known gaps | [`docs/internal/PROBLEMS.md`](docs/internal/PROBLEMS.md) |
 | Add or update seams/fakes | [`docs/internal/SEAMS.md`](docs/internal/SEAMS.md) |
 | Configure env vars, ports, CLI config | [`docs/reference/configuration.md`](docs/reference/configuration.md) |
 | Add API endpoints | [`docs/reference/api-endpoints.md`](docs/reference/api-endpoints.md) |

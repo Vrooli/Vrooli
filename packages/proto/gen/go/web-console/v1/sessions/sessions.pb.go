@@ -7,6 +7,7 @@
 package sessions_v1
 
 import (
+	shared "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/shared"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -207,8 +208,11 @@ type Session struct {
 	// True when a recovered Claude pane has terminal output but no new tracked
 	// conversation event after the recovery grace period.
 	TrackingDegraded bool `protobuf:"varint,14,opt,name=tracking_degraded,json=trackingDegraded,proto3" json:"tracking_degraded,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// Present for sessions hosted by a remote target. Safe node metadata only;
+	// credentials and transport proofs never cross this boundary.
+	Target        *shared.Target `protobuf:"bytes,15,opt,name=target,proto3" json:"target,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Session) Reset() {
@@ -337,6 +341,13 @@ func (x *Session) GetTrackingDegraded() bool {
 		return x.TrackingDegraded
 	}
 	return false
+}
+
+func (x *Session) GetTarget() *shared.Target {
+	if x != nil {
+		return x.Target
+	}
+	return nil
 }
 
 // RecoverableSession describes an awaiting_recovery row.
@@ -537,8 +548,11 @@ type CreateRequest struct {
 	// fresh session's stdin after create. Consumed by the server-side launch
 	// path; the store does not persist this intent.
 	ExecuteLaunchCommand bool `protobuf:"varint,12,opt,name=execute_launch_command,json=executeLaunchCommand,proto3" json:"execute_launch_command,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	// Empty creates a local session. Otherwise this is a target catalog id.
+	TargetId      string `protobuf:"bytes,13,opt,name=target_id,json=targetId,proto3" json:"target_id,omitempty"`
+	WorkingDir    string `protobuf:"bytes,14,opt,name=working_dir,json=workingDir,proto3" json:"working_dir,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *CreateRequest) Reset() {
@@ -653,6 +667,20 @@ func (x *CreateRequest) GetExecuteLaunchCommand() bool {
 		return x.ExecuteLaunchCommand
 	}
 	return false
+}
+
+func (x *CreateRequest) GetTargetId() string {
+	if x != nil {
+		return x.TargetId
+	}
+	return ""
+}
+
+func (x *CreateRequest) GetWorkingDir() string {
+	if x != nil {
+		return x.WorkingDir
+	}
+	return ""
 }
 
 type CreateResponse struct {
@@ -2550,10 +2578,10 @@ var File_web_console_v1_sessions_sessions_proto protoreflect.FileDescriptor
 
 const file_web_console_v1_sessions_sessions_proto_rawDesc = "" +
 	"\n" +
-	"&web-console/v1/sessions/sessions.proto\x12\x1evrooli.web_console.v1.sessions\"B\n" +
+	"&web-console/v1/sessions/sessions.proto\x12\x1evrooli.web_console.v1.sessions\x1a\"web-console/v1/shared/target.proto\"B\n" +
 	"\x10ExpirationPolicy\x12\x12\n" +
 	"\x04mode\x18\x01 \x01(\tR\x04mode\x12\x1a\n" +
-	"\bduration\x18\x02 \x01(\tR\bduration\"\xe6\x03\n" +
+	"\bduration\x18\x02 \x01(\tR\bduration\"\xa4\x04\n" +
 	"\aSession\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05shell\x18\x02 \x01(\tR\x05shell\x12\x1d\n" +
@@ -2570,7 +2598,8 @@ const file_web_console_v1_sessions_sessions_proto_rawDesc = "" +
 	"\x06origin\x18\v \x01(\x0e2-.vrooli.web_console.v1.sessions.SessionOriginR\x06origin\x12\x14\n" +
 	"\x05owner\x18\f \x01(\tR\x05owner\x12#\n" +
 	"\rdisplay_label\x18\r \x01(\tR\fdisplayLabel\x12+\n" +
-	"\x11tracking_degraded\x18\x0e \x01(\bR\x10trackingDegraded\"\xcb\x04\n" +
+	"\x11tracking_degraded\x18\x0e \x01(\bR\x10trackingDegraded\x12<\n" +
+	"\x06target\x18\x0f \x01(\v2$.vrooli.web_console.v1.shared.TargetR\x06target\"\xcb\x04\n" +
 	"\x12RecoverableSession\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
 	"\abackend\x18\x02 \x01(\tR\abackend\x12\x14\n" +
@@ -2594,7 +2623,7 @@ const file_web_console_v1_sessions_sessions_proto_rawDesc = "" +
 	"\tpane_name\x18\x10 \x01(\tR\bpaneName\x12!\n" +
 	"\fheader_color\x18\x11 \x01(\tR\vheaderColor\x12\x1d\n" +
 	"\n" +
-	"group_name\x18\x12 \x01(\tR\tgroupName\"\xce\x03\n" +
+	"group_name\x18\x12 \x01(\tR\tgroupName\"\x8c\x04\n" +
 	"\rCreateRequest\x12\x14\n" +
 	"\x05shell\x18\x01 \x01(\tR\x05shell\x12\x12\n" +
 	"\x04cols\x18\x02 \x01(\x05R\x04cols\x12\x12\n" +
@@ -2610,7 +2639,10 @@ const file_web_console_v1_sessions_sessions_proto_rawDesc = "" +
 	"\x05owner\x18\n" +
 	" \x01(\tR\x05owner\x12#\n" +
 	"\rdisplay_label\x18\v \x01(\tR\fdisplayLabel\x124\n" +
-	"\x16execute_launch_command\x18\f \x01(\bR\x14executeLaunchCommand\"S\n" +
+	"\x16execute_launch_command\x18\f \x01(\bR\x14executeLaunchCommand\x12\x1b\n" +
+	"\ttarget_id\x18\r \x01(\tR\btargetId\x12\x1f\n" +
+	"\vworking_dir\x18\x0e \x01(\tR\n" +
+	"workingDir\"S\n" +
 	"\x0eCreateResponse\x12A\n" +
 	"\asession\x18\x01 \x01(\v2'.vrooli.web_console.v1.sessions.SessionR\asession\"\r\n" +
 	"\vListRequest\"\x9f\x01\n" +
@@ -2823,63 +2855,65 @@ var file_web_console_v1_sessions_sessions_proto_goTypes = []any{
 	(*GetPolicyResponse)(nil),           // 38: vrooli.web_console.v1.sessions.GetPolicyResponse
 	(*UpdatePolicyRequest)(nil),         // 39: vrooli.web_console.v1.sessions.UpdatePolicyRequest
 	(*UpdatePolicyResponse)(nil),        // 40: vrooli.web_console.v1.sessions.UpdatePolicyResponse
+	(*shared.Target)(nil),               // 41: vrooli.web_console.v1.shared.Target
 }
 var file_web_console_v1_sessions_sessions_proto_depIdxs = []int32{
 	2,  // 0: vrooli.web_console.v1.sessions.Session.policy:type_name -> vrooli.web_console.v1.sessions.ExpirationPolicy
 	0,  // 1: vrooli.web_console.v1.sessions.Session.origin:type_name -> vrooli.web_console.v1.sessions.SessionOrigin
-	2,  // 2: vrooli.web_console.v1.sessions.CreateRequest.policy:type_name -> vrooli.web_console.v1.sessions.ExpirationPolicy
-	0,  // 3: vrooli.web_console.v1.sessions.CreateRequest.origin:type_name -> vrooli.web_console.v1.sessions.SessionOrigin
-	3,  // 4: vrooli.web_console.v1.sessions.CreateResponse.session:type_name -> vrooli.web_console.v1.sessions.Session
-	3,  // 5: vrooli.web_console.v1.sessions.ListResponse.sessions:type_name -> vrooli.web_console.v1.sessions.Session
-	12, // 6: vrooli.web_console.v1.sessions.ListResponse.recovery:type_name -> vrooli.web_console.v1.sessions.RecoveryStatus
-	1,  // 7: vrooli.web_console.v1.sessions.ArchivedSession.restore_state:type_name -> vrooli.web_console.v1.sessions.ArchiveRestoreState
-	9,  // 8: vrooli.web_console.v1.sessions.ListArchivedResponse.sessions:type_name -> vrooli.web_console.v1.sessions.ArchivedSession
-	3,  // 9: vrooli.web_console.v1.sessions.GetResponse.session:type_name -> vrooli.web_console.v1.sessions.Session
-	4,  // 10: vrooli.web_console.v1.sessions.ListRecoverableResponse.sessions:type_name -> vrooli.web_console.v1.sessions.RecoverableSession
-	29, // 11: vrooli.web_console.v1.sessions.GetArchiveRetentionResponse.policy:type_name -> vrooli.web_console.v1.sessions.ArchiveRetentionPolicy
-	30, // 12: vrooli.web_console.v1.sessions.GetArchiveRetentionResponse.stats:type_name -> vrooli.web_console.v1.sessions.ArchiveRetentionStats
-	34, // 13: vrooli.web_console.v1.sessions.PruneArchiveResponse.actions:type_name -> vrooli.web_console.v1.sessions.ArchivePruneAction
-	30, // 14: vrooli.web_console.v1.sessions.PruneArchiveResponse.before:type_name -> vrooli.web_console.v1.sessions.ArchiveRetentionStats
-	30, // 15: vrooli.web_console.v1.sessions.PruneArchiveResponse.after:type_name -> vrooli.web_console.v1.sessions.ArchiveRetentionStats
-	2,  // 16: vrooli.web_console.v1.sessions.PolicyView.policy:type_name -> vrooli.web_console.v1.sessions.ExpirationPolicy
-	37, // 17: vrooli.web_console.v1.sessions.GetPolicyResponse.policy:type_name -> vrooli.web_console.v1.sessions.PolicyView
-	2,  // 18: vrooli.web_console.v1.sessions.UpdatePolicyRequest.policy:type_name -> vrooli.web_console.v1.sessions.ExpirationPolicy
-	37, // 19: vrooli.web_console.v1.sessions.UpdatePolicyResponse.policy:type_name -> vrooli.web_console.v1.sessions.PolicyView
-	5,  // 20: vrooli.web_console.v1.sessions.SessionsService.Create:input_type -> vrooli.web_console.v1.sessions.CreateRequest
-	7,  // 21: vrooli.web_console.v1.sessions.SessionsService.List:input_type -> vrooli.web_console.v1.sessions.ListRequest
-	10, // 22: vrooli.web_console.v1.sessions.SessionsService.ListArchived:input_type -> vrooli.web_console.v1.sessions.ListArchivedRequest
-	13, // 23: vrooli.web_console.v1.sessions.SessionsService.Get:input_type -> vrooli.web_console.v1.sessions.GetRequest
-	15, // 24: vrooli.web_console.v1.sessions.SessionsService.Archive:input_type -> vrooli.web_console.v1.sessions.ArchiveRequest
-	17, // 25: vrooli.web_console.v1.sessions.SessionsService.Unarchive:input_type -> vrooli.web_console.v1.sessions.UnarchiveRequest
-	19, // 26: vrooli.web_console.v1.sessions.SessionsService.Delete:input_type -> vrooli.web_console.v1.sessions.DeleteRequest
-	21, // 27: vrooli.web_console.v1.sessions.SessionsService.ListRecoverable:input_type -> vrooli.web_console.v1.sessions.ListRecoverableRequest
-	23, // 28: vrooli.web_console.v1.sessions.SessionsService.DismissRecoverable:input_type -> vrooli.web_console.v1.sessions.DismissRecoverableRequest
-	25, // 29: vrooli.web_console.v1.sessions.SessionsService.Recover:input_type -> vrooli.web_console.v1.sessions.RecoverRequest
-	27, // 30: vrooli.web_console.v1.sessions.SessionsService.Reopen:input_type -> vrooli.web_console.v1.sessions.ReopenRequest
-	31, // 31: vrooli.web_console.v1.sessions.SessionsService.GetArchiveRetention:input_type -> vrooli.web_console.v1.sessions.GetArchiveRetentionRequest
-	33, // 32: vrooli.web_console.v1.sessions.SessionsService.PruneArchive:input_type -> vrooli.web_console.v1.sessions.PruneArchiveRequest
-	36, // 33: vrooli.web_console.v1.sessions.SessionsService.GetPolicy:input_type -> vrooli.web_console.v1.sessions.GetPolicyRequest
-	39, // 34: vrooli.web_console.v1.sessions.SessionsService.UpdatePolicy:input_type -> vrooli.web_console.v1.sessions.UpdatePolicyRequest
-	6,  // 35: vrooli.web_console.v1.sessions.SessionsService.Create:output_type -> vrooli.web_console.v1.sessions.CreateResponse
-	8,  // 36: vrooli.web_console.v1.sessions.SessionsService.List:output_type -> vrooli.web_console.v1.sessions.ListResponse
-	11, // 37: vrooli.web_console.v1.sessions.SessionsService.ListArchived:output_type -> vrooli.web_console.v1.sessions.ListArchivedResponse
-	14, // 38: vrooli.web_console.v1.sessions.SessionsService.Get:output_type -> vrooli.web_console.v1.sessions.GetResponse
-	16, // 39: vrooli.web_console.v1.sessions.SessionsService.Archive:output_type -> vrooli.web_console.v1.sessions.ArchiveResponse
-	18, // 40: vrooli.web_console.v1.sessions.SessionsService.Unarchive:output_type -> vrooli.web_console.v1.sessions.UnarchiveResponse
-	20, // 41: vrooli.web_console.v1.sessions.SessionsService.Delete:output_type -> vrooli.web_console.v1.sessions.DeleteResponse
-	22, // 42: vrooli.web_console.v1.sessions.SessionsService.ListRecoverable:output_type -> vrooli.web_console.v1.sessions.ListRecoverableResponse
-	24, // 43: vrooli.web_console.v1.sessions.SessionsService.DismissRecoverable:output_type -> vrooli.web_console.v1.sessions.DismissRecoverableResponse
-	26, // 44: vrooli.web_console.v1.sessions.SessionsService.Recover:output_type -> vrooli.web_console.v1.sessions.RecoverResponse
-	28, // 45: vrooli.web_console.v1.sessions.SessionsService.Reopen:output_type -> vrooli.web_console.v1.sessions.ReopenResponse
-	32, // 46: vrooli.web_console.v1.sessions.SessionsService.GetArchiveRetention:output_type -> vrooli.web_console.v1.sessions.GetArchiveRetentionResponse
-	35, // 47: vrooli.web_console.v1.sessions.SessionsService.PruneArchive:output_type -> vrooli.web_console.v1.sessions.PruneArchiveResponse
-	38, // 48: vrooli.web_console.v1.sessions.SessionsService.GetPolicy:output_type -> vrooli.web_console.v1.sessions.GetPolicyResponse
-	40, // 49: vrooli.web_console.v1.sessions.SessionsService.UpdatePolicy:output_type -> vrooli.web_console.v1.sessions.UpdatePolicyResponse
-	35, // [35:50] is the sub-list for method output_type
-	20, // [20:35] is the sub-list for method input_type
-	20, // [20:20] is the sub-list for extension type_name
-	20, // [20:20] is the sub-list for extension extendee
-	0,  // [0:20] is the sub-list for field type_name
+	41, // 2: vrooli.web_console.v1.sessions.Session.target:type_name -> vrooli.web_console.v1.shared.Target
+	2,  // 3: vrooli.web_console.v1.sessions.CreateRequest.policy:type_name -> vrooli.web_console.v1.sessions.ExpirationPolicy
+	0,  // 4: vrooli.web_console.v1.sessions.CreateRequest.origin:type_name -> vrooli.web_console.v1.sessions.SessionOrigin
+	3,  // 5: vrooli.web_console.v1.sessions.CreateResponse.session:type_name -> vrooli.web_console.v1.sessions.Session
+	3,  // 6: vrooli.web_console.v1.sessions.ListResponse.sessions:type_name -> vrooli.web_console.v1.sessions.Session
+	12, // 7: vrooli.web_console.v1.sessions.ListResponse.recovery:type_name -> vrooli.web_console.v1.sessions.RecoveryStatus
+	1,  // 8: vrooli.web_console.v1.sessions.ArchivedSession.restore_state:type_name -> vrooli.web_console.v1.sessions.ArchiveRestoreState
+	9,  // 9: vrooli.web_console.v1.sessions.ListArchivedResponse.sessions:type_name -> vrooli.web_console.v1.sessions.ArchivedSession
+	3,  // 10: vrooli.web_console.v1.sessions.GetResponse.session:type_name -> vrooli.web_console.v1.sessions.Session
+	4,  // 11: vrooli.web_console.v1.sessions.ListRecoverableResponse.sessions:type_name -> vrooli.web_console.v1.sessions.RecoverableSession
+	29, // 12: vrooli.web_console.v1.sessions.GetArchiveRetentionResponse.policy:type_name -> vrooli.web_console.v1.sessions.ArchiveRetentionPolicy
+	30, // 13: vrooli.web_console.v1.sessions.GetArchiveRetentionResponse.stats:type_name -> vrooli.web_console.v1.sessions.ArchiveRetentionStats
+	34, // 14: vrooli.web_console.v1.sessions.PruneArchiveResponse.actions:type_name -> vrooli.web_console.v1.sessions.ArchivePruneAction
+	30, // 15: vrooli.web_console.v1.sessions.PruneArchiveResponse.before:type_name -> vrooli.web_console.v1.sessions.ArchiveRetentionStats
+	30, // 16: vrooli.web_console.v1.sessions.PruneArchiveResponse.after:type_name -> vrooli.web_console.v1.sessions.ArchiveRetentionStats
+	2,  // 17: vrooli.web_console.v1.sessions.PolicyView.policy:type_name -> vrooli.web_console.v1.sessions.ExpirationPolicy
+	37, // 18: vrooli.web_console.v1.sessions.GetPolicyResponse.policy:type_name -> vrooli.web_console.v1.sessions.PolicyView
+	2,  // 19: vrooli.web_console.v1.sessions.UpdatePolicyRequest.policy:type_name -> vrooli.web_console.v1.sessions.ExpirationPolicy
+	37, // 20: vrooli.web_console.v1.sessions.UpdatePolicyResponse.policy:type_name -> vrooli.web_console.v1.sessions.PolicyView
+	5,  // 21: vrooli.web_console.v1.sessions.SessionsService.Create:input_type -> vrooli.web_console.v1.sessions.CreateRequest
+	7,  // 22: vrooli.web_console.v1.sessions.SessionsService.List:input_type -> vrooli.web_console.v1.sessions.ListRequest
+	10, // 23: vrooli.web_console.v1.sessions.SessionsService.ListArchived:input_type -> vrooli.web_console.v1.sessions.ListArchivedRequest
+	13, // 24: vrooli.web_console.v1.sessions.SessionsService.Get:input_type -> vrooli.web_console.v1.sessions.GetRequest
+	15, // 25: vrooli.web_console.v1.sessions.SessionsService.Archive:input_type -> vrooli.web_console.v1.sessions.ArchiveRequest
+	17, // 26: vrooli.web_console.v1.sessions.SessionsService.Unarchive:input_type -> vrooli.web_console.v1.sessions.UnarchiveRequest
+	19, // 27: vrooli.web_console.v1.sessions.SessionsService.Delete:input_type -> vrooli.web_console.v1.sessions.DeleteRequest
+	21, // 28: vrooli.web_console.v1.sessions.SessionsService.ListRecoverable:input_type -> vrooli.web_console.v1.sessions.ListRecoverableRequest
+	23, // 29: vrooli.web_console.v1.sessions.SessionsService.DismissRecoverable:input_type -> vrooli.web_console.v1.sessions.DismissRecoverableRequest
+	25, // 30: vrooli.web_console.v1.sessions.SessionsService.Recover:input_type -> vrooli.web_console.v1.sessions.RecoverRequest
+	27, // 31: vrooli.web_console.v1.sessions.SessionsService.Reopen:input_type -> vrooli.web_console.v1.sessions.ReopenRequest
+	31, // 32: vrooli.web_console.v1.sessions.SessionsService.GetArchiveRetention:input_type -> vrooli.web_console.v1.sessions.GetArchiveRetentionRequest
+	33, // 33: vrooli.web_console.v1.sessions.SessionsService.PruneArchive:input_type -> vrooli.web_console.v1.sessions.PruneArchiveRequest
+	36, // 34: vrooli.web_console.v1.sessions.SessionsService.GetPolicy:input_type -> vrooli.web_console.v1.sessions.GetPolicyRequest
+	39, // 35: vrooli.web_console.v1.sessions.SessionsService.UpdatePolicy:input_type -> vrooli.web_console.v1.sessions.UpdatePolicyRequest
+	6,  // 36: vrooli.web_console.v1.sessions.SessionsService.Create:output_type -> vrooli.web_console.v1.sessions.CreateResponse
+	8,  // 37: vrooli.web_console.v1.sessions.SessionsService.List:output_type -> vrooli.web_console.v1.sessions.ListResponse
+	11, // 38: vrooli.web_console.v1.sessions.SessionsService.ListArchived:output_type -> vrooli.web_console.v1.sessions.ListArchivedResponse
+	14, // 39: vrooli.web_console.v1.sessions.SessionsService.Get:output_type -> vrooli.web_console.v1.sessions.GetResponse
+	16, // 40: vrooli.web_console.v1.sessions.SessionsService.Archive:output_type -> vrooli.web_console.v1.sessions.ArchiveResponse
+	18, // 41: vrooli.web_console.v1.sessions.SessionsService.Unarchive:output_type -> vrooli.web_console.v1.sessions.UnarchiveResponse
+	20, // 42: vrooli.web_console.v1.sessions.SessionsService.Delete:output_type -> vrooli.web_console.v1.sessions.DeleteResponse
+	22, // 43: vrooli.web_console.v1.sessions.SessionsService.ListRecoverable:output_type -> vrooli.web_console.v1.sessions.ListRecoverableResponse
+	24, // 44: vrooli.web_console.v1.sessions.SessionsService.DismissRecoverable:output_type -> vrooli.web_console.v1.sessions.DismissRecoverableResponse
+	26, // 45: vrooli.web_console.v1.sessions.SessionsService.Recover:output_type -> vrooli.web_console.v1.sessions.RecoverResponse
+	28, // 46: vrooli.web_console.v1.sessions.SessionsService.Reopen:output_type -> vrooli.web_console.v1.sessions.ReopenResponse
+	32, // 47: vrooli.web_console.v1.sessions.SessionsService.GetArchiveRetention:output_type -> vrooli.web_console.v1.sessions.GetArchiveRetentionResponse
+	35, // 48: vrooli.web_console.v1.sessions.SessionsService.PruneArchive:output_type -> vrooli.web_console.v1.sessions.PruneArchiveResponse
+	38, // 49: vrooli.web_console.v1.sessions.SessionsService.GetPolicy:output_type -> vrooli.web_console.v1.sessions.GetPolicyResponse
+	40, // 50: vrooli.web_console.v1.sessions.SessionsService.UpdatePolicy:output_type -> vrooli.web_console.v1.sessions.UpdatePolicyResponse
+	36, // [36:51] is the sub-list for method output_type
+	21, // [21:36] is the sub-list for method input_type
+	21, // [21:21] is the sub-list for extension type_name
+	21, // [21:21] is the sub-list for extension extendee
+	0,  // [0:21] is the sub-list for field type_name
 }
 
 func init() { file_web_console_v1_sessions_sessions_proto_init() }

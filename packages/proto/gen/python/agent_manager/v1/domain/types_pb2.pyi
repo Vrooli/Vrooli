@@ -17,6 +17,7 @@ class RunnerType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     RUNNER_TYPE_CODEX: _ClassVar[RunnerType]
     RUNNER_TYPE_OPENCODE: _ClassVar[RunnerType]
     RUNNER_TYPE_GROK: _ClassVar[RunnerType]
+    RUNNER_TYPE_ANTIGRAVITY: _ClassVar[RunnerType]
 
 class ModelSelectionType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -116,6 +117,7 @@ class ExecutionMode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     EXECUTION_MODE_CODEC_PIPE: _ClassVar[ExecutionMode]
     EXECUTION_MODE_INTERACTIVE: _ClassVar[ExecutionMode]
     EXECUTION_MODE_IMPORTED: _ClassVar[ExecutionMode]
+    EXECUTION_MODE_ATTACHED: _ClassVar[ExecutionMode]
 
 class ApprovalState(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -181,6 +183,7 @@ RUNNER_TYPE_CLAUDE_CODE: RunnerType
 RUNNER_TYPE_CODEX: RunnerType
 RUNNER_TYPE_OPENCODE: RunnerType
 RUNNER_TYPE_GROK: RunnerType
+RUNNER_TYPE_ANTIGRAVITY: RunnerType
 MODEL_SELECTION_TYPE_UNSPECIFIED: ModelSelectionType
 MODEL_SELECTION_TYPE_MODEL: ModelSelectionType
 MODEL_SELECTION_TYPE_RUNNER_DEFAULT: ModelSelectionType
@@ -247,6 +250,7 @@ EXECUTION_MODE_UNSPECIFIED: ExecutionMode
 EXECUTION_MODE_CODEC_PIPE: ExecutionMode
 EXECUTION_MODE_INTERACTIVE: ExecutionMode
 EXECUTION_MODE_IMPORTED: ExecutionMode
+EXECUTION_MODE_ATTACHED: ExecutionMode
 APPROVAL_STATE_UNSPECIFIED: ApprovalState
 APPROVAL_STATE_NONE: ApprovalState
 APPROVAL_STATE_PENDING: ApprovalState
