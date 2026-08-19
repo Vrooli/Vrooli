@@ -1,0 +1,15 @@
+{
+  "_metadata": {
+    "description": "Parent registry linking scenario-to-plugin operational targets to technical requirements",
+    "auto_sync_enabled": true,
+    "schema_version": "1.0.0"
+  },
+  "imports": [
+    "01-declaration/module.json",
+    "02-composition/module.json",
+    "03-conformance/module.json",
+    "04-attestation/module.json",
+    "05-rehearsal/module.json",
+    "06-distribution/module.json"
+  ]
+}

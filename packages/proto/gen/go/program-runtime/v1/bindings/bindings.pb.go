@@ -1578,8 +1578,12 @@ type ExerciseCondition struct {
 	LastInvokedAt         string                 `protobuf:"bytes,4,opt,name=last_invoked_at,json=lastInvokedAt,proto3" json:"last_invoked_at,omitempty"`
 	SyntheticInvocations  int64                  `protobuf:"varint,5,opt,name=synthetic_invocations,json=syntheticInvocations,proto3" json:"synthetic_invocations,omitempty"`
 	UnattributedRemainder int64                  `protobuf:"varint,6,opt,name=unattributed_remainder,json=unattributedRemainder,proto3" json:"unattributed_remainder,omitempty"`
-	unknownFields         protoimpl.UnknownFields
-	sizeCache             protoimpl.SizeCache
+	// Stable population label for this observation. Condition rows currently
+	// use the fleet receipt aggregate; local-ledger exercise is reported in the
+	// response summary because the two populations overlap and cannot be added.
+	Basis         string `protobuf:"bytes,7,opt,name=basis,proto3" json:"basis,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ExerciseCondition) Reset() {
@@ -1654,6 +1658,82 @@ func (x *ExerciseCondition) GetUnattributedRemainder() int64 {
 	return 0
 }
 
+func (x *ExerciseCondition) GetBasis() string {
+	if x != nil {
+		return x.Basis
+	}
+	return ""
+}
+
+type ExerciseBasisSummary struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Stable machine-readable population label.
+	Basis                string `protobuf:"bytes,1,opt,name=basis,proto3" json:"basis,omitempty"`
+	InstrumentedBindings int32  `protobuf:"varint,2,opt,name=instrumented_bindings,json=instrumentedBindings,proto3" json:"instrumented_bindings,omitempty"`
+	TotalBindings        int32  `protobuf:"varint,3,opt,name=total_bindings,json=totalBindings,proto3" json:"total_bindings,omitempty"`
+	Invocations          int64  `protobuf:"varint,4,opt,name=invocations,proto3" json:"invocations,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
+}
+
+func (x *ExerciseBasisSummary) Reset() {
+	*x = ExerciseBasisSummary{}
+	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ExerciseBasisSummary) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ExerciseBasisSummary) ProtoMessage() {}
+
+func (x *ExerciseBasisSummary) ProtoReflect() protoreflect.Message {
+	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ExerciseBasisSummary.ProtoReflect.Descriptor instead.
+func (*ExerciseBasisSummary) Descriptor() ([]byte, []int) {
+	return file_program_runtime_v1_bindings_bindings_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *ExerciseBasisSummary) GetBasis() string {
+	if x != nil {
+		return x.Basis
+	}
+	return ""
+}
+
+func (x *ExerciseBasisSummary) GetInstrumentedBindings() int32 {
+	if x != nil {
+		return x.InstrumentedBindings
+	}
+	return 0
+}
+
+func (x *ExerciseBasisSummary) GetTotalBindings() int32 {
+	if x != nil {
+		return x.TotalBindings
+	}
+	return 0
+}
+
+func (x *ExerciseBasisSummary) GetInvocations() int64 {
+	if x != nil {
+		return x.Invocations
+	}
+	return 0
+}
+
 type BindingCondition struct {
 	state                      protoimpl.MessageState `protogen:"open.v1"`
 	BindingId                  string                 `protobuf:"bytes,1,opt,name=binding_id,json=bindingId,proto3" json:"binding_id,omitempty"`
@@ -1671,7 +1751,7 @@ type BindingCondition struct {
 
 func (x *BindingCondition) Reset() {
 	*x = BindingCondition{}
-	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[17]
+	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1683,7 +1763,7 @@ func (x *BindingCondition) String() string {
 func (*BindingCondition) ProtoMessage() {}
 
 func (x *BindingCondition) ProtoReflect() protoreflect.Message {
-	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[17]
+	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1696,7 +1776,7 @@ func (x *BindingCondition) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BindingCondition.ProtoReflect.Descriptor instead.
 func (*BindingCondition) Descriptor() ([]byte, []int) {
-	return file_program_runtime_v1_bindings_bindings_proto_rawDescGZIP(), []int{17}
+	return file_program_runtime_v1_bindings_bindings_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *BindingCondition) GetBindingId() string {
@@ -1780,7 +1860,7 @@ type ScenarioCondition struct {
 
 func (x *ScenarioCondition) Reset() {
 	*x = ScenarioCondition{}
-	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[18]
+	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1792,7 +1872,7 @@ func (x *ScenarioCondition) String() string {
 func (*ScenarioCondition) ProtoMessage() {}
 
 func (x *ScenarioCondition) ProtoReflect() protoreflect.Message {
-	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[18]
+	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1805,7 +1885,7 @@ func (x *ScenarioCondition) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ScenarioCondition.ProtoReflect.Descriptor instead.
 func (*ScenarioCondition) Descriptor() ([]byte, []int) {
-	return file_program_runtime_v1_bindings_bindings_proto_rawDescGZIP(), []int{18}
+	return file_program_runtime_v1_bindings_bindings_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *ScenarioCondition) GetScenario() string {
@@ -1868,7 +1948,7 @@ type GetBindingConditionRequest struct {
 
 func (x *GetBindingConditionRequest) Reset() {
 	*x = GetBindingConditionRequest{}
-	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[19]
+	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1880,7 +1960,7 @@ func (x *GetBindingConditionRequest) String() string {
 func (*GetBindingConditionRequest) ProtoMessage() {}
 
 func (x *GetBindingConditionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[19]
+	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1893,7 +1973,7 @@ func (x *GetBindingConditionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetBindingConditionRequest.ProtoReflect.Descriptor instead.
 func (*GetBindingConditionRequest) Descriptor() ([]byte, []int) {
-	return file_program_runtime_v1_bindings_bindings_proto_rawDescGZIP(), []int{19}
+	return file_program_runtime_v1_bindings_bindings_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *GetBindingConditionRequest) GetBindingId() string {
@@ -1918,19 +1998,25 @@ func (x *GetBindingConditionRequest) GetWindowSeconds() int64 {
 }
 
 type GetBindingConditionResponse struct {
-	state                protoimpl.MessageState `protogen:"open.v1"`
-	Conditions           []*BindingCondition    `protobuf:"bytes,1,rep,name=conditions,proto3" json:"conditions,omitempty"`
-	WindowSeconds        int64                  `protobuf:"varint,2,opt,name=window_seconds,json=windowSeconds,proto3" json:"window_seconds,omitempty"`
-	TotalBindings        int32                  `protobuf:"varint,3,opt,name=total_bindings,json=totalBindings,proto3" json:"total_bindings,omitempty"`
-	InstrumentedBindings int32                  `protobuf:"varint,4,opt,name=instrumented_bindings,json=instrumentedBindings,proto3" json:"instrumented_bindings,omitempty"`
-	ScenarioConditions   []*ScenarioCondition   `protobuf:"bytes,5,rep,name=scenario_conditions,json=scenarioConditions,proto3" json:"scenario_conditions,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Conditions    []*BindingCondition    `protobuf:"bytes,1,rep,name=conditions,proto3" json:"conditions,omitempty"`
+	WindowSeconds int64                  `protobuf:"varint,2,opt,name=window_seconds,json=windowSeconds,proto3" json:"window_seconds,omitempty"`
+	TotalBindings int32                  `protobuf:"varint,3,opt,name=total_bindings,json=totalBindings,proto3" json:"total_bindings,omitempty"`
+	// Deprecated receipt-basis alias retained for wire compatibility. New
+	// consumers must read ledger_exercise and receipt_exercise explicitly.
+	//
+	// Deprecated: Marked as deprecated in program-runtime/v1/bindings/bindings.proto.
+	InstrumentedBindings int32                 `protobuf:"varint,4,opt,name=instrumented_bindings,json=instrumentedBindings,proto3" json:"instrumented_bindings,omitempty"`
+	ScenarioConditions   []*ScenarioCondition  `protobuf:"bytes,5,rep,name=scenario_conditions,json=scenarioConditions,proto3" json:"scenario_conditions,omitempty"`
+	LedgerExercise       *ExerciseBasisSummary `protobuf:"bytes,6,opt,name=ledger_exercise,json=ledgerExercise,proto3" json:"ledger_exercise,omitempty"`
+	ReceiptExercise      *ExerciseBasisSummary `protobuf:"bytes,7,opt,name=receipt_exercise,json=receiptExercise,proto3" json:"receipt_exercise,omitempty"`
 	unknownFields        protoimpl.UnknownFields
 	sizeCache            protoimpl.SizeCache
 }
 
 func (x *GetBindingConditionResponse) Reset() {
 	*x = GetBindingConditionResponse{}
-	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[20]
+	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1942,7 +2028,7 @@ func (x *GetBindingConditionResponse) String() string {
 func (*GetBindingConditionResponse) ProtoMessage() {}
 
 func (x *GetBindingConditionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[20]
+	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1955,7 +2041,7 @@ func (x *GetBindingConditionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetBindingConditionResponse.ProtoReflect.Descriptor instead.
 func (*GetBindingConditionResponse) Descriptor() ([]byte, []int) {
-	return file_program_runtime_v1_bindings_bindings_proto_rawDescGZIP(), []int{20}
+	return file_program_runtime_v1_bindings_bindings_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *GetBindingConditionResponse) GetConditions() []*BindingCondition {
@@ -1979,6 +2065,7 @@ func (x *GetBindingConditionResponse) GetTotalBindings() int32 {
 	return 0
 }
 
+// Deprecated: Marked as deprecated in program-runtime/v1/bindings/bindings.proto.
 func (x *GetBindingConditionResponse) GetInstrumentedBindings() int32 {
 	if x != nil {
 		return x.InstrumentedBindings
@@ -1993,6 +2080,20 @@ func (x *GetBindingConditionResponse) GetScenarioConditions() []*ScenarioConditi
 	return nil
 }
 
+func (x *GetBindingConditionResponse) GetLedgerExercise() *ExerciseBasisSummary {
+	if x != nil {
+		return x.LedgerExercise
+	}
+	return nil
+}
+
+func (x *GetBindingConditionResponse) GetReceiptExercise() *ExerciseBasisSummary {
+	if x != nil {
+		return x.ReceiptExercise
+	}
+	return nil
+}
+
 type DescribeBindingRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -2002,7 +2103,7 @@ type DescribeBindingRequest struct {
 
 func (x *DescribeBindingRequest) Reset() {
 	*x = DescribeBindingRequest{}
-	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[21]
+	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2014,7 +2115,7 @@ func (x *DescribeBindingRequest) String() string {
 func (*DescribeBindingRequest) ProtoMessage() {}
 
 func (x *DescribeBindingRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[21]
+	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2027,7 +2128,7 @@ func (x *DescribeBindingRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DescribeBindingRequest.ProtoReflect.Descriptor instead.
 func (*DescribeBindingRequest) Descriptor() ([]byte, []int) {
-	return file_program_runtime_v1_bindings_bindings_proto_rawDescGZIP(), []int{21}
+	return file_program_runtime_v1_bindings_bindings_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *DescribeBindingRequest) GetId() string {
@@ -2050,7 +2151,7 @@ type BindingArgument struct {
 
 func (x *BindingArgument) Reset() {
 	*x = BindingArgument{}
-	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[22]
+	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2062,7 +2163,7 @@ func (x *BindingArgument) String() string {
 func (*BindingArgument) ProtoMessage() {}
 
 func (x *BindingArgument) ProtoReflect() protoreflect.Message {
-	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[22]
+	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2075,7 +2176,7 @@ func (x *BindingArgument) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BindingArgument.ProtoReflect.Descriptor instead.
 func (*BindingArgument) Descriptor() ([]byte, []int) {
-	return file_program_runtime_v1_bindings_bindings_proto_rawDescGZIP(), []int{22}
+	return file_program_runtime_v1_bindings_bindings_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *BindingArgument) GetName() string {
@@ -2125,7 +2226,7 @@ type DescribeBindingResponse struct {
 
 func (x *DescribeBindingResponse) Reset() {
 	*x = DescribeBindingResponse{}
-	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[23]
+	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2137,7 +2238,7 @@ func (x *DescribeBindingResponse) String() string {
 func (*DescribeBindingResponse) ProtoMessage() {}
 
 func (x *DescribeBindingResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[23]
+	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2150,7 +2251,7 @@ func (x *DescribeBindingResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DescribeBindingResponse.ProtoReflect.Descriptor instead.
 func (*DescribeBindingResponse) Descriptor() ([]byte, []int) {
-	return file_program_runtime_v1_bindings_bindings_proto_rawDescGZIP(), []int{23}
+	return file_program_runtime_v1_bindings_bindings_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *DescribeBindingResponse) GetBinding() *Binding {
@@ -2192,7 +2293,7 @@ type ActCell struct {
 
 func (x *ActCell) Reset() {
 	*x = ActCell{}
-	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[24]
+	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2204,7 +2305,7 @@ func (x *ActCell) String() string {
 func (*ActCell) ProtoMessage() {}
 
 func (x *ActCell) ProtoReflect() protoreflect.Message {
-	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[24]
+	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2217,7 +2318,7 @@ func (x *ActCell) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ActCell.ProtoReflect.Descriptor instead.
 func (*ActCell) Descriptor() ([]byte, []int) {
-	return file_program_runtime_v1_bindings_bindings_proto_rawDescGZIP(), []int{24}
+	return file_program_runtime_v1_bindings_bindings_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *ActCell) GetId() string {
@@ -2256,7 +2357,7 @@ type ActCellVerdict struct {
 
 func (x *ActCellVerdict) Reset() {
 	*x = ActCellVerdict{}
-	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[25]
+	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2268,7 +2369,7 @@ func (x *ActCellVerdict) String() string {
 func (*ActCellVerdict) ProtoMessage() {}
 
 func (x *ActCellVerdict) ProtoReflect() protoreflect.Message {
-	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[25]
+	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2281,7 +2382,7 @@ func (x *ActCellVerdict) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ActCellVerdict.ProtoReflect.Descriptor instead.
 func (*ActCellVerdict) Descriptor() ([]byte, []int) {
-	return file_program_runtime_v1_bindings_bindings_proto_rawDescGZIP(), []int{25}
+	return file_program_runtime_v1_bindings_bindings_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *ActCellVerdict) GetId() string {
@@ -2342,7 +2443,7 @@ type ResolveActCellsRequest struct {
 
 func (x *ResolveActCellsRequest) Reset() {
 	*x = ResolveActCellsRequest{}
-	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[26]
+	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2354,7 +2455,7 @@ func (x *ResolveActCellsRequest) String() string {
 func (*ResolveActCellsRequest) ProtoMessage() {}
 
 func (x *ResolveActCellsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[26]
+	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2367,7 +2468,7 @@ func (x *ResolveActCellsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResolveActCellsRequest.ProtoReflect.Descriptor instead.
 func (*ResolveActCellsRequest) Descriptor() ([]byte, []int) {
-	return file_program_runtime_v1_bindings_bindings_proto_rawDescGZIP(), []int{26}
+	return file_program_runtime_v1_bindings_bindings_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *ResolveActCellsRequest) GetCells() []*ActCell {
@@ -2394,7 +2495,7 @@ type ResolveActCellsResponse struct {
 
 func (x *ResolveActCellsResponse) Reset() {
 	*x = ResolveActCellsResponse{}
-	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[27]
+	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2406,7 +2507,7 @@ func (x *ResolveActCellsResponse) String() string {
 func (*ResolveActCellsResponse) ProtoMessage() {}
 
 func (x *ResolveActCellsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[27]
+	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2419,7 +2520,7 @@ func (x *ResolveActCellsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResolveActCellsResponse.ProtoReflect.Descriptor instead.
 func (*ResolveActCellsResponse) Descriptor() ([]byte, []int) {
-	return file_program_runtime_v1_bindings_bindings_proto_rawDescGZIP(), []int{27}
+	return file_program_runtime_v1_bindings_bindings_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *ResolveActCellsResponse) GetCells() []*ActCellVerdict {
@@ -2499,7 +2600,7 @@ type ResolveIntentRequest struct {
 
 func (x *ResolveIntentRequest) Reset() {
 	*x = ResolveIntentRequest{}
-	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[28]
+	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2511,7 +2612,7 @@ func (x *ResolveIntentRequest) String() string {
 func (*ResolveIntentRequest) ProtoMessage() {}
 
 func (x *ResolveIntentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[28]
+	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2524,7 +2625,7 @@ func (x *ResolveIntentRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResolveIntentRequest.ProtoReflect.Descriptor instead.
 func (*ResolveIntentRequest) Descriptor() ([]byte, []int) {
-	return file_program_runtime_v1_bindings_bindings_proto_rawDescGZIP(), []int{28}
+	return file_program_runtime_v1_bindings_bindings_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *ResolveIntentRequest) GetIntent() string {
@@ -2577,7 +2678,7 @@ type DiscoverResult struct {
 
 func (x *DiscoverResult) Reset() {
 	*x = DiscoverResult{}
-	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[29]
+	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2589,7 +2690,7 @@ func (x *DiscoverResult) String() string {
 func (*DiscoverResult) ProtoMessage() {}
 
 func (x *DiscoverResult) ProtoReflect() protoreflect.Message {
-	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[29]
+	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2602,7 +2703,7 @@ func (x *DiscoverResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DiscoverResult.ProtoReflect.Descriptor instead.
 func (*DiscoverResult) Descriptor() ([]byte, []int) {
-	return file_program_runtime_v1_bindings_bindings_proto_rawDescGZIP(), []int{29}
+	return file_program_runtime_v1_bindings_bindings_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *DiscoverResult) GetBindingId() string {
@@ -2681,7 +2782,7 @@ type ResolveIntentResponse struct {
 
 func (x *ResolveIntentResponse) Reset() {
 	*x = ResolveIntentResponse{}
-	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[30]
+	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2693,7 +2794,7 @@ func (x *ResolveIntentResponse) String() string {
 func (*ResolveIntentResponse) ProtoMessage() {}
 
 func (x *ResolveIntentResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[30]
+	mi := &file_program_runtime_v1_bindings_bindings_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2706,7 +2807,7 @@ func (x *ResolveIntentResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResolveIntentResponse.ProtoReflect.Descriptor instead.
 func (*ResolveIntentResponse) Descriptor() ([]byte, []int) {
-	return file_program_runtime_v1_bindings_bindings_proto_rawDescGZIP(), []int{30}
+	return file_program_runtime_v1_bindings_bindings_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *ResolveIntentResponse) GetBindings() []*Binding {
@@ -2881,14 +2982,20 @@ const file_program_runtime_v1_bindings_bindings_proto_rawDesc = "" +
 	"\vsource_path\x18\x05 \x01(\tR\n" +
 	"sourcePath\x12!\n" +
 	"\fsource_mtime\x18\x06 \x01(\tR\vsourceMtime\x12)\n" +
-	"\x10generation_mtime\x18\a \x01(\tR\x0fgenerationMtime\"\xc1\x02\n" +
+	"\x10generation_mtime\x18\a \x01(\tR\x0fgenerationMtime\"\xd7\x02\n" +
 	"\x11ExerciseCondition\x12K\n" +
 	"\x06family\x18\x01 \x01(\v23.vrooli.program_runtime.v1.bindings.ConditionFamilyR\x06family\x12 \n" +
 	"\vinvocations\x18\x02 \x01(\x03R\vinvocations\x12)\n" +
 	"\x10distinct_callers\x18\x03 \x01(\x03R\x0fdistinctCallers\x12&\n" +
 	"\x0flast_invoked_at\x18\x04 \x01(\tR\rlastInvokedAt\x123\n" +
 	"\x15synthetic_invocations\x18\x05 \x01(\x03R\x14syntheticInvocations\x125\n" +
-	"\x16unattributed_remainder\x18\x06 \x01(\x03R\x15unattributedRemainder\"\xa4\x04\n" +
+	"\x16unattributed_remainder\x18\x06 \x01(\x03R\x15unattributedRemainder\x12\x14\n" +
+	"\x05basis\x18\a \x01(\tR\x05basis\"\xaa\x01\n" +
+	"\x14ExerciseBasisSummary\x12\x14\n" +
+	"\x05basis\x18\x01 \x01(\tR\x05basis\x123\n" +
+	"\x15instrumented_bindings\x18\x02 \x01(\x05R\x14instrumentedBindings\x12%\n" +
+	"\x0etotal_bindings\x18\x03 \x01(\x05R\rtotalBindings\x12 \n" +
+	"\vinvocations\x18\x04 \x01(\x03R\vinvocations\"\xa4\x04\n" +
 	"\x10BindingCondition\x12\x1d\n" +
 	"\n" +
 	"binding_id\x18\x01 \x01(\tR\tbindingId\x12\x1a\n" +
@@ -2912,15 +3019,17 @@ const file_program_runtime_v1_bindings_bindings_proto_rawDesc = "" +
 	"\n" +
 	"binding_id\x18\x01 \x01(\tR\tbindingId\x12\x1a\n" +
 	"\bscenario\x18\x02 \x01(\tR\bscenario\x12%\n" +
-	"\x0ewindow_seconds\x18\x03 \x01(\x03R\rwindowSeconds\"\xde\x02\n" +
+	"\x0ewindow_seconds\x18\x03 \x01(\x03R\rwindowSeconds\"\xaa\x04\n" +
 	"\x1bGetBindingConditionResponse\x12T\n" +
 	"\n" +
 	"conditions\x18\x01 \x03(\v24.vrooli.program_runtime.v1.bindings.BindingConditionR\n" +
 	"conditions\x12%\n" +
 	"\x0ewindow_seconds\x18\x02 \x01(\x03R\rwindowSeconds\x12%\n" +
-	"\x0etotal_bindings\x18\x03 \x01(\x05R\rtotalBindings\x123\n" +
-	"\x15instrumented_bindings\x18\x04 \x01(\x05R\x14instrumentedBindings\x12f\n" +
-	"\x13scenario_conditions\x18\x05 \x03(\v25.vrooli.program_runtime.v1.bindings.ScenarioConditionR\x12scenarioConditions\"(\n" +
+	"\x0etotal_bindings\x18\x03 \x01(\x05R\rtotalBindings\x127\n" +
+	"\x15instrumented_bindings\x18\x04 \x01(\x05B\x02\x18\x01R\x14instrumentedBindings\x12f\n" +
+	"\x13scenario_conditions\x18\x05 \x03(\v25.vrooli.program_runtime.v1.bindings.ScenarioConditionR\x12scenarioConditions\x12a\n" +
+	"\x0fledger_exercise\x18\x06 \x01(\v28.vrooli.program_runtime.v1.bindings.ExerciseBasisSummaryR\x0eledgerExercise\x12c\n" +
+	"\x10receipt_exercise\x18\a \x01(\v28.vrooli.program_runtime.v1.bindings.ExerciseBasisSummaryR\x0freceiptExercise\"(\n" +
 	"\x16DescribeBindingRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"\x8c\x01\n" +
 	"\x0fBindingArgument\x12\x12\n" +
@@ -3029,7 +3138,7 @@ func file_program_runtime_v1_bindings_bindings_proto_rawDescGZIP() []byte {
 }
 
 var file_program_runtime_v1_bindings_bindings_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_program_runtime_v1_bindings_bindings_proto_msgTypes = make([]protoimpl.MessageInfo, 32)
+var file_program_runtime_v1_bindings_bindings_proto_msgTypes = make([]protoimpl.MessageInfo, 33)
 var file_program_runtime_v1_bindings_bindings_proto_goTypes = []any{
 	(UnboundReason)(0),                  // 0: vrooli.program_runtime.v1.bindings.UnboundReason
 	(ConditionStatus)(0),                // 1: vrooli.program_runtime.v1.bindings.ConditionStatus
@@ -3051,22 +3160,23 @@ var file_program_runtime_v1_bindings_bindings_proto_goTypes = []any{
 	(*ServingCondition)(nil),            // 17: vrooli.program_runtime.v1.bindings.ServingCondition
 	(*FreshnessCondition)(nil),          // 18: vrooli.program_runtime.v1.bindings.FreshnessCondition
 	(*ExerciseCondition)(nil),           // 19: vrooli.program_runtime.v1.bindings.ExerciseCondition
-	(*BindingCondition)(nil),            // 20: vrooli.program_runtime.v1.bindings.BindingCondition
-	(*ScenarioCondition)(nil),           // 21: vrooli.program_runtime.v1.bindings.ScenarioCondition
-	(*GetBindingConditionRequest)(nil),  // 22: vrooli.program_runtime.v1.bindings.GetBindingConditionRequest
-	(*GetBindingConditionResponse)(nil), // 23: vrooli.program_runtime.v1.bindings.GetBindingConditionResponse
-	(*DescribeBindingRequest)(nil),      // 24: vrooli.program_runtime.v1.bindings.DescribeBindingRequest
-	(*BindingArgument)(nil),             // 25: vrooli.program_runtime.v1.bindings.BindingArgument
-	(*DescribeBindingResponse)(nil),     // 26: vrooli.program_runtime.v1.bindings.DescribeBindingResponse
-	(*ActCell)(nil),                     // 27: vrooli.program_runtime.v1.bindings.ActCell
-	(*ActCellVerdict)(nil),              // 28: vrooli.program_runtime.v1.bindings.ActCellVerdict
-	(*ResolveActCellsRequest)(nil),      // 29: vrooli.program_runtime.v1.bindings.ResolveActCellsRequest
-	(*ResolveActCellsResponse)(nil),     // 30: vrooli.program_runtime.v1.bindings.ResolveActCellsResponse
-	(*ResolveIntentRequest)(nil),        // 31: vrooli.program_runtime.v1.bindings.ResolveIntentRequest
-	(*DiscoverResult)(nil),              // 32: vrooli.program_runtime.v1.bindings.DiscoverResult
-	(*ResolveIntentResponse)(nil),       // 33: vrooli.program_runtime.v1.bindings.ResolveIntentResponse
-	nil,                                 // 34: vrooli.program_runtime.v1.bindings.DoctorBindingsResponse.ReachabilityCheckedAtByScenarioEntry
-	(*shared.LibraryProgram)(nil),       // 35: vrooli.program_runtime.v1.shared.LibraryProgram
+	(*ExerciseBasisSummary)(nil),        // 20: vrooli.program_runtime.v1.bindings.ExerciseBasisSummary
+	(*BindingCondition)(nil),            // 21: vrooli.program_runtime.v1.bindings.BindingCondition
+	(*ScenarioCondition)(nil),           // 22: vrooli.program_runtime.v1.bindings.ScenarioCondition
+	(*GetBindingConditionRequest)(nil),  // 23: vrooli.program_runtime.v1.bindings.GetBindingConditionRequest
+	(*GetBindingConditionResponse)(nil), // 24: vrooli.program_runtime.v1.bindings.GetBindingConditionResponse
+	(*DescribeBindingRequest)(nil),      // 25: vrooli.program_runtime.v1.bindings.DescribeBindingRequest
+	(*BindingArgument)(nil),             // 26: vrooli.program_runtime.v1.bindings.BindingArgument
+	(*DescribeBindingResponse)(nil),     // 27: vrooli.program_runtime.v1.bindings.DescribeBindingResponse
+	(*ActCell)(nil),                     // 28: vrooli.program_runtime.v1.bindings.ActCell
+	(*ActCellVerdict)(nil),              // 29: vrooli.program_runtime.v1.bindings.ActCellVerdict
+	(*ResolveActCellsRequest)(nil),      // 30: vrooli.program_runtime.v1.bindings.ResolveActCellsRequest
+	(*ResolveActCellsResponse)(nil),     // 31: vrooli.program_runtime.v1.bindings.ResolveActCellsResponse
+	(*ResolveIntentRequest)(nil),        // 32: vrooli.program_runtime.v1.bindings.ResolveIntentRequest
+	(*DiscoverResult)(nil),              // 33: vrooli.program_runtime.v1.bindings.DiscoverResult
+	(*ResolveIntentResponse)(nil),       // 34: vrooli.program_runtime.v1.bindings.ResolveIntentResponse
+	nil,                                 // 35: vrooli.program_runtime.v1.bindings.DoctorBindingsResponse.ReachabilityCheckedAtByScenarioEntry
+	(*shared.LibraryProgram)(nil),       // 36: vrooli.program_runtime.v1.shared.LibraryProgram
 }
 var file_program_runtime_v1_bindings_bindings_proto_depIdxs = []int32{
 	0,  // 0: vrooli.program_runtime.v1.bindings.UnboundCapability.reason:type_name -> vrooli.program_runtime.v1.bindings.UnboundReason
@@ -3075,7 +3185,7 @@ var file_program_runtime_v1_bindings_bindings_proto_depIdxs = []int32{
 	4,  // 3: vrooli.program_runtime.v1.bindings.ListUnboundResponse.capabilities:type_name -> vrooli.program_runtime.v1.bindings.UnboundCapability
 	14, // 4: vrooli.program_runtime.v1.bindings.DoctorBindingsResponse.issues:type_name -> vrooli.program_runtime.v1.bindings.BindingIssue
 	13, // 5: vrooli.program_runtime.v1.bindings.DoctorBindingsResponse.skipped_manifests:type_name -> vrooli.program_runtime.v1.bindings.SkippedManifest
-	34, // 6: vrooli.program_runtime.v1.bindings.DoctorBindingsResponse.reachability_checked_at_by_scenario:type_name -> vrooli.program_runtime.v1.bindings.DoctorBindingsResponse.ReachabilityCheckedAtByScenarioEntry
+	35, // 6: vrooli.program_runtime.v1.bindings.DoctorBindingsResponse.reachability_checked_at_by_scenario:type_name -> vrooli.program_runtime.v1.bindings.DoctorBindingsResponse.ReachabilityCheckedAtByScenarioEntry
 	1,  // 7: vrooli.program_runtime.v1.bindings.ConditionFamily.status:type_name -> vrooli.program_runtime.v1.bindings.ConditionStatus
 	16, // 8: vrooli.program_runtime.v1.bindings.ServingCondition.family:type_name -> vrooli.program_runtime.v1.bindings.ConditionFamily
 	16, // 9: vrooli.program_runtime.v1.bindings.FreshnessCondition.family:type_name -> vrooli.program_runtime.v1.bindings.ConditionFamily
@@ -3086,39 +3196,41 @@ var file_program_runtime_v1_bindings_bindings_proto_depIdxs = []int32{
 	18, // 14: vrooli.program_runtime.v1.bindings.BindingCondition.freshness:type_name -> vrooli.program_runtime.v1.bindings.FreshnessCondition
 	19, // 15: vrooli.program_runtime.v1.bindings.BindingCondition.exercise:type_name -> vrooli.program_runtime.v1.bindings.ExerciseCondition
 	1,  // 16: vrooli.program_runtime.v1.bindings.ScenarioCondition.status:type_name -> vrooli.program_runtime.v1.bindings.ConditionStatus
-	20, // 17: vrooli.program_runtime.v1.bindings.GetBindingConditionResponse.conditions:type_name -> vrooli.program_runtime.v1.bindings.BindingCondition
-	21, // 18: vrooli.program_runtime.v1.bindings.GetBindingConditionResponse.scenario_conditions:type_name -> vrooli.program_runtime.v1.bindings.ScenarioCondition
-	3,  // 19: vrooli.program_runtime.v1.bindings.DescribeBindingResponse.binding:type_name -> vrooli.program_runtime.v1.bindings.Binding
-	25, // 20: vrooli.program_runtime.v1.bindings.DescribeBindingResponse.arguments:type_name -> vrooli.program_runtime.v1.bindings.BindingArgument
-	2,  // 21: vrooli.program_runtime.v1.bindings.ActCellVerdict.verdict:type_name -> vrooli.program_runtime.v1.bindings.ActVerdict
-	27, // 22: vrooli.program_runtime.v1.bindings.ResolveActCellsRequest.cells:type_name -> vrooli.program_runtime.v1.bindings.ActCell
-	28, // 23: vrooli.program_runtime.v1.bindings.ResolveActCellsResponse.cells:type_name -> vrooli.program_runtime.v1.bindings.ActCellVerdict
-	3,  // 24: vrooli.program_runtime.v1.bindings.DiscoverResult.binding:type_name -> vrooli.program_runtime.v1.bindings.Binding
-	25, // 25: vrooli.program_runtime.v1.bindings.DiscoverResult.arguments:type_name -> vrooli.program_runtime.v1.bindings.BindingArgument
-	35, // 26: vrooli.program_runtime.v1.bindings.DiscoverResult.library:type_name -> vrooli.program_runtime.v1.shared.LibraryProgram
-	3,  // 27: vrooli.program_runtime.v1.bindings.ResolveIntentResponse.bindings:type_name -> vrooli.program_runtime.v1.bindings.Binding
-	32, // 28: vrooli.program_runtime.v1.bindings.ResolveIntentResponse.result:type_name -> vrooli.program_runtime.v1.bindings.DiscoverResult
-	5,  // 29: vrooli.program_runtime.v1.bindings.BindingRegistryService.ListBindings:input_type -> vrooli.program_runtime.v1.bindings.ListBindingsRequest
-	10, // 30: vrooli.program_runtime.v1.bindings.BindingRegistryService.ListUnbound:input_type -> vrooli.program_runtime.v1.bindings.ListUnboundRequest
-	29, // 31: vrooli.program_runtime.v1.bindings.BindingRegistryService.ResolveActCells:input_type -> vrooli.program_runtime.v1.bindings.ResolveActCellsRequest
-	12, // 32: vrooli.program_runtime.v1.bindings.BindingRegistryService.DoctorBindings:input_type -> vrooli.program_runtime.v1.bindings.DoctorBindingsRequest
-	24, // 33: vrooli.program_runtime.v1.bindings.BindingRegistryService.DescribeBinding:input_type -> vrooli.program_runtime.v1.bindings.DescribeBindingRequest
-	31, // 34: vrooli.program_runtime.v1.bindings.BindingRegistryService.ResolveIntent:input_type -> vrooli.program_runtime.v1.bindings.ResolveIntentRequest
-	7,  // 35: vrooli.program_runtime.v1.bindings.BindingRegistryService.SweepBindings:input_type -> vrooli.program_runtime.v1.bindings.SweepBindingsRequest
-	22, // 36: vrooli.program_runtime.v1.bindings.BindingConditionService.GetBindingCondition:input_type -> vrooli.program_runtime.v1.bindings.GetBindingConditionRequest
-	6,  // 37: vrooli.program_runtime.v1.bindings.BindingRegistryService.ListBindings:output_type -> vrooli.program_runtime.v1.bindings.ListBindingsResponse
-	11, // 38: vrooli.program_runtime.v1.bindings.BindingRegistryService.ListUnbound:output_type -> vrooli.program_runtime.v1.bindings.ListUnboundResponse
-	30, // 39: vrooli.program_runtime.v1.bindings.BindingRegistryService.ResolveActCells:output_type -> vrooli.program_runtime.v1.bindings.ResolveActCellsResponse
-	15, // 40: vrooli.program_runtime.v1.bindings.BindingRegistryService.DoctorBindings:output_type -> vrooli.program_runtime.v1.bindings.DoctorBindingsResponse
-	26, // 41: vrooli.program_runtime.v1.bindings.BindingRegistryService.DescribeBinding:output_type -> vrooli.program_runtime.v1.bindings.DescribeBindingResponse
-	33, // 42: vrooli.program_runtime.v1.bindings.BindingRegistryService.ResolveIntent:output_type -> vrooli.program_runtime.v1.bindings.ResolveIntentResponse
-	9,  // 43: vrooli.program_runtime.v1.bindings.BindingRegistryService.SweepBindings:output_type -> vrooli.program_runtime.v1.bindings.SweepBindingsResponse
-	23, // 44: vrooli.program_runtime.v1.bindings.BindingConditionService.GetBindingCondition:output_type -> vrooli.program_runtime.v1.bindings.GetBindingConditionResponse
-	37, // [37:45] is the sub-list for method output_type
-	29, // [29:37] is the sub-list for method input_type
-	29, // [29:29] is the sub-list for extension type_name
-	29, // [29:29] is the sub-list for extension extendee
-	0,  // [0:29] is the sub-list for field type_name
+	21, // 17: vrooli.program_runtime.v1.bindings.GetBindingConditionResponse.conditions:type_name -> vrooli.program_runtime.v1.bindings.BindingCondition
+	22, // 18: vrooli.program_runtime.v1.bindings.GetBindingConditionResponse.scenario_conditions:type_name -> vrooli.program_runtime.v1.bindings.ScenarioCondition
+	20, // 19: vrooli.program_runtime.v1.bindings.GetBindingConditionResponse.ledger_exercise:type_name -> vrooli.program_runtime.v1.bindings.ExerciseBasisSummary
+	20, // 20: vrooli.program_runtime.v1.bindings.GetBindingConditionResponse.receipt_exercise:type_name -> vrooli.program_runtime.v1.bindings.ExerciseBasisSummary
+	3,  // 21: vrooli.program_runtime.v1.bindings.DescribeBindingResponse.binding:type_name -> vrooli.program_runtime.v1.bindings.Binding
+	26, // 22: vrooli.program_runtime.v1.bindings.DescribeBindingResponse.arguments:type_name -> vrooli.program_runtime.v1.bindings.BindingArgument
+	2,  // 23: vrooli.program_runtime.v1.bindings.ActCellVerdict.verdict:type_name -> vrooli.program_runtime.v1.bindings.ActVerdict
+	28, // 24: vrooli.program_runtime.v1.bindings.ResolveActCellsRequest.cells:type_name -> vrooli.program_runtime.v1.bindings.ActCell
+	29, // 25: vrooli.program_runtime.v1.bindings.ResolveActCellsResponse.cells:type_name -> vrooli.program_runtime.v1.bindings.ActCellVerdict
+	3,  // 26: vrooli.program_runtime.v1.bindings.DiscoverResult.binding:type_name -> vrooli.program_runtime.v1.bindings.Binding
+	26, // 27: vrooli.program_runtime.v1.bindings.DiscoverResult.arguments:type_name -> vrooli.program_runtime.v1.bindings.BindingArgument
+	36, // 28: vrooli.program_runtime.v1.bindings.DiscoverResult.library:type_name -> vrooli.program_runtime.v1.shared.LibraryProgram
+	3,  // 29: vrooli.program_runtime.v1.bindings.ResolveIntentResponse.bindings:type_name -> vrooli.program_runtime.v1.bindings.Binding
+	33, // 30: vrooli.program_runtime.v1.bindings.ResolveIntentResponse.result:type_name -> vrooli.program_runtime.v1.bindings.DiscoverResult
+	5,  // 31: vrooli.program_runtime.v1.bindings.BindingRegistryService.ListBindings:input_type -> vrooli.program_runtime.v1.bindings.ListBindingsRequest
+	10, // 32: vrooli.program_runtime.v1.bindings.BindingRegistryService.ListUnbound:input_type -> vrooli.program_runtime.v1.bindings.ListUnboundRequest
+	30, // 33: vrooli.program_runtime.v1.bindings.BindingRegistryService.ResolveActCells:input_type -> vrooli.program_runtime.v1.bindings.ResolveActCellsRequest
+	12, // 34: vrooli.program_runtime.v1.bindings.BindingRegistryService.DoctorBindings:input_type -> vrooli.program_runtime.v1.bindings.DoctorBindingsRequest
+	25, // 35: vrooli.program_runtime.v1.bindings.BindingRegistryService.DescribeBinding:input_type -> vrooli.program_runtime.v1.bindings.DescribeBindingRequest
+	32, // 36: vrooli.program_runtime.v1.bindings.BindingRegistryService.ResolveIntent:input_type -> vrooli.program_runtime.v1.bindings.ResolveIntentRequest
+	7,  // 37: vrooli.program_runtime.v1.bindings.BindingRegistryService.SweepBindings:input_type -> vrooli.program_runtime.v1.bindings.SweepBindingsRequest
+	23, // 38: vrooli.program_runtime.v1.bindings.BindingConditionService.GetBindingCondition:input_type -> vrooli.program_runtime.v1.bindings.GetBindingConditionRequest
+	6,  // 39: vrooli.program_runtime.v1.bindings.BindingRegistryService.ListBindings:output_type -> vrooli.program_runtime.v1.bindings.ListBindingsResponse
+	11, // 40: vrooli.program_runtime.v1.bindings.BindingRegistryService.ListUnbound:output_type -> vrooli.program_runtime.v1.bindings.ListUnboundResponse
+	31, // 41: vrooli.program_runtime.v1.bindings.BindingRegistryService.ResolveActCells:output_type -> vrooli.program_runtime.v1.bindings.ResolveActCellsResponse
+	15, // 42: vrooli.program_runtime.v1.bindings.BindingRegistryService.DoctorBindings:output_type -> vrooli.program_runtime.v1.bindings.DoctorBindingsResponse
+	27, // 43: vrooli.program_runtime.v1.bindings.BindingRegistryService.DescribeBinding:output_type -> vrooli.program_runtime.v1.bindings.DescribeBindingResponse
+	34, // 44: vrooli.program_runtime.v1.bindings.BindingRegistryService.ResolveIntent:output_type -> vrooli.program_runtime.v1.bindings.ResolveIntentResponse
+	9,  // 45: vrooli.program_runtime.v1.bindings.BindingRegistryService.SweepBindings:output_type -> vrooli.program_runtime.v1.bindings.SweepBindingsResponse
+	24, // 46: vrooli.program_runtime.v1.bindings.BindingConditionService.GetBindingCondition:output_type -> vrooli.program_runtime.v1.bindings.GetBindingConditionResponse
+	39, // [39:47] is the sub-list for method output_type
+	31, // [31:39] is the sub-list for method input_type
+	31, // [31:31] is the sub-list for extension type_name
+	31, // [31:31] is the sub-list for extension extendee
+	0,  // [0:31] is the sub-list for field type_name
 }
 
 func init() { file_program_runtime_v1_bindings_bindings_proto_init() }
@@ -3132,7 +3244,7 @@ func file_program_runtime_v1_bindings_bindings_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_program_runtime_v1_bindings_bindings_proto_rawDesc), len(file_program_runtime_v1_bindings_bindings_proto_rawDesc)),
 			NumEnums:      3,
-			NumMessages:   32,
+			NumMessages:   33,
 			NumExtensions: 0,
 			NumServices:   2,
 		},

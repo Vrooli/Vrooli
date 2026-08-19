@@ -208,6 +208,18 @@ message ExerciseCondition {
   string last_invoked_at = 4;
   int64 synthetic_invocations = 5;
   int64 unattributed_remainder = 6;
+  // Stable population label for this observation. Condition rows currently
+  // use the fleet receipt aggregate; local-ledger exercise is reported in the
+  // response summary because the two populations overlap and cannot be added.
+  string basis = 7;
+}
+
+message ExerciseBasisSummary {
+  // Stable machine-readable population label.
+  string basis = 1;
+  int32 instrumented_bindings = 2;
+  int32 total_bindings = 3;
+  int64 invocations = 4;
 }
 
 message BindingCondition {
@@ -245,8 +257,12 @@ message GetBindingConditionResponse {
   repeated BindingCondition conditions = 1;
   int64 window_seconds = 2;
   int32 total_bindings = 3;
-  int32 instrumented_bindings = 4;
+  // Deprecated receipt-basis alias retained for wire compatibility. New
+  // consumers must read ledger_exercise and receipt_exercise explicitly.
+  int32 instrumented_bindings = 4 [deprecated = true];
   repeated ScenarioCondition scenario_conditions = 5;
+  ExerciseBasisSummary ledger_exercise = 6;
+  ExerciseBasisSummary receipt_exercise = 7;
 }
 
 message DescribeBindingRequest {

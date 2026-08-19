@@ -1,6 +1,7 @@
 import datetime
 
 from google.protobuf import timestamp_pb2 as _timestamp_pb2
+from experience_manager.v1.contract import contract_pb2 as _contract_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
@@ -261,7 +262,7 @@ class ComponentExperienceClaim(_message.Message):
     def __init__(self, id: _Optional[str] = ..., type: _Optional[str] = ..., statement: _Optional[str] = ..., tier: _Optional[str] = ..., states: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class ComponentExperienceEvidence(_message.Message):
-    __slots__ = ("claim_id", "verdict", "state_id", "example_name", "capture_ref", "checked_at", "message", "viewport", "viewport_width", "viewport_height")
+    __slots__ = ("claim_id", "verdict", "state_id", "example_name", "capture_ref", "checked_at", "message", "viewport", "viewport_width", "viewport_height", "measurement")
     CLAIM_ID_FIELD_NUMBER: _ClassVar[int]
     VERDICT_FIELD_NUMBER: _ClassVar[int]
     STATE_ID_FIELD_NUMBER: _ClassVar[int]
@@ -272,6 +273,7 @@ class ComponentExperienceEvidence(_message.Message):
     VIEWPORT_FIELD_NUMBER: _ClassVar[int]
     VIEWPORT_WIDTH_FIELD_NUMBER: _ClassVar[int]
     VIEWPORT_HEIGHT_FIELD_NUMBER: _ClassVar[int]
+    MEASUREMENT_FIELD_NUMBER: _ClassVar[int]
     claim_id: str
     verdict: str
     state_id: str
@@ -282,7 +284,8 @@ class ComponentExperienceEvidence(_message.Message):
     viewport: str
     viewport_width: int
     viewport_height: int
-    def __init__(self, claim_id: _Optional[str] = ..., verdict: _Optional[str] = ..., state_id: _Optional[str] = ..., example_name: _Optional[str] = ..., capture_ref: _Optional[str] = ..., checked_at: _Optional[str] = ..., message: _Optional[str] = ..., viewport: _Optional[str] = ..., viewport_width: _Optional[int] = ..., viewport_height: _Optional[int] = ...) -> None: ...
+    measurement: _contract_pb2.ClaimMeasurement
+    def __init__(self, claim_id: _Optional[str] = ..., verdict: _Optional[str] = ..., state_id: _Optional[str] = ..., example_name: _Optional[str] = ..., capture_ref: _Optional[str] = ..., checked_at: _Optional[str] = ..., message: _Optional[str] = ..., viewport: _Optional[str] = ..., viewport_width: _Optional[int] = ..., viewport_height: _Optional[int] = ..., measurement: _Optional[_Union[_contract_pb2.ClaimMeasurement, _Mapping]] = ...) -> None: ...
 
 class IndexComponentsRequest(_message.Message):
     __slots__ = ()
@@ -431,6 +434,92 @@ class CreateComponentVersionResponse(_message.Message):
     version: ComponentVersion
     source_path: str
     def __init__(self, component: _Optional[_Union[Component, _Mapping]] = ..., version: _Optional[_Union[ComponentVersion, _Mapping]] = ..., source_path: _Optional[str] = ...) -> None: ...
+
+class BeginComponentVersionRequest(_message.Message):
+    __slots__ = ("component", "bump", "version")
+    COMPONENT_FIELD_NUMBER: _ClassVar[int]
+    BUMP_FIELD_NUMBER: _ClassVar[int]
+    VERSION_FIELD_NUMBER: _ClassVar[int]
+    component: str
+    bump: str
+    version: str
+    def __init__(self, component: _Optional[str] = ..., bump: _Optional[str] = ..., version: _Optional[str] = ...) -> None: ...
+
+class BeginComponentVersionResponse(_message.Message):
+    __slots__ = ("component", "version", "source_path", "artifact_paths", "preview_path")
+    COMPONENT_FIELD_NUMBER: _ClassVar[int]
+    VERSION_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_PATH_FIELD_NUMBER: _ClassVar[int]
+    ARTIFACT_PATHS_FIELD_NUMBER: _ClassVar[int]
+    PREVIEW_PATH_FIELD_NUMBER: _ClassVar[int]
+    component: Component
+    version: ComponentVersion
+    source_path: str
+    artifact_paths: _containers.RepeatedScalarFieldContainer[str]
+    preview_path: str
+    def __init__(self, component: _Optional[_Union[Component, _Mapping]] = ..., version: _Optional[_Union[ComponentVersion, _Mapping]] = ..., source_path: _Optional[str] = ..., artifact_paths: _Optional[_Iterable[str]] = ..., preview_path: _Optional[str] = ...) -> None: ...
+
+class ComponentVersionCheck(_message.Message):
+    __slots__ = ("stage", "verdict", "message", "remediation")
+    STAGE_FIELD_NUMBER: _ClassVar[int]
+    VERDICT_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    REMEDIATION_FIELD_NUMBER: _ClassVar[int]
+    stage: str
+    verdict: str
+    message: str
+    remediation: str
+    def __init__(self, stage: _Optional[str] = ..., verdict: _Optional[str] = ..., message: _Optional[str] = ..., remediation: _Optional[str] = ...) -> None: ...
+
+class CheckComponentVersionRequest(_message.Message):
+    __slots__ = ("component", "version")
+    COMPONENT_FIELD_NUMBER: _ClassVar[int]
+    VERSION_FIELD_NUMBER: _ClassVar[int]
+    component: str
+    version: str
+    def __init__(self, component: _Optional[str] = ..., version: _Optional[str] = ...) -> None: ...
+
+class CheckComponentVersionResponse(_message.Message):
+    __slots__ = ("component", "version", "passed", "checks", "preview_path")
+    COMPONENT_FIELD_NUMBER: _ClassVar[int]
+    VERSION_FIELD_NUMBER: _ClassVar[int]
+    PASSED_FIELD_NUMBER: _ClassVar[int]
+    CHECKS_FIELD_NUMBER: _ClassVar[int]
+    PREVIEW_PATH_FIELD_NUMBER: _ClassVar[int]
+    component: Component
+    version: str
+    passed: bool
+    checks: _containers.RepeatedCompositeFieldContainer[ComponentVersionCheck]
+    preview_path: str
+    def __init__(self, component: _Optional[_Union[Component, _Mapping]] = ..., version: _Optional[str] = ..., passed: _Optional[bool] = ..., checks: _Optional[_Iterable[_Union[ComponentVersionCheck, _Mapping]]] = ..., preview_path: _Optional[str] = ...) -> None: ...
+
+class PublishComponentVersionRequest(_message.Message):
+    __slots__ = ("component", "draft_version", "version", "changelog_md", "acknowledge_parity_waiver")
+    COMPONENT_FIELD_NUMBER: _ClassVar[int]
+    DRAFT_VERSION_FIELD_NUMBER: _ClassVar[int]
+    VERSION_FIELD_NUMBER: _ClassVar[int]
+    CHANGELOG_MD_FIELD_NUMBER: _ClassVar[int]
+    ACKNOWLEDGE_PARITY_WAIVER_FIELD_NUMBER: _ClassVar[int]
+    component: str
+    draft_version: str
+    version: str
+    changelog_md: str
+    acknowledge_parity_waiver: bool
+    def __init__(self, component: _Optional[str] = ..., draft_version: _Optional[str] = ..., version: _Optional[str] = ..., changelog_md: _Optional[str] = ..., acknowledge_parity_waiver: _Optional[bool] = ...) -> None: ...
+
+class PublishComponentVersionResponse(_message.Message):
+    __slots__ = ("component", "version", "source_path", "artifact_paths", "preview_path")
+    COMPONENT_FIELD_NUMBER: _ClassVar[int]
+    VERSION_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_PATH_FIELD_NUMBER: _ClassVar[int]
+    ARTIFACT_PATHS_FIELD_NUMBER: _ClassVar[int]
+    PREVIEW_PATH_FIELD_NUMBER: _ClassVar[int]
+    component: Component
+    version: ComponentVersion
+    source_path: str
+    artifact_paths: _containers.RepeatedScalarFieldContainer[str]
+    preview_path: str
+    def __init__(self, component: _Optional[_Union[Component, _Mapping]] = ..., version: _Optional[_Union[ComponentVersion, _Mapping]] = ..., source_path: _Optional[str] = ..., artifact_paths: _Optional[_Iterable[str]] = ..., preview_path: _Optional[str] = ...) -> None: ...
 
 class UpdateComponentManifestRequest(_message.Message):
     __slots__ = ("component_id", "display_name", "description", "tags", "latest_version", "draft_version", "deprecated_versions")

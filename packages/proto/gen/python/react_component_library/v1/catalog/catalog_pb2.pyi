@@ -332,8 +332,28 @@ class CoverageMetric(_message.Message):
     ratio: float
     def __init__(self, numerator: _Optional[int] = ..., denominator: _Optional[int] = ..., ratio: _Optional[float] = ...) -> None: ...
 
+class DeclaredCapabilityCoverage(_message.Message):
+    __slots__ = ("capability", "title", "status", "checkable", "unmeasured", "declared_asset_count", "asset_ids", "blockers")
+    CAPABILITY_FIELD_NUMBER: _ClassVar[int]
+    TITLE_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    CHECKABLE_FIELD_NUMBER: _ClassVar[int]
+    UNMEASURED_FIELD_NUMBER: _ClassVar[int]
+    DECLARED_ASSET_COUNT_FIELD_NUMBER: _ClassVar[int]
+    ASSET_IDS_FIELD_NUMBER: _ClassVar[int]
+    BLOCKERS_FIELD_NUMBER: _ClassVar[int]
+    capability: str
+    title: str
+    status: str
+    checkable: bool
+    unmeasured: bool
+    declared_asset_count: int
+    asset_ids: _containers.RepeatedScalarFieldContainer[str]
+    blockers: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, capability: _Optional[str] = ..., title: _Optional[str] = ..., status: _Optional[str] = ..., checkable: _Optional[bool] = ..., unmeasured: _Optional[bool] = ..., declared_asset_count: _Optional[int] = ..., asset_ids: _Optional[_Iterable[str]] = ..., blockers: _Optional[_Iterable[str]] = ...) -> None: ...
+
 class CoverageReport(_message.Message):
-    __slots__ = ("rows", "totals", "by_domain", "by_priority", "maturity", "composition_scores", "composition_median", "bespoke_escape_count")
+    __slots__ = ("rows", "totals", "by_domain", "by_priority", "maturity", "composition_scores", "composition_median", "bespoke_escape_count", "declared_capability_asset_count", "declared_uncheckable_asset_count", "unmeasured_capability_asset_count", "capability_declaration_count", "capability_coverage", "composition_blocked_asset_count")
     class TotalsEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -356,6 +376,12 @@ class CoverageReport(_message.Message):
     COMPOSITION_SCORES_FIELD_NUMBER: _ClassVar[int]
     COMPOSITION_MEDIAN_FIELD_NUMBER: _ClassVar[int]
     BESPOKE_ESCAPE_COUNT_FIELD_NUMBER: _ClassVar[int]
+    DECLARED_CAPABILITY_ASSET_COUNT_FIELD_NUMBER: _ClassVar[int]
+    DECLARED_UNCHECKABLE_ASSET_COUNT_FIELD_NUMBER: _ClassVar[int]
+    UNMEASURED_CAPABILITY_ASSET_COUNT_FIELD_NUMBER: _ClassVar[int]
+    CAPABILITY_DECLARATION_COUNT_FIELD_NUMBER: _ClassVar[int]
+    CAPABILITY_COVERAGE_FIELD_NUMBER: _ClassVar[int]
+    COMPOSITION_BLOCKED_ASSET_COUNT_FIELD_NUMBER: _ClassVar[int]
     rows: _containers.RepeatedCompositeFieldContainer[CoverageRow]
     totals: _containers.ScalarMap[str, int]
     by_domain: _containers.RepeatedCompositeFieldContainer[Rollup]
@@ -364,7 +390,13 @@ class CoverageReport(_message.Message):
     composition_scores: _containers.ScalarMap[str, float]
     composition_median: float
     bespoke_escape_count: int
-    def __init__(self, rows: _Optional[_Iterable[_Union[CoverageRow, _Mapping]]] = ..., totals: _Optional[_Mapping[str, int]] = ..., by_domain: _Optional[_Iterable[_Union[Rollup, _Mapping]]] = ..., by_priority: _Optional[_Iterable[_Union[Rollup, _Mapping]]] = ..., maturity: _Optional[_Union[MaturitySummary, _Mapping]] = ..., composition_scores: _Optional[_Mapping[str, float]] = ..., composition_median: _Optional[float] = ..., bespoke_escape_count: _Optional[int] = ...) -> None: ...
+    declared_capability_asset_count: int
+    declared_uncheckable_asset_count: int
+    unmeasured_capability_asset_count: int
+    capability_declaration_count: int
+    capability_coverage: _containers.RepeatedCompositeFieldContainer[DeclaredCapabilityCoverage]
+    composition_blocked_asset_count: int
+    def __init__(self, rows: _Optional[_Iterable[_Union[CoverageRow, _Mapping]]] = ..., totals: _Optional[_Mapping[str, int]] = ..., by_domain: _Optional[_Iterable[_Union[Rollup, _Mapping]]] = ..., by_priority: _Optional[_Iterable[_Union[Rollup, _Mapping]]] = ..., maturity: _Optional[_Union[MaturitySummary, _Mapping]] = ..., composition_scores: _Optional[_Mapping[str, float]] = ..., composition_median: _Optional[float] = ..., bespoke_escape_count: _Optional[int] = ..., declared_capability_asset_count: _Optional[int] = ..., declared_uncheckable_asset_count: _Optional[int] = ..., unmeasured_capability_asset_count: _Optional[int] = ..., capability_declaration_count: _Optional[int] = ..., capability_coverage: _Optional[_Iterable[_Union[DeclaredCapabilityCoverage, _Mapping]]] = ..., composition_blocked_asset_count: _Optional[int] = ...) -> None: ...
 
 class GetCoverageResponse(_message.Message):
     __slots__ = ("report",)

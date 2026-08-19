@@ -160,6 +160,17 @@ message CoverageMetric {
   double ratio = 3;
 }
 
+message DeclaredCapabilityCoverage {
+  string capability = 1;
+  string title = 2;
+  string status = 3;
+  bool checkable = 4;
+  bool unmeasured = 5;
+  int32 declared_asset_count = 6;
+  repeated string asset_ids = 7;
+  repeated string blockers = 8;
+}
+
 message CoverageReport {
   repeated CoverageRow rows = 1;
   map<string, int32> totals = 2;
@@ -169,6 +180,12 @@ message CoverageReport {
 	map<string, double> composition_scores = 6;
 	double composition_median = 7;
 	int32 bespoke_escape_count = 8;
+	int32 declared_capability_asset_count = 9;
+	int32 declared_uncheckable_asset_count = 10;
+	int32 unmeasured_capability_asset_count = 11;
+	int32 capability_declaration_count = 12;
+	repeated DeclaredCapabilityCoverage capability_coverage = 13;
+	int32 composition_blocked_asset_count = 14;
 }
 
 message GetCoverageResponse {

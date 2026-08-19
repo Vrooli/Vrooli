@@ -1,0 +1,58 @@
+syntax = "proto3";
+
+package vrooli.prompt_manager.v1.discovery;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/discovery;discovery_v1";
+
+service DiscoveryService {
+  rpc Discover(DiscoverRequest) returns (DiscoverResponse);
+  rpc ListDiscoveryGaps(ListDiscoveryGapsRequest) returns (ListDiscoveryGapsResponse);
+  rpc GetDiscoveryMetrics(GetDiscoveryMetricsRequest) returns (GetDiscoveryMetricsResponse);
+  rpc GetSkillUsage(GetSkillUsageRequest) returns (GetSkillUsageResponse);
+}
+
+message DiscoverRequest { repeated string queries = 1; string complexity = 2; int32 limit = 3; string type = 4; }
+message DiscoverResult {
+  string type = 1; string id = 2; string name = 3; string description = 4;
+  repeated string tags = 5; repeated string modes = 6; double score = 7; int32 score_percent = 8;
+  string source = 9; optional int32 topic_depth = 10; string topic_id = 11; string topic_name = 12;
+  int32 content_chars = 13; string status = 14; string owner = 15;
+  string show_command = 16; string run_command = 17;
+}
+message DiscoverResponse {
+  repeated DiscoverResult results = 1; int32 total = 2; string query = 3; string method = 4;
+  int32 total_content_chars = 5; string read_command = 6; string show_command = 7;
+  string run_command = 8; int32 budget_chars = 9; string budget_status = 10;
+  string recommended_read_command = 11; string complexity = 12;
+}
+
+message ListDiscoveryGapsRequest { string since = 1; string type = 2; }
+message DiscoveryGap {
+  string query = 1; int32 count = 2; string last_seen = 3;
+  repeated string types = 4; repeated string examples = 5;
+}
+message ListDiscoveryGapsResponse { repeated DiscoveryGap clusters = 1; int32 total = 2; string since = 3; }
+
+message DistributionStats {
+  int32 count = 1; double min = 2; double p10 = 3; double median = 4;
+  double p90 = 5; double max = 6; double mean = 7;
+}
+message ComplexityMetric { int32 call_count = 1; double over_budget_rate = 2; double median_returned = 3; }
+message BudgetHogSkill {
+  string id = 1; int32 max_chars = 2; int32 occurrences = 3; int32 over_budget_sightings = 4;
+}
+message GetDiscoveryMetricsRequest { string since = 1; string type = 2; }
+message GetDiscoveryMetricsResponse {
+  string since = 1; int32 call_count = 2; DistributionStats returned_count = 3;
+  int32 budgeted_call_count = 4; double over_budget_rate = 5; double near_threshold_rate = 6;
+  int32 probed_call_count = 7; double threshold_clip_rate = 8; DistributionStats clipped_per_probe = 9;
+  map<string, ComplexityMetric> per_complexity = 10; repeated BudgetHogSkill budget_hogs = 11;
+}
+
+message GetSkillUsageRequest { string since = 1; }
+message SkillUsageRow {
+  string skill_id = 1; int32 returned = 2; int32 reads = 3; int32 demand_reads = 4;
+  int32 via_discovery = 5; map<string, int32> reads_by_caller_kind = 6;
+  optional double conversion_rate = 7; string last_read_at = 8;
+}
+message GetSkillUsageResponse { string since = 1; repeated string unread = 2; repeated SkillUsageRow rows = 3; }

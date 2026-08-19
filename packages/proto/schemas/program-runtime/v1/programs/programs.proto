@@ -168,6 +168,18 @@ message AuthoringCaseResult {
   string cause = 4;
   int64 agent_bytes = 5;
   string model = 6;
+  // Deterministic harness rule attribution for a failed case. Successful
+  // cases leave this empty; unmatched or ambiguous failures use
+  // "unattributed" explicitly.
+  string rule_id = 7;
+  // Bounded runtime, authoring, or oracle evidence used by the signature
+  // resolver. This makes an unattributed result diagnosable rather than opaque.
+  string failure_detail = 8;
+}
+
+message AuthoringRuleMiss {
+  string rule_id = 1;
+  int32 count = 2;
 }
 
 message RunAuthoringEvalResponse {
@@ -187,6 +199,9 @@ message RunAuthoringEvalResponse {
   // The brief version this score was measured against. Two runs are comparable
   // only when their stamps match.
   string harness_stamp = 12;
+  // Sorted miss counts. The sum equals missed + wrong_result for every
+  // measured or partial response.
+  repeated AuthoringRuleMiss rule_misses = 13;
 }
 
 service ProgramService {

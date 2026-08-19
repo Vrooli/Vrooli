@@ -45,6 +45,10 @@ class PreparationAction(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     PREPARATION_ACTION_RELABEL: _ClassVar[PreparationAction]
     PREPARATION_ACTION_CLEAR_DIRECTORY: _ClassVar[PreparationAction]
     PREPARATION_ACTION_FORMAT: _ClassVar[PreparationAction]
+    PREPARATION_ACTION_UNMOUNT: _ClassVar[PreparationAction]
+    PREPARATION_ACTION_CHECK_FILESYSTEM: _ClassVar[PreparationAction]
+    PREPARATION_ACTION_REPAIR_FILESYSTEM: _ClassVar[PreparationAction]
+    PREPARATION_ACTION_MOUNT_READ_WRITE: _ClassVar[PreparationAction]
 BACKEND_KIND_UNSPECIFIED: BackendKind
 BACKEND_KIND_FILESYSTEM: BackendKind
 BACKEND_KIND_S3: BackendKind
@@ -65,6 +69,10 @@ PREPARATION_ACTION_CREATE_SUBDIR: PreparationAction
 PREPARATION_ACTION_RELABEL: PreparationAction
 PREPARATION_ACTION_CLEAR_DIRECTORY: PreparationAction
 PREPARATION_ACTION_FORMAT: PreparationAction
+PREPARATION_ACTION_UNMOUNT: PreparationAction
+PREPARATION_ACTION_CHECK_FILESYSTEM: PreparationAction
+PREPARATION_ACTION_REPAIR_FILESYSTEM: PreparationAction
+PREPARATION_ACTION_MOUNT_READ_WRITE: PreparationAction
 
 class Destination(_message.Message):
     __slots__ = ("id", "name", "backend_kind", "location", "cap_bytes", "cap_policy", "encryption_algorithm", "secret_ref", "usage_bytes", "usage_state", "created_at", "updated_at", "repository_location")
@@ -333,13 +341,29 @@ class ExecuteDestinationPreparationRequest(_message.Message):
     def __init__(self, plan: _Optional[_Union[DestinationPreparationPlan, _Mapping]] = ..., confirmation: _Optional[str] = ..., dry_run: _Optional[bool] = ..., acknowledge_data_loss: _Optional[bool] = ...) -> None: ...
 
 class ExecuteDestinationPreparationResponse(_message.Message):
-    __slots__ = ("dry_run", "action", "location", "post_action_report")
+    __slots__ = ("dry_run", "action", "location", "post_action_report", "status", "changed", "backend", "command", "detail", "operator_command", "refusal_reason", "consistent")
     DRY_RUN_FIELD_NUMBER: _ClassVar[int]
     ACTION_FIELD_NUMBER: _ClassVar[int]
     LOCATION_FIELD_NUMBER: _ClassVar[int]
     POST_ACTION_REPORT_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    CHANGED_FIELD_NUMBER: _ClassVar[int]
+    BACKEND_FIELD_NUMBER: _ClassVar[int]
+    COMMAND_FIELD_NUMBER: _ClassVar[int]
+    DETAIL_FIELD_NUMBER: _ClassVar[int]
+    OPERATOR_COMMAND_FIELD_NUMBER: _ClassVar[int]
+    REFUSAL_REASON_FIELD_NUMBER: _ClassVar[int]
+    CONSISTENT_FIELD_NUMBER: _ClassVar[int]
     dry_run: bool
     action: PreparationAction
     location: str
     post_action_report: DestinationReadinessReport
-    def __init__(self, dry_run: _Optional[bool] = ..., action: _Optional[_Union[PreparationAction, str]] = ..., location: _Optional[str] = ..., post_action_report: _Optional[_Union[DestinationReadinessReport, _Mapping]] = ...) -> None: ...
+    status: str
+    changed: bool
+    backend: str
+    command: _containers.RepeatedScalarFieldContainer[str]
+    detail: str
+    operator_command: str
+    refusal_reason: str
+    consistent: str
+    def __init__(self, dry_run: _Optional[bool] = ..., action: _Optional[_Union[PreparationAction, str]] = ..., location: _Optional[str] = ..., post_action_report: _Optional[_Union[DestinationReadinessReport, _Mapping]] = ..., status: _Optional[str] = ..., changed: _Optional[bool] = ..., backend: _Optional[str] = ..., command: _Optional[_Iterable[str]] = ..., detail: _Optional[str] = ..., operator_command: _Optional[str] = ..., refusal_reason: _Optional[str] = ..., consistent: _Optional[str] = ...) -> None: ...

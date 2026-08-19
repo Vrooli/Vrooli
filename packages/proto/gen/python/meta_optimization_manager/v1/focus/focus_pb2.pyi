@@ -153,7 +153,7 @@ class ListConditionResponse(_message.Message):
     def __init__(self, gaps: _Optional[_Iterable[_Union[Gap, _Mapping]]] = ..., instrumentation: _Optional[_Union[ConditionInstrumentation, _Mapping]] = ...) -> None: ...
 
 class ConditionInstrumentation(_message.Message):
-    __slots__ = ("healthy", "degraded", "dormant", "uninstrumented", "unavailable", "instrumented", "total", "filtered_out")
+    __slots__ = ("healthy", "degraded", "dormant", "uninstrumented", "unavailable", "instrumented", "total", "filtered_out", "ledger_exercise", "receipt_exercise")
     HEALTHY_FIELD_NUMBER: _ClassVar[int]
     DEGRADED_FIELD_NUMBER: _ClassVar[int]
     DORMANT_FIELD_NUMBER: _ClassVar[int]
@@ -162,6 +162,8 @@ class ConditionInstrumentation(_message.Message):
     INSTRUMENTED_FIELD_NUMBER: _ClassVar[int]
     TOTAL_FIELD_NUMBER: _ClassVar[int]
     FILTERED_OUT_FIELD_NUMBER: _ClassVar[int]
+    LEDGER_EXERCISE_FIELD_NUMBER: _ClassVar[int]
+    RECEIPT_EXERCISE_FIELD_NUMBER: _ClassVar[int]
     healthy: int
     degraded: int
     dormant: int
@@ -170,7 +172,21 @@ class ConditionInstrumentation(_message.Message):
     instrumented: int
     total: int
     filtered_out: int
-    def __init__(self, healthy: _Optional[int] = ..., degraded: _Optional[int] = ..., dormant: _Optional[int] = ..., uninstrumented: _Optional[int] = ..., unavailable: _Optional[int] = ..., instrumented: _Optional[int] = ..., total: _Optional[int] = ..., filtered_out: _Optional[int] = ...) -> None: ...
+    ledger_exercise: ExerciseBasisInstrumentation
+    receipt_exercise: ExerciseBasisInstrumentation
+    def __init__(self, healthy: _Optional[int] = ..., degraded: _Optional[int] = ..., dormant: _Optional[int] = ..., uninstrumented: _Optional[int] = ..., unavailable: _Optional[int] = ..., instrumented: _Optional[int] = ..., total: _Optional[int] = ..., filtered_out: _Optional[int] = ..., ledger_exercise: _Optional[_Union[ExerciseBasisInstrumentation, _Mapping]] = ..., receipt_exercise: _Optional[_Union[ExerciseBasisInstrumentation, _Mapping]] = ...) -> None: ...
+
+class ExerciseBasisInstrumentation(_message.Message):
+    __slots__ = ("basis", "instrumented", "total", "invocations")
+    BASIS_FIELD_NUMBER: _ClassVar[int]
+    INSTRUMENTED_FIELD_NUMBER: _ClassVar[int]
+    TOTAL_FIELD_NUMBER: _ClassVar[int]
+    INVOCATIONS_FIELD_NUMBER: _ClassVar[int]
+    basis: str
+    instrumented: int
+    total: int
+    invocations: int
+    def __init__(self, basis: _Optional[str] = ..., instrumented: _Optional[int] = ..., total: _Optional[int] = ..., invocations: _Optional[int] = ...) -> None: ...
 
 class ExplainConditionRequest(_message.Message):
     __slots__ = ("provider_id",)

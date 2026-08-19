@@ -272,23 +272,35 @@ class RunAuthoringEvalRequest(_message.Message):
     def __init__(self, suite: _Optional[str] = ..., max_cases: _Optional[int] = ...) -> None: ...
 
 class AuthoringCaseResult(_message.Message):
-    __slots__ = ("case_id", "authored", "first_attempt_ok", "cause", "agent_bytes", "model")
+    __slots__ = ("case_id", "authored", "first_attempt_ok", "cause", "agent_bytes", "model", "rule_id", "failure_detail")
     CASE_ID_FIELD_NUMBER: _ClassVar[int]
     AUTHORED_FIELD_NUMBER: _ClassVar[int]
     FIRST_ATTEMPT_OK_FIELD_NUMBER: _ClassVar[int]
     CAUSE_FIELD_NUMBER: _ClassVar[int]
     AGENT_BYTES_FIELD_NUMBER: _ClassVar[int]
     MODEL_FIELD_NUMBER: _ClassVar[int]
+    RULE_ID_FIELD_NUMBER: _ClassVar[int]
+    FAILURE_DETAIL_FIELD_NUMBER: _ClassVar[int]
     case_id: str
     authored: bool
     first_attempt_ok: bool
     cause: str
     agent_bytes: int
     model: str
-    def __init__(self, case_id: _Optional[str] = ..., authored: _Optional[bool] = ..., first_attempt_ok: _Optional[bool] = ..., cause: _Optional[str] = ..., agent_bytes: _Optional[int] = ..., model: _Optional[str] = ...) -> None: ...
+    rule_id: str
+    failure_detail: str
+    def __init__(self, case_id: _Optional[str] = ..., authored: _Optional[bool] = ..., first_attempt_ok: _Optional[bool] = ..., cause: _Optional[str] = ..., agent_bytes: _Optional[int] = ..., model: _Optional[str] = ..., rule_id: _Optional[str] = ..., failure_detail: _Optional[str] = ...) -> None: ...
+
+class AuthoringRuleMiss(_message.Message):
+    __slots__ = ("rule_id", "count")
+    RULE_ID_FIELD_NUMBER: _ClassVar[int]
+    COUNT_FIELD_NUMBER: _ClassVar[int]
+    rule_id: str
+    count: int
+    def __init__(self, rule_id: _Optional[str] = ..., count: _Optional[int] = ...) -> None: ...
 
 class RunAuthoringEvalResponse(_message.Message):
-    __slots__ = ("suite", "status", "reason", "cases", "met", "missed", "wrong_result", "unavailable", "floor", "results", "not_attempted", "harness_stamp")
+    __slots__ = ("suite", "status", "reason", "cases", "met", "missed", "wrong_result", "unavailable", "floor", "results", "not_attempted", "harness_stamp", "rule_misses")
     SUITE_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
     REASON_FIELD_NUMBER: _ClassVar[int]
@@ -301,6 +313,7 @@ class RunAuthoringEvalResponse(_message.Message):
     RESULTS_FIELD_NUMBER: _ClassVar[int]
     NOT_ATTEMPTED_FIELD_NUMBER: _ClassVar[int]
     HARNESS_STAMP_FIELD_NUMBER: _ClassVar[int]
+    RULE_MISSES_FIELD_NUMBER: _ClassVar[int]
     suite: str
     status: str
     reason: str
@@ -313,4 +326,5 @@ class RunAuthoringEvalResponse(_message.Message):
     results: _containers.RepeatedCompositeFieldContainer[AuthoringCaseResult]
     not_attempted: int
     harness_stamp: str
-    def __init__(self, suite: _Optional[str] = ..., status: _Optional[str] = ..., reason: _Optional[str] = ..., cases: _Optional[int] = ..., met: _Optional[int] = ..., missed: _Optional[int] = ..., wrong_result: _Optional[int] = ..., unavailable: _Optional[int] = ..., floor: _Optional[int] = ..., results: _Optional[_Iterable[_Union[AuthoringCaseResult, _Mapping]]] = ..., not_attempted: _Optional[int] = ..., harness_stamp: _Optional[str] = ...) -> None: ...
+    rule_misses: _containers.RepeatedCompositeFieldContainer[AuthoringRuleMiss]
+    def __init__(self, suite: _Optional[str] = ..., status: _Optional[str] = ..., reason: _Optional[str] = ..., cases: _Optional[int] = ..., met: _Optional[int] = ..., missed: _Optional[int] = ..., wrong_result: _Optional[int] = ..., unavailable: _Optional[int] = ..., floor: _Optional[int] = ..., results: _Optional[_Iterable[_Union[AuthoringCaseResult, _Mapping]]] = ..., not_attempted: _Optional[int] = ..., harness_stamp: _Optional[str] = ..., rule_misses: _Optional[_Iterable[_Union[AuthoringRuleMiss, _Mapping]]] = ...) -> None: ...

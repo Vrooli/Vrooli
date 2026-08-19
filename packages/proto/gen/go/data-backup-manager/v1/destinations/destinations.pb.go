@@ -248,6 +248,18 @@ const (
 	PreparationAction_PREPARATION_ACTION_RELABEL         PreparationAction = 2
 	PreparationAction_PREPARATION_ACTION_CLEAR_DIRECTORY PreparationAction = 3
 	PreparationAction_PREPARATION_ACTION_FORMAT          PreparationAction = 4
+	// Remediation actions for a destination the kernel refuses to mount
+	// read/write. They are executed by the control plane, which owns host state;
+	// the manager plans, confirms, and reports them.
+	//
+	// The usual order is unmount → check → repair → mount read/write, each
+	// separately confirmed. Splitting them keeps every step individually
+	// auditable and individually refusable rather than hiding a repair inside a
+	// single opaque "fix it" call.
+	PreparationAction_PREPARATION_ACTION_UNMOUNT           PreparationAction = 5
+	PreparationAction_PREPARATION_ACTION_CHECK_FILESYSTEM  PreparationAction = 6
+	PreparationAction_PREPARATION_ACTION_REPAIR_FILESYSTEM PreparationAction = 7
+	PreparationAction_PREPARATION_ACTION_MOUNT_READ_WRITE  PreparationAction = 8
 )
 
 // Enum value maps for PreparationAction.
@@ -258,13 +270,21 @@ var (
 		2: "PREPARATION_ACTION_RELABEL",
 		3: "PREPARATION_ACTION_CLEAR_DIRECTORY",
 		4: "PREPARATION_ACTION_FORMAT",
+		5: "PREPARATION_ACTION_UNMOUNT",
+		6: "PREPARATION_ACTION_CHECK_FILESYSTEM",
+		7: "PREPARATION_ACTION_REPAIR_FILESYSTEM",
+		8: "PREPARATION_ACTION_MOUNT_READ_WRITE",
 	}
 	PreparationAction_value = map[string]int32{
-		"PREPARATION_ACTION_UNSPECIFIED":     0,
-		"PREPARATION_ACTION_CREATE_SUBDIR":   1,
-		"PREPARATION_ACTION_RELABEL":         2,
-		"PREPARATION_ACTION_CLEAR_DIRECTORY": 3,
-		"PREPARATION_ACTION_FORMAT":          4,
+		"PREPARATION_ACTION_UNSPECIFIED":       0,
+		"PREPARATION_ACTION_CREATE_SUBDIR":     1,
+		"PREPARATION_ACTION_RELABEL":           2,
+		"PREPARATION_ACTION_CLEAR_DIRECTORY":   3,
+		"PREPARATION_ACTION_FORMAT":            4,
+		"PREPARATION_ACTION_UNMOUNT":           5,
+		"PREPARATION_ACTION_CHECK_FILESYSTEM":  6,
+		"PREPARATION_ACTION_REPAIR_FILESYSTEM": 7,
+		"PREPARATION_ACTION_MOUNT_READ_WRITE":  8,
 	}
 )
 
@@ -1830,8 +1850,29 @@ type ExecuteDestinationPreparationResponse struct {
 	Action           PreparationAction           `protobuf:"varint,2,opt,name=action,proto3,enum=vrooli.data_backup_manager.v1.destinations.PreparationAction" json:"action,omitempty"`
 	Location         string                      `protobuf:"bytes,3,opt,name=location,proto3" json:"location,omitempty"`
 	PostActionReport *DestinationReadinessReport `protobuf:"bytes,4,opt,name=post_action_report,json=postActionReport,proto3" json:"post_action_report,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// Remediation outcome. These are populated for the host-remediation actions,
+	// which are executed by the control plane and reported here rather than
+	// collapsed into a bare success/failure.
+	//
+	// "verified" | "changed" | "already_satisfied" | "refused" | "unsupported" |
+	// "failed"
+	Status  string `protobuf:"bytes,5,opt,name=status,proto3" json:"status,omitempty"`
+	Changed bool   `protobuf:"varint,6,opt,name=changed,proto3" json:"changed,omitempty"`
+	// Which control-plane execution path served the request.
+	Backend string `protobuf:"bytes,7,opt,name=backend,proto3" json:"backend,omitempty"`
+	// The exact argv that ran, or would have run under dry run.
+	Command []string `protobuf:"bytes,8,rep,name=command,proto3" json:"command,omitempty"`
+	// Bounded tool output.
+	Detail string `protobuf:"bytes,9,opt,name=detail,proto3" json:"detail,omitempty"`
+	// Set when this host has no automated path, naming the command an operator
+	// can run instead.
+	OperatorCommand string `protobuf:"bytes,10,opt,name=operator_command,json=operatorCommand,proto3" json:"operator_command,omitempty"`
+	// Set when a safety gate rejected the request.
+	RefusalReason string `protobuf:"bytes,11,opt,name=refusal_reason,json=refusalReason,proto3" json:"refusal_reason,omitempty"`
+	// Verdict of a check-filesystem action: "unknown" | "yes" | "no".
+	Consistent    string `protobuf:"bytes,12,opt,name=consistent,proto3" json:"consistent,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ExecuteDestinationPreparationResponse) Reset() {
@@ -1890,6 +1931,62 @@ func (x *ExecuteDestinationPreparationResponse) GetPostActionReport() *Destinati
 		return x.PostActionReport
 	}
 	return nil
+}
+
+func (x *ExecuteDestinationPreparationResponse) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *ExecuteDestinationPreparationResponse) GetChanged() bool {
+	if x != nil {
+		return x.Changed
+	}
+	return false
+}
+
+func (x *ExecuteDestinationPreparationResponse) GetBackend() string {
+	if x != nil {
+		return x.Backend
+	}
+	return ""
+}
+
+func (x *ExecuteDestinationPreparationResponse) GetCommand() []string {
+	if x != nil {
+		return x.Command
+	}
+	return nil
+}
+
+func (x *ExecuteDestinationPreparationResponse) GetDetail() string {
+	if x != nil {
+		return x.Detail
+	}
+	return ""
+}
+
+func (x *ExecuteDestinationPreparationResponse) GetOperatorCommand() string {
+	if x != nil {
+		return x.OperatorCommand
+	}
+	return ""
+}
+
+func (x *ExecuteDestinationPreparationResponse) GetRefusalReason() string {
+	if x != nil {
+		return x.RefusalReason
+	}
+	return ""
+}
+
+func (x *ExecuteDestinationPreparationResponse) GetConsistent() string {
+	if x != nil {
+		return x.Consistent
+	}
+	return ""
 }
 
 var File_data_backup_manager_v1_destinations_destinations_proto protoreflect.FileDescriptor
@@ -2037,12 +2134,23 @@ const file_data_backup_manager_v1_destinations_destinations_proto_rawDesc = "" +
 	"\adry_run\x18\x03 \x01(\bH\x00R\x06dryRun\x88\x01\x01\x122\n" +
 	"\x15acknowledge_data_loss\x18\x04 \x01(\bR\x13acknowledgeDataLossB\n" +
 	"\n" +
-	"\b_dry_run\"\xa9\x02\n" +
+	"\b_dry_run\"\x99\x04\n" +
 	"%ExecuteDestinationPreparationResponse\x12\x17\n" +
 	"\adry_run\x18\x01 \x01(\bR\x06dryRun\x12U\n" +
 	"\x06action\x18\x02 \x01(\x0e2=.vrooli.data_backup_manager.v1.destinations.PreparationActionR\x06action\x12\x1a\n" +
 	"\blocation\x18\x03 \x01(\tR\blocation\x12t\n" +
-	"\x12post_action_report\x18\x04 \x01(\v2F.vrooli.data_backup_manager.v1.destinations.DestinationReadinessReportR\x10postActionReport*]\n" +
+	"\x12post_action_report\x18\x04 \x01(\v2F.vrooli.data_backup_manager.v1.destinations.DestinationReadinessReportR\x10postActionReport\x12\x16\n" +
+	"\x06status\x18\x05 \x01(\tR\x06status\x12\x18\n" +
+	"\achanged\x18\x06 \x01(\bR\achanged\x12\x18\n" +
+	"\abackend\x18\a \x01(\tR\abackend\x12\x18\n" +
+	"\acommand\x18\b \x03(\tR\acommand\x12\x16\n" +
+	"\x06detail\x18\t \x01(\tR\x06detail\x12)\n" +
+	"\x10operator_command\x18\n" +
+	" \x01(\tR\x0foperatorCommand\x12%\n" +
+	"\x0erefusal_reason\x18\v \x01(\tR\rrefusalReason\x12\x1e\n" +
+	"\n" +
+	"consistent\x18\f \x01(\tR\n" +
+	"consistent*]\n" +
 	"\vBackendKind\x12\x1c\n" +
 	"\x18BACKEND_KIND_UNSPECIFIED\x10\x00\x12\x1b\n" +
 	"\x17BACKEND_KIND_FILESYSTEM\x10\x01\x12\x13\n" +
@@ -2062,13 +2170,17 @@ const file_data_backup_manager_v1_destinations_destinations_proto_rawDesc = "" +
 	"\x17READINESS_SEVERITY_PASS\x10\x01\x12\x1e\n" +
 	"\x1aREADINESS_SEVERITY_WARNING\x10\x02\x12\x1b\n" +
 	"\x17READINESS_SEVERITY_FAIL\x10\x03\x12\x1e\n" +
-	"\x1aREADINESS_SEVERITY_UNKNOWN\x10\x04*\xc4\x01\n" +
+	"\x1aREADINESS_SEVERITY_UNKNOWN\x10\x04*\xe0\x02\n" +
 	"\x11PreparationAction\x12\"\n" +
 	"\x1ePREPARATION_ACTION_UNSPECIFIED\x10\x00\x12$\n" +
 	" PREPARATION_ACTION_CREATE_SUBDIR\x10\x01\x12\x1e\n" +
 	"\x1aPREPARATION_ACTION_RELABEL\x10\x02\x12&\n" +
 	"\"PREPARATION_ACTION_CLEAR_DIRECTORY\x10\x03\x12\x1d\n" +
-	"\x19PREPARATION_ACTION_FORMAT\x10\x042\x8c\f\n" +
+	"\x19PREPARATION_ACTION_FORMAT\x10\x04\x12\x1e\n" +
+	"\x1aPREPARATION_ACTION_UNMOUNT\x10\x05\x12'\n" +
+	"#PREPARATION_ACTION_CHECK_FILESYSTEM\x10\x06\x12(\n" +
+	"$PREPARATION_ACTION_REPAIR_FILESYSTEM\x10\a\x12'\n" +
+	"#PREPARATION_ACTION_MOUNT_READ_WRITE\x10\b2\x8c\f\n" +
 	"\x13DestinationsService\x12\xa0\x01\n" +
 	"\x11CreateDestination\x12D.vrooli.data_backup_manager.v1.destinations.CreateDestinationRequest\x1aE.vrooli.data_backup_manager.v1.destinations.CreateDestinationResponse\x12\x97\x01\n" +
 	"\x0eGetDestination\x12A.vrooli.data_backup_manager.v1.destinations.GetDestinationRequest\x1aB.vrooli.data_backup_manager.v1.destinations.GetDestinationResponse\x12\x9d\x01\n" +

@@ -76,9 +76,11 @@ export type Node = Message<"vrooli.vrooli_bridge.v1.registry.Node"> & {
   capabilities: string[];
 
   /**
-   * Registry-owned execution scopes that authorize what the node may be asked
-   * to run (for example "vrooli-bridge:write" or a narrower "scenario test*").
-   * Enforced at dispatch; an empty list is presence-only.
+   * Registry-owned catalog grants that authorize what the node may be asked
+   * to run. Command grants use <namespace>:<effect> (for example
+   * "web-console:read") and may use *, <namespace>:*, or *:<effect>;
+   * "vrooli-bridge:session" is a separate transport capability. Enforced at
+   * dispatch; an empty list is presence-only.
    *
    * @generated from field: repeated string scopes = 8;
    */

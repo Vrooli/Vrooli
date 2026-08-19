@@ -3,6 +3,7 @@ syntax = "proto3";
 package vrooli.react_component_library.v1.components;
 
 import "google/protobuf/timestamp.proto";
+import "experience-manager/v1/contract/contract.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/components;components_v1";
 
@@ -32,6 +33,9 @@ service ComponentsService {
   rpc IndexComponents(IndexComponentsRequest) returns (IndexComponentsResponse);
   rpc InitializeComponent(InitializeComponentRequest) returns (InitializeComponentResponse);
   rpc IngestComponent(IngestComponentRequest) returns (IngestComponentResponse);
+  rpc BeginComponentVersion(BeginComponentVersionRequest) returns (BeginComponentVersionResponse);
+  rpc CheckComponentVersion(CheckComponentVersionRequest) returns (CheckComponentVersionResponse);
+  rpc PublishComponentVersion(PublishComponentVersionRequest) returns (PublishComponentVersionResponse);
   rpc CreateComponentVersion(CreateComponentVersionRequest) returns (CreateComponentVersionResponse);
   rpc UpdateComponentManifest(UpdateComponentManifestRequest) returns (UpdateComponentManifestResponse);
   rpc GetComponentContent(GetComponentContentRequest) returns (GetComponentContentResponse);
@@ -258,6 +262,7 @@ message ComponentExperienceEvidence {
   string viewport = 8;
   int32 viewport_width = 9;
   int32 viewport_height = 10;
+  vrooli.experience_manager.v1.contract.ClaimMeasurement measurement = 11;
 }
 
 // IndexComponentsRequest triggers a re-walk of the configured source root.
@@ -380,6 +385,58 @@ message CreateComponentVersionResponse {
   string source_path = 3;
 }
 
+// BeginComponentVersion creates one mutable draft from the current release.
+// component accepts either the stable libraryId or the internal catalog UUID.
+message BeginComponentVersionRequest {
+  string component = 1;
+  string bump = 2;
+  string version = 3;
+}
+
+message BeginComponentVersionResponse {
+  Component component = 1;
+  ComponentVersion version = 2;
+  string source_path = 3;
+  repeated string artifact_paths = 4;
+  string preview_path = 5;
+}
+
+message ComponentVersionCheck {
+  string stage = 1;
+  string verdict = 2;
+  string message = 3;
+  string remediation = 4;
+}
+
+message CheckComponentVersionRequest {
+  string component = 1;
+  string version = 2;
+}
+
+message CheckComponentVersionResponse {
+  Component component = 1;
+  string version = 2;
+  bool passed = 3;
+  repeated ComponentVersionCheck checks = 4;
+  string preview_path = 5;
+}
+
+message PublishComponentVersionRequest {
+  string component = 1;
+  string draft_version = 2;
+  string version = 3;
+  string changelog_md = 4;
+  bool acknowledge_parity_waiver = 5;
+}
+
+message PublishComponentVersionResponse {
+  Component component = 1;
+  ComponentVersion version = 2;
+  string source_path = 3;
+  repeated string artifact_paths = 4;
+  string preview_path = 5;
+}
+
 message UpdateComponentManifestRequest {
   string component_id = 1;
   string display_name = 2;
@@ -395,8 +452,7 @@ message UpdateComponentManifestResponse {
 }
 
 // GetComponentContentRequest reads the on-disk source file backing a
-// component. The id is the registry id (NOT the library_id) — callers
-// should resolve via List/Get first.
+// component. id accepts either the stable libraryId or the catalog UUID.
 message GetComponentContentRequest {
   string id = 1;
   // Optional file path relative to the latest version folder. Empty selects
@@ -422,7 +478,7 @@ message GetComponentContentResponse {
 // place. The component row itself is not mutated; callers should follow
 // with IndexComponents if the header changed.
 message UpdateComponentContentRequest {
-  // Registry id of the component to write.
+  // Stable libraryId or catalog UUID of the component to write.
   string id = 1;
 
   // New full file content (UTF-8). Caller is responsible for keeping

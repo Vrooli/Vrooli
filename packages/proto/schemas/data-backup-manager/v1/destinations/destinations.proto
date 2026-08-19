@@ -82,6 +82,18 @@ enum PreparationAction {
   PREPARATION_ACTION_RELABEL = 2;
   PREPARATION_ACTION_CLEAR_DIRECTORY = 3;
   PREPARATION_ACTION_FORMAT = 4;
+  // Remediation actions for a destination the kernel refuses to mount
+  // read/write. They are executed by the control plane, which owns host state;
+  // the manager plans, confirms, and reports them.
+  //
+  // The usual order is unmount → check → repair → mount read/write, each
+  // separately confirmed. Splitting them keeps every step individually
+  // auditable and individually refusable rather than hiding a repair inside a
+  // single opaque "fix it" call.
+  PREPARATION_ACTION_UNMOUNT = 5;
+  PREPARATION_ACTION_CHECK_FILESYSTEM = 6;
+  PREPARATION_ACTION_REPAIR_FILESYSTEM = 7;
+  PREPARATION_ACTION_MOUNT_READ_WRITE = 8;
 }
 
 // Destination is the canonical wire shape for a backup destination.
@@ -275,4 +287,25 @@ message ExecuteDestinationPreparationResponse {
   PreparationAction action = 2;
   string location = 3;
   DestinationReadinessReport post_action_report = 4;
+  // Remediation outcome. These are populated for the host-remediation actions,
+  // which are executed by the control plane and reported here rather than
+  // collapsed into a bare success/failure.
+  //
+  // "verified" | "changed" | "already_satisfied" | "refused" | "unsupported" |
+  // "failed"
+  string status = 5;
+  bool changed = 6;
+  // Which control-plane execution path served the request.
+  string backend = 7;
+  // The exact argv that ran, or would have run under dry run.
+  repeated string command = 8;
+  // Bounded tool output.
+  string detail = 9;
+  // Set when this host has no automated path, naming the command an operator
+  // can run instead.
+  string operator_command = 10;
+  // Set when a safety gate rejected the request.
+  string refusal_reason = 11;
+  // Verdict of a check-filesystem action: "unknown" | "yes" | "no".
+  string consistent = 12;
 }

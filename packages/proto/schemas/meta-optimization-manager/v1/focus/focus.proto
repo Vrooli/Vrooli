@@ -136,11 +136,21 @@ message ConditionInstrumentation {
   int32 dormant = 3;
   int32 uninstrumented = 4;
   int32 unavailable = 5;
-  int32 instrumented = 6;
+  // Deprecated receipt-basis alias retained for wire compatibility.
+  int32 instrumented = 6 [deprecated = true];
   int32 total = 7;
   // Runtime condition legs excluded because their owner does not currently
   // back a live NOW cell in the coverage population.
   int32 filtered_out = 8;
+  ExerciseBasisInstrumentation ledger_exercise = 9;
+  ExerciseBasisInstrumentation receipt_exercise = 10;
+}
+
+message ExerciseBasisInstrumentation {
+  string basis = 1;
+  int32 instrumented = 2;
+  int32 total = 3;
+  int64 invocations = 4;
 }
 
 message ExplainConditionRequest {

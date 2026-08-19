@@ -165,9 +165,11 @@ type Node struct {
 	// appears able to do, but never grants authority; registry `scopes` are
 	// authoritative.
 	Capabilities []string `protobuf:"bytes,7,rep,name=capabilities,proto3" json:"capabilities,omitempty"`
-	// Registry-owned execution scopes that authorize what the node may be asked
-	// to run (for example "vrooli-bridge:write" or a narrower "scenario test*").
-	// Enforced at dispatch; an empty list is presence-only.
+	// Registry-owned catalog grants that authorize what the node may be asked
+	// to run. Command grants use <namespace>:<effect> (for example
+	// "web-console:read") and may use *, <namespace>:*, or *:<effect>;
+	// "vrooli-bridge:session" is a separate transport capability. Enforced at
+	// dispatch; an empty list is presence-only.
 	Scopes []string `protobuf:"bytes,8,rep,name=scopes,proto3" json:"scopes,omitempty"`
 	// Current status, with the presence overlay applied (see NodeStatus).
 	Status NodeStatus `protobuf:"varint,9,opt,name=status,proto3,enum=vrooli.vrooli_bridge.v1.registry.NodeStatus" json:"status,omitempty"`

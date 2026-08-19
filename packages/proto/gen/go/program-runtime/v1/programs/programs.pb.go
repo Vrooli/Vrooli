@@ -1464,8 +1464,15 @@ type AuthoringCaseResult struct {
 	Cause          string                 `protobuf:"bytes,4,opt,name=cause,proto3" json:"cause,omitempty"`
 	AgentBytes     int64                  `protobuf:"varint,5,opt,name=agent_bytes,json=agentBytes,proto3" json:"agent_bytes,omitempty"`
 	Model          string                 `protobuf:"bytes,6,opt,name=model,proto3" json:"model,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// Deterministic harness rule attribution for a failed case. Successful
+	// cases leave this empty; unmatched or ambiguous failures use
+	// "unattributed" explicitly.
+	RuleId string `protobuf:"bytes,7,opt,name=rule_id,json=ruleId,proto3" json:"rule_id,omitempty"`
+	// Bounded runtime, authoring, or oracle evidence used by the signature
+	// resolver. This makes an unattributed result diagnosable rather than opaque.
+	FailureDetail string `protobuf:"bytes,8,opt,name=failure_detail,json=failureDetail,proto3" json:"failure_detail,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *AuthoringCaseResult) Reset() {
@@ -1540,6 +1547,72 @@ func (x *AuthoringCaseResult) GetModel() string {
 	return ""
 }
 
+func (x *AuthoringCaseResult) GetRuleId() string {
+	if x != nil {
+		return x.RuleId
+	}
+	return ""
+}
+
+func (x *AuthoringCaseResult) GetFailureDetail() string {
+	if x != nil {
+		return x.FailureDetail
+	}
+	return ""
+}
+
+type AuthoringRuleMiss struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RuleId        string                 `protobuf:"bytes,1,opt,name=rule_id,json=ruleId,proto3" json:"rule_id,omitempty"`
+	Count         int32                  `protobuf:"varint,2,opt,name=count,proto3" json:"count,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AuthoringRuleMiss) Reset() {
+	*x = AuthoringRuleMiss{}
+	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AuthoringRuleMiss) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AuthoringRuleMiss) ProtoMessage() {}
+
+func (x *AuthoringRuleMiss) ProtoReflect() protoreflect.Message {
+	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AuthoringRuleMiss.ProtoReflect.Descriptor instead.
+func (*AuthoringRuleMiss) Descriptor() ([]byte, []int) {
+	return file_program_runtime_v1_programs_programs_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *AuthoringRuleMiss) GetRuleId() string {
+	if x != nil {
+		return x.RuleId
+	}
+	return ""
+}
+
+func (x *AuthoringRuleMiss) GetCount() int32 {
+	if x != nil {
+		return x.Count
+	}
+	return 0
+}
+
 type RunAuthoringEvalResponse struct {
 	state       protoimpl.MessageState `protogen:"open.v1"`
 	Suite       string                 `protobuf:"bytes,1,opt,name=suite,proto3" json:"suite,omitempty"`
@@ -1557,14 +1630,17 @@ type RunAuthoringEvalResponse struct {
 	NotAttempted int32 `protobuf:"varint,11,opt,name=not_attempted,json=notAttempted,proto3" json:"not_attempted,omitempty"`
 	// The brief version this score was measured against. Two runs are comparable
 	// only when their stamps match.
-	HarnessStamp  string `protobuf:"bytes,12,opt,name=harness_stamp,json=harnessStamp,proto3" json:"harness_stamp,omitempty"`
+	HarnessStamp string `protobuf:"bytes,12,opt,name=harness_stamp,json=harnessStamp,proto3" json:"harness_stamp,omitempty"`
+	// Sorted miss counts. The sum equals missed + wrong_result for every
+	// measured or partial response.
+	RuleMisses    []*AuthoringRuleMiss `protobuf:"bytes,13,rep,name=rule_misses,json=ruleMisses,proto3" json:"rule_misses,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *RunAuthoringEvalResponse) Reset() {
 	*x = RunAuthoringEvalResponse{}
-	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[21]
+	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1576,7 +1652,7 @@ func (x *RunAuthoringEvalResponse) String() string {
 func (*RunAuthoringEvalResponse) ProtoMessage() {}
 
 func (x *RunAuthoringEvalResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[21]
+	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1589,7 +1665,7 @@ func (x *RunAuthoringEvalResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunAuthoringEvalResponse.ProtoReflect.Descriptor instead.
 func (*RunAuthoringEvalResponse) Descriptor() ([]byte, []int) {
-	return file_program_runtime_v1_programs_programs_proto_rawDescGZIP(), []int{21}
+	return file_program_runtime_v1_programs_programs_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *RunAuthoringEvalResponse) GetSuite() string {
@@ -1674,6 +1750,13 @@ func (x *RunAuthoringEvalResponse) GetHarnessStamp() string {
 		return x.HarnessStamp
 	}
 	return ""
+}
+
+func (x *RunAuthoringEvalResponse) GetRuleMisses() []*AuthoringRuleMiss {
+	if x != nil {
+		return x.RuleMisses
+	}
+	return nil
 }
 
 var File_program_runtime_v1_programs_programs_proto protoreflect.FileDescriptor
@@ -1776,7 +1859,7 @@ const file_program_runtime_v1_programs_programs_proto_rawDesc = "" +
 	"\x05count\x18\x02 \x01(\x03R\x05count\"L\n" +
 	"\x17RunAuthoringEvalRequest\x12\x14\n" +
 	"\x05suite\x18\x01 \x01(\tR\x05suite\x12\x1b\n" +
-	"\tmax_cases\x18\x02 \x01(\x05R\bmaxCases\"\xc1\x01\n" +
+	"\tmax_cases\x18\x02 \x01(\x05R\bmaxCases\"\x81\x02\n" +
 	"\x13AuthoringCaseResult\x12\x17\n" +
 	"\acase_id\x18\x01 \x01(\tR\x06caseId\x12\x1a\n" +
 	"\bauthored\x18\x02 \x01(\bR\bauthored\x12(\n" +
@@ -1784,7 +1867,12 @@ const file_program_runtime_v1_programs_programs_proto_rawDesc = "" +
 	"\x05cause\x18\x04 \x01(\tR\x05cause\x12\x1f\n" +
 	"\vagent_bytes\x18\x05 \x01(\x03R\n" +
 	"agentBytes\x12\x14\n" +
-	"\x05model\x18\x06 \x01(\tR\x05model\"\x98\x03\n" +
+	"\x05model\x18\x06 \x01(\tR\x05model\x12\x17\n" +
+	"\arule_id\x18\a \x01(\tR\x06ruleId\x12%\n" +
+	"\x0efailure_detail\x18\b \x01(\tR\rfailureDetail\"B\n" +
+	"\x11AuthoringRuleMiss\x12\x17\n" +
+	"\arule_id\x18\x01 \x01(\tR\x06ruleId\x12\x14\n" +
+	"\x05count\x18\x02 \x01(\x05R\x05count\"\xf0\x03\n" +
 	"\x18RunAuthoringEvalResponse\x12\x14\n" +
 	"\x05suite\x18\x01 \x01(\tR\x05suite\x12\x16\n" +
 	"\x06status\x18\x02 \x01(\tR\x06status\x12\x16\n" +
@@ -1798,7 +1886,9 @@ const file_program_runtime_v1_programs_programs_proto_rawDesc = "" +
 	"\aresults\x18\n" +
 	" \x03(\v27.vrooli.program_runtime.v1.programs.AuthoringCaseResultR\aresults\x12#\n" +
 	"\rnot_attempted\x18\v \x01(\x05R\fnotAttempted\x12#\n" +
-	"\rharness_stamp\x18\f \x01(\tR\fharnessStamp*\x83\x01\n" +
+	"\rharness_stamp\x18\f \x01(\tR\fharnessStamp\x12V\n" +
+	"\vrule_misses\x18\r \x03(\v25.vrooli.program_runtime.v1.programs.AuthoringRuleMissR\n" +
+	"ruleMisses*\x83\x01\n" +
 	"\n" +
 	"Provenance\x12\x1a\n" +
 	"\x16PROVENANCE_UNSPECIFIED\x10\x00\x12\x14\n" +
@@ -1853,7 +1943,7 @@ func file_program_runtime_v1_programs_programs_proto_rawDescGZIP() []byte {
 }
 
 var file_program_runtime_v1_programs_programs_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_program_runtime_v1_programs_programs_proto_msgTypes = make([]protoimpl.MessageInfo, 22)
+var file_program_runtime_v1_programs_programs_proto_msgTypes = make([]protoimpl.MessageInfo, 23)
 var file_program_runtime_v1_programs_programs_proto_goTypes = []any{
 	(Provenance)(0),                        // 0: vrooli.program_runtime.v1.programs.Provenance
 	(ProgramStatus)(0),                     // 1: vrooli.program_runtime.v1.programs.ProgramStatus
@@ -1879,7 +1969,8 @@ var file_program_runtime_v1_programs_programs_proto_goTypes = []any{
 	(*MineUnresolvedBindingsResponse)(nil), // 21: vrooli.program_runtime.v1.programs.MineUnresolvedBindingsResponse
 	(*RunAuthoringEvalRequest)(nil),        // 22: vrooli.program_runtime.v1.programs.RunAuthoringEvalRequest
 	(*AuthoringCaseResult)(nil),            // 23: vrooli.program_runtime.v1.programs.AuthoringCaseResult
-	(*RunAuthoringEvalResponse)(nil),       // 24: vrooli.program_runtime.v1.programs.RunAuthoringEvalResponse
+	(*AuthoringRuleMiss)(nil),              // 24: vrooli.program_runtime.v1.programs.AuthoringRuleMiss
+	(*RunAuthoringEvalResponse)(nil),       // 25: vrooli.program_runtime.v1.programs.RunAuthoringEvalResponse
 }
 var file_program_runtime_v1_programs_programs_proto_depIdxs = []int32{
 	0,  // 0: vrooli.program_runtime.v1.programs.Program.provenance:type_name -> vrooli.program_runtime.v1.programs.Provenance
@@ -1895,27 +1986,28 @@ var file_program_runtime_v1_programs_programs_proto_depIdxs = []int32{
 	17, // 10: vrooli.program_runtime.v1.programs.MineRefusalsResponse.shapes:type_name -> vrooli.program_runtime.v1.programs.RefusalShape
 	20, // 11: vrooli.program_runtime.v1.programs.MineUnresolvedBindingsResponse.shapes:type_name -> vrooli.program_runtime.v1.programs.UnresolvedBindingShape
 	23, // 12: vrooli.program_runtime.v1.programs.RunAuthoringEvalResponse.results:type_name -> vrooli.program_runtime.v1.programs.AuthoringCaseResult
-	5,  // 13: vrooli.program_runtime.v1.programs.ProgramService.SubmitProgram:input_type -> vrooli.program_runtime.v1.programs.SubmitProgramRequest
-	7,  // 14: vrooli.program_runtime.v1.programs.ProgramService.GetProgram:input_type -> vrooli.program_runtime.v1.programs.GetProgramRequest
-	9,  // 15: vrooli.program_runtime.v1.programs.ProgramService.WaitForProgram:input_type -> vrooli.program_runtime.v1.programs.WaitForProgramRequest
-	11, // 16: vrooli.program_runtime.v1.programs.ProgramService.ListPrograms:input_type -> vrooli.program_runtime.v1.programs.ListProgramsRequest
-	13, // 17: vrooli.program_runtime.v1.programs.ProgramService.MineFailures:input_type -> vrooli.program_runtime.v1.programs.MineFailuresRequest
-	16, // 18: vrooli.program_runtime.v1.programs.ProgramService.MineRefusals:input_type -> vrooli.program_runtime.v1.programs.MineRefusalsRequest
-	19, // 19: vrooli.program_runtime.v1.programs.ProgramService.MineUnresolvedBindings:input_type -> vrooli.program_runtime.v1.programs.MineUnresolvedBindingsRequest
-	22, // 20: vrooli.program_runtime.v1.programs.ProgramService.RunAuthoringEval:input_type -> vrooli.program_runtime.v1.programs.RunAuthoringEvalRequest
-	6,  // 21: vrooli.program_runtime.v1.programs.ProgramService.SubmitProgram:output_type -> vrooli.program_runtime.v1.programs.SubmitProgramResponse
-	8,  // 22: vrooli.program_runtime.v1.programs.ProgramService.GetProgram:output_type -> vrooli.program_runtime.v1.programs.GetProgramResponse
-	10, // 23: vrooli.program_runtime.v1.programs.ProgramService.WaitForProgram:output_type -> vrooli.program_runtime.v1.programs.WaitForProgramResponse
-	12, // 24: vrooli.program_runtime.v1.programs.ProgramService.ListPrograms:output_type -> vrooli.program_runtime.v1.programs.ListProgramsResponse
-	15, // 25: vrooli.program_runtime.v1.programs.ProgramService.MineFailures:output_type -> vrooli.program_runtime.v1.programs.MineFailuresResponse
-	18, // 26: vrooli.program_runtime.v1.programs.ProgramService.MineRefusals:output_type -> vrooli.program_runtime.v1.programs.MineRefusalsResponse
-	21, // 27: vrooli.program_runtime.v1.programs.ProgramService.MineUnresolvedBindings:output_type -> vrooli.program_runtime.v1.programs.MineUnresolvedBindingsResponse
-	24, // 28: vrooli.program_runtime.v1.programs.ProgramService.RunAuthoringEval:output_type -> vrooli.program_runtime.v1.programs.RunAuthoringEvalResponse
-	21, // [21:29] is the sub-list for method output_type
-	13, // [13:21] is the sub-list for method input_type
-	13, // [13:13] is the sub-list for extension type_name
-	13, // [13:13] is the sub-list for extension extendee
-	0,  // [0:13] is the sub-list for field type_name
+	24, // 13: vrooli.program_runtime.v1.programs.RunAuthoringEvalResponse.rule_misses:type_name -> vrooli.program_runtime.v1.programs.AuthoringRuleMiss
+	5,  // 14: vrooli.program_runtime.v1.programs.ProgramService.SubmitProgram:input_type -> vrooli.program_runtime.v1.programs.SubmitProgramRequest
+	7,  // 15: vrooli.program_runtime.v1.programs.ProgramService.GetProgram:input_type -> vrooli.program_runtime.v1.programs.GetProgramRequest
+	9,  // 16: vrooli.program_runtime.v1.programs.ProgramService.WaitForProgram:input_type -> vrooli.program_runtime.v1.programs.WaitForProgramRequest
+	11, // 17: vrooli.program_runtime.v1.programs.ProgramService.ListPrograms:input_type -> vrooli.program_runtime.v1.programs.ListProgramsRequest
+	13, // 18: vrooli.program_runtime.v1.programs.ProgramService.MineFailures:input_type -> vrooli.program_runtime.v1.programs.MineFailuresRequest
+	16, // 19: vrooli.program_runtime.v1.programs.ProgramService.MineRefusals:input_type -> vrooli.program_runtime.v1.programs.MineRefusalsRequest
+	19, // 20: vrooli.program_runtime.v1.programs.ProgramService.MineUnresolvedBindings:input_type -> vrooli.program_runtime.v1.programs.MineUnresolvedBindingsRequest
+	22, // 21: vrooli.program_runtime.v1.programs.ProgramService.RunAuthoringEval:input_type -> vrooli.program_runtime.v1.programs.RunAuthoringEvalRequest
+	6,  // 22: vrooli.program_runtime.v1.programs.ProgramService.SubmitProgram:output_type -> vrooli.program_runtime.v1.programs.SubmitProgramResponse
+	8,  // 23: vrooli.program_runtime.v1.programs.ProgramService.GetProgram:output_type -> vrooli.program_runtime.v1.programs.GetProgramResponse
+	10, // 24: vrooli.program_runtime.v1.programs.ProgramService.WaitForProgram:output_type -> vrooli.program_runtime.v1.programs.WaitForProgramResponse
+	12, // 25: vrooli.program_runtime.v1.programs.ProgramService.ListPrograms:output_type -> vrooli.program_runtime.v1.programs.ListProgramsResponse
+	15, // 26: vrooli.program_runtime.v1.programs.ProgramService.MineFailures:output_type -> vrooli.program_runtime.v1.programs.MineFailuresResponse
+	18, // 27: vrooli.program_runtime.v1.programs.ProgramService.MineRefusals:output_type -> vrooli.program_runtime.v1.programs.MineRefusalsResponse
+	21, // 28: vrooli.program_runtime.v1.programs.ProgramService.MineUnresolvedBindings:output_type -> vrooli.program_runtime.v1.programs.MineUnresolvedBindingsResponse
+	25, // 29: vrooli.program_runtime.v1.programs.ProgramService.RunAuthoringEval:output_type -> vrooli.program_runtime.v1.programs.RunAuthoringEvalResponse
+	22, // [22:30] is the sub-list for method output_type
+	14, // [14:22] is the sub-list for method input_type
+	14, // [14:14] is the sub-list for extension type_name
+	14, // [14:14] is the sub-list for extension extendee
+	0,  // [0:14] is the sub-list for field type_name
 }
 
 func init() { file_program_runtime_v1_programs_programs_proto_init() }
@@ -1929,7 +2021,7 @@ func file_program_runtime_v1_programs_programs_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_program_runtime_v1_programs_programs_proto_rawDesc), len(file_program_runtime_v1_programs_programs_proto_rawDesc)),
 			NumEnums:      3,
-			NumMessages:   22,
+			NumMessages:   23,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

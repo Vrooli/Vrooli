@@ -319,20 +319,34 @@ class FreshnessCondition(_message.Message):
     def __init__(self, family: _Optional[_Union[ConditionFamily, _Mapping]] = ..., age_seconds: _Optional[int] = ..., drift_status: _Optional[_Union[ConditionStatus, str]] = ..., drift_reason: _Optional[str] = ..., source_path: _Optional[str] = ..., source_mtime: _Optional[str] = ..., generation_mtime: _Optional[str] = ...) -> None: ...
 
 class ExerciseCondition(_message.Message):
-    __slots__ = ("family", "invocations", "distinct_callers", "last_invoked_at", "synthetic_invocations", "unattributed_remainder")
+    __slots__ = ("family", "invocations", "distinct_callers", "last_invoked_at", "synthetic_invocations", "unattributed_remainder", "basis")
     FAMILY_FIELD_NUMBER: _ClassVar[int]
     INVOCATIONS_FIELD_NUMBER: _ClassVar[int]
     DISTINCT_CALLERS_FIELD_NUMBER: _ClassVar[int]
     LAST_INVOKED_AT_FIELD_NUMBER: _ClassVar[int]
     SYNTHETIC_INVOCATIONS_FIELD_NUMBER: _ClassVar[int]
     UNATTRIBUTED_REMAINDER_FIELD_NUMBER: _ClassVar[int]
+    BASIS_FIELD_NUMBER: _ClassVar[int]
     family: ConditionFamily
     invocations: int
     distinct_callers: int
     last_invoked_at: str
     synthetic_invocations: int
     unattributed_remainder: int
-    def __init__(self, family: _Optional[_Union[ConditionFamily, _Mapping]] = ..., invocations: _Optional[int] = ..., distinct_callers: _Optional[int] = ..., last_invoked_at: _Optional[str] = ..., synthetic_invocations: _Optional[int] = ..., unattributed_remainder: _Optional[int] = ...) -> None: ...
+    basis: str
+    def __init__(self, family: _Optional[_Union[ConditionFamily, _Mapping]] = ..., invocations: _Optional[int] = ..., distinct_callers: _Optional[int] = ..., last_invoked_at: _Optional[str] = ..., synthetic_invocations: _Optional[int] = ..., unattributed_remainder: _Optional[int] = ..., basis: _Optional[str] = ...) -> None: ...
+
+class ExerciseBasisSummary(_message.Message):
+    __slots__ = ("basis", "instrumented_bindings", "total_bindings", "invocations")
+    BASIS_FIELD_NUMBER: _ClassVar[int]
+    INSTRUMENTED_BINDINGS_FIELD_NUMBER: _ClassVar[int]
+    TOTAL_BINDINGS_FIELD_NUMBER: _ClassVar[int]
+    INVOCATIONS_FIELD_NUMBER: _ClassVar[int]
+    basis: str
+    instrumented_bindings: int
+    total_bindings: int
+    invocations: int
+    def __init__(self, basis: _Optional[str] = ..., instrumented_bindings: _Optional[int] = ..., total_bindings: _Optional[int] = ..., invocations: _Optional[int] = ...) -> None: ...
 
 class BindingCondition(_message.Message):
     __slots__ = ("binding_id", "scenario", "status", "verdict", "serving", "freshness", "exercise", "sustained_degradation", "sustained_degradation_reason")
@@ -385,18 +399,22 @@ class GetBindingConditionRequest(_message.Message):
     def __init__(self, binding_id: _Optional[str] = ..., scenario: _Optional[str] = ..., window_seconds: _Optional[int] = ...) -> None: ...
 
 class GetBindingConditionResponse(_message.Message):
-    __slots__ = ("conditions", "window_seconds", "total_bindings", "instrumented_bindings", "scenario_conditions")
+    __slots__ = ("conditions", "window_seconds", "total_bindings", "instrumented_bindings", "scenario_conditions", "ledger_exercise", "receipt_exercise")
     CONDITIONS_FIELD_NUMBER: _ClassVar[int]
     WINDOW_SECONDS_FIELD_NUMBER: _ClassVar[int]
     TOTAL_BINDINGS_FIELD_NUMBER: _ClassVar[int]
     INSTRUMENTED_BINDINGS_FIELD_NUMBER: _ClassVar[int]
     SCENARIO_CONDITIONS_FIELD_NUMBER: _ClassVar[int]
+    LEDGER_EXERCISE_FIELD_NUMBER: _ClassVar[int]
+    RECEIPT_EXERCISE_FIELD_NUMBER: _ClassVar[int]
     conditions: _containers.RepeatedCompositeFieldContainer[BindingCondition]
     window_seconds: int
     total_bindings: int
     instrumented_bindings: int
     scenario_conditions: _containers.RepeatedCompositeFieldContainer[ScenarioCondition]
-    def __init__(self, conditions: _Optional[_Iterable[_Union[BindingCondition, _Mapping]]] = ..., window_seconds: _Optional[int] = ..., total_bindings: _Optional[int] = ..., instrumented_bindings: _Optional[int] = ..., scenario_conditions: _Optional[_Iterable[_Union[ScenarioCondition, _Mapping]]] = ...) -> None: ...
+    ledger_exercise: ExerciseBasisSummary
+    receipt_exercise: ExerciseBasisSummary
+    def __init__(self, conditions: _Optional[_Iterable[_Union[BindingCondition, _Mapping]]] = ..., window_seconds: _Optional[int] = ..., total_bindings: _Optional[int] = ..., instrumented_bindings: _Optional[int] = ..., scenario_conditions: _Optional[_Iterable[_Union[ScenarioCondition, _Mapping]]] = ..., ledger_exercise: _Optional[_Union[ExerciseBasisSummary, _Mapping]] = ..., receipt_exercise: _Optional[_Union[ExerciseBasisSummary, _Mapping]] = ...) -> None: ...
 
 class DescribeBindingRequest(_message.Message):
     __slots__ = ("id",)
