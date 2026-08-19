@@ -1,3 +1,0 @@
-# Workspace boundary: this scenario UI is an isolated pnpm project.
-packages:
-  - .
