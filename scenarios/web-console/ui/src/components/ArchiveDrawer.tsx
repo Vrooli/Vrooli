@@ -31,6 +31,7 @@ import MessagesPane from "./MessagesPane";
 
 interface ArchiveDrawerProps {
   open: boolean;
+  initialSessionId?: string | null;
   onClose: () => void;
   activeSessionId: string | null;
   onSendToComposer: (text: string) => void;
@@ -75,7 +76,7 @@ function highlightedExcerpt(text: string, query: string) {
   );
 }
 
-export default function ArchiveDrawer({ open, onClose, activeSessionId, onSendToComposer, onReopened, preferOrphans = false }: ArchiveDrawerProps) {
+export default function ArchiveDrawer({ open, initialSessionId = null, onClose, activeSessionId, onSendToComposer, onReopened, preferOrphans = false }: ArchiveDrawerProps) {
   const { t } = useTranslation();
   const searchRef = useRef<HTMLInputElement>(null);
   const reopenKeys = useRef(new Map<string, string>());
@@ -103,6 +104,13 @@ export default function ArchiveDrawer({ open, onClose, activeSessionId, onSendTo
   const archiveById = useMemo(() => new Map(archive.map((row) => [row.id, row])), [archive]);
   const recoverableById = useMemo(() => new Map(recoverable.map((row) => [row.id, row])), [recoverable]);
   const orphanRows = useMemo(() => archive.filter((row) => row.awaiting_recovery), [archive]);
+  const browseRows = useMemo(() => {
+    const after = createdAfterFor(timeRange);
+    const afterTimestamp = after ? Date.parse(after) : Number.NEGATIVE_INFINITY;
+    return archive.filter((row) => !row.awaiting_recovery)
+      .filter((row) => agentType === "all" || row.agent_type === agentType)
+      .filter((row) => Date.parse(row.archived_at) >= afterTimestamp);
+  }, [agentType, archive, timeRange]);
   const selectedSession = archiveById.get(selected?.sessionId ?? selectedArchiveId ?? "");
 
   const refreshArchive = useCallback(async () => {
@@ -110,15 +118,19 @@ export default function ArchiveDrawer({ open, onClose, activeSessionId, onSendTo
     setArchive(result.sessions);
     setRecoverable(recoverableRows);
     const awaiting = result.sessions.filter((row) => row.awaiting_recovery);
-    setSelectedArchiveId((current) => awaiting.some((row) => row.id === current) ? current : awaiting[0]?.id ?? null);
+    setSelectedArchiveId((current) => {
+      const preferred = current ?? initialSessionId;
+      if (preferred && result.sessions.some((row) => row.id === preferred)) return preferred;
+      return awaiting[0]?.id ?? null;
+    });
     if (awaiting.length === 0) setOrphansOnly(false);
     if (!orphanFilterInitialized.current) {
-      const nextOrphansOnly = preferOrphans || awaiting.length > 0;
+      const nextOrphansOnly = preferOrphans || (!initialSessionId && awaiting.length > 0);
       setOrphansOnly(nextOrphansOnly);
       if (nextOrphansOnly) setSelectedArchiveId(awaiting[0]?.id ?? null);
       orphanFilterInitialized.current = true;
     }
-  }, [preferOrphans]);
+  }, [initialSessionId, preferOrphans]);
 
   useEffect(() => {
     if (!open) {
@@ -139,7 +151,6 @@ export default function ArchiveDrawer({ open, onClose, activeSessionId, onSendTo
       setTotalMatches(0);
       setDistinctSessions(0);
       setSelected(null);
-      if (!orphansOnly) setSelectedArchiveId(null);
       setLoading(false);
       return;
     }
@@ -173,6 +184,11 @@ export default function ArchiveDrawer({ open, onClose, activeSessionId, onSendTo
       window.clearTimeout(timer);
     };
   }, [agentType, archiveById, myMessages, open, orphansOnly, query, timeRange]);
+
+  const displayedMessageCount = query.trim()
+    ? totalMatches
+    : browseRows.reduce((total, row) => total + row.message_count, 0);
+  const displayedSessionCount = query.trim() ? distinctSessions : browseRows.length;
 
   const openExport = useCallback(async () => {
     if (!selectedSession) return;
@@ -288,7 +304,7 @@ export default function ArchiveDrawer({ open, onClose, activeSessionId, onSendTo
                 />
               </label>
               <div data-testid="archive-search-counts" className="shrink-0 text-xs text-wc-text-muted">
-                {t(strings.archiveDrawer.resultCounts, { messages: totalMatches, sessions: distinctSessions })}
+                {t(strings.archiveDrawer.resultCounts, { messages: displayedMessageCount, sessions: displayedSessionCount })}
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-2 text-xs">
@@ -331,7 +347,30 @@ export default function ArchiveDrawer({ open, onClose, activeSessionId, onSendTo
                 })}
               </div>
             ) : !query.trim() ? (
-              <div className="p-5 text-sm text-wc-text-muted"><Archive className="mb-3 h-7 w-7" />{t(strings.archiveDrawer.searchPrompt)}</div>
+              browseRows.length === 0 ? (
+                <div className="p-5 text-sm text-wc-text-muted"><Archive className="mb-3 h-7 w-7" />{t(strings.archiveDrawer.noResults)}</div>
+              ) : browseRows.map((row) => (
+                <button
+                  key={row.id}
+                  type="button"
+                  data-testid={`archive-session-${row.id}`}
+                  onClick={() => { setSelected(null); setSelectedArchiveId(row.id); }}
+                  className={cn("group block w-full border-b border-wc-default/60 p-3 text-start transition", selectedArchiveId === row.id ? "bg-wc-accent/10" : "hover:bg-wc-surface-raised")}
+                >
+                  <div className="flex items-start gap-2.5">
+                    <span className="mt-0.5 h-3 w-3 shrink-0 rounded-full border border-white/20" style={{ backgroundColor: row.header_color || "transparent" }} aria-hidden="true" />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-xs font-semibold text-wc-text-primary">{row.agent_type} · {row.pane_name}</span>
+                      {row.cwd && <span className="mt-1 block truncate text-[11px] text-wc-text-muted">{row.cwd}</span>}
+                      <span className="mt-1.5 flex flex-wrap items-center gap-x-1.5 text-[10px] text-wc-text-faint">
+                        <span>{formatRelativeTime(row.archived_at)}</span><span aria-hidden="true">·</span>
+                        <span>{t(strings.archiveDrawer.messageCount, { count: row.message_count })}</span><span aria-hidden="true">·</span>
+                        <span>{t(RESTORE_STATE_LABEL[row.restore_state])}</span>
+                      </span>
+                    </span>
+                  </div>
+                </button>
+              ))
             ) : loading ? (
               <div className="p-5 text-sm text-wc-text-muted">{t(strings.archiveDrawer.searching)}</div>
             ) : matches.length === 0 ? (
@@ -343,7 +382,7 @@ export default function ArchiveDrawer({ open, onClose, activeSessionId, onSendTo
                   key={match.eventId}
                   type="button"
                   data-testid={`archive-hit-${match.eventId}`}
-                  onClick={() => setSelected(match)}
+                  onClick={() => { setSelected(match); setSelectedArchiveId(match.sessionId); }}
                   className={cn("block w-full border-b border-wc-default/60 p-3 text-start transition", selected?.eventId === match.eventId ? "bg-wc-accent/10" : "hover:bg-wc-surface-raised")}
                 >
                   <div className="truncate text-xs font-semibold text-wc-text-primary">{row?.agent_type ?? "agent"} · {row?.pane_name ?? match.sessionId.slice(0, 8)}</div>

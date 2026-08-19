@@ -88,6 +88,45 @@ describe("ArchiveDrawer", () => {
     expect(onSendToComposer).toHaveBeenCalledWith("selected archived message");
   });
 
+  it("lists all archived sessions before a search and opens one read-only", async () => {
+    render(<ArchiveDrawer open onClose={vi.fn()} activeSessionId="live-1" onSendToComposer={vi.fn()} onReopened={vi.fn()} />);
+
+    const row = await screen.findByTestId("archive-session-archive-1");
+    expect(row).toHaveTextContent("receipt signing");
+    expect(mocks.searchArchivedConversations).not.toHaveBeenCalled();
+
+    fireEvent.click(row);
+    const reader = await screen.findByTestId("archive-reader-props");
+    expect(reader).toHaveAttribute("data-session", "archive-1");
+    expect(reader).toHaveAttribute("data-read-only", "true");
+  });
+
+  it("honors an archive selected from the sidebar", async () => {
+    render(<ArchiveDrawer open initialSessionId="archive-1" onClose={vi.fn()} activeSessionId="live-1" onSendToComposer={vi.fn()} onReopened={vi.fn()} />);
+
+    const reader = await screen.findByTestId("archive-reader-props");
+    expect(reader).toHaveAttribute("data-session", "archive-1");
+  });
+
+  it("keeps a sidebar selection when crash-recovery sessions also exist", async () => {
+    mocks.listArchivedSessions.mockResolvedValue({ total: 2, sessions: [
+      {
+        id: "archive-1", archived_at: "2026-08-17T12:00:00Z", created_at: "2026-08-16T12:00:00Z",
+        agent_type: "claude", pane_name: "receipt signing", message_count: 12, restore_state: "read_only",
+      },
+      {
+        id: "crash-1", archived_at: "2026-08-17T13:00:00Z", created_at: "", agent_type: "codex",
+        pane_name: "Crash", message_count: 2, restore_state: "reopenable", awaiting_recovery: true,
+      },
+    ] });
+
+    render(<ArchiveDrawer open initialSessionId="archive-1" onClose={vi.fn()} activeSessionId="live-1" onSendToComposer={vi.fn()} onReopened={vi.fn()} />);
+
+    const reader = await screen.findByTestId("archive-reader-props");
+    expect(reader).toHaveAttribute("data-session", "archive-1");
+    expect(screen.getByTestId("archive-orphans-filter")).toHaveAttribute("aria-pressed", "false");
+  });
+
   it("keeps Semantic and non-reopenable restoration disabled with explanations", async () => {
     render(<ArchiveDrawer open onClose={vi.fn()} activeSessionId="live-1" onSendToComposer={vi.fn()} onReopened={vi.fn()} />);
     fireEvent.change(await screen.findByTestId("archive-search-input"), { target: { value: "receipt" } });

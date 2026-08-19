@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
-import { Archive, ArrowDownUp, ArrowLeft, GripVertical, MessageSquareText, Plus, Search, Settings, TerminalSquare, X } from "lucide-react";
+import { Archive, ArrowDownUp, ArrowLeft, ChevronRight, GripVertical, MessageSquareText, Plus, Search, Settings, TerminalSquare, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { strings } from "../consts/strings";
 import { cn } from "../lib/classnames";
@@ -39,7 +39,7 @@ interface SessionSidebarProps {
   onOpenLauncher: () => void;
   onNewSessionInGroup: (groupId: string) => void;
   onOpenSettings: () => void;
-  onOpenArchiveDrawer?: () => void;
+  onOpenArchiveDrawer?: (sessionId?: string) => void;
 }
 
 function modeLabel(viewMode: string): string {
@@ -603,23 +603,40 @@ export default function SessionSidebar({
               <p className="p-2 text-xs text-wc-text-muted">{t(strings.sessionSidebar.archiveEmpty)}</p>
             )}
             {visibleArchived.map((session) => (
-              <div key={session.id} data-testid={`sidebar-archive-session-${session.id}`} className="mb-1 rounded border border-wc-default p-2">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="truncate text-sm font-medium text-wc-text-primary">{session.pane_name}</span>
+              <button
+                key={session.id}
+                type="button"
+                data-testid={`sidebar-archive-session-${session.id}`}
+                onClick={() => onOpenArchiveDrawer?.(session.id)}
+                className="group mb-1.5 block w-full overflow-hidden rounded-lg border border-wc-default bg-wc-surface px-2.5 py-2 text-start shadow-sm transition hover:border-wc-accent/40 hover:bg-wc-surface-raised hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wc-accent/60"
+              >
+                <div className="flex items-start gap-2.5">
+                  <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-wc-default bg-wc-surface-input text-[10px] font-semibold uppercase text-wc-text-secondary group-hover:border-wc-accent/30 group-hover:text-wc-text-primary">
+                    {session.agent_type === "none" ? <TerminalSquare className="h-3.5 w-3.5" /> : session.agent_type.slice(0, 2)}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-center justify-between gap-2">
+                      <span className="truncate text-sm font-medium text-wc-text-primary">{session.pane_name}</span>
+                      <ChevronRight className="h-3.5 w-3.5 shrink-0 text-wc-text-faint transition-transform group-hover:translate-x-0.5 group-hover:text-wc-text-secondary" />
+                    </span>
+                    <span className="mt-1 flex min-w-0 items-center gap-1.5 text-[10px] text-wc-text-muted">
+                      <span className="truncate capitalize">{session.agent_type === "none" ? "shell" : session.agent_type}</span>
+                      <span aria-hidden="true">·</span>
+                      <span className="shrink-0">{t(strings.sessionSidebar.archiveMessages, { count: session.message_count })}</span>
+                    </span>
+                  </span>
+                </div>
+                <div className="mt-2 flex items-center justify-between gap-2 border-t border-wc-default/50 pt-1.5">
+                  <span className="truncate rounded-full bg-wc-surface-input px-2 py-0.5 text-[9px] font-medium text-wc-text-muted">{t(ARCHIVE_STATE_LABEL[session.restore_state])}</span>
                   <span className="shrink-0 text-[10px] text-wc-text-faint">{formatRelativeTime(session.archived_at)}</span>
                 </div>
-                <div className="mt-1 flex flex-wrap gap-x-2 text-[11px] text-wc-text-muted">
-                  <span>{session.agent_type}</span>
-                  <span>{t(strings.sessionSidebar.archiveMessages, { count: session.message_count })}</span>
-                  <span>{t(ARCHIVE_STATE_LABEL[session.restore_state])}</span>
-                </div>
-              </div>
+              </button>
             ))}
             <button
               type="button"
               data-testid="sidebar-archive-search-all"
               className="mt-2 w-full rounded border border-dashed border-wc-default px-3 py-2 text-xs text-wc-text-secondary hover:bg-wc-surface-raised"
-              onClick={onOpenArchiveDrawer}
+              onClick={() => onOpenArchiveDrawer?.()}
             >
               {t(strings.sessionSidebar.archiveSearchAll, { count: archivedTotal })}
             </button>

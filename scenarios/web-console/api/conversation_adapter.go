@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"web-console/internal/audioports"
+	"web-console/internal/sessionstore"
 
 	conversationH "web-console/handlers/conversation"
 )
@@ -21,8 +22,26 @@ func newConversationAdapter(s *Server) *conversationAdapter {
 	return &conversationAdapter{srv: s}
 }
 
+// canReadSession keeps transcript reads available after an archive operation
+// intentionally removes the PTY from the live session manager. Persisted
+// archive metadata authorizes reads only; mutation paths retain their stricter
+// live-session checks below.
+func (a *conversationAdapter) canReadSession(sessionID string) bool {
+	if _, ok := a.srv.sessions.Get(sessionID); ok {
+		return true
+	}
+	if a.srv.sessionStore == nil {
+		return false
+	}
+	meta, err := a.srv.sessionStore.Get(context.Background(), sessionID)
+	if err != nil {
+		return false
+	}
+	return !meta.ArchivedAt.IsZero() || meta.Status == sessionstore.StatusDismissed || meta.Status == sessionstore.StatusAwaitingRecovery
+}
+
 func (a *conversationAdapter) Get(sessionID string, sinceSequence int64, limit int, beforeSequence int64) (conversationH.SessionState, error) {
-	if _, ok := a.srv.sessions.Get(sessionID); !ok {
+	if !a.canReadSession(sessionID) {
 		return conversationH.SessionState{}, fmt.Errorf("session %q: %w", sanitizeID(sessionID), conversationH.ErrSessionNotFound)
 	}
 	state := a.srv.conversations.ListSession(context.Background(), sessionID)
@@ -58,7 +77,7 @@ func (a *conversationAdapter) Get(sessionID string, sinceSequence int64, limit i
 }
 
 func (a *conversationAdapter) Search(sessionID, query string, limit int) ([]conversationH.SearchMatch, bool, int64, error) {
-	if _, ok := a.srv.sessions.Get(sessionID); !ok {
+	if !a.canReadSession(sessionID) {
 		return nil, false, 0, fmt.Errorf("session %q: %w", sanitizeID(sessionID), conversationH.ErrSessionNotFound)
 	}
 	matches, truncated, total, err := a.srv.conversations.SearchSession(context.Background(), sessionID, query, limit)
@@ -99,7 +118,7 @@ func (a *conversationAdapter) SearchArchived(ctx context.Context, filter convers
 }
 
 func (a *conversationAdapter) GetRange(sessionID string, from, to int64) (conversationH.SessionState, error) {
-	if _, ok := a.srv.sessions.Get(sessionID); !ok {
+	if !a.canReadSession(sessionID) {
 		return conversationH.SessionState{}, fmt.Errorf("session %q: %w", sanitizeID(sessionID), conversationH.ErrSessionNotFound)
 	}
 	events, err := a.srv.conversations.ListSessionRange(context.Background(), sessionID, from, to)

@@ -157,6 +157,17 @@ describe("SessionSidebar", () => {
     expect(listArchivedSessions).toHaveBeenCalledTimes(1);
   });
 
+  it("opens the full archive with the clicked sidebar session selected", async () => {
+    const onOpenArchiveDrawer = vi.fn();
+    const items = buildWorkspaceNavigationItems({ panes: [pane("a", "transparent")], groups: [], activePane: "a" });
+    render(<SessionSidebar {...baseProps} onOpenArchiveDrawer={onOpenArchiveDrawer} buckets={asBuckets(items)} />);
+    fireEvent.click(screen.getByTestId("sidebar-archive-footer"));
+
+    fireEvent.click(await screen.findByTestId("sidebar-archive-session-arc-1"));
+
+    expect(onOpenArchiveDrawer).toHaveBeenCalledWith("arc-1");
+  });
+
   it("leaves crash-orphan details to the archive drawer", async () => {
     listArchivedSessions.mockResolvedValue({
       total: 1,

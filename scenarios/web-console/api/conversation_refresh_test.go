@@ -3,11 +3,50 @@ package main
 import (
 	"context"
 	"testing"
+	"time"
+
+	"web-console/internal/sessionstore"
 
 	"connectrpc.com/connect"
 
 	conversationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/conversation"
 )
+
+// TestGetConversationSession_AllowsArchivedTranscript verifies that the
+// read-only archive viewer can hydrate a transcript after the live session
+// manager has intentionally released the PTY. Archived metadata is the
+// authority for this read path; the session must not be made live again.
+func TestGetConversationSession_AllowsArchivedTranscript(t *testing.T) { // [REQ:REQ-P0-003c]
+	srv := newFakeTestServer()
+	srv.sessionStore = sessionstore.NewInMemory()
+	srv.conversations = NewConversationStore()
+
+	const sessionID = "archived-transcript"
+	if err := srv.sessionStore.Save(context.Background(), sessionstore.Metadata{
+		ID:         sessionID,
+		Status:     sessionstore.StatusDismissed,
+		ArchivedAt: time.Now().UTC(),
+	}); err != nil {
+		t.Fatalf("save archived metadata: %v", err)
+	}
+	if _, result := srv.conversations.AppendAssistantEvent(context.Background(), sessionID, "unit-test", "persisted archive message"); !result.Appended {
+		t.Fatalf("append archived event: %+v", result)
+	}
+
+	resp, err := newConversationConnectHandlerForServer(srv).Get(
+		context.Background(),
+		connect.NewRequest(&conversationv1.GetRequest{SessionId: sessionID, Limit: 500}),
+	)
+	if err != nil {
+		t.Fatalf("Get archived transcript: %v", err)
+	}
+	if got := resp.Msg.GetEvents(); len(got) != 1 || got[0].GetText() != "persisted archive message" {
+		t.Fatalf("archived events = %+v, want persisted message", got)
+	}
+	if _, ok := srv.sessions.Get(sessionID); ok {
+		t.Fatal("archive read unexpectedly restored a live session")
+	}
+}
 
 // TestGetConversationSession_SinceSequence_FiltersEvents verifies that
 // since_sequence=N returns only events with sequence > N, so reconnect /

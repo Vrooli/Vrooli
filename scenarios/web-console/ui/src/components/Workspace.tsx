@@ -251,13 +251,16 @@ export default function Workspace({ topSafeAreaReserved = false }: WorkspaceProp
   const [composerOpen, setComposerOpen] = useState(false);
   const [archiveDrawerOpen, setArchiveDrawerOpen] = useState(false);
   const [archivePreferOrphans, setArchivePreferOrphans] = useState(false);
+  const [archiveInitialSessionId, setArchiveInitialSessionId] = useState<string | null>(null);
   const openCrashArchive = useCallback(() => {
+    setArchiveInitialSessionId(null);
     setArchivePreferOrphans(true);
     setArchiveDrawerOpen(true);
   }, []);
   const closeArchiveDrawer = useCallback(() => {
     setArchiveDrawerOpen(false);
     setArchivePreferOrphans(false);
+    setArchiveInitialSessionId(null);
   }, []);
   const openComposer = useCallback(() => setComposerOpen(true), []);
   const closeComposer = useCallback(() => setComposerOpen(false), []);
@@ -1290,6 +1293,7 @@ export default function Workspace({ topSafeAreaReserved = false }: WorkspaceProp
         />
         <ArchiveDrawer
           open={archiveDrawerOpen}
+          initialSessionId={archiveInitialSessionId}
           onClose={closeArchiveDrawer}
           activeSessionId={workspace.activePane}
           onSendToComposer={sendArchivedMessageToComposer}
@@ -1671,8 +1675,9 @@ export default function Workspace({ topSafeAreaReserved = false }: WorkspaceProp
               onOpenLauncher={openLauncher}
               onNewSessionInGroup={handleNewSessionInGroup}
               onOpenSettings={() => workspace.setSettingsModalOpen(true)}
-              onOpenArchiveDrawer={() => {
+              onOpenArchiveDrawer={(sessionId) => {
                 setMobileSidebarOpen(false);
+                setArchiveInitialSessionId(sessionId ?? null);
                 setArchiveDrawerOpen(true);
               }}
             />
@@ -1969,6 +1974,7 @@ export default function Workspace({ topSafeAreaReserved = false }: WorkspaceProp
 
       <ArchiveDrawer
         open={archiveDrawerOpen}
+        initialSessionId={archiveInitialSessionId}
         onClose={closeArchiveDrawer}
         activeSessionId={workspace.activePane}
         onSendToComposer={sendArchivedMessageToComposer}

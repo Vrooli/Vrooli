@@ -522,9 +522,39 @@ Preexisting failing tests not caused by this work:
 Stale `docs/manifest.json` and `docs/START-HERE.md`; unrelated to audio
 extraction prep.
 
+## Archive browse and transcript regression (2026-08-19, fixed)
+
+- **Symptoms:** Recent archive cards in the sidebar were non-interactive; the
+  archive drawer showed a search prompt instead of sessions for an empty query;
+  and opening an archived result produced "No conversation events yet for this
+  session."
+- **Root cause:** Sidebar archive cards were plain `div` elements without an
+  activation callback. The drawer deliberately cleared results and selection
+  for an empty query. On the API side, transcript `Get`, `Search`, and
+  `GetRange` rejected any session absent from the live PTY manager even though
+  archive metadata and conversation events remained durably persisted.
+- **Repair:** Archive cards are now keyboard-accessible buttons that open the
+  selected session in the drawer; empty search browses the filtered archive;
+  and read-only conversation operations authorize explicitly archived,
+  dismissed, or recovery-pending metadata without recreating a live PTY.
+  Mutation operations retain the live-session requirement.
+- **Regression evidence:** `TestGetConversationSession_AllowsArchivedTranscript`
+  proves an archived transcript remains readable without restoring a live
+  session. Archive drawer and sidebar component suites cover initial browsing,
+  direct card activation, read-only transcript selection, and coexistence with
+  crash-recovery rows. Focused results: Go archive tests pass; 20 UI tests pass;
+  UI type-check and the full 151-batch UI suite pass.
+- **E2E note:** Browser Automation Studio execution
+  `1d23329e-22b2-40c4-9bdf-1a8c05d59874` captured only the application's
+  initial loading surface at
+  `/home/matthalloran8/.vrooli/data/vrooli/browser-automation-studio/captures/web-console-archive-visual/1d23329e-22b2-40c4-9bdf-1a8c05d59874/screenshots/step-01-27a9e373-3266-469b-bb33-74cd1bf48496.png`.
+  Live archive clicks were not forced through an observer workflow because that
+  would mutate browser state against user-owned sessions; deterministic
+  component and API regressions are the authoritative evidence for this repair.
+
 ## Work ladder
 
 - Rung: W3 (implementation)
-- Evidence: W0 comparison remains aligned: goals `hosted-cloud-tier-foundation` and `portal-front-door` do not contradict the archive plan, while `OT-P0-003` and `OT-P0-008` require durable session continuity and drawer controls. W1 passes with `business-health validate scenario web-console`; W2 passes with `vrooli scenario requirements validate web-console`, both with zero findings after repairing legacy statuses, stale validation refs, orphan targets, and the missing remote-terminal target. The archive implementation itself does not yet exist.
-- Blocker: none; proceed through the scenario maturity ladder while implementing the archive plan.
-- Measured: 2026-08-18.
+- Evidence: W0 comparison remains aligned: goals `hosted-cloud-tier-foundation` and `portal-front-door` do not contradict archive interaction and transcript rendering, while `OT-P0-003` and `OT-P0-008` require durable session continuity and drawer controls. W1 passes with `business-health validate scenario web-console`; W2 passes with `vrooli scenario requirements validate web-console`. Focused Go archive tests, 20 focused UI tests, UI type-check, and the full 151-batch UI suite pass. Post-repair Test Genie run `20260819-023400-0f81f8fa` matches baseline `20260819-020735-1597f6ee`: 10 of 23 phases pass and the same 13 scenario-wide phases fail, so the archive repair introduced no maturity regression.
+- Blocker: the requested archive repair is complete; progression beyond W3 remains blocked by pre-existing scenario-wide Test Genie findings and provider-unavailable evidence outside this repair's scope.
+- Measured: 2026-08-19.
