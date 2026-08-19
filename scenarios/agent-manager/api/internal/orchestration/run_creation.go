@@ -132,6 +132,10 @@ func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*do
 		o.markIdempotencyFailed(ctx, req.IdempotencyKey)
 		return nil, err
 	}
+	if resolvedConfig == nil {
+		o.markIdempotencyFailed(ctx, req.IdempotencyKey)
+		return nil, domain.NewInternalError("run configuration resolver returned nil configuration", nil)
+	}
 	applyCanary(resolvedConfig.PolicySnapshot, runID.String(), resolvedConfig.Model)
 
 	sandboxConfig, err := o.resolveSandboxConfig(req, profile)
@@ -311,7 +315,7 @@ func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*do
 	// Split the prompt before persisting the immutable resolved config so the
 	// known injected instruction estimate survives event pruning and replay.
 	systemPrompt, userMessage := domain.BuildSplitPrompt(task.Description, task.ContextAttachments, req.Prompt)
-	if resolvedConfig != nil && strings.TrimSpace(systemPrompt) != "" {
+	if strings.TrimSpace(systemPrompt) != "" {
 		estimate := tokenaccounting.EstimateText(systemPrompt)
 		resolvedConfig.PreambleInjectedTokens = estimate.Tokens
 		resolvedConfig.PreambleTokenBasis = estimate.Basis

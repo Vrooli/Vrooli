@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-08-12T23:06:24-04:00"
+    "last_validated_at": "2026-08-18T19:19:20-04:00"
   },
   "requirements": [
     {
       "id": "REQ-P0-010",
       "title": "Event Stream Implementation",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-008",
       "category": "core",
       "description": "Implement append-only event stream for capturing all run activities",
@@ -15,21 +15,21 @@
           "type": "test",
           "ref": "api/internal/adapters/event/sqlite_test.go::TestSQLiteStore_Append",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Test event append and persistence"
         },
         {
           "type": "test",
           "ref": "api/internal/adapters/event/sqlite_test.go::TestSQLiteStore_Append_MultipleEvents",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Test multiple event append with ordering"
         },
         {
           "type": "test",
           "ref": "api/internal/adapters/event/sqlite_test.go::TestSQLiteStore_Get_WithFilters",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Test event filtering by type"
         },
         {

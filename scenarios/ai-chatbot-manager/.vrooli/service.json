@@ -179,21 +179,6 @@
           "description": "Execute phased scenario test suite"
         }
       ]
-    },
-    "stop": {
-      "description": "Stop services",
-      "steps": [
-        {
-          "name": "stop-api",
-          "run": "pkill -f \"ai-chatbot-manager-api\" || true; sleep 1; pkill -9 -f \"ai-chatbot-manager-api\" 2>/dev/null || true",
-          "description": "Stop API process"
-        },
-        {
-          "name": "stop-ui",
-          "run": "pkill -f \"scenarios/ai-chatbot-manager/ui\" || true; sleep 1; pkill -9 -f \"scenarios/ai-chatbot-manager/ui\" 2>/dev/null || true",
-          "description": "Stop UI process"
-        }
-      ]
     }
   },
   "dependencies": {

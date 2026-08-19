@@ -30,7 +30,7 @@ var _ repository.RunRepository = (*runRepository)(nil)
 // runRow is the database row representation for runs.
 type runRow struct {
 	ID                  uuid.UUID          `db:"id"`
-	TaskID              uuid.UUID          `db:"task_id"`
+	TaskID              sql.NullString     `db:"task_id"`
 	AgentProfileID      NullableUUID       `db:"agent_profile_id"`
 	Tag                 string             `db:"tag"`
 	Label               string             `db:"label"`
@@ -46,6 +46,8 @@ type runRow struct {
 	SandboxID           NullableUUID       `db:"sandbox_id"`
 	RunMode             string             `db:"run_mode"`
 	ExecutionMode       sql.NullString     `db:"execution_mode"`
+	HarnessKind         sql.NullString     `db:"harness_kind"`
+	HarnessSessionID    sql.NullString     `db:"harness_session_id"`
 	WebConsoleSessionID sql.NullString     `db:"web_console_session_id"`
 	Status              string             `db:"status"`
 	StartedAt           NullableTime       `db:"started_at"`
@@ -114,7 +116,7 @@ func (row *runRow) toDomain() *domain.Run {
 	sourceRunIDs := parseUUIDSliceJSON(row.SourceRunIDs)
 	run := &domain.Run{
 		ID:                       row.ID,
-		TaskID:                   row.TaskID,
+		TaskID:                   parseNullableUUID(row.TaskID),
 		AgentProfileID:           row.AgentProfileID.ToPtr(),
 		Tag:                      row.Tag,
 		Label:                    row.Label,
@@ -128,6 +130,8 @@ func (row *runRow) toDomain() *domain.Run {
 		SandboxID:                row.SandboxID.ToPtr(),
 		RunMode:                  domain.RunMode(row.RunMode),
 		ExecutionMode:            domain.ExecutionMode(row.ExecutionMode.String).Normalized(),
+		HarnessKind:              row.HarnessKind.String,
+		HarnessSessionID:         row.HarnessSessionID.String,
 		WebConsoleSessionID:      row.WebConsoleSessionID.String,
 		Status:                   domain.RunStatus(row.Status),
 		StartedAt:                row.StartedAt.ToPtr(),
@@ -199,7 +203,7 @@ func runFromDomain(r *domain.Run) *runRow {
 	sourceRunIDs := marshalUUIDSliceJSON(r.SourceRunIDs)
 	row := &runRow{
 		ID:                       r.ID,
-		TaskID:                   r.TaskID,
+		TaskID:                   nullableUUID(r.TaskID),
 		AgentProfileID:           NewNullableUUID(r.AgentProfileID),
 		Tag:                      r.Tag,
 		Label:                    r.Label,
@@ -215,6 +219,8 @@ func runFromDomain(r *domain.Run) *runRow {
 		SandboxID:                NewNullableUUID(r.SandboxID),
 		RunMode:                  string(r.RunMode),
 		ExecutionMode:            sql.NullString{String: string(r.ExecutionMode.Normalized()), Valid: true},
+		HarnessKind:              sql.NullString{String: r.HarnessKind, Valid: r.HarnessKind != ""},
+		HarnessSessionID:         sql.NullString{String: r.HarnessSessionID, Valid: r.HarnessSessionID != ""},
 		WebConsoleSessionID:      sql.NullString{String: r.WebConsoleSessionID, Valid: r.WebConsoleSessionID != ""},
 		Status:                   string(r.Status),
 		StartedAt:                NewNullableTime(r.StartedAt),
@@ -297,6 +303,24 @@ func parseUUIDSliceJSON(raw sql.NullString) []uuid.UUID {
 		out = append(out, id)
 	}
 	return out
+}
+
+func parseNullableUUID(raw sql.NullString) uuid.UUID {
+	if !raw.Valid || strings.TrimSpace(raw.String) == "" {
+		return uuid.Nil
+	}
+	id, err := uuid.Parse(raw.String)
+	if err != nil {
+		return uuid.Nil
+	}
+	return id
+}
+
+func nullableUUID(id uuid.UUID) sql.NullString {
+	if id == uuid.Nil {
+		return sql.NullString{}
+	}
+	return sql.NullString{String: id.String(), Valid: true}
 }
 
 func parseStringSliceJSON(raw sql.NullString) []string {
@@ -413,7 +437,7 @@ func marshalUUIDSliceJSON(ids []uuid.UUID) string {
 }
 
 const runColumns = `id, task_id, agent_profile_id, tag, label, label_source, subject, owner_subject, owner_scopes, requested_scopes, workload_kind, workload_key, workload_instance, billing_snapshot, sandbox_id, run_mode,
-	execution_mode, web_console_session_id, status,
+	execution_mode, harness_kind, harness_session_id, web_console_session_id, status,
 	started_at, ended_at, goal_id, phase, last_checkpoint_id, last_heartbeat, progress_percent,
 	idempotency_key, summary, run_result, error_msg, exit_code, approval_state, approved_by, approved_at,
 	finalization_status, finalization_error, finalized_at,
@@ -432,7 +456,7 @@ const runColumns = `id, task_id, agent_profile_id, tag, label, label_source, sub
 // NOTE: last_heartbeat MUST be included — the reconciler depends on it
 // to detect stale runs. Without it, every run appears stale after creation.
 const listRunColumns = `id, task_id, agent_profile_id, tag, label, label_source, subject, owner_subject, owner_scopes, requested_scopes, workload_kind, workload_key, workload_instance, billing_snapshot, run_mode,
-	execution_mode, web_console_session_id, status,
+	execution_mode, harness_kind, harness_session_id, web_console_session_id, status,
 	started_at, ended_at, phase, last_heartbeat, progress_percent,
 	error_msg, exit_code, approval_state, finalization_status, finalization_error, finalized_at,
 	changed_files, total_size_bytes, commit_hash, session_id,
@@ -444,7 +468,7 @@ const listRunColumns = `id, task_id, agent_profile_id, tag, label, label_source,
 // listRunLiteRow is the database row representation for the pruned list query.
 type listRunLiteRow struct {
 	ID                  uuid.UUID      `db:"id"`
-	TaskID              uuid.UUID      `db:"task_id"`
+	TaskID              sql.NullString `db:"task_id"`
 	AgentProfileID      NullableUUID   `db:"agent_profile_id"`
 	Tag                 string         `db:"tag"`
 	Label               string         `db:"label"`
@@ -459,6 +483,8 @@ type listRunLiteRow struct {
 	BillingSnapshot     sql.NullString `db:"billing_snapshot"`
 	RunMode             string         `db:"run_mode"`
 	ExecutionMode       sql.NullString `db:"execution_mode"`
+	HarnessKind         sql.NullString `db:"harness_kind"`
+	HarnessSessionID    sql.NullString `db:"harness_session_id"`
 	WebConsoleSessionID sql.NullString `db:"web_console_session_id"`
 	Status              string         `db:"status"`
 	StartedAt           NullableTime   `db:"started_at"`
@@ -504,7 +530,7 @@ func (row *listRunLiteRow) toDomain() *domain.Run {
 	sourceRunIDs := parseUUIDSliceJSON(row.SourceRunIDs)
 	run := &domain.Run{
 		ID:                       row.ID,
-		TaskID:                   row.TaskID,
+		TaskID:                   parseNullableUUID(row.TaskID),
 		AgentProfileID:           row.AgentProfileID.ToPtr(),
 		Tag:                      row.Tag,
 		Label:                    row.Label,
@@ -517,6 +543,8 @@ func (row *listRunLiteRow) toDomain() *domain.Run {
 		Billing:                  decodeBillingSnapshot(row.BillingSnapshot),
 		RunMode:                  domain.RunMode(row.RunMode),
 		ExecutionMode:            domain.ExecutionMode(row.ExecutionMode.String).Normalized(),
+		HarnessKind:              row.HarnessKind.String,
+		HarnessSessionID:         row.HarnessSessionID.String,
 		WebConsoleSessionID:      row.WebConsoleSessionID.String,
 		Status:                   domain.RunStatus(row.Status),
 		StartedAt:                row.StartedAt.ToPtr(),
@@ -569,7 +597,7 @@ func (r *runRepository) Create(ctx context.Context, run *domain.Run) error {
 
 	row := runFromDomain(run)
 	query := `INSERT INTO runs (id, task_id, agent_profile_id, tag, label, label_source, subject, owner_subject, owner_scopes, requested_scopes, workload_kind, workload_key, workload_instance, billing_snapshot, sandbox_id, run_mode,
-			execution_mode, web_console_session_id, status,
+			execution_mode, harness_kind, harness_session_id, web_console_session_id, status,
 			started_at, ended_at, goal_id, phase, last_checkpoint_id, last_heartbeat, progress_percent,
 			idempotency_key, summary, run_result, error_msg, exit_code, approval_state, approved_by, approved_at,
 			finalization_status, finalization_error, finalized_at,
@@ -581,7 +609,7 @@ func (r *runRepository) Create(ctx context.Context, run *domain.Run) error {
 			requested_model, actual_model, canary_arm,
 			created_at, updated_at)
 			VALUES (:id, :task_id, :agent_profile_id, :tag, :label, :label_source, :subject, :owner_subject, :owner_scopes, :requested_scopes, :workload_kind, :workload_key, :workload_instance, :billing_snapshot, :sandbox_id, :run_mode,
-			:execution_mode, :web_console_session_id, :status,
+			:execution_mode, :harness_kind, :harness_session_id, :web_console_session_id, :status,
 			:started_at, :ended_at, :goal_id, :phase, :last_checkpoint_id, :last_heartbeat, :progress_percent,
 			:idempotency_key, :summary, :run_result, :error_msg, :exit_code, :approval_state, :approved_by, :approved_at,
 			:finalization_status, :finalization_error, :finalized_at,
@@ -710,7 +738,7 @@ func (r *runRepository) Update(ctx context.Context, run *domain.Run) error {
 
 	query := `UPDATE runs SET task_id = :task_id, agent_profile_id = :agent_profile_id,
 			tag = :tag, label = :label, label_source = :label_source, subject = :subject, owner_subject = :owner_subject, owner_scopes = :owner_scopes, requested_scopes = :requested_scopes, sandbox_id = :sandbox_id, run_mode = :run_mode,
-			execution_mode = :execution_mode, web_console_session_id = :web_console_session_id, status = :status,
+			execution_mode = :execution_mode, harness_kind = :harness_kind, harness_session_id = :harness_session_id, web_console_session_id = :web_console_session_id, status = :status,
 		started_at = :started_at, ended_at = :ended_at, phase = :phase,
 		last_checkpoint_id = :last_checkpoint_id, last_heartbeat = :last_heartbeat,
 		progress_percent = :progress_percent, idempotency_key = :idempotency_key,

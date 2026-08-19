@@ -45,3 +45,21 @@ func TestAttenuateMaterializesWildcardAgainstConcreteParent(t *testing.T) {
 		t.Fatalf("wildcard was not materialized: %#v", child.Scopes)
 	}
 }
+
+func TestAttenuateRefusesPersonaActAsWidening(t *testing.T) {
+	// [REQ:PSN-P0-002] Persona authorization uses the existing one-way
+	// delegation chain; a child cannot invent a persona capability.
+	now := time.Unix(1000, 0)
+	parent := &Claims{Scopes: []string{"persona.act-as:persona-1"}, ExpiresAt: 2000}
+
+	if _, err := Attenuate(parent, uuid.New(), uuid.New(), []string{"persona.act-as:persona-2"}, time.Unix(1500, 0), now); !errors.Is(err, ErrScopeWidening) {
+		t.Fatalf("persona scope widening error = %v", err)
+	}
+	child, err := Attenuate(parent, uuid.New(), uuid.New(), []string{"persona.act-as:*"}, time.Unix(1500, 0), now)
+	if err != nil {
+		t.Fatalf("concrete persona scope should materialize through wildcard request: %v", err)
+	}
+	if len(child.Scopes) != 1 || child.Scopes[0] != "persona.act-as:persona-1" {
+		t.Fatalf("wildcard request widened persona scope: %#v", child.Scopes)
+	}
+}

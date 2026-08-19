@@ -59,6 +59,8 @@ func RunnerTypeToProto(r domain.RunnerType) pb.RunnerType {
 		return pb.RunnerType_RUNNER_TYPE_OPENCODE
 	case domain.RunnerTypeGrok:
 		return pb.RunnerType_RUNNER_TYPE_GROK
+	case domain.RunnerTypeAntigravity:
+		return pb.RunnerType_RUNNER_TYPE_ANTIGRAVITY
 	default:
 		return pb.RunnerType_RUNNER_TYPE_UNSPECIFIED
 	}
@@ -75,6 +77,8 @@ func RunnerTypeFromProto(r pb.RunnerType) domain.RunnerType {
 		return domain.RunnerTypeOpenCode
 	case pb.RunnerType_RUNNER_TYPE_GROK:
 		return domain.RunnerTypeGrok
+	case pb.RunnerType_RUNNER_TYPE_ANTIGRAVITY:
+		return domain.RunnerTypeAntigravity
 	default:
 		return domain.RunnerType("")
 	}
@@ -621,6 +625,8 @@ func ExecutionModeToProto(m domain.ExecutionMode) pb.ExecutionMode {
 		return pb.ExecutionMode_EXECUTION_MODE_INTERACTIVE
 	case domain.ExecutionModeImported:
 		return pb.ExecutionMode_EXECUTION_MODE_IMPORTED
+	case domain.ExecutionModeAttached:
+		return pb.ExecutionMode_EXECUTION_MODE_ATTACHED
 	default:
 		return pb.ExecutionMode_EXECUTION_MODE_CODEC_PIPE
 	}
@@ -636,6 +642,8 @@ func ExecutionModeFromProto(m pb.ExecutionMode) domain.ExecutionMode {
 		return domain.ExecutionModeInteractive
 	case pb.ExecutionMode_EXECUTION_MODE_IMPORTED:
 		return domain.ExecutionModeImported
+	case pb.ExecutionMode_EXECUTION_MODE_ATTACHED:
+		return domain.ExecutionModeAttached
 	default:
 		return ""
 	}

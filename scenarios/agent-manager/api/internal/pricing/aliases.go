@@ -7,7 +7,7 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/vrooli/cli-core/agentpolicy"
+	"github.com/vrooli/cli-core/agentcatalog"
 )
 
 // ModelResolver is the narrow seam through which pricing asks a runner's
@@ -52,7 +52,7 @@ func (r CLIModelResolver) Resolve(ctx context.Context, runner, model string) (st
 	}
 	decoder := json.NewDecoder(strings.NewReader(string(out)))
 	decoder.DisallowUnknownFields()
-	var response agentpolicy.ModelResolution
+	var response agentcatalog.ModelResolution
 	if err := decoder.Decode(&response); err != nil {
 		return "", "", fmt.Errorf("decode resource-%s model resolution: %w", runner, err)
 	}

@@ -386,8 +386,10 @@ func isScannable(dest any) bool {
 // EXISTS, so it does not add columns to a table that already exists; the
 // migration step covers that case. Both steps are idempotent: a fresh database
 // gets every column from the schema and the migration is a no-op; an existing
-// database keeps its data and only gains the missing columns. Data values are
-// never rewritten — this honours the SQLite migrate-never-recreate rule.
+// database keeps its data and only gains the missing columns. The one exception
+// is task_id nullability: SQLite cannot alter a NOT NULL constraint in place,
+// so that migration uses a transactionally verified table replacement that
+// preserves every column, index, and trigger before schema validation.
 func (db *DB) initSchema() error {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultSchemaTimeout)
 	defer cancel()
@@ -404,6 +406,9 @@ func (db *DB) initSchema() error {
 	if columns, err := db.tableColumns(ctx, "runs"); err != nil {
 		return err
 	} else if len(columns) > 0 {
+		if err := db.migrateRunTaskIDNullability(ctx); err != nil {
+			return err
+		}
 		if err := db.migrateRunColumns(ctx); err != nil {
 			return err
 		}
@@ -911,6 +916,8 @@ var runColumnMigrations = []columnMigration{
 	{column: "owner_scopes", ddl: "ALTER TABLE runs ADD COLUMN owner_scopes TEXT NOT NULL DEFAULT '[]'"},
 	{column: "requested_scopes", ddl: "ALTER TABLE runs ADD COLUMN requested_scopes TEXT NOT NULL DEFAULT '[]'"},
 	{column: "execution_mode", ddl: "ALTER TABLE runs ADD COLUMN execution_mode TEXT DEFAULT 'codec_pipe'"},
+	{column: "harness_kind", ddl: "ALTER TABLE runs ADD COLUMN harness_kind TEXT DEFAULT ''"},
+	{column: "harness_session_id", ddl: "ALTER TABLE runs ADD COLUMN harness_session_id TEXT DEFAULT ''"},
 	{column: "web_console_session_id", ddl: "ALTER TABLE runs ADD COLUMN web_console_session_id TEXT DEFAULT ''"},
 	{column: "run_result", ddl: "ALTER TABLE runs ADD COLUMN run_result TEXT"},
 	{column: "commit_hash", ddl: "ALTER TABLE runs ADD COLUMN commit_hash TEXT DEFAULT ''"},
@@ -924,6 +931,224 @@ var runColumnMigrations = []columnMigration{
 	{column: "goal_id", ddl: "ALTER TABLE runs ADD COLUMN goal_id TEXT NOT NULL DEFAULT ''"},
 	{column: "goal_status", ddl: "ALTER TABLE runs ADD COLUMN goal_status TEXT NOT NULL DEFAULT ''"},
 	{column: "canary_arm", ddl: "ALTER TABLE runs ADD COLUMN canary_arm TEXT NOT NULL DEFAULT ''"},
+}
+
+const nullableTaskRunsTable = "runs__task_nullable"
+
+type runSchemaObject struct {
+	kind string
+	name string
+	sql  string
+}
+
+// migrateRunTaskIDNullability upgrades databases created before attached runs
+// existed. SQLite has no ALTER COLUMN operation, so the only safe way to relax
+// this constraint is a single-connection transaction that recreates the table
+// from sqlite_master's exact schema, copies every column, then restores the
+// table's indexes and triggers. Any failure rolls back the replacement.
+func (db *DB) migrateRunTaskIDNullability(ctx context.Context) error {
+	conn, err := db.Conn(ctx)
+	if err != nil {
+		return &domain.DatabaseError{Operation: "schema_migrate_task_id", EntityType: "Schema", Cause: err}
+	}
+	defer conn.Close()
+
+	var (
+		taskIDFound   bool
+		taskIDNotNull int
+	)
+	rows, err := conn.QueryContext(ctx, "PRAGMA table_info(runs)")
+	if err != nil {
+		return &domain.DatabaseError{Operation: "schema_introspect_task_id", EntityType: "Schema", Cause: err}
+	}
+	for rows.Next() {
+		var cid, notNull, primaryKey int
+		var name, dataType string
+		var defaultValue sql.NullString
+		if err := rows.Scan(&cid, &name, &dataType, &notNull, &defaultValue, &primaryKey); err != nil {
+			rows.Close()
+			return &domain.DatabaseError{Operation: "schema_introspect_task_id", EntityType: "Schema", Cause: err}
+		}
+		if name == "task_id" {
+			taskIDFound = true
+			taskIDNotNull = notNull
+		}
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return &domain.DatabaseError{Operation: "schema_introspect_task_id", EntityType: "Schema", Cause: err}
+	}
+	rows.Close()
+	if !taskIDFound || taskIDNotNull == 0 {
+		return nil
+	}
+
+	var createSQL string
+	if err := conn.QueryRowContext(ctx, "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'runs'").Scan(&createSQL); err != nil {
+		return &domain.DatabaseError{Operation: "schema_read_runs", EntityType: "Schema", Cause: err}
+	}
+	var existingTemporaryTable string
+	if err := conn.QueryRowContext(ctx, "SELECT name FROM sqlite_master WHERE name = ?", nullableTaskRunsTable).Scan(&existingTemporaryTable); err == nil {
+		return &domain.DatabaseError{Operation: "schema_migrate_task_id", EntityType: "Schema", Cause: fmt.Errorf("temporary table %q already exists", nullableTaskRunsTable)}
+	} else if err != sql.ErrNoRows {
+		return &domain.DatabaseError{Operation: "schema_migrate_task_id", EntityType: "Schema", Cause: err}
+	}
+	temporaryCreateSQL, ok := replaceSQLFragment(createSQL, "CREATE TABLE IF NOT EXISTS runs", "CREATE TABLE IF NOT EXISTS "+nullableTaskRunsTable)
+	if !ok {
+		temporaryCreateSQL, ok = replaceSQLFragment(createSQL, "CREATE TABLE runs", "CREATE TABLE "+nullableTaskRunsTable)
+	}
+	if !ok {
+		return &domain.DatabaseError{Operation: "schema_migrate_task_id", EntityType: "Schema", Cause: fmt.Errorf("unrecognized runs CREATE TABLE statement")}
+	}
+	temporaryCreateSQL, ok = replaceSQLFragment(temporaryCreateSQL, "task_id TEXT NOT NULL", "task_id TEXT")
+	if !ok {
+		return &domain.DatabaseError{Operation: "schema_migrate_task_id", EntityType: "Schema", Cause: fmt.Errorf("runs.task_id NOT NULL declaration not found")}
+	}
+
+	var columns []string
+	rows, err = conn.QueryContext(ctx, "PRAGMA table_info(runs)")
+	if err != nil {
+		return &domain.DatabaseError{Operation: "schema_introspect_runs", EntityType: "Schema", Cause: err}
+	}
+	for rows.Next() {
+		var cid, notNull, primaryKey int
+		var name, dataType string
+		var defaultValue sql.NullString
+		if err := rows.Scan(&cid, &name, &dataType, &notNull, &defaultValue, &primaryKey); err != nil {
+			rows.Close()
+			return &domain.DatabaseError{Operation: "schema_introspect_runs", EntityType: "Schema", Cause: err}
+		}
+		columns = append(columns, quoteSQLiteIdentifier(name))
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return &domain.DatabaseError{Operation: "schema_introspect_runs", EntityType: "Schema", Cause: err}
+	}
+	rows.Close()
+	if len(columns) == 0 {
+		return &domain.DatabaseError{Operation: "schema_migrate_task_id", EntityType: "Schema", Cause: fmt.Errorf("runs has no columns")}
+	}
+
+	objects := make([]runSchemaObject, 0, 16)
+	rows, err = conn.QueryContext(ctx, `SELECT type, name, sql FROM sqlite_master
+		WHERE tbl_name = 'runs' AND type IN ('index', 'trigger') AND sql IS NOT NULL ORDER BY type, name`)
+	if err != nil {
+		return &domain.DatabaseError{Operation: "schema_read_runs_objects", EntityType: "Schema", Cause: err}
+	}
+	for rows.Next() {
+		var object runSchemaObject
+		if err := rows.Scan(&object.kind, &object.name, &object.sql); err != nil {
+			rows.Close()
+			return &domain.DatabaseError{Operation: "schema_read_runs_objects", EntityType: "Schema", Cause: err}
+		}
+		objects = append(objects, object)
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return &domain.DatabaseError{Operation: "schema_read_runs_objects", EntityType: "Schema", Cause: err}
+	}
+	rows.Close()
+
+	var beforeCount int64
+	if err := conn.QueryRowContext(ctx, "SELECT COUNT(*) FROM runs").Scan(&beforeCount); err != nil {
+		return &domain.DatabaseError{Operation: "schema_count_runs", EntityType: "Schema", Cause: err}
+	}
+	if _, err := conn.ExecContext(ctx, "PRAGMA foreign_keys = OFF"); err != nil {
+		return &domain.DatabaseError{Operation: "schema_migrate_task_id", EntityType: "Schema", Cause: err}
+	}
+	foreignKeysRestored := false
+	defer func() {
+		if !foreignKeysRestored {
+			_, _ = conn.ExecContext(context.Background(), "PRAGMA foreign_keys = ON")
+		}
+	}()
+
+	if _, err := conn.ExecContext(ctx, "BEGIN IMMEDIATE"); err != nil {
+		return &domain.DatabaseError{Operation: "schema_migrate_task_id", EntityType: "Schema", Cause: err}
+	}
+	committed := false
+	defer func() {
+		if !committed {
+			_, _ = conn.ExecContext(context.Background(), "ROLLBACK")
+		}
+	}()
+	execMigration := func(statement string) error {
+		if _, err := conn.ExecContext(ctx, statement); err != nil {
+			return err
+		}
+		return nil
+	}
+	if err := execMigration(temporaryCreateSQL); err != nil {
+		return &domain.DatabaseError{Operation: "schema_create_nullable_runs", EntityType: "Schema", Cause: err}
+	}
+	columnList := strings.Join(columns, ", ")
+	if err := execMigration("INSERT INTO " + quoteSQLiteIdentifier(nullableTaskRunsTable) + " (" + columnList + ") SELECT " + columnList + " FROM runs"); err != nil {
+		return &domain.DatabaseError{Operation: "schema_copy_runs", EntityType: "Schema", Cause: err}
+	}
+	if err := execMigration("DROP TABLE runs"); err != nil {
+		return &domain.DatabaseError{Operation: "schema_drop_legacy_runs", EntityType: "Schema", Cause: err}
+	}
+	if err := execMigration("ALTER TABLE " + quoteSQLiteIdentifier(nullableTaskRunsTable) + " RENAME TO runs"); err != nil {
+		return &domain.DatabaseError{Operation: "schema_rename_nullable_runs", EntityType: "Schema", Cause: err}
+	}
+	for _, object := range objects {
+		if err := execMigration(object.sql); err != nil {
+			return &domain.DatabaseError{Operation: "schema_restore_runs_" + object.kind, EntityType: "Schema", Cause: fmt.Errorf("%s: %w", object.name, err)}
+		}
+	}
+	var afterCount int64
+	if err := conn.QueryRowContext(ctx, "SELECT COUNT(*) FROM runs").Scan(&afterCount); err != nil {
+		return &domain.DatabaseError{Operation: "schema_verify_runs_count", EntityType: "Schema", Cause: err}
+	}
+	if afterCount != beforeCount {
+		return &domain.DatabaseError{Operation: "schema_verify_runs_count", EntityType: "Schema", Cause: fmt.Errorf("row count changed from %d to %d", beforeCount, afterCount)}
+	}
+	var taskIDNotNullAfter int
+	rows, err = conn.QueryContext(ctx, "PRAGMA table_info(runs)")
+	if err != nil {
+		return &domain.DatabaseError{Operation: "schema_verify_task_id", EntityType: "Schema", Cause: err}
+	}
+	for rows.Next() {
+		var cid, notNull, primaryKey int
+		var name, dataType string
+		var defaultValue sql.NullString
+		if err := rows.Scan(&cid, &name, &dataType, &notNull, &defaultValue, &primaryKey); err != nil {
+			rows.Close()
+			return &domain.DatabaseError{Operation: "schema_verify_task_id", EntityType: "Schema", Cause: err}
+		}
+		if name == "task_id" {
+			taskIDNotNullAfter = notNull
+		}
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return &domain.DatabaseError{Operation: "schema_verify_task_id", EntityType: "Schema", Cause: err}
+	}
+	rows.Close()
+	if taskIDNotNullAfter != 0 {
+		return &domain.DatabaseError{Operation: "schema_verify_task_id", EntityType: "Schema", Cause: fmt.Errorf("runs.task_id remains NOT NULL")}
+	}
+	if _, err := conn.ExecContext(ctx, "COMMIT"); err != nil {
+		return &domain.DatabaseError{Operation: "schema_commit_task_id", EntityType: "Schema", Cause: err}
+	}
+	committed = true
+	if _, err := conn.ExecContext(ctx, "PRAGMA foreign_keys = ON"); err != nil {
+		return &domain.DatabaseError{Operation: "schema_restore_foreign_keys", EntityType: "Schema", Cause: err}
+	}
+	foreignKeysRestored = true
+	return nil
+}
+
+func replaceSQLFragment(source, old, replacement string) (string, bool) {
+	index := strings.Index(strings.ToLower(source), strings.ToLower(old))
+	if index < 0 {
+		return source, false
+	}
+	return source[:index] + replacement + source[index+len(old):], true
+}
+
+func quoteSQLiteIdentifier(identifier string) string {
+	return `"` + strings.ReplaceAll(identifier, `"`, `""`) + `"`
 }
 
 // migrateRunColumns adds any missing additive columns to the runs table.

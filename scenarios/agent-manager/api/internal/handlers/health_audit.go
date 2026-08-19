@@ -19,7 +19,7 @@ import (
 
 	"agent-manager/internal/health"
 	"agent-manager/internal/modelpolicydrift"
-	"github.com/vrooli/cli-core/agentpolicy"
+	"github.com/vrooli/cli-core/agentcatalog"
 
 	"github.com/gorilla/mux"
 )
@@ -27,7 +27,7 @@ import (
 // HealthAuditHandler exposes the persisted audit endpoints.
 type HealthAuditHandler struct {
 	store            *health.Store
-	catalogFreshness func(context.Context) []agentpolicy.CatalogFreshness
+	catalogFreshness func(context.Context) []agentcatalog.CatalogFreshness
 	modelPolicyDrift *modelpolicydrift.Scheduler
 }
 
@@ -38,7 +38,7 @@ func NewHealthAuditHandler(store *health.Store) *HealthAuditHandler {
 
 // WithCatalogFreshness adds resource-owned catalog age to the runner health
 // surface. The callback keeps filesystem/source policy out of the audit store.
-func (h *HealthAuditHandler) WithCatalogFreshness(reader func(context.Context) []agentpolicy.CatalogFreshness) *HealthAuditHandler {
+func (h *HealthAuditHandler) WithCatalogFreshness(reader func(context.Context) []agentcatalog.CatalogFreshness) *HealthAuditHandler {
 	h.catalogFreshness = reader
 	return h
 }
@@ -86,12 +86,12 @@ type RunnerHealthListResponse struct {
 
 // RunnerHealthRow is one runner row in the snapshot.
 type RunnerHealthRow struct {
-	Runner      string                        `json:"runner"`
-	Status      string                        `json:"status"`
-	LastChecked time.Time                     `json:"last_checked"`
-	Reason      string                        `json:"reason,omitempty"`
-	Message     string                        `json:"message,omitempty"`
-	Catalog     *agentpolicy.CatalogFreshness `json:"catalog,omitempty"`
+	Runner      string                         `json:"runner"`
+	Status      string                         `json:"status"`
+	LastChecked time.Time                      `json:"last_checked"`
+	Reason      string                         `json:"reason,omitempty"`
+	Message     string                         `json:"message,omitempty"`
+	Catalog     *agentcatalog.CatalogFreshness `json:"catalog,omitempty"`
 }
 
 // HealthAuditResponse pages through one of the audit tables.
@@ -140,7 +140,7 @@ func (h *HealthAuditHandler) GetRunners(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	rows := make([]RunnerHealthRow, 0, len(snap.Runners))
-	catalogs := make(map[string]agentpolicy.CatalogFreshness)
+	catalogs := make(map[string]agentcatalog.CatalogFreshness)
 	if h.catalogFreshness != nil {
 		for _, catalog := range h.catalogFreshness(r.Context()) {
 			catalogs[catalog.Runner] = catalog

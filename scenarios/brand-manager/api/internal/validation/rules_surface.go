@@ -1,6 +1,10 @@
 package validation
 
-import "strings"
+import (
+	"strings"
+
+	repocontract "github.com/vrooli/repo-contract-go"
+)
 
 // This file holds the CLI and API branding rules — the surfaces the PRD's
 // "uniform across UI/CLI/API" scope covers but the original UI-only rule set
@@ -8,14 +12,24 @@ import "strings"
 // on a clear signal that the surface still carries no brand identity, so they do
 // not generate fleet-wide noise. CLI is surface-conditional (skips without cli/).
 
-const cliManifestRel = "cli/manifest.json"
+func cliManifestRel(c *scanContext) string {
+	rel, err := repocontract.ScenarioCLIManifestRel(c.root)
+	if err != nil {
+		return ""
+	}
+	return rel
+}
 
 // ruleCLIBranding nudges (info) when a CLI manifest exists but never surfaces
 // the brand display name (its name is the slug and no description/title carries
 // the brand). Rewriting human-facing CLI copy is a judgment call, so there is no
 // deterministic fixer.
 func ruleCLIBranding(c *scanContext) (Finding, bool) {
-	content, ok := c.read(cliManifestRel)
+	manifestRel := cliManifestRel(c)
+	if manifestRel == "" {
+		return Finding{}, false
+	}
+	content, ok := c.read(manifestRel)
 	if !ok {
 		return Finding{}, false
 	}
@@ -30,7 +44,7 @@ func ruleCLIBranding(c *scanContext) (Finding, bool) {
 		Severity:               SeverityInfo,
 		Title:                  "CLI surface does not carry the brand display name",
 		Description:            "The CLI manifest never mentions service.displayName, so help/banner output reads as the raw slug rather than the product.",
-		FilePath:               cliManifestRel,
+		FilePath:               manifestRel,
 		WhyItMatters:           "The CLI is a first-class surface; its help should present the product name, not just the command slug.",
 		RecommendedRemediation: "Reference the display name in the CLI manifest description (or a title) so help output is branded.",
 		Evidence:               map[string]any{"display_name": id.DisplayName},

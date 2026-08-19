@@ -254,7 +254,7 @@ func (e *RunExecutor) WithCustomEnvironment(env map[string]string) *RunExecutor 
 // by the workflow launcher. These values become part of the signed identity
 // token and are not accepted from an external request body.
 func workflowIdentityMeta(env map[string]string) map[string]string {
-	meta := make(map[string]string, 6)
+	meta := make(map[string]string, 7)
 	for envKey, claimKey := range map[string]string{
 		workflowExecutionEnv:  "workflowExecutionId",
 		workflowNodeEnv:       "workflowNodeId",
@@ -262,6 +262,7 @@ func workflowIdentityMeta(env map[string]string) map[string]string {
 		workflowExperimentEnv: "workflowExperimentId",
 		workflowVariantEnv:    "workflowVariantId",
 		workflowPromptHashEnv: "workflowPromptHash",
+		personaIDEnv:          "persona_id",
 	} {
 		if value := strings.TrimSpace(env[envKey]); value != "" {
 			meta[claimKey] = value

@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/vrooli/cli-core/agentpolicy"
+	"github.com/vrooli/cli-core/agentcatalog"
 )
 
 type recordingReporter struct{ reports []Report }
@@ -28,11 +28,11 @@ func TestRunOncePersistsStatusAndDeduplicatesFindings(t *testing.T) {
 	root := t.TempDir()
 	reporter := &recordingReporter{}
 	scheduler := New(root, filepath.Join(root, "state.json"), time.Hour, reporter)
-	scheduler.check = func(_ context.Context, runner, _ string) ([]agentpolicy.PolicyValidationFinding, agentpolicy.LiveModelCatalog, error) {
+	scheduler.check = func(_ context.Context, runner, _ string) ([]agentcatalog.PolicyValidationFinding, agentcatalog.LiveModelCatalog, error) {
 		if runner == "codex" {
-			return []agentpolicy.PolicyValidationFinding{{Type: "missing_primary_model", Severity: "error", Role: "code.default", Model: "gone", Message: "missing"}}, agentpolicy.LiveModelCatalog{}, nil
+			return []agentcatalog.PolicyValidationFinding{{Type: "missing_primary_model", Severity: "error", Role: "code.default", Model: "gone", Message: "missing"}}, agentcatalog.LiveModelCatalog{}, nil
 		}
-		return nil, agentpolicy.LiveModelCatalog{}, os.ErrNotExist
+		return nil, agentcatalog.LiveModelCatalog{}, os.ErrNotExist
 	}
 	first := scheduler.RunOnce(context.Background())
 	if first.Status != "critical" || len(reporter.reports) != 1 || first.Measured != 1 {
@@ -50,8 +50,8 @@ func TestRunOncePersistsStatusAndDeduplicatesFindings(t *testing.T) {
 
 func TestRunOnceReportsNotMeasuredWithoutFalseDrift(t *testing.T) {
 	scheduler := New(t.TempDir(), filepath.Join(t.TempDir(), "state.json"), 0, nil)
-	scheduler.check = func(context.Context, string, string) ([]agentpolicy.PolicyValidationFinding, agentpolicy.LiveModelCatalog, error) {
-		return nil, agentpolicy.LiveModelCatalog{}, os.ErrNotExist
+	scheduler.check = func(context.Context, string, string) ([]agentcatalog.PolicyValidationFinding, agentcatalog.LiveModelCatalog, error) {
+		return nil, agentcatalog.LiveModelCatalog{}, os.ErrNotExist
 	}
 	snapshot := scheduler.RunOnce(context.Background())
 	if snapshot.Status != "not_measured" || len(snapshot.Findings) != 0 || snapshot.Measured != 0 {

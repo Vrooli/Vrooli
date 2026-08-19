@@ -52,6 +52,7 @@ func governedRunnerSessionSources() []runnerSessionSource {
 		{domain.RunnerTypeClaudeCode, "claude-code", "projects", "Claude Code"},
 		{domain.RunnerTypeOpenCode, "opencode", "storage", "OpenCode"},
 		{domain.RunnerTypeGrok, "grok", "sessions", "Grok"},
+		{domain.RunnerTypeAntigravity, "antigravity", "cli_conversations", "Antigravity"},
 	}
 	root := findWorkspaceRoot()
 	home, err := os.UserHomeDir()

@@ -16,11 +16,12 @@ import (
 // Runners contains the production registry and concrete runners that need
 // follow-up composition (for example protected-sandbox launchers).
 type Runners struct {
-	Registry *runner.DefaultRegistry
-	Claude   *runnercore.Runner
-	Codex    *runnercore.Runner
-	OpenCode *runnercore.Runner
-	Grok     *runnercore.Runner
+	Registry    *runner.DefaultRegistry
+	Claude      *runnercore.Runner
+	Codex       *runnercore.Runner
+	OpenCode    *runnercore.Runner
+	Grok        *runnercore.Runner
+	Antigravity *runnercore.Runner
 }
 
 // NewRunners registers every supported coding-agent runner. Codec creation
@@ -81,6 +82,13 @@ func NewRunners(pricingServices ...codecs.PricingService) Runners {
 		}
 		return runnercore.NewRunner(codec, hostLauncher, nil), nil
 	}, &result.Grok)
+	register("Antigravity", domain.RunnerTypeAntigravity, func() (*runnercore.Runner, error) {
+		codec, err := codecs.NewAntigravity()
+		if err != nil {
+			return nil, err
+		}
+		return runnercore.NewRunner(codec, hostLauncher, nil), nil
+	}, &result.Antigravity)
 	return result
 }
 

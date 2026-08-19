@@ -36,7 +36,7 @@ import (
 	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/eventbus"
 	"github.com/vrooli/api-core/health"
-	"github.com/vrooli/cli-core/agentpolicy"
+	"github.com/vrooli/cli-core/agentcatalog"
 	apiconnect "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api/apiconnect"
 	domainconnect "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain/domainconnect"
 	measureconnect "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/measures/measures_v1connect"
@@ -155,11 +155,11 @@ func SetupRoutes(router *mux.Router, deps RouteDependencies) {
 		routesLog.Info("operational stats endpoints registered", "path", "/api/v1/stats/operational, /api/v1/stats/fallback")
 	}
 	if deps.HealthStore != nil {
-		catalogReader := func(context.Context) []agentpolicy.CatalogFreshness {
-			freshness := make([]agentpolicy.CatalogFreshness, 0, 4)
+		catalogReader := func(context.Context) []agentcatalog.CatalogFreshness {
+			freshness := make([]agentcatalog.CatalogFreshness, 0, 4)
 			for _, runner := range []string{"codex", "claude-code", "opencode", "grok"} {
 				path := filepath.Join(repoRoot, "resources", runner, "model-policy.json")
-				freshness = append(freshness, agentpolicy.ReadCatalogFreshness(runner, path, time.Now().UTC()))
+				freshness = append(freshness, agentcatalog.ReadCatalogFreshness(runner, path, time.Now().UTC()))
 			}
 			return freshness
 		}

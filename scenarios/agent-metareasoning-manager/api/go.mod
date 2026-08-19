@@ -10,6 +10,8 @@ require (
 	github.com/vrooli/api-core v0.0.0
 )
 
+require github.com/santhosh-tekuri/jsonschema/v5 v5.3.1 // indirect
+
 require (
 	github.com/bmatcuk/doublestar/v4 v4.10.0 // indirect
 	github.com/vrooli/cli-core v0.0.0 // indirect

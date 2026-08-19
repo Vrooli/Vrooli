@@ -217,6 +217,7 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 
 	// Run endpoints
 	r.HandleFunc("/api/v1/runs", h.CreateRun).Methods("POST")
+	r.HandleFunc("/api/v1/runs/attach", h.AttachRun).Methods("POST")
 	r.HandleFunc("/api/v1/runs/investigate", h.CreateInvestigationRun).Methods("POST")
 	r.HandleFunc("/api/v1/runs/investigation-apply", h.CreateInvestigationApplyRun).Methods("POST")
 	r.HandleFunc("/api/v1/runs/resume-from-failed", h.ResumeFromFailedRun).Methods("POST")
@@ -261,6 +262,7 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/runs/{id}/audit-transcript", h.GetAuditTranscript).Methods("GET")
 	r.HandleFunc("/api/v1/runs/{id}", h.DeleteRun).Methods("DELETE")
 	r.HandleFunc("/api/v1/runs/{id}/stop", h.StopRun).Methods("POST")
+	r.HandleFunc("/api/v1/runs/{id}/detach", h.DetachRun).Methods("POST")
 	r.HandleFunc("/api/v1/runs/{id}/recover", h.RecoverRun).Methods("POST")
 	r.HandleFunc("/api/v1/runs/{id}/continue", h.ContinueRun).Methods("POST")
 	r.HandleFunc("/api/v1/runs/{id}/park", h.ParkRun).Methods("POST")

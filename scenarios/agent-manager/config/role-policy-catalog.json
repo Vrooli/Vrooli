@@ -14,7 +14,8 @@
         {"runner": "codex", "resourceRole": "code.default"},
         {"runner": "claude-code", "resourceRole": "code.default"},
         {"runner": "opencode", "resourceRole": "code.default"},
-        {"runner": "grok", "resourceRole": "code.default"}
+        {"runner": "grok", "resourceRole": "code.default"},
+        {"runner": "antigravity", "resourceRole": "code.default"}
       ]
     },
     "code.fast": {
@@ -25,7 +26,8 @@
         {"runner": "codex", "resourceRole": "code.fast"},
         {"runner": "claude-code", "resourceRole": "code.fast"},
         {"runner": "opencode", "resourceRole": "code.fast"},
-        {"runner": "grok", "resourceRole": "code.fast"}
+        {"runner": "grok", "resourceRole": "code.fast"},
+        {"runner": "antigravity", "resourceRole": "code.fast"}
       ]
     },
     "code.smart": {
@@ -36,7 +38,8 @@
         {"runner": "codex", "resourceRole": "code.smart"},
         {"runner": "claude-code", "resourceRole": "code.smart"},
         {"runner": "opencode", "resourceRole": "code.smart"},
-        {"runner": "grok", "resourceRole": "code.smart"}
+        {"runner": "grok", "resourceRole": "code.smart"},
+        {"runner": "antigravity", "resourceRole": "code.smart"}
       ]
     },
     "code.cheap": {
@@ -47,7 +50,8 @@
         {"runner": "codex", "resourceRole": "code.cheap"},
         {"runner": "claude-code", "resourceRole": "code.cheap"},
         {"runner": "opencode", "resourceRole": "code.cheap"},
-        {"runner": "grok", "resourceRole": "code.cheap"}
+        {"runner": "grok", "resourceRole": "code.cheap"},
+        {"runner": "antigravity", "resourceRole": "code.cheap"}
       ]
     },
     "code.ux": {
@@ -58,7 +62,8 @@
         {"runner": "codex", "resourceRole": "code.ux"},
         {"runner": "claude-code", "resourceRole": "code.ux"},
         {"runner": "opencode", "resourceRole": "code.ux"},
-        {"runner": "grok", "resourceRole": "code.ux"}
+        {"runner": "grok", "resourceRole": "code.ux"},
+        {"runner": "antigravity", "resourceRole": "code.ux"}
       ]
     },
     "code.longrun": {
@@ -69,7 +74,8 @@
         {"runner": "claude-code", "resourceRole": "code.longrun"},
         {"runner": "codex", "resourceRole": "code.longrun"},
         {"runner": "opencode", "resourceRole": "code.longrun"},
-        {"runner": "grok", "resourceRole": "code.longrun"}
+        {"runner": "grok", "resourceRole": "code.longrun"},
+        {"runner": "antigravity", "resourceRole": "code.longrun"}
       ]
     },
     "write.default": {
@@ -80,7 +86,8 @@
         {"runner": "claude-code", "resourceRole": "write.default"},
         {"runner": "opencode", "resourceRole": "write.default"},
         {"runner": "codex", "resourceRole": "write.default"},
-        {"runner": "grok", "resourceRole": "write.default"}
+        {"runner": "grok", "resourceRole": "write.default"},
+        {"runner": "antigravity", "resourceRole": "write.default"}
       ]
     }
   }

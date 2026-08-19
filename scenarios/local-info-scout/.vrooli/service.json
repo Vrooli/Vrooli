@@ -136,16 +136,6 @@
           "description": "Execute phased scenario test suite"
         }
       ]
-    },
-    "stop": {
-      "description": "Stop services",
-      "steps": [
-        {
-          "name": "stop-api",
-          "run": "pkill -f \"local-info-scout-api\" || true; sleep 1; pkill -9 -f \"local-info-scout-api\" 2>/dev/null || true",
-          "description": "Stop API process"
-        }
-      ]
     }
   },
   "dependencies": {

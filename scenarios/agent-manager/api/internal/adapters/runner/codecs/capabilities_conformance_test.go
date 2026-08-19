@@ -9,9 +9,9 @@ import (
 // matrix documented in scenarios/agent-manager/docs/PROTECTED_MODE_RUNNERS.md
 // ("Codec capability contract"). It is the drift guard required by the
 // coding-agent parity plan: identical-upstream-capability ⇒ identical
-// contract. All three runners now expose the same boolean capabilities; the
-// only intentional divergences are the curated cloud model lists and
-// claude-code's lack of a local-Ollama path (it is Anthropic-native).
+// contract. The print-only Antigravity adapter intentionally exposes a smaller
+// honest contract because its stable surface does not include tools, usage, or
+// image attachments.
 func TestCapabilitiesConformance(t *testing.T) {
 	type want struct {
 		messages, toolEvents, cost, streaming, cancel, continuation, image bool
@@ -90,6 +90,16 @@ func TestCapabilitiesConformance(t *testing.T) {
 				supportsEffort:          true,
 				effortMappingCount:      5,
 				mappingCount:            len(CanonicalToolNamesForTest()),
+			},
+		},
+		{
+			name:  "antigravity",
+			codec: NewAntigravityForTest(),
+			want: want{
+				messages: true, toolEvents: false, cost: false,
+				streaming: true, cancel: true, continuation: true, image: false,
+				maxTurns:              0,
+				supportsRunnerDefault: true,
 			},
 		},
 	}

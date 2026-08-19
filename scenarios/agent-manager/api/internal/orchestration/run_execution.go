@@ -288,6 +288,7 @@ func (o *Orchestrator) assembleContinuationEnv(ctx context.Context, run *domain.
 			Profile:         profile,
 			Task:            task,
 			Secret:          o.identitySecret,
+			Meta:            workflowIdentityMeta(run.CustomEnv),
 			AccountScopes:   run.OwnerScopes,
 			RequestedScopes: run.RequestedScopes,
 		})

@@ -28,7 +28,7 @@ func TestCodecExecuteContinueControlParity(t *testing.T) {
 		DeniedTools:          []string{"shell"},
 		Features:             domain.FeatureFlags{EnableBrowser: true},
 	}
-	for _, codec := range []codecs.Codec{codecs.NewClaudeForTest(), codecs.NewCodexForTest(), codecs.NewGrokForTest(), codecs.NewOpenCodeForTest()} {
+	for _, codec := range []codecs.Codec{codecs.NewClaudeForTest(), codecs.NewCodexForTest(), codecs.NewGrokForTest(), codecs.NewOpenCodeForTest(), codecs.NewAntigravityForTest()} {
 		t.Run(string(codec.Type()), func(t *testing.T) {
 			execArgs := codec.BuildArgs(codec.NewState(), runner.ExecuteRequest{ResolvedConfig: cfg, WorkingDir: "/work"})
 			continueArgs := codec.BuildContinueArgs(codec.NewState(), runner.ContinueRequest{ResolvedConfig: cfg, WorkingDir: "/work", SessionID: "session"})

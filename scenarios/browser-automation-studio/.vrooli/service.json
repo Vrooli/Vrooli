@@ -258,26 +258,6 @@
           "description": "Execute phased scenario test suite"
         }
       ]
-    },
-    "stop": {
-      "description": "Stop all browser automation studio services",
-      "steps": [
-        {
-          "name": "stop-playwright-driver",
-          "run": "pkill -f 'playwright-driver.*server' || true; pkill -f 'node.*playwright-driver/dist/server.js' || true",
-          "description": "Stop scenario-managed Playwright driver if running"
-        },
-        {
-          "name": "stop-api",
-          "run": "pkill -f \"browser-automation-studio-api\" || true; sleep 1; pkill -9 -f \"browser-automation-studio-api\" 2>/dev/null || true",
-          "description": "Stop API process"
-        },
-        {
-          "name": "stop-ui",
-          "run": "pkill -f \"scenarios/browser-automation-studio.*vite\" || true; sleep 1; pkill -9 -f \"scenarios/browser-automation-studio.*vite\" 2>/dev/null || true",
-          "description": "Stop UI process"
-        }
-      ]
     }
   },
   "dependencies": {

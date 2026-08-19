@@ -21,6 +21,7 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -33,6 +34,7 @@ import (
 	"agent-manager/internal/adapters/webconsole"
 	cfgpkg "agent-manager/internal/config"
 	"agent-manager/internal/domain"
+	"agent-manager/internal/identity"
 	"agent-manager/internal/orchestration/obs"
 	"agent-manager/internal/orchestration/phases"
 	"agent-manager/internal/repository"
@@ -515,6 +517,27 @@ func (r *Reconciler) reconcile(ctx context.Context) ReconcileStats {
 	// a non-none stale action get recover-or-kill handling.
 	for _, run := range dbRuns {
 		policy := run.Status.LivenessPolicy()
+		if run.ExecutionMode.Normalized() == domain.ExecutionModeAttached {
+			// The launcher attaches before exec'ing the harness. Give that
+			// handoff a bounded grace period, then require the token-bearing
+			// process (or an explicitly supplied PID) to still exist.
+			if r.now().Sub(run.CreatedAt) < attachedRunLivenessGracePeriod {
+				continue
+			}
+			full, err := r.runs.Get(ctx, run.ID)
+			if err != nil || full == nil {
+				if err != nil {
+					stats.Errors = append(stats.Errors, "failed to reload attached run "+run.ID.String()+": "+err.Error())
+				}
+				continue
+			}
+			if !r.attachedRunProcessAlive(full) {
+				stats.StaleRuns++
+				r.markRunFailed(ctx, full, "attached harness process is no longer present")
+				r.appendAttachedLifecycleEvent(ctx, full.ID, "liveness_failed", "process no longer present")
+			}
+			continue
+		}
 		if !policy.ExpectsHeartbeat || policy.StaleAction == domain.StaleRunActionNone {
 			continue
 		}
@@ -553,6 +576,50 @@ func (r *Reconciler) reconcile(ctx context.Context) ReconcileStats {
 
 	stats.Duration = time.Since(start)
 	return stats
+}
+
+// attachedRunProcessAlive checks only process presence. A supplied PID is
+// authoritative for harnesses that can report one. Otherwise, the launcher
+// provides the signed token through the standard environment variable and the
+// sweep matches its hash in /proc. Reading /proc cannot terminate or alter a
+// process, which keeps this safety net independent from process-control code.
+func (r *Reconciler) attachedRunProcessAlive(run *domain.Run) bool {
+	if run == nil {
+		return false
+	}
+	if run.RunnerPID > 0 {
+		_, err := os.Stat(filepath.Join("/proc", strconv.Itoa(run.RunnerPID)))
+		return err == nil
+	}
+	if run.IdentityTokenHash == "" {
+		return false
+	}
+	entries, err := os.ReadDir("/proc")
+	if err != nil {
+		return false
+	}
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		if _, err := strconv.Atoi(entry.Name()); err != nil {
+			continue
+		}
+		data, err := os.ReadFile(filepath.Join("/proc", entry.Name(), "environ"))
+		if err != nil {
+			continue
+		}
+		for _, value := range strings.Split(string(data), "\x00") {
+			if !strings.HasPrefix(value, "VROOLI_AGENT_IDENTITY_TOKEN=") {
+				continue
+			}
+			token := strings.TrimPrefix(value, "VROOLI_AGENT_IDENTITY_TOKEN=")
+			if token != "" && identity.HashToken(token) == run.IdentityTokenHash {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 const eventRetentionBatchSize = 1_000
@@ -797,6 +864,15 @@ func (r *Reconciler) markRunFailed(ctx context.Context, run *domain.Run, reason 
 	// Broadcast status change
 	if r.broadcaster != nil {
 		r.broadcaster.BroadcastRunStatus(run)
+	}
+}
+
+func (r *Reconciler) appendAttachedLifecycleEvent(ctx context.Context, id uuid.UUID, state, detail string) {
+	if r.events == nil {
+		return
+	}
+	if err := r.events.Append(ctx, id, domain.NewLogEvent(id, "attached_run_"+state, detail)); err != nil {
+		r.log().Warn("attached run lifecycle event append failed", obs.KeyRunID, id.String(), obs.KeyError, err.Error())
 	}
 }
 

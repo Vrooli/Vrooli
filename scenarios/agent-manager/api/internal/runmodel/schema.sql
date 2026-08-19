@@ -23,7 +23,8 @@ CREATE INDEX IF NOT EXISTS idx_tasks_created_at ON tasks(created_at);
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS runs (
     id TEXT PRIMARY KEY,
-    task_id TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+    -- Attached operator sessions may intentionally have no task.
+    task_id TEXT REFERENCES tasks(id) ON DELETE CASCADE,
     agent_profile_id TEXT,
     tag TEXT,
     label TEXT NOT NULL DEFAULT '',
@@ -39,6 +40,8 @@ CREATE TABLE IF NOT EXISTS runs (
     sandbox_id TEXT,
     run_mode TEXT DEFAULT 'sandboxed',
     execution_mode TEXT DEFAULT 'codec_pipe',
+    harness_kind TEXT DEFAULT '',
+    harness_session_id TEXT DEFAULT '',
     web_console_session_id TEXT DEFAULT '',
     status TEXT DEFAULT 'pending',
     started_at TEXT,

@@ -132,6 +132,118 @@ func TestRunExecutionModeDefaultsToCodecPipe(t *testing.T) {
 	}
 }
 
+func TestAttachedRunAllowsUnboundTaskAndPersistsHarnessIdentity(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	repos := NewRepositories(db, logrus.New())
+	ctx := context.Background()
+	run := &domain.Run{
+		ID:                uuid.New(),
+		Tag:               "attached-run",
+		RunMode:           domain.RunModeInPlace,
+		ExecutionMode:     domain.ExecutionModeAttached,
+		HarnessKind:       "claude-code",
+		HarnessSessionID:  "session-123",
+		Status:            domain.RunStatusRunning,
+		Phase:             domain.RunPhaseExecuting,
+		ApprovalState:     domain.ApprovalStateNone,
+		IdentityTokenHash: "hash-only",
+	}
+	if err := repos.Runs.Create(ctx, run); err != nil {
+		t.Fatalf("create attached run: %v", err)
+	}
+
+	got, err := repos.Runs.Get(ctx, run.ID)
+	if err != nil || got == nil {
+		t.Fatalf("get attached run: %v (got=%v)", err, got)
+	}
+	if got.TaskID != uuid.Nil {
+		t.Fatalf("task id: got %s, want nil UUID for unbound run", got.TaskID)
+	}
+	if got.ExecutionMode != domain.ExecutionModeAttached || got.HarnessKind != "claude-code" || got.HarnessSessionID != "session-123" {
+		t.Fatalf("attached metadata did not round-trip: mode=%q kind=%q session=%q", got.ExecutionMode, got.HarnessKind, got.HarnessSessionID)
+	}
+
+	var nullableTaskID sql.NullString
+	if err := db.GetContext(ctx, &nullableTaskID, "SELECT task_id FROM runs WHERE id = ?", run.ID.String()); err != nil {
+		t.Fatalf("read nullable task id: %v", err)
+	}
+	if nullableTaskID.Valid {
+		t.Fatalf("database task_id = %q, want SQL NULL", nullableTaskID.String)
+	}
+}
+
+func TestMigrateRunTaskIDNullabilityPreservesRowsIndexesAndTriggers(t *testing.T) {
+	ctx := context.Background()
+	sqlDB, err := sqlx.Connect("sqlite", "file:"+t.TempDir()+"/nullable.db?_pragma=foreign_keys(ON)")
+	if err != nil {
+		t.Fatalf("connect: %v", err)
+	}
+	defer sqlDB.Close()
+	sqlDB.SetMaxOpenConns(1)
+	if _, err := sqlDB.ExecContext(ctx, `
+		CREATE TABLE tasks (id TEXT PRIMARY KEY);
+		CREATE TABLE runs (
+			id TEXT PRIMARY KEY,
+			task_id TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+			tag TEXT,
+			created_at TEXT,
+			updated_at TEXT
+		);
+		CREATE TABLE run_checkpoints (run_id TEXT PRIMARY KEY REFERENCES runs(id) ON DELETE CASCADE);
+		CREATE INDEX idx_runs_tag_test ON runs(tag);
+		CREATE TRIGGER update_runs_updated_at_test AFTER UPDATE ON runs
+		FOR EACH ROW BEGIN UPDATE runs SET updated_at = 'triggered' WHERE id = NEW.id; END;
+		INSERT INTO tasks(id) VALUES ('task-1');
+		INSERT INTO runs(id, task_id, tag, created_at, updated_at) VALUES ('run-1', 'task-1', 'before', 'created', 'original');
+	`); err != nil {
+		t.Fatalf("create legacy schema: %v", err)
+	}
+
+	db := &DB{DB: sqlDB, log: logrus.New()}
+	if err := db.migrateRunTaskIDNullability(ctx); err != nil {
+		t.Fatalf("migrate task id nullability: %v", err)
+	}
+
+	var notNull int
+	if err := sqlDB.GetContext(ctx, &notNull, "SELECT \"notnull\" FROM pragma_table_info('runs') WHERE name = 'task_id'"); err != nil {
+		t.Fatalf("read task id nullability: %v", err)
+	}
+	if notNull != 0 {
+		t.Fatalf("task_id notnull = %d, want 0", notNull)
+	}
+	var tag, updated string
+	if err := sqlDB.QueryRowContext(ctx, "SELECT tag, updated_at FROM runs WHERE id = 'run-1'").Scan(&tag, &updated); err != nil {
+		t.Fatalf("read preserved run: %v", err)
+	}
+	if tag != "before" || updated != "original" {
+		t.Fatalf("preserved run = tag %q updated %q", tag, updated)
+	}
+	var indexCount, triggerCount int
+	if err := sqlDB.QueryRowContext(ctx, "SELECT COUNT(*) FROM sqlite_master WHERE type = 'index' AND name = 'idx_runs_tag_test'").Scan(&indexCount); err != nil {
+		t.Fatalf("check restored index: %v", err)
+	}
+	if err := sqlDB.QueryRowContext(ctx, "SELECT COUNT(*) FROM sqlite_master WHERE type = 'trigger' AND name = 'update_runs_updated_at_test'").Scan(&triggerCount); err != nil {
+		t.Fatalf("check restored trigger: %v", err)
+	}
+	if indexCount != 1 || triggerCount != 1 {
+		t.Fatalf("restored schema objects: index=%d trigger=%d", indexCount, triggerCount)
+	}
+	if _, err := sqlDB.ExecContext(ctx, "INSERT INTO runs(id, task_id, tag) VALUES ('run-2', NULL, 'attached')"); err != nil {
+		t.Fatalf("insert unbound run after migration: %v", err)
+	}
+	if _, err := sqlDB.ExecContext(ctx, "UPDATE runs SET tag = 'after' WHERE id = 'run-1'"); err != nil {
+		t.Fatalf("exercise restored trigger: %v", err)
+	}
+	if err := sqlDB.QueryRowContext(ctx, "SELECT updated_at FROM runs WHERE id = 'run-1'").Scan(&updated); err != nil {
+		t.Fatalf("read triggered update: %v", err)
+	}
+	if updated != "triggered" {
+		t.Fatalf("restored trigger updated_at = %q, want triggered", updated)
+	}
+}
+
 // TestMigrateRunColumnsAddsMissingColumns builds a runs table WITHOUT the
 // interactive/result columns, seeds a row, then runs the additive migration and
 // asserts the columns appear with their defaults while the existing row's data

@@ -19,7 +19,7 @@ func TestRoleCatalogCodecConformance(t *testing.T) {
 	}
 
 	codecTypes := make(map[string]struct{})
-	for _, codec := range []Codec{NewClaudeForTest(), NewCodexForTest(), NewOpenCodeForTest(), NewGrokForTest()} {
+	for _, codec := range []Codec{NewClaudeForTest(), NewCodexForTest(), NewOpenCodeForTest(), NewGrokForTest(), NewAntigravityForTest()} {
 		if !codec.Type().IsValid() {
 			t.Errorf("codec has invalid runner type %q", codec.Type())
 		}

@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-08-12T23:06:24-04:00"
+    "last_validated_at": "2026-08-18T19:19:20-04:00"
   },
   "requirements": [
     {
       "id": "REQ-P0-001",
       "title": "Create Agent Profile",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-001",
       "category": "core",
       "description": "System must allow creation and scenario-owned reconciliation of portable role-based agent profiles with runner-neutral controls and permission posture",
@@ -15,28 +15,28 @@
           "type": "test",
           "ref": "api/internal/handlers/handlers_test.go::TestCreateProfile_Success",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Verify profile creation with valid data"
         },
         {
           "type": "test",
           "ref": "api/internal/handlers/handlers_test.go::TestCreateProfile_ValidationError",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Verify validation of required fields"
         },
         {
           "type": "test",
           "ref": "api/internal/handlers/handlers_test.go::TestGetProfile_Success",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Test profile retrieval by ID"
         },
         {
           "type": "test",
           "ref": "api/internal/handlers/handlers_test.go::TestGetProfile_NotFound",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Test error handling for missing profile"
         },
         {
@@ -57,7 +57,7 @@
           "type": "test",
           "ref": "api/internal/orchestration/declaration_reconcile_test.go::TestReadScenarioDeclarationConfig",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Verify strict enabled-dependency, source, and profile-reconcile-mode validation for the unified scenario-owned declaration block, including rejection of the legacy config.profiles/config.workflows blocks and old-directory sources"
         }
       ]
@@ -65,7 +65,7 @@
     {
       "id": "REQ-P0-002",
       "title": "Update Agent Profile",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-001",
       "category": "core",
       "description": "System must allow updating existing agent profile fields while maintaining referential integrity",
@@ -74,14 +74,14 @@
           "type": "test",
           "ref": "api/internal/handlers/handlers_test.go::TestUpdateProfile_Success",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Verify profile updates persist correctly"
         },
         {
           "type": "test",
           "ref": "api/internal/orchestration/service_test.go::TestOrchestrator_ProfileCRUD",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Test orchestrator-level profile update"
         }
       ]

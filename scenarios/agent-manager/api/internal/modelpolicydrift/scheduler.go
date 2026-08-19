@@ -13,7 +13,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/vrooli/cli-core/agentpolicy"
+	"github.com/vrooli/cli-core/agentcatalog"
 )
 
 var runners = []string{"codex", "claude-code", "opencode", "grok"}
@@ -48,7 +48,7 @@ type Reporter interface {
 	Report(context.Context, Report) error
 }
 
-type CheckFunc func(context.Context, string, string) ([]agentpolicy.PolicyValidationFinding, agentpolicy.LiveModelCatalog, error)
+type CheckFunc func(context.Context, string, string) ([]agentcatalog.PolicyValidationFinding, agentcatalog.LiveModelCatalog, error)
 
 type Scheduler struct {
 	root     string
@@ -70,7 +70,7 @@ func New(root, statePath string, interval time.Duration, reporter Reporter) *Sch
 	if strings.TrimSpace(statePath) == "" {
 		statePath = filepath.Join(root, ".vrooli", "agent-manager", "model-policy-drift.json")
 	}
-	s := &Scheduler{root: root, path: statePath, interval: interval, reporter: reporter, check: agentpolicy.ValidateCatalogAgainstLive, now: time.Now, stop: make(chan struct{}), done: make(chan struct{})}
+	s := &Scheduler{root: root, path: statePath, interval: interval, reporter: reporter, check: agentcatalog.ValidateCatalogAgainstLive, now: time.Now, stop: make(chan struct{}), done: make(chan struct{})}
 	s.snapshot = Snapshot{Status: "not_measured", Total: len(runners), Reported: map[string]string{}, LastErrors: map[string]string{}, IntervalHours: int(interval / time.Hour)}
 	s.load()
 	return s

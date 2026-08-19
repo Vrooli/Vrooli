@@ -2,6 +2,7 @@ package database
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"strings"
 	"time"
@@ -25,21 +26,21 @@ type statsRepository struct {
 var _ repository.StatsRepository = (*statsRepository)(nil)
 
 type modelRunUsageRow struct {
-	RunID        uuid.UUID  `db:"run_id"`
-	TaskID       uuid.UUID  `db:"task_id"`
-	TaskTitle    string     `db:"task_title"`
-	ProfileID    *uuid.UUID `db:"profile_id"`
-	ProfileName  string     `db:"profile_name"`
-	Status       string     `db:"status"`
-	CreatedAt    SQLiteTime `db:"created_at"`
-	TotalCostUSD float64    `db:"total_cost_usd"`
-	TotalTokens  int64      `db:"total_tokens"`
+	RunID        uuid.UUID      `db:"run_id"`
+	TaskID       sql.NullString `db:"task_id"`
+	TaskTitle    string         `db:"task_title"`
+	ProfileID    *uuid.UUID     `db:"profile_id"`
+	ProfileName  string         `db:"profile_name"`
+	Status       string         `db:"status"`
+	CreatedAt    SQLiteTime     `db:"created_at"`
+	TotalCostUSD float64        `db:"total_cost_usd"`
+	TotalTokens  int64          `db:"total_tokens"`
 }
 
 func (r modelRunUsageRow) toRepository() *repository.ModelRunUsage {
 	return &repository.ModelRunUsage{
 		RunID:        r.RunID,
-		TaskID:       r.TaskID,
+		TaskID:       parseNullableUUID(r.TaskID),
 		TaskTitle:    r.TaskTitle,
 		ProfileID:    r.ProfileID,
 		ProfileName:  r.ProfileName,
@@ -51,23 +52,23 @@ func (r modelRunUsageRow) toRepository() *repository.ModelRunUsage {
 }
 
 type toolRunUsageRow struct {
-	RunID        uuid.UUID  `db:"run_id"`
-	TaskID       uuid.UUID  `db:"task_id"`
-	TaskTitle    string     `db:"task_title"`
-	ProfileID    *uuid.UUID `db:"profile_id"`
-	ProfileName  string     `db:"profile_name"`
-	Status       string     `db:"status"`
-	CreatedAt    SQLiteTime `db:"created_at"`
-	Model        string     `db:"model"`
-	CallCount    int        `db:"call_count"`
-	SuccessCount int        `db:"success_count"`
-	FailedCount  int        `db:"failed_count"`
+	RunID        uuid.UUID      `db:"run_id"`
+	TaskID       sql.NullString `db:"task_id"`
+	TaskTitle    string         `db:"task_title"`
+	ProfileID    *uuid.UUID     `db:"profile_id"`
+	ProfileName  string         `db:"profile_name"`
+	Status       string         `db:"status"`
+	CreatedAt    SQLiteTime     `db:"created_at"`
+	Model        string         `db:"model"`
+	CallCount    int            `db:"call_count"`
+	SuccessCount int            `db:"success_count"`
+	FailedCount  int            `db:"failed_count"`
 }
 
 func (r toolRunUsageRow) toRepository() *repository.ToolRunUsage {
 	return &repository.ToolRunUsage{
 		RunID:        r.RunID,
-		TaskID:       r.TaskID,
+		TaskID:       parseNullableUUID(r.TaskID),
 		TaskTitle:    r.TaskTitle,
 		ProfileID:    r.ProfileID,
 		ProfileName:  r.ProfileName,

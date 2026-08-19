@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-08-12T23:06:24-04:00"
+    "last_validated_at": "2026-08-18T19:19:20-04:00"
   },
   "requirements": [
     {
       "id": "REQ-P2-001",
       "title": "Atomic Runs and Durable Workflow Executions",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P2-001",
       "category": "core",
       "description": "Keep each Run atomic while exposing a separate durable, explainable RunResult and a consumer-neutral WorkflowExecution that reconciles scenario-owned definitions; requires provider-aware final-output abstention, one schema-validated structured-result mechanism, explicit fresh-run or named-continuation identity per agent node with enforced node-local turn and timeout limits, deterministic size-bounded append-only journal context including explicit child-workflow outputs, a closed node vocabulary, positive traversal caps on every cycle-forming edge, visit-scoped fresh identities for parallel cycles, finite execution budgets, restart-safe dispatch idempotency, and distinct succeeded, blocked, abstained, budget-exhausted, failed, and cancelled terminals without consumer-domain mutations",
@@ -15,14 +15,14 @@
           "type": "test",
           "ref": "api/internal/workflowruntime/engine_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Verify turn-scoped results, visit-scoped waits, batched fan-out, early joins, and recoverable cleanup transitions"
         },
         {
           "type": "test",
           "ref": "api/internal/orchestration/run_result_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Verify continued-run final output is scoped to the latest durable provider turn"
         },
         {
@@ -42,7 +42,7 @@
           "type": "test",
           "ref": "api/internal/structuredresult/resolver_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Verify deterministic parsing, schema validation, bounded extraction fallback, abstention, and redacted diagnostics"
         },
         {
@@ -56,7 +56,7 @@
           "type": "test",
           "ref": "api/internal/workflowruntime/engine_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Verify fresh Run identity per loop attempt, explicit named continuation, bounded bindings, safe CEL, budget exhaustion, and restart-safe idempotent dispatch"
         },
         {
@@ -71,7 +71,7 @@
     {
       "id": "REQ-P2-005",
       "title": "Unified Declared-Run Doctrine and Registration-Time Validation",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P2-001",
       "category": "core",
       "description": "Register every scenario-owned agent declaration (profiles and workflows) through one unified location and reconcile entry point discriminated by schemaVersion, with a hard no-fallback cutover that rejects the legacy .vrooli/agent-profiles/ and .vrooli/agent-workflows/ directories and config.profiles/config.workflows blocks; reach profile-parity registration-time validation so CEL edge conditions compile and prompt placeholders cross-check against bindings at reconcile (not mid-execution) with a blocking error withholding registration and an unused binding warning still registering; resolve and digest-pin promptRef content with provenance at reconcile so a changed skill is a new revision and a resolution failure withholds the atomic batch; and canonicalize single-node sugar to a digest identical to its explicit form. Agent Manager registers its own declarations at startup through a self-registration seam that bypasses only the dependency gate, never a validator, and isolates per-source failures so a broken declaration never blocks readiness",
@@ -80,35 +80,35 @@
           "type": "test",
           "ref": "api/internal/orchestration/declaration_reconcile_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Verify schemaVersion routing, mixed-kind reconcile, profile drift, atomic workflow withhold, per-source and self-registration isolation, and rejection of legacy blocks and old-directory sources [REQ:REQ-P2-005]"
         },
         {
           "type": "test",
           "ref": "api/internal/workflowcatalog/catalog_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Verify CEL edge-condition compile, prompt placeholder cross-check (unbound error, unused warning), and single-node sugar digest identity at validate [REQ:REQ-P2-005]"
         },
         {
           "type": "test",
           "ref": "api/internal/orchestration/declaration_reconcile_test.go::TestReconcileScenarioDeclarationsWorkflowWithholdOnRegistrationDefect",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Verify CEL and placeholder defects are caught at reconcile, not only at file validate [REQ:REQ-P2-005]"
         },
         {
           "type": "test",
           "ref": "api/internal/orchestration/workflow_promptref_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Verify promptRef resolves and pins provenance at reconcile, a changed skill yields a new revision, and a missing skill or unreachable prompt-manager withholds the atomic batch [REQ:REQ-P2-005]"
         },
         {
           "type": "test",
           "ref": "api/internal/orchestration/legacy_layout_guard_test.go::TestNoLegacyDeclarationLayoutReaders",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Verify the retired declaration-layout directory literals appear only in the two designated rejection sites [REQ:REQ-P2-005]"
         },
         {
@@ -132,7 +132,7 @@
           "type": "test",
           "ref": "api/internal/orchestration/workflow_nudge_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Verify nudge dedupe, concurrent drain under -race, and wait-registry notify [REQ:REQ-P2-006]"
         },
         {
@@ -146,7 +146,7 @@
           "type": "test",
           "ref": "api/internal/orchestration/workflow_wait_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Verify immediate-terminal return, block-until-terminal, deadline timeout with the execution unchanged, concurrent waiters, and cancel-does-not-cancel-execution [REQ:REQ-P2-006]"
         }
       ]

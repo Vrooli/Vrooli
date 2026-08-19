@@ -27,7 +27,7 @@ func TestAppHelpersNormalizeOperationalInputs(t *testing.T) {
 	if parseRunMode("in-place") != domainpb.RunMode_RUN_MODE_IN_PLACE || parseRunMode("sandboxed") != domainpb.RunMode_RUN_MODE_SANDBOXED || parseRunMode("other") != domainpb.RunMode_RUN_MODE_UNSPECIFIED {
 		t.Fatal("run mode parsing")
 	}
-	if parseExecutionMode("codec-pipe") != domainpb.ExecutionMode_EXECUTION_MODE_CODEC_PIPE || parseExecutionMode("interactive") != domainpb.ExecutionMode_EXECUTION_MODE_INTERACTIVE || parseExecutionMode("other") != domainpb.ExecutionMode_EXECUTION_MODE_UNSPECIFIED {
+	if parseExecutionMode("codec-pipe") != domainpb.ExecutionMode_EXECUTION_MODE_CODEC_PIPE || parseExecutionMode("interactive") != domainpb.ExecutionMode_EXECUTION_MODE_INTERACTIVE || parseExecutionMode("attached") != domainpb.ExecutionMode_EXECUTION_MODE_ATTACHED || parseExecutionMode("other") != domainpb.ExecutionMode_EXECUTION_MODE_UNSPECIFIED {
 		t.Fatal("execution mode parsing")
 	}
 	if protoString("") != nil || *protoString("value") != "value" || !strings.Contains(marshalProtoJSON(&domainpb.Task{Id: "task"}), "task") || marshalProtoJSON(nil) != "" {

@@ -127,7 +127,11 @@ The scenario does not own:
   reimplements OS/GPU detection,
 - **persistent blob storage implementation** — owned by api-core
   storage/blobstore; image-tools owns only the consuming `storage` seam,
-- **palette extraction** — delegated to the palette-gen scenario,
+- **palette extraction** — *currently unowned*. This was delegated to the
+  `palette-gen` scenario, retired 2026-08-18 as abandoned (no dedicated commits,
+  no test runs, and no code here ever called it — the delegation was aspirational,
+  never implemented). Still a non-goal for image-tools; picking it up would be a
+  deliberate scope expansion,
 - **document→text** — owned by text-tools; image-tools owns image→text/OCR
   (the boundary is clear and non-overlapping).
 

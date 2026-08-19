@@ -129,6 +129,9 @@ func NewOrchestrator(db *database.DB, hub *handlers.WebSocketHub, logger *logrus
 	if runners.OpenCode != nil {
 		runners.OpenCode.SetSandboxLauncherFactory(sandboxProvider)
 	}
+	if runners.Antigravity != nil {
+		runners.Antigravity.SetSandboxLauncherFactory(sandboxProvider)
+	}
 
 	settingsStore, err := agentconfig.NewOrchestrationSettingsStore(agentconfig.ResolveOrchestrationSettingsPath())
 	if err != nil {

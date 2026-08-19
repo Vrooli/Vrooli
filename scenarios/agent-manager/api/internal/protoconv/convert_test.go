@@ -87,6 +87,7 @@ func TestExecutionModeToProto(t *testing.T) {
 	}{
 		{"codec_pipe", domain.ExecutionModeCodecPipe, pb.ExecutionMode_EXECUTION_MODE_CODEC_PIPE},
 		{"interactive", domain.ExecutionModeInteractive, pb.ExecutionMode_EXECUTION_MODE_INTERACTIVE},
+		{"attached", domain.ExecutionModeAttached, pb.ExecutionMode_EXECUTION_MODE_ATTACHED},
 		{"empty normalizes to codec_pipe", domain.ExecutionMode(""), pb.ExecutionMode_EXECUTION_MODE_CODEC_PIPE},
 	}
 	for _, tt := range tests {
@@ -106,6 +107,7 @@ func TestExecutionModeFromProto(t *testing.T) {
 	}{
 		{"codec_pipe", pb.ExecutionMode_EXECUTION_MODE_CODEC_PIPE, domain.ExecutionModeCodecPipe},
 		{"interactive", pb.ExecutionMode_EXECUTION_MODE_INTERACTIVE, domain.ExecutionModeInteractive},
+		{"attached", pb.ExecutionMode_EXECUTION_MODE_ATTACHED, domain.ExecutionModeAttached},
 		{"unspecified maps to empty", pb.ExecutionMode_EXECUTION_MODE_UNSPECIFIED, domain.ExecutionMode("")},
 	}
 	for _, tt := range tests {
@@ -114,6 +116,29 @@ func TestExecutionModeFromProto(t *testing.T) {
 				t.Errorf("expected %v, got %v", tt.expected, got)
 			}
 		})
+	}
+}
+
+func TestAttachedRunProtoRoundTripOmitsUnboundTask(t *testing.T) {
+	run := &domain.Run{
+		ID:               uuid.New(),
+		TaskID:           uuid.Nil,
+		ExecutionMode:    domain.ExecutionModeAttached,
+		HarnessKind:      "claude-code",
+		HarnessSessionID: "session-123",
+		Status:           domain.RunStatusRunning,
+		Phase:            domain.RunPhaseExecuting,
+	}
+	encoded := RunToProto(run)
+	if encoded.GetTaskId() != "" {
+		t.Fatalf("unbound task id encoded as %q, want empty", encoded.GetTaskId())
+	}
+	if encoded.ExecutionMode != pb.ExecutionMode_EXECUTION_MODE_ATTACHED || encoded.HarnessKind != "claude-code" || encoded.HarnessSessionId != "session-123" {
+		t.Fatalf("attached fields not encoded: mode=%v kind=%q session=%q", encoded.ExecutionMode, encoded.HarnessKind, encoded.HarnessSessionId)
+	}
+	decoded := RunFromProto(encoded)
+	if decoded.TaskID != uuid.Nil || decoded.ExecutionMode != domain.ExecutionModeAttached || decoded.HarnessKind != run.HarnessKind || decoded.HarnessSessionID != run.HarnessSessionID {
+		t.Fatalf("attached fields not decoded: task=%s mode=%q kind=%q session=%q", decoded.TaskID, decoded.ExecutionMode, decoded.HarnessKind, decoded.HarnessSessionID)
 	}
 }
 

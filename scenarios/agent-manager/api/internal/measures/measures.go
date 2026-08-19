@@ -63,8 +63,10 @@ type tokenAttributionStore interface {
 	TokenAttribution(context.Context, invocationreadmodel.Filter, string, string, int) ([]invocationreadmodel.TokenAttributionRow, error)
 }
 
-var tokenAttributionGroupByValues = []string{"capability", "executable", "command_path", "target_scenario_operation"}
-var tokenAttributionViewValues = []string{"footprint", "residency", "incurred"}
+var (
+	tokenAttributionGroupByValues = []string{"capability", "executable", "command_path", "target_scenario_operation"}
+	tokenAttributionViewValues    = []string{"footprint", "residency", "incurred"}
+)
 
 func validateTokenAttributionSelection(groupBy, view string) error {
 	if !containsString(tokenAttributionGroupByValues, groupBy) {

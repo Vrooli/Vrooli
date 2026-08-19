@@ -127,14 +127,7 @@
         }
       ]
     },
-    "build": {},
-    "deploy": {},
-    "clean": {},
-    "test": {},
-    "backup": {},
-    "restore": {},
-    "production": {},
-    "stop": {}
+    "test": {}
   },
   "dependencies": {
     "resources": {}

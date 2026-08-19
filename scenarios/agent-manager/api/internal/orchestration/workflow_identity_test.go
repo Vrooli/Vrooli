@@ -7,9 +7,10 @@ func TestWorkflowIdentityMeta_UsesOnlyWorkflowLineageValues(t *testing.T) {
 		workflowExecutionEnv: " execution-1 ",
 		workflowNodeEnv:      " node-a ",
 		workflowAttemptEnv:   " attempt-1 ",
+		personaIDEnv:         " persona-1 ",
 		"VROOLI_UNRELATED":   "ignored",
 	})
-	want := map[string]string{"workflowExecutionId": "execution-1", "workflowNodeId": "node-a", "workflowAttemptId": "attempt-1"}
+	want := map[string]string{"workflowExecutionId": "execution-1", "workflowNodeId": "node-a", "workflowAttemptId": "attempt-1", "persona_id": "persona-1"}
 	if len(meta) != len(want) {
 		t.Fatalf("meta = %#v, want %#v", meta, want)
 	}

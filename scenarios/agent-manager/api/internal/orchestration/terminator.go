@@ -313,6 +313,11 @@ func (t *Terminator) findProcessPIDForRun(run *domain.Run, tag string) int {
 			return pid
 		}
 		return t.findProcessPIDByTag(tag)
+	case domain.RunnerTypeAntigravity:
+		if pid := findProcessPIDByRunnerEnvTag("agy", tag); pid != 0 {
+			return pid
+		}
+		return t.findProcessPIDByTag(tag)
 	default:
 		return t.findProcessPIDByTag(tag)
 	}

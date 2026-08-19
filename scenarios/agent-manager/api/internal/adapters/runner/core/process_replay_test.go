@@ -29,6 +29,7 @@ func TestProcessReplay_AllSupportedCodecs(t *testing.T) {
 		{"codex", "codex-stdout.jsonl", codecs.NewCodexForTestWithBinary(fakeAgent)},
 		{"grok", "grok-stdout.jsonl", codecs.NewGrokForTestWithBinary(fakeAgent)},
 		{"opencode", "opencode-stdout.jsonl", codecs.NewOpenCodeForTestWithBinary(fakeAgent)},
+		{"antigravity", "antigravity-stdout.jsonl", codecs.NewAntigravityForTestWithBinary(fakeAgent)},
 	}
 	if len(cases) != len(domain.ValidRunnerTypes()) {
 		t.Fatalf("process replay cases = %d, supported runners = %d", len(cases), len(domain.ValidRunnerTypes()))
@@ -98,10 +99,10 @@ func assertReplayEvents(t *testing.T, name string, events []*domain.RunEvent) {
 	if !message {
 		t.Fatalf("%s replay emitted no message events: %+v", name, events)
 	}
-	if name != "grok" && !tool {
+	if name != "grok" && name != "antigravity" && !tool {
 		t.Fatalf("%s replay emitted no tool events: %+v", name, events)
 	}
-	if name != "grok" && !metric {
+	if name != "grok" && name != "antigravity" && !metric {
 		t.Fatalf("%s replay emitted no metric events: %+v", name, events)
 	}
 }
@@ -135,6 +136,7 @@ func TestProcessReplay_ContinuationAllSupportedCodecs(t *testing.T) {
 		{"codex", "codex-stdout.jsonl", codecs.NewCodexForTestWithBinary(fakeAgent)},
 		{"grok", "grok-stdout.jsonl", codecs.NewGrokForTestWithBinary(fakeAgent)},
 		{"opencode", "opencode-stdout.jsonl", codecs.NewOpenCodeForTestWithBinary(fakeAgent)},
+		{"antigravity", "antigravity-stdout.jsonl", codecs.NewAntigravityForTestWithBinary(fakeAgent)},
 	}
 	if len(cases) != len(domain.ValidRunnerTypes()) {
 		t.Fatalf("continuation replay cases = %d, supported runners = %d", len(cases), len(domain.ValidRunnerTypes()))

@@ -25,6 +25,8 @@ import (
 // state. Its 22 methods stay below the per-domain contract limit.
 type RunService interface {
 	CreateRun(context.Context, CreateRunRequest) (*domain.Run, error)
+	AttachRun(context.Context, AttachRunRequest) (*AttachRunResult, error)
+	DetachRun(context.Context, uuid.UUID, string) (*domain.Run, error)
 	CreateInvestigationRun(context.Context, CreateInvestigationRequest) (*domain.Run, error)
 	CreateInvestigationApplyRun(context.Context, CreateInvestigationApplyRequest) (*domain.Run, error)
 	ResumeFromFailedRun(context.Context, ResumeFromFailedRunRequest) (*domain.Run, error)

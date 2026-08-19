@@ -157,19 +157,18 @@ func (t CanonicalTool) IsValid() bool {
 type RunnerType string
 
 const (
-	RunnerTypeClaudeCode RunnerType = "claude-code"
-	RunnerTypeCodex      RunnerType = "codex"
-	RunnerTypeOpenCode   RunnerType = "opencode"
-	RunnerTypeGrok       RunnerType = "grok"
+	RunnerTypeClaudeCode  RunnerType = "claude-code"
+	RunnerTypeCodex       RunnerType = "codex"
+	RunnerTypeOpenCode    RunnerType = "opencode"
+	RunnerTypeGrok        RunnerType = "grok"
+	RunnerTypeAntigravity RunnerType = "antigravity"
 )
 
 // ValidRunnerTypes returns all valid runner types.
 func ValidRunnerTypes() []RunnerType {
 	return []RunnerType{
-		RunnerTypeClaudeCode,
-		RunnerTypeCodex,
-		RunnerTypeOpenCode,
-		RunnerTypeGrok,
+		RunnerTypeClaudeCode, RunnerTypeCodex, RunnerTypeOpenCode,
+		RunnerTypeGrok, RunnerTypeAntigravity,
 	}
 }
 
@@ -791,7 +790,7 @@ const (
 // Run represents a single execution attempt of a task using a specific agent profile.
 type Run struct {
 	ID             uuid.UUID  `json:"id" db:"id"`
-	TaskID         uuid.UUID  `json:"taskId" db:"task_id"`
+	TaskID         uuid.UUID  `json:"taskId,omitempty" db:"task_id"`
 	AgentProfileID *uuid.UUID `json:"agentProfileId,omitempty" db:"agent_profile_id"` // Optional if inline config provided
 
 	// Custom tag for identification (defaults to ID if not set)
@@ -809,10 +808,10 @@ type Run struct {
 	SandboxID     *uuid.UUID     `json:"sandboxId,omitempty" db:"sandbox_id"`
 	RunMode       RunMode        `json:"runMode" db:"run_mode"`
 	SandboxConfig *SandboxConfig `json:"sandboxConfig,omitempty" db:"sandbox_config"`
-	// ExecutionMode selects the CLI-driving substrate for this run
-	// (codec-pipe vs interactive web-console session). Empty is treated as
-	// ExecutionModeCodecPipe; see [ExecutionMode]. Orthogonal to RunMode.
-	ExecutionMode ExecutionMode `json:"executionMode,omitempty" db:"execution_mode"`
+	// ExecutionMode selects the CLI-driving substrate; empty defaults to codec-pipe. Orthogonal to RunMode.
+	ExecutionMode    ExecutionMode `json:"executionMode,omitempty" db:"execution_mode"`
+	HarnessKind      string        `json:"harnessKind,omitempty" db:"harness_kind"`
+	HarnessSessionID string        `json:"harnessSessionId,omitempty" db:"harness_session_id"`
 
 	// WebConsoleSessionID is the id of the web-console session hosting the
 	// interactive agent CLI, set only for ExecutionModeInteractive runs. It
@@ -1065,9 +1064,9 @@ type ExecutionMode string
 const (
 	ExecutionModeCodecPipe   ExecutionMode = "codec_pipe"
 	ExecutionModeInteractive ExecutionMode = "interactive"
-	// ExecutionModeImported marks a terminal, read-only run adopted from an
-	// external harness transcript. It never owns a runner process or sandbox.
+	// ExecutionModeImported marks a terminal, read-only run adopted from an external harness transcript.
 	ExecutionModeImported ExecutionMode = "imported"
+	ExecutionModeAttached ExecutionMode = "attached"
 )
 
 // Normalized returns the mode with the empty value defaulted to
@@ -1083,7 +1082,7 @@ func (m ExecutionMode) Normalized() ExecutionMode {
 // IsValid reports whether the mode is one of the known execution modes.
 func (m ExecutionMode) IsValid() bool {
 	switch m {
-	case ExecutionModeCodecPipe, ExecutionModeInteractive, ExecutionModeImported:
+	case ExecutionModeCodecPipe, ExecutionModeInteractive, ExecutionModeImported, ExecutionModeAttached:
 		return true
 	default:
 		return false

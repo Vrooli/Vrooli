@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-08-12T23:06:24-04:00"
+    "last_validated_at": "2026-08-18T19:19:20-04:00"
   },
   "requirements": [
     {
       "id": "REQ-P0-011",
       "title": "Diff Generation",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-009",
       "category": "core",
       "description": "Generate and store diffs from sandbox file system changes",
@@ -15,7 +15,7 @@
           "type": "test",
           "ref": "api/internal/adapters/sandbox/workspace_sandbox_test.go::TestWorkspaceSandboxProvider_GetDiff",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Test diff retrieval from sandbox"
         },
         {

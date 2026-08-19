@@ -5,6 +5,7 @@ import (
 
 	"agent-manager/internal/adapters/database"
 	"agent-manager/internal/config"
+	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration/testutil"
 
 	"github.com/sirupsen/logrus"
@@ -31,8 +32,8 @@ func TestNewRunnersRegistersEverySupportedType(t *testing.T) {
 	if runners.Registry == nil {
 		t.Fatal("runner registry is nil")
 	}
-	if got := len(runners.Registry.List()); got != 4 {
-		t.Fatalf("registered runners=%d, want 4", got)
+	if got, want := len(runners.Registry.List()), len(domain.ValidRunnerTypes()); got != want {
+		t.Fatalf("registered runners=%d, want %d", got, want)
 	}
 }
 

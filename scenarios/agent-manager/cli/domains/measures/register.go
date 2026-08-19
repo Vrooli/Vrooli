@@ -268,8 +268,10 @@ func Register() cliapp.SubcommandGroup {
 	}}
 }
 
-var tokenAttributionByValues = []string{"capability", "executable", "command-path", "scenario-operation"}
-var tokenAttributionViewValues = []string{"footprint", "residency", "incurred"}
+var (
+	tokenAttributionByValues   = []string{"capability", "executable", "command-path", "scenario-operation"}
+	tokenAttributionViewValues = []string{"footprint", "residency", "incurred"}
+)
 
 func tokenAttributionMeasure() cliapp.Command {
 	flags := []cliapp.Flag{

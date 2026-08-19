@@ -266,6 +266,8 @@ func parseExecutionMode(value string) domainpb.ExecutionMode {
 		return domainpb.ExecutionMode_EXECUTION_MODE_CODEC_PIPE
 	case "interactive":
 		return domainpb.ExecutionMode_EXECUTION_MODE_INTERACTIVE
+	case "attached":
+		return domainpb.ExecutionMode_EXECUTION_MODE_ATTACHED
 	default:
 		return domainpb.ExecutionMode_EXECUTION_MODE_UNSPECIFIED
 	}

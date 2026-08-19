@@ -86,6 +86,7 @@ func lastResortAlternative(registry runner.Registry, current domain.RunnerType) 
 		domain.RunnerTypeClaudeCode,
 		domain.RunnerTypeCodex,
 		domain.RunnerTypeOpenCode,
+		domain.RunnerTypeAntigravity,
 	}
 	for _, rt := range candidates {
 		if rt == current {

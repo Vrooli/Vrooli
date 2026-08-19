@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-08-12T23:06:24-04:00"
+    "last_validated_at": "2026-08-18T19:19:20-04:00"
   },
   "requirements": [
     {
       "id": "REQ-P0-013",
       "title": "Health Check Endpoint",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-011",
       "category": "api",
       "description": "Implement health check API endpoint reporting system status",
@@ -15,14 +15,14 @@
           "type": "test",
           "ref": "api/internal/handlers/handlers_test.go::TestHealth_Success",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Test health endpoint returns proper schema"
         },
         {
           "type": "test",
           "ref": "api/internal/handlers/handlers_test.go::TestHealth_ApiV1Path",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Verify /api/v1/health path works"
         },
         {
@@ -36,7 +36,7 @@
           "type": "test",
           "ref": "api/internal/wiring/routes_test.go::TestWorkspaceSandboxHealthCheckerPreservesUnavailableReason",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "An unconfigured workspace-sandbox endpoint is reported as a degraded dependency with its actionable reason."
         }
       ]

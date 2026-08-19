@@ -188,6 +188,26 @@ type CreateRunRequest struct {
 	ParentRunID    *uuid.UUID `json:"parentRunId,omitempty"`
 }
 
+// AttachRunRequest identifies a harness session that agent-manager did not
+// spawn. It intentionally carries only identity/liveness metadata; no
+// transcript path or live-output stream is accepted.
+type AttachRunRequest struct {
+	TaskID         *uuid.UUID
+	HarnessKind    string
+	HarnessSession string
+	ProcessID      int
+	HarnessTitle   string
+}
+
+// AttachRunResult contains the attached run and the plaintext token that is
+// placed in the child environment by the launcher. The token is never stored
+// in the database; only its hash is persisted on the run.
+type AttachRunResult struct {
+	Run       *domain.Run
+	Token     string
+	ExpiresAt time.Time
+}
+
 // ProfileRef identifies a profile by key with optional defaults.
 //
 // When UpdateExisting is true, the supplied Defaults overwrite any existing

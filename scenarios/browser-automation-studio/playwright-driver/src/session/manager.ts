@@ -106,6 +106,8 @@ export class SessionManager {
   private browserManager: BrowserManager;
   private config: Config;
   private qualificationDevice: Promise<PipeWireQualificationDevice> | null = null;
+  /** Number of device-evidence sessions still being admitted before map insertion. */
+  private qualificationDeviceStarts = 0;
 
   /**
    * Cross-cutting instrumentation seam (no-op by default). Session-level
@@ -160,7 +162,12 @@ export class SessionManager {
 
   /** Close the shared qualification topology when no session owns it. */
   private async closeQualificationDeviceIfIdle(): Promise<void> {
-    if (this.sessions.size !== 0 || !this.qualificationDevice) return;
+    if (
+      this.sessions.size !== 0 ||
+      this.qualificationDeviceStarts !== 0 ||
+      !this.qualificationDevice
+    )
+      return;
     const qualificationDevice = this.qualificationDevice;
     this.qualificationDevice = null;
     await qualificationDevice
@@ -346,6 +353,7 @@ export class SessionManager {
     let audioPlaybackFailure: string | undefined;
     let contextForCleanup: BrowserContext | undefined;
     let browserForCleanup: Browser | undefined;
+    if (deviceEvidenceEnabled) this.qualificationDeviceStarts += 1;
     try {
       if (deviceEvidenceEnabled && !this.qualificationDevice) {
         this.qualificationDevice = createPipeWireQualificationDevice();
@@ -678,6 +686,11 @@ export class SessionManager {
         await this.closeQualificationDeviceIfIdle();
       }
       throw error;
+    } finally {
+      if (deviceEvidenceEnabled) {
+        this.qualificationDeviceStarts -= 1;
+        await this.closeQualificationDeviceIfIdle();
+      }
     }
   }
 

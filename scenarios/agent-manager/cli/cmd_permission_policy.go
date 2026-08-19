@@ -4,7 +4,7 @@ import (
 	"flag"
 	"fmt"
 
-	"github.com/vrooli/cli-core/agentpolicy"
+	"github.com/vrooli/cli-core/agentcatalog"
 	"github.com/vrooli/cli-core/cliutil"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
 )
@@ -62,7 +62,7 @@ func parsePermissionPolicyFlags(name string, args []string, reconciliation bool)
 		return nil, nil, err
 	}
 	if reconciliation && !*authorized {
-		return nil, nil, fmt.Errorf("reconcile requires %s", agentpolicy.OverrideFlag)
+		return nil, nil, fmt.Errorf("reconcile requires %s", agentcatalog.OverrideFlag)
 	}
 	return jsonOutput, authorized, nil
 }

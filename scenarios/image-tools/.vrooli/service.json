@@ -78,7 +78,7 @@
     "ui": {
       "env_var": "UI_PORT",
       "description": "React UI",
-      "port": 20005
+      "range": "20000-24999"
     }
   },
   "lifecycle": {
@@ -132,12 +132,12 @@
       "steps": [
         {
           "name": "build-api",
-          "run": "cd api && GOWORK=off go mod download && GOWORK=off go build -o image-tools-api .",
+          "run": "cd api \u0026\u0026 GOWORK=off go mod download \u0026\u0026 GOWORK=off go build -o image-tools-api .",
           "description": "Build Go API server"
         },
         {
           "name": "install-ui-deps",
-          "run": "if [ -f ui/package.json ]; then cd ui && (corepack pnpm install --ignore-workspace || pnpm install --ignore-workspace); else echo 'ui/ not present yet'; fi",
+          "run": "if [ -f ui/package.json ]; then cd ui \u0026\u0026 (corepack pnpm install --ignore-workspace || pnpm install --ignore-workspace); else echo 'ui/ not present yet'; fi",
           "description": "Install UI dependencies",
           "condition": {
             "file_exists": "ui/package.json"
@@ -145,7 +145,7 @@
         },
         {
           "name": "build-ui",
-          "run": "if [ -f ui/package.json ]; then cd ui && (corepack pnpm --ignore-workspace run build || pnpm --ignore-workspace run build); else echo 'ui/ not present yet'; fi",
+          "run": "if [ -f ui/package.json ]; then cd ui \u0026\u0026 (corepack pnpm --ignore-workspace run build || pnpm --ignore-workspace run build); else echo 'ui/ not present yet'; fi",
           "description": "Build production UI bundle"
         }
       ]
@@ -155,7 +155,7 @@
       "steps": [
         {
           "name": "start-api",
-          "run": "cd api && ./image-tools-api",
+          "run": "cd api \u0026\u0026 ./image-tools-api",
           "description": "Start Go API server in background",
           "background": true,
           "condition": {
@@ -164,7 +164,7 @@
         },
         {
           "name": "start-ui",
-          "run": "cd ui && node server.js",
+          "run": "cd ui \u0026\u0026 node server.js",
           "description": "Serve production UI bundle",
           "background": true,
           "condition": {
@@ -173,9 +173,6 @@
         }
       ]
     },
-    "build": {},
-    "deploy": {},
-    "clean": {},
     "test": {
       "description": "Execute phased test suite via test-genie",
       "steps": [
@@ -190,31 +187,13 @@
           "description": "Run all test phases via test-genie"
         }
       ]
-    },
-    "backup": {},
-    "restore": {},
-    "production": {},
-    "stop": {
-      "description": "Stop background processes",
-      "steps": [
-        {
-          "name": "stop-api",
-          "run": "pkill -f 'image-tools-api' || true",
-          "description": "Stop Go API"
-        },
-        {
-          "name": "stop-ui",
-          "run": "pkill -f 'node server.js' || true",
-          "description": "Stop UI server"
-        }
-      ]
     }
   },
   "hostTools": [
     {
       "name": "google-chrome-stable",
       "required": false,
-      "reason": "High-fidelity SVG rasterization. oksvg silently drops <filter>, <mask>, <pattern> and CSS, so a document using any of them is rendered here or refused by name — never degraded into a plausible wrong picture.",
+      "reason": "High-fidelity SVG rasterization. oksvg silently drops \u003cfilter\u003e, \u003cmask\u003e, \u003cpattern\u003e and CSS, so a document using any of them is rendered here or refused by name — never degraded into a plausible wrong picture.",
       "when": [
         "develop"
       ],

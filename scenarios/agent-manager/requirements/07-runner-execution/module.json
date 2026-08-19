@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-08-12T23:06:24-04:00"
+    "last_validated_at": "2026-08-18T19:19:20-04:00"
   },
   "requirements": [
     {
       "id": "REQ-P0-009",
       "title": "Runner Execution Flow",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-007",
       "category": "core",
       "description": "Execute agent tasks via runner adapters using profile configurations",
@@ -15,21 +15,21 @@
           "type": "test",
           "ref": "api/internal/adapters/runner/registry_test.go::TestMockRunner_Execute_Default",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Test default execution flow"
         },
         {
           "type": "test",
           "ref": "api/internal/adapters/runner/registry_test.go::TestMockRunner_Execute_Custom",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Test custom execution behavior"
         },
         {
           "type": "test",
           "ref": "api/internal/adapters/runner/registry_test.go::TestMockRunner_Stop",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Test runner stop functionality"
         },
         {

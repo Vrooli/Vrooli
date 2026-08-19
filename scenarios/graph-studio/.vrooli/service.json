@@ -177,21 +177,6 @@
           "description": "Execute phased scenario test suite"
         }
       ]
-    },
-    "stop": {
-      "description": "Stop Graph Studio services",
-      "steps": [
-        {
-          "name": "stop-api",
-          "run": "pkill -f \"graph-studio-api\" || true; sleep 1; pkill -9 -f \"graph-studio-api\" 2>/dev/null || true",
-          "description": "Stop API process"
-        },
-        {
-          "name": "stop-ui",
-          "run": "pkill -f \"scenarios/graph-studio.*vite\" || true; sleep 1; pkill -9 -f \"scenarios/graph-studio.*vite\" 2>/dev/null || true",
-          "description": "Stop UI development server"
-        }
-      ]
     }
   },
   "dependencies": {

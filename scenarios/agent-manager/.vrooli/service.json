@@ -140,11 +140,6 @@
           "description": "Build Go API server"
         },
         {
-          "name": "install-cli",
-          "run": "bash cli/install.sh",
-          "description": "Install the fresh Agent Manager CLI artifact"
-        },
-        {
           "name": "install-ui-deps",
           "run": "if [ -f ui/package.json ]; then cd ui && (corepack pnpm install --ignore-workspace || pnpm install --ignore-workspace); else echo 'ui/ not present yet'; fi",
           "description": "Install UI dependencies",
@@ -189,21 +184,6 @@
           "name": "run-tests",
           "run": "vrooli scenario start agent-manager && for url in \"http://localhost:${API_PORT}/health\" \"http://localhost:${UI_PORT}/health\"; do ok=0; for i in $(seq 1 45); do if curl -fsS \"$url\" >/dev/null; then ok=1; break; fi; sleep 1; done; if [ \"$ok\" -ne 1 ]; then echo \"Timed out waiting for $url\"; exit 1; fi; done; test-genie execute agent-manager --preset comprehensive",
           "description": "Run all test phases via test-genie"
-        }
-      ]
-    },
-    "stop": {
-      "description": "Stop background processes",
-      "steps": [
-        {
-          "name": "stop-api",
-          "run": "pkill -f 'agent-manager-api' || true",
-          "description": "Stop Go API"
-        },
-        {
-          "name": "stop-ui",
-          "run": "pkill -f 'node server.js' || true",
-          "description": "Stop UI server"
         }
       ]
     }

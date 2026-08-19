@@ -9,7 +9,6 @@ package entitlement
 import (
 	"fmt"
 
-
 	pbsvc "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/entitlement"
 
 	"github.com/vrooli/cli-core/cliapp"
@@ -26,11 +25,7 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 	if svc == nil {
 		return cliapp.SubcommandGroup{}, fmt.Errorf("%s: EntitlementService descriptor not found", GroupName)
 	}
-	bindings, err := cliapp.ProtoBindings(core, svc.FullName(), cliapp.ProtoBindingOptions{})
-	if err != nil {
-		return cliapp.SubcommandGroup{}, fmt.Errorf("%s: %w", GroupName, err)
-	}
-	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
+	group, err := cliapp.LoadProtoGroupFromManifest(core, svc.FullName(), manifest, GroupName, cliapp.ProtoBindingOptions{})
 	if err != nil {
 		return cliapp.SubcommandGroup{}, fmt.Errorf("%s: load from manifest: %w", GroupName, err)
 	}

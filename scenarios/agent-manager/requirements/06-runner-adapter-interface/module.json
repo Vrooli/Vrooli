@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-08-12T23:06:24-04:00"
+    "last_validated_at": "2026-08-18T19:19:20-04:00"
   },
   "requirements": [
     {
       "id": "REQ-P0-008",
       "title": "Runner Adapter Interface Definition",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-006",
       "category": "core",
       "description": "Define standard interface that all runner implementations must implement",
@@ -15,28 +15,28 @@
           "type": "test",
           "ref": "api/internal/adapters/runner/registry_test.go::TestDefaultRegistry_Register",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Test runner registry registration"
         },
         {
           "type": "test",
           "ref": "api/internal/adapters/runner/registry_test.go::TestDefaultRegistry_Register_Duplicate",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Test duplicate runner registration handling"
         },
         {
           "type": "test",
           "ref": "api/internal/adapters/runner/registry_test.go::TestMockRunner_Defaults",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Test mock runner interface compliance"
         },
         {
           "type": "test",
           "ref": "api/internal/adapters/runner/registry_test.go::TestStubRunner",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Test stub runner for unavailable runners"
         },
         {
@@ -50,7 +50,7 @@
           "type": "test",
           "ref": "api/internal/adapters/runner/codecs/capabilities_conformance_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Verify declared codec capabilities match enforceable tool and effort controls"
         }
       ]

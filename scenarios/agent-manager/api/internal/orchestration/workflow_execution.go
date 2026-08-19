@@ -37,6 +37,7 @@ const (
 	workflowExperimentEnv = "VROOLI_WORKFLOW_EXPERIMENT_ID"
 	workflowVariantEnv    = "VROOLI_WORKFLOW_VARIANT_ID"
 	workflowPromptHashEnv = "VROOLI_WORKFLOW_PROMPT_HASH"
+	personaIDEnv          = "VROOLI_PERSONA_ID"
 )
 
 func (l workflowChildLauncher) StartFresh(ctx context.Context, req workflowruntime.ChildRequest) (workflowruntime.ChildState, error) {

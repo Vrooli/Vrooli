@@ -15,17 +15,17 @@ Value proposition: Provides standardized, policy-driven agent execution manageme
 ## 🎯 Operational Targets
 
 ### 🔴 P0 – Must ship for viability
-- [x] OT-P0-001 | AgentProfile Management | Create and reconcile portable role-based agent profiles with runner-neutral controls and permission posture
-- [x] OT-P0-002 | Task Management | Implement CRUD operations for tasks with status tracking
-- [x] OT-P0-003 | Run Creation | Enable run creation with sandbox allocation and mode selection
-- [x] OT-P0-004 | Run Status Tracking | Track and update run status with timestamps
-- [x] OT-P0-005 | Sandbox Integration | Integrate with workspace-sandbox for isolated execution
-- [x] OT-P0-006 | Runner Adapter Interface | Define and implement runner adapter interface
-- [x] OT-P0-007 | Runner Execution | Execute agents via adapters with profile configurations
-- [x] OT-P0-008 | Event Streaming | Implement append-only event stream for run activities
-- [x] OT-P0-009 | Diff Collection | Generate and store diffs from sandbox changes
-- [x] OT-P0-010 | Basic Approval Flow | Support approve/reject workflows for runs
-- [x] OT-P0-011 | Health Check API | Provide health monitoring endpoint
+- [ ] OT-P0-001 | AgentProfile Management | Create and reconcile portable role-based agent profiles with runner-neutral controls and permission posture
+- [ ] OT-P0-002 | Task Management | Implement CRUD operations for tasks with status tracking
+- [ ] OT-P0-003 | Run Creation | Enable run creation with sandbox allocation and mode selection
+- [ ] OT-P0-004 | Run Status Tracking | Track and update run status with timestamps
+- [ ] OT-P0-005 | Sandbox Integration | Integrate with workspace-sandbox for isolated execution
+- [ ] OT-P0-006 | Runner Adapter Interface | Define and implement runner adapter interface
+- [ ] OT-P0-007 | Runner Execution | Execute agents via adapters with profile configurations
+- [ ] OT-P0-008 | Event Streaming | Implement append-only event stream for run activities
+- [ ] OT-P0-009 | Diff Collection | Generate and store diffs from sandbox changes
+- [ ] OT-P0-010 | Basic Approval Flow | Support approve/reject workflows for runs
+- [ ] OT-P0-011 | Health Check API | Provide health monitoring endpoint
 - [ ] OT-P0-012 | Durable Run Analytics | The system shall retain durable invocation facts and provide typed historical run analytics with non-blocking event-capture observability
 
 ### 🟠 P1 – Should have post-launch
