@@ -5,7 +5,7 @@
   "asset": {
     "id": "overlays.popover",
     "name": "Popover",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "overlays",
     "description": "The collision-aware anchored surface with focus management, pointer-safe interaction corridors, arrow positioning, nested layering, and a responsive fallback presentation.",
     "targets": [

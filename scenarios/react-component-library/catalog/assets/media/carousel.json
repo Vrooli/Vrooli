@@ -5,7 +5,7 @@
   "asset": {
     "id": "media.carousel",
     "name": "Carousel",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "media",
     "description": "The touch- and keyboard-operable sequence with native-feeling momentum, snapping, pagination indicators, autoplay safeguards, responsive item counts, and reduced-motion behavior.",
     "targets": [

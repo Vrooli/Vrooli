@@ -27,7 +27,9 @@ type frameCatalogDocument struct {
 		TypeArguments []string `json:"typeArguments"`
 	} `json:"expects"`
 	Fixture struct {
-		Satisfies *struct {
+		DataShapes  []string       `json:"dataShapes"`
+		RecordCount map[string]int `json:"recordCount"`
+		Satisfies   *struct {
 			Capability    string   `json:"capability"`
 			TypeArguments []string `json:"typeArguments"`
 		} `json:"satisfies"`
@@ -91,7 +93,7 @@ func (s *service) bundleFrame(ctx context.Context, frame *components.StoryFrame)
 	if err != nil {
 		return "", "", "", nil, err
 	}
-	js, _, err := s.bundler.BuildBundle(ctx, content.Body, content.SourcePath)
+	js, _, err := s.bundler.BuildBundle(ctx, stampPreviewSource(content.Body, content.SourcePath, frame.Asset, version), content.SourcePath)
 	if err != nil {
 		return "", "", "", nil, err
 	}
@@ -107,7 +109,7 @@ func (s *service) bundleFrame(ctx context.Context, frame *components.StoryFrame)
 		Asset       string   `json:"asset"`
 		DataShapes  []string `json:"dataShapes,omitempty"`
 		RecordCount any      `json:"recordCount,omitempty"`
-	}{Asset: fixtureDoc.Asset.ID})
+	}{Asset: fixtureDoc.Asset.ID, DataShapes: fixtureDoc.Fixture.DataShapes, RecordCount: fixtureDoc.Fixture.RecordCount})
 	if err != nil {
 		return "", "", "", nil, err
 	}

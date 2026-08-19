@@ -10,7 +10,7 @@
   "asset": {
     "id": "motion.presence",
     "name": "Presence",
-    "kind": "primitive",
+    "kind": "primitive", "surface": "base",
     "domain": "motion",
     "description": "The mount and unmount lifecycle primitive letting content animate out before removal, handling interruption, nesting, and reduced-motion collapse.",
     "targets": [

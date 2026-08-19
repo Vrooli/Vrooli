@@ -10,7 +10,7 @@
   "asset": {
     "id": "data-display.diff-viewer",
     "name": "DiffViewer",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "data-display",
     "description": "The semantic comparison surface for text or structured change, with split and unified modes, syntax highlighting, hunk navigation, comments, selection, and large-file handling.",
     "targets": [

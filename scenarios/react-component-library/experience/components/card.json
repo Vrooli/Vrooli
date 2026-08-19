@@ -1,0 +1,51 @@
+{
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-component",
+  "schemaVersion": "1.1.0",
+  "component": {
+    "id": "primitives.card",
+    "title": "Card",
+    "purpose": "A structured surface that consumes a shared elevation context and remains flat when rendered standalone.",
+    "storyRef": "../../library/components/Card/versions/1.1.0/story.json"
+  },
+  "states": [
+    {
+      "id": "standalone",
+      "example": "standalone-flat",
+      "description": "The card uses its flat standalone fallback."
+    },
+    {
+      "id": "card-grid",
+      "example": "card-grid-raised",
+      "description": "The card honors the raised context supplied by CardGrid."
+    }
+  ],
+  "elements": [
+    {
+      "id": "card",
+      "role": "region",
+      "description": "The card surface whose computed elevation is compared between contexts."
+    }
+  ],
+  "claims": [
+    {
+      "id": "surface-context-elevation",
+      "type": "differential",
+      "statement": "Card elevation changes when CardGrid provides a raised SurfaceContext.",
+      "tier": "machine",
+      "states": ["standalone", "card-grid"],
+      "subject": "card",
+      "metric": "surface-elevation",
+      "require": "contexts-differ",
+      "contexts": [
+        { "id": "standalone", "story": "standalone-flat", "expect": "flat" },
+        { "id": "card-grid", "story": "card-grid-raised", "expect": "raised" }
+      ]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "card": { "selector": "[data-rcl-card]" }
+    }
+  }
+}

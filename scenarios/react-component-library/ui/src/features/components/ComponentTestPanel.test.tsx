@@ -12,7 +12,7 @@ const api = vi.hoisted(() => ({
 vi.mock("../../api/componentTests", () => api);
 
 describe("ComponentTestPanel", () => {
-  it("launches the explicit version closure and renders durable remediation", async () => {
+  it("defaults to the selected version and renders durable remediation", async () => {
     api.listComponentTestReports.mockResolvedValue([]);
     api.runComponentTest.mockResolvedValue({
       id: "ctr_123",
@@ -30,17 +30,18 @@ describe("ComponentTestPanel", () => {
     });
     renderWithProviders(<ComponentTestPanel componentId="button-id" version="1.0.0" />);
     await screen.findByText("No component test evidence yet");
+    expect(screen.getByRole("checkbox", { name: "Include dependency closure" })).not.toBeChecked();
     fireEvent.click(screen.getByRole("button", { name: "Run component tests" }));
     await waitFor(() =>
       expect(api.runComponentTest).toHaveBeenCalledWith({
         componentId: "button-id",
         version: "1.0.0",
-        includeClosure: true,
+        includeClosure: false,
       }),
     );
-    expect(await screen.findByText("Recommended next step:")).toBeInTheDocument();
-    expect(screen.getByText("fix contract")).toBeInTheDocument();
-    expect(screen.getAllByText("Needs attention")).toHaveLength(2);
+    expect(await screen.findAllByText("Recommended next step:")).toHaveLength(2);
+    expect(screen.getAllByText("fix contract")).toHaveLength(2);
+    expect(screen.getAllByText("Needs attention")).toHaveLength(3);
   });
 
   it("provides a deep link for historical durable evidence", async () => {

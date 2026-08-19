@@ -10,7 +10,7 @@
   "asset": {
     "id": "data-display.timeline",
     "name": "Timeline",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "data-display",
     "description": "The chronological event component with date grouping, status markers, expandable detail, loading, pagination, and responsive alignment.",
     "targets": [

@@ -30,6 +30,21 @@
       "mode": "pinned"
     },
     {
+      "id": "fixture-failure",
+      "name": "Fixture failure",
+      "args": {
+        "title": "Overview",
+        "description": "Workspace"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "alert"
+        }
+      ],
+      "mode": "pinned"
+    },
+    {
       "id": "long-content",
       "name": "Long content",
       "args": {

@@ -5,7 +5,7 @@
   "asset": {
     "id": "data-display.log-viewer",
     "name": "LogViewer",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "data-display",
     "description": "The virtualized streaming log surface with pause and follow, search, severity filters, timestamps, wrapping, selection, and export.",
     "targets": [

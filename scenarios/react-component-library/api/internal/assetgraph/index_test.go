@@ -87,7 +87,7 @@ func TestOracleCatalogGraph(t *testing.T) {
 		t.Fatal(err)
 	}
 	direct, transitive, err := index.Dependents("foundations.tokens")
-	if err != nil || len(direct) != 90 || len(transitive) != 303 {
+	if err != nil || len(direct) != 90 || len(transitive) != 304 {
 		t.Fatalf("foundations.tokens dependents = %d/%d, %v", len(direct), len(transitive), err)
 	}
 	closure, err := index.Closure("data-display.data-table")

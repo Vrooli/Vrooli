@@ -10,7 +10,7 @@
   "asset": {
     "id": "manipulation.split-pane",
     "name": "SplitPane",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "manipulation",
     "description": "The polished resizable-region component with collapse, double-click reset, persistence, keyboard operation, responsive stacking, and coordination between nested panes.",
     "targets": [

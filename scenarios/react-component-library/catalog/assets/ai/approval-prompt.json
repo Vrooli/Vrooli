@@ -5,7 +5,7 @@
   "asset": {
     "id": "ai.approval-prompt",
     "name": "ApprovalPrompt",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "ai",
     "description": "The human-in-the-loop decision surface presenting the proposed action, its target, scope, consequences, alternatives, expiry, and resulting approval state.",
     "targets": [

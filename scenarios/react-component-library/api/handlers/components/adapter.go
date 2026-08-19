@@ -18,7 +18,7 @@ func experienceToProto(snapshot experience.Snapshot) *componentsv1.ComponentExpe
 		out.Claims = append(out.Claims, &componentsv1.ComponentExperienceClaim{Id: claim.ID, Type: claim.Type, Statement: claim.Statement, Tier: claim.Tier, States: append([]string(nil), claim.States...)})
 	}
 	for _, evidence := range snapshot.Evidence {
-		out.Evidence = append(out.Evidence, &componentsv1.ComponentExperienceEvidence{ClaimId: evidence.ClaimID, Verdict: evidence.Verdict, StateId: evidence.StateID, ExampleName: evidence.ExampleName, CaptureRef: evidence.CaptureRef, CheckedAt: evidence.CheckedAt, Message: evidence.Message, Viewport: evidence.Viewport, ViewportWidth: int32(evidence.ViewportWidth), ViewportHeight: int32(evidence.ViewportHeight)})
+		out.Evidence = append(out.Evidence, &componentsv1.ComponentExperienceEvidence{ClaimId: evidence.ClaimID, Verdict: evidence.Verdict, StateId: evidence.StateID, ExampleName: evidence.ExampleName, CaptureRef: evidence.CaptureRef, CheckedAt: evidence.CheckedAt, Message: evidence.Message, Viewport: evidence.Viewport, ViewportWidth: int32(evidence.ViewportWidth), ViewportHeight: int32(evidence.ViewportHeight), Measurement: evidence.Measurement})
 	}
 	return out
 }

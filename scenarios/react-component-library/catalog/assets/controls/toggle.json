@@ -5,7 +5,7 @@
   "asset": {
     "id": "controls.toggle",
     "name": "Toggle",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "controls",
     "description": "The two-state pressable with selected semantics, optional icon and label, tooltip integration, and controlled or uncontrolled operation.",
     "targets": [

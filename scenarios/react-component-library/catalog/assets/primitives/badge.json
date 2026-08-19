@@ -5,7 +5,7 @@
   "asset": {
     "id": "primitives.badge",
     "name": "Badge",
-    "kind": "primitive",
+    "kind": "primitive", "surface": "base",
     "domain": "primitives",
     "description": "The compact status or metadata primitive with semantic variants, counters, overflow handling, and meaning carried by more than colour alone.",
     "targets": [

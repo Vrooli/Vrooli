@@ -5,7 +5,7 @@
   "asset": {
     "id": "ai.prompt-composer",
     "name": "PromptComposer",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "ai",
     "description": "The message composer with auto-resizing entry, attachments, slash commands, mentions, model and tool context, submit, stop, retry, draft persistence, and keyboard behavior that never traps the user.",
     "targets": [

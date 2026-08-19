@@ -5,7 +5,7 @@
   "asset": {
     "id": "data-display.query-builder",
     "name": "QueryBuilder",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "data-display",
     "description": "The structured predicate editor with nested groups, field-aware operators, typed values, validation, keyboard operation, a human-readable summary, and stable serialization.",
     "targets": [

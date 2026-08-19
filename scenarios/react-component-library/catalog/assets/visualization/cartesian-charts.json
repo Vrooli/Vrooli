@@ -5,7 +5,7 @@
   "asset": {
     "id": "visualization.cartesian-charts",
     "name": "CartesianCharts",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "visualization",
     "description": "The line, area, bar, stacked bar, scatter, and histogram family sharing one data, axis, interaction, animation, and accessibility model.",
     "targets": [

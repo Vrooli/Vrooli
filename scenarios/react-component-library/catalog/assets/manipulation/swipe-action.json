@@ -5,7 +5,7 @@
   "asset": {
     "id": "manipulation.swipe-action",
     "name": "SwipeAction",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "manipulation",
     "description": "The touch-first row interaction revealing contextual actions, with thresholds, velocity, exclusivity between rows, cancellation, and equivalent visible buttons for every action.",
     "targets": [

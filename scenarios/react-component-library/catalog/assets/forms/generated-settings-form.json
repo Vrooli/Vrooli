@@ -5,7 +5,7 @@
   "asset": {
     "id": "forms.generated-settings-form",
     "name": "GeneratedSettingsForm",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "forms",
     "description": "The settings-oriented generated form with categorized navigation, per-field autosave, search across settings, defaults and reset, conflict handling, and responsive section layout.",
     "targets": [

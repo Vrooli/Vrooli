@@ -5,7 +5,7 @@
   "asset": {
     "id": "primitives.expandable-text",
     "name": "ExpandableText",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "primitives",
     "description": "The clamped-text component revealing and collapsing overflow without losing scroll position, announcing the change, and keeping the control reachable.",
     "targets": [

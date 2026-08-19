@@ -5,7 +5,7 @@
   "asset": {
     "id": "manipulation.selection-tools",
     "name": "SelectionTools",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "manipulation",
     "description": "The selection family covering click, range, marquee, lasso, additive, subtractive, and keyboard selection over one shared selection model.",
     "targets": [

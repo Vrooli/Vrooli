@@ -5,7 +5,7 @@
   "asset": {
     "id": "forms.form-wizard",
     "name": "FormWizard",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "forms",
     "description": "The multi-step form controller with per-step validation boundaries, optional branches, resumable drafts, progress, back navigation, URL synchronization, and final submission.",
     "targets": [

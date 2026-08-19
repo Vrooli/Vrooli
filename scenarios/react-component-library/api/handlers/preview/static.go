@@ -100,7 +100,11 @@ func (h *HarnessHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "preview: requested design kit is unavailable", http.StatusInternalServerError)
 		return
 	}
-	doc := renderHarnessHTML(id, bundle, story, css, strings.EqualFold(strings.TrimSpace(r.URL.Query().Get("view")), "canvas"))
+	direction := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("dir")))
+	if direction != "rtl" && direction != "ltr" {
+		direction = ""
+	}
+	doc := renderHarnessHTML(id, bundle, story, css, strings.EqualFold(strings.TrimSpace(r.URL.Query().Get("view")), "canvas"), direction)
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
 	// Same-origin: the host iframe controls the `src`, and same-origin
@@ -247,19 +251,37 @@ func resolvePreviewArchetype(kind components.AssetKind, slot string, frame *comp
 	}
 }
 
-func renderHarnessHTML(id string, b preview.Bundle, ex harnessStory, designSystemCSS string, galleryMode ...bool) string {
+func renderHarnessHTML(id string, b preview.Bundle, ex harnessStory, designSystemCSS string, galleryMode ...any) string {
 	var sb strings.Builder
 	bodyClass := ""
-	if len(galleryMode) > 0 && galleryMode[0] {
+	gallery := false
+	direction := ""
+	if len(galleryMode) > 0 {
+		gallery, _ = galleryMode[0].(bool)
+	}
+	if len(galleryMode) > 1 {
+		direction, _ = galleryMode[1].(string)
+	}
+	if direction != "rtl" && direction != "ltr" {
+		direction = ""
+	}
+	if gallery {
 		bodyClass = ` class="rcl-preview-gallery"`
 	}
 	sb.WriteString(`<!doctype html>
-<html lang="en">
+<html lang="en"`)
+	if direction != "" {
+		sb.WriteString(` dir="`)
+		sb.WriteString(direction)
+		sb.WriteString(`"`)
+	}
+	sb.WriteString(`>
 <head>
 <meta charset="utf-8" />
 <title>preview: `)
 	sb.WriteString(html.EscapeString(b.SourcePath))
 	sb.WriteString(`</title>
+<link rel="icon" href="data:," />
 <meta name="component-id" content="`)
 	sb.WriteString(html.EscapeString(id))
 	sb.WriteString(`" />
@@ -366,6 +388,18 @@ func renderHarnessHTML(id string, b preview.Bundle, ex harnessStory, designSyste
 	sb.WriteString(`
 </script>
 <script>
+// The browser profile owns locale, while the harness owns the semantic
+// writing direction. Locale-driven fallback keeps the RTL matrix observable
+// even when a capture producer cannot add a dir query parameter.
+(() => {
+  const requested = new URLSearchParams(window.location.search).get("dir");
+  const language = String(navigator.language || "").toLowerCase();
+  const direction = requested === "rtl" || requested === "ltr"
+    ? requested
+    : /^(ar|fa|he|ur)(-|$)/.test(language) ? "rtl" : "ltr";
+  document.documentElement.dir = direction;
+  document.documentElement.dataset.rclDirection = direction;
+})();
 // Signal the standard iframe bridge before the preview's module graph loads.
 // The component bundle can be cold and take longer than the host's readiness
 // budget, but the harness itself is ready to receive bridge/inspect messages.
@@ -647,10 +681,17 @@ window.addEventListener("message", (ev) => {
 const errEl = document.getElementById("preview-error");
 const storyResultEl = document.getElementById("rcl-story-result");
 const harnessRoot = document.getElementById("root");
+const performanceEntries = [];
+const longTasks = [];
+let commitCount = 0;
+let rerenderCount = 0;
+let mountMs = 0;
+let mountStartedAt = performance.now();
 const captureParams = new URLSearchParams(window.location.search);
 const captureTheme = captureParams.get("theme");
 const captureMotion = captureParams.get("motion");
 const captureSeed = captureParams.get("seed");
+const captureFixtureShape = captureParams.get("fixtureShape") || (String(previewStory.name || "").toLowerCase().includes("failure") ? "failure" : "typical");
 if (captureMotion === "reduce") {
   document.documentElement.dataset.rclCapture = "deterministic";
   document.documentElement.style.setProperty("--rcl-capture-motion", "reduced");
@@ -785,7 +826,19 @@ const assertPreviewExpectations = () => {
   if (failures.length > 0) throw new Error(failures.join("; "));
 };
 const reportStoryResult = (passed, failures) => {
-  const result = { passed, failures: Array.isArray(failures) ? failures : [] };
+  performanceEntries.push(...performance.getEntriesByType("measure").map((entry) => ({ name: entry.name, duration: entry.duration })));
+  const result = {
+    passed,
+    failures: Array.isArray(failures) ? failures : [],
+    performance: {
+      mountMs: mountMs || Math.max(0, performance.now() - mountStartedAt),
+      commitCount,
+      rerenderCount,
+      longTasks: [...longTasks],
+      nodeCount: harnessRoot ? harnessRoot.querySelectorAll("*").length : 0,
+      measures: performanceEntries,
+    },
+  };
   // The DOM mirror is consumed only by the server-owned headless runner; the
   // normal iframe path continues to receive the typed postMessage below.
   storyResultEl.textContent = JSON.stringify(result);
@@ -813,7 +866,13 @@ const createNodeFactory = (React, Icons, log) => {
       const type = String(value.$node || "span");
       const props = resolve(value.props || {});
       const children = resolve(value.children || []);
-      return React.createElement(type, props, ...(Array.isArray(children) ? children : [children]));
+      const childValues = Array.isArray(children) ? children : [children];
+      const keyedChildren = childValues.map((child, index) => (
+        React.isValidElement(child) && child.key == null
+          ? React.cloneElement(child, { key: "rcl-" + type + "-" + index })
+          : child
+      ));
+      return React.createElement(type, props, ...keyedChildren);
     }
     if (Object.prototype.hasOwnProperty.call(value, "$columns")) {
       return (Array.isArray(value.$columns) ? value.$columns : []).map((column) => ({
@@ -866,6 +925,23 @@ try {
     showPreviewError("preview: component file exports neither a default nor a callable named export");
   } else {
     const root = createRoot(document.getElementById("root"));
+    try {
+      const observer = new PerformanceObserver((list) => {
+        for (const entry of list.getEntries()) {
+          if (entry.entryType === "longtask") longTasks.push(entry.duration);
+        }
+      });
+      observer.observe({ type: "longtask", buffered: true });
+    } catch (e) {}
+    const onProfile = (_id, phase, actualDuration) => {
+      commitCount += 1;
+      if (phase === "update") rerenderCount += 1;
+      if (phase === "mount") mountMs += Number(actualDuration) || 0;
+    };
+    const renderElement = (element) => {
+      mountStartedAt = performance.now();
+      root.render(React.createElement(React.Profiler, { id: "story", onRender: onProfile }, element));
+    };
     const postPreviewEvent = (name, ...args) => {
       const sanitize = (value, depth = 0) => {
         if (depth > 5) return "[depth limit]";
@@ -978,40 +1054,46 @@ try {
     const renderPreview = (override, environment = previewStory.environment) => {
       const safeOverride = override && typeof override === "object" && !Array.isArray(override) ? override : {};
       const props = resolveProps(mergeStoryProps(previewStory.props, safeOverride));
+      if (Array.isArray(props.children)) props.children = React.Children.toArray(props.children);
       const fixtures = resolveFixtureContext(environment);
       const subject = previewStory.harness
         ? React.createElement(HarnessMod[previewStory.harness], { args: props, environment, fixtures, log: postPreviewEvent })
         : previewStory.kind === "hook" ? React.createElement(hookFixture(props, environment)) : React.createElement(Cmp, props);
       if (previewStory.frame && Frame) {
+        const fixtureFailure = captureFixtureShape === "failure" && (previewStory.fixture?.dataShapes || []).includes("failure");
         const fixtureRegion = React.createElement(
           "section",
-          { "data-frame-region": "fixture", "data-fixture-asset": previewStory.fixture?.asset || "", className: "rcl-preview-fixture", "aria-label": "Data source fixture" },
-          React.createElement("span", { className: "rcl-preview-fixture__heading" }, "Live data surface"),
-          React.createElement("strong", null, previewStory.fixture?.asset || "Fixture data"),
-          React.createElement("div", { className: "rcl-preview-fixture__rows", "aria-hidden": "true" },
-            React.createElement("span", { className: "rcl-preview-fixture__row" }),
-            React.createElement("span", { className: "rcl-preview-fixture__row" }),
-            React.createElement("span", { className: "rcl-preview-fixture__row" }),
-          ),
+          { "data-frame-region": "fixture", "data-fixture-asset": previewStory.fixture?.asset || "", "data-fixture-shape": captureFixtureShape, className: "rcl-preview-fixture", "aria-label": "Data source fixture" },
+          React.createElement("span", { className: "rcl-preview-fixture__heading" }, fixtureFailure ? "Fixture failure" : "Live data surface"),
+          fixtureFailure
+            ? React.createElement("div", { role: "alert", "data-fixture-state": "failure" }, "Fixture data source failed to load")
+            : React.createElement(React.Fragment, null,
+                React.createElement("strong", null, previewStory.fixture?.asset || "Fixture data"),
+                React.createElement("div", { className: "rcl-preview-fixture__rows", "aria-hidden": "true" },
+                  React.createElement("span", { className: "rcl-preview-fixture__row" }),
+                  React.createElement("span", { className: "rcl-preview-fixture__row" }),
+                  React.createElement("span", { className: "rcl-preview-fixture__row" }),
+                ),
+              ),
         );
         const regions = { [previewStory.frame.region]: subject, content: fixtureRegion };
         // Catalog frames receive both the named regions and the original
         // region map. Named props keep simple frames such as Page ergonomic;
         // regions preserves the richer contract for frames that need to
         // inspect or iterate over all declared regions.
-        root.render(React.createElement(Frame, { ...regions, regions, fixture: previewStory.fixture, children: subject, "data-frame-subject": previewStory.frame.asset }));
+        renderElement(React.createElement(Frame, { ...regions, regions, fixture: previewStory.fixture, children: subject, "data-frame-subject": previewStory.frame.asset }));
         return;
       }
       if (previewStory.harness) {
         const Harness = HarnessMod[previewStory.harness];
         if (typeof Harness !== "function") throw new Error("preview: harness export " + previewStory.harness + " was not found");
-        root.render(wrapStandalone(React.createElement(Harness, { args: props, environment, fixtures: resolveFixtureContext(environment), log: postPreviewEvent })));
+        renderElement(wrapStandalone(React.createElement(Harness, { args: props, environment, fixtures: resolveFixtureContext(environment), log: postPreviewEvent })));
         return;
       }
       const standaloneSubject = previewStory.kind === "hook"
         ? React.createElement(hookFixture(props, environment))
         : React.createElement(Cmp, props);
-      root.render(wrapStandalone(standaloneSubject));
+      renderElement(wrapStandalone(standaloneSubject));
     };
     const locate = (target) => {
       if (!target || typeof target !== "object") return null;

@@ -5,7 +5,7 @@
   "asset": {
     "id": "controls.switch",
     "name": "Switch",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "controls",
     "description": "The binary settings control with spring-driven thumb motion, label association, loading state for remotely persisted settings, and read-only and disabled treatments.",
     "targets": [

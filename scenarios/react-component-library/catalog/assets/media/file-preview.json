@@ -5,7 +5,7 @@
   "asset": {
     "id": "media.file-preview",
     "name": "FilePreview",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "media",
     "description": "The safe file summary showing type, size, status, thumbnail, metadata, download, and removal, degrading to a typed placeholder when no preview is possible.",
     "targets": [

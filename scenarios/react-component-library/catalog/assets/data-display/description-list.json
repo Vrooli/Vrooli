@@ -10,7 +10,7 @@
   "asset": {
     "id": "data-display.description-list",
     "name": "DescriptionList",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "data-display",
     "description": "The responsive name-and-value presentation for metadata, adapting between columns, rows, dense summaries, and long values without truncating meaning.",
     "targets": [

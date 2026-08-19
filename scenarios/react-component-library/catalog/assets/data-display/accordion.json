@@ -5,7 +5,7 @@
   "asset": {
     "id": "data-display.accordion",
     "name": "Accordion",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "data-display",
     "description": "The grouped disclosure with single or multiple expansion, keyboard navigation, animated height, deep linking, and nested content that does not clip.",
     "targets": [

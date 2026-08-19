@@ -5,7 +5,7 @@
   "asset": {
     "id": "navigation.table-of-contents",
     "name": "TableOfContents",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "navigation",
     "description": "The hierarchical page outline synchronized with document headings, with keyboard navigation, active-section tracking, and responsive collapse.",
     "targets": [

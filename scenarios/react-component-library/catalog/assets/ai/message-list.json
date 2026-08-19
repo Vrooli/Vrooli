@@ -5,7 +5,7 @@
   "asset": {
     "id": "ai.message-list",
     "name": "MessageList",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "ai",
     "description": "The message collection preserving streaming scroll position, supporting branching, grouping, history loading, a new-message indicator, and stable anchoring while content grows above and below.",
     "targets": [

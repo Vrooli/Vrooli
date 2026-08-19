@@ -3,6 +3,7 @@ import react from "@vitejs/plugin-react";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import stringsCodegen from "./scripts/vite-plugin-strings-codegen.mjs";
+import assetStamp from "./scripts/vite-plugin-asset-stamp.mjs";
 
 const rootDir = dirname(fileURLToPath(import.meta.url));
 const packageAlias = {
@@ -40,11 +41,15 @@ const packageAliasEntries = Object.entries(packageAlias).map(([find, replacement
 //              produce the perf bundle through the standard lifecycle path.
 export default defineConfig(({ mode }): UserConfig => {
   const isProfile = mode === "profile";
+  const assetStampPlugins = process.env.RCL_DISABLE_ASSET_STAMP === "1" ? [] : [assetStamp()];
 
   return {
     // INTEROP-CRITICAL: Relative asset URLs keep the UI working behind Vrooli tunnels, proxies, and iframe mounts.
     base: './',
-    plugins: [react(), stringsCodegen()],
+    // The stamp must see original TSX, before React's Babel pre-transform. It
+    // parses the entry module and adds the marker before Vite hands it to the
+    // JSX compiler.
+    plugins: [...assetStampPlugins, react(), stringsCodegen()],
     resolve: {
       alias: isProfile
         ? [...protoRuntimeAliases, ...packageAliasEntries, {

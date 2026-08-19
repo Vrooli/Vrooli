@@ -5,7 +5,7 @@
   "asset": {
     "id": "ai.agent-status",
     "name": "AgentStatus",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "ai",
     "description": "The compact agent presence component showing identity, current activity, availability, progress, interruption, error, and completion in one glanceable unit.",
     "targets": [

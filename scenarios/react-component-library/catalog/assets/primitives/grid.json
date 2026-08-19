@@ -5,7 +5,7 @@
   "asset": {
     "id": "primitives.grid",
     "name": "Grid",
-    "kind": "primitive",
+    "kind": "primitive", "surface": "base",
     "domain": "primitives",
     "description": "The responsive grid primitive with tokenized columns, minimum track sizes, named areas, gaps, alignment, and container-aware behavior.",
     "targets": [

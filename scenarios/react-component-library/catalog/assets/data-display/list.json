@@ -10,7 +10,7 @@
   "asset": {
     "id": "data-display.list",
     "name": "List",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "data-display",
     "description": "The semantic collection with sections, item actions, selection, keyboard navigation, loading placeholders, separators, and responsive density.",
     "targets": [

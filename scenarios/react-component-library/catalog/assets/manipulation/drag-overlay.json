@@ -5,7 +5,7 @@
   "asset": {
     "id": "manipulation.drag-overlay",
     "name": "DragOverlay",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "manipulation",
     "description": "The portal-based drag representation following the pointer efficiently, preserving the source element's layout, indicating invalid targets, and animating to its resting place on drop.",
     "targets": [

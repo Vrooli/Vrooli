@@ -16,7 +16,7 @@
   "asset": {
     "id": "navigation.navigation-tree",
     "name": "NavigationTree",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "navigation",
     "description": "The hierarchical navigation collection with expansion, selection, keyboard traversal, lazily loaded children, filtering, virtualization, persisted open state, and accessible tree semantics.",
     "targets": [

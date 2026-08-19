@@ -360,7 +360,8 @@ export function ComponentDetailPage() {
   const experienceQuery = useQuery({
     queryKey: ["components", "experience", id],
     queryFn: () => getComponentExperience(data?.component?.id ?? ""),
-    enabled: Boolean(id) && Boolean(data?.component) && infoTab === "overview",
+    enabled:
+      Boolean(id) && Boolean(data?.component) && (infoTab === "overview" || infoTab === "tests"),
     retry: false,
   });
   const sourceContentQuery = useQuery({
@@ -571,10 +572,18 @@ export function ComponentDetailPage() {
               </>
             )}
             {infoTab === "tests" && (
-              <ComponentTestPanel
-                componentId={component.id}
-                version={selectedVersion ?? component.latestVersion ?? component.version}
-              />
+              <>
+                <ComponentTestPanel
+                  componentId={component.id}
+                  version={selectedVersion ?? component.latestVersion ?? component.version}
+                  experience={experienceQuery.data}
+                />
+                <ComponentExperiencePanel
+                  experience={experienceQuery.data}
+                  isLoading={experienceQuery.isLoading}
+                  isError={experienceQuery.isError}
+                />
+              </>
             )}
             {infoTab === "versions" && (
               <VersionsCard

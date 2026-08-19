@@ -1,0 +1,11 @@
+{
+  "libraryId": "react-component-library:BudgetBar",
+  "catalogId": "data-display.budget-bar",
+  "displayName": "BudgetBar",
+  "description": "A runtime budget bar for mount and rerender cost.",
+  "assetKind": "component",
+  "tags": ["data-display", "token-bound"],
+  "latest": "1.0.4",
+  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
+  "dependencies": []
+}

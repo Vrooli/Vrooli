@@ -63,14 +63,14 @@ export const SidebarShell = forwardRef<HTMLDivElement, SidebarShellProps>(
     return (
       <>
         <style
-          data-rcl-sidebar-shell-styles
+          data-rcl-sidebar-shell-styles=""
           dangerouslySetInnerHTML={{ __html: sidebarShellStyles }}
         />
         {isDialogOpen ? (
           <button
             type="button"
             data-testid="sidebar-shell-backdrop"
-            data-rcl-sidebar-backdrop
+            data-rcl-sidebar-backdrop=""
             data-mode={mode}
             aria-label={closeLabel}
             className={backdropClassName}
@@ -80,7 +80,7 @@ export const SidebarShell = forwardRef<HTMLDivElement, SidebarShellProps>(
         <div
           ref={ref}
           data-testid="sidebar-shell"
-          data-rcl-sidebar-shell
+          data-rcl-sidebar-shell=""
           data-mode={mode}
           data-open={mobileOpen ? "true" : "false"}
           role={isDialogOpen ? "dialog" : "complementary"}

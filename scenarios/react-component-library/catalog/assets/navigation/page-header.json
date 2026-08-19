@@ -10,7 +10,7 @@
   "asset": {
     "id": "navigation.page-header",
     "name": "PageHeader",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "navigation",
     "description": "The responsive title region carrying breadcrumbs, description, metadata, primary and overflow actions, optional tabs, and compact behavior as the page scrolls.",
     "targets": [

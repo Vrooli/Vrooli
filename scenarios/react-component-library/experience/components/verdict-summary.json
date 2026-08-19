@@ -1,0 +1,41 @@
+{
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-component",
+  "schemaVersion": "1.1.0",
+  "component": {
+    "id": "verdict-summary",
+    "title": "VerdictSummary",
+    "purpose": "Keep pass, fail, and unmeasured counts equally visible in the testing surface.",
+    "storyRef": "../../library/components/VerdictSummary/versions/1.0.3/story.json"
+  },
+  "states": [
+    {
+      "id": "default",
+      "example": "default",
+      "description": "All three verdict classes are visible."
+    },
+    {
+      "id": "empty",
+      "example": "empty",
+      "description": "Zero counts remain explicit."
+    }
+  ],
+  "elements": [
+    {
+      "id": "surface",
+      "role": "region",
+      "description": "The verdict census surface."
+    }
+  ],
+  "claims": [
+    {
+      "id": "surface-present",
+      "type": "element-present",
+      "statement": "The verdict census surface is present in every state.",
+      "tier": "machine",
+      "elements": ["surface"],
+      "states": ["default", "empty"]
+    }
+  ],
+  "bindings": { "elements": { "surface": { "selector": "[data-rcl-asset]" } } }
+}

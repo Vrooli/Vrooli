@@ -5,7 +5,7 @@
   "asset": {
     "id": "media.attachment-preview",
     "name": "AttachmentPreview",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "media",
     "description": "The message- or form-oriented attachment with upload progress, retry, cancellation, scanning state, preview, removal, and accessible status for each file independently.",
     "targets": [

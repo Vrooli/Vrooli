@@ -10,7 +10,7 @@
   "asset": {
     "id": "data-display.audit-trail",
     "name": "AuditTrail",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "data-display",
     "description": "The structured history distinguishing actor, action, target, result, metadata, and before-and-after state, with filters, pagination, and export.",
     "targets": [

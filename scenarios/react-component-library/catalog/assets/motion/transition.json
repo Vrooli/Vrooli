@@ -5,7 +5,7 @@
   "asset": {
     "id": "motion.transition",
     "name": "Transition",
-    "kind": "primitive",
+    "kind": "primitive", "surface": "base",
     "domain": "motion",
     "description": "The compact family of tokenized fade, scale, slide, blur, and crossfade transitions sharing one presence lifecycle and one reduced-motion policy.",
     "targets": [

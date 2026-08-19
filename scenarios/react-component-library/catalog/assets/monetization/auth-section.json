@@ -2,7 +2,7 @@
   "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
   "kind": "catalog-asset",
   "schemaVersion": "1.0.0",
-  "asset": { "id": "monetization.auth-section", "name": "AuthSection", "kind": "component", "domain": "monetization", "description": "A compact signed-in or signed-out account action surface.", "targets": ["react-vite"], "slot": "ui-primitive", "delivery": "adopted", "target": { "priority": "P1", "maturity": "verified" } },
+  "asset": { "id": "monetization.auth-section", "name": "AuthSection", "kind": "component", "surface": "raised", "domain": "monetization", "description": "A compact signed-in or signed-out account action surface.", "targets": ["react-vite"], "slot": "ui-primitive", "delivery": "adopted", "target": { "priority": "P1", "maturity": "verified" } },
   "requiredCapabilities": ["accessible-naming", "keyboard-operable", "activation-acknowledged"],
   "rationale": "A reusable authentication action boundary keeps account actions consistent across paid scenarios."
 }

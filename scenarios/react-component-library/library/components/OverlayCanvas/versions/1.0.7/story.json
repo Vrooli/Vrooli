@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 3,
+  "kind": "component",
+  "title": "OverlayCanvas",
+  "args": { "fields": [] },
+  "environment": { "fixtures": [] },
+  "stories": [
+    { "id": "default", "name": "Default", "harness": "OverlayCanvasStory", "args": { "subjects": [{ "id": "title", "label": "Heading", "x": 24, "y": 20, "width": 140, "height": 28 }] }, "expect": [{ "kind": "text", "value": "Measured subjects" }], "mode": "pinned" },
+    { "id": "empty", "name": "Empty", "harness": "OverlayCanvasStory", "args": { "subjects": [] }, "expect": [{ "kind": "text", "value": "Select a claim to inspect its subjects." }], "mode": "pinned" }
+  ]
+}

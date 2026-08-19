@@ -5,7 +5,7 @@
   "asset": {
     "id": "media.gallery",
     "name": "Gallery",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "media",
     "description": "The responsive media collection with stable aspect ratios, progressive loading, selection, pagination, captions, keyboard navigation, and lightbox integration.",
     "targets": [

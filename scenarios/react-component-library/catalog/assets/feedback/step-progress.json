@@ -5,7 +5,7 @@
   "asset": {
     "id": "feedback.step-progress",
     "name": "StepProgress",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "feedback",
     "description": "The progress component for named workflow stages, distinguishing current, completed, pending, skipped, blocked, and failed rather than reducing a workflow to a percentage.",
     "targets": [

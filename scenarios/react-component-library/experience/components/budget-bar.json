@@ -1,0 +1,41 @@
+{
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-component",
+  "schemaVersion": "1.1.0",
+  "component": {
+    "id": "budget-bar",
+    "title": "BudgetBar",
+    "purpose": "Make runtime cost comparable with its declared budget.",
+    "storyRef": "../../library/components/BudgetBar/versions/1.0.4/story.json"
+  },
+  "states": [
+    {
+      "id": "default",
+      "example": "default",
+      "description": "An in-budget cost is visible."
+    },
+    {
+      "id": "failure",
+      "example": "failure",
+      "description": "An over-budget cost is visible."
+    }
+  ],
+  "elements": [
+    {
+      "id": "surface",
+      "role": "region",
+      "description": "The runtime budget surface."
+    }
+  ],
+  "claims": [
+    {
+      "id": "surface-present",
+      "type": "element-present",
+      "statement": "The budget surface is present in every state.",
+      "tier": "machine",
+      "elements": ["surface"],
+      "states": ["default", "failure"]
+    }
+  ],
+  "bindings": { "elements": { "surface": { "selector": "[data-rcl-asset]" } } }
+}

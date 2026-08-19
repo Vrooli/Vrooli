@@ -10,7 +10,7 @@
   "asset": {
     "id": "primitives.copyable-text",
     "name": "CopyableText",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "primitives",
     "description": "The text primitive with a discoverable copy affordance, clipboard fallback, transient success feedback, and an accessible label describing what will be copied.",
     "targets": [

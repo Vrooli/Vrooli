@@ -221,6 +221,48 @@
       "path": "components/structure-panel.json",
       "title": "Catalog Structure Panel",
       "status": "active"
+    },
+    {
+      "id": "measurement-bar",
+      "path": "components/measurement-bar.json",
+      "title": "Measurement Bar",
+      "status": "active"
+    },
+    {
+      "id": "finding-list",
+      "path": "components/finding-list.json",
+      "title": "Finding List",
+      "status": "active"
+    },
+    {
+      "id": "evidence-carousel",
+      "path": "components/evidence-carousel.json",
+      "title": "Evidence Carousel",
+      "status": "active"
+    },
+    {
+      "id": "overlay-canvas",
+      "path": "components/overlay-canvas.json",
+      "title": "Overlay Canvas",
+      "status": "active"
+    },
+    {
+      "id": "budget-bar",
+      "path": "components/budget-bar.json",
+      "title": "Budget Bar",
+      "status": "active"
+    },
+    {
+      "id": "quarantine-badge",
+      "path": "components/quarantine-badge.json",
+      "title": "Quarantine Badge",
+      "status": "active"
+    },
+    {
+      "id": "verdict-summary",
+      "path": "components/verdict-summary.json",
+      "title": "Verdict Summary",
+      "status": "active"
     }
   ]
 }

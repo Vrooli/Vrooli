@@ -1,0 +1,11 @@
+{
+  "libraryId": "react-component-library:QuarantineBadge",
+  "catalogId": "feedback.quarantine-badge",
+  "displayName": "QuarantineBadge",
+  "description": "A visible non-discriminating gate quarantine state.",
+  "assetKind": "component",
+  "tags": ["feedback", "token-bound"],
+  "latest": "1.0.3",
+  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
+  "dependencies": []
+}

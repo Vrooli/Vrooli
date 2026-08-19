@@ -10,7 +10,7 @@
   "asset": {
     "id": "data-display.search-results",
     "name": "SearchResults",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "data-display",
     "description": "The complete result collection with query context, match highlighting, grouping, ranking metadata, filters, and every generic state including no-matches versus nothing-indexed.",
     "targets": [

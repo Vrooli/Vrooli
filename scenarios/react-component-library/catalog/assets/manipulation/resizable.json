@@ -10,7 +10,7 @@
   "asset": {
     "id": "manipulation.resizable",
     "name": "Resizable",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "manipulation",
     "description": "The resize primitive with handles, axis constraints, snapping, keyboard resizing, minimum and maximum sizes, and persisted dimensions.",
     "targets": [

@@ -5,7 +5,7 @@
   "asset": {
     "id": "ai.context-indicator",
     "name": "ContextIndicator",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "ai",
     "description": "The compact explanation of which files, records, memories, tools, and scopes are currently available to the agent, with inspection and removal for each.",
     "targets": [

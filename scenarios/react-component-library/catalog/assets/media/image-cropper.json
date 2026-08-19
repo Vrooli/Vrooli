@@ -5,7 +5,7 @@
   "asset": {
     "id": "media.image-cropper",
     "name": "ImageCropper",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "media",
     "description": "The lazily loaded image editing surface with aspect constraints, zoom, rotation, safe bounds, keyboard operation, live preview, and output metadata describing the applied transform.",
     "targets": [

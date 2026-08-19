@@ -5,7 +5,7 @@
   "asset": {
     "id": "overlays.lightbox",
     "name": "Lightbox",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "overlays",
     "description": "The immersive media overlay with shared-element entry, keyboard and gesture navigation, zoom, metadata, progressive loading, and focus restoration to the originating thumbnail.",
     "targets": [

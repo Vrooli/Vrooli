@@ -5,7 +5,7 @@
   "asset": {
     "id": "primitives.sticky",
     "name": "Sticky",
-    "kind": "primitive",
+    "kind": "primitive", "surface": "base",
     "domain": "primitives",
     "description": "The sticky-position primitive handling offsets, safe areas, stacking context, boundary containment, and coordination with scroll shadows.",
     "targets": [

@@ -5,7 +5,7 @@
   "asset": {
     "id": "manipulation.snap-guides",
     "name": "SnapGuides",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "manipulation",
     "description": "The spatial alignment service and overlay computing snap candidates from nearby objects and rendering guides without forcing a full canvas re-render.",
     "targets": [

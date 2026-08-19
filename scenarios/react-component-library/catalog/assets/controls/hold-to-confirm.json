@@ -5,7 +5,7 @@
   "asset": {
     "id": "controls.hold-to-confirm",
     "name": "HoldToConfirm",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "controls",
     "description": "The deliberate-action control requiring sustained activation, showing progress toward commitment, supporting cancellation, and always offering a keyboard-accessible alternative.",
     "targets": [

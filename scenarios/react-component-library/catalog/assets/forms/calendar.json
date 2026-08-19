@@ -5,7 +5,7 @@
   "asset": {
     "id": "forms.calendar",
     "name": "Calendar",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "forms",
     "description": "The reusable calendar surface supporting single, multiple, range, week, and month selection with localization, constraints, keyboard navigation, and virtualized month rendering.",
     "targets": [

@@ -5,7 +5,7 @@
   "asset": {
     "id": "forms.form-field",
     "name": "FormField",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "forms",
     "description": "The complete field composition binding label, control, description, required indicator, validation state, error message, and help text through stable identifier relationships.",
     "targets": [

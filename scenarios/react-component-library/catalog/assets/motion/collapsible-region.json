@@ -10,7 +10,7 @@
   "asset": {
     "id": "motion.collapsible-region",
     "name": "CollapsibleRegion",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "motion",
     "description": "The disclosure region animating dynamic height without clipping artifacts, surviving interruption, and preserving its accessible expanded semantics throughout.",
     "targets": [

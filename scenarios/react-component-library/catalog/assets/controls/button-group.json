@@ -10,7 +10,7 @@
   "asset": {
     "id": "controls.button-group",
     "name": "ButtonGroup",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "controls",
     "description": "The coordinated group of related actions sharing borders and focus movement, with responsive collapse into an overflow menu and consistent disabled treatment.",
     "targets": [

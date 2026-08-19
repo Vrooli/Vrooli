@@ -10,7 +10,7 @@
   "asset": {
     "id": "primitives.edge-fade",
     "name": "EdgeFade",
-    "kind": "primitive",
+    "kind": "primitive", "surface": "base",
     "domain": "primitives",
     "description": "The pointer-transparent gradient mask indicating clipped or scrollable content without intercepting interaction beneath it.",
     "targets": [

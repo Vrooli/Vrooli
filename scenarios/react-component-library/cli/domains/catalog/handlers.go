@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strings"
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliapp"
@@ -29,9 +30,10 @@ func (h *handlers) coverage(ctx cliapp.RunContext) error {
 		return fmt.Errorf("server returned no catalog coverage")
 	}
 	r := resp.Msg.Report
-	summary := fmt.Sprintf("Catalog completion %.1f%% (%d/%d); mandatory gates %.1f%% (%d/%d); weighted quality %.1f%%; production-ready %.1f%%.",
+	summary := fmt.Sprintf("Catalog completion %.1f%% (%d/%d); mandatory gates %.1f%% (%d/%d); evidence pass %d, fail %d, unmeasured %d; weighted quality %.1f%%; production-ready %.1f%%.",
 		r.Maturity.GetCatalogCompletion().GetRatio()*100, r.Maturity.GetCatalogCompletion().GetNumerator(), r.Maturity.GetCatalogCompletion().GetDenominator(),
 		r.Maturity.GetMandatoryGateCoverage().GetRatio()*100, r.Maturity.GetMandatoryGateCoverage().GetNumerator(), r.Maturity.GetMandatoryGateCoverage().GetDenominator(),
+		r.Maturity.GetPassEvidence(), r.Maturity.GetFailEvidence(), r.Maturity.GetUnmeasuredEvidence(),
 		r.Maturity.GetWeightedQuality().GetRatio()*100, r.Maturity.GetProductionReadyCoverage().GetRatio()*100)
 	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{summary}, ResultsHeading: "Maturity distribution", Results: formatMaturity(r.Maturity.GetByRung())})
 }
@@ -80,7 +82,15 @@ func (h *handlers) health(ctx cliapp.RunContext) error {
 			results = append(results, fmt.Sprintf("%s %s score %.1f%% stale %.1fd", node.Asset.AssetId, node.Health, node.Score, node.StalenessDays))
 		}
 	}
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("Health nodes: %d; promote: %d.", len(resp.Msg.Nodes), len(resp.Msg.Promote))}, ResultsHeading: "Asset health", Results: results})
+	for _, mismatch := range resp.Msg.KindMismatches {
+		results = append(results, fmt.Sprintf("kind mismatch %s: declared %s, derived %s", mismatch.AssetId, mismatch.DeclaredKind, mismatch.DerivedKind))
+	}
+	for _, capability := range resp.Msg.Coverage.GetCapabilityCoverage() {
+		if !capability.GetCheckable() {
+			results = append(results, fmt.Sprintf("capability %s: %s; declared by %d asset(s); %s", capability.GetCapability(), capability.GetStatus(), capability.GetDeclaredAssetCount(), strings.Join(capability.GetBlockers(), "; ")))
+		}
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("Health nodes: %d; promote: %d; quarantined gates: %d; kind mismatches: %d; instrument-moved: %d; composition median %.3f across %d captured asset(s); bespoke escapes %d; declared capabilities %d across %d asset(s); uncheckable %d asset(s); unmeasured %d asset(s).", len(resp.Msg.Nodes), len(resp.Msg.Promote), len(resp.Msg.QuarantinedGates), resp.Msg.KindMismatchCount, resp.Msg.InstrumentMovedCount, resp.Msg.Coverage.GetCompositionMedian(), len(resp.Msg.Coverage.GetCompositionScores()), resp.Msg.Coverage.GetBespokeEscapeCount(), resp.Msg.Coverage.GetCapabilityDeclarationCount(), resp.Msg.Coverage.GetDeclaredCapabilityAssetCount(), resp.Msg.Coverage.GetDeclaredUncheckableAssetCount(), resp.Msg.Coverage.GetUnmeasuredCapabilityAssetCount())}, ResultsHeading: "Asset health", Results: results})
 }
 
 func (h *handlers) evidence(ctx cliapp.RunContext) error {
@@ -99,7 +109,7 @@ func (h *handlers) evidence(ctx cliapp.RunContext) error {
 
 func (h *handlers) gate(ctx cliapp.RunContext) error {
 	gate := ctx.Positional("gate")
-	resp, err := h.client.RunGate(context.Background(), connect.NewRequest(&catalogv1.RunGateRequest{Gate: gate, All: ctx.Flag("all") == "true"}))
+	resp, err := h.client.RunGate(context.Background(), connect.NewRequest(&catalogv1.RunGateRequest{Gate: gate, All: ctx.BoolFlag("all"), CalibrationOnly: ctx.BoolFlag("calibration-only")}))
 	if err != nil {
 		return cliapp.WrapAPIError("run catalog gate", err, nil)
 	}
@@ -163,6 +173,13 @@ func (h *handlers) gate(ctx cliapp.RunContext) error {
 		}
 		findings = append(findings, entry)
 	}
+	for _, calibration := range resp.Msg.Calibration {
+		fixture := calibration.Fixture
+		if fixture == "" {
+			fixture = "(missing fixture)"
+		}
+		findings = append(findings, fmt.Sprintf("[calibration.%s] %s — %s (required %s, observed %s)", calibration.Status, fixture, calibration.Message, calibration.RequiredFailureCode, calibration.ObservedFailureCode))
+	}
 	blocking, advisory := 0, 0
 	for _, finding := range resp.Msg.Findings {
 		if finding.Severity == "error" {
@@ -172,6 +189,17 @@ func (h *handlers) gate(ctx cliapp.RunContext) error {
 		}
 	}
 	summary := fmt.Sprintf("Gate %s: inspected %d file(s), %d finding(s)", resp.Msg.Gate, resp.Msg.InspectedFiles, len(resp.Msg.Findings))
+	if len(resp.Msg.SurfaceVerdictCounts) > 0 {
+		verdicts := make([]string, 0, len(resp.Msg.SurfaceVerdictCounts))
+		for verdict, count := range resp.Msg.SurfaceVerdictCounts {
+			verdicts = append(verdicts, fmt.Sprintf("%s=%d", verdict, count))
+		}
+		sort.Strings(verdicts)
+		summary += "; surface verdicts " + fmt.Sprintf("%v", verdicts)
+	}
+	if len(resp.Msg.CompositionScores) > 0 || resp.Msg.CompositionMedian > 0 || resp.Msg.BespokeEscapeCount > 0 {
+		summary += fmt.Sprintf("; composition median %.3f across %d captured asset(s), bespoke escapes %d", resp.Msg.CompositionMedian, len(resp.Msg.CompositionScores), resp.Msg.BespokeEscapeCount)
+	}
 	if len(resp.Msg.Findings) > 0 {
 		summary += fmt.Sprintf(" (%d blocking, %d advisory) in %d distinct cause(s)", blocking, advisory, len(findings))
 	}
@@ -179,11 +207,21 @@ func (h *handlers) gate(ctx cliapp.RunContext) error {
 	if resp.Msg.InspectedFiles == 0 {
 		lines = append(lines, "WARNING: this gate inspected zero files. A gate that inspects nothing cannot pass; treat this as a runner fault, not a clean result.")
 	}
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
+	if resp.Msg.NonDiscriminating {
+		lines = append(lines, "QUARANTINED: calibration did not discriminate; corpus evidence was downgraded to unmeasured.")
+	}
+	renderErr := cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
 		Summary:        lines,
 		ResultsHeading: "Findings",
 		Results:        findings,
 	})
+	if renderErr != nil {
+		return renderErr
+	}
+	if resp.Msg.NonDiscriminating {
+		return fmt.Errorf("catalog gate %s is non-discriminating", resp.Msg.Gate)
+	}
+	return nil
 }
 
 func (h *handlers) graph(ctx cliapp.RunContext) error {

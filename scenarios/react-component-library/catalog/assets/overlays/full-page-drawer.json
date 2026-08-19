@@ -5,7 +5,7 @@
   "asset": {
     "id": "overlays.full-page-drawer",
     "name": "FullPageDrawer",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "overlays",
     "description": "The drawer presentation occupying the full application viewport while retaining source context, navigation continuity, safe areas, and route-compatible dismissal.",
     "targets": [

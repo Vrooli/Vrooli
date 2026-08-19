@@ -5,7 +5,7 @@
   "asset": {
     "id": "motion.motion-primitive",
     "name": "MotionPrimitive",
-    "kind": "primitive",
+    "kind": "primitive", "surface": "base",
     "domain": "motion",
     "description": "The low-level animated element exposing tokenized transitions and continuous motion values without routing frame-by-frame updates through React state.",
     "targets": [

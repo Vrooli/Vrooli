@@ -10,7 +10,7 @@
   "asset": {
     "id": "controls.pressable",
     "name": "Pressable",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "controls",
     "description": "The canonical interaction primitive unifying pointer, touch, and keyboard activation with pressed, hovered, focus-visible, selected, disabled, and busy state exposed as stable data attributes.",
     "targets": [

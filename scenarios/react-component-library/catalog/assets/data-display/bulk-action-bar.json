@@ -5,7 +5,7 @@
   "asset": {
     "id": "data-display.bulk-action-bar",
     "name": "BulkActionBar",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "data-display",
     "description": "The contextual action surface activated by selection, showing counts and scope, guarding destructive operations, and reporting progress, partial failure, and cancellation.",
     "targets": [

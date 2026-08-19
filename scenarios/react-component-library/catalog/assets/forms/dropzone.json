@@ -5,7 +5,7 @@
   "asset": {
     "id": "forms.dropzone",
     "name": "Dropzone",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "forms",
     "description": "The drag-and-drop upload surface handling nested drag depth, validation, previews, per-file progress, cancellation, retry, keyboard-accessible selection, and a directory policy.",
     "targets": [

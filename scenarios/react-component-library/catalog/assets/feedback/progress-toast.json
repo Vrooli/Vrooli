@@ -5,7 +5,7 @@
   "asset": {
     "id": "feedback.progress-toast",
     "name": "ProgressToast",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "feedback",
     "description": "The persistent notification tracking one background operation from pending through progress, completion, failure, cancellation, and retry without blocking the interface.",
     "targets": [

@@ -1,7 +1,7 @@
 {
   "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
   "kind": "catalog-asset", "schemaVersion": "1.0.0",
-  "asset": {"id": "data-display.metric-breakdown", "name": "MetricBreakdown", "kind": "component", "domain": "data-display", "description": "A compact labeled metric list with numerator and denominator context.", "targets": ["react-vite"], "slot": "primitive", "delivery": "adopted", "target": {"priority": "P1", "maturity": "implemented"}},
+  "asset": {"id": "data-display.metric-breakdown", "name": "MetricBreakdown", "kind": "component", "surface": "raised", "domain": "data-display", "description": "A compact labeled metric list with numerator and denominator context.", "targets": ["react-vite"], "slot": "primitive", "delivery": "adopted", "target": {"priority": "P1", "maturity": "implemented"}},
   "dependencies": {"requires": [], "suggests": []},
   "requiredCapabilities": ["accessible-naming", "non-color-status", "dark-parity"],
   "requiredStates": ["default", "empty", "request-error"],

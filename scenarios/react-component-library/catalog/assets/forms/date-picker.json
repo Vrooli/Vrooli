@@ -5,7 +5,7 @@
   "asset": {
     "id": "forms.date-picker",
     "name": "DatePicker",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "forms",
     "description": "The localized date field combining direct entry with calendar selection, constraints, presets, keyboard navigation, an explicit timezone policy, and responsive overlay presentation.",
     "targets": [

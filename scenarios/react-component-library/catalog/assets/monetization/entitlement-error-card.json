@@ -2,7 +2,7 @@
   "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
   "kind": "catalog-asset",
   "schemaVersion": "1.0.0",
-  "asset": { "id": "monetization.entitlement-error-card", "name": "EntitlementErrorCard", "kind": "component", "domain": "monetization", "description": "An explicit recovery-oriented entitlement error surface.", "targets": ["react-vite"], "slot": "ui-pattern", "delivery": "adopted", "target": { "priority": "P1", "maturity": "verified" } },
+  "asset": { "id": "monetization.entitlement-error-card", "name": "EntitlementErrorCard", "kind": "component", "surface": "raised", "domain": "monetization", "description": "An explicit recovery-oriented entitlement error surface.", "targets": ["react-vite"], "slot": "ui-pattern", "delivery": "adopted", "target": { "priority": "P1", "maturity": "verified" } },
   "requiredCapabilities": ["semantic-structure", "recovery-path", "non-color-status"],
   "rationale": "A stable error presentation prevents monetization failures from becoming blank or ambiguous UI."
 }

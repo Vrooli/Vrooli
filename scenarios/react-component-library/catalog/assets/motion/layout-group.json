@@ -10,7 +10,7 @@
   "asset": {
     "id": "motion.layout-group",
     "name": "LayoutGroup",
-    "kind": "primitive",
+    "kind": "primitive", "surface": "base",
     "domain": "motion",
     "description": "The coordination boundary animating related elements together as layout changes, preserving stable identities and avoiding measurement of unrelated subtrees.",
     "targets": [

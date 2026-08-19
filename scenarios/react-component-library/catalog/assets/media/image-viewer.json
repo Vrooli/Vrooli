@@ -5,7 +5,7 @@
   "asset": {
     "id": "media.image-viewer",
     "name": "ImageViewer",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "media",
     "description": "The image inspection surface with progressive loading, zoom, pan, rotation, reset, metadata display, keyboard controls, and gesture alternatives for every action.",
     "targets": [

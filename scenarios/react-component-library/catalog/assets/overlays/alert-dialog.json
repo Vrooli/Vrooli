@@ -5,7 +5,7 @@
   "asset": {
     "id": "overlays.alert-dialog",
     "name": "AlertDialog",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "overlays",
     "description": "The focused confirmation surface for consequential decisions, explaining impact, separating safe from destructive actions, and resisting accidental dismissal.",
     "targets": [

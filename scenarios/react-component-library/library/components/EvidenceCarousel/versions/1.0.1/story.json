@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 3,
+  "kind": "component",
+  "title": "EvidenceCarousel",
+  "args": { "fields": [] },
+  "environment": { "fixtures": [] },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Default",
+      "harness": "EvidenceCarouselStory",
+      "args": {
+        "items": [
+          {
+            "id": "shot",
+            "kind": "Screenshot",
+            "status": "available",
+            "reference": "capture-01"
+          },
+          { "id": "ax", "kind": "AX tree", "status": "missing" }
+        ]
+      },
+      "expect": [
+        { "kind": "text", "value": "Screenshot" },
+        { "kind": "text", "value": "capture-01" }
+      ],
+      "mode": "pinned"
+    },
+    {
+      "id": "empty",
+      "name": "Empty",
+      "harness": "EvidenceCarouselStory",
+      "args": { "items": [] },
+      "expect": [{ "kind": "text", "value": "No evidence captured." }],
+      "mode": "pinned"
+    }
+  ]
+}

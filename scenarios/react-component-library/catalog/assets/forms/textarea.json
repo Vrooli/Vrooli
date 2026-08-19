@@ -5,7 +5,7 @@
   "asset": {
     "id": "forms.textarea",
     "name": "Textarea",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "forms",
     "description": "The multi-line field with automatic resizing, character counting, minimum and maximum rows, validation treatment, and scroll-aware growth that never traps the page scroll.",
     "targets": [

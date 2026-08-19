@@ -90,6 +90,9 @@ func (e ChromeHarnessExecutor) ExecuteStory(ctx context.Context, libraryID, vers
 	q.Set("version", version)
 	q.Set("story", storyID)
 	q.Set("runner", "1")
+	if strings.Contains(strings.ToLower(storyID), "failure") {
+		q.Set("fixtureShape", "failure")
+	}
 	u.RawQuery = q.Encode()
 	started := time.Now()
 	cmd := exec.CommandContext(ctx, e.NodePath, e.RunnerPath, u.String())
@@ -137,6 +140,8 @@ func decodeStoryResultJSON(out []byte) (StoryExecution, error) {
 		Failures []struct {
 			Message string `json:"message"`
 		} `json:"failures"`
+		Console     ConsoleEvidence     `json:"console"`
+		Performance PerformanceEvidence `json:"performance"`
 	}
 	if err := json.Unmarshal(bytes.TrimSpace(out), &result); err != nil {
 		return StoryExecution{}, fmt.Errorf("decode harness story result: %w", err)
@@ -147,5 +152,5 @@ func decodeStoryResultJSON(out []byte) (StoryExecution, error) {
 			failures = append(failures, message)
 		}
 	}
-	return StoryExecution{Passed: result.Passed, Failures: failures}, nil
+	return StoryExecution{Passed: result.Passed, Failures: failures, Console: result.Console, Performance: result.Performance}, nil
 }

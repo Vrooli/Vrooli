@@ -10,7 +10,7 @@
   "asset": {
     "id": "primitives.cluster",
     "name": "Cluster",
-    "kind": "primitive",
+    "kind": "primitive", "surface": "base",
     "domain": "primitives",
     "description": "The wrapping group primitive for tags, actions, metadata, and controls whose items must keep useful spacing at any available width.",
     "targets": [

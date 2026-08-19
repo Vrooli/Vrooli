@@ -10,7 +10,7 @@
   "asset": {
     "id": "overlays.inspector-panel",
     "name": "InspectorPanel",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "overlays",
     "description": "The contextual detail surface with tabs, navigation history, resize persistence, pinning, selection synchronization, and a responsive drawer fallback.",
     "targets": [

@@ -148,6 +148,38 @@
         }
       ],
       "mode": "pinned"
+    },
+    {
+      "id": "standalone-flat",
+      "name": "Standalone flat surface",
+      "args": {
+        "children": [
+          {
+            "$node": "div",
+            "props": { "data-rcl-card-subject": true, "className": "px-4 py-3" },
+            "children": [{ "$text": "Standalone surface" }]
+          }
+        ]
+      },
+      "expect": [{ "kind": "text", "value": "Standalone surface" }],
+      "mode": "live",
+      "harness": "Standalone"
+    },
+    {
+      "id": "card-grid-raised",
+      "name": "Card inside raised grid context",
+      "args": {
+        "children": [
+          {
+            "$node": "div",
+            "props": { "data-rcl-card-subject": true, "className": "px-4 py-3" },
+            "children": [{ "$text": "Grid surface" }]
+          }
+        ]
+      },
+      "expect": [{ "kind": "text", "value": "Grid surface" }],
+      "mode": "live",
+      "harness": "CardGrid"
     }
   ]
 }

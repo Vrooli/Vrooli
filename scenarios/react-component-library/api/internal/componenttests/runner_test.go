@@ -136,6 +136,35 @@ func TestRunnerRecordsRenderedStoryFailure(t *testing.T) {
 	require.Contains(t, result.Message, "Missing")
 }
 
+func TestRunnerAttachesConsoleAndPerformanceEvidenceToRenderedStory(t *testing.T) {
+	root := components.Component{ID: "root", LibraryID: "rcl:root", Slug: "root", AssetKind: components.AssetKindComponent}
+	runner := Runner{
+		Assets:  assets{root: root, versions: map[string]components.ComponentVersion{"root@1.0.0": {ComponentID: "root", Version: "1.0.0", Content: "export const Root = () => null", ContentSHA256: "root"}}},
+		Stories: stories{"root@1.0.0": componentStory("measured")},
+		Executor: executor{results: map[string]StoryExecution{
+			"rcl:root@1.0.0:measured": {
+				Passed:      true,
+				Duration:    time.Millisecond,
+				Console:     ConsoleEvidence{ConsoleErrors: []string{"warning"}},
+				Performance: PerformanceEvidence{MountMS: 12.5, CommitCount: 3, RerenderCount: 2, LongTasks: []float64{55.25}, NodeCount: 17},
+			},
+		}},
+	}
+	report, err := runner.Run(context.Background(), Request{ComponentID: "root", Version: "1.0.0"})
+	require.NoError(t, err)
+	result := report.Results[len(report.Results)-1]
+	require.Equal(t, VerdictPassed, result.Verdict)
+	require.Len(t, result.Evidence, 2)
+	require.Equal(t, "console", result.Evidence[0].Kind)
+	require.Equal(t, []string{"warning"}, result.Evidence[0].Console.ConsoleErrors)
+	require.Equal(t, "performance", result.Evidence[1].Kind)
+	require.Equal(t, 12.5, result.Evidence[1].Performance.MountMS)
+	require.Equal(t, 3, result.Evidence[1].Performance.CommitCount)
+	require.Equal(t, 2, result.Evidence[1].Performance.RerenderCount)
+	require.Equal(t, []float64{55.25}, result.Evidence[1].Performance.LongTasks)
+	require.Equal(t, 17, result.Evidence[1].Performance.NodeCount)
+}
+
 func TestRunnerFailsWhenAStoryDoesNotMount(t *testing.T) {
 	root := components.Component{ID: "root", LibraryID: "rcl:root", Slug: "root", AssetKind: components.AssetKindComponent}
 	runner := Runner{Assets: assets{root: root, versions: map[string]components.ComponentVersion{"root@1.0.0": {ComponentID: "root", Version: "1.0.0", Content: "export const Root = () => null", ContentSHA256: "root"}}}, Stories: stories{"root@1.0.0": componentStory("missing")}, Executor: executor{err: errors.New("harness completed without a story result")}}

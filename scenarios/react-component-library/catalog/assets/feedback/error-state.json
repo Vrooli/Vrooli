@@ -10,7 +10,7 @@
   "asset": {
     "id": "feedback.error-state",
     "name": "ErrorState",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "feedback",
     "description": "The recoverable failure composition with a plain-language explanation, a diagnostic-detail policy, retry, alternative actions, and support context that leaks nothing sensitive.",
     "targets": [

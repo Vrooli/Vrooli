@@ -4,6 +4,7 @@ package componenttests
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -206,7 +207,15 @@ func (h *connectHandler) error(err error) error {
 func toProto(report domain.Report) *componenttestsv1.ComponentTestReport {
 	out := &componenttestsv1.ComponentTestReport{Id: report.ID, RootLibraryId: report.RootLibraryID, RootVersion: report.RootVersion, IncludeClosure: report.IncludeClosure, CreatedAt: timestamppb.New(report.CreatedAt), Verdict: string(report.Verdict), Results: make([]*componenttestsv1.ComponentTestResult, 0, len(report.Results)), Artifacts: make([]*componenttestsv1.ComponentTestArtifact, 0, len(report.Artifacts))}
 	for _, result := range report.Results {
-		out.Results = append(out.Results, &componenttestsv1.ComponentTestResult{Stage: string(result.Stage), AssetLibraryId: result.AssetLibraryID, Version: result.Version, Subject: result.Subject, Verdict: string(result.Verdict), Message: result.Message, Remediation: result.Remediation})
+		protoResult := &componenttestsv1.ComponentTestResult{Stage: string(result.Stage), AssetLibraryId: result.AssetLibraryID, Version: result.Version, Subject: result.Subject, Verdict: string(result.Verdict), Message: result.Message, Remediation: result.Remediation}
+		for _, evidence := range result.Evidence {
+			encoded, err := json.Marshal(evidence)
+			if err != nil {
+				continue
+			}
+			protoResult.Evidence = append(protoResult.Evidence, &componenttestsv1.ComponentTestEvidence{Kind: evidence.Kind, Json: string(encoded)})
+		}
+		out.Results = append(out.Results, protoResult)
 	}
 	for _, artifact := range report.Artifacts {
 		out.Artifacts = append(out.Artifacts, &componenttestsv1.ComponentTestArtifact{Kind: artifact.Kind, Label: artifact.Label, AssetLibraryId: artifact.AssetLibraryID, Version: artifact.Version, Reference: artifact.Reference})

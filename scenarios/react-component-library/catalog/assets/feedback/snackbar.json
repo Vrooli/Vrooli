@@ -5,7 +5,7 @@
   "asset": {
     "id": "feedback.snackbar",
     "name": "Snackbar",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "feedback",
     "description": "The lightweight action confirmation optimized for undo and brief outcomes, kept narrow enough that it does not become the destination for every application message.",
     "targets": [

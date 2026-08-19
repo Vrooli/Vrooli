@@ -259,17 +259,17 @@ func TestLifecycleGateAcceptsDocumentGuard(t *testing.T) {
 func TestEveryFindingCarriesRemediation(t *testing.T) {
 	root := t.TempDir()
 	runners := map[string]func(string) (Result, error){
-		"api":         ValidateAPI,
-		"tokens":      ValidateTokens,
-		"conformance": ValidateConformance,
-		"lifecycle":   ValidateLifecycle,
-		"fixtures":    ValidateFixtures,
-		"examples":    ValidateExamples,
-		"rtl":         ValidateRTL,
-		"stress":      ValidateStress,
-		"reduced":     ValidateReducedMotion,
-		"integrate":   ValidateIntegration,
-		"vocabulary":  ValidateTokenVocabulary,
+		"api":           ValidateAPI,
+		"tokens":        ValidateTokens,
+		"conformance":   ValidateConformance,
+		"lifecycle":     ValidateLifecycle,
+		"fixtures":      ValidateFixtures,
+		"examples":      ValidateExamples,
+		"rtl":           ValidateRTL,
+		"documentation": ValidateDocumentation,
+		"reduced":       ValidateReducedMotion,
+		"integrate":     ValidateIntegration,
+		"vocabulary":    ValidateTokenVocabulary,
 	}
 	for name, run := range runners {
 		t.Run(name, func(t *testing.T) {
@@ -350,6 +350,27 @@ func TestEveryGateRejectsZeroInspectedInputs(t *testing.T) {
 				t.Fatalf("result = %+v, want zero-input finding", result)
 			}
 		})
+	}
+}
+
+func TestUnmeasuredGateDoesNotReadSourceAsEvidence(t *testing.T) {
+	root := t.TempDir()
+	manifest := filepath.Join(root, "scenarios", "react-component-library", "library", "components", "Button", "component.json")
+	if err := os.MkdirAll(filepath.Dir(manifest), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(manifest, []byte(`{"catalogId":"controls.button","latest":"1.0.0"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	result, err := UnmeasuredGate(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Status != "unmeasured" || result.Inspected != 1 || len(result.InspectedAssets) != 1 {
+		t.Fatalf("result = %+v, want one explicitly unmeasured asset", result)
+	}
+	if len(result.Findings) != 0 {
+		t.Fatalf("unmeasured asset selection produced findings: %+v", result.Findings)
 	}
 }
 

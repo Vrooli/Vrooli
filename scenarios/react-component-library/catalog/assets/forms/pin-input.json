@@ -5,7 +5,7 @@
   "asset": {
     "id": "forms.pin-input",
     "name": "PinInput",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "forms",
     "description": "The fixed-length code field supporting paste, mobile input hints, optional masking, auto-advance, correction, and a single coherent screen-reader experience rather than one per box.",
     "targets": [

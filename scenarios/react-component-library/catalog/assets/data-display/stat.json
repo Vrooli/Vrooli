@@ -10,7 +10,7 @@
   "asset": {
     "id": "data-display.stat",
     "name": "Stat",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "data-display",
     "description": "The focused metric with value, label, comparison, trend, confidence, loading treatment, locale-aware formatting, and accessible context for what the number means.",
     "targets": [

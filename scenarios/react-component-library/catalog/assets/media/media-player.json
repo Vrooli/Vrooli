@@ -5,7 +5,7 @@
   "asset": {
     "id": "media.media-player",
     "name": "MediaPlayer",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "media",
     "description": "The unified audio and video player with custom controls, captions, chapters, quality and speed selection, preview scrubbing, keyboard shortcuts, and a native fallback.",
     "targets": [

@@ -1,0 +1,11 @@
+{
+  "libraryId": "react-component-library:MeasurementBar",
+  "catalogId": "data-display.measurement-bar",
+  "displayName": "MeasurementBar",
+  "description": "A labeled measured-versus-required bar for evidence panels.",
+  "assetKind": "component",
+  "tags": ["data-display", "token-bound"],
+  "latest": "1.0.4",
+  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
+  "dependencies": []
+}

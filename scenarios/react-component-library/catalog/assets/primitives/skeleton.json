@@ -10,7 +10,7 @@
   "asset": {
     "id": "primitives.skeleton",
     "name": "Skeleton",
-    "kind": "primitive",
+    "kind": "primitive", "surface": "base",
     "domain": "primitives",
     "description": "The structure-aware loading placeholder that reserves the final layout and can represent text, media, avatars, rows, and custom shapes.",
     "targets": [

@@ -5,7 +5,7 @@
   "asset": {
     "id": "motion.scroll-reveal",
     "name": "ScrollReveal",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "motion",
     "description": "The viewport-triggered presence component with a restrained replay policy, pooled observation, reduced-motion collapse, and content that remains visible without scripting.",
     "targets": [

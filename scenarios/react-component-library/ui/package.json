@@ -21,6 +21,7 @@
     "test:coverage": "vitest run --coverage --minWorkers=1 --maxWorkers=1",
     "test:preview-e2e": "node scripts/preview-e2e.mjs",
     "build:preview-kits": "node scripts/build-preview-kits.mjs",
+    "test:asset-stamp": "node --test scripts/vite-plugin-asset-stamp.test.mjs",
     "strings:gen": "node scripts/gen-strings.mjs",
     "strings:check": "node scripts/gen-strings.mjs --check",
     "selector:manifest": "node ./scripts/generate-selector-manifest.mjs"

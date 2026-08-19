@@ -5,7 +5,7 @@
   "asset": {
     "id": "ai.message-brancher",
     "name": "MessageBrancher",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "ai",
     "description": "The conversation-branch navigator preserving branch ancestry, edit history, alternative counts, timestamps, and stable scroll position when moving between branches.",
     "targets": [

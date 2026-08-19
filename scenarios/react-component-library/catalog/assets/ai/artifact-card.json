@@ -5,7 +5,7 @@
   "asset": {
     "id": "ai.artifact-card",
     "name": "ArtifactCard",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "ai",
     "description": "The generated-output component with type-specific preview, version, status, and actions to edit, open, compare, export, download, and inspect provenance.",
     "targets": [

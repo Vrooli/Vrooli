@@ -5,7 +5,7 @@
   "asset": {
     "id": "motion.stagger-group",
     "name": "StaggerGroup",
-    "kind": "primitive",
+    "kind": "primitive", "surface": "base",
     "domain": "motion",
     "description": "The coordinated presence primitive sequencing children by order, distance, or hierarchy so each child does not manage its own timing.",
     "targets": [

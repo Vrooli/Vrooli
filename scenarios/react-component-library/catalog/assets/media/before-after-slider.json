@@ -5,7 +5,7 @@
   "asset": {
     "id": "media.before-after-slider",
     "name": "BeforeAfterSlider",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "media",
     "description": "The direct-comparison surface with pointer, touch, and keyboard control, selectable orientation, labels, reset, and alignment that holds as the container resizes.",
     "targets": [

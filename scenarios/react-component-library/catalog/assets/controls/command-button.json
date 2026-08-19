@@ -5,7 +5,7 @@
   "asset": {
     "id": "controls.command-button",
     "name": "CommandButton",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "controls",
     "description": "The async-aware action progressing through idle, pending, progress, success, failure, retry, and cancellation without the consumer writing any glue, while holding stable dimensions throughout.",
     "targets": [

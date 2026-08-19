@@ -46,10 +46,26 @@ type Finding struct {
 // Result makes runner coverage observable. A gate that reports no findings
 // after inspecting zero inputs is not a passing gate; it is a broken runner.
 type Result struct {
-	Findings        []Finding
-	Inspected       int
-	InspectedAssets []string
-	RunnerError     []Finding
+	Findings          []Finding
+	Inspected         int
+	InspectedAssets   []string
+	RunnerError       []Finding
+	SurfaceCounts     map[string]int
+	UnmeasuredAssets  []string
+	CompositionScores map[string]float64
+	CompositionMedian float64
+	BespokeEscapes    []CompositionEscape
+	// Status is an explicit runner outcome. In particular, unmeasured means
+	// that no runner produced an observation and must never be interpreted as
+	// a clean result by an evidence consumer.
+	Status string
+}
+
+// CompositionEscape records a rendered node exempted from the raw-node
+// denominator. The reason is author-visible evidence, not a hidden waiver.
+type CompositionEscape struct {
+	AssetID string
+	Reason  string
 }
 
 // NormalizeResult enforces the gate identity boundary at the runner seam.
@@ -324,11 +340,14 @@ func ValidateReleasedVersionImmutable(root string) (Result, error) {
 
 type assetDoc struct {
 	Asset struct {
-		ID, Kind, Name string
-		Target         struct {
+		ID, Kind, Name, Surface string
+		Target                  struct {
 			Maturity string `json:"maturity"`
 		} `json:"target"`
 	} `json:"asset"`
+	Budgets struct {
+		MountMS float64 `json:"mountMs"`
+	} `json:"budgets"`
 	API *struct {
 		Variants map[string][]string `json:"variants"`
 		Modes    []string            `json:"modes"`
@@ -341,6 +360,8 @@ type assetDoc struct {
 			TypeArguments []string `json:"typeArguments"`
 		} `json:"satisfies"`
 	} `json:"fixture"`
+	Provides map[string]json.RawMessage `json:"provides"`
+	Consumes map[string]json.RawMessage `json:"consumes"`
 }
 
 func loadAssets(root string) ([]assetDoc, error) {
@@ -912,8 +933,97 @@ func ValidateFixtures(root string) (Result, error) {
 				DocsRef:     "docs/internal/TESTING.md",
 			})
 		}
+		if consumers, err := fixtureConsumers(root, asset.Asset.ID); err != nil {
+			return Result{}, err
+		} else if consumers > 0 {
+			assertions, err := fixtureFailureAssertions(root, asset.Asset.ID)
+			if err != nil {
+				return Result{}, err
+			}
+			if assertions == 0 {
+				result.Findings = append(result.Findings, Finding{
+					Code: "catalog.fixture_adversarial_render", AssetID: asset.Asset.ID,
+					Message:     "fixture failure shape has consumers but no rendered error-state assertion",
+					Remediation: "Add a failure-shaped consumer story and assert role=alert or data-fixture-state=failure. The preview harness accepts fixtureShape=failure and renders the fixture's failure record, so this check exercises the consumer rather than trusting fixture metadata.",
+					DocsRef:     "docs/internal/TESTING.md",
+				})
+			}
+		}
 	}
 	return nonEmpty(result, "fixture_adversarial"), nil
+}
+
+type fixtureStoryContract struct {
+	Frame struct {
+		Fixture string `json:"fixture"`
+	} `json:"frame"`
+	Stories []struct {
+		Expect []struct {
+			Role      string `json:"role"`
+			Selector  string `json:"selector"`
+			Attribute string `json:"attribute"`
+			Value     string `json:"value"`
+		} `json:"expect"`
+	} `json:"stories"`
+}
+
+func fixtureStoryContracts(root string) ([]fixtureStoryContract, error) {
+	paths, err := filepath.Glob(filepath.Join(root, "scenarios", "react-component-library", "library", "*", "*", "versions", "*", "story.json"))
+	if err != nil {
+		return nil, err
+	}
+	contracts := make([]fixtureStoryContract, 0, len(paths))
+	for _, path := range paths {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return nil, err
+		}
+		var contract fixtureStoryContract
+		if err := json.Unmarshal(data, &contract); err != nil {
+			return nil, err
+		}
+		contracts = append(contracts, contract)
+	}
+	return contracts, nil
+}
+
+func fixtureConsumers(root, fixtureID string) (int, error) {
+	contracts, err := fixtureStoryContracts(root)
+	if err != nil {
+		return 0, err
+	}
+	count := 0
+	for _, contract := range contracts {
+		if contract.Frame.Fixture == fixtureID {
+			count++
+		}
+	}
+	return count, nil
+}
+
+func fixtureFailureAssertions(root, fixtureID string) (int, error) {
+	contracts, err := fixtureStoryContracts(root)
+	if err != nil {
+		return 0, err
+	}
+	count := 0
+	for _, contract := range contracts {
+		if contract.Frame.Fixture != fixtureID {
+			continue
+		}
+		for _, story := range contract.Stories {
+			for _, expectation := range story.Expect {
+				if expectation.Role == "alert" ||
+					(expectation.Attribute == "data-fixture-state" && expectation.Value == "failure") ||
+					expectation.Selector == `[data-fixture-state="failure"]` ||
+					strings.Contains(strings.ToLower(expectation.Value), "failure") ||
+					strings.Contains(strings.ToLower(expectation.Value), "error") {
+					count++
+				}
+			}
+		}
+	}
+	return count, nil
 }
 
 // ValidateExamples checks that renderable assets have a public story contract
@@ -956,43 +1066,6 @@ func ValidateExamples(root string) (Result, error) {
 		}
 	}
 	return nonEmpty(result, "examples"), nil
-}
-
-// ValidateReducedMotion checks the source contract rather than inferring
-// support from a component's existence. Motion-bearing implementations must
-// declare their reduced-motion behavior; components without motion need no
-// special override and pass this gate after inspection.
-func ValidateReducedMotion(root string) (Result, error) {
-	motionDeclaration := regexp.MustCompile(`(?m)(?:^|[;{\s])(?:transition|animation|transform)\s*:`)
-	return validateActiveSources(root, "reduced-motion", func(asset assetDoc, source string) defect {
-		if !motionDeclaration.MatchString(source) {
-			return ok()
-		}
-		if strings.Contains(source, "prefers-reduced-motion") || strings.Contains(source, "useReducedMotion") || strings.Contains(source, "reducedMotion") {
-			return ok()
-		}
-		return defect{
-			Message:     "source declares transition/animation/transform but has no reduced-motion branch",
-			Remediation: "Consume the use-reduced-motion hook, or wrap the motion declarations in an @media (prefers-reduced-motion: reduce) block that removes them. Note that reduced-motion is a host port, not something this asset can satisfy alone: the consuming scenario must mount foundations.ui-provider for the preference to reach you. Honouring it is an accessibility requirement — for users with vestibular disorders unattenuated motion causes real physical symptoms.",
-			DocsRef:     "docs/concepts/ARCHITECTURE.md#port-obligations",
-		}
-	})
-}
-
-// ValidateRTL rejects physical horizontal CSS declarations in active source.
-// Logical properties are the shared library's direction-safe contract.
-func ValidateRTL(root string) (Result, error) {
-	physical := regexp.MustCompile(`(?i)(?:margin|padding|inset|border)-(?:left|right)\s*:|(?:margin|padding)(?:Left|Right)\s*:`)
-	return validateActiveSources(root, "rtl", func(asset assetDoc, source string) defect {
-		if match := physical.FindString(source); match != "" {
-			return defect{
-				Message:     fmt.Sprintf("source contains the physical declaration %q", strings.TrimSpace(match)),
-				Remediation: "Replace the physical property with its logical equivalent: margin-left/right becomes margin-inline-start/end, padding-left/right becomes padding-inline-start/end, and left/right insets become inset-inline-start/end. Physical properties do not mirror under dir=\"rtl\", so this element keeps its left-to-right layout inside an otherwise mirrored page — the defect appears only in RTL locales, which is why it survives review in LTR.",
-				DocsRef:     "docs/concepts/ARCHITECTURE.md#internationalization",
-			}
-		}
-		return ok()
-	})
 }
 
 // ValidateStress requires every active renderable implementation to have an
@@ -1040,40 +1113,6 @@ func ValidateStress(root string) (Result, error) {
 		}
 		return ok()
 	})
-}
-
-// ValidatePerformance executes the same production build boundary used by
-// the scenario lifecycle. It is intentionally corpus-level: a successful
-// immutable build proves the selected source can be bundled by the target,
-// while bundle-budget policy remains a separate diagnostic.
-func ValidatePerformance(root string) (Result, error) {
-	uiDir := filepath.Join(root, "scenarios", "react-component-library", "ui")
-	result := Result{Inspected: countCatalogSources(root)}
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
-	defer cancel()
-	command := exec.CommandContext(ctx, "pnpm", "run", "build")
-	command.Dir = uiDir
-	output, err := command.CombinedOutput()
-	if ctx.Err() != nil {
-		result.Findings = append(result.Findings, Finding{
-			Code: "catalog.performance_timeout", AssetID: "",
-			Message:     "production build timed out after 5m before the performance gate completed",
-			Remediation: "Run `pnpm run build` in scenarios/react-component-library/ui to see where it stalls. This is a runner fault, not an asset defect — the corpus is neither proven buildable nor proven broken by this run.",
-			DocsRef:     "docs/internal/TESTING.md",
-		})
-	} else if err != nil {
-		message := strings.TrimSpace(string(output))
-		if len(message) > 4000 {
-			message = message[len(message)-4000:]
-		}
-		result.Findings = append(result.Findings, Finding{
-			Code: "catalog.performance_failed", AssetID: "",
-			Message:     "production build failed: " + message,
-			Remediation: "Reproduce with `pnpm run build` in scenarios/react-component-library/ui; the output above is that command's tail. This gate is corpus-level: one asset that cannot be bundled fails the build for every asset, so the named file in the build output is the one to fix, not the asset this finding is attributed to.",
-			DocsRef:     "docs/internal/TESTING.md",
-		})
-	}
-	return nonEmpty(result, "performance"), nil
 }
 
 // ValidateIntegration checks the source-level integration boundary shared by
@@ -1156,11 +1195,10 @@ func nonEmpty(result Result, gate string) Result {
 	return result
 }
 
-// ValidateDeclaredGate is the shared contract runner for gates whose
-// browser-owned proof is captured outside the deterministic Go process. It
-// verifies that the catalog identity has a versioned implementation and
-// returns that exact asset set; it never invents a pass for an unbuilt asset.
-func ValidateDeclaredGate(root, gate string) (Result, error) {
+// UnmeasuredGate returns the built catalog asset set for a gate that has no
+// runner. The set is only an attribution boundary; it is not an observation
+// and therefore carries an explicit unmeasured status.
+func UnmeasuredGate(root string) (Result, error) {
 	result := Result{}
 	kinds := []string{"foundations", "hooks", "services", "primitives", "components"}
 	for _, kind := range kinds {
@@ -1183,16 +1221,12 @@ func ValidateDeclaredGate(root, gate string) (Result, error) {
 			if doc.CatalogID == "" || doc.Latest == "" {
 				continue
 			}
-			versions, _ := filepath.Glob(filepath.Join(filepath.Dir(manifest), "versions", doc.Latest, "*.tsx"))
-			if len(versions) == 0 {
-				result.Findings = append(result.Findings, Finding{Code: "catalog." + gate + ".missing_version", AssetID: doc.CatalogID, File: repoRel(root, manifest), Message: "catalog implementation has no source file for its declared latest version", Remediation: "Add the declared version source before claiming this gate is complete."})
-				continue
-			}
 			result.Inspected++
 			result.InspectedAssets = append(result.InspectedAssets, doc.CatalogID)
 		}
 	}
-	return nonEmpty(result, gate), nil
+	result.Status = "unmeasured"
+	return result, nil
 }
 
 func contains(values []string, wanted string) bool {

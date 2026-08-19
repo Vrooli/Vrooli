@@ -5,7 +5,7 @@
   "asset": {
     "id": "data-display.column-picker",
     "name": "ColumnPicker",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "data-display",
     "description": "The grid configuration surface for showing, hiding, ordering, pinning, sizing, and resetting columns, with search and full keyboard operation.",
     "targets": [

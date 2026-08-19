@@ -38,6 +38,32 @@ These files are the source of truth. When in doubt, copy their shape:
 If your test doesn't look like one of those three, ask why before
 shipping.
 
+## Catalog gate calibration and rendered evidence
+
+Catalog verdicts are valid only when their runner is backed by the oracle it
+claims to measure. `unmeasured` is a first-class result: it is displayed beside
+pass and fail, remains in every score denominator, and never becomes pass by
+default. Blocking gates must own a planted-error fixture under
+`catalog/calibration/<gate>/fixture.json`; run a gate's calibration with:
+
+```bash
+react-component-library catalog gates composition --calibration-only --json
+```
+
+The composition gate reads the build-stamped rendered tree, not imports or
+hand-authored markers. Its production-ready floor is currently `0.8`, derived
+from the measured cockpit corpus median of `1.0`; data-specific raw nodes are
+allowed only as counted `data-bespoke` escapes with a non-empty reason. The
+coverage report publishes `composition_blocked_asset_count` so a failed
+composition gate is reflected in maturity rather than hidden in row details.
+
+The component Tests surface keeps producer states separate: Integrity,
+Behavior, Experience, and Cost are distinct views; clean Integrity collapses;
+blocked and unmeasured are not failures; and failed experience claims use
+`ClaimMeasurement` subjects for the overlay and the six evidence kinds
+(screenshot, accessibility tree, computed style, layout box, console, and
+performance). A claim without capture must render an explicit unmeasured state.
+
 ## API testing
 
 ### Layout

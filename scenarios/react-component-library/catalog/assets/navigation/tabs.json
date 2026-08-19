@@ -5,7 +5,7 @@
   "asset": {
     "id": "navigation.tabs",
     "name": "Tabs",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "navigation",
     "description": "The content-switching component with roving focus, a shared moving indicator, lazily mounted panels, optional URL synchronization, overflow handling, and reduced-motion behavior.",
     "targets": [

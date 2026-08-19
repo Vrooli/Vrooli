@@ -5,7 +5,7 @@
   "asset": {
     "id": "forms.validation-summary",
     "name": "ValidationSummary",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "forms",
     "description": "The form-level error summary grouping actionable failures, linking to the fields they concern, taking focus at the right moment, and avoiding duplication of every field message.",
     "targets": [

@@ -5,7 +5,7 @@
   "asset": {
     "id": "ai.task-graph",
     "name": "TaskGraph",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "ai",
     "description": "The dependency-oriented task visualization with status, ownership, expansion, selection, filters, and a list-based alternative that is fully equivalent rather than a degraded fallback.",
     "targets": [

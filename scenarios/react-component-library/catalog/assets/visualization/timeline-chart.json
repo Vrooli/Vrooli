@@ -5,7 +5,7 @@
   "asset": {
     "id": "visualization.timeline-chart",
     "name": "TimelineChart",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "visualization",
     "description": "The temporal visualization for ranges, events, intervals, milestones, and zoomable periods, with selection and windowing for large series.",
     "targets": [

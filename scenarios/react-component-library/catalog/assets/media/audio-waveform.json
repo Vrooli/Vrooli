@@ -5,7 +5,7 @@
   "asset": {
     "id": "media.audio-waveform",
     "name": "AudioWaveform",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "media",
     "description": "The lazily rendered waveform with playback position, scrubbing, range selection, zoom, markers, loading treatment, and accessible time controls.",
     "targets": [

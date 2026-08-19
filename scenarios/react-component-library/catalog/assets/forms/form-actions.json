@@ -5,7 +5,7 @@
   "asset": {
     "id": "forms.form-actions",
     "name": "FormActions",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "forms",
     "description": "The coordinated action region for submit, cancel, reset, and delete, with save status, responsive placement, optional sticky behavior, and awareness of the form's async state.",
     "targets": [

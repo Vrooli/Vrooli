@@ -5,7 +5,7 @@
   "asset": {
     "id": "navigation.user-menu",
     "name": "UserMenu",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "navigation",
     "description": "The identity menu combining account information, presence, preferences, account switching, support entries, and sign-out with responsive presentation.",
     "targets": [

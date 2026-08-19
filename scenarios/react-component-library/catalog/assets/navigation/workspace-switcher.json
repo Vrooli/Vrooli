@@ -5,7 +5,7 @@
   "asset": {
     "id": "navigation.workspace-switcher",
     "name": "WorkspaceSwitcher",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "navigation",
     "description": "The searchable workspace selector with recent entries, favourites, creation actions, keyboard navigation, account context, and async loading.",
     "targets": [

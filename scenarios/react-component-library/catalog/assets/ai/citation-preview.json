@@ -5,7 +5,7 @@
   "asset": {
     "id": "ai.citation-preview",
     "name": "CitationPreview",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "ai",
     "description": "The hoverable or selectable source inspection surface showing relevant context around the cited passage while preserving the reader's position in the conversation.",
     "targets": [

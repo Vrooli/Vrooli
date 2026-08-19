@@ -24,6 +24,7 @@ type Asset struct {
 	ID           string
 	Name         string
 	Kind         string
+	Surface      string
 	Rung         assetrung.Rung
 	RungName     string
 	Domain       string
@@ -80,6 +81,7 @@ type rawAsset struct {
 		ID       string   `json:"id"`
 		Name     string   `json:"name"`
 		Kind     string   `json:"kind"`
+		Surface  string   `json:"surface"`
 		Domain   string   `json:"domain"`
 		Slot     string   `json:"slot"`
 		Delivery string   `json:"delivery"`
@@ -165,7 +167,7 @@ func LoadCatalog(catalogDir string) ([]Asset, error) {
 			continue
 		}
 		asset := Asset{
-			ID: raw.Asset.ID, Name: raw.Asset.Name, Kind: raw.Asset.Kind,
+			ID: raw.Asset.ID, Name: raw.Asset.Name, Kind: raw.Asset.Kind, Surface: raw.Asset.Surface,
 			Domain: raw.Asset.Domain, DomainOrder: orders[raw.Asset.Domain], Slot: raw.Asset.Slot, Delivery: raw.Asset.Delivery,
 			Targets: raw.Asset.Targets, Kits: raw.Asset.Kits,
 			Priority: raw.Asset.Target.Priority, Maturity: raw.Asset.Target.Maturity,

@@ -10,7 +10,7 @@
   "asset": {
     "id": "primitives.separator",
     "name": "Separator",
-    "kind": "primitive",
+    "kind": "primitive", "surface": "base",
     "domain": "primitives",
     "description": "The semantic divider supporting orientation, inset, and both decorative and grouping roles, so structure can be expressed without adding containers.",
     "targets": [

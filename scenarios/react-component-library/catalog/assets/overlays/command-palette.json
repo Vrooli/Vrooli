@@ -10,7 +10,7 @@
   "asset": {
     "id": "overlays.command-palette",
     "name": "CommandPalette",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "overlays",
     "description": "The global or scoped command interface with fuzzy search, recent actions, categories, keyboard navigation, argument collection, async execution, and command history.",
     "targets": [

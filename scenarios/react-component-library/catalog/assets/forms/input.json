@@ -5,7 +5,7 @@
   "asset": {
     "id": "forms.input",
     "name": "Input",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "forms",
     "description": "The single-line field with prefix and suffix slots, clear action, loading affordance, validation treatment, formatting hooks, autofill compatibility, and layout that does not shift between states.",
     "targets": [

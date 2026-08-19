@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"react-component-library/internal/gates"
@@ -28,6 +29,7 @@ CREATE TABLE IF NOT EXISTS catalog_gate_evidence (
   gate TEXT NOT NULL,
   version TEXT NOT NULL DEFAULT '',
   result TEXT NOT NULL,
+  measurement_json TEXT NOT NULL DEFAULT '',
   source_revision TEXT NOT NULL,
   recorded_at TEXT NOT NULL,
   UNIQUE (asset_id, target, gate, version, recorded_at)
@@ -41,6 +43,8 @@ CREATE INDEX IF NOT EXISTS idx_catalog_gate_evidence_revision
 type EvidenceStore struct {
 	db  *sql.DB
 	now func() time.Time
+	mu  sync.Mutex
+	err error
 }
 
 // ExperienceCapture is the small, durable portion of an Experience Manager
@@ -72,6 +76,52 @@ func NewEvidenceStore(db *sql.DB) *EvidenceStore {
 	return &EvidenceStore{db: db, now: time.Now}
 }
 
+func (s *EvidenceStore) ensureMeasurementColumn(ctx context.Context) error {
+	if s == nil || s.db == nil {
+		return fmt.Errorf("catalog evidence store is not configured")
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.err != nil {
+		return s.err
+	}
+	rows, err := s.db.QueryContext(ctx, `PRAGMA table_info(catalog_gate_evidence)`)
+	if err != nil {
+		s.err = err
+		return err
+	}
+	found := false
+	for rows.Next() {
+		var cid, notNull, pk int
+		var name, typ string
+		var defaultValue any
+		if scanErr := rows.Scan(&cid, &name, &typ, &notNull, &defaultValue, &pk); scanErr != nil {
+			_ = rows.Close()
+			s.err = scanErr
+			return scanErr
+		}
+		if name == "measurement_json" {
+			found = true
+		}
+	}
+	if err := rows.Err(); err != nil {
+		_ = rows.Close()
+		s.err = err
+		return err
+	}
+	if err := rows.Close(); err != nil {
+		s.err = err
+		return err
+	}
+	if !found {
+		if _, err := s.db.ExecContext(ctx, `ALTER TABLE catalog_gate_evidence ADD COLUMN measurement_json TEXT NOT NULL DEFAULT ''`); err != nil {
+			s.err = err
+			return err
+		}
+	}
+	return nil
+}
+
 // EvidenceFromResult turns a deterministic runner result into independent
 // asset observations. A clean inspection must be recorded as pass for every
 // inspected asset; otherwise one failing file silently becomes a missing row
@@ -80,7 +130,9 @@ func EvidenceFromResult(ctx context.Context, root string, gate GateDefinition, r
 	_ = ctx
 	if gate.Attribution == "corpus" {
 		resultValue := "pass"
-		if len(result.Findings) > 0 || len(result.RunnerError) > 0 {
+		if result.Status == "unmeasured" {
+			resultValue = "unmeasured"
+		} else if len(result.Findings) > 0 || len(result.RunnerError) > 0 {
 			resultValue = "fail"
 		}
 		return []GateEvidence{{
@@ -162,10 +214,16 @@ func EvidenceFromResult(ctx context.Context, root string, gate GateDefinition, r
 			return nil, revErr
 		}
 		resultValue := "pass"
-		if fail[id] {
+		if result.Status == "unmeasured" {
+			resultValue = "unmeasured"
+		} else if fail[id] {
 			resultValue = "fail"
 		}
-		out = append(out, GateEvidence{AssetID: id, Target: targets[id], Gate: gate.ID, Version: versions[id], Result: resultValue, SourceRevision: revision})
+		measurement := ""
+		if gate.ID == "composition" {
+			measurement = gates.CompositionScoreMetadataJSON(result, id)
+		}
+		out = append(out, GateEvidence{AssetID: id, Target: targets[id], Gate: gate.ID, Version: versions[id], Result: resultValue, MeasurementJSON: measurement, SourceRevision: revision})
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].AssetID < out[j].AssetID })
 	return out, nil
@@ -177,6 +235,9 @@ func (s *EvidenceStore) Save(ctx context.Context, evidence []GateEvidence) error
 	}
 	if len(evidence) == 0 {
 		return nil
+	}
+	if err := s.ensureMeasurementColumn(ctx); err != nil {
+		return err
 	}
 	now := time.Now
 	if s.now != nil {
@@ -197,8 +258,8 @@ func (s *EvidenceStore) Save(ctx context.Context, evidence []GateEvidence) error
 		}
 		id := evidenceID(item)
 		_, err := tx.ExecContext(ctx, `
-INSERT OR IGNORE INTO catalog_gate_evidence(id, asset_id, target, gate, version, result, source_revision, recorded_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, id, item.AssetID, item.Target, item.Gate, item.Version, item.Result, item.SourceRevision, item.RecordedAt)
+INSERT OR IGNORE INTO catalog_gate_evidence(id, asset_id, target, gate, version, result, measurement_json, source_revision, recorded_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, id, item.AssetID, item.Target, item.Gate, item.Version, item.Result, item.MeasurementJSON, item.SourceRevision, item.RecordedAt)
 		if err != nil {
 			return err
 		}
@@ -218,7 +279,10 @@ func (s *EvidenceStore) List(ctx context.Context) ([]GateEvidence, error) {
 	if s == nil || s.db == nil {
 		return nil, nil
 	}
-	rows, err := s.db.QueryContext(ctx, `SELECT asset_id, target, gate, version, result, source_revision, recorded_at FROM catalog_gate_evidence ORDER BY asset_id, target, gate, recorded_at DESC`)
+	if err := s.ensureMeasurementColumn(ctx); err != nil {
+		return nil, err
+	}
+	rows, err := s.db.QueryContext(ctx, `SELECT asset_id, target, gate, version, result, measurement_json, source_revision, recorded_at FROM catalog_gate_evidence ORDER BY asset_id, target, gate, recorded_at DESC`)
 	if err != nil {
 		return nil, err
 	}
@@ -226,7 +290,7 @@ func (s *EvidenceStore) List(ctx context.Context) ([]GateEvidence, error) {
 	var out []GateEvidence
 	for rows.Next() {
 		var item GateEvidence
-		if err := rows.Scan(&item.AssetID, &item.Target, &item.Gate, &item.Version, &item.Result, &item.SourceRevision, &item.RecordedAt); err != nil {
+		if err := rows.Scan(&item.AssetID, &item.Target, &item.Gate, &item.Version, &item.Result, &item.MeasurementJSON, &item.SourceRevision, &item.RecordedAt); err != nil {
 			return nil, err
 		}
 		out = append(out, item)
@@ -243,6 +307,19 @@ type ScoreHistory struct {
 	AssetsAt100             int
 	AssetsBelow50           int
 	WeightVectorRegenerated bool
+	ScoringModelVersion     int
+	SourceRevision          string
+	InstrumentMoved         int
+	KindMismatchCount       int
+	Events                  []ScoreHistoryEvent
+}
+
+type ScoreHistoryEvent struct {
+	Type           string
+	AssetID        string
+	SourceRevision string
+	DeclaredKind   string
+	DerivedKind    string
 }
 
 func (s *EvidenceStore) ScoreHistory(ctx context.Context, root, since string) ([]ScoreHistory, error) {
@@ -265,6 +342,7 @@ func (s *EvidenceStore) ScoreHistory(ctx context.Context, root, since string) ([
 	if err != nil {
 		return nil, err
 	}
+	kindMismatches, _ := ReconcileKinds(root, assets, impls)
 	start := time.Time{}
 	if strings.TrimSpace(since) != "" {
 		start, err = time.Parse("2006-01-02", strings.TrimSpace(since))
@@ -307,6 +385,9 @@ func (s *EvidenceStore) ScoreHistory(ctx context.Context, root, since string) ([
 	}
 
 	var out []ScoreHistory
+	var previousScore float64
+	var previousRevision string
+	previousExists := false
 	for day := first; !day.After(end.UTC().Truncate(24 * time.Hour)); day = day.Add(24 * time.Hour) {
 		cutoff := day.Add(24 * time.Hour)
 		asOf := make([]GateEvidence, 0, len(items))
@@ -329,15 +410,50 @@ func (s *EvidenceStore) ScoreHistory(ctx context.Context, root, since string) ([
 				below50++
 			}
 		}
+		sourceRevision := evidenceSourceRevision(asOf)
+		instrumentMoved := 0
+		var events []ScoreHistoryEvent
+		if day.Equal(first) {
+			for _, mismatch := range kindMismatches {
+				events = append(events, ScoreHistoryEvent{Type: "asset-kind-mismatch", AssetID: mismatch.AssetID, DeclaredKind: mismatch.DeclaredKind, DerivedKind: mismatch.DerivedKind})
+			}
+		}
+		if previousExists && report.Score != previousScore && sourceRevision == previousRevision {
+			instrumentMoved = 1
+			events = append(events, ScoreHistoryEvent{Type: "instrument-moved", SourceRevision: sourceRevision})
+		}
 		out = append(out, ScoreHistory{
 			RecordedAt:              day.Format("2006-01-02"),
 			Score:                   report.Score,
 			AssetsAt100:             at100,
 			AssetsBelow50:           below50,
 			WeightVectorRegenerated: day.Equal(first) && fileExists(filepath.Join(resolveScenarioRoot(root), "catalog", "weights.json")),
+			ScoringModelVersion:     2,
+			SourceRevision:          sourceRevision,
+			InstrumentMoved:         instrumentMoved,
+			KindMismatchCount:       len(kindMismatches),
+			Events:                  events,
 		})
+		previousScore, previousRevision, previousExists = report.Score, sourceRevision, true
 	}
 	return out, nil
+}
+
+func evidenceSourceRevision(items []GateEvidence) string {
+	values := map[string]bool{}
+	for _, item := range items {
+		if item.AssetID == "__corpus__" || item.SourceRevision == "" {
+			continue
+		}
+		values[item.AssetID+"\x00"+item.SourceRevision] = true
+	}
+	keys := make([]string, 0, len(values))
+	for key := range values {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	sum := sha256.Sum256([]byte(strings.Join(keys, "\x00")))
+	return hex.EncodeToString(sum[:])
 }
 
 func fileExists(path string) bool {
@@ -739,16 +855,33 @@ func RecomputeEvidence(root string) ([]GateEvidence, error) {
 	if runners["stress"], err = gates.ValidateStress(root); err != nil {
 		return nil, err
 	}
-	if runners["performance"], err = gates.ValidatePerformance(root); err != nil {
+	if runners["integration"], err = gates.ValidateIntegration(root); err != nil {
 		return nil, err
 	}
-	if runners["integration"], err = gates.ValidateIntegration(root); err != nil {
+	if runners["surface-discipline"], err = gates.ValidateSurfaceDiscipline(root); err != nil {
 		return nil, err
 	}
 	for name, runner := range runners {
 		runners[name] = gates.NormalizeResult(root, runner)
 	}
+	quarantined := map[string]bool{}
+	for _, definition := range definitions {
+		if !definition.Blocking {
+			continue
+		}
+		runner := gates.GateRunnerFor(definition.ID)
+		calibration, calibrationErr := gates.Calibrate(root, definition.ID, runner)
+		if calibrationErr != nil {
+			return nil, calibrationErr
+		}
+		if calibration.NonDiscriminating {
+			quarantined[definition.ID] = true
+		}
+	}
 	var out []GateEvidence
+	// Gates without a declared runner are explicitly unmeasured. They are
+	// still represented for every applicable built asset (and for corpus gates)
+	// so the score cannot improve when a runner disappears.
 	for _, asset := range assets {
 		if _, ok := implByAsset[asset.ID]; !ok {
 			continue
@@ -762,25 +895,31 @@ func RecomputeEvidence(root string) ([]GateEvidence, error) {
 			return nil, err
 		}
 		for _, definition := range definitions {
-			if definition.Attribution == "corpus" {
+			if definition.Attribution == "corpus" || !containsKind(definition.AppliesTo, asset.Kind) {
 				continue
 			}
 			gateName := definition.ID
-			if !containsKind(definition.AppliesTo, asset.Kind) {
-				continue
-			}
 			runner, ok := runners[gateName]
-			if !ok {
+			if !ok || quarantined[gateName] {
+				out = append(out, GateEvidence{AssetID: asset.ID, Target: target, Version: implByAsset[asset.ID].Latest, Gate: gateName, Result: "unmeasured", SourceRevision: revision})
 				continue
 			}
 			result := "pass"
-			if hasFinding(runner.Findings, asset.ID, implByAsset[asset.ID].Name, gateName) || len(runner.RunnerError) > 0 {
+			if contains(runner.UnmeasuredAssets, asset.ID) || (runner.Status == "unmeasured" && len(runner.UnmeasuredAssets) == 0) {
+				result = "unmeasured"
+			} else if hasFinding(runner.Findings, asset.ID, implByAsset[asset.ID].Name, gateName) || len(runner.RunnerError) > 0 {
 				result = "fail"
 			} else if runner.Inspected == 0 {
 				result = "skipped"
 			}
 			out = append(out, GateEvidence{AssetID: asset.ID, Target: target, Version: implByAsset[asset.ID].Latest, Gate: gateName, Result: result, SourceRevision: revision})
 		}
+	}
+	for _, definition := range definitions {
+		if definition.Attribution != "corpus" || (len(definition.Runner) > 0 && !quarantined[definition.ID]) {
+			continue
+		}
+		out = append(out, GateEvidence{AssetID: "__corpus__", Target: "corpus", Version: "", Gate: definition.ID, Result: "unmeasured", SourceRevision: "corpus"})
 	}
 	return out, nil
 }

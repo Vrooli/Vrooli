@@ -1,0 +1,23 @@
+{
+  "component": {
+    "id": "feedback.quarantine-badge",
+    "title": "QuarantineBadge",
+    "purpose": "QuarantineBadge makes non-discriminating enforcement visible."
+  },
+  "states": [
+    {
+      "id": "default",
+      "example": "default",
+      "description": "A quarantined gate names the reason."
+    }
+  ],
+  "claims": [
+    {
+      "id": "quarantine-readable",
+      "type": "text",
+      "statement": "A quarantined gate and reason are readable without color.",
+      "tier": "machine",
+      "states": ["default"]
+    }
+  ]
+}

@@ -5,7 +5,7 @@
   "asset": {
     "id": "overlays.menu",
     "name": "Menu",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "overlays",
     "description": "The menu family covering dropdowns and submenus with roving focus, typeahead, check and radio items, safe pointer corridors, shortcut hints, and async item actions.",
     "targets": [

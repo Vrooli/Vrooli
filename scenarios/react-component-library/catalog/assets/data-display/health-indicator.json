@@ -1,7 +1,7 @@
 {
   "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
   "kind": "catalog-asset", "schemaVersion": "1.0.0",
-  "asset": {"id": "data-display.health-indicator", "name": "HealthIndicator", "kind": "component", "domain": "data-display", "description": "A semantic health label with score, staleness, and non-color status treatment.", "targets": ["react-vite"], "slot": "primitive", "delivery": "adopted", "target": {"priority": "P0", "maturity": "implemented"}},
+  "asset": {"id": "data-display.health-indicator", "name": "HealthIndicator", "kind": "component", "surface": "raised", "domain": "data-display", "description": "A semantic health label with score, staleness, and non-color status treatment.", "targets": ["react-vite"], "slot": "primitive", "delivery": "adopted", "target": {"priority": "P0", "maturity": "implemented"}},
   "dependencies": {"requires": [{"asset": "data-display.score-gauge", "reason": "The score primitive provides the numeric health context."}], "suggests": []},
   "requiredCapabilities": ["accessible-naming", "non-color-status", "forced-colors-legibility", "dark-parity"],
   "requiredStates": ["default", "empty", "request-error"],

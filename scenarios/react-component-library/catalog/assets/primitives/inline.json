@@ -10,7 +10,7 @@
   "asset": {
     "id": "primitives.inline",
     "name": "Inline",
-    "kind": "primitive",
+    "kind": "primitive", "surface": "base",
     "domain": "primitives",
     "description": "The horizontal layout primitive handling wrapping, alignment, distribution, responsive spacing, and bidirectional reading order.",
     "targets": [

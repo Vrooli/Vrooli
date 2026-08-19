@@ -5,7 +5,7 @@
   "asset": {
     "id": "visualization.chart",
     "name": "Chart",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "visualization",
     "description": "The responsive chart framework standardizing axes, legends, tooltips, value formatting, selection, theme integration, keyboard summaries, and every generic data state around a pluggable rendering engine.",
     "targets": [

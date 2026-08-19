@@ -5,7 +5,7 @@
   "asset": {
     "id": "controls.toolbar",
     "name": "Toolbar",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "controls",
     "description": "The composite action row with roving focus, logical groups, separators, overflow menu, responsive collapse, and shortcut hints.",
     "targets": [

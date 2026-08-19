@@ -10,7 +10,7 @@
   "asset": {
     "id": "data-display.tree-view",
     "name": "TreeView",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "data-display",
     "description": "The hierarchical collection with lazily loaded nodes, expansion, selection, keyboard traversal, drag reordering, filtering, virtualization, and accessible tree semantics.",
     "targets": [

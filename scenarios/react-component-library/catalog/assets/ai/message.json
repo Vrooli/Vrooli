@@ -5,7 +5,7 @@
   "asset": {
     "id": "ai.message",
     "name": "Message",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "ai",
     "description": "The structured conversational item carrying actor, content, status, citations, attachments, tool activity, actions, timestamp, error state, and expandable metadata as one coherent unit.",
     "targets": [

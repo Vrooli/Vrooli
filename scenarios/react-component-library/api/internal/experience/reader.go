@@ -40,6 +40,7 @@ type (
 type Evidence struct {
 	ClaimID, ClaimType, Verdict, StateID, ExampleName, CaptureRef, CheckedAt, Message, Viewport string
 	ViewportWidth, ViewportHeight                                                               int
+	Measurement                                                                                 *contractv1.ClaimMeasurement
 }
 type Snapshot struct {
 	ComponentID, LibraryID, Version, ContractID, Title, Purpose string
@@ -165,7 +166,7 @@ func (r *reader) evidence(ctx context.Context, componentID string) ([]Evidence, 
 	}
 	out := make([]Evidence, 0, len(response.Msg.GetEvidence()))
 	for _, item := range response.Msg.GetEvidence() {
-		out = append(out, Evidence{ClaimID: item.GetClaim(), ClaimType: item.GetClaimType(), Verdict: item.GetVerdict(), StateID: item.GetState(), ExampleName: item.GetExampleName(), CaptureRef: item.GetCaptureRef(), CheckedAt: item.GetCheckedAt(), Message: item.GetMessage(), Viewport: item.GetViewport(), ViewportWidth: int(item.GetViewportWidth()), ViewportHeight: int(item.GetViewportHeight())})
+		out = append(out, Evidence{ClaimID: item.GetClaim(), ClaimType: item.GetClaimType(), Verdict: item.GetVerdict(), StateID: item.GetState(), ExampleName: item.GetExampleName(), CaptureRef: item.GetCaptureRef(), CheckedAt: item.GetCheckedAt(), Message: item.GetMessage(), Viewport: item.GetViewport(), ViewportWidth: int(item.GetViewportWidth()), ViewportHeight: int(item.GetViewportHeight()), Measurement: item.GetMeasurement()})
 	}
 	return out, nil
 }

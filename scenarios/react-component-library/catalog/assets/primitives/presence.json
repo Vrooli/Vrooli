@@ -6,7 +6,7 @@
   "asset": {
     "id": "primitives.presence",
     "name": "Presence",
-    "kind": "primitive",
+    "kind": "primitive", "surface": "base",
     "domain": "primitives",
     "description": "A lifecycle-aware conditional boundary for mounting and unmounting content while leaving motion policy to the consuming recipe.",
     "targets": ["react-vite"],

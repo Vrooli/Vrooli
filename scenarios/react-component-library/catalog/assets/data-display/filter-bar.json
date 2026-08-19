@@ -10,7 +10,7 @@
   "asset": {
     "id": "data-display.filter-bar",
     "name": "FilterBar",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "data-display",
     "description": "The query-control surface coordinating search, structured filters, active-filter chips, presets, reset, responsive overflow, and URL synchronization.",
     "targets": [

@@ -5,7 +5,7 @@
   "asset": {
     "id": "visualization.gauge",
     "name": "Gauge",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "visualization",
     "description": "The bounded metric visualization with semantic zones, target markers, animated change, and an accessible textual equivalent that states the value and its zone.",
     "targets": [

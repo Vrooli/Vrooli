@@ -1,0 +1,1 @@
+{"gate":"types","assetId":"calibration-types","kind":"component","runner":"static","requiredFailureCode":"catalog.types_failed","catalogAsset":"asset.json","source":"broken.tsx","description":"Contains an intentional TypeScript type error."}

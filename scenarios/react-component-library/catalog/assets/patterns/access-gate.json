@@ -5,7 +5,7 @@
   "asset": {
     "id": "patterns.access-gate",
     "name": "AccessGate",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "patterns",
     "description": "The combined permission and feature gate handling loading, unavailable, upgrade-required, request-access, read-only, and hidden states without duplicating policy logic per surface.",
     "targets": [

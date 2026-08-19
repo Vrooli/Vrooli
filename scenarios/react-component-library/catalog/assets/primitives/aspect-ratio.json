@@ -5,7 +5,7 @@
   "asset": {
     "id": "primitives.aspect-ratio",
     "name": "AspectRatio",
-    "kind": "primitive",
+    "kind": "primitive", "surface": "base",
     "domain": "primitives",
     "description": "The media-layout primitive reserving stable space ahead of content so a loading image or embed cannot shift the surrounding layout.",
     "targets": [

@@ -10,7 +10,7 @@
   "asset": {
     "id": "primitives.relative-time",
     "name": "RelativeTime",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "primitives",
     "description": "The locale-aware timestamp component updating at meaningful intervals and exposing the precise absolute time through accessible and hoverable detail.",
     "targets": [

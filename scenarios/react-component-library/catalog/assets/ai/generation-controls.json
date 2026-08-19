@@ -5,7 +5,7 @@
   "asset": {
     "id": "ai.generation-controls",
     "name": "GenerationControls",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "ai",
     "description": "The coordinated control set for stop, continue, retry, regenerate, branch, edit, and resume, with accurate availability and honest pending state for each.",
     "targets": [

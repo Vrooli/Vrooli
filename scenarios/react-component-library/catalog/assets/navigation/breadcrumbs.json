@@ -5,7 +5,7 @@
   "asset": {
     "id": "navigation.breadcrumbs",
     "name": "Breadcrumbs",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "navigation",
     "description": "The hierarchical path component with semantic navigation, responsive collapsing into an overflow menu, current-item treatment, and optional transition direction hints.",
     "targets": [

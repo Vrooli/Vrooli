@@ -10,7 +10,7 @@
   "asset": {
     "id": "navigation.nav-link",
     "name": "NavLink",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "navigation",
     "description": "The router-adaptable navigation link with exact or partial active matching, pending state during navigation, prefetch policy, icons, badges, and disabled semantics.",
     "targets": [

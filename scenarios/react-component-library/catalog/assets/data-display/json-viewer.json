@@ -10,7 +10,7 @@
   "asset": {
     "id": "data-display.json-viewer",
     "name": "JSONViewer",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "data-display",
     "description": "The structured data viewer with expansion, search, copy, path display, type treatment, truncation, virtualization, and safe handling of large or circular values.",
     "targets": [

@@ -10,7 +10,7 @@
   "asset": {
     "id": "feedback.async-boundary",
     "name": "AsyncBoundary",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "feedback",
     "description": "The declarative boundary coordinating loading, empty, partial, stale, refreshing, offline, error, and success presentation around arbitrary content, so no surface hand-rolls its own state ladder.",
     "targets": [

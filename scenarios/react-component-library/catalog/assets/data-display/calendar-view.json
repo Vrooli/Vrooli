@@ -5,7 +5,7 @@
   "asset": {
     "id": "data-display.calendar-view",
     "name": "CalendarView",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "data-display",
     "description": "The day, week, month, agenda, or resource calendar with virtualization, selection, drag and resize editing, timezone handling, responsive modes, and overlap layout.",
     "targets": [

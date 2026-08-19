@@ -5,7 +5,7 @@
   "asset": {
     "id": "manipulation.sortable",
     "name": "Sortable",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "manipulation",
     "description": "The reorder controller with collision strategies, animated displacement, keyboard operation, nested containers, optimistic persistence, and rollback when the write fails.",
     "targets": [

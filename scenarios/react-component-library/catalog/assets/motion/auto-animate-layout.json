@@ -5,7 +5,7 @@
   "asset": {
     "id": "motion.auto-animate-layout",
     "name": "AutoAnimateLayout",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "motion",
     "description": "The declarative layout-transition component animating keyed insertion, removal, reordering, and resizing through layout-difference calculation rather than tweened layout properties.",
     "targets": [

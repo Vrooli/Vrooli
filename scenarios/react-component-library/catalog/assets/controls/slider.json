@@ -5,7 +5,7 @@
   "asset": {
     "id": "controls.slider",
     "name": "Slider",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "controls",
     "description": "The single-value range control with keyboard stepping, snapping, marks, formatted output, touch-friendly hit area, and accessible value text.",
     "targets": [

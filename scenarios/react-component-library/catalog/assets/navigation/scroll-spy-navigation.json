@@ -5,7 +5,7 @@
   "asset": {
     "id": "navigation.scroll-spy-navigation",
     "name": "ScrollSpyNavigation",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "navigation",
     "description": "The navigation component observing content sections to update the active entry without fighting an explicit navigation the user just performed.",
     "targets": [

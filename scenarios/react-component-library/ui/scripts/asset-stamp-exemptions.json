@@ -1,0 +1,138 @@
+[
+  {
+    "asset": "react-component-library:AssetDetailShell",
+    "reason": "Supplemental manifest has no catalog id and only exposes a legacy library entry; the owned catalog asset is not yet present."
+  },
+  {
+    "asset": "react-component-library:AsyncPanel",
+    "reason": "Supplemental manifest has no catalog id and only exposes a legacy library entry; the owned catalog asset is not yet present."
+  },
+  {
+    "asset": "react-component-library:CommandCenterShell",
+    "reason": "Supplemental manifest has no catalog id and only exposes a legacy library entry; the owned catalog asset is not yet present."
+  },
+  {
+    "asset": "react-component-library:ControlBase",
+    "reason": "Supplemental manifest has no catalog id and only exposes a legacy library entry; the owned catalog asset is not yet present."
+  },
+  {
+    "asset": "react-component-library:DrawerShell",
+    "reason": "Supplemental manifest has no catalog id and only exposes a legacy library entry; the owned catalog asset is not yet present."
+  },
+  {
+    "asset": "react-component-library:ExperienceSurface",
+    "reason": "Supplemental manifest has no catalog id and only exposes a legacy library entry; the owned catalog asset is not yet present."
+  },
+  {
+    "asset": "react-component-library:FocusTrapPanel",
+    "reason": "Supplemental manifest has no catalog id and only exposes a legacy library entry; the owned catalog asset is not yet present."
+  },
+  {
+    "asset": "react-component-library:InspectorLayout",
+    "reason": "Supplemental manifest has no catalog id and only exposes a legacy library entry; the owned catalog asset is not yet present."
+  },
+  {
+    "asset": "react-component-library:PageFrame",
+    "reason": "Supplemental manifest has no catalog id and only exposes a legacy library entry; the owned catalog asset is not yet present."
+  },
+  {
+    "asset": "react-component-library:StatusBadge",
+    "reason": "Supplemental manifest has no catalog id and only exposes a legacy library entry; the owned catalog asset is not yet present."
+  },
+  {
+    "asset": "react-component-library:VoiceInputButton",
+    "reason": "Supplemental manifest has no catalog id and only exposes a legacy library entry; the owned catalog asset is not yet present."
+  },
+  {
+    "asset": "react-component-library:WorkspaceHeader",
+    "reason": "Supplemental manifest has no catalog id and only exposes a legacy library entry; the owned catalog asset is not yet present."
+  },
+  {
+    "asset": "react-component-library:markdown-renderer",
+    "reason": "Supplemental manifest has no catalog id and only exposes a legacy library entry; the owned catalog asset is not yet present."
+  },
+  {
+    "asset": "react-component-library:mermaid-diagram",
+    "reason": "Supplemental manifest has no catalog id and only exposes a legacy library entry; the owned catalog asset is not yet present."
+  },
+  {
+    "asset": "react-component-library:useVoiceInput",
+    "reason": "The hook has no DOM-owned root and its supplemental manifest has no catalog id."
+  },
+  {
+    "asset": "hooks.*",
+    "reason": "Hooks are behavior-only assets and do not own a DOM root."
+  },
+  {
+    "asset": "monetization.auth-section",
+    "reason": "This catalog entry is a re-export alias; it owns no DOM root separate from MonetizationAccount."
+  },
+  {
+    "asset": "monetization.entitlement-error-card",
+    "reason": "This catalog entry is a re-export alias; it owns no DOM root separate from MonetizationAccount."
+  },
+  {
+    "asset": "monetization.pending-sync-badge",
+    "reason": "This catalog entry is a re-export alias; it owns no DOM root separate from MonetizationAccount."
+  },
+  {
+    "asset": "monetization.subscription-status-card",
+    "reason": "This catalog entry is a re-export alias; it owns no DOM root separate from MonetizationAccount."
+  },
+  {
+    "asset": "monetization.upgrade-prompt",
+    "reason": "This catalog entry is a re-export alias; it owns no DOM root separate from MonetizationAccount."
+  },
+  {
+    "asset": "foundations.contracts",
+    "reason": "The foundation exports types and contracts only; it has no DOM-owned root."
+  },
+  {
+    "asset": "foundations.icon-registry",
+    "reason": "The foundation exports icon data and helpers only; it has no DOM-owned root."
+  },
+  {
+    "asset": "foundations.tokens",
+    "reason": "The foundation exports token data only; it has no DOM-owned root."
+  },
+  {
+    "asset": "foundations.visual-recipes",
+    "reason": "The foundation exports recipes and token maps only; it has no DOM-owned root."
+  },
+  {
+    "asset": "primitives.slot",
+    "reason": "Slot clones a consumer-owned element and does not own a DOM root to stamp."
+  },
+  {
+    "asset": "services.command-registry",
+    "reason": "The service exports an imperative registry and does not render a DOM root."
+  },
+  {
+    "asset": "services.drag-drop-store",
+    "reason": "The service exports store state and does not render a DOM root."
+  },
+  {
+    "asset": "services.form-store",
+    "reason": "The service exports form state and does not render a DOM root."
+  },
+  {
+    "asset": "services.layer-manager",
+    "reason": "The service exports layer coordination and does not render a DOM root."
+  },
+  {
+    "asset": "navigation.scroll-restoration",
+    "reason": "The service exports a scroll effect and does not render a DOM root."
+  },
+  {
+    "asset": "services.selection-store",
+    "reason": "The service exports selection state and does not render a DOM root."
+  },
+  {
+    "asset": "services.shortcut-registry",
+    "reason": "The service exports keyboard registry state and does not render a DOM root."
+  },
+  {
+    "asset": "services.create-scoped-store",
+    "reason": "The service exports a store factory and does not render a DOM root."
+  }
+]

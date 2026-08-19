@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 3,
+  "kind": "component",
+  "title": "Card Grid",
+  "args": {
+    "fields": [
+      {
+        "path": "children",
+        "label": "Children",
+        "kind": "structured",
+        "default": [
+          { "$node": "article", "props": { "data-rcl-card": true }, "children": [{ "$text": "Raised record" }] },
+          { "$node": "article", "props": { "data-rcl-card": true }, "children": [{ "$text": "Another record" }] }
+        ]
+      }
+    ]
+  },
+  "environment": { "fixtures": [] },
+  "stories": [
+    {
+      "id": "raised-records",
+      "name": "Raised records",
+      "args": {
+        "children": [
+          { "$node": "article", "props": { "data-rcl-card": true }, "children": [{ "$text": "Raised record" }] },
+          { "$node": "article", "props": { "data-rcl-card": true }, "children": [{ "$text": "Another record" }] }
+        ]
+      },
+      "expect": [{ "kind": "text", "value": "Raised record" }],
+      "mode": "pinned"
+    }
+  ]
+}

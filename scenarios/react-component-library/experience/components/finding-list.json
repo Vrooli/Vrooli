@@ -1,0 +1,41 @@
+{
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-component",
+  "schemaVersion": "1.1.0",
+  "component": {
+    "id": "finding-list",
+    "title": "FindingList",
+    "purpose": "Pair each actionable defect with identity, severity, and remediation.",
+    "storyRef": "../../library/components/FindingList/versions/1.0.7/story.json"
+  },
+  "states": [
+    {
+      "id": "default",
+      "example": "default",
+      "description": "Findings show severity and remediation."
+    },
+    {
+      "id": "empty",
+      "example": "empty",
+      "description": "No findings is explicit."
+    }
+  ],
+  "elements": [
+    {
+      "id": "surface",
+      "role": "list",
+      "description": "The actionable finding surface."
+    }
+  ],
+  "claims": [
+    {
+      "id": "surface-present",
+      "type": "element-present",
+      "statement": "The finding surface is present in every state.",
+      "tier": "machine",
+      "elements": ["surface"],
+      "states": ["default", "empty"]
+    }
+  ],
+  "bindings": { "elements": { "surface": { "selector": "[data-rcl-asset]" } } }
+}

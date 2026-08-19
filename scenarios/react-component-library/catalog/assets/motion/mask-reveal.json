@@ -5,7 +5,7 @@
   "asset": {
     "id": "motion.mask-reveal",
     "name": "MaskReveal",
-    "kind": "primitive",
+    "kind": "primitive", "surface": "base",
     "domain": "motion",
     "description": "The reveal primitive using clipping or masking for directional, radial, and shape-based entrances without animating expensive layout properties.",
     "targets": [

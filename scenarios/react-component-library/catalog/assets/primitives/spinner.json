@@ -10,7 +10,7 @@
   "asset": {
     "id": "primitives.spinner",
     "name": "Spinner",
-    "kind": "primitive",
+    "kind": "primitive", "surface": "base",
     "domain": "primitives",
     "description": "The restrained indeterminate progress indicator with size, accessible label, appearance delay, contrast handling, and reduced-motion behavior.",
     "targets": [

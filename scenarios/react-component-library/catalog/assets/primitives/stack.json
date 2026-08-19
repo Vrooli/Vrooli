@@ -10,7 +10,7 @@
   "asset": {
     "id": "primitives.stack",
     "name": "Stack",
-    "kind": "primitive",
+    "kind": "primitive", "surface": "base",
     "domain": "primitives",
     "description": "The vertical layout primitive giving consistent spacing, alignment, optional separators, wrapping, responsive values, and a choice of semantic element.",
     "targets": [

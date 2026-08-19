@@ -166,6 +166,22 @@ func TestCoverageDerivesMaturityFromEvidence(t *testing.T) {
 	}
 }
 
+func TestUnmeasuredEvidenceIsVisibleAndCannotRaiseScore(t *testing.T) {
+	assets := []Asset{{ID: "controls.button", Name: "Button", Kind: "component", Maturity: "verified", Targets: []string{"react-vite"}}}
+	impls := []Implementation{{Name: "Button", Root: "components", CatalogID: "controls.button"}}
+	gates := []GateDefinition{{ID: "rtl", Rung: RungScaffolded, Blocking: true, AppliesTo: []string{"component"}}}
+	report := ComputeWithEvidence(assets, impls, []GateEvidence{{AssetID: "controls.button", Target: "react-vite", Gate: "rtl", Result: "unmeasured"}}, gates)
+	if report.Rows[0].AssetScore != 0 || report.Rows[0].Achieved != RungScaffolded {
+		t.Fatalf("unmeasured evidence raised maturity: row=%+v", report.Rows[0])
+	}
+	if report.UnmeasuredEvidence != 1 || report.PassEvidence != 0 || report.FailEvidence != 0 {
+		t.Fatalf("evidence census = pass:%d fail:%d unmeasured:%d", report.PassEvidence, report.FailEvidence, report.UnmeasuredEvidence)
+	}
+	if report.Maturity.MandatoryGateCoverage.Numerator != 0 || report.Maturity.MandatoryGateCoverage.Denominator != 1 {
+		t.Fatalf("mandatory coverage = %+v", report.Maturity.MandatoryGateCoverage)
+	}
+}
+
 func TestCoverageReachesTargetWhenEveryBlockingGatePasses(t *testing.T) {
 	assets := []Asset{{ID: "controls.button", Name: "Button", Kind: "component", Domain: "controls", Priority: "P0", Maturity: "production-ready", Targets: []string{"react-vite"}}}
 	impls := []Implementation{{Name: "Button", Root: "components", CatalogID: "controls.button"}}

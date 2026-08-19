@@ -5,7 +5,7 @@
   "asset": {
     "id": "controls.button",
     "name": "Button",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "controls",
     "description": "The primary action control: a labelled, token-bound button that acknowledges activation immediately, expresses intent through semantic variants, and keeps stable dimensions while it moves through pending, success, and failure.",
     "targets": ["react-vite"],

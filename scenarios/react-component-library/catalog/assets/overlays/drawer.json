@@ -5,7 +5,7 @@
   "asset": {
     "id": "overlays.drawer",
     "name": "Drawer",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "overlays",
     "description": "The edge-attached panel with modal or non-modal presentation, drag gestures, velocity-aware dismissal, responsive sizing, focus management, and safe-area handling.",
     "targets": [

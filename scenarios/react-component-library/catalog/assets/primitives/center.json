@@ -5,7 +5,7 @@
   "asset": {
     "id": "primitives.center",
     "name": "Center",
-    "kind": "primitive",
+    "kind": "primitive", "surface": "base",
     "domain": "primitives",
     "description": "The constrained centering primitive handling intrinsic content, minimum heights, and safe responsive padding for empty and focus states.",
     "targets": [

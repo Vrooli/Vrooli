@@ -5,7 +5,7 @@
   "asset": {
     "id": "overlays.hover-card",
     "name": "HoverCard",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "overlays",
     "description": "The richer preview surface that stays navigable as the pointer travels from trigger to content and never blocks keyboard access to the underlying destination.",
     "targets": [

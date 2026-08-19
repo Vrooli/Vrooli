@@ -5,7 +5,7 @@
   "asset": {
     "id": "data-display.activity-feed",
     "name": "ActivityFeed",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "data-display",
     "description": "The human-readable stream of actions with actors, targets, timestamps, grouping, expansion, filters, pagination, and optimistic entries.",
     "targets": [

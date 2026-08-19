@@ -10,7 +10,7 @@
   "asset": {
     "id": "navigation.scrollable-tabs",
     "name": "ScrollableTabs",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "navigation",
     "description": "The tab presentation for constrained widths with edge fades, scroll buttons, automatic reveal of the active tab, touch momentum, and preserved keyboard behavior.",
     "targets": [

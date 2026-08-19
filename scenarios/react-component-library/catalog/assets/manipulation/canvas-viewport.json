@@ -5,7 +5,7 @@
   "asset": {
     "id": "manipulation.canvas-viewport",
     "name": "CanvasViewport",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "manipulation",
     "description": "The spatial workspace surface with pan, zoom, fit, bounds, coordinate conversion, selection, overlays, shortcuts, and high-frequency updates kept outside React rendering.",
     "targets": [

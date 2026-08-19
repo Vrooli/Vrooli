@@ -5,7 +5,7 @@
   "asset": {
     "id": "ai.reasoning-status",
     "name": "ReasoningStatus",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "ai",
     "description": "The restrained activity indicator communicating that the agent is planning, searching, executing, or waiting, without fabricating a narrative of private reasoning.",
     "targets": [

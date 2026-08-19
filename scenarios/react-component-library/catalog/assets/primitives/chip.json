@@ -10,7 +10,7 @@
   "asset": {
     "id": "primitives.chip",
     "name": "Chip",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "primitives",
     "description": "The interactive compact value component supporting selection, removal, leading icons or avatars, keyboard operation, and overflow within a cluster.",
     "targets": [

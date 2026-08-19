@@ -5,7 +5,7 @@
   "asset": {
     "id": "overlays.dialog",
     "name": "Dialog",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "overlays",
     "description": "The modal or non-modal conversation surface with focus containment, inert background, reference-counted scroll lock, structured regions, async actions, and nested-overlay support.",
     "targets": [

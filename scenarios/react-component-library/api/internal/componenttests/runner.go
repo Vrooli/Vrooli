@@ -32,13 +32,34 @@ const (
 )
 
 type Result struct {
-	Stage          Stage   `json:"stage"`
-	AssetLibraryID string  `json:"assetLibraryId"`
-	Version        string  `json:"version"`
-	Subject        string  `json:"subject,omitempty"`
-	Verdict        Verdict `json:"verdict"`
-	Message        string  `json:"message,omitempty"`
-	Remediation    string  `json:"remediation,omitempty"`
+	Stage          Stage      `json:"stage"`
+	AssetLibraryID string     `json:"assetLibraryId"`
+	Version        string     `json:"version"`
+	Subject        string     `json:"subject,omitempty"`
+	Verdict        Verdict    `json:"verdict"`
+	Message        string     `json:"message,omitempty"`
+	Remediation    string     `json:"remediation,omitempty"`
+	Evidence       []Evidence `json:"evidence,omitempty"`
+}
+
+type Evidence struct {
+	Kind        string               `json:"kind"`
+	Console     *ConsoleEvidence     `json:"console,omitempty"`
+	Performance *PerformanceEvidence `json:"performance,omitempty"`
+}
+
+type ConsoleEvidence struct {
+	ConsoleErrors  []string `json:"consoleErrors,omitempty"`
+	PageErrors     []string `json:"pageErrors,omitempty"`
+	FailedRequests []string `json:"failedRequests,omitempty"`
+}
+
+type PerformanceEvidence struct {
+	MountMS       float64   `json:"mountMs"`
+	CommitCount   int       `json:"commitCount"`
+	RerenderCount int       `json:"rerenderCount"`
+	LongTasks     []float64 `json:"longTasks,omitempty"`
+	NodeCount     int       `json:"nodeCount"`
 }
 type Artifact struct {
 	Kind, Label, AssetLibraryID, Version, Reference string
@@ -82,9 +103,11 @@ type StoryReader interface {
 // runner intentionally consumes the preview harness result rather than
 // reimplementing DOM assertions in Go.
 type StoryExecution struct {
-	Passed   bool
-	Failures []string
-	Duration time.Duration
+	Passed      bool
+	Failures    []string
+	Duration    time.Duration
+	Console     ConsoleEvidence
+	Performance PerformanceEvidence
 }
 
 // ExecutorUnavailableError means the browser harness cannot run in the
@@ -215,9 +238,16 @@ func (r Runner) directStoryResults(ctx context.Context, asset components.Compone
 		if !execution.Passed {
 			verdict = VerdictFailed
 		}
-		results = append(results, Result{Stage: StageDeclared, AssetLibraryID: asset.LibraryID, Version: version.Version, Subject: definition.ID, Verdict: verdict, Message: message, Remediation: remediationFor(verdict)})
+		results = append(results, Result{Stage: StageDeclared, AssetLibraryID: asset.LibraryID, Version: version.Version, Subject: definition.ID, Verdict: verdict, Message: message, Remediation: remediationFor(verdict), Evidence: storyEvidence(execution)})
 	}
 	return results, []Artifact{{Kind: "story-contract", Label: "story.json", AssetLibraryID: asset.LibraryID, Version: version.Version, Reference: asset.LibraryID + "@" + version.Version + ":story.json"}}, nil
+}
+
+func storyEvidence(execution StoryExecution) []Evidence {
+	return []Evidence{
+		{Kind: "console", Console: &execution.Console},
+		{Kind: "performance", Performance: &execution.Performance},
+	}
 }
 
 func remediationFor(verdict Verdict) string {

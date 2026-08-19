@@ -5,7 +5,7 @@
   "asset": {
     "id": "ai.citation",
     "name": "Citation",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "ai",
     "description": "The compact source reference carrying state, confidence or relevance metadata, preview affordance, navigation to source, and grouping when several support one claim.",
     "targets": [

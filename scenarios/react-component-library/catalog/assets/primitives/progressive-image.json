@@ -5,7 +5,7 @@
   "asset": {
     "id": "primitives.progressive-image",
     "name": "ProgressiveImage",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "primitives",
     "description": "The image component reserving layout ahead of load, resolving responsive sources, degrading legibly on error, and avoiding visual popping on arrival.",
     "targets": [

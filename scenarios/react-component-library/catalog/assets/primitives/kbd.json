@@ -5,7 +5,7 @@
   "asset": {
     "id": "primitives.kbd",
     "name": "Kbd",
-    "kind": "primitive",
+    "kind": "primitive", "surface": "base",
     "domain": "primitives",
     "description": "The keyboard-key primitive formatting shortcuts consistently per platform while exposing a readable label to assistive technology.",
     "targets": [

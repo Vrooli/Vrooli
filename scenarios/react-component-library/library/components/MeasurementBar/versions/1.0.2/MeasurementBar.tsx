@@ -1,0 +1,47 @@
+/** @vrooliComponentSource react-component-library:MeasurementBar */
+import { Stack } from "../../../../primitives/Stack/versions/1.0.0/Stack";
+import { Text } from "../../../../primitives/Text/versions/1.0.0/Text";
+import { SURFACE_ELEVATIONS } from "../../../../foundations/VisualRecipes/versions/1.0.0/VisualRecipes";
+export interface MeasurementBarProps {
+  label?: string;
+  observed?: number;
+  required?: number;
+  unit?: string;
+}
+export function MeasurementBar({
+  label = "Coverage",
+  observed = 72,
+  required = 80,
+  unit = "%",
+}: MeasurementBarProps) {
+  const max = Math.max(required, observed, 1);
+  const status = observed >= required ? "pass" : "below-threshold";
+  return (
+    <section
+      className={SURFACE_ELEVATIONS.raised}
+      aria-label={`${label} measurement`}
+      data-status={status}
+      data-rcl-asset="data-display.measurement-bar"
+      data-rcl-version="1.0.2"
+      data-rcl-stamp="source"
+      style={{ boxShadow: "var(--elev-raised)", padding: "var(--space-xs)" }}
+    >
+      <Stack gap="2xs">
+        <Text as="strong" textStyle="label">
+          {label}
+        </Text>
+        <meter
+          min={0}
+          max={max}
+          value={observed}
+          aria-label={`${label} observed`}
+        />
+        <Text tone="muted" numeric>
+          {observed}
+          {unit} observed · {required}
+          {unit} required
+        </Text>
+      </Stack>
+    </section>
+  );
+}

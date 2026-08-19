@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 3,
+  "kind": "component",
+  "title": "MeasurementBar",
+  "args": { "fields": [] },
+  "environment": { "fixtures": [] },
+  "stories": [
+    { "id": "default", "name": "Default", "harness": "MeasurementBarStory", "args": { "label": "Accessibility coverage", "observed": 72, "required": 80, "unit": "%" }, "expect": [{ "kind": "text", "value": "72% observed" }], "mode": "pinned" },
+    { "id": "passing", "name": "Passing", "harness": "MeasurementBarStory", "args": { "label": "Keyboard coverage", "observed": 100, "required": 80, "unit": "%" }, "expect": [{ "kind": "text", "value": "100% observed" }], "mode": "pinned" }
+  ]
+}

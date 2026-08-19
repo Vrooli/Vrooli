@@ -10,7 +10,7 @@
   "asset": {
     "id": "feedback.empty-state",
     "name": "EmptyState",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "feedback",
     "description": "The contextual no-results composition explaining why nothing is shown, distinguishing an empty collection from a filtered-out one, and offering the most relevant next action.",
     "targets": [

@@ -10,7 +10,7 @@
   "asset": {
     "id": "forms.select",
     "name": "Select",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "forms",
     "description": "The single-selection field with native-like semantics, keyboard navigation, option groups, descriptions, async option loading, and responsive popover or sheet presentation.",
     "targets": [

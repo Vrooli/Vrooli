@@ -10,7 +10,7 @@
   "asset": {
     "id": "forms.search-input",
     "name": "SearchInput",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "forms",
     "description": "The search field with debouncing, in-flight cancellation, recent queries, clear action, keyboard shortcut binding, loading feedback, and optional suggestions.",
     "targets": [

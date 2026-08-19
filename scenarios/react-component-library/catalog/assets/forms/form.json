@@ -5,7 +5,7 @@
   "asset": {
     "id": "forms.form",
     "name": "Form",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "forms",
     "description": "The form coordination component owning values, defaults, validation timing, dirtiness, submission, autosave, server-error mapping, focus placement, and accessible status announcement.",
     "targets": [

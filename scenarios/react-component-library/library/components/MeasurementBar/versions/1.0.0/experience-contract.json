@@ -1,0 +1,33 @@
+{
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "schema": "scenario-experience-spec/v1",
+    "provenance": "react-component-library:MeasurementBar@1.0.0"
+  },
+  "component": {
+    "id": "data-display.measurement-bar",
+    "title": "MeasurementBar",
+    "purpose": "MeasurementBar makes observed and required values comparable."
+  },
+  "states": [
+    {
+      "id": "default",
+      "example": "default",
+      "description": "An unmet requirement is explicit."
+    },
+    {
+      "id": "passing",
+      "example": "passing",
+      "description": "A satisfied requirement is explicit."
+    }
+  ],
+  "claims": [
+    {
+      "id": "measurement-readable",
+      "type": "text",
+      "statement": "Observed and required values are readable without color.",
+      "tier": "machine",
+      "states": ["default", "passing"]
+    }
+  ]
+}

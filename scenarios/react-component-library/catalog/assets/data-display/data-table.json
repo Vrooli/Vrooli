@@ -10,7 +10,7 @@
   "asset": {
     "id": "data-display.data-table",
     "name": "DataTable",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "data-display",
     "description": "The controlled data presentation with sorting, filtering, pagination, selection, row actions, column visibility, responsive presentation modes, and server-side operation support.",
     "targets": [

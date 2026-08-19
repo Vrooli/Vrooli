@@ -5,7 +5,7 @@
   "asset": {
     "id": "forms.generated-form",
     "name": "GeneratedForm",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "forms",
     "description": "The schema-driven form compiling data, layout, validation, dependency, permission, and action schemas into a cached field-dependency graph with polished defaults and no per-consumer configuration.",
     "targets": [

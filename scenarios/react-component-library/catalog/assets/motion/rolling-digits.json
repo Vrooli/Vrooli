@@ -5,7 +5,7 @@
   "asset": {
     "id": "motion.rolling-digits",
     "name": "RollingDigits",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "motion",
     "description": "The odometer-style numeric component rolling only the digits that changed while holding stable width and announcing the final value once.",
     "targets": [

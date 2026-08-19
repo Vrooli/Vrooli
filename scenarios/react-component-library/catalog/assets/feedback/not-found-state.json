@@ -5,7 +5,7 @@
   "asset": {
     "id": "feedback.not-found-state",
     "name": "NotFoundState",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "feedback",
     "description": "The missing-resource composition distinguishing an invalid route, a deleted object, revoked access, and a stale link, and offering navigation that is actually useful in each case.",
     "targets": [

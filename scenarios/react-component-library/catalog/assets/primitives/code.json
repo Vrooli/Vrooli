@@ -10,7 +10,7 @@
   "asset": {
     "id": "primitives.code",
     "name": "Code",
-    "kind": "primitive",
+    "kind": "primitive", "surface": "base",
     "domain": "primitives",
     "description": "The code-text primitive for inline and block snippets with preserved whitespace, overflow affordances, language metadata, and optional lazily loaded highlighting.",
     "targets": [

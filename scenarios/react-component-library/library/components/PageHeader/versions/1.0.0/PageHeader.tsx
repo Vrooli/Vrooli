@@ -22,15 +22,15 @@ export function PageHeader({
   return (
     <>
       <style
-        data-rcl-page-header-styles
+        data-rcl-page-header-styles=""
         dangerouslySetInnerHTML={{ __html: pageHeaderStyles }}
       />
-      <header data-rcl-page-header>
-        <div data-rcl-page-header-copy>
+      <header data-rcl-page-header="">
+        <div data-rcl-page-header-copy="">
           <h1>{title}</h1>
           {description ? <p>{description}</p> : null}
         </div>
-        {actions ? <div data-rcl-page-header-actions>{actions}</div> : null}
+        {actions ? <div data-rcl-page-header-actions="">{actions}</div> : null}
       </header>
     </>
   );

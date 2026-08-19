@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 3,
+  "kind": "component",
+  "title": "VerdictSummary",
+  "args": { "fields": [] },
+  "environment": { "fixtures": [] },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Default",
+      "harness": "VerdictSummaryStory",
+      "args": { "pass": 28, "fail": 4, "unmeasured": 12 },
+      "expect": [
+        { "kind": "text", "value": "28 pass" },
+        { "kind": "text", "value": "4 fail" },
+        { "kind": "text", "value": "12 unmeasured" }
+      ],
+      "mode": "pinned"
+    },
+    {
+      "id": "empty",
+      "name": "Empty",
+      "harness": "VerdictSummaryStory",
+      "args": { "pass": 0, "fail": 0, "unmeasured": 0 },
+      "expect": [{ "kind": "text", "value": "0 unmeasured" }],
+      "mode": "pinned"
+    }
+  ]
+}

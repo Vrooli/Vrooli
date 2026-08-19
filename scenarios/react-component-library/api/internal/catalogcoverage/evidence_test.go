@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	apidb "github.com/vrooli/api-core/database"
+	"react-component-library/internal/gates"
 
 	db "github.com/vrooli/api-core/databasetest"
 )
@@ -21,6 +22,22 @@ func TestEvidenceStorePersistsAndListsRows(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, rows, 1)
 	require.Equal(t, "rev-1", rows[0].SourceRevision)
+}
+
+func TestEvidenceFromUnmeasuredResultNeverWritesPass(t *testing.T) {
+	root := t.TempDir()
+	assetDir := filepath.Join(root, "scenarios", "react-component-library", "catalog", "assets", "controls")
+	componentDir := filepath.Join(root, "scenarios", "react-component-library", "library", "components", "Button")
+	versionDir := filepath.Join(componentDir, "versions", "1.0.0")
+	require.NoError(t, os.MkdirAll(assetDir, 0o755))
+	require.NoError(t, os.MkdirAll(versionDir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(assetDir, "button.json"), []byte(`{"kind":"catalog-asset","asset":{"id":"controls.button","kind":"component"}}`), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(componentDir, "component.json"), []byte(`{"catalogId":"controls.button","latest":"1.0.0"}`), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(versionDir, "Button.tsx"), []byte("export const Button = () => null;"), 0o644))
+	rows, err := EvidenceFromResult(context.Background(), root, GateDefinition{ID: "rtl", Attribution: "attributable", AppliesTo: []string{"component"}}, gates.Result{Status: "unmeasured", InspectedAssets: []string{"controls.button"}}, nil)
+	require.NoError(t, err)
+	require.Len(t, rows, 1)
+	require.Equal(t, "unmeasured", rows[0].Result)
 }
 
 func TestMergedEvidenceTreatsStalePersistedRowsAsAbsent(t *testing.T) {
@@ -81,7 +98,10 @@ func TestRecomputeEvidenceDoesNotFabricateTypesPass(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, evidence, 1)
 	require.Equal(t, "types", evidence[0].Gate)
-	require.Equal(t, "fail", evidence[0].Result)
+	// The fixture repository has no deterministic type runner boundary, so
+	// calibration quarantines the gate instead of turning a runner failure into
+	// either a pass or a durable corpus fail.
+	require.Equal(t, "unmeasured", evidence[0].Result)
 }
 
 func TestDeriveExperienceEvidenceRequiresDeclaredCaptureQuality(t *testing.T) {

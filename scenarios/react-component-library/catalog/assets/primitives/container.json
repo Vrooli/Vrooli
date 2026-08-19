@@ -10,7 +10,7 @@
   "asset": {
     "id": "primitives.container",
     "name": "Container",
-    "kind": "primitive",
+    "kind": "primitive", "surface": "base",
     "domain": "primitives",
     "description": "The page-width primitive supplying readable maximum widths, responsive gutters, safe-area handling, and predictable nesting.",
     "targets": [

@@ -10,7 +10,7 @@
   "asset": {
     "id": "primitives.slot",
     "name": "Slot",
-    "kind": "primitive",
+    "kind": "primitive", "surface": "base",
     "domain": "primitives",
     "description": "The composition primitive that merges behavior, props, and refs onto a consumer-supplied element instead of introducing a wrapper, so every asset can offer an as-child escape hatch.",
     "targets": [

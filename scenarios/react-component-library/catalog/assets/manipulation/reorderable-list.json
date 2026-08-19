@@ -5,7 +5,7 @@
   "asset": {
     "id": "manipulation.reorderable-list",
     "name": "ReorderableList",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "manipulation",
     "description": "The complete list composition with drag handles, keyboard reordering, drop indicators, animated displacement, persistence, position announcements, and optimistic rollback.",
     "targets": [

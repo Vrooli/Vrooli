@@ -10,7 +10,7 @@
   "asset": {
     "id": "controls.icon-button",
     "name": "IconButton",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "controls",
     "description": "The compact icon-only action with a mandatory accessible name, expanded touch target beyond its visual bounds, tooltip integration, loading state, and optional toggle semantics.",
     "targets": [

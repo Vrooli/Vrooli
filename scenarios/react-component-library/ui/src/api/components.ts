@@ -6,6 +6,7 @@ import {
 } from "@vrooli/proto-types/react-component-library/v1/components/components_pb";
 
 import { transport } from "./client";
+import type { ClaimMeasurement } from "@vrooli/proto-types/experience-manager/v1/contract/contract_pb";
 
 export const DesignAffinity = {
   UNSPECIFIED: 0,
@@ -96,6 +97,7 @@ export interface ComponentExperienceEvidence {
   viewport: string;
   viewportWidth: number;
   viewportHeight: number;
+  measurement?: ClaimMeasurement;
 }
 
 export interface ComponentExperience {

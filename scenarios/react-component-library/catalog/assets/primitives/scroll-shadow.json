@@ -5,7 +5,7 @@
   "asset": {
     "id": "primitives.scroll-shadow",
     "name": "ScrollShadow",
-    "kind": "primitive",
+    "kind": "primitive", "surface": "base",
     "domain": "primitives",
     "description": "The boundary-aware surface effect revealing that scrollable content continues above, below, or to either side of the visible region.",
     "targets": [

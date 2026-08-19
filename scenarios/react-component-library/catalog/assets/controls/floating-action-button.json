@@ -5,7 +5,7 @@
   "asset": {
     "id": "controls.floating-action-button",
     "name": "FloatingActionButton",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "controls",
     "description": "The prominent contextual action that respects safe areas, responds to scrolling, supports optional expansion to a label, and offers handedness placement for frequent mobile use.",
     "targets": [

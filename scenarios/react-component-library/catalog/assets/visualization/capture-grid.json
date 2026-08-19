@@ -1,7 +1,7 @@
 {
   "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
   "kind": "catalog-asset", "schemaVersion": "1.0.0",
-  "asset": {"id": "visualization.capture-grid", "name": "CaptureGrid", "kind": "component", "domain": "visualization", "description": "A responsive matrix of declared viewport and theme evidence captures.", "targets": ["react-vite"], "slot": "primitive", "delivery": "adopted", "target": {"priority": "P0", "maturity": "implemented"}},
+  "asset": {"id": "visualization.capture-grid", "name": "CaptureGrid", "kind": "component", "surface": "raised", "domain": "visualization", "description": "A responsive matrix of declared viewport and theme evidence captures.", "targets": ["react-vite"], "slot": "primitive", "delivery": "adopted", "target": {"priority": "P0", "maturity": "implemented"}},
   "dependencies": {"requires": [], "suggests": []},
   "requiredCapabilities": ["accessible-naming", "dark-parity", "content-reflow", "text-scale-resilience"],
   "requiredStates": ["default", "empty", "request-error"],

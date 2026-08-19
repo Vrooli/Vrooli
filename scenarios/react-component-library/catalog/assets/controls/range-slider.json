@@ -5,7 +5,7 @@
   "asset": {
     "id": "controls.range-slider",
     "name": "RangeSlider",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "controls",
     "description": "The multi-thumb range control with collision policy, minimum distance, per-thumb keyboard interaction, marks, and touch-friendly targets.",
     "targets": [

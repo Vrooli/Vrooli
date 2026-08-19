@@ -5,7 +5,7 @@
   "asset": {
     "id": "controls.radio-group",
     "name": "RadioGroup",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "controls",
     "description": "The single-selection collection with roving focus, optional card-style options carrying descriptions, disabled choices, responsive layout, and animated selection.",
     "targets": [

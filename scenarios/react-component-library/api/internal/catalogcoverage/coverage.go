@@ -5,6 +5,8 @@ import (
 	"strings"
 
 	"react-component-library/internal/assetrung"
+	"react-component-library/internal/capabilities"
+	gatepkg "react-component-library/internal/gates"
 )
 
 // Bucket is which side of the join an entry landed on.
@@ -35,16 +37,17 @@ const (
 )
 
 // GateEvidence is one observed result for an asset/target gate.
-// Result is pass, fail, or not-run. Unknown and empty results are treated as
-// not-run so a new runner cannot accidentally inflate coverage.
+// Result is pass, fail, or unmeasured. Unknown and empty results are treated as
+// unmeasured so a new runner cannot accidentally inflate coverage.
 type GateEvidence struct {
-	AssetID        string
-	Target         string
-	Gate           string
-	Version        string
-	Result         string
-	SourceRevision string
-	RecordedAt     string
+	AssetID         string
+	Target          string
+	Gate            string
+	Version         string
+	Result          string
+	MeasurementJSON string
+	SourceRevision  string
+	RecordedAt      string
 }
 
 // GateDefinition is the config projection needed by the coverage engine.
@@ -104,9 +107,25 @@ type Report struct {
 	Score                  float64
 	ScoreWeightNumerator   float64
 	ScoreWeightDenominator float64
-	ByGate                 map[string]ScoreBreakdown
-	ByRungScore            map[AchievedRung]ScoreBreakdown
-	Corpus                 []CorpusStatus
+	// Evidence census counts the latest result for each asset/target/gate
+	// observation. Unmeasured is intentionally visible beside pass and fail;
+	// it is not omitted from the score denominator.
+	PassEvidence       int
+	FailEvidence       int
+	UnmeasuredEvidence int
+	ByGate             map[string]ScoreBreakdown
+	ByRungScore        map[AchievedRung]ScoreBreakdown
+	Corpus             []CorpusStatus
+	KindMismatches     []KindMismatch
+	InstrumentMoved    int
+	CompositionScores  map[string]float64
+	CompositionMedian  float64
+	BespokeEscapeCount int
+	// CompositionBlockedAssetCount counts built production-ready targets that
+	// fail the blocking composition gate. It makes the maturity consequence of
+	// the oracle visible instead of leaving it implicit in row details.
+	CompositionBlockedAssetCount int
+	CapabilityReport             capabilities.DeclaredCoverageReport
 }
 
 type ScoreBreakdown struct {
@@ -164,6 +183,47 @@ func ComputeWithEvidence(assets []Asset, impls []Implementation, evidence []Gate
 		ByPriority: map[string]DomainCount{},
 		Maturity:   MaturityCoverage{ByDomain: map[string]DomainCount{}, ByPriority: map[string]DomainCount{}, ByRung: map[AchievedRung]int{}},
 		ByGate:     map[string]ScoreBreakdown{}, ByRungScore: map[AchievedRung]ScoreBreakdown{},
+		CompositionScores: map[string]float64{},
+	}
+	latestEvidence := map[string]GateEvidence{}
+	for _, item := range evidence {
+		if item.AssetID == "__corpus__" {
+			continue
+		}
+		key := strings.Join([]string{item.AssetID, item.Target, item.Gate, item.Version}, "\x00")
+		if current, ok := latestEvidence[key]; !ok || item.RecordedAt > current.RecordedAt {
+			latestEvidence[key] = item
+		}
+	}
+	for _, item := range latestEvidence {
+		switch strings.ToLower(strings.TrimSpace(item.Result)) {
+		case "pass":
+			rep.PassEvidence++
+		case "fail", "failed":
+			rep.FailEvidence++
+		default:
+			rep.UnmeasuredEvidence++
+		}
+	}
+	compositionValues := make([]float64, 0)
+	for _, item := range latestEvidence {
+		if item.Gate != "composition" || item.MeasurementJSON == "" {
+			continue
+		}
+		if score, ok, reasons := gatepkg.CompositionScoreMetadata(item.MeasurementJSON); ok {
+			rep.CompositionScores[item.AssetID] = score
+			compositionValues = append(compositionValues, score)
+			rep.BespokeEscapeCount += len(reasons)
+		}
+	}
+	if len(compositionValues) > 0 {
+		sort.Float64s(compositionValues)
+		middle := len(compositionValues) / 2
+		if len(compositionValues)%2 == 0 {
+			rep.CompositionMedian = (compositionValues[middle-1] + compositionValues[middle]) / 2
+		} else {
+			rep.CompositionMedian = compositionValues[middle]
+		}
 	}
 	for _, gate := range gates {
 		if gate.Attribution != "corpus" {
@@ -285,6 +345,9 @@ func ComputeWithEvidence(assets []Asset, impls []Implementation, evidence []Gate
 		rep.Maturity.WeightedQuality.Numerator += weight * rungRank(row.Achieved)
 		if row.Achieved == RungProductionReady {
 			rep.Maturity.ProductionReadyCoverage.Numerator++
+		}
+		if row.Bucket == BucketPlannedBuilt && row.Target == string(RungProductionReady) && contains(row.FailedGates, "composition") {
+			rep.CompositionBlockedAssetCount++
 		}
 		rep.Maturity.ProductionReadyCoverage.Denominator++
 	}

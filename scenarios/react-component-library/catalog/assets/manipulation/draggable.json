@@ -5,7 +5,7 @@
   "asset": {
     "id": "manipulation.draggable",
     "name": "Draggable",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "manipulation",
     "description": "The direct-manipulation primitive with pointer capture, keyboard dragging, constraints, drag handles, cancellation, velocity reporting, position announcements, and overlay support.",
     "targets": [

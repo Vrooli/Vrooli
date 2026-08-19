@@ -5,7 +5,7 @@
   "asset": {
     "id": "controls.pagination",
     "name": "Pagination",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "controls",
     "description": "The page navigation control with first, previous, next, last, compact ranges, loading treatment, responsive collapse, and accessible current-page semantics.",
     "targets": [

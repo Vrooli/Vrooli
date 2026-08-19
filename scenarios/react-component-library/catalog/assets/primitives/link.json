@@ -10,7 +10,7 @@
   "asset": {
     "id": "primitives.link",
     "name": "Link",
-    "kind": "primitive",
+    "kind": "primitive", "surface": "base",
     "domain": "primitives",
     "description": "The router-adaptable link primitive handling external-link treatment, active and pending state, prefetch policy, focus behavior, and disabled semantics.",
     "targets": [

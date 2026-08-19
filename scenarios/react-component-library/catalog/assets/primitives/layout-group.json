@@ -6,7 +6,7 @@
   "asset": {
     "id": "primitives.layout-group",
     "name": "Layout Group",
-    "kind": "primitive",
+    "kind": "primitive", "surface": "base",
     "domain": "primitives",
     "description": "A structural grouping boundary that gives coordinated layout and motion adapters a stable ownership surface.",
     "targets": ["react-vite"],

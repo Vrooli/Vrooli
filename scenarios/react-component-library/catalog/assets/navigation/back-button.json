@@ -5,7 +5,7 @@
   "asset": {
     "id": "navigation.back-button",
     "name": "BackButton",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "navigation",
     "description": "The navigation control using router history when it is valid and a deterministic fallback destination when history is unavailable or would leave the application.",
     "targets": [

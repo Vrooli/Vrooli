@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"connectrpc.com/connect"
@@ -15,6 +17,7 @@ import (
 	"github.com/vrooli/api-core/connectx"
 	catalogv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/catalog"
 	catalogconnect "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/catalog/catalog_v1connect"
+	"react-component-library/internal/capabilities"
 	"react-component-library/internal/catalogcoverage"
 	"react-component-library/internal/catalogexperience"
 	"react-component-library/internal/gates"
@@ -22,9 +25,12 @@ import (
 )
 
 type handler struct {
-	repoRoot string
-	evidence *catalogcoverage.EvidenceStore
-	reports  reportCache
+	repoRoot        string
+	evidence        *catalogcoverage.EvidenceStore
+	reports         reportCache
+	quarantineMu    sync.RWMutex
+	quarantined     map[string]bool
+	quarantineKnown bool
 }
 
 // Module exposes the same live coverage projection used by the component-test
@@ -34,7 +40,7 @@ func Module(repoRoot string, dbs ...*sql.DB) module.Module {
 	if len(dbs) > 0 && dbs[0] != nil {
 		evidence = catalogcoverage.NewEvidenceStore(dbs[0])
 	}
-	h := &handler{repoRoot: repoRoot, evidence: evidence}
+	h := &handler{repoRoot: repoRoot, evidence: evidence, quarantined: map[string]bool{}}
 	// Warm the coverage report in the background at startup. The first
 	// computation costs ~45s because it runs the full gate suite including the
 	// toolchain-spawning `types` runner; paying that on a user's first page
@@ -84,8 +90,11 @@ func (h *handler) computeReport(ctx context.Context) (*catalogcoverage.Report, e
 	if err != nil {
 		return nil, err
 	}
-	gates, err := catalogcoverage.LoadGateDefinitions(filepath.Join(h.repoRoot, "scenarios", "react-component-library", "catalog", "config.json"))
+	definitions, err := catalogcoverage.LoadGateDefinitions(filepath.Join(h.repoRoot, "scenarios", "react-component-library", "catalog", "config.json"))
 	if err != nil {
+		return nil, err
+	}
+	if err := h.ensureQuarantines(definitions); err != nil {
 		return nil, err
 	}
 	evidence, err := catalogcoverage.MergeExperienceEvidence(ctx, h.repoRoot, h.evidence, catalogexperience.Fetcher(h.repoRoot))
@@ -93,7 +102,15 @@ func (h *handler) computeReport(ctx context.Context) (*catalogcoverage.Report, e
 		return nil, err
 	}
 	return func() *catalogcoverage.Report {
-		r := catalogcoverage.ComputeWithEvidence(assets, impls, evidence, gates)
+		r := catalogcoverage.ComputeWithEvidence(assets, impls, evidence, definitions)
+		declarations := make(map[string][]string, len(assets))
+		for _, asset := range assets {
+			declarations[asset.ID] = append([]string(nil), asset.Capabilities...)
+		}
+		r.CapabilityReport = capabilities.ReconcileDeclared(ctx, declarations)
+		if mismatches, reconcileErr := catalogcoverage.ReconcileKinds(h.repoRoot, assets, impls); reconcileErr == nil {
+			r.KindMismatches = mismatches
+		}
 		return &r
 	}(), nil
 }
@@ -137,7 +154,7 @@ func (h *handler) RunGate(ctx context.Context, req *connect.Request[catalogv1.Ru
 	if req.Msg.GetAll() {
 		aggregate := &catalogv1.RunGateResponse{Gate: "all"}
 		for _, definition := range definitions {
-			result, runErr := h.RunGate(ctx, connect.NewRequest(&catalogv1.RunGateRequest{Gate: definition.ID}))
+			result, runErr := h.RunGate(ctx, connect.NewRequest(&catalogv1.RunGateRequest{Gate: definition.ID, CalibrationOnly: req.Msg.GetCalibrationOnly()}))
 			if runErr != nil {
 				return nil, runErr
 			}
@@ -145,6 +162,16 @@ func (h *handler) RunGate(ctx context.Context, req *connect.Request[catalogv1.Ru
 			aggregate.Findings = append(aggregate.Findings, result.Msg.Findings...)
 			aggregate.RunnerErrors = append(aggregate.RunnerErrors, result.Msg.RunnerErrors...)
 			aggregate.EvidenceRowsWritten += result.Msg.EvidenceRowsWritten
+			aggregate.Calibration = append(aggregate.Calibration, result.Msg.Calibration...)
+			aggregate.NonDiscriminating = aggregate.NonDiscriminating || result.Msg.NonDiscriminating
+			if len(result.Msg.SurfaceVerdictCounts) > 0 {
+				if aggregate.SurfaceVerdictCounts == nil {
+					aggregate.SurfaceVerdictCounts = map[string]int32{}
+				}
+				for verdict, count := range result.Msg.SurfaceVerdictCounts {
+					aggregate.SurfaceVerdictCounts[verdict] += count
+				}
+			}
 		}
 		return connect.NewResponse(aggregate), nil
 	}
@@ -158,40 +185,57 @@ func (h *handler) RunGate(ctx context.Context, req *connect.Request[catalogv1.Ru
 	if !knownGate {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("unknown catalog gate %q", gate))
 	}
+	definition := catalogcoverage.GateDefinition{}
+	for _, candidate := range definitions {
+		if candidate.ID == gate {
+			definition = candidate
+			break
+		}
+	}
+	runner := h.gateRunner(gate)
+	calibration, calibrationErr := gates.Calibrate(h.repoRoot, gate, runner)
+	if calibrationErr != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("calibrate catalog gate %q: %w", gate, calibrationErr))
+	}
+	calibrationResults := make([]*catalogv1.CalibrationResult, 0, len(calibration.Results))
+	for _, item := range calibration.Results {
+		calibrationResults = append(calibrationResults, &catalogv1.CalibrationResult{Gate: item.Gate, Fixture: item.Fixture, RequiredFailureCode: item.RequiredFailureCode, ObservedFailureCode: item.ObservedFailureCode, Status: item.Status, Message: item.Message})
+	}
+	nonDiscriminating := definition.Blocking && calibration.NonDiscriminating
+	h.quarantineMu.Lock()
+	if nonDiscriminating {
+		h.quarantined[gate] = true
+	} else {
+		delete(h.quarantined, gate)
+	}
+	h.quarantineKnown = true
+	h.quarantineMu.Unlock()
+	response := &catalogv1.RunGateResponse{Gate: gate, Calibration: calibrationResults, NonDiscriminating: nonDiscriminating}
+	if req.Msg.GetCalibrationOnly() {
+		return connect.NewResponse(response), nil
+	}
 	var (
 		result gates.Result
 		err    error
 	)
-	switch gate {
-	case "types":
-		result, err = gates.ValidateTypes(h.repoRoot)
-	case "api":
-		result, err = gates.ValidateAPI(h.repoRoot)
-	case "tokens":
-		result, err = gates.ValidateTokens(h.repoRoot)
-	case "conformance":
-		result, err = gates.ValidateConformance(h.repoRoot)
-	case "token-vocabulary":
-		result, err = gates.ValidateTokenVocabulary(h.repoRoot)
-	case "token-ramp-complete":
-		result, err = gates.ValidateTokenRampComplete(h.repoRoot)
-	case "released-version-immutable":
-		result, err = gates.ValidateReleasedVersionImmutable(h.repoRoot)
-	case "lifecycle":
-		result, err = gates.ValidateLifecycle(h.repoRoot)
-	case "fixture-adversarial":
-		result, err = gates.ValidateFixtures(h.repoRoot)
-	case "examples":
-		result, err = gates.ValidateExamples(h.repoRoot)
-	case "graph-reconciled":
-		result, err = gates.ValidateGraphReconciled(h.repoRoot)
-	default:
-		result, err = gates.ValidateDeclaredGate(h.repoRoot, gate)
+	if runner == nil {
+		result, err = gates.UnmeasuredGate(h.repoRoot)
+	} else {
+		result, err = runner(h.repoRoot)
 	}
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("run catalog gate %q: %w", gate, err))
 	}
 	result = gates.NormalizeResult(h.repoRoot, result)
+	if nonDiscriminating {
+		// Calibration failure is a quarantine state. Preserve no corpus finding
+		// as evidence: a gate that cannot prove it detects its own planted defect
+		// is unmeasured, never failed or passed.
+		result, err = gates.UnmeasuredGate(h.repoRoot)
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("quarantine catalog gate %q: %w", gate, err))
+		}
+	}
 	evidenceRowsWritten := 0
 	if h.evidence != nil {
 		for _, definition := range definitions {
@@ -224,7 +268,30 @@ func (h *handler) RunGate(ctx context.Context, req *connect.Request[catalogv1.Ru
 			}
 		}
 	}
-	response := &catalogv1.RunGateResponse{Gate: gate, InspectedFiles: int32(result.Inspected), Findings: make([]*catalogv1.GateFinding, 0, len(result.Findings)), RunnerErrors: make([]*catalogv1.GateFinding, 0, len(result.RunnerError)), EvidenceRowsWritten: int32(evidenceRowsWritten)}
+	response.InspectedFiles = int32(result.Inspected)
+	if len(result.SurfaceCounts) > 0 {
+		response.SurfaceVerdictCounts = make(map[string]int32, len(result.SurfaceCounts))
+		for verdict, count := range result.SurfaceCounts {
+			response.SurfaceVerdictCounts[verdict] = int32(count)
+		}
+	}
+	if len(result.CompositionScores) > 0 {
+		response.CompositionScores = make(map[string]float64, len(result.CompositionScores))
+		for assetID, score := range result.CompositionScores {
+			response.CompositionScores[assetID] = score
+		}
+		response.CompositionMedian = result.CompositionMedian
+		response.BespokeEscapeCount = int32(len(result.BespokeEscapes))
+		for _, escape := range result.BespokeEscapes {
+			response.CompositionEscapes = append(response.CompositionEscapes, &catalogv1.CompositionEscape{AssetId: escape.AssetID, Reason: escape.Reason})
+		}
+	}
+	response.Findings = make([]*catalogv1.GateFinding, 0, len(result.Findings)+1)
+	response.RunnerErrors = make([]*catalogv1.GateFinding, 0, len(result.RunnerError))
+	response.EvidenceRowsWritten = int32(evidenceRowsWritten)
+	if nonDiscriminating {
+		response.Findings = append(response.Findings, &catalogv1.GateFinding{Code: "catalog.gate_non_discriminating", Message: "gate calibration passed without detecting its planted-error fixture; corpus verdict was quarantined as unmeasured", Severity: "error", Remediation: "Repair the gate runner or its calibration fixture, then rerun catalog gates --calibration-only. A green corpus result is not evidence until the named fixture fails.", DocsRef: "docs/internal/TESTING.md"})
+	}
 	for _, finding := range result.Findings {
 		response.Findings = append(response.Findings, &catalogv1.GateFinding{
 			Code:        finding.Code,
@@ -243,6 +310,32 @@ func (h *handler) RunGate(ctx context.Context, req *connect.Request[catalogv1.Ru
 	return connect.NewResponse(response), nil
 }
 
+func (h *handler) gateRunner(gate string) gates.GateRunner {
+	return gates.GateRunnerFor(gate)
+}
+
+func (h *handler) ensureQuarantines(definitions []catalogcoverage.GateDefinition) error {
+	h.quarantineMu.Lock()
+	defer h.quarantineMu.Unlock()
+	if h.quarantineKnown {
+		return nil
+	}
+	for _, definition := range definitions {
+		if !definition.Blocking {
+			continue
+		}
+		calibration, err := gates.Calibrate(h.repoRoot, definition.ID, h.gateRunner(definition.ID))
+		if err != nil {
+			return fmt.Errorf("calibrate quarantine state for %q: %w", definition.ID, err)
+		}
+		if calibration.NonDiscriminating {
+			h.quarantined[definition.ID] = true
+		}
+	}
+	h.quarantineKnown = true
+	return nil
+}
+
 func (h *handler) GetScoreHistory(ctx context.Context, req *connect.Request[catalogv1.GetScoreHistoryRequest]) (*connect.Response[catalogv1.GetScoreHistoryResponse], error) {
 	if h.evidence == nil {
 		return connect.NewResponse(&catalogv1.GetScoreHistoryResponse{}), nil
@@ -253,7 +346,7 @@ func (h *handler) GetScoreHistory(ctx context.Context, req *connect.Request[cata
 	}
 	out := make([]*catalogv1.ScoreHistoryPoint, 0, len(history))
 	for _, point := range history {
-		out = append(out, &catalogv1.ScoreHistoryPoint{RecordedAt: point.RecordedAt, Score: point.Score, AssetsAt_100: int32(point.AssetsAt100), AssetsBelow_50: int32(point.AssetsBelow50), WeightVectorRegenerated: point.WeightVectorRegenerated})
+		out = append(out, scoreHistoryProto(point))
 	}
 	return connect.NewResponse(&catalogv1.GetScoreHistoryResponse{Points: out}), nil
 }
@@ -273,7 +366,16 @@ func (h *handler) GetHealthOverview(ctx context.Context, _ *connect.Request[cata
 			rows[row.AssetID] = row
 		}
 	}
-	response := &catalogv1.GetHealthOverviewResponse{Coverage: toProto(report)}
+	response := &catalogv1.GetHealthOverviewResponse{Coverage: toProto(report), KindMismatchCount: int32(len(report.KindMismatches))}
+	for _, mismatch := range report.KindMismatches {
+		response.KindMismatches = append(response.KindMismatches, &catalogv1.KindMismatch{AssetId: mismatch.AssetID, DeclaredKind: mismatch.DeclaredKind, DerivedKind: mismatch.DerivedKind, Message: mismatch.Message})
+	}
+	h.quarantineMu.RLock()
+	for gate := range h.quarantined {
+		response.QuarantinedGates = append(response.QuarantinedGates, gate)
+	}
+	h.quarantineMu.RUnlock()
+	sort.Strings(response.QuarantinedGates)
 	for _, asset := range assets {
 		row := rows[asset.ID]
 		health := "blocked"
@@ -303,7 +405,8 @@ func (h *handler) GetHealthOverview(ctx context.Context, _ *connect.Request[cata
 	if h.evidence != nil {
 		if history, historyErr := h.evidence.ScoreHistory(ctx, h.repoRoot, ""); historyErr == nil {
 			for _, point := range history {
-				response.History = append(response.History, &catalogv1.ScoreHistoryPoint{RecordedAt: point.RecordedAt, Score: point.Score, AssetsAt_100: int32(point.AssetsAt100), AssetsBelow_50: int32(point.AssetsBelow50), WeightVectorRegenerated: point.WeightVectorRegenerated})
+				response.History = append(response.History, scoreHistoryProto(point))
+				response.InstrumentMovedCount += int32(point.InstrumentMoved)
 			}
 		}
 	}
@@ -402,7 +505,10 @@ func (h *handler) CaptureEvidence(ctx context.Context, req *connect.Request[cata
 }
 
 func toProto(report *catalogcoverage.Report) *catalogv1.CoverageReport {
-	out := &catalogv1.CoverageReport{Totals: map[string]int32{}, Maturity: maturityProto(report)}
+	out := &catalogv1.CoverageReport{Totals: map[string]int32{}, Maturity: maturityProto(report), CompositionScores: map[string]float64{}, CompositionMedian: report.CompositionMedian, BespokeEscapeCount: int32(report.BespokeEscapeCount), CompositionBlockedAssetCount: int32(report.CompositionBlockedAssetCount), DeclaredCapabilityAssetCount: int32(report.CapabilityReport.DeclaredAssetCount), DeclaredUncheckableAssetCount: int32(report.CapabilityReport.UncheckableAssetCount), UnmeasuredCapabilityAssetCount: int32(report.CapabilityReport.UnmeasuredAssetCount), CapabilityDeclarationCount: int32(report.CapabilityReport.DeclarationCount)}
+	for assetID, score := range report.CompositionScores {
+		out.CompositionScores[assetID] = score
+	}
 	for _, row := range report.Rows {
 		out.Rows = append(out.Rows, rowProto(row))
 	}
@@ -414,6 +520,18 @@ func toProto(report *catalogcoverage.Report) *catalogv1.CoverageReport {
 	}
 	for key, value := range report.ByPriority {
 		out.ByPriority = append(out.ByPriority, &catalogv1.Rollup{Key: key, Planned: int32(value.Planned), Built: int32(value.Built)})
+	}
+	for _, capability := range report.CapabilityReport.Capabilities {
+		out.CapabilityCoverage = append(out.CapabilityCoverage, &catalogv1.DeclaredCapabilityCoverage{
+			Capability:         capability.Capability,
+			Title:              capability.Title,
+			Status:             capability.Status,
+			Checkable:          capability.Checkable,
+			Unmeasured:         capability.Unmeasured,
+			DeclaredAssetCount: int32(capability.DeclaredAssetCount),
+			AssetIds:           capability.AssetIDs,
+			Blockers:           capability.Blockers,
+		})
 	}
 	return out
 }
@@ -448,10 +566,22 @@ func maturityProto(report *catalogcoverage.Report) *catalogv1.MaturitySummary {
 	out.WeightedAssetScore = report.Score
 	out.ScoreWeightNumerator = report.ScoreWeightNumerator
 	out.ScoreWeightDenominator = report.ScoreWeightDenominator
+	out.PassEvidence = int32(report.PassEvidence)
+	out.FailEvidence = int32(report.FailEvidence)
+	out.UnmeasuredEvidence = int32(report.UnmeasuredEvidence)
+	out.KindMismatchCount = int32(len(report.KindMismatches))
 	out.CatalogCompletion = metricProto(m.CatalogCompletion)
 	out.MandatoryGateCoverage = metricProto(m.MandatoryGateCoverage)
 	out.WeightedQuality = metricProto(m.WeightedQuality)
 	out.ProductionReadyCoverage = metricProto(m.ProductionReadyCoverage)
+	return out
+}
+
+func scoreHistoryProto(point catalogcoverage.ScoreHistory) *catalogv1.ScoreHistoryPoint {
+	out := &catalogv1.ScoreHistoryPoint{RecordedAt: point.RecordedAt, Score: point.Score, AssetsAt_100: int32(point.AssetsAt100), AssetsBelow_50: int32(point.AssetsBelow50), WeightVectorRegenerated: point.WeightVectorRegenerated, ScoringModelVersion: int32(point.ScoringModelVersion), SourceRevision: point.SourceRevision, InstrumentMovedCount: int32(point.InstrumentMoved), KindMismatchCount: int32(point.KindMismatchCount)}
+	for _, event := range point.Events {
+		out.Events = append(out.Events, &catalogv1.ScoreHistoryEvent{Type: event.Type, AssetId: event.AssetID, SourceRevision: event.SourceRevision, DeclaredKind: event.DeclaredKind, DerivedKind: event.DerivedKind})
+	}
 	return out
 }
 

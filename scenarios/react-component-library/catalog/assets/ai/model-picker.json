@@ -5,7 +5,7 @@
   "asset": {
     "id": "ai.model-picker",
     "name": "ModelPicker",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "ai",
     "description": "The model selector presenting capability, cost, speed, availability, and context limits in role-oriented terms rather than exposing raw identifiers and parameter counts.",
     "targets": [

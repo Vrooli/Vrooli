@@ -10,7 +10,7 @@
   "asset": {
     "id": "data-display.code-block",
     "name": "CodeBlock",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "data-display",
     "description": "The code presentation with lazily loaded highlighting, language metadata, line numbers, wrapping control, emphasized lines, copy and download, and a plain-text fallback.",
     "targets": [

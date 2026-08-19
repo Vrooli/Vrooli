@@ -1,0 +1,41 @@
+{
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-component",
+  "schemaVersion": "1.1.0",
+  "component": {
+    "id": "overlay-canvas",
+    "title": "OverlayCanvas",
+    "purpose": "Locate measured claim subjects on rendered evidence without obscuring their names.",
+    "storyRef": "../../library/components/OverlayCanvas/versions/1.0.7/story.json"
+  },
+  "states": [
+    {
+      "id": "default",
+      "example": "default",
+      "description": "A measured subject is outlined and named."
+    },
+    {
+      "id": "empty",
+      "example": "empty",
+      "description": "Missing selection is explicit."
+    }
+  ],
+  "elements": [
+    {
+      "id": "surface",
+      "role": "region",
+      "description": "The measured overlay surface."
+    }
+  ],
+  "claims": [
+    {
+      "id": "surface-present",
+      "type": "element-present",
+      "statement": "The overlay surface is present in every state.",
+      "tier": "machine",
+      "elements": ["surface"],
+      "states": ["default", "empty"]
+    }
+  ],
+  "bindings": { "elements": { "surface": { "selector": "[data-rcl-asset]" } } }
+}

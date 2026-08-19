@@ -73,7 +73,13 @@ if (!url) {
     if (!result) {
       throw new Error("harness completed without a story result");
     }
-    process.stdout.write(result);
+    const payload = JSON.parse(result);
+    payload.console = {
+      consoleErrors: [...consoleErrors],
+      pageErrors: [...pageErrors],
+      failedRequests: [...failedRequests],
+    };
+    process.stdout.write(JSON.stringify(payload));
   } finally {
     await browser.close();
   }

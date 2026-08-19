@@ -5,7 +5,7 @@
   "asset": {
     "id": "feedback.banner",
     "name": "Banner",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "feedback",
     "description": "The page- or application-level notice with priority ordering, persistence policy, actions, responsive layout, and deterministic stacking when several apply at once.",
     "targets": [

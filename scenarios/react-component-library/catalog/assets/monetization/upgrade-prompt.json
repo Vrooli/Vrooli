@@ -2,7 +2,7 @@
   "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
   "kind": "catalog-asset",
   "schemaVersion": "1.0.0",
-  "asset": { "id": "monetization.upgrade-prompt", "name": "UpgradePrompt", "kind": "component", "domain": "monetization", "description": "A clear, actionable prompt when a capability requires a higher plan.", "targets": ["react-vite"], "slot": "ui-pattern", "delivery": "adopted", "target": { "priority": "P1", "maturity": "verified" } },
+  "asset": { "id": "monetization.upgrade-prompt", "name": "UpgradePrompt", "kind": "component", "surface": "raised", "domain": "monetization", "description": "A clear, actionable prompt when a capability requires a higher plan.", "targets": ["react-vite"], "slot": "ui-pattern", "delivery": "adopted", "target": { "priority": "P1", "maturity": "verified" } },
   "requiredCapabilities": ["recovery-path", "accessible-naming", "semantic-structure"],
   "rationale": "Gated capability messaging gives the user a next action instead of hiding the entitlement boundary."
 }

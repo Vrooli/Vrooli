@@ -5,7 +5,7 @@
   "asset": {
     "id": "forms.dirty-state-guard",
     "name": "DirtyStateGuard",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "forms",
     "description": "The navigation and dismissal guard detecting meaningful unsaved changes and offering save, discard, continue editing, or background preservation before the work is lost.",
     "targets": [

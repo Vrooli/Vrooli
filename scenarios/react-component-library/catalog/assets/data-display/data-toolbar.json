@@ -5,7 +5,7 @@
   "asset": {
     "id": "data-display.data-toolbar",
     "name": "DataToolbar",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "data-display",
     "description": "The collection action surface holding search, filters, saved views, sort, refresh, export, density, and column controls with responsive overflow.",
     "targets": [

@@ -1,0 +1,11 @@
+{
+  "libraryId": "react-component-library:VerdictSummary",
+  "catalogId": "data-display.verdict-summary",
+  "displayName": "VerdictSummary",
+  "description": "A compact pass, fail, and unmeasured verdict census.",
+  "assetKind": "component",
+  "tags": ["data-display", "token-bound"],
+  "latest": "1.0.3",
+  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
+  "dependencies": []
+}

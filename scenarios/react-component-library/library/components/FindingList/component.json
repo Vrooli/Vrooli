@@ -5,7 +5,7 @@
   "description": "An actionable list of gate findings with severity, identity, and remediation.",
   "assetKind": "component",
   "tags": ["data-display", "token-bound"],
-  "latest": "1.0.0",
+  "latest": "1.0.7",
   "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
   "dependencies": []
 }

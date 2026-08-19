@@ -5,7 +5,7 @@
   "asset": {
     "id": "controls.segmented-control",
     "name": "SegmentedControl",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "controls",
     "description": "The compact mutually exclusive selector with a shared moving indicator, keyboard navigation, responsive overflow, and icon or text options.",
     "targets": [

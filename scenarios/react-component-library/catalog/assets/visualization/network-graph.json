@@ -5,7 +5,7 @@
   "asset": {
     "id": "visualization.network-graph",
     "name": "NetworkGraph",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "visualization",
     "description": "The lazily loaded graph visualization with pan, zoom, selection, pluggable layout, minimap, a windowing policy, deterministic interaction, and an accessible structural summary.",
     "targets": [

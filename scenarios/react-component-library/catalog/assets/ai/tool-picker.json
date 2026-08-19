@@ -5,7 +5,7 @@
   "asset": {
     "id": "ai.tool-picker",
     "name": "ToolPicker",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "ai",
     "description": "The tool-selection surface with search, categories, permission scope, availability, descriptions, and unmistakable indication of what the agent will be allowed to invoke.",
     "targets": [

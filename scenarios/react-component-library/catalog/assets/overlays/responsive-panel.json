@@ -10,7 +10,7 @@
   "asset": {
     "id": "overlays.responsive-panel",
     "name": "ResponsivePanel",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "overlays",
     "description": "The adaptive contextual panel behaving as a persistent resizable sidebar on desktop and an above-page modal drawer on mobile, preserving open state, width, and focus behavior across the transition.",
     "targets": [

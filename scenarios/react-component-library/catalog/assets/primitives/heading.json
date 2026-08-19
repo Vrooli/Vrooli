@@ -10,7 +10,7 @@
   "asset": {
     "id": "primitives.heading",
     "name": "Heading",
-    "kind": "primitive",
+    "kind": "primitive", "surface": "base",
     "domain": "primitives",
     "description": "The heading primitive separating visual scale from semantic document level, so styling decisions never distort the accessible outline.",
     "targets": [

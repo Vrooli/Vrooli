@@ -10,7 +10,7 @@
   "asset": {
     "id": "data-display.table",
     "name": "Table",
-    "kind": "component",
+    "kind": "component", "surface": "raised",
     "domain": "data-display",
     "description": "The semantic table foundation with responsive overflow, sticky regions, density modes, alignment, loading rows, and correctly associated headers.",
     "targets": [
