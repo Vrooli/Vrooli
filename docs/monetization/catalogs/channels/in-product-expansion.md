@@ -1,6 +1,9 @@
 # Channel: In-Product Expansion
 
-- **Status:** `active`
+> Offer Desk is authoritative for this channel's current status, owner, and
+> feed relationships. This document keeps the structural hypothesis and
+> operating judgment rather than a live channel snapshot.
+
 - **Audience:** both — humans encounter suggestions in UI, agents handle them structurally
 - **Owner:** structural — emerges from template-manager design rather than from a dedicated marketing function. Each scenario team is the operational owner of the in-product moments where their scenario suggests other bundle apps.
 - **Feeds:** [`subscription`](../revenue-lines/subscription.md) — drives cross-app activation, which is the strongest retention signal Vrooli has (per [STRATEGY.md §5: breadth of adoption = retention](../STRATEGY.md)).
@@ -12,9 +15,11 @@ Vrooli has a structurally different surface from most SaaS: agents already runni
 
 This is the operational home for [STRATEGY.md §2 ("agents are the expansion engine")](../STRATEGY.md). The principle is structural; documenting it as a channel gives it telemetry, discipline, and a place to land instead of floating in strategy without a doc.
 
-## Why this is `active`
+## Activation criteria
 
-The mechanism exists today — agents inside scenarios can already invoke other scenarios. The "active" status reflects that the structural capability is in place, not that the channel is fully instrumented or measured. Telemetry is incomplete; the operational discipline below is partially observed and partially aspirational.
+The channel is meaningful when scenarios can invoke relevant capabilities and
+the suggestion remains reversible, dismissible, and recommendation-blind.
+Instrumentation maturity is a separate concern from the lifecycle record.
 
 ## Operational discipline
 
@@ -47,11 +52,12 @@ The mechanism exists today — agents inside scenarios can already invoke other 
 - **Web SEO, app-stores, oss-discovery, community-content, skill-registries** — all orthogonal. Those are *external* discovery channels (user → product); this is *internal* expansion (product → product within an account). Different funnel, different mechanics, different telemetry.
 - **Substitution effect with paid lifecycle marketing.** This channel is what most SaaS companies pay heavily for via email drips, in-app nudges, and webinar funnels. Vrooli's structural advantage is that the agent surface reaches users where the work happens, without a marketing budget. When this channel is healthy, paid lifecycle marketing produces less marginal lift; when it's not, paid lifecycle becomes a fallback (see operational discipline above).
 
-## Phase posture
+## Lifecycle interpretation
 
-- **Current:** `active`, partially instrumented. Mechanism exists; telemetry is incomplete; operational discipline is partially observed.
-- **Mature:** when telemetry is fully wired (cross-app activation rate, suggestion-conversion rate, dismissal-respected rate) and recommendation-blindness audits are routine. No date set.
-- **Sunset:** never. This is a structural property of the platform.
+Offer Desk records the channel lifecycle. Maturity requires cross-app
+activation, suggestion conversion, dismissal-respected rate, and routine
+recommendation-blindness audits; it is not inferred from the existence of a
+single invocation path.
 
 ## Notes
 

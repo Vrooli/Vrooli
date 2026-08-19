@@ -42,7 +42,7 @@ Use this README first, then choose the module that matches the work:
 
 Monetization is described across five orthogonal axes:
 
-1. **WHAT** we sell: [`catalogs/CATALOG.md`](catalogs/CATALOG.md), SKU package files, and [`catalogs/scenario-sku-map.json`](catalogs/scenario-sku-map.json).
+1. **WHAT** we sell: [`catalogs/CATALOG.md`](catalogs/CATALOG.md), SKU package files, and the Offer Desk `belongs_to` graph.
 2. **HOW** it is delivered: [`strategy/TIERS.md`](strategy/TIERS.md).
 3. **WHERE USERS COME FROM:** [`catalogs/channels/README.md`](catalogs/channels/README.md).
 4. **WHO** flows through: [`strategy/FUNNEL.md`](strategy/FUNNEL.md).
@@ -54,7 +54,7 @@ Pricing is the intersection of WHAT and HOW. The financial model projects runway
 
 - **Agents never write to plan-of-record canon directly.** All canon edits come through operator-approved decisions.
 - **Use the most specific module.** Add SKU/bundle/add-on files under `catalogs/skus/`, revenue-line files under `catalogs/revenue-lines/`, channel files under `catalogs/channels/`, directional strategy under `strategy/`, supporting proof under `evidence/`, and classification/routing rules under `taxonomies/`.
-- **Operator inputs are not canon edits.** `operator-inputs.json` lives under team shared state; [`governance/HOW_TO_GATHER_INPUTS.md`](governance/HOW_TO_GATHER_INPUTS.md) describes how to gather and interpret those fields.
+- **Operator inputs are not canon edits.** Enter financial inputs through the Money Ledger `/adapters` surface; [`governance/HOW_TO_GATHER_INPUTS.md`](governance/HOW_TO_GATHER_INPUTS.md) describes how to gather and interpret those fields.
 - **Operator executes accepted edits.** Commit messages cite the decision id.
 
 Decision-context detail lives in [`governance/editing.md`](governance/editing.md).

@@ -2,6 +2,10 @@
 
 The **delivery tier** is how a Vrooli bundle reaches the user. Tiers are orthogonal to the [catalog](../catalogs/CATALOG.md): a given bundle can be sold at any active tier, and pricing sits at the intersection (see [PRICING.md](PRICING.md)).
 
+> Offer Desk is authoritative for current tier, variant, and offer
+> relationships. This document retains delivery-mode rationale, capability
+> prerequisites, and guardrails rather than a live tier snapshot.
+
 > **Do not confuse this commercial vocabulary with the technical deployment
 > vocabulary.** In the Deployment Hub, deployment Tier 1 is the full local
 > Vrooli stack and deployment Tier 2 is the desktop-app target. In this
@@ -24,7 +28,7 @@ Candidate tiers can become active only when their trigger fires and the operator
 
 ## The four tiers
 
-### Tier 1 — Bundle apps (`active`)
+### Tier 1 — Bundle apps
 
 Individual desktop/iOS/Android apps wrapped from a Vrooli scenario. A subscriber downloads the apps in their bundle. Each app is self-contained and talks to the Vrooli backend only for subscription validation and (on paid tiers) integrated API routing.
 
@@ -33,9 +37,9 @@ Individual desktop/iOS/Android apps wrapped from a Vrooli scenario. A subscriber
 
 **Cost-of-goods to Vrooli:** gateway token cost is the dominant variable per-user line. Paid Tier 1 subscriptions include the integrated API gateway (LLMs, STT/TTS, embeddings, coding agents) with a credit allowance — that's the core reason to pay over running the OSS apps with bring-your-own keys. Every subscriber drives gateway usage with wholesale-to-retail margin. Fixed costs (app store fees, signing certs, CDN) are one-time or amortized. No hosting per user. Detailed unit economics in [FINANCIAL_MODEL.md §Tier 1](../evidence/FINANCIAL_MODEL.md).
 
-**Current state:** in-progress. `web-console` and `git-control-tower` being packaged for Tier 1 delivery as the business bundle's initial headliners.
+The current lifecycle and headliner membership are read from Offer Desk.
 
-### Tier 2 — Self-hosted full Vrooli runtime (`candidate`)
+### Tier 2 — Self-hosted full Vrooli runtime
 
 The user downloads and runs the full Vrooli project on their own hardware. The subscription provides the convenience layer (integrated API access, gateway routing) and confirms bundle membership for the scenarios the subscriber owns. The free/OSS path remains open — a user who brings their own API keys runs the same runtime at no cost, just without the integrated gateway.
 
@@ -52,7 +56,7 @@ The user downloads and runs the full Vrooli project on their own hardware. The s
 - API routing / metering gateway (could belong to LPBS or stand alone)
 - Graceful handling of offline mode, license revocation, seat-sharing (this is solved territory but not free — JetBrains / 1Password / Adobe have the patterns)
 
-### Tier 3 — Hosted cloud Vrooli (`candidate`)
+### Tier 3 — Hosted cloud Vrooli
 
 Vrooli provides a managed, per-account Vrooli instance on our infrastructure. The user connects remotely (web console, desktop thin clients) and runs their agents and scenarios on hardware we provision. Same runtime as Tier 2, just managed for them.
 
@@ -71,11 +75,12 @@ Vrooli provides a managed, per-account Vrooli instance on our infrastructure. Th
 
 This is probably the **largest long-term revenue surface** because it captures users who would otherwise churn on self-host setup friction. But it is also the tier that most changes the company's operational posture (from software shop to infrastructure operator).
 
-### Tier 4 — Hardware appliance (`north-star`)
+### Tier 4 — Hardware appliance
 
 A dedicated Vrooli machine sold to households or small businesses. Runs the full stack locally, maximizes hardware utilization, preserves privacy. Could be a one-time purchase, a subscription-included appliance, or a combined hardware + subscription plan.
 
-**Status: `north-star`. Not to be planned against without explicit operator initiation.**
+This tier is a directional marker and must not be planned against without
+explicit operator initiation; Offer Desk holds its lifecycle record.
 
 This tier is captured here as a directional marker so:
 

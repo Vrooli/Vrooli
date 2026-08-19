@@ -1,9 +1,7 @@
-package agentpolicy
+package agentcatalog
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -76,41 +74,5 @@ func TestDiscoverModelsFixtureDegradationIsTypedForEveryRunner(t *testing.T) {
 				t.Fatalf("err=%v, want typed discovery degradation", err)
 			}
 		})
-	}
-}
-
-func TestPolicyValidateAgainstLiveFailsMissingPrimaryAndWarnsUnnamed(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "model-policy.json")
-	roles := map[string]any{}
-	for _, role := range []string{"code.default", "code.fast", "code.smart", "code.cheap"} {
-		model := "present"
-		if role == "code.default" {
-			model = "missing"
-		}
-		roles[role] = map[string]any{"model": model, "description": role, "capabilities": []string{"code"}}
-	}
-	data, err := json.Marshal(map[string]any{"schema_version": "v1", "runner": "codex", "provenance": map[string]string{"source": "fixture", "observed_at": "2026-08-04"}, "roles": roles})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(path, data, 0o600); err != nil {
-		t.Fatal(err)
-	}
-	var stdout bytes.Buffer
-	group := CodingPolicyCommands(CodingPolicyConfig{Runner: "codex", CatalogPath: path, Stdout: &stdout, Discovery: func(context.Context) (LiveModelCatalog, error) {
-		return LiveModelCatalog{Runner: "codex", Models: []string{"present", "new"}}, nil
-	}})
-	err = command(group, "validate").Run([]string{"--against-live", "--json"})
-	if err == nil {
-		t.Fatal("missing primary unexpectedly validated")
-	}
-	var payload struct {
-		Findings []PolicyValidationFinding `json:"findings"`
-	}
-	if decodeErr := json.Unmarshal(stdout.Bytes(), &payload); decodeErr != nil {
-		t.Fatalf("decode validation output: %v (%s)", decodeErr, stdout.String())
-	}
-	if len(payload.Findings) < 2 {
-		t.Fatalf("findings=%+v", payload.Findings)
 	}
 }

@@ -41,7 +41,7 @@ var postureDefaults = map[Posture]Defaults{
 		AccessTokenTTL:      60 * time.Minute,
 		BreakGlassAvailable: true,
 		BreakGlassTTL:       15 * time.Minute,
-		NodeExecutionScopes: []string{"vrooli-bridge:read", "vrooli-bridge:write"},
+		NodeExecutionScopes: []string{"vrooli-bridge:read", "vrooli-bridge:write", "*:read", "*:write"},
 		JWKSCacheGrace:      24 * time.Hour,
 	},
 	Shared: {

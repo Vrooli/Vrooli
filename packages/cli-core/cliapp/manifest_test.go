@@ -109,6 +109,18 @@ func TestParseManifestAcceptsLocalBindingButDoesNotLoadIt(t *testing.T) {
 	}
 }
 
+func TestParseManifestAcceptsNestedGroupsAndFindsNestedGroup(t *testing.T) {
+	manifest := []byte(`{"name":"demo","groups":[{"name":"runtime","groups":[{"name":"supervisor","commands":[{"name":"status","binding":{"kind":"connect-rpc","service":"RuntimeService","method":"Status"},"governance":{"effect":"read","run_eligible":true}}]}]}]}`)
+	parsed, err := ParseManifest(manifest)
+	if err != nil {
+		t.Fatalf("ParseManifest() error = %v", err)
+	}
+	group := parsed.FindGroup("supervisor")
+	if group == nil || len(group.Commands) != 1 || group.Commands[0].Name != "status" {
+		t.Fatalf("nested group = %#v", group)
+	}
+}
+
 func TestParseManifestRejectsInvalid(t *testing.T) {
 	cases := []struct {
 		name, manifest, want string

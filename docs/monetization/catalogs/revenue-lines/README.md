@@ -2,6 +2,10 @@
 
 The **ways Vrooli makes money** — distinct from the catalog (what we sell) and tiers (how it's delivered). Each revenue line has its own cost structure, discipline, and status lifecycle, and lives in its own file in this folder.
 
+> Offer Desk is authoritative for the current revenue-line records and
+> relationships. This module keeps lifecycle semantics, unit-economics
+> judgment, and activation discipline; it does not maintain a live index.
+
 ## Why revenue lines are first-class
 
 A company with only subscriptions has one revenue line. Vrooli has multiple — subscriptions are the product line, but done-for-you services, lead-gen, and consulting are legitimate near-term revenue contributors that also validate product capability. Treating them as a single undifferentiated "revenue" pool hides unit economics and creates management drift.
@@ -17,17 +21,10 @@ A company with only subscriptions has one revenue line. Vrooli has multiple — 
 
 ## Index
 
-| ID | Name | Status | File |
-|---|---|---|---|
-| `subscription` | Subscription (the product) | `active` (pre-launch) | [subscription.md](subscription.md) |
-| `lead-generation` | Lead generation for local service businesses | `candidate` | [lead-generation.md](lead-generation.md) |
-| `app-development` | Standalone app development (done-for-you) | `candidate` | [app-development.md](app-development.md) |
-| `consulting` | Consulting / strategy engagements | `candidate` (last resort) | [consulting.md](consulting.md) |
-| `consumer-products` | Consumer products (own-produced SKUs — books, planners, kits) | `candidate` | [consumer-products.md](consumer-products.md) |
-| `affiliate-commerce` | Affiliate / commerce (partner-produced, commission-based) | `candidate` | [affiliate-commerce.md](affiliate-commerce.md) |
-| `flipping` | Flipping (marketplace resale — buy underpriced, refurbish, resell) | `candidate` | [flipping.md](flipping.md) |
-
-New candidates enter by adding a file here via an approved decision. Retired lines stay in the folder with `Status: retired` — historical context matters for future decisions.
+The files in this folder are the durable strategy and policy lenses for the
+revenue-line records. Offer Desk provides the current index, lifecycle, and
+relationships. New candidates enter through an approved decision; retired
+lines remain as historical judgment even after their live records change.
 
 ### Channels are tracked separately
 
@@ -47,11 +44,10 @@ Each Vrooli scenario is a **double-revenue asset** — the same capability can b
 
 The strategic value of services is the **timing asymmetry**: they generate cash in chunks, upfront, while subscription revenue compounds slowly. During the window between core bundles shipping and subscriptions crossing default-alive, services are expected to be a primary revenue lever, not a sidebar.
 
-**Phase posture:**
-
-- **Pre-bundle (current state):** all services lines remain `candidate`. Each revisit trigger is tied to a specific capability being deployable as a thin tool. Don't activate out of turn.
-- **Post-bundle, pre-default-alive:** services are expected to actively produce revenue. This is the window where the `active` count should be non-zero and conversion rates matter most.
-- **Post-default-alive:** services wind down or productize. Success means subscriptions have made them unnecessary; a services line that persists past this phase without converting is a signal that the corresponding SKU hasn't matured.
+**Lifecycle interpretation:** Offer Desk records which services lines are
+active and which triggers have fired. The strategic expectation is that
+services can bridge the period before subscription default-alive, then wind
+down or productize as the subscription product matures.
 
 **Converting is also a capacity decision.** Conversion isn't only about trust and product readiness — it's how we free operator time to take on the next services client. An active line with no clients converting isn't just a productization stall; it's a capacity stall that blocks the next engagement. Conversely, converting before the product is ready transfers manual work from a paid-services client to an unpaid-support burden on the product team. Both failure modes are tracked.
 
@@ -82,7 +78,8 @@ Additional guardrails:
 1. `opportunity-scout` captures candidate services lines as they emerge from market or prospect conversations; creates a knowledge entry under `monetization/opportunity/<slug>` with `kind: services-line-candidate` in the required front-matter.
 2. `catalog-strategist` reviews the pool periodically; when a candidate's trigger fires, raises a decision with context `services-activation`.
 3. `contrarian` reviews the proposal and challenges it specifically against the trap conditions: hypothesis, fixed duration, productization target, sunset clause, legal surface, time-capacity implications.
-4. Operator decides at the vision walk. If promoted to `active`, the line's file is updated (`Status: active`) and `financial-tracker` begins tracking separately.
+4. Operator decides at the vision walk. If promoted, Offer Desk records the
+   lifecycle transition and Money Ledger begins tracking the line separately.
 
 ## Active services line instrumentation (for when one activates)
 

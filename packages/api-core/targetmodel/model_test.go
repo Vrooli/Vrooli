@@ -39,25 +39,3 @@ func TestSelectReportsMissingCapabilityAndNoTarget(t *testing.T) {
 		t.Fatalf("no target selection = %+v", none)
 	}
 }
-
-func TestScopeAllowsUsesBridgeCommandGrammar(t *testing.T) {
-	tests := []struct {
-		name   string
-		scopes []string
-		verb   string
-		want   bool
-	}{
-		{name: "exact", scopes: []string{"scenario status"}, verb: "scenario status", want: true},
-		{name: "prefix", scopes: []string{"scenario test*"}, verb: "scenario test", want: true},
-		{name: "prefix does not cross", scopes: []string{"scenario test*"}, verb: "scenario start", want: false},
-		{name: "universal", scopes: []string{"*"}, verb: "scenario status", want: true},
-		{name: "empty", scopes: []string{"*"}, verb: "", want: false},
-	}
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			if got := ScopeAllows(tc.scopes, tc.verb); got != tc.want {
-				t.Fatalf("ScopeAllows(%q, %q) = %v, want %v", tc.scopes, tc.verb, got, tc.want)
-			}
-		})
-	}
-}

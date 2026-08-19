@@ -181,17 +181,6 @@ func userDataDir(platform Platform, identity UserIdentity) (string, error) {
 	}
 }
 
-func userStateDir(platform Platform, identity UserIdentity, suffix string) (string, error) {
-	base, err := userDataDir(platform, identity)
-	if err != nil {
-		return "", err
-	}
-	if platform == PlatformLinux {
-		base = filepath.Join(identity.HomeDir, ".local", "state")
-	}
-	return filepath.Join(base, suffix), nil
-}
-
 func userLogsDir(platform Platform, identity UserIdentity) (string, error) {
 	switch NormalizePlatform(string(platform)) {
 	case PlatformWindows:

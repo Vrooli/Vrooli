@@ -1,6 +1,9 @@
 # Revenue Line: Standalone App Development (done-for-you builds)
 
-- **Status:** `candidate`
+> Offer Desk is authoritative for this revenue line's current status, owner,
+> and activation record. This document retains the hypothesis, constraints,
+> and execution-risk judgment rather than a live line snapshot.
+
 - **Revisit trigger:** *"Revisit when a prospect with a concrete app spec offers ≥$Y for a fixed-scope build AND the capability to deliver it exists in current Vrooli scenarios."*
 - **Productization target:** generic app-generation tooling — which may become its own scenario if volume warrants.
 - **Legal surface:** client contracts (work-for-hire, IP ownership, warranty, liability caps). Standard but real.

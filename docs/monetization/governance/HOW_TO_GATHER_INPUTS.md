@@ -1,19 +1,18 @@
 # How to gather operator inputs
 
-The `financial-tracker` needs operator-provided data to compute runway, default-alive gap, and time allocation. This doc explains, per field, how to gather each value. The data lands in [`scenarios/prompt-manager/store/teams/monetization/shared/operator-inputs.json`](../../scenarios/prompt-manager/store/teams/monetization/shared/operator-inputs.json), which the operator edits directly.
+The `financial-tracker` needs operator-provided data to compute runway, default-alive gap, and time allocation. This doc explains, per field, how to gather each value. Enter values in the Money Ledger console at `/adapters`, in the **Operator financial inputs** surface. The console shows status and age, performs a dry run first, and routes apply through the existing three-class importer.
 
 ## Editing convention
 
-- Edit `operator-inputs.json` directly. This file is **operator state, not canonical plan** — it does not go through the decision process.
-- When updating a field, set `value`, refresh `updatedAt` to the current UTC timestamp, set `status` to `current`, and (where relevant) record `source` pointing at where the value came from.
-- Also refresh `lastUpdatedAt` at the top of the file.
-- Leave fields at `pending-operator` only if you haven't gathered them yet. Leave fields at `not-applicable-pre-launch` until the relevant phase begins.
+- Open Money Ledger `/adapters` and review the thirteen field statuses before entering anything.
+- Gather a value using the field guidance below, enter it in its labeled control, choose **Preview import**, and review every written and skipped field before **Apply reviewed import**.
+- Leave a field blank when it has not been gathered. Blank means absent, never zero.
 
 ## Status vocabulary
 
-- `pending-operator` — the operator can provide this today but hasn't yet. Financial-tracker surfaces these as "Inputs needed" in its HANDOFF.
+- `pending-operator` — the operator can provide this today but hasn't yet. Money Ledger shows the field as absent on `/adapters`.
 - `current` — the field has a fresh value within the staleness window.
-- `stale` — value exists but `updatedAt` is older than the staleness threshold in `stalenessPolicy`. Financial-tracker flags stale fields each heartbeat.
+- `stale` — value exists but its observation is older than the declared window. Money Ledger shows the field as stale with its age on `/adapters`.
 - `not-applicable-pre-launch` — the field genuinely doesn't apply at the current phase. Financial-tracker does NOT nag on these.
 
 ---
@@ -137,17 +136,16 @@ The `financial-tracker` needs operator-provided data to compute runway, default-
 
 ## Fast-path first-run procedure
 
-The very first time you populate this file:
+The very first time you populate the console:
 
-1. Open `operator-inputs.json`.
-2. Walk the `pending-operator` fields top-to-bottom. Fill what you can in one sitting.
-3. For any field you can't readily fill, leave at `pending-operator` and move on. The financial-tracker will surface remaining gaps in its first HANDOFF — that's the team's first useful output.
-4. Set `lastUpdatedAt` at the top to current time.
-5. Save.
+1. Open Money Ledger and select `/adapters`.
+2. Walk the absent fields top-to-bottom. Fill what you can in one sitting.
+3. For any field you can't readily fill, leave it blank and move on. The status table keeps the gap explicit.
+4. Preview the import, review the report, then apply only if the classification is correct.
 
 On subsequent updates you usually only touch 1-3 fields (e.g., weekly time allocation; monthly burn refresh).
 
-## What NOT to put in this file
+## What NOT to enter in the console
 
 - Anything in the canonical docs (those are team-curated canon via decisions, not operator state).
 - Anything auto-telemetry can provide (MRR, per-scenario usage, infra aggregation once those capabilities land — leave them as `not-applicable` / `pending-telemetry` so the tracker substitutes cleanly when telemetry arrives).

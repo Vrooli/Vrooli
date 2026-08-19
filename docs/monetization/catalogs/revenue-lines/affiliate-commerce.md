@@ -1,6 +1,9 @@
 # Revenue Line: Affiliate / Commerce (partner-produced)
 
-- **Status:** `candidate`
+> Offer Desk is authoritative for this revenue line's current status, owner,
+> and activation record. This document retains the hypothesis, constraints,
+> and compliance judgment rather than a live line snapshot.
+
 - **Revisit trigger:** *"Revisit when at least one lifestyle-bundle scenario is deployable with inventory-aware product-recommendation surfaces AND we have Amazon Associates (or equivalent) account approval AND the recommendation-blindness post-processing layer exists in code."*
 - **Revenue model:** commission on referred purchases via partner programs (Amazon Associates as the default first partner; others added case-by-case)
 - **Productization target:** any scenario that legitimately recommends purchasable goods; concentrated in the lifestyle bundle

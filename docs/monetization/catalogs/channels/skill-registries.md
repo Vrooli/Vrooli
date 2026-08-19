@@ -1,6 +1,10 @@
 # Channel: Skill Registries
 
-- **Status:** `candidate`
+> Offer Desk is authoritative for this channel's current status, owner,
+> activation trigger, and feed relationships. This document keeps the
+> hypothesis, prerequisites, and safety judgment rather than a live channel
+> snapshot.
+
 - **Audience:** agents (LLM agents running in Claude Code, Codex CLI, Antigravity CLI, Cursor, Windsurf, Cline, JetBrains Junie, Sourcegraph Amp, etc.)
 - **Owner:** monetization (strategy) + the scenario team that owns the wrapped capability (operations); no dedicated marketing surface.
 - **Activation trigger:** *"Activate when at least one Vrooli capability is installable standalone (without the full runtime) AND a published Claude Skill for it is live in at least one curated registry (anthropics/skills, skills.sh, or equivalent) AND 60+ days of install/referrer telemetry is available."*
@@ -16,20 +20,20 @@ This channel is the agentic-era equivalent of SEO + app-store presence: a discov
 
 Free agent usage is intentional, not leakage. A published skill lets external agents validate that a Vrooli capability has standalone value before the surrounding subscription surface is mature. The near-term return is proof: installs, task fit, failure reports, registry trust signals, and referrer traffic. The later return is conversion into the subscription convenience layer for users who want managed gateway access, hosted infrastructure, or a fuller bundle. Do not force monetization into the skill before the capability has earned usage; do not omit the eventual subscription path once usage is real.
 
-## Why this is `candidate` and not `active`
+## Activation criteria
 
-Three things have to be true before this channel produces measurable subscription lift, and none of them is true today:
+Three things have to be true before this channel produces measurable
+subscription lift:
 
 1. **At least one Vrooli capability has to be standalone-installable.** Today, scenarios depend on the full Vrooli runtime + shared resources (postgres, redis, ollama). A skill that says "first install the entire Vrooli stack" defeats the point. The architectural prerequisite is per-capability install paths for the headline scenarios — Git Control Tower and Prompt Manager are the natural pilots.
 2. **At least one signed, scanned skill has to be live in a curated registry.** Self-publishing to GitHub doesn't count; the discovery flow runs through registries that surface curated/verified skills, and trust scores depend on Cosign signatures + SLSA provenance + scanner clearance. See [`docs/skills/publishing-guide.md`](../../skills/publishing-guide.md) for the full pipeline.
 3. **Telemetry has to exist.** Without 60+ days of install counts, referrer traffic, and install→subscription correlation, this channel is unfalsifiable. `financial-tracker` needs install-origin attribution before activation.
 
-## Phase posture
+## Lifecycle interpretation
 
-- **Pre-pilot (current state):** `candidate`. No skill is published. Work in this phase is doc-level (this file, publishing-guide, security-baseline) and scaffolding-level (`skills/` folder, templates, CI for signing/scanning). Both are tracked as scenario-readiness work, not as channel activation.
-- **Pilot (when first scenario is standalone-installable + first skill is live):** stays `candidate` but enters a measurement window. Track installs, referrers, scanner pass rate, registry trust scores. Do not pre-commit to a second skill until the first has 60+ days of data.
-- **Active (when telemetry shows install→subscription correlation):** moves to `active`. Scaling decisions become routine: which next scenario to wrap, which registries to expand to.
-- **Sunset:** if 60+ days post-pilot show no measurable install→subscription correlation OR if registry/scanner ecosystems consolidate into closed walled gardens that exclude third-party publishers, the channel sunsets. Skills folder stays as documentation; new publishing stops.
+Offer Desk records whether the prerequisites and measurement window have been
+met. A pilot remains a measurement exercise until install-to-subscription
+correlation is evidenced; scaling or sunset decisions follow that evidence.
 
 ## Operational discipline
 

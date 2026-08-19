@@ -1,6 +1,9 @@
 # Revenue Line: Consulting / Strategy Engagements
 
-- **Status:** `candidate` (lowest priority among services lines)
+> Offer Desk is authoritative for this revenue line's current status, owner,
+> and activation record. This document retains the hypothesis, constraints,
+> and prioritization judgment rather than a live line snapshot.
+
 - **Revisit trigger:** *"Revisit only if a specific prospect offers a time-boxed consulting engagement that explicitly validates a Vrooli capability we want to prove AND the operator has clear capacity."*
 - **Productization target:** often none — consulting is the hardest to productize cleanly because every engagement is bespoke. When it does productize, it's usually into playbooks, templates, or a specialized SKU rather than a clean subscription.
 - **Legal surface:** advisory contracts, conflict-of-interest clauses, IP assignment for any artifacts produced during the engagement.

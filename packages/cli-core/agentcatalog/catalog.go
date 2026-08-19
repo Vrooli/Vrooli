@@ -1,4 +1,4 @@
-package agentpolicy
+package agentcatalog
 
 // This file defines the transport contract shared by coding-agent resources.
 // Catalog content stays beside its owning resource; this package has no model
@@ -6,24 +6,20 @@ package agentpolicy
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"flag"
 	"fmt"
-	"io"
 	"os"
-	"path/filepath"
 	"sort"
 	"strings"
 	"time"
-
-	"github.com/vrooli/cli-core/cliapp"
-	"github.com/vrooli/cli-core/cliutil"
 )
 
 const CodingRolePolicySchemaVersion = "v1"
+
+// OverrideFlag is the shared explicit-authorization spelling used by control
+// plane commands that expose a mutating policy operation.
+const OverrideFlag = "--i-was-explicitly-authorized"
 
 type CodingRoleCatalog struct {
 	SchemaVersion string                `json:"schema_version"`
@@ -90,20 +86,6 @@ type CatalogFreshness struct {
 	Error      string `json:"error,omitempty"`
 }
 
-type EnforcementPosture struct {
-	Permissions string   `json:"permissions"`
-	Caveats     []string `json:"caveats,omitempty"`
-}
-
-type CodingPolicyConfig struct {
-	Runner      string
-	CatalogPath string
-	Posture     EnforcementPosture
-	Stdout      io.Writer
-	Stderr      io.Writer
-	Discovery   ModelDiscoveryFunc
-}
-
 const DefaultStalenessBudgetDays = 14
 
 type PolicyValidationFinding struct {
@@ -121,105 +103,6 @@ type PolicyValidationError struct {
 
 func (e *PolicyValidationError) Error() string { return e.Code + ": " + e.Err.Error() }
 func (e *PolicyValidationError) Unwrap() error { return e.Err }
-
-type codingRoleResponse struct {
-	SchemaVersion  string             `json:"schema_version"`
-	Runner         string             `json:"runner"`
-	Role           string             `json:"role"`
-	Model          string             `json:"model"`
-	CanonicalModel string             `json:"canonical_model,omitempty"`
-	Fallbacks      []string           `json:"fallbacks,omitempty"`
-	Description    string             `json:"description"`
-	Capabilities   []string           `json:"capabilities"`
-	Provenance     CatalogProvenance  `json:"provenance"`
-	Enforcement    EnforcementPosture `json:"enforcement"`
-	PolicyPath     string             `json:"policy_path"`
-	PolicyDigest   string             `json:"policy_digest"`
-	Billing        Billing            `json:"billing"`
-	Challenger     *Challenger        `json:"challenger,omitempty"`
-}
-
-// CodingPolicyCommands supplies a uniform, machine-readable protocol while
-// each resource supplies its catalog path, runner identity, and enforcement.
-func CodingPolicyCommands(cfg CodingPolicyConfig) cliapp.SubcommandGroup {
-	if cfg.Stdout == nil {
-		cfg.Stdout = os.Stdout
-	}
-	if cfg.Stderr == nil {
-		cfg.Stderr = os.Stderr
-	}
-	return cliapp.SubcommandGroup{Name: "policy", Description: "Inspect this resource's coding-role policy", Subcommands: []cliapp.Command{
-		{Name: "validate", Description: "Validate the resource-owned policy catalog", Run: func(args []string) error { return codingPolicyValidate(cfg, args) }},
-		{Name: "roles", Description: "List semantic coding roles", Run: func(args []string) error { return codingPolicyRoles(cfg, args) }},
-		{Name: "resolve", Description: "Resolve one semantic coding role", Run: func(args []string) error { return codingPolicyResolve(cfg, args) }},
-	}}
-}
-
-func codingPolicyValidate(cfg CodingPolicyConfig, args []string) error {
-	fs := policyFlagSet("policy validate", cfg.Stderr)
-	jsonOut := fs.Bool("json", false, "Emit JSON")
-	againstLive := fs.Bool("against-live", false, "Compare the catalog with the runner's live model catalog")
-	if err := fs.Parse(args); err != nil {
-		return err
-	}
-	catalog, data, err := loadCodingRoleCatalog(cfg)
-	if err != nil {
-		return err
-	}
-	findings := append([]PolicyValidationFinding{}, catalogStalenessFindings(catalog, time.Now().UTC(), *againstLive)...)
-	valid := true
-	var live *LiveModelCatalog
-	if *againstLive {
-		discover := cfg.Discovery
-		if discover == nil {
-			discover = func(ctx context.Context) (LiveModelCatalog, error) { return DiscoverModels(ctx, cfg.Runner) }
-		}
-		result, discoverErr := discover(context.Background())
-		if discoverErr != nil {
-			payload := map[string]any{"schema_version": CodingRolePolicySchemaVersion, "runner": catalog.Runner, "policy_path": cfg.CatalogPath, "policy_digest": digest(data), "valid": false, "discovery_status": "not_measured", "findings": findings, "error": discoverErr.Error()}
-			if *jsonOut {
-				_ = writeJSON(cfg.Stdout, payload)
-			}
-			return &PolicyValidationError{Code: "discovery_unavailable", Err: fmt.Errorf("%w: %v", ErrModelDiscoveryUnavailable, discoverErr)}
-		}
-		live = &result
-		findings = append(findings, liveCatalogFindings(catalog, result)...)
-	}
-	for _, finding := range findings {
-		if finding.Severity == "error" {
-			valid = false
-		}
-	}
-	if catalogIsHardStale(catalog, time.Now().UTC()) && *againstLive {
-		valid = false
-	}
-	if *jsonOut {
-		payload := map[string]any{"schema_version": CodingRolePolicySchemaVersion, "runner": catalog.Runner, "policy_path": cfg.CatalogPath, "policy_digest": digest(data), "valid": valid, "findings": findings}
-		if live != nil {
-			payload["discovery_status"] = "measured"
-			payload["live_catalog"] = live
-		}
-		if err := writeJSON(cfg.Stdout, payload); err != nil {
-			return err
-		}
-	} else if *againstLive {
-		fmt.Fprintf(cfg.Stdout, "coding role policy: runner=%s roles=%d findings=%d valid=%t\n", catalog.Runner, len(catalog.Roles), len(findings), valid)
-		for _, finding := range findings {
-			fmt.Fprintf(cfg.Stdout, "%s %s %s: %s\n", finding.Severity, finding.Type, finding.Role, finding.Message)
-		}
-	} else if len(findings) > 0 {
-		for _, finding := range findings {
-			fmt.Fprintf(cfg.Stdout, "%s %s: %s\n", finding.Severity, finding.Type, finding.Message)
-		}
-	}
-	if !valid {
-		return &PolicyValidationError{Code: "policy_invalid", Err: errors.New("catalog has blocking validation findings")}
-	}
-	if !*againstLive {
-		fmt.Fprintf(cfg.Stdout, "valid coding role policy: runner=%s roles=%d path=%s\n", catalog.Runner, len(catalog.Roles), cfg.CatalogPath)
-	}
-	return nil
-}
 
 func catalogStalenessFindings(c CodingRoleCatalog, now time.Time, againstLive bool) []PolicyValidationFinding {
 	observed, err := parseObservedAt(c.Provenance.ObservedAt)
@@ -268,6 +151,10 @@ func parseObservedAt(value string) (time.Time, error) {
 	return parsed.UTC(), nil
 }
 
+// ParseObservedAt exposes the catalog timestamp grammar to resource command
+// tests without exposing the catalog loader internals.
+func ParseObservedAt(value string) (time.Time, error) { return parseObservedAt(value) }
+
 func liveCatalogFindings(c CodingRoleCatalog, live LiveModelCatalog) []PolicyValidationFinding {
 	findings := make([]PolicyValidationFinding, 0)
 	named := make(map[string]struct{})
@@ -300,68 +187,19 @@ func liveCatalogFindings(c CodingRoleCatalog, live LiveModelCatalog) []PolicyVal
 	return findings
 }
 
-func codingPolicyRoles(cfg CodingPolicyConfig, args []string) error {
-	fs := policyFlagSet("policy roles", cfg.Stderr)
-	jsonOut := fs.Bool("json", false, "Emit JSON")
-	if err := fs.Parse(args); err != nil {
-		return err
-	}
-	catalog, data, err := loadCodingRoleCatalog(cfg)
+func loadCodingRoleCatalog(runner, path string) (CodingRoleCatalog, []byte, error) {
+	data, err := os.ReadFile(path)
 	if err != nil {
-		return err
-	}
-	roles := sortedRoles(catalog)
-	responses := make([]codingRoleResponse, 0, len(roles))
-	for _, role := range roles {
-		responses = append(responses, responseFor(cfg, catalog, role, data))
-	}
-	if *jsonOut {
-		return writeJSON(cfg.Stdout, map[string]any{"schema_version": CodingRolePolicySchemaVersion, "runner": catalog.Runner, "roles": responses})
-	}
-	for _, response := range responses {
-		fmt.Fprintf(cfg.Stdout, "%s -> %s\n", response.Role, response.Model)
-	}
-	return nil
-}
-
-func codingPolicyResolve(cfg CodingPolicyConfig, args []string) error {
-	fs := policyFlagSet("policy resolve", cfg.Stderr)
-	role := fs.String("role", "", "Semantic role to resolve, e.g. code.default")
-	jsonOut := fs.Bool("json", false, "Emit JSON")
-	if err := fs.Parse(args); err != nil {
-		return err
-	}
-	if strings.TrimSpace(*role) == "" {
-		return errors.New("--role is required")
-	}
-	catalog, data, err := loadCodingRoleCatalog(cfg)
-	if err != nil {
-		return err
-	}
-	if _, ok := catalog.Roles[*role]; !ok {
-		return fmt.Errorf("unknown coding role %q", *role)
-	}
-	response := responseFor(cfg, catalog, *role, data)
-	if *jsonOut {
-		return writeJSON(cfg.Stdout, response)
-	}
-	fmt.Fprintf(cfg.Stdout, "%s -> %s\n", response.Role, response.Model)
-	return nil
-}
-
-func loadCodingRoleCatalog(cfg CodingPolicyConfig) (CodingRoleCatalog, []byte, error) {
-	data, err := os.ReadFile(cfg.CatalogPath)
-	if err != nil {
-		return CodingRoleCatalog{}, nil, fmt.Errorf("read coding role policy %s: %w", cfg.CatalogPath, err)
+		return CodingRoleCatalog{}, nil, fmt.Errorf("read coding role policy %s: %w", path, err)
 	}
 	decoder := json.NewDecoder(strings.NewReader(string(data)))
 	decoder.DisallowUnknownFields()
 	var catalog CodingRoleCatalog
 	if err := decoder.Decode(&catalog); err != nil {
-		return CodingRoleCatalog{}, nil, fmt.Errorf("parse coding role policy %s: %w", cfg.CatalogPath, err)
+		return CodingRoleCatalog{}, nil, fmt.Errorf("parse coding role policy %s: %w", path, err)
 	}
-	if err := validateCodingRoleCatalog(catalog, cfg.Runner); err != nil {
-		return CodingRoleCatalog{}, nil, fmt.Errorf("invalid coding role policy %s: %w", cfg.CatalogPath, err)
+	if err := validateCodingRoleCatalog(catalog, runner); err != nil {
+		return CodingRoleCatalog{}, nil, fmt.Errorf("invalid coding role policy %s: %w", path, err)
 	}
 	return catalog, data, nil
 }
@@ -413,69 +251,24 @@ func hasAllowedCodingRoleNamespace(name string) bool {
 	return false
 }
 
-func responseFor(cfg CodingPolicyConfig, catalog CodingRoleCatalog, role string, data []byte) codingRoleResponse {
-	r := catalog.Roles[role]
-	billing := Billing{Mode: "unknown", Source: "default"}
-	if catalog.Billing != nil {
-		billing = *catalog.Billing
-	}
-	envPrefix := "VROOLI_" + strings.ToUpper(strings.ReplaceAll(catalog.Runner, "-", "_")) + "_BILLING_"
-	if value := strings.TrimSpace(os.Getenv(envPrefix + "MODE")); value != "" {
-		billing.Mode = value
-		billing.Source = "environment"
-	}
-	if value := strings.TrimSpace(os.Getenv(envPrefix + "PROVIDER")); value != "" {
-		billing.Provider = value
-	}
-	if value := strings.TrimSpace(os.Getenv(envPrefix + "ACCOUNT_REF")); value != "" {
-		billing.AccountRef = value
-	}
-	if value := strings.TrimSpace(os.Getenv(envPrefix + "PLAN_REF")); value != "" {
-		billing.PlanRef = value
-	}
-	if value := strings.TrimSpace(os.Getenv(envPrefix + "PLAN_LABEL")); value != "" {
-		billing.PlanLabel = value
-	}
-	if value := strings.TrimSpace(os.Getenv(envPrefix + "QUOTA_WINDOW")); value != "" {
-		billing.QuotaWindow = value
-	}
-	var challenger *Challenger
-	if r.Challenger != nil {
-		copy := *r.Challenger
-		challenger = &copy
-	}
-	return codingRoleResponse{SchemaVersion: CodingRolePolicySchemaVersion, Runner: catalog.Runner, Role: role, Model: r.Model, CanonicalModel: r.CanonicalModel, Fallbacks: append([]string(nil), r.Fallbacks...), Description: r.Description, Capabilities: append([]string(nil), r.Capabilities...), Provenance: catalog.Provenance, Enforcement: cfg.Posture, PolicyPath: cfg.CatalogPath, PolicyDigest: digest(data), Billing: billing, Challenger: challenger}
+// LoadCodingRoleCatalog returns a validated catalog and its original bytes.
+func LoadCodingRoleCatalog(runner, path string) (CodingRoleCatalog, []byte, error) {
+	return loadCodingRoleCatalog(runner, path)
 }
 
-func sortedRoles(c CodingRoleCatalog) []string {
-	out := make([]string, 0, len(c.Roles))
-	for name := range c.Roles {
-		out = append(out, name)
-	}
-	sort.Strings(out)
-	return out
+// CatalogStalenessFindings exposes the shared staleness evaluation to command surfaces.
+func CatalogStalenessFindings(c CodingRoleCatalog, now time.Time, againstLive bool) []PolicyValidationFinding {
+	return catalogStalenessFindings(c, now, againstLive)
 }
 
-func policyFlagSet(name string, stderr io.Writer) *flag.FlagSet {
-	fs := flag.NewFlagSet(name, flag.ContinueOnError)
-	fs.SetOutput(stderr)
-	return fs
+// CatalogIsHardStale reports whether the catalog exceeds twice its declared budget.
+func CatalogIsHardStale(c CodingRoleCatalog, now time.Time) bool {
+	return catalogIsHardStale(c, now)
 }
 
-func writeJSON(w io.Writer, value any) error {
-	data, err := json.MarshalIndent(value, "", "  ")
-	if err != nil {
-		return err
-	}
-	_, err = fmt.Fprintln(w, string(data))
-	return err
-}
-func digest(data []byte) string { sum := sha256.Sum256(data); return hex.EncodeToString(sum[:]) }
-
-// ResourceCatalogPath locates an installed resource catalog through the normal
-// repo-root resolver. Tests may pass an explicit path directly in the config.
-func ResourceCatalogPath(resource string) string {
-	return filepath.Join(cliutil.ResolveRepoRoot(), "resources", resource, "model-policy.json")
+// LiveCatalogFindings exposes the shared live-catalog comparison to command surfaces.
+func LiveCatalogFindings(c CodingRoleCatalog, live LiveModelCatalog) []PolicyValidationFinding {
+	return liveCatalogFindings(c, live)
 }
 
 // ReadCodingRoleCatalog returns a validated resource-owned catalog for
@@ -483,7 +276,7 @@ func ResourceCatalogPath(resource string) string {
 // still receive the full resource contract; no Agent Manager vocabulary is
 // introduced here.
 func ReadCodingRoleCatalog(runner, path string) (CodingRoleCatalog, error) {
-	catalog, _, err := loadCodingRoleCatalog(CodingPolicyConfig{Runner: runner, CatalogPath: path})
+	catalog, _, err := loadCodingRoleCatalog(runner, path)
 	return catalog, err
 }
 
@@ -492,7 +285,7 @@ func ReadCodingRoleCatalog(runner, path string) (CodingRoleCatalog, error) {
 // malformed catalog cannot appear healthy merely because its file exists.
 func ReadCatalogFreshness(runner, path string, now time.Time) CatalogFreshness {
 	result := CatalogFreshness{Runner: runner, PolicyPath: path, Status: "unknown"}
-	catalog, _, err := loadCodingRoleCatalog(CodingPolicyConfig{Runner: runner, CatalogPath: path})
+	catalog, _, err := loadCodingRoleCatalog(runner, path)
 	if err != nil {
 		result.Status = "invalid"
 		result.Error = err.Error()
@@ -526,7 +319,7 @@ func ReadCatalogFreshness(runner, path string, now time.Time) CatalogFreshness {
 // as data so callers can preserve the distinction between a measured drift and
 // an unavailable measurement.
 func ValidateCatalogAgainstLive(ctx context.Context, runner, path string) ([]PolicyValidationFinding, LiveModelCatalog, error) {
-	catalog, _, err := loadCodingRoleCatalog(CodingPolicyConfig{Runner: runner, CatalogPath: path})
+	catalog, _, err := loadCodingRoleCatalog(runner, path)
 	if err != nil {
 		return nil, LiveModelCatalog{}, err
 	}

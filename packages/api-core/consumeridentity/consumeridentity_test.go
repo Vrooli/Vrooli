@@ -129,9 +129,8 @@ func TestCacheReportsKeySetUnavailableWhenRefreshFails(t *testing.T) {
 	if _, err := cache.Verify(httpRequest(), token); err != nil {
 		t.Fatal(err)
 	}
-	expired := token
 	signer.Now = func() time.Time { return time.Now().Add(-2 * time.Hour) }
-	expired, _, err = signer.Sign(Claims{Subject: "user-1", UserID: "user-1"})
+	expired, _, err := signer.Sign(Claims{Subject: "user-1", UserID: "user-1"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -159,6 +158,7 @@ func splitToken(t *testing.T, token string) []string {
 	}
 	return parts
 }
+
 func httpRequest() *http.Request {
 	req, _ := http.NewRequest(http.MethodGet, "http://local.test/.well-known/jwks.json", nil)
 	return req

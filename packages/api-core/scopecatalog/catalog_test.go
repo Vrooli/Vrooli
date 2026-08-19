@@ -50,6 +50,36 @@ func TestHasScopeUsesDerivedConcreteValues(t *testing.T) {
 	}
 }
 
+func TestLookupVerbReturnsOneConcreteCatalogScope(t *testing.T) {
+	catalog := Catalog{Scopes: []Scope{
+		{Scenario: ProjectManifestIdentity, Command: "scenario/status", Value: "vrooli:read", Effect: EffectRead, RunEligible: true},
+		{Scenario: "web-console", Command: "sessions/list", Value: "web-console:read", Effect: EffectRead, RunEligible: true},
+		{Scenario: "human-only", Command: "secrets/show", Value: "human-only:read", Effect: EffectRead},
+	}}
+
+	project, ok := catalog.LookupVerb("scenario status")
+	if !ok || project.Value != "vrooli:read" {
+		t.Fatalf("project lookup = %#v, %v", project, ok)
+	}
+	scenario, ok := catalog.LookupVerb("web-console sessions list")
+	if !ok || scenario.Value != "web-console:read" {
+		t.Fatalf("scenario lookup = %#v, %v", scenario, ok)
+	}
+	if _, ok := catalog.LookupVerb("human-only secrets show"); ok {
+		t.Fatal("human-only command must not enter the remote invocation vocabulary")
+	}
+}
+
+func TestLookupVerbFailsClosedOnConflictingEffects(t *testing.T) {
+	catalog := Catalog{Scopes: []Scope{
+		{Scenario: ProjectManifestIdentity, Command: "scenario/status", Value: "vrooli:read", RunEligible: true},
+		{Scenario: ProjectManifestIdentity, Command: "scenario/status", Value: "vrooli:write", RunEligible: true},
+	}}
+	if _, ok := catalog.LookupVerb("scenario status"); ok {
+		t.Fatal("ambiguous command effects must fail closed")
+	}
+}
+
 func TestMaterializeExpandsAndExcludesHumanOnlyScopes(t *testing.T) {
 	got := Materialize([]string{"vrooli-bridge:*"}, []Scope{
 		{Value: "vrooli-bridge:read", RunEligible: true},
@@ -88,6 +118,107 @@ func TestBuildCatalog(t *testing.T) {
 	}
 }
 
+func TestDeriveManifestHonorsFlatGroups(t *testing.T) {
+	tests := []struct {
+		name    string
+		group   manifestGroup
+		command string
+	}{
+		{
+			name:    "flat group emits a top-level command",
+			group:   manifestGroup{Name: "lifecycle", Flat: true},
+			command: "setup",
+		},
+		{
+			name:    "non-flat group emits a nested command",
+			group:   manifestGroup{Name: "scenario", Flat: false},
+			command: "scenario/status",
+		},
+		{
+			name:    "omitted flat defaults to nested",
+			group:   manifestGroup{Name: "resource"},
+			command: "resource/logs",
+		},
+		{
+			name: "two-level nested group emits the full path",
+			group: manifestGroup{
+				Name:   "credentials",
+				Groups: []manifestGroup{{Name: "keyring", Commands: []manifestCommand{{Name: "status"}}}},
+			},
+			command: "credentials/keyring/status",
+		},
+		{
+			name: "three-level nested group emits the full path",
+			group: manifestGroup{
+				Name:   "runtime",
+				Groups: []manifestGroup{{Name: "recovery", Groups: []manifestGroup{{Name: "policy", Commands: []manifestCommand{{Name: "list"}}}}}},
+			},
+			command: "runtime/recovery/policy/list",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			catalog := Catalog{}
+			group := test.group
+			setTestGovernance := func(command *manifestCommand) {
+				command.Governance = manifestGovernance{Effect: string(EffectRead), RunEligible: true}
+			}
+			if len(group.Commands) == 0 && len(group.Groups) == 0 {
+				group.Commands = []manifestCommand{{Name: "setup"}}
+			}
+			if group.Name == "scenario" {
+				group.Commands[0].Name = "status"
+			}
+			if group.Name == "resource" {
+				group.Commands[0].Name = "logs"
+			}
+			var applyGovernance func(*manifestGroup)
+			applyGovernance = func(current *manifestGroup) {
+				for i := range current.Commands {
+					setTestGovernance(&current.Commands[i])
+				}
+				for i := range current.Groups {
+					applyGovernance(&current.Groups[i])
+				}
+			}
+			applyGovernance(&group)
+
+			deriveManifest(&catalog, manifest{Name: "demo", Groups: []manifestGroup{group}})
+			if len(catalog.Scopes) != 1 {
+				t.Fatalf("derived scope count = %d, want 1", len(catalog.Scopes))
+			}
+			if got := catalog.Scopes[0].Command; got != test.command {
+				t.Fatalf("derived command = %q, want %q", got, test.command)
+			}
+		})
+	}
+}
+
+func TestBuildProjectFlatCommandsMatchInvocationVocabulary(t *testing.T) {
+	catalog, err := Build(repoRoot(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	commands := make(map[string]bool)
+	for _, scope := range catalog.Scopes {
+		if scope.Scenario == ProjectManifestIdentity {
+			commands[scope.Command] = true
+		}
+	}
+
+	for _, command := range []string{"setup", "hygiene"} {
+		if !commands[command] {
+			t.Errorf("project invocation %q is absent from derived vocabulary", command)
+		}
+	}
+	for _, invalid := range []string{"top-level/hygiene", "lifecycle-commands/setup"} {
+		if commands[invalid] {
+			t.Errorf("organizational manifest path %q leaked into invocation vocabulary", invalid)
+		}
+	}
+}
+
 func TestBuildIncludesProjectManifestWithoutScenarioCollision(t *testing.T) {
 	root := repoRoot(t)
 	catalog, err := Build(root)
@@ -109,14 +240,20 @@ func TestBuildIncludesProjectManifestWithoutScenarioCollision(t *testing.T) {
 	if err := json.Unmarshal(rootManifest, &projectDocument); err != nil {
 		t.Fatal(err)
 	}
-	expectedProjectScopes := 0
-	for _, group := range projectDocument.Groups {
-		for _, command := range group.Commands {
-			if command.Governance.Effect != "" {
-				expectedProjectScopes++
+	var countGovernedCommands func([]manifestGroup) int
+	countGovernedCommands = func(groups []manifestGroup) int {
+		count := 0
+		for _, group := range groups {
+			for _, command := range group.Commands {
+				if command.Governance.Effect != "" {
+					count++
+				}
 			}
+			count += countGovernedCommands(group.Groups)
 		}
+		return count
 	}
+	expectedProjectScopes := countGovernedCommands(projectDocument.Groups)
 	if projectScopes != expectedProjectScopes {
 		t.Fatalf("project scope count = %d, want one scope per governed root command (%d)", projectScopes, expectedProjectScopes)
 	}

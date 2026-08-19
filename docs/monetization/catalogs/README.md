@@ -5,7 +5,7 @@ Catalogs are durable inventories of monetizable entities. Add new entries here w
 | Catalog | Purpose |
 |---|---|
 | [`CATALOG.md`](CATALOG.md) | SKU index: base bundles, add-ons, lifecycle state, revisit triggers, and scenario membership. |
-| [`scenario-sku-map.json`](scenario-sku-map.json) | Machine-readable scenario-to-SKU mapping. |
+| Offer Desk `belongs_to` graph | Machine-readable scenario-to-SKU mapping and validation findings. |
 | [`skus/`](skus/) | One file per base bundle or add-on SKU. |
 | [`revenue-lines/`](revenue-lines/README.md) | Revenue-line index plus one file per revenue line. |
 | [`channels/`](channels/README.md) | Acquisition/distribution channel index plus one file per channel. |

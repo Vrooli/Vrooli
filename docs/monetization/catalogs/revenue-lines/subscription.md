@@ -1,9 +1,11 @@
 # Revenue Line: Subscription (the product)
 
-- **Status:** `active` (pre-launch, but this is the primary line)
+> Offer Desk is authoritative for this revenue line's current lifecycle,
+> owner, and activation record. This document retains the portfolio role,
+> economics, and instrumentation judgment rather than a live line snapshot.
+
 - **Revenue model:** monthly / annual recurring, per-tier, per-bundle
 - **Cost structure:** see per-tier COGS in [FINANCIAL_MODEL.md](../FINANCIAL_MODEL.md)
-- **Current state:** zero subscribers. Tier 1 (Bundle apps) in progress; other tiers are candidate/north-star.
 - **Productization target:** this IS the product. No bridging; it's the destination all services lines aim toward.
 
 ## Role in the portfolio
@@ -12,7 +14,9 @@ Subscription is the destination. Every services line in this folder exists to va
 
 ## Why no revisit trigger
 
-Unlike services lines, subscription has no revisit trigger because it's not `candidate` — it's the active product line awaiting launch. Trigger-style discipline applies to *activation of candidate lines*; subscription is already the intended end state.
+Unlike services lines, subscription has no revisit trigger because it is the
+intended product destination. Trigger-style discipline applies to activation
+of candidate lines; the lifecycle record itself is maintained in Offer Desk.
 
 ## Instrumentation
 

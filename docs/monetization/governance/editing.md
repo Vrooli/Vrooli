@@ -19,7 +19,7 @@ Common edit contexts:
 | Context | Typical PoR target |
 |---|---|
 | `catalog-promotion` | `catalogs/CATALOG.md`, `catalogs/skus/`, `catalogs/revenue-lines/` |
-| `catalog-mapping-update` | `catalogs/scenario-sku-map.json` |
+| `catalog-mapping-update` | Offer Desk `belongs_to` graph and the surviving SKU strategy files |
 | `channel-activation` | `catalogs/channels/` |
 | `services-activation`, `services-conversion`, `services-sunset` | `catalogs/revenue-lines/` and `catalogs/CATALOG.md` |
 | `pricing-decision` | `strategy/PRICING.md` |

@@ -279,10 +279,105 @@ func ProtoBindings(core *ScenarioApp, serviceFQN protoreflect.FullName, options 
 	return out, nil
 }
 
+// ProtoPrimitiveBindings builds renderer-separated, evidence-carrying handlers
+// for every method on serviceFQN. readMethods selects the report primitive for
+// each method; methods absent from the map use ProtoMutation. The resulting map
+// is intended for LoadFromManifestPrimitives so the manifest declaration and
+// the constructed handler remain mechanically coupled.
+func ProtoPrimitiveBindings(core *ScenarioApp, serviceFQN protoreflect.FullName, options ProtoBindingOptions, readMethods map[string]bool) (map[string]PrimitiveHandler, error) {
+	desc, err := protoregistry.GlobalFiles.FindDescriptorByName(serviceFQN)
+	if err != nil {
+		return nil, fmt.Errorf("lookup proto service %q: %w", serviceFQN, err)
+	}
+	svc, ok := desc.(protoreflect.ServiceDescriptor)
+	if !ok {
+		return nil, fmt.Errorf("descriptor %q is not a service", serviceFQN)
+	}
+	out := make(map[string]PrimitiveHandler, svc.Methods().Len())
+	for i := 0; i < svc.Methods().Len(); i++ {
+		method := svc.Methods().Get(i)
+		m := method
+		key := string(svc.Name()) + "." + string(method.Name())
+		call := func(ctx OperationContext) (proto.Message, error) {
+			return invokeProtoOperation(ctx, core, svc, m, key, options.Normalize)
+		}
+		if readMethods[string(method.Name())] {
+			out[key] = ProtoList(call, func(_ OperationContext, _ proto.Message) ListReport {
+				return ListReport{Summary: []string{string(m.Name()) + " completed."}, ResultsHeading: "Typed response", Results: []string{"Use --json for the complete generated protobuf response."}}
+			})
+		} else {
+			out[key] = ProtoMutation(call, func(_ OperationContext, _ proto.Message) MutationReport {
+				return MutationReport{Result: []string{string(m.Name()) + " completed."}, Changes: []string{"Persona accepted the typed request and returned its authoritative record."}, NextCommand: []string{"Use the corresponding read command with --json to inspect authoritative state."}}
+			})
+		}
+	}
+	return out, nil
+}
+
+// LoadProtoGroupFromManifest builds generic handlers for one proto service,
+// narrows them to the methods selected by one manifest group, and loads the
+// resulting cli-core subcommand group. The narrowing is important when a
+// service deliberately omits RPCs from its CLI: ProtoBindings describes the
+// complete service, while LoadFromManifest correctly rejects unused manually
+// registered handlers as likely typos.
+func LoadProtoGroupFromManifest(core *ScenarioApp, serviceFQN protoreflect.FullName, raw []byte, groupName string, options ProtoBindingOptions) (SubcommandGroup, error) {
+	available, err := ProtoBindings(core, serviceFQN, options)
+	if err != nil {
+		return SubcommandGroup{}, err
+	}
+	selected, err := selectProtoBindingsForManifest(raw, groupName, serviceFQN.Name(), available)
+	if err != nil {
+		return SubcommandGroup{}, err
+	}
+	return LoadFromManifest(raw, groupName, selected)
+}
+
+func selectProtoBindingsForManifest(raw []byte, groupName string, serviceName protoreflect.Name, available map[string]func(RunContext) error) (map[string]func(RunContext) error, error) {
+	manifest, err := ParseManifest(raw)
+	if err != nil {
+		return nil, err
+	}
+	group := manifest.FindGroup(groupName)
+	if group == nil {
+		return nil, fmt.Errorf("cli manifest %q: group %q not found (have: %s)", manifest.Name, groupName, listGroupNames(manifest))
+	}
+	selected := make(map[string]func(RunContext) error, len(group.Commands))
+	for _, command := range group.Commands {
+		if command.Binding.Kind != "connect-rpc" {
+			return nil, fmt.Errorf("cli manifest %q: command %s/%s uses %s binding; proto group loader requires connect-rpc", manifest.Name, group.Name, command.Name, command.Binding.Kind)
+		}
+		if command.Binding.Service != string(serviceName) {
+			return nil, fmt.Errorf("cli manifest %q: command %s/%s binds service %q; proto group loader owns %q", manifest.Name, group.Name, command.Name, command.Binding.Service, serviceName)
+		}
+		key := command.Binding.BindingKey()
+		handler, ok := available[key]
+		if !ok {
+			return nil, fmt.Errorf("cli manifest %q: command %s/%s binding %s is not present on proto service %s", manifest.Name, group.Name, command.Name, key, serviceName)
+		}
+		selected[key] = handler
+	}
+	return selected, nil
+}
+
 func invokeProtoBinding(ctx RunContext, core *ScenarioApp, svc protoreflect.ServiceDescriptor, method protoreflect.MethodDescriptor, key string, options ProtoBindingOptions) error {
+	resp, err := invokeProtoOperation(ctx, core, svc, method, key, options.Normalize)
+	if err != nil {
+		return err
+	}
+	if render := options.Render[key]; render != nil {
+		return render(ctx, concreteRendererMessage(resp, key))
+	}
+	return PrintProtoJSON(ctx.Stdout(), resp)
+}
+
+func invokeProtoOperation(ctx OperationContext, core *ScenarioApp, svc protoreflect.ServiceDescriptor, method protoreflect.MethodDescriptor, key string, normalize map[string]func([]byte) ([]byte, error)) (proto.Message, error) {
 	request := dynamicpb.NewMessage(method.Input())
-	if err := hydrateProtoRequest(ctx, method.Input(), request, options.Normalize[key]); err != nil {
-		return fmt.Errorf("%s: build request: %w", key, err)
+	var normalizer func([]byte) ([]byte, error)
+	if normalize != nil {
+		normalizer = normalize[key]
+	}
+	if err := hydrateProtoRequest(ctx, method.Input(), request, normalizer); err != nil {
+		return nil, fmt.Errorf("%s: build request: %w", key, err)
 	}
 	httpClient, baseURL := NewConnectHTTPClient(core)
 	client := connect.NewClient[dynamicpb.Message, dynamicpb.Message](httpClient, strings.TrimRight(baseURL, "/")+"/"+string(svc.FullName())+"/"+string(method.Name()), connect.WithSchema(method), connect.WithResponseInitializer(func(_ connect.Spec, msg any) error {
@@ -295,15 +390,12 @@ func invokeProtoBinding(ctx RunContext, core *ScenarioApp, svc protoreflect.Serv
 	}))
 	resp, err := client.CallUnary(context.Background(), connect.NewRequest(request))
 	if err != nil {
-		return WrapAPIError(key, err, nil)
+		return nil, WrapAPIError(key, err, nil)
 	}
 	if resp == nil || resp.Msg == nil {
-		return fmt.Errorf("%s: server returned no response", key)
+		return nil, fmt.Errorf("%s: server returned no response", key)
 	}
-	if render := options.Render[key]; render != nil {
-		return render(ctx, concreteRendererMessage(resp.Msg, key))
-	}
-	return PrintProtoJSON(ctx.Stdout(), resp.Msg)
+	return resp.Msg, nil
 }
 
 // concreteRendererMessage preserves the typed-message contract of renderer
@@ -335,7 +427,7 @@ func concreteRendererMessage(message proto.Message, binding string) proto.Messag
 	return concrete
 }
 
-func hydrateProtoRequest(ctx RunContext, md protoreflect.MessageDescriptor, msg *dynamicpb.Message, normalize func([]byte) ([]byte, error)) error {
+func hydrateProtoRequest(ctx OperationContext, md protoreflect.MessageDescriptor, msg *dynamicpb.Message, normalize func([]byte) ([]byte, error)) error {
 	if ctx.FlagDeclared("request") && ctx.Flag("request") != "" {
 		return protojson.Unmarshal([]byte(ctx.Flag("request")), msg)
 	}

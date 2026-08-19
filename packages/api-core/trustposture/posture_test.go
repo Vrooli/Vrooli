@@ -41,8 +41,32 @@ func TestPersonalDefaultsExcludeDestructiveBridgeScope(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, scope := range d.NodeExecutionScopes {
-		if scope == "vrooli-bridge:destructive" {
+		if scope == "vrooli-bridge:destructive" || scope == "*:destructive" {
 			t.Fatal("personal posture must not grant destructive bridge execution")
+		}
+	}
+	want := map[string]bool{
+		"vrooli-bridge:read":  true,
+		"vrooli-bridge:write": true,
+		"*:read":              true,
+		"*:write":             true,
+	}
+	for _, scope := range d.NodeExecutionScopes {
+		delete(want, scope)
+	}
+	if len(want) != 0 {
+		t.Fatalf("personal posture is missing node execution defaults: %v", want)
+	}
+}
+
+func TestSharedAndHostedHaveNoNodeNamespaceDefaults(t *testing.T) {
+	for _, posture := range []Posture{Shared, Hosted} {
+		defaults, err := DefaultsFor(posture)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(defaults.NodeExecutionScopes) != 0 {
+			t.Fatalf("%s posture unexpectedly grants node scopes: %v", posture, defaults.NodeExecutionScopes)
 		}
 	}
 }

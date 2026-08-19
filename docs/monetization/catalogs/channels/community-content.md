@@ -1,6 +1,9 @@
 # Channel: Community Content
 
-- **Status:** `candidate`
+> Offer Desk is authoritative for this channel's current status, owner,
+> activation trigger, and feed relationships. This document keeps the
+> hypothesis and operating judgment rather than a live channel snapshot.
+
 - **Audience:** humans (developers and early adopters primarily; lifestyle-bundle audiences once those scenarios mature)
 - **Owner:** marketing-crew
 - **Activation trigger:** *"Activate when marketing-crew has bandwidth to produce sustained cadence (not one-off launches), AND at least one Vrooli bundle has shippable headliner scenarios that benefit from launch-style content."*
@@ -13,9 +16,12 @@ Long-form content (blog), short-form social (X, LinkedIn, YouTube demos), and co
 
 For the developer audience the business bundle targets, builder-in-public dev-log content is structurally aligned with the audience's tastes and Vrooli's positioning. For the lifestyle-bundle audience, persona-actor short-form video is a different production discipline with different rules (see [`docs/marketing/strategy/patterns/ai-ugc-personas.md`](../../marketing/strategies/ai-ugc-personas.md)).
 
-## Why this is `candidate` and not `active`
+## Activation criteria
 
-The channel is partially active in practice (some blog content exists, some social presence) but lacks the sustained cadence that distinguishes a real channel from sporadic activity. Single posts don't produce signal; consistent cadence over months does. The activation trigger is bandwidth + headliner readiness, not "post more" — sporadic effort produces no measurable lift.
+Activation requires sustained cadence and at least one shippable headliner that
+benefits from launch-style content. Single posts do not produce the signal;
+consistent cadence over months does. The trigger is bandwidth plus headliner
+readiness, not "post more."
 
 ## Operational discipline
 
@@ -50,12 +56,11 @@ The channel is partially active in practice (some blog content exists, some soci
 - **Skill registries** — orthogonal. Different audience.
 - **In-product expansion** — orthogonal.
 
-## Phase posture
+## Lifecycle interpretation
 
-- **Pre-activation (current state):** `candidate`. Sporadic activity exists but no sustained cadence. Marketing-crew bandwidth is the binding constraint, not platform mechanics.
-- **Activation:** when bandwidth + headliner readiness allows sustained cadence. Initial scope: one platform at a time (likely X + blog as the starting pair, since that's where the developer audience already is and the production cost is lowest).
-- **Multi-platform expansion:** add platforms one at a time after the previous one has measurable signal. Same anti-thrash discipline as app stores.
-- **Sunset:** unlikely; this channel persists indefinitely.
+Offer Desk records whether the activation condition has fired. Initial scope
+should be one platform at a time, with expansion only after measurable signal;
+the anti-thrash discipline applies throughout the channel's life.
 
 ## Notes
 

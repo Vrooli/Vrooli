@@ -247,6 +247,14 @@ func (a *App) run(args []string) error {
 
 	cmd, ok := a.commandLookup[remaining[0]]
 	if !ok {
+		// The installed binary may predate a command that now exists in source.
+		// Check freshness before reporting capability absence so an unknown
+		// command gets the same self-healing path as a known API command. This
+		// only adds freshness work to the error path; known non-API commands keep
+		// their existing fast path.
+		if a.checkStaleAndMaybeRebuild(args) {
+			return nil
+		}
 		return fmt.Errorf("Unknown command: %s%s%s", remaining[0], a.suggestCommand(remaining[0]), a.unknownCommandHint(remaining))
 	}
 	if wantsHelp(remaining[1:]) {
@@ -254,9 +262,8 @@ func (a *App) run(args []string) error {
 		return nil
 	}
 
-	if cmd.NeedsAPI && a.opts.StaleChecker != nil {
-		a.opts.StaleChecker.ReexecArgs = args
-		if restarted := a.opts.StaleChecker.CheckAndMaybeRebuild(); restarted {
+	if cmd.NeedsAPI {
+		if restarted := a.checkStaleAndMaybeRebuild(args); restarted {
 			return nil
 		}
 	}
@@ -308,6 +315,11 @@ func (a *App) runSubcommand(group *SubcommandGroup, args []string, originalArgs 
 		return a.dispatchCommand(strings.TrimSpace(a.opts.Name+" "+group.Name), *cmd, args)
 	}
 	if cmd == nil {
+		// A stale binary can know the group but not a newly added leaf. Rebuild
+		// before returning a false-negative capability result.
+		if a.checkStaleAndMaybeRebuild(originalArgs) {
+			return nil
+		}
 		path := append([]string{group.Name}, args...)
 		return fmt.Errorf("Unknown subcommand: %s %s%s%s\nRun '%s %s help' for available subcommands",
 			group.Name, args[0], suggestSubcommand(group, args[0]), a.unknownCommandHint(path), a.opts.Name, group.Name)
@@ -318,9 +330,8 @@ func (a *App) runSubcommand(group *SubcommandGroup, args []string, originalArgs 
 	}
 
 	needsAPI := cmd.NeedsAPI || group.NeedsAPI
-	if needsAPI && a.opts.StaleChecker != nil {
-		a.opts.StaleChecker.ReexecArgs = originalArgs
-		if restarted := a.opts.StaleChecker.CheckAndMaybeRebuild(); restarted {
+	if needsAPI {
+		if restarted := a.checkStaleAndMaybeRebuild(originalArgs); restarted {
 			return nil
 		}
 	}
@@ -335,6 +346,14 @@ func (a *App) runSubcommand(group *SubcommandGroup, args []string, originalArgs 
 	}
 
 	return a.dispatchCommand(strings.TrimSpace(a.opts.Name+" "+group.Name), *cmd, args[1:])
+}
+
+func (a *App) checkStaleAndMaybeRebuild(args []string) bool {
+	if a.opts.StaleChecker == nil {
+		return false
+	}
+	a.opts.StaleChecker.ReexecArgs = append([]string(nil), args...)
+	return a.opts.StaleChecker.CheckAndMaybeRebuild()
 }
 
 // dispatchCommand routes a Command's execution through either the declarative

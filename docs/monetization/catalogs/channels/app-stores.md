@@ -1,6 +1,9 @@
 # Channel: App Stores
 
-- **Status:** `candidate`
+> Offer Desk is authoritative for this channel's current status, owner,
+> activation trigger, and feed relationships. This document keeps the
+> hypothesis and operating judgment rather than a live channel snapshot.
+
 - **Audience:** humans
 - **Owner:** TBD on activation. Likely a future "app-store-ops" function inside marketing-crew or a dedicated lifecycle role; in the interim, monetization and the scenario teams that own bundle apps share responsibility.
 - **Activation trigger:** *"Activate when Tier 1 (bundle apps) ships its first paid bundle to at least one platform store (Apple App Store, Google Play, Microsoft Store)."*
@@ -11,9 +14,11 @@
 
 For the bundle-app delivery shape (Tier 1), app stores are the primary discovery surface for non-developer humans. For audiences that don't read tech blogs, follow GitHub trending, or use AI agents — most of the lifestyle-bundle TAM, large parts of the business-bundle TAM — the app store is *the* discovery channel. Without strong ASO presence and good store-listing fundamentals, Tier 1 reaches only the audience already aware of Vrooli through other channels.
 
-## Why this is `candidate` and not `active`
+## Activation criteria
 
-Tier 1 hasn't shipped. The activation trigger is concrete: first paid bundle live in at least one store. Until that day, this channel is purely speculative — store listings of unreleased products produce no signal.
+The activation condition is concrete: a paid Tier 1 bundle is live in at
+least one platform store. Store listings of unreleased products produce no
+useful channel signal.
 
 ## Operational discipline (for when active)
 
@@ -48,12 +53,12 @@ Tier 1 hasn't shipped. The activation trigger is concrete: first paid bundle liv
 - **Skill registries** — orthogonal. Different audience, different deployment shape (Tier 1 vs Tier 2/3).
 - **OSS discovery** — partial conflict. App-store users typically don't care that Vrooli is open source; OSS-discovery audience typically prefers self-hosting over installing from a store. The two channels reach different audiences and the messaging shouldn't blur.
 
-## Phase posture
+## Lifecycle interpretation
 
-- **Pre-Tier-1 (current state):** `candidate`. No work happens on this channel until Tier 1 ships. Documentation-level placeholder only.
-- **Tier-1 launch (activation):** moves to `active`. Initial cadence: one bundle, one store, learn the platform mechanics before expanding.
-- **Multi-store expansion:** add platforms one at a time after the previous one has measurable signal. Don't launch on three stores simultaneously.
-- **Sunset:** unlikely while Tier 1 exists. If Tier 1 itself sunsets, this channel sunsets with it.
+Offer Desk records the lifecycle transition when the activation condition is
+met. Initial activation should cover one bundle and one store; expansion is
+one platform at a time after measurable signal. If Tier 1 sunsets, this
+channel sunsets with it.
 
 ## Notes
 

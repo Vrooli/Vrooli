@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/vrooli/api-core/scopecatalog"
 	"github.com/vrooli/api-core/targetmodel"
 	"github.com/vrooli/cli-core/cliutil"
 )
@@ -105,8 +106,23 @@ func (r *Resolver) ResolveScenario(ctx context.Context, address, portKey, comman
 		}
 		return ScenarioResolution{}, r.remoteError(ErrNodeOffline, node, localName, command, errors.New(reason))
 	}
-	if !targetmodel.ScopeAllows(target.Scopes, command) {
-		return ScenarioResolution{}, r.remoteError(ErrNodeOutOfScope, node, localName, command, errors.New("node lacks the addressed command scope"))
+	if r.commandScope == nil {
+		return ScenarioResolution{}, r.remoteError(ErrRemoteTransportUnavailable, node, localName, command, errors.New("catalog command-scope resolver is not configured"))
+	}
+	required, ok := r.commandScope(command)
+	if !ok || strings.TrimSpace(required) == "" {
+		return ScenarioResolution{}, r.remoteError(ErrNodeOutOfScope, node, localName, command, errors.New("command is not present in the derived scope catalog"))
+	}
+	if !scopecatalog.Resolve(target.Scopes, required) {
+		return ScenarioResolution{}, r.remoteError(ErrNodeOutOfScope, node, localName, command, fmt.Errorf("node lacks required scope %q", required))
+	}
+	_, effect, concrete := strings.Cut(required, ":")
+	if !concrete || strings.TrimSpace(effect) == "" {
+		return ScenarioResolution{}, r.remoteError(ErrNodeOutOfScope, node, localName, command, fmt.Errorf("catalog returned malformed required scope %q", required))
+	}
+	transportScope := "vrooli-bridge:" + effect
+	if !scopecatalog.Resolve(target.Scopes, transportScope) {
+		return ScenarioResolution{}, r.remoteError(ErrNodeOutOfScope, node, localName, command, fmt.Errorf("node lacks required transport scope %q", transportScope))
 	}
 	if r.relay == nil {
 		return ScenarioResolution{}, r.remoteError(ErrRemoteTransportUnavailable, node, localName, command, errors.New("relay transport is not configured"))

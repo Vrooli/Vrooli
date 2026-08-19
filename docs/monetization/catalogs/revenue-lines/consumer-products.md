@@ -1,6 +1,9 @@
 # Revenue Line: Consumer Products (own-produced SKUs)
 
-- **Status:** `candidate`
+> Offer Desk is authoritative for this revenue line's current status, owner,
+> and activation record. This document retains the hypothesis, constraints,
+> and compliance judgment rather than a live line snapshot.
+
 - **Revisit trigger:** *"Revisit when at least one lifestyle-bundle scenario is deployable with usable inventory data for its users AND we've identified ≥1 physical product whose demand is validated by external signal (e.g., TikTok / Amazon / organic search traffic)."*
 - **Revenue model:** one-time purchase (print-on-demand books, whiteboards, stickers, planners, calendars; potentially paid courses / premium content)
 - **Productization target:** feeds the Lifestyle bundle primarily; narrow role in the Business bundle

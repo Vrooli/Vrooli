@@ -308,16 +308,18 @@ func ParseJWKS(raw []byte) (*KeySet, error) {
 	return set, nil
 }
 
-type Fetcher func(*http.Request) ([]byte, error)
-type Cache struct {
-	mu              sync.RWMutex
-	keys            *KeySet
-	issuer          string
-	leeway          time.Duration
-	fetch           Fetcher
-	refreshInterval time.Duration
-	refreshedAt     time.Time
-}
+type (
+	Fetcher func(*http.Request) ([]byte, error)
+	Cache   struct {
+		mu              sync.RWMutex
+		keys            *KeySet
+		issuer          string
+		leeway          time.Duration
+		fetch           Fetcher
+		refreshInterval time.Duration
+		refreshedAt     time.Time
+	}
+)
 
 func NewCache(issuer string, leeway, refreshInterval time.Duration, fetch Fetcher) *Cache {
 	if refreshInterval <= 0 {

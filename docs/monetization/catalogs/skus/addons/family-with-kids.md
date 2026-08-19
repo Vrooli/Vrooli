@@ -1,8 +1,10 @@
 # Add-on: Family With Kids
 
+> Offer Desk is authoritative for this offer's lifecycle, parent
+> relationship, and revisit-trigger record. This document retains the
+> hypothesis, safety judgment, and activation questions.
+
 **SKU ID:** `family-with-kids`
-**Status:** `candidate`
-**Parent bundles:** `lifestyle`
 **Revisit trigger:** *"Revisit when the lifestyle bundle is `active` AND ≥3 distinct prospects explicitly request child/family-oriented tooling."*
 
 ## Hypothesis
@@ -28,13 +30,13 @@ This add-on is a particularly strong fit for **Tier 3 (hosted) and Tier 4 (hardw
 
 When hosted or hardware tiers activate, this add-on's appeal increases disproportionately.
 
-## Why this is a candidate
+## Promotion constraints
 
-1. The lifestyle bundle is not yet active.
+1. The lifestyle bundle must be active before this add-on can be promoted.
 2. The "kids-facing AI" category has significant trust, safety, and regulatory requirements (COPPA in the US; strong parent expectations about content filtering and data retention). The Vrooli runtime does not yet have the guardrails infrastructure this demands.
 3. Many of the headline features (rewards, games, tutors) are specific applications that don't reuse as much existing capability as they might appear to — they are real new work.
 
-## Things to track while candidate
+## Signals to monitor before promotion
 
 - Lifestyle bundle activation
 - Maturity of content-filtering and age-appropriate-response capability in the Vrooli agent stack

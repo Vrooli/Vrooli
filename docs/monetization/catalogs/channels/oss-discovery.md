@@ -1,6 +1,9 @@
 # Channel: OSS Discovery
 
-- **Status:** `active` (uninstrumented)
+> Offer Desk is authoritative for this channel's current status, owner, and
+> feed relationships. This document keeps the discovery hypothesis and
+> operating judgment rather than a live channel snapshot.
+
 - **Audience:** humans (developers, technical evaluators, OSS contributors)
 - **Owner:** ambiguous — no dedicated owner today. README/repo polish lives partially with marketing-crew (positioning), partially with director-swarm (project-identity canon), partially with scenario teams (per-scenario READMEs). The lack of a single owner is a known gap.
 - **Feeds:** [`subscription`](../revenue-lines/subscription.md) — primarily through the "could self-host but prefer not to" conversion path described in [STRATEGY.md §1](../STRATEGY.md). Strong OSS discovery is what produces that audience in the first place.
@@ -12,9 +15,11 @@ GitHub and adjacent OSS-discovery surfaces (trending, awesome-lists, README-as-m
 
 The audience this channel reaches — developers who evaluate via reading code and docs — is also the audience most likely to convert to subscriptions later (per principle 1: most paying customers are people who *could* self-host but prefer not to). The funnel from "starred the repo" to "paid subscriber" is real but currently invisible.
 
-## Why this is `active` (uninstrumented)
+## Activation criteria
 
-The channel produces signal today: GitHub stars accumulate, contributor PRs arrive, READMEs get traffic. None of it is measured against subscription conversion or any other downstream metric. "Active but uninstrumented" is the honest status — capturing the reality without overstating the channel's instrumented presence.
+The channel's hypothesis is testable through repository discovery, contributor
+inbound, README traffic, and downstream conversion. Those observations should
+be measured before claiming instrumented performance.
 
 ## Operational discipline
 
@@ -56,11 +61,12 @@ The instrumentation gap is real. Filling it is a future-work item; documenting t
 - **App stores** — partial conflict. App-store audiences typically don't care about open source; messaging in app-store listings shouldn't lean on OSS-discovery framings that resonate with developers but confuse general consumers.
 - **In-product expansion** — orthogonal. Different funnel.
 
-## Phase posture
+## Lifecycle interpretation
 
-- **Current:** `active` (uninstrumented). Discipline applies; measurement does not yet exist.
-- **Instrumented:** when UTM tagging in READMEs + referrer analytics on landing pages exists, status updates to plain `active` with full instrumentation. No date set; this depends on landing-page-business-suite maturity and whoever takes ownership of the channel.
-- **Sunset:** unlikely while Vrooli remains open source.
+Offer Desk records lifecycle and instrumentation posture. UTM tagging in
+READMEs plus referrer analytics on landing pages is the minimum evidence for
+an instrumented claim; ownership and measurement gaps remain explicit until
+that evidence exists.
 
 ## Notes
 

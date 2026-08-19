@@ -25,7 +25,7 @@ Staleness windows — below these, do not propose deprecation:
 Before filing any `skill-deprecation`, `agent-deprecation`, or `team-deprecation` decision, the proposer must check:
 
 1. **Director-swarm initiatives.** Is this entity referenced by any active initiative? (`swarm-manager initiatives list --json` and grep.)
-2. **Monetization catalog.** Is this entity load-bearing for any candidate or active SKU? (Search `path:docs/monetization/catalogs/scenario-sku-map.json` and `catalog/`.)
+2. **Monetization catalog.** Is this entity load-bearing for any candidate or active SKU? (Query `offer-desk offers catalog-list` for nodes and `offer-desk offers catalog-edges` for the scenario→SKU `belongs_to` mapping. This check read `scenario-sku-map.json` until that file was retired into Offer Desk on 2026-08-16; a gate that searches a deleted file passes for the wrong reason.)
 3. **Cross-team relations.** Does any other team's member file reference it? (`grep` across `path:store/teams/*/members/*/`.)
 4. **Capability coverage.** Is this entity the *only* covering of a capability the system needs? If yes, the deprecation must include a successor or be rejected.
 

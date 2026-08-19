@@ -167,7 +167,6 @@ func LoadOwnerInventory(opts InventoryOptions) (OwnerInventory, error) {
 	type candidate struct {
 		kind OwnerKind
 		path string
-		id   string
 	}
 	candidates := make([]candidate, 0)
 	addTree := func(kind OwnerKind, relativeRoot, manifestName string) error {

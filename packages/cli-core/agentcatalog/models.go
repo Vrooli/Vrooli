@@ -1,8 +1,6 @@
-package agentpolicy
+package agentcatalog
 
-// Model discovery is deliberately kept beside the coding-policy transport
-// contract. Resources own the sources and parsing rules; callers only consume
-// the normalized live catalog and its provenance.
+// Package agentcatalog contains the read-only model catalog contracts and discovery engine shared by control-plane consumers.
 
 import (
 	"context"
@@ -17,8 +15,6 @@ import (
 	"sort"
 	"strings"
 	"time"
-
-	"github.com/vrooli/cli-core/cliapp"
 )
 
 const ModelDiscoverySchemaVersion = "v1"
@@ -32,11 +28,6 @@ type LiveModelCatalog struct {
 	Source        string   `json:"source"`
 	FetchedAt     string   `json:"fetched_at,omitempty"`
 	Aliases       bool     `json:"aliases,omitempty"`
-}
-
-type ModelDiscoveryConfig struct {
-	Runner      string
-	CatalogPath string
 }
 
 // ModelResolution is the resource-owned answer for one runner model. The
@@ -54,113 +45,6 @@ type ModelResolution struct {
 }
 
 type ModelDiscoveryFunc func(context.Context) (LiveModelCatalog, error)
-
-func ModelDiscoveryCommands(cfg ModelDiscoveryConfig) cliapp.SubcommandGroup {
-	return cliapp.SubcommandGroup{
-		Name:        "models",
-		Description: "Discover models offered by this runner",
-		Subcommands: []cliapp.Command{
-			{
-				Name:        "list",
-				Description: "List the runner's live model catalog",
-				Run: func(args []string) error {
-					fs := policyFlagSet("models list", os.Stderr)
-					jsonOut := fs.Bool("json", false, "Emit JSON")
-					if err := fs.Parse(args); err != nil {
-						return err
-					}
-					catalog, err := DiscoverModels(context.Background(), cfg.Runner)
-					if err != nil {
-						return err
-					}
-					if *jsonOut {
-						return writeJSON(os.Stdout, catalog)
-					}
-					for _, model := range catalog.Models {
-						fmt.Fprintln(os.Stdout, model)
-					}
-					return nil
-				},
-			},
-			{
-				Name:        "resolve",
-				Description: "Resolve one runner model through the resource-owned policy",
-				Run: func(args []string) error {
-					return resolveModel(cfg, args)
-				},
-			},
-		},
-	}
-}
-
-func resolveModel(cfg ModelDiscoveryConfig, args []string) error {
-	fs := policyFlagSet("models resolve", os.Stderr)
-	model := fs.String("model", "", "Runner model identifier")
-	jsonOut := fs.Bool("json", false, "Emit JSON")
-	if err := fs.Parse(args); err != nil {
-		return err
-	}
-	modelValue := strings.TrimSpace(*model)
-	if modelValue == "" {
-		return errors.New("--model is required")
-	}
-	if strings.TrimSpace(cfg.CatalogPath) == "" {
-		return errors.New("model resolution requires a catalog path")
-	}
-	resolution, err := ResolveCatalogModel(cfg.Runner, cfg.CatalogPath, modelValue)
-	if err != nil {
-		return err
-	}
-	if *jsonOut {
-		return writeJSON(os.Stdout, resolution)
-	}
-	fmt.Fprintf(os.Stdout, "%s -> %s\n", resolution.Model, resolution.CanonicalModel)
-	return nil
-}
-
-// ResolveCatalogModel resolves one model without invoking a CLI. Resources
-// use it to implement their command surface; control-plane tests can exercise
-// the exact same contract deterministically.
-func ResolveCatalogModel(runner, catalogPath, modelValue string) (ModelResolution, error) {
-	runner = strings.TrimSpace(runner)
-	modelValue = strings.TrimSpace(modelValue)
-	if runner == "" {
-		return ModelResolution{}, errors.New("runner is required")
-	}
-	if modelValue == "" {
-		return ModelResolution{}, errors.New("model is required")
-	}
-	if strings.TrimSpace(catalogPath) == "" {
-		return ModelResolution{}, errors.New("model resolution requires a catalog path")
-	}
-	catalog, data, err := loadCodingRoleCatalog(CodingPolicyConfig{Runner: runner, CatalogPath: catalogPath})
-	if err != nil {
-		return ModelResolution{}, err
-	}
-	alias, ok := catalog.ModelAliases[modelValue]
-	if !ok {
-		for _, role := range catalog.Roles {
-			if role.Model == modelValue && strings.TrimSpace(role.CanonicalModel) != "" {
-				alias = ModelAlias{CanonicalModel: role.CanonicalModel}
-				ok = true
-				break
-			}
-		}
-	}
-	if !ok || strings.TrimSpace(alias.CanonicalModel) == "" {
-		return ModelResolution{}, fmt.Errorf("model %q has no resource-owned canonical mapping", modelValue)
-	}
-	return ModelResolution{
-		SchemaVersion:  ModelDiscoverySchemaVersion,
-		Runner:         runner,
-		Model:          modelValue,
-		CanonicalModel: alias.CanonicalModel,
-		Provider:       alias.Provider,
-		Source:         catalog.Provenance.Source,
-		PolicyPath:     catalogPath,
-		PolicyDigest:   digest(data),
-	}, nil
-}
 
 func DiscoverModels(ctx context.Context, runner string) (LiveModelCatalog, error) {
 	runner = strings.TrimSpace(runner)
@@ -360,4 +244,11 @@ func (c LiveModelCatalog) Contains(model string) bool {
 	return false
 }
 
-func (c LiveModelCatalog) Write(w io.Writer) error { return writeJSON(w, c) }
+func (c LiveModelCatalog) Write(w io.Writer) error {
+	data, err := json.MarshalIndent(c, "", "  ")
+	if err != nil {
+		return err
+	}
+	_, err = fmt.Fprintln(w, string(data))
+	return err
+}

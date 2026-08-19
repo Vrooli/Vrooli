@@ -89,11 +89,6 @@
           "path": "CATALOG.md",
           "docType": "sku-catalog",
           "required": true
-        },
-        {
-          "path": "scenario-sku-map.json",
-          "docType": "scenario-sku-map",
-          "required": true
         }
       ],
       "packages": [
@@ -237,7 +232,7 @@
           "required": true
         }
       ]
-    }
-  ],
+        }
+      ],
   "extensionRule": "Monetization durable canon must live under operating/, taxonomies/, catalogs/, strategy/, evidence/, governance/, or a declared extensions/<extension-id>/ package. Do not add top-level canon files without updating this manifest."
 }

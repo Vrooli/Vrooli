@@ -1,7 +1,10 @@
 # Lifestyle Bundle
 
+> Offer Desk is authoritative for this offer's lifecycle, variants, members,
+> and trigger records. This document retains bundle positioning, dependency
+> rationale, and expansion judgment rather than a live catalog snapshot.
+
 **SKU ID:** `lifestyle`
-**Status:** `candidate`
 **Revisit trigger:** *"Revisit when the business bundle has ≥50 paying subscribers AND at least two lifestyle-domain scenarios are deployable standalone."*
 **Target audience:** Individuals and households running personal life operations — health, home, family, personal finance.
 **Positioning:** A bundle that handles the non-work half of life — tracking health habits, managing household tasks, coordinating family, planning finances — with the same integrated-ecosystem advantage the business bundle offers.
@@ -17,7 +20,7 @@ Candidate domains the lifestyle bundle is expected to cover, roughly in order of
 - **Health and habits** — tracking, coaching, routines, sleep, fitness
 - **Household and chores** — maintenance schedules, cleaning, inspections, repairs
 - **Family coordination** — shared calendars, task delegation, communication
-- **Personal finance** — budgeting, subscription tracking, expense categorization (overlaps with business bundle — see [scenario-sku-map.json](../../scenario-sku-map.json))
+- **Personal finance** — budgeting, subscription tracking, expense categorization (overlaps with the business bundle through Offer Desk's many-to-many `belongs_to` graph)
 - **Home management** — utilities, service provider tracking, warranty/purchase records
 - **Guidance and learning** — tutorials, how-tos, personalized recommendations
 
@@ -41,21 +44,23 @@ Some scenarios will belong to both bundles. Expected overlap:
 - **Calendar/scheduling** — both need time management
 - **Note-taking / second brain** — both benefit from a personal knowledge base
 
-Overlap is managed through the many-to-many mapping in [scenario-sku-map.json](../../scenario-sku-map.json). No scenario is forced to pick one bundle.
+Overlap is managed through Offer Desk's many-to-many `belongs_to` graph. No
+scenario is forced to pick one bundle.
 
-## Why this bundle is held in `candidate`
+## Promotion constraints
 
 Two reasons:
 
-1. **Capability readiness.** Most lifestyle-domain scenarios don't exist yet. Activating the bundle now would mean promising what we can't deliver.
+1. **Capability readiness.** Most lifestyle-domain scenarios don't exist yet. Promoting the bundle now would mean promising what we can't deliver.
 2. **Focus discipline.** The business bundle has not shipped. Splitting attention across two bundles before the first one proves itself is the classic early-stage mistake. The trigger above ensures business bundle traction before lifestyle work begins.
 
 ## Candidate add-ons parented to this bundle
 
-These are held in `candidate` state and will not activate until this bundle itself is active.
+These offers cannot activate until this bundle itself is active; Offer Desk
+holds the current lifecycle records.
 
-- [elder-care](../addons/elder-care.md) — `candidate`
-- [family-with-kids](../addons/family-with-kids.md) — `candidate`
+- [elder-care](../addons/elder-care.md)
+- [family-with-kids](../addons/family-with-kids.md)
 
 ## Consumer products tied to this bundle
 

@@ -1,8 +1,10 @@
 # Add-on: Elder Care
 
+> Offer Desk is authoritative for this offer's lifecycle, parent
+> relationship, and revisit-trigger record. This document retains the
+> hypothesis, regulatory judgment, and activation questions.
+
 **SKU ID:** `elder-care`
-**Status:** `candidate`
-**Parent bundles:** `lifestyle`
 **Revisit trigger:** *"Revisit when the lifestyle bundle is `active` AND ≥3 distinct prospects explicitly request elder-care tooling."*
 
 ## Hypothesis
@@ -17,9 +19,9 @@ Candidate capabilities:
 - **Medical appointment coordination** — scheduling, transport, follow-up
 - **Health trend tracking** — weight, blood pressure, sleep, with alerts on out-of-range patterns
 
-## Why this is a candidate
+## Promotion constraints
 
-1. The lifestyle bundle itself is a candidate. Add-ons cannot precede their parent.
+1. The lifestyle bundle must be active before this add-on can be promoted.
 2. Elder-care has meaningful regulatory surface (HIPAA in the US if any clinical integration, state-level licensing for adjacent services, consent-and-capacity considerations).
 3. The emotional/trust bar is extremely high — software that drops a medication reminder is worse than no software. This add-on should not activate until the underlying Vrooli runtime has proven reliability with lower-stakes scenarios.
 
@@ -27,7 +29,7 @@ Candidate capabilities:
 
 Elder care is a rapidly growing market segment (aging population in developed countries) and a category where local-first, privacy-preserving software has a real structural edge over cloud SaaS. Keeping this candidate documented means when capability and trust mature, we have a dormant target ready rather than scrambling to invent one.
 
-## Things to track while candidate
+## Signals to monitor before promotion
 
 - Lifestyle bundle activation progress
 - Prospects or existing subscribers mentioning elder-care needs

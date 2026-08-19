@@ -37,6 +37,20 @@ type Scope struct {
 	Method      string   `json:"method,omitempty"`
 }
 
+// Verb returns the argv vocabulary used by remote command admission. Project
+// commands run through the vrooli CLI directly; scenario commands are prefixed
+// by their owning scenario CLI name.
+func (s Scope) Verb() string {
+	command := strings.ReplaceAll(strings.TrimSpace(s.Command), "/", " ")
+	if command == "" {
+		return ""
+	}
+	if s.Scenario == ProjectManifestIdentity {
+		return command
+	}
+	return strings.TrimSpace(s.Scenario + " " + command)
+}
+
 // OmittedResolution records how an intentionally unbound RPC gets a
 // most-restrictive scenario scope.
 type OmittedResolution struct {
@@ -91,7 +105,9 @@ type manifest struct {
 
 type manifestGroup struct {
 	Name     string            `json:"name"`
+	Flat     bool              `json:"flat,omitempty"`
 	Commands []manifestCommand `json:"commands"`
+	Groups   []manifestGroup   `json:"groups,omitempty"`
 }
 
 type manifestCommand struct {
@@ -229,32 +245,33 @@ func (c Catalog) HasScope(value string) bool {
 	return false
 }
 
+// LookupVerb resolves one run-eligible argv verb to its derived catalog scope.
+// Ambiguous verbs fail closed unless every matching entry requires the same
+// concrete scope value.
+func (c Catalog) LookupVerb(verb string) (Scope, bool) {
+	verb = strings.TrimSpace(verb)
+	if verb == "" {
+		return Scope{}, false
+	}
+	var found Scope
+	matched := false
+	for _, scope := range c.Scopes {
+		if !scope.RunEligible || scope.Verb() != verb {
+			continue
+		}
+		if matched && found.Value != scope.Value {
+			return Scope{}, false
+		}
+		found = scope
+		matched = true
+	}
+	return found, matched
+}
+
 func deriveManifest(catalog *Catalog, m manifest) {
 	mostRestrictive := EffectRead
 	for _, group := range m.Groups {
-		for _, command := range group.Commands {
-			if command.Governance.Effect == "" {
-				continue
-			}
-			catalog.GovernedCommandCount++
-			effect := Effect(command.Governance.Effect)
-			if effectRank(effect) > effectRank(mostRestrictive) {
-				mostRestrictive = effect
-			}
-			value := m.Name + ":" + string(effect)
-			derived := Scope{
-				Scenario: m.Name, Value: value, Effect: effect,
-				RunEligible: command.Governance.RunEligible,
-				Permissions: append([]string(nil), command.Governance.Permissions...),
-				Command:     group.Name + "/" + command.Name,
-			}
-			if command.Binding.Kind == "connect-rpc" {
-				derived.Service = command.Binding.Service
-				derived.Method = command.Binding.Method
-				catalog.RPCScopeCount++
-			}
-			catalog.Scopes = append(catalog.Scopes, derived)
-		}
+		deriveGroup(catalog, m.Name, group, nil, &mostRestrictive)
 	}
 	for _, omitted := range m.Omitted {
 		catalog.OmittedCount++
@@ -263,6 +280,39 @@ func deriveManifest(catalog *Catalog, m manifest) {
 			Scenario: m.Name, Service: omitted.Service, Method: omitted.Method,
 			Scope: m.Name + ":" + string(mostRestrictive), Reason: omitted.Reason,
 		})
+	}
+}
+
+func deriveGroup(catalog *Catalog, scenario string, group manifestGroup, parentPath []string, mostRestrictive *Effect) {
+	path := parentPath
+	if !group.Flat {
+		path = append(append([]string(nil), parentPath...), group.Name)
+	}
+	for _, command := range group.Commands {
+		if command.Governance.Effect == "" {
+			continue
+		}
+		catalog.GovernedCommandCount++
+		effect := Effect(command.Governance.Effect)
+		if effectRank(effect) > effectRank(*mostRestrictive) {
+			*mostRestrictive = effect
+		}
+		commandPath := append(append([]string(nil), path...), command.Name)
+		derived := Scope{
+			Scenario: scenario, Value: scenario + ":" + string(effect), Effect: effect,
+			RunEligible: command.Governance.RunEligible,
+			Permissions: append([]string(nil), command.Governance.Permissions...),
+			Command:     strings.Join(commandPath, "/"),
+		}
+		if command.Binding.Kind == "connect-rpc" {
+			derived.Service = command.Binding.Service
+			derived.Method = command.Binding.Method
+			catalog.RPCScopeCount++
+		}
+		catalog.Scopes = append(catalog.Scopes, derived)
+	}
+	for _, child := range group.Groups {
+		deriveGroup(catalog, scenario, child, path, mostRestrictive)
 	}
 }
 

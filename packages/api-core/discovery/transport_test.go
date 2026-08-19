@@ -3,6 +3,7 @@ package discovery
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/vrooli/api-core/targetmodel"
@@ -11,6 +12,43 @@ import (
 type fakeTargetResolver struct {
 	target targetmodel.Target
 	err    error
+}
+
+func TestResolveScenarioUsesCatalogNamespaceGrammar(t *testing.T) {
+	tests := []struct {
+		name    string
+		command string
+		scopes  []string
+		wantErr string
+	}{
+		{name: "exact", command: "scenario status", scopes: []string{"vrooli-bridge:read", "vrooli:read"}},
+		{name: "namespace wildcard", command: "scenario status", scopes: []string{"vrooli-bridge:read", "vrooli:*"}},
+		{name: "effect wildcard", command: "scenario status", scopes: []string{"vrooli-bridge:read", "*:read"}},
+		{name: "universal", command: "scenario status", scopes: []string{"*"}},
+		{name: "unrelated namespace", command: "scenario status", scopes: []string{"vrooli-bridge:read", "web-console:read"}, wantErr: "vrooli:read"},
+		{name: "higher effect", command: "scenario test", scopes: []string{"vrooli-bridge:read", "*:read"}, wantErr: "vrooli:write"},
+		{name: "malformed whitespace", command: "scenario status", scopes: []string{"vrooli-bridge:read", " vrooli:read"}, wantErr: "vrooli:read"},
+		{name: "transport scope", command: "scenario status", scopes: []string{"vrooli:read"}, wantErr: "vrooli-bridge:read"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			target := bridgeTarget()
+			target.Scopes = test.scopes
+			resolver := NewResolver(ResolverConfig{
+				TargetResolver: fakeTargetResolver{target: target}, Relay: &fakeRelay{}, CommandScope: projectCommandScope,
+			})
+			_, err := resolver.ResolveScenario(context.Background(), "minimouse/web-search", "API_PORT", test.command, nil)
+			if test.wantErr == "" {
+				if err != nil {
+					t.Fatalf("ResolveScenario: %v", err)
+				}
+				return
+			}
+			if err == nil || !strings.Contains(err.Error(), test.wantErr) {
+				t.Fatalf("error = %v, want missing scope %q", err, test.wantErr)
+			}
+		})
+	}
 }
 
 func (f fakeTargetResolver) ResolveTarget(context.Context, string) (targetmodel.Target, error) {
@@ -31,9 +69,19 @@ func bridgeTarget() targetmodel.Target {
 		ID: "node-1", NodeID: "node-1", Label: "minimouse", Platform: "desktop", OS: "darwin",
 		Architecture: "amd64", DeviceKind: "agent", Available: true,
 		Transport:   targetmodel.Transport{Kind: targetmodel.TransportBridge, ID: "bridge", Available: true},
-		Scopes:      []string{"scenario status*"},
+		Scopes:      []string{"vrooli-bridge:read", "vrooli:read"},
 		BridgeTrust: &targetmodel.BridgeTrust{Registered: true, Online: true, DispatchAuthorized: true},
 	}
+}
+
+func projectCommandScope(command string) (string, bool) {
+	if command == "scenario status" {
+		return "vrooli:read", true
+	}
+	if command == "scenario test" {
+		return "vrooli:write", true
+	}
+	return "", false
 }
 
 func TestResolveScenarioKeepsBareAddressOnLocalTransport(t *testing.T) {
@@ -66,7 +114,7 @@ func TestResolveScenarioKeepsBareAddressOnLocalTransport(t *testing.T) {
 func TestResolveScenarioRoutesAddressedNodeThroughRelay(t *testing.T) {
 	relay := &fakeRelay{}
 	resolver := NewResolver(ResolverConfig{
-		TargetResolver: fakeTargetResolver{target: bridgeTarget()}, Relay: relay,
+		TargetResolver: fakeTargetResolver{target: bridgeTarget()}, Relay: relay, CommandScope: projectCommandScope,
 	})
 	got, err := resolver.ResolveScenario(context.Background(), "minimouse/web-search@shadow", "API_PORT", "scenario status", []string{"--json"})
 	if err != nil {
@@ -104,7 +152,7 @@ func TestResolveScenarioNamesRemoteReadinessReasons(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			target := bridgeTarget()
 			tc.edit(&target)
-			resolver := NewResolver(ResolverConfig{TargetResolver: fakeTargetResolver{target: target}, Relay: &fakeRelay{}})
+			resolver := NewResolver(ResolverConfig{TargetResolver: fakeTargetResolver{target: target}, Relay: &fakeRelay{}, CommandScope: projectCommandScope})
 			_, err := resolver.ResolveScenario(context.Background(), "minimouse/web-search", "API_PORT", "scenario status", nil)
 			var discoveryErr *Error
 			if !errors.As(err, &discoveryErr) || discoveryErr.Kind != tc.kind {

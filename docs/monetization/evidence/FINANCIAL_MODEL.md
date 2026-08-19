@@ -1,6 +1,6 @@
 # Financial Model
 
-The durable financial structure: how costs work, how revenue works, how runway is computed, what "default-alive" means for Vrooli. Specifics — actual numbers — are populated by `financial-tracker` in the `team:monetization` Source Ledger scope on its heartbeat. This file holds the *framework*, not the current snapshot.
+The durable financial structure: how costs work, how revenue works, how runway is computed, what "default-alive" means for Vrooli. Specifics — actual numbers — are read from Money Ledger and operator measures in the `team:monetization` Source Ledger scope. This file holds the *framework*, not the current snapshot.
 
 ## Honesty conventions
 
@@ -76,15 +76,19 @@ Until the first threshold is crossed, every decision the monetization team raise
 
 Burn is categorized so changes are attributable:
 
-| Category | Description | Current status |
+| Category | Description | Input authority |
 |---|---|---|
-| AI/API | Model tokens, gateway pass-through at wholesale, STT/TTS, embeddings | Operator populates via `operator-inputs.json::monthlyBurn.aiApi` until the API gateway (Tier 2 prereq) aggregates automatically |
-| Infrastructure | VPS, storage, CDN, DNS, backups | Operator populates via `operator-inputs.json::monthlyBurn.infrastructure` until `scenario-to-cloud` cost API lands |
-| Third-party SaaS | Stripe fees, email/transactional, analytics | Operator populates via `operator-inputs.json::monthlyBurn.saas` |
-| Tooling | Dev tools, CI runners, monitoring | Operator populates via `operator-inputs.json::monthlyBurn.tooling` |
-| Personnel | Operator's time, contractors if any | Operator tracks separately (see `timeAllocation` in `operator-inputs.json`) |
+| AI/API | Model tokens, gateway pass-through at wholesale, STT/TTS, embeddings | Operator enters `monthlyBurn.aiApi` in Money Ledger `/adapters` until the API gateway (Tier 2 prereq) aggregates automatically |
+| Infrastructure | VPS, storage, CDN, DNS, backups | Operator enters `monthlyBurn.infrastructure` in Money Ledger `/adapters` until `scenario-to-cloud` cost API lands |
+| Third-party SaaS | Stripe fees, email/transactional, analytics | Operator enters `monthlyBurn.saas` in Money Ledger `/adapters` |
+| Tooling | Dev tools, CI runners, monitoring | Operator enters `monthlyBurn.tooling` in Money Ledger `/adapters` |
+| Personnel | Operator's time, contractors if any | Operator tracks separately through the `timeAllocation` fields in Money Ledger `/adapters` |
 
-`financial-tracker` reads all of the above from `shared/operator-inputs.json` on each heartbeat. Gathering guidance per category lives in [HOW_TO_GATHER_INPUTS.md](../governance/HOW_TO_GATHER_INPUTS.md). Fields with `pending-operator` status surface in the tracker's HANDOFF as inputs needed; fields with `current` status flow through to the snapshot with flag `estimate` or `measured` as recorded.
+Money Ledger's operator-input adapter reads these fields from the `/adapters`
+submission and preserves `pending-operator` as absent. Gathering guidance per
+category lives in [HOW_TO_GATHER_INPUTS.md](../governance/HOW_TO_GATHER_INPUTS.md).
+The live position, goal verdicts, and observation availability are read from
+Money Ledger; this document remains the framework.
 
 ## Revenue shape
 
@@ -128,7 +132,9 @@ For a one-human operation, **time is the dominant cost**, not dollars. The finan
 
 `fixed` guardrail: **services capacity ≤ 30% of time budget** unless explicitly overridden by the operator. Exceeding this for `fixed: 3 consecutive weeks` triggers a services-trap review.
 
-`financial-tracker` surfaces time allocation in its heartbeat output alongside dollar costs. Do not omit time from the model.
+`financial-tracker` reads time allocation as an operator measure from Money Ledger
+alongside dollar costs. Do not omit time from the model or recreate it in this
+document.
 
 ## Key assumptions (subject to revision)
 
@@ -142,21 +148,21 @@ These are the load-bearing assumptions in the model. Market-validator and contra
 
 When any assumption changes materially, the financial-tracker raises a knowledge entry with topic `financial-model-assumption-update`.
 
-## What the financial-tracker emits per heartbeat
+## Financial posture read contract
 
-The `financial-tracker` member's deliverable is a ledger snapshot. Each snapshot entry contains:
+`financial-tracker` reads the current position, goals, operator measures, and
+availability qualifications from Money Ledger. The read includes:
 
-- Timestamp
-- Cash on hand (sourced from `operator-inputs.json::cash`; operator-maintained)
-- MRR per tier, per bundle (`pending-telemetry` where LPBS hasn't surfaced Stripe data)
-- Costs per category (AI/API, Infra, SaaS, Tooling)
+- Cash on hand and its observation basis and age
+- MRR per tier and bundle, or an explicit pending-telemetry qualification
+- Costs by category (AI/API, infrastructure, SaaS, and tooling)
 - Time allocation (product / services / ops)
-- Runway months
-- Default-alive gap (months until threshold crossed, negative if past it)
-- Deltas from previous snapshot
-- Flags (services-trap warning, runway-delta warning, assumption drift)
+- Runway and the default-alive gap when the required observations are complete
+- Deltas and guardrail flags derived from the current read
 
-See the `team:monetization` Source Ledger scope for the actual series once the team is running.
+Money Ledger remains the authority for current values and availability reasons.
+When a source is absent, stale, or unavailable, the financial tracker records
+that qualification and does not reconstruct a snapshot from this document.
 
 ## When to revisit this model
 

@@ -127,30 +127,6 @@ func (t Target) Supports(capability string) bool {
 	return false
 }
 
-// ScopeAllows applies the bridge command-scope grammar without importing a
-// bridge domain package. The grammar is intentionally small: exact grants,
-// trailing-prefix grants, and the universal grant. Keeping this primitive in
-// the shared target package lets discovery, selectors, and bridge adapters
-// classify one node observation the same way.
-func ScopeAllows(scopes []string, command string) bool {
-	command = strings.TrimSpace(command)
-	if command == "" {
-		return false
-	}
-	for _, scope := range scopes {
-		scope = strings.TrimSpace(scope)
-		switch {
-		case scope == "*":
-			return true
-		case strings.HasSuffix(scope, "*") && strings.HasPrefix(command, strings.TrimSuffix(scope, "*")):
-			return true
-		case scope == command:
-			return true
-		}
-	}
-	return false
-}
-
 // Inventory is a point-in-time target snapshot.
 type Inventory struct {
 	Targets  []Target  `json:"targets"`

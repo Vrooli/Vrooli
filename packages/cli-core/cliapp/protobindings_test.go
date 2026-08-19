@@ -88,6 +88,35 @@ func TestProtoBindingOptionsExposeRendererOverride(t *testing.T) {
 	}
 }
 
+func TestSelectProtoBindingsForManifestDropsIntentionallyUnexposedMethods(t *testing.T) {
+	available := map[string]func(RunContext) error{
+		"NotesService.ListNotes":  okHandler,
+		"NotesService.CreateNote": okHandler,
+		"NotesService.GetNote":    okHandler,
+		"NotesService.AdminOnly":  okHandler,
+	}
+	selected, err := selectProtoBindingsForManifest([]byte(validManifest), "notes", "NotesService", available)
+	if err != nil {
+		t.Fatalf("select bindings: %v", err)
+	}
+	if len(selected) != 3 {
+		t.Fatalf("selected %d bindings, want 3: %v", len(selected), selected)
+	}
+	if _, ok := selected["NotesService.AdminOnly"]; ok {
+		t.Fatal("unexposed service method leaked into manifest-selected bindings")
+	}
+	if _, err := LoadFromManifest([]byte(validManifest), "notes", selected); err != nil {
+		t.Fatalf("selected bindings must load cleanly: %v", err)
+	}
+}
+
+func TestSelectProtoBindingsForManifestRejectsWrongService(t *testing.T) {
+	_, err := selectProtoBindingsForManifest([]byte(validManifest), "notes", "OtherService", map[string]func(RunContext) error{})
+	if err == nil || !strings.Contains(err.Error(), `owns "OtherService"`) {
+		t.Fatalf("expected actionable service mismatch, got %v", err)
+	}
+}
+
 func TestResolveArgFieldAgainstRealAIGatewayDescriptor(t *testing.T) {
 	source, err := descriptorimage.New(descriptorimage.Config{DescriptorPath: filepath.Join("..", "..", "proto", "gen", "descriptor", "image.binpb")})
 	if err != nil {

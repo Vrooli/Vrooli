@@ -18,6 +18,11 @@ import (
 // CommandRunner executes a command and returns combined stdout/stderr.
 type CommandRunner func(ctx context.Context, name string, args ...string) ([]byte, error)
 
+// CommandScopeResolver maps one remote argv verb to the concrete catalog scope
+// derived from its owning CLI manifest. The bool is false for an unknown or
+// ambiguous verb.
+type CommandScopeResolver func(command string) (scope string, ok bool)
+
 // ResolverConfig configures a Resolver.
 type ResolverConfig struct {
 	// VrooliPath is the CLI binary to invoke. Defaults to "vrooli".
@@ -50,6 +55,7 @@ type ResolverConfig struct {
 	// both nil preserves the local resolver and its exact CLI behavior.
 	TargetResolver TargetResolver
 	Relay          RelayTransport
+	CommandScope   CommandScopeResolver
 }
 
 // Resolver resolves scenario ports by shelling out to the Vrooli CLI. Successful
@@ -65,6 +71,7 @@ type Resolver struct {
 	staticBaseURL  string // When set, bypasses CLI discovery
 	targetResolver TargetResolver
 	relay          RelayTransport
+	commandScope   CommandScopeResolver
 	cacheTTL       time.Duration
 	now            func() time.Time
 	cacheMu        sync.Mutex
@@ -177,6 +184,7 @@ func NewResolver(cfg ResolverConfig) *Resolver {
 		cache:          make(map[string]cachedPort),
 		targetResolver: cfg.TargetResolver,
 		relay:          cfg.Relay,
+		commandScope:   cfg.CommandScope,
 	}
 }
 

@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	agentpolicy "github.com/vrooli/agent-policy"
+	agentharness "github.com/vrooli/agentharness"
 )
 
 func main() {
@@ -42,18 +42,18 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 		return err
 	}
 	if *profile == "" {
-		*profile = string(agentpolicy.ProfileAdvisory)
+		*profile = string(agentharness.ProfileAdvisory)
 	}
 	dir := *storeDir
 	if dir == "" {
 		var err error
-		dir, err = agentpolicy.DefaultDataDir()
+		dir, err = agentharness.DefaultDataDir()
 		if err != nil {
 			return err
 		}
 	}
-	store := agentpolicy.NewBundleStore(dir)
-	runtime := agentpolicy.Runtime{Profile: agentpolicy.RolloutProfile(strings.ToLower(*profile)), Store: store}
+	store := agentharness.NewBundleStore(dir)
+	runtime := agentharness.Runtime{Profile: agentharness.RolloutProfile(strings.ToLower(*profile)), Store: store}
 
 	switch command {
 	case "hook", "canary":
@@ -71,7 +71,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 		if command == "hook" {
 			// Native adapters use these stable classes: zero means continue,
 			// ten means ask/confirm, and twenty means deny.
-			if code := agentpolicy.ExitCode(decision.Action); code != 0 {
+			if code := agentharness.ExitCode(decision.Action); code != 0 {
 				return exitError{code: code}
 			}
 		}
@@ -79,9 +79,9 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 	case "status", "diagnose":
 		bundle, err := store.Load()
 		if err != nil {
-			return writeJSON(stdout, map[string]any{"contract_version": agentpolicy.ContractVersion, "status": "unavailable", "reason": err.Error(), "profile": runtime.Profile})
+			return writeJSON(stdout, map[string]any{"contract_version": agentharness.ContractVersion, "status": "unavailable", "reason": err.Error(), "profile": runtime.Profile})
 		}
-		return writeJSON(stdout, map[string]any{"contract_version": agentpolicy.ContractVersion, "status": "ready", "profile": runtime.Profile, "generation": bundle.Generation, "published_at": bundle.PublishedAt, "providers": bundle.Snapshots})
+		return writeJSON(stdout, map[string]any{"contract_version": agentharness.ContractVersion, "status": "ready", "profile": runtime.Profile, "generation": bundle.Generation, "published_at": bundle.PublishedAt, "providers": bundle.Snapshots})
 	case "snapshot":
 		bundle, err := store.Load()
 		if err != nil {
@@ -96,7 +96,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 		if err != nil {
 			return fmt.Errorf("read provider snapshot: %w", err)
 		}
-		var snapshot agentpolicy.ProviderSnapshot
+		var snapshot agentharness.ProviderSnapshot
 		if err := json.Unmarshal(data, &snapshot); err != nil {
 			return fmt.Errorf("parse provider snapshot: %w", err)
 		}
@@ -113,15 +113,15 @@ type exitError struct{ code int }
 
 func (e exitError) Error() string { return "decision requires native hook handling" }
 
-func readEvent(reader io.Reader, runner string) (agentpolicy.ToolEvent, error) {
+func readEvent(reader io.Reader, runner string) (agentharness.ToolEvent, error) {
 	data, err := io.ReadAll(reader)
 	if err != nil {
-		return agentpolicy.ToolEvent{}, fmt.Errorf("read hook input: %w", err)
+		return agentharness.ToolEvent{}, fmt.Errorf("read hook input: %w", err)
 	}
 	if len(strings.TrimSpace(string(data))) == 0 {
-		return agentpolicy.ToolEvent{}, errors.New("hook input is empty")
+		return agentharness.ToolEvent{}, errors.New("hook input is empty")
 	}
-	var event agentpolicy.ToolEvent
+	var event agentharness.ToolEvent
 	if err := json.Unmarshal(data, &event); err == nil && (event.Tool != "" || len(event.Arguments) > 0) {
 		if event.Runner == "" {
 			event.Runner = runner
@@ -130,7 +130,7 @@ func readEvent(reader io.Reader, runner string) (agentpolicy.ToolEvent, error) {
 	}
 	var raw map[string]any
 	if err := json.Unmarshal(data, &raw); err != nil {
-		return agentpolicy.ToolEvent{}, fmt.Errorf("parse hook input: %w", err)
+		return agentharness.ToolEvent{}, fmt.Errorf("parse hook input: %w", err)
 	}
 	event.Runner = firstString(raw, "runner", "agent")
 	if event.Runner == "" {
@@ -153,12 +153,12 @@ func readEvent(reader io.Reader, runner string) (agentpolicy.ToolEvent, error) {
 	return eventWithNow(event)
 }
 
-func eventWithNow(event agentpolicy.ToolEvent) (agentpolicy.ToolEvent, error) {
+func eventWithNow(event agentharness.ToolEvent) (agentharness.ToolEvent, error) {
 	if event.OccurredAt.IsZero() {
 		event.OccurredAt = time.Now().UTC()
 	}
 	if err := event.Normalize(event.OccurredAt); err != nil {
-		return agentpolicy.ToolEvent{}, err
+		return agentharness.ToolEvent{}, err
 	}
 	return event, nil
 }

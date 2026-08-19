@@ -23,7 +23,8 @@ type ManifestGroup struct {
 	Name        string            `json:"name"`
 	Description string            `json:"description,omitempty"`
 	Flat        bool              `json:"flat,omitempty"`
-	Commands    []ManifestCommand `json:"commands"`
+	Commands    []ManifestCommand `json:"commands,omitempty"`
+	Groups      []ManifestGroup   `json:"groups,omitempty"`
 }
 
 type ManifestCommand struct {
@@ -164,38 +165,8 @@ func ParseManifest(raw []byte) (*Manifest, error) {
 	if len(m.Groups) == 0 {
 		return nil, fmt.Errorf("cli manifest %q: at least one group is required", m.Name)
 	}
-	for gi, g := range m.Groups {
-		if strings.TrimSpace(g.Name) == "" {
-			return nil, fmt.Errorf("cli manifest %q: group[%d] missing name", m.Name, gi)
-		}
-		if len(g.Commands) == 0 {
-			return nil, fmt.Errorf("cli manifest %q: group %q must declare at least one command", m.Name, g.Name)
-		}
-		for ci, c := range g.Commands {
-			if strings.TrimSpace(c.Name) == "" {
-				return nil, fmt.Errorf("cli manifest %q: group %q command[%d] missing name", m.Name, g.Name, ci)
-			}
-			switch c.Binding.Kind {
-			case "connect-rpc":
-				if strings.TrimSpace(c.Binding.Service) == "" || strings.TrimSpace(c.Binding.Method) == "" {
-					return nil, fmt.Errorf("cli manifest %q: command %s/%s connect-rpc binding requires service+method", m.Name, g.Name, c.Name)
-				}
-			case "local":
-				if strings.TrimSpace(c.Binding.Service) != "" || strings.TrimSpace(c.Binding.Method) != "" {
-					return nil, fmt.Errorf("cli manifest %q: command %s/%s local binding must not declare service or method", m.Name, g.Name, c.Name)
-				}
-			default:
-				return nil, fmt.Errorf("cli manifest %q: command %s/%s binding.kind %q is not supported", m.Name, g.Name, c.Name, c.Binding.Kind)
-			}
-			switch c.Governance.Effect {
-			case "read", "write", "destructive":
-			default:
-				return nil, fmt.Errorf("cli manifest %q: command %s/%s governance.effect %q not in {read,write,destructive}", m.Name, g.Name, c.Name, c.Governance.Effect)
-			}
-			if err := c.Architecture.CommandArchitecture().Validate(); err != nil {
-				return nil, fmt.Errorf("cli manifest %q: command %s/%s architecture: %w", m.Name, g.Name, c.Name, err)
-			}
-		}
+	if err := validateManifestGroups(m.Name, m.Groups, nil); err != nil {
+		return nil, err
 	}
 	for i, e := range m.Exceptions {
 		if strings.TrimSpace(e.Command) == "" {
@@ -212,11 +183,60 @@ func ParseManifest(raw []byte) (*Manifest, error) {
 	return &m, nil
 }
 
+func validateManifestGroups(manifestName string, groups []ManifestGroup, parentPath []string) error {
+	for gi, g := range groups {
+		if strings.TrimSpace(g.Name) == "" {
+			return fmt.Errorf("cli manifest %q: group[%d] missing name", manifestName, gi)
+		}
+		path := append(append([]string(nil), parentPath...), g.Name)
+		groupPath := strings.Join(path, "/")
+		if len(g.Commands) == 0 && len(g.Groups) == 0 {
+			return fmt.Errorf("cli manifest %q: group %q must declare at least one command or nested group", manifestName, groupPath)
+		}
+		for ci, c := range g.Commands {
+			if strings.TrimSpace(c.Name) == "" {
+				return fmt.Errorf("cli manifest %q: group %q command[%d] missing name", manifestName, groupPath, ci)
+			}
+			switch c.Binding.Kind {
+			case "connect-rpc":
+				if strings.TrimSpace(c.Binding.Service) == "" || strings.TrimSpace(c.Binding.Method) == "" {
+					return fmt.Errorf("cli manifest %q: command %s/%s connect-rpc binding requires service+method", manifestName, groupPath, c.Name)
+				}
+			case "local":
+				if strings.TrimSpace(c.Binding.Service) != "" || strings.TrimSpace(c.Binding.Method) != "" {
+					return fmt.Errorf("cli manifest %q: command %s/%s local binding must not declare service or method", manifestName, groupPath, c.Name)
+				}
+			default:
+				return fmt.Errorf("cli manifest %q: command %s/%s binding.kind %q is not supported", manifestName, groupPath, c.Name, c.Binding.Kind)
+			}
+			switch c.Governance.Effect {
+			case "read", "write", "destructive":
+			default:
+				return fmt.Errorf("cli manifest %q: command %s/%s governance.effect %q not in {read,write,destructive}", manifestName, groupPath, c.Name, c.Governance.Effect)
+			}
+			if err := c.Architecture.CommandArchitecture().Validate(); err != nil {
+				return fmt.Errorf("cli manifest %q: command %s/%s architecture: %w", manifestName, groupPath, c.Name, err)
+			}
+		}
+		if err := validateManifestGroups(manifestName, g.Groups, path); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // FindGroup returns the named group, or nil if absent.
 func (m *Manifest) FindGroup(name string) *ManifestGroup {
-	for i := range m.Groups {
-		if m.Groups[i].Name == name {
-			return &m.Groups[i]
+	return findManifestGroup(m.Groups, name)
+}
+
+func findManifestGroup(groups []ManifestGroup, name string) *ManifestGroup {
+	for i := range groups {
+		if groups[i].Name == name {
+			return &groups[i]
+		}
+		if found := findManifestGroup(groups[i].Groups, name); found != nil {
+			return found
 		}
 	}
 	return nil

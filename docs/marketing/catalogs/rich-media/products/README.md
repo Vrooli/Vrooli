@@ -33,12 +33,12 @@ Copy [`_template.json`](_template.json) and fill in. Field-by-field:
 
 ## Production discipline
 
-- **Tier alignment is the most error-prone constraint.** Renders that show a "Pro" tier user accessing a feature that's actually at "Enterprise" tier mislead buyers. Contrarian validates `tier_alignment_required: true` products against the scenario's current entry in [`docs/monetization/catalogs/scenario-sku-map.json`](../../../../monetization/catalogs/scenario-sku-map.json).
+- **Tier alignment is the most error-prone constraint.** Renders that show a "Pro" tier user accessing a feature that's actually at "Enterprise" tier mislead buyers. Contrarian validates `tier_alignment_required: true` products against the scenario's current entry in Offer Desk (`offer-desk offers catalog-edges`).
 - **UI-state freshness.** A product entry should be reviewed when the underlying scenario ships UI changes. Stale entries propagate stale renders.
 - **No fabricated features.** Renders must not invent UI elements (buttons, screens, capabilities) that don't exist in the actual scenario. Contrarian's `capability-inflation` check (mode 1) extends to visual depictions.
 
 ## Cross-references
 
 - [`../templates/image-prompt.template.json`](../templates/image-prompt.template.json), [`../templates/video-prompt.template.json`](../templates/video-prompt.template.json) — prompt templates that compose product entries.
-- [`../../../../monetization/strategy/TIERS.md`](../../../../monetization/strategy/TIERS.md), [`../../../../monetization/catalogs/CATALOG.md`](../../../../monetization/catalogs/CATALOG.md), `../../../../monetization/catalogs/scenario-sku-map.json` — tier alignment authority.
+- [`../../../../monetization/strategy/TIERS.md`](../../../../monetization/strategy/TIERS.md), [`../../../../monetization/catalogs/CATALOG.md`](../../../../monetization/catalogs/CATALOG.md), and `offer-desk offers catalog-list` / `catalog-edges` — tier alignment authority.
 - [`../../../strategy/ASSETS.md`](../../../strategy/ASSETS.md), [`../../../strategy/IMAGE_STYLE.md`](../../../strategy/IMAGE_STYLE.md) — brand canon.

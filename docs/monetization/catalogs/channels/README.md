@@ -2,6 +2,10 @@
 
 The **ways users discover Vrooli** — distinct from bundles (what we sell), tiers (how it's delivered), and revenue lines (how money flows). Each channel has its own audience, owner, telemetry, and discipline, and lives in its own file in this folder.
 
+> Offer Desk is authoritative for the current channel records, lifecycle,
+> ownership, and feed relationships. This document keeps the channel-axis
+> definitions and cross-cutting discipline; it does not maintain a live index.
+
 ## Disambiguation: this is not docs/marketing/strategy/CHANNELS.md
 
 [`docs/marketing/strategy/CHANNELS.md`](../../../marketing/strategy/CHANNELS.md) is **per-platform publishing rules** for the marketing-crew — what to post on X, blog, YouTube, TikTok, etc., and how. It is an operational doc owned by marketing.
@@ -33,16 +37,12 @@ App stores couple tightly to Tier 1 (they ARE the deployment surface). Skill reg
 
 ## Index
 
-| ID | Name | Status | Audience | File |
-|---|---|---|---|---|
-| `web-seo` | Web SEO + landing pages | `active` | humans | [web-seo.md](web-seo.md) |
-| `app-stores` | Apple / Google / Microsoft app stores | `candidate` | humans | [app-stores.md](app-stores.md) |
-| `skill-registries` | Claude Skills, ClawHub, skills.sh, etc. | `candidate` | agents | [skill-registries.md](skill-registries.md) |
-| `oss-discovery` | GitHub stars, trending, awesome-lists, README-as-marketing | `active` (uninstrumented) | humans (developers) | [oss-discovery.md](oss-discovery.md) |
-| `community-content` | Long-form blog, social, community presence (HN/Reddit/forums) | `candidate` | humans | [community-content.md](community-content.md) |
-| `in-product-expansion` | Agents inside the bundle suggesting other bundle apps | `active` | both (humans via UI, agents structurally) | [in-product-expansion.md](in-product-expansion.md) |
+The files in this folder are the durable strategy and policy lenses for the
+channel records. Offer Desk provides the current index and read-time state;
+these files preserve the audience, discipline, and activation semantics.
 
-New channels enter via `channel-activation` decisions when their activation trigger fires. Retired channels stay in the folder with `Status: retired` for historical context.
+New channels enter via `channel-activation` decisions when their activation
+trigger fires. Retired channels stay in the folder as historical judgment.
 
 ## Cross-cutting principles
 
@@ -88,7 +88,8 @@ Each active channel reports in the ledger:
 - Anti-pattern flags raised in the period (e.g., a post that drifted into paid-placement territory)
 - Cross-channel reinforcement (did a web-seo session start from a community-content referrer? track the chain)
 
-`financial-tracker` rolls per-channel conversion into the revenue-line ledgers as channel-attribution tags.
+Money Ledger rolls admitted per-channel observations into the financial
+position when those observations exist; missing telemetry remains absent.
 
 ## How channel files relate to revenue-line files
 

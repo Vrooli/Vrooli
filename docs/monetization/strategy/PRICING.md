@@ -2,21 +2,17 @@
 
 Pricing lives at the intersection of **delivery tier** × **catalog SKU**. This file is the matrix plus the rationale behind each price point. Most cells are `TBD` pre-launch — market-validator populates benchmarks; the operator sets prices.
 
-## Current status: pre-launch
+> Offer Desk is authoritative for current offer, variant, channel, and
+> declared-price relationships. This document retains pricing principles,
+> decision timing, and the rationale for unresolved cells; it does not
+> maintain a live pricing matrix.
 
-No SKU is selling yet. All numbers below are placeholder brackets, not decisions. They are here so the structure is ready when pricing is finalized.
+## Pricing matrix authority
 
-## Matrix
-
-| SKU \ Tier | Tier 1 (Bundle apps) | Tier 2 (Self-hosted) | Tier 3 (Hosted cloud) | Tier 4 (Hardware) |
-|---|---|---|---|---|
-| Business bundle | `TBD — target $29-$49/mo` | `TBD — target $49-$79/mo` | `TBD — target $79-$149/mo` | `north-star` |
-| Lifestyle bundle | `TBD` | `TBD` | `TBD` | `north-star` |
-| Property services (add-on) | `TBD` | `TBD` | `TBD` | — |
-| Elder care (add-on) | `TBD` | `TBD` | `TBD` | — |
-| Family with kids (add-on) | `TBD` | `TBD` | `TBD` | — |
-
-Brackets above are rough targets from comparable SaaS bundles, not commitments. Market-validator produces proper benchmarks before any price is set.
+The live matrix is the Offer Desk `sells_at` graph. A missing declared price is
+intentional and remains absent; `TBD`, `north-star`, and other narrative
+postures are not silently converted into monetary facts. Market-validator
+must produce proper benchmarks before the operator declares a price.
 
 ## Pricing principles
 

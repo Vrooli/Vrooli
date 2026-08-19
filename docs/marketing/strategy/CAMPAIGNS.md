@@ -24,7 +24,7 @@ When a `campaign-launch-proposal` is accepted, append an entry in the shape belo
 **Channels:** <x-twitter, blog, video, etc.>
 **Acquisition hypothesis:** <what this does for new-user acquisition — OR "awareness-only: true">
 **Retention hypothesis:** <what this does for activation/retention — OR "awareness-only: true">
-**Linked SKUs:** <sku-ids from docs/monetization/catalogs/scenario-sku-map.json, or "oss-platform">
+**Linked SKUs:** <sku-ids from `offer-desk offers catalog-list --json`, or "oss-platform">
 **Source decision:** <campaign-launch-proposal decision id>
 **Outstanding artifact slots:**
 - [ ] <channel>: <format> (e.g., `x-twitter: launch thread`)

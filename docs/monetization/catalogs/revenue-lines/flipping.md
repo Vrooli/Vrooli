@@ -1,6 +1,9 @@
 # Revenue Line: Flipping (marketplace resale)
 
-- **Status:** `candidate`
+> Offer Desk is authoritative for this revenue line's current status, owner,
+> and activation record. This document retains the hypothesis, constraints,
+> and capability-risk judgment rather than a live line snapshot.
+
 - **Revisit trigger:** *"Revisit when (a) the routines initiative ships at least one operator-guided routine end-to-end (cleaning, inspection, maintenance, or repair), AND (b) a marketplace-listing-and-negotiation scenario exists or is in flight, AND (c) operator-time + interest are available to run a pilot loop."*
 - **Productization target:** TBD — could productize into a `flipping` add-on bundle (sold to other operators who want to run the same loop), or into specific scenarios (marketplace-listing-assistant, refurbishment-routine-library, deal-finder) sold individually under existing bundles.
 - **Legal surface:** marketplace ToS (Facebook Marketplace, Craigslist, eBay, etc.) for automated bidding/messaging — varies sharply by platform, all of them strict on automation. Sales tax for resale at scale (varies by state). No TCPA/CAN-SPAM concerns at small scale; relevant if scaled to outbound buyer outreach.
@@ -33,7 +36,7 @@ On promotion to `active`, this line must have all four:
 
 - **Routines** — guided cleaning / inspection / repair / refurbishment workflows. Routines initiative in swarm-manager (multiple initiatives planned). Hard prerequisite.
 - **Marketplace listing assistant** — composes listing copy, generates photos / video, manages multi-platform cross-posting. Doesn't yet exist as a scenario; would need to be built or sourced from an existing scenario template.
-- **Marketplace negotiation assistant** — composes offer messages within a target price range, tracks responses, escalates to operator on edge cases. Bookmarked operational reference: a viral X post about *"how to generate effective offers on Facebook Marketplace"* — captured in monetization team knowledge as the seed reference for negotiation-assistant prompt patterns when this scenario gets built.
+- **Marketplace negotiation assistant** — composes offer messages within a target price range, tracks responses, escalates to operator on edge cases. Bookmarked operational reference: a viral X post about *"how to generate effective offers on Facebook Marketplace"* — captured in the `team:monetization` Source Ledger as the seed reference for negotiation-assistant prompt patterns when this scenario gets built.
 - **Inventory / workshop tracking** — small-scale ERP for what the operator has bought, what's in repair, what's listed, what's sold. Could be a thin scenario; not yet built.
 - **Deal finder / lead generation** — similar pattern to the property-services lead-generation revenue line, but applied to marketplace listings (find underpriced items in target categories within target geography). May eventually share substrate with `lead-generation` revenue line.
 - **Browser Automation Studio (BAS)** — for any future automated marketplace browsing / monitoring (when BAS matures and audit-safety is verified).

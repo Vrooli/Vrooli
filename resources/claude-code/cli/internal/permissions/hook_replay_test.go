@@ -38,13 +38,66 @@ func replayCases(home string) []denyReplayCase {
 		{pattern: "Bash(git worktree add*)", block: "git worktree add /tmp/policy-probe-tree HEAD", nearMiss: "git worktree list"},
 		{pattern: "Bash(mkfs*)", block: "mkfs --dry-run /dev/sda", nearMiss: "makefs --dry-run"},
 		{pattern: "Bash(reboot*)", block: "reboot --dry-run", nearMiss: "reb00t --dry-run"},
-		{pattern: "Bash(rm -rf $HOME*)", block: "rm -rf " + home + "/policy-probe", nearMiss: "rm -r " + home + "/policy-probe"},
-		{pattern: "Bash(rm -rf /*)", block: "rm -rf /tmp/policy-probe", nearMiss: "rm -r /tmp/policy-probe"},
-		{pattern: "Bash(rm -rf ~*)", block: "rm -rf " + home + "/policy-probe", nearMiss: "rm -rf /tmp/policy-probe"},
 		{pattern: "Bash(shutdown*)", block: "shutdown --dry-run", nearMiss: "shut-down --dry-run"},
-		{pattern: "Bash(sudo rm -rf*)", block: "sudo rm -rf /tmp/policy-probe", nearMiss: "sudo rm -r /tmp/policy-probe"},
 		{pattern: "Bash(systemctl poweroff*)", block: "systemctl poweroff --dry-run", nearMiss: "systemctl status"},
 		{pattern: "Bash(systemctl reboot*)", block: "systemctl reboot --dry-run", nearMiss: "systemctl restart --dry-run"},
+	}
+}
+
+func TestPathAwareDestructiveHook(t *testing.T) {
+	adapter := newTestAdapter(t)
+	if err := adapter.installHookScript(); err != nil {
+		t.Fatalf("install hook script: %v", err)
+	}
+	home := t.TempDir()
+	repo := filepath.Join(home, "repo")
+	safe := filepath.Join(t.TempDir(), "ephemeral-review")
+	patterns := []string{"Bash(rm -rf /*)", "Bash(find *)", "Bash(truncate *)"}
+
+	denyCases := []string{
+		"rm -rf /",
+		"rm -rf /etc",
+		"rm -rf " + home,
+		"rm -rf " + filepath.Join(home, "nested"),
+		"rm -rf " + repo,
+		"sudo rm -rf /",
+		"find / -delete",
+		"find " + repo + " -delete",
+		"truncate -s 0 /etc/hosts",
+		"rm -rf $UNSET_VAR",
+	}
+	for _, command := range denyCases {
+		if got := invokeHookWithEnv(t, adapter.HookScriptPath(), home, repo, "/tmp", command, patterns); got != 2 {
+			t.Errorf("deny case %q exited %d, want 2", command, got)
+		}
+	}
+
+	allowCases := []string{
+		"rm -rf " + safe,
+		"rm -r " + safe,
+		"sudo rm -rf " + safe,
+		"find " + safe + " -delete",
+		"truncate -s 0 " + filepath.Join(safe, "output.bin"),
+	}
+	for _, command := range allowCases {
+		if got := invokeHookWithEnv(t, adapter.HookScriptPath(), home, repo, "/tmp", command, patterns); got != 0 {
+			t.Errorf("allow case %q exited %d, want 0", command, got)
+		}
+	}
+}
+
+func TestPathAwareHookRejectsMalformedInput(t *testing.T) {
+	adapter := newTestAdapter(t)
+	if err := adapter.installHookScript(); err != nil {
+		t.Fatalf("install hook script: %v", err)
+	}
+	cmd := exec.Command(adapter.HookScriptPath(), "Bash(rm -rf /*)")
+	cmd.Stdin = bytes.NewBufferString("not-json")
+	cmd.Env = replaceEnv(os.Environ(), "HOME", t.TempDir())
+	err := cmd.Run()
+	var exitErr *exec.ExitError
+	if !errors.As(err, &exitErr) || exitErr.ExitCode() != 2 {
+		t.Fatalf("malformed input error = %v, want exit 2", err)
 	}
 }
 
@@ -86,6 +139,7 @@ func invokeHook(t *testing.T, scriptPath, home, command string, patterns []strin
 	cmd := exec.Command(scriptPath, patterns...)
 	cmd.Stdin = bytes.NewReader(payload)
 	cmd.Env = replaceEnv(os.Environ(), "HOME", home)
+	cmd.Env = replaceEnv(cmd.Env, "VROOLI_REPO_ROOT", filepath.Join(home, "repo"))
 	err = cmd.Run()
 	if err == nil {
 		return 0
@@ -95,6 +149,29 @@ func invokeHook(t *testing.T, scriptPath, home, command string, patterns []strin
 		return exitErr.ExitCode()
 	}
 	t.Fatalf("run hook for %q: %v", command, err)
+	return -1
+}
+
+func invokeHookWithEnv(t *testing.T, scriptPath, home, repo, ephemeralRoots, command string, patterns []string) int {
+	t.Helper()
+	payload, err := json.Marshal(map[string]any{"tool_input": map[string]string{"command": command}})
+	if err != nil {
+		t.Fatalf("marshal replay payload: %v", err)
+	}
+	cmd := exec.Command(scriptPath, patterns...)
+	cmd.Stdin = bytes.NewReader(payload)
+	cmd.Env = replaceEnv(os.Environ(), "HOME", home)
+	cmd.Env = replaceEnv(cmd.Env, "VROOLI_REPO_ROOT", repo)
+	cmd.Env = replaceEnv(cmd.Env, "VROOLI_EPHEMERAL_ROOTS", ephemeralRoots)
+	if err := cmd.Run(); err == nil {
+		return 0
+	} else {
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
+			return exitErr.ExitCode()
+		}
+		t.Fatalf("run hook for %q: %v", command, err)
+	}
 	return -1
 }
 

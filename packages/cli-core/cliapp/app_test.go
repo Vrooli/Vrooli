@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"errors"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -215,6 +217,98 @@ func TestAppUnknownCommand(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "Unknown command") {
 		t.Fatalf("expected unknown command error, got %v", err)
+	}
+}
+
+func TestAppUnknownCommandChecksFreshnessBeforeReportingAbsence(t *testing.T) {
+	repoRoot := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(repoRoot, "packages", "cli-core"), 0o755); err != nil {
+		t.Fatalf("mkdir cli-core fixture: %v", err)
+	}
+	sourceRoot := filepath.Join(repoRoot, "scenarios", "demo", "cli")
+	if err := os.MkdirAll(sourceRoot, 0o755); err != nil {
+		t.Fatalf("mkdir source fixture: %v", err)
+	}
+
+	var rebuilt bool
+	var reexecArgs []string
+	stale := &cliutil.StaleChecker{
+		AppName:          "demo",
+		BuildFingerprint: "installed-old",
+		BuildSourceRoot:  sourceRoot,
+		FingerprintFunc: func(cliutil.FreshnessSpec) (string, error) {
+			return "source-with-new-command", nil
+		},
+		LookPathFunc: func(string) (string, error) { return "/usr/bin/go", nil },
+		CommandRunner: func(*exec.Cmd) error {
+			rebuilt = true
+			return nil
+		},
+		Reexec: func(_ string, args []string) error {
+			reexecArgs = append([]string(nil), args...)
+			return nil
+		},
+	}
+	app := NewApp(AppOptions{
+		Name:         "demo",
+		Version:      "0.0.1",
+		ColorEnabled: DefaultColorEnabled(),
+		StaleChecker: stale,
+	})
+
+	if err := app.Run([]string{"new-command", "--json"}); err != nil {
+		t.Fatalf("stale unknown command should rebuild instead of failing: %v", err)
+	}
+	if !rebuilt {
+		t.Fatal("unknown command did not trigger the stale binary rebuild")
+	}
+	if got := strings.Join(reexecArgs, " "); got != "new-command --json" {
+		t.Fatalf("reexec args = %q, want original command", got)
+	}
+}
+
+func TestAppUnknownSubcommandChecksFreshnessBeforeReportingAbsence(t *testing.T) {
+	repoRoot := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(repoRoot, "packages", "cli-core"), 0o755); err != nil {
+		t.Fatalf("mkdir cli-core fixture: %v", err)
+	}
+	sourceRoot := filepath.Join(repoRoot, "scenarios", "demo", "cli")
+	if err := os.MkdirAll(sourceRoot, 0o755); err != nil {
+		t.Fatalf("mkdir source fixture: %v", err)
+	}
+
+	var reexecArgs []string
+	stale := &cliutil.StaleChecker{
+		AppName:          "demo",
+		BuildFingerprint: "installed-old",
+		BuildSourceRoot:  sourceRoot,
+		FingerprintFunc: func(cliutil.FreshnessSpec) (string, error) {
+			return "source-with-new-subcommand", nil
+		},
+		LookPathFunc:  func(string) (string, error) { return "/usr/bin/go", nil },
+		CommandRunner: func(*exec.Cmd) error { return nil },
+		Reexec: func(_ string, args []string) error {
+			reexecArgs = append([]string(nil), args...)
+			return nil
+		},
+	}
+	app := NewApp(AppOptions{
+		Name: "demo",
+		SubcommandGroups: []SubcommandGroup{{
+			Name: "events",
+			Subcommands: []Command{{
+				Name: "query",
+				Run:  func([]string) error { return nil },
+			}},
+		}},
+		StaleChecker: stale,
+	})
+
+	if err := app.Run([]string{"events", "aggregate"}); err != nil {
+		t.Fatalf("stale unknown subcommand should rebuild instead of failing: %v", err)
+	}
+	if got := strings.Join(reexecArgs, " "); got != "events aggregate" {
+		t.Fatalf("reexec args = %q, want original command", got)
 	}
 }
 

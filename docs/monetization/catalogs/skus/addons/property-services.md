@@ -1,8 +1,10 @@
 # Add-on: Property Services
 
+> Offer Desk is authoritative for this offer's lifecycle, parent
+> relationship, and revisit-trigger record. This document retains the
+> hypothesis, legal judgment, and activation questions.
+
 **SKU ID:** `property-services`
-**Status:** `candidate`
-**Parent bundles:** `business`
 **Revisit trigger:** *"Revisit when business bundle has ≥50 paying subscribers AND (≥3 distinct prospects explicitly request property-services tooling OR the opportunity-scout surfaces a pricing-validated lead-gen market opportunity)."*
 
 ## Hypothesis
@@ -17,9 +19,9 @@ Local service businesses — power washing, landscaping, house flipping, general
 
 A property-services add-on would package scenarios addressing these needs. Dual-purpose: attach to a business-bundle subscriber *or* serve as the backing tool for Vrooli's own [services-led revenue line](../../REVENUE_LINES.md).
 
-## Why this is a candidate, not active
+## Promotion constraints
 
-1. Business bundle has zero paying users today. Add-on work cannot precede base-bundle traction.
+1. The business bundle must have the required traction before this add-on can be promoted.
 2. Lead generation carries regulatory exposure (TCPA, CAN-SPAM, state-level telemarketing rules, GDPR if international). Needs a legal surface check before any services engagement ships, and a compliance-capable implementation before a subscription product ships.
 3. The specific scenarios this add-on would contain are not yet built; capability reuse is high (AI image generation, data collection, agent orchestration) but integration effort is real.
 
@@ -44,7 +46,7 @@ This add-on is one of the strongest candidates for the **services → subscripti
 
 See [REVENUE_LINES.md](../../REVENUE_LINES.md) for services-engagement discipline.
 
-## Things to track while candidate
+## Signals to monitor before promotion
 
 Not active work, but signals the team watches:
 

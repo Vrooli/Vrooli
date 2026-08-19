@@ -50,8 +50,8 @@ var (
 )
 
 const (
-	LocalSessionScheme = "LocalSession"
-	LocalSessionTTL    = 15 * time.Minute
+	LocalSessionScheme            = "LocalSession"
+	LocalSessionTTL               = 15 * time.Minute
 	IdentityProviderAuthenticator = "scenario-authenticator"
 )
 
@@ -159,10 +159,10 @@ const (
 
 type Diagnosis struct {
 	Kind     DiagnosisKind `json:"kind"`
-	Provider string         `json:"provider,omitempty"`
-	Mode     Mode           `json:"mode,omitempty"`
-	Reason   string         `json:"reason,omitempty"`
-	Recovery string         `json:"recovery,omitempty"`
+	Provider string        `json:"provider,omitempty"`
+	Mode     Mode          `json:"mode,omitempty"`
+	Reason   string        `json:"reason,omitempty"`
+	Recovery string        `json:"recovery,omitempty"`
 }
 
 func (d Diagnosis) Error() string {

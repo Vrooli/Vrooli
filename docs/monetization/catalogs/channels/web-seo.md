@@ -1,6 +1,9 @@
 # Channel: Web SEO + Landing Pages
 
-- **Status:** `active`
+> Offer Desk is authoritative for this channel's current status, owner, and
+> feed relationships. This document keeps the acquisition hypothesis and
+> operating judgment rather than a live channel snapshot.
+
 - **Audience:** humans (with structured-data side benefit for AI-crawler agents)
 - **Owner:** marketing-crew (positioning, content cadence) + landing-page-business-suite (LPBS) (deliverables)
 - **Feeds:** [`subscription`](../revenue-lines/subscription.md) primarily; secondary feed into services revenue lines via "talk to us" / "book a call" CTAs.
@@ -44,14 +47,12 @@ The structured-data side benefit (AEO — agentic engine optimization, llms.txt,
 - **Skill registries** — orthogonal. Different audience (agents vs humans). Some indirect lift if registry traffic discovers landing pages through skill metadata, but don't measure or optimize against this overlap.
 - **App stores** — separate funnel. Once Tier 1 ships, expect bidirectional drift: ASO and SEO compete for the same intent ("download Vrooli"). Disambiguate via landing pages that route to app stores OR self-host depending on user intent.
 
-## Phase posture
+## Lifecycle interpretation
 
-This channel is `active` and remains so. Phase work focuses on:
-
-- Per-bundle landing-page completeness (currently focused on business bundle)
-- Structured-data hygiene baseline (llms.txt, schema.org) on all production pages
-- Conversion-rate optimization once telemetry is live and stable
-- Long-form blog cadence as the SEO content engine
+Offer Desk records the channel lifecycle and its current feed relationships.
+Operational work focuses on per-bundle landing-page completeness,
+structured-data hygiene, conversion optimization once telemetry is stable, and
+long-form content cadence.
 
 No sunset condition planned; this channel persists through every phase of the company.
 

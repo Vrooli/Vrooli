@@ -1,7 +1,10 @@
 # Business Bundle
 
+> Offer Desk is authoritative for this offer's lifecycle, variants, members,
+> and trigger records. This document retains bundle positioning, dependency
+> rationale, and expansion judgment rather than a live catalog snapshot.
+
 **SKU ID:** `business`
-**Status:** `active`
 **Target audience:** Solo entrepreneurs, independent developers, and small teams running lean software/business operations.
 **Positioning:** A bundle that lets one person run a whole business — software development, project management, writing, finance, triage — as a single integrated ecosystem.
 
@@ -73,7 +76,7 @@ Within the bundle, `web-console` and `git-control-tower` ship as initial headlin
 
 ## Financial-planning overlap
 
-Financial-planning capability is expected to belong to both the business and lifestyle bundles once it exists. See [scenario-sku-map.json](../../scenario-sku-map.json) — the mapping is many-to-many by design.
+Financial-planning capability is expected to belong to both the business and lifestyle bundles once it exists. Offer Desk's `belongs_to` graph is many-to-many by design.
 
 ## Expansion hooks (for agent-driven in-bundle discovery)
 
@@ -81,20 +84,16 @@ Each depth-layer scenario, once shipped, becomes a candidate in-bundle expansion
 
 Do not default to email drips or in-app pop-ups for expansion in this bundle. Agents have better context.
 
-## Current status
+## Live posture
 
-| Metric | Value | Notes |
-|---|---|---|
-| Headliners shipped | 0 | `web-console` + `git-control-tower` in progress |
-| Paying subscribers | 0 | Pre-launch |
-| Depth-layer shipped | 0 | See individual scenarios |
-| Nearest ship | [pending-catalog-strategist] | |
-
-Status values are kept current by catalog-strategist's heartbeat. Numbers marked `[pending-...]` will be filled in once the team is enabled and running.
+Offer Desk exposes current headliner, depth-layer, membership, and lifecycle
+records at read time. Money Ledger exposes subscriber and revenue posture when
+those observations exist; this document intentionally carries no current
+counts.
 
 ## Candidate add-ons parented to this bundle
 
-- [property-services](../addons/property-services.md) — `candidate`
+- [property-services](../addons/property-services.md)
 
 ## Consumer products tied to this bundle
 
