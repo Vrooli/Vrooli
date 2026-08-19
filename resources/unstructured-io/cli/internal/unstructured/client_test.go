@@ -35,3 +35,23 @@ func TestRejectsUnsupportedFormat(t *testing.T) {
 		t.Fatal("expected error")
 	}
 }
+
+func TestReadinessChecksHealthAndPartition(t *testing.T) {
+	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == "/healthcheck":
+			w.WriteHeader(http.StatusOK)
+		case r.Method == http.MethodPost && r.URL.Path == "/general/v0/general":
+			if err := r.ParseMultipartForm(1024); err != nil {
+				t.Fatal(err)
+			}
+			w.Write([]byte(`[{"type":"NarrativeText","text":"probe"}]`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer s.Close()
+	if err := (Client{BaseURL: s.URL}).Readiness(context.Background()); err != nil {
+		t.Fatalf("Readiness: %v", err)
+	}
+}

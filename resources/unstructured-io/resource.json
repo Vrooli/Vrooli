@@ -112,14 +112,13 @@
           "support": "conditional",
           "mode": "docker-desktop",
           "architectures": [
-            "amd64",
-            "arm64"
+            "amd64"
           ],
           "requires": [
             "docker"
           ],
           "limitations": [
-            "Docker images, storage, and networking remain host-managed."
+            "Docker images, storage, and networking remain host-managed; the pinned image publishes linux/amd64 only and has no arm64 manifest."
           ],
           "evidence": [
             "manifest-validation",
@@ -130,14 +129,13 @@
           "support": "conditional",
           "mode": "docker-desktop",
           "architectures": [
-            "amd64",
-            "arm64"
+            "amd64"
           ],
           "requires": [
             "docker"
           ],
           "limitations": [
-            "Docker Desktop must be installed and running."
+            "Docker Desktop must be installed and running; the pinned image publishes linux/amd64 only and has no arm64 manifest."
           ],
           "evidence": [
             "manifest-validation",
@@ -148,14 +146,13 @@
           "support": "conditional",
           "mode": "docker-desktop",
           "architectures": [
-            "amd64",
-            "arm64"
+            "amd64"
           ],
           "requires": [
             "docker"
           ],
           "limitations": [
-            "Docker Desktop must be installed and running."
+            "Docker Desktop must be installed and running; the pinned image publishes linux/amd64 only and has no arm64 manifest."
           ],
           "evidence": [
             "manifest-validation",
@@ -167,19 +164,19 @@
   },
   "category": "ai",
   "requirements": {
-    "ram_mb": 4096,
-    "disk_mb": 8192,
+    "ram_mb": 1536,
+    "disk_mb": 10000,
     "cpu_cores": 2,
     "network": "required",
     "bucket": "large",
-    "source": "estimated",
-    "confidence": "low",
+    "source": "measured",
+    "confidence": "high",
     "class": "ai",
     "weight": 3
   },
   "platforms": {
     "linux": "supported",
-    "macos": "supported",
+    "macos": "partial",
     "windows": "partial"
   },
   "ports": [
@@ -191,9 +188,12 @@
   ],
   "health_checks": [
     {
-      "type": "http",
+      "type": "command",
       "kind": "readiness",
-      "target": "http://127.0.0.1:11450/healthcheck",
+      "command": [
+        "resource-unstructured-io",
+        "health"
+      ],
       "interval_seconds": 10,
       "timeout_seconds": 10
     }

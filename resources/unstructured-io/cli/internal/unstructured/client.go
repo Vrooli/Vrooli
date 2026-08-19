@@ -33,6 +33,13 @@ func (c Client) client() *http.Client {
 }
 
 func (c Client) Health(ctx context.Context) error {
+	return c.Readiness(ctx)
+}
+
+// Readiness verifies both the service liveness endpoint and the primary
+// partition capability. A running API that cannot load its partitioning
+// stack must not be reported healthy to the resource control plane.
+func (c Client) Readiness(ctx context.Context) error {
 	req, e := http.NewRequestWithContext(ctx, http.MethodGet, strings.TrimRight(c.BaseURL, "/")+"/healthcheck", nil)
 	if e != nil {
 		return e
@@ -44,6 +51,22 @@ func (c Client) Health(ctx context.Context) error {
 	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return fmt.Errorf("Unstructured health returned HTTP %d", resp.StatusCode)
+	}
+	fixture, e := os.CreateTemp("", "vrooli-unstructured-readiness-*.txt")
+	if e != nil {
+		return fmt.Errorf("create readiness fixture: %w", e)
+	}
+	path := fixture.Name()
+	defer os.Remove(path)
+	if _, e = fixture.WriteString("unstructured readiness probe\n"); e != nil {
+		_ = fixture.Close()
+		return fmt.Errorf("write readiness fixture: %w", e)
+	}
+	if e = fixture.Close(); e != nil {
+		return fmt.Errorf("close readiness fixture: %w", e)
+	}
+	if _, e = c.Process(ctx, path); e != nil {
+		return fmt.Errorf("Unstructured readiness parse failed: %w", e)
 	}
 	return nil
 }

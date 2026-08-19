@@ -7,7 +7,8 @@ Managed Unstructured API runtime for document partitioning and extraction workfl
 - Resource ID: `unstructured-io`
 - Category: `ai`
 - Driver: `docker-service`
-- Portability tier: `full`
+- Host requirement: Docker/Docker Desktop with Linux containers
+- Runtime image: pinned `linux/amd64` only
 
 ## Use Cases
 
@@ -17,7 +18,12 @@ Managed Unstructured API runtime for document partitioning and extraction workfl
 
 ## Architecture
 
-This resource uses the updated `docker-service` structure.
+This resource uses the `docker-service` structure. The pinned image is
+approximately 9.81 GB and publishes only a Linux amd64 manifest. Linux amd64
+is the validated host path; macOS amd64 and Windows amd64 remain conditional
+Docker Desktop routes. Arm64 is not claimed because the image has no arm64
+manifest. A portability tier is intentionally not authored here; it is a
+derived deployability verdict.
 
 - `resource.json` is the declarative authority for lifecycle, runtime, ports, exports, health, and freshness metadata.
 - `cli/` is the thin binary entrypoint and delegated command wiring surface.
@@ -58,11 +64,18 @@ Default endpoint:
 
 - API: `http://localhost:11450`
 
-## Notes
+## Readiness and operations
 
 - Keep `cli/main.go` thin. Do not treat it as the implementation surface for document processing workflows.
 - Keep runtime storage rooted in `${RESOURCE_*_DIR}` paths rather than repo-local mutable directories.
 - Resource-local shell workflows are retired. Use the typed CLI or the shared resource control plane.
+- `resource-unstructured-io health` is the readiness probe. It calls the
+  service health endpoint and completes a small text partition request, so a
+  running container that cannot serve the primary capability is unhealthy.
+- The measured host run used 1.373 GiB (~1,404 MiB) resident memory during a
+  `hi_res` scan parse, 6.12 seconds wall-clock, and a 9.81 GB image pull. The
+  manifest rounds that observation to a 1,536 MiB requirement and keeps two
+  CPU cores as the measured operating requirement.
 - Use [docs/OPERATIONS.md](/home/matthalloran8/Vrooli/resources/unstructured-io/docs/OPERATIONS.md) as the architecture boundary for future migrations.
 ## Maturity
 
